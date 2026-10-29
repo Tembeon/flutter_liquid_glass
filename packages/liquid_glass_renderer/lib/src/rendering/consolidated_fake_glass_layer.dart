@@ -296,7 +296,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
           final shapeToLayer = shape.shapeToGeometry == null
               ? transform
               : transform.multiplied(shape.shapeToGeometry!);
-          final shapeBounds = Offset.zero & shape.renderObject.size;
+          final shapeBounds = Offset.zero & shape.renderObject.paintSize;
           final transformedBounds = MatrixUtils.transformRect(
             shapeToLayer,
             shapeBounds,
@@ -423,7 +423,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
         paintFakeGlassSurface(
           canvas,
           shader: shader,
-          size: shape.renderObject.size,
+          size: shape.renderObject.paintSize,
           shape: shape.shape,
           settings: settings,
           appearance: shape.appearance,
@@ -433,7 +433,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
           paintFakeGlassSurface(
             canvas,
             shader: shader,
-            size: shape.renderObject.size,
+            size: shape.renderObject.paintSize,
             shape: shape.shape,
             settings: settings,
             appearance: shape.appearance,
@@ -487,7 +487,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
         final shapeToLayer = shape.shapeToGeometry == null
             ? geometryToLayer
             : geometryToLayer.multiplied(shape.shapeToGeometry!);
-        final shapeBounds = Offset.zero & renderObject.size;
+        final shapeBounds = Offset.zero & renderObject.paintSize;
         final clipBounds = MatrixUtils.transformRect(shapeToLayer, shapeBounds);
         final sigma = settings.frostSigmaAt(
           devicePixelRatio,

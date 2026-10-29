@@ -343,7 +343,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
 
     final blendGroupRect = MatrixUtils.transformRect(
       transformToGeometry,
-      Offset.zero & renderObject.size,
+      Offset.zero & renderObject.paintSize,
     );
 
     return ShapeGeometry(
