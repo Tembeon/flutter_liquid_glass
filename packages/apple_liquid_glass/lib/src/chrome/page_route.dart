@@ -52,12 +52,21 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
   final _fades = ValueNotifier<bool>(false);
   _SlideState? _slide;
 
+  // The motion time of the push or pop call that presented the page.
+  double _presented = 0;
+
   // The page above this one, whose progress moves and dims this one.
   final _cover = ValueNotifier<GlassPageRoute<Object?>?>(null);
   GlassPageRoute<Object?>? _below;
 
   @override
   bool get maintainState => true;
+
+  @override
+  void didPresent() {
+    super.didPresent();
+    _presented = MotionClock.instance.now;
+  }
 
   @override
   bool get opaque => true;
@@ -161,7 +170,16 @@ class _SlideState extends State<_Slide> implements MotionDriver {
       return;
     }
     SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _opening) _move(to: 1);
+      if (!mounted || !_opening) return;
+      final clock = MotionClock.instance;
+      _move(
+        to: 1,
+        at: transitionOrigin(
+          call: route._presented,
+          firstFrame: clock.now,
+          framePeriod: clock.framePeriod,
+        ),
+      );
     });
   }
 
@@ -176,8 +194,8 @@ class _SlideState extends State<_Slide> implements MotionDriver {
 
   // A push or pop without a finger: a slide that leaves at full speed, or
   // a cross-fade under Reduce Motion.
-  void _move({required double to}) {
-    final t = _now;
+  void _move({required double to, double? at}) {
+    final t = at ?? _now;
     if (_reduceMotion) {
       route._fades.value = true;
       _fadeStart = t;
@@ -288,35 +306,32 @@ class _SlideState extends State<_Slide> implements MotionDriver {
     MotionClock.instance.wake(this);
   }
 
+  // The page builds in the build phase, never under a LayoutBuilder: what
+  // it declares to the shared bar is in place before any layout.
   @override
   Widget build(BuildContext context) {
     final rtl = Directionality.of(context) == TextDirection.rtl;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        _width = constraints.maxWidth;
-        _input.width = _width;
-        _input.rtl = rtl;
-        return InputRegion(
-          interactions: _interactions,
-          child: _Card(
-            presence: _presence,
-            fades: route._fades,
-            radius: _cardRadius(context),
-            rtl: rtl,
-            child: ValueListenableBuilder(
-              valueListenable: route._cover,
-              builder: (context, cover, child) => cover == null
-                  ? child!
-                  : _Underneath(
-                      presence: cover._presence,
-                      fades: cover._fades,
-                      child: child,
-                    ),
-              child: RepaintBoundary(child: widget.child),
-            ),
-          ),
-        );
-      },
+    _width = MediaQuery.sizeOf(context).width;
+    _input.rtl = rtl;
+    return InputRegion(
+      interactions: _interactions,
+      child: _Card(
+        presence: _presence,
+        fades: route._fades,
+        radius: _cardRadius(context),
+        rtl: rtl,
+        child: ValueListenableBuilder(
+          valueListenable: route._cover,
+          builder: (context, cover, child) => cover == null
+              ? child!
+              : _Underneath(
+                  presence: cover._presence,
+                  fades: cover._fades,
+                  child: child,
+                ),
+          child: RepaintBoundary(child: widget.child),
+        ),
+      ),
     );
   }
 }
@@ -337,7 +352,7 @@ final class _SwipePop extends Interaction {
   _SwipePop(this._slide) : super(role: InteractionRole.gesture);
 
   final _SlideState _slide;
-  double width = 400;
+  double _width = 400;
   bool rtl = false;
   int? _pointer;
   Offset _start = Offset.zero;
@@ -358,12 +373,13 @@ final class _SwipePop extends Interaction {
   InteractionUpdate handle(InteractionInput input) {
     switch (input) {
       case PointerDownInput() when _pointer == null && accepts(input):
+        _width = input.regionSize.width;
         _pointer = input.pointer;
         _start = input.position;
-        final x = rtl ? width - input.position.dx : input.position.dx;
-        _fromEdge = x <= width * NavigationTuning.edgeShare;
+        final x = rtl ? _width - input.position.dx : input.position.dx;
+        _fromEdge = x <= _width * NavigationTuning.edgeShare;
         _dragging = false;
-        _predictor = NavigationPopMotion(width);
+        _predictor = NavigationPopMotion(_width);
         _predictor.addPosition(input.time, _along(input.position));
       case PointerMoveInput() when input.pointer == _pointer:
         final along = _along(input.position);
@@ -388,7 +404,7 @@ final class _SwipePop extends Interaction {
           predictor.begin(input.time);
           return const InteractionUpdate(recognizes: true);
         }
-        final progress = travel / width;
+        final progress = travel / _width;
         _slide._dragged(progress);
         predictor.update(input.time, progress);
       case PointerUpInput() when input.pointer == _pointer:
@@ -396,7 +412,7 @@ final class _SwipePop extends Interaction {
         if (!_dragging) return const InteractionUpdate(fails: true);
         _dragging = false;
         final predictor = _predictor;
-        final progress = (_along(input.position) - _along(_start)) / width;
+        final progress = (_along(input.position) - _along(_start)) / _width;
         predictor.update(input.time, progress, ending: true);
         _slide._released(
           pops: predictor.shouldPop(progress),
