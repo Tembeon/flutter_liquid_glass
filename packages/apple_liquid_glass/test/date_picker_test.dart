@@ -538,7 +538,7 @@ void main() {
                 .ancestor(
                   of: find.text('October 2026'),
                   matching: find.byWidgetPredicate(
-                    (w) => w.runtimeType.toString() == '_LiveFade',
+                    (w) => w.runtimeType.toString() == 'LiveFade',
                   ),
                 )
                 .first,

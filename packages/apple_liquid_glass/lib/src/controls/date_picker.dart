@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motion/date_picker_motion.dart';
+import 'package:apple_liquid_glass/src/motion/live.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
@@ -742,7 +743,7 @@ class _CompactLabelState extends State<_CompactLabel>
               child: Center(
                 widthFactor: 1,
                 heightFactor: 1,
-                child: _LiveFadedText(
+                child: LiveFadedText(
                   widget.text,
                   live: frames,
                   opacityOf: () => widget.enabled ? _motion.highlight : 1,
@@ -1300,11 +1301,11 @@ class _OverlayViewState extends State<_OverlayView>
     return Positioned.fill(
       child: IgnorePointer(
         ignoring: _leaving,
-        child: _LiveTransform(
+        child: LiveTransform(
           live: _boxFrames,
           matrixOf: () => frame().transform,
           alignment: null,
-          child: _LivePlacement(
+          child: LivePlacement(
             live: _boxFrames,
             rectOf: () => frame().box,
             child: Stack(
@@ -1328,7 +1329,7 @@ class _OverlayViewState extends State<_OverlayView>
                     // opacity above it change every frame; its text is
                     // drawn through the glyph policy, below the clip so a
                     // reclip keeps the raster.
-                    child: _LiveFade(
+                    child: LiveFade(
                       live: frames,
                       opacityOf: () => frame().opacity,
                       child: RepaintBoundary(child: child),
@@ -1655,7 +1656,7 @@ class _Calendar extends StatelessWidget {
                                     const SizedBox(
                                       width: _CalendarMetrics.titleChevronGap,
                                     ),
-                                    _LiveTransform(
+                                    LiveTransform(
                                       live: frames,
                                       matrixOf: () => _rotationZ(
                                         (rtl ? -1 : 1) *
@@ -1791,7 +1792,7 @@ class _Calendar extends StatelessWidget {
                                               left: 0,
                                               top: 0,
                                               width: grid,
-                                              child: _LiveShift(
+                                              child: LiveShift(
                                                 live: frames,
                                                 offsetOf: () => Offset(
                                                   -dir() * grid * p(),
@@ -1805,7 +1806,7 @@ class _Calendar extends StatelessWidget {
                                             left: 0,
                                             top: 0,
                                             width: grid,
-                                            child: _LiveShift(
+                                            child: LiveShift(
                                               live: frames,
                                               offsetOf: () {
                                                 final q = p();
@@ -3163,267 +3164,6 @@ mixin _Clocked<T extends StatefulWidget> on State<T> implements MotionDriver {
     _frames.dispose();
     super.dispose();
   }
-}
-
-/// A render object that reads its parameters again on every notification
-/// of a listenable.
-mixin _LiveBinding on RenderObject {
-  Listenable? _live;
-  VoidCallback? _update;
-
-  void bindLive(Listenable? live, VoidCallback update) {
-    if (attached && !identical(live, _live)) {
-      _live?.removeListener(_changed);
-      live?.addListener(_changed);
-    }
-    _live = live;
-    _update = update;
-    update();
-  }
-
-  void _changed() => _update?.call();
-
-  @override
-  void attach(PipelineOwner owner) {
-    super.attach(owner);
-    _live?.addListener(_changed);
-    _update?.call();
-  }
-
-  @override
-  void detach() {
-    _live?.removeListener(_changed);
-    super.detach();
-  }
-}
-
-/// Transforms its child by [matrixOf], read again on every notification of
-/// [live].
-class _LiveTransform extends SingleChildRenderObjectWidget {
-  const _LiveTransform({
-    required this.live,
-    required this.matrixOf,
-    this.alignment = Alignment.center,
-    super.child,
-  });
-
-  final Listenable live;
-  final Matrix4 Function() matrixOf;
-  final AlignmentGeometry? alignment;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) {
-    final box = _RenderLiveTransform(
-      alignment: alignment,
-      textDirection: Directionality.maybeOf(context),
-    );
-    box.bindLive(live, () => box.transform = matrixOf());
-    return box;
-  }
-
-  @override
-  void updateRenderObject(BuildContext context, RenderObject renderObject) {
-    final box = renderObject as _RenderLiveTransform;
-    box.alignment = alignment;
-    box.textDirection = Directionality.maybeOf(context);
-    box.bindLive(live, () => box.transform = matrixOf());
-  }
-}
-
-class _RenderLiveTransform extends RenderTransform with _LiveBinding {
-  _RenderLiveTransform({super.alignment, super.textDirection})
-    : super(transform: Matrix4.identity());
-}
-
-/// Lays its child out at the size of [rectOf] and places it at its
-/// origin, read again on every notification of [live]: a moving rect
-/// repaints, a resized one lays out again.
-class _LivePlacement extends SingleChildRenderObjectWidget {
-  const _LivePlacement({
-    required this.live,
-    required this.rectOf,
-    super.child,
-  });
-
-  final Listenable live;
-  final Rect Function() rectOf;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) {
-    final box = _RenderLivePlacement(rectOf());
-    box.bindLive(live, () => box.rect = rectOf());
-    return box;
-  }
-
-  @override
-  void updateRenderObject(BuildContext context, RenderObject renderObject) {
-    final box = renderObject as _RenderLivePlacement;
-    box.bindLive(live, () => box.rect = rectOf());
-  }
-}
-
-class _RenderLivePlacement extends RenderProxyBox with _LiveBinding {
-  _RenderLivePlacement(this._rect);
-
-  Rect _rect;
-  Rect get rect => _rect;
-  set rect(Rect value) {
-    if (value == _rect) return;
-    final resized = value.size != _rect.size;
-    _rect = value;
-    if (resized) {
-      markNeedsLayout();
-    } else {
-      markNeedsPaint();
-    }
-  }
-
-  @override
-  void performLayout() {
-    child?.layout(
-      BoxConstraints.tightFor(width: _rect.width, height: _rect.height),
-    );
-    size = constraints.biggest;
-  }
-
-  @override
-  void paint(PaintingContext context, Offset offset) {
-    final child = this.child;
-    if (child != null) context.paintChild(child, _rect.topLeft + offset);
-  }
-
-  @override
-  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
-    final child = this.child;
-    if (child == null) return false;
-    return result.addWithPaintOffset(
-      offset: _rect.topLeft,
-      position: position,
-      hitTest: (result, position) => child.hitTest(result, position: position),
-    );
-  }
-
-  @override
-  void applyPaintTransform(RenderBox child, Matrix4 transform) {
-    transform.translateByDouble(_rect.left, _rect.top, 0, 1);
-  }
-}
-
-/// Shifts its child by [offsetOf] at paint, read again on every
-/// notification of [live].
-class _LiveShift extends SingleChildRenderObjectWidget {
-  const _LiveShift({required this.live, required this.offsetOf, super.child});
-
-  final Listenable live;
-  final Offset Function() offsetOf;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) {
-    final box = _RenderLiveShift(offsetOf());
-    box.bindLive(live, () => box.shift = offsetOf());
-    return box;
-  }
-
-  @override
-  void updateRenderObject(BuildContext context, RenderObject renderObject) {
-    final box = renderObject as _RenderLiveShift;
-    box.bindLive(live, () => box.shift = offsetOf());
-  }
-}
-
-class _RenderLiveShift extends RenderProxyBox with _LiveBinding {
-  _RenderLiveShift(this._shift);
-
-  Offset _shift;
-  Offset get shift => _shift;
-  set shift(Offset value) {
-    if (value == _shift) return;
-    _shift = value;
-    markNeedsPaint();
-  }
-
-  @override
-  void paint(PaintingContext context, Offset offset) {
-    final child = this.child;
-    if (child != null) context.paintChild(child, offset + _shift);
-  }
-
-  @override
-  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
-    final child = this.child;
-    if (child == null) return false;
-    return result.addWithPaintOffset(
-      offset: _shift,
-      position: position,
-      hitTest: (result, position) => child.hitTest(result, position: position),
-    );
-  }
-
-  @override
-  void applyPaintTransform(RenderBox child, Matrix4 transform) {
-    transform.translateByDouble(_shift.dx, _shift.dy, 0, 1);
-  }
-}
-
-/// Fades its child to [opacityOf], read again on every notification of
-/// [live].
-class _LiveFade extends SingleChildRenderObjectWidget {
-  const _LiveFade({required this.live, required this.opacityOf, super.child});
-
-  final Listenable live;
-  final double Function() opacityOf;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) {
-    final box = _RenderLiveFade();
-    box.bindLive(live, () => box.opacity = opacityOf().clamp(0.0, 1.0));
-    return box;
-  }
-
-  @override
-  void updateRenderObject(BuildContext context, RenderObject renderObject) {
-    final box = renderObject as _RenderLiveFade;
-    box.bindLive(live, () => box.opacity = opacityOf().clamp(0.0, 1.0));
-  }
-}
-
-class _RenderLiveFade extends RenderOpacity with _LiveBinding {}
-
-/// A line of text whose color's alpha follows [opacityOf], read again on
-/// every notification of [live]: a label dims without an opacity layer.
-class _LiveFadedText extends StatelessWidget {
-  const _LiveFadedText(
-    this.text, {
-    required this.live,
-    required this.opacityOf,
-    required this.style,
-    this.maxLines,
-    this.textScaler,
-  });
-
-  final String text;
-  final Listenable live;
-  final double Function() opacityOf;
-  final TextStyle style;
-  final int? maxLines;
-  final TextScaler? textScaler;
-
-  @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: live,
-    builder: (context, _) {
-      final color = style.color;
-      final opacity = opacityOf().clamp(0.0, 1.0);
-      return Text(
-        text,
-        maxLines: maxLines,
-        textScaler: textScaler,
-        style: color == null || opacity >= 1
-            ? style
-            : style.copyWith(color: color.withValues(alpha: color.a * opacity)),
-      );
-    },
-  );
 }
 
 /// The overlay's glass, faded to [opacityOf], read again on every
