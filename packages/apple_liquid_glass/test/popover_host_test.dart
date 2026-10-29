@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/motion/popover_motion.dart';
@@ -102,6 +103,6 @@ void main() {
       expect(arrow[1], greaterThan(150), reason: 'the arrow: $arrow');
       expect(beside[1], lessThan(20), reason: 'beside the arrow: $beside');
       expect(below[1], lessThan(20), reason: 'below the tip: $below');
-    });
+    }, skip: shaded && !ui.ImageFilter.isShaderFilterSupported);
   }
 }
