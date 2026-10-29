@@ -18,6 +18,7 @@ export 'src/rubber_band.dart';
 export 'src/screen/driven.dart';
 export 'src/screen/input_region.dart';
 export 'src/screen/layout.dart';
+export 'src/screen/scroll_observer.dart';
 export 'src/screen/transition.dart' show MotionTransition;
 export 'src/spring.dart';
 export 'src/timeline.dart';
