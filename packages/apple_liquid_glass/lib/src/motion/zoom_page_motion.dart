@@ -389,6 +389,14 @@ class ZoomPageMotion {
     if (t > _now) _now = t;
   }
 
+  /// Lands a settled motion exactly on its targets, so a page at rest
+  /// fills the screen to the pixel.
+  void settle() {
+    for (final value in [_cx, _cy, _w, _h, _fade, _dim]) {
+      value.snap(_now, value.target);
+    }
+  }
+
   /// The container's frame.
   Rect get rect => _rectAt(_now);
 
