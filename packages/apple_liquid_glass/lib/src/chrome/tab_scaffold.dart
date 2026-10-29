@@ -77,7 +77,10 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     _built.removeWhere((index) => index >= count);
     final bottom = math.max(
       media.padding.bottom,
-      GlassTabScaffold.inset + GlassTabBar.height,
+      GlassTabScaffold.inset +
+          GlassTabBar.groupHeight(
+            accessory: widget.tabBar.bottomAccessory != null,
+          ),
     );
     final background = GlassDynamicColor.resolve(
       widget.backgroundColor ?? GlassColors.systemBackground,

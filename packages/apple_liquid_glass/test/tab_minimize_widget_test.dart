@@ -5,10 +5,19 @@ import 'package:kinesis/kinesis.dart';
 
 const _frame = Duration(milliseconds: 16);
 
+class _Placement extends StatelessWidget {
+  const _Placement();
+
+  @override
+  Widget build(BuildContext context) =>
+      Text(GlassTabBar.accessoryPlacementOf(context).name);
+}
+
 Widget _app({
   required GlassTabBarMinimizeBehavior behavior,
   ScrollController? controller,
   int rows = 60,
+  Widget? accessory,
 }) => MediaQuery(
   data: const MediaQueryData(
     size: Size(402, 874),
@@ -22,6 +31,7 @@ Widget _app({
       child: GlassTabScaffold(
         tabBar: GlassTabBar(
           minimizeBehavior: behavior,
+          bottomAccessory: accessory,
           destinations: const [
             GlassTabDestination(
               icon: SizedBox.square(dimension: 24),
@@ -44,7 +54,8 @@ Widget _app({
             child: ListView(
               controller: controller,
               children: [
-                for (var r = 0; r < rows; r++) const SizedBox(height: 50),
+                for (var r = 0; r < rows; r++)
+                  SizedBox(key: ValueKey(r), height: 50),
               ],
             ),
           ),
@@ -159,5 +170,40 @@ void main() {
     controller.jumpTo(0);
     await _settle(tester);
     expect(_expanded(tester), isTrue);
+  });
+
+  testWidgets('an accessory stands above the bar and beside the circle '
+      'once the bar has minimized', (tester) async {
+    await _phone(tester);
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      _app(
+        behavior: GlassTabBarMinimizeBehavior.onScrollDown,
+        controller: controller,
+        accessory: const SizedBox.expand(
+          key: Key('accessory'),
+          child: _Placement(),
+        ),
+      ),
+    );
+    await tester.pump();
+    final expanded = tester.getRect(find.byKey(const Key('accessory')));
+    expect(expanded, const Rect.fromLTWH(21, 874 - 21 - 62 - 8 - 48, 360, 48));
+    expect(find.text('expanded'), findsOneWidget);
+    for (var i = 0; i < 3; i++) {
+      controller.jumpTo(controller.position.maxScrollExtent);
+      await tester.pump();
+    }
+    final bottom = tester.getBottomLeft(find.byKey(const ValueKey(59))).dy;
+    expect(bottom, closeTo(874 - 21 - 62 - 8 - 48, 0.5));
+    controller.jumpTo(0);
+    await tester.pump();
+    await _dragUp(tester, 200);
+    expect(find.text('inline'), findsOneWidget);
+    final inline = tester.getRect(find.byKey(const Key('accessory')));
+    expect(inline.left, closeTo(21 + 7 + 48 + 8, 0.5));
+    expect(inline.right, closeTo(402 - 21 - 7, 0.5));
+    expect(inline.top, closeTo(874 - 21 - 62 + 7, 0.5));
   });
 }

@@ -157,6 +157,18 @@ class GlassTabBarStyle {
   );
 }
 
+/// Where a tab bar's bottom accessory stands.
+///
+/// UIKit: `UITabAccessory.Environment`. SwiftUI:
+/// `TabViewBottomAccessoryPlacement`.
+enum GlassTabAccessoryPlacement {
+  /// Above the expanded bar, across the bar group.
+  expanded,
+
+  /// Beside the minimized bar's circle.
+  inline,
+}
+
 /// An iOS 27 tab bar.
 ///
 /// UIKit: `UITabBar`. SwiftUI: `TabView`. Flutter: `NavigationBar`,
@@ -181,6 +193,12 @@ class GlassTabBarStyle {
 /// expands it. A finger held on the circle does not yet expand the bar
 /// under it, and a drag from the circle does not yet become the bar's
 /// selection drag, as they do in UIKit. Put it in a `GlassTabScaffold`.
+///
+/// A [bottomAccessory], a mini player say, stands on its own glass 48
+/// points tall, 8 points above the bar across the bar group, and beside
+/// the circle while the bar is minimized; [accessoryPlacementOf] tells its
+/// content which, flipping once the glass has arrived inline and as soon
+/// as it leaves. Its height and spacings are not measured.
 class GlassTabBar extends StatelessWidget {
   /// Creates a tab bar showing [selectedIndex] selected.
   const GlassTabBar({
@@ -193,6 +211,7 @@ class GlassTabBar extends StatelessWidget {
     this.autofocus = false,
     this.semanticLabel,
     this.minimizeBehavior = GlassTabBarMinimizeBehavior.automatic,
+    this.bottomAccessory,
     super.key,
   });
 
@@ -225,6 +244,27 @@ class GlassTabBar extends StatelessWidget {
   /// [GlassTabBarMinimizeBehavior.automatic] does not minimize, as an
   /// iPhone tab bar that does not opt in.
   final GlassTabBarMinimizeBehavior minimizeBehavior;
+
+  /// The content of the glass accessory above the bar (UIKit
+  /// `bottomAccessory`, SwiftUI `tabViewBottomAccessory`), or null.
+  final Widget? bottomAccessory;
+
+  /// Where the bottom accessory around [context] stands.
+  static GlassTabAccessoryPlacement accessoryPlacementOf(
+    BuildContext context,
+  ) =>
+      context
+          .dependOnInheritedWidgetOfExactType<_AccessoryScope>()
+          ?.placement ??
+      GlassTabAccessoryPlacement.expanded;
+
+  /// The height of the bar group: the bar and, with [accessory], the
+  /// accessory above it.
+  static double groupHeight({required bool accessory}) =>
+      height +
+      (accessory
+          ? TabBarMinimizeTuning.spacing + TabBarMinimizeTuning.accessoryHeight
+          : 0);
 
   /// The height of the bar (tab bar passport).
   static const double height = 62;
@@ -325,9 +365,11 @@ class GlassTabBar extends StatelessWidget {
           themed?.builder ??
           (context, details) => _TabBarLook(details: details, look: look),
     );
-    if (!minimizeBehavior.minimizes) return bar;
+    final accessory = bottomAccessory;
+    if (!minimizeBehavior.minimizes && accessory == null) return bar;
     return _MinimizingBar(
       behavior: minimizeBehavior,
+      accessory: accessory,
       destinations: destinations,
       selectedIndex: destinations.isEmpty
           ? -1
@@ -516,6 +558,7 @@ final class _MinimizeBody implements MotionDriver {
 class _MinimizingBar extends StatefulWidget {
   const _MinimizingBar({
     required this.behavior,
+    required this.accessory,
     required this.destinations,
     required this.selectedIndex,
     required this.look,
@@ -523,6 +566,7 @@ class _MinimizingBar extends StatefulWidget {
   });
 
   final GlassTabBarMinimizeBehavior behavior;
+  final Widget? accessory;
   final List<GlassTabDestination> destinations;
   final int selectedIndex;
   final GlassTabBarStyle look;
@@ -599,6 +643,10 @@ class _MinimizingBarState extends State<_MinimizingBar> {
     final offset = metrics.pixels;
     final min = metrics.minScrollExtent;
     final max = metrics.maxScrollExtent;
+    if (!_body.motion.behavior.minimizes) {
+      away.last = offset;
+      return;
+    }
     _body.input((t) {
       if (phase == MotionScrollPhase.dragging &&
           previous != MotionScrollPhase.dragging) {
@@ -640,7 +688,9 @@ class _MinimizingBarState extends State<_MinimizingBar> {
           ? constraints.maxWidth
           : _barSize.width;
       _body.width = width;
-      return SizedBox(
+      final accessory = widget.accessory;
+      final rtl = Directionality.of(context) == TextDirection.rtl;
+      final bar = SizedBox(
         width: width,
         height: GlassTabBar.height,
         child: ValueListenableBuilder<bool>(
@@ -664,14 +714,173 @@ class _MinimizingBarState extends State<_MinimizingBar> {
                     destinations: widget.destinations,
                     selectedIndex: widget.selectedIndex,
                     look: widget.look,
-                    rtl: Directionality.of(context) == TextDirection.rtl,
+                    rtl: rtl,
                     onExpand: _expand,
                   ),
                 ),
         ),
       );
+      if (accessory == null) return bar;
+      return SizedBox(
+        width: width,
+        height: GlassTabBar.groupHeight(accessory: true),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: _Accessory(
+                body: _body,
+                width: width,
+                rtl: rtl,
+                look: widget.look,
+                child: accessory,
+              ),
+            ),
+            Positioned(left: 0, right: 0, bottom: 0, child: bar),
+          ],
+        ),
+      );
     },
   );
+}
+
+class _AccessoryScope extends InheritedWidget {
+  const _AccessoryScope({required this.placement, required super.child});
+
+  final GlassTabAccessoryPlacement placement;
+
+  @override
+  bool updateShouldNotify(_AccessoryScope oldWidget) =>
+      placement != oldWidget.placement;
+}
+
+/// The bottom accessory: its glass goes from above the bar to beside the
+/// circle with the bar's glass, and its content stands in either place,
+/// moving once the glass has arrived inline and as soon as it leaves.
+class _Accessory extends StatefulWidget {
+  const _Accessory({
+    required this.body,
+    required this.width,
+    required this.rtl,
+    required this.look,
+    required this.child,
+  });
+
+  final _MinimizeBody body;
+  final double width;
+  final bool rtl;
+  final GlassTabBarStyle look;
+  final Widget child;
+
+  @override
+  State<_Accessory> createState() => _AccessoryState();
+}
+
+class _AccessoryState extends State<_Accessory> {
+  final _frame = ValueNotifier(const GlassFrame());
+  final _placement = ValueNotifier(GlassTabAccessoryPlacement.expanded);
+
+  @override
+  void initState() {
+    super.initState();
+    widget.body.shape.addListener(_moved);
+    _moved();
+  }
+
+  @override
+  void didUpdateWidget(_Accessory oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _moved();
+  }
+
+  @override
+  void dispose() {
+    widget.body.shape.removeListener(_moved);
+    _frame.dispose();
+    _placement.dispose();
+    super.dispose();
+  }
+
+  Rect _mirror(Rect rect) => widget.rtl
+      ? Rect.fromLTRB(
+          widget.width - rect.right,
+          rect.top,
+          widget.width - rect.left,
+          rect.bottom,
+        )
+      : rect;
+
+  Rect get _expanded => Rect.fromLTWH(
+    0,
+    0,
+    widget.width,
+    TabBarMinimizeTuning.accessoryHeight,
+  );
+
+  Rect get _inline {
+    const inset = TabBarMinimizeTuning.collapsedInset;
+    const size = TabBarMinimizeTuning.collapsedSize;
+    const gap = TabBarMinimizeTuning.spacing;
+    const top =
+        TabBarMinimizeTuning.spacing +
+        TabBarMinimizeTuning.accessoryHeight +
+        inset;
+    return _mirror(
+      Rect.fromLTRB(
+        inset + size + gap,
+        top,
+        widget.width - inset,
+        top + TabBarMinimizeTuning.accessoryHeight,
+      ),
+    );
+  }
+
+  void _moved() {
+    final shape = widget.body.shape.value.clamp(0.0, 1.0);
+    _frame.value = GlassFrame(rect: Rect.lerp(_expanded, _inline, shape));
+    _placement.value = shape >= 0.999
+        ? GlassTabAccessoryPlacement.inline
+        : GlassTabAccessoryPlacement.expanded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final background = widget.look.backgroundColor?.resolve(const {});
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: GlassSurface.live(
+            role: GlassRole.bar,
+            glass: Glass.regular(
+              tint: background == null
+                  ? null
+                  : GlassDynamicColor.resolve(background, context),
+            ),
+            frame: _frame,
+            child: const SizedBox.expand(),
+          ),
+        ),
+        Positioned.fill(
+          child: ClipPath(
+            clipper: _CapsuleClip(_frame),
+            child: ValueListenableBuilder<GlassTabAccessoryPlacement>(
+              valueListenable: _placement,
+              builder: (context, placement, child) => Stack(
+                children: [
+                  Positioned.fromRect(
+                    rect: placement == GlassTabAccessoryPlacement.inline
+                        ? _inline
+                        : _expanded,
+                    child: _AccessoryScope(placement: placement, child: child!),
+                  ),
+                ],
+              ),
+              child: widget.child,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// Notes its child's size after each layout.
