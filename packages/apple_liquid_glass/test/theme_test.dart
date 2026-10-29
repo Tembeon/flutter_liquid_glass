@@ -121,6 +121,7 @@ void main() {
           highContrast: true,
           reduceMotion: true,
           reduceTransparency: true,
+          prefersCrossFade: true,
         ),
       );
     });
