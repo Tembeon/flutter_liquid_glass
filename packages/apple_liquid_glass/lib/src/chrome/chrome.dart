@@ -190,8 +190,10 @@ class GlassChrome extends InheritedWidget {
 /// selects the scroll view among nested ones (depth 0 by default). Each
 /// page of a `PageView` has its own; the bars follow the latest one shown.
 /// Inside a [GlassPageScaffold] the content scrolls under the bars, and
-/// each edge effect fades in, on UIKit's 0.35 s spring, once content lies
-/// under its bar (navigation bar passport).
+/// each edge effect fades in, on a 0.35 s spring, once content lies under
+/// its bar (navigation bar passport); it fades only while the content
+/// moves on its own or under a finger, and a jump of the content shows or
+/// hides it at once, as UIKit does (read from UIKit, notes private).
 class GlassContentScroll extends StatefulWidget {
   /// Marks [child] as the page's scroll view.
   const GlassContentScroll({
@@ -210,8 +212,8 @@ class GlassContentScroll extends StatefulWidget {
   /// Which scroll notifications come from the page's scroll view.
   final ScrollNotificationPredicate notificationPredicate;
 
-  /// The spring an edge effect fades on (fitted 0.34 - 0.35 s, critically
-  /// damped; UIKit's `_UIBarScrollAwaySpec.duration` is 0.35).
+  /// The spring an edge effect fades on (fitted on the device: 0.34 -
+  /// 0.35 s, critically damped).
   static const edgeSpring = Spring.response(0.35);
 
   @override
@@ -292,6 +294,10 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
     }
   }
 
+  // A glide that starts while the observer still sees a drag starts at
+  // the finger's release.
+  bool _released() => _observer.phase == MotionScrollPhase.dragging;
+
   void _scrolled() {
     final after = _edges?.scrolledUnderAfter ?? 0;
     final metrics = _observer.metrics;
@@ -307,7 +313,8 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
     final target = shown ? 1.0 : 0.0;
     if (presence.target == target) return;
     final now = MotionClock.instance.now;
-    if (_reduceMotion || appears) {
+    final moving = _observer.position?.isScrollingNotifier.value ?? false;
+    if (_reduceMotion || appears || !moving) {
       presence.snap(now, target);
     } else {
       presence.retarget(now, target);
@@ -350,6 +357,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
             behavior: configuration.copyWith(
               physics: LargeTitleScrollPhysics(
                 collapseExtent: after,
+                released: _released,
                 parent: configuration.getScrollPhysics(context),
               ),
             ),
@@ -567,11 +575,13 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
 }
 
 /// Scroll physics that settle a large title out of or fully under the
-/// navigation bar: a scroll that would rest with the title partly away
-/// springs to the nearer end.
+/// navigation bar: a finger's release that would leave the title partly
+/// away springs to the nearer end; content the app moves stays where it
+/// is put.
 ///
-/// UIKit snaps a release 25 points away back out and one 30 points away
-/// under (the threshold is taken as half the title, 26 points); the snap
+/// UIKit moves the target a release projects to the nearer end, the
+/// threshold half the title (read from UIKit, notes private): it snaps a
+/// release 25 points away back out and one 30 points away under. The snap
 /// is fitted as a critically damped spring of response 0.33 s (damping 1.0
 /// to 1.2).
 @internal
@@ -579,11 +589,15 @@ class LargeTitleScrollPhysics extends ScrollPhysics {
   /// Creates the physics for a large title [collapseExtent] tall.
   const LargeTitleScrollPhysics({
     required this.collapseExtent,
+    required this.released,
     super.parent,
   });
 
   /// The scroll distance over which the large title goes under the bar.
   final double collapseExtent;
+
+  /// Whether a glide that starts now starts at a finger's release.
+  final bool Function() released;
 
   /// The spring the snap runs on.
   static const snapSpring = Spring.response(0.33);
@@ -592,6 +606,7 @@ class LargeTitleScrollPhysics extends ScrollPhysics {
   LargeTitleScrollPhysics applyTo(ScrollPhysics? ancestor) =>
       LargeTitleScrollPhysics(
         collapseExtent: collapseExtent,
+        released: released,
         parent: buildParent(ancestor),
       );
 
@@ -612,7 +627,7 @@ class LargeTitleScrollPhysics extends ScrollPhysics {
     double velocity,
   ) {
     final base = super.createBallisticSimulation(position, velocity);
-    if (position.outOfRange) return base;
+    if (position.outOfRange || !released()) return base;
     final start = position.minScrollExtent;
     final rest = _restOf(base, position) - start;
     if (rest <= 0.5 || rest >= collapseExtent - 0.5) return base;
