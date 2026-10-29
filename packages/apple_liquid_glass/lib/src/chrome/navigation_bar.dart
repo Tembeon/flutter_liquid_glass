@@ -102,9 +102,10 @@ class GlassNavigationBarStyle {
 /// the bar is 52 points taller: the large title sits under the row and
 /// scrolls away with the content of the page's [GlassContentScroll],
 /// after which the inline title rises in, 0.45 s in and 0.7 s out, from 15
-/// points below and blurred (fitted on the device). A scroll the user
-/// leaves with the large title partly away springs to the nearer end. Put
-/// it in a [GlassPageScaffold].
+/// points below and blurred (fitted on the device, read from UIKit); a jump
+/// of the content switches it at once. A finger's release that leaves the
+/// large title partly away springs to the nearer end. Put it in a
+/// [GlassPageScaffold].
 class GlassNavigationBar extends StatefulWidget implements ChromeBarWidget {
   /// Creates a navigation bar.
   const GlassNavigationBar({
@@ -223,7 +224,9 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     _laidOut = laidOut;
     if (_title.target == target) return;
     final now = MotionClock.instance.now;
-    if (appears || _reduceMotion) {
+    // A jump of the content switches the title at once, as UIKit does.
+    final moving = _scroll.value?.position?.isScrollingNotifier.value ?? false;
+    if (appears || _reduceMotion || !moving) {
       _title.snap(now, target);
     } else {
       _title.retarget(

@@ -124,11 +124,18 @@ void main() {
     await tester.pump();
     expect(tester.getTopLeft(large).dy, rest - 20);
     await _settle(tester);
-    expect(controller.offset, 0);
-    expect(tester.getTopLeft(large).dy, rest);
+    expect(controller.offset, 20);
     expect(_titleOpacity(tester), 0);
     controller.jumpTo(60);
     await tester.pump(_frame);
+    expect(_titleOpacity(tester), 1);
+    controller.jumpTo(0);
+    await tester.pump(_frame);
+    await tester.timedDrag(
+      find.byType(ListView),
+      const Offset(0, -120),
+      const Duration(milliseconds: 600),
+    );
     await tester.pump(_frame);
     expect(_titleOpacity(tester), inExclusiveRange(0, 1));
     await _settle(tester);
