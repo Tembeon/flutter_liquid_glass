@@ -19,21 +19,24 @@ import 'package:kinesis/kinesis.dart';
 /// percent, both with the page's progress; while they move, both pages are
 /// cards with the display's corners and the top one casts UIKit's light
 /// shadow (read from UIKit, notes private; device recordings). A finger
-/// that drags the page from its leading edge (9 percent of the width,
-/// after 15 points) pops it as UIKit's interactive pop does: the page
-/// follows the finger, rubber bands past either end, and on release pops
-/// or returns as UIKit predicts from the finger's last speeds, on a spring
-/// of response 0.3 and damping 0.85. Under Reduce Motion a push or pop
-/// without a finger cross-fades over 0.5 s instead. Back, Escape and a
-/// screen reader's dismiss pop it through the page's `PopScope`s; a pop
-/// asked for while a finger holds the page waits for the release, which
-/// then takes the page out.
+/// that drags the page toward the trailing side pops it as UIKit's
+/// interactive pop does, from the leading edge (9 percent of the width)
+/// after 15 points, or from anywhere else after 30 points within UIKit's
+/// funnel, so drags and scrolls of the page's own that claim the touch
+/// first keep it: the page follows the finger, rubber bands past either
+/// end, and on release pops or returns as UIKit predicts from the finger's
+/// last speeds, on a spring of response 0.3 and damping 0.85. Under Reduce
+/// Motion a push or pop without a finger cross-fades over 0.5 s instead.
+/// Back, Escape and a screen reader's dismiss pop it through the page's
+/// `PopScope`s; a pop asked for while a finger holds the page waits for
+/// the release, which then takes the page out.
 ///
 /// The page's navigation bar slides with the page: UIKit keeps one bar
-/// and moves its items between the pages, which the port does not yet. The
-/// content swipe from anywhere on the page, the finger following the page
-/// on UIKit's tracking spring and the takeover of a running pop are not
-/// ported yet either.
+/// and moves its items between the pages, which the port does not yet.
+/// The page follows the finger one to one; UIKit's settings carry a
+/// tracking spring whose use is not confirmed on the device. A finger does
+/// not catch a page that is already leaving, as UIKit's does: the
+/// navigator has popped it by then.
 class GlassPageRoute<T> extends PresentationPageRoute<T> {
   /// Creates a page [builder] builds.
   GlassPageRoute({required this.builder, super.settings});
@@ -129,7 +132,7 @@ class _Slide extends StatefulWidget {
 /// The page's slide, its cross-fade under Reduce Motion and its
 /// interactive pop, reported to the route's lifecycle.
 class _SlideState extends State<_Slide> implements MotionDriver {
-  late final _input = _EdgePop(this);
+  late final _input = _SwipePop(this);
   late final List<Interaction> _interactions = [_input];
   bool _opening = true;
   bool _leaving = false;
@@ -324,17 +327,21 @@ BorderRadius _cardRadius(BuildContext context) =>
       Radius.circular(NavigationTuning.fallbackCardRadius),
     );
 
-/// The interactive pop: a touch on the page's leading edge that moves
-/// along it drags the page, and its release pops or returns the page as
-/// UIKit predicts.
-final class _EdgePop extends Interaction {
-  _EdgePop(this._slide) : super(role: InteractionRole.gesture);
+/// The interactive pop: a touch on the page that moves along it toward
+/// the trailing side drags the page, and its release pops or returns the
+/// page as UIKit predicts. A touch on the leading edge begins after
+/// [NavigationTuning.edgeHysteresis]; one elsewhere, UIKit's content
+/// swipe, after [NavigationTuning.contentHysteresis] inside its funnel, so
+/// the page's own drags and scrolls take the touches they claim first.
+final class _SwipePop extends Interaction {
+  _SwipePop(this._slide) : super(role: InteractionRole.gesture);
 
   final _SlideState _slide;
   double width = 400;
   bool rtl = false;
   int? _pointer;
-  double _startX = 0;
+  Offset _start = Offset.zero;
+  bool _fromEdge = false;
   bool _dragging = false;
   late NavigationPopMotion _predictor;
 
@@ -344,32 +351,39 @@ final class _EdgePop extends Interaction {
   bool get dragged => _dragging;
 
   @override
-  bool accepts(PointerDownInput down) {
-    if (!super.accepts(down) || _pointer != null || !_slide._canPop) {
-      return false;
-    }
-    final x = rtl ? width - down.position.dx : down.position.dx;
-    return x <= width * NavigationTuning.edgeShare;
-  }
+  bool accepts(PointerDownInput down) =>
+      super.accepts(down) && _pointer == null && _slide._canPop;
 
   @override
   InteractionUpdate handle(InteractionInput input) {
     switch (input) {
       case PointerDownInput() when _pointer == null && accepts(input):
         _pointer = input.pointer;
-        _startX = _along(input.position);
+        _start = input.position;
+        final x = rtl ? width - input.position.dx : input.position.dx;
+        _fromEdge = x <= width * NavigationTuning.edgeShare;
         _dragging = false;
         _predictor = NavigationPopMotion(width);
-        _predictor.addPosition(input.time, _startX);
+        _predictor.addPosition(input.time, _along(input.position));
       case PointerMoveInput() when input.pointer == _pointer:
-        final x = _along(input.position);
+        final along = _along(input.position);
         final predictor = _predictor;
-        predictor.addPosition(input.time, x);
-        final travel = x - _startX;
+        predictor.addPosition(input.time, along);
+        final travel = along - _along(_start);
         if (!_dragging) {
-          if (travel.abs() < NavigationTuning.edgeHysteresis) break;
+          if (_fromEdge) {
+            if (travel.abs() < NavigationTuning.edgeHysteresis) break;
+          } else {
+            final across = (input.position.dy - _start.dy).abs();
+            if (across >= NavigationTuning.contentFunnel(travel) ||
+                travel <= -NavigationTuning.contentHysteresis) {
+              _pointer = null;
+              return const InteractionUpdate(fails: true);
+            }
+            if (travel < NavigationTuning.contentHysteresis) break;
+          }
           _dragging = true;
-          _startX = x;
+          _start = input.position;
           _slide._dragStarted();
           predictor.begin(input.time);
           return const InteractionUpdate(recognizes: true);
@@ -382,7 +396,7 @@ final class _EdgePop extends Interaction {
         if (!_dragging) return const InteractionUpdate(fails: true);
         _dragging = false;
         final predictor = _predictor;
-        final progress = (_along(input.position) - _startX) / width;
+        final progress = (_along(input.position) - _along(_start)) / width;
         predictor.update(input.time, progress, ending: true);
         _slide._released(
           pops: predictor.shouldPop(progress),
