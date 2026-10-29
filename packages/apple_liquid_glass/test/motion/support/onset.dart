@@ -15,8 +15,11 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/motion/lens_motion.dart';
 import 'package:flutter/physics.dart';
 import 'package:kinesis/kinesis.dart';
+
+import 'trace.dart';
 
 /// One frame of the iPhone 16 Pro's 120 Hz display, in seconds.
 const double deviceFrame = 1 / 120;
@@ -34,6 +37,101 @@ const double deliverySpread = 0.0146;
 /// press 64.9) instead of 8.3. A lens's lift starts within
 /// [deliverySpread] plus this of the median of its kind.
 const double setupSpread = 0.0222;
+
+/// The time a recorded lens starts lifting after [after]: the start of the
+/// lens lift spring fitted by least squares to the lift progress (`lpp`)
+/// of [rows] over the next 0.2 s, rows that repeat the previous value
+/// skipped (UIKit refreshes the lens about every other 120 Hz frame).
+double lensLiftStart(List<TraceFrame> rows, double after) {
+  final rising = <TraceFrame>[];
+  double? previous;
+  for (final f in rows) {
+    final lpp = f.opt('lpp');
+    if (f.t > after &&
+        f.t < after + 0.2 &&
+        lpp != null &&
+        lpp != previous &&
+        lpp < 0.999) {
+      rising.add(f);
+    }
+    previous = lpp;
+  }
+  final w = LensTuning.tabBar.liftSpring.omega;
+  double lift(double t) => t <= 0 ? 0 : 1 - (1 + w * t) * math.exp(-w * t);
+  var best = after;
+  var bestError = double.infinity;
+  for (var start = after; start < after + 0.15; start += 0.0005) {
+    var error = 0.0;
+    for (final f in rising) {
+      error += math.pow(lift(f.t - start) - f.opt('lpp')!, 2);
+    }
+    if (error < bestError) {
+      bestError = error;
+      best = start;
+    }
+  }
+  return best;
+}
+
+/// The seconds from a touch's stamps [down] and [up] to the start and the
+/// return of a recorded press growth: the step of [spring] to [amplitude]
+/// and the return from where it stands on [release] (or [spring]) fitted
+/// by least squares to the growth [rows] (time, growth, 0 at rest) from
+/// just before the touch to 0.6 s after its release. The return never
+/// comes before the start, as in [LensMotion].
+({double press, double release}) pressOnsets(
+  List<(double, double)> rows,
+  double down,
+  double up, {
+  required Spring spring,
+  required double amplitude,
+  Spring? release,
+}) {
+  final window = [
+    for (final row in rows)
+      if (row.$1 >= down - 0.03 && row.$1 <= up + 0.6) row,
+  ];
+  final rise = SpringSimulation(spring.description, 0, amplitude, 0);
+  final back = release ?? spring;
+  double error(double press, double releaseLag) {
+    final start = down + press;
+    final end = math.max(up + releaseLag, start);
+    final fall = SpringSimulation(
+      back.description,
+      rise.x(end - start),
+      0,
+      rise.dx(end - start),
+    );
+    var sum = 0.0;
+    for (final (t, growth) in window) {
+      final model = t <= start
+          ? 0.0
+          : t <= end
+          ? rise.x(t - start)
+          : fall.x(t - end);
+      sum += (model - growth) * (model - growth);
+    }
+    return sum;
+  }
+
+  var best = (press: 0.0, release: 0.0);
+  var bestError = double.infinity;
+  void search(double press0, double release0, double span, double grid) {
+    for (var p = press0; p <= press0 + span + 1e-9; p += grid) {
+      for (var r = release0; r <= release0 + span + 1e-9; r += grid) {
+        final e = error(p, r);
+        if (e < bestError) {
+          bestError = e;
+          best = (press: p, release: r);
+        }
+      }
+    }
+  }
+
+  search(0, 0, 0.1, 0.001);
+  search(best.press - 0.001, best.release - 0.001, 0.002, 0.00025);
+  return best;
+}
 
 /// The seconds from a release's stamp [up] to the return of a recorded
 /// growth held still at [from]: the step of [spring] from [from] to rest
