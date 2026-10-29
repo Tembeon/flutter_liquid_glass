@@ -133,13 +133,10 @@ class GlassBarButtonSpec {
 @immutable
 class GlassBarCapsuleSpec {
   /// A capsule of [buttons].
-  const GlassBarCapsuleSpec(this.buttons, {this.prominent = false});
+  const GlassBarCapsuleSpec(this.buttons);
 
   /// The buttons, in reading order.
   final List<GlassBarButtonSpec> buttons;
-
-  /// Whether the capsule is tinted with the prominent color.
-  final bool prominent;
 }
 
 /// The identity of a button whose id another button of the same bar took

@@ -87,7 +87,10 @@ void main() {
       expect(mail.bottom, lessThan(source.top));
       expect(copy.top, lessThan(mail.top));
       final card = tester.getRect(
-        find.ancestor(of: find.text('Copy'), matching: find.byType(ClipRRect)),
+        find.ancestor(
+          of: find.text('Copy'),
+          matching: find.byType(ClipRSuperellipse),
+        ),
       );
       expect(card.width, 240);
       expect(card.center.dx, closeTo(source.center.dx, 0.5));

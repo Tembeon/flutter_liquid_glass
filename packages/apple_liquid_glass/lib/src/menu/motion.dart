@@ -119,9 +119,6 @@ class MenuTuning {
   /// The horizontal placement margin from the device menu traces.
   static const double defaultEdgeMargin = 8;
 
-  /// The diameter of the measured round glass menu button, in points.
-  static const double buttonDiameter = 48;
-
   /// The numerical integration step of the measured driven kicks, in seconds.
   static const double kickIntegrationStep = 0.001;
 
@@ -188,27 +185,6 @@ class MenuTuning {
 
   /// The cell highlight radius; a rendering default, not measured.
   static const double cellHighlightRadius = 12;
-
-  /// The submenu shadow blur; a rendering default, not measured.
-  static const double shadowBlur = 6;
-
-  /// The submenu shadow clip extent; a rendering default, not measured.
-  static const double shadowReach = 40;
-
-  /// The submenu rim stroke width; a rendering default, not measured.
-  static const double cardRimWidth = 2;
-
-  /// The ellipsis glyph box; a rendering default, not measured.
-  static const double ellipsisSize = 24;
-
-  /// The ellipsis dot pitch; a rendering default, not measured.
-  static const double ellipsisPitch = 7;
-
-  /// The ellipsis dot radius; a rendering default, not measured.
-  static const double ellipsisRadius = 2.2;
-
-  /// The smallest painted blur; a rendering default, not measured.
-  static const double blurThreshold = 0.05;
 
   /// The menu scroll indicator width; a rendering default, not measured.
   static const double scrollThickness = 3;
@@ -610,7 +586,7 @@ class MenuTuning {
   /// (0.15 / 0.5), after the lift they return on its scale spring from
   /// what shows with its velocity, and every changed target pushes them
   /// by the spec's retarget impulse (0.016 s). Read from UIKit, notes
-  /// private; the input-only replays of menu_drag_out_test land at 0.09 -
+  /// private; the input-only replays of test/menu/drag_out_test.dart land at 0.09 -
   /// 0.15 pt rms while the finger is down and 0.15 - 0.17 after the lifts.
   final FlexSpec flex;
 
@@ -621,7 +597,7 @@ class MenuTuning {
   ///
   /// Read from UIKit, notes private; the replay of
   /// `ios27-device/menu/drag-out-flex.jsonl` checks it with no fitted
-  /// constant (menu_drag_out_test).
+  /// constant (test/menu/drag_out_test.dart).
   final double flexInBoundsPoints;
 
   /// The spring of the flex's pulse channel: it chases the finger's
@@ -982,8 +958,8 @@ class MenuBlob {
 /// [MenuMotion] reads it and asks it to open and to close; it never
 /// integrates the progress itself. [MenuProgress.spring] is the
 /// measured spring evaluated at explicit times, which makes the motion a
-/// pure function of time; a widget wraps it to send the engine flight
-/// that carries the menu the same way.
+/// pure function of time; a host wraps it to act on the opening, as the
+/// anchor shows its overlay.
 abstract class MenuProgress {
   /// Creates a progress.
   MenuProgress();
@@ -1243,16 +1219,16 @@ class MenuCard {
 /// function of the touches it is fed, the progress it reads and the time
 /// it is advanced to.
 ///
-/// One progress drives two shapes. The menu shape grows out of the
-/// button: a square of the menu's width scaled down to half the button's
-/// height that stretches to the menu's height while it scales up, rides
-/// from the button's center to the menu's center and dips past it on a
-/// vertical kick. The button shape shrinks to a quarter and slides a
-/// quarter of the way toward the menu. The two are drawn as one union
-/// without a neck. The button's glyph rides the button shape, widening as
-/// it blurs out early; the menu content rides the menu shape at the
-/// shape's scale, swelling a little with its kick, and fades in with the
-/// progress, so the menu unfolds out of the drop.
+/// One progress drives two shapes. The menu shape grows out of the button: a
+/// square of the menu's width scaled down to half the button's height that
+/// stretches to the menu's height while it scales up, rides from the button's
+/// center to the menu's center and dips past it on a vertical kick. The button
+/// shape shrinks to a quarter and slides a quarter of the way toward the menu.
+/// The two are drawn as one body: fused, neck included, while a turn's fusion
+/// runs ([fusionRadius]), their plain union otherwise. The button's glyph rides
+/// the button shape, widening as it blurs out early; the menu content rides the
+/// menu shape at the shape's scale, swelling a little with its kick, and fades
+/// in with the progress, so the menu unfolds out of the drop.
 ///
 /// The kicks are a second degree of freedom per shape, driven by the
 /// progress spring: while the menu opens, the menu shape's kick chases
@@ -1292,13 +1268,12 @@ class MenuMotion {
   /// (uniform rows of `itemCount` when null), inside `bounds` minus the
   /// safe-area `padding`.
   ///
-  /// `layout` is asked for the content in the order it shows: reversed
-  /// when the menu opens upward. `sourceHeight` is the height of the view
-  /// the menu shape starts from; it defaults to the button's height and
-  /// differs for bar buttons, whose glass platter is larger than the
-  /// button. `sourceRadius` is the corner radius of the source at rest;
-  /// null keeps it a capsule. `progress` defaults to
-  /// [MenuProgress.spring] of [tuning].
+  /// `layout` is asked for the content in the order it shows: reversed when the
+  /// menu opens upward. `sourceHeight` is the height of the view the menu shape
+  /// starts from; it defaults to the button's height, and a source whose glass
+  /// is taller than its frame passes its own. `sourceRadius` is the corner
+  /// radius of the source at rest; null keeps it a capsule. `progress` defaults
+  /// to [MenuProgress.spring] of [tuning].
   ///
   /// With an [attachment] the menu is a context menu: it stands beside the
   /// attachment's preview and grows out of the blob at the held view's
@@ -1465,12 +1440,12 @@ class MenuMotion {
   bool _prefetchField = false;
 
   /// The time of the latest frame on the source clock's frame grid
-  /// (`MotionClockHost.frameTime`); the coming frames follow it at multiples
+  /// (kinesis's `MotionClock`); the coming frames follow it at multiples
   /// of [framePeriod].
   double frameTime = 0;
 
   /// The period of the source clock's frame grid
-  /// (`MotionClockHost.framePeriod`), or null while it has seen no steady
+  /// (`MotionClock.framePeriod`), or null while it has seen no steady
   /// frames; the motion fuses nothing ahead without it.
   double? framePeriod;
 
@@ -1523,10 +1498,6 @@ class MenuMotion {
   /// Whether the content shows in reverse order, as a menu opening upward
   /// does.
   bool get reversed => _reversed;
-
-  /// The height of the root list's content; more than the menu's when it
-  /// scrolls.
-  double get contentHeight => _root.height;
 
   /// The height of the menu's visible root list.
   double get visibleRootHeight => _rootHeight.valueAt(_now);
@@ -1760,9 +1731,6 @@ class MenuMotion {
     return math.max(0, math.min(top, cap - math.min(height, _cap)));
   }
 
-  /// Whether a submenu card is open or opening.
-  bool get hasSubmenu => _cards.any((_Card card) => !card.backing);
-
   double _scaleUnder(int card, double t) {
     var scale = 1.0;
     for (var k = card; k < _cards.length; k++) {
@@ -1844,17 +1812,9 @@ class MenuMotion {
     return result;
   }
 
-  /// The final frame of the menu content; for a uniform menu, of the
-  /// rows.
-  Rect get finalMenuRect => _menu;
-
   /// Whether the menu opens below the button; otherwise it opens above it
   /// and its content is reversed.
   bool get opensDown => _down;
-
-  /// The button's frame at the scale it had when the menu opened, which
-  /// the menu is aligned to.
-  Rect get pressedButtonRect => _pressed;
 
   /// The scale of the button's press growth.
   double get pressScale => _press.scale(_now);
@@ -2079,8 +2039,7 @@ class MenuMotion {
 
   /// The [silhouette], with the fused field a renderer shades the body
   /// from only when [withField] is true; false gives the same edge alone,
-  /// for a host whose glass only fills the body (the flat tier, or no
-  /// glass painter).
+  /// for a host whose glass only fills the body (the flat renderer).
   GlassOutline? silhouetteFor({required bool withField}) {
     if (_phase == _Phase.idle) return null;
     if (!drawsSource) return plainUnionOutline([rootBlob.rrect]);
@@ -2441,7 +2400,6 @@ class MenuMotion {
   /// invisible); the glow keeps moving. The progress keeps its
   /// remainder, which no layout reads exactly, and so does the flex a held
   /// finger leaves.
-  /// Lands what remains of a settled motion on its targets.
   void settle() {
     final t = _now;
     _radius.settle(t);
@@ -2457,7 +2415,6 @@ class MenuMotion {
   /// A finger resting on the menu or its button does not keep it awake once
   /// the glow under it has faded in: its next move or release wakes it. A
   /// finger scrolling the content does.
-  /// Whether nothing visible moves any more.
   bool get isSettled => _timeline.isEmpty && _still && !isGlowing;
 
   /// The motion time of the next pending event while a finger rests and
@@ -2469,8 +2426,6 @@ class MenuMotion {
   /// [MenuTuning.hoverOpenDelay]); the reactions to a release come
   /// due within a few frames, which keep coming, so a test's
   /// `pumpAndSettle` still sees them through.
-  /// The time before which the motion changes nothing on its own, or null
-  /// when it changes every frame.
   double? get wakeTime {
     final due = _timeline.nextDue;
     return due != null && _pointer != null && _still && !isGlowing ? due : null;
@@ -2873,8 +2828,8 @@ class MenuMotion {
 
   /// Advances the motion to time [t]: runs every event due by then and
   /// samples the progress, integrating the kicks over the interval. A close
-  /// requested on the way starts at its own time, unanswered.
-  /// Advances the motion to [t]; an earlier [t] changes nothing.
+  /// requested on the way starts at its own time, unanswered. An earlier
+  /// [t] changes nothing.
   void advance(double t) => _advance(t);
 
   /// Advances the motion toward time [t] as [advance] does, but stops at a

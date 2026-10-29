@@ -152,8 +152,6 @@ double boxDistance(double qx, double qy, double r) {
   return outside + (inner < 0 ? inner : 0.0) - r;
 }
 
-/// The outlines traced from sampled fields over the isolate's life; debug
-/// builds only.
 /// How many outlines have been traced, in debug builds.
 @visibleForTesting
 int debugOutlineTraces = 0;
@@ -402,11 +400,9 @@ Path _outlinePath(Float64List xy, Int32List loops) {
 /// through the crossings (the limit of Chaikin's corner cutting).
 ///
 /// A saddle cell is resolved by the mean of its corners. The buffers live
-/// across calls in [_TracerBuffers]: an outline is traced on the UI
-/// thread, one at a time. They retain the largest traced grid until the
-/// isolate exits. This tracer follows the sampled optical field's zero
-/// contour; LiquidField's tracer evaluates an analytic mass field instead.
-/// The B-spline uses the same Chaikin limit without repeated point lists.
+/// across calls in [_TracerBuffers] (statics are per isolate, and each
+/// isolate traces one outline at a time). They retain the largest traced
+/// grid until the isolate exits.
 class _OutlineTracer {
   factory _OutlineTracer(int edges) {
     final buffers = _TracerBuffers.claim(edges);
@@ -721,12 +717,10 @@ abstract final class _TracerBuffers {
   }
 }
 
-/// Within this much of the spacing the merge moves an outline by less than
-/// a hundredth of a point, so surfaces whose layout lands a rounding error
-/// under the spacing keep their own shapes.
+/// The latest plain unions, the one used last at the end.
 final List<(List<RRect>, GlassOutline)> _recentUnions = [];
 
-/// The merged-box outlines retained by the isolate.
+/// The unions and fields retained by the isolate.
 const int _recentLimit = 4;
 
 /// Moves entry [k] of [recent] to the end, as the one used last.

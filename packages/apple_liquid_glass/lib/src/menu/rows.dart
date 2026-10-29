@@ -165,7 +165,7 @@ class _MenuElement extends StatelessWidget {
   final MenuContent content;
   final ValueChanged<int> onSelect;
 
-  Color get _title => style.textStyle.color ?? style.iconColor;
+  Color get _title => style.textStyle.color!;
 
   VoidCallback? get _tap {
     final target = element.target;
@@ -339,7 +339,7 @@ class _MenuElement extends StatelessWidget {
                 flipX: content.rtl,
                 child: CustomPaint(
                   size: MenuTuning.chevronSize,
-                  painter: _ChevronPainter(color: color, down: false),
+                  painter: _ChevronPainter(color: color),
                 ),
               ),
             ),
@@ -610,14 +610,12 @@ class _MarkPainter extends CustomPainter {
       oldDelegate.color != color || oldDelegate.mixed != mixed;
 }
 
-/// A chevron pointing forward (mirrored in right-to-left text) or down.
-/// The shadow a submenu card casts around itself, kept off its face: the
-/// card is translucent.
+/// A chevron pointing at the trailing edge; callers flip it for
+/// right-to-left.
 class _ChevronPainter extends CustomPainter {
-  const _ChevronPainter({required this.color, required this.down});
+  const _ChevronPainter({required this.color});
 
   final Color color;
-  final bool down;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -627,24 +625,17 @@ class _ChevronPainter extends CustomPainter {
     paint.strokeWidth = 2;
     paint.strokeCap = StrokeCap.round;
     paint.strokeJoin = StrokeJoin.round;
-    final path = Path();
     final w = size.width;
     final h = size.height;
-    if (down) {
-      path.moveTo(w * 0.08, h * 0.12);
-      path.lineTo(w * 0.5, h * 0.88);
-      path.lineTo(w * 0.92, h * 0.12);
-    } else {
-      path.moveTo(w * 0.12, h * 0.08);
-      path.lineTo(w * 0.88, h * 0.5);
-      path.lineTo(w * 0.12, h * 0.92);
-    }
+    final path = Path();
+    path.moveTo(w * 0.12, h * 0.08);
+    path.lineTo(w * 0.88, h * 0.5);
+    path.lineTo(w * 0.12, h * 0.92);
     canvas.drawPath(path, paint);
   }
 
   @override
-  bool shouldRepaint(_ChevronPainter oldDelegate) =>
-      oldDelegate.color != color || oldDelegate.down != down;
+  bool shouldRepaint(_ChevronPainter oldDelegate) => oldDelegate.color != color;
 }
 
 /// A row's activity indicator: eight spokes whose brightest one steps
@@ -764,7 +755,7 @@ class MenuCardHeader extends StatelessWidget {
   /// Called with the header's target when a screen reader activates it.
   final ValueChanged<int> onSelect;
 
-  Color get _title => style.textStyle.color ?? style.iconColor;
+  Color get _title => style.textStyle.color!;
 
   static const _bold = TextStyle(fontSize: 17, fontWeight: FontWeight.w600);
 
@@ -857,7 +848,7 @@ class MenuCardHeader extends StatelessWidget {
                         Matrix4.rotationZ(values().turn * math.pi / 2),
                     child: CustomPaint(
                       size: MenuTuning.chevronSize,
-                      painter: _ChevronPainter(color: _title, down: false),
+                      painter: _ChevronPainter(color: _title),
                     ),
                   ),
                 ),

@@ -25,7 +25,7 @@ import 'package:flutter/foundation.dart';
 /// moves a distance field by at most `1.26 s`, so farther from the edge
 /// the sign, all the trace needs, is the unblurred one; inside the body
 /// the blur reaches [shadedDepth] deeper, as far as a renderer shades
-/// it. A body that is only filled (the flat tier, or no glass painter)
+/// it. A body that is only filled (the flat renderer)
 /// asks for the edge alone, which skips that deeper blur and the field a
 /// renderer shades from. The last outline is reused while its inputs do
 /// not change.
@@ -60,14 +60,15 @@ class MenuFusion {
   static const double prefetchTolerance = 0.02;
 
   /// Whether motions fuse their next frame's silhouette ahead, on a
-  /// background isolate: in profile and release builds where isolates
-  /// exist, and where [debugPrefetch] says so.
+  /// background isolate: in profile and release builds where
+  /// `FusionWorker.supported` (isolates and six or more cores);
+  /// [debugPrefetch] overrides it.
   static bool get prefetches =>
       debugPrefetch ??
       (FusionWorker.supported && (kReleaseMode || kProfileMode));
 
-  /// How many coming frames a motion fuses ahead ([prefetch]) each frame:
-  /// the next, and the one after it for a fusion that comes back late.
+  /// How many coming frames a motion fuses ahead ([prefetch]) each frame,
+  /// so a fusion that comes back late still serves a later one.
   static const int prefetchFrames = 3;
 
   /// Overrides [prefetches]; null keeps the build's default.
@@ -116,7 +117,6 @@ class MenuFusion {
       _inputs,
       withField: withField,
     );
-    final ready = debugOnFuse == null ? null : FusionWorker.debugReadyInputs;
     final ahead = prefetches
         ? FusionWorker.take(frame, prefetchTolerance)
         : null;
@@ -125,14 +125,6 @@ class MenuFusion {
     } else {
       debugFusedHere++;
     }
-    final matched = ahead != null ? FusionWorker.debugTakenInputs : ready;
-    debugOnFuse?.call(
-      Float64List.fromList(Float64List.sublistView(frame, 0, 11)),
-      matched == null
-          ? null
-          : Float64List.fromList(Float64List.sublistView(matched, 0, 11)),
-      served: ahead != null,
-    );
     _shaded = ahead?.hasField ?? withField;
     return _outline = outlineFromParts(
       ahead ?? menuSilhouetteParts(menu, source, radius, withField: withField),
@@ -143,18 +135,6 @@ class MenuFusion {
   /// the isolate's life.
   @visibleForTesting
   static int debugServedAhead = 0;
-
-  /// Called with the geometric inputs (the first eleven of [encode]) of
-  /// every fusion [outline] makes, those
-  /// of the fusion computed ahead that served it or else of the newest
-  /// one waiting (null when none was), and whether one served.
-  @visibleForTesting
-  static void Function(
-    Float64List frame,
-    Float64List? ready, {
-    required bool served,
-  })?
-  debugOnFuse;
 
   /// The outlines [outline] has fused where they were needed, over the
   /// isolate's life.
@@ -625,8 +605,9 @@ class _OpticalCorners {
 /// node (i + reach, j + reach).
 ///
 /// The unblurred distance and the horizontal pass of the separable blur
-/// are remembered per node in buffers kept across calls (an outline is
-/// fused on the UI thread, one at a time), so each is computed once.
+/// are remembered per node in buffers kept across calls (statics are per
+/// isolate, and each isolate fuses one outline at a time), so each is
+/// computed once.
 class _BlurredUnion {
   _BlurredUnion(
     RRect menu,

@@ -16,6 +16,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 enum _Role { normal, cancel, destructive }
 
@@ -313,7 +314,11 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
   final _lean = ValueNotifier<Offset>(Offset.zero);
   final _pressX = ValueNotifier<double>(1);
   final _pressY = ValueNotifier<double>(1);
-  final _frame = ValueNotifier(const GlassFrame(opacity: 0));
+  static const LiquidShape _platter = LiquidRoundedSuperellipse(
+    borderRadius: AlertTuning.cornerRadius,
+  );
+
+  final _frame = ValueNotifier(const GlassFrame(shape: _platter, opacity: 0));
   List<GlassAlertAction> _shown = const [];
   bool _leaving = false;
   int? _pointer;
@@ -395,7 +400,7 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
     _lean.value = _press.lean;
     _pressX.value = _press.scaleX;
     _pressY.value = _press.scaleY;
-    _frame.value = GlassFrame(opacity: opacity);
+    _frame.value = GlassFrame(shape: _platter, opacity: opacity);
   }
 
   void _leave() {
@@ -815,7 +820,7 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
               ),
             MotionTransition(
               opacity: _opacity,
-              child: ClipRRect(
+              child: ClipRSuperellipse(
                 borderRadius: BorderRadius.circular(
                   _popover == null
                       ? AlertTuning.cornerRadius

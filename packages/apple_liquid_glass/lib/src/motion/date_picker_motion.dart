@@ -292,8 +292,10 @@ class DatePickerMotion {
   double _fadeTo = 0;
 
   double _fade(double t) {
-    final k = ((t - _fadeStart) / DatePickerTuning.reducedMotionDuration)
-        .clamp(0.0, 1.0);
+    final k = ((t - _fadeStart) / DatePickerTuning.reducedMotionDuration).clamp(
+      0.0,
+      1.0,
+    );
     return _fadeFrom +
         (_fadeTo - _fadeFrom) *
             DatePickerTuning.reducedMotionCurve.transform(k);
@@ -545,8 +547,7 @@ class DatePickerMotion {
     _years = _Tween(start: start, from: running.value(start), to: target);
     if (target != _turnTarget) {
       _turns.removeWhere(
-        (_Turn turn) =>
-            turn.start + DatePickerTuning.yearPickerDuration <= t,
+        (_Turn turn) => turn.start + DatePickerTuning.yearPickerDuration <= t,
       );
       _turns.add((start: start, delta: _turnTarget - target));
       _turnTarget = target;
@@ -574,10 +575,7 @@ class DatePickerMotion {
       if (k >= 1) continue;
       value +=
           turn.delta *
-          (1 -
-              (k <= 0
-                  ? 0
-                  : DatePickerTuning.yearPickerCurve.transform(k)));
+          (1 - (k <= 0 ? 0 : DatePickerTuning.yearPickerCurve.transform(k)));
     }
     return value;
   }
@@ -596,8 +594,7 @@ class DatePickerMotion {
   bool _yearPickerSettledAt(double t) =>
       t >= _years.start + DatePickerTuning.yearPickerDuration &&
       _turns.every(
-        (_Turn turn) =>
-            t >= turn.start + DatePickerTuning.yearPickerDuration,
+        (_Turn turn) => t >= turn.start + DatePickerTuning.yearPickerDuration,
       );
 }
 
@@ -615,7 +612,6 @@ class _Tween {
     final k = (t - start) / DatePickerTuning.yearPickerDuration;
     if (k <= 0) return from;
     if (k >= 1) return to;
-    return from +
-        (to - from) * DatePickerTuning.yearPickerCurve.transform(k);
+    return from + (to - from) * DatePickerTuning.yearPickerCurve.transform(k);
   }
 }

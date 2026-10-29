@@ -8,7 +8,7 @@ import 'package:flutter/painting.dart';
 /// lays them out and runs their actions.
 ///
 /// The shared menu host keeps one content model, so entries behave the
-/// same in a menu button and a bar button menu.
+/// same in a menu button and a context menu.
 @internal
 class MenuContent {
   /// Creates the content; [onChanged] runs when it changes on its own (a
@@ -147,7 +147,7 @@ class MenuContent {
           FlutterErrorDetails(
             exception: error,
             stack: stack,
-            library: 'morph',
+            library: 'apple_liquid_glass',
             context: ErrorDescription('while loading a deferred menu group'),
           ),
         );

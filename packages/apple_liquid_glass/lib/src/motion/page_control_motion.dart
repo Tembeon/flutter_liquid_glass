@@ -62,14 +62,12 @@ abstract final class PageControlTuning {
 
 /// The motion of an iOS 27 page control's indicators.
 ///
-/// Without a progress every dot is [PageControlTuning.indicatorSize]
-/// wide and a page change is instant, as UIKit's is. With a progress the
-/// current indicator is a capsule
-/// [PageControlTuning.progressIndicatorWidth] wide whose fill shows
-/// the progress; when the
-/// page changes, the old capsule shrinks to a dot and the new one grows on
-/// [PageControlTuning.widthSpring] while the old fill fades out on
-/// [PageControlTuning.fadeSpring]. Times are seconds.
+/// Without a progress every dot is [PageControlTuning.indicatorSize] wide and a
+/// page change is instant, as UIKit's is. With a progress the current indicator
+/// is a capsule [PageControlTuning.progressIndicatorWidth] wide whose fill
+/// shows the progress; when the page changes, the old capsule shrinks to a dot
+/// and the new one grows on [PageControlTuning.widthSpring] while the old fill
+/// fades out on [PageControlTuning.fadeSpring]. Times are seconds.
 @internal
 class PageControlMotion {
   /// Creates a motion of [count] pages showing [page].

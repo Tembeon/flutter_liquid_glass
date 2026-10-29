@@ -92,8 +92,9 @@ final class GlassSelectorDetails {
 /// [motion] picks the UIKit control whose motion and geometry it takes. A
 /// tap selects on release; a finger that drags lifts the lens into glass
 /// and carries it, and the release selects where it lands. Everything the
-/// lens does reaches the look through [GlassSelectorDetails.lens], so
-/// neither builder runs while it moves. The arrow keys move the selection,
+/// lens does reaches the look through [GlassSelectorDetails.lens], so its
+/// motion rebuilds neither builder; [itemBuilder] runs again when the
+/// pressed or hovered item changes. The arrow keys move the selection,
 /// skipping [disabledItems]; Space and Enter, like a tap on the selected
 /// item, report [onReselected]. In a right-to-left context the items run
 /// from the right.
@@ -142,7 +143,8 @@ class RawGlassSelector extends StatefulWidget {
 
   /// Called with the selected item when the user selects it again (UIKit's
   /// `tabBarController(_:didSelect:)` for the selected tab): a touch that
-  /// starts and lifts on it, Space, Enter, or an accessibility tap.
+  /// lifts on it (on a tab bar, one that also went down on it), Space,
+  /// Enter, or an accessibility tap.
   final ValueChanged<int>? onReselected;
 
   /// The items a touch, a key or accessibility cannot select (UIKit
@@ -175,10 +177,10 @@ class RawGlassSelector extends StatefulWidget {
   /// as after a cancelled touch.
   ///
   /// UISegmentedControl selects on a release 60 points below its bottom
-  /// edge but not 70 (iPhone 16 Pro, iOS 27.0.1, fixture
-  /// `tracking/release-outside.jsonl`). 70 with the bottom and right edges
+  /// edge but not 70 (iPhone 16 Pro, iOS 27.0.1; the capture is not among
+  /// this package's fixtures). 70 with the bottom and right edges
   /// excluded, the way `CGRectContainsPoint` tests a point, also gives the
-  /// glass button's measured edges: one UIKit bound fits all six points.
+  /// glass button's measured edges.
   static const double segmentedReleaseSlop = 70;
 
   @override
@@ -653,7 +655,7 @@ final class _Geometry {
 
   /// The padding on each side of a segment's item when segments size by
   /// content: UIKit pads a label by 9 points a side (read from UIKit, notes
-  /// private), and with the port's label widths the device's content rows
+  /// private), and with Flutter's label widths the device's content rows
   /// fit 9.13 - 9.18.
   static const double segmentedPadding = 9.15;
 

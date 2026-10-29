@@ -738,10 +738,17 @@ final class _Bar {
     for (final page in pages) {
       final runs = this.runs(page);
       final layout = page._layouts[kind] = _layoutOf(runs);
-      final capsules = [for (final run in runs) ...run];
-      for (var i = 0; i < layout.length && i < capsules.length; i++) {
-        final first = capsules[i].first.$2.item;
-        if (first != null && first.prominent) prominent.add(layout[i].id);
+      // The layout lists trailing capsules from the edge in, so a capsule
+      // is found by its buttons, not by its place in [runs].
+      final tinted = {
+        for (final run in runs)
+          for (final capsule in run)
+            if (capsule.first.$2.item?.prominent ?? false) capsule.first.$1,
+      };
+      for (final capsule in layout) {
+        if (capsule.items.any((item) => tinted.contains(item.id))) {
+          prominent.add(capsule.id);
+        }
       }
       if (_navigation) {
         final room = _roomOf(layout);
@@ -796,7 +803,7 @@ final class _Bar {
                   : widths[id] ?? 0,
               button.kind,
             ),
-        ], prominent: capsule.first.$2.item?.prominent ?? false),
+        ]),
     ];
     if (runs.isEmpty) return const [];
     return layoutGlassBar(

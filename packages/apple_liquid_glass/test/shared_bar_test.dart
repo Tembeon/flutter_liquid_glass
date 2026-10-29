@@ -435,4 +435,43 @@ void main() {
       closeTo(62 + 22 - 106, 0.01),
     );
   });
+
+  testWidgets('a prominent trailing item tints its own capsule', (
+    tester,
+  ) async {
+    await _phone(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      _app(
+        navigator,
+        _page(
+          'Home',
+          trailing: [
+            _icon('share'),
+            GlassBarItem.prominent(
+              icon: const SizedBox(key: Key('done'), width: 22, height: 22),
+              semanticLabel: 'done',
+              onPressed: () {},
+            ),
+          ],
+        ),
+      ),
+    );
+    await _settle(tester);
+    final tinted = [
+      for (final surface in tester.widgetList<GlassSurface>(
+        find.byType(GlassSurface),
+      ))
+        if (surface.frame?.value case GlassFrame(
+          :final rect?,
+          tint: _?,
+        ))
+          rect,
+    ];
+    expect(tinted, hasLength(1));
+    final done = tester.getCenter(find.byKey(const Key('done'))).dx;
+    final share = tester.getCenter(find.byKey(const Key('share'))).dx;
+    expect(tinted.single.left < done && done < tinted.single.right, isTrue);
+    expect(tinted.single.left < share && share < tinted.single.right, isFalse);
+  });
 }
