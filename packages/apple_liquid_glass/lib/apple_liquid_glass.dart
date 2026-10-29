@@ -29,6 +29,8 @@ export 'src/motion/sheet_motion.dart' show GlassSheetDetent;
 export 'src/motion/tab_minimize.dart' show GlassTabBarMinimizeBehavior;
 export 'src/motion/touch_glow.dart' show GlassTouchGlow;
 export 'src/presentations/alert.dart';
+export 'src/presentations/popover.dart'
+    show GlassPopoverRoute, showGlassPopover;
 export 'src/presentations/sheet.dart';
 export 'src/renderer/renderer.dart';
 export 'src/surface/frame.dart';

@@ -205,6 +205,10 @@ class PopoverMotion {
     if (t > _now) _now = t;
   }
 
+  /// Lands a settled motion exactly at its end, so a shown popover rests
+  /// at its size.
+  void settle() => _progress.snap(_now, _dismissing ? 0 : 1);
+
   /// The presentation progress: 0 hidden, 1 shown.
   double get progress => _progress.valueAt(_now);
 
@@ -267,8 +271,7 @@ PopoverPlacement placePopover({
   var bestShift = double.infinity;
   for (final edge in candidates) {
     final vertical =
-        edge == PopoverArrowDirection.down ||
-        edge == PopoverArrowDirection.up;
+        edge == PopoverArrowDirection.down || edge == PopoverArrowDirection.up;
     final double ideal;
     final double low;
     final double high;
@@ -347,8 +350,7 @@ PopoverPlacement _placement(
   double center,
 ) {
   final vertical =
-      edge == PopoverArrowDirection.down ||
-      edge == PopoverArrowDirection.up;
+      edge == PopoverArrowDirection.down || edge == PopoverArrowDirection.up;
   final content = vertical
       ? Rect.fromLTWH(placed, along, size.width, size.height)
       : Rect.fromLTWH(along, placed, size.width, size.height);
