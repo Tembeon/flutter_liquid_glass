@@ -33,13 +33,13 @@ enum GlassTabBarMinimizeBehavior {
 /// The measured tuning of a minimizing tab bar and its bottom accessory.
 ///
 /// The thresholds, springs and the hint scale are read from UIKit on iOS
-/// 27.0.1 (UIKit's scroll-away interaction of the floating tab bar and its
-/// animation settings; notes private). The geometry is UIKit's default tab
-/// bar layout record, matched to the measured search tab circle (48 pt, 28
-/// from the side and the bottom). Which of the two collapse springs moves
-/// the glass and which the content, the space between the minimized
-/// circles and the accessory and the accessory's height are not read:
-/// they wait for a recording (probe scene `w2search`, `PROBE_MINIMIZE=1`).
+/// 27 (the scroll-away interaction of the floating tab bar, its animation
+/// settings and its phone layout record; notes private), the circle
+/// matched to the measured search tab circle (48 pt, 28 from the side and
+/// the bottom). The bar turns into the circle in one liquid morph of its
+/// shape and content ([morphSpring]); the four collapse and expand springs
+/// move only the bottom accessory, one axis after the other. A film of the
+/// morph, the accessory's path and the hold expansion is still due.
 @internal
 abstract final class TabBarMinimizeTuning {
   /// The scroll in the minimizing direction, in points, before the bar
@@ -78,33 +78,47 @@ abstract final class TabBarMinimizeTuning {
   /// `scrollAwayHintResetSpring`: damping 0.8, response 0.3).
   static const hintResetSpring = Spring.response(0.3, dampingRatio: 0.8);
 
-  /// The spring the glass collapses on (UIKit
-  /// `collapseIntermediateSpring`: damping 0.72, response 0.36). Assigning
-  /// it to the glass is an approximation.
-  static const collapseShapeSpring = Spring.response(0.36, dampingRatio: 0.72);
+  /// The spring of the liquid morph between the bar and the circle: every
+  /// channel of the shapes (size, position, transform) and the morph of
+  /// their content, both ways, without a delay (damping 0.8, response 0.3;
+  /// read from UIKit).
+  static const morphSpring = Spring.response(0.3, dampingRatio: 0.8);
 
-  /// The spring the content collapses on, [collapseContentDelay] after
-  /// the glass (UIKit `collapseFinalSpring`: damping 0.76, response 0.42).
-  static const collapseContentSpring = Spring.response(
+  /// [morphSpring] under Reduce Motion: critically damped, response 0.15
+  /// (read from UIKit).
+  static const reducedMotionMorphSpring = Spring.response(0.15);
+
+  /// The spring the bottom accessory's horizontal position and width move
+  /// on as the bar minimizes (UIKit `collapseIntermediateSpring`: damping
+  /// 0.72, response 0.36).
+  static const accessoryCollapseSpring = Spring.response(
+    0.36,
+    dampingRatio: 0.72,
+  );
+
+  /// The spring its vertical position and height follow on,
+  /// [accessoryFollowDelay] later (`collapseFinalSpring`: damping 0.76,
+  /// response 0.42).
+  static const accessoryCollapseFollowSpring = Spring.response(
     0.42,
     dampingRatio: 0.76,
   );
 
-  /// The delay of [collapseContentSpring] (UIKit
-  /// `collapseFinalSpringDelay`: 0.05 s).
-  static const double collapseContentDelay = 0.05;
+  /// The spring the bottom accessory's vertical position and height move
+  /// on as the bar expands (`expandIntermediateSpring`: damping 0.72,
+  /// response 0.3).
+  static const accessoryExpandSpring = Spring.response(0.3, dampingRatio: 0.72);
 
-  /// The spring the glass expands on (UIKit `expandIntermediateSpring`:
-  /// damping 0.72, response 0.3).
-  static const expandShapeSpring = Spring.response(0.3, dampingRatio: 0.72);
+  /// The spring its horizontal position and width follow on,
+  /// [accessoryFollowDelay] later (`expandFinalSpring`: damping 0.72,
+  /// response 0.36).
+  static const accessoryExpandFollowSpring = Spring.response(
+    0.36,
+    dampingRatio: 0.72,
+  );
 
-  /// The spring the content expands on, [expandContentDelay] after the
-  /// glass (UIKit `expandFinalSpring`: damping 0.72, response 0.36).
-  static const expandContentSpring = Spring.response(0.36, dampingRatio: 0.72);
-
-  /// The delay of [expandContentSpring] (UIKit `expandFinalSpringDelay`:
-  /// 0.05 s).
-  static const double expandContentDelay = 0.05;
+  /// The delay of the accessory's second axis, both ways (0.05 s).
+  static const double accessoryFollowDelay = 0.05;
 
   /// The diameter of the minimized bar: UIKit's collapsed platter, 48,
   /// the size of the search tab's circle while searching.
@@ -116,14 +130,18 @@ abstract final class TabBarMinimizeTuning {
   /// the measured search tab circle does.
   static const double collapsedInset = 7;
 
-  /// The space between the minimized bar, the inline accessory and a
-  /// minimized search circle, and between the expanded bar and the
-  /// accessory above it: UIKit's layout record carries 8; which space it
-  /// is was not read (an approximation).
-  static const double spacing = 8;
+  /// The space between the expanded bar and the accessory above it: the
+  /// accessory's bottom stands 8 above the bar's top (read from UIKit).
+  static const double accessoryGap = 8;
 
-  /// The height of the bottom accessory, expanded and inline: the
-  /// collapsed platter's 48 (an approximation, not measured).
+  /// The space between the minimized circle and the inline accessory, and
+  /// between the accessory and a minimized search circle (read from
+  /// UIKit).
+  static const double inlineGap = 14;
+
+  /// The height of the bottom accessory, expanded and inline (read from
+  /// UIKit; content may opt into 48 - 64 there, which the port does not
+  /// offer).
   static const double accessoryHeight = 48;
 
   /// The space between the screen's sides and the bar group: 21 (the
@@ -143,15 +161,15 @@ abstract final class TabBarMinimizeTuning {
   static const double holdHysteresis = 4;
 
   /// The spring of UIKit's interactive expansion under a held finger
-  /// (`expansionSpring`: damping 0.5, response 0.4), read from UIKit.
-  /// Which views it moves is not read: the port expands a held bar on
-  /// [expandShapeSpring] and [expandContentSpring] (an approximation).
+  /// (`expansionSpring`: damping 0.5, response 0.4), read from UIKit. UIKit
+  /// grows a container of the bar from the circle's size on it, which the
+  /// port does not yet: it expands a held bar on [morphSpring].
   static const expansionSpring = Spring.response(0.4, dampingRatio: 0.5);
 
   /// The spring UIKit's interactive expansion returns on when the finger
   /// lifts without moving (`collapsedSpring`: damping 0.75, response 0.4),
-  /// read from UIKit; the port collapses on [collapseShapeSpring] and
-  /// [collapseContentSpring] (an approximation, as [expansionSpring]).
+  /// read from UIKit; the port collapses on [morphSpring], as
+  /// [expansionSpring].
   static const collapsedSpring = Spring.response(0.4, dampingRatio: 0.75);
 }
 
@@ -320,10 +338,10 @@ enum _State { accumulating, active, idle }
 /// draws smaller by [TabBarMinimizeTuning.hintScale] x progress on
 /// the tracking spring (a finger down) or the progress spring
 /// (decelerating), and returns to full size on the reset spring when it
-/// minimizes, expands or the scroll stops short. Minimizing runs the
-/// glass ([shape]) on the collapse spring and the content ([content]) on
-/// the final collapse spring after its delay; expanding the same on the
-/// expand springs. A change in the middle of another turns it around
+/// minimizes, expands or the scroll stops short. Minimizing or expanding
+/// runs the liquid morph of the bar ([morph]) on one spring, and moves the
+/// bottom accessory along the bar ([accessoryX]) and up it ([accessoryY])
+/// one after the other. A change in the middle of another turns it around
 /// with its velocity.
 ///
 /// Times are seconds on the caller's clock.
@@ -346,13 +364,17 @@ class TabBarMinimizeMotion {
     1,
     spring: TabBarMinimizeTuning.hintResetSpring,
   );
-  final _shape = MotionValue<double>(
+  final _morph = MotionValue<double>(
     0,
-    spring: TabBarMinimizeTuning.collapseShapeSpring,
+    spring: TabBarMinimizeTuning.morphSpring,
   );
-  final _content = MotionValue<double>(
+  final _accessoryX = MotionValue<double>(
     0,
-    spring: TabBarMinimizeTuning.collapseContentSpring,
+    spring: TabBarMinimizeTuning.accessoryCollapseSpring,
+  );
+  final _accessoryY = MotionValue<double>(
+    0,
+    spring: TabBarMinimizeTuning.accessoryExpandSpring,
   );
   final MotionTimeline _timeline = MotionTimeline(now: 0);
   double _now = 0;
@@ -373,6 +395,9 @@ class TabBarMinimizeMotion {
     if (!value.minimizes) setMinimized(t, minimized: false);
   }
 
+  /// Whether the morph runs on its Reduce Motion spring.
+  bool reducedMotion = false;
+
   /// Whether the bar is minimized or heading there.
   bool get minimized => _minimized;
   bool _minimized = false;
@@ -386,7 +411,7 @@ class TabBarMinimizeMotion {
     if (_hint.target != 1) {
       _hint.retarget(t, 1, spring: TabBarMinimizeTuning.hintResetSpring);
     }
-    _morph(t, minimized: minimized);
+    _transition(t, minimized: minimized);
   }
 
   void _progressChanged(double progress, {required bool tracking}) {
@@ -402,41 +427,45 @@ class TabBarMinimizeMotion {
     } else {
       _hint.retarget(t, 1, spring: TabBarMinimizeTuning.hintResetSpring);
     }
-    if (progress == 0 && _minimized) _morph(t, minimized: false);
+    if (progress == 0 && _minimized) _transition(t, minimized: false);
     if (progress == 1 && !_minimized && _behavior.minimizes) {
-      _morph(t, minimized: true);
+      _transition(t, minimized: true);
     }
   }
 
-  void _morph(double t, {required bool minimized}) {
-    final value = minimized;
-    if (value == _minimized) return;
-    _minimized = value;
+  void _transition(double t, {required bool minimized}) {
+    if (minimized == _minimized) return;
+    _minimized = minimized;
     final generation = ++_generation;
-    final target = value ? 1.0 : 0.0;
-    _shape.retarget(
+    final target = minimized ? 1.0 : 0.0;
+    _morph.retarget(
       t,
       target,
-      spring: value
-          ? TabBarMinimizeTuning.collapseShapeSpring
-          : TabBarMinimizeTuning.expandShapeSpring,
+      spring: reducedMotion
+          ? TabBarMinimizeTuning.reducedMotionMorphSpring
+          : TabBarMinimizeTuning.morphSpring,
     );
-    _timeline.at(
-      t +
-          (value
-              ? TabBarMinimizeTuning.collapseContentDelay
-              : TabBarMinimizeTuning.expandContentDelay),
-      (double at) {
-        if (generation != _generation) return;
-        _content.retarget(
-          at,
-          target,
-          spring: value
-              ? TabBarMinimizeTuning.collapseContentSpring
-              : TabBarMinimizeTuning.expandContentSpring,
-        );
-      },
+    // Collapsing, the accessory moves along first and up after; expanding,
+    // up first and along after: an L, not a straight path.
+    final first = minimized ? _accessoryX : _accessoryY;
+    final second = minimized ? _accessoryY : _accessoryX;
+    first.retarget(
+      t,
+      target,
+      spring: minimized
+          ? TabBarMinimizeTuning.accessoryCollapseSpring
+          : TabBarMinimizeTuning.accessoryExpandSpring,
     );
+    _timeline.at(t + TabBarMinimizeTuning.accessoryFollowDelay, (double at) {
+      if (generation != _generation) return;
+      second.retarget(
+        at,
+        target,
+        spring: minimized
+            ? TabBarMinimizeTuning.accessoryCollapseFollowSpring
+            : TabBarMinimizeTuning.accessoryExpandFollowSpring,
+      );
+    });
   }
 
   double? _pressX;
@@ -528,11 +557,7 @@ class TabBarMinimizeMotion {
   double? wakeTime({double extent = 400}) {
     final due = _timeline.nextDue;
     if (due == null) return null;
-    return _hint.isWithin(_now, GlassRest.scale(extent)) &&
-            _shape.isWithin(_now, GlassRest.scale(extent)) &&
-            _content.isWithin(_now, GlassRest.scale(extent))
-        ? due
-        : null;
+    return _resting(extent) ? due : null;
   }
 
   /// Advances the motion to time [t]; feed scrolls stamped at [t] after.
@@ -547,44 +572,47 @@ class TabBarMinimizeMotion {
 
   double _hintAt(double t) => _hint.valueAt(t);
 
-  /// The glass's way from the expanded bar (0) to the minimized circle
-  /// (1).
-  double get shape => _shapeAt(_now);
+  /// The morph's way from the expanded bar (0) to the minimized circle
+  /// (1): of the glass's shape and of the content.
+  double get morph => _morph.valueAt(_now);
 
-  double _shapeAt(double t) => _shape.valueAt(t);
+  /// The bottom accessory's way from above the bar (0) to beside the
+  /// circle (1) along the bar: its horizontal position and width.
+  double get accessoryX => _accessoryX.valueAt(_now);
 
-  /// The content's way from the expanded bar (0) to the minimized circle
-  /// (1).
-  double get content => _contentAt(_now);
+  /// The bottom accessory's way from above the bar (0) to beside the
+  /// circle (1) up the screen: its vertical position and height.
+  double get accessoryY => _accessoryY.valueAt(_now);
 
-  double _contentAt(double t) => _content.valueAt(t);
+  List<MotionValue<double>> get _channels => [_morph, _accessoryX, _accessoryY];
 
-  /// Whether the bar rests expanded: nothing of the morph
-  /// moves and nothing is pending.
-  bool get restsExpanded => _restsExpandedAt(_now);
-
-  bool _restsExpandedAt(double t) =>
+  /// Whether the bar rests expanded: nothing of the morph moves and
+  /// nothing is pending.
+  bool get restsExpanded =>
       !_minimized &&
       _timeline.isEmpty &&
-      _shape.target == 0 &&
-      _content.target == 0 &&
-      _shape.valueAt(t) == 0 &&
-      _content.valueAt(t) == 0;
+      _channels.every(
+        (value) => value.target == 0 && value.valueAt(_now) == 0,
+      );
+
+  bool _resting(double extent) =>
+      _hint.isWithin(_now, GlassRest.scale(extent)) &&
+      _channels.every(
+        (value) => value.isWithin(_now, GlassRest.scale(extent)),
+      );
 
   /// Whether nothing moves: every spring is within its visible rest
   /// ([GlassRest]) for a bar group [extent] points wide, and nothing is
   /// pending.
   bool isSettled({double extent = 400}) =>
-      _timeline.isEmpty &&
-      _hint.isWithin(_now, GlassRest.scale(extent)) &&
-      _shape.isWithin(_now, GlassRest.scale(extent)) &&
-      _content.isWithin(_now, GlassRest.scale(extent));
+      _timeline.isEmpty && _resting(extent);
 
   /// Puts every spring onto its target at time [t] (NEAR, invisible: the
   /// motion has settled within [GlassRest]).
   void settle(double t) {
     _hint.settle(t);
-    _shape.settle(t);
-    _content.settle(t);
+    for (final value in _channels) {
+      value.settle(t);
+    }
   }
 }

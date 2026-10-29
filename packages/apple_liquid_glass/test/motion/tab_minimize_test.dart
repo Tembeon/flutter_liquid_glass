@@ -126,23 +126,27 @@ void main() {
       expect(motion.minimized, isFalse);
     });
 
-    test('minimizing runs the glass, then the content after 0.05 s', () {
+    test('the bar morphs on one spring; the accessory moves along first '
+        'and up 0.05 s later, and back up first', () {
       final motion = TabBarMinimizeMotion();
       motion.advance(0);
       _drag(motion.scrollAway, 100);
       expect(motion.minimized, isTrue);
       motion.advance(0.04);
-      expect(motion.at(0.04).shape, greaterThan(0));
-      expect(motion.at(0.04).content, 0);
+      expect(motion.at(0.04).morph, greaterThan(0));
+      expect(motion.at(0.04).accessoryX, greaterThan(0));
+      expect(motion.at(0.04).accessoryY, 0);
       motion.advance(0.1);
-      expect(motion.at(0.1).content, greaterThan(0));
+      expect(motion.at(0.1).accessoryY, greaterThan(0));
       motion.advance(3);
       expect(motion.at(3).isSettled(), isTrue);
       motion.settle(3);
-      expect(motion.at(3).shape, 1);
-      expect(motion.at(3).content, 1);
+      expect(motion.at(3).morph, 1);
       motion.setMinimized(3, minimized: false);
-      expect(motion.minimized, isFalse);
+      motion.advance(3.04);
+      expect(motion.at(3.04).accessoryY, lessThan(1));
+      expect(motion.at(3.04).accessoryX, 1);
+      expect(motion.at(3.04).morph, lessThan(1));
       motion.advance(6);
       expect(motion.at(6).restsExpanded, isFalse);
       motion.settle(6);
