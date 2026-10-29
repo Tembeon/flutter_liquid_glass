@@ -404,4 +404,22 @@ void main() {
       );
     });
   });
+
+  testWidgets('disabling a button under a finger ends the press quietly', (
+    tester,
+  ) async {
+    Widget button(VoidCallback? onPressed) => _app(
+      const GlassRenderer.flat(),
+      GlassButton(onPressed: onPressed, child: const Text('Go')),
+    );
+    await tester.pumpWidget(button(() {}));
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(GlassButton)),
+    );
+    await tester.pump(_frame);
+    await tester.pumpWidget(button(null));
+    expect(tester.takeException(), isNull);
+    await gesture.up();
+    await tester.pumpAndSettle();
+  });
 }

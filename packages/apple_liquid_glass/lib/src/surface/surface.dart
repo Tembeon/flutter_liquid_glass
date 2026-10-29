@@ -26,8 +26,8 @@ class GlassSurface extends StatefulWidget {
     super.key,
   }) : frame = null;
 
-  /// Creates a body that follows [frame]: moved, scaled and lit frame by
-  /// frame without a rebuild.
+  /// Creates a body that follows [frame]: moved, scaled, lifted, tinted and
+  /// lit frame by frame without a rebuild.
   const GlassSurface.live({
     required ValueListenable<GlassFrame> this.frame,
     required this.child,
