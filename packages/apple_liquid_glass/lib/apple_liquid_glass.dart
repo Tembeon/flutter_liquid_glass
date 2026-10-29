@@ -3,6 +3,7 @@ library apple_liquid_glass;
 
 export 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
+export 'src/chrome/bar_entry.dart';
 export 'src/chrome/chrome.dart'
     show
         GlassContentScroll,

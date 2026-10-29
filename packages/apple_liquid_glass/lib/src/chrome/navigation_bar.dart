@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/chrome/bar.dart';
+import 'package:apple_liquid_glass/src/chrome/bar_entry.dart';
 import 'package:apple_liquid_glass/src/chrome/chrome.dart';
 import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
@@ -92,33 +94,51 @@ class GlassNavigationBarStyle {
 
 /// An iOS 27 navigation bar.
 ///
-/// UIKit: `UINavigationBar`. SwiftUI: the bar of a `NavigationStack`.
-/// Flutter: `CupertinoNavigationBar`, `CupertinoSliverNavigationBar`.
+/// UIKit: `UINavigationBar` with a `UINavigationItem`. SwiftUI: the bar of
+/// a `NavigationStack`. Flutter: `CupertinoNavigationBar`,
+/// `CupertinoSliverNavigationBar`.
 ///
-/// A row 54 points tall under the status bar with [leading] and
-/// [trailing] 16 points in from the sides and [title] between them: on the
-/// bar's center when it fits there, else from the leading side, truncated
-/// (navigation bar passport, 46 bars within 1 point). With a [largeTitle]
-/// the bar is 52 points taller: the large title sits under the row and
-/// scrolls away with the content of the page's [GlassContentScroll],
-/// after which the inline title rises in, 0.45 s in and 0.7 s out, from 15
-/// points below and blurred (fitted on the device, read from UIKit); a jump
-/// of the content switches it at once. A finger's release that leaves the
-/// large title partly away springs to the nearer end. Put it in a
-/// [GlassPageScaffold].
+/// A row 54 points tall under the status bar: [leading] and [trailing]
+/// glass capsules 16 points in from the sides, centered 22 points below
+/// the status bar, and [title] centered on the bar when it fits between
+/// them, else from the leading side, truncated (navigation bar passport,
+/// 46 bars within 1 point). With a [largeTitle] the bar is 52 points
+/// taller: the large title sits under the row and scrolls away with the
+/// content of the page's [GlassContentScroll], after which the inline
+/// title rises in, 0.45 s in and 0.7 s out, from 15 points below and
+/// blurred (fitted on the device, read from UIKit); a jump of the content
+/// switches it at once. A finger's release that leaves the large title
+/// partly away springs to the nearer end. Put it in a [GlassPageScaffold].
+///
+/// The pages of one navigator pushed as `GlassPageRoute`s share one bar,
+/// as UIKit's navigation controller does: on a push, a pop and an edge
+/// swipe its glass stays in place and the capsules change into the next
+/// page's, each side into itself, groups growing out of a capsule of
+/// their side or appearing in place with a swell, items travelling,
+/// timed from the push or pop call (device recordings, replayed); during
+/// a swipe the capsules the page below also has lean halfway toward their
+/// places there at most. The titles belong to the page and move with it.
+/// A page with a glass page below gets a back button, named after that
+/// page's title, as the first leading capsule; [leading] replaces it and
+/// [automaticallyImplyLeading] false removes it. Elsewhere, the bar draws
+/// its capsules for its page alone.
 class GlassNavigationBar extends StatefulWidget implements ChromeBarWidget {
   /// Creates a navigation bar.
   const GlassNavigationBar({
-    this.leading,
+    this.leading = const [],
     this.title,
     this.largeTitle,
-    this.trailing,
+    this.trailing = const [],
+    this.automaticallyImplyLeading = true,
+    this.previousPageTitle,
+    this.backButtonDisplayMode = GlassBackButtonDisplayMode.title,
     this.style,
     super.key,
   });
 
-  /// What sits at the leading edge, such as a back button.
-  final Widget? leading;
+  /// The capsules at the leading edge; when not empty they replace the
+  /// back button (UIKit `leftBarButtonItems`).
+  final List<GlassBarEntry> leading;
 
   /// The inline title; [largeTitle] when null.
   final Widget? title;
@@ -126,8 +146,19 @@ class GlassNavigationBar extends StatefulWidget implements ChromeBarWidget {
   /// The large title under the row, or null for an inline title only.
   final Widget? largeTitle;
 
-  /// What sits at the trailing edge.
-  final Widget? trailing;
+  /// The capsules at the trailing edge (UIKit `rightBarButtonItems`).
+  final List<GlassBarEntry> trailing;
+
+  /// Whether the page gets a back button when [leading] is empty and a
+  /// glass page lies below (UIKit `hidesBackButton` false).
+  final bool automaticallyImplyLeading;
+
+  /// The back button's name for the page below, in place of that page's
+  /// title.
+  final String? previousPageTitle;
+
+  /// How the back button names the page below.
+  final GlassBackButtonDisplayMode backButtonDisplayMode;
 
   /// The look, over the theme's.
   final GlassNavigationBarStyle? style;
@@ -170,10 +201,21 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
   ValueNotifier<MotionScrollObserver?>? _active;
   bool _reduceMotion = false;
   bool _laidOut = false;
+  GlassPageBarLink? _link;
+  GlassBarHost? _standalone;
+
+  GlassPageBarLink get _barLink => _link ?? _standalone!.standaloneLink;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _link = GlassPageBarLink.maybeOf(context);
+    if (_link == null) {
+      _standalone ??= GlassBarHost.standalone();
+    } else if (_standalone case final host?) {
+      host.detach(host.standaloneLink);
+      _standalone = null;
+    }
     _reduceMotion = GlassTraits.of(context).reduceMotion;
     final active = GlassChrome.maybeOf(context)?.active;
     if (identical(active, _active)) return;
@@ -194,6 +236,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
 
   @override
   void dispose() {
+    if (_standalone case final host?) host.detach(host.standaloneLink);
     _active?.removeListener(_follow);
     _scroll.value?.removeListener(_scrolled);
     _scroll.dispose();
@@ -250,16 +293,40 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     final title = widget.title ?? widget.largeTitle;
     final largeTitle = widget.largeTitle;
     final background = look.backgroundColor;
+    final link = _barLink;
+    link.host.declare(
+      link,
+      GlassBarDeclaration(
+        leading: widget.leading,
+        trailing: widget.trailing,
+        automaticallyImplyLeading: widget.automaticallyImplyLeading,
+        previousPageTitle: widget.previousPageTitle,
+        backButtonDisplayMode: widget.backButtonDisplayMode,
+        title: switch (title) {
+          Text(:final data?) => data,
+          _ => null,
+        },
+      ),
+    );
+    final standalone = _standalone;
     final row = SizedBox(
       height: GlassNavigationBar.height,
-      child: CustomMultiChildLayout(
-        delegate: _RowLayout(Directionality.of(context)),
+      child: Stack(
+        clipBehavior: Clip.none,
+        fit: StackFit.expand,
         children: [
-          if (widget.leading case final leading?)
-            LayoutId(id: _Slot.leading, child: leading),
+          if (standalone != null)
+            MediaQuery.removePadding(
+              context: context,
+              removeTop: true,
+              child: GlassBarView(host: standalone),
+            ),
           if (title != null)
-            LayoutId(
-              id: _Slot.title,
+            CustomSingleChildLayout(
+              delegate: _TitleLayout(
+                link.titleRoom,
+                Directionality.of(context),
+              ),
               child: MotionTransition(
                 opacity: _opacity,
                 translateY: _rise,
@@ -282,8 +349,6 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
                 ),
               ),
             ),
-          if (widget.trailing case final trailing?)
-            LayoutId(id: _Slot.trailing, child: trailing),
         ],
       ),
     );
@@ -340,9 +405,9 @@ abstract final class _Metrics {
   /// point wide screen (20 on the 440 point Pro Max).
   static const double sideInset = 16;
 
-  /// The least space between the inline title and the items
-  /// (`titleControlPadding`).
-  static const double titlePadding = 12;
+  /// How far below the status bar the capsules and the inline title are
+  /// centered: the capsules sit at the row's top (device recordings).
+  static const double capsuleCenter = 22;
 
   /// The leading inset of the large title.
   static const double largeTitleInset = 16;
@@ -382,58 +447,47 @@ abstract final class _Metrics {
   );
 }
 
-enum _Slot { leading, title, trailing }
+/// Lays the inline title out as UIKit does: on the bar's center, 22
+/// points below the status bar like the capsules, when it fits in the
+/// [room] between the page's capsules; else from the room's leading end,
+/// truncated at the other.
+class _TitleLayout extends SingleChildLayoutDelegate {
+  _TitleLayout(this.room, this.direction) : super(relayout: room);
 
-/// Lays the row out as UIKit does: the items at the sides, the title on
-/// the bar's center when it fits between them, else from the leading
-/// bound, truncated at the other.
-class _RowLayout extends MultiChildLayoutDelegate {
-  _RowLayout(this.direction);
-
+  final ValueListenable<GlassTitleRoom?> room;
   final TextDirection direction;
 
-  @override
-  void performLayout(Size size) {
-    final rtl = direction == TextDirection.rtl;
-    final loose = BoxConstraints.loose(size);
-    var lo = _Metrics.sideInset;
-    var hi = size.width - _Metrics.sideInset;
-    void side(_Slot slot, {required bool start}) {
-      if (!hasChild(slot)) return;
-      final item = layoutChild(slot, loose);
-      final left = start != rtl
-          ? _Metrics.sideInset
-          : size.width - _Metrics.sideInset - item.width;
-      positionChild(slot, Offset(left, (size.height - item.height) / 2));
-      if (left < size.width / 2) {
-        lo = math.max(lo, left + item.width + _Metrics.titlePadding);
-      } else {
-        hi = math.min(hi, left - _Metrics.titlePadding);
-      }
-    }
+  GlassTitleRoom _roomIn(Size size) =>
+      room.value ??
+      (start: _Metrics.sideInset, end: size.width - _Metrics.sideInset);
 
-    side(_Slot.leading, start: true);
-    side(_Slot.trailing, start: false);
-    if (!hasChild(_Slot.title)) return;
-    // Laid out in the room, a title narrower than the room is whole.
-    final title = layoutChild(
-      _Slot.title,
-      BoxConstraints(maxWidth: hi > lo ? hi - lo : 0, maxHeight: size.height),
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
+    final room = _roomIn(constraints.biggest);
+    return BoxConstraints(
+      maxWidth: math.max(0, room.end - room.start),
+      maxHeight: constraints.maxHeight,
     );
-    final center = size.width / 2;
-    final half = title.width / 2;
-    final fits = center - half >= lo - 0.01 && center + half <= hi + 0.01;
-    final left = fits
-        ? center - half
-        : rtl
-        ? hi - title.width
-        : lo;
-    positionChild(_Slot.title, Offset(left, (size.height - title.height) / 2));
   }
 
   @override
-  bool shouldRelayout(_RowLayout oldDelegate) =>
-      direction != oldDelegate.direction;
+  Offset getPositionForChild(Size size, Size childSize) {
+    final room = _roomIn(size);
+    final center = size.width / 2;
+    final half = childSize.width / 2;
+    final fits =
+        center - half >= room.start - 0.01 && center + half <= room.end + 0.01;
+    final left = fits
+        ? center - half
+        : direction == TextDirection.rtl
+        ? room.end - childSize.width
+        : room.start;
+    return Offset(left, _Metrics.capsuleCenter - childSize.height / 2);
+  }
+
+  @override
+  bool shouldRelayout(_TitleLayout oldDelegate) =>
+      !identical(room, oldDelegate.room) || direction != oldDelegate.direction;
 }
 
 /// A large title that scrolls away with the content: it paints its child

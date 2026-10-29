@@ -1,3 +1,4 @@
+import 'package:apple_liquid_glass/src/chrome/bar.dart';
 import 'package:apple_liquid_glass/src/motion/navigation_motion.dart';
 import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
@@ -31,9 +32,11 @@ import 'package:kinesis/kinesis.dart';
 /// `PopScope`s; a pop asked for while a finger holds the page waits for
 /// the release, which then takes the page out.
 ///
-/// The page's navigation bar slides with the page: UIKit keeps one bar
-/// and moves its items between the pages, which the port does not yet.
-/// The page follows the finger one to one; UIKit's settings carry a
+/// The pages of a navigator share one `GlassNavigationBar`, drawn right
+/// above the topmost glass page and under every route pushed after it, so
+/// alerts, sheets and menus cover it; its capsules stay while the pages
+/// move and change into the next page's as UIKit's do. The page follows
+/// the finger one to one; UIKit's settings carry a
 /// tracking spring whose use is not confirmed on the device. A finger does
 /// not catch a page that is already leaving, as UIKit's does: the
 /// navigator has popped it by then.
@@ -59,6 +62,19 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
   final _cover = ValueNotifier<GlassPageRoute<Object?>?>(null);
   GlassPageRoute<Object?>? _below;
 
+  // The page's end of its navigator's shared bar.
+  late final GlassPageBarLink _bar;
+  bool _presenting = false;
+
+  // The time of the finger's lift that committed a swipe's pop.
+  double? _lifted;
+
+  @override
+  void install() {
+    _bar = GlassBarHost.of(navigator!).attach(this, presence: _presence);
+    super.install();
+  }
+
   @override
   bool get maintainState => true;
 
@@ -66,6 +82,7 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
   void didPresent() {
     super.didPresent();
     _presented = MotionClock.instance.now;
+    _presenting = true;
   }
 
   @override
@@ -89,6 +106,44 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
       _below = previousRoute;
       previousRoute._cover.value = this;
     }
+    final below = previousRoute is GlassPageRoute ? previousRoute._bar : null;
+    if (_presenting) {
+      _presenting = false;
+      _bar.host.presented(
+        _bar,
+        below: below,
+        current: isCurrent,
+        animated: animation?.status == AnimationStatus.forward,
+        time: _presented,
+      );
+    } else {
+      _bar.host.previousChanged(
+        _bar,
+        below: below,
+        time: MotionClock.instance.now,
+      );
+    }
+  }
+
+  @override
+  void didChangeNext(Route<Object?>? nextRoute) {
+    super.didChangeNext(nextRoute);
+    _bar.host.coveredChanged(
+      _bar,
+      covered: nextRoute is PageRoute && nextRoute is! GlassPageRoute,
+    );
+  }
+
+  @override
+  void beginInteraction() {
+    super.beginInteraction();
+    _bar.host.swipeStarted(_bar);
+  }
+
+  @override
+  void endInteraction() {
+    super.endInteraction();
+    _bar.host.swipeEnded(_bar);
   }
 
   void _uncover() {
@@ -102,25 +157,33 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
   @override
   void didFinish(T? result) {
     _uncover();
+    _bar.host.finished(_bar);
     super.didFinish(result);
   }
 
   @override
   void dispose() {
     _uncover();
+    _bar.host.detach(_bar);
     _cover.dispose();
     _fades.dispose();
     super.dispose();
   }
 
   @override
-  Widget buildContent(BuildContext context) => _Slide(
-    route: this,
-    child: Builder(builder: builder),
+  Widget buildContent(BuildContext context) => GlassBarSlot(
+    link: _bar,
+    child: _Slide(
+      route: this,
+      child: Builder(builder: builder),
+    ),
   );
 
   @override
   bool leave(DismissTrigger trigger) {
+    final lifted = trigger == DismissTrigger.interaction ? _lifted : null;
+    _lifted = null;
+    _bar.host.leaving(_bar, time: lifted ?? MotionClock.instance.now);
     final slide = _slide;
     if (slide == null || !slide.mounted) return false;
     slide.leave();
@@ -414,6 +477,7 @@ final class _SwipePop extends Interaction {
         final predictor = _predictor;
         final progress = (_along(input.position) - _along(_start)) / _width;
         predictor.update(input.time, progress, ending: true);
+        _slide.route._lifted = input.time;
         _slide._released(
           pops: predictor.shouldPop(progress),
           velocity: predictor.settleVelocity,
