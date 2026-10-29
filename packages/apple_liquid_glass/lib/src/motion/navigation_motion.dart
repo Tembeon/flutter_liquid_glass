@@ -62,6 +62,19 @@ abstract final class NavigationTuning {
   /// UIKit).
   static const double edgeHysteresis = 15;
 
+  /// How far a finger away from the edge moves along the page before the
+  /// pop begins, or the wrong way before it fails (read from UIKit; the
+  /// content swipe of `UINavigationController`).
+  static const double contentHysteresis = 30;
+
+  /// The most a finger away from the edge may move across the page before
+  /// the pop begins: min(25, 0.8 |tx| + 10) points, which a straight drag
+  /// passes up to about 40 degrees (read from UIKit). On a vertical list
+  /// the list's own drag takes steeper ones first; the device cut-off there
+  /// is 29 to 30 degrees (device recordings).
+  static double contentFunnel(double along) =>
+      math.min(25, 0.8 * along.abs() + 10);
+
   /// How far a page dragged past either end of its travel moves, at most,
   /// as a share of its width, with [rubberBandCoefficient]: UIKit rubber
   /// bands the progress outside 0 - 1 (read from UIKit; the coefficient is

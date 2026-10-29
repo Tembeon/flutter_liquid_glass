@@ -64,6 +64,22 @@ Duration Function() _deviceTime(WidgetTester tester) {
   return now;
 }
 
+Future<void> _swipe(
+  WidgetTester tester,
+  Duration Function() now,
+  Offset from,
+  Offset by,
+) async {
+  const steps = 12;
+  final gesture = await tester.createGesture();
+  await gesture.down(from, timeStamp: now());
+  for (var i = 0; i < steps; i++) {
+    await tester.pump(_frame);
+    await gesture.moveBy(by / steps.toDouble(), timeStamp: now());
+  }
+  await gesture.up(timeStamp: now());
+}
+
 double _x(WidgetTester tester, String text) =>
     tester.getCenter(find.text(text)).dx;
 
@@ -227,7 +243,8 @@ void main() {
     expect(_x(tester, 'Home'), 201);
   });
 
-  testWidgets('a touch away from the edge does not pop', (tester) async {
+  testWidgets('a swipe along the page pops it from anywhere; a steep or '
+      'backward one does not', (tester) async {
     await _phone(tester);
     final navigator = GlobalKey<NavigatorState>();
     await tester.pumpWidget(_app(navigator));
@@ -237,9 +254,56 @@ void main() {
       ),
     );
     await _settle(tester);
-    await tester.dragFrom(const Offset(120, 400), const Offset(250, 0));
+    final now = _deviceTime(tester);
+    await _swipe(tester, now, const Offset(200, 400), const Offset(-150, 0));
+    await _swipe(tester, now, const Offset(200, 400), const Offset(100, 100));
     await _settle(tester);
     expect(_x(tester, 'Next'), 201);
+    expect(find.text('Home'), findsNothing);
+    await _swipe(tester, now, const Offset(200, 400), const Offset(150, 30));
+    await _settle(tester);
+    expect(find.text('Next'), findsNothing);
+  });
+
+  testWidgets('the page keeps its taps, and its vertical list keeps drags '
+      'steeper than its slop allows', (tester) async {
+    await _phone(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_app(navigator));
+    var taps = 0;
+    final scroll = ScrollController();
+    addTearDown(scroll.dispose);
+    unawaited(
+      navigator.currentState!.push(
+        GlassPageRoute<void>(
+          builder: (_) => ColoredBox(
+            color: const Color(0xFFEEEEEE),
+            child: ListView(
+              controller: scroll,
+              children: [
+                GestureDetector(
+                  onTap: () => taps++,
+                  child: const SizedBox(height: 100, child: Text('Row')),
+                ),
+                const SizedBox(height: 2000),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await _settle(tester);
+    final now = _deviceTime(tester);
+    await tester.tap(find.text('Row'));
+    await tester.pump();
+    expect(taps, 1);
+    await _swipe(tester, now, const Offset(200, 600), const Offset(150, -150));
+    await _settle(tester);
+    expect(scroll.offset, greaterThan(0));
+    expect(find.text('Home'), findsNothing);
+    await _swipe(tester, now, const Offset(200, 600), const Offset(200, -40));
+    await _settle(tester);
+    expect(find.text('Row', skipOffstage: false), findsNothing);
   });
 
   testWidgets('under Reduce Motion a push cross-fades instead of sliding', (
