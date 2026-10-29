@@ -36,7 +36,10 @@ class FakeGlass extends StatelessWidget {
     super.key,
   }) : backdropHandledByLayer = false,
        inheritVisibility = true,
-       live = null;
+       live = null,
+       fakeKey = null,
+       shadowKey = null,
+       fadeKey = null;
 
   /// Creates a new [FakeGlass] widget that takes settings from the nearest
   /// ancestor [LiquidGlassLayer].
@@ -51,7 +54,10 @@ class FakeGlass extends StatelessWidget {
        useBackdropGroup = false,
        backdropHandledByLayer = false,
        inheritVisibility = true,
-       live = null;
+       live = null,
+       fakeKey = null,
+       shadowKey = null,
+       fadeKey = null;
 
   /// Creates an in-layer fallback whose appearance is already resolved.
   @internal
@@ -62,6 +68,9 @@ class FakeGlass extends StatelessWidget {
     this.shadows = const [],
     this.backdropHandledByLayer = false,
     this.live,
+    this.fakeKey,
+    this.shadowKey,
+    this.fadeKey,
     super.key,
   }) : settings = null,
        backdropKey = null,
@@ -121,6 +130,20 @@ class FakeGlass extends StatelessWidget {
   @internal
   final ValueListenable<LiquidGlassShapeFrame>? live;
 
+  /// The keys of the render objects a live frame writes its shape,
+  /// appearance and shadows into: the glass, its shadow and the fade of
+  /// its child.
+  @internal
+  final Key? fakeKey;
+
+  /// See [fakeKey].
+  @internal
+  final Key? shadowKey;
+
+  /// See [fakeKey].
+  @internal
+  final Key? fadeKey;
+
   /// The child widget that will be displayed inside the glass.
   final Widget child;
 
@@ -150,6 +173,7 @@ class FakeGlass extends StatelessWidget {
     final glow = _fadeChildren(
       appearance.visibility,
       GlassGlowLayer(child: child),
+      key: fadeKey,
     );
     final paintsOwnSurface =
         !(renderScope?.consolidatesFakeSurface ?? false) ||
@@ -161,6 +185,7 @@ class FakeGlass extends StatelessWidget {
     // backdrop clipped to the shape and draws the border ring separately.
     final paintsExteriorBorder = paintsOwnSurface && !allowsSurfaceOutset;
     RawFakeGlass buildRawFake(ui.FragmentShader? surfaceShader) => RawFakeGlass(
+      key: fakeKey,
       shape: shape,
       settings: settings,
       appearance: appearance,
@@ -190,6 +215,7 @@ class FakeGlass extends StatelessWidget {
     );
     if (shadows.isEmpty) return clipped;
     return GlassShadow(
+      key: shadowKey,
       shape: shape,
       shadows: shadows,
       appearanceVisibility: appearance.visibility,
@@ -199,8 +225,12 @@ class FakeGlass extends StatelessWidget {
     );
   }
 
-  static Widget _fadeChildren(double visibility, Widget child) {
-    return Opacity(opacity: visibility.clamp(0.0, 1.0), child: child);
+  static Widget _fadeChildren(double visibility, Widget child, {Key? key}) {
+    return Opacity(
+      key: key,
+      opacity: visibility.clamp(0.0, 1.0),
+      child: child,
+    );
   }
 }
 
@@ -282,7 +312,6 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
   }
 }
 
-@visibleForTesting
 @internal
 class RenderFakeGlass extends RenderProxyBox with LivePaintSize {
   RenderFakeGlass({

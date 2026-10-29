@@ -6,6 +6,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/fake_glass.dart' show RenderFakeGlass;
+import 'package:liquid_glass_renderer/src/glass_shadow.dart'
+    show RenderGlassShadow;
 import 'package:liquid_glass_renderer/src/internal/live_paint_size.dart';
 import 'package:liquid_glass_renderer/src/internal/optimized_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
@@ -189,10 +192,9 @@ class LiquidGlass extends StatefulWidget {
   /// Creates a shape whose geometry, material and shadows follow [frame].
   ///
   /// Every notification of [frame] writes the new frame straight into the
-  /// shape's render objects; the widget rebuilds only when the kind of shape
-  /// changes, its shadows appear or vanish, or, on fake glass, when its
-  /// shape, appearance or shadows change. The frame's rect and scale never
-  /// rebuild or lay out anything, on real and fake glass alike.
+  /// shape's render objects, on real and fake glass alike; the widget
+  /// rebuilds only when the kind of shape changes or its shadows appear or
+  /// vanish. The frame's rect and scale never rebuild or lay out anything.
   ///
   /// Hit testing follows the box the widget was laid out in, not the rect
   /// the frame draws it at, as UIKit hit-tests a view's model rather than
@@ -299,10 +301,11 @@ class _LiquidGlassState extends State<LiquidGlass> {
   // The render objects a live frame is written into, and what the tree was
   // built with: a frame that keeps the structure goes straight to them.
   final _rawKey = GlobalKey(debugLabel: 'LiquidGlass.raw');
+  final _fakeKey = GlobalKey(debugLabel: 'LiquidGlass.fake');
+  final _shadowKey = GlobalKey(debugLabel: 'LiquidGlass.shadow');
   final _fadeKey = GlobalKey(debugLabel: 'LiquidGlass.fade');
   LiquidGlassShapeFrame? _built;
   LiquidGlassShapeFrame? _last;
-  bool _writable = false;
   late LiquidGlassAppearance _defaultAppearance;
   double _visibility = 1;
 
@@ -339,22 +342,35 @@ class _LiquidGlassState extends State<LiquidGlass> {
       return;
     }
     final built = _built;
-    final raw = _rawKey.currentContext?.findRenderObject();
-    if (!_writable ||
-        built == null ||
-        raw is! RenderLiquidGlass ||
+    if (built == null ||
         frame.shape.runtimeType != built.shape.runtimeType ||
         frame.shadows.isEmpty != built.shadows.isEmpty) {
       setState(() {});
       return;
     }
     final appearance = _visibleAppearance(frame.appearance);
-    raw
-      ..shape = frame.shape
-      ..layerShadows = frame.shadows
-      ..appearance = appearance;
-    final fade = _fadeKey.currentContext?.findRenderObject();
-    if (fade is RenderOpacity) {
+    if (_rawKey.currentContext?.findRenderObject()
+        case final RenderLiquidGlass raw) {
+      raw
+        ..shape = frame.shape
+        ..layerShadows = frame.shadows
+        ..appearance = appearance;
+    }
+    if (_fakeKey.currentContext?.findRenderObject()
+        case final RenderFakeGlass fake) {
+      fake
+        ..shape = frame.shape
+        ..appearance = appearance;
+    }
+    if (_shadowKey.currentContext?.findRenderObject()
+        case final RenderGlassShadow shadow) {
+      shadow
+        ..shape = frame.shape
+        ..shadows = frame.shadows
+        ..visibility = appearance.visibility;
+    }
+    if (_fadeKey.currentContext?.findRenderObject()
+        case final RenderOpacity fade) {
       fade.opacity = appearance.visibility.clamp(0.0, 1.0);
     }
   }
@@ -364,7 +380,6 @@ class _LiquidGlassState extends State<LiquidGlass> {
   @override
   Widget build(BuildContext context) {
     _built = _last = widget.frame?.value;
-    _writable = false;
     final glass = _buildShape(context);
     final frame = widget.frame;
     return frame == null ? glass : _LiveGlassFrame(frame: frame, child: glass);
@@ -450,6 +465,9 @@ class _LiquidGlassState extends State<LiquidGlass> {
         appearance: appearance,
         shadows: widget.shadows,
         live: widget.frame,
+        fakeKey: _fakeKey,
+        shadowKey: _shadowKey,
+        fadeKey: _fadeKey,
         child: _keyedChild,
       );
     }
@@ -476,6 +494,9 @@ class _LiquidGlassState extends State<LiquidGlass> {
         appearance: appearance,
         shadows: widget.shadows,
         live: widget.frame,
+        fakeKey: _fakeKey,
+        shadowKey: _shadowKey,
+        fadeKey: _fadeKey,
         child: _keyedChild,
       );
     }
@@ -484,13 +505,14 @@ class _LiquidGlassState extends State<LiquidGlass> {
         ? InheritedGeometryRenderLink.of(context)
         : null;
 
-    _writable = !scope.consolidatesFakeBackdrop;
     final registeredChild = scope.consolidatesFakeBackdrop
         ? FakeGlass.inLayerResolved(
             shape: widget.shape,
             appearance: appearance,
             backdropHandledByLayer: true,
             live: widget.frame,
+            fakeKey: _fakeKey,
+            fadeKey: _fadeKey,
             child: _keyedChild,
           )
         : OptimizedClip(

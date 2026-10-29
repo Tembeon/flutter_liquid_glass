@@ -175,6 +175,67 @@ void main() {
     );
   }, skip: skipProperGlassTests);
 
+  testWidgets('a live frame writes shape, appearance and shadows into fake '
+      'glass without rebuilding', (tester) async {
+    tester.view
+      ..physicalSize = _view
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    const after = LiquidRoundedSuperellipse(borderRadius: 44);
+    final tinted = LiquidGlassAppearance.ios27Regular(
+      brightness: Brightness.light,
+      tint: const Color(0x66FF3B30),
+    );
+    const shadows = [BoxShadow(color: Color(0x40000000), blurRadius: 12)];
+    await tester.pumpWidget(
+      _scene(
+        fake: true,
+        at: _drawn,
+        glass: LiquidGlass(
+          shape: after,
+          appearance: tinted,
+          shadows: shadows,
+          child: _content,
+        ),
+      ),
+    );
+    await tester.pump();
+    final fixed = await _capture(tester);
+
+    final frame = ValueNotifier(
+      const LiquidGlassShapeFrame(
+        shape: _shape,
+        shadows: [BoxShadow(color: Color(0x20000000), blurRadius: 4)],
+      ),
+    );
+    addTearDown(frame.dispose);
+    await tester.pumpWidget(
+      _scene(
+        fake: true,
+        at: _drawn,
+        glass: LiquidGlass.live(frame: frame, child: _content),
+      ),
+    );
+    await tester.pump();
+
+    final rebuilt = <Widget>[];
+    debugOnRebuildDirtyWidget = (element, builtOnce) {
+      rebuilt.add(element.widget);
+    };
+    addTearDown(() => debugOnRebuildDirtyWidget = null);
+    frame.value = LiquidGlassShapeFrame(
+      shape: after,
+      appearance: tinted,
+      shadows: shadows,
+    );
+    await tester.pump();
+    debugOnRebuildDirtyWidget = null;
+
+    expect(rebuilt, isEmpty);
+    expect(_differing(fixed, await _capture(tester)), 0);
+  }, skip: skipProperGlassTests);
+
   testWidgets('a grouped live shape draws at its frame rect', (tester) async {
     tester.view
       ..physicalSize = _view
