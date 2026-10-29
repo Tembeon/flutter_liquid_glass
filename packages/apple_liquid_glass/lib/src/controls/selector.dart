@@ -32,6 +32,11 @@ enum GlassSelectorMotion {
 /// item's own states, which include [WidgetState.selected] for the selected
 /// item, [WidgetState.pressed] for the item under a touch and
 /// [WidgetState.hovered] for the item under the mouse.
+///
+/// With [GlassSelectorMotion.tabBar] every item is built twice: without
+/// [WidgetState.selected] for the bar, and with it for the copy the lens
+/// shows wherever it is, as UIKit masks a selected copy of every tab by
+/// the lens.
 typedef GlassSelectorItemBuilder = Widget Function(
   BuildContext context,
   int index,
@@ -472,7 +477,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector> {
         child: widget.itemBuilder(
           context,
           index,
-          _itemStates(index, selected: selected),
+          _itemStates(index, selected: selected && _segmented),
         ),
       ),
     );
@@ -483,34 +488,43 @@ class _RawGlassSelectorState extends State<RawGlassSelector> {
     final count = widget.itemCount;
     return ValueListenableBuilder(
       valueListenable: _pointing,
-      builder: (context, _, _) => _SelectorRow(
-        body: _body,
-        kind: widget.motion,
-        paired: paired,
-        itemWidths: widget.itemWidths,
-        proportional: widget.proportionalWidth,
-        showsLens: _selected != null,
-        children: [
-          for (var i = 0; i < count; i++) ...[
-            if (paired)
-              RepaintBoundary(child: _item(context, i))
-            else
-              _item(context, i),
-            if (paired)
-              ExcludeSemantics(
-                child: RepaintBoundary(
-                  child: Center(
-                    child: widget.itemBuilder(
-                      context,
-                      i,
-                      _itemStates(i, selected: true),
+      builder: (context, _, _) {
+        final row = _SelectorRow(
+          body: _body,
+          kind: widget.motion,
+          paired: paired,
+          itemWidths: widget.itemWidths,
+          proportional: widget.proportionalWidth,
+          showsLens: _selected != null,
+          children: [
+            for (var i = 0; i < count; i++) ...[
+              if (paired)
+                RepaintBoundary(child: _item(context, i))
+              else
+                _item(context, i),
+              if (paired)
+                ExcludeSemantics(
+                  child: RepaintBoundary(
+                    child: Center(
+                      child: widget.itemBuilder(
+                        context,
+                        i,
+                        _itemStates(i, selected: true),
+                      ),
                     ),
                   ),
                 ),
-              ),
+            ],
           ],
-        ],
-      ),
+        );
+        if (!paired) return row;
+        return Semantics(
+          container: true,
+          explicitChildNodes: true,
+          role: SemanticsRole.tabBar,
+          child: row,
+        );
+      },
     );
   }
 
@@ -529,19 +543,16 @@ class _RawGlassSelectorState extends State<RawGlassSelector> {
         states: {..._states.value},
       ),
     );
-    final back = _rtl ? 1 : -1;
     return CallbackShortcuts(
       bindings: {
-        const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _step(back),
-        const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
-            _step(-back),
+        const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _step(-1),
+        const SingleActivator(LogicalKeyboardKey.arrowRight): () => _step(1),
         const SingleActivator(LogicalKeyboardKey.enter): _reselect,
         const SingleActivator(LogicalKeyboardKey.space): _reselect,
       },
       child: Semantics(
         container: true,
         explicitChildNodes: true,
-        role: _segmented ? null : SemanticsRole.tabBar,
         child: InputRegion(
           interactions: _interactions,
           enabled: _enabled && widget.itemCount > 0,
@@ -1031,6 +1042,9 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
   final bool showsLens;
 
   @override
+  MultiChildRenderObjectElement createElement() => _SelectorRowElement(this);
+
+  @override
   _RenderSelectorRow createRenderObject(BuildContext context) =>
       _RenderSelectorRow(
         body: body,
@@ -1055,6 +1069,25 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
     renderObject.showsLens = showsLens;
     renderObject.direction =
         Directionality.maybeOf(context) ?? TextDirection.ltr;
+  }
+}
+
+// The selected copies are drawn only inside the lens; like an
+// IndexedStack's hidden children, they are offstage to finders.
+class _SelectorRowElement extends MultiChildRenderObjectElement {
+  _SelectorRowElement(_SelectorRow super.widget);
+
+  @override
+  void debugVisitOnstageChildren(ElementVisitor visitor) {
+    if (!(widget as _SelectorRow).paired) {
+      super.debugVisitOnstageChildren(visitor);
+      return;
+    }
+    var regular = true;
+    for (final child in children) {
+      if (regular) visitor(child);
+      regular = !regular;
+    }
   }
 }
 
@@ -1233,8 +1266,21 @@ class _RenderSelectorRow extends RenderBox
   }
 
   @override
-  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
-      false;
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    var child = firstChild;
+    while (child != null) {
+      final item = child;
+      final hit = result.addWithPaintOffset(
+        offset: (item.parentData! as _RowParentData).offset,
+        position: position,
+        hitTest: (result, local) => item.hitTest(result, position: local),
+      );
+      if (hit) return true;
+      child = childAfter(item);
+      if (_paired && child != null) child = childAfter(child);
+    }
+    return false;
+  }
 
   @override
   void paint(PaintingContext context, Offset offset) {
