@@ -391,13 +391,15 @@ class ManualMotionClock extends MotionClock {
 /// The binding's frame clock.
 ///
 /// Its time is the scheduler's frame time stamp (so `timeDilation` and test
-/// pumps apply), put on the display's frame grid ([FrameGrid]), and it
-/// stands still while the clock sleeps: a motion sees one continuous
-/// timeline across gestures, and time spent asleep does not count. The
-/// clock asks for frames only while something is active. With only a later
-/// change pending it dozes on a timer instead, and a doze counts: input
-/// stamped and changes made while it dozes get the time an uninterrupted
-/// clock would give them, and so does the frame that ends it.
+/// pumps apply), put on the display's frame grid ([FrameGrid]). The clock
+/// asks for frames only while something is active. With only a later change
+/// pending it dozes on a timer instead, and with nothing pending it sleeps.
+/// Both count where the frame time stamps follow the engine clock, as on a
+/// device: input stamped and changes made meanwhile get the time an
+/// uninterrupted clock would give them, and so does the frame that ends the
+/// wait, so a finger held still keeps its time. Under a test's fake frame
+/// clock, which the engine clock does not follow, the time stands still
+/// while the clock sleeps.
 ///
 /// A frame's phases run in a microtask scheduled from the clock's frame
 /// callback, so after every ticker of the frame and before build; a clock
@@ -411,9 +413,10 @@ class ManualMotionClock extends MotionClock {
 /// the touch's time stamp. While the clock runs or dozes, an event's time is
 /// the latest frame's time plus the time from that frame's time stamp to
 /// the event's, usually a frame or two in the past. Events that arrive
-/// while it sleeps keep their spacing, measured by their own time stamps
-/// and slowed by `timeDilation`, and the first frame after the wake
-/// continues from the latest of them, so the clock never runs backwards. An
+/// before its first frame, or while it sleeps under a fake frame clock,
+/// keep their spacing, measured by their own time stamps and slowed by
+/// `timeDilation`, and the first frame after the wake continues from the
+/// latest of them, so the clock never runs backwards. An
 /// event whose time stamp does not land within [maxEventAge] before the
 /// engine clock is taken as happening one frame after its delivery. When
 /// the frame time stamps and the engine clock disagree by more than
@@ -461,11 +464,18 @@ class _BindingClock extends MotionClock {
       }
     }
     final dozed = _dozeSystemStamp;
-    if (dozed != null &&
-        _stampsAgree &&
-        SchedulerBinding.instance.schedulerPhase == SchedulerPhase.idle) {
-      final since = (_engineNow() - dozed).inMicroseconds / 1e6;
-      final t = _dozeTime + since / timeDilation;
+    final dozedFrame = _dozeStamp;
+    if (dozed != null && dozedFrame != null && _stampsAgree) {
+      final scheduler = SchedulerBinding.instance;
+      // Inside a frame the clock does not run, a change made now shows in
+      // that frame: it gets the frame's time, as the clock's next frame
+      // counts on from it.
+      final t = scheduler.schedulerPhase == SchedulerPhase.idle
+          ? _dozeTime +
+                (_engineNow() - dozed).inMicroseconds / 1e6 / timeDilation
+          : _dozeTime +
+                (scheduler.currentFrameTimeStamp - dozedFrame).inMicroseconds /
+                    1e6;
       if (t > _time) return t;
     }
     return _time;
@@ -578,6 +588,25 @@ class _BindingClock extends MotionClock {
   }
 
   void _sleep() {
+    final frame = _advanced;
+    if (!_stampsAgree || !_ticking || (_dozeStamp == null && frame == null)) {
+      _stop();
+      return;
+    }
+    _cancel();
+    _advanced = null;
+    _doze?.cancel();
+    _doze = null;
+    // Sleep counts as a doze without a timer: a finger held still while
+    // nothing moves keeps its time.
+    if (_dozeStamp == null) {
+      _dozeStamp = frame;
+      _dozeSystemStamp = _tickStamp;
+      _dozeTime = _time;
+    }
+  }
+
+  void _stop() {
     _cancel();
     _advanced = null;
     _doze?.cancel();
@@ -669,5 +698,5 @@ class _BindingClock extends MotionClock {
     if (!needsFrame) _sleep();
   }
 
-  void _dispose() => _sleep();
+  void _dispose() => _stop();
 }

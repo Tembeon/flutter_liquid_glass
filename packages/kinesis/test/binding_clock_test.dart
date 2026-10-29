@@ -178,7 +178,9 @@ void main() {
     clock.removeDriver(second);
   });
 
-  testWidgets('time asleep does not count', (tester) async {
+  testWidgets('under a fake frame clock, time asleep does not count', (
+    tester,
+  ) async {
     await tester.pumpWidget(const SizedBox());
     const frame = Duration(microseconds: 16667);
     final clock = MotionClock.instance;
@@ -194,6 +196,38 @@ void main() {
     clock.addDriver(second);
     await tester.pump(frame);
     expect(second.steps.single, closeTo(slept, 0.02));
+    clock.removeDriver(first);
+    clock.removeDriver(second);
+  });
+
+  testWidgets('where frame stamps follow the engine clock, time asleep '
+      'counts, a touch held still included', (tester) async {
+    Duration engine() => Duration(
+      microseconds: tester.binding.clock.now().microsecondsSinceEpoch,
+    );
+    MotionClock.debugEngineNow = engine;
+    MotionClock.debugPointerClockOffset = () => Duration.zero;
+    addTearDown(() {
+      MotionClock.debugEngineNow = null;
+      MotionClock.debugPointerClockOffset = null;
+    });
+    await tester.pumpWidget(const SizedBox());
+    const frame = Duration(microseconds: 16667);
+    final clock = MotionClock.instance;
+    final first = _Driver(frames: 3);
+    clock.addDriver(first);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(frame);
+    }
+    expect(tester.binding.hasScheduledFrame, isFalse);
+    final slept = clock.now;
+    await tester.pump(const Duration(seconds: 3));
+    expect(clock.now, closeTo(slept + 3, 0.001));
+    expect(clock.stamp(engine()), closeTo(slept + 3, 0.02));
+    final second = _Driver(frames: 2);
+    clock.addDriver(second);
+    await tester.pump(frame);
+    expect(second.steps.first, closeTo(slept + 3 + 1 / 60, 0.02));
     clock.removeDriver(first);
     clock.removeDriver(second);
   });
