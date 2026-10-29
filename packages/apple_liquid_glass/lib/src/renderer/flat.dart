@@ -228,11 +228,26 @@ class RenderFlatGlass extends RenderProxyBox {
   ValueListenable<GlassFrame> get frame => _frame;
   set frame(ValueListenable<GlassFrame> value) {
     if (value == _frame) return;
-    if (attached) _frame.removeListener(markNeedsPaint);
+    if (attached) _frame.removeListener(_framed);
     _frame = value;
-    if (attached) _frame.addListener(markNeedsPaint);
+    if (attached) _frame.addListener(_framed);
+    _framed();
+  }
+
+  bool _fading = false;
+
+  // A partly present body draws through an opacity layer of its own.
+  void _framed() {
+    final fading = _frame.value.opacity < 1;
+    if (fading != _fading) {
+      _fading = fading;
+      markNeedsCompositingBitsUpdate();
+    }
     markNeedsPaint();
   }
+
+  @override
+  bool get alwaysNeedsCompositing => _fading;
 
   FlatGlassLook _look;
 
@@ -246,16 +261,18 @@ class RenderFlatGlass extends RenderProxyBox {
 
   final _clip = LayerHandle<ClipPathLayer>();
   final _transform = LayerHandle<TransformLayer>();
+  final _opacity = LayerHandle<OpacityLayer>();
 
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _frame.addListener(markNeedsPaint);
+    _frame.addListener(_framed);
+    _fading = _frame.value.opacity < 1;
   }
 
   @override
   void detach() {
-    _frame.removeListener(markNeedsPaint);
+    _frame.removeListener(_framed);
     super.detach();
   }
 
@@ -263,6 +280,7 @@ class RenderFlatGlass extends RenderProxyBox {
   void dispose() {
     _clip.layer = null;
     _transform.layer = null;
+    _opacity.layer = null;
     super.dispose();
   }
 
@@ -274,6 +292,25 @@ class RenderFlatGlass extends RenderProxyBox {
 
   @override
   void paint(PaintingContext context, Offset offset) {
+    final opacity = _frame.value.opacity;
+    if (opacity >= 1) {
+      _opacity.layer = null;
+      _paintSurface(context, offset);
+      return;
+    }
+    if (opacity <= 0) {
+      _opacity.layer = null;
+      return;
+    }
+    _opacity.layer = context.pushOpacity(
+      offset,
+      (opacity * 255).round(),
+      _paintSurface,
+      oldLayer: _opacity.layer,
+    );
+  }
+
+  void _paintSurface(PaintingContext context, Offset offset) {
     final frame = _frame.value;
     final body = frame.drawnIn(size);
     final outline = frame.shape.getOuterPath(body);

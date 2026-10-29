@@ -178,19 +178,24 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
     final frame = _source.value;
     final role = widget.details.role;
     final tint = frame.tint;
+    final appearance = _lifts(role)
+        ? LiquidGlassAppearance(
+            visibility: FlatGlassLook.glassness(frame.lift),
+          )
+        : tint == null
+        ? _appearance
+        : LiquidGlassRenderer.appearanceOf(
+            widget.details.glass.isClear
+                ? Glass.clear(tint: tint)
+                : Glass.regular(tint: tint),
+            _brightness,
+          );
     return LiquidGlassShapeFrame(
       shape: frame.shape,
-      appearance: _lifts(role)
-          ? LiquidGlassAppearance(
-              visibility: FlatGlassLook.glassness(frame.lift),
-            )
-          : tint == null
-          ? _appearance
-          : LiquidGlassRenderer.appearanceOf(
-              widget.details.glass.isClear
-                  ? Glass.clear(tint: tint)
-                  : Glass.regular(tint: tint),
-              _brightness,
+      appearance: frame.opacity >= 1
+          ? appearance
+          : appearance.copyWith(
+              visibility: appearance.visibility * frame.opacity.clamp(0.0, 1.0),
             ),
       shadows: LiquidGlassRenderer.shadowsOf(role, lift: frame.lift),
       rect: frame.rect,

@@ -2,6 +2,7 @@ import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/motion/touch_glow.dart';
 import 'package:apple_liquid_glass/src/renderer/adaptive.dart';
 import 'package:apple_liquid_glass/src/renderer/flat.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
@@ -336,6 +337,37 @@ void main() {
       );
       expect(shape().scaleX, 1);
     });
+  });
+
+  testWidgets("a frame's opacity fades the glass on both renderers", (
+    tester,
+  ) async {
+    final frames = ValueNotifier(const GlassFrame(opacity: 0.25));
+    addTearDown(frames.dispose);
+    Widget surface(GlassRenderer renderer) => _app(
+      renderer,
+      GlassSurface.live(
+        frame: frames,
+        child: const SizedBox(width: 100, height: 44),
+      ),
+    );
+    await tester.pumpWidget(surface(const GlassRenderer.liquid()));
+    final liquid = tester
+        .widget<LiquidGlass>(find.byType(LiquidGlass))
+        .frame!
+        .value;
+    expect(liquid.appearance!.visibility, closeTo(0.25, 1e-9));
+    await tester.pumpWidget(surface(const GlassRenderer.flat()));
+    expect(
+      tester.layers.whereType<OpacityLayer>().map((layer) => layer.alpha),
+      contains(64),
+    );
+    frames.value = const GlassFrame();
+    await tester.pump();
+    expect(
+      tester.layers.whereType<OpacityLayer>().map((layer) => layer.alpha),
+      isNot(contains(64)),
+    );
   });
 
   testWidgets('flat content reports where it is drawn', (tester) async {
