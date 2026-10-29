@@ -28,14 +28,20 @@ import 'package:kinesis/kinesis.dart';
 /// A [GlassSearchField] among [children] makes it iOS 27's bottom search
 /// bar (`UISearchController` in the toolbar): the field fills the room
 /// between the items before and after it, 12 points from each, every item
-/// 48 points tall. Focusing the field starts the search once the keyboard
-/// starts to rise (at most 0.3 s later, as UIKit waits for it): on one
-/// spring (0.25 s, bounce 0.1) the field widens to 8 points from the sides
-/// and rises to 10 points above the keyboard, the other items swell to 1.2
-/// and fade where they stand, and a close button arrives beside the field.
-/// The close button ends the search: the text clears, the keyboard leaves
-/// and the items come back. Tapping elsewhere leaves the search active, as
-/// in UIKit (search passport, simulator and iPhone 16 Pro recordings).
+/// 48 points tall. Focusing the field starts the search as the keyboard
+/// starts to rise: on one spring (0.25 s, bounce 0.1) the field widens to
+/// 8 points from the sides and rises to 10 points above the keyboard, the
+/// other items swell to 1.2 and fade where they stand, and a close button
+/// travels in with the field from its resting place, growing from 1.2 and
+/// sharpening from a blur. The close button ends the search 0.067 s later:
+/// the text clears, the keyboard leaves, the field and the close button
+/// return from where they were, without following the keyboard down, and
+/// the items come back from the focused layout. Tapping elsewhere leaves
+/// the search active, as in UIKit (read from UIKit, notes private; search
+/// passport, simulator and iPhone 16 Pro recordings). UIKit aims the field
+/// at the keyboard's final top; Flutter reports the keyboard as it rises,
+/// so the field follows it there. Without a keyboard the search starts
+/// 0.3 s after the focus, a guard of the port: UIKit has no such wait.
 class GlassToolbar extends StatelessWidget implements ChromeBarWidget {
   /// Creates a toolbar of [children].
   const GlassToolbar({
@@ -197,10 +203,20 @@ class _SearchBarState extends State<_SearchBar> {
   );
   bool _focused = false;
 
+  // A search ended: the keyboard inset the bar keeps its layout at while
+  // the field returns, so nothing follows the keyboard down.
+  double? _frozen;
+
   @override
   void initState() {
     super.initState();
+    _body.progress.addListener(_returned);
     MotionClock.instance.addDriver(_body);
+  }
+
+  void _returned() {
+    if (_frozen == null || _focused || _body.progress.value != 0) return;
+    setState(() => _frozen = null);
   }
 
   @override
@@ -218,6 +234,7 @@ class _SearchBarState extends State<_SearchBar> {
 
   @override
   void dispose() {
+    _body.progress.removeListener(_returned);
     MotionClock.instance.removeDriver(_body);
     _body.dispose();
     _ends.dispose();
@@ -231,7 +248,10 @@ class _SearchBarState extends State<_SearchBar> {
     if (!focused || _body.motion.isFocused || _body.keyboardWait != null) {
       return;
     }
-    setState(() => _focused = true);
+    setState(() {
+      _focused = true;
+      _frozen = null;
+    });
     final keyboard = MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0;
     if (keyboard > 0) {
       _body.input(_body.motion.focus);
@@ -244,14 +264,18 @@ class _SearchBarState extends State<_SearchBar> {
   void _end() {
     _body.keyboardWait = null;
     _body.input(_body.motion.unfocus);
-    setState(() => _focused = false);
+    final keyboard = MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0;
+    setState(() {
+      _focused = false;
+      _frozen = keyboard;
+    });
     _ends.end();
   }
 
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final keyboard = media.viewInsets.bottom;
+    final keyboard = _frozen ?? media.viewInsets.bottom;
     final rtl = Directionality.of(context) == TextDirection.rtl;
     final glyph = GlassDynamicColor.resolve(GlassColors.label, context);
     Widget item(_Slot slot, Widget child) => LayoutId(
@@ -261,9 +285,7 @@ class _SearchBarState extends State<_SearchBar> {
     return SizedBox(
       height: math.max(
         SearchTuning.height + SearchTuning.restInset,
-        keyboard > 0
-            ? keyboard + SearchTuning.keyboardGap + SearchTuning.height
-            : 0,
+        keyboard + SearchTuning.keyboardGap + SearchTuning.height,
       ),
       child: SearchEnds(
         ends: _ends,
@@ -273,6 +295,7 @@ class _SearchBarState extends State<_SearchBar> {
             leading: widget.leading.length,
             trailing: widget.trailing.length,
             keyboard: keyboard,
+            returning: _frozen != null,
             rtl: rtl,
           ),
           children: [
@@ -370,14 +393,16 @@ final class _Slot {
 
 /// Places a bottom search bar's items, field and close button where the
 /// transition's progress has them: the field between its resting and its
-/// focused capsule, the items where they rest, the close button where it
-/// stands focused.
+/// focused capsule; the close button with it on the way in and where it
+/// stood on the way back; the items where they rest on the way in and
+/// coming back from the focused layout without a keyboard.
 class _SearchLayout extends MultiChildLayoutDelegate {
   _SearchLayout({
     required this.progress,
     required this.leading,
     required this.trailing,
     required this.keyboard,
+    required this.returning,
     required this.rtl,
   }) : super(relayout: progress);
 
@@ -385,6 +410,7 @@ class _SearchLayout extends MultiChildLayoutDelegate {
   final int leading;
   final int trailing;
   final double keyboard;
+  final bool returning;
   final bool rtl;
 
   @override
@@ -410,27 +436,39 @@ class _SearchLayout extends MultiChildLayoutDelegate {
       trailing: trailWidths,
       rtl: rtl,
     );
-    final focused = searchBarLayout(
+    SearchBarGeometry focusedAbove(double keyboard) => searchBarLayout(
       width: size.width,
-      bottom: keyboard > 0
-          ? size.height - keyboard - SearchTuning.keyboardGap
-          : size.height - SearchTuning.restInset,
+      bottom: size.height - keyboard - SearchTuning.keyboardGap,
       focused: true,
       leading: leadWidths,
       trailing: trailWidths,
       rtl: rtl,
     );
+    final focused = focusedAbove(keyboard);
+    final bare = focusedAbove(0);
+    final p = progress.value;
+    Rect slotOf(Rect resting, Rect away) =>
+        returning ? lerpRect(resting, away, p) : resting;
     for (var i = 0; i < leading; i++) {
-      positionChild(_Slot.leading(i), rest.leading[i].topLeft);
+      positionChild(
+        _Slot.leading(i),
+        slotOf(rest.leading[i], bare.leading[i]).topLeft,
+      );
     }
     for (var i = 0; i < trailing; i++) {
-      positionChild(_Slot.trailing(i), rest.trailing[i].topLeft);
+      positionChild(
+        _Slot.trailing(i),
+        slotOf(rest.trailing[i], bare.trailing[i]).topLeft,
+      );
     }
-    final field = lerpRect(rest.field, focused.field, progress.value);
+    final field = lerpRect(rest.field, focused.field, p);
     layoutChild(const _Slot.field(), BoxConstraints.tight(field.size));
     positionChild(const _Slot.field(), field.topLeft);
-    layoutChild(const _Slot.close(), BoxConstraints.tight(focused.close.size));
-    positionChild(const _Slot.close(), focused.close.topLeft);
+    final close = returning
+        ? focused.close
+        : lerpRect(rest.close, focused.close, p);
+    layoutChild(const _Slot.close(), BoxConstraints.tight(close.size));
+    positionChild(const _Slot.close(), close.topLeft);
   }
 
   @override
@@ -438,6 +476,7 @@ class _SearchLayout extends MultiChildLayoutDelegate {
       leading != oldDelegate.leading ||
       trailing != oldDelegate.trailing ||
       keyboard != oldDelegate.keyboard ||
+      returning != oldDelegate.returning ||
       rtl != oldDelegate.rtl ||
       progress != oldDelegate.progress;
 }

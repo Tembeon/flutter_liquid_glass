@@ -180,6 +180,8 @@ void main() {
       expect(tester.getCenter(close).dx, closeTo(402 - 8 - 24, 0.5));
       await tester.tap(close);
       await tester.pumpWidget(search(controller, focus: focus));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(field(tester).bottom, lessThan(874 - 200));
       await settle(tester);
       expect(focus.hasFocus, isFalse);
       expect(controller.text, isEmpty);
@@ -199,7 +201,7 @@ void main() {
       await tester.pump();
       await settle(tester);
       expect(field(tester).left, 8);
-      expect(field(tester).bottom, 874 - 28);
+      expect(field(tester).bottom, 874 - 10);
     });
   });
 }

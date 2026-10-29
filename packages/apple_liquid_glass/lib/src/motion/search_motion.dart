@@ -34,8 +34,9 @@ abstract final class SearchTuning {
   static const double keyboardLag = 0.015;
 
   /// The longest a focus waits for the keyboard before its transition
-  /// starts anyway (no keyboard rises with a hardware keyboard attached).
-  /// A guard above the slowest measured wait, not a measured value.
+  /// starts anyway: a guard of the port, not UIKit's (UIKit starts the
+  /// transition when the keyboard or the active search items change, and
+  /// has no timeout).
   static const double keyboardWaitLimit = 0.3;
 
   /// The time from a touch to the start of the field's lift (0.051 s
@@ -144,13 +145,13 @@ abstract final class SearchTuning {
   /// where the toolbar's search keeps [keyboardGap]).
   static const double tabKeyboardGap = 8;
 
-  /// The spring of a stacked search field's presentation: the page and
-  /// its field move up until the field sits under the status bar, the
-  /// field narrows and the close button arrives (UIKit's stacked
-  /// `UISearchController` on a search tab, iOS 27 simulator film at 60
-  /// Hz: response 0.30, damping 0.90, 0.6 percent rms of 106 points of
-  /// travel; not yet recorded on the device).
-  static const stackedSpring = Spring.response(0.3, dampingRatio: 0.9);
+  /// The spring of a stacked search field's presentation: one spring for
+  /// the page and its field moving up until the field sits under the
+  /// status bar, the field narrowing, the close button arriving and the
+  /// navigation bar hiding (damping 0.8, response 0.34, read from UIKit;
+  /// the iOS 27 simulator film fits 0.332 / 0.781 once its resting end is
+  /// left free; not yet recorded on the device).
+  static const stackedSpring = Spring.response(0.34, dampingRatio: 0.8);
 
   /// The height of a stacked search field (iOS 27 simulator: 44 points,
   /// at rest and presented).
