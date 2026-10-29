@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/src/controls/button.dart';
 import 'package:apple_liquid_glass/src/controls/page_control.dart';
+import 'package:apple_liquid_glass/src/controls/segmented_control.dart';
 import 'package:apple_liquid_glass/src/controls/slider.dart';
 import 'package:apple_liquid_glass/src/controls/stepper.dart';
 import 'package:apple_liquid_glass/src/controls/switch.dart';
@@ -105,6 +106,7 @@ class GlassThemeData {
     this.sliderStyle,
     this.stepperStyle,
     this.pageControlStyle,
+    this.segmentedStyle,
   });
 
   /// The theme between [a] and [b] at [t]: colors and styles interpolate;
@@ -134,6 +136,11 @@ class GlassThemeData {
       pageControlStyle: GlassPageControlStyle.lerp(
         a.pageControlStyle,
         b.pageControlStyle,
+        t,
+      ),
+      segmentedStyle: GlassSegmentedStyle.lerp(
+        a.segmentedStyle,
+        b.segmentedStyle,
         t,
       ),
     );
@@ -172,6 +179,9 @@ class GlassThemeData {
   /// The look of page controls.
   final GlassPageControlStyle? pageControlStyle;
 
+  /// The look of segmented controls.
+  final GlassSegmentedStyle? segmentedStyle;
+
   /// This theme with the non-null fields of [other] over it; styles and
   /// schemes merge too.
   GlassThemeData merge(GlassThemeData? other) {
@@ -191,6 +201,8 @@ class GlassThemeData {
       stepperStyle: other.stepperStyle?.merge(stepperStyle) ?? stepperStyle,
       pageControlStyle:
           other.pageControlStyle?.merge(pageControlStyle) ?? pageControlStyle,
+      segmentedStyle:
+          other.segmentedStyle?.merge(segmentedStyle) ?? segmentedStyle,
     );
   }
 
@@ -207,7 +219,8 @@ class GlassThemeData {
       other.switchStyle == switchStyle &&
       other.sliderStyle == sliderStyle &&
       other.stepperStyle == stepperStyle &&
-      other.pageControlStyle == pageControlStyle;
+      other.pageControlStyle == pageControlStyle &&
+      other.segmentedStyle == segmentedStyle;
 
   @override
   int get hashCode => Object.hash(
@@ -222,6 +235,7 @@ class GlassThemeData {
     sliderStyle,
     stepperStyle,
     pageControlStyle,
+    segmentedStyle,
   );
 }
 
