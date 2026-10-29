@@ -59,7 +59,7 @@ class GlassShadow extends SingleChildRenderObjectWidget {
 
   @override
   RenderObject createRenderObject(BuildContext context) {
-    return _RenderGlassShadow(
+    return RenderGlassShadow(
       shape: shape,
       shadows: shadows,
       visibility: appearanceVisibility,
@@ -70,8 +70,7 @@ class GlassShadow extends SingleChildRenderObjectWidget {
   @override
   void updateRenderObject(
     BuildContext context,
-    // ignore: library_private_types_in_public_api
-    _RenderGlassShadow renderObject,
+    RenderGlassShadow renderObject,
   ) {
     renderObject
       ..shape = shape
@@ -82,8 +81,11 @@ class GlassShadow extends SingleChildRenderObjectWidget {
   }
 }
 
-class _RenderGlassShadow extends RenderProxyBox with LivePaintSize {
-  _RenderGlassShadow({
+/// Paints a [GlassShadow].
+@internal
+class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
+  /// Creates the render object of a [GlassShadow].
+  RenderGlassShadow({
     required this._shape,
     required this._shadows,
     required double visibility,
