@@ -36,6 +36,8 @@ final class GlassTraits {
     this.boldText = false,
     this.reduceMotion = false,
     this.reduceTransparency = false,
+    this.prefersCrossFade = false,
+    this.showBorders = false,
   });
 
   /// The traits at [context].
@@ -45,6 +47,12 @@ final class GlassTraits {
     final reduceMotion =
         MotionAccessibility.reduceMotion ||
         (MediaQuery.maybeDisableAnimationsOf(context) ?? false);
+    // iOS offers Prefer Cross-Fade Transitions with Reduce Motion, on by
+    // default: unreported, it follows Reduce Motion.
+    final crossFade =
+        overrides?.prefersCrossFade ??
+        MotionAccessibility.preferCrossFade ??
+        reduceMotion;
     return GlassTraits(
       brightness:
           GlassTheme.brightnessOf(context) ??
@@ -55,6 +63,8 @@ final class GlassTraits {
       boldText: MediaQuery.maybeBoldTextOf(context) ?? false,
       reduceMotion: reduceMotion,
       reduceTransparency: overrides?.reduceTransparency ?? false,
+      prefersCrossFade: reduceMotion && crossFade,
+      showBorders: overrides?.showBorders ?? false,
     );
   }
 
@@ -77,6 +87,15 @@ final class GlassTraits {
   /// unmeasured stand-in for iOS's frosted glass.
   final bool reduceTransparency;
 
+  /// Prefer Cross-Fade Transitions, which iOS offers with Reduce Motion:
+  /// pages cross-fade instead of sliding. On only with [reduceMotion].
+  final bool prefersCrossFade;
+
+  /// Show Borders: glass surfaces draw a hairline around their bodies, an
+  /// unmeasured stand-in for iOS's (the label color at 35 percent, one
+  /// point).
+  final bool showBorders;
+
   @override
   bool operator ==(Object other) =>
       other is GlassTraits &&
@@ -85,7 +104,9 @@ final class GlassTraits {
       other.highContrast == highContrast &&
       other.boldText == boldText &&
       other.reduceMotion == reduceMotion &&
-      other.reduceTransparency == reduceTransparency;
+      other.reduceTransparency == reduceTransparency &&
+      other.prefersCrossFade == prefersCrossFade &&
+      other.showBorders == showBorders;
 
   @override
   int get hashCode => Object.hash(
@@ -95,6 +116,8 @@ final class GlassTraits {
     boldText,
     reduceMotion,
     reduceTransparency,
+    prefersCrossFade,
+    showBorders,
   );
 }
 
@@ -110,6 +133,8 @@ class GlassTraitsOverride extends StatelessWidget {
     required this.child,
     this.interfaceLevel,
     this.reduceTransparency,
+    this.prefersCrossFade,
+    this.showBorders,
     super.key,
   });
 
@@ -118,6 +143,12 @@ class GlassTraitsOverride extends StatelessWidget {
 
   /// See [GlassTraits.reduceTransparency].
   final bool? reduceTransparency;
+
+  /// See [GlassTraits.prefersCrossFade]; it applies under Reduce Motion.
+  final bool? prefersCrossFade;
+
+  /// See [GlassTraits.showBorders].
+  final bool? showBorders;
 
   /// The subtree the traits apply to.
   final Widget child;
@@ -129,6 +160,8 @@ class GlassTraitsOverride extends StatelessWidget {
     return _GlassTraitsScope(
       interfaceLevel: interfaceLevel ?? outer?.interfaceLevel,
       reduceTransparency: reduceTransparency ?? outer?.reduceTransparency,
+      prefersCrossFade: prefersCrossFade ?? outer?.prefersCrossFade,
+      showBorders: showBorders ?? outer?.showBorders,
       child: child,
     );
   }
@@ -138,14 +171,20 @@ class _GlassTraitsScope extends InheritedWidget {
   const _GlassTraitsScope({
     required this.interfaceLevel,
     required this.reduceTransparency,
+    required this.prefersCrossFade,
+    required this.showBorders,
     required super.child,
   });
 
   final GlassInterfaceLevel? interfaceLevel;
   final bool? reduceTransparency;
+  final bool? prefersCrossFade;
+  final bool? showBorders;
 
   @override
   bool updateShouldNotify(_GlassTraitsScope oldWidget) =>
       interfaceLevel != oldWidget.interfaceLevel ||
-      reduceTransparency != oldWidget.reduceTransparency;
+      reduceTransparency != oldWidget.reduceTransparency ||
+      prefersCrossFade != oldWidget.prefersCrossFade ||
+      showBorders != oldWidget.showBorders;
 }

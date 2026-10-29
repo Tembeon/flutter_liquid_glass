@@ -30,8 +30,9 @@ import 'package:kinesis/kinesis.dart';
 /// funnel, so drags and scrolls of the page's own that claim the touch
 /// first keep it: the page follows the finger, rubber bands past either
 /// end, and on release pops or returns as UIKit predicts from the finger's
-/// last speeds, on a spring of response 0.3 and damping 0.85. Under Reduce
-/// Motion a push or pop without a finger cross-fades over 0.5 s instead.
+/// last speeds, on a spring of response 0.3 and damping 0.85. With Prefer
+/// Cross-Fade Transitions, which iOS turns on with Reduce Motion, a push or
+/// pop without a finger cross-fades over 0.5 s instead.
 /// Back, Escape and a screen reader's dismiss pop it through the page's
 /// `PopScope`s; a pop asked for while a finger holds the page waits for
 /// the release, which then takes the page out.
@@ -247,7 +248,7 @@ class _Slide extends StatefulWidget {
   State<_Slide> createState() => _SlideState();
 }
 
-/// The page's slide, its cross-fade under Reduce Motion and its
+/// The page's slide, its cross-fade for Prefer Cross-Fade Transitions and its
 /// interactive pop, reported to the route's lifecycle.
 class _SlideState extends State<_Slide> implements MotionDriver {
   late final _input = _SwipePop(this);
@@ -299,10 +300,10 @@ class _SlideState extends State<_Slide> implements MotionDriver {
     super.dispose();
   }
 
-  bool get _reduceMotion => GlassTraits.of(context).reduceMotion;
+  bool get _reduceMotion => GlassTraits.of(context).prefersCrossFade;
 
   // A push or pop without a finger: a slide that leaves at full speed, or
-  // a cross-fade under Reduce Motion.
+  // a cross-fade for Prefer Cross-Fade Transitions.
   void _move({required double to, double? at}) {
     final t = at ?? _now;
     if (_reduceMotion) {

@@ -11,6 +11,12 @@ abstract final class MotionAccessibility {
   /// alternative (`Spring.reduced`). A retarget that names its spring keeps
   /// it: a measured control applies its own Reduce Motion rule.
   static bool reduceMotion = false;
+
+  /// Whether the user prefers transitions that cross-fade over ones that
+  /// move, or null where the platform does not say: iOS's Prefer
+  /// Cross-Fade Transitions, a part of Reduce Motion. UIKit:
+  /// `UIAccessibility.prefersCrossFadeTransitions`.
+  static bool? preferCrossFade;
 }
 
 /// How the changes made inside one `withSpring` or `withoutAnimation` body

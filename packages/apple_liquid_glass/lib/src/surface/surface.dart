@@ -3,6 +3,7 @@ import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
+import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
@@ -68,16 +69,31 @@ class _GlassSurfaceState extends State<GlassSurface> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      GlassTheme.rendererOf(context).buildSurface(
-        context,
-        GlassSurfaceDetails(
-          role: widget.role,
-          glass: _resolved(context),
-          frame: widget.frame ?? _StillFrame(GlassFrame(shape: widget._shape!)),
-          child: KeyedSubtree(key: _child, child: widget.child),
-        ),
-      );
+  Widget build(BuildContext context) {
+    final frame =
+        widget.frame ?? _StillFrame(GlassFrame(shape: widget._shape!));
+    final body = GlassTheme.rendererOf(context).buildSurface(
+      context,
+      GlassSurfaceDetails(
+        role: widget.role,
+        glass: _resolved(context),
+        frame: frame,
+        child: KeyedSubtree(key: _child, child: widget.child),
+      ),
+    );
+    if (!GlassTraits.of(context).showBorders) return body;
+    final label = GlassDynamicColor.resolve(
+      GlassTheme.of(context).colorScheme?.label ?? GlassColors.label,
+      context,
+    );
+    return CustomPaint(
+      foregroundPainter: _Border(
+        frame: frame,
+        color: label.withValues(alpha: label.a * 0.35),
+      ),
+      child: body,
+    );
+  }
 }
 
 @immutable
@@ -99,4 +115,38 @@ final class _StillFrame implements ValueListenable<GlassFrame> {
 
   @override
   int get hashCode => value.hashCode;
+}
+
+/// The hairline Show Borders draws around a glass body, where the frame
+/// draws it, faded with it.
+class _Border extends CustomPainter {
+  _Border({required this.frame, required this.color}) : super(repaint: frame);
+
+  final ValueListenable<GlassFrame> frame;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final now = frame.value;
+    if (now.opacity <= 0) return;
+    final paint = Paint();
+    paint.style = PaintingStyle.stroke;
+    paint.strokeWidth = 1;
+    paint.color = color.withValues(
+      alpha: color.a * now.opacity.clamp(0.0, 1.0),
+    );
+    final outline = now.outline;
+    if (outline != null) {
+      canvas.drawPath(outline.path, paint);
+      return;
+    }
+    canvas.drawPath(
+      now.shape.getOuterPath(now.drawnIn(size).deflate(0.5)),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_Border oldDelegate) =>
+      oldDelegate.frame != frame || oldDelegate.color != color;
 }
