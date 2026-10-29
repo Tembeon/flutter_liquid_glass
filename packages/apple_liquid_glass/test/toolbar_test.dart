@@ -22,17 +22,15 @@ Widget _app(Widget child, {double keyboard = 0}) => MediaQuery(
 
 Widget _page({ScrollController? controller}) => GlassPageScaffold(
   toolbar: GlassToolbar(
-    children: [
-      GlassButton(
-        key: const Key('first'),
+    items: [
+      GlassBarItem(
+        label: const Text('Edit', key: Key('first')),
         onPressed: () {},
-        child: const Text('Edit'),
       ),
-      const Spacer(),
-      GlassButton(
-        key: const Key('last'),
+      const GlassBarSpacer.flexible(),
+      GlassBarItem(
+        label: const Text('Done', key: Key('last')),
         onPressed: () {},
-        child: const Text('Done'),
       ),
     ],
   ),
@@ -60,10 +58,11 @@ void main() {
       'the screen', (tester) async {
     await _phone(tester);
     await tester.pumpWidget(_app(_page()));
+    await tester.pump();
     final first = tester.getRect(find.byKey(const Key('first')));
     final last = tester.getRect(find.byKey(const Key('last')));
-    expect(first.left, 28);
-    expect(last.right, 402 - 28);
+    expect(first.left, 28 + 5 + 11);
+    expect(last.right, 402 - 28 - 5 - 11);
     expect(first.center.dy, 874 - 28 - 24);
   });
 
@@ -72,6 +71,7 @@ void main() {
   ) async {
     await _phone(tester);
     await tester.pumpWidget(_app(_page(), keyboard: 336));
+    await tester.pump();
     final first = tester.getRect(find.byKey(const Key('first')));
     expect(first.center.dy, 874 - 336 - 8 - 24);
   });
@@ -99,21 +99,27 @@ void main() {
     }) => _app(
       GlassPageScaffold(
         toolbar: GlassToolbar(
-          children: [
-            GlassButton(
-              key: const Key('first'),
-              onPressed: () {},
-              child: const SizedBox.square(dimension: 24),
+          items: [
+            GlassBarItem.custom(
+              child: GlassButton(
+                key: const Key('first'),
+                onPressed: () {},
+                child: const SizedBox.square(dimension: 24),
+              ),
             ),
-            GlassSearchField(
-              key: const Key('field'),
-              controller: controller,
-              focusNode: focus,
+            GlassBarItem.custom(
+              child: GlassSearchField(
+                key: const Key('field'),
+                controller: controller,
+                focusNode: focus,
+              ),
             ),
-            GlassButton(
-              key: const Key('last'),
-              onPressed: () {},
-              child: const SizedBox.square(dimension: 24),
+            GlassBarItem.custom(
+              child: GlassButton(
+                key: const Key('last'),
+                onPressed: () {},
+                child: const SizedBox.square(dimension: 24),
+              ),
             ),
           ],
         ),

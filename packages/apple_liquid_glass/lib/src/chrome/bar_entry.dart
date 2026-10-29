@@ -86,10 +86,21 @@ final class GlassBarItem extends GlassBarEntry {
 
 /// A break between capsules.
 ///
-/// UIKit: `UIBarButtonItem.fixedSpace(_:)`. SwiftUI: `ToolbarSpacer`.
+/// UIKit: `UIBarButtonItem.fixedSpace(_:)` and `flexibleSpace()`. SwiftUI:
+/// `ToolbarSpacer`. Flutter: [Spacer].
 final class GlassBarSpacer extends GlassBarEntry {
   /// Creates a break between capsules.
-  const GlassBarSpacer();
+  const GlassBarSpacer() : flexible = false;
+
+  /// Creates a break that takes a toolbar's free room: the capsules before
+  /// the first flexible spacer stand at the leading side, those after the
+  /// last at the trailing side, and those between share the room left in
+  /// equal parts, each centered in its own. A navigation bar takes it as a
+  /// plain break.
+  const GlassBarSpacer.flexible() : flexible = true;
+
+  /// Whether the spacer takes a toolbar's free room.
+  final bool flexible;
 }
 
 /// How a back button names the page below.

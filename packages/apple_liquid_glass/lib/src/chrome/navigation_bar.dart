@@ -319,7 +319,10 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
             MediaQuery.removePadding(
               context: context,
               removeTop: true,
-              child: GlassBarView(host: standalone),
+              child: GlassBarView(
+                host: standalone,
+                only: GlassBarKind.navigation,
+              ),
             ),
           if (title != null)
             CustomSingleChildLayout(

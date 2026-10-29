@@ -1,58 +1,65 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/chrome/bar.dart';
+import 'package:apple_liquid_glass/src/chrome/bar_entry.dart';
 import 'package:apple_liquid_glass/src/chrome/chrome.dart';
 import 'package:apple_liquid_glass/src/controls/button.dart';
 import 'package:apple_liquid_glass/src/controls/search_field.dart';
 import 'package:apple_liquid_glass/src/controls/search_glyphs.dart';
 import 'package:apple_liquid_glass/src/motion/search_motion.dart';
-import 'package:apple_liquid_glass/src/surface/group.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
-/// An iOS 27 toolbar: glass items floating over the bottom of the screen.
+/// An iOS 27 toolbar: glass capsules floating over the bottom of the
+/// screen.
 ///
-/// UIKit: `UIToolbar`. SwiftUI: `toolbar` with `ToolbarItem(placement:
-/// .bottomBar)`. Flutter: a bottom bar of `CupertinoButton`s.
+/// UIKit: `UIToolbar` with `toolbarItems`. SwiftUI: `toolbar` with
+/// `ToolbarItem(placement: .bottomBar)`. Flutter: a bottom bar of
+/// `CupertinoButton`s.
 ///
-/// The [children] stand in a row 48 points tall, usually glass buttons
-/// with a [Spacer] where UIKit puts its flexible space; glass items that
-/// come within 12 points of each other fuse on liquid glass. The row sits
-/// 28 points from the sides and the bottom of the screen
-/// (`_UIToolbarPaddingSpec` phoneSides and phoneBottom), or 8 points above
-/// a keyboard (phoneKeyboard), read from UIKit's tuning on iOS 27 and the
+/// The [items] stand in capsules 48 points tall, adjacent items sharing
+/// one, a [GlassBarSpacer.flexible] where UIKit puts its flexible space;
+/// capsules that come within 12 points fuse on liquid glass. They sit 28
+/// points from the sides and the bottom of the screen
+/// (`_UIToolbarPaddingSpec` phoneSides and phoneBottom), or 8 points above a
+/// keyboard (phoneKeyboard), read from UIKit's tuning on iOS 27 and the
 /// capsule frames on an iPhone 16 Pro. Put it in a [GlassPageScaffold]'s
-/// toolbar: it reaches from the screen's bottom edge.
+/// toolbar. The glass pages of a navigator share one toolbar, as UIKit's
+/// navigation controller does: when a page's items change, or another
+/// page comes, its capsules change as `setToolbarItems(_:animated:)` changes
+/// them (device recordings, replayed).
 ///
-/// A [GlassSearchField] among [children] makes it iOS 27's bottom search
-/// bar (`UISearchController` in the toolbar): the field fills the room
-/// between the items before and after it, 12 points from each, every item
-/// 48 points tall. Focusing the field starts the search as the keyboard
-/// starts to rise: on one spring (0.25 s, bounce 0.1) the field widens to
-/// 8 points from the sides and rises to 10 points above the keyboard, the
-/// other items swell to 1.2 and fade where they stand, and a close button
-/// travels in with the field from its resting place, growing from 1.2 and
-/// sharpening from a blur. The close button ends the search 0.067 s later:
-/// the text clears, the keyboard leaves, the field and the close button
-/// return from where they were, without following the keyboard down, and
-/// the items come back from the focused layout. Tapping elsewhere leaves
-/// the search active, as in UIKit (read from UIKit, notes private; search
-/// passport, simulator and iPhone 16 Pro recordings). UIKit aims the field
-/// at the keyboard's final top; Flutter reports the keyboard as it rises,
-/// so the field follows it there. Without a keyboard the search starts
-/// 0.3 s after the focus, a guard of the port: UIKit has no such wait.
-class GlassToolbar extends StatelessWidget implements ChromeBarWidget {
-  /// Creates a toolbar of [children].
+/// A [GlassBarItem.custom] holding a [GlassSearchField] makes it iOS 27's
+/// bottom search bar (`UISearchController` in the toolbar), drawn with its
+/// page: the field fills the room between the items before and after it,
+/// 12 points from each, every item 48 points tall. Focusing the field
+/// starts the search as the keyboard starts to rise: on one spring (0.25
+/// s, bounce 0.1) the field widens to 8 points from the sides and rises to
+/// 10 points above the keyboard, the other items swell to 1.2 and fade
+/// where they stand, and a close button travels in with the field from its
+/// resting place, growing from 1.2 and sharpening from a blur. The close
+/// button ends the search 0.067 s later: the text clears, the keyboard
+/// leaves, the field and the close button return from where they were,
+/// without following the keyboard down, and the items come back from the
+/// focused layout. Tapping elsewhere leaves the search active, as in UIKit
+/// (read from UIKit, notes private; search passport, simulator and iPhone
+/// 16 Pro recordings). UIKit aims the field at the keyboard's final top;
+/// Flutter reports the keyboard as it rises, so the field follows it
+/// there. Without a keyboard the search starts 0.3 s after the focus, a
+/// guard of the port: UIKit has no such wait.
+class GlassToolbar extends StatefulWidget implements ChromeBarWidget {
+  /// Creates a toolbar of [items].
   const GlassToolbar({
-    required this.children,
+    required this.items,
     this.closeSemanticLabel,
     super.key,
   });
 
-  /// The items, leading to trailing.
-  final List<Widget> children;
+  /// The capsules' items, leading to trailing.
+  final List<GlassBarEntry> items;
 
   /// What accessibility reads for the search's close button; `Close` when
   /// null.
@@ -83,40 +90,72 @@ class GlassToolbar extends StatelessWidget implements ChromeBarWidget {
   double get scrolledUnderAfter => 0;
 
   @override
+  State<GlassToolbar> createState() => _GlassToolbarState();
+}
+
+class _GlassToolbarState extends State<GlassToolbar> {
+  GlassPageBarLink? _link;
+  GlassBarHost? _standalone;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _link = GlassPageBarLink.maybeOf(context);
+    if (_link == null) {
+      _standalone ??= GlassBarHost.standalone();
+    } else if (_standalone case final host?) {
+      host.detach(host.standaloneLink);
+      _standalone = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_standalone case final host?) host.detach(host.standaloneLink);
+    super.dispose();
+  }
+
+  static Widget _button(GlassBarItem item) =>
+      item.child ??
+      GlassButton(onPressed: item.onPressed, child: item.icon ?? item.label!);
+
+  @override
   Widget build(BuildContext context) {
-    final search = children.indexWhere((child) => child is GlassSearchField);
+    final items = widget.items;
+    final link = _link ?? _standalone!.standaloneLink;
+    final search = items.indexWhere(
+      (entry) => entry is GlassBarItem && entry.child is GlassSearchField,
+    );
     if (search >= 0) {
+      link.host.declareToolbar(link, null);
       return _SearchBar(
         leading: [
-          for (final child in children.take(search))
-            if (child is! Spacer) child,
+          for (final entry in items.take(search))
+            if (entry is GlassBarItem) _button(entry),
         ],
-        field: children[search],
+        field: (items[search] as GlassBarItem).child!,
         trailing: [
-          for (final child in children.skip(search + 1))
-            if (child is! Spacer) child,
+          for (final entry in items.skip(search + 1))
+            if (entry is GlassBarItem) _button(entry),
         ],
-        closeSemanticLabel: closeSemanticLabel ?? 'Close',
+        closeSemanticLabel: widget.closeSemanticLabel ?? 'Close',
       );
     }
+    link.host.declareToolbar(link, items);
+    final standalone = _standalone;
+    if (standalone == null) {
+      return SizedBox(height: widget.preferredSize.height);
+    }
     final keyboard = MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0;
-    return Semantics(
-      container: true,
-      explicitChildNodes: true,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          sideInset,
-          0,
-          sideInset,
-          keyboard > 0 ? keyboard + keyboardInset : bottomInset,
-        ),
-        child: SizedBox(
-          height: height,
-          child: GlassGroup(
-            merge: const GlassMerge.spacing(fusion),
-            child: Row(children: children),
-          ),
-        ),
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: keyboard > 0
+            ? keyboard + GlassToolbar.keyboardInset
+            : GlassToolbar.bottomInset,
+      ),
+      child: SizedBox(
+        height: GlassToolbar.height,
+        child: GlassBarView(host: standalone, only: GlassBarKind.toolbar),
       ),
     );
   }
