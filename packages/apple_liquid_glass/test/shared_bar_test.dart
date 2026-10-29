@@ -222,4 +222,134 @@ void main() {
     expect(find.text('Next'), findsNothing);
     expect(tester.getCenter(find.byKey(const Key('plus'))).dx, 364);
   });
+
+  testWidgets('a page put in place of the top one morphs the bar from it, '
+      'without an empty frame', (tester) async {
+    await _phone(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      _app(navigator, _page('Home', trailing: [_icon('plus')])),
+    );
+    unawaited(
+      navigator.currentState!.push(
+        GlassPageRoute<void>(
+          builder: (_) => _page('A', trailing: [_icon('a')]),
+        ),
+      ),
+    );
+    await _settle(tester);
+    unawaited(
+      navigator.currentState!.pushReplacement(
+        GlassPageRoute<void>(
+          builder: (_) => _page('B', trailing: [_icon('b')]),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(_frame);
+    expect(
+      find.byKey(const Key('a')).evaluate().isNotEmpty ||
+          find.byKey(const Key('b')).evaluate().isNotEmpty,
+      isTrue,
+    );
+    await _settle(tester);
+    expect(find.byKey(const Key('a')), findsNothing);
+    expect(tester.getCenter(find.byKey(const Key('b'))).dx, 364);
+    expect(find.bySemanticsLabel('Home'), findsOneWidget, reason: 'back');
+  });
+
+  testWidgets('a page that is not glass covers the bar, and the glass page '
+      'under it shows its bar again when it goes', (tester) async {
+    await _phone(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      _app(navigator, _page('Home', trailing: [_icon('plus')])),
+    );
+    await tester.pump();
+    unawaited(
+      navigator.currentState!.push(
+        PageRouteBuilder<void>(
+          pageBuilder: (context, _, _) => const ColoredBox(
+            color: Color(0xFFFFFFFF),
+            child: Center(child: Text('Foreign')),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('plus')), findsNothing);
+    unawaited(
+      navigator.currentState!.push(
+        GlassPageRoute<void>(
+          builder: (_) => _page('C', trailing: [_icon('c')]),
+        ),
+      ),
+    );
+    await _settle(tester);
+    expect(tester.getCenter(find.byKey(const Key('c'))).dx, 364);
+    expect(find.bySemanticsLabel('Foreign'), findsNothing);
+    navigator.currentState!.pop();
+    await _settle(tester);
+    navigator.currentState!.pop();
+    await tester.pumpAndSettle();
+    await _settle(tester);
+    expect(tester.getCenter(find.byKey(const Key('plus'))).dx, 364);
+  });
+
+  testWidgets('a pop the page vetoes mid-swipe keeps the bar', (tester) async {
+    await _phone(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      _app(navigator, _page('Home', trailing: [_icon('plus')])),
+    );
+    unawaited(
+      navigator.currentState!.push(
+        GlassPageRoute<void>(
+          builder: (_) => PopScope(
+            canPop: false,
+            child: _page('Next', trailing: [_icon('a')]),
+          ),
+        ),
+      ),
+    );
+    await _settle(tester);
+    final gesture = await tester.createGesture();
+    await gesture.down(const Offset(10, 400));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(_frame);
+      await gesture.moveBy(const Offset(25, 0));
+    }
+    await gesture.up();
+    await _settle(tester);
+    expect(find.text('Next'), findsOneWidget);
+    expect(tester.getCenter(find.byKey(const Key('a'))).dx, 364);
+    expect(find.bySemanticsLabel('Home'), findsOneWidget, reason: 'back');
+  });
+
+  testWidgets('each navigator has a bar of its own', (tester) async {
+    await _phone(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      _app(
+        navigator,
+        Row(
+          children: [
+            for (final name in ['left', 'right'])
+              Expanded(
+                child: Navigator(
+                  onGenerateRoute: (settings) => GlassPageRoute<void>(
+                    settings: settings,
+                    builder: (_) => _page(name, trailing: [_icon(name)]),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(GlassBarView), findsNWidgets(3));
+    expect(find.byKey(const Key('left')), findsOneWidget);
+    expect(find.byKey(const Key('right')), findsOneWidget);
+  });
 }

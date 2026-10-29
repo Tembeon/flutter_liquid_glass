@@ -135,6 +135,12 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
   }
 
   @override
+  void didPopNext(Route<Object?> nextRoute) {
+    super.didPopNext(nextRoute);
+    if (nextRoute is! GlassPageRoute) _bar.host.revealed(_bar);
+  }
+
+  @override
   void beginInteraction() {
     super.beginInteraction();
     _bar.host.swipeStarted(_bar);
