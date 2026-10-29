@@ -46,6 +46,10 @@ class GlassButtonMotion {
   static const glowSpring = FlexInteraction.glowSpring;
 
   /// How far outside the button the touch still counts as inside.
+  ///
+  /// Measured on an iPhone 16 Pro (2026-10-13, a 120 x 44 button): a
+  /// release 70 pt above or 60 pt beside it activates; below and left are
+  /// not measured (glass-button passport).
   static const double highlightSlop = 70;
 
   /// Seconds between a touch's own time stamp and the flex taking it up:
@@ -131,19 +135,14 @@ class GlassButtonMotion {
   /// The center of the little glow.
   Offset get littleGlowCenter => _flex.littleGlowCenter(_now);
 
-  /// The measured touch's glow through the shared glass color model.
+  /// The touch glow, or null when it shows nothing.
   ///
-  /// Its timing and growth follow this button's flex interaction; the
-  /// wash and spot color matrices use the glass glow seam. A [tint]ed or
-  /// [clear] surface lights with its own spot gain
-  /// ([TouchGlowMotion.spotGainFor]); the press itself is the same for
-  /// every glass (UIKit gives the clear configurations no press of their
-  /// own, read from UIKit, notes private).
-  GlassTouchGlow? glowAt(
-    Brightness brightness, {
-    Color? tint,
-    bool clear = false,
-  }) {
+  /// Its timing and growth follow this button's flex interaction; how
+  /// bright the spot gets is the glass's own, which the renderer reads from
+  /// the surface ([TouchGlowMotion.spotGainFor]). The press itself is the
+  /// same for every glass (UIKit gives the clear configurations no press of
+  /// their own, read from UIKit, notes private).
+  GlassTouchGlow? get touchGlow {
     final big = bigGlowOpacity;
     final little = littleGlowOpacity;
     if (big <= 0.001 && little <= 0.001) return null;
@@ -151,14 +150,7 @@ class GlassButtonMotion {
       wash: TouchGlowMotion.washOffset * big,
       center: littleGlowCenter,
       radius: TouchGlowMotion.spotSpread * littleGlowSize * littleGlowScale,
-      gain:
-          TouchGlowMotion.spotGainFor(
-            brightness,
-            tint: tint,
-            clear: clear,
-          ) *
-          TouchGlowMotion.spotCore *
-          little,
+      spot: TouchGlowMotion.spotCore * little,
     );
   }
 
