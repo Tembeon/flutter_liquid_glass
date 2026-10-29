@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/controls/search_glyphs.dart';
 import 'package:apple_liquid_glass/src/motion/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
@@ -433,7 +434,7 @@ class _GlassSearchFieldState extends State<GlassSearchField>
         children: [
           SizedBox.fromSize(
             size: _Metrics.glyphSize,
-            child: CustomPaint(painter: _MagnifierPainter(icon)),
+            child: CustomPaint(painter: SearchMagnifierPainter(icon)),
           ),
           const SizedBox(
             width:
@@ -645,44 +646,6 @@ final class _LiftInput extends Interaction {
     }
     return InteractionUpdate.none;
   }
-}
-
-class _MagnifierPainter extends CustomPainter {
-  const _MagnifierPainter(this.color);
-
-  final Color color;
-
-  // SF Symbols' `magnifyingglass` as it reads on an iPhone 16 Pro's screen
-  // in a 20.67 x 19.33 box: a ring 13.33 points across drawn 1.75 thick,
-  // its center 8.67 and 7.67 points in from the top left, and a handle out
-  // to 17.4 and 16.7; all of it scales with the box.
-  @override
-  void paint(Canvas canvas, Size size) {
-    const box = _Metrics.glyphSize;
-    final k = math.min(size.width / box.width, size.height / box.height);
-    final origin = Offset(
-      (size.width - box.width * k) / 2,
-      (size.height - box.height * k) / 2,
-    );
-    final paint = Paint();
-    paint.color = color;
-    paint.style = PaintingStyle.stroke;
-    paint.strokeWidth = 1.75 * k;
-    paint.strokeCap = StrokeCap.round;
-    final c = origin + const Offset(8.67, 7.67) * k;
-    final r = (13.33 - 1.75) / 2 * k;
-    canvas.drawCircle(c, r, paint);
-    final d = r * math.sqrt1_2;
-    canvas.drawLine(
-      c + Offset(d, d),
-      origin + const Offset(17.4, 16.7) * k,
-      paint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_MagnifierPainter oldDelegate) =>
-      oldDelegate.color != color;
 }
 
 class _ClearPainter extends CustomPainter {

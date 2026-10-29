@@ -16,6 +16,7 @@ export 'src/chrome/toolbar.dart';
 export 'src/controls/button.dart';
 export 'src/controls/list.dart';
 export 'src/controls/page_control.dart';
+export 'src/controls/search_controller.dart';
 export 'src/controls/search_field.dart' hide SearchEnds;
 export 'src/controls/segmented_control.dart';
 export 'src/controls/selector.dart';

@@ -18,11 +18,15 @@ import 'package:kinesis/kinesis.dart';
 /// bar passport), and the media query padding of the tabs grows to clear
 /// it, so a page's content scrolls clear of the bar and a
 /// [GlassPageScaffold] in a tab sees the floating bar at its bottom edge.
+/// While the search of a bar with a [GlassTabBar.searchController] is
+/// open, [searchBuilder]'s page shows instead of the selected tab, kept
+/// the same way once built.
 class GlassTabScaffold extends StatefulWidget {
   /// Creates a tab interface.
   const GlassTabScaffold({
     required this.tabBar,
     required this.tabBuilder,
+    this.searchBuilder,
     this.backgroundColor,
     super.key,
   });
@@ -32,6 +36,9 @@ class GlassTabScaffold extends StatefulWidget {
 
   /// Builds the tab at an index.
   final IndexedWidgetBuilder tabBuilder;
+
+  /// Builds the page of the bar's search tab, or null for none.
+  final WidgetBuilder? searchBuilder;
 
   /// The background behind the tabs; [GlassColors.systemBackground] by
   /// default.
@@ -49,14 +56,43 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
   final _active = ValueNotifier<MotionScrollObserver?>(null);
   final _built = <int>{};
   final _focus = <FocusScopeNode>[];
+  final _searchFocus = FocusScopeNode(debugLabel: 'GlassTabScaffold search');
+  bool _searchBuilt = false;
+  bool _searching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.tabBar.searchController?.addListener(_searchChanged);
+    _searching = widget.tabBar.searchController?.isOpen ?? false;
+  }
+
+  @override
+  void didUpdateWidget(GlassTabScaffold oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final old = oldWidget.tabBar.searchController;
+    final search = widget.tabBar.searchController;
+    if (!identical(old, search)) {
+      old?.removeListener(_searchChanged);
+      search?.addListener(_searchChanged);
+      _searching = search?.isOpen ?? false;
+    }
+  }
 
   @override
   void dispose() {
+    widget.tabBar.searchController?.removeListener(_searchChanged);
     _active.dispose();
+    _searchFocus.dispose();
     for (final node in _focus) {
       node.dispose();
     }
     super.dispose();
+  }
+
+  void _searchChanged() {
+    final open = widget.tabBar.searchController?.isOpen ?? false;
+    if (open != _searching) setState(() => _searching = open);
   }
 
   FocusScopeNode _focusOf(int index) {
@@ -73,8 +109,11 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     final selected = count == 0
         ? -1
         : widget.tabBar.selectedIndex.clamp(0, count - 1);
-    if (selected >= 0) _built.add(selected);
+    final searchBuilder = widget.searchBuilder;
+    final searching = _searching && searchBuilder != null;
+    if (selected >= 0 && !searching) _built.add(selected);
     _built.removeWhere((index) => index >= count);
+    if (searching) _searchBuilt = true;
     final bottom = math.max(
       media.padding.bottom,
       GlassTabScaffold.inset +
@@ -113,9 +152,9 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
                     if (_built.contains(i))
                       Offstage(
                         key: ValueKey(i),
-                        offstage: i != selected,
+                        offstage: searching || i != selected,
                         child: TickerMode(
-                          enabled: i == selected,
+                          enabled: !searching && i == selected,
                           child: FocusScope(
                             node: _focusOf(i),
                             child: Builder(
@@ -125,19 +164,34 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
                           ),
                         ),
                       ),
+                  if (_searchBuilt && searchBuilder != null)
+                    Offstage(
+                      key: const ValueKey('search'),
+                      offstage: !searching,
+                      child: TickerMode(
+                        enabled: searching,
+                        child: FocusScope(
+                          node: _searchFocus,
+                          child: Builder(builder: searchBuilder),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
-            Positioned(
-              left: GlassTabScaffold.inset,
-              right: GlassTabScaffold.inset,
-              bottom: GlassTabScaffold.inset,
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                heightFactor: 1,
-                child: widget.tabBar,
+            if (widget.tabBar.searchController != null)
+              Positioned.fill(child: widget.tabBar)
+            else
+              Positioned(
+                left: GlassTabScaffold.inset,
+                right: GlassTabScaffold.inset,
+                bottom: GlassTabScaffold.inset,
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  heightFactor: 1,
+                  child: widget.tabBar,
+                ),
               ),
-            ),
           ],
         ),
       ),
