@@ -1,5 +1,7 @@
 import 'dart:ui' show lerpDouble;
 
+import 'package:apple_liquid_glass/src/menu/anchor.dart';
+import 'package:apple_liquid_glass/src/menu/entries.dart';
 import 'package:apple_liquid_glass/src/motion/glass_button_motion.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
@@ -464,6 +466,8 @@ class GlassButton extends StatelessWidget {
     this.focusNode,
     this.autofocus = false,
     this.semanticLabel,
+    this.menuChildren,
+    this.menuController,
     super.key,
   }) : _variant = _Variant.regular;
 
@@ -480,6 +484,8 @@ class GlassButton extends StatelessWidget {
     this.focusNode,
     this.autofocus = false,
     this.semanticLabel,
+    this.menuChildren,
+    this.menuController,
     super.key,
   }) : _variant = _Variant.prominent;
 
@@ -495,6 +501,8 @@ class GlassButton extends StatelessWidget {
     this.focusNode,
     this.autofocus = false,
     this.semanticLabel,
+    this.menuChildren,
+    this.menuController,
     super.key,
   }) : _variant = _Variant.clear;
 
@@ -510,11 +518,33 @@ class GlassButton extends StatelessWidget {
     this.focusNode,
     this.autofocus = false,
     this.semanticLabel,
+    this.menuChildren,
+    this.menuController,
     super.key,
   }) : _variant = _Variant.prominentClear;
 
-  /// Called when the button is pressed; null disables it.
+  /// Called when the button is pressed; null disables it, except for a
+  /// button with [menuChildren], which a tap then opens.
   final VoidCallback? onPressed;
+
+  /// The entries of the menu the button's glass grows into, or null for a
+  /// button without a menu.
+  ///
+  /// UIKit: `UIButton.menu`. SwiftUI: `Menu`. Flutter: `MenuAnchor`.
+  ///
+  /// Without [onPressed] a tap opens the menu on its release and a hold
+  /// opens it under the finger (UIKit's `showsMenuAsPrimaryAction`); with
+  /// it a tap presses the button and only a hold opens the menu. The menu
+  /// grows out of the button on UIKit's liquid morph springs, the button
+  /// and the menu one glass body joined by a neck while they part, and a
+  /// finger slides over its rows and chooses the one it lifts from (read
+  /// from UIKit and replayed against iPhone 16 Pro recordings). Escape,
+  /// Back and a tap outside close it.
+  final List<GlassMenuEntry>? menuChildren;
+
+  /// Opens and closes the button's menu from code.
+  final GlassMenuController? menuController;
+
 
   /// The label.
   final Widget child;
@@ -605,7 +635,33 @@ class GlassButton extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => RawGlassButton(
+  Widget build(BuildContext context) {
+    final menu = menuChildren;
+    if (menu != null) return _menuButton(context, menu);
+    return _button(context);
+  }
+
+  Widget _menuButton(BuildContext context, List<GlassMenuEntry> menu) {
+    const states = <WidgetState>{};
+    return MenuAnchor(
+      entries: menu,
+      trigger: onPressed == null ? MenuTrigger.tap : MenuTrigger.hold,
+      onTap: onPressed,
+      controller: menuController,
+      semanticLabel: semanticLabel,
+      look: _label(context, states, child),
+      face: _defaultBody(
+        context,
+        GlassButtonDetails(
+          body: const _Resting(),
+          states: states,
+          label: child,
+        ),
+      ),
+    );
+  }
+
+  Widget _button(BuildContext context) => RawGlassButton(
     onPressed: onPressed,
     statesController: statesController,
     focusNode: focusNode,
@@ -615,14 +671,29 @@ class GlassButton extends StatelessWidget {
     child: child,
   );
 
+  GlassButtonStyle _lookOf(BuildContext context) =>
+      (style ?? const GlassButtonStyle())
+          .merge(_themeStyleOf(context))
+          .merge(defaultStyleOf(context));
+
   Widget _defaultBody(BuildContext context, GlassButtonDetails details) {
     final states = details.states;
-    final look = (style ?? const GlassButtonStyle())
-        .merge(_themeStyleOf(context))
-        .merge(defaultStyleOf(context));
+    final tint = _lookOf(context).backgroundColor?.resolve(states);
+    return GlassSurface.live(
+      frame: details.body,
+      glass: _clear ? Glass.clear(tint: tint) : Glass.regular(tint: tint),
+      child: _label(context, states, details.label),
+    );
+  }
+
+  Widget _label(
+    BuildContext context,
+    Set<WidgetState> states,
+    Widget label,
+  ) {
+    final look = _lookOf(context);
     T resolve<T>(WidgetStateProperty<T?>? property) =>
         property!.resolve(states) as T;
-    final tint = look.backgroundColor?.resolve(states);
     final foreground = GlassDynamicColor.resolve(
       resolve<Color>(look.foregroundColor),
       context,
@@ -632,37 +703,48 @@ class GlassButton extends StatelessWidget {
       context,
     );
     final minimumSize = resolve<Size>(look.minimumSize);
-    return GlassSurface.live(
-      frame: details.body,
-      glass: _clear ? Glass.clear(tint: tint) : Glass.regular(tint: tint),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          minWidth: minimumSize.width,
-          minHeight: minimumSize.height,
-        ),
-        child: Padding(
-          padding: resolve<EdgeInsetsGeometry>(look.padding),
-          child: Center(
-            widthFactor: 1,
-            heightFactor: 1,
-            child: IconTheme.merge(
-              data: IconThemeData(
-                color: icon,
-                size: resolve<double>(look.iconSize),
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minWidth: minimumSize.width,
+        minHeight: minimumSize.height,
+      ),
+      child: Padding(
+        padding: resolve<EdgeInsetsGeometry>(look.padding),
+        child: Center(
+          widthFactor: 1,
+          heightFactor: 1,
+          child: IconTheme.merge(
+            data: IconThemeData(
+              color: icon,
+              size: resolve<double>(look.iconSize),
+            ),
+            child: DefaultTextStyle.merge(
+              style: resolveGlassText(
+                resolve<TextStyle>(
+                  look.textStyle,
+                ).copyWith(color: foreground),
+                context,
               ),
-              child: DefaultTextStyle.merge(
-                style: resolveGlassText(
-                  resolve<TextStyle>(
-                    look.textStyle,
-                  ).copyWith(color: foreground),
-                  context,
-                ),
-                child: details.label,
-              ),
+              child: label,
             ),
           ),
         ),
       ),
     );
   }
+}
+
+/// The frame of a glass button at rest: a menu button's glass stands
+/// still, the menu's motion lifts it.
+final class _Resting implements ValueListenable<GlassFrame> {
+  const _Resting();
+
+  @override
+  GlassFrame get value => const GlassFrame();
+
+  @override
+  void addListener(VoidCallback listener) {}
+
+  @override
+  void removeListener(VoidCallback listener) {}
 }

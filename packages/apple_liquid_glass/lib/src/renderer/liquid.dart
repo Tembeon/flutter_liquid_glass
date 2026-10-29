@@ -56,13 +56,12 @@ final class LiquidGlassRenderer extends GlassRenderer {
         when fake || grouped || outline.field == null) {
       return const FlatGlassRenderer().buildSurface(context, details);
     }
-    final surface = _LiquidSurface(details: details, glows: !fake);
-    if (grouped) return surface;
+    if (grouped) return _LiquidSurface(details: details, glows: !fake);
     return _LiquidGroup(
       fake: fake,
       glass: details.glass,
       body: details.frame,
-      child: surface,
+      child: _LiquidSurface(details: details, glows: !fake, outlined: true),
     );
   }
 
@@ -173,10 +172,18 @@ bool get _framing =>
     SchedulerPhase.persistentCallbacks;
 
 class _LiquidSurface extends StatefulWidget {
-  const _LiquidSurface({required this.details, required this.glows});
+  const _LiquidSurface({
+    required this.details,
+    required this.glows,
+    this.outlined = false,
+  });
 
   final GlassSurfaceDetails details;
   final bool glows;
+
+  /// Whether the body may take an outline, whose shadow it then casts by
+  /// the outline's path; a lone surface can.
+  final bool outlined;
 
   @override
   State<_LiquidSurface> createState() => _LiquidSurfaceState();
@@ -329,7 +336,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
       grouped: group.blends,
       child: widget.details.child,
     );
-    if (_source.value.outline == null) return glass;
+    if (!widget.outlined) return glass;
     return _OutlineShadow(
       frame: _source,
       shadows: LiquidGlassRenderer.shadowsOf(widget.details.role),
