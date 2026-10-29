@@ -855,3 +855,90 @@ void _requireUniform(RRect shape) {
     'Glass distance fields require uniform circular corner radii.',
   );
 }
+
+final List<(List<RRect>, GlassOutline)> _recentFields = [];
+
+/// The plain union of [shapes] with its signed distance field sampled every
+/// [step] points over it and a margin, for a renderer that shades the body
+/// from the field: each node holds the distance to the nearest shape, its
+/// gradient by central differences, turned as the renderer turns a rounded
+/// box's normals near its corners ([opticalCornerScale]), and that shape's
+/// half thickness. The latest fields are kept.
+@internal
+GlassOutline unionFieldOutline(List<RRect> shapes, {double step = 4}) {
+  for (var k = 0; k < _recentFields.length; k++) {
+    final (recent, outline) = _recentFields[k];
+    if (listEquals(recent, shapes)) {
+      _used(_recentFields, k);
+      return outline;
+    }
+  }
+  final kept = List<RRect>.unmodifiable(shapes);
+  final path = _plainUnion(kept).path;
+  final boxes = OutlineBoxes(kept);
+  final area = path.getBounds().inflate(2 * step + 4);
+  final cols = (area.width / step).ceil() + 1;
+  final rows = (area.height / step).ceil() + 1;
+  final distance = Float64List(cols * rows);
+  final nearest = Int32List(cols * rows);
+  for (var j = 0; j < rows; j++) {
+    final y = area.top + j * step;
+    for (var i = 0; i < cols; i++) {
+      final x = area.left + i * step;
+      var best = double.infinity;
+      var which = 0;
+      for (var b = 0; b < boxes.length; b++) {
+        final d = boxes.distance(b, x, y);
+        if (d < best) {
+          best = d;
+          which = b;
+        }
+      }
+      distance[j * cols + i] = best;
+      nearest[j * cols + i] = which;
+    }
+  }
+  final samples = Float32List(cols * rows * 4);
+  final turn = Float64List(2);
+  for (var j = 0; j < rows; j++) {
+    final up = j > 0 ? j - 1 : 0;
+    final down = j < rows - 1 ? j + 1 : rows - 1;
+    for (var i = 0; i < cols; i++) {
+      final back = i > 0 ? i - 1 : 0;
+      final ahead = i < cols - 1 ? i + 1 : cols - 1;
+      final at = j * cols + i;
+      var gx =
+          (distance[j * cols + ahead] - distance[j * cols + back]) /
+          ((ahead - back) * step);
+      var gy =
+          (distance[down * cols + i] - distance[up * cols + i]) /
+          ((down - up) * step);
+      final which = nearest[at];
+      final x = area.left + i * step;
+      final y = area.top + j * step;
+      if (boxes.inOpticalCorner(which, x, y)) {
+        boxes.opticalTurn(which, x, y, turn, 0);
+        final tx = gx * turn[0] - gy * turn[1];
+        gy = gx * turn[1] + gy * turn[0];
+        gx = tx;
+      }
+      final out = at * 4;
+      samples[out] = distance[at];
+      samples[out + 1] = gx;
+      samples[out + 2] = gy;
+      samples[out + 3] = boxes.halfMinor(which);
+    }
+  }
+  final outline = GlassOutline(
+    path,
+    field: LiquidGlassField(
+      samples: samples,
+      cols: cols,
+      rows: rows,
+      origin: area.topLeft,
+      step: step,
+    ),
+  );
+  _remember(_recentFields, (kept, outline));
+  return outline;
+}
