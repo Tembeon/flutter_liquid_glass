@@ -21,6 +21,7 @@ final class GlassFrame {
     this.tint,
     this.lift = 0,
     this.glow,
+    this.opacity = 1,
   });
 
   /// A capsule in any box: renderers clamp a corner radius to half the
@@ -58,6 +59,11 @@ final class GlassFrame {
   /// The glow a finger raises on the body, in the surface's coordinates,
   /// or null for none.
   final GlassTouchGlow? glow;
+
+  /// How present the body and its content are, 0 gone to 1 fully there:
+  /// a body appearing or leaving in place fades its glass, refraction and
+  /// lighting included, with its content.
+  final double opacity;
 
   /// Where the body is drawn in a box of [size]: [rect], scaled about its
   /// center.
@@ -97,9 +103,10 @@ final class GlassFrame {
       other.scaleY == scaleY &&
       other.tint == tint &&
       other.lift == lift &&
-      other.glow == glow;
+      other.glow == glow &&
+      other.opacity == opacity;
 
   @override
   int get hashCode =>
-      Object.hash(shape, rect, scaleX, scaleY, tint, lift, glow);
+      Object.hash(shape, rect, scaleX, scaleY, tint, lift, glow, opacity);
 }
