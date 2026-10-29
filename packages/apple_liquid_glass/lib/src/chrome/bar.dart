@@ -77,7 +77,9 @@ final class GlassPageBarLink {
 
   GlassPageBarLink? _below;
   GlassBarDeclaration? _declaration;
-  List<GlassBarCapsuleLayout>? _layout;
+  List<GlassBarEntry>? _toolbar;
+  bool _declaredToolbar = false;
+  final Map<GlassBarKind, List<GlassBarCapsuleLayout>> _layouts = {};
   bool _coveredByForeign = false;
 
   /// The room of the page's inline title in its final layout.
@@ -142,22 +144,32 @@ final class _PageId {
   int get hashCode => Object.hash(identityHashCode(page), id);
 }
 
-/// The bar a navigator's glass pages share: the one owner of its state.
+/// Which bar of a page.
+@internal
+enum GlassBarKind {
+  /// The navigation bar at the top.
+  navigation,
+
+  /// The toolbar at the bottom.
+  toolbar,
+}
+
+/// The bars a navigator's glass pages share: the one owner of their state.
 ///
 /// One per [NavigatorState], found through the route's navigator, with no
 /// app wiring; a page outside any glass page route has a host of its own.
 /// Routes report their events and pages their declarations synchronously,
-/// and the host decides: it is the only writer of the bar's motion, of
-/// which page's slot draws the bar ([painter]) and of what the bar heads
-/// to. Every change counts from the event that caused it (a push or pop
-/// call, a finger's lift, a page's build), never from when the bar laid
-/// it out. Nothing builds or lays out per frame: [step] advances the
-/// motion and writes frames, and the view paints them.
+/// and the host decides: it is the only writer of the bars' motion, of
+/// which page's slot draws them ([painter]) and of what they head to.
+/// Every change counts from the event that caused it (a push or pop call,
+/// a finger's lift, a page's build), never from when a bar laid it out.
+/// Nothing builds or lays out per frame: [step] advances the motions and
+/// writes frames, and the view paints them.
 @internal
 final class GlassBarHost implements MotionDriver {
   GlassBarHost._();
 
-  /// A host for one page outside any glass page route, which draws the
+  /// A host for one page outside any glass page route, which draws its
   /// bar itself.
   GlassBarHost.standalone() {
     final link = _standalone = GlassPageBarLink._(this, null, null);
@@ -168,7 +180,7 @@ final class GlassBarHost implements MotionDriver {
     MotionClock.instance.addDriver(this);
   }
 
-  /// The bar of [navigator]'s glass pages.
+  /// The bars of [navigator]'s glass pages.
   factory GlassBarHost.of(NavigatorState navigator) =>
       _hosts[navigator] ??= GlassBarHost._();
 
@@ -177,7 +189,7 @@ final class GlassBarHost implements MotionDriver {
   /// The key of the one bar view, which moves between the pages' slots.
   final GlobalKey viewKey = GlobalKey(debugLabel: 'GlassBarView');
 
-  /// The page whose slot draws the bar: the topmost live glass page.
+  /// The page whose slot draws the bars: the topmost live glass page.
   ValueListenable<GlassPageBarLink?> get painter => _painter;
   final _painter = ValueNotifier<GlassPageBarLink?>(null);
 
@@ -189,26 +201,12 @@ final class GlassBarHost implements MotionDriver {
   // Live glass pages, bottom to top, the order of their overlay entries.
   final List<GlassPageBarLink> _pages = [];
   GlassPageBarLink? _shown;
-  final GlassBarMotion _motion = GlassBarMotion(
-    spec: GlassBarTransitionSpec.navigation,
-  );
-  final List<_Change> _changes = [];
   GlassPageBarLink? _swiped;
-  Element? _view;
-  _RenderBarItems? _items;
-  double _width = 0;
-  bool _rtl = false;
-  final Map<Object, double> _widths = {};
-  // The buttons the bar knows, by identity; a leaving one keeps its last.
-  final Map<Object, _Button> _buttons = {};
-  final Map<Object, GlassBarItemFrame> _itemFrames = {};
-  final List<ValueNotifier<GlassFrame>> _container = [];
-  final List<ValueNotifier<GlassFrame>> _apart = [];
-  // Which capsules are prominent, by their layout identity.
-  final Set<Object> _prominent = {};
-  Set<Object> _built = const {};
-  Set<Object> _measuredIds = const {};
+  late final Map<GlassBarKind, _Bar> _bars = {
+    for (final kind in GlassBarKind.values) kind: _Bar(this, kind),
+  };
   bool _registered = false;
+  Color? _tint;
 
   double get _now => MotionClock.instance.now;
 
@@ -248,8 +246,8 @@ final class GlassBarHost implements MotionDriver {
 
   /// Reports that [link]'s page was presented at [time], the call, with
   /// [below] under it: pushed when [animated], else added or put in place
-  /// of another. A [current] page takes the bar: its layout follows the
-  /// one the bar shows, or grows in place when the bar shows nothing.
+  /// of another. A [current] page takes the bars: their layouts follow the
+  /// ones they show, or grow in place when they show nothing.
   void presented(
     GlassPageBarLink link, {
     required GlassPageBarLink? below,
@@ -273,14 +271,16 @@ final class GlassBarHost implements MotionDriver {
     final shown = _shown;
     final empty = shown == null || shown._coveredByForeign;
     _shown = link;
-    _enqueue(
-      _Change(
-        link,
-        time,
-        animated ? GlassBarTransitionSpec.navigation : null,
-        fromEmpty: empty,
-      ),
-    );
+    for (final bar in _bars.values) {
+      bar.enqueue(
+        _Change(
+          link,
+          time,
+          animated ? bar.navigationSpec : null,
+          fromEmpty: empty,
+        ),
+      );
+    }
   }
 
   /// Reports that the page below [link]'s page changed without a push of
@@ -301,12 +301,14 @@ final class GlassBarHost implements MotionDriver {
   }
 
   /// Reports that a route that is not a glass page left [link]'s page on
-  /// top again: the bar, covered meanwhile, stands on its layout.
+  /// top again: the bars, covered meanwhile, stand on its layouts.
   void revealed(GlassPageBarLink link) {
     link._coveredByForeign = false;
     if (identical(link, _shown)) return;
     _shown = link;
-    _enqueue(_Change(link, _now, null));
+    for (final bar in _bars.values) {
+      bar.enqueue(_Change(link, _now, null));
+    }
   }
 
   /// Reports that [link]'s page was popped or dismissed at [time]: the
@@ -316,7 +318,9 @@ final class GlassBarHost implements MotionDriver {
     final below = link._below;
     _shown = below;
     _swiped = null;
-    _enqueue(_Change(below, time, GlassBarTransitionSpec.navigation));
+    for (final bar in _bars.values) {
+      bar.enqueue(_Change(below, time, bar.navigationSpec));
+    }
   }
 
   /// Reports that [link]'s page left the overlay: the next glass page down
@@ -327,12 +331,13 @@ final class GlassBarHost implements MotionDriver {
   }
 
   /// Reports that a finger began to drag [link]'s page toward a pop: until
-  /// it ends, each capsule the page below also has leans toward its place
-  /// there by [NavigationTuning.barDrift] of the page's way out.
+  /// it ends, each navigation bar capsule the page below also has leans
+  /// toward its place there by [NavigationTuning.barDrift] of the page's
+  /// way out; the toolbar stays.
   void swipeStarted(GlassPageBarLink link) {
     if (!identical(link, _shown) || link._below == null) return;
     _swiped = link;
-    _rebuildView();
+    _bars[GlassBarKind.navigation]!.rebuild();
     MotionClock.instance.wake(this);
   }
 
@@ -340,100 +345,292 @@ final class GlassBarHost implements MotionDriver {
   void swipeEnded(GlassPageBarLink link) {
     if (!identical(_swiped, link)) return;
     _swiped = null;
-    _motion.endDrift(_now);
+    _bars[GlassBarKind.navigation]!.motion.endDrift(_now);
     MotionClock.instance.wake(this);
   }
 
-  // --- the page's declaration ---------------------------------------------
+  // --- the page's declarations --------------------------------------------
 
-  /// Records what [link]'s page declares as it builds; a declaration that
-  /// changes only callbacks moves nothing.
+  /// Records what [link]'s page declares for its navigation bar as it
+  /// builds; a declaration that changes only callbacks moves nothing.
   void declare(GlassPageBarLink link, GlassBarDeclaration declaration) {
     final previous = link._declaration;
     link._declaration = declaration;
-    if (previous != null && _sameShape(previous, declaration, link)) {
-      _rememberButtons(link);
-      return;
-    }
-    final time = _now;
-    final shown = identical(link, _shown);
-    if (shown && previous != null) {
-      _enqueue(_Change(link, time, GlassBarTransitionSpec.standard));
-    } else if (shown && !_changes.any((c) => identical(c.page, link))) {
-      // A page that shows without a push, standalone: its bar stands.
-      _enqueue(_Change(link, time, null));
-    } else {
-      _rebuildView();
-    }
+    final bar = _bars[GlassBarKind.navigation]!;
+    final same =
+        previous != null &&
+        previous.automaticallyImplyLeading ==
+            declaration.automaticallyImplyLeading &&
+        previous.previousPageTitle == declaration.previousPageTitle &&
+        previous.backButtonDisplayMode == declaration.backButtonDisplayMode &&
+        previous.title == declaration.title &&
+        _sameEntries(previous.leading, declaration.leading) &&
+        _sameEntries(previous.trailing, declaration.trailing);
+    _declared(bar, link, first: previous == null, same: same);
+    if (same) return;
+    // A title the page above names its back button after.
     for (final page in _pages) {
       if (identical(page._below, link) && identical(page, _shown)) {
-        _refreshShown(time);
+        bar.enqueue(_Change(page, _now, GlassBarTransitionSpec.standard));
       }
+    }
+  }
+
+  /// Records the items [link]'s page declares for its toolbar as it
+  /// builds, or null for none.
+  void declareToolbar(GlassPageBarLink link, List<GlassBarEntry>? items) {
+    final previous = link._toolbar;
+    link._toolbar = items;
+    final same =
+        previous != null && items != null && _sameEntries(previous, items);
+    _declared(
+      _bars[GlassBarKind.toolbar]!,
+      link,
+      first: previous == null && !link._declaredToolbar,
+      same: same || (previous == null && items == null),
+    );
+    link._declaredToolbar = true;
+  }
+
+  void _declared(
+    _Bar bar,
+    GlassPageBarLink link, {
+    required bool first,
+    required bool same,
+  }) {
+    if (same) {
+      bar.rememberButtons(link);
+      return;
+    }
+    final shown = identical(link, _shown);
+    if (shown && !first) {
+      bar.enqueue(_Change(link, _now, GlassBarTransitionSpec.standard));
+    } else if (shown && !bar.changes.any((c) => identical(c.page, link))) {
+      // A page that shows without a push, standalone: its bar stands.
+      bar.enqueue(_Change(link, _now, null));
+    } else {
+      bar.rebuild();
     }
   }
 
   void _refreshShown(double time) {
     final shown = _shown;
     if (shown == null) return;
-    _enqueue(_Change(shown, time, GlassBarTransitionSpec.standard));
+    _bars[GlassBarKind.navigation]!.enqueue(
+      _Change(shown, time, GlassBarTransitionSpec.standard),
+    );
   }
 
-  void _enqueue(_Change change) {
-    _changes.add(change);
-    _rebuildView();
-    MotionClock.instance.wake(this);
+  static bool _sameEntries(List<GlassBarEntry> x, List<GlassBarEntry> y) {
+    if (x.length != y.length) return false;
+    for (var i = 0; i < x.length; i++) {
+      final p = x[i];
+      final q = y[i];
+      if (p.runtimeType != q.runtimeType) return false;
+      if (p is GlassBarSpacer && q is GlassBarSpacer) {
+        if (p.flexible != q.flexible) return false;
+      }
+      if (p is GlassBarItem && q is GlassBarItem) {
+        if (_identity(p) != _identity(q) ||
+            p.prominent != q.prominent ||
+            (p.onPressed == null) != (q.onPressed == null) ||
+            p.child != q.child) {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
-  // --- what the view builds -----------------------------------------------
+  static Object _identity(GlassBarItem item) {
+    final key = item.key;
+    if (key != null) return key;
+    final icon = item.icon;
+    if (icon is Icon && icon.icon != null) return icon.icon!;
+    final label = item.label;
+    if (label is Text && label.data != null) return label.data!;
+    return item.child?.runtimeType ?? GlassBarItem;
+  }
 
-  /// The capsules of a side of [page]'s bar, with the identities of their
-  /// buttons; identities repeat across the whole bar, both sides.
-  List<List<(Object, _Button)>> _capsules(
-    GlassPageBarLink page, {
-    required bool leading,
-  }) {
+  // The pages whose layout [bar] needs: the shown one, those its changes
+  // head to, and, for the navigation bar, the page below a swiped one.
+  Iterable<GlassPageBarLink> _measured(_Bar bar) sync* {
+    final seen = <GlassPageBarLink>{};
+    final shown = _shown;
+    if (shown != null && seen.add(shown)) yield shown;
+    for (final change in bar.changes) {
+      final page = change.page;
+      if (page != null && seen.add(page)) yield page;
+    }
+    if (bar.kind == GlassBarKind.navigation) {
+      final below = _swiped?._below;
+      if (below != null && seen.add(below)) yield below;
+    }
+  }
+
+  // --- MotionDriver -------------------------------------------------------
+
+  @override
+  bool get isActive =>
+      _swiped != null || _bars.values.any((bar) => !bar.motion.isSettled);
+
+  @override
+  double? get wakeTime => null;
+
+  @override
+  void step(double time) {
+    final swiped = _swiped;
+    final presence = swiped?._presence;
+    for (final bar in _bars.values) {
+      final motion = bar.motion;
+      motion.advance(time);
+      if (bar.kind == GlassBarKind.navigation &&
+          swiped != null &&
+          presence != null) {
+        motion.setDrift(
+          swiped._below?._layouts[bar.kind],
+          NavigationTuning.barDrift * (1 - presence.value).clamp(0.0, 1.0),
+        );
+      }
+      if ((swiped == null || bar.kind == GlassBarKind.toolbar) &&
+          motion.isSettled) {
+        motion.settle();
+      }
+      bar.publish();
+    }
+  }
+}
+
+// One bar of a host: its motion, the changes waiting for their layouts,
+// its glass and the buttons its view builds.
+final class _Bar {
+  _Bar(this.host, this.kind);
+
+  final GlassBarHost host;
+  final GlassBarKind kind;
+  late final GlassBarMotion motion = GlassBarMotion(spec: navigationSpec);
+  final List<_Change> changes = [];
+  final List<ValueNotifier<GlassFrame>> container = [];
+  final List<ValueNotifier<GlassFrame>> apart = [];
+  final Map<Object, GlassBarItemFrame> itemFrames = {};
+  final Map<Object, double> widths = {};
+  // The buttons the bar knows, by identity; a leaving one keeps its last.
+  final Map<Object, _Button> buttons = {};
+  // Which capsules are prominent, by their layout identity.
+  final Set<Object> prominent = {};
+  Set<Object> built = const {};
+  Set<Object> measuredIds = const {};
+  double width = 0;
+  bool rtl = false;
+  Element? view;
+  _RenderBarItems? items;
+
+  bool get _navigation => kind == GlassBarKind.navigation;
+
+  GlassBarMetrics get metrics =>
+      _navigation ? GlassBarMetrics.navigation : GlassBarMetrics.toolbar;
+
+  /// The space between the screen's sides and the outer capsules: 16 for a
+  /// navigation bar on a 402 point screen, 28 for a toolbar (bars
+  /// passport).
+  double get sideInset => _navigation ? 16 : 28;
+
+  /// The tuning of a change on a push or a pop: a navigation bar's own
+  /// timing; a toolbar's item replacement, as Morph's toolbar ran it (a
+  /// toolbar's push was filmed on the simulator only).
+  GlassBarTransitionSpec get navigationSpec => _navigation
+      ? GlassBarTransitionSpec.navigation
+      : GlassBarTransitionSpec.standard;
+
+  void enqueue(_Change change) {
+    changes.add(change);
+    rebuild();
+    MotionClock.instance.wake(host);
+  }
+
+  void rebuild() {
+    final view = this.view;
+    if (view == null || !view.mounted) return;
+    var inLayout = false;
+    assert(() {
+      inLayout = view.renderObject?.owner?.debugDoingLayout ?? false;
+      return true;
+    }(), 'reads the layout phase in debug builds only');
+    if (inLayout) {
+      // A page built during another layout (under the app's LayoutBuilder)
+      // reaches the bar a frame later.
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (view.mounted) view.markNeedsBuild();
+      });
+      SchedulerBinding.instance.ensureVisualUpdate();
+      return;
+    }
+    view.markNeedsBuild();
+  }
+
+  /// The runs of [page]'s bar, each a list of capsules with the identities
+  /// of their buttons: a navigation bar's leading and trailing sides, a
+  /// toolbar's runs between flexible spaces. Identities repeat across the
+  /// whole bar.
+  List<List<List<(Object, _Button)>>> runs(GlassPageBarLink page) {
+    final seen = <Object, int>{};
+    if (!_navigation) {
+      final items = page._toolbar;
+      if (items == null) return const [];
+      final runs = <List<GlassBarEntry>>[[]];
+      for (final entry in items) {
+        if (entry is GlassBarSpacer && entry.flexible) {
+          runs.add([]);
+        } else {
+          runs.last.add(entry);
+        }
+      }
+      return [for (final run in runs) _capsules(page, run, seen)];
+    }
     final declaration = page._declaration;
     if (declaration == null) return const [];
-    final seen = <Object, int>{};
-    final lead = _side(page, declaration, declaration.leading, seen, true);
-    if (leading) return lead;
-    return _side(page, declaration, declaration.trailing, seen, false);
+    final leading = declaration.leading.isEmpty
+        ? _back(page, declaration)
+        : _capsules(page, declaration.leading, seen);
+    return [leading, _capsules(page, declaration.trailing, seen)];
   }
 
-  List<List<(Object, _Button)>> _side(
+  List<List<(Object, _Button)>> _back(
     GlassPageBarLink page,
     GlassBarDeclaration declaration,
-    List<GlassBarEntry> entries,
-    Map<Object, int> seen,
-    bool leading,
   ) {
-    final out = <List<(Object, _Button)>>[];
-    if (leading && entries.isEmpty) {
-      final below = page._below;
-      final route = page.route;
-      if (below != null && declaration.automaticallyImplyLeading) {
-        final label = switch (declaration.backButtonDisplayMode) {
-          GlassBackButtonDisplayMode.minimal => null,
-          GlassBackButtonDisplayMode.generic => 'Back',
-          GlassBackButtonDisplayMode.title =>
-            declaration.previousPageTitle ??
-                below._declaration?.title ??
-                'Back',
-        };
-        out.add([
-          (
-            _backId,
-            _Button.back(
-              _Back(
-                label: label,
-                onPressed: () => route?.navigator?.maybePop<Object?>(),
-              ),
+    final below = page._below;
+    if (below == null || !declaration.automaticallyImplyLeading) {
+      return const [];
+    }
+    final route = page.route;
+    final label = switch (declaration.backButtonDisplayMode) {
+      GlassBackButtonDisplayMode.minimal => null,
+      GlassBackButtonDisplayMode.generic => 'Back',
+      GlassBackButtonDisplayMode.title =>
+        declaration.previousPageTitle ?? below._declaration?.title ?? 'Back',
+    };
+    return [
+      [
+        (
+          _backId,
+          _Button.back(
+            _Back(
+              label: label,
+              onPressed: () => route?.navigator?.maybePop<Object?>(),
             ),
           ),
-        ]);
-      }
-      return out;
-    }
+        ),
+      ],
+    ];
+  }
+
+  List<List<(Object, _Button)>> _capsules(
+    GlassPageBarLink page,
+    List<GlassBarEntry> entries,
+    Map<Object, int> seen,
+  ) {
+    final out = <List<(Object, _Button)>>[];
     var run = <(Object, _Button)>[];
     void close() {
       if (run.isNotEmpty) out.add(run);
@@ -445,7 +642,7 @@ final class GlassBarHost implements MotionDriver {
         case GlassBarSpacer():
           close();
         case GlassBarItem():
-          final derived = _identity(entry);
+          final derived = GlassBarHost._identity(entry);
           final n = seen[derived] = (seen[derived] ?? -1) + 1;
           final base = entry.key ?? _PageId(page, derived);
           final id = n == 0 ? base : GlassBarItemId(base, n);
@@ -466,194 +663,125 @@ final class GlassBarHost implements MotionDriver {
     return out;
   }
 
-  static Object _identity(GlassBarItem item) {
-    final key = item.key;
-    if (key != null) return key;
-    final icon = item.icon;
-    if (icon is Icon && icon.icon != null) return icon.icon!;
-    final label = item.label;
-    if (label is Text && label.data != null) return label.data!;
-    return item.child?.runtimeType ?? GlassBarItem;
-  }
-
-  bool _sameShape(
-    GlassBarDeclaration a,
-    GlassBarDeclaration b,
-    GlassPageBarLink page,
-  ) {
-    if (a.automaticallyImplyLeading != b.automaticallyImplyLeading ||
-        a.previousPageTitle != b.previousPageTitle ||
-        a.backButtonDisplayMode != b.backButtonDisplayMode ||
-        a.title != b.title) {
-      return false;
-    }
-    bool same(List<GlassBarEntry> x, List<GlassBarEntry> y) {
-      if (x.length != y.length) return false;
-      for (var i = 0; i < x.length; i++) {
-        final p = x[i];
-        final q = y[i];
-        if (p.runtimeType != q.runtimeType) return false;
-        if (p is GlassBarItem && q is GlassBarItem) {
-          if (_identity(p) != _identity(q) ||
-              p.prominent != q.prominent ||
-              (p.onPressed == null) != (q.onPressed == null) ||
-              p.child != q.child) {
-            return false;
-          }
-        }
-      }
-      return true;
-    }
-
-    return same(a.leading, b.leading) && same(a.trailing, b.trailing);
-  }
-
-  // The pages whose layout the bar needs: the shown one, those changes
-  // head to, and the page below a swiped one.
-  Iterable<GlassPageBarLink> get _measured sync* {
-    final seen = <GlassPageBarLink>{};
-    final shown = _shown;
-    if (shown != null && seen.add(shown)) yield shown;
-    for (final change in _changes) {
-      final page = change.page;
-      if (page != null && seen.add(page)) yield page;
-    }
-    final below = _swiped?._below;
-    if (below != null && seen.add(below)) yield below;
-  }
-
-  void _rememberButtons(GlassPageBarLink page) {
-    for (final leading in [true, false]) {
-      for (final capsule in _capsules(page, leading: leading)) {
+  void rememberButtons(GlassPageBarLink page) {
+    for (final run in runs(page)) {
+      for (final capsule in run) {
         for (final (id, button) in capsule) {
-          _buttons[id] = button;
+          buttons[id] = button;
         }
       }
     }
   }
 
-  // The buttons the view builds: every item a measured page has and every
-  // item the motion still draws.
-  Map<Object, _Button> _roster() {
-    for (final page in _measured) {
-      _rememberButtons(page);
+  /// The buttons the view builds: every item a measured page has and every
+  /// item the motion still draws.
+  Map<Object, _Button> roster() {
+    final pages = host._measured(this).toList();
+    for (final page in pages) {
+      rememberButtons(page);
     }
-    _measuredIds = {
-      for (final page in _measured)
-        for (final leading in [true, false])
-          for (final capsule in _capsules(page, leading: leading))
+    measuredIds = {
+      for (final page in pages)
+        for (final run in runs(page))
+          for (final capsule in run)
             for (final (id, _) in capsule) id,
     };
-    final ids = {..._measuredIds, for (final frame in _motion.items) frame.id};
-    _buttons.removeWhere((id, _) => !ids.contains(id));
-    _built = ids;
-    return {for (final id in ids) id: _buttons[id]!};
+    final ids = {...measuredIds, for (final frame in motion.items) frame.id};
+    buttons.removeWhere((id, _) => !ids.contains(id));
+    built = ids;
+    return {for (final id in ids) id: buttons[id]!};
   }
-
-  void _rebuildView() {
-    final view = _view;
-    if (view == null || !view.mounted) return;
-    var inLayout = false;
-    assert(() {
-      inLayout = view.renderObject?.owner?.debugDoingLayout ?? false;
-      return true;
-    }(), 'reads the layout phase in debug builds only');
-    if (inLayout) {
-      // A page built during another layout (under the app's LayoutBuilder)
-      // reaches the bar a frame later.
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (view.mounted) view.markNeedsBuild();
-      });
-      SchedulerBinding.instance.ensureVisualUpdate();
-      return;
-    }
-    view.markNeedsBuild();
-  }
-
-  // --- the view's layout --------------------------------------------------
 
   /// Takes the content widths the view measured in a bar [width] wide and
   /// applies the waiting changes, each at its own time.
-  void _measuredWidths(
+  void measured(
     Map<Object, double> widths,
     double width, {
     required bool rtl,
   }) {
-    final resized = width != _width || rtl != _rtl;
-    _width = width;
-    _rtl = rtl;
-    _widths.addAll(widths);
+    final resized = width != this.width || rtl != this.rtl;
+    this.width = width;
+    this.rtl = rtl;
+    this.widths.addAll(widths);
+    final pages = host._measured(this).toList();
     final rooms = <(GlassPageBarLink, GlassTitleRoom)>[];
-    for (final page in _measured) {
-      final layout = page._layout = _layoutOf(page);
-      final room = _roomOf(layout);
-      if (page.titleRoom.value != room) rooms.add((page, room));
+    prominent.clear();
+    for (final page in pages) {
+      final runs = this.runs(page);
+      final layout = page._layouts[kind] = _layoutOf(runs);
+      final capsules = [for (final run in runs) ...run];
+      for (var i = 0; i < layout.length && i < capsules.length; i++) {
+        final first = capsules[i].first.$2.item;
+        if (first != null && first.prominent) prominent.add(layout[i].id);
+      }
+      if (_navigation) {
+        final room = _roomOf(layout);
+        if (page.titleRoom.value != room) rooms.add((page, room));
+      }
     }
     if (rooms.isNotEmpty) {
       // The titles are laid out in their pages, which this layout must
       // not touch: they take their room after the frame.
       SchedulerBinding.instance.addPostFrameCallback((_) {
         for (final (page, room) in rooms) {
-          if (_pages.contains(page)) page.titleRoom.value = room;
+          if (host._pages.contains(page)) page.titleRoom.value = room;
         }
       });
     }
-    _prominent.clear();
-    for (final page in _measured) {
-      final layout = page._layout!;
-      final capsules = [
-        ..._capsules(page, leading: true),
-        ..._capsules(page, leading: false),
-      ];
-      for (var i = 0; i < layout.length && i < capsules.length; i++) {
-        final first = capsules[i].first.$2.item;
-        if (first != null && first.prominent) _prominent.add(layout[i].id);
-      }
-    }
-    final changes = List.of(_changes);
-    _changes.clear();
-    for (final change in changes) {
-      final target = change.page?._layout ?? const <GlassBarCapsuleLayout>[];
+    final pending = List.of(changes);
+    changes.clear();
+    for (final change in pending) {
+      final target =
+          change.page?._layouts[kind] ?? const <GlassBarCapsuleLayout>[];
       if (change.fromEmpty) {
-        _motion.setLayout(change.time, const [], animated: false);
+        motion.setLayout(change.time, const [], animated: false);
       }
-      _motion.setLayout(
+      motion.setLayout(
         change.time,
         target,
         animated: change.spec != null,
         transition: change.spec,
       );
     }
-    if (changes.isEmpty && resized) {
-      _motion.setLayout(_now, _shown?._layout ?? const [], animated: false);
+    if (pending.isEmpty && resized) {
+      motion.setLayout(
+        host._now,
+        host._shown?._layouts[kind] ?? const [],
+        animated: false,
+      );
     }
-    _publish(_now);
+    publish();
   }
 
-  List<GlassBarCapsuleLayout> _layoutOf(GlassPageBarLink page) {
-    const metrics = GlassBarMetrics.navigation;
-    List<GlassBarCapsuleSpec> specs({required bool leading}) => [
-      for (final capsule in _capsules(page, leading: leading))
+  List<GlassBarCapsuleLayout> _layoutOf(
+    List<List<List<(Object, _Button)>>> runs,
+  ) {
+    List<GlassBarCapsuleSpec> specs(List<List<(Object, _Button)>> run) => [
+      for (final capsule in run)
         GlassBarCapsuleSpec([
           for (final (id, button) in capsule)
             GlassBarButtonSpec(
               id,
               button.kind == GlassBarButtonKind.back
-                  ? _backLabelWidth(_widths[id] ?? 0, button.back!)
-                  : _widths[id] ?? 0,
+                  ? _backLabelWidth(widths[id] ?? 0, button.back!)
+                  : widths[id] ?? 0,
               button.kind,
             ),
         ], prominent: capsule.first.$2.item?.prominent ?? false),
     ];
+    if (runs.isEmpty) return const [];
     return layoutGlassBar(
-      leading: specs(leading: true),
-      trailing: specs(leading: false),
-      width: _width,
+      leading: specs(runs.first),
+      trailing: runs.length > 1 ? specs(runs.last) : const [],
+      center: [
+        for (var i = 1; i < runs.length - 1; i++) specs(runs[i]),
+      ],
+      width: width,
       top: 0,
-      leadingInset: _sideInset,
-      trailingInset: _sideInset,
+      leadingInset: sideInset,
+      trailingInset: sideInset,
       metrics: metrics,
-      rtl: _rtl,
+      rtl: rtl,
     );
   }
 
@@ -672,11 +800,11 @@ final class GlassBarHost implements MotionDriver {
 
   GlassTitleRoom _roomOf(List<GlassBarCapsuleLayout> layout) {
     const padding = 12.0;
-    var start = _sideInset;
-    var end = _width - _sideInset;
+    var start = sideInset;
+    var end = width - sideInset;
     for (final capsule in layout) {
       final leading = capsule.segment == glassBarLeading;
-      if (leading != _rtl) {
+      if (leading != rtl) {
         start = math.max(start, capsule.rect.right + padding);
       } else {
         end = math.min(end, capsule.rect.left - padding);
@@ -685,38 +813,11 @@ final class GlassBarHost implements MotionDriver {
     return (start: start, end: end);
   }
 
-  /// The space between the screen's sides and the outer capsules on a 402
-  /// point screen (navigation bar passport).
-  static const double _sideInset = 16;
-
-  // --- MotionDriver -------------------------------------------------------
-
-  @override
-  bool get isActive => _swiped != null || !_motion.isSettled;
-
-  @override
-  double? get wakeTime => null;
-
-  @override
-  void step(double time) {
-    _motion.advance(time);
-    final swiped = _swiped;
-    final presence = swiped?._presence;
-    if (swiped != null && presence != null) {
-      _motion.setDrift(
-        swiped._below?._layout,
-        NavigationTuning.barDrift * (1 - presence.value).clamp(0.0, 1.0),
-      );
-    }
-    if (_swiped == null && _motion.isSettled) _motion.settle();
-    _publish(time);
-  }
-
-  void _publish(double time) {
+  void publish() {
     final joined = <GlassBarCapsuleFrame>[];
-    final apart = <GlassBarCapsuleFrame>[];
-    for (final capsule in _motion.capsules) {
-      (capsule.apart ? apart : joined).add(capsule);
+    final apartFrames = <GlassBarCapsuleFrame>[];
+    for (final capsule in motion.capsules) {
+      (capsule.apart ? apartFrames : joined).add(capsule);
     }
     void write(
       List<ValueNotifier<GlassFrame>> pool,
@@ -731,29 +832,27 @@ final class GlassBarHost implements MotionDriver {
         pool[i].value = GlassFrame(
           rect: frame.rect,
           opacity: frame.opacity,
-          tint: _prominent.contains(frame.id) ? _tint : null,
+          tint: prominent.contains(frame.id) ? host._tint : null,
         );
       }
     }
 
-    write(_container, joined);
-    write(_apart, apart);
-    _itemFrames.clear();
-    for (final frame in _motion.items) {
-      _itemFrames[frame.id] = frame;
+    write(container, joined);
+    write(apart, apartFrames);
+    itemFrames.clear();
+    for (final frame in motion.items) {
+      itemFrames[frame.id] = frame;
     }
-    _items?.markNeedsPaint();
-    final ids = {for (final f in _motion.items) f.id};
+    items?.markNeedsPaint();
+    final ids = {for (final f in motion.items) f.id};
     // A new item joins the roster; one that has left drops from it.
-    if (joined.length > _container.length ||
-        apart.length > _apart.length ||
-        !_built.containsAll(ids) ||
-        _built.difference(ids).difference(_measuredIds).isNotEmpty) {
-      _rebuildView();
+    if (joined.length > container.length ||
+        apartFrames.length > apart.length ||
+        !built.containsAll(ids) ||
+        built.difference(ids).difference(measuredIds).isNotEmpty) {
+      rebuild();
     }
   }
-
-  Color? _tint;
 }
 
 // ===========================================================================
@@ -769,14 +868,14 @@ class _LinkScope extends InheritedWidget {
   bool updateShouldNotify(_LinkScope oldWidget) => false;
 }
 
-/// The z-slot a glass page route gives its navigator's bar: an
+/// The z-slot a glass page route gives its navigator's bars: an
 /// [OverlayPortal] around the page's content, whose overlay child is the
 /// bar view while the page is the host's painter.
 ///
 /// The overlay child paints right above the route's page and below every
 /// later route, inherits the route's themes, direction and media query,
 /// and is neither painted nor hit while the route is offstage. It sits
-/// outside the page's card and swipe: the bar stays while the page moves.
+/// outside the page's card and swipe: the bars stay while the page moves.
 @internal
 class GlassBarSlot extends StatefulWidget {
   /// Gives [link]'s page a slot around [child].
@@ -824,89 +923,127 @@ class _GlassBarSlotState extends State<GlassBarSlot> {
   }
 }
 
-/// The bar of [host]: its capsules and their buttons in the navigation
-/// bar's row under the status bar.
+/// The bars of [host]: the navigation bar's row under the status bar and
+/// the toolbar's row 28 points above the screen's bottom (8 above a
+/// keyboard), each with its capsules and their buttons; with [only], that
+/// bar alone, filling the box it is given.
 ///
-/// It builds during its own layout, as [LayoutBuilder] does, so a page that
-/// declares while it builds reaches the bar in the same frame.
+/// Each bar builds during its own layout, as [LayoutBuilder] does, so a
+/// page that declares while it builds reaches it in the same frame.
 @internal
 class GlassBarView extends StatelessWidget {
   /// Creates the view of [host].
-  const GlassBarView({required this.host, super.key});
+  const GlassBarView({required this.host, this.only, super.key});
 
-  /// The bar.
+  /// The bars.
   final GlassBarHost host;
+
+  /// The one bar to draw in the given box, or null for both in their
+  /// places on the screen.
+  final GlassBarKind? only;
 
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.paddingOf(context).top;
-    host._motion.reducedMotion = GlassTraits.of(context).reduceMotion;
+    host._bars.values.first.motion.reducedMotion = GlassTraits.of(
+      context,
+    ).reduceMotion;
+    host._bars.values.last.motion.reducedMotion = GlassTraits.of(
+      context,
+    ).reduceMotion;
     host._tint = GlassDynamicColor.resolve(
       GlassTheme.of(context).primaryColor ?? _prominentColor,
       context,
     );
-    return Padding(
-      padding: EdgeInsets.only(top: top),
-      child: Align(
-        alignment: Alignment.topCenter,
-        heightFactor: 1,
-        child: SizedBox(
-          height: _rowHeight,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              host._view = context as Element;
-              final roster = host._roster();
-              while (host._container.length < roster.length + 2) {
-                host._container.add(
-                  ValueNotifier(const GlassFrame(rect: Rect.zero, opacity: 0)),
-                );
-              }
-              while (host._apart.length < roster.length + 2) {
-                host._apart.add(
-                  ValueNotifier(const GlassFrame(rect: Rect.zero, opacity: 0)),
-                );
-              }
-              return RepaintBoundary(
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  fit: StackFit.expand,
-                  children: [
-                    _Surfaces(
-                      frames: host._container,
-                      merge: const GlassMerge.spacing(
-                        _containerSpacing,
-                      ),
-                    ),
-                    _Surfaces(
-                      frames: host._apart,
-                      merge: const GlassMerge.none(),
-                    ),
-                    _BarItems(
-                      host: host,
-                      children: [
-                        for (final MapEntry(key: id, value: button)
-                            in roster.entries)
-                          _BarItem(key: ValueKey(id), id: id, button: button),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+    final only = this.only;
+    if (only != null) return _Band(bar: host._bars[only]!);
+    final media = MediaQuery.of(context);
+    final keyboard = media.viewInsets.bottom;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned(
+          top: media.padding.top,
+          left: 0,
+          right: 0,
+          height: _navigationHeight,
+          child: _Band(bar: host._bars[GlassBarKind.navigation]!),
         ),
-      ),
+        Positioned(
+          bottom: keyboard > 0 ? keyboard + _keyboardInset : _bottomInset,
+          left: 0,
+          right: 0,
+          height: GlassBarMetrics.toolbar.capsuleHeight,
+          child: _Band(bar: host._bars[GlassBarKind.toolbar]!),
+        ),
+      ],
     );
   }
 
-  static const double _rowHeight = 54;
+  static const double _navigationHeight = 54;
 
-  /// The spacing of the glass container the bar's capsules share
-  /// (navigation bar passport: 12, constant through item changes).
-  static const double _containerSpacing = 12;
+  /// The space between the screen's bottom and a toolbar's capsules
+  /// (`_UIToolbarPaddingSpec` phoneBottom, read from UIKit).
+  static const double _bottomInset = 28;
+
+  /// The space between a keyboard and a toolbar's capsules (phoneKeyboard).
+  static const double _keyboardInset = 8;
 
   /// The prominent capsule's tint without a primary color (device).
   static const _prominentColor = Color(0xFF0088FF);
+}
+
+// One bar's row: its glass and its buttons, rebuilt during its layout.
+class _Band extends StatelessWidget {
+  const _Band({required this.bar});
+
+  final _Bar bar;
+
+  /// The spacing of the glass container a bar's capsules share (bars
+  /// passport: 12, constant through item changes).
+  static const double _containerSpacing = 12;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      bar.view = context as Element;
+      final roster = bar.roster();
+      while (bar.container.length < roster.length + 2) {
+        bar.container.add(
+          ValueNotifier(const GlassFrame(rect: Rect.zero, opacity: 0)),
+        );
+      }
+      while (bar.apart.length < roster.length + 2) {
+        bar.apart.add(
+          ValueNotifier(const GlassFrame(rect: Rect.zero, opacity: 0)),
+        );
+      }
+      return RepaintBoundary(
+        child: Stack(
+          clipBehavior: Clip.none,
+          fit: StackFit.expand,
+          children: [
+            _Surfaces(
+              frames: bar.container,
+              merge: const GlassMerge.spacing(_containerSpacing),
+            ),
+            _Surfaces(frames: bar.apart, merge: const GlassMerge.none()),
+            _BarItems(
+              bar: bar,
+              children: [
+                for (final MapEntry(key: id, value: button) in roster.entries)
+                  _BarItem(
+                    key: ValueKey(id),
+                    id: id,
+                    button: button,
+                    metrics: bar.metrics,
+                  ),
+              ],
+            ),
+          ],
+        ),
+      );
+    },
+  );
 }
 
 class _Surfaces extends StatelessWidget {
@@ -932,10 +1069,16 @@ class _Surfaces extends StatelessWidget {
 }
 
 class _BarItem extends StatelessWidget {
-  const _BarItem({required this.id, required this.button, super.key});
+  const _BarItem({
+    required this.id,
+    required this.button,
+    required this.metrics,
+    super.key,
+  });
 
   final Object id;
   final _Button button;
+  final GlassBarMetrics metrics;
 
   @override
   Widget build(BuildContext context) {
@@ -995,10 +1138,7 @@ class _BarItem extends StatelessWidget {
       content =
           it.child ??
           IconTheme.merge(
-            data: IconThemeData(
-              size: GlassBarMetrics.navigation.iconSize,
-              color: color,
-            ),
+            data: IconThemeData(size: metrics.iconSize, color: color),
             child: DefaultTextStyle(
               style: text,
               maxLines: 1,
@@ -1067,19 +1207,21 @@ class _ChevronPainter extends CustomPainter {
 }
 
 class _BarItems extends MultiChildRenderObjectWidget {
-  const _BarItems({required this.host, required super.children});
+  const _BarItems({required this.bar, required super.children});
 
-  final GlassBarHost host;
+  final _Bar bar;
 
   @override
   _RenderBarItems createRenderObject(BuildContext context) => _RenderBarItems(
-    host,
+    bar,
     rtl: Directionality.of(context) == TextDirection.rtl,
   );
 
+  // The bar rebuilds only for a change, which its layout applies.
   @override
   void updateRenderObject(BuildContext context, _RenderBarItems renderObject) {
     renderObject.rtl = Directionality.of(context) == TextDirection.rtl;
+    renderObject.markNeedsLayout();
   }
 }
 
@@ -1093,9 +1235,9 @@ class _RenderBarItems extends RenderBox
     with
         ContainerRenderObjectMixin<RenderBox, _ItemData>,
         RenderBoxContainerDefaultsMixin<RenderBox, _ItemData> {
-  _RenderBarItems(this.host, {required this._rtl});
+  _RenderBarItems(this.bar, {required this._rtl});
 
-  final GlassBarHost host;
+  final _Bar bar;
 
   bool _rtl;
   bool get rtl => _rtl;
@@ -1115,12 +1257,12 @@ class _RenderBarItems extends RenderBox
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    host._items = this;
+    bar.items = this;
   }
 
   @override
   void detach() {
-    if (identical(host._items, this)) host._items = null;
+    if (identical(bar.items, this)) bar.items = null;
     super.detach();
   }
 
@@ -1148,13 +1290,13 @@ class _RenderBarItems extends RenderBox
       if (id != null) widths[id] = child.size.width;
       child = childAfter(child);
     }
-    host._measuredWidths(widths, size.width, rtl: _rtl);
+    bar.measured(widths, size.width, rtl: _rtl);
   }
 
   @override
   void applyPaintTransform(RenderBox child, Matrix4 transform) {
     final id = _idOf(child);
-    final frame = id == null ? null : host._itemFrames[id];
+    final frame = id == null ? null : bar.itemFrames[id];
     if (frame == null) return;
     final c = frame.center;
     transform.translateByDouble(c.dx, c.dy, 0, 1);
@@ -1168,12 +1310,12 @@ class _RenderBarItems extends RenderBox
     var child = lastChild;
     while (child != null) {
       final id = _idOf(child);
-      final frame = id == null ? null : host._itemFrames[id];
+      final frame = id == null ? null : bar.itemFrames[id];
       if (frame != null && !frame.leaving && frame.presence > 0.5) {
         final box = Rect.fromCenter(
           center: frame.center,
           width: math.max(frame.size.width, child.size.width),
-          height: GlassBarMetrics.navigation.capsuleHeight,
+          height: bar.metrics.capsuleHeight,
         );
         if (box.contains(position)) {
           final origin = frame.center - child.size.center(Offset.zero);
@@ -1201,7 +1343,7 @@ class _RenderBarItems extends RenderBox
     var child = firstChild;
     while (child != null) {
       final id = _idOf(child);
-      final frame = id == null ? null : host._itemFrames[id];
+      final frame = id == null ? null : bar.itemFrames[id];
       final handle = _layers.putIfAbsent(child, LayerHandle.new);
       if (frame == null || frame.presence <= 0 || frame.scale <= 0) {
         handle.layer = null;

@@ -352,4 +352,55 @@ void main() {
     expect(find.byKey(const Key('left')), findsOneWidget);
     expect(find.byKey(const Key('right')), findsOneWidget);
   });
+
+  testWidgets("pages share one toolbar: its capsules stay and change into "
+      "the next page's, and leave for a page without one", (tester) async {
+    await _phone(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    Widget page(String title, List<GlassBarEntry>? toolbar) =>
+        GlassPageScaffold(
+          navigationBar: GlassNavigationBar(title: Text(title)),
+          toolbar: toolbar == null ? null : GlassToolbar(items: toolbar),
+          child: const ColoredBox(color: Color(0xFFFFFFFF)),
+        );
+    await tester.pumpWidget(
+      _app(
+        navigator,
+        page('Home', [const GlassBarSpacer.flexible(), _icon('compose')]),
+      ),
+    );
+    await tester.pump();
+    expect(
+      tester.getCenter(find.byKey(const Key('compose'))),
+      const Offset(350, 874 - 28 - 24),
+    );
+    unawaited(
+      navigator.currentState!.push(
+        GlassPageRoute<void>(
+          builder: (_) => page('Next', [
+            _icon('trash'),
+            const GlassBarSpacer.flexible(),
+            _icon('reply'),
+          ]),
+        ),
+      ),
+    );
+    await _settle(tester);
+    expect(find.byKey(const Key('compose')), findsNothing);
+    expect(tester.getCenter(find.byKey(const Key('trash'))).dx, 52);
+    expect(tester.getCenter(find.byKey(const Key('reply'))).dx, 350);
+    unawaited(
+      navigator.currentState!.push(
+        GlassPageRoute<void>(builder: (_) => page('Bare', null)),
+      ),
+    );
+    await _settle(tester);
+    expect(find.byKey(const Key('trash')), findsNothing);
+    expect(find.byKey(const Key('reply')), findsNothing);
+    navigator.currentState!.pop();
+    await _settle(tester);
+    navigator.currentState!.pop();
+    await _settle(tester);
+    expect(tester.getCenter(find.byKey(const Key('compose'))).dx, 350);
+  });
 }
