@@ -32,8 +32,8 @@ Widget _page({
   navigationBar: GlassNavigationBar(
     title: title,
     largeTitle: largeTitle,
-    leading: leading,
-    trailing: trailing,
+    leading: [if (leading != null) GlassBarItem.custom(child: leading)],
+    trailing: [if (trailing != null) GlassBarItem.custom(child: trailing)],
   ),
   child: GlassContentScroll(
     child: ListView(
@@ -67,31 +67,33 @@ void main() {
   setUp(MotionClock.debugReset);
 
   testWidgets('the inline title sits on the center when it fits, else from '
-      'the leading side', (tester) async {
+      'the leading side, level with the capsules', (tester) async {
     await _phone(tester);
-    const side = SizedBox(width: 44, height: 44);
+    const side = SizedBox(width: 36, height: 36);
     await tester.pumpWidget(
       _app(_page(title: const Text('Title'), leading: side, trailing: side)),
     );
+    await tester.pump();
     expect(tester.getCenter(find.text('Title')).dx, 201);
-    expect(tester.getCenter(find.text('Title')).dy, 62 + 27);
+    expect(tester.getCenter(find.text('Title')).dy, 62 + 22);
     await tester.pumpWidget(
       _app(
         _page(
           title: const Text('A title much too long to stand centered'),
-          leading: const SizedBox(width: 120, height: 44),
+          leading: const SizedBox(width: 120, height: 36),
           trailing: side,
         ),
       ),
     );
+    await tester.pump();
     final title = tester.getRect(
       find.text('A title much too long to stand centered'),
     );
-    expect(title.left, 16 + 120 + 12);
+    expect(title.left, 16 + 128 + 12);
     expect(title.right, lessThanOrEqualTo(402 - 16 - 44 - 12));
   });
 
-  testWidgets('right to left, the leading item stands at the right', (
+  testWidgets('right to left, the leading capsule stands at the right', (
     tester,
   ) async {
     await _phone(tester);
@@ -99,12 +101,16 @@ void main() {
       _app(
         _page(
           title: const Text('Title'),
-          leading: const SizedBox(key: Key('leading'), width: 44, height: 44),
+          leading: const SizedBox(key: Key('leading'), width: 36, height: 36),
         ),
         direction: TextDirection.rtl,
       ),
     );
-    expect(tester.getTopRight(find.byKey(const Key('leading'))).dx, 402 - 16);
+    await tester.pump();
+    expect(
+      tester.getTopRight(find.byKey(const Key('leading'))).dx,
+      402 - 16 - 4,
+    );
   });
 
   testWidgets('a large title scrolls away with the content, then the '

@@ -386,8 +386,8 @@ class GlassBarMotion {
   /// Creates the motion with [spec].
   GlassBarMotion({this.spec = GlassBarTransitionSpec.standard});
 
-  /// The tuning.
-  final GlassBarTransitionSpec spec;
+  /// The tuning of the latest change.
+  GlassBarTransitionSpec spec;
 
   final MotionTimeline _timeline = MotionTimeline();
   final List<_Capsule> _capsules = [];
@@ -674,13 +674,15 @@ class GlassBarMotion {
     return Rect.lerp(base, to, _drift)!;
   }
 
-  /// Shows [layout] from time [t]; with [animated] false (and on the
-  /// first layout) everything snaps.
+  /// Shows [layout] from time [t], under [transition] when given; with
+  /// [animated] false (and on the first layout) everything snaps.
   void setLayout(
     double t,
     List<GlassBarCapsuleLayout> layout, {
     bool animated = true,
+    GlassBarTransitionSpec? transition,
   }) {
+    if (transition != null) spec = transition;
     advance(t);
     if (!_hasLayout || !animated || reducedMotion) {
       _hasLayout = true;
