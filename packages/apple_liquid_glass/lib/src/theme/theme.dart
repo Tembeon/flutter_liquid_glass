@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/src/controls/button.dart';
+import 'package:apple_liquid_glass/src/controls/list.dart';
 import 'package:apple_liquid_glass/src/controls/page_control.dart';
 import 'package:apple_liquid_glass/src/controls/search_field.dart';
 import 'package:apple_liquid_glass/src/controls/segmented_control.dart';
@@ -111,6 +112,7 @@ class GlassThemeData {
     this.segmentedStyle,
     this.tabBarStyle,
     this.searchFieldStyle,
+    this.listStyle,
   });
 
   /// The theme between [a] and [b] at [t]: colors and styles interpolate;
@@ -153,6 +155,7 @@ class GlassThemeData {
         b.searchFieldStyle,
         t,
       ),
+      listStyle: GlassListStyle.lerp(a.listStyle, b.listStyle, t),
     );
   }
 
@@ -198,6 +201,9 @@ class GlassThemeData {
   /// The look of search fields.
   final GlassSearchFieldStyle? searchFieldStyle;
 
+  /// The look of inset grouped lists.
+  final GlassListStyle? listStyle;
+
   /// This theme with the non-null fields of [other] over it; styles and
   /// schemes merge too.
   GlassThemeData merge(GlassThemeData? other) {
@@ -222,6 +228,7 @@ class GlassThemeData {
       tabBarStyle: other.tabBarStyle?.merge(tabBarStyle) ?? tabBarStyle,
       searchFieldStyle:
           other.searchFieldStyle?.merge(searchFieldStyle) ?? searchFieldStyle,
+      listStyle: other.listStyle?.merge(listStyle) ?? listStyle,
     );
   }
 
@@ -241,7 +248,8 @@ class GlassThemeData {
       other.pageControlStyle == pageControlStyle &&
       other.segmentedStyle == segmentedStyle &&
       other.tabBarStyle == tabBarStyle &&
-      other.searchFieldStyle == searchFieldStyle;
+      other.searchFieldStyle == searchFieldStyle &&
+      other.listStyle == listStyle;
 
   @override
   int get hashCode => Object.hash(
@@ -259,6 +267,7 @@ class GlassThemeData {
     segmentedStyle,
     tabBarStyle,
     searchFieldStyle,
+    listStyle,
   );
 }
 
