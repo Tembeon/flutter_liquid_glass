@@ -1,0 +1,427 @@
+import 'dart:async';
+
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/kinesis.dart';
+
+class _Route extends PresentationRoute<String> {
+  _Route({this.allowsPop = true, this.outside = true})
+    : super(semanticsLabel: 'Panel');
+
+  final bool allowsPop;
+  final bool outside;
+  final List<DismissTrigger> left = [];
+  final List<DismissTrigger> attempts = [];
+  final List<bool> invoked = [];
+  final List<String?> finished = [];
+
+  @override
+  String? get barrierLabel => 'Dismiss';
+
+  @override
+  Widget buildContent(BuildContext context) => PopScope<String>(
+    canPop: allowsPop,
+    onPopInvokedWithResult: (didPop, _) => invoked.add(didPop),
+    child: const Center(child: SizedBox(width: 100, height: 100)),
+  );
+
+  @override
+  bool leave(DismissTrigger trigger) {
+    left.add(trigger);
+    return true;
+  }
+
+  @override
+  bool allows(DismissTrigger trigger) =>
+      trigger != DismissTrigger.outsideTap || outside;
+
+  bool modalNow = true;
+
+  @override
+  bool get modal => modalNow;
+
+  @override
+  void didVetoDismiss(DismissTrigger trigger) => attempts.add(trigger);
+
+  @override
+  void didFinish(String? result) => finished.add(result);
+}
+
+Widget _app({GlobalKey<NavigatorState>? key, Widget? home}) => WidgetsApp(
+  navigatorKey: key,
+  color: const Color(0xFF000000),
+  pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(
+    settings: settings,
+    pageBuilder: (c, _, _) => builder(c),
+  ),
+  home: home ?? const SizedBox.expand(),
+);
+
+List<String> _labels(WidgetTester tester) {
+  final labels = <String>[];
+  bool visit(SemanticsNode node) {
+    labels.add(node.label);
+    node.visitChildren(visit);
+    return true;
+  }
+
+  visit(
+    tester.binding.renderViews.first.owner!.semanticsOwner!.rootSemanticsNode!,
+  );
+  return labels;
+}
+
+void main() {
+  setUp(MotionClock.debugReset);
+
+  testWidgets('the push completes at the open and the route goes at the '
+      "close's end", (tester) async {
+    final nav = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_app(key: nav));
+    final route = _Route();
+    String? result;
+    unawaited(nav.currentState!.push(route).then((r) => result = r));
+    await tester.pump();
+    expect(route.animation!.status, AnimationStatus.forward);
+    expect(route.animation!.value, 1);
+    route.didOpen();
+    await tester.pump();
+    expect(route.animation!.status, AnimationStatus.completed);
+    nav.currentState!.pop('done');
+    await tester.pump();
+    expect(result, 'done');
+    expect(route.left, [DismissTrigger.programmatic]);
+    expect(route.isActive, isFalse);
+    expect(find.byType(PopScope<String>), findsOneWidget);
+    route.didLeave();
+    await tester.pump();
+    expect(find.byType(PopScope<String>), findsNothing);
+    expect(route.finished, ['done']);
+  });
+
+  testWidgets('Back goes through the PopScope: a veto keeps the route', (
+    tester,
+  ) async {
+    final nav = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_app(key: nav));
+    final route = _Route(allowsPop: false);
+    nav.currentState!.push(route);
+    await tester.pump();
+    route.didOpen();
+    await tester.pump();
+    await nav.currentState!.maybePop();
+    await tester.pump();
+    expect(route.isActive, isTrue);
+    expect(route.canDismiss(DismissTrigger.back), isFalse);
+    expect(route.canDismiss(DismissTrigger.programmatic), isTrue);
+    expect(route.invoked, [false]);
+    expect(route.attempts, [DismissTrigger.back]);
+    expect(route.left, isEmpty);
+  });
+
+  testWidgets('Back pops a route its PopScope lets go, with its close', (
+    tester,
+  ) async {
+    final nav = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_app(key: nav));
+    final route = _Route();
+    nav.currentState!.push(route);
+    await tester.pump();
+    route.didOpen();
+    await tester.pump();
+    await nav.currentState!.maybePop();
+    await tester.pump();
+    expect(route.isActive, isFalse);
+    expect(route.left, [DismissTrigger.back]);
+    expect(route.invoked, [true]);
+  });
+
+  testWidgets('Escape dismisses through the gate', (tester) async {
+    final nav = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_app(key: nav));
+    final route = _Route();
+    nav.currentState!.push(route);
+    await tester.pump();
+    route.didOpen();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pump();
+    expect(route.left, [DismissTrigger.escape]);
+  });
+
+  testWidgets('an outside tap dismisses only when the route allows it', (
+    tester,
+  ) async {
+    final nav = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_app(key: nav));
+    final kept = _Route(outside: false);
+    nav.currentState!.push(kept);
+    await tester.pump();
+    kept.didOpen();
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pump();
+    expect(kept.isActive, isTrue);
+    nav.currentState!.pop();
+    kept.didLeave();
+    await tester.pump();
+    final route = _Route();
+    nav.currentState!.push(route);
+    await tester.pump();
+    route.didOpen();
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pump();
+    expect(route.left, [DismissTrigger.outsideTap]);
+  });
+
+  testWidgets('the barrier hides the page below from screen readers and '
+      'offers a labelled dismiss', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final nav = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      _app(
+        key: nav,
+        home: Semantics(label: 'Page below', child: const SizedBox.expand()),
+      ),
+    );
+    expect(_labels(tester), contains('Page below'));
+    final route = _Route();
+    nav.currentState!.push(route);
+    await tester.pump();
+    route.didOpen();
+    await tester.pump();
+    expect(_labels(tester), isNot(contains('Page below')));
+    expect(_labels(tester), contains('Dismiss'));
+    final panel = tester.getSemantics(find.bySemanticsLabel('Panel'));
+    expect(panel.getSemanticsData().hasAction(SemanticsAction.dismiss), isTrue);
+    semantics.dispose();
+  });
+
+  testWidgets('a route that is not modal lets taps and screen readers reach '
+      'the page below', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final nav = GlobalKey<NavigatorState>();
+    var taps = 0;
+    await tester.pumpWidget(
+      _app(
+        key: nav,
+        home: Semantics(
+          label: 'Page below',
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => taps++,
+            child: const SizedBox.expand(),
+          ),
+        ),
+      ),
+    );
+    final route = _Route();
+    route.modalNow = false;
+    nav.currentState!.push(route);
+    await tester.pump();
+    await tester.tapAt(const Offset(5, 5));
+    expect(taps, 1);
+    expect(_labels(tester), contains('Page below'));
+    route.modalNow = true;
+    route.modalityChanged();
+    await tester.pump();
+    await tester.tapAt(const Offset(5, 5));
+    expect(taps, 1);
+    expect(_labels(tester), isNot(contains('Page below')));
+    semantics.dispose();
+  });
+
+  testWidgets('a dismissed route under another closes under it and then '
+      'leaves; the top one stays', (tester) async {
+    final nav = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_app(key: nav));
+    final below = _Route();
+    nav.currentState!.push(below);
+    await tester.pump();
+    below.didOpen();
+    final above = _Route();
+    nav.currentState!.push(above);
+    await tester.pump();
+    above.didOpen();
+    await tester.pump();
+    below.dismiss(DismissTrigger.interaction, 'below');
+    await tester.pump();
+    expect(below.left, [DismissTrigger.interaction]);
+    expect(below.isLeaving, isTrue);
+    expect(below.finished, isEmpty);
+    below.didLeave();
+    below.didLeave();
+    await tester.pump();
+    expect(below.isActive, isFalse);
+    expect(below.finished, ['below']);
+    expect(above.isActive, isTrue);
+    expect(above.isCurrent, isTrue);
+  });
+
+  testWidgets('a route closing under its cover keeps its result and its '
+      'close when it is popped, and its PopScopes hear it go', (tester) async {
+    final nav = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_app(key: nav));
+    final below = _Route();
+    String? result;
+    unawaited(nav.currentState!.push(below).then((r) => result = r));
+    await tester.pump();
+    below.didOpen();
+    final above = _Route();
+    nav.currentState!.push(above);
+    await tester.pump();
+    below.dismiss(DismissTrigger.programmatic, 'chosen');
+    nav.currentState!.pop();
+    above.didLeave();
+    await tester.pump();
+    nav.currentState!.pop('other');
+    await tester.pump();
+    expect(below.left, [DismissTrigger.programmatic]);
+    expect(result, 'chosen');
+    below.didLeave();
+    await tester.pump();
+    expect(below.finished, ['chosen']);
+    expect(below.invoked, [true]);
+  });
+
+  testWidgets('a refused trigger is reported as a veto; Back on the first '
+      'route goes to whatever is outside the navigator', (tester) async {
+    final nav = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_app(key: nav));
+    final route = _Route(outside: false);
+    nav.currentState!.push(route);
+    await tester.pump();
+    route.dismiss(DismissTrigger.outsideTap);
+    expect(route.attempts, [DismissTrigger.outsideTap]);
+    expect(route.isActive, isTrue);
+    final first = _Route();
+    final own = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      WidgetsApp(
+        color: const Color(0xFF000000),
+        builder: (context, _) => Navigator(
+          key: own,
+          onGenerateInitialRoutes: (_, _) => [first],
+        ),
+      ),
+    );
+    expect(await own.currentState!.maybePop(), isFalse);
+    expect(first.left, isEmpty);
+  });
+
+  testWidgets('a window presentation from a nested navigator goes to the '
+      'outermost one, inside its PresentationContext', (tester) async {
+    late BuildContext inner;
+    final outer = GlobalKey<NavigatorState>();
+    final framed = GlobalKey<NavigatorState>();
+    Widget nested(GlobalKey<NavigatorState>? key) => Navigator(
+      key: key,
+      onGenerateRoute: (_) => PageRouteBuilder<void>(
+        pageBuilder: (context, _, _) => Navigator(
+          onGenerateRoute: (_) => PageRouteBuilder<void>(
+            pageBuilder: (context, _, _) => Builder(
+              builder: (context) {
+                inner = context;
+                return const SizedBox.expand();
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpWidget(_app(key: outer, home: nested(null)));
+    expect(presentationNavigatorOf(inner), outer.currentState);
+    expect(
+      presentationNavigatorOf(inner, level: PresentationLevel.page),
+      isNot(outer.currentState),
+    );
+    await tester.pumpWidget(
+      _app(
+        key: outer,
+        home: PresentationContext(child: nested(framed)),
+      ),
+    );
+    expect(presentationNavigatorOf(inner), framed.currentState);
+  });
+
+  testWidgets('a page runs the same lifecycle: Back closes it through its '
+      'content, and it goes at the end of the close', (tester) async {
+    final nav = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_app(key: nav));
+    final page = _Page();
+    String? result;
+    unawaited(nav.currentState!.push(page).then((r) => result = r));
+    await tester.pump();
+    page.didOpen();
+    await tester.pump();
+    expect(page.animation!.status, AnimationStatus.completed);
+    expect(find.text('page'), findsOneWidget);
+    await nav.currentState!.maybePop('back');
+    await tester.pump();
+    expect(page.left, [DismissTrigger.back]);
+    expect(result, 'back');
+    expect(find.text('page'), findsOneWidget);
+    page.didLeave();
+    await tester.pump();
+    expect(find.text('page'), findsNothing);
+    expect(page.finished, ['back']);
+  });
+
+  testWidgets('showPresentation carries the themes around its source', (
+    tester,
+  ) async {
+    late BuildContext source;
+    await tester.pumpWidget(
+      _app(
+        home: DefaultTextStyle(
+          style: const TextStyle(fontSize: 31),
+          child: Builder(
+            builder: (context) {
+              source = context;
+              return const SizedBox.expand();
+            },
+          ),
+        ),
+      ),
+    );
+    final route = _ThemedRoute();
+    unawaited(showPresentation(source, route));
+    await tester.pump();
+    expect(route.seen, 31);
+  });
+}
+
+class _Page extends PresentationPageRoute<String> {
+  final List<DismissTrigger> left = [];
+  final List<String?> finished = [];
+
+  @override
+  bool get maintainState => true;
+
+  @override
+  Widget buildContent(BuildContext context) =>
+      const SizedBox.expand(child: Text('page', textDirection: .ltr));
+
+  @override
+  bool leave(DismissTrigger trigger) {
+    left.add(trigger);
+    return true;
+  }
+
+  @override
+  void didFinish(String? result) => finished.add(result);
+}
+
+class _ThemedRoute extends PresentationRoute<void> {
+  double? seen;
+
+  @override
+  Widget buildContent(BuildContext context) {
+    seen = DefaultTextStyle.of(context).style.fontSize;
+    return const SizedBox();
+  }
+
+  @override
+  bool leave(DismissTrigger trigger) => false;
+}
