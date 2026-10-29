@@ -10,12 +10,13 @@ export 'src/chrome/chrome.dart'
         GlassScrollEdgeEffect,
         GlassScrollEdgeEffects;
 export 'src/chrome/navigation_bar.dart';
+export 'src/chrome/page_route.dart';
 export 'src/chrome/tab_scaffold.dart';
 export 'src/chrome/toolbar.dart';
 export 'src/controls/button.dart';
 export 'src/controls/list.dart';
 export 'src/controls/page_control.dart';
-export 'src/controls/search_field.dart';
+export 'src/controls/search_field.dart' hide SearchEnds;
 export 'src/controls/segmented_control.dart';
 export 'src/controls/selector.dart';
 export 'src/controls/slider.dart';
