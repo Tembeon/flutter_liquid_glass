@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/src/motion/touch_glow.dart';
+import 'package:apple_liquid_glass/src/surface/outline.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
@@ -22,7 +23,11 @@ final class GlassFrame {
     this.lift = 0,
     this.glow,
     this.opacity = 1,
-  });
+    this.outline,
+  }) : assert(
+         outline == null || (rect == null && scaleX == 1 && scaleY == 1),
+         'An outline body is drawn where its path is.',
+       );
 
   /// A capsule in any box: renderers clamp a corner radius to half the
   /// short side of the box they draw in, as Flutter's rounded borders do.
@@ -65,6 +70,12 @@ final class GlassFrame {
   /// lighting included, with its content.
   final double opacity;
 
+  /// The body's own edge when [shape] does not describe it, or null to
+  /// draw [shape]. With an outline, [shape] still rounds the corners of
+  /// the box the outline spans for what a renderer cannot draw from the
+  /// outline, and [rect], [scaleX] and [scaleY] keep their defaults.
+  final GlassOutline? outline;
+
   /// Where the body is drawn in a box of [size]: [rect], scaled about its
   /// center.
   Rect drawnIn(Size size) {
@@ -104,9 +115,19 @@ final class GlassFrame {
       other.tint == tint &&
       other.lift == lift &&
       other.glow == glow &&
-      other.opacity == opacity;
+      other.opacity == opacity &&
+      other.outline == outline;
 
   @override
-  int get hashCode =>
-      Object.hash(shape, rect, scaleX, scaleY, tint, lift, glow, opacity);
+  int get hashCode => Object.hash(
+    shape,
+    rect,
+    scaleX,
+    scaleY,
+    tint,
+    lift,
+    glow,
+    opacity,
+    outline,
+  );
 }

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/motion/touch_glow.dart';
 import 'package:apple_liquid_glass/src/renderer/adaptive.dart';
@@ -367,6 +369,77 @@ void main() {
     expect(
       tester.layers.whereType<OpacityLayer>().map((layer) => layer.alpha),
       isNot(contains(64)),
+    );
+  });
+
+  testWidgets('an outline body is its path on the flat renderer and its '
+      "field in a layer of its own on the liquid one", (tester) async {
+    final edge = Path();
+    edge.moveTo(0, 0);
+    edge.lineTo(100, 0);
+    edge.lineTo(100, 44);
+    edge.lineTo(50, 60);
+    edge.lineTo(0, 44);
+    edge.close();
+    final field = LiquidGlassField(
+      samples: Float32List(2 * 2 * 4),
+      cols: 2,
+      rows: 2,
+      origin: Offset.zero,
+      step: 60,
+    );
+    final frames = ValueNotifier(
+      GlassFrame(outline: GlassOutline(edge, field: field)),
+    );
+    addTearDown(frames.dispose);
+    Widget surface(GlassRenderer renderer, {bool grouped = false}) {
+      final body = GlassSurface.live(
+        frame: frames,
+        child: const RepaintBoundary(child: SizedBox(width: 100, height: 60)),
+      );
+      return _app(
+        renderer,
+        grouped ? GlassGroup(child: body) : body,
+      );
+    }
+
+    await tester.pumpWidget(surface(const GlassRenderer.flat()));
+    final at = tester.getTopLeft(find.byType(GlassSurface));
+    final clip = tester.layers.whereType<ClipPathLayer>().single.clipPath!;
+    expect(clip.getBounds(), edge.getBounds().shift(at));
+    expect(clip.contains(at + const Offset(50, 58)), isTrue);
+    expect(clip.contains(at + const Offset(4, 58)), isFalse);
+    await tester.pumpWidget(surface(const GlassRenderer.liquid()));
+    LiquidGlassLayerFrame layer() => tester
+        .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
+        .live!
+        .value;
+    expect(layer().field, field);
+    expect(
+      tester.widget<LiquidGlass>(find.byType(LiquidGlass)).frame!.value.rect,
+      const Rect.fromLTWH(0, 0, 100, 60),
+    );
+    frames.value = const GlassFrame();
+    await tester.pump();
+    expect(layer().field, isNull);
+
+    frames.value = GlassFrame(outline: GlassOutline(edge));
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(surface(const GlassRenderer.liquid()));
+    expect(
+      find.byType(LiquidGlass),
+      findsNothing,
+      reason: 'an outline without a field draws flat',
+    );
+    frames.value = GlassFrame(outline: GlassOutline(edge, field: field));
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(
+      surface(const GlassRenderer.liquid(), grouped: true),
+    );
+    expect(
+      find.byType(LiquidGlass),
+      findsNothing,
+      reason: 'a shared layer has no field for one member',
     );
   });
 
