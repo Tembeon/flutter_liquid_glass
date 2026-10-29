@@ -110,7 +110,8 @@ class LiquidGlassLayer extends StatefulWidget {
   /// from the tree (`LiquidGlassSettings.of`, a nested [LiquidGlass] that
   /// opens its own layer) see those of the frame the layer last built with.
   /// A layer that draws fake glass, or whose shaders are still loading,
-  /// rebuilds on every notification.
+  /// draws neither the field nor the glow and rebuilds only when the
+  /// frame's settings change.
   const LiquidGlassLayer.live({
     required ValueListenable<LiquidGlassLayerFrame> frame,
     required this.child,
@@ -256,16 +257,19 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
 
   LiquidGlassSettings get _settings =>
       widget.live?.value.settings ?? widget.settings;
+
+  // The settings the fake or loading subtree was built with.
+  LiquidGlassSettings? _builtSettings;
   LiquidGlassField? get _field => widget.live?.value.field ?? widget.field;
   LiquidGlassGlow? get _glow => widget.live?.value.glow ?? widget.glow;
 
   void _onLiveFrame() {
+    final frame = widget.live!.value;
     final layer = _shapesKey.currentContext?.findRenderObject();
     if (layer is! RenderLiquidGlassLayer) {
-      setState(() {});
+      if (frame.settings != _builtSettings) setState(() {});
       return;
     }
-    final frame = widget.live!.value;
     layer
       ..settings = frame.settings
       ..field = frame.field
@@ -397,6 +401,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
       // before any frame; rendering a frame is not a prerequisite.
       _scheduleGpuGeometryRendererInitialization();
     }
+    _builtSettings = _settings;
     final gpuRenderer = _gpuGeometryRenderer;
     final useFake =
         widget.fake || !shaderFiltersSupported || gpuRenderer == null;

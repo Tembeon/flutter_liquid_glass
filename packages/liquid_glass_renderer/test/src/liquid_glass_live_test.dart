@@ -141,6 +141,52 @@ void main() {
     expect(differing, 0);
   }, skip: skipProperGlassTests);
 
+  testWidgets('a fake live layer rebuilds for new settings, not for a '
+      'glow', (tester) async {
+    final layer = ValueNotifier(
+      LiquidGlassLayerFrame(settings: LiquidGlassSettings.ios27RegularLight()),
+    );
+    addTearDown(layer.dispose);
+    await tester.pumpWidget(
+      _scene(
+        layer: LiquidGlassLayer.live(
+          frame: layer,
+          fake: true,
+          child: Stack(
+            children: [
+              Positioned.fromRect(
+                rect: _box,
+                child: LiquidGlass(
+                  shape: _first.shape,
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final rebuilt = <Widget>[];
+    debugOnRebuildDirtyWidget = (element, builtOnce) {
+      rebuilt.add(element.widget);
+    };
+    layer.value = LiquidGlassLayerFrame(
+      settings: LiquidGlassSettings.ios27RegularLight(),
+      glow: _glow,
+    );
+    await tester.pump();
+    expect(rebuilt, isEmpty);
+
+    layer.value = LiquidGlassLayerFrame(
+      settings: LiquidGlassSettings.ios27RegularDark(),
+    );
+    await tester.pump();
+    debugOnRebuildDirtyWidget = null;
+    expect(rebuilt.whereType<LiquidGlassLayer>(), isNotEmpty);
+  });
+
   testWidgets('a live shape rebuilds when its kind of shape changes', (
     tester,
   ) async {
