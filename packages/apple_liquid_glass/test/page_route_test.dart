@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:apple_liquid_glass/src/motion/navigation_motion.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -329,6 +330,41 @@ void main() {
     expect(fades.where((alpha) => alpha > 0 && alpha < 255), hasLength(2));
     await _settle(tester);
     expect(find.text('Home'), findsNothing);
+  });
+
+  testWidgets('the page builds in the build phase, outside any layout', (
+    tester,
+  ) async {
+    await _phone(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_app(navigator));
+    var underLayout = true;
+    unawaited(
+      navigator.currentState!.push(
+        GlassPageRoute<void>(
+          builder: (context) {
+            underLayout =
+                context.findAncestorWidgetOfExactType<LayoutBuilder>() != null;
+            return _page('Next');
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(underLayout, isFalse);
+  });
+
+  test('a transition counts from the call, or a period before a late first '
+      'frame', () {
+    expect(
+      transitionOrigin(call: 1, firstFrame: 1.016, framePeriod: 1 / 60),
+      1,
+    );
+    expect(
+      transitionOrigin(call: 1, firstFrame: 1.1, framePeriod: 1 / 60),
+      closeTo(1.1 - 1 / 60, 1e-12),
+    );
+    expect(transitionOrigin(call: 1, firstFrame: 1.1, framePeriod: null), 1);
   });
 
   testWidgets('right to left, the page slides in from the left', (

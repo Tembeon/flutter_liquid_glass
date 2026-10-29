@@ -109,6 +109,19 @@ abstract final class NavigationTuning {
   }
 }
 
+/// The time a navigation transition counts from, shared by the page's slide
+/// and the bar: the push or pop [call], unless the first frame after it
+/// came more than a display period later, in which case the motion starts
+/// one period before that frame, so a slow first frame delays the motion
+/// and skips none of it (navigation pages passport). Without a frame
+/// period yet, the call.
+@internal
+double transitionOrigin({
+  required double call,
+  required double firstFrame,
+  required double? framePeriod,
+}) => framePeriod == null ? call : math.max(call, firstFrame - framePeriod);
+
 /// Predicts whether an interactive back swipe completes.
 ///
 /// Read from UIKit (notes private), then replayed from iPhone 16 Pro,
