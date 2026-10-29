@@ -368,6 +368,40 @@ void main() {
     expect(page.finished, ['back']);
   });
 
+  testWidgets('an interaction shows the page below until it ends, and a '
+      'dismissal it makes closes the page', (tester) async {
+    final nav = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      _app(
+        key: nav,
+        home: const Text('home', textDirection: TextDirection.ltr),
+      ),
+    );
+    final page = _Page();
+    unawaited(nav.currentState!.push(page));
+    await tester.pump();
+    page.didOpen();
+    await tester.pump();
+    expect(find.text('home'), findsNothing);
+    page.beginInteraction();
+    await tester.pump();
+    expect(find.text('home'), findsOneWidget);
+    expect(nav.currentState!.userGestureInProgress, isTrue);
+    page.endInteraction();
+    await tester.pump();
+    expect(find.text('home'), findsNothing);
+    expect(nav.currentState!.userGestureInProgress, isFalse);
+    page.beginInteraction();
+    page.dismiss(DismissTrigger.interaction);
+    page.endInteraction();
+    await tester.pump();
+    expect(page.left, [DismissTrigger.interaction]);
+    expect(find.text('home'), findsOneWidget);
+    page.didLeave();
+    await tester.pump();
+    expect(find.text('page'), findsNothing);
+  });
+
   testWidgets('showPresentation carries the themes around its source', (
     tester,
   ) async {

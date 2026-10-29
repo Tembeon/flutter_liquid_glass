@@ -99,6 +99,28 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   /// Whether the route was popped and its content closes.
   bool get isLeaving => _projection.status == AnimationStatus.reverse;
 
+  bool _interacting = false;
+
+  /// Shows the routes below while a gesture of the content moves it toward
+  /// its dismissal, as an interactive pop does: they stay built and painted
+  /// until [endInteraction], and the navigator knows a user gesture runs.
+  void beginInteraction() {
+    if (!isActive || isLeaving || _interacting) return;
+    _interacting = true;
+    navigator?.didStartUserGesture();
+    _projection.update(AnimationStatus.forward);
+  }
+
+  /// Ends what [beginInteraction] began; a route the gesture did not
+  /// dismiss rests again. Call it once the content has come back, or after
+  /// the dismissal the gesture made.
+  void endInteraction() {
+    if (!_interacting) return;
+    _interacting = false;
+    navigator?.didStopUserGesture();
+    if (!isLeaving) _projection.update(AnimationStatus.completed);
+  }
+
   /// Reports that the content's open came to rest: the push completes.
   void didOpen() {
     if (!isActive || isLeaving) return;
