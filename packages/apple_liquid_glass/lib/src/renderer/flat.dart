@@ -14,9 +14,10 @@ import 'package:flutter/widgets.dart';
 /// fades and gains a rim as it lifts.
 ///
 /// The fills, rims and shadows are Morph's flat glass button and flat small
-/// lens, and the track fill iOS systemFill: an approximation of the glass's
-/// average look, not a measurement. A color scheme's surfaces replace the
-/// fills per role.
+/// lens: an approximation of the glass's average look, not a measurement. A
+/// track is a plain fill on every renderer; untinted, it takes iOS
+/// systemFill, a default no control measured. A color scheme's surfaces
+/// replace the fills per role.
 @internal
 final class FlatGlassRenderer extends GlassRenderer {
   /// Creates the flat renderer.
@@ -86,16 +87,15 @@ final class FlatGlassLook {
           liftRim: resolve(_liftRim),
           underGlass: underGlass,
         );
-      case GlassRole.track when tint == null:
+      case GlassRole.track:
         return FlatGlassLook(
-          fill: resolve(surface ?? GlassColors.systemFill),
+          fill: resolve(tint ?? surface ?? GlassColors.systemFill),
         );
       case GlassRole.control ||
           GlassRole.menu ||
           GlassRole.sheet ||
-          GlassRole.bar ||
-          GlassRole.track:
-        final floating = role != GlassRole.bar && role != GlassRole.track;
+          GlassRole.bar:
+        final floating = role != GlassRole.bar;
         return FlatGlassLook(
           fill: resolve(tint ?? surface ?? (glass.isClear ? _clear : _fill)),
           rim: tint != null ? _tintedRim : resolve(_rim),

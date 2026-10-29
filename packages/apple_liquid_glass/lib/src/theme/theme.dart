@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/src/controls/button.dart';
+import 'package:apple_liquid_glass/src/controls/slider.dart';
 import 'package:apple_liquid_glass/src/controls/switch.dart';
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
@@ -99,6 +100,7 @@ class GlassThemeData {
     this.buttonStyle,
     this.prominentButtonStyle,
     this.switchStyle,
+    this.sliderStyle,
   });
 
   /// The theme between [a] and [b] at [t]: colors and styles interpolate;
@@ -123,6 +125,7 @@ class GlassThemeData {
         t,
       ),
       switchStyle: GlassSwitchStyle.lerp(a.switchStyle, b.switchStyle, t),
+      sliderStyle: GlassSliderStyle.lerp(a.sliderStyle, b.sliderStyle, t),
     );
   }
 
@@ -150,6 +153,9 @@ class GlassThemeData {
   /// The look of switches.
   final GlassSwitchStyle? switchStyle;
 
+  /// The look of sliders.
+  final GlassSliderStyle? sliderStyle;
+
   /// This theme with the non-null fields of [other] over it; styles and
   /// schemes merge too.
   GlassThemeData merge(GlassThemeData? other) {
@@ -165,6 +171,7 @@ class GlassThemeData {
           other.prominentButtonStyle?.merge(prominentButtonStyle) ??
           prominentButtonStyle,
       switchStyle: other.switchStyle?.merge(switchStyle) ?? switchStyle,
+      sliderStyle: other.sliderStyle?.merge(sliderStyle) ?? sliderStyle,
     );
   }
 
@@ -178,7 +185,8 @@ class GlassThemeData {
       other.colorScheme == colorScheme &&
       other.buttonStyle == buttonStyle &&
       other.prominentButtonStyle == prominentButtonStyle &&
-      other.switchStyle == switchStyle;
+      other.switchStyle == switchStyle &&
+      other.sliderStyle == sliderStyle;
 
   @override
   int get hashCode => Object.hash(
@@ -190,6 +198,7 @@ class GlassThemeData {
     buttonStyle,
     prominentButtonStyle,
     switchStyle,
+    sliderStyle,
   );
 }
 
