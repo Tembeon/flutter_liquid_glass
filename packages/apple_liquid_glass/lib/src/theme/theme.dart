@@ -4,6 +4,7 @@ import 'package:apple_liquid_glass/src/controls/segmented_control.dart';
 import 'package:apple_liquid_glass/src/controls/slider.dart';
 import 'package:apple_liquid_glass/src/controls/stepper.dart';
 import 'package:apple_liquid_glass/src/controls/switch.dart';
+import 'package:apple_liquid_glass/src/controls/tab_bar.dart';
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
@@ -107,6 +108,7 @@ class GlassThemeData {
     this.stepperStyle,
     this.pageControlStyle,
     this.segmentedStyle,
+    this.tabBarStyle,
   });
 
   /// The theme between [a] and [b] at [t]: colors and styles interpolate;
@@ -143,6 +145,7 @@ class GlassThemeData {
         b.segmentedStyle,
         t,
       ),
+      tabBarStyle: GlassTabBarStyle.lerp(a.tabBarStyle, b.tabBarStyle, t),
     );
   }
 
@@ -182,6 +185,9 @@ class GlassThemeData {
   /// The look of segmented controls.
   final GlassSegmentedStyle? segmentedStyle;
 
+  /// The look of tab bars.
+  final GlassTabBarStyle? tabBarStyle;
+
   /// This theme with the non-null fields of [other] over it; styles and
   /// schemes merge too.
   GlassThemeData merge(GlassThemeData? other) {
@@ -203,6 +209,7 @@ class GlassThemeData {
           other.pageControlStyle?.merge(pageControlStyle) ?? pageControlStyle,
       segmentedStyle:
           other.segmentedStyle?.merge(segmentedStyle) ?? segmentedStyle,
+      tabBarStyle: other.tabBarStyle?.merge(tabBarStyle) ?? tabBarStyle,
     );
   }
 
@@ -220,7 +227,8 @@ class GlassThemeData {
       other.sliderStyle == sliderStyle &&
       other.stepperStyle == stepperStyle &&
       other.pageControlStyle == pageControlStyle &&
-      other.segmentedStyle == segmentedStyle;
+      other.segmentedStyle == segmentedStyle &&
+      other.tabBarStyle == tabBarStyle;
 
   @override
   int get hashCode => Object.hash(
@@ -236,6 +244,7 @@ class GlassThemeData {
     stepperStyle,
     pageControlStyle,
     segmentedStyle,
+    tabBarStyle,
   );
 }
 
