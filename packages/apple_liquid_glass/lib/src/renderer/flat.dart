@@ -1,6 +1,9 @@
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
+import 'package:apple_liquid_glass/src/theme/colors.dart';
+import 'package:apple_liquid_glass/src/theme/theme.dart';
+import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -11,7 +14,7 @@ import 'package:flutter/widgets.dart';
 ///
 /// The fills, rims and shadow are Morph's flat glass button and the track
 /// fill iOS systemFill: an approximation of the glass's average look, not
-/// a measurement.
+/// a measurement. A color scheme's surfaces replace the fills per role.
 @internal
 final class FlatGlassRenderer extends GlassRenderer {
   /// Creates the flat renderer.
@@ -24,7 +27,8 @@ final class FlatGlassRenderer extends GlassRenderer {
         look: FlatGlassLook.of(
           details.role,
           details.glass,
-          MediaQuery.maybePlatformBrightnessOf(context) ?? Brightness.light,
+          GlassTraits.of(context),
+          scheme: GlassTheme.colorSchemeOf(context),
         ),
         child: details.child,
       );
@@ -43,10 +47,19 @@ final class FlatGlassLook {
   /// Creates a look.
   const FlatGlassLook({required this.fill, this.rim, this.shadow});
 
-  /// The look of a surface of [role] made of [glass] in [brightness].
-  factory FlatGlassLook.of(GlassRole role, Glass glass, Brightness brightness) {
-    final dark = brightness == Brightness.dark;
+  /// The look of a surface of [role] made of [glass] under [traits]: the
+  /// glass's tint, else the [scheme]'s surface for the role, else the
+  /// renderer's own fill.
+  factory FlatGlassLook.of(
+    GlassRole role,
+    Glass glass,
+    GlassTraits traits, {
+    GlassColorScheme? scheme,
+  }) {
+    Color resolve(Color color) =>
+        color is GlassDynamicColor ? color.resolvedWith(traits) : color;
     final tint = glass.tint;
+    final surface = scheme?.surfaces[role];
     final floating = switch (role) {
       GlassRole.control ||
       GlassRole.lens ||
@@ -56,32 +69,32 @@ final class FlatGlassLook {
       GlassRole.bar || GlassRole.track => false,
     };
     if (role == GlassRole.track && tint == null) {
-      return FlatGlassLook(fill: dark ? _darkTrack : _lightTrack);
+      return FlatGlassLook(fill: resolve(surface ?? GlassColors.systemFill));
     }
     return FlatGlassLook(
-      fill:
-          tint ??
-          (glass.isClear
-              ? (dark ? _darkClear : _lightClear)
-              : (dark ? _darkFill : _lightFill)),
-      rim: tint != null ? _tintedRim : (dark ? _darkRim : _lightRim),
-      shadow: floating ? (dark ? _darkShadow : _lightShadow) : null,
+      fill: resolve(tint ?? surface ?? (glass.isClear ? _clear : _fill)),
+      rim: tint != null ? _tintedRim : resolve(_rim),
+      shadow: floating ? resolve(_shadow) : null,
     );
   }
 
-  static const _lightFill = Color(0xD9FFFFFF);
-  static const _darkFill = Color(0xB82C2C2E);
-  static const _lightClear = Color(0x40FFFFFF);
-  static const _darkClear = Color(0x402C2C2E);
-  static const _lightRim = Color(0x1F000000);
-  static const _darkRim = Color(0x33FFFFFF);
+  static const _fill = GlassDynamicColor.withBrightness(
+    color: Color(0xD9FFFFFF),
+    darkColor: Color(0xB82C2C2E),
+  );
+  static const _clear = GlassDynamicColor.withBrightness(
+    color: Color(0x40FFFFFF),
+    darkColor: Color(0x402C2C2E),
+  );
+  static const _rim = GlassDynamicColor.withBrightness(
+    color: Color(0x1F000000),
+    darkColor: Color(0x33FFFFFF),
+  );
   static const _tintedRim = Color(0x33FFFFFF);
-
-  // iOS systemFill, light and dark.
-  static const _lightTrack = Color(0x33787880);
-  static const _darkTrack = Color(0x5C787880);
-  static const _lightShadow = Color(0x1A000000);
-  static const _darkShadow = Color(0x40000000);
+  static const _shadow = GlassDynamicColor.withBrightness(
+    color: Color(0x1A000000),
+    darkColor: Color(0x40000000),
+  );
 
   /// The fill of the body.
   final Color fill;

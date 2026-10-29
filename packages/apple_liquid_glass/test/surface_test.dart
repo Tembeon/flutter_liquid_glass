@@ -98,24 +98,43 @@ void main() {
       );
     });
 
-    testWidgets('a track has a fill only; a tint fills the body', (
-      tester,
-    ) async {
+    test('a track has a fill only; a tint, then the scheme, fills the '
+        'body', () {
+      const light = GlassTraits();
+      const dark = GlassTraits(brightness: .dark);
       expect(
-        FlatGlassLook.of(GlassRole.track, const Glass.regular(), .light),
-        const FlatGlassLook(fill: Color(0x33787880)),
+        FlatGlassLook.of(GlassRole.track, const Glass.regular(), light).fill,
+        isSameColorAs(const Color(0x33787880)),
+      );
+      expect(
+        FlatGlassLook.of(
+          GlassRole.track,
+          const Glass.regular(),
+          const GlassTraits(highContrast: true),
+        ).fill,
+        isSameColorAs(const Color(0x47787880)),
       );
       final tinted = FlatGlassLook.of(
         GlassRole.control,
         const Glass.regular(tint: Color(0xFF0088FF)),
-        .dark,
+        dark,
+        scheme: const GlassColorScheme(
+          surfaces: {GlassRole.control: Color(0xFF123456)},
+        ),
       );
       expect(tinted.fill, const Color(0xFF0088FF));
-      expect(tinted.shadow, isNotNull);
-      expect(
-        FlatGlassLook.of(GlassRole.bar, const Glass.regular(), .light).shadow,
-        isNull,
+      expect(tinted.shadow, isSameColorAs(const Color(0x40000000)));
+      final bar = FlatGlassLook.of(
+        GlassRole.bar,
+        const Glass.regular(),
+        light,
+        scheme: const GlassColorScheme(
+          surfaces: {GlassRole.bar: Color(0xFF123456)},
+        ),
       );
+      expect(bar.fill, const Color(0xFF123456));
+      expect(bar.rim, isSameColorAs(const Color(0x1F000000)));
+      expect(bar.shadow, isNull);
     });
   });
 

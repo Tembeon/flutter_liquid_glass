@@ -1,7 +1,13 @@
+import 'dart:ui' show lerpDouble;
+
 import 'package:apple_liquid_glass/src/motion/glass_button_motion.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
+import 'package:apple_liquid_glass/src/theme/colors.dart';
+import 'package:apple_liquid_glass/src/theme/theme.dart';
+import 'package:apple_liquid_glass/src/theme/traits.dart';
+import 'package:apple_liquid_glass/src/theme/typography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
@@ -139,9 +145,7 @@ class _RawGlassButtonState extends State<RawGlassButton> {
 
   @override
   Widget build(BuildContext context) {
-    _body.reducedMotion =
-        MotionAccessibility.reduceMotion ||
-        (MediaQuery.maybeDisableAnimationsOf(context) ?? false);
+    _body.reducedMotion = GlassTraits.of(context).reduceMotion;
     return Semantics(
       button: true,
       child: InputRegion(
@@ -268,25 +272,38 @@ final class _FlexInput extends Interaction {
   }
 }
 
-/// The look of a [GlassButton], like Flutter's `ButtonStyle`: every field
-/// but [builder] is resolved against the button's states, and a null field
-/// or a null resolved value takes the button's default.
+/// The look of a [GlassButton], like Flutter's `ButtonStyle`.
+///
+/// Every field but [builder] is resolved against the button's states. A
+/// button looks a field up in its own style, then in the theme's, then in
+/// its defaults, state by state: a property that gives null for a state
+/// leaves that state to the next one, and `WidgetStatePropertyAll(null)`
+/// hands every state on. [merge] combines two styles the same way.
 @immutable
 class GlassButtonStyle {
   /// Creates a style.
   const GlassButtonStyle({
-    this.glass,
+    this.backgroundColor,
     this.foregroundColor,
+    this.iconColor,
+    this.textStyle,
     this.padding,
     this.minimumSize,
+    this.iconSize,
     this.builder,
   });
 
-  /// The glass of the body.
-  final WidgetStateProperty<Glass?>? glass;
+  /// The tint of the glass; an untinted button's resolves to null.
+  final WidgetStateProperty<Color?>? backgroundColor;
 
-  /// The color of the label's text and icons.
+  /// The color of the label's text, and of its icons without [iconColor].
   final WidgetStateProperty<Color?>? foregroundColor;
+
+  /// The color of the label's icons.
+  final WidgetStateProperty<Color?>? iconColor;
+
+  /// The style of the label's text; its color comes from [foregroundColor].
+  final WidgetStateProperty<TextStyle?>? textStyle;
 
   /// The space around the label.
   final WidgetStateProperty<EdgeInsetsGeometry?>? padding;
@@ -294,10 +311,192 @@ class GlassButtonStyle {
   /// The smallest size of the button.
   final WidgetStateProperty<Size?>? minimumSize;
 
-  /// Builds the button's look in place of the default one, which then
-  /// ignores the other fields; null keeps the default.
+  /// The size of the label's icons.
+  final WidgetStateProperty<double?>? iconSize;
+
+  /// Builds the button's look in place of the default one; the button then
+  /// ignores the other fields. Null keeps the default.
   final GlassButtonBuilder? builder;
+
+  /// This style over [other], state by state.
+  GlassButtonStyle merge(GlassButtonStyle? other) {
+    if (other == null) return this;
+    return GlassButtonStyle(
+      backgroundColor: _fallThrough(backgroundColor, other.backgroundColor),
+      foregroundColor: _fallThrough(foregroundColor, other.foregroundColor),
+      iconColor: _fallThrough(iconColor, other.iconColor),
+      textStyle: _fallThrough(textStyle, other.textStyle),
+      padding: _fallThrough(padding, other.padding),
+      minimumSize: _fallThrough(minimumSize, other.minimumSize),
+      iconSize: _fallThrough(iconSize, other.iconSize),
+      builder: builder ?? other.builder,
+    );
+  }
+
+  /// A copy with the given fields replaced.
+  GlassButtonStyle copyWith({
+    WidgetStateProperty<Color?>? backgroundColor,
+    WidgetStateProperty<Color?>? foregroundColor,
+    WidgetStateProperty<Color?>? iconColor,
+    WidgetStateProperty<TextStyle?>? textStyle,
+    WidgetStateProperty<EdgeInsetsGeometry?>? padding,
+    WidgetStateProperty<Size?>? minimumSize,
+    WidgetStateProperty<double?>? iconSize,
+    GlassButtonBuilder? builder,
+  }) => GlassButtonStyle(
+    backgroundColor: backgroundColor ?? this.backgroundColor,
+    foregroundColor: foregroundColor ?? this.foregroundColor,
+    iconColor: iconColor ?? this.iconColor,
+    textStyle: textStyle ?? this.textStyle,
+    padding: padding ?? this.padding,
+    minimumSize: minimumSize ?? this.minimumSize,
+    iconSize: iconSize ?? this.iconSize,
+    builder: builder ?? this.builder,
+  );
+
+  /// The style between [a] and [b] at [t]; the builder switches at the
+  /// middle.
+  static GlassButtonStyle? lerp(
+    GlassButtonStyle? a,
+    GlassButtonStyle? b,
+    double t,
+  ) {
+    if (identical(a, b)) return a;
+    if (a == null || b == null) return t < 0.5 ? a : b;
+    return GlassButtonStyle(
+      backgroundColor: WidgetStateProperty.lerp<Color?>(
+        a.backgroundColor,
+        b.backgroundColor,
+        t,
+        _snapNull(GlassDynamicColor.lerp),
+      ),
+      foregroundColor: WidgetStateProperty.lerp<Color?>(
+        a.foregroundColor,
+        b.foregroundColor,
+        t,
+        _snapNull(GlassDynamicColor.lerp),
+      ),
+      iconColor: WidgetStateProperty.lerp<Color?>(
+        a.iconColor,
+        b.iconColor,
+        t,
+        _snapNull(GlassDynamicColor.lerp),
+      ),
+      textStyle: WidgetStateProperty.lerp<TextStyle?>(
+        a.textStyle,
+        b.textStyle,
+        t,
+        _snapNull(TextStyle.lerp),
+      ),
+      padding: WidgetStateProperty.lerp<EdgeInsetsGeometry?>(
+        a.padding,
+        b.padding,
+        t,
+        _snapNull(EdgeInsetsGeometry.lerp),
+      ),
+      minimumSize: WidgetStateProperty.lerp<Size?>(
+        a.minimumSize,
+        b.minimumSize,
+        t,
+        _snapNull(Size.lerp),
+      ),
+      iconSize: WidgetStateProperty.lerp<double?>(
+        a.iconSize,
+        b.iconSize,
+        t,
+        _snapNull(lerpDouble),
+      ),
+      builder: t < 0.5 ? a.builder : b.builder,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlassButtonStyle &&
+      other.backgroundColor == backgroundColor &&
+      other.foregroundColor == foregroundColor &&
+      other.iconColor == iconColor &&
+      other.textStyle == textStyle &&
+      other.padding == padding &&
+      other.minimumSize == minimumSize &&
+      other.iconSize == iconSize &&
+      other.builder == builder;
+
+  @override
+  int get hashCode => Object.hash(
+    backgroundColor,
+    foregroundColor,
+    iconColor,
+    textStyle,
+    padding,
+    minimumSize,
+    iconSize,
+    builder,
+  );
 }
+
+// A null value falls through to what lies under it, so it does not fade.
+T? Function(T?, T?, double) _snapNull<T>(T? Function(T?, T?, double) lerp) =>
+    (a, b, t) => a == null || b == null ? (t < 0.5 ? a : b) : lerp(a, b, t);
+
+WidgetStateProperty<T?>? _fallThrough<T>(
+  WidgetStateProperty<T?>? first,
+  WidgetStateProperty<T?>? second,
+) {
+  if (first == null) return second;
+  if (second == null) return first;
+  return _FallThrough(first, second);
+}
+
+@immutable
+final class _FallThrough<T> implements WidgetStateProperty<T?> {
+  const _FallThrough(this.first, this.second);
+
+  final WidgetStateProperty<T?> first;
+  final WidgetStateProperty<T?> second;
+
+  @override
+  T? resolve(Set<WidgetState> states) =>
+      first.resolve(states) ?? second.resolve(states);
+
+  @override
+  bool operator ==(Object other) =>
+      other is _FallThrough<T> &&
+      other.first == first &&
+      other.second == second;
+
+  @override
+  int get hashCode => Object.hash(first, second);
+}
+
+@immutable
+final class _ByState<T> implements WidgetStateProperty<T?> {
+  const _ByState(this.enabled, this.disabled);
+
+  final T? enabled;
+  final T? disabled;
+
+  @override
+  T? resolve(Set<WidgetState> states) =>
+      states.contains(WidgetState.disabled) ? disabled : enabled;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _ByState<T> &&
+      other.enabled == enabled &&
+      other.disabled == disabled;
+
+  @override
+  int get hashCode => Object.hash(enabled, disabled);
+}
+
+WidgetStateProperty<T?>? _byState<T>(T? enabled, T? disabled) =>
+    enabled == null && disabled == null ? null : _ByState(enabled, disabled);
+
+WidgetStateProperty<T?>? _all<T>(T? value) =>
+    value == null ? null : WidgetStatePropertyAll(value);
+
+enum _Variant { regular, prominent, clear, prominentClear }
 
 /// An iOS 27 glass button.
 ///
@@ -319,13 +518,13 @@ class GlassButton extends StatelessWidget {
     this.autofocus = false,
     this.semanticLabel,
     super.key,
-  }) : _prominent = false;
+  }) : _variant = _Variant.regular;
 
-  /// Creates a prominent glass button, filled with the accent color.
+  /// Creates a prominent glass button, tinted with the theme's primary
+  /// color.
   ///
   /// UIKit: `UIButton.Configuration.prominentGlass()`. SwiftUI:
-  /// `.buttonStyle(.glassProminent)`. A disabled one is filled with
-  /// systemGray4.
+  /// `.buttonStyle(.glassProminent)`. A disabled one is tinted systemGray4.
   const GlassButton.prominent({
     required this.onPressed,
     required this.child,
@@ -335,7 +534,37 @@ class GlassButton extends StatelessWidget {
     this.autofocus = false,
     this.semanticLabel,
     super.key,
-  }) : _prominent = true;
+  }) : _variant = _Variant.prominent;
+
+  /// Creates a clear glass button, for buttons over rich media; its label
+  /// needs contrast of its own.
+  ///
+  /// UIKit: `UIButton.Configuration.clearGlass()`.
+  const GlassButton.clear({
+    required this.onPressed,
+    required this.child,
+    this.style,
+    this.statesController,
+    this.focusNode,
+    this.autofocus = false,
+    this.semanticLabel,
+    super.key,
+  }) : _variant = _Variant.clear;
+
+  /// Creates a prominent clear glass button, tinted with the theme's
+  /// primary color.
+  ///
+  /// UIKit: `UIButton.Configuration.prominentClearGlass()`.
+  const GlassButton.prominentClear({
+    required this.onPressed,
+    required this.child,
+    this.style,
+    this.statesController,
+    this.focusNode,
+    this.autofocus = false,
+    this.semanticLabel,
+    super.key,
+  }) : _variant = _Variant.prominentClear;
 
   /// Called when the button is pressed; null disables it.
   final VoidCallback? onPressed;
@@ -343,7 +572,7 @@ class GlassButton extends StatelessWidget {
   /// The label.
   final Widget child;
 
-  /// The look, over the button's defaults.
+  /// The look, over the theme's and the button's defaults.
   final GlassButtonStyle? style;
 
   /// Where the button writes its states, or null for its own.
@@ -358,15 +587,37 @@ class GlassButton extends StatelessWidget {
   /// What accessibility reads for the button; null lets its label speak.
   final String? semanticLabel;
 
-  final bool _prominent;
+  final _Variant _variant;
 
-  // iOS 27's systemBlue as rendered, systemGray4 and tertiaryLabel.
-  static const _systemBlue = Color(0xFF0088FF);
-  static const _darkSystemBlue = Color(0xFF0091FF);
-  static const _systemGray4 = Color(0xFFD1D1D6);
-  static const _darkSystemGray4 = Color(0xFF3A3A3C);
-  static const _tertiaryLabel = Color(0x4C3C3C43);
-  static const _darkTertiaryLabel = Color(0x4CEBEBF5);
+  bool get _prominent =>
+      _variant == _Variant.prominent || _variant == _Variant.prominentClear;
+
+  bool get _clear =>
+      _variant == _Variant.clear || _variant == _Variant.prominentClear;
+
+  /// A style from plain values: each `disabled` value applies to a
+  /// disabled button, the other to every other state, and a null value
+  /// keeps the default.
+  static GlassButtonStyle styleFrom({
+    Color? backgroundColor,
+    Color? disabledBackgroundColor,
+    Color? foregroundColor,
+    Color? disabledForegroundColor,
+    Color? iconColor,
+    Color? disabledIconColor,
+    TextStyle? textStyle,
+    EdgeInsetsGeometry? padding,
+    Size? minimumSize,
+    double? iconSize,
+  }) => GlassButtonStyle(
+    backgroundColor: _byState(backgroundColor, disabledBackgroundColor),
+    foregroundColor: _byState(foregroundColor, disabledForegroundColor),
+    iconColor: _byState(iconColor, disabledIconColor),
+    textStyle: _all(textStyle),
+    padding: _all(padding),
+    minimumSize: _all(minimumSize),
+    iconSize: _all(iconSize),
+  );
 
   // UIKit's title style, 17 regular (typography passport). The glyph size,
   // insets and minimum size are not measured (glass-button passport).
@@ -375,6 +626,37 @@ class GlassButton extends StatelessWidget {
   static const _padding = EdgeInsets.symmetric(horizontal: 20, vertical: 11);
   static const _minimumSize = Size(44, 44);
 
+  static const _white = Color(0xFFFFFFFF);
+
+  /// The button's own look at [context]: every field but
+  /// [GlassButtonStyle.iconColor] and [GlassButtonStyle.builder] is set,
+  /// and [GlassButtonStyle.backgroundColor] only on a prominent button.
+  @internal
+  GlassButtonStyle defaultStyleOf(BuildContext context) {
+    final theme = GlassTheme.of(context);
+    final scheme = theme.colorScheme;
+    final disabledLabel = scheme?.tertiaryLabel ?? GlassColors.tertiaryLabel;
+    final label = _prominent ? _white : scheme?.label ?? GlassColors.label;
+    return GlassButtonStyle(
+      backgroundColor: _prominent
+          ? _ByState<Color>(
+              theme.primaryColor ?? GlassColors.systemBlue,
+              GlassColors.systemGray4,
+            )
+          : null,
+      foregroundColor: _ByState<Color>(label, disabledLabel),
+      textStyle: const WidgetStatePropertyAll(_labelStyle),
+      padding: const WidgetStatePropertyAll(_padding),
+      minimumSize: const WidgetStatePropertyAll(_minimumSize),
+      iconSize: const WidgetStatePropertyAll(_iconSize),
+    );
+  }
+
+  GlassButtonStyle? _themeStyleOf(BuildContext context) {
+    final theme = GlassTheme.of(context);
+    return _prominent ? theme.prominentButtonStyle : theme.buttonStyle;
+  }
+
   @override
   Widget build(BuildContext context) => RawGlassButton(
     onPressed: onPressed,
@@ -382,50 +664,52 @@ class GlassButton extends StatelessWidget {
     focusNode: focusNode,
     autofocus: autofocus,
     semanticLabel: semanticLabel,
-    builder: style?.builder ?? _body,
+    builder: style?.builder ?? _themeStyleOf(context)?.builder ?? _defaultBody,
     child: child,
   );
 
-  Widget _body(BuildContext context, GlassButtonDetails details) {
+  Widget _defaultBody(BuildContext context, GlassButtonDetails details) {
     final states = details.states;
-    final dark =
-        MediaQuery.maybePlatformBrightnessOf(context) == Brightness.dark;
-    final disabled = states.contains(WidgetState.disabled);
-    final glass =
-        style?.glass?.resolve(states) ??
-        (_prominent
-            ? Glass.regular(
-                tint: disabled
-                    ? (dark ? _darkSystemGray4 : _systemGray4)
-                    : (dark ? _darkSystemBlue : _systemBlue),
-              )
-            : const Glass.regular());
-    final foreground =
-        style?.foregroundColor?.resolve(states) ??
-        (disabled
-            ? (dark ? _darkTertiaryLabel : _tertiaryLabel)
-            : _prominent || dark
-            ? const Color(0xFFFFFFFF)
-            : const Color(0xFF000000));
-    final padding = style?.padding?.resolve(states) ?? _padding;
-    final minimumSize = style?.minimumSize?.resolve(states) ?? _minimumSize;
+    final look = (style ?? const GlassButtonStyle())
+        .merge(_themeStyleOf(context))
+        .merge(defaultStyleOf(context));
+    T resolve<T>(WidgetStateProperty<T?>? property) =>
+        property!.resolve(states) as T;
+    final tint = look.backgroundColor?.resolve(states);
+    final foreground = GlassDynamicColor.resolve(
+      resolve<Color>(look.foregroundColor),
+      context,
+    );
+    final icon = GlassDynamicColor.resolve(
+      look.iconColor?.resolve(states) ?? foreground,
+      context,
+    );
+    final minimumSize = resolve<Size>(look.minimumSize);
     return GlassSurface.live(
       frame: details.body,
-      glass: glass,
+      glass: _clear ? Glass.clear(tint: tint) : Glass.regular(tint: tint),
       child: ConstrainedBox(
         constraints: BoxConstraints(
           minWidth: minimumSize.width,
           minHeight: minimumSize.height,
         ),
         child: Padding(
-          padding: padding,
+          padding: resolve<EdgeInsetsGeometry>(look.padding),
           child: Center(
             widthFactor: 1,
             heightFactor: 1,
             child: IconTheme.merge(
-              data: IconThemeData(color: foreground, size: _iconSize),
+              data: IconThemeData(
+                color: icon,
+                size: resolve<double>(look.iconSize),
+              ),
               child: DefaultTextStyle.merge(
-                style: _labelStyle.copyWith(color: foreground),
+                style: resolveGlassText(
+                  resolve<TextStyle>(
+                    look.textStyle,
+                  ).copyWith(color: foreground),
+                  context,
+                ),
                 child: details.label,
               ),
             ),
