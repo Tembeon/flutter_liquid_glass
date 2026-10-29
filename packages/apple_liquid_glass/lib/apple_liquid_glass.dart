@@ -4,6 +4,7 @@ library apple_liquid_glass;
 export 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 export 'src/controls/button.dart';
+export 'src/controls/list.dart';
 export 'src/controls/page_control.dart';
 export 'src/controls/search_field.dart';
 export 'src/controls/segmented_control.dart';
