@@ -1,5 +1,7 @@
 import 'package:apple_liquid_glass/src/controls/button.dart';
+import 'package:apple_liquid_glass/src/controls/page_control.dart';
 import 'package:apple_liquid_glass/src/controls/slider.dart';
+import 'package:apple_liquid_glass/src/controls/stepper.dart';
 import 'package:apple_liquid_glass/src/controls/switch.dart';
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
@@ -101,6 +103,8 @@ class GlassThemeData {
     this.prominentButtonStyle,
     this.switchStyle,
     this.sliderStyle,
+    this.stepperStyle,
+    this.pageControlStyle,
   });
 
   /// The theme between [a] and [b] at [t]: colors and styles interpolate;
@@ -126,6 +130,12 @@ class GlassThemeData {
       ),
       switchStyle: GlassSwitchStyle.lerp(a.switchStyle, b.switchStyle, t),
       sliderStyle: GlassSliderStyle.lerp(a.sliderStyle, b.sliderStyle, t),
+      stepperStyle: GlassStepperStyle.lerp(a.stepperStyle, b.stepperStyle, t),
+      pageControlStyle: GlassPageControlStyle.lerp(
+        a.pageControlStyle,
+        b.pageControlStyle,
+        t,
+      ),
     );
   }
 
@@ -156,6 +166,12 @@ class GlassThemeData {
   /// The look of sliders.
   final GlassSliderStyle? sliderStyle;
 
+  /// The look of steppers.
+  final GlassStepperStyle? stepperStyle;
+
+  /// The look of page controls.
+  final GlassPageControlStyle? pageControlStyle;
+
   /// This theme with the non-null fields of [other] over it; styles and
   /// schemes merge too.
   GlassThemeData merge(GlassThemeData? other) {
@@ -172,6 +188,9 @@ class GlassThemeData {
           prominentButtonStyle,
       switchStyle: other.switchStyle?.merge(switchStyle) ?? switchStyle,
       sliderStyle: other.sliderStyle?.merge(sliderStyle) ?? sliderStyle,
+      stepperStyle: other.stepperStyle?.merge(stepperStyle) ?? stepperStyle,
+      pageControlStyle:
+          other.pageControlStyle?.merge(pageControlStyle) ?? pageControlStyle,
     );
   }
 
@@ -186,7 +205,9 @@ class GlassThemeData {
       other.buttonStyle == buttonStyle &&
       other.prominentButtonStyle == prominentButtonStyle &&
       other.switchStyle == switchStyle &&
-      other.sliderStyle == sliderStyle;
+      other.sliderStyle == sliderStyle &&
+      other.stepperStyle == stepperStyle &&
+      other.pageControlStyle == pageControlStyle;
 
   @override
   int get hashCode => Object.hash(
@@ -199,6 +220,8 @@ class GlassThemeData {
     prominentButtonStyle,
     switchStyle,
     sliderStyle,
+    stepperStyle,
+    pageControlStyle,
   );
 }
 

@@ -4,7 +4,9 @@ library apple_liquid_glass;
 export 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 export 'src/controls/button.dart';
+export 'src/controls/page_control.dart';
 export 'src/controls/slider.dart';
+export 'src/controls/stepper.dart';
 export 'src/controls/switch.dart';
 export 'src/motion/touch_glow.dart' show GlassTouchGlow;
 export 'src/renderer/renderer.dart';
