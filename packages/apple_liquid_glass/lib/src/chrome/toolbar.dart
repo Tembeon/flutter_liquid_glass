@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/src/chrome/chrome.dart';
 import 'package:apple_liquid_glass/src/controls/button.dart';
 import 'package:apple_liquid_glass/src/controls/search_field.dart';
+import 'package:apple_liquid_glass/src/controls/search_glyphs.dart';
 import 'package:apple_liquid_glass/src/motion/search_motion.dart';
 import 'package:apple_liquid_glass/src/surface/group.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
@@ -326,7 +327,7 @@ class _SearchBarState extends State<_SearchBar> {
                       label: widget.closeSemanticLabel,
                       child: SizedBox.fromSize(
                         size: SearchTuning.closeGlyphSize,
-                        child: CustomPaint(painter: _CrossPainter(glyph)),
+                        child: CustomPaint(painter: SearchCrossPainter(glyph)),
                       ),
                     ),
                   ),
@@ -479,32 +480,6 @@ class _SearchLayout extends MultiChildLayoutDelegate {
       returning != oldDelegate.returning ||
       rtl != oldDelegate.rtl ||
       progress != oldDelegate.progress;
-}
-
-/// The close button's cross: two strokes 2.3 points thick whose ink, round
-/// caps included, fills a square 16.67 points across (search passport).
-class _CrossPainter extends CustomPainter {
-  const _CrossPainter(this.color);
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const ink = SearchTuning.closeInk;
-    const stroke = SearchTuning.closeStroke;
-    final paint = Paint();
-    paint.color = color;
-    paint.style = PaintingStyle.stroke;
-    paint.strokeWidth = stroke;
-    paint.strokeCap = StrokeCap.round;
-    final c = size.center(Offset.zero);
-    const h = (ink - stroke) / 2;
-    canvas.drawLine(c + const Offset(-h, -h), c + const Offset(h, h), paint);
-    canvas.drawLine(c + const Offset(h, -h), c + const Offset(-h, h), paint);
-  }
-
-  @override
-  bool shouldRepaint(_CrossPainter oldDelegate) => oldDelegate.color != color;
 }
 
 class _Ends extends ChangeNotifier {

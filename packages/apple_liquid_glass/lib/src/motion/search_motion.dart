@@ -101,11 +101,11 @@ abstract final class SearchTuning {
   /// The thickness of the close button's strokes.
   static const double closeStroke = 2.3;
 
-  /// The spring of a tab bar turning into a search field and back: fitted
-  /// to the edges of the glass in a video of a UITabBarController selecting
-  /// a UISearchTab that activates search (no tuning value was found to
-  /// read; the frames are 60 Hz video, 1 - 2 points apart).
-  static const tabSpring = Spring.response(0.276, dampingRatio: 0.8);
+  /// The spring of a tab bar turning into a search field and back: the
+  /// tab bar's liquid morph of its platters, damping 0.8 and response 0.3,
+  /// the one that minimizes it (read from UIKit, notes private). The edges
+  /// of the glass in a 60 Hz simulator video fit 0.276 and 0.8.
+  static const tabSpring = Spring.response(0.3, dampingRatio: 0.8);
 
   /// The spring a tab bar's search field rises above the keyboard on when
   /// it takes the focus, and sinks back on when it loses it: critically
