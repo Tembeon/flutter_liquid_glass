@@ -140,13 +140,9 @@ abstract final class TabBarMinimizeTuning {
   static const double inlineGap = 14;
 
   /// The height of the bottom accessory, expanded and inline (read from
-  /// UIKit; content may opt into 48 - 64 there, which the port does not
-  /// offer).
+  /// UIKit; content may opt into 48 - 64 there, which this package does
+  /// not offer).
   static const double accessoryHeight = 48;
-
-  /// The space between the screen's sides and the bar group: 21 (the
-  /// measured tab bar inset).
-  static const double sideInset = 21;
 
   /// How long a finger rests on the minimized bar before the bar expands
   /// under it: UIKit's `minimumPressDuration` of the tab bar's interactive
@@ -159,18 +155,6 @@ abstract final class TabBarMinimizeTuning {
   /// (the selection gesture of the floating tab bar applies the same 4
   /// points).
   static const double holdHysteresis = 4;
-
-  /// The spring of UIKit's interactive expansion under a held finger
-  /// (`expansionSpring`: damping 0.5, response 0.4), read from UIKit. UIKit
-  /// grows a container of the bar from the circle's size on it, which the
-  /// port does not yet: it expands a held bar on [morphSpring].
-  static const expansionSpring = Spring.response(0.4, dampingRatio: 0.5);
-
-  /// The spring UIKit's interactive expansion returns on when the finger
-  /// lifts without moving (`collapsedSpring`: damping 0.75, response 0.4),
-  /// read from UIKit; the port collapses on [morphSpring], as
-  /// [expansionSpring].
-  static const collapsedSpring = Spring.response(0.4, dampingRatio: 0.75);
 }
 
 /// The scroll-away interaction of a minimizing tab bar: how far a user's
@@ -490,6 +474,9 @@ class TabBarMinimizeMotion {
   /// Held for [TabBarMinimizeTuning.holdDuration] without moving,
   /// the bar expands under it (UIKit's interactive expansion of the
   /// minimized tab bar). Nothing happens on a bar that is not minimized.
+  /// UIKit grows the bar from the circle on its own springs (damping 0.5,
+  /// response 0.4 out; 0.75, 0.4 back; read from UIKit); this motion runs
+  /// both on [TabBarMinimizeTuning.morphSpring] (approximation).
   void pressDown(double t, double x) {
     if (!_minimized) return;
     _pressX = x;

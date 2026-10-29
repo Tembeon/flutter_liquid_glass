@@ -63,10 +63,7 @@ abstract final class FusionWorker {
       }
     }
     _waiting.add((inputs, owner));
-    if (_waiting.length > waitingLimit) {
-      _waiting.removeAt(0);
-      debugDropped++;
-    }
+    if (_waiting.length > waitingLimit) _waiting.removeAt(0);
     if (_workers.length < poolSize &&
         _workers.every((_Worker worker) => worker.send != null)) {
       _spawn(port);
@@ -84,7 +81,6 @@ abstract final class FusionWorker {
       final (ready, parts, _) = _ready[k];
       if (_matches(ready, inputs, tolerance)) {
         _ready.removeRange(0, k + 1);
-        debugTakenInputs = ready;
         return parts;
       }
     }
@@ -123,24 +119,6 @@ abstract final class FusionWorker {
     return (a[11] != 0 || b[11] == 0) && MenuFusion.sameGrid(a[10], b[10]);
   }
 
-  /// The requests dropped from a full waiting list, over the isolate's
-  /// life.
-  @internal
-  static int debugDropped = 0;
-
-  /// The time from every dispatch to its fusion's arrival, microseconds.
-  @internal
-  static final List<int> debugLatencyUs = [];
-
-  /// The inputs of the fusion [take] handed out last.
-  @internal
-  static Float64List? debugTakenInputs;
-
-  /// The inputs of the newest arrived fusion not handed out, or null.
-  @internal
-  static Float64List? get debugReadyInputs =>
-      _ready.isEmpty ? null : _ready.last.$1;
-
   /// Whether fusions have arrived that [take] has not handed out.
   @visibleForTesting
   static bool get debugHasReady => _ready.isNotEmpty;
@@ -160,7 +138,7 @@ abstract final class FusionWorker {
   }
 
   static ReceivePort _listen() {
-    final port = ReceivePort('morph menu fusion');
+    final port = ReceivePort('menu fusion');
     port.listen(_receive);
     return port;
   }
@@ -171,7 +149,7 @@ abstract final class FusionWorker {
     Isolate.spawn(
       _main,
       (port.sendPort, worker.index),
-      debugName: 'morph menu fusion ${worker.index}',
+      debugName: 'menu fusion ${worker.index}',
     ).then<void>((Isolate isolate) {
       if (_failed) {
         isolate.kill(priority: Isolate.immediate);
@@ -209,7 +187,6 @@ abstract final class FusionWorker {
         final Int32List size,
       ]:
         final worker = _workers[index];
-        debugLatencyUs.add(worker.clock.elapsedMicroseconds);
         if (!worker.stale) {
           _ready.add((
             inputs,
@@ -282,15 +259,12 @@ class _Worker {
   bool stale = false;
   Object? owner;
   Float64List? inputs;
-  final Stopwatch clock = Stopwatch();
 
   void dispatch(Float64List inputs, Object? owner) {
     busy = true;
     stale = false;
     this.owner = owner;
     this.inputs = inputs;
-    clock.reset();
-    clock.start();
     send!.send(inputs);
   }
 }

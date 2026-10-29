@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/controls/search_glyphs.dart';
 import 'package:apple_liquid_glass/src/motion/flex_interaction.dart';
+import 'package:apple_liquid_glass/src/motion/search_motion.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
@@ -186,14 +187,13 @@ class GlassSearchField extends StatefulWidget {
   final String? clearSemanticLabel;
 
   /// The height of the field (search passport).
-  static const double height = 48;
+  static const double height = SearchTuning.height;
 
   /// The largest text scale the text follows, not measured.
   static const double maxTextScale = 1.5;
 
-  /// The time from a touch to the start of the lift (search passport,
-  /// fitted 0.051 s).
-  static const double pressDelay = 0.05;
+  /// The time from a touch to the start of the lift.
+  static const double pressDelay = SearchTuning.pressDelay;
 
   /// The plain fill of a disabled field: 0x767680 at 6 percent in light
   /// and 12 percent in dark (iPhone 16 Pro, iOS 27.0.1).
@@ -415,7 +415,7 @@ class _GlassSearchFieldState extends State<GlassSearchField>
     final clear = Padding(
       padding: const EdgeInsetsDirectional.only(
         start: 8,
-        end: _Metrics.clearInset,
+        end: SearchTuning.clearInset,
       ),
       child: Semantics(
         container: true,
@@ -426,7 +426,7 @@ class _GlassSearchFieldState extends State<GlassSearchField>
           behavior: HitTestBehavior.opaque,
           onTap: widget.enabled ? _clear : null,
           child: SizedBox.square(
-            dimension: _Metrics.clearSize,
+            dimension: SearchTuning.clearSize,
             child: CustomPaint(
               painter: _ClearPainter(
                 fill: icon,
@@ -444,16 +444,18 @@ class _GlassSearchFieldState extends State<GlassSearchField>
       ),
     );
     final content = Padding(
-      padding: const EdgeInsetsDirectional.only(start: _Metrics.glyphInset),
+      padding: const EdgeInsetsDirectional.only(start: SearchTuning.glyphInset),
       child: Row(
         children: [
           SizedBox.fromSize(
-            size: _Metrics.glyphSize,
+            size: SearchTuning.glyphSize,
             child: CustomPaint(painter: SearchMagnifierPainter(icon)),
           ),
-          const SizedBox(
+          SizedBox(
             width:
-                _Metrics.textInset - _Metrics.glyphInset - _Metrics.glyphWidth,
+                SearchTuning.textInset -
+                SearchTuning.glyphInset -
+                SearchTuning.glyphSize.width,
           ),
           Expanded(
             child: Stack(
@@ -475,7 +477,7 @@ class _GlassSearchFieldState extends State<GlassSearchField>
           ListenableBuilder(
             listenable: _controller,
             builder: (context, child) => _controller.text.isEmpty
-                ? const SizedBox(width: _Metrics.clearInset)
+                ? const SizedBox(width: SearchTuning.clearInset)
                 : child!,
             child: clear,
           ),
@@ -599,31 +601,6 @@ class SearchEnds extends InheritedWidget {
   bool updateShouldNotify(SearchEnds oldWidget) => ends != oldWidget.ends;
 }
 
-/// The search field's glyph and inset metrics, read from an iPhone 16
-/// Pro's screen (search passport).
-abstract final class _Metrics {
-  /// The space between the field's leading edge and the magnifier.
-  static const double glyphInset = 12;
-
-  /// The width of the magnifier glyph.
-  static const double glyphWidth = 20.67;
-
-  /// The size of the magnifier glyph.
-  static const Size glyphSize = Size(glyphWidth, 19.33);
-
-  /// The space between the field's leading edge and its text.
-  static const double textInset = 40.67;
-
-  /// The size of the clear button.
-  static const double clearSize = 20;
-
-  /// The diameter of the clear button's disc inside its [clearSize] box.
-  static const double clearInk = 16.67;
-
-  /// The space between the clear button and the field's trailing edge.
-  static const double clearInset = 13.33;
-}
-
 /// The field's lift, stepped on the motion clock and published as the
 /// frames of its glass.
 final class _FieldBody extends ChangeNotifier
@@ -737,8 +714,8 @@ class _ClearPainter extends CustomPainter {
     final r =
         math.min(size.width, size.height) /
         2 *
-        _Metrics.clearInk /
-        _Metrics.clearSize;
+        SearchTuning.clearInk /
+        SearchTuning.clearSize;
     final disc = Paint();
     disc.color = fill;
     canvas.drawCircle(c, r, disc);

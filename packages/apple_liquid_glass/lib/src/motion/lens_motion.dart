@@ -57,10 +57,8 @@ class LensTuning {
   final double liftHeight;
 
   /// The spring that carries the lens between slots after a tap:
-  /// 0.401/0.856 fitted to test/fixtures/ios27{,-device}/lens. The
-  /// device segmented replay and tab bar scrub release reject the former
-  /// passport value 0.392/0.863 at their unchanged tolerances
-  /// (lens_test.dart and lens_scrub_test.dart).
+  /// 0.401/0.856 fitted to test/fixtures/ios27{,-device}/lens;
+  /// lens_test.dart and lens_scrub_test.dart replay it.
   final Spring travelSpring;
 
   /// The spring that lifts and lands the lens and resizes it between
@@ -119,13 +117,12 @@ class LensTuning {
   /// The spring that makes a dragged lens follow the finger.
   final Spring followSpring;
 
-  /// The rubber band past the first and last slots as (limit, stiffness):
-  /// a lens dragged past an end slot travels at most limit pixels beyond
-  /// it, in the form of kinesis's `rubberBand`. Inside the slots the lens
-  /// follows the finger's travel since the touch one to one, in the
-  /// control's own
-  /// coordinates; a flexing control ([chromeFlexes]) scales and shifts the
-  /// lens with it on top of that.
+  /// The rubber band past the first and last slots as (limit, stiffness): a
+  /// lens dragged past an end slot travels at most limit pixels beyond it, in
+  /// the form of kinesis's `rubberBand`. Inside the slots the lens follows the
+  /// finger's travel since the touch one to one, in the control's own
+  /// coordinates; a flexing control ([chromeFlexes]) scales and shifts the lens
+  /// with it on top of that.
   final (double, double) rubberBand;
 
   /// Seconds between a touch on the selected item and the start of its
@@ -172,8 +169,7 @@ class LensTuning {
   /// 0.04 pt of the law in width and 1e-4 in the scale across, and the
   /// scrubs replay at their stamps to 0.08 - 0.2 pt rms in width (a fixed
   /// growth of 14.6 left 0.49 - 2.06). The lens shows the bar's shift, so
-  /// it follows the finger one to one (the former gain 1.013 was the
-  /// shift).
+  /// it follows the finger one to one.
   final bool chromeFlexes;
 
   /// Seconds between a touch and the start of the control's flex
@@ -272,8 +268,9 @@ typedef LensSlot = ({double center, double width});
 /// The motion of a liquid selection lens: a pure function of the touches
 /// it is fed and the time it is advanced to.
 ///
-/// The lens frame rides three springs: travel for the center, and one
-/// shared lift spring for the lift and for width changes between slots.
+/// The lens frame rides three motion values on two springs: the travel
+/// spring for the center, and the lift spring for the lift and for width
+/// changes between slots.
 /// On top of that runs UIKit's closed deformation loop: every frame the
 /// visible center is filtered three times, the rate of change of its
 /// speed becomes a drift of the lens's trailing edge plus a matching
@@ -503,12 +500,12 @@ class LensMotion {
   /// Whether the finger currently drags the lens.
   bool get isDragging => _pointer?.dragging ?? false;
 
-  /// Whether what remains of the motion is invisible: nothing pending and
-  /// every spring's remaining swing below [GlassRest] (NEAR, invisible;
-  /// [settle] snaps the rest), a scale's over the lens's extent along its
-  /// own axis: its lifted width across the track, which holds while it
-  /// lands, and its height as it stands. A finger held still counts: the
-  /// lens rests lifted under it until the finger moves or lifts.
+  /// Whether what remains of the motion is invisible: nothing pending and every
+  /// spring's remaining swing below [GlassRest] (NEAR, invisible; [settle]
+  /// snaps the rest), a scale's over the lens's extent on its own axis: the
+  /// lifted width for the scale along the track, which holds while it lands,
+  /// and the current height for the scale across it. A finger held still
+  /// counts: the lens rests lifted under it until the finger moves or lifts.
   bool get isSettled {
     if (!_timeline.isEmpty || (_pointer?.unfollowed ?? false)) return false;
     const length = GlassRest.length;

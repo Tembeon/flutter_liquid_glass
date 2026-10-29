@@ -5,8 +5,8 @@ import 'package:flutter/widgets.dart';
 ///
 /// The entries mirror UIKit's menu elements (`UIAction`, `UIMenu`,
 /// `UIDeferredMenuElement`) and SwiftUI's `Menu` content (`Button`,
-/// `Section`, `Divider`, nested `Menu`); [GlassMenuWidget] is morph's own
-/// extension with no native twin.
+/// `Section`, `Divider`, nested `Menu`); [GlassMenuWidget] is this package's
+/// own extension with no native twin.
 sealed class GlassMenuEntry {
   /// Creates an entry.
   const GlassMenuEntry();
@@ -259,7 +259,7 @@ class GlassMenuDeferred extends GlassMenuEntry {
 /// covers (a slider, a stepper, a custom control).
 ///
 /// UIKit and SwiftUI have no such element in iOS 27 (a SwiftUI `Slider`
-/// in a `Menu` turns into two buttons), so this is morph's extension:
+/// in a `Menu` turns into two buttons), so this is this package's extension:
 /// its look is the app's, its motion is the menu's. The row spans the
 /// menu width minus 16 points on each side and is as
 /// tall as [builder]'s widget, measured after its first layout unless

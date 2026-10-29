@@ -539,12 +539,13 @@ class GlassButton extends StatelessWidget {
   /// and the menu one glass body joined by a neck while they part, and a
   /// finger slides over its rows and chooses the one it lifts from (read
   /// from UIKit and replayed against iPhone 16 Pro recordings). Escape,
-  /// Back and a tap outside close it.
+  /// Back and a tap outside close it. A button with a menu takes its focus
+  /// and states from the menu: it ignores [statesController], [focusNode],
+  /// [autofocus] and the [style]'s builder.
   final List<GlassMenuEntry>? menuChildren;
 
   /// Opens and closes the button's menu from code.
   final GlassMenuController? menuController;
-
 
   /// The label.
   final Widget child;

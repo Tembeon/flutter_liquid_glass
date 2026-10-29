@@ -26,7 +26,8 @@ import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
-/// Opens and closes the menu of a glass button from code.
+/// Opens and closes a `GlassButton`'s or a [GlassContextMenu]'s menu from
+/// code.
 ///
 /// Flutter: `MenuController`.
 class GlassMenuController {
@@ -1523,17 +1524,17 @@ class _RenderLiveBlur extends RenderProxyBox {
 /// UIKit: `UIContextMenuInteraction`. SwiftUI: `contextMenu`. Flutter:
 /// `CupertinoContextMenu`.
 ///
-/// A finger resting on [child] grows it by UIKit's measured law (nothing
-/// for 0.184 s, then 32 points a second to 8 points, then 20 a second to
-/// 15 points along its longest side); a finger that moves or lifts before
-/// 0.42 s drops it back. Held for 0.78 s, the page dims (20 percent light,
-/// 48 percent dark), the preview lifts to 1.15 times its size (26 points
-/// at most), fitted into the safe area, and the menu grows out of a blob
-/// at its center beside it, on one spring of response 0.284 s (iPhone 16
-/// Pro, iOS 27). The finger then slides onto a row and chooses it on
-/// release; let go on the preview, it leaves the menu open. A tap outside,
-/// Escape and Back close it. [previewBuilder] draws the open preview in
-/// place of a copy of [child], fading in as it lifts.
+/// A finger resting on [child] grows it by UIKit's measured law (nothing for
+/// 0.184 s, then 32 points a second to 8 points, then 20 a second to 15 points
+/// along its longest side); a finger that moves drops it back, and so does one
+/// that lifts before 0.42 s. Held for 0.78 s, the page dims (20 percent light,
+/// 48 percent dark), the preview lifts to 1.15 times its size (26 points at
+/// most), fitted into the safe area, and the menu grows out of a blob at its
+/// center beside it, on one spring of response 0.284 s (iPhone 16 Pro, iOS 27).
+/// The finger then slides onto a row and chooses it on release; let go on the
+/// preview, it leaves the menu open. A tap outside, Escape and Back close it.
+/// [previewBuilder] draws the open preview in place of a copy of [child],
+/// fading in as it lifts.
 class GlassContextMenu extends StatefulWidget {
   /// Creates a context menu of [menuChildren] for [child].
   const GlassContextMenu({

@@ -46,9 +46,9 @@ final class GlassTabDestination {
   final Widget label;
 
   /// The glyph the tab shows inside the selection lens (UIKit
-  /// `selectedImage`), or null for [icon]. The lens shows a selected copy
-  /// of every tab, so a glyph that holds state or a key gives a stateless
-  /// copy here.
+  /// `selectedImage`), or null for [icon]. Every tab is built twice, once
+  /// for the bar and once for the lens; give a glyph that holds state or a
+  /// `GlobalKey` a separate stateless copy here.
   final Widget? selectedIcon;
 
   /// A mark at the top trailing corner of the glyph, such as a count; its
@@ -98,7 +98,8 @@ class GlassTabBarStyle {
   final WidgetStateProperty<TextStyle?>? textStyle;
 
   /// Builds the bar's look in place of the default one; the bar then
-  /// ignores [backgroundColor] and [thumbColor]. Null leaves it to the
+  /// ignores [thumbColor], and [backgroundColor] still tints the minimized
+  /// circle and the bottom accessory. Null leaves it to the
   /// theme's builder, then the default look.
   final GlassSelectorBuilder? builder;
 
@@ -198,10 +199,9 @@ enum GlassTabAccessoryPlacement {
 /// shrinks it into a 48 point circle that keeps its selected tab's glyph,
 /// 7 points inside the bar's leading side, in one liquid morph (damping
 /// 0.8, response 0.3); a tap on the circle, the content's top end or a
-/// scroll past its far end expands it. A finger held on the circle does
-/// not yet expand the bar under it, and a drag from the circle does not
-/// yet become the bar's selection drag, as they do in UIKit. Put it in a
-/// `GlassTabScaffold`.
+/// scroll past its far end expands it. A finger held on the circle or a
+/// drag from it neither expands the bar nor starts its selection drag,
+/// unlike UIKit. Put it in a `GlassTabScaffold`.
 ///
 /// A [bottomAccessory], a mini player say, stands on its own glass 48
 /// points tall, 8 points above the bar across the bar group, its content
@@ -284,7 +284,7 @@ class GlassTabBar extends StatelessWidget {
   /// close button shows. The search circle takes no tap until the morph
   /// back has settled, as UIKit's. The bar lays itself out over the
   /// screen's bottom: in a `GlassTabScaffold` it does by itself. A bar with
-  /// a search tab does not minimize or carry a [bottomAccessory] yet.
+  /// a search tab does not minimize or carry a [bottomAccessory].
   final GlassSearchController? searchController;
 
   /// Where the bottom accessory around [context] stands.
@@ -551,8 +551,8 @@ class _Badged extends StatelessWidget {
 }
 
 /// The minimize motion of a bar, stepped on the motion clock and published
-/// as the hint scale, the glass's and the content's ways to the circle, and
-/// whether the bar rests expanded.
+/// as the hint scale, the morph to the circle, the accessory's two axes,
+/// whether the bar is minimized and whether it rests expanded.
 final class _MinimizeBody implements MotionDriver {
   _MinimizeBody(GlassTabBarMinimizeBehavior behavior)
     : motion = TabBarMinimizeMotion(behavior: behavior);
@@ -810,7 +810,7 @@ class _AccessoryScope extends InheritedWidget {
 
 /// The bottom accessory: its glass goes from above the bar to beside the
 /// circle with the bar's glass, and its content stands in either place,
-/// moving once the glass has arrived inline and as soon as it leaves.
+/// switching as the transition starts, clipped to the moving glass.
 class _Accessory extends StatefulWidget {
   const _Accessory({
     required this.body,
@@ -999,7 +999,7 @@ class _RenderSizeNote extends RenderProxyBox {
 /// the glass's box goes from the bar to the circle, the selected tab's
 /// glyph travels to the circle's center, and its title and the other tabs
 /// dissolve (read from UIKit, notes private; whether the dissolve also
-/// blurs is not read, and a film is still due).
+/// blurs is not read).
 class _CollapsingTabs extends StatefulWidget {
   const _CollapsingTabs({
     required this.width,
@@ -1099,12 +1099,12 @@ class _CollapsingTabsState extends State<_CollapsingTabs> {
     );
   }
 
-  // The glyph's center before it travels: the column of glyph, gap and a
-  // 10 point title line (taken as 12 points, by eye) centered in the bar.
+  // How far the selected glyph travels to the circle's center; it starts
+  // centered in [_column].
   Offset get _glyphTravel {
     final selected = widget.selectedIndex;
     if (selected < 0) return Offset.zero;
-    const column = GlassTabBar.iconSize + GlassTabBar.labelGap + _titleLine;
+    const column = _column;
     final glyph = Offset(
       _slot(selected).center.dx,
       (GlassTabBar.height - column) / 2 + GlassTabBar.iconSize / 2,
@@ -1113,7 +1113,11 @@ class _CollapsingTabsState extends State<_CollapsingTabs> {
   }
 
   static const double _sideInset = 8;
-  static const double _titleLine = 12;
+
+  // The column of glyph, gap and a 10 point title line, the line taken as
+  // 12 points (by eye), centered in the bar.
+  static const double _column =
+      GlassTabBar.iconSize + GlassTabBar.labelGap + 12;
 
   @override
   Widget build(BuildContext context) {
@@ -1231,10 +1235,7 @@ class _RenderTitleFade extends RenderProxyBox {
   void paint(PaintingContext context, Offset offset) {
     final child = this.child;
     if (child == null) return;
-    const column =
-        GlassTabBar.iconSize +
-        GlassTabBar.labelGap +
-        _CollapsingTabsState._titleLine;
+    const column = _CollapsingTabsState._column;
     final split = (size.height - column) / 2 + GlassTabBar.iconSize;
     context.pushClipRect(
       needsCompositing,
@@ -1693,8 +1694,8 @@ class _SearchTabLayout extends MultiChildLayoutDelegate {
 
 /// The search tab's circle on its way into the field: its glass, the
 /// magnifier travelling from the circle's center to the field's glyph and
-/// the placeholder fading in over the morph's last 60 percent (Morph's
-/// film-matched choreography, by eye).
+/// the placeholder fading in over the morph's last 60 percent (matched to
+/// a simulator film by eye).
 class _SearchCircle extends StatelessWidget {
   const _SearchCircle({
     required this.q,

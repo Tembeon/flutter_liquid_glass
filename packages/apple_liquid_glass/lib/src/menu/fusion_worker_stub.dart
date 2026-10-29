@@ -16,22 +16,6 @@ abstract final class FusionWorker {
   /// Always null.
   static OutlineParts? take(Float64List inputs, double tolerance) => null;
 
-  /// Always null.
-  @internal
-  static Float64List? get debugReadyInputs => null;
-
-  /// Always null.
-  @internal
-  static Float64List? get debugTakenInputs => null;
-
-  /// Always 0.
-  @internal
-  static int get debugDropped => 0;
-
-  /// Always empty.
-  @internal
-  static const List<int> debugLatencyUs = [];
-
   /// Always false.
   @visibleForTesting
   static bool get debugHasReady => false;

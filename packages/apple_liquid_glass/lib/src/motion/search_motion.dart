@@ -34,7 +34,7 @@ abstract final class SearchTuning {
   static const double keyboardLag = 0.015;
 
   /// The longest a focus waits for the keyboard before its transition
-  /// starts anyway: a guard of the port, not UIKit's (UIKit starts the
+  /// starts anyway: this package's guard, not UIKit's (UIKit starts the
   /// transition when the keyboard or the active search items change, and
   /// has no timeout).
   static const double keyboardWaitLimit = 0.3;
@@ -45,9 +45,6 @@ abstract final class SearchTuning {
 
   /// The height of the field, the close button and the toolbar's items.
   static const double height = 48;
-
-  /// The height of the text inside the field.
-  static const double textHeight = 28;
 
   /// The space between the screen's sides and the bar at rest, and
   /// between the screen's bottom and the bar.
@@ -85,7 +82,7 @@ abstract final class SearchTuning {
   static const double clearSize = 20;
 
   /// The diameter of the clear button's disc, inside its [clearSize] box
-  /// (16.67 on an iPhone 16 Pro's screen).
+  /// (iPhone 16 Pro screen).
   static const double clearInk = 16.67;
 
   /// The space between the clear button and the field's trailing edge.
@@ -95,7 +92,7 @@ abstract final class SearchTuning {
   static const Size closeGlyphSize = Size(22.67, 21.33);
 
   /// The side of the square the close button's cross fills, round caps
-  /// included (16.67 on an iPhone 16 Pro's screen).
+  /// included (iPhone 16 Pro screen).
   static const double closeInk = 16.67;
 
   /// The thickness of the close button's strokes.
@@ -110,7 +107,7 @@ abstract final class SearchTuning {
   /// The spring a tab bar's search field rises above the keyboard on when
   /// it takes the focus, and sinks back on when it loses it: critically
   /// damped, response 0.30 (an iPhone 16 Pro: 0.19 and 0.93 pt rms over
-  /// 308 points; [transitionSpring] leaves 12).
+  /// 308 points; [transitionSpring] leaves 12 pt rms).
   static const tabFocusSpring = Spring.response(0.3);
 
   /// The time from the lift of the tap on the search tab to the field
@@ -152,28 +149,6 @@ abstract final class SearchTuning {
   /// the iOS 27 simulator film fits 0.332 / 0.781 once its resting end is
   /// left free; not yet recorded on the device).
   static const stackedSpring = Spring.response(0.34, dampingRatio: 0.8);
-
-  /// The height of a stacked search field (iOS 27 simulator: 44 points,
-  /// at rest and presented).
-  static const double stackedHeight = 44;
-
-  /// The space between the screen's sides and a stacked search field, at
-  /// rest and presented (16 points).
-  static const double stackedSideInset = 16;
-
-  /// The space below a stacked search field, before the content (10
-  /// points at rest and presented).
-  static const double stackedBottomGap = 10;
-
-  /// The space between a presented stacked field and its close button
-  /// (10 points; the close button is [stackedHeight] wide, [stackedSideInset]
-  /// from the trailing side).
-  static const double stackedCloseGap = 10;
-
-  /// How far toward the trailing side a stacked field's close button
-  /// starts as it arrives (about 40 points on the simulator film, where
-  /// it slides in with the field's narrowing edge).
-  static const double stackedCloseTravel = 40;
 }
 
 /// The geometry of a tab bar with a search tab, at rest and searching.
@@ -210,12 +185,12 @@ class SearchTabGeometry {
   final Rect close;
 }
 
-/// Lays out a tab bar [barWidth] wide with a search tab in a screen of
-/// [size], above a keyboard [keyboard] tall, as iOS 27 does (iPhone 18 Pro
-/// Max: bar and circle 21 from the sides and bottom; searching, the tab
-/// circle 28 from the side and bottom and the field 12 after it to 28
-/// from the side; focused, the field 8 from the side, the close button 8
-/// after it, 8 above the keyboard). [rtl] mirrors it.
+/// Lays out a tab bar [barWidth] wide with a search tab in a screen of [size],
+/// above a keyboard [keyboard] tall, as iOS 27 does (the iOS 27 simulator's
+/// iPhone 18 Pro Max: bar and circle 21 from the sides and bottom; searching,
+/// the tab circle 28 from the side and bottom and the field 12 after it to 28
+/// from the side; focused, the field 8 from the side, the close button 8 after
+/// it, 8 above the keyboard). [rtl] mirrors it.
 @internal
 SearchTabGeometry searchTabLayout({
   required Size size,

@@ -59,8 +59,8 @@ final class GlassStepperDetails {
 /// in a right-to-left context, as UIKit's does (stepper passport, device).
 /// Screen readers see two buttons that announce the value; the left and
 /// down arrows decrement, the right and up arrows, Space and Enter
-/// increment. A disabled stepper looks like an enabled one and ignores
-/// input, as UIKit's does.
+/// increment. A disabled stepper ignores input; [builder] sees
+/// [WidgetState.disabled].
 class RawGlassStepper extends StatefulWidget {
   /// Creates a stepper showing [value] between [min] and [max].
   const RawGlassStepper({
@@ -282,9 +282,6 @@ class _RawGlassStepperState extends State<RawGlassStepper> {
   }
 }
 
-/// A stepper's touch: it holds the half under the finger, repeats while it
-/// is held, follows the finger to the other half and ends when the finger
-/// leaves the control.
 final class _StepperInput extends Interaction {
   _StepperInput({required this.onPressed, required this.onStep})
     : super(role: InteractionRole.control);
@@ -446,7 +443,8 @@ class GlassStepperStyle {
 /// UIKit: `UIStepper`. SwiftUI: `Stepper`. Flutter: none.
 ///
 /// A plain capsule, not glass, on every renderer, as iOS draws it; its
-/// behavior is [RawGlassStepper]'s.
+/// behavior is [RawGlassStepper]'s. A disabled stepper looks like an
+/// enabled one, as UIKit's does.
 class GlassStepper extends StatelessWidget {
   /// Creates a stepper showing [value] between [min] and [max].
   const GlassStepper({

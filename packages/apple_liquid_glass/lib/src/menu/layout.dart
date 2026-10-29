@@ -132,7 +132,8 @@ class MenuMetrics {
   /// The inset of the group hairline from both sides of the menu.
   final double separatorInset;
 
-  /// The width of a palette cell for five or more cells.
+  /// The width of each of five palette cells; the row keeps five cells'
+  /// width, so fewer cells widen and more narrow.
   final double paletteCellWidth;
 
   /// The widest palette cell (three cells, SwiftUI's palette picker).

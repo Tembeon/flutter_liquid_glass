@@ -366,6 +366,7 @@ class _OutlineShadow extends SingleChildRenderObjectWidget {
     BuildContext context,
     _RenderOutlineShadow renderObject,
   ) {
+    renderObject.frame = frame;
     renderObject.shadows = shadows;
   }
 }
@@ -373,8 +374,15 @@ class _OutlineShadow extends SingleChildRenderObjectWidget {
 class _RenderOutlineShadow extends RenderProxyBox {
   _RenderOutlineShadow(this._frame, this._shadows);
 
-  // The surface's own frame, which lives as long as the surface.
-  final ValueListenable<GlassFrame> _frame;
+  ValueListenable<GlassFrame> _frame;
+  ValueListenable<GlassFrame> get frame => _frame;
+  set frame(ValueListenable<GlassFrame> value) {
+    if (value == _frame) return;
+    if (attached) _frame.removeListener(_changed);
+    _frame = value;
+    if (attached) _frame.addListener(_changed);
+    markNeedsPaint();
+  }
 
   List<BoxShadow> _shadows;
   List<BoxShadow> get shadows => _shadows;

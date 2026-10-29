@@ -209,8 +209,14 @@ void main() {
       ),
     );
     await _settle(tester);
+    final glass = tester.widget<GlassSurface>(find.byType(GlassSurface).last);
     final card = tester.getRect(find.byType(GlassSurface).last);
     expect(card.width, 320);
     expect(card.center.dx, 201);
+    expect(
+      glass.frame!.value.shape,
+      const LiquidRoundedSuperellipse(borderRadius: 34),
+      reason: 'the platter has the alert corners, not a capsule',
+    );
   });
 }

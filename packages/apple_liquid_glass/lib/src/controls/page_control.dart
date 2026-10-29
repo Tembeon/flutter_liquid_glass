@@ -23,12 +23,12 @@ enum GlassPageControlBackground {
   minimal,
 }
 
-/// The look of a [GlassPageControl], like Flutter's `ButtonStyle`: every
-/// field is resolved against the control's states, and a property that
-/// gives null for a state leaves it to the theme's style, then the
-/// default.
+/// The look of a [GlassPageControl], like Flutter's `ButtonStyle`. The
+/// control reports no states, so each property resolves against the empty
+/// set; a null leaves the field to the theme's style, then the default.
 ///
-/// The defaults are approximations, not measured; the platter is a flat
+/// The defaults are approximations, not measured, except the
+/// high-contrast colors below; the platter is a flat
 /// color on every renderer where UIKit uses a material (page control
 /// passport). Under Increase Contrast the dots take UIKit's high-contrast
 /// colors (read from UIKit, notes private).

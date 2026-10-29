@@ -4,15 +4,14 @@ import 'package:kinesis/kinesis.dart';
 /// such as a button turning into its menu.
 ///
 /// The defaults are the `liquidMorph` tuning read live from iOS 27, the
-/// set a glass button's menu uses. Geometry (position, size, transform)
-/// and content travel on slightly underdamped springs; character comes
-/// from a separate [kick] and [settle], and the opening ([eject]) and
-/// closing ([absorb]) of the main shape use their own springs. Only
-/// [eject], [absorb], [speed], [kicks] and [fuses] drive the menu
-/// implementation. All other fields preserve UIKit's reference settings;
-/// changing them does not change the menu. UIKit divides time by [speed],
-/// so the effective response of every spring is its response times
-/// [speed].
+/// set a glass button's menu uses: the opening ([eject]) and closing
+/// ([absorb]) of the main shape on their own springs. UIKit divides time
+/// by [speed], so the effective response of every spring is its response
+/// times [speed]. The rest of `liquidMorph` drives nothing here: position,
+/// size, transform and content on 0.3 / 0.8, kick 0.35 / 0.8, settle
+/// 0.5 / 0.8, blur in 0.3 / 1 and out 0.45 / 0.8 at scales 1.2 - 1.65, a
+/// second step 0.03 s late, intermediate shape ratios 0.25 growing and 0.9
+/// shrinking, genie scale 0.4.
 ///
 /// [context] is the morph of a context menu, which grows out of a blob at
 /// the held view's center beside the lifted preview instead of out of a
@@ -20,103 +19,18 @@ import 'package:kinesis/kinesis.dart';
 class MenuMorphSpec {
   /// Creates a morph spec from explicit values.
   const MenuMorphSpec({
-    this.position = const Spring.response(0.3, dampingRatio: 0.8),
-    this.size = const Spring.response(0.3, dampingRatio: 0.8),
-    this.transform = const Spring.response(0.3, dampingRatio: 0.8),
-    this.content = const Spring.response(0.3, dampingRatio: 0.8),
-    this.kick = const Spring.response(0.35, dampingRatio: 0.8),
-    this.settle = const Spring.response(0.5, dampingRatio: 0.8),
     this.eject = const Spring.response(0.5, dampingRatio: 0.75),
     this.absorb = const Spring.response(0.7, dampingRatio: 0.8),
-    this.blurIn = const Spring.response(0.3),
-    this.blurOut = const Spring.response(0.45, dampingRatio: 0.8),
-    this.blurOutMinScale = 1.2,
-    this.blurOutMaxScale = 1.65,
-    this.secondStepDelay = 0.03,
-    this.growingIntermediateShapeRatio = 0.25,
-    this.shrinkingIntermediateShapeRatio = 0.9,
-    this.genieScale = 0.4,
     this.speed = 0.7,
     this.kicks = true,
     this.fuses = true,
   });
-
-  /// The spring of the surface's position.
-  ///
-  /// Reference-only UIKit setting; unused by the menu motion.
-  final Spring position;
-
-  /// The spring of the surface's width and height.
-  ///
-  /// Reference-only UIKit setting; unused by the menu motion.
-  final Spring size;
-
-  /// The spring of the surface's transform.
-  ///
-  /// Reference-only UIKit setting; unused by the menu motion.
-  final Spring transform;
-
-  /// The spring of the content crossfade.
-  ///
-  /// Reference-only UIKit setting; unused by the menu motion.
-  final Spring content;
-
-  /// The spring of the impact kick.
-  ///
-  /// Reference-only UIKit setting; unused by the menu motion.
-  final Spring kick;
-
-  /// The spring that settles the surface after the kick.
-  ///
-  /// Reference-only UIKit setting; unused by the menu motion.
-  final Spring settle;
 
   /// The spring of the main shape while it opens.
   final Spring eject;
 
   /// The spring of the main shape while it closes.
   final Spring absorb;
-
-  /// The spring that brings blurred content into focus.
-  ///
-  /// Reference-only UIKit setting; unused by the menu motion.
-  final Spring blurIn;
-
-  /// The spring that blurs content away.
-  ///
-  /// Reference-only UIKit setting; unused by the menu motion.
-  final Spring blurOut;
-
-  /// The smallest scale of content blurring away.
-  ///
-  /// Reference-only UIKit setting; unused by the menu motion.
-  final double blurOutMinScale;
-
-  /// The largest scale of content blurring away.
-  ///
-  /// Reference-only UIKit setting; unused by the menu motion.
-  final double blurOutMaxScale;
-
-  /// The delay, in seconds, before the second step of the morph starts.
-  ///
-  /// Reference-only UIKit setting; unused by the menu motion.
-  final double secondStepDelay;
-
-  /// Where the intermediate shape sits while the surface grows, as a ratio.
-  ///
-  /// Reference-only UIKit setting; unused by the menu motion.
-  final double growingIntermediateShapeRatio;
-
-  /// Where the intermediate shape sits while the surface shrinks, as a
-  /// ratio.
-  ///
-  /// Reference-only UIKit setting; unused by the menu motion.
-  final double shrinkingIntermediateShapeRatio;
-
-  /// The scale of the genie distortion.
-  ///
-  /// Reference-only UIKit setting; unused by the menu motion.
-  final double genieScale;
 
   /// The speed multiplier UIKit applies to the morph.
   final double speed;
