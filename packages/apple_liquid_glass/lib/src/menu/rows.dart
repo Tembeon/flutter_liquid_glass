@@ -6,6 +6,7 @@ import 'package:apple_liquid_glass/src/menu/content.dart';
 import 'package:apple_liquid_glass/src/menu/entries.dart';
 import 'package:apple_liquid_glass/src/menu/layout.dart';
 import 'package:apple_liquid_glass/src/menu/motion.dart';
+import 'package:apple_liquid_glass/src/motion/live.dart';
 import 'package:apple_liquid_glass/src/theme/typography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -714,4 +715,168 @@ class _SpinnerPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SpinnerPainter oldDelegate) => oldDelegate.color != color;
+}
+
+/// How bold a card header's title is, how far its chevron has turned and
+/// the opacity of its separator, each from 0 to 1.
+@internal
+typedef MenuHeaderValues = ({double bold, double turn, double separator});
+
+/// The header of a submenu card: the row it grew out of, its title
+/// turning bold and its chevron turning down as the card opens, each read
+/// again on every notification of [live].
+@internal
+class MenuCardHeader extends StatelessWidget {
+  /// Creates the header [header] of a card.
+  const MenuCardHeader({
+    required this.live,
+    required this.header,
+    required this.placed,
+    required this.values,
+    required this.style,
+    required this.width,
+    required this.content,
+    required this.onSelect,
+    super.key,
+  });
+
+  /// What tells the header to read [placed] and [values] again.
+  final Listenable live;
+
+  /// The header as the card's layout places it.
+  final MenuPlaced header;
+
+  /// The header now: its columns move from the row's to its own.
+  final MenuPlaced Function() placed;
+
+  /// The header's moving values now.
+  final MenuHeaderValues Function() values;
+
+  /// The colors.
+  final MenuAppearance style;
+
+  /// The card's width.
+  final double width;
+
+  /// The menu's entries and their state.
+  final MenuContent content;
+
+  /// Called with the header's target when a screen reader activates it.
+  final ValueChanged<int> onSelect;
+
+  Color get _title => style.textStyle.color ?? style.iconColor;
+
+  static const _bold = TextStyle(fontSize: 17, fontWeight: FontWeight.w600);
+
+  Widget _text(BuildContext context, TextStyle base) => Text(
+    header.title ?? '',
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    style: resolveGlassText(base, context).copyWith(color: _title),
+  );
+
+  // A span along the header from its leading edge, in the header's box.
+  Rect _span(double start, double extent, double height, bool rtl) =>
+      Rect.fromLTWH(rtl ? width - start - extent : start, 0, extent, height);
+
+  @override
+  Widget build(BuildContext context) {
+    final header = this.header;
+    final entry = header.entry;
+    final icon = entry is GlassSubmenu ? entry.icon : null;
+    final target = header.target;
+    final rtl = content.rtl;
+    final metrics = content.metrics;
+    final height = header.rect.height;
+    return Positioned.fromRect(
+      rect: header.rect,
+      child: Semantics(
+        button: true,
+        role: ui.SemanticsRole.menuItem,
+        expanded: true,
+        label: header.title,
+        onTap: target < 0 ? null : () => onSelect(target),
+        excludeSemantics: true,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (header.imageCenter != null && icon != null)
+              LivePlacement(
+                live: live,
+                rectOf: () => _span(
+                  placed().imageCenter! - MenuTuning.imageSlot / 2,
+                  MenuTuning.imageSlot,
+                  height,
+                  rtl,
+                ),
+                child: Center(
+                  child: IconTheme.merge(
+                    data: IconThemeData(size: style.iconSize, color: _title),
+                    child: icon,
+                  ),
+                ),
+              ),
+            LivePlacement(
+              live: live,
+              rectOf: () {
+                final now = placed();
+                return _span(
+                  now.titleStart,
+                  now.titleEnd - now.titleStart,
+                  height,
+                  rtl,
+                );
+              },
+              child: Stack(
+                alignment: AlignmentDirectional.centerStart,
+                children: [
+                  LiveFade(
+                    live: live,
+                    opacityOf: () => 1 - values().bold,
+                    child: _text(context, style.textStyle),
+                  ),
+                  LiveFade(
+                    live: live,
+                    opacityOf: () => values().bold,
+                    child: _text(context, style.textStyle.merge(_bold)),
+                  ),
+                ],
+              ),
+            ),
+            PositionedDirectional(
+              start: metrics.chevronCenter - MenuTuning.markSlot / 2,
+              width: MenuTuning.markSlot,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: Transform.flip(
+                  flipX: rtl,
+                  child: LiveTransform(
+                    live: live,
+                    matrixOf: () =>
+                        Matrix4.rotationZ(values().turn * math.pi / 2),
+                    child: CustomPaint(
+                      size: MenuTuning.chevronSize,
+                      painter: _ChevronPainter(color: _title, down: false),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: metrics.separatorInset,
+              right: metrics.separatorInset,
+              bottom: 0,
+              height: 1,
+              child: LiveFade(
+                live: live,
+                opacityOf: () => values().separator,
+                child: ColoredBox(color: style.separatorColor),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

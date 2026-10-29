@@ -267,4 +267,46 @@ void main() {
       reason: 'at rest the menu is a rounded box',
     );
   });
+
+  testWidgets('a submenu row opens its card over the menu; a card row acts '
+      'and the header goes back', (tester) async {
+    _phone(tester);
+    final log = <String>[];
+    await tester.pumpWidget(
+      _app(
+        GlassButton(
+          key: const Key('button'),
+          onPressed: null,
+          menuChildren: [
+            GlassMenuItem(title: 'Copy', onPressed: () => log.add('Copy')),
+            GlassSubmenu(
+              title: 'Sort By',
+              children: [
+                GlassMenuItem(title: 'Name', onPressed: () => log.add('Name')),
+                GlassMenuItem(title: 'Date', onPressed: () => log.add('Date')),
+              ],
+            ),
+          ],
+          child: const Text('More'),
+        ),
+      ),
+    );
+    await tester.tap(_source);
+    await _settle(tester);
+    expect(find.text('Name'), findsNothing);
+    await tester.tapAt(tester.getCenter(find.text('Sort By')));
+    await _settle(tester);
+    expect(find.text('Name'), findsOneWidget);
+    expect(find.text('Date'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await _settle(tester);
+    expect(find.text('Name'), findsNothing, reason: 'Escape goes back first');
+    expect(find.text('Copy'), findsOneWidget);
+    await tester.tapAt(tester.getCenter(find.text('Sort By')));
+    await _settle(tester);
+    await tester.tapAt(tester.getCenter(find.text('Date')));
+    await _settle(tester);
+    expect(log, ['Date']);
+    expect(find.text('Copy'), findsNothing);
+  });
 }

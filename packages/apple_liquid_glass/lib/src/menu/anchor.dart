@@ -530,16 +530,55 @@ class _MenuAnchorState extends State<MenuAnchor> implements MotionDriver {
 }
 
 /// What the layer's tree is built from; it builds only when this changes.
-typedef _Structure = ({
-  MenuLayout layout,
-  bool open,
-  bool scrolls,
-  int? highlighted,
-  bool sliding,
-});
+@immutable
+class _Structure {
+  const _Structure({
+    required this.layouts,
+    required this.open,
+    required this.scrolls,
+    required this.highlighted,
+    required this.highlightedCard,
+    required this.sliding,
+  });
 
-/// The open menu on the overlay: its glass, the source's look on it and
-/// its rows, each following the motion's frames without a rebuild.
+  final List<MenuLayout> layouts;
+  final bool open;
+  final bool scrolls;
+  final int? highlighted;
+  final int highlightedCard;
+  final bool sliding;
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! _Structure ||
+        other.open != open ||
+        other.scrolls != scrolls ||
+        other.highlighted != highlighted ||
+        other.highlightedCard != highlightedCard ||
+        other.sliding != sliding ||
+        other.layouts.length != layouts.length) {
+      return false;
+    }
+    for (var i = 0; i < layouts.length; i++) {
+      if (!identical(other.layouts[i], layouts[i])) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    open,
+    scrolls,
+    highlighted,
+    highlightedCard,
+    sliding,
+    layouts.length,
+  );
+}
+
+/// The open menu on the overlay: its glass, the source's look on it, its
+/// rows and the submenu cards over them, each following the motion's
+/// frames without a rebuild.
 class _MenuLayer extends StatefulWidget {
   const _MenuLayer({required this.anchor});
 
@@ -551,11 +590,13 @@ class _MenuLayer extends StatefulWidget {
 
 class _MenuLayerState extends State<_MenuLayer> {
   final _scroll = ScrollController();
-  final _hidden = ValueNotifier<int?>(null);
-  _Structure? _built;
-  late Widget _rows;
-  MenuLayout? _rowsLayout;
+  final Map<MenuLayout, ValueNotifier<int?>> _hidden = Map.identity();
+  final Map<MenuLayout, Widget> _rows = Map.identity();
   MenuAppearance? _rowsStyle;
+  _Structure? _built;
+  bool _parentLocked = false;
+  final _focus = FocusNode(debugLabel: 'glass menu');
+  FocusNode? _restore;
 
   _MenuAnchorState get _anchor => widget.anchor;
 
@@ -563,31 +604,53 @@ class _MenuLayerState extends State<_MenuLayer> {
 
   MenuMotion get _motion => _anchor._motion!;
 
+  double get _width => _motion.tuning.menuWidth;
+
   @override
   void initState() {
     super.initState();
     _frames.addListener(_tick);
     _scroll.addListener(_scrolled);
     _built = _structure();
+    // The menu takes the keyboard while it shows, as a presentation's
+    // focus scope does, and hands it back when it goes.
+    _restore = FocusManager.instance.primaryFocus;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focus.requestFocus();
+    });
   }
 
   @override
   void dispose() {
+    final restore = _restore;
+    if (_focus.hasFocus && restore != null && restore.context != null) {
+      restore.requestFocus();
+    }
+    _focus.dispose();
     _frames.removeListener(_tick);
     _scroll.dispose();
-    _hidden.dispose();
+    for (final hidden in _hidden.values) {
+      hidden.dispose();
+    }
     super.dispose();
   }
 
   _Structure? _structure() {
     final motion = _anchor._motion;
     if (motion == null) return null;
-    final layout = motion.layout;
-    return (
-      layout: layout,
+    final cards = motion.cards;
+    for (var i = 0; i < cards.length; i++) {
+      _hiddenOf(cards[i].layout).value = i + 1 < cards.length
+          ? cards[i + 1].source
+          : null;
+    }
+    final root = cards.isEmpty ? motion.layout : cards[0].layout;
+    return _Structure(
+      layouts: [for (final card in cards) card.layout],
       open: motion.isOpen,
-      scrolls: layout.height > motion.visibleRootHeight + 0.5,
-      highlighted: motion.highlightedCard == 0 ? motion.highlighted : null,
+      scrolls: root.height > motion.visibleRootHeight + 0.5,
+      highlighted: motion.highlighted,
+      highlightedCard: motion.highlightedCard,
       sliding: motion.isSliding,
     );
   }
@@ -598,6 +661,9 @@ class _MenuLayerState extends State<_MenuLayer> {
     setState(() => _built = structure);
   }
 
+  ValueNotifier<int?> _hiddenOf(MenuLayout layout) =>
+      _hidden.putIfAbsent(layout, () => ValueNotifier<int?>(null));
+
   void _scrolled() {
     final motion = _anchor._motion;
     if (motion == null || !_scroll.hasClients) return;
@@ -607,14 +673,18 @@ class _MenuLayerState extends State<_MenuLayer> {
   bool _scrollStarted(ScrollNotification notification) {
     if (notification is ScrollStartNotification &&
         notification.dragDetails != null) {
-      _anchor._command((motion, t) => motion.pointerScrolled(t));
+      _scrollGesture();
     }
     return false;
   }
 
-  void _select(int target) {
+  void _scrollGesture() =>
+      _anchor._command((motion, t) => motion.pointerScrolled(t));
+
+  void _select(MenuLayout layout, int target) {
     final motion = _anchor._motion;
     if (motion == null || !motion.isOpen) return;
+    if (!identical(motion.cards[motion.topCard].layout, layout)) return;
     _anchor._command((motion, t) => motion.select(t, target));
   }
 
@@ -622,7 +692,8 @@ class _MenuLayerState extends State<_MenuLayer> {
     if (event is KeyUpEvent) return KeyEventResult.ignored;
     final motion = _anchor._motion;
     if (motion == null || !motion.isOpen) return KeyEventResult.ignored;
-    final layout = motion.layout;
+    final top = motion.topCard;
+    final layout = motion.cards[top].layout;
     final order = [for (var i = 0; i < layout.targets.length; i++) i];
     order.sort((a, b) {
       final ra = layout.targets[a].rect;
@@ -630,7 +701,8 @@ class _MenuLayerState extends State<_MenuLayer> {
       final dy = ra.top.compareTo(rb.top);
       return dy != 0 ? dy : ra.left.compareTo(rb.left);
     });
-    final current = motion.highlightedCard == 0 ? motion.highlighted : null;
+    final current = motion.highlightedCard == top ? motion.highlighted : null;
+    final rtl = _anchor._content.rtl;
     final key = event.logicalKey;
     void move(int step) {
       if (order.isEmpty) return;
@@ -650,8 +722,25 @@ class _MenuLayerState extends State<_MenuLayer> {
         key == LogicalKeyboardKey.space) {
       if (current == null) return KeyEventResult.ignored;
       _anchor._command((motion, t) => motion.select(t, current));
-    } else if (key == LogicalKeyboardKey.escape) {
-      _anchor._close();
+    } else if (key ==
+        (rtl ? LogicalKeyboardKey.arrowLeft : LogicalKeyboardKey.arrowRight)) {
+      if (current == null ||
+          layout.targets[current].kind != MenuTargetKind.submenu) {
+        return KeyEventResult.ignored;
+      }
+      _anchor._command((motion, t) => motion.select(t, current));
+    } else if (key == LogicalKeyboardKey.escape ||
+        key ==
+            (rtl
+                ? LogicalKeyboardKey.arrowRight
+                : LogicalKeyboardKey.arrowLeft)) {
+      var back = false;
+      _anchor._command((motion, t) => back = motion.back(t));
+
+      if (!back) {
+        if (key != LogicalKeyboardKey.escape) return KeyEventResult.ignored;
+        _anchor._close();
+      }
     } else {
       return KeyEventResult.ignored;
     }
@@ -659,29 +748,29 @@ class _MenuLayerState extends State<_MenuLayer> {
   }
 
   Widget _rowsOf(MenuLayout layout, MenuAppearance style) {
-    if (identical(layout, _rowsLayout) && identical(style, _rowsStyle)) {
-      return _rows;
+    if (!identical(style, _rowsStyle)) {
+      _rows.clear();
+      _rowsStyle = style;
     }
-    _rowsLayout = layout;
-    _rowsStyle = style;
-    return _rows = RepaintBoundary(
+    return _rows[layout] ??= RepaintBoundary(
       child: DefaultTextStyle(
         style: resolveGlassText(style.textStyle, context),
         child: MenuRows(
           layout: layout,
           style: style,
-          hidden: _hidden,
+          hidden: _hiddenOf(layout),
           content: _anchor._content,
-          onSelect: _select,
+          onSelect: (target) => _select(layout, target),
         ),
       ),
     );
   }
 
-  Widget? _highlight(MenuLayout layout, MenuAppearance style) {
+  Widget? _highlight(MenuLayout layout, MenuAppearance style, int card) {
     final structure = _built!;
     final index = structure.highlighted;
-    if (index == null || index >= layout.targets.length) return null;
+    if (index == null || structure.highlightedCard != card) return null;
+    if (index >= layout.targets.length) return null;
     final target = layout.targets[index];
     if (target.kind == MenuTargetKind.back) return null;
     if (target.kind == MenuTargetKind.submenu && !structure.sliding) {
@@ -718,36 +807,283 @@ class _MenuLayerState extends State<_MenuLayer> {
     );
   }
 
-  Widget _root(MenuLayout layout, MenuAppearance style) {
-    final width = _motion.tuning.menuWidth;
+  /// The frame card [index] shows at in the content, scale included, with
+  /// the root list [visible] high.
+  static Rect _shown(
+    List<MenuCard> cards,
+    int index,
+    double width,
+    double visible,
+  ) {
+    final card = cards[index];
+    final s = card.scale;
+    final rect = index == 0 ? Rect.fromLTWH(0, 0, width, visible) : card.rect;
+    return Rect.fromLTWH(
+      width / 2 + (rect.left - width / 2) * s,
+      rect.top * s,
+      rect.width * s,
+      rect.height * s,
+    );
+  }
+
+  /// Card [index]'s header now: its columns move from those of the row it
+  /// grew out of, scaled by the parent's scale, to its own.
+  static MenuPlaced _headerAt(
+    List<MenuCard> cards,
+    int index,
+    MenuPlaced header,
+  ) {
+    final card = cards[index];
+    final parent = cards[index - 1];
+    final source = card.source;
+    if (source == null || source >= parent.layout.targets.length) return header;
+    final target = parent.layout.targets[source];
+    if (target.element < 0) return header;
+    final row = parent.layout.elements[target.element];
+    final ratio = parent.scale / card.scale;
+    final center = card.layout.width / 2;
+    final q = card.progress.clamp(0.0, 1.0);
+    double column(double source) {
+      final from = center + (source - center) * ratio;
+      return from + (source - from) * q;
+    }
+
+    final image = row.imageCenter;
+    return MenuPlaced(
+      kind: header.kind,
+      rect: header.rect,
+      entry: header.entry,
+      title: header.title,
+      imageCenter: image == null || header.imageCenter == null
+          ? header.imageCenter
+          : column(image),
+      titleStart: column(row.titleStart),
+      titleEnd: column(row.titleEnd),
+      target: header.target,
+    );
+  }
+
+  Widget _root(
+    MenuLayout layout,
+    MenuAppearance style, {
+    required bool locked,
+  }) {
     final content = SizedBox(
-      width: width,
+      width: _width,
       height: layout.height,
       child: Stack(
         clipBehavior: Clip.none,
-        children: [?_highlight(layout, style), _rowsOf(layout, style)],
+        children: [?_highlight(layout, style, 0), _rowsOf(layout, style)],
       ),
     );
-    if (!_built!.scrolls) {
-      return OverflowBox(
-        alignment: Alignment.topLeft,
-        minHeight: layout.height,
-        maxHeight: layout.height,
-        child: content,
+    final body = _built!.scrolls
+        ? NotificationListener<ScrollNotification>(
+            onNotification: _scrollStarted,
+            child: RawScrollbar(
+              controller: _scroll,
+              thumbColor: style.secondaryColor,
+              thickness: MenuTuning.scrollThickness,
+              radius: const Radius.circular(MenuTuning.scrollThickness / 2),
+              mainAxisMargin: _motion.tuning.cornerRadius / 2,
+              crossAxisMargin: MenuTuning.scrollInset,
+              child: CustomScrollView(
+                controller: _scroll,
+                physics: locked ? const NeverScrollableScrollPhysics() : null,
+                slivers: [SliverToBoxAdapter(child: content)],
+              ),
+            ),
+          )
+        : OverflowBox(
+            alignment: Alignment.topLeft,
+            minHeight: layout.height,
+            maxHeight: layout.height,
+            child: content,
+          );
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(
+        locked ? _motion.tuning.cornerRadius : 0,
+      ),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onPanUpdate: locked ? (_) => _scrollGesture() : null,
+        child: IgnorePointer(ignoring: locked, child: body),
+      ),
+    );
+  }
+
+  Widget _card(int index, MenuLayout layout, MenuAppearance style) {
+    final width = _width;
+    if (index == 0) {
+      final locked = _built!.layouts.length > 1;
+      if (locked && !_parentLocked && _scroll.hasClients) {
+        (_scroll.position as ScrollPositionWithSingleContext).goIdle();
+      }
+      _parentLocked = locked;
+      return LivePlacement(
+        key: const ValueKey<int>(0),
+        live: _frames,
+        rectOf: () {
+          final motion = _motion;
+          final s = motion.cards.isEmpty ? 1.0 : motion.cards[0].scale;
+          return Rect.fromLTWH(
+            width / 2 * (1 - s),
+            0,
+            width,
+            motion.visibleRootHeight,
+          );
+        },
+        child: LiveTransform(
+          live: _frames,
+          alignment: Alignment.topLeft,
+          matrixOf: () {
+            final cards = _motion.cards;
+            final s = cards.isEmpty ? 1.0 : cards[0].scale;
+            return Matrix4.diagonal3Values(s, s, 1);
+          },
+          child: LiveFade(
+            live: _frames,
+            opacityOf: () {
+              final cards = _motion.cards;
+              return cards.isEmpty ? 1 : cards[0].rowOpacity;
+            },
+            child: _root(layout, style, locked: locked),
+          ),
+        ),
       );
     }
-    return NotificationListener<ScrollNotification>(
-      onNotification: _scrollStarted,
-      child: RawScrollbar(
-        controller: _scroll,
-        thumbColor: style.secondaryColor,
-        thickness: MenuTuning.scrollThickness,
-        radius: const Radius.circular(MenuTuning.scrollThickness / 2),
-        mainAxisMargin: _motion.tuning.cornerRadius / 2,
-        crossAxisMargin: MenuTuning.scrollInset,
-        child: CustomScrollView(
-          controller: _scroll,
-          slivers: [SliverToBoxAdapter(child: content)],
+    // A card that has just gone keeps its last frame until the layer
+    // builds without it: the render objects hear the tick first.
+    var last = _motion.cards[index];
+    MenuCard card() {
+      final cards = _motion.cards;
+      if (index < cards.length) last = cards[index];
+      return last;
+    }
+
+    var lastShown = Rect.zero;
+    MenuPlaced? header;
+    for (final element in layout.elements) {
+      if (element.kind == MenuPlacedKind.cardHeader) header = element;
+    }
+    double radius() =>
+        math.min(_motion.tuning.cornerRadius, card().rect.height / 2);
+    return LivePlacement(
+      key: ValueKey<int>(index),
+      live: _frames,
+      rectOf: () {
+        final motion = _motion;
+        if (index < motion.cards.length) {
+          lastShown = _shown(
+            motion.cards,
+            index,
+            width,
+            motion.visibleRootHeight,
+          );
+        }
+        return lastShown.topLeft & card().rect.size;
+      },
+      child: LiveTransform(
+        live: _frames,
+        alignment: Alignment.topLeft,
+        matrixOf: () {
+          final s = card().scale;
+          return Matrix4.diagonal3Values(s, s, 1);
+        },
+        child: Stack(
+          fit: StackFit.expand,
+          clipBehavior: Clip.none,
+          children: [
+            IgnorePointer(
+              child: _CardGlass(
+                frames: _frames,
+                frameOf: () => GlassFrame(
+                  shape: LiquidRoundedRectangle(borderRadius: radius()),
+                  opacity: card().platterOpacity * _motion.cardMaterialOpacity,
+                ),
+              ),
+            ),
+            LiveClipRRect(
+              live: _frames,
+              rrectOf: () => RRect.fromRectAndRadius(
+                Offset.zero & card().rect.size,
+                Radius.circular(radius()),
+              ),
+              child: OverflowBox(
+                alignment: Alignment.topLeft,
+                minWidth: width,
+                maxWidth: width,
+                minHeight: layout.height,
+                maxHeight: layout.height,
+                child: LiveShift(
+                  live: _frames,
+                  offsetOf: () => Offset(-card().rect.left, card().contentTop),
+                  child: SizedBox(
+                    width: width,
+                    height: layout.height,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        ?_highlight(layout, style, index),
+                        LiveFade(
+                          live: _frames,
+                          opacityOf: () {
+                            final now = card();
+                            return now.rowsOpacity *
+                                now.rowOpacity *
+                                now.closeOpacity;
+                          },
+                          child: _rowsOf(layout, style),
+                        ),
+                        if (header != null)
+                          LiveFade(
+                            live: _frames,
+                            opacityOf: () {
+                              final now = card();
+                              return now.rowOpacity * now.closeOpacity;
+                            },
+                            child: DefaultTextStyle(
+                              style: resolveGlassText(style.textStyle, context),
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  MenuCardHeader(
+                                    live: _frames,
+                                    header: header,
+                                    placed: () => index < _motion.cards.length
+                                        ? _headerAt(
+                                            _motion.cards,
+                                            index,
+                                            header!,
+                                          )
+                                        : header!,
+                                    values: () {
+                                      final now = card();
+                                      return (
+                                        bold: now.headerBold.clamp(0.0, 1.0),
+                                        turn: now.chevronTurn.clamp(0.0, 1.0),
+                                        separator: now.platterOpacity.clamp(
+                                          0.0,
+                                          1.0,
+                                        ),
+                                      );
+                                    },
+                                    style: style,
+                                    width: layout.width,
+                                    content: _anchor._content,
+                                    onSelect: (target) =>
+                                        _select(layout, target),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -773,9 +1109,35 @@ class _MenuLayerState extends State<_MenuLayer> {
   Widget build(BuildContext context) {
     final structure = _built;
     final motion = _anchor._motion;
-    if (structure == null || motion == null) return const SizedBox.shrink();
+    if (structure == null || motion == null || structure.layouts.isEmpty) {
+      return const SizedBox.shrink();
+    }
     final style = _anchor._style;
     final shaded = GlassTheme.rendererOf(context) is! FlatGlassRenderer;
+    final layouts = structure.layouts;
+    final top = layouts.length - 1;
+    final under = top == 0 ? layouts.length : top;
+    final content = Stack(
+      clipBehavior: Clip.none,
+      children: [
+        LiveFade(
+          live: _frames,
+          opacityOf: () =>
+              _motion.cardGlassTransferred ? 0 : _motion.contentOpacity,
+          child: _LiveBlur(
+            live: _frames,
+            sigmaOf: () => _motion.contentBlur / _motion.contentScale,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                for (var i = 0; i < under; i++) _card(i, layouts[i], style),
+              ],
+            ),
+          ),
+        ),
+        if (top > 0) _card(top, layouts[top], style),
+      ],
+    );
     final layer = Listener(
       behavior: HitTestBehavior.opaque,
       onPointerDown: _anchor._pointerDown,
@@ -810,30 +1172,17 @@ class _MenuLayerState extends State<_MenuLayer> {
             ),
           LiveClipRRect(
             live: _frames,
-            rrectOf: () => _motion.menuBlob.rrect,
+            rrectOf: () => _motion.cards.length < 2
+                ? _motion.menuBlob.rrect
+                : RRect.fromRectAndRadius(Rect.largest, Radius.zero),
             child: LivePlacement(
               live: _frames,
-              rectOf: () {
-                final motion = _motion;
-                return motion.contentRect.topLeft &
-                    Size(motion.tuning.menuWidth, motion.visibleRootHeight);
-              },
+              rectOf: () => _motion.contentRect.topLeft & _motion.menuRect.size,
               child: LiveTransform(
                 live: _frames,
                 alignment: Alignment.topLeft,
                 matrixOf: _contentTransform,
-                child: LiveFade(
-                  live: _frames,
-                  opacityOf: () => _motion.contentOpacity,
-                  child: _LiveBlur(
-                    live: _frames,
-                    sigmaOf: () => _motion.contentBlur / _motion.contentScale,
-                    child: IgnorePointer(
-                      ignoring: !structure.open,
-                      child: _root(structure.layout, style),
-                    ),
-                  ),
-                ),
+                child: IgnorePointer(ignoring: !structure.open, child: content),
               ),
             ),
           ),
@@ -847,10 +1196,58 @@ class _MenuLayerState extends State<_MenuLayer> {
       label: _anchor.widget.semanticLabel,
       onDismiss: _anchor._close,
       child: BlockSemantics(
-        child: Focus(autofocus: true, onKeyEvent: _key, child: layer),
+        child: Focus(focusNode: _focus, onKeyEvent: _key, child: layer),
       ),
     );
   }
+}
+
+/// A submenu card's glass, its frame read again on every tick of
+/// [frames].
+class _CardGlass extends StatefulWidget {
+  const _CardGlass({required this.frames, required this.frameOf});
+
+  final ValueListenable<int> frames;
+  final GlassFrame Function() frameOf;
+
+  @override
+  State<_CardGlass> createState() => _CardGlassState();
+}
+
+class _CardGlassState extends State<_CardGlass> {
+  late final _frame = ValueNotifier(widget.frameOf());
+
+  void _changed() => _frame.value = widget.frameOf();
+
+  @override
+  void initState() {
+    super.initState();
+    widget.frames.addListener(_changed);
+  }
+
+  @override
+  void didUpdateWidget(_CardGlass oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.frames != widget.frames) {
+      oldWidget.frames.removeListener(_changed);
+      widget.frames.addListener(_changed);
+    }
+    _changed();
+  }
+
+  @override
+  void dispose() {
+    widget.frames.removeListener(_changed);
+    _frame.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => GlassSurface.live(
+    role: GlassRole.menu,
+    frame: _frame,
+    child: const SizedBox.expand(),
+  );
 }
 
 /// The glass of an open menu: one body that is the menu and the source
