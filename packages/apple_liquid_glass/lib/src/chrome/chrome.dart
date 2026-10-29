@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/chrome/toolbar.dart';
 import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
@@ -412,7 +413,8 @@ class GlassPageScaffold extends StatefulWidget {
   /// The bar at the top, below the status bar.
   final PreferredSizeWidget? navigationBar;
 
-  /// The bar at the bottom.
+  /// The bar at the bottom, such as a [GlassToolbar]; a floating one keeps
+  /// its own inset from the screen's bottom edge.
   final PreferredSizeWidget? toolbar;
 
   /// The page's background; [GlassColors.systemBackground] by default.
@@ -485,8 +487,12 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
     final top = navigationBar == null
         ? media.padding.top
         : media.padding.top + navigationBar.preferredSize.height;
+    // A floating bar keeps its own inset from the screen's bottom edge.
+    final floating = _kind(toolbar, ChromeBar.custom) == ChromeBar.floating;
     final bottom = toolbar == null
         ? media.padding.bottom
+        : floating
+        ? math.max(media.padding.bottom, toolbar.preferredSize.height)
         : media.padding.bottom + toolbar.preferredSize.height;
     final background = GlassDynamicColor.resolve(
       widget.backgroundColor ?? GlassColors.systemBackground,
@@ -528,7 +534,7 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
               Positioned(
                 left: 0,
                 right: 0,
-                bottom: media.padding.bottom,
+                bottom: floating ? 0 : media.padding.bottom,
                 child: toolbar,
               ),
             Positioned(
