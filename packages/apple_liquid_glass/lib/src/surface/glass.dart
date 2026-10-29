@@ -45,7 +45,8 @@ enum GlassRole {
   /// The thumb of a switch or slider.
   knob,
 
-  /// A control's track: under a lens, a knob or a slider's fill.
+  /// A control's track and a slider's fill: the plain bar under a lens or a
+  /// knob.
   track,
 
   /// A menu's card.
