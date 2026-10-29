@@ -3,6 +3,12 @@ library apple_liquid_glass;
 
 export 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
+export 'src/chrome/chrome.dart'
+    show
+        GlassContentScroll,
+        GlassPageScaffold,
+        GlassScrollEdgeEffect,
+        GlassScrollEdgeEffects;
 export 'src/controls/button.dart';
 export 'src/controls/list.dart';
 export 'src/controls/page_control.dart';

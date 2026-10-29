@@ -2,6 +2,7 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:apple_liquid_glass/src/renderer/flat.dart';
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
+import 'package:apple_liquid_glass/src/renderer/scroll_edge.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
@@ -46,6 +47,15 @@ final class LiquidGlassRenderer extends GlassRenderer {
     if (_LiquidGroupScope.maybeOf(context) != null) return surface;
     return _LiquidGroup(fake: fake, glass: details.glass, child: surface);
   }
+
+  @override
+  Widget buildScrollEdge(
+    BuildContext context,
+    GlassScrollEdgeDetails details,
+  ) => ScrollEdge(
+    details: details,
+    blurs: !GlassTraits.of(context).reduceTransparency,
+  );
 
   @override
   Widget buildGroup(BuildContext context, GlassGroupDetails details) {

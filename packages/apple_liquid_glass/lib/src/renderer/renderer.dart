@@ -1,6 +1,7 @@
 import 'package:apple_liquid_glass/src/renderer/adaptive.dart';
 import 'package:apple_liquid_glass/src/renderer/flat.dart';
 import 'package:apple_liquid_glass/src/renderer/liquid.dart';
+import 'package:apple_liquid_glass/src/renderer/scroll_edge.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/group.dart';
@@ -48,6 +49,14 @@ abstract class GlassRenderer {
   /// surfaces are drawn on their own.
   Widget buildGroup(BuildContext context, GlassGroupDetails details) =>
       details.child;
+
+  /// Builds the scroll edge effect [details] describes, laid out over the
+  /// whole scroll view; by default the content under it dissolves toward
+  /// the background without a blur.
+  Widget buildScrollEdge(
+    BuildContext context,
+    GlassScrollEdgeDetails details,
+  ) => ScrollEdge(details: details, blurs: false);
 }
 
 /// What a renderer needs to build one surface.
@@ -86,4 +95,56 @@ final class GlassGroupDetails {
 
   /// The subtree holding the members.
   final Widget child;
+}
+
+/// What a renderer needs to draw one scroll edge effect: the band where a
+/// scroll view's content passes under a bar.
+///
+/// UIKit: `UIScrollEdgeEffect`. SwiftUI: `scrollEdgeEffectStyle`.
+@immutable
+final class GlassScrollEdgeDetails {
+  /// Describes an edge effect.
+  const GlassScrollEdgeDetails({
+    required this.edge,
+    required this.hard,
+    required this.extent,
+    required this.presence,
+    required this.background,
+  }) : assert(
+         edge == AxisDirection.up || edge == AxisDirection.down,
+         'Only the top and bottom edges have an effect.',
+       );
+
+  /// The edge: [AxisDirection.up] under a navigation bar,
+  /// [AxisDirection.down] over a toolbar.
+  final AxisDirection edge;
+
+  /// Whether the effect is UIKit's hard one, the thin film of a navigation
+  /// bar: a blur with raised saturation and brightness over the bar's own
+  /// band, a uniform fade toward [background] and a hairline at the bar's
+  /// edge. Otherwise it is the soft one: a light blur over a band that
+  /// reaches 40 points past the bar, with a fade that dissolves along it.
+  final bool hard;
+
+  /// The distance from the scroll view's edge to the bar's far edge.
+  final double extent;
+
+  /// How present the effect is, 0 to 1; a renderer follows it below build.
+  final ValueListenable<double> presence;
+
+  /// What lies behind the content, resolved: the color the content fades
+  /// toward under the bar.
+  final Color background;
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlassScrollEdgeDetails &&
+      other.edge == edge &&
+      other.hard == hard &&
+      other.extent == extent &&
+      other.presence == presence &&
+      other.background == background;
+
+  @override
+  int get hashCode => Object.hash(edge, hard, extent, presence, background);
 }

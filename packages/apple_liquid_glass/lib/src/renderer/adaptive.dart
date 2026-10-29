@@ -45,6 +45,14 @@ final class AdaptiveGlassRenderer extends GlassRenderer {
       );
 
   @override
+  Widget buildScrollEdge(
+    BuildContext context,
+    GlassScrollEdgeDetails details,
+  ) => _Resolve(
+    builder: (context) => _resolved.buildScrollEdge(context, details),
+  );
+
+  @override
   bool operator ==(Object other) =>
       other is AdaptiveGlassRenderer &&
       other.capable == capable &&
