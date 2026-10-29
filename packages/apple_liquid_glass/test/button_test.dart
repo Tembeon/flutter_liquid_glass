@@ -179,8 +179,6 @@ void main() {
     await gesture.up();
     await tester.pump(_frame);
     expect(presses, 1);
-    // Moved under the new renderer, the label's state rebuilds once and is
-    // never made again.
     expect(labels.toSet(), {0});
     await tester.pumpAndSettle();
   });
@@ -321,6 +319,11 @@ void main() {
     Glass glassOf(WidgetTester tester) =>
         tester.widget<GlassSurface>(find.byType(GlassSurface)).glass;
 
+    Color? tintOf(WidgetTester tester) => GlassDynamicColor.maybeResolve(
+      glassOf(tester).tint,
+      tester.element(find.byType(GlassSurface)),
+    );
+
     testWidgets('regular, prominent and disabled looks', (tester) async {
       await tester.pumpWidget(
         _app(
@@ -328,7 +331,7 @@ void main() {
           GlassButton(onPressed: () {}, child: const Text('Go')),
         ),
       );
-      expect(labelColor(tester), const Color(0xFF000000));
+      expect(labelColor(tester), isSameColorAs(const Color(0xFF000000)));
       expect(glassOf(tester), const Glass.regular());
       expect(tester.getSize(find.byType(GlassButton)).height, 44);
 
@@ -338,8 +341,8 @@ void main() {
           GlassButton.prominent(onPressed: () {}, child: const Text('Go')),
         ),
       );
-      expect(labelColor(tester), const Color(0xFFFFFFFF));
-      expect(glassOf(tester), const Glass.regular(tint: Color(0xFF0088FF)));
+      expect(labelColor(tester), isSameColorAs(const Color(0xFFFFFFFF)));
+      expect(tintOf(tester), isSameColorAs(const Color(0xFF0088FF)));
 
       await tester.pumpWidget(
         _app(
@@ -347,8 +350,8 @@ void main() {
           const GlassButton.prominent(onPressed: null, child: Text('Go')),
         ),
       );
-      expect(labelColor(tester), const Color(0x4C3C3C43));
-      expect(glassOf(tester), const Glass.regular(tint: Color(0xFFD1D1D6)));
+      expect(labelColor(tester), isSameColorAs(const Color(0x4C3C3C43)));
+      expect(tintOf(tester), isSameColorAs(const Color(0xFFD1D1D6)));
     });
 
     testWidgets('a style overrides per state and can build the whole body', (
@@ -358,21 +361,24 @@ void main() {
         foregroundColor: WidgetStateProperty.fromMap({
           WidgetState.pressed: Color(0xFFFF0000),
         }),
-        glass: WidgetStatePropertyAll(Glass.clear()),
       );
       await tester.pumpWidget(
         _app(
           const GlassRenderer.flat(),
-          GlassButton(onPressed: () {}, style: style, child: const Text('Go')),
+          GlassButton.clear(
+            onPressed: () {},
+            style: style,
+            child: const Text('Go'),
+          ),
         ),
       );
-      expect(labelColor(tester), const Color(0xFF000000));
+      expect(labelColor(tester), isSameColorAs(const Color(0xFF000000)));
       expect(glassOf(tester), const Glass.clear());
       final gesture = await tester.startGesture(
         tester.getCenter(find.byType(GlassButton)),
       );
       await tester.pump(_frame);
-      expect(labelColor(tester), const Color(0xFFFF0000));
+      expect(labelColor(tester), isSameColorAs(const Color(0xFFFF0000)));
       await gesture.up();
       await tester.pumpAndSettle();
 

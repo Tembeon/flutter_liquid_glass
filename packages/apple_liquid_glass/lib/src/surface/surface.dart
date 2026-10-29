@@ -1,6 +1,7 @@
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
+import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -56,13 +57,23 @@ class GlassSurface extends StatefulWidget {
 class _GlassSurfaceState extends State<GlassSurface> {
   final _child = GlobalKey(debugLabel: 'GlassSurface.child');
 
+  Glass _resolved(BuildContext context) {
+    final glass = widget.glass;
+    final tint = glass.tint;
+    if (tint is! GlassDynamicColor) return glass;
+    final resolved = tint.resolveFrom(context);
+    return glass.isClear
+        ? Glass.clear(tint: resolved)
+        : Glass.regular(tint: resolved);
+  }
+
   @override
   Widget build(BuildContext context) =>
       GlassTheme.rendererOf(context).buildSurface(
         context,
         GlassSurfaceDetails(
           role: widget.role,
-          glass: widget.glass,
+          glass: _resolved(context),
           frame: widget.frame ?? _StillFrame(GlassFrame(shape: widget._shape!)),
           child: KeyedSubtree(key: _child, child: widget.child),
         ),

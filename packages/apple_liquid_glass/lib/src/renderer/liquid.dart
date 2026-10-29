@@ -1,6 +1,8 @@
+import 'package:apple_liquid_glass/src/renderer/flat.dart';
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
+import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
@@ -12,7 +14,9 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 /// A surface outside a group draws as a group of one. A frame reaches the
 /// renderer's live shape and live layer without a rebuild. Layers use the
 /// fitted iOS 27 settings: clear for a lone clear surface, regular in the
-/// ambient brightness otherwise.
+/// ambient brightness ([GlassTraits.brightness]) otherwise. Under Reduce
+/// Transparency the surfaces draw flat, an unmeasured stand-in for iOS's
+/// frosted glass.
 @internal
 final class LiquidGlassRenderer extends GlassRenderer {
   /// Creates the liquid renderer.
@@ -26,18 +30,23 @@ final class LiquidGlassRenderer extends GlassRenderer {
 
   @override
   Widget buildSurface(BuildContext context, GlassSurfaceDetails details) {
+    if (GlassTraits.of(context).reduceTransparency) {
+      return const FlatGlassRenderer().buildSurface(context, details);
+    }
     final surface = _LiquidSurface(details: details, glows: !fake);
     if (_LiquidGroupScope.maybeOf(context) != null) return surface;
     return _LiquidGroup(fake: fake, glass: details.glass, child: surface);
   }
 
   @override
-  Widget buildGroup(BuildContext context, GlassGroupDetails details) =>
-      _LiquidGroup(
-        fake: fake,
-        blend: details.merge.spacing,
-        child: details.child,
-      );
+  Widget buildGroup(BuildContext context, GlassGroupDetails details) {
+    if (GlassTraits.of(context).reduceTransparency) return details.child;
+    return _LiquidGroup(
+      fake: fake,
+      blend: details.merge.spacing,
+      child: details.child,
+    );
+  }
 
   @override
   bool operator ==(Object other) =>
@@ -219,8 +228,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
       _leave(_group);
       _group = group;
     }
-    _brightness =
-        MediaQuery.maybePlatformBrightnessOf(context) ?? Brightness.light;
+    _brightness = GlassTraits.of(context).brightness;
     _appearance = LiquidGlassRenderer.appearanceOf(
       widget.details.glass,
       _brightness,
@@ -297,9 +305,7 @@ class _LiquidGroupState extends State<_LiquidGroup> {
     final settings = (widget.glass?.isClear ?? false)
         ? LiquidGlassSettings.ios27Clear()
         : LiquidGlassSettings.ios27Regular(
-            brightness:
-                MediaQuery.maybePlatformBrightnessOf(context) ??
-                Brightness.light,
+            brightness: GlassTraits.of(context).brightness,
           );
     final frame = _layer.value;
     if (settings != frame.settings) {
