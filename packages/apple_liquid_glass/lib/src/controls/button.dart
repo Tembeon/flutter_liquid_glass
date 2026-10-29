@@ -5,6 +5,7 @@ import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
+import 'package:apple_liquid_glass/src/theme/style.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:apple_liquid_glass/src/theme/typography.dart';
@@ -113,9 +114,7 @@ class _RawGlassButtonState extends State<RawGlassButton> {
   @override
   void initState() {
     super.initState();
-    // Written before the region does, so the region's write changes nothing
-    // and never asks this ancestor to rebuild while it builds.
-    _states.update(WidgetState.disabled, widget.onPressed == null);
+    _writeStates();
     _states.addListener(_statesChanged);
     MotionClock.instance.addDriver(_body);
   }
@@ -128,7 +127,7 @@ class _RawGlassButtonState extends State<RawGlassButton> {
       states?.removeListener(_statesChanged);
       _states.addListener(_statesChanged);
     }
-    _states.update(WidgetState.disabled, widget.onPressed == null);
+    _writeStates();
     _body.shape = widget.shape;
   }
 
@@ -139,6 +138,15 @@ class _RawGlassButtonState extends State<RawGlassButton> {
     MotionClock.instance.removeDriver(_body);
     _body.dispose();
     super.dispose();
+  }
+
+  // The region writes disabled too, and ends a press when disabled;
+  // writing both first makes its writes no-ops, so it never asks this
+  // ancestor to rebuild while it builds.
+  void _writeStates() {
+    final disabled = widget.onPressed == null;
+    _states.update(WidgetState.disabled, disabled);
+    if (disabled) _states.update(WidgetState.pressed, false);
   }
 
   void _statesChanged() => setState(() {});
@@ -322,13 +330,13 @@ class GlassButtonStyle {
   GlassButtonStyle merge(GlassButtonStyle? other) {
     if (other == null) return this;
     return GlassButtonStyle(
-      backgroundColor: _fallThrough(backgroundColor, other.backgroundColor),
-      foregroundColor: _fallThrough(foregroundColor, other.foregroundColor),
-      iconColor: _fallThrough(iconColor, other.iconColor),
-      textStyle: _fallThrough(textStyle, other.textStyle),
-      padding: _fallThrough(padding, other.padding),
-      minimumSize: _fallThrough(minimumSize, other.minimumSize),
-      iconSize: _fallThrough(iconSize, other.iconSize),
+      backgroundColor: fallThrough(backgroundColor, other.backgroundColor),
+      foregroundColor: fallThrough(foregroundColor, other.foregroundColor),
+      iconColor: fallThrough(iconColor, other.iconColor),
+      textStyle: fallThrough(textStyle, other.textStyle),
+      padding: fallThrough(padding, other.padding),
+      minimumSize: fallThrough(minimumSize, other.minimumSize),
+      iconSize: fallThrough(iconSize, other.iconSize),
       builder: builder ?? other.builder,
     );
   }
@@ -368,43 +376,43 @@ class GlassButtonStyle {
         a.backgroundColor,
         b.backgroundColor,
         t,
-        _snapNull(GlassDynamicColor.lerp),
+        snapNull(GlassDynamicColor.lerp),
       ),
       foregroundColor: WidgetStateProperty.lerp<Color?>(
         a.foregroundColor,
         b.foregroundColor,
         t,
-        _snapNull(GlassDynamicColor.lerp),
+        snapNull(GlassDynamicColor.lerp),
       ),
       iconColor: WidgetStateProperty.lerp<Color?>(
         a.iconColor,
         b.iconColor,
         t,
-        _snapNull(GlassDynamicColor.lerp),
+        snapNull(GlassDynamicColor.lerp),
       ),
       textStyle: WidgetStateProperty.lerp<TextStyle?>(
         a.textStyle,
         b.textStyle,
         t,
-        _snapNull(TextStyle.lerp),
+        snapNull(TextStyle.lerp),
       ),
       padding: WidgetStateProperty.lerp<EdgeInsetsGeometry?>(
         a.padding,
         b.padding,
         t,
-        _snapNull(EdgeInsetsGeometry.lerp),
+        snapNull(EdgeInsetsGeometry.lerp),
       ),
       minimumSize: WidgetStateProperty.lerp<Size?>(
         a.minimumSize,
         b.minimumSize,
         t,
-        _snapNull(Size.lerp),
+        snapNull(Size.lerp),
       ),
       iconSize: WidgetStateProperty.lerp<double?>(
         a.iconSize,
         b.iconSize,
         t,
-        _snapNull(lerpDouble),
+        snapNull(lerpDouble),
       ),
       builder: t < 0.5 ? a.builder : b.builder,
     );
@@ -434,67 +442,6 @@ class GlassButtonStyle {
     builder,
   );
 }
-
-// A null value falls through to what lies under it, so it does not fade.
-T? Function(T?, T?, double) _snapNull<T>(T? Function(T?, T?, double) lerp) =>
-    (a, b, t) => a == null || b == null ? (t < 0.5 ? a : b) : lerp(a, b, t);
-
-WidgetStateProperty<T?>? _fallThrough<T>(
-  WidgetStateProperty<T?>? first,
-  WidgetStateProperty<T?>? second,
-) {
-  if (first == null) return second;
-  if (second == null) return first;
-  return _FallThrough(first, second);
-}
-
-@immutable
-final class _FallThrough<T> implements WidgetStateProperty<T?> {
-  const _FallThrough(this.first, this.second);
-
-  final WidgetStateProperty<T?> first;
-  final WidgetStateProperty<T?> second;
-
-  @override
-  T? resolve(Set<WidgetState> states) =>
-      first.resolve(states) ?? second.resolve(states);
-
-  @override
-  bool operator ==(Object other) =>
-      other is _FallThrough<T> &&
-      other.first == first &&
-      other.second == second;
-
-  @override
-  int get hashCode => Object.hash(first, second);
-}
-
-@immutable
-final class _ByState<T> implements WidgetStateProperty<T?> {
-  const _ByState(this.enabled, this.disabled);
-
-  final T? enabled;
-  final T? disabled;
-
-  @override
-  T? resolve(Set<WidgetState> states) =>
-      states.contains(WidgetState.disabled) ? disabled : enabled;
-
-  @override
-  bool operator ==(Object other) =>
-      other is _ByState<T> &&
-      other.enabled == enabled &&
-      other.disabled == disabled;
-
-  @override
-  int get hashCode => Object.hash(enabled, disabled);
-}
-
-WidgetStateProperty<T?>? _byState<T>(T? enabled, T? disabled) =>
-    enabled == null && disabled == null ? null : _ByState(enabled, disabled);
-
-WidgetStateProperty<T?>? _all<T>(T? value) =>
-    value == null ? null : WidgetStatePropertyAll(value);
 
 enum _Variant { regular, prominent, clear, prominentClear }
 
@@ -610,13 +557,13 @@ class GlassButton extends StatelessWidget {
     Size? minimumSize,
     double? iconSize,
   }) => GlassButtonStyle(
-    backgroundColor: _byState(backgroundColor, disabledBackgroundColor),
-    foregroundColor: _byState(foregroundColor, disabledForegroundColor),
-    iconColor: _byState(iconColor, disabledIconColor),
-    textStyle: _all(textStyle),
-    padding: _all(padding),
-    minimumSize: _all(minimumSize),
-    iconSize: _all(iconSize),
+    backgroundColor: byState(backgroundColor, disabledBackgroundColor),
+    foregroundColor: byState(foregroundColor, disabledForegroundColor),
+    iconColor: byState(iconColor, disabledIconColor),
+    textStyle: allStates(textStyle),
+    padding: allStates(padding),
+    minimumSize: allStates(minimumSize),
+    iconSize: allStates(iconSize),
   );
 
   // UIKit's title style, 17 regular (typography passport). The glyph size,
@@ -639,12 +586,12 @@ class GlassButton extends StatelessWidget {
     final label = _prominent ? _white : scheme?.label ?? GlassColors.label;
     return GlassButtonStyle(
       backgroundColor: _prominent
-          ? _ByState<Color>(
+          ? ByState<Color>(
               theme.primaryColor ?? GlassColors.systemBlue,
               GlassColors.systemGray4,
             )
           : null,
-      foregroundColor: _ByState<Color>(label, disabledLabel),
+      foregroundColor: ByState<Color>(label, disabledLabel),
       textStyle: const WidgetStatePropertyAll(_labelStyle),
       padding: const WidgetStatePropertyAll(_padding),
       minimumSize: const WidgetStatePropertyAll(_minimumSize),

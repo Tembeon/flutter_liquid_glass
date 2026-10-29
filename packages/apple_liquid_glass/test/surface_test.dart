@@ -152,6 +152,34 @@ void main() {
       expect(find.byType(LiquidGlass), findsOneWidget);
     });
 
+    testWidgets('a resting lens or knob and a track draw flat', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(
+          const GlassRenderer.liquid(),
+          const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GlassSurface(
+                role: GlassRole.lens,
+                child: SizedBox(width: 60, height: 30),
+              ),
+              GlassSurface(
+                role: GlassRole.track,
+                child: SizedBox(width: 60, height: 30),
+              ),
+            ],
+          ),
+        ),
+      );
+      expect(find.byType(LiquidGlass), findsNothing);
+      expect(
+        tester.allRenderObjects.whereType<RenderFlatGlass>().toSet(),
+        hasLength(2),
+      );
+    });
+
     testWidgets('a group draws its members on one layer and blends them '
         'when they merge', (tester) async {
       Widget row(GlassMerge merge) => _app(

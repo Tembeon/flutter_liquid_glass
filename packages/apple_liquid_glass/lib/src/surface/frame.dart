@@ -2,13 +2,14 @@ import 'package:apple_liquid_glass/src/motion/touch_glow.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
-/// One frame of one glass surface: where its body is drawn and how a touch
-/// lights it.
+/// One frame of one glass surface: where its body is drawn, how far it is
+/// lifted, the tint it turns to and how a touch lights it.
 ///
-/// A frame is what a control's motion produces; how the body looks (its
-/// optics, frost, fill and shadows) is the renderer's. Renderers apply
-/// [rect], [scaleX] and [scaleY] at paint, so a frame never lays anything
-/// out, and the surface's content moves and scales with the body.
+/// A frame is what a control's motion produces; how the body looks at that
+/// lift and tint (its optics, frost, fill and shadows) is the renderer's.
+/// Renderers apply [rect], [scaleX] and [scaleY] at paint, so a frame never
+/// lays anything out, and the surface's content moves and scales with the
+/// body.
 @immutable
 final class GlassFrame {
   /// Creates a frame of a body of [shape].
@@ -17,6 +18,8 @@ final class GlassFrame {
     this.rect,
     this.scaleX = 1,
     this.scaleY = 1,
+    this.tint,
+    this.lift = 0,
     this.glow,
   });
 
@@ -41,6 +44,16 @@ final class GlassFrame {
   /// The vertical scale of the body and its content about the center of
   /// [rect].
   final double scaleY;
+
+  /// A color, already resolved for the context, that the body draws in
+  /// place of its glass's tint in this frame, or null to keep it: a
+  /// switch's track turning on.
+  final Color? tint;
+
+  /// How far a lens or knob is lifted, 0 resting and 1 lifted: a resting
+  /// one is an opaque platter, a lifted one clear glass. Other roles ignore
+  /// it.
+  final double lift;
 
   /// The glow a finger raises on the body, in the surface's coordinates,
   /// or null for none.
@@ -82,8 +95,11 @@ final class GlassFrame {
       other.rect == rect &&
       other.scaleX == scaleX &&
       other.scaleY == scaleY &&
+      other.tint == tint &&
+      other.lift == lift &&
       other.glow == glow;
 
   @override
-  int get hashCode => Object.hash(shape, rect, scaleX, scaleY, glow);
+  int get hashCode =>
+      Object.hash(shape, rect, scaleX, scaleY, tint, lift, glow);
 }
