@@ -2444,8 +2444,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           final centerInGeometry = MatrixUtils.transformPoint(
             shapeToGeometry,
             Offset(
-              shape.renderObject.size.width / 2,
-              shape.renderObject.size.height / 2,
+              shape.renderObject.paintSize.width / 2,
+              shape.renderObject.paintSize.height / 2,
             ),
           );
           final centerInLayer = MatrixUtils.transformPoint(
@@ -2459,7 +2459,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           // AABB here would apply scale a second time (and turn rotations into
           // oversized primitives), which is especially visible for stretched
           // shapes in a blend group.
-          final size = shape.renderObject.size;
+          final size = shape.renderObject.paintSize;
           final pair = shape.rawShapeType == RawShapeType.squirclePair;
           final rseParameters = pair
               ? roundedSuperellipsePairParameters(

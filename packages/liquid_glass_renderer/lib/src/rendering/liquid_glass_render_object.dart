@@ -74,7 +74,7 @@ Rect expandForGlassShadows(
               ),
           0,
         ).toDouble();
-        final localBounds = (Offset.zero & shape.renderObject.size)
+        final localBounds = (Offset.zero & shape.renderObject.paintSize)
             .shift(shadow.offset)
             .inflate(extent);
         result = result.expandToInclude(
@@ -928,7 +928,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
             if (shape.shapeToGeometry case final transform?) {
               canvas.transform(transform.storage);
             }
-            final rect = Offset.zero & shape.renderObject.size;
+            final rect = Offset.zero & shape.renderObject.paintSize;
             for (final shadow in shape.shadows) {
               final paint = shadow
                   .copyWith(
@@ -981,7 +981,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
         drawGlassShape(
           canvas,
           shape.shape,
-          (Offset.zero & shape.renderObject.size).deflate(.5),
+          (Offset.zero & shape.renderObject.paintSize).deflate(.5),
           Paint()
             ..color = Color.fromRGBO(0, 0, 0, visibility)
             ..blendMode = BlendMode.dstOut,
@@ -1005,7 +1005,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
         var bounds = expandForGlassShadows(
           MatrixUtils.transformRect(
             _shapeToLayer(shape, geometryToLayer),
-            Offset.zero & shape.renderObject.size,
+            Offset.zero & shape.renderObject.paintSize,
           ),
           [
             (<ShapeGeometry>[shape], geometryToLayer),
@@ -1042,7 +1042,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
         if (shape.appearance.visibility <= 0) continue;
         // A copy: the silhouette keeps it to compare with the next frame's.
         final transform = Matrix4.copy(_shapeToLayer(shape, geometryToLayer));
-        final size = shape.renderObject.size;
+        final size = shape.renderObject.paintSize;
         final old = next.length < previous.length
             ? previous[next.length]
             : null;

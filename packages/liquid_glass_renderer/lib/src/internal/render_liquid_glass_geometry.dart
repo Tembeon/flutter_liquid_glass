@@ -79,6 +79,10 @@ mixin LiquidGlassShapeRenderObject on RenderBox {
 
   /// Resolved color and materialization controls for this shape.
   LiquidGlassAppearance get appearance;
+
+  /// The size the shape is drawn at, which a live frame sets apart from the
+  /// layout size.
+  Size get paintSize;
 }
 
 /// A base class for any render object that represents liquid glass geometry.

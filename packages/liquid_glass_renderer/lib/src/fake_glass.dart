@@ -2,18 +2,19 @@
 
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/internal/backdrop_capture_debug.dart';
 import 'package:liquid_glass_renderer/src/internal/fake_glass_color.dart';
+import 'package:liquid_glass_renderer/src/internal/live_paint_size.dart';
 import 'package:liquid_glass_renderer/src/internal/multi_shader_builder.dart';
 import 'package:liquid_glass_renderer/src/internal/optimized_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/paint_fake_glass_surface.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_render_scope.dart';
 import 'package:liquid_glass_renderer/src/shaders.dart';
-import 'package:meta/meta.dart';
 
 /// A lower-cost approximation of [LiquidGlass] without refraction geometry.
 ///
@@ -34,7 +35,8 @@ class FakeGlass extends StatelessWidget {
     this.useBackdropGroup = false,
     super.key,
   }) : backdropHandledByLayer = false,
-       inheritVisibility = true;
+       inheritVisibility = true,
+       live = null;
 
   /// Creates a new [FakeGlass] widget that takes settings from the nearest
   /// ancestor [LiquidGlassLayer].
@@ -48,7 +50,8 @@ class FakeGlass extends StatelessWidget {
        backdropKey = null,
        useBackdropGroup = false,
        backdropHandledByLayer = false,
-       inheritVisibility = true;
+       inheritVisibility = true,
+       live = null;
 
   /// Creates an in-layer fallback whose appearance is already resolved.
   @internal
@@ -58,6 +61,7 @@ class FakeGlass extends StatelessWidget {
     required this.appearance,
     this.shadows = const [],
     this.backdropHandledByLayer = false,
+    this.live,
     super.key,
   }) : settings = null,
        backdropKey = null,
@@ -113,6 +117,10 @@ class FakeGlass extends StatelessWidget {
   @internal
   final bool inheritVisibility;
 
+  /// The live frame whose rect sizes the glass at paint.
+  @internal
+  final ValueListenable<LiquidGlassShapeFrame>? live;
+
   /// The child widget that will be displayed inside the glass.
   final Widget child;
 
@@ -162,6 +170,7 @@ class FakeGlass extends StatelessWidget {
       paintSurface: paintsOwnSurface,
       allowSurfaceOutset: allowsSurfaceOutset,
       paintExteriorBorder: paintsExteriorBorder,
+      live: live,
       child: glow,
     );
     final fake = paintsOwnSurface
@@ -176,6 +185,7 @@ class FakeGlass extends StatelessWidget {
       outset: allowsSurfaceOutset || paintsExteriorBorder
           ? fakeGlassSurfaceOutset(settings)
           : 0,
+      live: live,
       child: fake,
     );
     if (shadows.isEmpty) return clipped;
@@ -184,6 +194,7 @@ class FakeGlass extends StatelessWidget {
       shadows: shadows,
       appearanceVisibility: appearance.visibility,
       devicePixelRatio: MediaQuery.maybeDevicePixelRatioOf(context) ?? 1,
+      live: live,
       child: clipped,
     );
   }
@@ -206,6 +217,7 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
     this.paintExteriorBorder = false,
     this.settings = const LiquidGlassSettings(),
     this.appearance = const LiquidGlassAppearance(),
+    this.live,
     super.key,
   });
 
@@ -229,6 +241,9 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
   /// show the exterior border of standalone glass.
   final bool paintExteriorBorder;
 
+  /// The live frame whose rect sizes the glass at paint.
+  final ValueListenable<LiquidGlassShapeFrame>? live;
+
   @override
   RenderObject createRenderObject(BuildContext context) {
     return RenderFakeGlass(
@@ -242,7 +257,7 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
       paintSurface: paintSurface,
       allowSurfaceOutset: allowSurfaceOutset,
       paintExteriorBorder: paintExteriorBorder,
-    );
+    )..live = live;
   }
 
   @override
@@ -261,14 +276,15 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
         ..surfaceShader = surfaceShader
         ..paintSurface = paintSurface
         ..allowSurfaceOutset = allowSurfaceOutset
-        ..paintExteriorBorder = paintExteriorBorder;
+        ..paintExteriorBorder = paintExteriorBorder
+        ..live = live;
     }
   }
 }
 
 @visibleForTesting
 @internal
-class RenderFakeGlass extends RenderProxyBox {
+class RenderFakeGlass extends RenderProxyBox with LivePaintSize {
   RenderFakeGlass({
     required this._devicePixelRatio,
     required this._shape,
@@ -401,7 +417,7 @@ class RenderFakeGlass extends RenderProxyBox {
       _paintRecordedSurface(context.canvas, offset);
       if (_paintsBorderRing) {
         _paintBorderRing(context.canvas, offset);
-        final localBounds = Offset.zero & size;
+        final localBounds = Offset.zero & paintSize;
         context.pushClipPath(
           needsCompositing,
           offset,
@@ -419,7 +435,7 @@ class RenderFakeGlass extends RenderProxyBox {
       settings,
       appearance,
       deviceScale: devicePixelRatio,
-      shapeShortSide: size.shortestSide,
+      shapeShortSide: paintSize.shortestSide,
     )!;
     assert(() {
       debugRegisterBackdropCapture(this, backdropKey);
@@ -432,7 +448,7 @@ class RenderFakeGlass extends RenderProxyBox {
       ..backdropKey = backdropKey;
 
     if (allowSurfaceOutset) {
-      final localBounds = Offset.zero & size;
+      final localBounds = Offset.zero & paintSize;
       final clipPath = shape.getOuterPath(localBounds);
       context.pushClipPath(
         true,
@@ -469,7 +485,7 @@ class RenderFakeGlass extends RenderProxyBox {
     }
 
     if (_paintsBorderRing) {
-      final localBounds = Offset.zero & size;
+      final localBounds = Offset.zero & paintSize;
       context.pushClipPath(
         true,
         offset,
@@ -492,7 +508,7 @@ class RenderFakeGlass extends RenderProxyBox {
   /// Draws the analytic surface only outside the silhouette, where the
   /// exterior border lives, without widening the backdrop clip.
   void _paintBorderRing(Canvas canvas, Offset offset) {
-    final localBounds = Offset.zero & size;
+    final localBounds = Offset.zero & paintSize;
     final ring = Path.from(shape.getOuterPath(localBounds))
       ..addRect(localBounds.inflate(fakeGlassSurfaceOutset(settings)))
       ..fillType = PathFillType.evenOdd;
@@ -503,7 +519,7 @@ class RenderFakeGlass extends RenderProxyBox {
     paintFakeGlassSurface(
       canvas,
       shader: _surfaceShader!,
-      size: size,
+      size: paintSize,
       shape: shape,
       settings: settings,
       appearance: appearance,
@@ -536,7 +552,7 @@ class RenderFakeGlass extends RenderProxyBox {
     canvas
       ..save()
       ..translate(offset.dx, offset.dy)
-      ..clipPath(shape.getOuterPath(Offset.zero & size))
+      ..clipPath(shape.getOuterPath(Offset.zero & paintSize))
       ..drawPaint(Paint()..color = tint)
       ..restore();
   }
@@ -550,12 +566,12 @@ class RenderFakeGlass extends RenderProxyBox {
       ..save()
       ..translate(offset.dx, offset.dy);
     if (!allowSurfaceOutset) {
-      canvas.clipPath(shape.getOuterPath(Offset.zero & size));
+      canvas.clipPath(shape.getOuterPath(Offset.zero & paintSize));
     }
     paintFakeGlassSurface(
       canvas,
       shader: shader,
-      size: size,
+      size: paintSize,
       shape: shape,
       settings: settings,
       appearance: appearance,
@@ -565,7 +581,7 @@ class RenderFakeGlass extends RenderProxyBox {
       paintFakeGlassSurface(
         canvas,
         shader: shader,
-        size: size,
+        size: paintSize,
         shape: shape,
         settings: settings,
         appearance: appearance,

@@ -1,10 +1,12 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/src/internal/live_paint_size.dart';
 import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/liquid_shape.dart';
-import 'package:meta/meta.dart';
 
 /// Conservative pixel support of Flutter's Gaussian shadow mask.
 ///
@@ -30,6 +32,7 @@ class GlassShadow extends SingleChildRenderObjectWidget {
     required this.shadows,
     this.appearanceVisibility = 1,
     this.devicePixelRatio = 1,
+    this.live,
     super.child,
     super.key,
   });
@@ -42,6 +45,9 @@ class GlassShadow extends SingleChildRenderObjectWidget {
 
   /// Pixel ratio the shadow layer's bounds are kept on stable buckets for.
   final double devicePixelRatio;
+
+  /// The live frame whose rect sizes the shape at paint.
+  final ValueListenable<LiquidGlassShapeFrame>? live;
 
   /// The list of shadows to paint.
   ///
@@ -58,7 +64,7 @@ class GlassShadow extends SingleChildRenderObjectWidget {
       shadows: shadows,
       visibility: appearanceVisibility,
       devicePixelRatio: devicePixelRatio,
-    );
+    )..live = live;
   }
 
   @override
@@ -71,11 +77,12 @@ class GlassShadow extends SingleChildRenderObjectWidget {
       ..shape = shape
       ..shadows = shadows
       ..visibility = appearanceVisibility
-      ..devicePixelRatio = devicePixelRatio;
+      ..devicePixelRatio = devicePixelRatio
+      ..live = live;
   }
 }
 
-class _RenderGlassShadow extends RenderProxyBox {
+class _RenderGlassShadow extends RenderProxyBox with LivePaintSize {
   _RenderGlassShadow({
     required this._shape,
     required this._shadows,
@@ -120,7 +127,7 @@ class _RenderGlassShadow extends RenderProxyBox {
     var bounds = super.paintBounds;
     if (visibility <= 0 || shadows.isEmpty) return bounds;
 
-    final shapeBounds = Offset.zero & size;
+    final shapeBounds = Offset.zero & paintSize;
     for (final shadow in shadows) {
       // Report the same conservative Gaussian support used by paint()'s
       // saveLayer. Without this, Flutter culls the blurred pixels outside the
@@ -144,7 +151,7 @@ class _RenderGlassShadow extends RenderProxyBox {
   @override
   void paint(PaintingContext context, Offset offset) {
     if (shadows.isNotEmpty) {
-      final rect = offset & size;
+      final rect = offset & paintSize;
       final canvas = context.canvas;
 
       final needsCutout = shadows.any((s) => s.offset != Offset.zero);

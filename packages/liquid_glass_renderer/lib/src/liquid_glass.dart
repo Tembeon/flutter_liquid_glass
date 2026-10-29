@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/internal/live_paint_size.dart';
 import 'package:liquid_glass_renderer/src/internal/optimized_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_blend_group.dart';
@@ -14,6 +15,11 @@ import 'package:liquid_glass_renderer/src/precache.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 
 /// One frame of a live [LiquidGlass]: its geometry, material and shadows.
+///
+/// [rect], [scaleX] and [scaleY] apply at paint: the glass moves, resizes
+/// and scales without a layout, so a frame written after layout still draws
+/// in that frame. The [LiquidGlass.child] keeps the size it was laid out at,
+/// moves and scales with the glass and is clipped to its shape.
 @immutable
 class LiquidGlassShapeFrame {
   /// Describes one frame of a shape.
@@ -21,7 +27,22 @@ class LiquidGlassShapeFrame {
     required this.shape,
     this.appearance,
     this.shadows = const [],
+    this.rect,
+    this.scaleX = 1,
+    this.scaleY = 1,
   });
+
+  /// Where the shape is drawn in the box the [LiquidGlass] was laid out
+  /// in, or null to fill that box.
+  final Rect? rect;
+
+  /// The horizontal scale of the shape and its child about the center of
+  /// [rect].
+  final double scaleX;
+
+  /// The vertical scale of the shape and its child about the center of
+  /// [rect].
+  final double scaleY;
 
   /// See [LiquidGlass.shape].
   final LiquidShape shape;
@@ -169,7 +190,14 @@ class LiquidGlass extends StatefulWidget {
   ///
   /// Every notification of [frame] writes the new frame straight into the
   /// shape's render objects; the widget rebuilds only when the kind of shape
-  /// changes, its shadows appear or vanish, or the layer draws fake glass.
+  /// changes, its shadows appear or vanish, or, on fake glass, when its
+  /// shape, appearance or shadows change. The frame's rect and scale never
+  /// rebuild or lay out anything, on real and fake glass alike.
+  ///
+  /// Hit testing follows the box the widget was laid out in, not the rect
+  /// the frame draws it at, as UIKit hit-tests a view's model rather than
+  /// its presentation.
+  ///
   /// With `grouped` true, the shape joins the nearest
   /// [LiquidGlassBlendGroup].
   const LiquidGlass.live({
@@ -272,8 +300,8 @@ class _LiquidGlassState extends State<LiquidGlass> {
   // built with: a frame that keeps the structure goes straight to them.
   final _rawKey = GlobalKey(debugLabel: 'LiquidGlass.raw');
   final _fadeKey = GlobalKey(debugLabel: 'LiquidGlass.fade');
-  final _clipKey = GlobalKey(debugLabel: 'LiquidGlass.clip');
   LiquidGlassShapeFrame? _built;
+  LiquidGlassShapeFrame? _last;
   bool _writable = false;
   late LiquidGlassAppearance _defaultAppearance;
   double _visibility = 1;
@@ -299,41 +327,24 @@ class _LiquidGlassState extends State<LiquidGlass> {
     super.dispose();
   }
 
-  /// Writes [shape]'s corners into the child's clip, or returns false when
-  /// the clip cannot follow it without a rebuild.
-  bool _clipFollows(LiquidShape shape) {
-    if (widget.clipBehavior == Clip.none) return true;
-    final clip = _clipKey.currentContext?.findRenderObject();
-    switch ((shape, clip)) {
-      case (
-        LiquidRoundedSuperellipse(:final radii),
-        final RenderClipRSuperellipse clip,
-      ):
-        clip.borderRadius = radii;
-        return true;
-      case (
-        LiquidRoundedRectangle(:final borderRadius),
-        final RenderClipRRect clip,
-      ):
-        clip.borderRadius = BorderRadius.circular(borderRadius);
-        return true;
-      case (LiquidOval(), RenderClipOval()):
-        return true;
-      default:
-        return false;
-    }
-  }
-
   void _onFrame() {
     final frame = widget.frame!.value;
+    final last = _last;
+    _last = frame;
+    // The rect and scale reach the render objects that listen to the frame.
+    if (last != null &&
+        frame.shape == last.shape &&
+        frame.appearance == last.appearance &&
+        listEquals(frame.shadows, last.shadows)) {
+      return;
+    }
     final built = _built;
     final raw = _rawKey.currentContext?.findRenderObject();
     if (!_writable ||
         built == null ||
         raw is! RenderLiquidGlass ||
         frame.shape.runtimeType != built.shape.runtimeType ||
-        frame.shadows.isEmpty != built.shadows.isEmpty ||
-        !_clipFollows(frame.shape)) {
+        frame.shadows.isEmpty != built.shadows.isEmpty) {
       setState(() {});
       return;
     }
@@ -352,8 +363,14 @@ class _LiquidGlassState extends State<LiquidGlass> {
 
   @override
   Widget build(BuildContext context) {
-    _built = widget.frame?.value;
+    _built = _last = widget.frame?.value;
     _writable = false;
+    final glass = _buildShape(context);
+    final frame = widget.frame;
+    return frame == null ? glass : _LiveGlassFrame(frame: frame, child: glass);
+  }
+
+  Widget _buildShape(BuildContext context) {
     // Join an existing sample whenever one is already in the tree. Creating a
     // layer is the fallback, not the default for a row of siblings. A glass
     // ancestor blocks reuse of the layer above it because nested shapes cannot
@@ -432,6 +449,7 @@ class _LiquidGlassState extends State<LiquidGlass> {
         shape: widget.shape,
         appearance: appearance,
         shadows: widget.shadows,
+        live: widget.frame,
         child: _keyedChild,
       );
     }
@@ -457,6 +475,7 @@ class _LiquidGlassState extends State<LiquidGlass> {
         shape: widget.shape,
         appearance: appearance,
         shadows: widget.shadows,
+        live: widget.frame,
         child: _keyedChild,
       );
     }
@@ -471,12 +490,13 @@ class _LiquidGlassState extends State<LiquidGlass> {
             shape: widget.shape,
             appearance: appearance,
             backdropHandledByLayer: true,
+            live: widget.frame,
             child: _keyedChild,
           )
         : OptimizedClip(
             shape: widget.shape,
             clipBehavior: widget.clipBehavior,
-            clipKey: _clipKey,
+            live: widget.frame,
             child: _fadeChildren(
               appearance.visibility,
               GlassGlowLayer(
@@ -494,6 +514,7 @@ class _LiquidGlassState extends State<LiquidGlass> {
       devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
       shape: widget.shape,
       layerShadows: widget.shadows,
+      live: widget.frame,
       child: registeredChild,
     );
   }
@@ -526,10 +547,13 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
     required this.settings,
     required this.appearance,
     required this.devicePixelRatio,
+    required this.live,
     super.key,
   });
 
   final LiquidShape shape;
+
+  final ValueListenable<LiquidGlassShapeFrame>? live;
 
   final List<BoxShadow> layerShadows;
 
@@ -553,7 +577,7 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
       settings: settings,
       appearance: appearance,
       devicePixelRatio: devicePixelRatio,
-    );
+    )..live = live;
   }
 
   @override
@@ -567,6 +591,7 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
       ..settings = settings
       ..appearance = appearance
       ..devicePixelRatio = devicePixelRatio
+      ..live = live
       ..bindLinks(
         blendGroupLink: blendGroupLink,
         renderLink: renderLink,
@@ -576,7 +601,7 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
 
 @internal
 class RenderLiquidGlass extends RenderLiquidGlassGeometry
-    with LiquidGlassShapeRenderObject {
+    with LiquidGlassShapeRenderObject, LivePaintSize {
   RenderLiquidGlass({
     required this._shape,
     required this._layerShadows,
@@ -694,6 +719,18 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
   }
 
   @override
+  void livePaintSizeChanged() {
+    // A size change must not pass for the pure move a retained frame can
+    // follow by translation.
+    if (_blendGroupLink case final link?) {
+      link.notifyShapeLayoutChanged(this);
+    } else {
+      markGeometryNeedsUpdate(force: true);
+    }
+    markNeedsPaint();
+  }
+
+  @override
   double get geometryBlend => 0;
 
   @override
@@ -706,7 +743,7 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
       renderObject: this,
       shape: shape,
       appearance: appearance,
-      shapeBounds: Offset.zero & size,
+      shapeBounds: Offset.zero & paintSize,
       shadows: layerShadows,
     );
     final cached = geometry?.shapes ?? const <ShapeGeometry>[];
@@ -716,5 +753,119 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
         cached.first.shape != shapeData.shape;
 
     return (shapeData.shapeBounds, [shapeData], changed);
+  }
+}
+
+class _LiveGlassFrame extends SingleChildRenderObjectWidget {
+  const _LiveGlassFrame({required this.frame, required super.child});
+
+  final ValueListenable<LiquidGlassShapeFrame> frame;
+
+  @override
+  RenderLiveGlassFrame createRenderObject(BuildContext context) =>
+      RenderLiveGlassFrame(frame: frame);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    RenderLiveGlassFrame renderObject,
+  ) {
+    renderObject.frame = frame;
+  }
+}
+
+/// Moves and scales a live [LiquidGlass] and its child to the frame's rect
+/// at paint.
+///
+/// [applyPaintTransform] reports the move, so the layer, which polls
+/// [getTransformTo] when it paints, draws the shape where the child is
+/// drawn. Hit testing follows the layout box.
+@internal
+class RenderLiveGlassFrame extends RenderProxyBox {
+  RenderLiveGlassFrame({required this._frame});
+
+  ValueListenable<LiquidGlassShapeFrame> _frame;
+  set frame(ValueListenable<LiquidGlassShapeFrame> value) {
+    if (identical(_frame, value)) return;
+    if (attached) {
+      _frame.removeListener(_onFrame);
+      value.addListener(_onFrame);
+    }
+    _frame = value;
+    _onFrame();
+  }
+
+  Offset _origin = Offset.zero;
+  Size? _rectSize;
+  double _scaleX = 1;
+  double _scaleY = 1;
+
+  void _onFrame() {
+    final frame = _frame.value;
+    final origin = frame.rect?.topLeft ?? Offset.zero;
+    final rectSize = frame.rect?.size;
+    if (origin == _origin &&
+        rectSize == _rectSize &&
+        frame.scaleX == _scaleX &&
+        frame.scaleY == _scaleY) {
+      return;
+    }
+    _origin = origin;
+    _rectSize = rectSize;
+    _scaleX = frame.scaleX;
+    _scaleY = frame.scaleY;
+    markNeedsPaint();
+    markNeedsSemanticsUpdate();
+  }
+
+  /// The move and scale of the child, or null when it draws where it was
+  /// laid out.
+  Matrix4? get _transform {
+    if (_origin == Offset.zero && _scaleX == 1 && _scaleY == 1) return null;
+    final center = (_rectSize ?? size).center(_origin);
+    return Matrix4.translationValues(center.dx, center.dy, 0)
+      ..scaleByDouble(_scaleX, _scaleY, 1, 1)
+      ..translateByDouble(
+        _origin.dx - center.dx,
+        _origin.dy - center.dy,
+        0,
+        1,
+      );
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _frame.addListener(_onFrame);
+    _onFrame();
+  }
+
+  @override
+  void detach() {
+    _frame.removeListener(_onFrame);
+    super.detach();
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final transform = _transform;
+    if (child == null || transform == null) {
+      layer = null;
+      super.paint(context, offset);
+      return;
+    }
+    layer = context.pushTransform(
+      needsCompositing,
+      offset,
+      transform,
+      super.paint,
+      oldLayer: layer is TransformLayer ? layer! as TransformLayer : null,
+    );
+  }
+
+  @override
+  void applyPaintTransform(RenderBox child, Matrix4 transform) {
+    super.applyPaintTransform(child, transform);
+    if (_transform case final move?) transform.multiply(move);
   }
 }
