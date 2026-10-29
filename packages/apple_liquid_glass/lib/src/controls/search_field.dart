@@ -289,6 +289,7 @@ class _GlassSearchFieldState extends State<GlassSearchField>
 
   @override
   void dispose() {
+    _ends?.removeListener(_ended);
     _focus.removeListener(_focusChanged);
     _states.dispose();
     _regionFocus.dispose();
@@ -297,6 +298,25 @@ class _GlassSearchFieldState extends State<GlassSearchField>
     MotionClock.instance.removeDriver(_body);
     _body.dispose();
     super.dispose();
+  }
+
+  Listenable? _ends;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final ends = SearchEnds.maybeOf(context);
+    if (identical(ends, _ends)) return;
+    _ends?.removeListener(_ended);
+    _ends = ends;
+    ends?.addListener(_ended);
+  }
+
+  // A search ended from outside the field, by a toolbar's close button,
+  // clears the field and lets the keyboard go.
+  void _ended() {
+    if (_controller.text.isNotEmpty) _clear();
+    _focus.unfocus();
   }
 
   void _statesChanged() => setState(() {});
@@ -480,6 +500,25 @@ class _GlassSearchFieldState extends State<GlassSearchField>
       textStyle: const WidgetStatePropertyAll(GlassSearchField._text),
     );
   }
+}
+
+/// Where a search field hears that its search ended outside it: the close
+/// button of a toolbar that hosts it.
+@internal
+class SearchEnds extends InheritedWidget {
+  /// Tells the search fields below that [ends] notifies when a search
+  /// ends.
+  const SearchEnds({required this.ends, required super.child, super.key});
+
+  /// Notifies when a search ends.
+  final Listenable ends;
+
+  /// The ends around [context], or null.
+  static Listenable? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<SearchEnds>()?.ends;
+
+  @override
+  bool updateShouldNotify(SearchEnds oldWidget) => ends != oldWidget.ends;
 }
 
 /// The search field's glyph and inset metrics, read from an iPhone 16
