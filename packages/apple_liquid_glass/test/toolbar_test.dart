@@ -90,4 +90,116 @@ void main() {
         .map((edge) => edge.details.edge);
     expect(edges, isNot(contains(AxisDirection.down)));
   });
+
+  group('a search field in the toolbar', () {
+    Widget search(
+      TextEditingController controller, {
+      double keyboard = 0,
+      FocusNode? focus,
+    }) => _app(
+      GlassPageScaffold(
+        toolbar: GlassToolbar(
+          children: [
+            GlassButton(
+              key: const Key('first'),
+              onPressed: () {},
+              child: const SizedBox.square(dimension: 24),
+            ),
+            GlassSearchField(
+              key: const Key('field'),
+              controller: controller,
+              focusNode: focus,
+            ),
+            GlassButton(
+              key: const Key('last'),
+              onPressed: () {},
+              child: const SizedBox.square(dimension: 24),
+            ),
+          ],
+        ),
+        child: const SizedBox.expand(),
+      ),
+      keyboard: keyboard,
+    );
+
+    Future<void> settle(WidgetTester tester) async {
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+    }
+
+    Rect field(WidgetTester tester) =>
+        tester.getRect(find.byKey(const Key('field')));
+
+    testWidgets('fills the room between the items at rest', (tester) async {
+      await _phone(tester);
+      final controller = TextEditingController();
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(search(controller));
+      final first = tester.getRect(find.byKey(const Key('first')));
+      final last = tester.getRect(find.byKey(const Key('last')));
+      expect(first.left, 28);
+      expect(first.height, 48);
+      expect(last.right, 402 - 28);
+      expect(
+        field(tester),
+        Rect.fromLTRB(
+          first.right + 12,
+          874 - 28 - 48,
+          last.left - 12,
+          874 - 28,
+        ),
+      );
+    });
+
+    testWidgets('focused, it widens and rises above the keyboard; the close '
+        'button ends the search', (tester) async {
+      await _phone(tester);
+      final controller = TextEditingController(text: 'glass');
+      final focus = FocusNode();
+      addTearDown(controller.dispose);
+      addTearDown(focus.dispose);
+      await tester.pumpWidget(search(controller, focus: focus));
+      focus.requestFocus();
+      await tester.pump();
+      final rest = field(tester).left;
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(field(tester).left, rest);
+      await tester.pumpWidget(search(controller, focus: focus, keyboard: 336));
+      await settle(tester);
+      expect(
+        field(tester),
+        const Rect.fromLTRB(
+          8,
+          874 - 336 - 10 - 48,
+          402 - 8 - 48 - 12,
+          874 - 336 - 10,
+        ),
+      );
+      final close = find.bySemanticsLabel('Close');
+      expect(tester.getCenter(close).dx, closeTo(402 - 8 - 24, 0.5));
+      await tester.tap(close);
+      await tester.pumpWidget(search(controller, focus: focus));
+      await settle(tester);
+      expect(focus.hasFocus, isFalse);
+      expect(controller.text, isEmpty);
+      expect(field(tester).left, rest);
+    });
+
+    testWidgets('without a keyboard the search starts after 0.3 s anyway', (
+      tester,
+    ) async {
+      await _phone(tester);
+      final controller = TextEditingController();
+      final focus = FocusNode();
+      addTearDown(controller.dispose);
+      addTearDown(focus.dispose);
+      await tester.pumpWidget(search(controller, focus: focus));
+      focus.requestFocus();
+      await tester.pump();
+      await settle(tester);
+      expect(field(tester).left, 8);
+      expect(field(tester).bottom, 874 - 28);
+    });
+  });
 }
