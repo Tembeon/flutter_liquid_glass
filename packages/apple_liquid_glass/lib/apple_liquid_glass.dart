@@ -9,6 +9,7 @@ export 'src/chrome/chrome.dart'
         GlassPageScaffold,
         GlassScrollEdgeEffect,
         GlassScrollEdgeEffects;
+export 'src/chrome/navigation_bar.dart';
 export 'src/controls/button.dart';
 export 'src/controls/list.dart';
 export 'src/controls/page_control.dart';

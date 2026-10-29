@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
@@ -332,12 +334,25 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
     final padding = MediaQuery.paddingOf(context);
     final topExtent = edges?.topExtent ?? padding.top;
     final bottomExtent = edges?.bottomExtent ?? padding.bottom;
+    final after = edges?.scrolledUnderAfter ?? 0;
+    final configuration = ScrollConfiguration.of(context);
+    final content = after <= 0
+        ? widget.child
+        : ScrollConfiguration(
+            behavior: configuration.copyWith(
+              physics: LargeTitleScrollPhysics(
+                collapseExtent: after,
+                parent: configuration.getScrollPhysics(context),
+              ),
+            ),
+            child: widget.child,
+          );
     return NotificationListener<Notification>(
       onNotification: _observer.handle,
       child: Stack(
         fit: StackFit.passthrough,
         children: [
-          widget.child,
+          content,
           if (top != null && topExtent > 0)
             Positioned.fill(
               child: renderer.buildScrollEdge(
@@ -345,7 +360,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
                 GlassScrollEdgeDetails(
                   edge: AxisDirection.up,
                   hard: top,
-                  extent: topExtent,
+                  extent: topExtent - after,
                   presence: _top,
                   background: background,
                 ),
@@ -530,6 +545,67 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Scroll physics that settle a large title out of or fully under the
+/// navigation bar: a scroll that would rest with the title partly away
+/// springs to the nearer end.
+///
+/// UIKit snaps a release 25 points away back out and one 30 points away
+/// under (the threshold is taken as half the title, 26 points); the snap
+/// is fitted as a critically damped spring of response 0.33 s (damping 1.0
+/// to 1.2).
+@internal
+class LargeTitleScrollPhysics extends ScrollPhysics {
+  /// Creates the physics for a large title [collapseExtent] tall.
+  const LargeTitleScrollPhysics({
+    required this.collapseExtent,
+    super.parent,
+  });
+
+  /// The scroll distance over which the large title goes under the bar.
+  final double collapseExtent;
+
+  /// The spring the snap runs on.
+  static const snapSpring = Spring.response(0.33);
+
+  @override
+  LargeTitleScrollPhysics applyTo(ScrollPhysics? ancestor) =>
+      LargeTitleScrollPhysics(
+        collapseExtent: collapseExtent,
+        parent: buildParent(ancestor),
+      );
+
+  static double _restOf(Simulation? simulation, ScrollMetrics position) {
+    if (simulation == null) return position.pixels;
+    var t = 0.0;
+    var x = simulation.x(0);
+    while (t < 8 && !simulation.isDone(t)) {
+      t += 1 / 60;
+      x = simulation.x(t);
+    }
+    return x;
+  }
+
+  @override
+  Simulation? createBallisticSimulation(
+    ScrollMetrics position,
+    double velocity,
+  ) {
+    final base = super.createBallisticSimulation(position, velocity);
+    if (position.outOfRange) return base;
+    final start = position.minScrollExtent;
+    final rest = _restOf(base, position) - start;
+    if (rest <= 0.5 || rest >= collapseExtent - 0.5) return base;
+    final target = start + (rest < collapseExtent / 2 ? 0 : collapseExtent);
+    return ScrollSpringSimulation(
+      snapSpring.description,
+      position.pixels,
+      math.min(target, position.maxScrollExtent),
+      velocity,
+      tolerance: toleranceFor(position),
     );
   }
 }
