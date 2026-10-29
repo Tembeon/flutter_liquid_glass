@@ -150,6 +150,7 @@ class GlassChrome extends InheritedWidget {
   const GlassChrome({
     required this.edges,
     required this.active,
+    required this.outer,
     required super.child,
     super.key,
   });
@@ -160,13 +161,19 @@ class GlassChrome extends InheritedWidget {
   /// The scroll view the bars follow, or null for none.
   final ValueNotifier<MotionScrollObserver?> active;
 
+  /// The chrome around this one, such as a tab scaffold's around a page:
+  /// its bars follow the same scroll view.
+  final GlassChrome? outer;
+
   /// The nearest chrome, or null outside a page.
   static GlassChrome? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<GlassChrome>();
 
   @override
   bool updateShouldNotify(GlassChrome oldWidget) =>
-      edges != oldWidget.edges || active != oldWidget.active;
+      edges != oldWidget.edges ||
+      active != oldWidget.active ||
+      outer != oldWidget.outer;
 }
 
 /// Marks the scroll view the bars of its page follow, and draws its edge
@@ -272,16 +279,16 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
     final chrome = _chrome;
     if (chrome == null) return;
     SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (mounted && identical(chrome, _chrome)) {
-        chrome.active.value = _observer;
+      if (!mounted || !identical(chrome, _chrome)) return;
+      for (GlassChrome? scope = chrome; scope != null; scope = scope.outer) {
+        scope.active.value = _observer;
       }
     });
   }
 
   void _release() {
-    final active = _chrome?.active;
-    if (active != null && identical(active.value, _observer)) {
-      active.value = null;
+    for (var scope = _chrome; scope != null; scope = scope.outer) {
+      if (identical(scope.active.value, _observer)) scope.active.value = null;
     }
   }
 
@@ -498,6 +505,7 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
       widget.backgroundColor ?? GlassColors.systemBackground,
       context,
     );
+    final outer = GlassChrome.maybeOf(context);
     final edges = ChromeEdges(
       top: _kind(navigationBar, ChromeBar.custom),
       topExtent: top,
@@ -505,13 +513,16 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
         ChromeBarWidget(:final scrolledUnderAfter) => scrolledUnderAfter,
         _ => 0,
       },
-      bottom: _kind(toolbar, ChromeBar.custom),
+      bottom: toolbar == null
+          ? outer?.edges.bottom ?? ChromeBar.none
+          : _kind(toolbar, ChromeBar.custom),
       bottomExtent: bottom,
       background: background,
     );
     return GlassChrome(
       edges: edges,
       active: _active,
+      outer: outer,
       child: ColoredBox(
         color: background,
         child: Stack(

@@ -10,6 +10,7 @@ export 'src/chrome/chrome.dart'
         GlassScrollEdgeEffect,
         GlassScrollEdgeEffects;
 export 'src/chrome/navigation_bar.dart';
+export 'src/chrome/tab_scaffold.dart';
 export 'src/chrome/toolbar.dart';
 export 'src/controls/button.dart';
 export 'src/controls/list.dart';
