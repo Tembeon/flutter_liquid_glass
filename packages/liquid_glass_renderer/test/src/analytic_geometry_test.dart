@@ -147,7 +147,51 @@ Future<(double, double)> _analyticAgainstRest(
   return _difference(matte, analytic);
 }
 
+Widget _capsule(double radius) => Directionality(
+  textDirection: TextDirection.ltr,
+  child: Center(
+    child: RepaintBoundary(
+      key: _key,
+      child: SizedBox.fromSize(
+        size: _view,
+        child: ColoredBox(
+          color: _gray,
+          child: LiquidGlassLayer(
+            analyticGeometry: true,
+            settings: LiquidGlassSettings.ios27RegularLight(),
+            backdrop: const LiquidGlassBackdrop.solid(_gray),
+            child: Center(
+              child: SizedBox(
+                width: 160,
+                height: 44,
+                child: LiquidGlass(
+                  shape: LiquidRoundedSuperellipse(borderRadius: radius),
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  ),
+);
+
 void main() {
+  testWidgets('a capsule with an oversized radius draws what one of half '
+      'its height draws', (tester) async {
+    tester.view.physicalSize = _view;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_capsule(22));
+    expect(_layer(tester).debugAnalytic, isTrue);
+    final half = await _capture(tester, 1);
+    await tester.pumpWidget(_capsule(10000));
+    expect(_layer(tester).debugAnalytic, isTrue);
+    final oversized = await _capture(tester, 1);
+    expect(_difference(half, oversized), (0.0, 0.0));
+  }, skip: skipProperGlassTests);
+
   for (final (name, ratio, transform) in [
     ('1x', 1.0, null),
     ('2x', 2.0, null),

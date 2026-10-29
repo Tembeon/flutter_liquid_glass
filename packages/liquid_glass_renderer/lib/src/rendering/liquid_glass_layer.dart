@@ -2489,10 +2489,17 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
             pair ? rseParameters.skip(12) : List<double>.filled(12, 0),
           );
           final center = centerInMatte * devicePixelRatio;
+          // Every shader clamps a corner to half the short side already;
+          // a clamped radius also lets the analytic depth bound hold for a
+          // capsule written with an oversized radius. A pair is fitted on
+          // its own.
+          final cornerRadius = pair
+              ? shape.rawCornerRadius
+              : min(shape.rawCornerRadius, size.shortestSide / 2);
           final halfExtents = _matteHalfExtents(
             shape.rawShapeType,
             size * devicePixelRatio / 2,
-            shape.rawCornerRadius * devicePixelRatio,
+            cornerRadius * devicePixelRatio,
             axisX,
             axisY,
           );
@@ -2514,7 +2521,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
             )
             ..add(size.width * devicePixelRatio)
             ..add(size.height * devicePixelRatio)
-            ..add(shape.rawCornerRadius * devicePixelRatio)
+            ..add(cornerRadius * devicePixelRatio)
             // vec4 1: inverse affine basis.
             ..add(inverse00)
             ..add(inverse01)
