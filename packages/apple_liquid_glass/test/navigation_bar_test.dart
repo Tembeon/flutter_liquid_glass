@@ -59,7 +59,8 @@ Future<void> _settle(WidgetTester tester) async {
 }
 
 double _titleOpacity(WidgetTester tester) => tester
-    .widget<MotionTransition>(find.byType(MotionTransition).first)
+    .widgetList<MotionTransition>(find.byType(MotionTransition))
+    .firstWhere((transition) => transition.opacity != null)
     .opacity!
     .value;
 

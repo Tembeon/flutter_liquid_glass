@@ -446,6 +446,7 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
     with WidgetsBindingObserver {
   final _active = ValueNotifier<MotionScrollObserver?>(null);
   final _statusBar = GlobalKey();
+  final _lift = ValueNotifier<double>(0);
 
   @override
   void initState() {
@@ -457,6 +458,7 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _active.dispose();
+    _lift.dispose();
     super.dispose();
   }
 
@@ -536,18 +538,27 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            MediaQuery(
-              data: media.copyWith(
-                padding: media.padding.copyWith(top: top, bottom: bottom),
+            MotionTransition(
+              translateY: _lift,
+              child: MediaQuery(
+                data: media.copyWith(
+                  padding: media.padding.copyWith(top: top, bottom: bottom),
+                ),
+                child: widget.child,
               ),
-              child: widget.child,
             ),
             if (navigationBar != null)
               Positioned(
                 top: media.padding.top,
                 left: 0,
                 right: 0,
-                child: navigationBar,
+                child: ClipRect(
+                  clipper: const _BelowTop(),
+                  child: MotionTransition(
+                    translateY: _lift,
+                    child: PageLift(lift: _lift, child: navigationBar),
+                  ),
+                ),
               ),
             if (toolbar != null)
               Positioned(
@@ -572,6 +583,37 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
       ),
     );
   }
+}
+
+/// How far a page moves up while its stacked search shows: written by the
+/// navigation bar's search, followed by the page's content, its bar and the
+/// shared bar's capsules.
+@internal
+class PageLift extends InheritedWidget {
+  /// Provides [lift] to the navigation bar below.
+  const PageLift({required this.lift, required super.child, super.key});
+
+  /// The page's offset, 0 at rest and negative while lifted.
+  final ValueNotifier<double> lift;
+
+  /// The lift around [context], or null.
+  static ValueNotifier<double>? maybeOf(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<PageLift>()?.lift;
+
+  @override
+  bool updateShouldNotify(PageLift oldWidget) => lift != oldWidget.lift;
+}
+
+// Cuts off what a lifted bar moves above its own top, into the status bar,
+// and nothing below: a pulled large title still follows the content down.
+class _BelowTop extends CustomClipper<Rect> {
+  const _BelowTop();
+
+  @override
+  Rect getClip(Size size) => const Rect.fromLTRB(-100000, 0, 100000, 100000);
+
+  @override
+  bool shouldReclip(_BelowTop oldClipper) => false;
 }
 
 /// Scroll physics that settle a large title out of or fully under the
