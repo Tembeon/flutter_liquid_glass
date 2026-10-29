@@ -300,6 +300,15 @@ final class GlassBarHost implements MotionDriver {
     link._coveredByForeign = covered;
   }
 
+  /// Reports that a route that is not a glass page left [link]'s page on
+  /// top again: the bar, covered meanwhile, stands on its layout.
+  void revealed(GlassPageBarLink link) {
+    link._coveredByForeign = false;
+    if (identical(link, _shown)) return;
+    _shown = link;
+    _enqueue(_Change(link, _now, null));
+  }
+
   /// Reports that [link]'s page was popped or dismissed at [time]: the
   /// call, or the finger's lift after a swipe.
   void leaving(GlassPageBarLink link, {required double time}) {
