@@ -313,7 +313,7 @@ class RenderFlatGlass extends RenderProxyBox {
   void _paintSurface(PaintingContext context, Offset offset) {
     final frame = _frame.value;
     final body = frame.drawnIn(size);
-    final outline = frame.shape.getOuterPath(body);
+    final outline = frame.outline?.path ?? frame.shape.getOuterPath(body);
     final canvas = context.canvas;
     canvas.save();
     canvas.translate(offset.dx, offset.dy);
@@ -366,7 +366,7 @@ class RenderFlatGlass extends RenderProxyBox {
     rim.style = PaintingStyle.stroke;
     rim.strokeWidth = 0.75;
     rim.color = liftRim.withValues(alpha: liftRim.a * lift);
-    canvas.drawPath(frame.shape.getOuterPath(body.deflate(0.4)), rim);
+    canvas.drawPath(_rimPath(frame, body, 0.4), rim);
   }
 
   void _paintBody(
@@ -390,12 +390,14 @@ class RenderFlatGlass extends RenderProxyBox {
       stroke.style = PaintingStyle.stroke;
       stroke.strokeWidth = rimWidth;
       stroke.color = rim;
-      canvas.drawPath(
-        frame.shape.getOuterPath(body.deflate(rimWidth / 2)),
-        stroke,
-      );
+      canvas.drawPath(_rimPath(frame, body, rimWidth / 2), stroke);
     }
   }
+
+  // An outline body strokes its own edge: the rim is too thin for the
+  // stroke's straddle of the edge to show.
+  static Path _rimPath(GlassFrame frame, Rect body, double inset) =>
+      frame.outline?.path ?? frame.shape.getOuterPath(body.deflate(inset));
 
   void _paintContent(PaintingContext context, Offset offset, GlassFrame frame) {
     final transform = frame.contentTransformIn(size);

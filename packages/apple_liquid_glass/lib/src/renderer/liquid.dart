@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:apple_liquid_glass/src/renderer/flat.dart';
@@ -5,14 +6,21 @@ import 'package:apple_liquid_glass/src/renderer/renderer.dart';
 import 'package:apple_liquid_glass/src/renderer/scroll_edge.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
+import 'package:apple_liquid_glass/src/surface/outline.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// The liquid renderer: every surface is liquid glass, and the members of
 /// a group share one glass layer.
+///
+/// A body with a [GlassFrame.outline] is shaded from the outline's field
+/// in a layer of its own, its shadow cast by the outline's path; the
+/// renderer picks this or a flat body when it builds the surface, from
+/// the frame then.
 ///
 /// A surface outside a group draws as a group of one, and a track as a
 /// plain fill, as iOS draws one. A lens or knob is an opaque platter at
@@ -43,9 +51,19 @@ final class LiquidGlassRenderer extends GlassRenderer {
       return const FlatGlassRenderer().buildSurface(context, details);
     }
     if (_lifts(details.role)) return _LiquidLens(details: details, fake: fake);
+    final grouped = _LiquidGroupScope.maybeOf(context) != null;
+    if (details.frame.value.outline case final outline?
+        when fake || grouped || outline.field == null) {
+      return const FlatGlassRenderer().buildSurface(context, details);
+    }
     final surface = _LiquidSurface(details: details, glows: !fake);
-    if (_LiquidGroupScope.maybeOf(context) != null) return surface;
-    return _LiquidGroup(fake: fake, glass: details.glass, child: surface);
+    if (grouped) return surface;
+    return _LiquidGroup(
+      fake: fake,
+      glass: details.glass,
+      body: details.frame,
+      child: surface,
+    );
   }
 
   @override
@@ -190,6 +208,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
                 : Glass.regular(tint: tint),
             _brightness,
           );
+    final outline = frame.outline;
     return LiquidGlassShapeFrame(
       shape: frame.shape,
       appearance: frame.opacity >= 1
@@ -197,8 +216,10 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
           : appearance.copyWith(
               visibility: appearance.visibility * frame.opacity.clamp(0.0, 1.0),
             ),
-      shadows: LiquidGlassRenderer.shadowsOf(role, lift: frame.lift),
-      rect: frame.rect,
+      shadows: outline == null
+          ? LiquidGlassRenderer.shadowsOf(role, lift: frame.lift)
+          : const [],
+      rect: outline?.bounds ?? frame.rect,
       scaleX: frame.scaleX,
       scaleY: frame.scaleY,
     );
@@ -303,11 +324,123 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
     );
     _shape.value = _shapeFrame;
     if (_source.value.glow != null || _glow != null) _writeGlowLater();
-    return LiquidGlass.live(
+    final glass = LiquidGlass.live(
       frame: _shape,
       grouped: group.blends,
       child: widget.details.child,
     );
+    if (_source.value.outline == null) return glass;
+    return _OutlineShadow(
+      frame: _source,
+      shadows: LiquidGlassRenderer.shadowsOf(widget.details.role),
+      child: glass,
+    );
+  }
+}
+
+/// Casts [shadows] by the outline of [frame]'s body, outside the body only
+/// so none shows through the glass, faded with the body.
+class _OutlineShadow extends SingleChildRenderObjectWidget {
+  const _OutlineShadow({
+    required this.frame,
+    required this.shadows,
+    required super.child,
+  });
+
+  final ValueListenable<GlassFrame> frame;
+  final List<BoxShadow> shadows;
+
+  @override
+  _RenderOutlineShadow createRenderObject(BuildContext context) =>
+      _RenderOutlineShadow(frame, shadows);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderOutlineShadow renderObject,
+  ) {
+    renderObject.shadows = shadows;
+  }
+}
+
+class _RenderOutlineShadow extends RenderProxyBox {
+  _RenderOutlineShadow(this._frame, this._shadows);
+
+  // The surface's own frame, which lives as long as the surface.
+  final ValueListenable<GlassFrame> _frame;
+
+  List<BoxShadow> _shadows;
+  List<BoxShadow> get shadows => _shadows;
+  set shadows(List<BoxShadow> value) {
+    if (listEquals(value, _shadows)) return;
+    _shadows = value;
+    markNeedsPaint();
+  }
+
+  GlassOutline? _outline;
+  double _opacity = 1;
+  Path? _outside;
+
+  void _changed() {
+    final frame = _frame.value;
+    if (frame.outline == _outline && frame.opacity == _opacity) return;
+    markNeedsPaint();
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _frame.addListener(_changed);
+  }
+
+  @override
+  void detach() {
+    _frame.removeListener(_changed);
+    super.detach();
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final frame = _frame.value;
+    final outline = frame.outline;
+    _opacity = frame.opacity;
+    if (outline != _outline) {
+      _outline = outline;
+      _outside = null;
+    }
+    if (outline != null && _shadows.isNotEmpty && _opacity > 0) {
+      final reach = _shadows.fold<double>(
+        0,
+        (r, s) => math.max(
+          r,
+          s.offset.distance + s.spreadRadius + 3 * s.blurSigma,
+        ),
+      );
+      var outside = _outside;
+      if (outside == null) {
+        final box = Path();
+        box.addRect(outline.bounds.inflate(reach));
+        outside = _outside = Path.combine(
+          PathOperation.difference,
+          box,
+          outline.path,
+        );
+      }
+      final canvas = context.canvas;
+      canvas.save();
+      canvas.translate(offset.dx, offset.dy);
+      canvas.clipPath(outside);
+      for (final shadow in _shadows) {
+        final paint = Paint();
+        paint.color = shadow.color.withValues(
+          alpha: shadow.color.a * _opacity.clamp(0.0, 1.0),
+        );
+        paint.maskFilter = MaskFilter.blur(BlurStyle.normal, shadow.blurSigma);
+        canvas.drawPath(outline.path.shift(shadow.offset), paint);
+      }
+      canvas.restore();
+    }
+    super.paint(context, offset);
   }
 }
 
@@ -317,6 +450,7 @@ class _LiquidGroup extends StatefulWidget {
     required this.child,
     this.blend,
     this.glass,
+    this.body,
     this.lens,
   });
 
@@ -325,6 +459,10 @@ class _LiquidGroup extends StatefulWidget {
 
   /// The glass of a lone surface, or null for a group.
   final Glass? glass;
+
+  /// The frame of a lone surface, whose outline's field the layer shades,
+  /// or null.
+  final ValueListenable<GlassFrame>? body;
 
   /// The lone lens or knob whose lift sets the layer's optics and whose
   /// glass sets its settings, or null.
@@ -347,6 +485,7 @@ class _LiquidGroupState extends State<_LiquidGroup> {
   void initState() {
     super.initState();
     _lens?.addListener(_writeSettings);
+    widget.body?.addListener(_writeSettings);
   }
 
   @override
@@ -355,6 +494,10 @@ class _LiquidGroupState extends State<_LiquidGroup> {
     if (oldWidget.lens?.frame != _lens) {
       oldWidget.lens?.frame.removeListener(_writeSettings);
       _lens?.addListener(_writeSettings);
+    }
+    if (oldWidget.body != widget.body) {
+      oldWidget.body?.removeListener(_writeSettings);
+      widget.body?.addListener(_writeSettings);
     }
   }
 
@@ -371,9 +514,14 @@ class _LiquidGroupState extends State<_LiquidGroup> {
 
   void _writeSettings() {
     final settings = _settings;
+    final field = widget.body?.value.outline?.field;
     final frame = _layer.value;
-    if (settings == frame.settings) return;
-    _layer.value = LiquidGlassLayerFrame(settings: settings, glow: frame.glow);
+    if (settings == frame.settings && field == frame.field) return;
+    _layer.value = LiquidGlassLayerFrame(
+      settings: settings,
+      field: field,
+      glow: frame.glow,
+    );
   }
 
   bool get blends => widget.blend != null;
@@ -385,7 +533,11 @@ class _LiquidGroupState extends State<_LiquidGroup> {
     _lit = glow == null ? null : member;
     final frame = _layer.value;
     if (glow == frame.glow) return;
-    _layer.value = LiquidGlassLayerFrame(settings: frame.settings, glow: glow);
+    _layer.value = LiquidGlassLayerFrame(
+      settings: frame.settings,
+      field: frame.field,
+      glow: glow,
+    );
   }
 
   /// [glow] of [member] in the layer's coordinates.
@@ -406,6 +558,7 @@ class _LiquidGroupState extends State<_LiquidGroup> {
   @override
   void dispose() {
     _lens?.removeListener(_writeSettings);
+    widget.body?.removeListener(_writeSettings);
     _layer.dispose();
     super.dispose();
   }
