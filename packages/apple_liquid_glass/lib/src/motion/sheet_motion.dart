@@ -1,0 +1,1032 @@
+import 'dart:math' as math;
+import 'dart:ui';
+
+import 'package:apple_liquid_glass/src/motion/rest.dart';
+import 'package:flutter/foundation.dart';
+import 'package:kinesis/kinesis.dart';
+import 'package:meta/meta.dart';
+
+/// A height a sheet rests at, after UISheetPresentationController.Detent.
+///
+/// A detent's value is the height of the sheet above the bottom safe
+/// area; the sheet itself extends under it to the screen's edge. The
+/// largest possible value, the "maximum", is the container height minus
+/// the top and bottom safe areas, the room UIKit hands a custom detent's
+/// resolver.
+@immutable
+class GlassSheetDetent {
+  const GlassSheetDetent._(this._kind, this._value)
+    : _resolver = null,
+      _identifier = null;
+
+  /// A detent whose value [resolver] computes from the maximum value, as
+  /// UIKit's `.custom(identifier:resolver:)`; detents with the same
+  /// `identifier` are the same detent (null compares the resolver).
+  const GlassSheetDetent.custom(
+    double Function(double maximum) resolver, {
+    this._identifier,
+  }) : _kind = _DetentKind.custom,
+       _value = 0,
+       _resolver = resolver;
+
+  /// A detent [value] points tall, clamped to the maximum.
+  const GlassSheetDetent.height(double value)
+    : this._(_DetentKind.height, value);
+
+  /// A detent at [fraction] of the maximum.
+  const GlassSheetDetent.fraction(double fraction)
+    : this._(_DetentKind.fraction, fraction);
+
+  /// A detent as tall as the sheet's content (SwiftUI
+  /// `presentationSizing(.fitted)`), up to the maximum.
+  ///
+  /// The sheet lays its content out with a loose height and rests it at
+  /// the top; content that scrolls fills the maximum instead. Until the
+  /// content has laid out once the detent is the maximum.
+  static const fitted = GlassSheetDetent._(_DetentKind.fitted, 0);
+
+  /// UIKit's medium detent: [SheetTuning.mediumFraction] of the
+  /// maximum.
+  static const medium = GlassSheetDetent._(
+    _DetentKind.fraction,
+    SheetTuning.mediumFraction,
+  );
+
+  /// UIKit's large detent: the whole maximum. A sheet at the large detent
+  /// docks to the screen edges and turns opaque.
+  static const large = GlassSheetDetent._(_DetentKind.large, 1);
+
+  final _DetentKind _kind;
+  final double _value;
+  final double Function(double maximum)? _resolver;
+  final Object? _identifier;
+
+  /// Whether this detent follows the height of the sheet's content.
+  bool get isFitted => _kind == _DetentKind.fitted;
+
+  /// Whether this is the full-height detent that docks the sheet.
+  bool get isLarge => _kind == _DetentKind.large;
+
+  /// The detent's value for a [maximum] value; a [fitted] detent takes
+  /// the content's [fittedHeight], the maximum while it is unknown.
+  double resolve(double maximum, {double? fittedHeight}) => switch (_kind) {
+    _DetentKind.large => maximum,
+    _DetentKind.fraction => maximum * _value.clamp(0.0, 1.0),
+    _DetentKind.height => _value.clamp(0.0, maximum),
+    _DetentKind.custom => _resolver!(maximum).clamp(0.0, maximum),
+    _DetentKind.fitted => (fittedHeight ?? maximum).clamp(0.0, maximum),
+  };
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlassSheetDetent &&
+      other._kind == _kind &&
+      other._value == _value &&
+      (_kind != _DetentKind.custom ||
+          (_identifier == null
+              ? other._identifier == null && other._resolver == _resolver
+              : other._identifier == _identifier));
+
+  @override
+  int get hashCode => Object.hash(
+    _kind,
+    _value,
+    _kind == _DetentKind.custom ? (_identifier ?? _resolver) : null,
+  );
+
+  @override
+  String toString() => switch (_kind) {
+    _DetentKind.large => 'GlassSheetDetent.large',
+    _DetentKind.fraction => 'GlassSheetDetent.fraction($_value)',
+    _DetentKind.height => 'GlassSheetDetent.height($_value)',
+    _DetentKind.custom => 'GlassSheetDetent.custom(${_identifier ?? ''})',
+    _DetentKind.fitted => 'GlassSheetDetent.fitted',
+  };
+}
+
+enum _DetentKind { height, fraction, large, custom, fitted }
+
+/// The measured tuning of an iOS 27 sheet (UISheetPresentationController).
+@internal
+abstract final class SheetTuning {
+  /// The spring of every sheet animation: presenting, dismissing and
+  /// moving between detents. UIKit runs a CASpringAnimation of stiffness
+  /// 333.3 and damping 36.5, mass 1: response 0.344 s, critically damped.
+  /// The simulator's frames fit it to 0.06 points.
+  static const spring = Spring.response(0.3441);
+
+  /// The medium detent as a fraction of the maximum (435.68 of 778 on a
+  /// 402 x 874 screen, read from UIKit's resolution context).
+  static const double mediumFraction = 0.56;
+
+  /// The gap around a sheet resting below the large detent, in points:
+  /// it floats 8 points from the sides and the bottom of the screen.
+  static const double floatingInset = 8;
+
+  /// The radius of the top corners, in the sheet's unscaled points.
+  static const double topRadius = 38;
+
+  /// The display corner radius assumed for a floating sheet when the
+  /// platform reports none: the iPhone 16 Pro's, where the floating
+  /// sheet's bottom corners (62 - 8 = 54 unscaled points) were measured.
+  /// The bottom corners grow to the display's radius as the sheet docks,
+  /// or flatten toward square where the platform reports no radius, and
+  /// rest square once docked ([SheetMotion.bottomRadius]).
+  static const double fallbackDisplayRadius = 62;
+
+  /// The opacity of the black dimming behind a dimmed detent.
+  static const double dimmingOpacity = 0.2;
+
+  /// The grabber's size in unscaled points.
+  static const Size grabberSize = Size(60, 4);
+
+  /// The distance from the sheet's top edge to the grabber's center.
+  static const double grabberOffset = 8;
+
+  /// How far momentum carries a released drag, in seconds of the
+  /// release velocity: the sheet settles on the detent nearest to its
+  /// height plus the velocity times this. Bracketed by flicks on the
+  /// simulator: 680 pt/s up from 544 pt stayed at medium, 680 pt/s down
+  /// from 738 pt went to medium (0.143 either way).
+  static const double projection = 0.143;
+
+  /// How much faster than the finger the sheet leaves the release: the
+  /// settle spring starts at this many times the finger's velocity
+  /// (fitted to seven flicks: 2.0 - 2.6, the slowest ones nearest 2).
+  static const double releaseVelocityGain = 2;
+
+  /// The release speed, in points per second down, that dismisses a
+  /// sheet dragged below its smallest detent however short the drag: a
+  /// 680 pt/s flick returned, 900 and 1213 pt/s flicks dismissed.
+  static const double dismissVelocity = 1000;
+
+  /// The spring a sheet flicked away leaves on; a sheet released still
+  /// leaves on [spring]. Fitted to three flick dismissals (0.12 - 0.5 pt
+  /// rms, response 0.349 - 0.354, damping 0.79).
+  static const flickDismissSpring = Spring.response(0.352, dampingRatio: 0.79);
+
+  /// The fraction of the finger's velocity a flicked-away sheet leaves
+  /// with (0.53 and 0.65 fitted).
+  static const double flickDismissVelocityGain = 0.6;
+
+  /// The scale a floating sheet swells by under a touch. The swell holds
+  /// while the touch drags the sheet (device: the area scale stays
+  /// 0.96837, the floating 0.9602 times this, through every drag of a
+  /// floating sheet) and goes when the drag's settle starts; a sheet
+  /// docked at the touch does not swell.
+  static const double pressScale = 1.00854;
+
+  /// The spring the swell follows, on touch and on release (0.0001 rms in
+  /// scale on a held touch).
+  static const pressSpring = Spring.response(0.2835, dampingRatio: 0.70);
+
+  /// Seconds between a touch and the start of the swell.
+  static const double pressDelay = 0.028;
+
+  /// How much a drag stretches a sheet that floated when the drag began,
+  /// per point the finger travelled since: the ratio of the sheet's
+  /// vertical to its horizontal scale is `1 + stretchPerPoint * travel`
+  /// plus [stretchLagGain] of the lag, up or down alike. The height grows
+  /// and the width shrinks by the square root of that ratio each, so the
+  /// area holds, about the sheet's bottom edge. Fitted to three device
+  /// drags held still (100 and 320 points down, 140 up: 8.80 - 9.00e-5
+  /// per point). A sheet docked when the drag began does not stretch.
+  static const double stretchPerPoint = 8.9e-5;
+
+  /// The spring of the lag: a point that follows the finger's travel and
+  /// its velocity, so it falls behind only while the finger speeds up and
+  /// runs ahead while the finger slows down. A drag that starts or speeds
+  /// up stretches the sheet further for a moment, one that stops lets it
+  /// dip.
+  static const stretchLagSpring = Spring.response(0.8, dampingRatio: 0.5);
+
+  /// How much the lag, in points, adds to the stretch ratio. With
+  /// [stretchLagSpring] and [stretchPerPoint] it replays the 18 device
+  /// drags and flicks of a floating sheet to 0.0011 - 0.0066 rms in the
+  /// ratio (0.0016 - 0.0123 without the lag; a 1300 pt/s flick reaches
+  /// 1.043 at 168 points of travel, three times the held stretch).
+  static const double stretchLagGain = 2.4e-4;
+
+  /// The spring the stretch returns on when the drag ends: it holds from
+  /// the lift and leaves with the settle (0.0005 - 0.0008 rms in the
+  /// ratio over three releases held still).
+  static const stretchSpring = Spring.response(0.355, dampingRatio: 0.62);
+
+  /// Seconds between the lift of a tap on the grabber and the start of the
+  /// detent change it causes (0.045 and 0.065 measured).
+  static const double grabberTapDelay = 0.05;
+
+  /// Seconds between the lift of a dragging finger and the start of the
+  /// settle; the sheet holds still meanwhile (the median of nine
+  /// releases, 0.003 - 0.047).
+  static const double releaseDelay = 0.025;
+
+  /// How far, in points, a finger travels on the sheet before the sheet
+  /// follows it: the device drags start 12 points from the touch (7 on
+  /// the simulator); the drag replays use the device value.
+  static const double dragSlop = 12;
+
+  /// The band at the top of the sheet, in unscaled points, where a tap
+  /// cycles the detents as a tap on the grabber does; a tap 25 points
+  /// below the top edge cycled them.
+  static const double grabberHitHeight = 40;
+
+  /// The limit, in unscaled points, that a sheet which cannot be dismissed
+  /// approaches while it is pulled down: the drag below the smallest detent
+  /// is rubber-banded (coefficient 0.55) with this dimension. A simulator
+  /// capture of a 200 point sheet pulled 134 points fits 200 to 0.3 points
+  /// rms; UIKit takes a quarter of the sheet's height capped at 200 (read
+  /// from UIKit, notes private), so every phone reaches the cap.
+  static const double refusedPullExtent = 200;
+
+  /// The most a floating sheet stretches above its largest detent, in
+  /// unscaled points: a drag up past it is rubber-banded (coefficient
+  /// 0.55) with a dimension of the room left to the maximum height,
+  /// capped at this. A docked sheet has no room and does not move.
+  /// Simulator capture: a medium-only sheet fits 100 (0.2 points rms over
+  /// 240 points of travel), a 700 point detent with 78 points of room
+  /// fits 78 (0.5 points rms).
+  /// Held iPhone 16 Pro drags confirm both dimensions within 1.5 points.
+  static const double stretchLimit = 100;
+
+  /// How far below the large detent, in unscaled points, a dragged sheet
+  /// finishes docking: during a drag the docking progress runs from the
+  /// largest floating detent to the large detent less this (768 of 778 on
+  /// a 402 x 874 screen in every simulator row). A settle docks over the
+  /// whole way to the large detent.
+  static const double dragDockShortfall = 10;
+
+  /// The docking progress at which a dragged sheet changes its background:
+  /// past it the opaque fill animates in on [spring] and the glass goes
+  /// once the fill is opaque; below it the glass returns and the fill
+  /// animates out. The sheet takes the background of the detent nearest
+  /// to it (read from UIKit, notes private); the simulator flips the
+  /// background between 600.0 and 602.7 points both ways, where the drag's
+  /// docking progress crosses one half.
+  /// The iPhone 16 Pro turns at 602.67 points (progress 0.5025).
+  static const double backgroundSwitch = 0.5;
+
+  /// The share of [refusedPullExtent] that a refused pull must exceed when
+  /// the finger lifts for the sheet to report a dismiss attempt: UIKit
+  /// tests the pull beyond the edge against a quarter of its rubber-band
+  /// extent once the drag has ended, then calls
+  /// `presentationControllerDidAttemptToDismiss` (read from UIKit, notes
+  /// private).
+  static const double dismissAttemptShare = 0.25;
+}
+
+/// The motion of an iOS 27 sheet: its height between detents, its
+/// translation while presenting and dismissing, how far it docks to the
+/// screen edges and how much it dims what is behind it.
+///
+/// Heights are the sheet's unscaled heights in pixels, bottom safe area
+/// included; the translation moves the sheet down from its resting place.
+/// Every animation rides [SheetTuning.spring] and carries velocity
+/// through every retarget. A sheet resting below the large detent floats:
+/// it is the full-width sheet scaled down so that it keeps
+/// [SheetTuning.floatingInset] from the sides and the bottom. UIKit
+/// docks it to the large detent as one transform interpolated by the
+/// docking progress, the fraction of the height travelled between where
+/// the transition started and the large detent (on the way back, between
+/// the large detent and the floating one the sheet heads to); the scale,
+/// the bottom corner radius ([bottomRadius]) and the opaque background
+/// follow the same fraction. A move between two floating detents keeps the
+/// sheet floating throughout.
+///
+/// The opaque fill that replaces the glass at the large detent follows
+/// its own [SheetTuning.spring] toward the background of the detent
+/// the sheet heads to: in a settle or a programmatic change it keeps pace
+/// with the docking, while a drag switches it where the docking progress
+/// crosses [SheetTuning.backgroundSwitch], so the glass gives way to
+/// the fill at a point of the drag rather than along it.
+///
+/// A touch swells a floating sheet by [SheetTuning.pressScale] and
+/// the swell holds through the drag the touch turns into. A drag moves
+/// the sheet's top edge with the finger: between the smallest
+/// and the largest detent the height follows it point for point, above
+/// a floating largest detent it rubber-bands toward the maximum height
+/// (at most [SheetTuning.stretchLimit]), a docked sheet does not
+/// move up, and below the smallest the whole sheet slides down. A sheet
+/// that floats when the drag begins stretches along
+/// the drag with the finger's travel and its changes of speed
+/// ([SheetTuning.stretchPerPoint]), keeping its area and its bottom
+/// edge, and springs back on release.
+/// Releasing above the smallest detent settles on the
+/// detent nearest to the height projected by
+/// [SheetTuning.projection]; releasing below it dismisses when the
+/// projected slide passes half the sheet's visible height or the finger
+/// moves faster than [SheetTuning.dismissVelocity], and returns
+/// otherwise. The settle carries [SheetTuning.releaseVelocityGain]
+/// times the finger's velocity. A tap on the grabber band cycles to the
+/// next detent.
+@internal
+class SheetMotion {
+  /// Creates a motion with the given detent [heights] (ascending), resting
+  /// hidden below the screen until [present].
+  ///
+  /// [fullHeight] is the height of a sheet at the maximum detent value,
+  /// the room a drag up may stretch a floating sheet into; null takes the
+  /// largest detent, which leaves no room.
+  SheetMotion({
+    required List<double> heights,
+    required this.width,
+    required int initial,
+    double? fullHeight,
+    this.dockedIndex,
+    this.undimmedIndex,
+    this.dismissible = true,
+    this.inset = SheetTuning.floatingInset,
+    this.displayRadius,
+  }) : _heights = List<double>.of(heights),
+       _fullHeight = fullHeight ?? heights.last,
+       _index = initial,
+       _height = MotionValue<double>(
+         heights[initial],
+         spring: SheetTuning.spring,
+       ),
+       _offset = MotionValue<double>(0, spring: SheetTuning.spring),
+       _fill = MotionValue<double>(
+         initial == dockedIndex ? 1 : 0,
+         spring: SheetTuning.spring,
+       ) {
+    _toDocked = initial == dockedIndex;
+    _dockStart = _toDocked ? 1 : 0;
+    _radiusStart = _toDocked ? dockedRadius : floatingRadius;
+    _heightStart = heights[initial];
+    _floating = _toDocked ? _floatingBelowDocked : heights[initial];
+    _offset.snap(0, hiddenOffset);
+  }
+
+  List<double> _heights;
+  double _fullHeight;
+
+  /// The width of the container in pixels.
+  double width;
+
+  /// The corner radius of the display, or null where the platform reports
+  /// none: the radius the bottom corners turn to as the sheet docks, less
+  /// [inset] while it floats. The host updates it with every layout.
+  double? displayRadius;
+
+  /// The index of the detent that docks the sheet edge to edge, or null
+  /// when no detent does.
+  final int? dockedIndex;
+
+  /// The index of the largest detent that does not dim, or null when
+  /// every detent dims.
+  final int? undimmedIndex;
+
+  /// Whether a drag or a tap outside may dismiss the sheet; the host
+  /// updates it before a drag (a pop scope that turns dismissal off).
+  bool dismissible;
+
+  /// The gap around the floating sheet in pixels.
+  final double inset;
+
+  final MotionValue<double> _height;
+  final MotionValue<double> _offset;
+  final MotionValue<double> _fill;
+  final MotionTimeline _timeline = MotionTimeline(now: 0);
+  double? _pressAt;
+  final _press = MotionValue<double>(1, spring: SheetTuning.pressSpring);
+  final _stretch = MotionValue<double>(
+    0,
+    spring: SheetTuning.stretchSpring,
+  );
+  final _drift = MotionValue<double>(0, spring: SheetTuning.spring);
+  final _lag = MotionValue<double>(
+    0,
+    spring: SheetTuning.stretchLagSpring,
+  );
+  bool _stretching = false;
+  double _travel = 0;
+  double _travelAt = 0;
+  double _travelVelocity = 0;
+  int _index;
+  bool _dismissing = false;
+  double _now = 0;
+
+  bool _toDocked = false;
+  double _dockStart = 0;
+  double _radiusStart = 0;
+  bool _squareAtRest = false;
+  double _heightStart = 0;
+  double _floating = 0;
+
+  double? _dragFrom;
+  double _dragTop = 0;
+
+  /// The detent heights, ascending.
+  List<double> get heights => _heights;
+
+  /// The detent the sheet rests at or heads to.
+  int get index => _index;
+
+  final List<SheetEvent> _events = [];
+
+  /// The events raised since the last call, oldest first.
+  List<SheetEvent> drainEvents() {
+    if (_events.isEmpty) return const [];
+    final drained = List<SheetEvent>.of(_events);
+    _events.clear();
+    return drained;
+  }
+
+  /// Whether the sheet is leaving or has left.
+  bool get isDismissing => _dismissing;
+
+  /// Whether a drag holds the sheet.
+  bool get isDragging => _dragFrom != null && !_released;
+
+  /// The time the motion was last advanced to.
+  double get time => _now;
+
+  /// The time before which nothing moves, or null while the sheet moves:
+  /// a pending grabber tap or swell waits under a moving sheet.
+  double? get wakeTime => null;
+
+  double get _floatingBelowDocked {
+    final docked = dockedIndex;
+    if (docked == null) return _heights.first;
+    return docked > 0 ? _heights[docked - 1] : _heights[docked];
+  }
+
+  /// The translation that hides the sheet below the screen: its visible
+  /// height and its gap to the bottom at the selected detent.
+  double get hiddenOffset {
+    final h = _heights[_index];
+    final d = _index == dockedIndex ? 1.0 : 0.0;
+    final s = _scaleFor(d);
+    return h * s + h * (1 - s) / 2 - _shiftFor(h, d);
+  }
+
+  /// Whether the sheet is dismissed and still: its offset swings less
+  /// than half a point about the hidden offset, where the sheet's top sits
+  /// at the container's bottom edge.
+  bool get isDismissed =>
+      _dismissing && _offset.isWithin(_now, 0.5) && _dragFrom == null;
+
+  /// Whether nothing moves visibly ([GlassRest], NEAR): height and offset
+  /// swing less than [GlassRest.length], the press and the stretch less
+  /// than [GlassRest.scale] of the sheet's longer side and the fill less
+  /// than [GlassRest.opacity].
+  bool get isSettled =>
+      _dragFrom == null &&
+      _height.isWithin(_now, GlassRest.length) &&
+      _offset.isWithin(_now, GlassRest.length) &&
+      _timeline.isEmpty &&
+      _pressAt == null &&
+      !_released &&
+      _press.isWithin(_now, _scaleRest) &&
+      _fill.isWithin(_now, GlassRest.opacity) &&
+      !_stretching &&
+      _stretch.isWithin(_now, _scaleRest) &&
+      _drift.isWithin(_now, _driftRest);
+
+  double get _driftRest => inset <= 0 ? 1 : GlassRest.length / inset;
+
+  double get _scaleRest => GlassRest.scale(math.max(width, _heights[_index]));
+
+  /// The unscaled height.
+  double get height => _heightAt(_now);
+
+  double _heightAt(double t) => _height.valueAt(t);
+
+  /// The translation down from the resting place.
+  double get offset => _offsetAt(_now);
+
+  double _offsetAt(double t) => _offset.valueAt(t);
+
+  /// The docking progress: 0 floating, 1 edge to edge.
+  double get dock => _dockAt(_now);
+
+  double _dockAt(double t) => _dockFor(_heightAt(t));
+
+  /// The opacity of the opaque fill, 0 to 1: 0 shows the
+  /// glass of a floating sheet, 1 the fill of a docked one, which hides
+  /// the glass.
+  double get fill => _fillAt(_now);
+
+  double _fillAt(double t) => _fill.valueAt(t).clamp(0.0, 1.0);
+
+  /// The radius of the bottom corners of a floating sheet, in unscaled
+  /// pixels: the display's less [inset] (62 - 8 = 54 on an iPhone 16 Pro),
+  /// [SheetTuning.fallbackDisplayRadius] less it where the platform
+  /// reports none.
+  double get floatingRadius =>
+      (displayRadius ?? SheetTuning.fallbackDisplayRadius) - inset;
+
+  /// The radius the bottom corners turn to as the sheet docks: the
+  /// display's, 0 where the platform reports none.
+  double get dockedRadius => displayRadius ?? 0;
+
+  /// The radius of the bottom corners now, in unscaled pixels; the top
+  /// corners keep [SheetTuning.topRadius].
+  ///
+  /// Device clip layer, every frame (test/fixtures/ios27-device/sheet):
+  /// a programmatic docking turns it from [floatingRadius] to
+  /// [dockedRadius] in step with the docking progress `p`, linear in `p`
+  /// (54 + 8 p), and once the sheet rests docked it is 0, square under the
+  /// display's own corner, which hides it. Undocking from there runs from
+  /// 0 to [floatingRadius] as `54 (1 - p)`. A transition that starts
+  /// anywhere else runs from the radius it starts at, in step with the
+  /// docking. A drag sets it from the docking progress as
+  /// `docked - (docked - floating) (1 - p)^2`, concentric with the
+  /// shrinking gap to the screen edge (simulator: 58.44 at `p` 0.333; UIKit
+  /// rounds the gap up to a third of a point, morph is smooth: NEAR). A
+  /// sheet presented docked keeps [dockedRadius] (a large-only sheet reads
+  /// 62 through its present and dismissal).
+  double get bottomRadius => _bottomRadiusAt(_now);
+
+  double _bottomRadiusAt(double t) {
+    final floating = floatingRadius;
+    final docked = dockedRadius;
+    final d = _dockAt(t);
+    final double radius;
+    if (_dragFrom != null) {
+      radius = docked - (docked - floating) * (1 - d) * (1 - d);
+    } else if (_toDocked) {
+      if (_height.isWithin(t, GlassRest.length)) {
+        radius = _squareAtRest ? 0 : docked;
+      } else {
+        final span = 1 - _dockStart;
+        final p = span <= 1e-9
+            ? 1.0
+            : ((d - _dockStart) / span).clamp(0.0, 1.0);
+        radius = _radiusStart + (docked - _radiusStart) * p;
+      }
+    } else if (_dockStart <= 1e-9) {
+      radius = floating;
+    } else {
+      radius =
+          floating +
+          (_radiusStart - floating) * (d / _dockStart).clamp(0.0, 1.0);
+    }
+    return math.max(0, radius);
+  }
+
+  double get _rubberRoom =>
+      (_fullHeight - _heights.last).clamp(0.0, SheetTuning.stretchLimit);
+
+  double _dockFor(double h) {
+    final docked = dockedIndex;
+    if (docked == null) return 0;
+    final top = _heights[docked];
+    if (_dragFrom != null) {
+      final ref = _floatingBelowDocked;
+      if (top <= ref) return 1;
+      final shortened = top - SheetTuning.dragDockShortfall;
+      final end = shortened > ref ? shortened : top;
+      return ((h - ref) / (end - ref)).clamp(0.0, 1.0);
+    }
+    if (_toDocked) {
+      final span = top - _heightStart;
+      if (span <= 1e-6) return 1;
+      return (_dockStart + (1 - _dockStart) * (h - _heightStart) / span).clamp(
+        0.0,
+        1.0,
+      );
+    }
+    final span = _heightStart - _heights[_index];
+    if (span.abs() <= 1e-6) return 0;
+    return (_dockStart * (h - _heights[_index]) / span).clamp(0.0, 1.0);
+  }
+
+  double _scaleFor(double dock) => 1 - 2 * inset / width * (1 - dock);
+
+  double _shiftFor(double h, double dock) {
+    final reference = dock > 0 ? _floating : h;
+    return inset * (reference / width - 1) * (1 - dock);
+  }
+
+  /// The uniform scale of the sheet, the swell of a touch
+  /// included.
+  double get scale => _scaleAt(_now);
+
+  double _scaleAt(double t) => _scaleFor(_dockAt(t)) * _pressScaleAt(t);
+
+  /// The ratio of the sheet's vertical to its horizontal scale: 1 at
+  /// rest, above 1 while a drag stretches the sheet. The drawn
+  /// height is the [scale]d height times its square root, the drawn width
+  /// the [scale]d width over it, about the bottom edge. A drag that
+  /// catches the sheet while a stretch still returns stretches it on top
+  /// of that remainder, which keeps returning on
+  /// [SheetTuning.stretchSpring].
+  double get stretch => _stretchAt(_now);
+
+  double _stretchAt(double t) =>
+      1 +
+      _stretch.valueAt(t) +
+      (_stretching
+          ? SheetTuning.stretchPerPoint * _travel +
+                SheetTuning.stretchLagGain * _lag.valueAt(t)
+          : 0);
+
+  void _holdStretch(double t) {
+    if (!_stretching) return;
+    _stretch.snap(t, _stretchAt(t) - 1);
+    _stretching = false;
+  }
+
+  void _releaseStretch(double t) {
+    _holdStretch(t);
+    _stretch.retarget(t, 0);
+  }
+
+  /// How far a presenting sheet still sits left of its place, in pixels:
+  /// UIKit slides a floating sheet in with its frame at the container's
+  /// leading edge (origin x 0) and moves it to its inset on the present
+  /// spring itself (device, every floating present: the centre x 193 ->
+  /// 201 on a 402 point screen, its progress the slide's within 0.001).
+  /// A docked sheet and a dismissal do not drift.
+  double get drift => _driftAt(_now);
+
+  double _driftAt(double t) => inset * (1 - _dockAt(t)) * _drift.valueAt(t);
+
+  /// The vertical shift of the scaled sheet's center, on top
+  /// of [offset]: what keeps a floating sheet [inset] off the bottom.
+  double get shift => _shiftAt(_now);
+
+  double _shiftAt(double t) => _shiftFor(_heightAt(t), _dockAt(t));
+
+  /// How strongly the sheet dims what is behind it, 0 to 1;
+  /// multiply by [SheetTuning.dimmingOpacity].
+  double get dimming => _dimmingAt(_now);
+
+  double _dimmingAt(double t) {
+    final hidden = hiddenOffset;
+    final shown = hidden <= 0
+        ? 1.0
+        : (1 - _offsetAt(t) / hidden).clamp(0.0, 1.0);
+    final undimmed = undimmedIndex;
+    if (undimmed == null) return shown;
+    if (undimmed >= _heights.length - 1) return 0;
+    final lo = _heights[undimmed];
+    final hi = _heights[undimmed + 1];
+    final f = hi <= lo
+        ? 1.0
+        : ((_heightAt(t) - lo) / (hi - lo)).clamp(0.0, 1.0);
+    return shown * f;
+  }
+
+  /// Replaces the detent [heights], the container [width] and the
+  /// [fullHeight] after a layout change, keeping the selected detent, or
+  /// moving to [index] without reporting it through `onDetentChanged`: the
+  /// detent a keyboard raises the sheet to is not a selection.
+  void relayout(
+    double t,
+    List<double> heights,
+    double width, {
+    double? fullHeight,
+    int? index,
+  }) {
+    advance(t);
+    this.width = width;
+    _heights = List<double>.of(heights);
+    _fullHeight = fullHeight ?? heights.last;
+    _index = (index ?? _index).clamp(0, heights.length - 1);
+    if (_dragFrom == null) _transition(t, _index);
+  }
+
+  /// Slides the sheet in from below the screen to its detent.
+  ///
+  /// A floating sheet slides in with its frame at the container's leading
+  /// edge and drifts sideways to its inset on the same spring, as UIKit's
+  /// does ([drift]).
+  void present(double t) {
+    advance(t);
+    _dismissing = false;
+    final hidden = hiddenOffset;
+    if (hidden > 0) {
+      _drift.snap(t, (_offset.valueAt(t) / hidden).clamp(0.0, 1.0));
+      _drift.retarget(t, 0);
+    }
+    _offset.retarget(t, 0, spring: SheetTuning.spring);
+  }
+
+  /// Puts the sheet at its detent at time [t] without a slide, for a sheet
+  /// whose arrival another motion draws (the zoom out of a source).
+  void presentInPlace(double t) {
+    advance(t);
+    _dismissing = false;
+    _offset.snap(t, 0);
+  }
+
+  /// Slides the sheet out below the screen.
+  void dismiss(double t) {
+    advance(t);
+    _dragFrom = null;
+    _dismissing = true;
+    _releaseStretch(t);
+    _offset.retarget(t, hiddenOffset, spring: SheetTuning.spring);
+  }
+
+  /// Animates to detent [index], as UIKit's animateChanges does.
+  void animateTo(double t, int index) {
+    advance(t);
+    _transition(t, index.clamp(0, _heights.length - 1), byUser: false);
+  }
+
+  void _transition(
+    double t,
+    int index, {
+    double? velocity,
+    bool byUser = true,
+  }) {
+    final h = _heightAt(t);
+    final d = _dockFor(h);
+    final radius = _bottomRadiusAt(t);
+    final dragged = _dragFrom != null;
+    _dragFrom = null;
+    _releaseStretch(t);
+    final changed = index != _index;
+    _index = index;
+    _toDocked = index == dockedIndex;
+    _dockStart = d;
+    _radiusStart = radius;
+    if (changed || dragged) _squareAtRest = true;
+    _heightStart = h;
+    _fillToward(t, _toDocked ? 1 : 0);
+    if (!_toDocked) {
+      _floating = _heights[index];
+    } else if (d <= 0) {
+      _floating = h;
+    }
+    if (velocity != null) _height.setPresentation(t, h, velocity: velocity);
+    _height.retarget(t, _heights[index]);
+    if (changed) _events.add(SheetDetentChanged(index, byUser: byUser));
+  }
+
+  double get _top => _height.valueAt(_now) - _offset.valueAt(_now);
+
+  void _fillToward(double t, double target) {
+    if (dockedIndex == null || _fill.target == target) return;
+    _fill.retarget(t, target);
+  }
+
+  /// A finger touched the sheet: a sheet floating at the touch swells,
+  /// and keeps its swell through a drag the touch turns into; a sheet
+  /// docked at the touch does not swell for it, even once a drag undocks
+  /// it.
+  void press(double t) {
+    advance(t);
+    if (_dockAt(t) >= 1) return;
+    _pressAt = t + SheetTuning.pressDelay;
+  }
+
+  /// The touch ended without a drag: the swell goes.
+  void unpress(double t) {
+    advance(t);
+    _letGo(t);
+  }
+
+  void _letGo(double t) {
+    _pressAt = null;
+    _press.retarget(t, 1);
+  }
+
+  /// A tap on the grabber band: cycles to the next detent, back to the
+  /// smallest after the largest.
+  void tapGrabber(double t) {
+    advance(t);
+    if (_heights.length < 2 || _dismissing) return;
+    _timeline.at(t + SheetTuning.grabberTapDelay, (double s) {
+      if (_dragFrom == null && !_dismissing) {
+        _transition(s, (_index + 1) % _heights.length);
+      }
+    });
+  }
+
+  /// The swell of the sheet under a touch, as a factor on [scale]: it
+  /// fades as the square root of the way left to docking, so a sheet a
+  /// drag docks loses it at the large detent (fitted to the device drags
+  /// up from medium, 0.0004 - 0.0007 rms in the area scale where a linear
+  /// fade leaves 0.0012 - 0.0017).
+  double get pressScale => _pressScaleAt(_now);
+
+  double _pressScaleAt(double t) =>
+      1 + (_press.valueAt(t) - 1) * math.sqrt(1 - _dockAt(t));
+
+  /// A finger started dragging the sheet at screen position [y].
+  void dragStart(double t, double y) {
+    advance(t);
+    _holdStretch(t);
+    if (_dockAt(t) < 1) {
+      _stretch.retarget(t, 0);
+      _stretching = true;
+      _travel = 0;
+      _travelAt = t;
+      _travelVelocity = 0;
+      _lag.snap(t, 0);
+    }
+    _floating = _floatingBelowDocked;
+    _dragFrom = y;
+    final top = _top;
+    final largest = _heights.last;
+    final room = _rubberRoom;
+    _dragTop = top > largest && room > 0
+        ? largest + _unstretched(top - largest, room)
+        : top;
+    _height.snap(t, _height.valueAt(t));
+    _offset.snap(t, _offset.valueAt(t));
+  }
+
+  // The finger travel that [rubberBand] maps to [y] with [dimension].
+  static double _unstretched(double y, double dimension) {
+    const c = 0.55;
+    final held = math.min(y, dimension * 0.999);
+    return held * dimension / (c * (dimension - held));
+  }
+
+  /// The finger moved to screen position [y].
+  void dragUpdate(double t, double y) {
+    advance(t);
+    final from = _dragFrom;
+    if (from == null || _released) return;
+    if (_stretching) _track(t, (y - from).abs());
+    final raw = _dragTop - (y - from);
+    final largest = _heights.last;
+    final top = raw <= largest
+        ? raw
+        : largest + rubberBand(raw - largest, dimension: _rubberRoom);
+    final lowest = _heights.first;
+    if (top >= lowest) {
+      _height.snap(t, top);
+      _offset.snap(t, 0);
+      _fillToward(
+        t,
+        _dockFor(top) >= SheetTuning.backgroundSwitch ? 1 : 0,
+      );
+    } else {
+      final below = lowest - top;
+      _height.snap(t, lowest);
+      _offset.snap(
+        t,
+        dismissible
+            ? below
+            : rubberBand(
+                below,
+                dimension: SheetTuning.refusedPullExtent,
+              ),
+      );
+    }
+  }
+
+  void _track(double t, double travel) {
+    if (t > _travelAt) {
+      final v = (travel - _travel) / (t - _travelAt);
+      _lag.setVelocity(t, _lag.velocityAt(t) + v - _travelVelocity);
+      _travelVelocity = v;
+      _travelAt = t;
+    }
+    _travel = travel;
+  }
+
+  /// The finger let go, moving at [velocity] pixels per second (positive
+  /// down).
+  void dragEnd(double t, double velocity) {
+    advance(t);
+    if (_dragFrom == null || _released) return;
+    _holdStretch(t);
+    _released = true;
+    _timeline.at(t + SheetTuning.releaseDelay, (double s) {
+      _letGo(s);
+      _released = false;
+      _settle(s, velocity);
+    });
+  }
+
+  bool _released = false;
+
+  void _settle(double t, double velocity) {
+    if (_dragFrom == null) return;
+    _releaseStretch(t);
+    const gain = SheetTuning.releaseVelocityGain;
+    final below = _offset.valueAt(t);
+    if (below > 0) {
+      final hidden = hiddenOffset;
+      final projected = below + velocity * SheetTuning.projection;
+      if (dismissible &&
+          (projected > hidden / 2 || velocity > SheetTuning.dismissVelocity)) {
+        _dragFrom = null;
+        _dismissing = true;
+        final flicked = velocity > 0;
+        _offset.setVelocity(
+          t,
+          flicked ? velocity * SheetTuning.flickDismissVelocityGain : 0,
+        );
+        _offset.retarget(
+          t,
+          hidden,
+          spring: flicked ? SheetTuning.flickDismissSpring : SheetTuning.spring,
+        );
+        _events.add(const SheetDismissed());
+        return;
+      }
+      if (!dismissible &&
+          below >
+              SheetTuning.refusedPullExtent * SheetTuning.dismissAttemptShare) {
+        _events.add(const SheetDismissRefused());
+      }
+      _offset.setVelocity(t, velocity * gain);
+      _offset.retarget(t, 0, spring: SheetTuning.spring);
+      _transition(t, 0, velocity: 0);
+      return;
+    }
+    final projected = _height.valueAt(t) - velocity * SheetTuning.projection;
+    var best = 0;
+    for (var i = 1; i < _heights.length; i++) {
+      if ((_heights[i] - projected).abs() <
+          (_heights[best] - projected).abs()) {
+        best = i;
+      }
+    }
+    _offset.retarget(t, 0, spring: SheetTuning.spring);
+    _transition(t, best, velocity: -velocity * gain);
+  }
+
+  /// The drag was cancelled; the sheet returns to its detent.
+  void dragCancel(double t) {
+    advance(t);
+    if (_dragFrom == null) return;
+    _released = false;
+    _releaseStretch(t);
+    _offset.retarget(t, 0, spring: SheetTuning.spring);
+    _transition(t, _index);
+  }
+
+  /// Advances the motion to time [t]; a spring whose remaining swing is
+  /// invisible ([isSettled]'s thresholds) comes to rest on its target.
+  /// Advances the motion to [t]; an earlier [t] changes nothing.
+  void advance(double t) {
+    if (t > _now) _now = t;
+    final pressAt = _pressAt;
+    if (pressAt != null && pressAt <= _now) {
+      _pressAt = null;
+      _press.retarget(pressAt, SheetTuning.pressScale);
+    }
+    _timeline.runDue(_now);
+    if (_fill.isWithin(_now, GlassRest.opacity)) _fill.settle(_now);
+    if (_dragFrom != null) return;
+    if (_height.isWithin(_now, GlassRest.length)) _height.settle(_now);
+    if (_offset.isWithin(_now, GlassRest.length)) _offset.settle(_now);
+    if (_stretch.isWithin(_now, _scaleRest)) _stretch.settle(_now);
+    if (_drift.isWithin(_now, _driftRest)) _drift.settle(_now);
+  }
+
+  /// The sheet's visible rect in a container [containerHeight]
+  /// pixels tall, transforms applied.
+  Rect visibleRect(double containerHeight) =>
+      _visibleRectAt(_now, containerHeight);
+
+  Rect _visibleRectAt(double t, double containerHeight) {
+    final h = _heightAt(t);
+    final s = _scaleAt(t);
+    final bottom =
+        containerHeight + (s - 1) * h / 2 + _shiftAt(t) + _offsetAt(t);
+    final k = math.sqrt(math.max(_stretchAt(t), 0.5));
+    final w = width * s / k;
+    final x = -_driftAt(t);
+    return Rect.fromLTRB(
+      (width - w) / 2 + x,
+      bottom - h * s * k,
+      (width + w) / 2 + x,
+      bottom,
+    );
+  }
+}
+
+/// What a [SheetMotion] tells its host.
+@internal
+sealed class SheetEvent {
+  const SheetEvent();
+}
+
+/// A settle picked detent [index]; [byUser] when a drag or a grabber tap
+/// picked it, not the app.
+@internal
+final class SheetDetentChanged extends SheetEvent {
+  /// Creates the event.
+  const SheetDetentChanged(this.index, {required this.byUser});
+
+  /// The detent index, in the motion's ascending order.
+  final int index;
+
+  /// Whether the user picked the detent.
+  final bool byUser;
+}
+
+/// A released drag dismisses the sheet.
+@internal
+final class SheetDismissed extends SheetEvent {
+  /// Creates the event.
+  const SheetDismissed();
+}
+
+/// A released drag would have dismissed a sheet that is not dismissible;
+/// the sheet returns to its smallest detent.
+@internal
+final class SheetDismissRefused extends SheetEvent {
+  /// Creates the event.
+  const SheetDismissRefused();
+}
