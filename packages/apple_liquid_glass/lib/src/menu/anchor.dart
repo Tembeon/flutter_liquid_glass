@@ -30,7 +30,7 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 ///
 /// Flutter: `MenuController`.
 class GlassMenuController {
-  _MenuAnchorState? _anchor;
+  _MenuHost<StatefulWidget>? _anchor;
 
   /// Whether the menu shows or is on its way to showing.
   bool get isOpen => _anchor?._isOpen ?? false;
@@ -139,7 +139,10 @@ class _ShowingProgress extends MenuProgress {
   void close(double t) => _spring.close(t);
 }
 
-class _MenuAnchorState extends State<MenuAnchor> implements MotionDriver {
+/// The state of a widget whose menu shows on the overlay: the motion and
+/// its clock, the commands and events, the touches of the open menu.
+abstract class _MenuHost<W extends StatefulWidget> extends State<W>
+    implements MotionDriver {
   final _portal = OverlayPortalController(debugLabel: 'glass menu');
   late final _content = MenuContent(onChanged: _contentChanged);
   final _frames = ValueNotifier<int>(0);
@@ -156,37 +159,71 @@ class _MenuAnchorState extends State<MenuAnchor> implements MotionDriver {
 
   bool get _isOpen => _motion?.isOpen ?? false;
 
+  List<GlassMenuEntry> get _entries;
+  GlassMenuOrder get _order;
+  GlassMenuController? get _controller;
+  bool get _enabled;
+  String? get _semanticLabel;
+  VoidCallback? get _onTap;
+  MenuTuning get _tuning;
+
+  /// The source's look drawn on the glass while it grows into the menu,
+  /// or null for a menu that does not grow out of its source's glass.
+  Widget? get _look;
+
+  /// The motion of a menu opening from [source], in the overlay's
+  /// coordinates.
+  MenuMotion _createMotion(Rect source, Size bounds, EdgeInsets padding);
+
+  /// Lays a closed motion out again for [source].
+  void _relayout(
+    MenuMotion motion,
+    Rect source,
+    Size bounds,
+    EdgeInsets padding,
+  );
+
+  /// What the layer draws under the menu.
+  List<Widget> _backdrop(_MenuLayerState layer) => const [];
+
+  /// Whether the host animates something of its own besides the menu.
+  bool get _ownMotion => false;
+
+  /// Steps what the host animates of its own.
+  void _stepOwn(double time) {}
+
   @override
   void initState() {
     super.initState();
-    widget.controller?._anchor = this;
-    _content.entries = widget.entries;
-    _content.order = widget.order;
+    _controller?._anchor = this;
+    _content.entries = _entries;
+    _content.order = _order;
     MotionClock.instance.addDriver(this);
   }
 
-  @override
-  void didUpdateWidget(MenuAnchor oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.controller != widget.controller) {
-      if (identical(oldWidget.controller?._anchor, this)) {
-        oldWidget.controller?._anchor = null;
+  /// Takes a new configuration of the host's widget.
+  void _updated({
+    required GlassMenuController? oldController,
+    required bool wasEnabled,
+  }) {
+    if (oldController != _controller) {
+      if (identical(oldController?._anchor, this)) {
+        oldController?._anchor = null;
       }
-      widget.controller?._anchor = this;
+      _controller?._anchor = this;
     }
     final changed =
-        !identical(widget.entries, _content.entries) ||
-        widget.order != _content.order;
-    _content.entries = widget.entries;
-    _content.order = widget.order;
+        !identical(_entries, _content.entries) || _order != _content.order;
+    _content.entries = _entries;
+    _content.order = _order;
     if (changed) _contentChanged(animate: true);
-    if (oldWidget.enabled && !widget.enabled) _close();
+    if (wasEnabled && !_enabled) _close();
   }
 
   @override
   void dispose() {
-    if (identical(widget.controller?._anchor, this)) {
-      widget.controller?._anchor = null;
+    if (identical(_controller?._anchor, this)) {
+      _controller?._anchor = null;
     }
     _unroute();
     MotionClock.instance.removeDriver(this);
@@ -199,22 +236,29 @@ class _MenuAnchorState extends State<MenuAnchor> implements MotionDriver {
   // The motion clock.
 
   @override
-  bool get isActive => !(_motion?.isSettled ?? true);
+  bool get isActive => _ownMotion || !(_motion?.isSettled ?? true);
 
   @override
-  double? get wakeTime => _motion?.wakeTime;
+  double? get wakeTime => _ownMotion ? null : _motion?.wakeTime;
 
   @override
   void step(double time) {
+    _stepOwn(time);
     final motion = _motion;
-    if (motion == null) return;
+    if (motion == null) {
+      _frames.value++;
+      return;
+    }
     motion.frameTime = time;
     motion.framePeriod = MotionClock.instance.framePeriod;
     _reach(motion, math.max(time, motion.time));
     if (motion.isSettled) motion.settle();
     if (_early == null && !motion.isOpenPending) _unroute();
     _frames.value++;
-    if (!motion.isPresented && motion.isSettled && _showing.value) {
+    if (!motion.isPresented &&
+        motion.isSettled &&
+        !_ownMotion &&
+        _showing.value) {
       _portal.hide();
       _showing.value = false;
       if (mounted) setState(() {});
@@ -273,7 +317,7 @@ class _MenuAnchorState extends State<MenuAnchor> implements MotionDriver {
       case MenuActivated(:final target):
         _content.activate(target);
       case MenuTapped():
-        if (widget.enabled) widget.onTap?.call();
+        if (_enabled) _onTap?.call();
       case MenuCloseRequested():
         if (!motion.admitClose(event) && motion.isOpen) {
           motion.close(math.max(_now, motion.time));
@@ -302,7 +346,7 @@ class _MenuAnchorState extends State<MenuAnchor> implements MotionDriver {
     final overlay = _overlay = Overlay.of(context, rootOverlay: true);
     final box = context.findRenderObject()! as RenderBox;
     final overlayBox = overlay.context.findRenderObject()! as RenderBox;
-    final button =
+    final source =
         box.localToGlobal(Offset.zero, ancestor: overlayBox) & box.size;
     final media = MediaQuery.of(context);
     final padding = media.padding.copyWith(
@@ -313,24 +357,11 @@ class _MenuAnchorState extends State<MenuAnchor> implements MotionDriver {
     _content.textScaler = MediaQuery.textScalerOf(context);
     _content.beginSession();
     final MenuMotion motion;
-    if (current != null && identical(current.tuning, widget.tuning)) {
-      current.relayout(
-        button: button,
-        bounds: overlayBox.size,
-        padding: padding,
-        sourceRadius: widget.sourceRadius,
-      );
+    if (current != null && identical(current.tuning, _tuning)) {
+      _relayout(current, source, overlayBox.size, padding);
       motion = current;
     } else {
-      motion = MenuMotion(
-        button: button,
-        layout: _content.root,
-        bounds: overlayBox.size,
-        padding: padding,
-        sourceRadius: widget.sourceRadius,
-        tuning: widget.tuning,
-        progress: _ShowingProgress(widget.tuning, onOpen: _show),
-      );
+      motion = _createMotion(source, overlayBox.size, padding);
       motion.submenuLayout = _content.submenu;
       motion.advance(_now);
       _motion = motion;
@@ -338,19 +369,21 @@ class _MenuAnchorState extends State<MenuAnchor> implements MotionDriver {
     motion.lightsGlow =
         GlassTheme.rendererOf(context) is! FlatGlassRenderer &&
         !GlassTraits.of(context).reduceTransparency;
-    motion.opensOnTap = widget.trigger == MenuTrigger.tap;
     return motion;
   }
+
+  void _onShow() {}
 
   void _show() {
     if (!mounted || _showing.value) return;
     _showing.value = true;
     _portal.show();
+    _onShow();
     setState(() {});
   }
 
   void _openFromCode() {
-    if (!mounted || !widget.enabled || _isOpen) return;
+    if (!mounted || !_enabled || _isOpen) return;
     _prepare();
     _command((motion, t) => motion.open(t));
   }
@@ -369,18 +402,7 @@ class _MenuAnchorState extends State<MenuAnchor> implements MotionDriver {
   double _stamp(PointerEvent event) =>
       MotionClock.instance.stamp(event.timeStamp);
 
-  // Touches of the source and of the open menu.
-
-  void _sourceDown(PointerDownEvent event) {
-    if (!widget.enabled ||
-        event.buttons != kPrimaryButton ||
-        _pointer != null ||
-        _isOpen) {
-      return;
-    }
-    _prepare();
-    _pointerDown(event);
-  }
+  // Touches of the open menu.
 
   void _pointerDown(PointerDownEvent event) {
     if (_motion == null ||
@@ -453,6 +475,97 @@ class _MenuAnchorState extends State<MenuAnchor> implements MotionDriver {
     }
   }
 
+  /// The overlay's menu, with the page behind it kept from Back.
+  Widget _host(Widget child) => PopScope<Object?>(
+    canPop: !_showing.value,
+    onPopInvokedWithResult: (didPop, _) {
+      if (!didPop) _close();
+    },
+    child: OverlayPortal(
+      controller: _portal,
+      overlayLocation: OverlayChildLocation.rootOverlay,
+      overlayChildBuilder: (context) => _MenuLayer(anchor: this),
+      child: child,
+    ),
+  );
+}
+
+class _MenuAnchorState extends _MenuHost<MenuAnchor> {
+  @override
+  List<GlassMenuEntry> get _entries => widget.entries;
+
+  @override
+  GlassMenuOrder get _order => widget.order;
+
+  @override
+  GlassMenuController? get _controller => widget.controller;
+
+  @override
+  bool get _enabled => widget.enabled;
+
+  @override
+  String? get _semanticLabel => widget.semanticLabel;
+
+  @override
+  VoidCallback? get _onTap => widget.onTap;
+
+  @override
+  MenuTuning get _tuning => widget.tuning;
+
+  @override
+  Widget? get _look => widget.look;
+
+  @override
+  MenuMotion _createMotion(Rect source, Size bounds, EdgeInsets padding) {
+    final motion = MenuMotion(
+      button: source,
+      layout: _content.root,
+      bounds: bounds,
+      padding: padding,
+      sourceRadius: widget.sourceRadius,
+      tuning: widget.tuning,
+      progress: _ShowingProgress(widget.tuning, onOpen: _show),
+    );
+    motion.opensOnTap = widget.trigger == MenuTrigger.tap;
+    return motion;
+  }
+
+  @override
+  void _relayout(
+    MenuMotion motion,
+    Rect source,
+    Size bounds,
+    EdgeInsets padding,
+  ) {
+    motion.relayout(
+      button: source,
+      bounds: bounds,
+      padding: padding,
+      sourceRadius: widget.sourceRadius,
+    );
+    motion.opensOnTap = widget.trigger == MenuTrigger.tap;
+  }
+
+  @override
+  void didUpdateWidget(MenuAnchor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _updated(
+      oldController: oldWidget.controller,
+      wasEnabled: oldWidget.enabled,
+    );
+  }
+
+  void _sourceDown(PointerDownEvent event) {
+    if (!widget.enabled ||
+        event.buttons != kPrimaryButton ||
+        _pointer != null ||
+        _isOpen) {
+      return;
+    }
+    _prepare();
+    _pointerDown(event);
+  }
+
   void _activate() {
     if (!widget.enabled) return;
     if (widget.trigger == MenuTrigger.hold) {
@@ -478,49 +591,40 @@ class _MenuAnchorState extends State<MenuAnchor> implements MotionDriver {
     final presented = _showing.value;
     final enabled = widget.enabled;
     final hold = widget.trigger == MenuTrigger.hold;
-    return PopScope<Object?>(
-      canPop: !presented,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _close();
-      },
-      child: OverlayPortal(
-        controller: _portal,
-        overlayLocation: OverlayChildLocation.rootOverlay,
-        overlayChildBuilder: (context) => _MenuLayer(anchor: this),
-        child: FocusableActionDetector(
+    return _host(
+      FocusableActionDetector(
+        enabled: enabled,
+        actions: {
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              _activate();
+              return null;
+            },
+          ),
+        },
+        child: Semantics(
+          button: true,
           enabled: enabled,
-          actions: {
-            ActivateIntent: CallbackAction<ActivateIntent>(
-              onInvoke: (_) {
-                _activate();
-                return null;
-              },
-            ),
-          },
-          child: Semantics(
-            button: true,
-            enabled: enabled,
-            expanded: presented,
-            label: widget.semanticLabel,
-            excludeSemantics: widget.semanticLabel != null,
-            onTap: enabled ? _activate : null,
-            onLongPress: enabled && hold ? _openFromCode : null,
-            child: Listener(
-              behavior: HitTestBehavior.opaque,
-              onPointerDown: _sourceDown,
-              onPointerMove: _pointerMove,
-              onPointerUp: _pointerUp,
-              onPointerCancel: _pointerCancel,
-              child: ValueListenableBuilder<bool>(
-                valueListenable: _showing,
-                child: LiveTransform(
-                  live: _frames,
-                  matrixOf: _pressTransform,
-                  child: widget.face,
-                ),
-                builder: (context, showing, face) =>
-                    Visibility.maintain(visible: !showing, child: face!),
+          expanded: presented,
+          label: widget.semanticLabel,
+          excludeSemantics: widget.semanticLabel != null,
+          onTap: enabled ? _activate : null,
+          onLongPress: enabled && hold ? _openFromCode : null,
+          child: Listener(
+            behavior: HitTestBehavior.opaque,
+            onPointerDown: _sourceDown,
+            onPointerMove: _pointerMove,
+            onPointerUp: _pointerUp,
+            onPointerCancel: _pointerCancel,
+            child: ValueListenableBuilder<bool>(
+              valueListenable: _showing,
+              child: LiveTransform(
+                live: _frames,
+                matrixOf: _pressTransform,
+                child: widget.face,
               ),
+              builder: (context, showing, face) =>
+                  Visibility.maintain(visible: !showing, child: face!),
             ),
           ),
         ),
@@ -582,7 +686,7 @@ class _Structure {
 class _MenuLayer extends StatefulWidget {
   const _MenuLayer({required this.anchor});
 
-  final _MenuAnchorState anchor;
+  final _MenuHost<StatefulWidget> anchor;
 
   @override
   State<_MenuLayer> createState() => _MenuLayerState();
@@ -598,7 +702,7 @@ class _MenuLayerState extends State<_MenuLayer> {
   final _focus = FocusNode(debugLabel: 'glass menu');
   FocusNode? _restore;
 
-  _MenuAnchorState get _anchor => widget.anchor;
+  _MenuHost<StatefulWidget> get _anchor => widget.anchor;
 
   ValueListenable<int> get _frames => _anchor._frames;
 
@@ -1147,6 +1251,7 @@ class _MenuLayerState extends State<_MenuLayer> {
       child: Stack(
         fit: StackFit.expand,
         children: [
+          ..._anchor._backdrop(this),
           IgnorePointer(
             child: _MenuGlass(frames: _frames, motion: motion, shaded: shaded),
           ),
@@ -1164,7 +1269,7 @@ class _MenuLayerState extends State<_MenuLayer> {
                     child: _LiveBlur(
                       live: _frames,
                       sigmaOf: () => _motion.buttonLookBlur,
-                      child: Center(child: _anchor.widget.look),
+                      child: Center(child: _anchor._look),
                     ),
                   ),
                 ),
@@ -1193,7 +1298,7 @@ class _MenuLayerState extends State<_MenuLayer> {
       container: true,
       explicitChildNodes: true,
       role: ui.SemanticsRole.menu,
-      label: _anchor.widget.semanticLabel,
+      label: _anchor._semanticLabel,
       onDismiss: _anchor._close,
       child: BlockSemantics(
         child: Focus(focusNode: _focus, onKeyEvent: _key, child: layer),
@@ -1409,5 +1514,440 @@ class _RenderLiveBlur extends RenderProxyBox {
       tileMode: TileMode.decal,
     );
     context.pushLayer(layer, super.paint, offset);
+  }
+}
+
+/// Shows a menu beside a lifted preview of [child] when it is held, as an
+/// iOS 27 context menu does.
+///
+/// UIKit: `UIContextMenuInteraction`. SwiftUI: `contextMenu`. Flutter:
+/// `CupertinoContextMenu`.
+///
+/// A finger resting on [child] grows it by UIKit's measured law (nothing
+/// for 0.184 s, then 32 points a second to 8 points, then 20 a second to
+/// 15 points along its longest side); a finger that moves or lifts before
+/// 0.42 s drops it back. Held for 0.78 s, the page dims (20 percent light,
+/// 48 percent dark), the preview lifts to 1.15 times its size (26 points
+/// at most), fitted into the safe area, and the menu grows out of a blob
+/// at its center beside it, on one spring of response 0.284 s (iPhone 16
+/// Pro, iOS 27). The finger then slides onto a row and chooses it on
+/// release; let go on the preview, it leaves the menu open. A tap outside,
+/// Escape and Back close it. [previewBuilder] draws the open preview in
+/// place of a copy of [child], fading in as it lifts.
+class GlassContextMenu extends StatefulWidget {
+  /// Creates a context menu of [menuChildren] for [child].
+  const GlassContextMenu({
+    required this.menuChildren,
+    required this.child,
+    this.previewBuilder,
+    this.controller,
+    this.enabled = true,
+    this.semanticLabel,
+    this.order = GlassMenuOrder.automatic,
+    super.key,
+  });
+
+  /// The menu's entries.
+  final List<GlassMenuEntry> menuChildren;
+
+  /// What is held.
+  final Widget child;
+
+  /// Builds the preview shown while the menu is open, or null for a copy
+  /// of [child].
+  final WidgetBuilder? previewBuilder;
+
+  /// Opens and closes the menu from code.
+  final GlassMenuController? controller;
+
+  /// Whether a hold opens the menu.
+  final bool enabled;
+
+  /// What accessibility reads for the menu.
+  final String? semanticLabel;
+
+  /// How the rows order in a menu that opens upward.
+  final GlassMenuOrder order;
+
+  /// UIKit's growth of a held preview before its menu opens, in points
+  /// along its longest side, after [held] seconds (iPhone 16 Pro, iOS 27,
+  /// within 0.21 points of every frame).
+  @internal
+  static double holdGrowth(double held) {
+    if (held <= _growthStart) return 0;
+    if (held <= _growthKnee) return _growthFastRate * (held - _growthStart);
+    return math.min(
+      _growthKneePoints + _growthSlowRate * (held - _growthKnee),
+      _growthPoints,
+    );
+  }
+
+  /// The scale of UIKit's open preview over a preview of natural [size]:
+  /// 1.15 while that adds at most 26 points along its longest side, those
+  /// points beyond (iPhone 16 Pro, iOS 27).
+  @internal
+  static double previewScale(Size size) {
+    final longest = size.longestSide;
+    if (longest <= 0) return 1;
+    return 1 + math.min(0.15 * longest, 26) / longest;
+  }
+
+  static const double _growthStart = 0.184;
+  static const double _growthKnee = 0.434;
+  static const double _growthFastRate = 32;
+  static const double _growthSlowRate = 20;
+  static const double _growthPoints = 15;
+  static const double _growthKneePoints =
+      _growthFastRate * (_growthKnee - _growthStart);
+
+  /// The hold time past which a release opens the menu anyway (0.400 s
+  /// cancelled and 0.433 s opened on an iPhone 16 Pro).
+  static const double _commit = 0.42;
+
+  /// The hold time at which the menu opens under the finger.
+  static const double _hold = 0.78;
+
+  @override
+  State<GlassContextMenu> createState() => _ContextMenuState();
+}
+
+class _ContextMenuState extends _MenuHost<GlassContextMenu> {
+  static const _dimOpen = Spring.response(0.32, dampingRatio: 0.8);
+  static const _dimClose = Spring.response(0.35, dampingRatio: 0.85);
+  static const double _dimOpenDelay = 0.0145;
+  static const double _dimCloseDelay = 0.0125;
+
+  final _dim = MotionValue<double>(0, spring: _dimOpen);
+  ({double at, double target, Spring spring})? _dimPending;
+  double _dimTarget = 0;
+
+  int? _held;
+  Offset _from = Offset.zero;
+  Offset _finger = Offset.zero;
+  double _heldSince = 0;
+  double _growth = 0;
+  bool _committed = false;
+  Rect _heldRect = Rect.zero;
+  Rect _previewRect = Rect.zero;
+
+  // Where the preview grows out of and lands: the held view as the hold
+  // grew it while the menu opens, at its natural size once it closes, as
+  // the hidden view is by then.
+  Rect _home = Rect.zero;
+
+  @override
+  List<GlassMenuEntry> get _entries => widget.menuChildren;
+
+  @override
+  GlassMenuOrder get _order => widget.order;
+
+  @override
+  GlassMenuController? get _controller => widget.controller;
+
+  @override
+  bool get _enabled => widget.enabled;
+
+  @override
+  String? get _semanticLabel => widget.semanticLabel;
+
+  @override
+  VoidCallback? get _onTap => null;
+
+  @override
+  MenuTuning get _tuning => MenuTuning.context;
+
+  @override
+  Widget? get _look => null;
+
+  @override
+  void didUpdateWidget(GlassContextMenu oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _updated(
+      oldController: oldWidget.controller,
+      wasEnabled: oldWidget.enabled,
+    );
+  }
+
+  MenuAttachment _attach(Rect held, Size bounds, EdgeInsets padding) {
+    final preferred = held.size * GlassContextMenu.previewScale(held.size);
+    final fitted = MenuAttachment.fitPreview(
+      preferred: preferred,
+      bounds: bounds,
+      padding: padding,
+    );
+    return MenuAttachment(
+      held: held,
+      preview: Rect.fromCenter(
+        center: held.center,
+        width: fitted.width,
+        height: fitted.height,
+      ),
+    );
+  }
+
+  @override
+  MenuMotion _createMotion(Rect source, Size bounds, EdgeInsets padding) {
+    final attachment = _attach(source, bounds, padding);
+    final motion = MenuMotion(
+      button: source,
+      layout: _content.root,
+      bounds: bounds,
+      padding: padding,
+      tuning: MenuTuning.context,
+      attachment: attachment,
+      progress: _ShowingProgress(MenuTuning.context, onOpen: _show),
+    );
+    _placePreview(motion, source);
+    return motion;
+  }
+
+  @override
+  void _relayout(
+    MenuMotion motion,
+    Rect source,
+    Size bounds,
+    EdgeInsets padding,
+  ) {
+    motion.relayout(
+      button: source,
+      bounds: bounds,
+      padding: padding,
+      attachment: _attach(source, bounds, padding),
+    );
+    _placePreview(motion, source);
+  }
+
+  void _placePreview(MenuMotion motion, Rect held) {
+    _heldRect = held;
+    _home = held;
+    _previewRect = motion.attachment!.preview.shift(motion.previewShift);
+  }
+
+  @override
+  void _onShow() => _scheduleDim(1);
+
+  void _scheduleDim(double target) {
+    if (target == _dimTarget) return;
+    _dimTarget = target;
+    final now = MotionClock.instance.now;
+    _steppedAt = now;
+    _dimPending = target == 1
+        ? (at: now + _dimOpenDelay, target: 1, spring: _dimOpen)
+        : (at: now + _dimCloseDelay, target: 0, spring: _dimClose);
+    _wake();
+  }
+
+  // The dim rests within a thousandth of its opacity, slower than a
+  // hundredth a second: beyond what a 20 percent dim can show.
+  bool _dimMoving(double t) =>
+      (_dim.valueAt(t) - _dimTarget).abs() > 1e-3 ||
+      _dim.velocityAt(t).abs() > 1e-2;
+
+  // The time of the latest step: whether the dim still moves is asked
+  // there, so the clock stops on the step that saw it rest.
+  double _steppedAt = 0;
+
+  @override
+  bool get _ownMotion =>
+      _held != null || _dimPending != null || _dimMoving(_steppedAt);
+
+  @override
+  void _stepOwn(double time) {
+    _steppedAt = time;
+    final pending = _dimPending;
+    if (pending != null && time >= pending.at) {
+      _dimPending = null;
+      _dim.retarget(pending.at, pending.target, spring: pending.spring);
+    } else if (pending == null && !_dimMoving(time)) {
+      _dim.snap(time, _dimTarget);
+    }
+    final motion = _motion;
+    if (motion != null && motion.isClosing) {
+      _scheduleDim(0);
+      _home = _heldRect;
+    }
+    if (_held == null) return;
+    final held = time - _heldSince;
+    _growth = GlassContextMenu.holdGrowth(held);
+    if (!_committed && held >= GlassContextMenu._commit) {
+      _committed = true;
+      unawaited(HapticFeedback.heavyImpact());
+    }
+    if (held >= GlassContextMenu._hold) _openUnder(_held!);
+  }
+
+  void _openUnder(int pointer) {
+    _held = null;
+    if (!mounted || !_enabled || _isOpen) return;
+    _prepare();
+    final longest = _heldRect.size.longestSide;
+    final grown = longest <= 0 ? 1.0 : 1 + _growth / longest;
+    _home = Rect.fromCenter(
+      center: _heldRect.center,
+      width: _heldRect.width * grown,
+      height: _heldRect.height * grown,
+    );
+    _growth = 0;
+    _pointer = pointer;
+    final local = _local(_finger);
+    _command((motion, t) => motion.holdOpen(t, local));
+  }
+
+  void _drop() {
+    _held = null;
+    _committed = false;
+    _growth = 0;
+    _frames.value++;
+  }
+
+  void _down(PointerDownEvent event) {
+    if (!_enabled ||
+        event.buttons != kPrimaryButton ||
+        _held != null ||
+        _pointer != null ||
+        (_motion?.isPresented ?? false)) {
+      return;
+    }
+    _held = event.pointer;
+    _from = event.position;
+    _finger = event.position;
+    _heldSince = _stamp(event);
+    _committed = false;
+    _wake();
+  }
+
+  void _move(PointerMoveEvent event) {
+    if (event.pointer == _held) {
+      _finger = event.position;
+      if ((event.position - _from).distance > kTouchSlop) _drop();
+      return;
+    }
+    _pointerMove(event);
+  }
+
+  void _up(PointerUpEvent event) {
+    if (event.pointer == _held) {
+      _finger = event.position;
+      if (_committed) {
+        _openUnder(event.pointer);
+        _pointerUp(event);
+      } else {
+        _drop();
+      }
+      return;
+    }
+    _pointerUp(event);
+  }
+
+  void _cancel(PointerCancelEvent event) {
+    if (event.pointer == _held) {
+      _drop();
+      return;
+    }
+    _pointerCancel(event);
+  }
+
+  Matrix4 _growthTransform() {
+    final size = _heldRect.isEmpty
+        ? (context.findRenderObject() as RenderBox?)?.size ?? Size.zero
+        : _heldRect.size;
+    final longest = size.longestSide;
+    final s = longest <= 0 ? 1.0 : 1 + _growth / longest;
+    return Matrix4.diagonal3Values(s, s, 1);
+  }
+
+  Rect _previewNow() {
+    final motion = _motion;
+    if (motion == null) return _home;
+    return Rect.lerp(_home, _previewRect, motion.progress) ?? _previewRect;
+  }
+
+  @override
+  List<Widget> _backdrop(_MenuLayerState layer) {
+    final brightness = GlassTraits.of(layer.context).brightness;
+    final dim = brightness == Brightness.dark ? 0.48 : 0.2;
+    final natural = _heldRect.size;
+    final builder = widget.previewBuilder;
+    Widget carried(Size size, Widget child) => LivePlacement(
+      live: _frames,
+      rectOf: () => _previewNow().topLeft & size,
+      child: LiveTransform(
+        live: _frames,
+        alignment: Alignment.topLeft,
+        matrixOf: () {
+          final rect = _previewNow();
+          return Matrix4.diagonal3Values(
+            size.width <= 0 ? 1 : rect.width / size.width,
+            size.height <= 0 ? 1 : rect.height / size.height,
+            1,
+          );
+        },
+        child: child,
+      ),
+    );
+    double shown() => ((_motion?.progress ?? 0) * 2).clamp(0.0, 1.0);
+    return [
+      IgnorePointer(
+        child: LiveFade(
+          live: _frames,
+          opacityOf: () => dim * _dim.valueAt(MotionClock.instance.now),
+          child: const ColoredBox(color: Color(0xFF000000)),
+        ),
+      ),
+      IgnorePointer(
+        child: Stack(
+          children: [
+            carried(
+              natural,
+              builder == null
+                  ? widget.child
+                  : LiveFade(
+                      live: _frames,
+                      opacityOf: () => 1 - shown(),
+                      child: widget.child,
+                    ),
+            ),
+            if (builder != null)
+              carried(
+                _previewRect.size,
+                LiveFade(
+                  live: _frames,
+                  opacityOf: shown,
+                  child: Builder(builder: builder),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _style = MenuAppearance.resolve(context);
+    final enabled = widget.enabled;
+    return _host(
+      Semantics(
+        enabled: enabled,
+        onLongPress: enabled ? _openFromCode : null,
+        child: Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: _down,
+          onPointerMove: _move,
+          onPointerUp: _up,
+          onPointerCancel: _cancel,
+          child: ValueListenableBuilder<bool>(
+            valueListenable: _showing,
+            child: LiveTransform(
+              live: _frames,
+              matrixOf: _growthTransform,
+              child: widget.child,
+            ),
+            builder: (context, showing, child) =>
+                Visibility.maintain(visible: !showing, child: child!),
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -26,7 +26,7 @@ export 'src/controls/slider.dart';
 export 'src/controls/stepper.dart';
 export 'src/controls/switch.dart';
 export 'src/controls/tab_bar.dart';
-export 'src/menu/anchor.dart' show GlassMenuController;
+export 'src/menu/anchor.dart' show GlassContextMenu, GlassMenuController;
 export 'src/menu/entries.dart';
 export 'src/motion/sheet_motion.dart' show GlassSheetDetent;
 export 'src/motion/tab_minimize.dart' show GlassTabBarMinimizeBehavior;
