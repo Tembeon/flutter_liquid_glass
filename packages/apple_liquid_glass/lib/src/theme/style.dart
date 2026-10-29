@@ -77,3 +77,30 @@ WidgetStateProperty<T?>? byState<T>(T? enabled, T? disabled) =>
 @internal
 WidgetStateProperty<T?>? allStates<T>(T? value) =>
     value == null ? null : WidgetStatePropertyAll(value);
+
+/// [unselected] in every state but selected, where it is [selected].
+@internal
+@immutable
+final class BySelection<T> implements WidgetStateProperty<T?> {
+  /// Creates the property.
+  const BySelection(this.unselected, this.selected);
+
+  /// The value of every state but selected.
+  final T? unselected;
+
+  /// The value of the selected state.
+  final T? selected;
+
+  @override
+  T? resolve(Set<WidgetState> states) =>
+      states.contains(WidgetState.selected) ? selected : unselected;
+
+  @override
+  bool operator ==(Object other) =>
+      other is BySelection<T> &&
+      other.unselected == unselected &&
+      other.selected == selected;
+
+  @override
+  int get hashCode => Object.hash(unselected, selected);
+}

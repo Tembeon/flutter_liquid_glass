@@ -5,6 +5,8 @@ export 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 export 'src/controls/button.dart';
 export 'src/controls/page_control.dart';
+export 'src/controls/segmented_control.dart';
+export 'src/controls/selector.dart';
 export 'src/controls/slider.dart';
 export 'src/controls/stepper.dart';
 export 'src/controls/switch.dart';
