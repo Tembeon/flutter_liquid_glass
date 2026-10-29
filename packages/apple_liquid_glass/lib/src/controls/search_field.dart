@@ -12,6 +12,7 @@ import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:apple_liquid_glass/src/theme/typography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
@@ -290,6 +291,7 @@ class _GlassSearchFieldState extends State<GlassSearchField>
 
   @override
   void dispose() {
+    _faded?.dispose();
     _ends?.removeListener(_ended);
     _focus.removeListener(_focusChanged);
     _states.dispose();
@@ -302,6 +304,19 @@ class _GlassSearchFieldState extends State<GlassSearchField>
   }
 
   Listenable? _ends;
+  _Faded? _faded;
+
+  ValueListenable<GlassFrame> _frameUnder(SearchFieldStacking? stacking) {
+    final glass = stacking?.glass;
+    if (glass == null) return _body;
+    final faded = _faded;
+    if (faded != null && identical(faded._presence, glass)) return faded;
+    // The surface lets go of the old source as it rebuilds.
+    if (faded != null) {
+      SchedulerBinding.instance.addPostFrameCallback((_) => faded.dispose());
+    }
+    return _faded = _Faded(_body, glass);
+  }
 
   @override
   void didChangeDependencies() {
@@ -467,16 +482,17 @@ class _GlassSearchFieldState extends State<GlassSearchField>
         ],
       ),
     );
+    final stacking = SearchFieldStacking.maybeOf(context);
     return InputRegion(
       interactions: _interactions,
       enabled: widget.enabled,
       statesController: _states,
       focusNode: _regionFocus,
       child: SizedBox(
-        height: GlassSearchField.height,
+        height: stacking?.height ?? GlassSearchField.height,
         child: widget.enabled
             ? GlassSurface.live(
-                frame: _body,
+                frame: _frameUnder(stacking),
                 glass: Glass.regular(tint: background),
                 child: content,
               )
@@ -500,6 +516,67 @@ class _GlassSearchFieldState extends State<GlassSearchField>
       cursorColor: const WidgetStatePropertyAll(GlassSearchField.cursor),
       textStyle: const WidgetStatePropertyAll(GlassSearchField._text),
     );
+  }
+}
+
+/// How a search field stacked under a navigation bar's large title draws:
+/// [height] points tall, its glass only as present as [glass], over the
+/// plain fill its bar draws under it.
+@internal
+class SearchFieldStacking extends InheritedWidget {
+  /// Stacks the search fields below.
+  const SearchFieldStacking({
+    required this.height,
+    required this.glass,
+    required super.child,
+    super.key,
+  });
+
+  /// The height of the field.
+  final double height;
+
+  /// How present the field's glass is, 0 to 1.
+  final ValueListenable<double> glass;
+
+  /// The stacking around [context], or null.
+  static SearchFieldStacking? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<SearchFieldStacking>();
+
+  @override
+  bool updateShouldNotify(SearchFieldStacking oldWidget) =>
+      height != oldWidget.height || glass != oldWidget.glass;
+}
+
+// The field's frames with its glass faded by a presence.
+class _Faded extends ChangeNotifier implements ValueListenable<GlassFrame> {
+  _Faded(this._frames, this._presence) {
+    _frames.addListener(notifyListeners);
+    _presence.addListener(notifyListeners);
+  }
+
+  final ValueListenable<GlassFrame> _frames;
+  final ValueListenable<double> _presence;
+
+  @override
+  GlassFrame get value {
+    final frame = _frames.value;
+    return GlassFrame(
+      shape: frame.shape,
+      rect: frame.rect,
+      scaleX: frame.scaleX,
+      scaleY: frame.scaleY,
+      tint: frame.tint,
+      lift: frame.lift,
+      glow: frame.glow,
+      opacity: frame.opacity * _presence.value.clamp(0.0, 1.0),
+    );
+  }
+
+  @override
+  void dispose() {
+    _frames.removeListener(notifyListeners);
+    _presence.removeListener(notifyListeners);
+    super.dispose();
   }
 }
 

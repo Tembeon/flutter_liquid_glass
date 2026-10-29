@@ -81,6 +81,7 @@ final class GlassPageBarLink {
   bool _declaredToolbar = false;
   final Map<GlassBarKind, List<GlassBarCapsuleLayout>> _layouts = {};
   bool _coveredByForeign = false;
+  ValueListenable<double>? _lift;
 
   /// The room of the page's inline title in its final layout.
   final ValueNotifier<GlassTitleRoom?> titleRoom = ValueNotifier(null);
@@ -174,7 +175,7 @@ final class GlassBarHost implements MotionDriver {
   GlassBarHost.standalone() {
     final link = _standalone = GlassPageBarLink._(this, null, null);
     _pages.add(link);
-    _shown = link;
+    _show(link);
     _painter.value = link;
     _registered = true;
     MotionClock.instance.addDriver(this);
@@ -201,6 +202,34 @@ final class GlassBarHost implements MotionDriver {
   // Live glass pages, bottom to top, the order of their overlay entries.
   final List<GlassPageBarLink> _pages = [];
   GlassPageBarLink? _shown;
+  // The shown page's lift, which the navigation bar's capsules follow.
+  final _lift = ValueNotifier<double>(0);
+  ValueListenable<double>? _following;
+
+  void _show(GlassPageBarLink? link) {
+    _shown = link;
+    _followLift();
+  }
+
+  void _followLift() {
+    final lift = _shown?._lift;
+    if (identical(lift, _following)) return;
+    _following?.removeListener(_lifted);
+    _following = lift;
+    lift?.addListener(_lifted);
+    _lifted();
+  }
+
+  void _lifted() => _lift.value = _following?.value ?? 0;
+
+  /// Tells which offset [link]'s page moves up by while its stacked search
+  /// shows.
+  void liftedBy(GlassPageBarLink link, ValueListenable<double>? lift) {
+    if (identical(link._lift, lift)) return;
+    link._lift = lift;
+    if (identical(link, _shown)) _followLift();
+  }
+
   GlassPageBarLink? _swiped;
   late final Map<GlassBarKind, _Bar> _bars = {
     for (final kind in GlassBarKind.values) kind: _Bar(this, kind),
@@ -232,7 +261,7 @@ final class GlassBarHost implements MotionDriver {
     for (final page in _pages) {
       if (identical(page._below, link)) page._below = null;
     }
-    if (identical(_shown, link)) _shown = null;
+    if (identical(_shown, link)) _show(null);
     if (identical(_swiped, link)) _swiped = null;
     if (identical(_painter.value, link)) {
       _painter.value = _pages.isEmpty ? null : _pages.last;
@@ -270,7 +299,7 @@ final class GlassBarHost implements MotionDriver {
     }
     final shown = _shown;
     final empty = shown == null || shown._coveredByForeign;
-    _shown = link;
+    _show(link);
     for (final bar in _bars.values) {
       bar.enqueue(
         _Change(
@@ -305,7 +334,7 @@ final class GlassBarHost implements MotionDriver {
   void revealed(GlassPageBarLink link) {
     link._coveredByForeign = false;
     if (identical(link, _shown)) return;
-    _shown = link;
+    _show(link);
     for (final bar in _bars.values) {
       bar.enqueue(_Change(link, _now, null));
     }
@@ -316,7 +345,7 @@ final class GlassBarHost implements MotionDriver {
   void leaving(GlassPageBarLink link, {required double time}) {
     if (!identical(link, _shown)) return;
     final below = link._below;
-    _shown = below;
+    _show(below);
     _swiped = null;
     for (final bar in _bars.values) {
       bar.enqueue(_Change(below, time, bar.navigationSpec));
@@ -966,7 +995,13 @@ class GlassBarView extends StatelessWidget {
           left: 0,
           right: 0,
           height: _navigationHeight,
-          child: _Band(bar: host._bars[GlassBarKind.navigation]!),
+          child: ClipRect(
+            clipper: const _BelowTop(),
+            child: MotionTransition(
+              translateY: host._lift,
+              child: _Band(bar: host._bars[GlassBarKind.navigation]!),
+            ),
+          ),
         ),
         Positioned(
           bottom: keyboard > 0 ? keyboard + _keyboardInset : _bottomInset,
@@ -990,6 +1025,17 @@ class GlassBarView extends StatelessWidget {
 
   /// The prominent capsule's tint without a primary color (device).
   static const _prominentColor = Color(0xFF0088FF);
+}
+
+// Cuts off what a lifted bar moves above its own top, into the status bar.
+class _BelowTop extends CustomClipper<Rect> {
+  const _BelowTop();
+
+  @override
+  Rect getClip(Size size) => const Rect.fromLTRB(-100000, 0, 100000, 100000);
+
+  @override
+  bool shouldReclip(_BelowTop oldClipper) => false;
 }
 
 // One bar's row: its glass and its buttons, rebuilt during its layout.

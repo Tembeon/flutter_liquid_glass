@@ -403,4 +403,36 @@ void main() {
     await _settle(tester);
     expect(tester.getCenter(find.byKey(const Key('compose'))).dx, 350);
   });
+
+  testWidgets('a presented stacked search lifts the shared capsules with the '
+      'page', (tester) async {
+    await _phone(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    final search = TextEditingController();
+    addTearDown(search.dispose);
+    await tester.pumpWidget(
+      _app(
+        navigator,
+        GlassPageScaffold(
+          navigationBar: GlassNavigationBar(
+            largeTitle: const Text('Notes'),
+            trailing: [_icon('plus')],
+            searchField: GlassSearchField(
+              key: const Key('field'),
+              controller: search,
+            ),
+          ),
+          child: const ColoredBox(color: Color(0xFFFFFFFF)),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(tester.getCenter(find.byKey(const Key('plus'))).dy, 62 + 22);
+    await tester.tap(find.byKey(const Key('field')));
+    await _settle(tester);
+    expect(
+      tester.getCenter(find.byKey(const Key('plus'))).dy,
+      closeTo(62 + 22 - 106, 0.01),
+    );
+  });
 }
