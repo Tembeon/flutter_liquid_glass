@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motion/alert_motion.dart';
 import 'package:apple_liquid_glass/src/motion/glass_button_motion.dart';
+import 'package:apple_liquid_glass/src/motion/popover_motion.dart';
+import 'package:apple_liquid_glass/src/presentations/popover.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
@@ -111,14 +113,22 @@ Future<GlassAlertAction?> showGlassAlert(
 /// `confirmationDialog`. Flutter: `showCupertinoModalPopup` with a
 /// `CupertinoActionSheet`.
 ///
-/// On an iPhone without a source an action sheet is an alert whose actions
-/// stand in a column with the cancel action last; a tap outside chooses
-/// the cancel action, or closes it without one.
+/// With a source, [anchor] (a context inside the control that summoned
+/// it, laid out) or [anchorRect] (in global coordinates), the action sheet
+/// is a glass popover 240 points wide next to the source, as iOS 27
+/// presents one on an iPhone: it grows out of its arrow's tip and shrinks
+/// back into it (see [showGlassPopover]), does not lift under a finger and
+/// leaves the cancel action out, which a tap outside chooses. Without a
+/// source an action sheet is an alert whose actions stand in a column with
+/// the cancel action last; a tap outside chooses the cancel action, or
+/// closes it without one.
 Future<GlassAlertAction?> showGlassActionSheet(
   BuildContext context, {
   Widget? title,
   Widget? message,
   List<GlassAlertAction> actions = const [],
+  BuildContext? anchor,
+  Rect? anchorRect,
   PresentationLevel level = PresentationLevel.window,
 }) => showPresentation(
   context,
@@ -126,6 +136,13 @@ Future<GlassAlertAction?> showGlassActionSheet(
     title: title,
     message: message,
     actions: actions,
+    anchorRect: anchor == null && anchorRect == null
+        ? null
+        : popoverSource(
+            anchor: anchor,
+            anchorRect: anchorRect,
+            caller: 'showGlassActionSheet',
+          ),
   ),
   level: level,
 );
@@ -142,13 +159,16 @@ final class GlassAlertRoute extends PresentationRoute<GlassAlertAction> {
     this.actions = const [],
     super.settings,
   }) : actionSheet = false,
+       anchorRect = null,
        super(semanticsLabel: _text(title) ?? _text(message));
 
-  /// Creates the route of an action sheet.
+  /// Creates the route of an action sheet, a popover pointing at
+  /// [anchorRect] (in global coordinates) when one is given.
   GlassAlertRoute.actionSheet({
     this.title,
     this.message,
     this.actions = const [],
+    this.anchorRect,
     super.settings,
   }) : actionSheet = true,
        super(semanticsLabel: _text(title) ?? _text(message));
@@ -164,6 +184,12 @@ final class GlassAlertRoute extends PresentationRoute<GlassAlertAction> {
 
   /// Whether this is an action sheet: a tap outside cancels it.
   final bool actionSheet;
+
+  /// The source an action sheet presents from as a popover, in global
+  /// coordinates, or null.
+  final Rect? anchorRect;
+
+  bool get _popover => anchorRect != null;
 
   _AlertViewState? _view;
   bool _ran = false;
@@ -216,10 +242,11 @@ final class GlassAlertRoute extends PresentationRoute<GlassAlertAction> {
 }
 
 /// The actions in the order they show: the cancel action first in a row,
-/// last in a column.
+/// last in a column, and left out of a popover.
 List<GlassAlertAction> _ordered(
   List<GlassAlertAction> actions, {
   required bool row,
+  required bool popover,
 }) {
   final cancel = [
     for (final a in actions)
@@ -229,6 +256,7 @@ List<GlassAlertAction> _ordered(
     for (final a in actions)
       if (!a.isCancel) a,
   ];
+  if (popover) return rest;
   return row ? [...cancel, ...rest] : [...rest, ...cancel];
 }
 
@@ -270,6 +298,9 @@ class _AlertView extends StatefulWidget {
 
 class _AlertViewState extends State<_AlertView> implements MotionDriver {
   final _motion = AlertMotion();
+  late final PopoverMotion? _popover = widget.route._popover
+      ? PopoverMotion()
+      : null;
   final _press = GlassButtonMotion(size: Size.zero);
   final _card = GlobalKey();
   late final List<GlobalKey> _keys = [
@@ -298,6 +329,7 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
     super.initState();
     _route._view = this;
     _motion.present(_now);
+    _popover?.present(_now);
     MotionClock.instance.addDriver(this);
   }
 
@@ -321,13 +353,28 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
   }
 
   @override
-  bool get isActive => !_motion.isSettled || !_press.isSettled;
+  bool get isActive => switch (_popover) {
+    final popover? => !popover.isSettled,
+    null => !_motion.isSettled || !_press.isSettled,
+  };
 
   @override
   double? get wakeTime => null;
 
   @override
   void step(double time) {
+    if (_popover case final popover?) {
+      popover.advance(time);
+      if (popover.isSettled) popover.settle();
+      _opacity.value = popover.opacity;
+      _scale.value = popover.scale;
+      if (_leaving) {
+        if (popover.isDismissed) _route.didLeave();
+      } else if (popover.isSettled) {
+        _route.didOpen();
+      }
+      return;
+    }
     _motion.advance(time);
     _press.advance(time);
     if (_motion.isSettled) _motion.settle();
@@ -356,6 +403,7 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
     _leaving = true;
     final t = _now;
     _motion.dismiss(t);
+    _popover?.dismiss(t);
     if (_press.isPressed) _press.pointerCancel(t);
     _pointer = null;
     _highlighted.value = null;
@@ -411,8 +459,10 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
     if (local == null) return;
     _pointer = event.pointer;
     _scrolled = false;
-    _press.reducedMotion = GlassTraits.of(context).reduceMotion;
-    _press.pointerDown(MotionClock.instance.stamp(event.timeStamp), local);
+    if (_popover == null) {
+      _press.reducedMotion = GlassTraits.of(context).reduceMotion;
+      _press.pointerDown(MotionClock.instance.stamp(event.timeStamp), local);
+    }
     _highlighted.value = _actionAt(event.position);
     MotionClock.instance.wake(this);
   }
@@ -421,7 +471,9 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
     if (event.pointer != _pointer || _scrolled) return;
     final local = _cardLocal(event.position);
     if (local == null) return;
-    _press.pointerMove(MotionClock.instance.stamp(event.timeStamp), local);
+    if (_popover == null) {
+      _press.pointerMove(MotionClock.instance.stamp(event.timeStamp), local);
+    }
     final over = _actionAt(event.position);
     if (!identical(over, _highlighted.value)) {
       if (over != null) HapticFeedback.selectionClick();
@@ -435,7 +487,9 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
     _pointer = null;
     if (_scrolled) return;
     final local = _cardLocal(event.position) ?? Offset.zero;
-    _press.pointerUp(MotionClock.instance.stamp(event.timeStamp), local);
+    if (_popover == null) {
+      _press.pointerUp(MotionClock.instance.stamp(event.timeStamp), local);
+    }
     final chosen = _actionAt(event.position);
     _highlighted.value = null;
     MotionClock.instance.wake(this);
@@ -446,7 +500,9 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
     if (event.pointer != _pointer) return;
     _pointer = null;
     if (_scrolled) return;
-    _press.pointerCancel(MotionClock.instance.stamp(event.timeStamp));
+    if (_popover == null) {
+      _press.pointerCancel(MotionClock.instance.stamp(event.timeStamp));
+    }
     _highlighted.value = null;
     MotionClock.instance.wake(this);
   }
@@ -460,7 +516,7 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
       return false;
     }
     _scrolled = true;
-    _press.pointerCancel(_now);
+    if (_popover == null) _press.pointerCancel(_now);
     _highlighted.value = null;
     MotionClock.instance.wake(this);
     return false;
@@ -513,18 +569,70 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
 
   @override
   Widget build(BuildContext context) {
-    _motion.reducedMotion = GlassTraits.of(context).reduceMotion;
+    final reduced = GlassTraits.of(context).reduceMotion;
+    _motion.reducedMotion = reduced;
+    _popover?.reducedMotion = reduced;
+    final popover = _route.anchorRect;
     final screen = MediaQuery.sizeOf(context);
     final width = math.min(
-      AlertTuning.width,
+      popover == null ? AlertTuning.width : AlertTuning.popoverWidth,
       screen.width - 2 * AlertTuning.screenMargin,
     );
     final row =
         !_route.actionSheet &&
         _route.actions.length == 2 &&
         _fitsInRow(width, context);
-    _shown = _ordered(_route.actions, row: row);
+    _shown = _ordered(_route.actions, row: row, popover: popover != null);
     final card = _buildCard(width, row, context);
+    if (popover != null) {
+      final media = MediaQuery.of(context);
+      return Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _outside,
+            ),
+          ),
+          Positioned.fill(
+            child: PopoverLayout(
+              source: popover,
+              scale: _scale,
+              opacity: _opacity,
+              maxWidth: AlertTuning.popoverWidth,
+              padding: media.padding.copyWith(
+                bottom: math.max(
+                  media.padding.bottom,
+                  media.viewInsets.bottom,
+                ),
+              ),
+              direction: Directionality.of(context),
+              card: CallbackShortcuts(
+                bindings: {
+                  const SingleActivator(LogicalKeyboardKey.enter): _return,
+                },
+                child: FocusScope(
+                  autofocus: true,
+                  child: IgnorePointer(
+                    ignoring: _leaving,
+                    child: Listener(
+                      onPointerDown: _down,
+                      onPointerMove: _move,
+                      onPointerUp: _up,
+                      onPointerCancel: _cancel,
+                      child: NotificationListener<ScrollNotification>(
+                        onNotification: _scrolledContent,
+                        child: card,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
     final safe = MediaQuery.paddingOf(context);
     final keyboard = MediaQuery.viewInsetsOf(context).bottom;
     return Stack(
@@ -697,17 +805,22 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
         width: width,
         child: Stack(
           children: [
-            Positioned.fill(
-              child: GlassSurface.live(
-                role: GlassRole.menu,
-                frame: _frame,
-                child: const SizedBox.expand(),
+            if (_popover == null)
+              Positioned.fill(
+                child: GlassSurface.live(
+                  role: GlassRole.menu,
+                  frame: _frame,
+                  child: const SizedBox.expand(),
+                ),
               ),
-            ),
             MotionTransition(
               opacity: _opacity,
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(AlertTuning.cornerRadius),
+                borderRadius: BorderRadius.circular(
+                  _popover == null
+                      ? AlertTuning.cornerRadius
+                      : PopoverTuning.cornerRadius,
+                ),
                 child: ListView(
                   shrinkWrap: true,
                   padding: EdgeInsets.zero,
