@@ -1,4 +1,8 @@
+import 'dart:math' as math;
+
+import 'package:apple_liquid_glass/src/chrome/chrome.dart';
 import 'package:apple_liquid_glass/src/controls/selector.dart';
+import 'package:apple_liquid_glass/src/motion/tab_minimize.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
@@ -7,7 +11,9 @@ import 'package:apple_liquid_glass/src/theme/style.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:apple_liquid_glass/src/theme/typography.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/kinesis.dart';
 
 /// One tab of a [GlassTabBar].
 ///
@@ -165,6 +171,16 @@ class GlassTabBarStyle {
 /// [onDestinationSelected] runs on every selection, the selected tab's
 /// included: a tap on it, Space, Enter or an accessibility tap reselects it,
 /// where an app scrolls the tab's content to the top.
+///
+/// With a [minimizeBehavior] that minimizes, the bar follows the scroll
+/// view of its page's [GlassContentScroll] with UIKit's scroll-away
+/// interaction of the floating tab bar: a user's scroll of 64 points
+/// shrinks it into a 48 point circle that keeps its selected tab's glyph,
+/// 7 points inside the bar's leading side, on UIKit's collapse springs; a
+/// tap on the circle, the content's top end or a scroll past its far end
+/// expands it. A finger held on the circle does not yet expand the bar
+/// under it, and a drag from the circle does not yet become the bar's
+/// selection drag, as they do in UIKit. Put it in a `GlassTabScaffold`.
 class GlassTabBar extends StatelessWidget {
   /// Creates a tab bar showing [selectedIndex] selected.
   const GlassTabBar({
@@ -176,6 +192,7 @@ class GlassTabBar extends StatelessWidget {
     this.focusNode,
     this.autofocus = false,
     this.semanticLabel,
+    this.minimizeBehavior = GlassTabBarMinimizeBehavior.automatic,
     super.key,
   });
 
@@ -203,6 +220,11 @@ class GlassTabBar extends StatelessWidget {
 
   /// What accessibility reads for the bar as a whole.
   final String? semanticLabel;
+
+  /// When the bar minimizes as the content under it scrolls;
+  /// [GlassTabBarMinimizeBehavior.automatic] does not minimize, as an
+  /// iPhone tab bar that does not opt in.
+  final GlassTabBarMinimizeBehavior minimizeBehavior;
 
   /// The height of the bar (tab bar passport).
   static const double height = 62;
@@ -279,7 +301,7 @@ class GlassTabBar extends StatelessWidget {
         .merge(themed)
         .merge(_defaults(context));
     final onSelected = onDestinationSelected;
-    return RawGlassSelector(
+    final bar = RawGlassSelector(
       motion: GlassSelectorMotion.tabBar,
       itemCount: destinations.length,
       selectedIndex: selectedIndex,
@@ -302,6 +324,16 @@ class GlassTabBar extends StatelessWidget {
           style?.builder ??
           themed?.builder ??
           (context, details) => _TabBarLook(details: details, look: look),
+    );
+    if (!minimizeBehavior.minimizes) return bar;
+    return _MinimizingBar(
+      behavior: minimizeBehavior,
+      destinations: destinations,
+      selectedIndex: destinations.isEmpty
+          ? -1
+          : selectedIndex.clamp(0, destinations.length - 1),
+      look: look,
+      bar: bar,
     );
   }
 }
@@ -426,4 +458,528 @@ class _Badged extends StatelessWidget {
       ),
     ],
   );
+}
+
+/// The minimize motion of a bar, stepped on the motion clock and published
+/// as the hint scale, the glass's and the content's ways to the circle, and
+/// whether the bar rests expanded.
+final class _MinimizeBody implements MotionDriver {
+  _MinimizeBody(GlassTabBarMinimizeBehavior behavior)
+    : motion = TabBarMinimizeMotion(behavior: behavior);
+
+  final TabBarMinimizeMotion motion;
+  final hint = ValueNotifier<double>(1);
+  final shape = ValueNotifier<double>(0);
+  final content = ValueNotifier<double>(0);
+  final resting = ValueNotifier<bool>(true);
+  double width = 400;
+
+  double get _now => MotionClock.instance.now;
+
+  @override
+  bool get isActive => !motion.isSettled(extent: width);
+
+  @override
+  double? get wakeTime => motion.wakeTime(extent: width);
+
+  @override
+  void step(double time) {
+    motion.advance(time);
+    if (motion.isSettled(extent: width)) motion.settle(time);
+    _publish();
+  }
+
+  void _publish() {
+    hint.value = motion.hint;
+    shape.value = motion.shape;
+    content.value = motion.content;
+    resting.value = motion.restsExpanded;
+  }
+
+  void input(void Function(double t) action) {
+    final t = _now;
+    motion.advance(t);
+    action(t);
+    _publish();
+    MotionClock.instance.wake(this);
+  }
+
+  void dispose() {
+    hint.dispose();
+    shape.dispose();
+    content.dispose();
+    resting.dispose();
+  }
+}
+
+/// A tab bar that minimizes into a circle as the followed content scrolls.
+class _MinimizingBar extends StatefulWidget {
+  const _MinimizingBar({
+    required this.behavior,
+    required this.destinations,
+    required this.selectedIndex,
+    required this.look,
+    required this.bar,
+  });
+
+  final GlassTabBarMinimizeBehavior behavior;
+  final List<GlassTabDestination> destinations;
+  final int selectedIndex;
+  final GlassTabBarStyle look;
+  final Widget bar;
+
+  @override
+  State<_MinimizingBar> createState() => _MinimizingBarState();
+}
+
+class _MinimizingBarState extends State<_MinimizingBar> {
+  late final _MinimizeBody _body = _MinimizeBody(widget.behavior);
+  ValueNotifier<MotionScrollObserver?>? _active;
+  MotionScrollObserver? _observer;
+  MotionScrollPhase _phase = MotionScrollPhase.idle;
+  Size _barSize = const Size(0, GlassTabBar.height);
+
+  @override
+  void initState() {
+    super.initState();
+    MotionClock.instance.addDriver(_body);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final active = GlassChrome.maybeOf(context)?.active;
+    if (identical(active, _active)) return;
+    _active?.removeListener(_follow);
+    _active = active;
+    active?.addListener(_follow);
+    _follow();
+  }
+
+  @override
+  void didUpdateWidget(_MinimizingBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.behavior != widget.behavior) {
+      _body.input((t) => _body.motion.setBehavior(t, widget.behavior));
+    }
+  }
+
+  @override
+  void dispose() {
+    _active?.removeListener(_follow);
+    _observer?.removeListener(_scrolled);
+    MotionClock.instance.removeDriver(_body);
+    _body.dispose();
+    super.dispose();
+  }
+
+  void _follow() {
+    final next = _active?.value;
+    if (identical(next, _observer)) return;
+    _observer?.removeListener(_scrolled);
+    _observer = next;
+    _phase = MotionScrollPhase.idle;
+    next?.addListener(_scrolled);
+  }
+
+  // Turns the scroll view's phases into the scroll-away interaction's
+  // inputs: a drag starts a fresh accumulation, its end and the end of
+  // the glide floor it, and a scroll the user did not drive is only
+  // recorded, unless it reaches the top.
+  void _scrolled() {
+    final observer = _observer;
+    final metrics = observer?.metrics;
+    if (observer == null || metrics == null || !metrics.hasContentDimensions) {
+      return;
+    }
+    final away = _body.motion.scrollAway;
+    final phase = observer.phase;
+    final previous = _phase;
+    _phase = phase;
+    final offset = metrics.pixels;
+    final min = metrics.minScrollExtent;
+    final max = metrics.maxScrollExtent;
+    _body.input((t) {
+      if (phase == MotionScrollPhase.dragging &&
+          previous != MotionScrollPhase.dragging) {
+        away.beginDrag();
+      }
+      if (previous == MotionScrollPhase.dragging &&
+          phase != MotionScrollPhase.dragging) {
+        away.endDrag(decelerates: phase == MotionScrollPhase.decelerating);
+      }
+      switch (phase) {
+        case MotionScrollPhase.dragging || MotionScrollPhase.decelerating:
+          away.scroll(
+            offset,
+            min: min,
+            max: max,
+            tracking: phase == MotionScrollPhase.dragging,
+          );
+        case MotionScrollPhase.programmatic || MotionScrollPhase.idle:
+          away.last = offset;
+          if (previous == MotionScrollPhase.decelerating) {
+            away.endDeceleration();
+          }
+          if (_body.motion.minimized && offset <= min + 0.5) {
+            away.scrollToTop();
+          }
+      }
+    });
+  }
+
+  void _expand() {
+    if (!_body.motion.minimized) return;
+    _body.input((t) => _body.motion.setMinimized(t, minimized: false));
+  }
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final width = constraints.hasBoundedWidth
+          ? constraints.maxWidth
+          : _barSize.width;
+      _body.width = width;
+      return SizedBox(
+        width: width,
+        height: GlassTabBar.height,
+        child: ValueListenableBuilder<bool>(
+          valueListenable: _body.resting,
+          builder: (context, resting, _) => resting
+              ? Align(
+                  child: MotionTransition(
+                    scale: _body.hint,
+                    child: _SizeNote(
+                      onSize: (size) => _barSize = size,
+                      child: widget.bar,
+                    ),
+                  ),
+                )
+              : MotionTransition(
+                  scale: _body.hint,
+                  child: _CollapsingTabs(
+                    width: width,
+                    barSize: _barSize,
+                    body: _body,
+                    destinations: widget.destinations,
+                    selectedIndex: widget.selectedIndex,
+                    look: widget.look,
+                    rtl: Directionality.of(context) == TextDirection.rtl,
+                    onExpand: _expand,
+                  ),
+                ),
+        ),
+      );
+    },
+  );
+}
+
+/// Notes its child's size after each layout.
+class _SizeNote extends SingleChildRenderObjectWidget {
+  const _SizeNote({required this.onSize, required super.child});
+
+  final ValueChanged<Size> onSize;
+
+  @override
+  _RenderSizeNote createRenderObject(BuildContext context) =>
+      _RenderSizeNote(onSize);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderSizeNote renderObject) {
+    renderObject.onSize = onSize;
+  }
+}
+
+class _RenderSizeNote extends RenderProxyBox {
+  _RenderSizeNote(this.onSize);
+
+  ValueChanged<Size> onSize;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    onSize(size);
+  }
+}
+
+/// The bar on its way into the circle and resting there: the glass's box
+/// goes from the bar to the circle on [_MinimizeBody.shape], and on
+/// [_MinimizeBody.content] the other tabs fade and the selected tab's glyph
+/// travels to the circle's center while its title fades. The springs are
+/// UIKit's; this choreography of the content is by eye, not yet compared
+/// with a recording.
+class _CollapsingTabs extends StatefulWidget {
+  const _CollapsingTabs({
+    required this.width,
+    required this.barSize,
+    required this.body,
+    required this.destinations,
+    required this.selectedIndex,
+    required this.look,
+    required this.rtl,
+    required this.onExpand,
+  });
+
+  final double width;
+  final Size barSize;
+  final _MinimizeBody body;
+  final List<GlassTabDestination> destinations;
+  final int selectedIndex;
+  final GlassTabBarStyle look;
+  final bool rtl;
+  final VoidCallback onExpand;
+
+  @override
+  State<_CollapsingTabs> createState() => _CollapsingTabsState();
+}
+
+class _CollapsingTabsState extends State<_CollapsingTabs> {
+  final _frame = ValueNotifier(const GlassFrame());
+  final _fade = ValueNotifier<double>(1);
+  final _travel = ValueNotifier(Offset.zero);
+
+  @override
+  void initState() {
+    super.initState();
+    widget.body.shape.addListener(_moved);
+    widget.body.content.addListener(_moved);
+    _moved();
+  }
+
+  @override
+  void didUpdateWidget(_CollapsingTabs oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _moved();
+  }
+
+  @override
+  void dispose() {
+    widget.body.shape.removeListener(_moved);
+    widget.body.content.removeListener(_moved);
+    _frame.dispose();
+    _fade.dispose();
+    _travel.dispose();
+    super.dispose();
+  }
+
+  void _moved() {
+    final shape = widget.body.shape.value.clamp(0.0, 1.0);
+    final content = widget.body.content.value.clamp(0.0, 1.0);
+    _frame.value = GlassFrame(rect: Rect.lerp(_rest, _circle, shape));
+    _fade.value = (1 - 2 * content).clamp(0.0, 1.0);
+    _travel.value = _glyphTravel * content;
+  }
+
+  Rect get _rest => Rect.fromLTWH(
+    (widget.width - widget.barSize.width) / 2,
+    0,
+    widget.barSize.width,
+    GlassTabBar.height,
+  );
+
+  Rect get _circle {
+    const inset = TabBarMinimizeTuning.collapsedInset;
+    const size = TabBarMinimizeTuning.collapsedSize;
+    return Rect.fromLTWH(
+      widget.rtl ? widget.width - inset - size : inset,
+      inset,
+      size,
+      size,
+    );
+  }
+
+  double get _pitch => widget.destinations.isEmpty
+      ? 0
+      : math.max(0, widget.barSize.width - 2 * _sideInset) /
+            widget.destinations.length;
+
+  Rect _slot(int index) {
+    final count = widget.destinations.length;
+    final at = widget.rtl ? count - 1 - index : index;
+    return Rect.fromLTWH(
+      _rest.left + _sideInset + _pitch * at,
+      0,
+      _pitch,
+      GlassTabBar.height,
+    );
+  }
+
+  // The glyph's center before it travels: the column of glyph, gap and a
+  // 10 point title line (taken as 12 points, by eye) centered in the bar.
+  Offset get _glyphTravel {
+    final selected = widget.selectedIndex;
+    if (selected < 0) return Offset.zero;
+    const column = GlassTabBar.iconSize + GlassTabBar.labelGap + _titleLine;
+    final glyph = Offset(
+      _slot(selected).center.dx,
+      (GlassTabBar.height - column) / 2 + GlassTabBar.iconSize / 2,
+    );
+    return _circle.center - glyph;
+  }
+
+  static const double _sideInset = 8;
+  static const double _titleLine = 12;
+
+  @override
+  Widget build(BuildContext context) {
+    final destinations = widget.destinations;
+    final selected = widget.selectedIndex;
+    final background = widget.look.backgroundColor?.resolve(const {});
+    Widget tab(int index, Set<WidgetState> states) => _TabContent(
+      destination: destinations[index],
+      look: widget.look,
+      states: states,
+    );
+    final circle = _circle;
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: GlassSurface.live(
+            role: GlassRole.bar,
+            glass: Glass.regular(
+              tint: background == null
+                  ? null
+                  : GlassDynamicColor.resolve(background, context),
+            ),
+            frame: _frame,
+            child: const SizedBox.expand(),
+          ),
+        ),
+        Positioned.fill(
+          child: IgnorePointer(
+            child: ClipPath(
+              clipper: _CapsuleClip(_frame),
+              child: Stack(
+                children: [
+                  for (var i = 0; i < destinations.length; i++)
+                    Positioned.fromRect(
+                      rect: _slot(i),
+                      child: i == selected
+                          ? MotionTransition(
+                              offset: _travel,
+                              child: _TitleFade(
+                                fade: _fade,
+                                child: tab(i, const {WidgetState.selected}),
+                              ),
+                            )
+                          : MotionTransition(
+                              opacity: _fade,
+                              child: tab(i, const {}),
+                            ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned.fromRect(
+          rect: circle,
+          child: Semantics(
+            button: true,
+            label: selected < 0 ? null : destinations[selected].semanticLabel,
+            onTap: widget.onExpand,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: widget.onExpand,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Fades the part of a tab below its glyph, the title, by [fade].
+class _TitleFade extends SingleChildRenderObjectWidget {
+  const _TitleFade({required this.fade, required super.child});
+
+  final ValueListenable<double> fade;
+
+  @override
+  _RenderTitleFade createRenderObject(BuildContext context) =>
+      _RenderTitleFade(fade);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderTitleFade renderObject) {
+    renderObject.fade = fade;
+  }
+}
+
+class _RenderTitleFade extends RenderProxyBox {
+  _RenderTitleFade(this._fade);
+
+  ValueListenable<double> _fade;
+  set fade(ValueListenable<double> value) {
+    if (identical(value, _fade)) return;
+    if (attached) _fade.removeListener(markNeedsPaint);
+    _fade = value;
+    if (attached) _fade.addListener(markNeedsPaint);
+    markNeedsPaint();
+  }
+
+  ValueListenable<double> get fade => _fade;
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _fade.addListener(markNeedsPaint);
+  }
+
+  @override
+  void detach() {
+    _fade.removeListener(markNeedsPaint);
+    super.detach();
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final child = this.child;
+    if (child == null) return;
+    const column =
+        GlassTabBar.iconSize +
+        GlassTabBar.labelGap +
+        _CollapsingTabsState._titleLine;
+    final split = (size.height - column) / 2 + GlassTabBar.iconSize;
+    context.pushClipRect(
+      needsCompositing,
+      offset,
+      Rect.fromLTWH(0, 0, size.width, split),
+      (context, offset) => context.paintChild(child, offset),
+    );
+    final alpha = Color.getAlphaFromOpacity(_fade.value.clamp(0.0, 1.0));
+    if (alpha == 0) return;
+    context.pushClipRect(
+      needsCompositing,
+      offset,
+      Rect.fromLTRB(0, split, size.width, size.height),
+      (context, offset) => context.pushOpacity(
+        offset,
+        alpha,
+        (context, offset) => context.paintChild(child, offset),
+      ),
+    );
+  }
+}
+
+/// The capsule of the glass's box in each frame.
+class _CapsuleClip extends CustomClipper<Path> {
+  _CapsuleClip(this.frame) : super(reclip: frame);
+
+  final ValueListenable<GlassFrame> frame;
+
+  @override
+  Path getClip(Size size) {
+    final rect = frame.value.rect ?? Offset.zero & size;
+    final path = Path();
+    path.addRRect(
+      RRect.fromRectAndRadius(
+        rect,
+        Radius.circular(math.min(rect.width, rect.height) / 2),
+      ),
+    );
+    return path;
+  }
+
+  @override
+  bool shouldReclip(_CapsuleClip oldClipper) => oldClipper.frame != frame;
 }

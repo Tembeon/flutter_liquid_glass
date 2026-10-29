@@ -22,6 +22,7 @@ export 'src/controls/slider.dart';
 export 'src/controls/stepper.dart';
 export 'src/controls/switch.dart';
 export 'src/controls/tab_bar.dart';
+export 'src/motion/tab_minimize.dart' show GlassTabBarMinimizeBehavior;
 export 'src/motion/touch_glow.dart' show GlassTouchGlow;
 export 'src/renderer/renderer.dart';
 export 'src/surface/frame.dart';
