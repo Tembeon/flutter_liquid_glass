@@ -9,6 +9,7 @@ import 'package:apple_liquid_glass/src/surface/surface.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/style.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
+import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:apple_liquid_glass/src/theme/typography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -188,17 +189,21 @@ enum GlassTabAccessoryPlacement {
 /// view of its page's [GlassContentScroll] with UIKit's scroll-away
 /// interaction of the floating tab bar: a user's scroll of 64 points
 /// shrinks it into a 48 point circle that keeps its selected tab's glyph,
-/// 7 points inside the bar's leading side, on UIKit's collapse springs; a
-/// tap on the circle, the content's top end or a scroll past its far end
-/// expands it. A finger held on the circle does not yet expand the bar
-/// under it, and a drag from the circle does not yet become the bar's
-/// selection drag, as they do in UIKit. Put it in a `GlassTabScaffold`.
+/// 7 points inside the bar's leading side, in one liquid morph (damping
+/// 0.8, response 0.3); a tap on the circle, the content's top end or a
+/// scroll past its far end expands it. A finger held on the circle does
+/// not yet expand the bar under it, and a drag from the circle does not
+/// yet become the bar's selection drag, as they do in UIKit. Put it in a
+/// `GlassTabScaffold`.
 ///
 /// A [bottomAccessory], a mini player say, stands on its own glass 48
-/// points tall, 8 points above the bar across the bar group, and beside
-/// the circle while the bar is minimized; [accessoryPlacementOf] tells its
-/// content which, flipping once the glass has arrived inline and as soon
-/// as it leaves. Its height and spacings are not measured.
+/// points tall, 8 points above the bar across the bar group, its content
+/// inset 16 points at the sides and 8 at the top and bottom; while the bar
+/// is minimized it stands level with the circle, 14 points beside it. It
+/// travels there along the bar first and up after, and back up first and
+/// along after, the second axis 0.05 s late. [accessoryPlacementOf] tells
+/// its content which place it heads for, flipping as the transition
+/// starts (read from UIKit, notes private).
 class GlassTabBar extends StatelessWidget {
   /// Creates a tab bar showing [selectedIndex] selected.
   const GlassTabBar({
@@ -263,7 +268,8 @@ class GlassTabBar extends StatelessWidget {
   static double groupHeight({required bool accessory}) =>
       height +
       (accessory
-          ? TabBarMinimizeTuning.spacing + TabBarMinimizeTuning.accessoryHeight
+          ? TabBarMinimizeTuning.accessoryGap +
+                TabBarMinimizeTuning.accessoryHeight
           : 0);
 
   /// The height of the bar (tab bar passport).
@@ -511,8 +517,10 @@ final class _MinimizeBody implements MotionDriver {
 
   final TabBarMinimizeMotion motion;
   final hint = ValueNotifier<double>(1);
-  final shape = ValueNotifier<double>(0);
-  final content = ValueNotifier<double>(0);
+  final morph = ValueNotifier<double>(0);
+  final accessoryX = ValueNotifier<double>(0);
+  final accessoryY = ValueNotifier<double>(0);
+  final minimized = ValueNotifier<bool>(false);
   final resting = ValueNotifier<bool>(true);
   double width = 400;
 
@@ -533,8 +541,10 @@ final class _MinimizeBody implements MotionDriver {
 
   void _publish() {
     hint.value = motion.hint;
-    shape.value = motion.shape;
-    content.value = motion.content;
+    morph.value = motion.morph;
+    accessoryX.value = motion.accessoryX;
+    accessoryY.value = motion.accessoryY;
+    minimized.value = motion.minimized;
     resting.value = motion.restsExpanded;
   }
 
@@ -548,8 +558,10 @@ final class _MinimizeBody implements MotionDriver {
 
   void dispose() {
     hint.dispose();
-    shape.dispose();
-    content.dispose();
+    morph.dispose();
+    accessoryX.dispose();
+    accessoryY.dispose();
+    minimized.dispose();
     resting.dispose();
   }
 }
@@ -592,6 +604,7 @@ class _MinimizingBarState extends State<_MinimizingBar> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _body.motion.reducedMotion = GlassTraits.of(context).reduceMotion;
     final active = GlassChrome.maybeOf(context)?.active;
     if (identical(active, _active)) return;
     _active?.removeListener(_follow);
@@ -779,10 +792,18 @@ class _AccessoryState extends State<_Accessory> {
   final _frame = ValueNotifier(const GlassFrame());
   final _placement = ValueNotifier(GlassTabAccessoryPlacement.expanded);
 
+  List<Listenable> get _sources => [
+    widget.body.accessoryX,
+    widget.body.accessoryY,
+    widget.body.minimized,
+  ];
+
   @override
   void initState() {
     super.initState();
-    widget.body.shape.addListener(_moved);
+    for (final source in _sources) {
+      source.addListener(_moved);
+    }
     _moved();
   }
 
@@ -794,7 +815,9 @@ class _AccessoryState extends State<_Accessory> {
 
   @override
   void dispose() {
-    widget.body.shape.removeListener(_moved);
+    for (final source in _sources) {
+      source.removeListener(_moved);
+    }
     _frame.dispose();
     _placement.dispose();
     super.dispose();
@@ -816,28 +839,43 @@ class _AccessoryState extends State<_Accessory> {
     TabBarMinimizeTuning.accessoryHeight,
   );
 
+  // Beside the circle, as tall as it and level with it, reaching to the
+  // bar group's trailing side.
   Rect get _inline {
     const inset = TabBarMinimizeTuning.collapsedInset;
-    const size = TabBarMinimizeTuning.collapsedSize;
-    const gap = TabBarMinimizeTuning.spacing;
     const top =
-        TabBarMinimizeTuning.spacing +
+        TabBarMinimizeTuning.accessoryGap +
         TabBarMinimizeTuning.accessoryHeight +
         inset;
     return _mirror(
       Rect.fromLTRB(
-        inset + size + gap,
+        inset +
+            TabBarMinimizeTuning.collapsedSize +
+            TabBarMinimizeTuning.inlineGap,
         top,
-        widget.width - inset,
+        widget.width,
         top + TabBarMinimizeTuning.accessoryHeight,
       ),
     );
   }
 
+  // The position and width move along one axis, the position and height
+  // along the other, each on its own spring.
   void _moved() {
-    final shape = widget.body.shape.value.clamp(0.0, 1.0);
-    _frame.value = GlassFrame(rect: Rect.lerp(_expanded, _inline, shape));
-    _placement.value = shape >= 0.999
+    final x = widget.body.accessoryX.value;
+    final y = widget.body.accessoryY.value;
+    final from = _expanded;
+    final to = _inline;
+    double lerp(double a, double b, double t) => a + (b - a) * t;
+    _frame.value = GlassFrame(
+      rect: Rect.fromLTRB(
+        lerp(from.left, to.left, x),
+        lerp(from.top, to.top, y),
+        lerp(from.right, to.right, x),
+        lerp(from.bottom, to.bottom, y),
+      ),
+    );
+    _placement.value = widget.body.minimized.value
         ? GlassTabAccessoryPlacement.inline
         : GlassTabAccessoryPlacement.expanded;
   }
@@ -870,7 +908,10 @@ class _AccessoryState extends State<_Accessory> {
                     rect: placement == GlassTabAccessoryPlacement.inline
                         ? _inline
                         : _expanded,
-                    child: _AccessoryScope(placement: placement, child: child!),
+                    child: _AccessoryScope(
+                      placement: placement,
+                      child: Padding(padding: _accessoryPadding, child: child),
+                    ),
                   ),
                 ],
               ),
@@ -911,12 +952,12 @@ class _RenderSizeNote extends RenderProxyBox {
   }
 }
 
-/// The bar on its way into the circle and resting there: the glass's box
-/// goes from the bar to the circle on [_MinimizeBody.shape], and on
-/// [_MinimizeBody.content] the other tabs fade and the selected tab's glyph
-/// travels to the circle's center while its title fades. The springs are
-/// UIKit's; this choreography of the content is by eye, not yet compared
-/// with a recording.
+/// The bar on its way into the circle and resting there, one liquid morph
+/// on [_MinimizeBody.morph] as UIKit runs it: the glass's box goes from
+/// the bar to the circle, the selected tab's glyph travels to the circle's
+/// center, and its title and the other tabs dissolve (read from UIKit,
+/// notes private; whether the dissolve also blurs is not read, and a film
+/// is still due).
 class _CollapsingTabs extends StatefulWidget {
   const _CollapsingTabs({
     required this.width,
@@ -950,8 +991,7 @@ class _CollapsingTabsState extends State<_CollapsingTabs> {
   @override
   void initState() {
     super.initState();
-    widget.body.shape.addListener(_moved);
-    widget.body.content.addListener(_moved);
+    widget.body.morph.addListener(_moved);
     _moved();
   }
 
@@ -963,8 +1003,7 @@ class _CollapsingTabsState extends State<_CollapsingTabs> {
 
   @override
   void dispose() {
-    widget.body.shape.removeListener(_moved);
-    widget.body.content.removeListener(_moved);
+    widget.body.morph.removeListener(_moved);
     _frame.dispose();
     _fade.dispose();
     _travel.dispose();
@@ -972,11 +1011,10 @@ class _CollapsingTabsState extends State<_CollapsingTabs> {
   }
 
   void _moved() {
-    final shape = widget.body.shape.value.clamp(0.0, 1.0);
-    final content = widget.body.content.value.clamp(0.0, 1.0);
-    _frame.value = GlassFrame(rect: Rect.lerp(_rest, _circle, shape));
-    _fade.value = (1 - 2 * content).clamp(0.0, 1.0);
-    _travel.value = _glyphTravel * content;
+    final morph = widget.body.morph.value;
+    _frame.value = GlassFrame(rect: Rect.lerp(_rest, _circle, morph));
+    _fade.value = (1 - morph).clamp(0.0, 1.0);
+    _travel.value = _glyphTravel * morph;
   }
 
   Rect get _rest => Rect.fromLTWH(
@@ -1192,3 +1230,7 @@ class _CapsuleClip extends CustomClipper<Path> {
   @override
   bool shouldReclip(_CapsuleClip oldClipper) => oldClipper.frame != frame;
 }
+
+/// The space between the bottom accessory's glass and its content (top 8,
+/// leading 16, bottom 8, trailing 16; read from UIKit).
+const _accessoryPadding = EdgeInsetsDirectional.fromSTEB(16, 8, 16, 8);

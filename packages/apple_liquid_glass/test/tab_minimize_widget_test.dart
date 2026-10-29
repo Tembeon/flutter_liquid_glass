@@ -189,7 +189,10 @@ void main() {
     );
     await tester.pump();
     final expanded = tester.getRect(find.byKey(const Key('accessory')));
-    expect(expanded, const Rect.fromLTWH(21, 874 - 21 - 62 - 8 - 48, 360, 48));
+    expect(
+      expanded,
+      const Rect.fromLTWH(21 + 16, 874 - 21 - 62 - 8 - 48 + 8, 360 - 32, 32),
+    );
     expect(find.text('expanded'), findsOneWidget);
     for (var i = 0; i < 3; i++) {
       controller.jumpTo(controller.position.maxScrollExtent);
@@ -202,8 +205,8 @@ void main() {
     await _dragUp(tester, 200);
     expect(find.text('inline'), findsOneWidget);
     final inline = tester.getRect(find.byKey(const Key('accessory')));
-    expect(inline.left, closeTo(21 + 7 + 48 + 8, 0.5));
-    expect(inline.right, closeTo(402 - 21 - 7, 0.5));
-    expect(inline.top, closeTo(874 - 21 - 62 + 7, 0.5));
+    expect(inline.left, closeTo(21 + 7 + 48 + 14 + 16, 0.5));
+    expect(inline.right, closeTo(402 - 21 - 16, 0.5));
+    expect(inline.top, closeTo(874 - 21 - 62 + 7 + 8, 0.5));
   });
 }
