@@ -376,8 +376,9 @@ class SheetMotion {
   /// every detent dims.
   final int? undimmedIndex;
 
-  /// Whether a drag or a tap outside may dismiss the sheet; the host
-  /// updates it before a drag (a pop scope that turns dismissal off).
+  /// Whether a drag down may dismiss the sheet; otherwise the pull below
+  /// the smallest detent rubber-bands. The host updates it before each
+  /// drag (a PopScope may turn dismissal off).
   bool dismissible;
 
   /// The gap around the floating sheet in pixels.
@@ -440,10 +441,6 @@ class SheetMotion {
 
   /// The time the motion was last advanced to.
   double get time => _now;
-
-  /// The time before which nothing moves, or null while the sheet moves:
-  /// a pending grabber tap or swell waits under a moving sheet.
-  double? get wakeTime => null;
 
   double get _floatingBelowDocked {
     final docked = dockedIndex;
@@ -533,7 +530,7 @@ class SheetMotion {
   /// docking. A drag sets it from the docking progress as
   /// `docked - (docked - floating) (1 - p)^2`, concentric with the
   /// shrinking gap to the screen edge (simulator: 58.44 at `p` 0.333; UIKit
-  /// rounds the gap up to a third of a point, morph is smooth: NEAR). A
+  /// rounds the gap up to a third of a point, this curve is smooth: NEAR). A
   /// sheet presented docked keeps [dockedRadius] (a large-only sheet reads
   /// 62 through its present and dismissal).
   double get bottomRadius => _bottomRadiusAt(_now);
@@ -702,14 +699,6 @@ class SheetMotion {
       _drift.retarget(t, 0);
     }
     _offset.retarget(t, 0, spring: SheetTuning.spring);
-  }
-
-  /// Puts the sheet at its detent at time [t] without a slide, for a sheet
-  /// whose arrival another motion draws (the zoom out of a source).
-  void presentInPlace(double t) {
-    advance(t);
-    _dismissing = false;
-    _offset.snap(t, 0);
   }
 
   /// Slides the sheet out below the screen.
@@ -1023,7 +1012,8 @@ final class SheetDismissed extends SheetEvent {
   const SheetDismissed();
 }
 
-/// A released drag would have dismissed a sheet that is not dismissible;
+/// A released drag pulled a sheet that is not dismissible further than
+/// [SheetTuning.dismissAttemptShare] of [SheetTuning.refusedPullExtent];
 /// the sheet returns to its smallest detent.
 @internal
 final class SheetDismissRefused extends SheetEvent {

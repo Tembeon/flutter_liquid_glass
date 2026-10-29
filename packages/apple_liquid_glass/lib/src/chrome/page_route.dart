@@ -46,18 +46,17 @@ import 'package:kinesis/kinesis.dart';
 /// not catch a page that is already leaving, as UIKit's does: the
 /// navigator has popped it by then.
 ///
-/// With a [source], the page zooms out of it instead, as a UIKit page
-/// with `preferredTransition = .zoom` does: it grows from the source's
-/// frame to the screen, center and width on a critically damped spring of
-/// response 0.317 and height on one of 0.406, while the source's look
-/// crossfades into it and the page underneath dims 15 percent under the
-/// growing card's shadow; popped, it shrinks back into the source on
-/// UIKit's zoom-out spring (iPhone 16 Pro recordings, replayed). A drag
-/// down or toward the trailing side shrinks the page under the finger
-/// after 13.5 points, and a release past 132.5 points or at 1050 points a
-/// second pops it into the source; short of that it returns. The source
-/// hides while the page shows. Without an attached source the page
-/// slides.
+/// With a [source], the page zooms out of it instead, as a UIKit page with
+/// `preferredTransition = .zoom` does: it grows from the source's frame to the
+/// screen, center and width on a critically damped spring of response 0.317 and
+/// height on one of response 0.406, damping 0.925, while the source's look
+/// crossfades into it and the page underneath dims 15 percent under the growing
+/// card's shadow; popped, it shrinks back into the source on UIKit's zoom-out
+/// spring (iPhone 16 Pro recordings, replayed). A drag down or toward the
+/// trailing side shrinks the page under the finger after 13.5 points, and a
+/// release past 132.5 points or at 1050 points a second pops it into the
+/// source; short of that it returns. The source hides while the page shows.
+/// Without an attached source the page slides.
 class GlassPageRoute<T> extends PresentationPageRoute<T> {
   /// Creates a page [builder] builds, zooming out of [source] when given.
   GlassPageRoute({required this.builder, this.source, super.settings});
@@ -82,7 +81,7 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
   final _fades = ValueNotifier<bool>(false);
   _SlideState? _slide;
 
-  // The motion time of the push or pop call that presented the page.
+  // The motion time of the call that presented the page.
   double _presented = 0;
 
   // The page above this one, whose progress moves and dims this one.
@@ -300,13 +299,13 @@ class _SlideState extends State<_Slide> implements MotionDriver {
     super.dispose();
   }
 
-  bool get _reduceMotion => GlassTraits.of(context).prefersCrossFade;
+  bool get _crossFades => GlassTraits.of(context).prefersCrossFade;
 
   // A push or pop without a finger: a slide that leaves at full speed, or
   // a cross-fade for Prefer Cross-Fade Transitions.
   void _move({required double to, double? at}) {
     final t = at ?? _now;
-    if (_reduceMotion) {
+    if (_crossFades) {
       route._fades.value = true;
       _fadeStart = t;
       _fadeTo = to;

@@ -47,7 +47,7 @@ class ZoomPageTuning {
     this.sidewaysHeightRate = 0.00168,
     this.sidewaysGain = 0.95,
     this.dismissDistance = 132.5,
-    this.dismissVelocity = _dismissVelocity,
+    this.dismissVelocity = 1050,
   });
 
   /// The spring the container's center and width travel on toward the
@@ -169,8 +169,7 @@ class ZoomPageTuning {
 /// ([dragStart], [dragUpdate]) the container is a pure function of the
 /// finger's travel ([dragFrame]); [dragEnd] either returns the page or
 /// reports a dismissal, after which the owner pops the page and calls
-/// [close], which starts from where the finger left the page with the
-/// finger's speed.
+/// [close], which starts from where the finger left the page, at rest.
 @internal
 class ZoomPageMotion {
   /// Creates a motion resting at the page.
@@ -472,7 +471,3 @@ const _zoomInSpring = Spring.response(0.34);
 
 /// UIKit's zoom-out spring (`_UIZoomTransitionSpec`).
 const _zoomOutSpring = Spring.response(0.34, dampingRatio: 0.92);
-
-/// The speed along a drag, in points per second, past which a release
-/// dismisses the page whatever the distance.
-const double _dismissVelocity = 1050;

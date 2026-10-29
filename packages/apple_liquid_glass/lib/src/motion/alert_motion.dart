@@ -48,12 +48,6 @@ abstract final class AlertTuning {
   /// The text scale cap, an engineering layout default.
   static const double maxTextScale = 2;
 
-  /// The flat fallback shadow sigma, an engineering rendering default.
-  static const double flatShadowSigma = 24;
-
-  /// The flat fallback shadow offset, an engineering rendering default.
-  static const double flatShadowOffset = 8;
-
   /// The width of an alert.
   static const double width = 320;
 
@@ -62,8 +56,8 @@ abstract final class AlertTuning {
 
   /// The space between the top of an alert and its first text label.
   ///
-  /// UIKit's view dumps of iOS 27 alerts on the device (scene x4disalert,
-  /// tool/ios_reference/references/disabled/dumps): the title `UILabel`
+  /// UIKit's view dumps of iOS 27 alerts on an iPhone 16 Pro (kept outside
+  /// this repo): the title `UILabel`
   /// rests 22 points under the platter's top in a column alert (313 in a
   /// platter at 291) and in a row alert with a text field (218 in 196).
   static const double headerTop = 22;
@@ -76,7 +70,7 @@ abstract final class AlertTuning {
   /// UIKit's view dumps (see [headerTop]): the message `UILabel` starts at
   /// 340.67 under a title label of 20.33 points ending at 333.33 (22
   /// pixels at 3x; 245.67 under 238.33 in the row alert). The labels are
-  /// as tall as UIKit makes them (`MorphLabelHeight`).
+  /// as tall as UIKit makes them.
   static const double titleGap = 22 / 3;
 
   /// The space below the header text when both a title and a message
@@ -86,15 +80,14 @@ abstract final class AlertTuning {
   /// 363 under a message label ending at 358.67 (13 pixels at 3x), so a
   /// title and a one-line message make a 72 point header, as the
   /// recorded platters (264 points with three actions) and the action
-  /// sheet popover's header (floored to 72 in the device tree of scene
-  /// w2alert) hold.
+  /// sheet popover's header (floored to 72 in the device tree) hold.
   static const double headerBottom = 13 / 3;
 
   /// The space below the header text when only one line of text shows.
   ///
-  /// Carried from the first port (11 pixels at 3x): no committed capture
-  /// holds an alert with a title or a message alone, so the 46 point
-  /// header it gives under a 20.33 point label is not replayed.
+  /// Not measured (11 pixels at 3x): no capture holds an alert with a
+  /// title or a message alone, so the 46 point header it gives under a
+  /// 20.33 point label is not replayed.
   static const double singleHeaderBottom = 11 / 3;
 
   /// The space around the stack of buttons.
@@ -105,34 +98,6 @@ abstract final class AlertTuning {
 
   /// The space between two buttons.
   static const double buttonGap = 8;
-
-  /// The space between the header and a text field.
-  ///
-  /// UIKit's view dumps (see [headerTop]): the row alert's text field
-  /// cell starts at 280 under a message label ending at 263.67 (49 pixels
-  /// at 3x).
-  static const double fieldTop = 49 / 3;
-
-  /// The horizontal space between an alert's edge and a text field.
-  static const double fieldInset = 15;
-
-  /// The space between two text fields.
-  ///
-  /// Carried from the first port as [buttonGap]: no committed capture
-  /// holds an alert with more than one text field, so the gap is not
-  /// replayed.
-  static const double fieldGap = 8;
-
-  /// The space below the last text field, above the buttons' own
-  /// [buttonInset].
-  ///
-  /// UIKit's view dumps (see [headerTop]): the row alert's text field
-  /// collection view runs from 280 to 332 around a 48 point cell ending
-  /// at 328, and the actions view starting at 332 holds its first button
-  /// at 348, so the buttons rest 20 points under the field in a 216 point
-  /// platter. Only one text field was captured; with several, the space
-  /// is assumed to follow the last one.
-  static const double fieldBottom = 4;
 
   /// The opacity of a pressed button's fill, relative to its normal fill.
   static const double pressedFillOpacity = 0.4;

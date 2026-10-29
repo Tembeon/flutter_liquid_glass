@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/chrome/bar.dart';
 import 'package:apple_liquid_glass/src/chrome/toolbar.dart';
 import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
@@ -553,7 +554,7 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
                 left: 0,
                 right: 0,
                 child: ClipRect(
-                  clipper: const _BelowTop(),
+                  clipper: const BelowTop(),
                   child: MotionTransition(
                     translateY: _lift,
                     child: PageLift(lift: _lift, child: navigationBar),
@@ -602,18 +603,6 @@ class PageLift extends InheritedWidget {
 
   @override
   bool updateShouldNotify(PageLift oldWidget) => lift != oldWidget.lift;
-}
-
-// Cuts off what a lifted bar moves above its own top, into the status bar,
-// and nothing below: a pulled large title still follows the content down.
-class _BelowTop extends CustomClipper<Rect> {
-  const _BelowTop();
-
-  @override
-  Rect getClip(Size size) => const Rect.fromLTRB(-100000, 0, 100000, 100000);
-
-  @override
-  bool shouldReclip(_BelowTop oldClipper) => false;
 }
 
 /// Scroll physics that settle a large title out of or fully under the

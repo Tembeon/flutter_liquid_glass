@@ -63,8 +63,8 @@ abstract final class DatePickerTuning {
   /// The seconds the overlay fades in or out for under Reduce Motion, at
   /// its full size, on [reducedMotionCurve]. Read from UIKit, notes
   /// private: UIDatePicker's overlay presentation replaces its spring by
-  /// this fade under Reduce Motion (and switches pickers with it too,
-  /// which morph does not follow yet).
+  /// this fade under Reduce Motion (and switches pickers with it too;
+  /// here a switch keeps [switchSpring] under Reduce Motion).
   static const double reducedMotionDuration = 0.3;
 
   /// The easing of the Reduce Motion fade: UIView's default curve.
@@ -317,11 +317,9 @@ class DatePickerMotion {
     return !_open && _pendingAt == null && spring.isWithin(_now, _closedRest);
   }
 
-  // The overlay settles on the rule its raster-to-live glyph handover was
-  // tuned with: within [overlayRest] of open and slower than ten times
-  // that per second. The reach bound moves the handover by a frame and
-  // strikes one more glyph atlas frame per open (glyph_strikes
-  // date-picker 2 to 3), each 6 - 9 ms of raster on the Pixel 6a.
+  // Rests by value and velocity (within [overlayRest] of open and slower
+  // than ten times that per second) rather than by the reach bound of
+  // `MotionValue.isWithin`, which holds the overlay a frame longer.
   bool get _overlaySettled {
     if (reducedMotion) return _fadeDone(_now);
     final spring = _spring(_now);
@@ -586,10 +584,6 @@ class DatePickerMotion {
 
   double _yearPickerAt(double t) =>
       t >= _years.start ? _years.value(t) : _yearsBefore.value(t);
-
-  /// Whether the change between the day grid and the wheels has finished
-  ///, the chevron's turn included.
-  bool get yearPickerSettled => _yearPickerSettledAt(_now);
 
   bool _yearPickerSettledAt(double t) =>
       t >= _years.start + DatePickerTuning.yearPickerDuration &&

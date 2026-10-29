@@ -84,8 +84,8 @@ class PopoverPlacement {
       'PopoverPlacement($content, ${arrowDirection.name}, $arrowCenter)';
 }
 
-/// The measured tuning of an iOS 27 popover: an action sheet presented
-/// from a source view.
+/// The measured tuning of an iOS 27 popover (measured on an action sheet
+/// presented from a source view).
 @internal
 abstract final class PopoverTuning {
   /// The spring a popover presents on: a CASpringAnimation of stiffness
@@ -131,7 +131,7 @@ abstract final class PopoverTuning {
   /// Fitted to the 15 simulator placements. UIKit pins an arrow whose
   /// center comes within 49 of a side (an offset past 71 from the center
   /// of a 240 wide popover, read from UIKit, notes private) and draws it
-  /// into the corner; morph's placement never asks for that shape.
+  /// into the corner; [placePopover] never asks for that shape.
   static const double arrowCornerClearance = 48;
 }
 

@@ -27,8 +27,8 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 /// rest and gets a glass layer of its own over the platter only while it
 /// is lifted; on fake glass the layer keeps the lifted optics for the whole
 /// lift and the glass's fade carries the change, a NEAR trade that keeps
-/// the fake layer from rebuilding every frame. A frame
-/// reaches the renderer's live shape and live layer without a rebuild.
+/// the fake layer from rebuilding every frame. A frame reaches the
+/// renderer's live shape and live layer without a rebuild.
 /// Layers use the fitted iOS 27 settings: clear for a lone clear surface,
 /// regular in the ambient brightness ([GlassTraits.brightness]) otherwise.
 /// Under Reduce Transparency the surfaces draw flat, an unmeasured
@@ -112,10 +112,9 @@ final class LiquidGlassRenderer extends GlassRenderer {
 
   /// The shadows of a body of [role] lifted by [lift].
   ///
-  /// Engineering defaults from Morph, not measured: the control, menu and
-  /// sheet shadow is Morph's body shadow; a lens's or knob's is Morph's
-  /// floating platter shadow, which drops from 1.5 to 3.5 and blurs from 3
-  /// to 9 as it lifts.
+  /// Engineering defaults, not measured: one soft body shadow for controls,
+  /// menus and sheets; a lens's or knob's drops from 1.5 to 3.5 and blurs
+  /// from 3 to 9 as it lifts.
   static List<BoxShadow> shadowsOf(GlassRole role, {double lift = 0}) {
     final l = lift.clamp(0.0, 1.0);
     return switch (role) {
@@ -143,8 +142,8 @@ bool _lifts(GlassRole role) => role == GlassRole.knob || role == GlassRole.lens;
 /// The settings of a lens or knob lifted by [lift]: UIKit's lens
 /// configuration (read from UIKit, notes private) bends what is behind a
 /// resting small lens by 50 and blurs it by 6, a lifted one bends it by 9
-/// without blur, and a large lens rests clear. Morph's engineering factors,
-/// not measured, double the bend, part the colors along the rim and
+/// without blur, and a large lens rests clear. Engineering factors, not
+/// measured, double the bend, part the colors along the rim and
 /// brighten the highlight by half as the lens lifts.
 LiquidGlassSettings _lensSettings(
   LiquidGlassSettings base,
