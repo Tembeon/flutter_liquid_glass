@@ -84,6 +84,12 @@ abstract final class NavigationTuning {
   /// See [rubberBandExtent].
   static const double rubberBandCoefficient = 0.55;
 
+  /// The share of an interactive pop's progress the navigation bar's
+  /// capsules lean toward their places on the page below while the finger
+  /// drags the page: half the way when the page is fully out (device fit
+  /// over four swipes, 0.16 - 0.27 points rms).
+  static const double barDrift = 0.5;
+
   /// The seconds a push or pop without a finger cross-fades for under
   /// Reduce Motion, on [crossFadeCurve], instead of sliding; an edge swipe
   /// still slides (read from UIKit).
