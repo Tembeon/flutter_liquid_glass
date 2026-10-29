@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/src/controls/button.dart';
 import 'package:apple_liquid_glass/src/controls/page_control.dart';
+import 'package:apple_liquid_glass/src/controls/search_field.dart';
 import 'package:apple_liquid_glass/src/controls/segmented_control.dart';
 import 'package:apple_liquid_glass/src/controls/slider.dart';
 import 'package:apple_liquid_glass/src/controls/stepper.dart';
@@ -109,6 +110,7 @@ class GlassThemeData {
     this.pageControlStyle,
     this.segmentedStyle,
     this.tabBarStyle,
+    this.searchFieldStyle,
   });
 
   /// The theme between [a] and [b] at [t]: colors and styles interpolate;
@@ -146,6 +148,11 @@ class GlassThemeData {
         t,
       ),
       tabBarStyle: GlassTabBarStyle.lerp(a.tabBarStyle, b.tabBarStyle, t),
+      searchFieldStyle: GlassSearchFieldStyle.lerp(
+        a.searchFieldStyle,
+        b.searchFieldStyle,
+        t,
+      ),
     );
   }
 
@@ -188,6 +195,9 @@ class GlassThemeData {
   /// The look of tab bars.
   final GlassTabBarStyle? tabBarStyle;
 
+  /// The look of search fields.
+  final GlassSearchFieldStyle? searchFieldStyle;
+
   /// This theme with the non-null fields of [other] over it; styles and
   /// schemes merge too.
   GlassThemeData merge(GlassThemeData? other) {
@@ -210,6 +220,8 @@ class GlassThemeData {
       segmentedStyle:
           other.segmentedStyle?.merge(segmentedStyle) ?? segmentedStyle,
       tabBarStyle: other.tabBarStyle?.merge(tabBarStyle) ?? tabBarStyle,
+      searchFieldStyle:
+          other.searchFieldStyle?.merge(searchFieldStyle) ?? searchFieldStyle,
     );
   }
 
@@ -228,7 +240,8 @@ class GlassThemeData {
       other.stepperStyle == stepperStyle &&
       other.pageControlStyle == pageControlStyle &&
       other.segmentedStyle == segmentedStyle &&
-      other.tabBarStyle == tabBarStyle;
+      other.tabBarStyle == tabBarStyle &&
+      other.searchFieldStyle == searchFieldStyle;
 
   @override
   int get hashCode => Object.hash(
@@ -245,6 +258,7 @@ class GlassThemeData {
     pageControlStyle,
     segmentedStyle,
     tabBarStyle,
+    searchFieldStyle,
   );
 }
 
