@@ -2,21 +2,25 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motion/flex_spec.dart' show FlexSpec;
 import 'package:apple_liquid_glass/src/motion/rest.dart';
+import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
 /// The glow a finger raises on a pressed glass surface, in one frame.
 ///
-/// UIKit lights a pressed tab bar with two glows of its flex interaction,
-/// both color matrices over what lies behind them rather than paint of
-/// their own: a wash across the whole surface that adds [wash] to every
-/// color channel, and a soft spot under the finger that multiplies the
-/// channels by [factorAt] - most at [center], fading as a Gaussian of
-/// standard deviation [radius]. Both stay inside the surface's shape and
-/// under the control's content, and clamp at white: the spot is the color
-/// dodge whose white level is `1 - 1 / factorAt`. The liquid renderer
-/// draws them in its glass layer (`LiquidGlassLayer.glow`); the flat
-/// renderer draws no glow.
+/// UIKit lights a pressed glass surface with two glows of its flex
+/// interaction, both color matrices over what lies behind them rather than
+/// paint of their own: a wash across the whole surface that adds [wash] to
+/// every color channel, and a soft spot under the finger, most at [center]
+/// and fading as a Gaussian of standard deviation [radius]. Both stay
+/// inside the surface's shape and under its content, and clamp at white.
+/// How much the spot brightens is the glass's own: a renderer reads it from
+/// the surface's glass with [gainOn]. The liquid renderer draws the glow in
+/// its glass layer, except in a group whose members mix clear and regular
+/// glass; the flat renderer draws none.
+///
+/// UIKit: the flex interaction's big and little glows. SwiftUI:
+/// `.glassEffect(.regular.interactive())`.
 @immutable
 class GlassTouchGlow {
   /// Creates a glow description.
@@ -24,33 +28,32 @@ class GlassTouchGlow {
     required this.wash,
     required this.center,
     required this.radius,
-    required this.gain,
+    required this.spot,
   });
 
   /// How much every color channel rises across the whole surface, in
   /// `[0, 1]` units.
   final double wash;
 
-  /// The center of the spot, in the control's local coordinates.
+  /// The center of the spot, in the surface's local coordinates.
   final Offset center;
 
   /// The standard deviation of the spot's falloff, in pixels.
   final double radius;
 
-  /// How much the spot brightens its center: there the channels are
-  /// multiplied by `1 + gain`.
-  final double gain;
+  /// How strongly the spot lights its center, as a share of the glass's
+  /// own spot gain.
+  final double spot;
 
-  /// Whether the glow changes anything.
-  bool get isVisible => wash > 0 || gain > 0;
-
-  /// The factor the spot multiplies the channels by at [distance] pixels
-  /// from [center].
-  double factorAt(double distance) {
-    if (radius <= 0) return 1;
-    final r = distance / radius;
-    return 1 + gain * math.exp(-0.5 * r * r);
-  }
+  /// How much the spot brightens its center on [glass] in [brightness]:
+  /// there the channels are multiplied by `1 + gainOn(glass, brightness)`.
+  double gainOn(Glass glass, Brightness brightness) =>
+      spot *
+      TouchGlowMotion.spotGainFor(
+        brightness,
+        tint: glass.tint,
+        clear: glass.isClear,
+      );
 
   @override
   bool operator ==(Object other) =>
@@ -58,10 +61,10 @@ class GlassTouchGlow {
       other.wash == wash &&
       other.center == center &&
       other.radius == radius &&
-      other.gain == gain;
+      other.spot == spot;
 
   @override
-  int get hashCode => Object.hash(wash, center, radius, gain);
+  int get hashCode => Object.hash(wash, center, radius, spot);
 }
 
 /// The touch glow of a pressed glass surface as a function of time:
@@ -285,13 +288,9 @@ class TouchGlowMotion {
     return _scale.valueAt(t);
   }
 
-  /// The glow to paint at time [t] for the [brightness] the control
-  /// resolved, with the spot's center moved by [transform].
-  GlassTouchGlow? glowAt(
-    double t,
-    Brightness brightness, {
-    Offset Function(Offset)? transform,
-  }) {
+  /// The glow to paint at time [t], with the spot's center moved by
+  /// [transform].
+  GlassTouchGlow? glowAt(double t, {Offset Function(Offset)? transform}) {
     final wash = washOpacity(t);
     final spot = spotOpacity(t);
     if (wash == 0 && spot == 0) return null;
@@ -299,7 +298,7 @@ class TouchGlowMotion {
       wash: washOffset * wash,
       center: transform == null ? _center : transform(_center),
       radius: spotSpread * diameter * spotScale(t),
-      gain: spotGain(brightness) * spotCore * spot,
+      spot: spotCore * spot,
     );
   }
 
