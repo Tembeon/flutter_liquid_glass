@@ -235,4 +235,61 @@ void main() {
     expect(presses, 1);
     expect(haptics, isEmpty);
   });
+
+  testWidgets('an interaction of its own reports pressed and dragged', (
+    tester,
+  ) async {
+    final states = WidgetStatesController();
+    addTearDown(states.dispose);
+    final held = _Held();
+    await tester.pumpWidget(
+      _app(
+        Center(
+          child: InputRegion(
+            interactions: [held],
+            statesController: states,
+            child: const SizedBox(width: 80, height: 40),
+          ),
+        ),
+      ),
+    );
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(InputRegion)),
+    );
+    await tester.pump();
+    expect(
+      states.value,
+      containsAll([WidgetState.pressed, WidgetState.dragged]),
+    );
+    await gesture.up();
+    await tester.pump();
+    expect(states.value, isNot(contains(WidgetState.pressed)));
+    expect(states.value, isNot(contains(WidgetState.dragged)));
+  });
+}
+
+final class _Held extends Interaction {
+  _Held() : super(role: InteractionRole.control);
+
+  int? _pointer;
+
+  @override
+  bool get pressed => _pointer != null;
+
+  @override
+  bool get dragged => _pointer != null;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    switch (input) {
+      case PointerDownInput():
+        _pointer = input.pointer;
+        return const InteractionUpdate(claims: true);
+      case PointerUpInput() || PointerCancelInput():
+        _pointer = null;
+        return const InteractionUpdate(recognizes: true);
+      default:
+        return InteractionUpdate.none;
+    }
+  }
 }

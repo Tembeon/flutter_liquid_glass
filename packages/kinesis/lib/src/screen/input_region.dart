@@ -288,12 +288,8 @@ class _InputRegionState extends State<InputRegion> {
     var pressed = false;
     var dragged = false;
     for (final interaction in _all) {
-      if (interaction is PressInteraction && interaction.highlighted) {
-        pressed = true;
-      }
-      if (interaction is DragInteraction && interaction.started) {
-        dragged = true;
-      }
+      pressed = pressed || interaction.pressed;
+      dragged = dragged || interaction.dragged;
     }
     states.update(WidgetState.pressed, pressed);
     states.update(WidgetState.dragged, dragged);

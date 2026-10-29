@@ -322,6 +322,14 @@ abstract class Interaction {
   /// Whether the interaction takes a touch that starts with [down].
   bool accepts(PointerDownInput down) => down.buttons == kPrimaryButton;
 
+  /// Whether a touch presses the region through this interaction; the
+  /// region is `WidgetState.pressed` while one does.
+  bool get pressed => false;
+
+  /// Whether this interaction drags; the region is `WidgetState.dragged`
+  /// while one does.
+  bool get dragged => false;
+
   /// Answers [input].
   InteractionUpdate handle(InteractionInput input);
 
@@ -370,6 +378,9 @@ class PressInteraction extends Interaction {
 
   /// Whether a press is highlighted.
   bool get highlighted => _pointer != null && _inside;
+
+  @override
+  bool get pressed => highlighted;
 
   void _highlight(bool on) {
     if (on == _inside) return;
@@ -591,6 +602,9 @@ class DragInteraction extends Interaction {
 
   /// Whether a drag has started.
   bool get started => _started;
+
+  @override
+  bool get dragged => _started;
 
   Offset _along(Offset delta) => switch (axis) {
     Axis.horizontal => Offset(delta.dx, 0),
