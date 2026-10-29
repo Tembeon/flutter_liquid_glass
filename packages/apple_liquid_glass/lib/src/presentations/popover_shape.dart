@@ -336,8 +336,7 @@ class _Trace {
   LiquidGlassField field() {
     const step = PopoverShape.fieldStep;
     const margin = PopoverShape._fieldMargin;
-    const reach =
-        PopoverTuning.arrowBase / 2 + PopoverTuning.arrowFilletReach;
+    const reach = PopoverTuning.arrowBase / 2 + PopoverTuning.arrowFilletReach;
     final w = _w;
     final h = _h;
     final c = _c;
