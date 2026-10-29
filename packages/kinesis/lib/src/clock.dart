@@ -280,8 +280,8 @@ abstract class MotionClock {
       if (!driver.isActive) continue;
       final until = _dozing[driver];
       if (until != null) {
-        // As a ticker that dozes does: back half a frame early, so the
-        // frame that shows the change is never missed.
+        // Back half a frame early, so the frame that shows the change is
+        // never missed.
         if (time < until - 0.5 * period) continue;
         _dozing.remove(driver);
       }

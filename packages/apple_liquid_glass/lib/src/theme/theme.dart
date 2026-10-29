@@ -291,8 +291,8 @@ class GlassThemeData {
 /// Flutter: `CupertinoTheme`, except that a nested theme merges into the
 /// enclosing one instead of replacing it.
 ///
-/// A widget that reads one part of the theme ([rendererOf], [brightnessOf])
-/// rebuilds only when that part changes.
+/// A widget that reads one part of the theme ([rendererOf], [brightnessOf],
+/// [colorSchemeOf]) rebuilds only when that part changes.
 class GlassTheme extends StatelessWidget {
   /// Applies [data] to [child].
   const GlassTheme({required this.data, required this.child, super.key});

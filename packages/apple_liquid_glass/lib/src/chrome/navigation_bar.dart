@@ -447,8 +447,8 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
 }
 
 abstract final class _Metrics {
-  /// The space between the screen's sides and the outer items on a 402
-  /// point wide screen (20 on the 440 point Pro Max).
+  /// The space between the screen's sides and the outer items: 16 on a 402
+  /// point screen; the Pro Max's 20 is not followed (approximation).
   static const double sideInset = 16;
 
   /// How far below the status bar the capsules and the inline title are

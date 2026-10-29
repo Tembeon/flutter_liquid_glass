@@ -565,8 +565,8 @@ final class _Bar {
   double get sideInset => _navigation ? 16 : 28;
 
   /// The tuning of a change on a push or a pop: a navigation bar's own
-  /// timing; a toolbar's item replacement, as Morph's toolbar ran it (a
-  /// toolbar's push was filmed on the simulator only).
+  /// timing; for a toolbar, its item replacement timing (an approximation:
+  /// a toolbar's push is filmed on the simulator only).
   GlassBarTransitionSpec get navigationSpec => _navigation
       ? GlassBarTransitionSpec.navigation
       : GlassBarTransitionSpec.standard;
@@ -586,8 +586,9 @@ final class _Bar {
       return true;
     }(), 'reads the layout phase in debug builds only');
     if (inLayout) {
-      // A page built during another layout (under the app's LayoutBuilder)
-      // reaches the bar a frame later.
+      // Debug builds assert against marking another element dirty during a
+      // layout (a page built under the app's LayoutBuilder); release builds
+      // mark it directly, and both reach the bar a frame later.
       SchedulerBinding.instance.addPostFrameCallback((_) {
         if (view.mounted) view.markNeedsBuild();
       });
@@ -1003,7 +1004,7 @@ class GlassBarView extends StatelessWidget {
           right: 0,
           height: _navigationHeight,
           child: ClipRect(
-            clipper: const _BelowTop(),
+            clipper: const BelowTop(),
             child: MotionTransition(
               translateY: host._lift,
               child: _Band(bar: host._bars[GlassBarKind.navigation]!),
@@ -1034,15 +1035,19 @@ class GlassBarView extends StatelessWidget {
   static const _prominentColor = Color(0xFF0088FF);
 }
 
-// Cuts off what a lifted bar moves above its own top, into the status bar.
-class _BelowTop extends CustomClipper<Rect> {
-  const _BelowTop();
+/// Cuts off what a lifted bar moves above its own top, into the status
+/// bar, and nothing below: a pulled large title still follows the content
+/// down.
+@internal
+class BelowTop extends CustomClipper<Rect> {
+  /// Creates the clipper.
+  const BelowTop();
 
   @override
   Rect getClip(Size size) => const Rect.fromLTRB(-100000, 0, 100000, 100000);
 
   @override
-  bool shouldReclip(_BelowTop oldClipper) => false;
+  bool shouldReclip(BelowTop oldClipper) => false;
 }
 
 // One bar's row: its glass and its buttons, rebuilt during its layout.
@@ -1282,8 +1287,9 @@ class _ItemData extends ContainerBoxParentData<RenderBox> {}
 
 /// Lays the bar's buttons out to measure them, hands the widths to the
 /// host, and paints each where the host's motion puts it: moved, scaled,
-/// faded and blurred, without a layout per frame. Only resting buttons of
-/// the shown page take touches, anywhere in their laid-out box.
+/// faded and blurred, without a layout per frame. Buttons that are not
+/// leaving and are more than half present take touches, anywhere in their
+/// laid-out box.
 class _RenderBarItems extends RenderBox
     with
         ContainerRenderObjectMixin<RenderBox, _ItemData>,

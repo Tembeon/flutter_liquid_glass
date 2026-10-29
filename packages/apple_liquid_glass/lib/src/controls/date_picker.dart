@@ -34,8 +34,8 @@ enum GlassDatePickerMode {
 /// How a [GlassDatePicker] shows itself, after UIKit's
 /// `UIDatePickerStyle` (`preferredDatePickerStyle`).
 enum GlassDatePickerStyle {
-  /// Labels that open the calendar or the wheels in an overlay: the one
-  /// style morph draws today.
+  /// Labels that open the calendar or the wheels in an overlay: the only
+  /// style implemented.
   compact,
 
   /// The calendar in place, without a label. Reserved: not implemented
@@ -410,20 +410,19 @@ String _defaultTime(DateTime d, {required bool twentyFour}) {
 /// The iOS 27 compact date picker: a label that opens its picker in an
 /// overlay.
 ///
-/// The label is a tinted capsule showing [value]; a touch dims its text,
-/// and a tap opens the overlay out of it: a month calendar for a date, the
-/// hour and minute wheels for a time. The overlay grows out of the label's
-/// center on a spring while it fades in and reveals its content from the
-/// label's side, hangs below the label (above it when there is no room),
-/// and extends toward the leading side, on UIKit's open spring of response
-/// 0.32 starting 0.14 s after the lift and its close spring of 0.348
-/// (fitted to the iPhone 16 Pro's frames). While it is open the label's
-/// text takes the
-/// accent color. Choosing a day or turning a wheel calls [onChanged] at
-/// once and the overlay stays open; a tap outside or Escape closes it,
-/// turning an overlay that still opens around. A tap on the label while
-/// the overlay closes opens a new one at once, as UIKit does, while the
-/// old one finishes its close.
+/// The label is a tinted capsule showing [value]; a touch dims its text, and a
+/// tap opens the overlay out of it: a month calendar for a date, the hour and
+/// minute wheels for a time. The overlay grows out of the label's center on a
+/// spring while it fades in and reveals its content from the label's side,
+/// hangs below the label (above it when there is no room), and extends toward
+/// the leading side, on UIKit's open spring of response 0.32 starting 0.14 s
+/// after the lift and its close spring of 0.348 (fitted to the simulator's
+/// frames, replayed on an iPhone 16 Pro). While it is open the label's text
+/// takes the accent color. Choosing a day or turning a wheel calls [onChanged]
+/// at once and the overlay stays open; a tap outside or Escape closes it,
+/// turning an overlay that still opens around. A tap on the label while the
+/// overlay closes opens a new one at once, as UIKit does, while the old one
+/// finishes its close.
 ///
 /// In 12-hour time the wheels are the hour (1 to 12), the minute and AM/PM,
 /// as UIKit lays them out; the hour wheel turning past 11 and 12 switches
@@ -1326,9 +1325,8 @@ class _OverlayViewState extends State<_OverlayView>
                     minHeight: 0,
                     maxHeight: double.infinity,
                     // The content keeps its size while the scale, clip and
-                    // opacity above it change every frame; its text is
-                    // drawn through the glyph policy, below the clip so a
-                    // reclip keeps the raster.
+                    // opacity above it change every frame; its own layer,
+                    // below the clip, keeps its raster through a reclip.
                     child: LiveFade(
                       live: frames,
                       opacityOf: () => frame().opacity,

@@ -23,8 +23,7 @@ abstract final class NavigationTuning {
   /// The speed a push or pop without a finger starts at, in page widths per
   /// second: the page leaves its start at full speed. UIKit gives the
   /// spring an impulse of 0.02 s (read), which makes 0.02 (2 pi / 0.3)^2 =
-  /// 8.77 (fits the device push rows within 0.9 pt; the earlier fit of 8.3
-  /// missed them by 1.3 - 3.3 pt).
+  /// 8.77 (fits the device push rows within 0.9 pt).
   static const double pushVelocity = 8.77;
 
   /// The share of the page the page underneath keeps on screen: it moves by
@@ -91,8 +90,9 @@ abstract final class NavigationTuning {
   static const double barDrift = 0.5;
 
   /// The seconds a push or pop without a finger cross-fades for under
-  /// Reduce Motion, on [crossFadeCurve], instead of sliding; an edge swipe
-  /// still slides (read from UIKit).
+  /// Prefer Cross-Fade Transitions (`GlassTraits.prefersCrossFade`), on
+  /// [crossFadeCurve], instead of sliding; an edge swipe still slides (read
+  /// from UIKit).
   static const double crossFadeDuration = 0.5;
 
   /// The easing of the cross-fade: UIView's default animation curve.
@@ -194,7 +194,7 @@ class NavigationPopMotion {
   /// The mean of the last three accepted speeds, in widths per second.
   double get averageVelocity => _averageVelocity;
 
-  /// The mean of the last three limited accelerations, in widths/s².
+  /// The mean of the last three limited accelerations, in widths/s^2.
   double get averageAcceleration => _averageAcceleration;
 
   /// Records a pointer position, including movement before recognition.

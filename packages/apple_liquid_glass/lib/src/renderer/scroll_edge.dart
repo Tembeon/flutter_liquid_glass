@@ -9,8 +9,9 @@ import 'package:flutter/widgets.dart';
 
 /// The numbers of UIKit's scroll edge effect on iOS 27: `PocketSettings`
 /// and the layers of `UIKit.ScrollEdgeEffectView` (read from UIKit, notes
-/// private; the hard band replayed against the device in Morph's
-/// scroll-edge fixture). Radii are taken as Gaussian sigmas.
+/// private; the hard band replayed against an iPhone 16 Pro capture that
+/// is not among this package's fixtures). Radii are taken as Gaussian
+/// sigmas.
 abstract final class _Edge {
   /// How far the soft band reaches past the bar.
   static const double softOverhang = 40;

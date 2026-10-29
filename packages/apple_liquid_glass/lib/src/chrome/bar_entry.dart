@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
-/// One entry of a side of a `GlassNavigationBar`: an item or a spacer.
+/// One entry of a `GlassNavigationBar` side or of a `GlassToolbar`: an item
+/// or a spacer.
 ///
 /// UIKit: `UIBarButtonItem`. SwiftUI: `ToolbarItem`. Flutter: an action of
 /// `AppBar`.

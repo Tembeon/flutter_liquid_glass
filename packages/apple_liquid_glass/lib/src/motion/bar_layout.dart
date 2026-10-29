@@ -66,9 +66,8 @@ class GlassBarMetrics {
   /// The narrowest a button gets: as wide as a lone icon's.
   double get minButtonWidth => iconSize + 2 * iconPadding;
 
-  /// A navigation bar's buttons: capsules 44 tall, buttons 36 tall inset by
-  /// 4, 16 between buttons, labels padded by 12, icons by 7 (a lone icon's
-  /// capsule is the round 44 of the recordings, so its icon box is 22).
+  /// A navigation bar's buttons; a lone icon's capsule is the round 44 of
+  /// the recordings, which sets the 22 point icon box.
   static const navigation = GlassBarMetrics(
     capsuleHeight: 44,
     buttonHeight: 36,
@@ -79,9 +78,7 @@ class GlassBarMetrics {
     iconSize: 22,
   );
 
-  /// A toolbar's buttons: capsules 48 tall, buttons 38 tall inset by 5, 14
-  /// between buttons, labels padded by 11, icons by 8 (round 48 for a lone
-  /// icon).
+  /// A toolbar's buttons; a lone icon's capsule is the round 48.
   static const toolbar = GlassBarMetrics(
     capsuleHeight: 48,
     buttonHeight: 38,

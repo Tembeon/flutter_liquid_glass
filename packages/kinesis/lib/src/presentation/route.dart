@@ -401,7 +401,8 @@ abstract class PresentationRoute<T> extends PopupRoute<T>
 /// A page whose motion lives in its content, such as a page that zooms out
 /// of its source.
 ///
-/// UIKit: a pushed `UIViewController` with `preferredTransition = .zoom`.
+/// UIKit: a pushed `UIViewController` whose transition the content drives
+/// (a slide, `.zoom`).
 /// Flutter: a [PageRoute].
 ///
 /// It has the lifecycle, the dismissal gate and the barrier of
