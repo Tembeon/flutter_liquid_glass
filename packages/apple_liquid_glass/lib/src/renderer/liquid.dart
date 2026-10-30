@@ -690,11 +690,11 @@ class _LiquidLensState extends State<_LiquidLens> {
   @override
   void dispose() {
     _source.removeListener(_onFrame);
-    _report?.value = 0;
+    _report?.value = GlassLensShrink.none;
     super.dispose();
   }
 
-  ValueNotifier<double>? _report;
+  ValueNotifier<GlassLensShrinkage>? _report;
 
   void _onFrame() {
     if (_isLifted == _lifted) return;
@@ -711,9 +711,12 @@ class _LiquidLensState extends State<_LiquidLens> {
   Widget build(BuildContext context) {
     final details = widget.details;
     final report = _report = GlassLensShrink.maybeOf(context);
-    report?.value = widget.fake || !ImageFilter.isShaderFilterSupported
-        ? 0
-        : _shrinkOf(details.role).$1;
+    if (report != null) {
+      final (shrink, rim) = _shrinkOf(details.role);
+      report.value = widget.fake || !ImageFilter.isShaderFilterSupported
+          ? GlassLensShrink.none
+          : (shrink: shrink, rim: rim);
+    }
     return Stack(
       fit: StackFit.passthrough,
       children: [

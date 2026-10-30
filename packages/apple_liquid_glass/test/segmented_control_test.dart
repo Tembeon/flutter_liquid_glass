@@ -1,4 +1,6 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:apple_liquid_glass/src/renderer/flat.dart';
+import 'package:apple_liquid_glass/src/renderer/lens_shrink.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -507,6 +509,78 @@ void main() {
     await _settle(tester);
   });
 
+  testWidgets('through the shrinking glass of a lifted lens, the copy under '
+      'it shows every item on its slot', (tester) async {
+    late GlassSelectorDetails details;
+    await tester.pumpWidget(
+      _app(
+        RawGlassSelector(
+          itemCount: 3,
+          selectedIndex: 1,
+          onChanged: (_) {},
+          itemBuilder: (context, index, states) => Text('Item $index'),
+          builder: (context, d) {
+            details = d;
+            return d.items(lens: const _ShrinkingLens());
+          },
+        ),
+      ),
+    );
+    final gesture = await tester.startGesture(_at(tester, 'Item 1'));
+    for (var i = 0; i < 30; i++) {
+      await gesture.moveBy(const Offset(1, 0));
+      await tester.pump(_frame);
+    }
+    final frame = details.lens.value;
+    final lens = frame.drawnIn(tester.getSize(find.byType(RawGlassSelector)));
+    final grow =
+        1 +
+        (1 / (1 - _ShrinkingLens.shrink * frame.lift) - 1) *
+            FlatGlassLook.glassness(frame.lift);
+    expect(grow, greaterThan(1.1));
+    final half = (lens.longestSide - lens.shortestSide) / 2;
+    // Where the glass reads what lies under the point it shows: farther
+    // from the nearest point of its center line, as the shader does.
+    Offset read(Offset shown) {
+      final nearest = Offset(
+        shown.dx.clamp(lens.center.dx - half, lens.center.dx + half),
+        lens.center.dy,
+      );
+      return shown + (shown - nearest) * (grow - 1);
+    }
+
+    final drawn = <(Rect, Matrix4)>[];
+    var strip = Rect.zero;
+    expect(
+      find.byType(RawGlassSelector),
+      paints..everything((method, arguments) {
+        if (method == #clipRect) strip = arguments[0]! as Rect;
+        if (method == #transform) {
+          drawn.add((
+            strip,
+            Matrix4.fromFloat64List(arguments[0]! as Float64List),
+          ));
+        }
+        return true;
+      }),
+    );
+    final checked = <Rect>{};
+    for (final (strip, transform) in drawn) {
+      for (var x = lens.left; x <= lens.right; x += 2) {
+        for (var y = lens.top; y <= lens.bottom; y += 2) {
+          final point = Offset(x, y);
+          final at = MatrixUtils.transformPoint(transform, point);
+          if (!strip.deflate(0.01).contains(at)) continue;
+          expect((read(point) - at).distance, lessThan(1e-6));
+          checked.add(strip);
+        }
+      }
+    }
+    expect(checked, hasLength(3));
+    await gesture.up();
+    await _settle(tester);
+  });
+
   test('a style lerps its colors and merges state by state', () {
     final a = GlassSegmentedControl.styleFrom(
       backgroundColor: const Color(0xFF000000),
@@ -525,4 +599,16 @@ void main() {
     expect(merged.thumbColor!.resolve({}), const Color(0xFF00FF00));
     expect(listEquals([a], [a]), isTrue);
   });
+}
+
+class _ShrinkingLens extends StatelessWidget {
+  const _ShrinkingLens();
+
+  static const double shrink = 0.2;
+
+  @override
+  Widget build(BuildContext context) {
+    GlassLensShrink.maybeOf(context)!.value = (shrink: shrink, rim: 1);
+    return const SizedBox.expand();
+  }
 }
