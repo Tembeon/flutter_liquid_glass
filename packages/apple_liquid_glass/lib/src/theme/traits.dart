@@ -38,6 +38,7 @@ final class GlassTraits {
     this.reduceTransparency = false,
     this.prefersCrossFade = false,
     this.showBorders = false,
+    this.glassTintAmount = 0,
   });
 
   /// The traits at [context].
@@ -65,6 +66,7 @@ final class GlassTraits {
       reduceTransparency: overrides?.reduceTransparency ?? false,
       prefersCrossFade: reduceMotion && crossFade,
       showBorders: overrides?.showBorders ?? false,
+      glassTintAmount: (overrides?.glassTintAmount ?? 0).clamp(0.0, 1.0),
     );
   }
 
@@ -96,6 +98,11 @@ final class GlassTraits {
   /// point).
   final bool showBorders;
 
+  /// Where the Liquid Glass slider of iOS 27 (Settings, Appearance) stands,
+  /// from 0 (Clear) to 1 (Tinted): the liquid renderer's glass takes its
+  /// wash, border and blur from it (`LiquidGlassSettings.tintAmount`).
+  final double glassTintAmount;
+
   @override
   bool operator ==(Object other) =>
       other is GlassTraits &&
@@ -106,7 +113,8 @@ final class GlassTraits {
       other.reduceMotion == reduceMotion &&
       other.reduceTransparency == reduceTransparency &&
       other.prefersCrossFade == prefersCrossFade &&
-      other.showBorders == showBorders;
+      other.showBorders == showBorders &&
+      other.glassTintAmount == glassTintAmount;
 
   @override
   int get hashCode => Object.hash(
@@ -118,6 +126,7 @@ final class GlassTraits {
     reduceTransparency,
     prefersCrossFade,
     showBorders,
+    glassTintAmount,
   );
 }
 
@@ -135,6 +144,7 @@ class GlassTraitsOverride extends StatelessWidget {
     this.reduceTransparency,
     this.prefersCrossFade,
     this.showBorders,
+    this.glassTintAmount,
     super.key,
   });
 
@@ -150,6 +160,9 @@ class GlassTraitsOverride extends StatelessWidget {
   /// See [GlassTraits.showBorders].
   final bool? showBorders;
 
+  /// See [GlassTraits.glassTintAmount].
+  final double? glassTintAmount;
+
   /// The subtree the traits apply to.
   final Widget child;
 
@@ -162,6 +175,7 @@ class GlassTraitsOverride extends StatelessWidget {
       reduceTransparency: reduceTransparency ?? outer?.reduceTransparency,
       prefersCrossFade: prefersCrossFade ?? outer?.prefersCrossFade,
       showBorders: showBorders ?? outer?.showBorders,
+      glassTintAmount: glassTintAmount ?? outer?.glassTintAmount,
       child: child,
     );
   }
@@ -173,6 +187,7 @@ class _GlassTraitsScope extends InheritedWidget {
     required this.reduceTransparency,
     required this.prefersCrossFade,
     required this.showBorders,
+    required this.glassTintAmount,
     required super.child,
   });
 
@@ -180,11 +195,13 @@ class _GlassTraitsScope extends InheritedWidget {
   final bool? reduceTransparency;
   final bool? prefersCrossFade;
   final bool? showBorders;
+  final double? glassTintAmount;
 
   @override
   bool updateShouldNotify(_GlassTraitsScope oldWidget) =>
       interfaceLevel != oldWidget.interfaceLevel ||
       reduceTransparency != oldWidget.reduceTransparency ||
       prefersCrossFade != oldWidget.prefersCrossFade ||
-      showBorders != oldWidget.showBorders;
+      showBorders != oldWidget.showBorders ||
+      glassTintAmount != oldWidget.glassTintAmount;
 }

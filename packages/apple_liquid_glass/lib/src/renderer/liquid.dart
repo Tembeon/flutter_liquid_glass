@@ -31,7 +31,8 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 /// the fake layer from rebuilding every frame. A frame reaches the
 /// renderer's live shape and live layer without a rebuild.
 /// Layers use the fitted iOS 27 settings: clear for a lone clear surface,
-/// regular in the ambient brightness ([GlassTraits.brightness]) otherwise.
+/// regular in the ambient brightness ([GlassTraits.brightness]) otherwise,
+/// both at the Liquid Glass slider's position ([GlassTraits.glassTintAmount]).
 /// Under Reduce Transparency the surfaces draw flat, an unmeasured
 /// stand-in for iOS's frosted glass.
 @internal
@@ -614,10 +615,12 @@ class _LiquidGroupState extends State<_LiquidGroup> {
 
   @override
   Widget build(BuildContext context) {
+    final traits = GlassTraits.of(context);
     _base = ((widget.lens?.glass ?? widget.glass)?.isClear ?? false)
-        ? LiquidGlassSettings.ios27Clear()
+        ? LiquidGlassSettings.ios27Clear(tintAmount: traits.glassTintAmount)
         : LiquidGlassSettings.ios27Regular(
-            brightness: GlassTraits.of(context).brightness,
+            brightness: traits.brightness,
+            tintAmount: traits.glassTintAmount,
           );
     _writeSettings();
     final blend = widget.blend;

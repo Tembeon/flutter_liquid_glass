@@ -183,6 +183,31 @@ void main() {
       );
     });
 
+    testWidgets('glass takes the Liquid Glass slider from the traits', (
+      tester,
+    ) async {
+      for (final glass in [const Glass.regular(), const Glass.clear()]) {
+        await tester.pumpWidget(
+          _app(
+            const GlassRenderer.liquid(),
+            GlassTraitsOverride(
+              glassTintAmount: 0.6,
+              child: GlassSurface(
+                glass: glass,
+                child: const SizedBox(width: 60, height: 30),
+              ),
+            ),
+          ),
+        );
+        final settings = tester
+            .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
+            .live!
+            .value
+            .settings;
+        expect(settings.tintAmount, 0.6, reason: '$glass');
+      }
+    });
+
     testWidgets('a lifted lens shows what is under it smaller, by the '
         'measured amount of its control', (tester) async {
       for (final (role, shrink, rim) in [
