@@ -917,6 +917,15 @@ class _RenderSheetBox extends RenderProxyBox {
     transform.multiply(_frame.value.transform);
   }
 
+  // The glass renderer places a resting sheet's backdrop pass from its
+  // ancestors' clips, as Impeller sizes the pass; unreported, the clip put
+  // the sheet's glass off by the sheet's inset once it came to rest.
+  @override
+  Rect? describeApproximatePaintClip(RenderObject child) {
+    final frame = _frame.value;
+    return MatrixUtils.transformRect(frame.transform, frame.body.outerRect);
+  }
+
   @override
   void paint(PaintingContext context, Offset offset) {
     final child = this.child;
