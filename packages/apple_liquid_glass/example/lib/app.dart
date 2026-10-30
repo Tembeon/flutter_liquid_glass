@@ -126,7 +126,7 @@ class _GalleryHomeState extends State<GalleryHome> {
           icon: Icon(CupertinoIcons.photo_on_rectangle),
           selectedIcon: Icon(CupertinoIcons.photo_fill_on_rectangle_fill),
           label: Text('Photos'),
-          badge: Text('6'),
+          badge: GlassBadge.count(6),
         ),
       ],
       selectedIndex: _tab.index,
