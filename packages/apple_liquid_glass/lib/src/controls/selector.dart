@@ -212,7 +212,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector> {
     pressed: null,
     hovered: null,
   ));
-  final _lensShrink = ValueNotifier<double>(0);
+  final _lensShrink = ValueNotifier(GlassLensShrink.none);
   int? _noneDown;
   int? _downSlot;
   int? _downSelected;
@@ -497,6 +497,11 @@ class _RawGlassSelectorState extends State<RawGlassSelector> {
 
   Widget _items(BuildContext context, Widget? lens) {
     final count = widget.itemCount;
+    Widget selected(int index) => widget.itemBuilder(
+      context,
+      index,
+      _itemStates(index, selected: true),
+    );
     return ValueListenableBuilder(
       valueListenable: _pointing,
       builder: (context, _, _) {
@@ -511,18 +516,12 @@ class _RawGlassSelectorState extends State<RawGlassSelector> {
           children: [
             for (var i = 0; i < count; i++) ...[
               RepaintBoundary(child: _item(context, i)),
-              for (var copy = 0; copy < 2; copy++)
-                ExcludeSemantics(
-                  child: RepaintBoundary(
-                    child: Center(
-                      child: widget.itemBuilder(
-                        context,
-                        i,
-                        _itemStates(i, selected: true),
-                      ),
-                    ),
-                  ),
-                ),
+              // The copy under the glass draws once per strip of the lens:
+              // a boundary's layer could sit in only one.
+              ExcludeSemantics(child: Center(child: selected(i))),
+              ExcludeSemantics(
+                child: RepaintBoundary(child: Center(child: selected(i))),
+              ),
             ],
             if (lens != null) GlassLensShrink(shrink: _lensShrink, child: lens),
           ],
@@ -1061,8 +1060,8 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
   /// Whether the last child is the lens.
   final bool hasLens;
 
-  /// How much the lens's glass shrinks what lies under it, fully lifted.
-  final ValueListenable<double> lensShrink;
+  /// How the lens's glass shrinks what lies under it, fully lifted.
+  final ValueListenable<GlassLensShrinkage> lensShrink;
 
   @override
   MultiChildRenderObjectElement createElement() => _SelectorRowElement(this);
@@ -1186,9 +1185,9 @@ class _RenderSelectorRow extends RenderBox
     markNeedsLayout();
   }
 
-  ValueListenable<double> _lensShrink;
-  ValueListenable<double> get lensShrink => _lensShrink;
-  set lensShrink(ValueListenable<double> value) {
+  ValueListenable<GlassLensShrinkage> _lensShrink;
+  ValueListenable<GlassLensShrinkage> get lensShrink => _lensShrink;
+  set lensShrink(ValueListenable<GlassLensShrinkage> value) {
     if (identical(value, _lensShrink)) return;
     if (attached) _lensShrink.removeListener(markNeedsPaint);
     _lensShrink = value;
@@ -1383,6 +1382,7 @@ class _RenderSelectorRow extends RenderBox
         ? 1 + _tabBarMagnification * lift
         : 1.0;
     if (mask != null && glass > 0) {
+      final (:shrink, :rim) = _lensShrink.value;
       _paintCopies(
         context,
         offset,
@@ -1390,7 +1390,8 @@ class _RenderSelectorRow extends RenderBox
         opacity: glass,
         under: true,
         zoom: zoom,
-        stretch: 1 / (1 - _lensShrink.value * lift),
+        grow: 1 + (1 / (1 - shrink * lift) - 1) * glass,
+        rim: rim,
       );
     }
     final lens = _lens;
@@ -1403,18 +1404,22 @@ class _RenderSelectorRow extends RenderBox
         opacity: 1 - glass,
         under: false,
         zoom: zoom,
-        stretch: 1,
+        grow: 1,
+        rim: 0,
       );
     }
   }
 
   // The copy under the glass shows through it as the lifted lens takes
-  // over from its platter, the one over the platter fading as it goes. The
-  // glass shows what lies under it shrunk toward its center line, so the
-  // copy under it is stretched across that line first and shows on its
-  // slot; beyond the line's ends the glass shrinks radially and the copy
-  // shows a little closer to the ends (NEAR: up to 16 percent of how far
-  // a label reaches past them, about 1 point on a tab).
+  // over from its platter, the one over the platter fading as it goes.
+  //
+  // The glass reads what lies under it [grow] times farther from the
+  // nearest point of its center line (half of it is `axis`, from the lens
+  // center) than it shows it: across the line beside it, radially about
+  // each end beyond it. So the copy under it is grown the same way first,
+  // each part exact in its own strip, and through the glass every item
+  // shows on its slot while only the lens slides over it, as in UIKit.
+  // Each item is magnified about its own slot by [zoom].
   void _paintCopies(
     PaintingContext context,
     Offset offset,
@@ -1422,30 +1427,105 @@ class _RenderSelectorRow extends RenderBox
     required double opacity,
     required bool under,
     required double zoom,
-    required double stretch,
+    required double grow,
+    required double rim,
   }) {
+    final bounds = mask.outerRect;
+    final center = bounds.center;
+    final half = rim * (bounds.longestSide - bounds.shortestSide) / 2;
+    final alongX = bounds.width >= bounds.height;
+    final axis = grow == 1
+        ? Offset.zero
+        : alongX
+        ? Offset(half, 0)
+        : Offset(0, half);
+    final start = center - axis;
+    final end = center + axis;
+    final strips = axis == Offset.zero
+        ? [(bounds, center, grow, grow)]
+        : [
+            (
+              alongX
+                  ? Rect.fromLTRB(
+                      bounds.left,
+                      bounds.top,
+                      start.dx,
+                      bounds.bottom,
+                    )
+                  : Rect.fromLTRB(
+                      bounds.left,
+                      bounds.top,
+                      bounds.right,
+                      start.dy,
+                    ),
+              start,
+              grow,
+              grow,
+            ),
+            (
+              alongX
+                  ? Rect.fromLTRB(start.dx, bounds.top, end.dx, bounds.bottom)
+                  : Rect.fromLTRB(bounds.left, start.dy, bounds.right, end.dy),
+              center,
+              alongX ? 1.0 : grow,
+              alongX ? grow : 1.0,
+            ),
+            (
+              alongX
+                  ? Rect.fromLTRB(
+                      end.dx,
+                      bounds.top,
+                      bounds.right,
+                      bounds.bottom,
+                    )
+                  : Rect.fromLTRB(
+                      bounds.left,
+                      end.dy,
+                      bounds.right,
+                      bounds.bottom,
+                    ),
+              end,
+              grow,
+              grow,
+            ),
+          ];
     void paintMasked(PaintingContext context, Offset offset) =>
-        context.pushClipRRect(needsCompositing, offset, mask.outerRect, mask, (
+        context.pushClipRRect(needsCompositing, offset, bounds, mask, (
           context,
           offset,
         ) {
-          for (final (_, below, above) in _items) {
-            final copy = under ? below : above;
-            final slot =
-                (copy.parentData! as _RowParentData).offset & copy.size;
-            if (!mask.outerRect.overlaps(slot)) continue;
-            void paintCopy(PaintingContext context, Offset offset) =>
-                context.paintChild(copy, offset + slot.topLeft);
-            if (zoom == 1 && stretch == 1) {
-              paintCopy(context, offset);
-            } else {
-              context.pushTransform(
-                needsCompositing,
-                offset,
-                _copyTransform(slot.center, zoom, mask.center.dy, stretch),
-                paintCopy,
-              );
-            }
+          for (final (strip, anchor, growX, growY) in strips) {
+            if (strip.isEmpty) continue;
+            context.pushClipRect(needsCompositing, offset, strip, (
+              context,
+              offset,
+            ) {
+              for (final (_, below, above) in _items) {
+                final copy = under ? below : above;
+                final slot =
+                    (copy.parentData! as _RowParentData).offset & copy.size;
+                final transform = _copyTransform(
+                  slot.center,
+                  zoom,
+                  anchor,
+                  growX,
+                  growY,
+                );
+                if (!MatrixUtils.transformRect(
+                  transform,
+                  slot,
+                ).overlaps(strip)) {
+                  continue;
+                }
+                context.pushTransform(
+                  needsCompositing,
+                  offset,
+                  transform,
+                  (context, offset) =>
+                      context.paintChild(copy, offset + slot.topLeft),
+                );
+              }
+            });
           }
         });
     if (opacity >= 1) {
@@ -1459,18 +1539,23 @@ class _RenderSelectorRow extends RenderBox
     }
   }
 
-  // An item grows about its own slot, so it stays put while the lens
-  // window slides over it, as in UIKit; then it stretches across the lens's
-  // center line.
+  // An item grows about its own slot by [zoom], so it stays put while the
+  // lens window slides over it, then by ([growX], [growY]) about [anchor].
   static Matrix4 _copyTransform(
     Offset slot,
     double zoom,
-    double line,
-    double stretch,
+    Offset anchor,
+    double growX,
+    double growY,
   ) {
-    final transform = Matrix4.translationValues(0, line, 0);
-    transform.scaleByDouble(1, stretch, 1, 1);
-    transform.translateByDouble(slot.dx, slot.dy - line, 0, 1);
+    final transform = Matrix4.translationValues(anchor.dx, anchor.dy, 0);
+    transform.scaleByDouble(growX, growY, 1, 1);
+    transform.translateByDouble(
+      slot.dx - anchor.dx,
+      slot.dy - anchor.dy,
+      0,
+      1,
+    );
     transform.scaleByDouble(zoom, zoom, 1, 1);
     transform.translateByDouble(-slot.dx, -slot.dy, 0, 1);
     return transform;
