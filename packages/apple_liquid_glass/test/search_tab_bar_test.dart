@@ -6,9 +6,10 @@ import 'package:kinesis/kinesis.dart';
 const _frame = Duration(milliseconds: 16);
 
 class _Shell extends StatefulWidget {
-  const _Shell(this.search);
+  const _Shell(this.search, {this.tabs = 2});
 
   final GlassSearchController search;
+  final int tabs;
 
   @override
   State<_Shell> createState() => _ShellState();
@@ -20,15 +21,14 @@ class _ShellState extends State<_Shell> {
   @override
   Widget build(BuildContext context) => GlassTabScaffold(
     tabBar: GlassTabBar(
-      destinations: const [
-        GlassTabDestination(
-          icon: SizedBox.square(dimension: 24),
-          label: Text('Home'),
-        ),
-        GlassTabDestination(
-          icon: SizedBox.square(dimension: 24),
-          label: Text('Library'),
-        ),
+      destinations: [
+        for (final name in ['Home', 'Library', 'Radio', 'New'].take(
+          widget.tabs,
+        ))
+          GlassTabDestination(
+            icon: const SizedBox.square(dimension: 24),
+            label: Text(name),
+          ),
       ],
       selectedIndex: index,
       onDestinationSelected: (next) => setState(() => index = next),
@@ -39,7 +39,11 @@ class _ShellState extends State<_Shell> {
   );
 }
 
-Widget _app(GlassSearchController search, {double keyboard = 0}) => MediaQuery(
+Widget _app(
+  GlassSearchController search, {
+  double keyboard = 0,
+  int tabs = 2,
+}) => MediaQuery(
   data: MediaQueryData(
     size: const Size(402, 874),
     devicePixelRatio: 3,
@@ -50,7 +54,7 @@ Widget _app(GlassSearchController search, {double keyboard = 0}) => MediaQuery(
     textDirection: TextDirection.ltr,
     child: GlassTheme(
       data: const GlassThemeData(renderer: GlassRenderer.flat()),
-      child: _Shell(search),
+      child: _Shell(search, tabs: tabs),
     ),
   ),
 );
@@ -86,6 +90,23 @@ void main() {
     expect(circle, const Rect.fromLTWH(402 - 21 - 62, 874 - 83, 62, 62));
     expect(find.byType(GlassSearchField), findsNothing);
     expect(find.text('Results'), findsNothing);
+  });
+
+  testWidgets('four tabs narrow to fit beside the search circle', (
+    tester,
+  ) async {
+    await _phone(tester);
+    final search = GlassSearchController();
+    addTearDown(search.dispose);
+    await tester.pumpWidget(_app(search, tabs: 4));
+    final bar = tester.getRect(find.byType(RawGlassSelector));
+    final circle = tester.getRect(find.bySemanticsLabel('Search'));
+    expect(bar.left, 21);
+    expect(bar.right, closeTo(circle.left - 12, 0.01));
+    expect(
+      tester.getRect(find.text('New')).right,
+      lessThanOrEqualTo(bar.right),
+    );
   });
 
   testWidgets('the circle opens the search: the bar turns into the tab '

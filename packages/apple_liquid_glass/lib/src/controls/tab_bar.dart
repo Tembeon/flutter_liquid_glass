@@ -1645,7 +1645,15 @@ class _SearchTabLayout extends MultiChildLayoutDelegate {
 
   @override
   void performLayout(Size size) {
-    final bar = layoutChild(_SearchSlot.bar, BoxConstraints.loose(size));
+    final room =
+        size.width -
+        2 * SearchTuning.tabBarInset -
+        SearchTuning.searchTabSize -
+        SearchTuning.gap;
+    final bar = layoutChild(
+      _SearchSlot.bar,
+      BoxConstraints.loose(Size(math.max(0, room), size.height)),
+    );
     onBarWidth(bar.width);
     final g = searchTabLayout(
       size: size,

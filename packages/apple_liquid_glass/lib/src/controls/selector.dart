@@ -615,7 +615,7 @@ final class _Geometry {
         }
         return _Geometry(size: size, slots: slots, lenses: lenses);
       case GlassSelectorMotion.tabBar:
-        final bar = _tabBar(items);
+        final bar = _tabBar(items, room: constraints.maxWidth);
         final size = constraints.constrain(Size(bar.width, h));
         return _Geometry(
           size: size,
@@ -717,13 +717,20 @@ final class _Geometry {
   static double _claim(double item) =>
       math.max(segmentedHeight, item + 2 * segmentedPadding);
 
+  /// The slots of a tab bar of [items]: the measured pitch, widened for a
+  /// wide item and narrowed to fit [room], as UIKit narrows the tabs beside
+  /// a search tab.
   static ({double pitch, double lens, double width}) _tabBar(
-    List<double> items,
-  ) {
+    List<double> items, {
+    double room = double.infinity,
+  }) {
     final count = items.length;
     final measured = tabBarPitch(count);
     final widest = items.fold<double>(0, math.max);
-    final pitch = math.max(measured, widest + 2 * tabBarItemPadding);
+    final pitch = math.min(
+      math.max(measured, widest + 2 * tabBarItemPadding),
+      count == 0 ? double.infinity : (room - 2 * tabBarSideInset) / count,
+    );
     return (
       pitch: pitch,
       lens: tabBarLensWidth(count) + pitch - measured,
