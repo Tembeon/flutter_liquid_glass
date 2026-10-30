@@ -214,6 +214,56 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('in a scroll view the body lifts at once, and a scroll that '
+      'takes the touch drops it without a press', (tester) async {
+    final probe = _Probe();
+    var presses = 0;
+    await tester.pumpWidget(
+      _app(
+        const GlassRenderer.flat(),
+        SizedBox(
+          height: 400,
+          child: ListView(
+            children: [
+              const SizedBox(height: 100),
+              Center(
+                child: RawGlassButton(
+                  onPressed: () => presses++,
+                  builder: probe.build,
+                  child: const SizedBox(width: 100, height: 44),
+                ),
+              ),
+              const SizedBox(height: 600),
+            ],
+          ),
+        ),
+      ),
+    );
+    final center = tester.getCenter(find.byType(RawGlassButton));
+    final tap = await tester.startGesture(center);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(_frame);
+    }
+    expect(probe.body!.value.scaleX, greaterThan(1.01));
+    await tap.up();
+    await tester.pumpAndSettle();
+    expect(presses, 1);
+
+    final swipe = await tester.startGesture(center);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(_frame);
+    }
+    expect(probe.body!.value.scaleX, greaterThan(1.01));
+    for (var i = 1; i <= 6; i++) {
+      await swipe.moveTo(center - Offset(0, 12.0 * i));
+      await tester.pump(_frame);
+    }
+    await swipe.up();
+    await tester.pumpAndSettle();
+    expect(presses, 1);
+    expect(probe.body!.value, const GlassFrame());
+  });
+
   testWidgets('keys and the accessibility tap press; it reads as a button', (
     tester,
   ) async {

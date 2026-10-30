@@ -256,8 +256,13 @@ final class _ButtonBody extends ChangeNotifier
 
 /// Feeds one touch of the button to its body; the press decides what the
 /// touch does, this only follows it.
+///
+/// It hears the touch at contact even in a scroll view, which holds back
+/// only the press: UIKit's flex lifts a button in a `UIScrollView` as soon
+/// as outside one (device, glass-button passport), so a quick tap there
+/// still shows its lift.
 final class _FlexInput extends Interaction {
-  _FlexInput(this._body) : super(role: InteractionRole.control);
+  _FlexInput(this._body);
 
   final _ButtonBody _body;
   int? _pointer;
