@@ -140,6 +140,28 @@ void main() {
     expect(tester.binding.hasScheduledFrame, isFalse);
   });
 
+  testWidgets('the sheet tells the glass renderer the clip around its body, '
+      'which places the backdrop pass of a resting sheet', (tester) async {
+    _phone(tester);
+    await _present(tester, _content);
+    Rect? clip;
+    var child = tester.renderObject(find.byKey(_contentKey));
+    var parent = child.parent;
+    while (parent != null && clip == null) {
+      final local = parent.describeApproximatePaintClip(child);
+      if (local != null) {
+        clip = MatrixUtils.transformRect(parent.getTransformTo(null), local);
+      }
+      child = parent;
+      parent = parent.parent;
+    }
+    final sheet = _sheet(tester);
+    expect(clip, isNotNull);
+    expect(clip!.left, moreOrLessEquals(sheet.left, epsilon: 0.01));
+    expect(clip.top, moreOrLessEquals(sheet.top, epsilon: 0.01));
+    expect(clip.right, moreOrLessEquals(sheet.right, epsilon: 0.01));
+  });
+
   testWidgets('a tap at the top cycles the detent; a secondary click '
       'neither swells the sheet nor cycles it', (tester) async {
     _phone(tester);
