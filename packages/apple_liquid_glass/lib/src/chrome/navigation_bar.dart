@@ -15,6 +15,7 @@ import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:apple_liquid_glass/src/theme/typography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
@@ -235,6 +236,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
   bool _laidOut = false;
   GlassPageBarLink? _link;
   GlassBarHost? _standalone;
+  ValueListenable<double>? _reportedLift;
 
   GlassPageBarLink get _barLink => _link ?? _standalone!.standaloneLink;
 
@@ -269,10 +271,25 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
   @override
   void dispose() {
     if (_standalone case final host?) host.detach(host.standaloneLink);
+    if ((_link, _reportedLift) case (final link?, final lift?)) {
+      link.host.dropLift(link, lift);
+    }
+    _withdrawLater();
     _active?.removeListener(_follow);
     _scroll.value?.removeListener(_scrolled);
     _scroll.dispose();
     super.dispose();
+  }
+
+  // After the frame, once a bar that shows now has declared.
+  void _withdrawLater() {
+    final link = _link;
+    if (link == null) return;
+    final lift = _reportedLift;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      link.host.withdraw(link, this);
+      if (lift != null) link.host.dropLift(link, lift);
+    });
   }
 
   void _follow() {
@@ -326,21 +343,27 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     final largeTitle = widget.largeTitle;
     final background = look.backgroundColor;
     final link = _barLink;
-    link.host.declare(
-      link,
-      GlassBarDeclaration(
-        leading: widget.leading,
-        trailing: widget.trailing,
-        automaticallyImplyLeading: widget.automaticallyImplyLeading,
-        previousPageTitle: widget.previousPageTitle,
-        backButtonDisplayMode: widget.backButtonDisplayMode,
-        title: switch (title) {
-          Text(:final data?) => data,
-          _ => null,
-        },
-      ),
-    );
-    link.host.liftedBy(link, PageLift.maybeOf(context));
+    if (GlassTabShown.of(context)) {
+      link.host.declare(
+        link,
+        GlassBarDeclaration(
+          leading: widget.leading,
+          trailing: widget.trailing,
+          automaticallyImplyLeading: widget.automaticallyImplyLeading,
+          previousPageTitle: widget.previousPageTitle,
+          backButtonDisplayMode: widget.backButtonDisplayMode,
+          title: switch (title) {
+            Text(:final data?) => data,
+            _ => null,
+          },
+        ),
+        by: this,
+      );
+      _reportedLift = PageLift.maybeOf(context);
+      link.host.liftedBy(link, _reportedLift);
+    } else {
+      _withdrawLater();
+    }
     final standalone = _standalone;
     final row = SizedBox(
       height: GlassNavigationBar.height,
