@@ -94,6 +94,46 @@ void main() {
     expect(title.right, lessThanOrEqualTo(402 - 16 - 44 - 12));
   });
 
+  testWidgets('a finger on a bar button lifts its capsule at once, and the '
+      'tap presses the button', (tester) async {
+    await _phone(tester);
+    var pressed = 0;
+    await tester.pumpWidget(
+      _app(
+        GlassPageScaffold(
+          navigationBar: GlassNavigationBar(
+            title: const Text('Title'),
+            trailing: [
+              GlassBarItem(
+                icon: const SizedBox.square(dimension: 22),
+                semanticLabel: 'Edit',
+                onPressed: () => pressed++,
+              ),
+            ],
+          ),
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+    await tester.pump();
+    double widest() => tester
+        .widgetList<GlassSurface>(find.byType(GlassSurface))
+        .map((surface) => surface.frame?.value.scaleX ?? 1)
+        .fold(1, (a, b) => a > b ? a : b);
+    expect(widest(), 1);
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.bySemanticsLabel('Edit')),
+    );
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(_frame);
+    }
+    expect(widest(), greaterThan(1.05));
+    await gesture.up();
+    await _settle(tester);
+    expect(pressed, 1);
+    expect(widest(), 1);
+  });
+
   testWidgets('right to left, the leading capsule stands at the right', (
     tester,
   ) async {

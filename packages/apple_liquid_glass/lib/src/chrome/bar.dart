@@ -4,7 +4,9 @@ import 'dart:ui' as ui;
 import 'package:apple_liquid_glass/src/chrome/bar_entry.dart';
 import 'package:apple_liquid_glass/src/motion/bar_layout.dart';
 import 'package:apple_liquid_glass/src/motion/bar_motion.dart';
+import 'package:apple_liquid_glass/src/motion/glass_button_motion.dart';
 import 'package:apple_liquid_glass/src/motion/navigation_motion.dart';
+import 'package:apple_liquid_glass/src/motion/touch_glow.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/group.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
@@ -561,7 +563,8 @@ final class GlassBarHost implements MotionDriver {
 
   @override
   bool get isActive =>
-      _swiped != null || _bars.values.any((bar) => !bar.motion.isSettled);
+      _swiped != null ||
+      _bars.values.any((bar) => !bar.motion.isSettled || bar.press != null);
 
   @override
   double? get wakeTime => null;
@@ -585,6 +588,7 @@ final class GlassBarHost implements MotionDriver {
           motion.isSettled) {
         motion.settle();
       }
+      bar.stepPress(time);
       bar.publish();
     }
   }
@@ -614,7 +618,85 @@ final class _Bar {
   Element? view;
   _RenderBarItems? items;
 
+  // A finger on a button lifts the button's whole capsule on the glass
+  // button's motion (bars passport): the capsule's identity, the motion,
+  // and where the touched button's box sits in the capsule.
+  Object? pressed;
+  GlassButtonMotion? press;
+  Offset _pressOrigin = Offset.zero;
+
   bool get _navigation => kind == GlassBarKind.navigation;
+
+  GlassBarCapsuleFrame? _capsuleOf(Object item) {
+    final frame = itemFrames[item];
+    if (frame == null) return null;
+    for (final capsule in motion.capsules) {
+      if (capsule.rect.contains(frame.center)) return capsule;
+    }
+    return null;
+  }
+
+  void pressDown(Object item, Duration stamp, Offset position, Size box) {
+    final frame = itemFrames[item];
+    final capsule = _capsuleOf(item);
+    if (frame == null || capsule == null) return;
+    final lift = pressed == capsule.id ? press : null;
+    final motion = lift ?? GlassButtonMotion(size: capsule.rect.size);
+    motion.size = capsule.rect.size;
+    motion.reducedMotion = this.motion.reducedMotion;
+    pressed = capsule.id;
+    press = motion;
+    _pressOrigin =
+        frame.center - box.center(Offset.zero) - capsule.rect.topLeft;
+    motion.pointerDown(_stamp(stamp), _pressOrigin + position);
+    MotionClock.instance.wake(host);
+  }
+
+  void pressMove(Duration stamp, Offset position) {
+    press?.pointerMove(_stamp(stamp), _pressOrigin + position);
+    MotionClock.instance.wake(host);
+  }
+
+  void pressUp(Duration stamp, Offset position) {
+    press?.pointerUp(_stamp(stamp), _pressOrigin + position);
+    MotionClock.instance.wake(host);
+  }
+
+  void pressCancel(Duration stamp) {
+    press?.pointerCancel(_stamp(stamp));
+    MotionClock.instance.wake(host);
+  }
+
+  static double _stamp(Duration stamp) => MotionClock.instance.stamp(stamp);
+
+  void stepPress(double time) {
+    final motion = press;
+    if (motion == null) return;
+    motion.advance(time);
+    if (motion.isSettled) motion.settle();
+    if (motion.isAtRest) {
+      press = null;
+      pressed = null;
+    }
+  }
+
+  /// How the pressed capsule moves [item] with it, in the bar's
+  /// coordinates, or null when [item] is not in it.
+  Matrix4? liftOf(Object item) {
+    final motion = press;
+    if (motion == null || motion.isAtRest) return null;
+    final capsule = _capsuleOf(item);
+    if (capsule == null || capsule.id != pressed) return null;
+    final center = capsule.rect.center;
+    final transform = Matrix4.translationValues(
+      center.dx + motion.lean.dx,
+      center.dy + motion.lean.dy,
+      0,
+    );
+    transform.scaleByDouble(motion.scaleX, motion.scaleY, 1, 1);
+    transform.translateByDouble(-center.dx, -center.dy, 0, 1);
+    return transform;
+  }
 
   GlassBarMetrics get metrics =>
       _navigation ? GlassBarMetrics.navigation : GlassBarMetrics.toolbar;
@@ -926,8 +1008,20 @@ final class _Bar {
           continue;
         }
         final frame = frames[i];
+        final lift = frame.id == pressed ? press : null;
+        final glow = lift?.touchGlow;
         pool[i].value = GlassFrame(
-          rect: frame.rect,
+          rect: lift == null ? frame.rect : frame.rect.shift(lift.lean),
+          scaleX: lift?.scaleX ?? 1,
+          scaleY: lift?.scaleY ?? 1,
+          glow: glow == null
+              ? null
+              : GlassTouchGlow(
+                  wash: glow.wash,
+                  center: glow.center + frame.rect.topLeft,
+                  radius: glow.radius,
+                  spot: glow.spot,
+                ),
           opacity: frame.opacity,
           tint: prominent.contains(frame.id) ? host._tint : null,
         );
@@ -1151,6 +1245,7 @@ class _Band extends StatelessWidget {
                 for (final MapEntry(key: id, value: button) in roster.entries)
                   _BarItem(
                     key: ValueKey(id),
+                    bar: bar,
                     id: id,
                     button: button,
                     metrics: bar.metrics,
@@ -1188,12 +1283,14 @@ class _Surfaces extends StatelessWidget {
 
 class _BarItem extends StatelessWidget {
   const _BarItem({
+    required this.bar,
     required this.id,
     required this.button,
     required this.metrics,
     super.key,
   });
 
+  final _Bar bar;
   final Object id;
   final _Button button;
   final GlassBarMetrics metrics;
@@ -1276,10 +1373,25 @@ class _BarItem extends StatelessWidget {
         label: semantics,
         excludeSemantics: back != null,
         onTap: onTap,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onTap,
-          child: content,
+        child: Listener(
+          onPointerDown: onTap == null
+              ? null
+              : (event) => bar.pressDown(
+                  id,
+                  event.timeStamp,
+                  event.localPosition,
+                  context.size ?? Size.zero,
+                ),
+          onPointerMove: (event) =>
+              bar.pressMove(event.timeStamp, event.localPosition),
+          onPointerUp: (event) =>
+              bar.pressUp(event.timeStamp, event.localPosition),
+          onPointerCancel: (event) => bar.pressCancel(event.timeStamp),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap,
+            child: content,
+          ),
         ),
       ),
     );
@@ -1472,6 +1584,11 @@ class _RenderBarItems extends RenderBox
       final box = child;
       final origin = offset + frame.center - box.size.center(Offset.zero);
       final transform = Matrix4.identity();
+      if (bar.liftOf(id!) case final lift?) {
+        transform.translateByDouble(offset.dx, offset.dy, 0, 1);
+        transform.multiply(lift);
+        transform.translateByDouble(-offset.dx, -offset.dy, 0, 1);
+      }
       if (frame.scale != 1) {
         final c = frame.center + offset;
         transform.translateByDouble(c.dx, c.dy, 0, 1);
