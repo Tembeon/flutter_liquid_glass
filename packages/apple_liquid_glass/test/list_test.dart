@@ -63,6 +63,38 @@ void main() {
     );
   });
 
+  testWidgets('a symbol puts the text at 56 points; a wider image keeps its '
+      'size and moves the text and separator along', (tester) async {
+    const image = Key('image');
+    await tester.pumpWidget(
+      _app(
+        const GlassListSection(
+          children: [
+            GlassListRow(leading: Icon(IconData(0x41)), title: Text('One')),
+            GlassListRow(
+              leading: SizedBox.square(key: image, dimension: 30),
+              title: Text('Two'),
+            ),
+            GlassListRow(title: Text('Three')),
+          ],
+        ),
+      ),
+    );
+    final one = tester.getRect(find.byType(GlassListRow).first);
+    expect(tester.getTopLeft(find.text('One')).dx - one.left, 56);
+    expect(tester.getSize(find.byKey(image)), const Size.square(30));
+    expect(tester.getTopLeft(find.byKey(image)).dx - one.left, 16);
+    expect(tester.getTopLeft(find.text('Two')).dx - one.left, 62);
+    expect(
+      find.byType(GlassListRow).at(1),
+      paints..something((method, arguments) {
+        if (method != #drawRect) return false;
+        final rect = arguments[0] as Rect;
+        return rect.height == 1 && rect.left == 62;
+      }),
+    );
+  });
+
   testWidgets('a tap presses the row and its highlight fades after it', (
     tester,
   ) async {

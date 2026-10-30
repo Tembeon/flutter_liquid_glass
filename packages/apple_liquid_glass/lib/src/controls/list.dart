@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:apple_liquid_glass/src/motion/list_highlight.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/style.dart';
@@ -338,12 +340,14 @@ class GlassSliverListSection extends StatelessWidget {
 /// point [subtitle] below it; a [detail] sits at the trailing edge in the
 /// secondary color, taking at most half the text area; a [leading] symbol
 /// is centered 28 points from the card's edge and moves the text and the
-/// separator to 56 points; a [trailing] control and the [accessory] end 20
-/// points from the card's edge, centered in the row as UIKit centers an
-/// accessory view. A single-line row is 53 points tall, and each line of
-/// text is as tall as UIKit makes a label: its line height rounded up to
-/// the device pixel (list passport). Instead of a title, a [child] can fill
-/// the text area with any content.
+/// separator to 56 points; a leading image wider than the symbol's 24
+/// point slot widens it from the card's 16 point inset and moves the text
+/// and separator along (not measured). A [trailing] control and the
+/// [accessory] end 20 points from the card's edge, centered in the row as
+/// UIKit centers an accessory view. A single-line row is 53 points tall,
+/// and each line of text is as tall as UIKit makes a label: its line
+/// height rounded up to the device pixel (list passport). Instead of a
+/// title, a [child] can fill the text area with any content.
 ///
 /// With [onPressed] the row is a button: it fills with its overlay color
 /// while a finger is down on it, with UIKit's timing (inside a scroll view
@@ -386,8 +390,8 @@ class GlassListRow extends StatefulWidget {
   /// The value at the trailing edge, in the secondary color.
   final Widget? detail;
 
-  /// The symbol before the text, usually an [Icon]; 22 points in the icon
-  /// color unless it sets its own.
+  /// The symbol or image before the text, usually an [Icon]; 22 points in
+  /// the icon color unless it sets its own. It keeps its own size.
   final Widget? leading;
 
   /// A control at the trailing edge, such as a switch.
@@ -432,6 +436,7 @@ class GlassListRow extends StatefulWidget {
 
 class _GlassListRowState extends State<GlassListRow> {
   late final _RowBody _body = _RowBody();
+  final _textStart = ValueNotifier<double>(_Metrics.contentInset);
   late final List<Interaction> _interactions = [
     PressInteraction(
       role: InteractionRole.content,
@@ -471,6 +476,7 @@ class _GlassListRowState extends State<GlassListRow> {
     _ownStates?.dispose();
     MotionClock.instance.removeDriver(_body);
     _body.dispose();
+    _textStart.dispose();
     super.dispose();
   }
 
@@ -521,25 +527,21 @@ class _GlassListRowState extends State<GlassListRow> {
     final check = kind == GlassListAccessory.checkmark;
     final mark = chevron || info || check;
     final accessory = trailing != null || mark;
-    final textStart =
-        _Metrics.contentInset +
-        (leading == null ? 0 : _Metrics.leadingWidth + _Metrics.leadingGap);
+    if (leading == null) _textStart.value = _Metrics.contentInset;
     final text = Padding(
       padding: const EdgeInsets.symmetric(vertical: _Metrics.rowPadding),
       child: LayoutBuilder(
         builder: (context, constraints) => Row(
           children: [
             if (leading != null) ...[
-              SizedBox(
-                width: _Metrics.leadingWidth,
-                child: Center(
-                  child: IconTheme.merge(
-                    data: IconThemeData(
-                      size: _Metrics.leadingIconSize,
-                      color: icon,
-                    ),
-                    child: leading,
+              _LeadingSlot(
+                textStart: _textStart,
+                child: IconTheme.merge(
+                  data: IconThemeData(
+                    size: _Metrics.leadingIconSize,
+                    color: icon,
                   ),
+                  child: leading,
                 ),
               ),
               const SizedBox(width: _Metrics.leadingGap),
@@ -620,7 +622,7 @@ class _GlassListRowState extends State<GlassListRow> {
       focused: states.contains(WidgetState.focused),
       fill: color(look.overlayColor),
       separator: separated ? color(look.separatorColor) : null,
-      separatorStart: textStart,
+      separatorStart: _textStart,
       direction: Directionality.of(context),
       child: row,
     );
@@ -894,7 +896,7 @@ class _RowSurface extends SingleChildRenderObjectWidget {
   final bool focused;
   final Color fill;
   final Color? separator;
-  final double separatorStart;
+  final ValueListenable<double> separatorStart;
   final TextDirection direction;
 
   @override
@@ -966,11 +968,13 @@ class _RenderRowSurface extends RenderProxyBox {
     markNeedsPaint();
   }
 
-  double _separatorStart;
-  double get separatorStart => _separatorStart;
-  set separatorStart(double value) {
-    if (value == _separatorStart) return;
+  ValueListenable<double> _separatorStart;
+  ValueListenable<double> get separatorStart => _separatorStart;
+  set separatorStart(ValueListenable<double> value) {
+    if (identical(value, _separatorStart)) return;
+    if (attached) _separatorStart.removeListener(markNeedsPaint);
     _separatorStart = value;
+    if (attached) _separatorStart.addListener(markNeedsPaint);
     markNeedsPaint();
   }
 
@@ -986,11 +990,13 @@ class _RenderRowSurface extends RenderProxyBox {
   void attach(PipelineOwner owner) {
     super.attach(owner);
     _strength.addListener(markNeedsPaint);
+    _separatorStart.addListener(markNeedsPaint);
   }
 
   @override
   void detach() {
     _strength.removeListener(markNeedsPaint);
+    _separatorStart.removeListener(markNeedsPaint);
     super.detach();
   }
 
@@ -1007,8 +1013,9 @@ class _RenderRowSurface extends RenderProxyBox {
     if (separator == null) return;
     const end = _Metrics.contentInset;
     final ltr = _direction == TextDirection.ltr;
-    final left = ltr ? _separatorStart : end;
-    final right = size.width - (ltr ? end : _separatorStart);
+    final start = _separatorStart.value;
+    final left = ltr ? start : end;
+    final right = size.width - (ltr ? end : start);
     final line = Paint();
     line.color = separator;
     context.canvas.drawRect(
@@ -1020,6 +1027,60 @@ class _RenderRowSurface extends RenderProxyBox {
       ).shift(offset),
       line,
     );
+  }
+}
+
+/// A row's leading slot: [_Metrics.leadingWidth] wide with the symbol
+/// centered, or as wide as a wider image, which it never squeezes. It
+/// writes where the text starts, which the separator follows.
+class _LeadingSlot extends SingleChildRenderObjectWidget {
+  const _LeadingSlot({required this.textStart, required super.child});
+
+  final ValueNotifier<double> textStart;
+
+  @override
+  _RenderLeadingSlot createRenderObject(BuildContext context) =>
+      _RenderLeadingSlot(textStart);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderLeadingSlot renderObject,
+  ) {
+    renderObject.textStart = textStart;
+  }
+}
+
+class _RenderLeadingSlot extends RenderShiftedBox {
+  _RenderLeadingSlot(this._textStart) : super(null);
+
+  ValueNotifier<double> _textStart;
+  ValueNotifier<double> get textStart => _textStart;
+  set textStart(ValueNotifier<double> value) {
+    if (identical(value, _textStart)) return;
+    _textStart = value;
+    markNeedsLayout();
+  }
+
+  @override
+  void performLayout() {
+    final child = this.child;
+    if (child == null) {
+      size = constraints.constrain(const Size(_Metrics.leadingWidth, 0));
+    } else {
+      child.layout(constraints.loosen(), parentUsesSize: true);
+      size = constraints.constrain(
+        Size(
+          math.max(_Metrics.leadingWidth, child.size.width),
+          child.size.height,
+        ),
+      );
+      (child.parentData! as BoxParentData).offset = Offset(
+        (size.width - child.size.width) / 2,
+        (size.height - child.size.height) / 2,
+      );
+    }
+    _textStart.value = _Metrics.contentInset + size.width + _Metrics.leadingGap;
   }
 }
 
