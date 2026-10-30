@@ -65,7 +65,7 @@ class _Probe {
   Widget build(BuildContext context, GlassSelectorDetails details) {
     builds++;
     this.details = details;
-    return details.items;
+    return details.items();
   }
 
   GlassFrame get lens => details!.lens.value;
@@ -416,8 +416,11 @@ void main() {
     expect(find.byType(LiquidGlassLayer), findsNothing);
   });
 
-  testWidgets('the item states reach a raw selector', (tester) async {
-    final seen = <int, Set<WidgetState>>{};
+  testWidgets('the item states reach a raw selector, once for the row '
+      'under the lens and once for the selected copy inside it', (
+    tester,
+  ) async {
+    final seen = <(int, bool), Set<WidgetState>>{};
     await tester.pumpWidget(
       _app(
         RawGlassSelector(
@@ -426,21 +429,50 @@ void main() {
           onChanged: (_) {},
           disabledItems: const {1},
           itemBuilder: (context, index, states) {
-            seen[index] = states;
+            seen[(index, states.contains(WidgetState.selected))] = states;
             return Text('$index');
           },
-          builder: (context, details) => details.items,
+          builder: (context, details) => details.items(),
         ),
       ),
     );
-    expect(seen[0], {WidgetState.selected});
-    expect(seen[1], {WidgetState.disabled});
+    expect(seen[(0, false)], isEmpty);
+    expect(seen[(0, true)], {WidgetState.selected});
+    expect(seen[(1, false)], {WidgetState.disabled});
+    expect(seen[(1, true)], {WidgetState.selected, WidgetState.disabled});
     final gesture = await tester.startGesture(_at(tester, '0'));
     await tester.pump();
-    expect(seen[0], containsAll([WidgetState.selected, WidgetState.pressed]));
+    expect(seen[(0, false)], {WidgetState.pressed});
+    expect(seen[(0, true)], {WidgetState.selected, WidgetState.pressed});
     await gesture.up();
     await _settle(tester);
-    expect(seen[0], {WidgetState.selected});
+    expect(seen[(0, false)], isEmpty);
+  });
+
+  testWidgets('the lens draws over the regular items and under the selected '
+      'copy it masks', (tester) async {
+    const lens = Color(0xFF00FF00);
+    await tester.pumpWidget(
+      _app(
+        RawGlassSelector(
+          itemCount: 2,
+          selectedIndex: 0,
+          onChanged: (_) {},
+          itemBuilder: (context, index, states) => Text('$index'),
+          builder: (context, details) =>
+              details.items(lens: const ColoredBox(color: lens)),
+        ),
+      ),
+    );
+    expect(
+      find.byType(RawGlassSelector),
+      paints
+        ..paragraph()
+        ..paragraph()
+        ..rect(color: lens)
+        ..clipRRect()
+        ..paragraph(),
+    );
   });
 
   test('a style lerps its colors and merges state by state', () {

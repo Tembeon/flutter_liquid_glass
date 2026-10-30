@@ -64,7 +64,7 @@ class _Probe {
   Widget build(BuildContext context, GlassSelectorDetails details) {
     builds++;
     this.details = details;
-    return details.items;
+    return details.items();
   }
 
   GlassFrame get lens => details!.lens.value;

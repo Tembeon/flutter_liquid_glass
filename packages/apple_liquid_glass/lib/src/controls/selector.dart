@@ -33,10 +33,9 @@ enum GlassSelectorMotion {
 /// item, [WidgetState.pressed] for the item under a touch and
 /// [WidgetState.hovered] for the item under the mouse.
 ///
-/// With [GlassSelectorMotion.tabBar] every item is built twice: without
-/// [WidgetState.selected] for the bar, and with it for the copy the lens
-/// shows wherever it is, as UIKit masks a selected copy of every tab by
-/// the lens.
+/// Every item is built twice: without [WidgetState.selected] for the row
+/// under the lens, and with it for the copy the lens shows wherever it is,
+/// as UIKit masks a selected copy of every tab by the lens.
 typedef GlassSelectorItemBuilder = Widget Function(
   BuildContext context,
   int index,
@@ -58,7 +57,7 @@ final class GlassSelectorDetails {
   const GlassSelectorDetails({
     required this.body,
     required this.lens,
-    required this.items,
+    required this._items,
     required this.selectedIndex,
     required this.states,
   });
@@ -71,9 +70,14 @@ final class GlassSelectorDetails {
   /// stretches, and how far a finger has lifted it into glass.
   final ValueListenable<GlassFrame> lens;
 
-  /// The items, laid out in their slots. The builder places this once,
-  /// over the body and the lens: it gives the selector its size.
-  final Widget items;
+  final Widget Function(Widget? lens) _items;
+
+  /// The items laid out in their slots, with [lens] filling the selector
+  /// between their regular look and their selected look, which shows only
+  /// inside the lens: as in UIKit, the lifted lens bends the items under
+  /// its rim. The builder places this once, over the body: it gives the
+  /// selector its size.
+  Widget items({Widget? lens}) => _items(lens);
 
   /// The selected item, or null when none is and the lens is hidden.
   final int? selectedIndex;
@@ -479,14 +483,13 @@ class _RawGlassSelectorState extends State<RawGlassSelector> {
         child: widget.itemBuilder(
           context,
           index,
-          _itemStates(index, selected: selected && _segmented),
+          _itemStates(index, selected: false),
         ),
       ),
     );
   }
 
-  Widget _items(BuildContext context) {
-    final paired = !_segmented;
+  Widget _items(BuildContext context, Widget? lens) {
     final count = widget.itemCount;
     return ValueListenableBuilder(
       valueListenable: _pointing,
@@ -494,32 +497,29 @@ class _RawGlassSelectorState extends State<RawGlassSelector> {
         final row = _SelectorRow(
           body: _body,
           kind: widget.motion,
-          paired: paired,
           itemWidths: widget.itemWidths,
           proportional: widget.proportionalWidth,
           showsLens: _selected != null,
+          hasLens: lens != null,
           children: [
             for (var i = 0; i < count; i++) ...[
-              if (paired)
-                RepaintBoundary(child: _item(context, i))
-              else
-                _item(context, i),
-              if (paired)
-                ExcludeSemantics(
-                  child: RepaintBoundary(
-                    child: Center(
-                      child: widget.itemBuilder(
-                        context,
-                        i,
-                        _itemStates(i, selected: true),
-                      ),
+              RepaintBoundary(child: _item(context, i)),
+              ExcludeSemantics(
+                child: RepaintBoundary(
+                  child: Center(
+                    child: widget.itemBuilder(
+                      context,
+                      i,
+                      _itemStates(i, selected: true),
                     ),
                   ),
                 ),
+              ),
             ],
+            ?lens,
           ],
         );
-        if (!paired) return row;
+        if (_segmented) return row;
         return Semantics(
           container: true,
           explicitChildNodes: true,
@@ -540,7 +540,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector> {
       GlassSelectorDetails(
         body: _body.body,
         lens: _body.lens,
-        items: _items(context),
+        items: (lens) => _items(context, lens),
         selectedIndex: _selected,
         states: {..._states.value},
       ),
@@ -1027,28 +1027,29 @@ final class _SelectorInput extends Interaction {
   }
 }
 
-/// The items of a selector in their slots; laying them out publishes the
-/// slots to the selector's motion.
+/// The items of a selector in their slots, each as two children, its
+/// regular look and its selected look, which shows inside the lens, and the
+/// lens last when the look gives one; laying them out publishes the slots
+/// to the selector's motion.
 class _SelectorRow extends MultiChildRenderObjectWidget {
   const _SelectorRow({
     required this.body,
     required this.kind,
-    required this.paired,
     required this.itemWidths,
     required this.proportional,
     required this.showsLens,
+    required this.hasLens,
     required super.children,
   });
 
   final _SelectorBody body;
   final GlassSelectorMotion kind;
-
-  /// Whether every item comes as two children, its regular look and its
-  /// selected look, which shows inside the lens.
-  final bool paired;
   final List<double?>? itemWidths;
   final bool proportional;
   final bool showsLens;
+
+  /// Whether the last child is the lens.
+  final bool hasLens;
 
   @override
   MultiChildRenderObjectElement createElement() => _SelectorRowElement(this);
@@ -1058,10 +1059,10 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
       _RenderSelectorRow(
         body: body,
         kind: kind,
-        paired: paired,
         itemWidths: itemWidths,
         proportional: proportional,
         showsLens: showsLens,
+        hasLens: hasLens,
         direction: Directionality.maybeOf(context) ?? TextDirection.ltr,
       );
 
@@ -1072,10 +1073,10 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
   ) {
     renderObject.body = body;
     renderObject.kind = kind;
-    renderObject.paired = paired;
     renderObject.itemWidths = itemWidths;
     renderObject.proportional = proportional;
     renderObject.showsLens = showsLens;
+    renderObject.hasLens = hasLens;
     renderObject.direction =
         Directionality.maybeOf(context) ?? TextDirection.ltr;
   }
@@ -1088,19 +1089,22 @@ class _SelectorRowElement extends MultiChildRenderObjectElement {
 
   @override
   void debugVisitOnstageChildren(ElementVisitor visitor) {
-    if (!(widget as _SelectorRow).paired) {
-      super.debugVisitOnstageChildren(visitor);
-      return;
-    }
-    var regular = true;
+    final items = children.length - ((widget as _SelectorRow).hasLens ? 1 : 0);
+    var i = 0;
     for (final child in children) {
-      if (regular) visitor(child);
-      regular = !regular;
+      if (i >= items || i.isEven) visitor(child);
+      i++;
     }
   }
 }
 
 class _RowParentData extends ContainerBoxParentData<RenderBox> {}
+
+/// How much a fully lifted tab bar lens grows the items it shows: the held
+/// item shows at 1.218 of its resting size while the swollen bar carries
+/// the others at 1.052, so the lens adds 1.158 (iPhone 16 Pro, tab bar
+/// passport). A segmented control's lens shows its label in place (0.996).
+const double _tabBarMagnification = 0.16;
 
 class _RenderSelectorRow extends RenderBox
     with
@@ -1109,10 +1113,10 @@ class _RenderSelectorRow extends RenderBox
   _RenderSelectorRow({
     required this._body,
     required this._kind,
-    required this._paired,
     required this._itemWidths,
     required this._proportional,
     required this._showsLens,
+    required this._hasLens,
     required this._direction,
   });
 
@@ -1131,16 +1135,6 @@ class _RenderSelectorRow extends RenderBox
   set kind(GlassSelectorMotion value) {
     if (value == _kind) return;
     _kind = value;
-    markNeedsLayout();
-  }
-
-  bool _paired;
-  bool get paired => _paired;
-  set paired(bool value) {
-    if (value == _paired) return;
-    if (attached) _unlisten();
-    _paired = value;
-    if (attached) _listen();
     markNeedsLayout();
   }
 
@@ -1168,6 +1162,14 @@ class _RenderSelectorRow extends RenderBox
     markNeedsPaint();
   }
 
+  bool _hasLens;
+  bool get hasLens => _hasLens;
+  set hasLens(bool value) {
+    if (value == _hasLens) return;
+    _hasLens = value;
+    markNeedsLayout();
+  }
+
   TextDirection _direction;
   TextDirection get direction => _direction;
   set direction(TextDirection value) {
@@ -1176,12 +1178,16 @@ class _RenderSelectorRow extends RenderBox
     markNeedsLayout();
   }
 
-  // The lens clips the paired looks; the dimming fades a segment's item.
-  Listenable get _changes => _paired ? _body.lens : _body.dim;
+  // The lens masks the selected looks; the dimming fades a segment's item.
+  void _listen() {
+    _body.lens.addListener(markNeedsPaint);
+    _body.dim.addListener(markNeedsPaint);
+  }
 
-  void _listen() => _changes.addListener(markNeedsPaint);
-
-  void _unlisten() => _changes.removeListener(markNeedsPaint);
+  void _unlisten() {
+    _body.lens.removeListener(markNeedsPaint);
+    _body.dim.removeListener(markNeedsPaint);
+  }
 
   @override
   void attach(PipelineOwner owner) {
@@ -1202,20 +1208,27 @@ class _RenderSelectorRow extends RenderBox
     }
   }
 
-  List<double> _itemExtents(double height) {
-    final extents = <double>[];
+  RenderBox? get _lens => _hasLens ? lastChild : null;
+
+  /// Every item's regular and selected look, in order.
+  Iterable<(RenderBox, RenderBox)> get _pairs sync* {
+    final lens = _lens;
     var child = firstChild;
-    while (child != null) {
-      var width = child.getMaxIntrinsicWidth(height);
-      child = childAfter(child);
-      if (_paired && child != null) {
-        width = math.max(width, child.getMaxIntrinsicWidth(height));
-        child = childAfter(child);
-      }
-      extents.add(width);
+    while (child != null && child != lens) {
+      final selected = childAfter(child);
+      if (selected == null || selected == lens) return;
+      yield (child, selected);
+      child = childAfter(selected);
     }
-    return extents;
   }
+
+  List<double> _itemExtents(double height) => [
+    for (final (regular, selected) in _pairs)
+      math.max(
+        regular.getMaxIntrinsicWidth(height),
+        selected.getMaxIntrinsicWidth(height),
+      ),
+  ];
 
   double get _height => _Geometry.height(_kind);
 
@@ -1259,115 +1272,122 @@ class _RenderSelectorRow extends RenderBox
   void performLayout() {
     final geometry = _geometry(constraints);
     size = geometry.size;
-    var child = firstChild;
     var i = 0;
-    while (child != null) {
+    for (final (regular, selected) in _pairs) {
       final slot = _shown(geometry.slots[i]);
-      for (var variant = 0; variant < (_paired ? 2 : 1); variant++) {
-        if (child == null) break;
+      for (final child in [regular, selected]) {
         child.layout(BoxConstraints.tight(slot.size));
         (child.parentData! as _RowParentData).offset = slot.topLeft;
-        child = childAfter(child);
       }
       i++;
     }
+    _lens?.layout(BoxConstraints.tight(size));
     _body.layout(geometry);
   }
 
   @override
   bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
-    var child = firstChild;
-    while (child != null) {
-      final item = child;
+    for (final (item, _) in _pairs) {
       final hit = result.addWithPaintOffset(
         offset: (item.parentData! as _RowParentData).offset,
         position: position,
         hitTest: (result, local) => item.hitTest(result, position: local),
       );
       if (hit) return true;
-      child = childAfter(item);
-      if (_paired && child != null) child = childAfter(child);
     }
     return false;
   }
 
+  // UIKit draws the regular items under the lens, cut out where it sits,
+  // and a selected copy of every item masked by the lens over it (tab bar
+  // passport), so the lifted lens's rim bends the items around it.
   @override
   void paint(PaintingContext context, Offset offset) {
-    if (_paired) {
-      _paintPaired(context, offset);
-      return;
-    }
-    final (dimmed, opacity) = _body.dim.value;
-    var child = firstChild;
-    var i = 0;
-    while (child != null) {
-      final at = (child.parentData! as _RowParentData).offset + offset;
-      if (i == dimmed && opacity < 1) {
-        final item = child;
-        context.pushOpacity(
-          at,
-          Color.getAlphaFromOpacity(opacity),
-          (context, offset) => context.paintChild(item, offset),
-        );
-      } else {
-        context.paintChild(child, at);
-      }
-      child = childAfter(child);
-      i++;
-    }
-  }
-
-  // UIKit draws a selected copy of every item masked by the lens, and cuts
-  // the regular items out under it (tab bar passport).
-  void _paintPaired(PaintingContext context, Offset offset) {
     final frame = _body.lens.value;
     final rect = frame.drawnIn(size);
-    final lens = _showsLens
+    final mask = _showsLens
         ? RRect.fromRectAndRadius(
             rect,
             Radius.circular(math.min(rect.width, rect.height) / 2),
           )
         : null;
-    var child = firstChild;
-    while (child != null) {
-      final regular = child;
-      final selected = childAfter(regular);
-      child = selected == null ? null : childAfter(selected);
-      final at = (regular.parentData! as _RowParentData).offset;
-      if (lens == null || !lens.outerRect.overlaps(at & regular.size)) {
-        context.paintChild(regular, offset + at);
-        continue;
+    final (dimmed, opacity) = _body.dim.value;
+    var i = 0;
+    for (final (regular, _) in _pairs) {
+      final slot =
+          (regular.parentData! as _RowParentData).offset & regular.size;
+      void paintRegular(PaintingContext context, Offset offset) {
+        if (mask == null || !mask.outerRect.overlaps(slot)) {
+          context.paintChild(regular, offset + slot.topLeft);
+          return;
+        }
+        final box = Path();
+        box.addRect(slot);
+        final cut = Path();
+        cut.addRRect(mask);
+        context.pushClipPath(
+          needsCompositing,
+          offset,
+          slot,
+          Path.combine(PathOperation.difference, box, cut),
+          (context, offset) =>
+              context.paintChild(regular, offset + slot.topLeft),
+        );
       }
-      final box = Path();
-      box.addRect(at & regular.size);
-      final cut = Path();
-      cut.addRRect(lens);
-      final outside = Path.combine(PathOperation.difference, box, cut);
-      context.pushClipPath(
-        needsCompositing,
-        offset,
-        at & regular.size,
-        outside,
-        (context, offset) => context.paintChild(regular, offset + at),
-      );
-      if (selected == null) continue;
+
+      if (i == dimmed && opacity < 1) {
+        context.pushOpacity(
+          offset,
+          Color.getAlphaFromOpacity(opacity),
+          paintRegular,
+        );
+      } else {
+        paintRegular(context, offset);
+      }
+      i++;
+    }
+    final lens = _lens;
+    if (lens != null) context.paintChild(lens, offset);
+    if (mask == null) return;
+    final zoom = _kind == GlassSelectorMotion.tabBar
+        ? 1 + _tabBarMagnification * frame.lift.clamp(0.0, 1.0)
+        : 1.0;
+    for (final (_, selected) in _pairs) {
+      final slot =
+          (selected.parentData! as _RowParentData).offset & selected.size;
+      if (!mask.outerRect.overlaps(slot)) continue;
+      void paintSelected(PaintingContext context, Offset offset) =>
+          context.paintChild(selected, offset + slot.topLeft);
       context.pushClipRRect(
         needsCompositing,
         offset,
-        at & selected.size,
-        lens,
-        (context, offset) => context.paintChild(selected, offset + at),
+        mask.outerRect,
+        mask,
+        zoom == 1
+            ? paintSelected
+            : (context, offset) => context.pushTransform(
+                needsCompositing,
+                offset,
+                _scaleAbout(slot.center, zoom),
+                paintSelected,
+              ),
       );
     }
   }
 
+  // An item grows about its own slot, so it stays put while the lens
+  // window slides over it, as in UIKit.
+  static Matrix4 _scaleAbout(Offset center, double scale) {
+    final transform = Matrix4.translationValues(center.dx, center.dy, 0);
+    transform.scaleByDouble(scale, scale, 1, 1);
+    transform.translateByDouble(-center.dx, -center.dy, 0, 1);
+    return transform;
+  }
+
   @override
   void visitChildrenForSemantics(RenderObjectVisitor visitor) {
-    var child = firstChild;
-    while (child != null) {
-      visitor(child);
-      child = childAfter(child);
-      if (_paired && child != null) child = childAfter(child);
+    for (final (item, _) in _pairs) {
+      visitor(item);
     }
   }
 }

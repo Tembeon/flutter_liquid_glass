@@ -152,8 +152,9 @@ class GlassSegmentedStyle {
 ///
 /// Its track is a plain fill and its lens a platter that turns into clear
 /// glass under a dragging finger, drawn by the ambient renderer; the lifted
-/// lens does not magnify the labels, as UIKit's does not (segmented control
-/// passport). Its motion is [RawGlassSelector]'s with
+/// lens bends the labels under its rim but does not magnify them, as
+/// UIKit's does not (segmented control passport), and the label inside it
+/// takes the selected style. Its motion is [RawGlassSelector]'s with
 /// [GlassSelectorMotion.segmented]. Labels follow the text scale up to
 /// [maxTextScale], and a segment is as wide as the wider of its label's
 /// regular and selected styles. A disabled control draws at half opacity,
@@ -316,26 +317,32 @@ class _SegmentedLook extends StatelessWidget {
       GlassRole role,
       ValueListenable<GlassFrame> frame,
       Color tint,
-    ) => Positioned.fill(
-      child: GlassSurface.live(
-        role: role,
-        glass: Glass.regular(tint: tint),
-        frame: frame,
-        child: const SizedBox.expand(),
-      ),
+    ) => GlassSurface.live(
+      role: role,
+      glass: Glass.regular(tint: tint),
+      frame: frame,
+      child: const SizedBox.expand(),
     );
     return Opacity(
       opacity: states.contains(WidgetState.disabled) ? 0.5 : 1,
       child: Stack(
         children: [
-          surface(
-            GlassRole.track,
-            details.body,
-            resolve(look.backgroundColor),
+          Positioned.fill(
+            child: surface(
+              GlassRole.track,
+              details.body,
+              resolve(look.backgroundColor),
+            ),
           ),
-          if (details.selectedIndex != null)
-            surface(GlassRole.lens, details.lens, resolve(look.thumbColor)),
-          details.items,
+          details.items(
+            lens: details.selectedIndex == null
+                ? null
+                : surface(
+                    GlassRole.lens,
+                    details.lens,
+                    resolve(look.thumbColor),
+                  ),
+          ),
         ],
       ),
     );
