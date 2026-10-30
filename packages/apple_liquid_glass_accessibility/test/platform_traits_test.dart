@@ -12,10 +12,12 @@ Map<String, Object?> _report({
   bool reduceTransparency = false,
   bool showBorders = false,
   bool? prefersCrossFade = false,
+  double? glassTintAmount,
 }) => {
   'reduceTransparency': reduceTransparency,
   'showBorders': showBorders,
   'prefersCrossFade': prefersCrossFade,
+  'glassTintAmount': glassTintAmount,
 };
 
 /// The platform side of the channel. It is set up inside a test body: a
@@ -77,7 +79,11 @@ void main() {
     'feeds the reported settings into the traits',
     (tester) async {
       final platform = _Platform(
-        _report(reduceTransparency: true, showBorders: true),
+        _report(
+          reduceTransparency: true,
+          showBorders: true,
+          glassTintAmount: 0.35,
+        ),
       );
       await tester.pumpWidget(
         _app(const GlassPlatformTraits(child: _Probe()), reduceMotion: true),
@@ -86,12 +92,14 @@ void main() {
       expect(_seen.reduceTransparency, isTrue);
       expect(_seen.showBorders, isTrue);
       expect(_seen.prefersCrossFade, isFalse);
+      expect(_seen.glassTintAmount, 0.35);
 
       platform.sink!.success(_report(prefersCrossFade: true));
       await tester.pumpAndSettle();
       expect(_seen.reduceTransparency, isFalse);
       expect(_seen.showBorders, isFalse);
       expect(_seen.prefersCrossFade, isTrue);
+      expect(_seen.glassTintAmount, 0);
     },
     variant: _ios,
   );
