@@ -84,10 +84,62 @@ class _ShellState extends State<_Shell> {
   );
 }
 
+// One tab without bars, one with a navigation bar and a toolbar.
+class _Bare extends StatefulWidget {
+  const _Bare();
+
+  @override
+  State<_Bare> createState() => _BareState();
+}
+
+class _BareState extends State<_Bare> {
+  int index = 1;
+
+  @override
+  Widget build(BuildContext context) => GlassTabScaffold(
+    tabBar: GlassTabBar(
+      destinations: const [
+        GlassTabDestination(
+          icon: SizedBox.square(dimension: 24),
+          label: Text('Bare'),
+        ),
+        GlassTabDestination(
+          icon: SizedBox.square(dimension: 24),
+          label: Text('Barred'),
+        ),
+      ],
+      selectedIndex: index,
+      onDestinationSelected: (next) => setState(() => index = next),
+    ),
+    tabBuilder: (context, i) => i == 0
+        ? const SizedBox.expand()
+        : GlassPageScaffold(
+            navigationBar: GlassNavigationBar(
+              title: const Text('Barred'),
+              trailing: [
+                GlassBarItem(label: const Text('Edit'), onPressed: () {}),
+              ],
+            ),
+            toolbar: GlassToolbar(
+              items: [
+                GlassBarItem(label: const Text('Share'), onPressed: () {}),
+              ],
+            ),
+            child: const SizedBox.expand(),
+          ),
+  );
+}
+
 Future<void> _phone(WidgetTester tester) async {
   tester.view.physicalSize = const Size(402 * 3, 874 * 3);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
+}
+
+Future<void> _frames(WidgetTester tester) async {
+  for (var i = 0; i < 60; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+  }
 }
 
 void main() {
@@ -107,6 +159,34 @@ void main() {
     expect(built.toSet(), {0, 1});
     expect(find.text('Page 1'), findsOneWidget);
     expect(find.text('Page 0'), findsNothing);
+  });
+
+  testWidgets('a tab without bars shows none of the tab it left, and the '
+      'bars come back with their tab', (tester) async {
+    await _phone(tester);
+    await tester.pumpWidget(
+      WidgetsApp(
+        color: const Color(0xFF000000),
+        pageRouteBuilder: <T>(settings, builder) =>
+            GlassPageRoute<T>(builder: builder, settings: settings),
+        builder: (context, child) => GlassTheme(
+          data: const GlassThemeData(renderer: GlassRenderer.flat()),
+          child: child!,
+        ),
+        home: const _Bare(),
+      ),
+    );
+    await _frames(tester);
+    expect(find.text('Edit'), findsOneWidget);
+    expect(find.text('Share'), findsOneWidget);
+    await tester.tap(find.text('Bare'));
+    await _frames(tester);
+    expect(find.text('Edit'), findsNothing);
+    expect(find.text('Share'), findsNothing);
+    await tester.tap(find.text('Barred'));
+    await _frames(tester);
+    expect(find.text('Edit'), findsOneWidget);
+    expect(find.text('Share'), findsOneWidget);
   });
 
   testWidgets('a tab left keeps its state', (tester) async {

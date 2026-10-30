@@ -10,6 +10,7 @@ import 'package:apple_liquid_glass/src/motion/search_motion.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
@@ -112,7 +113,17 @@ class _GlassToolbarState extends State<GlassToolbar> {
   @override
   void dispose() {
     if (_standalone case final host?) host.detach(host.standaloneLink);
+    _withdrawLater();
     super.dispose();
+  }
+
+  // After the frame, once a bar that shows now has declared.
+  void _withdrawLater() {
+    final link = _link;
+    if (link == null) return;
+    SchedulerBinding.instance.addPostFrameCallback(
+      (_) => link.host.withdraw(link, this),
+    );
   }
 
   static Widget _button(GlassBarItem item) =>
@@ -126,8 +137,10 @@ class _GlassToolbarState extends State<GlassToolbar> {
     final search = items.indexWhere(
       (entry) => entry is GlassBarItem && entry.child is GlassSearchField,
     );
+    final shown = GlassTabShown.of(context);
+    if (!shown) _withdrawLater();
     if (search >= 0) {
-      link.host.declareToolbar(link, null);
+      if (shown) link.host.declareToolbar(link, null, by: this);
       return _SearchBar(
         leading: [
           for (final entry in items.take(search))
@@ -141,7 +154,7 @@ class _GlassToolbarState extends State<GlassToolbar> {
         closeSemanticLabel: widget.closeSemanticLabel ?? 'Close',
       );
     }
-    link.host.declareToolbar(link, items);
+    if (shown) link.host.declareToolbar(link, items, by: this);
     final standalone = _standalone;
     if (standalone == null) {
       return SizedBox(height: widget.preferredSize.height);

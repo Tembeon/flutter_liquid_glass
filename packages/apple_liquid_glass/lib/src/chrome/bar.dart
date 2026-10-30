@@ -59,6 +59,26 @@ final class GlassBarDeclaration {
 @internal
 typedef GlassTitleRoom = ({double start, double end});
 
+/// Whether the tab around [child] is the one its tab scaffold shows: the
+/// bars of a tab left behind withdraw from the page's shared bar, and a
+/// tab without bars of its own shows none.
+@internal
+class GlassTabShown extends InheritedWidget {
+  /// Tells the bars below whether their tab shows.
+  const GlassTabShown({required this.shown, required super.child, super.key});
+
+  /// Whether the tab shows.
+  final bool shown;
+
+  /// Whether the tab around [context] shows; true outside a tab.
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<GlassTabShown>()?.shown ??
+      true;
+
+  @override
+  bool updateShouldNotify(GlassTabShown oldWidget) => shown != oldWidget.shown;
+}
+
 /// One page's end of its navigator's shared bar.
 ///
 /// The route creates it when it installs and drops it when it disposes;
@@ -77,7 +97,9 @@ final class GlassPageBarLink {
 
   GlassPageBarLink? _below;
   GlassBarDeclaration? _declaration;
+  Object? _declarer;
   List<GlassBarEntry>? _toolbar;
+  Object? _toolbarDeclarer;
   bool _declaredToolbar = false;
   final Map<GlassBarKind, List<GlassBarCapsuleLayout>> _layouts = {};
   bool _coveredByForeign = false;
@@ -228,6 +250,12 @@ final class GlassBarHost implements MotionDriver {
     if (identical(link._lift, lift)) return;
     link._lift = lift;
     if (identical(link, _shown)) _followLift();
+  }
+
+  /// Forgets [lift] as [link]'s page's lift if it still is: the bar that
+  /// reported it goes away, and the lift with it.
+  void dropLift(GlassPageBarLink link, ValueListenable<double> lift) {
+    if (identical(link._lift, lift)) liftedBy(link, null);
   }
 
   GlassPageBarLink? _swiped;
@@ -382,9 +410,14 @@ final class GlassBarHost implements MotionDriver {
 
   /// Records what [link]'s page declares for its navigation bar as it
   /// builds; a declaration that changes only callbacks moves nothing.
-  void declare(GlassPageBarLink link, GlassBarDeclaration declaration) {
+  void declare(
+    GlassPageBarLink link,
+    GlassBarDeclaration declaration, {
+    Object? by,
+  }) {
     final previous = link._declaration;
     link._declaration = declaration;
+    link._declarer = by;
     final bar = _bars[GlassBarKind.navigation]!;
     final same =
         previous != null &&
@@ -407,9 +440,14 @@ final class GlassBarHost implements MotionDriver {
 
   /// Records the items [link]'s page declares for its toolbar as it
   /// builds, or null for none.
-  void declareToolbar(GlassPageBarLink link, List<GlassBarEntry>? items) {
+  void declareToolbar(
+    GlassPageBarLink link,
+    List<GlassBarEntry>? items, {
+    Object? by,
+  }) {
     final previous = link._toolbar;
     link._toolbar = items;
+    link._toolbarDeclarer = by;
     final same =
         previous != null && items != null && _sameEntries(previous, items);
     _declared(
@@ -419,6 +457,28 @@ final class GlassBarHost implements MotionDriver {
       same: same || (previous == null && items == null),
     );
     link._declaredToolbar = true;
+  }
+
+  /// Withdraws what [declarer] declared for [link]'s page if it still
+  /// stands: its tab was left or it went away, and the page's bar empties
+  /// unless another bar declared since.
+  void withdraw(GlassPageBarLink link, Object declarer) {
+    if (!_pages.contains(link)) return;
+    if (identical(link._declarer, declarer)) {
+      link._declarer = null;
+      link._declaration = null;
+      _declared(
+        _bars[GlassBarKind.navigation]!,
+        link,
+        first: false,
+        same: false,
+      );
+    }
+    if (identical(link._toolbarDeclarer, declarer)) {
+      link._toolbarDeclarer = null;
+      link._toolbar = null;
+      _declared(_bars[GlassBarKind.toolbar]!, link, first: false, same: false);
+    }
   }
 
   void _declared(

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/chrome/bar.dart';
 import 'package:apple_liquid_glass/src/chrome/chrome.dart';
 import 'package:apple_liquid_glass/src/controls/tab_bar.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
@@ -155,11 +156,14 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
                         offstage: searching || i != selected,
                         child: TickerMode(
                           enabled: !searching && i == selected,
-                          child: FocusScope(
-                            node: _focusOf(i),
-                            child: Builder(
-                              builder: (context) =>
-                                  widget.tabBuilder(context, i),
+                          child: GlassTabShown(
+                            shown: !searching && i == selected,
+                            child: FocusScope(
+                              node: _focusOf(i),
+                              child: Builder(
+                                builder: (context) =>
+                                    widget.tabBuilder(context, i),
+                              ),
                             ),
                           ),
                         ),
@@ -170,9 +174,12 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
                       offstage: !searching,
                       child: TickerMode(
                         enabled: searching,
-                        child: FocusScope(
-                          node: _searchFocus,
-                          child: Builder(builder: searchBuilder),
+                        child: GlassTabShown(
+                          shown: searching,
+                          child: FocusScope(
+                            node: _searchFocus,
+                            child: Builder(builder: searchBuilder),
+                          ),
                         ),
                       ),
                     ),
