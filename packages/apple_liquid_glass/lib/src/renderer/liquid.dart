@@ -125,7 +125,10 @@ final class LiquidGlassRenderer extends GlassRenderer {
           blurRadius: 16,
         ),
       ],
-      GlassRole.lens || GlassRole.knob => [
+      GlassRole.lens ||
+      GlassRole.tabBarLens ||
+      GlassRole.knob ||
+      GlassRole.thumb => [
         BoxShadow(
           color: const Color(0x1A000000),
           offset: Offset(0, 1.5 + 2 * l),
@@ -137,26 +140,55 @@ final class LiquidGlassRenderer extends GlassRenderer {
   }
 }
 
-bool _lifts(GlassRole role) => role == GlassRole.knob || role == GlassRole.lens;
+bool _lifts(GlassRole role) => switch (role) {
+  GlassRole.lens ||
+  GlassRole.tabBarLens ||
+  GlassRole.knob ||
+  GlassRole.thumb => true,
+  GlassRole.bar ||
+  GlassRole.control ||
+  GlassRole.track ||
+  GlassRole.menu ||
+  GlassRole.sheet => false,
+};
 
-/// The settings of a lens or knob lifted by [lift]: UIKit's lens
-/// configuration (read from UIKit, notes private) bends what is behind a
-/// resting small lens by 50 and blurs it by 6, a lifted one bends it by 9
-/// without blur, and a large lens rests clear. Engineering factors, not
-/// measured, double the bend, part the colors along the rim and
-/// brighten the highlight by half as the lens lifts.
+/// The settings of a lens, knob or thumb of [role] lifted by [lift].
+///
+/// UIKit's lens configuration (read from UIKit, notes private) bends what
+/// is behind a resting knob or thumb by 50 and blurs it by 6, a lifted one
+/// bends it by 9 without blur, and a large lens rests clear. Engineering
+/// factors, not measured, double the bend, part the colors along the rim
+/// and brighten the highlight by half as the lens lifts.
+///
+/// A lifted lens also shows what lies under it smaller, about its center
+/// line, so the edges of the track or bar show inside it (iPhone 16 Pro
+/// references): a tab bar's lens shows the swollen bar's edges 0.890 of
+/// its height apart (shrink 0.16, three quarters of the center line), a
+/// segmented control's the track's edges 0.8125 apart and a switch's knob
+/// 0.755 apart (0.20 and 0.25, the whole line); a slider's thumb shows its
+/// track unchanged. The shrinks were fitted under Morph's bevel, NEAR
+/// under this one.
 LiquidGlassSettings _lensSettings(
   LiquidGlassSettings base,
   double lift, {
-  required bool small,
+  required GlassRole role,
 }) {
   final l = lift.clamp(0.0, 1.0);
+  final small = role == GlassRole.knob || role == GlassRole.thumb;
   final displacement = small ? 50 + (9 - 50) * l : 9 * l;
+  final (shrink, rim) = switch (role) {
+    GlassRole.tabBarLens => (0.16, 0.75),
+    GlassRole.lens => (0.20, 1.0),
+    GlassRole.knob => (0.25, 1.0),
+    _ => (0.0, 0.0),
+  };
   return base.copyWith(
     frost: small ? 6 * (1 - l) : 0,
     refractionAmount: displacement * 2,
     dispersion: -0.25 * l,
     highlight: base.highlight * (1 + 0.5 * l),
+    backdropShrink: shrink * l,
+    backdropShrinkRim: rim,
   );
 }
 
@@ -522,7 +554,7 @@ class _LiquidGroupState extends State<_LiquidGroup> {
     return _lensSettings(
       _base,
       fake ? 1 : lens.frame.value.lift,
-      small: lens.role == GlassRole.knob,
+      role: lens.role,
     );
   }
 

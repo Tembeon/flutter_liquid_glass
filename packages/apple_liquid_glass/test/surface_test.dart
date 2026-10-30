@@ -183,6 +183,38 @@ void main() {
       );
     });
 
+    testWidgets('a lifted lens shows what is under it smaller, by the '
+        'measured amount of its control', (tester) async {
+      for (final (role, shrink, rim) in [
+        (GlassRole.tabBarLens, 0.16, 0.75),
+        (GlassRole.lens, 0.20, 1.0),
+        (GlassRole.knob, 0.25, 1.0),
+        (GlassRole.thumb, 0.0, 0.0),
+      ]) {
+        await tester.pumpWidget(
+          _app(
+            const GlassRenderer.liquid(),
+            GlassSurface.live(
+              role: role,
+              frame: ValueNotifier(const GlassFrame(lift: 1)),
+              child: const SizedBox(width: 60, height: 30),
+            ),
+          ),
+        );
+        final settings = tester
+            .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
+            .live!
+            .value
+            .settings;
+        expect(
+          settings.backdropShrink,
+          moreOrLessEquals(shrink),
+          reason: '$role',
+        );
+        expect(settings.backdropShrinkRim, rim, reason: '$role');
+      }
+    });
+
     testWidgets('a group draws its members on one layer and blends them '
         'when they merge', (tester) async {
       Widget row(GlassMerge merge) => _app(

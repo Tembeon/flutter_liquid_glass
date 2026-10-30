@@ -901,7 +901,7 @@ class _SliderLook extends StatelessWidget {
               ),
             ),
           surface(
-            GlassRole.knob,
+            GlassRole.thumb,
             details.thumb,
             resolve(look.thumbColor, const Color(0xFFFFFFFF)),
           ),

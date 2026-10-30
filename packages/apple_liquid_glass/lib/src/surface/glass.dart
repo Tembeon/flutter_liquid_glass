@@ -39,11 +39,17 @@ enum GlassRole {
   /// A button or another free-standing control.
   control,
 
-  /// The lens a selection slides as: a segmented control's or tab bar's.
+  /// The lens a segmented control's selection slides as.
   lens,
 
-  /// The thumb of a switch or slider.
+  /// The lens a tab bar's selection slides as, over the bar.
+  tabBarLens,
+
+  /// The knob of a switch.
   knob,
+
+  /// The thumb of a slider.
+  thumb,
 
   /// A control's track and a slider's fill: the plain bar under a lens or a
   /// knob.

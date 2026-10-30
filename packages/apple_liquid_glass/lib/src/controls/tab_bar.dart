@@ -448,19 +448,28 @@ class _TabBarLook extends StatelessWidget {
       GlassRole role,
       ValueListenable<GlassFrame> frame,
       Color? tint,
-    ) => Positioned.fill(
-      child: GlassSurface.live(
-        role: role,
-        glass: Glass.regular(tint: tint),
-        frame: frame,
-        child: const SizedBox.expand(),
-      ),
+    ) => GlassSurface.live(
+      role: role,
+      glass: Glass.regular(tint: tint),
+      frame: frame,
+      child: const SizedBox.expand(),
     );
     return Stack(
       children: [
-        surface(GlassRole.bar, details.body, resolve(look.backgroundColor)),
-        surface(GlassRole.lens, details.lens, resolve(look.thumbColor)),
-        details.items,
+        Positioned.fill(
+          child: surface(
+            GlassRole.bar,
+            details.body,
+            resolve(look.backgroundColor),
+          ),
+        ),
+        details.items(
+          lens: surface(
+            GlassRole.tabBarLens,
+            details.lens,
+            resolve(look.thumbColor),
+          ),
+        ),
       ],
     );
   }
