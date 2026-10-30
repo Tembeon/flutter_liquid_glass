@@ -94,4 +94,33 @@ void main() {
     await tester.tap(find.text('Dark'));
     await _frames(tester);
   });
+
+  testWidgets('left alone, every tab stops drawing frames; a touch wakes '
+      'the drops', (tester) async {
+    tester.view.physicalSize = const Size(402, 874) * 3;
+    tester.view.devicePixelRatio = 3;
+    tester.view.padding = const FakeViewPadding(top: 62 * 3, bottom: 34 * 3);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(const GalleryApp());
+    await _frames(tester);
+    expect(tester.binding.hasScheduledFrame, isTrue);
+    await _frames(tester, 60 * 20);
+    expect(tester.binding.hasScheduledFrame, isFalse);
+
+    for (final tab in ['Controls', 'Present', 'Photos']) {
+      await tester.tap(find.text(tab));
+      await _frames(tester, 120);
+      expect(tester.binding.hasScheduledFrame, isFalse, reason: tab);
+    }
+
+    await tester.tap(find.text('Liquid'));
+    await _frames(tester, 60 * 20);
+    expect(tester.binding.hasScheduledFrame, isFalse);
+    await tester.tapAt(const Offset(201, 600));
+    await _frames(tester, 5);
+    expect(tester.binding.hasScheduledFrame, isTrue);
+    await _frames(tester, 60 * 20);
+    expect(tester.binding.hasScheduledFrame, isFalse);
+  });
 }

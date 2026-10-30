@@ -15,6 +15,10 @@ import 'package:kinesis/kinesis.dart';
 /// Glass drops floating over a drifting wallpaper. A finger lifts a drop and
 /// drags it; drops that come close fuse into one body, and a released drop
 /// flies home on a bouncy spring with the finger's momentum.
+///
+/// The drops and the wallpaper move for a while after the page shows or a
+/// finger touches it, then come to rest, so a page nobody touches draws no
+/// frames.
 class LiquidPage extends StatefulWidget {
   const LiquidPage({super.key});
 
@@ -24,6 +28,7 @@ class LiquidPage extends StatefulWidget {
 
 class _LiquidPageState extends State<LiquidPage> {
   static const _float = Spring(duration: Duration(milliseconds: 3200));
+  static const _awake = Duration(seconds: 12);
 
   final _random = math.Random(7);
   var _wallpaper = Wallpaper.aurora;
@@ -76,19 +81,48 @@ class _LiquidPageState extends State<LiquidPage> {
   final _grabs = <int, _Grab>{};
   Size _size = Size.zero;
   Timer? _floating;
+  Timer? _asleep;
+  var _drifting = false;
 
   @override
-  void initState() {
-    super.initState();
-    _floating = Timer.periodic(const Duration(milliseconds: 2600), (_) {
-      _drift();
-    });
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (TickerMode.valuesOf(context).enabled) {
+      _wake();
+    } else {
+      _rest();
+    }
   }
 
   @override
   void dispose() {
     _floating?.cancel();
+    _asleep?.cancel();
     super.dispose();
+  }
+
+  void _wake() {
+    _asleep?.cancel();
+    _asleep = Timer(_awake, () => setState(_rest));
+    if (_drifting) return;
+    _drifting = true;
+    _floating = Timer.periodic(
+      const Duration(milliseconds: 2600),
+      (_) => _drift(),
+    );
+    _drift();
+  }
+
+  void _rest() {
+    _floating?.cancel();
+    _asleep?.cancel();
+    if (!_drifting) return;
+    _drifting = false;
+    withSpring(_float, () {
+      for (final drop in _drops) {
+        drop.drift.target = Offset.zero;
+      }
+    });
   }
 
   void _drift() => withSpring(_float, () {
@@ -112,6 +146,11 @@ class _LiquidPageState extends State<LiquidPage> {
   }
 
   void _down(PointerDownEvent event) {
+    if (_drifting) {
+      _wake();
+    } else {
+      setState(_wake);
+    }
     for (final drop in _drops.reversed) {
       if (_grabs.values.any((grab) => grab.drop == drop)) continue;
       if (!drop.rect.inflate(10).contains(event.localPosition)) continue;
@@ -157,7 +196,7 @@ class _LiquidPageState extends State<LiquidPage> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          DriftingWallpaper(wallpaper: _wallpaper),
+          DriftingWallpaper(wallpaper: _wallpaper, drifts: _drifting),
           Listener(
             behavior: HitTestBehavior.opaque,
             onPointerDown: _down,
