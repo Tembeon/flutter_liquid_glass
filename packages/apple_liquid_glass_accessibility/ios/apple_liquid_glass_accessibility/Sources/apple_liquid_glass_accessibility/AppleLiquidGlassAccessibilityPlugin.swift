@@ -6,6 +6,20 @@ public class AppleLiquidGlassAccessibilityPlugin: NSObject, FlutterPlugin, Flutt
   private var sink: FlutterEventSink?
   private var observers: [NSObjectProtocol] = []
 
+  // The Liquid Glass slider of iOS 27 (Settings, Appearance): UIKit exports
+  // its getter and change notification without declaring them, so they are
+  // looked up at run time and missing before iOS 27 or once UIKit drops
+  // them. The getter's argument reads the system's value when nil.
+  private typealias GlassTintAmount = @convention(c) (AnyObject?) -> Float
+
+  private static let glassTintAmount: GlassTintAmount? = dlsym(
+    UnsafeMutableRawPointer(bitPattern: -2), "UIViewGlassGetTintAmount"
+  ).map { unsafeBitCast($0, to: GlassTintAmount.self) }
+
+  private static let glassTintAmountDidChange: Notification.Name? = dlsym(
+    UnsafeMutableRawPointer(bitPattern: -2), "UIViewGlassTintAmountDidChangeNotification"
+  ).map { Notification.Name($0.load(as: NSString.self) as String) }
+
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterEventChannel(
       name: "apple_liquid_glass_accessibility",
@@ -25,6 +39,9 @@ public class AppleLiquidGlassAccessibilityPlugin: NSObject, FlutterPlugin, Flutt
       names.append(AccessibilitySettings.showBordersEnabledStatusDidChangeNotification)
     } else {
       names.append(UIAccessibility.buttonShapesEnabledStatusDidChangeNotification)
+    }
+    if let name = Self.glassTintAmountDidChange {
+      names.append(name)
     }
     observers = names.map { name in
       NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) {
@@ -53,6 +70,7 @@ public class AppleLiquidGlassAccessibilityPlugin: NSObject, FlutterPlugin, Flutt
       "reduceTransparency": UIAccessibility.isReduceTransparencyEnabled,
       "showBorders": showBorders,
       "prefersCrossFade": UIAccessibility.prefersCrossFadeTransitions,
+      "glassTintAmount": Self.glassTintAmount.map { Double($0(nil)) } as Any,
     ])
   }
 }

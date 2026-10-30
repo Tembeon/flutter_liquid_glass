@@ -10,11 +10,12 @@ import 'package:flutter/widgets.dart';
 @immutable
 final class AppleAccessibilityFeatures {
   /// Creates settings; the defaults are all off, with Prefer Cross-Fade
-  /// Transitions unreported.
+  /// Transitions and the Liquid Glass slider unreported.
   const AppleAccessibilityFeatures({
     this.reduceTransparency = false,
     this.showBorders = false,
     this.prefersCrossFade,
+    this.glassTintAmount,
   });
 
   factory AppleAccessibilityFeatures._from(Object? report) {
@@ -23,6 +24,7 @@ final class AppleAccessibilityFeatures {
       reduceTransparency: values['reduceTransparency'] == true,
       showBorders: values['showBorders'] == true,
       prefersCrossFade: values['prefersCrossFade'] as bool?,
+      glassTintAmount: (values['glassTintAmount'] as num?)?.toDouble(),
     );
   }
 
@@ -44,6 +46,18 @@ final class AppleAccessibilityFeatures {
   ///
   /// UIKit: `UIAccessibility.prefersCrossFadeTransitions`.
   final bool? prefersCrossFade;
+
+  /// Where the Liquid Glass slider of iOS 27 (Settings, Appearance) stands,
+  /// from 0 (Clear) to 1 (Tinted), or null where the platform does not
+  /// report it (before iOS 27, macOS).
+  ///
+  /// UIKit has no public API for it: the plugin reads the getter and the
+  /// change notification UIKit exports without declaring
+  /// (`UIViewGlassGetTintAmount`,
+  /// `UIViewGlassTintAmountDidChangeNotification`), looked up at run time,
+  /// so an iOS that drops them reports null instead of failing. Undeclared
+  /// API can draw App Store review questions.
+  final double? glassTintAmount;
 
   static const _channel = EventChannel('apple_liquid_glass_accessibility');
 
@@ -72,17 +86,22 @@ final class AppleAccessibilityFeatures {
       other is AppleAccessibilityFeatures &&
       other.reduceTransparency == reduceTransparency &&
       other.showBorders == showBorders &&
-      other.prefersCrossFade == prefersCrossFade;
+      other.prefersCrossFade == prefersCrossFade &&
+      other.glassTintAmount == glassTintAmount;
 
   @override
-  int get hashCode =>
-      Object.hash(reduceTransparency, showBorders, prefersCrossFade);
+  int get hashCode => Object.hash(
+    reduceTransparency,
+    showBorders,
+    prefersCrossFade,
+    glassTintAmount,
+  );
 }
 
 /// Feeds [AppleAccessibilityFeatures] into the `GlassTraits` of [child]:
 /// glass draws flat under Reduce Transparency, outlines its surfaces under
-/// Show Borders and, with Reduce Motion, cross-fades pages as Prefer
-/// Cross-Fade Transitions says.
+/// Show Borders, follows the Liquid Glass slider of iOS 27 and, with Reduce
+/// Motion, cross-fades pages as Prefer Cross-Fade Transitions says.
 ///
 /// Wrap the app with it, or return it from `WidgetsApp.builder`, so
 /// presented content sees the settings too. Until the platform reports,
@@ -123,6 +142,7 @@ class _GlassPlatformTraitsState extends State<GlassPlatformTraits> {
       reduceTransparency: features?.reduceTransparency,
       showBorders: features?.showBorders,
       prefersCrossFade: features?.prefersCrossFade,
+      glassTintAmount: features?.glassTintAmount,
       child: widget.child,
     );
   }
