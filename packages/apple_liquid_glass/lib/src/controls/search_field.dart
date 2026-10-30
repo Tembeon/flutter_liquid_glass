@@ -239,6 +239,8 @@ class GlassSearchField extends StatefulWidget {
 class _GlassSearchFieldState extends State<GlassSearchField>
     implements TextSelectionGestureDetectorBuilderDelegate {
   late final _FieldBody _body = _FieldBody();
+  late final _scaleX = _Scale(_body, vertical: false);
+  late final _scaleY = _Scale(_body, vertical: true);
   late final _LiftInput _input = _LiftInput(this);
   late final List<Interaction> _interactions = [_input];
   final _regionFocus = FocusNode(skipTraversal: true);
@@ -306,9 +308,7 @@ class _GlassSearchFieldState extends State<GlassSearchField>
   Listenable? _ends;
   _Faded? _faded;
 
-  ValueListenable<GlassFrame> _frameUnder(SearchFieldStacking? stacking) {
-    final glass = stacking?.glass;
-    if (glass == null) return _body;
+  ValueListenable<GlassFrame> _fadedBy(ValueListenable<double> glass) {
     final faded = _faded;
     if (faded != null && identical(faded._presence, glass)) return faded;
     // The surface lets go of the old source as it rebuilds.
@@ -485,6 +485,27 @@ class _GlassSearchFieldState extends State<GlassSearchField>
       ),
     );
     final stacking = SearchFieldStacking.maybeOf(context);
+    final glass = Glass.regular(tint: background);
+    final Widget body;
+    if (!widget.enabled) {
+      body = GlassSurface(role: GlassRole.track, glass: glass, child: content);
+    } else if (stacking == null) {
+      body = GlassSurface.live(frame: _body, glass: glass, child: content);
+    } else {
+      // A surface fades its content with its glass, and a stacked field's
+      // glyph and text stay while its glass comes and goes.
+      body = Stack(
+        fit: StackFit.expand,
+        children: [
+          GlassSurface.live(
+            frame: _fadedBy(stacking.glass),
+            glass: glass,
+            child: const SizedBox.expand(),
+          ),
+          MotionTransition(scaleX: _scaleX, scaleY: _scaleY, child: content),
+        ],
+      );
+    }
     return InputRegion(
       interactions: _interactions,
       enabled: widget.enabled,
@@ -492,17 +513,7 @@ class _GlassSearchFieldState extends State<GlassSearchField>
       focusNode: _regionFocus,
       child: SizedBox(
         height: stacking?.height ?? GlassSearchField.height,
-        child: widget.enabled
-            ? GlassSurface.live(
-                frame: _frameUnder(stacking),
-                glass: Glass.regular(tint: background),
-                child: content,
-              )
-            : GlassSurface(
-                role: GlassRole.track,
-                glass: Glass.regular(tint: background),
-                child: content,
-              ),
+        child: body,
       ),
     );
   }
@@ -547,6 +558,24 @@ class SearchFieldStacking extends InheritedWidget {
   @override
   bool updateShouldNotify(SearchFieldStacking oldWidget) =>
       height != oldWidget.height || glass != oldWidget.glass;
+}
+
+// One axis of the scale of the field's body.
+class _Scale implements ValueListenable<double> {
+  _Scale(this._frames, {required this.vertical});
+
+  final ValueListenable<GlassFrame> _frames;
+  final bool vertical;
+
+  @override
+  double get value => vertical ? _frames.value.scaleY : _frames.value.scaleX;
+
+  @override
+  void addListener(VoidCallback listener) => _frames.addListener(listener);
+
+  @override
+  void removeListener(VoidCallback listener) =>
+      _frames.removeListener(listener);
 }
 
 // The field's frames with its glass faded by a presence.
