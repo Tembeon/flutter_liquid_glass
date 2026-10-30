@@ -92,6 +92,35 @@ void main() {
     expect(find.text('Results'), findsNothing);
   });
 
+  testWidgets('the search circle lifts under a finger as a glass button '
+      'does', (tester) async {
+    await _phone(tester);
+    final search = GlassSearchController();
+    addTearDown(search.dispose);
+    await tester.pumpWidget(_app(search));
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.bySemanticsLabel('Search')),
+    );
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(_frame);
+    }
+    final lifted = tester
+        .widgetList<GlassSurface>(
+          find.descendant(
+            of: find.bySemanticsLabel('Search'),
+            matching: find.byType(GlassSurface),
+          ),
+        )
+        .single
+        .frame!
+        .value;
+    expect(lifted.scaleX, greaterThan(1.01));
+    await gesture.up();
+    await tester.pump();
+    expect(search.isOpen, isTrue);
+    await _settle(tester);
+  });
+
   testWidgets('four tabs narrow to fit beside the search circle', (
     tester,
   ) async {

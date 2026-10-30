@@ -1737,51 +1737,50 @@ class _SearchCircle extends StatelessWidget {
     label: 'Search',
     onTap: onTap,
     excludeSemantics: true,
-    child: GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: GlassSurface(
-        child: CustomMultiChildLayout(
-          delegate: _CircleLayout(q: q, rtl: rtl),
-          children: [
-            LayoutId(
-              id: 0,
-              child: CustomPaint(painter: SearchMagnifierPainter(glyph)),
-            ),
-            LayoutId(
-              id: 1,
-              child: MotionTransition(
-                opacity: placeholder,
-                child: ClipRect(
-                  child: Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: DefaultTextStyle(
-                      style: resolveGlassText(
-                        const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w500,
-                          height: 1.2,
-                        ).copyWith(
-                          color: GlassDynamicColor.resolve(
-                            GlassSearchField.placeholderColors.resolve(
-                                  const {},
-                                ) ??
-                                GlassColors.secondaryLabel,
-                            context,
-                          ),
+    child: RawGlassButton(
+      onPressed: onTap,
+      builder: (context, details) =>
+          GlassSurface.live(frame: details.body, child: details.label),
+      child: CustomMultiChildLayout(
+        delegate: _CircleLayout(q: q, rtl: rtl),
+        children: [
+          LayoutId(
+            id: 0,
+            child: CustomPaint(painter: SearchMagnifierPainter(glyph)),
+          ),
+          LayoutId(
+            id: 1,
+            child: MotionTransition(
+              opacity: placeholder,
+              child: ClipRect(
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: DefaultTextStyle(
+                    style: resolveGlassText(
+                      const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w500,
+                        height: 1.2,
+                      ).copyWith(
+                        color: GlassDynamicColor.resolve(
+                          GlassSearchField.placeholderColors.resolve(
+                                const {},
+                              ) ??
+                              GlassColors.secondaryLabel,
+                          context,
                         ),
-                        context,
                       ),
-                      maxLines: 1,
-                      softWrap: false,
-                      child: const Text('Search'),
+                      context,
                     ),
+                    maxLines: 1,
+                    softWrap: false,
+                    child: const Text('Search'),
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     ),
   );
