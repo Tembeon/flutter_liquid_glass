@@ -64,6 +64,7 @@ class GallerySettings {
     this.reduceTransparency = false,
     this.showBorders = false,
     this.crossFade = false,
+    this.glassTint,
   });
 
   final GalleryRenderer renderer;
@@ -75,6 +76,9 @@ class GallerySettings {
   final bool showBorders;
   final bool crossFade;
 
+  /// The Liquid Glass slider's position, or null to follow the system's.
+  final double? glassTint;
+
   GallerySettings copyWith({
     GalleryRenderer? renderer,
     Brightness? Function()? brightness,
@@ -82,6 +86,7 @@ class GallerySettings {
     bool? reduceTransparency,
     bool? showBorders,
     bool? crossFade,
+    double? Function()? glassTint,
   }) => GallerySettings(
     renderer: renderer ?? this.renderer,
     brightness: brightness == null ? this.brightness : brightness(),
@@ -89,6 +94,7 @@ class GallerySettings {
     reduceTransparency: reduceTransparency ?? this.reduceTransparency,
     showBorders: showBorders ?? this.showBorders,
     crossFade: crossFade ?? this.crossFade,
+    glassTint: glassTint == null ? this.glassTint : glassTint(),
   );
 }
 

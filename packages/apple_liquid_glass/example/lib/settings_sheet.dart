@@ -104,6 +104,40 @@ class _SettingsSheet extends StatelessWidget {
           ],
         ),
         GlassListSection(
+          header: const Text('Liquid Glass'),
+          footer: Text(
+            settings.glassTint == null
+                ? 'Follows the slider in Settings, Appearance, on iOS 27.'
+                : 'Set here: the system slider no longer applies.',
+          ),
+          children: [
+            GlassListRow(
+              child: Row(
+                children: [
+                  const Text('Clear'),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GlassSlider(
+                      value: GlassTraits.of(context).glassTintAmount,
+                      semanticLabel: 'Glass',
+                      onChanged: (value) =>
+                          update((s) => s.copyWith(glassTint: () => value)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text('Tinted'),
+                ],
+              ),
+            ),
+            if (settings.glassTint != null)
+              GlassListRow(
+                title: const Text('Follow System'),
+                onPressed: () =>
+                    update((s) => s.copyWith(glassTint: () => null)),
+              ),
+          ],
+        ),
+        GlassListSection(
           header: const Text('Accessibility'),
           footer: const Text(
             'The same traits the apple_liquid_glass_accessibility plugin '
