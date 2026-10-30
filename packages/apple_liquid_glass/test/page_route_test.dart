@@ -126,6 +126,24 @@ void main() {
     await tester.pump();
   });
 
+  testWidgets('the page below keeps its state under a pushed page and '
+      'after the pop', (tester) async {
+    await _phone(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_app(navigator));
+    final home = tester.element(find.text('Home'));
+    unawaited(
+      navigator.currentState!.push(
+        GlassPageRoute<void>(builder: (_) => _page('Next')),
+      ),
+    );
+    await _settle(tester);
+    expect(tester.element(find.text('Home', skipOffstage: false)), home);
+    navigator.currentState!.pop();
+    await _settle(tester);
+    expect(tester.element(find.text('Home')), home);
+  });
+
   testWidgets('a pop without a finger slides the page out, then it goes', (
     tester,
   ) async {
