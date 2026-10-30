@@ -250,6 +250,9 @@ class _Slide extends StatefulWidget {
 /// The page's slide, its cross-fade for Prefer Cross-Fade Transitions and its
 /// interactive pop, reported to the route's lifecycle.
 class _SlideState extends State<_Slide> implements MotionDriver {
+  // The page moves under the card of a page pushed above it and back; the
+  // key carries its state along.
+  final _page = GlobalKey(debugLabel: 'GlassPageRoute.page');
   late final _input = _SwipePop(this);
   late final List<Interaction> _interactions = [_input];
   bool _opening = true;
@@ -438,7 +441,7 @@ class _SlideState extends State<_Slide> implements MotionDriver {
                   fades: cover._fades,
                   child: child,
                 ),
-          child: RepaintBoundary(child: widget.child),
+          child: RepaintBoundary(key: _page, child: widget.child),
         ),
       ),
     );
