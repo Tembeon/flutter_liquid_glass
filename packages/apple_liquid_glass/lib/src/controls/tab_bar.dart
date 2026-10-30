@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/chrome/chrome.dart';
+import 'package:apple_liquid_glass/src/controls/badge.dart';
 import 'package:apple_liquid_glass/src/controls/button.dart';
 import 'package:apple_liquid_glass/src/controls/search_controller.dart';
 import 'package:apple_liquid_glass/src/controls/search_field.dart';
@@ -51,8 +52,9 @@ final class GlassTabDestination {
   /// `GlobalKey` a separate stateless copy here.
   final Widget? selectedIcon;
 
-  /// A mark at the top trailing corner of the glyph, such as a count; its
-  /// placement is by eye, not measured (tab bar passport).
+  /// A mark at the top trailing corner of the glyph, usually a
+  /// [GlassBadge]; its placement is by eye, not measured (tab bar
+  /// passport).
   final Widget? badge;
 
   /// Whether the tab can be selected. A disabled tab draws at half opacity
