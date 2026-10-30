@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:apple_liquid_glass_accessibility/apple_liquid_glass_accessibility.dart';
 import 'package:apple_liquid_glass_example/pages/controls_page.dart';
 import 'package:apple_liquid_glass_example/pages/liquid_page.dart';
 import 'package:apple_liquid_glass_example/pages/photos_page.dart';
@@ -43,11 +44,14 @@ class _GalleryAppState extends State<GalleryApp> {
             brightness: settings.brightness,
             primaryColor: settings.accent.color,
           ),
-          child: GlassTraitsOverride(
-            reduceTransparency: settings.reduceTransparency ? true : null,
-            showBorders: settings.showBorders ? true : null,
-            prefersCrossFade: settings.crossFade ? true : null,
-            child: _Ambient(child: child!),
+          child: GlassPlatformTraits(
+            child: GlassTraitsOverride(
+              reduceTransparency: settings.reduceTransparency ? true : null,
+              showBorders: settings.showBorders ? true : null,
+              prefersCrossFade: settings.crossFade ? true : null,
+              glassTintAmount: settings.glassTint,
+              child: _Ambient(child: child!),
+            ),
           ),
         ),
         home: const GalleryHome(),
