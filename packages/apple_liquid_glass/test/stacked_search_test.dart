@@ -73,6 +73,26 @@ void main() {
     expect(tester.getTopLeft(find.text('Row 0')).dy, 222);
   });
 
+  testWidgets('the field keeps its placeholder out of its glass, which a '
+      'surface fades with its content', (tester) async {
+    await _phone(tester);
+    final search = TextEditingController();
+    final scroll = ScrollController();
+    addTearDown(search.dispose);
+    addTearDown(scroll.dispose);
+    await tester.pumpWidget(_app(search, scroll));
+    await tester.pump();
+    final placeholder = find.descendant(
+      of: find.byKey(const Key('field')),
+      matching: find.byType(Text),
+    );
+    expect(placeholder, findsOneWidget);
+    expect(
+      find.ancestor(of: placeholder, matching: find.byType(GlassSurface)),
+      findsNothing,
+    );
+  });
+
   testWidgets('a scroll folds the field away before the large title moves', (
     tester,
   ) async {
