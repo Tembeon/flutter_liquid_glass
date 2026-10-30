@@ -475,6 +475,38 @@ void main() {
     );
   });
 
+  testWidgets('a lifted lens draws over the copy it bends', (tester) async {
+    const lens = Color(0xFF00FF00);
+    await tester.pumpWidget(
+      _app(
+        RawGlassSelector(
+          itemCount: 2,
+          selectedIndex: 0,
+          onChanged: (_) {},
+          itemBuilder: (context, index, states) => Text('$index'),
+          builder: (context, details) =>
+              details.items(lens: const ColoredBox(color: lens)),
+        ),
+      ),
+    );
+    final gesture = await tester.startGesture(_at(tester, '0'));
+    for (var i = 0; i < 30; i++) {
+      await gesture.moveBy(const Offset(1, 0));
+      await tester.pump(_frame);
+    }
+    expect(
+      find.byType(RawGlassSelector),
+      paints
+        ..paragraph()
+        ..paragraph()
+        ..clipRRect()
+        ..paragraph()
+        ..rect(color: lens),
+    );
+    await gesture.up();
+    await _settle(tester);
+  });
+
   test('a style lerps its colors and merges state by state', () {
     final a = GlassSegmentedControl.styleFrom(
       backgroundColor: const Color(0xFF000000),

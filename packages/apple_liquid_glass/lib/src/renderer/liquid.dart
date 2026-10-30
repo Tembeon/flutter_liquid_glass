@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:apple_liquid_glass/src/renderer/flat.dart';
+import 'package:apple_liquid_glass/src/renderer/lens_shrink.dart';
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
 import 'package:apple_liquid_glass/src/renderer/scroll_edge.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
@@ -176,12 +177,7 @@ LiquidGlassSettings _lensSettings(
   final l = lift.clamp(0.0, 1.0);
   final small = role == GlassRole.knob || role == GlassRole.thumb;
   final displacement = small ? 50 + (9 - 50) * l : 9 * l;
-  final (shrink, rim) = switch (role) {
-    GlassRole.tabBarLens => (0.16, 0.75),
-    GlassRole.lens => (0.20, 1.0),
-    GlassRole.knob => (0.25, 1.0),
-    _ => (0.0, 0.0),
-  };
+  final (shrink, rim) = _shrinkOf(role);
   return base.copyWith(
     frost: small ? 6 * (1 - l) : 0,
     refractionAmount: displacement * 2,
@@ -191,6 +187,13 @@ LiquidGlassSettings _lensSettings(
     backdropShrinkRim: rim,
   );
 }
+
+(double, double) _shrinkOf(GlassRole role) => switch (role) {
+  GlassRole.tabBarLens => (0.16, 0.75),
+  GlassRole.lens => (0.20, 1.0),
+  GlassRole.knob => (0.25, 1.0),
+  _ => (0.0, 0.0),
+};
 
 // A group's layer is an ancestor: writes into it wait for the end of the
 // frame when they come while the framework builds, lays out or paints, or
@@ -687,8 +690,11 @@ class _LiquidLensState extends State<_LiquidLens> {
   @override
   void dispose() {
     _source.removeListener(_onFrame);
+    _report?.value = 0;
     super.dispose();
   }
+
+  ValueNotifier<double>? _report;
 
   void _onFrame() {
     if (_isLifted == _lifted) return;
@@ -704,6 +710,10 @@ class _LiquidLensState extends State<_LiquidLens> {
   @override
   Widget build(BuildContext context) {
     final details = widget.details;
+    final report = _report = GlassLensShrink.maybeOf(context);
+    report?.value = widget.fake || !ImageFilter.isShaderFilterSupported
+        ? 0
+        : _shrinkOf(details.role).$1;
     return Stack(
       fit: StackFit.passthrough,
       children: [
