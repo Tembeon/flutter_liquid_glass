@@ -263,17 +263,35 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
   LiquidGlassField? get _field => widget.live?.value.field ?? widget.field;
   LiquidGlassGlow? get _glow => widget.live?.value.glow ?? widget.glow;
 
+  bool _rebuildPending = false;
+
   void _onLiveFrame() {
     final frame = widget.live!.value;
     final layer = _shapesKey.currentContext?.findRenderObject();
     if (layer is! RenderLiquidGlassLayer) {
-      if (frame.settings != _builtSettings) setState(() {});
+      if (frame.settings != _builtSettings) _rebuild();
       return;
     }
     layer
       ..settings = frame.settings
       ..field = frame.field
       ..glow = frame.glow;
+  }
+
+  // A frame may come from a descendant while the framework builds, lays out
+  // or paints, when this layer can no longer be marked to build.
+  void _rebuild() {
+    if (SchedulerBinding.instance.schedulerPhase !=
+        SchedulerPhase.persistentCallbacks) {
+      setState(() {});
+      return;
+    }
+    if (_rebuildPending) return;
+    _rebuildPending = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _rebuildPending = false;
+      if (mounted) setState(() {});
+    });
   }
 
   void _logDebugFallback(String message) {
