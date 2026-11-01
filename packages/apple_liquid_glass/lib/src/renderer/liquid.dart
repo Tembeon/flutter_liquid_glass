@@ -291,7 +291,9 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
   }
 
   void _leave(_LiquidGroupState? group) {
-    if (group == null || _glow == null) return;
+    if (group == null) return;
+    _afterFrame(() => group.reportGlass(this, null));
+    if (_glow == null) return;
     _glow = null;
     _afterFrame(() => group.reportGlow(this, null));
   }
@@ -359,6 +361,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
       _leave(_group);
       _group = group;
     }
+    group.reportGlass(this, widget.details.glass);
     _brightness = GlassTraits.of(context).brightness;
     _appearance = LiquidGlassRenderer.appearanceOf(
       widget.details.glass,
@@ -527,7 +530,9 @@ class _LiquidGroup extends StatefulWidget {
 class _LiquidGroupState extends State<_LiquidGroup> {
   final _layer = ValueNotifier(const LiquidGlassLayerFrame());
   Object? _lit;
+  final _clearMembers = <Object, bool>{};
   LiquidGlassSettings _base = const LiquidGlassSettings();
+  late GlassTraits _traits;
 
   ValueListenable<GlassFrame>? get _lens => widget.lens?.frame;
 
@@ -576,6 +581,46 @@ class _LiquidGroupState extends State<_LiquidGroup> {
 
   bool get blends => widget.blend != null;
 
+  // UIKit shades each member with its own glass; one layer has one set of
+  // settings, so a group is clear glass only when all its members are.
+  bool get _clear {
+    final glass = widget.lens?.glass ?? widget.glass;
+    if (glass != null) return glass.isClear;
+    return _clearMembers.isNotEmpty && !_clearMembers.containsValue(false);
+  }
+
+  LiquidGlassSettings get _baseSettings => _clear
+      ? LiquidGlassSettings.ios27Clear(tintAmount: _traits.glassTintAmount)
+      : LiquidGlassSettings.ios27Regular(
+          brightness: _traits.brightness,
+          tintAmount: _traits.glassTintAmount,
+        );
+
+  /// Records the glass of [member], or that it left when [glass] is null.
+  ///
+  /// The layer takes new settings in the same frame, so a member that
+  /// joins while the framework builds paints with them; the scope its
+  /// blend group reads follows a frame later.
+  void reportGlass(Object member, Glass? glass) {
+    if (!mounted) return;
+    final wasClear = _clear;
+    if (glass == null) {
+      _clearMembers.remove(member);
+    } else {
+      _clearMembers[member] = glass.isClear;
+    }
+    if (_clear == wasClear) return;
+    _base = _baseSettings;
+    _writeSettings();
+    if (_framing) {
+      _afterFrame(() {
+        if (mounted) setState(() {});
+      });
+    } else {
+      setState(() {});
+    }
+  }
+
   /// Sets the layer's glow to [glow] of [member], or clears it when [glow]
   /// is null and [member] was the one lit.
   void reportGlow(Object member, LiquidGlassGlow? glow) {
@@ -615,13 +660,8 @@ class _LiquidGroupState extends State<_LiquidGroup> {
 
   @override
   Widget build(BuildContext context) {
-    final traits = GlassTraits.of(context);
-    _base = ((widget.lens?.glass ?? widget.glass)?.isClear ?? false)
-        ? LiquidGlassSettings.ios27Clear(tintAmount: traits.glassTintAmount)
-        : LiquidGlassSettings.ios27Regular(
-            brightness: traits.brightness,
-            tintAmount: traits.glassTintAmount,
-          );
+    _traits = GlassTraits.of(context);
+    _base = _baseSettings;
     _writeSettings();
     final blend = widget.blend;
     final child = widget.child;

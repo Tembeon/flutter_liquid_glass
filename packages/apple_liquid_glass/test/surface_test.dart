@@ -369,6 +369,61 @@ void main() {
       );
     });
 
+    testWidgets('a group is clear glass while all its members are', (
+      tester,
+    ) async {
+      LiquidGlassSettings layer() => tester
+          .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
+          .live!
+          .value
+          .settings;
+      LiquidGlassSettings scope() => LiquidGlassSettings.of(
+        tester.element(find.byType(SizedBox).first),
+      );
+      Widget group(GlassRenderer renderer, List<Glass> members) => _app(
+        renderer,
+        GlassGroup(
+          merge: const GlassMerge.spacing(12),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final glass in members)
+                GlassSurface(
+                  glass: glass,
+                  child: const SizedBox(width: 44, height: 44),
+                ),
+            ],
+          ),
+        ),
+      );
+      final clear = LiquidGlassSettings.ios27Clear();
+      final regular = LiquidGlassSettings.ios27Regular(brightness: .light);
+      for (final renderer in [
+        const GlassRenderer.liquid(),
+        const GlassRenderer.fake(),
+      ]) {
+        await tester.pumpWidget(
+          group(renderer, const [Glass.clear(), Glass.clear()]),
+        );
+        expect(layer(), clear, reason: '$renderer');
+        await tester.pump();
+        expect(scope(), clear, reason: '$renderer');
+
+        await tester.pumpWidget(
+          group(renderer, const [Glass.clear(), Glass.regular()]),
+        );
+        expect(layer(), regular, reason: '$renderer');
+        await tester.pump();
+        expect(scope(), regular, reason: '$renderer');
+
+        await tester.pumpWidget(group(renderer, const [Glass.clear()]));
+        await tester.pump();
+        expect(layer(), clear, reason: '$renderer');
+        expect(scope(), clear, reason: '$renderer');
+        await tester.pumpWidget(const SizedBox());
+      }
+    });
+
     testWidgets('a still surface in place of a lifted live one draws at rest', (
       tester,
     ) async {
