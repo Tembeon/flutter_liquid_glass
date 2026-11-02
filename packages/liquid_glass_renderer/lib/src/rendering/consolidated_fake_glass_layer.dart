@@ -550,7 +550,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
 
   @override
   void onPreparing() {
-    if (!attached) return;
     runCompositorPoll();
     // Where the glass is on screen decides how its passes are cut, and
     // retained motion moves it without repainting.
@@ -563,7 +562,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
 
   @override
   void onCompositing() {
-    if (!attached) return;
     // Glass over its copy reads no backdrop: an opacity pass around it needs
     // no seed, and a seeded one would stand in the copy's way.
     compositionSeedSuppressed = true;

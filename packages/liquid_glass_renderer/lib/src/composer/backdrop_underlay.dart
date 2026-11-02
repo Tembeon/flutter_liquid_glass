@@ -59,7 +59,6 @@ class BackdropUnderlay {
 
   ui.Image? _image;
   Offset _offset = Offset.zero;
-  _Tile? _tile;
   // The screen rect the copy holds.
   Rect _rect = Rect.zero;
   // What the copy was drawn from, with the copies drawn with it.
@@ -215,7 +214,7 @@ class BackdropUnderlay {
   // recorded anew, with the island and the rect each member holds of it, or
   // null when the island cannot be drawn: blocked, not reached, or, for more
   // than one copy, over glass whose copy is pending.
-  ({UnderlayCopy copy, _Island island, bool held, List<Rect> rects})? _islandOf(
+  _Decision? _islandOf(
     List<BackdropUnderlay> members,
     List<_Ask> asks,
     _Scan scan,
@@ -298,7 +297,7 @@ class BackdropUnderlay {
     }
     if (!alone && signed.waits >= 0) return null;
     final island = _Island(ask, rect);
-    final tile = _Tile(island, rect, level: signed.waits + 1);
+    final tile = _Tile(island, level: signed.waits + 1);
     island.tile = tile;
     // It is recorded when the frame's copies are drawn: then, a copy that
     // holds glass whose copy is drawn later in the frame has that glass's
@@ -375,7 +374,6 @@ class BackdropUnderlay {
   // Draws this copy from [island] from now on, [rect] of it.
   void _join(_Island island, Rect rect, _Ask ask) {
     release();
-    _tile = island.tile;
     _rect = rect;
     _island = island;
     island.members.add(this);
@@ -391,7 +389,6 @@ class BackdropUnderlay {
   void release() {
     _image?.dispose();
     _image = null;
-    _tile = null;
     _island?._leave(this);
     _island = null;
   }
@@ -485,6 +482,15 @@ final class UnderlayFrame {
   }
 }
 
+// A copy served from an island, with the island and the rect each member
+// holds of it, and whether the island held.
+typedef _Decision = ({
+  UnderlayCopy copy,
+  _Island island,
+  bool held,
+  List<Rect> rects,
+});
+
 // What a copy is asked for in a frame; see [BackdropUnderlay.request].
 final class _Ask {
   _Ask({
@@ -539,8 +545,8 @@ final class _Plan {
   Rect rect;
   double _covered;
 
-  bool _decided = false;
-  ({_Island island, bool held, List<Rect> rects})? _decision;
+  // What the first member decided for all, in [_scan].
+  _Decision? _decision;
   _Scan? _scan;
   // Where the glass of the island's members served so far begins in the
   // scan, and what each paints with its glass.
@@ -586,31 +592,23 @@ final class _Plan {
   ) {
     final index = members.indexOf(underlay);
     if (index == 0) {
-      _decided = true;
-      _scan = scan;
       if (limit < 0) return null;
       final decided = underlay._islandOf(members, _asks, scan, limit);
       if (decided == null) return null;
-      _decision = (
-        island: decided.island,
-        held: decided.held,
-        rects: decided.rects,
-      );
+      _decision = decided;
+      _scan = scan;
       _starts.add(limit);
       if (ask.own case final own?) _owned.add(own);
       return decided.copy;
     }
     final decision = _decision;
-    final rect = decision?.rects[index];
-    if (!_decided ||
-        decision == null ||
-        rect == null ||
+    if (decision == null ||
         limit < 0 ||
         !identical(scan, _scan) ||
         !scan.onlyIslandBetween(
           _starts.first,
           limit,
-          rect,
+          decision.rects[index],
           ask.body!,
           starts: _starts,
           owned: _owned,
@@ -620,7 +618,9 @@ final class _Plan {
     }
     _starts.add(limit);
     if (ask.own case final own?) _owned.add(own);
-    if (!decision.held) underlay._join(decision.island, rect, ask);
+    if (!decision.held) {
+      underlay._join(decision.island, decision.rects[index], ask);
+    }
     return UnderlayCopy._(underlay, underlay._rect, ask.pixelRatio);
   }
 }
@@ -1719,17 +1719,17 @@ final class UnderlayCopy {
 
   /// The level of the copy in the frame's drawing order while it is not
   /// drawn, or null.
-  int? get pendingLevel => ready ? null : _underlay._tile?.level;
+  int? get pendingLevel => ready ? null : _underlay._island?.tile?.level;
 
   /// The image that holds the copy, shared with other copies of the frame.
   ui.Image get image {
-    if (!ready) _underlay._tile?.atlas?.flush('read');
+    if (!ready) _underlay._island?.tile?.atlas?.flush('read');
     return _underlay._image!;
   }
 
   /// Where [rect]'s top left corner sits in [image], in its pixels.
   Offset get offset {
-    if (!ready) _underlay._tile?.atlas?.flush('read');
+    if (!ready) _underlay._island?.tile?.atlas?.flush('read');
     return _underlay._offset;
   }
 }
@@ -1771,10 +1771,9 @@ class UnderlayPictureLayer extends GlassPictureLayer {
 }
 
 class _Tile {
-  _Tile(this.island, this.rect, {required this.level})
-    : devicePixelRatio = island.pixelRatio,
-      width = (rect.width * island.pixelRatio).round(),
-      height = (rect.height * island.pixelRatio).round();
+  _Tile(this.island, {required this.level})
+    : width = (island.rect.width * island.pixelRatio).round(),
+      height = (island.rect.height * island.pixelRatio).round();
 
   final _Island island;
 
@@ -1786,12 +1785,12 @@ class _Tile {
   final int level;
   ui.Picture? content;
   ui.Picture? Function()? redraw;
-  final Rect rect;
-  final double devicePixelRatio;
   final int width;
   final int height;
   Offset offset = Offset.zero;
 
+  Rect get rect => island.rect;
+  double get devicePixelRatio => island.pixelRatio;
   ui.ImageFilter? get filter => island.filter;
   Object? get filterKey => island.filterKey;
   Rect? get filterClip => island.filterClip;
@@ -2052,7 +2051,6 @@ final class _Atlas {
         final shift =
             (island.rects[i].topLeft - tile.rect.topLeft) *
             tile.devicePixelRatio;
-        member._tile = null;
         member._image = image.clone();
         member._offset =
             tile.offset +

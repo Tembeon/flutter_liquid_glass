@@ -1813,7 +1813,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   @override
   void onTransformChanged() {
-    // Retained geometry follows the move in onCompositing; glass with nothing
+    // Retained geometry follows the move in onPreparing; glass with nothing
     // to reuse repaints.
     if (!hasReusableGeometry && !hasReusableIdleContents) {
       GlassComposer.repaint(this);
@@ -1822,14 +1822,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   @override
   void onPreparing() {
-    if (!attached) return;
     runCompositorPoll();
     _asked = _rig.hasSlot ? _askUnderlay() : null;
   }
 
   @override
   void onCompositing() {
-    if (!attached) return;
     if (_rig.hasSlot) _composeUnderlay();
   }
 
