@@ -905,6 +905,8 @@ class _Tile {
   final int width;
   final int height;
   Offset offset = Offset.zero;
+
+  Rect get bounds => offset & Size(width.toDouble(), height.toDouble());
 }
 
 // The copies recorded in a frame, drawn into one image: every image drawn
@@ -957,7 +959,19 @@ abstract final class _Atlas {
           assert(picture != null, 'A copy recorded again is never blocked.');
           tile.content = picture ?? ui.PictureRecorder().endRecording();
         }
-        _pack(batch);
+        // Copies under one filter lie side by side, to share its layer.
+        final runs = <Object?, List<_Tile>>{};
+        for (final tile in batch) {
+          runs
+              .putIfAbsent(
+                tile.filter == null
+                    ? null
+                    : (tile.owner._filterKey, tile.devicePixelRatio),
+                () => [],
+              )
+              .add(tile);
+        }
+        _pack([for (final run in runs.values) ...run]);
       }
     } finally {
       _flushing = false;
@@ -991,6 +1005,29 @@ abstract final class _Atlas {
     }
   }
 
+  // Runs of copies whose bounds together cover little more than the copies.
+  static List<List<_Tile>> _clusters(List<_Tile> tiles) {
+    final clusters = <List<_Tile>>[];
+    var bounds = Rect.zero;
+    var area = 0.0;
+    for (final tile in tiles) {
+      final rect = tile.bounds;
+      final size = rect.width * rect.height;
+      final joined = bounds.expandToInclude(rect);
+      if (clusters.isNotEmpty &&
+          joined.width * joined.height <= (area + size) * 1.25) {
+        clusters.last.add(tile);
+        bounds = joined;
+        area += size;
+      } else {
+        clusters.add([tile]);
+        bounds = rect;
+        area = size;
+      }
+    }
+    return clusters;
+  }
+
   static void _draw(List<_Tile> tiles, int width, int height) {
     drawn++;
     final recorder = ui.PictureRecorder();
@@ -998,18 +1035,18 @@ abstract final class _Atlas {
     void place(_Tile tile) {
       canvas.save();
       canvas.translate(tile.offset.dx, tile.offset.dy);
-      canvas.clipRect(
-        Rect.fromLTWH(0, 0, tile.width.toDouble(), tile.height.toDouble()),
-      );
+      canvas.clipRect(Offset.zero & tile.bounds.size);
       canvas.drawPicture(tile.content!);
       canvas.restore();
     }
 
-    // Copies that a filter replaces whole share one filtered layer per
-    // filter: the blur reaches across a copy's edge no further than the band
-    // a copy holds around what its glass samples, and the layer is clipped
-    // to the copies so that it reaches no other.
+    // Copies that a filter replaces whole and that lie side by side share
+    // one filtered layer: the blur reaches across a copy's edge no further
+    // than the band a copy holds around what its glass samples, and the
+    // layer is clipped to the copies so that it reaches no other. The layer
+    // is filtered whole, so copies far apart are filtered each on its own.
     final shared = <(Object?, double), List<_Tile>>{};
+    final isolated = <_Tile>[];
     for (final tile in tiles) {
       if (tile.filter == null) {
         place(tile);
@@ -1021,43 +1058,44 @@ abstract final class _Atlas {
               () => [],
             )
             .add(tile);
+      } else {
+        isolated.add(tile);
       }
     }
     for (final group in shared.values) {
-      final dpr = group.first.devicePixelRatio;
-      final area = Path();
-      for (final tile in group) {
-        area.addRect(
-          tile.offset & Size(tile.width.toDouble(), tile.height.toDouble()),
+      for (final cluster in _clusters(group)) {
+        if (cluster.length == 1) {
+          isolated.add(cluster.single);
+          continue;
+        }
+        final dpr = cluster.first.devicePixelRatio;
+        final area = Path();
+        for (final tile in cluster) {
+          area.addRect(tile.bounds);
+        }
+        final bounds = area.getBounds();
+        final paint = Paint();
+        paint.imageFilter = cluster.first.filter;
+        canvas.save();
+        canvas.clipPath(area, doAntiAlias: false);
+        // The filter is in logical pixels, as the backdrop filter it stands
+        // for is under the view's scale.
+        canvas.scale(dpr);
+        canvas.saveLayer(
+          Rect.fromLTRB(
+            bounds.left / dpr,
+            bounds.top / dpr,
+            bounds.right / dpr,
+            bounds.bottom / dpr,
+          ),
+          paint,
         );
+        canvas.scale(1 / dpr);
+        cluster.forEach(place);
+        canvas.restore();
+        canvas.restore();
       }
-      final paint = Paint();
-      paint.imageFilter = group.first.filter;
-      canvas.save();
-      canvas.clipPath(area, doAntiAlias: false);
-      // The filter is in logical pixels, as the backdrop filter it stands
-      // for is under the view's scale.
-      canvas.scale(dpr);
-      canvas.saveLayer(
-        Rect.fromLTRB(
-          area.getBounds().left / dpr,
-          area.getBounds().top / dpr,
-          area.getBounds().right / dpr,
-          area.getBounds().bottom / dpr,
-        ),
-        paint,
-      );
-      canvas.scale(1 / dpr);
-      group.forEach(place);
-      canvas.restore();
-      canvas.restore();
     }
-    final isolated = [
-      for (final tile in tiles)
-        if (tile.filter != null &&
-            (tile.filterClip != null || tile.filterBlendMode != BlendMode.src))
-          tile,
-    ];
     final content = recorder.endRecording();
     final ui.Image image;
     if (isolated.isEmpty) {
@@ -1072,10 +1110,7 @@ abstract final class _Atlas {
       for (final tile in isolated) {
         final filter = tile.filter!;
         final dpr = tile.devicePixelRatio;
-        b.pushClipRect(
-          tile.offset & Size(tile.width.toDouble(), tile.height.toDouble()),
-          clipBehavior: Clip.antiAliasWithSaveLayer,
-        );
+        b.pushClipRect(tile.bounds, clipBehavior: Clip.antiAliasWithSaveLayer);
         b.addPicture(tile.offset, tile.content!);
         final toAtlas = Matrix4.translationValues(
           tile.offset.dx - tile.rect.left * dpr,
