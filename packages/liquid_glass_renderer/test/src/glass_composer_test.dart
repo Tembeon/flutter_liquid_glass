@@ -3,6 +3,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
 
 Widget _glass() => LiquidGlassLayer(
   settings: LiquidGlassSettings.ios27RegularLight(),
@@ -78,11 +79,63 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('the composer composes each layer once a frame, ahead of the '
+      'scene, and a scene it did not plan composes its own', (tester) async {
+    final log = <String>[];
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Column(
+          children: [
+            _glass(),
+            RepaintBoundary(
+              child: _Recorder(
+                log: log,
+                name: 'outer',
+                child: _Recorder(
+                  log: log,
+                  name: 'inner',
+                  child: const SizedBox.square(dimension: 20),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    log.clear();
+    tester.binding.scheduleFrame();
+    await tester.pump();
+    expect(log, [
+      'outer composed',
+      'inner composed',
+      'outer planned',
+      'inner planned',
+    ]);
+
+    log.clear();
+    final boundary = tester.renderObject<RenderRepaintBoundary>(
+      find
+          .ancestor(
+            of: find.byType(_Recorder).first,
+            matching: find.byType(RepaintBoundary),
+          )
+          .first,
+    );
+    (await tester.runAsync(boundary.toImage))!.dispose();
+    expect(log, [
+      'outer unplanned',
+      'outer composed',
+      'inner unplanned',
+      'inner composed',
+    ]);
+  });
+
   test('each owner gets its own composer and can be disposed after', () {
     final a = PipelineOwner();
     final b = PipelineOwner();
-    final siteA = Object();
-    final siteB = Object();
+    final siteA = _Site();
+    final siteB = _Site();
     GlassComposer.track(a, siteA);
     GlassComposer.track(b, siteB);
     final composers = [
@@ -98,4 +151,54 @@ void main() {
     a.dispose();
     b.dispose();
   });
+}
+
+class _Site extends RenderProxyBox with TransformTrackingRenderObjectMixin {
+  @override
+  void onTransformChanged() {}
+}
+
+class _Recorder extends SingleChildRenderObjectWidget {
+  const _Recorder({required this.log, required this.name, super.child});
+
+  final List<String> log;
+  final String name;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderRecorder(log, name);
+}
+
+class _RenderRecorder extends RenderProxyBox {
+  _RenderRecorder(this.log, this.name);
+
+  final List<String> log;
+  final String name;
+
+  @override
+  bool get alwaysNeedsCompositing => true;
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final layer =
+        (this.layer as _RecordingLayer?) ?? _RecordingLayer(log, name);
+    this.layer = layer;
+    context.pushLayer(layer, super.paint, offset);
+  }
+}
+
+class _RecordingLayer extends OffsetLayer with ComposedLayer {
+  _RecordingLayer(this.log, this.name);
+
+  final List<String> log;
+  final String name;
+
+  @override
+  void compose() => log.add('$name composed');
+
+  @override
+  void updateSubtreeNeedsAddToScene() {
+    log.add('$name ${composedAhead ? 'planned' : 'unplanned'}');
+    super.updateSubtreeNeedsAddToScene();
+  }
 }

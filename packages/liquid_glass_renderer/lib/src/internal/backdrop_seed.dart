@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/internal/ancestor_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/internal/glass_frame_clock.dart';
@@ -540,7 +541,7 @@ BackdropPassPlan planSeededBackdropPass({
 /// told through [onActiveChanged] so it can map coordinates accordingly
 /// before the scene is built.
 @internal
-class SeededBackdropPassLayer extends ContainerLayer {
+class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
   /// How glass passes are seeded: [BackdropSeed.blur] wherever Impeller
   /// renders, and [BackdropSeed.none] on Skia, on the web, and under
   /// `flutter test`, whose tester renders seeded passes wrongly. The suite can
@@ -792,10 +793,7 @@ class SeededBackdropPassLayer extends ContainerLayer {
   }
 
   @override
-  void updateSubtreeNeedsAddToScene() {
-    _decide();
-    super.updateSubtreeNeedsAddToScene();
-  }
+  void compose() => _decide();
 
   // Everything painted before this layer, including the effects whose own
   // decisions came earlier in this same pass over the tree, is final here.

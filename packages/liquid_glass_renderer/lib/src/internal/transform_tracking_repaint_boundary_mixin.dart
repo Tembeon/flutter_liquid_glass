@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
 import 'package:meta/meta.dart';
 
@@ -17,6 +18,20 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
 
   @override
   bool get alwaysNeedsCompositing => true;
+
+  @mustCallSuper
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    GlassComposer.track(owner, this);
+  }
+
+  @mustCallSuper
+  @override
+  void detach() {
+    GlassComposer.untrack(owner!, this);
+    super.detach();
+  }
 
   /// This object's transform to the screen. While its layer composites,
   /// the one the layer read for the frame, as nothing moves a render object
@@ -59,15 +74,19 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
   /// Also runs when a mounted subtree stops being painted by its ancestor.
   void onTrackingLayerDetached() {}
 
+  /// The transform to the screen changed. Runs before paint when the view's
+  /// composer polls, where a repaint lands in the same frame, and otherwise
+  /// while the layer composites (see [GlassComposer.repaint]).
   void onTransformChanged();
 
   /// Runs every time this tracking layer is composited, including frames where
-  /// the tracked transform is unchanged.
+  /// the tracked transform is unchanged. Repaints from here go through
+  /// [GlassComposer.repaint].
   void onCompositing() {}
 }
 
 @internal
-class GeometryTransformTrackingLayer extends OffsetLayer {
+class GeometryTransformTrackingLayer extends OffsetLayer with ComposedLayer {
   GeometryTransformTrackingLayer();
 
   RenderObject? renderObject;
@@ -83,31 +102,46 @@ class GeometryTransformTrackingLayer extends OffsetLayer {
     onDetached?.call();
   }
 
+  /// Reads the tracked object's transform before paint and reports a
+  /// change, so that a repaint it asks for lands in the same frame.
+  void pollTransform() {
+    final renderObject = this.renderObject;
+    if (!attached || renderObject == null || !renderObject.attached) return;
+    _poll(renderObject, compositing: false);
+  }
+
+  // Resolves retained transforms after layout and paint, before the update
+  // pass propagates retained-rendering dirtiness and submits engine layers.
+  // Updating an effect from addToScene is too late: a containing layer may
+  // already have been selected for retained rendering.
+  @override
+  void compose() {
+    final renderObject = this.renderObject;
+    if (renderObject == null || !renderObject.attached) return;
+    _poll(renderObject, compositing: true);
+  }
+
+  void _poll(RenderObject renderObject, {required bool compositing}) {
+    final currentTransform = renderObject.getTransformTo(null);
+    _composited = currentTransform;
+    try {
+      if (!MatrixUtils.matrixEquals(currentTransform, _lastTransform)) {
+        onTransformChanged?.call();
+        _lastTransform = currentTransform;
+      }
+      if (compositing) onCompositing?.call();
+    } finally {
+      _composited = null;
+    }
+  }
+
   @override
   void updateSubtreeNeedsAddToScene() {
-    // Resolve retained transforms after layout and paint, but before Flutter
-    // propagates retained-rendering dirtiness and submits any engine layers.
-    // Updating an effect from addToScene is too late: a containing layer may
-    // already have been selected for retained rendering.
-    final renderObject = this.renderObject;
-    if (renderObject != null && renderObject.attached) {
-      final currentTransform = renderObject.getTransformTo(null);
-      _composited = currentTransform;
-      try {
-        if (!MatrixUtils.matrixEquals(currentTransform, _lastTransform)) {
-          onTransformChanged?.call();
-          _lastTransform = currentTransform;
-        }
-        onCompositing?.call();
-      } finally {
-        _composited = null;
-      }
-    }
+    final planned = composedAhead;
     super.updateSubtreeNeedsAddToScene();
-    // Runs for every attached tracking layer on every built scene, including
-    // when ancestors keep it retained — so GPU work recorded during paint or
-    // retained refresh is always submitted before the scene reaches raster.
-    FlutterGpuGeometryRenderer.flushPendingSubmissions();
+    // The composer submits a planned frame's GPU work once; a scene it did
+    // not plan submits here, before it reaches raster.
+    if (!planned) FlutterGpuGeometryRenderer.flushPendingSubmissions();
   }
 }
 

@@ -1,6 +1,9 @@
 import 'dart:ui';
 
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
+import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
 import 'package:meta/meta.dart';
 
 /// The glass of one view, seen once a frame between paint and compositing.
@@ -11,6 +14,12 @@ import 'package:meta/meta.dart';
 /// layout and before paint, and [flushPaint] after paint and before any
 /// scene. Layer mutations made there are propagated by the update pass that
 /// follows.
+///
+/// Before paint it polls where each site is on the screen, so glass that
+/// moved past what its retained layers can follow repaints in this frame.
+/// After paint it walks the view's layers in paint order and has every
+/// [ComposedLayer] make its decisions for the frame, then submits the
+/// frame's flutter_gpu passes once.
 ///
 /// One composer per view owner, adopted by the first glass that attaches
 /// there ([track]) and dropped and disposed when the last one detaches, so a
@@ -25,7 +34,10 @@ final class GlassComposer extends PipelineOwner {
 
   /// Starts following [site] on the composer of [owner], adopting one under
   /// [owner] if it has none. Call from a render object's `attach`.
-  static void track(PipelineOwner owner, Object site) {
+  static void track(
+    PipelineOwner owner,
+    TransformTrackingRenderObjectMixin site,
+  ) {
     var composer = _of(owner);
     if (composer == null) {
       composer = GlassComposer._();
@@ -36,7 +48,10 @@ final class GlassComposer extends PipelineOwner {
 
   /// Stops following [site]. The last site to leave drops the composer.
   /// Call from a render object's `detach`, before `super.detach`.
-  static void untrack(PipelineOwner owner, Object site) {
+  static void untrack(
+    PipelineOwner owner,
+    TransformTrackingRenderObjectMixin site,
+  ) {
     final composer = _of(owner);
     if (composer == null || !composer._sites.remove(site)) return;
     if (composer._sites.isNotEmpty) return;
@@ -66,17 +81,121 @@ final class GlassComposer extends PipelineOwner {
     return all;
   }
 
-  final Set<Object> _sites = Set.identity();
+  /// Marks [node] to paint again from a decision made between paint and the
+  /// scene. While its view's composer composes, the frame's paint is over
+  /// and the node paints in the next frame, as a mark made while the scene
+  /// is built would.
+  static void repaint(RenderObject node) {
+    final owner = node.owner;
+    if (owner == null || !(_of(owner)?._composing ?? false)) {
+      node.markNeedsPaint();
+      return;
+    }
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (node.attached) node.markNeedsPaint();
+    });
+  }
+
+  final Set<TransformTrackingRenderObjectMixin> _sites = Set.identity();
+
+  bool _composing = false;
+
+  // Stamps the layers composed in this frame; see [ComposedLayer].
+  int _frame = 0;
 
   /// What this composer saw since it was adopted.
   @visibleForTesting
   final ComposerCensus census = ComposerCensus();
 
   @override
+  void flushCompositingBits() {
+    super.flushCompositingBits();
+    for (final site in _sites) {
+      site.layer?.pollTransform();
+    }
+  }
+
+  @override
   void flushPaint() {
     super.flushPaint();
     census.frames++;
     census.sites += _sites.length;
+    _frame++;
+    final root = _root();
+    if (root != null) {
+      _composing = true;
+      try {
+        _compose(root);
+      } finally {
+        _composing = false;
+      }
+    }
+    FlutterGpuGeometryRenderer.flushPendingSubmissions();
+  }
+
+  ContainerLayer? _root() {
+    for (final site in _sites) {
+      Layer? layer = site.layer;
+      if (layer == null || !layer.attached) continue;
+      while (layer!.parent != null) {
+        layer = layer.parent;
+      }
+      return layer as ContainerLayer;
+    }
+    return null;
+  }
+
+  // Parents before children, children in paint order, each read after its
+  // parent's decisions moved layers: the order of the update pass.
+  void _compose(ContainerLayer layer) {
+    if (layer is ComposedLayer) layer._composeFor(this);
+    var child = layer.firstChild;
+    while (child != null) {
+      if (child is ContainerLayer) _compose(child);
+      child = child.nextSibling;
+    }
+  }
+}
+
+/// A layer whose decisions for a frame are made after every layer has
+/// painted and before the scene is built ([compose]).
+///
+/// The view's [GlassComposer] composes it in paint order. A scene the
+/// composer did not plan, such as an image of a subtree taken outside a
+/// frame or before the composer ran, composes it in the update pass that
+/// builds the scene, which also runs parents before children.
+@internal
+mixin ComposedLayer on ContainerLayer {
+  GlassComposer? _composedBy;
+  int _composedIn = 0;
+
+  /// Makes this frame's decisions. Layers painted before this one have made
+  /// theirs.
+  void compose();
+
+  void _composeFor(GlassComposer composer) {
+    compose();
+    _composedBy = composer;
+    _composedIn = composer._frame;
+  }
+
+  /// Whether the view's composer composed this layer for the scene being
+  /// built. Read before `super.updateSubtreeNeedsAddToScene`, which consumes
+  /// it.
+  @protected
+  bool get composedAhead =>
+      _composedBy?._frame == _composedIn &&
+      SchedulerBinding.instance.schedulerPhase ==
+          SchedulerPhase.persistentCallbacks;
+
+  @override
+  void updateSubtreeNeedsAddToScene() {
+    if (composedAhead) {
+      _composedBy = null;
+    } else {
+      compose();
+    }
+    super.updateSubtreeNeedsAddToScene();
   }
 }
 

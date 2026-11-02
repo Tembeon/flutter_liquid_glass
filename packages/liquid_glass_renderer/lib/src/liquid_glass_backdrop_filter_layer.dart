@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/internal/backdrop_underlay.dart';
 
 // An identity backdrop filter: under a clip it gives the filter inside it a
@@ -32,7 +33,7 @@ const ui.ImageFilter _seed = ui.ColorFilter.matrix(<double>[
 ///
 /// The filter applies to the screen-aligned backdrop: under a transform that
 /// scales or turns the layer, it reads the backdrop.
-class LiquidGlassBackdropFilterLayer extends ContainerLayer {
+class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   /// Creates the layer.
   LiquidGlassBackdropFilterLayer({
     required this._filter,
@@ -116,11 +117,12 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
   @visibleForTesting
   BackdropUnderlay get debugUnderlay => _underlay;
 
-  // Runs on every built scene, also when an ancestor stays retained, after
+  // Runs for every built scene, also when an ancestor stays retained, after
   // every layer has painted: the choice between the copy and the backdrop
   // is made here, where it can still mark the layer for adding.
+  @internal
   @override
-  void updateSubtreeNeedsAddToScene() {
+  void compose() {
     final copy = BackdropUnderlay.enabled ? _serve() : null;
     // A copy drawn in an earlier frame keeps its picture while it lies where
     // it did; a copy not drawn yet is drawn with the frame's other copies.
@@ -133,14 +135,13 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
     _copy = copy;
     _servedKey = key;
     if (copy == null) _underlay.release();
-    super.updateSubtreeNeedsAddToScene();
   }
 
   // The copy this frame filters, or null while the layer reads the
   // backdrop.
   UnderlayCopy? _serve() {
-    final view = RendererBinding.instance.renderViews.firstOrNull;
-    if (view == null || !attached) return null;
+    final view = owner;
+    if (view is! RenderView) return null;
     final dpr = _devicePixelRatio;
     final toScreen = Matrix4.diagonal3Values(1 / dpr, 1 / dpr, 1);
     final chain = <Layer>[];

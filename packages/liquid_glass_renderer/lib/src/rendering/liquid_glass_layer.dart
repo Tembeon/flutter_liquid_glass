@@ -1782,7 +1782,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (!drawableEmpty && hasReusableGeometry && _shaderHandle.layer != null) {
       _bindFilter(_shaderHandle.layer!);
     } else {
-      markNeedsPaint();
+      GlassComposer.repaint(this);
     }
   }
 
@@ -2049,21 +2049,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // MARK: Compositing
 
   @override
-  void attach(PipelineOwner owner) {
-    super.attach(owner);
-    GlassComposer.track(owner, this);
-  }
-
-  @override
-  void detach() {
-    GlassComposer.untrack(owner!, this);
-    super.detach();
-  }
-
-  @override
   void onTransformChanged() {
     // Synchronize the frame's mapping after retained translation is resolved.
-    if (!hasReusableGeometry && !hasReusableIdleContents) markNeedsPaint();
+    if (!hasReusableGeometry && !hasReusableIdleContents) {
+      GlassComposer.repaint(this);
+    }
   }
 
   @override
@@ -2079,7 +2069,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       // seeding): this frame reads the backdrop, and the next paint picks the
       // path again.
       if (_cachesBackdrop) _composeCached(overCopy: false);
-      markNeedsPaint();
+      GlassComposer.repaint(this);
     } else if (_cachesBackdrop) {
       _composeCached();
     }
@@ -2158,8 +2148,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         storage[4].abs() > 1e-6) {
       return null;
     }
-    final view = RendererBinding.instance.renderViews.firstOrNull;
-    if (view == null) return null;
+    final view = owner?.rootNode;
+    if (view is! RenderView) return null;
     final logical = MatrixUtils.transformRect(
       screen,
       bounds.expandToPixelBuckets(dpr),
@@ -2442,7 +2432,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         })) {
       return;
     }
-    if (motion.needsRepaint) markNeedsPaint();
+    if (motion.needsRepaint) GlassComposer.repaint(this);
   }
 
   void _debugPaintGeometry(PaintingContext context, Offset offset) {

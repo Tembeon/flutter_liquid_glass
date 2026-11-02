@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/internal/ancestor_clip.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 import 'package:meta/meta.dart';
@@ -150,7 +151,7 @@ class CapturePass {
 /// Clip plus identity backdrop filter that starts the seeded pass. When
 /// disabled, or while its region is clipped away, its children composite
 /// directly, so turning the pass on and off never changes the layer tree.
-class _CaptureClipLayer extends ContainerLayer {
+class _CaptureClipLayer extends ContainerLayer with ComposedLayer {
   static const _identity = ColorFilter.matrix(<double>[
     1, 0, 0, 0, 0, //
     0, 1, 0, 0, 0, //
@@ -160,7 +161,7 @@ class _CaptureClipLayer extends ContainerLayer {
 
   CapturePass? _pass;
 
-  /// The compositor refresh in [updateSubtreeNeedsAddToScene] writes these
+  /// The compositor refresh in [compose] writes these
   /// directly; real changes mark this branch dirty for the same scene.
   bool get enabled => _enabled;
   bool _enabled = false;
@@ -180,13 +181,11 @@ class _CaptureClipLayer extends ContainerLayer {
 
   ui.BackdropFilterEngineLayer? _backdropEngineLayer;
 
+  // Parents compose before children, so refreshing here gives descendant
+  // glass layers' onCompositing hooks the current pass origin in the same
+  // frame.
   @override
-  void updateSubtreeNeedsAddToScene() {
-    // Parents run before children, so refreshing here gives descendant glass
-    // layers' onCompositing hooks the current pass origin in the same frame.
-    _pass?.syncRegion();
-    super.updateSubtreeNeedsAddToScene();
-  }
+  void compose() => _pass?.syncRegion();
 
   @override
   void addToScene(ui.SceneBuilder builder) {

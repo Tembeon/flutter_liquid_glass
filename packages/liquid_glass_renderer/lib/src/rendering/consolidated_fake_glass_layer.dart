@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/internal/backdrop_capture_debug.dart';
 import 'package:liquid_glass_renderer/src/internal/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/internal/fake_glass_color.dart';
@@ -709,7 +710,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   void _refreshRetainedFrame() {
     final slot = _retainedFrameSlot.layer;
     if (slot == null) {
-      markNeedsPaint();
+      GlassComposer.repaint(this);
       return;
     }
     final bounds = prepareFrameGeometry();
