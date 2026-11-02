@@ -134,11 +134,17 @@ class BackdropUnderlay {
   /// the caller's glass rather than under it and is left out of the copy, so
   /// glass side by side never waits on another's copy.
   ///
+  /// [own] is the layer holding everything the caller paints with its glass
+  /// (its shadows and children). Copies beside the caller's that are drawn
+  /// together with it ignore what is painted there: NEAR, glass does not
+  /// show its neighbour's shadow and label.
+  ///
   /// Called while the frame composites, when the layers before [anchor] are
   /// final.
   UnderlayCopy? imageFor({
     required Layer anchor,
     required double devicePixelRatio,
+    OpacitySeedLayer? own,
     required Rect region,
     required Rect screen,
     ui.ImageFilter? filter,
@@ -225,7 +231,16 @@ class BackdropUnderlay {
     // picture, and a copy beside others is recorded with them.
     tile.redraw = record;
     if (signed.waits < 0 && body != null && filterClip == null) {
-      tile.island = _Islander(root, anchor, scan, limit, dpr, body, signed.out);
+      tile.island = _Islander(
+        root,
+        anchor,
+        scan,
+        limit,
+        dpr,
+        body,
+        signed.out,
+        own: own,
+      );
     }
     _tile = tile;
     _Atlas.add(tile);
@@ -1892,10 +1907,17 @@ final class _Gathering {
 
   bool _onlyIslandBetween(_Scan scan, int from, _Islander by, Rect band) {
     final starts = {for (final tile in tiles) tile.island!.start};
+    final owned = <Layer>{
+      for (final tile in tiles)
+        if (tile.island!.own case final own?) own,
+    };
     final entries = scan.entries;
     for (var i = from; i < by.start && i < entries.length; i++) {
       final entry = entries[i];
-      if (starts.contains(i) && entry is _Open && entry.end > i) {
+      if (entry is _Open &&
+          entry.end > i &&
+          (starts.contains(i) ||
+              entry is _Seed && owned.contains(entry.layer))) {
         i = entry.end;
         continue;
       }
@@ -1929,8 +1951,9 @@ final class _Islander {
     this.start,
     this.devicePixelRatio,
     this.body,
-    this.signature,
-  );
+    this.signature, {
+    this.own,
+  });
 
   final Layer root;
   final Layer anchor;
@@ -1940,6 +1963,8 @@ final class _Islander {
   final double devicePixelRatio;
   final Rect body;
   final List<Object?> signature;
+  // What the glass paints with it after [anchor]: its shadows and children.
+  final OpacitySeedLayer? own;
 }
 
 // The copies recorded in a frame, drawn into one image: every image drawn

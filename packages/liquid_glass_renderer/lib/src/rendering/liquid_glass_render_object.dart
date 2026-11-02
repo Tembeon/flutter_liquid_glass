@@ -419,6 +419,11 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
   @protected
   bool get compositionProbeSeeding => _compositionProbe.seeding;
 
+  /// The layer this object paints everything into: its glass, shadows and
+  /// children.
+  @protected
+  OpacitySeedLayer? get paintLayer => _compositionProbe.layer;
+
   /// Leaves the fractional-opacity pass unseeded while this layer reads no
   /// backdrop.
   @protected

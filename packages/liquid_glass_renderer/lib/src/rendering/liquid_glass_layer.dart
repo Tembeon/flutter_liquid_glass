@@ -2169,6 +2169,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
     final copy = _underlay.imageFor(
       anchor: anchor,
+      own: paintLayer,
       devicePixelRatio: dpr,
       region: drawn.inflate(
         (backdropSamplingReach(bounds) + 1) * max(scaleX, scaleY),

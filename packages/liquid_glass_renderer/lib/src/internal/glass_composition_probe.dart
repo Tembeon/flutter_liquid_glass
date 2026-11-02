@@ -15,6 +15,9 @@ import 'package:meta/meta.dart';
 class GlassCompositionProbe {
   final _layer = LayerHandle<OpacitySeedLayer>();
 
+  /// The layer the owner paints into: its glass, shadows and children.
+  OpacitySeedLayer? get layer => _layer.layer;
+
   static const _identity = ColorFilter.matrix(<double>[
     1, 0, 0, 0, 0, //
     0, 1, 0, 0, 0, //
