@@ -10,6 +10,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/internal/ancestor_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/backdrop_capture_debug.dart';
 import 'package:liquid_glass_renderer/src/internal/backdrop_seed.dart';
@@ -2044,6 +2045,18 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   // MARK: Compositing
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    GlassComposer.track(owner, this);
+  }
+
+  @override
+  void detach() {
+    GlassComposer.untrack(owner!, this);
+    super.detach();
+  }
 
   @override
   void onTransformChanged() {
