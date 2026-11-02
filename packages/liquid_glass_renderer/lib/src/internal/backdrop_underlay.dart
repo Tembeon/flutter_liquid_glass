@@ -472,7 +472,9 @@ class _Prefix {
           blocker ??= layer;
         }
         return;
-      case LiquidGlassBackdropFilterLayer(:final servedPicture?):
+      // A copy that holds it draws the filtered copy, which is drawn now if
+      // it is not yet.
+      case LiquidGlassBackdropFilterLayer(serves: true, :final servedPicture?):
         out.add(servedPicture);
         out.add(transform.clone());
         out.add(clip);
@@ -1304,7 +1306,7 @@ final class _Scan {
               skip(entry);
               if (!through) break loop;
               continue loop;
-            case _Served(:final layer) when layer.servedPicture == null:
+            case _Served(:final layer) when !layer.serves:
               if (_meets(entry.reads, band)) {
                 prefix.blocked = true;
                 prefix.blocker ??= layer;
@@ -1660,6 +1662,10 @@ final class UnderlayCopy {
   /// Whether [image] is drawn already.
   bool get ready => _underlay._image != null;
 
+  /// The level of the copy in the frame's drawing order while it is not
+  /// drawn, or null.
+  int? get pendingLevel => ready ? null : _underlay._tile?.level;
+
   /// The image that holds the copy, shared with other copies of the frame.
   ui.Image get image {
     if (!ready) _Atlas.flush();
@@ -1688,7 +1694,7 @@ class UnderlayPictureLayer extends PictureLayer {
   final ui.Picture Function() record;
 
   /// The level of [copy] in the frame's drawing order while it is not drawn.
-  int? get pendingLevel => copy.ready ? null : copy._underlay._tile?.level;
+  int? get pendingLevel => copy.pendingLevel;
 
   /// Records the picture now, if it is not yet.
   void resolve() {

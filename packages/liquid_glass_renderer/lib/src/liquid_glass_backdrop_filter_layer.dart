@@ -79,17 +79,38 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
   }
 
   final _underlay = BackdropUnderlay();
+  UnderlayCopy? _copy;
+  Rect _shown = Rect.zero;
+  Offset _origin = Offset.zero;
   ui.Picture? _served;
   Object? _servedKey;
 
+  /// Whether this frame draws a filtered copy in place of the backdrop read.
+  @internal
+  bool get serves => _copy != null;
+
   /// The filtered copy this frame draws in place of the backdrop read, in
   /// this layer's coordinates, or null while the layer reads the backdrop.
+  /// Recorded when first read: unless a copy taken earlier in the frame holds
+  /// this layer, the copy is drawn with the other copies of the frame rather
+  /// than on its own.
   @internal
-  ui.Picture? get servedPicture => _served;
+  ui.Picture? get servedPicture {
+    final copy = _copy;
+    if (copy == null) return null;
+    if (_served case final served?) return served;
+    final served = _record(copy);
+    _servedKey = _keyOf(copy);
+    return _served = served;
+  }
+
+  // What the picture is drawn from: an equal key draws an equal picture.
+  Object _keyOf(UnderlayCopy copy) =>
+      (copy.image, copy.offset, _shown, _origin);
 
   /// Whether the last composited frame filtered a copy.
   @visibleForTesting
-  bool get debugServed => _served != null;
+  bool get debugServed => _copy != null;
 
   /// The copy this layer filters.
   @visibleForTesting
@@ -100,19 +121,24 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
   // is made here, where it can still mark the layer for adding.
   @override
   void updateSubtreeNeedsAddToScene() {
-    final served = BackdropUnderlay.enabled ? _serve() : null;
-    if (!identical(served, _served)) {
+    final copy = BackdropUnderlay.enabled ? _serve() : null;
+    // A copy drawn in an earlier frame keeps its picture while it lies where
+    // it did; a copy not drawn yet is drawn with the frame's other copies.
+    final key = copy != null && copy.ready ? _keyOf(copy) : null;
+    if (copy == null || key == null || key != _servedKey) {
+      if (_copy != null || copy != null) markNeedsAddToScene();
       _served?.dispose();
-      _served = served;
-      markNeedsAddToScene();
+      _served = null;
     }
-    if (served == null) _underlay.release();
+    _copy = copy;
+    _servedKey = key;
+    if (copy == null) _underlay.release();
     super.updateSubtreeNeedsAddToScene();
   }
 
-  // The copy drawn into this layer's coordinates, or null while the layer
-  // reads the backdrop.
-  ui.Picture? _serve() {
+  // The copy this frame filters, or null while the layer reads the
+  // backdrop.
+  UnderlayCopy? _serve() {
     final view = RendererBinding.instance.renderViews.firstOrNull;
     if (view == null || !attached) return null;
     final dpr = _devicePixelRatio;
@@ -143,15 +169,17 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
       filterBlendMode: BlendMode.srcOver,
     );
     if (copy == null) return null;
-    final shown = clip.intersect(copy.rect);
-    // Read now: a later copy that holds this layer draws its picture.
-    final key = (copy.image, copy.offset, shown, m[12], m[13]);
-    final served = _served;
-    if (served != null && key == _servedKey) return served;
-    _servedKey = key;
+    _shown = clip.intersect(copy.rect);
+    _origin = Offset(m[12], m[13]);
+    return copy;
+  }
+
+  // The copy drawn into this layer's coordinates.
+  ui.Picture _record(UnderlayCopy copy) {
+    final shown = _shown;
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    canvas.translate(-m[12], -m[13]);
+    canvas.translate(-_origin.dx, -_origin.dy);
     final source = shown.shift(-copy.rect.topLeft);
     final offset = copy.offset;
     final paint = Paint();
@@ -175,7 +203,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
 
   @override
   void addToScene(ui.SceneBuilder builder) {
-    final served = _served;
+    final served = servedPicture;
     if (served != null) {
       builder.addPicture(Offset.zero, served);
       addChildrenToScene(builder);
@@ -196,6 +224,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
   void dispose() {
     _served?.dispose();
     _served = null;
+    _copy = null;
     _underlay.dispose();
     super.dispose();
   }

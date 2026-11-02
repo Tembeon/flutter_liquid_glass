@@ -77,6 +77,7 @@ Widget _scene({
   bool texture = false,
   bool band = true,
   bool glass = false,
+  double glassTop = 80,
 }) => Directionality(
   textDirection: TextDirection.ltr,
   child: RepaintBoundary(
@@ -123,7 +124,7 @@ Widget _scene({
           ),
         if (glass)
           Positioned.fromRect(
-            rect: const Rect.fromLTWH(190, 80, 56, 40),
+            rect: Rect.fromLTWH(190, glassTop, 56, 40),
             child: LiquidGlassLayer(
               settings: LiquidGlassSettings.ios27RegularLight().copyWith(
                 frost: 0,
@@ -200,12 +201,14 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(_scene());
+    final picture = _band(tester).servedPicture;
     for (var i = 0; i < 5; i++) {
       tester.binding.scheduleFrame();
       await tester.pump();
     }
     expect(_band(tester).debugServed, isTrue);
     expect(_band(tester).debugUnderlay.debugCaptures, 1);
+    expect(_band(tester).servedPicture, same(picture));
   }, skip: skipProperGlassTests);
 
   testWidgets('the band reads its backdrop over a layer the copy cannot '
@@ -217,6 +220,25 @@ void main() {
     await tester.pumpWidget(_scene(texture: true));
     expect(_band(tester).debugServed, isFalse);
     expect(_band(tester).debugUnderlay.debugMiss, 'blocked by TextureLayer');
+  }, skip: skipProperGlassTests);
+
+  testWidgets('the copy under the band is drawn in one image with the '
+      'copies of the glass in the frame', (tester) async {
+    BackdropUnderlay.debugEnabledOverride = true;
+    tester.view.physicalSize = const Size(260, 200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    RenderLiquidGlassLayer glass() => tester.allRenderObjects
+        .whereType<RenderLiquidGlassLayer>()
+        .toSet()
+        .single;
+
+    await tester.pumpWidget(_scene(glass: true, glassTop: 140, shift: 0.3));
+    final drawn = BackdropUnderlay.debugImagesDrawn;
+    await tester.pumpWidget(_scene(glass: true, glassTop: 140));
+    expect(_band(tester).debugServed, isTrue);
+    expect(glass().debugDrewOverUnderlay, isTrue);
+    expect(BackdropUnderlay.debugImagesDrawn, drawn + 1);
   }, skip: skipProperGlassTests);
 
   testWidgets('glass near the band draws from its own copy while the band '
