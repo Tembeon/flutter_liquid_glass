@@ -18,7 +18,7 @@ const _outsideComposer = {
   'lib/src/internal/backdrop_seed.dart': 2,
   'lib/src/internal/backdrop_underlay.dart': 12,
   'lib/src/internal/warm_up.dart': 5,
-  'lib/src/rendering/liquid_glass_layer.dart': 3,
+  'lib/src/rendering/liquid_glass_layer.dart': 1,
 };
 
 void main() {
