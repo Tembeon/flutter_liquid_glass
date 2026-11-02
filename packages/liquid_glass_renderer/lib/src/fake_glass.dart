@@ -1,4 +1,4 @@
-// ignore_for_file: require_trailing_commas
+// ignore_for_file: require_trailing_commas, cascade_invocations
 
 import 'dart:ui' as ui;
 
@@ -18,7 +18,11 @@ import 'package:liquid_glass_renderer/src/shaders.dart';
 /// A lower-cost approximation of [LiquidGlass] without refraction geometry.
 ///
 /// It blurs and color-filters the backdrop and draws the tint, contour, bevel
-/// and highlight analytically, and works on both Impeller and Skia. Fake
+/// and highlight analytically, and works on both Impeller and Skia. Where it
+/// can, it filters a copy of what lies under it rather than reading the
+/// backdrop (see [LiquidGlassBackdropFilterLayer]). NEAR: over a copy, the
+/// antialiased rim of the shape differs from reading the backdrop by up to 9
+/// channel levels in the host test; inside the rim it does not differ. Fake
 /// shapes inside a [LiquidGlassBlendGroup] remain visually independent; this
 /// fallback does not compute smooth-union geometry.
 class FakeGlass extends StatelessWidget {
@@ -391,10 +395,11 @@ class RenderFakeGlass extends RenderProxyBox with LivePaintSize {
       _hasBackdropEffect && !backdropHandledByLayer;
 
   @override
-  BackdropFilterLayer? get layer => super.layer as BackdropFilterLayer?;
+  LiquidGlassBackdropFilterLayer? get layer =>
+      super.layer as LiquidGlassBackdropFilterLayer?;
 
   @visibleForTesting
-  BackdropFilterLayer? get debugBackdropFilterLayer => layer;
+  LiquidGlassBackdropFilterLayer? get debugBackdropFilterLayer => layer;
 
   @override
   void paint(PaintingContext context, Offset offset) {
@@ -423,15 +428,27 @@ class RenderFakeGlass extends RenderProxyBox with LivePaintSize {
       return;
     }
 
-    final backdropFilter = fakeGlassBackdropFilter(
+    final parts = fakeGlassBackdropFilterParts(
       settings,
       appearance,
       deviceScale: devicePixelRatio,
       shapeShortSide: paintSize.shortestSide,
     )!;
-    final layer = (this.layer ??= BackdropFilterLayer())
-      ..filter = backdropFilter
-      ..blendMode = BlendMode.srcATop;
+    final clip = offset & paintSize;
+    // One extra logical pixel covers the kernel's rounding at any DPR.
+    final reach = parts.sigma > 0 ? parts.sigma * 3 + 1 : 0.0;
+    final layer = this.layer ??= LiquidGlassBackdropFilterLayer(
+      filter: parts.full,
+      clip: clip,
+      reach: reach,
+      devicePixelRatio: devicePixelRatio,
+      blendMode: BlendMode.srcATop,
+      confinesRead: false,
+    );
+    layer.filter = parts.full;
+    layer.clip = clip;
+    layer.reach = reach;
+    layer.devicePixelRatio = devicePixelRatio;
 
     if (allowSurfaceOutset) {
       final localBounds = Offset.zero & paintSize;

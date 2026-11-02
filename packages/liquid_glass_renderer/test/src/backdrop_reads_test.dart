@@ -15,7 +15,6 @@ final _read = RegExp(
 // the view's composer; these files still build their own reads and leave
 // this list as they move there. A count may only fall.
 const _outsideComposer = {
-  'lib/src/fake_glass.dart': 1,
   'lib/src/internal/backdrop_seed.dart': 2,
   'lib/src/internal/backdrop_underlay.dart': 12,
   'lib/src/internal/warm_up.dart': 5,

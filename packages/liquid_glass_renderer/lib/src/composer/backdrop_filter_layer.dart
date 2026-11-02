@@ -40,7 +40,16 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     required this._clip,
     required this._reach,
     required this._devicePixelRatio,
+    this._blendMode = BlendMode.srcOver,
+    this.confinesRead = true,
   });
+
+  /// Whether a live read is confined to [reach] around [clip]: a pass of
+  /// that size, seeded with the backdrop, is what the filter reads. Without
+  /// it the filter reads the pass it composites in, as a
+  /// [BackdropFilterLayer] does, which inside a fractional opacity is the
+  /// group's own layer.
+  final bool confinesRead;
 
   /// The filter applied to what lies under [clip], composited over it as a
   /// [BackdropFilterLayer] composites its output.
@@ -49,6 +58,16 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   set filter(ui.ImageFilter value) {
     if (identical(value, _filter)) return;
     _filter = value;
+    markNeedsAddToScene();
+  }
+
+  /// How the filtered backdrop composites over the backdrop, as
+  /// [BackdropFilterLayer.blendMode] does.
+  BlendMode get blendMode => _blendMode;
+  BlendMode _blendMode;
+  set blendMode(BlendMode value) {
+    if (value == _blendMode) return;
+    _blendMode = value;
     markNeedsAddToScene();
   }
 
@@ -171,7 +190,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
       filter: _filter,
       filterKey: _filter,
       filterClip: clip,
-      filterBlendMode: BlendMode.srcOver,
+      filterBlendMode: _blendMode,
     );
     if (copy == null) return null;
     _shown = clip.intersect(copy.rect);
@@ -214,15 +233,19 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
       addChildrenToScene(builder);
       return;
     }
-    builder.pushClipRect(_clip.inflate(_reach), clipBehavior: Clip.hardEdge);
-    builder.pushBackdropFilter(_seed, blendMode: BlendMode.src);
+    if (confinesRead) {
+      builder.pushClipRect(_clip.inflate(_reach), clipBehavior: Clip.hardEdge);
+      builder.pushBackdropFilter(_seed, blendMode: BlendMode.src);
+    }
     builder.pushClipRect(_clip, clipBehavior: Clip.hardEdge);
-    builder.pushBackdropFilter(_filter);
+    builder.pushBackdropFilter(_filter, blendMode: _blendMode);
     addChildrenToScene(builder);
     builder.pop();
     builder.pop();
-    builder.pop();
-    builder.pop();
+    if (confinesRead) {
+      builder.pop();
+      builder.pop();
+    }
   }
 
   @override
