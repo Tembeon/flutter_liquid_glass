@@ -76,10 +76,25 @@ Widget _pairScene({
 
 const _first = ValueKey('first');
 
+final _leader = LayerLink();
+
+// [child] placed under the leader, where it lies with the leader at its
+// first place, when [follows].
+Widget _following(bool follows, Widget child) => follows
+    ? CompositedTransformFollower(
+        link: _leader,
+        offset: const Offset(-20, -30),
+        child: child,
+      )
+    : child;
+
 Widget _scene({
   double shift = 0,
   double dot = 0,
   bool texture = false,
+  bool follower = false,
+  double leader = 20,
+  bool glassFollows = false,
   double opacity = 1,
   bool pair = false,
   bool mask = false,
@@ -159,6 +174,25 @@ Widget _scene({
               ),
             ),
           ),
+        if (follower) ...[
+          Positioned(
+            left: leader,
+            top: 30,
+            child: CompositedTransformTarget(
+              link: _leader,
+              child: const SizedBox.square(dimension: 4),
+            ),
+          ),
+          CompositedTransformFollower(
+            link: _leader,
+            offset: const Offset(20, 20),
+            child: const SizedBox(
+              width: 60,
+              height: 30,
+              child: ColoredBox(color: Color(0xFFDB2777)),
+            ),
+          ),
+        ],
         if (texture)
           const Positioned(
             left: 40,
@@ -173,20 +207,23 @@ Widget _scene({
             child: Transform(
               alignment: const Alignment(-0.3, -0.5),
               transform: Matrix4.diagonal3Values(scaleX, scaleY, 1),
-              child: LiquidGlassLayer(
-                settings: LiquidGlassSettings.ios27RegularLight().copyWith(
-                  frost: frost,
-                ),
-                child: Stack(
-                  children: [
-                    Positioned.fromRect(
-                      rect: const Rect.fromLTWH(30, 40, 200, 90),
-                      child: const LiquidGlass(
-                        shape: LiquidRoundedSuperellipse(borderRadius: 28),
-                        child: SizedBox.expand(),
+              child: _following(
+                glassFollows,
+                LiquidGlassLayer(
+                  settings: LiquidGlassSettings.ios27RegularLight().copyWith(
+                    frost: frost,
+                  ),
+                  child: Stack(
+                    children: [
+                      Positioned.fromRect(
+                        rect: const Rect.fromLTWH(30, 40, 200, 90),
+                        child: const LiquidGlass(
+                          shape: LiquidRoundedSuperellipse(borderRadius: 28),
+                          child: SizedBox.expand(),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -303,6 +340,75 @@ void main() {
     expect(_glass(tester).debugDrewOverUnderlay, isFalse);
     expect(_glass(tester).debugUnderlay.debugMiss, 'blocked by TextureLayer');
     expect(_liveFilters(tester), isNotEmpty);
+  }, skip: skipProperGlassTests);
+
+  testWidgets('glass over what a follower paints draws over its copy, as '
+      'reading the backdrop draws it', (tester) async {
+    tester.view.physicalSize = const Size(260, 200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    BackdropUnderlay.debugEnabledOverride = false;
+    await tester.pumpWidget(_scene(follower: true));
+    await tester.pump();
+    final reading = await _pixels(tester);
+
+    BackdropUnderlay.debugEnabledOverride = true;
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(_scene(follower: true, dot: 1));
+    await tester.pumpWidget(_scene(follower: true));
+    expect(_glass(tester).debugDrewOverUnderlay, isTrue);
+    expect(_liveFilters(tester), isEmpty);
+    expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(1));
+  }, skip: skipProperGlassTests);
+
+  testWidgets('glass over a follower draws over a copy taken where the '
+      'leader is in that frame', (tester) async {
+    tester.view.physicalSize = const Size(260, 200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    BackdropUnderlay.debugEnabledOverride = false;
+    await tester.pumpWidget(_scene(follower: true, leader: 70));
+    await tester.pump();
+    final reading = await _pixels(tester);
+
+    BackdropUnderlay.debugEnabledOverride = true;
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(_scene(follower: true, dot: 1));
+    await tester.pumpWidget(_scene(follower: true));
+    final captures = _glass(tester).debugUnderlay.debugCaptures;
+    // One frame: the leader moves and the copy is taken under the follower
+    // where it lands.
+    await tester.pumpWidget(_scene(follower: true, leader: 70));
+    expect(_glass(tester).debugUnderlay.debugCaptures, captures + 1);
+    expect(_glass(tester).debugDrewOverUnderlay, isTrue);
+    expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(1));
+  }, skip: skipProperGlassTests);
+
+  testWidgets('glass under a follower draws over a copy taken where it '
+      'lands in the frame its leader moves', (tester) async {
+    tester.view.physicalSize = const Size(260, 200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    BackdropUnderlay.debugEnabledOverride = false;
+    await tester.pumpWidget(
+      _scene(follower: true, glassFollows: true, leader: 40),
+    );
+    await tester.pump();
+    final reading = await _pixels(tester);
+
+    BackdropUnderlay.debugEnabledOverride = true;
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(_scene(follower: true, glassFollows: true, dot: 1));
+    await tester.pumpWidget(_scene(follower: true, glassFollows: true));
+    expect(_glass(tester).debugDrewOverUnderlay, isTrue);
+    await tester.pumpWidget(
+      _scene(follower: true, glassFollows: true, leader: 40),
+    );
+    expect(_glass(tester).debugDrewOverUnderlay, isTrue);
+    expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(1));
   }, skip: skipProperGlassTests);
 
   testWidgets('glass in a fading group draws over its copy and leaves the '

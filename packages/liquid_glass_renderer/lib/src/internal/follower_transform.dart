@@ -68,16 +68,25 @@ bool applyPaintTransformNow(
 }
 
 /// [layer]'s [ContainerLayer.applyTransform] for [child], with a
-/// [FollowerLayer] mapped where its leader is in this frame (see
-/// [transformToNow]).
+/// [FollowerLayer] mapped as [followerTransformNow] maps it.
 @internal
 void applyTransformNow(ContainerLayer layer, Layer? child, Matrix4 transform) {
-  final established = layer is FollowerLayer ? _established(layer) : null;
-  if (established == null) {
-    layer.applyTransform(child, transform);
+  if (layer is FollowerLayer) {
+    transform.multiply(followerTransformNow(layer));
   } else {
-    transform.multiply(established);
+    layer.applyTransform(child, transform);
   }
+}
+
+/// The transform [follower]'s addToScene pushes this frame: from its
+/// children's coordinates to its parent's, where its leader is now, or its
+/// unlinked offset while it has no leader. Read once [follower] and its
+/// leader are painted (see [transformToNow]).
+@internal
+Matrix4 followerTransformNow(FollowerLayer follower) {
+  if (_established(follower) case final established?) return established;
+  final offset = follower.unlinkedOffset ?? Offset.zero;
+  return Matrix4.translationValues(offset.dx, offset.dy, 0);
 }
 
 // What [follower]'s addToScene establishes this frame: the map from its

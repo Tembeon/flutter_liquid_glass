@@ -9,6 +9,7 @@ import 'package:liquid_glass_renderer/src/composer/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart';
+import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/internal/retained_glass_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/running_under_flutter_test.dart';
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
@@ -825,7 +826,7 @@ class _Prefix {
         case ContainerLayer():
           for (var c = node.firstChild; c != null; c = c.nextSibling) {
             final childTransform = m.clone();
-            node.applyTransform(c, childTransform);
+            applyTransformNow(node, c, childTransform);
             visit(c, childTransform);
           }
         default:
@@ -1055,6 +1056,21 @@ final class _Scan {
       case TransformLayer(:final offset):
         final effective = Matrix4.translationValues(offset.dx, offset.dy, 0);
         if (layer.transform case final matrix?) effective.multiply(matrix);
+        push(
+          layer,
+          _Open((c) {
+            c.save();
+            c.transform(effective.storage);
+            return 1;
+          }),
+          next: transform.multiplied(effective),
+        );
+      // Shown nowhere: its addToScene adds nothing.
+      case FollowerLayer(:final link, :final showWhenUnlinked)
+          when link.leader == null && showWhenUnlinked != true:
+        return false;
+      case FollowerLayer():
+        final effective = followerTransformNow(layer);
         push(
           layer,
           _Open((c) {
