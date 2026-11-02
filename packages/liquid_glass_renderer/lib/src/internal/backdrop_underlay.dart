@@ -116,7 +116,7 @@ class BackdropUnderlay {
     final rect = held && filterClip == null
         ? _snapOut(band.inflate(_margin), dpr).intersect(screen)
         : band;
-    final replay = _Prefix(anchor, rect, dpr, ui.SceneBuilder());
+    final replay = _Prefix(anchor, rect, dpr, ui.PictureRecorder());
     final image = replay.draw(
       root,
       rect,
@@ -214,15 +214,18 @@ class BackdropUnderlay {
 }
 
 // Walks a layer tree in paint order up to [stop], collecting what draws into
-// [band] and, with a [builder], adding it to a scene the way each layer adds
-// itself.
+// [band] and, with a [recorder], drawing it the way the engine draws each
+// layer: canvas calls rather than a scene, which would make an engine layer
+// and its Dart handle for every push.
 class _Prefix {
-  _Prefix(this.stop, this.band, this.devicePixelRatio, this.builder);
+  _Prefix(this.stop, this.band, this.devicePixelRatio, this.recorder)
+    : canvas = recorder == null ? null : Canvas(recorder);
 
   final Layer stop;
   final Rect band;
   final double devicePixelRatio;
-  final ui.SceneBuilder? builder;
+  final ui.PictureRecorder? recorder;
+  final Canvas? canvas;
   final out = <Object?>[];
   bool reached = false;
   bool blocked = false;
@@ -238,31 +241,42 @@ class _Prefix {
     required Rect? filterClip,
     required BlendMode filterBlendMode,
   }) {
-    final b = builder!;
+    final c = canvas!;
     final dpr = devicePixelRatio;
-    b.pushTransform(
-      Matrix4.translationValues(-rect.left * dpr, -rect.top * dpr, 0).storage,
-    );
+    c.translate(-rect.left * dpr, -rect.top * dpr);
     walk(root, Matrix4.diagonal3Values(1 / dpr, 1 / dpr, 1), null);
-    if (filter != null) {
-      b.pushTransform(Matrix4.diagonal3Values(dpr, dpr, 1).storage);
-      b.pushClipRect(filterClip ?? rect, clipBehavior: Clip.hardEdge);
-      b.pushBackdropFilter(filter, blendMode: filterBlendMode);
-      b.pop();
-      b.pop();
-      b.pop();
-    }
-    b.pop();
-    final scene = b.build();
+    final content = recorder!.endRecording();
     if (blocked || !reached) {
-      scene.dispose();
+      content.dispose();
       return null;
     }
-    final image = scene.toImageSync(
-      (rect.width * dpr).round(),
-      (rect.height * dpr).round(),
+    final width = (rect.width * dpr).round();
+    final height = (rect.height * dpr).round();
+    if (filter == null) {
+      final image = content.toImageSync(width, height);
+      content.dispose();
+      return image;
+    }
+    // The filter reads the copy as a backdrop filter reads the screen: the
+    // same blur at the copy's edges as the live read.
+    final b = ui.SceneBuilder();
+    b.addPicture(Offset.zero, content);
+    final toCopy = Matrix4.translationValues(
+      -rect.left * dpr,
+      -rect.top * dpr,
+      0,
     );
+    toCopy.scaleByDouble(dpr, dpr, 1, 1);
+    b.pushTransform(toCopy.storage);
+    b.pushClipRect(filterClip ?? rect, clipBehavior: Clip.hardEdge);
+    b.pushBackdropFilter(filter, blendMode: filterBlendMode);
+    b.pop();
+    b.pop();
+    b.pop();
+    final scene = b.build();
+    final image = scene.toImageSync(width, height);
     scene.dispose();
+    content.dispose();
     return image;
   }
 
@@ -298,12 +312,13 @@ class _Prefix {
       return next;
     }
 
-    final b = builder;
+    final c = canvas;
+    final depth = c?.getSaveCount() ?? 0;
     var next = transform;
     var nextClip = clip;
     var nextState = state;
     var nextFiltered = filtered;
-    var pushed = false;
+    (Shader, Rect, BlendMode)? mask;
     switch (layer) {
       case PictureLayer(:final picture?):
         if (!reaches(layer.canvasBounds)) return;
@@ -312,7 +327,7 @@ class _Prefix {
         out.add(clip);
         out.addAll(state);
         out.add(#leaf);
-        b?.addPicture(Offset.zero, picture);
+        c?.drawPicture(picture);
         return;
       case PictureLayer():
         return;
@@ -346,7 +361,7 @@ class _Prefix {
         out.add(clip);
         out.addAll(state);
         out.add(#leaf);
-        b?.addPicture(Offset.zero, servedPicture);
+        c?.drawPicture(servedPicture);
       case LiquidGlassBackdropFilterLayer(clip: final rect, :final reach):
         // It reads live, and changes nothing past its reach.
         if (filtered || clipped(rect.inflate(reach)).overlaps(band)) {
@@ -358,31 +373,34 @@ class _Prefix {
         final effective = Matrix4.translationValues(offset.dx, offset.dy, 0);
         if (layer.transform case final matrix?) effective.multiply(matrix);
         next = transform.multiplied(effective);
-        b?.pushTransform(effective.storage);
-        pushed = b != null;
+        c?.save();
+        c?.transform(effective.storage);
       case OpacityLayer(:final offset):
         final alpha = layer.alpha ?? 255;
         next = shifted(offset);
         nextState = [...state, alpha];
-        b?.pushOpacity(alpha, offset: offset);
-        pushed = b != null;
+        c?.save();
+        c?.translate(offset.dx, offset.dy);
+        if (alpha < 255) c?.saveLayer(null, _alpha(alpha));
       case ImageFilterLayer(:final imageFilter?, :final offset):
         next = shifted(offset);
         nextState = [...state, imageFilter];
         nextClip = null;
         nextFiltered = true;
-        b?.pushImageFilter(imageFilter, offset: offset);
-        pushed = b != null;
+        c?.save();
+        c?.translate(offset.dx, offset.dy);
+        c?.saveLayer(null, _filtering(imageFilter));
       case OffsetLayer(:final offset)
           when layer.runtimeType == OffsetLayer ||
               layer is GeometryTransformTrackingLayer:
         next = shifted(offset);
-        b?.pushOffset(offset.dx, offset.dy);
-        pushed = b != null;
+        c?.save();
+        c?.translate(offset.dx, offset.dy);
       case ColorFilterLayer(:final colorFilter?):
         nextState = [...state, colorFilter];
-        b?.pushColorFilter(colorFilter);
-        pushed = b != null;
+        final paint = Paint();
+        paint.colorFilter = colorFilter;
+        c?.saveLayer(null, paint);
       case ShaderMaskLayer(
         :final shader?,
         :final maskRect?,
@@ -391,20 +409,26 @@ class _Prefix {
         // A FragmentShader keeps its identity while its uniforms change.
         final token = shader is ui.FragmentShader ? Object() : shader;
         nextState = [...state, token, maskRect, blendMode];
-        b?.pushShaderMask(shader, maskRect, blendMode);
-        pushed = b != null;
+        c?.saveLayer(null, Paint());
+        mask = (shader, maskRect, blendMode);
       case ClipRectLayer(:final clipRect?, :final clipBehavior)
           when clipBehavior != Clip.none:
         nextClip = clipped(clipRect);
         nextState = [...state, clipRect, clipBehavior];
-        b?.pushClipRect(clipRect, clipBehavior: clipBehavior);
-        pushed = b != null;
+        if (c != null) {
+          c.save();
+          c.clipRect(clipRect, doAntiAlias: clipBehavior != Clip.hardEdge);
+          _clipLayer(c, clipRect, clipBehavior);
+        }
       case ClipRRectLayer(:final clipRRect?, :final clipBehavior)
           when clipBehavior != Clip.none:
         nextClip = clipped(clipRRect.outerRect);
         nextState = [...state, clipRRect, clipBehavior];
-        b?.pushClipRRect(clipRRect, clipBehavior: clipBehavior);
-        pushed = b != null;
+        if (c != null) {
+          c.save();
+          c.clipRRect(clipRRect, doAntiAlias: clipBehavior != Clip.hardEdge);
+          _clipLayer(c, clipRRect.outerRect, clipBehavior);
+        }
       case ClipRSuperellipseLayer(
             :final clipRSuperellipse?,
             :final clipBehavior,
@@ -412,53 +436,62 @@ class _Prefix {
           when clipBehavior != Clip.none:
         nextClip = clipped(clipRSuperellipse.outerRect);
         nextState = [...state, clipRSuperellipse, clipBehavior];
-        b?.pushClipRSuperellipse(clipRSuperellipse, clipBehavior: clipBehavior);
-        pushed = b != null;
+        if (c != null) {
+          c.save();
+          c.clipRSuperellipse(
+            clipRSuperellipse,
+            doAntiAlias: clipBehavior != Clip.hardEdge,
+          );
+          _clipLayer(c, clipRSuperellipse.outerRect, clipBehavior);
+        }
       case ClipPathLayer(:final clipPath?, :final clipBehavior)
           when clipBehavior != Clip.none:
         nextClip = clipped(clipPath.getBounds());
         nextState = [...state, clipPath, clipBehavior];
-        b?.pushClipPath(clipPath, clipBehavior: clipBehavior);
-        pushed = b != null;
+        if (c != null) {
+          c.save();
+          c.clipPath(clipPath, doAntiAlias: clipBehavior != Clip.hardEdge);
+          _clipLayer(c, clipPath.getBounds(), clipBehavior);
+        }
       case NativeClipLayer(
             enabled: true,
             :final geometry?,
             :final clipBehavior,
           )
           when clipBehavior != Clip.none:
-        nextClip = clipped(switch (geometry) {
+        final bounds = switch (geometry) {
           final Rect rect => rect,
           final RRect rect => rect.outerRect,
           final RSuperellipse rect => rect.outerRect,
           final Path path => path.getBounds(),
           _ => Rect.largest,
-        });
+        };
+        nextClip = clipped(bounds);
         nextState = [...state, geometry, clipBehavior];
-        if (b != null) {
+        if (c != null) {
+          final antiAlias = clipBehavior != Clip.hardEdge;
+          c.save();
           switch (geometry) {
             case final Rect rect:
-              b.pushClipRect(rect, clipBehavior: clipBehavior);
+              c.clipRect(rect, doAntiAlias: antiAlias);
             case final RRect rect:
-              b.pushClipRRect(rect, clipBehavior: clipBehavior);
+              c.clipRRect(rect, doAntiAlias: antiAlias);
             case final RSuperellipse rect:
-              b.pushClipRSuperellipse(rect, clipBehavior: clipBehavior);
+              c.clipRSuperellipse(rect, doAntiAlias: antiAlias);
             case final Path path:
-              b.pushClipPath(path, clipBehavior: clipBehavior);
+              c.clipPath(path, doAntiAlias: antiAlias);
             default:
+              c.restoreToCount(depth);
               blocked = true;
               blocker ??= layer;
               return;
           }
-          pushed = true;
+          _clipLayer(c, bounds, clipBehavior);
         }
       case LeaderLayer(:final offset):
         next = shifted(offset);
-        if (offset != Offset.zero) {
-          b?.pushTransform(
-            Matrix4.translationValues(offset.dx, offset.dy, 0).storage,
-          );
-          pushed = b != null;
-        }
+        c?.save();
+        c?.translate(offset.dx, offset.dy);
       case ClipRectLayer() ||
           ClipRRectLayer() ||
           ClipRSuperellipseLayer() ||
@@ -472,40 +505,36 @@ class _Prefix {
       case ContainerLayer() when LiquidGlassUnderlay.effectsOf(layer) != null:
         final effects = LiquidGlassUnderlay.effectsOf(layer)!;
         next = transform.multiplied(effects.transform);
-        b?.pushTransform(effects.transform.storage);
-        var pushes = 1;
+        c?.save();
+        c?.transform(effects.transform.storage);
         final effectState = <Object?>[];
         if (effects.clip case final rounded?) {
           final bounds = MatrixUtils.transformRect(next, rounded.outerRect);
           nextClip = clip == null ? bounds : clip.intersect(bounds);
           effectState.add(rounded);
-          b?.pushClipRRect(rounded);
-          pushes++;
+          c?.clipRRect(rounded);
         }
         if (effects.alpha case final alpha?) {
           effectState.add(alpha);
-          b?.pushOpacity(alpha);
-          pushes++;
+          c?.saveLayer(null, _alpha(alpha));
         }
         if (effects.blur > 0) {
           effectState.add(effects.blur);
           nextClip = null;
           nextFiltered = true;
-          b?.pushImageFilter(
-            ui.ImageFilter.blur(sigmaX: effects.blur, sigmaY: effects.blur),
+          c?.saveLayer(
+            null,
+            _filtering(
+              ui.ImageFilter.blur(sigmaX: effects.blur, sigmaY: effects.blur),
+            ),
           );
-          pushes++;
         }
         nextState = [...state, ...effectState];
         for (var c = layer.firstChild; c != null; c = c.nextSibling) {
           walk(c, next, nextClip, state: nextState, filtered: nextFiltered);
           if (reached || blocked) break;
         }
-        if (b != null) {
-          for (var i = 0; i < pushes; i++) {
-            b.pop();
-          }
-        }
+        c?.restoreToCount(depth);
         return;
       default:
         // A layer this walk cannot draw again: only one whose content stays
@@ -532,7 +561,35 @@ class _Prefix {
         if (reached || blocked) break;
       }
     }
-    if (pushed) b!.pop();
+    if (mask case (final shader, final rect, final blendMode)) {
+      // The engine draws a shader mask over what it masks, in a layer.
+      final paint = Paint();
+      paint.shader = shader;
+      paint.blendMode = blendMode;
+      c!.translate(rect.left, rect.top);
+      c.drawRect(Offset.zero & rect.size, paint);
+    }
+    c?.restoreToCount(depth);
+  }
+
+  static Paint _alpha(int alpha) {
+    final paint = Paint();
+    paint.color = Color.fromARGB(alpha, 0, 0, 0);
+    return paint;
+  }
+
+  static Paint _filtering(ui.ImageFilter filter) {
+    final paint = Paint();
+    paint.imageFilter = filter;
+    return paint;
+  }
+
+  // A clip that antialiases with a layer draws what it clips in a layer of
+  // its bounds, as the engine's clip layers do.
+  static void _clipLayer(Canvas canvas, Rect bounds, Clip behavior) {
+    if (behavior == Clip.antiAliasWithSaveLayer) {
+      canvas.saveLayer(bounds, Paint());
+    }
   }
 
   // Whether anything [layer] draws may land in the band, judged by its
