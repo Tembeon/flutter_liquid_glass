@@ -557,7 +557,12 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     for (final rig in _separateRigs.values) {
       rig.sync();
     }
-    debugDrewOverCopy = _sharedRig.compose();
+    // Glass over its copy reads no backdrop: an opacity pass around it needs
+    // no seed, and a seeded one would stand in the copy's way.
+    compositionSeedSuppressed = true;
+    final served = _sharedRig.compose();
+    if (!served) compositionSeedSuppressed = false;
+    debugDrewOverCopy = served;
   }
 
   // A glass without a blur, or that is nothing but a blur, needs no seed.

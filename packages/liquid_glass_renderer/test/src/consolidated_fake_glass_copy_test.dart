@@ -12,7 +12,7 @@ import 'shared.dart';
 
 const _key = ValueKey('screen');
 
-Widget _scene({double shift = 0}) => Directionality(
+Widget _scene({double shift = 0, double opacity = 1}) => Directionality(
   textDirection: TextDirection.ltr,
   child: RepaintBoundary(
     key: _key,
@@ -42,14 +42,17 @@ Widget _scene({double shift = 0}) => Directionality(
         ),
         Positioned.fromRect(
           rect: const Rect.fromLTWH(40, 70, 180, 60),
-          child: LiquidGlassLayer(
-            fake: true,
-            settings: LiquidGlassSettings.ios27RegularLight().copyWith(
-              frost: 6,
-            ),
-            child: const LiquidGlass(
-              shape: LiquidRoundedSuperellipse(borderRadius: 30),
-              child: SizedBox.expand(),
+          child: Opacity(
+            opacity: opacity,
+            child: LiquidGlassLayer(
+              fake: true,
+              settings: LiquidGlassSettings.ios27RegularLight().copyWith(
+                frost: 6,
+              ),
+              child: const LiquidGlass(
+                shape: LiquidRoundedSuperellipse(borderRadius: 30),
+                child: SizedBox.expand(),
+              ),
             ),
           ),
         ),
@@ -118,4 +121,17 @@ void main() {
     // over the whole backdrop; at 2 px of frost the two do not differ.
     expect(_difference(reading, copied), lessThanOrEqualTo(20));
   }, skip: skipProperGlassTests);
+
+  testWidgets('fading grouped fake glass draws over a copy', (tester) async {
+    BackdropUnderlay.debugEnabledOverride = true;
+    await tester.pumpWidget(_scene(shift: 0.3, opacity: 0.5));
+    await tester.pumpWidget(_scene(opacity: 0.5));
+    expect(_glass(tester).debugDrewOverCopy, isTrue);
+    expect(
+      tester.layers.whereType<OpacitySeedLayer>().where(
+        (layer) => layer.seeded,
+      ),
+      isEmpty,
+    );
+  });
 }
