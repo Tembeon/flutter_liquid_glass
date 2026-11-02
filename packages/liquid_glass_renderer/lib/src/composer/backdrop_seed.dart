@@ -73,13 +73,10 @@ class BackdropPassSizing {
   int _stable = 0;
   int _frame = -1;
 
-  /// Whether the pass is currently sized as a large, changing one.
-  bool get large => _large && _changing;
-
   /// Whether the size the pass needs changed within the last [stableFrames]
-  /// frames. A resizing pass is placed on a
-  /// global pixel grid (see [planSeededBackdropPass]); one that only moves is
-  /// given a size that is a function of its own extent.
+  /// frames. A resizing pass is placed on a global pixel grid (see
+  /// [planSeededBackdropPass]); one that only moves is given a size that is
+  /// a function of its own extent.
   bool get resizing => _changing;
 
   /// Decides whether a pass of [width] by [height] logical pixels at
@@ -353,8 +350,8 @@ BackdropPassPlan planSeededBackdropPass({
   required Offset translation,
   required double reach,
   required double devicePixelRatio,
+  required BackdropPassSizing sizing,
   Rect? ownerClip,
-  BackdropPassSizing? sizing,
 }) {
   final toGlobal = screenTransformOf(owner);
   if (!isRectilinearTransform(toGlobal)) return BackdropPassPlan.unsupported;
@@ -406,28 +403,26 @@ BackdropPassPlan planSeededBackdropPass({
               limit.right * devicePixelRatio + _pixelEpsilon ||
           wantedGlobal.bottom * devicePixelRatio >
               limit.bottom * devicePixelRatio + _pixelEpsilon);
-  final large =
-      sizing?.decideLarge(
-        needWidth / devicePixelRatio,
-        needHeight / devicePixelRatio,
-        devicePixelRatio,
-        cutOrigin: cut
-            ? Offset(
-                (wantedGlobal.left * devicePixelRatio + _pixelEpsilon)
-                    .floorToDouble(),
-                (wantedGlobal.top * devicePixelRatio + _pixelEpsilon)
-                    .floorToDouble(),
-              )
-            : null,
-      ) ??
-      false;
+  final large = sizing.decideLarge(
+    needWidth / devicePixelRatio,
+    needHeight / devicePixelRatio,
+    devicePixelRatio,
+    cutOrigin: cut
+        ? Offset(
+            (wantedGlobal.left * devicePixelRatio + _pixelEpsilon)
+                .floorToDouble(),
+            (wantedGlobal.top * devicePixelRatio + _pixelEpsilon)
+                .floorToDouble(),
+          )
+        : null,
+  );
   final bucket = BackdropPassSizing.bucketFor(
     needWidth.toDouble(),
     needHeight.toDouble(),
     large: large,
   );
   Rect bucketed;
-  if (large || (sizing?.resizing ?? false)) {
+  if (large || sizing.resizing) {
     // The pass changes size: bucket it on a global grid, so a growing edge
     // that the screen cuts still changes the cut size only on bucket steps.
     bucketed = wantedGlobal.expandToPixelBuckets(
@@ -436,7 +431,7 @@ BackdropPassPlan planSeededBackdropPass({
     );
     // The size before the clips cut it is what the hysteresis keeps stable:
     // the clips then cut the same rect from frame to frame.
-    if (large) bucketed = sizing!.stabilize(bucketed);
+    if (large) bucketed = sizing.stabilize(bucketed);
   } else {
     // The pass keeps its size: the size is the glass's own extent (plus the
     // pixel its fractional origin can need) rounded up to a bucket, and the
@@ -506,7 +501,7 @@ BackdropPassPlan planSeededBackdropPass({
     layerToGlobal: toGlobal.clone()
       ..translateByDouble(shift.dx, shift.dy, 0, 1),
     devicePixelRatio: devicePixelRatio,
-    resizing: sizing?.resizing ?? false,
+    resizing: sizing.resizing,
   );
 }
 
@@ -522,19 +517,17 @@ BackdropPassPlan planSeededBackdropPass({
 ///
 /// Every seed reads the backdrop for itself. It shares one read with other
 /// seeds only through the key the glass was given (the shapes of one fake
-/// glass layer share one): when
-/// every filter of a key is equal, Impeller runs that filter once over the
-/// whole texture with no crop, so seeds of one key alternate between two
-/// filters that differ by far less than a pixel ([seedSigmaStep],
-/// [seedMatrixStep]).
+/// glass layer share one): when every filter of a key is equal, Impeller
+/// runs that filter once over the whole texture with no crop, so seeds of
+/// one key alternate between two filters that differ by far less than a
+/// pixel ([seedSigmaStep], [seedMatrixStep]).
 ///
-/// Whether that is wanted is decided every frame, when the scene is prepared
-/// and everything painted before this layer is final
-/// ([updateSubtreeNeedsAddToScene]). When it is not, the layer is just a
-/// parent: the children paint directly, with the backdrop key they would have
-/// had without it, exactly as an effect that never had a pass. The owner is
-/// told through [onActiveChanged] so it can map coordinates accordingly
-/// before the scene is built.
+/// Whether that is wanted is decided every frame in [compose], after paint,
+/// when everything painted before this layer is final. When it is not, the
+/// layer is just a parent: the children paint directly, with the backdrop
+/// key they would have had without it, exactly as an effect that never had
+/// a pass. The owner is told through [onActiveChanged] so it can map
+/// coordinates accordingly before the scene is built.
 @internal
 class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
   /// How glass passes are seeded: [BackdropSeed.blur] wherever Impeller
@@ -571,18 +564,18 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
   BackdropKey? _key;
 
   /// Runs when the decision to seed, rather than paint without a pass,
-  /// changes while the scene is prepared.
+  /// changes as the layer composes.
   VoidCallback? onActiveChanged;
 
-  /// Whether the pass stays seeded while its size changes. FakeGlass passes
-  /// do: on Pixel 10 their seed saved SoC energy on a resizing sheet (-16%)
-  /// and on moving layers (-24%), where real glass's seed cost GPU energy
-  /// (+26%) while resizing (see [_nativeSeedFor]).
+  /// Whether the pass stays seeded while its size changes. The consolidated
+  /// fake glass layer's passes do: on Pixel 10 their seed saved SoC energy
+  /// on a resizing sheet (-16%) and on moving layers (-24%), where real
+  /// glass's seed cost GPU energy (+26%) while resizing (see
+  /// [_nativeSeedFor]).
   bool seedWhileResizing = false;
 
   /// Whether the pass is in effect: the owner planned one and it is seeded
-  /// (see [nativeSeed]). Starts optimistic; the first scene preparation
-  /// decides.
+  /// (see [nativeSeed]). Starts optimistic; the first [compose] decides.
   bool get active => _active;
 
   /// How the pass is seeded (see [mode]), `none` while it is not in effect.
@@ -598,7 +591,8 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
   /// Paints nothing: the effect is clipped away entirely.
   bool get hidden => _plan.hidden;
 
-  /// Applies the owner's [plan].
+  /// Takes the owner's [plan]; a changed rect or visibility adds the pass to
+  /// the scene again.
   void apply(BackdropPassPlan plan) {
     final changed =
         plan.layerRect != _plan.layerRect || plan.hidden != _plan.hidden;
@@ -619,29 +613,20 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
   ///
   /// With a [blur], the filter's blur can be left to the pass: when it seeds
   /// its backdrop with the blur (see [BackdropSeed.blur]) the filter
-  /// is swapped for [PassBlur.withoutBlur]. [full] is then the filter the
-  /// owner would have without that; the owner must keep it current, because
-  /// the pass puts it back when the seed ends.
+  /// is swapped for [PassBlur.withoutBlur]. The filter [filter] holds now is
+  /// the one it gets back when the seed ends, so the owner binds again
+  /// whenever its filter changes.
   void bindFilter(
     BackdropFilterLayer filter,
     BackdropKey? key, {
-    ui.ImageFilter? full,
     PassBlur? blur,
   }) {
-    _fullFilter = full ?? filter.filter;
+    _fullFilter = filter.filter;
     _blur = blur;
     if (!identical(key, _key)) {
       _leaveGroup();
       _key = key;
       if (key != null) (_groups[key] ??= _KeyGroup()).members.add(this);
-    }
-    // The filter is owner-created; remember the blend mode it asked for
-    // unless it is the one this layer set.
-    if (!identical(_filter, filter) ||
-        !_blendOverridden ||
-        filter.blendMode != BlendMode.src) {
-      _blendOverridden = false;
-      _ownerBlendMode = filter.blendMode;
     }
     _filter = filter;
     _syncKey();
@@ -649,8 +634,6 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
     _applyFilter();
   }
 
-  BlendMode _ownerBlendMode = BlendMode.srcOver;
-  bool _blendOverridden = false;
   ui.ImageFilter? _fullFilter;
   PassBlur? _blur;
 
@@ -742,14 +725,13 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
   // Inside a pass the filter has no key (the seed carries it) and paints with
   // `BlendMode.src`: the pass then holds only the filter's output, in its
   // clip, which is composited over the parent pass like the native filter's
-  // output would be.
+  // output would be. Without a pass it paints as the rig made it, srcOver.
   void _syncKey() {
     final filter = _filter;
     if (filter == null) return;
     final inPass = passRect != null;
     filter.backdropKey = inPass ? null : _key;
-    filter.blendMode = inPass ? BlendMode.src : _ownerBlendMode;
-    _blendOverridden = inPass;
+    filter.blendMode = inPass ? BlendMode.src : BlendMode.srcOver;
     if (!inPass && _seed != BackdropSeed.none) {
       _seed = BackdropSeed.none;
       _applyFilter();
@@ -758,8 +740,8 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
 
   @override
   void dispose() {
-    if (_blendOverridden && _filter != null && !_layerDisposed(_filter!)) {
-      _filter!.blendMode = _ownerBlendMode;
+    if (_filter != null && !_layerDisposed(_filter!)) {
+      _filter!.blendMode = BlendMode.srcOver;
     }
     _seed = BackdropSeed.none;
     _applyFilter();
@@ -778,15 +760,13 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
     super.dispose();
   }
 
-  @override
-  void compose() => _decide();
-
   // Everything painted before this layer, including the effects whose own
   // decisions came earlier in this same pass over the tree, is final here.
   // A native seed reads the backdrop when the scene is rasterized, like any
   // backdrop filter, so the pass is only added to the scene again when its
   // own decision changes.
-  void _decide() {
+  @override
+  void compose() {
     final rect = _plan.layerRect;
     _setSeed(_nativeSeedFor(rect));
     if (rect != null && !hidden) {
@@ -1032,7 +1012,6 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
     (_seedLayer ??= _SeedLayer())
       ..filter = seed
       ..backdropKey = key
-      ..blendMode = BlendMode.srcOver
       ..addInner = (inner) {
         addChildrenToScene(inner);
         _clearOutside(inner, clip);
@@ -1043,22 +1022,14 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
 
   /// The pass [addToScene] adds around the children, in this layer's
   /// parent's coordinates, or null when they paint without one: the rect
-  /// it clips them to, the filter that seeds it, the backdrop that filter
-  /// reads (a blur reads three sigmas past the pass), and the clip it cuts
-  /// the effect to.
-  ({Rect rect, ui.ImageFilter seed, Rect reads, PassFilterClip clip})?
-  get scenePass {
+  /// it clips them to, the filter that seeds it, and the clip it cuts the
+  /// effect to.
+  ({Rect rect, ui.ImageFilter seed, PassFilterClip clip})? get scenePass {
     final rect = passRect;
     if (hidden || rect == null || _seed == BackdropSeed.none) return null;
     final clip = _readFilterClip(rect);
     if (clip == null) return null;
-    final blur = _seed == BackdropSeed.blur ? _blur : null;
-    return (
-      rect: rect,
-      seed: _seedFilterFor(),
-      reads: blur == null ? rect : rect.inflate(3 * blur.sigma),
-      clip: clip,
-    );
+    return (rect: rect, seed: _seedFilterFor(), clip: clip);
   }
 
   @override

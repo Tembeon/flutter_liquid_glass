@@ -209,7 +209,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     _served?.dispose();
     _served = null;
     _copy = null;
-    _underlay.dispose();
+    _underlay.release();
     super.dispose();
   }
 }

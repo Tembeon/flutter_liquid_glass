@@ -408,8 +408,8 @@ class RenderFakeGlass extends RenderProxyBox with LivePaintSize {
       return true;
     }(), 'Track fake surface paints in debug builds.');
     if (!_hasBackdropEffect || backdropHandledByLayer) {
-      // No blur or saturation change — skip the BackdropFilterLayer entirely
-      // and just paint the specular highlights and child directly.
+      // The consolidated layer reads the backdrop for this glass, or there is
+      // nothing to read: no backdrop layer.
       this.layer = null;
       _paintRecordedSurface(context.canvas, offset);
       if (_paintsBorderRing) {

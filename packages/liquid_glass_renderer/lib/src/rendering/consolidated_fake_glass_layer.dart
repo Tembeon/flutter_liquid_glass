@@ -67,9 +67,9 @@ class ConsolidatedFakeGlassLayer extends SingleChildRenderObjectWidget {
 /// backdrop (see [BackdropRig]). NEAR: over a copy, a blur that Impeller
 /// downsamples takes other taps than over the whole backdrop, at most 19
 /// channel levels apart in the host test of white text under 6 px of frost;
-/// at 2 px the two do not differ. All shared machinery — shape
+/// at 2 px the two do not differ. All shared machinery (shape
 /// registration, transform and compositor-translation polling, retained
-/// ancestor clips, shadows, bounds and the frame state — lives in
+/// ancestor clips, shadows, bounds and the frame state) lives in
 /// [LiquidGlassRenderObject]; this class implements only the effect.
 @visibleForTesting
 @internal
@@ -104,8 +104,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   late final _sharedRig = _rig();
 
   BackdropRig _rig() => BackdropRig(
-    plan: (inner, offset, reach, sizing) =>
-        planBackdropPass(inner, offset, reach, sizing: sizing),
+    plan: planBackdropPass,
     share: _share,
     seedWhileResizing: true,
   );
@@ -185,9 +184,9 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   @override
   double get materialOutset => fakeGlassSurfaceOutset(settings);
 
-  // One extra logical pixel covers the kernel's rounding at any DPR.
-  @override
-  double effectSamplingReach(Rect material) {
+  // How far outside its bounds the blur reads; one extra logical pixel
+  // covers the kernel's rounding at any DPR.
+  double get _samplingReach {
     if (!_hasBlur) return 0;
     final sigma = settings.frostSigmaAt(
       devicePixelRatio,
@@ -360,11 +359,12 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
           blur: _passBlur(sharedFilter),
           bounds: bounds,
           outline: clipPath,
-          reach: effectSamplingReach(bounds),
+          reach: _samplingReach,
           devicePixelRatio: devicePixelRatio,
-          // A copy for a separately served shape would hold the shared
-          // filter's output where they overlap and compound both transfers,
-          // so while one paints every read stays live.
+          // Separate shapes read live under the shared key. A shared filter
+          // drawn from a copy would leave them no shared read, so they would
+          // filter its output where they overlap: while one paints, the
+          // shared filter reads live too.
           copies: BackdropUnderlay.enabled && !_cachedClipClasses.contains(1),
         );
       } else {
@@ -582,7 +582,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     if (motion.needsRepaint) _refreshRetainedFrame();
   }
 
-  // The retained layers of this frame are already in the scene.
+  // Paint is over for this frame: draws the retained slot again in place.
   void _refreshRetainedFrame() {
     final slot = _retainedFrameSlot.layer;
     if (slot == null) {

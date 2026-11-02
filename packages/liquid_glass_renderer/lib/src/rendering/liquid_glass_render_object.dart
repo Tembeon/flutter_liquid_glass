@@ -326,16 +326,15 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
   /// Neither is one without a blur to crop or where seeds are off (see
   /// [seedsBackdrop]).
   ///
-  /// A large pass is sized by [sizing] (this object's own by default), which
-  /// keeps it from changing size on every bucket step; each effect painting
-  /// its own pass needs its own.
+  /// A large pass is sized by [sizing], which keeps it from changing size on
+  /// every bucket step; each effect painting its own pass needs its own.
   @protected
   BackdropPassPlan planBackdropPass(
     Rect innerLayerRect,
     Offset paintOffset,
-    double reach, {
-    BackdropPassSizing? sizing,
-  }) => !seedsBackdrop || reach <= 0 || compositionProbeSeeding
+    double reach,
+    BackdropPassSizing sizing,
+  ) => !seedsBackdrop || reach <= 0 || compositionProbeSeeding
       ? BackdropPassPlan.unsupported
       : planSeededBackdropPass(
           owner: this,
@@ -345,10 +344,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
           reach: reach,
           devicePixelRatio: devicePixelRatio,
           ownerClip: retainedClipBounds,
-          sizing: sizing ?? _passSizing,
+          sizing: sizing,
         );
-
-  final _passSizing = BackdropPassSizing();
 
   /// Whether this glass paints its backdrop effects in seeded passes (see
   /// [SeededBackdropPassLayer.enabled]).
@@ -364,7 +361,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
     return true;
   }
 
-  /// Reconciles experimental fade composition before scene submission.
+  /// Decides whether the opacity pass around this glass is seeded, before
+  /// the update pass.
   @protected
   void syncCompositionOpacity() => _compositionProbe.syncOpacity(this);
 
@@ -838,10 +836,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
   /// contour support for real glass, the surface outset for the fallback.
   @protected
   double get materialOutset;
-
-  /// How far outside the material the composed effect reads the backdrop.
-  @protected
-  double effectSamplingReach(Rect material);
 
   /// Grows [bounds] by this layer's [materialOutset] and the committed
   /// shapes' exterior shadows, in layer coordinates.

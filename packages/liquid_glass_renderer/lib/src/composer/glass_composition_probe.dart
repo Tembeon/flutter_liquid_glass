@@ -39,7 +39,8 @@ class GlassCompositionProbe {
     _layer.layer?.seeded = _wanted && !value;
   }
 
-  /// Paints the original sequence, seeding only fractional-opacity surfaces.
+  /// Paints [painter] inside the seed layer, which seeds only while
+  /// [syncOpacity] finds a fractional opacity above.
   void paint(
     PaintingContext context,
     Offset offset,
@@ -51,7 +52,7 @@ class GlassCompositionProbe {
     context.pushLayer(layer, painter, offset);
   }
 
-  /// Updates before retained-layer dirtiness is propagated for this frame.
+  /// Runs from paint and from the composer's pass, before the update pass.
   ///
   /// Seeds iff an ancestor between [owner] and the nearest enclosing
   /// [LiquidGlassLayerRenderObject] has fractional native opacity and none is

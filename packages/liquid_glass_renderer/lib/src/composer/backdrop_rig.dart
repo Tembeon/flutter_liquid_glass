@@ -10,10 +10,10 @@ import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 
 /// One backdrop capture shared by several [BackdropRig]s.
 ///
-/// Without seeded passes the rigs that share it read the backdrop once, at
-/// the first of them: one that paints over another's output in overlapping
-/// pixels then filters the backdrop, not the first one's output, so the two
-/// transfers do not compound.
+/// Rigs that share it read the backdrop once, at the first of them, seeded
+/// or not: one that paints over another's output in overlapping pixels then
+/// filters the backdrop, not the first one's output, so the two transfers do
+/// not compound.
 @internal
 final class BackdropShare {
   final _key = BackdropKey();
@@ -99,11 +99,8 @@ typedef BackdropPassPlanner = BackdropPassPlan Function(
 /// of what lies under it (see [BackdropUnderlay]), chosen per frame while
 /// the scene composites.
 ///
-/// The clip is the surface's outline, or a rect. The rig keeps its layers
-/// from frame to frame. While the pass is in effect the clip is the pass's
-/// rect, which keeps the filter's offscreen target one size while the
-/// surface animates, and the pass cuts the real clip out with its
-/// outside-clear.
+/// The clip is the surface's outline, or a rect, and the rig keeps its
+/// layers from frame to frame.
 @internal
 class BackdropRig {
   /// Creates a rig whose passes are placed by [plan] and whose reads share
@@ -126,7 +123,7 @@ class BackdropRig {
   final bool seedWhileResizing;
 
   /// Runs, after the clip follows, when the pass starts or stops being in
-  /// effect while the scene is prepared.
+  /// effect as it composes.
   final VoidCallback? onActiveChanged;
 
   final _filter = LayerHandle<BackdropFilterLayer>();
@@ -144,8 +141,6 @@ class BackdropRig {
   // when the rig takes no copies.
   _Read? _read;
 
-  // Where the pass goes: the clip, in the pass layer's parent's coordinates,
-  // the paint offset, the blur's reach.
   Rect? _inner;
   Offset _offset = Offset.zero;
   double _reach = 0;
@@ -271,25 +266,22 @@ class BackdropRig {
   /// a [blur] when it seeds its backdrop with it (see
   /// [SeededBackdropPassLayer.bindFilter]).
   void bindFilter(ui.ImageFilter filter, PassBlur? blur) {
-    final backdrop = _filter.layer ??= BackdropFilterLayer();
+    final backdrop = _filter.layer ??= _newFilterLayer();
     backdrop.filter = filter;
     final key = share?._key;
     if (_pass.layer case final pass?) {
-      pass.bindFilter(backdrop, key, full: filter, blur: blur);
+      pass.bindFilter(backdrop, key, blur: blur);
     } else {
       backdrop.backdropKey = key;
     }
   }
 
-  /// Puts a filter layer made since the clip was painted into the clip.
-  void adoptFilter() {
-    final backdrop = _filter.layer;
-    final clip = _clipRect.layer ?? _clipPath.layer;
-    if (backdrop == null || clip == null || identical(backdrop.parent, clip)) {
-      return;
-    }
-    backdrop.remove();
-    clip.append(backdrop);
+  // A filter made after the clip was painted goes into the clip: a retained
+  // refresh does not paint.
+  BackdropFilterLayer _newFilterLayer() {
+    final backdrop = BackdropFilterLayer();
+    (_clipRect.layer ?? _clipPath.layer)?.append(backdrop);
+    return backdrop;
   }
 
   /// Takes the filter layer out of the tree.
@@ -373,9 +365,9 @@ class BackdropRig {
   /// Paints [filter] over the backdrop inside [outline], whose bounds are
   /// [bounds]. With seeds on and a [blur] to crop, the filter paints in a
   /// pass reaching [reach] past [bounds], seeded by a small backdrop filter,
-  /// and reads that pass; otherwise nothing but the clip and the filter is
-  /// added to the layer tree. With [copies], [compose] can draw the filter
-  /// over a copy of what lies under [outline] instead.
+  /// and reads that pass; otherwise only the clip and the filter (and, with
+  /// [copies], the slot around them). With [copies], [compose] can draw the
+  /// filter over a copy of what lies under [outline] instead.
   void paint(
     PaintingContext context,
     Offset offset, {
@@ -409,8 +401,9 @@ class BackdropRig {
   }
 
   /// Fills the slot with the filter drawn over a copy of what lies under
-  /// the outline, or with the live read where there is no copy. Runs while
-  /// the scene composites, in paint order; returns whether a copy serves.
+  /// the outline, or with the live read where there is no copy; returns
+  /// whether a copy serves. The owner calls it from its onCompositing, which
+  /// the composer runs in paint order.
   bool compose() {
     final slot = _slot.layer;
     if (slot == null) return false;
@@ -460,11 +453,13 @@ class BackdropRig {
     _syncChildClip();
   }
 
-  // The backdrop filter's saveLayer takes the size of its clip, and Impeller
-  // reuses an offscreen target only at exactly the same size. The pass rect
-  // is on pixel buckets and contains the clip, so while the pass is in effect
-  // the filter paints the whole of it and the pass clears everything outside
-  // the real clip (SeededBackdropPassLayer.silhouette).
+  // The backdrop filter's saveLayer takes the size of its clip, Impeller
+  // crops it at the screen edge, and it reuses an offscreen target only at
+  // exactly the same size, so a surface growing from a screen edge would
+  // resize it nearly every frame. The pass rect is on a global pixel grid,
+  // already cut to the screen, and contains the clip, so while the pass is
+  // in effect the filter paints the whole of it and the pass clears
+  // everything outside the real clip (SeededBackdropPassLayer.silhouette).
   void _syncChildClip() {
     final pass = _pass.layer;
     final rect = pass?.passRect;
@@ -504,7 +499,8 @@ class BackdropRig {
     _plan = BackdropPassPlan.unsupported;
   }
 
-  /// Releases every layer, and keeps the copy for the next paint.
+  /// Releases every layer but the picture over the copy, and keeps the copy
+  /// for the next paint.
   void clear() {
     _clearPass();
     _read = null;
@@ -522,12 +518,12 @@ class BackdropRig {
   void dispose() {
     clear();
     _served.layer = null;
-    _underlay.dispose();
+    _underlay.release();
   }
 }
 
-// A read a filtered copy can stand in for: the filter, its clip in the slot's
-// coordinates, how far it reads past the clip, the view's device pixel ratio.
+// A read a filtered copy can stand in for; the clip is in the slot's
+// coordinates.
 typedef _Read = ({
   ui.ImageFilter filter,
   Rect clip,

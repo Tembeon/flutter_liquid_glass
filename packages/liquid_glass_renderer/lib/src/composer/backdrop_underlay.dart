@@ -14,8 +14,9 @@ import 'package:liquid_glass_renderer/src/internal/running_under_flutter_test.da
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_underlay.dart';
 
-/// A copy of what is painted under one glass layer, blurred by its frost,
-/// that the layer paints its glass over instead of reading the backdrop.
+/// A copy of what is painted under one backdrop effect, optionally run
+/// through the effect's filter, that the effect draws from instead of
+/// reading the backdrop.
 ///
 /// A backdrop filter anywhere in a frame makes Impeller render the whole
 /// frame offscreen, split the root pass at every read and blit the result to
@@ -135,9 +136,9 @@ class BackdropUnderlay {
   /// rect. The copy holds [downscale] device pixels in each of its pixels
   /// along each side: a copy blurred enough loses nothing drawn smaller.
   /// The copy taken in an earlier frame serves while the layers it was
-  /// drawn from are unchanged; otherwise a new one is recorded now and drawn
-  /// with every other copy recorded in the frame, in one image, when the
-  /// first of them is read.
+  /// drawn from are unchanged; otherwise a new one is recorded and drawn
+  /// with the frame's other pending copies once the composer has composed
+  /// every layer ([drawPending]), or earlier if its image is read.
   ///
   /// [body] is the rect the caller's glass paints, in screen logical
   /// pixels: glass painted before [anchor] that does not meet it lies beside
@@ -185,7 +186,7 @@ class BackdropUnderlay {
     // Signing replays no pictures: a copy is recorded only once it is
     // known to be drawn now.
     var signed = same
-        ? _Prefix.signed(root, anchor, _copied, dpr, scan, limit, bodies)
+        ? _Prefix.signed(anchor, _copied, scan, limit, bodies)
         : null;
     final held = signed != null && _same(signed.out, _signature);
     if (held && _contains(_copied, band)) {
@@ -198,20 +199,17 @@ class BackdropUnderlay {
         ? _snapOut(band.inflate(_margin), pixels).intersect(screen)
         : band;
     if (signed == null || signed.band != rect) {
-      signed = _Prefix.signed(root, anchor, rect, dpr, scan, limit, bodies);
+      signed = _Prefix.signed(anchor, rect, scan, limit, bodies);
     }
     if (signed.blocked || !signed.reached) {
       final why = signed.blocked
           ? '${signed.blocker.runtimeType}'
           : 'not reached';
       debugMisses[why] = (debugMisses[why] ?? 0) + 1;
-      assert(() {
-        debugMiss = 'blocked by ${_debugBlocker(root, anchor, band, dpr)}';
-        return true;
-      }(), 'Diagnose misses in debug builds.');
+      debugMiss = 'blocked by $why';
       return null;
     }
-    _release();
+    release();
     final tile = _Tile(
       this,
       rect,
@@ -225,13 +223,12 @@ class BackdropUnderlay {
       final replay = _Prefix(
         anchor,
         rect,
-        dpr,
         ui.PictureRecorder(),
         scan: scan,
         limit: limit,
         bodies: bodies,
       );
-      final picture = replay.record(root, rect, pixels);
+      final picture = replay.record(pixels);
       if (picture != null) _signature = replay.out;
       return picture;
     }
@@ -242,11 +239,9 @@ class BackdropUnderlay {
     tile.redraw = record;
     if (signed.waits < 0 && body != null && filterClip == null) {
       tile.island = _Islander(
-        root,
         anchor,
         scan,
         limit,
-        dpr,
         body,
         signed.out,
         own: own,
@@ -265,13 +260,8 @@ class BackdropUnderlay {
     return UnderlayCopy._(this, rect, pixels);
   }
 
-  /// Releases the copy.
-  void dispose() => _release();
-
-  /// Forgets the copy while the glass does not paint over one.
-  void release() => _release();
-
-  void _release() {
+  /// Forgets the copy while the effect does not draw from one.
+  void release() {
     _image?.dispose();
     _image = null;
     if (_tile case final tile?) _Atlas.cancel(tile);
@@ -314,35 +304,26 @@ class BackdropUnderlay {
     }
     return true;
   }
-
-  static String _debugBlocker(Layer root, Layer anchor, Rect band, double dpr) {
-    final prefix = _Prefix(anchor, band, dpr, null);
-    prefix.walk(root, Matrix4.diagonal3Values(1 / dpr, 1 / dpr, 1), null);
-    return prefix.blocked ? '${prefix.blocker?.runtimeType}' : 'not reached';
-  }
 }
 
-// Walks a layer tree in paint order up to [stop], collecting what draws into
-// [band] and, with a [recorder], drawing it the way the engine draws each
+// Replays a pass's scan up to [stop], collecting what draws into [band]
+// and, with a [recorder], drawing it the way the engine draws each
 // layer: canvas calls rather than a scene, which would make an engine layer
 // and its Dart handle for every push.
 class _Prefix {
   _Prefix(
     this.stop,
     this.band,
-    this.devicePixelRatio,
     this.recorder, {
-    this.scan,
-    this.limit,
+    required this.scan,
+    required this.limit,
     this.bodies = const [],
   }) : canvas = recorder == null ? null : Canvas(recorder);
 
   // What is painted before [stop] in [band], signed without drawing it.
   factory _Prefix.signed(
-    Layer root,
     Layer stop,
     Rect band,
-    double devicePixelRatio,
     _Scan scan,
     int limit,
     List<Rect> bodies,
@@ -350,19 +331,18 @@ class _Prefix {
     final prefix = _Prefix(
       stop,
       band,
-      devicePixelRatio,
       null,
       scan: scan,
       limit: limit,
       bodies: bodies,
     );
-    prefix.run(root);
+    prefix.run();
     return prefix;
   }
 
   final Layer stop;
   final Rect band;
-  final double devicePixelRatio;
+  double get devicePixelRatio => scan.devicePixelRatio;
   // The bodies of the glass the copy is for, if it is for glass.
   final List<Rect> bodies;
   final ui.PictureRecorder? recorder;
@@ -371,9 +351,10 @@ class _Prefix {
   final Canvas? canvas;
   final out = <Object?>[];
 
-  // The pass's scan this walk replays, and where [stop] lies in it.
-  _Scan? scan;
-  int? limit;
+  // The pass's scan this walk replays, and where [stop] lies in it, or -1
+  // when the scan cannot reach it.
+  final _Scan scan;
+  final int limit;
 
   bool reached = false;
   bool blocked = false;
@@ -383,8 +364,6 @@ class _Prefix {
   // over, or -1.
   int waits = -1;
 
-  late final Set<Layer> _path = _ancestors(stop);
-
   static Set<Layer> _ancestors(Layer layer) {
     final path = Set<Layer>.identity();
     for (var node = layer.parent; node != null; node = node.parent) {
@@ -393,10 +372,11 @@ class _Prefix {
     return path;
   }
 
-  // Records what is painted before [stop] in [rect] (screen logical pixels)
-  // at [pixels] per logical pixel from the rect's origin, or returns null
+  // Records what is painted before [stop] in [band] (screen logical pixels)
+  // at [pixels] per logical pixel from the band's origin, or returns null
   // when that cannot be drawn again.
-  ui.Picture? record(Layer root, Rect rect, double pixels) {
+  ui.Picture? record(double pixels) {
+    final rect = band;
     final dpr = devicePixelRatio;
     final c = canvas!;
     // A picture drawn into a canvas clipped to the copy is culled to what
@@ -407,7 +387,7 @@ class _Prefix {
     );
     if (pixels != dpr) c.scale(pixels / dpr);
     c.translate(-rect.left * dpr, -rect.top * dpr);
-    run(root);
+    run();
     final content = recorder!.endRecording();
     if (blocked || !reached) {
       content.dispose();
@@ -416,362 +396,16 @@ class _Prefix {
     return content;
   }
 
-  // Draws what is painted before [stop] in [band] from the pass's scan, or
-  // walks the layer tree itself when the scan does not reach [stop].
-  void run(Layer root) {
-    final dpr = devicePixelRatio;
-    final scan = this.scan ??= _Scan.of(root, dpr, stop);
-    final limit = this.limit ??= scan.reach(stop);
+  // Draws what is painted before [stop] in [band] from the pass's scan. A
+  // scan that cannot reach [stop] met a layer it cannot draw again on the
+  // way there.
+  void run() {
     if (limit < 0) {
-      walk(root, Matrix4.diagonal3Values(1 / dpr, 1 / dpr, 1), null);
-    } else {
-      scan.replay(this, limit);
-      assert(_walksAlike(root), 'The scan replays what a walk draws.');
-    }
-  }
-
-  // Whether walking the layer tree finds what the replay found.
-  bool _walksAlike(Layer root) {
-    final dpr = devicePixelRatio;
-    final walked = _Prefix(stop, band, dpr, null, bodies: bodies);
-    walked.walk(root, Matrix4.diagonal3Values(1 / dpr, 1 / dpr, 1), null);
-    if (walked.blocked != blocked) return false;
-    if (blocked) return true;
-    if (walked.reached != reached || walked.waits != waits) return false;
-    final a = walked.out;
-    if (a.length != out.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      final x = a[i];
-      final y = out[i];
-      if (identical(x, y) || x == y) continue;
-      // Glass over a copy not drawn yet signs as a fresh object.
-      if (x.runtimeType == Object && y.runtimeType == Object) continue;
-      return false;
-    }
-    return true;
-  }
-
-  void walk(
-    Layer layer,
-    Matrix4 transform,
-    Rect? clip, {
-    List<Object?> state = const [],
-    bool filtered = false,
-  }) {
-    if (reached || blocked) return;
-    if (identical(layer, stop)) {
-      reached = true;
+      blocked = scan.blocker != null;
+      blocker = scan.blocker;
       return;
     }
-    if (!filtered && layer is ContainerLayer && !_path.contains(layer)) {
-      final extent = _Extent.of(layer);
-      if (!extent.isInfinite) {
-        var bounds = MatrixUtils.transformRect(transform, extent);
-        if (clip != null) bounds = bounds.intersect(clip);
-        if (!_meets(bounds, band)) return;
-      }
-    }
-
-    bool reaches(Rect local) {
-      // A filter above can move pixels anywhere: its whole subtree counts.
-      if (filtered) return true;
-      var bounds = MatrixUtils.transformRect(transform, local);
-      if (clip != null) bounds = bounds.intersect(clip);
-      return _meets(bounds, band);
-    }
-
-    Rect clipped(Rect local) {
-      final bounds = MatrixUtils.transformRect(transform, local);
-      return clip == null ? bounds : clip.intersect(bounds);
-    }
-
-    Matrix4 shifted(Offset offset) {
-      final next = transform.clone();
-      next.translateByDouble(offset.dx, offset.dy, 0, 1);
-      return next;
-    }
-
-    final c = canvas;
-    final depth = c?.getSaveCount() ?? 0;
-    var next = transform;
-    var nextClip = clip;
-    var nextState = state;
-    var nextFiltered = filtered;
-    (Shader, Rect, BlendMode)? mask;
-    switch (layer) {
-      case GlassPictureLayer() when beside(clipped(layer.canvasBounds)):
-        return;
-      case UnderlayPictureLayer(picture: null):
-        if (!reaches(layer.canvasBounds)) return;
-        if (layer.pendingLevel case final level? when c == null) {
-          // Glass over a copy that is not drawn yet: a copy that holds it is
-          // drawn after it, and a signature that holds it matches none.
-          if (level > waits) waits = level;
-          out.add(Object());
-          return;
-        }
-        layer.resolve();
-        if (layer.picture == null) return;
-        walk(layer, transform, clip, state: state, filtered: filtered);
-        return;
-      case PictureLayer(:final picture?):
-        if (!reaches(layer.canvasBounds)) return;
-        out.add(picture);
-        out.add(transform.clone());
-        out.add(clip);
-        out.addAll(state);
-        out.add(#leaf);
-        c?.drawPicture(picture);
-        return;
-      case PictureLayer():
-        return;
-      case TextureLayer(:final rect) || PlatformViewLayer(:final rect):
-        if (reaches(rect)) {
-          blocked = true;
-          blocker ??= layer;
-        }
-        return;
-      case OpacitySeedLayer(seeded: false):
-        break;
-      case BackdropFilterLayer():
-        // Another glass, or a blur, that reads live: what it writes, inside
-        // its clip, is not known until the frame renders.
-        if (filtered || _meets(clip ?? Rect.largest, band)) {
-          blocked = true;
-          blocker ??= layer;
-        }
-        return;
-      case SeededBackdropPassLayer(hidden: true):
-        return;
-      case SeededBackdropPassLayer(:final scenePass?):
-        if (filtered || _meets(clipped(scenePass.rect), band)) {
-          blocked = true;
-          blocker ??= layer;
-        }
-        return;
-      // A copy that holds it draws the filtered copy: one not drawn yet is
-      // drawn after it, as glass over glass is.
-      case LiquidGlassBackdropFilterLayer(serves: true):
-        if (layer.pendingLevel case final level? when c == null) {
-          if (level > waits) waits = level;
-          out.add(Object());
-        } else {
-          final picture = layer.servedPicture!;
-          out.add(picture);
-          out.add(transform.clone());
-          out.add(clip);
-          out.addAll(state);
-          out.add(#leaf);
-          c?.drawPicture(picture);
-        }
-      case LiquidGlassBackdropFilterLayer(clip: final rect, :final reach):
-        // It reads live, and changes nothing past its reach.
-        if (filtered || _meets(clipped(rect.inflate(reach)), band)) {
-          blocked = true;
-          blocker ??= layer;
-        }
-        return;
-      case TransformLayer(:final offset):
-        final effective = Matrix4.translationValues(offset.dx, offset.dy, 0);
-        if (layer.transform case final matrix?) effective.multiply(matrix);
-        next = transform.multiplied(effective);
-        c?.save();
-        c?.transform(effective.storage);
-      case OpacityLayer(:final offset):
-        final alpha = layer.alpha ?? 255;
-        next = shifted(offset);
-        nextState = [...state, alpha];
-        c?.save();
-        c?.translate(offset.dx, offset.dy);
-        if (alpha < 255) c?.saveLayer(null, _alpha(alpha));
-      case ImageFilterLayer(:final imageFilter?, :final offset):
-        next = shifted(offset);
-        nextState = [...state, imageFilter];
-        nextClip = null;
-        nextFiltered = true;
-        c?.save();
-        c?.translate(offset.dx, offset.dy);
-        c?.saveLayer(null, _filtering(imageFilter));
-      case OffsetLayer(:final offset)
-          when layer.runtimeType == OffsetLayer ||
-              layer is GeometryTransformTrackingLayer:
-        next = shifted(offset);
-        c?.save();
-        c?.translate(offset.dx, offset.dy);
-      case ColorFilterLayer(:final colorFilter?):
-        nextState = [...state, colorFilter];
-        final paint = Paint();
-        paint.colorFilter = colorFilter;
-        c?.saveLayer(null, paint);
-      case ShaderMaskLayer(
-        :final shader?,
-        :final maskRect?,
-        :final blendMode?,
-      ):
-        // A FragmentShader keeps its identity while its uniforms change.
-        final token = shader is ui.FragmentShader ? Object() : shader;
-        nextState = [...state, token, maskRect, blendMode];
-        c?.saveLayer(null, Paint());
-        mask = (shader, maskRect, blendMode);
-      case ClipRectLayer(:final clipRect?, :final clipBehavior)
-          when clipBehavior != Clip.none:
-        nextClip = clipped(clipRect);
-        nextState = [...state, clipRect, clipBehavior];
-        if (c != null) {
-          c.save();
-          c.clipRect(clipRect, doAntiAlias: clipBehavior != Clip.hardEdge);
-          _clipLayer(c, clipRect, clipBehavior);
-        }
-      case ClipRRectLayer(:final clipRRect?, :final clipBehavior)
-          when clipBehavior != Clip.none:
-        nextClip = clipped(clipRRect.outerRect);
-        nextState = [...state, clipRRect, clipBehavior];
-        if (c != null) {
-          c.save();
-          c.clipRRect(clipRRect, doAntiAlias: clipBehavior != Clip.hardEdge);
-          _clipLayer(c, clipRRect.outerRect, clipBehavior);
-        }
-      case ClipRSuperellipseLayer(
-            :final clipRSuperellipse?,
-            :final clipBehavior,
-          )
-          when clipBehavior != Clip.none:
-        nextClip = clipped(clipRSuperellipse.outerRect);
-        nextState = [...state, clipRSuperellipse, clipBehavior];
-        if (c != null) {
-          c.save();
-          c.clipRSuperellipse(
-            clipRSuperellipse,
-            doAntiAlias: clipBehavior != Clip.hardEdge,
-          );
-          _clipLayer(c, clipRSuperellipse.outerRect, clipBehavior);
-        }
-      case ClipPathLayer(:final clipPath?, :final clipBehavior)
-          when clipBehavior != Clip.none:
-        nextClip = clipped(clipPath.getBounds());
-        nextState = [...state, clipPath, clipBehavior];
-        if (c != null) {
-          c.save();
-          c.clipPath(clipPath, doAntiAlias: clipBehavior != Clip.hardEdge);
-          _clipLayer(c, clipPath.getBounds(), clipBehavior);
-        }
-      case NativeClipLayer(
-            enabled: true,
-            :final geometry?,
-            :final clipBehavior,
-          )
-          when clipBehavior != Clip.none:
-        final bounds = switch (geometry) {
-          final Rect rect => rect,
-          final RRect rect => rect.outerRect,
-          final RSuperellipse rect => rect.outerRect,
-          final Path path => path.getBounds(),
-          _ => Rect.largest,
-        };
-        nextClip = clipped(bounds);
-        nextState = [...state, geometry, clipBehavior];
-        if (c != null) {
-          final antiAlias = clipBehavior != Clip.hardEdge;
-          c.save();
-          switch (geometry) {
-            case final Rect rect:
-              c.clipRect(rect, doAntiAlias: antiAlias);
-            case final RRect rect:
-              c.clipRRect(rect, doAntiAlias: antiAlias);
-            case final RSuperellipse rect:
-              c.clipRSuperellipse(rect, doAntiAlias: antiAlias);
-            case final Path path:
-              c.clipPath(path, doAntiAlias: antiAlias);
-            default:
-              c.restoreToCount(depth);
-              blocked = true;
-              blocker ??= layer;
-              return;
-          }
-          _clipLayer(c, bounds, clipBehavior);
-        }
-      case LeaderLayer(:final offset):
-        next = shifted(offset);
-        c?.save();
-        c?.translate(offset.dx, offset.dy);
-      case ClipRectLayer() ||
-          ClipRRectLayer() ||
-          ClipRSuperellipseLayer() ||
-          ClipPathLayer() ||
-          NativeClipLayer() ||
-          AnnotatedRegionLayer() ||
-          SeededBackdropPassLayer():
-        break;
-      case ContainerLayer() when layer.runtimeType == ContainerLayer:
-        break;
-      case ContainerLayer() when LiquidGlassUnderlay.effectsOf(layer) != null:
-        final effects = LiquidGlassUnderlay.effectsOf(layer)!;
-        next = transform.multiplied(effects.transform);
-        c?.save();
-        c?.transform(effects.transform.storage);
-        final effectState = <Object?>[];
-        if (effects.clip case final rounded?) {
-          final bounds = MatrixUtils.transformRect(next, rounded.outerRect);
-          nextClip = clip == null ? bounds : clip.intersect(bounds);
-          effectState.add(rounded);
-          c?.clipRRect(rounded);
-        }
-        if (effects.alpha case final alpha?) {
-          effectState.add(alpha);
-          c?.saveLayer(null, _alpha(alpha));
-        }
-        if (effects.blur > 0) {
-          effectState.add(effects.blur);
-          nextClip = null;
-          nextFiltered = true;
-          c?.saveLayer(
-            null,
-            _filtering(
-              ui.ImageFilter.blur(sigmaX: effects.blur, sigmaY: effects.blur),
-            ),
-          );
-        }
-        nextState = [...state, ...effectState];
-        for (var c = layer.firstChild; c != null; c = c.nextSibling) {
-          walk(c, next, nextClip, state: nextState, filtered: nextFiltered);
-          if (reached || blocked) break;
-        }
-        c?.restoreToCount(depth);
-        return;
-      default:
-        // A layer this walk cannot draw again: only one whose content stays
-        // clear of the band leaves the copy exact.
-        if (_mayReach(layer, transform, clip, filtered: filtered)) {
-          blocked = true;
-          blocker ??= layer;
-        }
-        return;
-    }
-    if (layer is ContainerLayer) {
-      for (
-        var child = layer.firstChild;
-        child != null;
-        child = child.nextSibling
-      ) {
-        walk(
-          child,
-          next,
-          nextClip,
-          state: nextState,
-          filtered: nextFiltered,
-        );
-        if (reached || blocked) break;
-      }
-    }
-    if (mask case (final shader, final rect, final blendMode) when c != null) {
-      // The engine draws a shader mask over what it masks, in a layer.
-      final paint = Paint();
-      paint.shader = shader;
-      paint.blendMode = blendMode;
-      c.translate(rect.left, rect.top);
-      c.drawRect(Offset.zero & rect.size, paint);
-    }
-    c?.restoreToCount(depth);
+    scan.replay(this, limit);
   }
 
   // Whether glass drawn inside [bounds] lies beside the copy's glass rather
@@ -789,14 +423,6 @@ class _Prefix {
     final paint = Paint();
     paint.imageFilter = filter;
     return paint;
-  }
-
-  // A clip that antialiases with a layer draws what it clips in a layer of
-  // its bounds, as the engine's clip layers do.
-  static void _clipLayer(Canvas canvas, Rect bounds, Clip behavior) {
-    if (behavior == Clip.antiAliasWithSaveLayer) {
-      canvas.saveLayer(bounds, Paint());
-    }
   }
 
   // Whether anything [layer] draws may land in the band, judged by its
@@ -888,9 +514,14 @@ final class _Scan {
   final entries = <_Entry>[];
   final _cursors = <_Cursor>[];
 
+  // The container above the last anchor [reach] could not reach whose
+  // children it does not walk, if one stopped it.
+  Layer? blocker;
+
   // Walks on to [anchor] and returns how many entries lie before it, or -1
   // when the walk cannot reach it.
   int reach(Layer anchor) {
+    blocker = null;
     Set<Layer>? path;
     while (true) {
       final at = _cursors.last;
@@ -907,7 +538,10 @@ final class _Scan {
       at.next = layer.nextSibling;
       if (!_visit(layer, at)) {
         path ??= _Prefix._ancestors(anchor);
-        if (path.contains(layer)) return -1;
+        if (path.contains(layer)) {
+          blocker = layer;
+          return -1;
+        }
       }
     }
   }
@@ -1401,8 +1035,10 @@ final class _Scan {
               skip(entry);
               if (!through) break loop;
               continue loop;
-            case _Pass(:final layer) when layer.scenePass != null:
-              if (_meets(entry.reads(layer.scenePass!.rect), band)) {
+            case _Pass(
+              layer: final layer && SeededBackdropPassLayer(:final scenePass?),
+            ):
+              if (_meets(entry.reads(scenePass.rect), band)) {
                 prefix.blocked = true;
                 prefix.blocker ??= layer;
                 break loop;
@@ -1639,7 +1275,6 @@ final class _Served extends _Open {
 // Layers that read the backdrop or whose drawing is not known count as
 // painting everywhere.
 abstract final class _Extent {
-  static final _cache = Expando<(int, Rect)>();
   static int _frame = 0;
   static bool _counting = false;
 
@@ -1660,125 +1295,15 @@ abstract final class _Extent {
     }
     return _frame;
   }
-
-  static Rect of(Layer layer) {
-    final frame = _Extent.frame;
-    if (_cache[layer] case (final at, final rect) when at == frame) {
-      return rect;
-    }
-    final rect = _measure(layer);
-    if (frame != null) _cache[layer] = (frame, rect);
-    return rect;
-  }
-
-  static Rect _measure(Layer layer) => switch (layer) {
-    PictureLayer(:final picture) =>
-      picture == null && layer is! UnderlayPictureLayer
-          ? Rect.zero
-          : layer.canvasBounds,
-    TextureLayer(:final rect) || PlatformViewLayer(:final rect) => rect,
-    LiquidGlassBackdropFilterLayer(:final clip, :final reach) => _children(
-      layer,
-      null,
-    ).expandToInclude(clip.inflate(reach)),
-    BackdropFilterLayer() ||
-    SeededBackdropPassLayer() ||
-    ImageFilterLayer() ||
-    ColorFilterLayer() => Rect.largest,
-    TransformLayer(:final offset, :final transform) => _children(
-      layer,
-      Matrix4.translationValues(
-        offset.dx,
-        offset.dy,
-        0,
-      ).multiplied(transform ?? Matrix4.identity()),
-    ),
-    final OpacityLayer opacity => _shifted(opacity, opacity.offset),
-    final LeaderLayer leader => _shifted(leader, leader.offset),
-    final OffsetLayer offsets
-        when offsets.runtimeType == OffsetLayer ||
-            offsets is GeometryTransformTrackingLayer =>
-      _shifted(offsets, offsets.offset),
-    NativeClipLayer(enabled: true, :final geometry?, :final clipBehavior)
-        when clipBehavior != Clip.none =>
-      _clipped(_children(layer as ContainerLayer, null), switch (geometry) {
-        final Rect rect => rect,
-        final RRect rect => rect.outerRect,
-        final RSuperellipse rect => rect.outerRect,
-        final Path path => path.getBounds(),
-        _ => Rect.largest,
-      }),
-    final NativeClipLayer clip => _children(clip, null),
-    ShaderMaskLayer(:final maskRect) => _union(
-      _children(layer, null),
-      maskRect ?? Rect.largest,
-    ),
-    ClipRectLayer(:final clipRect?, :final clipBehavior)
-        when clipBehavior != Clip.none =>
-      _clipped(_children(layer, null), clipRect),
-    ClipRRectLayer(:final clipRRect?, :final clipBehavior)
-        when clipBehavior != Clip.none =>
-      _clipped(_children(layer, null), clipRRect.outerRect),
-    ClipRSuperellipseLayer(:final clipRSuperellipse?, :final clipBehavior)
-        when clipBehavior != Clip.none =>
-      _clipped(_children(layer, null), clipRSuperellipse.outerRect),
-    ClipPathLayer(:final clipPath?, :final clipBehavior)
-        when clipBehavior != Clip.none =>
-      _clipped(_children(layer, null), clipPath.getBounds()),
-    final ContainerLayer group
-        when group is ClipRectLayer ||
-            group is ClipRRectLayer ||
-            group is ClipRSuperellipseLayer ||
-            group is ClipPathLayer ||
-            group is AnnotatedRegionLayer ||
-            group.runtimeType == ContainerLayer =>
-      _children(group, null),
-    _ => Rect.largest,
-  };
-
-  static Rect _shifted(ContainerLayer layer, Offset offset) =>
-      _children(layer, Matrix4.translationValues(offset.dx, offset.dy, 0));
-
-  static Rect _children(ContainerLayer layer, Matrix4? transform) {
-    var bounds = Rect.zero;
-    for (
-      var child = layer.firstChild;
-      child != null;
-      child = child.nextSibling
-    ) {
-      final extent = of(child);
-      if (extent.isInfinite) return Rect.largest;
-      if (extent.isEmpty) continue;
-      bounds = _union(
-        bounds,
-        transform == null
-            ? extent
-            : MatrixUtils.transformRect(transform, extent),
-      );
-    }
-    return bounds;
-  }
-
-  static Rect _union(Rect a, Rect b) {
-    if (a.isEmpty) return b;
-    if (b.isEmpty) return a;
-    return a.expandToInclude(b);
-  }
-
-  static Rect _clipped(Rect content, Rect clip) {
-    if (content.isInfinite) return clip;
-    final rect = content.intersect(clip);
-    return rect.isEmpty ? Rect.zero : rect;
-  }
 }
 
 /// A copy that [BackdropUnderlay.imageFor] serves: [rect] of the screen, in
 /// logical pixels, at [offset] (the image's pixels) in [image], at
 /// [pixelRatio].
 ///
-/// A copy recorded this frame is drawn when its [image] or [offset] is first
-/// read, together with every copy recorded before it: a caller that can
-/// wait reads them when the scene is added ([UnderlayPictureLayer]).
+/// A copy recorded this frame is drawn by [BackdropUnderlay.drawPending]
+/// with the frame's other copies; reading [image] or [offset] earlier draws
+/// the pending copies then.
 @internal
 final class UnderlayCopy {
   const UnderlayCopy._(this._underlay, this.rect, this.pixelRatio);
@@ -1820,7 +1345,7 @@ class GlassPictureLayer extends PictureLayer {
 
 /// A picture of glass over a copy that is recorded when the scene is added,
 /// or earlier when another copy holds it, so that the copies of a frame are
-/// drawn in one image.
+/// drawn together.
 @internal
 class UnderlayPictureLayer extends GlassPictureLayer {
   /// A layer whose [record] records its picture once [copy] is drawn.
@@ -1967,22 +1492,18 @@ final class _Gathering {
 // with copies beside it.
 final class _Islander {
   _Islander(
-    this.root,
     this.anchor,
     this.scan,
     this.start,
-    this.devicePixelRatio,
     this.body,
     this.signature, {
     this.own,
   });
 
-  final Layer root;
   final Layer anchor;
   final _Scan scan;
   // Where [anchor] lies in [scan].
   final int start;
-  final double devicePixelRatio;
   final Rect body;
   final List<Object?> signature;
   // What the glass paints with it after [anchor]: its shadows and children.
@@ -2099,13 +1620,12 @@ abstract final class _Atlas {
       final prefix = _Prefix(
         at.anchor,
         rect,
-        at.devicePixelRatio,
         ui.PictureRecorder(),
         scan: at.scan,
         limit: at.start,
         bodies: [for (final tile in island.tiles) tile.island!.body],
       );
-      final content = prefix.record(at.root, rect, pixels);
+      final content = prefix.record(pixels);
       if (content == null) continue;
       final joined = _Tile(
         first.owner,
