@@ -12,11 +12,10 @@ import 'package:liquid_glass_renderer/src/internal/running_under_flutter_test.da
 import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
 
-/// The device pixels of the first view, or `null` without one.
-Size? _screenPixels() {
-  final views = RendererBinding.instance.renderViews;
-  return views.isEmpty ? null : views.first.flutterView.physicalSize;
-}
+/// The device pixels of [view], the owner of a layer tree or the root of a
+/// render tree, or `null` when it is no view.
+Size? _screenPixels(Object? view) =>
+    view is RenderView ? view.flutterView.physicalSize : null;
 
 /// Sizes the pass of one backdrop effect so that it changes size rarely, which
 /// is when Impeller allocates a render target.
@@ -82,6 +81,7 @@ class BackdropPassSizing {
   /// Decides whether a pass of [width] by [height] logical pixels at
   /// [devicePixelRatio] is sized coarsely now.
   ///
+  /// [screen] is the device pixels of the view the pass is drawn into.
   /// [cutOrigin] is the pass's snapped origin in device pixels when a clip or
   /// the screen cuts it: its cut size then follows the origin, so a pass that
   /// moves there counts as changing size.
@@ -89,9 +89,9 @@ class BackdropPassSizing {
     double width,
     double height,
     double devicePixelRatio, {
+    required Size? screen,
     Offset? cutOrigin,
   }) {
-    final screen = _screenPixels();
     if (!debugStabilizeLargePasses || screen == null) return _reset();
     final fraction =
         width *
@@ -387,7 +387,7 @@ BackdropPassPlan planSeededBackdropPass({
       : MatrixUtils.transformRect(toGlobal, ownerClip);
   var limit = globalOwnerClip;
   if (outer != null) limit = limit?.intersect(outer) ?? outer;
-  final screen = _screenPixels();
+  final screen = _screenPixels(owner.owner?.rootNode);
   if (screen != null) {
     final view = Offset.zero & (screen / devicePixelRatio);
     limit = limit?.intersect(view) ?? view;
@@ -406,6 +406,7 @@ BackdropPassPlan planSeededBackdropPass({
     needWidth / devicePixelRatio,
     needHeight / devicePixelRatio,
     devicePixelRatio,
+    screen: screen,
     cutOrigin: cut
         ? Offset(
             (wantedGlobal.left * devicePixelRatio + _pixelEpsilon)
@@ -845,7 +846,7 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
   bool _blurSeedCrops(double sigma) {
     final global = _plan.globalRect;
     final toGlobal = _plan.layerToGlobal;
-    final screen = _screenPixels();
+    final screen = _screenPixels(owner);
     if (global == null ||
         toGlobal == null ||
         screen == null ||

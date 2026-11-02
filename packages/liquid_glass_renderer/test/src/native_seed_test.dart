@@ -710,7 +710,12 @@ void main() {
       Future<bool> frame(double wanted) async {
         tester.binding.scheduleFrame();
         await tester.pump();
-        return sizing.decideLarge(width, wanted, dpr);
+        return sizing.decideLarge(
+          width,
+          wanted,
+          dpr,
+          screen: tester.view.physicalSize,
+        );
       }
 
       expect(await frame(500), isFalse, reason: 'unchanged is not resizing');
