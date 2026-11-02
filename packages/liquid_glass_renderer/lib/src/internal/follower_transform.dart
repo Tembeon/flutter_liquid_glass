@@ -1,0 +1,119 @@
+import 'package:flutter/rendering.dart';
+import 'package:meta/meta.dart';
+
+/// [node]'s transform to [ancestor], or to the screen in logical pixels when
+/// [ancestor] is null, as [RenderObject.getTransformTo] gives it, except that
+/// a follower maps where its leader is in this frame.
+///
+/// A [FollowerLayer] takes its transform from its leader only when it adds
+/// itself to the scene, so [RenderObject.getTransformTo] through a
+/// [RenderFollowerLayer] reads the last frame's (identity before the first).
+/// Glass decides after paint and before the scene is built, when the
+/// leader's layers already hold this frame's offsets.
+@internal
+Matrix4 transformToNow(RenderObject node, [RenderObject? ancestor]) =>
+    transformToNowOrLast(node, ancestor).transform;
+
+/// [transformToNow], and whether a follower on the way could not be mapped
+/// yet (before its first frame, or while it repaints and its layer is not in
+/// the leader's tree), so the transform holds that follower's last frame.
+@internal
+({Matrix4 transform, bool last}) transformToNowOrLast(
+  RenderObject node, [
+  RenderObject? ancestor,
+]) {
+  final path = <RenderObject>[];
+  for (
+    RenderObject? at = node;
+    at != null && !identical(at, ancestor);
+    at = at.parent
+  ) {
+    path.add(at);
+  }
+  if (ancestor != null) {
+    path.add(ancestor);
+  } else if (path.isNotEmpty) {
+    // As getTransformTo(null) does, leave out the root view's own transform
+    // (the device pixel ratio).
+    path.removeLast();
+  }
+  final transform = Matrix4.identity();
+  var last = false;
+  for (var i = path.length - 1; i > 0; i--) {
+    if (applyPaintTransformNow(path[i], path[i - 1], transform)) last = true;
+  }
+  return (transform: transform, last: last);
+}
+
+/// [parent]'s [RenderObject.applyPaintTransform] for [child], with a
+/// follower mapped where its leader is in this frame (see
+/// [transformToNow]); returns whether it applied a follower's last frame
+/// instead.
+@internal
+bool applyPaintTransformNow(
+  RenderObject parent,
+  RenderObject child,
+  Matrix4 transform,
+) {
+  final layer = parent is RenderFollowerLayer ? parent.layer : null;
+  final established = layer == null ? null : _established(layer);
+  if (established == null) {
+    parent.applyPaintTransform(child, transform);
+    return parent is RenderFollowerLayer;
+  }
+  final offset = layer!.unlinkedOffset ?? Offset.zero;
+  established.leftTranslateByDouble(-offset.dx, -offset.dy, 0, 1);
+  transform.multiply(established);
+  return false;
+}
+
+/// [layer]'s [ContainerLayer.applyTransform] for [child], with a
+/// [FollowerLayer] mapped where its leader is in this frame (see
+/// [transformToNow]).
+@internal
+void applyTransformNow(ContainerLayer layer, Layer? child, Matrix4 transform) {
+  final established = layer is FollowerLayer ? _established(layer) : null;
+  if (established == null) {
+    layer.applyTransform(child, transform);
+  } else {
+    transform.multiply(established);
+  }
+}
+
+// What [follower]'s addToScene establishes this frame: the map from its
+// children's coordinates to its parent's, or null where that cannot be told
+// yet (no leader, a follower not in the leader's tree while it repaints, a
+// degenerate map), and Flutter's own last transform stands.
+Matrix4? _established(FollowerLayer follower) {
+  final leader = follower.link.leader;
+  if (leader == null) return null;
+  final fromLeader = <ContainerLayer>[];
+  for (ContainerLayer? at = leader; at != null; at = at.parent) {
+    fromLeader.add(at);
+  }
+  final fromFollower = <ContainerLayer>[];
+  var common = -1;
+  for (ContainerLayer? at = follower; at != null; at = at.parent) {
+    fromFollower.add(at);
+    common = fromLeader.indexWhere((layer) => identical(layer, at));
+    if (common >= 0) break;
+  }
+  if (common < 0) return null;
+  final forward = _chain(fromLeader.sublist(0, common + 1));
+  leader.applyTransform(null, forward);
+  final linked = follower.linkedOffset ?? Offset.zero;
+  forward.translateByDouble(linked.dx, linked.dy, 0, 1);
+  final inverse = _chain(fromFollower);
+  if (inverse.invert() == 0) return null;
+  inverse.multiply(forward);
+  return inverse;
+}
+
+// The map from [layers]'s first to its last, each the child of the next.
+Matrix4 _chain(List<ContainerLayer> layers) {
+  final transform = Matrix4.identity();
+  for (var i = layers.length - 1; i > 0; i--) {
+    applyTransformNow(layers[i], layers[i - 1], transform);
+  }
+  return transform;
+}

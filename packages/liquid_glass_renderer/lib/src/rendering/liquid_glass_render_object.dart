@@ -440,7 +440,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
   ) {
     Rect? boundingBox;
     link.updatePaintOrder(this);
-    _framePoll.markPolled();
     final painted = paintedShapes;
     // A shape coming back onstage keeps its registration and geometry, so the
     // link would not tell the matte it changed.
@@ -457,6 +456,9 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
           ? geoBounds
           : boundingBox.expandToInclude(geoBounds);
     }
+    // A shape under a follower that repaints maps it only once the follower
+    // is back in its leader's tree, which the compositing poll sees.
+    if (!painted.any((shape) => shape.transformMayLag)) _framePoll.markPolled();
     assert(
       debugCheckOpacityBetweenShapesAndLayer(this, link.shapes),
       'Warns about an Opacity between a shape and its layer.',

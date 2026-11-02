@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
+import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 import 'package:meta/meta.dart';
 
 @internal
@@ -41,7 +42,7 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
   /// the one the layer read for the frame, as nothing moves a render object
   /// between paint and the scene: the walk to the root is taken once.
   Matrix4 transformToScreen() =>
-      layer?._composited?.clone() ?? getTransformTo(null);
+      layer?._composited?.clone() ?? transformToNow(this);
 
   @mustCallSuper
   @override
@@ -140,7 +141,7 @@ class GeometryTransformTrackingLayer extends OffsetLayer with ComposedLayer {
     _prepared = null;
     final renderObject = this.renderObject;
     if (renderObject == null || !renderObject.attached) return;
-    _composited = planned ?? renderObject.getTransformTo(null);
+    _composited = planned ?? transformToNow(renderObject);
     try {
       onCompositing?.call();
     } finally {
@@ -149,7 +150,7 @@ class GeometryTransformTrackingLayer extends OffsetLayer with ComposedLayer {
   }
 
   Matrix4 _poll(RenderObject renderObject, VoidCallback? then) {
-    final currentTransform = renderObject.getTransformTo(null);
+    final currentTransform = transformToNow(renderObject);
     _composited = currentTransform;
     try {
       if (!MatrixUtils.matrixEquals(currentTransform, _lastTransform)) {
@@ -205,4 +206,4 @@ class FramePollMarker {
 Matrix4 screenTransformOf(RenderObject node) =>
     node is TransformTrackingRenderObjectMixin
     ? node.transformToScreen()
-    : node.getTransformTo(null);
+    : transformToNow(node);

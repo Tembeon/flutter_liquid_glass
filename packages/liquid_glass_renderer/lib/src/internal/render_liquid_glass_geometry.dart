@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
 import 'package:liquid_glass_renderer/src/logging.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
@@ -179,9 +180,15 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
 
   Matrix4? _lastTransformToLayer;
 
+  /// Whether the last [pollRelativeTransforms] read a follower's last frame
+  /// (see [transformToNowOrLast]): the layer polls again once the follower
+  /// is in the leader's tree.
+  bool get transformMayLag => _transformMayLag;
+  bool _transformMayLag = false;
+
   /// Detects motion of this geometry relative to [layer].
   ///
-  /// Uses [getTransformTo], which only composes layout offsets and
+  /// Uses [transformToNowOrLast], which only composes layout offsets and
   /// [RenderObject.applyPaintTransform] overrides — ancestor transforms
   /// applied inside paint() (e.g. PaintingContext.pushTransform) are
   /// invisible here, so the glass will not follow those. Known limitation.
@@ -195,7 +202,8 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
       return (childChanged: false, selfChanged: false, transform: null);
     }
 
-    final toLayer = getTransformTo(layer);
+    final (transform: toLayer, :last) = transformToNowOrLast(this, layer);
+    _transformMayLag = last;
     var selfChanged = false;
     if (_lastTransformToLayer == null) {
       _lastTransformToLayer = toLayer;

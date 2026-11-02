@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_render_scope.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
@@ -263,7 +264,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
   /// The shape's transform to this group, or null while the shape is not
   /// painted (see [isGlassShapePainted]).
   Matrix4? _paintedTransform(RenderObject shape) =>
-      isGlassShapePainted(shape, this) ? shape.getTransformTo(this) : null;
+      isGlassShapePainted(shape, this) ? transformToNow(shape, this) : null;
 
   @override
   (Rect, List<ShapeGeometry>, bool) gatherShapeData() {
@@ -340,7 +341,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
     }
 
     // We remember the shapes transform to this blend group.
-    final transformToGeometry = renderObject.getTransformTo(this);
+    final transformToGeometry = transformToNow(renderObject, this);
 
     final blendGroupRect = MatrixUtils.transformRect(
       transformToGeometry,

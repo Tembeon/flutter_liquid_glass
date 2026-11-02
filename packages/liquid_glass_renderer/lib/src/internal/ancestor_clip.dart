@@ -1,4 +1,5 @@
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 
 /// The clip [ancestor] applies to [child], in [ancestor]'s coordinates, or
 /// `null` when it does not clip. Impeller derives a backdrop pass's coverage
@@ -67,7 +68,7 @@ Rect? localPaintClipAbove(RenderObject node) {
     child = ancestor, ancestor = ancestor.parent
   ) {
     final step = Matrix4.identity();
-    ancestor.applyPaintTransform(child, step);
+    applyPaintTransformNow(ancestor, child, step);
     toAncestor = step..multiply(toAncestor);
     final clip = paintClipOfAncestor(ancestor, child);
     if (clip != null && isRectilinearTransform(toAncestor)) {
@@ -132,7 +133,9 @@ Rect? _screenClipAbove(
     }
     // As getTransformTo(null) does, leave out the root view's own transform
     // (the device pixel ratio).
-    if (i < path.length - 1) ancestor.applyPaintTransform(child, toScreen);
+    if (i < path.length - 1) {
+      applyPaintTransformNow(ancestor, child, toScreen);
+    }
   }
   return result;
 }

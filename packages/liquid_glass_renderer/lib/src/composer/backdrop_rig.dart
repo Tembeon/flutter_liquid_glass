@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 
 /// The shift from [anchor]'s coordinates to the screen's, in logical pixels,
 /// or null when a transform above it scales or turns it.
@@ -22,7 +23,7 @@ Offset? screenOffsetOf(Layer anchor, double devicePixelRatio) {
     chain.add(node);
   }
   for (var i = chain.length - 1; i > 0; i--) {
-    (chain[i] as ContainerLayer).applyTransform(chain[i - 1], toScreen);
+    applyTransformNow(chain[i] as ContainerLayer, chain[i - 1], toScreen);
   }
   final m = toScreen.storage;
   if ((m[0] - 1).abs() > 1e-6 ||

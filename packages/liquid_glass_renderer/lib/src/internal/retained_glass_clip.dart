@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 import 'package:meta/meta.dart';
 
 /// Retains clip ancestry common to every contributor in one glass pass.
@@ -117,7 +118,7 @@ class RetainedGlassClip {
         -effectTranslation.dx,
         -effectTranslation.dy,
         0,
-      )..multiply(source.getTransformTo(owner));
+      )..multiply(transformToNow(source, owner));
       final inverse = Matrix4.tryInvert(transform);
       if (inverse == null) return;
 
@@ -266,7 +267,7 @@ class _ClipEntry {
     layer.enabled = behavior != Clip.none;
     if (!layer.enabled) return;
     layer.clipBehavior = behavior;
-    final transform = source.getTransformTo(owner);
+    final transform = transformToNow(source, owner);
     if (geometry is! Path &&
         _geometry == geometry &&
         _offset == offset &&
