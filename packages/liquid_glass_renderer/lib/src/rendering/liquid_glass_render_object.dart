@@ -1077,8 +1077,12 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
 
   // The last draw's silhouettes, matched to shapes by position: an entry is
   // reused while its shape, size and transform stay the same, and only
-  // re-mapped when just the transform changed.
+  // re-mapped when just the transform changed. A size within a hair of the
+  // last counts as the same: a moving shape's size, taken as the difference
+  // of its moved edges, changes in its last bits from frame to frame.
   List<_Silhouette> _silhouettes = const [];
+
+  static const double _sameSize = 1e-6;
 
   List<_Silhouette> _currentSilhouettes() {
     final previous = _silhouettes;
@@ -1093,25 +1097,31 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
             ? previous[next.length]
             : null;
         final sameOutline =
-            old != null && old.shape == shape.shape && old.size == size;
+            old != null &&
+            old.shape == shape.shape &&
+            (old.size.width - size.width).abs() < _sameSize &&
+            (old.size.height - size.height).abs() < _sameSize;
         if (sameOutline && MatrixUtils.matrixEquals(old.transform, transform)) {
           next.add(old);
           continue;
         }
         // Half a pixel inside the outline, so the shadow reaches into the
         // glass's antialiased edge and no seam shows between them.
+        final outline = (Offset.zero & (sameOutline ? old.size : size)).deflate(
+          .5,
+        );
         final local = sameOutline
             ? old.local
-            : shape.shape.getOuterPath((Offset.zero & size).deflate(.5));
-        final path = local.transform(transform.storage);
+            : shape.shape.getOuterPath(outline);
         next.add(
           _Silhouette(
             shape.shape,
-            size,
+            sameOutline ? old.size : size,
             local,
             transform,
-            path,
-            path.getBounds(),
+            // The outline fills its rect up to each side: the rect's bounds
+            // are the path's, without asking the engine for them.
+            MatrixUtils.transformRect(transform, outline),
           ),
         );
       }
@@ -1148,13 +1158,15 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
     if (apart) {
       final path = outside();
       for (final silhouette in silhouettes) {
-        path.addPath(silhouette.path, Offset.zero);
+        silhouette.addTo(path);
       }
       canvas.clipPath(path);
       return;
     }
     for (final silhouette in silhouettes) {
-      canvas.clipPath(outside()..addPath(silhouette.path, Offset.zero));
+      final path = outside();
+      silhouette.addTo(path);
+      canvas.clipPath(path);
     }
   }
 
@@ -1297,15 +1309,14 @@ class InheritedGeometryRenderLink extends InheritedWidget {
   }
 }
 
-/// A shape's outline at its size ([local]) and under its [transform] into
-/// the layer ([path], with its [bounds]).
+/// A shape's outline at its size ([local]), its [transform] into the layer
+/// and its [bounds] there.
 class _Silhouette {
   _Silhouette(
     this.shape,
     this.size,
     this.local,
     this.transform,
-    this.path,
     this.bounds,
   );
 
@@ -1313,6 +1324,9 @@ class _Silhouette {
   final Size size;
   final Path local;
   final Matrix4 transform;
-  final Path path;
   final Rect bounds;
+
+  /// Adds the outline under its transform to [path].
+  void addTo(Path path) =>
+      path.addPath(local, Offset.zero, matrix4: transform.storage);
 }
