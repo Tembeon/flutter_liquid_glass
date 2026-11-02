@@ -1030,9 +1030,7 @@ abstract final class _Atlas {
 
   static void _draw(List<_Tile> tiles, int width, int height) {
     drawn++;
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    void place(_Tile tile) {
+    void place(Canvas canvas, _Tile tile) {
       canvas.save();
       canvas.translate(tile.offset.dx, tile.offset.dy);
       canvas.clipRect(Offset.zero & tile.bounds.size);
@@ -1040,19 +1038,20 @@ abstract final class _Atlas {
       canvas.restore();
     }
 
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
     // Copies that a filter replaces whole and that lie side by side share
     // one filtered layer: the blur reaches across a copy's edge no further
     // than the band a copy holds around what its glass samples, and the
     // layer is clipped to the copies so that it reaches no other. The layer
     // is filtered whole, so copies far apart are filtered each on its own,
-    // and so are a pair: the filtered layer costs the GPU more than two
-    // layers of a copy's size (iPhone 16 Pro: 1 ms a frame for two copies
-    // of 330 by 252 pixels), which the raster thread saves only with more.
+    // and so are a pair: the shared layer saves the raster thread a layer a
+    // copy, which pays for its larger area only with more.
     final shared = <(Object?, double), List<_Tile>>{};
     final isolated = <_Tile>[];
     for (final tile in tiles) {
       if (tile.filter == null) {
-        place(tile);
+        place(canvas, tile);
       } else if (tile.filterClip == null &&
           tile.filterBlendMode == BlendMode.src) {
         shared
@@ -1065,51 +1064,58 @@ abstract final class _Atlas {
         isolated.add(tile);
       }
     }
+    final clusters = <List<_Tile>>[];
     for (final group in shared.values) {
       for (final cluster in _clusters(group)) {
         if (cluster.length < 3) {
           isolated.addAll(cluster);
-          continue;
+        } else {
+          clusters.add(cluster);
         }
+      }
+    }
+    final content = recorder.endRecording();
+    final ui.Image image;
+    if (isolated.isEmpty && clusters.isEmpty) {
+      image = content.toImageSync(width, height);
+    } else {
+      // The filter reads copies as a backdrop filter reads the screen, in a
+      // layer around them: it reads that layer alone, which a pass split at
+      // the filter loads and stores. It stands under the view's scale, as
+      // the backdrop filter it replaces does.
+      final b = ui.SceneBuilder();
+      b.addPicture(Offset.zero, content);
+      final pictures = <ui.Picture>[];
+      for (final cluster in clusters) {
         final dpr = cluster.first.devicePixelRatio;
         final area = Path();
+        final recorder = ui.PictureRecorder();
+        final canvas = Canvas(recorder);
         for (final tile in cluster) {
           area.addRect(tile.bounds);
+          place(canvas, tile);
         }
+        final copies = recorder.endRecording();
+        pictures.add(copies);
         final bounds = area.getBounds();
-        final paint = Paint();
-        paint.imageFilter = cluster.first.filter;
-        canvas.save();
-        canvas.clipPath(area, doAntiAlias: false);
-        // The filter is in logical pixels, as the backdrop filter it stands
-        // for is under the view's scale.
-        canvas.scale(dpr);
-        canvas.saveLayer(
+        b.pushClipPath(area, clipBehavior: Clip.antiAliasWithSaveLayer);
+        b.addPicture(Offset.zero, copies);
+        b.pushTransform(Matrix4.diagonal3Values(dpr, dpr, 1).storage);
+        b.pushClipRect(
           Rect.fromLTRB(
             bounds.left / dpr,
             bounds.top / dpr,
             bounds.right / dpr,
             bounds.bottom / dpr,
           ),
-          paint,
+          clipBehavior: Clip.hardEdge,
         );
-        canvas.scale(1 / dpr);
-        cluster.forEach(place);
-        canvas.restore();
-        canvas.restore();
+        b.pushBackdropFilter(cluster.first.filter!);
+        b.pop();
+        b.pop();
+        b.pop();
+        b.pop();
       }
-    }
-    final content = recorder.endRecording();
-    final ui.Image image;
-    if (isolated.isEmpty) {
-      image = content.toImageSync(width, height);
-    } else {
-      // The filter reads a copy as a backdrop filter reads the screen, in a
-      // layer of the copy's size: it reads that layer alone, which a pass
-      // split at the filter loads and stores, and its blur meets the copy's
-      // edges as it would meet the edges of an image of its own.
-      final b = ui.SceneBuilder();
-      b.addPicture(Offset.zero, content);
       for (final tile in isolated) {
         final filter = tile.filter!;
         final dpr = tile.devicePixelRatio;
@@ -1135,6 +1141,9 @@ abstract final class _Atlas {
       final scene = b.build();
       image = scene.toImageSync(width, height);
       scene.dispose();
+      for (final picture in pictures) {
+        picture.dispose();
+      }
     }
     for (final tile in tiles) {
       tile.content!.dispose();
