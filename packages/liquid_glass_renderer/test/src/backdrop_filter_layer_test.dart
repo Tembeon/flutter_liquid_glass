@@ -1,3 +1,6 @@
+// Painting reads as one statement per call, without cascades.
+// ignore_for_file: cascade_invocations
+
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -6,6 +9,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/internal/glass_composition_probe.dart';
+import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
 import 'shared.dart';
 
@@ -67,55 +72,72 @@ class _RenderBand extends RenderBox {
   }
 }
 
-Widget _scene({double shift = 0, bool texture = false, bool band = true}) =>
-    Directionality(
-      textDirection: TextDirection.ltr,
-      child: RepaintBoundary(
-        key: _key,
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: const [
-                      Color(0xFF1E3A8A),
-                      Color(0xFFF59E0B),
-                      Color(0xFF10B981),
-                    ],
-                    begin: Alignment(-1 + shift, -1),
-                    end: Alignment.bottomRight,
-                    tileMode: TileMode.mirror,
-                  ),
-                ),
-                child: const Center(
-                  child: Text(
-                    'Page under the band',
-                    style: TextStyle(color: Color(0xFFFFFFFF), fontSize: 22),
-                  ),
-                ),
+Widget _scene({
+  double shift = 0,
+  bool texture = false,
+  bool band = true,
+  bool glass = false,
+}) => Directionality(
+  textDirection: TextDirection.ltr,
+  child: RepaintBoundary(
+    key: _key,
+    child: Stack(
+      children: [
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: const [
+                  Color(0xFF1E3A8A),
+                  Color(0xFFF59E0B),
+                  Color(0xFF10B981),
+                ],
+                begin: Alignment(-1 + shift, -1),
+                end: Alignment.bottomRight,
+                tileMode: TileMode.mirror,
               ),
             ),
-            if (texture)
-              const Positioned(
-                left: 40,
-                top: 20,
-                width: 20,
-                height: 20,
-                child: Texture(textureId: 1),
+            child: const Center(
+              child: Text(
+                'Page under the band',
+                style: TextStyle(color: Color(0xFFFFFFFF), fontSize: 22),
               ),
-            if (band)
-              const Positioned(
-                left: 0,
-                right: 0,
-                top: 0,
-                height: 60,
-                child: _Band(),
-              ),
-          ],
+            ),
+          ),
         ),
-      ),
-    );
+        if (texture)
+          const Positioned(
+            left: 40,
+            top: 20,
+            width: 20,
+            height: 20,
+            child: Texture(textureId: 1),
+          ),
+        if (band)
+          const Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: 60,
+            child: _Band(),
+          ),
+        if (glass)
+          Positioned.fromRect(
+            rect: const Rect.fromLTWH(190, 80, 56, 40),
+            child: LiquidGlassLayer(
+              settings: LiquidGlassSettings.ios27RegularLight().copyWith(
+                frost: 0,
+              ),
+              child: const LiquidGlass(
+                shape: LiquidRoundedSuperellipse(borderRadius: 28),
+                child: SizedBox.expand(),
+              ),
+            ),
+          ),
+      ],
+    ),
+  ),
+);
 
 LiquidGlassBackdropFilterLayer _band(WidgetTester tester) =>
     tester.layers.whereType<LiquidGlassBackdropFilterLayer>().single;
@@ -195,5 +217,36 @@ void main() {
     await tester.pumpWidget(_scene(texture: true));
     expect(_band(tester).debugServed, isFalse);
     expect(_band(tester).debugUnderlay.debugMiss, 'blocked by TextureLayer');
+  }, skip: skipProperGlassTests);
+
+  testWidgets('glass near the band draws from its own copy while the band '
+      'draws from its copy, and reads its backdrop while the band reads '
+      'its', (tester) async {
+    BackdropUnderlay.debugEnabledOverride = true;
+    tester.view.physicalSize = const Size(260, 200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    RenderLiquidGlassLayer glass() => tester.allRenderObjects
+        .whereType<RenderLiquidGlassLayer>()
+        .toSet()
+        .single;
+
+    await tester.pumpWidget(_scene(glass: true));
+    expect(_band(tester).debugServed, isTrue);
+    expect(glass().debugDrewOverUnderlay, isTrue);
+    expect(
+      tester.layers.whereType<BackdropFilterLayer>().where(
+        (layer) => layer is! OpacitySeedLayer || layer.seeded,
+      ),
+      isEmpty,
+    );
+
+    await tester.pumpWidget(_scene(glass: true, texture: true));
+    expect(_band(tester).debugServed, isFalse);
+    expect(glass().debugDrewOverUnderlay, isFalse);
+    expect(
+      glass().debugUnderlay.debugMiss,
+      'blocked by LiquidGlassBackdropFilterLayer',
+    );
   }, skip: skipProperGlassTests);
 }

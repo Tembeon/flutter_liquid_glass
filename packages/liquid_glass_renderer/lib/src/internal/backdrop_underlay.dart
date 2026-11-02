@@ -10,6 +10,7 @@ import 'package:liquid_glass_renderer/src/internal/glass_composition_probe.dart'
 import 'package:liquid_glass_renderer/src/internal/retained_glass_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/running_under_flutter_test.dart';
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_underlay.dart';
 
 /// A copy of what is painted under one glass layer, blurred by its frost,
@@ -316,22 +317,42 @@ class _Prefix {
       case PictureLayer():
         return;
       case TextureLayer(:final rect) || PlatformViewLayer(:final rect):
-        if (reaches(rect)) blocked = true;
-        blocker ??= layer;
+        if (reaches(rect)) {
+          blocked = true;
+          blocker ??= layer;
+        }
         return;
       case OpacitySeedLayer(seeded: false):
         break;
       case BackdropFilterLayer():
         // Another glass, or a blur, that reads live: what it writes, inside
         // its clip, is not known until the frame renders.
-        if (filtered || (clip ?? Rect.largest).overlaps(band)) blocked = true;
-        blocker ??= layer;
+        if (filtered || (clip ?? Rect.largest).overlaps(band)) {
+          blocked = true;
+          blocker ??= layer;
+        }
         return;
       case SeededBackdropPassLayer(hidden: true):
         return;
       case SeededBackdropPassLayer(:final scenePass?):
-        if (filtered || clipped(scenePass.rect).overlaps(band)) blocked = true;
-        blocker ??= layer;
+        if (filtered || clipped(scenePass.rect).overlaps(band)) {
+          blocked = true;
+          blocker ??= layer;
+        }
+        return;
+      case LiquidGlassBackdropFilterLayer(:final servedPicture?):
+        out.add(servedPicture);
+        out.add(transform.clone());
+        out.add(clip);
+        out.addAll(state);
+        out.add(#leaf);
+        b?.addPicture(Offset.zero, servedPicture);
+      case LiquidGlassBackdropFilterLayer(clip: final rect, :final reach):
+        // It reads live, and changes nothing past its reach.
+        if (filtered || clipped(rect.inflate(reach)).overlaps(band)) {
+          blocked = true;
+          blocker ??= layer;
+        }
         return;
       case TransformLayer(:final offset):
         final effective = Matrix4.translationValues(offset.dx, offset.dy, 0);
