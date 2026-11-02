@@ -76,8 +76,8 @@ class BackdropUnderlay {
   @visibleForTesting
   String? debugMiss;
 
-  /// How many copies were refused, by what refused them: the type of the
-  /// layer that blocked the band, or `not reached`.
+  /// How many copies served alone were refused, by what refused them: the
+  /// type of the layer that blocked the band, `not reached` or `off screen`.
   @visibleForTesting
   static final debugMisses = <String, int>{};
 
@@ -105,10 +105,8 @@ class BackdropUnderlay {
   @visibleForTesting
   static final debugIslands = <int, int>{};
 
-  /// Whether copies of glass side by side are drawn as one: the composer
-  /// plans copies with one filter whose bands meet as an island, and where
-  /// nothing but that glass is painted between their glass, they are
-  /// signed and recorded once over the bands together.
+  /// Whether [UnderlayFrame.plan] plans islands; without, every copy is
+  /// drawn on its own.
   @visibleForTesting
   static bool debugIslandsEnabled = true;
 
@@ -132,7 +130,8 @@ class BackdropUnderlay {
   /// [body] is the rect the caller's glass paints, in screen logical
   /// pixels: glass painted before [anchor] that does not meet it lies beside
   /// the caller's glass rather than under it and is left out of the copy, so
-  /// glass side by side never waits on another's copy.
+  /// glass side by side never waits on another's copy. Without [body] the
+  /// copy is never drawn with others.
   ///
   /// [own] is the layer holding everything the caller paints with its glass
   /// (its shadows and children). Copies beside the caller's that are drawn
@@ -141,7 +140,7 @@ class BackdropUnderlay {
   ///
   /// While the view's composer plans the frame, every glass asks before any
   /// is served, and the composer plans the copies of glass side by side as
-  /// one island (see [debugIslandsEnabled]).
+  /// one island (see [UnderlayFrame.plan]).
   void request({
     required Layer anchor,
     required double devicePixelRatio,
@@ -214,31 +213,32 @@ class BackdropUnderlay {
   // recorded anew, with the island and the rect each member holds of it, or
   // null when the island cannot be drawn: blocked, not reached, or, for more
   // than one copy, over glass whose copy is pending.
-  _Decision? _islandOf(
+  static _Decision? _islandOf(
     List<BackdropUnderlay> members,
     List<_Ask> asks,
     _Scan scan,
     int limit,
   ) {
+    final first = members.first;
     final ask = asks.first;
     final alone = members.length == 1;
     final bodies = [
       for (final ask in asks)
         if (ask.body case final body?) body,
     ];
-    final last = _island;
+    final last = first._island;
     // A copy drawn with others, served on its own, as in a scene the
     // composer does not plan, holds while the island does.
     if (alone &&
         last != null &&
         last.members.length > 1 &&
-        _holdsIn(last, ask, scan, limit)) {
-      debugMiss = null;
+        first._holdsIn(last, ask, scan, limit)) {
+      first.debugMiss = null;
       return (
-        copy: UnderlayCopy._(this, _rect, ask.pixelRatio),
+        copy: UnderlayCopy._(first, first._rect, ask.pixelRatio),
         island: last,
         held: true,
-        rects: [_rect],
+        rects: [first._rect],
       );
     }
     final known =
@@ -262,9 +262,9 @@ class BackdropUnderlay {
         inside = rectContains(members[i]._rect, asks[i].band);
       }
       if (inside) {
-        debugMiss = null;
+        first.debugMiss = null;
         return (
-          copy: UnderlayCopy._(this, _rect, ask.pixelRatio),
+          copy: UnderlayCopy._(first, first._rect, ask.pixelRatio),
           island: last,
           held: true,
           rects: [for (final member in members) member._rect],
@@ -291,7 +291,7 @@ class BackdropUnderlay {
             ? '${signed.blocker.runtimeType}'
             : 'not reached';
         debugMisses[why] = (debugMisses[why] ?? 0) + 1;
-        debugMiss = 'blocked by $why';
+        first.debugMiss = 'blocked by $why';
       }
       return null;
     }
@@ -299,9 +299,9 @@ class BackdropUnderlay {
     final island = _Island(ask, rect);
     final tile = _Tile(island, level: signed.waits + 1);
     island.tile = tile;
-    // It is recorded when the frame's copies are drawn: then, a copy that
-    // holds glass whose copy is drawn later in the frame has that glass's
-    // picture.
+    // Recorded when the frame's copies are drawn, not now: glass in the band
+    // whose own copy is still pending is drawn at a lower level first, so its
+    // picture exists by then.
     tile.redraw = () {
       final replay = _Prefix(
         ask.anchor,
@@ -315,7 +315,7 @@ class BackdropUnderlay {
       if (picture != null && !island.broken) island.signature = replay.out;
       return picture;
     };
-    _join(island, rects.first, ask);
+    first._join(island, rects.first, ask);
     if (ask.frame case final frame?) {
       frame._atlas.add(tile);
     } else {
@@ -324,7 +324,7 @@ class BackdropUnderlay {
       atlas.flush('at once');
     }
     return (
-      copy: UnderlayCopy._(this, _rect, ask.pixelRatio),
+      copy: UnderlayCopy._(first, first._rect, ask.pixelRatio),
       island: island,
       held: false,
       rects: rects,
@@ -482,8 +482,7 @@ final class UnderlayFrame {
   }
 }
 
-// A copy served from an island, with the island and the rect each member
-// holds of it, and whether the island held.
+// [rects] holds one rect per member of the island, in member order.
 typedef _Decision = ({
   UnderlayCopy copy,
   _Island island,
@@ -593,7 +592,7 @@ final class _Plan {
     final index = members.indexOf(underlay);
     if (index == 0) {
       if (limit < 0) return null;
-      final decided = underlay._islandOf(members, _asks, scan, limit);
+      final decided = BackdropUnderlay._islandOf(members, _asks, scan, limit);
       if (decided == null) return null;
       _decision = decided;
       _scan = scan;
@@ -883,7 +882,6 @@ final class _Scan {
 
   final Layer root;
   final double devicePixelRatio;
-  // Where each layer the walk reached begins in [entries].
   final _walked = Expando<int>();
 
   // Where [layer] begins in [entries], once the walk reached it.
@@ -1359,7 +1357,7 @@ final class _Scan {
   }
 
   // Replays the entries before [limit] that reach [prefix]'s band onto its
-  // canvas, if it has one, and signs them, as [_Prefix.walk] would.
+  // canvas, if it has one, and signs them.
   void replay(_Prefix prefix, int limit) {
     final band = prefix.band;
     final c = prefix.canvas;
