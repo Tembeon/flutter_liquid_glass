@@ -5,7 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/fake_glass.dart';
-import 'package:liquid_glass_renderer/src/internal/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 
 import 'shared.dart';
 

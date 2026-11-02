@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/internal/backdrop_seed.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 
 const expectFlutterGpuFallback = bool.fromEnvironment(
   'EXPECT_FLUTTER_GPU_FALLBACK',

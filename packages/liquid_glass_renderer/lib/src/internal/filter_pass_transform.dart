@@ -1,5 +1,5 @@
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/src/internal/glass_composition_probe.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
 import 'package:meta/meta.dart';
 

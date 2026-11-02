@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/src/internal/backdrop_seed.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/internal/running_under_flutter_test.dart';
 
 // Under `flutter test` seeded passes are off, because the tester renders them

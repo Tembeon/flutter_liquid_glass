@@ -3,26 +3,29 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 // What reads a backdrop or takes a copy of the screen: a layer that filters
-// the backdrop, the keys and groups that share one, a seeded pass, an image
-// taken of a scene. The composer's own layers, such as
-// LiquidGlassBackdropFilterLayer, are how a surface reads through it.
+// the backdrop, the keys and groups that share one, a seeded pass, an
+// opacity pass's seed, a copy of what lies under a surface and the pictures
+// drawn over it, an image taken of a scene. Surfaces read through the
+// composer's own types, such as LiquidGlassBackdropFilterLayer and
+// BackdropRig.
 final _read = RegExp(
   r'toImageSync\(|pushBackdropFilter\(|(?<![\w.])(?:BackdropFilterLayer|'
-  r'BackdropFilter|BackdropKey|BackdropGroup|SeededBackdropPassLayer)\(',
+  r'BackdropFilter|BackdropKey|BackdropGroup|SeededBackdropPassLayer|'
+  r'OpacitySeedLayer|BackdropUnderlay|UnderlayPictureLayer|'
+  r'GlassPictureLayer)\(',
 );
 
-// Reads outside the composer, per file. Glass reads its backdrop through
-// the view's composer; these files still build their own reads and leave
-// this list as they move there. A count may only fall.
+// The only reads outside the composer, per file. The shader warm-up draws
+// its own detached layer tree, never part of a frame; the glass layer's one
+// image is the empty 1x1 placeholder bound to the matte sampler. Every other
+// surface reads its backdrop through the view's composer.
 const _outsideComposer = {
-  'lib/src/internal/backdrop_seed.dart': 2,
-  'lib/src/internal/backdrop_underlay.dart': 12,
   'lib/src/internal/warm_up.dart': 5,
   'lib/src/rendering/liquid_glass_layer.dart': 1,
 };
 
 void main() {
-  test('backdrop reads outside the composer only shrink', () {
+  test('surfaces read their backdrop only through the composer', () {
     final found = <String, int>{};
     final files = Directory('lib')
         .listSync(recursive: true)

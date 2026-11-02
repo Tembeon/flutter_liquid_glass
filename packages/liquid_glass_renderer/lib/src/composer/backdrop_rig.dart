@@ -5,9 +5,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/src/internal/backdrop_seed.dart';
-import 'package:liquid_glass_renderer/src/internal/backdrop_underlay.dart';
-import 'package:liquid_glass_renderer/src/internal/glass_composition_probe.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart';
 
 /// One backdrop capture shared by several [BackdropRig]s.
 ///
