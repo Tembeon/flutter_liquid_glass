@@ -12,78 +12,85 @@ import 'shared.dart';
 
 const _key = ValueKey('screen');
 
-Widget _scene({double shift = 0, double dot = 0, bool texture = false}) =>
-    Directionality(
-      textDirection: TextDirection.ltr,
-      child: RepaintBoundary(
-        key: _key,
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: RepaintBoundary(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: const [
-                        Color(0xFF1E3A8A),
-                        Color(0xFFF59E0B),
-                        Color(0xFF10B981),
-                      ],
-                      begin: Alignment(-1 + shift, -1),
-                      end: Alignment.bottomRight,
-                      tileMode: TileMode.mirror,
-                    ),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'Page under the glass',
-                      style: TextStyle(color: Color(0xFFFFFFFF), fontSize: 22),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            if (texture)
-              const Positioned(
-                left: 40,
-                top: 50,
-                width: 20,
-                height: 20,
-                child: Texture(textureId: 1),
-              ),
-            Positioned.fill(
-              child: LiquidGlassLayer(
-                settings: LiquidGlassSettings.ios27RegularLight().copyWith(
-                  frost: 0,
-                ),
-                child: Stack(
-                  children: [
-                    Positioned.fromRect(
-                      rect: const Rect.fromLTWH(30, 40, 200, 90),
-                      child: const LiquidGlass(
-                        shape: LiquidRoundedSuperellipse(borderRadius: 28),
-                        child: SizedBox.expand(),
-                      ),
-                    ),
+Widget _scene({
+  double shift = 0,
+  double dot = 0,
+  bool texture = false,
+  double opacity = 1,
+}) => Directionality(
+  textDirection: TextDirection.ltr,
+  child: RepaintBoundary(
+    key: _key,
+    child: Stack(
+      children: [
+        Positioned.fill(
+          child: RepaintBoundary(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: const [
+                    Color(0xFF1E3A8A),
+                    Color(0xFFF59E0B),
+                    Color(0xFF10B981),
                   ],
+                  begin: Alignment(-1 + shift, -1),
+                  end: Alignment.bottomRight,
+                  tileMode: TileMode.mirror,
+                ),
+              ),
+              child: const Center(
+                child: Text(
+                  'Page under the glass',
+                  style: TextStyle(color: Color(0xFFFFFFFF), fontSize: 22),
                 ),
               ),
             ),
-            // Something that moves far from the glass, in its own boundary.
-            Positioned(
-              left: 10 + dot,
-              bottom: 6,
-              child: const RepaintBoundary(
-                child: SizedBox.square(
-                  dimension: 6,
-                  child: ColoredBox(color: Color(0xFFFFFFFF)),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
-    );
+        if (texture)
+          const Positioned(
+            left: 40,
+            top: 50,
+            width: 20,
+            height: 20,
+            child: Texture(textureId: 1),
+          ),
+        Positioned.fill(
+          child: Opacity(
+            opacity: opacity,
+            child: LiquidGlassLayer(
+              settings: LiquidGlassSettings.ios27RegularLight().copyWith(
+                frost: 0,
+              ),
+              child: Stack(
+                children: [
+                  Positioned.fromRect(
+                    rect: const Rect.fromLTWH(30, 40, 200, 90),
+                    child: const LiquidGlass(
+                      shape: LiquidRoundedSuperellipse(borderRadius: 28),
+                      child: SizedBox.expand(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // Something that moves far from the glass, in its own boundary.
+        Positioned(
+          left: 10 + dot,
+          bottom: 6,
+          child: const RepaintBoundary(
+            child: SizedBox.square(
+              dimension: 6,
+              child: ColoredBox(color: Color(0xFFFFFFFF)),
+            ),
+          ),
+        ),
+      ],
+    ),
+  ),
+);
 
 RenderLiquidGlassLayer _glass(WidgetTester tester) =>
     tester.allRenderObjects.whereType<RenderLiquidGlassLayer>().toSet().single;
@@ -161,6 +168,23 @@ void main() {
     expect(_glass(tester).debugDrewOverUnderlay, isFalse);
     expect(_glass(tester).debugUnderlay.debugMiss, 'blocked by TextureLayer');
     expect(_liveFilters(tester), isNotEmpty);
+  }, skip: skipProperGlassTests);
+
+  testWidgets('glass in a fading group draws over its copy and leaves the '
+      'group unseeded', (tester) async {
+    tester.view.physicalSize = const Size(260, 200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_scene(opacity: 0.6));
+    expect(_glass(tester).debugDrewOverUnderlay, isTrue);
+    expect(_liveFilters(tester), isEmpty);
+
+    await tester.pumpWidget(_scene(opacity: 0.6, texture: true));
+    expect(_glass(tester).debugDrewOverUnderlay, isFalse);
+    expect(
+      tester.layers.whereType<OpacitySeedLayer>().single.seeded,
+      isTrue,
+    );
   }, skip: skipProperGlassTests);
 
   testWidgets('motion away from the glass keeps the copy', (tester) async {

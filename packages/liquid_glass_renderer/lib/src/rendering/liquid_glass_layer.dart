@@ -1053,7 +1053,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       BackdropUnderlay.enabled &&
       _backdropCache == null &&
       backdropKey == null &&
-      !compositionProbeSeeding &&
       RenderLiquidGlassCapture.enclosing(this) == null;
 
   /// Whether the layer's last paint chose its [backdropCache].
@@ -2079,7 +2078,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   void _composeUnderlay() {
     final slot = _underlaySlotHandle.layer!;
     final live = _passHandle.layer ?? _clipRectLayerHandle.layer;
+    // Glass over its copy reads no backdrop: an opacity pass around it needs
+    // no seed.
+    compositionSeedSuppressed = true;
     final served = _recordUnderlay();
+    if (served == null) compositionSeedSuppressed = false;
     debugDrewOverUnderlay = served != null;
     final child = served ?? live;
     if (child == null) {

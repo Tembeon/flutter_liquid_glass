@@ -22,8 +22,19 @@ class GlassCompositionProbe {
     0, 0, 0, 1, 0, //
   ]);
 
-  /// Whether the owner currently paints inside a seeded opacity pass.
-  bool get seeding => _layer.layer?.seeded ?? false;
+  /// Whether the owner paints inside a fractional opacity pass that a live
+  /// backdrop read needs seeded, also while [suppressed].
+  bool get seeding => _wanted;
+  bool _wanted = false;
+
+  /// Leaves the pass unseeded while the owner reads no backdrop.
+  bool get suppressed => _suppressed;
+  bool _suppressed = false;
+  set suppressed(bool value) {
+    if (value == _suppressed) return;
+    _suppressed = value;
+    _layer.layer?.seeded = _wanted && !value;
+  }
 
   /// Paints the original sequence, seeding only fractional-opacity surfaces.
   void paint(
@@ -65,7 +76,8 @@ class GlassCompositionProbe {
       }
       if (alpha < 255) fractional = true;
     }
-    layer.seeded = fractional && !blocked;
+    _wanted = fractional && !blocked;
+    layer.seeded = _wanted && !_suppressed;
   }
 
   /// Screen-space origin of the opacity pass [owner] paints into while

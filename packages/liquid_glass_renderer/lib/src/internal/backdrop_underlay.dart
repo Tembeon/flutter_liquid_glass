@@ -26,6 +26,11 @@ import 'package:liquid_glass_renderer/src/liquid_glass_underlay.dart';
 /// the same transforms, clips, opacities and filters); a frame in which they
 /// changed draws a new one.
 ///
+/// Inside a fractional opacity the copy holds what the screen shows under
+/// the glass, the faded content of the glass's own group included, and the
+/// glass fades with its group; the live path seeds the group's pass with the
+/// backdrop instead (approximation, while a group fades).
+///
 /// A band that holds a backdrop filter (glass that reads live), a texture, a
 /// platform view or a layer type it does not know is never copied, and the
 /// glass reads its backdrop.
