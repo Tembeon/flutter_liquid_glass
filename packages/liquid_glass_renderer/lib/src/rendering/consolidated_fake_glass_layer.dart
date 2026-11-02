@@ -6,8 +6,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
-import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/internal/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/internal/paint_fake_glass_surface.dart';
 import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
@@ -61,7 +62,12 @@ class ConsolidatedFakeGlassLayer extends SingleChildRenderObjectWidget {
 }
 
 /// The fake glass layer: paints a clipped backdrop blur plus the surface
-/// shader for the shared shape geometry. All shared machinery — shape
+/// shader for the shared shape geometry. Where it can, the shared blur is
+/// drawn over a copy of what lies under the glass instead of reading the
+/// backdrop (see [BackdropRig]). NEAR: over a copy, a blur that Impeller
+/// downsamples takes other taps than over the whole backdrop, at most 19
+/// channel levels apart in the host test of white text under 6 px of frost;
+/// at 2 px the two do not differ. All shared machinery — shape
 /// registration, transform and compositor-translation polling, retained
 /// ancestor clips, shadows, bounds and the frame state — lives in
 /// [LiquidGlassRenderObject]; this class implements only the effect.
@@ -142,6 +148,11 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
 
   @visibleForTesting
   Rect? debugClipBounds;
+
+  /// Whether the last composited frame drew the shared filter over a copy
+  /// rather than reading the backdrop.
+  @visibleForTesting
+  bool debugDrewOverCopy = false;
 
   @visibleForTesting
   Path? get debugClipPath => _cachedClipPath;
@@ -350,6 +361,11 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
           bounds: bounds,
           outline: clipPath,
           reach: effectSamplingReach(bounds),
+          devicePixelRatio: devicePixelRatio,
+          // A copy for a separately served shape would hold the shared
+          // filter's output where they overlap and compound both transfers,
+          // so while one paints every read stays live.
+          copies: BackdropUnderlay.enabled && !_cachedClipClasses.contains(1),
         );
       } else {
         _sharedRig.clear();
@@ -469,12 +485,13 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
               .getOuterPath(shapeBounds)
               .transform(shapeToLayer.storage),
           reach: sigma != 0 ? sigma * 3 + 1 : 0,
+          devicePixelRatio: devicePixelRatio,
         );
       }
     }
     for (final renderObject in _separateRigs.keys.toList()) {
       if (active.contains(renderObject)) continue;
-      _separateRigs.remove(renderObject)!.clear();
+      _separateRigs.remove(renderObject)!.dispose();
     }
     return active.isNotEmpty;
   }
@@ -540,6 +557,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     for (final rig in _separateRigs.values) {
       rig.sync();
     }
+    debugDrewOverCopy = _sharedRig.compose();
   }
 
   // A glass without a blur, or that is nothing but a blur, needs no seed.
@@ -578,7 +596,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   void _releaseGlassLayers() {
     _sharedRig.clear();
     for (final rig in _separateRigs.values) {
-      rig.clear();
+      rig.dispose();
     }
     _separateRigs.clear();
   }
@@ -592,6 +610,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   void dispose() {
     _retainedFrameSlot.layer = null;
     _releaseLayers();
+    _sharedRig.dispose();
     super.dispose();
   }
 }

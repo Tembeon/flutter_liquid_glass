@@ -5,8 +5,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 
 // An identity backdrop filter: under a clip it gives the filter inside it a
 // pass of the clip's size to read instead of the whole pass behind it.
@@ -165,26 +166,12 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   UnderlayCopy? _serve() {
     final view = owner;
     if (view is! RenderView) return null;
-    final dpr = _devicePixelRatio;
-    final toScreen = Matrix4.diagonal3Values(1 / dpr, 1 / dpr, 1);
-    final chain = <Layer>[];
-    for (Layer? node = this; node != null; node = node.parent) {
-      chain.add(node);
-    }
-    for (var i = chain.length - 1; i > 0; i--) {
-      (chain[i] as ContainerLayer).applyTransform(chain[i - 1], toScreen);
-    }
-    final m = toScreen.storage;
-    if ((m[0] - 1).abs() > 1e-6 ||
-        (m[5] - 1).abs() > 1e-6 ||
-        m[1].abs() > 1e-6 ||
-        m[4].abs() > 1e-6) {
-      return null;
-    }
-    final clip = _clip.shift(Offset(m[12], m[13]));
+    final origin = screenOffsetOf(this, _devicePixelRatio);
+    if (origin == null) return null;
+    final clip = _clip.shift(origin);
     final copy = _underlay.imageFor(
       anchor: this,
-      devicePixelRatio: dpr,
+      devicePixelRatio: _devicePixelRatio,
       region: clip.inflate(_reach),
       screen: Offset.zero & view.size,
       filter: _filter,
@@ -194,36 +181,12 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     );
     if (copy == null) return null;
     _shown = clip.intersect(copy.rect);
-    _origin = Offset(m[12], m[13]);
+    _origin = origin;
     return copy;
   }
 
-  // The copy drawn into this layer's coordinates.
-  ui.Picture _record(UnderlayCopy copy) {
-    final shown = _shown;
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    canvas.translate(-_origin.dx, -_origin.dy);
-    final source = shown.shift(-copy.rect.topLeft);
-    final offset = copy.offset;
-    final paint = Paint();
-    // The copy already holds the filtered backdrop composited over the
-    // backdrop: it replaces what lies under it.
-    paint.blendMode = BlendMode.src;
-    paint.filterQuality = FilterQuality.none;
-    canvas.drawImageRect(
-      copy.image,
-      Rect.fromLTRB(
-        source.left * copy.pixelRatio + offset.dx,
-        source.top * copy.pixelRatio + offset.dy,
-        source.right * copy.pixelRatio + offset.dx,
-        source.bottom * copy.pixelRatio + offset.dy,
-      ),
-      shown,
-      paint,
-    );
-    return recorder.endRecording();
-  }
+  ui.Picture _record(UnderlayCopy copy) =>
+      recordFilteredCopy(copy, _shown, _origin);
 
   @override
   void addToScene(ui.SceneBuilder builder) {

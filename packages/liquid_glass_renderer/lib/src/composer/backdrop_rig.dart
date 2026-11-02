@@ -20,6 +20,68 @@ final class BackdropShare {
   final _key = BackdropKey();
 }
 
+/// The shift from [anchor]'s coordinates to the screen's, in logical pixels,
+/// or null when a transform above it scales or turns it.
+@internal
+Offset? screenOffsetOf(Layer anchor, double devicePixelRatio) {
+  final toScreen = Matrix4.diagonal3Values(
+    1 / devicePixelRatio,
+    1 / devicePixelRatio,
+    1,
+  );
+  final chain = <Layer>[];
+  for (Layer? node = anchor; node != null; node = node.parent) {
+    chain.add(node);
+  }
+  for (var i = chain.length - 1; i > 0; i--) {
+    (chain[i] as ContainerLayer).applyTransform(chain[i - 1], toScreen);
+  }
+  final m = toScreen.storage;
+  if ((m[0] - 1).abs() > 1e-6 ||
+      (m[5] - 1).abs() > 1e-6 ||
+      m[1].abs() > 1e-6 ||
+      m[4].abs() > 1e-6) {
+    return null;
+  }
+  return Offset(m[12], m[13]);
+}
+
+/// A filtered [copy] drawn into coordinates that [origin] shifts to the
+/// screen's: the part [shown], in screen coordinates, cut to [outline], in
+/// the drawn coordinates, when there is one.
+///
+/// The copy already holds the filtered backdrop composited over the
+/// backdrop: it replaces what lies under it.
+@internal
+ui.Picture recordFilteredCopy(
+  UnderlayCopy copy,
+  Rect shown,
+  Offset origin, {
+  Path? outline,
+}) {
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  if (outline != null) canvas.clipPath(outline);
+  canvas.translate(-origin.dx, -origin.dy);
+  final source = shown.shift(-copy.rect.topLeft);
+  final offset = copy.offset;
+  final paint = Paint();
+  paint.blendMode = BlendMode.src;
+  paint.filterQuality = FilterQuality.none;
+  canvas.drawImageRect(
+    copy.image,
+    Rect.fromLTRB(
+      source.left * copy.pixelRatio + offset.dx,
+      source.top * copy.pixelRatio + offset.dy,
+      source.right * copy.pixelRatio + offset.dx,
+      source.bottom * copy.pixelRatio + offset.dy,
+    ),
+    shown,
+    paint,
+  );
+  return recorder.endRecording();
+}
+
 /// Places a rig's pass around a clip, given in the layer coordinates it is
 /// painted in, the paint offset from the owner, how far the blur reads past
 /// the clip, and the sizing that keeps the pass from resizing on every
@@ -78,6 +140,12 @@ class BackdropRig {
   final _slot = LayerHandle<ContainerLayer>();
   final _served = LayerHandle<PictureLayer>();
   Object? _servedKey;
+
+  // What the last [paint] read, for a filtered copy to stand in for: the
+  // filter, its clip in the slot's coordinates, its reach, the view's device
+  // pixel ratio. Null when the rig takes no copies.
+  ({ui.ImageFilter filter, Rect clip, double reach, double devicePixelRatio})?
+  _read;
 
   // Where the pass goes: the clip, in the pass layer's parent's coordinates,
   // the paint offset, the blur's reach, the area the filter can change.
@@ -337,7 +405,8 @@ class BackdropRig {
   /// [bounds]. With seeds on and a [blur] to crop, the filter paints in a
   /// pass reaching [reach] past [bounds], seeded by a small backdrop filter,
   /// and reads that pass; otherwise nothing but the clip and the filter is
-  /// added to the layer tree.
+  /// added to the layer tree. With [copies], [compose] can draw the filter
+  /// over a copy of what lies under [outline] instead.
   void paint(
     PaintingContext context,
     Offset offset, {
@@ -346,6 +415,8 @@ class BackdropRig {
     required Rect bounds,
     required Path outline,
     required double reach,
+    required double devicePixelRatio,
+    bool copies = false,
   }) {
     final seeds = SeededBackdropPassLayer.enabled && blur != null;
     usesPass = seeds;
@@ -356,7 +427,70 @@ class BackdropRig {
       place(inner, offset, reach, modified: inner);
     }
     bindFilter(filter, blur);
-    paintLive(context, offset, bounds: bounds, outline: outline);
+    _read = copies
+        ? (
+            filter: filter,
+            clip: bounds.shift(offset),
+            reach: reach,
+            devicePixelRatio: devicePixelRatio,
+          )
+        : null;
+    paintSite(
+      context,
+      offset,
+      copies: copies,
+      live: (liveContext, liveOffset) =>
+          paintLive(liveContext, liveOffset, bounds: bounds, outline: outline),
+    );
+  }
+
+  /// Fills the slot with the filter drawn over a copy of what lies under
+  /// the outline, or with the live read where there is no copy. Runs while
+  /// the scene composites, in paint order; returns whether a copy serves.
+  bool compose() {
+    final slot = _slot.layer;
+    if (slot == null) return false;
+    final served = _read == null || !BackdropUnderlay.enabled
+        ? null
+        : _serveFiltered(slot, _read!);
+    show(served);
+    return served != null;
+  }
+
+  PictureLayer? _serveFiltered(
+    ContainerLayer slot,
+    ({ui.ImageFilter filter, Rect clip, double reach, double devicePixelRatio})
+    read,
+  ) {
+    final view = slot.owner;
+    final outline = _outline;
+    if (view is! RenderView || outline == null) return null;
+    final dpr = read.devicePixelRatio;
+    final origin = screenOffsetOf(slot, dpr);
+    if (origin == null) return null;
+    final clip = read.clip.shift(origin);
+    final region = clip.inflate(read.reach);
+    // The live filter reads a pass reaching past its clip (or the whole
+    // backdrop), not the backdrop cut at the clip: the blur near the edge
+    // takes what lies outside, so the copy is filtered over all it holds.
+    final copy = _underlay.imageFor(
+      anchor: slot,
+      devicePixelRatio: dpr,
+      region: region,
+      screen: Offset.zero & view.size,
+      filter: read.filter,
+      filterKey: read.filter,
+      filterClip: region,
+      filterBlendMode: BlendMode.srcOver,
+    );
+    if (copy == null) return null;
+    final shown = clip.intersect(copy.rect);
+    return servedPicture(
+      copy,
+      read.clip,
+      keyOf: () => (copy.image, copy.offset, shown, origin, outline),
+      record: () => recordFilteredCopy(copy, shown, origin, outline: outline),
+    );
   }
 
   /// Sets the clip rect the rig has without a pass, in the pass layer's
@@ -410,9 +544,11 @@ class BackdropRig {
     _plan = BackdropPassPlan.unsupported;
   }
 
-  /// Releases every layer of the live read.
+  /// Releases every layer, and keeps the copy for the next paint.
   void clear() {
     _clearPass();
+    _read = null;
+    _slot.layer = null;
     _filter.layer = null;
     _clipPath.layer = null;
     _clipRect.layer = null;
@@ -425,7 +561,6 @@ class BackdropRig {
   /// Releases every layer and the copy.
   void dispose() {
     clear();
-    _slot.layer = null;
     _served.layer = null;
     _underlay.dispose();
   }
