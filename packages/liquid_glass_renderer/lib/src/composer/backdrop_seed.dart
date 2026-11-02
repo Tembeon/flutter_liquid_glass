@@ -4,8 +4,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/internal/ancestor_clip.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart';
+import 'package:liquid_glass_renderer/src/internal/ancestor_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/glass_frame_clock.dart';
 import 'package:liquid_glass_renderer/src/internal/retained_glass_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/running_under_flutter_test.dart';
@@ -178,7 +178,6 @@ class PassBlur {
     required this.sigma,
     required this.tileMode,
     required this.withoutBlur,
-    this.blurOnly = false,
   });
 
   /// The blur's sigma in the pass layer's coordinates, the same on both axes
@@ -191,11 +190,6 @@ class PassBlur {
 
   /// The filter without that blur.
   final ui.ImageFilter withoutBlur;
-
-  /// Whether the filter is nothing but the blur, so [withoutBlur] does
-  /// nothing. Natively such a filter is a plain blur, which Impeller already
-  /// crops to its clip.
-  final bool blurOnly;
 }
 
 /// Whether [layer] was disposed, as far as asserts can tell.
@@ -572,7 +566,6 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
   ]);
 
   BackdropPassPlan _plan = BackdropPassPlan.unsupported;
-  Rect? _modifiedBounds;
   bool _active = true;
   BackdropFilterLayer? _filter;
   BackdropKey? _key;
@@ -602,22 +595,14 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
   /// device pixels; `null` when the children paint without a pass.
   Rect? get passRect => _active ? _plan.layerRect : null;
 
-  /// The area the children can change, in the same coordinates. Outside it
-  /// the pass holds exactly what was painted before it.
-  Rect? get modifiedBounds => _modifiedBounds;
-
   /// Paints nothing: the effect is clipped away entirely.
   bool get hidden => _plan.hidden;
 
-  /// Applies the owner's [plan] for an effect whose children change
-  /// [modified].
-  void apply(BackdropPassPlan plan, Rect? modified) {
+  /// Applies the owner's [plan].
+  void apply(BackdropPassPlan plan) {
     final changed =
-        plan.layerRect != _plan.layerRect ||
-        plan.hidden != _plan.hidden ||
-        modified != _modifiedBounds;
+        plan.layerRect != _plan.layerRect || plan.hidden != _plan.hidden;
     _plan = plan;
-    _modifiedBounds = modified;
     if (changed) markNeedsAddToScene();
     _syncKey();
   }
@@ -840,10 +825,6 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
   @visibleForTesting
   static const seedMatrixStep = 1e-4;
 
-  /// How the pass is seeded, whether or not it is in effect.
-  @visibleForTesting
-  BackdropSeed get debugSeed => _seed;
-
   /// The backdrop key the seed filter is pushed with, if any.
   @visibleForTesting
   BackdropKey? get debugSeedKey => _seedKey;
@@ -867,7 +848,8 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
   /// [BackdropPassSizing.stableFrames] frames. A glass without a blur has
   /// nothing a pass would crop (its shader already only runs inside the
   /// glass's own layer), and a glass that is nothing but a blur is a plain
-  /// blur natively, which Impeller crops by itself: both stay as they are.
+  /// blur natively, which Impeller crops by itself: owners hand neither a
+  /// [PassBlur], and neither is seeded.
   /// A blur seed is an identity seed where Impeller would not crop the blur
   /// (see [_blurSeedCrops]).
   BackdropSeed _nativeSeedFor(Rect? rect) {
@@ -878,7 +860,6 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
         hidden ||
         blur == null ||
         blur.sigma <= 0 ||
-        blur.blurOnly ||
         (_plan.resizing && !seedWhileResizing) ||
         _readFilterClip(rect) == null) {
       return BackdropSeed.none;

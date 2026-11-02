@@ -7,7 +7,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
-import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart';
 
 /// One backdrop capture shared by several [BackdropRig]s.
 ///
@@ -141,18 +140,15 @@ class BackdropRig {
   final _served = LayerHandle<PictureLayer>();
   Object? _servedKey;
 
-  // What the last [paint] read, for a filtered copy to stand in for: the
-  // filter, its clip in the slot's coordinates, its reach, the view's device
-  // pixel ratio. Null when the rig takes no copies.
-  ({ui.ImageFilter filter, Rect clip, double reach, double devicePixelRatio})?
-  _read;
+  // What the last [paint] read, for a filtered copy to stand in for. Null
+  // when the rig takes no copies.
+  _Read? _read;
 
   // Where the pass goes: the clip, in the pass layer's parent's coordinates,
-  // the paint offset, the blur's reach, the area the filter can change.
+  // the paint offset, the blur's reach.
   Rect? _inner;
   Offset _offset = Offset.zero;
   double _reach = 0;
-  Rect? _modified;
   BackdropPassPlan _plan = BackdropPassPlan.unsupported;
 
   // The clip without a pass: the outline, or the rect.
@@ -172,9 +168,6 @@ class BackdropRig {
   /// [BackdropPassPlan.unsupported].
   BackdropPassPlan get passPlan =>
       _pass.layer?.passRect != null ? _plan : BackdropPassPlan.unsupported;
-
-  /// The rig's outermost layer: the pass, or the clip.
-  Layer? get live => _pass.layer ?? _clipRect.layer ?? _clipPath.layer;
 
   /// Whether the rig has painted its clip.
   bool get hasClip => _clipRect.layer != null || _clipPath.layer != null;
@@ -209,29 +202,6 @@ class BackdropRig {
     _slot.layer = null;
   }
 
-  /// The copy of what lies under the surface; see [BackdropUnderlay.imageFor].
-  UnderlayCopy? copyFor({
-    required Layer anchor,
-    required double devicePixelRatio,
-    required Rect region,
-    required Rect screen,
-    OpacitySeedLayer? own,
-    ui.ImageFilter? filter,
-    Object? filterKey,
-    int downscale = 1,
-    Rect? body,
-  }) => _underlay.imageFor(
-    anchor: anchor,
-    devicePixelRatio: devicePixelRatio,
-    region: region,
-    screen: screen,
-    own: own,
-    filter: filter,
-    filterKey: filterKey,
-    downscale: downscale,
-    body: body,
-  );
-
   /// The picture [record] draws over [copy] inside [bounds]. A drawn copy
   /// keeps its picture while [keyOf] stays equal; a copy not drawn yet is
   /// recorded when the scene is added, after every copy of the frame is
@@ -265,7 +235,7 @@ class BackdropRig {
   void show(PictureLayer? served) {
     final slot = _slot.layer;
     if (slot == null) return;
-    final child = served ?? live;
+    final child = served ?? _pass.layer ?? _clipRect.layer ?? _clipPath.layer;
     if (child == null) {
       slot.removeAllChildren();
       return;
@@ -330,12 +300,11 @@ class BackdropRig {
 
   /// Plans the pass around [inner], in the pass layer's parent's
   /// coordinates, [offset] from the owner, for a blur reaching [reach] past
-  /// it; the filter changes only [modified]. A null [inner] plans no pass.
-  void place(Rect? inner, Offset offset, double reach, {Rect? modified}) {
+  /// it. A null [inner] plans no pass.
+  void place(Rect? inner, Offset offset, double reach) {
     _inner = inner;
     _offset = offset;
     _reach = reach;
-    _modified = modified;
     sync();
   }
 
@@ -347,7 +316,7 @@ class BackdropRig {
     _plan = pass == null || inner == null
         ? BackdropPassPlan.unsupported
         : plan(inner, _offset, _reach, _sizing);
-    pass?.apply(_plan, _modified);
+    pass?.apply(_plan);
     _syncChildClip();
   }
 
@@ -420,12 +389,7 @@ class BackdropRig {
   }) {
     final seeds = SeededBackdropPassLayer.enabled && blur != null;
     usesPass = seeds;
-    final backdrop = _filter.layer ??= BackdropFilterLayer();
-    backdrop.blendMode = BlendMode.srcOver;
-    if (seeds) {
-      final inner = bounds.shift(offset);
-      place(inner, offset, reach, modified: inner);
-    }
+    if (seeds) place(bounds.shift(offset), offset, reach);
     bindFilter(filter, blur);
     _read = copies
         ? (
@@ -457,11 +421,7 @@ class BackdropRig {
     return served != null;
   }
 
-  PictureLayer? _serveFiltered(
-    ContainerLayer slot,
-    ({ui.ImageFilter filter, Rect clip, double reach, double devicePixelRatio})
-    read,
-  ) {
+  PictureLayer? _serveFiltered(ContainerLayer slot, _Read read) {
     final view = slot.owner;
     final outline = _outline;
     if (view is! RenderView || outline == null) return null;
@@ -565,3 +525,12 @@ class BackdropRig {
     _underlay.dispose();
   }
 }
+
+// A read a filtered copy can stand in for: the filter, its clip in the slot's
+// coordinates, how far it reads past the clip, the view's device pixel ratio.
+typedef _Read = ({
+  ui.ImageFilter filter,
+  Rect clip,
+  double reach,
+  double devicePixelRatio,
+});

@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/fake_glass.dart';
 
 import 'shared.dart';
 
@@ -100,13 +100,13 @@ void main() {
     await tester.pumpWidget(_scene());
     await tester.pump();
     final reading = await _pixels(tester);
-    expect(_glass(tester).debugBackdropFilterLayer!.debugServed, isFalse);
+    expect(_glass(tester).debugBackdropFilterLayer!.serves, isFalse);
 
     BackdropUnderlay.debugEnabledOverride = true;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(shift: 0.3));
     await tester.pumpWidget(_scene());
-    expect(_glass(tester).debugBackdropFilterLayer!.debugServed, isTrue);
+    expect(_glass(tester).debugBackdropFilterLayer!.serves, isTrue);
     expect(tester.layers.whereType<BackdropFilterLayer>(), isEmpty);
     final copied = await _pixels(tester);
     // NEAR: the antialiased rim of the shape differs by a few levels.

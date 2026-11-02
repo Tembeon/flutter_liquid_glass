@@ -178,14 +178,14 @@ void main() {
     BackdropUnderlay.debugEnabledOverride = false;
     await tester.pumpWidget(_scene());
     final reading = await _pixels(tester);
-    expect(_band(tester).debugServed, isFalse);
+    expect(_band(tester).serves, isFalse);
 
     BackdropUnderlay.debugEnabledOverride = true;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(shift: 0.3));
-    expect(_band(tester).debugServed, isTrue);
+    expect(_band(tester).serves, isTrue);
     await tester.pumpWidget(_scene());
-    expect(_band(tester).debugServed, isTrue);
+    expect(_band(tester).serves, isTrue);
     expect(_band(tester).debugUnderlay.debugCaptures, 2);
     expect(tester.layers.whereType<BackdropFilterLayer>(), isEmpty);
     expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(1));
@@ -206,7 +206,7 @@ void main() {
       tester.binding.scheduleFrame();
       await tester.pump();
     }
-    expect(_band(tester).debugServed, isTrue);
+    expect(_band(tester).serves, isTrue);
     expect(_band(tester).debugUnderlay.debugCaptures, 1);
     expect(_band(tester).servedPicture, same(picture));
   }, skip: skipProperGlassTests);
@@ -218,7 +218,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(_scene(texture: true));
-    expect(_band(tester).debugServed, isFalse);
+    expect(_band(tester).serves, isFalse);
     expect(_band(tester).debugUnderlay.debugMiss, 'blocked by TextureLayer');
   }, skip: skipProperGlassTests);
 
@@ -236,7 +236,7 @@ void main() {
     await tester.pumpWidget(_scene(glass: true, glassTop: 140, shift: 0.3));
     final drawn = BackdropUnderlay.debugImagesDrawn;
     await tester.pumpWidget(_scene(glass: true, glassTop: 140));
-    expect(_band(tester).debugServed, isTrue);
+    expect(_band(tester).serves, isTrue);
     expect(glass().debugDrewOverUnderlay, isTrue);
     expect(BackdropUnderlay.debugImagesDrawn, drawn + 1);
   }, skip: skipProperGlassTests);
@@ -256,7 +256,7 @@ void main() {
     final flushes = Map.of(BackdropUnderlay.debugFlushes);
     var drawn = BackdropUnderlay.debugImagesDrawn;
     await tester.pumpWidget(_scene(glass: true, glassTop: 30));
-    expect(_band(tester).debugServed, isTrue);
+    expect(_band(tester).serves, isTrue);
     expect(glass().debugDrewOverUnderlay, isTrue);
     expect(BackdropUnderlay.debugImagesDrawn, drawn + 2);
     expect(
@@ -285,7 +285,7 @@ void main() {
         .single;
 
     await tester.pumpWidget(_scene(glass: true));
-    expect(_band(tester).debugServed, isTrue);
+    expect(_band(tester).serves, isTrue);
     expect(glass().debugDrewOverUnderlay, isTrue);
     expect(
       tester.layers.whereType<BackdropFilterLayer>().where(
@@ -295,7 +295,7 @@ void main() {
     );
 
     await tester.pumpWidget(_scene(glass: true, texture: true));
-    expect(_band(tester).debugServed, isFalse);
+    expect(_band(tester).serves, isFalse);
     expect(glass().debugDrewOverUnderlay, isFalse);
     expect(
       glass().debugUnderlay.debugMiss,

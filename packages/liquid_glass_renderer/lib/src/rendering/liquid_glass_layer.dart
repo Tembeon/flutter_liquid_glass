@@ -11,10 +11,10 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
-import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/internal/ancestor_clip.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/internal/ancestor_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/filter_pass_transform.dart';
 import 'package:liquid_glass_renderer/src/internal/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
@@ -1608,15 +1608,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // derived from the bucketed bounds, not from the clip layer, and the
   // coordinate mapping depends only on the pass origin.
   void _syncBackdropPass() {
-    final inner = _innerClipLayerRect;
-    // The shader writes transparent outside the material, and the filter
-    // composites source-over, so only the material can change pixels.
-    final material = _filterMaterialBounds?.shift(_filterPaintOffset);
     _rig.place(
-      drawableEmpty ? null : inner,
+      drawableEmpty ? null : _innerClipLayerRect,
       _filterPaintOffset,
       _passReach,
-      modified: material?.intersect(inner ?? material) ?? inner,
     );
   }
 
@@ -1935,7 +1930,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         min(frostX, frostY) * dpr / (downscale * 2) >= _copySigma) {
       downscale *= 2;
     }
-    final copy = _rig.copyFor(
+    final copy = _rig.underlay.imageFor(
       anchor: anchor,
       own: paintLayer,
       devicePixelRatio: dpr,

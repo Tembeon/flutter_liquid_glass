@@ -119,7 +119,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     final copy = _copy;
     if (copy == null) return null;
     if (_served case final served?) return served;
-    final served = _record(copy);
+    final served = recordFilteredCopy(copy, _shown, _origin);
     _servedKey = _keyOf(copy);
     return _served = served;
   }
@@ -132,10 +132,6 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   /// drawn, or null.
   @internal
   int? get pendingLevel => _copy?.pendingLevel;
-
-  /// Whether the last composited frame filtered a copy.
-  @visibleForTesting
-  bool get debugServed => _copy != null;
 
   /// The copy this layer filters.
   @visibleForTesting
@@ -184,9 +180,6 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     _origin = origin;
     return copy;
   }
-
-  ui.Picture _record(UnderlayCopy copy) =>
-      recordFilteredCopy(copy, _shown, _origin);
 
   @override
   void addToScene(ui.SceneBuilder builder) {
