@@ -18,9 +18,11 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
   @override
   bool get alwaysNeedsCompositing => true;
 
-  /// Transform compared across frames to decide whether [onTransformChanged]
-  /// should fire. Defaults to the world transform.
-  Matrix4 trackedTransform() => getTransformTo(null);
+  /// This object's transform to the screen. While its layer composites,
+  /// the one the layer read for the frame, as nothing moves a render object
+  /// between paint and the scene: the walk to the root is taken once.
+  Matrix4 transformToScreen() =>
+      layer?._composited?.clone() ?? getTransformTo(null);
 
   @mustCallSuper
   @override
@@ -34,7 +36,6 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
     return (layer ??= GeometryTransformTrackingLayer())
       ..renderObject = this
       ..onDetached = onTrackingLayerDetached
-      ..trackedTransform = trackedTransform
       ..onTransformChanged = () {
         if (attached) {
           onTransformChanged();
@@ -70,11 +71,11 @@ class GeometryTransformTrackingLayer extends OffsetLayer {
   GeometryTransformTrackingLayer();
 
   RenderObject? renderObject;
-  Matrix4 Function()? trackedTransform;
   VoidCallback? onTransformChanged;
   VoidCallback? onCompositing;
   VoidCallback? onDetached;
   Matrix4? _lastTransform;
+  Matrix4? _composited;
 
   @override
   void detach() {
@@ -90,13 +91,17 @@ class GeometryTransformTrackingLayer extends OffsetLayer {
     // already have been selected for retained rendering.
     final renderObject = this.renderObject;
     if (renderObject != null && renderObject.attached) {
-      final currentTransform =
-          trackedTransform?.call() ?? renderObject.getTransformTo(null);
-      if (!MatrixUtils.matrixEquals(currentTransform, _lastTransform)) {
-        onTransformChanged?.call();
-        _lastTransform = currentTransform;
+      final currentTransform = renderObject.getTransformTo(null);
+      _composited = currentTransform;
+      try {
+        if (!MatrixUtils.matrixEquals(currentTransform, _lastTransform)) {
+          onTransformChanged?.call();
+          _lastTransform = currentTransform;
+        }
+        onCompositing?.call();
+      } finally {
+        _composited = null;
       }
-      onCompositing?.call();
     }
     super.updateSubtreeNeedsAddToScene();
     // Runs for every attached tracking layer on every built scene, including
@@ -130,3 +135,12 @@ class FramePollMarker {
     SchedulerBinding.instance.addPostFrameCallback((_) => _polled = false);
   }
 }
+
+/// [node]'s transform to the screen, taken once a frame while a tracked
+/// object composites (see
+/// [TransformTrackingRenderObjectMixin.transformToScreen]).
+@internal
+Matrix4 screenTransformOf(RenderObject node) =>
+    node is TransformTrackingRenderObjectMixin
+    ? node.transformToScreen()
+    : node.getTransformTo(null);

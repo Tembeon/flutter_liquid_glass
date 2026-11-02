@@ -1,5 +1,6 @@
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/internal/glass_composition_probe.dart';
+import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_capture.dart';
 import 'package:meta/meta.dart';
 
@@ -25,21 +26,21 @@ Matrix4 filterPassTransform(
   final Matrix4 transform;
   final capture = RenderLiquidGlassCapture.enclosing(owner);
   if (passOrigin != null) {
-    transform = owner.getTransformTo(null)
+    transform = screenTransformOf(owner)
       ..leftTranslateByDouble(-passOrigin.dx, -passOrigin.dy, 0, 1);
   } else if (seeding) {
     final origin = GlassCompositionProbe.seededPassOrigin(
       owner,
       devicePixelRatio,
     );
-    transform = owner.getTransformTo(null)
+    transform = screenTransformOf(owner)
       ..leftTranslateByDouble(-origin.dx, -origin.dy, 0, 1);
   } else if (capture != null) {
     transform = owner.getTransformTo(capture);
     final origin = capture.passOrigin;
     transform.leftTranslateByDouble(-origin.dx, -origin.dy, 0, 1);
   } else {
-    transform = owner.getTransformTo(null);
+    transform = screenTransformOf(owner);
   }
   if (translation != Offset.zero) {
     transform.multiply(

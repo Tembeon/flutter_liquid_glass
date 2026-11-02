@@ -9,6 +9,7 @@ import 'package:liquid_glass_renderer/src/internal/glass_frame_clock.dart';
 import 'package:liquid_glass_renderer/src/internal/retained_glass_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/running_under_flutter_test.dart';
 import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
+import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
 
 /// The device pixels of the first view, or `null` without one.
 Size? _screenPixels() {
@@ -360,7 +361,7 @@ BackdropPassPlan planSeededBackdropPass({
   Rect? ownerClip,
   BackdropPassSizing? sizing,
 }) {
-  final toGlobal = owner.getTransformTo(null);
+  final toGlobal = screenTransformOf(owner);
   if (!isRectilinearTransform(toGlobal)) return BackdropPassPlan.unsupported;
   final toLocal = Matrix4.tryInvert(toGlobal);
   if (toLocal == null) return BackdropPassPlan.unsupported;

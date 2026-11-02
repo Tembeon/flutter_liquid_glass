@@ -2191,7 +2191,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       logical.right * dpr,
       logical.bottom * dpr,
     );
-    final backdropBounds = backdropSampleBounds;
+    // The compositor poll wrote this frame's bounds to the live filter.
+    final backdropBounds = _backdropBounds;
+    assert(
+      backdropBounds == backdropSampleBounds,
+      'The copy samples the bounds the live filter does.',
+    );
     final paintOffset = _filterPaintOffset;
     // The live filter's inputs, as one object: a new one whenever a uniform
     // or sampler changed.
