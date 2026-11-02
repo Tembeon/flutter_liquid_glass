@@ -9,7 +9,6 @@ export 'src/internal/glass_drag_builder.dart' show GestureMode;
 export 'src/liquid_glass.dart' show LiquidGlass, LiquidGlassShapeFrame;
 export 'src/liquid_glass_appearance.dart' show LiquidGlassAppearance;
 export 'src/liquid_glass_backdrop.dart' show LiquidGlassBackdrop;
-export 'src/liquid_glass_backdrop_cache.dart' show LiquidGlassBackdropCache;
 export 'src/liquid_glass_backdrop_filter_layer.dart'
     show LiquidGlassBackdropFilterLayer;
 export 'src/liquid_glass_blend_group.dart' show LiquidGlassBlendGroup;

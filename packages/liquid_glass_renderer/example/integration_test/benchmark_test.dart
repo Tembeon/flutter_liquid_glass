@@ -424,7 +424,6 @@ enum BenchmarkScenario {
   pxBlend5Motion,
   pxSheetResize,
   pxSheetOverPage,
-  pxSheetOverPageCached,
   pxMultiLayer,
   colorsBlendStatic,
   colorsBlendMotion,
@@ -515,10 +514,6 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
   late final AnimationController controller;
   late final AnimationController framePulse;
   bool traceGateOpen = false;
-  final _pageKey = GlobalKey();
-  late final _pageCache = LiquidGlassBackdropCache(
-    source: () => _pageKey.currentContext?.findRenderObject(),
-  );
 
   @override
   void initState() {
@@ -561,7 +556,6 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
   void dispose() {
     controller.dispose();
     framePulse.dispose();
-    _pageCache.dispose();
     super.dispose();
   }
 
@@ -996,11 +990,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
       BenchmarkScenario.pxPillStretch => _pxStretched(t, 96, 40, true),
       BenchmarkScenario.pxBlend5Motion => _pxBlend5(t),
       BenchmarkScenario.pxSheetResize => _pxSheet(t),
-      BenchmarkScenario.pxSheetOverPage => _pxSheetOverPage(t, cached: false),
-      BenchmarkScenario.pxSheetOverPageCached => _pxSheetOverPage(
-        t,
-        cached: true,
-      ),
+      BenchmarkScenario.pxSheetOverPage => _pxSheetOverPage(t),
       BenchmarkScenario.pxMultiLayer => Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1276,23 +1266,19 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
     );
   }
 
-  // A sheet over a page that holds still, with a bar moving on the sheet,
-  // reading the page as a backdrop or painting over a cached copy of it.
-  Widget _pxSheetOverPage(double t, {required bool cached}) {
+  // A sheet over a page that holds still, with a bar moving on the sheet.
+  Widget _pxSheetOverPage(double t) {
     final size = MediaQuery.sizeOf(context);
     return Stack(
       fit: StackFit.expand,
       children: [
-        RepaintBoundary(key: _pageKey, child: const _Background()),
+        const RepaintBoundary(child: _Background()),
         Align(
           alignment: Alignment.bottomCenter,
           child: Padding(
             padding: const EdgeInsets.all(8),
             child: LiquidGlassLayer(
               settings: _pxSettings,
-              backdrop: cached
-                  ? LiquidGlassBackdrop.cached(_pageCache)
-                  : const LiquidGlassBackdrop.read(),
               child: LiquidGlass(
                 shape: const LiquidRoundedSuperellipse(borderRadius: 38),
                 child: SizedBox(
