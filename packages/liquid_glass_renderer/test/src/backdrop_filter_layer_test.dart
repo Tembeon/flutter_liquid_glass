@@ -241,6 +241,37 @@ void main() {
     expect(BackdropUnderlay.debugImagesDrawn, drawn + 1);
   }, skip: skipProperGlassTests);
 
+  testWidgets('glass over the band waits for the band copy in the one draw '
+      'of the frame, and both hold while nothing moves', (tester) async {
+    BackdropUnderlay.debugEnabledOverride = true;
+    tester.view.physicalSize = const Size(260, 200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    RenderLiquidGlassLayer glass() => tester.allRenderObjects
+        .whereType<RenderLiquidGlassLayer>()
+        .toSet()
+        .single;
+
+    await tester.pumpWidget(_scene(glass: true, glassTop: 30, shift: 0.3));
+    final flushes = Map.of(BackdropUnderlay.debugFlushes);
+    var drawn = BackdropUnderlay.debugImagesDrawn;
+    await tester.pumpWidget(_scene(glass: true, glassTop: 30));
+    expect(_band(tester).debugServed, isTrue);
+    expect(glass().debugDrewOverUnderlay, isTrue);
+    expect(BackdropUnderlay.debugImagesDrawn, drawn + 2);
+    expect(
+      BackdropUnderlay.debugFlushes['planned'],
+      (flushes['planned'] ?? 0) + 1,
+    );
+    expect(BackdropUnderlay.debugFlushes['read'], flushes['read']);
+
+    drawn = BackdropUnderlay.debugImagesDrawn;
+    glass().markNeedsPaint();
+    await tester.pump();
+    expect(glass().debugDrewOverUnderlay, isTrue);
+    expect(BackdropUnderlay.debugImagesDrawn, drawn);
+  }, skip: skipProperGlassTests);
+
   testWidgets('glass near the band draws from its own copy while the band '
       'draws from its copy, and reads its backdrop while the band reads '
       'its', (tester) async {

@@ -95,8 +95,8 @@ class BackdropUnderlay {
   static final debugEdgeSigns = <String, int>{};
 
   /// How many times the copies were drawn with copies pending, by what
-  /// asked for them: the composer once the frame was planned, a scroll edge
-  /// signed, a read, or the frame's end.
+  /// asked for them: the composer once the frame was planned, a read, or
+  /// the frame's end.
   @visibleForTesting
   static final debugFlushes = <String, int>{};
 
@@ -154,9 +154,9 @@ class BackdropUnderlay {
   UnderlayCopy? imageFor({
     required Layer anchor,
     required double devicePixelRatio,
-    OpacitySeedLayer? own,
     required Rect region,
     required Rect screen,
+    OpacitySeedLayer? own,
     ui.ImageFilter? filter,
     Object? filterKey,
     Rect? filterClip,
@@ -549,15 +549,21 @@ class _Prefix {
           blocker ??= layer;
         }
         return;
-      // A copy that holds it draws the filtered copy, which is drawn now if
-      // it is not yet.
-      case LiquidGlassBackdropFilterLayer(serves: true, :final servedPicture?):
-        out.add(servedPicture);
-        out.add(transform.clone());
-        out.add(clip);
-        out.addAll(state);
-        out.add(#leaf);
-        c?.drawPicture(servedPicture);
+      // A copy that holds it draws the filtered copy: one not drawn yet is
+      // drawn after it, as glass over glass is.
+      case LiquidGlassBackdropFilterLayer(serves: true):
+        if (layer.pendingLevel case final level? when c == null) {
+          if (level > waits) waits = level;
+          out.add(Object());
+        } else {
+          final picture = layer.servedPicture!;
+          out.add(picture);
+          out.add(transform.clone());
+          out.add(clip);
+          out.addAll(state);
+          out.add(#leaf);
+          c?.drawPicture(picture);
+        }
       case LiquidGlassBackdropFilterLayer(clip: final rect, :final reach):
         // It reads live, and changes nothing past its reach.
         if (filtered || _meets(clipped(rect.inflate(reach)), band)) {
@@ -1417,9 +1423,15 @@ final class _Scan {
               final why = _meets(entry.output, band) ? 'output' : 'margin';
               BackdropUnderlay.debugEdgeSigns[why] =
                   (BackdropUnderlay.debugEdgeSigns[why] ?? 0) + 1;
-              _Atlas.reason = 'edge sign';
-              sign(layer.servedPicture!, transform, clip, entry.state);
-              _Atlas.reason = null;
+              if (layer.pendingLevel case final level? when c == null) {
+                // An edge whose copy is not drawn yet: a copy that holds it
+                // is drawn after it, and a signature that holds it matches
+                // none.
+                if (level > prefix.waits) prefix.waits = level;
+                out.add(Object());
+              } else {
+                sign(layer.servedPicture!, transform, clip, entry.state);
+              }
             case _Undrawable(:final layer) when c != null:
               prefix.blocked = true;
               prefix.blocker ??= layer;

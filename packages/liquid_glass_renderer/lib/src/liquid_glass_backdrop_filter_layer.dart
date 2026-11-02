@@ -92,9 +92,8 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
 
   /// The filtered copy this frame draws in place of the backdrop read, in
   /// this layer's coordinates, or null while the layer reads the backdrop.
-  /// Recorded when first read: unless a copy taken earlier in the frame holds
-  /// this layer, the copy is drawn with the other copies of the frame rather
-  /// than on its own.
+  /// Recorded when first read, once the copy is drawn with the other copies
+  /// of the frame.
   @internal
   ui.Picture? get servedPicture {
     final copy = _copy;
@@ -108,6 +107,11 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   // What the picture is drawn from: an equal key draws an equal picture.
   Object _keyOf(UnderlayCopy copy) =>
       (copy.image, copy.offset, _shown, _origin);
+
+  /// The level of the copy in the frame's drawing order while it is not
+  /// drawn, or null.
+  @internal
+  int? get pendingLevel => _copy?.pendingLevel;
 
   /// Whether the last composited frame filtered a copy.
   @visibleForTesting
