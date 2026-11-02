@@ -17,6 +17,7 @@ Widget _scene({
   double dot = 0,
   bool texture = false,
   double opacity = 1,
+  bool pair = false,
 }) => Directionality(
   textDirection: TextDirection.ltr,
   child: RepaintBoundary(
@@ -76,6 +77,25 @@ Widget _scene({
             ),
           ),
         ),
+        if (pair)
+          Positioned.fill(
+            child: LiquidGlassLayer(
+              settings: LiquidGlassSettings.ios27RegularLight().copyWith(
+                frost: 0,
+              ),
+              child: Stack(
+                children: [
+                  Positioned.fromRect(
+                    rect: const Rect.fromLTWH(30, 260, 200, 60),
+                    child: const LiquidGlass(
+                      shape: LiquidRoundedSuperellipse(borderRadius: 28),
+                      child: SizedBox.expand(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         // Something that moves far from the glass, in its own boundary.
         Positioned(
           left: 10 + dot,
@@ -199,5 +219,24 @@ void main() {
       expect(_glass(tester).debugDrewOverUnderlay, isTrue);
     }
     expect(_glass(tester).debugUnderlay.debugCaptures, captures);
+  }, skip: skipProperGlassTests);
+
+  testWidgets('copies redrawn in one frame share one image', (tester) async {
+    tester.view.physicalSize = const Size(260, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_scene(pair: true, shift: 0.3));
+    final drawn = BackdropUnderlay.debugImagesDrawn;
+    await tester.pumpWidget(_scene(pair: true));
+    expect(BackdropUnderlay.debugImagesDrawn, drawn + 1);
+    final glass = tester.allRenderObjects
+        .whereType<RenderLiquidGlassLayer>()
+        .toSet()
+        .toList();
+    expect(glass, hasLength(2));
+    expect(glass.every((g) => g.debugDrewOverUnderlay), isTrue);
+    expect(_liveFilters(tester), isEmpty);
+    final [a, b] = [for (final g in glass) g.debugUnderlay.debugImage!];
+    expect(a.isCloneOf(b), isTrue);
   }, skip: skipProperGlassTests);
 }

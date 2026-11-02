@@ -144,7 +144,8 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
     );
     if (copy == null) return null;
     final shown = clip.intersect(copy.rect);
-    final key = (copy.image, shown, m[12], m[13]);
+    // Read now: a later copy that holds this layer draws its picture.
+    final key = (copy.image, copy.offset, shown, m[12], m[13]);
     final served = _served;
     if (served != null && key == _servedKey) return served;
     _servedKey = key;
@@ -152,6 +153,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
     final canvas = Canvas(recorder);
     canvas.translate(-m[12], -m[13]);
     final source = shown.shift(-copy.rect.topLeft);
+    final offset = copy.offset;
     final paint = Paint();
     // The copy already holds the filtered backdrop composited over the
     // backdrop: it replaces what lies under it.
@@ -160,10 +162,10 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
     canvas.drawImageRect(
       copy.image,
       Rect.fromLTRB(
-        source.left * dpr,
-        source.top * dpr,
-        source.right * dpr,
-        source.bottom * dpr,
+        source.left * dpr + offset.dx,
+        source.top * dpr + offset.dy,
+        source.right * dpr + offset.dx,
+        source.bottom * dpr + offset.dy,
       ),
       shown,
       paint,

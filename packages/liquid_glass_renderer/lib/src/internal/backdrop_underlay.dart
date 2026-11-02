@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:liquid_glass_renderer/src/internal/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/internal/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/internal/retained_glass_clip.dart';
@@ -21,11 +22,11 @@ import 'package:liquid_glass_renderer/src/liquid_glass_underlay.dart';
 /// the screen; a frame whose glass all paints over copies has none of that.
 /// The copy is drawn from the layer tree itself while the frame composites:
 /// everything painted before the layer, in a band around what its glass
-/// samples, replayed into a small image that the frame renders before the
-/// glass. It serves later frames while the layers painted before the glass
-/// in that band are the same ones it was drawn from (the same pictures under
-/// the same transforms, clips, opacities and filters); a frame in which they
-/// changed draws a new one.
+/// samples, replayed into one image with every other copy the frame draws,
+/// which the frame renders before the glass. It serves later frames while
+/// the layers painted before the glass in that band are the same ones it was
+/// drawn from (the same pictures under the same transforms, clips, opacities
+/// and filters); a frame in which they changed draws a new one.
 ///
 /// Inside a fractional opacity the copy holds what the screen shows under
 /// the glass, the faded content of the glass's own group included, and the
@@ -56,6 +57,8 @@ class BackdropUnderlay {
   static const double _margin = 12;
 
   ui.Image? _image;
+  Offset _offset = Offset.zero;
+  _Tile? _tile;
   Rect _copied = Rect.zero;
   Object? _filterKey;
   Rect? _filterClip;
@@ -71,9 +74,17 @@ class BackdropUnderlay {
   @visibleForTesting
   String? debugMiss;
 
-  /// The copy and the screen rect it holds (logical pixels), exact this
-  /// frame for everything inside [region], or null when what lies there
-  /// cannot be drawn again, and the caller reads its backdrop this frame.
+  /// How many images the copies of all glass were drawn into.
+  @visibleForTesting
+  static int get debugImagesDrawn => _Atlas.drawn;
+
+  /// The image that holds the copy, once it is drawn.
+  @visibleForTesting
+  ui.Image? get debugImage => _image;
+
+  /// The copy of the screen rect it holds, exact this frame for everything
+  /// inside [region], or null when what lies there cannot be drawn again,
+  /// and the caller reads its backdrop this frame.
   ///
   /// [anchor] is the layer the caller begins with in paint order: the copy
   /// holds what is painted before it, with [filter] applied as a backdrop
@@ -81,12 +92,13 @@ class BackdropUnderlay {
   /// null), in screen logical pixels. [filterKey] stands for [filter]: a
   /// copy serves only callers that pass an equal key. [screen] is the view's
   /// rect. The copy taken in an earlier frame serves while the layers it was
-  /// drawn from are unchanged; otherwise a new one is drawn now, and the
-  /// frame renders it before anything that samples it.
+  /// drawn from are unchanged; otherwise a new one is recorded now and drawn
+  /// with every other copy recorded in the frame, in one image, when the
+  /// first of them is read.
   ///
   /// Called while the frame composites, when the layers before [anchor] are
   /// final.
-  ({ui.Image image, Rect rect})? imageFor({
+  UnderlayCopy? imageFor({
     required Layer anchor,
     required double devicePixelRatio,
     required Rect region,
@@ -101,7 +113,7 @@ class BackdropUnderlay {
     if (band.isEmpty) return null;
     final root = _rootOf(anchor);
     final held =
-        _image != null &&
+        (_image != null || _tile != null) &&
         filterKey == _filterKey &&
         filterClip == _filterClip &&
         filterBlendMode == _filterBlendMode &&
@@ -109,39 +121,62 @@ class BackdropUnderlay {
         _same(_signPrefix(root, anchor, _copied, dpr), _signature);
     if (held && _contains(_copied, band)) {
       debugMiss = null;
-      return (image: _image!, rect: _copied);
+      return UnderlayCopy._(this, _copied);
     }
     // A caller that moved over content that held still takes room to move
     // on; under content that changes, the copy holds no more than the band.
     final rect = held && filterClip == null
         ? _snapOut(band.inflate(_margin), dpr).intersect(screen)
         : band;
-    final replay = _Prefix(anchor, rect, dpr, ui.PictureRecorder());
-    final image = replay.draw(
-      root,
+    final replay = _Prefix(
+      anchor,
       rect,
-      filter: filter,
-      filterClip: filterClip,
-      filterBlendMode: filterBlendMode,
+      dpr,
+      ui.PictureRecorder(),
+      defer: true,
     );
-    if (image == null) {
+    final content = replay.record(root, rect);
+    if (content == null) {
       assert(() {
         debugMiss = 'blocked by ${_debugBlocker(root, anchor, band, dpr)}';
         return true;
       }(), 'Diagnose misses in debug builds.');
       return null;
     }
-    _image?.dispose();
-    _image = image;
+    _release();
+    final tile = _Tile(
+      this,
+      rect,
+      dpr,
+      filter,
+      filterClip,
+      filterBlendMode,
+      level: replay.waits + 1,
+    );
+    if (replay.waits < 0) {
+      tile.content = content;
+      _signature = replay.out;
+    } else {
+      // It holds glass whose copy is drawn later in the frame: it is
+      // recorded again once that glass has its picture.
+      content.dispose();
+      tile.redraw = () {
+        final again = _Prefix(anchor, rect, dpr, ui.PictureRecorder());
+        final picture = again.record(root, rect);
+        if (picture != null) _signature = again.out;
+        return picture;
+      };
+    }
+    _tile = tile;
+    _Atlas.add(tile);
     _copied = rect;
-    _signature = replay.out;
     _filterKey = filterKey;
     _filterClip = filterClip;
     _filterBlendMode = filterBlendMode;
     _devicePixelRatio = dpr;
     debugCaptures++;
     debugMiss = null;
-    return (image: image, rect: rect);
+    return UnderlayCopy._(this, rect);
   }
 
   /// Releases the copy.
@@ -153,6 +188,8 @@ class BackdropUnderlay {
   void _release() {
     _image?.dispose();
     _image = null;
+    if (_tile case final tile?) _Atlas.cancel(tile);
+    _tile = null;
     _signature = const [];
   }
 
@@ -218,66 +255,44 @@ class BackdropUnderlay {
 // layer: canvas calls rather than a scene, which would make an engine layer
 // and its Dart handle for every push.
 class _Prefix {
-  _Prefix(this.stop, this.band, this.devicePixelRatio, this.recorder)
-    : canvas = recorder == null ? null : Canvas(recorder);
+  _Prefix(
+    this.stop,
+    this.band,
+    this.devicePixelRatio,
+    this.recorder, {
+    this.defer = false,
+  }) : canvas = recorder == null ? null : Canvas(recorder);
 
   final Layer stop;
   final Rect band;
   final double devicePixelRatio;
   final ui.PictureRecorder? recorder;
   final Canvas? canvas;
+  // Whether glass over a copy that is not drawn yet is left out and noted
+  // in [waits], rather than its copy drawn now.
+  final bool defer;
   final out = <Object?>[];
   bool reached = false;
   bool blocked = false;
   Layer? blocker;
 
-  // Draws what is painted before [stop] in [rect] (screen logical pixels)
-  // into an image, [filter] applied over it inside [filterClip], or returns
-  // null when that cannot be drawn again.
-  ui.Image? draw(
-    Layer root,
-    Rect rect, {
-    required ui.ImageFilter? filter,
-    required Rect? filterClip,
-    required BlendMode filterBlendMode,
-  }) {
-    final c = canvas!;
+  // The highest level of the copies not drawn yet that the band holds glass
+  // over, or -1.
+  int waits = -1;
+
+  // Records what is painted before [stop] in [rect] (screen logical pixels)
+  // in device pixels from the rect's origin, or returns null when that
+  // cannot be drawn again.
+  ui.Picture? record(Layer root, Rect rect) {
     final dpr = devicePixelRatio;
-    c.translate(-rect.left * dpr, -rect.top * dpr);
+    canvas!.translate(-rect.left * dpr, -rect.top * dpr);
     walk(root, Matrix4.diagonal3Values(1 / dpr, 1 / dpr, 1), null);
     final content = recorder!.endRecording();
     if (blocked || !reached) {
       content.dispose();
       return null;
     }
-    final width = (rect.width * dpr).round();
-    final height = (rect.height * dpr).round();
-    if (filter == null) {
-      final image = content.toImageSync(width, height);
-      content.dispose();
-      return image;
-    }
-    // The filter reads the copy as a backdrop filter reads the screen: the
-    // same blur at the copy's edges as the live read.
-    final b = ui.SceneBuilder();
-    b.addPicture(Offset.zero, content);
-    final toCopy = Matrix4.translationValues(
-      -rect.left * dpr,
-      -rect.top * dpr,
-      0,
-    );
-    toCopy.scaleByDouble(dpr, dpr, 1, 1);
-    b.pushTransform(toCopy.storage);
-    b.pushClipRect(filterClip ?? rect, clipBehavior: Clip.hardEdge);
-    b.pushBackdropFilter(filter, blendMode: filterBlendMode);
-    b.pop();
-    b.pop();
-    b.pop();
-    final scene = b.build();
-    final image = scene.toImageSync(width, height);
-    scene.dispose();
-    content.dispose();
-    return image;
+    return content;
   }
 
   void walk(
@@ -320,6 +335,19 @@ class _Prefix {
     var nextFiltered = filtered;
     (Shader, Rect, BlendMode)? mask;
     switch (layer) {
+      case UnderlayPictureLayer(picture: null):
+        if (!reaches(layer.canvasBounds)) return;
+        if (layer.pendingLevel case final level? when defer || c == null) {
+          // Glass over a copy that is not drawn yet: a copy that holds it is
+          // drawn after it, and a signature that holds it matches none.
+          if (level > waits) waits = level;
+          out.add(Object());
+          return;
+        }
+        layer.resolve();
+        if (layer.picture == null) return;
+        walk(layer, transform, clip, state: state, filtered: filtered);
+        return;
       case PictureLayer(:final picture?):
         if (!reaches(layer.canvasBounds)) return;
         out.add(picture);
@@ -630,5 +658,237 @@ class _Prefix {
 
     visit(layer, transform);
     return reach;
+  }
+}
+
+/// A copy that [BackdropUnderlay.imageFor] serves: [rect] of the screen, in
+/// logical pixels, at [offset] (device pixels) in [image].
+///
+/// A copy recorded this frame is drawn when its [image] or [offset] is first
+/// read, together with every copy recorded before it: a caller that can
+/// wait reads them when the scene is added ([UnderlayPictureLayer]).
+@internal
+final class UnderlayCopy {
+  const UnderlayCopy._(this._underlay, this.rect);
+
+  final BackdropUnderlay _underlay;
+
+  /// The screen rect the copy holds, in logical pixels.
+  final Rect rect;
+
+  /// Whether [image] is drawn already.
+  bool get ready => _underlay._image != null;
+
+  /// The image that holds the copy, shared with other copies of the frame.
+  ui.Image get image {
+    if (!ready) _Atlas.flush();
+    return _underlay._image!;
+  }
+
+  /// Where [rect]'s top left corner sits in [image], in device pixels.
+  Offset get offset {
+    if (!ready) _Atlas.flush();
+    return _underlay._offset;
+  }
+}
+
+/// A picture of glass over a copy that is recorded when the scene is added,
+/// or earlier when another copy holds it, so that the copies of a frame are
+/// drawn in one image.
+@internal
+class UnderlayPictureLayer extends PictureLayer {
+  /// A layer whose [record] records its picture once [copy] is drawn.
+  UnderlayPictureLayer(super.canvasBounds, this.copy, this.record);
+
+  /// The copy the picture is drawn over.
+  final UnderlayCopy copy;
+
+  /// Records the picture.
+  final ui.Picture Function() record;
+
+  /// The level of [copy] in the frame's drawing order while it is not drawn.
+  int? get pendingLevel => copy.ready ? null : copy._underlay._tile?.level;
+
+  /// Records the picture now, if it is not yet.
+  void resolve() {
+    if (picture == null && attached) picture = record();
+  }
+
+  @override
+  void addToScene(ui.SceneBuilder builder) {
+    resolve();
+    if (picture != null) super.addToScene(builder);
+  }
+}
+
+class _Tile {
+  _Tile(
+    this.owner,
+    this.rect,
+    this.devicePixelRatio,
+    this.filter,
+    this.filterClip,
+    this.filterBlendMode, {
+    required this.level,
+  }) : width = (rect.width * devicePixelRatio).round(),
+       height = (rect.height * devicePixelRatio).round();
+
+  final BackdropUnderlay owner;
+
+  // Copies of one level are drawn together, after every lower level: a
+  // copy that holds glass over another copy is a level above it.
+  final int level;
+  ui.Picture? content;
+  ui.Picture? Function()? redraw;
+  final Rect rect;
+  final double devicePixelRatio;
+  final ui.ImageFilter? filter;
+  final Rect? filterClip;
+  final BlendMode filterBlendMode;
+  final int width;
+  final int height;
+  Offset offset = Offset.zero;
+}
+
+// The copies recorded in a frame, drawn into one image: every image drawn
+// on its own costs the raster thread a render pass, a texture and a command
+// buffer, and the GPU driver a submission.
+abstract final class _Atlas {
+  // Gap between copies, in device pixels: sampling between pixels at a
+  // copy's edge reads no neighbour.
+  static const int _gap = 2;
+  static const int _rowWidth = 2048;
+  static const int _maxHeight = 4096;
+
+  static final _pending = <_Tile>[];
+  static bool _scheduled = false;
+  static bool _flushing = false;
+  static int drawn = 0;
+
+  static void add(_Tile tile) {
+    _pending.add(tile);
+    if (_scheduled) return;
+    _scheduled = true;
+    // A copy no caller read this frame is drawn after it.
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _scheduled = false;
+      flush();
+    });
+  }
+
+  static void cancel(_Tile tile) {
+    if (_pending.remove(tile)) tile.content?.dispose();
+  }
+
+  static void flush() {
+    if (_flushing) return;
+    _flushing = true;
+    try {
+      while (_pending.isNotEmpty) {
+        var level = _pending.first.level;
+        for (final tile in _pending) {
+          if (tile.level < level) level = tile.level;
+        }
+        final batch = [
+          for (final tile in _pending)
+            if (tile.level == level) tile,
+        ];
+        _pending.removeWhere((tile) => tile.level == level);
+        for (final tile in batch) {
+          if (tile.content != null) continue;
+          final picture = tile.redraw?.call();
+          assert(picture != null, 'A copy recorded again is never blocked.');
+          tile.content = picture ?? ui.PictureRecorder().endRecording();
+        }
+        _pack(batch);
+      }
+    } finally {
+      _flushing = false;
+    }
+  }
+
+  static void _pack(List<_Tile> batch) {
+    var start = 0;
+    while (start < batch.length) {
+      final tiles = <_Tile>[];
+      var x = 0;
+      var y = 0;
+      var row = 0;
+      var width = 0;
+      for (final tile in batch.skip(start)) {
+        final limit = tile.width > _rowWidth ? tile.width : _rowWidth;
+        if (x > 0 && x + tile.width > limit) {
+          x = 0;
+          y += row + _gap;
+          row = 0;
+        }
+        if (tiles.isNotEmpty && y + tile.height > _maxHeight) break;
+        tile.offset = Offset(x.toDouble(), y.toDouble());
+        tiles.add(tile);
+        x += tile.width + _gap;
+        if (x - _gap > width) width = x - _gap;
+        if (tile.height > row) row = tile.height;
+      }
+      start += tiles.length;
+      _draw(tiles, width, y + row);
+    }
+  }
+
+  static void _draw(List<_Tile> tiles, int width, int height) {
+    drawn++;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    for (final tile in tiles) {
+      canvas.save();
+      canvas.translate(tile.offset.dx, tile.offset.dy);
+      canvas.clipRect(
+        Rect.fromLTWH(0, 0, tile.width.toDouble(), tile.height.toDouble()),
+      );
+      canvas.drawPicture(tile.content!);
+      canvas.restore();
+      tile.content!.dispose();
+    }
+    final content = recorder.endRecording();
+    final ui.Image image;
+    if (tiles.every((tile) => tile.filter == null)) {
+      image = content.toImageSync(width, height);
+    } else {
+      // The filter reads a copy as a backdrop filter reads the screen. A
+      // copy's band holds the blur's reach around what its glass samples, so
+      // what the blur reads past a copy's edge stays out of what is sampled.
+      final b = ui.SceneBuilder();
+      b.addPicture(Offset.zero, content);
+      for (final tile in tiles) {
+        final filter = tile.filter;
+        if (filter == null) continue;
+        final dpr = tile.devicePixelRatio;
+        final toAtlas = Matrix4.translationValues(
+          tile.offset.dx - tile.rect.left * dpr,
+          tile.offset.dy - tile.rect.top * dpr,
+          0,
+        );
+        toAtlas.scaleByDouble(dpr, dpr, 1, 1);
+        b.pushTransform(toAtlas.storage);
+        b.pushClipRect(
+          tile.filterClip?.intersect(tile.rect) ?? tile.rect,
+          clipBehavior: Clip.hardEdge,
+        );
+        b.pushBackdropFilter(filter, blendMode: tile.filterBlendMode);
+        b.pop();
+        b.pop();
+        b.pop();
+      }
+      final scene = b.build();
+      image = scene.toImageSync(width, height);
+      scene.dispose();
+    }
+    content.dispose();
+    for (final tile in tiles) {
+      final owner = tile.owner;
+      owner._tile = null;
+      owner._image = image.clone();
+      owner._offset = tile.offset;
+    }
+    image.dispose();
   }
 }

@@ -2130,11 +2130,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       screen,
       bounds.expandToPixelBuckets(dpr),
     );
+    // What the shader paints: the material, not the rect it is drawn in.
+    final drawn = MatrixUtils.transformRect(screen, bounds);
     final frost = _frostSigmaForCurrentShapes() * scale;
     final copy = _underlay.imageFor(
       anchor: anchor,
       devicePixelRatio: dpr,
-      region: logical.inflate((backdropSamplingReach(bounds) + 1) * scale),
+      region: drawn.inflate((backdropSamplingReach(bounds) + 1) * scale),
       screen: Offset.zero & view.size,
       filter: frost > 0
           ? ui.ImageFilter.blur(
@@ -2146,8 +2148,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       filterKey: frost,
     );
     if (copy == null) return null;
-    final image = copy.image;
-    final origin = copy.rect.topLeft * dpr;
     final canvasToScreen = screen.clone();
     canvasToScreen.multiply(
       Matrix4.translationValues(
@@ -2160,17 +2160,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (screenToCanvas.copyInverse(canvasToScreen) == 0) return null;
     screenToCanvas.multiply(Matrix4.diagonal3Values(1 / dpr, 1 / dpr, 1));
     final globalToMatte = Matrix4.inverted(screen);
-    final o = MatrixUtils.transformPoint(globalToMatte, Offset.zero);
-    final ax = MatrixUtils.transformPoint(globalToMatte, const Offset(1, 0));
-    final ay = MatrixUtils.transformPoint(globalToMatte, const Offset(0, 1));
-    final mapping = (
-      ax.dx - o.dx,
-      ay.dx - o.dx,
-      ax.dy - o.dy,
-      ay.dy - o.dy,
-      o.dx * dpr + (ax.dx - o.dx) * origin.dx + (ay.dx - o.dx) * origin.dy,
-      o.dy * dpr + (ax.dy - o.dy) * origin.dx + (ay.dy - o.dy) * origin.dy,
-    );
     final device = Rect.fromLTRB(
       logical.left * dpr,
       logical.top * dpr,
@@ -2178,47 +2167,93 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       logical.bottom * dpr,
     );
     final backdropBounds = backdropSampleBounds;
+    final paintOffset = _filterPaintOffset;
     // The live filter's inputs, as one object: a new one whenever a uniform
     // or sampler changed.
-    final key = (
-      image,
+    Object keyOf() => (
+      copy.image,
+      copy.offset,
+      copy.rect,
       _updateShaderFilter(),
-      mapping,
       device,
       backdropBounds,
-      _filterPaintOffset,
+      paintOffset,
+      screen,
     );
+    ui.Picture record() {
+      final image = copy.image;
+      final origin = copy.rect.topLeft * dpr - copy.offset;
+      final o = MatrixUtils.transformPoint(globalToMatte, Offset.zero);
+      final ax = MatrixUtils.transformPoint(
+        globalToMatte,
+        const Offset(1, 0),
+      );
+      final ay = MatrixUtils.transformPoint(
+        globalToMatte,
+        const Offset(0, 1),
+      );
+      final mapping = (
+        ax.dx - o.dx,
+        ay.dx - o.dx,
+        ax.dy - o.dy,
+        ay.dy - o.dy,
+        o.dx * dpr + (ax.dx - o.dx) * origin.dx + (ay.dx - o.dx) * origin.dy,
+        o.dy * dpr + (ax.dy - o.dy) * origin.dx + (ay.dy - o.dy) * origin.dy,
+      );
+      final shader = renderShader;
+      _writeCoordinateMapping(shader, mapping, backdropBounds);
+      shader.setFloat(0, image.width.toDouble());
+      shader.setFloat(1, image.height.toDouble());
+      shader.setFloat(_FinalUniforms.backdropOrigin, origin.dx);
+      shader.setFloat(_FinalUniforms.backdropOrigin + 1, origin.dy);
+      shader.setImageSampler(0, image, filterQuality: FilterQuality.low);
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      canvas.transform(screenToCanvas.storage);
+      final paint = Paint();
+      paint.shader = shader;
+      // The filter's clip cuts its output with a hard edge.
+      paint.isAntiAlias = false;
+      canvas.drawRect(device, paint);
+      // The live filter takes the shader's uniforms when it is next created:
+      // they go back to the filter's.
+      shader.setFloat(_FinalUniforms.backdropOrigin, 0);
+      shader.setFloat(_FinalUniforms.backdropOrigin + 1, 0);
+      if (_coordinateMapping case final live?) {
+        _writeCoordinateMapping(shader, live, _backdropBounds);
+      }
+      if (_geometryImage case final matte?) {
+        shader.setImageSampler(0, matte, filterQuality: FilterQuality.low);
+      }
+      return recorder.endRecording();
+    }
+
+    // A copy for glass nearby holds this glass only where it paints.
+    final pictureBounds = MatrixUtils.transformRect(
+      screenToCanvas,
+      Rect.fromLTRB(
+        drawn.left * dpr,
+        drawn.top * dpr,
+        drawn.right * dpr,
+        drawn.bottom * dpr,
+      ),
+    ).inflate(1);
+    if (!copy.ready) {
+      // Recorded when the scene is added, after every copy of the frame is
+      // recorded: they are drawn together.
+      final picture = UnderlayPictureLayer(pictureBounds, copy, () {
+        _underlayPictureKey = keyOf();
+        return record();
+      });
+      _underlayPictureHandle.layer = picture;
+      _underlayPictureKey = null;
+      return picture;
+    }
+    final key = keyOf();
     final previous = _underlayPictureHandle.layer;
     if (previous != null && _underlayPictureKey == key) return previous;
-    final shader = renderShader;
-    _writeCoordinateMapping(shader, mapping, backdropBounds);
-    shader.setFloat(0, image.width.toDouble());
-    shader.setFloat(1, image.height.toDouble());
-    shader.setFloat(_FinalUniforms.backdropOrigin, origin.dx);
-    shader.setFloat(_FinalUniforms.backdropOrigin + 1, origin.dy);
-    shader.setImageSampler(0, image, filterQuality: FilterQuality.low);
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    canvas.transform(screenToCanvas.storage);
-    final paint = Paint();
-    paint.shader = shader;
-    // The filter's clip cuts its output with a hard edge.
-    paint.isAntiAlias = false;
-    canvas.drawRect(device, paint);
-    final picture = PictureLayer(
-      MatrixUtils.transformRect(screenToCanvas, device),
-    );
-    picture.picture = recorder.endRecording();
-    // The live filter takes the shader's uniforms when it is next created:
-    // they go back to the filter's.
-    shader.setFloat(_FinalUniforms.backdropOrigin, 0);
-    shader.setFloat(_FinalUniforms.backdropOrigin + 1, 0);
-    if (_coordinateMapping case final live?) {
-      _writeCoordinateMapping(shader, live, _backdropBounds);
-    }
-    if (_geometryImage case final matte?) {
-      shader.setImageSampler(0, matte, filterQuality: FilterQuality.low);
-    }
+    final picture = PictureLayer(pictureBounds);
+    picture.picture = record();
     _underlayPictureHandle.layer = picture;
     _underlayPictureKey = key;
     return picture;
@@ -2414,23 +2449,40 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   /// How far outside the material the composed filter reads the backdrop:
-  /// the blur kernel (3 sigma), the peak edge displacement including its
-  /// dispersion, and, with [LiquidGlassSettings.backdropShrink], the extra
-  /// content revealed on the face. A `LiquidGlassCapture` or a seeded pass
-  /// must contain this reach or the filter samples its own edge.
+  /// the blur kernel (3 sigma), the peak edge displacement of shapes that
+  /// fit in [material] including its dispersion, and, with
+  /// [LiquidGlassSettings.backdropShrink], the extra content revealed on the
+  /// face. A copy of the backdrop must contain this reach or the filter
+  /// samples its own edge.
   double backdropSamplingReach(Rect material) {
+    // The final shader's edge shift (lowResDisplacementMagnitude): no wider
+    // than half a shape's shorter side when refraction fits the shape, and
+    // shrunk with the bevel otherwise. No shape inside the material has a
+    // shorter side longer than the material's.
+    final amount = settings.effectiveDisplacementScale;
+    final halfMinor = min(material.width, material.height) / 2;
+    final shift = settings.refractionFitsShape
+        ? min(amount, halfMinor)
+        : amount *
+              min(1, halfMinor / max(settings.effectiveRefractionHeight, 1e-3));
+    return _samplingReach(material, shift);
+  }
+
+  // A capture pass keeps the full displacement: its blur and matte sample on
+  // a grid that starts at the pass's edge, and a pass that moves shifts what
+  // thin necks between blended shapes read.
+  @override
+  double effectSamplingReach(Rect material) =>
+      _samplingReach(material, settings.effectiveDisplacementScale);
+
+  double _samplingReach(Rect material, double shift) {
     final frostSigma = _frostSigmaForCurrentShapes();
     final blur = frostSigma > 0 ? frostSigma * 3 + 1 / devicePixelRatio : 0.0;
-    final displacement =
-        settings.effectiveDisplacementScale *
-        (1 + settings.dispersion.abs() * 0.5);
+    final displacement = shift * (1 + settings.dispersion.abs() * 0.5);
     final scale = 1 - settings.effectiveBackdropShrink;
     final revealed = (1 / scale - 1) * max(material.width, material.height) / 2;
     return blur + displacement + revealed;
   }
-
-  @override
-  double effectSamplingReach(Rect material) => backdropSamplingReach(material);
 
   /// Half-extents along the matte axes of a shape with local half-size
   /// [halfSize] mapped by the affine basis ([axisX], [axisY]). The geometry
