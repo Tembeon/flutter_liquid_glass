@@ -66,8 +66,9 @@ class ConsolidatedFakeGlassLayer extends SingleChildRenderObjectWidget {
 /// drawn over a copy of what lies under the glass instead of reading the
 /// backdrop (see [BackdropRig]). NEAR: over a copy, a blur that Impeller
 /// downsamples takes other taps than over the whole backdrop, at most 19
-/// channel levels apart in the host test of white text under 6 px of frost;
-/// at 2 px the two do not differ. All shared machinery (shape
+/// channel levels apart in the host test of white text under 6 px of frost
+/// and 24 at the edges of buttons over photos on the Pixel 6a; at 2 px the
+/// two do not differ. All shared machinery (shape
 /// registration, transform and compositor-translation polling, retained
 /// ancestor clips, shadows, bounds and the frame state) lives in
 /// [LiquidGlassRenderObject]; this class implements only the effect.
