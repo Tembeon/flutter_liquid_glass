@@ -724,8 +724,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _debugWarnedShapeLimit = true;
     const message =
         'a LiquidGlassLayer has more than '
-        '${LiquidGlassBlendGroup.maxShapesPerLayer} glass shapes; the extra '
-        'shapes are not drawn. Split the glass across several layers.';
+        '${LiquidGlassBlendGroup.maxShapesPerCluster} glass shapes that '
+        'blend, lie within reach of each other, or carry their own '
+        'appearances; the extra shapes are not drawn. Split the glass across '
+        'several layers.';
     LiquidGlassRenderObject.logger.warning(message);
     debugPrint('liquid_glass_renderer: $message');
   }
@@ -2725,11 +2727,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       for (final (_, geometry, geometryToLayer) in geometries) {
         var firstInGroup = true;
         for (final shape in geometry.shapes) {
-          if (numShapes >= LiquidGlassBlendGroup.maxShapesPerLayer) {
-            _debugWarnShapeLimitExceeded();
-            break;
-          }
-
           final shapeToGeometry = shape.shapeToGeometry ?? _identity;
           final basis = _matteShapeBasis(geometryToLayer, shapeToGeometry);
           if (basis == null) continue;
@@ -2857,8 +2854,23 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       if (numShapes == 0) {
         throw StateError('No invertible liquid-glass shapes to render.');
       }
-      final (usesShapeAppearances, usesTintOnlyAppearance, _) =
+      var (usesShapeAppearances, usesTintOnlyAppearance, _) =
           _classifyShapeAppearances(appearances, defaultAppearance);
+      // A field and a per-shape material map are drawn in one pass, which
+      // evaluates only so many shapes.
+      const most = FlutterGpuGeometryRenderer.maxShapesPerDraw;
+      if (numShapes > most && (_field != null || usesShapeAppearances)) {
+        _debugWarnShapeLimitExceeded();
+        numShapes = most;
+        _shapeData.length = most * 12;
+        _rseData.length = most * 12;
+        _rseLowerData.length = most * 12;
+        _boundsData.length = most * 4;
+        _cullData.length = most;
+        appearances.length = most;
+        (usesShapeAppearances, usesTintOnlyAppearance, _) =
+            _classifyShapeAppearances(appearances, defaultAppearance);
+      }
 
       final rest = _restRequested;
       _restRequested = false;
@@ -2926,6 +2938,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         field: _field,
         fieldScale: devicePixelRatio,
       );
+      if (renderer.droppedShapes > 0) _debugWarnShapeLimitExceeded();
       _needsMaterialUpdate = false;
       return (
         image: result.image,

@@ -28,14 +28,15 @@ class LiquidGlassBlendGroup extends StatefulWidget {
   /// The child widget containing liquid glass shapes.
   final Widget child;
 
-  /// Maximum number of glass shapes one [LiquidGlassLayer] renders.
+  /// Maximum number of glass shapes a [LiquidGlassLayer] renders in one
+  /// cluster: shapes that blend, or lie within a few pixels of each other's
+  /// edges. A layer renders any number of clusters, but caps the whole layer
+  /// at this many shapes when the shapes carry their own appearances or the
+  /// layer draws a field.
   ///
-  /// The limit counts every shape on the layer, grouped or standalone.
   /// Shapes beyond it are not drawn; debug builds print a warning when that
   /// happens. Split the glass across several layers if you need more.
-  ///
-  /// Currently 16; may increase in a future release.
-  static const int maxShapesPerLayer = 16;
+  static const int maxShapesPerCluster = 16;
 
   /// Retrieves the [GlassGroupLink] from the nearest ancestor
   /// [LiquidGlassBlendGroup].

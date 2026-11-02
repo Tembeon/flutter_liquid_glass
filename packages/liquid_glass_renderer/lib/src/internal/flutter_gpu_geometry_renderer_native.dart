@@ -312,6 +312,15 @@ class FlutterGpuGeometryRenderer {
   @visibleForTesting
   int debugMaterialDrawCount = 0;
 
+  /// The most shapes one draw of the matte evaluates (MAX_SHAPES in the
+  /// geometry shaders).
+  static const int maxShapesPerDraw = 16;
+
+  /// How many shapes the latest render left out: past [maxShapesPerDraw]
+  /// in one cluster of shapes that blend or lie within reach of each other,
+  /// or past it at all with a field or a per-shape material map.
+  int droppedShapes = 0;
+
   /// Renders a new low-res matte and returns it as a [ui.Image].
   ///
   /// The low-res matte has one texel for every [matteScale] x [matteScale]
@@ -467,7 +476,7 @@ class FlutterGpuGeometryRenderer {
       materialMapWidth: writeMaterials ? materialMapWidth.toDouble() : 1.0,
       materialMapHeight: writeMaterials ? materialMapHeight.toDouble() : 1.0,
       geometryAaHalfWidth: _geometryAaHalfWidth,
-      numShapes: numShapes.toDouble(),
+      numShapes: math.min(numShapes, maxShapesPerDraw).toDouble(),
       shapeData: shapeData,
       rseData: rseData,
       rseLowerData: rseLowerData,
@@ -478,6 +487,33 @@ class FlutterGpuGeometryRenderer {
 
     final uniformView = _hostBufferForUniformSize(_uniformSize)
         .emplace(_uniformData);
+
+    // More shapes than one draw evaluates are drawn cluster by cluster, each
+    // inside the texels only it can write.
+    final clusters =
+        writeMatte &&
+            field == null &&
+            !writeMaterials &&
+            numShapes > maxShapesPerDraw
+        ? _clusters(
+            shapeData: shapeData,
+            boundsData: boundsData,
+            numShapes: numShapes,
+            offsetX: offsetX,
+            offsetY: offsetY,
+            contourExtent: contourExtent,
+            width: matteWidth,
+            height: matteHeight,
+            scale: scale,
+          )
+        : null;
+    droppedShapes = clusters == null
+        ? math.max(0, numShapes - maxShapesPerDraw)
+        : clusters.fold(
+            0,
+            (dropped, cluster) =>
+                dropped + math.max(0, cluster.shapes.length - maxShapesPerDraw),
+          );
 
     if (writeMatte) {
       assert(() {
@@ -500,19 +536,23 @@ class FlutterGpuGeometryRenderer {
       // shader would.
       final passWidth = matteWidth ~/ scale + 1;
       final passHeight = matteHeight ~/ scale + 1;
-      final drawRect = _occupiedRect(
-        shapeData: shapeData,
-        boundsData: boundsData,
-        numShapes: numShapes,
-        offsetX: offsetX,
-        offsetY: offsetY,
-        contourExtent: contourExtent,
-        width: matteWidth,
-        height: matteHeight,
-        scale: scale,
-      );
+      final drawRect = clusters != null
+          ? null
+          : _occupiedRect(
+              shapeData: shapeData,
+              boundsData: boundsData,
+              numShapes: numShapes,
+              offsetX: offsetX,
+              offsetY: offsetY,
+              contourExtent: contourExtent,
+              width: matteWidth,
+              height: matteHeight,
+              scale: scale,
+            );
       final geometryPass = geometryCommandBuffer.createRenderPass(
-        drawRect == null ? _renderTarget! : _clearingRenderTarget!,
+        drawRect == null && clusters == null
+            ? _renderTarget!
+            : _clearingRenderTarget!,
       )..setPrimitiveType(gpu.PrimitiveType.triangleStrip);
       if (field != null) {
         _packFieldUniformData(field, fieldScale, fieldTexture!);
@@ -542,7 +582,40 @@ class FlutterGpuGeometryRenderer {
           ),
         );
       }
-      geometryPass.draw(4);
+      if (clusters == null) {
+        geometryPass.draw(4);
+      } else {
+        for (final cluster in clusters) {
+          final shapes = cluster.shapes.take(maxShapesPerDraw).toList();
+          List<double> pick(List<double> data, int stride) => [
+            for (final i in shapes)
+              if (data.length >= (i + 1) * stride)
+                ...data.getRange(i * stride, (i + 1) * stride),
+          ];
+          _packShapes(
+            numShapes: shapes.length.toDouble(),
+            shapeData: pick(shapeData, 12),
+            rseData: pick(rseData, 12),
+            rseLowerData: pick(rseLowerData, 12),
+            boundsData: pick(boundsData, 4),
+          );
+          final rect = cluster.rect;
+          geometryPass
+            ..bindUniform(
+              _uniformSlot,
+              _hostBufferForUniformSize(_uniformSize).emplace(_uniformData),
+            )
+            ..setScissor(
+              gpu.Scissor(
+                x: rect.left,
+                y: rect.top,
+                width: rect.width,
+                height: rect.height,
+              ),
+            )
+            ..draw(4);
+        }
+      }
       _submitOrDefer(geometryCommandBuffer);
     }
     if (writeMaterials) {
@@ -600,18 +673,54 @@ class FlutterGpuGeometryRenderer {
     required int height,
     required int scale,
   }) {
-    final count = math.min(numShapes, 16);
+    final count = math.min(numShapes, maxShapesPerDraw);
     if (count <= 0 ||
         boundsData.length < count * 4 ||
         shapeData.length < count * 12) {
       return null;
     }
+    final rect = _texels(
+      [for (var i = 0; i < count; i++) i],
+      shapeData: shapeData,
+      boundsData: boundsData,
+      offsetX: offsetX,
+      offsetY: offsetY,
+      contourExtent: contourExtent,
+      width: width,
+      height: height,
+      scale: scale,
+    );
+    if (rect == null) return null;
+    // On some GPUs a clear writes the whole texture once more. The low-res
+    // matte is small, so that costs little, but it only pays off when most of
+    // the texture can be skipped.
+    final textureWidth = width ~/ scale + 1;
+    final textureHeight = height ~/ scale + 1;
+    if (rect.width * rect.height > 0.9 * textureWidth * textureHeight) {
+      return null;
+    }
+    return rect;
+  }
+
+  /// The low-res matte texels [shapes] can write anything but "far outside"
+  /// into, or null when a shape has no finite box.
+  static _PixelRect? _texels(
+    List<int> shapes, {
+    required List<double> shapeData,
+    required List<double> boundsData,
+    required double offsetX,
+    required double offsetY,
+    required double contourExtent,
+    required int width,
+    required int height,
+    required int scale,
+  }) {
     var smoothing = 0.0;
     var left = double.infinity;
     var top = double.infinity;
     var right = -double.infinity;
     var bottom = -double.infinity;
-    for (var i = 0; i < count; i++) {
+    for (final i in shapes) {
       final marker = shapeData[i * 12 + 11];
       if (marker >= 0) smoothing += marker * 0.25;
       left = math.min(left, boundsData[i * 4]);
@@ -637,15 +746,72 @@ class FlutterGpuGeometryRenderer {
     final tx1 = ((x1 + scale - 1) ~/ scale + 2).clamp(0, width ~/ scale + 1);
     final ty1 = ((y1 + scale - 1) ~/ scale + 2).clamp(0, height ~/ scale + 1);
     if (tx1 <= tx0 || ty1 <= ty0) return const _PixelRect(0, 0, 1, 1);
-    // On some GPUs a clear writes the whole texture once more. The low-res
-    // matte is small, so that costs little, but it only pays off when most of
-    // the texture can be skipped.
-    final textureWidth = width ~/ scale + 1;
-    final textureHeight = height ~/ scale + 1;
-    if ((tx1 - tx0) * (ty1 - ty0) > 0.9 * textureWidth * textureHeight) {
-      return null;
-    }
     return _PixelRect(tx0, ty0, tx1 - tx0, ty1 - ty0);
+  }
+
+  /// The shapes in clusters whose texels meet no other cluster's, in paint
+  /// order, each with those texels. A blend group stays in one cluster.
+  static List<_Cluster> _clusters({
+    required List<double> shapeData,
+    required List<double> boundsData,
+    required int numShapes,
+    required double offsetX,
+    required double offsetY,
+    required double contourExtent,
+    required int width,
+    required int height,
+    required int scale,
+  }) {
+    final everything = _PixelRect(
+      0,
+      0,
+      width ~/ scale + 1,
+      height ~/ scale + 1,
+    );
+    _PixelRect texels(List<int> shapes) =>
+        (boundsData.length < numShapes * 4
+            ? null
+            : _texels(
+                shapes,
+                shapeData: shapeData,
+                boundsData: boundsData,
+                offsetX: offsetX,
+                offsetY: offsetY,
+                contourExtent: contourExtent,
+                width: width,
+                height: height,
+                scale: scale,
+              )) ??
+        everything;
+    final groups = <List<int>>[];
+    for (var i = 0; i < numShapes; i++) {
+      // A negative marker starts a group (see the geometry shader).
+      if (groups.isEmpty || shapeData[i * 12 + 11] < 0) {
+        groups.add([i]);
+      } else {
+        groups.last.add(i);
+      }
+    }
+    final clusters = [
+      for (final shapes in groups) _Cluster(shapes, texels(shapes)),
+    ];
+    var merged = true;
+    while (merged) {
+      merged = false;
+      search:
+      for (var a = 0; a < clusters.length; a++) {
+        for (var b = a + 1; b < clusters.length; b++) {
+          if (!clusters[a].rect.meets(clusters[b].rect)) continue;
+          final shapes = [...clusters[a].shapes, ...clusters[b].shapes];
+          shapes.sort();
+          clusters[a] = _Cluster(shapes, texels(shapes));
+          clusters.removeAt(b);
+          merged = true;
+          break search;
+        }
+      }
+    }
+    return clusters;
   }
 
   /// The texture holding [field], its copy recorded on [geometry] where a
@@ -929,13 +1095,48 @@ class FlutterGpuGeometryRenderer {
     // one-pixel transition) unless the harness overrides it.
     floatData[opticalPropsIndex + 1] = geometryAaHalfWidth.clamp(0.0, 1.0);
     floatData[opticalPropsIndex + 2] = math.max(1, edgeDistanceRange);
-    floatData[opticalPropsIndex + 3] = numShapes;
 
     final contourPropsIndex = _offsetContourProps ~/ 4;
     floatData[contourPropsIndex] = math.max(0.5, contourExtent);
     floatData[contourPropsIndex + 1] = materialScale;
     floatData[contourPropsIndex + 2] = materialMapWidth;
     floatData[contourPropsIndex + 3] = materialMapHeight;
+
+    _packShapes(
+      numShapes: numShapes,
+      shapeData: shapeData,
+      rseData: rseData,
+      rseLowerData: rseLowerData,
+      boundsData: boundsData,
+    );
+
+    if (appearanceData.isNotEmpty && appearanceData.length != 16 * 2 * 4) {
+      throw ArgumentError.value(
+        appearanceData.length,
+        'appearanceData.length',
+        'must contain two vec4 rows for each of 16 shapes',
+      );
+    }
+    if (appearanceData.isNotEmpty) {
+      final shapeTintsStartIndex = _offsetShapeTints ~/ 4;
+      final shapeResponsesStartIndex = _offsetShapeResponses ~/ 4;
+      for (var i = 0; i < 16 * 4; i++) {
+        floatData[shapeTintsStartIndex + i] = appearanceData[i];
+        floatData[shapeResponsesStartIndex + i] = appearanceData[16 * 4 + i];
+      }
+    }
+  }
+
+  // Writes the shapes' uniforms, which every draw of the matte replaces.
+  void _packShapes({
+    required double numShapes,
+    required List<double> shapeData,
+    required List<double> rseData,
+    required List<double> rseLowerData,
+    required List<double> boundsData,
+  }) {
+    final floatData = _uniformData.buffer.asFloat32List();
+    floatData[_offsetOpticalProps ~/ 4 + 3] = numShapes;
 
     final shapeDataStartIndex = _offsetShapeData ~/ 4;
     final shapeFloats = shapeData.length < 192 ? shapeData.length : 192;
@@ -967,22 +1168,6 @@ class FlutterGpuGeometryRenderer {
       floatData[lowerStartIndex + i] = 0;
     }
     _writtenRseLowerFloats = lowerFloats;
-
-    if (appearanceData.isNotEmpty && appearanceData.length != 16 * 2 * 4) {
-      throw ArgumentError.value(
-        appearanceData.length,
-        'appearanceData.length',
-        'must contain two vec4 rows for each of 16 shapes',
-      );
-    }
-    if (appearanceData.isNotEmpty) {
-      final shapeTintsStartIndex = _offsetShapeTints ~/ 4;
-      final shapeResponsesStartIndex = _offsetShapeResponses ~/ 4;
-      for (var i = 0; i < 16 * 4; i++) {
-        floatData[shapeTintsStartIndex + i] = appearanceData[i];
-        floatData[shapeResponsesStartIndex + i] = appearanceData[16 * 4 + i];
-      }
-    }
 
     // Shapes without bounds are never culled.
     final boundsStartIndex = _offsetShapeBounds ~/ 4;
@@ -1044,6 +1229,19 @@ final class _PixelRect {
   final int top;
   final int width;
   final int height;
+
+  bool meets(_PixelRect other) =>
+      left < other.left + other.width &&
+      other.left < left + width &&
+      top < other.top + other.height &&
+      other.top < top + height;
+}
+
+// Shapes of the matte drawn together, and the texels they write.
+final class _Cluster {
+  const _Cluster(this.shapes, this.rect);
+  final List<int> shapes;
+  final _PixelRect rect;
 }
 
 /// A texture and its render target.

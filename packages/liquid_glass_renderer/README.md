@@ -190,8 +190,10 @@ LiquidGlassLayer(
 )
 ```
 
-A layer renders at most 16 shapes. Plain `LiquidGlass` shapes in the same layer
-don't blend.
+A layer renders any number of shapes as long as no more than 16 blend or sit
+within a few pixels of each other; shapes with their own appearances, or a
+layer with a field, are capped at 16 in all. Plain `LiquidGlass` shapes in the
+same layer don't blend.
 
 ## iOS 27 presets and the Liquid Glass slider
 
@@ -506,7 +508,8 @@ saved as custom presets.
 
 - Experimental: not yet battle-tested in production apps.
 - Full glass needs Impeller and Flutter GPU; the web renders `FakeGlass`.
-- At most 16 shapes per layer.
+- At most 16 shapes that blend or touch, or 16 per layer with per-shape
+  appearances or a field.
 - One corner radius per shape.
 - A glass widget's child is painted on top of the glass, never refracted by
   it.

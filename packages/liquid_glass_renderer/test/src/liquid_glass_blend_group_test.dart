@@ -179,7 +179,7 @@ void main() {
                     children: [
                       for (
                         var i = 0;
-                        i <= LiquidGlassBlendGroup.maxShapesPerLayer;
+                        i <= LiquidGlassBlendGroup.maxShapesPerCluster;
                         i++
                       )
                         const LiquidGlass.grouped(

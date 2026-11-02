@@ -82,7 +82,7 @@ The liquid glass effect works by capturing and distorting background pixels thro
 
 2. **LiquidGlass** (`lib/src/liquid_glass.dart`): Individual glass shapes that must be inside a LiquidGlassLayer. Can be standalone or grouped for blending.
 
-3. **LiquidGlassBlendGroup** (`lib/src/liquid_glass_blend_group.dart`): Groups multiple `LiquidGlass.grouped()` shapes to blend them together seamlessly (max 16 shapes).
+3. **LiquidGlassBlendGroup** (`lib/src/liquid_glass_blend_group.dart`): Groups multiple `LiquidGlass.grouped()` shapes to blend them together seamlessly (max 16 shapes per group or cluster of touching shapes).
 
 4. **Geometry Rendering** (`lib/src/internal/render_liquid_glass_geometry.dart`): Renders glass shape geometry into textures for shader processing. Caches geometry to avoid re-rendering on every frame.
 
