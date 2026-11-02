@@ -568,11 +568,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   // A glass without a blur, or that is nothing but a blur, needs no seed.
   PassBlur? _passBlur(FakeGlassFilterParts parts) =>
       parts.sigma > 0 && !identical(parts.withoutBlur, fakeGlassIdentityFilter)
-      ? PassBlur(
-          sigma: parts.sigma,
-          tileMode: parts.tileMode,
-          withoutBlur: parts.withoutBlur,
-        )
+      ? PassBlur(sigma: parts.sigma, withoutBlur: parts.withoutBlur)
       : null;
 
   @override

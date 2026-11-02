@@ -8,17 +8,6 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 
-/// One backdrop capture shared by several [BackdropRig]s.
-///
-/// Rigs that share it read the backdrop once, at the first of them, seeded
-/// or not: one that paints over another's output in overlapping pixels then
-/// filters the backdrop, not the first one's output, so the two transfers do
-/// not compound.
-@internal
-final class BackdropShare {
-  final _key = BackdropKey();
-}
-
 /// The shift from [anchor]'s coordinates to the screen's, in logical pixels,
 /// or null when a transform above it scales or turns it.
 @internal
@@ -43,6 +32,41 @@ Offset? screenOffsetOf(Layer anchor, double devicePixelRatio) {
     return null;
   }
   return Offset(m[12], m[13]);
+}
+
+/// A copy of what lies under [clip], in [anchor]'s coordinates, run through
+/// [filter] as a backdrop filter composited with [blendMode]: the copy, the
+/// part of it [clip] shows in screen coordinates, and the shift from
+/// [anchor]'s coordinates to the screen's. Null where none serves.
+///
+/// The copy holds [reach] around [clip]. With [filtersReach] the filter runs
+/// over all of it, as a live filter that reads a pass reaching past its clip
+/// does; without, inside [clip] only.
+@internal
+({UnderlayCopy copy, Rect shown, Offset origin})? filteredCopyFor(
+  BackdropUnderlay underlay,
+  Layer anchor, {
+  required ui.ImageFilter filter,
+  required BlendMode blendMode,
+  required Rect clip,
+  required double reach,
+  required double devicePixelRatio,
+  required bool filtersReach,
+}) {
+  final origin = screenOffsetOf(anchor, devicePixelRatio);
+  if (origin == null) return null;
+  final shifted = clip.shift(origin);
+  final region = shifted.inflate(reach);
+  final copy = underlay.imageFor(
+    anchor: anchor,
+    devicePixelRatio: devicePixelRatio,
+    region: region,
+    filter: filter,
+    filterClip: filtersReach ? region : shifted,
+    filterBlendMode: blendMode,
+  );
+  if (copy == null) return null;
+  return (copy: copy, shown: shifted.intersect(copy.rect), origin: origin);
 }
 
 /// A filtered [copy] drawn into coordinates that [origin] shifts to the
@@ -251,8 +275,9 @@ class BackdropRig {
       return;
     }
     if (_pass.layer != null) return;
-    final pass = SeededBackdropPassLayer();
-    pass.seedWhileResizing = seedWhileResizing;
+    final pass = SeededBackdropPassLayer(
+      seedWhileResizing: seedWhileResizing,
+    );
     pass.onActiveChanged = _activeChanged;
     _pass.layer = pass;
   }
@@ -268,11 +293,10 @@ class BackdropRig {
   void bindFilter(ui.ImageFilter filter, PassBlur? blur) {
     final backdrop = _filter.layer ??= _newFilterLayer();
     backdrop.filter = filter;
-    final key = share?._key;
     if (_pass.layer case final pass?) {
-      pass.bindFilter(backdrop, key, blur: blur);
+      pass.bindFilter(backdrop, share, blur: blur);
     } else {
-      backdrop.backdropKey = key;
+      backdrop.backdropKey = share?.key;
     }
   }
 
@@ -415,29 +439,23 @@ class BackdropRig {
   }
 
   PictureLayer? _serveFiltered(ContainerLayer slot, _Read read) {
-    final view = slot.owner;
     final outline = _outline;
-    if (view is! RenderView || outline == null) return null;
-    final dpr = read.devicePixelRatio;
-    final origin = screenOffsetOf(slot, dpr);
-    if (origin == null) return null;
-    final clip = read.clip.shift(origin);
-    final region = clip.inflate(read.reach);
+    if (outline == null) return null;
     // The live filter reads a pass reaching past its clip (or the whole
     // backdrop), not the backdrop cut at the clip: the blur near the edge
     // takes what lies outside, so the copy is filtered over all it holds.
-    final copy = _underlay.imageFor(
-      anchor: slot,
-      devicePixelRatio: dpr,
-      region: region,
-      screen: Offset.zero & view.size,
+    final served = filteredCopyFor(
+      _underlay,
+      slot,
       filter: read.filter,
-      filterKey: read.filter,
-      filterClip: region,
-      filterBlendMode: BlendMode.srcOver,
+      blendMode: BlendMode.srcOver,
+      clip: read.clip,
+      reach: read.reach,
+      devicePixelRatio: read.devicePixelRatio,
+      filtersReach: true,
     );
-    if (copy == null) return null;
-    final shown = clip.intersect(copy.rect);
+    if (served == null) return null;
+    final (:copy, :shown, :origin) = served;
     return servedPicture(
       copy,
       read.clip,

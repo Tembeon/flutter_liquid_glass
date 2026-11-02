@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:meta/meta.dart';
 
 /// Affine tint-over-backdrop followed by saturation, expressed as Flutter's
@@ -154,11 +155,10 @@ typedef FakeGlassFilterParts = ({
   ImageFilter full,
   ImageFilter withoutBlur,
   double sigma,
-  TileMode tileMode,
 });
 
 /// Like [fakeGlassBackdropFilter], also returning the filter without its blur
-/// (just the color transfer), the blur's logical sigma and its tile mode.
+/// (just the color transfer) and the blur's logical sigma.
 @internal
 FakeGlassFilterParts? fakeGlassBackdropFilterParts(
   LiquidGlassSettings settings,
@@ -173,12 +173,11 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
     deviceScale,
     shapeShortSide: shapeShortSide,
   );
-  const tileMode = TileMode.mirror;
   final blur = frost != 0
       ? ImageFilter.blur(
           sigmaX: frost,
           sigmaY: frost,
-          tileMode: tileMode,
+          tileMode: glassBlurTileMode,
         )
       : null;
   final faceTransfer = colorModel.faceTransfer(
@@ -230,7 +229,6 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
     full: full,
     withoutBlur: colorTransfer ?? fakeGlassIdentityFilter,
     sigma: frost,
-    tileMode: tileMode,
   );
 }
 

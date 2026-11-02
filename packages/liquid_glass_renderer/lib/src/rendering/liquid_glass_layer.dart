@@ -1669,18 +1669,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _rig.bindFilter(
       full,
       sigma > 0
-          ? PassBlur(
-              sigma: sigma,
-              tileMode: _blurTileMode,
-              withoutBlur: _cachedShaderFilter!,
-            )
+          ? PassBlur(sigma: sigma, withoutBlur: _cachedShaderFilter!)
           : null,
     );
   }
-
-  // What the frost blur reads past the backdrop's edge; a seeded pass blurs
-  // with the same.
-  static const _blurTileMode = TileMode.mirror;
 
   ImageFilter _updateShaderFilter() {
     final inputsChanged = takeShaderInputsChanged();
@@ -1694,7 +1686,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final filter = frostSigma > 0
         ? ImageFilter.compose(
             inner: ImageFilter.blur(
-              tileMode: _blurTileMode,
+              tileMode: glassBlurTileMode,
               sigmaX: frostSigma,
               sigmaY: frostSigma,
             ),
@@ -1897,8 +1889,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         storage[4].abs() > 1e-6) {
       return null;
     }
-    final view = owner?.rootNode;
-    if (view is! RenderView) return null;
     final logical = MatrixUtils.transformRect(
       screen,
       bounds.expandToPixelBuckets(dpr),
@@ -1923,12 +1913,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       region: drawn.inflate(
         (backdropSamplingReach(bounds) + 1) * max(scaleX, scaleY),
       ),
-      screen: Offset.zero & view.size,
       filter: sigma > 0
           ? ui.ImageFilter.blur(
               sigmaX: frostX,
               sigmaY: frostY,
-              tileMode: TileMode.mirror,
+              tileMode: glassBlurTileMode,
             )
           : null,
       filterKey: (frostX, frostY),

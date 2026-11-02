@@ -148,7 +148,7 @@ class BackdropPassSizing {
       result = fresh;
     } else if (_stable >= stableFrames) {
       result = fresh;
-    } else if (_contains(previous, fresh)) {
+    } else if (rectContains(previous, fresh)) {
       result = previous;
     } else if (fresh.width >= previous.width &&
         fresh.height >= previous.height) {
@@ -159,31 +159,30 @@ class BackdropPassSizing {
     }
     return _rect = result;
   }
-
-  static bool _contains(Rect outer, Rect inner) =>
-      outer.left <= inner.left &&
-      outer.top <= inner.top &&
-      outer.right >= inner.right &&
-      outer.bottom >= inner.bottom;
 }
 
+/// Whether [outer] holds all of [inner].
+@internal
+bool rectContains(Rect outer, Rect inner) =>
+    outer.left <= inner.left &&
+    outer.top <= inner.top &&
+    outer.right >= inner.right &&
+    outer.bottom >= inner.bottom;
+
+/// What a glass's frost blur reads past the backdrop's edge. A seed blurs
+/// with the same, so it stands in for the glass's own blur.
+@internal
+const glassBlurTileMode = TileMode.mirror;
+
 /// A pass's blur, taken over by the pass as its seed; see
-/// `SeededBackdropPassLayer.bindFilter`.
+/// `SeededBackdropPassLayer.bindFilter`. It tiles by [glassBlurTileMode].
 @internal
 class PassBlur {
-  const PassBlur({
-    required this.sigma,
-    required this.tileMode,
-    required this.withoutBlur,
-  });
+  const PassBlur({required this.sigma, required this.withoutBlur});
 
   /// The blur's sigma in the pass layer's coordinates, the same on both axes
   /// (glass blurs are round).
   final double sigma;
-
-  /// The blur's tile mode, which decides what it reads past the backdrop's
-  /// edge.
-  final TileMode tileMode;
 
   /// The filter without that blur.
   final ui.ImageFilter withoutBlur;
@@ -383,10 +382,10 @@ BackdropPassPlan planSeededBackdropPass({
     1,
     (wantedGlobal.height * devicePixelRatio - _pixelEpsilon).ceil(),
   );
-  Rect? limit;
-  if (ownerClip != null) {
-    limit = MatrixUtils.transformRect(toGlobal, ownerClip);
-  }
+  final globalOwnerClip = ownerClip == null
+      ? null
+      : MatrixUtils.transformRect(toGlobal, ownerClip);
+  var limit = globalOwnerClip;
   if (outer != null) limit = limit?.intersect(outer) ?? outer;
   final screen = _screenPixels();
   if (screen != null) {
@@ -483,11 +482,7 @@ BackdropPassPlan planSeededBackdropPass({
       y1 / devicePixelRatio,
     );
   }
-  if (ownerClip != null) {
-    bucketed = bucketed.intersect(
-      MatrixUtils.transformRect(toGlobal, ownerClip),
-    );
-  }
+  if (globalOwnerClip != null) bucketed = bucketed.intersect(globalOwnerClip);
   if (outer != null) bucketed = bucketed.intersect(outer);
   // Floating point can leave the bucket a hair inside the exact rect.
   global = global.expandToInclude(bucketed);
@@ -530,6 +525,9 @@ BackdropPassPlan planSeededBackdropPass({
 /// coordinates accordingly before the scene is built.
 @internal
 class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
+  /// Creates a pass layer, seeded while resizing when [seedWhileResizing].
+  SeededBackdropPassLayer({this.seedWhileResizing = false});
+
   /// How glass passes are seeded: [BackdropSeed.blur] wherever Impeller
   /// renders, and [BackdropSeed.none] on Skia, on the web, and under
   /// `flutter test`, whose tester renders seeded passes wrongly. The suite can
@@ -561,7 +559,7 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
   BackdropPassPlan _plan = BackdropPassPlan.unsupported;
   bool _active = true;
   BackdropFilterLayer? _filter;
-  BackdropKey? _key;
+  BackdropShare? _share;
 
   /// Runs when the decision to seed, rather than paint without a pass,
   /// changes as the layer composes.
@@ -572,7 +570,7 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
   /// on a resizing sheet (-16%) and on moving layers (-24%), where real
   /// glass's seed cost GPU energy (+26%) while resizing (see
   /// [_nativeSeedFor]).
-  bool seedWhileResizing = false;
+  final bool seedWhileResizing;
 
   /// Whether the pass is in effect: the owner planned one and it is seeded
   /// (see [nativeSeed]). Starts optimistic; the first [compose] decides.
@@ -603,10 +601,10 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
 
   /// The backdrop key the wrapped filter has natively, which it paints with
   /// whenever there is no pass.
-  BackdropKey? get backdropGroupKey => _key;
+  BackdropKey? get backdropGroupKey => _share?.key;
 
-  /// Tells the layer which filter it wraps and the key it paints with when
-  /// there is no pass.
+  /// Tells the layer which filter it wraps and the [share] whose key it
+  /// paints with when there is no pass.
   ///
   /// Inside a pass the filter has no key: the pass's seed carries it (see
   /// [_decideSeedKey]).
@@ -618,15 +616,15 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
   /// whenever its filter changes.
   void bindFilter(
     BackdropFilterLayer filter,
-    BackdropKey? key, {
+    BackdropShare? share, {
     PassBlur? blur,
   }) {
     _fullFilter = filter.filter;
     _blur = blur;
-    if (!identical(key, _key)) {
-      _leaveGroup();
-      _key = key;
-      if (key != null) (_groups[key] ??= _KeyGroup()).members.add(this);
+    if (!identical(share, _share)) {
+      _share?._members.remove(this);
+      _share = share;
+      share?._members.add(this);
     }
     _filter = filter;
     _syncKey();
@@ -650,14 +648,7 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
     }
   }
 
-  void _leaveGroup() {
-    final key = _key;
-    if (key != null) _groups[key]?.members.remove(this);
-  }
-
-  static final _groups = Expando<_KeyGroup>('SeededBackdropPassLayer groups');
-
-  PassFilterClip? _filterClip;
+  _PassFilterClip? _filterClip;
   Path? _silhouette;
 
   /// The true outline of the effect, when the child clip is only a rect that
@@ -674,7 +665,7 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
 
   /// The clip around the wrapped filter, and the part of the pass outside it;
   /// `null` when the children are not one clip around one filter.
-  PassFilterClip? _readFilterClip(Rect rect) {
+  _PassFilterClip? _readFilterClip(Rect rect) {
     final clip = firstChild;
     if (clip == null || clip.nextSibling != null) return null;
     Object geometry;
@@ -713,13 +704,7 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
         geometry as Path,
       );
     }
-    return _filterClip = PassFilterClip(
-      rect,
-      geometry,
-      behavior,
-      outside,
-      behavior != Clip.hardEdge,
-    );
+    return _filterClip = _PassFilterClip(rect, geometry, behavior, outside);
   }
 
   // Inside a pass the filter has no key (the seed carries it) and paints with
@@ -730,7 +715,7 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
     final filter = _filter;
     if (filter == null) return;
     final inPass = passRect != null;
-    filter.backdropKey = inPass ? null : _key;
+    filter.backdropKey = inPass ? null : _share?.key;
     filter.blendMode = inPass ? BlendMode.src : BlendMode.srcOver;
     if (!inPass && _seed != BackdropSeed.none) {
       _seed = BackdropSeed.none;
@@ -750,8 +735,8 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
     _seedFilter = null;
     _seedKey = null;
     _filter = null;
-    _leaveGroup();
-    _key = null;
+    _share?._members.remove(this);
+    _share = null;
     onActiveChanged = null;
     _outsidePicture?.dispose();
     _outsidePicture = null;
@@ -785,10 +770,7 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
   BackdropKey? _seedKey;
   int _seedVariant = 0;
   ui.ImageFilter? _seedFilter;
-  BackdropSeed _seedFilterMode = BackdropSeed.none;
-  double _seedFilterSigma = 0;
-  TileMode _seedFilterTileMode = TileMode.mirror;
-  int _seedFilterVariant = 0;
+  (BackdropSeed, double, int)? _seedFilterKey;
 
   // Whether another seed paints with this pass's key this frame.
   bool _seedShared = false;
@@ -846,7 +828,7 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
     }
     // A blur Impeller would not crop is no better than the glass's own, which
     // then runs over the small pass instead.
-    return mode == BackdropSeed.blur && !_blurSeedCrops()
+    return mode == BackdropSeed.blur && !_blurSeedCrops(blur.sigma)
         ? BackdropSeed.identity
         : mode;
   }
@@ -860,15 +842,13 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
   /// screen edge is cut there by the screen, so its padded hint always leaves
   /// it. Only the root pass is a known size (the screen); a pass inside
   /// another is assumed not to.
-  bool _blurSeedCrops() {
+  bool _blurSeedCrops(double sigma) {
     final global = _plan.globalRect;
     final toGlobal = _plan.layerToGlobal;
     final screen = _screenPixels();
-    final sigma = _blur?.sigma ?? 0;
     if (global == null ||
         toGlobal == null ||
         screen == null ||
-        sigma <= 0 ||
         !_inRootPass(this)) {
       return false;
     }
@@ -914,13 +894,12 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
     BackdropKey? key;
     var variant = 0;
     _seedShared = false;
-    final own = _key;
-    if (_seed != BackdropSeed.none && own != null) {
-      final order = _groups[own]?.participants(this);
-      final index = order?.indexOf(this) ?? 0;
-      key = own;
-      variant = index < 0 ? 0 : index % 2;
-      _seedShared = (order?.length ?? 0) > 1;
+    final share = _share;
+    if (_seed != BackdropSeed.none && share != null) {
+      final order = share._participants();
+      key = share.key;
+      variant = math.max(order.indexOf(this), 0) % 2;
+      _seedShared = order.length > 1;
     }
     if (!identical(key, _seedKey) || variant != _seedVariant) {
       _seedKey = key;
@@ -935,25 +914,17 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
   ui.ImageFilter _seedFilterFor() {
     final mode = _seed;
     final sigma = _blur?.sigma ?? 0;
-    final tileMode = _blur?.tileMode ?? TileMode.mirror;
-    final variant = _seedKey == null ? 0 : _seedVariant;
-    final cached = _seedFilter;
-    if (cached != null &&
-        _seedFilterMode == mode &&
-        _seedFilterSigma == sigma &&
-        _seedFilterTileMode == tileMode &&
-        _seedFilterVariant == variant) {
+    final variant = _seedVariant;
+    final key = (mode, sigma, variant);
+    if (_seedFilter case final cached? when _seedFilterKey == key) {
       return cached;
     }
-    _seedFilterMode = mode;
-    _seedFilterSigma = sigma;
-    _seedFilterTileMode = tileMode;
-    _seedFilterVariant = variant;
+    _seedFilterKey = key;
     return _seedFilter = switch (mode) {
       BackdropSeed.blur => ui.ImageFilter.blur(
         sigmaX: sigma + variant * seedSigmaStep,
         sigmaY: sigma + variant * seedSigmaStep,
-        tileMode: tileMode,
+        tileMode: glassBlurTileMode,
       ),
       _ when variant == 0 => _identity,
       _ => ColorFilter.matrix(<double>[
@@ -967,14 +938,12 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
 
   _SeedLayer? _seedLayer;
   ui.Picture? _outsidePicture;
-  Path? _outsidePath;
-  bool _outsideAntiAlias = false;
+  _PassFilterClip? _outsideClip;
 
   /// Draws, in the pass, a picture that clears what lies in the pass but not
-  /// under the effect's clip ([PassFilterClip.outside]).
-  void _clearOutside(ui.SceneBuilder builder, PassFilterClip clip) {
-    if (!identical(_outsidePath, clip.outside) ||
-        _outsideAntiAlias != clip.antiAlias) {
+  /// under the effect's clip ([_PassFilterClip.outside]).
+  void _clearOutside(ui.SceneBuilder builder, _PassFilterClip clip) {
+    if (!identical(_outsideClip, clip)) {
       _outsidePicture?.dispose();
       final recorder = ui.PictureRecorder();
       Canvas(recorder).drawPath(
@@ -985,14 +954,14 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
           ..color = const Color(0xFF000000),
       );
       _outsidePicture = recorder.endRecording();
-      _outsidePath = clip.outside;
-      _outsideAntiAlias = clip.antiAlias;
+      _outsideClip = clip;
     }
     builder.addPicture(Offset.zero, _outsidePicture!);
   }
 
   /// Adds a pass over [rect] seeded by [seed], a backdrop filter Impeller runs
-  /// over the backdrop (under [key], when it has one), with this layer's
+  /// over the backdrop (under the seed's key, when it has one), with this
+  /// layer's
   /// children inside it. The pass holds only the output of the effect in its
   /// [clip]: what the seed leaves outside it is cleared, and the pass is
   /// composited over the parent.
@@ -1000,8 +969,7 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
     ui.SceneBuilder builder,
     Rect rect, {
     required ui.ImageFilter seed,
-    required PassFilterClip clip,
-    BackdropKey? key,
+    required _PassFilterClip clip,
   }) {
     final oldClip = engineLayer;
     engineLayer = builder.pushClipRect(
@@ -1011,7 +979,7 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
     );
     (_seedLayer ??= _SeedLayer())
       ..filter = seed
-      ..backdropKey = key
+      ..backdropKey = _seedKey
       ..addInner = (inner) {
         addChildrenToScene(inner);
         _clearOutside(inner, clip);
@@ -1024,7 +992,7 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
   /// parent's coordinates, or null when they paint without one: the rect
   /// it clips them to, the filter that seeds it, and the clip it cuts the
   /// effect to.
-  ({Rect rect, ui.ImageFilter seed, PassFilterClip clip})? get scenePass {
+  ({Rect rect, ui.ImageFilter seed, _PassFilterClip clip})? get scenePass {
     final rect = passRect;
     if (hidden || rect == null || _seed == BackdropSeed.none) return null;
     final clip = _readFilterClip(rect);
@@ -1040,7 +1008,6 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
         pass.rect,
         seed: pass.seed,
         clip: pass.clip,
-        key: _seedKey,
       );
       return;
     }
@@ -1057,16 +1024,8 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
 
 /// The clip around the effect inside a pass, and what the pass holds outside
 /// it.
-@internal
-class PassFilterClip {
-  // ignore: avoid_positional_boolean_parameters
-  PassFilterClip(
-    this.rect,
-    this.geometry,
-    this.behavior,
-    this.outside,
-    this.antiAlias,
-  );
+class _PassFilterClip {
+  _PassFilterClip(this.rect, this.geometry, this.behavior, this.outside);
 
   final Rect rect;
 
@@ -1076,34 +1035,34 @@ class PassFilterClip {
 
   /// The pass rect minus the clip.
   final Path outside;
-  final bool antiAlias;
+
+  bool get antiAlias => behavior != Clip.hardEdge;
 }
 
-/// The passes whose filters share one backdrop key.
-class _KeyGroup {
-  final Set<SeededBackdropPassLayer> members = {};
+/// One backdrop read shared by several surfaces, through one
+/// [BackdropKey].
+///
+/// Surfaces that share it read the backdrop once, at the first of them,
+/// seeded or not: one that paints over another's output in overlapping
+/// pixels then filters the backdrop, not the first one's output, so the two
+/// transfers do not compound. The shapes of one layer share one, so its
+/// passes lie in one layer tree.
+@internal
+final class BackdropShare {
+  /// The key the shared reads carry.
+  final key = BackdropKey();
 
-  /// The members of [pass]'s layer tree that paint, in paint order.
-  List<SeededBackdropPassLayer> participants(SeededBackdropPassLayer pass) {
-    Layer root = pass;
-    while (root.parent != null) {
-      root = root.parent!;
-    }
+  final _members = <SeededBackdropPassLayer>{};
+
+  // The passes that paint, in paint order.
+  List<SeededBackdropPassLayer> _participants() {
     final result = [
-      for (final m in members)
-        if (m.attached && !m.hidden && identical(_rootOf(m), root)) m,
+      for (final m in _members)
+        if (m.attached && !m.hidden) m,
     ];
     if (result.length > 1) result.sort(_comparePaintOrder);
     return result;
   }
-}
-
-Layer _rootOf(Layer layer) {
-  var root = layer;
-  while (root.parent != null) {
-    root = root.parent!;
-  }
-  return root;
 }
 
 /// Orders two layers of one tree by paint order.

@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/internal/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/internal/final_shader_variant.dart';
@@ -163,7 +164,7 @@ Future<void> warmLiquidGlassPipelines(
         // other filters.
         if (sigma == _frostSigmas.last) {
           passes.add((
-            seed: _blur(parts.sigma, parts.tileMode),
+            seed: _blur(parts.sigma),
             filter: parts.withoutBlur,
             fake: true,
           ));
@@ -227,8 +228,11 @@ Future<void> warmLiquidGlassPipelines(
 
 const _fakeGlassShape = LiquidRoundedSuperellipse(borderRadius: 6);
 
-ui.ImageFilter _blur(double sigma, [TileMode tileMode = TileMode.mirror]) =>
-    ui.ImageFilter.blur(sigmaX: sigma, sigmaY: sigma, tileMode: tileMode);
+ui.ImageFilter _blur(double sigma) => ui.ImageFilter.blur(
+  sigmaX: sigma,
+  sigmaY: sigma,
+  tileMode: glassBlurTileMode,
+);
 
 /// A seeded pass: the seed, the glass's filter without its blur, and
 /// whether it is a fake glass's.

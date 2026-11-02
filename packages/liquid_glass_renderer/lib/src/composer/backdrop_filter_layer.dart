@@ -160,25 +160,20 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   // The copy this frame filters, or null while the layer reads the
   // backdrop.
   UnderlayCopy? _serve() {
-    final view = owner;
-    if (view is! RenderView) return null;
-    final origin = screenOffsetOf(this, _devicePixelRatio);
-    if (origin == null) return null;
-    final clip = _clip.shift(origin);
-    final copy = _underlay.imageFor(
-      anchor: this,
-      devicePixelRatio: _devicePixelRatio,
-      region: clip.inflate(_reach),
-      screen: Offset.zero & view.size,
+    final served = filteredCopyFor(
+      _underlay,
+      this,
       filter: _filter,
-      filterKey: _filter,
-      filterClip: clip,
-      filterBlendMode: _blendMode,
+      blendMode: _blendMode,
+      clip: _clip,
+      reach: _reach,
+      devicePixelRatio: _devicePixelRatio,
+      filtersReach: false,
     );
-    if (copy == null) return null;
-    _shown = clip.intersect(copy.rect);
-    _origin = origin;
-    return copy;
+    if (served == null) return null;
+    _shown = served.shown;
+    _origin = served.origin;
+    return served.copy;
   }
 
   @override

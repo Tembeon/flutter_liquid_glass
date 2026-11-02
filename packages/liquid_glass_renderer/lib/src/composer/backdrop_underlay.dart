@@ -131,10 +131,12 @@ class BackdropUnderlay {
   /// [anchor] is the layer the caller begins with in paint order: the copy
   /// holds what is painted before it, with [filter] applied as a backdrop
   /// filter with [filterBlendMode] inside [filterClip] (the whole copy when
-  /// null), in screen logical pixels. [filterKey] stands for [filter]: a
-  /// copy serves only callers that pass an equal key. [screen] is the view's
-  /// rect. The copy holds [downscale] device pixels in each of its pixels
-  /// along each side: a copy blurred enough loses nothing drawn smaller.
+  /// null), in screen logical pixels. [filterKey] stands for [filter] (the
+  /// filter itself by default): a copy serves only callers that pass an
+  /// equal key. [anchor] lies in a [RenderView]'s layer tree, and the copy
+  /// is cut to its screen. The copy holds [downscale] device pixels in each
+  /// of its pixels along each side: a copy blurred enough loses nothing
+  /// drawn smaller.
   /// The copy taken in an earlier frame serves while the layers it was
   /// drawn from are unchanged; otherwise a new one is recorded and drawn
   /// with the frame's other pending copies once the composer has composed
@@ -156,7 +158,6 @@ class BackdropUnderlay {
     required Layer anchor,
     required double devicePixelRatio,
     required Rect region,
-    required Rect screen,
     OpacitySeedLayer? own,
     ui.ImageFilter? filter,
     Object? filterKey,
@@ -165,6 +166,10 @@ class BackdropUnderlay {
     int downscale = 1,
     Rect? body,
   }) {
+    final view = anchor.owner;
+    if (view is! RenderView) return null;
+    final screen = Offset.zero & view.size;
+    final key = filterKey ?? filter;
     final dpr = devicePixelRatio;
     final pixels = dpr / downscale;
     final band = _snapOut(region, pixels).intersect(screen);
@@ -178,7 +183,7 @@ class BackdropUnderlay {
     final limit = scan.reach(anchor);
     final same =
         (_image != null || _tile != null) &&
-        filterKey == _filterKey &&
+        key == _filterKey &&
         filterClip == _filterClip &&
         filterBlendMode == _filterBlendMode &&
         dpr == _devicePixelRatio &&
@@ -189,7 +194,7 @@ class BackdropUnderlay {
         ? _Prefix.signed(anchor, _copied, scan, limit, bodies)
         : null;
     final held = signed != null && _same(signed.out, _signature);
-    if (held && _contains(_copied, band)) {
+    if (held && rectContains(_copied, band)) {
       debugMiss = null;
       return UnderlayCopy._(this, _copied, pixels);
     }
@@ -250,7 +255,7 @@ class BackdropUnderlay {
     _tile = tile;
     _Atlas.add(tile);
     _copied = rect;
-    _filterKey = filterKey;
+    _filterKey = key;
     _filterClip = filterClip;
     _filterBlendMode = filterBlendMode;
     _devicePixelRatio = dpr;
@@ -283,12 +288,6 @@ class BackdropUnderlay {
     (rect.right * dpr).ceilToDouble() / dpr,
     (rect.bottom * dpr).ceilToDouble() / dpr,
   );
-
-  static bool _contains(Rect outer, Rect inner) =>
-      outer.left <= inner.left &&
-      outer.top <= inner.top &&
-      outer.right >= inner.right &&
-      outer.bottom >= inner.bottom;
 
   static bool _same(List<Object?>? a, List<Object?>? b) {
     if (a == null || b == null || a.length != b.length) return false;
