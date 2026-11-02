@@ -12,12 +12,67 @@ import 'shared.dart';
 
 const _key = ValueKey('screen');
 
+// Two glass layers, the first in its own boundary so that an image can be
+// taken of it alone.
+Widget _pairScene({double shift = 0, double top = 40}) => Directionality(
+  textDirection: TextDirection.ltr,
+  child: RepaintBoundary(
+    key: _key,
+    child: Stack(
+      children: [
+        Positioned.fill(
+          child: RepaintBoundary(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: const [Color(0xFF1E3A8A), Color(0xFFF59E0B)],
+                  begin: Alignment(-1 + shift, -1),
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            ),
+          ),
+        ),
+        for (final (key, rect) in [
+          (_first, Rect.fromLTWH(30, top, 200, 90)),
+          (null, const Rect.fromLTWH(30, 260, 200, 60)),
+        ])
+          Positioned.fill(
+            child: RepaintBoundary(
+              key: key,
+              child: LiquidGlassLayer(
+                settings: LiquidGlassSettings.ios27RegularLight().copyWith(
+                  frost: 0,
+                ),
+                child: Stack(
+                  children: [
+                    Positioned.fromRect(
+                      rect: rect,
+                      child: const LiquidGlass(
+                        shape: LiquidRoundedSuperellipse(borderRadius: 28),
+                        child: SizedBox.expand(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    ),
+  ),
+);
+
+const _first = ValueKey('first');
+
 Widget _scene({
   double shift = 0,
   double dot = 0,
   bool texture = false,
   double opacity = 1,
   bool pair = false,
+  bool mask = false,
+  bool clipped = false,
 }) => Directionality(
   textDirection: TextDirection.ltr,
   child: RepaintBoundary(
@@ -48,6 +103,48 @@ Widget _scene({
             ),
           ),
         ),
+        if (mask)
+          Positioned.fill(
+            child: ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Color(0x00000000), Color(0xFF000000)],
+              ).createShader(bounds),
+              child: const RepaintBoundary(
+                child: ColoredBox(color: Color(0x40FFFFFF)),
+              ),
+            ),
+          ),
+        // A list scrolled under a clip whose edge runs through the glass's
+        // band: the item above the edge, clipped, is an empty rect lying
+        // across that band, beside one the clip shows.
+        if (clipped)
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 100,
+            height: 100,
+            child: ClipRect(
+              child: Transform.translate(
+                offset: const Offset(0, -60),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final (color, height) in const [
+                      (Color(0xFFEF4444), 60.0),
+                      (Color(0xFF22C55E), 40.0),
+                    ])
+                      RepaintBoundary(
+                        child: SizedBox(
+                          height: height,
+                          width: double.infinity,
+                          child: ColoredBox(color: color),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         if (texture)
           const Positioned(
             left: 40,
@@ -219,6 +316,53 @@ void main() {
       expect(_glass(tester).debugDrewOverUnderlay, isTrue);
     }
     expect(_glass(tester).debugUnderlay.debugCaptures, captures);
+  }, skip: skipProperGlassTests);
+
+  testWidgets('glass draws over its copy above a shader mask', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(260, 200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_scene(mask: true));
+    await tester.pumpWidget(_scene(mask: true, shift: 0.3));
+    expect(_glass(tester).debugDrewOverUnderlay, isTrue);
+    expect(_liveFilters(tester), isEmpty);
+  }, skip: skipProperGlassTests);
+
+  testWidgets('content clipped away at the edge of the band is left out', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(260, 200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_scene(clipped: true));
+    await tester.pumpWidget(_scene(clipped: true, shift: 0.3));
+    expect(_glass(tester).debugDrewOverUnderlay, isTrue);
+    expect(_liveFilters(tester), isEmpty);
+  }, skip: skipProperGlassTests);
+
+  testWidgets('an image taken between frames leaves the next frame to copy '
+      'what it changed', (tester) async {
+    tester.view.physicalSize = const Size(260, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_pairScene());
+    await tester.pumpWidget(_pairScene());
+    RenderLiquidGlassLayer second() => tester.allRenderObjects
+        .whereType<RenderLiquidGlassLayer>()
+        .toSet()
+        .last;
+    final captures = second().debugUnderlay.debugCaptures;
+    tester
+        .renderObject<RenderRepaintBoundary>(find.byKey(_first))
+        .toImageSync()
+        .dispose();
+    // The first glass leaves the screen and copies nothing: the second is
+    // the first to copy in the frame.
+    await tester.pumpWidget(_pairScene(shift: 0.3, top: -400));
+    expect(second().debugDrewOverUnderlay, isTrue);
+    expect(second().debugUnderlay.debugCaptures, captures + 1);
   }, skip: skipProperGlassTests);
 
   testWidgets('copies redrawn in one frame share one image', (tester) async {

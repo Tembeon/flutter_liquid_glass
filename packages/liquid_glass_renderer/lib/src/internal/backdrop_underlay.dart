@@ -65,7 +65,6 @@ class BackdropUnderlay {
   BlendMode _filterBlendMode = BlendMode.src;
   double _devicePixelRatio = 0;
   List<Object?> _signature = const [];
-  bool _changing = false;
 
   /// How many copies were taken.
   @visibleForTesting
@@ -113,19 +112,20 @@ class BackdropUnderlay {
     final band = _snapOut(region, dpr).intersect(screen);
     if (band.isEmpty) return null;
     final root = _rootOf(anchor);
+    final scan = _Scan.of(root, dpr, anchor);
+    final limit = scan.reach(anchor);
     final same =
         (_image != null || _tile != null) &&
         filterKey == _filterKey &&
         filterClip == _filterClip &&
         filterBlendMode == _filterBlendMode &&
         dpr == _devicePixelRatio;
-    // Under content that changed in the last frame the copy is drawn first,
-    // and the walk that draws it signs it too.
-    final drawFirst = same && _changing && _copied == band;
-    final held =
-        same &&
-        !drawFirst &&
-        _same(_signPrefix(root, anchor, _copied, dpr), _signature);
+    // Signing replays no pictures: a copy is recorded only once it is
+    // known to be drawn now.
+    var signed = same
+        ? _Prefix.signed(root, anchor, _copied, dpr, scan, limit)
+        : null;
+    final held = signed != null && _same(signed.out, _signature);
     if (held && _contains(_copied, band)) {
       debugMiss = null;
       return UnderlayCopy._(this, _copied);
@@ -135,28 +135,16 @@ class BackdropUnderlay {
     final rect = held && filterClip == null
         ? _snapOut(band.inflate(_margin), dpr).intersect(screen)
         : band;
-    final replay = _Prefix(
-      anchor,
-      rect,
-      dpr,
-      ui.PictureRecorder(),
-      defer: true,
-    );
-    final content = replay.record(root, rect);
-    if (content == null) {
+    if (signed == null || signed.band != rect) {
+      signed = _Prefix.signed(root, anchor, rect, dpr, scan, limit);
+    }
+    if (signed.blocked || !signed.reached) {
       assert(() {
         debugMiss = 'blocked by ${_debugBlocker(root, anchor, band, dpr)}';
         return true;
       }(), 'Diagnose misses in debug builds.');
       return null;
     }
-    if (drawFirst && replay.waits < 0 && _same(replay.out, _signature)) {
-      content.dispose();
-      _changing = false;
-      debugMiss = null;
-      return UnderlayCopy._(this, _copied);
-    }
-    _changing = same && !held;
     _release();
     final tile = _Tile(
       this,
@@ -165,21 +153,28 @@ class BackdropUnderlay {
       filter,
       filterClip,
       filterBlendMode,
-      level: replay.waits + 1,
+      level: signed.waits + 1,
     );
-    if (replay.waits < 0) {
-      tile.content = content;
-      _signature = replay.out;
+    ui.Picture? record() {
+      final replay = _Prefix(
+        anchor,
+        rect,
+        dpr,
+        ui.PictureRecorder(),
+        scan: scan,
+        limit: limit,
+      );
+      final picture = replay.record(root, rect);
+      if (picture != null) _signature = replay.out;
+      return picture;
+    }
+
+    if (signed.waits < 0) {
+      tile.content = record();
     } else {
       // It holds glass whose copy is drawn later in the frame: it is
-      // recorded again once that glass has its picture.
-      content.dispose();
-      tile.redraw = () {
-        final again = _Prefix(anchor, rect, dpr, ui.PictureRecorder());
-        final picture = again.record(root, rect);
-        if (picture != null) _signature = again.out;
-        return picture;
-      };
+      // recorded once that glass has its picture.
+      tile.redraw = record;
     }
     _tile = tile;
     _Atlas.add(tile);
@@ -248,20 +243,6 @@ class BackdropUnderlay {
     prefix.walk(root, Matrix4.diagonal3Values(1 / dpr, 1 / dpr, 1), null);
     return prefix.blocked ? '${prefix.blocker?.runtimeType}' : 'not reached';
   }
-
-  // What is painted before [anchor] inside [band] (screen logical pixels),
-  // or null when the copy could not draw it.
-  static List<Object?>? _signPrefix(
-    Layer root,
-    Layer anchor,
-    Rect band,
-    double dpr,
-  ) {
-    final prefix = _Prefix(anchor, band, dpr, null);
-    prefix.walk(root, Matrix4.diagonal3Values(1 / dpr, 1 / dpr, 1), null);
-    if (prefix.blocked || !prefix.reached) return null;
-    return prefix.out;
-  }
 }
 
 // Walks a layer tree in paint order up to [stop], collecting what draws into
@@ -274,18 +255,44 @@ class _Prefix {
     this.band,
     this.devicePixelRatio,
     this.recorder, {
-    this.defer = false,
+    this.scan,
+    this.limit,
   }) : canvas = recorder == null ? null : Canvas(recorder);
+
+  // What is painted before [stop] in [band], signed without drawing it.
+  factory _Prefix.signed(
+    Layer root,
+    Layer stop,
+    Rect band,
+    double devicePixelRatio,
+    _Scan scan,
+    int limit,
+  ) {
+    final prefix = _Prefix(
+      stop,
+      band,
+      devicePixelRatio,
+      null,
+      scan: scan,
+      limit: limit,
+    );
+    prefix.run(root);
+    return prefix;
+  }
 
   final Layer stop;
   final Rect band;
   final double devicePixelRatio;
   final ui.PictureRecorder? recorder;
+  // Without one, glass over a copy that is not drawn yet is left out and
+  // noted in [waits]; with one, its copy is drawn now.
   final Canvas? canvas;
-  // Whether glass over a copy that is not drawn yet is left out and noted
-  // in [waits], rather than its copy drawn now.
-  final bool defer;
   final out = <Object?>[];
+
+  // The pass's scan this walk replays, and where [stop] lies in it.
+  _Scan? scan;
+  int? limit;
+
   bool reached = false;
   bool blocked = false;
   Layer? blocker;
@@ -309,14 +316,56 @@ class _Prefix {
   // cannot be drawn again.
   ui.Picture? record(Layer root, Rect rect) {
     final dpr = devicePixelRatio;
-    canvas!.translate(-rect.left * dpr, -rect.top * dpr);
-    walk(root, Matrix4.diagonal3Values(1 / dpr, 1 / dpr, 1), null);
+    final c = canvas!;
+    // A picture drawn into a canvas clipped to the copy is culled to what
+    // reaches it while it is recorded.
+    c.clipRect(
+      Rect.fromLTWH(0, 0, rect.width * dpr, rect.height * dpr),
+      doAntiAlias: false,
+    );
+    c.translate(-rect.left * dpr, -rect.top * dpr);
+    run(root);
     final content = recorder!.endRecording();
     if (blocked || !reached) {
       content.dispose();
       return null;
     }
     return content;
+  }
+
+  // Draws what is painted before [stop] in [band] from the pass's scan, or
+  // walks the layer tree itself when the scan does not reach [stop].
+  void run(Layer root) {
+    final dpr = devicePixelRatio;
+    final scan = this.scan ??= _Scan.of(root, dpr, stop);
+    final limit = this.limit ??= scan.reach(stop);
+    if (limit < 0) {
+      walk(root, Matrix4.diagonal3Values(1 / dpr, 1 / dpr, 1), null);
+    } else {
+      scan.replay(this, limit);
+      assert(_walksAlike(root), 'The scan replays what a walk draws.');
+    }
+  }
+
+  // Whether walking the layer tree finds what the replay found.
+  bool _walksAlike(Layer root) {
+    final dpr = devicePixelRatio;
+    final walked = _Prefix(stop, band, dpr, null);
+    walked.walk(root, Matrix4.diagonal3Values(1 / dpr, 1 / dpr, 1), null);
+    if (walked.blocked != blocked) return false;
+    if (blocked) return true;
+    if (walked.reached != reached || walked.waits != waits) return false;
+    final a = walked.out;
+    if (a.length != out.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      final x = a[i];
+      final y = out[i];
+      if (identical(x, y) || x == y) continue;
+      // Glass over a copy not drawn yet signs as a fresh object.
+      if (x.runtimeType == Object && y.runtimeType == Object) continue;
+      return false;
+    }
+    return true;
   }
 
   void walk(
@@ -336,7 +385,7 @@ class _Prefix {
       if (!extent.isInfinite) {
         var bounds = MatrixUtils.transformRect(transform, extent);
         if (clip != null) bounds = bounds.intersect(clip);
-        if (!bounds.overlaps(band)) return;
+        if (!_meets(bounds, band)) return;
       }
     }
 
@@ -345,7 +394,7 @@ class _Prefix {
       if (filtered) return true;
       var bounds = MatrixUtils.transformRect(transform, local);
       if (clip != null) bounds = bounds.intersect(clip);
-      return bounds.overlaps(band);
+      return _meets(bounds, band);
     }
 
     Rect clipped(Rect local) {
@@ -369,7 +418,7 @@ class _Prefix {
     switch (layer) {
       case UnderlayPictureLayer(picture: null):
         if (!reaches(layer.canvasBounds)) return;
-        if (layer.pendingLevel case final level? when defer || c == null) {
+        if (layer.pendingLevel case final level? when c == null) {
           // Glass over a copy that is not drawn yet: a copy that holds it is
           // drawn after it, and a signature that holds it matches none.
           if (level > waits) waits = level;
@@ -402,7 +451,7 @@ class _Prefix {
       case BackdropFilterLayer():
         // Another glass, or a blur, that reads live: what it writes, inside
         // its clip, is not known until the frame renders.
-        if (filtered || (clip ?? Rect.largest).overlaps(band)) {
+        if (filtered || _meets(clip ?? Rect.largest, band)) {
           blocked = true;
           blocker ??= layer;
         }
@@ -410,7 +459,7 @@ class _Prefix {
       case SeededBackdropPassLayer(hidden: true):
         return;
       case SeededBackdropPassLayer(:final scenePass?):
-        if (filtered || clipped(scenePass.rect).overlaps(band)) {
+        if (filtered || _meets(clipped(scenePass.rect), band)) {
           blocked = true;
           blocker ??= layer;
         }
@@ -424,7 +473,7 @@ class _Prefix {
         c?.drawPicture(servedPicture);
       case LiquidGlassBackdropFilterLayer(clip: final rect, :final reach):
         // It reads live, and changes nothing past its reach.
-        if (filtered || clipped(rect.inflate(reach)).overlaps(band)) {
+        if (filtered || _meets(clipped(rect.inflate(reach)), band)) {
           blocked = true;
           blocker ??= layer;
         }
@@ -621,12 +670,12 @@ class _Prefix {
         if (reached || blocked) break;
       }
     }
-    if (mask case (final shader, final rect, final blendMode)) {
+    if (mask case (final shader, final rect, final blendMode) when c != null) {
       // The engine draws a shader mask over what it masks, in a layer.
       final paint = Paint();
       paint.shader = shader;
       paint.blendMode = blendMode;
-      c!.translate(rect.left, rect.top);
+      c.translate(rect.left, rect.top);
       c.drawRect(Offset.zero & rect.size, paint);
     }
     c?.restoreToCount(depth);
@@ -693,6 +742,754 @@ class _Prefix {
   }
 }
 
+// What a compositing pass paints, in paint order, walked once as far as the
+// glass that composites last: each copy of the pass replays the part before
+// its glass instead of walking the layer tree again. Glass composites in
+// paint order and changes only its own subtree, so what lies before the
+// glass that composites is final; the layers whose drawing glass decides
+// while it composites are kept and read when a copy replays them.
+final class _Scan {
+  _Scan._(this.root, this.devicePixelRatio, this.frame) {
+    _cursors.add(
+      _Cursor(
+        null,
+        root,
+        Matrix4.diagonal3Values(1 / devicePixelRatio, 1 / devicePixelRatio, 1),
+        null,
+        const [],
+        filtered: false,
+        open: -1,
+      ),
+    );
+  }
+
+  // The scan of the pass that composites [root], begun anew when the scan
+  // walked to or past [anchor] already: the tree composites again. A pass
+  // outside the frame's compositing, an image taken after the frame, scans
+  // for itself alone.
+  factory _Scan.of(Layer root, double devicePixelRatio, Layer anchor) {
+    final frame = _Extent.frame;
+    if (frame == null) return _Scan._(root, devicePixelRatio, -1);
+    final scan = _current;
+    if (scan != null &&
+        identical(scan.root, root) &&
+        scan.devicePixelRatio == devicePixelRatio &&
+        scan.frame == frame &&
+        !identical(_seen[anchor], scan)) {
+      return scan;
+    }
+    return _current = _Scan._(root, devicePixelRatio, frame);
+  }
+
+  static _Scan? _current;
+  static final _seen = Expando<_Scan>();
+
+  final Layer root;
+  final double devicePixelRatio;
+  final int frame;
+  final entries = <_Entry>[];
+  final _cursors = <_Cursor>[];
+
+  // Walks on to [anchor] and returns how many entries lie before it, or -1
+  // when the walk cannot reach it.
+  int reach(Layer anchor) {
+    Set<Layer>? path;
+    while (true) {
+      final at = _cursors.last;
+      final layer = at.next;
+      if (layer == null) {
+        if (at.layer == null) return -1;
+        _close();
+        continue;
+      }
+      if (identical(layer, anchor)) {
+        _seen[anchor] = this;
+        return entries.length;
+      }
+      at.next = layer.nextSibling;
+      if (!_visit(layer, at)) {
+        path ??= _Prefix._ancestors(anchor);
+        if (path.contains(layer)) return -1;
+      }
+    }
+  }
+
+  void _add(_Cursor at, _Entry entry, Rect bounds) {
+    entries.add(entry);
+    at.include(bounds);
+  }
+
+  void _push(
+    ContainerLayer layer,
+    _Open open,
+    Matrix4 transform,
+    Rect? clip,
+    List<Object?> state, {
+    required bool filtered,
+  }) {
+    entries.add(open);
+    _seen[layer] = this;
+    _cursors.add(
+      _Cursor(
+        layer,
+        layer.firstChild,
+        transform,
+        clip,
+        state,
+        filtered: filtered,
+        open: entries.length - 1,
+      ),
+    );
+  }
+
+  void _close() {
+    final at = _cursors.removeLast();
+    final open = entries[at.open] as _Open;
+    open.bounds = _Cursor.union(at.bounds, open.extra);
+    open.end = entries.length;
+    entries.add(const _Close());
+    _cursors.last.include(open.bounds);
+  }
+
+  // Adds [layer] as a child of [at]; false when it is a container whose
+  // children are not walked.
+  bool _visit(Layer layer, _Cursor at) {
+    final transform = at.transform;
+    final clip = at.clip;
+    final state = at.state;
+    final filtered = at.filtered;
+
+    Rect clipped(Rect local) {
+      final bounds = MatrixUtils.transformRect(transform, local);
+      return clip == null ? bounds : clip.intersect(bounds);
+    }
+
+    Rect reaching(Rect local) => filtered ? _everywhere : clipped(local);
+
+    Matrix4 shifted(Offset offset) {
+      final next = transform.clone();
+      next.translateByDouble(offset.dx, offset.dy, 0, 1);
+      return next;
+    }
+
+    void push(
+      ContainerLayer layer,
+      _Open open, {
+      Matrix4? next,
+      Rect? nextClip,
+      bool keepClip = true,
+      List<Object?>? nextState,
+      bool nextFiltered = false,
+    }) => _push(
+      layer,
+      open,
+      next ?? transform,
+      keepClip ? clip : nextClip,
+      nextState ?? state,
+      filtered: filtered || nextFiltered,
+    );
+
+    _Open clipping(
+      Rect bounds,
+      Clip behavior,
+      void Function(Canvas c, {required bool antiAlias}) clipTo,
+    ) => _Open((c) {
+      c.save();
+      clipTo(c, antiAlias: behavior != Clip.hardEdge);
+      if (behavior != Clip.antiAliasWithSaveLayer) return 1;
+      c.saveLayer(bounds, Paint());
+      return 2;
+    });
+
+    switch (layer) {
+      case UnderlayPictureLayer():
+        final bounds = reaching(layer.canvasBounds);
+        _add(at, _Glass(layer, transform, clip, state, bounds), bounds);
+      case PictureLayer(:final picture?):
+        final bounds = reaching(layer.canvasBounds);
+        _add(at, _Leaf(picture, transform, clip, state, bounds), bounds);
+      case PictureLayer():
+        break;
+      case TextureLayer(:final rect) || PlatformViewLayer(:final rect):
+        final bounds = reaching(rect);
+        _add(at, _Block(layer, bounds), bounds);
+      case OpacitySeedLayer():
+        final reads = filtered ? _everywhere : clip ?? _everywhere;
+        push(layer, _Seed(layer, reads));
+      case BackdropFilterLayer():
+        final reads = filtered ? _everywhere : clip ?? _everywhere;
+        _add(at, _Block(layer, reads), reads);
+        return false;
+      case SeededBackdropPassLayer():
+        push(layer, _Pass(layer, transform, clip, filtered: filtered));
+      case LiquidGlassBackdropFilterLayer(clip: final rect, :final reach):
+        push(
+          layer,
+          _Served(
+            layer,
+            transform,
+            clip,
+            state,
+            filtered ? _everywhere : clipped(rect.inflate(reach)),
+          ),
+        );
+      case TransformLayer(:final offset):
+        final effective = Matrix4.translationValues(offset.dx, offset.dy, 0);
+        if (layer.transform case final matrix?) effective.multiply(matrix);
+        push(
+          layer,
+          _Open((c) {
+            c.save();
+            c.transform(effective.storage);
+            return 1;
+          }),
+          next: transform.multiplied(effective),
+        );
+      case OpacityLayer(:final offset):
+        final alpha = layer.alpha ?? 255;
+        push(
+          layer,
+          _Open((c) {
+            c.save();
+            c.translate(offset.dx, offset.dy);
+            if (alpha == 255) return 1;
+            c.saveLayer(null, _Prefix._alpha(alpha));
+            return 2;
+          }),
+          next: shifted(offset),
+          nextState: [...state, alpha],
+        );
+      case ImageFilterLayer(:final imageFilter?, :final offset):
+        push(
+          layer,
+          _Open((c) {
+            c.save();
+            c.translate(offset.dx, offset.dy);
+            c.saveLayer(null, _Prefix._filtering(imageFilter));
+            return 2;
+          }),
+          next: shifted(offset),
+          keepClip: false,
+          nextState: [...state, imageFilter],
+          nextFiltered: true,
+        );
+      case OffsetLayer(:final offset)
+          when layer.runtimeType == OffsetLayer ||
+              layer is GeometryTransformTrackingLayer:
+        push(
+          layer,
+          _Open((c) {
+            c.save();
+            c.translate(offset.dx, offset.dy);
+            return 1;
+          }),
+          next: shifted(offset),
+        );
+      case ColorFilterLayer(:final colorFilter?):
+        push(
+          layer,
+          _Open((c) {
+            final paint = Paint();
+            paint.colorFilter = colorFilter;
+            c.saveLayer(null, paint);
+            return 1;
+          }),
+          nextState: [...state, colorFilter],
+        );
+      case ShaderMaskLayer(
+        :final shader?,
+        :final maskRect?,
+        :final blendMode?,
+      ):
+        // A FragmentShader keeps its identity while its uniforms change.
+        final token = shader is ui.FragmentShader ? Object() : shader;
+        final open = _Open((c) {
+          c.saveLayer(null, Paint());
+          return 1;
+        }, mask: (shader, maskRect, blendMode));
+        open.extra = reaching(maskRect);
+        push(
+          layer,
+          open,
+          nextState: [...state, token, maskRect, blendMode],
+        );
+      case ClipRectLayer(:final clipRect?, :final clipBehavior)
+          when clipBehavior != Clip.none:
+        push(
+          layer,
+          clipping(
+            clipRect,
+            clipBehavior,
+            (c, {required antiAlias}) =>
+                c.clipRect(clipRect, doAntiAlias: antiAlias),
+          ),
+          keepClip: false,
+          nextClip: clipped(clipRect),
+          nextState: [...state, clipRect, clipBehavior],
+        );
+      case ClipRRectLayer(:final clipRRect?, :final clipBehavior)
+          when clipBehavior != Clip.none:
+        push(
+          layer,
+          clipping(
+            clipRRect.outerRect,
+            clipBehavior,
+            (c, {required antiAlias}) =>
+                c.clipRRect(clipRRect, doAntiAlias: antiAlias),
+          ),
+          keepClip: false,
+          nextClip: clipped(clipRRect.outerRect),
+          nextState: [...state, clipRRect, clipBehavior],
+        );
+      case ClipRSuperellipseLayer(
+            :final clipRSuperellipse?,
+            :final clipBehavior,
+          )
+          when clipBehavior != Clip.none:
+        push(
+          layer,
+          clipping(
+            clipRSuperellipse.outerRect,
+            clipBehavior,
+            (c, {required antiAlias}) =>
+                c.clipRSuperellipse(clipRSuperellipse, doAntiAlias: antiAlias),
+          ),
+          keepClip: false,
+          nextClip: clipped(clipRSuperellipse.outerRect),
+          nextState: [...state, clipRSuperellipse, clipBehavior],
+        );
+      case ClipPathLayer(:final clipPath?, :final clipBehavior)
+          when clipBehavior != Clip.none:
+        final bounds = clipPath.getBounds();
+        push(
+          layer,
+          clipping(
+            bounds,
+            clipBehavior,
+            (c, {required antiAlias}) =>
+                c.clipPath(clipPath, doAntiAlias: antiAlias),
+          ),
+          keepClip: false,
+          nextClip: clipped(bounds),
+          nextState: [...state, clipPath, clipBehavior],
+        );
+      case NativeClipLayer(
+            enabled: true,
+            :final geometry?,
+            :final clipBehavior,
+          )
+          when clipBehavior != Clip.none:
+        final (bounds, clipTo) = switch (geometry) {
+          final Rect rect => (
+            rect,
+            (Canvas c, {required bool antiAlias}) =>
+                c.clipRect(rect, doAntiAlias: antiAlias),
+          ),
+          final RRect rect => (
+            rect.outerRect,
+            (Canvas c, {required bool antiAlias}) =>
+                c.clipRRect(rect, doAntiAlias: antiAlias),
+          ),
+          final RSuperellipse rect => (
+            rect.outerRect,
+            (Canvas c, {required bool antiAlias}) =>
+                c.clipRSuperellipse(rect, doAntiAlias: antiAlias),
+          ),
+          final Path path => (
+            path.getBounds(),
+            (Canvas c, {required bool antiAlias}) =>
+                c.clipPath(path, doAntiAlias: antiAlias),
+          ),
+          _ => (Rect.largest, null),
+        };
+        push(
+          layer,
+          clipTo == null
+              ? _Undrawable(layer)
+              : clipping(bounds, clipBehavior, clipTo),
+          keepClip: false,
+          nextClip: clipped(bounds),
+          nextState: [...state, geometry, clipBehavior],
+        );
+      case LeaderLayer(:final offset):
+        push(
+          layer,
+          _Open((c) {
+            c.save();
+            c.translate(offset.dx, offset.dy);
+            return 1;
+          }),
+          next: shifted(offset),
+        );
+      case ClipRectLayer() ||
+          ClipRRectLayer() ||
+          ClipRSuperellipseLayer() ||
+          ClipPathLayer() ||
+          NativeClipLayer() ||
+          AnnotatedRegionLayer():
+        push(layer as ContainerLayer, _Open.plain());
+      case ContainerLayer() when layer.runtimeType == ContainerLayer:
+        push(layer, _Open.plain());
+      case ContainerLayer() when LiquidGlassUnderlay.effectsOf(layer) != null:
+        final effects = LiquidGlassUnderlay.effectsOf(layer)!;
+        final next = transform.multiplied(effects.transform);
+        var nextClip = clip;
+        final effectState = <Object?>[];
+        final rounded = effects.clip;
+        if (rounded != null) {
+          final bounds = MatrixUtils.transformRect(next, rounded.outerRect);
+          nextClip = clip == null ? bounds : clip.intersect(bounds);
+          effectState.add(rounded);
+        }
+        final alpha = effects.alpha;
+        if (alpha != null) effectState.add(alpha);
+        final blur = effects.blur;
+        if (blur > 0) {
+          effectState.add(blur);
+          nextClip = null;
+        }
+        push(
+          layer,
+          _Open((c) {
+            c.save();
+            c.transform(effects.transform.storage);
+            if (rounded != null) c.clipRRect(rounded);
+            var saves = 1;
+            if (alpha != null) {
+              c.saveLayer(null, _Prefix._alpha(alpha));
+              saves++;
+            }
+            if (blur > 0) {
+              c.saveLayer(
+                null,
+                _Prefix._filtering(
+                  ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+                ),
+              );
+              saves++;
+            }
+            return saves;
+          }),
+          next: next,
+          keepClip: false,
+          nextClip: nextClip,
+          nextState: [...state, ...effectState],
+          nextFiltered: blur > 0,
+        );
+      default:
+        _add(
+          at,
+          _Unknown(layer, transform, clip, filtered: filtered),
+          _everywhere,
+        );
+        return layer is! ContainerLayer;
+    }
+    return true;
+  }
+
+  // Replays the entries before [limit] that reach [prefix]'s band onto its
+  // canvas, if it has one, and signs them, as [_Prefix.walk] would.
+  void replay(_Prefix prefix, int limit) {
+    final band = prefix.band;
+    final c = prefix.canvas;
+    final out = prefix.out;
+    final open = <(int, _Open)>[];
+    var i = 0;
+    var through = true;
+
+    void sign(
+      ui.Picture picture,
+      Matrix4 transform,
+      Rect? clip,
+      List<Object?> state,
+    ) {
+      out.add(picture);
+      out.add(transform);
+      out.add(clip);
+      out.addAll(state);
+      out.add(#leaf);
+      c?.drawPicture(picture);
+    }
+
+    // Steps past a group, or ends the replay when the stop lies inside it.
+    void skip(_Open group) {
+      if (group.end < 0 || group.end >= limit) {
+        through = false;
+      } else {
+        i = group.end + 1;
+      }
+    }
+
+    loop:
+    while (i < limit) {
+      final entry = entries[i];
+      switch (entry) {
+        case _Leaf(:final picture, :final transform, :final clip, :final state):
+          if (_meets(entry.bounds, band)) {
+            sign(picture, transform, clip, state);
+          }
+        case _Glass(:final layer, :final transform, :final clip, :final state):
+          if (_meets(entry.bounds, band)) {
+            if (layer.picture == null) {
+              if (layer.pendingLevel case final level? when c == null) {
+                // Glass over a copy that is not drawn yet: a copy that holds
+                // it is drawn after it, and a signature that holds it
+                // matches none.
+                if (level > prefix.waits) prefix.waits = level;
+                out.add(Object());
+                i++;
+                continue loop;
+              }
+              layer.resolve();
+            }
+            if (layer.picture case final picture?) {
+              sign(picture, transform, clip, state);
+            }
+          }
+        case _Block(:final layer, :final bounds):
+          if (_meets(bounds, band)) {
+            prefix.blocked = true;
+            prefix.blocker ??= layer;
+            break loop;
+          }
+        case _Unknown(:final layer, :final transform, :final clip):
+          if (prefix._mayReach(
+            layer,
+            transform,
+            clip,
+            filtered: entry.filtered,
+          )) {
+            prefix.blocked = true;
+            prefix.blocker ??= layer;
+            break loop;
+          }
+        case _Close():
+          final (saves, group) = open.removeLast();
+          if (c != null) group.finish(c, saves);
+        case _Open():
+          if (entry.end >= 0 &&
+              entry.end < limit &&
+              !_meets(entry.bounds, band)) {
+            i = entry.end + 1;
+            continue loop;
+          }
+          switch (entry) {
+            case _Seed(:final layer, :final reads) when layer.seeded:
+              if (_meets(reads, band)) {
+                prefix.blocked = true;
+                prefix.blocker ??= layer;
+                break loop;
+              }
+              skip(entry);
+              if (!through) break loop;
+              continue loop;
+            case _Pass(:final layer) when layer.hidden:
+              skip(entry);
+              if (!through) break loop;
+              continue loop;
+            case _Pass(:final layer) when layer.scenePass != null:
+              if (_meets(entry.reads(layer.scenePass!.rect), band)) {
+                prefix.blocked = true;
+                prefix.blocker ??= layer;
+                break loop;
+              }
+              skip(entry);
+              if (!through) break loop;
+              continue loop;
+            case _Served(:final layer) when layer.servedPicture == null:
+              if (_meets(entry.reads, band)) {
+                prefix.blocked = true;
+                prefix.blocker ??= layer;
+                break loop;
+              }
+              skip(entry);
+              if (!through) break loop;
+              continue loop;
+            case _Served(:final layer, :final transform, :final clip):
+              sign(layer.servedPicture!, transform, clip, entry.state);
+            case _Undrawable(:final layer) when c != null:
+              prefix.blocked = true;
+              prefix.blocker ??= layer;
+              break loop;
+            default:
+              break;
+          }
+          open.add((c == null ? 0 : entry.apply(c), entry));
+      }
+      i++;
+    }
+    prefix.reached = through && !prefix.blocked && i >= limit;
+    if (c != null) {
+      for (final (saves, group) in open.reversed) {
+        group.finish(c, saves);
+      }
+    }
+  }
+}
+
+const _everywhere = Rect.largest;
+
+// Content clipped away reaches no band, even where its empty rect lies
+// across one.
+bool _meets(Rect bounds, Rect band) => !bounds.isEmpty && bounds.overlaps(band);
+
+final class _Cursor {
+  _Cursor(
+    this.layer,
+    this.next,
+    this.transform,
+    this.clip,
+    this.state, {
+    required this.filtered,
+    required this.open,
+  });
+
+  final ContainerLayer? layer;
+  Layer? next;
+  final Matrix4 transform;
+  final Rect? clip;
+  final List<Object?> state;
+  final bool filtered;
+  final int open;
+  Rect bounds = Rect.zero;
+
+  void include(Rect rect) => bounds = union(bounds, rect);
+
+  static Rect union(Rect a, Rect b) {
+    if (a.isEmpty) return b;
+    if (b.isEmpty) return a;
+    return a.expandToInclude(b);
+  }
+}
+
+sealed class _Entry {
+  const _Entry();
+}
+
+final class _Leaf extends _Entry {
+  _Leaf(this.picture, this.transform, this.clip, this.state, this.bounds);
+
+  final ui.Picture picture;
+  final Matrix4 transform;
+  final Rect? clip;
+  final List<Object?> state;
+  final Rect bounds;
+}
+
+// Glass over a copy, whose picture is recorded once its copy is drawn.
+final class _Glass extends _Entry {
+  _Glass(this.layer, this.transform, this.clip, this.state, this.bounds);
+
+  final UnderlayPictureLayer layer;
+  final Matrix4 transform;
+  final Rect? clip;
+  final List<Object?> state;
+  final Rect bounds;
+}
+
+// What a copy cannot draw: a copy whose band it reaches fails.
+final class _Block extends _Entry {
+  _Block(this.layer, this.bounds);
+
+  final Layer layer;
+  final Rect bounds;
+}
+
+// A layer of a type the copy does not know.
+final class _Unknown extends _Entry {
+  _Unknown(this.layer, this.transform, this.clip, {required this.filtered});
+
+  final Layer layer;
+  final Matrix4 transform;
+  final Rect? clip;
+  final bool filtered;
+}
+
+final class _Close extends _Entry {
+  const _Close();
+}
+
+// A container: what it applies to the canvas around its children and how
+// many saves that takes, and the extent of what it draws once its children
+// are walked.
+class _Open extends _Entry {
+  _Open(this.apply, {this.mask});
+
+  _Open.plain() : apply = _none, mask = null;
+
+  static int _none(Canvas c) => 0;
+
+  final int Function(Canvas c) apply;
+  final (Shader, Rect, BlendMode)? mask;
+  Rect extra = Rect.zero;
+  Rect bounds = _everywhere;
+  int end = -1;
+
+  void finish(Canvas c, int saves) {
+    if (mask case (final shader, final rect, final blendMode)) {
+      // The engine draws a shader mask over what it masks, in a layer.
+      final paint = Paint();
+      paint.shader = shader;
+      paint.blendMode = blendMode;
+      c.translate(rect.left, rect.top);
+      c.drawRect(Offset.zero & rect.size, paint);
+    }
+    for (var n = 0; n < saves; n++) {
+      c.restore();
+    }
+  }
+}
+
+// A clip the copy cannot draw: a copy drawn under it fails.
+final class _Undrawable extends _Open {
+  _Undrawable(this.layer) : super(_Open._none);
+
+  final Layer layer;
+}
+
+// An opacity pass that glass seeds with its backdrop while it reads it.
+final class _Seed extends _Open {
+  _Seed(this.layer, this.reads) : super(_Open._none) {
+    extra = reads;
+  }
+
+  final OpacitySeedLayer layer;
+  final Rect reads;
+}
+
+// A seeded backdrop pass, hidden or read as glass composites.
+final class _Pass extends _Open {
+  _Pass(this.layer, this.transform, this.clip, {required this.filtered})
+    : super(_Open._none) {
+    extra = _everywhere;
+  }
+
+  final SeededBackdropPassLayer layer;
+  final Matrix4 transform;
+  final Rect? clip;
+  final bool filtered;
+
+  Rect reads(Rect local) {
+    if (filtered) return _everywhere;
+    final bounds = MatrixUtils.transformRect(transform, local);
+    return clip == null ? bounds : clip!.intersect(bounds);
+  }
+}
+
+// A filter that draws its copy once it composites, or reads its backdrop.
+final class _Served extends _Open {
+  _Served(this.layer, this.transform, this.clip, this.state, this.reads)
+    : super(_Open._none) {
+    extra = reads;
+  }
+
+  final LiquidGlassBackdropFilterLayer layer;
+  final Matrix4 transform;
+  final Rect? clip;
+  final List<Object?> state;
+  final Rect reads;
+}
+
 // What a layer paints, in the space its parent places it in, for the frame
 // being composited: a walk skips a subtree that paints nothing in its band.
 // Layers composite in paint order, and glass changes its own subtree as it
@@ -704,16 +1501,31 @@ abstract final class _Extent {
   static int _frame = 0;
   static bool _counting = false;
 
-  static Rect of(Layer layer) {
+  // Counts frames, changing once each frame has composited, or null outside
+  // a frame's persistent callbacks: a pass between frames, such as an image
+  // taken after one, sees layers the next frame may still change.
+  static int? get frame {
+    final scheduler = SchedulerBinding.instance;
     if (!_counting) {
       _counting = true;
-      SchedulerBinding.instance.addPersistentFrameCallback((_) => _frame++);
+      // The persistent callback first runs after the next frame composites:
+      // the frame this one is counted in ends first.
+      scheduler.addPostFrameCallback((_) => _frame++);
+      scheduler.addPersistentFrameCallback((_) => _frame++);
     }
-    if (_cache[layer] case (final frame, final rect) when frame == _frame) {
+    if (scheduler.schedulerPhase != SchedulerPhase.persistentCallbacks) {
+      return null;
+    }
+    return _frame;
+  }
+
+  static Rect of(Layer layer) {
+    final frame = _Extent.frame;
+    if (_cache[layer] case (final at, final rect) when at == frame) {
       return rect;
     }
     final rect = _measure(layer);
-    _cache[layer] = (_frame, rect);
+    if (frame != null) _cache[layer] = (frame, rect);
     return rect;
   }
 
