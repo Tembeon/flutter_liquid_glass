@@ -98,7 +98,17 @@ final class GlassComposer extends PipelineOwner {
     });
   }
 
+  /// The copies the composer of [view] plans while it composes the view's
+  /// layers, or null outside that: a copy asked for then is drawn at once.
+  static UnderlayFrame? planning(RenderView view) {
+    final owner = view.owner;
+    final composer = owner == null ? null : _of(owner);
+    return composer != null && composer._composing ? composer._underlays : null;
+  }
+
   final Set<TransformTrackingRenderObjectMixin> _sites = Set.identity();
+
+  final _underlays = UnderlayFrame();
 
   bool _composing = false;
 
@@ -126,16 +136,14 @@ final class GlassComposer extends PipelineOwner {
     // Copies drawn while composing replay glass whose mattes paint wrote.
     FlutterGpuGeometryRenderer.flushPendingSubmissions();
     final root = _root();
-    if (root != null) {
-      _composing = true;
-      try {
-        _compose(root);
-      } finally {
-        _composing = false;
-      }
+    _composing = true;
+    try {
+      if (root != null) _compose(root);
+    } finally {
+      _composing = false;
+      FlutterGpuGeometryRenderer.flushPendingSubmissions();
+      _underlays.drawPending();
     }
-    FlutterGpuGeometryRenderer.flushPendingSubmissions();
-    BackdropUnderlay.drawPending();
   }
 
   ContainerLayer? _root() {

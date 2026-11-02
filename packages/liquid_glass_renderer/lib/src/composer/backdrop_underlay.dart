@@ -5,9 +5,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/internal/retained_glass_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/running_under_flutter_test.dart';
@@ -68,15 +68,6 @@ class BackdropUnderlay {
   double _pixelRatio = 0;
   List<Object?> _signature = const [];
 
-  /// Draws the copies recorded in this frame and not drawn yet. The view's
-  /// composer calls it once every glass of the frame has asked for its
-  /// copy, so no copy is drawn while the scene is built.
-  static void drawPending() {
-    _Atlas.reason = 'planned';
-    _Atlas.flush();
-    _Atlas.reason = null;
-  }
-
   /// How many copies were taken.
   @visibleForTesting
   int debugCaptures = 0;
@@ -96,8 +87,8 @@ class BackdropUnderlay {
   static final debugEdgeSigns = <String, int>{};
 
   /// How many times the copies were drawn with copies pending, by what
-  /// asked for them: the composer once the frame was planned, a read, or
-  /// the frame's end.
+  /// asked for them: the composer once the frame was planned, a read, or a
+  /// scene the composer did not plan, which draws a copy at once.
   @visibleForTesting
   static final debugFlushes = <String, int>{};
 
@@ -140,7 +131,8 @@ class BackdropUnderlay {
   /// The copy taken in an earlier frame serves while the layers it was
   /// drawn from are unchanged; otherwise a new one is recorded and drawn
   /// with the frame's other pending copies once the composer has composed
-  /// every layer ([drawPending]), or earlier if its image is read.
+  /// every layer ([UnderlayFrame.drawPending]), or earlier if its image is
+  /// read. In a scene the composer did not plan it is drawn at once.
   ///
   /// [body] is the rect the caller's glass paints, in screen logical
   /// pixels: glass painted before [anchor] that does not meet it lies beside
@@ -179,7 +171,8 @@ class BackdropUnderlay {
     }
     final root = _rootOf(anchor);
     final bodies = body == null ? const <Rect>[] : [body];
-    final scan = _Scan.of(root, dpr, anchor);
+    final frame = GlassComposer.planning(view);
+    final scan = _Scan.of(frame, root, dpr, anchor);
     final limit = scan.reach(anchor);
     final same =
         (_image != null || _tile != null) &&
@@ -253,7 +246,6 @@ class BackdropUnderlay {
       );
     }
     _tile = tile;
-    _Atlas.add(tile);
     _copied = rect;
     _filterKey = key;
     _filterClip = filterClip;
@@ -262,6 +254,13 @@ class BackdropUnderlay {
     _pixelRatio = pixels;
     debugCaptures++;
     debugMiss = null;
+    if (frame != null) {
+      frame._atlas.add(tile);
+    } else {
+      final atlas = _Atlas();
+      atlas.add(tile);
+      atlas.flush('at once');
+    }
     return UnderlayCopy._(this, rect, pixels);
   }
 
@@ -269,7 +268,7 @@ class BackdropUnderlay {
   void release() {
     _image?.dispose();
     _image = null;
-    if (_tile case final tile?) _Atlas.cancel(tile);
+    if (_tile case final tile?) tile.atlas?.cancel(tile);
     _tile = null;
     _signature = const [];
   }
@@ -302,6 +301,24 @@ class BackdropUnderlay {
       if (x != y) return false;
     }
     return true;
+  }
+}
+
+/// The copies the composer of one view plans in a frame: the scan of the
+/// view's layers that every copy of the frame replays, and the copies
+/// recorded and not drawn yet.
+@internal
+final class UnderlayFrame {
+  _Scan? _scan;
+  final _atlas = _Atlas();
+
+  /// Draws the copies recorded in this frame and not drawn yet and lets go
+  /// of the frame's scan. The composer calls it once every glass of the
+  /// frame has asked for its copy, so no copy is drawn while the scene is
+  /// built.
+  void drawPending() {
+    _atlas.flush('planned');
+    _scan = null;
   }
 }
 
@@ -472,7 +489,7 @@ class _Prefix {
 // glass that composites is final; the layers whose drawing glass decides
 // while it composites are kept and read when a copy replays them.
 final class _Scan {
-  _Scan._(this.root, this.devicePixelRatio, this.frame) {
+  _Scan._(this.root, this.devicePixelRatio) {
     _cursors.add(
       _Cursor(
         null,
@@ -486,30 +503,30 @@ final class _Scan {
     );
   }
 
-  // The scan of the pass that composites [root], begun anew when the scan
-  // walked to or past [anchor] already: the tree composites again. A pass
-  // outside the frame's compositing, an image taken after the frame, scans
-  // for itself alone.
-  factory _Scan.of(Layer root, double devicePixelRatio, Layer anchor) {
-    final frame = _Extent.frame;
-    if (frame == null) return _Scan._(root, devicePixelRatio, -1);
-    final scan = _current;
+  // The scan of the pass that composites [root] in [frame], begun anew when
+  // the scan walked to or past [anchor] already: the tree composites again.
+  // A scene the composer did not plan, such as an image taken after the
+  // frame, scans for each copy alone.
+  factory _Scan.of(
+    UnderlayFrame? frame,
+    Layer root,
+    double devicePixelRatio,
+    Layer anchor,
+  ) {
+    if (frame == null) return _Scan._(root, devicePixelRatio);
+    final scan = frame._scan;
     if (scan != null &&
         identical(scan.root, root) &&
         scan.devicePixelRatio == devicePixelRatio &&
-        scan.frame == frame &&
-        !identical(_seen[anchor], scan)) {
+        scan._walked[anchor] == null) {
       return scan;
     }
-    return _current = _Scan._(root, devicePixelRatio, frame);
+    return frame._scan = _Scan._(root, devicePixelRatio);
   }
-
-  static _Scan? _current;
-  static final _seen = Expando<_Scan>();
 
   final Layer root;
   final double devicePixelRatio;
-  final int frame;
+  final _walked = Expando<bool>();
   final entries = <_Entry>[];
   final _cursors = <_Cursor>[];
 
@@ -531,7 +548,7 @@ final class _Scan {
         continue;
       }
       if (identical(layer, anchor)) {
-        _seen[anchor] = this;
+        _walked[anchor] = true;
         return entries.length;
       }
       at.next = layer.nextSibling;
@@ -559,7 +576,7 @@ final class _Scan {
     required bool filtered,
   }) {
     entries.add(open);
-    _seen[layer] = this;
+    _walked[layer] = true;
     _cursors.add(
       _Cursor(
         layer,
@@ -1267,42 +1284,13 @@ final class _Served extends _Open {
   final Rect output;
 }
 
-// What a layer paints, in the space its parent places it in, for the frame
-// being composited: a walk skips a subtree that paints nothing in its band.
-// Layers composite in paint order, and glass changes its own subtree as it
-// composites, so a subtree before the glass that walks is final by then.
-// Layers that read the backdrop or whose drawing is not known count as
-// painting everywhere.
-abstract final class _Extent {
-  static int _frame = 0;
-  static bool _counting = false;
-
-  // Counts frames, changing once each frame has composited, or null outside
-  // a frame's persistent callbacks: a pass between frames, such as an image
-  // taken after one, sees layers the next frame may still change.
-  static int? get frame {
-    final scheduler = SchedulerBinding.instance;
-    if (!_counting) {
-      _counting = true;
-      // The persistent callback first runs after the next frame composites:
-      // the frame this one is counted in ends first.
-      scheduler.addPostFrameCallback((_) => _frame++);
-      scheduler.addPersistentFrameCallback((_) => _frame++);
-    }
-    if (scheduler.schedulerPhase != SchedulerPhase.persistentCallbacks) {
-      return null;
-    }
-    return _frame;
-  }
-}
-
 /// A copy that [BackdropUnderlay.imageFor] serves: [rect] of the screen, in
 /// logical pixels, at [offset] (the image's pixels) in [image], at
 /// [pixelRatio].
 ///
-/// A copy recorded this frame is drawn by [BackdropUnderlay.drawPending]
-/// with the frame's other copies; reading [image] or [offset] earlier draws
-/// the pending copies then.
+/// A copy recorded this frame is drawn by [UnderlayFrame.drawPending] with
+/// the frame's other copies; reading [image] or [offset] earlier draws the
+/// pending copies then.
 @internal
 final class UnderlayCopy {
   const UnderlayCopy._(this._underlay, this.rect, this.pixelRatio);
@@ -1324,13 +1312,13 @@ final class UnderlayCopy {
 
   /// The image that holds the copy, shared with other copies of the frame.
   ui.Image get image {
-    if (!ready) _Atlas.flush();
+    if (!ready) _underlay._tile?.atlas?.flush('read');
     return _underlay._image!;
   }
 
   /// Where [rect]'s top left corner sits in [image], in its pixels.
   Offset get offset {
-    if (!ready) _Atlas.flush();
+    if (!ready) _underlay._tile?.atlas?.flush('read');
     return _underlay._offset;
   }
 }
@@ -1384,6 +1372,9 @@ class _Tile {
        height = (rect.height * devicePixelRatio).round();
 
   final BackdropUnderlay owner;
+
+  // The atlas that draws it.
+  _Atlas? atlas;
 
   // Copies of one level are drawn together, after every lower level: a
   // copy that holds glass over another copy is a level above it.
@@ -1512,41 +1503,32 @@ final class _Islander {
 // The copies recorded in a frame, drawn into one image: every image drawn
 // on its own costs the raster thread a render pass, a texture and a command
 // buffer, and the GPU driver a submission.
-abstract final class _Atlas {
+final class _Atlas {
   // Gap between copies, in device pixels: sampling between pixels at a
   // copy's edge reads no neighbour.
   static const int _gap = 2;
   static const int _rowWidth = 2048;
   static const int _maxHeight = 4096;
 
-  static final _pending = <_Tile>[];
-  static bool _scheduled = false;
-  static bool _flushing = false;
   static int drawn = 0;
 
-  static void add(_Tile tile) {
+  final _pending = <_Tile>[];
+  bool _flushing = false;
+
+  void add(_Tile tile) {
+    tile.atlas = this;
     _pending.add(tile);
-    if (_scheduled) return;
-    _scheduled = true;
-    // A copy no caller read this frame is drawn after it.
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      _scheduled = false;
-      reason = 'frame end';
-      flush();
-      reason = null;
-    });
   }
 
-  static void cancel(_Tile tile) {
+  void cancel(_Tile tile) {
     if (_pending.remove(tile)) tile.content?.dispose();
   }
 
-  static String? reason;
-
-  static void flush() {
+  // Draws the pending copies, level by level; [why] names what asked, for
+  // diagnostics.
+  void flush(String why) {
     if (_flushing) return;
     if (_pending.isNotEmpty) {
-      final why = reason ?? 'read';
       BackdropUnderlay.debugFlushes[why] =
           (BackdropUnderlay.debugFlushes[why] ?? 0) + 1;
     }
