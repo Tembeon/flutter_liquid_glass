@@ -995,8 +995,7 @@ abstract final class _Atlas {
     drawn++;
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    for (final tile in tiles) {
-      if (tile.filter != null) continue;
+    void place(_Tile tile) {
       canvas.save();
       canvas.translate(tile.offset.dx, tile.offset.dy);
       canvas.clipRect(
@@ -1005,9 +1004,63 @@ abstract final class _Atlas {
       canvas.drawPicture(tile.content!);
       canvas.restore();
     }
+
+    // Copies that a filter replaces whole share one filtered layer per
+    // filter: the blur reaches across a copy's edge no further than the band
+    // a copy holds around what its glass samples, and the layer is clipped
+    // to the copies so that it reaches no other.
+    final shared = <(Object?, double), List<_Tile>>{};
+    for (final tile in tiles) {
+      if (tile.filter == null) {
+        place(tile);
+      } else if (tile.filterClip == null &&
+          tile.filterBlendMode == BlendMode.src) {
+        shared
+            .putIfAbsent(
+              (tile.owner._filterKey, tile.devicePixelRatio),
+              () => [],
+            )
+            .add(tile);
+      }
+    }
+    for (final group in shared.values) {
+      final dpr = group.first.devicePixelRatio;
+      final area = Path();
+      for (final tile in group) {
+        area.addRect(
+          tile.offset & Size(tile.width.toDouble(), tile.height.toDouble()),
+        );
+      }
+      final paint = Paint();
+      paint.imageFilter = group.first.filter;
+      canvas.save();
+      canvas.clipPath(area, doAntiAlias: false);
+      // The filter is in logical pixels, as the backdrop filter it stands
+      // for is under the view's scale.
+      canvas.scale(dpr);
+      canvas.saveLayer(
+        Rect.fromLTRB(
+          area.getBounds().left / dpr,
+          area.getBounds().top / dpr,
+          area.getBounds().right / dpr,
+          area.getBounds().bottom / dpr,
+        ),
+        paint,
+      );
+      canvas.scale(1 / dpr);
+      group.forEach(place);
+      canvas.restore();
+      canvas.restore();
+    }
+    final isolated = [
+      for (final tile in tiles)
+        if (tile.filter != null &&
+            (tile.filterClip != null || tile.filterBlendMode != BlendMode.src))
+          tile,
+    ];
     final content = recorder.endRecording();
     final ui.Image image;
-    if (tiles.every((tile) => tile.filter == null)) {
+    if (isolated.isEmpty) {
       image = content.toImageSync(width, height);
     } else {
       // The filter reads a copy as a backdrop filter reads the screen, in a
@@ -1016,9 +1069,8 @@ abstract final class _Atlas {
       // edges as it would meet the edges of an image of its own.
       final b = ui.SceneBuilder();
       b.addPicture(Offset.zero, content);
-      for (final tile in tiles) {
-        final filter = tile.filter;
-        if (filter == null) continue;
+      for (final tile in isolated) {
+        final filter = tile.filter!;
         final dpr = tile.devicePixelRatio;
         b.pushClipRect(
           tile.offset & Size(tile.width.toDouble(), tile.height.toDouble()),
