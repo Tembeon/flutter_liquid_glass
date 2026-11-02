@@ -13,6 +13,7 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/ancestor_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/backdrop_capture_debug.dart';
 import 'package:liquid_glass_renderer/src/internal/backdrop_seed.dart';
+import 'package:liquid_glass_renderer/src/internal/backdrop_underlay.dart';
 import 'package:liquid_glass_renderer/src/internal/filter_pass_transform.dart';
 import 'package:liquid_glass_renderer/src/internal/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
@@ -1032,6 +1033,29 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   bool _cachesBackdrop = false;
   final _cacheSlotHandle = LayerHandle<ContainerLayer>();
 
+  // The live filter, or the glass painted over the underlay's copy of what
+  // lies under it: compositing picks one per frame.
+  final _underlay = BackdropUnderlay();
+  final _underlaySlotHandle = LayerHandle<ContainerLayer>();
+  final _underlayPictureHandle = LayerHandle<PictureLayer>();
+  Object? _underlayPictureKey;
+
+  /// Whether the last composited frame drew the glass over the underlay's
+  /// copy rather than reading the backdrop.
+  @visibleForTesting
+  bool debugDrewOverUnderlay = false;
+
+  /// The copy of what lies under the glass.
+  @visibleForTesting
+  BackdropUnderlay get debugUnderlay => _underlay;
+
+  bool get _wantsUnderlay =>
+      BackdropUnderlay.enabled &&
+      _backdropCache == null &&
+      backdropKey == null &&
+      !compositionProbeSeeding &&
+      RenderLiquidGlassCapture.enclosing(this) == null;
+
   /// Whether the layer's last paint chose its [backdropCache].
   @visibleForTesting
   bool get debugCachesBackdrop => _cachesBackdrop;
@@ -1344,6 +1368,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _cachesBackdrop = false;
     debugDrewOverCopy = false;
     _cacheSlotHandle.layer = null;
+    _underlaySlotHandle.layer = null;
     if (geometryBounds == null) {
       _clearGeometryImage();
       _releaseCompositorFilter();
@@ -1497,17 +1522,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         final alongX = _materialSize.width >= _materialSize.height;
         value.setOffset(alongX ? Offset(half, 0) : Offset(0, half));
       })
-      // Float index 57, after uBackdropBounds.
+      // Float index 57, after uBackdropBounds: uBackdropOrigin, zero for a
+      // filter, whose fragment coordinates are its input's.
       ..setFloatUniforms(initialIndex: 57, (value) {
-        final matteSize = _geometryMatteBounds.size * devicePixelRatio;
         value.setFloats([
-          if (_geometryTextureSize.isEmpty) ...[
-            1,
-            1,
-          ] else ...[
-            matteSize.width / _geometryTextureSize.width,
-            matteSize.height / _geometryTextureSize.height,
-          ],
+          0,
+          0,
           _materialTextureSize.width,
           _materialTextureSize.height,
         ]);
@@ -1944,10 +1964,24 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _syncChildClip();
     }
 
-    if (pass == null) {
-      paintClipped(context, offset);
+    void paintLive(PaintingContext context, Offset offset) {
+      if (pass == null) {
+        paintClipped(context, offset);
+      } else {
+        context.pushLayer(pass, paintClipped, offset);
+      }
+    }
+
+    if (_wantsUnderlay && !drawableEmpty) {
+      context.pushLayer(
+        _underlaySlotHandle.layer ??= ContainerLayer(),
+        paintLive,
+        offset,
+      );
     } else {
-      context.pushLayer(pass, paintClipped, offset);
+      _underlaySlotHandle.layer = null;
+      _underlay.release();
+      paintLive(context, offset);
     }
   }
 
@@ -2035,6 +2069,154 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     } else if (_cachesBackdrop) {
       _composeCached();
     }
+    if (_underlaySlotHandle.layer != null) _composeUnderlay();
+  }
+
+  // Chosen at compositing: what lies under the glass can change in a frame
+  // in which this layer does not repaint. The slot holds the live filter
+  // (the seeded pass, or the clip around the filter) while what lies under
+  // the glass cannot be copied.
+  void _composeUnderlay() {
+    final slot = _underlaySlotHandle.layer!;
+    final live = _passHandle.layer ?? _clipRectLayerHandle.layer;
+    final served = _recordUnderlay();
+    debugDrewOverUnderlay = served != null;
+    final child = served ?? live;
+    if (child == null) {
+      slot.removeAllChildren();
+      return;
+    }
+    if (identical(slot.firstChild, child) && child.nextSibling == null) return;
+    slot.removeAllChildren();
+    child.remove();
+    slot.append(child);
+  }
+
+  // The glass as one rect painted with the final shader over the underlay's
+  // copy, or null when there is no copy. The shader reads the copy as
+  // a filter reads its input: fragment coordinates are taken from the copy's
+  // origin (uBackdropOrigin), so the mapping into the matte is the screen's
+  // shifted by that origin.
+  PictureLayer? _recordUnderlay() {
+    final bounds = _filterMaterialBounds;
+    final anchor = layer;
+    if (bounds == null || anchor == null || drawableEmpty) return null;
+    final dpr = devicePixelRatio;
+    final screen = filterPassTransform(
+      this,
+      seeding: false,
+      devicePixelRatio: dpr,
+      translation: compositorTranslation,
+    );
+    // The copy is blurred in screen space, as the filter's blur reads the
+    // backdrop only for glass that is not scaled or turned.
+    final storage = screen.storage;
+    if ((storage[0] - 1).abs() > 1e-6 ||
+        (storage[5] - 1).abs() > 1e-6 ||
+        storage[1].abs() > 1e-6 ||
+        storage[4].abs() > 1e-6) {
+      return null;
+    }
+    final view = RendererBinding.instance.renderViews.firstOrNull;
+    if (view == null) return null;
+    final logical = MatrixUtils.transformRect(
+      screen,
+      bounds.expandToPixelBuckets(dpr),
+    );
+    final frost = _frostSigmaForCurrentShapes();
+    // The frost blurs the copy as the filter's blur reads the backdrop: in
+    // screen space, in the same tile mode.
+    final copy = _underlay.imageFor(
+      anchor: anchor,
+      devicePixelRatio: dpr,
+      region: logical.inflate(backdropSamplingReach(bounds) + 1),
+      screen: Offset.zero & view.size,
+      filter: frost > 0
+          ? ui.ImageFilter.blur(
+              sigmaX: frost,
+              sigmaY: frost,
+              tileMode: TileMode.mirror,
+            )
+          : null,
+      filterKey: frost,
+    );
+    if (copy == null) return null;
+    final image = copy.image;
+    final origin = copy.rect.topLeft * dpr;
+    final canvasToScreen = screen.clone();
+    canvasToScreen.multiply(
+      Matrix4.translationValues(
+        -_filterPaintOffset.dx,
+        -_filterPaintOffset.dy,
+        0,
+      ),
+    );
+    final screenToCanvas = Matrix4.zero();
+    if (screenToCanvas.copyInverse(canvasToScreen) == 0) return null;
+    screenToCanvas.multiply(Matrix4.diagonal3Values(1 / dpr, 1 / dpr, 1));
+    final globalToMatte = Matrix4.inverted(screen);
+    final o = MatrixUtils.transformPoint(globalToMatte, Offset.zero);
+    final ax = MatrixUtils.transformPoint(globalToMatte, const Offset(1, 0));
+    final ay = MatrixUtils.transformPoint(globalToMatte, const Offset(0, 1));
+    final mapping = (
+      ax.dx - o.dx,
+      ay.dx - o.dx,
+      ax.dy - o.dy,
+      ay.dy - o.dy,
+      o.dx * dpr + (ax.dx - o.dx) * origin.dx + (ay.dx - o.dx) * origin.dy,
+      o.dy * dpr + (ax.dy - o.dy) * origin.dx + (ay.dy - o.dy) * origin.dy,
+    );
+    final device = Rect.fromLTRB(
+      logical.left * dpr,
+      logical.top * dpr,
+      logical.right * dpr,
+      logical.bottom * dpr,
+    );
+    final backdropBounds = backdropSampleBounds;
+    // The live filter's inputs, as one object: a new one whenever a uniform
+    // or sampler changed.
+    final key = (
+      image,
+      _updateShaderFilter(),
+      mapping,
+      device,
+      backdropBounds,
+      _filterPaintOffset,
+    );
+    final previous = _underlayPictureHandle.layer;
+    if (previous != null && _underlayPictureKey == key) return previous;
+    final shader = renderShader;
+    _writeCoordinateMapping(shader, mapping, backdropBounds);
+    shader.setFloat(0, image.width.toDouble());
+    shader.setFloat(1, image.height.toDouble());
+    shader.setFloat(_FinalUniforms.backdropOrigin, origin.dx);
+    shader.setFloat(_FinalUniforms.backdropOrigin + 1, origin.dy);
+    shader.setImageSampler(0, image, filterQuality: FilterQuality.low);
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    canvas.transform(screenToCanvas.storage);
+    final paint = Paint();
+    paint.shader = shader;
+    // The filter's clip cuts its output with a hard edge.
+    paint.isAntiAlias = false;
+    canvas.drawRect(device, paint);
+    final picture = PictureLayer(
+      MatrixUtils.transformRect(screenToCanvas, device),
+    );
+    picture.picture = recorder.endRecording();
+    // The live filter takes the shader's uniforms when it is next created:
+    // they go back to the filter's.
+    shader.setFloat(_FinalUniforms.backdropOrigin, 0);
+    shader.setFloat(_FinalUniforms.backdropOrigin + 1, 0);
+    if (_coordinateMapping case final live?) {
+      _writeCoordinateMapping(shader, live, _backdropBounds);
+    }
+    if (_geometryImage case final matte?) {
+      shader.setImageSampler(0, matte, filterQuality: FilterQuality.low);
+    }
+    _underlayPictureHandle.layer = picture;
+    _underlayPictureKey = key;
+    return picture;
   }
 
   // Chosen at compositing, not paint: the source can change in a frame in
@@ -2191,6 +2373,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _clipRectLayerHandle.layer = null;
     _passHandle.layer = null;
     _cacheSlotHandle.layer = null;
+    _underlaySlotHandle.layer = null;
+    _underlayPictureHandle.layer = null;
+    _underlay.dispose();
     _cachedFilter = null;
     _cachedShaderFilter = null;
     _clearGeometryImage();
@@ -2699,6 +2884,9 @@ abstract final class _FinalUniforms {
 
   /// uBackdropOverlay, four floats.
   static const int overlay = 159;
+
+  /// uBackdropOrigin, two floats.
+  static const int backdropOrigin = 57;
 
   /// The analytic variant's first uniform, uAnalyticHeader, after uEffects.
   static const int analytic = 163;

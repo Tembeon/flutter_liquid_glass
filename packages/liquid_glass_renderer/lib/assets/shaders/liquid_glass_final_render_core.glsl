@@ -56,9 +56,9 @@ uniform float uBlurFade;
 // Outside it the filter input is transparent or clamped, so displaced samples
 // are mirrored back in at its edge.
 uniform vec4 uBackdropBounds;
-// No longer used; kept so the uniforms below stay at the same float indices.
-// uGeometrySize is the matte's size in device px.
-uniform vec2 uGeometryUVScale;
+// Where fragment coordinates start, in device px: zero for a filter, whose
+// coordinates are its input's; the origin of the copy a paint samples.
+uniform vec2 uBackdropOrigin;
 // Texel size of the material map's texture; the map fills its top-left.
 uniform vec2 uMaterialTextureSize;
 
@@ -625,7 +625,7 @@ void main() {
     // matte. Apple Metal surfaces expose global filter coordinates, while
     // other backends may expose clip-local coordinates. These uniforms are
     // snapshotted with the frame, never overwritten through a shared texture.
-    vec2 fragCoord = FlutterFragCoord().xy;
+    vec2 fragCoord = FlutterFragCoord().xy - uBackdropOrigin;
     vec2 screenUV = fragCoord / uSize;
 
     vec2 matteCoord = vec2(
@@ -1117,7 +1117,7 @@ void main() {
     // Mali GPUs. The matte coordinate is derived again, so no register
     // holds it across the shading.
     if (uGlowSpot.w > 0.0 || uGlowShape.y > 0.0) {
-        vec2 glowCoord = FlutterFragCoord().xy;
+        vec2 glowCoord = FlutterFragCoord().xy - uBackdropOrigin;
         finalColor = applyGlassGlow(
             finalColor,
             vec2(

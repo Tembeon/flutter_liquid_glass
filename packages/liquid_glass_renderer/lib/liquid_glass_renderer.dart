@@ -10,6 +10,8 @@ export 'src/liquid_glass.dart' show LiquidGlass, LiquidGlassShapeFrame;
 export 'src/liquid_glass_appearance.dart' show LiquidGlassAppearance;
 export 'src/liquid_glass_backdrop.dart' show LiquidGlassBackdrop;
 export 'src/liquid_glass_backdrop_cache.dart' show LiquidGlassBackdropCache;
+export 'src/liquid_glass_backdrop_filter_layer.dart'
+    show LiquidGlassBackdropFilterLayer;
 export 'src/liquid_glass_blend_group.dart' show LiquidGlassBlendGroup;
 export 'src/liquid_glass_capture.dart' show LiquidGlassCapture;
 export 'src/liquid_glass_color_model.dart' show LiquidGlassColorModel;
@@ -18,6 +20,8 @@ export 'src/liquid_glass_glow.dart' show LiquidGlassGlow;
 export 'src/liquid_glass_settings.dart' show LiquidGlassSettings;
 export 'src/liquid_glass_support.dart'
     show LiquidGlassDeviceClass, LiquidGlassSupport;
+export 'src/liquid_glass_underlay.dart'
+    show LiquidGlassLayerEffects, LiquidGlassUnderlay;
 export 'src/liquid_glass_visibility.dart' show LiquidGlassVisibility;
 export 'src/liquid_shape.dart'
     show
