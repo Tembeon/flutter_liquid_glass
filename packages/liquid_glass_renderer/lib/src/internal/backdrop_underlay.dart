@@ -75,6 +75,26 @@ class BackdropUnderlay {
   @visibleForTesting
   String? debugMiss;
 
+  /// How many copies were refused, by what refused them: the type of the
+  /// layer that blocked the band, or `not reached`.
+  @visibleForTesting
+  static final debugMisses = <String, int>{};
+
+  /// How many scroll edges glass signed, by whether its band meets the
+  /// edge's output (`output`) or only the margin the edge reads (`margin`).
+  @visibleForTesting
+  static final debugEdgeSigns = <String, int>{};
+
+  /// How many times the copies were drawn with copies pending, by what
+  /// asked for them: a scroll edge signed, a read, or the frame's end.
+  @visibleForTesting
+  static final debugFlushes = <String, int>{};
+
+  /// How many images the copies of all glass were drawn into, by the level
+  /// of the copies in the frame's drawing order.
+  @visibleForTesting
+  static final debugImagesByLevel = <int, int>{};
+
   /// How many images the copies of all glass were drawn into.
   @visibleForTesting
   static int get debugImagesDrawn => _Atlas.drawn;
@@ -115,7 +135,10 @@ class BackdropUnderlay {
     final dpr = devicePixelRatio;
     final pixels = dpr / downscale;
     final band = _snapOut(region, pixels).intersect(screen);
-    if (band.isEmpty) return null;
+    if (band.isEmpty) {
+      debugMisses['off screen'] = (debugMisses['off screen'] ?? 0) + 1;
+      return null;
+    }
     final root = _rootOf(anchor);
     final scan = _Scan.of(root, dpr, anchor);
     final limit = scan.reach(anchor);
@@ -145,6 +168,10 @@ class BackdropUnderlay {
       signed = _Prefix.signed(root, anchor, rect, dpr, scan, limit);
     }
     if (signed.blocked || !signed.reached) {
+      final why = signed.blocked
+          ? '${signed.blocker.runtimeType}'
+          : 'not reached';
+      debugMisses[why] = (debugMisses[why] ?? 0) + 1;
       assert(() {
         debugMiss = 'blocked by ${_debugBlocker(root, anchor, band, dpr)}';
         return true;
@@ -941,6 +968,7 @@ final class _Scan {
             clip,
             state,
             filtered ? _everywhere : clipped(rect.inflate(reach)),
+            filtered ? _everywhere : clipped(rect),
           ),
         );
       case TransformLayer(:final offset):
@@ -1316,7 +1344,12 @@ final class _Scan {
               if (!through) break loop;
               continue loop;
             case _Served(:final layer, :final transform, :final clip):
+              final why = _meets(entry.output, band) ? 'output' : 'margin';
+              BackdropUnderlay.debugEdgeSigns[why] =
+                  (BackdropUnderlay.debugEdgeSigns[why] ?? 0) + 1;
+              _Atlas.reason = 'edge sign';
               sign(layer.servedPicture!, transform, clip, entry.state);
+              _Atlas.reason = null;
             case _Undrawable(:final layer) when c != null:
               prefix.blocked = true;
               prefix.blocker ??= layer;
@@ -1488,8 +1521,14 @@ final class _Pass extends _Open {
 
 // A filter that draws its copy once it composites, or reads its backdrop.
 final class _Served extends _Open {
-  _Served(this.layer, this.transform, this.clip, this.state, this.reads)
-    : super(_Open._none) {
+  _Served(
+    this.layer,
+    this.transform,
+    this.clip,
+    this.state,
+    this.reads,
+    this.output,
+  ) : super(_Open._none) {
     extra = reads;
   }
 
@@ -1498,6 +1537,7 @@ final class _Served extends _Open {
   final Rect? clip;
   final List<Object?> state;
   final Rect reads;
+  final Rect output;
 }
 
 // What a layer paints, in the space its parent places it in, for the frame
@@ -1761,7 +1801,9 @@ abstract final class _Atlas {
     // A copy no caller read this frame is drawn after it.
     SchedulerBinding.instance.addPostFrameCallback((_) {
       _scheduled = false;
+      reason = 'frame end';
       flush();
+      reason = null;
     });
   }
 
@@ -1769,8 +1811,15 @@ abstract final class _Atlas {
     if (_pending.remove(tile)) tile.content?.dispose();
   }
 
+  static String? reason;
+
   static void flush() {
     if (_flushing) return;
+    if (_pending.isNotEmpty) {
+      final why = reason ?? 'read';
+      BackdropUnderlay.debugFlushes[why] =
+          (BackdropUnderlay.debugFlushes[why] ?? 0) + 1;
+    }
     _flushing = true;
     try {
       while (_pending.isNotEmpty) {
@@ -1860,6 +1909,9 @@ abstract final class _Atlas {
 
   static void _draw(List<_Tile> tiles, int width, int height) {
     drawn++;
+    final level = tiles.first.level;
+    BackdropUnderlay.debugImagesByLevel[level] =
+        (BackdropUnderlay.debugImagesByLevel[level] ?? 0) + 1;
     void place(Canvas canvas, _Tile tile) {
       canvas.save();
       canvas.translate(tile.offset.dx, tile.offset.dy);
