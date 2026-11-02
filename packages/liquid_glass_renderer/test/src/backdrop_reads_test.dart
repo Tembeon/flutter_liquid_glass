@@ -4,11 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 // What reads a backdrop or takes a copy of the screen: a layer that filters
 // the backdrop, the keys and groups that share one, a seeded pass, an image
-// taken of a scene.
+// taken of a scene. The composer's own layers, such as
+// LiquidGlassBackdropFilterLayer, are how a surface reads through it.
 final _read = RegExp(
   r'toImageSync\(|pushBackdropFilter\(|(?<![\w.])(?:BackdropFilterLayer|'
-  'LiquidGlassBackdropFilterLayer|BackdropFilter|BackdropKey|BackdropGroup|'
-  r'SeededBackdropPassLayer)\(',
+  r'BackdropFilter|BackdropKey|BackdropGroup|SeededBackdropPassLayer)\(',
 );
 
 // Reads outside the composer, per file. Glass reads its backdrop through
@@ -17,9 +17,8 @@ final _read = RegExp(
 const _outsideComposer = {
   'lib/src/fake_glass.dart': 1,
   'lib/src/internal/backdrop_seed.dart': 2,
-  'lib/src/internal/backdrop_underlay.dart': 16,
+  'lib/src/internal/backdrop_underlay.dart': 12,
   'lib/src/internal/warm_up.dart': 5,
-  'lib/src/liquid_glass_backdrop_filter_layer.dart': 3,
   'lib/src/rendering/consolidated_fake_glass_layer.dart': 4,
   'lib/src/rendering/liquid_glass_layer.dart': 3,
 };

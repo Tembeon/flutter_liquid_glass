@@ -12,18 +12,15 @@ const _banned = [
 ];
 
 // What reads a backdrop or takes a copy of the screen. The renderer reads
-// the backdrop for every surface; these files still build a read of their
-// own, and a count may only fall.
+// the backdrop for every surface, through the view's composer
+// (LiquidGlassBackdropFilterLayer for a filter of the widget layer's own).
 final _read = RegExp(
   r'toImageSync\(|pushBackdropFilter\(|(?<![\w.])(?:BackdropFilterLayer|'
-  'LiquidGlassBackdropFilterLayer|BackdropFilter|BackdropKey|BackdropGroup|'
-  r'SeededBackdropPassLayer)\(',
+  r'BackdropFilter|BackdropKey|BackdropGroup|SeededBackdropPassLayer)\(',
 );
 
-const _ownReads = {'lib/src/renderer/scroll_edge.dart': 1};
-
 void main() {
-  test('backdrop reads outside the renderer only shrink', () {
+  test('no backdrop read outside the renderer', () {
     final found = <String, int>{};
     final files = Directory('lib')
         .listSync(recursive: true)
@@ -37,7 +34,7 @@ void main() {
       }
       if (count > 0) found[file.path] = count;
     }
-    expect(found, _ownReads);
+    expect(found, isEmpty);
   });
 
   test('lib imports no Material, Cupertino, Morph or motor', () {
