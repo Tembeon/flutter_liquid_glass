@@ -6,6 +6,7 @@ import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// The numbers of UIKit's scroll edge effect on iOS 27: `PocketSettings`
 /// and the layers of `UIKit.ScrollEdgeEffectView` (read from UIKit, notes
@@ -103,15 +104,6 @@ double _halfResolutionSigma(double sigma, double devicePixelRatio) {
   return raised <= sigma * 1.12 ? raised : sigma;
 }
 
-// An identity backdrop filter: under a clip it gives the blur inside it a
-// pass of the clip's size to read instead of the whole pass behind it.
-const ui.ImageFilter _seed = ui.ColorFilter.matrix(<double>[
-  1, 0, 0, 0, 0, //
-  0, 1, 0, 0, 0, //
-  0, 0, 1, 0, 0, //
-  0, 0, 0, 1, 0,
-]);
-
 /// The height of the band the effect [details] describe covers.
 @internal
 double scrollEdgeBand(GlassScrollEdgeDetails details) =>
@@ -195,10 +187,7 @@ class _RenderEdge extends RenderBox {
     required this._devicePixelRatio,
   });
 
-  final _seedClip = LayerHandle<ClipRectLayer>();
-  final _seedLayer = LayerHandle<BackdropFilterLayer>();
-  final _clip = LayerHandle<ClipRectLayer>();
-  final _blur = LayerHandle<BackdropFilterLayer>();
+  final _blur = LayerHandle<LiquidGlassBackdropFilterLayer>();
   final _fade = LayerHandle<OpacityLayer>();
   double? _painted;
 
@@ -279,9 +268,6 @@ class _RenderEdge extends RenderBox {
   }
 
   void _drop() {
-    _seedClip.layer = null;
-    _seedLayer.layer = null;
-    _clip.layer = null;
     _blur.layer = null;
     _fade.layer = null;
   }
@@ -349,38 +335,21 @@ class _RenderEdge extends RenderBox {
     }
 
     if (!_blurs) {
-      _seedClip.layer = null;
-      _seedLayer.layer = null;
-      _clip.layer = null;
       _blur.layer = null;
       fade(context, offset);
       return;
     }
-    void band(PaintingContext context, Offset offset) {
-      _clip.layer = context.pushClipRect(
-        true,
-        offset,
-        Offset.zero & size,
-        (context, offset) {
-          final blur = _blur.layer ??= BackdropFilterLayer();
-          blur.filter = _filter(presence);
-          context.pushLayer(blur, fade, offset);
-        },
-        oldLayer: _clip.layer,
-      );
-    }
-
-    final seed = _seedLayer.layer ??= BackdropFilterLayer(
-      filter: _seed,
-      blendMode: BlendMode.src,
+    final blur = _blur.layer ??= LiquidGlassBackdropFilterLayer(
+      filter: _filter(presence),
+      clip: box,
+      reach: _blurReach(_sigma, _devicePixelRatio),
+      devicePixelRatio: _devicePixelRatio,
     );
-    _seedClip.layer = context.pushClipRect(
-      true,
-      offset,
-      (Offset.zero & size).inflate(_blurReach(_sigma, _devicePixelRatio)),
-      (context, offset) => context.pushLayer(seed, band, offset),
-      oldLayer: _seedClip.layer,
-    );
+    blur.filter = _filter(presence);
+    blur.clip = box;
+    blur.reach = _blurReach(_sigma, _devicePixelRatio);
+    blur.devicePixelRatio = _devicePixelRatio;
+    context.pushLayer(blur, fade, offset);
   }
 
   void _paintFade(Canvas canvas, Rect box) {
