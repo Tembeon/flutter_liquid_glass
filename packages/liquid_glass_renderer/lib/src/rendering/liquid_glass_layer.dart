@@ -2127,15 +2127,18 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       devicePixelRatio: dpr,
       translation: compositorTranslation,
     );
-    // The copy is taken in screen space: glass that is turned or stretched
-    // reads the backdrop. A uniform scale scales the filter's blur and reach
-    // on the screen; Impeller blurs a scaled canvas with other taps than the
-    // same blur unscaled, a few channel steps apart: NEAR, and only while
+    // The copy is taken in screen space: glass that is turned reads the
+    // backdrop. A scale along the axes scales the filter's blur and reach on
+    // the screen, along each axis on its own, as Impeller scales the live
+    // filter's blur. Impeller blurs a scaled canvas with other taps than the
+    // same blur unscaled: NEAR, at most 7 channel levels apart in the host
+    // test of glass stretched 1.2 x 0.8 under 6 px of frost, and only while
     // the glass is scaled.
     final storage = screen.storage;
-    final scale = storage[0];
-    if (scale <= 0 ||
-        (storage[5] - scale).abs() > 1e-6 ||
+    final scaleX = storage[0];
+    final scaleY = storage[5];
+    if (scaleX <= 0 ||
+        scaleY <= 0 ||
         storage[1].abs() > 1e-6 ||
         storage[4].abs() > 1e-6) {
       return null;
@@ -2148,28 +2151,32 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
     // What the shader paints: the material, not the rect it is drawn in.
     final drawn = MatrixUtils.transformRect(screen, bounds);
-    final frost = _frostSigmaForCurrentShapes() * scale;
+    final sigma = _frostSigmaForCurrentShapes();
+    final frostX = sigma * scaleX;
+    final frostY = sigma * scaleY;
     // A copy blurred by at least [_copySigma] of its own pixels is drawn as
     // the blur leaves it at a fraction of the screen's pixels: sampled back
     // up, it adds a tent of its pixel's width to a blur many times wider.
     var downscale = 1;
     while (downscale * 2 <= debugMaxCopyDownscale &&
-        frost * dpr / (downscale * 2) >= _copySigma) {
+        min(frostX, frostY) * dpr / (downscale * 2) >= _copySigma) {
       downscale *= 2;
     }
     final copy = _underlay.imageFor(
       anchor: anchor,
       devicePixelRatio: dpr,
-      region: drawn.inflate((backdropSamplingReach(bounds) + 1) * scale),
+      region: drawn.inflate(
+        (backdropSamplingReach(bounds) + 1) * max(scaleX, scaleY),
+      ),
       screen: Offset.zero & view.size,
-      filter: frost > 0
+      filter: sigma > 0
           ? ui.ImageFilter.blur(
-              sigmaX: frost,
-              sigmaY: frost,
+              sigmaX: frostX,
+              sigmaY: frostY,
               tileMode: TileMode.mirror,
             )
           : null,
-      filterKey: frost,
+      filterKey: (frostX, frostY),
       downscale: downscale,
     );
     if (copy == null) return null;

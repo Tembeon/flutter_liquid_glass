@@ -73,6 +73,9 @@ Widget _scene({
   bool pair = false,
   bool mask = false,
   bool clipped = false,
+  double scaleX = 1,
+  double scaleY = 1,
+  double frost = 0,
 }) => Directionality(
   textDirection: TextDirection.ltr,
   child: RepaintBoundary(
@@ -156,20 +159,24 @@ Widget _scene({
         Positioned.fill(
           child: Opacity(
             opacity: opacity,
-            child: LiquidGlassLayer(
-              settings: LiquidGlassSettings.ios27RegularLight().copyWith(
-                frost: 0,
-              ),
-              child: Stack(
-                children: [
-                  Positioned.fromRect(
-                    rect: const Rect.fromLTWH(30, 40, 200, 90),
-                    child: const LiquidGlass(
-                      shape: LiquidRoundedSuperellipse(borderRadius: 28),
-                      child: SizedBox.expand(),
+            child: Transform(
+              alignment: const Alignment(-0.3, -0.5),
+              transform: Matrix4.diagonal3Values(scaleX, scaleY, 1),
+              child: LiquidGlassLayer(
+                settings: LiquidGlassSettings.ios27RegularLight().copyWith(
+                  frost: frost,
+                ),
+                child: Stack(
+                  children: [
+                    Positioned.fromRect(
+                      rect: const Rect.fromLTWH(30, 40, 200, 90),
+                      child: const LiquidGlass(
+                        shape: LiquidRoundedSuperellipse(borderRadius: 28),
+                        child: SizedBox.expand(),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -328,6 +335,30 @@ void main() {
     await tester.pumpWidget(_scene(mask: true, shift: 0.3));
     expect(_glass(tester).debugDrewOverUnderlay, isTrue);
     expect(_liveFilters(tester), isEmpty);
+  }, skip: skipProperGlassTests);
+
+  testWidgets('frosted glass stretched along the axes draws over its copy', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(260, 200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_scene(frost: 6, scaleX: 1.2, scaleY: 0.8));
+    await tester.pumpWidget(
+      _scene(frost: 6, scaleX: 1.2, scaleY: 0.8, shift: 0.3),
+    );
+    expect(_glass(tester).debugDrewOverUnderlay, isTrue);
+    expect(_liveFilters(tester), isEmpty);
+  }, skip: skipProperGlassTests);
+
+  testWidgets('mirrored glass reads its backdrop', (tester) async {
+    tester.view.physicalSize = const Size(260, 200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_scene(frost: 6, scaleX: -1));
+    await tester.pumpWidget(_scene(frost: 6, scaleX: -1, shift: 0.3));
+    expect(_glass(tester).debugDrewOverUnderlay, isFalse);
+    expect(_liveFilters(tester), isNotEmpty);
   }, skip: skipProperGlassTests);
 
   testWidgets('content clipped away at the edge of the band is left out', (
