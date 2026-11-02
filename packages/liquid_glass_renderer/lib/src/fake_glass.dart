@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/glass_shadow.dart';
-import 'package:liquid_glass_renderer/src/internal/backdrop_capture_debug.dart';
 import 'package:liquid_glass_renderer/src/internal/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/internal/live_paint_size.dart';
 import 'package:liquid_glass_renderer/src/internal/multi_shader_builder.dart';
@@ -31,8 +30,6 @@ class FakeGlass extends StatelessWidget {
     LiquidGlassSettings this.settings = const LiquidGlassSettings(),
     this.appearance,
     this.shadows = const [],
-    this.backdropKey,
-    this.useBackdropGroup = false,
     super.key,
   }) : backdropHandledByLayer = false,
        inheritVisibility = true,
@@ -50,8 +47,6 @@ class FakeGlass extends StatelessWidget {
     this.shadows = const [],
     super.key,
   }) : settings = null,
-       backdropKey = null,
-       useBackdropGroup = false,
        backdropHandledByLayer = false,
        inheritVisibility = true,
        live = null,
@@ -73,8 +68,6 @@ class FakeGlass extends StatelessWidget {
     this.fadeKey,
     super.key,
   }) : settings = null,
-       backdropKey = null,
-       useBackdropGroup = false,
        inheritVisibility = false;
 
   static final List<String> _surfaceShaderAssets = [
@@ -108,15 +101,6 @@ class FakeGlass extends StatelessWidget {
   /// shape is cut out of the composed shadow stack so the shadow does not
   /// bleed through the translucent glass body.
   final List<BoxShadow> shadows;
-
-  /// An explicit key used to share backdrop capture work with other effects.
-  final BackdropKey? backdropKey;
-
-  /// Whether to use the nearest ancestor [BackdropGroup].
-  ///
-  /// [backdropKey] takes precedence. This is ignored by [FakeGlass.inLayer],
-  /// which inherits the containing [LiquidGlassLayer]'s backdrop policy.
-  final bool useBackdropGroup;
 
   /// Whether an ancestor layer already paints the shared backdrop effect.
   @internal
@@ -164,12 +148,6 @@ class FakeGlass extends StatelessWidget {
           )
         : baseAppearance;
 
-    final backdropKey = this.settings == null
-        ? LiquidGlassRenderScope.of(context).backdropKey
-        : this.backdropKey ??
-              (useBackdropGroup
-                  ? BackdropGroup.of(context)?.backdropKey
-                  : null);
     final glow = _fadeChildren(
       appearance.visibility,
       GlassGlowLayer(child: child),
@@ -189,7 +167,6 @@ class FakeGlass extends StatelessWidget {
       shape: shape,
       settings: settings,
       appearance: appearance,
-      backdropKey: backdropKey,
       backdropHandledByLayer: backdropHandledByLayer,
       surfaceShader: surfaceShader,
       paintSurface: paintsOwnSurface,
@@ -239,7 +216,6 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
   const RawFakeGlass({
     required this.shape,
     required super.child,
-    this.backdropKey,
     this.backdropHandledByLayer = false,
     this.surfaceShader,
     this.paintSurface = true,
@@ -256,8 +232,6 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
   final LiquidGlassSettings settings;
 
   final LiquidGlassAppearance appearance;
-
-  final BackdropKey? backdropKey;
 
   final bool backdropHandledByLayer;
 
@@ -281,7 +255,6 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
       shape: shape,
       settings: settings,
       appearance: appearance,
-      backdropKey: backdropKey,
       backdropHandledByLayer: backdropHandledByLayer,
       surfaceShader: surfaceShader,
       paintSurface: paintSurface,
@@ -301,7 +274,6 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
         ..shape = shape
         ..settings = settings
         ..appearance = appearance
-        ..backdropKey = backdropKey
         ..backdropHandledByLayer = backdropHandledByLayer
         ..surfaceShader = surfaceShader
         ..paintSurface = paintSurface
@@ -319,7 +291,6 @@ class RenderFakeGlass extends RenderProxyBox with LivePaintSize {
     required this._shape,
     required this._settings,
     required this._appearance,
-    required this._backdropKey,
     required this._backdropHandledByLayer,
     required this._surfaceShader,
     required bool paintSurface,
@@ -381,14 +352,6 @@ class RenderFakeGlass extends RenderProxyBox with LivePaintSize {
     if (_appearance == value) return;
     _appearance = value;
     markNeedsCompositingBitsUpdate();
-    markNeedsPaint();
-  }
-
-  BackdropKey? _backdropKey;
-  BackdropKey? get backdropKey => _backdropKey;
-  set backdropKey(BackdropKey? value) {
-    if (_backdropKey == value) return;
-    _backdropKey = value;
     markNeedsPaint();
   }
 
@@ -466,15 +429,9 @@ class RenderFakeGlass extends RenderProxyBox with LivePaintSize {
       deviceScale: devicePixelRatio,
       shapeShortSide: paintSize.shortestSide,
     )!;
-    assert(() {
-      debugRegisterBackdropCapture(this, backdropKey);
-      return true;
-    }(), 'Count independent backdrop captures in debug builds.');
-
     final layer = (this.layer ??= BackdropFilterLayer())
       ..filter = backdropFilter
-      ..blendMode = BlendMode.srcATop
-      ..backdropKey = backdropKey;
+      ..blendMode = BlendMode.srcATop;
 
     if (allowSurfaceOutset) {
       final localBounds = Offset.zero & paintSize;

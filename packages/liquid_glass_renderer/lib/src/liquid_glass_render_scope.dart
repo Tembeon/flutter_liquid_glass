@@ -12,7 +12,6 @@ class LiquidGlassRenderScope extends InheritedWidget {
     this.useFake = false,
     this.consolidatesFakeBackdrop = false,
     this.consolidatesFakeSurface = false,
-    this.backdropKey,
     super.key,
   });
 
@@ -28,9 +27,6 @@ class LiquidGlassRenderScope extends InheritedWidget {
 
   /// Whether the parent layer paints each registered fake surface.
   final bool consolidatesFakeSurface;
-
-  /// The backdrop capture shared by glass effects in this scope, if any.
-  final BackdropKey? backdropKey;
 
   static LiquidGlassRenderScope of(BuildContext context) {
     final scope = context
@@ -64,7 +60,6 @@ class LiquidGlassRenderScope extends InheritedWidget {
         oldWidget.defaultAppearance != defaultAppearance ||
         oldWidget.useFake != useFake ||
         oldWidget.consolidatesFakeBackdrop != consolidatesFakeBackdrop ||
-        oldWidget.consolidatesFakeSurface != consolidatesFakeSurface ||
-        oldWidget.backdropKey != backdropKey;
+        oldWidget.consolidatesFakeSurface != consolidatesFakeSurface;
   }
 }

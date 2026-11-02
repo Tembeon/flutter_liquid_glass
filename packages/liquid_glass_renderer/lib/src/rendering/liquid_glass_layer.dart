@@ -12,7 +12,6 @@ import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/internal/ancestor_clip.dart';
-import 'package:liquid_glass_renderer/src/internal/backdrop_capture_debug.dart';
 import 'package:liquid_glass_renderer/src/internal/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/internal/backdrop_underlay.dart';
 import 'package:liquid_glass_renderer/src/internal/filter_pass_transform.dart';
@@ -94,8 +93,6 @@ class LiquidGlassLayer extends StatefulWidget {
     this.settings = const LiquidGlassSettings(),
     this.defaultAppearance,
     this.fake = false,
-    this.useBackdropGroup = false,
-    this.backdropKey,
     this.field,
     this.backdrop = const LiquidGlassBackdrop.read(),
     this.glow,
@@ -118,8 +115,6 @@ class LiquidGlassLayer extends StatefulWidget {
     required this.child,
     this.defaultAppearance,
     this.fake = false,
-    this.useBackdropGroup = false,
-    this.backdropKey,
     this.backdrop = const LiquidGlassBackdrop.read(),
     this.analyticGeometry = false,
     super.key,
@@ -149,36 +144,6 @@ class LiquidGlassLayer extends StatefulWidget {
   /// The layer also uses [FakeGlass] when Impeller shader filters or Flutter
   /// GPU are unavailable, for example on Skia.
   final bool fake;
-
-  /// Whether to share a [BackdropGroup] capture for backdrop effects.
-  ///
-  /// The nearest ancestor group is used when one exists. Otherwise this layer
-  /// creates a local group so its FakeGlass shapes can share backdrop capture
-  /// work. Multiple [LiquidGlassLayer]s need a common ancestor group or an
-  /// explicit shared [backdropKey] to share across layer boundaries.
-  ///
-  /// On Impeller, each independent backdrop capture reads back the screen
-  /// before any blur or glass work. Sharing one [BackdropGroup] or
-  /// [BackdropKey] pays for that readback once, which can noticeably reduce
-  /// GPU load when several layers are on screen.
-  ///
-  /// Shared members do not see content painted between them. Group only
-  /// elements that sit over the same content plane (for example all root
-  /// chrome). Do not put a sheet and the FAB above it in one group.
-  ///
-  /// This applies consistently to real and fake glass and is independent from
-  /// [LiquidGlassBlendGroup], which only controls geometry blending.
-  /// [backdropKey] takes precedence when both are provided.
-  ///
-  /// Defaults to false.
-  final bool useBackdropGroup;
-
-  /// An explicit backdrop capture key for blur and refraction sharing.
-  ///
-  /// Multiple non-overlapping glass effects can reuse the same key to avoid
-  /// repeated backdrop captures. Effects that overlap should use different
-  /// keys because Flutter treats a shared key as a single backdrop filter.
-  final BackdropKey? backdropKey;
 
   /// The distance field of the one body this layer's shapes form, when the
   /// caller has fused them already.
@@ -392,27 +357,11 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
 
   @override
   Widget build(BuildContext context) {
-    if (widget.backdropKey == null &&
-        widget.useBackdropGroup &&
-        BackdropGroup.of(context) == null) {
-      return BackdropGroup(
-        child: Builder(builder: _buildLayer),
-      );
-    }
-    return _buildLayer(context);
-  }
-
-  Widget _buildLayer(BuildContext context) {
     final defaultAppearance =
         widget.defaultAppearance ??
         LiquidGlassAppearance.ios27Regular(
           brightness: MediaQuery.platformBrightnessOf(context),
         );
-    final backdropKey =
-        widget.backdropKey ??
-        (widget.useBackdropGroup
-            ? BackdropGroup.of(context)?.backdropKey
-            : null);
     final shaderFiltersSupported = ImageFilter.isShaderFilterSupported;
     if (!widget.fake && shaderFiltersSupported) {
       // Keep uncached GPU setup out of build: acquiring the engine's context
@@ -437,7 +386,6 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
       }
 
       return _buildFakeLayer(
-        backdropKey: backdropKey,
         defaultAppearance: defaultAppearance,
         settings: _settings,
         child: KeyedSubtree(key: _childKey, child: widget.child),
@@ -448,7 +396,6 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
       child: LiquidGlassRenderScope(
         settings: _settings,
         defaultAppearance: defaultAppearance,
-        backdropKey: backdropKey,
         child: InheritedGeometryRenderLink(
           link: _link,
           child: MultiShaderBuilder(
@@ -457,7 +404,6 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
               return _RawShapes(
                 key: _shapesKey,
                 finalShaders: shaders,
-                backdropKey: backdropKey,
                 field: _field,
                 solidBackdrop: solidColorOf(widget.backdrop),
                 glow: _glow,
@@ -478,7 +424,6 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
   }
 
   Widget _buildFakeLayer({
-    required BackdropKey? backdropKey,
     required LiquidGlassAppearance defaultAppearance,
     required LiquidGlassSettings settings,
     required Widget child,
@@ -496,14 +441,12 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
           defaultAppearance: defaultAppearance,
           consolidatesFakeBackdrop: true,
           consolidatesFakeSurface: true,
-          backdropKey: backdropKey,
           child: InheritedGeometryRenderLink(
             link: _link,
             child: ConsolidatedFakeGlassLayer(
               link: _link,
               settings: settings,
               defaultAppearance: defaultAppearance,
-              backdropKey: backdropKey,
               surfaceShader: surfaceShader,
               child: child,
             ),
@@ -523,7 +466,6 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
 class _RawShapes extends SingleChildRenderObjectWidget {
   const _RawShapes({
     required this.finalShaders,
-    required this.backdropKey,
     required this.field,
     required this.solidBackdrop,
     required this.glow,
@@ -538,7 +480,6 @@ class _RawShapes extends SingleChildRenderObjectWidget {
   });
 
   final List<FragmentShader> finalShaders;
-  final BackdropKey? backdropKey;
   final LiquidGlassField? field;
 
   final Color? solidBackdrop;
@@ -558,7 +499,6 @@ class _RawShapes extends SingleChildRenderObjectWidget {
     return RenderLiquidGlassLayer(
         devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
         finalShaders: finalShaders,
-        backdropKey: backdropKey,
         settings: settings,
         defaultAppearance: defaultAppearance,
         link: link,
@@ -581,7 +521,6 @@ class _RawShapes extends SingleChildRenderObjectWidget {
       ..devicePixelRatio = MediaQuery.devicePixelRatioOf(context)
       ..settings = settings
       ..defaultAppearance = defaultAppearance
-      ..backdropKey = backdropKey
       ..gpuGeometryRenderer = gpuGeometryRenderer
       ..matteScale = matteScale
       ..field = field
@@ -621,7 +560,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     with TransformTrackingRenderObjectMixin {
   RenderLiquidGlassLayer({
     required this.finalShaders,
-    required super.backdropKey,
     required super.devicePixelRatio,
     required super.settings,
     required super.defaultAppearance,
@@ -1031,7 +969,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   BackdropUnderlay get debugUnderlay => _underlay;
 
-  bool get _wantsUnderlay => BackdropUnderlay.enabled && backdropKey == null;
+  bool get _wantsUnderlay => BackdropUnderlay.enabled;
 
   /// See [LiquidGlassLayer.glow].
   LiquidGlassGlow? get glow => _glow;
@@ -1780,7 +1718,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (pass != null) {
       pass.bindFilter(
         layer,
-        backdropKey,
+        null,
         full: full,
         blur: sigma > 0
             ? PassBlur(
@@ -1790,8 +1728,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
               )
             : null,
       );
-    } else {
-      layer.backdropKey = backdropKey;
     }
   }
 
@@ -1883,12 +1819,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
     final filterBounds = _syncMaterialFilter(materialBounds, offset);
     final shaderLayer = _shaderHandle.layer;
-    assert(() {
-      if (!drawableEmpty && shaderLayer != null) {
-        debugRegisterBackdropCapture(this, backdropKey);
-      }
-      return true;
-    }(), 'Count independent backdrop captures in debug builds.');
 
     void paintClipped(PaintingContext context, Offset offset) {
       _clipRectLayerHandle.layer = context.pushClipRect(

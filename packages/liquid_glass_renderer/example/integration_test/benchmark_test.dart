@@ -467,7 +467,6 @@ enum BenchmarkScenario {
   independent8Motion,
   independent16Motion,
   litIndependent16Motion,
-  independent16SharedBackdrop,
   sparse16Motion,
   relativeBlendMotion,
   relativeBlend3Motion,
@@ -848,7 +847,6 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
         count: 4,
         t: t,
         fake: true,
-        shareBackdrop: true,
       ),
       BenchmarkScenario.fakeUngrouped4Motion => _groupedGrid(
         settings: settings,
@@ -915,27 +913,6 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
         settings: litSettings,
         count: 16,
         t: t,
-      ),
-      BenchmarkScenario.independent16SharedBackdrop => BackdropGroup(
-        child: Center(
-          child: Transform.translate(
-            offset: Offset(30 * math.sin(t * math.pi * 2), 0),
-            child: Wrap(
-              alignment: WrapAlignment.center,
-              children: List.generate(
-                16,
-                (index) => LiquidGlass.withOwnLayer(
-                  settings: settings,
-                  useBackdropGroup: true,
-                  shape: LiquidRoundedSuperellipse(
-                    borderRadius: 8.0 + index,
-                  ),
-                  child: _tile(index, size: 72),
-                ),
-              ),
-            ),
-          ),
-        ),
       ),
       BenchmarkScenario.sparse16Motion => _sparseGroup(
         settings: settings,
@@ -1369,7 +1346,6 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
     required double t,
     double blend = 24,
     bool fake = false,
-    bool shareBackdrop = false,
     bool variedAppearance = false,
     bool animateVisibility = false,
     LiquidGlassAppearance? defaultAppearance,
@@ -1380,7 +1356,6 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
       settings: settings,
       defaultAppearance: defaultAppearance,
       fake: fake,
-      useBackdropGroup: shareBackdrop,
       child: Center(
         child: Transform.translate(
           offset: Offset(30 * math.sin(t * math.pi * 2), 0),

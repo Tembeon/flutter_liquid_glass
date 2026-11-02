@@ -156,7 +156,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
     required this._link,
     required this._settings,
     required this._defaultAppearance,
-    required this._backdropKey,
     required this._devicePixelRatio,
   });
 
@@ -227,14 +226,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
   /// Called after [defaultAppearance] changed, before [markNeedsPaint].
   @protected
   void onAppearanceChanged() {}
-
-  BackdropKey? _backdropKey;
-  BackdropKey? get backdropKey => _backdropKey;
-  set backdropKey(BackdropKey? value) {
-    if (_backdropKey == value) return;
-    _backdropKey = value;
-    markNeedsPaint();
-  }
 
   double _devicePixelRatio;
   double get devicePixelRatio => _devicePixelRatio;

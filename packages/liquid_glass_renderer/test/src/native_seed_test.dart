@@ -24,12 +24,10 @@ const _noBlur = LiquidGlassSettings(frost: 0, refractionAmount: 24);
 Widget _glass({
   bool fake = false,
   LiquidGlassSettings settings = _settings,
-  BackdropKey? key,
   LiquidGlassAppearance? appearance,
 }) => LiquidGlass.withOwnLayer(
   fake: fake,
   settings: settings,
-  backdropKey: key,
   appearance: appearance,
   shape: _pill,
   child: const SizedBox(width: 200, height: 64),
@@ -79,13 +77,6 @@ Future<void> _pump(WidgetTester tester, Widget scene) async {
   await tester.pumpWidget(scene);
   await tester.pump();
   await tester.pump();
-}
-
-double _sigmaOf(ui.ImageFilter filter) {
-  final match = RegExp(
-    r'ImageFilter\.blur\(([\d.]+), ',
-  ).firstMatch(filter.toString());
-  return double.parse(match!.group(1)!);
 }
 
 void main() {
@@ -525,99 +516,20 @@ void main() {
       );
     }
 
-    for (final fake in [false, true]) {
-      for (final mode in [
-        BackdropSeed.identity,
-        BackdropSeed.blur,
-      ]) {
-        testWidgets(
-          "the caller's own key is used, with alternating filters "
-          '(${fake ? 'fake' : 'real'}, ${mode.name})',
-          (tester) async {
-            SeededBackdropPassLayer.debugModeOverride = mode;
-            final key = BackdropKey();
-            await _pump(
-              tester,
-              _scene([
-                _at(100, 100, _glass(fake: fake, key: key)),
-                _at(100, 350, _glass(fake: fake, key: key)),
-                _at(100, 600, _glass(fake: fake, key: key)),
-              ]),
-            );
-            final passes = _passes(tester);
-            expect(passes, hasLength(3));
-            expect(passes.map((p) => p.debugSeedKey), everyElement(same(key)));
-            expect(passes.every((p) => p.debugSeedShared), isTrue);
-            // Impeller runs a key's filter once over the whole texture when
-            // all of them are equal, so neighbours differ.
-            final filters = [for (final p in passes) p.debugSeedFilter!];
-            for (var i = 1; i < filters.length; i++) {
-              if (mode == BackdropSeed.blur) {
-                expect(
-                  (_sigmaOf(filters[i]) - _sigmaOf(filters[i - 1])).abs(),
-                  greaterThan(1e-3),
-                );
-              } else {
-                expect(filters[i].toString(), isNot(filters[i - 1].toString()));
-              }
-            }
-            // Beyond two, the pattern alternates, so no neighbours are equal.
-            expect(filters[0].toString(), filters[2].toString());
-          },
-          skip: !fake && skipProperGlassTests,
-        );
-      }
-    }
-
-    testWidgets('a BackdropGroup shares the key of its seeds', (tester) async {
-      SeededBackdropPassLayer.debugModeOverride = BackdropSeed.blur;
-      Widget grouped(double top) => _at(
-        100,
-        top,
-        const LiquidGlassLayer(
-          fake: true,
-          useBackdropGroup: true,
-          settings: _settings,
-          child: LiquidGlass(
-            shape: _pill,
-            child: SizedBox(width: 200, height: 64),
-          ),
-        ),
-      );
-      await _pump(
-        tester,
-        _scene([
-          BackdropGroup(
-            child: Stack(
-              children: [grouped(100), grouped(300), grouped(500)],
-            ),
-          ),
-        ]),
-      );
-      final passes = _passes(tester);
-      expect(passes, hasLength(3));
-      expect({for (final p in passes) p.debugSeedKey}, hasLength(1));
-      expect(passes.first.debugSeedKey, isNotNull);
-      expect(passes.every((p) => p.debugSeedShared), isTrue);
-    });
-
     testWidgets('with seeds off no pass exists and keys are untouched', (
       tester,
     ) async {
-      final key = BackdropKey();
       await _pump(
         tester,
         _scene([
           _at(100, 100, _glass(fake: true)),
-          _at(100, 300, _glass(fake: true, key: key)),
+          _at(100, 300, _glass(fake: true)),
         ]),
       );
       expect(_passes(tester), isEmpty);
-      expect(
-        _filters(tester).map((f) => f.backdropKey),
-        unorderedEquals([isNotNull, same(key)]),
-        reason: 'the fake layer keeps its own key, the glass its own',
-      );
+      final keys = [for (final f in _filters(tester)) f.backdropKey];
+      expect(keys, everyElement(isNotNull));
+      expect(keys.toSet(), hasLength(2), reason: 'each fake layer has its own');
     });
   });
 

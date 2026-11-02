@@ -6,7 +6,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/internal/backdrop_capture_debug.dart';
 import 'package:liquid_glass_renderer/src/internal/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/internal/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/internal/paint_fake_glass_surface.dart';
@@ -27,7 +26,6 @@ class ConsolidatedFakeGlassLayer extends SingleChildRenderObjectWidget {
     required this.link,
     required this.settings,
     required this.defaultAppearance,
-    required this.backdropKey,
     required this.surfaceShader,
     required super.child,
     super.key,
@@ -36,7 +34,6 @@ class ConsolidatedFakeGlassLayer extends SingleChildRenderObjectWidget {
   final GeometryRenderLink link;
   final LiquidGlassSettings settings;
   final LiquidGlassAppearance defaultAppearance;
-  final BackdropKey? backdropKey;
   final FragmentShader? surfaceShader;
   @override
   RenderObject createRenderObject(BuildContext context) =>
@@ -45,7 +42,6 @@ class ConsolidatedFakeGlassLayer extends SingleChildRenderObjectWidget {
         link: link,
         settings: settings,
         defaultAppearance: defaultAppearance,
-        backdropKey: backdropKey,
         surfaceShader: surfaceShader,
       );
 
@@ -59,7 +55,6 @@ class ConsolidatedFakeGlassLayer extends SingleChildRenderObjectWidget {
       ..link = link
       ..settings = settings
       ..defaultAppearance = defaultAppearance
-      ..backdropKey = backdropKey
       ..surfaceShader = surfaceShader;
   }
 }
@@ -78,7 +73,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     required super.link,
     required super.settings,
     required super.defaultAppearance,
-    required super.backdropKey,
     required this._surfaceShader,
   });
 
@@ -101,14 +95,11 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
 
   final _retainedFrameSlot = LayerHandle<ContainerLayer>();
 
-  /// Capture shared by this layer's own backdrop filters when the user did
-  /// not provide a [backdropKey] or [BackdropGroup]. Without it, a
+  /// Capture shared by this layer's own backdrop filters. Without it, a
   /// separately served shape would sample the shared filter's output in
   /// overlapping pixels and compound both transfers; sharing one capture
   /// also collapses their backdrop readbacks into one.
-  final _ownBackdropKey = BackdropKey();
-
-  BackdropKey get _effectiveBackdropKey => backdropKey ?? _ownBackdropKey;
+  final _backdropKey = BackdropKey();
 
   /// Per-shape backdrop passes for shapes the shared union clip cannot
   /// serve: shapes that are fading (0 < visibility < 1) or whose appearance
@@ -352,10 +343,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
         final backdropLayer = (_backdropLayer.layer ??= BackdropFilterLayer())
           ..filter = sharedFilter.full
           ..blendMode = BlendMode.srcOver;
-        assert(() {
-          debugRegisterBackdropCapture(this, _effectiveBackdropKey);
-          return true;
-        }(), 'Count independent backdrop captures in debug builds.');
         _paintInPass(
           effectContext,
           effectOffset,
@@ -481,10 +468,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
         final backdropLayer = (layers.backdrop.layer ??= BackdropFilterLayer())
           ..filter = filter.full
           ..blendMode = BlendMode.srcOver;
-        assert(() {
-          debugRegisterBackdropCapture(this, _effectiveBackdropKey);
-          return true;
-        }(), 'Count independent backdrop captures in debug builds.');
         final shapeToLayer = shape.shapeToGeometry == null
             ? geometryToLayer
             : geometryToLayer.multiplied(shape.shapeToGeometry!);
@@ -601,7 +584,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     required Rect inner,
     required double reach,
   }) {
-    final key = _effectiveBackdropKey;
+    final key = _backdropKey;
     // A glass without a blur, or that is nothing but a blur, needs no seed.
     final seeds =
         seedsBackdrop &&

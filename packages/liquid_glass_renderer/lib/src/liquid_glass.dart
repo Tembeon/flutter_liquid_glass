@@ -126,8 +126,6 @@ class LiquidGlass extends StatefulWidget {
     required LiquidShape this._shape,
     LiquidGlassSettings settings = const LiquidGlassSettings(),
     bool fake = false,
-    bool useBackdropGroup = false,
-    BackdropKey? backdropKey,
     super.key,
     this.clipBehavior = Clip.hardEdge,
     this._shadows = const [],
@@ -136,8 +134,6 @@ class LiquidGlass extends StatefulWidget {
        _ownLayerConfig = (
          settings: settings,
          fake: fake,
-         useBackdropGroup: useBackdropGroup,
-         backdropKey: backdropKey,
        ),
        _auto = true,
        frame = null;
@@ -173,8 +169,6 @@ class LiquidGlass extends StatefulWidget {
     required LiquidShape this._shape,
     LiquidGlassSettings settings = const LiquidGlassSettings(),
     bool fake = false,
-    bool useBackdropGroup = false,
-    BackdropKey? backdropKey,
     super.key,
     this.clipBehavior = Clip.hardEdge,
     this._shadows = const [],
@@ -182,8 +176,6 @@ class LiquidGlass extends StatefulWidget {
   }) : _ownLayerConfig = (
          settings: settings,
          fake: fake,
-         useBackdropGroup: useBackdropGroup,
-         backdropKey: backdropKey,
        ),
        _grouped = false,
        _auto = false,
@@ -401,8 +393,6 @@ class _LiquidGlassState extends State<LiquidGlass> {
         settings: config.settings,
         defaultAppearance: widget.appearance,
         fake: config.fake,
-        useBackdropGroup: config.useBackdropGroup,
-        backdropKey: config.backdropKey,
         child: Builder(builder: _buildGlass),
       );
     }
@@ -555,8 +545,6 @@ enum _LiquidGlassAncestorBoundary { none, glass, layer }
 typedef _OwnLayerConfig = ({
   LiquidGlassSettings settings,
   bool fake,
-  bool useBackdropGroup,
-  BackdropKey? backdropKey,
 });
 
 class _RawLiquidGlass extends SingleChildRenderObjectWidget {

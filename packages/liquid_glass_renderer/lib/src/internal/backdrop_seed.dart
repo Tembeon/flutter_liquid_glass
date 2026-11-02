@@ -527,7 +527,8 @@ BackdropPassPlan planSeededBackdropPass({
 /// small pass without its blur. Its shaders see a pass with a known origin.
 ///
 /// Every seed reads the backdrop for itself. It shares one read with other
-/// seeds only through the key the glass was given (a `BackdropGroup`): when
+/// seeds only through the key the glass was given (the shapes of one fake
+/// glass layer share one): when
 /// every filter of a key is equal, Impeller runs that filter once over the
 /// whole texture with no crop, so seeds of one key alternate between two
 /// filters that differ by far less than a pixel ([seedSigmaStep],

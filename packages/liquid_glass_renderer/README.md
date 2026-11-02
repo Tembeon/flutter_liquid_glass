@@ -427,24 +427,22 @@ that copy after the bar's.
 | | The top glass shows | Trade-off |
 | --- | --- | --- |
 | Shapes in one `LiquidGlassLayer` | The content below | Shared settings; the shapes can't refract each other. |
-| Layers sharing a `BackdropGroup` (`useBackdropGroup: true`) | The content below, not the other glass | The indicator doesn't look like it sits on the bar. |
 | Independent layers (default) | The glass below | One more copy for the glass on top. |
 
 ## Performance
 
-The unit of cost is the backdrop copy, not the glass widget. Every
-independent `BackdropFilter`, and so every independent layer, copies the
-backdrop before it can blur or refract it. On top of that copy, a plain blur,
-`FakeGlass` and full glass each cost progressively more, and every glass
-shadow adds its own cost.
+The unit of cost is the backdrop read, not the glass widget. Glass paints
+over a copy of what lies under it (see [Glass on glass](#glass-on-glass)), and
+a frame whose glass all paints over copies skips Impeller's offscreen pass and
+its screen readbacks. Glass reads the screen live only where no copy can be
+drawn: over a texture, a platform view, or glass that itself reads live. On
+top of that, a plain blur, `FakeGlass` and full glass each cost progressively
+more, and every glass shadow adds its own cost.
 
 Best practices:
 
-- **Count backdrop copies per frame.** Put siblings in one layer. Layers over
-  the same content can share one copy with `useBackdropGroup: true` or a
-  shared `backdropKey`; shared members don't see what paints between them. In
-  debug builds the package logs a warning when a frame makes more than one
-  independent copy.
+- **Put siblings in one layer.** A layer draws all its shapes together and
+  pays its own per-layer work once.
 - **Keep layers small.** A layer's cost grows with the area its glass covers.
 - **Don't animate blend-group geometry every frame.** Moving one shape in a
   group re-renders the whole group's geometry, which can drop frames. Static
