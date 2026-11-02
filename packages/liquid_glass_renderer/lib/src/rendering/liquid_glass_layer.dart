@@ -2108,11 +2108,15 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       devicePixelRatio: dpr,
       translation: compositorTranslation,
     );
-    // The copy is blurred in screen space, as the filter's blur reads the
-    // backdrop only for glass that is not scaled or turned.
+    // The copy is taken in screen space: glass that is turned or stretched
+    // reads the backdrop. A uniform scale scales the filter's blur and reach
+    // on the screen; Impeller blurs a scaled canvas with other taps than the
+    // same blur unscaled, a few channel steps apart: NEAR, and only while
+    // the glass is scaled.
     final storage = screen.storage;
-    if ((storage[0] - 1).abs() > 1e-6 ||
-        (storage[5] - 1).abs() > 1e-6 ||
+    final scale = storage[0];
+    if (scale <= 0 ||
+        (storage[5] - scale).abs() > 1e-6 ||
         storage[1].abs() > 1e-6 ||
         storage[4].abs() > 1e-6) {
       return null;
@@ -2123,13 +2127,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       screen,
       bounds.expandToPixelBuckets(dpr),
     );
-    final frost = _frostSigmaForCurrentShapes();
-    // The frost blurs the copy as the filter's blur reads the backdrop: in
-    // screen space, in the same tile mode.
+    final frost = _frostSigmaForCurrentShapes() * scale;
     final copy = _underlay.imageFor(
       anchor: anchor,
       devicePixelRatio: dpr,
-      region: logical.inflate(backdropSamplingReach(bounds) + 1),
+      region: logical.inflate((backdropSamplingReach(bounds) + 1) * scale),
       screen: Offset.zero & view.size,
       filter: frost > 0
           ? ui.ImageFilter.blur(
