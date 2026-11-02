@@ -428,7 +428,6 @@ class RenderMotionTransition extends RenderProxyBox {
 /// one layer that adds a transform, a clip, an opacity and a blur to the
 /// scene, each only while it is not identity, and keeps each engine layer
 /// for retained rendering.
-@internal
 class MotionTransitionLayer extends OffsetLayer {
   Matrix4? _transform;
   RRect? _clip;
@@ -466,6 +465,18 @@ class MotionTransitionLayer extends OffsetLayer {
     _blur = blur;
     markNeedsAddToScene();
   }
+
+  /// The transform the layer adds, its offset included.
+  Matrix4 get total => _total;
+
+  /// The rounded clip the layer adds inside [total], or null.
+  RRect? get clip => _clip;
+
+  /// The opacity the layer adds inside the clip, or null.
+  int? get alpha => _alpha;
+
+  /// The blur sigma the layer adds innermost; zero adds none.
+  double get blur => _blur;
 
   Matrix4 get _total {
     final total = Matrix4.translationValues(offset.dx, offset.dy, 0);

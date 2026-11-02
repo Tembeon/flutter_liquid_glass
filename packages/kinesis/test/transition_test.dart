@@ -1,7 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
-import 'package:kinesis/src/screen/transition.dart';
 
 class _Counted extends LeafRenderObjectWidget {
   const _Counted();
