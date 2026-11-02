@@ -24,7 +24,6 @@ import 'package:liquid_glass_renderer/src/internal/rounded_superellipse_paramete
 import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_backdrop.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_capture.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_render_scope.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_settings.dart';
@@ -1032,10 +1031,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   BackdropUnderlay get debugUnderlay => _underlay;
 
-  bool get _wantsUnderlay =>
-      BackdropUnderlay.enabled &&
-      backdropKey == null &&
-      RenderLiquidGlassCapture.enclosing(this) == null;
+  bool get _wantsUnderlay => BackdropUnderlay.enabled && backdropKey == null;
 
   /// See [LiquidGlassLayer.glow].
   LiquidGlassGlow? get glow => _glow;
@@ -1565,10 +1561,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (pass != null) captured = captured.intersect(pass.shift(translation));
     final ancestorClips = [
       retainedClipBounds,
-      localPaintClipAbove(
-        this,
-        stopAt: (ancestor) => ancestor is RenderLiquidGlassCapture,
-      ),
+      localPaintClipAbove(this),
     ];
     for (final ancestorClip in ancestorClips) {
       if (ancestorClip != null) captured = captured.intersect(ancestorClip);

@@ -18,7 +18,6 @@ const _outsideComposer = {
   'lib/src/fake_glass.dart': 1,
   'lib/src/internal/backdrop_seed.dart': 2,
   'lib/src/internal/backdrop_underlay.dart': 16,
-  'lib/src/internal/capture_pass.dart': 1,
   'lib/src/internal/warm_up.dart': 5,
   'lib/src/liquid_glass_backdrop_filter_layer.dart': 3,
   'lib/src/rendering/consolidated_fake_glass_layer.dart': 4,

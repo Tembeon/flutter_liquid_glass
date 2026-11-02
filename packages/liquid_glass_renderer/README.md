@@ -38,7 +38,7 @@ private material APIs.
 - [Glint](#glint)
 - [Visibility](#visibility)
 - [FakeGlass](#fakeglass)
-- [Glass on glass and `LiquidGlassCapture`](#glass-on-glass-and-liquidglasscapture)
+- [Glass on glass](#glass-on-glass)
 - [Performance](#performance)
 - [Example playground](#example-playground)
 
@@ -122,7 +122,6 @@ precache instead, at the cost of an offscreen frame on every launch.
 | `LiquidGlassLayer` | Samples the backdrop once and renders every glass shape below it. Owns the shared `LiquidGlassSettings`. |
 | `LiquidGlass` | One glass shape. Its child paints on top of the glass, clipped to the shape. |
 | `LiquidGlassBlendGroup` | Melts the `LiquidGlass.grouped` shapes inside it into one surface. |
-| `LiquidGlassCapture` | Captures the backdrop once for glass that sits on other glass. |
 | `LiquidGlassVisibility` | Fades the glass in a subtree in and out. |
 | `FakeGlass` | The fallback without refraction, used automatically where full glass is unavailable. |
 | `LiquidGlassSettings` | Refraction, frost, glint, border and inner shadow, shared by a layer. |
@@ -413,48 +412,23 @@ shadow, visibility and exterior shadows. It leaves out refraction,
 `FakeGlass` is not a cheaper mode: it pays for the same backdrop readback and
 blur as full glass (see below).
 
-## Glass on glass and `LiquidGlassCapture`
+## Glass on glass
 
 Apple's guidance is not to stack glass on glass. Sometimes you have to, for
 example with an indicator that slides over its tab bar and should refract it.
 
-Every `LiquidGlassLayer` is a `BackdropFilter`, and on Impeller each one copies
-the whole render pass behind it, usually the entire screen. Two independent
-layers pay that copy twice. You have four options:
+Where it can, glass doesn't read the screen live. Each layer paints over a
+copy of what lies under it, drawn from the layer tree while the frame
+composites and kept while that content stays the same. Glass that sits close
+together shares one copy. Glass on glass works the same way: the copy under
+the indicator holds the bar, so the indicator refracts it, and the frame draws
+that copy after the bar's.
 
-| | Backdrop copies | The top glass shows | Trade-off |
-| --- | --- | --- | --- |
-| Shapes in one `LiquidGlassLayer` | 1 | The content below | Shared settings; the shapes can't refract each other. |
-| Layers sharing a `BackdropGroup` (`useBackdropGroup: true`) | 1 | The content below, not the other glass | The indicator doesn't look like it sits on the bar. |
-| Independent layers (default) | 1 per layer | The glass below | Cost grows with every layer. |
-| Layers inside a `LiquidGlassCapture` | 1 small copy for the capture | The glass below | Content the glass refracts must paint outside the capture. |
-
-`LiquidGlassCapture` copies the backdrop once, only as large as the glass
-inside it, and the layers inside read from that small copy. The result looks
-the same as independent layers.
-
-```dart
-Stack(
-  children: [
-    content,
-    Align(
-      alignment: Alignment.bottomCenter,
-      child: LiquidGlassCapture(
-        child: LiquidGlassLayer(
-          // the bar
-          child: LiquidGlassLayer(
-            // the indicator, refracting the bar
-          ),
-        ),
-      ),
-    ),
-  ],
-)
-```
-
-The capture sizes itself to the glass inside plus its blur, refraction and
-shadows. Pass `bleed` to size it yourself. A capture the size of the screen
-saves nothing.
+| | The top glass shows | Trade-off |
+| --- | --- | --- |
+| Shapes in one `LiquidGlassLayer` | The content below | Shared settings; the shapes can't refract each other. |
+| Layers sharing a `BackdropGroup` (`useBackdropGroup: true`) | The content below, not the other glass | The indicator doesn't look like it sits on the bar. |
+| Independent layers (default) | The glass below | One more copy for the glass on top. |
 
 ## Performance
 

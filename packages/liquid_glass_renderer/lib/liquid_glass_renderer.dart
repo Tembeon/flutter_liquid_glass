@@ -12,7 +12,6 @@ export 'src/liquid_glass_backdrop.dart' show LiquidGlassBackdrop;
 export 'src/liquid_glass_backdrop_filter_layer.dart'
     show LiquidGlassBackdropFilterLayer;
 export 'src/liquid_glass_blend_group.dart' show LiquidGlassBlendGroup;
-export 'src/liquid_glass_capture.dart' show LiquidGlassCapture;
 export 'src/liquid_glass_color_model.dart' show LiquidGlassColorModel;
 export 'src/liquid_glass_field.dart' show LiquidGlassField;
 export 'src/liquid_glass_glow.dart' show LiquidGlassGlow;

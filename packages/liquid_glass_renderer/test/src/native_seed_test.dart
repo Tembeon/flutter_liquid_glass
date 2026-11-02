@@ -115,33 +115,6 @@ void main() {
       expect(_passes(tester), isEmpty);
     }, skip: skipProperGlassTests);
 
-    for (final fake in [false, true]) {
-      testWidgets(
-        'glass inside a LiquidGlassCapture reads the capture without a pass '
-        '(${fake ? 'fake' : 'real'})',
-        (tester) async {
-          SeededBackdropPassLayer.debugModeOverride = BackdropSeed.blur;
-          await _pump(
-            tester,
-            _scene([
-              _at(100, 100, _glass(fake: fake)),
-              _at(100, 400, LiquidGlassCapture(child: _glass(fake: fake))),
-            ]),
-          );
-          // Only the glass outside the capture is seeded.
-          expect(
-            _passes(tester).where((p) => p.nativeSeed != BackdropSeed.none),
-            hasLength(1),
-          );
-          expect(
-            _passes(tester).single.plan.globalRect!.top,
-            lessThan(400),
-          );
-        },
-        skip: !fake && skipProperGlassTests,
-      );
-    }
-
     testWidgets('fake glass that is only a blur stays native', (tester) async {
       SeededBackdropPassLayer.debugModeOverride = BackdropSeed.identity;
       await _pump(
