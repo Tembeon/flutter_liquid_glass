@@ -67,6 +67,15 @@ class BackdropUnderlay {
   double _pixelRatio = 0;
   List<Object?> _signature = const [];
 
+  /// Draws the copies recorded in this frame and not drawn yet. The view's
+  /// composer calls it once every glass of the frame has asked for its
+  /// copy, so no copy is drawn while the scene is built.
+  static void drawPending() {
+    _Atlas.reason = 'planned';
+    _Atlas.flush();
+    _Atlas.reason = null;
+  }
+
   /// How many copies were taken.
   @visibleForTesting
   int debugCaptures = 0;
@@ -86,7 +95,8 @@ class BackdropUnderlay {
   static final debugEdgeSigns = <String, int>{};
 
   /// How many times the copies were drawn with copies pending, by what
-  /// asked for them: a scroll edge signed, a read, or the frame's end.
+  /// asked for them: the composer once the frame was planned, a scroll edge
+  /// signed, a read, or the frame's end.
   @visibleForTesting
   static final debugFlushes = <String, int>{};
 

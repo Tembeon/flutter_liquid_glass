@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:liquid_glass_renderer/src/internal/backdrop_underlay.dart';
 import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
 import 'package:meta/meta.dart';
@@ -19,7 +20,8 @@ import 'package:meta/meta.dart';
 /// moved past what its retained layers can follow repaints in this frame.
 /// After paint it walks the view's layers in paint order and has every
 /// [ComposedLayer] make its decisions for the frame, then submits the
-/// frame's flutter_gpu passes once.
+/// frame's flutter_gpu passes and draws the frame's copies of what lies
+/// under glass, before any scene is built.
 ///
 /// One composer per view owner, adopted by the first glass that attaches
 /// there ([track]) and dropped and disposed when the last one detaches, so a
@@ -121,6 +123,8 @@ final class GlassComposer extends PipelineOwner {
     census.frames++;
     census.sites += _sites.length;
     _frame++;
+    // Copies drawn while composing replay glass whose mattes paint wrote.
+    FlutterGpuGeometryRenderer.flushPendingSubmissions();
     final root = _root();
     if (root != null) {
       _composing = true;
@@ -131,6 +135,7 @@ final class GlassComposer extends PipelineOwner {
       }
     }
     FlutterGpuGeometryRenderer.flushPendingSubmissions();
+    BackdropUnderlay.drawPending();
   }
 
   ContainerLayer? _root() {

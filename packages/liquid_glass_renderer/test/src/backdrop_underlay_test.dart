@@ -494,4 +494,22 @@ void main() {
     await tester.pumpWidget(_pairScene(top: 160, shadowed: true));
     expect(BackdropUnderlay.debugIslands[2], before + 1);
   }, skip: skipProperGlassTests);
+
+  testWidgets('the composer draws the copies of a frame before its scene', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(260, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    BackdropUnderlay.debugEnabledOverride = true;
+    addTearDown(() => BackdropUnderlay.debugEnabledOverride = null);
+    await tester.pumpWidget(_pairScene(shift: 0.3, top: 200));
+    final flushes = Map.of(BackdropUnderlay.debugFlushes);
+    await tester.pumpWidget(_pairScene(top: 200));
+    expect(
+      BackdropUnderlay.debugFlushes['planned'],
+      (flushes['planned'] ?? 0) + 1,
+    );
+    expect(BackdropUnderlay.debugFlushes['read'], flushes['read']);
+  }, skip: skipProperGlassTests);
 }
