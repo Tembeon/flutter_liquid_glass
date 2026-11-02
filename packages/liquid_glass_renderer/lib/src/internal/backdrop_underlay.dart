@@ -64,6 +64,7 @@ class BackdropUnderlay {
   Rect? _filterClip;
   BlendMode _filterBlendMode = BlendMode.src;
   double _devicePixelRatio = 0;
+  double _pixelRatio = 0;
   List<Object?> _signature = const [];
 
   /// How many copies were taken.
@@ -91,7 +92,9 @@ class BackdropUnderlay {
   /// filter with [filterBlendMode] inside [filterClip] (the whole copy when
   /// null), in screen logical pixels. [filterKey] stands for [filter]: a
   /// copy serves only callers that pass an equal key. [screen] is the view's
-  /// rect. The copy taken in an earlier frame serves while the layers it was
+  /// rect. The copy holds [downscale] device pixels in each of its pixels
+  /// along each side: a copy blurred enough loses nothing drawn smaller.
+  /// The copy taken in an earlier frame serves while the layers it was
   /// drawn from are unchanged; otherwise a new one is recorded now and drawn
   /// with every other copy recorded in the frame, in one image, when the
   /// first of them is read.
@@ -107,9 +110,11 @@ class BackdropUnderlay {
     Object? filterKey,
     Rect? filterClip,
     BlendMode filterBlendMode = BlendMode.src,
+    int downscale = 1,
   }) {
     final dpr = devicePixelRatio;
-    final band = _snapOut(region, dpr).intersect(screen);
+    final pixels = dpr / downscale;
+    final band = _snapOut(region, pixels).intersect(screen);
     if (band.isEmpty) return null;
     final root = _rootOf(anchor);
     final scan = _Scan.of(root, dpr, anchor);
@@ -119,7 +124,8 @@ class BackdropUnderlay {
         filterKey == _filterKey &&
         filterClip == _filterClip &&
         filterBlendMode == _filterBlendMode &&
-        dpr == _devicePixelRatio;
+        dpr == _devicePixelRatio &&
+        pixels == _pixelRatio;
     // Signing replays no pictures: a copy is recorded only once it is
     // known to be drawn now.
     var signed = same
@@ -128,12 +134,12 @@ class BackdropUnderlay {
     final held = signed != null && _same(signed.out, _signature);
     if (held && _contains(_copied, band)) {
       debugMiss = null;
-      return UnderlayCopy._(this, _copied);
+      return UnderlayCopy._(this, _copied, pixels);
     }
     // A caller that moved over content that held still takes room to move
     // on; under content that changes, the copy holds no more than the band.
     final rect = held && filterClip == null
-        ? _snapOut(band.inflate(_margin), dpr).intersect(screen)
+        ? _snapOut(band.inflate(_margin), pixels).intersect(screen)
         : band;
     if (signed == null || signed.band != rect) {
       signed = _Prefix.signed(root, anchor, rect, dpr, scan, limit);
@@ -149,7 +155,7 @@ class BackdropUnderlay {
     final tile = _Tile(
       this,
       rect,
-      dpr,
+      pixels,
       filter,
       filterClip,
       filterBlendMode,
@@ -164,7 +170,7 @@ class BackdropUnderlay {
         scan: scan,
         limit: limit,
       );
-      final picture = replay.record(root, rect);
+      final picture = replay.record(root, rect, pixels);
       if (picture != null) _signature = replay.out;
       return picture;
     }
@@ -183,9 +189,10 @@ class BackdropUnderlay {
     _filterClip = filterClip;
     _filterBlendMode = filterBlendMode;
     _devicePixelRatio = dpr;
+    _pixelRatio = pixels;
     debugCaptures++;
     debugMiss = null;
-    return UnderlayCopy._(this, rect);
+    return UnderlayCopy._(this, rect, pixels);
   }
 
   /// Releases the copy.
@@ -312,17 +319,18 @@ class _Prefix {
   }
 
   // Records what is painted before [stop] in [rect] (screen logical pixels)
-  // in device pixels from the rect's origin, or returns null when that
-  // cannot be drawn again.
-  ui.Picture? record(Layer root, Rect rect) {
+  // at [pixels] per logical pixel from the rect's origin, or returns null
+  // when that cannot be drawn again.
+  ui.Picture? record(Layer root, Rect rect, double pixels) {
     final dpr = devicePixelRatio;
     final c = canvas!;
     // A picture drawn into a canvas clipped to the copy is culled to what
     // reaches it while it is recorded.
     c.clipRect(
-      Rect.fromLTWH(0, 0, rect.width * dpr, rect.height * dpr),
+      Rect.fromLTWH(0, 0, rect.width * pixels, rect.height * pixels),
       doAntiAlias: false,
     );
+    if (pixels != dpr) c.scale(pixels / dpr);
     c.translate(-rect.left * dpr, -rect.top * dpr);
     run(root);
     final content = recorder!.endRecording();
@@ -1631,19 +1639,23 @@ abstract final class _Extent {
 }
 
 /// A copy that [BackdropUnderlay.imageFor] serves: [rect] of the screen, in
-/// logical pixels, at [offset] (device pixels) in [image].
+/// logical pixels, at [offset] (the image's pixels) in [image], at
+/// [pixelRatio].
 ///
 /// A copy recorded this frame is drawn when its [image] or [offset] is first
 /// read, together with every copy recorded before it: a caller that can
 /// wait reads them when the scene is added ([UnderlayPictureLayer]).
 @internal
 final class UnderlayCopy {
-  const UnderlayCopy._(this._underlay, this.rect);
+  const UnderlayCopy._(this._underlay, this.rect, this.pixelRatio);
 
   final BackdropUnderlay _underlay;
 
   /// The screen rect the copy holds, in logical pixels.
   final Rect rect;
+
+  /// The copy's pixels per logical pixel along each side.
+  final double pixelRatio;
 
   /// Whether [image] is drawn already.
   bool get ready => _underlay._image != null;
@@ -1654,7 +1666,7 @@ final class UnderlayCopy {
     return _underlay._image!;
   }
 
-  /// Where [rect]'s top left corner sits in [image], in device pixels.
+  /// Where [rect]'s top left corner sits in [image], in its pixels.
   Offset get offset {
     if (!ready) _Atlas.flush();
     return _underlay._offset;

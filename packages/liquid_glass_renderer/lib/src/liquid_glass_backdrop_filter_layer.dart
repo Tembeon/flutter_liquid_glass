@@ -162,10 +162,10 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
     canvas.drawImageRect(
       copy.image,
       Rect.fromLTRB(
-        source.left * dpr + offset.dx,
-        source.top * dpr + offset.dy,
-        source.right * dpr + offset.dx,
-        source.bottom * dpr + offset.dy,
+        source.left * copy.pixelRatio + offset.dx,
+        source.top * copy.pixelRatio + offset.dy,
+        source.right * copy.pixelRatio + offset.dx,
+        source.bottom * copy.pixelRatio + offset.dy,
       ),
       shown,
       paint,

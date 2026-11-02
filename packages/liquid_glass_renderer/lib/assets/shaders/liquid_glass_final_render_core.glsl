@@ -94,7 +94,9 @@ uniform vec2 uLowResOptics;
 //     lit shape's box, its corner radius and wash. All zero draws no glow.
 // [4] xy uBackdropShrinkAxis: half of the segment backdropShrink shrinks
 //     about, in matte device px from the material center; zero shrinks
-//     about the center itself. zw unused.
+//     about the center itself. z uBackdropReduced: above zero when the copy
+//     a paint samples has fewer pixels than the screen, so no glass reads
+//     its own texel. w unused.
 // [5] uBackdropOverlay: a color laid over the read backdrop at its alpha,
 //     the dimming between a cached copy of the page and the glass.
 uniform vec4 uEffects[6];
@@ -103,6 +105,7 @@ uniform vec4 uEffects[6];
 #define uGlowBox uEffects[2]
 #define uGlowShape uEffects[3]
 #define uBackdropShrinkAxis uEffects[4].xy
+#define uBackdropReduced uEffects[4].z
 #define uBackdropOverlay uEffects[5]
 
 #ifndef ANALYTIC_GEOMETRY
@@ -869,7 +872,11 @@ void main() {
         // sign.
         vec2 sourceOffset = backdropScaleOffset + displacement;
         vec2 refractedUV;
-        if (sourceOffset.x == 0.0 && sourceOffset.y == 0.0) {
+        if (
+            sourceOffset.x == 0.0 &&
+            sourceOffset.y == 0.0 &&
+            uBackdropReduced == 0.0
+        ) {
             // Undisplaced glass fetches its own texel, bypassing the sampler,
             // so it reproduces the backdrop exactly even when the sampler is
             // bilinear (whose fixed-point sub-texel weights are never exactly

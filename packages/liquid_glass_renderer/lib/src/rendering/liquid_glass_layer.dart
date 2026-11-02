@@ -2100,6 +2100,22 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // a filter reads its input: fragment coordinates are taken from the copy's
   // origin (uBackdropOrigin), so the mapping into the matte is the screen's
   // shifted by that origin.
+  /// How many device pixels along each side one pixel of a frosted copy
+  /// stands for at most.
+  ///
+  /// NEAR: a copy drawn at half size differs from the full one by at most 10
+  /// channel levels on the Pixel 6a (5 in the scroll scene, 10 under the
+  /// crowd of buttons), and by 15 in the host test of white text under 8 px
+  /// of frost at dpr 1, where half size draws the text bolder. In return the
+  /// Pixel's rails spend 7 % less on a dot or the Liquid tab and 32 % less
+  /// under the crowd. A quarter size differs by 15 on the Liquid tab and
+  /// saves no more.
+  @visibleForTesting
+  static int debugMaxCopyDownscale = 2;
+
+  // The blur, in the copy's own pixels, that hides its size.
+  static const double _copySigma = 2.5;
+
   PictureLayer? _recordUnderlay() {
     final bounds = _filterMaterialBounds;
     final anchor = layer;
@@ -2133,6 +2149,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // What the shader paints: the material, not the rect it is drawn in.
     final drawn = MatrixUtils.transformRect(screen, bounds);
     final frost = _frostSigmaForCurrentShapes() * scale;
+    // A copy blurred by at least [_copySigma] of its own pixels is drawn as
+    // the blur leaves it at a fraction of the screen's pixels: sampled back
+    // up, it adds a tent of its pixel's width to a blur many times wider.
+    var downscale = 1;
+    while (downscale * 2 <= debugMaxCopyDownscale &&
+        frost * dpr / (downscale * 2) >= _copySigma) {
+      downscale *= 2;
+    }
     final copy = _underlay.imageFor(
       anchor: anchor,
       devicePixelRatio: dpr,
@@ -2146,6 +2170,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
             )
           : null,
       filterKey: frost,
+      downscale: downscale,
     );
     if (copy == null) return null;
     final canvasToScreen = screen.clone();
@@ -2182,7 +2207,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
     ui.Picture record() {
       final image = copy.image;
-      final origin = copy.rect.topLeft * dpr - copy.offset;
+      // The shader reads the copy in device pixels: a smaller copy stands
+      // for an image as many times larger.
+      final stretch = dpr / copy.pixelRatio;
+      final origin = copy.rect.topLeft * dpr - copy.offset * stretch;
       final o = MatrixUtils.transformPoint(globalToMatte, Offset.zero);
       final ax = MatrixUtils.transformPoint(
         globalToMatte,
@@ -2202,10 +2230,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       );
       final shader = renderShader;
       _writeCoordinateMapping(shader, mapping, backdropBounds);
-      shader.setFloat(0, image.width.toDouble());
-      shader.setFloat(1, image.height.toDouble());
+      shader.setFloat(0, image.width * stretch);
+      shader.setFloat(1, image.height * stretch);
       shader.setFloat(_FinalUniforms.backdropOrigin, origin.dx);
       shader.setFloat(_FinalUniforms.backdropOrigin + 1, origin.dy);
+      shader.setFloat(_FinalUniforms.reducedBackdrop, stretch > 1 ? 1 : 0);
       shader.setImageSampler(0, image, filterQuality: FilterQuality.low);
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
@@ -2219,6 +2248,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       // they go back to the filter's.
       shader.setFloat(_FinalUniforms.backdropOrigin, 0);
       shader.setFloat(_FinalUniforms.backdropOrigin + 1, 0);
+      shader.setFloat(_FinalUniforms.reducedBackdrop, 0);
       if (_coordinateMapping case final live?) {
         _writeCoordinateMapping(shader, live, _backdropBounds);
       }
@@ -2938,6 +2968,9 @@ abstract final class _FinalUniforms {
 
   /// uBackdropShrinkAxis, two floats.
   static const int shrinkAxis = 155;
+
+  /// uBackdropReduced, one float.
+  static const int reducedBackdrop = 157;
 
   /// uBackdropOverlay, four floats.
   static const int overlay = 159;
