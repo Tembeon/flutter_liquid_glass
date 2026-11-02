@@ -119,6 +119,11 @@ class BackdropUnderlay {
   /// with every other copy recorded in the frame, in one image, when the
   /// first of them is read.
   ///
+  /// [body] is the rect the caller's glass paints, in screen logical
+  /// pixels: glass painted before [anchor] that does not meet it lies beside
+  /// the caller's glass rather than under it and is left out of the copy, so
+  /// glass side by side never waits on another's copy.
+  ///
   /// Called while the frame composites, when the layers before [anchor] are
   /// final.
   UnderlayCopy? imageFor({
@@ -131,6 +136,7 @@ class BackdropUnderlay {
     Rect? filterClip,
     BlendMode filterBlendMode = BlendMode.src,
     int downscale = 1,
+    Rect? body,
   }) {
     final dpr = devicePixelRatio;
     final pixels = dpr / downscale;
@@ -152,7 +158,7 @@ class BackdropUnderlay {
     // Signing replays no pictures: a copy is recorded only once it is
     // known to be drawn now.
     var signed = same
-        ? _Prefix.signed(root, anchor, _copied, dpr, scan, limit)
+        ? _Prefix.signed(root, anchor, _copied, dpr, scan, limit, body)
         : null;
     final held = signed != null && _same(signed.out, _signature);
     if (held && _contains(_copied, band)) {
@@ -165,7 +171,7 @@ class BackdropUnderlay {
         ? _snapOut(band.inflate(_margin), pixels).intersect(screen)
         : band;
     if (signed == null || signed.band != rect) {
-      signed = _Prefix.signed(root, anchor, rect, dpr, scan, limit);
+      signed = _Prefix.signed(root, anchor, rect, dpr, scan, limit, body);
     }
     if (signed.blocked || !signed.reached) {
       final why = signed.blocked
@@ -196,6 +202,7 @@ class BackdropUnderlay {
         ui.PictureRecorder(),
         scan: scan,
         limit: limit,
+        body: body,
       );
       final picture = replay.record(root, rect, pixels);
       if (picture != null) _signature = replay.out;
@@ -291,6 +298,7 @@ class _Prefix {
     this.recorder, {
     this.scan,
     this.limit,
+    this.body,
   }) : canvas = recorder == null ? null : Canvas(recorder);
 
   // What is painted before [stop] in [band], signed without drawing it.
@@ -301,6 +309,7 @@ class _Prefix {
     double devicePixelRatio,
     _Scan scan,
     int limit,
+    Rect? body,
   ) {
     final prefix = _Prefix(
       stop,
@@ -309,6 +318,7 @@ class _Prefix {
       null,
       scan: scan,
       limit: limit,
+      body: body,
     );
     prefix.run(root);
     return prefix;
@@ -317,6 +327,8 @@ class _Prefix {
   final Layer stop;
   final Rect band;
   final double devicePixelRatio;
+  // The body of the glass the copy is for, if it is for glass.
+  final Rect? body;
   final ui.PictureRecorder? recorder;
   // Without one, glass over a copy that is not drawn yet is left out and
   // noted in [waits]; with one, its copy is drawn now.
@@ -385,7 +397,7 @@ class _Prefix {
   // Whether walking the layer tree finds what the replay found.
   bool _walksAlike(Layer root) {
     final dpr = devicePixelRatio;
-    final walked = _Prefix(stop, band, dpr, null);
+    final walked = _Prefix(stop, band, dpr, null, body: body);
     walked.walk(root, Matrix4.diagonal3Values(1 / dpr, 1 / dpr, 1), null);
     if (walked.blocked != blocked) return false;
     if (blocked) return true;
@@ -451,6 +463,8 @@ class _Prefix {
     var nextFiltered = filtered;
     (Shader, Rect, BlendMode)? mask;
     switch (layer) {
+      case GlassPictureLayer() when beside(clipped(layer.canvasBounds)):
+        return;
       case UnderlayPictureLayer(picture: null):
         if (!reaches(layer.canvasBounds)) return;
         if (layer.pendingLevel case final level? when c == null) {
@@ -718,6 +732,10 @@ class _Prefix {
     c?.restoreToCount(depth);
   }
 
+  // Whether glass drawn inside [bounds] lies beside the copy's glass rather
+  // than under it.
+  bool beside(Rect bounds) => body != null && !_meets(bounds, body!);
+
   static Paint _alpha(int alpha) {
     final paint = Paint();
     paint.color = Color.fromARGB(alpha, 0, 0, 0);
@@ -944,7 +962,18 @@ final class _Scan {
         _add(at, _Glass(layer, transform, clip, state, bounds), bounds);
       case PictureLayer(:final picture?):
         final bounds = reaching(layer.canvasBounds);
-        _add(at, _Leaf(picture, transform, clip, state, bounds), bounds);
+        _add(
+          at,
+          _Leaf(
+            picture,
+            transform,
+            clip,
+            state,
+            bounds,
+            glass: layer is GlassPictureLayer,
+          ),
+          bounds,
+        );
       case PictureLayer():
         break;
       case TextureLayer(:final rect) || PlatformViewLayer(:final rect):
@@ -1262,6 +1291,10 @@ final class _Scan {
     while (i < limit) {
       final entry = entries[i];
       switch (entry) {
+        case _Leaf(glass: true) when prefix.beside(entry.bounds):
+          break;
+        case _Glass() when prefix.beside(entry.bounds):
+          break;
         case _Leaf(:final picture, :final transform, :final clip, :final state):
           if (_meets(entry.bounds, band)) {
             sign(picture, transform, clip, state);
@@ -1410,7 +1443,17 @@ sealed class _Entry {
 }
 
 final class _Leaf extends _Entry {
-  _Leaf(this.picture, this.transform, this.clip, this.state, this.bounds);
+  _Leaf(
+    this.picture,
+    this.transform,
+    this.clip,
+    this.state,
+    this.bounds, {
+    this.glass = false,
+  });
+
+  // Glass whose copy is drawn.
+  final bool glass;
 
   final ui.Picture picture;
   final Matrix4 transform;
@@ -1719,11 +1762,18 @@ final class UnderlayCopy {
   }
 }
 
+/// A picture of glass, drawn over its copy.
+@internal
+class GlassPictureLayer extends PictureLayer {
+  /// A layer of glass painting inside [canvasBounds].
+  GlassPictureLayer(super.canvasBounds);
+}
+
 /// A picture of glass over a copy that is recorded when the scene is added,
 /// or earlier when another copy holds it, so that the copies of a frame are
 /// drawn in one image.
 @internal
-class UnderlayPictureLayer extends PictureLayer {
+class UnderlayPictureLayer extends GlassPictureLayer {
   /// A layer whose [record] records its picture once [copy] is drawn.
   UnderlayPictureLayer(super.canvasBounds, this.copy, this.record);
 

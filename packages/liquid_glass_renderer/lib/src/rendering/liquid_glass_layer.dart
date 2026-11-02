@@ -2191,6 +2191,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           : null,
       filterKey: (frostX, frostY),
       downscale: downscale,
+      body: drawn,
     );
     if (copy == null) return null;
     final canvasToScreen = screen.clone();
@@ -2307,7 +2308,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final key = keyOf();
     final previous = _underlayPictureHandle.layer;
     if (previous != null && _underlayPictureKey == key) return previous;
-    final picture = PictureLayer(pictureBounds);
+    final picture = GlassPictureLayer(pictureBounds);
     picture.picture = record();
     _underlayPictureHandle.layer = picture;
     _underlayPictureKey = key;

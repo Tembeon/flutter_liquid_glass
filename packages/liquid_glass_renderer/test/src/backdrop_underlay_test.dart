@@ -414,4 +414,22 @@ void main() {
     final [a, b] = [for (final g in glass) g.debugUnderlay.debugImage!];
     expect(a.isCloneOf(b), isTrue);
   }, skip: skipProperGlassTests);
+
+  for (final (top, images) in [(160.0, 1), (200.0, 2)]) {
+    testWidgets('glass beside glass copies in the same image, glass over '
+        'glass waits for the copy under it (top $top)', (tester) async {
+      tester.view.physicalSize = const Size(260, 360);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_pairScene(shift: 0.3, top: top));
+      final drawn = BackdropUnderlay.debugImagesDrawn;
+      await tester.pumpWidget(_pairScene(top: top));
+      expect(BackdropUnderlay.debugImagesDrawn, drawn + images);
+      final glass = tester.allRenderObjects
+          .whereType<RenderLiquidGlassLayer>()
+          .toSet();
+      expect(glass, hasLength(2));
+      expect(glass.every((g) => g.debugDrewOverUnderlay), isTrue);
+    }, skip: skipProperGlassTests);
+  }
 }
