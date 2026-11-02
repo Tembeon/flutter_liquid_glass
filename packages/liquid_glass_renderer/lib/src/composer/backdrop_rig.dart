@@ -6,6 +6,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/internal/backdrop_seed.dart';
+import 'package:liquid_glass_renderer/src/internal/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/internal/glass_composition_probe.dart';
 
 /// One backdrop capture shared by several [BackdropRig]s.
 ///
@@ -30,8 +32,11 @@ typedef BackdropPassPlanner = BackdropPassPlan Function(
   BackdropPassSizing sizing,
 );
 
-/// The live read of a surface's backdrop: a backdrop filter in a clip, the
-/// clip in a seeded pass where seeds are on (see [SeededBackdropPassLayer]).
+/// How a surface reads its backdrop: live, as a backdrop filter in a clip,
+/// the clip in a seeded pass where seeds are on (see
+/// [SeededBackdropPassLayer]), or as a picture the surface draws over a copy
+/// of what lies under it (see [BackdropUnderlay]), chosen per frame while
+/// the scene composites.
 ///
 /// The clip is the surface's outline, or a rect. The rig keeps its layers
 /// from frame to frame. While the pass is in effect the clip is the pass's
@@ -69,6 +74,11 @@ class BackdropRig {
   final _pass = LayerHandle<SeededBackdropPassLayer>();
   final _sizing = BackdropPassSizing();
 
+  final _underlay = BackdropUnderlay();
+  final _slot = LayerHandle<ContainerLayer>();
+  final _served = LayerHandle<PictureLayer>();
+  Object? _servedKey;
+
   // Where the pass goes: the clip, in the pass layer's parent's coordinates,
   // the paint offset, the blur's reach, the area the filter can change.
   Rect? _inner;
@@ -100,6 +110,103 @@ class BackdropRig {
 
   /// Whether the rig has painted its clip.
   bool get hasClip => _clipRect.layer != null || _clipPath.layer != null;
+
+  /// The copy of what lies under the surface.
+  BackdropUnderlay get underlay => _underlay;
+
+  /// Whether the last paint left room for a picture over a copy (see
+  /// [paintSite]).
+  bool get hasSlot => _slot.layer != null;
+
+  /// Paints the live read with [live]. With [copies], it paints in a slot
+  /// that [show] can fill with a picture over a copy instead; without, the
+  /// copy is released.
+  void paintSite(
+    PaintingContext context,
+    Offset offset, {
+    required bool copies,
+    required PaintingContextCallback live,
+  }) {
+    if (copies) {
+      context.pushLayer(_slot.layer ??= ContainerLayer(), live, offset);
+      return;
+    }
+    _slot.layer = null;
+    _underlay.release();
+    live(context, offset);
+  }
+
+  /// Leaves no slot until the next [paintSite].
+  void releaseSlot() {
+    _slot.layer = null;
+  }
+
+  /// The copy of what lies under the surface; see [BackdropUnderlay.imageFor].
+  UnderlayCopy? copyFor({
+    required Layer anchor,
+    required double devicePixelRatio,
+    required Rect region,
+    required Rect screen,
+    OpacitySeedLayer? own,
+    ui.ImageFilter? filter,
+    Object? filterKey,
+    int downscale = 1,
+    Rect? body,
+  }) => _underlay.imageFor(
+    anchor: anchor,
+    devicePixelRatio: devicePixelRatio,
+    region: region,
+    screen: screen,
+    own: own,
+    filter: filter,
+    filterKey: filterKey,
+    downscale: downscale,
+    body: body,
+  );
+
+  /// The picture [record] draws over [copy] inside [bounds]. A drawn copy
+  /// keeps its picture while [keyOf] stays equal; a copy not drawn yet is
+  /// recorded when the scene is added, after every copy of the frame is
+  /// drawn: they are drawn together.
+  PictureLayer servedPicture(
+    UnderlayCopy copy,
+    Rect bounds, {
+    required Object Function() keyOf,
+    required ui.Picture Function() record,
+  }) {
+    if (!copy.ready) {
+      final picture = UnderlayPictureLayer(bounds, copy, () {
+        _servedKey = keyOf();
+        return record();
+      });
+      _served.layer = picture;
+      _servedKey = null;
+      return picture;
+    }
+    final key = keyOf();
+    final previous = _served.layer;
+    if (previous != null && _servedKey == key) return previous;
+    final picture = GlassPictureLayer(bounds);
+    picture.picture = record();
+    _served.layer = picture;
+    _servedKey = key;
+    return picture;
+  }
+
+  /// Fills the slot with [served], or with the live read without it.
+  void show(PictureLayer? served) {
+    final slot = _slot.layer;
+    if (slot == null) return;
+    final child = served ?? live;
+    if (child == null) {
+      slot.removeAllChildren();
+      return;
+    }
+    if (identical(slot.firstChild, child) && child.nextSibling == null) return;
+    slot.removeAllChildren();
+    child.remove();
+    slot.append(child);
+  }
 
   /// Whether the rig has a pass.
   bool get usesPass => _pass.layer != null;
@@ -303,7 +410,7 @@ class BackdropRig {
     _plan = BackdropPassPlan.unsupported;
   }
 
-  /// Releases every layer of the rig.
+  /// Releases every layer of the live read.
   void clear() {
     _clearPass();
     _filter.layer = null;
@@ -313,5 +420,13 @@ class BackdropRig {
     _clipBounds = null;
     _rectPath = null;
     _rectPathRect = null;
+  }
+
+  /// Releases every layer and the copy.
+  void dispose() {
+    clear();
+    _slot.layer = null;
+    _served.layer = null;
+    _underlay.dispose();
   }
 }

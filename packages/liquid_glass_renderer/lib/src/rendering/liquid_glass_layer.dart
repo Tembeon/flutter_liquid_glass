@@ -954,13 +954,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   bool get _drawsOverSolid => (_solidBackdrop?.a ?? 0) == 1;
 
-  // The live filter, or the glass painted over the underlay's copy of what
-  // lies under it: compositing picks one per frame.
-  final _underlay = BackdropUnderlay();
-  final _underlaySlotHandle = LayerHandle<ContainerLayer>();
-  final _underlayPictureHandle = LayerHandle<PictureLayer>();
-  Object? _underlayPictureKey;
-
   /// Whether the last composited frame drew the glass over the underlay's
   /// copy rather than reading the backdrop.
   @visibleForTesting
@@ -968,7 +961,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   /// The copy of what lies under the glass.
   @visibleForTesting
-  BackdropUnderlay get debugUnderlay => _underlay;
+  BackdropUnderlay get debugUnderlay => _rig.underlay;
 
   bool get _wantsUnderlay => BackdropUnderlay.enabled;
 
@@ -1262,7 +1255,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     Rect? geometryBounds,
   ) {
     // Set again where the frame paints its material.
-    _underlaySlotHandle.layer = null;
+    _rig.releaseSlot();
     if (geometryBounds == null) {
       _clearGeometryImage();
       _releaseCompositorFilter();
@@ -1780,17 +1773,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       );
     }
 
-    if (_wantsUnderlay && !drawableEmpty) {
-      context.pushLayer(
-        _underlaySlotHandle.layer ??= ContainerLayer(),
-        paintLive,
-        offset,
-      );
-    } else {
-      _underlaySlotHandle.layer = null;
-      _underlay.release();
-      paintLive(context, offset);
-    }
+    // The live filter, or the glass painted over a copy of what lies under
+    // it: compositing picks one per frame.
+    _rig.paintSite(
+      context,
+      offset,
+      copies: _wantsUnderlay && !drawableEmpty,
+      live: paintLive,
+    );
   }
 
   // Over a solid backdrop the glass is a rect painted with the final shader.
@@ -1861,7 +1851,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   void onCompositing() {
     if (!attached) return;
     runCompositorPoll();
-    if (_underlaySlotHandle.layer != null) _composeUnderlay();
+    if (_rig.hasSlot) _composeUnderlay();
   }
 
   // Chosen at compositing: what lies under the glass can change in a frame
@@ -1869,23 +1859,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // (the seeded pass, or the clip around the filter) while what lies under
   // the glass cannot be copied.
   void _composeUnderlay() {
-    final slot = _underlaySlotHandle.layer!;
-    final live = _rig.live;
     // Glass over its copy reads no backdrop: an opacity pass around it needs
     // no seed.
     compositionSeedSuppressed = true;
     final served = _recordUnderlay();
     if (served == null) compositionSeedSuppressed = false;
     debugDrewOverUnderlay = served != null;
-    final child = served ?? live;
-    if (child == null) {
-      slot.removeAllChildren();
-      return;
-    }
-    if (identical(slot.firstChild, child) && child.nextSibling == null) return;
-    slot.removeAllChildren();
-    child.remove();
-    slot.append(child);
+    _rig.show(served);
   }
 
   // The glass as one rect painted with the final shader over the underlay's
@@ -1955,7 +1935,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         min(frostX, frostY) * dpr / (downscale * 2) >= _copySigma) {
       downscale *= 2;
     }
-    final copy = _underlay.imageFor(
+    final copy = _rig.copyFor(
       anchor: anchor,
       own: paintLayer,
       devicePixelRatio: dpr,
@@ -2075,25 +2055,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         drawn.bottom * dpr,
       ),
     ).inflate(1);
-    if (!copy.ready) {
-      // Recorded when the scene is added, after every copy of the frame is
-      // recorded: they are drawn together.
-      final picture = UnderlayPictureLayer(pictureBounds, copy, () {
-        _underlayPictureKey = keyOf();
-        return record();
-      });
-      _underlayPictureHandle.layer = picture;
-      _underlayPictureKey = null;
-      return picture;
-    }
-    final key = keyOf();
-    final previous = _underlayPictureHandle.layer;
-    if (previous != null && _underlayPictureKey == key) return previous;
-    final picture = GlassPictureLayer(pictureBounds);
-    picture.picture = record();
-    _underlayPictureHandle.layer = picture;
-    _underlayPictureKey = key;
-    return picture;
+    return _rig.servedPicture(
+      copy,
+      pictureBounds,
+      keyOf: keyOf,
+      record: record,
+    );
   }
 
   @override
@@ -2151,10 +2118,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   @override
   void dispose() {
-    _rig.clear();
-    _underlaySlotHandle.layer = null;
-    _underlayPictureHandle.layer = null;
-    _underlay.dispose();
+    _rig.dispose();
     _cachedFilter = null;
     _cachedShaderFilter = null;
     _clearGeometryImage();
