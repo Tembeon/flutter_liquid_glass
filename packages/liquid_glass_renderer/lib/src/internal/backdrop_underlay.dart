@@ -65,6 +65,7 @@ class BackdropUnderlay {
   BlendMode _filterBlendMode = BlendMode.src;
   double _devicePixelRatio = 0;
   List<Object?> _signature = const [];
+  bool _changing = false;
 
   /// How many copies were taken.
   @visibleForTesting
@@ -112,12 +113,18 @@ class BackdropUnderlay {
     final band = _snapOut(region, dpr).intersect(screen);
     if (band.isEmpty) return null;
     final root = _rootOf(anchor);
-    final held =
+    final same =
         (_image != null || _tile != null) &&
         filterKey == _filterKey &&
         filterClip == _filterClip &&
         filterBlendMode == _filterBlendMode &&
-        dpr == _devicePixelRatio &&
+        dpr == _devicePixelRatio;
+    // Under content that changed in the last frame the copy is drawn first,
+    // and the walk that draws it signs it too.
+    final drawFirst = same && _changing && _copied == band;
+    final held =
+        same &&
+        !drawFirst &&
         _same(_signPrefix(root, anchor, _copied, dpr), _signature);
     if (held && _contains(_copied, band)) {
       debugMiss = null;
@@ -143,6 +150,13 @@ class BackdropUnderlay {
       }(), 'Diagnose misses in debug builds.');
       return null;
     }
+    if (drawFirst && replay.waits < 0 && _same(replay.out, _signature)) {
+      content.dispose();
+      _changing = false;
+      debugMiss = null;
+      return UnderlayCopy._(this, _copied);
+    }
+    _changing = same && !held;
     _release();
     final tile = _Tile(
       this,
@@ -280,6 +294,16 @@ class _Prefix {
   // over, or -1.
   int waits = -1;
 
+  late final Set<Layer> _path = _ancestors(stop);
+
+  static Set<Layer> _ancestors(Layer layer) {
+    final path = Set<Layer>.identity();
+    for (var node = layer.parent; node != null; node = node.parent) {
+      path.add(node);
+    }
+    return path;
+  }
+
   // Records what is painted before [stop] in [rect] (screen logical pixels)
   // in device pixels from the rect's origin, or returns null when that
   // cannot be drawn again.
@@ -306,6 +330,14 @@ class _Prefix {
     if (identical(layer, stop)) {
       reached = true;
       return;
+    }
+    if (!filtered && layer is ContainerLayer && !_path.contains(layer)) {
+      final extent = _Extent.of(layer);
+      if (!extent.isInfinite) {
+        var bounds = MatrixUtils.transformRect(transform, extent);
+        if (clip != null) bounds = bounds.intersect(clip);
+        if (!bounds.overlaps(band)) return;
+      }
     }
 
     bool reaches(Rect local) {
@@ -661,6 +693,131 @@ class _Prefix {
   }
 }
 
+// What a layer paints, in the space its parent places it in, for the frame
+// being composited: a walk skips a subtree that paints nothing in its band.
+// Layers composite in paint order, and glass changes its own subtree as it
+// composites, so a subtree before the glass that walks is final by then.
+// Layers that read the backdrop or whose drawing is not known count as
+// painting everywhere.
+abstract final class _Extent {
+  static final _cache = Expando<(int, Rect)>();
+  static int _frame = 0;
+  static bool _counting = false;
+
+  static Rect of(Layer layer) {
+    if (!_counting) {
+      _counting = true;
+      SchedulerBinding.instance.addPersistentFrameCallback((_) => _frame++);
+    }
+    if (_cache[layer] case (final frame, final rect) when frame == _frame) {
+      return rect;
+    }
+    final rect = _measure(layer);
+    _cache[layer] = (_frame, rect);
+    return rect;
+  }
+
+  static Rect _measure(Layer layer) => switch (layer) {
+    PictureLayer(:final picture) =>
+      picture == null && layer is! UnderlayPictureLayer
+          ? Rect.zero
+          : layer.canvasBounds,
+    TextureLayer(:final rect) || PlatformViewLayer(:final rect) => rect,
+    LiquidGlassBackdropFilterLayer(:final clip, :final reach) => _children(
+      layer,
+      null,
+    ).expandToInclude(clip.inflate(reach)),
+    BackdropFilterLayer() ||
+    SeededBackdropPassLayer() ||
+    ImageFilterLayer() ||
+    ColorFilterLayer() => Rect.largest,
+    TransformLayer(:final offset, :final transform) => _children(
+      layer,
+      Matrix4.translationValues(
+        offset.dx,
+        offset.dy,
+        0,
+      ).multiplied(transform ?? Matrix4.identity()),
+    ),
+    final OpacityLayer opacity => _shifted(opacity, opacity.offset),
+    final LeaderLayer leader => _shifted(leader, leader.offset),
+    final OffsetLayer offsets
+        when offsets.runtimeType == OffsetLayer ||
+            offsets is GeometryTransformTrackingLayer =>
+      _shifted(offsets, offsets.offset),
+    NativeClipLayer(enabled: true, :final geometry?, :final clipBehavior)
+        when clipBehavior != Clip.none =>
+      _clipped(_children(layer as ContainerLayer, null), switch (geometry) {
+        final Rect rect => rect,
+        final RRect rect => rect.outerRect,
+        final RSuperellipse rect => rect.outerRect,
+        final Path path => path.getBounds(),
+        _ => Rect.largest,
+      }),
+    final NativeClipLayer clip => _children(clip, null),
+    ShaderMaskLayer(:final maskRect) => _union(
+      _children(layer, null),
+      maskRect ?? Rect.largest,
+    ),
+    ClipRectLayer(:final clipRect?, :final clipBehavior)
+        when clipBehavior != Clip.none =>
+      _clipped(_children(layer, null), clipRect),
+    ClipRRectLayer(:final clipRRect?, :final clipBehavior)
+        when clipBehavior != Clip.none =>
+      _clipped(_children(layer, null), clipRRect.outerRect),
+    ClipRSuperellipseLayer(:final clipRSuperellipse?, :final clipBehavior)
+        when clipBehavior != Clip.none =>
+      _clipped(_children(layer, null), clipRSuperellipse.outerRect),
+    ClipPathLayer(:final clipPath?, :final clipBehavior)
+        when clipBehavior != Clip.none =>
+      _clipped(_children(layer, null), clipPath.getBounds()),
+    final ContainerLayer group
+        when group is ClipRectLayer ||
+            group is ClipRRectLayer ||
+            group is ClipRSuperellipseLayer ||
+            group is ClipPathLayer ||
+            group is AnnotatedRegionLayer ||
+            group.runtimeType == ContainerLayer =>
+      _children(group, null),
+    _ => Rect.largest,
+  };
+
+  static Rect _shifted(ContainerLayer layer, Offset offset) =>
+      _children(layer, Matrix4.translationValues(offset.dx, offset.dy, 0));
+
+  static Rect _children(ContainerLayer layer, Matrix4? transform) {
+    var bounds = Rect.zero;
+    for (
+      var child = layer.firstChild;
+      child != null;
+      child = child.nextSibling
+    ) {
+      final extent = of(child);
+      if (extent.isInfinite) return Rect.largest;
+      if (extent.isEmpty) continue;
+      bounds = _union(
+        bounds,
+        transform == null
+            ? extent
+            : MatrixUtils.transformRect(transform, extent),
+      );
+    }
+    return bounds;
+  }
+
+  static Rect _union(Rect a, Rect b) {
+    if (a.isEmpty) return b;
+    if (b.isEmpty) return a;
+    return a.expandToInclude(b);
+  }
+
+  static Rect _clipped(Rect content, Rect clip) {
+    if (content.isInfinite) return clip;
+    final rect = content.intersect(clip);
+    return rect.isEmpty ? Rect.zero : rect;
+  }
+}
+
 /// A copy that [BackdropUnderlay.imageFor] serves: [rect] of the screen, in
 /// logical pixels, at [offset] (device pixels) in [image].
 ///
@@ -839,6 +996,7 @@ abstract final class _Atlas {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     for (final tile in tiles) {
+      if (tile.filter != null) continue;
       canvas.save();
       canvas.translate(tile.offset.dx, tile.offset.dy);
       canvas.clipRect(
@@ -846,22 +1004,27 @@ abstract final class _Atlas {
       );
       canvas.drawPicture(tile.content!);
       canvas.restore();
-      tile.content!.dispose();
     }
     final content = recorder.endRecording();
     final ui.Image image;
     if (tiles.every((tile) => tile.filter == null)) {
       image = content.toImageSync(width, height);
     } else {
-      // The filter reads a copy as a backdrop filter reads the screen. A
-      // copy's band holds the blur's reach around what its glass samples, so
-      // what the blur reads past a copy's edge stays out of what is sampled.
+      // The filter reads a copy as a backdrop filter reads the screen, in a
+      // layer of the copy's size: it reads that layer alone, which a pass
+      // split at the filter loads and stores, and its blur meets the copy's
+      // edges as it would meet the edges of an image of its own.
       final b = ui.SceneBuilder();
       b.addPicture(Offset.zero, content);
       for (final tile in tiles) {
         final filter = tile.filter;
         if (filter == null) continue;
         final dpr = tile.devicePixelRatio;
+        b.pushClipRect(
+          tile.offset & Size(tile.width.toDouble(), tile.height.toDouble()),
+          clipBehavior: Clip.antiAliasWithSaveLayer,
+        );
+        b.addPicture(tile.offset, tile.content!);
         final toAtlas = Matrix4.translationValues(
           tile.offset.dx - tile.rect.left * dpr,
           tile.offset.dy - tile.rect.top * dpr,
@@ -877,10 +1040,14 @@ abstract final class _Atlas {
         b.pop();
         b.pop();
         b.pop();
+        b.pop();
       }
       final scene = b.build();
       image = scene.toImageSync(width, height);
       scene.dispose();
+    }
+    for (final tile in tiles) {
+      tile.content!.dispose();
     }
     content.dispose();
     for (final tile in tiles) {
