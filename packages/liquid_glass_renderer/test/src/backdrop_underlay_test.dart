@@ -432,4 +432,43 @@ void main() {
       expect(glass.every((g) => g.debugDrewOverUnderlay), isTrue);
     }, skip: skipProperGlassTests);
   }
+
+  testWidgets('copies of glass side by side are drawn as one island, as '
+      'each draws its own', (tester) async {
+    tester.view.physicalSize = const Size(260, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    addTearDown(() => BackdropUnderlay.debugIslandsEnabled = true);
+
+    Future<Uint8List> draw({required bool islands}) async {
+      BackdropUnderlay.debugIslandsEnabled = islands;
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(_pairScene(top: 160));
+      return _pixels(tester);
+    }
+
+    // flutter_tester renders only a process's first backdrop filter
+    // reliably, so the reference reads the backdrop first.
+    BackdropUnderlay.debugEnabledOverride = false;
+    final reading = await draw(islands: false);
+    BackdropUnderlay.debugEnabledOverride = true;
+    final apart = await draw(islands: false);
+    final before = BackdropUnderlay.debugIslands[2] ?? 0;
+    final together = await draw(islands: true);
+    expect(BackdropUnderlay.debugIslands[2], before + 1);
+    final glass = tester.allRenderObjects
+        .whereType<RenderLiquidGlassLayer>()
+        .toSet()
+        .toList();
+    expect(glass.every((g) => g.debugDrewOverUnderlay), isTrue);
+    final [a, b] = [for (final g in glass) g.debugUnderlay.debugImage!];
+    expect(a.isCloneOf(b), isTrue);
+    // The island blurs and refracts what lies beside a band where a copy of
+    // its own mirrors its edge: closer to reading the backdrop.
+    expect(
+      _difference(reading, together),
+      lessThanOrEqualTo(_difference(reading, apart)),
+    );
+    expect(_difference(reading, together), lessThanOrEqualTo(2));
+  }, skip: skipProperGlassTests);
 }

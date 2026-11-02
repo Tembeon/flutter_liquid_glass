@@ -99,6 +99,16 @@ class BackdropUnderlay {
   @visibleForTesting
   static int get debugImagesDrawn => _Atlas.drawn;
 
+  /// How many islands of copies were drawn, by how many copies each held.
+  @visibleForTesting
+  static final debugIslands = <int, int>{};
+
+  /// Whether copies of glass side by side are drawn as one: copies with one
+  /// filter whose bands meet, and under which nothing but that glass is
+  /// painted between their glass, are recorded once over the bands together.
+  @visibleForTesting
+  static bool debugIslandsEnabled = true;
+
   /// The image that holds the copy, once it is drawn.
   @visibleForTesting
   ui.Image? get debugImage => _image;
@@ -146,6 +156,7 @@ class BackdropUnderlay {
       return null;
     }
     final root = _rootOf(anchor);
+    final bodies = body == null ? const <Rect>[] : [body];
     final scan = _Scan.of(root, dpr, anchor);
     final limit = scan.reach(anchor);
     final same =
@@ -158,7 +169,7 @@ class BackdropUnderlay {
     // Signing replays no pictures: a copy is recorded only once it is
     // known to be drawn now.
     var signed = same
-        ? _Prefix.signed(root, anchor, _copied, dpr, scan, limit, body)
+        ? _Prefix.signed(root, anchor, _copied, dpr, scan, limit, bodies)
         : null;
     final held = signed != null && _same(signed.out, _signature);
     if (held && _contains(_copied, band)) {
@@ -171,7 +182,7 @@ class BackdropUnderlay {
         ? _snapOut(band.inflate(_margin), pixels).intersect(screen)
         : band;
     if (signed == null || signed.band != rect) {
-      signed = _Prefix.signed(root, anchor, rect, dpr, scan, limit, body);
+      signed = _Prefix.signed(root, anchor, rect, dpr, scan, limit, bodies);
     }
     if (signed.blocked || !signed.reached) {
       final why = signed.blocked
@@ -202,19 +213,19 @@ class BackdropUnderlay {
         ui.PictureRecorder(),
         scan: scan,
         limit: limit,
-        body: body,
+        bodies: bodies,
       );
       final picture = replay.record(root, rect, pixels);
       if (picture != null) _signature = replay.out;
       return picture;
     }
 
-    if (signed.waits < 0) {
-      tile.content = record();
-    } else {
-      // It holds glass whose copy is drawn later in the frame: it is
-      // recorded once that glass has its picture.
-      tile.redraw = record;
+    // It is recorded when the frame's copies are drawn: then, a copy that
+    // holds glass whose copy is drawn later in the frame has that glass's
+    // picture, and a copy beside others is recorded with them.
+    tile.redraw = record;
+    if (signed.waits < 0 && body != null && filterClip == null) {
+      tile.island = _Islander(root, anchor, scan, limit, dpr, body, signed.out);
     }
     _tile = tile;
     _Atlas.add(tile);
@@ -298,7 +309,7 @@ class _Prefix {
     this.recorder, {
     this.scan,
     this.limit,
-    this.body,
+    this.bodies = const [],
   }) : canvas = recorder == null ? null : Canvas(recorder);
 
   // What is painted before [stop] in [band], signed without drawing it.
@@ -309,7 +320,7 @@ class _Prefix {
     double devicePixelRatio,
     _Scan scan,
     int limit,
-    Rect? body,
+    List<Rect> bodies,
   ) {
     final prefix = _Prefix(
       stop,
@@ -318,7 +329,7 @@ class _Prefix {
       null,
       scan: scan,
       limit: limit,
-      body: body,
+      bodies: bodies,
     );
     prefix.run(root);
     return prefix;
@@ -327,8 +338,8 @@ class _Prefix {
   final Layer stop;
   final Rect band;
   final double devicePixelRatio;
-  // The body of the glass the copy is for, if it is for glass.
-  final Rect? body;
+  // The bodies of the glass the copy is for, if it is for glass.
+  final List<Rect> bodies;
   final ui.PictureRecorder? recorder;
   // Without one, glass over a copy that is not drawn yet is left out and
   // noted in [waits]; with one, its copy is drawn now.
@@ -397,7 +408,7 @@ class _Prefix {
   // Whether walking the layer tree finds what the replay found.
   bool _walksAlike(Layer root) {
     final dpr = devicePixelRatio;
-    final walked = _Prefix(stop, band, dpr, null, body: body);
+    final walked = _Prefix(stop, band, dpr, null, bodies: bodies);
     walked.walk(root, Matrix4.diagonal3Values(1 / dpr, 1 / dpr, 1), null);
     if (walked.blocked != blocked) return false;
     if (blocked) return true;
@@ -734,7 +745,8 @@ class _Prefix {
 
   // Whether glass drawn inside [bounds] lies beside the copy's glass rather
   // than under it.
-  bool beside(Rect bounds) => body != null && !_meets(bounds, body!);
+  bool beside(Rect bounds) =>
+      bodies.isNotEmpty && !bodies.any((body) => _meets(bounds, body));
 
   static Paint _alpha(int alpha) {
     final paint = Paint();
@@ -1817,6 +1829,10 @@ class _Tile {
   final int level;
   ui.Picture? content;
   ui.Picture? Function()? redraw;
+  // How it joins copies beside it, when it can.
+  _Islander? island;
+  // The copies an island holds, each drawn where its rect lies in [rect].
+  List<_Tile> members = const [];
   final Rect rect;
   final double devicePixelRatio;
   final ui.ImageFilter? filter;
@@ -1827,6 +1843,103 @@ class _Tile {
   Offset offset = Offset.zero;
 
   Rect get bounds => offset & Size(width.toDouble(), height.toDouble());
+}
+
+// Copies side by side gathered into an island, in paint order.
+final class _Gathering {
+  _Gathering(_Tile first)
+    : rect = first.rect,
+      _covered = first.rect.width * first.rect.height {
+    tiles.add(first);
+  }
+
+  final tiles = <_Tile>[];
+  Rect rect;
+  double _covered;
+
+  // Whether [tile] joins: same filter and pixels, a band that meets the
+  // island's, little room between the bands, and nothing painted between
+  // the island's first glass and its own, in its band, but the island's
+  // glass and glass beside its own.
+  bool admits(_Tile tile) {
+    final first = tiles.first;
+    final at = first.island!;
+    final by = tile.island!;
+    if (!identical(at.scan, by.scan) ||
+        tile.devicePixelRatio != first.devicePixelRatio ||
+        tile.owner._filterKey != first.owner._filterKey ||
+        (tile.filter == null) != (first.filter == null) ||
+        !_meets(rect, tile.rect)) {
+      return false;
+    }
+    final joined = rect.expandToInclude(tile.rect);
+    final overlap = rect.intersect(tile.rect);
+    final covered =
+        _covered +
+        tile.rect.width * tile.rect.height -
+        overlap.width * overlap.height;
+    if (joined.width * joined.height > covered * 1.25) return false;
+    return _onlyIslandBetween(at.scan, at.start, by, tile.rect);
+  }
+
+  void add(_Tile tile) {
+    final overlap = rect.intersect(tile.rect);
+    _covered +=
+        tile.rect.width * tile.rect.height - overlap.width * overlap.height;
+    rect = rect.expandToInclude(tile.rect);
+    tiles.add(tile);
+  }
+
+  bool _onlyIslandBetween(_Scan scan, int from, _Islander by, Rect band) {
+    final starts = {for (final tile in tiles) tile.island!.start};
+    final entries = scan.entries;
+    for (var i = from; i < by.start && i < entries.length; i++) {
+      final entry = entries[i];
+      if (starts.contains(i) && entry is _Open && entry.end > i) {
+        i = entry.end;
+        continue;
+      }
+      switch (entry) {
+        case _Leaf(glass: true, :final bounds) || _Glass(:final bounds)
+            when !_meets(bounds, by.body):
+          break;
+        case _Leaf(:final bounds) ||
+            _Glass(:final bounds) ||
+            _Block(:final bounds):
+          if (_meets(bounds, band)) return false;
+        case _Served(:final reads):
+          if (_meets(reads, band)) return false;
+        case _Unknown() || _Undrawable():
+          return false;
+        case _Open() || _Close():
+          break;
+      }
+    }
+    return true;
+  }
+}
+
+// What a copy of glass that holds no pending glass needs to be recorded
+// with copies beside it.
+final class _Islander {
+  _Islander(
+    this.root,
+    this.anchor,
+    this.scan,
+    this.start,
+    this.devicePixelRatio,
+    this.body,
+    this.signature,
+  );
+
+  final Layer root;
+  final Layer anchor;
+  final _Scan scan;
+  // Where [anchor] lies in [scan].
+  final int start;
+  final double devicePixelRatio;
+  final Rect body;
+  final List<Object?> signature;
 }
 
 // The copies recorded in a frame, drawn into one image: every image drawn
@@ -1882,6 +1995,7 @@ abstract final class _Atlas {
             if (tile.level == level) tile,
         ];
         _pending.removeWhere((tile) => tile.level == level);
+        if (BackdropUnderlay.debugIslandsEnabled) _join(batch);
         for (final tile in batch) {
           if (tile.content != null) continue;
           final picture = tile.redraw?.call();
@@ -1904,6 +2018,67 @@ abstract final class _Atlas {
       }
     } finally {
       _flushing = false;
+    }
+  }
+
+  // Replaces copies side by side in [batch] with one copy over their bands
+  // together, recorded once from what is painted before the first of their
+  // glass. A copy joins only where nothing else is painted, inside its band,
+  // between the first glass and its own: what lies there is the glass of
+  // the island, with its shadow and content, which the island leaves out of
+  // every copy as it leaves out glass beside glass.
+  static void _join(List<_Tile> batch) {
+    final candidates = [
+      for (final tile in batch)
+        if (tile.island != null && tile.filterBlendMode == BlendMode.src) tile,
+    ];
+    if (candidates.length < 2) return;
+    candidates.sort((a, b) => a.island!.start.compareTo(b.island!.start));
+    final islands = <_Gathering>[];
+    for (final tile in candidates) {
+      final joined = islands.where((island) => island.admits(tile)).firstOrNull;
+      if (joined != null) {
+        joined.add(tile);
+      } else {
+        islands.add(_Gathering(tile));
+      }
+    }
+    for (final island in islands) {
+      if (island.tiles.length < 2) continue;
+      final first = island.tiles.first;
+      final at = first.island!;
+      final pixels = first.devicePixelRatio;
+      final rect = island.rect;
+      final prefix = _Prefix(
+        at.anchor,
+        rect,
+        at.devicePixelRatio,
+        ui.PictureRecorder(),
+        scan: at.scan,
+        limit: at.start,
+        bodies: [for (final tile in island.tiles) tile.island!.body],
+      );
+      final content = prefix.record(at.root, rect, pixels);
+      if (content == null) continue;
+      final joined = _Tile(
+        first.owner,
+        rect,
+        pixels,
+        first.filter,
+        null,
+        BlendMode.src,
+        level: first.level,
+      );
+      joined.content = content;
+      joined.members = island.tiles;
+      for (final tile in island.tiles) {
+        tile.owner._signature = tile.island!.signature;
+        batch.remove(tile);
+      }
+      batch.add(joined);
+      final size = island.tiles.length;
+      BackdropUnderlay.debugIslands[size] =
+          (BackdropUnderlay.debugIslands[size] ?? 0) + 1;
     }
   }
 
@@ -2082,10 +2257,16 @@ abstract final class _Atlas {
     }
     content.dispose();
     for (final tile in tiles) {
-      final owner = tile.owner;
-      owner._tile = null;
-      owner._image = image.clone();
-      owner._offset = tile.offset;
+      for (final member in tile.members.isEmpty ? [tile] : tile.members) {
+        final owner = member.owner;
+        final shift =
+            (member.rect.topLeft - tile.rect.topLeft) * tile.devicePixelRatio;
+        owner._tile = null;
+        owner._image = image.clone();
+        owner._offset =
+            tile.offset +
+            Offset(shift.dx.roundToDouble(), shift.dy.roundToDouble());
+      }
     }
     image.dispose();
   }
