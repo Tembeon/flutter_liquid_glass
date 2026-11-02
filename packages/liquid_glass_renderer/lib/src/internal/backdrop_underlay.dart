@@ -1044,7 +1044,10 @@ abstract final class _Atlas {
     // one filtered layer: the blur reaches across a copy's edge no further
     // than the band a copy holds around what its glass samples, and the
     // layer is clipped to the copies so that it reaches no other. The layer
-    // is filtered whole, so copies far apart are filtered each on its own.
+    // is filtered whole, so copies far apart are filtered each on its own,
+    // and so are a pair: the filtered layer costs the GPU more than two
+    // layers of a copy's size (iPhone 16 Pro: 1 ms a frame for two copies
+    // of 330 by 252 pixels), which the raster thread saves only with more.
     final shared = <(Object?, double), List<_Tile>>{};
     final isolated = <_Tile>[];
     for (final tile in tiles) {
@@ -1064,8 +1067,8 @@ abstract final class _Atlas {
     }
     for (final group in shared.values) {
       for (final cluster in _clusters(group)) {
-        if (cluster.length == 1) {
-          isolated.add(cluster.single);
+        if (cluster.length < 3) {
+          isolated.addAll(cluster);
           continue;
         }
         final dpr = cluster.first.devicePixelRatio;
