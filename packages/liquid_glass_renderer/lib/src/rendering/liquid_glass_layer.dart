@@ -1821,9 +1821,15 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   @override
-  void onCompositing() {
+  void onPreparing() {
     if (!attached) return;
     runCompositorPoll();
+    _asked = _rig.hasSlot ? _askUnderlay() : null;
+  }
+
+  @override
+  void onCompositing() {
+    if (!attached) return;
     if (_rig.hasSlot) _composeUnderlay();
   }
 
@@ -1857,12 +1863,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // The blur, in the copy's own pixels, that hides its size.
   static const double _copySigma = 2.5;
 
-  // The glass as one rect painted with the final shader over the underlay's
-  // copy, or null when there is no copy. The shader reads the copy as
-  // a filter reads its input: fragment coordinates are taken from the copy's
-  // origin (uBackdropOrigin), so the mapping into the matte is the screen's
-  // shifted by that origin.
-  PictureLayer? _recordUnderlay() {
+  // This frame's copy asked for: the glass's transform to the screen, the
+  // logical rect the shader draws and the material it paints there.
+  ({Matrix4 screen, Rect logical, Rect drawn})? _asked;
+
+  // Asks for the copy of what lies under the glass, or returns null when the
+  // glass reads its backdrop this frame.
+  ({Matrix4 screen, Rect logical, Rect drawn})? _askUnderlay() {
     final bounds = _filterMaterialBounds;
     final anchor = layer;
     if (bounds == null || anchor == null || drawableEmpty) return null;
@@ -1906,7 +1913,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         min(frostX, frostY) * dpr / (downscale * 2) >= _copySigma) {
       downscale *= 2;
     }
-    final copy = _rig.underlay.imageFor(
+    _rig.underlay.request(
       anchor: anchor,
       own: paintLayer,
       devicePixelRatio: dpr,
@@ -1924,7 +1931,22 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       downscale: downscale,
       body: drawn,
     );
+    return (screen: screen, logical: logical, drawn: drawn);
+  }
+
+  // The glass as one rect painted with the final shader over the underlay's
+  // copy, or null when there is no copy. The shader reads the copy as
+  // a filter reads its input: fragment coordinates are taken from the copy's
+  // origin (uBackdropOrigin), so the mapping into the matte is the screen's
+  // shifted by that origin.
+  PictureLayer? _recordUnderlay() {
+    final asked = _asked;
+    _asked = null;
+    if (asked == null) return null;
+    final copy = _rig.underlay.serve();
     if (copy == null) return null;
+    final (:screen, :logical, :drawn) = asked;
+    final dpr = devicePixelRatio;
     final canvasToScreen = screen.clone();
     canvasToScreen.multiply(
       Matrix4.translationValues(

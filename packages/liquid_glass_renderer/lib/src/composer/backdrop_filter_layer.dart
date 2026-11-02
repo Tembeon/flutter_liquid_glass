@@ -100,6 +100,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   }
 
   final _underlay = BackdropUnderlay();
+  FilteredCopyAsk? _asked;
   UnderlayCopy? _copy;
   Rect _shown = Rect.zero;
   Offset _origin = Offset.zero;
@@ -137,13 +138,32 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   @visibleForTesting
   BackdropUnderlay get debugUnderlay => _underlay;
 
+  @internal
+  @override
+  void prepare() {
+    _asked = BackdropUnderlay.enabled
+        ? requestFilteredCopy(
+            _underlay,
+            this,
+            filter: _filter,
+            blendMode: _blendMode,
+            clip: _clip,
+            reach: _reach,
+            devicePixelRatio: _devicePixelRatio,
+            filtersReach: false,
+          )
+        : null;
+  }
+
   // Runs for every built scene, also when an ancestor stays retained, after
   // every layer has painted: the choice between the copy and the backdrop
   // is made here, where it can still mark the layer for adding.
   @internal
   @override
   void compose() {
-    final copy = BackdropUnderlay.enabled ? _serve() : null;
+    final asked = _asked;
+    _asked = null;
+    final copy = asked == null ? null : _serve(asked);
     // A copy drawn in an earlier frame keeps its picture while it lies where
     // it did; a copy not drawn yet is drawn with the frame's other copies.
     final key = copy != null && copy.ready ? _keyOf(copy) : null;
@@ -159,17 +179,8 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
 
   // The copy this frame filters, or null while the layer reads the
   // backdrop.
-  UnderlayCopy? _serve() {
-    final served = filteredCopyFor(
-      _underlay,
-      this,
-      filter: _filter,
-      blendMode: _blendMode,
-      clip: _clip,
-      reach: _reach,
-      devicePixelRatio: _devicePixelRatio,
-      filtersReach: false,
-    );
+  UnderlayCopy? _serve(FilteredCopyAsk asked) {
+    final served = serveFilteredCopy(_underlay, asked);
     if (served == null) return null;
     _shown = served.shown;
     _origin = served.origin;

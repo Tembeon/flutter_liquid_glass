@@ -34,16 +34,22 @@ Offset? screenOffsetOf(Layer anchor, double devicePixelRatio) {
   return Offset(m[12], m[13]);
 }
 
-/// A copy of what lies under [clip], in [anchor]'s coordinates, run through
-/// [filter] as a backdrop filter composited with [blendMode]: the copy, the
-/// part of it [clip] shows in screen coordinates, and the shift from
-/// [anchor]'s coordinates to the screen's. Null where none serves.
+/// Where a filtered copy [requestFilteredCopy] asked for is shown: the
+/// part of the screen the clip covers and the shift from the anchor's
+/// coordinates to the screen's.
+@internal
+typedef FilteredCopyAsk = ({Rect shifted, Offset origin});
+
+/// Asks [underlay] for a copy of what lies under [clip], in [anchor]'s
+/// coordinates, run through [filter] as a backdrop filter composited with
+/// [blendMode]; [serveFilteredCopy] hands it over. Null where none can
+/// serve: [anchor] does not lie on the screen untransformed.
 ///
 /// The copy holds [reach] around [clip]. With [filtersReach] the filter runs
 /// over all of it, as a live filter that reads a pass reaching past its clip
 /// does; without, inside [clip] only.
 @internal
-({UnderlayCopy copy, Rect shown, Offset origin})? filteredCopyFor(
+FilteredCopyAsk? requestFilteredCopy(
   BackdropUnderlay underlay,
   Layer anchor, {
   required ui.ImageFilter filter,
@@ -57,7 +63,7 @@ Offset? screenOffsetOf(Layer anchor, double devicePixelRatio) {
   if (origin == null) return null;
   final shifted = clip.shift(origin);
   final region = shifted.inflate(reach);
-  final copy = underlay.imageFor(
+  underlay.request(
     anchor: anchor,
     devicePixelRatio: devicePixelRatio,
     region: region,
@@ -65,8 +71,24 @@ Offset? screenOffsetOf(Layer anchor, double devicePixelRatio) {
     filterClip: filtersReach ? region : shifted,
     filterBlendMode: blendMode,
   );
+  return (shifted: shifted, origin: origin);
+}
+
+/// The copy [asked] stands for: the copy, the part of it the clip shows in
+/// screen coordinates, and the shift from the anchor's coordinates to the
+/// screen's. Null where none serves.
+@internal
+({UnderlayCopy copy, Rect shown, Offset origin})? serveFilteredCopy(
+  BackdropUnderlay underlay,
+  FilteredCopyAsk asked,
+) {
+  final copy = underlay.serve();
   if (copy == null) return null;
-  return (copy: copy, shown: shifted.intersect(copy.rect), origin: origin);
+  return (
+    copy: copy,
+    shown: asked.shifted.intersect(copy.rect),
+    origin: asked.origin,
+  );
 }
 
 /// A filtered [copy] drawn into coordinates that [origin] shifts to the
@@ -164,6 +186,8 @@ class BackdropRig {
   // What the last [paint] read, for a filtered copy to stand in for. Null
   // when the rig takes no copies.
   _Read? _read;
+  // The copy asked for this frame, until [compose].
+  FilteredCopyAsk? _asked;
 
   Rect? _inner;
   Offset _offset = Offset.zero;
@@ -424,36 +448,53 @@ class BackdropRig {
     );
   }
 
-  /// Fills the slot with the filter drawn over a copy of what lies under
-  /// the outline, or with the live read where there is no copy; returns
-  /// whether a copy serves. The owner calls it from its onCompositing, which
-  /// the composer runs in paint order.
+  /// Asks for this frame's copy of what lies under the outline, while the
+  /// rig may draw over one. The owner calls it from its onPreparing, before
+  /// any glass of the frame composes.
+  void ask() {
+    final slot = _slot.layer;
+    final read = _read;
+    // The live filter reads a pass reaching past its clip (or the whole
+    // backdrop), not the backdrop cut at the clip: the blur near the edge
+    // takes what lies outside, so the copy is filtered over all it holds.
+    _asked =
+        slot == null ||
+            read == null ||
+            _outline == null ||
+            !BackdropUnderlay.enabled
+        ? null
+        : requestFilteredCopy(
+            _underlay,
+            slot,
+            filter: read.filter,
+            blendMode: BlendMode.srcOver,
+            clip: read.clip,
+            reach: read.reach,
+            devicePixelRatio: read.devicePixelRatio,
+            filtersReach: true,
+          );
+  }
+
+  /// Fills the slot with the filter drawn over the copy [ask] asked for, or
+  /// with the live read where there is no copy; returns whether a copy
+  /// serves. The owner calls it from its onCompositing, which the composer
+  /// runs in paint order.
   bool compose() {
+    final asked = _asked;
+    _asked = null;
     final slot = _slot.layer;
     if (slot == null) return false;
-    final served = _read == null || !BackdropUnderlay.enabled
+    final served = asked == null || _read == null
         ? null
-        : _serveFiltered(slot, _read!);
+        : _serveFiltered(_read!, asked);
     show(served);
     return served != null;
   }
 
-  PictureLayer? _serveFiltered(ContainerLayer slot, _Read read) {
+  PictureLayer? _serveFiltered(_Read read, FilteredCopyAsk asked) {
     final outline = _outline;
     if (outline == null) return null;
-    // The live filter reads a pass reaching past its clip (or the whole
-    // backdrop), not the backdrop cut at the clip: the blur near the edge
-    // takes what lies outside, so the copy is filtered over all it holds.
-    final served = filteredCopyFor(
-      _underlay,
-      slot,
-      filter: read.filter,
-      blendMode: BlendMode.srcOver,
-      clip: read.clip,
-      reach: read.reach,
-      devicePixelRatio: read.devicePixelRatio,
-      filtersReach: true,
-    );
+    final served = serveFilteredCopy(_underlay, asked);
     if (served == null) return null;
     final (:copy, :shown, :origin) = served;
     return servedPicture(

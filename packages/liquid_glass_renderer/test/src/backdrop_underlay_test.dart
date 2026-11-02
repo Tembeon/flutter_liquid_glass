@@ -483,6 +483,40 @@ void main() {
     expect(_difference(reading, together), lessThanOrEqualTo(2));
   }, skip: skipProperGlassTests);
 
+  testWidgets('an island holds while what lies under it is unchanged and '
+      'is recorded again, once, when it changes', (tester) async {
+    tester.view.physicalSize = const Size(260, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    BackdropUnderlay.debugEnabledOverride = true;
+    addTearDown(() => BackdropUnderlay.debugEnabledOverride = null);
+    List<RenderLiquidGlassLayer> glass() => tester.allRenderObjects
+        .whereType<RenderLiquidGlassLayer>()
+        .toSet()
+        .toList();
+    await tester.pumpWidget(_pairScene(top: 160));
+    final captures = [for (final g in glass()) g.debugUnderlay.debugCaptures];
+    final islands = BackdropUnderlay.debugIslands[2] ?? 0;
+
+    tester.binding.scheduleFrame();
+    await tester.pump();
+    expect(
+      [for (final g in glass()) g.debugUnderlay.debugCaptures],
+      captures,
+    );
+
+    await tester.pumpWidget(_pairScene(top: 160, shift: 0.3));
+    expect(
+      [
+        for (final g in glass()) g.debugUnderlay.debugCaptures,
+      ],
+      [for (final c in captures) c + 1],
+    );
+    expect(BackdropUnderlay.debugIslands[2], islands + 1);
+    final [a, b] = [for (final g in glass()) g.debugUnderlay.debugImage!];
+    expect(a.isCloneOf(b), isTrue);
+  }, skip: skipProperGlassTests);
+
   testWidgets('glass whose shadow paints between it and the next glass '
       'still joins it in an island', (tester) async {
     tester.view.physicalSize = const Size(260, 360);

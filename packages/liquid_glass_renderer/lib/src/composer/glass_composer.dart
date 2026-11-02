@@ -18,10 +18,12 @@ import 'package:meta/meta.dart';
 ///
 /// Before paint it polls where each site is on the screen, so glass that
 /// moved past what its retained layers can follow repaints in this frame.
-/// After paint it walks the view's layers in paint order and has every
-/// [ComposedLayer] make its decisions for the frame, then submits the
-/// frame's flutter_gpu passes and draws the frame's copies of what lies
-/// under glass, before any scene is built.
+/// After paint it walks the view's layers in paint order twice: every
+/// [ComposedLayer] first asks for what its decisions need
+/// ([ComposedLayer.prepare]), the copies asked for are planned together, and
+/// then each makes its decisions for the frame ([ComposedLayer.compose]).
+/// It then submits the frame's flutter_gpu passes and draws the frame's
+/// copies of what lies under glass, before any scene is built.
 ///
 /// One composer per view owner, adopted by the first glass that attaches
 /// there ([track]) and dropped and disposed when the last one detaches, so a
@@ -138,7 +140,11 @@ final class GlassComposer extends PipelineOwner {
     final root = _root();
     _composing = true;
     try {
-      if (root != null) _compose(root);
+      if (root != null) {
+        _prepare(root);
+        _underlays.plan();
+        _compose(root);
+      }
     } finally {
       _composing = false;
       FlutterGpuGeometryRenderer.flushPendingSubmissions();
@@ -158,6 +164,15 @@ final class GlassComposer extends PipelineOwner {
     return null;
   }
 
+  void _prepare(ContainerLayer layer) {
+    if (layer is ComposedLayer) layer.prepare();
+    var child = layer.firstChild;
+    while (child != null) {
+      if (child is ContainerLayer) _prepare(child);
+      child = child.nextSibling;
+    }
+  }
+
   // Parents before children, children in paint order, each read after its
   // parent's decisions moved layers: the order of the update pass.
   void _compose(ContainerLayer layer) {
@@ -173,14 +188,19 @@ final class GlassComposer extends PipelineOwner {
 /// A layer whose decisions for a frame are made after every layer has
 /// painted and before the scene is built ([compose]).
 ///
-/// The view's [GlassComposer] composes it in paint order. A scene the
-/// composer did not plan, such as an image of a subtree taken outside a
-/// frame or before the composer ran, composes it in the update pass that
-/// builds the scene, which also runs parents before children.
+/// The view's [GlassComposer] has every such layer of the view [prepare] in
+/// paint order, then [compose] in paint order. A scene the composer did not
+/// plan, such as an image of a subtree taken outside a frame or before the
+/// composer ran, prepares and composes it in the update pass that builds the
+/// scene, which also runs parents before children.
 @internal
 mixin ComposedLayer on ContainerLayer {
   GlassComposer? _composedBy;
   int _composedIn = 0;
+
+  /// Asks for what this frame's decisions need, such as a copy of what lies
+  /// under the layer, before any layer of the frame decides.
+  void prepare() {}
 
   /// Makes this frame's decisions. Layers painted before this one have made
   /// theirs.
@@ -206,6 +226,7 @@ mixin ComposedLayer on ContainerLayer {
     if (composedAhead) {
       _composedBy = null;
     } else {
+      prepare();
       compose();
     }
     super.updateSubtreeNeedsAddToScene();
