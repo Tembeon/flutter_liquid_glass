@@ -269,10 +269,15 @@ class _ClipEntry {
   (Object, Clip) _geometryOf(RenderBox source) {
     if (source case RenderClipPath(:final clipper?, :final size)) {
       if (!identical(clipper, _clipper)) {
-        _clipper?.removeListener(_reclip);
+        final old = _clipper;
+        old?.removeListener(_reclip);
         clipper.addListener(_reclip);
         _clipper = clipper;
-        _clipperPath = null;
+        if (old == null ||
+            old.runtimeType != clipper.runtimeType ||
+            clipper.shouldReclip(old)) {
+          _clipperPath = null;
+        }
       }
       if (_clipperPath == null || _clipperSize != size) {
         _clipperPath = clipper.getClip(size);
@@ -294,9 +299,10 @@ class _ClipEntry {
     if (!layer.enabled) return;
     layer.clipBehavior = behavior;
     final transform = transformToNow(source, owner);
-    if ((geometry is Path
-            ? identical(geometry, _geometry)
-            : _geometry == geometry) &&
+    final sameGeometry = geometry is Path
+        ? identical(geometry, _geometry)
+        : _geometry == geometry;
+    if (sameGeometry &&
         _offset == offset &&
         MatrixUtils.matrixEquals(_transform, transform)) {
       return;
@@ -308,9 +314,13 @@ class _ClipEntry {
       ..multiply(transform);
     forward.layer!.transform = ownerTransform;
     inverse.layer!.transform = Matrix4.inverted(ownerTransform);
-    layer.geometry = source is RenderClipOval
-        ? (Path()..addOval(geometry as Rect))
-        : geometry;
+    // An oval's path is built again only when its rect moves: a new path
+    // adds the clip to the scene again and breaks every copy signed over it.
+    if (!sameGeometry || source is! RenderClipOval) {
+      layer.geometry = source is RenderClipOval
+          ? _ovalPath(geometry as Rect)
+          : geometry;
+    }
   }
 
   Rect? get ownerBounds {
@@ -348,6 +358,13 @@ class _ClipEntry {
     handle.layer = null;
     inverse.layer = null;
   }
+}
+
+Path _ovalPath(Rect rect) {
+  final path = Path();
+  // ignore: cascade_invocations
+  path.addOval(rect);
+  return path;
 }
 
 @internal
