@@ -130,12 +130,12 @@ void main() {
         _settings,
         const LiquidGlassAppearance(),
       )!;
-      expect(identical(neutral.withoutBlur, fakeGlassIdentityFilter), isTrue);
+      expect(identical(neutral.withoutBlur, identityColorFilter), isTrue);
       final tinted = fakeGlassBackdropFilterParts(
         _settings,
         const LiquidGlassAppearance.ios27RegularLight(),
       )!;
-      expect(identical(tinted.withoutBlur, fakeGlassIdentityFilter), isFalse);
+      expect(identical(tinted.withoutBlur, identityColorFilter), isFalse);
     });
 
     for (final fake in [false, true]) {

@@ -219,18 +219,8 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
   if (full == null) return null;
   return (
     full: full,
-    withoutBlur: colorTransfer ?? fakeGlassIdentityFilter,
+    withoutBlur: colorTransfer ?? identityColorFilter,
     sigma: sigma,
     frost: frost,
   );
 }
-
-/// The `withoutBlur` filter of [FakeGlassFilterParts] for a glass that is
-/// only a blur: nothing is left to do once the pass has blurred its backdrop.
-@internal
-const ImageFilter fakeGlassIdentityFilter = ColorFilter.matrix(<double>[
-  1, 0, 0, 0, 0, //
-  0, 1, 0, 0, 0, //
-  0, 0, 1, 0, 0, //
-  0, 0, 0, 1, 0, //
-]);

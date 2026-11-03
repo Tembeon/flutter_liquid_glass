@@ -7,17 +7,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_frost.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
-
-// An identity backdrop filter: under a clip it gives the filter inside it a
-// pass of the clip's size to read instead of the whole pass behind it.
-const ui.ImageFilter _seed = ui.ColorFilter.matrix(<double>[
-  1, 0, 0, 0, 0, //
-  0, 1, 0, 0, 0, //
-  0, 0, 1, 0, 0, //
-  0, 0, 0, 1, 0,
-]);
 
 /// A backdrop filter over [clip] that, wherever it can, filters a copy of
 /// what is painted under it instead of reading the backdrop, so a frame
@@ -27,15 +19,17 @@ const ui.ImageFilter _seed = ui.ColorFilter.matrix(<double>[
 /// A backdrop filter anywhere in a frame makes Impeller render the whole
 /// frame offscreen, split the root pass at every read and blit the result to
 /// the screen. This layer draws what lies under [clip] again from the layer
-/// tree while the frame composites. For a [frost] the shader can draw, the
-/// copy is drawn unblurred in the frame itself and frosted as it is drawn.
+/// tree while the frame composites. For a [frost] the shader can draw,
+/// composited with [BlendMode.srcOver], the copy is drawn unblurred in the
+/// frame itself and frosted as it is drawn.
 /// Any other copy is drawn into a small image, filtered as the backdrop
 /// would be, which serves later frames while those layers are unchanged;
 /// a frosted copy falls back to an unblurred image at a fraction of the
 /// screen's pixels where the frame cannot draw it. Under a texture, a
 /// platform view, a live backdrop filter or a layer type the copy cannot
 /// draw (see `LiquidGlassUnderlay`) it reads the backdrop like a
-/// [BackdropFilterLayer], confined to [reach] around [clip].
+/// [BackdropFilterLayer], confined to [reach] around [clip] while
+/// [confinesRead].
 ///
 /// The filter applies to the screen-aligned backdrop: under a transform that
 /// scales or turns the layer, it reads the backdrop.
@@ -82,7 +76,8 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   }
 
   /// The blur and color matrix [filter] stands for, which a copy draws
-  /// through a shader; null for a layer made with [filter] alone.
+  /// through a shader; null while the filter was given alone, by the default
+  /// constructor or the [filter] setter.
   LiquidGlassBackdropFrost? get frost => _frost;
   LiquidGlassBackdropFrost? _frost;
   set frost(LiquidGlassBackdropFrost value) {
@@ -322,7 +317,9 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     }
     if (confinesRead) {
       builder.pushClipRect(_clip.inflate(_reach), clipBehavior: Clip.hardEdge);
-      builder.pushBackdropFilter(_seed, blendMode: BlendMode.src);
+      // Under the clip, an identity read gives the filter inside it a pass
+      // of the clip's size to read instead of the whole pass behind it.
+      builder.pushBackdropFilter(identityColorFilter, blendMode: BlendMode.src);
     }
     builder.pushClipRect(_clip, clipBehavior: Clip.hardEdge);
     builder.pushBackdropFilter(_filter, blendMode: _blendMode);

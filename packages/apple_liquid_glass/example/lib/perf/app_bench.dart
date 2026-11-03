@@ -359,7 +359,6 @@ class _Journey {
     final images = BackdropUnderlay.debugImagesDrawn;
     final misses = {...BackdropUnderlay.debugMisses};
     final folds = BackdropUnderlay.debugFolds;
-    final signs = {...BackdropUnderlay.debugEdgeSigns};
     final flushes = {...BackdropUnderlay.debugFlushes};
     final composed = _composed();
     _open = window;
@@ -391,11 +390,6 @@ class _Journey {
     }
     if (BackdropUnderlay.debugFolds - folds case final count when count > 0) {
       window.misses['folds'] = count;
-    }
-    for (final MapEntry(:key, :value)
-        in BackdropUnderlay.debugEdgeSigns.entries) {
-      final count = value - (signs[key] ?? 0);
-      if (count > 0) window.misses['edge signs $key'] = count;
     }
     for (final MapEntry(:key, :value)
         in BackdropUnderlay.debugFlushes.entries) {

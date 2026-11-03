@@ -393,8 +393,8 @@ const _identityMatrix = <double>[
 
 /// Places a rig's pass around a clip, given in the layer coordinates it is
 /// painted in, the paint offset from the owner, how far the blur reads past
-/// the clip, and the sizing that keeps the pass from resizing on every
-/// bucket step.
+/// the clip, and the [BackdropPassSizing] that holds the pass's size from
+/// frame to frame.
 @internal
 typedef BackdropPassPlanner = BackdropPassPlan Function(
   Rect inner,
@@ -425,7 +425,7 @@ class BackdropRig {
   /// Places the pass.
   final BackdropPassPlanner plan;
 
-  /// The capture this rig shares with others, if any.
+  /// The backdrop read this rig shares with others, if any.
   final BackdropShare? share;
 
   /// Whether the pass stays seeded while its size changes (see

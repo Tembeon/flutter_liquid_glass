@@ -20,16 +20,17 @@ import 'package:liquid_glass_renderer/src/liquid_glass_underlay.dart';
 /// through the effect's filter, that the effect draws from instead of
 /// reading the backdrop.
 ///
-/// A backdrop filter anywhere in a frame makes Impeller render the whole
-/// frame offscreen, split the root pass at every read and blit the result to
-/// the screen; a frame whose glass all paints over copies has none of that.
-/// The copy is drawn from the layer tree itself while the frame composites:
-/// everything painted before the layer, in a band around what its glass
-/// samples, replayed into one image with every other copy the frame draws,
-/// which the frame renders before the glass. It serves later frames while
-/// the layers painted before the glass in that band are the same ones it was
-/// drawn from (the same pictures under the same transforms, clips, opacities
-/// and filters); a frame in which they changed draws a new one.
+/// Glass that paints over copies spares the frame the offscreen render a
+/// backdrop read costs (see [LiquidGlassBackdropFilterLayer]). The copy is
+/// drawn from the layer tree itself while the frame composites: everything
+/// painted before the layer, in a band around what its glass samples. A copy
+/// without a filter is drawn in the frame itself ([serveInFrame]). A
+/// filtered one is replayed into one image with every other copy the frame
+/// draws, which the frame renders before the glass; it serves later frames
+/// while the layers painted before the glass in that band are the same ones
+/// it was drawn from (the same pictures under the same transforms, clips,
+/// opacities and filters), and a frame in which they changed draws a new
+/// one.
 ///
 /// Inside a fractional opacity the copy holds what the screen shows under
 /// the glass, the faded content of the glass's own group included, and the
@@ -48,8 +49,7 @@ class BackdropUnderlay {
   static final bool _defaultEnabled =
       !kIsWeb &&
       ui.ImageFilter.isShaderFilterSupported &&
-      !runningUnderFlutterTest &&
-      const bool.fromEnvironment('LIQUID_GLASS_UNDERLAY', defaultValue: true);
+      !runningUnderFlutterTest;
 
   /// Whether glass layers keep copies of what lies under them: wherever
   /// Impeller renders, not under `flutter test` unless a test turns it on.
@@ -63,8 +63,10 @@ class BackdropUnderlay {
   Offset _offset = Offset.zero;
   // The screen rect the copy holds.
   Rect _rect = Rect.zero;
-  // What the copy was drawn from, with the copies drawn with it.
+  // What the copy was drawn from, with the copies drawn with it, and what
+  // this copy asked for when it joined.
   _Island? _island;
+  _Ask? _joined;
   // This frame's request until it is served, and the island the composer
   // planned for it.
   _Ask? _ask;
@@ -83,11 +85,6 @@ class BackdropUnderlay {
   @visibleForTesting
   static final debugMisses = <String, int>{};
 
-  /// How many scroll edges glass signed, by whether its band meets the
-  /// edge's output (`output`) or only the margin the edge reads (`margin`).
-  @visibleForTesting
-  static final debugEdgeSigns = <String, int>{};
-
   /// How many times the copies were drawn with copies pending, by what
   /// asked for them: the composer once the frame was planned, a read, or a
   /// scene the composer did not plan, which draws a copy at once.
@@ -102,7 +99,7 @@ class BackdropUnderlay {
 
   /// How many images the copies of all glass were drawn into.
   @visibleForTesting
-  static int get debugImagesDrawn => _Atlas.drawn;
+  static int debugImagesDrawn = 0;
 
   /// How many filtered layers the copies were drawn in: one holds every copy
   /// of one blur in an image.
@@ -154,14 +151,16 @@ class BackdropUnderlay {
   /// filter with [filterBlendMode] inside [filterClip] (the whole copy when
   /// null), in screen logical pixels; a copy serves only callers that pass an
   /// equal filter. [blur] stands in for a [filter] that is a mirrored
-  /// Gaussian blur over the whole copy by these sigmas in logical pixels:
-  /// the copy is blurred at its own pixels, without reading
-  /// a backdrop, together with the frame's other copies under the same blur.
-  /// NEAR: past a copy's edge the blur reads what lies beside it in the
-  /// shared layer rather than a mirror of the copy; a copy holds 3 sigma past
-  /// what its glass samples, so that reaches the glass only as the tail of
-  /// the blur. Glass stretched along the axes differs from reading the
-  /// backdrop by up to 15 levels in a few hundred pixels on the Pixel 6a.
+  /// Gaussian blur over the whole copy by these sigmas in logical pixels. Up
+  /// to `_Atlas._maxImageBlurSigma` copy pixels the copy is blurred at its
+  /// own pixels, in one image-filter layer with the frame's other copies
+  /// under the same blur, without reading a backdrop. NEAR: past a copy's
+  /// edge that blur reads what lies beside it in the shared layer rather than
+  /// a mirror of the copy; a copy holds 3 sigma past what its glass samples,
+  /// so that reaches the glass only as the tail of the blur. Glass stretched
+  /// along the axes differs from reading the backdrop by up to 15 levels in
+  /// a few hundred pixels on the Pixel 6a. A wider blur filters the copy as
+  /// a backdrop filter in a layer of its own.
   /// [anchor] lies in a [RenderView]'s layer tree, and the copy is cut to its
   /// screen. The copy holds [downscale] device pixels in each of its pixels
   /// along each side, for a caller that blurs or frosts it enough that the
@@ -216,7 +215,6 @@ class BackdropUnderlay {
       band: _snapOut(region, pixels).intersect(screen),
       filter: filter,
       blur: blur,
-      filterKey: blur ?? filter,
       filterClip: filterClip,
       filterBlendMode: filterBlendMode,
       body: body,
@@ -246,12 +244,7 @@ class BackdropUnderlay {
       _count(debugMisses, 'off screen');
       return null;
     }
-    final scan = _Scan.of(
-      ask.frame,
-      _rootOf(ask.anchor),
-      ask.devicePixelRatio,
-      ask.anchor,
-    );
+    final scan = _scanOf(ask);
     final limit = scan.reach(ask.anchor);
     if (plan?.serve(this, ask, scan, limit) case final copy?) return copy;
     return _islandOf([this], [ask], scan, limit)?.copy;
@@ -283,12 +276,7 @@ class BackdropUnderlay {
       _count(debugMisses, 'off screen');
       return null;
     }
-    final scan = _Scan.of(
-      ask.frame,
-      _rootOf(ask.anchor),
-      ask.devicePixelRatio,
-      ask.anchor,
-    );
+    final scan = _scanOf(ask);
     final limit = scan.reach(ask.anchor);
     final clip = (limit < 0 ? null : scan.clip)?.intersect(ask.screen);
     final layer = clip == null
@@ -499,30 +487,30 @@ class BackdropUnderlay {
       rect,
       pixelRatio: signed.folds ? ask.devicePixelRatio : ask.pixelRatio,
     );
-    final tile = _Tile(island);
-    island.tile = tile;
     // Recorded when the frame's copies are drawn, not now: glass in the band
     // whose own copy is drawn with it is drawn by then as far as it can be.
-    tile.redraw = () {
+    island.redraw = () {
       final replay = _Prefix(
         ask.anchor,
         rect,
         ui.PictureRecorder(),
         scan: scan,
         limit: limit,
-        bodies: [...island.bodies.nonNulls],
+        bodies: [
+          for (final member in island.members) ?member._joined!.body,
+        ],
       );
       final picture = replay.record(island.pixelRatio);
       if (picture != null && !island.broken) island.signature = replay.out;
-      tile.pieces = replay.pieces;
+      island.pieces = replay.pieces;
       return picture;
     };
     first._join(island, rects.first, ask);
     if (ask.frame case final frame?) {
-      frame._atlas.add(tile);
+      frame._atlas.add(island);
     } else {
       final atlas = _Atlas();
-      atlas.add(tile);
+      atlas.add(island);
       atlas.flush('at once');
     }
     return (
@@ -548,13 +536,13 @@ class BackdropUnderlay {
         island.members.any((member) => member._image == null)) {
       return false;
     }
-    final first = island.anchors.first;
+    final first = island.members.first._joined!.anchor;
     final from = scan.startOf(first);
     if (from == null || from > limit) return false;
     final index = island.members.indexOf(this);
     final bodies = [
-      for (final (i, other) in island.bodies.indexed)
-        if (i == index) body else ?other,
+      for (final (i, other) in island.members.indexed)
+        if (i == index) body else ?other._joined!.body,
     ];
     final signed = _Prefix.signed(first, island.rect, scan, from, bodies);
     if (signed.blocked || !signed.reached || !_same(signed.out, signature)) {
@@ -566,10 +554,12 @@ class BackdropUnderlay {
       _rect,
       body,
       starts: {
-        for (final anchor in island.anchors)
-          if (scan.startOf(anchor) case final start? when start < limit) start,
+        for (final member in island.members)
+          if (scan.startOf(member._joined!.anchor) case final start?
+              when start < limit)
+            start,
       },
-      owned: {...island.owns.nonNulls},
+      owned: {for (final member in island.members) ?member._joined!.own},
     );
   }
 
@@ -578,11 +568,8 @@ class BackdropUnderlay {
     release();
     _rect = rect;
     _island = island;
+    _joined = ask;
     island.members.add(this);
-    island.rects.add(rect);
-    island.bodies.add(ask.body);
-    island.anchors.add(ask.anchor);
-    island.owns.add(ask.own);
     debugCaptures++;
     debugMiss = null;
   }
@@ -593,6 +580,7 @@ class BackdropUnderlay {
     _image = null;
     _island?._leave(this);
     _island = null;
+    _joined = null;
   }
 
   // Where the copies [drawn] together lie in [members], or null when they
@@ -615,6 +603,13 @@ class BackdropUnderlay {
     }
     return kept;
   }
+
+  static _Scan _scanOf(_Ask ask) => _Scan.of(
+    ask.frame,
+    _rootOf(ask.anchor),
+    ask.devicePixelRatio,
+    ask.anchor,
+  );
 
   static Layer _rootOf(Layer layer) {
     var root = layer;
@@ -714,7 +709,6 @@ final class _Ask {
     required this.band,
     required this.filter,
     required this.blur,
-    required this.filterKey,
     required this.filterClip,
     required this.filterBlendMode,
     required this.body,
@@ -730,12 +724,14 @@ final class _Ask {
   final Rect band;
   final ui.ImageFilter? filter;
   final (double, double)? blur;
-  final Object? filterKey;
   final Rect? filterClip;
   final BlendMode filterBlendMode;
   final Rect? body;
 
-  bool get filtered => filter != null || blur != null;
+  // What copies under the same filter share.
+  Object? get filterKey => blur ?? filter;
+
+  bool get filtered => filterKey != null;
 
   bool get inFrame => BackdropUnderlay.debugInFrame && !filtered;
 
@@ -777,7 +773,6 @@ final class _Plan {
     final first = _asks.first;
     if (ask.pixelRatio != first.pixelRatio ||
         ask.filterKey != first.filterKey ||
-        ask.filtered != first.filtered ||
         !_meets(rect, ask.band)) {
       return false;
     }
@@ -854,53 +849,62 @@ final class _Plan {
 // recorded over, from what is painted before the first one's glass, and its
 // signature; and each copy's rect of it.
 final class _Island {
-  _Island(_Ask ask, this.rect, {required this.pixelRatio})
-    : filter = ask.filter,
-      blur = ask.blur,
-      filterKey = ask.filterKey,
-      filterClip = ask.filterClip,
-      filterBlendMode = ask.filterBlendMode,
-      devicePixelRatio = ask.devicePixelRatio;
+  _Island(this._ask, this.rect, {required this.pixelRatio})
+    : width = (rect.width * pixelRatio).round(),
+      height = (rect.height * pixelRatio).round();
 
+  // What the first copy asked for, which every copy drawn with it shares.
+  final _Ask _ask;
   final Rect rect;
-  final ui.ImageFilter? filter;
-  final (double, double)? blur;
-  final Object? filterKey;
-  final Rect? filterClip;
-  final BlendMode filterBlendMode;
-  final double devicePixelRatio;
   final double pixelRatio;
   final members = <BackdropUnderlay>[];
-  final rects = <Rect>[];
-  final bodies = <Rect?>[];
-  final anchors = <Layer>[];
-  final owns = <OpacitySeedLayer?>[];
   List<Object?>? signature;
-  _Tile? tile;
   // Once a copy has left, the signature no longer tells whether the others
   // hold: the island is recorded again.
   bool broken = false;
+
+  // The atlas that draws the island while it is pending.
+  _Atlas? atlas;
+  late final ui.Picture? Function() redraw;
+  ui.Picture? content;
+  // What the copy draws before each glass it folds in, drawn under
+  // [content].
+  List<(ui.Picture, _Fold)> pieces = const [];
+  final int width;
+  final int height;
+  // Where the island lies in the atlas's image, in its pixels.
+  Offset offset = Offset.zero;
+
+  ui.ImageFilter? get filter => _ask.filter;
+  (double, double)? get blur => _ask.blur;
+  Object? get filterKey => _ask.filterKey;
+  bool get filtered => _ask.filtered;
+  Rect? get filterClip => _ask.filterClip;
+  BlendMode get filterBlendMode => _ask.filterBlendMode;
+
+  // Whether the copy is filtered in the atlas's layer of copies rather than
+  // as a backdrop of its own.
+  bool get layered => switch (blur) {
+    (final x, final y) => max(x, y) * pixelRatio <= _Atlas._maxImageBlurSigma,
+    null => false,
+  };
+
+  Rect get bounds => offset & Size(width.toDouble(), height.toDouble());
 
   bool fits(_Ask ask) =>
       ask.filterKey == filterKey &&
       ask.filterClip == filterClip &&
       ask.filterBlendMode == filterBlendMode &&
-      ask.devicePixelRatio == devicePixelRatio &&
+      ask.devicePixelRatio == _ask.devicePixelRatio &&
       ask.pixelRatio == pixelRatio;
 
   void _leave(BackdropUnderlay underlay) {
-    final index = members.indexOf(underlay);
-    if (index < 0) return;
-    members.removeAt(index);
-    rects.removeAt(index);
-    bodies.removeAt(index);
-    anchors.removeAt(index);
-    owns.removeAt(index);
+    if (!members.remove(underlay)) return;
     broken = true;
     signature = null;
     if (members.isEmpty) {
-      if (tile case final tile?) tile.atlas?.cancel(tile);
-      tile = null;
+      atlas?._pending.remove(this);
+      atlas = null;
     }
   }
 }
@@ -1265,17 +1269,46 @@ final class _Scan {
       filtered: filtered || nextFiltered,
     );
 
-    _Open clipping(
-      Rect bounds,
-      Clip behavior,
-      void Function(Canvas c, {required bool antiAlias}) clipTo,
-    ) => _Open((c) {
-      c.save();
-      clipTo(c, antiAlias: behavior != Clip.hardEdge);
-      if (behavior != Clip.antiAliasWithSaveLayer) return 1;
-      c.saveLayer(bounds, Paint());
-      return 2;
-    }, layered: behavior == Clip.antiAliasWithSaveLayer);
+    void pushClip(ContainerLayer layer, Object geometry, Clip behavior) {
+      final (bounds, clipTo) = switch (geometry) {
+        final Rect rect => (
+          rect,
+          (Canvas c, {required bool antiAlias}) =>
+              c.clipRect(rect, doAntiAlias: antiAlias),
+        ),
+        final RRect rect => (
+          rect.outerRect,
+          (Canvas c, {required bool antiAlias}) =>
+              c.clipRRect(rect, doAntiAlias: antiAlias),
+        ),
+        final RSuperellipse rect => (
+          rect.outerRect,
+          (Canvas c, {required bool antiAlias}) =>
+              c.clipRSuperellipse(rect, doAntiAlias: antiAlias),
+        ),
+        final Path path => (
+          path.getBounds(),
+          (Canvas c, {required bool antiAlias}) =>
+              c.clipPath(path, doAntiAlias: antiAlias),
+        ),
+        _ => (Rect.largest, null),
+      };
+      push(
+        layer,
+        clipTo == null
+            ? _Undrawable(layer)
+            : _Open((c) {
+                c.save();
+                clipTo(c, antiAlias: behavior != Clip.hardEdge);
+                if (behavior != Clip.antiAliasWithSaveLayer) return 1;
+                c.saveLayer(bounds, Paint());
+                return 2;
+              }, layered: behavior == Clip.antiAliasWithSaveLayer),
+        keepClip: false,
+        nextClip: clipped(bounds),
+        nextState: [...state, geometry, behavior],
+      );
+    }
 
     switch (layer) {
       case UnderlayPictureLayer():
@@ -1325,7 +1358,6 @@ final class _Scan {
             clip,
             state,
             filtered ? _everywhere : clipped(rect.inflate(reach)),
-            filtered ? _everywhere : clipped(rect),
           ),
         );
       case TransformLayer(:final offset):
@@ -1433,102 +1465,26 @@ final class _Scan {
         );
       case ClipRectLayer(:final clipRect?, :final clipBehavior)
           when clipBehavior != Clip.none:
-        push(
-          layer,
-          clipping(
-            clipRect,
-            clipBehavior,
-            (c, {required antiAlias}) =>
-                c.clipRect(clipRect, doAntiAlias: antiAlias),
-          ),
-          keepClip: false,
-          nextClip: clipped(clipRect),
-          nextState: [...state, clipRect, clipBehavior],
-        );
+        pushClip(layer, clipRect, clipBehavior);
       case ClipRRectLayer(:final clipRRect?, :final clipBehavior)
           when clipBehavior != Clip.none:
-        push(
-          layer,
-          clipping(
-            clipRRect.outerRect,
-            clipBehavior,
-            (c, {required antiAlias}) =>
-                c.clipRRect(clipRRect, doAntiAlias: antiAlias),
-          ),
-          keepClip: false,
-          nextClip: clipped(clipRRect.outerRect),
-          nextState: [...state, clipRRect, clipBehavior],
-        );
+        pushClip(layer, clipRRect, clipBehavior);
       case ClipRSuperellipseLayer(
             :final clipRSuperellipse?,
             :final clipBehavior,
           )
           when clipBehavior != Clip.none:
-        push(
-          layer,
-          clipping(
-            clipRSuperellipse.outerRect,
-            clipBehavior,
-            (c, {required antiAlias}) =>
-                c.clipRSuperellipse(clipRSuperellipse, doAntiAlias: antiAlias),
-          ),
-          keepClip: false,
-          nextClip: clipped(clipRSuperellipse.outerRect),
-          nextState: [...state, clipRSuperellipse, clipBehavior],
-        );
+        pushClip(layer, clipRSuperellipse, clipBehavior);
       case ClipPathLayer(:final clipPath?, :final clipBehavior)
           when clipBehavior != Clip.none:
-        final bounds = clipPath.getBounds();
-        push(
-          layer,
-          clipping(
-            bounds,
-            clipBehavior,
-            (c, {required antiAlias}) =>
-                c.clipPath(clipPath, doAntiAlias: antiAlias),
-          ),
-          keepClip: false,
-          nextClip: clipped(bounds),
-          nextState: [...state, clipPath, clipBehavior],
-        );
+        pushClip(layer, clipPath, clipBehavior);
       case NativeClipLayer(
             enabled: true,
             :final geometry?,
             :final clipBehavior,
           )
           when clipBehavior != Clip.none:
-        final (bounds, clipTo) = switch (geometry) {
-          final Rect rect => (
-            rect,
-            (Canvas c, {required bool antiAlias}) =>
-                c.clipRect(rect, doAntiAlias: antiAlias),
-          ),
-          final RRect rect => (
-            rect.outerRect,
-            (Canvas c, {required bool antiAlias}) =>
-                c.clipRRect(rect, doAntiAlias: antiAlias),
-          ),
-          final RSuperellipse rect => (
-            rect.outerRect,
-            (Canvas c, {required bool antiAlias}) =>
-                c.clipRSuperellipse(rect, doAntiAlias: antiAlias),
-          ),
-          final Path path => (
-            path.getBounds(),
-            (Canvas c, {required bool antiAlias}) =>
-                c.clipPath(path, doAntiAlias: antiAlias),
-          ),
-          _ => (Rect.largest, null),
-        };
-        push(
-          layer,
-          clipTo == null
-              ? _Undrawable(layer)
-              : clipping(bounds, clipBehavior, clipTo),
-          keepClip: false,
-          nextClip: clipped(bounds),
-          nextState: [...state, geometry, clipBehavior],
-        );
+        pushClip(layer, geometry, clipBehavior);
       case LeaderLayer(:final offset):
         push(
           layer,
@@ -1835,12 +1791,6 @@ final class _Scan {
               if (!through) break loop;
               continue loop;
             case _Served(:final layer, :final transform, :final clip):
-              if (!kReleaseMode) {
-                _count(
-                  BackdropUnderlay.debugEdgeSigns,
-                  _meets(entry.output, band) ? 'output' : 'margin',
-                );
-              }
               if (layer.pending) {
                 if (!fold(layer, layer.addFold, transform, clip)) break loop;
               } else if (layer.inFrameLayer case final inFrame?) {
@@ -2117,7 +2067,6 @@ final class _Served extends _Open {
     this.clip,
     this.state,
     this.reads,
-    this.output,
   ) : super(_Open._none) {
     extra = reads;
   }
@@ -2127,7 +2076,6 @@ final class _Served extends _Open {
   final Rect? clip;
   final List<Object?> state;
   final Rect reads;
-  final Rect output;
 }
 
 /// A copy that [BackdropUnderlay.serve] hands over: [rect] of the screen, in
@@ -2153,17 +2101,17 @@ final class UnderlayCopy {
   bool get ready => _underlay._image != null;
 
   /// Whether the copy is drawn with the frame's copies, not yet drawn.
-  bool get pending => !ready && _underlay._island?.tile != null;
+  bool get pending => !ready && _underlay._island?.atlas != null;
 
   /// The image that holds the copy, shared with other copies of the frame.
   ui.Image get image {
-    if (!ready) _underlay._island?.tile?.atlas?.flush('read');
+    if (!ready) _underlay._island?.atlas?.flush('read');
     return _underlay._image!;
   }
 
   /// Where [rect]'s top left corner sits in [image], in its pixels.
   Offset get offset {
-    if (!ready) _underlay._island?.tile?.atlas?.flush('read');
+    if (!ready) _underlay._island?.atlas?.flush('read');
     return _underlay._offset;
   }
 }
@@ -2238,8 +2186,8 @@ class UnderlayPictureLayer extends GlassPictureLayer {
 ///
 /// Impeller cuts a layer drawn inside a smaller pass (see
 /// [BackdropUnderlay.keepsWhole]), and its fragment coordinates start at the
-/// cut: a copy for other glass whose pass does not
-/// hold [layer] draws this glass with [within] instead.
+/// cut: a copy for other glass whose pass does not hold [layer] draws this
+/// glass with [within] instead.
 @internal
 class InFrameGlassLayer extends GlassPictureLayer {
   /// A layer whose picture draws the glass over [copy] inside
@@ -2263,44 +2211,6 @@ class InFrameGlassLayer extends GlassPictureLayer {
   }
 }
 
-class _Tile {
-  _Tile(this.island)
-    : width = (island.rect.width * island.pixelRatio).round(),
-      height = (island.rect.height * island.pixelRatio).round();
-
-  final _Island island;
-
-  // The atlas that draws it.
-  _Atlas? atlas;
-
-  ui.Picture? content;
-  // What the copy draws before each glass it folds in, drawn under
-  // [content].
-  List<(ui.Picture, _Fold)> pieces = const [];
-  ui.Picture? Function()? redraw;
-  final int width;
-  final int height;
-  Offset offset = Offset.zero;
-
-  Rect get rect => island.rect;
-  double get pixelRatio => island.pixelRatio;
-  ui.ImageFilter? get filter => island.filter;
-  (double, double)? get blur => island.blur;
-  bool get filtered => island.filter != null || island.blur != null;
-
-  // Whether the copy is filtered in the atlas's layer of copies rather than
-  // as a backdrop of its own.
-  bool get layered => switch (blur) {
-    (final x, final y) => max(x, y) * pixelRatio <= _Atlas._maxImageBlurSigma,
-    null => false,
-  };
-  Object? get filterKey => island.filterKey;
-  Rect? get filterClip => island.filterClip;
-  BlendMode get filterBlendMode => island.filterBlendMode;
-
-  Rect get bounds => offset & Size(width.toDouble(), height.toDouble());
-}
-
 // The copies recorded in a frame, drawn into one image: every image drawn
 // on its own costs the raster thread a render pass, a texture and a command
 // buffer, and the GPU driver a submission.
@@ -2316,8 +2226,6 @@ final class _Atlas {
   // the two part by up to 15 levels at some sizes (host parity), so a [blur]
   // copy blurred more is blurred as a backdrop filter.
   static const double _maxImageBlurSigma = 14;
-
-  static int drawn = 0;
 
   // The copies' blurs, held across frames: dart:ui converts each new filter
   // to a native one again. Glass asks for few distinct blurs, so the held
@@ -2335,20 +2243,12 @@ final class _Atlas {
     );
   }
 
-  final _pending = <_Tile>[];
+  final _pending = <_Island>[];
   bool _flushing = false;
 
-  void add(_Tile tile) {
-    tile.atlas = this;
-    _pending.add(tile);
-  }
-
-  void cancel(_Tile tile) {
-    if (!_pending.remove(tile)) return;
-    tile.content?.dispose();
-    for (final (picture, _) in tile.pieces) {
-      picture.dispose();
-    }
+  void add(_Island island) {
+    island.atlas = this;
+    _pending.add(island);
   }
 
   // Draws the pending copies; [why] names what asked, for diagnostics.
@@ -2360,14 +2260,13 @@ final class _Atlas {
       final batch = [..._pending];
       _pending.clear();
       for (final tile in batch) {
-        if (tile.content != null) continue;
-        final picture = tile.redraw?.call();
+        final picture = tile.redraw();
         assert(picture != null, 'A copy recorded again is never blocked.');
         tile.content = picture ?? ui.PictureRecorder().endRecording();
       }
       // Copies filtered in the layer of copies lie side by side, to share
       // it.
-      final runs = <Object?, List<_Tile>>{};
+      final runs = <Object?, List<_Island>>{};
       for (final tile in batch) {
         runs
             .putIfAbsent(
@@ -2386,15 +2285,15 @@ final class _Atlas {
 
   // Every run starts a row of its own, so that the rect around a run's
   // copies holds no other copy.
-  static void _pack(List<List<_Tile>> runs) {
+  static void _pack(List<List<_Island>> runs) {
     final batch = [for (final run in runs) ...run];
-    final starts = Set<_Tile>.identity();
+    final starts = Set<_Island>.identity();
     for (final run in runs) {
       starts.add(run.first);
     }
     var start = 0;
     while (start < batch.length) {
-      final tiles = <_Tile>[];
+      final tiles = <_Island>[];
       var x = 0;
       var y = 0;
       var row = 0;
@@ -2419,7 +2318,7 @@ final class _Atlas {
   }
 
   // From the screen's logical pixels to [tile]'s place in the image.
-  static Matrix4 _toAtlas(_Tile tile) {
+  static Matrix4 _toAtlas(_Island tile) {
     final pixels = tile.pixelRatio;
     final toAtlas = Matrix4.translationValues(
       tile.offset.dx - tile.rect.left * pixels,
@@ -2435,7 +2334,7 @@ final class _Atlas {
   // into: its place in the image, or zero in a layer of its own. NEAR:
   // outside such a layer the glass's filter reads past the copy's edge what
   // lies beside it in the image, as a copy's blur does.
-  static void _add(ui.SceneBuilder b, _Tile tile, {required Offset origin}) {
+  static void _add(ui.SceneBuilder b, _Island tile, {required Offset origin}) {
     for (final (picture, fold) in tile.pieces) {
       b.addPicture(tile.offset, picture);
       BackdropUnderlay.debugFolds++;
@@ -2454,10 +2353,10 @@ final class _Atlas {
     b.addPicture(tile.offset, tile.content!);
   }
 
-  static void _draw(List<_Tile> tiles, int width, int height) {
-    drawn++;
+  static void _draw(List<_Island> tiles, int width, int height) {
+    BackdropUnderlay.debugImagesDrawn++;
     // A copy's picture is clipped to the copy when it is recorded.
-    void place(Canvas canvas, _Tile tile) {
+    void place(Canvas canvas, _Island tile) {
       canvas.save();
       canvas.translate(tile.offset.dx, tile.offset.dy);
       canvas.drawPicture(tile.content!);
@@ -2466,12 +2365,12 @@ final class _Atlas {
 
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    final isolated = <_Tile>[];
-    final folding = <_Tile>[];
+    final isolated = <_Island>[];
+    final folding = <_Island>[];
     // Copies under one blur share one filtered layer: the filter reads the
     // copies alone, so no backdrop is copied for it, and the layer is
     // clipped to the rows of the copies' run, which hold no other copy.
-    final layered = <(Object?, double), List<_Tile>>{};
+    final layered = <(Object?, double), List<_Island>>{};
     for (final tile in tiles) {
       if (!tile.filtered) {
         if (tile.pieces.isEmpty) {
@@ -2555,13 +2454,12 @@ final class _Atlas {
     }
     content.dispose();
     for (final tile in tiles) {
-      final island = tile.island;
-      island.tile = null;
-      final size = island.members.length;
+      tile.atlas = null;
+      final size = tile.members.length;
       if (size > 1) _count(BackdropUnderlay.debugIslands, size);
-      for (final (i, member) in island.members.indexed) {
+      for (final member in tile.members) {
         final shift =
-            (island.rects[i].topLeft - tile.rect.topLeft) * tile.pixelRatio;
+            (member._rect.topLeft - tile.rect.topLeft) * tile.pixelRatio;
         member._image = image.clone();
         member._offset =
             tile.offset +

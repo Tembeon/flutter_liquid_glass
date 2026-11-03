@@ -33,8 +33,8 @@ class BackdropPassSizing {
   /// The longest side, in device pixels, of a pass bucketed at
   /// [PixelBuckets.fine]. A bucket adds up to `bucket - 1` px per side of
   /// backdrop copy and blur fill, a noticeable share of a 250x100 px pill,
-  /// while 32 px still turns a per-frame stretch into a size change every ~12
-  /// frames at typical animation speeds.
+  /// while [PixelBuckets.fine] still turns a per-frame stretch into a size
+  /// change every ~12 frames at typical animation speeds.
   static const smallMaxSide = 192;
 
   /// A pass covering more than this fraction of the screen's pixels is large.
@@ -173,6 +173,16 @@ bool rectContains(Rect outer, Rect inner) =>
 /// with the same, so it stands in for the glass's own blur.
 @internal
 const glassBlurTileMode = TileMode.mirror;
+
+/// A filter that leaves what it filters as it is: a seed, or what is left of
+/// a glass that is only a blur once its pass has blurred the backdrop.
+@internal
+const ui.ImageFilter identityColorFilter = ui.ColorFilter.matrix(<double>[
+  1, 0, 0, 0, 0, //
+  0, 1, 0, 0, 0, //
+  0, 0, 1, 0, 0, //
+  0, 0, 0, 1, 0, //
+]);
 
 /// How far a glass blur by [sigma] logical pixels reads past what it covers;
 /// one extra logical pixel covers the kernel's rounding at any pixel ratio.
@@ -370,12 +380,10 @@ BackdropPassPlan planSeededBackdropPass({
   final outer = screenPaintClipAbove(owner);
   if (outer != null) global = global.intersect(outer);
   if (global.isEmpty) return BackdropPassPlan.clipped;
-  // Impeller reuses an offscreen target only when its size is exactly equal,
-  // so a pass that changes size every frame (an animated pill) allocates and
-  // frees images every frame, and so does one that merely moves if its size
-  // depends on where it is. Grow the pass to device-pixel buckets, then cut
-  // it to the same clips as above: the effect still paints only inside its
-  // own clip, and the pass outside it is cleared.
+  // A pass's size must not follow its position or change every frame (see
+  // [BackdropPassSizing]): grow it to device-pixel buckets, then cut it to the
+  // same clips as above; the effect still paints only inside its own clip,
+  // and the pass outside it is cleared.
   final wantedGlobal = MatrixUtils.transformRect(toGlobal, wanted);
   // The pixels the wanted rect needs by its own extent, which a translation
   // does not change (rounding noise must not cost a pixel).
@@ -555,13 +563,6 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
   /// Whether glass paints in seeded passes at all.
   static bool get enabled => mode != BackdropSeed.none;
 
-  static const _identity = ColorFilter.matrix(<double>[
-    1, 0, 0, 0, 0, //
-    0, 1, 0, 0, 0, //
-    0, 0, 1, 0, 0, //
-    0, 0, 0, 1, 0, //
-  ]);
-
   BackdropPassPlan _plan = BackdropPassPlan.unsupported;
   bool _active = true;
   BackdropFilterLayer? _filter;
@@ -573,9 +574,8 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
 
   /// Whether the pass stays seeded while its size changes. The consolidated
   /// fake glass layer's passes do: on Pixel 10 their seed saved SoC energy
-  /// on a resizing sheet (-16%) and on moving layers (-24%), where real
-  /// glass's seed cost GPU energy (+26%) while resizing (see
-  /// [_nativeSeedFor]).
+  /// on a resizing sheet (-16%) and on moving layers (-24%); real glass's do
+  /// not (see [_nativeSeedFor]).
   final bool seedWhileResizing;
 
   /// Whether the pass is in effect: the owner planned one and it is seeded
@@ -818,6 +818,7 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
   /// glass's own layer), and a glass that is nothing but a blur is a plain
   /// blur natively, which Impeller crops by itself: owners hand neither a
   /// [PassBlur], and neither is seeded.
+  ///
   /// A blur seed is an identity seed where Impeller would not crop the blur
   /// (see [_blurSeedCrops]).
   BackdropSeed _nativeSeedFor(Rect? rect) {
@@ -885,7 +886,6 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
     markNeedsAddToScene();
   }
 
-  // The pass is in effect or not; the owner maps its coordinates accordingly.
   void _settleActive(bool inEffect) {
     if (inEffect == _active) return;
     _active = inEffect;
@@ -932,7 +932,7 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
         sigmaY: sigma + variant * seedSigmaStep,
         tileMode: glassBlurTileMode,
       ),
-      _ when variant == 0 => _identity,
+      _ when variant == 0 => identityColorFilter,
       _ => ColorFilter.matrix(<double>[
         1 + seedMatrixStep, 0, 0, 0, 0, //
         0, 1, 0, 0, 0, //
@@ -967,10 +967,9 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
 
   /// Adds a pass over [rect] seeded by [seed], a backdrop filter Impeller runs
   /// over the backdrop (under the seed's key, when it has one), with this
-  /// layer's
-  /// children inside it. The pass holds only the output of the effect in its
-  /// [clip]: what the seed leaves outside it is cleared, and the pass is
-  /// composited over the parent.
+  /// layer's children inside it. The pass holds only the output of the
+  /// effect in its [clip]: what the seed leaves outside it is cleared, and
+  /// the pass is composited over the parent.
   void _addSeededPass(
     ui.SceneBuilder builder,
     Rect rect, {

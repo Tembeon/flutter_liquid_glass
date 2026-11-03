@@ -145,7 +145,7 @@ Future<void> warmLiquidGlassPipelines(
     }
     // A pass Impeller would not crop a blur for is seeded by an identity.
     passes.add((
-      seed: fakeGlassIdentityFilter,
+      seed: identityColorFilter,
       filter: filters.first,
       fake: false,
     ));

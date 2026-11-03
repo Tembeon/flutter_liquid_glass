@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/internal/ancestor_clip.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 import 'package:meta/meta.dart';
@@ -17,13 +18,6 @@ class GlassCompositionProbe {
 
   /// The layer the owner paints into: its glass, shadows and children.
   OpacitySeedLayer? get layer => _layer.layer;
-
-  static const _identity = ColorFilter.matrix(<double>[
-    1, 0, 0, 0, 0, //
-    0, 1, 0, 0, 0, //
-    0, 0, 1, 0, 0, //
-    0, 0, 0, 1, 0, //
-  ]);
 
   /// Whether the owner paints inside a fractional opacity pass that a live
   /// backdrop read needs seeded, also while [suppressed].
@@ -47,7 +41,8 @@ class GlassCompositionProbe {
     PaintingContextCallback painter, {
     required RenderObject owner,
   }) {
-    final layer = _layer.layer ??= OpacitySeedLayer()..filter = _identity;
+    final layer = _layer.layer ??= OpacitySeedLayer()
+      ..filter = identityColorFilter;
     syncOpacity(owner);
     context.pushLayer(layer, painter, offset);
   }
