@@ -1201,7 +1201,7 @@ final class _Scan {
           _Open((c) {
             c.save();
             c.translate(offset.dx, offset.dy);
-            c.saveLayer(null, _Prefix._filtering(imageFilter));
+            c.saveLayer(_drawnBounds(layer), _Prefix._filtering(imageFilter));
             return 2;
           }, layered: true),
           next: shifted(offset),
@@ -1403,8 +1403,10 @@ final class _Scan {
               saves++;
             }
             if (blur > 0) {
+              // Bounded by its content, as the scene bounds it (see
+              // _drawnBounds).
               c.saveLayer(
-                null,
+                _drawnBounds(layer),
                 _Prefix._filtering(
                   ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
                 ),
@@ -1683,6 +1685,55 @@ final class _Cursor {
     if (b.isEmpty) return a;
     return a.expandToInclude(b);
   }
+}
+
+// What [layer]'s children draw, in its coordinates, or null where one may
+// draw anywhere: the bounds of a filtered layer in a copy. Unbounded,
+// Impeller sizes a filtered layer to the clip, the whole atlas, where the
+// scene sizes it to its children, so a blurred title would blur every copy.
+// The bounds are the content's; Impeller adds the filter's reach.
+Rect? _drawnBounds(ContainerLayer layer) {
+  var bounds = Rect.zero;
+  for (var child = layer.firstChild; child != null; child = child.nextSibling) {
+    final effects = LiquidGlassUnderlay.effectsOf(child);
+    final Rect? drawn;
+    if (child is PictureLayer) {
+      drawn = child.canvasBounds;
+    } else if (child is! ContainerLayer) {
+      drawn = null;
+    } else if (effects != null) {
+      final blurred = _drawnBounds(child)?.inflate(3 * effects.blur);
+      final clipped = switch (effects.clip) {
+        final clip? => blurred?.intersect(clip.outerRect),
+        null => blurred,
+      };
+      drawn = clipped == null
+          ? null
+          : MatrixUtils.transformRect(effects.transform, clipped);
+    } else {
+      final inner = _drawnBounds(child);
+      drawn = inner == null
+          ? null
+          : switch (child) {
+              TransformLayer(:final offset, :final transform) =>
+                MatrixUtils.transformRect(
+                  transform ?? Matrix4.identity(),
+                  inner,
+                ).shift(offset),
+              OpacityLayer(:final offset) => inner.shift(offset),
+              ClipRectLayer(:final clipRect?) => inner.intersect(clipRect),
+              OffsetLayer(:final offset)
+                  when child.runtimeType == OffsetLayer ||
+                      child is GeometryTransformTrackingLayer =>
+                inner.shift(offset),
+              _ when child.runtimeType == ContainerLayer => inner,
+              _ => null,
+            };
+    }
+    if (drawn == null) return null;
+    bounds = _Cursor.union(bounds, drawn);
+  }
+  return bounds;
 }
 
 sealed class _Entry {
