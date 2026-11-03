@@ -434,8 +434,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
         child: LiquidGlassRenderScope(
           settings: settings,
           defaultAppearance: defaultAppearance,
-          consolidatesFakeBackdrop: true,
-          consolidatesFakeSurface: true,
+          fake: true,
           child: InheritedGeometryRenderLink(
             link: _link,
             child: ConsolidatedFakeGlassLayer(

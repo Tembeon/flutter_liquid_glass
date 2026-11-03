@@ -62,16 +62,11 @@ Rect expandForGlassShadows(
       if (shapeVisibility <= 0) continue;
       final shapeToLayer = shapeTransformToLayer(shape, geometryToLayer);
       for (final shadow in shape.shadows) {
-        final extent = max(
-          shadow.spreadRadius +
-              glassShadowBlurSupport(
-                shadow.blurRadius * shapeVisibility,
-              ),
-          0,
-        ).toDouble();
-        final localBounds = (Offset.zero & shape.renderObject.paintSize)
-            .shift(shadow.offset)
-            .inflate(extent);
+        final localBounds = glassShadowRect(
+          Offset.zero & shape.renderObject.paintSize,
+          shadow,
+          shapeVisibility,
+        );
         result = result.expandToInclude(
           MatrixUtils.transformRect(shapeToLayer, localBounds),
         );

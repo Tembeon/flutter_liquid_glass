@@ -167,7 +167,7 @@ Future<void> _pumpUntilGlassReady(WidgetTester tester) async {
         .whereType<RenderLiquidGlassLayer>()
         .where((layer) => layer.attached && layer.gpuGeometryRenderer != null);
     if (scopes.isNotEmpty &&
-        scopes.every((scope) => !scope.useFake) &&
+        scopes.every((scope) => !scope.fake) &&
         realLayers.isNotEmpty) {
       return;
     }

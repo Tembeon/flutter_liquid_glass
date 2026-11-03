@@ -17,8 +17,21 @@ import 'package:liquid_glass_renderer/src/liquid_shape.dart';
 double glassShadowBlurSupport(double blurRadius) =>
     Shadow.convertRadiusToSigma(blurRadius) * 3;
 
+/// The part of the plane [shadow] of a shape over [shape] can paint, with
+/// its blur scaled by [visibility].
+@internal
+Rect glassShadowRect(Rect shape, BoxShadow shadow, double visibility) => shape
+    .shift(shadow.offset)
+    .inflate(
+      math.max(
+        shadow.spreadRadius +
+            glassShadowBlurSupport(shadow.blurRadius * visibility),
+        0,
+      ),
+    );
+
 /// Paints [BoxShadow]s for a [LiquidShape] using canvas primitives
-/// (drawRRect, drawCircle, drawRSuperellipse, etc.) instead of drawPath.
+/// (drawRSuperellipse, drawOval, drawRRect) instead of drawPath.
 ///
 /// This avoids the cost of rasterizing an arbitrary [Path] with a blur
 /// [MaskFilter], which is significantly slower than the dedicated GPU-
@@ -117,7 +130,7 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
   }
 
   double get visibility => _visibility;
-  double _visibility = 1;
+  double _visibility;
   set visibility(double value) {
     if (_visibility == value) return;
     _visibility = value.clamp(0, 1);
@@ -134,17 +147,8 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
       // Report the same conservative Gaussian support used by paint()'s
       // saveLayer. Without this, Flutter culls the blurred pixels outside the
       // render box and different blur radii collapse to the same hard ring.
-      final extent = math
-          .max(
-            shadow.spreadRadius +
-                glassShadowBlurSupport(
-                  shadow.blurRadius * visibility,
-                ),
-            0,
-          )
-          .toDouble();
       bounds = bounds.expandToInclude(
-        shapeBounds.shift(shadow.offset).inflate(extent),
+        glassShadowRect(shapeBounds, shadow, visibility),
       );
     }
     return bounds;
@@ -162,14 +166,7 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
         var layerBounds = rect;
         for (final shadow in shadows) {
           layerBounds = layerBounds.expandToInclude(
-            rect
-                .shift(shadow.offset)
-                .inflate(
-                  shadow.spreadRadius +
-                      glassShadowBlurSupport(
-                        shadow.blurRadius * visibility,
-                      ),
-                ),
+            glassShadowRect(rect, shadow, visibility),
           );
         }
         // Bounds only, so growing them to pixel buckets changes no pixel, but

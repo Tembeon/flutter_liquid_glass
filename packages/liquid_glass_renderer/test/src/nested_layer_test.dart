@@ -713,7 +713,7 @@ Future<void> _pumpUntilAllGlassReady(WidgetTester tester) async {
         .where((layer) => layer.attached)
         .where((layer) => layer.gpuGeometryRenderer != null);
     if (scopes.isNotEmpty &&
-        scopes.every((scope) => !scope.useFake) &&
+        scopes.every((scope) => !scope.fake) &&
         layers.isNotEmpty) {
       return;
     }

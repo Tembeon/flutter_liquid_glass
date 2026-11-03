@@ -275,12 +275,11 @@ class _RenderGlassGlowLayer extends RenderProxyBox {
   @override
   void paint(PaintingContext context, Offset offset) {
     if (_glowColor.a == 0 || _glowRadius <= 0) {
-      // No glow to paint
       super.paint(context, offset);
       return;
     }
 
-    final canvas = context.canvas..save();
+    final canvas = context.canvas;
 
     final glowPosition = offset + _glowOffset;
 
@@ -289,7 +288,6 @@ class _RenderGlassGlowLayer extends RenderProxyBox {
         _glowColor,
         _glowColor.withValues(alpha: 0),
       ],
-      stops: const [0.0, 1.0],
     );
 
     final radius = _glowRadius * size.shortestSide;
@@ -300,13 +298,7 @@ class _RenderGlassGlowLayer extends RenderProxyBox {
       )
       ..blendMode = BlendMode.plus;
 
-    canvas
-      ..drawCircle(
-        glowPosition,
-        radius,
-        paint,
-      )
-      ..restore();
+    canvas.drawCircle(glowPosition, radius, paint);
     super.paint(context, offset);
   }
 }

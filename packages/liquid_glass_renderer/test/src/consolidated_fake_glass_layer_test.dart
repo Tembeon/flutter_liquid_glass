@@ -151,7 +151,7 @@ void main() {
       ],
     );
     final raw = tester.renderObject<RenderFakeGlass>(find.byType(RawFakeGlass));
-    expect(raw.paintSurface, isFalse);
+    expect(raw.role, FakeGlassRole.layerPaints);
   });
 
   testWidgets('fake content remains above the analytic surface', (
@@ -231,7 +231,7 @@ void main() {
     );
     final ownSurface = tester.allRenderObjects
         .whereType<RenderFakeGlass>()
-        .where((surface) => surface.paintSurface)
+        .where((surface) => surface.role != FakeGlassRole.layerPaints)
         .toSet();
     expect(ownSurface, isEmpty);
   });

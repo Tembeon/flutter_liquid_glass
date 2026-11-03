@@ -44,7 +44,7 @@ void main() {
                   .widgetList<LiquidGlassRenderScope>(
                     find.byType(LiquidGlassRenderScope),
                   )
-                  .every((s) => !s.consolidatesFakeBackdrop)) {
+                  .every((s) => !s.fake)) {
                 break;
               }
             }
@@ -59,7 +59,7 @@ void main() {
                   .widgetList<LiquidGlassRenderScope>(
                     find.byType(LiquidGlassRenderScope),
                   )
-                  .every((s) => !s.consolidatesFakeBackdrop),
+                  .every((s) => !s.fake),
               isTrue,
               reason:
                   'Real glass falls back to fake glass unless the tests run '

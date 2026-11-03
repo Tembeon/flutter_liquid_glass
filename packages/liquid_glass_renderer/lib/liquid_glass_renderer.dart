@@ -39,6 +39,6 @@ export 'src/stretch.dart'
 /// When enabled, geometry textures will be drawn directly instead of the
 /// liquid glass effect.
 ///
-/// Will be set to `false` in release builds.
+/// Always `false` outside debug builds.
 @pragma('vm:platform-const-if', !kDebugMode)
 bool debugPaintLiquidGlassGeometry = false;

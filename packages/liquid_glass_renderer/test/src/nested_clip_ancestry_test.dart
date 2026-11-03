@@ -95,7 +95,7 @@ void main() {
                         .widgetList<LiquidGlassRenderScope>(
                           find.byType(LiquidGlassRenderScope),
                         )
-                        .every((scope) => !scope.consolidatesFakeBackdrop)) {
+                        .every((scope) => !scope.fake)) {
                   break;
                 }
               }

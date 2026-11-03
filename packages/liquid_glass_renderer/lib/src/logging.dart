@@ -10,7 +10,6 @@ abstract final class LgrLogNames {
   static const _root = 'lgr';
 
   static const render = '$_root.render';
-  static const layer = '$_root.render.layer';
   static const geometry = '$_root.geometry';
 }
 
@@ -73,7 +72,6 @@ abstract final class LgrLogs {
     }
   }
 
-  /// Logs a record using a print statement.
   static void _printLog(LogRecord record) {
     print(
       '${record.loggerName} > ${record.level.name}: ${record.message}',

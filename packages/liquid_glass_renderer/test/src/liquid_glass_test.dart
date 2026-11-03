@@ -170,7 +170,7 @@ void main() {
         final initialScope = tester.widget<LiquidGlassRenderScope>(
           find.byType(LiquidGlassRenderScope),
         );
-        if (initialScope.useFake) {
+        if (initialScope.fake) {
           // Shader-bundle I/O completes on the host event loop rather than the
           // fake clock advanced by pump durations. A warm cache may already
           // have selected the real renderer during pumpWidget.
@@ -185,7 +185,7 @@ void main() {
               .widget<LiquidGlassRenderScope>(
                 find.byType(LiquidGlassRenderScope),
               )
-              .useFake,
+              .fake,
           isFalse,
         );
       },

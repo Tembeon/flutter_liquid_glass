@@ -113,7 +113,7 @@ void runSeededNestedTests(SubmittedSceneCapture binding) {
             );
             expect(scopes.length, greaterThanOrEqualTo(2));
             expect(
-              scopes.every((scope) => !scope.consolidatesFakeBackdrop),
+              scopes.every((scope) => !scope.fake),
               isTrue,
               reason: 'Both nested material passes must actually be real.',
             );

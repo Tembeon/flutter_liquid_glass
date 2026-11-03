@@ -1,17 +1,11 @@
 import 'package:meta/meta.dart';
 
-/// The matte scale of a layer drawn at [devicePixelRatio] when
-/// [liquidGlassMatteScale] is left automatic: 4 at a ratio of 2 or more, else
-/// 2.
-@internal
-int automaticMatteScale(double devicePixelRatio) =>
-    devicePixelRatio >= 2 ? 4 : 2;
-
 /// The matte scale (2 or 4) a layer drawn at [devicePixelRatio] uses:
-/// [liquidGlassMatteScale] when set, else [automaticMatteScale].
+/// [liquidGlassMatteScale] when set, else 4 at a ratio of 2 or more and 2
+/// below.
 @internal
 int resolveMatteScale({required double devicePixelRatio}) =>
-    liquidGlassMatteScale ?? automaticMatteScale(devicePixelRatio);
+    liquidGlassMatteScale ?? (devicePixelRatio >= 2 ? 4 : 2);
 
 /// Experimental: how many matte pixels one low-res matte texel covers in each
 /// direction.
@@ -26,9 +20,9 @@ int resolveMatteScale({required double devicePixelRatio}) =>
 /// The final shader reads it with linear filtering, which blends the four
 /// nearest texels, and works out the antialiased edge and the refraction for
 /// each pixel from the blended values. So edges stay one pixel wide and the
-/// refraction is as smooth as before. Blending distances is exact along
-/// straight edges, and off by a small fraction of a pixel on curves larger
-/// than a texel.
+/// refraction is as smooth as with a full-resolution matte. Blending
+/// distances is exact along straight edges, and off by a small fraction of a
+/// pixel on curves larger than a texel.
 ///
 /// `null` (the default) picks a scale for each layer from its device pixel
 /// ratio: 4 at a ratio of 2 or more, otherwise 2. On a Pixel 10, 4 uses 41%

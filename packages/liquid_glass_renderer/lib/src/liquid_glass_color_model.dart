@@ -5,12 +5,6 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:meta/meta.dart' show experimental;
 
-/// Interpolates linearly between the Liquid Glass slider endpoints: Clear
-/// (`0`) and Tinted (`1`).
-@internal
-double sliderKeyframes(double tintAmount, double clear, double tinted) =>
-    clear + (tinted - clear) * tintAmount.clamp(0.0, 1.0);
-
 /// A linear curve over the Liquid Glass slider position.
 ///
 /// The endpoints sit at Clear (`0`) and Tinted (`1`). This mirrors the
@@ -31,7 +25,7 @@ class GlassColorCurve with Equatable {
 
   /// The value at [tintAmount].
   double evaluate(double tintAmount) =>
-      sliderKeyframes(tintAmount, clear, tinted);
+      clear + (tinted - clear) * tintAmount.clamp(0.0, 1.0);
 
   @override
   List<Object?> get props => [clear, tinted];
@@ -93,7 +87,7 @@ class GlassToneRamp with Equatable {
 ///
 /// The fitted iOS 27 parameter sets ship as [GlassColorParameters.ios27Light],
 /// [GlassColorParameters.ios27Dark] and [GlassColorParameters.ios27Clear];
-/// subclasses are not needed for custom materials — compose parameters
+/// subclasses are not needed for custom materials; compose parameters
 /// instead.
 @immutable
 class GlassColorParameters with Equatable {
@@ -107,21 +101,17 @@ class GlassColorParameters with Equatable {
     this.toneLow = const GlassToneRamp.constant(0),
     this.toneHigh = const GlassToneRamp.constant(1),
     this.toneGammaLuminance = 0,
-    this.glintLuminance = 1.6,
-    this.glintFaceGain = 0,
-    this.glintVibrancy = 2.85,
+    this.glintLuminance = _defaultGlintLuminance,
+    this.glintFaceGain = _defaultGlintFaceGain,
+    this.glintVibrancy = _defaultGlintVibrancy,
     this.contourResponse = 0,
-    this.fakeGlintLuminance = 1.6,
+    this.fakeGlintLuminance = _defaultGlintLuminance,
   });
 
   /// Rebuilds parameters from the [toJson] map, optionally merging a
   /// `preset` base (`'ios27Light'`, `'ios27Dark'` or `'ios27Clear'`) so a
   /// fit candidate only has to carry the keys it changes.
-  ///
-  /// The former size-dependent keys (`transmittanceSmall`,
-  /// `transmittanceLarge`, `transmittanceSize` and the `*AtSmallSize` curves)
-  /// are silently ignored; `transmittanceSmall` still seeds `transmittance` so
-  /// old fit files load.
+  /// Keys without a field are ignored.
   factory GlassColorParameters.fromJson(Map<String, Object?> json) {
     final initial = switch (json['preset']) {
       'ios27Dark' => ios27Dark,
@@ -165,7 +155,7 @@ class GlassColorParameters with Equatable {
     }
     return base.copyWith(
       emissionAlpha: curve('emissionAlpha'),
-      transmittance: curve('transmittance') ?? curve('transmittanceSmall'),
+      transmittance: curve('transmittance'),
       luminanceLift: curve('luminanceLift'),
       chromaGain: curve('chromaGain'),
       toneLow: ramp('toneLow'),
@@ -222,6 +212,10 @@ class GlassColorParameters with Equatable {
   /// the face.
   final double fakeGlintLuminance;
 
+  static const double _defaultGlintLuminance = 1.6;
+  static const double _defaultGlintFaceGain = 0;
+  static const double _defaultGlintVibrancy = 2.85;
+
   /// The fitted iOS 27 regular material in light appearance: a near-white
   /// wash that becomes more opaque and desaturating along the slider.
   static const ios27Light = GlassColorParameters(
@@ -249,12 +243,11 @@ class GlassColorParameters with Equatable {
   /// it is more transmissive and lifts less. These curves are the mean of the
   /// fits at 63 pt (transmittance 0.600/0.298, no lift, chroma 1) and on large
   /// shapes (0.4525/0.2086, lift 1.166/1.294, chroma 1.01/0.571), the same for
-  /// every size. This is deliberate; keep it when refitting. A layer has one
-  /// color per model for all its shapes (and FakeGlass one color matrix), so a
-  /// size response made a shape's look depend on the other shapes in its layer
-  /// and jump when a FakeGlass shape faded. Only reintroduce one if each shape
-  /// can resolve its own look in real glass and FakeGlass
-  /// (`appearance_size_independence_test.dart` guards this).
+  /// every size. This is deliberate: a layer has one color per model for all
+  /// its shapes (and FakeGlass one color matrix), so a size response would
+  /// make a shape's look depend on the other shapes in its layer. Reintroduce
+  /// one only if each shape can resolve its own look in real glass and
+  /// FakeGlass (`appearance_size_independence_test.dart` guards this).
   static const ios27Dark = GlassColorParameters(
     emissionColor: Color.fromRGBO(32, 32, 32, 1),
     emissionAlpha: GlassColorCurve.constant(1),
@@ -354,10 +347,6 @@ class GlassColorParameters with Equatable {
     fakeGlintLuminance: fakeGlintLuminance ?? this.fakeGlintLuminance,
   );
 
-  /// Transmittance at slider [tintAmount].
-  double transmittanceAt(double tintAmount) =>
-      transmittance.evaluate(tintAmount);
-
   /// The untinted face.
   ///
   /// The face is `emission + transmittance * lum(Y) + chromaGain *
@@ -382,7 +371,9 @@ class GlassColorParameters with Equatable {
 
   /// Factor applied to the border strength at slider [tintAmount].
   double contourScale(double tintAmount) =>
-      1 + contourResponse * (transmittanceAt(0) - transmittanceAt(tintAmount));
+      1 +
+      contourResponse *
+          (transmittance.evaluate(0) - transmittance.evaluate(tintAmount));
 
   /// Maps one opaque tint channel triple to the tone selected for backdrop
   /// [luminance].
@@ -433,9 +424,6 @@ class GlassColorParameters with Equatable {
     ];
   }
 
-  /// Floats per model slot in `uColorModelParams` (six vec4).
-  static const int shaderParameterFloatCount = 24;
-
   @override
   List<Object?> get props => [
     emissionColor,
@@ -461,7 +449,7 @@ class GlassColorParameters with Equatable {
 /// channel with no backdrop conditioning. The fitted iOS 27 models ship as
 /// presets: [LiquidGlassColorModel.ios27] and
 /// [LiquidGlassColorModel.ios27Clear]. The parameter sets themselves are
-/// internal — custom values enter through [LiquidGlassColorModel.fromJson].
+/// internal; custom values enter through [LiquidGlassColorModel.fromJson].
 final class LiquidGlassColorModel with Equatable {
   /// A backdrop-adaptive model driven entirely by [parameters].
   ///
@@ -607,25 +595,20 @@ final class LiquidGlassColorModel with Equatable {
   /// Luminance of the neutral glint target FakeGlass composites, which
   /// cannot scale with the face it does not sample.
   @internal
-  double get fakeGlintLuminance => parameters?.fakeGlintLuminance ?? 1.6;
+  double get fakeGlintLuminance =>
+      parameters?.fakeGlintLuminance ??
+      GlassColorParameters._defaultGlintLuminance;
 
   /// How much the face contributes to the FakeGlass glint target.
   /// FakeGlass approximates the face with its surface tint plus emission.
   @internal
-  double get fakeGlintFaceGain => parameters?.glintFaceGain ?? 0;
+  double get fakeGlintFaceGain =>
+      parameters?.glintFaceGain ?? GlassColorParameters._defaultGlintFaceGain;
 
   /// How strongly the FakeGlass glint amplifies the face chroma proxy.
   @internal
-  double get fakeGlintVibrancy => parameters?.glintVibrancy ?? 2.85;
-
-  /// Maps one opaque tint to the tone selected for backdrop [luminance].
-  ///
-  /// The direct model returns [tint] unchanged. Adaptive models implement
-  /// Apple's brightness-mapped range of tint tones through
-  /// [GlassColorParameters.tintTone].
-  @visibleForTesting
-  Color tintTone(Color tint, double luminance) =>
-      parameters?.tintTone(tint, luminance) ?? tint;
+  double get fakeGlintVibrancy =>
+      parameters?.glintVibrancy ?? GlassColorParameters._defaultGlintVibrancy;
 
   /// Resolves the single-color surface tint painted by FakeGlass.
   ///
@@ -637,7 +620,7 @@ final class LiquidGlassColorModel with Equatable {
   Color approximateSurfaceTint(Color tint) {
     if (parameters == null) return tint;
     if (tint.a <= 0) return const Color(0x00000000);
-    return tintTone(tint, 0.5).withValues(alpha: tint.a);
+    return parameters!.tintTone(tint, 0.5).withValues(alpha: tint.a);
   }
 
   @override

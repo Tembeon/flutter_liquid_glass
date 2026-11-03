@@ -89,7 +89,7 @@ void runIndependentOpacityPaintOrderTests(SubmittedSceneCapture binding) {
             );
             expect(scopes, hasLength(1));
             expect(
-              scopes.every((scope) => !scope.consolidatesFakeBackdrop),
+              scopes.every((scope) => !scope.fake),
               isTrue,
             );
           }

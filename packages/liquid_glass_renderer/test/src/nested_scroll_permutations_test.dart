@@ -38,7 +38,7 @@ void main() {
                 .widgetList<LiquidGlassRenderScope>(
                   find.byType(LiquidGlassRenderScope),
                 )
-                .every((s) => !s.consolidatesFakeBackdrop)) {
+                .every((s) => !s.fake)) {
           break;
         }
       }
@@ -47,7 +47,7 @@ void main() {
           find.byType(LiquidGlassRenderScope),
         );
         expect(scopes, isNotEmpty);
-        expect(scopes.every((s) => !s.consolidatesFakeBackdrop), isTrue);
+        expect(scopes.every((s) => !s.fake), isTrue);
       }
       binding
         ..captureNextScene = true
@@ -119,7 +119,7 @@ void main() {
                       .widgetList<LiquidGlassRenderScope>(
                         find.byType(LiquidGlassRenderScope),
                       )
-                      .every((scope) => !scope.consolidatesFakeBackdrop)) {
+                      .every((scope) => !scope.fake)) {
                 break;
               }
             }
@@ -129,7 +129,7 @@ void main() {
               );
               expect(scopes, isNotEmpty);
               expect(
-                scopes.every((scope) => !scope.consolidatesFakeBackdrop),
+                scopes.every((scope) => !scope.fake),
                 isTrue,
                 reason: 'Real-glass coverage must not use the fake fallback.',
               );

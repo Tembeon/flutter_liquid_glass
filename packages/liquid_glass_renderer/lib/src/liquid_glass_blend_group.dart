@@ -40,17 +40,6 @@ class LiquidGlassBlendGroup extends StatefulWidget {
   static const int maxShapesPerCluster = 16;
 
   /// Retrieves the [GlassGroupLink] from the nearest ancestor
-  /// [LiquidGlassBlendGroup].
-  ///
-  /// Can be used by child shapes to register themselves for blending.
-  @internal
-  static GlassGroupLink of(BuildContext context) {
-    final inherited = _InheritedLiquidGlassBlendGroup.of(context);
-    assert(inherited != null, 'No LiquidGlassBlendGroup found in context');
-    return inherited!.link;
-  }
-
-  /// Retrieves the [GlassGroupLink] from the nearest ancestor
   /// [LiquidGlassBlendGroup], or null if none is found.
   @internal
   static GlassGroupLink? maybeOf(BuildContext context) {
@@ -73,23 +62,14 @@ class _LiquidGlassBlendGroupState extends State<LiquidGlassBlendGroup> {
 
   @override
   Widget build(BuildContext context) {
-    final useFake = LiquidGlassRenderScope.of(context).useFake;
-
-    if (useFake) {
-      return _InheritedLiquidGlassBlendGroup(
-        link: _geometryLink,
-        renderLink: InheritedGeometryRenderLink.of(context),
-        child: widget.child,
-      );
-    }
-
+    final renderLink = InheritedGeometryRenderLink.of(context);
     return _InheritedLiquidGlassBlendGroup(
       link: _geometryLink,
-      renderLink: InheritedGeometryRenderLink.of(context),
+      renderLink: renderLink,
       child: _RawLiquidGlassBlendGroup(
         blend: widget.blend,
         link: _geometryLink,
-        renderLink: InheritedGeometryRenderLink.of(context)!,
+        renderLink: renderLink!,
         settings: LiquidGlassRenderScope.of(context).settings,
         child: widget.child,
       ),
@@ -195,7 +175,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
     markNeedsPaint();
   }
 
-  double _blend = 0;
+  double _blend;
   double get blend => _blend;
   set blend(double value) {
     if (_blend == value) return;
@@ -215,7 +195,6 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
   }
 
   void _onLinkUpdate() {
-    // One of the shapes might have changed.
     markGeometryNeedsUpdate();
     markNeedsPaint();
   }
@@ -282,34 +261,22 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
         continue;
       }
       final index = shapes.length;
-
-      try {
-        final shapeData = _computeShapeInfo(
-          renderObject,
-          shape,
-        );
-        shapes.add(shapeData);
-
-        layerBounds =
-            layerBounds?.expandToInclude(shapeData.shapeBounds) ??
-            shapeData.shapeBounds;
-
-        final existingShape = cachedShapes.length > index
-            ? cachedShapes[index]
-            : null;
-
-        if (existingShape == null) {
-          anyShapeChangedInLayer = true;
-        } else if (existingShape.shapeBounds != shapeData.shapeBounds ||
-            existingShape.shape != shapeData.shape ||
-            !MatrixUtils.matrixEquals(
-              existingShape.shapeToGeometry,
-              shapeData.shapeToGeometry,
-            )) {
-          anyShapeChangedInLayer = true;
-        }
-      } catch (e) {
-        debugPrint('Failed to compute shape info: $e');
+      final shapeData = _computeShapeInfo(renderObject, shape);
+      shapes.add(shapeData);
+      layerBounds =
+          layerBounds?.expandToInclude(shapeData.shapeBounds) ??
+          shapeData.shapeBounds;
+      final existingShape = cachedShapes.length > index
+          ? cachedShapes[index]
+          : null;
+      if (existingShape == null ||
+          existingShape.shapeBounds != shapeData.shapeBounds ||
+          existingShape.shape != shapeData.shape ||
+          !MatrixUtils.matrixEquals(
+            existingShape.shapeToGeometry,
+            shapeData.shapeToGeometry,
+          )) {
+        anyShapeChangedInLayer = true;
       }
     }
 
@@ -326,21 +293,6 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
     LiquidGlassShapeRenderObject renderObject,
     LiquidShape shape,
   ) {
-    if (!hasSize) {
-      throw StateError(
-        'Cannot compute shape info for $renderObject because '
-        '$this LiquidGlassGeometry has no size yet.',
-      );
-    }
-
-    if (!renderObject.hasSize) {
-      throw StateError(
-        'Cannot compute shape info for LiquidGlass $renderObject because it '
-        'has no size yet.',
-      );
-    }
-
-    // We remember the shapes transform to this blend group.
     final transformToGeometry = transformToNow(renderObject, this);
 
     final blendGroupRect = MatrixUtils.transformRect(
@@ -364,9 +316,6 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
 /// transform changes.
 @internal
 class GlassGroupLink with ChangeNotifier {
-  /// Creates a new [GlassGroupLink].
-  GlassGroupLink();
-
   /// Called when a shape registers with or leaves the group.
   VoidCallback? onMembershipChanged;
 
@@ -377,9 +326,6 @@ class GlassGroupLink with ChangeNotifier {
 
   List<MapEntry<LiquidGlassShapeRenderObject, LiquidShape>> get shapeEntries =>
       _shapeEntriesCache ??= _shapes.entries.toList(growable: false);
-
-  /// Check if any shapes are registered.
-  bool get hasShapes => _shapes.isNotEmpty;
 
   /// Register a shape with this link.
   void registerShape(

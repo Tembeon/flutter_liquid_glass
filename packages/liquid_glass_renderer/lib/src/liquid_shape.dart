@@ -168,9 +168,7 @@ final class LiquidRoundedRectangle extends LiquidShape {
     super.side = BorderSide.none,
   });
 
-  /// The radius of the rounded rectangle.
-  ///
-  /// This is the radius of the corners of the rounded rectangle.
+  /// The radius of the corners.
   final double borderRadius;
 
   @internal

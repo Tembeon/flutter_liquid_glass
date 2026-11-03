@@ -192,9 +192,7 @@ class RenderRawLiquidStretch extends RenderProxyBox {
       return;
     }
 
-    // Check if the matrix is singular
-    final det = transform.determinant();
-    if (det == 0 || !det.isFinite) {
+    if (!transform.determinant().isFinite) {
       layer = null;
       return;
     }
@@ -221,10 +219,7 @@ class RenderRawLiquidStretch extends RenderProxyBox {
       return null;
     }
 
-    final scale = getScale(
-      stretchPixels: _stretchPixels,
-      size: size,
-    );
+    final scale = _scale();
 
     // Scale about the center so opposite drag directions produce mirrored
     // results. Scaling about the local origin makes right/down stretches
@@ -252,41 +247,18 @@ class RenderRawLiquidStretch extends RenderProxyBox {
     return matrix;
   }
 
-  @internal
-  Offset getScale({
-    required Offset stretchPixels,
-    required Size size,
-  }) {
-    if (size.isEmpty) {
-      return const Offset(1, 1);
-    }
-
-    final stretchX = stretchPixels.dx.abs();
-    final stretchY = stretchPixels.dy.abs();
-
-    // Convert pixel stretch to relative stretch based on size
-    final relativeStretchX = size.width > 0 ? stretchX / size.width : 0.0;
-    final relativeStretchY = size.height > 0 ? stretchY / size.height : 0.0;
-
-    // Use a consistent stretch factor for both dimensions
-    const stretchFactor = 1.0;
-    const volumeFactor = 0.5;
-
-    final baseScaleX = 1 + relativeStretchX * stretchFactor;
-    final baseScaleY = 1 + relativeStretchY * stretchFactor;
-
-    // Calculate magnitude in relative space for volume preservation
+  Offset _scale() {
+    if (size.isEmpty) return const Offset(1, 1);
+    final relativeStretchX = _stretchPixels.dx.abs() / size.width;
+    final relativeStretchY = _stretchPixels.dy.abs() / size.height;
+    final baseScaleX = 1 + relativeStretchX;
+    final baseScaleY = 1 + relativeStretchY;
     final magnitude = math.sqrt(
       relativeStretchX * relativeStretchX + relativeStretchY * relativeStretchY,
     );
-    final targetVolume = 1 + magnitude * volumeFactor;
-    final currentVolume = baseScaleX * baseScaleY;
-    final volumeCorrection = math.sqrt(targetVolume / currentVolume);
-
-    final finalScaleX = baseScaleX * volumeCorrection;
-    final finalScaleY = baseScaleY * volumeCorrection;
-
-    return Offset(finalScaleX, finalScaleY);
+    final areaGrowth = 1 + magnitude * 0.5;
+    final correction = math.sqrt(areaGrowth / (baseScaleX * baseScaleY));
+    return Offset(baseScaleX * correction, baseScaleY * correction);
   }
 }
 
@@ -300,15 +272,6 @@ extension OffsetResistanceExtension on Offset {
   /// damping.
   /// Larger offsets are reduced more aggressively than smaller ones,
   /// creating a natural "stretch resistance" effect commonly used in scrolling.
-  Offset withResistance(double resistance) {
-    if (resistance == 0) return this;
-
-    final magnitude = math.sqrt(dx * dx + dy * dy);
-    if (magnitude == 0) return Offset.zero;
-
-    final resistedMagnitude = magnitude / (1 + magnitude * resistance);
-    final scale = resistedMagnitude / magnitude;
-
-    return Offset(dx * scale, dy * scale);
-  }
+  Offset withResistance(double resistance) =>
+      this / (1 + distance * resistance);
 }

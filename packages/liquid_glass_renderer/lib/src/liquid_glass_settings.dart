@@ -47,19 +47,19 @@ final class LiquidGlassSettings with Equatable {
   /// constructor's default or a preset's floored path is eligible; an
   /// explicitly passed frost is not.
   const LiquidGlassSettings._({
+    required this.frost,
+    required bool floorEligible,
     this.refractionHeight = 20.0,
     this.refractionAmount = 60.0,
     this.refractionFitsShape = true,
     this.backdropShrink = 0.0,
     this.backdropShrinkRim = 0.0,
-    this.frost = _minBlurPassSigma,
     this.dispersion = 0.0,
     this.highlight = 0.6,
     this.contourStrength = 0.43,
     this.contourDirectionality = 0.77,
     this.bevelShadowStrength = 0.036,
     this.tintAmount = 0.0,
-    bool floorEligible = false,
   }) : _frostIsFloorEligible = floorEligible;
 
   /// Restores a material vector produced by [toJson].
@@ -123,7 +123,7 @@ final class LiquidGlassSettings with Equatable {
     double tintAmount = 0,
     double? frost,
   }) => LiquidGlassSettings._(
-    frost: frost ?? _ios27RegularBlur(tintAmount),
+    frost: frost ?? ios27RegularFrost(tintAmount),
     floorEligible: frost == null,
     tintAmount: tintAmount,
   );
@@ -140,7 +140,7 @@ final class LiquidGlassSettings with Equatable {
     double tintAmount = 0,
     double? frost,
   }) => LiquidGlassSettings._(
-    frost: frost ?? _ios27RegularBlur(tintAmount),
+    frost: frost ?? ios27RegularFrost(tintAmount),
     floorEligible: frost == null,
     contourStrength: 0.88,
     contourDirectionality: 1,
@@ -156,7 +156,8 @@ final class LiquidGlassSettings with Equatable {
   /// defaults to [ios27ClearFrost] for [tintAmount]. Pair it with
   /// [LiquidGlassAppearance.ios27Clear].
   ///
-  /// The lens is the full 20 pt / 50 pt bevel on every shape. At slider 0
+  /// The lens keeps the full 20 pt / 50 pt bevel until it would pass the
+  /// shape's center line; see [refractionFitsShape]. At slider 0
   /// the glass is completely clear and unblurred. Tinted positions floor the
   /// blur at `2.1` logical pixels. Pass [frost] to override, for example
   /// `frost: 0` for unsoftened glass at every position.
@@ -200,9 +201,6 @@ final class LiquidGlassSettings with Equatable {
   /// 0, 0.5 and 1, growing faster beyond the Settings middle tick. Apple
   /// diffuses larger glass more and smaller glass less; the presets scale this
   /// toolbar-size value by the glass's short side.
-  ///
-  /// This is Apple's measured curve; the regular presets render
-  /// _ios27RegularBlur instead, which floors it at `2.1` logical pixels.
   static double ios27RegularFrost(double tintAmount) {
     final amount = tintAmount.clamp(0.0, 1.0);
     return 4.5 *
@@ -220,9 +218,8 @@ final class LiquidGlassSettings with Equatable {
   /// middle tick and at twice that rate beyond it: 0.35, 1.28 and 16.4 pt at
   /// 0, 0.5 and 1.
   ///
-  /// This is Apple's measured curve; [LiquidGlassSettings.ios27Clear]
-  /// renders _ios27ClearBlur instead, which returns no blur at slider 0 and
-  /// floors tinted positions at `2.1` logical pixels.
+  /// This is Apple's measured curve; [LiquidGlassSettings.ios27Clear] renders
+  /// no blur at slider 0 and floors tinted positions at `2.1` logical pixels.
   static double ios27ClearFrost(double tintAmount) {
     final amount = tintAmount.clamp(0.0, 1.0);
     return 0.35 *
@@ -254,13 +251,8 @@ final class LiquidGlassSettings with Equatable {
   /// gate at `k * (1 - 3.4e-3 * k/d + 3.4e-6 * (k/d)^2) >= 4 * sqrt(2)`. `5.8`
   /// clears that for every `d >= 2` (the tightest case, `d = 2`, is `5.743`
   /// device pixels) and stays below `2.1 * 3 = 6.3`, so 3x displays keep
-  /// today's `2.1`. Below 2x the floor is capped; see [frostSigmaAt].
+  /// the `2.1` floor. Below 2x the floor is capped; see [frostSigmaAt].
   static const double _frostFloorDevicePx = 5.8;
-
-  /// The blur the regular presets render at slider position [tintAmount]:
-  /// [ios27RegularFrost] floored at [ _minBlurPassSigma ] logical pixels.
-  static double _ios27RegularBlur(double tintAmount) =>
-      math.max(_minBlurPassSigma, ios27RegularFrost(tintAmount));
 
   /// The blur [LiquidGlassSettings.ios27Clear] renders at slider position
   /// [tintAmount]: `0` at slider 0, where the glass is completely clear,
@@ -344,11 +336,11 @@ final class LiquidGlassSettings with Equatable {
   /// Backdrop blur, as an approximate Gaussian-equivalent sigma in logical
   /// pixels.
   ///
-  /// The renderer may round or adjust the blur it actually applies. The blur
-  /// does not change with the material's size. The default is `4.5`, and the
-  /// renderer may raise the default, or a preset's frost, on the device so
-  /// Impeller downsamples the blur pass there. An explicitly passed frost is
-  /// always used as given.
+  /// The renderer may round or adjust the blur it actually applies. The
+  /// default is `4.5`. Default and preset frost grow with the glass's short
+  /// side (see [ios27RegularFrost]), and the renderer may raise them on the
+  /// device so Impeller downsamples the blur pass there. An explicitly passed
+  /// frost is always used as given.
   final double frost;
 
   /// Separation of the color channels in the refracted edge.
@@ -475,9 +467,7 @@ final class LiquidGlassSettings with Equatable {
 
   /// Lighting depth of the rim in logical pixels.
   ///
-  /// The geometry matte encodes signed edge distance up to four times this
-  /// depth, so rim lighting keeps its precision even when [refractionHeight]
-  /// is small or refraction is disabled.
+  /// Passed to the geometry and final shaders, which do not read it.
   @internal
   double get effectiveEdgeDistanceRange => math.max(12, refractionHeight);
 
@@ -556,8 +546,7 @@ final class LiquidGlassSettings with Equatable {
   ];
 }
 
-/// The fitted iOS 27 rim geometry every preset shares. These were settings
-/// until every preset and the example used the same values.
+/// The fitted iOS 27 rim geometry every preset shares.
 @internal
 abstract final class GlassRim {
   /// Width of the glint line inward from the silhouette, in logical pixels.
