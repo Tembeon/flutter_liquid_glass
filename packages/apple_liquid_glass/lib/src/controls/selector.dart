@@ -1351,17 +1351,25 @@ class _RenderSelectorRow extends RenderBox
           context.paintChild(regular, offset + slot.topLeft);
           return;
         }
-        final box = Path();
-        box.addRect(slot);
+        // The slot outside the lens, without a path operation each frame:
+        // even-odd leaves the slot less the lens and the lens past the slot,
+        // which the slot's rect clips away.
         final cut = Path();
+        cut.fillType = PathFillType.evenOdd;
+        cut.addRect(slot);
         cut.addRRect(mask);
-        context.pushClipPath(
+        context.pushClipRect(
           needsCompositing,
           offset,
           slot,
-          Path.combine(PathOperation.difference, box, cut),
-          (context, offset) =>
-              context.paintChild(regular, offset + slot.topLeft),
+          (context, offset) => context.pushClipPath(
+            needsCompositing,
+            offset,
+            slot,
+            cut,
+            (context, offset) =>
+                context.paintChild(regular, offset + slot.topLeft),
+          ),
         );
       }
 
