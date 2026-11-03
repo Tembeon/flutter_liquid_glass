@@ -251,6 +251,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   void compose() {
     final asked = _asked;
     _asked = null;
+    final wasInFrame = _inFrame != null;
     _inFrame?.copy.content.dispose();
     _inFrame = null;
     if (asked?.frosting case final frosting?
@@ -271,7 +272,9 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     // it did; a copy not drawn yet is drawn with the frame's other copies.
     final key = serving != null && serving.copy.ready ? _keyOf(serving) : null;
     if (serving == null || key == null || key != _servedKey) {
-      if (_serving != null || serving != null) markNeedsAddToScene();
+      if (wasInFrame || _serving != null || serving != null) {
+        markNeedsAddToScene();
+      }
       _served?.dispose();
       _served = null;
     }
