@@ -648,6 +648,8 @@ void main() {
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
     addTearDown(() => BackdropUnderlay.debugEnabledOverride = null);
+    RenderLiquidGlassLayer.debugShaderFrost = false;
+    addTearDown(() => RenderLiquidGlassLayer.debugShaderFrost = true);
 
     BackdropUnderlay.debugEnabledOverride = false;
     await tester.pumpWidget(_pairScene(frost: 6));
@@ -668,6 +670,28 @@ void main() {
     expect(
       _difference(reading, await _pixels(tester, pixelRatio: 2)),
       lessThanOrEqualTo(2),
+    );
+  }, skip: skipProperGlassTests);
+
+  testWidgets('frosted copies the shader frosts take no blur layer and draw '
+      'near what reading the backdrop draws', (tester) async {
+    tester.view.physicalSize = const Size(520, 720);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    addTearDown(() => BackdropUnderlay.debugEnabledOverride = null);
+
+    BackdropUnderlay.debugEnabledOverride = false;
+    await tester.pumpWidget(_pairScene(frost: 6));
+    final reading = await _pixels(tester, pixelRatio: 2);
+    BackdropUnderlay.debugEnabledOverride = true;
+    await tester.pumpWidget(const SizedBox());
+    final layers = BackdropUnderlay.debugBlurLayers;
+    await tester.pumpWidget(_pairScene(frost: 6));
+    expect(BackdropUnderlay.debugBlurLayers, layers);
+    expect(
+      _difference(reading, await _pixels(tester, pixelRatio: 2)),
+      // NEAR, see RenderLiquidGlassLayer.debugShaderFrost.
+      lessThanOrEqualTo(24),
     );
   }, skip: skipProperGlassTests);
 

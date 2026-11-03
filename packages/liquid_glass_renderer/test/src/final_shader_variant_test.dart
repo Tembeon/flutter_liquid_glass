@@ -66,13 +66,31 @@ void main() {
   test('every kind but the material map has a variant per model family', () {
     final names = {for (final v in FinalShaderVariant.all) v.name};
     expect(names, hasLength(FinalShaderVariant.all.length));
-    expect(FinalShaderVariant.all, hasLength(10));
+    expect(FinalShaderVariant.all, hasLength(13));
     final material =
         FinalShaderVariant.all[FinalShaderVariant.indexOf(
           FinalShaderKind.material,
           FinalShaderModels.direct,
         )];
     expect(material.models, FinalShaderModels.all);
+  });
+
+  test('a variant that cannot frost has a frosted twin', () {
+    for (final kind in FinalShaderKind.values) {
+      for (final models in FinalShaderModels.values) {
+        final plain =
+            FinalShaderVariant.all[FinalShaderVariant.indexOf(kind, models)];
+        final frosted =
+            FinalShaderVariant.all[FinalShaderVariant.indexOf(
+              kind,
+              models,
+              frost: true,
+            )];
+        expect(plain.frost, isFalse);
+        expect((frosted.kind, frosted.models), (plain.kind, plain.models));
+      }
+    }
+    expect(FinalShaderVariant.all.where((v) => v.frost), hasLength(3));
   });
 
   test('the build hook compiles each variant: one '
@@ -119,11 +137,28 @@ void main() {
       expect(
         identical(
           layer.renderShader,
-          layer.finalShaders[FinalShaderVariant.indexOf(kind, models)],
+          // The scene's glass is frosted, so it draws with a variant that
+          // can frost a copy.
+          layer.finalShaders[FinalShaderVariant.indexOf(
+            kind,
+            models,
+            frost: true,
+          )],
         ),
         isTrue,
       );
       final variant = await _capture(tester);
+
+      RenderLiquidGlassLayer.debugShaderFrost = false;
+      addTearDown(() => RenderLiquidGlassLayer.debugShaderFrost = true);
+      layer.debugUpdateShaders();
+      expect(
+        identical(
+          layer.renderShader,
+          layer.finalShaders[FinalShaderVariant.indexOf(kind, models)],
+        ),
+        isTrue,
+      );
 
       var largest = 0;
       for (var i = 0; i < general.length; i++) {

@@ -19,6 +19,14 @@ precision highp float;
 #define COLOR_MODELS COLOR_MODELS_ALL
 #endif
 
+// Whether the variant frosts an unblurred copy itself (uBackdropFrost). The
+// 32-register variants leave it out and have a frosted twin: with it, the
+// Mali-G78 compiler keeps work across the 24 reads and doubles their
+// registers, halving their occupancy for clear glass too.
+#ifndef FROST
+#define FROST 1
+#endif
+
 #include <flutter/runtime_effect.glsl>
 #include "render.glsl"
 #include "glass_glow.glsl"
@@ -96,7 +104,8 @@ uniform vec2 uLowResOptics;
 //     about, in matte device px from the material center; zero shrinks
 //     about the center itself. z uBackdropReduced: above zero when the copy
 //     a paint samples has fewer pixels than the screen, so no glass reads
-//     its own texel. w unused.
+//     its own texel. w uBackdropFrost: the Gaussian sigma, in device px,
+//     the shader frosts an unblurred copy by; zero reads it as it is.
 // [5] uBackdropOverlay: a color laid over the read backdrop at its alpha,
 //     the dimming between a cached copy of the page and the glass.
 uniform vec4 uEffects[6];
@@ -106,6 +115,7 @@ uniform vec4 uEffects[6];
 #define uGlowShape uEffects[3]
 #define uBackdropShrinkAxis uEffects[4].xy
 #define uBackdropReduced uEffects[4].z
+#define uBackdropFrost uEffects[4].w
 #define uBackdropOverlay uEffects[5]
 
 #ifndef ANALYTIC_GEOMETRY
@@ -902,6 +912,41 @@ void main() {
                 mirrorBackgroundUV(refractedUV, invUSize)
             );
         }
+        #if FROST
+        if (uBackdropFrost > 0.0) {
+            // 24 bilinear taps importance-sampled from the Gaussian on a
+            // golden-angle spiral, equal weights, over a copy taken
+            // unblurred: the copy's blur passes become these reads. The copy
+            // is grown by three sigma, so the taps read real backdrop past
+            // the rim; one refracted past it reads the copy's edge.
+            vec4 frost = vec4(0.0);
+            vec2 halfTexel = invUSize * 0.5;
+            vec2 direction = vec2(1.0, 0.0);
+            // Rolled by a bound read from a uniform (uBackdropFrost is
+            // positive here, so it is 24): unrolled, the 24 reads are all
+            // kept in flight and double the shader's registers on the
+            // Mali-G78, halving its occupancy for every glass.
+            int taps = 24 - int(min(uBackdropFrost, 0.0));
+            for (int i = 0; i < taps; i++) {
+                float u = (float(i) + 0.5) / 24.0;
+                float r = uBackdropFrost * sqrt(-2.0 * log(1.0 - u));
+                frost += texture(
+                    uBackgroundTexture,
+                    clamp(
+                        refractedUV + direction * r * invUSize,
+                        halfTexel,
+                        vec2(1.0) - halfTexel
+                    )
+                );
+                // Turns by the golden angle, 2.39996323 rad.
+                direction = vec2(
+                    -0.73736888 * direction.x - 0.67549029 * direction.y,
+                    0.67549029 * direction.x - 0.73736888 * direction.y
+                );
+            }
+            refractColor = frost / 24.0;
+        }
+        #endif
     } else {
         float dispersionStrength = uDispersion * 0.5;
         vec2 redOffset = displacement * (1.0 + dispersionStrength);

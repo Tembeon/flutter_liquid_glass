@@ -681,7 +681,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       (false, true, false) => FinalShaderKind.material,
     };
     final shader =
-        finalShaders[FinalShaderVariant.indexOf(kind, _colorModelFamily)];
+        finalShaders[FinalShaderVariant.indexOf(
+          kind,
+          _colorModelFamily,
+          frost: _frostsCopies,
+        )];
     if (_staleShaders.remove(shader)) {
       _writeCommonShaderUniforms(
         shader,
@@ -696,6 +700,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
     return shader;
   }
+
+  // Whether the shader may frost the copy it draws over, which picks a
+  // variant that can. Settings pick it, as they pick the color models, so
+  // a change rewrites the uniforms.
+  bool get _frostsCopies =>
+      debugShaderFrost && settings.frost > 0 && settings.dispersion == 0;
 
   /// The color models the layer shades: the direct model alone, one iOS
   /// 27 model in the first slot, or any.
@@ -1883,13 +1893,51 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // The blur, in the copy's own pixels, that hides its size.
   static const double _copySigma = 2.5;
 
+  /// Whether the final shader frosts an unblurred copy instead of the copy
+  /// being blurred.
+  ///
+  /// NEAR: the shader's 24 taps are not Impeller's blur. Over the white bars
+  /// of the host test they differ from the live filter by at most 14 channel
+  /// levels over a full or a quarter-size copy and 24 over a half-size one,
+  /// where the blurred half-size copy differs by 16; by 2 to 5 on average.
+  /// In return a frosted copy takes no blur passes.
+  ///
+  /// A layer picks its shaders by it: after a change, call
+  /// [debugUpdateShaders].
+  @visibleForTesting
+  static bool debugShaderFrost = true;
+
+  /// Picks this layer's shaders again, after [debugShaderFrost] changed.
+  @visibleForTesting
+  void debugUpdateShaders() {
+    _updateShaderSettings();
+    markNeedsPaint();
+  }
+
+  // The share of the sigma asked that Impeller's blur delivers, which the
+  // shader's frost matches so a copy and the live filter blur alike: the
+  // best of 0.70 to 1.0 in the host test against ImageFilter.blur at 3, 5
+  // and 8 device px. g1455's MTF table of Impeller's blur reads 0.84 to 0.87
+  // there.
+  static const double _deliveredFrost = 0.84;
+
+  // The largest sigma, in the copy's own pixels, the shader frosts by. Its 24
+  // taps lie about a sigma apart, so a wider frost shows hard edges as faint
+  // copies: they show at 5 copy pixels in the host test and not at 3.4.
+  static const double _shaderFrostTexels = 3.5;
+
+  // How many device pixels along each side one pixel of a copy the shader
+  // frosts stands for at most.
+  static const int _shaderFrostMaxDownscale = 4;
+
   // This frame's copy asked for: the glass's transform to the screen, the
-  // logical rect the shader draws and the material it paints there.
-  ({Matrix4 screen, Rect logical, Rect drawn})? _asked;
+  // logical rect the shader draws, the material it paints there and the
+  // sigma, in device px, the shader frosts the copy by.
+  ({Matrix4 screen, Rect logical, Rect drawn, double frost})? _asked;
 
   // Asks for the copy of what lies under the glass, or returns null when the
   // glass reads its backdrop this frame.
-  ({Matrix4 screen, Rect logical, Rect drawn})? _askUnderlay() {
+  ({Matrix4 screen, Rect logical, Rect drawn, double frost})? _askUnderlay() {
     final bounds = _filterMaterialBounds;
     final anchor = layer;
     if (bounds == null || anchor == null || drawableEmpty) return null;
@@ -1925,13 +1973,39 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final sigma = _frostSigmaForCurrentShapes();
     final frostX = sigma * scaleX;
     final frostY = sigma * scaleY;
-    // A copy blurred by at least [_copySigma] of its own pixels is drawn as
-    // the blur leaves it at a fraction of the screen's pixels: sampled back
-    // up, it adds a tent of its pixel's width to a blur many times wider.
+    // Frost the final shader can draw is drawn there, over an unblurred
+    // copy: the copy's blur passes become its taps. The copy is the smallest
+    // whose pixels the frost spans by at most [_shaderFrostTexels], and the
+    // shader frosts by what is left: a pixel of a smaller copy averages
+    // k x k device px (a box, variance k^2 / 12), every bilinear tap adds a
+    // tent of a copy pixel (k^2 / 6), and Gaussians add in variance. The
+    // shader frosts round, so glass stretched past 5 % keeps the copy's blur,
+    // which follows each axis.
+    final shaderSigma = sigma * dpr * sqrt(scaleX * scaleY) * _deliveredFrost;
     var downscale = 1;
-    while (downscale * 2 <= debugMaxCopyDownscale &&
-        min(frostX, frostY) * dpr / (downscale * 2) >= _copySigma) {
+    while (downscale < _shaderFrostMaxDownscale &&
+        shaderSigma / downscale > _shaderFrostTexels) {
       downscale *= 2;
+    }
+    final shaderFrost =
+        sigma > 0 &&
+        _frostsCopies &&
+        (scaleX / scaleY - 1).abs() <= 0.05 &&
+        shaderSigma / downscale <= _shaderFrostTexels;
+    var frost = 0.0;
+    if (shaderFrost) {
+      final carried = downscale * downscale * (downscale > 1 ? 1 / 4 : 1 / 6);
+      frost = sqrt(max(shaderSigma * shaderSigma - carried, 0));
+    } else {
+      // A copy blurred by at least [_copySigma] of its own pixels is drawn
+      // as the blur leaves it at a fraction of the screen's pixels: sampled
+      // back up, it adds a tent of its pixel's width to a blur many times
+      // wider.
+      downscale = 1;
+      while (downscale * 2 <= debugMaxCopyDownscale &&
+          min(frostX, frostY) * dpr / (downscale * 2) >= _copySigma) {
+        downscale *= 2;
+      }
     }
     _rig.underlay.request(
       anchor: anchor,
@@ -1940,11 +2014,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       region: drawn.inflate(
         (backdropSamplingReach(bounds) + 1) * max(scaleX, scaleY),
       ),
-      blur: sigma > 0 ? (frostX, frostY) : null,
+      blur: sigma > 0 && !shaderFrost ? (frostX, frostY) : null,
       downscale: downscale,
       body: drawn,
     );
-    return (screen: screen, logical: logical, drawn: drawn);
+    return (screen: screen, logical: logical, drawn: drawn, frost: frost);
   }
 
   // The glass as one rect painted with the final shader over the underlay's
@@ -1958,7 +2032,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (asked == null) return null;
     final copy = _rig.underlay.serve();
     if (copy == null) return null;
-    final (:screen, :logical, :drawn) = asked;
+    final (:screen, :logical, :drawn, :frost) = asked;
     final dpr = devicePixelRatio;
     final canvasToScreen = screen.clone();
     canvasToScreen.multiply(
@@ -1998,6 +2072,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         backdropBounds,
         paintOffset,
         screen,
+        frost,
       );
     }
 
@@ -2044,6 +2119,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       shader.setFloat(_FinalUniforms.backdropOrigin, origin.dx);
       shader.setFloat(_FinalUniforms.backdropOrigin + 1, origin.dy);
       shader.setFloat(_FinalUniforms.reducedBackdrop, stretch > 1 ? 1 : 0);
+      shader.setFloat(_FinalUniforms.backdropFrost, frost);
       shader.setImageSampler(0, image, filterQuality: FilterQuality.low);
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
@@ -2058,6 +2134,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       shader.setFloat(_FinalUniforms.backdropOrigin, 0);
       shader.setFloat(_FinalUniforms.backdropOrigin + 1, 0);
       shader.setFloat(_FinalUniforms.reducedBackdrop, 0);
+      shader.setFloat(_FinalUniforms.backdropFrost, 0);
       restoreLive(shader);
       if (_geometryImage case final matte?) {
         shader.setImageSampler(0, matte, filterQuality: FilterQuality.low);
@@ -2698,6 +2775,9 @@ abstract final class _FinalUniforms {
 
   /// uBackdropReduced, one float.
   static const int reducedBackdrop = 157;
+
+  /// uBackdropFrost, one float.
+  static const int backdropFrost = 158;
 
   /// uBackdropOverlay, four floats.
   static const int overlay = 159;

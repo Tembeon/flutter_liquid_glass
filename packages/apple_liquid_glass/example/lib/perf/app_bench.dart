@@ -62,6 +62,17 @@ final _switches = <String, void Function({required bool on})>{
   // B reads the backdrop live instead of drawing copies.
   'live_reads': ({required on}) =>
       BackdropUnderlay.debugEnabledOverride = on ? false : null,
+  // B frosts copies in the glass shader; A blurs them and draws frosted
+  // glass with the shaders that cannot frost, as before.
+  'shader_frost': ({required on}) {
+    RenderLiquidGlassLayer.debugShaderFrost = on;
+    void update(RenderObject node) {
+      if (node is RenderLiquidGlassLayer) node.debugUpdateShaders();
+      node.visitChildren(update);
+    }
+
+    RendererBinding.instance.renderViews.forEach(update);
+  },
 };
 
 // The crowd: glass buttons in a grid over every page, BENCH_CROWD_A of them
