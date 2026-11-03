@@ -166,8 +166,9 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
 
   /// The copy this frame draws in place of the backdrop read, in
   /// this layer's coordinates, or null while the layer reads the backdrop.
-  /// Recorded when first read, once the copy is drawn with the other copies
-  /// of the frame.
+  /// A frost drawn in the frame is recorded as the layer composes; one drawn
+  /// from an image when first read, once the copy is drawn with the other
+  /// copies of the frame.
   @internal
   ui.Picture? get servedPicture {
     if (_served case final served?) return served;
@@ -255,8 +256,9 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     _inFrame?.copy.content.dispose();
     _inFrame = null;
     if (asked?.frosting case final frosting?
-        when _blendMode == BlendMode.srcOver && _underlay.servesInFrame) {
-      _composeInFrame(asked!, frosting);
+        when _blendMode == BlendMode.srcOver &&
+            _underlay.servesInFrame &&
+            _composeInFrame(asked!, frosting)) {
       return;
     }
     final served = asked == null ? null : serveCopy(_underlay, asked);
@@ -284,17 +286,16 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   }
 
   // A frost drawn from a copy the frame draws again: a picture each frame.
-  void _composeInFrame(CopyAsk asked, CopyFrosting frosting) {
+  // False when the frame cannot draw the copy, and [serveCopy] takes the
+  // request.
+  bool _composeInFrame(CopyAsk asked, CopyFrosting frosting) {
     markNeedsAddToScene();
     _served?.dispose();
     _served = null;
     _servedKey = null;
     _serving = null;
     final copy = _underlay.serveInFrame();
-    if (copy == null) {
-      _underlay.release();
-      return;
-    }
+    if (copy == null) return false;
     _inFrame = (
       copy: copy,
       shown: asked.shifted,
@@ -306,6 +307,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
       copy.content.dispose();
       _inFrame = null;
     }
+    return true;
   }
 
   @override

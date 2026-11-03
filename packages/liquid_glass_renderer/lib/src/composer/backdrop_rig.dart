@@ -59,7 +59,7 @@ typedef CopyAsk = ({Rect shifted, Offset origin, CopyFrosting? frosting});
 ///
 /// Where [frost] stands for [filter] and the shader can draw it, the copy is
 /// unblurred, at the fraction of the screen's pixels the frost allows, for
-/// [recordFrostedCopy]. The shader cannot when shader frost is off, the
+/// the frost shader to draw. The shader cannot when shader frost is off, the
 /// renderer is not Impeller (its program is built for Impeller alone), the
 /// frost is too wide for it, or the program is not loaded yet. Otherwise
 /// the copy holds [reach] around [clip] run through [filter] as a backdrop
@@ -195,7 +195,8 @@ ui.Picture recordFilteredCopy(
   return recorder.endRecording();
 }
 
-/// The shader [recordFrostedCopy] frosts with; its owner disposes it.
+/// The shader [recordFrostedCopy] and [recordFrostedInFrame] frost with;
+/// its owner disposes it.
 @internal
 ui.FragmentShader newFrostShader() =>
     MultiShaderBuilder.cached(ShaderKeys.backdropFrost)!.fragmentShader();

@@ -63,7 +63,8 @@ final _switches = <String, void Function({required bool on})>{
   'islands': ({required on}) => BackdropUnderlay.debugIslandsEnabled = on,
   'downscale4': ({required on}) =>
       RenderLiquidGlassLayer.debugMaxCopyDownscale = on ? 4 : 2,
-  // B draws the copies no filter reads in the frame, A into images.
+  // B draws the copies asked for without a filter in the frame, A into
+  // images.
   'in_frame': ({required on}) => BackdropUnderlay.debugInFrame = on,
   // B reads the backdrop live instead of drawing copies.
   'live_reads': ({required on}) =>

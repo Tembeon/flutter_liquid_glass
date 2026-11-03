@@ -118,15 +118,17 @@ class BackdropUnderlay {
   @visibleForTesting
   static bool debugIslandsEnabled = true;
 
-  /// Whether a copy no filter reads is drawn in the frame itself (see
+  /// Whether a copy asked for without a filter or blur is drawn in the frame
+  /// itself (see
   /// [serveInFrame]) rather than into an image.
   @visibleForTesting
   static bool debugInFrame = const bool.fromEnvironment(
     'LIQUID_GLASS_IN_FRAME',
   );
 
-  /// How many copies were recorded into images, by the type of the layer
-  /// that asked and how its copy is filtered: `blur`, `filter` or `plain`.
+  /// How many islands were recorded into images, by the type of the layer
+  /// that leads each and how its copy is filtered: `blur`, `filter` or
+  /// `plain`.
   @visibleForTesting
   static final debugImageAsks = <String, int>{};
 
@@ -376,8 +378,8 @@ class BackdropUnderlay {
 
   /// Whether Impeller draws a layer of [layer] whole inside a clip of
   /// [clip] (both in the same space): it cuts the layer to the clip, and
-  /// starts fragment coordinates at the cut, only once that takes 30 % or
-  /// more off a side (ComputeSaveLayerCoverage,
+  /// starts fragment coordinates at the cut, only once the part it cuts off
+  /// either axis is 30 % or more of what is left (ComputeSaveLayerCoverage,
   /// impeller/entity/save_layer_utils.cc).
   @internal
   static bool keepsWhole(Rect layer, Rect clip) {
@@ -738,7 +740,9 @@ final class _Ask {
   // Whether the copy can be drawn with copies beside it.
   bool get joins =>
       !inFrame &&
-      body != null && filterClip == null && filterBlendMode == BlendMode.src;
+      body != null &&
+      filterClip == null &&
+      filterBlendMode == BlendMode.src;
 }
 
 // Copies the composer planned to draw as one island in a frame, in paint
@@ -1674,6 +1678,31 @@ final class _Scan {
       prefix.canvas?.drawPicture(picture);
     }
 
+    // A picture drawn in the frame over a layer of [layer] (see
+    // InFrameGlassLayer): drawn whole where the copy's pass holds the layer,
+    // else its part inside the pass, recorded only when drawing. A
+    // signature that holds that part matches none.
+    void signInFrame(
+      Rect layer,
+      ui.Picture whole,
+      ui.Picture? Function(Rect region) within,
+      Matrix4 transform,
+      Rect? clip,
+      List<Object?> state,
+    ) {
+      final region = clip == null ? band : band.intersect(clip);
+      if (BackdropUnderlay.keepsWhole(layer, region)) {
+        sign(whole, transform, clip, state);
+      } else if (drawing) {
+        if (within(region) case final cut?) {
+          sign(cut, transform, clip, state);
+          cut.dispose();
+        }
+      } else {
+        out.add(Object());
+      }
+    }
+
     // Glass over a copy not drawn yet: the copy draws it as its filter over
     // what the copy holds before it, which a group that draws its children
     // in a layer of their own would not hold. A signature that holds it
@@ -1715,17 +1744,17 @@ final class _Scan {
         ):
           if (_meets(entry.bounds, band)) {
             if (entry.glass) prefix.holdsGlass = true;
-            final region = clip == null ? band : band.intersect(clip);
-            if (inFrame == null ||
-                BackdropUnderlay.keepsWhole(inFrame.layer, region)) {
+            if (inFrame == null) {
               sign(picture, transform, clip, state);
-            } else if (drawing) {
-              if (inFrame.within(region) case final cut?) {
-                sign(cut, transform, clip, state);
-                cut.dispose();
-              }
             } else {
-              out.add(Object());
+              signInFrame(
+                inFrame.layer,
+                picture,
+                inFrame.within,
+                transform,
+                clip,
+                state,
+              );
             }
           }
         case _Glass(:final layer, :final transform, :final clip, :final state):
@@ -1813,20 +1842,15 @@ final class _Scan {
               if (layer.pending) {
                 if (!fold(layer, layer.addFold, transform, clip)) break loop;
               } else if (layer.inFrameLayer case final inFrame?) {
-                // A frost drawn in the frame is a layer of the screen's
-                // pixels, cut where the copy's pass does not hold it.
                 prefix.holdsGlass = true;
-                final region = clip == null ? band : band.intersect(clip);
-                if (BackdropUnderlay.keepsWhole(inFrame, region)) {
-                  sign(layer.servedPicture!, transform, clip, entry.state);
-                } else if (drawing) {
-                  if (layer.servedWithin(region) case final cut?) {
-                    sign(cut, transform, clip, entry.state);
-                    cut.dispose();
-                  }
-                } else {
-                  out.add(Object());
-                }
+                signInFrame(
+                  inFrame,
+                  layer.servedPicture!,
+                  layer.servedWithin,
+                  transform,
+                  clip,
+                  entry.state,
+                );
               } else {
                 sign(layer.servedPicture!, transform, clip, entry.state);
               }
@@ -2210,8 +2234,9 @@ class UnderlayPictureLayer extends GlassPictureLayer {
 /// the glass's shader filters a layer of [layer] (the screen's logical
 /// pixels) holding the copy.
 ///
-/// Impeller cuts a layer drawn inside a smaller pass, and its fragment
-/// coordinates start at the cut: a copy for other glass whose pass does not
+/// Impeller cuts a layer drawn inside a smaller pass (see
+/// [BackdropUnderlay.keepsWhole]), and its fragment coordinates start at the
+/// cut: a copy for other glass whose pass does not
 /// hold [layer] draws this glass with [within] instead.
 @internal
 class InFrameGlassLayer extends GlassPictureLayer {
