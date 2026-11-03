@@ -133,11 +133,10 @@ class BackdropUnderlay {
   /// [anchor] is the layer the caller begins with in paint order: the copy
   /// holds what is painted before it, with [filter] applied as a backdrop
   /// filter with [filterBlendMode] inside [filterClip] (the whole copy when
-  /// null), in screen logical pixels. [filterKey] stands for [filter] (the
-  /// filter itself by default): a copy serves only callers that pass an
-  /// equal key. [blur] stands in for a [filter] that is a mirrored Gaussian
-  /// blur over the whole copy by these sigmas in logical pixels (and is its
-  /// key by default): the copy is blurred at its own pixels, without reading
+  /// null), in screen logical pixels; a copy serves only callers that pass an
+  /// equal filter. [blur] stands in for a [filter] that is a mirrored
+  /// Gaussian blur over the whole copy by these sigmas in logical pixels:
+  /// the copy is blurred at its own pixels, without reading
   /// a backdrop, together with the frame's other copies under the same blur.
   /// NEAR: past a copy's edge the blur reads what lies beside it in the
   /// shared layer rather than a mirror of the copy; a copy holds 3 sigma past
@@ -145,9 +144,9 @@ class BackdropUnderlay {
   /// the blur. Glass stretched along the axes differs from reading the
   /// backdrop by up to 15 levels in a few hundred pixels on the Pixel 6a.
   /// [anchor] lies in a [RenderView]'s layer tree, and the copy is cut to its
-  /// screen. The copy holds [downscale] device pixels in each
-  /// of its pixels along each side: a copy blurred enough loses nothing
-  /// drawn smaller.
+  /// screen. The copy holds [downscale] device pixels in each of its pixels
+  /// along each side, for a caller that blurs or frosts it enough that the
+  /// detail lost is NEAR.
   ///
   /// [body] is the rect the caller's glass paints, in screen logical
   /// pixels: glass painted before [anchor] that does not meet it lies beside
@@ -170,7 +169,6 @@ class BackdropUnderlay {
     OpacitySeedLayer? own,
     ui.ImageFilter? filter,
     (double, double)? blur,
-    Object? filterKey,
     Rect? filterClip,
     BlendMode filterBlendMode = BlendMode.src,
     int downscale = 1,
@@ -199,7 +197,7 @@ class BackdropUnderlay {
       band: _snapOut(region, pixels).intersect(screen),
       filter: filter,
       blur: blur,
-      filterKey: filterKey ?? blur ?? filter,
+      filterKey: blur ?? filter,
       filterClip: filterClip,
       filterBlendMode: filterBlendMode,
       body: body,
@@ -1370,11 +1368,9 @@ final class _Scan {
         push(layer as ContainerLayer, _Open.plain());
       case ContainerLayer() when layer.runtimeType == ContainerLayer:
         push(layer, _Open.plain());
-      case ContainerLayer()
-          when LiquidGlassUnderlay.effectsOf(layer)?.alpha == 0:
-        return false;
       case ContainerLayer() when LiquidGlassUnderlay.effectsOf(layer) != null:
         final effects = LiquidGlassUnderlay.effectsOf(layer)!;
+        if (effects.alpha == 0) return false;
         final next = transform.multiplied(effects.transform);
         var nextClip = clip;
         final effectState = <Object?>[];
@@ -1403,8 +1399,6 @@ final class _Scan {
               saves++;
             }
             if (blur > 0) {
-              // Bounded by its content, as the scene bounds it (see
-              // _drawnBounds).
               c.saveLayer(
                 _drawnBounds(layer),
                 _Prefix._filtering(
@@ -1997,7 +1991,7 @@ class _Tile {
   Offset offset = Offset.zero;
 
   Rect get rect => island.rect;
-  double get devicePixelRatio => island.pixelRatio;
+  double get pixelRatio => island.pixelRatio;
   ui.ImageFilter? get filter => island.filter;
   (double, double)? get blur => island.blur;
   bool get filtered => island.filter != null || island.blur != null;
@@ -2005,8 +1999,7 @@ class _Tile {
   // Whether the copy is filtered in the atlas's layer of copies rather than
   // as a backdrop of its own.
   bool get layered => switch (blur) {
-    (final x, final y) =>
-      max(x, y) * devicePixelRatio <= _Atlas._maxImageBlurSigma,
+    (final x, final y) => max(x, y) * pixelRatio <= _Atlas._maxImageBlurSigma,
     null => false,
   };
   Object? get filterKey => island.filterKey;
@@ -2088,7 +2081,7 @@ final class _Atlas {
             .putIfAbsent(
               !tile.filtered
                   ? null
-                  : (tile.filterKey, tile.devicePixelRatio, tile.layered),
+                  : (tile.filterKey, tile.pixelRatio, tile.layered),
               () => [],
             )
             .add(tile);
@@ -2135,7 +2128,7 @@ final class _Atlas {
 
   // From the screen's logical pixels to [tile]'s place in the image.
   static Matrix4 _toAtlas(_Tile tile) {
-    final pixels = tile.devicePixelRatio;
+    final pixels = tile.pixelRatio;
     final toAtlas = Matrix4.translationValues(
       tile.offset.dx - tile.rect.left * pixels,
       tile.offset.dy - tile.rect.top * pixels,
@@ -2146,10 +2139,11 @@ final class _Atlas {
   }
 
   // Adds [tile]'s copy, each glass it folds in over what the copy draws
-  // before it; in a layer of the copy's own, pass the layer's [origin]. NEAR:
+  // before it. [origin] is where the copy lies in the pass the folds draw
+  // into: its place in the image, or zero in a layer of its own. NEAR:
   // outside such a layer the glass's filter reads past the copy's edge what
   // lies beside it in the image, as a copy's blur does.
-  static void _add(ui.SceneBuilder b, _Tile tile, {Offset? origin}) {
+  static void _add(ui.SceneBuilder b, _Tile tile, {required Offset origin}) {
     for (final (picture, fold) in tile.pieces) {
       b.addPicture(tile.offset, picture);
       BackdropUnderlay.debugFolds++;
@@ -2159,7 +2153,7 @@ final class _Atlas {
         b.pushClipRect(clip, clipBehavior: Clip.hardEdge);
       }
       b.pushTransform(fold.transform.storage);
-      fold.add(b, tile.rect, origin ?? tile.offset);
+      fold.add(b, tile.rect, origin);
       b.pop();
       if (fold.clip != null) b.pop();
       b.pop();
@@ -2195,7 +2189,7 @@ final class _Atlas {
         }
       } else if (tile.layered) {
         layered
-            .putIfAbsent((tile.filterKey, tile.devicePixelRatio), () => [])
+            .putIfAbsent((tile.filterKey, tile.pixelRatio), () => [])
             .add(tile);
       } else {
         isolated.add(tile);
@@ -2229,12 +2223,12 @@ final class _Atlas {
         // into, whatever the canvas scale: here the copies' own.
         b.pushImageFilter(
           _blur(
-            first.blur!.$1 * first.devicePixelRatio,
-            first.blur!.$2 * first.devicePixelRatio,
+            first.blur!.$1 * first.pixelRatio,
+            first.blur!.$2 * first.pixelRatio,
           ),
         );
         for (final tile in group) {
-          _add(b, tile);
+          _add(b, tile, origin: tile.offset);
         }
         b.pop();
         b.pop();
@@ -2276,8 +2270,7 @@ final class _Atlas {
       if (size > 1) _count(BackdropUnderlay.debugIslands, size);
       for (final (i, member) in island.members.indexed) {
         final shift =
-            (island.rects[i].topLeft - tile.rect.topLeft) *
-            tile.devicePixelRatio;
+            (island.rects[i].topLeft - tile.rect.topLeft) * tile.pixelRatio;
         member._image = image.clone();
         member._offset =
             tile.offset +

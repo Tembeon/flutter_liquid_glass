@@ -4,7 +4,9 @@ import 'package:flutter/foundation.dart';
 
 /// A Gaussian blur followed by a color matrix: a backdrop filter that the
 /// renderer draws from an unblurred copy at a fraction of the screen's
-/// pixels, frosted by a shader as it is drawn, wherever a copy serves.
+/// pixels, frosted by a shader as it is drawn, wherever a copy serves and
+/// the frost is narrow enough for the shader; otherwise the copy is
+/// filtered.
 ///
 /// NEAR: the shader's 24 taps over a smaller copy are not Impeller's blur
 /// (see [debugShaderFrost]).
@@ -29,8 +31,8 @@ final class LiquidGlassBackdropFrost {
   /// 2.625 and 12 at 3, by under 0.5 on average. Fake glass with 6 px of
   /// frost over the test font's white blocks, the hardest edges a frost
   /// meets, differs by at most 28 at 2.625 and 36 at 2 (13 for the filtered
-  /// copy); at 3 the frost is too wide for the shader and the copy stays
-  /// filtered. In return the copy holds a quarter of the pixels or fewer
+  /// copy at 2.625); at 3 the frost is too wide for the shader and the copy
+  /// stays filtered. In return the copy holds a quarter of the pixels or fewer
   /// and takes no blur passes, and a change of the color matrix alone, as a
   /// band or a glass fades in, keeps it.
   static bool debugShaderFrost = true;

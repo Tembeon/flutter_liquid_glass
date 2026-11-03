@@ -1,3 +1,6 @@
+// Run with `flutter test --enable-impeller --enable-flutter-gpu`: the copy
+// is drawn as Impeller draws it.
+//
 // The band's copy is the renderer's: the test turns copies on under
 // flutter test and asks whether one serves.
 // ignore_for_file: invalid_use_of_internal_member
@@ -12,8 +15,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 
-// Run with `flutter test --enable-impeller --enable-flutter-gpu`: the copy
-// is drawn as Impeller draws it.
 const _key = ValueKey('page');
 
 Widget _page(ScrollController controller) => MediaQuery(
@@ -48,8 +49,8 @@ Widget _page(ScrollController controller) => MediaQuery(
                         child: i == 7
                             ? Center(
                                 child: MotionTransition(
-                                  opacity: const _Fixed(0.7),
-                                  blur: const _Fixed(4),
+                                  opacity: const AlwaysStoppedAnimation(0.7),
+                                  blur: const AlwaysStoppedAnimation(4),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -80,19 +81,6 @@ Widget _page(ScrollController controller) => MediaQuery(
     ),
   ),
 );
-
-final class _Fixed implements ValueListenable<double> {
-  const _Fixed(this.value);
-
-  @override
-  final double value;
-
-  @override
-  void addListener(VoidCallback listener) {}
-
-  @override
-  void removeListener(VoidCallback listener) {}
-}
 
 LiquidGlassBackdropFilterLayer _band(WidgetTester tester) =>
     tester.layers.whereType<LiquidGlassBackdropFilterLayer>().single;
@@ -139,6 +127,7 @@ void main() {
     tester.view.physicalSize = const Size(900, 1200);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
+    // Exact parity needs the band's filtered copy; the shader frost is NEAR.
     LiquidGlassBackdropFrost.debugShaderFrost = false;
 
     BackdropUnderlay.debugEnabledOverride = false;

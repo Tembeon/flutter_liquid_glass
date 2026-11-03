@@ -22,7 +22,8 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 ///
 /// A shadow is Impeller's analytic blur of the body's shape (near): at most
 /// 6 of 255 levels from a Gaussian blur of its path, 2 on average, at 2.625
-/// and 3 device pixels per point, and no offscreen passes.
+/// and 3 device pixels per point, and no offscreen passes. A body with an
+/// outline blurs its path offscreen.
 @internal
 final class FlatGlassRenderer extends GlassRenderer {
   /// Creates the flat renderer.

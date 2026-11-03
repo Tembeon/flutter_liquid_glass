@@ -148,8 +148,9 @@ ImageFilter? fakeGlassBackdropFilter(
   shapeShortSide: shapeShortSide,
 )?.full;
 
-/// A fake glass backdrop filter and its blur-free variant, for a pass that
-/// has already blurred its backdrop.
+/// A fake glass backdrop filter, its blur-free variant for a pass that has
+/// already blurred its backdrop, the blur's logical sigma, and the frost
+/// `full` stands for when it blurs.
 @internal
 typedef FakeGlassFilterParts = ({
   ImageFilter full,
@@ -159,7 +160,7 @@ typedef FakeGlassFilterParts = ({
 });
 
 /// Like [fakeGlassBackdropFilter], also returning the filter without its blur
-/// (just the color transfer) and the blur's logical sigma.
+/// (just the color transfer), the blur's logical sigma and its frost.
 @internal
 FakeGlassFilterParts? fakeGlassBackdropFilterParts(
   LiquidGlassSettings settings,
@@ -170,17 +171,11 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
   final visibility = appearance.visibility.clamp(0.0, 1.0);
   if (visibility <= 0) return null;
   final colorModel = appearance.colorModel;
-  final frost = settings.frostSigmaAt(
+  final sigma = settings.frostSigmaAt(
     deviceScale,
     shapeShortSide: shapeShortSide,
   );
-  final blur = frost != 0
-      ? ImageFilter.blur(
-          sigmaX: frost,
-          sigmaY: frost,
-          tileMode: glassBlurTileMode,
-        )
-      : null;
+  final blurs = sigma != 0;
   final faceTransfer = colorModel.faceTransfer(
     tintAmount: settings.effectiveTintAmount,
   );
@@ -198,7 +193,7 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
     final hasMaterialColorTransfer =
         colorModel.saturation != 1 || colorModel.transmissionGamma != 1;
     final hasColorTransfer =
-        hasMaterialColorTransfer || (blur != null && visibility < 1);
+        hasMaterialColorTransfer || (blurs && visibility < 1);
     matrix = hasColorTransfer
         ? fakeGlassColorMatrix(
             saturation: colorModel.saturation,
@@ -213,32 +208,25 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
         : null;
   }
   final colorTransfer = matrix == null ? null : ColorFilter.matrix(matrix);
-  final full = switch ((blur, colorTransfer)) {
-    (final blur?, final colorTransfer?) => ImageFilter.compose(
-      inner: blur,
-      outer: colorTransfer,
-    ),
-    (final blur?, null) => blur,
-    (null, final colorTransfer?) => colorTransfer,
-    (null, null) => null,
-  };
+  final frost = blurs
+      ? LiquidGlassBackdropFrost(
+          sigma: sigma,
+          colorMatrix: matrix,
+          tileMode: glassBlurTileMode,
+        )
+      : null;
+  final full = frost?.filter ?? colorTransfer;
   if (full == null) return null;
   return (
     full: full,
     withoutBlur: colorTransfer ?? fakeGlassIdentityFilter,
-    sigma: frost,
-    frost: blur == null
-        ? null
-        : LiquidGlassBackdropFrost(
-            sigma: frost,
-            colorMatrix: matrix,
-            tileMode: glassBlurTileMode,
-          ),
+    sigma: sigma,
+    frost: frost,
   );
 }
 
-/// The filter [FakeGlassFilterParts.withoutBlur] is for a glass that is only a
-/// blur: nothing is left to do once the pass has blurred its backdrop.
+/// The `withoutBlur` filter of [FakeGlassFilterParts] for a glass that is
+/// only a blur: nothing is left to do once the pass has blurred its backdrop.
 @internal
 const ImageFilter fakeGlassIdentityFilter = ColorFilter.matrix(<double>[
   1, 0, 0, 0, 0, //

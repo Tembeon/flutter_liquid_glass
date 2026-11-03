@@ -670,9 +670,8 @@ class _LiquidGroupState extends State<_LiquidGroup> {
     return LiquidGlassLayer.live(
       frame: _layer,
       fake: widget.fake,
-      // A lifted lens is one small shape that moves every frame of a drag:
-      // shaded from its shape, it spares the frame a matte pass and its
-      // submission, and shades from a matte again once it rests.
+      // A lens moves every frame of a drag: shaded from its shape, it spares
+      // the frame a matte pass and its submission until it rests.
       analyticGeometry: widget.lens != null,
       child: _LiquidGroupScope(
         group: this,

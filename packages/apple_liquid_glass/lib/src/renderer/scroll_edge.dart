@@ -296,39 +296,21 @@ class _RenderEdge extends RenderBox {
     _devicePixelRatio,
   );
 
-  // Held while its inputs hold: the layer takes a new frost object as a
-  // change and is added to the scene again, and dart:ui converts each new
-  // filter to a native one again.
-  ({double sigma, bool hard, double presence, LiquidGlassBackdropFrost frost})?
-  _heldFrost;
-
-  LiquidGlassBackdropFrost _frost(double presence) {
-    final sigma = _sigma;
-    final hard = _details.hard;
-    if (_heldFrost case final held?
-        when held.sigma == sigma &&
-            held.hard == hard &&
-            held.presence == presence) {
-      return held.frost;
-    }
-    // The hard band folds its presence into the saturation matrix after its
-    // blur: one color pass instead of two.
-    final frost = LiquidGlassBackdropFrost(
-      sigma: sigma,
-      colorMatrix: hard
-          ? _Edge.hardMatrix(presence)
-          : presence == 1
-          ? null
-          : <double>[
-              1, 0, 0, 0, 0, //
-              0, 1, 0, 0, 0, //
-              0, 0, 1, 0, 0, //
-              0, 0, 0, presence, 0,
-            ],
-    );
-    _heldFrost = (sigma: sigma, hard: hard, presence: presence, frost: frost);
-    return frost;
-  }
+  // The hard band folds its presence into the saturation matrix after its
+  // blur: one color pass instead of two.
+  LiquidGlassBackdropFrost _frost(double presence) => LiquidGlassBackdropFrost(
+    sigma: _sigma,
+    colorMatrix: _details.hard
+        ? _Edge.hardMatrix(presence)
+        : presence == 1
+        ? null
+        : <double>[
+            1, 0, 0, 0, 0, //
+            0, 1, 0, 0, 0, //
+            0, 0, 1, 0, 0, //
+            0, 0, 0, presence, 0,
+          ],
+  );
 
   @override
   void paint(PaintingContext context, Offset offset) {
@@ -388,19 +370,12 @@ class _RenderEdge extends RenderBox {
     // its alpha to each draw instead of drawing them in a layer of its own.
     final hairline = 1 / _devicePixelRatio;
     final edge = top ? box.bottom - hairline : box.top + hairline;
+    final near = Rect.fromLTRB(box.left, box.top, box.right, edge);
+    final far = Rect.fromLTRB(box.left, edge, box.right, box.bottom);
+    final (band, line) = top ? (near, far) : (far, near);
     paint.color = fade;
-    canvas.drawRect(
-      top
-          ? Rect.fromLTRB(box.left, box.top, box.right, edge)
-          : Rect.fromLTRB(box.left, edge, box.right, box.bottom),
-      paint,
-    );
+    canvas.drawRect(band, paint);
     paint.color = Color.alphaBlend(_Edge.hairline(_brightness), fade);
-    canvas.drawRect(
-      top
-          ? Rect.fromLTRB(box.left, edge, box.right, box.bottom)
-          : Rect.fromLTRB(box.left, box.top, box.right, edge),
-      paint,
-    );
+    canvas.drawRect(line, paint);
   }
 }

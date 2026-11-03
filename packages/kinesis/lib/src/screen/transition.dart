@@ -491,9 +491,7 @@ class MotionTransitionLayer extends OffsetLayer {
     // at zero; added, it would still pay for its blur.
     if (_alpha == 0) {
       engineLayer = null;
-      _clipLayer = _drop(_clipLayer);
-      _opacityLayer = _drop(_opacityLayer);
-      _blurLayer = _drop(_blurLayer);
+      _dropEngineLayers();
       return;
     }
     var pushed = 1;
@@ -555,6 +553,12 @@ class MotionTransitionLayer extends OffsetLayer {
     return null;
   }
 
+  void _dropEngineLayers() {
+    _clipLayer = _drop(_clipLayer);
+    _opacityLayer = _drop(_opacityLayer);
+    _blurLayer = _drop(_blurLayer);
+  }
+
   @override
   bool findAnnotations<S extends Object>(
     AnnotationResult<S> result,
@@ -578,9 +582,7 @@ class MotionTransitionLayer extends OffsetLayer {
 
   @override
   void dispose() {
-    _clipLayer = _drop(_clipLayer);
-    _opacityLayer = _drop(_opacityLayer);
-    _blurLayer = _drop(_blurLayer);
+    _dropEngineLayers();
     super.dispose();
   }
 }

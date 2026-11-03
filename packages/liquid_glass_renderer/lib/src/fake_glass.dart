@@ -20,11 +20,14 @@ import 'package:liquid_glass_renderer/src/shaders.dart';
 /// It blurs and color-filters the backdrop and draws the tint, contour, bevel
 /// and highlight analytically, and works on both Impeller and Skia. Where it
 /// can, it filters a copy of what lies under it rather than reading the
-/// backdrop (see [LiquidGlassBackdropFilterLayer]). NEAR: over a copy, the
-/// antialiased rim of the shape differs from reading the backdrop by up to 9
-/// channel levels in the host test; inside the rim it does not differ. Fake
-/// shapes inside a [LiquidGlassBlendGroup] remain visually independent; this
-/// fallback does not compute smooth-union geometry.
+/// backdrop (see [LiquidGlassBackdropFilterLayer]). NEAR: over a copy
+/// filtered as the backdrop is, the antialiased rim of the shape differs
+/// from reading the backdrop by up to 10 channel levels in the host test at
+/// a device pixel ratio of 1, and inside the rim by at most 2; a copy the
+/// shader frosts differs more (see
+/// [LiquidGlassBackdropFrost.debugShaderFrost]). Fake shapes inside a
+/// [LiquidGlassBlendGroup] remain visually independent; this fallback does
+/// not compute smooth-union geometry.
 class FakeGlass extends StatelessWidget {
   /// Creates a new [FakeGlass] widget with the given [child], [shape], and
   /// [settings].
