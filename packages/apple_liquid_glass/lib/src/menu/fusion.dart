@@ -55,8 +55,8 @@ class MenuFusion {
   /// ([prefetch]) may be from the inputs of the frame that uses it.
   ///
   /// The outline moves with its shapes and radius at most one to one, so
-  /// an outline fused ahead is within this of the frame's own, a fifteenth
-  /// of a pixel on a 3x screen.
+  /// an outline fused ahead is within this of the frame's own, 0.06 px on
+  /// a 3x screen.
   static const double prefetchTolerance = 0.02;
 
   /// Whether motions fuse their next frame's silhouette ahead, on a
@@ -193,7 +193,11 @@ class MenuFusion {
   /// Whether fusions at radii [a] and [b] sample the same grid with the
   /// same kernel: one grid stride and one kernel reach.
   static bool sameGrid(double a, double b) =>
-      (stepOf(a) < 4) == (stepOf(b) < 4) && reachOf(a) == reachOf(b);
+      strideOf(a) == strideOf(b) && reachOf(a) == reachOf(b);
+
+  /// The grid stride of a fusion at [radius]: every second node below a
+  /// 4 pt step.
+  static int strideOf(double radius) => stepOf(radius) < 4 ? 2 : 1;
 
   /// The length of [encode]'s inputs.
   static const int inputCount = 12;
@@ -267,7 +271,7 @@ OutlineParts menuSilhouetteParts(
   bool withField = true,
 }) {
   final step = MenuFusion.stepOf(radius);
-  final stride = step < 4 ? 2 : 1;
+  final stride = MenuFusion.strideOf(radius);
   const b = 2;
   final area = menu.outerRect
       .expandToInclude(source.outerRect)

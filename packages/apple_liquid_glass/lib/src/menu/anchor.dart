@@ -234,8 +234,6 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W>
     super.dispose();
   }
 
-  // The motion clock.
-
   @override
   bool get isActive => _ownMotion || !(_motion?.isSettled ?? true);
 
@@ -267,8 +265,6 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W>
   }
 
   void _wake() => MotionClock.instance.wake(this);
-
-  // Commands and events.
 
   void _command(
     void Function(MenuMotion motion, double t) command, {
@@ -332,8 +328,6 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W>
     final animated = animate && motion.isPresented;
     _command((motion, t) => motion.updateLayout(t, animate: animated));
   }
-
-  // Opening.
 
   MenuMotion _prepare() {
     final current = _motion;
@@ -402,8 +396,6 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W>
 
   double _stamp(PointerEvent event) =>
       MotionClock.instance.stamp(event.timeStamp);
-
-  // Touches of the open menu.
 
   void _pointerDown(PointerDownEvent event) {
     if (_motion == null ||
@@ -1739,7 +1731,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   }
 
   // The dim rests within a thousandth of its opacity, slower than a
-  // hundredth a second: beyond what a 20 percent dim can show.
+  // hundredth a second: beyond what the dim (48 percent at most) can show.
   bool _dimMoving(double t) =>
       (_dim.valueAt(t) - _dimTarget).abs() > 1e-3 ||
       _dim.velocityAt(t).abs() > 1e-2;

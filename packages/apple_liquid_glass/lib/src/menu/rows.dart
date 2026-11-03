@@ -26,8 +26,8 @@ class _RowKey extends LocalKey {
 
 /// The elements of one card, each at its frame in the card's content.
 ///
-/// The element widgets are made once per layout and style, so building
-/// the rows again with the same layout rebuilds none of them.
+/// The element widgets are made once per layout, style and content, so
+/// building the rows again with the same three rebuilds none of them.
 @internal
 class MenuRows extends StatefulWidget {
   /// Creates the rows of [layout]; the submenu row [hidden] names is drawn
@@ -766,7 +766,6 @@ class MenuCardHeader extends StatelessWidget {
     style: resolveGlassText(base, context).copyWith(color: _title),
   );
 
-  // A span along the header from its leading edge, in the header's box.
   Rect _span(double start, double extent, double height, bool rtl) =>
       Rect.fromLTWH(rtl ? width - start - extent : start, 0, extent, height);
 

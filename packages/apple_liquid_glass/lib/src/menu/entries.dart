@@ -38,7 +38,7 @@ enum GlassMenuIconVisibility {
 
 /// How a section lays out its rows: UIKit's `preferredElementSize`.
 enum GlassMenuElementSize {
-  /// Icon-only cells, four across (58.33 x 51.67 pt).
+  /// Icon-only cells, four across (58.5 x 51.67 pt).
   small,
 
   /// Icon over a 12 pt label, three across (78 x 77 pt).
@@ -137,7 +137,9 @@ class GlassMenuItem extends GlassMenuEntry {
 /// A group of entries shown inline: `UIMenu` with `displayInline`, or a
 /// SwiftUI `Section`.
 ///
-/// Adjacent groups are set apart by a 21 pt gap with a hairline.
+/// A group of rows is set apart from the next by a 21 pt gap with a
+/// hairline; small and medium cells by a hairline alone; a palette by
+/// nothing.
 class GlassMenuSection extends GlassMenuEntry {
   /// Creates a section.
   const GlassMenuSection({

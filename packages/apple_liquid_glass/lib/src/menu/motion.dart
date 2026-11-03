@@ -6,6 +6,7 @@ import 'package:apple_liquid_glass/src/menu/morph_spec.dart';
 import 'package:apple_liquid_glass/src/menu/outline_math.dart';
 import 'package:apple_liquid_glass/src/motion/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
+import 'package:apple_liquid_glass/src/motion/glass_button_motion.dart';
 import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:apple_liquid_glass/src/motion/touch_glow.dart';
 import 'package:apple_liquid_glass/src/surface/outline.dart';
@@ -43,7 +44,7 @@ class MenuTuning {
     this.contentKickBlur = 6,
     this.tapOpenDelay = 0.089,
     this.holdDuration = 0.22,
-    this.tapSlop = 70,
+    this.tapSlop = GlassButtonMotion.highlightSlop,
     this.dismissDelay = 0.059,
     this.earlyCloseDelay = 0.016,
     this.actionDelay = 0.016,
@@ -98,14 +99,12 @@ class MenuTuning {
     this.cardHeaderBoldEnd = 0.35,
     this.cardChevronTurn = 0.4,
     this.cardChevronBack = 0.2,
+    this.cardHeaderBoldBack = 0.9,
     this.cardCloseFadeEnd = 0.2,
     this.cardCloseCenter = 0.5,
     this.cardContainerSpring = const Spring.response(0.35, dampingRatio: 0.85),
     this.cardContainerDelay = 0,
     this.cardContainerEndWidth = 50,
-    this.cardBlur = 10,
-    this.cardDisplacement = 0,
-    this.cardTransmissionGamma = 1.14,
     this.cardGone = 0.007,
     this.growSpring = const Spring.response(0.565, dampingRatio: 0.84),
     this.growDelay = 0.045,
@@ -136,8 +135,8 @@ class MenuTuning {
   /// The largest move, in points, of a menu edge that the flex pulse
   /// channel may still make once it stops stepping while a finger rests.
   ///
-  /// A NEAR trade, not a measured value (0.75 px on a 3x screen at most,
-  /// awaiting approval by eye; the bound is the channel's largest possible
+  /// A NEAR trade, not a measured value (0.75 px on a 3x screen at most;
+  /// the bound is the channel's largest possible
   /// remaining swing, the swing itself is smaller): the channel
   /// ([MenuTuning.flexPulseSpring]) stops stepping once what is left
   /// of it cannot move an edge by more than this, and the shape keeps that
@@ -271,10 +270,14 @@ class MenuTuning {
   /// turn from the row's regular weight to its bold one (film).
   final double cardHeaderBoldStart;
 
-  /// The card progress at which a growing card's header title is bold;
-  /// on the way back it is regular again within the first tenth of the
-  /// progress (film: bold on one frame, regular on the next).
+  /// The card progress at which a growing card's header title is bold
+  /// (film).
   final double cardHeaderBoldEnd;
+
+  /// The fraction of its progress at the start of the way back at which a
+  /// card's header title is regular again (film: bold on one frame,
+  /// regular on the next).
+  final double cardHeaderBoldBack;
 
   /// The card progress at which a growing card's chevron has turned from
   /// pointing at the trailing edge to pointing down (film, read by eye).
@@ -296,14 +299,6 @@ class MenuTuning {
   /// card's center. Closing stacks use [cardContainerSpring] instead.
   final double cardCloseCenter;
 
-  /// Exterior shadow fitted from native straight side/bottom profiles:
-  /// sigma 16.546 pt, offset 8.109 pt, alpha 0.1188; 0.273 gray RMS.
-  /// Flutter's radius-to-sigma conversion gives radius 27.792 pt.
-  static const cardShadowRadius = 28.0;
-
-  /// Vertical shadow offset from the same device profile fit.
-  static const cardShadowOffset = 8.0;
-
   /// The closing spring of the submenu lists' container, fitted to
   /// device window bounds at 0.016 pt RMS, independently of the glass.
   final Spring cardContainerSpring;
@@ -316,21 +311,6 @@ class MenuTuning {
 
   /// The width the 250 pt list container shrinks to on the device.
   final double cardContainerEndWidth;
-
-  /// The standard deviation, in points, of the blur a card puts over what
-  /// lies under it: the edge of the dimmed list under a card shows
-  /// through it spread over about 27 points (device screenshots).
-  final double cardBlur;
-
-  /// The unlifted card's backdrop displacement, fitted to the native dark
-  /// side-edge profile. At 10 pt blur the profile fits zero displacement
-  /// at 2.16 gray-level RMS; the regular 60 pt bevel gives 5.77 RMS.
-  final double cardDisplacement;
-
-  /// The unlifted card's transmission gamma, fitted to native dark face
-  /// levels over the measured large dark face: 55.7 against the native 57
-  /// over the root's 32, and 68.1 against 68 over two overlapping lists.
-  final double cardTransmissionGamma;
 
   /// The progress below which a card on its way back is gone: on the
   /// device film the pill it leaves around its row disappears at once
@@ -468,7 +448,7 @@ class MenuTuning {
   /// [MenuTapped] when the menu opens only by holding), beyond
   /// it the release cancels and nothing opens. It is the 70 pt
   /// touch-up-inside slop of a glass `UIButton` measured in
-  /// glass-button.md, the same as `GlassButtonMotion.highlightSlop`.
+  /// glass-button.md.
   final double tapSlop;
 
   /// Seconds between a release that dismisses and the start of the
@@ -571,23 +551,10 @@ class MenuTuning {
   final double highlightInset;
 
   /// The flex of the open menu under a finger: UIKit's flex interaction
-  /// spec for menus, [FlexSpec.menu].
-  ///
-  /// A finger on the open menu stretches it ([flexTargets]): its
-  /// stretch threshold (6000) divides the stretch, its pulse normalization
-  /// (8000), pulse points (50 across, 32 along) and drift ratio (0.7) size
-  /// the pulse, its movement bounds (0.9 to 1.1) clamp both scales, and
-  /// its scale spring (0.6 / 0.5) carries the menu back once the finger
-  /// lifts. Read from UIKit, notes private; the numbers agree with the
-  /// device's runtime reads (`tool/ios_reference/spec/menu-button.md`).
-  ///
-  /// The scales and drifts are four channels ([chaseFlexChannel]): while the
-  /// finger is down they chase the targets on the spec's tracking spring
-  /// (0.15 / 0.5), after the lift they return on its scale spring from
-  /// what shows with its velocity, and every changed target pushes them
-  /// by the spec's retarget impulse (0.016 s). Read from UIKit, notes
-  /// private; the input-only replays of test/menu/drag_out_test.dart land at 0.09 -
-  /// 0.15 pt rms while the finger is down and 0.15 - 0.17 after the lifts.
+  /// spec for menus, [FlexSpec.menu], applied by [flexTargets] and
+  /// [chaseFlexChannel]. Read from UIKit, notes private; the input-only
+  /// replays of test/menu/drag_out_test.dart land at 0.09 - 0.15 pt rms
+  /// while the finger is down and 0.15 - 0.17 after the lifts.
   final FlexSpec flex;
 
   /// The points a finger moving inside the open menu adds to the stretch
@@ -819,14 +786,8 @@ class FusionTurns {
 /// menu attaches to the lifted preview of the held view and grows out of a
 /// blob at the held view's center, on glass of its own.
 ///
-/// The menu stands [gap] below the [preview] when it fits there, above it
-/// otherwise (its entries reversed, as for a menu opening upward), and
-/// when it fits on neither side the preview and the menu shift together.
-/// If their combined height exceeds the safe area, the menu overlaps the
-/// fitted preview; [MenuMotion.previewShift] is the preview's shift.
-/// Across, the menu centers on the preview when that keeps
-/// [MenuTuning.edgeMargin] from the safe area and aligns with the
-/// preview's nearer edge otherwise, as a button menu does.
+/// [MenuMotion.placeAttached] places the menu beside [preview], and
+/// [MenuMotion.previewShift] is how far the preview moves to fit.
 @immutable
 class MenuAttachment {
   /// Creates an attachment to the lifted [preview] of the view [held].
@@ -856,9 +817,8 @@ class MenuAttachment {
   /// The distance the preview and the menu keep from the safe area's edges.
   final double margin;
 
-  /// Fits the preferred preview uniformly inside the safe area's margins.
-  /// UIKit bounds the preview itself; menu placement may overlap its lower
-  /// edge when their combined height cannot fit (iOS 27 fit captures).
+  /// Fits the preferred preview uniformly inside the safe area's margins
+  /// (iOS 27 fit captures).
   static Size fitPreview({
     required Size preferred,
     required Size bounds,
@@ -1366,8 +1326,9 @@ class MenuMotion {
   // velocity, has died out: the rule the recorded kicks were fitted with.
   static bool Function(double t) _referenceRests(MotionValue<double> spring) =>
       (double t) =>
-          (spring.valueAt(t) - spring.target).abs() < 0.01 &&
-          spring.velocityAt(t).abs() < 0.1;
+          (spring.valueAt(t) - spring.target).abs() <
+              MenuTuning.kickRestValue &&
+          spring.velocityAt(t).abs() < MenuTuning.kickRestVelocity;
   late final FusionTurns _fusions = FusionTurns(tuning);
   final MenuFusion _fusion = MenuFusion();
   double _sampleTime = double.negativeInfinity;
@@ -1798,7 +1759,7 @@ class MenuMotion {
               : _ramp(c, 0, tuning.cardRowsFadeIn),
           platterOpacity: math.sqrt(_ramp(c, 0, tuning.cardPlatterFade)),
           headerBold: card.backing
-              ? _ramp(c, 0.9 * from, from)
+              ? _ramp(c, tuning.cardHeaderBoldBack * from, from)
               : _ramp(c, tuning.cardHeaderBoldStart, tuning.cardHeaderBoldEnd),
           chevronTurn: card.backing
               ? _ramp(c, tuning.cardChevronBack * from, from)
@@ -2330,9 +2291,9 @@ class MenuMotion {
     );
   }
 
-  /// The root list's glass shape, scaled about its top center by the
-  /// submenu parents' measured 0.97 scale, independently of the vessel
-  /// that contains the full stack. With no cards this is [menuBlob].
+  /// The root list's glass shape, scaled about its top center by
+  /// [MenuTuning.parentScale] per open card, independently of the vessel
+  /// that holds the whole stack; [menuBlob] while no card is open.
   MenuBlob get rootBlob {
     if (_cards.isEmpty) return menuBlob;
     final frame = _menu;
@@ -2982,8 +2943,6 @@ class MenuMotion {
           : shifted.right - size.width;
     }
     x = math.max(left, math.min(x, right - size.width));
-    // UIKit keeps the fitted preview at the top and the menu at the bottom
-    // when a whole column cannot fit; the menu then covers the preview.
     final y = down
         ? math.min(shifted.bottom + gap, bottom - size.height)
         : shifted.top - attachment.accessory - gap - size.height;

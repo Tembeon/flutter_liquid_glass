@@ -10,9 +10,10 @@ import 'package:meta/meta.dart';
 /// Background isolates that fuse menu silhouettes ahead of the frames
 /// that show them.
 ///
-/// The UI isolate posts, once a frame, the inputs it expects a coming
-/// frame to fuse ([request]: the menu shape, the button shape, the
-/// fusion radius and whether the field is wanted, `MenuFusion.encode`);
+/// The UI isolate posts, each frame, the inputs it expects the next
+/// `MenuFusion.prefetchFrames` frames to fuse ([request]: the menu shape,
+/// the button shape, the fusion radius and whether the field is wanted,
+/// `MenuFusion.encode`);
 /// a worker computes `menuSilhouetteParts` and sends the parts back,
 /// the field samples without a copy, or the edge alone when the request
 /// asks for no field. Up to [poolSize] workers run, one request each;
@@ -88,8 +89,8 @@ abstract final class FusionWorker {
   }
 
   /// How close, in logical pixels, two requests' inputs are for the later
-  /// to add nothing: a fiftieth of the tolerance a frame is served within.
-  static const double _sameRequest = 0.0004;
+  /// to add nothing.
+  static const double _sameRequest = MenuFusion.prefetchTolerance / 50;
 
   static bool _known(Float64List inputs) {
     bool same(Float64List other) {

@@ -16,7 +16,6 @@ class MenuAppearance {
     this.secondaryColor = const Color(0x993C3C43),
     this.disabledColor = const Color(0x4C3C3C43),
     this.separatorColor = const Color(0x14000000),
-    this.submenuColor = const Color(0x66FFFFFF),
     this.paletteSelectionColor = const Color(0x10000000),
   });
 
@@ -46,16 +45,6 @@ class MenuAppearance {
   /// the 249 light platter, 50 on the 32 dark one).
   final Color separatorColor;
 
-  /// The tint a submenu card lays over the list under it, measured; the
-  /// cards draw on the menu glass role without it.
-  ///
-  /// A card is a translucent platter that blurs what lies under it by
-  /// [MenuTuning.cardBlur]: where it covers the list it opened from
-  /// it reads 252 on the 249 light menu and 57 on the 32 dark one; past
-  /// that list's edge only the blur shows (device screenshots, iPhone 16
-  /// Pro). Each further card under it adds half as much.
-  final Color submenuColor;
-
   /// The platter under the selected palette cell (sampled: 233 on 249
   /// light, 53 on 32 dark).
   final Color paletteSelectionColor;
@@ -71,7 +60,6 @@ class MenuAppearance {
     secondaryColor: Color(0x99EBEBF5),
     disabledColor: Color(0x4CEBEBF5),
     separatorColor: Color(0x14FFFFFF),
-    submenuColor: Color(0x1DFFFFFF),
     paletteSelectionColor: Color(0x18FFFFFF),
   );
 

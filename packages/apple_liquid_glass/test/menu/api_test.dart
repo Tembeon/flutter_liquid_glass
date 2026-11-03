@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/menu/appearance.dart';
 import 'package:apple_liquid_glass/src/menu/content.dart';
 import 'package:apple_liquid_glass/src/menu/entries.dart';
 import 'package:apple_liquid_glass/src/menu/layout.dart';
@@ -1157,26 +1156,6 @@ void main() {
     final film = jsonDecode(
       File('$_dir/film-sub.json').readAsStringSync(),
     ) as Map<String, Object?>;
-    final card = film['card']! as Map<String, Object?>;
-
-    double over(double under, Color tint) =>
-        under + (255 * tint.r - under) * tint.a;
-
-    test('the card tint lifts the list under it as on the device', () {
-      for (final (name, style) in [
-        ('dark', MenuAppearance.dark),
-        ('light', MenuAppearance.light),
-      ]) {
-        final measured = card[name]! as Map<String, Object?>;
-        final menu = (measured['menu']! as num).toDouble();
-        final target = (measured['card_over_list']! as num).toDouble();
-        expect(
-          over(menu, style.submenuColor),
-          closeTo(target, 1.5),
-          reason: name,
-        );
-      }
-    });
 
     test('the pill left by a card going back fades out with it', () {
       final pill = film['back_pill_light']! as Map<String, Object?>;
