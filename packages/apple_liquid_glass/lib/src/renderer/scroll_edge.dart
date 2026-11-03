@@ -383,19 +383,23 @@ class _RenderEdge extends RenderBox {
       canvas.drawRect(box, paint);
       return;
     }
-    paint.color = fade;
-    canvas.drawRect(box, paint);
+    // The hairline takes its own strip, already blended over the fade, so
+    // the two draws do not overlap: the opacity layer above them then hands
+    // its alpha to each draw instead of drawing them in a layer of its own.
     final hairline = 1 / _devicePixelRatio;
-    paint.color = _Edge.hairline(_brightness);
+    final edge = top ? box.bottom - hairline : box.top + hairline;
+    paint.color = fade;
     canvas.drawRect(
       top
-          ? Rect.fromLTRB(
-              box.left,
-              box.bottom - hairline,
-              box.right,
-              box.bottom,
-            )
-          : Rect.fromLTRB(box.left, box.top, box.right, box.top + hairline),
+          ? Rect.fromLTRB(box.left, box.top, box.right, edge)
+          : Rect.fromLTRB(box.left, edge, box.right, box.bottom),
+      paint,
+    );
+    paint.color = Color.alphaBlend(_Edge.hairline(_brightness), fade);
+    canvas.drawRect(
+      top
+          ? Rect.fromLTRB(box.left, edge, box.right, box.bottom)
+          : Rect.fromLTRB(box.left, box.top, box.right, edge),
       paint,
     );
   }
