@@ -37,10 +37,10 @@ enum GlassListAccessory {
 
 /// The look of an inset grouped list, like Flutter's `ButtonStyle`.
 ///
-/// A row resolves every field against its states (pressed, focused,
-/// hovered, disabled) and looks it up in its own style, then its section's,
-/// then the theme's, then its defaults, state by state: a property that
-/// gives null for a state leaves that state to the next one. The defaults
+/// Each property resolves against the row's states (pressed, focused,
+/// hovered, disabled) and falls through, state by state, from the row's
+/// style to its section's to the theme's to the defaults: a null for a
+/// state leaves that state to the next one. The defaults
 /// are the iOS 27 system colors the table resolves (list passport, light
 /// and dark).
 @immutable

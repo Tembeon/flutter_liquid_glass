@@ -10,12 +10,12 @@ import 'package:flutter/widgets.dart';
 /// `badge(_:)`. Flutter: `Badge`.
 ///
 /// It draws in [GlassColors.systemRed] with white text unless its colors
-/// are given: a capsule as tall as its 12 point medium text line plus 2
-/// points above and below, 4 points of side padding, at least as wide as it
-/// is tall and at most 64 points wide; the dot is an 18 point circle. Its
-/// text does not follow the text size setting. These metrics are read from
-/// UIKit (notes private); how a badge appears, changes and leaves (UIKit
-/// fades it with the bar's update animation) is not reproduced.
+/// are given: a capsule of [fontSize] medium text with [verticalPadding]
+/// and [horizontalPadding], at least as wide as it is tall and at most
+/// [maxWidth]; the dot is [dotSize] across. Its text does not follow the
+/// text size setting. These metrics are read from UIKit (notes private);
+/// how a badge appears, changes and leaves (UIKit fades it with the bar's
+/// update animation) is not reproduced.
 class GlassBadge extends StatelessWidget {
   /// A badge showing [count]; a count of zero or less shows no badge.
   const GlassBadge.count(

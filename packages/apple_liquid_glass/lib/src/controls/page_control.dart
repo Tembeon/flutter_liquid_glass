@@ -27,11 +27,10 @@ enum GlassPageControlBackground {
 /// control reports no states, so each property resolves against the empty
 /// set; a null leaves the field to the theme's style, then the default.
 ///
-/// The defaults are approximations, not measured, except the
-/// high-contrast colors below; the platter is a flat
-/// color on every renderer where UIKit uses a material (page control
-/// passport). Under Increase Contrast the dots take UIKit's high-contrast
-/// colors (read from UIKit, notes private).
+/// The defaults are approximations, not measured, except the dots'
+/// Increase Contrast colors, read from UIKit (notes private); the platter
+/// is a flat color on every renderer where UIKit uses a material (page
+/// control passport).
 @immutable
 class GlassPageControlStyle {
   /// Creates a style.
@@ -132,7 +131,7 @@ class GlassPageControlStyle {
 /// half moves to the next page and one on the leading half to the
 /// previous page, on the lift, as UIKit's does; a finger that moves more
 /// than 10 points scrubs to the nearest dot and plays a selection haptic
-/// for each page it reaches (read from UIKit, notes private). With
+/// each time it changes the page (read from UIKit, notes private). With
 /// [progress] the current indicator is a capsule whose fill shows how far
 /// the page has progressed (`UIPageControlProgress`), and a page change
 /// grows and shrinks the capsules on the measured springs. The platter

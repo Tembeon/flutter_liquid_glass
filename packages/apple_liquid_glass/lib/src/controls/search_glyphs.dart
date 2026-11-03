@@ -46,8 +46,9 @@ class SearchMagnifierPainter extends CustomPainter {
       oldDelegate.color != color;
 }
 
-/// The close button's cross: two strokes 2.3 points thick whose ink, round
-/// caps included, fills a square 16.67 points across (search passport).
+/// The close button's cross: two [SearchTuning.closeStroke] strokes whose
+/// ink, round caps included, fills a [SearchTuning.closeInk] square
+/// (search passport).
 @internal
 class SearchCrossPainter extends CustomPainter {
   /// Paints the cross in [color].

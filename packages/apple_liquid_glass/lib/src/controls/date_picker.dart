@@ -165,10 +165,6 @@ class _Appearance {
   static const light = _Appearance();
 
   /// The dark appearance.
-  ///
-  /// The overlay's platter is the dark menu's material: over black the
-  /// native overlay reads 32 gray on the iPhone 16 Pro film, as the native
-  /// menu does.
   static const dark = _Appearance(
     labelFillColor: Color(0x3D767680),
     labelColor: Color(0xFFFFFFFF),
@@ -183,8 +179,8 @@ class _Appearance {
   /// wheel band (tertiarySystemFill) turn from 12 to 20 percent and the
   /// accent takes systemBlue's increased-contrast variant, the today fill
   /// following it at its own opacity (read from UIKit's color tables,
-  /// notes private; the secondary label colors keep their standard values
-  /// until the device records them).
+  /// notes private; the weekday color keeps its standard secondaryLabel
+  /// value, not measured under Increase Contrast).
   static const lightHighContrast = _Appearance(
     labelFillColor: Color(0x33767680),
     accentColor: Color(0xFF1E6EF4),
@@ -310,15 +306,12 @@ bool _sameDay(DateTime a, DateTime b) =>
 String _defaultDate(DateTime d) =>
     '${_months[d.month - 1].substring(0, 3)} ${d.day}, ${d.year}';
 
-/// [minute] rounded down to a multiple of [interval], as UIKit's
-/// `roundsToMinuteInterval` does (read from UIKit, notes private).
+/// [minute] rounded down to a multiple of [interval].
 int _floorMinute(int minute, int interval) =>
     interval < 2 ? minute : minute - minute % interval;
 
-/// [value] with its minute rounded down to a multiple of [interval] and
-/// its seconds dropped; unchanged for an interval of 1. UIKit rounds the
-/// date it shows and reports this way as soon as it is set (read from
-/// UIKit, notes private).
+/// [value] floored to [interval] as [GlassDatePicker.minuteInterval]
+/// describes; unchanged for an interval of 1.
 DateTime _floorToMinuteInterval(DateTime value, int interval) {
   if (interval < 2) return value;
   return value.copyWith(
@@ -343,14 +336,13 @@ String _defaultTime(DateTime d, {required bool twentyFour}) {
 /// minute wheels for a time. The overlay grows out of the label's center on a
 /// spring while it fades in and reveals its content from the label's side,
 /// hangs below the label (above it when there is no room), and extends toward
-/// the leading side, on UIKit's open spring of response 0.32 starting 0.14 s
-/// after the lift and its close spring of 0.348 (fitted to the simulator's
-/// frames, replayed on an iPhone 16 Pro). While it is open the label's text
-/// takes the accent color. Choosing a day or turning a wheel calls [onChanged]
-/// at once and the overlay stays open; a tap outside or Escape closes it,
-/// turning an overlay that still opens around. A tap on the label while the
-/// overlay closes opens a new one at once, as UIKit does, while the old one
-/// finishes its close.
+/// the leading side, on springs fitted to UIKit's frames ([DatePickerTuning];
+/// replayed on an iPhone 16 Pro). While it is open the label's text takes
+/// the accent color. Choosing a day or turning a time wheel calls
+/// [onChanged] at once and the overlay stays open; a tap outside or Escape
+/// closes it, turning an overlay that still opens around. A tap on the
+/// label while the overlay closes opens a new one after a shorter delay
+/// than a first open, as UIKit does, while the old one finishes its close.
 ///
 /// In 12-hour time the wheels are the hour (1 to 12), the minute and AM/PM,
 /// as UIKit lays them out; the hour wheel turning past 11 and 12 switches
@@ -359,8 +351,8 @@ String _defaultTime(DateTime d, {required bool twentyFour}) {
 /// The calendar shows one month with the chosen day filled and today
 /// tinted; the chevrons turn the month with a slide. A tap on the month
 /// title turns the day grid into month and year wheels in the same
-/// overlay (the title takes the accent color and its chevron turns to
-/// point down, over 0.25 s as UIKit does); a wheel coming
+/// overlay (the title takes the accent color at once and its chevron
+/// turns to point down over 0.25 s, as UIKit does); a wheel coming
 /// to rest moves the chosen day to that month and year, keeping its day
 /// of the month where the month has it (the 31st turned to November is
 /// the 30th), and another tap on the title returns to the grid. The
@@ -379,7 +371,7 @@ String _defaultTime(DateTime d, {required bool twentyFour}) {
 /// finger through the alpha of its text color instead of an opacity
 /// layer: NEAR (one rounding instead of two, at most 1 of 255 per
 /// channel, except where the anti-aliased edges of two glyphs share a
-/// pixel, which the layer covered once and the color covers twice).
+/// pixel, which a layer would cover once and the color covers twice).
 class GlassDatePicker extends StatefulWidget {
   /// Creates a picker.
   const GlassDatePicker({
@@ -1233,6 +1225,8 @@ class _OverlayViewState extends State<_OverlayView>
             child: Stack(
               fit: StackFit.expand,
               children: [
+                // The menu's material: over black the native overlay reads
+                // 32 gray on an iPhone 16 Pro film, as the native menu does.
                 LiveGlassSurface(
                   live: _boxFrames,
                   frameOf: () => GlassFrame(
@@ -1513,7 +1507,7 @@ class _Calendar extends StatelessWidget {
     );
     final weekday = _Type.resolve(
       _Type.datePickerWeekday.copyWith(
-        height: 15.67 / 13,
+        height: _CalendarMetrics.weekdayHeight / 13,
         color: style.weekdayColor,
       ),
       context: context,
@@ -2182,7 +2176,7 @@ class _ChevronButton extends StatelessWidget {
                 0,
               ),
               child: Opacity(
-                opacity: onTap == null ? 0.35 : 1,
+                opacity: onTap == null ? _Appearance.unavailableDayOpacity : 1,
                 child: CustomPaint(
                   size: _CalendarMetrics.chevron,
                   painter: _ChevronPainter(
@@ -2245,7 +2239,7 @@ const Curve _wheelStepCurve = Cubic(0.25, 0.1, 0.25, 1);
 
 /// One of UIKit's picker wheels: a column of rows on a cylinder behind a
 /// band that shows the selected row larger and in full, every other row
-/// smaller, at the style's faded opacity and darkened toward the
+/// smaller, at [_Appearance.wheelFadedOpacity] and darkened toward the
 /// cylinder's edges.
 Widget _wheel({
   required _WheelGeometry geometry,
@@ -2343,37 +2337,34 @@ Widget _wheelView({
     TextStyle(fontSize: _WheelGeometry.fontSize, color: style.labelColor),
     context: context,
   );
-  // The context the haptic plays in; a kept view keeps its own.
-  return Builder(
-    builder: (BuildContext context) => ListWheelScrollView.useDelegate(
-      controller: controller,
-      itemExtent: geometry.row,
-      diameterRatio: geometry.diameterRatio,
-      perspective: _WheelGeometry.perspective,
-      squeeze: geometry.squeeze,
-      useMagnifier: true,
-      magnification: _WheelGeometry.magnification,
-      overAndUnderCenterOpacity: _Appearance.wheelFadedOpacity,
-      physics: const FixedExtentScrollPhysics(
-        parent: BouncingScrollPhysics(
-          decelerationRate: ScrollDecelerationRate.fast,
-        ),
+  return ListWheelScrollView.useDelegate(
+    controller: controller,
+    itemExtent: geometry.row,
+    diameterRatio: geometry.diameterRatio,
+    perspective: _WheelGeometry.perspective,
+    squeeze: geometry.squeeze,
+    useMagnifier: true,
+    magnification: _WheelGeometry.magnification,
+    overAndUnderCenterOpacity: _Appearance.wheelFadedOpacity,
+    physics: const FixedExtentScrollPhysics(
+      parent: BouncingScrollPhysics(
+        decelerationRate: ScrollDecelerationRate.fast,
       ),
-      onSelectedItemChanged: (int index) {
-        unawaited(HapticFeedback.selectionClick());
-        onSelected(index);
-      },
-      childDelegate: ListWheelChildBuilderDelegate(
-        childCount: looping ? count * _WheelGeometry.loops : count,
-        builder: (BuildContext context, int i) => Padding(
-          padding: padding,
-          child: Align(
-            alignment: alignment,
-            child: Text(
-              text(i % count),
-              textScaler: TextScaler.noScaling,
-              style: row,
-            ),
+    ),
+    onSelectedItemChanged: (int index) {
+      unawaited(HapticFeedback.selectionClick());
+      onSelected(index);
+    },
+    childDelegate: ListWheelChildBuilderDelegate(
+      childCount: looping ? count * _WheelGeometry.loops : count,
+      builder: (BuildContext context, int i) => Padding(
+        padding: padding,
+        child: Align(
+          alignment: alignment,
+          child: Text(
+            text(i % count),
+            textScaler: TextScaler.noScaling,
+            style: row,
           ),
         ),
       ),

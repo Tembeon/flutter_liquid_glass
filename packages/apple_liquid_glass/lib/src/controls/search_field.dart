@@ -20,10 +20,10 @@ import 'package:kinesis/kinesis.dart';
 
 /// The look of a [GlassSearchField], like Flutter's `ButtonStyle`.
 ///
-/// Every field is resolved against the field's states: focused, pressed,
-/// hovered and disabled. A field looks a field up in its own style, then in
-/// the theme's, then in its defaults, state by state: a property that gives
-/// null for a state leaves that state to the next one.
+/// Each property resolves against the field's states (focused, pressed,
+/// hovered, disabled) and falls through, state by state, from this style
+/// to the theme's to the field's defaults: a null for a state leaves that
+/// state to the next one.
 @immutable
 class GlassSearchFieldStyle {
   /// Creates a style.
@@ -138,7 +138,7 @@ class GlassSearchFieldStyle {
 /// (iPhone 16 Pro, iOS 27.0.1). Text follows the text scale up to
 /// [maxTextScale]. The keyboard offers no suggestions, as UIKit's search
 /// field does not. On iOS a long press shows the system edit menu; other
-/// platforms show none yet.
+/// platforms show none.
 class GlassSearchField extends StatefulWidget {
   /// Creates a search field.
   const GlassSearchField({
@@ -328,8 +328,6 @@ class _GlassSearchFieldState extends State<GlassSearchField>
     ends?.addListener(_ended);
   }
 
-  // A search ended from outside the field, by a toolbar's close button,
-  // clears the field and lets the keyboard go.
   void _ended() {
     if (_controller.text.isNotEmpty) _clear();
     _focus.unfocus();
@@ -560,7 +558,6 @@ class SearchFieldStacking extends InheritedWidget {
       height != oldWidget.height || glass != oldWidget.glass;
 }
 
-// One axis of the scale of the field's body.
 class _Scale implements ValueListenable<double> {
   _Scale(this._frames, {required this.vertical});
 
@@ -654,7 +651,8 @@ final class _FieldBody extends ChangeNotifier
   @override
   GlassFrame get value => _value;
 
-  // A lift can come to rest between frames; one more step lands it there.
+  // A released lift comes to rest between frames; one more step lands it
+  // exactly on rest, invisibly.
   @override
   bool get isActive =>
       !_flex.isSettled(MotionClock.instance.now) ||
@@ -666,7 +664,6 @@ final class _FieldBody extends ChangeNotifier
   @override
   void step(double time) {
     _flex.advance(time);
-    // A released lift that rests lands exactly on rest, invisibly.
     final next = !_flex.isPressed && _flex.isSettled(time)
         ? const GlassFrame()
         : GlassFrame(scaleX: _flex.scaleX(time), scaleY: _flex.scaleY(time));
