@@ -125,6 +125,11 @@ class BackdropUnderlay {
     'LIQUID_GLASS_IN_FRAME',
   );
 
+  /// How many copies were recorded into images, by the type of the layer
+  /// that asked and how its copy is filtered: `blur`, `filter` or `plain`.
+  @visibleForTesting
+  static final debugImageAsks = <String, int>{};
+
   /// Whether the last [request] is served by [serveInFrame], not [serve].
   bool get servesInFrame => _ask?.inFrame ?? false;
 
@@ -281,11 +286,12 @@ class BackdropUnderlay {
       ask.anchor,
     );
     final limit = scan.reach(ask.anchor);
-    final clip = limit < 0 ? null : scan.clip;
-    // Glass the clip cuts reads what lies past the clip, which a layer the
-    // clip cuts does not hold: its copy is drawn into an image.
-    if (clip != null && !_keepsWhole(ask.band, clip)) {
-      _ask = ask;
+    final clip = (limit < 0 ? null : scan.clip)?.intersect(ask.screen);
+    final layer = clip == null
+        ? ask.band
+        : _layerIn(ask.band, clip, ask.pixelRatio);
+    if (layer.isEmpty) {
+      _count(debugMisses, 'off screen');
       return null;
     }
     var pixels = ask.pixelRatio;
@@ -316,8 +322,51 @@ class BackdropUnderlay {
       }
       debugCaptures++;
       debugMiss = null;
-      return InFrameCopy._(content, ask.band, pixels);
+      return InFrameCopy._(
+        content,
+        ask.band,
+        pixels == ask.pixelRatio ? layer : _snapOut(layer, pixels),
+        pixels,
+      );
     }
+  }
+
+  // The layer that holds [band] inside [clip] (both in the screen's logical
+  // pixels), on the grid of [pixels]. Impeller cuts a layer its clip cuts
+  // by 30 % or more of what is left (see [_keepsWhole]), and fragment
+  // coordinates start at the cut; the glass reads what lies past the clip.
+  // The layer grows into the clip, empty, until the part cut off is less
+  // than that; where the clip leaves no room, it is cut to the clip. NEAR:
+  // there, glass reads the copy mirrored at the clip, up to 163 levels off
+  // over the 30 px of glass the host test leaves above such a clip.
+  static Rect _layerIn(Rect band, Rect clip, double pixels) {
+    if (_keepsWhole(band, clip)) return band;
+    // Along one axis: the span from [lo] to [hi] grown inside [from, to].
+    (double, double)? grow(double lo, double hi, double from, double to) {
+      final cut = max(from - lo, 0) + max(hi - to, 0);
+      final inside = min(hi, to) - max(lo, from);
+      if (inside <= 0) return null;
+      // A margin below 30 % keeps rounding off the threshold.
+      final wanted = cut / 0.28;
+      if (inside >= wanted) return (lo, hi);
+      if (lo < from && hi > to) return null;
+      if (lo < from) {
+        final end = max(lo, from) + wanted;
+        return end <= to ? (lo, end) : null;
+      }
+      final start = min(hi, to) - wanted;
+      return start >= from ? (start, hi) : null;
+    }
+
+    final x = grow(band.left, band.right, clip.left, clip.right);
+    final y = grow(band.top, band.bottom, clip.top, clip.bottom);
+    if (x == null || y == null) {
+      return _snapOut(band.intersect(clip), pixels);
+    }
+    final grown = _snapOut(Rect.fromLTRB(x.$1, y.$1, x.$2, y.$2), pixels);
+    return _keepsWhole(grown, clip)
+        ? grown
+        : _snapOut(band.intersect(clip), pixels);
   }
 
   // Whether Impeller draws a layer of [layer] whole inside a clip of [clip]
@@ -423,6 +472,14 @@ class BackdropUnderlay {
         first.debugMiss = 'blocked by $why';
       }
       return null;
+    }
+    if (!kReleaseMode) {
+      final kind = ask.blur != null
+          ? 'blur'
+          : ask.filter != null
+          ? 'filter'
+          : 'plain';
+      _count(debugImageAsks, '${ask.anchor.runtimeType} $kind');
     }
     // A copy that holds glass over a copy not drawn yet draws that glass as
     // its filter, which takes the copy's pixels to be the screen's.
@@ -2068,17 +2125,22 @@ final class UnderlayCopy {
 /// A copy that [BackdropUnderlay.serveInFrame] hands over: [content] holds
 /// what is painted before the glass in [band] of the screen (logical
 /// pixels), at [pixelRatio] pixels per logical pixel from the band's top
-/// left.
+/// left, drawn in a layer of [layer].
 @internal
 final class InFrameCopy {
-  const InFrameCopy._(this.content, this.band, this.pixelRatio);
+  const InFrameCopy._(this.content, this.band, this.layer, this.pixelRatio);
 
   /// What is painted before the glass in [band].
   final ui.Picture content;
 
   /// The screen rect the copy holds, in logical pixels, on the grid of its
-  /// pixels: the rect of the layer the copy is drawn in.
+  /// pixels.
   final Rect band;
+
+  /// The rect of the layer the copy is drawn in: [band], grown where a clip
+  /// would cut the layer, or the part of [band] inside a clip that leaves
+  /// no room to grow.
+  final Rect layer;
 
   /// The copy's pixels per logical pixel along each side.
   final double pixelRatio;
@@ -2141,7 +2203,7 @@ class InFrameGlassLayer extends GlassPictureLayer {
   final InFrameCopy copy;
 
   /// The rect of the layer the glass's shader filters.
-  Rect get layer => copy.band;
+  Rect get layer => copy.layer;
 
   /// Records the glass over the part of its copy inside a rect of the screen
   /// (logical pixels), or returns null when none of it is.

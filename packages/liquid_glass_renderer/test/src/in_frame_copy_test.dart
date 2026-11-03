@@ -14,14 +14,14 @@ import 'shared.dart';
 const _key = ValueKey('screen');
 
 // Glass at [top] over a gradient and text, and a second glass below it
-// whose band holds the lower part of the first; [clip] cuts the first glass
-// to its top 30 px.
+// whose band holds the lower part of the first; [clip] cuts the first
+// glass, in the screen's coordinates.
 Widget _scene({
   double shift = 0,
   double top = 200,
   double frost = 0,
   bool second = true,
-  bool clip = false,
+  Rect? clip,
 }) {
   Widget glass(Rect rect) => LiquidGlassLayer(
     settings: LiquidGlassSettings.ios27RegularLight().copyWith(frost: frost),
@@ -58,7 +58,7 @@ Widget _scene({
               ),
             ),
           ),
-          for (var row = 0; row < 12; row++)
+          for (var row = 0; row < 22; row++)
             Positioned(
               left: 12,
               top: 20.0 + row * 28,
@@ -69,12 +69,9 @@ Widget _scene({
             ),
           Positioned.fill(
             child: RepaintBoundary(
-              child: clip
-                  ? ClipRect(
-                      clipper: _TopOf(top + 30),
-                      child: first,
-                    )
-                  : first,
+              child: clip == null
+                  ? first
+                  : ClipRect(clipper: _Clip(clip), child: first),
             ),
           ),
           if (second)
@@ -89,16 +86,16 @@ Widget _scene({
   );
 }
 
-class _TopOf extends CustomClipper<Rect> {
-  const _TopOf(this.bottom);
+class _Clip extends CustomClipper<Rect> {
+  const _Clip(this.rect);
 
-  final double bottom;
-
-  @override
-  Rect getClip(Size size) => Rect.fromLTRB(0, 0, size.width, bottom);
+  final Rect rect;
 
   @override
-  bool shouldReclip(_TopOf oldClipper) => oldClipper.bottom != bottom;
+  Rect getClip(Size size) => rect;
+
+  @override
+  bool shouldReclip(_Clip oldClipper) => oldClipper.rect != rect;
 }
 
 Future<Uint8List> _pixels(WidgetTester tester, double pixelRatio) async {
@@ -129,8 +126,7 @@ Future<Uint8List> _drawn(
   required double pixelRatio,
   double frost = 0,
   bool second = true,
-  bool clip = false,
-  int images = 0,
+  Rect? clip,
 }) async {
   BackdropUnderlay.debugInFrame = inFrame;
   await tester.pumpWidget(const SizedBox());
@@ -145,7 +141,7 @@ Future<Uint8List> _drawn(
       .whereType<RenderLiquidGlassLayer>()
       .toSet();
   expect(glass.every((g) => g.debugDrewOverUnderlay), isTrue);
-  if (inFrame) expect(BackdropUnderlay.debugImagesDrawn, drawn + images);
+  if (inFrame) expect(BackdropUnderlay.debugImagesDrawn, drawn);
   return _pixels(tester, pixelRatio);
 }
 
@@ -159,8 +155,8 @@ void main() {
   });
 
   for (final pixelRatio in [1.0, 2.0]) {
-    void sized(WidgetTester tester) {
-      tester.view.physicalSize = Size(260, 360) * pixelRatio;
+    void sized(WidgetTester tester, {double height = 360}) {
+      tester.view.physicalSize = Size(260, height) * pixelRatio;
       tester.view.devicePixelRatio = pixelRatio;
       addTearDown(tester.view.reset);
     }
@@ -222,25 +218,51 @@ void main() {
       expect(_difference(image, inFrame), lessThanOrEqualTo(1));
     }, skip: skipProperGlassTests);
 
-    testWidgets('glass under a clip that cuts most of it reads past the '
-        'clip from an image (dpr $pixelRatio)', (tester) async {
-      sized(tester);
+    // The grown layer lands on the copy's pixel grid a pixel off the image's
+    // edge at dpr 2, which moves a bilinear read by up to 2 levels.
+    testWidgets('glass a clip cuts reads past the clip from a layer grown '
+        'into it (dpr $pixelRatio)', (tester) async {
+      sized(tester, height: 640);
+      const clip = Rect.fromLTRB(0, 230, 260, 640);
       final image = await _drawn(
         tester,
         inFrame: false,
         pixelRatio: pixelRatio,
-        clip: true,
+        second: false,
+        clip: clip,
       );
       final inFrame = await _drawn(
         tester,
         inFrame: true,
         pixelRatio: pixelRatio,
-        clip: true,
-        images: 1,
+        second: false,
+        clip: clip,
       );
-      // The images draw both copies as one island, which reads what lies
-      // past each band: the glass below reads 2 levels apart without it.
       expect(_difference(image, inFrame), lessThanOrEqualTo(2));
+    }, skip: skipProperGlassTests);
+
+    // NEAR: a layer the clip cuts holds nothing past it, so the 30 px of
+    // glass left above the clip read their copy mirrored at the clip, up to
+    // 163 levels off what lies under the glass's hidden part.
+    testWidgets('glass a clip cuts with no room to grow reads its copy '
+        'mirrored at the clip (dpr $pixelRatio)', (tester) async {
+      sized(tester);
+      const clip = Rect.fromLTRB(0, 0, 260, 230);
+      final image = await _drawn(
+        tester,
+        inFrame: false,
+        pixelRatio: pixelRatio,
+        second: false,
+        clip: clip,
+      );
+      final inFrame = await _drawn(
+        tester,
+        inFrame: true,
+        pixelRatio: pixelRatio,
+        second: false,
+        clip: clip,
+      );
+      expect(_difference(image, inFrame), lessThanOrEqualTo(163));
     }, skip: skipProperGlassTests);
   }
 }

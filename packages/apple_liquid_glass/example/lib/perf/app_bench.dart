@@ -63,6 +63,8 @@ final _switches = <String, void Function({required bool on})>{
   'islands': ({required on}) => BackdropUnderlay.debugIslandsEnabled = on,
   'downscale4': ({required on}) =>
       RenderLiquidGlassLayer.debugMaxCopyDownscale = on ? 4 : 2,
+  // B draws the copies no filter reads in the frame, A into images.
+  'in_frame': ({required on}) => BackdropUnderlay.debugInFrame = on,
   // B reads the backdrop live instead of drawing copies.
   'live_reads': ({required on}) =>
       BackdropUnderlay.debugEnabledOverride = on ? false : null,
@@ -372,7 +374,11 @@ class _Journey {
     if (flips != null) {
       flips.cancel();
       _switches[_ab]!(on: false);
-      debugPrint('GLASS_BENCH_AB_END ${step.name} ${_wallNow()} $_frames');
+      debugPrint(
+        'GLASS_BENCH_AB_END ${step.name} ${_wallNow()} $_frames '
+        'img=${BackdropUnderlay.debugImagesDrawn}',
+      );
+      debugPrint('GLASS_BENCH_ASKS ${BackdropUnderlay.debugImageAsks}');
     }
     _open = null;
     window.end = _seconds();
@@ -410,8 +416,10 @@ class _Journey {
     void next() {
       final on = const [false, true, true, false][n % 4];
       flip(on: on);
+      if (n == 1) BackdropUnderlay.debugImageAsks.clear();
       debugPrint(
-        'GLASS_BENCH_AB $step ${on ? 'B' : 'A'} $n ${_wallNow()} $_frames',
+        'GLASS_BENCH_AB $step ${on ? 'B' : 'A'} $n ${_wallNow()} $_frames '
+        'img=${BackdropUnderlay.debugImagesDrawn}',
       );
       n++;
     }

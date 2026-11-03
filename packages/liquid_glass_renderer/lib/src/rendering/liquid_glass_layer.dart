@@ -2089,7 +2089,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           frost: frost,
         ),
       );
-      picture.picture = picture.within(inFrame.band);
+      picture.picture = picture.within(inFrame.layer);
       if (picture.picture == null) {
         picture.dispose();
         return null;
@@ -2211,7 +2211,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     required Rect? backdropBounds,
     required double frost,
   }) {
-    final shown = region.intersect(copy.band);
+    final shown = region.intersect(copy.layer);
     if (shown.isEmpty) return null;
     final dpr = devicePixelRatio;
     final pixels = copy.pixelRatio;
@@ -2222,6 +2222,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       (shown.right * pixels).ceilToDouble() * stretch,
       (shown.bottom * pixels).ceilToDouble() * stretch,
     );
+    // Past the copy the layer is empty: reads mirror at the copy's edge.
     final within = MatrixUtils.transformRect(
       globalToMatte,
       Rect.fromLTRB(
@@ -2229,7 +2230,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         layer.top / dpr,
         layer.right / dpr,
         layer.bottom / dpr,
-      ),
+      ).intersect(copy.band),
     );
     final shader = renderShader;
     _writeCoordinateMapping(
