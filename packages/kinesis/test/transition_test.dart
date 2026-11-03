@@ -83,6 +83,31 @@ void main() {
     expect(_layer(tester).addsTransform, isFalse);
   });
 
+  testWidgets('a transparent child is left out of the scene, blur and '
+      'all', (tester) async {
+    final opacity = MotionValue<double>(0);
+    await tester.pumpWidget(
+      _app(
+        Center(
+          child: SizedBox.square(
+            dimension: 100,
+            child: MotionTransition(
+              opacity: opacity,
+              blur: const AlwaysStoppedAnimation(6),
+              child: const _Counted(),
+            ),
+          ),
+        ),
+      ),
+    );
+    // ignore: invalid_use_of_protected_member
+    expect(_layer(tester).engineLayer, isNull);
+    opacity.target = 0.5;
+    await tester.pump();
+    // ignore: invalid_use_of_protected_member
+    expect(_layer(tester).engineLayer, isNotNull);
+  });
+
   testWidgets('a height takes part in the layout at its presented value '
       'while the child keeps the model', (tester) async {
     final height = MotionValue<double>(100);

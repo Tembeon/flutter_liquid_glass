@@ -1177,6 +1177,10 @@ final class _Scan {
           }),
           next: transform.multiplied(effective),
         );
+      // Transparent: it shows nothing, though drawing it would still pay
+      // for its layers and filters.
+      case OpacityLayer(alpha: 0):
+        return false;
       case OpacityLayer(:final offset):
         final alpha = layer.alpha ?? 255;
         push(
@@ -1366,6 +1370,9 @@ final class _Scan {
         push(layer as ContainerLayer, _Open.plain());
       case ContainerLayer() when layer.runtimeType == ContainerLayer:
         push(layer, _Open.plain());
+      case ContainerLayer()
+          when LiquidGlassUnderlay.effectsOf(layer)?.alpha == 0:
+        return false;
       case ContainerLayer() when LiquidGlassUnderlay.effectsOf(layer) != null:
         final effects = LiquidGlassUnderlay.effectsOf(layer)!;
         final next = transform.multiplied(effects.transform);

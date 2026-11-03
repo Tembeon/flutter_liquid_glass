@@ -487,6 +487,15 @@ class MotionTransitionLayer extends OffsetLayer {
 
   @override
   void addToScene(ui.SceneBuilder builder) {
+    // A transparent subtree shows nothing, as RenderOpacity paints nothing
+    // at zero; added, it would still pay for its blur.
+    if (_alpha == 0) {
+      engineLayer = null;
+      _clipLayer = _drop(_clipLayer);
+      _opacityLayer = _drop(_opacityLayer);
+      _blurLayer = _drop(_blurLayer);
+      return;
+    }
     var pushed = 1;
     if (_transform == null) {
       final old = engineLayer;
