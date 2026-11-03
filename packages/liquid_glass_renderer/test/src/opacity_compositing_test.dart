@@ -71,12 +71,12 @@ void runOpacityTests(SubmittedSceneCapture binding) {
             child: BackdropFilter(
               filter: kind == 'native'
                   ? ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8)
-                  : fakeGlassBackdropFilter(
+                  : fakeGlassBackdropFilterParts(
                       const LiquidGlassSettings(frost: 8),
                       LiquidGlassAppearance.ios27Regular(
                         brightness: Brightness.light,
                       ),
-                    )!,
+                    )!.full,
               child: kind == 'nativeMaterial'
                   ? const SizedBox(
                       width: 160,

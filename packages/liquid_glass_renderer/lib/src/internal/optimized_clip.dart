@@ -5,12 +5,9 @@ import 'package:liquid_glass_renderer/src/internal/live_paint_size.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/liquid_shape.dart';
 
-/// Clips its child using the given [shape].
-///
-/// Compared to using [ClipPath] directly, this widget uses Impeller's
-/// specialized clip layers for ovals, rounded rects, and superellipses.
-///
-/// If [shape] is null or [clipBehavior] is [Clip.none], no clipping is applied.
+/// Clips its child to [shape] with Impeller's specialized clip layers for
+/// ovals, rounded rects and superellipses, or not at all while
+/// [clipBehavior] is [Clip.none].
 ///
 /// With a [live] frame the clip follows the frame's shape and rect size at
 /// paint instead of [shape] and the layout size.
@@ -25,7 +22,7 @@ class OptimizedClip extends StatelessWidget {
     super.key,
   });
 
-  final ShapeBorder? shape;
+  final LiquidShape shape;
 
   final Clip clipBehavior;
 
@@ -50,8 +47,7 @@ class OptimizedClip extends StatelessWidget {
         child: child,
       );
     }
-    final shape = this.shape;
-    if (shape != null && outset > 0) {
+    if (outset > 0) {
       return ClipPath(
         clipBehavior: clipBehavior,
         clipper: _OutsetShapeBorderClipper(shape: shape, outset: outset),
@@ -59,7 +55,6 @@ class OptimizedClip extends StatelessWidget {
       );
     }
     return switch (shape) {
-      null => child,
       LiquidRoundedSuperellipse(:final radii) => ClipRSuperellipse(
         clipBehavior: clipBehavior,
         borderRadius: radii,
@@ -74,31 +69,6 @@ class OptimizedClip extends StatelessWidget {
         clipBehavior: clipBehavior,
         child: child,
       ),
-      RoundedSuperellipseBorder(:final borderRadius) => ClipRSuperellipse(
-        clipBehavior: clipBehavior,
-        borderRadius: borderRadius,
-        child: child,
-      ),
-      RoundedRectangleBorder(:final borderRadius) => ClipRRect(
-        clipBehavior: clipBehavior,
-        borderRadius: borderRadius,
-        child: child,
-      ),
-      OvalBorder() => ClipOval(
-        clipBehavior: clipBehavior,
-        child: child,
-      ),
-      LinearBorder() => ClipRect(
-        clipBehavior: clipBehavior,
-        child: child,
-      ),
-      _ => ClipPath(
-        clipBehavior: clipBehavior,
-        clipper: ShapeBorderClipper(
-          shape: shape,
-        ),
-        child: child,
-      ),
     };
   }
 }
@@ -106,7 +76,7 @@ class OptimizedClip extends StatelessWidget {
 class _OutsetShapeBorderClipper extends CustomClipper<Path> {
   const _OutsetShapeBorderClipper({required this.shape, required this.outset});
 
-  final ShapeBorder shape;
+  final LiquidShape shape;
   final double outset;
 
   @override

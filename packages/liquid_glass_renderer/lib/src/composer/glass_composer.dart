@@ -4,7 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
-import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
+import 'package:liquid_glass_renderer/src/internal/transform_tracking_render_object_mixin.dart';
 import 'package:meta/meta.dart';
 
 /// The glass of one view, seen once a frame between paint and compositing.

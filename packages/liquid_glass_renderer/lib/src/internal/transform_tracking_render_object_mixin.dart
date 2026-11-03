@@ -1,5 +1,3 @@
-// Setting up the tracking layer reads as one statement per field, without
-// cascades.
 // ignore_for_file: cascade_invocations
 
 import 'dart:ui' as ui;
@@ -38,46 +36,20 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
     super.detach();
   }
 
-  /// This object's transform to the screen. While its layer composites,
-  /// the one the layer read for the frame, as nothing moves a render object
-  /// between paint and the scene: the walk to the root is taken once.
+  /// This object's transform to the screen. While its layer composites, the
+  /// transform the layer read for this frame, without another walk to the
+  /// root: nothing moves a render object between paint and the scene.
   Matrix4 transformToScreen() =>
       layer?._composited?.clone() ?? transformToNow(this);
 
   @mustCallSuper
   @override
   void paint(PaintingContext context, ui.Offset offset) {
-    setUpLayer(offset);
-    context.pushLayer(layer!, (context, offset) {}, offset);
-    super.paint(context, offset);
-  }
-
-  GeometryTransformTrackingLayer setUpLayer(Offset offset) {
     final tracking = layer ??= GeometryTransformTrackingLayer();
-    tracking.renderObject = this;
-    tracking.onDetached = onTrackingLayerDetached;
-    tracking.onTransformChanged = () {
-      if (attached) onTransformChanged();
-    };
-    tracking.onPreparing = () {
-      if (attached) onPreparing();
-    };
-    tracking.onCompositing = () {
-      if (attached) onCompositing();
-    };
-    return tracking;
-  }
-
-  /// Paints normal children after an override has inserted its tracker.
-  /// Calling this mixin's paint again would move that same tracker behind
-  /// the effect whose retained-rendering dirtiness it must update first.
-  @protected
-  void paintTrackedChild(PaintingContext context, Offset offset) {
+    tracking._site = this;
+    context.pushLayer(tracking, (context, offset) {}, offset);
     super.paint(context, offset);
   }
-
-  /// Also runs when a mounted subtree stops being painted by its ancestor.
-  void onTrackingLayerDetached() {}
 
   /// The transform to the screen changed. Runs before paint when the view's
   /// composer polls, where a repaint lands in the same frame, and otherwise
@@ -100,28 +72,19 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
 class GeometryTransformTrackingLayer extends OffsetLayer with ComposedLayer {
   GeometryTransformTrackingLayer();
 
-  RenderObject? renderObject;
-  VoidCallback? onTransformChanged;
-  VoidCallback? onPreparing;
-  VoidCallback? onCompositing;
-  VoidCallback? onDetached;
+  // The render object whose transform the layer tracks.
+  TransformTrackingRenderObjectMixin? _site;
   Matrix4? _lastTransform;
   Matrix4? _composited;
   // The transform [prepare] read, for [compose] in the same frame.
   Matrix4? _prepared;
 
-  @override
-  void detach() {
-    super.detach();
-    onDetached?.call();
-  }
-
   /// Reads the tracked object's transform before paint and reports a
   /// change, so that a repaint it asks for lands in the same frame.
   void pollTransform() {
-    final renderObject = this.renderObject;
-    if (!attached || renderObject == null || !renderObject.attached) return;
-    _poll(renderObject, null);
+    final site = _site;
+    if (!attached || site == null || !site.attached) return;
+    _poll(site, null);
   }
 
   // Resolves retained transforms after layout and paint, before the update
@@ -130,31 +93,31 @@ class GeometryTransformTrackingLayer extends OffsetLayer with ComposedLayer {
   // already have been selected for retained rendering.
   @override
   void prepare() {
-    final renderObject = this.renderObject;
-    if (renderObject == null || !renderObject.attached) return;
-    _prepared = _poll(renderObject, onPreparing);
+    final site = _site;
+    if (site == null || !site.attached) return;
+    _prepared = _poll(site, site.onPreparing);
   }
 
   @override
   void compose() {
     final planned = _prepared;
     _prepared = null;
-    final renderObject = this.renderObject;
-    if (renderObject == null || !renderObject.attached) return;
-    _composited = planned ?? transformToNow(renderObject);
+    final site = _site;
+    if (site == null || !site.attached) return;
+    _composited = planned ?? transformToNow(site);
     try {
-      onCompositing?.call();
+      site.onCompositing();
     } finally {
       _composited = null;
     }
   }
 
-  Matrix4 _poll(RenderObject renderObject, VoidCallback? then) {
-    final currentTransform = transformToNow(renderObject);
+  Matrix4 _poll(TransformTrackingRenderObjectMixin site, VoidCallback? then) {
+    final currentTransform = transformToNow(site);
     _composited = currentTransform;
     try {
       if (!MatrixUtils.matrixEquals(currentTransform, _lastTransform)) {
-        onTransformChanged?.call();
+        site.onTransformChanged();
         _lastTransform = currentTransform;
       }
       then?.call();

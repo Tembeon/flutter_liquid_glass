@@ -15,7 +15,7 @@ import 'package:liquid_glass_renderer/src/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/internal/retained_glass_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
-import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
+import 'package:liquid_glass_renderer/src/internal/transform_tracking_render_object_mixin.dart';
 import 'package:liquid_glass_renderer/src/logging.dart';
 
 /// The transform from [shape]'s own coordinates into its layer's, given its

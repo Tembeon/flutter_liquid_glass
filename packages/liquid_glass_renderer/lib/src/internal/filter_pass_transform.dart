@@ -1,24 +1,23 @@
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart';
-import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
+import 'package:liquid_glass_renderer/src/internal/transform_tracking_render_object_mixin.dart';
 import 'package:meta/meta.dart';
 
 /// Transform from [owner]'s local coordinates to the logical coordinates of
-/// the render pass whose fragment coordinates its image filters see.
-///
-/// Filter fragment coordinates are local to the enclosing render pass. At the
-/// root that is the screen. Inside a seeded fractional-opacity pass
-/// ([seeding]) it is that pass, which the engine bounds by the enclosing
-/// clips. A seeded pass around the effect itself is the innermost: pass
-/// [passOrigin], its screen-space top-left, to measure from it. The innermost
-/// pass wins. [translation] is retained
+/// the render pass its image filters run in, plus [translation], retained
 /// compositor motion applied below [owner].
+///
+/// Filter fragment coordinates are local to the innermost enclosing pass: the
+/// screen at the root, else a seeded fractional-opacity pass ([seeding])
+/// bounded by the enclosing clips. When that pass wraps the effect itself,
+/// pass its screen-space top-left as [passOrigin]; it takes precedence over
+/// [seeding].
 @internal
 Matrix4 filterPassTransform(
   RenderObject owner, {
   required bool seeding,
   required double devicePixelRatio,
-  Offset translation = Offset.zero,
+  required Offset translation,
   Offset? passOrigin,
 }) {
   final Matrix4 transform;

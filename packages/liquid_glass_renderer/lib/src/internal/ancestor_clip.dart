@@ -5,52 +5,76 @@ import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 /// `null` when it does not clip. Impeller derives a backdrop pass's coverage
 /// from these clips, so glass and captures use the same list to predict the
 /// pass origin their filters see.
-Rect? clipOfAncestor(RenderObject ancestor, RenderObject child) {
-  return switch (ancestor) {
-    RenderClipRect(:final clipBehavior, :final clipper, :final size) =>
-      clipBehavior == Clip.none
-          ? null
-          : clipper?.getClip(size) ?? Offset.zero & size,
-    RenderClipOval(:final clipBehavior, :final clipper, :final size) =>
-      clipBehavior == Clip.none
-          ? null
-          : clipper?.getClip(size) ?? Offset.zero & size,
-    RenderClipRRect(:final clipBehavior, :final clipper, :final size) =>
-      clipBehavior == Clip.none
-          ? null
-          : clipper?.getClip(size).outerRect ?? Offset.zero & size,
-    RenderClipRSuperellipse(
-      :final clipBehavior,
-      :final clipper,
-      :final size,
-    ) =>
-      clipBehavior == Clip.none
-          ? null
-          : clipper?.getClip(size).outerRect ?? Offset.zero & size,
-    RenderClipPath(:final clipBehavior, :final clipper, :final size) =>
-      clipBehavior == Clip.none
-          ? null
-          : clipper?.getClip(size).getBounds() ?? Offset.zero & size,
-    RenderView(:final size) => Offset.zero & size,
-    _ => ancestor.describeApproximatePaintClip(child),
-  };
-}
+Rect? clipOfAncestor(RenderObject ancestor, RenderObject child) =>
+    ancestor is RenderViewportBase
+    ? _approximateClip(ancestor, child)
+    : paintClipOfAncestor(ancestor, child);
+
+Rect? _approximateClip(RenderObject ancestor, RenderObject child) =>
+    ancestor.describeApproximatePaintClip(child);
 
 /// The clip [ancestor] paints around [child], in [ancestor]'s coordinates.
 ///
 /// Unlike [clipOfAncestor], a viewport only counts while its content
 /// overflows, mirroring [RenderViewportBase.paint]; its approximate clip API
 /// reports per-sliver semantics instead.
-Rect? paintClipOfAncestor(RenderObject ancestor, RenderObject child) {
-  return switch (ancestor) {
-    final RenderViewportBase viewport =>
-      // ignore: invalid_use_of_protected_member
-      viewport.clipBehavior == Clip.none || !viewport.hasVisualOverflow
-          ? null
-          : Offset.zero & viewport.size,
-    _ => clipOfAncestor(ancestor, child),
-  };
-}
+Rect? paintClipOfAncestor(RenderObject ancestor, RenderObject child) =>
+    switch (clipGeometryOf(ancestor)) {
+      (_, Clip.none) => null,
+      (final geometry, _) => clipGeometryBounds(geometry),
+      null => switch (ancestor) {
+        RenderView(:final size) => Offset.zero & size,
+        _ => _approximateClip(ancestor, child),
+      },
+    };
+
+/// The shape a clip render object paints, a [Rect], [RRect], [RSuperellipse]
+/// or [Path] in its own coordinates, with the behavior it paints it with, or
+/// null for a render object that is not a clip.
+(Object, Clip)? clipGeometryOf(RenderObject node) => switch (node) {
+  final RenderClipRect clip => (
+    clip.clipper?.getClip(clip.size) ?? Offset.zero & clip.size,
+    clip.clipBehavior,
+  ),
+  final RenderClipRRect clip => (
+    clip.clipper?.getClip(clip.size) ??
+        clip.borderRadius
+            .resolve(clip.textDirection)
+            .toRRect(Offset.zero & clip.size),
+    clip.clipBehavior,
+  ),
+  final RenderClipRSuperellipse clip => (
+    clip.clipper?.getClip(clip.size) ??
+        clip.borderRadius
+            .resolve(clip.textDirection)
+            .toRSuperellipse(Offset.zero & clip.size),
+    clip.clipBehavior,
+  ),
+  final RenderClipOval clip => (
+    clip.clipper?.getClip(clip.size) ?? Offset.zero & clip.size,
+    clip.clipBehavior,
+  ),
+  final RenderClipPath clip => (
+    clip.clipper?.getClip(clip.size) ?? Offset.zero & clip.size,
+    clip.clipBehavior,
+  ),
+  final RenderViewportBase viewport => (
+    Offset.zero & viewport.size,
+    // As RenderViewportBase.paint does.
+    // ignore: invalid_use_of_protected_member
+    viewport.hasVisualOverflow ? viewport.clipBehavior : Clip.none,
+  ),
+  _ => null,
+};
+
+/// The bounds of a geometry [clipGeometryOf] returns.
+Rect clipGeometryBounds(Object geometry) => switch (geometry) {
+  final Rect rect => rect,
+  final RRect rect => rect.outerRect,
+  final RSuperellipse rect => rect.outerRect,
+  final Path path => path.getBounds(),
+  _ => throw ArgumentError.value(geometry, 'geometry'),
+};
 
 /// Intersection of the paint clips above [node], in [node]'s coordinates, or
 /// `null` when nothing above it clips.

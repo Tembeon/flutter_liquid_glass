@@ -29,11 +29,8 @@ extension SnapRectToPixels on Rect {
     );
   }
 
-  /// Expands this rect to stable physical-pixel buckets.
-  ///
-  /// Backdrop image filters allocate an offscreen Impeller render target for
-  /// their clip bounds. Small animated transform changes otherwise produce a
-  /// differently sized target on nearly every frame.
+  /// Expands this rect outward to multiples of [bucketSize] device pixels
+  /// (see [PixelBuckets]).
   Rect expandToPixelBuckets(
     double devicePixelRatio, {
     int bucketSize = PixelBuckets.standard,

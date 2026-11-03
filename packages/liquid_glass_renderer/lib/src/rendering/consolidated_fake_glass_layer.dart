@@ -11,7 +11,7 @@ import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/internal/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/internal/paint_fake_glass_surface.dart';
 import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
-import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
+import 'package:liquid_glass_renderer/src/internal/transform_tracking_render_object_mixin.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 
 enum _FakeGlassPaintStage {

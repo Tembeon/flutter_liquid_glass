@@ -7,8 +7,8 @@ import 'package:liquid_glass_renderer/src/logging.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 import 'package:meta/meta.dart';
 
-/// Refreshes source order during owner paint, walking only source ancestry.
-/// Retained compositor ticks never call this traversal.
+/// Sorts [sources] into paint order under [owner], walking only their
+/// ancestry; returns whether the order changed.
 bool sortGlassPaintOrder<T>(
   RenderObject owner,
   List<T> sources,
@@ -93,24 +93,21 @@ mixin LiquidGlassShapeRenderObject on RenderBox {
 @internal
 abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   RenderLiquidGlassGeometry({
-    required LiquidGlassSettings settings,
-    required double devicePixelRatio,
+    required this._settings,
+    required this._devicePixelRatio,
     this._renderLink,
-  }) {
-    _settings = settings;
-    _devicePixelRatio = devicePixelRatio;
-  }
+  });
 
   /// The logger for liquid glass geometry.
   final Logger logger = Logger(LgrLogNames.geometry);
 
-  late LiquidGlassSettings? _settings;
+  LiquidGlassSettings _settings;
 
   /// The settings used for liquid glass rendering.
   ///
   /// If these settings change in a way that affects geometry, the geometry
   /// will be marked as needing an update.
-  LiquidGlassSettings get settings => _settings!;
+  LiquidGlassSettings get settings => _settings;
   set settings(LiquidGlassSettings value) {
     if (_settings == value) return;
 
@@ -123,7 +120,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     markNeedsPaint();
   }
 
-  late double _devicePixelRatio;
+  double _devicePixelRatio;
 
   /// The device pixel ratio used for rendering.
   ///
@@ -164,17 +161,10 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   /// unless it is already marked as definitely needing an update.
   @protected
   void markGeometryNeedsUpdate({bool force = false}) {
-    final newState = force
+    geometryState =
+        force || geometryState == LiquidGlassGeometryState.needsUpdate
         ? LiquidGlassGeometryState.needsUpdate
         : LiquidGlassGeometryState.mightNeedUpdate;
-
-    geometryState = switch ((geometryState, newState)) {
-      (LiquidGlassGeometryState.needsUpdate, _) =>
-        LiquidGlassGeometryState.needsUpdate,
-      (_, LiquidGlassGeometryState.needsUpdate) =>
-        LiquidGlassGeometryState.needsUpdate,
-      _ => LiquidGlassGeometryState.mightNeedUpdate,
-    };
     _renderLink?.markDirty();
   }
 
@@ -188,10 +178,9 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
 
   /// Detects motion of this geometry relative to [layer].
   ///
-  /// Uses [transformToNowOrLast], which only composes layout offsets and
-  /// [RenderObject.applyPaintTransform] overrides — ancestor transforms
-  /// applied inside paint() (e.g. PaintingContext.pushTransform) are
-  /// invisible here, so the glass will not follow those. Known limitation.
+  /// Reads the transform with [transformToNowOrLast], which sees only
+  /// [RenderObject.applyPaintTransform]: a transform an ancestor pushes in
+  /// paint (PaintingContext.pushTransform) is not followed.
   ///
   /// Called from the layer's paint and compositing hooks so descendant glass
   /// does not need its own always-composite tracking layers. The two change
@@ -265,13 +254,12 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   @mustCallSuper
   void dispose() {
     _renderLink?.unregisterGeometry(this);
-    geometry?.dispose();
     geometry = null;
     super.dispose();
   }
 
-  /// Gathers all shapes and computes them in both layer and screen space
-  /// Returns (layerBounds, shapes, anyShapeChangedInLayer)
+  /// The shapes this node draws, their bounds in its own coordinates, and
+  /// whether any shape changed against [geometry].
   (
     Rect bounds,
     List<ShapeGeometry> geometries,
@@ -314,7 +302,6 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
 
     logger.finer('$hashCode Rebuilding geometry');
 
-    geometry?.dispose();
     geometry = null;
     geometryState = LiquidGlassGeometryState.updated;
 
@@ -330,7 +317,6 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
       matteRevision: ++_matteRevision,
     );
 
-    // We have updated the geometry.
     _renderLink?.markDirty();
     return newGeo;
   }
@@ -370,14 +356,10 @@ class GeometryCache {
   /// Paint-only metadata refreshes retain this value, allowing a parent layer
   /// to validate translation reuse without deeply comparing every shape.
   final int matteRevision;
-
-  void dispose() {}
 }
 
 extension on LiquidGlassSettings {
-  bool requiresGeometryRebuild(LiquidGlassSettings? other) {
-    if (other == null) return false;
-
+  bool requiresGeometryRebuild(LiquidGlassSettings other) {
     return effectiveRefractionHeight != other.effectiveRefractionHeight ||
         effectiveRefractionAmount != other.effectiveRefractionAmount ||
         refractionFitsShape != other.refractionFitsShape ||

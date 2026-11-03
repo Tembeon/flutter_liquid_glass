@@ -10,7 +10,7 @@ import 'package:liquid_glass_renderer/src/internal/glass_frame_clock.dart';
 import 'package:liquid_glass_renderer/src/internal/retained_glass_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/running_under_flutter_test.dart';
 import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
-import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
+import 'package:liquid_glass_renderer/src/internal/transform_tracking_render_object_mixin.dart';
 
 /// The device pixels of [view], the owner of a layer tree or the root of a
 /// render tree, or `null` when it is no view.

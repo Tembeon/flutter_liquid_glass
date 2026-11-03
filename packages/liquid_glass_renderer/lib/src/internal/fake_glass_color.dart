@@ -5,13 +5,11 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:meta/meta.dart';
 
-/// Affine tint-over-backdrop followed by saturation, expressed as Flutter's
-/// 4x5 color matrix: the same per-pixel result as a shader, but a native color
-/// filter on both Impeller and Skia.
+/// Saturation and a midtone secant of transmissionGamma as Flutter's 4x5
+/// color matrix, a native color filter on Impeller and Skia.
 @internal
 List<double> fakeGlassColorMatrix({
   required double saturation,
-  required Color tint,
   double transmissionGamma = 1,
   double opacity = 1,
 }) {
@@ -37,12 +35,9 @@ List<double> fakeGlassColorMatrix({
       luminanceBlue * inverseSaturation + saturation,
     ),
   ];
-  final backdropWeight = 1 - tint.a;
-  // A color matrix cannot reproduce the real renderer's per-channel pow(),
-  // but a secant through the useful midtone range is a free approximation in
-  // the native filter we already need for tint/saturation. It preserves the
-  // characteristic lift from the toolbar preset's sub-unity gamma without
-  // adding another shader pass or backdrop sample.
+  // A color matrix cannot apply pow() per channel; a secant through 0.25 and
+  // 0.75 approximates transmissionGamma at midtones without another pass or
+  // backdrop sample.
   final gamma = math.max(transmissionGamma, 0.01);
   const lowerInput = 0.25;
   const upperInput = 0.75;
@@ -55,23 +50,20 @@ List<double> fakeGlassColorMatrix({
   final result = <double>[];
   for (final row in saturationRows) {
     result
-      ..add(row.$1 * backdropWeight * gammaScale)
-      ..add(row.$2 * backdropWeight * gammaScale)
-      ..add(row.$3 * backdropWeight * gammaScale)
+      ..add(row.$1 * gammaScale)
+      ..add(row.$2 * gammaScale)
+      ..add(row.$3 * gammaScale)
       ..add(0)
       // ColorFilter.matrix biases use the 0-255 channel scale.
-      ..add(
-        (tint.a * (row.$1 * tint.r + row.$2 * tint.g + row.$3 * tint.b) +
-                backdropWeight * gammaBias) *
-            255,
-      );
+      ..add(gammaBias * 255);
   }
   return result..addAll([0, 0, 0, filterOpacity, 0]);
 }
 
 /// Least-squares line `slope * Y + offset` through the iOS 27 luminance
 /// transfer `(Y + lift * Y * (1 - Y)) ^ transmissionGamma` over `[0, 1]`.
-/// At unit gamma it is exactly `Y + lift / 6`.
+/// At unit gamma it is `Y + 5 * lift / 32` (the continuous fit's
+/// `lift / 6`, sampled at 17 points).
 (double slope, double offset) _faceLuminanceLine(
   double lift,
   double transmissionGamma,
@@ -132,22 +124,6 @@ List<double> fakeGlassFaceMatrix({
   return result..addAll([0, 0, 0, opacity.clamp(0.0, 1.0), 0]);
 }
 
-/// Builds the backdrop-only portion shared by standalone and consolidated
-/// fake glass. Tint remains in the analytic surface pass so contour
-/// transmittance can treat tint and backdrop energy independently.
-@internal
-ImageFilter? fakeGlassBackdropFilter(
-  LiquidGlassSettings settings,
-  LiquidGlassAppearance appearance, {
-  double deviceScale = 1,
-  double? shapeShortSide,
-}) => fakeGlassBackdropFilterParts(
-  settings,
-  appearance,
-  deviceScale: deviceScale,
-  shapeShortSide: shapeShortSide,
-)?.full;
-
 /// A fake glass backdrop filter, its blur-free variant for a pass that has
 /// already blurred its backdrop, the blur's logical sigma, and the frost
 /// `full` stands for when it blurs.
@@ -159,8 +135,10 @@ typedef FakeGlassFilterParts = ({
   LiquidGlassBackdropFrost? frost,
 });
 
-/// Like [fakeGlassBackdropFilter], also returning the filter without its blur
-/// (just the color transfer), the blur's logical sigma and its frost.
+/// The backdrop filter of fake glass, standalone or consolidated, with its
+/// blur-free variant (just the color transfer), the blur's logical sigma and
+/// its frost. Tint stays in the analytic surface pass, so contour
+/// transmittance treats tint and backdrop energy apart.
 @internal
 FakeGlassFilterParts? fakeGlassBackdropFilterParts(
   LiquidGlassSettings settings,
@@ -197,7 +175,6 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
     matrix = hasColorTransfer
         ? fakeGlassColorMatrix(
             saturation: colorModel.saturation,
-            tint: const Color(0x00000000),
             transmissionGamma: colorModel.transmissionGamma,
             // A partially transparent filtered backdrop composites over the
             // untouched backdrop, matching RealGlass's material fade without

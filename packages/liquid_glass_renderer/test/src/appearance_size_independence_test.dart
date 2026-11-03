@@ -120,12 +120,12 @@ void main() {
       brightness: Brightness.dark,
     );
     String colorOf(double shortSide) {
-      final filter = fakeGlassBackdropFilter(
+      final filter = fakeGlassBackdropFilterParts(
         settings,
         _Pills._appearance,
         deviceScale: _dpr,
         shapeShortSide: shortSide,
-      ).toString();
+      )!.full.toString();
       // The blur still follows the layer's size; the color must not.
       return filter.substring(filter.indexOf('ColorFilter'));
     }

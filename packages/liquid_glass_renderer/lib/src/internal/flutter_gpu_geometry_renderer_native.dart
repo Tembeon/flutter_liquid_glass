@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
+import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_field.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_support.dart';
 import 'package:vector_math/vector_math.dart' as vm;
@@ -21,13 +22,10 @@ const double kLowResFarInward = -4096;
 /// Renders the liquid glass low-res matte (see `geometry_fragment.glsl`)
 /// using flutter_gpu.
 ///
-/// Each output keeps a current texture and one spare. Textures grow as needed;
-/// rendering uses only the top-left area, with shader UVs adjusted to match.
-/// Unchanged geometry reuses the image without rendering again.
-///
-/// Repeated renders in one frame may need another texture. Each output keeps
-/// at most three textures (current plus two spares); scenes and GC can keep
-/// dropped textures alive longer.
+/// Each output keeps its current texture and up to two retired spares, so a
+/// frame that renders twice still reuses one; scenes and GC can keep dropped
+/// textures alive longer. Textures grow as needed; rendering uses only the
+/// top-left area, with shader UVs adjusted to match.
 ///
 /// This renderer owns the image handles returned by [gpu.Texture.asImage].
 /// Replacing/disposal releases those handles; recorded scenes hold independent
@@ -35,6 +33,22 @@ const double kLowResFarInward = -4096;
 /// after it was recorded may show a newer matte.
 @internal
 class FlutterGpuGeometryRenderer {
+  factory FlutterGpuGeometryRenderer._fromResolved(
+    String assetKey,
+    _SharedGeometryResources resources,
+  ) {
+    try {
+      return FlutterGpuGeometryRenderer._fromShared(resources);
+    } on Object {
+      // Drop resources that failed to build a renderer so the next layer
+      // reloads the bundle instead of failing the same way.
+      if (identical(_resolvedAssetResources[assetKey], resources)) {
+        _resolvedAssetResources.remove(assetKey);
+      }
+      rethrow;
+    }
+  }
+
   FlutterGpuGeometryRenderer._fromShared(_SharedGeometryResources resources) {
     _pipeline = resources.pipeline;
     _materialGradientPipeline = resources.materialGradientPipeline;
@@ -92,18 +106,8 @@ class FlutterGpuGeometryRenderer {
   }
 
   static Future<FlutterGpuGeometryRenderer> fromAsset(String assetKey) async {
-    final cachedResources = _resolvedAssetResources[assetKey];
-    if (cachedResources != null) {
-      try {
-        return FlutterGpuGeometryRenderer._fromShared(cachedResources);
-      } on Object {
-        // Drop resources that failed to build a renderer so the next layer
-        // reloads the bundle instead of failing the same way.
-        if (identical(_resolvedAssetResources[assetKey], cachedResources)) {
-          _resolvedAssetResources.remove(assetKey);
-        }
-        rethrow;
-      }
+    if (_resolvedAssetResources[assetKey] case final resources?) {
+      return FlutterGpuGeometryRenderer._fromResolved(assetKey, resources);
     }
     final resourcesFuture = _assetResources[assetKey] ??= () async {
       final library = await gpu.ShaderLibrary.fromAsset(assetKey);
@@ -152,18 +156,14 @@ class FlutterGpuGeometryRenderer {
 
   /// Synchronously builds a renderer from already resolved shared resources.
   ///
-  /// Returns null when [fromAsset] has not resolved [assetKey] yet, so callers
-  /// can fall back to the asynchronous path. On failure the poisoned cache
-  /// entry is evicted exactly like [fromAsset] does.
+  /// Returns null when [fromAsset] has not resolved [assetKey] yet, or when
+  /// the build fails, so callers can fall back to the asynchronous path.
   static FlutterGpuGeometryRenderer? tryCreateCached(String assetKey) {
-    final cachedResources = _resolvedAssetResources[assetKey];
-    if (cachedResources == null) return null;
+    final resources = _resolvedAssetResources[assetKey];
+    if (resources == null) return null;
     try {
-      return FlutterGpuGeometryRenderer._fromShared(cachedResources);
+      return FlutterGpuGeometryRenderer._fromResolved(assetKey, resources);
     } on Object {
-      if (identical(_resolvedAssetResources[assetKey], cachedResources)) {
-        _resolvedAssetResources.remove(assetKey);
-      }
       return null;
     }
   }
@@ -218,9 +218,8 @@ class FlutterGpuGeometryRenderer {
       );
       _sharedHostBufferBlockLength = blockLength;
     }
-    // This is also defined for direct renderer callers outside
-    // handleDrawFrame while still advancing once per engine frame in
-    // production.
+    // Unlike currentFrameTimeStamp this is defined outside a frame, where
+    // tests call the renderer directly, and changes once per engine frame.
     final timestamp = SchedulerBinding.instance.currentSystemFrameTimeStamp;
     if (_sharedHostBufferFrame != timestamp) {
       _sharedHostBuffer!.reset();
@@ -259,7 +258,6 @@ class FlutterGpuGeometryRenderer {
 
   bool _disposed = false;
 
-  // Uniform slot reflection.
   late final gpu.UniformSlot _uniformSlot;
   late final int _uniformSize;
   late final int _offsetUOffset;
@@ -285,9 +283,9 @@ class FlutterGpuGeometryRenderer {
   ui.Image? _materialImage;
   gpu.RenderTarget? _materialRenderTarget;
 
-  // Appearance blending is decorative and only visible while shapes merge.
-  // One sample per 8x8 full-resolution block makes its SDF work 64x smaller.
-  static const int materialRasterScale = 8;
+  /// Appearance blending is decorative and only visible while shapes merge.
+  /// One sample per 8x8 full-resolution block makes its SDF work 64x smaller.
+  static const int materialRasterScale = geometryMaterialRasterScale;
 
   late final gpu.BufferView _vertexBufferView;
 
@@ -314,7 +312,7 @@ class FlutterGpuGeometryRenderer {
 
   /// The most shapes one draw of the matte evaluates (MAX_SHAPES in the
   /// geometry shaders).
-  static const int maxShapesPerDraw = 16;
+  static const int maxShapesPerDraw = geometryMaxShapesPerDraw;
 
   /// How many shapes the latest render left out: past [maxShapesPerDraw]
   /// in one cluster of shapes that blend or lie within reach of each other,
@@ -327,7 +325,7 @@ class FlutterGpuGeometryRenderer {
   /// (2 or 4) block of matte pixels, plus one extra row and column for the
   /// far edge. It fills the top-left of the image, which is `textureWidth` x
   /// `textureHeight`. `width` and `height` are the matte's size in pixels.
-  /// The returned image is a non-owning wrapper — do NOT dispose it. Its
+  /// The returned image belongs to the renderer: do not dispose it. Its
   /// texture is written again [reuseAfterFrames] frames after a later render
   /// replaces it.
   ///
@@ -394,8 +392,8 @@ class FlutterGpuGeometryRenderer {
           return true;
         }(), 'Track replaced geometry textures in debug builds.');
       }
-      // The shader writes every texel of the sub-rect; the rest of the texture
-      // is undefined and never sampled, so no clear or copy is needed.
+      // Drawn whole, the pass writes every texel of the sub-rect, so its load
+      // action is dontCare; the rest of the texture is never sampled.
       // The low-res matte has a texel on both edges of the matte, so it
       // needs one more texel than width / scale in each direction.
       final matte = _mattes.next(
@@ -475,7 +473,6 @@ class FlutterGpuGeometryRenderer {
       materialScale: writeMaterials ? materialRasterScale.toDouble() : 1.0,
       materialMapWidth: writeMaterials ? materialMapWidth.toDouble() : 1.0,
       materialMapHeight: writeMaterials ? materialMapHeight.toDouble() : 1.0,
-      geometryAaHalfWidth: _geometryAaHalfWidth,
       numShapes: math.min(numShapes, maxShapesPerDraw).toDouble(),
       shapeData: shapeData,
       rseData: rseData,
@@ -904,24 +901,12 @@ class FlutterGpuGeometryRenderer {
 
   static int _bucketDimension(int value) => (value + 63) & ~63;
 
-  // Every pass gets its own command buffer. Flutter GPU (3.47.1) begins the
+  // Every pass gets its own command buffer: Flutter GPU (3.47.1) begins the
   // backend pass in `createRenderPass` and ends it only in `submit`, so a
-  // second pass on the same command buffer nests inside the first:
-  //
-  // - Vulkan (Pixel 10, PowerVR; also flutter_tester on SwiftShader):
-  //     Fatal signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0x60
-  //     #00 vulkan.powervr.so (CmdEndRenderPass2+188)
-  //     #04 libflutter.so (InternalFlutterGpu_CommandBuffer_Submit+56)
-  // - Metal (macOS, AGX G16X):
-  //     -[AGXG16XFamilyCommandBuffer renderCommandEncoderWithDescriptor:]:
-  //     failed assertion `A command encoder is already encoding to this
-  //     command buffer'
-  //       impeller::RenderPassMTL::RenderPassMTL
-  //       impeller::CommandBufferMTL::OnCreateRenderPass
-  //       flutter::gpu::RenderPass::Begin
-  //
-  // Share a command buffer across passes only once the engine ends a pass
-  // before the next begins.
+  // second pass on one command buffer nests inside the first. That segfaults
+  // in the PowerVR Vulkan driver and SwiftShader (CmdEndRenderPass2) and
+  // asserts on Metal ("A command encoder is already encoding"). Share one
+  // only once the engine ends a pass before the next begins.
   static final List<gpu.CommandBuffer> _pendingCommandBuffers = [];
   static bool _postFrameFlushScheduled = false;
 
@@ -1064,20 +1049,19 @@ class FlutterGpuGeometryRenderer {
     required double materialScale,
     required double materialMapWidth,
     required double materialMapHeight,
-    required double geometryAaHalfWidth,
     required double numShapes,
     required List<double> shapeData,
     required List<double> rseData,
     required List<double> rseLowerData,
     required List<double> appearanceData,
     required List<double> boundsData,
-    int matteScale = 0,
+    required int matteScale,
   }) {
     final floatData = _uniformData.buffer.asFloat32List();
 
     // Only the geometry pass has this uniform. It comes after the ones the
     // material passes share.
-    if (matteScale > 0) floatData[_offsetULowRes ~/ 4] = matteScale.toDouble();
+    floatData[_offsetULowRes ~/ 4] = matteScale.toDouble();
 
     final uOffsetIndex = _offsetUOffset ~/ 4;
     floatData[uOffsetIndex] = offsetX;
@@ -1091,9 +1075,7 @@ class FlutterGpuGeometryRenderer {
 
     final opticalPropsIndex = _offsetOpticalProps ~/ 4;
     floatData[opticalPropsIndex] = math.max(0, refractionHeight);
-    // uOpticalProps.y is the centered-AA half-width: 0.5 (Flutter's
-    // one-pixel transition) unless the harness overrides it.
-    floatData[opticalPropsIndex + 1] = geometryAaHalfWidth.clamp(0.0, 1.0);
+    floatData[opticalPropsIndex + 1] = _geometryAaHalfWidth;
     floatData[opticalPropsIndex + 2] = math.max(1, edgeDistanceRange);
 
     final contourPropsIndex = _offsetContourProps ~/ 4;
@@ -1328,7 +1310,6 @@ final class _TextureRing {
         FlutterGpuGeometryRenderer._countDropped();
       }
     }
-    // Reuse the oldest spare only after its frame-age guard has passed.
     if (_spares.isNotEmpty &&
         frame - _spares.first.retiredFrame >=
             FlutterGpuGeometryRenderer.reuseAfterFrames) {

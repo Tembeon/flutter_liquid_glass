@@ -19,12 +19,7 @@ class GlassFrameClock {
   }
 
   static void _ensureInstalled() {
-    final SchedulerBinding binding;
-    try {
-      binding = SchedulerBinding.instance;
-    } on Object {
-      return;
-    }
+    final binding = SchedulerBinding.instance;
     if (identical(binding, _installedOn)) return;
     _installedOn = binding;
     binding.addPersistentFrameCallback((_) => _frame++);

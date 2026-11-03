@@ -653,13 +653,9 @@ void main() {
     expect(layer.debugBackdropFilterLayer!.filter, same(initialFilter));
   });
 
-  test('native color matrix matches Rec.709 tint-then-saturation algebra', () {
-    const tint = Color.fromARGB(104, 220, 240, 255);
+  test('native color matrix matches Rec.709 saturation algebra', () {
     const saturation = 0.8;
-    final matrix = fakeGlassColorMatrix(
-      saturation: saturation,
-      tint: tint,
-    );
+    final matrix = fakeGlassColorMatrix(saturation: saturation);
     const background = (0.17, 0.53, 0.91);
 
     double channel(int row) =>
@@ -668,11 +664,7 @@ void main() {
         matrix[row * 5 + 2] * background.$3 +
         matrix[row * 5 + 4] / 255;
 
-    final mixed = (
-      background.$1 * (1 - tint.a) + tint.r * tint.a,
-      background.$2 * (1 - tint.a) + tint.g * tint.a,
-      background.$3 * (1 - tint.a) + tint.b * tint.a,
-    );
+    const mixed = background;
     final luminance = mixed.$1 * 0.2126 + mixed.$2 * 0.7152 + mixed.$3 * 0.0722;
     final expected = (
       luminance + (mixed.$1 - luminance) * saturation,
@@ -687,7 +679,6 @@ void main() {
   test('native color matrix approximates transmission gamma at midtones', () {
     final matrix = fakeGlassColorMatrix(
       saturation: 1,
-      tint: const Color(0x00000000),
       transmissionGamma: 0.9,
     );
 
@@ -746,11 +737,9 @@ void main() {
   test('native color matrix fades filtered backdrop premultiplied', () {
     final full = fakeGlassColorMatrix(
       saturation: 1,
-      tint: const Color(0x00000000),
     );
     final half = fakeGlassColorMatrix(
       saturation: 1,
-      tint: const Color(0x00000000),
       opacity: 0.5,
     );
 

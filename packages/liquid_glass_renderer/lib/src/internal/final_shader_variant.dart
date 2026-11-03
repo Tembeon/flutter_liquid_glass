@@ -46,7 +46,7 @@ enum FinalShaderModels {
 /// arithmetic and the slot loop's uniform reads. On a Mali-G78 that halves
 /// the registers of the one-appearance shader, which doubles its fragments
 /// in flight; the tint and analytic variants keep their occupancy and spill
-/// less. The general variants stay for mixed models and the material map.
+/// less. The general variants serve mixed models and the material map.
 ///
 /// Every variant can frost an unblurred copy of the backdrop itself, except
 /// the ones that fit in 32 registers only without that: a frosted twin of

@@ -21,30 +21,19 @@ double fakeGlassSurfaceOutset(LiquidGlassSettings settings) {
 
 const _noSuperellipse = <double>[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-/// WORKAROUND for an Impeller/Metal coverage bug on macOS, pending an
-/// upstream fix (repro project: `impeller_pixel_aligned_coverage`, kept
-/// outside this repo for the Flutter issue): a
-/// shader-filled draw whose quad edge lands on a half-integer device-pixel
-/// boundary renders its alpha ramp quantized to whole pixels near that
-/// edge — the analytic silhouette stair-steps. Integer-aligned quad edges
-/// render smoothly.
+/// Expands [localQuad] outward to whole device pixels under [transform]
+/// (the draw's `canvas.getTransform()`); a transform that is not an
+/// axis-aligned scale and translate returns [localQuad] unchanged.
 ///
-/// The drawn rect only bounds where the shader runs — the shape is placed
-/// by `FlutterFragCoord`, so growing the quad changes nothing visible.
-/// Expanding each edge out to the nearest whole device pixel keeps the
-/// raster phase off the bad half-pixel grid at any position.
-///
-/// [transform] is the draw's local-to-device transform
-/// (`canvas.getTransform()`); only axis-aligned transforms are snapped —
-/// anything else passes through unchanged.
-///
-/// The snap is computed at paint time. Compositor-only motion (a retained
-/// `OffsetLayer` moving this subtree without a repaint) can land the baked
-/// quad back on the bad phase; such moves are transient and the surface
-/// realigns on the next repaint.
+/// Works around an Impeller/Metal coverage bug on macOS: a shader-filled draw
+/// whose quad edge lands on a half-integer device pixel quantizes its alpha
+/// ramp to whole pixels near that edge, so the analytic silhouette
+/// stair-steps. The shader places the shape by `FlutterFragCoord`, so a
+/// larger quad changes nothing visible. The snap is taken at paint;
+/// compositor-only motion of a retained layer can move the quad back onto a
+/// half pixel until the next repaint.
 Rect fakeGlassSurfaceQuad(Rect localQuad, Float64List transform) {
   final s = transform;
-  // Anything but an axis-aligned scale+translate: nothing sane to snap.
   if (s[1] != 0 ||
       s[2] != 0 ||
       s[3] != 0 ||
@@ -57,7 +46,7 @@ Rect fakeGlassSurfaceQuad(Rect localQuad, Float64List transform) {
       s[5] == 0) {
     return localQuad;
   }
-  double axis(
+  (double, double) axis(
     double localMin,
     double localMax,
     double scale,
@@ -65,26 +54,15 @@ Rect fakeGlassSurfaceQuad(Rect localQuad, Float64List transform) {
   ) {
     final a = scale * localMin + shift;
     final b = scale * localMax + shift;
-    return (math.min(a, b).floor() - shift) / scale;
+    return (
+      (math.min(a, b).floor() - shift) / scale,
+      (math.max(a, b).ceil() - shift) / scale,
+    );
   }
 
-  double axisMax(
-    double localMin,
-    double localMax,
-    double scale,
-    double shift,
-  ) {
-    final a = scale * localMin + shift;
-    final b = scale * localMax + shift;
-    return (math.max(a, b).ceil() - shift) / scale;
-  }
-
-  return Rect.fromLTRB(
-    axis(localQuad.left, localQuad.right, s[0], s[12]),
-    axis(localQuad.top, localQuad.bottom, s[5], s[13]),
-    axisMax(localQuad.left, localQuad.right, s[0], s[12]),
-    axisMax(localQuad.top, localQuad.bottom, s[5], s[13]),
-  );
+  final (left, right) = axis(localQuad.left, localQuad.right, s[0], s[12]);
+  final (top, bottom) = axis(localQuad.top, localQuad.bottom, s[5], s[13]);
+  return Rect.fromLTRB(left, top, right, bottom);
 }
 
 /// Paints one analytic FakeGlass surface with the same logical-pixel setting

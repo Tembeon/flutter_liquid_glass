@@ -1,15 +1,12 @@
 import 'dart:ui' as ui;
 
+import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_field.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_support.dart';
 import 'package:meta/meta.dart';
 
-/// Web stand-in for the Flutter GPU geometry renderer.
-///
-/// Every entry point that would submit GPU work throws: the web has no
-/// `flutter_gpu`, and real glass is not selected there because
-/// `ImageFilter.isShaderFilterSupported` is false. Keeping the class shape
-/// identical lets the render objects compile unchanged.
+/// Web stand-in for the Flutter GPU geometry renderer: the web has no
+/// `flutter_gpu`, and every entry point that would submit GPU work throws.
 @internal
 class FlutterGpuGeometryRenderer {
   FlutterGpuGeometryRenderer._();
@@ -48,9 +45,14 @@ class FlutterGpuGeometryRenderer {
   Object? get debugMatteTexture => null;
   (int, int)? get debugMatteTextureSize => null;
 
-  /// Material map texels per matte pixel; shared constant with the native
-  /// renderer so uniform math stays identical.
-  static const int materialRasterScale = 8;
+  /// Material map texels per matte pixel along each side.
+  static const int materialRasterScale = geometryMaterialRasterScale;
+
+  /// The most shapes one draw of the matte evaluates.
+  static const int maxShapesPerDraw = geometryMaxShapesPerDraw;
+
+  /// Nothing is drawn on the web, so nothing is left out.
+  int get droppedShapes => 0;
 
   int debugRenderCount = 0;
   int debugMatteDrawCount = 0;
@@ -61,7 +63,6 @@ class FlutterGpuGeometryRenderer {
   bool get debugDisposed => true;
   ui.Image? get materialImage => null;
 
-  // ignore: avoid_unused_constructor_parameters
   ({
     ui.Image image,
     int width,
