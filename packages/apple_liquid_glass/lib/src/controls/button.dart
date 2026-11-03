@@ -100,7 +100,8 @@ class RawGlassButton extends StatefulWidget {
   State<RawGlassButton> createState() => _RawGlassButtonState();
 }
 
-class _RawGlassButtonState extends State<RawGlassButton> {
+class _RawGlassButtonState extends State<RawGlassButton>
+    with ControlStates<RawGlassButton> {
   late final _ButtonBody _body = _ButtonBody(widget.shape);
   late final List<Interaction> _interactions = [
     PressInteraction(
@@ -108,50 +109,35 @@ class _RawGlassButtonState extends State<RawGlassButton> {
       onTap: () => widget.onPressed?.call(),
     ).simultaneously(_FlexInput(_body)),
   ];
-  WidgetStatesController? _ownStates;
 
-  WidgetStatesController get _states =>
-      widget.statesController ?? (_ownStates ??= WidgetStatesController());
+  @override
+  WidgetStatesController? get givenStates => widget.statesController;
 
   @override
   void initState() {
     super.initState();
-    _writeStates();
-    _states.addListener(_statesChanged);
     MotionClock.instance.addDriver(_body);
   }
 
   @override
   void didUpdateWidget(RawGlassButton oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final states = oldWidget.statesController ?? _ownStates;
-    if (!identical(states, _states)) {
-      states?.removeListener(_statesChanged);
-      _states.addListener(_statesChanged);
-    }
-    _writeStates();
     _body.shape = widget.shape;
   }
 
   @override
   void dispose() {
-    _states.removeListener(_statesChanged);
-    _ownStates?.dispose();
     MotionClock.instance.removeDriver(_body);
     _body.dispose();
     super.dispose();
   }
 
-  // The region writes disabled too, and ends a press when disabled;
-  // writing both first makes its writes no-ops, so it never asks this
-  // ancestor to rebuild while it builds.
-  void _writeStates() {
+  @override
+  void writeStates() {
     final disabled = widget.onPressed == null;
-    _states.update(WidgetState.disabled, disabled);
-    if (disabled) _states.update(WidgetState.pressed, false);
+    widgetStates.update(WidgetState.disabled, disabled);
+    if (disabled) widgetStates.update(WidgetState.pressed, false);
   }
-
-  void _statesChanged() => setState(() {});
 
   @override
   Widget build(BuildContext context) {
@@ -161,7 +147,7 @@ class _RawGlassButtonState extends State<RawGlassButton> {
       child: InputRegion(
         interactions: _interactions,
         enabled: widget.onPressed != null,
-        statesController: _states,
+        statesController: widgetStates,
         focusNode: widget.focusNode,
         autofocus: widget.autofocus,
         semanticLabel: widget.semanticLabel,
@@ -169,7 +155,7 @@ class _RawGlassButtonState extends State<RawGlassButton> {
           context,
           GlassButtonDetails(
             body: _body,
-            states: {..._states.value},
+            states: {...widgetStates.value},
             label: widget.child,
           ),
         ),

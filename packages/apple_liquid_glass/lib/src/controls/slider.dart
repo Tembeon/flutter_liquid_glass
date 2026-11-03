@@ -151,7 +151,8 @@ class RawGlassSlider extends StatefulWidget {
   State<RawGlassSlider> createState() => _RawGlassSliderState();
 }
 
-class _RawGlassSliderState extends State<RawGlassSlider> {
+class _RawGlassSliderState extends State<RawGlassSlider>
+    with ControlStates<RawGlassSlider> {
   late final _SliderBody _body = _SliderBody(
     _deliver,
     value: _unit(widget.value),
@@ -163,7 +164,6 @@ class _RawGlassSliderState extends State<RawGlassSlider> {
     end: _endUnlessGliding,
   );
   late final List<Interaction> _interactions = [_input];
-  WidgetStatesController? _ownStates;
   Widget? _visual;
   Object? _visualKey;
   Set<WidgetState>? _visualStates;
@@ -171,26 +171,18 @@ class _RawGlassSliderState extends State<RawGlassSlider> {
   double? _reported;
   bool _changing = false;
 
-  WidgetStatesController get _states =>
-      widget.statesController ?? (_ownStates ??= WidgetStatesController());
+  @override
+  WidgetStatesController? get givenStates => widget.statesController;
 
   @override
   void initState() {
     super.initState();
-    _writeStates();
-    _states.addListener(_statesChanged);
     MotionClock.instance.addDriver(_body);
   }
 
   @override
   void didUpdateWidget(RawGlassSlider oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final states = oldWidget.statesController ?? _ownStates;
-    if (!identical(states, _states)) {
-      states?.removeListener(_statesChanged);
-      _states.addListener(_statesChanged);
-    }
-    _writeStates();
     _body.ticks = widget.ticks;
     if (oldWidget.min != widget.min || oldWidget.max != widget.max) {
       _reported = null;
@@ -203,19 +195,14 @@ class _RawGlassSliderState extends State<RawGlassSlider> {
 
   @override
   void dispose() {
-    _states.removeListener(_statesChanged);
-    _ownStates?.dispose();
     MotionClock.instance.removeDriver(_body);
     _body.dispose();
     super.dispose();
   }
 
-  // The region writes disabled too; writing it first makes its write a
-  // no-op, so it never asks this ancestor to rebuild while it builds.
-  void _writeStates() =>
-      _states.update(WidgetState.disabled, widget.onChanged == null);
-
-  void _statesChanged() => setState(() {});
+  @override
+  void writeStates() =>
+      widgetStates.update(WidgetState.disabled, widget.onChanged == null);
 
   double _unit(double value) =>
       ((value - widget.min) / (widget.max - widget.min)).clamp(0.0, 1.0);
@@ -327,11 +314,11 @@ class _RawGlassSliderState extends State<RawGlassSlider> {
     final visual = _visual;
     if (visual != null &&
         key == _visualKey &&
-        setEquals(_visualStates, _states.value)) {
+        setEquals(_visualStates, widgetStates.value)) {
       return visual;
     }
     _visualKey = key;
-    final states = _visualStates = {..._states.value};
+    final states = _visualStates = {...widgetStates.value};
     return _visual = widget.builder(
       context,
       GlassSliderDetails(
@@ -372,7 +359,7 @@ class _RawGlassSliderState extends State<RawGlassSlider> {
         child: InputRegion(
           interactions: _interactions,
           enabled: enabled,
-          statesController: _states,
+          statesController: widgetStates,
           focusNode: widget.focusNode,
           autofocus: widget.autofocus,
           semanticLabel: widget.semanticLabel,

@@ -7,6 +7,7 @@ import 'package:apple_liquid_glass/src/motion/touch_glow.dart';
 import 'package:apple_liquid_glass/src/renderer/flat.dart';
 import 'package:apple_liquid_glass/src/renderer/lens_shrink.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
+import 'package:apple_liquid_glass/src/theme/style.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -195,7 +196,8 @@ class RawGlassSelector extends StatefulWidget {
   State<RawGlassSelector> createState() => _RawGlassSelectorState();
 }
 
-class _RawGlassSelectorState extends State<RawGlassSelector> {
+class _RawGlassSelectorState extends State<RawGlassSelector>
+    with ControlStates<RawGlassSelector> {
   late final _SelectorBody _body = _SelectorBody(
     _deliver,
     kind: widget.motion,
@@ -203,7 +205,6 @@ class _RawGlassSelectorState extends State<RawGlassSelector> {
   );
   late final _SelectorInput _input = _SelectorInput(this);
   late final List<Interaction> _interactions = [_input];
-  WidgetStatesController? _ownStates;
   bool _reconcilePending = false;
   bool _rtl = false;
   // The items under a touch and under the mouse: changing them builds the
@@ -217,8 +218,8 @@ class _RawGlassSelectorState extends State<RawGlassSelector> {
   int? _downSlot;
   int? _downSelected;
 
-  WidgetStatesController get _states =>
-      widget.statesController ?? (_ownStates ??= WidgetStatesController());
+  @override
+  WidgetStatesController? get givenStates => widget.statesController;
 
   bool get _enabled => widget.onChanged != null || widget.onReselected != null;
 
@@ -240,20 +241,12 @@ class _RawGlassSelectorState extends State<RawGlassSelector> {
   void initState() {
     super.initState();
     _body.isSelectable = _selectable;
-    _writeStates();
-    _states.addListener(_statesChanged);
     MotionClock.instance.addDriver(_body);
   }
 
   @override
   void didUpdateWidget(RawGlassSelector oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final states = oldWidget.statesController ?? _ownStates;
-    if (!identical(states, _states)) {
-      states?.removeListener(_statesChanged);
-      _states.addListener(_statesChanged);
-    }
-    _writeStates();
     _body.kind = widget.motion;
     _sync(oldWidget.selectedIndex == null);
     final pressed = _pointing.value.pressed;
@@ -264,8 +257,6 @@ class _RawGlassSelectorState extends State<RawGlassSelector> {
 
   @override
   void dispose() {
-    _states.removeListener(_statesChanged);
-    _ownStates?.dispose();
     _pointing.dispose();
     _lensShrink.dispose();
     MotionClock.instance.removeDriver(_body);
@@ -273,19 +264,15 @@ class _RawGlassSelectorState extends State<RawGlassSelector> {
     super.dispose();
   }
 
-  // The region writes disabled too, and ends a touch when disabled;
-  // writing both first makes its writes no-ops, so it never asks this
-  // ancestor to rebuild while it builds.
-  void _writeStates() {
+  @override
+  void writeStates() {
     final disabled = !_enabled;
-    _states.update(WidgetState.disabled, disabled);
+    widgetStates.update(WidgetState.disabled, disabled);
     if (disabled) {
-      _states.update(WidgetState.pressed, false);
-      _states.update(WidgetState.dragged, false);
+      widgetStates.update(WidgetState.pressed, false);
+      widgetStates.update(WidgetState.dragged, false);
     }
   }
-
-  void _statesChanged() => setState(() {});
 
   void _sync(bool wasNone) {
     final selected = _selected;
@@ -470,7 +457,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector> {
     if (!_selectable(index)) WidgetState.disabled,
     if (_pointing.value.pressed == index) WidgetState.pressed,
     if (_pointing.value.hovered == index) WidgetState.hovered,
-    if (selected && _states.value.contains(WidgetState.focused))
+    if (selected && widgetStates.value.contains(WidgetState.focused))
       WidgetState.focused,
   };
 
@@ -549,7 +536,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector> {
         lens: _body.lens,
         items: (lens) => _items(context, lens),
         selectedIndex: _selected,
-        states: {..._states.value},
+        states: {...widgetStates.value},
       ),
     );
     return CallbackShortcuts(
@@ -565,7 +552,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector> {
         child: InputRegion(
           interactions: _interactions,
           enabled: _enabled && widget.itemCount > 0,
-          statesController: _states,
+          statesController: widgetStates,
           focusNode: widget.focusNode,
           autofocus: widget.autofocus,
           semanticLabel: widget.semanticLabel,

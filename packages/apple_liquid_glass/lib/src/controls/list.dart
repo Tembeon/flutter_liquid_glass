@@ -434,7 +434,8 @@ class GlassListRow extends StatefulWidget {
   State<GlassListRow> createState() => _GlassListRowState();
 }
 
-class _GlassListRowState extends State<GlassListRow> {
+class _GlassListRowState extends State<GlassListRow>
+    with ControlStates<GlassListRow> {
   late final _RowBody _body = _RowBody();
   final _textStart = ValueNotifier<double>(_Metrics.contentInset);
   late final List<Interaction> _interactions = [
@@ -443,52 +444,37 @@ class _GlassListRowState extends State<GlassListRow> {
       onTap: () => widget.onPressed?.call(),
     ).simultaneously(_HighlightInput(_body)),
   ];
-  WidgetStatesController? _ownStates;
 
-  WidgetStatesController get _states =>
-      widget.statesController ?? (_ownStates ??= WidgetStatesController());
+  @override
+  WidgetStatesController? get givenStates => widget.statesController;
 
   bool get _active => widget.onPressed != null && widget.enabled;
 
   @override
   void initState() {
     super.initState();
-    _writeStates();
-    _states.addListener(_statesChanged);
     MotionClock.instance.addDriver(_body);
   }
 
   @override
   void didUpdateWidget(GlassListRow oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final states = oldWidget.statesController ?? _ownStates;
-    if (!identical(states, _states)) {
-      states?.removeListener(_statesChanged);
-      _states.addListener(_statesChanged);
-    }
-    _writeStates();
     if (!_active) _body.cancel();
   }
 
   @override
   void dispose() {
-    _states.removeListener(_statesChanged);
-    _ownStates?.dispose();
     MotionClock.instance.removeDriver(_body);
     _body.dispose();
     _textStart.dispose();
     super.dispose();
   }
 
-  // The region writes disabled too, and ends a press when disabled;
-  // writing both first makes its writes no-ops, so it never asks this
-  // ancestor to rebuild while it builds.
-  void _writeStates() {
-    _states.update(WidgetState.disabled, !_active);
-    if (!_active) _states.update(WidgetState.pressed, false);
+  @override
+  void writeStates() {
+    widgetStates.update(WidgetState.disabled, !_active);
+    if (!_active) widgetStates.update(WidgetState.pressed, false);
   }
-
-  void _statesChanged() => setState(() {});
 
   @override
   Widget build(BuildContext context) {
@@ -496,7 +482,7 @@ class _GlassListRowState extends State<GlassListRow> {
     final look = (widget.style ?? const GlassListStyle()).merge(
       place?.look ?? _sectionLook(context, null),
     );
-    final states = _states.value;
+    final states = widgetStates.value;
     Color color(WidgetStateProperty<Color?>? property) =>
         _resolve(property, states, context);
     final secondary = color(look.secondaryColor);
@@ -635,7 +621,7 @@ class _GlassListRowState extends State<GlassListRow> {
           : InputRegion(
               interactions: _interactions,
               enabled: _active,
-              statesController: _states,
+              statesController: widgetStates,
               focusNode: widget.focusNode,
               autofocus: widget.autofocus,
               child: surface,

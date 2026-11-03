@@ -128,53 +128,24 @@ class RawGlassStepper extends StatefulWidget {
   State<RawGlassStepper> createState() => _RawGlassStepperState();
 }
 
-class _RawGlassStepperState extends State<RawGlassStepper> {
+class _RawGlassStepperState extends State<RawGlassStepper>
+    with ControlStates<RawGlassStepper> {
   late final _StepperInput _input = _StepperInput(
     onPressed: (half) => setState(() => _pressed = half),
     onStep: _stepBy,
   );
   late final List<Interaction> _interactions = [_input];
-  WidgetStatesController? _ownStates;
   GlassStepperHalf? _pressed;
 
-  WidgetStatesController get _states =>
-      widget.statesController ?? (_ownStates ??= WidgetStatesController());
+  @override
+  WidgetStatesController? get givenStates => widget.statesController;
 
   @override
-  void initState() {
-    super.initState();
-    _writeStates();
-    _states.addListener(_statesChanged);
-  }
-
-  @override
-  void didUpdateWidget(RawGlassStepper oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final states = oldWidget.statesController ?? _ownStates;
-    if (!identical(states, _states)) {
-      states?.removeListener(_statesChanged);
-      _states.addListener(_statesChanged);
-    }
-    _writeStates();
-  }
-
-  @override
-  void dispose() {
-    _states.removeListener(_statesChanged);
-    _ownStates?.dispose();
-    super.dispose();
-  }
-
-  // The region writes disabled too, and ends a press when disabled;
-  // writing both first makes its writes no-ops, so it never asks this
-  // ancestor to rebuild while it builds.
-  void _writeStates() {
+  void writeStates() {
     final disabled = widget.onChanged == null;
-    _states.update(WidgetState.disabled, disabled);
-    if (disabled) _states.update(WidgetState.pressed, false);
+    widgetStates.update(WidgetState.disabled, disabled);
+    if (disabled) widgetStates.update(WidgetState.pressed, false);
   }
-
-  void _statesChanged() => setState(() {});
 
   double get _minimum => widget.min.isFinite ? widget.min : 0;
 
@@ -235,7 +206,7 @@ class _RawGlassStepperState extends State<RawGlassStepper> {
       child: InputRegion(
         interactions: _interactions,
         enabled: enabled,
-        statesController: _states,
+        statesController: widgetStates,
         focusNode: widget.focusNode,
         autofocus: widget.autofocus,
         child: SizedBox.fromSize(
@@ -250,7 +221,7 @@ class _RawGlassStepperState extends State<RawGlassStepper> {
                       pressed: _pressed,
                       canDecrement: _canStep(GlassStepperHalf.decrement),
                       canIncrement: _canStep(GlassStepperHalf.increment),
-                      states: {..._states.value},
+                      states: {...widgetStates.value},
                     ),
                   ),
                 ),

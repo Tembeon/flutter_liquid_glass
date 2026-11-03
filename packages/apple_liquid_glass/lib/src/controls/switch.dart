@@ -95,58 +95,44 @@ class RawGlassSwitch extends StatefulWidget {
   State<RawGlassSwitch> createState() => _RawGlassSwitchState();
 }
 
-class _RawGlassSwitchState extends State<RawGlassSwitch> {
+class _RawGlassSwitchState extends State<RawGlassSwitch>
+    with ControlStates<RawGlassSwitch> {
   late final _SwitchBody _body = _SwitchBody(_deliver, value: widget.value);
   late final _SwitchInput _input = _SwitchInput(
     body: _body,
     toggle: () => widget.onChanged?.call(!widget.value),
   );
   late final List<Interaction> _interactions = [_input];
-  WidgetStatesController? _ownStates;
 
-  WidgetStatesController get _states =>
-      widget.statesController ?? (_ownStates ??= WidgetStatesController());
+  @override
+  WidgetStatesController? get givenStates => widget.statesController;
 
   @override
   void initState() {
     super.initState();
-    _writeStates();
-    _states.addListener(_statesChanged);
     MotionClock.instance.addDriver(_body);
   }
 
   @override
   void didUpdateWidget(RawGlassSwitch oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final states = oldWidget.statesController ?? _ownStates;
-    if (!identical(states, _states)) {
-      states?.removeListener(_statesChanged);
-      _states.addListener(_statesChanged);
-    }
-    _writeStates();
     _body.setValue(value: widget.value);
   }
 
   @override
   void dispose() {
-    _states.removeListener(_statesChanged);
-    _ownStates?.dispose();
     MotionClock.instance.removeDriver(_body);
     _body.dispose();
     super.dispose();
   }
 
-  // The region writes disabled too, and ends a press when disabled;
-  // writing both first makes its writes no-ops, so it never asks this
-  // ancestor to rebuild while it builds.
-  void _writeStates() {
+  @override
+  void writeStates() {
     final disabled = widget.onChanged == null;
-    _states.update(WidgetState.disabled, disabled);
-    if (disabled) _states.update(WidgetState.pressed, false);
-    _states.update(WidgetState.selected, widget.value);
+    widgetStates.update(WidgetState.disabled, disabled);
+    if (disabled) widgetStates.update(WidgetState.pressed, false);
+    widgetStates.update(WidgetState.selected, widget.value);
   }
-
-  void _statesChanged() => setState(() {});
 
   void _deliver(SwitchEvent event) {
     switch (event) {
@@ -173,7 +159,7 @@ class _RawGlassSwitchState extends State<RawGlassSwitch> {
         child: InputRegion(
           interactions: _interactions,
           enabled: widget.onChanged != null,
-          statesController: _states,
+          statesController: widgetStates,
           focusNode: widget.focusNode,
           autofocus: widget.autofocus,
           semanticLabel: widget.semanticLabel,
@@ -184,7 +170,7 @@ class _RawGlassSwitchState extends State<RawGlassSwitch> {
               GlassSwitchDetails(
                 thumb: _body.thumb,
                 progress: _body.progress,
-                states: {..._states.value},
+                states: {...widgetStates.value},
               ),
             ),
           ),
