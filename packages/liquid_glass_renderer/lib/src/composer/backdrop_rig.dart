@@ -92,6 +92,26 @@ FilteredCopyAsk? requestFilteredCopy(
   );
 }
 
+/// Adds [filter] composited with [blendMode] as a backdrop filter inside
+/// [clip] and [outline], in the caller's coordinates: glass a copy drawn
+/// with its own holds (see [UnderlayFold]). A shader filter takes its
+/// shader's uniforms now.
+@internal
+void addFoldedFilter(
+  ui.SceneBuilder builder,
+  Rect clip,
+  ui.ImageFilter filter, {
+  BlendMode blendMode = BlendMode.srcOver,
+  Path? outline,
+}) {
+  builder.pushClipRect(clip, clipBehavior: Clip.hardEdge);
+  if (outline != null) builder.pushClipPath(outline);
+  builder.pushBackdropFilter(filter, blendMode: blendMode);
+  builder.pop();
+  if (outline != null) builder.pop();
+  builder.pop();
+}
+
 /// A filtered [copy] drawn into coordinates that [origin] shifts to the
 /// screen's: the part [shown], in screen coordinates, cut to [outline], in
 /// the drawn coordinates, when there is one.
@@ -255,12 +275,13 @@ class BackdropRig {
     Rect bounds, {
     required Object Function() keyOf,
     required ui.Picture Function() record,
+    required UnderlayFold fold,
   }) {
     if (!copy.ready) {
       final picture = UnderlayPictureLayer(bounds, copy, () {
         _servedKey = keyOf();
         return record();
-      });
+      }, fold);
       _served.layer = picture;
       _servedKey = null;
       return picture;
@@ -514,6 +535,12 @@ class BackdropRig {
       read.clip,
       keyOf: () => (copy.image, copy.offset, shown, origin, outline),
       record: () => recordFilteredCopy(copy, shown, origin, outline: outline),
+      fold: (builder, _, _) => addFoldedFilter(
+        builder,
+        shown.shift(-origin),
+        read.filter,
+        outline: outline,
+      ),
     );
   }
 

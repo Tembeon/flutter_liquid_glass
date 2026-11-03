@@ -129,10 +129,21 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   Object _keyOf(UnderlayCopy copy) =>
       (copy.image, copy.offset, _shown, _origin);
 
-  /// The level of the copy in the frame's drawing order while it is not
-  /// drawn, or null.
+  /// Whether the copy this frame filters is drawn with the frame's copies,
+  /// not yet drawn.
   @internal
-  int? get pendingLevel => _copy?.pendingLevel;
+  bool get pending => _copy?.pending ?? false;
+
+  /// Adds the filter to a copy drawn with the frame's copies that holds this
+  /// layer while its own copy is not drawn yet (see [UnderlayFold]).
+  @internal
+  void addFold(ui.SceneBuilder builder, Rect rect, Offset offset) =>
+      addFoldedFilter(
+        builder,
+        _shown.shift(-_origin),
+        _filter,
+        blendMode: _blendMode,
+      );
 
   /// The copy this layer filters.
   @visibleForTesting

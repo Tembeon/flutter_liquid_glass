@@ -94,10 +94,11 @@ class BackdropUnderlay {
   @visibleForTesting
   static final debugFlushes = <String, int>{};
 
-  /// How many images the copies of all glass were drawn into, by the level
-  /// of the copies in the frame's drawing order.
+  /// How many glass over copies not drawn yet were drawn into other copies
+  /// of their frame, as the glass's filter over what those copies hold
+  /// before it.
   @visibleForTesting
-  static final debugImagesByLevel = <int, int>{};
+  static int debugFolds = 0;
 
   /// How many images the copies of all glass were drawn into.
   @visibleForTesting
@@ -120,6 +121,11 @@ class BackdropUnderlay {
   /// The image that holds the copy, once it is drawn.
   @visibleForTesting
   ui.Image? get debugImage => _image;
+
+  /// The screen rect [debugImage] holds for this copy, in logical pixels,
+  /// and where its top left lies in the image, in its pixels.
+  @visibleForTesting
+  (Rect, Offset) get debugPlace => (_rect, _offset);
 
   /// Asks for this frame's copy of the screen around [region], exact for
   /// everything inside it; [serve] hands it over.
@@ -320,13 +326,17 @@ class BackdropUnderlay {
       }
       return null;
     }
-    if (!alone && signed.waits >= 0) return null;
-    final island = _Island(ask, rect);
-    final tile = _Tile(island, level: signed.waits + 1);
+    // A copy that holds glass over a copy not drawn yet draws that glass as
+    // its filter, which takes the copy's pixels to be the screen's.
+    final island = _Island(
+      ask,
+      rect,
+      pixelRatio: signed.folds ? ask.devicePixelRatio : ask.pixelRatio,
+    );
+    final tile = _Tile(island);
     island.tile = tile;
     // Recorded when the frame's copies are drawn, not now: glass in the band
-    // whose own copy is still pending is drawn at a lower level first, so its
-    // picture exists by then.
+    // whose own copy is drawn with it is drawn by then as far as it can be.
     tile.redraw = () {
       final replay = _Prefix(
         ask.anchor,
@@ -336,8 +346,9 @@ class BackdropUnderlay {
         limit: limit,
         bodies: [...island.bodies.nonNulls],
       );
-      final picture = replay.record(ask.pixelRatio);
+      final picture = replay.record(island.pixelRatio);
       if (picture != null && !island.broken) island.signature = replay.out;
+      tile.pieces = replay.pieces;
       return picture;
     };
     first._join(island, rects.first, ask);
@@ -349,7 +360,7 @@ class BackdropUnderlay {
       atlas.flush('at once');
     }
     return (
-      copy: UnderlayCopy._(first, first._rect, ask.pixelRatio),
+      copy: UnderlayCopy._(first, first._rect, island.pixelRatio),
       island: island,
       held: false,
       rects: rects,
@@ -649,7 +660,11 @@ final class _Plan {
     if (!decision.held) {
       underlay._join(decision.island, decision.rects[index], ask);
     }
-    return UnderlayCopy._(underlay, underlay._rect, ask.pixelRatio);
+    return UnderlayCopy._(
+      underlay,
+      underlay._rect,
+      decision.island.pixelRatio,
+    );
   }
 }
 
@@ -657,14 +672,13 @@ final class _Plan {
 // recorded over, from what is painted before the first one's glass, and its
 // signature; and each copy's rect of it.
 final class _Island {
-  _Island(_Ask ask, this.rect)
+  _Island(_Ask ask, this.rect, {required this.pixelRatio})
     : filter = ask.filter,
       blur = ask.blur,
       filterKey = ask.filterKey,
       filterClip = ask.filterClip,
       filterBlendMode = ask.filterBlendMode,
-      devicePixelRatio = ask.devicePixelRatio,
-      pixelRatio = ask.pixelRatio;
+      devicePixelRatio = ask.devicePixelRatio;
 
   final Rect rect;
   final ui.ImageFilter? filter;
@@ -748,11 +762,15 @@ class _Prefix {
   double get devicePixelRatio => scan.devicePixelRatio;
   // The bodies of the glass the copy is for, if it is for glass.
   final List<Rect> bodies;
-  final ui.PictureRecorder? recorder;
-  // Without one, glass over a copy that is not drawn yet is left out and
-  // noted in [waits]; with one, its copy is drawn now.
-  final Canvas? canvas;
+  // Without one, the walk only signs what it meets.
+  ui.PictureRecorder? recorder;
+  Canvas? canvas;
   final out = <Object?>[];
+  double _pixels = 1;
+
+  // What the copy draws before each glass over a copy not drawn yet, and
+  // that glass, which reads it: the copy goes on in a picture after it.
+  final pieces = <(ui.Picture, _Fold)>[];
 
   // The pass's scan this walk replays, and where [stop] lies in it, or -1
   // when the scan cannot reach it.
@@ -763,9 +781,8 @@ class _Prefix {
   bool blocked = false;
   Layer? blocker;
 
-  // The highest level of the copies not drawn yet that the band holds glass
-  // over, or -1.
-  int waits = -1;
+  // Whether the band holds glass over a copy not drawn yet.
+  bool folds = false;
 
   static Set<Layer> _ancestors(Layer layer) {
     final path = Set<Layer>.identity();
@@ -779,24 +796,53 @@ class _Prefix {
   // at [pixels] per logical pixel from the band's origin, or returns null
   // when that cannot be drawn again.
   ui.Picture? record(double pixels) {
+    _pixels = pixels;
+    _begin();
+    run();
+    final content = recorder!.endRecording();
+    if (blocked || !reached) {
+      content.dispose();
+      for (final (picture, _) in pieces) {
+        picture.dispose();
+      }
+      pieces.clear();
+      return null;
+    }
+    return content;
+  }
+
+  void _begin() {
     final rect = band;
     final dpr = devicePixelRatio;
     final c = canvas!;
     // A picture drawn into a canvas clipped to the copy is culled to what
     // reaches it while it is recorded.
     c.clipRect(
-      Rect.fromLTWH(0, 0, rect.width * pixels, rect.height * pixels),
+      Rect.fromLTWH(0, 0, rect.width * _pixels, rect.height * _pixels),
       doAntiAlias: false,
     );
-    if (pixels != dpr) c.scale(pixels / dpr);
+    if (_pixels != dpr) c.scale(_pixels / dpr);
     c.translate(-rect.left * dpr, -rect.top * dpr);
-    run();
-    final content = recorder!.endRecording();
-    if (blocked || !reached) {
-      content.dispose();
-      return null;
+  }
+
+  // Ends the picture before [fold] and begins the next one inside the
+  // groups [open] around it.
+  void fold(_Fold fold, List<(int, _Open)> open) {
+    folds = true;
+    final c = canvas;
+    if (c == null) return;
+    for (final (saves, group) in open.reversed) {
+      group.finish(c, saves);
     }
-    return content;
+    pieces.add((recorder!.endRecording(), fold));
+    final next = ui.PictureRecorder();
+    recorder = next;
+    canvas = Canvas(next);
+    _begin();
+    for (var k = 0; k < open.length; k++) {
+      final group = open[k].$2;
+      open[k] = (group.apply(canvas!), group);
+    }
   }
 
   // Draws what is painted before [stop] in [band] from the pass's scan. A
@@ -1040,7 +1086,7 @@ final class _Scan {
       if (behavior != Clip.antiAliasWithSaveLayer) return 1;
       c.saveLayer(bounds, Paint());
       return 2;
-    });
+    }, layered: behavior == Clip.antiAliasWithSaveLayer);
 
     switch (layer) {
       case UnderlayPictureLayer():
@@ -1123,7 +1169,7 @@ final class _Scan {
             if (alpha == 255) return 1;
             c.saveLayer(null, _Prefix._alpha(alpha));
             return 2;
-          }),
+          }, layered: alpha != 255),
           next: shifted(offset),
           nextState: [...state, alpha],
         );
@@ -1135,7 +1181,7 @@ final class _Scan {
             c.translate(offset.dx, offset.dy);
             c.saveLayer(null, _Prefix._filtering(imageFilter));
             return 2;
-          }),
+          }, layered: true),
           next: shifted(offset),
           keepClip: false,
           nextState: [...state, imageFilter],
@@ -1161,7 +1207,7 @@ final class _Scan {
             paint.colorFilter = colorFilter;
             c.saveLayer(null, paint);
             return 1;
-          }),
+          }, layered: true),
           nextState: [...state, colorFilter],
         );
       case ShaderMaskLayer(
@@ -1171,10 +1217,14 @@ final class _Scan {
       ):
         // A FragmentShader keeps its identity while its uniforms change.
         final token = shader is ui.FragmentShader ? Object() : shader;
-        final open = _Open((c) {
-          c.saveLayer(null, Paint());
-          return 1;
-        }, mask: (shader, maskRect, blendMode));
+        final open = _Open(
+          (c) {
+            c.saveLayer(null, Paint());
+            return 1;
+          },
+          mask: (shader, maskRect, blendMode),
+          layered: true,
+        );
         open.extra = reaching(maskRect);
         push(
           layer,
@@ -1337,7 +1387,7 @@ final class _Scan {
               saves++;
             }
             return saves;
-          }),
+          }, layered: alpha != null || blur > 0),
           next: next,
           keepClip: false,
           nextClip: nextClip,
@@ -1409,7 +1459,7 @@ final class _Scan {
   // canvas, if it has one, and signs them.
   void replay(_Prefix prefix, int limit) {
     final band = prefix.band;
-    final c = prefix.canvas;
+    final drawing = prefix.canvas != null;
     final out = prefix.out;
     final open = <(int, _Open)>[];
     var i = 0;
@@ -1426,7 +1476,22 @@ final class _Scan {
       out.add(clip);
       out.addAll(state);
       out.add(#leaf);
-      c?.drawPicture(picture);
+      prefix.canvas?.drawPicture(picture);
+    }
+
+    // Glass over a copy not drawn yet: the copy draws it as its filter over
+    // what the copy holds before it, which a group that draws its children
+    // in a layer of their own would not hold. A signature that holds it
+    // matches none.
+    bool fold(Layer layer, UnderlayFold add, Matrix4 transform, Rect? clip) {
+      out.add(Object());
+      if (open.any((group) => group.$2.layered)) {
+        prefix.blocked = true;
+        prefix.blocker ??= layer;
+        return false;
+      }
+      prefix.fold((add: add, transform: transform, clip: clip), open);
+      return true;
     }
 
     // Steps past a group, or ends the replay when the stop lies inside it.
@@ -1453,12 +1518,8 @@ final class _Scan {
         case _Glass(:final layer, :final transform, :final clip, :final state):
           if (_meets(entry.bounds, band)) {
             if (layer.picture == null) {
-              if (layer.pendingLevel case final level? when c == null) {
-                // Glass over a copy that is not drawn yet: a copy that holds
-                // it is drawn after it, and a signature that holds it
-                // matches none.
-                if (level > prefix.waits) prefix.waits = level;
-                out.add(Object());
+              if (layer.pending) {
+                if (!fold(layer, layer.fold, transform, clip)) break loop;
                 i++;
                 continue loop;
               }
@@ -1487,7 +1548,7 @@ final class _Scan {
           }
         case _Close():
           final (saves, group) = open.removeLast();
-          if (c != null) group.finish(c, saves);
+          if (prefix.canvas case final c?) group.finish(c, saves);
         case _Open():
           if (entry.end >= 0 &&
               entry.end < limit &&
@@ -1536,28 +1597,27 @@ final class _Scan {
                   _meets(entry.output, band) ? 'output' : 'margin',
                 );
               }
-              if (layer.pendingLevel case final level? when c == null) {
-                // An edge whose copy is not drawn yet: a copy that holds it
-                // is drawn after it, and a signature that holds it matches
-                // none.
-                if (level > prefix.waits) prefix.waits = level;
-                out.add(Object());
+              if (layer.pending) {
+                if (!fold(layer, layer.addFold, transform, clip)) break loop;
               } else {
                 sign(layer.servedPicture!, transform, clip, entry.state);
               }
-            case _Undrawable(:final layer) when c != null:
+            case _Undrawable(:final layer) when drawing:
               prefix.blocked = true;
               prefix.blocker ??= layer;
               break loop;
             default:
               break;
           }
-          open.add((c == null ? 0 : entry.apply(c), entry));
+          open.add((
+            prefix.canvas == null ? 0 : entry.apply(prefix.canvas!),
+            entry,
+          ));
       }
       i++;
     }
     prefix.reached = through && !prefix.blocked && i >= limit;
-    if (c != null) {
+    if (prefix.canvas case final c?) {
       for (final (saves, group) in open.reversed) {
         group.finish(c, saves);
       }
@@ -1603,6 +1663,21 @@ final class _Cursor {
 sealed class _Entry {
   const _Entry();
 }
+
+/// Adds glass to a scene as its live filter over what the scene draws
+/// before it, in the glass's own coordinates: the scene holds the copy of
+/// [rect] of the screen (logical pixels) at [offset], one pixel of it per
+/// device pixel of the screen.
+@internal
+typedef UnderlayFold = void Function(
+  ui.SceneBuilder builder,
+  Rect rect,
+  Offset offset,
+);
+
+// Glass a copy draws as its filter: [add] in [transform] from the glass's
+// coordinates to the screen's, inside [clip] of the screen.
+typedef _Fold = ({UnderlayFold add, Matrix4 transform, Rect? clip});
 
 final class _Leaf extends _Entry {
   _Leaf(
@@ -1661,14 +1736,16 @@ final class _Close extends _Entry {
 // many saves that takes, and the extent of what it draws once its children
 // are walked.
 class _Open extends _Entry {
-  _Open(this.apply, {this.mask});
+  _Open(this.apply, {this.mask, this.layered = false});
 
-  _Open.plain() : apply = _none, mask = null;
+  _Open.plain() : apply = _none, mask = null, layered = false;
 
   static int _none(Canvas c) => 0;
 
   final int Function(Canvas c) apply;
   final (Shader, Rect, BlendMode)? mask;
+  // Whether it draws its children in a layer of their own.
+  final bool layered;
   Rect extra = Rect.zero;
   Rect bounds = _everywhere;
   int end = -1;
@@ -1767,9 +1844,8 @@ final class UnderlayCopy {
   /// Whether [image] is drawn already.
   bool get ready => _underlay._image != null;
 
-  /// The level of the copy in the frame's drawing order while it is not
-  /// drawn, or null.
-  int? get pendingLevel => ready ? null : _underlay._island?.tile?.level;
+  /// Whether the copy is drawn with the frame's copies, not yet drawn.
+  bool get pending => !ready && _underlay._island?.tile != null;
 
   /// The image that holds the copy, shared with other copies of the frame.
   ui.Image get image {
@@ -1796,8 +1872,9 @@ class GlassPictureLayer extends PictureLayer {
 /// drawn together.
 @internal
 class UnderlayPictureLayer extends GlassPictureLayer {
-  /// A layer whose [record] records its picture once [copy] is drawn.
-  UnderlayPictureLayer(super.canvasBounds, this.copy, this.record);
+  /// A layer whose [record] records its picture once [copy] is drawn, and
+  /// that [fold] draws into the frame's other copies until then.
+  UnderlayPictureLayer(super.canvasBounds, this.copy, this.record, this.fold);
 
   /// The copy the picture is drawn over.
   final UnderlayCopy copy;
@@ -1805,8 +1882,11 @@ class UnderlayPictureLayer extends GlassPictureLayer {
   /// Records the picture.
   final ui.Picture Function() record;
 
-  /// The level of [copy] in the frame's drawing order while it is not drawn.
-  int? get pendingLevel => copy.pendingLevel;
+  /// Adds the glass to a copy drawn with [copy] that holds it.
+  final UnderlayFold fold;
+
+  /// Whether [copy] is drawn with the frame's copies, not yet drawn.
+  bool get pending => copy.pending;
 
   /// Records the picture now, if it is not yet.
   void resolve() {
@@ -1821,7 +1901,7 @@ class UnderlayPictureLayer extends GlassPictureLayer {
 }
 
 class _Tile {
-  _Tile(this.island, {required this.level})
+  _Tile(this.island)
     : width = (island.rect.width * island.pixelRatio).round(),
       height = (island.rect.height * island.pixelRatio).round();
 
@@ -1830,10 +1910,10 @@ class _Tile {
   // The atlas that draws it.
   _Atlas? atlas;
 
-  // Copies of one level are drawn together, after every lower level: a
-  // copy that holds glass over another copy is a level above it.
-  final int level;
   ui.Picture? content;
+  // What the copy draws before each glass it folds in, drawn under
+  // [content].
+  List<(ui.Picture, _Fold)> pieces = const [];
   ui.Picture? Function()? redraw;
   final int width;
   final int height;
@@ -1902,47 +1982,41 @@ final class _Atlas {
   }
 
   void cancel(_Tile tile) {
-    if (_pending.remove(tile)) tile.content?.dispose();
+    if (!_pending.remove(tile)) return;
+    tile.content?.dispose();
+    for (final (picture, _) in tile.pieces) {
+      picture.dispose();
+    }
   }
 
-  // Draws the pending copies, level by level; [why] names what asked, for
-  // diagnostics.
+  // Draws the pending copies; [why] names what asked, for diagnostics.
   void flush(String why) {
-    if (_flushing) return;
-    if (_pending.isNotEmpty) _count(BackdropUnderlay.debugFlushes, why);
+    if (_flushing || _pending.isEmpty) return;
+    _count(BackdropUnderlay.debugFlushes, why);
     _flushing = true;
     try {
-      while (_pending.isNotEmpty) {
-        var level = _pending.first.level;
-        for (final tile in _pending) {
-          if (tile.level < level) level = tile.level;
-        }
-        final batch = [
-          for (final tile in _pending)
-            if (tile.level == level) tile,
-        ];
-        _pending.removeWhere((tile) => tile.level == level);
-        for (final tile in batch) {
-          if (tile.content != null) continue;
-          final picture = tile.redraw?.call();
-          assert(picture != null, 'A copy recorded again is never blocked.');
-          tile.content = picture ?? ui.PictureRecorder().endRecording();
-        }
-        // Copies filtered in the layer of copies lie side by side, to share
-        // it.
-        final runs = <Object?, List<_Tile>>{};
-        for (final tile in batch) {
-          runs
-              .putIfAbsent(
-                !tile.filtered
-                    ? null
-                    : (tile.filterKey, tile.devicePixelRatio, tile.layered),
-                () => [],
-              )
-              .add(tile);
-        }
-        _pack(runs.values.toList());
+      final batch = [..._pending];
+      _pending.clear();
+      for (final tile in batch) {
+        if (tile.content != null) continue;
+        final picture = tile.redraw?.call();
+        assert(picture != null, 'A copy recorded again is never blocked.');
+        tile.content = picture ?? ui.PictureRecorder().endRecording();
       }
+      // Copies filtered in the layer of copies lie side by side, to share
+      // it.
+      final runs = <Object?, List<_Tile>>{};
+      for (final tile in batch) {
+        runs
+            .putIfAbsent(
+              !tile.filtered
+                  ? null
+                  : (tile.filterKey, tile.devicePixelRatio, tile.layered),
+              () => [],
+            )
+            .add(tile);
+      }
+      _pack(runs.values.toList());
     } finally {
       _flushing = false;
     }
@@ -1982,10 +2056,42 @@ final class _Atlas {
     }
   }
 
+  // From the screen's logical pixels to [tile]'s place in the image.
+  static Matrix4 _toAtlas(_Tile tile) {
+    final pixels = tile.devicePixelRatio;
+    final toAtlas = Matrix4.translationValues(
+      tile.offset.dx - tile.rect.left * pixels,
+      tile.offset.dy - tile.rect.top * pixels,
+      0,
+    );
+    toAtlas.scaleByDouble(pixels, pixels, 1, 1);
+    return toAtlas;
+  }
+
+  // Adds [tile]'s copy, each glass it folds in over what the copy draws
+  // before it. NEAR: the glass's filter reads past the copy's edge what lies
+  // beside it in the image, as a copy's blur does.
+  static void _add(ui.SceneBuilder b, _Tile tile) {
+    for (final (picture, fold) in tile.pieces) {
+      b.addPicture(tile.offset, picture);
+      BackdropUnderlay.debugFolds++;
+      b.pushClipRect(tile.bounds, clipBehavior: Clip.hardEdge);
+      b.pushTransform(_toAtlas(tile).storage);
+      if (fold.clip case final clip?) {
+        b.pushClipRect(clip, clipBehavior: Clip.hardEdge);
+      }
+      b.pushTransform(fold.transform.storage);
+      fold.add(b, tile.rect, tile.offset);
+      b.pop();
+      if (fold.clip != null) b.pop();
+      b.pop();
+      b.pop();
+    }
+    b.addPicture(tile.offset, tile.content!);
+  }
+
   static void _draw(List<_Tile> tiles, int width, int height) {
     drawn++;
-    final level = tiles.first.level;
-    _count(BackdropUnderlay.debugImagesByLevel, level);
     // A copy's picture is clipped to the copy when it is recorded.
     void place(Canvas canvas, _Tile tile) {
       canvas.save();
@@ -1997,15 +2103,18 @@ final class _Atlas {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     final isolated = <_Tile>[];
-    // Copies under one blur or copy filter share one filtered layer: the
-    // filter reads the copies alone, so no backdrop is copied for it, and
-    // the layer is clipped to the rows of the copies' run, which hold no
-    // other copy. A filter composited over its copy keeps the copy under
-    // the layer.
+    final folding = <_Tile>[];
+    // Copies under one blur share one filtered layer: the filter reads the
+    // copies alone, so no backdrop is copied for it, and the layer is
+    // clipped to the rows of the copies' run, which hold no other copy.
     final layered = <(Object?, double), List<_Tile>>{};
     for (final tile in tiles) {
       if (!tile.filtered) {
-        place(canvas, tile);
+        if (tile.pieces.isEmpty) {
+          place(canvas, tile);
+        } else {
+          folding.add(tile);
+        }
       } else if (tile.layered) {
         layered
             .putIfAbsent((tile.filterKey, tile.devicePixelRatio), () => [])
@@ -2016,11 +2125,14 @@ final class _Atlas {
     }
     final content = recorder.endRecording();
     final ui.Image image;
-    if (isolated.isEmpty && layered.isEmpty) {
+    if (isolated.isEmpty && layered.isEmpty && folding.isEmpty) {
       image = content.toImageSync(width, height);
     } else {
       final b = ui.SceneBuilder();
       b.addPicture(Offset.zero, content);
+      for (final tile in folding) {
+        _add(b, tile);
+      }
       for (final group in layered.values) {
         BackdropUnderlay.debugBlurLayers++;
         final first = group.first;
@@ -2038,7 +2150,7 @@ final class _Atlas {
           ),
         );
         for (final tile in group) {
-          b.addPicture(tile.offset, tile.content!);
+          _add(b, tile);
         }
         b.pop();
         b.pop();
@@ -2049,16 +2161,9 @@ final class _Atlas {
       // view's scale, as the backdrop filter it replaces does.
       for (final tile in isolated) {
         final filter = tile.filter ?? _blur(tile.blur!.$1, tile.blur!.$2);
-        final dpr = tile.devicePixelRatio;
         b.pushClipRect(tile.bounds, clipBehavior: Clip.antiAliasWithSaveLayer);
-        b.addPicture(tile.offset, tile.content!);
-        final toAtlas = Matrix4.translationValues(
-          tile.offset.dx - tile.rect.left * dpr,
-          tile.offset.dy - tile.rect.top * dpr,
-          0,
-        );
-        toAtlas.scaleByDouble(dpr, dpr, 1, 1);
-        b.pushTransform(toAtlas.storage);
+        _add(b, tile);
+        b.pushTransform(_toAtlas(tile).storage);
         b.pushClipRect(
           tile.filterClip?.intersect(tile.rect) ?? tile.rect,
           clipBehavior: Clip.hardEdge,
@@ -2075,6 +2180,9 @@ final class _Atlas {
     }
     for (final tile in tiles) {
       tile.content!.dispose();
+      for (final (picture, _) in tile.pieces) {
+        picture.dispose();
+      }
     }
     content.dispose();
     for (final tile in tiles) {

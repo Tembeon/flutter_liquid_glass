@@ -241,8 +241,10 @@ void main() {
     expect(BackdropUnderlay.debugImagesDrawn, drawn + 1);
   }, skip: skipProperGlassTests);
 
-  testWidgets('glass over the band waits for the band copy in the one draw '
-      'of the frame, and both hold while nothing moves', (tester) async {
+  testWidgets('glass over the band copies in the one image of the frame, '
+      'drawing the band in, and both hold once nothing moves', (
+    tester,
+  ) async {
     BackdropUnderlay.debugEnabledOverride = true;
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
@@ -255,16 +257,24 @@ void main() {
     await tester.pumpWidget(_scene(glass: true, glassTop: 30, shift: 0.3));
     final flushes = Map.of(BackdropUnderlay.debugFlushes);
     var drawn = BackdropUnderlay.debugImagesDrawn;
+    final folded = BackdropUnderlay.debugFolds;
     await tester.pumpWidget(_scene(glass: true, glassTop: 30));
     expect(_band(tester).serves, isTrue);
     expect(glass().debugDrewOverUnderlay, isTrue);
-    expect(BackdropUnderlay.debugImagesDrawn, drawn + 2);
+    expect(BackdropUnderlay.debugImagesDrawn, drawn + 1);
+    expect(BackdropUnderlay.debugFolds, folded + 1);
     expect(
       BackdropUnderlay.debugFlushes['planned'],
       (flushes['planned'] ?? 0) + 1,
     );
     expect(BackdropUnderlay.debugFlushes['read'], flushes['read']);
 
+    // A copy that drew glass in matches no later frame: once the band
+    // holds, the glass's copy is drawn once more, from the band's picture.
+    drawn = BackdropUnderlay.debugImagesDrawn;
+    glass().markNeedsPaint();
+    await tester.pump();
+    expect(BackdropUnderlay.debugImagesDrawn, drawn + 1);
     drawn = BackdropUnderlay.debugImagesDrawn;
     glass().markNeedsPaint();
     await tester.pump();

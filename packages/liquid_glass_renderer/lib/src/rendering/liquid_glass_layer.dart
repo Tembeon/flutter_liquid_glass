@@ -2001,12 +2001,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       );
     }
 
-    ui.Picture record() {
-      final image = copy.image;
-      // The shader reads the copy in device pixels: a smaller copy stands
-      // for an image as many times larger.
-      final stretch = dpr / copy.pixelRatio;
-      final origin = copy.rect.topLeft * dpr - copy.offset * stretch;
+    // From fragment coordinates that begin at [origin] in the screen's
+    // device pixels to the matte.
+    (double, double, double, double, double, double) mappingFrom(
+      Offset origin,
+    ) {
       final o = MatrixUtils.transformPoint(globalToMatte, Offset.zero);
       final ax = MatrixUtils.transformPoint(
         globalToMatte,
@@ -2016,7 +2015,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         globalToMatte,
         const Offset(0, 1),
       );
-      final mapping = (
+      return (
         ax.dx - o.dx,
         ay.dx - o.dx,
         ax.dy - o.dy,
@@ -2024,8 +2023,22 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         o.dx * dpr + (ax.dx - o.dx) * origin.dx + (ay.dx - o.dx) * origin.dy,
         o.dy * dpr + (ax.dy - o.dy) * origin.dx + (ay.dy - o.dy) * origin.dy,
       );
+    }
+
+    void restoreLive(FragmentShader shader) {
+      if (_coordinateMapping case final live?) {
+        _writeCoordinateMapping(shader, live, _backdropBounds);
+      }
+    }
+
+    ui.Picture record() {
+      final image = copy.image;
+      // The shader reads the copy in device pixels: a smaller copy stands
+      // for an image as many times larger.
+      final stretch = dpr / copy.pixelRatio;
+      final origin = copy.rect.topLeft * dpr - copy.offset * stretch;
       final shader = renderShader;
-      _writeCoordinateMapping(shader, mapping, backdropBounds);
+      _writeCoordinateMapping(shader, mappingFrom(origin), backdropBounds);
       shader.setFloat(0, image.width * stretch);
       shader.setFloat(1, image.height * stretch);
       shader.setFloat(_FinalUniforms.backdropOrigin, origin.dx);
@@ -2045,9 +2058,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       shader.setFloat(_FinalUniforms.backdropOrigin, 0);
       shader.setFloat(_FinalUniforms.backdropOrigin + 1, 0);
       shader.setFloat(_FinalUniforms.reducedBackdrop, 0);
-      if (_coordinateMapping case final live?) {
-        _writeCoordinateMapping(shader, live, _backdropBounds);
-      }
+      restoreLive(shader);
       if (_geometryImage case final matte?) {
         shader.setImageSampler(0, matte, filterQuality: FilterQuality.low);
       }
@@ -2064,11 +2075,45 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         drawn.bottom * dpr,
       ),
     ).inflate(1);
+    // Inside a copy drawn at the screen's pixels together with this glass's
+    // own, the glass is its live filter over what that copy holds before
+    // it: the filter's fragments lie in that copy's pixels, and what it
+    // reads holds nothing past the copy.
+    void fold(ui.SceneBuilder builder, Rect rect, Offset offset) {
+      final shader = renderShader;
+      final within = MatrixUtils.transformRect(globalToMatte, rect);
+      _writeCoordinateMapping(
+        shader,
+        mappingFrom(rect.topLeft * dpr - offset),
+        backdropBounds?.intersect(within) ?? within,
+      );
+      _updateShaderFilter();
+      final sigma = _filterFrostSigma ?? 0;
+      final read = ImageFilter.shader(shader);
+      final filter = sigma > 0
+          ? ImageFilter.compose(
+              inner: ImageFilter.blur(
+                tileMode: glassBlurTileMode,
+                sigmaX: sigma,
+                sigmaY: sigma,
+              ),
+              outer: read,
+            )
+          : read;
+      addFoldedFilter(
+        builder,
+        MatrixUtils.transformRect(screenToCanvas, device),
+        filter,
+      );
+      restoreLive(shader);
+    }
+
     return _rig.servedPicture(
       copy,
       pictureBounds,
       keyOf: keyOf,
       record: record,
+      fold: fold,
     );
   }
 

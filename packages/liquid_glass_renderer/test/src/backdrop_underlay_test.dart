@@ -23,6 +23,7 @@ Widget _pairScene({
   double top = 40,
   double frost = 0,
   bool shadowed = false,
+  bool second = true,
 }) => Directionality(
   textDirection: TextDirection.ltr,
   child: RepaintBoundary(
@@ -44,7 +45,7 @@ Widget _pairScene({
         ),
         for (final (key, rect) in [
           (_first, Rect.fromLTWH(30, top, 200, 90)),
-          (null, const Rect.fromLTWH(30, 260, 200, 60)),
+          if (second) (null, const Rect.fromLTWH(30, 260, 200, 60)),
         ])
           Positioned.fill(
             child: RepaintBoundary(
@@ -535,16 +536,20 @@ void main() {
     expect(a.isCloneOf(b), isTrue);
   }, skip: skipProperGlassTests);
 
-  for (final (top, images) in [(160.0, 1), (200.0, 2)]) {
-    testWidgets('glass beside glass copies in the same image, glass over '
-        'glass waits for the copy under it (top $top)', (tester) async {
+  for (final (top, folds) in [(160.0, 0), (200.0, 1)]) {
+    testWidgets('glass beside glass and glass over glass copy in the same '
+        'image, the copy over glass drawing that glass in (top $top)', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(260, 360);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       await tester.pumpWidget(_pairScene(shift: 0.3, top: top));
       final drawn = BackdropUnderlay.debugImagesDrawn;
+      final folded = BackdropUnderlay.debugFolds;
       await tester.pumpWidget(_pairScene(top: top));
-      expect(BackdropUnderlay.debugImagesDrawn, drawn + images);
+      expect(BackdropUnderlay.debugImagesDrawn, drawn + 1);
+      expect(BackdropUnderlay.debugFolds, folded + folds);
       final glass = tester.allRenderObjects
           .whereType<RenderLiquidGlassLayer>()
           .toSet();
@@ -552,6 +557,51 @@ void main() {
       expect(glass.every((g) => g.debugDrewOverUnderlay), isTrue);
     }, skip: skipProperGlassTests);
   }
+
+  testWidgets('a copy over glass whose copy is drawn in the same image '
+      'holds what reading the backdrop draws there', (tester) async {
+    tester.view.physicalSize = const Size(260, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    // flutter_tester renders only a process's first backdrop filter
+    // reliably, so the reference reads the backdrop first: the lower glass
+    // alone, as the upper glass's copy should hold it.
+    BackdropUnderlay.debugEnabledOverride = false;
+    await tester.pumpWidget(_pairScene(top: 200, second: false));
+    final reading = await _pixels(tester);
+    BackdropUnderlay.debugEnabledOverride = true;
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(_pairScene(shift: 0.3, top: 200));
+    final folded = BackdropUnderlay.debugFolds;
+    await tester.pumpWidget(_pairScene(top: 200));
+    expect(BackdropUnderlay.debugFolds, folded + 1);
+    final upper = tester.allRenderObjects
+        .whereType<RenderLiquidGlassLayer>()
+        .toSet()
+        .map((g) => g.debugUnderlay)
+        .reduce(
+          (a, b) => a.debugPlace.$1.bottom > b.debugPlace.$1.bottom ? a : b,
+        );
+    final (rect, offset) = upper.debugPlace;
+    final image = upper.debugImage!;
+    final bytes = (await tester.runAsync(image.toByteData))!.buffer
+        .asUint8List();
+    var largest = 0;
+    for (var y = 0; y < rect.height.round(); y++) {
+      for (var x = 0; x < rect.width.round(); x++) {
+        final copied =
+            ((offset.dy.round() + y) * image.width + offset.dx.round() + x) * 4;
+        final read = ((rect.top.round() + y) * 260 + rect.left.round() + x) * 4;
+        for (var c = 0; c < 4; c++) {
+          final d = (bytes[copied + c] - reading[read + c]).abs();
+          if (d > largest) largest = d;
+        }
+      }
+    }
+    // Without the lower glass the copy differs by 89 levels.
+    expect(largest, lessThanOrEqualTo(3));
+  }, skip: skipProperGlassTests);
 
   testWidgets('copies of glass side by side are drawn as one island, as '
       'each draws its own', (tester) async {
