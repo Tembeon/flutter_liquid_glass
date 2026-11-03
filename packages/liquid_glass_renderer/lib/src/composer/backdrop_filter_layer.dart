@@ -134,11 +134,11 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   ui.Picture? _served;
   Object? _servedKey;
 
-  /// Whether this frame draws a filtered copy in place of the backdrop read.
+  /// Whether this frame draws a copy in place of the backdrop read.
   @internal
   bool get serves => _serving != null;
 
-  /// The filtered copy this frame draws in place of the backdrop read, in
+  /// The copy this frame draws in place of the backdrop read, in
   /// this layer's coordinates, or null while the layer reads the backdrop.
   /// Recorded when first read, once the copy is drawn with the other copies
   /// of the frame.

@@ -1682,7 +1682,7 @@ final class _Cursor {
 }
 
 // What [layer]'s children draw, in its coordinates, or null where one may
-// draw anywhere: the bounds of a filtered layer in a copy. Unbounded,
+// draw anywhere; it bounds a filtered layer in a copy. Unbounded,
 // Impeller sizes a filtered layer to the clip, the whole atlas, where the
 // scene sizes it to its children, so a blurred title would blur every copy.
 // The bounds are the content's; Impeller adds the filter's reach.
@@ -2202,10 +2202,11 @@ final class _Atlas {
     } else {
       final b = ui.SceneBuilder();
       b.addPicture(Offset.zero, content);
-      // A folded filter reads what lies under it as a backdrop filter reads
-      // the screen. In a layer around its copy it reads that layer alone;
-      // drawn straight into the atlas, Impeller blurs the whole atlas for
-      // it. A fragment in the layer lies in the copy's pixels.
+      // A copy's filter, folded or its own, reads what lies under it as a
+      // backdrop filter reads the screen. In a layer around its copy it
+      // reads that layer alone, which a pass split at the filter loads and
+      // stores; drawn straight into the atlas, Impeller blurs the whole
+      // atlas for it. A fragment in the layer lies in the copy's pixels.
       for (final tile in folding) {
         b.pushClipRect(tile.bounds, clipBehavior: Clip.antiAliasWithSaveLayer);
         _add(b, tile, origin: Offset.zero);
@@ -2233,10 +2234,8 @@ final class _Atlas {
         b.pop();
         b.pop();
       }
-      // Any other filter reads its copy as a backdrop filter reads the
-      // screen, in a layer around it: it reads that layer alone, which a
-      // pass split at the filter loads and stores. It stands under the
-      // view's scale, as the backdrop filter it replaces does.
+      // A copy's own filter stands under the view's scale, as the backdrop
+      // filter it replaces does.
       for (final tile in isolated) {
         final filter = tile.filter ?? _blur(tile.blur!.$1, tile.blur!.$2);
         b.pushClipRect(tile.bounds, clipBehavior: Clip.antiAliasWithSaveLayer);

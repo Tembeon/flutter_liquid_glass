@@ -91,7 +91,8 @@ double _blurReach(double sigma, double devicePixelRatio) {
 /// at [devicePixelRatio] (a device sigma of 4 sqrt 2), when that is at most
 /// 1.12 times larger; else [sigma] itself. Just below that threshold
 /// Impeller blurs every device pixel at about three times the cost on a
-/// Mali GPU, and the two blurs differ by a few channel steps: NEAR.
+/// Mali GPU, where it blurs the band (a live read or a filtered copy).
+/// NEAR: the band blurs up to 12 % wider than measured.
 double _halfResolutionSigma(double sigma, double devicePixelRatio) {
   const threshold = 4 * math.sqrt2;
   if (sigma <= 0 || devicePixelRatio <= 0) return sigma;
@@ -296,8 +297,9 @@ class _RenderEdge extends RenderBox {
     _devicePixelRatio,
   );
 
-  // The hard band folds its presence into the saturation matrix after its
-  // blur: one color pass instead of two.
+  // Presence rides in the matrix's alpha row: a fade changes only the
+  // frost's matrix, which keeps the copy, and a filtered copy takes one
+  // color pass instead of two.
   LiquidGlassBackdropFrost _frost(double presence) => LiquidGlassBackdropFrost(
     sigma: _sigma,
     colorMatrix: _details.hard

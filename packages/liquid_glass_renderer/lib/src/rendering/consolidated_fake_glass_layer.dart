@@ -65,7 +65,7 @@ class ConsolidatedFakeGlassLayer extends SingleChildRenderObjectWidget {
 /// shader for the shared shape geometry. Where it can, the shared blur is
 /// drawn over a copy of what lies under the glass instead of reading the
 /// backdrop (see [BackdropRig]). NEAR: over a copy, a blur that Impeller
-/// downsamples takes other taps than over the whole backdrop, at most 19
+/// downsamples takes other taps than over the whole backdrop, at most 20
 /// channel levels apart in the host test of white text under 6 px of frost
 /// and 24 at the edges of buttons over photos on the Pixel 6a; at 2 px the
 /// two do not differ. All shared machinery (shape

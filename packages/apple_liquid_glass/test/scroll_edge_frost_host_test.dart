@@ -1,3 +1,6 @@
+// Run with `flutter test --enable-impeller --enable-flutter-gpu`: the band
+// frosts its copy through a runtime effect, which only Impeller draws.
+//
 // The band's copy is the renderer's: the test turns copies on under
 // flutter test and asks whether one serves.
 // ignore_for_file: invalid_use_of_internal_member
@@ -12,8 +15,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 
-// Run with `flutter test --enable-impeller --enable-flutter-gpu`: the band
-// frosts its copy through a runtime effect, which only Impeller draws.
 const _key = ValueKey('page');
 
 Widget _page(ScrollController controller, double dpr, {required bool hard}) =>
@@ -45,8 +46,8 @@ Widget _page(ScrollController controller, double dpr, {required bool hard}) =>
                     child: ListView(
                       controller: controller,
                       children: [
-                        // Rows of colors, each with a white line, at
-                        // steps of a few pixels.
+                        // Hard edges every few pixels, where the frost's
+                        // taps part most from Impeller's blur.
                         for (var i = 0; i < 40; i++)
                           Container(
                             height: 30,

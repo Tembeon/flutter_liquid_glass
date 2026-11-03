@@ -10,8 +10,8 @@ typedef ShaderFrost = ({int downscale, double frost});
 
 // The share of the sigma asked that Impeller's blur delivers, which the
 // shader's frost matches so a copy and the live filter blur alike: the best
-// of 0.70 to 1.0 in the host test against ImageFilter.blur at 3, 5 and 8
-// device px. g1455's MTF table of Impeller's blur reads 0.84 to 0.87 there.
+// of 0.70 to 1.0 against ImageFilter.blur at 3, 5 and 8 device px, where
+// Impeller's blur passes deliver 0.84 to 0.87 of the sigma.
 const double _deliveredFrost = 0.84;
 
 // The largest sigma, in the copy's own pixels, the shader frosts by. Its 24
@@ -26,7 +26,7 @@ const int _shaderFrostMaxDownscale = 4;
 /// How the shader frosts a copy for Impeller's blur by [sigma] device
 /// pixels, or null when the frost is too wide for it.
 ///
-/// The copy is the smallest whose pixels the frost spans by at most 3.5,
+/// The copy is the largest whose pixels the frost spans by at most 3.5,
 /// then halved while the frost still spans [minTexels] of its pixels. The
 /// shader frosts by what is left: a pixel of a smaller copy averages k x k
 /// device px (a box, variance k^2 / 12), every bilinear tap adds a tent of

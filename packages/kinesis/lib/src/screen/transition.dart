@@ -427,7 +427,8 @@ class RenderMotionTransition extends RenderProxyBox {
 /// The composited layer of a [MotionTransition] or a `MotionLayout` child:
 /// one layer that adds a transform, a clip, an opacity and a blur to the
 /// scene, each only while it is not identity, and keeps each engine layer
-/// for retained rendering.
+/// for retained rendering. While fully transparent it adds nothing,
+/// children included.
 class MotionTransitionLayer extends OffsetLayer {
   Matrix4? _transform;
   RRect? _clip;

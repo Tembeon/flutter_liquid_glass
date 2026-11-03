@@ -20,7 +20,7 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 /// systemFill, a default no control measured. A color scheme's surfaces
 /// replace the fills per role.
 ///
-/// A shadow is Impeller's analytic blur of the body's shape (near): at most
+/// A shadow is Impeller's analytic blur of the body's shape. NEAR: at most
 /// 6 of 255 levels from a Gaussian blur of its path, 2 on average, at 2.625
 /// and 3 device pixels per point, and no offscreen passes. A body with an
 /// outline blurs its path offscreen.
@@ -401,9 +401,9 @@ class RenderFlatGlass extends RenderProxyBox {
     }
   }
 
-  // A shape's own draw call takes Impeller's analytic blur for a shadow. A
-  // capsule's path forms no shadow mesh Impeller takes, so a blurred path
-  // falls to a mask blur offscreen: four passes a frame for a tab bar's pill.
+  // A capsule's path forms no shadow mesh Impeller takes: blurred as a path
+  // it falls to a mask blur offscreen, four passes a frame for a tab bar's
+  // pill.
   static void _drawBody(
     Canvas canvas,
     GlassFrame frame,
