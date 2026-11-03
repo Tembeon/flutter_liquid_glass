@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
+import 'package:apple_liquid_glass/src/motion/glass_button_motion.dart';
 import 'package:apple_liquid_glass/src/motion/lens_motion.dart';
 import 'package:apple_liquid_glass/src/motion/segment_highlight.dart';
 import 'package:apple_liquid_glass/src/motion/touch_glow.dart';
@@ -190,7 +191,7 @@ class RawGlassSelector extends StatefulWidget {
   /// this package's fixtures). 70 with the bottom and right edges
   /// excluded, the way `CGRectContainsPoint` tests a point, also gives the
   /// glass button's measured edges.
-  static const double segmentedReleaseSlop = 70;
+  static const double segmentedReleaseSlop = GlassButtonMotion.highlightSlop;
 
   @override
   State<RawGlassSelector> createState() => _RawGlassSelectorState();
@@ -732,11 +733,11 @@ final class _Geometry {
     );
   }
 
-  /// The widths of segments in a control [width] wide. Sized by content,
-  /// as UIKit apportions them: a segment with a fixed width keeps it, and
-  /// the others share the rest by what each claims, its item plus the
-  /// padding a side and at least the height, every share rounded down to a
-  /// point; the remainder stays at the trailing end.
+  /// The widths of segments in a control [width] wide: a segment with a
+  /// fixed width keeps it and the others share the rest, equally, or with
+  /// `proportional` as UIKit apportions them, by what each claims (its item
+  /// plus the padding a side, at least the height), each share rounded down
+  /// to a point and the remainder left at the trailing end.
   static List<double> _segmentWidths(
     double width,
     List<double> items,
@@ -768,7 +769,7 @@ final class _Geometry {
 
 /// The motion of a selector, stepped on the motion clock and published as
 /// the frames of its body and lens.
-final class _SelectorBody implements MotionDriver {
+final class _SelectorBody extends MotionDriver {
   _SelectorBody(
     this._deliver, {
     required this._kind,
@@ -916,9 +917,6 @@ final class _SelectorBody implements MotionDriver {
         !_highlight.isSettled(t) ||
         !_glow.isSettled(t);
   }
-
-  @override
-  double? get wakeTime => null;
 
   @override
   void step(double time) {
@@ -1103,8 +1101,9 @@ class _RowParentData extends ContainerBoxParentData<RenderBox> {}
 
 /// How much a fully lifted tab bar lens grows the items it shows: the held
 /// item shows at 1.218 of its resting size while the swollen bar carries
-/// the others at 1.052, so the lens adds 1.158 (iPhone 16 Pro, tab bar
-/// passport). A segmented control's lens shows its label in place (0.996).
+/// the others at 1.052, so the lens adds 1.158, rounded to 0.16 (NEAR)
+/// (iPhone 16 Pro, tab bar passport). A segmented control's lens shows
+/// its label in place (0.996).
 const double _tabBarMagnification = 0.16;
 
 class _RenderSelectorRow extends RenderBox

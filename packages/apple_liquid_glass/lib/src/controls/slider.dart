@@ -384,7 +384,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
 
 /// The motion of a slider, stepped on the motion clock and published as
 /// the frames of its track, fill and thumb.
-final class _SliderBody implements MotionDriver {
+final class _SliderBody extends MotionDriver {
   _SliderBody(this._deliver, {required double value, required int ticks})
     : _motion = SliderMotion(
         width: 0,
@@ -445,9 +445,6 @@ final class _SliderBody implements MotionDriver {
 
   @override
   bool get isActive => !_motion.isSettled;
-
-  @override
-  double? get wakeTime => null;
 
   @override
   void step(double time) {

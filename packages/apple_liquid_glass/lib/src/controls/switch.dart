@@ -182,7 +182,7 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
 
 /// The motion of a switch, stepped on the motion clock and published as
 /// the knob's frame and the track's progress.
-final class _SwitchBody implements MotionDriver {
+final class _SwitchBody extends MotionDriver {
   _SwitchBody(this._deliver, {required bool value})
     : _motion = SwitchMotion(
         value: value,
@@ -209,9 +209,6 @@ final class _SwitchBody implements MotionDriver {
 
   @override
   bool get isActive => !_motion.isSettled;
-
-  @override
-  double? get wakeTime => null;
 
   @override
   void step(double time) {

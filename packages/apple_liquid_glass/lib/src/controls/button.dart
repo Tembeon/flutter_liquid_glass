@@ -56,8 +56,9 @@ final class GlassButtonDetails {
 /// toward itself, and a glow follows the finger; a release within 70
 /// points of the button presses it. All of that reaches the look through
 /// [GlassButtonDetails.body], so the builder never runs while the button
-/// moves. Space, Enter and the accessibility tap press it too. Reduce
-/// Motion keeps the glow and drops the lift and the lean.
+/// moves. Space, Enter and the accessibility tap press it too. Under
+/// Reduce Motion the body glows but never lifts or leans (an
+/// approximation, not measured).
 class RawGlassButton extends StatefulWidget {
   /// Creates a button labeled [child] whose look [builder] builds.
   const RawGlassButton({
@@ -316,7 +317,8 @@ class GlassButtonStyle {
   final WidgetStateProperty<double?>? iconSize;
 
   /// Builds the button's look in place of the default one; the button then
-  /// ignores the other fields. Null keeps the default.
+  /// ignores the other fields. Null leaves it to the theme's builder, then
+  /// the default look.
   final GlassButtonBuilder? builder;
 
   /// This style over [other], state by state.
@@ -645,7 +647,7 @@ class GlassButton extends StatelessWidget {
       face: _defaultBody(
         context,
         GlassButtonDetails(
-          body: const _Resting(),
+          body: const StillGlassFrame(GlassFrame()),
           states: states,
           label: child,
         ),
@@ -728,15 +730,3 @@ class GlassButton extends StatelessWidget {
 
 /// The frame of a glass button at rest: a menu button's glass stands
 /// still, the menu's motion lifts it.
-final class _Resting implements ValueListenable<GlassFrame> {
-  const _Resting();
-
-  @override
-  GlassFrame get value => const GlassFrame();
-
-  @override
-  void addListener(VoidCallback listener) {}
-
-  @override
-  void removeListener(VoidCallback listener) {}
-}

@@ -114,18 +114,10 @@ class _Appearance {
     this.labelFillColor = const Color(0x1F767680),
     this.labelColor = const Color(0xFF000000),
     this.accentColor = const Color(0xFF0088FF),
-    this.titleColor = const Color(0xFF000000),
     this.weekdayColor = const Color(0x993C3C43),
-    this.dayColor = const Color(0xFF000000),
     this.todayFillColor = const Color(0x1F0088FF),
-    this.selectedDayColor = const Color(0xFFFFFFFF),
-    this.selectedDayFillColor = const Color(0xFF000000),
     this.selectedDayTextColor = const Color(0xFFFFFFFF),
-    this.chevronColor = const Color(0xFF000000),
     this.wheelBandColor = const Color(0x1F767680),
-    this.wheelColor = const Color(0xFF000000),
-    this.wheelFadedOpacity = 0.4,
-    this.unavailableDayOpacity = 0.35,
   });
 
   /// The fill of a compact label: tertiarySystemFill. A disabled picker's
@@ -133,55 +125,41 @@ class _Appearance {
   /// 27.0.1, light and dark).
   final Color labelFillColor;
 
-  /// The color of a compact label's text: label.
+  /// The color of label text: a compact label, the month title, a day, the
+  /// month chevrons, the wheels' rows and the disc behind the chosen day
+  /// when it is not today.
   final Color labelColor;
 
   /// The accent: the text of an open label, the month title's chevron,
   /// today's number and, when today is the chosen day, its disc.
   final Color accentColor;
 
-  /// The color of the month title.
-  final Color titleColor;
-
   /// The color of the weekday initials: secondaryLabel.
   final Color weekdayColor;
-
-  /// The color of a day.
-  final Color dayColor;
 
   /// The fill behind today when it is not selected.
   final Color todayFillColor;
 
-  /// The color of the chosen day's number when the chosen day is today,
-  /// on an [accentColor] disc.
-  final Color selectedDayColor;
-
-  /// The disc behind the chosen day when it is not today: label.
-  final Color selectedDayFillColor;
-
-  /// The color of the chosen day's number on [selectedDayFillColor].
+  /// The color of the chosen day's number on its [labelColor] disc.
   final Color selectedDayTextColor;
-
-  /// The color of the previous and next month chevrons: label.
-  final Color chevronColor;
 
   /// The band behind the wheels' selected row.
   final Color wheelBandColor;
 
-  /// The color of the wheels' rows: full inside the band, at
-  /// [wheelFadedOpacity] outside it.
-  final Color wheelColor;
+  /// The color of the chosen day's number when the chosen day is today,
+  /// on an [accentColor] disc.
+  static const selectedDayColor = Color(0xFFFFFFFF);
 
   /// The opacity of the wheels' rows outside the band, drawn in
-  /// [wheelColor] at the smaller size (21 points against the band's 23.5),
+  /// [labelColor] at the smaller size (21 points against the band's 23.5),
   /// before they darken toward the cylinder's edges. UIKit's labels report
   /// 0.447; 0.4 matches the screen (the rows next to the band read 0.36 of
   /// black on an iPhone 16 Pro).
-  final double wheelFadedOpacity;
+  static const double wheelFadedOpacity = 0.4;
 
   /// The opacity of a day outside the picker's range (not measured on a
   /// device).
-  final double unavailableDayOpacity;
+  static const double unavailableDayOpacity = 0.35;
 
   /// The light appearance.
   static const light = _Appearance();
@@ -195,15 +173,10 @@ class _Appearance {
     labelFillColor: Color(0x3D767680),
     labelColor: Color(0xFFFFFFFF),
     accentColor: Color(0xFF0091FF),
-    titleColor: Color(0xFFFFFFFF),
     weekdayColor: Color(0x99EBEBF5),
-    dayColor: Color(0xFFFFFFFF),
     todayFillColor: Color(0x330091FF),
-    selectedDayFillColor: Color(0xFFFFFFFF),
     selectedDayTextColor: Color(0xFF000000),
-    chevronColor: Color(0xFFFFFFFF),
     wheelBandColor: Color(0x3D767680),
-    wheelColor: Color(0xFFFFFFFF),
   );
 
   /// The light appearance under Increase Contrast: the label fill and the
@@ -226,50 +199,20 @@ class _Appearance {
     labelFillColor: Color(0x52767680),
     labelColor: Color(0xFFFFFFFF),
     accentColor: Color(0xFF5CB8FF),
-    titleColor: Color(0xFFFFFFFF),
     weekdayColor: Color(0x99EBEBF5),
-    dayColor: Color(0xFFFFFFFF),
     todayFillColor: Color(0x335CB8FF),
-    selectedDayFillColor: Color(0xFFFFFFFF),
     selectedDayTextColor: Color(0xFF000000),
-    chevronColor: Color(0xFFFFFFFF),
     wheelBandColor: Color(0x52767680),
-    wheelColor: Color(0xFFFFFFFF),
   );
 
-  /// Copies this appearance with the given fields replaced.
-  _Appearance copyWith({
-    Color? labelFillColor,
-    Color? labelColor,
-    Color? accentColor,
-    Color? titleColor,
-    Color? weekdayColor,
-    Color? dayColor,
-    Color? todayFillColor,
-    Color? selectedDayColor,
-    Color? selectedDayFillColor,
-    Color? selectedDayTextColor,
-    Color? chevronColor,
-    Color? wheelBandColor,
-    Color? wheelColor,
-    double? wheelFadedOpacity,
-    double? unavailableDayOpacity,
-  }) => _Appearance(
-    labelFillColor: labelFillColor ?? this.labelFillColor,
-    labelColor: labelColor ?? this.labelColor,
-    accentColor: accentColor ?? this.accentColor,
-    titleColor: titleColor ?? this.titleColor,
-    weekdayColor: weekdayColor ?? this.weekdayColor,
-    dayColor: dayColor ?? this.dayColor,
-    todayFillColor: todayFillColor ?? this.todayFillColor,
-    selectedDayColor: selectedDayColor ?? this.selectedDayColor,
-    selectedDayFillColor: selectedDayFillColor ?? this.selectedDayFillColor,
-    selectedDayTextColor: selectedDayTextColor ?? this.selectedDayTextColor,
-    chevronColor: chevronColor ?? this.chevronColor,
-    wheelBandColor: wheelBandColor ?? this.wheelBandColor,
-    wheelColor: wheelColor ?? this.wheelColor,
-    wheelFadedOpacity: wheelFadedOpacity ?? this.wheelFadedOpacity,
-    unavailableDayOpacity: unavailableDayOpacity ?? this.unavailableDayOpacity,
+  _Appearance _withAccent(Color accent) => _Appearance(
+    labelFillColor: labelFillColor,
+    labelColor: labelColor,
+    accentColor: accent,
+    weekdayColor: weekdayColor,
+    todayFillColor: accent.withValues(alpha: todayFillColor.a),
+    selectedDayTextColor: selectedDayTextColor,
+    wheelBandColor: wheelBandColor,
   );
 
   /// The table for the ambient brightness and contrast, with the theme's
@@ -283,11 +226,7 @@ class _Appearance {
         : (night ? dark : light);
     final tint = GlassTheme.of(context).primaryColor;
     if (tint == null) return table;
-    final accent = GlassDynamicColor.resolve(tint, context);
-    return table.copyWith(
-      accentColor: accent,
-      todayFillColor: accent.withValues(alpha: table.todayFillColor.a),
-    );
+    return table._withAccent(GlassDynamicColor.resolve(tint, context));
   }
 
   @override
@@ -296,37 +235,27 @@ class _Appearance {
       other.labelFillColor == labelFillColor &&
       other.labelColor == labelColor &&
       other.accentColor == accentColor &&
-      other.titleColor == titleColor &&
       other.weekdayColor == weekdayColor &&
-      other.dayColor == dayColor &&
       other.todayFillColor == todayFillColor &&
-      other.selectedDayColor == selectedDayColor &&
-      other.selectedDayFillColor == selectedDayFillColor &&
       other.selectedDayTextColor == selectedDayTextColor &&
-      other.chevronColor == chevronColor &&
-      other.wheelBandColor == wheelBandColor &&
-      other.wheelColor == wheelColor &&
-      other.wheelFadedOpacity == wheelFadedOpacity &&
-      other.unavailableDayOpacity == unavailableDayOpacity;
+      other.wheelBandColor == wheelBandColor;
 
   @override
   int get hashCode => Object.hash(
     labelFillColor,
     labelColor,
     accentColor,
-    titleColor,
     weekdayColor,
-    dayColor,
     todayFillColor,
-    selectedDayColor,
-    selectedDayFillColor,
     selectedDayTextColor,
-    chevronColor,
     wheelBandColor,
-    wheelColor,
-    wheelFadedOpacity,
-    unavailableDayOpacity,
   );
+}
+
+DateTime _clampDate(DateTime value, DateTime? first, DateTime? last) {
+  if (first != null && value.isBefore(first)) return first;
+  if (last != null && value.isAfter(last)) return last;
+  return value;
 }
 
 const List<String> _months = [
@@ -1010,13 +939,8 @@ class _OverlayViewState extends State<_OverlayView>
     _route.dismiss(trigger);
   }
 
-  DateTime _bounded(DateTime value) {
-    final first = _picker._minimum;
-    final last = _picker._maximum;
-    if (first != null && value.isBefore(first)) return first;
-    if (last != null && value.isAfter(last)) return last;
-    return value;
-  }
+  DateTime _bounded(DateTime value) =>
+      _clampDate(value, _picker._minimum, _picker._maximum);
 
   void _pick(DateTime value) {
     if (!_route.picker.mounted || !_route.picker._enabled) return;
@@ -1182,7 +1106,7 @@ class _OverlayViewState extends State<_OverlayView>
         ),
         child: DefaultTextStyle(
           style: _Type.resolve(
-            TextStyle(fontSize: 17, color: style.dayColor),
+            TextStyle(fontSize: 17, color: style.labelColor),
             context: context,
           ),
           child: _Crossfade(
@@ -1583,7 +1507,7 @@ class _Calendar extends StatelessWidget {
     final title = _Type.resolve(
       _Type.datePickerTitle.copyWith(
         height: 1.2,
-        color: years ? style.accentColor : style.titleColor,
+        color: years ? style.accentColor : style.labelColor,
       ),
       context: context,
     );
@@ -1698,13 +1622,13 @@ class _Calendar extends StatelessWidget {
                           _ChevronButton(
                             label: _text('Previous month'),
                             forward: false,
-                            color: style.chevronColor,
+                            color: style.labelColor,
                             onTap: _canTurn(-1) ? () => onTurn(-1) : null,
                           ),
                           _ChevronButton(
                             label: _text('Next month'),
                             forward: true,
-                            color: style.chevronColor,
+                            color: style.labelColor,
                             onTap: _canTurn(1) ? () => onTurn(1) : null,
                           ),
                         ],
@@ -2022,14 +1946,14 @@ Widget _day({
   BuildContext? context,
 }) {
   final color = switch ((selected, today)) {
-    (true, true) => style.selectedDayColor,
+    (true, true) => _Appearance.selectedDayColor,
     (true, false) => style.selectedDayTextColor,
     (false, true) => style.accentColor,
-    (false, false) => style.dayColor,
+    (false, false) => style.labelColor,
   };
   final fill = switch ((selected, today)) {
     (true, true) => style.accentColor,
-    (true, false) => style.selectedDayFillColor,
+    (true, false) => style.labelColor,
     (false, true) => style.todayFillColor,
     (false, false) => null,
   };
@@ -2059,7 +1983,7 @@ Widget _day({
     excludeSemantics: true,
     child: enabled
         ? cell
-        : Opacity(opacity: style.unavailableDayOpacity, child: cell),
+        : Opacity(opacity: _Appearance.unavailableDayOpacity, child: cell),
   );
 }
 
@@ -2416,7 +2340,7 @@ Widget _wheelView({
   BuildContext? context,
 }) {
   final row = _Type.resolve(
-    TextStyle(fontSize: _WheelGeometry.fontSize, color: style.wheelColor),
+    TextStyle(fontSize: _WheelGeometry.fontSize, color: style.labelColor),
     context: context,
   );
   // The context the haptic plays in; a kept view keeps its own.
@@ -2429,7 +2353,7 @@ Widget _wheelView({
       squeeze: geometry.squeeze,
       useMagnifier: true,
       magnification: _WheelGeometry.magnification,
-      overAndUnderCenterOpacity: style.wheelFadedOpacity,
+      overAndUnderCenterOpacity: _Appearance.wheelFadedOpacity,
       physics: const FixedExtentScrollPhysics(
         parent: BouncingScrollPhysics(
           decelerationRate: ScrollDecelerationRate.fast,
@@ -2530,13 +2454,8 @@ class _TimeWheelsState extends State<_TimeWheels> {
     _sync(value, formatChanged: oldWidget.twentyFour != widget.twentyFour);
   }
 
-  DateTime _bounded(DateTime value) {
-    final first = widget.firstDate;
-    final last = widget.lastDate;
-    if (first != null && value.isBefore(first)) return first;
-    if (last != null && value.isAfter(last)) return last;
-    return value;
-  }
+  DateTime _bounded(DateTime value) =>
+      _clampDate(value, widget.firstDate, widget.lastDate);
 
   void _sync(DateTime value, {bool formatChanged = false}) {
     _syncing = true;

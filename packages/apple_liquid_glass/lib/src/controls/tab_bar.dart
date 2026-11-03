@@ -47,9 +47,9 @@ final class GlassTabDestination {
   final Widget label;
 
   /// The glyph the tab shows inside the selection lens (UIKit
-  /// `selectedImage`), or null for [icon]. Every tab is built twice, once
-  /// for the bar and once for the lens; give a glyph that holds state or a
-  /// `GlobalKey` a separate stateless copy here.
+  /// `selectedImage`), or null for [icon]. The bar builds each tab several
+  /// times at once, so neither glyph may carry a `GlobalKey` or state that
+  /// has to be unique.
   final Widget? selectedIcon;
 
   /// A mark at the top trailing corner of the glyph, usually a
@@ -91,8 +91,9 @@ class GlassTabBarStyle {
   /// default.
   final WidgetStateProperty<Color?>? thumbColor;
 
-  /// The color of a tab's glyph and title: the theme's primary color inside
-  /// the lens and [GlassTabBar.unselected] outside it, by default.
+  /// The color of a tab's glyph and title: inside the lens the theme's
+  /// primary color, else [GlassTabBar.selected]; outside it
+  /// [GlassTabBar.unselected]; by default.
   final WidgetStateProperty<Color?>? foregroundColor;
 
   /// The text style of a tab's title: 10 points, medium, and semibold
@@ -692,10 +693,6 @@ class _MinimizingBarState extends State<_MinimizingBar> {
     next?.addListener(_scrolled);
   }
 
-  // Turns the scroll view's phases into the scroll-away interaction's
-  // inputs: a drag starts a fresh accumulation, its end and the end of
-  // the glide floor it, and a scroll the user did not drive is only
-  // recorded, unless it reaches the top.
   void _scrolled() {
     final observer = _observer;
     final metrics = observer?.metrics;
@@ -892,8 +889,8 @@ class _AccessoryState extends State<_Accessory> {
     TabBarMinimizeTuning.accessoryHeight,
   );
 
-  // Beside the circle, as tall as it and level with it, reaching to the
-  // bar group's trailing side.
+  // Level with the circle, [TabBarMinimizeTuning.inlineGap] beside it,
+  // reaching to the bar group's trailing side.
   Rect get _inline {
     const inset = TabBarMinimizeTuning.collapsedInset;
     const top =
@@ -912,8 +909,6 @@ class _AccessoryState extends State<_Accessory> {
     );
   }
 
-  // The position and width move along one axis, the position and height
-  // along the other, each on its own spring.
   void _moved() {
     final x = widget.body.accessoryX.value;
     final y = widget.body.accessoryY.value;
@@ -1110,8 +1105,8 @@ class _CollapsingTabsState extends State<_CollapsingTabs> {
     );
   }
 
-  // How far the selected glyph travels to the circle's center; it starts
-  // centered in [_column].
+  // How far the selected glyph's center travels to the circle's center;
+  // the glyph starts at the top of [_column], centered in its slot.
   Offset get _glyphTravel {
     final selected = widget.selectedIndex;
     if (selected < 0) return Offset.zero;

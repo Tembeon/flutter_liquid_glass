@@ -71,7 +71,7 @@ class _GlassSurfaceState extends State<GlassSurface> {
   @override
   Widget build(BuildContext context) {
     final frame =
-        widget.frame ?? _StillFrame(GlassFrame(shape: widget._shape!));
+        widget.frame ?? StillGlassFrame(GlassFrame(shape: widget._shape!));
     final body = GlassTheme.rendererOf(context).buildSurface(
       context,
       GlassSurfaceDetails(
@@ -97,8 +97,11 @@ class _GlassSurfaceState extends State<GlassSurface> {
 }
 
 @immutable
-final class _StillFrame implements ValueListenable<GlassFrame> {
-  const _StillFrame(this.value);
+/// A frame that never changes.
+@internal
+final class StillGlassFrame implements ValueListenable<GlassFrame> {
+  /// Holds [value].
+  const StillGlassFrame(this.value);
 
   @override
   final GlassFrame value;
@@ -111,7 +114,7 @@ final class _StillFrame implements ValueListenable<GlassFrame> {
 
   @override
   bool operator ==(Object other) =>
-      other is _StillFrame && other.value == value;
+      other is StillGlassFrame && other.value == value;
 
   @override
   int get hashCode => value.hashCode;
