@@ -257,19 +257,46 @@ class _ClipEntry {
   Matrix4? _transform;
   Offset? _offset;
 
+  // A clipper's path, held while the clipper, the size and its reclip hold:
+  // a new path each frame would add the clip again and break every copy
+  // signed over it.
+  CustomClipper<Path>? _clipper;
+  Size? _clipperSize;
+  Path? _clipperPath;
+
+  void _reclip() => _clipperPath = null;
+
+  (Object, Clip) _geometryOf(RenderBox source) {
+    if (source case RenderClipPath(:final clipper?, :final size)) {
+      if (!identical(clipper, _clipper)) {
+        _clipper?.removeListener(_reclip);
+        clipper.addListener(_reclip);
+        _clipper = clipper;
+        _clipperPath = null;
+      }
+      if (_clipperPath == null || _clipperSize != size) {
+        _clipperPath = clipper.getClip(size);
+        _clipperSize = size;
+      }
+      return (_clipperPath!, source.clipBehavior);
+    }
+    return _clipGeometry(source);
+  }
+
   void sync(RenderBox owner, Offset offset) {
     final layer = handle.layer!;
     if (!source.attached) {
       layer.enabled = false;
       return;
     }
-    final (geometry, behavior) = _clipGeometry(source);
+    final (geometry, behavior) = _geometryOf(source);
     layer.enabled = behavior != Clip.none;
     if (!layer.enabled) return;
     layer.clipBehavior = behavior;
     final transform = transformToNow(source, owner);
-    if (geometry is! Path &&
-        _geometry == geometry &&
+    if ((geometry is Path
+            ? identical(geometry, _geometry)
+            : _geometry == geometry) &&
         _offset == offset &&
         MatrixUtils.matrixEquals(_transform, transform)) {
       return;
@@ -315,6 +342,8 @@ class _ClipEntry {
   }
 
   void dispose() {
+    _clipper?.removeListener(_reclip);
+    _clipper = null;
     forward.layer = null;
     handle.layer = null;
     inverse.layer = null;
@@ -326,7 +355,9 @@ class NativeClipLayer extends ContainerLayer {
   Object? _geometry;
   Object? get geometry => _geometry;
   set geometry(Object value) {
-    if (value is! Path && _geometry == value) return;
+    if (value is Path ? identical(value, _geometry) : _geometry == value) {
+      return;
+    }
     _geometry = value;
     markNeedsAddToScene();
   }
