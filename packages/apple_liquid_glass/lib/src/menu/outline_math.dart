@@ -152,10 +152,6 @@ double boxDistance(double qx, double qy, double r) {
   return outside + (inner < 0 ? inner : 0.0) - r;
 }
 
-/// How many outlines have been traced, in debug builds.
-@visibleForTesting
-int debugOutlineTraces = 0;
-
 /// A fused outline before it becomes a [GlassOutline]: its field
 /// samples and its edge as closed loops of contour crossings, plain typed
 /// data that any isolate can compute and send.
@@ -299,10 +295,6 @@ OutlineParts outlineEdgeParts({
   required double top,
   required double step,
 }) {
-  assert(() {
-    debugOutlineTraces++;
-    return true;
-  }(), 'Count traces in debug builds.');
   final (points, loops) = _OutlineTracer.trace(
     trace,
     cols,

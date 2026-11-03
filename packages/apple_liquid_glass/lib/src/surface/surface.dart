@@ -150,3 +150,65 @@ class _Border extends CustomPainter {
   bool shouldRepaint(_Border oldDelegate) =>
       oldDelegate.frame != frame || oldDelegate.color != color;
 }
+
+/// A [GlassSurface.live] of [role] over its whole box, whose frame is
+/// [frameOf], read again on every notification of [live] and on every
+/// rebuild.
+@internal
+class LiveGlassSurface extends StatefulWidget {
+  /// Creates the surface.
+  const LiveGlassSurface({
+    required this.live,
+    required this.frameOf,
+    this.role = GlassRole.menu,
+    super.key,
+  });
+
+  /// Notifies when [frameOf] has a new frame.
+  final Listenable live;
+
+  /// The surface's frame now.
+  final GlassFrame Function() frameOf;
+
+  /// What the surface is.
+  final GlassRole role;
+
+  @override
+  State<LiveGlassSurface> createState() => _LiveGlassSurfaceState();
+}
+
+class _LiveGlassSurfaceState extends State<LiveGlassSurface> {
+  late final _frame = ValueNotifier(widget.frameOf());
+
+  void _changed() => _frame.value = widget.frameOf();
+
+  @override
+  void initState() {
+    super.initState();
+    widget.live.addListener(_changed);
+  }
+
+  @override
+  void didUpdateWidget(LiveGlassSurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.live != widget.live) {
+      oldWidget.live.removeListener(_changed);
+      widget.live.addListener(_changed);
+    }
+    _changed();
+  }
+
+  @override
+  void dispose() {
+    widget.live.removeListener(_changed);
+    _frame.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => GlassSurface.live(
+    role: widget.role,
+    frame: _frame,
+    child: const SizedBox.expand(),
+  );
+}

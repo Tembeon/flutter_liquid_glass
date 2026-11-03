@@ -435,12 +435,7 @@ class MenuLayout {
               entry.maxTitleLines ?? 1,
               section: true,
             );
-            final group = open;
-            if (group != null && group.items.isEmpty && entry.title != null) {
-              open = null;
-            } else {
-              flush();
-            }
+            flush();
         }
       }
     }

@@ -4,7 +4,6 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/src/motion/date_picker_motion.dart';
 import 'package:apple_liquid_glass/src/motion/live.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
-import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
@@ -1310,9 +1309,14 @@ class _OverlayViewState extends State<_OverlayView>
             child: Stack(
               fit: StackFit.expand,
               children: [
-                _LiveGlass(
+                LiveGlassSurface(
                   live: _boxFrames,
-                  opacityOf: () => frame().opacity,
+                  frameOf: () => GlassFrame(
+                    shape: const LiquidRoundedSuperellipse(
+                      borderRadius: DatePickerTuning.cornerRadius,
+                    ),
+                    opacity: frame().opacity,
+                  ),
                 ),
                 ClipRRect(
                   clipper: _OverlayClipper(_boxFrames, () => frame().shape),
@@ -3162,58 +3166,4 @@ mixin _Clocked<T extends StatefulWidget> on State<T> implements MotionDriver {
     _frames.dispose();
     super.dispose();
   }
-}
-
-/// The overlay's glass, faded to [opacityOf], read again on every
-/// notification of [live].
-class _LiveGlass extends StatefulWidget {
-  const _LiveGlass({required this.live, required this.opacityOf});
-
-  final Listenable live;
-  final double Function() opacityOf;
-
-  @override
-  State<_LiveGlass> createState() => _LiveGlassState();
-}
-
-class _LiveGlassState extends State<_LiveGlass> {
-  static const _shape = LiquidRoundedSuperellipse(
-    borderRadius: DatePickerTuning.cornerRadius,
-  );
-  late final _frame = ValueNotifier(_frameNow);
-
-  GlassFrame get _frameNow =>
-      GlassFrame(shape: _shape, opacity: widget.opacityOf());
-
-  void _changed() => _frame.value = _frameNow;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.live.addListener(_changed);
-  }
-
-  @override
-  void didUpdateWidget(_LiveGlass oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.live != widget.live) {
-      oldWidget.live.removeListener(_changed);
-      widget.live.addListener(_changed);
-    }
-    _changed();
-  }
-
-  @override
-  void dispose() {
-    widget.live.removeListener(_changed);
-    _frame.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => GlassSurface.live(
-    role: GlassRole.menu,
-    frame: _frame,
-    child: const SizedBox.expand(),
-  );
 }

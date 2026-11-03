@@ -13,7 +13,6 @@ import 'package:apple_liquid_glass/src/menu/rows.dart';
 import 'package:apple_liquid_glass/src/motion/live.dart';
 import 'package:apple_liquid_glass/src/renderer/flat.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
-import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
@@ -741,7 +740,7 @@ class _MenuLayerState extends State<_MenuLayer> {
           ? cards[i + 1].source
           : null;
     }
-    final root = cards.isEmpty ? motion.layout : cards[0].layout;
+    final root = cards[0].layout;
     return _Structure(
       layouts: [for (final card in cards) card.layout],
       open: motion.isOpen,
@@ -1021,7 +1020,7 @@ class _MenuLayerState extends State<_MenuLayer> {
         live: _frames,
         rectOf: () {
           final motion = _motion;
-          final s = motion.cards.isEmpty ? 1.0 : motion.cards[0].scale;
+          final s = motion.cards[0].scale;
           return Rect.fromLTWH(
             width / 2 * (1 - s),
             0,
@@ -1034,14 +1033,14 @@ class _MenuLayerState extends State<_MenuLayer> {
           alignment: Alignment.topLeft,
           matrixOf: () {
             final cards = _motion.cards;
-            final s = cards.isEmpty ? 1.0 : cards[0].scale;
+            final s = cards[0].scale;
             return Matrix4.diagonal3Values(s, s, 1);
           },
           child: LiveFade(
             live: _frames,
             opacityOf: () {
               final cards = _motion.cards;
-              return cards.isEmpty ? 1 : cards[0].rowOpacity;
+              return cards[0].rowOpacity;
             },
             child: _root(layout, style, locked: locked),
           ),
@@ -1091,8 +1090,8 @@ class _MenuLayerState extends State<_MenuLayer> {
           clipBehavior: Clip.none,
           children: [
             IgnorePointer(
-              child: _CardGlass(
-                frames: _frames,
+              child: LiveGlassSurface(
+                live: _frames,
                 frameOf: () => GlassFrame(
                   shape: LiquidRoundedRectangle(borderRadius: radius()),
                   opacity: card().platterOpacity * _motion.cardMaterialOpacity,
@@ -1246,7 +1245,10 @@ class _MenuLayerState extends State<_MenuLayer> {
         children: [
           ..._anchor._backdrop(this),
           IgnorePointer(
-            child: _MenuGlass(frames: _frames, motion: motion, shaded: shaded),
+            child: LiveGlassSurface(
+              live: _frames,
+              frameOf: () => _menuFrame(motion, shaded: shaded),
+            ),
           ),
           if (motion.drawsSource)
             IgnorePointer(
@@ -1300,140 +1302,33 @@ class _MenuLayerState extends State<_MenuLayer> {
   }
 }
 
-/// A submenu card's glass, its frame read again on every tick of
-/// [frames].
-class _CardGlass extends StatefulWidget {
-  const _CardGlass({required this.frames, required this.frameOf});
-
-  final ValueListenable<int> frames;
-  final GlassFrame Function() frameOf;
-
-  @override
-  State<_CardGlass> createState() => _CardGlassState();
+bool _inside(RRect outer, RRect inner) {
+  final corner = outer.tlRadiusX * (1 - math.sqrt1_2);
+  return outer.outerRect.deflate(corner).contains(inner.outerRect.topLeft) &&
+      outer.outerRect.deflate(corner).contains(inner.outerRect.bottomRight);
 }
 
-class _CardGlassState extends State<_CardGlass> {
-  late final _frame = ValueNotifier(widget.frameOf());
-
-  void _changed() => _frame.value = widget.frameOf();
-
-  @override
-  void initState() {
-    super.initState();
-    widget.frames.addListener(_changed);
-  }
-
-  @override
-  void didUpdateWidget(_CardGlass oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.frames != widget.frames) {
-      oldWidget.frames.removeListener(_changed);
-      widget.frames.addListener(_changed);
-    }
-    _changed();
-  }
-
-  @override
-  void dispose() {
-    widget.frames.removeListener(_changed);
-    _frame.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => GlassSurface.live(
-    role: GlassRole.menu,
-    frame: _frame,
-    child: const SizedBox.expand(),
-  );
-}
-
-/// The glass of an open menu: one body that is the menu and the source
-/// fused while the fusion runs, their union on either side of it, and the
-/// menu's own rounded box once the source is inside it.
-class _MenuGlass extends StatefulWidget {
-  const _MenuGlass({
-    required this.frames,
-    required this.motion,
-    required this.shaded,
-  });
-
-  final ValueListenable<int> frames;
-  final MenuMotion motion;
-
-  /// Whether the renderer shades outlines from their field.
-  final bool shaded;
-
-  @override
-  State<_MenuGlass> createState() => _MenuGlassState();
-}
-
-class _MenuGlassState extends State<_MenuGlass> {
-  late final _frame = ValueNotifier(_frameNow());
-
-  @override
-  void initState() {
-    super.initState();
-    widget.frames.addListener(_changed);
-  }
-
-  @override
-  void didUpdateWidget(_MenuGlass oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.frames != widget.frames) {
-      oldWidget.frames.removeListener(_changed);
-      widget.frames.addListener(_changed);
-    }
-    _changed();
-  }
-
-  @override
-  void dispose() {
-    widget.frames.removeListener(_changed);
-    _frame.dispose();
-    super.dispose();
-  }
-
-  void _changed() => _frame.value = _frameNow();
-
-  static bool _inside(RRect outer, RRect inner) {
-    final corner = outer.tlRadiusX * (1 - math.sqrt1_2);
-    return outer.outerRect.deflate(corner).contains(inner.outerRect.topLeft) &&
-        outer.outerRect.deflate(corner).contains(inner.outerRect.bottomRight);
-  }
-
-  GlassFrame _frameNow() {
-    final motion = widget.motion;
-    final glow = motion.touchGlow;
-    final root = motion.rootBlob.rrect;
-    if (motion.fusionRadius >= MenuFusion.minimumRadius) {
-      return GlassFrame(
-        outline: motion.silhouetteFor(withField: widget.shaded),
-        glow: glow,
-      );
-    }
-    final source = motion.drawsSource ? motion.buttonBlob.rrect : null;
-    if (source == null || _inside(root, source)) {
-      return GlassFrame(
-        shape: LiquidRoundedRectangle(borderRadius: root.tlRadiusX),
-        rect: root.outerRect,
-        glow: glow,
-      );
-    }
-    final shapes = [root, source];
+GlassFrame _menuFrame(MenuMotion motion, {required bool shaded}) {
+  final glow = motion.touchGlow;
+  final root = motion.rootBlob.rrect;
+  if (motion.fusionRadius >= MenuFusion.minimumRadius) {
     return GlassFrame(
-      outline: widget.shaded
-          ? unionFieldOutline(shapes)
-          : plainUnionOutline(shapes),
+      outline: motion.silhouetteFor(withField: shaded),
       glow: glow,
     );
   }
-
-  @override
-  Widget build(BuildContext context) => GlassSurface.live(
-    role: GlassRole.menu,
-    frame: _frame,
-    child: const SizedBox.expand(),
+  final source = motion.drawsSource ? motion.buttonBlob.rrect : null;
+  if (source == null || _inside(root, source)) {
+    return GlassFrame(
+      shape: LiquidRoundedRectangle(borderRadius: root.tlRadiusX),
+      rect: root.outerRect,
+      glow: glow,
+    );
+  }
+  final shapes = [root, source];
+  return GlassFrame(
+    outline: shaded ? unionFieldOutline(shapes) : plainUnionOutline(shapes),
+    glow: glow,
   );
 }
 

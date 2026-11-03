@@ -717,9 +717,6 @@ class MenuTuning {
       t > (opening ? fusionOpenHold : fusionCloseHold) &&
       fusionEnvelope(t, opening: opening) < fusionCutoff;
 
-  /// The height of a menu with [rows] rows.
-  double menuHeight(int rows) => 2 * verticalPadding + rowHeight * rows;
-
   /// The glow a finger raises on the open menu ([glowDiameter]).
   TouchGlowMotion touchGlow() => TouchGlowMotion(
     washPeak: flex.bigGlowOpacity,
@@ -978,11 +975,9 @@ class _Pointer {
   _Pointer({
     required this.fromButton,
     required this.position,
-    required this.startedInMenu,
   });
 
   final bool fromButton;
-  final bool startedInMenu;
   Offset position;
   bool openedByHold = false;
   bool holdForfeited = false;
@@ -1084,7 +1079,13 @@ class _Card {
 /// [to] at [end], linear in between; every reversal starts a new one
 /// from the current value, so the opacity never jumps.
 class _Fade {
-  double from = 1;
+  _Fade({this.from = 1});
+
+  /// The end a fade that closes from progress [p] lands at: [end], or
+  /// nothing left when [p] is already within a twentieth of it.
+  static double closeEnd(double p, double end) => p > end + 0.05 ? end : 0;
+
+  double from;
   double to = 1;
   double anchor = 0;
   double end = 1;
@@ -1348,10 +1349,7 @@ class MenuMotion {
   double _closeStart = 0;
   double _closeSource = 1;
   double _closeLive = 1;
-  double _fadeFrom = 0;
-  double _fadeTo = 1;
-  double _fadeAnchor = 0;
-  double _fadeEnd = 1;
+  final _Fade _contentFade = _Fade(from: 0);
   int _openGeneration = 0;
   bool _openPending = false;
   ({double t, Offset position})? _earlyRelease;
@@ -1495,7 +1493,6 @@ class MenuMotion {
     double? sourceRadius,
     MenuAttachment? attachment,
   }) {
-    _revision++;
     if (_phase != _Phase.idle) return;
     _sourceRadius = sourceRadius;
     _attachment = attachment;
@@ -1522,7 +1519,6 @@ class MenuMotion {
   /// Open cards are laid out again from the targets that opened them; a
   /// card whose target is gone closes.
   void updateLayout(double t, {bool animate = true}) {
-    _revision++;
     advance(t);
     _root = _build(reversed: _reversed);
     for (var i = 0; i < _cards.length; i++) {
@@ -1835,11 +1831,7 @@ class MenuMotion {
         tuning.contentFadeEnd,
       );
     }
-    final span = _fadeAnchor - _fadeEnd;
-    if (span.abs() < 1e-6) return _fadeTo;
-    final p = _progress.valueAt(t + tuning.fadeLead);
-    final f = ((p - _fadeEnd) / span).clamp(0.0, 1.0);
-    return _fadeTo + (_fadeFrom - _fadeTo) * f;
+    return _contentFade.at(_progress.valueAt(t + tuning.fadeLead));
   }
 
   void _fade(
@@ -1849,17 +1841,14 @@ class MenuMotion {
     bool fresh = false,
   }) {
     final p = _progress.valueAt(t + tuning.fadeLead);
-    _fadeFrom = from;
-    _fadeTo = opening ? 1 : 0;
-    if (opening) {
-      _fadeAnchor = fresh ? tuning.contentFadeStart : p;
-      _fadeEnd = tuning.contentFadeEnd;
-    } else {
-      _fadeAnchor = p;
-      _fadeEnd = p > tuning.contentCloseFadeEnd + 0.05
-          ? tuning.contentCloseFadeEnd
-          : 0;
-    }
+    _contentFade.start(
+      from: from,
+      to: opening ? 1 : 0,
+      anchor: opening && fresh ? tuning.contentFadeStart : p,
+      end: opening
+          ? tuning.contentFadeEnd
+          : _Fade.closeEnd(p, tuning.contentCloseFadeEnd),
+    );
   }
 
   /// The blur radius of the menu content, in logical pixels on screen.
@@ -2332,16 +2321,8 @@ class MenuMotion {
     );
   }
 
-  /// A count that changes whenever an input reaches the motion or a
-  /// pending reaction runs: while it holds and [isStill] holds, every frame
-  /// shows the same picture but for the touch glow.
-  @internal
-  int get revision => _revision;
-  int _revision = 0;
-
   /// Whether nothing but the touch glow moves now ([isGlowing]); pending
-  /// reactions and a resting finger may still change the picture later
-  /// ([revision]).
+  /// reactions and a resting finger may still change the picture later.
   @internal
   bool get isStill => _still;
 
@@ -2476,23 +2457,17 @@ class MenuMotion {
     return top;
   }
 
-  /// The visual slot, from the top of a uniform menu, of row [index];
-  /// rows are reversed when the menu opens upward.
-  int slotOf(int index) => _down ? index : _itemCount - 1 - index;
-
   /// Opens the menu at time [t].
   ///
   /// [sourceScale] is the button's scale at that moment, which sizes the
   /// frame the menu aligns to; it defaults to the current press scale.
   void open(double t, {double? sourceScale}) {
-    _revision++;
     advance(t);
     _open(t, sourceScale: sourceScale);
   }
 
   /// Closes the menu at time [t].
   void close(double t) {
-    _revision++;
     _openPending = false;
     _timeline.clear();
     _resizeGeneration++;
@@ -2504,7 +2479,6 @@ class MenuMotion {
   /// Chooses target [index] of the top card at time [t] as a release on
   /// it would.
   void select(double t, int index) {
-    _revision++;
     advance(t);
     if (_phase != _Phase.opening) return;
     final card = _topCard;
@@ -2515,7 +2489,6 @@ class MenuMotion {
   /// Highlights target [index] of the top card at time [t], as a finger
   /// or the keyboard would; null clears the highlight.
   void highlight(double t, int? index) {
-    _revision++;
     advance(t);
     if (_phase != _Phase.opening) return;
     _setHighlight(index, _topCard);
@@ -2524,7 +2497,6 @@ class MenuMotion {
   /// Sends the top submenu card back into its row at time [t]; returns
   /// whether there was one.
   bool back(double t) {
-    _revision++;
     advance(t);
     if (_phase != _Phase.opening || _topCard == 0) return false;
     _back(t);
@@ -2537,12 +2509,10 @@ class MenuMotion {
   /// release before it left the source (a context menu's preview) keeps
   /// the menu open.
   void holdOpen(double t, Offset position) {
-    _revision++;
     advance(t);
     final pointer = _Pointer(
       fromButton: true,
       position: position,
-      startedInMenu: false,
     );
     pointer.openedByHold = true;
     _pointer = pointer;
@@ -2551,14 +2521,12 @@ class MenuMotion {
 
   /// A finger touched down at [position].
   void pointerDown(double t, Offset position) {
-    _revision++;
     advance(t);
     if (_pointer != null) return;
     if (_phase == _Phase.opening) {
       final pointer = _Pointer(
         fromButton: false,
         position: position,
-        startedInMenu: _onMenu(position),
       );
       _pointer = pointer;
       if (_onWidgetRow(position)) {
@@ -2574,7 +2542,6 @@ class MenuMotion {
       _pointer = _Pointer(
         fromButton: false,
         position: position,
-        startedInMenu: false,
       );
       return;
     }
@@ -2582,7 +2549,6 @@ class MenuMotion {
     final pointer = _Pointer(
       fromButton: true,
       position: position,
-      startedInMenu: false,
     );
     _pointer = pointer;
     _press.pointerDown(t, position - _button.topLeft);
@@ -2621,7 +2587,6 @@ class MenuMotion {
 
   /// The finger moved to [position].
   void pointerMove(double t, Offset position) {
-    _revision++;
     advance(t);
     final pointer = _pointer;
     if (pointer == null) return;
@@ -2719,7 +2684,6 @@ class MenuMotion {
   /// The finger on the menu started to scroll its content: it no longer
   /// chooses anything.
   void pointerScrolled(double t) {
-    _revision++;
     advance(t);
     final pointer = _pointer;
     if (pointer == null || pointer.scrolled) return;
@@ -2730,7 +2694,6 @@ class MenuMotion {
 
   /// The finger lifted at [position].
   void pointerUp(double t, Offset position) {
-    _revision++;
     advance(t);
     final pointer = _pointer;
     _pointer = null;
@@ -2777,7 +2740,6 @@ class MenuMotion {
 
   /// The touch was cancelled.
   void pointerCancel(double t) {
-    _revision++;
     advance(t);
     final pointer = _pointer;
     _pointer = null;
@@ -2825,7 +2787,6 @@ class MenuMotion {
   bool _advance(double t) {
     _request = null;
     if (t < _now) return true;
-    if ((_timeline.nextDue ?? double.infinity) <= t) _revision++;
     if (!_timeline.runDue(t, until: () => _request != null)) return false;
     _sample(t);
     for (var i = _cards.length - 1; i >= 0; i--) {
@@ -3150,7 +3111,7 @@ class MenuMotion {
       from: _cardFade.at(p),
       to: 0,
       anchor: p,
-      end: p > tuning.cardCloseFadeEnd + 0.05 ? tuning.cardCloseFadeEnd : 0,
+      end: _Fade.closeEnd(p, tuning.cardCloseFadeEnd),
     );
     _progress.close(t);
     _fade(t, from: opacity, opening: false);
