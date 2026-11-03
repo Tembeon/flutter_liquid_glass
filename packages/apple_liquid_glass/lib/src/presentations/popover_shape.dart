@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/menu/outline_math.dart';
 import 'package:apple_liquid_glass/src/motion/popover_motion.dart';
 import 'package:apple_liquid_glass/src/surface/outline.dart';
 import 'package:flutter/foundation.dart';
@@ -21,13 +22,14 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 /// ends at least [PopoverTuning.arrowCornerGap] short of the arrow's
 /// center.
 ///
-/// Both tiers draw [path]; the liquid tier shades the shape from the
-/// distance field of [outline], so the arrow is the body's own glass, edge
-/// light and refraction included, as UIKit's one SDF element is. The field
-/// is NEAR, invisible: sampled every [fieldStep], it rounds the tip 0.2 pt
-/// short of [path], and deeper than 32 pt above the arrow it holds the
-/// nearest straight edge or fillet start, at most 1.2 pt off where the
-/// glass reads only its sign.
+/// The flat renderer, and the liquid one on fake glass, fill [path]; the
+/// liquid renderer otherwise casts the shadow by [path] and shades the body
+/// from the distance field of [outline], so the arrow is the body's own
+/// glass, edge light and refraction included, as UIKit's one SDF element
+/// is. The field is NEAR, invisible: sampled every [fieldStep], it rounds
+/// the tip 0.2 pt short of [path], and deeper than 32 pt above the arrow
+/// it holds the nearest straight edge or fillet start, at most 1.2 pt off
+/// where the glass reads only its sign.
 @internal
 class PopoverShape {
   /// The shape of a popover whose content box is [content] and whose
@@ -51,10 +53,9 @@ class PopoverShape {
   /// The distance between the nodes of the shape's distance field, in
   /// logical pixels.
   ///
-  /// The renderer interpolates the field bilinearly between nodes, which
-  /// rounds the liquid tier's arrow tip 0.2 pt short of [path] at this
-  /// step (0.07 pt at 1, for four times the nodes): NEAR, invisible. The
-  /// field of a 240 x 264 popover then takes 0.4 ms to sample on a Mac.
+  /// At 1 the tip rounds 0.07 pt short instead of 0.2, for four times the
+  /// nodes. The field of a 240 x 264 popover takes 0.4 ms to sample on a
+  /// Mac at this step.
   static const double fieldStep = 2;
 
   // The field reaches this far past the shape: two nodes and the glass's
@@ -62,21 +63,12 @@ class PopoverShape {
   static const double _fieldMargin = 4;
 
   /// The box of the content and the arrow.
-  Rect get bounds => content.expandToInclude(arrowBox);
+  Rect get bounds => content.expandToInclude(_trace.arrowBox);
 
   late final _Trace _trace = _Trace.of(this);
 
   /// The edge of the shape.
   Path get path => _trace.path;
-
-  /// The rounded box nearest the content's own shape: the content box with
-  /// the radius of its corners away from the arrow.
-  RRect get body =>
-      RRect.fromRectAndRadius(content, Radius.circular(_trace.radius));
-
-  /// The box the arrow occupies, for a glass surface that marks the
-  /// arrow's part of the body.
-  Rect get arrowBox => _trace.arrowBox;
 
   /// The shape as one glass body: with its distance field for a renderer
   /// that shades it ([shaded]), its edge alone otherwise.
@@ -326,7 +318,7 @@ class _Trace {
   ///
   /// Each node holds the distance to the edge, negative inside; its
   /// gradient by central differences, turned as the renderer turns a
-  /// rounded box's normals near its corners ([_opticalCornerScale])
+  /// rounded box's normals near its corners ([opticalCornerScale])
   /// wherever the arrow is not the nearest part; and the half thickness of
   /// the content.
   ///
@@ -477,9 +469,12 @@ class _Trace {
       radii[(corner.dx < center.dx ? 0 : 1) + (corner.dy < center.dy ? 0 : 2)] =
           extent / _cornerExtent;
     }
-    final boxes = <double, _OpticalBox>{};
+    final boxes = <double, OutlineBoxes>{};
     final quadrants = [
-      for (final r in radii) boxes[r] ??= _OpticalBox(content, r),
+      for (final r in radii)
+        boxes[r] ??= OutlineBoxes([
+          RRect.fromRectAndRadius(content, Radius.circular(r)),
+        ]),
     ];
     final vertical =
         _direction == PopoverArrowDirection.down ||
@@ -535,8 +530,8 @@ class _Trace {
           final y = top + oj * step;
           final boxes =
               quadrants[(x < center.dx ? 0 : 1) + (y < center.dy ? 0 : 2)];
-          if (boxes.inOpticalCorner(x, y)) {
-            boxes.opticalTurn(x, y, turn);
+          if (boxes.inOpticalCorner(0, x, y)) {
+            boxes.opticalTurn(0, x, y, turn, 0);
             final cos = turn[0];
             final sin = turn[1];
             final tx = rx * cos - ry * sin;
@@ -579,72 +574,4 @@ double _distance2(Float64List segments, int s, double x, double y) {
   final ex = px - t * dx;
   final ey = py - t * dy;
   return ex * ex + ey * ey;
-}
-
-// How much rounder than a rounded box's exact corner the renderer bends
-// its normals: the corner whose normals the glass shows.
-const double _opticalCornerScale = 1.5;
-
-/// A rounded box whose normals near its corners turn as the renderer turns
-/// them, toward a corner [_opticalCornerScale] times rounder.
-class _OpticalBox {
-  _OpticalBox(Rect box, double radius)
-    : _cx = box.center.dx,
-      _cy = box.center.dy,
-      _hx = box.width / 2,
-      _hy = box.height / 2,
-      _exact = math.min(radius, math.min(box.width, box.height) / 2);
-
-  final double _cx;
-  final double _cy;
-  final double _hx;
-  final double _hy;
-  final double _exact;
-
-  double get _optical =>
-      math.min(_exact * _opticalCornerScale, math.min(_hx, _hy));
-
-  /// Whether (x, y) lies in the square of a corner of the optical radius.
-  bool inOpticalCorner(double x, double y) {
-    final optical = _optical;
-    return (x - _cx).abs() > _hx - optical && (y - _cy).abs() > _hy - optical;
-  }
-
-  /// Writes into [out] the cosine and sine of the turn from the exact
-  /// normal at (x, y) to the optical one.
-  void opticalTurn(double x, double y, Float64List out) {
-    final exact = _exact;
-    final optical = _optical;
-    out[0] = 1;
-    out[1] = 0;
-    if (optical <= exact) return;
-    final px = x - _cx;
-    final py = y - _cy;
-    final ax = px.abs() - _hx;
-    final ay = py.abs() - _hy;
-    final ox = ax + optical;
-    final oy = ay + optical;
-    if (ox <= 0 || oy <= 0) return;
-    final ex = ax + exact;
-    final ey = ay + exact;
-    double enx;
-    double eny;
-    if (ex > 0 && ey > 0) {
-      final length = math.sqrt(ex * ex + ey * ey);
-      enx = ex / length;
-      eny = ey / length;
-    } else if (ex > ey) {
-      enx = 1;
-      eny = 0;
-    } else {
-      enx = 0;
-      eny = 1;
-    }
-    final length = math.sqrt(ox * ox + oy * oy);
-    final onx = ox / length;
-    final ony = oy / length;
-    final mirrored = (px < 0) != (py < 0);
-    out[0] = enx * onx + eny * ony;
-    out[1] = (enx * ony - eny * onx) * (mirrored ? -1 : 1);
-  }
 }

@@ -161,7 +161,7 @@ final class FlatGlassLook {
   final bool underGlass;
 
   /// The share of its opacity a lens's fill keeps at [lift]: all at rest, a
-  /// fifth fully lifted (Morph's flat small lens, not measured).
+  /// fifth fully lifted.
   static double liftedOpacity(double lift) => 1 - 0.8 * lift.clamp(0.0, 1.0);
 
   /// Below this lift a lens or knob draws no glass.

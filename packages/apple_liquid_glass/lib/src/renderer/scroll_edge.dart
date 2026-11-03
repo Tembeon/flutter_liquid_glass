@@ -105,11 +105,6 @@ double _halfResolutionSigma(double sigma, double devicePixelRatio) {
   return raised <= sigma * 1.12 ? raised : sigma;
 }
 
-/// The height of the band the effect [details] describe covers.
-@internal
-double scrollEdgeBand(GlassScrollEdgeDetails details) =>
-    details.hard ? details.extent : details.extent + _Edge.softOverhang;
-
 /// A scroll edge effect as [details] describe it; it blurs the content
 /// under it only when [blurs].
 @internal
@@ -131,7 +126,9 @@ class ScrollEdge extends StatelessWidget {
       child: Align(
         alignment: top ? Alignment.topCenter : Alignment.bottomCenter,
         child: SizedBox(
-          height: scrollEdgeBand(details),
+          height: details.hard
+              ? details.extent
+              : details.extent + _Edge.softOverhang,
           width: double.infinity,
           child: _EdgePaint(
             details: details,
@@ -337,15 +334,17 @@ class _RenderEdge extends RenderBox {
       fade(context, offset);
       return;
     }
+    final frost = _frost(presence);
+    final reach = _blurReach(_sigma, _devicePixelRatio);
     final blur = _blur.layer ??= LiquidGlassBackdropFilterLayer.frosted(
-      frost: _frost(presence),
+      frost: frost,
       clip: box,
-      reach: _blurReach(_sigma, _devicePixelRatio),
+      reach: reach,
       devicePixelRatio: _devicePixelRatio,
     );
-    blur.frost = _frost(presence);
+    blur.frost = frost;
     blur.clip = box;
-    blur.reach = _blurReach(_sigma, _devicePixelRatio);
+    blur.reach = reach;
     blur.devicePixelRatio = _devicePixelRatio;
     context.pushLayer(blur, fade, offset);
   }

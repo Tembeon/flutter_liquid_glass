@@ -12,11 +12,10 @@ import 'package:flutter/widgets.dart';
 /// or an app's own, chosen by the app or its user in `GlassTheme` and
 /// switchable at any time.
 ///
-/// A renderer builds a surface when the surface's widget rebuilds, never per
-/// frame: frames reach what it built only through
-/// [GlassSurfaceDetails.frame], followed below build, so nothing rebuilds
-/// while a control moves. Controls above the surfaces keep their state
-/// across a switch, even mid-press.
+/// A renderer builds a surface when the surface's widget rebuilds; frames
+/// reach what it built through [GlassSurfaceDetails.frame], followed below
+/// build, so a moving control rebuilds nothing per frame. Controls above
+/// the surfaces keep their state across a switch, even mid-press.
 @immutable
 abstract class GlassRenderer {
   /// Creates a renderer.
@@ -76,8 +75,8 @@ final class GlassSurfaceDetails {
   /// The glass it is made of.
   final Glass glass;
 
-  /// Its frames; a renderer follows them below build and never rebuilds for
-  /// a new one.
+  /// Its frames; a renderer follows them below build rather than rebuilding
+  /// per frame.
   final ValueListenable<GlassFrame> frame;
 
   /// The content drawn over the body, clipped to it.

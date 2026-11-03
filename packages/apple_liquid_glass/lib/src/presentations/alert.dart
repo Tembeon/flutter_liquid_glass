@@ -220,7 +220,7 @@ final class GlassAlertRoute extends PresentationRoute<GlassAlertAction> {
   @override
   bool leave(DismissTrigger trigger) {
     final view = _view;
-    if (view == null || !view.mounted) return false;
+    if (view == null) return false;
     view._leave();
     return true;
   }
@@ -261,32 +261,12 @@ List<GlassAlertAction> _ordered(
   return row ? [...cancel, ...rest] : [...rest, ...cancel];
 }
 
-/// The colors of an alert, light and dark (UIKit's rendering on an iPhone
-/// 16 Pro; the button fill is tertiarySystemFill).
-abstract final class _Colors {
-  static const message = GlassDynamicColor.withBrightness(
-    color: Color(0x993C3C43),
-    darkColor: Color(0x99EBEBF5),
-  );
-  static const button = GlassDynamicColor.withBrightnessAndContrast(
-    color: Color(0x1F767680),
-    darkColor: Color(0x3D767680),
-    highContrastColor: Color(0x33767680),
-    darkHighContrastColor: Color(0x52767680),
-  );
-  static const destructive = GlassDynamicColor.withBrightnessAndContrast(
-    color: Color(0xFFFF383C),
-    darkColor: Color(0xFFFF4245),
-    highContrastColor: Color(0xFFE9152D),
-    darkHighContrastColor: Color(0xFFFF6165),
-  );
-  static const preferred = GlassDynamicColor.withBrightnessAndContrast(
-    color: Color(0xFF0088FF),
-    darkColor: Color(0xFF0091FF),
-    highContrastColor: Color(0xFF1E6EF4),
-    darkHighContrastColor: Color(0xFF5CB8FF),
-  );
-}
+// The message color of an alert, light and dark (UIKit's rendering on an
+// iPhone 16 Pro).
+const _messageColor = GlassDynamicColor.withBrightness(
+  color: Color(0x993C3C43),
+  darkColor: Color(0x99EBEBF5),
+);
 
 class _AlertView extends StatefulWidget {
   const _AlertView({required this.route});
@@ -557,7 +537,7 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
         : action.isDefaultAction
         ? const Color(0xFFFFFFFF)
         : action.isDestructive
-        ? _Colors.destructive
+        ? GlassColors.systemRed
         : label;
     return resolveGlassText(
       TextStyle(
@@ -588,7 +568,26 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
         _route.actions.length == 2 &&
         _fitsInRow(width, context);
     _shown = _ordered(_route.actions, row: row, popover: popover != null);
-    final card = _buildCard(width, row, context);
+    final card = NotificationListener<ScrollNotification>(
+      onNotification: _scrolledContent,
+      child: _buildCard(width, row, context),
+    );
+    Widget interactive(Widget child) => CallbackShortcuts(
+      bindings: {const SingleActivator(LogicalKeyboardKey.enter): _return},
+      child: FocusScope(
+        autofocus: true,
+        child: IgnorePointer(
+          ignoring: _leaving,
+          child: Listener(
+            onPointerDown: _down,
+            onPointerMove: _move,
+            onPointerUp: _up,
+            onPointerCancel: _cancel,
+            child: child,
+          ),
+        ),
+      ),
+    );
     if (popover != null) {
       final media = MediaQuery.of(context);
       return Stack(
@@ -612,27 +611,7 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
                 ),
               ),
               direction: Directionality.of(context),
-              card: CallbackShortcuts(
-                bindings: {
-                  const SingleActivator(LogicalKeyboardKey.enter): _return,
-                },
-                child: FocusScope(
-                  autofocus: true,
-                  child: IgnorePointer(
-                    ignoring: _leaving,
-                    child: Listener(
-                      onPointerDown: _down,
-                      onPointerMove: _move,
-                      onPointerUp: _up,
-                      onPointerCancel: _cancel,
-                      child: NotificationListener<ScrollNotification>(
-                        onNotification: _scrolledContent,
-                        child: card,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              card: interactive(card),
             ),
           ),
         ],
@@ -663,32 +642,14 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
               math.max(safe.bottom, keyboard),
             ),
             child: Center(
-              child: CallbackShortcuts(
-                bindings: {
-                  const SingleActivator(LogicalKeyboardKey.enter): _return,
-                },
-                child: FocusScope(
-                  autofocus: true,
-                  child: IgnorePointer(
-                    ignoring: _leaving,
-                    child: Listener(
-                      onPointerDown: _down,
-                      onPointerMove: _move,
-                      onPointerUp: _up,
-                      onPointerCancel: _cancel,
-                      child: MotionTransition(
-                        scale: _scale,
-                        child: MotionTransition(
-                          offset: _lean,
-                          scaleX: _pressX,
-                          scaleY: _pressY,
-                          child: NotificationListener<ScrollNotification>(
-                            onNotification: _scrolledContent,
-                            child: card,
-                          ),
-                        ),
-                      ),
-                    ),
+              child: interactive(
+                MotionTransition(
+                  scale: _scale,
+                  child: MotionTransition(
+                    offset: _lean,
+                    scaleX: _pressX,
+                    scaleY: _pressY,
+                    child: card,
                   ),
                 ),
               ),
@@ -729,7 +690,7 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
                 ? TextStyle(
                     fontSize: 15,
                     height: AlertTuning.messageHeight,
-                    color: GlassDynamicColor.resolve(_Colors.message, context),
+                    color: GlassDynamicColor.resolve(_messageColor, context),
                   )
                 : TextStyle(
                     fontSize: AlertTuning.textFontSize,
@@ -860,8 +821,8 @@ class _AlertButton extends StatelessWidget {
     final preferred = action.isDefaultAction && action.enabled;
     final fill = GlassDynamicColor.resolve(
       preferred
-          ? GlassTheme.of(context).primaryColor ?? _Colors.preferred
-          : _Colors.button,
+          ? GlassTheme.of(context).primaryColor ?? GlassColors.systemBlue
+          : GlassColors.tertiarySystemFill,
       context,
     );
     return Semantics(

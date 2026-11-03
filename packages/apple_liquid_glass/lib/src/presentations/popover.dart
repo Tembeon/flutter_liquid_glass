@@ -120,7 +120,7 @@ final class GlassPopoverRoute<T> extends PresentationRoute<T> {
   @override
   bool leave(DismissTrigger trigger) {
     final view = _view;
-    if (view == null || !view.mounted) return false;
+    if (view == null) return false;
     view._leave();
     return true;
   }

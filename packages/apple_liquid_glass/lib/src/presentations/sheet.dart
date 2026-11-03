@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motion/sheet_motion.dart';
-import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
@@ -45,7 +44,7 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 /// The liquid renderer draws the floating glass with the top corners'
 /// radius all round, clipped at the bottom to the display's corners: its
 /// rim light at the bottom corners follows a 38 point curve under a 54
-/// point clip (near).
+/// point clip (NEAR).
 Future<T?> showGlassSheet<T>(
   BuildContext context, {
   required WidgetBuilder builder,
@@ -148,7 +147,7 @@ final class GlassSheetRoute<T> extends PresentationRoute<T> {
   @override
   bool leave(DismissTrigger trigger) {
     final view = _view;
-    if (view == null || !view.mounted) return false;
+    if (view == null) return false;
     view._leave();
     return true;
   }
@@ -212,16 +211,13 @@ class _SheetScope extends InheritedModel<_SheetAspect> {
   final GlassSheetDetent detent;
 
   @override
-  bool updateShouldNotify(_SheetScope oldWidget) =>
-      oldWidget.detent != detent || oldWidget.state != state;
+  bool updateShouldNotify(_SheetScope oldWidget) => oldWidget.detent != detent;
 
   @override
   bool updateShouldNotifyDependent(
     _SheetScope oldWidget,
     Set<_SheetAspect> dependencies,
-  ) =>
-      oldWidget.state != state ||
-      (oldWidget.detent != detent && dependencies.contains(_SheetAspect.sheet));
+  ) => oldWidget.detent != detent && dependencies.contains(_SheetAspect.sheet);
 }
 
 /// What the sheet's tree is built from; it rebuilds only when this changes.
@@ -275,11 +271,6 @@ class _SheetViewState extends State<_SheetView>
   );
   final _dim = ValueNotifier<double>(0);
   final _fill = ValueNotifier<double>(0);
-  final _glass = ValueNotifier(
-    const GlassFrame(
-      shape: LiquidRoundedSuperellipse(borderRadius: SheetTuning.topRadius),
-    ),
-  );
   final _structure = ValueNotifier<_Structure>((
     opaque: false,
     filling: false,
@@ -339,7 +330,6 @@ class _SheetViewState extends State<_SheetView>
     _frame.dispose();
     _dim.dispose();
     _fill.dispose();
-    _glass.dispose();
     _structure.dispose();
     super.dispose();
   }
@@ -792,10 +782,12 @@ class _SheetViewState extends State<_SheetView>
                           fit: StackFit.expand,
                           children: [
                             if (!structure.opaque)
-                              GlassSurface.live(
+                              const GlassSurface(
+                                shape: LiquidRoundedSuperellipse(
+                                  borderRadius: SheetTuning.topRadius,
+                                ),
                                 role: GlassRole.sheet,
-                                frame: _glass,
-                                child: const SizedBox.expand(),
+                                child: SizedBox.expand(),
                               ),
                             if (structure.opaque)
                               ColoredBox(color: docked)
@@ -918,8 +910,8 @@ class _RenderSheetBox extends RenderProxyBox {
   }
 
   // The glass renderer places a resting sheet's backdrop pass from its
-  // ancestors' clips, as Impeller sizes the pass; unreported, the clip put
-  // the sheet's glass off by the sheet's inset once it came to rest.
+  // ancestors' clips, as Impeller sizes the pass; without this clip the
+  // sheet's glass sits off by the sheet's inset at rest.
   @override
   Rect? describeApproximatePaintClip(RenderObject child) {
     final frame = _frame.value;

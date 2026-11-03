@@ -29,11 +29,11 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 /// rest and gets a glass layer of its own over the platter only while it
 /// is lifted; on fake glass the layer keeps the lifted optics for the whole
 /// lift and the glass's fade carries the change, a NEAR trade that keeps
-/// the fake layer from rebuilding every frame. A frame reaches the
-/// renderer's live shape and live layer without a rebuild.
-/// Layers use the fitted iOS 27 settings: clear for a lone clear surface,
-/// regular in the ambient brightness ([GlassTraits.brightness]) otherwise,
-/// both at the Liquid Glass slider's position ([GlassTraits.glassTintAmount]).
+/// the fake layer from rebuilding every frame.
+/// Layers use the fitted iOS 27 settings: clear for clear glass (a group
+/// only when all its members are clear), regular in the ambient brightness
+/// ([GlassTraits.brightness]) otherwise, both at the Liquid Glass slider's
+/// position ([GlassTraits.glassTintAmount]).
 /// Under Reduce Transparency the surfaces draw flat, an unmeasured
 /// stand-in for iOS's frosted glass.
 @internal
@@ -51,13 +51,13 @@ final class LiquidGlassRenderer extends GlassRenderer {
   Widget buildSurface(BuildContext context, GlassSurfaceDetails details) {
     if (GlassTraits.of(context).reduceTransparency ||
         details.role == GlassRole.track) {
-      return const FlatGlassRenderer().buildSurface(context, details);
+      return FlatGlassRenderer.flatSurface(context, details);
     }
     if (_lifts(details.role)) return _LiquidLens(details: details, fake: fake);
     final grouped = _LiquidGroupScope.maybeOf(context) != null;
     if (details.frame.value.outline case final outline?
         when fake || grouped || outline.field == null) {
-      return const FlatGlassRenderer().buildSurface(context, details);
+      return FlatGlassRenderer.flatSurface(context, details);
     }
     if (grouped) return _LiquidSurface(details: details, glows: !fake);
     return _LiquidGroup(
@@ -197,15 +197,29 @@ LiquidGlassSettings _lensSettings(
   _ => (0.0, 0.0),
 };
 
-// A group's layer is an ancestor: writes into it wait for the end of the
-// frame when they come while the framework builds, lays out or paints, or
-// from dispose.
+// The group is an ancestor: it cannot be marked to build while the framework
+// builds, lays out or paints, or from a descendant's dispose, and a glow
+// reads layout; such work waits for the end of the frame.
 void _afterFrame(VoidCallback callback) =>
     SchedulerBinding.instance.addPostFrameCallback((_) => callback());
 
 bool get _framing =>
     SchedulerBinding.instance.schedulerPhase ==
     SchedulerPhase.persistentCallbacks;
+
+bool _drawsFake(bool fake) => fake || !ImageFilter.isShaderFilterSupported;
+
+mixin _RebuildOutsideFrame<T extends StatefulWidget> on State<T> {
+  void _rebuild(VoidCallback fn) {
+    if (_framing) {
+      _afterFrame(() {
+        if (mounted) setState(fn);
+      });
+    } else {
+      setState(fn);
+    }
+  }
+}
 
 class _LiquidSurface extends StatefulWidget {
   const _LiquidSurface({
@@ -511,15 +525,14 @@ class _LiquidGroup extends StatefulWidget {
   final bool fake;
   final double? blend;
 
-  /// The glass of a lone surface, or null for a group.
+  /// The glass of a lone surface or lens, or null for a group.
   final Glass? glass;
 
   /// The frame of a lone surface, whose outline's field the layer shades,
   /// or null.
   final ValueListenable<GlassFrame>? body;
 
-  /// The lone lens or knob whose lift sets the layer's optics and whose
-  /// glass sets its settings, or null.
+  /// The lone lens or knob whose lift sets the layer's optics, or null.
   final GlassSurfaceDetails? lens;
 
   final Widget child;
@@ -528,7 +541,7 @@ class _LiquidGroup extends StatefulWidget {
   State<_LiquidGroup> createState() => _LiquidGroupState();
 }
 
-class _LiquidGroupState extends State<_LiquidGroup> {
+class _LiquidGroupState extends State<_LiquidGroup> with _RebuildOutsideFrame {
   final _layer = ValueNotifier(const LiquidGlassLayerFrame());
   Object? _lit;
   final _clearMembers = <Object, bool>{};
@@ -561,10 +574,9 @@ class _LiquidGroupState extends State<_LiquidGroup> {
   LiquidGlassSettings get _settings {
     final lens = widget.lens;
     if (lens == null) return _base;
-    final fake = widget.fake || !ImageFilter.isShaderFilterSupported;
     return _lensSettings(
       _base,
-      fake ? 1 : lens.frame.value.lift,
+      _drawsFake(widget.fake) ? 1 : lens.frame.value.lift,
       role: lens.role,
     );
   }
@@ -586,7 +598,7 @@ class _LiquidGroupState extends State<_LiquidGroup> {
   // UIKit shades each member with its own glass; one layer has one set of
   // settings, so a group is clear glass only when all its members are.
   bool get _clear {
-    final glass = widget.lens?.glass ?? widget.glass;
+    final glass = widget.glass;
     if (glass != null) return glass.isClear;
     return _clearMembers.isNotEmpty && !_clearMembers.containsValue(false);
   }
@@ -614,13 +626,7 @@ class _LiquidGroupState extends State<_LiquidGroup> {
     if (_clear == wasClear) return;
     _base = _baseSettings;
     _writeSettings();
-    if (_framing) {
-      _afterFrame(() {
-        if (mounted) setState(() {});
-      });
-    } else {
-      setState(() {});
-    }
+    _rebuild(() {});
   }
 
   /// Sets the layer's glow to [glow] of [member], or clears it when [glow]
@@ -712,7 +718,7 @@ class _LiquidLens extends StatefulWidget {
   State<_LiquidLens> createState() => _LiquidLensState();
 }
 
-class _LiquidLensState extends State<_LiquidLens> {
+class _LiquidLensState extends State<_LiquidLens> with _RebuildOutsideFrame {
   late bool _lifted = _isLifted;
 
   ValueListenable<GlassFrame> get _source => widget.details.frame;
@@ -746,13 +752,7 @@ class _LiquidLensState extends State<_LiquidLens> {
 
   void _onFrame() {
     if (_isLifted == _lifted) return;
-    if (_framing) {
-      _afterFrame(() {
-        if (mounted) setState(() => _lifted = _isLifted);
-      });
-      return;
-    }
-    setState(() => _lifted = _isLifted);
+    _rebuild(() => _lifted = _isLifted);
   }
 
   @override
@@ -761,7 +761,7 @@ class _LiquidLensState extends State<_LiquidLens> {
     final report = _report = GlassLensShrink.maybeOf(context);
     if (report != null) {
       final (shrink, rim) = _shrinkOf(details.role);
-      report.value = widget.fake || !ImageFilter.isShaderFilterSupported
+      report.value = _drawsFake(widget.fake)
           ? GlassLensShrink.none
           : (shrink: shrink, rim: rim);
     }
@@ -773,6 +773,7 @@ class _LiquidLensState extends State<_LiquidLens> {
           Positioned.fill(
             child: _LiquidGroup(
               fake: widget.fake,
+              glass: details.glass,
               lens: details,
               child: _LiquidSurface(
                 glows: !widget.fake,

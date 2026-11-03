@@ -51,11 +51,11 @@ enum GlassRole {
   /// The thumb of a slider.
   thumb,
 
-  /// A control's track and a slider's fill: the plain bar under a lens or a
-  /// knob.
+  /// A plain fill that draws no glass: a switch's or segmented control's
+  /// track, a slider's track and fill, a disabled search field.
   track,
 
-  /// A menu's card.
+  /// A menu's, popover's or alert's card.
   menu,
 
   /// A sheet's card.

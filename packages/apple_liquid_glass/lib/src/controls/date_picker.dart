@@ -819,7 +819,7 @@ class _DatePickerRoute extends PresentationRoute<void> {
       picker._closing++;
     }
     final view = _view;
-    if (view == null || !view.mounted) return false;
+    if (view == null) return false;
     view._leave();
     return true;
   }
