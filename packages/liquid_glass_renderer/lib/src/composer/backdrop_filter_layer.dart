@@ -64,9 +64,9 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   }
 
   /// [filter] as an image filter at the copy's own device pixels, for a
-  /// filter that reads no further than [reach]: given, the copy is filtered
-  /// with the frame's other copies in one layer instead of reading a
-  /// backdrop of its own. Set together with [filter], which keys it.
+  /// filter that reads no further than [reach] and blurs by at most 14 sigma
+  /// of those pixels: given, the copy is filtered with the frame's other
+  /// copies in one layer instead of reading a backdrop of its own.
   ui.ImageFilter? copyFilter;
 
   /// How the filtered backdrop composites over the backdrop, as

@@ -103,8 +103,8 @@ class BackdropUnderlay {
   @visibleForTesting
   static int get debugImagesDrawn => _Atlas.drawn;
 
-  /// How many blurred layers the copies were drawn in: one holds every copy
-  /// of one blur in an image.
+  /// How many filtered layers the copies were drawn in: one holds every copy
+  /// of one blur or copy filter in an image.
   @visibleForTesting
   static int debugBlurLayers = 0;
 
@@ -144,7 +144,10 @@ class BackdropUnderlay {
   /// together with the frame's other copies of an equal [filterKey], and
   /// composited over itself with [filterBlendMode]. Past [filterClip] the
   /// copy then holds the filtered backdrop too, so a caller shows only what
-  /// lies inside it. NEAR, as for [blur].
+  /// lies inside it. NEAR: past the copy's edge the filter reads what lies
+  /// beside it, as for [blur]; a scroll edge differs from reading the
+  /// backdrop by up to 2 levels in the host test. A copy filter's blur stays
+  /// within 14 sigma of the copy's pixels, which the atlas blurs as an image.
   /// [anchor] lies in a [RenderView]'s layer tree, and the copy is cut to its
   /// screen. The copy holds [downscale] device pixels in each
   /// of its pixels along each side: a copy blurred enough loses nothing
@@ -1894,8 +1897,8 @@ final class _Atlas {
 
   // Impeller downsamples an image filter's blur on a grid of its own and a
   // backdrop filter's on the target's: past this sigma in a copy's pixels
-  // the two part by up to 15 levels at some sizes (host parity), so a copy
-  // blurred more is blurred as a backdrop filter.
+  // the two part by up to 15 levels at some sizes (host parity), so a [blur]
+  // copy blurred more is blurred as a backdrop filter.
   static const double _maxImageBlurSigma = 14;
 
   static int drawn = 0;
@@ -1951,12 +1954,15 @@ final class _Atlas {
           assert(picture != null, 'A copy recorded again is never blocked.');
           tile.content = picture ?? ui.PictureRecorder().endRecording();
         }
-        // Copies under one filter lie side by side, to share its layer.
+        // Copies filtered in the layer of copies lie side by side, to share
+        // it.
         final runs = <Object?, List<_Tile>>{};
         for (final tile in batch) {
           runs
               .putIfAbsent(
-                !tile.filtered ? null : (tile.filterKey, tile.devicePixelRatio),
+                !tile.filtered
+                    ? null
+                    : (tile.filterKey, tile.devicePixelRatio, tile.layered),
                 () => [],
               )
               .add(tile);
@@ -2022,13 +2028,13 @@ final class _Atlas {
     // the layer is clipped to the rows of the copies' run, which hold no
     // other copy. A filter composited over its copy keeps the copy under
     // the layer.
-    final blurred = <(Object?, double), List<_Tile>>{};
+    final layered = <(Object?, double), List<_Tile>>{};
     for (final tile in tiles) {
       if (!tile.filtered) {
         place(canvas, tile);
       } else if (tile.layered) {
         if (tile.filterBlendMode == BlendMode.srcOver) place(canvas, tile);
-        blurred
+        layered
             .putIfAbsent((tile.filterKey, tile.devicePixelRatio), () => [])
             .add(tile);
       } else {
@@ -2037,12 +2043,12 @@ final class _Atlas {
     }
     final content = recorder.endRecording();
     final ui.Image image;
-    if (isolated.isEmpty && blurred.isEmpty) {
+    if (isolated.isEmpty && layered.isEmpty) {
       image = content.toImageSync(width, height);
     } else {
       final b = ui.SceneBuilder();
       b.addPicture(Offset.zero, content);
-      for (final group in blurred.values) {
+      for (final group in layered.values) {
         BackdropUnderlay.debugBlurLayers++;
         final first = group.first;
         var bounds = first.bounds;

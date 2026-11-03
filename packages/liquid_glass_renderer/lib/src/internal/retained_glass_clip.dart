@@ -131,7 +131,7 @@ class RetainedGlassClip {
       }
 
       final paintGeometry = source is RenderClipOval
-          ? (Path()..addOval(geometry as Rect))
+          ? _ovalPath(geometry as Rect)
           : geometry;
       switch (paintGeometry) {
         case Rect rect:
@@ -257,12 +257,14 @@ class _ClipEntry {
   Matrix4? _transform;
   Offset? _offset;
 
-  // A clipper's path, held while the clipper, the size and its reclip hold:
-  // a new path each frame would add the clip again and break every copy
-  // signed over it.
+  // A clipper's path and an oval's, held while the clipper, the size and
+  // its reclip, or the oval's rect, hold: a new path each frame would add
+  // the clip again and break every copy signed over it.
   CustomClipper<Path>? _clipper;
   Size? _clipperSize;
   Path? _clipperPath;
+  Rect? _ovalRect;
+  Path? _oval;
 
   void _reclip() => _clipperPath = null;
 
@@ -285,7 +287,15 @@ class _ClipEntry {
       }
       return (_clipperPath!, source.clipBehavior);
     }
-    return _clipGeometry(source);
+    final (geometry, behavior) = _clipGeometry(source);
+    if (source is RenderClipOval) {
+      if (_oval == null || geometry != _ovalRect) {
+        _ovalRect = geometry as Rect;
+        _oval = _ovalPath(geometry);
+      }
+      return (_oval!, behavior);
+    }
+    return (geometry, behavior);
   }
 
   void sync(RenderBox owner, Offset offset) {
@@ -299,10 +309,9 @@ class _ClipEntry {
     if (!layer.enabled) return;
     layer.clipBehavior = behavior;
     final transform = transformToNow(source, owner);
-    final sameGeometry = geometry is Path
-        ? identical(geometry, _geometry)
-        : _geometry == geometry;
-    if (sameGeometry &&
+    if ((geometry is Path
+            ? identical(geometry, _geometry)
+            : _geometry == geometry) &&
         _offset == offset &&
         MatrixUtils.matrixEquals(_transform, transform)) {
       return;
@@ -314,13 +323,7 @@ class _ClipEntry {
       ..multiply(transform);
     forward.layer!.transform = ownerTransform;
     inverse.layer!.transform = Matrix4.inverted(ownerTransform);
-    // An oval's path is built again only when its rect moves: a new path
-    // adds the clip to the scene again and breaks every copy signed over it.
-    if (!sameGeometry) {
-      layer.geometry = source is RenderClipOval
-          ? _ovalPath(geometry as Rect)
-          : geometry;
-    }
+    layer.geometry = geometry;
   }
 
   Rect? get ownerBounds {
@@ -362,6 +365,7 @@ class _ClipEntry {
 
 Path _ovalPath(Rect rect) {
   final path = Path();
+  // Reads as one statement per call, without cascades.
   // ignore: cascade_invocations
   path.addOval(rect);
   return path;

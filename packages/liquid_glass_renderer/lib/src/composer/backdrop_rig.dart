@@ -73,6 +73,7 @@ FilteredCopyAsk? requestFilteredCopy(
     region: region,
     filter: filter,
     copyFilter: copyFilter,
+    filterKey: copyFilter == null ? null : (filter, copyFilter),
     filterClip: filtersReach ? region : shifted,
     filterBlendMode: blendMode,
   );

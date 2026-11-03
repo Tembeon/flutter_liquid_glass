@@ -293,8 +293,9 @@ class _RenderEdge extends RenderBox {
     _devicePixelRatio,
   );
 
-  // Held while its inputs hold: the copy under the edge is keyed by the
-  // filter, and dart:ui converts each new filter to a native one again.
+  // Held while its inputs hold: the layer takes a new filter object as a
+  // change and is added to the scene again, and dart:ui converts each new
+  // filter to a native one again.
   ({
     double sigma,
     bool hard,
