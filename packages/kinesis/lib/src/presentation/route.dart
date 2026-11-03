@@ -96,7 +96,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   @protected
   void didFinish(T? result) {}
 
-  /// Whether the route was popped and its content closes.
+  /// Whether the route was dismissed and its content closes.
   bool get isLeaving => _projection.status == AnimationStatus.reverse;
 
   bool _interacting = false;
@@ -376,9 +376,9 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
 /// `PopScope`s with `didPop` false, as a blocked Back does, and calls
 /// [didVetoDismiss], as a trigger [allows] refuses does. On the first route
 /// of its navigator Back goes on to whatever is outside the navigator. A
-/// dismissal always pops this route, never whatever
-/// is on top: one under another route closes under it and leaves the
-/// navigator when its close ends. `Navigator.pop` is programmatic and
+/// dismissal always pops this route, never whatever is on top: one under
+/// another route closes under it and leaves the navigator when its close
+/// ends. `Navigator.pop` is programmatic and
 /// consults nothing.
 ///
 /// While [modal], the barrier absorbs taps and hides the routes below from
@@ -402,8 +402,7 @@ abstract class PresentationRoute<T> extends PopupRoute<T>
 /// of its source.
 ///
 /// UIKit: a pushed `UIViewController` whose transition the content drives
-/// (a slide, `.zoom`).
-/// Flutter: a [PageRoute].
+/// (a slide, `.zoom`). Flutter: a [PageRoute].
 ///
 /// It has the lifecycle, the dismissal gate and the barrier of
 /// [PresentationRoute], and is a [PageRoute] to `RouteAware` observers and

@@ -151,7 +151,7 @@ class _InputRegionState extends State<InputRegion> {
           return;
         }
         _trackers[event.pointer] = tracker;
-        final member = _ArenaMember(this, event.pointer);
+        final member = _ArenaMember(this);
         _members[event.pointer] = member;
         member.entry = GestureBinding.instance.gestureArena.add(
           event.pointer,
@@ -353,10 +353,9 @@ class _InputRegionState extends State<InputRegion> {
 }
 
 class _ArenaMember extends GestureArenaMember {
-  _ArenaMember(this.state, this.pointer);
+  _ArenaMember(this.state);
 
   final _InputRegionState state;
-  final int pointer;
   GestureArenaEntry? entry;
 
   @override
@@ -418,7 +417,8 @@ class MotionPressable extends StatefulWidget {
   /// Called when held, or null.
   final VoidCallback? onLongPress;
 
-  /// The haptic of a press, or null for none, as a plain `UIButton` plays.
+  /// The haptic a press plays, or null for none (a plain `UIButton` plays
+  /// none).
   final MotionHaptic? haptic;
 
   /// Where the pressable writes its states, or null.

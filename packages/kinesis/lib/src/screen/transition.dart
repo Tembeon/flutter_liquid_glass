@@ -468,7 +468,12 @@ class MotionTransitionLayer extends OffsetLayer {
   }
 
   /// The transform the layer adds, its offset included.
-  Matrix4 get total => _total;
+  Matrix4 get total {
+    final total = Matrix4.translationValues(offset.dx, offset.dy, 0);
+    final transform = _transform;
+    if (transform != null) total.multiply(transform);
+    return total;
+  }
 
   /// The rounded clip the layer adds inside [total], or null.
   RRect? get clip => _clip;
@@ -478,13 +483,6 @@ class MotionTransitionLayer extends OffsetLayer {
 
   /// The blur sigma the layer adds innermost; zero adds none.
   double get blur => _blur;
-
-  Matrix4 get _total {
-    final total = Matrix4.translationValues(offset.dx, offset.dy, 0);
-    final transform = _transform;
-    if (transform != null) total.multiply(transform);
-    return total;
-  }
 
   @override
   void addToScene(ui.SceneBuilder builder) {
@@ -506,7 +504,7 @@ class MotionTransitionLayer extends OffsetLayer {
     } else {
       final old = engineLayer;
       engineLayer = builder.pushTransform(
-        _total.storage,
+        total.storage,
         oldLayer: old is ui.TransformEngineLayer ? old : null,
       );
     }
@@ -566,7 +564,7 @@ class MotionTransitionLayer extends OffsetLayer {
     Offset localPosition, {
     required bool onlyFirst,
   }) {
-    final inverse = Matrix4.tryInvert(_total);
+    final inverse = Matrix4.tryInvert(total);
     if (inverse == null) return false;
     final inside = MatrixUtils.transformPoint(inverse, localPosition);
     return super.findAnnotations(
@@ -578,7 +576,7 @@ class MotionTransitionLayer extends OffsetLayer {
 
   @override
   void applyTransform(Layer? child, Matrix4 transform) {
-    transform.multiply(_total);
+    transform.multiply(total);
   }
 
   @override

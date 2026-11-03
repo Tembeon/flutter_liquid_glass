@@ -31,11 +31,12 @@ typedef MotionLayoutBuilder = Widget Function(
 /// where layout put them, children that arrived enter with [motion]'s
 /// insert effect and children that left stay drawn, leaving with its
 /// remove effect. The frame's transaction decides: after a `withSpring`
-/// that closed since the frame began, the motion follows that spring
+/// that closed before this frame's layout, the motion follows that spring
 /// (a tracking one does not count); after a `withoutAnimation`, and under
 /// a muted `TickerMode`, it jumps; with neither, a child at rest jumps and
-/// a child in flight is carried along. [LayoutMotion.flip] with a spring of
-/// its own animates without a transaction too. The first layout puts every
+/// a child in flight is carried along. A [LayoutMotion.flip] with a spring of
+/// its own always moves on it; a `withoutAnimation` still makes it jump.
+/// The first layout puts every
 /// child in place. Under Reduce Motion the effects are their `reduced`
 /// ones.
 ///

@@ -117,9 +117,9 @@ class MotionValue<T> implements ValueListenable<T>, MotionFollowed {
   Spring? _pendingSpring;
   bool _pendingTracking = false;
 
-  /// The spring the latest change named, which a [retarget] that names
-  /// none reuses. A tracking change moves the value on its
-  /// [Spring.trackingSpring].
+  /// The spring the value moves on, which a [retarget] that names none
+  /// reuses; a delayed change switches to its spring when it starts. A
+  /// tracking change moves the value on its [Spring.trackingSpring].
   Spring get spring => _spring;
 
   Spring get _motion => _tracking ? _spring.trackingSpring : _spring;
@@ -430,8 +430,7 @@ class MotionValue<T> implements ValueListenable<T>, MotionFollowed {
     _applyPending(t);
     if (delay > 0) {
       _state(t);
-      // Scheduling changes nothing yet, so it marks no change of its own.
-      _pendingDue = (_moved && t < _origin ? _origin : t) + delay;
+      _pendingDue = _notBefore(t) + delay;
       _pendingTarget = target;
       _pendingSpring = spring;
       _pendingTracking = tracking;
@@ -505,10 +504,12 @@ class MotionValue<T> implements ValueListenable<T>, MotionFollowed {
     _retargetAt(due, target, spring, tracking: tracking);
   }
 
+  double _notBefore(double t) => _moved && t < _origin ? _origin : t;
+
   double _since(double t) {
-    if (_moved && t < _origin) return _origin;
+    final at = _notBefore(t);
     _moved = true;
-    return t;
+    return at;
   }
 
   void _changed() {
@@ -548,10 +549,8 @@ class MotionValue<T> implements ValueListenable<T>, MotionFollowed {
 
   double _reach(double a, double v) {
     final motion = _motion;
-    final k = motion.stiffness;
-    final c = motion.damping;
-    final w0 = math.sqrt(k);
-    final zeta = c / (2 * w0);
+    final w0 = motion.omega;
+    final zeta = motion.dampingRatio;
     if (zeta < 1 - 1e-9) {
       final wd = w0 * math.sqrt(1 - zeta * zeta);
       final b = (v + zeta * w0 * a) / wd;

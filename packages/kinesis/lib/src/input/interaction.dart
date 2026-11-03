@@ -16,8 +16,9 @@ import 'package:kinesis/src/value.dart';
 /// The role sets when an interaction hears a touch, and whether its claims
 /// hold the touch.
 enum InteractionRole {
-  /// Hears the touch at once outside a scroll view and 0.15 s after
-  /// contact inside one; its claims hold the touch against the scroll.
+  /// Hears the touch at once outside a scroll view and
+  /// [InteractionSession.scrollDelay] after contact inside one; its claims
+  /// hold the touch against the scroll.
   control,
 
   /// Hears the touch as a control does, but its claims are ignored: a
@@ -349,8 +350,8 @@ abstract class Interaction {
   Interaction simultaneously(Interaction other) => _Simultaneous(this, other);
 }
 
-/// UIKit's control tracking: a press that highlights while the finger is
-/// inside, and activates on a release inside.
+/// A press that highlights while the finger is inside and activates on a
+/// release inside.
 ///
 /// UIKit: `UIControl` touch tracking. SwiftUI: a `Button`'s press.
 /// Flutter: `InkWell`'s highlight and tap.

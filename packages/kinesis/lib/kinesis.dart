@@ -19,7 +19,8 @@ export 'src/screen/driven.dart';
 export 'src/screen/input_region.dart';
 export 'src/screen/layout.dart';
 export 'src/screen/scroll_observer.dart';
-export 'src/screen/transition.dart' show MotionTransition, MotionTransitionLayer;
+export 'src/screen/transition.dart'
+    show MotionTransition, MotionTransitionLayer;
 export 'src/spring.dart';
 export 'src/timeline.dart';
 export 'src/transaction.dart'

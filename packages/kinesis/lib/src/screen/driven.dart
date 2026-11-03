@@ -43,13 +43,12 @@ class MotionDriven extends RenderObjectWidget {
 class _MotionDrivenElement extends RenderObjectElement {
   _MotionDrivenElement(MotionDriven super.widget);
 
-  late MotionComputed<SingleChildRenderObjectWidget> _chain = _template();
+  late MotionComputed<SingleChildRenderObjectWidget> _chain = MotionComputed(
+    (widget as MotionDriven).template,
+  );
   final List<RenderObjectWithChildMixin<RenderObject>> _levels = [];
   Element? _child;
   bool _following = false;
-
-  MotionComputed<SingleChildRenderObjectWidget> _template() =>
-      MotionComputed((widget as MotionDriven).template);
 
   RenderObject _create() {
     final levels = _widgets(_chain.value);

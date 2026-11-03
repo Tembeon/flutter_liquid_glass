@@ -50,9 +50,9 @@ class MotionTransaction {
   static VoidCallback? onLayoutTransaction;
 
   /// The transaction of the frame's layout changes: the latest outermost
-  /// `withSpring` or `withoutAnimation` that closed since the frame began,
-  /// or null. A tracking transaction never sets it, so a finger moving one
-  /// value does not slide unrelated layout.
+  /// `withSpring` or `withoutAnimation` that closed after the previous frame
+  /// drew, or null. A tracking transaction never sets it, so a finger moving
+  /// one value does not slide unrelated layout.
   @internal
   static MotionTransaction? get layout => _layout;
 

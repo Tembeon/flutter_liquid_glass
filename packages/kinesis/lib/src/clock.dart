@@ -115,7 +115,7 @@ abstract class MotionClock {
   @visibleForTesting
   static void debugReset() {
     final clock = _instance;
-    if (clock is _BindingClock) clock._dispose();
+    if (clock is _BindingClock) clock._stop();
     _instance = null;
     MotionTransaction.clearLayout();
   }
@@ -467,9 +467,9 @@ class _BindingClock extends MotionClock {
     final dozedFrame = _dozeStamp;
     if (dozed != null && dozedFrame != null && _stampsAgree) {
       final scheduler = SchedulerBinding.instance;
-      // Inside a frame the clock does not run, a change made now shows in
-      // that frame: it gets the frame's time, as the clock's next frame
-      // counts on from it.
+      // In a frame the clock sits out, a change made now shows in that frame,
+      // so it takes that frame's time; the clock's next frame counts on from
+      // it.
       final t = scheduler.schedulerPhase == SchedulerPhase.idle
           ? _dozeTime +
                 (_engineNow() - dozed).inMicroseconds / 1e6 / timeDilation
@@ -697,6 +697,4 @@ class _BindingClock extends MotionClock {
   void _idleCheck() {
     if (!needsFrame) _sleep();
   }
-
-  void _dispose() => _stop();
 }

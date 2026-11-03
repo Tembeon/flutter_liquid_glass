@@ -3,8 +3,8 @@ import 'package:kinesis/src/clock.dart';
 import 'package:kinesis/src/listen.dart';
 import 'package:kinesis/src/tracker.dart';
 
-/// A value derived from motion values, such as a glass frame from a lens
-/// rect, its scale and its lift.
+/// A value derived from motion values, such as a card's shadow from its lift
+/// and scale.
 ///
 /// Every `MotionValue` and [MotionComputed] that [compute] reads through
 /// `value`, `target` or `velocity` is followed automatically. While it has
@@ -79,7 +79,7 @@ class MotionComputed<T> implements ValueListenable<T>, MotionDerived {
   @override
   void recompute({required bool widgets}) {
     if (!_followed) return;
-    if (_dirty || !_hasValue) _evaluate();
+    if (_dirty) _evaluate();
     _publish(_toRender, _renderListeners);
     if (widgets) _publish(_toWidgets, _listeners);
   }
