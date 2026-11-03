@@ -1865,6 +1865,16 @@ class _Tile {
   (double, double)? get blur => island.blur;
   ui.ImageFilter? get copyFilter => island.copyFilter;
   bool get filtered => island.filter != null || island.blur != null;
+
+  // Whether the copy is filtered in the atlas's layer of copies rather than
+  // as a backdrop of its own.
+  bool get layered =>
+      copyFilter != null ||
+      switch (blur) {
+        (final x, final y) =>
+          max(x, y) * devicePixelRatio <= _Atlas._maxImageBlurSigma,
+        null => false,
+      };
   Object? get filterKey => island.filterKey;
   Rect? get filterClip => island.filterClip;
   BlendMode get filterBlendMode => island.filterBlendMode;
@@ -2016,13 +2026,8 @@ final class _Atlas {
     for (final tile in tiles) {
       if (!tile.filtered) {
         place(canvas, tile);
-      } else if (tile.copyFilter != null) {
+      } else if (tile.layered) {
         if (tile.filterBlendMode == BlendMode.srcOver) place(canvas, tile);
-        blurred
-            .putIfAbsent((tile.filterKey, tile.devicePixelRatio), () => [])
-            .add(tile);
-      } else if (tile.blur case (final x, final y)
-          when max(x, y) * tile.devicePixelRatio <= _maxImageBlurSigma) {
         blurred
             .putIfAbsent((tile.filterKey, tile.devicePixelRatio), () => [])
             .add(tile);
@@ -2040,7 +2045,7 @@ final class _Atlas {
       for (final group in blurred.values) {
         BackdropUnderlay.debugBlurLayers++;
         final first = group.first;
-        var bounds = group.first.bounds;
+        var bounds = first.bounds;
         for (final tile in group.skip(1)) {
           bounds = bounds.expandToInclude(tile.bounds);
         }

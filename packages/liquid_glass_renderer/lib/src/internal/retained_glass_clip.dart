@@ -316,7 +316,7 @@ class _ClipEntry {
     inverse.layer!.transform = Matrix4.inverted(ownerTransform);
     // An oval's path is built again only when its rect moves: a new path
     // adds the clip to the scene again and breaks every copy signed over it.
-    if (!sameGeometry || source is! RenderClipOval) {
+    if (!sameGeometry) {
       layer.geometry = source is RenderClipOval
           ? _ovalPath(geometry as Rect)
           : geometry;
