@@ -5,6 +5,7 @@ import 'package:apple_liquid_glass/src/renderer/flat.dart';
 import 'package:apple_liquid_glass/src/renderer/lens_shrink.dart';
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
 import 'package:apple_liquid_glass/src/renderer/scroll_edge.dart';
+import 'package:apple_liquid_glass/src/renderer/underlay_layers.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/outline.dart';
@@ -13,7 +14,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart' show MotionTransitionLayer;
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// The liquid renderer: every surface is liquid glass, and the members of
@@ -540,26 +540,9 @@ class _LiquidGroupState extends State<_LiquidGroup> {
   @override
   void initState() {
     super.initState();
-    _teachUnderlay();
+    teachLiquidUnderlay();
     _lens?.addListener(_writeSettings);
     widget.body?.addListener(_writeSettings);
-  }
-
-  static bool _taught = false;
-
-  // Pages and controls move on kinesis layers: glass over them keeps a copy
-  // of them only once the renderer knows how those layers draw.
-  static void _teachUnderlay() {
-    if (_taught) return;
-    _taught = true;
-    LiquidGlassUnderlay.registerLayer<MotionTransitionLayer>(
-      (layer) => (
-        transform: layer.total,
-        clip: layer.clip,
-        alpha: layer.alpha,
-        blur: layer.blur,
-      ),
-    );
   }
 
   @override

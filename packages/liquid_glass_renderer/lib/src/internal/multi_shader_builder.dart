@@ -90,6 +90,10 @@ class MultiShaderBuilder extends StatefulWidget {
   static bool isCached(String assetKey) =>
       _MultiShaderBuilderState._shaderCache.containsKey(assetKey);
 
+  /// The program of [assetKey], once it has loaded.
+  static ui.FragmentProgram? cached(String assetKey) =>
+      _MultiShaderBuilderState._shaderCache[assetKey];
+
   /// Precache multiple [ui.FragmentProgram]s based on their [assetKeys].
   ///
   /// When this future has completed, any newly created [MultiShaderBuilder]s

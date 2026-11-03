@@ -30,6 +30,9 @@ precision highp float;
 #include <flutter/runtime_effect.glsl>
 #include "render.glsl"
 #include "glass_glow.glsl"
+#if FROST
+#include "frost.glsl"
+#endif
 
 // The geometry texture is the low-res matte: one RGBA16F texel for every
 // uLowResMatte.x x uLowResMatte.x block of matte pixels (see
@@ -914,37 +917,18 @@ void main() {
         }
         #if FROST
         if (uBackdropFrost > 0.0) {
-            // 24 bilinear taps importance-sampled from the Gaussian on a
-            // golden-angle spiral, equal weights, over a copy taken
-            // unblurred: the copy's blur passes become these reads. The copy
-            // is grown by three sigma, so the taps read real backdrop past
-            // the rim; one refracted past it reads the copy's edge.
-            vec4 frost = vec4(0.0);
+            // The copy is taken unblurred and grown by three sigma, so the
+            // taps read real backdrop past the rim; one refracted past it
+            // reads the copy's edge.
             vec2 halfTexel = invUSize * 0.5;
-            vec2 direction = vec2(1.0, 0.0);
-            // Rolled by a bound read from a uniform (uBackdropFrost is
-            // positive here, so it is 24): unrolled, the 24 reads are all
-            // kept in flight and double the shader's registers on the
-            // Mali-G78, halving its occupancy for every glass.
-            int taps = 24 - int(min(uBackdropFrost, 0.0));
-            for (int i = 0; i < taps; i++) {
-                float u = (float(i) + 0.5) / 24.0;
-                float r = uBackdropFrost * sqrt(-2.0 * log(1.0 - u));
-                frost += texture(
-                    uBackgroundTexture,
-                    clamp(
-                        refractedUV + direction * r * invUSize,
-                        halfTexel,
-                        vec2(1.0) - halfTexel
-                    )
-                );
-                // Turns by the golden angle, 2.39996323 rad.
-                direction = vec2(
-                    -0.73736888 * direction.x - 0.67549029 * direction.y,
-                    0.67549029 * direction.x - 0.73736888 * direction.y
-                );
-            }
-            refractColor = frost / 24.0;
+            refractColor = frostTaps(
+                uBackgroundTexture,
+                refractedUV,
+                uBackdropFrost,
+                invUSize,
+                halfTexel,
+                vec2(1.0) - halfTexel
+            );
         }
         #endif
     } else {

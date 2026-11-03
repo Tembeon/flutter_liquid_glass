@@ -1,7 +1,7 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
+import 'package:apple_liquid_glass/src/renderer/underlay_layers.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -158,12 +158,15 @@ class _EdgePaint extends LeafRenderObjectWidget {
   final double devicePixelRatio;
 
   @override
-  RenderObject createRenderObject(BuildContext context) => _RenderEdge(
-    details: details,
-    blurs: blurs,
-    brightness: brightness,
-    devicePixelRatio: devicePixelRatio,
-  );
+  RenderObject createRenderObject(BuildContext context) {
+    teachLiquidUnderlay();
+    return _RenderEdge(
+      details: details,
+      blurs: blurs,
+      brightness: brightness,
+      devicePixelRatio: devicePixelRatio,
+    );
+  }
 
   @override
   void updateRenderObject(BuildContext context, _RenderEdge renderObject) {
@@ -244,7 +247,7 @@ class _RenderEdge extends RenderBox {
       return;
     }
     _painted = presence;
-    if (_blurs) blur!.filter = _filter(presence);
+    if (_blurs) blur!.frost = _frost(presence);
     fade.alpha = Color.getAlphaFromOpacity(presence);
     markNeedsCompositedLayerUpdate();
   }
@@ -293,51 +296,38 @@ class _RenderEdge extends RenderBox {
     _devicePixelRatio,
   );
 
-  // Held while its inputs hold: the layer takes a new filter object as a
+  // Held while its inputs hold: the layer takes a new frost object as a
   // change and is added to the scene again, and dart:ui converts each new
   // filter to a native one again.
-  ({double sigma, bool hard, double presence, ui.ImageFilter filter})?
-  _heldFilter;
+  ({double sigma, bool hard, double presence, LiquidGlassBackdropFrost frost})?
+  _heldFrost;
 
-  ui.ImageFilter _filter(double presence) {
+  LiquidGlassBackdropFrost _frost(double presence) {
     final sigma = _sigma;
     final hard = _details.hard;
-    if (_heldFilter case final held?
+    if (_heldFrost case final held?
         when held.sigma == sigma &&
             held.hard == hard &&
             held.presence == presence) {
-      return held.filter;
+      return held.frost;
     }
-    final filter = _newFilter(sigma, presence);
-    _heldFilter = (
+    // The hard band folds its presence into the saturation matrix after its
+    // blur: one color pass instead of two.
+    final frost = LiquidGlassBackdropFrost(
       sigma: sigma,
-      hard: hard,
-      presence: presence,
-      filter: filter,
+      colorMatrix: hard
+          ? _Edge.hardMatrix(presence)
+          : presence == 1
+          ? null
+          : <double>[
+              1, 0, 0, 0, 0, //
+              0, 1, 0, 0, 0, //
+              0, 0, 1, 0, 0, //
+              0, 0, 0, presence, 0,
+            ],
     );
-    return filter;
-  }
-
-  // The hard band folds its presence into the saturation matrix after its
-  // blur: one color pass instead of two.
-  ui.ImageFilter _newFilter(double sigma, double presence) {
-    final blur = ui.ImageFilter.blur(sigmaX: sigma, sigmaY: sigma);
-    if (_details.hard) {
-      return ui.ImageFilter.compose(
-        outer: ui.ColorFilter.matrix(_Edge.hardMatrix(presence)),
-        inner: blur,
-      );
-    }
-    if (presence == 1) return blur;
-    return ui.ImageFilter.compose(
-      outer: ui.ColorFilter.matrix(<double>[
-        1, 0, 0, 0, 0, //
-        0, 1, 0, 0, 0, //
-        0, 0, 1, 0, 0, //
-        0, 0, 0, presence, 0,
-      ]),
-      inner: blur,
-    );
+    _heldFrost = (sigma: sigma, hard: hard, presence: presence, frost: frost);
+    return frost;
   }
 
   @override
@@ -363,13 +353,13 @@ class _RenderEdge extends RenderBox {
       fade(context, offset);
       return;
     }
-    final blur = _blur.layer ??= LiquidGlassBackdropFilterLayer(
-      filter: _filter(presence),
+    final blur = _blur.layer ??= LiquidGlassBackdropFilterLayer.frosted(
+      frost: _frost(presence),
       clip: box,
       reach: _blurReach(_sigma, _devicePixelRatio),
       devicePixelRatio: _devicePixelRatio,
     );
-    blur.filter = _filter(presence);
+    blur.frost = _frost(presence);
     blur.clip = box;
     blur.reach = _blurReach(_sigma, _devicePixelRatio);
     blur.devicePixelRatio = _devicePixelRatio;

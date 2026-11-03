@@ -21,6 +21,7 @@ import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer
 import 'package:liquid_glass_renderer/src/internal/multi_shader_builder.dart';
 import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/internal/rounded_superellipse_parameters.dart';
+import 'package:liquid_glass_renderer/src/internal/shader_frost.dart';
 import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_backdrop.dart';
@@ -1914,22 +1915,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     markNeedsPaint();
   }
 
-  // The share of the sigma asked that Impeller's blur delivers, which the
-  // shader's frost matches so a copy and the live filter blur alike: the
-  // best of 0.70 to 1.0 in the host test against ImageFilter.blur at 3, 5
-  // and 8 device px. g1455's MTF table of Impeller's blur reads 0.84 to 0.87
-  // there.
-  static const double _deliveredFrost = 0.84;
-
-  // The largest sigma, in the copy's own pixels, the shader frosts by. Its 24
-  // taps lie about a sigma apart, so a wider frost shows hard edges as faint
-  // copies: they show at 5 copy pixels in the host test and not at 3.4.
-  static const double _shaderFrostTexels = 3.5;
-
-  // How many device pixels along each side one pixel of a copy the shader
-  // frosts stands for at most.
-  static const int _shaderFrostMaxDownscale = 4;
-
   // This frame's copy asked for: the glass's transform to the screen, the
   // logical rect the shader draws, the material it paints there and the
   // sigma, in device px, the shader frosts the copy by.
@@ -1974,34 +1959,20 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final frostX = sigma * scaleX;
     final frostY = sigma * scaleY;
     // Frost the final shader can draw is drawn there, over an unblurred
-    // copy: the copy's blur passes become its taps. The copy is the smallest
-    // whose pixels the frost spans by at most [_shaderFrostTexels], and the
-    // shader frosts by what is left: a pixel of a smaller copy averages
-    // k x k device px (a box, variance k^2 / 12), every bilinear tap adds a
-    // tent of a copy pixel (k^2 / 6), and Gaussians add in variance. The
-    // shader frosts round, so glass stretched past 5 % keeps the copy's blur,
-    // which follows each axis.
-    final shaderSigma = sigma * dpr * sqrt(scaleX * scaleY) * _deliveredFrost;
-    var downscale = 1;
-    while (downscale < _shaderFrostMaxDownscale &&
-        shaderSigma / downscale > _shaderFrostTexels) {
-      downscale *= 2;
-    }
-    final shaderFrost =
-        sigma > 0 &&
-        _frostsCopies &&
-        (scaleX / scaleY - 1).abs() <= 0.05 &&
-        shaderSigma / downscale <= _shaderFrostTexels;
-    var frost = 0.0;
-    if (shaderFrost) {
-      final carried = downscale * downscale * (downscale > 1 ? 1 / 4 : 1 / 6);
-      frost = sqrt(max(shaderSigma * shaderSigma - carried, 0));
-    } else {
+    // copy: the copy's blur passes become its taps. The shader frosts round,
+    // so glass stretched past 5 % keeps the copy's blur, which follows each
+    // axis.
+    final frosted =
+        sigma > 0 && _frostsCopies && (scaleX / scaleY - 1).abs() <= 0.05
+        ? shaderFrost(sigma * dpr * sqrt(scaleX * scaleY))
+        : null;
+    var downscale = frosted?.downscale ?? 1;
+    final frost = frosted?.frost ?? 0.0;
+    if (frosted == null) {
       // A copy blurred by at least [_copySigma] of its own pixels is drawn
       // as the blur leaves it at a fraction of the screen's pixels: sampled
       // back up, it adds a tent of its pixel's width to a blur many times
       // wider.
-      downscale = 1;
       while (downscale * 2 <= debugMaxCopyDownscale &&
           min(frostX, frostY) * dpr / (downscale * 2) >= _copySigma) {
         downscale *= 2;
@@ -2014,7 +1985,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       region: drawn.inflate(
         (backdropSamplingReach(bounds) + 1) * max(scaleX, scaleY),
       ),
-      blur: sigma > 0 && !shaderFrost ? (frostX, frostY) : null,
+      blur: sigma > 0 && frosted == null ? (frostX, frostY) : null,
       downscale: downscale,
       body: drawn,
     );

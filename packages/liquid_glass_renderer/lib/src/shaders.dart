@@ -18,6 +18,10 @@ abstract class ShaderKeys {
   static String finalRender(String name) =>
       '${_shadersRoot}build/shaderbundles/$name.iplr';
 
+  /// The compiled shader a LiquidGlassBackdropFrost draws a copy with.
+  static final String backdropFrost =
+      '${_shadersRoot}build/shaderbundles/backdrop_frost.iplr';
+
   static final fakeGlassSurface =
       '${_shadersRoot}lib/assets/shaders/fake_glass_surface.frag';
 

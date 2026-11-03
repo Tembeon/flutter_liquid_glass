@@ -4,10 +4,10 @@ import 'package:flutter_gpu_shaders/build.dart';
 import 'package:flutter_gpu_shaders/environment.dart';
 import 'package:hooks/hooks.dart';
 
-/// The prefix of the runtime-effect shaders compiled to `.iplr` by this hook
-/// instead of being listed under `flutter.shaders` in the pubspec: every
+/// The prefixes of the runtime-effect shaders compiled to `.iplr` by this
+/// hook instead of being listed under `flutter.shaders` in the pubspec: every
 /// `liquid_glass_final_render*.frag`, one per final shader variant
-/// (`FinalShaderVariant`).
+/// (`FinalShaderVariant`), and `backdrop_frost.frag`.
 ///
 /// `flutter.shaders` are compiled for every backend a target platform
 /// supports, including SkSL. These shaders use sampling that SkSL cannot
@@ -15,7 +15,7 @@ import 'package:hooks/hooks.dart';
 /// builds (such as `flutter build web`) fail outright. Compiling here bundles
 /// the same `.iplr` output that `FragmentProgram.fromAsset` decodes on
 /// Impeller, while Skia builds never attempt a SkSL compile.
-const _runtimeEffectPrefix = 'liquid_glass_final_render';
+const _runtimeEffectPrefixes = ['liquid_glass_final_render', 'backdrop_frost'];
 
 void main(List<String> args) async {
   await build(args, (input, output) async {
@@ -33,7 +33,7 @@ void main(List<String> args) async {
   });
 }
 
-/// Compiles each shader named [_runtimeEffectPrefix]`*.frag` to
+/// Compiles each shader named after one of [_runtimeEffectPrefixes] to
 /// `build/shaderbundles/<name>.iplr`, an Impeller runtime-effect library
 /// covering every backend except SkSL.
 Future<void> _buildRuntimeEffects(
@@ -56,7 +56,8 @@ Future<void> _buildRuntimeEffects(
   final names = [
     for (final file in Directory.fromUri(shadersDirectory).listSync())
       if (file.uri.pathSegments.last case final name
-          when name.startsWith(_runtimeEffectPrefix) && name.endsWith('.frag'))
+          when _runtimeEffectPrefixes.any(name.startsWith) &&
+              name.endsWith('.frag'))
         name.substring(0, name.length - '.frag'.length),
   ]..sort();
   // A shader added or removed changes the listing.
