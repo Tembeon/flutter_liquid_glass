@@ -1742,8 +1742,9 @@ sealed class _Entry {
 
 /// Adds glass to a scene as its live filter over what the scene draws
 /// before it, in the glass's own coordinates: the scene holds the copy of
-/// [rect] of the screen (logical pixels) at [offset], one pixel of it per
-/// device pixel of the screen.
+/// [rect] of the screen (logical pixels), one pixel of it per device pixel
+/// of the screen, and a filter's fragment lies [offset] past the copy's
+/// pixel.
 @internal
 typedef UnderlayFold = void Function(
   ui.SceneBuilder builder,
@@ -2145,9 +2146,10 @@ final class _Atlas {
   }
 
   // Adds [tile]'s copy, each glass it folds in over what the copy draws
-  // before it. NEAR: the glass's filter reads past the copy's edge what lies
-  // beside it in the image, as a copy's blur does.
-  static void _add(ui.SceneBuilder b, _Tile tile) {
+  // before it; in a layer of the copy's own, pass the layer's [origin]. NEAR:
+  // outside such a layer the glass's filter reads past the copy's edge what
+  // lies beside it in the image, as a copy's blur does.
+  static void _add(ui.SceneBuilder b, _Tile tile, {Offset? origin}) {
     for (final (picture, fold) in tile.pieces) {
       b.addPicture(tile.offset, picture);
       BackdropUnderlay.debugFolds++;
@@ -2157,7 +2159,7 @@ final class _Atlas {
         b.pushClipRect(clip, clipBehavior: Clip.hardEdge);
       }
       b.pushTransform(fold.transform.storage);
-      fold.add(b, tile.rect, tile.offset);
+      fold.add(b, tile.rect, origin ?? tile.offset);
       b.pop();
       if (fold.clip != null) b.pop();
       b.pop();
@@ -2206,8 +2208,14 @@ final class _Atlas {
     } else {
       final b = ui.SceneBuilder();
       b.addPicture(Offset.zero, content);
+      // A folded filter reads what lies under it as a backdrop filter reads
+      // the screen. In a layer around its copy it reads that layer alone;
+      // drawn straight into the atlas, Impeller blurs the whole atlas for
+      // it. A fragment in the layer lies in the copy's pixels.
       for (final tile in folding) {
-        _add(b, tile);
+        b.pushClipRect(tile.bounds, clipBehavior: Clip.antiAliasWithSaveLayer);
+        _add(b, tile, origin: Offset.zero);
+        b.pop();
       }
       for (final group in layered.values) {
         BackdropUnderlay.debugBlurLayers++;
@@ -2238,7 +2246,7 @@ final class _Atlas {
       for (final tile in isolated) {
         final filter = tile.filter ?? _blur(tile.blur!.$1, tile.blur!.$2);
         b.pushClipRect(tile.bounds, clipBehavior: Clip.antiAliasWithSaveLayer);
-        _add(b, tile);
+        _add(b, tile, origin: Offset.zero);
         b.pushTransform(_toAtlas(tile).storage);
         b.pushClipRect(
           tile.filterClip?.intersect(tile.rect) ?? tile.rect,
