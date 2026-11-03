@@ -21,9 +21,10 @@ Widget _scene({
   double top = 200,
   double frost = 0,
   bool second = true,
+  double secondFrost = 0,
   Rect? clip,
 }) {
-  Widget glass(Rect rect) => LiquidGlassLayer(
+  Widget glass(Rect rect, {double frost = 0}) => LiquidGlassLayer(
     settings: LiquidGlassSettings.ios27RegularLight().copyWith(frost: frost),
     child: Stack(
       children: [
@@ -38,7 +39,7 @@ Widget _scene({
     ),
   );
 
-  final first = glass(Rect.fromLTWH(30, top, 200, 90));
+  final first = glass(Rect.fromLTWH(30, top, 200, 90), frost: frost);
   return Directionality(
     textDirection: TextDirection.ltr,
     child: RepaintBoundary(
@@ -77,7 +78,10 @@ Widget _scene({
           if (second)
             Positioned.fill(
               child: RepaintBoundary(
-                child: glass(const Rect.fromLTWH(30, 260, 200, 60)),
+                child: glass(
+                  const Rect.fromLTWH(30, 260, 200, 60),
+                  frost: secondFrost,
+                ),
               ),
             ),
         ],
@@ -126,22 +130,36 @@ Future<Uint8List> _drawn(
   required double pixelRatio,
   double frost = 0,
   bool second = true,
+  double secondFrost = 0,
   Rect? clip,
 }) async {
   BackdropUnderlay.debugInFrame = inFrame;
   await tester.pumpWidget(const SizedBox());
   await tester.pumpWidget(
-    _scene(shift: 0.3, frost: frost, second: second, clip: clip),
+    _scene(
+      shift: 0.3,
+      frost: frost,
+      second: second,
+      secondFrost: secondFrost,
+      clip: clip,
+    ),
   );
   final drawn = BackdropUnderlay.debugImagesDrawn;
   await tester.pumpWidget(
-    _scene(frost: frost, second: second, clip: clip),
+    _scene(
+      frost: frost,
+      second: second,
+      secondFrost: secondFrost,
+      clip: clip,
+    ),
   );
   final glass = tester.allRenderObjects
       .whereType<RenderLiquidGlassLayer>()
       .toSet();
   expect(glass.every((g) => g.debugDrewOverUnderlay), isTrue);
-  if (inFrame) expect(BackdropUnderlay.debugImagesDrawn, drawn);
+  if (inFrame && secondFrost == 0) {
+    expect(BackdropUnderlay.debugImagesDrawn, drawn);
+  }
   return _pixels(tester, pixelRatio);
 }
 
@@ -264,6 +282,37 @@ void main() {
         clip: clip,
       );
       expect(_difference(image, inFrame), lessThanOrEqualTo(163));
+    }, skip: skipProperGlassTests);
+  }
+
+  // The lower glass's frosted copy is an image at a fraction of the screen's
+  // pixels, and the upper glass is drawn in the frame inside it as a filter,
+  // whose fragments are the image's pixels.
+  for (final pixelRatio in [2.0, 3.0]) {
+    testWidgets("an image copy at a fraction of the screen's pixels draws "
+        'glass drawn in the frame where it lies (dpr $pixelRatio)', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(260, 360) * pixelRatio;
+      tester.view.devicePixelRatio = pixelRatio;
+      addTearDown(tester.view.reset);
+      final image = await _drawn(
+        tester,
+        inFrame: false,
+        pixelRatio: pixelRatio,
+        secondFrost: 12,
+      );
+      final images = BackdropUnderlay.debugImagesDrawn;
+      final inFrame = await _drawn(
+        tester,
+        inFrame: true,
+        pixelRatio: pixelRatio,
+        secondFrost: 12,
+      );
+      expect(BackdropUnderlay.debugImagesDrawn, greaterThan(images));
+      // At the image's own pixels the upper glass lands twice as far from
+      // its layer's corner, over 70 levels off.
+      expect(_difference(image, inFrame), lessThanOrEqualTo(5));
     }, skip: skipProperGlassTests);
   }
 }

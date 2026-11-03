@@ -405,7 +405,7 @@ class BackdropUnderlay {
         first._holdsIn(last, ask, scan, limit)) {
       first.debugMiss = null;
       return (
-        copy: UnderlayCopy._(first, first._rect, ask.pixelRatio),
+        copy: UnderlayCopy._(first, first._rect, last.pixelRatio),
         island: last,
         held: true,
         rects: [first._rect],
@@ -441,7 +441,7 @@ class BackdropUnderlay {
       if (inside) {
         first.debugMiss = null;
         return (
-          copy: UnderlayCopy._(first, first._rect, ask.pixelRatio),
+          copy: UnderlayCopy._(first, first._rect, last.pixelRatio),
           island: last,
           held: true,
           rects: [for (final member in members) member._rect],
@@ -480,12 +480,10 @@ class BackdropUnderlay {
           : 'plain';
       _count(debugImageAsks, '${ask.anchor.runtimeType} $kind');
     }
-    // A copy that holds glass over a copy not drawn yet draws that glass as
-    // its filter, which takes the copy's pixels to be the screen's.
     final island = _Island(
       ask,
       rect,
-      pixelRatio: signed.folds ? ask.devicePixelRatio : ask.pixelRatio,
+      pixelRatio: signed.filtersGlass ? ask.devicePixelRatio : ask.pixelRatio,
     );
     // Recorded when the frame's copies are drawn, not now: glass in the band
     // whose own copy is drawn with it is drawn by then as far as it can be.
@@ -896,7 +894,7 @@ final class _Island {
       ask.filterClip == filterClip &&
       ask.filterBlendMode == filterBlendMode &&
       ask.devicePixelRatio == _ask.devicePixelRatio &&
-      ask.pixelRatio == pixelRatio;
+      ask.pixelRatio == _ask.pixelRatio;
 
   void _leave(BackdropUnderlay underlay) {
     if (!members.remove(underlay)) return;
@@ -967,8 +965,10 @@ class _Prefix {
   bool blocked = false;
   Layer? blocker;
 
-  // Whether the band holds glass over a copy not drawn yet.
-  bool folds = false;
+  // Whether the copy draws glass as an image filter (glass over a copy not
+  // drawn yet, or drawn in the frame), whose fragment coordinates are the
+  // copy's pixels: the glass takes them to be the screen's.
+  bool filtersGlass = false;
 
   // Whether the copy draws glass.
   bool holdsGlass = false;
@@ -1017,7 +1017,7 @@ class _Prefix {
   // Ends the picture before [fold] and begins the next one inside the
   // groups [open] around it.
   void fold(_Fold fold, List<(int, _Open)> open) {
-    folds = true;
+    filtersGlass = true;
     final c = canvas;
     if (c == null) return;
     for (final (saves, group) in open.reversed) {
@@ -1648,6 +1648,7 @@ final class _Scan {
       Rect? clip,
       List<Object?> state,
     ) {
+      prefix.filtersGlass = true;
       final region = clip == null ? band : band.intersect(clip);
       if (BackdropUnderlay.keepsWhole(layer, region)) {
         sign(whole, transform, clip, state);
