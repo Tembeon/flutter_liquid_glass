@@ -414,6 +414,14 @@ class BackdropRig {
     return picture;
   }
 
+  /// Keeps [picture], drawn over a copy in the frame (see
+  /// [BackdropUnderlay.serveInFrame]), as the picture the slot shows.
+  PictureLayer servedInFrame(InFrameGlassLayer picture) {
+    _served.layer = picture;
+    _servedKey = null;
+    return picture;
+  }
+
   /// Fills the slot with [served] over [under], or with the live read
   /// without [served].
   void show(PictureLayer? served, {Layer? under}) {

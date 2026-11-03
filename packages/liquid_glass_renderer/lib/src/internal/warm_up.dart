@@ -9,6 +9,7 @@ import 'package:liquid_glass_renderer/src/internal/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/internal/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/paint_fake_glass_surface.dart';
+import 'package:liquid_glass_renderer/src/internal/shader_filter.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_field.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_settings.dart';
@@ -126,7 +127,7 @@ Future<void> warmLiquidGlassPipelines(
             break;
         }
       }
-      final filter = ui.ImageFilter.shader(shader);
+      final filter = bilinearShaderFilter(shader);
       filters.add(filter);
       for (final sigma in _frostSigmas) {
         filters.add(ui.ImageFilter.compose(inner: _blur(sigma), outer: filter));

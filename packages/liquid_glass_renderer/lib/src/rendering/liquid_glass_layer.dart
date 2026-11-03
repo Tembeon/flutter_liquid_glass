@@ -21,6 +21,7 @@ import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer
 import 'package:liquid_glass_renderer/src/internal/multi_shader_builder.dart';
 import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/internal/rounded_superellipse_parameters.dart';
+import 'package:liquid_glass_renderer/src/internal/shader_filter.dart';
 import 'package:liquid_glass_renderer/src/internal/shader_frost.dart';
 import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
@@ -1698,7 +1699,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         frostSigma == _filterFrostSigma) {
       return _cachedFilter!;
     }
-    final shader = ImageFilter.shader(renderShader);
+    final shader = bilinearShaderFilter(renderShader);
     final filter = frostSigma > 0
         ? ImageFilter.compose(
             inner: ImageFilter.blur(
@@ -2003,8 +2004,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final asked = _asked;
     _asked = null;
     if (asked == null) return null;
-    final copy = _rig.underlay.serve();
-    if (copy == null) return null;
+    final underlay = _rig.underlay;
+    final inFrame = underlay.servesInFrame ? underlay.serveInFrame() : null;
+    final served = inFrame == null ? underlay.serve() : null;
+    if (inFrame == null && served == null) return null;
     final (:screen, :logical, :drawn, :frost) = asked;
     final dpr = devicePixelRatio;
     final canvasToScreen = screen.clone();
@@ -2031,24 +2034,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       backdropBounds == backdropSampleBounds,
       'The copy samples the bounds the live filter does.',
     );
-    final paintOffset = _filterPaintOffset;
-    // The live filter's inputs, as one object: a new one whenever a uniform
-    // or sampler changed.
-    Object keyOf() {
-      _updateShaderFilter();
-      return (
-        copy.image,
-        copy.offset,
-        copy.rect,
-        _filterGeneration,
-        device,
-        backdropBounds,
-        paintOffset,
-        screen,
-        frost,
-      );
-    }
-
     // From fragment coordinates that begin at [origin] in the screen's
     // device pixels to the matte.
     (double, double, double, double, double, double) mappingFrom(
@@ -2077,6 +2062,57 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       if (_coordinateMapping case final live?) {
         _writeCoordinateMapping(shader, live, _backdropBounds);
       }
+    }
+
+    // A copy for glass nearby holds this glass only where it paints.
+    final pictureBounds = MatrixUtils.transformRect(
+      screenToCanvas,
+      Rect.fromLTRB(
+        drawn.left * dpr,
+        drawn.top * dpr,
+        drawn.right * dpr,
+        drawn.bottom * dpr,
+      ),
+    ).inflate(1);
+
+    if (inFrame != null) {
+      final picture = InFrameGlassLayer(
+        pictureBounds,
+        inFrame,
+        (region) => _recordInFrame(
+          inFrame,
+          region,
+          screenToCanvas: screenToCanvas,
+          globalToMatte: globalToMatte,
+          mapping: mappingFrom,
+          backdropBounds: backdropBounds,
+          frost: frost,
+        ),
+      );
+      picture.picture = picture.within(inFrame.band);
+      if (picture.picture == null) {
+        picture.dispose();
+        return null;
+      }
+      return _rig.servedInFrame(picture);
+    }
+    final copy = served!;
+    final paintOffset = _filterPaintOffset;
+    // The live filter's inputs, as one object: a new one whenever a uniform
+    // or sampler changed.
+    Object keyOf() {
+      _updateShaderFilter();
+      return (
+        copy.image,
+        copy.offset,
+        copy.rect,
+        _filterGeneration,
+        device,
+        backdropBounds,
+        paintOffset,
+        screen,
+        frost,
+      );
     }
 
     ui.Picture record() {
@@ -2115,16 +2151,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       return recorder.endRecording();
     }
 
-    // A copy for glass nearby holds this glass only where it paints.
-    final pictureBounds = MatrixUtils.transformRect(
-      screenToCanvas,
-      Rect.fromLTRB(
-        drawn.left * dpr,
-        drawn.top * dpr,
-        drawn.right * dpr,
-        drawn.bottom * dpr,
-      ),
-    ).inflate(1);
     // Inside a copy drawn at the screen's pixels together with this glass's
     // own, the glass is its live filter over what that copy holds before
     // it: the filter's fragments lie in that copy's pixels, and what it
@@ -2140,7 +2166,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       );
       _updateShaderFilter();
       final sigma = _filterFrostSigma ?? 0;
-      final read = ImageFilter.shader(shader);
+      final read = bilinearShaderFilter(shader);
       final filter = sigma > 0
           ? ImageFilter.compose(
               inner: ImageFilter.blur(
@@ -2166,6 +2192,87 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       record: record,
       fold: fold,
     );
+  }
+
+  // The glass over [copy] inside [region] of the screen (logical pixels): the
+  // final shader as the image filter of a layer holding the copy, in the
+  // layer's corner at the copy's pixels. Fragment coordinates start at the
+  // layer's corner; the shader reads the copy in device pixels, and the
+  // layer's texture at the share of it the copy fills.
+  ui.Picture? _recordInFrame(
+    InFrameCopy copy,
+    Rect region, {
+    required Matrix4 screenToCanvas,
+    required Matrix4 globalToMatte,
+    required (double, double, double, double, double, double) Function(
+      Offset origin,
+    )
+    mapping,
+    required Rect? backdropBounds,
+    required double frost,
+  }) {
+    final shown = region.intersect(copy.band);
+    if (shown.isEmpty) return null;
+    final dpr = devicePixelRatio;
+    final pixels = copy.pixelRatio;
+    final stretch = (dpr / pixels).roundToDouble();
+    final layer = Rect.fromLTRB(
+      (shown.left * pixels).floorToDouble() * stretch,
+      (shown.top * pixels).floorToDouble() * stretch,
+      (shown.right * pixels).ceilToDouble() * stretch,
+      (shown.bottom * pixels).ceilToDouble() * stretch,
+    );
+    final within = MatrixUtils.transformRect(
+      globalToMatte,
+      Rect.fromLTRB(
+        layer.left / dpr,
+        layer.top / dpr,
+        layer.right / dpr,
+        layer.bottom / dpr,
+      ),
+    );
+    final shader = renderShader;
+    _writeCoordinateMapping(
+      shader,
+      mapping(layer.topLeft),
+      backdropBounds?.intersect(within) ?? within,
+    );
+    shader.setFloat(_FinalUniforms.reducedBackdrop, stretch > 1 ? stretch : 0);
+    shader.setFloat(_FinalUniforms.backdropFrost, frost);
+    final paint = Paint();
+    paint.imageFilter = bilinearShaderFilter(shader);
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    canvas.transform(screenToCanvas.storage);
+    canvas.saveLayer(layer, paint);
+    // Impeller sizes a layer by what is drawn in it: a pixel cleared at
+    // each corner holds it to [layer] where the copy is transparent.
+    final clear = Paint();
+    clear.blendMode = BlendMode.clear;
+    canvas.drawRect(Rect.fromLTWH(layer.left, layer.top, 1, 1), clear);
+    canvas.drawRect(
+      Rect.fromLTRB(
+        layer.right - 1,
+        layer.bottom - 1,
+        layer.right,
+        layer.bottom,
+      ),
+      clear,
+    );
+    canvas.translate(
+      layer.left + (copy.band.left * dpr - layer.left) / stretch,
+      layer.top + (copy.band.top * dpr - layer.top) / stretch,
+    );
+    canvas.drawPicture(copy.content);
+    canvas.restore();
+    // The shader filter took the uniforms as the layer was saved: they go
+    // back to the live filter's.
+    shader.setFloat(_FinalUniforms.reducedBackdrop, 0);
+    shader.setFloat(_FinalUniforms.backdropFrost, 0);
+    if (_coordinateMapping case final live?) {
+      _writeCoordinateMapping(shader, live, _backdropBounds);
+    }
+    return recorder.endRecording();
   }
 
   @override

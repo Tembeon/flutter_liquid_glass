@@ -106,9 +106,12 @@ uniform vec2 uLowResOptics;
 // [4] xy uBackdropShrinkAxis: half of the segment backdropShrink shrinks
 //     about, in matte device px from the material center; zero shrinks
 //     about the center itself. z uBackdropReduced: above zero when the copy
-//     a paint samples has fewer pixels than the screen, so no glass reads
-//     its own texel. w uBackdropFrost: the Gaussian sigma, in device px,
-//     the shader frosts an unblurred copy by; zero reads it as it is.
+//     the glass samples has fewer pixels than the screen, so no glass reads
+//     its own texel; at 1 or more, the copy fills the top-left
+//     1 / uBackdropReduced of its texture along each side (a layer whose
+//     copy is drawn in its corner). w uBackdropFrost: the Gaussian sigma,
+//     in device px, the shader frosts an unblurred copy by; zero reads it
+//     as it is.
 // [5] uBackdropOverlay: a color laid over the read backdrop at its alpha,
 //     the dimming between a cached copy of the page and the glass.
 uniform vec4 uEffects[6];
@@ -844,6 +847,8 @@ void main() {
     }
 
     vec2 invUSize = 1.0 / uSize;
+    // From the copy's uv to its texture's.
+    float copyScale = 1.0 / max(uBackdropReduced, 1.0);
     vec2 backdropScaleOffset = vec2(0.0);
     if (abs(uBackdropScale - 1.0) > 0.0001) {
         // backdropShrink is one lens over the whole face, uniform up to the
@@ -912,7 +917,7 @@ void main() {
                 mirrorIntoBackdrop(sourceOffset, matteCoord) * invUSize;
             refractColor = texture(
                 uBackgroundTexture,
-                mirrorBackgroundUV(refractedUV, invUSize)
+                mirrorBackgroundUV(refractedUV, invUSize) * copyScale
             );
         }
         #if FROST
@@ -923,11 +928,11 @@ void main() {
             vec2 halfTexel = invUSize * 0.5;
             refractColor = frostTaps(
                 uBackgroundTexture,
-                refractedUV,
+                refractedUV * copyScale,
                 uBackdropFrost,
-                invUSize,
-                halfTexel,
-                vec2(1.0) - halfTexel
+                invUSize * copyScale,
+                halfTexel * copyScale,
+                (vec2(1.0) - halfTexel) * copyScale
             );
         }
         #endif
@@ -958,9 +963,9 @@ void main() {
             invUSize
         );
         
-        float red = texture(uBackgroundTexture, redUV).r;
-        vec4 greenSample = texture(uBackgroundTexture, greenUV);
-        float blue = texture(uBackgroundTexture, blueUV).b;
+        float red = texture(uBackgroundTexture, redUV * copyScale).r;
+        vec4 greenSample = texture(uBackgroundTexture, greenUV * copyScale);
+        float blue = texture(uBackgroundTexture, blueUV * copyScale).b;
         
         refractColor = vec4(red, greenSample.g, blue, greenSample.a);
     }
