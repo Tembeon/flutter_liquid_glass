@@ -621,6 +621,58 @@ void main() {
     );
   }, skip: skipProperGlassTests);
 
+  testWidgets('glass over its copy lays its shadows under it, whole, and '
+      'draws what its shadows cut outside it draw', (tester) async {
+    tester.view.physicalSize = const Size(520, 720);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    addTearDown(() => BackdropUnderlay.debugEnabledOverride = null);
+    List<bool> under() => [
+      for (final g
+          in tester.allRenderObjects
+              .whereType<RenderLiquidGlassLayer>()
+              .toSet())
+        g.debugShadowsUnderGlass,
+    ];
+
+    BackdropUnderlay.debugEnabledOverride = false;
+    await tester.pumpWidget(_pairScene(top: 160, shadowed: true));
+    expect(under(), [false, false]);
+    final cut = await _pixels(tester, pixelRatio: 2);
+    BackdropUnderlay.debugEnabledOverride = true;
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(_pairScene(top: 160, shadowed: true));
+    expect(under(), [true, true]);
+    final whole = await _pixels(tester, pixelRatio: 2);
+    // The cut reached half a pixel into the glass's edge: only along the
+    // edge do the two differ.
+    bool nearEdge(Offset point) =>
+        [
+          const Rect.fromLTWH(30, 160, 200, 90),
+          const Rect.fromLTWH(30, 260, 200, 60),
+        ].any((rect) {
+          final outer = rect.inflate(1.5);
+          if (!outer.contains(point)) return false;
+          const radius = 28.0;
+          return RSuperellipse.fromRectAndRadius(
+                outer,
+                const Radius.circular(radius + 1.5),
+              ).contains(point) &&
+              !RSuperellipse.fromRectAndRadius(
+                rect.deflate(1.5),
+                const Radius.circular(radius - 1.5),
+              ).contains(point);
+        });
+    var away = 0;
+    for (var i = 0; i < cut.length; i++) {
+      final pixel = i ~/ 4;
+      final point = Offset(pixel % 520 / 2, pixel ~/ 520 / 2);
+      final difference = (cut[i] - whole[i]).abs();
+      if (difference > away && !nearEdge(point)) away = difference;
+    }
+    expect(away, lessThanOrEqualTo(3));
+  }, skip: skipProperGlassTests);
+
   testWidgets('an island holds while what lies under it is unchanged and '
       'is recorded again, once, when it changes', (tester) async {
     tester.view.physicalSize = const Size(260, 360);

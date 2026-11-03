@@ -285,6 +285,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
   final _framePoll = FramePollMarker();
   final _effectLayer = LayerHandle<OffsetLayer>();
   final _originalShadows = LayerHandle<ContainerLayer>();
+  final _shadowPicture = LayerHandle<PictureLayer>();
   final _ancestorClips = RetainedGlassClip();
   final _idleAncestorClips = RetainedGlassClip();
   List<Object> _retainedStructure = [];
@@ -857,10 +858,41 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
   Iterable<(List<ShapeGeometry>, Matrix4)> _shadowSources() =>
       shapesWithGeometry.map((entry) => (entry.$2.shapes, entry.$3));
 
+  /// Whether [recordGlassShadows] records the shadows for a place under the
+  /// glass, where the glass covers them inside its silhouettes, instead of
+  /// over it, cut outside them. Only glass that paints every pixel of its
+  /// silhouettes opaquely over what lies under it may set it, and only while
+  /// no shape fades ([glassShadowsFade]).
+  ///
+  /// NEAR: over the glass the cut lets the shadow half a pixel into the
+  /// glass's edge, so that no seam shows between them; under it the glass
+  /// covers its edge pixels by their coverage and needs no reach. The two
+  /// differ only along the edge: by up to 57 levels under a shadow of alpha
+  /// 0.25 in the host test, and by up to 23 on the Pixel 6a's glass bench
+  /// under the 0.08 to 0.1 of glass controls, in a line two device pixels
+  /// wide and at corners, where the cut's path and the shader's shape part;
+  /// elsewhere by at most 3 levels, as copies without shadows do.
+  @protected
+  bool shadowsUnderGlass = false;
+
+  /// [shadowsUnderGlass], for tests.
+  @visibleForTesting
+  bool get debugShadowsUnderGlass => shadowsUnderGlass;
+
+  /// Whether a committed shape is partly visible, which makes the shadows
+  /// show through it by the part it has yet to fade in.
+  @protected
+  bool get glassShadowsFade => _anyShapeFading;
+
+  /// The picture [recordGlassShadows] last recorded, wherever it lies now.
+  @protected
+  PictureLayer? get glassShadowPicture => _shadowPicture.layer;
+
   /// Draws every committed shape's exterior shadows into [canvas] at
   /// [offset], kept outside the silhouette of every shape above zero
-  /// visibility so they do not darken the glass. Shadow color, blur and the
-  /// cut-out silhouette scale with shape visibility.
+  /// visibility so they do not darken the glass, or whole for the glass to
+  /// cover with [shadowsUnderGlass]. Shadow color, blur and the cut-out
+  /// silhouette scale with shape visibility.
   @protected
   void drawGlassShadows(Canvas canvas, Offset offset) {
     final hasShadows = shapesWithGeometry.any(
@@ -881,6 +913,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
       _paintShadows(canvas, (_) => true, outer: true);
     } else if (_anyShapeFading) {
       _paintShadowsCutOffscreen(canvas);
+    } else if (shadowsUnderGlass) {
+      _paintShadows(canvas, (_) => true, outer: false);
     } else {
       // A clip, not an offscreen layer. Shadows whose bounds meet are
       // grouped, and each group is clipped to its own bounds less the
@@ -1124,17 +1158,22 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
     }
     final slot = _originalShadows.layer ??= ContainerLayer();
     slot.removeAllChildren();
+    _shadowPicture.layer = null;
     if (!hasDrawableGlass(shapesWithGeometry)) return slot;
     final recorder = ui.PictureRecorder();
     drawGlassShadows(Canvas(recorder), offset);
     final picture = PictureLayer(effectPaintBounds.shift(offset))
       ..picture = recorder.endRecording();
     slot.append(picture);
+    _shadowPicture.layer = picture;
     return slot;
   }
 
   @protected
-  void clearGlassShadows() => _originalShadows.layer = null;
+  void clearGlassShadows() {
+    _originalShadows.layer = null;
+    _shadowPicture.layer = null;
+  }
 
   @override
   @mustCallSuper

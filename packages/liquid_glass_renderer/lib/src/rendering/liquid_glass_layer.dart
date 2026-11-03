@@ -1727,6 +1727,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   ) {
     if (!attached) return;
     if (_drawsOverSolid) {
+      shadowsUnderGlass = false;
       _paintOverSolid(context, offset, materialBounds);
       return;
     }
@@ -1734,6 +1735,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // paint directly in this layer.
     _rig.usesPass = seedsBackdrop && _passReach > 0;
     final filterBounds = _syncMaterialFilter(materialBounds, offset);
+    final copies = _wantsUnderlay && !drawableEmpty;
+    // Only glass over its copy can cover the shadows (see _placeShadows).
+    if (!copies) shadowsUnderGlass = false;
 
     void paintLive(PaintingContext context, Offset offset) {
       _rig.paintLive(
@@ -1747,12 +1751,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
     // The live filter, or the glass painted over a copy of what lies under
     // it: compositing picks one per frame.
-    _rig.paintSite(
-      context,
-      offset,
-      copies: _wantsUnderlay && !drawableEmpty,
-      live: paintLive,
-    );
+    _rig.paintSite(context, offset, copies: copies, live: paintLive);
   }
 
   // Over a solid backdrop the glass is a rect painted with the final shader.
@@ -1828,7 +1827,22 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   @override
   void onCompositing() {
-    if (_rig.hasSlot) _composeUnderlay();
+    if (_rig.hasSlot) {
+      _composeUnderlay();
+    } else {
+      _placeShadows(under: false);
+    }
+  }
+
+  // Glass over its copy paints its silhouettes opaquely over the slot, so
+  // its shadows lie under it in the slot, whole, rather than over it cut
+  // outside the silhouettes: the cut is a stencil clip of the shadow
+  // groups' bounds, the dearest part of drawing them. The copy is taken
+  // under the glass's own layer, so it never holds them.
+  void _placeShadows({required bool under}) {
+    if (under == shadowsUnderGlass) return;
+    shadowsUnderGlass = under;
+    if (glassShadowPicture != null) recordGlassShadows(retainedPaintOffset);
   }
 
   // Chosen at compositing: what lies under the glass can change in a frame
@@ -1842,7 +1856,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final served = _recordUnderlay();
     if (served == null) compositionSeedSuppressed = false;
     debugDrewOverUnderlay = served != null;
-    _rig.show(served);
+    final under = served != null && !glassShadowsFade;
+    _placeShadows(under: under);
+    _rig.show(served, under: under ? glassShadowPicture : null);
   }
 
   /// How many device pixels along each side one pixel of a frosted copy

@@ -275,8 +275,10 @@ class BackdropRig {
     return picture;
   }
 
-  /// Fills the slot with [served], or with the live read without it.
-  void show(PictureLayer? served) {
+  /// Fills the slot with [served] over [under], or with the live read
+  /// without [served].
+  void show(PictureLayer? served, {Layer? under}) {
+    assert(under == null || served != null, 'Only a copy covers [under].');
     final slot = _slot.layer;
     if (slot == null) return;
     final child = served ?? _pass.layer ?? _clipRect.layer ?? _clipPath.layer;
@@ -284,8 +286,17 @@ class BackdropRig {
       slot.removeAllChildren();
       return;
     }
-    if (identical(slot.firstChild, child) && child.nextSibling == null) return;
+    final first = under ?? child;
+    if (identical(slot.firstChild, first) &&
+        identical(first.nextSibling, under == null ? null : child) &&
+        child.nextSibling == null) {
+      return;
+    }
     slot.removeAllChildren();
+    if (under != null) {
+      under.remove();
+      slot.append(under);
+    }
     child.remove();
     slot.append(child);
   }
