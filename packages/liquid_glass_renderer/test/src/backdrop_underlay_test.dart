@@ -21,6 +21,7 @@ const _shadow = [
 Widget _pairScene({
   double shift = 0,
   double top = 40,
+  double frost = 0,
   bool shadowed = false,
 }) => Directionality(
   textDirection: TextDirection.ltr,
@@ -50,7 +51,7 @@ Widget _pairScene({
               key: key,
               child: LiquidGlassLayer(
                 settings: LiquidGlassSettings.ios27RegularLight().copyWith(
-                  frost: 0,
+                  frost: frost,
                 ),
                 child: Stack(
                   children: [
@@ -271,11 +272,13 @@ Iterable<BackdropFilterLayer> _liveFilters(WidgetTester tester) => tester.layers
     .whereType<BackdropFilterLayer>()
     .where((layer) => layer is! OpacitySeedLayer || layer.seeded);
 
-Future<Uint8List> _pixels(WidgetTester tester) async {
+Future<Uint8List> _pixels(WidgetTester tester, {double pixelRatio = 1}) async {
   final boundary = tester.renderObject<RenderRepaintBoundary>(
     find.byKey(_key),
   );
-  final image = (await tester.runAsync(boundary.toImage))!;
+  final image = (await tester.runAsync(
+    () => boundary.toImage(pixelRatio: pixelRatio),
+  ))!;
   final bytes = (await tester.runAsync(image.toByteData))!;
   image.dispose();
   return bytes.buffer.asUint8List();
@@ -587,6 +590,35 @@ void main() {
       lessThanOrEqualTo(_difference(reading, apart)),
     );
     expect(_difference(reading, together), lessThanOrEqualTo(2));
+  }, skip: skipProperGlassTests);
+
+  testWidgets('frosted copies apart are blurred in one layer and draw what '
+      'reading the backdrop draws', (tester) async {
+    tester.view.physicalSize = const Size(520, 720);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    addTearDown(() => BackdropUnderlay.debugEnabledOverride = null);
+
+    BackdropUnderlay.debugEnabledOverride = false;
+    await tester.pumpWidget(_pairScene(frost: 6));
+    final reading = await _pixels(tester, pixelRatio: 2);
+    BackdropUnderlay.debugEnabledOverride = true;
+    await tester.pumpWidget(const SizedBox());
+    final layers = BackdropUnderlay.debugBlurLayers;
+    await tester.pumpWidget(_pairScene(frost: 6));
+    expect(BackdropUnderlay.debugBlurLayers, layers + 1);
+    final [a, b] = [
+      for (final g
+          in tester.allRenderObjects
+              .whereType<RenderLiquidGlassLayer>()
+              .toSet())
+        g.debugUnderlay.debugImage!,
+    ];
+    expect(a.isCloneOf(b), isTrue);
+    expect(
+      _difference(reading, await _pixels(tester, pixelRatio: 2)),
+      lessThanOrEqualTo(2),
+    );
   }, skip: skipProperGlassTests);
 
   testWidgets('an island holds while what lies under it is unchanged and '

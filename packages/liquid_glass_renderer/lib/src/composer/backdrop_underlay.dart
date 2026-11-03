@@ -1,6 +1,7 @@
 // Scene building reads as one statement per push and pop, without cascades.
 // ignore_for_file: cascade_invocations
 
+import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -102,6 +103,11 @@ class BackdropUnderlay {
   @visibleForTesting
   static int get debugImagesDrawn => _Atlas.drawn;
 
+  /// How many blurred layers the copies were drawn in: one holds every copy
+  /// of one blur in an image.
+  @visibleForTesting
+  static int debugBlurLayers = 0;
+
   /// How many islands of copies were drawn, by how many copies each held.
   @visibleForTesting
   static final debugIslands = <int, int>{};
@@ -123,8 +129,17 @@ class BackdropUnderlay {
   /// filter with [filterBlendMode] inside [filterClip] (the whole copy when
   /// null), in screen logical pixels. [filterKey] stands for [filter] (the
   /// filter itself by default): a copy serves only callers that pass an
-  /// equal key. [anchor] lies in a [RenderView]'s layer tree, and the copy
-  /// is cut to its screen. The copy holds [downscale] device pixels in each
+  /// equal key. [blur] stands in for a [filter] that is a mirrored Gaussian
+  /// blur over the whole copy by these sigmas in logical pixels (and is its
+  /// key by default): the copy is blurred at its own pixels, without reading
+  /// a backdrop, together with the frame's other copies under the same blur.
+  /// NEAR: past a copy's edge the blur reads what lies beside it in the
+  /// shared layer rather than a mirror of the copy; a copy holds 3 sigma past
+  /// what its glass samples, so that reaches the glass only as the tail of
+  /// the blur. Glass stretched along the axes differs from reading the
+  /// backdrop by up to 15 levels in a few hundred pixels on the Pixel 6a.
+  /// [anchor] lies in a [RenderView]'s layer tree, and the copy is cut to its
+  /// screen. The copy holds [downscale] device pixels in each
   /// of its pixels along each side: a copy blurred enough loses nothing
   /// drawn smaller.
   ///
@@ -148,12 +163,20 @@ class BackdropUnderlay {
     required Rect region,
     OpacitySeedLayer? own,
     ui.ImageFilter? filter,
+    (double, double)? blur,
     Object? filterKey,
     Rect? filterClip,
     BlendMode filterBlendMode = BlendMode.src,
     int downscale = 1,
     Rect? body,
   }) {
+    assert(
+      blur == null ||
+          filter == null &&
+              filterClip == null &&
+              filterBlendMode == BlendMode.src,
+      'A blur covers the whole copy and stands for its filter.',
+    );
     _ask = null;
     _plan = null;
     final view = anchor.owner;
@@ -169,7 +192,8 @@ class BackdropUnderlay {
       screen: screen,
       band: _snapOut(region, pixels).intersect(screen),
       filter: filter,
-      filterKey: filterKey ?? filter,
+      blur: blur,
+      filterKey: filterKey ?? blur ?? filter,
       filterClip: filterClip,
       filterBlendMode: filterBlendMode,
       body: body,
@@ -502,6 +526,7 @@ final class _Ask {
     required this.screen,
     required this.band,
     required this.filter,
+    required this.blur,
     required this.filterKey,
     required this.filterClip,
     required this.filterBlendMode,
@@ -517,10 +542,13 @@ final class _Ask {
   final Rect screen;
   final Rect band;
   final ui.ImageFilter? filter;
+  final (double, double)? blur;
   final Object? filterKey;
   final Rect? filterClip;
   final BlendMode filterBlendMode;
   final Rect? body;
+
+  bool get filtered => filter != null || blur != null;
 
   // Whether the copy can be drawn with copies beside it.
   bool get joins =>
@@ -557,7 +585,7 @@ final class _Plan {
     final first = _asks.first;
     if (ask.pixelRatio != first.pixelRatio ||
         ask.filterKey != first.filterKey ||
-        (ask.filter == null) != (first.filter == null) ||
+        ask.filtered != first.filtered ||
         !_meets(rect, ask.band)) {
       return false;
     }
@@ -631,6 +659,7 @@ final class _Plan {
 final class _Island {
   _Island(_Ask ask, this.rect)
     : filter = ask.filter,
+      blur = ask.blur,
       filterKey = ask.filterKey,
       filterClip = ask.filterClip,
       filterBlendMode = ask.filterBlendMode,
@@ -639,6 +668,7 @@ final class _Island {
 
   final Rect rect;
   final ui.ImageFilter? filter;
+  final (double, double)? blur;
   final Object? filterKey;
   final Rect? filterClip;
   final BlendMode filterBlendMode;
@@ -1806,6 +1836,8 @@ class _Tile {
   Rect get rect => island.rect;
   double get devicePixelRatio => island.pixelRatio;
   ui.ImageFilter? get filter => island.filter;
+  (double, double)? get blur => island.blur;
+  bool get filtered => island.filter != null || island.blur != null;
   Object? get filterKey => island.filterKey;
   Rect? get filterClip => island.filterClip;
   BlendMode get filterBlendMode => island.filterBlendMode;
@@ -1822,6 +1854,12 @@ final class _Atlas {
   static const int _gap = 2;
   static const int _rowWidth = 2048;
   static const int _maxHeight = 4096;
+
+  // Impeller downsamples an image filter's blur on a grid of its own and a
+  // backdrop filter's on the target's: past this sigma in a copy's pixels
+  // the two part by up to 15 levels at some sizes (host parity), so a copy
+  // blurred more is blurred as a backdrop filter.
+  static const double _maxImageBlurSigma = 14;
 
   static int drawn = 0;
 
@@ -1868,9 +1906,7 @@ final class _Atlas {
         for (final tile in batch) {
           runs
               .putIfAbsent(
-                tile.filter == null
-                    ? null
-                    : (tile.filterKey, tile.devicePixelRatio),
+                !tile.filtered ? null : (tile.filterKey, tile.devicePixelRatio),
                 () => [],
               )
               .add(tile);
@@ -1909,29 +1945,6 @@ final class _Atlas {
     }
   }
 
-  // Runs of copies whose bounds together cover little more than the copies.
-  static List<List<_Tile>> _clusters(List<_Tile> tiles) {
-    final clusters = <List<_Tile>>[];
-    var bounds = Rect.zero;
-    var area = 0.0;
-    for (final tile in tiles) {
-      final rect = tile.bounds;
-      final size = rect.width * rect.height;
-      final joined = bounds.expandToInclude(rect);
-      if (clusters.isNotEmpty &&
-          joined.width * joined.height <= (area + size) * 1.25) {
-        clusters.last.add(tile);
-        bounds = joined;
-        area += size;
-      } else {
-        clusters.add([tile]);
-        bounds = rect;
-        area = size;
-      }
-    }
-    return clusters;
-  }
-
   static void _draw(List<_Tile> tiles, int width, int height) {
     drawn++;
     final level = tiles.first.level;
@@ -1947,81 +1960,76 @@ final class _Atlas {
 
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
-    // Copies that a filter replaces whole and that lie side by side share
-    // one filtered layer: the blur reaches across a copy's edge no further
-    // than the band a copy holds around what its glass samples, and the
-    // layer is clipped to the copies so that it reaches no other. The layer
-    // is filtered whole, so copies far apart are filtered each on its own,
-    // and so are a pair: the shared layer saves the raster thread a layer a
-    // copy, which pays for its larger area only with more.
-    final shared = <(Object?, double), List<_Tile>>{};
     final isolated = <_Tile>[];
+    // Copies under one blur share one blurred layer wherever they lie: the
+    // blur reads the copies alone, so no backdrop is copied for it, and the
+    // layer is clipped to the copies.
+    final blurred = <(Object?, double), List<_Tile>>{};
     for (final tile in tiles) {
-      if (tile.filter == null) {
+      if (!tile.filtered) {
         place(canvas, tile);
-      } else if (tile.filterClip == null &&
-          tile.filterBlendMode == BlendMode.src) {
-        shared
+      } else if (tile.blur case (final x, final y)
+          when max(x, y) * tile.devicePixelRatio <= _maxImageBlurSigma) {
+        blurred
             .putIfAbsent((tile.filterKey, tile.devicePixelRatio), () => [])
             .add(tile);
       } else {
         isolated.add(tile);
       }
     }
-    final clusters = <List<_Tile>>[];
-    for (final group in shared.values) {
-      for (final cluster in _clusters(group)) {
-        if (cluster.length < 3) {
-          isolated.addAll(cluster);
-        } else {
-          clusters.add(cluster);
-        }
-      }
-    }
     final content = recorder.endRecording();
     final ui.Image image;
-    if (isolated.isEmpty && clusters.isEmpty) {
+    if (isolated.isEmpty && blurred.isEmpty) {
       image = content.toImageSync(width, height);
     } else {
-      // The filter reads copies as a backdrop filter reads the screen, in a
-      // layer around them: it reads that layer alone, which a pass split at
-      // the filter loads and stores. It stands under the view's scale, as
-      // the backdrop filter it replaces does.
       final b = ui.SceneBuilder();
       b.addPicture(Offset.zero, content);
       final pictures = <ui.Picture>[];
-      for (final cluster in clusters) {
-        final dpr = cluster.first.devicePixelRatio;
-        final area = Path();
+      for (final group in blurred.values) {
+        BackdropUnderlay.debugBlurLayers++;
+        final (sigmaX, sigmaY) = group.first.blur!;
+        final pixels = group.first.devicePixelRatio;
         final recorder = ui.PictureRecorder();
         final canvas = Canvas(recorder);
-        for (final tile in cluster) {
-          area.addRect(tile.bounds);
+        for (final tile in group) {
           place(canvas, tile);
         }
         final copies = recorder.endRecording();
         pictures.add(copies);
-        final bounds = area.getBounds();
-        b.pushClipPath(area, clipBehavior: Clip.antiAliasWithSaveLayer);
-        b.addPicture(Offset.zero, copies);
-        b.pushTransform(Matrix4.diagonal3Values(dpr, dpr, 1).storage);
-        b.pushClipRect(
-          Rect.fromLTRB(
-            bounds.left / dpr,
-            bounds.top / dpr,
-            bounds.right / dpr,
-            bounds.bottom / dpr,
+        if (group case [final tile]) {
+          b.pushClipRect(tile.bounds, clipBehavior: Clip.hardEdge);
+        } else {
+          final area = Path();
+          for (final tile in group) {
+            area.addRect(tile.bounds);
+          }
+          b.pushClipPath(area, clipBehavior: Clip.hardEdge);
+        }
+        // Impeller takes an image filter's sigmas in the pixels it draws
+        // into, whatever the canvas scale: here the copies' own.
+        b.pushImageFilter(
+          ui.ImageFilter.blur(
+            sigmaX: sigmaX * pixels,
+            sigmaY: sigmaY * pixels,
+            tileMode: glassBlurTileMode,
           ),
-          clipBehavior: Clip.hardEdge,
         );
-        b.pushBackdropFilter(cluster.first.filter!);
-        b.pop();
-        b.pop();
+        b.addPicture(Offset.zero, copies);
         b.pop();
         b.pop();
       }
+      // Any other filter reads its copy as a backdrop filter reads the
+      // screen, in a layer around it: it reads that layer alone, which a
+      // pass split at the filter loads and stores. It stands under the
+      // view's scale, as the backdrop filter it replaces does.
       for (final tile in isolated) {
-        final filter = tile.filter!;
+        final filter =
+            tile.filter ??
+            ui.ImageFilter.blur(
+              sigmaX: tile.blur!.$1,
+              sigmaY: tile.blur!.$2,
+              tileMode: glassBlurTileMode,
+            );
         final dpr = tile.devicePixelRatio;
         b.pushClipRect(tile.bounds, clipBehavior: Clip.antiAliasWithSaveLayer);
         b.addPicture(tile.offset, tile.content!);

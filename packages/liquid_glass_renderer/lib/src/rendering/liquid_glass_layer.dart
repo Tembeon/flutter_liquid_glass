@@ -1865,10 +1865,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // logical rect the shader draws and the material it paints there.
   ({Matrix4 screen, Rect logical, Rect drawn})? _asked;
 
-  // The copy's blur, held while its sigmas hold: dart:ui keeps the native
-  // filter on the object, so a new one would be converted again each frame.
-  ({double sigmaX, double sigmaY, ui.ImageFilter filter})? _askedFilter;
-
   // Asks for the copy of what lies under the glass, or returns null when the
   // glass reads its backdrop this frame.
   ({Matrix4 screen, Rect logical, Rect drawn})? _askUnderlay() {
@@ -1922,26 +1918,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       region: drawn.inflate(
         (backdropSamplingReach(bounds) + 1) * max(scaleX, scaleY),
       ),
-      filter: sigma > 0 ? _copyFilter(frostX, frostY) : null,
-      filterKey: (frostX, frostY),
+      blur: sigma > 0 ? (frostX, frostY) : null,
       downscale: downscale,
       body: drawn,
     );
     return (screen: screen, logical: logical, drawn: drawn);
-  }
-
-  ui.ImageFilter _copyFilter(double sigmaX, double sigmaY) {
-    if (_askedFilter case final held?
-        when held.sigmaX == sigmaX && held.sigmaY == sigmaY) {
-      return held.filter;
-    }
-    final filter = ui.ImageFilter.blur(
-      sigmaX: sigmaX,
-      sigmaY: sigmaY,
-      tileMode: glassBlurTileMode,
-    );
-    _askedFilter = (sigmaX: sigmaX, sigmaY: sigmaY, filter: filter);
-    return filter;
   }
 
   // The glass as one rect painted with the final shader over the underlay's
