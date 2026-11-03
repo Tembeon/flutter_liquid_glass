@@ -104,7 +104,8 @@ class FlexSpec {
     );
   }
 
-  /// How many pixels the surface grows in each dimension while pressed.
+  /// How many pixels the surface's long side grows while pressed; the short
+  /// side grows in proportion ([liftScaleFor]).
   final double liftScalePoints;
 
   /// The squared-distance scale over which a drag stretches the surface.

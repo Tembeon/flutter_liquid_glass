@@ -452,7 +452,7 @@ class SliderMotion {
     final edge = p <= stop ? low : high;
     if (edge == stop) return p.clamp(0.0, 1.0);
     final u = (p.clamp(low, high) - stop) / half;
-    return stop + half * u * u * u * u * u;
+    return stop + half * math.pow(u, tickExponent);
   }
 
   /// Whether the stepped slider's settle no longer shows: its remaining

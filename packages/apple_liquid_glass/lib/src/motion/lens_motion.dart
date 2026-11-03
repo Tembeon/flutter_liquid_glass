@@ -16,8 +16,7 @@ import 'package:meta/meta.dart';
 /// lifts and how strongly it deforms.
 ///
 /// The lens settles once every part's remaining swing is below
-/// [GlassRest] (0.1 pt, 0.3 device px at 3x; an opacity half an 8-bit
-/// step) and snaps onto its targets: invisible, NEAR.
+/// [GlassRest] and snaps onto its targets: invisible, NEAR.
 @internal
 class LensTuning {
   /// Creates a tuning from explicit values.
@@ -455,9 +454,6 @@ class LensMotion {
     _events.clear();
     return drained;
   }
-
-  // The lifted lens rests under a still finger and wakes with its moves.
-  double? get wakeTime => null;
 
   /// The center the travel spring carries, before the deformation drift.
   double get travelCenter => _travel.valueAt(_now);

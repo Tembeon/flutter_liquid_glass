@@ -24,7 +24,7 @@ class SegmentHighlight {
   static const double restoreDuration = 0.2;
 
   /// The curve of both: Core Animation's default timing function.
-  static const Curve curve = Cubic(0.25, 0.1, 0.25, 1);
+  static const Curve curve = Curves.ease;
 
   int? _index;
   double _start = 0;

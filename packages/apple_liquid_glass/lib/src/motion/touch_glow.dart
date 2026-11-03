@@ -16,8 +16,8 @@ import 'package:kinesis/kinesis.dart';
 /// inside the surface's shape and under its content, and clamp at white.
 /// How much the spot brightens is the glass's own: a renderer reads it from
 /// the surface's glass with [gainOn]. The liquid renderer draws the glow in
-/// its glass layer, except in a group whose members mix clear and regular
-/// glass; the flat renderer draws none.
+/// its glass layer; the flat renderer, and the liquid one wherever it falls
+/// back to flat (fake glass, Reduce Transparency), draws none.
 ///
 /// UIKit: the flex interaction's big and little glows. SwiftUI:
 /// `.glassEffect(.regular.interactive())`.

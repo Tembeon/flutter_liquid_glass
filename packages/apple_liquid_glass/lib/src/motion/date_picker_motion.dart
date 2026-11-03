@@ -125,7 +125,7 @@ abstract final class DatePickerTuning {
 
   /// The timing curve of the change between the day grid and the month and
   /// year wheels: UIKit's ease in and out.
-  static const yearPickerCurve = Cubic(0.42, 0, 0.58, 1);
+  static const yearPickerCurve = Curves.easeInOut;
 
   /// The time from the lift of the tap on the month title to the start of
   /// the wheels fading in (an iPhone 16 Pro, eight taps: 0.061 - 0.077 s,
@@ -153,7 +153,7 @@ abstract final class DatePickerTuning {
   static const double highlightDuration = 0.47;
 
   /// The timing curve of the label's highlight.
-  static const highlightCurve = Cubic(0.25, 0.1, 0.25, 1);
+  static const highlightCurve = Curves.ease;
 
   /// The opacity the label's text fades toward under a touch (inferred
   /// from the start of the animation; about one half).
@@ -317,8 +317,8 @@ class DatePickerMotion {
     return !_open && _pendingAt == null && spring.isWithin(_now, _closedRest);
   }
 
-  // Rests by value and velocity (within [overlayRest] of open and slower
-  // than ten times that per second) rather than by the reach bound of
+  // Rests by value and velocity (within [overlayRest] of its target and
+  // slower than ten times that per second) rather than by the reach bound of
   // `MotionValue.isWithin`, which holds the overlay a frame longer.
   bool get _overlaySettled {
     if (reducedMotion) return _fadeDone(_now);

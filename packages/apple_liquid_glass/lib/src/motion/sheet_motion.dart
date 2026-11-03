@@ -109,9 +109,10 @@ enum _DetentKind { height, fraction, large, custom, fitted }
 /// The measured tuning of an iOS 27 sheet (UISheetPresentationController).
 @internal
 abstract final class SheetTuning {
-  /// The spring of every sheet animation: presenting, dismissing and
-  /// moving between detents. UIKit runs a CASpringAnimation of stiffness
-  /// 333.3 and damping 36.5, mass 1: response 0.344 s, critically damped.
+  /// The spring a sheet presents, dismisses and moves between detents on (a
+  /// flicked-away sheet leaves on [flickDismissSpring]). UIKit runs a
+  /// CASpringAnimation of stiffness 333.3 and damping 36.5, mass 1:
+  /// response 0.344 s, critically damped.
   /// The simulator's frames fit it to 0.06 points.
   static const spring = Spring.response(0.3441);
 
@@ -129,9 +130,6 @@ abstract final class SheetTuning {
   /// The display corner radius assumed for a floating sheet when the
   /// platform reports none: the iPhone 16 Pro's, where the floating
   /// sheet's bottom corners (62 - 8 = 54 unscaled points) were measured.
-  /// The bottom corners grow to the display's radius as the sheet docks,
-  /// or flatten toward square where the platform reports no radius, and
-  /// rest square once docked ([SheetMotion.bottomRadius]).
   static const double fallbackDisplayRadius = 62;
 
   /// The opacity of the black dimming behind a dimmed detent.
@@ -228,7 +226,7 @@ abstract final class SheetTuning {
 
   /// The band at the top of the sheet, in unscaled points, where a tap
   /// cycles the detents as a tap on the grabber does; a tap 25 points
-  /// below the top edge cycled them.
+  /// below the top edge cycled them, 40 is not measured.
   static const double grabberHitHeight = 40;
 
   /// The limit, in unscaled points, that a sheet which cannot be dismissed
@@ -281,9 +279,11 @@ abstract final class SheetTuning {
 ///
 /// Heights are the sheet's unscaled heights in pixels, bottom safe area
 /// included; the translation moves the sheet down from its resting place.
-/// Every animation rides [SheetTuning.spring] and carries velocity
-/// through every retarget. A sheet resting below the large detent floats:
-/// it is the full-width sheet scaled down so that it keeps
+/// Presenting, dismissing and moving between detents ride
+/// [SheetTuning.spring] (a flicked-away sheet
+/// [SheetTuning.flickDismissSpring]) and carry velocity through every
+/// retarget. A sheet resting below the large detent floats: it is the
+/// full-width sheet scaled down so that it keeps
 /// [SheetTuning.floatingInset] from the sides and the bottom. UIKit
 /// docks it to the large detent as one transform interpolated by the
 /// docking progress, the fraction of the height travelled between where
@@ -820,7 +820,8 @@ class SheetMotion {
     _offset.snap(t, _offset.valueAt(t));
   }
 
-  // The finger travel that [rubberBand] maps to [y] with [dimension].
+  // The finger travel that [rubberBand], at its default coefficient c, maps
+  // to [y] with [dimension].
   static double _unstretched(double y, double dimension) {
     const c = 0.55;
     final held = math.min(y, dimension * 0.999);
@@ -837,7 +838,11 @@ class SheetMotion {
     final largest = _heights.last;
     final top = raw <= largest
         ? raw
-        : largest + rubberBand(raw - largest, dimension: _rubberRoom);
+        : largest +
+              rubberBand(
+                raw - largest,
+                dimension: _rubberRoom,
+              );
     final lowest = _heights.first;
     if (top >= lowest) {
       _height.snap(t, top);
@@ -944,9 +949,9 @@ class SheetMotion {
     _transition(t, _index);
   }
 
-  /// Advances the motion to time [t]; a spring whose remaining swing is
-  /// invisible ([isSettled]'s thresholds) comes to rest on its target.
-  /// Advances the motion to [t]; an earlier [t] changes nothing.
+  /// Advances the motion to time [t] (an earlier [t] keeps the time); a
+  /// spring whose remaining swing is invisible ([isSettled]'s thresholds)
+  /// comes to rest on its target.
   void advance(double t) {
     if (t > _now) _now = t;
     final pressAt = _pressAt;

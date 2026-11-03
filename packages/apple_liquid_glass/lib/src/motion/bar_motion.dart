@@ -15,10 +15,6 @@ import 'package:meta/meta.dart';
 /// terms, here as response / damping ratio = 1 - bounce) and placed in
 /// time by the frame-by-frame recordings of `setToolbarItems(_:animated:)`
 /// and of pushes.
-///
-/// A bar ([GlassBarMotion]) settles once every part's remaining swing is below
-/// [GlassRest] (0.1 pt, 0.3 device px at 3x; an opacity half an 8-bit
-/// step) and snaps onto its targets: invisible, NEAR.
 @internal
 @immutable
 class GlassBarTransitionSpec {

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/motion/sheet_motion.dart';
 import 'package:flutter/animation.dart';
 import 'package:kinesis/kinesis.dart';
 import 'package:meta/meta.dart';
@@ -38,11 +39,11 @@ abstract final class NavigationTuning {
   /// The corner radius of a sliding page where the platform reports no
   /// display corner radius: the moving pages are cards with the display's
   /// corners, square again at rest (read from UIKit; 62 fits a simulator
-  /// film of an iPhone 17 Pro).
-  static const double fallbackCardRadius = 62;
+  /// film of an iPhone 17 Pro, as [SheetTuning.fallbackDisplayRadius]).
+  static const double fallbackCardRadius = SheetTuning.fallbackDisplayRadius;
 
   /// The shadow of a sliding card: black at 4 percent, radius 12, offset
-  /// (0, -3) (read from UIKit; a film is still due).
+  /// (0, -3) (read from UIKit; not filmed).
   static const double cardShadowOpacity = 0.04;
 
   /// See [cardShadowOpacity].

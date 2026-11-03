@@ -34,8 +34,7 @@ typedef FlexValues = ({
 /// Times are seconds, positions pixels in the surface's own space.
 ///
 /// A surface settles ([isSettled]) once every part's remaining swing is below
-/// [GlassRest] (0.1 pt, 0.3 device px at 3x; an opacity half an 8-bit
-/// step) and snaps onto its targets: invisible, NEAR.
+/// [GlassRest] and snaps onto its targets: invisible, NEAR.
 @internal
 class FlexInteraction {
   /// Creates the flex of a surface of [size] at rest.
@@ -64,13 +63,16 @@ class FlexInteraction {
   /// ([softClamp]). Read from UIKit, notes private.
   static const double softness = 0.55;
 
-  /// The time constant of the glow fading in, in seconds.
+  /// The time constant of the glow fading in, in seconds: not measured
+  /// (glass-button passport).
   static const double glowTime = 0.023;
 
-  /// The spring the glow fades out and the little glow grows on.
+  /// The spring the glow fades out and the little glow grows on: not
+  /// measured (glass-button passport).
   static const glowSpring = Spring.response(0.5);
 
-  /// The diameter of the little glow at the touch point.
+  /// The diameter of the little glow at the touch point: not measured
+  /// (glass-button passport).
   static const double littleGlowSize = 66;
 
   /// How much the little glow grows while it fades out.
@@ -496,7 +498,7 @@ class FlexInteraction {
   /// p = velocity side / pulse normalization
   /// sx *= 1 - pulseX p / W, sy *= 1 + pulseY p / H,
   /// dy += side driftRatio pulseY p
-  /// sx, sy clamped to the movement bounds
+  /// sx, sy clamped to the spec's movement min and max scales
   /// ```
   ///
   /// T the spec's stretch threshold and P [inBoundsPoints]. Read from
@@ -565,7 +567,7 @@ void chaseFlexChannel(
 
 /// The open menu's pulse channel: a spring that runs on a clock of its own,
 /// as UIKit's low refresh rate scope runs it
-/// (`MorphMenuTuning.flexPulseRate`).
+/// (`MenuTuning.flexPulseRate`).
 ///
 /// [step] advances the spring by [retargetStep] seconds when the target
 /// changed and by the time that passed otherwise, and publishes its value

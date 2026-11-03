@@ -13,8 +13,10 @@ import 'package:meta/meta.dart';
 /// Read from screen recordings of an iPhone 16 Pro on iOS 27.0.1 (four
 /// pushes from a 160 x 100 card, a pop by the back button, drags down,
 /// sideways and from the edge). The zooming container's center and width
-/// ride one spring and its height another on the way in; on the way out
-/// all of them ride UIKit's `zoomOut` spring. The page's content is drawn
+/// ride one spring and its height another on the way in; a back-button pop
+/// returns all of them on UIKit's `zoomOut` spring, a drag's dismissal on
+/// [ZoomPageTuning.dismissSpring] and [ZoomPageTuning.dismissHeightSpring].
+/// The page's content is drawn
 /// at its own size scaled by the container's width, from the container's
 /// top; the source's look crossfades into it; the page underneath dims
 /// and the container casts a shadow on it.

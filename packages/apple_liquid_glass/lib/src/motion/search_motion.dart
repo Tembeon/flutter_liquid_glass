@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:apple_liquid_glass/src/motion/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
 import 'package:apple_liquid_glass/src/motion/rest.dart';
+import 'package:apple_liquid_glass/src/motion/tab_minimize.dart';
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/kinesis.dart';
 import 'package:meta/meta.dart';
@@ -39,8 +40,8 @@ abstract final class SearchTuning {
   /// has no timeout).
   static const double keyboardWaitLimit = 0.3;
 
-  /// The time from a touch to the start of the field's lift (0.051 s
-  /// fitted; the lift itself is the glass button's).
+  /// The time from a touch to the start of the field's lift (fitted 0.051
+  /// s, rounded to 0.05; the lift itself is the glass button's).
   static const double pressDelay = 0.05;
 
   /// The height of the field, the close button and the toolbar's items.
@@ -99,10 +100,9 @@ abstract final class SearchTuning {
   static const double closeStroke = 2.3;
 
   /// The spring of a tab bar turning into a search field and back: the
-  /// tab bar's liquid morph of its platters, damping 0.8 and response 0.3,
-  /// the one that minimizes it (read from UIKit, notes private). The edges
-  /// of the glass in a 60 Hz simulator video fit 0.276 and 0.8.
-  static const tabSpring = Spring.response(0.3, dampingRatio: 0.8);
+  /// minimize morph ([TabBarMinimizeTuning.morphSpring], read from UIKit).
+  /// The edges of the glass in a 60 Hz simulator video fit 0.276 and 0.8.
+  static const tabSpring = TabBarMinimizeTuning.morphSpring;
 
   /// The spring a tab bar's search field rises above the keyboard on when
   /// it takes the focus, and sinks back on when it loses it: critically

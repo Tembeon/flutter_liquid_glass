@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' show Rect;
 
 import 'package:meta/meta.dart';
 
@@ -24,16 +23,4 @@ abstract final class GlassRest {
 
   /// The remaining swing of a scale of a surface [extent] pixels long.
   static double scale(double extent) => length / math.max(extent, 1);
-
-  /// The extent, in pixels, a motion assumes before its host has measured
-  /// what it moves: about a phone screen's longer side.
-  static const double screen = 1000;
-
-  /// The farthest an edge moves between frames [from] and [to]: the
-  /// center's travel plus half the change of width or height. A progress
-  /// from one to the other rests visibly at [scale] of it.
-  static double travel(Rect from, Rect to) =>
-      (to.center - from.center).distance +
-      math.max((to.width - from.width).abs(), (to.height - from.height).abs()) /
-          2;
 }

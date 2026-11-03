@@ -38,8 +38,9 @@ enum GlassTabBarMinimizeBehavior {
 /// matched to the measured search tab circle (48 pt, 28 from the side and
 /// the bottom). The bar turns into the circle in one liquid morph of its
 /// shape and content ([morphSpring]); the four collapse and expand springs
-/// move only the bottom accessory, one axis after the other. A film of the
-/// morph, the accessory's path and the hold expansion is still due.
+/// move only the bottom accessory, one axis after the other. The morph,
+/// the accessory's path and the hold expansion are not filmed
+/// (approximation).
 @internal
 abstract final class TabBarMinimizeTuning {
   /// The scroll in the minimizing direction, in points, before the bar
@@ -513,7 +514,7 @@ class TabBarMinimizeMotion {
   /// interactive expansion ends; a drag leaves it expanded. A release
   /// before the hold expands the bar: UIKit's tab bar does not
   /// (`expandsOnTap` is NO), but a tap on the minimized bar has no other
-  /// path back to the tabs in the code read; this waits for a recording.
+  /// path back to the tabs in the code read (not recorded).
   void pressUp(double t) {
     if (_pressX == null) return;
     final held = _held;

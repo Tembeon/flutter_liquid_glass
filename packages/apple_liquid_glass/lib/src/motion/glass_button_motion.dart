@@ -29,8 +29,7 @@ import 'package:meta/meta.dart';
 /// Times are seconds and positions pixels in the button's own space.
 ///
 /// The button settles once every part's remaining swing is below
-/// `GlassRest` (0.1 pt, 0.3 device px at 3x; an opacity half an 8-bit
-/// step) and snaps onto its targets: invisible, NEAR.
+/// `GlassRest` and snaps onto its targets: invisible, NEAR.
 /// A finger held still counts: a held button stops asking for frames once
 /// its lift and glow are in place and wakes on the finger's next move or its
 /// lift.
@@ -38,12 +37,6 @@ class GlassButtonMotion {
   /// Creates the motion of a button of [size].
   GlassButtonMotion({required Size size})
     : _flex = FlexInteraction(size: size, glows: true);
-
-  /// The time constant of the glow fading in, in seconds.
-  static const double glowTime = FlexInteraction.glowTime;
-
-  /// The spring the glow fades out and the little glow grows on.
-  static const glowSpring = FlexInteraction.glowSpring;
 
   /// How far outside the button the touch still counts as inside.
   ///
@@ -66,12 +59,6 @@ class GlassButtonMotion {
   /// next display frame coming ~21 ms after the one before instead of 8.3;
   /// that one-time setup is not reproduced.
   static const double touchDelay = 0.026;
-
-  /// The diameter of the little glow at the touch point.
-  static const double littleGlowSize = FlexInteraction.littleGlowSize;
-
-  /// How much the little glow grows while it fades out.
-  static const double littleGlowGrowth = FlexInteraction.littleGlowGrowth;
 
   /// Whether the button moves for Reduce Motion: it glows under the touch
   /// but never lifts or leans. This approximates the platform's behavior;
@@ -149,7 +136,10 @@ class GlassButtonMotion {
     return GlassTouchGlow(
       wash: TouchGlowMotion.washOffset * big,
       center: littleGlowCenter,
-      radius: TouchGlowMotion.spotSpread * littleGlowSize * littleGlowScale,
+      radius:
+          TouchGlowMotion.spotSpread *
+          FlexInteraction.littleGlowSize *
+          littleGlowScale,
       spot: TouchGlowMotion.spotCore * little,
     );
   }

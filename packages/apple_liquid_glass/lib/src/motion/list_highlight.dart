@@ -27,7 +27,7 @@ class ListRowHighlight {
   static const double fadeDuration = 0.5;
 
   /// The curve of the fade after a tap: UIKit's ease-in-ease-out.
-  static const Curve fadeCurve = Cubic(0.42, 0, 0.58, 1);
+  static const Curve fadeCurve = Curves.easeInOut;
 
   double? _showAt;
   double? _fadeFrom;
