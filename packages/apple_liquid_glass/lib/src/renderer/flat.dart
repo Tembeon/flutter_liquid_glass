@@ -7,6 +7,7 @@ import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// The flat renderer: a fill per role and glass, a hairline rim on all but
 /// a track and a resting lens or knob, a soft shadow under floating roles;
@@ -18,6 +19,10 @@ import 'package:flutter/widgets.dart';
 /// track is a plain fill on every renderer; untinted, it takes iOS
 /// systemFill, a default no control measured. A color scheme's surfaces
 /// replace the fills per role.
+///
+/// A shadow is Impeller's analytic blur of the body's shape (near): at most
+/// 6 of 255 levels from a Gaussian blur of its path, 2 on average, at 2.625
+/// and 3 device pixels per point, and no offscreen passes.
 @internal
 final class FlatGlassRenderer extends GlassRenderer {
   /// Creates the flat renderer.
@@ -323,9 +328,9 @@ class RenderFlatGlass extends RenderProxyBox {
     final color = frame.tint ?? _look.fill;
     final liftRim = _look.liftRim;
     if (liftRim != null) {
-      _paintLifting(canvas, frame, body, outline, color, liftRim);
+      _paintLifting(canvas, frame, body, color, liftRim);
     } else {
-      _paintBody(canvas, frame, body, outline, color);
+      _paintBody(canvas, frame, body, color);
     }
     canvas.restore();
     final child = this.child;
@@ -344,7 +349,6 @@ class RenderFlatGlass extends RenderProxyBox {
     Canvas canvas,
     GlassFrame frame,
     Rect body,
-    Path outline,
     Color color,
     Color liftRim,
   ) {
@@ -357,13 +361,13 @@ class RenderFlatGlass extends RenderProxyBox {
         alpha: (resting.a + 0.1 * lift) * shown,
       );
       shadow.maskFilter = MaskFilter.blur(BlurStyle.normal, 2 + 4 * lift);
-      canvas.drawPath(outline.shift(const Offset(0, 1.5)), shadow);
+      _drawBody(canvas, frame, body, shadow, shift: const Offset(0, 1.5));
     }
     final fill = Paint();
     fill.color = color.withValues(
       alpha: color.a * FlatGlassLook.liftedOpacity(lift) * shown,
     );
-    canvas.drawPath(outline, fill);
+    _drawBody(canvas, frame, body, fill);
     if (_look.underGlass || lift <= 0.01) return;
     final rim = Paint();
     rim.style = PaintingStyle.stroke;
@@ -376,24 +380,55 @@ class RenderFlatGlass extends RenderProxyBox {
     Canvas canvas,
     GlassFrame frame,
     Rect body,
-    Path outline,
     Color color,
   ) {
     if (_look.shadow case final shadow?) {
       final paint = Paint();
       paint.color = shadow;
       paint.maskFilter = const MaskFilter.blur(BlurStyle.normal, shadowSigma);
-      canvas.drawPath(outline.shift(shadowOffset), paint);
+      _drawBody(canvas, frame, body, paint, shift: shadowOffset);
     }
     final fill = Paint();
     fill.color = color;
-    canvas.drawPath(outline, fill);
+    _drawBody(canvas, frame, body, fill);
     if (_look.rim case final rim?) {
       final stroke = Paint();
       stroke.style = PaintingStyle.stroke;
       stroke.strokeWidth = rimWidth;
       stroke.color = rim;
       canvas.drawPath(_rimPath(frame, body, rimWidth / 2), stroke);
+    }
+  }
+
+  // A shape's own draw call takes Impeller's analytic blur for a shadow. A
+  // capsule's path forms no shadow mesh Impeller takes, so a blurred path
+  // falls to a mask blur offscreen: four passes a frame for a tab bar's pill.
+  static void _drawBody(
+    Canvas canvas,
+    GlassFrame frame,
+    Rect body,
+    Paint paint, {
+    Offset shift = Offset.zero,
+  }) {
+    if (frame.outline case final outline?) {
+      canvas.drawPath(outline.path.shift(shift), paint);
+      return;
+    }
+    final rect = body.shift(shift);
+    switch (frame.shape) {
+      case LiquidRoundedSuperellipse(:final borderRadius, :final bottomRadius):
+        final radii = BorderRadius.vertical(
+          top: Radius.circular(borderRadius),
+          bottom: Radius.circular(bottomRadius ?? borderRadius),
+        );
+        canvas.drawRSuperellipse(radii.toRSuperellipse(rect), paint);
+      case LiquidOval():
+        canvas.drawOval(rect, paint);
+      case LiquidRoundedRectangle(:final borderRadius):
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, Radius.circular(borderRadius)),
+          paint,
+        );
     }
   }
 

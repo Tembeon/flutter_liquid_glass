@@ -96,8 +96,8 @@ void main() {
       expect(
         body,
         paints
-          ..path(color: const Color(0x1A000000))
-          ..path(color: const Color(0xD9FFFFFF)),
+          ..rsuperellipse(color: const Color(0x1A000000))
+          ..rsuperellipse(color: const Color(0xD9FFFFFF)),
       );
     });
 
