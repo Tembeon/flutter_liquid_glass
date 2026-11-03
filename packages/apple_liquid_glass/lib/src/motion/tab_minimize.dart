@@ -387,9 +387,6 @@ class TabBarMinimizeMotion {
   bool get minimized => _minimized;
   bool _minimized = false;
 
-  /// The time the motion was last advanced to.
-  double get time => _now;
-
   /// Minimizes or expands the bar at time [t].
   void setMinimized(double t, {required bool minimized}) {
     scrollAway.reset(minimized ? 1 : 0);
@@ -460,10 +457,6 @@ class TabBarMinimizeMotion {
 
   /// Whether a finger that went down on the minimized bar is still on it.
   bool get pressed => _pressX != null;
-
-  /// Whether the finger on the bar has rested long enough to expand it
-  /// under itself ([TabBarMinimizeTuning.holdDuration]).
-  bool get held => _held;
 
   /// Whether the finger on the bar has become the bar's selection drag
   /// ([pressMove] returned true): it scrubs the tabs and its release

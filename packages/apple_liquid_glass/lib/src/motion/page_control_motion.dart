@@ -105,9 +105,6 @@ class PageControlMotion {
   /// The opacity of the platter under a touch, 0 to 1.
   double get platter => _platter.valueAt(_now).clamp(0.0, 1.0);
 
-  /// Whether a touch is scrubbing through the pages.
-  bool get isScrubbing => _scrubbing;
-
   MotionValue<double>? _fade;
   int _fading = -1;
   double _now = 0;
@@ -126,9 +123,6 @@ class PageControlMotion {
 
   /// The current page.
   int get page => _page;
-
-  /// The time the motion was last advanced to.
-  double get time => _now;
 
   /// Whether nothing moves. A resting finger does not count: the
   /// control's moves and lift arrive as stamped pointer events, which wake

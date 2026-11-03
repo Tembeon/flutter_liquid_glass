@@ -212,9 +212,6 @@ class TouchGlowMotion {
   bool _dragging = false;
   final MotionTimeline _timeline = MotionTimeline();
 
-  /// The center of the spot, in the pointer's coordinates.
-  Offset get center => _center;
-
   /// Whether a finger is down.
   bool get isDown => _down != null;
 

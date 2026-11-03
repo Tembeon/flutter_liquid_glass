@@ -169,12 +169,6 @@ class PopoverMotion {
   /// Whether the popover moves for Reduce Motion, at its size.
   bool reducedMotion = false;
 
-  /// The time the motion was last advanced to.
-  double get time => _now;
-
-  /// Whether the popover is on its way out.
-  bool get isDismissing => _dismissing;
-
   /// Whether the popover has left and nothing moves any more.
   bool get isDismissed => _dismissing && _rests;
 

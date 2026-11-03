@@ -145,12 +145,6 @@ class AlertMotion {
   /// Whether the alert presents for Reduce Motion, at its size.
   bool reducedMotion = false;
 
-  /// The time the motion was last advanced to.
-  double get time => _now;
-
-  /// Whether the alert is on its way out.
-  bool get isDismissing => _dismissing;
-
   /// Whether the alert has left and nothing moves any more.
   bool get isDismissed =>
       _dismissing && _progress.isWithin(_now, GlassRest.opacity);

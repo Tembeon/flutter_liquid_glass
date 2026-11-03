@@ -200,23 +200,11 @@ class ZoomPageMotion {
   Offset _dragDelta = Offset.zero;
   bool _dragMoved = false;
 
-  /// The time the motion was last advanced to.
-  double get time => _now;
-
-  /// Whether the motion heads to the page.
-  bool get isOpening => _opening;
-
   /// Whether a finger drags the page.
   bool get isDragging => _dragFrom != null;
 
-  /// Whether the dragging finger has moved the page.
-  bool get isScrubbing => _dragFrom != null && _dragMoved;
-
   /// The source frame the motion zooms out of and back into.
   Rect get source => _source;
-
-  /// The page frame the motion zooms into.
-  Rect get page => _page;
 
   /// Zooms out of [source] into [page] from time [t].
   void open(double t, Rect source, Rect page) {

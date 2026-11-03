@@ -439,9 +439,6 @@ class SheetMotion {
   /// Whether a drag holds the sheet.
   bool get isDragging => _dragFrom != null && !_released;
 
-  /// The time the motion was last advanced to.
-  double get time => _now;
-
   double get _floatingBelowDocked {
     final docked = dockedIndex;
     if (docked == null) return _heights.first;
@@ -630,19 +627,7 @@ class SheetMotion {
     _stretch.retarget(t, 0);
   }
 
-  /// How far a presenting sheet still sits left of its place, in pixels:
-  /// UIKit slides a floating sheet in with its frame at the container's
-  /// leading edge (origin x 0) and moves it to its inset on the present
-  /// spring itself (device, every floating present: the centre x 193 ->
-  /// 201 on a 402 point screen, its progress the slide's within 0.001).
-  /// A docked sheet and a dismissal do not drift.
-  double get drift => _driftAt(_now);
-
   double _driftAt(double t) => inset * (1 - _dockAt(t)) * _drift.valueAt(t);
-
-  /// The vertical shift of the scaled sheet's center, on top
-  /// of [offset]: what keeps a floating sheet [inset] off the bottom.
-  double get shift => _shiftAt(_now);
 
   double _shiftAt(double t) => _shiftFor(_heightAt(t), _dockAt(t));
 
@@ -689,7 +674,7 @@ class SheetMotion {
   ///
   /// A floating sheet slides in with its frame at the container's leading
   /// edge and drifts sideways to its inset on the same spring, as UIKit's
-  /// does ([drift]).
+  /// does.
   void present(double t) {
     advance(t);
     _dismissing = false;
@@ -785,13 +770,6 @@ class SheetMotion {
       }
     });
   }
-
-  /// The swell of the sheet under a touch, as a factor on [scale]: it
-  /// fades as the square root of the way left to docking, so a sheet a
-  /// drag docks loses it at the large detent (fitted to the device drags
-  /// up from medium, 0.0004 - 0.0007 rms in the area scale where a linear
-  /// fade leaves 0.0012 - 0.0017).
-  double get pressScale => _pressScaleAt(_now);
 
   double _pressScaleAt(double t) =>
       1 + (_press.valueAt(t) - 1) * math.sqrt(1 - _dockAt(t));

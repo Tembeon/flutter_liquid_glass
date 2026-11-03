@@ -415,10 +415,6 @@ class SearchMotion {
   /// there): [SearchTuning.appearScale] at nothing.
   static double appearScaleFor(double presence) =>
       1 + (SearchTuning.appearScale - 1) * (1 - presence.clamp(0.0, 1.0));
-
-  /// The blur of an item that is [presence] there.
-  static double appearBlurFor(double presence) =>
-      SearchTuning.appearBlur * (1 - presence.clamp(0.0, 1.0));
 }
 
 /// The geometry of a bottom search bar in one configuration: the field,

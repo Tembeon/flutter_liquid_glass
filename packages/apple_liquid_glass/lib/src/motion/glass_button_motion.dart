@@ -78,20 +78,11 @@ class GlassButtonMotion {
 
   set size(Size value) => _flex.size = value;
 
-  /// The deformation tuning UIKit derives for [size].
-  FlexSpec get spec => _flex.spec;
-
   /// The scale of the fully lifted button.
   double get liftedScale => _flex.liftedScale;
 
-  /// The time the motion was last advanced to.
-  double get time => _now;
-
   /// Whether a finger is down on the button.
   bool get isPressed => _pressed;
-
-  /// Whether the finger is close enough that a release activates.
-  bool get isHighlighted => _pressed && _inside;
 
   /// The lift: the mean of [scaleX] and [scaleY], which the stretch
   /// leaves alone.
@@ -106,9 +97,6 @@ class GlassButtonMotion {
   /// How far the button shows shifted toward the finger: the flex's
   /// drift at the button's scale.
   Offset get lean => _flex.translation(_now);
-
-  /// The glow strength, 0 to 1.
-  double get glow => _flex.glow(_now);
 
   /// The opacity of the glow over the whole button.
   double get bigGlowOpacity => _flex.bigGlowOpacity(_now);
@@ -148,10 +136,6 @@ class GlassButtonMotion {
   /// (`GlassRest`, NEAR); a button held still under a finger settles too
   /// and wakes on the finger's next move or its lift.
   bool get isSettled => _input.isEmpty && _flex.isSettled(_now);
-
-  /// Whether all of the button's motion but its touch glow has settled
-  /// while the glow still rises, follows the finger or fades.
-  bool get isGlowOnly => _input.isEmpty && _flex.isGlowOnly(_now);
 
   /// Whether the button rests undeformed: settled with no finger on it.
   bool get isAtRest => !_pressed && isSettled;

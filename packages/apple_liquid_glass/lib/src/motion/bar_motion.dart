@@ -397,9 +397,6 @@ class GlassBarMotion {
   /// Whether the platform asks for reduced motion: changes then snap.
   bool reducedMotion = false;
 
-  /// The time the motion was last advanced to.
-  double get time => _now;
-
   /// Advances the motion to time [t].
   void advance(double t) {
     _timeline.runDue(t);
