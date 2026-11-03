@@ -55,7 +55,7 @@ class GlassCompositionProbe {
   /// Runs from paint and from the composer's pass, before the update pass.
   ///
   /// Seeds iff an ancestor between [owner] and the nearest enclosing
-  /// [LiquidGlassLayerRenderObject] has fractional native opacity and none is
+  /// [LiquidGlassRenderObject] has fractional native opacity and none is
   /// fully transparent.
   void syncOpacity(RenderObject owner) {
     final layer = _layer.layer;
@@ -64,7 +64,7 @@ class GlassCompositionProbe {
     var blocked = false;
     for (
       var ancestor = owner.parent;
-      ancestor != null && ancestor is! LiquidGlassLayerRenderObject;
+      ancestor != null && ancestor is! LiquidGlassRenderObject;
       ancestor = ancestor.parent
     ) {
       final alpha = ui.Color.getAlphaFromOpacity(

@@ -125,7 +125,7 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
           final renderCount = renderer.debugRenderCount;
           // Verify retained resource identity, not just submission counts.
           // ignore: invalid_use_of_protected_member
-          final matte = layer.geometryImage;
+          final matte = layer.debugGeometryImage;
           progress.value = 0.4;
           final animated = await capture();
           expect(animated, isNot(orderedEquals(before)));
@@ -135,7 +135,7 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
           );
           if (mode == 'uniform') {
             // ignore: invalid_use_of_protected_member
-            expect(layer.geometryImage, same(matte));
+            expect(layer.debugGeometryImage, same(matte));
           }
 
           Uint8List? hidden;
@@ -146,7 +146,7 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
             expect(renderer.debugRenderCount, renderCount);
             // Hidden material retains the last matte but does not sample it.
             // ignore: invalid_use_of_protected_member
-            expect(layer.geometryImage, same(matte));
+            expect(layer.debugGeometryImage, same(matte));
             progress.value = 1;
             final restored = await capture();
             expect(restored, orderedEquals(before));

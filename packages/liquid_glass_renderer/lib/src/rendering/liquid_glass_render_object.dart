@@ -1,5 +1,4 @@
-// Explicit canvas save/transform/restore sequences are easier to audit than
-// cascades across nested geometry loops.
+// The project writes no cascades.
 // ignore_for_file: cascade_invocations
 
 import 'dart:collection';
@@ -19,9 +18,14 @@ import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
 import 'package:liquid_glass_renderer/src/logging.dart';
 
-/// The render object of a glass layer, full or fake.
+/// The transform from [shape]'s own coordinates into its layer's, given its
+/// geometry's [geometryToLayer].
 @internal
-abstract interface class LiquidGlassLayerRenderObject {}
+Matrix4 shapeTransformToLayer(ShapeGeometry shape, Matrix4 geometryToLayer) =>
+    switch (shape.shapeToGeometry) {
+      final toGeometry? => geometryToLayer.multiplied(toGeometry),
+      null => geometryToLayer,
+    };
 
 /// What a glass layer's last painted frame committed to the retained layer
 /// tree.
@@ -34,8 +38,8 @@ enum GlassFrameState {
   empty,
 
   /// Every registered shape is hidden but drawable. The retained effect
-  /// keeps the last active frame's encode — the GPU matte in particular —
-  /// so the layer stays compositor-managed until a shape becomes visible
+  /// keeps the last active frame's encode, the GPU matte in particular, so
+  /// the layer stays compositor-managed until a shape becomes visible
   /// again. The matte itself cannot be reused on un-hide: a visibility
   /// crossing rebuilds the geometry cache.
   idle,
@@ -56,9 +60,7 @@ Rect expandForGlassShadows(
     for (final shape in geometryShapes) {
       final shapeVisibility = shape.appearance.visibility.clamp(0.0, 1.0);
       if (shapeVisibility <= 0) continue;
-      final shapeToLayer = shape.shapeToGeometry == null
-          ? geometryToLayer
-          : geometryToLayer.multiplied(shape.shapeToGeometry!);
+      final shapeToLayer = shapeTransformToLayer(shape, geometryToLayer);
       for (final shadow in shape.shadows) {
         final extent = max(
           shadow.spreadRadius +
@@ -129,16 +131,6 @@ bool debugCheckOpacityBetweenShapesAndLayer(
   return true;
 }
 
-@internal
-bool hasLiquidGlassLayerAncestor(RenderObject renderObject) {
-  var ancestor = renderObject.parent;
-  while (ancestor != null) {
-    if (ancestor is LiquidGlassLayerRenderObject) return true;
-    ancestor = ancestor.parent;
-  }
-  return false;
-}
-
 /// Shared base for render objects that assemble [RenderLiquidGlassGeometry]
 /// shapes and paint one glass effect over the layer's foreground.
 ///
@@ -150,8 +142,7 @@ bool hasLiquidGlassLayerAncestor(RenderObject renderObject) {
 /// [paintFrame]: real glass renders a GPU matte plus the final shader
 /// filter; fake glass draws a blur plus a surface shader.
 @internal
-abstract class LiquidGlassRenderObject extends RenderProxyBox
-    implements LiquidGlassLayerRenderObject {
+abstract class LiquidGlassRenderObject extends RenderProxyBox {
   LiquidGlassRenderObject({
     required this._link,
     required this._settings,
@@ -242,7 +233,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
 
   // MARK: Retained frame state
 
-  /// The state the last painted frame committed.
   GlassFrameState _frameState = GlassFrameState.empty;
 
   /// The state the last painted frame committed.
@@ -254,12 +244,10 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
   final List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)>
   shapesWithGeometry = [];
 
-  /// Snapshot of the inputs the effect last encoded: each shape's render
-  /// object, geometry cache and transform into this layer. The real layer
-  /// writes it when it encodes the GPU matte; the fake layer's clip cache
-  /// matches against it. This is not the compositor-translation baseline —
-  /// the poll compares [shapesWithGeometry] — so it may stay stale while a
-  /// frame intentionally keeps the last encode (idle).
+  /// The inputs the effect last encoded: each shape's render object,
+  /// geometry cache and transform into this layer. The compositor-translation
+  /// poll compares [shapesWithGeometry] instead, so this may stay stale while
+  /// an idle frame keeps the last encode.
   final List<_EncodedGeometryInput> _encodedGeometryInputs = [];
 
   /// Layer-local bounds the retained frame was encoded for. Only effects
@@ -300,7 +288,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
   @protected
   List<Object> get retainedStructure => _retainedStructure;
 
-  /// Idle foreground has retained paint even if no effect was ever drawn.
+  /// Whether the committed frame holds shapes but drew no active effect, so
+  /// ancestor motion moves its retained layers without a repaint.
   @protected
   bool get hasReusableIdleContents =>
       _frameState != GlassFrameState.active && shapesWithGeometry.isNotEmpty;
@@ -434,7 +423,9 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
     Rect? geometryBounds,
   );
 
-  // Geometry preparation does not record pictures or paint child objects.
+  /// Collects this frame's shapes into [candidate] without recording pictures
+  /// or painting children; returns their bounds in this layer, or null
+  /// without any.
   @protected
   Rect? collectFrameGeometry(
     List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> candidate,
@@ -529,14 +520,36 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
     ),
   );
 
+  /// Logical short side of the smallest visible committed shape, which sizes
+  /// the layer-wide blur; null without one.
+  @protected
+  double? smallestVisibleShortSide() {
+    double? shortest;
+    for (final (_, geometry, geometryToLayer) in shapesWithGeometry) {
+      for (final shape in geometry.shapes) {
+        if (shape.appearance.visibility <= 0) continue;
+        // shapeBounds is already in the geometry's local space.
+        final side = MatrixUtils.transformRect(
+          geometryToLayer,
+          shape.shapeBounds,
+        ).shortestSide;
+        if (side <= 0) continue;
+        shortest = shortest == null ? side : min(shortest, side);
+      }
+    }
+    return shortest;
+  }
+
+  /// The short side past which [LiquidGlassSettings.frostSigmaAt] no longer
+  /// grows the blur.
+  static const largestFittedShortSide = 150.0;
+
   /// The state a fully-hidden frame commits: idle for effects that retain
   /// an encoded matte, empty for effects that cannot reuse one.
   @protected
   GlassFrameState get hiddenFrameState;
 
-  /// Whether [geometries] contains at least one shape this effect can draw:
-  /// a shape whose transform into this layer is invertible for the matte,
-  /// or unconditionally true for effects that need no matte.
+  /// Whether [geometries] holds at least one shape this effect can draw.
   @protected
   bool hasDrawableGlass(
     List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
@@ -548,10 +561,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
     (entry) => entry.$2.shapes.map((shape) => shape.renderObject),
   );
 
-  /// Snapshots the committed shapes' identities, caches and transforms into
-  /// the encoded inputs, reusing entries where possible. Only encode paths
-  /// call this — the matte render for real glass, the clip cache for fake;
-  /// the compositor-translation poll reads [shapesWithGeometry] instead.
+  /// Snapshots the committed shapes into the encoded inputs.
   @protected
   void rememberFrameInputs() {
     final inputs = _encodedGeometryInputs;
@@ -608,20 +618,15 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
       final encoded = _encodedGeometryInputs[index];
       if (!identical(renderObject, encoded.renderObject) ||
           !identical(cache, encoded.cache) ||
-          !_sameTransform(transform, encoded.transform)) {
+          !MatrixUtils.matrixEquals(transform, encoded.transform)) {
         return false;
       }
     }
     return true;
   }
 
-  /// Polls retained geometry for a translation that can be applied directly
-  /// to the layer tree before it is submitted to the engine.
-  ///
-  /// The baseline is [shapesWithGeometry], the last painted frame's
-  /// committed inputs — not the encode snapshot, which is deliberately
-  /// stale while idle or drawable-empty so the retained effect settles
-  /// instead of repainting every frame.
+  /// Polls the committed shapes ([shapesWithGeometry]) for one translation
+  /// the compositor can apply without a repaint.
   @protected
   ({bool needsRepaint, Offset? translation}) pollCompositorTranslation() {
     // A shape going offstage or onstage changes this list, which repaints.
@@ -713,15 +718,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
       if ((a[index] - b[index]).abs() > 1e-6) return null;
     }
     return Offset(b[12] - a[12], b[13] - a[13]);
-  }
-
-  static bool _sameTransform(Matrix4 a, Matrix4 b) {
-    final aStorage = a.storage;
-    final bStorage = b.storage;
-    for (var index = 0; index < 16; index++) {
-      if (aStorage[index] != bStorage[index]) return false;
-    }
-    return true;
   }
 
   static bool _nearOffset(Offset a, Offset b) =>
@@ -845,18 +841,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
   @protected
   Rect expandEffectBounds(Rect bounds) => expandForGlassShadows(
     bounds.inflate(materialOutset),
-    _shadowSources(),
+    shapesWithGeometry.map((entry) => (entry.$2.shapes, entry.$3)),
   );
-
-  /// Grows [bounds] by the committed shapes' exterior shadows only.
-  @protected
-  Rect expandBoundsForShadows(Rect bounds) => expandForGlassShadows(
-    bounds,
-    _shadowSources(),
-  );
-
-  Iterable<(List<ShapeGeometry>, Matrix4)> _shadowSources() =>
-      shapesWithGeometry.map((entry) => (entry.$2.shapes, entry.$3));
 
   /// Whether [recordGlassShadows] records the shadows for a place under the
   /// glass, where the glass covers them inside its silhouettes, instead of
@@ -998,9 +984,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
       for (final shape in geometry.shapes) {
         final visibility = shape.appearance.visibility.clamp(0.0, 1.0);
         if (visibility <= 0) continue;
-        canvas
-          ..save()
-          ..transform(_shapeToLayer(shape, geometryToLayer).storage);
+        canvas.save();
+        canvas.transform(shapeTransformToLayer(shape, geometryToLayer).storage);
         drawGlassShape(
           canvas,
           shape.shape,
@@ -1015,11 +1000,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
     canvas.restore();
   }
 
-  static Matrix4 _shapeToLayer(ShapeGeometry shape, Matrix4 geometryToLayer) =>
-      shape.shapeToGeometry == null
-      ? geometryToLayer
-      : geometryToLayer.multiplied(shape.shapeToGeometry!);
-
   List<({Rect bounds, Set<ShapeGeometry> shapes})> _shadowGroups() {
     final groups = <({Rect bounds, Set<ShapeGeometry> shapes})>[];
     for (final (_, geometry, geometryToLayer) in shapesWithGeometry) {
@@ -1027,7 +1007,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
         if (shape.shadows.isEmpty || shape.appearance.visibility <= 0) continue;
         var bounds = expandForGlassShadows(
           MatrixUtils.transformRect(
-            _shapeToLayer(shape, geometryToLayer),
+            shapeTransformToLayer(shape, geometryToLayer),
             Offset.zero & shape.renderObject.paintSize,
           ),
           [
@@ -1068,7 +1048,9 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
       for (final shape in geometry.shapes) {
         if (shape.appearance.visibility <= 0) continue;
         // A copy: the silhouette keeps it to compare with the next frame's.
-        final transform = Matrix4.copy(_shapeToLayer(shape, geometryToLayer));
+        final transform = Matrix4.copy(
+          shapeTransformToLayer(shape, geometryToLayer),
+        );
         final size = shape.renderObject.paintSize;
         final old = next.length < previous.length
             ? previous[next.length]
@@ -1308,7 +1290,6 @@ class _Silhouette {
   final Matrix4 transform;
   final Rect bounds;
 
-  /// Adds the outline under its transform to [path].
   void addTo(Path path) =>
       path.addPath(local, Offset.zero, matrix4: transform.storage);
 }

@@ -174,6 +174,11 @@ bool rectContains(Rect outer, Rect inner) =>
 @internal
 const glassBlurTileMode = TileMode.mirror;
 
+/// How far a glass blur by [sigma] logical pixels reads past what it covers;
+/// one extra logical pixel covers the kernel's rounding at any pixel ratio.
+@internal
+double glassBlurReach(double sigma) => sigma > 0 ? sigma * 3 + 1 : 0;
+
 /// A pass's blur, taken over by the pass as its seed; see
 /// `SeededBackdropPassLayer.bindFilter`. It tiles by [glassBlurTileMode].
 @internal

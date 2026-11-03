@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/internal/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/internal/live_paint_size.dart';
@@ -438,8 +439,7 @@ class RenderFakeGlass extends RenderProxyBox with LivePaintSize {
       shapeShortSide: paintSize.shortestSide,
     )!;
     final clip = offset & paintSize;
-    // One extra logical pixel covers the kernel's rounding at any DPR.
-    final reach = parts.sigma > 0 ? parts.sigma * 3 + 1 : 0.0;
+    final reach = glassBlurReach(parts.sigma);
     final layer = this.layer ??= LiquidGlassBackdropFilterLayer(
       filter: parts.full,
       clip: clip,
