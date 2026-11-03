@@ -611,6 +611,13 @@ class _Faded extends ChangeNotifier implements ValueListenable<GlassFrame> {
   }
 }
 
+/// The signal a host's close button fires through [end] when a search ends.
+@internal
+class SearchEndSignal extends ChangeNotifier {
+  /// Tells the listeners that a search ended.
+  void end() => notifyListeners();
+}
+
 /// Where a search field hears that its search ended outside it: the close
 /// button of a toolbar that hosts it.
 @internal

@@ -10,18 +10,20 @@ import 'package:meta/meta.dart';
 class GlassZoomLink {
   _GlassZoomSourceState? _source;
 
+  RenderBox? get _box => switch (_source?.context.findRenderObject()) {
+    final RenderBox box when box.attached && box.hasSize => box,
+    _ => null,
+  };
+
   /// Whether a source is attached and laid out.
-  bool get isAttached {
-    final box = _source?.context.findRenderObject();
-    return box is RenderBox && box.attached && box.hasSize;
-  }
+  bool get isAttached => _box != null;
 
   /// The source's rect in [ancestor]'s coordinates, or null without a
   /// laid out source.
   @internal
   Rect? rectIn(RenderBox ancestor) {
-    final box = _source?.context.findRenderObject();
-    if (box is! RenderBox || !box.attached || !box.hasSize) return null;
+    final box = _box;
+    if (box == null) return null;
     return MatrixUtils.transformRect(
       box.getTransformTo(ancestor),
       Offset.zero & box.size,

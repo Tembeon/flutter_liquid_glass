@@ -234,7 +234,6 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
     restDistance: GlassRest.opacity,
   );
   GlassChrome? _chrome;
-  ChromeEdges? _edges;
   bool _reduceMotion = false;
   bool _laidOut = false;
 
@@ -252,7 +251,6 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
     final chrome = GlassChrome.maybeOf(context);
     if (!identical(chrome, _chrome)) _release();
     _chrome = chrome;
-    _edges = chrome?.edges;
     _reduceMotion = GlassTraits.of(context).reduceMotion;
     _scrolled();
     if (TickerMode.valuesOf(context).enabled) _claim();
@@ -300,7 +298,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
   bool _released() => _observer.phase == MotionScrollPhase.dragging;
 
   void _scrolled() {
-    final after = _edges?.scrolledUnderAfter ?? 0;
+    final after = _chrome?.edges.scrolledUnderAfter ?? 0;
     final metrics = _observer.metrics;
     final laidOut = metrics != null && metrics.hasContentDimensions;
     // Content under a bar when the page appears shows its effect at once.
@@ -335,7 +333,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
   @override
   Widget build(BuildContext context) {
     final renderer = GlassTheme.rendererOf(context);
-    final edges = _edges;
+    final edges = _chrome?.edges;
     final top = _hard(
       widget.edgeEffects.top,
       edges?.top ?? ChromeBar.none,
@@ -490,12 +488,11 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
     return result.path.any((entry) => identical(entry.target, box));
   }
 
-  static ChromeBar _kind(PreferredSizeWidget? bar, ChromeBar fallback) =>
-      switch (bar) {
-        null => ChromeBar.none,
-        ChromeBarWidget(:final chromeBar) => chromeBar,
-        _ => fallback,
-      };
+  static ChromeBar _kind(PreferredSizeWidget? bar) => switch (bar) {
+    null => ChromeBar.none,
+    ChromeBarWidget(:final chromeBar) => chromeBar,
+    _ => ChromeBar.custom,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -506,7 +503,8 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
         ? media.padding.top
         : media.padding.top + navigationBar.preferredSize.height;
     // A floating bar keeps its own inset from the screen's bottom edge.
-    final floating = _kind(toolbar, ChromeBar.custom) == ChromeBar.floating;
+    final bottomBar = _kind(toolbar);
+    final floating = bottomBar == ChromeBar.floating;
     final bottom = toolbar == null
         ? media.padding.bottom
         : floating
@@ -518,7 +516,7 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
     );
     final outer = GlassChrome.maybeOf(context);
     final edges = ChromeEdges(
-      top: _kind(navigationBar, ChromeBar.custom),
+      top: _kind(navigationBar),
       topExtent: top,
       scrolledUnderAfter: switch (navigationBar) {
         ChromeBarWidget(:final scrolledUnderAfter) => scrolledUnderAfter,
@@ -526,7 +524,7 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
       },
       bottom: toolbar == null
           ? outer?.edges.bottom ?? ChromeBar.none
-          : _kind(toolbar, ChromeBar.custom),
+          : bottomBar,
       bottomExtent: bottom,
       background: background,
     );
@@ -614,7 +612,8 @@ class PageLift extends InheritedWidget {
 /// threshold half the title (read from UIKit, notes private): it snaps a
 /// release 25 points away back out and one 30 points away under. The snap
 /// is fitted as a critically damped spring of response 0.33 s (damping 1.0
-/// to 1.2).
+/// to 1.2). A stacked search field folds as part of the same extent;
+/// UIKit's threshold for it is not read (approximation).
 @internal
 class LargeTitleScrollPhysics extends ScrollPhysics {
   /// Creates the physics for a large title [collapseExtent] tall.
@@ -624,7 +623,8 @@ class LargeTitleScrollPhysics extends ScrollPhysics {
     super.parent,
   });
 
-  /// The scroll distance over which the large title goes under the bar.
+  /// The scroll distance over which the bar's collapsing part (a stacked
+  /// search field, then the large title) goes under the row.
   final double collapseExtent;
 
   /// Whether a glide that starts now starts at a finger's release.

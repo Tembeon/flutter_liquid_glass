@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:apple_liquid_glass/src/chrome/bar_entry.dart';
+import 'package:apple_liquid_glass/src/chrome/navigation_bar.dart';
+import 'package:apple_liquid_glass/src/chrome/toolbar.dart';
 import 'package:apple_liquid_glass/src/motion/bar_layout.dart';
 import 'package:apple_liquid_glass/src/motion/bar_motion.dart';
 import 'package:apple_liquid_glass/src/motion/glass_button_motion.dart';
@@ -55,9 +57,8 @@ final class GlassBarDeclaration {
   final String? title;
 }
 
-/// Where a page's inline title may sit in the bar's row: between the
-/// page's leading and trailing capsules, 12 points from each
-/// (`titleControlPadding`), from the page's final layout.
+/// Where a page's inline title may sit in the bar's row, from the page's
+/// final layout.
 @internal
 typedef GlassTitleRoom = ({double start, double end});
 
@@ -83,8 +84,9 @@ class GlassTabShown extends InheritedWidget {
 
 /// One page's end of its navigator's shared bar.
 ///
-/// The route creates it when it installs and drops it when it disposes;
-/// the page's navigation bar declares to it as it builds.
+/// The route creates it when it installs and drops it when it disposes (a
+/// standalone host makes its own); the page's bars declare to it as they
+/// build.
 @internal
 final class GlassPageBarLink {
   GlassPageBarLink._(this.host, this.route, this._presence);
@@ -382,8 +384,8 @@ final class GlassBarHost implements MotionDriver {
     }
   }
 
-  /// Reports that [link]'s page left the overlay: the next glass page down
-  /// takes the bar view.
+  /// Reports that [link]'s page left the overlay: the topmost glass page
+  /// left takes the bar view.
   void finished(GlassPageBarLink link) {
     _pages.remove(link);
     _painter.value = _pages.isEmpty ? null : _pages.last;
@@ -497,7 +499,9 @@ final class GlassBarHost implements MotionDriver {
     if (shown && !first) {
       bar.enqueue(_Change(link, _now, GlassBarTransitionSpec.standard));
     } else if (shown && !bar.changes.any((c) => identical(c.page, link))) {
-      // A page that shows without a push, standalone: its bar stands.
+      // The page's first declaration with no change waiting for it (a
+      // standalone page, or a bar added after its push was applied): it
+      // stands.
       bar.enqueue(_Change(link, _now, null));
     } else {
       bar.rebuild();
@@ -702,9 +706,10 @@ final class _Bar {
       _navigation ? GlassBarMetrics.navigation : GlassBarMetrics.toolbar;
 
   /// The space between the screen's sides and the outer capsules: 16 for a
-  /// navigation bar on a 402 point screen, 28 for a toolbar (bars
-  /// passport).
-  double get sideInset => _navigation ? 16 : 28;
+  /// navigation bar on a 402 point screen (bars passport; the Pro Max's 20
+  /// is not followed, an approximation), [GlassToolbar.sideInset] for a
+  /// toolbar.
+  double get sideInset => _navigation ? 16 : GlassToolbar.sideInset;
 
   /// The tuning of a change on a push or a pop: a navigation bar's own
   /// timing; for a toolbar, its item replacement timing (an approximation:
@@ -728,9 +733,10 @@ final class _Bar {
       return true;
     }(), 'reads the layout phase in debug builds only');
     if (inLayout) {
-      // Debug builds assert against marking another element dirty during a
-      // layout (a page built under the app's LayoutBuilder); release builds
-      // mark it directly, and both reach the bar a frame later.
+      // Debug builds assert against marking an element dirty during a layout
+      // (the bar's own, or a page built under the app's LayoutBuilder);
+      // release builds mark it directly, and both reach the bar a frame
+      // later.
       SchedulerBinding.instance.addPostFrameCallback((_) {
         if (view.mounted) view.markNeedsBuild();
       });
@@ -742,8 +748,8 @@ final class _Bar {
 
   /// The runs of [page]'s bar, each a list of capsules with the identities
   /// of their buttons: a navigation bar's leading and trailing sides, a
-  /// toolbar's runs between flexible spaces. Identities repeat across the
-  /// whole bar.
+  /// toolbar's runs between flexible spaces; a repeated identity is
+  /// numbered across the whole bar.
   List<List<List<(Object, _Button)>>> runs(GlassPageBarLink page) {
     final seen = <Object, int>{};
     if (!_navigation) {
@@ -977,8 +983,12 @@ final class _Bar {
     );
   }
 
+  /// The space between an inline title and the capsules beside it
+  /// (`titleControlPadding`, read from UIKit).
+  static const double _titleControlPadding = 12;
+
   GlassTitleRoom _roomOf(List<GlassBarCapsuleLayout> layout) {
-    const padding = 12.0;
+    const padding = _titleControlPadding;
     var start = sideInset;
     var end = width - sideInset;
     for (final capsule in layout) {
@@ -1119,8 +1129,8 @@ class _GlassBarSlotState extends State<GlassBarSlot> {
 /// keyboard), each with its capsules and their buttons; with [only], that
 /// bar alone, filling the box it is given.
 ///
-/// Each bar builds during its own layout, as [LayoutBuilder] does, so a
-/// page that declares while it builds reaches it in the same frame.
+/// Each bar builds in a [LayoutBuilder], so a page that declares while it
+/// builds reaches it in the same frame.
 @internal
 class GlassBarView extends StatelessWidget {
   /// Creates the view of [host].
@@ -1135,12 +1145,10 @@ class GlassBarView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    host._bars.values.first.motion.reducedMotion = GlassTraits.of(
-      context,
-    ).reduceMotion;
-    host._bars.values.last.motion.reducedMotion = GlassTraits.of(
-      context,
-    ).reduceMotion;
+    final reduceMotion = GlassTraits.of(context).reduceMotion;
+    for (final bar in host._bars.values) {
+      bar.motion.reducedMotion = reduceMotion;
+    }
     host._tint = GlassDynamicColor.resolve(
       GlassTheme.of(context).primaryColor ?? _prominentColor,
       context,
@@ -1156,7 +1164,7 @@ class GlassBarView extends StatelessWidget {
           top: media.padding.top,
           left: 0,
           right: 0,
-          height: _navigationHeight,
+          height: GlassNavigationBar.height,
           child: ClipRect(
             clipper: const BelowTop(),
             child: MotionTransition(
@@ -1166,7 +1174,9 @@ class GlassBarView extends StatelessWidget {
           ),
         ),
         Positioned(
-          bottom: keyboard > 0 ? keyboard + _keyboardInset : _bottomInset,
+          bottom: keyboard > 0
+              ? keyboard + GlassToolbar.keyboardInset
+              : GlassToolbar.bottomInset,
           left: 0,
           right: 0,
           height: GlassBarMetrics.toolbar.capsuleHeight,
@@ -1175,15 +1185,6 @@ class GlassBarView extends StatelessWidget {
       ],
     );
   }
-
-  static const double _navigationHeight = 54;
-
-  /// The space between the screen's bottom and a toolbar's capsules
-  /// (`_UIToolbarPaddingSpec` phoneBottom, read from UIKit).
-  static const double _bottomInset = 28;
-
-  /// The space between a keyboard and a toolbar's capsules (phoneKeyboard).
-  static const double _keyboardInset = 8;
 
   /// The prominent capsule's tint without a primary color (device).
   static const _prominentColor = Color(0xFF0088FF);
@@ -1210,10 +1211,6 @@ class _Band extends StatelessWidget {
 
   final _Bar bar;
 
-  /// The spacing of the glass container a bar's capsules share (bars
-  /// passport: 12, constant through item changes).
-  static const double _containerSpacing = 12;
-
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
@@ -1236,7 +1233,7 @@ class _Band extends StatelessWidget {
           children: [
             _Surfaces(
               frames: bar.container,
-              merge: const GlassMerge.spacing(_containerSpacing),
+              merge: const GlassMerge.spacing(GlassToolbar.fusion),
             ),
             _Surfaces(frames: bar.apart, merge: const GlassMerge.none()),
             _BarItems(
@@ -1248,7 +1245,6 @@ class _Band extends StatelessWidget {
                     bar: bar,
                     id: id,
                     button: button,
-                    metrics: bar.metrics,
                   ),
               ],
             ),
@@ -1286,17 +1282,18 @@ class _BarItem extends StatelessWidget {
     required this.bar,
     required this.id,
     required this.button,
-    required this.metrics,
     super.key,
   });
 
   final _Bar bar;
   final Object id;
   final _Button button;
-  final GlassBarMetrics metrics;
 
   @override
   Widget build(BuildContext context) {
+    if (button.item?.child case final child?) {
+      return _ItemBox(id: id, child: child);
+    }
     final theme = GlassTheme.of(context);
     final label = GlassDynamicColor.resolve(
       theme.colorScheme?.label ?? GlassColors.label,
@@ -1304,8 +1301,7 @@ class _BarItem extends StatelessWidget {
     );
     final back = button.back;
     final item = button.item;
-    final enabled =
-        back != null || item?.onPressed != null || item?.child != null;
+    final enabled = back != null || item?.onPressed != null;
     final prominent = item?.prominent ?? false;
     final color = prominent
         ? const Color(0xFFFFFFFF)
@@ -1350,20 +1346,17 @@ class _BarItem extends StatelessWidget {
       onTap = back.onPressed;
     } else {
       final it = item!;
-      content =
-          it.child ??
-          IconTheme.merge(
-            data: IconThemeData(size: metrics.iconSize, color: color),
-            child: DefaultTextStyle(
-              style: text,
-              maxLines: 1,
-              child: it.icon ?? it.label!,
-            ),
-          );
+      content = IconTheme.merge(
+        data: IconThemeData(size: bar.metrics.iconSize, color: color),
+        child: DefaultTextStyle(
+          style: text,
+          maxLines: 1,
+          child: it.icon ?? it.label!,
+        ),
+      );
       semantics = it.semanticLabel;
       onTap = it.onPressed;
     }
-    if (item?.child != null) return _ItemBox(id: id, child: content);
     return _ItemBox(
       id: id,
       child: Semantics(
@@ -1460,8 +1453,8 @@ class _ItemData extends ContainerBoxParentData<RenderBox> {}
 /// Lays the bar's buttons out to measure them, hands the widths to the
 /// host, and paints each where the host's motion puts it: moved, scaled,
 /// faded and blurred, without a layout per frame. Buttons that are not
-/// leaving and are more than half present take touches, anywhere in their
-/// laid-out box.
+/// leaving and are more than half present take touches anywhere in their
+/// slot, across the capsule's height.
 class _RenderBarItems extends RenderBox
     with
         ContainerRenderObjectMixin<RenderBox, _ItemData>,
@@ -1505,7 +1498,7 @@ class _RenderBarItems extends RenderBox
     super.dispose();
   }
 
-  Object? _idOf(RenderBox child) => child is _RenderItemBox ? child.id : null;
+  Object _idOf(RenderBox child) => (child as _RenderItemBox).id;
 
   @override
   void performLayout() {
@@ -1517,8 +1510,7 @@ class _RenderBarItems extends RenderBox
         BoxConstraints(maxHeight: size.height),
         parentUsesSize: true,
       );
-      final id = _idOf(child);
-      if (id != null) widths[id] = child.size.width;
+      widths[_idOf(child)] = child.size.width;
       child = childAfter(child);
     }
     bar.measured(widths, size.width, rtl: _rtl);
@@ -1526,8 +1518,7 @@ class _RenderBarItems extends RenderBox
 
   @override
   void applyPaintTransform(RenderBox child, Matrix4 transform) {
-    final id = _idOf(child);
-    final frame = id == null ? null : bar.itemFrames[id];
+    final frame = bar.itemFrames[_idOf(child)];
     if (frame == null) return;
     final c = frame.center;
     transform.translateByDouble(c.dx, c.dy, 0, 1);
@@ -1540,8 +1531,7 @@ class _RenderBarItems extends RenderBox
   bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
     var child = lastChild;
     while (child != null) {
-      final id = _idOf(child);
-      final frame = id == null ? null : bar.itemFrames[id];
+      final frame = bar.itemFrames[_idOf(child)];
       if (frame != null && !frame.leaving && frame.presence > 0.5) {
         final box = Rect.fromCenter(
           center: frame.center,
@@ -1574,7 +1564,7 @@ class _RenderBarItems extends RenderBox
     var child = firstChild;
     while (child != null) {
       final id = _idOf(child);
-      final frame = id == null ? null : bar.itemFrames[id];
+      final frame = bar.itemFrames[id];
       final handle = _layers.putIfAbsent(child, LayerHandle.new);
       if (frame == null || frame.presence <= 0 || frame.scale <= 0) {
         handle.layer = null;
@@ -1584,7 +1574,7 @@ class _RenderBarItems extends RenderBox
       final box = child;
       final origin = offset + frame.center - box.size.center(Offset.zero);
       final transform = Matrix4.identity();
-      if (bar.liftOf(id!) case final lift?) {
+      if (bar.liftOf(id) case final lift?) {
         transform.translateByDouble(offset.dx, offset.dy, 0, 1);
         transform.multiply(lift);
         transform.translateByDouble(-offset.dx, -offset.dy, 0, 1);
@@ -1655,7 +1645,6 @@ class _ItemBox extends SingleChildRenderObjectWidget {
   }
 }
 
-// A button of the bar, which knows its identity.
 class _RenderItemBox extends RenderProxyBox {
   _RenderItemBox(this.id);
 

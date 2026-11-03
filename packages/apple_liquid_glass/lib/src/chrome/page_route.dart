@@ -124,7 +124,12 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
       : (context, animation, secondaryAnimation, allowSnapshotting, child) =>
             ModalRoute.of(context) is GlassPageRoute
             ? null
-            : _Underneath(presence: _presence, fades: _fades, child: child);
+            : _Card(
+                presence: _presence,
+                fades: _fades,
+                top: false,
+                child: child,
+              );
 
   @override
   void didChangePrevious(Route<Object?>? previousRoute) {
@@ -226,12 +231,12 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
     _bar.host.leaving(_bar, time: lifted ?? MotionClock.instance.now);
     if (_zooms) {
       final zoom = _zoom;
-      if (zoom == null || !zoom.mounted) return false;
+      if (zoom == null) return false;
       zoom.leave();
       return true;
     }
     final slide = _slide;
-    if (slide == null || !slide.mounted) return false;
+    if (slide == null) return false;
     slide.leave();
     return true;
   }
@@ -430,15 +435,15 @@ class _SlideState extends State<_Slide> implements MotionDriver {
       child: _Card(
         presence: _presence,
         fades: route._fades,
-        radius: _cardRadius(context),
-        rtl: rtl,
+        top: true,
         child: ValueListenableBuilder(
           valueListenable: route._cover,
           builder: (context, cover, child) => cover == null
               ? child!
-              : _Underneath(
+              : _Card(
                   presence: cover._presence,
                   fades: cover._fades,
+                  top: false,
                   child: child,
                 ),
           child: RepaintBoundary(key: _page, child: widget.child),
@@ -544,93 +549,37 @@ final class _SwipePop extends Interaction {
   }
 }
 
-/// The page on top: moved by its progress, a card with the display's
-/// corners and a light shadow while it moves, faded instead under a
-/// cross-fade.
+/// A page in a slide, as a card with the display's corners: the page on
+/// top when [top], moved by its progress, with a light shadow while it
+/// moves; otherwise the page below, moved aside and dimmed with the page
+/// above's progress. Under a cross-fade either fades instead.
 class _Card extends SingleChildRenderObjectWidget {
   const _Card({
     required this.presence,
     required this.fades,
-    required this.radius,
-    required this.rtl,
-    required super.child,
-  });
-
-  final ValueListenable<double> presence;
-  final ValueListenable<bool> fades;
-  final BorderRadius radius;
-  final bool rtl;
-
-  @override
-  _RenderCard createRenderObject(BuildContext context) => _RenderCard(
-    presence: presence,
-    fades: fades,
-    radius: radius,
-    rtl: rtl,
-    top: true,
-  );
-
-  @override
-  void updateRenderObject(BuildContext context, _RenderCard renderObject) {
-    renderObject.presence = presence;
-    renderObject.fades = fades;
-    renderObject.radius = radius;
-    renderObject.rtl = rtl;
-  }
-}
-
-/// The page below: moved aside and dimmed with the page above's
-/// progress, a card while it moves, faded out under a cross-fade.
-class _Underneath extends StatelessWidget {
-  const _Underneath({
-    required this.presence,
-    required this.fades,
-    required this.child,
-  });
-
-  final ValueListenable<double> presence;
-  final ValueListenable<bool> fades;
-  final Widget? child;
-
-  @override
-  Widget build(BuildContext context) => _UnderneathCard(
-    presence: presence,
-    fades: fades,
-    radius: _cardRadius(context),
-    rtl: Directionality.of(context) == TextDirection.rtl,
-    child: child,
-  );
-}
-
-class _UnderneathCard extends SingleChildRenderObjectWidget {
-  const _UnderneathCard({
-    required this.presence,
-    required this.fades,
-    required this.radius,
-    required this.rtl,
+    required this.top,
     super.child,
   });
 
   final ValueListenable<double> presence;
   final ValueListenable<bool> fades;
-  final BorderRadius radius;
-  final bool rtl;
+  final bool top;
 
   @override
   _RenderCard createRenderObject(BuildContext context) => _RenderCard(
     presence: presence,
     fades: fades,
-    radius: radius,
-    rtl: rtl,
-    top: false,
+    radius: _cardRadius(context),
+    rtl: Directionality.of(context) == TextDirection.rtl,
+    top: top,
   );
 
   @override
   void updateRenderObject(BuildContext context, _RenderCard renderObject) {
     renderObject.presence = presence;
     renderObject.fades = fades;
-    renderObject.radius = radius;
-    renderObject.rtl = rtl;
+    renderObject.radius = _cardRadius(context);
+    renderObject.rtl = Directionality.of(context) == TextDirection.rtl;
   }
 }
 
@@ -967,9 +916,7 @@ class _ZoomState extends State<_Zoom> implements MotionDriver {
   @override
   Widget build(BuildContext context) {
     _size = MediaQuery.sizeOf(context);
-    _displayRadius =
-        MediaQuery.maybeDisplayCornerRadiiOf(context)?.topLeft.x ??
-        NavigationTuning.fallbackCardRadius;
+    _displayRadius = _cardRadius(context).topLeft.x;
     _input.rtl = Directionality.of(context) == TextDirection.rtl;
     final tuning = _motion.tuning;
     final look = _link.look;
@@ -1108,7 +1055,7 @@ final class _ZoomDrag extends Interaction {
   int? _pointer;
   Offset _start = Offset.zero;
   bool _dragging = false;
-  VelocityTracker? _tracker;
+  late VelocityTracker _tracker;
 
   @override
   bool get dragged => _dragging;
@@ -1125,9 +1072,9 @@ final class _ZoomDrag extends Interaction {
         _start = input.position;
         _dragging = false;
         _tracker = VelocityTracker.withKind(PointerDeviceKind.touch);
-        _tracker!.addPosition(_duration(input.time), input.position);
+        _tracker.addPosition(_duration(input.time), input.position);
       case PointerMoveInput() when input.pointer == _pointer:
-        _tracker?.addPosition(_duration(input.time), input.position);
+        _tracker.addPosition(_duration(input.time), input.position);
         final delta = input.position - _start;
         if (!_dragging) {
           if (delta.distance < _zoom._motion.tuning.dragSlop) break;
@@ -1145,8 +1092,8 @@ final class _ZoomDrag extends Interaction {
         _pointer = null;
         if (!_dragging) return const InteractionUpdate(fails: true);
         _dragging = false;
-        _tracker?.addPosition(_duration(input.time), input.position);
-        final velocity = _tracker?.getVelocity().pixelsPerSecond ?? Offset.zero;
+        _tracker.addPosition(_duration(input.time), input.position);
+        final velocity = _tracker.getVelocity().pixelsPerSecond;
         _zoom._dragged(input.time, input.position);
         _zoom._released(input.time, velocity);
       case PointerCancelInput() when input.pointer == _pointer:

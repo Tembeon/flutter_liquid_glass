@@ -69,16 +69,19 @@ class GlassToolbar extends StatefulWidget implements ChromeBarWidget {
   /// The height of the toolbar's items.
   static const double height = 48;
 
-  /// The space between the screen's sides and the outer items.
+  /// The space between the screen's sides and the outer items (bars
+  /// passport).
   static const double sideInset = 28;
 
-  /// The space between the screen's bottom and the items.
+  /// The space between the screen's bottom and the items (read from UIKit).
   static const double bottomInset = 28;
 
-  /// The space between a keyboard and the items.
+  /// The space between a keyboard and the items (read from UIKit).
   static const double keyboardInset = 8;
 
-  /// How close glass items come before they fuse.
+  /// How close glass items come before they fuse: the spacing of the glass
+  /// container a bar's capsules share (bars passport: 12, constant through
+  /// item changes).
   static const double fusion = 12;
 
   @override
@@ -239,7 +242,7 @@ class _SearchBar extends StatefulWidget {
 
 class _SearchBarState extends State<_SearchBar> {
   final _body = _SearchBody();
-  final _ends = _Ends();
+  final _ends = SearchEndSignal();
   late final _swell = _Derived(
     _body.progress,
     (p) => 1 + (SearchTuning.appearScale - 1) * p,
@@ -353,9 +356,9 @@ class _SearchBarState extends State<_SearchBar> {
           ),
           children: [
             for (var i = 0; i < widget.leading.length; i++)
-              item(_Slot.leading(i), widget.leading[i]),
+              item((_SlotKind.leading, i), widget.leading[i]),
             LayoutId(
-              id: const _Slot.field(),
+              id: (_SlotKind.field, 0),
               child: Focus(
                 canRequestFocus: false,
                 skipTraversal: true,
@@ -364,9 +367,9 @@ class _SearchBarState extends State<_SearchBar> {
               ),
             ),
             for (var i = 0; i < widget.trailing.length; i++)
-              item(_Slot.trailing(i), widget.trailing[i]),
+              item((_SlotKind.trailing, i), widget.trailing[i]),
             LayoutId(
-              id: const _Slot.close(),
+              id: (_SlotKind.close, 0),
               child: IgnorePointer(
                 ignoring: !_focused,
                 child: MotionTransition(
@@ -396,15 +399,12 @@ class _SearchBarState extends State<_SearchBar> {
 /// A [ValueListenable] of a function of another one, recomputed when it
 /// changes.
 class _Derived<T, S> extends ChangeNotifier implements ValueListenable<T> {
-  /// Follows [source] through [compute].
   _Derived(this.source, this.compute) : _value = compute(source.value) {
     source.addListener(_changed);
   }
 
-  /// The value followed.
   final ValueListenable<S> source;
 
-  /// What this value is of [source]'s.
   final T Function(S value) compute;
 
   T _value;
@@ -426,23 +426,9 @@ class _Derived<T, S> extends ChangeNotifier implements ValueListenable<T> {
   }
 }
 
-@immutable
-final class _Slot {
-  const _Slot.leading(this.index) : kind = 0;
-  const _Slot.trailing(this.index) : kind = 1;
-  const _Slot.field() : kind = 2, index = 0;
-  const _Slot.close() : kind = 3, index = 0;
+enum _SlotKind { leading, trailing, field, close }
 
-  final int kind;
-  final int index;
-
-  @override
-  bool operator ==(Object other) =>
-      other is _Slot && other.kind == kind && other.index == index;
-
-  @override
-  int get hashCode => Object.hash(kind, index);
-}
+typedef _Slot = (_SlotKind, int);
 
 /// Places a bottom search bar's items, field and close button where the
 /// transition's progress has them: the field between its resting and its
@@ -475,12 +461,11 @@ class _SearchLayout extends MultiChildLayoutDelegate {
       maxHeight: h,
       maxWidth: size.width,
     );
-    List<double> measure(int count, _Slot Function(int) slot) => [
-      for (var i = 0; i < count; i++)
-        if (hasChild(slot(i))) layoutChild(slot(i), item).width else h,
+    List<double> measure(int count, _SlotKind kind) => [
+      for (var i = 0; i < count; i++) layoutChild((kind, i), item).width,
     ];
-    final leadWidths = measure(leading, _Slot.leading);
-    final trailWidths = measure(trailing, _Slot.trailing);
+    final leadWidths = measure(leading, _SlotKind.leading);
+    final trailWidths = measure(trailing, _SlotKind.trailing);
     final rest = searchBarLayout(
       width: size.width,
       bottom: size.height - SearchTuning.restInset,
@@ -504,24 +489,24 @@ class _SearchLayout extends MultiChildLayoutDelegate {
         returning ? lerpRect(resting, away, p) : resting;
     for (var i = 0; i < leading; i++) {
       positionChild(
-        _Slot.leading(i),
+        (_SlotKind.leading, i),
         slotOf(rest.leading[i], bare.leading[i]).topLeft,
       );
     }
     for (var i = 0; i < trailing; i++) {
       positionChild(
-        _Slot.trailing(i),
+        (_SlotKind.trailing, i),
         slotOf(rest.trailing[i], bare.trailing[i]).topLeft,
       );
     }
     final field = lerpRect(rest.field, focused.field, p);
-    layoutChild(const _Slot.field(), BoxConstraints.tight(field.size));
-    positionChild(const _Slot.field(), field.topLeft);
+    layoutChild((_SlotKind.field, 0), BoxConstraints.tight(field.size));
+    positionChild((_SlotKind.field, 0), field.topLeft);
     final close = returning
         ? focused.close
         : lerpRect(rest.close, focused.close, p);
-    layoutChild(const _Slot.close(), BoxConstraints.tight(close.size));
-    positionChild(const _Slot.close(), close.topLeft);
+    layoutChild((_SlotKind.close, 0), BoxConstraints.tight(close.size));
+    positionChild((_SlotKind.close, 0), close.topLeft);
   }
 
   @override
@@ -532,8 +517,4 @@ class _SearchLayout extends MultiChildLayoutDelegate {
       returning != oldDelegate.returning ||
       rtl != oldDelegate.rtl ||
       progress != oldDelegate.progress;
-}
-
-class _Ends extends ChangeNotifier {
-  void end() => notifyListeners();
 }

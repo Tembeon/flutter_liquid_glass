@@ -175,16 +175,17 @@ class GlassNavigationBar extends StatefulWidget implements ChromeBarWidget {
   /// At rest the field is 44 points tall on a plain fill, 16 points from
   /// the sides and 10 above the content. Scrolling the content first folds
   /// the field away, its height shrinking with the scroll, its text gone
-  /// by a fifth of the way and its fill by the last fifth, then the large
-  /// title goes (read from UIKit, notes private). Focusing the field
-  /// presents the search on one spring (damping 0.8, response 0.34, read
-  /// from UIKit): the page and its bar rise until the field sits under the
-  /// status bar, the field narrows for a close button that slides in 40
-  /// points from the side, and its plain fill turns to glass on a
-  /// critically damped spring of response 0.32 (read from UIKit). The
-  /// close button clears the field and ends the search; the page comes
-  /// back down. A field folded away by a scroll presents from where it
-  /// rests: the rise is not shortened (an approximation).
+  /// by a fifth of the way and its fill fading out between 80 and 95
+  /// percent of it, then the large title goes (read from UIKit, notes
+  /// private). Focusing the field presents the search on one spring
+  /// (damping 0.8, response 0.34, read from UIKit): the page and its bar
+  /// rise until the field sits under the status bar, the field narrows for
+  /// a close button that slides in 40 points from the side, and its plain
+  /// fill turns to glass on a critically damped spring of response 0.32
+  /// (read from UIKit). The close button clears the field and ends the
+  /// search; the page comes back down. A field folded away by a scroll
+  /// presents from where it rests: the rise is not shortened (an
+  /// approximation).
   final Widget? searchField;
 
   /// The look, over the theme's.
@@ -478,7 +479,7 @@ abstract final class _Metrics {
   /// centered: the capsules sit at the row's top (device recordings).
   static const double capsuleCenter = 22;
 
-  /// The leading inset of the large title.
+  /// The inset of the large title from the bar's sides.
   static const double largeTitleInset = 16;
 
   /// The space between the top of the large title area and its text.
@@ -715,9 +716,8 @@ class _StackedSearchState extends State<_StackedSearch>
     implements MotionDriver {
   final _shown = MotionValue<double>(0, spring: SearchTuning.stackedSpring);
   final _glass = MotionValue<double>(0, spring: _StackedMetrics.glassSpring);
-  final _ends = _StackedEnds();
+  final _ends = SearchEndSignal();
   final _closing = ValueNotifier<bool>(false);
-  bool _active = false;
 
   double get _now => MotionClock.instance.now;
 
@@ -756,8 +756,7 @@ class _StackedSearchState extends State<_StackedSearch>
   }
 
   void _focusChanged(bool focused) {
-    if (!focused || _active) return;
-    _active = true;
+    if (!focused || _closing.value) return;
     _closing.value = true;
     final t = _now;
     _shown.retarget(t, 1);
@@ -766,8 +765,7 @@ class _StackedSearchState extends State<_StackedSearch>
   }
 
   void _end() {
-    if (!_active) return;
-    _active = false;
+    if (!_closing.value) return;
     _closing.value = false;
     _ends.end();
     final t = _now;
@@ -824,16 +822,12 @@ class _StackedSearchState extends State<_StackedSearch>
   }
 }
 
-class _StackedEnds extends ChangeNotifier {
-  void end() => notifyListeners();
-}
-
 abstract final class _StackedMetrics {
   /// The height of a stacked field (iOS 27 simulator: 44 points at rest
   /// and presented).
   static const double fieldHeight = 44;
 
-  /// The space between the screen's sides and the field (16 points).
+  /// The space between the screen's sides and the field.
   static const double sideInset = 16;
 
   /// The space between the presented field and its close button.
