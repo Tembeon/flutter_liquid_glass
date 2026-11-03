@@ -227,29 +227,21 @@ ui.Picture recordFrostedCopy(
     (shown.right - copy.rect.left) * pixels + offset.dx,
     (shown.bottom - copy.rect.top) * pixels + offset.dy,
   );
-  final m = frost.colorMatrix ?? _identityMatrix;
-  var i = 0;
-  void put(double value) => shader.setFloat(i++, value);
-  put(image.width.toDouble());
-  put(image.height.toDouble());
-  put(offset.dx + 0.5);
-  put(offset.dy + 0.5);
-  put(offset.dx + copy.rect.width * pixels - 0.5);
-  put(offset.dy + copy.rect.height * pixels - 0.5);
-  put(taps.frost / taps.downscale);
-  put(1);
-  // The rect drawn bounds the frost.
-  for (final bound in const [-1e9, -1e9, 1e9, 1e9]) {
-    put(bound);
-  }
-  for (var column = 0; column < 4; column++) {
-    for (var row = 0; row < 4; row++) {
-      put(m[row * 5 + column]);
-    }
-  }
-  for (var row = 0; row < 4; row++) {
-    put(m[row * 5 + 4] / 255);
-  }
+  _setFrost(
+    shader,
+    size: Size(image.width.toDouble(), image.height.toDouble()),
+    bounds: Rect.fromLTRB(
+      offset.dx + 0.5,
+      offset.dy + 0.5,
+      offset.dx + copy.rect.width * pixels - 0.5,
+      offset.dy + copy.rect.height * pixels - 0.5,
+    ),
+    frost: frost,
+    taps: taps,
+    scale: 1,
+    // The rect drawn bounds the frost.
+    shown: Rect.largest,
+  );
   shader.setImageSampler(0, image, filterQuality: FilterQuality.low);
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
@@ -306,36 +298,25 @@ ui.Picture? recordFrostedInFrame(
     (copy.band.left * dpr - layer.left) / stretch,
     (copy.band.top * dpr - layer.top) / stretch,
   );
-  final m = frost.colorMatrix ?? _identityMatrix;
-  var i = 0;
-  void put(double value) => shader.setFloat(i++, value);
-  put(layer.width);
-  put(layer.height);
-  put(max(at.dx, 0) + 0.5);
-  put(max(at.dy, 0) + 0.5);
-  put(min(at.dx + copy.band.width * pixels, layer.width / stretch) - 0.5);
-  put(min(at.dy + copy.band.height * pixels, layer.height / stretch) - 0.5);
-  put(taps.frost / taps.downscale);
-  put(1 / stretch);
-  final device = Rect.fromLTRB(
-    drawn.left * dpr,
-    drawn.top * dpr,
-    drawn.right * dpr,
-    drawn.bottom * dpr,
+  _setFrost(
+    shader,
+    size: layer.size,
+    bounds: Rect.fromLTRB(
+      max(at.dx, 0) + 0.5,
+      max(at.dy, 0) + 0.5,
+      min(at.dx + copy.band.width * pixels, layer.width / stretch) - 0.5,
+      min(at.dy + copy.band.height * pixels, layer.height / stretch) - 0.5,
+    ),
+    frost: frost,
+    taps: taps,
+    scale: 1 / stretch,
+    shown: Rect.fromLTRB(
+      drawn.left * dpr,
+      drawn.top * dpr,
+      drawn.right * dpr,
+      drawn.bottom * dpr,
+    ).shift(-layer.topLeft),
   );
-  final mask = device.shift(-layer.topLeft);
-  put(mask.left);
-  put(mask.top);
-  put(mask.right);
-  put(mask.bottom);
-  for (var column = 0; column < 4; column++) {
-    for (var row = 0; row < 4; row++) {
-      put(m[row * 5 + column]);
-    }
-  }
-  for (var row = 0; row < 4; row++) {
-    put(m[row * 5 + 4] / 255);
-  }
   shader.setImageSampler(0, _bilinear, filterQuality: FilterQuality.low);
   final paint = Paint();
   paint.imageFilter = bilinearShaderFilter(shader);
@@ -357,6 +338,41 @@ ui.Picture? recordFrostedInFrame(
   canvas.drawPicture(copy.content);
   canvas.restore();
   return recorder.endRecording();
+}
+
+// The uniforms of backdrop_frost.frag.
+void _setFrost(
+  ui.FragmentShader shader, {
+  required Size size,
+  required Rect bounds,
+  required LiquidGlassBackdropFrost frost,
+  required ShaderFrost taps,
+  required double scale,
+  required Rect shown,
+}) {
+  final m = frost.colorMatrix ?? _identityMatrix;
+  var i = 0;
+  void put(double value) => shader.setFloat(i++, value);
+  put(size.width);
+  put(size.height);
+  put(bounds.left);
+  put(bounds.top);
+  put(bounds.right);
+  put(bounds.bottom);
+  put(taps.frost / taps.downscale);
+  put(scale);
+  put(shown.left);
+  put(shown.top);
+  put(shown.right);
+  put(shown.bottom);
+  for (var column = 0; column < 4; column++) {
+    for (var row = 0; row < 4; row++) {
+      put(m[row * 5 + column]);
+    }
+  }
+  for (var row = 0; row < 4; row++) {
+    put(m[row * 5 + 4] / 255);
+  }
 }
 
 // Up to Flutter 3.47 a shader filter samples its input as the image bound
