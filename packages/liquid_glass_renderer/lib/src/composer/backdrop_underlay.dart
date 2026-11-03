@@ -118,8 +118,10 @@ class BackdropUnderlay {
   @visibleForTesting
   static bool debugIslandsEnabled = true;
 
-  /// Whether a copy no filter reads is drawn in the frame itself (see
-  /// [serveInFrame]) rather than into an image.
+  /// Whether a copy no filter reads and no island holds is drawn in the
+  /// frame itself (see [serveInFrame]) rather than into an image. An island
+  /// stays an image: its members share the content drawn into it once,
+  /// which each would draw again in the frame.
   @visibleForTesting
   static bool debugInFrame = const bool.fromEnvironment(
     'LIQUID_GLASS_IN_FRAME',
@@ -131,7 +133,7 @@ class BackdropUnderlay {
   static final debugImageAsks = <String, int>{};
 
   /// Whether the last [request] is served by [serveInFrame], not [serve].
-  bool get servesInFrame => _ask?.inFrame ?? false;
+  bool get servesInFrame => (_ask?.inFrame ?? false) && _plan == null;
 
   /// The image that holds the copy, once it is drawn.
   @visibleForTesting
@@ -254,8 +256,8 @@ class BackdropUnderlay {
   }
 
   /// The copy the last [request] asked for as a picture this frame draws, or
-  /// null when what lies there cannot be drawn again, and the caller reads
-  /// its backdrop this frame.
+  /// null when it cannot be drawn in the frame: [serve] then takes the
+  /// request, while what lies there might still be drawn into an image.
   ///
   /// The caller draws [InFrameCopy.content] into a layer of its own whose
   /// image filter reads it: Impeller renders the layer into a target of its
@@ -274,8 +276,8 @@ class BackdropUnderlay {
     _ask = null;
     _plan = null;
     if (ask == null) return null;
-    release();
     if (ask.band.isEmpty) {
+      release();
       _count(debugMisses, 'off screen');
       return null;
     }
@@ -291,6 +293,7 @@ class BackdropUnderlay {
         ? ask.band
         : _layerIn(ask.band, clip, ask.pixelRatio);
     if (layer.isEmpty) {
+      release();
       _count(debugMisses, 'off screen');
       return null;
     }
@@ -313,6 +316,9 @@ class BackdropUnderlay {
           _count(debugMisses, why);
           debugMiss = 'blocked by $why';
         }
+        // An image can fold glass over a copy not drawn yet, which the
+        // frame cannot: [serve] takes the request.
+        _ask = ask;
         return null;
       }
       if (replay.holdsGlass && pixels != ask.devicePixelRatio) {
@@ -320,6 +326,7 @@ class BackdropUnderlay {
         pixels = ask.devicePixelRatio;
         continue;
       }
+      release();
       debugCaptures++;
       debugMiss = null;
       return InFrameCopy._(
@@ -732,10 +739,7 @@ final class _Ask {
 
   // Whether the copy can be drawn with copies beside it.
   bool get joins =>
-      !inFrame &&
-      body != null &&
-      filterClip == null &&
-      filterBlendMode == BlendMode.src;
+      body != null && filterClip == null && filterBlendMode == BlendMode.src;
 }
 
 // Copies the composer planned to draw as one island in a frame, in paint
