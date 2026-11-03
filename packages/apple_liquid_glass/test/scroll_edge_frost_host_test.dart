@@ -115,7 +115,7 @@ void main() {
   });
   tearDown(() {
     BackdropUnderlay.debugEnabledOverride = null;
-    LiquidGlassBackdropFilterLayer.debugShaderFrost = true;
+    LiquidGlassBackdropFrost.debugShaderFrost = true;
   });
 
   for (final (dpr, hard, near) in [
@@ -130,15 +130,15 @@ void main() {
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
 
-      LiquidGlassBackdropFilterLayer.debugShaderFrost = false;
+      LiquidGlassBackdropFrost.debugShaderFrost = false;
       final filtered = await _scrolled(tester, dpr, hard: hard);
       final full = _band(tester).debugUnderlay.debugImage!.width;
 
-      LiquidGlassBackdropFilterLayer.debugShaderFrost = true;
+      LiquidGlassBackdropFrost.debugShaderFrost = true;
       final frosted = await _scrolled(tester, dpr, hard: hard);
       // The copy spans the screen's width, at half size.
       expect(_band(tester).debugUnderlay.debugImage!.width, (full / 2).round());
-      // NEAR, see LiquidGlassBackdropFilterLayer.debugShaderFrost.
+      // NEAR, see LiquidGlassBackdropFrost.debugShaderFrost.
       expect(_difference(filtered, frosted), lessThanOrEqualTo(near));
     }, skip: !ui.ImageFilter.isShaderFilterSupported);
   }

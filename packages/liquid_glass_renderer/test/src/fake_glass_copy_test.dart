@@ -57,11 +57,13 @@ Widget _scene({double shift = 0}) => Directionality(
 RenderFakeGlass _glass(WidgetTester tester) =>
     tester.renderObject<RenderFakeGlass>(find.byType(RawFakeGlass));
 
-Future<Uint8List> _pixels(WidgetTester tester) async {
+Future<Uint8List> _pixels(WidgetTester tester, {double dpr = 1}) async {
   final boundary = tester.renderObject<RenderRepaintBoundary>(
     find.byKey(_key),
   );
-  final image = (await tester.runAsync(boundary.toImage))!;
+  final image = (await tester.runAsync(
+    () => boundary.toImage(pixelRatio: dpr),
+  ))!;
   final bytes = (await tester.runAsync(image.toByteData))!;
   image.dispose();
   return bytes.buffer.asUint8List();
@@ -85,6 +87,7 @@ int _difference(Uint8List a, Uint8List b) {
 void main() {
   tearDown(() {
     BackdropUnderlay.debugEnabledOverride = null;
+    LiquidGlassBackdropFrost.debugShaderFrost = true;
   });
 
   testWidgets('fake glass over a copy draws what reading the backdrop '
@@ -103,6 +106,7 @@ void main() {
     expect(_glass(tester).debugBackdropFilterLayer!.serves, isFalse);
 
     BackdropUnderlay.debugEnabledOverride = true;
+    LiquidGlassBackdropFrost.debugShaderFrost = false;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(shift: 0.3));
     await tester.pumpWidget(_scene());
@@ -115,5 +119,31 @@ void main() {
       _difference(_inside(reading), _inside(copied)),
       lessThanOrEqualTo(2),
     );
+  }, skip: skipProperGlassTests);
+
+  testWidgets('frosted fake glass over a quarter-size copy stays near what '
+      'reading the backdrop draws', (tester) async {
+    const dpr = 2.625;
+    tester.view.physicalSize = const Size(260 * dpr, 200 * dpr);
+    tester.view.devicePixelRatio = dpr;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(LiquidGlass.precache);
+
+    BackdropUnderlay.debugEnabledOverride = false;
+    await tester.pumpWidget(_scene());
+    await tester.pump();
+    final reading = await _pixels(tester, dpr: dpr);
+
+    BackdropUnderlay.debugEnabledOverride = true;
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(_scene(shift: 0.3));
+    await tester.pumpWidget(_scene());
+    final layer = _glass(tester).debugBackdropFilterLayer!;
+    expect(layer.serves, isTrue);
+    expect(layer.frost, isNotNull);
+    final copied = await _pixels(tester, dpr: dpr);
+    // NEAR, see LiquidGlassBackdropFrost.debugShaderFrost: the test font's
+    // white blocks are the hardest edges a frost meets.
+    expect(_difference(reading, copied), lessThanOrEqualTo(28));
   }, skip: skipProperGlassTests);
 }

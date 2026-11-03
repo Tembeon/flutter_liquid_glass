@@ -357,6 +357,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
           effectContext,
           effectOffset,
           filter: sharedFilter.full,
+          frost: sharedFilter.frost,
           blur: _passBlur(sharedFilter),
           bounds: bounds,
           outline: clipPath,

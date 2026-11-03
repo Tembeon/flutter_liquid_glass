@@ -1,13 +1,18 @@
 // Layer setup reads as one statement per property, without cascades.
 // ignore_for_file: cascade_invocations
 
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_frost.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
+import 'package:liquid_glass_renderer/src/internal/multi_shader_builder.dart';
+import 'package:liquid_glass_renderer/src/internal/shader_frost.dart';
+import 'package:liquid_glass_renderer/src/shaders.dart';
 
 /// The shift from [anchor]'s coordinates to the screen's, in logical pixels,
 /// or null when a transform above it scales or turns it.
@@ -148,6 +153,123 @@ ui.Picture recordFilteredCopy(
   return recorder.endRecording();
 }
 
+/// A copy [requestFrostedCopy] asked for: where it is shown and how the
+/// shader frosts it.
+@internal
+typedef FrostedCopyAsk = ({FilteredCopyAsk ask, ShaderFrost taps});
+
+/// Asks [underlay] for an unblurred copy of what lies under [clip], in
+/// [anchor]'s coordinates, at the fraction of the screen's pixels [frost]
+/// allows, for [recordFrostedCopy] to frost. Null where the shader cannot:
+/// shader frost is off, the renderer runs no runtime effects (only
+/// Impeller does), the frost is too wide for it, its program is not loaded
+/// yet, or [anchor] does not lie on the screen untransformed.
+@internal
+FrostedCopyAsk? requestFrostedCopy(
+  BackdropUnderlay underlay,
+  Layer anchor, {
+  required LiquidGlassBackdropFrost frost,
+  required Rect clip,
+  required double devicePixelRatio,
+}) {
+  if (!LiquidGlassBackdropFrost.debugShaderFrost ||
+      !ui.ImageFilter.isShaderFilterSupported) {
+    return null;
+  }
+  if (!MultiShaderBuilder.isCached(ShaderKeys.backdropFrost)) {
+    unawaited(MultiShaderBuilder.precacheShader(ShaderKeys.backdropFrost));
+    return null;
+  }
+  // A copy whose pixels the frost spans by less than 1.5 is not halved
+  // again: drawn smaller, its edges show through the frost.
+  final taps = shaderFrost(frost.sigma * devicePixelRatio, minTexels: 1.5);
+  if (taps == null) return null;
+  final origin = screenOffsetOf(anchor, devicePixelRatio);
+  if (origin == null) return null;
+  final shifted = clip.shift(origin);
+  // The taps reach 2.8 sigma, one copy pixel more sampled bilinearly.
+  final reach = (2.8 * taps.frost + taps.downscale) / devicePixelRatio;
+  underlay.request(
+    anchor: anchor,
+    devicePixelRatio: devicePixelRatio,
+    region: shifted.inflate(reach),
+    downscale: taps.downscale,
+  );
+  return (ask: (shifted: shifted, origin: origin), taps: taps);
+}
+
+/// The shader [recordFrostedCopy] frosts with; its owner disposes it.
+@internal
+ui.FragmentShader newFrostShader() =>
+    MultiShaderBuilder.cached(ShaderKeys.backdropFrost)!.fragmentShader();
+
+/// [frost] drawn from the unblurred [copy] by [shader] as [taps] say, into
+/// coordinates that [origin] shifts to the screen's: the part [shown], in
+/// screen coordinates, composited with [blendMode] and cut to [outline],
+/// in the drawn coordinates, when there is one.
+///
+/// A rect drawn in the copy image's pixels, so that the shader's fragment
+/// coordinate is the pixel of the image it frosts around.
+@internal
+ui.Picture recordFrostedCopy(
+  UnderlayCopy copy,
+  Rect shown,
+  Offset origin, {
+  required LiquidGlassBackdropFrost frost,
+  required ShaderFrost taps,
+  required ui.FragmentShader shader,
+  BlendMode blendMode = BlendMode.srcOver,
+  Path? outline,
+}) {
+  final image = copy.image;
+  final offset = copy.offset;
+  final pixels = copy.pixelRatio;
+  final source = Rect.fromLTRB(
+    (shown.left - copy.rect.left) * pixels + offset.dx,
+    (shown.top - copy.rect.top) * pixels + offset.dy,
+    (shown.right - copy.rect.left) * pixels + offset.dx,
+    (shown.bottom - copy.rect.top) * pixels + offset.dy,
+  );
+  final m = frost.colorMatrix ?? _identityMatrix;
+  var i = 0;
+  void put(double value) => shader.setFloat(i++, value);
+  put(1 / image.width);
+  put(1 / image.height);
+  put(offset.dx + 0.5);
+  put(offset.dy + 0.5);
+  put(offset.dx + copy.rect.width * pixels - 0.5);
+  put(offset.dy + copy.rect.height * pixels - 0.5);
+  put(taps.frost / taps.downscale);
+  for (var column = 0; column < 4; column++) {
+    for (var row = 0; row < 4; row++) {
+      put(m[row * 5 + column]);
+    }
+  }
+  for (var row = 0; row < 4; row++) {
+    put(m[row * 5 + 4] / 255);
+  }
+  shader.setImageSampler(0, image, filterQuality: FilterQuality.low);
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  if (outline != null) canvas.clipPath(outline);
+  canvas.translate(shown.left - origin.dx, shown.top - origin.dy);
+  canvas.scale(1 / pixels);
+  canvas.translate(-source.left, -source.top);
+  final paint = Paint();
+  paint.shader = shader;
+  paint.blendMode = blendMode;
+  paint.isAntiAlias = false;
+  canvas.drawRect(source, paint);
+  return recorder.endRecording();
+}
+
+const _identityMatrix = <double>[
+  1, 0, 0, 0, 0, //
+  0, 1, 0, 0, 0, //
+  0, 0, 1, 0, 0, //
+  0, 0, 0, 1, 0,
+];
+
 /// Places a rig's pass around a clip, given in the layer coordinates it is
 /// painted in, the paint offset from the owner, how far the blur reads past
 /// the clip, and the sizing that keeps the pass from resizing on every
@@ -209,6 +331,9 @@ class BackdropRig {
   _Read? _read;
   // The copy asked for this frame, until [compose].
   FilteredCopyAsk? _asked;
+  // How the shader frosts the copy asked for, or null when it is filtered.
+  ShaderFrost? _taps;
+  ui.FragmentShader? _frostShader;
 
   Rect? _inner;
   Offset _offset = Offset.zero;
@@ -448,7 +573,8 @@ class BackdropRig {
   /// pass reaching [reach] past [bounds], seeded by a small backdrop filter,
   /// and reads that pass; otherwise only the clip and the filter (and, with
   /// [copies], the slot around them). With [copies], [compose] can draw the
-  /// filter over a copy of what lies under [outline] instead.
+  /// filter over a copy of what lies under [outline] instead: where [frost]
+  /// stands for [filter], an unblurred copy frosted by a shader.
   void paint(
     PaintingContext context,
     Offset offset, {
@@ -459,6 +585,7 @@ class BackdropRig {
     required double reach,
     required double devicePixelRatio,
     bool copies = false,
+    LiquidGlassBackdropFrost? frost,
   }) {
     final seeds = SeededBackdropPassLayer.enabled && blur != null;
     usesPass = seeds;
@@ -467,6 +594,7 @@ class BackdropRig {
     _read = copies
         ? (
             filter: filter,
+            frost: frost,
             clip: bounds.shift(offset),
             reach: reach,
             devicePixelRatio: devicePixelRatio,
@@ -487,25 +615,41 @@ class BackdropRig {
   void ask() {
     final slot = _slot.layer;
     final read = _read;
+    _taps = null;
+    if (slot == null ||
+        read == null ||
+        _outline == null ||
+        !BackdropUnderlay.enabled) {
+      _asked = null;
+      return;
+    }
+    if (read.frost case final frost?) {
+      final frosted = requestFrostedCopy(
+        _underlay,
+        slot,
+        frost: frost,
+        clip: read.clip,
+        devicePixelRatio: read.devicePixelRatio,
+      );
+      if (frosted != null) {
+        _taps = frosted.taps;
+        _asked = frosted.ask;
+        return;
+      }
+    }
     // The live filter reads a pass reaching past its clip (or the whole
     // backdrop), not the backdrop cut at the clip: the blur near the edge
     // takes what lies outside, so the copy is filtered over all it holds.
-    _asked =
-        slot == null ||
-            read == null ||
-            _outline == null ||
-            !BackdropUnderlay.enabled
-        ? null
-        : requestFilteredCopy(
-            _underlay,
-            slot,
-            filter: read.filter,
-            blendMode: BlendMode.srcOver,
-            clip: read.clip,
-            reach: read.reach,
-            devicePixelRatio: read.devicePixelRatio,
-            filtersReach: true,
-          );
+    _asked = requestFilteredCopy(
+      _underlay,
+      slot,
+      filter: read.filter,
+      blendMode: BlendMode.srcOver,
+      clip: read.clip,
+      reach: read.reach,
+      devicePixelRatio: read.devicePixelRatio,
+      filtersReach: true,
+    );
   }
 
   /// Fills the slot with the filter drawn over the copy [ask] asked for, or
@@ -530,11 +674,23 @@ class BackdropRig {
     final served = serveFilteredCopy(_underlay, asked);
     if (served == null) return null;
     final (:copy, :shown, :origin) = served;
+    final taps = _taps;
+    final frost = taps == null ? null : read.frost;
     return servedPicture(
       copy,
       read.clip,
-      keyOf: () => (copy.image, copy.offset, shown, origin, outline),
-      record: () => recordFilteredCopy(copy, shown, origin, outline: outline),
+      keyOf: () => (copy.image, copy.offset, shown, origin, outline, frost),
+      record: () => frost == null || taps == null
+          ? recordFilteredCopy(copy, shown, origin, outline: outline)
+          : recordFrostedCopy(
+              copy,
+              shown,
+              origin,
+              frost: frost,
+              taps: taps,
+              shader: _frostShader ??= newFrostShader(),
+              outline: outline,
+            ),
       fold: (builder, _, _) => addFoldedFilter(
         builder,
         shown.shift(-origin),
@@ -617,6 +773,8 @@ class BackdropRig {
     clear();
     _served.layer = null;
     _underlay.release();
+    _frostShader?.dispose();
+    _frostShader = null;
   }
 }
 
@@ -624,6 +782,7 @@ class BackdropRig {
 // coordinates.
 typedef _Read = ({
   ui.ImageFilter filter,
+  LiquidGlassBackdropFrost? frost,
   Rect clip,
   double reach,
   double devicePixelRatio,

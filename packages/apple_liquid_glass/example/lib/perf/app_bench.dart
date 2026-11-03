@@ -77,9 +77,10 @@ final _switches = <String, void Function({required bool on})>{
 
     RendererBinding.instance.renderViews.forEach(update);
   },
-  // B frosts scroll edges' copies in a shader; A filters them in the atlas.
-  'edge_frost': ({required on}) =>
-      LiquidGlassBackdropFilterLayer.debugShaderFrost = on,
+  // B frosts the copies of scroll edges and fake glass in a shader; A
+  // filters them in the atlas.
+  'copy_frost': ({required on}) =>
+      LiquidGlassBackdropFrost.debugShaderFrost = on,
 };
 
 // The crowd: glass buttons in a grid over every page, BENCH_CROWD_A of them

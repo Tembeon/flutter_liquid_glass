@@ -445,7 +445,11 @@ class RenderFakeGlass extends RenderProxyBox with LivePaintSize {
       blendMode: BlendMode.srcATop,
       confinesRead: false,
     );
-    layer.filter = parts.full;
+    if (parts.frost case final frost?) {
+      layer.frost = frost;
+    } else {
+      layer.filter = parts.full;
+    }
     layer.clip = clip;
     layer.reach = reach;
     layer.devicePixelRatio = devicePixelRatio;
