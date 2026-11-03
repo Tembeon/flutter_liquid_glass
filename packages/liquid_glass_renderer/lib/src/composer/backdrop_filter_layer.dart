@@ -42,6 +42,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     required this._reach,
     required this._devicePixelRatio,
     this._blendMode = BlendMode.srcOver,
+    this.copyFilter,
     this.confinesRead = true,
   });
 
@@ -61,6 +62,12 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     _filter = value;
     markNeedsAddToScene();
   }
+
+  /// [filter] as an image filter at the copy's own device pixels, for a
+  /// filter that reads no further than [reach]: given, the copy is filtered
+  /// with the frame's other copies in one layer instead of reading a
+  /// backdrop of its own. Set together with [filter], which keys it.
+  ui.ImageFilter? copyFilter;
 
   /// How the filtered backdrop composites over the backdrop, as
   /// [BackdropFilterLayer.blendMode] does.
@@ -146,6 +153,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
             _underlay,
             this,
             filter: _filter,
+            copyFilter: copyFilter,
             blendMode: _blendMode,
             clip: _clip,
             reach: _reach,
