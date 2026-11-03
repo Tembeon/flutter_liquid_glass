@@ -272,15 +272,22 @@ class BackdropUnderlay {
         rects: [first._rect],
       );
     }
+    // A later member that was not drawn with the first last time (something
+    // else is painted between their glass) is served on its own again, and
+    // the island holds for the others.
+    final kept = last == null ? null : _kept(last.members, members);
     final known =
         last != null &&
         last.signature != null &&
         last.fits(ask) &&
-        _sameMembers(last.members, members);
+        kept != null;
     // Signing replays no pictures: a copy is recorded only once it is
     // known to be drawn now.
     var signed = known
-        ? _Prefix.signed(ask.anchor, last.rect, scan, limit, bodies)
+        ? _Prefix.signed(ask.anchor, last.rect, scan, limit, [
+            for (final i in kept)
+              if (asks[i].body case final body?) body,
+          ])
         : null;
     final held =
         signed != null &&
@@ -289,8 +296,8 @@ class BackdropUnderlay {
         _same(signed.out, last!.signature);
     if (held) {
       var inside = true;
-      for (var i = 0; i < members.length && inside; i++) {
-        inside = rectContains(members[i]._rect, asks[i].band);
+      for (final i in kept!) {
+        inside = inside && rectContains(members[i]._rect, asks[i].band);
       }
       if (inside) {
         first.debugMiss = null;
@@ -429,15 +436,25 @@ class BackdropUnderlay {
     _island = null;
   }
 
-  static bool _sameMembers(
-    List<BackdropUnderlay> a,
-    List<BackdropUnderlay> b,
+  // Where the copies [drawn] together lie in [members], or null when they
+  // are not [members] less some of its later ones, or one has no image.
+  static List<int>? _kept(
+    List<BackdropUnderlay> drawn,
+    List<BackdropUnderlay> members,
   ) {
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (!identical(a[i], b[i]) || a[i]._image == null) return false;
+    final kept = <int>[];
+    for (final (i, member) in members.indexed) {
+      if (kept.length < drawn.length && identical(drawn[kept.length], member)) {
+        kept.add(i);
+      }
     }
-    return true;
+    if (kept.length != drawn.length ||
+        kept.isEmpty ||
+        kept.first != 0 ||
+        drawn.any((member) => member._image == null)) {
+      return null;
+    }
+    return kept;
   }
 
   static Layer _rootOf(Layer layer) {
@@ -642,6 +659,7 @@ final class _Plan {
     }
     final decision = _decision;
     if (decision == null ||
+        decision.held && !decision.island.members.contains(underlay) ||
         limit < 0 ||
         !identical(scan, _scan) ||
         !scan.onlyIslandBetween(

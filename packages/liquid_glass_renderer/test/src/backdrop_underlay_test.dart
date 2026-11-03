@@ -24,6 +24,7 @@ Widget _pairScene({
   double frost = 0,
   bool shadowed = false,
   bool second = true,
+  bool between = false,
 }) => Directionality(
   textDirection: TextDirection.ltr,
   child: RepaintBoundary(
@@ -46,7 +47,16 @@ Widget _pairScene({
         for (final (key, rect) in [
           (_first, Rect.fromLTWH(30, top, 200, 90)),
           if (second) (null, const Rect.fromLTWH(30, 260, 200, 60)),
-        ])
+        ]) ...[
+          // Painted after the first glass, in the second's band.
+          if (between && key == null)
+            const Positioned(
+              left: 110,
+              top: 326,
+              width: 40,
+              height: 6,
+              child: ColoredBox(color: Color(0xFFFFFFFF)),
+            ),
           Positioned.fill(
             child: RepaintBoundary(
               key: key,
@@ -71,6 +81,7 @@ Widget _pairScene({
               ),
             ),
           ),
+        ],
       ],
     ),
   ),
@@ -779,6 +790,37 @@ void main() {
     expect(BackdropUnderlay.debugIslands[2], islands + 1);
     final [a, b] = [for (final g in glass()) g.debugUnderlay.debugImage!];
     expect(a.isCloneOf(b), isTrue);
+  }, skip: skipProperGlassTests);
+
+  testWidgets('copies planned as an island hold while what lies under them '
+      'is unchanged, when something painted between their glass keeps the '
+      'second out of it', (tester) async {
+    tester.view.physicalSize = const Size(260, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    BackdropUnderlay.debugEnabledOverride = true;
+    addTearDown(() => BackdropUnderlay.debugEnabledOverride = null);
+    List<RenderLiquidGlassLayer> glass() => tester.allRenderObjects
+        .whereType<RenderLiquidGlassLayer>()
+        .toSet()
+        .toList();
+    final islands = BackdropUnderlay.debugIslands[2] ?? 0;
+    await tester.pumpWidget(_pairScene(top: 160, between: true));
+    expect(BackdropUnderlay.debugIslands[2] ?? 0, islands);
+    expect(glass().every((g) => g.debugDrewOverUnderlay), isTrue);
+    final captures = [for (final g in glass()) g.debugUnderlay.debugCaptures];
+    final drawn = BackdropUnderlay.debugImagesDrawn;
+
+    for (var i = 0; i < 3; i++) {
+      tester.binding.scheduleFrame();
+      await tester.pump();
+    }
+    expect(
+      [for (final g in glass()) g.debugUnderlay.debugCaptures],
+      captures,
+    );
+    expect(BackdropUnderlay.debugImagesDrawn, drawn);
+    expect(glass().every((g) => g.debugDrewOverUnderlay), isTrue);
   }, skip: skipProperGlassTests);
 
   testWidgets('glass whose shadow paints between it and the next glass '
