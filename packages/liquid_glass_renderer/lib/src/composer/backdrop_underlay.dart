@@ -1024,7 +1024,10 @@ final class _Scan {
 
     Rect reaching(Rect local) => filtered ? _everywhere : clipped(local);
 
+    // Transforms are never changed in place, so a layer that does not
+    // shift shares its parent's.
     Matrix4 shifted(Offset offset) {
+      if (offset == Offset.zero) return transform;
       final next = transform.clone();
       next.translateByDouble(offset.dx, offset.dy, 0, 1);
       return next;
