@@ -118,10 +118,8 @@ class BackdropUnderlay {
   @visibleForTesting
   static bool debugIslandsEnabled = true;
 
-  /// Whether a copy no filter reads and no island holds is drawn in the
-  /// frame itself (see [serveInFrame]) rather than into an image. An island
-  /// stays an image: its members share the content drawn into it once,
-  /// which each would draw again in the frame.
+  /// Whether a copy no filter reads is drawn in the frame itself (see
+  /// [serveInFrame]) rather than into an image.
   @visibleForTesting
   static bool debugInFrame = const bool.fromEnvironment(
     'LIQUID_GLASS_IN_FRAME',
@@ -133,7 +131,7 @@ class BackdropUnderlay {
   static final debugImageAsks = <String, int>{};
 
   /// Whether the last [request] is served by [serveInFrame], not [serve].
-  bool get servesInFrame => (_ask?.inFrame ?? false) && _plan == null;
+  bool get servesInFrame => _ask?.inFrame ?? false;
 
   /// The image that holds the copy, once it is drawn.
   @visibleForTesting
@@ -739,6 +737,7 @@ final class _Ask {
 
   // Whether the copy can be drawn with copies beside it.
   bool get joins =>
+      !inFrame &&
       body != null && filterClip == null && filterBlendMode == BlendMode.src;
 }
 

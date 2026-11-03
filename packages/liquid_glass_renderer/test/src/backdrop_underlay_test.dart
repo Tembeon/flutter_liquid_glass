@@ -792,29 +792,6 @@ void main() {
     expect(a.isCloneOf(b), isTrue);
   }, skip: skipProperGlassTests);
 
-  testWidgets('glass whose copies make an island keeps the image they share '
-      'where copies are drawn in the frame', (tester) async {
-    tester.view.physicalSize = const Size(260, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    BackdropUnderlay.debugEnabledOverride = true;
-    BackdropUnderlay.debugInFrame = true;
-    addTearDown(() {
-      BackdropUnderlay.debugEnabledOverride = null;
-      BackdropUnderlay.debugInFrame = false;
-    });
-    final islands = BackdropUnderlay.debugIslands[2] ?? 0;
-    await tester.pumpWidget(_pairScene(top: 160));
-    expect(BackdropUnderlay.debugIslands[2], islands + 1);
-    expect(tester.layers.whereType<InFrameGlassLayer>(), isEmpty);
-    final glass = tester.allRenderObjects
-        .whereType<RenderLiquidGlassLayer>()
-        .toSet()
-        .toList();
-    final [a, b] = [for (final g in glass) g.debugUnderlay.debugImage!];
-    expect(a.isCloneOf(b), isTrue);
-  }, skip: skipProperGlassTests);
-
   testWidgets('copies planned as an island hold while what lies under them '
       'is unchanged, when something painted between their glass keeps the '
       'second out of it', (tester) async {
