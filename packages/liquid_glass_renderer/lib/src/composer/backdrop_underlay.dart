@@ -104,7 +104,7 @@ class BackdropUnderlay {
   static int get debugImagesDrawn => _Atlas.drawn;
 
   /// How many filtered layers the copies were drawn in: one holds every copy
-  /// of one blur or copy filter in an image.
+  /// of one blur in an image.
   @visibleForTesting
   static int debugBlurLayers = 0;
 
@@ -138,16 +138,6 @@ class BackdropUnderlay {
   /// what its glass samples, so that reaches the glass only as the tail of
   /// the blur. Glass stretched along the axes differs from reading the
   /// backdrop by up to 15 levels in a few hundred pixels on the Pixel 6a.
-  /// [copyFilter] is [filter] as an image filter at the copy's own pixels,
-  /// for a filter that reads no further than the copy reaches past
-  /// [filterClip]: the copy is filtered whole without reading a backdrop,
-  /// together with the frame's other copies of an equal [filterKey], and
-  /// composited over itself with [filterBlendMode]. Past [filterClip] the
-  /// copy then holds the filtered backdrop too, so a caller shows only what
-  /// lies inside it. NEAR: past the copy's edge the filter reads what lies
-  /// beside it, as for [blur]; a scroll edge differs from reading the
-  /// backdrop by up to 2 levels in the host test. A copy filter's blur stays
-  /// within 14 sigma of the copy's pixels, which the atlas blurs as an image.
   /// [anchor] lies in a [RenderView]'s layer tree, and the copy is cut to its
   /// screen. The copy holds [downscale] device pixels in each
   /// of its pixels along each side: a copy blurred enough loses nothing
@@ -174,20 +164,12 @@ class BackdropUnderlay {
     OpacitySeedLayer? own,
     ui.ImageFilter? filter,
     (double, double)? blur,
-    ui.ImageFilter? copyFilter,
     Object? filterKey,
     Rect? filterClip,
     BlendMode filterBlendMode = BlendMode.src,
     int downscale = 1,
     Rect? body,
   }) {
-    assert(
-      copyFilter == null ||
-          filter != null &&
-              (filterBlendMode == BlendMode.src ||
-                  filterBlendMode == BlendMode.srcOver),
-      'A copy filter stands for a filter composited over the copy.',
-    );
     assert(
       blur == null ||
           filter == null &&
@@ -211,7 +193,6 @@ class BackdropUnderlay {
       band: _snapOut(region, pixels).intersect(screen),
       filter: filter,
       blur: blur,
-      copyFilter: copyFilter,
       filterKey: filterKey ?? blur ?? filter,
       filterClip: filterClip,
       filterBlendMode: filterBlendMode,
@@ -546,7 +527,6 @@ final class _Ask {
     required this.band,
     required this.filter,
     required this.blur,
-    required this.copyFilter,
     required this.filterKey,
     required this.filterClip,
     required this.filterBlendMode,
@@ -563,7 +543,6 @@ final class _Ask {
   final Rect band;
   final ui.ImageFilter? filter;
   final (double, double)? blur;
-  final ui.ImageFilter? copyFilter;
   final Object? filterKey;
   final Rect? filterClip;
   final BlendMode filterBlendMode;
@@ -681,7 +660,6 @@ final class _Island {
   _Island(_Ask ask, this.rect)
     : filter = ask.filter,
       blur = ask.blur,
-      copyFilter = ask.copyFilter,
       filterKey = ask.filterKey,
       filterClip = ask.filterClip,
       filterBlendMode = ask.filterBlendMode,
@@ -691,7 +669,6 @@ final class _Island {
   final Rect rect;
   final ui.ImageFilter? filter;
   final (double, double)? blur;
-  final ui.ImageFilter? copyFilter;
   final Object? filterKey;
   final Rect? filterClip;
   final BlendMode filterBlendMode;
@@ -1866,18 +1843,15 @@ class _Tile {
   double get devicePixelRatio => island.pixelRatio;
   ui.ImageFilter? get filter => island.filter;
   (double, double)? get blur => island.blur;
-  ui.ImageFilter? get copyFilter => island.copyFilter;
   bool get filtered => island.filter != null || island.blur != null;
 
   // Whether the copy is filtered in the atlas's layer of copies rather than
   // as a backdrop of its own.
-  bool get layered =>
-      copyFilter != null ||
-      switch (blur) {
-        (final x, final y) =>
-          max(x, y) * devicePixelRatio <= _Atlas._maxImageBlurSigma,
-        null => false,
-      };
+  bool get layered => switch (blur) {
+    (final x, final y) =>
+      max(x, y) * devicePixelRatio <= _Atlas._maxImageBlurSigma,
+    null => false,
+  };
   Object? get filterKey => island.filterKey;
   Rect? get filterClip => island.filterClip;
   BlendMode get filterBlendMode => island.filterBlendMode;
@@ -2033,7 +2007,6 @@ final class _Atlas {
       if (!tile.filtered) {
         place(canvas, tile);
       } else if (tile.layered) {
-        if (tile.filterBlendMode == BlendMode.srcOver) place(canvas, tile);
         layered
             .putIfAbsent((tile.filterKey, tile.devicePixelRatio), () => [])
             .add(tile);
@@ -2059,11 +2032,10 @@ final class _Atlas {
         // Impeller takes an image filter's sigmas in the pixels it draws
         // into, whatever the canvas scale: here the copies' own.
         b.pushImageFilter(
-          first.copyFilter ??
-              _blur(
-                first.blur!.$1 * first.devicePixelRatio,
-                first.blur!.$2 * first.devicePixelRatio,
-              ),
+          _blur(
+            first.blur!.$1 * first.devicePixelRatio,
+            first.blur!.$2 * first.devicePixelRatio,
+          ),
         );
         for (final tile in group) {
           b.addPicture(tile.offset, tile.content!);

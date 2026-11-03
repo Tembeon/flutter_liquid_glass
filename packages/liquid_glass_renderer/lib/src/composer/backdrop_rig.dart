@@ -48,9 +48,7 @@ typedef FilteredCopyAsk = ({Rect shifted, Offset origin});
 ///
 /// The copy holds [reach] around [clip]. With [filtersReach] the filter runs
 /// over all of it, as a live filter that reads a pass reaching past its clip
-/// does; without, inside [clip] only. [copyFilter] is [filter] as an image
-/// filter at the copy's pixels (see [BackdropUnderlay.request]); the copy
-/// then serves only inside [clip], which is all a filtered copy shows.
+/// does; without, inside [clip] only.
 @internal
 FilteredCopyAsk? requestFilteredCopy(
   BackdropUnderlay underlay,
@@ -61,7 +59,6 @@ FilteredCopyAsk? requestFilteredCopy(
   required double reach,
   required double devicePixelRatio,
   required bool filtersReach,
-  ui.ImageFilter? copyFilter,
 }) {
   final origin = screenOffsetOf(anchor, devicePixelRatio);
   if (origin == null) return null;
@@ -72,8 +69,6 @@ FilteredCopyAsk? requestFilteredCopy(
     devicePixelRatio: devicePixelRatio,
     region: region,
     filter: filter,
-    copyFilter: copyFilter,
-    filterKey: copyFilter == null ? null : (filter, copyFilter),
     filterClip: filtersReach ? region : shifted,
     filterBlendMode: blendMode,
   );

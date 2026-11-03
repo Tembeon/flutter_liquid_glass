@@ -27,19 +27,13 @@ final _filter = ui.ImageFilter.compose(
 );
 
 class _Band extends LeafRenderObjectWidget {
-  const _Band({this.copied = false});
-
-  final bool copied;
+  const _Band();
 
   @override
-  RenderObject createRenderObject(BuildContext context) =>
-      _RenderBand(copied: copied);
+  RenderObject createRenderObject(BuildContext context) => _RenderBand();
 }
 
 class _RenderBand extends RenderBox {
-  _RenderBand({required this.copied});
-
-  final bool copied;
   final layerHandle = LayerHandle<LiquidGlassBackdropFilterLayer>();
 
   @override
@@ -62,7 +56,6 @@ class _RenderBand extends RenderBox {
       clip: offset & size,
       reach: 12,
       devicePixelRatio: 1,
-      copyFilter: copied ? _filter : null,
     );
     layer.clip = offset & size;
     context.pushLayer(layer, (context, offset) {
@@ -84,7 +77,6 @@ Widget _scene({
   bool texture = false,
   bool band = true,
   bool glass = false,
-  bool copied = false,
   double glassTop = 80,
 }) => Directionality(
   textDirection: TextDirection.ltr,
@@ -123,12 +115,12 @@ Widget _scene({
             child: Texture(textureId: 1),
           ),
         if (band)
-          Positioned(
+          const Positioned(
             left: 0,
             right: 0,
             top: 0,
             height: 60,
-            child: _Band(copied: copied),
+            child: _Band(),
           ),
         if (glass)
           Positioned.fromRect(
@@ -176,8 +168,7 @@ void main() {
   });
 
   testWidgets('the band over a copy drawn in the very frame what lies under '
-      'it changed draws what reading the backdrop draws, with or without '
-      'a copy filter', (tester) async {
+      'it changed draws what reading the backdrop draws', (tester) async {
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -198,15 +189,6 @@ void main() {
     expect(_band(tester).debugUnderlay.debugCaptures, 2);
     expect(tester.layers.whereType<BackdropFilterLayer>(), isEmpty);
     expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(1));
-
-    // With a copy filter the copy is filtered in a layer of copies.
-    await tester.pumpWidget(const SizedBox());
-    await tester.pumpWidget(_scene(shift: 0.3, copied: true));
-    final layers = BackdropUnderlay.debugBlurLayers;
-    await tester.pumpWidget(_scene(copied: true));
-    expect(_band(tester).serves, isTrue);
-    expect(BackdropUnderlay.debugBlurLayers, layers + 1);
-    expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(2));
 
     await tester.pumpWidget(_scene(band: false));
     expect(_difference(reading, await _pixels(tester)), greaterThan(40));

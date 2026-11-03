@@ -244,7 +244,7 @@ class _RenderEdge extends RenderBox {
       return;
     }
     _painted = presence;
-    if (_blurs) _setFilters(blur!, presence);
+    if (_blurs) blur!.filter = _filter(presence);
     fade.alpha = Color.getAlphaFromOpacity(presence);
     markNeedsCompositedLayerUpdate();
   }
@@ -296,49 +296,26 @@ class _RenderEdge extends RenderBox {
   // Held while its inputs hold: the layer takes a new filter object as a
   // change and is added to the scene again, and dart:ui converts each new
   // filter to a native one again.
-  ({
-    double sigma,
-    bool hard,
-    double presence,
-    double devicePixelRatio,
-    ui.ImageFilter filter,
-    ui.ImageFilter copyFilter,
-  })?
+  ({double sigma, bool hard, double presence, ui.ImageFilter filter})?
   _heldFilter;
 
-  // The edge's filter, and the same filter at the copy's device pixels: a
-  // copy is filtered as an image, which takes its sigma in the pixels it
-  // draws.
-  ({ui.ImageFilter filter, ui.ImageFilter copyFilter}) _filters(
-    double presence,
-  ) {
+  ui.ImageFilter _filter(double presence) {
     final sigma = _sigma;
     final hard = _details.hard;
-    final dpr = _devicePixelRatio;
     if (_heldFilter case final held?
         when held.sigma == sigma &&
             held.hard == hard &&
-            held.presence == presence &&
-            held.devicePixelRatio == dpr) {
-      return (filter: held.filter, copyFilter: held.copyFilter);
+            held.presence == presence) {
+      return held.filter;
     }
     final filter = _newFilter(sigma, presence);
-    final copyFilter = _newFilter(sigma * dpr, presence);
     _heldFilter = (
       sigma: sigma,
       hard: hard,
       presence: presence,
-      devicePixelRatio: dpr,
       filter: filter,
-      copyFilter: copyFilter,
     );
-    return (filter: filter, copyFilter: copyFilter);
-  }
-
-  void _setFilters(LiquidGlassBackdropFilterLayer layer, double presence) {
-    final (:filter, :copyFilter) = _filters(presence);
-    layer.filter = filter;
-    layer.copyFilter = copyFilter;
+    return filter;
   }
 
   // The hard band folds its presence into the saturation matrix after its
@@ -387,12 +364,12 @@ class _RenderEdge extends RenderBox {
       return;
     }
     final blur = _blur.layer ??= LiquidGlassBackdropFilterLayer(
-      filter: _filters(presence).filter,
+      filter: _filter(presence),
       clip: box,
       reach: _blurReach(_sigma, _devicePixelRatio),
       devicePixelRatio: _devicePixelRatio,
     );
-    _setFilters(blur, presence);
+    blur.filter = _filter(presence);
     blur.clip = box;
     blur.reach = _blurReach(_sigma, _devicePixelRatio);
     blur.devicePixelRatio = _devicePixelRatio;
