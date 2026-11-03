@@ -111,12 +111,14 @@ int _difference(Uint8List a, Uint8List b, {int? width, int? columns}) {
 }
 
 void main() {
+  final inFrameDefault = BackdropUnderlay.debugInFrame;
   setUp(() {
     MotionClock.debugReset();
     BackdropUnderlay.debugEnabledOverride = true;
   });
   tearDown(() {
     BackdropUnderlay.debugEnabledOverride = null;
+    BackdropUnderlay.debugInFrame = inFrameDefault;
     LiquidGlassBackdropFrost.debugShaderFrost = true;
   });
 
@@ -131,6 +133,7 @@ void main() {
       tester.view.physicalSize = Size(300 * dpr, 400 * dpr);
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
+      BackdropUnderlay.debugInFrame = false;
 
       LiquidGlassBackdropFrost.debugShaderFrost = false;
       final filtered = await _scrolled(tester, dpr, hard: hard);
@@ -156,8 +159,8 @@ void main() {
       tester.view.physicalSize = Size(300 * dpr, 400 * dpr);
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
-      addTearDown(() => BackdropUnderlay.debugInFrame = false);
 
+      BackdropUnderlay.debugInFrame = false;
       final image = await _scrolled(tester, dpr, hard: true);
       expect(_band(tester).inFrameLayer, isNull);
 

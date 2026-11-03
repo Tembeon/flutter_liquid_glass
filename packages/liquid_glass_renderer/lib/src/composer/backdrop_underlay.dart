@@ -119,11 +119,13 @@ class BackdropUnderlay {
   static bool debugIslandsEnabled = true;
 
   /// Whether a copy asked for without a filter or blur is drawn in the frame
-  /// itself (see
-  /// [serveInFrame]) rather than into an image.
+  /// itself (see [serveInFrame]) rather than into an image. Building with
+  /// `--dart-define=LIQUID_GLASS_IN_FRAME=false` draws every copy into an
+  /// image.
   @visibleForTesting
   static bool debugInFrame = const bool.fromEnvironment(
     'LIQUID_GLASS_IN_FRAME',
+    defaultValue: true,
   );
 
   /// How many islands were recorded into images, by the type of the layer

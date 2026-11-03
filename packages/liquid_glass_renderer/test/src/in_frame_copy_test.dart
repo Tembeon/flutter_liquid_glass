@@ -146,12 +146,13 @@ Future<Uint8List> _drawn(
 }
 
 void main() {
+  final inFrame = BackdropUnderlay.debugInFrame;
   setUp(() {
     BackdropUnderlay.debugEnabledOverride = true;
   });
   tearDown(() {
     BackdropUnderlay.debugEnabledOverride = null;
-    BackdropUnderlay.debugInFrame = false;
+    BackdropUnderlay.debugInFrame = inFrame;
   });
 
   for (final pixelRatio in [1.0, 2.0]) {

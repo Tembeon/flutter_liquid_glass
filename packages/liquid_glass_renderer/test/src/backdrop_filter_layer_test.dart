@@ -245,6 +245,7 @@ void main() {
       'drawing the band in, and both hold once nothing moves', (
     tester,
   ) async {
+    copyIntoImages();
     BackdropUnderlay.debugEnabledOverride = true;
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;

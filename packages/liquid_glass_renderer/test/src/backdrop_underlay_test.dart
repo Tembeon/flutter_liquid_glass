@@ -444,6 +444,7 @@ void main() {
   }, skip: skipProperGlassTests);
 
   testWidgets('motion away from the glass keeps the copy', (tester) async {
+    copyIntoImages();
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -529,6 +530,7 @@ void main() {
   }, skip: skipProperGlassTests);
 
   testWidgets('copies redrawn in one frame share one image', (tester) async {
+    copyIntoImages();
     tester.view.physicalSize = const Size(260, 360);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -552,6 +554,7 @@ void main() {
         'image, the copy over glass drawing that glass in (top $top)', (
       tester,
     ) async {
+      copyIntoImages();
       tester.view.physicalSize = const Size(260, 360);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
@@ -571,6 +574,7 @@ void main() {
 
   testWidgets('a copy over glass whose copy is drawn in the same image '
       'holds what reading the backdrop draws there', (tester) async {
+    copyIntoImages();
     tester.view.physicalSize = const Size(260, 360);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -616,6 +620,7 @@ void main() {
 
   testWidgets('copies of glass side by side are drawn as one island, as '
       'each draws its own', (tester) async {
+    copyIntoImages();
     tester.view.physicalSize = const Size(260, 360);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -760,6 +765,7 @@ void main() {
 
   testWidgets('an island holds while what lies under it is unchanged and '
       'is recorded again, once, when it changes', (tester) async {
+    copyIntoImages();
     tester.view.physicalSize = const Size(260, 360);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -795,6 +801,7 @@ void main() {
   testWidgets('copies planned as an island hold while what lies under them '
       'is unchanged, when something painted between their glass keeps the '
       'second out of it', (tester) async {
+    copyIntoImages();
     tester.view.physicalSize = const Size(260, 360);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -825,6 +832,7 @@ void main() {
 
   testWidgets('glass whose shadow paints between it and the next glass '
       'still joins it in an island', (tester) async {
+    copyIntoImages();
     tester.view.physicalSize = const Size(260, 360);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -838,6 +846,7 @@ void main() {
   testWidgets('the composer draws the copies of a frame before its scene', (
     tester,
   ) async {
+    copyIntoImages();
     tester.view.physicalSize = const Size(260, 360);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);

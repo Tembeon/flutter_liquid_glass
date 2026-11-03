@@ -38,6 +38,7 @@ void main() {
   ]) {
     testWidgets('glass frosted by $frost over an unblurred copy draws near '
         'what reading the backdrop draws', (tester) async {
+      copyIntoImages();
       final difference = await underlayParity(tester, frost: frost);
       final copy = underlayGlass(tester).debugUnderlay.debugImage!;
       expect((copy.width, copy.height), size);

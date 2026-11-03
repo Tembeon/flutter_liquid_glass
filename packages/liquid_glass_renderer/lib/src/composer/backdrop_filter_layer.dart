@@ -27,10 +27,12 @@ const ui.ImageFilter _seed = ui.ColorFilter.matrix(<double>[
 /// A backdrop filter anywhere in a frame makes Impeller render the whole
 /// frame offscreen, split the root pass at every read and blit the result to
 /// the screen. This layer draws what lies under [clip] again from the layer
-/// tree into a small image while the frame composites: filtered as the
-/// backdrop would be, or, for a [frost], unblurred at a fraction of the
-/// screen's pixels and frosted by a shader as it is drawn. The image serves
-/// later frames while those layers are unchanged. Under a texture, a
+/// tree while the frame composites. For a [frost] the shader can draw, the
+/// copy is drawn unblurred in the frame itself and frosted as it is drawn.
+/// Any other copy is drawn into a small image, filtered as the backdrop
+/// would be, which serves later frames while those layers are unchanged;
+/// a frosted copy falls back to an unblurred image at a fraction of the
+/// screen's pixels where the frame cannot draw it. Under a texture, a
 /// platform view, a live backdrop filter or a layer type the copy cannot
 /// draw (see `LiquidGlassUnderlay`) it reads the backdrop like a
 /// [BackdropFilterLayer], confined to [reach] around [clip].

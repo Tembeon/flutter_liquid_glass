@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 
 const expectFlutterGpuFallback = bool.fromEnvironment(
   'EXPECT_FLUTTER_GPU_FALLBACK',
@@ -92,3 +93,11 @@ List<SeededBackdropPassLayer> seededPasses(WidgetTester tester) => tester
     .whereType<SeededBackdropPassLayer>()
     .where((pass) => pass.nativeSeed != BackdropSeed.none)
     .toList();
+
+/// Draws every copy of the current test into an image, as copies asked for
+/// with a filter always are, for tests of how images are shared and held.
+void copyIntoImages() {
+  final inFrame = BackdropUnderlay.debugInFrame;
+  BackdropUnderlay.debugInFrame = false;
+  addTearDown(() => BackdropUnderlay.debugInFrame = inFrame);
+}
