@@ -45,6 +45,10 @@ const _only = String.fromEnvironment('BENCH_STEPS');
 const _live = bool.fromEnvironment('BENCH_LIVE');
 
 const _ab = String.fromEnvironment('BENCH_AB');
+
+// Switches turned off for the whole run, comma separated: a run of the
+// paths they replace, such as a frame capture of either.
+const _off = String.fromEnvironment('BENCH_OFF');
 const _abWindow = Duration(
   seconds: int.fromEnvironment('BENCH_AB_WINDOW_S', defaultValue: 5),
 );
@@ -73,6 +77,9 @@ final _switches = <String, void Function({required bool on})>{
 
     RendererBinding.instance.renderViews.forEach(update);
   },
+  // B frosts scroll edges' copies in a shader; A filters them in the atlas.
+  'edge_frost': ({required on}) =>
+      LiquidGlassBackdropFilterLayer.debugShaderFrost = on,
 };
 
 // The crowd: glass buttons in a grid over every page, BENCH_CROWD_A of them
@@ -135,6 +142,9 @@ double _seconds() => _clock.elapsedMicroseconds / 1e6;
 void main() {
   _clock.start();
   WidgetsFlutterBinding.ensureInitialized();
+  for (final name in _off.split(',')) {
+    if (name.isNotEmpty) _switches[name]!(on: false);
+  }
   unawaited(LiquidGlass.precache());
   runApp(
     GalleryApp(
