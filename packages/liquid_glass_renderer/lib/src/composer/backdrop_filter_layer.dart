@@ -131,12 +131,38 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   CopyAsk? _asked;
   ui.FragmentShader? _frostShader;
   _Serving? _serving;
+  _InFrame? _inFrame;
   ui.Picture? _served;
   Object? _servedKey;
 
   /// Whether this frame draws a copy in place of the backdrop read.
   @internal
-  bool get serves => _serving != null;
+  bool get serves => _serving != null || _inFrame != null;
+
+  /// The rect of the layer the frost filters, in the screen's logical
+  /// pixels, when this frame frosts a copy drawn in the frame.
+  @internal
+  Rect? get inFrameLayer => _inFrame?.copy.layer;
+
+  /// The frost of a copy drawn in the frame, in this layer's coordinates,
+  /// over the part of its layer inside [region] of the screen, or null when
+  /// none of it is; a copy for other glass whose pass does not hold
+  /// [inFrameLayer] draws it so (see [InFrameGlassLayer]).
+  @internal
+  ui.Picture? servedWithin(Rect region) {
+    final inFrame = _inFrame;
+    if (inFrame == null) return null;
+    return recordFrostedInFrame(
+      inFrame.copy,
+      inFrame.shown,
+      region,
+      inFrame.origin,
+      frost: inFrame.frosting.frost,
+      taps: inFrame.frosting.taps,
+      shader: _frostShader ??= newFrostShader(),
+      devicePixelRatio: _devicePixelRatio,
+    );
+  }
 
   /// The copy this frame draws in place of the backdrop read, in
   /// this layer's coordinates, or null while the layer reads the backdrop.
@@ -144,9 +170,9 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   /// of the frame.
   @internal
   ui.Picture? get servedPicture {
+    if (_served case final served?) return served;
     final serving = _serving;
     if (serving == null) return null;
-    if (_served case final served?) return served;
     final (:copy, :shown, :origin, :frosting) = serving;
     final served = switch (frosting) {
       (:final frost, :final taps) => recordFrostedCopy(
@@ -225,6 +251,13 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   void compose() {
     final asked = _asked;
     _asked = null;
+    _inFrame?.copy.content.dispose();
+    _inFrame = null;
+    if (asked?.frosting case final frosting?
+        when _blendMode == BlendMode.srcOver && _underlay.servesInFrame) {
+      _composeInFrame(asked!, frosting);
+      return;
+    }
     final served = asked == null ? null : serveCopy(_underlay, asked);
     final serving = served == null
         ? null
@@ -245,6 +278,31 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     _serving = serving;
     _servedKey = key;
     if (serving == null) _underlay.release();
+  }
+
+  // A frost drawn from a copy the frame draws again: a picture each frame.
+  void _composeInFrame(CopyAsk asked, CopyFrosting frosting) {
+    markNeedsAddToScene();
+    _served?.dispose();
+    _served = null;
+    _servedKey = null;
+    _serving = null;
+    final copy = _underlay.serveInFrame();
+    if (copy == null) {
+      _underlay.release();
+      return;
+    }
+    _inFrame = (
+      copy: copy,
+      shown: asked.shifted,
+      origin: asked.origin,
+      frosting: frosting,
+    );
+    _served = servedWithin(copy.layer);
+    if (_served == null) {
+      copy.content.dispose();
+      _inFrame = null;
+    }
   }
 
   @override
@@ -277,6 +335,8 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     _served?.dispose();
     _served = null;
     _serving = null;
+    _inFrame?.copy.content.dispose();
+    _inFrame = null;
     _underlay.release();
     super.dispose();
   }
@@ -289,4 +349,13 @@ typedef _Serving = ({
   Rect shown,
   Offset origin,
   CopyFrosting? frosting,
+});
+
+// A copy drawn in the frame that the frost is drawn from, the part of the
+// screen the clip shows and the shift to the screen.
+typedef _InFrame = ({
+  InFrameCopy copy,
+  Rect shown,
+  Offset origin,
+  CopyFrosting frosting,
 });

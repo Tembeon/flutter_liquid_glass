@@ -333,14 +333,14 @@ class BackdropUnderlay {
 
   // The layer that holds [band] inside [clip] (both in the screen's logical
   // pixels), on the grid of [pixels]. Impeller cuts a layer its clip cuts
-  // by 30 % or more of what is left (see [_keepsWhole]), and fragment
+  // by 30 % or more of what is left (see [keepsWhole]), and fragment
   // coordinates start at the cut; the glass reads what lies past the clip.
   // The layer grows into the clip, empty, until the part cut off is less
   // than that; where the clip leaves no room, it is cut to the clip. NEAR:
   // there, glass reads the copy mirrored at the clip, up to 163 levels off
   // over the 30 px of glass the host test leaves above such a clip.
   static Rect _layerIn(Rect band, Rect clip, double pixels) {
-    if (_keepsWhole(band, clip)) return band;
+    if (keepsWhole(band, clip)) return band;
     // Along one axis: the span from [lo] to [hi] grown inside [from, to].
     (double, double)? grow(double lo, double hi, double from, double to) {
       final cut = max(from - lo, 0) + max(hi - to, 0);
@@ -364,16 +364,18 @@ class BackdropUnderlay {
       return _snapOut(band.intersect(clip), pixels);
     }
     final grown = _snapOut(Rect.fromLTRB(x.$1, y.$1, x.$2, y.$2), pixels);
-    return _keepsWhole(grown, clip)
+    return keepsWhole(grown, clip)
         ? grown
         : _snapOut(band.intersect(clip), pixels);
   }
 
-  // Whether Impeller draws a layer of [layer] whole inside a clip of [clip]
-  // (both in the same space): it cuts the layer to the clip, and starts
-  // fragment coordinates at the cut, only once that takes 30 % or more off
-  // a side (ComputeSaveLayerCoverage, impeller/entity/save_layer_utils.cc).
-  static bool _keepsWhole(Rect layer, Rect clip) {
+  /// Whether Impeller draws a layer of [layer] whole inside a clip of
+  /// [clip] (both in the same space): it cuts the layer to the clip, and
+  /// starts fragment coordinates at the cut, only once that takes 30 % or
+  /// more off a side (ComputeSaveLayerCoverage,
+  /// impeller/entity/save_layer_utils.cc).
+  @internal
+  static bool keepsWhole(Rect layer, Rect clip) {
     final cut = layer.intersect(clip);
     if (cut.isEmpty) return false;
     return (layer.width - cut.width) / cut.width < 0.3 &&
@@ -1712,7 +1714,7 @@ final class _Scan {
             if (entry.glass) prefix.holdsGlass = true;
             final region = clip == null ? band : band.intersect(clip);
             if (inFrame == null ||
-                BackdropUnderlay._keepsWhole(inFrame.layer, region)) {
+                BackdropUnderlay.keepsWhole(inFrame.layer, region)) {
               sign(picture, transform, clip, state);
             } else if (drawing) {
               if (inFrame.within(region) case final cut?) {
@@ -1807,6 +1809,21 @@ final class _Scan {
               }
               if (layer.pending) {
                 if (!fold(layer, layer.addFold, transform, clip)) break loop;
+              } else if (layer.inFrameLayer case final inFrame?) {
+                // A frost drawn in the frame is a layer of the screen's
+                // pixels, cut where the copy's pass does not hold it.
+                prefix.holdsGlass = true;
+                final region = clip == null ? band : band.intersect(clip);
+                if (BackdropUnderlay.keepsWhole(inFrame, region)) {
+                  sign(layer.servedPicture!, transform, clip, entry.state);
+                } else if (drawing) {
+                  if (layer.servedWithin(region) case final cut?) {
+                    sign(cut, transform, clip, entry.state);
+                    cut.dispose();
+                  }
+                } else {
+                  out.add(Object());
+                }
               } else {
                 sign(layer.servedPicture!, transform, clip, entry.state);
               }

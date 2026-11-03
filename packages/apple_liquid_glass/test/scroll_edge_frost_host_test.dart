@@ -100,9 +100,10 @@ Future<Uint8List> _scrolled(
   return bytes.buffer.asUint8List();
 }
 
-int _difference(Uint8List a, Uint8List b) {
+int _difference(Uint8List a, Uint8List b, {int? width, int? columns}) {
   var largest = 0;
   for (var i = 0; i < a.length; i++) {
+    if (width != null && (i ~/ 4) % width >= columns!) continue;
     final d = (a[i] - b[i]).abs();
     if (d > largest) largest = d;
   }
@@ -141,6 +142,39 @@ void main() {
       expect(_band(tester).debugUnderlay.debugImage!.width, (full / 2).round());
       // NEAR, see LiquidGlassBackdropFrost.debugShaderFrost.
       expect(_difference(filtered, frosted), lessThanOrEqualTo(near));
+    }, skip: !ui.ImageFilter.isShaderFilterSupported);
+  }
+
+  // The view ends inside its last column of pixels at 2.625, which only the
+  // frost drawn in the frame covers in part: a screen ends on a pixel. On
+  // the row the band's edge splits, the frost drawn in the frame covers
+  // each pixel by its share inside the band (NEAR, see
+  // recordFrostedInFrame).
+  for (final (dpr, near) in [(2.625, 29), (3.0, 1)]) {
+    testWidgets('the band at $dpr frosts a copy drawn in the frame as it '
+        'frosts its image', (tester) async {
+      tester.view.physicalSize = Size(300 * dpr, 400 * dpr);
+      tester.view.devicePixelRatio = dpr;
+      addTearDown(tester.view.reset);
+      addTearDown(() => BackdropUnderlay.debugInFrame = false);
+
+      final image = await _scrolled(tester, dpr, hard: true);
+      expect(_band(tester).inFrameLayer, isNull);
+
+      BackdropUnderlay.debugInFrame = true;
+      final drawn = BackdropUnderlay.debugImagesDrawn;
+      final inFrame = await _scrolled(tester, dpr, hard: true);
+      expect(_band(tester).inFrameLayer, isNotNull);
+      expect(BackdropUnderlay.debugImagesDrawn, drawn);
+      expect(
+        _difference(
+          image,
+          inFrame,
+          width: (300 * dpr).ceil(),
+          columns: (300 * dpr).floor(),
+        ),
+        lessThanOrEqualTo(near),
+      );
     }, skip: !ui.ImageFilter.isShaderFilterSupported);
   }
 }

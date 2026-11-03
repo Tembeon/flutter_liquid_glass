@@ -2,6 +2,7 @@
 // ignore_for_file: cascade_invocations
 
 import 'dart:async';
+import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -11,6 +12,7 @@ import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/internal/multi_shader_builder.dart';
+import 'package:liquid_glass_renderer/src/internal/shader_filter.dart';
 import 'package:liquid_glass_renderer/src/internal/shader_frost.dart';
 import 'package:liquid_glass_renderer/src/shaders.dart';
 
@@ -228,13 +230,18 @@ ui.Picture recordFrostedCopy(
   final m = frost.colorMatrix ?? _identityMatrix;
   var i = 0;
   void put(double value) => shader.setFloat(i++, value);
-  put(1 / image.width);
-  put(1 / image.height);
+  put(image.width.toDouble());
+  put(image.height.toDouble());
   put(offset.dx + 0.5);
   put(offset.dy + 0.5);
   put(offset.dx + copy.rect.width * pixels - 0.5);
   put(offset.dy + copy.rect.height * pixels - 0.5);
   put(taps.frost / taps.downscale);
+  put(1);
+  // The rect drawn bounds the frost.
+  for (final bound in const [-1e9, -1e9, 1e9, 1e9]) {
+    put(bound);
+  }
   for (var column = 0; column < 4; column++) {
     for (var row = 0; row < 4; row++) {
       put(m[row * 5 + column]);
@@ -257,6 +264,108 @@ ui.Picture recordFrostedCopy(
   canvas.drawRect(source, paint);
   return recorder.endRecording();
 }
+
+/// [frost] drawn by [shader] as [taps] say from [copy], drawn in the frame
+/// (see [BackdropUnderlay.serveInFrame]), into coordinates that [origin]
+/// shifts to the screen's: the part of [shown] inside [region], both in
+/// screen coordinates, or null where none of it is.
+///
+/// The shader filters a layer of the screen's pixels over the part of the
+/// copy's layer inside [region], whose top-left corner holds the copy at its
+/// own pixels, and covers each pixel as much as it lies inside [shown]: a
+/// clip would also cut the copy the layer holds. NEAR: on a row of pixels
+/// the edge of [shown] splits, up to 29 channel levels off the frost of an
+/// image, which a clip covers otherwise (2.625 dpr, the scroll edge host
+/// test). Composited with [BlendMode.srcOver] only: past [shown] the layer
+/// is transparent.
+@internal
+ui.Picture? recordFrostedInFrame(
+  InFrameCopy copy,
+  Rect shown,
+  Rect region,
+  Offset origin, {
+  required LiquidGlassBackdropFrost frost,
+  required ShaderFrost taps,
+  required ui.FragmentShader shader,
+  required double devicePixelRatio,
+}) {
+  final cut = region.intersect(copy.layer);
+  final drawn = shown.intersect(cut);
+  if (drawn.isEmpty) return null;
+  final dpr = devicePixelRatio;
+  final pixels = copy.pixelRatio;
+  final stretch = (dpr / pixels).roundToDouble();
+  final layer = Rect.fromLTRB(
+    (cut.left * pixels).floorToDouble() * stretch,
+    (cut.top * pixels).floorToDouble() * stretch,
+    (cut.right * pixels).ceilToDouble() * stretch,
+    (cut.bottom * pixels).ceilToDouble() * stretch,
+  );
+  // Where the copy's top left lies in the layer, in the copy's pixels.
+  final at = Offset(
+    (copy.band.left * dpr - layer.left) / stretch,
+    (copy.band.top * dpr - layer.top) / stretch,
+  );
+  final m = frost.colorMatrix ?? _identityMatrix;
+  var i = 0;
+  void put(double value) => shader.setFloat(i++, value);
+  put(layer.width);
+  put(layer.height);
+  put(max(at.dx, 0) + 0.5);
+  put(max(at.dy, 0) + 0.5);
+  put(min(at.dx + copy.band.width * pixels, layer.width / stretch) - 0.5);
+  put(min(at.dy + copy.band.height * pixels, layer.height / stretch) - 0.5);
+  put(taps.frost / taps.downscale);
+  put(1 / stretch);
+  final device = Rect.fromLTRB(
+    drawn.left * dpr,
+    drawn.top * dpr,
+    drawn.right * dpr,
+    drawn.bottom * dpr,
+  );
+  final mask = device.shift(-layer.topLeft);
+  put(mask.left);
+  put(mask.top);
+  put(mask.right);
+  put(mask.bottom);
+  for (var column = 0; column < 4; column++) {
+    for (var row = 0; row < 4; row++) {
+      put(m[row * 5 + column]);
+    }
+  }
+  for (var row = 0; row < 4; row++) {
+    put(m[row * 5 + 4] / 255);
+  }
+  shader.setImageSampler(0, _bilinear, filterQuality: FilterQuality.low);
+  final paint = Paint();
+  paint.imageFilter = bilinearShaderFilter(shader);
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  canvas.translate(-origin.dx, -origin.dy);
+  canvas.scale(1 / dpr);
+  canvas.saveLayer(layer, paint);
+  // Impeller sizes a layer by what is drawn in it: a pixel cleared at each
+  // corner holds it to [layer] where the copy is transparent.
+  final clear = Paint();
+  clear.blendMode = BlendMode.clear;
+  canvas.drawRect(Rect.fromLTWH(layer.left, layer.top, 1, 1), clear);
+  canvas.drawRect(
+    Rect.fromLTRB(layer.right - 1, layer.bottom - 1, layer.right, layer.bottom),
+    clear,
+  );
+  canvas.translate(layer.left + at.dx, layer.top + at.dy);
+  canvas.drawPicture(copy.content);
+  canvas.restore();
+  return recorder.endRecording();
+}
+
+// Up to Flutter 3.47 a shader filter samples its input as the image bound
+// to the shader's first sampler says (see bilinearShaderFilter).
+final ui.Image _bilinear = () {
+  final recorder = ui.PictureRecorder();
+  Canvas(recorder);
+  return recorder.endRecording().toImageSync(1, 1);
+}();
 
 const _identityMatrix = <double>[
   1, 0, 0, 0, 0, //
