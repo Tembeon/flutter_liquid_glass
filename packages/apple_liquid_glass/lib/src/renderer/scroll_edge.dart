@@ -293,10 +293,33 @@ class _RenderEdge extends RenderBox {
     _devicePixelRatio,
   );
 
-  // The hard band folds its presence into the saturation matrix after its
-  // blur: one color pass instead of two.
+  // Held while its inputs hold: the copy under the edge is keyed by the
+  // filter, and dart:ui converts each new filter to a native one again.
+  ({double sigma, bool hard, double presence, ui.ImageFilter filter})?
+  _heldFilter;
+
   ui.ImageFilter _filter(double presence) {
     final sigma = _sigma;
+    final hard = _details.hard;
+    if (_heldFilter case final held?
+        when held.sigma == sigma &&
+            held.hard == hard &&
+            held.presence == presence) {
+      return held.filter;
+    }
+    final filter = _newFilter(sigma, presence);
+    _heldFilter = (
+      sigma: sigma,
+      hard: hard,
+      presence: presence,
+      filter: filter,
+    );
+    return filter;
+  }
+
+  // The hard band folds its presence into the saturation matrix after its
+  // blur: one color pass instead of two.
+  ui.ImageFilter _newFilter(double sigma, double presence) {
     final blur = ui.ImageFilter.blur(sigmaX: sigma, sigmaY: sigma);
     if (_details.hard) {
       return ui.ImageFilter.compose(
