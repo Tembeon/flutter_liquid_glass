@@ -220,7 +220,7 @@ class BackdropUnderlay {
     _plan = null;
     if (ask == null) return null;
     if (ask.band.isEmpty) {
-      debugMisses['off screen'] = (debugMisses['off screen'] ?? 0) + 1;
+      _count(debugMisses, 'off screen');
       return null;
     }
     final scan = _Scan.of(
@@ -311,11 +311,11 @@ class BackdropUnderlay {
       signed = _Prefix.signed(ask.anchor, rect, scan, limit, bodies);
     }
     if (signed.blocked || !signed.reached) {
-      if (alone) {
+      if (alone && !kReleaseMode) {
         final why = signed.blocked
             ? '${signed.blocker.runtimeType}'
             : 'not reached';
-        debugMisses[why] = (debugMisses[why] ?? 0) + 1;
+        _count(debugMisses, why);
         first.debugMiss = 'blocked by $why';
       }
       return null;
@@ -1527,9 +1527,12 @@ final class _Scan {
               if (!through) break loop;
               continue loop;
             case _Served(:final layer, :final transform, :final clip):
-              final why = _meets(entry.output, band) ? 'output' : 'margin';
-              BackdropUnderlay.debugEdgeSigns[why] =
-                  (BackdropUnderlay.debugEdgeSigns[why] ?? 0) + 1;
+              if (!kReleaseMode) {
+                _count(
+                  BackdropUnderlay.debugEdgeSigns,
+                  _meets(entry.output, band) ? 'output' : 'margin',
+                );
+              }
               if (layer.pendingLevel case final level? when c == null) {
                 // An edge whose copy is not drawn yet: a copy that holds it
                 // is drawn after it, and a signature that holds it matches
@@ -1863,6 +1866,22 @@ final class _Atlas {
 
   static int drawn = 0;
 
+  // The copies' blurs, held across frames: dart:ui converts each new filter
+  // to a native one again. Glass asks for few distinct blurs, so the held
+  // ones are dropped all at once when that grows past a handful.
+  static final _blurs = <(double, double), ui.ImageFilter>{};
+
+  static ui.ImageFilter _blur(double sigmaX, double sigmaY) {
+    final key = (sigmaX, sigmaY);
+    if (_blurs[key] case final held?) return held;
+    if (_blurs.length >= 16) _blurs.clear();
+    return _blurs[key] = ui.ImageFilter.blur(
+      sigmaX: sigmaX,
+      sigmaY: sigmaY,
+      tileMode: glassBlurTileMode,
+    );
+  }
+
   final _pending = <_Tile>[];
   bool _flushing = false;
 
@@ -1879,10 +1898,7 @@ final class _Atlas {
   // diagnostics.
   void flush(String why) {
     if (_flushing) return;
-    if (_pending.isNotEmpty) {
-      BackdropUnderlay.debugFlushes[why] =
-          (BackdropUnderlay.debugFlushes[why] ?? 0) + 1;
-    }
+    if (_pending.isNotEmpty) _count(BackdropUnderlay.debugFlushes, why);
     _flushing = true;
     try {
       while (_pending.isNotEmpty) {
@@ -1911,14 +1927,21 @@ final class _Atlas {
               )
               .add(tile);
         }
-        _pack([for (final run in runs.values) ...run]);
+        _pack(runs.values.toList());
       }
     } finally {
       _flushing = false;
     }
   }
 
-  static void _pack(List<_Tile> batch) {
+  // Every run starts a row of its own, so that the rect around a run's
+  // copies holds no other copy.
+  static void _pack(List<List<_Tile>> runs) {
+    final batch = [for (final run in runs) ...run];
+    final starts = Set<_Tile>.identity();
+    for (final run in runs) {
+      starts.add(run.first);
+    }
     var start = 0;
     while (start < batch.length) {
       final tiles = <_Tile>[];
@@ -1928,7 +1951,7 @@ final class _Atlas {
       var width = 0;
       for (final tile in batch.skip(start)) {
         final limit = tile.width > _rowWidth ? tile.width : _rowWidth;
-        if (x > 0 && x + tile.width > limit) {
+        if (x > 0 && (x + tile.width > limit || starts.contains(tile))) {
           x = 0;
           y += row + _gap;
           row = 0;
@@ -1948,12 +1971,11 @@ final class _Atlas {
   static void _draw(List<_Tile> tiles, int width, int height) {
     drawn++;
     final level = tiles.first.level;
-    BackdropUnderlay.debugImagesByLevel[level] =
-        (BackdropUnderlay.debugImagesByLevel[level] ?? 0) + 1;
+    _count(BackdropUnderlay.debugImagesByLevel, level);
+    // A copy's picture is clipped to the copy when it is recorded.
     void place(Canvas canvas, _Tile tile) {
       canvas.save();
       canvas.translate(tile.offset.dx, tile.offset.dy);
-      canvas.clipRect(Offset.zero & tile.bounds.size);
       canvas.drawPicture(tile.content!);
       canvas.restore();
     }
@@ -1961,9 +1983,9 @@ final class _Atlas {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     final isolated = <_Tile>[];
-    // Copies under one blur share one blurred layer wherever they lie: the
-    // blur reads the copies alone, so no backdrop is copied for it, and the
-    // layer is clipped to the copies.
+    // Copies under one blur share one blurred layer: the blur reads the
+    // copies alone, so no backdrop is copied for it, and the layer is
+    // clipped to the rows of the copies' run, which hold no other copy.
     final blurred = <(Object?, double), List<_Tile>>{};
     for (final tile in tiles) {
       if (!tile.filtered) {
@@ -1984,37 +2006,21 @@ final class _Atlas {
     } else {
       final b = ui.SceneBuilder();
       b.addPicture(Offset.zero, content);
-      final pictures = <ui.Picture>[];
       for (final group in blurred.values) {
         BackdropUnderlay.debugBlurLayers++;
         final (sigmaX, sigmaY) = group.first.blur!;
         final pixels = group.first.devicePixelRatio;
-        final recorder = ui.PictureRecorder();
-        final canvas = Canvas(recorder);
-        for (final tile in group) {
-          place(canvas, tile);
+        var bounds = group.first.bounds;
+        for (final tile in group.skip(1)) {
+          bounds = bounds.expandToInclude(tile.bounds);
         }
-        final copies = recorder.endRecording();
-        pictures.add(copies);
-        if (group case [final tile]) {
-          b.pushClipRect(tile.bounds, clipBehavior: Clip.hardEdge);
-        } else {
-          final area = Path();
-          for (final tile in group) {
-            area.addRect(tile.bounds);
-          }
-          b.pushClipPath(area, clipBehavior: Clip.hardEdge);
-        }
+        b.pushClipRect(bounds, clipBehavior: Clip.hardEdge);
         // Impeller takes an image filter's sigmas in the pixels it draws
         // into, whatever the canvas scale: here the copies' own.
-        b.pushImageFilter(
-          ui.ImageFilter.blur(
-            sigmaX: sigmaX * pixels,
-            sigmaY: sigmaY * pixels,
-            tileMode: glassBlurTileMode,
-          ),
-        );
-        b.addPicture(Offset.zero, copies);
+        b.pushImageFilter(_blur(sigmaX * pixels, sigmaY * pixels));
+        for (final tile in group) {
+          b.addPicture(tile.offset, tile.content!);
+        }
         b.pop();
         b.pop();
       }
@@ -2023,13 +2029,7 @@ final class _Atlas {
       // pass split at the filter loads and stores. It stands under the
       // view's scale, as the backdrop filter it replaces does.
       for (final tile in isolated) {
-        final filter =
-            tile.filter ??
-            ui.ImageFilter.blur(
-              sigmaX: tile.blur!.$1,
-              sigmaY: tile.blur!.$2,
-              tileMode: glassBlurTileMode,
-            );
+        final filter = tile.filter ?? _blur(tile.blur!.$1, tile.blur!.$2);
         final dpr = tile.devicePixelRatio;
         b.pushClipRect(tile.bounds, clipBehavior: Clip.antiAliasWithSaveLayer);
         b.addPicture(tile.offset, tile.content!);
@@ -2053,9 +2053,6 @@ final class _Atlas {
       final scene = b.build();
       image = scene.toImageSync(width, height);
       scene.dispose();
-      for (final picture in pictures) {
-        picture.dispose();
-      }
     }
     for (final tile in tiles) {
       tile.content!.dispose();
@@ -2065,10 +2062,7 @@ final class _Atlas {
       final island = tile.island;
       island.tile = null;
       final size = island.members.length;
-      if (size > 1) {
-        BackdropUnderlay.debugIslands[size] =
-            (BackdropUnderlay.debugIslands[size] ?? 0) + 1;
-      }
+      if (size > 1) _count(BackdropUnderlay.debugIslands, size);
       for (final (i, member) in island.members.indexed) {
         final shift =
             (island.rects[i].topLeft - tile.rect.topLeft) *
@@ -2081,4 +2075,11 @@ final class _Atlas {
     }
     image.dispose();
   }
+}
+
+// The debug counters count in debug and profile builds, for tests and the
+// benches; a release build pays nothing for them.
+void _count<K>(Map<K, int> counts, K key) {
+  if (kReleaseMode) return;
+  counts[key] = (counts[key] ?? 0) + 1;
 }
