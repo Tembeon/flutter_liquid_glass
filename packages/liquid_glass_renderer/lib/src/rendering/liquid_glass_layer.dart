@@ -1658,6 +1658,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   ImageFilter? _cachedShaderFilter;
   double? _filterFrostSigma;
 
+  // Counts the filters [_updateShaderFilter] made. A key holds this rather
+  // than the filter: comparing shader filters makes dart:ui convert both to
+  // native filters.
+  int _filterGeneration = 0;
+
   // Hands the filter to its layer. A seeded pass may take the blur over and
   // keep only the shader (see SeededBackdropPassLayer.bindFilter): the shader
   // inputs it sees are the same either way, because the blurred pass is what
@@ -1696,6 +1701,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _cachedFilter = filter;
     _cachedShaderFilter = shader;
     _filterFrostSigma = frostSigma;
+    _filterGeneration++;
     return filter;
   }
 
@@ -1981,16 +1987,20 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final paintOffset = _filterPaintOffset;
     // The live filter's inputs, as one object: a new one whenever a uniform
     // or sampler changed.
-    Object keyOf() => (
-      copy.image,
-      copy.offset,
-      copy.rect,
-      _updateShaderFilter(),
-      device,
-      backdropBounds,
-      paintOffset,
-      screen,
-    );
+    Object keyOf() {
+      _updateShaderFilter();
+      return (
+        copy.image,
+        copy.offset,
+        copy.rect,
+        _filterGeneration,
+        device,
+        backdropBounds,
+        paintOffset,
+        screen,
+      );
+    }
+
     ui.Picture record() {
       final image = copy.image;
       // The shader reads the copy in device pixels: a smaller copy stands
