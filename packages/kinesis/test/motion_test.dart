@@ -21,6 +21,11 @@ class _Pair extends Motion {
   void dropAll() => unscheduleAll();
 
   bool waits(Object slot) => isScheduled(slot);
+
+  void hold({required bool held}) {
+    this.held = held;
+    changed();
+  }
 }
 
 class _Outer extends Motion {
@@ -36,6 +41,18 @@ class _Outer extends Motion {
 
 void main() {
   group('Motion', () {
+    testWidgets("a command that only changes state of the motion's own "
+        'reaches its followed selections', (tester) async {
+      final m = _Pair();
+      final held = m.select((m) => m.held);
+      void listener() {}
+      held.addListener(listener);
+      expect(held.value, isFalse);
+      m.hold(held: true);
+      expect(held.value, isTrue);
+      held.removeListener(listener);
+    });
+
     test('the cursor only moves forward', () {
       final m = _Pair();
       m.advance(0.5);

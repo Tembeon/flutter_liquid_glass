@@ -104,6 +104,13 @@ abstract class Motion extends MotionPart {
     root._follower.invalidate();
   }
 
+  /// Tells the root that state of this motion's own changed, such as a
+  /// flag its reads answer from: a command that moves no part calls it, so
+  /// the selections read the change.
+  @override
+  @protected
+  void changed() => partChanged();
+
   bool get _attached => _retains > 0 || _follower.hasListeners;
 
   void _wake() {

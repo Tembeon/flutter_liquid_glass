@@ -585,8 +585,12 @@ extension MotionValueCommands<T> on MotionValue<T> {
     _follow();
   }
 
-  /// Puts the value at rest on its target at time [t].
-  void settle(double t) => snap(t, target);
+  /// Declares the value at rest from [t] ([restFrom]): the course is kept,
+  /// reads from [t] on answer its target and its listeners hear it.
+  void settle(double t) {
+    restFrom(t);
+    _follow();
+  }
 
   /// A bound on how far any component still swings from its target at any
   /// time from [t] on, until the next change.
