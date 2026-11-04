@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/chrome/bar.dart';
 import 'package:apple_liquid_glass/src/chrome/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/chrome/toolbar.dart';
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
@@ -559,13 +558,7 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
                 top: media.padding.top,
                 left: 0,
                 right: 0,
-                child: ClipWhileLifted(
-                  lift: _lift,
-                  child: MotionTransition(
-                    translateY: _lift,
-                    child: PageLift(lift: _lift, child: navigationBar),
-                  ),
-                ),
+                child: PageLift(lift: _lift, child: navigationBar),
               ),
             if (toolbar != null)
               Positioned(

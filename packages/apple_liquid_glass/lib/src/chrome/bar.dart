@@ -107,7 +107,7 @@ final class GlassPageBarLink {
   bool _declaredToolbar = false;
   final Map<GlassBarKind, List<GlassBarCapsuleLayout>> _layouts = {};
   bool _coveredByForeign = false;
-  ValueListenable<double>? _lift;
+  ValueListenable<double>? _fade;
 
   /// The room of the page's inline title in its final layout.
   final ValueNotifier<GlassTitleRoom?> titleRoom = ValueNotifier(null);
@@ -227,38 +227,49 @@ final class GlassBarHost {
   // Live glass pages, bottom to top, the order of their overlay entries.
   final List<GlassPageBarLink> _pages = [];
   GlassPageBarLink? _shown;
-  // The shown page's lift, which the navigation bar's capsules follow.
-  final _lift = ValueNotifier<double>(0);
+  // The shown page's fade, which the navigation bar's capsules follow.
+  final _fade = ValueNotifier<double>(1);
+  final _fadedOut = ValueNotifier<bool>(false);
   ValueListenable<double>? _following;
 
   void _show(GlassPageBarLink? link) {
     _shown = link;
-    _followLift();
+    _followFade();
   }
 
-  void _followLift() {
-    final lift = _shown?._lift;
-    if (identical(lift, _following)) return;
-    _following?.removeListener(_lifted);
-    _following = lift;
-    lift?.addListener(_lifted);
-    _lifted();
+  void _followFade() {
+    final fade = _shown?._fade;
+    if (identical(fade, _following)) return;
+    _following?.removeListener(_faded);
+    _following = fade;
+    fade?.addListener(_faded);
+    _faded();
   }
 
-  void _lifted() => _lift.value = _following?.value ?? 0;
-
-  /// Tells which offset [link]'s page moves up by while its stacked search
-  /// shows.
-  void liftedBy(GlassPageBarLink link, ValueListenable<double>? lift) {
-    if (identical(link._lift, lift)) return;
-    link._lift = lift;
-    if (identical(link, _shown)) _followLift();
+  void _faded() {
+    final fade = _following?.value ?? 1;
+    if (fade == _fade.value) return;
+    _fade.value = fade;
+    _fadedOut.value = fade < _hitAlpha;
+    final bar = _bars[GlassBarKind.navigation]!;
+    if (bar.items != null) bar.publish();
   }
 
-  /// Forgets [lift] as [link]'s page's lift if it still is: the bar that
-  /// reported it goes away, and the lift with it.
-  void dropLift(GlassPageBarLink link, ValueListenable<double> lift) {
-    if (identical(link._lift, lift)) liftedBy(link, null);
+  // UIKit takes no touch on a view below this alpha.
+  static const _hitAlpha = 0.01;
+
+  /// Tells which opacity [link]'s page's navigation bar fades by while its
+  /// stacked search shows.
+  void fadedBy(GlassPageBarLink link, ValueListenable<double>? fade) {
+    if (identical(link._fade, fade)) return;
+    link._fade = fade;
+    if (identical(link, _shown)) _followFade();
+  }
+
+  /// Forgets [fade] as [link]'s page's fade if it still is: the bar that
+  /// reported it goes away, and the fade with it.
+  void dropFade(GlassPageBarLink link, ValueListenable<double> fade) {
+    if (identical(link._fade, fade)) fadedBy(link, null);
   }
 
   GlassPageBarLink? _swiped;
@@ -467,18 +478,18 @@ final class GlassBarHost {
     link._declaredToolbar = true;
   }
 
-  /// Withdraws what [declarer] declared for [link]'s page, and [lift] as
-  /// its lift, if they still stand: its tab was left or it went away, and
+  /// Withdraws what [declarer] declared for [link]'s page, and [fade] as
+  /// its fade, if they still stand: its tab was left or it went away, and
   /// the page's bar empties unless another bar declared since. It happens
   /// after the frame, once a bar that shows now has declared.
   void withdraw(
     GlassPageBarLink link,
     Object declarer, {
-    ValueListenable<double>? lift,
+    ValueListenable<double>? fade,
   }) {
     SchedulerBinding.instance.addPostFrameCallback((_) {
       _withdraw(link, declarer);
-      if (lift != null) dropLift(link, lift);
+      if (fade != null) dropFade(link, fade);
     });
   }
 
@@ -588,6 +599,10 @@ final class _Bar {
   final GlassBarHost host;
   final GlassBarKind kind;
   late final GlassBarMotion motion = GlassBarMotion(spec: navigationSpec);
+
+  // Only the navigation bar fades for a stacked search.
+  ValueListenable<double>? get fade =>
+      kind == GlassBarKind.navigation ? host._fade : null;
 
   late final MotionSelection<Object?> _steps = motion.select<Object?>(
     (_) => null,
@@ -982,6 +997,7 @@ final class _Bar {
   }
 
   void publish() {
+    final fade = this.fade?.value ?? 1;
     final press = motion.press;
     if (press == null) pressed = null;
     final joined = <GlassBarCapsuleFrame>[];
@@ -1013,7 +1029,7 @@ final class _Bar {
                   radius: glow.radius,
                   spot: glow.spot,
                 ),
-          opacity: frame.opacity,
+          opacity: frame.opacity * fade,
           tint: prominent.contains(frame.id) ? tint : null,
         );
       }
@@ -1149,13 +1165,7 @@ class GlassBarView extends StatelessWidget {
           left: 0,
           right: 0,
           height: GlassNavigationBar.height,
-          child: ClipWhileLifted(
-            lift: host._lift,
-            child: MotionTransition(
-              translateY: host._lift,
-              child: _Band(bar: host._bars[GlassBarKind.navigation]!),
-            ),
-          ),
+          child: _Band(bar: host._bars[GlassBarKind.navigation]!),
         ),
         Positioned(
           bottom: keyboard > 0
@@ -1179,96 +1189,6 @@ class GlassBarView extends StatelessWidget {
 /// followed (approximation).
 @internal
 const double navigationSideInset = 16;
-
-/// Cuts off what a lifted bar moves above its own top, into the status
-/// bar, while [lift] is below zero, and nothing below. At rest it cuts
-/// nothing: a pressed button stretches into the status bar.
-@internal
-class ClipWhileLifted extends SingleChildRenderObjectWidget {
-  /// Clips [child] while [lift] is below zero.
-  const ClipWhileLifted({required this.lift, required super.child, super.key});
-
-  /// The bar's offset, 0 at rest and negative while lifted.
-  final ValueListenable<double> lift;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) =>
-      RenderClipWhileLifted(lift);
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    RenderClipWhileLifted renderObject,
-  ) {
-    renderObject.lift = lift;
-  }
-}
-
-/// Paints [ClipWhileLifted].
-@internal
-class RenderClipWhileLifted extends RenderProxyBox {
-  /// Clips while [lift] is below zero.
-  RenderClipWhileLifted(this._lift);
-
-  ValueListenable<double> _lift;
-
-  /// The bar's offset, 0 at rest and negative while lifted.
-  ValueListenable<double> get lift => _lift;
-  set lift(ValueListenable<double> value) {
-    if (identical(_lift, value)) return;
-    if (attached) {
-      _lift.removeListener(_changed);
-      value.addListener(_changed);
-    }
-    _lift = value;
-    _changed();
-  }
-
-  bool _clips = false;
-  final _clip = LayerHandle<ClipRectLayer>();
-
-  void _changed() {
-    final clips = _lift.value < 0;
-    if (clips == _clips) return;
-    _clips = clips;
-    markNeedsPaint();
-  }
-
-  @override
-  void attach(PipelineOwner owner) {
-    super.attach(owner);
-    _lift.addListener(_changed);
-    _clips = _lift.value < 0;
-  }
-
-  @override
-  void detach() {
-    _lift.removeListener(_changed);
-    super.detach();
-  }
-
-  @override
-  void dispose() {
-    _clip.layer = null;
-    super.dispose();
-  }
-
-  @override
-  void paint(PaintingContext context, Offset offset) {
-    if (!_clips) {
-      _clip.layer = null;
-      super.paint(context, offset);
-      return;
-    }
-    _clip.layer = context.pushClipRect(
-      needsCompositing,
-      offset,
-      const BelowTop().getClip(size),
-      super.paint,
-      oldLayer: _clip.layer,
-    );
-  }
-}
 
 /// Cuts off what moves above the clipped box's top, and nothing below: a
 /// pulled large title still follows the content down.
@@ -1305,7 +1225,19 @@ class _Band extends StatelessWidget {
           ValueNotifier(const GlassFrame(rect: Rect.zero, opacity: 0)),
         );
       }
-      return MotionScope(
+      final items = _BarItems(
+        bar: bar,
+        children: [
+          for (final MapEntry(key: id, value: button) in roster.entries)
+            _BarItem(
+              key: ValueKey(id),
+              bar: bar,
+              id: id,
+              button: button,
+            ),
+        ],
+      );
+      final band = MotionScope(
         motion: bar.motion,
         child: RepaintBoundary(
           child: Stack(
@@ -1317,21 +1249,22 @@ class _Band extends StatelessWidget {
                 merge: const GlassMerge.spacing(GlassToolbar.fusion),
               ),
               _Surfaces(frames: bar.apart, merge: const GlassMerge.none()),
-              _BarItems(
-                bar: bar,
-                children: [
-                  for (final MapEntry(key: id, value: button) in roster.entries)
-                    _BarItem(
-                      key: ValueKey(id),
-                      bar: bar,
-                      id: id,
-                      button: button,
-                    ),
-                ],
-              ),
+              if (bar.fade case final fade?)
+                MotionTransition(opacity: fade, child: items)
+              else
+                items,
             ],
           ),
         ),
+      );
+      if (bar.fade == null) return band;
+      return ValueListenableBuilder<bool>(
+        valueListenable: bar.host._fadedOut,
+        builder: (context, fadedOut, child) => IgnorePointer(
+          ignoring: fadedOut,
+          child: ExcludeSemantics(excluding: fadedOut, child: child),
+        ),
+        child: band,
       );
     },
   );

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/chrome/bar.dart';
@@ -403,8 +404,10 @@ void main() {
     expect(tester.getCenter(find.byKey(const Key('compose'))).dx, 350);
   });
 
-  testWidgets('a presented stacked search lifts the shared capsules with the '
-      'page', (tester) async {
+  testWidgets('a presented stacked search fades the shared capsules, glass '
+      'and glyphs, where they stand, and they come back with its end', (
+    tester,
+  ) async {
     await _phone(tester);
     final navigator = GlobalKey<NavigatorState>();
     final search = TextEditingController();
@@ -426,13 +429,35 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(tester.getCenter(find.byKey(const Key('plus'))).dy, 62 + 22);
+    final plus = find.byKey(const Key('plus'));
+    double glyphs() => tester
+        .widget<MotionTransition>(
+          find.ancestor(of: plus, matching: find.byType(MotionTransition)).last,
+        )
+        .opacity!
+        .value;
+    double glass() => tester
+        .widgetList<GlassSurface>(
+          find.descendant(
+            of: find.byType(GlassBarView),
+            matching: find.byType(GlassSurface),
+          ),
+        )
+        .map((surface) => surface.frame?.value.opacity ?? 0)
+        .reduce(math.max);
+    expect(tester.getCenter(plus).dy, 62 + 22);
+    expect(glyphs(), 1);
+    expect(glass(), 1);
     await tester.tap(find.byKey(const Key('field')));
     await _settle(tester);
-    expect(
-      tester.getCenter(find.byKey(const Key('plus'))).dy,
-      closeTo(62 + 22 - 106, 0.01),
-    );
+    expect(tester.getCenter(plus).dy, 62 + 22);
+    expect(glyphs(), lessThan(0.001));
+    expect(glass(), lessThan(0.001));
+    await tester.tap(find.bySemanticsLabel('Close'));
+    await _settle(tester);
+    expect(tester.getCenter(plus).dy, 62 + 22);
+    expect(glyphs(), greaterThan(0.999));
+    expect(glass(), greaterThan(0.999));
   });
 
   testWidgets('a prominent trailing item tints its own capsule', (

@@ -152,9 +152,23 @@ abstract final class SearchTuning {
   /// the page and its field moving up until the field sits under the
   /// status bar, the field narrowing, the close button arriving and the
   /// navigation bar hiding (damping 0.8, response 0.34, read from UIKit;
-  /// the iOS 27 simulator film fits 0.332 / 0.781 once its resting end is
-  /// left free; not yet recorded on the device).
+  /// the iPhone 16 Pro's layers fit 0.346 / 0.794 on the way up and 0.340 /
+  /// 0.800 on the way back).
   static const stackedSpring = Spring.response(0.34, dampingRatio: 0.8);
+
+  /// The spring a navigation bar's large title and items fade out on while
+  /// a stacked field presents, starting with the rise (an iPhone 16 Pro's
+  /// layers). UIKit fades them in time, not by how far the page has risen,
+  /// and their alpha matches to four digits on every frame.
+  static const stackedFadeOutSpring = Spring.response(0.117);
+
+  /// The spring they fade back in on as the field ends (fitted to the same
+  /// layers, nine cancels).
+  static const stackedFadeInSpring = Spring.response(0.25, dampingRatio: 1.47);
+
+  /// How long the fade back in waits after the page starts to come down
+  /// (the same layers).
+  static const double stackedFadeInDelay = 0.083;
 }
 
 /// The geometry of a tab bar with a search tab, at rest and searching.

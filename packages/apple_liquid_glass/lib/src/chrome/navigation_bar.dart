@@ -185,12 +185,15 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   /// by a fifth of the way and its fill fading out between 80 and 95
   /// percent of it, then the large title goes (read from UIKit, notes
   /// private). Focusing the field presents the search on one spring
-  /// (damping 0.8, response 0.34, read from UIKit): the page and its bar
-  /// rise until the field sits under the status bar, the field narrows for
-  /// a close button that slides in 40 points from the side, and its plain
-  /// fill turns to glass on a critically damped spring of response 0.32
-  /// (read from UIKit). The close button clears the field and ends the
-  /// search; the page comes back down. A field folded away by a scroll
+  /// (damping 0.8, response 0.34, read from UIKit): the page, the large
+  /// title and the field rise until the field sits under the status bar,
+  /// the field narrows for a close button that slides in 40 points from the
+  /// side, and its plain fill turns to glass on a critically damped spring
+  /// of response 0.32 (read from UIKit). The large title, the inline title
+  /// and the bar's capsules fade in time while this happens, the capsules
+  /// and the inline title where they stand; nothing is cut (an iPhone 16
+  /// Pro's layers). The close button clears the field and ends the search;
+  /// the page comes back down. A field folded away by a scroll
   /// presents from where it rests: the rise is not shortened (an
   /// approximation).
   final Widget? searchField;
@@ -251,7 +254,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
   bool _laidOut = false;
   GlassPageBarLink? _link;
   GlassBarHost? _standalone;
-  ValueListenable<double>? _reportedLift;
+  final _fade = MotionValue<double>(1, restDistance: MotionRest.opacity);
 
   GlassPageBarLink get _barLink => _link ?? _standalone!.standaloneLink;
 
@@ -286,9 +289,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
   @override
   void dispose() {
     if (_standalone case final host?) host.detach(host.standaloneLink);
-    if ((_link, _reportedLift) case (final link?, final lift?)) {
-      link.host.dropLift(link, lift);
-    }
+    if (_link case final link?) link.host.dropFade(link, _fade);
     _withdrawLater();
     _active?.removeListener(_follow);
     _metrics?.removeRenderListener(_scrolled);
@@ -298,7 +299,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
 
   void _withdrawLater() {
     if (_link case final link?) {
-      link.host.withdraw(link, this, lift: _reportedLift);
+      link.host.withdraw(link, this, fade: _fade);
     }
   }
 
@@ -397,8 +398,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
         ),
         by: this,
       );
-      _reportedLift = PageLift.maybeOf(context);
-      link.host.liftedBy(link, _reportedLift);
+      link.host.fadedBy(link, _fade);
     } else {
       _withdrawLater();
     }
@@ -419,28 +419,31 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
               ),
             ),
           if (title != null)
-            CustomSingleChildLayout(
-              delegate: _TitleLayout(
-                link.titleRoom,
-                Directionality.of(context),
-              ),
-              child: MotionTransition(
-                opacity: _opacity,
-                translateY: _rise,
-                blur: _blur,
-                child: MediaQuery.withClampedTextScaling(
-                  maxScaleFactor: _Metrics.maxTextScale,
-                  child: Builder(
-                    builder: (context) => DefaultTextStyle(
-                      style: resolveGlassText(
-                        _Metrics.title
-                            .merge(look.titleTextStyle)
-                            .copyWith(color: color),
-                        context,
+            MotionTransition(
+              opacity: _fade,
+              child: CustomSingleChildLayout(
+                delegate: _TitleLayout(
+                  link.titleRoom,
+                  Directionality.of(context),
+                ),
+                child: MotionTransition(
+                  opacity: _opacity,
+                  translateY: _rise,
+                  blur: _blur,
+                  child: MediaQuery.withClampedTextScaling(
+                    maxScaleFactor: _Metrics.maxTextScale,
+                    child: Builder(
+                      builder: (context) => DefaultTextStyle(
+                        style: resolveGlassText(
+                          _Metrics.title
+                              .merge(look.titleTextStyle)
+                              .copyWith(color: color),
+                          context,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        child: Semantics(header: true, child: title),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      child: Semantics(header: true, child: title),
                     ),
                   ),
                 ),
@@ -449,59 +452,79 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
         ],
       ),
     );
-    final bar = Column(
+    final lift = PageLift.maybeOf(context);
+    final filled = background == null
+        ? null
+        : GlassDynamicColor.resolve(background, context);
+    Widget fill(Widget child) =>
+        filled == null ? child : ColoredBox(color: filled, child: child);
+    return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        row,
-        if (largeTitle != null)
-          SizedBox(
-            height: GlassNavigationBar.largeTitleHeight,
-            child: _ScrollAway(
-              shift: _awayAfter(widget._search),
-              child: Padding(
-                padding: const EdgeInsetsDirectional.only(
-                  start: _Metrics.largeTitleInset,
-                  end: _Metrics.largeTitleInset,
-                  top: _Metrics.largeTitleTop,
-                ),
-                child: Align(
-                  alignment: AlignmentDirectional.topStart,
-                  child: MediaQuery.withClampedTextScaling(
-                    maxScaleFactor: 1,
-                    child: Builder(
-                      builder: (context) => DefaultTextStyle(
-                        style: resolveGlassText(
-                          _Metrics.largeTitle
-                              .merge(look.largeTitleTextStyle)
-                              .copyWith(color: color),
-                          context,
+        fill(row),
+        if (largeTitle != null || widget.searchField != null)
+          MotionTransition(
+            translateY: lift,
+            child: fill(
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (largeTitle != null)
+                    SizedBox(
+                      height: GlassNavigationBar.largeTitleHeight,
+                      child: _ScrollAway(
+                        shift: _awayAfter(widget._search),
+                        opacity: _fade,
+                        child: Padding(
+                          padding: const EdgeInsetsDirectional.only(
+                            start: _Metrics.largeTitleInset,
+                            end: _Metrics.largeTitleInset,
+                            top: _Metrics.largeTitleTop,
+                          ),
+                          child: Align(
+                            alignment: AlignmentDirectional.topStart,
+                            child: MediaQuery.withClampedTextScaling(
+                              maxScaleFactor: 1,
+                              child: Builder(
+                                builder: (context) => DefaultTextStyle(
+                                  style: resolveGlassText(
+                                    _Metrics.largeTitle
+                                        .merge(look.largeTitleTextStyle)
+                                        .copyWith(color: color),
+                                    context,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  child: Semantics(
+                                    header: true,
+                                    child: largeTitle,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        child: Semantics(header: true, child: largeTitle),
                       ),
                     ),
-                  ),
-                ),
+                  if (widget.searchField case final field?)
+                    _StackedSearch(
+                      field: field,
+                      offset: _offset,
+                      travel:
+                          GlassNavigationBar.height +
+                          (largeTitle == null
+                              ? 0
+                              : GlassNavigationBar.largeTitleHeight),
+                      lift: lift,
+                      fade: _fade,
+                    ),
+                ],
               ),
             ),
           ),
-        if (widget.searchField case final field?)
-          _StackedSearch(
-            field: field,
-            offset: _offset,
-            travel:
-                GlassNavigationBar.height +
-                (largeTitle == null ? 0 : GlassNavigationBar.largeTitleHeight),
-            lift: PageLift.maybeOf(context),
-          ),
       ],
-    );
-    if (background == null) return bar;
-    return ColoredBox(
-      color: GlassDynamicColor.resolve(background, context),
-      child: bar,
     );
   }
 }
@@ -601,16 +624,25 @@ final class _Followed extends Motion {
 /// moved by the content's offset and cut off at its own top, following the
 /// scroll view without building or laying out.
 class _ScrollAway extends StatelessWidget {
-  const _ScrollAway({required this.shift, required this.child});
+  const _ScrollAway({
+    required this.shift,
+    required this.opacity,
+    required this.child,
+  });
 
   final ValueListenable<double> shift;
+  final ValueListenable<double> opacity;
   final Widget child;
 
   @override
   Widget build(BuildContext context) => IgnorePointer(
     child: ClipRect(
       clipper: const BelowTop(),
-      child: MotionTransition(translateY: shift, child: child),
+      child: MotionTransition(
+        translateY: shift,
+        opacity: opacity,
+        child: child,
+      ),
     ),
   );
 }
@@ -624,6 +656,7 @@ class _StackedSearch extends StatefulWidget {
     required this.offset,
     required this.travel,
     required this.lift,
+    required this.fade,
   });
 
   final Widget field;
@@ -636,6 +669,9 @@ class _StackedSearch extends StatefulWidget {
 
   // The page's lift, which this search writes.
   final ValueNotifier<double>? lift;
+
+  // The navigation bar's fade, which this search drives.
+  final MotionValue<double> fade;
 
   @override
   State<_StackedSearch> createState() => _StackedSearchState();
@@ -659,6 +695,7 @@ class _StackedSearchState extends State<_StackedSearch> {
   void dispose() {
     _shown.removeListener(_lifted);
     widget.lift?.value = 0;
+    widget.fade.snap(_now, 1);
     _ends.dispose();
     _closing.dispose();
     super.dispose();
@@ -672,6 +709,7 @@ class _StackedSearchState extends State<_StackedSearch> {
     final t = _now;
     _shown.retarget(t, 1);
     _glass.retarget(t, 1);
+    widget.fade.retarget(t, 0, spring: SearchTuning.stackedFadeOutSpring);
   }
 
   void _end() {
@@ -681,6 +719,12 @@ class _StackedSearchState extends State<_StackedSearch> {
     final t = _now;
     _shown.retarget(t, 0);
     _glass.retarget(t, 0);
+    widget.fade.retarget(
+      t,
+      1,
+      spring: SearchTuning.stackedFadeInSpring,
+      delay: SearchTuning.stackedFadeInDelay,
+    );
   }
 
   @override

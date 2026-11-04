@@ -8,6 +8,7 @@ Widget _app(
   TextEditingController search,
   ScrollController scroll, {
   double keyboard = 0,
+  VoidCallback? onItem,
 }) => MediaQuery(
   data: MediaQueryData(
     size: const Size(402, 874),
@@ -22,6 +23,13 @@ Widget _app(
       child: GlassPageScaffold(
         navigationBar: GlassNavigationBar(
           largeTitle: const Text('Notes'),
+          trailing: [
+            if (onItem != null)
+              GlassBarItem(
+                onPressed: onItem,
+                icon: const SizedBox.square(key: Key('item'), dimension: 24),
+              ),
+          ],
           searchField: GlassSearchField(
             key: const Key('field'),
             controller: search,
@@ -55,6 +63,44 @@ Future<void> _settle(WidgetTester tester) async {
 
 Rect _field(WidgetTester tester) =>
     tester.getRect(find.byKey(const Key('field')));
+
+double _lift(WidgetTester tester) => 168 - _field(tester).top;
+
+double _opacityAbove(WidgetTester tester, Finder child) => tester
+    .widget<MotionTransition>(
+      find.ancestor(of: child, matching: find.byType(MotionTransition)).first,
+    )
+    .opacity!
+    .value;
+
+// Steps at 120 Hz and reads the large title's opacity against the lift, and
+// returns the opacity at each of [lifts], interpolated.
+Future<List<double>> _fadeAgainstLift(
+  WidgetTester tester,
+  List<double> lifts,
+) async {
+  final title = find.text('Notes').last;
+  final samples = <(double, double)>[
+    (_lift(tester), _opacityAbove(tester, title)),
+  ];
+  for (var i = 0; i < 120; i++) {
+    await tester.pump(const Duration(microseconds: 8333));
+    samples.add((_lift(tester), _opacityAbove(tester, title)));
+  }
+  return [
+    for (final lift in lifts)
+      () {
+        for (var i = 1; i < samples.length; i++) {
+          final (a, oa) = samples[i - 1];
+          final (b, ob) = samples[i];
+          if ((a - lift) * (b - lift) <= 0 && a != b) {
+            return oa + (ob - oa) * (lift - a) / (b - a);
+          }
+        }
+        throw StateError('the page never passed a lift of $lift');
+      }(),
+  ];
+}
 
 void main() {
   setUp(MotionClock.debugReset);
@@ -142,5 +188,123 @@ void main() {
     expect(search.text, isEmpty);
     expect(_field(tester), const Rect.fromLTRB(16, 168, 386, 212));
     expect(tester.getTopLeft(find.text('Row 0')).dy, 222);
+  });
+
+  testWidgets('the large title fades in time, on the way up and on the way '
+      'back, as the layers of an iPhone 16 Pro do', (tester) async {
+    await _phone(tester);
+    final search = TextEditingController();
+    final scroll = ScrollController();
+    addTearDown(search.dispose);
+    addTearDown(scroll.dispose);
+    await tester.pumpWidget(_app(search, scroll));
+    await tester.pump();
+    final title = find.text('Notes').last;
+    expect(_opacityAbove(tester, title), 1);
+
+    await tester.tap(find.byKey(const Key('field')));
+    await tester.pump();
+    const lifts = [20.0, 30.0, 40.0, 50.0, 60.0];
+    final up = await _fadeAgainstLift(tester, lifts);
+    for (final (i, native) in const [0.36, 0.23, 0.14, 0.085, 0.047].indexed) {
+      expect(up[i], closeTo(native, 0.04), reason: 'up, lift ${lifts[i]}');
+    }
+    await _settle(tester);
+    expect(_opacityAbove(tester, title), lessThan(0.001));
+
+    await tester.tap(find.bySemanticsLabel('Close'));
+    await tester.pump();
+    final back = await _fadeAgainstLift(tester, lifts);
+    for (final (i, native) in const [0.36, 0.20, 0.067, 0.0, 0.0].indexed) {
+      expect(back[i], closeTo(native, 0.06), reason: 'back, lift ${lifts[i]}');
+    }
+    await _settle(tester);
+    expect(_opacityAbove(tester, title), greaterThan(0.999));
+  });
+
+  testWidgets('the bar item stays where it is and fades while the field rises '
+      'through its spot, and takes no touch once it has faded', (tester) async {
+    await _phone(tester);
+    final search = TextEditingController();
+    final scroll = ScrollController();
+    addTearDown(search.dispose);
+    addTearDown(scroll.dispose);
+    var pressed = 0;
+    await tester.pumpWidget(_app(search, scroll, onItem: () => pressed++));
+    await tester.pump();
+    final item = find.byKey(const Key('item'));
+    final rest = tester.getRect(item);
+    expect(_opacityAbove(tester, item), 1);
+
+    await tester.tap(find.byKey(const Key('field')));
+    await tester.pump();
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(_frame);
+    }
+    expect(_lift(tester), greaterThan(10));
+    expect(tester.getRect(item), rest);
+    final fading = _opacityAbove(tester, item);
+    expect(fading, inExclusiveRange(0, 1));
+    expect(fading, _opacityAbove(tester, find.text('Notes').last));
+
+    await _settle(tester);
+    expect(tester.getRect(item), rest);
+    expect(_opacityAbove(tester, item), lessThan(0.001));
+    await tester.tapAt(rest.center);
+    await tester.pump();
+    expect(pressed, 0);
+  });
+
+  testWidgets('an open search that goes away leaves the bar shown', (
+    tester,
+  ) async {
+    await _phone(tester);
+    final search = TextEditingController();
+    final scroll = ScrollController();
+    addTearDown(search.dispose);
+    addTearDown(scroll.dispose);
+    late StateSetter set;
+    var searching = true;
+    await tester.pumpWidget(
+      StatefulBuilder(
+        builder: (context, setState) {
+          set = setState;
+          return MediaQuery(
+            data: const MediaQueryData(
+              size: Size(402, 874),
+              devicePixelRatio: 3,
+              padding: EdgeInsets.only(top: 62, bottom: 34),
+            ),
+            child: Directionality(
+              textDirection: TextDirection.ltr,
+              child: GlassTheme(
+                data: const GlassThemeData(renderer: GlassRenderer.flat()),
+                child: GlassPageScaffold(
+                  navigationBar: GlassNavigationBar(
+                    largeTitle: const Text('Notes'),
+                    searchField: searching
+                        ? GlassSearchField(
+                            key: const Key('field'),
+                            controller: search,
+                          )
+                        : null,
+                  ),
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('field')));
+    await _settle(tester);
+    final title = find.text('Notes').last;
+    expect(_opacityAbove(tester, title), lessThan(0.001));
+    set(() => searching = false);
+    await _settle(tester);
+    expect(_opacityAbove(tester, title), 1);
+    expect(tester.getTopLeft(title).dy, 62 + 54 + 3.67);
   });
 }
