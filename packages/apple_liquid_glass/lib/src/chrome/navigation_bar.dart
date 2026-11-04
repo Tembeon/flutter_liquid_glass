@@ -711,8 +711,7 @@ class _StackedSearch extends StatefulWidget {
   State<_StackedSearch> createState() => _StackedSearchState();
 }
 
-class _StackedSearchState extends State<_StackedSearch>
-    implements MotionDriver {
+class _StackedSearchState extends State<_StackedSearch> {
   final _shown = MotionValue<double>(0, spring: SearchTuning.stackedSpring);
   final _glass = MotionValue<double>(0, spring: _StackedMetrics.glassSpring);
   final _ends = SearchEndSignal();
@@ -723,36 +722,19 @@ class _StackedSearchState extends State<_StackedSearch>
   @override
   void initState() {
     super.initState();
-    MotionClock.instance.addDriver(this);
+    _shown.addListener(_lifted);
   }
 
   @override
   void dispose() {
-    MotionClock.instance.removeDriver(this);
+    _shown.removeListener(_lifted);
     widget.lift?.value = 0;
     _ends.dispose();
     _closing.dispose();
     super.dispose();
   }
 
-  @override
-  bool get isActive =>
-      !_shown.isWithin(_now, MotionRest.opacity) ||
-      !_glass.isWithin(_now, MotionRest.opacity);
-
-  @override
-  double? get wakeTime => null;
-
-  @override
-  void step(double time) {
-    for (final value in [_shown, _glass]) {
-      if (value.valueAt(time) != value.target &&
-          value.isWithin(time, MotionRest.opacity)) {
-        value.snap(time, value.target);
-      }
-    }
-    widget.lift?.value = -widget.travel * _shown.valueAt(time);
-  }
+  void _lifted() => widget.lift?.value = -widget.travel * _shown.value;
 
   void _focusChanged(bool focused) {
     if (!focused || _closing.value) return;
@@ -760,7 +742,6 @@ class _StackedSearchState extends State<_StackedSearch>
     final t = _now;
     _shown.retarget(t, 1);
     _glass.retarget(t, 1);
-    MotionClock.instance.wake(this);
   }
 
   void _end() {
@@ -770,7 +751,6 @@ class _StackedSearchState extends State<_StackedSearch>
     final t = _now;
     _shown.retarget(t, 0);
     _glass.retarget(t, 0);
-    MotionClock.instance.wake(this);
   }
 
   @override

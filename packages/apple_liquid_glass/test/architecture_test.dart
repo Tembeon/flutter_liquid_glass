@@ -27,7 +27,6 @@ final _bans = <String, (RegExp, Set<String>)>{
     RegExp(r'(implements|extends|with)[^{]*\bMotionDriver\b|addDriver\('),
     {
       'lib/src/chrome/bar.dart',
-      'lib/src/chrome/navigation_bar.dart',
       'lib/src/menu/anchor.dart',
     },
   ),
@@ -36,11 +35,7 @@ final _bans = <String, (RegExp, Set<String>)>{
   'a motion keeps no clock of its own': (RegExp(r'\bdouble _now\b'), {}),
   'rest is asked of the part (restsAt)': (
     RegExp(r'\.isWithin\('),
-    {
-      'lib/src/chrome/navigation_bar.dart',
-      'lib/src/menu/motion.dart',
-      'lib/src/motion/flex_interaction.dart',
-    },
+    {'lib/src/menu/motion.dart', 'lib/src/motion/flex_interaction.dart'},
   ),
   'rest tolerances are MotionRest': (RegExp(r'\bGlassRest\b'), {}),
   // A9 (menu) moves these onto GlassPress.
