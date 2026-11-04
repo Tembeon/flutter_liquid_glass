@@ -16,6 +16,8 @@ import 'package:liquid_glass_renderer/src/internal/running_under_flutter_test.da
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_render_object_mixin.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_underlay.dart';
 
+part 'copy_read.dart';
+
 /// A copy of what is painted under one backdrop effect, optionally run
 /// through the effect's filter, that the effect draws from instead of
 /// reading the backdrop.
@@ -209,15 +211,15 @@ class BackdropUnderlay {
     final view = anchor.owner;
     if (view is! RenderView) return;
     final screen = Offset.zero & view.size;
-    final pixels = devicePixelRatio / downscale;
+    final grid = CopyGrid._(devicePixelRatio, downscale);
     final ask = _Ask(
       frame: GlassComposer.planning(view),
       anchor: anchor,
       own: own,
       devicePixelRatio: devicePixelRatio,
-      pixelRatio: pixels,
+      grid: grid,
       screen: screen,
-      band: _snapOut(region, pixels).intersect(screen),
+      band: grid._snapOut(region).intersect(screen),
       filter: filter,
       blur: blur,
       filterClip: filterClip,
@@ -289,7 +291,7 @@ class BackdropUnderlay {
       _count(debugMisses, 'off screen');
       return null;
     }
-    var pixels = ask.pixelRatio;
+    var grid = ask.grid;
     while (true) {
       final replay = _Prefix(
         ask.anchor,
@@ -299,7 +301,7 @@ class BackdropUnderlay {
         limit: limit,
         bodies: [?ask.body],
       );
-      final content = replay.record(pixels);
+      final content = replay.record(grid);
       if (content == null) {
         if (!kReleaseMode) {
           final why = replay.blocked
@@ -313,9 +315,9 @@ class BackdropUnderlay {
         _ask = ask;
         return null;
       }
-      if (replay.holdsGlass && pixels != ask.devicePixelRatio) {
+      if (replay.holdsGlass && grid != grid._screen) {
         content.dispose();
-        pixels = ask.devicePixelRatio;
+        grid = grid._screen;
         continue;
       }
       release();
@@ -331,26 +333,25 @@ class BackdropUnderlay {
           // copy there (host test): the layer starts inside the clip. NEAR:
           // glass reads what lies past the clip mirrored at it, as where a
           // clip leaves no room to grow.
-          _ when pixels < ask.devicePixelRatio => _snapOut(
+          _ when grid != grid._screen => grid._snapOut(
             ask.band.intersect(clip),
-            pixels,
           ),
-          _ => _layerIn(ask.band, clip, pixels),
+          _ => _layerIn(ask.band, clip, grid),
         },
-        pixels,
+        grid,
       );
     }
   }
 
   // The layer that holds [band] inside [clip] (both in the screen's logical
-  // pixels), on the grid of [pixels]. Impeller cuts a layer its clip cuts
+  // pixels), on [grid]. Impeller cuts a layer its clip cuts
   // by 30 % or more of what is left (see [keepsWhole]), and fragment
   // coordinates start at the cut; the glass reads what lies past the clip.
   // The layer grows into the clip, empty, until the part cut off is less
   // than that; where the clip leaves no room, it is cut to the clip. NEAR:
   // there, glass reads the copy mirrored at the clip, up to 163 levels off
   // over the 30 px of glass the host test leaves above such a clip.
-  static Rect _layerIn(Rect band, Rect clip, double pixels) {
+  static Rect _layerIn(Rect band, Rect clip, CopyGrid grid) {
     if (keepsWhole(band, clip)) return band;
     // Along one axis: the span from [lo] to [hi] grown inside [from, to].
     (double, double)? grow(double lo, double hi, double from, double to) {
@@ -372,12 +373,12 @@ class BackdropUnderlay {
     final x = grow(band.left, band.right, clip.left, clip.right);
     final y = grow(band.top, band.bottom, clip.top, clip.bottom);
     if (x == null || y == null) {
-      return _snapOut(band.intersect(clip), pixels);
+      return grid._snapOut(band.intersect(clip));
     }
-    final grown = _snapOut(Rect.fromLTRB(x.$1, y.$1, x.$2, y.$2), pixels);
+    final grown = grid._snapOut(Rect.fromLTRB(x.$1, y.$1, x.$2, y.$2));
     return keepsWhole(grown, clip)
         ? grown
-        : _snapOut(band.intersect(clip), pixels);
+        : grid._snapOut(band.intersect(clip));
   }
 
   /// Whether Impeller draws a layer of [layer] whole inside a clip of
@@ -419,7 +420,7 @@ class BackdropUnderlay {
         first._holdsIn(last, ask, scan, limit)) {
       first.debugMiss = null;
       return (
-        copy: UnderlayCopy._(first, first._rect, last.pixelRatio),
+        copy: UnderlayCopy._(first, first._rect, last.grid),
         island: last,
         held: true,
         rects: [first._rect],
@@ -455,7 +456,7 @@ class BackdropUnderlay {
       if (inside) {
         first.debugMiss = null;
         return (
-          copy: UnderlayCopy._(first, first._rect, last.pixelRatio),
+          copy: UnderlayCopy._(first, first._rect, last.grid),
           island: last,
           held: true,
           rects: [for (final member in members) member._rect],
@@ -464,10 +465,8 @@ class BackdropUnderlay {
     }
     // Glass that moved over content that held still takes room to move on;
     // under content that changes, the copy holds no more than the band.
-    Rect roomy(_Ask ask) => _snapOut(
-      ask.band.inflate(_margin),
-      ask.pixelRatio,
-    ).intersect(ask.screen);
+    Rect roomy(_Ask ask) =>
+        ask.grid._snapOut(ask.band.inflate(_margin)).intersect(ask.screen);
     final rects = [
       for (final ask in asks)
         if (held && ask.filterClip == null) roomy(ask) else ask.band,
@@ -497,7 +496,7 @@ class BackdropUnderlay {
     final island = _Island(
       ask,
       rect,
-      pixelRatio: signed.filtersGlass ? ask.devicePixelRatio : ask.pixelRatio,
+      grid: signed.filtersGlass ? ask.grid._screen : ask.grid,
     );
     // Recorded when the frame's copies are drawn, not now: glass in the band
     // whose own copy is drawn with it is drawn by then as far as it can be.
@@ -512,7 +511,7 @@ class BackdropUnderlay {
           for (final member in island.members) ?member._joined!.body,
         ],
       );
-      final picture = replay.record(island.pixelRatio);
+      final picture = replay.record(island.grid);
       if (picture != null && !island.broken) island.signature = replay.out;
       island.pieces = replay.pieces;
       return picture;
@@ -526,7 +525,7 @@ class BackdropUnderlay {
       atlas.flush('at once');
     }
     return (
-      copy: UnderlayCopy._(first, first._rect, island.pixelRatio),
+      copy: UnderlayCopy._(first, first._rect, island.grid),
       island: island,
       held: false,
       rects: rects,
@@ -716,7 +715,7 @@ final class _Ask {
     required this.anchor,
     required this.own,
     required this.devicePixelRatio,
-    required this.pixelRatio,
+    required this.grid,
     required this.screen,
     required this.band,
     required this.filter,
@@ -731,7 +730,8 @@ final class _Ask {
   final Layer anchor;
   final OpacitySeedLayer? own;
   final double devicePixelRatio;
-  final double pixelRatio;
+  // The grid asked for, which a copy holding glass may not be drawn on.
+  final CopyGrid grid;
   final Rect screen;
   final Rect band;
   final ui.ImageFilter? filter;
@@ -783,7 +783,7 @@ final class _Plan {
 
   bool admits(_Ask ask) {
     final first = _asks.first;
-    if (ask.pixelRatio != first.pixelRatio ||
+    if (ask.grid != first.grid ||
         ask.filterKey != first.filterKey ||
         !_meets(rect, ask.band)) {
       return false;
@@ -849,11 +849,7 @@ final class _Plan {
     if (!decision.held) {
       underlay._join(decision.island, decision.rects[index], ask);
     }
-    return UnderlayCopy._(
-      underlay,
-      underlay._rect,
-      decision.island.pixelRatio,
-    );
+    return UnderlayCopy._(underlay, underlay._rect, decision.island.grid);
   }
 }
 
@@ -861,14 +857,15 @@ final class _Plan {
 // recorded over, from what is painted before the first one's glass, and its
 // signature; and each copy's rect of it.
 final class _Island {
-  _Island(this._ask, this.rect, {required this.pixelRatio})
-    : width = (rect.width * pixelRatio).round(),
-      height = (rect.height * pixelRatio).round();
+  _Island(this._ask, this.rect, {required this.grid})
+    : width = (rect.width * grid._pixels).round(),
+      height = (rect.height * grid._pixels).round();
 
   // What the first copy asked for, which every copy drawn with it shares.
   final _Ask _ask;
   final Rect rect;
-  final double pixelRatio;
+  // The grid the island is drawn on.
+  final CopyGrid grid;
   final members = <BackdropUnderlay>[];
   List<Object?>? signature;
   // Once a copy has left, the signature no longer tells whether the others
@@ -897,7 +894,7 @@ final class _Island {
   // Whether the copy is filtered in the atlas's layer of copies rather than
   // as a backdrop of its own.
   bool get layered => switch (blur) {
-    (final x, final y) => max(x, y) * pixelRatio <= _Atlas._maxImageBlurSigma,
+    (final x, final y) => max(x, y) * grid._pixels <= _Atlas._maxImageBlurSigma,
     null => false,
   };
 
@@ -907,8 +904,7 @@ final class _Island {
       ask.filterKey == filterKey &&
       ask.filterClip == filterClip &&
       ask.filterBlendMode == filterBlendMode &&
-      ask.devicePixelRatio == _ask.devicePixelRatio &&
-      ask.pixelRatio == _ask.pixelRatio;
+      ask.grid == _ask.grid;
 
   void _leave(BackdropUnderlay underlay) {
     if (!members.remove(underlay)) return;
@@ -996,10 +992,10 @@ class _Prefix {
   }
 
   // Records what is painted before [stop] in [band] (screen logical pixels)
-  // at [pixels] per logical pixel from the band's origin, or returns null
-  // when that cannot be drawn again.
-  ui.Picture? record(double pixels) {
-    _pixels = pixels;
+  // on [grid] from the band's origin, or returns null when that cannot be
+  // drawn again.
+  ui.Picture? record(CopyGrid grid) {
+    _pixels = grid._pixels;
     _begin();
     run();
     final content = recorder!.endRecording();
@@ -2110,15 +2106,16 @@ final class _Served extends _Open {
 /// pending copies then.
 @internal
 final class UnderlayCopy {
-  const UnderlayCopy._(this._underlay, this.rect, this.pixelRatio);
+  const UnderlayCopy._(this._underlay, this.rect, this._grid);
 
   final BackdropUnderlay _underlay;
+  final CopyGrid _grid;
 
   /// The screen rect the copy holds, in logical pixels.
   final Rect rect;
 
   /// The copy's pixels per logical pixel along each side.
-  final double pixelRatio;
+  double get pixelRatio => _grid._pixels;
 
   /// Whether [image] is drawn already.
   bool get ready => _underlay._image != null;
@@ -2145,7 +2142,9 @@ final class UnderlayCopy {
 /// left, drawn in a layer of [layer].
 @internal
 final class InFrameCopy {
-  const InFrameCopy._(this.content, this.band, this.layer, this.pixelRatio);
+  const InFrameCopy._(this.content, this.band, this.layer, this._grid);
+
+  final CopyGrid _grid;
 
   /// What is painted before the glass in [band].
   final ui.Picture content;
@@ -2160,7 +2159,7 @@ final class InFrameCopy {
   final Rect layer;
 
   /// The copy's pixels per logical pixel along each side.
-  final double pixelRatio;
+  double get pixelRatio => _grid._pixels;
 }
 
 /// A picture of glass, drawn over its copy.
@@ -2293,9 +2292,7 @@ final class _Atlas {
       for (final tile in batch) {
         runs
             .putIfAbsent(
-              !tile.filtered
-                  ? null
-                  : (tile.filterKey, tile.pixelRatio, tile.layered),
+              !tile.filtered ? null : (tile.filterKey, tile.grid, tile.layered),
               () => [],
             )
             .add(tile);
@@ -2342,7 +2339,7 @@ final class _Atlas {
 
   // From the screen's logical pixels to [tile]'s place in the image.
   static Matrix4 _toAtlas(_Island tile) {
-    final pixels = tile.pixelRatio;
+    final pixels = tile.grid._pixels;
     final toAtlas = Matrix4.translationValues(
       tile.offset.dx - tile.rect.left * pixels,
       tile.offset.dy - tile.rect.top * pixels,
@@ -2393,7 +2390,7 @@ final class _Atlas {
     // Copies under one blur share one filtered layer: the filter reads the
     // copies alone, so no backdrop is copied for it, and the layer is
     // clipped to the rows of the copies' run, which hold no other copy.
-    final layered = <(Object?, double), List<_Island>>{};
+    final layered = <(Object?, CopyGrid), List<_Island>>{};
     for (final tile in tiles) {
       if (!tile.filtered) {
         if (tile.pieces.isEmpty) {
@@ -2402,9 +2399,7 @@ final class _Atlas {
           folding.add(tile);
         }
       } else if (tile.layered) {
-        layered
-            .putIfAbsent((tile.filterKey, tile.pixelRatio), () => [])
-            .add(tile);
+        layered.putIfAbsent((tile.filterKey, tile.grid), () => []).add(tile);
       } else {
         isolated.add(tile);
       }
@@ -2438,8 +2433,8 @@ final class _Atlas {
         // into, whatever the canvas scale: here the copies' own.
         b.pushImageFilter(
           _blur(
-            first.blur!.$1 * first.pixelRatio,
-            first.blur!.$2 * first.pixelRatio,
+            first.blur!.$1 * first.grid._pixels,
+            first.blur!.$2 * first.grid._pixels,
           ),
         );
         for (final tile in group) {
@@ -2482,7 +2477,7 @@ final class _Atlas {
       if (size > 1) _count(BackdropUnderlay.debugIslands, size);
       for (final member in tile.members) {
         final shift =
-            (member._rect.topLeft - tile.rect.topLeft) * tile.pixelRatio;
+            (member._rect.topLeft - tile.rect.topLeft) * tile.grid._pixels;
         member._image = image.clone();
         member._offset =
             tile.offset +
