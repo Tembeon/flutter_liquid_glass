@@ -52,7 +52,7 @@ export 'src/presentation/route.dart'
 export 'src/presentation/source.dart'
     show MotionSource, MotionSourceBox, SourceGeometry;
 export 'src/screen/driven.dart' show MotionDriven;
-export 'src/screen/input_region.dart' show InputRegion;
+export 'src/screen/input_region.dart' show InputRegion, MotionHapticPlay;
 export 'src/screen/layout.dart'
     show
         LayoutChange,

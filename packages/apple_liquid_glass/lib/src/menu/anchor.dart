@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -323,7 +322,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W>
     switch (event) {
       case MenuHighlightChanged(:final from, :final to, :final tracked):
         _content.highlight(from, to);
-        if (tracked) unawaited(HapticFeedback.selectionClick());
+        if (tracked) MotionHaptic.selection.play();
       case MenuActivated(:final target):
         _content.activate(target);
       case MenuTapped():
@@ -1715,7 +1714,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     _growth = GlassContextMenu.holdGrowth(held);
     if (!_committed && held >= GlassContextMenu._commit) {
       _committed = true;
-      unawaited(HapticFeedback.heavyImpact());
+      MotionHaptic.heavyImpact.play();
     }
     if (held >= GlassContextMenu._hold) _openUnder(_held!);
   }

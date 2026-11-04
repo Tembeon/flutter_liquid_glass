@@ -299,21 +299,7 @@ class _InputRegionState extends State<InputRegion> {
     if (event is ActivationEvent && event.source != ActivationSource.pointer) {
       return;
     }
-    final haptic = widget.feedback?.call(event);
-    if (haptic != null) _haptic(haptic);
-  }
-
-  static void _haptic(MotionHaptic haptic) {
-    switch (haptic) {
-      case MotionHaptic.selection:
-        HapticFeedback.selectionClick();
-      case MotionHaptic.lightImpact:
-        HapticFeedback.lightImpact();
-      case MotionHaptic.mediumImpact:
-        HapticFeedback.mediumImpact();
-      case MotionHaptic.heavyImpact:
-        HapticFeedback.heavyImpact();
-    }
+    widget.feedback?.call(event)?.play();
   }
 
   void _scheduleDue() {
@@ -450,4 +436,15 @@ class _RenderListener extends RenderProxyBox {
   void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
     state._pointer(event, size);
   }
+}
+
+/// Plays a [MotionHaptic] on the platform.
+extension MotionHapticPlay on MotionHaptic {
+  /// Plays the haptic.
+  void play() => switch (this) {
+    .selection => HapticFeedback.selectionClick(),
+    .lightImpact => HapticFeedback.lightImpact(),
+    .mediumImpact => HapticFeedback.mediumImpact(),
+    .heavyImpact => HapticFeedback.heavyImpact(),
+  }.ignore();
 }

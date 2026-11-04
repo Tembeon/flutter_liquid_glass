@@ -258,7 +258,7 @@ class _GlassPageControlState extends State<GlassPageControl> {
     switch (event) {
       case PageControlPicked(:final page, :final scrubbed):
         if (page != _page) widget.onChanged?.call(page);
-        if (scrubbed) HapticFeedback.selectionClick().ignore();
+        if (scrubbed) MotionHaptic.selection.play();
         SchedulerBinding.instance.addPostFrameCallback((_) {
           if (mounted) _body.setPage(_page);
         });

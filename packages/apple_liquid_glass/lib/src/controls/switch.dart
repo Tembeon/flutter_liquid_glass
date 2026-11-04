@@ -8,7 +8,6 @@ import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 
@@ -142,7 +141,7 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
           if (mounted) _body.setValue(value: widget.value);
         });
       case SwitchShown():
-        HapticFeedback.lightImpact().ignore();
+        MotionHaptic.lightImpact.play();
     }
   }
 

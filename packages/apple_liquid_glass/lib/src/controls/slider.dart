@@ -236,10 +236,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
         _end(_out(value));
         _reconcileLater();
       case SliderFelt(:final detent):
-        (detent
-                ? HapticFeedback.selectionClick()
-                : HapticFeedback.lightImpact())
-            .ignore();
+        (detent ? MotionHaptic.selection : MotionHaptic.lightImpact).play();
     }
   }
 

@@ -411,7 +411,7 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
     }
     final over = _actionAt(event.position);
     if (!identical(over, _highlighted.value)) {
-      if (over != null) HapticFeedback.selectionClick();
+      if (over != null) MotionHaptic.selection.play();
       _highlighted.value = over;
     }
     MotionClock.instance.wake(this);
