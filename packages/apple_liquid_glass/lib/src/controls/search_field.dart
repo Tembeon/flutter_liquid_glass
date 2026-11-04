@@ -238,9 +238,20 @@ class GlassSearchField extends StatefulWidget {
 
 class _GlassSearchFieldState extends State<GlassSearchField>
     implements TextSelectionGestureDetectorBuilderDelegate {
-  late final _FieldBody _body = _FieldBody();
-  late final _scaleX = _Scale(_body, vertical: false);
-  late final _scaleY = _Scale(_body, vertical: true);
+  final GlassPress _press = GlassPress(
+    size: const Size(346, GlassSearchField.height),
+    law: const FlexLaw(
+      stretches: false,
+      activationDelay: GlassSearchField.pressDelay,
+    ),
+  );
+  late final _body = _press.select(
+    (p) => p.isAtRest
+        ? const GlassFrame()
+        : GlassFrame(scaleX: p.scaleX, scaleY: p.scaleY),
+  );
+  late final _scaleX = _press.select((p) => p.isAtRest ? 1.0 : p.scaleX);
+  late final _scaleY = _press.select((p) => p.isAtRest ? 1.0 : p.scaleY);
   late final _LiftInput _input = _LiftInput(this);
   late final List<Interaction> _interactions = [_input];
   final _regionFocus = FocusNode(skipTraversal: true);
@@ -273,7 +284,6 @@ class _GlassSearchFieldState extends State<GlassSearchField>
     _states.update(WidgetState.disabled, !widget.enabled);
     _states.addListener(_statesChanged);
     _focus.addListener(_focusChanged);
-    MotionClock.instance.addDriver(_body);
   }
 
   @override
@@ -300,8 +310,6 @@ class _GlassSearchFieldState extends State<GlassSearchField>
     _regionFocus.dispose();
     _ownController?.dispose();
     _ownFocus?.dispose();
-    MotionClock.instance.removeDriver(_body);
-    _body.dispose();
     super.dispose();
   }
 
@@ -337,7 +345,7 @@ class _GlassSearchFieldState extends State<GlassSearchField>
 
   void _focusChanged() {
     _states.update(WidgetState.focused, _focus.hasFocus);
-    if (_focus.hasFocus) _body.cancel(MotionClock.instance.now);
+    if (_focus.hasFocus) _press.pointerCancel(MotionClock.instance.now);
   }
 
   void _clear() {
@@ -347,7 +355,7 @@ class _GlassSearchFieldState extends State<GlassSearchField>
 
   @override
   Widget build(BuildContext context) {
-    _body.reducedMotion = GlassTraits.of(context).reduceMotion;
+    _press.reducedMotion = GlassTraits.of(context).reduceMotion;
     final look = (widget.style ?? const GlassSearchFieldStyle())
         .merge(GlassTheme.of(context).searchFieldStyle)
         .merge(_defaults(context));
@@ -558,24 +566,6 @@ class SearchFieldStacking extends InheritedWidget {
       height != oldWidget.height || glass != oldWidget.glass;
 }
 
-class _Scale implements ValueListenable<double> {
-  _Scale(this._frames, {required this.vertical});
-
-  final ValueListenable<GlassFrame> _frames;
-  final bool vertical;
-
-  @override
-  double get value => vertical ? _frames.value.scaleY : _frames.value.scaleX;
-
-  @override
-  void addListener(VoidCallback listener) => _frames.addListener(listener);
-
-  @override
-  void removeListener(VoidCallback listener) =>
-      _frames.removeListener(listener);
-}
-
-// The field's frames with its glass faded by a presence.
 class _Faded extends ChangeNotifier implements ValueListenable<GlassFrame> {
   _Faded(this._frames, this._presence) {
     _frames.addListener(notifyListeners);
@@ -634,66 +624,6 @@ class SearchEnds extends InheritedWidget {
   bool updateShouldNotify(SearchEnds oldWidget) => ends != oldWidget.ends;
 }
 
-/// The field's lift, stepped on the motion clock and published as the
-/// frames of its glass.
-final class _FieldBody extends ChangeNotifier
-    implements ValueListenable<GlassFrame>, MotionDriver {
-  final GlassPress _press = GlassPress(
-    size: const Size(346, GlassSearchField.height),
-    law: const FlexLaw(
-      stretches: false,
-      activationDelay: GlassSearchField.pressDelay,
-    ),
-  );
-  GlassFrame _value = const GlassFrame();
-
-  set reducedMotion(bool value) => _press.reducedMotion = value;
-  bool get reducedMotion => _press.reducedMotion;
-
-  @override
-  GlassFrame get value => _value;
-
-  @override
-  bool get isActive =>
-      !_press.isSettled || (!_press.isPressed && _value != const GlassFrame());
-
-  @override
-  double? get wakeTime => null;
-
-  @override
-  void step(double time) {
-    _press.advance(time);
-    if (_press.isSettled) _press.settle();
-    final next = _press.isAtRest
-        ? const GlassFrame()
-        : GlassFrame(scaleX: _press.scaleX, scaleY: _press.scaleY);
-    if (next == _value) return;
-    _value = next;
-    notifyListeners();
-  }
-
-  void down(double t, Offset position, Size size) {
-    _press.size = size;
-    _press.pointerDown(t, position);
-    MotionClock.instance.wake(this);
-  }
-
-  void move(double t, Offset position) {
-    _press.pointerMove(t, position);
-    MotionClock.instance.wake(this);
-  }
-
-  void up(double t, Offset position) {
-    _press.pointerUp(t, position);
-    MotionClock.instance.wake(this);
-  }
-
-  void cancel(double t) {
-    _press.pointerCancel(t);
-    MotionClock.instance.wake(this);
-  }
-}
-
 /// Follows a touch on the field to lift it, and focuses the field on a
 /// tap; it never holds the touch, so the text's own gestures and a scroll
 /// still take it.
@@ -717,18 +647,18 @@ final class _LiftInput extends Interaction {
       case PointerDownInput() when _pointer == null && accepts(input):
         _pointer = input.pointer;
         _down = input.position;
-        _owner._body.down(input.time, input.position, input.regionSize);
+        _owner._press.down(input);
       case PointerMoveInput() when input.pointer == _pointer:
-        _owner._body.move(input.time, input.position);
+        _owner._press.move(input);
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
-        _owner._body.up(input.time, input.position);
+        _owner._press.up(input);
         if ((input.position - _down).distance < kTouchSlop) {
           _owner._focus.requestFocus();
         }
       case PointerCancelInput() when input.pointer == _pointer:
         _pointer = null;
-        _owner._body.cancel(input.time);
+        _owner._press.cancel(input);
       default:
     }
     return InteractionUpdate.none;
