@@ -76,13 +76,13 @@ class GlassBadgeStyle {
 /// UIKit: `UITabBarItem.badgeValue`, `UIBarButtonItem.Badge`. SwiftUI:
 /// `badge(_:)`. Flutter: `Badge`.
 ///
-/// It draws in [GlassColors.systemRed] with white text unless its [style]
-/// or the theme's says otherwise: a capsule of [fontSize] medium text
-/// with [verticalPadding] and [horizontalPadding], at least as wide as it
-/// is tall and at most [maxWidth]; the dot is [dotSize] across. Its text
-/// does not follow the text size setting. These metrics are read from UIKit (notes private);
-/// how a badge appears, changes and leaves (UIKit fades it with the bar's
-/// update animation) is not reproduced.
+/// It draws in [GlassColors.systemRed] with white text unless its [style] or
+/// the theme's says otherwise: a capsule of [fontSize] medium text with
+/// [verticalPadding] and [horizontalPadding], at least as wide as it is tall
+/// and at most [maxWidth]; the dot is [dotSize] across. Its text does not
+/// follow the text size setting. These metrics are read from UIKit (notes
+/// private); how a badge appears, changes and leaves (UIKit fades it with the
+/// bar's update animation) is not reproduced.
 class GlassBadge extends StatelessWidget {
   /// A badge showing [count]; a count of zero or less shows no badge.
   const GlassBadge.count(int this.count, {this.style, super.key}) : text = null;
