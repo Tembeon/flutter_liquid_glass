@@ -24,8 +24,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 
-/// Opens and closes a `GlassButton`'s or a [GlassContextMenu]'s menu from
-/// code.
+/// Opens and closes the menu of a [RawGlassMenu], a `GlassButton` or a
+/// [GlassContextMenu] from code.
 ///
 /// Flutter: `MenuController`.
 class GlassMenuController {
@@ -41,39 +41,35 @@ class GlassMenuController {
   void close() => _anchor?._close();
 }
 
-/// What opens a menu from its source.
-@internal
-enum MenuTrigger {
-  /// A tap opens the menu on its release, a hold on the measured hold.
-  tap,
-
-  /// Only a hold opens the menu; a tap calls the source's own action.
-  hold,
-}
-
-/// A source whose glass grows into its menu, as a `UIButton` with a menu
-/// does on iOS 27.
+/// A source whose glass grows into a menu of [entries], as a `UIButton`
+/// with a menu does on iOS 27, with no look of its own: [child] draws the
+/// source.
 ///
-/// The menu shows on the root overlay without a route, so a finger that
-/// pressed the source keeps sliding over the open menu and chooses the
-/// row it lifts from. Escape and Back close it; a tap outside closes it
-/// without reaching what lies under it.
-@internal
-class MenuAnchor extends StatefulWidget {
-  /// Creates the menu source drawn as [face].
-  const MenuAnchor({
+/// UIKit: `UIButton.menu`. SwiftUI: `Menu`. Flutter: `RawMenuAnchor`.
+///
+/// Without [onPressed] a tap opens the menu on its release and a hold
+/// opens it under the finger (UIKit's `showsMenuAsPrimaryAction`); with it
+/// a tap calls it and only a hold opens the menu. The menu shows on the
+/// root overlay without a route, so a finger that pressed the source keeps
+/// sliding over the open menu and chooses the row it lifts from. Escape,
+/// Back and a tap outside close it; the tap outside reaches nothing under
+/// it. While the menu shows, [child] paints nothing and the menu's glass
+/// draws [label] as it grows out of the source; `GlassButton` with
+/// `menuChildren` is this core with the button's glass.
+class RawGlassMenu extends StatefulWidget {
+  /// Creates the menu source drawn as [child].
+  const RawGlassMenu({
     required this.entries,
-    required this.face,
-    required this.look,
-    this.sourceTint,
-    this.sourceRadius,
-    this.trigger = MenuTrigger.tap,
-    this.onTap,
+    required this.child,
+    required this.label,
+    this.tint,
+    this.radius,
+    this.onPressed,
     this.enabled = true,
     this.controller,
     this.semanticLabel,
     this.order = GlassMenuOrder.automatic,
-    this.tuning = MenuTuning.standard,
+    @internal this.tuning = MenuTuning.standard,
     super.key,
   });
 
@@ -81,27 +77,23 @@ class MenuAnchor extends StatefulWidget {
   final List<GlassMenuEntry> entries;
 
   /// The source at rest, glass included.
-  final Widget face;
+  final Widget child;
 
-  /// The source's label or glyph, drawn on the glass while it grows into
-  /// the menu.
-  final Widget look;
+  /// The source's label or glyph, drawn on the menu's glass while it grows
+  /// out of the source.
+  final Widget label;
 
-  /// The color of the source's glass at rest, already resolved, or null
-  /// for untinted glass. The glass takes it at both hand-offs and crosses
-  /// it into the menu's glass while the look fades, fused body included
-  /// (menu-button.md); the color hand-off of a tinted `UIButton` is not
-  /// recorded.
-  final Color? sourceTint;
+  /// The color of the source's glass at rest, or null for untinted glass.
+  /// The menu's glass takes it at both hand-offs and crosses it into its
+  /// own while [label] fades, the fused body included (menu-button.md);
+  /// the color hand-off of a tinted `UIButton` is not recorded.
+  final Color? tint;
 
   /// The corner radius of the source's glass at rest; null for a capsule.
-  final double? sourceRadius;
+  final double? radius;
 
-  /// What opens the menu.
-  final MenuTrigger trigger;
-
-  /// Called on a tap of a [MenuTrigger.hold] source.
-  final VoidCallback? onTap;
+  /// Called on a tap; null makes a tap open the menu.
+  final VoidCallback? onPressed;
 
   /// Whether the source takes touches.
   final bool enabled;
@@ -116,10 +108,11 @@ class MenuAnchor extends StatefulWidget {
   final GlassMenuOrder order;
 
   /// The measured behavior of the menu, read when it first opens.
+  @internal
   final MenuTuning tuning;
 
   @override
-  State<MenuAnchor> createState() => _MenuAnchorState();
+  State<RawGlassMenu> createState() => _RawGlassMenuState();
 }
 
 /// The state of a widget whose menu shows on the overlay: the motion, the
@@ -159,7 +152,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   /// or null for a menu that does not grow out of its source's glass.
   Widget? get _look;
 
-  /// The color of the source's glass at rest (see [MenuAnchor.sourceTint]).
+  /// The color of the source's glass at rest (see [RawGlassMenu.tint]).
   Color? get _sourceTint => null;
 
   /// The motion of a menu opening from [source], in the overlay's
@@ -442,7 +435,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   );
 }
 
-class _MenuAnchorState extends _MenuHost<MenuAnchor> {
+class _RawGlassMenuState extends _MenuHost<RawGlassMenu> {
   @override
   List<GlassMenuEntry> get _entries => widget.entries;
 
@@ -459,13 +452,13 @@ class _MenuAnchorState extends _MenuHost<MenuAnchor> {
   String? get _semanticLabel => widget.semanticLabel;
 
   @override
-  VoidCallback? get _onTap => widget.onTap;
+  VoidCallback? get _onTap => widget.onPressed;
 
   @override
-  Widget? get _look => widget.look;
+  Widget? get _look => widget.label;
 
   @override
-  Color? get _sourceTint => widget.sourceTint;
+  Color? get _sourceTint => widget.tint;
 
   @override
   MenuMotion _createMotion(Rect source, Size bounds, EdgeInsets padding) {
@@ -474,10 +467,10 @@ class _MenuAnchorState extends _MenuHost<MenuAnchor> {
       layout: _content.root,
       bounds: bounds,
       padding: padding,
-      sourceRadius: widget.sourceRadius,
+      sourceRadius: widget.radius,
       tuning: widget.tuning,
     );
-    motion.opensOnTap = widget.trigger == MenuTrigger.tap;
+    motion.opensOnTap = widget.onPressed == null;
     return motion;
   }
 
@@ -492,13 +485,13 @@ class _MenuAnchorState extends _MenuHost<MenuAnchor> {
       button: source,
       bounds: bounds,
       padding: padding,
-      sourceRadius: widget.sourceRadius,
+      sourceRadius: widget.radius,
     );
-    motion.opensOnTap = widget.trigger == MenuTrigger.tap;
+    motion.opensOnTap = widget.onPressed == null;
   }
 
   @override
-  void didUpdateWidget(MenuAnchor oldWidget) {
+  void didUpdateWidget(RawGlassMenu oldWidget) {
     super.didUpdateWidget(oldWidget);
     _updated(
       oldController: oldWidget.controller,
@@ -524,8 +517,9 @@ class _MenuAnchorState extends _MenuHost<MenuAnchor> {
 
   void _activate() {
     if (!widget.enabled) return;
-    if (widget.trigger == MenuTrigger.hold) {
-      widget.onTap?.call();
+    final onPressed = widget.onPressed;
+    if (onPressed != null) {
+      onPressed();
     } else {
       _openFromCode();
     }
@@ -545,7 +539,7 @@ class _MenuAnchorState extends _MenuHost<MenuAnchor> {
   Widget build(BuildContext context) {
     _style = MenuAppearance.resolve(context);
     final enabled = widget.enabled;
-    final hold = widget.trigger == MenuTrigger.hold;
+    final hold = widget.onPressed != null;
     return _host(
       InputRegion(
         interactions: [_input],
@@ -558,7 +552,7 @@ class _MenuAnchorState extends _MenuHost<MenuAnchor> {
             child: LiveTransform(
               live: _frames,
               matrixOf: _pressTransform,
-              child: widget.face,
+              child: widget.child,
             ),
           ),
           builder: (context, showing, face) => Semantics(

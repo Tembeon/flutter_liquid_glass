@@ -413,7 +413,8 @@ class GlassButton extends StatelessWidget {
   /// The entries of the menu the button's glass grows into, or null for a
   /// button without a menu.
   ///
-  /// UIKit: `UIButton.menu`. SwiftUI: `Menu`. Flutter: `MenuAnchor`.
+  /// UIKit: `UIButton.menu`. SwiftUI: `Menu`. Flutter: `MenuAnchor`. The
+  /// core without the button's look is [RawGlassMenu].
   ///
   /// Without [onPressed] a tap opens the menu on its release and a hold
   /// opens it under the finger (UIKit's `showsMenuAsPrimaryAction`); with
@@ -527,18 +528,17 @@ class GlassButton extends StatelessWidget {
 
   Widget _menuButton(BuildContext context, List<GlassMenuEntry> menu) {
     const states = <WidgetState>{};
-    return MenuAnchor(
+    return RawGlassMenu(
       entries: menu,
-      trigger: onPressed == null ? MenuTrigger.tap : MenuTrigger.hold,
-      onTap: onPressed,
+      onPressed: onPressed,
       controller: menuController,
       semanticLabel: semanticLabel,
-      look: _label(context, states, child),
-      sourceTint: GlassDynamicColor.maybeResolve(
+      label: _label(context, states, child),
+      tint: GlassDynamicColor.maybeResolve(
         _lookOf(context).backgroundColor?.resolve(states),
         context,
       ),
-      face: _defaultBody(
+      child: _defaultBody(
         context,
         GlassButtonDetails(
           body: const StillGlassFrame(GlassFrame()),
