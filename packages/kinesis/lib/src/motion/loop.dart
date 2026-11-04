@@ -22,8 +22,11 @@ import 'package:kinesis/src/motion/part.dart';
 /// }
 /// ```
 abstract class MotionLoop extends MotionPart {
-  /// Creates a loop that steps [rate] times per second of motion time.
-  MotionLoop({required this.rate}) : assert(rate > 0, 'a loop ticks forward');
+  /// Creates a loop that steps [rate] times per second of motion time and
+  /// at most [maxFrames] frames per advance.
+  MotionLoop({required this.rate, this.maxFrames = 600})
+    : assert(rate > 0, 'a loop ticks forward'),
+      assert(maxFrames > 0, 'a loop steps');
 
   /// The frames per second of motion time.
   final double rate;
@@ -32,8 +35,9 @@ abstract class MotionLoop extends MotionPart {
   double get frame => 1 / rate;
 
   /// The most frames one advance steps through; earlier frames of a
-  /// longer gap are skipped.
-  static const int maxFrames = 600;
+  /// longer gap are skipped. A loop that must reach its rest after any gap
+  /// allows the frames it takes to rest.
+  final int maxFrames;
 
   int _last = 0;
   bool _moving = false;
@@ -41,6 +45,10 @@ abstract class MotionLoop extends MotionPart {
 
   /// Whether the loop steps as its motion advances.
   bool get isMoving => _moving;
+
+  /// The time of the frame the loop last stepped, or of the one it woke
+  /// at; the next frame it steps follows it.
+  double get lastFrame => _last / rate;
 
   /// Steps the loop from the first frame after [t] on, if it slept.
   void wake(double t) {

@@ -82,15 +82,26 @@ void main() {
     expect(lens.filter.primed, 1);
   });
 
+  test('a long gap steps only the last frames the loop allows', () {
+    final lens = _Lens();
+    lens.move(0, 10);
+    lens.advance(0.1);
+    lens.filter.frames.clear();
+    lens.advance(100);
+    expect(lens.filter.frames.first, moreOrLessEquals(11401 / 120));
+  });
+
   test('wakes from the first frame after the command', () {
     final lens = _Lens();
     lens.move(0, 10);
     lens.advance(5);
     lens.move(7.001, 20);
+    expect(lens.filter.lastFrame, moreOrLessEquals(840 / 120, epsilon: 1e-12));
     lens.advance(7.1);
     expect(
       lens.filter.frames.firstWhere((f) => f > 5),
       moreOrLessEquals(841 / 120, epsilon: 1e-12),
     );
+    expect(lens.filter.lastFrame, lens.filter.frames.last);
   });
 }
