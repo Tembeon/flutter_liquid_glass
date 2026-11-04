@@ -84,6 +84,9 @@ final _switches = <String, void Function({required bool on})>{
   // filters them in the atlas.
   'copy_frost': ({required on}) =>
       LiquidGlassBackdropFrost.debugShaderFrost = on,
+  // B draws the text of a copy smaller than the screen where it lies, A on
+  // the copy's pixels.
+  'place_text': ({required on}) => BackdropUnderlay.debugPlaceText = on,
 };
 
 // The crowd: glass buttons in a grid over every page, BENCH_CROWD_A of them

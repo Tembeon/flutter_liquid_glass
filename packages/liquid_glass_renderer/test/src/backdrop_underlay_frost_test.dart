@@ -24,8 +24,7 @@ void main() {
     final copy = underlayGlass(tester).debugUnderlay.debugImage!;
     // The whole 260 x 200 view, at half size.
     expect((copy.width, copy.height), (130, 100));
-    // White text drawn at half size is bolder under the frost: NEAR.
-    expect(difference, lessThanOrEqualTo(16));
+    expect(difference, lessThanOrEqualTo(4));
   }, skip: skipProperGlassTests);
 
   // The scene's text is white bars under the glass, the hardest edges a
@@ -33,8 +32,8 @@ void main() {
   // there, and the copy's size adds to it as it does for a blurred copy.
   for (final (frost, size, near) in [
     (3.0, (260, 200), 14),
-    (8.0, (130, 100), 24),
-    (12.0, (65, 50), 14),
+    (8.0, (130, 100), 14),
+    (12.0, (65, 50), 22),
   ]) {
     testWidgets('glass frosted by $frost over an unblurred copy draws near '
         'what reading the backdrop draws', (tester) async {
@@ -60,7 +59,7 @@ void main() {
       'reading the backdrop draws', (tester) async {
     expect(
       await underlayParity(tester, frost: 8, scale: 1.2),
-      lessThanOrEqualTo(17),
+      lessThanOrEqualTo(26),
     );
   }, skip: skipProperGlassTests);
 }

@@ -1828,8 +1828,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   ///
   /// NEAR: a copy drawn at half size differs from the full one by at most 10
   /// channel levels on the Pixel 6a (5 in the scroll scene, 10 under the
-  /// crowd of buttons), and by 16 in the host test of white text under 8 px
-  /// of frost at dpr 1, where half size draws the text bolder. In return the
+  /// crowd of buttons), and by 4 in the host test of white text under 8 px
+  /// of frost at dpr 1. In return the
   /// Pixel's rails spend 7 % less on a dot or the Liquid tab and 32 % less
   /// under the crowd. A quarter size differs by 15 on the Liquid tab and
   /// saves no more.
@@ -1844,9 +1844,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   ///
   /// NEAR: the shader's 24 taps are not Impeller's blur. Over the white bars
   /// of the host test they differ from the live filter by at most 14 channel
-  /// levels over a full or a quarter-size copy and 24 over a half-size one,
-  /// where the blurred half-size copy differs by 16, and by 17 for glass
-  /// scaled 1.2 over a quarter-size copy; by 2 to 5 on average.
+  /// levels over a full or a half-size copy and 22 over a quarter-size one,
+  /// where the blurred half-size copy differs by 4, and by 26 for glass
+  /// scaled 1.2 over a quarter-size copy; by 1.2 to 3.1 on average where
+  /// they differ.
   /// In return a frosted copy takes no blur passes.
   ///
   /// A layer picks its shaders by it: after a change, call

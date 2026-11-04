@@ -101,6 +101,11 @@ class BackdropUnderlay {
   @visibleForTesting
   static int debugImagesDrawn = 0;
 
+  /// Whether a copy smaller than the screen draws its text where it lies
+  /// rather than on the copy's pixels, for an A/B run.
+  @visibleForTesting
+  static bool debugPlaceText = true;
+
   /// How many filtered layers the copies were drawn in: one holds every copy
   /// of one blur in an image.
   @visibleForTesting
@@ -1019,7 +1024,15 @@ class _Prefix {
       Rect.fromLTWH(0, 0, rect.width * _pixels, rect.height * _pixels),
       doAntiAlias: false,
     );
-    if (_pixels != dpr) c.scale(_pixels / dpr);
+    if (_pixels != dpr) {
+      c.scale(_pixels / dpr);
+      // Impeller sets text drawn at a translation and a scale alone on whole
+      // pixels of its target (impeller/entity/contents/text_contents.cc):
+      // text moving under glass would step a pixel of the copy, up to four
+      // of the screen's, at a time. Under a skew too small to see it lies
+      // where it is drawn, read from its atlas bilinearly.
+      if (BackdropUnderlay.debugPlaceText) c.skew(0, 1e-6);
+    }
     c.translate(-rect.left * dpr, -rect.top * dpr);
   }
 
