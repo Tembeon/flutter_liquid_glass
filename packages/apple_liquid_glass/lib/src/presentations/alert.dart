@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/input/slot_map.dart';
 import 'package:apple_liquid_glass/src/motion/alert_motion.dart';
 import 'package:apple_liquid_glass/src/motion/glass_press.dart';
 import 'package:apple_liquid_glass/src/motion/popover_motion.dart';
@@ -12,7 +13,6 @@ import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:apple_liquid_glass/src/theme/typography.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
@@ -260,7 +260,7 @@ class _AlertView extends StatefulWidget {
   State<_AlertView> createState() => _AlertViewState();
 }
 
-class _AlertViewState extends State<_AlertView> implements MotionDriver {
+class _AlertViewState extends State<_AlertView> {
   late final AlertMotion? _alert = switch (widget.motion) {
     final AlertMotion alert => alert,
     _ => null,
@@ -270,26 +270,42 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
     _ => null,
   };
   final _press = GlassPress();
-  final _card = GlobalKey();
-  late final List<GlobalKey> _keys = [
-    for (final _ in widget.actions) GlobalKey(),
+  late final _lean = _press.select((p) => p.lean);
+  late final _pressX = _press.select((p) => p.scaleX);
+  late final _pressY = _press.select((p) => p.scaleY);
+  final _slots = SlotMap<GlassAlertAction>();
+  final _focus = FocusNode(skipTraversal: true);
+  late final List<Interaction> _interactions = [
+    if (_popover == null)
+      _scrub.simultaneously(
+        FollowInteraction(_press, role: InteractionRole.content),
+      )
+    else
+      _scrub,
   ];
+  // A scroll of the content takes the touch from the region, which cancels
+  // the scrub and the press.
+  late final _scrub = ScrubInteraction(
+    hit: _actionAt,
+    role: InteractionRole.content,
+    onChanged: (action, t) {
+      if (!_leaving.value) _highlighted.value = action as GlassAlertAction?;
+    },
+    onCommit: (action, t) {
+      _highlighted.value = null;
+      _choose(action as GlassAlertAction);
+    },
+  );
   final _highlighted = ValueNotifier<GlassAlertAction?>(null);
   late final MotionSelection<double> _opacity;
   late final MotionSelection<double> _scale;
   late final MotionSelection<bool> _leaving;
   late final MotionSelection<GlassFrame> _frame;
-  final _lean = ValueNotifier<Offset>(Offset.zero);
-  final _pressX = ValueNotifier<double>(1);
-  final _pressY = ValueNotifier<double>(1);
   static const LiquidShape _platter = LiquidRoundedSuperellipse(
     borderRadius: AlertTuning.cornerRadius,
   );
 
   List<GlassAlertAction> _shown = const [];
-  int? _pointer;
-  // A finger that scrolled the content chooses nothing until it lifts.
-  bool _scrolled = false;
 
   double get _now => MotionClock.instance.now;
 
@@ -309,7 +325,6 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
       _frame = alert.select(
         (m) => GlassFrame(shape: _platter, opacity: m.opacity),
       );
-      MotionClock.instance.addDriver(this);
     }
     _leaving.addListener(_left);
   }
@@ -317,37 +332,16 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
   @override
   void dispose() {
     _leaving.removeListener(_left);
-    MotionClock.instance.removeDriver(this);
-    _pressX.dispose();
-    _pressY.dispose();
     _highlighted.dispose();
-    _lean.dispose();
+    _focus.dispose();
     super.dispose();
-  }
-
-  // The press runs on its own until it is a part of the alert's motion.
-  @override
-  bool get isActive => !_press.isSettled;
-
-  @override
-  double? get wakeTime => null;
-
-  @override
-  void step(double time) {
-    _press.advance(time);
-    if (_press.isSettled) _press.settle();
-    _lean.value = _press.lean;
-    _pressX.value = _press.scaleX;
-    _pressY.value = _press.scaleY;
   }
 
   void _left() {
     if (!_leaving.value) return;
     if (_press.isPressed) _press.pointerCancel(_now);
-    _pointer = null;
     _highlighted.value = null;
     setState(() {});
-    MotionClock.instance.wake(this);
   }
 
   void _choose(GlassAlertAction action) {
@@ -366,96 +360,15 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
     }
   }
 
-  GlassAlertAction? _actionAt(Offset global) {
-    for (var i = 0; i < _shown.length; i++) {
-      final action = _shown[i];
-      final key = _keys[widget.actions.indexOf(action)];
-      final box = key.currentContext?.findRenderObject();
-      if (box is! RenderBox || !box.attached || !box.hasSize) continue;
-      if ((Offset.zero & box.size).contains(box.globalToLocal(global))) {
-        return action.enabled ? action : null;
-      }
-    }
-    return null;
+  GlassAlertAction? _actionAt(Offset position) {
+    final action = _slots.at(position);
+    return action != null && action.enabled ? action : null;
   }
 
-  Offset? _cardLocal(Offset global) {
-    final box = _card.currentContext?.findRenderObject();
-    if (box is! RenderBox || !box.attached || !box.hasSize) return null;
-    _press.size = box.size;
-    return box.globalToLocal(global);
-  }
-
-  void _down(PointerDownEvent event) {
-    if (_leaving.value || _pointer != null || event.buttons != kPrimaryButton) {
-      return;
-    }
-    final local = _cardLocal(event.position);
-    if (local == null) return;
-    _pointer = event.pointer;
-    _scrolled = false;
-    if (_popover == null) {
-      _press.reducedMotion = GlassTraits.of(context).reduceMotion;
-      _press.pointerDown(MotionClock.instance.stamp(event.timeStamp), local);
-    }
-    _highlighted.value = _actionAt(event.position);
-    MotionClock.instance.wake(this);
-  }
-
-  void _move(PointerMoveEvent event) {
-    if (event.pointer != _pointer || _scrolled) return;
-    final local = _cardLocal(event.position);
-    if (local == null) return;
-    if (_popover == null) {
-      _press.pointerMove(MotionClock.instance.stamp(event.timeStamp), local);
-    }
-    final over = _actionAt(event.position);
-    if (!identical(over, _highlighted.value)) {
-      if (over != null) MotionHaptic.selection.play();
-      _highlighted.value = over;
-    }
-    MotionClock.instance.wake(this);
-  }
-
-  void _up(PointerUpEvent event) {
-    if (event.pointer != _pointer) return;
-    _pointer = null;
-    if (_scrolled) return;
-    final local = _cardLocal(event.position) ?? Offset.zero;
-    if (_popover == null) {
-      _press.pointerUp(MotionClock.instance.stamp(event.timeStamp), local);
-    }
-    final chosen = _actionAt(event.position);
-    _highlighted.value = null;
-    MotionClock.instance.wake(this);
-    if (chosen != null) _choose(chosen);
-  }
-
-  void _cancel(PointerCancelEvent event) {
-    if (event.pointer != _pointer) return;
-    _pointer = null;
-    if (_scrolled) return;
-    if (_popover == null) {
-      _press.pointerCancel(MotionClock.instance.stamp(event.timeStamp));
-    }
-    _highlighted.value = null;
-    MotionClock.instance.wake(this);
-  }
-
-  bool _scrolledContent(ScrollNotification notification) {
-    if (_pointer == null ||
-        _scrolled ||
-        notification.depth != 0 ||
-        notification is! ScrollUpdateNotification ||
-        notification.dragDetails == null) {
-      return false;
-    }
-    _scrolled = true;
-    if (_popover == null) _press.pointerCancel(_now);
-    _highlighted.value = null;
-    MotionClock.instance.wake(this);
-    return false;
-  }
+  static MotionHaptic? _feedback(InteractionEvent event) => switch (event) {
+    ScrubChangeEvent(atDown: false, selected: _?) => MotionHaptic.selection,
+    _ => null,
+  };
 
   bool _fitsInRow(double width, BuildContext context) {
     final each =
@@ -507,6 +420,7 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
     final reduced = GlassTraits.of(context).reduceMotion;
     _alert?.reducedMotion = reduced;
     _popover?.reducedMotion = reduced;
+    _press.reducedMotion = reduced;
     final popover = widget.anchorRect;
     final screen = MediaQuery.sizeOf(context);
     final width = math.min(
@@ -518,24 +432,12 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
         widget.actions.length == 2 &&
         _fitsInRow(width, context);
     _shown = _ordered(widget.actions, row: row, popover: popover != null);
-    final card = NotificationListener<ScrollNotification>(
-      onNotification: _scrolledContent,
-      child: _buildCard(width, row, context),
-    );
+    final card = _buildCard(width, row, context);
     Widget interactive(Widget child) => CallbackShortcuts(
       bindings: {const SingleActivator(LogicalKeyboardKey.enter): _return},
       child: FocusScope(
         autofocus: true,
-        child: IgnorePointer(
-          ignoring: _leaving.value,
-          child: Listener(
-            onPointerDown: _down,
-            onPointerMove: _move,
-            onPointerUp: _up,
-            onPointerCancel: _cancel,
-            child: child,
-          ),
-        ),
+        child: IgnorePointer(ignoring: _leaving.value, child: child),
       ),
     );
     if (popover != null) {
@@ -621,12 +523,15 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
     ];
     final buttons = [
       for (final action in _shown)
-        _AlertButton(
-          key: _keys[widget.actions.indexOf(action)],
-          action: action,
-          highlighted: _highlighted,
-          label: _labelStyle(action, context),
-          onChoose: _choose,
+        SlotMapEntry(
+          map: _slots,
+          id: action,
+          child: _AlertButton(
+            action: action,
+            highlighted: _highlighted,
+            label: _labelStyle(action, context),
+            onChoose: _choose,
+          ),
         ),
     ];
     final block = row
@@ -683,36 +588,43 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
     );
     return MediaQuery.withClampedTextScaling(
       maxScaleFactor: AlertTuning.maxTextScale,
-      child: SizedBox(
-        key: _card,
-        width: width,
-        child: Stack(
-          children: [
-            if (_popover == null)
-              Positioned.fill(
-                child: GlassSurface.live(
-                  role: GlassRole.menu,
-                  frame: _frame,
-                  child: const SizedBox.expand(),
+      child: InputRegion(
+        interactions: _interactions,
+        feedback: _feedback,
+        focusNode: _focus,
+        child: SlotMapOrigin(
+          map: _slots,
+          child: SizedBox(
+            width: width,
+            child: Stack(
+              children: [
+                if (_popover == null)
+                  Positioned.fill(
+                    child: GlassSurface.live(
+                      role: GlassRole.menu,
+                      frame: _frame,
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                MotionTransition(
+                  opacity: _opacity,
+                  child: ClipRSuperellipse(
+                    borderRadius: BorderRadius.circular(
+                      _popover == null
+                          ? AlertTuning.cornerRadius
+                          : PopoverTuning.cornerRadius,
+                    ),
+                    child: ListView(
+                      shrinkWrap: true,
+                      padding: EdgeInsets.zero,
+                      physics: const ClampingScrollPhysics(),
+                      children: [content],
+                    ),
+                  ),
                 ),
-              ),
-            MotionTransition(
-              opacity: _opacity,
-              child: ClipRSuperellipse(
-                borderRadius: BorderRadius.circular(
-                  _popover == null
-                      ? AlertTuning.cornerRadius
-                      : PopoverTuning.cornerRadius,
-                ),
-                child: ListView(
-                  shrinkWrap: true,
-                  padding: EdgeInsets.zero,
-                  physics: const ClampingScrollPhysics(),
-                  children: [content],
-                ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -725,7 +637,6 @@ class _AlertButton extends StatelessWidget {
     required this.highlighted,
     required this.label,
     required this.onChoose,
-    super.key,
   });
 
   final GlassAlertAction action;

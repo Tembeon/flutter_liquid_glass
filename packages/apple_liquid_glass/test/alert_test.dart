@@ -152,6 +152,117 @@ void main() {
     expect((result?.child as Text?)?.data, 'Three');
   });
 
+  testWidgets('a slide onto another button clicks, the touch-down does not', (
+    tester,
+  ) async {
+    await _phone(tester);
+    final haptics = <Object?>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'HapticFeedback.vibrate') {
+          haptics.add(call.arguments);
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_app(navigator));
+    unawaited(
+      showGlassAlert(
+        _context(navigator),
+        title: const Text('Pick'),
+        actions: const [
+          GlassAlertAction(child: Text('One')),
+          GlassAlertAction(child: Text('Two')),
+          GlassAlertAction(child: Text('Three')),
+        ],
+      ),
+    );
+    await _settle(tester);
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('One')),
+    );
+    await tester.pump(_frame);
+    expect(haptics, isEmpty);
+    await gesture.moveTo(tester.getCenter(find.text('Two')));
+    await tester.pump(_frame);
+    expect(haptics, ['HapticFeedbackType.selectionClick']);
+    await gesture.up();
+    await _settle(tester);
+  });
+
+  testWidgets('a finger lifted over no button chooses nothing', (
+    tester,
+  ) async {
+    await _phone(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_app(navigator));
+    var done = false;
+    unawaited(
+      showGlassAlert(
+        _context(navigator),
+        title: const Text('Pick'),
+        actions: const [
+          GlassAlertAction(child: Text('One')),
+          GlassAlertAction(child: Text('Two')),
+        ],
+      ).then((_) => done = true),
+    );
+    await _settle(tester);
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('One')),
+    );
+    await tester.pump(_frame);
+    await gesture.moveTo(tester.getCenter(find.text('Pick')));
+    await tester.pump(_frame);
+    await gesture.up();
+    await _settle(tester);
+    expect(done, isFalse);
+    expect(find.text('Pick'), findsOneWidget);
+  });
+
+  testWidgets('a finger that scrolls a long alert chooses nothing', (
+    tester,
+  ) async {
+    await _phone(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_app(navigator));
+    var done = false;
+    unawaited(
+      showGlassAlert(
+        _context(navigator),
+        title: const Text('Pick'),
+        message: Text('A long message. ' * 120),
+        actions: const [
+          GlassAlertAction(child: Text('One')),
+          GlassAlertAction(child: Text('Two')),
+        ],
+      ).then((_) => done = true),
+    );
+    await _settle(tester);
+    final start = tester.getCenter(find.text('Pick'));
+    final gesture = await tester.startGesture(start);
+    await tester.pump(_frame);
+    for (var i = 1; i <= 10; i++) {
+      await gesture.moveTo(start + Offset(0, -12.0 * i));
+      await tester.pump(_frame);
+    }
+    final scroll = tester.state<ScrollableState>(find.byType(Scrollable));
+    expect(scroll.position.pixels, greaterThan(0));
+    await gesture.moveTo(tester.getCenter(find.text('One')));
+    await tester.pump(_frame);
+    await gesture.up();
+    await _settle(tester);
+    expect(done, isFalse);
+  });
+
   testWidgets('a tap outside an alert does nothing; outside an action sheet '
       'it cancels', (tester) async {
     await _phone(tester);
