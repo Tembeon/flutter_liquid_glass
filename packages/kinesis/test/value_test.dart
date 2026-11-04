@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -274,6 +275,113 @@ void main() {
 
     test('a type without a converter is refused', () {
       expect(() => MotionValue<String>('a'), throwsArgumentError);
+    });
+  });
+
+  group('rest', () {
+    const springs = [
+      Spring.response(0.4, dampingRatio: 0.375),
+      Spring.response(0.27, dampingRatio: 0.625),
+      Spring.response(0.48, dampingRatio: 0.7),
+      Spring.response(0.2749),
+      Spring.response(0.6),
+      Spring.response(0.3, dampingRatio: 1.4),
+    ];
+    const tolerances = [MotionRest.length, MotionRest.opacity, 0.0003];
+
+    test('restTime is the first time the remaining swing falls below the '
+        'tolerance, and nothing swings further after it', () {
+      final random = Random(7);
+      for (var n = 0; n < 400; n++) {
+        final spring = springs[n % springs.length];
+        final tolerance = tolerances[n % tolerances.length];
+        final value = MotionValue<double>(0, spring: spring);
+        value.setPresentation(
+          0,
+          (random.nextDouble() - 0.5) * 400,
+          velocity: (random.nextDouble() - 0.5) * 4000,
+        );
+        value.retarget(0, (random.nextDouble() - 0.5) * 50);
+        final probe = MotionValue<double>(0, spring: spring);
+        probe.setPresentation(
+          0,
+          value.valueAt(0),
+          velocity: value.velocityAt(0),
+        );
+        probe.retarget(0, value.target);
+        final rest = value.restTime(tolerance)!;
+        expect(probe.reach(rest), lessThan(tolerance * (1 + 1e-6)));
+        for (final rate in [60.0, 120.0]) {
+          final phase = random.nextDouble() / rate;
+          var frame = phase;
+          while (probe.reach(frame) >= tolerance) {
+            frame += 1 / rate;
+          }
+          expect(rest, lessThanOrEqualTo(frame + 1e-9), reason: '$spring');
+        }
+        for (var s = rest; s < rest + 3; s += 0.01) {
+          expect(
+            (probe.valueAt(s) - value.target).abs(),
+            lessThan(tolerance * (1 + 1e-6)),
+          );
+        }
+      }
+    });
+
+    test('the clock declares rest at the rest time, whatever the frames', () {
+      for (final rate in [60.0, 120.0, 97.0]) {
+        final clock = ManualMotionClock(frameRate: rate);
+        final value = MotionValue<double>(0, clock: clock);
+        value.addListener(() {});
+        value.retarget(0, 10, spring: spring);
+        final rest = value.restTime()!;
+        while (clock.now < rest + 0.1) {
+          clock.advanceBy(1 / rate);
+        }
+        expect(value.value, 10);
+        expect(value.restTime(), rest);
+      }
+    });
+
+    test('a command stamped before a declared rest starts from the course at '
+        'its own time', () {
+      final clock = ManualMotionClock();
+      final value = MotionValue<double>(0, clock: clock);
+      final twin = MotionValue<double>(0);
+      value.addListener(() {});
+      value.retarget(0, 10, spring: spring);
+      twin.retarget(0, 10, spring: spring);
+      final rest = value.restTime()!;
+      while (clock.now < rest + 0.05) {
+        clock.advanceBy(1 / 120);
+      }
+      final stamp = rest - 0.02;
+      value.retarget(stamp, -5, spring: knob);
+      twin.retarget(stamp, -5, spring: knob);
+      for (final t in [stamp, stamp + 0.03, stamp + 0.3]) {
+        expect(value.valueAt(t), twin.valueAt(t));
+        expect(value.velocityAt(t), twin.velocityAt(t));
+      }
+    });
+
+    test('a declaration only rounds what is read from its time on', () {
+      final value = MotionValue<double>(0);
+      value.retarget(0, 10, spring: spring);
+      final rest = value.restTime()!;
+      final before = value.valueAt(rest - 0.01);
+      value.restFrom(rest);
+      expect(value.valueAt(rest - 0.01), before);
+      expect(value.valueAt(rest), 10);
+      expect(value.velocityAt(rest + 1), 0);
+      expect(value.restsAt(rest), isTrue);
+    });
+
+    test('a pending delayed change has no rest time yet', () {
+      final value = MotionValue<double>(0);
+      value.retarget(0, 10, spring: spring, delay: 0.2);
+      expect(value.restTime(), isNull);
+      expect(value.nextDue, 0.2);
+      expect(value.restsAt(0.1), isTrue);
     });
   });
 }

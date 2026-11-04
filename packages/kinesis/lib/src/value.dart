@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
 import 'package:kinesis/src/clock.dart';
 import 'package:kinesis/src/converter.dart';
+import 'package:kinesis/src/motion/part.dart';
 import 'package:kinesis/src/spring.dart';
 import 'package:kinesis/src/tracker.dart';
 import 'package:kinesis/src/transaction.dart';
@@ -29,15 +30,18 @@ import 'package:kinesis/src/transaction.dart';
 ///
 /// While it has listeners and moves or waits for a delayed change, [clock]
 /// steps it every frame and its listeners hear it in the publish phase;
-/// once its remaining swing ([reach]) falls below [restDistance] it snaps
-/// onto its target and they hear it once more. A change made in the
+/// once a frame passes its [restTime] it is declared at rest from that
+/// time ([restFrom]), reads answer its target and they hear it once more.
+/// The declaration is not a change: a command stamped before it starts
+/// from the course at its own time. A change made in the
 /// frame's resolve phase reaches render listeners ([addRenderListener]) in
 /// that phase and the others in the next publish.
 /// A value without listeners is not stepped by the clock at all; its
 /// owner reads it at the times it needs.
 ///
 /// Every component of the value moves on the same spring ([converter]).
-class MotionValue<T> implements ValueListenable<T>, MotionFollowed {
+class MotionValue<T> extends MotionPart
+    implements ValueListenable<T>, MotionFollowed {
   /// Creates a value resting at [value].
   ///
   /// [converter] maps the value to the doubles the spring moves; the
@@ -111,6 +115,9 @@ class MotionValue<T> implements ValueListenable<T>, MotionFollowed {
   double _origin = 0;
   bool _moved = false;
   double _memoT = double.nan;
+  double? _restedAt;
+  double _restMemoTolerance = double.nan;
+  double _restMemo = 0;
 
   double? _pendingDue;
   Float64List? _pendingTarget;
@@ -379,13 +386,91 @@ class MotionValue<T> implements ValueListenable<T>, MotionFollowed {
   @override
   bool stepTo(double time) {
     _state(time);
-    final moving = reach(time) >= restDistance;
     final pending = _pendingDue;
-    _wakeTime = pending != null && !moving ? pending : null;
-    if (moving || pending != null) return true;
-    _snapAt(time, _target);
-    _atRest = true;
+    if (pending != null) {
+      _wakeTime = reach(time) < restDistance ? pending : null;
+      return true;
+    }
+    _wakeTime = null;
+    final rest = restTime();
+    if (rest == null || rest > time) return true;
+    restFrom(rest);
     return false;
+  }
+
+  /// The earliest time from which every component stays within
+  /// [tolerance] ([restDistance] when it is null) of its target until the
+  /// next change, or null while a delayed change is pending.
+  ///
+  /// Found from the course, not from frames: closed form for an
+  /// underdamped spring, whose remaining swing ([reach]) decays on its
+  /// envelope; for a critically damped or overdamped one, the first time
+  /// [reach] falls below [tolerance], sampled every 1/32 of the spring's
+  /// response and refined to within a nanosecond.
+  @override
+  double? restTime([double? tolerance]) {
+    if (_pendingDue != null) return null;
+    final within = tolerance ?? restDistance;
+    if (within == _restMemoTolerance) return _restMemo;
+    var after = 0.0;
+    for (var i = 0; i < _n; i++) {
+      after = math.max(after, _settleAfter(i, within));
+    }
+    var rest = _origin + after;
+    final rested = _restedAt;
+    if (rested != null && rested < rest) rest = rested;
+    _restMemoTolerance = within;
+    _restMemo = rest;
+    return rest;
+  }
+
+  @override
+  bool restsAt(double t, [double? tolerance]) =>
+      reach(t) < (tolerance ?? restDistance);
+
+  @override
+  void restFrom(double t) {
+    if (_pendingDue != null) return;
+    _restedAt = math.max(t, _origin);
+    _atRest = true;
+    _memoT = double.nan;
+  }
+
+  @override
+  double? get nextDue => _pendingDue;
+
+  double _settleAfter(int i, double tolerance) {
+    final a = _y0[i] - _target[i];
+    final v = _v0[i];
+    final start = _reach(a, v);
+    if (start < tolerance) return 0;
+    final motion = _motion;
+    final zeta = motion.dampingRatio;
+    if (zeta < 1 - 1e-9) {
+      if (zeta <= 0) return double.infinity;
+      return math.log(start / tolerance) / (zeta * motion.omega);
+    }
+    final step = motion.response / 32;
+    var lo = 0.0;
+    var hi = step;
+    while (_reachAfter(i, hi) >= tolerance) {
+      lo = hi;
+      hi += step;
+    }
+    while (hi - lo > 1e-9) {
+      final mid = (lo + hi) / 2;
+      if (_reachAfter(i, mid) >= tolerance) {
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+    return hi;
+  }
+
+  double _reachAfter(int i, double dt) {
+    final simulation = _simulation(i);
+    return _reach(simulation.x(dt) - _target[i], simulation.dx(dt));
   }
 
   @override
@@ -464,12 +549,14 @@ class MotionValue<T> implements ValueListenable<T>, MotionFollowed {
     _spring = spring;
     _tracking = tracking;
     _atRest = false;
+    _restedAt = null;
     _origin = at;
     _changed();
   }
 
   void _snapAt(double t, Float64List value) {
     _atRest = true;
+    _restedAt = null;
     _changed();
     _origin = _since(t);
     for (var i = 0; i < _n; i++) {
@@ -481,6 +568,7 @@ class MotionValue<T> implements ValueListenable<T>, MotionFollowed {
 
   void _place(double t, Float64List value, Float64List velocity) {
     _atRest = false;
+    _restedAt = null;
     _changed();
     _origin = _since(t);
     _y0.setAll(0, value);
@@ -514,6 +602,7 @@ class MotionValue<T> implements ValueListenable<T>, MotionFollowed {
 
   void _changed() {
     _memoT = double.nan;
+    _restMemoTolerance = double.nan;
     _simulations.fillRange(0, _n, null);
   }
 
@@ -530,6 +619,11 @@ class MotionValue<T> implements ValueListenable<T>, MotionFollowed {
       final simulation = _simulation(i);
       _memoY[i] = simulation.x(dt);
       _memoV[i] = simulation.dx(dt);
+    }
+    final rested = _restedAt;
+    if (rested != null && t >= rested) {
+      _memoY.setAll(0, _target);
+      _memoV.fillRange(0, _n, 0);
     }
     _memoT = t;
   }
