@@ -54,7 +54,7 @@ abstract class Motion extends MotionPart {
   final List<_Reaction> _reactions = [];
   late final _RootFollower _follower = _RootFollower(this);
   MotionTraits? _traits;
-  int _holds = 0;
+  int _retains = 0;
   double _now = 0;
 
   Motion get _root {
@@ -78,19 +78,19 @@ abstract class Motion extends MotionPart {
   @internal
   set traits(MotionTraits? traits) => _root._traits = traits;
 
-  /// Keeps the root on the clock while held, as `MotionScope` does.
+  /// Keeps the root on the clock while retained, as `MotionScope` does.
   @internal
-  void hold() {
+  void retain() {
     final root = _root;
-    root._holds++;
+    root._retains++;
     root._wake();
   }
 
-  /// Ends a [hold].
+  /// Ends a [retain].
   @internal
-  void release() {
+  void unretain() {
     final root = _root;
-    root._holds--;
+    root._retains--;
     if (!root._attached) root.clock.unfollow(root._follower);
   }
 
@@ -104,7 +104,7 @@ abstract class Motion extends MotionPart {
     root._follower.invalidate();
   }
 
-  bool get _attached => _holds > 0 || _follower.hasListeners;
+  bool get _attached => _retains > 0 || _follower.hasListeners;
 
   void _wake() {
     if (_attached) clock.follow(_follower);

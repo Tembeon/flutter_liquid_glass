@@ -44,14 +44,14 @@ class _MotionScopeState extends State<MotionScope> {
     motion.traits = MotionTraitsOverride.of(context);
     final next = TickerMode.valuesOf(context).enabled ? motion : null;
     if (identical(next, _held)) return;
-    _held?.release();
-    next?.hold();
+    _held?.unretain();
+    next?.retain();
     _held = next;
   }
 
   @override
   void dispose() {
-    _held?.release();
+    _held?.unretain();
     super.dispose();
   }
 
