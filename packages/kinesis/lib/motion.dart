@@ -27,5 +27,7 @@ export 'src/motion/rect.dart' show MotionRect, RectSprings;
 export 'src/motion/rest.dart' show MotionRest;
 export 'src/motion/signal.dart' show MotionSignal;
 export 'src/motion/timed.dart' show TimedValue;
+export 'src/presentation/presented.dart' show Presented;
+export 'src/presentation/source.dart' show Sourced;
 export 'src/timeline.dart' show MotionTimeline;
 export 'src/value.dart' show MotionValueCommands;

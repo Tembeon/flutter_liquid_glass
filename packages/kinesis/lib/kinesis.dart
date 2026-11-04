@@ -41,13 +41,16 @@ export 'src/input/interaction.dart'
         TapInteraction;
 export 'src/input/port.dart' show InputPort;
 export 'src/presentation/level.dart'
-    show
-        PresentationContext,
-        PresentationLevel,
-        presentationNavigatorOf,
-        showPresentation;
+    show PresentationContext, PresentationLevel, showPresentation;
+export 'src/presentation/portal.dart'
+    show PresentationPortal, PresentationPortalController;
+export 'src/presentation/presentation.dart'
+    show Presentation, PresentationEnvironment, PresentationHandle;
+export 'src/presentation/presented.dart' show DismissPolicy;
 export 'src/presentation/route.dart'
     show DismissTrigger, PresentationPageRoute, PresentationRoute;
+export 'src/presentation/source.dart'
+    show MotionSource, MotionSourceBox, SourceGeometry;
 export 'src/screen/driven.dart' show MotionDriven;
 export 'src/screen/input_region.dart' show InputRegion;
 export 'src/screen/layout.dart'

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/src/presentation/route.dart';
 
@@ -31,6 +32,7 @@ class PresentationContext extends InheritedWidget {
 
 /// The navigator a presentation from [context] at [level] is pushed on, or
 /// null when there is none.
+@internal
 NavigatorState? presentationNavigatorOf(
   BuildContext context, {
   PresentationLevel level = PresentationLevel.window,

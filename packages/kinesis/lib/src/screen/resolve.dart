@@ -17,6 +17,12 @@ mixin MotionResolveHost on RenderObject {
   /// Places the presentation from this frame's layout.
   void resolve();
 
+  /// Whether [resolve] runs in every frame's resolve phase while the host
+  /// is attached, not only after [scheduleResolve]: for what follows
+  /// something that moves without laying the host out, such as a source
+  /// under a scroll. It asks for no frames.
+  bool get resolvesEveryFrame => false;
+
   /// Asks for [resolve] in this frame's resolve phase; call it from layout.
   void scheduleResolve() {
     final owner = this.owner;
@@ -96,6 +102,9 @@ final class _ResolveOwner extends PipelineOwner {
   @override
   void flushLayout() {
     super.flushLayout();
+    for (final host in _hosts) {
+      if (host.resolvesEveryFrame) _scheduled.add(host);
+    }
     if (_scheduled.isEmpty) return;
     final hosts = List<MotionResolveHost>.of(_scheduled);
     _scheduled.clear();

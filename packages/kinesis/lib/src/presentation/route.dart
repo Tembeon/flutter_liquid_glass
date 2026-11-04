@@ -1,5 +1,9 @@
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/src/clock.dart';
+import 'package:kinesis/src/presentation/presentation.dart';
+import 'package:kinesis/src/presentation/presented.dart';
+import 'package:kinesis/src/presentation/source.dart';
 import 'package:meta/meta.dart';
 
 /// What asked a presentation to go.
@@ -27,8 +31,16 @@ enum DismissTrigger {
 // A mixin, not a base class: the two shells must be a PopupRoute and a
 // PageRoute, which the navigator, HeroController and RouteObserver check.
 mixin _PresentationEngine<T> on ModalRoute<T> {
+  /// The presentation the route shows, or null for a route that builds its
+  /// content and runs its motion itself through the hooks below.
+  Presentation<T, Presented>? get presentation;
+
   /// The name screen readers announce for the presented content.
   String? get semanticsLabel;
+
+  Presented? _motion;
+  SourceLease? _lease;
+  late final _RouteShell<T> _shell = _RouteShell(this);
 
   late final _StatusProjection _projection = _StatusProjection();
   Ticker? _settle;
@@ -41,39 +53,81 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   CapturedThemes? _themes;
 
   /// Builds the content, which runs the motion and reports [didOpen] and
-  /// [didLeave].
+  /// [didLeave]; the [presentation]'s by default.
   @protected
-  Widget buildContent(BuildContext context);
+  Widget buildContent(BuildContext context) {
+    final presentation = this.presentation;
+    final motion = _motion;
+    assert(
+      presentation != null && motion != null,
+      'A PresentationRoute without a presentation overrides buildContent.',
+    );
+    return PresentedContent(
+      presentation: presentation!,
+      motion: motion!,
+      shell: _shell,
+    );
+  }
 
   /// Starts the content's close after a dismissal by [trigger]; false when
   /// there is nothing to close, which ends the route at once.
   @protected
-  bool leave(DismissTrigger trigger);
+  bool leave(DismissTrigger trigger) =>
+      _motion?.leave(MotionClock.instance.now, trigger) ?? false;
 
   /// Whether [trigger] may dismiss the presentation, before its
   /// `PopScope`s are asked; a programmatic dismissal does not ask.
   @protected
-  bool allows(DismissTrigger trigger) => true;
+  bool allows(DismissTrigger trigger) =>
+      presentation?.dismiss.allows(trigger) ?? true;
 
   /// The result a pop with [result] completes with.
   @protected
-  T? resultFor(T? result) => result;
+  T? resultFor(T? result) {
+    final presentation = this.presentation;
+    return presentation == null ? result : presentation.resultOf(result) as T?;
+  }
 
-  /// Called when a `PopScope` of the content vetoed a dismissal by
-  /// [trigger].
+  /// Called when [allows] or a `PopScope` of the content vetoed a
+  /// dismissal by [trigger].
   @protected
-  void didVetoDismiss(DismissTrigger trigger) {}
+  void didVetoDismiss(DismissTrigger trigger) =>
+      presentation?.onVeto?.call(trigger);
 
   /// Called when the route is presented, by a push or without one, before
-  /// its content builds.
+  /// its content builds: the [presentation]'s motion is made and opened at
+  /// the clock's time, and its source leased.
   @protected
-  void didPresent() {}
+  @mustCallSuper
+  void didPresent() {
+    final presentation = this.presentation;
+    final navigator = this.navigator;
+    if (presentation == null || navigator == null || _motion != null) return;
+    final t = MotionClock.instance.now;
+    final motion = _motion = presentation.create(
+      PresentationEnvironment.of(navigator.context, t),
+    );
+    final source = presentation.source;
+    if (source != null) {
+      _lease = source.lease();
+      if (motion is Sourced) {
+        (motion as Sourced).sourceMoved(t, source.geometry);
+      }
+    }
+    motion.open(t);
+  }
 
   /// Whether the route is modal now: its barrier absorbs taps and hides
   /// the routes below from screen readers. A sheet resting at a detent that
   /// does not dim is not; call [modalityChanged] when the answer changes.
   @protected
-  bool get modal => true;
+  bool get modal {
+    final presentation = this.presentation;
+    final motion = _motion;
+    return presentation == null ||
+        motion == null ||
+        presentation.modalOf(motion);
+  }
 
   /// Applies a change of [modal] to the barrier; one reported while the
   /// frame builds applies in the next frame.
@@ -340,6 +394,8 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   void _finish() {
     if (_finished) return;
     _finished = true;
+    _lease?.release();
+    _lease = null;
     didFinish(_result);
   }
 
@@ -384,18 +440,23 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
 /// While [modal], the barrier absorbs taps and hides the routes below from
 /// screen readers; with a [barrierLabel] and an [allows] outside tap it is
 /// a labelled dismiss target.
-abstract class PresentationRoute<T> extends PopupRoute<T>
-    with _PresentationEngine<T> {
-  /// Creates a presentation route.
+class PresentationRoute<T> extends PopupRoute<T> with _PresentationEngine<T> {
+  /// Creates a route that shows [presentation].
   PresentationRoute({
+    this.presentation,
     super.settings,
     super.requestFocus,
     super.traversalEdgeBehavior,
-    this.semanticsLabel,
+    this._semanticsLabel,
   });
 
   @override
-  final String? semanticsLabel;
+  final Presentation<T, Presented>? presentation;
+
+  final String? _semanticsLabel;
+
+  @override
+  String? get semanticsLabel => _semanticsLabel ?? presentation?.semanticsLabel;
 }
 
 /// A page whose motion lives in its content, such as a page that zooms out
@@ -409,17 +470,26 @@ abstract class PresentationRoute<T> extends PopupRoute<T>
 /// to its neighbours. Its [animation]'s value stays 1: a neighbour's
 /// secondary transition jumps to its end (a page below that should stay
 /// put returns false from `canTransitionTo` for it), and no `Hero` flies.
-abstract class PresentationPageRoute<T> extends PageRoute<T>
+class PresentationPageRoute<T> extends PageRoute<T>
     with _PresentationEngine<T> {
-  /// Creates a presentation page route.
+  /// Creates a page route that shows [presentation].
   PresentationPageRoute({
+    this.presentation,
     super.settings,
     super.requestFocus,
-    this.semanticsLabel,
+    this._semanticsLabel,
   });
 
   @override
-  final String? semanticsLabel;
+  final Presentation<T, Presented>? presentation;
+
+  final String? _semanticsLabel;
+
+  @override
+  String? get semanticsLabel => _semanticsLabel ?? presentation?.semanticsLabel;
+
+  @override
+  bool get maintainState => true;
 }
 
 class _ContentRoot extends StatefulWidget {
@@ -530,4 +600,32 @@ final class _StatusProjection extends Animation<double>
 
   @override
   void didUnregisterListener() {}
+}
+
+final class _RouteShell<T> implements PresentationShell {
+  _RouteShell(this.route);
+
+  final _PresentationEngine<T> route;
+
+  @override
+  void dismiss(DismissTrigger trigger, [Object? result]) =>
+      route.dismiss(trigger, result as T?);
+
+  @override
+  void beginInteraction() => route.beginInteraction();
+
+  @override
+  void endInteraction() => route.endInteraction();
+
+  @override
+  void didOpen() => route.didOpen();
+
+  @override
+  void didLeave() => route.didLeave();
+
+  @override
+  void modalityChanged() => route.modalityChanged();
+
+  @override
+  bool get isLeaving => route.isLeaving;
 }
