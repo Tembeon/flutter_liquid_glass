@@ -472,7 +472,7 @@ void main() {
         ..paragraph()
         ..paragraph()
         ..rect(color: lens)
-        ..clipRRect()
+        ..clipRSuperellipse()
         ..paragraph(),
     );
   });
@@ -501,7 +501,7 @@ void main() {
       paints
         ..paragraph()
         ..paragraph()
-        ..clipRRect()
+        ..clipRSuperellipse()
         ..paragraph()
         ..rect(color: lens),
     );

@@ -37,6 +37,7 @@ export 'src/presentations/alert.dart';
 export 'src/presentations/popover.dart' show showGlassPopover;
 export 'src/presentations/sheet.dart';
 export 'src/renderer/renderer.dart';
+export 'src/surface/clip.dart';
 export 'src/surface/frame.dart';
 export 'src/surface/glass.dart';
 export 'src/surface/group.dart';

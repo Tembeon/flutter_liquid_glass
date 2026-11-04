@@ -38,6 +38,10 @@ sealed class GlassShape {
   /// The edge of the body drawn in [box].
   @internal
   Path pathIn(Rect box) => liquid.getOuterPath(box);
+
+  /// Clips [child] to the body drawn in its box.
+  @internal
+  Widget clip(Widget? child);
 }
 
 final class _Superellipse extends GlassShape {
@@ -51,6 +55,12 @@ final class _Superellipse extends GlassShape {
   @override
   double radiusIn(Rect box) =>
       radius < box.shortestSide / 2 ? radius : box.shortestSide / 2;
+
+  @override
+  Widget clip(Widget? child) => ClipRSuperellipse(
+    borderRadius: BorderRadius.all(Radius.circular(radius)),
+    child: child,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -73,6 +83,12 @@ final class _RoundedRect extends GlassShape {
       radius < box.shortestSide / 2 ? radius : box.shortestSide / 2;
 
   @override
+  Widget clip(Widget? child) => ClipRRect(
+    borderRadius: BorderRadius.all(Radius.circular(radius)),
+    child: child,
+  );
+
+  @override
   bool operator ==(Object other) =>
       other is _RoundedRect && other.radius == radius;
 
@@ -88,6 +104,9 @@ final class _Oval extends GlassShape {
 
   @override
   double radiusIn(Rect box) => box.shortestSide / 2;
+
+  @override
+  Widget clip(Widget? child) => ClipOval(child: child);
 
   @override
   bool operator ==(Object other) => other is _Oval;

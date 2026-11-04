@@ -76,6 +76,31 @@ final class GlassFrame {
   /// outline, and [rect], [scaleX] and [scaleY] keep their defaults.
   final GlassOutline? outline;
 
+  /// A copy of this frame with the given fields replaced.
+  GlassFrame copyWith({
+    GlassShape? shape,
+    Rect? rect,
+    double? scaleX,
+    double? scaleY,
+    Color? tint,
+    double? tintAmount,
+    double? lift,
+    GlassTouchGlow? glow,
+    double? opacity,
+    GlassOutline? outline,
+  }) => GlassFrame(
+    shape: shape ?? this.shape,
+    rect: rect ?? this.rect,
+    scaleX: scaleX ?? this.scaleX,
+    scaleY: scaleY ?? this.scaleY,
+    tint: tint ?? this.tint,
+    tintAmount: tintAmount ?? this.tintAmount,
+    lift: lift ?? this.lift,
+    glow: glow ?? this.glow,
+    opacity: opacity ?? this.opacity,
+    outline: outline ?? this.outline,
+  );
+
   /// Where the body is drawn in a box of [size]: [rect], scaled about its
   /// center.
   Rect drawnIn(Size size) {

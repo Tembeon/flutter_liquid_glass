@@ -9,6 +9,7 @@ import 'package:apple_liquid_glass/src/controls/search_glyphs.dart';
 import 'package:apple_liquid_glass/src/controls/selector.dart';
 import 'package:apple_liquid_glass/src/motion/search_motion.dart';
 import 'package:apple_liquid_glass/src/motion/tab_minimize.dart';
+import 'package:apple_liquid_glass/src/surface/clip.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
@@ -912,8 +913,8 @@ class _AccessoryState extends State<_Accessory> {
           ),
         ),
         Positioned.fill(
-          child: ClipPath(
-            clipper: _CapsuleClip(_frame),
+          child: GlassClip.live(
+            frame: _frame,
             child: ValueListenableBuilder<GlassTabAccessoryPlacement>(
               valueListenable: _placement,
               builder: (context, placement, child) => Stack(
@@ -1118,8 +1119,8 @@ class _CollapsingTabsState extends State<_CollapsingTabs> {
         ),
         Positioned.fill(
           child: IgnorePointer(
-            child: ClipPath(
-              clipper: _CapsuleClip(_frame),
+            child: GlassClip.live(
+              frame: _frame,
               child: Stack(
                 children: [
                   for (var i = 0; i < destinations.length; i++)
@@ -1231,28 +1232,6 @@ class _RenderTitleFade extends RenderProxyBox {
 }
 
 /// The capsule of the glass's box in each frame.
-class _CapsuleClip extends CustomClipper<Path> {
-  _CapsuleClip(this.frame) : super(reclip: frame);
-
-  final ValueListenable<GlassFrame> frame;
-
-  @override
-  Path getClip(Size size) {
-    final rect = frame.value.rect ?? Offset.zero & size;
-    final path = Path();
-    path.addRRect(
-      RRect.fromRectAndRadius(
-        rect,
-        Radius.circular(math.min(rect.width, rect.height) / 2),
-      ),
-    );
-    return path;
-  }
-
-  @override
-  bool shouldReclip(_CapsuleClip oldClipper) => oldClipper.frame != frame;
-}
-
 /// The space between the bottom accessory's glass and its content (top 8,
 /// leading 16, bottom 8, trailing 16; read from UIKit).
 const _accessoryPadding = EdgeInsetsDirectional.fromSTEB(16, 8, 16, 8);

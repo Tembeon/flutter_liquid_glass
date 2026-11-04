@@ -1297,9 +1297,9 @@ class _RenderSelectorRow extends RenderBox
     final frame = _frames.lens.value;
     final rect = frame.drawnIn(size);
     final mask = _showsLens
-        ? RRect.fromRectAndRadius(
+        ? RSuperellipse.fromRectAndRadius(
             rect,
-            Radius.circular(math.min(rect.width, rect.height) / 2),
+            Radius.circular(frame.shape.radiusIn(rect)),
           )
         : null;
     final (dimmed, opacity) = _frames.dim.value;
@@ -1318,7 +1318,7 @@ class _RenderSelectorRow extends RenderBox
         final cut = Path();
         cut.fillType = PathFillType.evenOdd;
         cut.addRect(slot);
-        cut.addRRect(mask);
+        cut.addRSuperellipse(mask);
         context.pushClipRect(
           needsCompositing,
           offset,
@@ -1392,7 +1392,7 @@ class _RenderSelectorRow extends RenderBox
   void _paintCopies(
     PaintingContext context,
     Offset offset,
-    RRect mask, {
+    RSuperellipse mask, {
     required double opacity,
     required bool under,
     required double zoom,
@@ -1459,7 +1459,7 @@ class _RenderSelectorRow extends RenderBox
             ),
           ];
     void paintMasked(PaintingContext context, Offset offset) =>
-        context.pushClipRRect(needsCompositing, offset, bounds, mask, (
+        context.pushClipRSuperellipse(needsCompositing, offset, bounds, mask, (
           context,
           offset,
         ) {

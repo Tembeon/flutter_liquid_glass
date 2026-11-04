@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motion/date_picker_motion.dart';
+import 'package:apple_liquid_glass/src/surface/clip.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/shape.dart';
@@ -1129,9 +1130,9 @@ class _OverlayViewState extends State<_OverlayView> {
                 frame: _glass,
                 child: const SizedBox.expand(),
               ),
-              ClipRRect(
-                borderRadius: const BorderRadius.all(
-                  Radius.circular(DatePickerTuning.cornerRadius),
+              GlassClip(
+                shape: const GlassShape.superellipse(
+                  DatePickerTuning.cornerRadius,
                 ),
                 child: OverflowBox(
                   alignment: below

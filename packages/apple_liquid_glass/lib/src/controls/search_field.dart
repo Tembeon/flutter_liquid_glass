@@ -575,14 +575,7 @@ class _Faded extends ChangeNotifier implements ValueListenable<GlassFrame> {
   @override
   GlassFrame get value {
     final frame = _frames.value;
-    return GlassFrame(
-      shape: frame.shape,
-      rect: frame.rect,
-      scaleX: frame.scaleX,
-      scaleY: frame.scaleY,
-      tint: frame.tint,
-      lift: frame.lift,
-      glow: frame.glow,
+    return frame.copyWith(
       opacity: frame.opacity * _presence.value.clamp(0.0, 1.0),
     );
   }

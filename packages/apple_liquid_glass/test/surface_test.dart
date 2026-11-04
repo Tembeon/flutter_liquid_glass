@@ -651,4 +651,45 @@ void main() {
       );
     });
   });
+
+  testWidgets('a clip follows the frames of its glass without a rebuild', (
+    tester,
+  ) async {
+    final frames = ValueNotifier(
+      const GlassFrame(rect: Rect.fromLTWH(10, 0, 40, 20)),
+    );
+    addTearDown(frames.dispose);
+    final builds = <int>[];
+    await tester.pumpWidget(
+      _app(
+        const GlassRenderer.flat(),
+        GlassClip.live(frame: frames, child: _Counted(builds)),
+      ),
+    );
+    final box = tester.renderObject<RenderClipPath>(find.byType(ClipPath));
+    Rect clip() => box.clipper!.getClip(box.size).getBounds();
+    expect(clip(), const Rect.fromLTWH(10, 0, 40, 20));
+    frames.value = const GlassFrame(
+      rect: Rect.fromLTWH(10, 0, 40, 20),
+      scaleX: 2,
+    );
+    await tester.pump();
+    expect(clip(), const Rect.fromLTWH(-10, 0, 80, 20));
+    expect(builds, [0]);
+  });
+
+  test('a clip of a shape is the shape the glass draws', () {
+    const shapes = [
+      GlassShape.superellipse(12),
+      GlassShape.roundedRect(12),
+      GlassShape.oval(),
+    ];
+    final clips = [
+      for (final shape in shapes)
+        GlassClip(shape: shape).build(_NoContext()).runtimeType,
+    ];
+    expect(clips, [ClipRSuperellipse, ClipRRect, ClipOval]);
+  });
 }
+
+final class _NoContext extends Fake implements BuildContext {}
