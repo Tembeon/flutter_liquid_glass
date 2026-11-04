@@ -70,6 +70,36 @@ void main() {
     expect(const GlassFrame().contentTransformIn(size), isNull);
   });
 
+  for (final renderer in const [
+    GlassRenderer.flat(),
+    GlassRenderer.liquid(),
+  ]) {
+    testWidgets('${renderer.runtimeType}: a live body smaller than its box '
+        'draws its content centered on the body', (tester) async {
+      const body = Rect.fromLTWH(2, 2, 37, 24);
+      await tester.pumpWidget(
+        _app(
+          renderer,
+          SizedBox(
+            width: 63,
+            height: 28,
+            child: GlassSurface.live(
+              frame: MotionSelection(() => const GlassFrame(rect: body)),
+              child: const Center(
+                child: SizedBox.square(dimension: 10, key: Key('content')),
+              ),
+            ),
+          ),
+        ),
+      );
+      final box = tester.getTopLeft(find.byType(GlassSurface));
+      expect(
+        tester.getCenter(find.byKey(const Key('content'))),
+        offsetMoreOrLessEquals(box + body.center),
+      );
+    });
+  }
+
   group('flat', () {
     testWidgets('a live surface repaints for a frame and never rebuilds', (
       tester,

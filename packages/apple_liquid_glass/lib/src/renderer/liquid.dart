@@ -378,7 +378,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
     final glass = LiquidGlass.live(
       frame: _shape,
       grouped: group.blends,
-      child: widget.details.child,
+      child: _CenteredOnBody(frame: _shape, child: widget.details.child),
     );
     if (!widget.outlined) return glass;
     return _OutlineShadow(
@@ -386,6 +386,83 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
       shadows: LiquidGlassRenderer.shadowsOf(widget.details.role),
       child: glass,
     );
+  }
+}
+
+// LiquidGlass puts its child's top left at the rect's; a GlassFrame puts
+// the center of the box the content was laid out in at the body's center.
+class _CenteredOnBody extends SingleChildRenderObjectWidget {
+  const _CenteredOnBody({required this.frame, required super.child});
+
+  final ValueListenable<LiquidGlassShapeFrame> frame;
+
+  @override
+  _RenderCenteredOnBody createRenderObject(BuildContext context) =>
+      _RenderCenteredOnBody(frame);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderCenteredOnBody renderObject,
+  ) {
+    renderObject.frame = frame;
+  }
+}
+
+class _RenderCenteredOnBody extends RenderProxyBox {
+  _RenderCenteredOnBody(this._frame);
+
+  ValueListenable<LiquidGlassShapeFrame> _frame;
+  ValueListenable<LiquidGlassShapeFrame> get frame => _frame;
+  set frame(ValueListenable<LiquidGlassShapeFrame> value) {
+    if (identical(_frame, value)) return;
+    if (attached) {
+      _frame.removeListener(_onFrame);
+      value.addListener(_onFrame);
+    }
+    _frame = value;
+    _onFrame();
+  }
+
+  Size? _body;
+
+  void _onFrame() {
+    final body = _frame.value.rect?.size;
+    if (body == _body) return;
+    _body = body;
+    markNeedsPaint();
+  }
+
+  Offset get _shift {
+    final body = _body;
+    if (body == null || !hasSize) return Offset.zero;
+    return Offset(
+      (body.width - size.width) / 2,
+      (body.height - size.height) / 2,
+    );
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _frame.addListener(_onFrame);
+    _body = _frame.value.rect?.size;
+  }
+
+  @override
+  void detach() {
+    _frame.removeListener(_onFrame);
+    super.detach();
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) =>
+      super.paint(context, offset + _shift);
+
+  @override
+  void applyPaintTransform(RenderBox child, Matrix4 transform) {
+    final shift = _shift;
+    transform.translateByDouble(shift.dx, shift.dy, 0, 1);
   }
 }
 
