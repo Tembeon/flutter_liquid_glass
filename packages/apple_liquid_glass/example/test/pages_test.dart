@@ -153,6 +153,16 @@ void main() {
     );
   });
 
+  testWidgets('Liquid: the drops sit below a navigation bar like every '
+      "page's", (tester) async {
+    await _open(tester, 'Liquid');
+    final bar = tester.getBottomLeft(find.byType(GlassNavigationBar)).dy;
+    for (final icon in [CupertinoIcons.drop_fill, CupertinoIcons.sparkles]) {
+      expect(tester.getRect(find.byIcon(icon).first).top, greaterThan(bar));
+    }
+    expect(find.text('Liquid Glass'), findsNothing);
+  });
+
   testWidgets('Liquid: a drop follows its finger and flies home', (
     tester,
   ) async {

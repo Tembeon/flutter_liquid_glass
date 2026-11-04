@@ -61,6 +61,7 @@ class _TwoLinesState extends State<TwoLines> {
                     scale: _scale,
                     translateY: _rise,
                     child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
                       onTap: _toggle,
                       child: const SizedBox(
                         width: 220,

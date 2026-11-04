@@ -5,7 +5,6 @@ import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/motion.dart';
 import 'package:apple_liquid_glass_example/backdrop.dart';
 import 'package:apple_liquid_glass_example/settings.dart';
-import 'package:apple_liquid_glass_example/settings_sheet.dart';
 import 'package:apple_liquid_glass_example/widgets.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/services.dart';
@@ -155,111 +154,98 @@ class _LiquidPageState extends State<LiquidPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final glass = _clear ? const Glass.clear() : const Glass.regular();
-    return AnnotatedRegion(
-      value: SystemUiOverlayStyle.light,
+  Widget build(BuildContext context) => AnnotatedRegion(
+    value: SystemUiOverlayStyle.light,
+    child: GlassPageScaffold(
+      navigationBar: GlassNavigationBar(
+        largeTitle: const Text('Liquid'),
+        trailing: [settingsItem(context)],
+      ),
       child: Stack(
         fit: StackFit.expand,
         children: [
           DriftingWallpaper(wallpaper: _wallpaper, drifts: _drifting),
-          MotionScope(
-            motion: _pool,
-            child: InputRegion(
-              interactions: _wakers,
-              child: ColoredBox(
-                color: const Color(0x00000000),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    _layout(constraints.biggest);
-                    return Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        GlassGroup(
-                          merge: _fusion < 1
-                              ? const GlassMerge.none()
-                              : GlassMerge.spacing(_fusion),
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              for (final drop in _drops)
-                                Positioned.fromRect(
-                                  rect: drop.origin & drop.size,
-                                  child: GlassSurface.live(
-                                    frame: drop.frame,
-                                    glass: glass,
-                                    child: Center(child: drop.child),
+          Builder(builder: _area),
+        ],
+      ),
+    ),
+  );
+
+  // Below the navigation bar, above the fusion row.
+  Widget _area(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final glass = _clear ? const Glass.clear() : const Glass.regular();
+    return Padding(
+      padding: EdgeInsets.only(
+        top: media.padding.top,
+        bottom: media.padding.bottom + 16,
+      ),
+      child: Column(
+        children: [
+          Expanded(
+            child: MotionScope(
+              motion: _pool,
+              child: InputRegion(
+                interactions: _wakers,
+                child: ColoredBox(
+                  color: const Color(0x00000000),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      _layout(constraints.biggest);
+                      return Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          GlassGroup(
+                            merge: _fusion < 1
+                                ? const GlassMerge.none()
+                                : GlassMerge.spacing(_fusion),
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                for (final drop in _drops)
+                                  Positioned.fromRect(
+                                    rect: drop.origin & drop.size,
+                                    child: GlassSurface.live(
+                                      frame: drop.frame,
+                                      glass: glass,
+                                      child: Center(child: drop.child),
+                                    ),
                                   ),
-                                ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        for (final drop in _drops)
-                          Positioned.fromRect(
-                            rect: drop.grabArea,
-                            child: MotionTransition(
-                              offset: drop.shift,
-                              child: InputRegion(
-                                interactions: drop.interactions,
-                                child: const ColoredBox(
-                                  color: Color(0x00000000),
+                          for (final drop in _drops)
+                            Positioned.fromRect(
+                              rect: drop.grabArea,
+                              child: MotionTransition(
+                                offset: drop.shift,
+                                child: InputRegion(
+                                  interactions: drop.interactions,
+                                  child: const ColoredBox(
+                                    color: Color(0x00000000),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                      ],
-                    );
-                  },
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
           ),
-          Positioned(
-            top: media.padding.top + 8,
-            left: 16,
-            right: 16,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                GlassButton(
-                  onPressed: () => showGallerySettings(context),
-                  semanticLabel: 'Settings',
-                  child: const Icon(CupertinoIcons.gear),
-                ),
-                const Spacer(),
                 GlassButton(
                   onPressed: null,
                   semanticLabel: 'Look',
                   menuChildren: _menu(context),
                   child: const Icon(CupertinoIcons.paintbrush),
                 ),
-              ],
-            ),
-          ),
-          Positioned(
-            top: media.padding.top + 64,
-            left: 24,
-            right: 24,
-            child: const IgnorePointer(
-              child: Column(
-                children: [
-                  PhotoText(
-                    'Liquid Glass',
-                    size: 34,
-                    weight: FontWeight.w700,
-                  ),
-                  SizedBox(height: 4),
-                  PhotoText('Grab a drop. Bring two together.'),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            left: 24,
-            right: 24,
-            bottom: media.padding.bottom + 16,
-            child: Row(
-              children: [
+                const SizedBox(width: 16),
                 const Icon(
                   CupertinoIcons.circle_grid_hex,
                   color: Color(0xFFFFFFFF),

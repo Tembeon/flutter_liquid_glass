@@ -24,7 +24,13 @@ void main() {
       ),
     );
     await _frames(tester);
-    expect(find.text('Liquid Glass'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(GlassNavigationBar),
+        matching: find.text('Liquid'),
+      ),
+      findsWidgets,
+    );
 
     await tester.flingFrom(const Offset(130, 330), const Offset(160, 120), 900);
     await _frames(tester);

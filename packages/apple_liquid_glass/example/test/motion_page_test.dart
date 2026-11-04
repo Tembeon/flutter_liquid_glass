@@ -51,7 +51,7 @@ void main() {
   ) async {
     await _open(tester);
     final rest = tester.getCenter(find.text('Tap me'));
-    await tester.tap(find.text('Tap me'));
+    await tester.tapAt(rest + const Offset(80, 40));
     await _frames(tester, 6);
     expect(tester.getCenter(find.text('Tap me')).dy, lessThan(rest.dy - 2));
     await _frames(tester, 90);
