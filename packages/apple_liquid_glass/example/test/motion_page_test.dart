@@ -45,7 +45,8 @@ Future<void> _show(WidgetTester tester, Finder finder) async {
 }
 
 void main() {
-  testWidgets('the card lifts on a tap and the switch reduces motion', (
+  testWidgets('the card lifts on a tap and, under Reduce Motion, comes back '
+      'without bouncing', (
     tester,
   ) async {
     await _open(tester);
@@ -71,7 +72,13 @@ void main() {
       isTrue,
     );
     await tester.tap(find.text('Tap me'));
-    await _frames(tester, 90);
+    var lowest = double.negativeInfinity;
+    for (var i = 0; i < 90; i++) {
+      await tester.pump(_frame);
+      final y = tester.getCenter(find.text('Tap me')).dy;
+      if (y > lowest) lowest = y;
+    }
+    expect(lowest, lessThan(rest.dy + 0.5));
     expect(tester.getCenter(find.text('Tap me')).dy, closeTo(rest.dy, 0.5));
   });
 

@@ -8,9 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 /// A photo library: every photo zooms into its own page, which shrinks back
-/// into the grid when it closes. Scrolling down tucks the tab bar away.
-/// Select swaps the bar's items and brings a toolbar whose items change
-/// with the selection.
+/// into the grid when it closes. Select swaps the bar's items and brings a
+/// toolbar whose items change with the selection.
 class PhotosPage extends StatefulWidget {
   const PhotosPage({super.key});
 

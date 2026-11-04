@@ -17,8 +17,8 @@ enum Wallpaper {
   ImageProvider get image => AssetImage('assets/backdrops/$name.webp');
 }
 
-/// A wallpaper that drifts and breathes slowly, so the glass over it always
-/// has something moving to bend.
+/// A wallpaper that drifts and breathes slowly while [drifts], so the glass
+/// over it has something moving to bend.
 class DriftingWallpaper extends StatefulWidget {
   const DriftingWallpaper({
     required this.wallpaper,

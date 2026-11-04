@@ -59,7 +59,8 @@ final class KnobMotion extends Motion implements PointerFollower {
     press.retarget(t, 0, spring: Spring.smooth);
   }
 
-  /// Shows the knob at [t] where [other] stands at its own time, at rest.
+  /// Puts the knob at [t] where [other] stands at its own time, without
+  /// velocity.
   void show(double t, KnobMotion other) {
     advance(t);
     offset.snap(t, other.offset.valueAt(other.now));
@@ -77,8 +78,8 @@ final class KnobMotion extends Motion implements PointerFollower {
   }
 }
 
-/// The stamped inputs of the last touch on a knob, kept while they are
-/// fed to it.
+/// Forwards each stamped input of a touch to [knob] and keeps those of the
+/// last touch.
 final class KnobRecording extends ChangeNotifier implements PointerFollower {
   /// Records for and feeds [knob].
   KnobRecording(this.knob);
@@ -175,8 +176,8 @@ class _OwnControlSectionState extends State<OwnControlSection> {
     header: const Text('Your own control'),
     footer: const Text(
       'Drag the knob: it is a Motion of the app with FollowInteraction and '
-      'GlassSurface.live. The switch draws its own knob; the buttons are '
-      'styled.',
+      "GlassSurface.live. The app draws the switch's knob and styles the "
+      'buttons.',
     ),
     children: [
       ClipRect(

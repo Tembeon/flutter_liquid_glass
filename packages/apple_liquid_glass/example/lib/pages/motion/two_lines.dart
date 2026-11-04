@@ -5,8 +5,9 @@ import 'package:apple_liquid_glass_example/widgets.dart';
 import 'package:flutter/widgets.dart';
 
 /// A glass card that lifts on a tap: one `withSpring` around the change,
-/// one `MotionTransition` around the card. The Reduce Motion switch gives
-/// every motion of the page the reduced springs.
+/// one `MotionTransition` around the card. The Reduce Motion switch
+/// overrides the page's motion traits, and the lift's spring carries a
+/// `reduced` alternative that does not bounce.
 class TwoLines extends StatefulWidget {
   const TwoLines({
     required this.reduceMotion,
@@ -26,12 +27,14 @@ final class _Card extends Motion {
 }
 
 class _TwoLinesState extends State<TwoLines> {
+  static const _lift = Spring(bounce: 0.3, reduced: Spring.smooth);
+
   final _card = _Card();
   late final _scale = _card.select((c) => 1 + 0.08 * c.lift.valueAt(c.now));
   late final _rise = _card.select((c) => -28 * c.lift.valueAt(c.now));
 
   void _toggle() => withSpring(
-    Spring.bouncy,
+    _lift,
     () => _card.lift.target = _card.lift.target == 0 ? 1 : 0,
   );
 

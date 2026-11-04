@@ -14,9 +14,10 @@ import 'package:flutter/widgets.dart';
 /// release projects past a third of it. A tap on the button while it
 /// shrinks back takes it over where it is.
 ///
-/// The reactions bar opens under a held finger, which keeps sliding over
-/// its icons: the portal pushes no route, so the touch that opened it is
-/// never cancelled. Lifting over an icon picks it.
+/// The reactions bar opens above the button a finger holds, and the finger
+/// keeps sliding over its icons: the hold hands the rest of its touch on
+/// (`Interaction.sequenced`) and the portal pushes no route, so the touch
+/// is never cancelled. Lifting over an icon picks it.
 ///
 /// Not measured: the springs and the sizes are chosen by eye.
 class PeekSection extends StatefulWidget {
@@ -32,18 +33,9 @@ class _PeekSectionState extends State<PeekSection> {
   final _reactions = PresentationPortalController();
   final _reactionsKey = GlobalKey();
   late final List<Interaction> _hold = [
-    _HoldSlide(
-      onHold: (t) => _reactions.present(),
-      onSlide: (t, position) => _reactionsMotion?.hover(t, _global(position)),
-      onLift: (t, position) {
-        final motion = _reactionsMotion;
-        if (motion == null || !_reactions.isPresented) return;
-        motion.hover(t, _global(position));
-        final picked = motion.hovered;
-        if (picked != null) _picked(picked);
-      },
-      onCancel: (t) => _reactionsMotion?.hover(t, null),
-    ),
+    LongPressInteraction(
+      onStart: (t) => _reactions.present(),
+    ).sequenced(FollowInteraction(_ReactionsFollower(this))),
   ];
   _ReactionsMotion? _reactionsMotion;
   var _reaction = 'Hold the button, slide to a reaction';
@@ -458,75 +450,35 @@ class _ReactionsBarState extends State<_ReactionsBar> {
   );
 }
 
-/// A press held still for half a second that then keeps following its
-/// finger: [onSlide] hears every move after [onHold] and [onLift] the
-/// release, in the region's coordinates. A long press of the package
-/// would hand the touch to nothing after it is recognized.
-final class _HoldSlide extends Interaction {
-  _HoldSlide({
-    required this.onHold,
-    required this.onSlide,
-    required this.onLift,
-    required this.onCancel,
-  });
+/// The finger after the hold: it hovers the reactions as it slides and
+/// picks the one it lifts over.
+final class _ReactionsFollower implements PointerFollower {
+  _ReactionsFollower(this.section);
 
-  static const _duration = 0.5;
-  static const _slop = 10.0;
-
-  final void Function(double t) onHold;
-  final void Function(double t, Offset position) onSlide;
-  final void Function(double t, Offset position) onLift;
-  final void Function(double t) onCancel;
-
-  int? _pointer;
-  Offset _start = Offset.zero;
-  double? _due;
-  bool _held = false;
+  final _PeekSectionState section;
 
   @override
-  double? get nextDue => _held ? null : _due;
+  void down(PointerDownInput input) {}
 
   @override
-  InteractionUpdate advance(double time) {
-    final due = _due;
-    if (_held || due == null || time < due) return InteractionUpdate.none;
-    _held = true;
-    onHold(due);
-    return const InteractionUpdate(recognizes: true);
+  void move(PointerMoveInput input) => section._reactionsMotion?.hover(
+    input.time,
+    section._global(input.position),
+  );
+
+  @override
+  void up(PointerUpInput input) {
+    final motion = section._reactionsMotion;
+    if (motion == null || !section._reactions.isPresented) return;
+    motion.hover(input.time, section._global(input.position));
+    final picked = motion.hovered;
+    if (picked != null) section._picked(picked);
   }
 
   @override
-  InteractionUpdate handle(InteractionInput input) {
-    switch (input) {
-      case PointerDownInput() when _pointer == null && accepts(input):
-        _pointer = input.pointer;
-        _start = input.position;
-        _due = input.time + _duration;
-        _held = false;
-      case PointerMoveInput(:final pointer, :final position, :final time)
-          when pointer == _pointer:
-        if (_held) {
-          onSlide(time, position);
-        } else if ((position - _start).distance > _slop) {
-          _reset();
-          return const InteractionUpdate(fails: true);
-        }
-      case PointerUpInput(:final pointer, :final position, :final time)
-          when pointer == _pointer:
-        if (_held) onLift(time, position);
-        _reset();
-      case PointerCancelInput(:final pointer, :final time)
-          when pointer == _pointer:
-        if (_held) onCancel(time);
-        _reset();
-      default:
-    }
-    return InteractionUpdate.none;
-  }
+  void cancel(PointerCancelInput input) =>
+      section._reactionsMotion?.hover(input.time, null);
 
-  void _reset() {
-    _pointer = null;
-    _due = null;
-    _held = false;
-  }
+  @override
+  void hover(PointerHoverInput input) {}
 }
