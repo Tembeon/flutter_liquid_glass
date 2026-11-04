@@ -294,49 +294,26 @@ class GlassBarDepartedId {
   String toString() => 'GlassBarDepartedId($id)';
 }
 
-class _Capsule {
-  _Capsule(
-    this.id,
-    this.segment,
-    Rect rect,
-    GlassBarTransitionSpec spec, {
-    required this.anonymous,
-  }) : cx = MotionValue<double>(rect.center.dx, spring: spec.frameSpring),
-       cy = MotionValue<double>(rect.center.dy, spring: spec.frameSpring),
-       w = MotionValue<double>(rect.width, spring: spec.frameSpring),
-       h = MotionValue<double>(rect.height, spring: spec.frameSpring),
-       pulseW = MotionValue<double>(1, spring: spec.pulseUpSpring),
-       pulseH = MotionValue<double>(1, spring: spec.pulseUpSpring);
+// A capsule's identity across layouts: the key of its item in the
+// capsules' layout motion.
+final class _Capsule {
+  _Capsule(this.id, this.segment, {required this.anonymous});
 
   Object id;
   final Object? segment;
   final bool anonymous;
-  final MotionValue<double> cx;
-  final MotionValue<double> cy;
-  final MotionValue<double> w;
-  final MotionValue<double> h;
-  final MotionValue<double> pulseW;
-  final MotionValue<double> pulseH;
-  MotionValue<double>? presence;
-  bool leaving = false;
-  int generation = 0;
-  Rect target = Rect.zero;
+
+  // Appears or leaves in place, in a glass container of its own.
+  bool apart = false;
 }
 
-class _Item {
-  _Item(this.id, this.capsule, Offset center, this.size, Spring spring)
-    : cx = MotionValue<double>(center.dx, spring: spring),
-      cy = MotionValue<double>(center.dy, spring: spring),
-      presence = MotionValue<double>(1, spring: spring);
+final class _Planner extends LayoutPlanner {
+  _Planner(this._plan);
 
-  final Object id;
-  _Capsule capsule;
-  Size size;
-  final MotionValue<double> cx;
-  final MotionValue<double> cy;
-  final MotionValue<double> presence;
-  bool leaving = false;
-  int generation = 0;
+  final Map<Object, LayoutPlan> Function(LayoutChange change) _plan;
+
+  @override
+  Map<Object, LayoutPlan> plan(LayoutChange change) => _plan(change);
 }
 
 /// The motion of a glass bar whose items change: iOS 27's toolbar and
@@ -370,6 +347,10 @@ class _Item {
 /// [GlassBarTransitionSpec.segmentDelay]). Such capsules are
 /// [GlassBarCapsuleFrame.apart]: they never fuse with the others.
 ///
+/// The capsules and the items are two [LayoutMotion]s: the capsules' plan
+/// is the law above, the items' follows it, and a frame composes an item
+/// with its capsule's swell, lean and presence.
+///
 /// [setDrift] leans the capsules part of the way toward another layout
 /// without changing the layout itself, as a navigation bar does during an
 /// interactive pop; the next [setLayout] starts from where the drift put
@@ -377,112 +358,46 @@ class _Item {
 ///
 /// Times are seconds, positions logical pixels in the bar's own space.
 @internal
-class GlassBarMotion {
+final class GlassBarMotion extends Motion {
   /// Creates the motion with [spec].
   GlassBarMotion({this.spec = GlassBarTransitionSpec.standard});
 
   /// The tuning of the latest change.
   GlassBarTransitionSpec spec;
 
-  final MotionTimeline _timeline = MotionTimeline();
-  final List<_Capsule> _capsules = [];
-  final List<_Item> _items = [];
-  double _now = 0;
-  bool _hasLayout = false;
-  Map<_Capsule, Rect> _driftTo = const {};
-  List<GlassBarCapsuleLayout>? _driftPaired;
-  double _drift = 0;
-
   /// Whether the platform asks for reduced motion: changes then snap.
   bool reducedMotion = false;
 
-  /// Advances the motion to time [t].
-  void advance(double t) {
-    _timeline.runDue(t);
-    if (t > _now) _now = t;
-    _capsules.removeWhere((c) => c.leaving && _gone(c));
-    for (final c in _capsules) {
-      final presence = c.presence;
-      if (presence != null &&
-          !c.leaving &&
-          presence.target == 1 &&
-          presence.isWithin(_now, MotionRest.opacity)) {
-        c.presence = null;
-      }
-    }
-    _items.removeWhere(
-      (i) =>
-          (i.capsule.presence != null && !_capsules.contains(i.capsule)) ||
-          (i.leaving &&
-              i.presence.target == 0 &&
-              i.presence.isWithin(_now, MotionRest.opacity)),
-    );
-  }
+  late final LayoutMotion _capsules = own(
+    LayoutMotion(planner: _Planner(_planCapsules)),
+  );
+  late final LayoutMotion _items = own(
+    LayoutMotion(planner: _Planner(_planItems)),
+  );
+  final Map<Object, _Capsule> _capsuleOf = {};
+  bool _hasLayout = false;
+  Map<Object, Rect> _driftTo = const {};
+  List<GlassBarCapsuleLayout>? _driftPaired;
+  double _drift = 0;
 
-  bool _gone(_Capsule c) {
-    final presence = c.presence;
-    if (presence != null) {
-      return presence.target == 0 &&
-          presence.isWithin(_now, MotionRest.opacity);
-    }
-    // Finer than the visible rest: the device replacement replay keeps the
-    // remaining capsules' centers within 1.2 pt rms only when a shrunk
-    // capsule is dropped at a 0.05 pt landing or later (0.1 pt gives 1.31).
-    return c.w.target <= c.target.width * spec.appearScale + 1e-9 &&
-        c.w.isWithin(_now, 0.05) &&
-        c.h.isWithin(_now, 0.05);
-  }
+  // The change being planned: the capsule each of its layouts goes to, the
+  // capsule of each of its items, and what the capsules' plan decided.
+  Map<_Capsule, GlassBarCapsuleLayout> _layoutOf = const {};
+  Map<Object, _Capsule> _nextCapsuleOf = const {};
+  Map<_Capsule, Offset> _births = const {};
+  Map<_Capsule, Offset> _deaths = const {};
+  Map<_Capsule, Offset> _oldCenters = const {};
+  Set<_Capsule> _bornInPlace = const {};
 
-  /// Whether what remains of the motion is invisible: nothing comes or
-  /// goes, and every spring's remaining swing is below [MotionRest] (a
-  /// pulse's over its capsule's length; NEAR, invisible). [settle] snaps
-  /// the rest.
-  bool get isSettled {
-    if (!_timeline.isEmpty) return false;
-    const length = MotionRest.length;
-    for (final c in _capsules) {
-      if (c.leaving || c.presence != null) return false;
-      if (!c.cx.isWithin(_now, length) ||
-          !c.cy.isWithin(_now, length) ||
-          !c.w.isWithin(_now, length) ||
-          !c.h.isWithin(_now, length)) {
-        return false;
-      }
-      if (!c.pulseW.isWithin(_now, MotionRest.scale(c.w.target)) ||
-          !c.pulseH.isWithin(_now, MotionRest.scale(c.h.target))) {
-        return false;
-      }
-    }
-    for (final i in _items) {
-      if (i.leaving) return false;
-      if (!i.cx.isWithin(_now, length) ||
-          !i.cy.isWithin(_now, length) ||
-          !i.presence.isWithin(_now, MotionRest.opacity)) {
-        return false;
-      }
-    }
-    return true;
-  }
+  Iterable<_Capsule> get _all => _capsules.ids.cast<_Capsule>();
 
-  /// Puts a settled bar exactly onto its layout.
-  void settle() {
-    for (final c in _capsules) {
-      for (final spring in [c.cx, c.cy, c.w, c.h, c.pulseW, c.pulseH]) {
-        spring.settle(_now);
+  @override
+  void didAdvance(double t) {
+    for (final c in _all) {
+      if (c.apart && !_capsules.isLeaving(c) && _capsules.presenceRests(c)) {
+        c.apart = false;
       }
     }
-    for (final i in _items) {
-      i.cx.settle(_now);
-      i.cy.settle(_now);
-      i.presence.settle(_now);
-    }
-  }
-
-  _Item? _item(Object id) {
-    for (final i in _items) {
-      if (i.id == id && !i.leaving) return i;
-    }
-    return null;
   }
 
   /// Pairs the capsules of [layout] (all but [skip]) with the [candidates]
@@ -537,22 +452,6 @@ class GlassBarMotion {
     return out;
   }
 
-  /// Brings back the items of [layout] that are still on their way out:
-  /// an id has one entry, and the one that leaves turns around from where
-  /// it is.
-  void _reviveItems(List<GlassBarCapsuleLayout> layout) {
-    for (final c in layout) {
-      for (final item in c.items) {
-        for (final i in _items) {
-          if (i.id == item.id && i.leaving) {
-            i.leaving = false;
-            i.generation++;
-          }
-        }
-      }
-    }
-  }
-
   /// The box of [size] at [center] moved and cut to lie inside [into]:
   /// each axis at most as long as [into]'s, as near [center] as it fits.
   static Rect _inside(Size size, Offset center, Rect into) {
@@ -576,10 +475,23 @@ class GlassBarMotion {
       !spec.oversizedInPlace ||
       (size.width <= into.width + 1e-6 && size.height <= into.height + 1e-6);
 
-  Rect _visible(_Capsule c, double t) => Rect.fromCenter(
-    center: Offset(c.cx.valueAt(t), c.cy.valueAt(t)),
-    width: c.w.valueAt(t),
-    height: c.h.valueAt(t),
+  Rect _shrunk(Rect box) => Rect.fromCenter(
+    center: box.center,
+    width: box.width * spec.appearScale,
+    height: box.height * spec.appearScale,
+  );
+
+  LayoutAccent _pulse(Size size) => LayoutAccent(
+    scale: Size(
+      spec.pulseScaleFor(size.width),
+      spec.pulseScaleFor(size.height),
+    ),
+    up: spec.pulseUpSpring,
+    delay: spec.pulseDelay,
+    widthDown: spec.pulseWidthDownSpring,
+    widthDownDelay: spec.pulseWidthDownDelay,
+    heightDown: spec.pulseHeightDownSpring,
+    heightDownDelay: spec.pulseHeightDownDelay,
   );
 
   /// Leans every capsule that [toward] also has (paired as [setLayout]
@@ -589,33 +501,32 @@ class GlassBarMotion {
   /// The lean is drawn on top of the motion, a pure function of [amount];
   /// a [setLayout] while leaning starts from the leaning capsules. The
   /// pairing is kept while [toward] is the same list and the layout has
-  /// not changed, so a lean that follows a gesture costs one field write
-  /// per frame.
+  /// not changed, so a lean that follows a gesture pairs once.
   void setDrift(List<GlassBarCapsuleLayout>? toward, double amount) {
     if (toward == null || amount == 0) {
       _driftTo = const {};
       _driftPaired = null;
       _drift = 0;
+      _capsules.lean(null, 0);
       return;
     }
-    if (identical(toward, _driftPaired)) {
-      _drift = amount;
-      return;
+    if (!identical(toward, _driftPaired)) {
+      _driftPaired = toward;
+      final live = [
+        for (final c in _all)
+          if (!_capsules.isLeaving(c)) c,
+      ];
+      _driftTo = {
+        for (final MapEntry(key: k, value: c) in _pair(
+          toward,
+          live,
+          (c) => _capsules.laidOut(c)!,
+        ).entries)
+          c: toward[k].rect,
+      };
     }
-    _driftPaired = toward;
-    final live = [
-      for (final c in _capsules)
-        if (!c.leaving) c,
-    ];
-    _driftTo = {
-      for (final MapEntry(key: k, value: c) in _pair(
-        toward,
-        live,
-        (c) => c.target,
-      ).entries)
-        c: toward[k].rect,
-    };
     _drift = amount;
+    _capsules.lean(_driftTo, amount);
   }
 
   /// Whether capsules lean toward a [setDrift] layout.
@@ -625,46 +536,27 @@ class GlassBarMotion {
   /// home on [GlassBarTransitionSpec.frameSpring] from where they lean.
   void endDrift(double t) {
     advance(t);
-    _keepDrift(t, rest: false);
+    _keepDrift(t, commit: false);
   }
 
-  void _keepDrift(double t, {required bool rest}) {
+  void _keepDrift(double t, {required bool commit}) {
     _driftPaired = null;
-    if (!isDrifting) return;
-    void put(MotionValue<double> s, double v) {
-      if (rest) {
-        s.snap(t, v);
-      } else {
-        s.setPresentation(t, v, velocity: s.velocityAt(t));
-      }
-    }
-
-    final shift = <_Capsule, Offset>{};
-    for (final c in _capsules) {
-      if (c.leaving || !_driftTo.containsKey(c)) continue;
-      final base = _visible(c, t);
-      final r = _drifted(c, t);
-      shift[c] = r.center - base.center;
-      put(c.cx, r.center.dx);
-      put(c.cy, r.center.dy);
-      put(c.w, r.width);
-      put(c.h, r.height);
-    }
-    for (final i in _items) {
-      final d = i.leaving ? null : shift[i.capsule];
-      if (d == null) continue;
-      put(i.cx, i.cx.valueAt(t) + d.dx);
-      put(i.cy, i.cy.valueAt(t) + d.dy);
+    if (isDrifting) {
+      final riding = <Object, Rect>{
+        for (final id in _items.ids)
+          if (!_items.isLeaving(id))
+            if (_capsuleOf[id] case final c?)
+              if (_capsules.leanOf(c) case final d when d != Offset.zero)
+                id: _items.itemAt(id).rect.shift(d),
+      };
+      _items.lean(riding, 1);
+      _items.endLean(t, commit: commit);
+      _capsules.endLean(t, commit: commit);
+    } else {
+      _capsules.lean(null, 0);
     }
     _driftTo = const {};
     _drift = 0;
-  }
-
-  Rect _drifted(_Capsule c, double t) {
-    final base = _visible(c, t);
-    final to = c.leaving || _drift == 0 ? null : _driftTo[c];
-    if (to == null) return base;
-    return Rect.lerp(base, to, _drift)!;
   }
 
   /// Shows [layout] from time [t], under [transition] when given; with
@@ -677,40 +569,76 @@ class GlassBarMotion {
   }) {
     if (transition != null) spec = transition;
     advance(t);
+    _capsuleOf.removeWhere((id, _) => !_items.contains(id));
     if (!_hasLayout || !animated || reducedMotion) {
       _hasLayout = true;
       _snap(t, layout);
       return;
     }
-    _keepDrift(t, rest: true);
-    _reviveItems(layout);
-    final spring = spec.frameSpring;
-    final content = spec.contentSpring;
+    _keepDrift(t, commit: true);
     final live = [
-      for (final c in _capsules)
-        if (!c.leaving) c,
+      for (final c in _all)
+        if (!_capsules.isLeaving(c)) c,
     ];
-    final oldCenters = <_Capsule, Offset>{
-      for (final c in live) c: _visible(c, t).center,
-    };
-    final paired = _pair(layout, live, (c) => c.target);
+    final paired = _pair(layout, live, (c) => _capsules.laidOut(c)!);
     final leaving = [
-      for (final c in _capsules)
-        if (c.leaving) c,
+      for (final c in _all)
+        if (_capsules.isLeaving(c)) c,
     ];
-    for (final MapEntry(key: k, value: c) in _pair(
-      layout,
-      leaving,
-      (c) => _visible(c, t),
-      skip: paired.keys.toSet(),
-    ).entries) {
-      c.leaving = false;
-      c.generation++;
-      paired[k] = c;
+    paired.addAll(
+      _pair(
+        layout,
+        leaving,
+        (c) => _capsules.itemAt(c).rect,
+        skip: paired.keys.toSet(),
+      ),
+    );
+    final resolved = [
+      for (var k = 0; k < layout.length; k++)
+        if (paired[k] case final existing?)
+          existing
+        else
+          _Capsule(
+            layout[k].id,
+            layout[k].segment,
+            anonymous: layout[k].anonymous,
+          ),
+    ];
+    for (var k = 0; k < layout.length; k++) {
+      if (resolved[k].anonymous) resolved[k].id = layout[k].id;
     }
+    final liveIds = {for (final c in resolved) c.id};
+    for (final c in _all) {
+      if (!resolved.contains(c) && liveIds.contains(c.id)) {
+        c.id = GlassBarDepartedId(c.id);
+      }
+    }
+    _layoutOf = {
+      for (var k = 0; k < layout.length; k++) resolved[k]: layout[k],
+    };
+    _nextCapsuleOf = {
+      for (var k = 0; k < layout.length; k++)
+        for (final item in layout[k].items) item.id: resolved[k],
+    };
+    _capsules.layout(t, {
+      for (var k = 0; k < layout.length; k++) resolved[k]: layout[k].rect,
+    }, spring: spec.frameSpring);
+    _items.layout(t, {
+      for (final c in layout)
+        for (final item in c.items) item.id: item.rect,
+    }, spring: spec.contentSpring);
+    _capsuleOf.addAll(_nextCapsuleOf);
+    _layoutOf = const {};
+    _nextCapsuleOf = const {};
+  }
+
+  Map<Object, LayoutPlan> _planCapsules(LayoutChange change) {
+    if (change.spring == null) return const {};
+    final spring = spec.frameSpring;
+    final entries = change.entries;
     final survivors = {
-      for (final MapEntry(key: k, value: c) in paired.entries)
-        if (live.contains(c)) k: c,
+      for (final MapEntry(:key, :value) in entries.entries)
+        if (value.phase == LayoutPhase.staying) key as _Capsule: value,
     };
     (_Capsule, Rect)? nearestSurvivor(
       Object? segment,
@@ -719,211 +647,109 @@ class GlassBarMotion {
     }) {
       (_Capsule, Rect)? best;
       var distance = double.infinity;
-      for (final MapEntry(key: k, value: c) in survivors.entries) {
+      for (final MapEntry(key: c, value: entry) in survivors.entries) {
         if (c.segment != segment) continue;
-        final d = (layout[k].rect.center - from).distance;
+        final d = (entry.to!.center - from).distance;
         if (d < distance) {
           distance = d;
-          best = (c, after ? layout[k].rect : _visible(c, t));
+          best = (c, after ? entry.to! : entry.shown!);
         }
       }
       return best;
     }
 
-    final resolved = <_Capsule>[];
+    final plans = <Object, LayoutPlan>{};
     final births = <_Capsule, Offset>{};
-    final inPlace = <_Capsule>{};
+    final bornInPlace = <_Capsule>{};
     final hosts = <_Capsule>{};
     final birthSegments = <Object?>{};
-    for (var k = 0; k < layout.length; k++) {
-      final c = layout[k];
-      final existing = paired[k];
-      if (existing != null) {
-        if (existing.anonymous) existing.id = c.id;
-        resolved.add(existing);
-        continue;
-      }
+    for (final MapEntry(:key, value: entry) in entries.entries) {
+      if (entry.phase != LayoutPhase.entering || entry.shown != null) continue;
+      final c = key as _Capsule;
+      final to = entry.to!;
       final (host, source) =
-          nearestSurvivor(c.segment, c.rect.center, after: false) ??
+          nearestSurvivor(c.segment, to.center, after: false) ??
           (null, Rect.zero);
-      final _Capsule born;
-      if (host != null && _fits(c.rect.size, source)) {
-        final box = _inside(c.rect.size, c.rect.center, source);
-        born = _Capsule(
-          c.id,
-          c.segment,
-          Rect.fromCenter(
-            center: box.center,
-            width: box.width * spec.appearScale,
-            height: box.height * spec.appearScale,
-          ),
-          spec,
-          anonymous: c.anonymous,
-        );
-        births[born] = box.center;
+      if (host != null && _fits(to.size, source)) {
+        final box = _inside(to.size, to.center, source);
+        births[c] = box.center;
         hosts.add(host);
         birthSegments.add(c.segment);
+        plans[c] = LayoutPlan(
+          spring: spring,
+          delay: spec.frameDelay,
+          origin: _shrunk(box),
+          accent: _pulse(to.size),
+        );
       } else {
-        born = _Capsule(c.id, c.segment, c.rect, spec, anonymous: c.anonymous);
-        born.presence = MotionValue<double>(0, spring: spring);
-        inPlace.add(born);
+        c.apart = true;
+        bornInPlace.add(c);
+        plans[c] = LayoutPlan(spring: spring, delay: spec.segmentDelay);
       }
-      _capsules.add(born);
-      resolved.add(born);
     }
-    final layoutOf = <_Capsule, GlassBarCapsuleLayout>{
-      for (var k = 0; k < layout.length; k++) resolved[k]: layout[k],
-    };
     final deaths = <_Capsule, Offset>{};
-    for (final c in List.of(_capsules)) {
-      if (c.leaving || layoutOf.containsKey(c)) continue;
-      c.leaving = true;
-      final generation = ++c.generation;
-      final here = _visible(c, t).center;
+    for (final MapEntry(:key, value: entry) in entries.entries) {
+      if (entry.phase != LayoutPhase.leaving) continue;
+      final c = key as _Capsule;
+      final here = entry.shown!.center;
+      final size = entry.from!.size;
       final (host, sink) =
           nearestSurvivor(c.segment, here, after: true) ?? (null, Rect.zero);
-      if (host == null || !_fits(c.target.size, sink)) {
-        final presence = c.presence ??= MotionValue<double>(1, spring: spring);
-        _timeline.at(t + spec.segmentDelay, (double at) {
-          if (c.generation != generation) return;
-          presence.retarget(at, 0, spring: spring);
-        });
+      if (host == null || !_fits(size, sink)) {
+        c.apart = true;
+        plans[c] = LayoutPlan(spring: spring, delay: spec.segmentDelay);
         continue;
       }
-      final box = _inside(c.target.size, here, sink);
+      final box = _inside(size, here, sink);
       deaths[c] = box.center;
       hosts.add(host);
-      _timeline.at(t + spec.frameDelay, (double at) {
-        if (c.generation != generation) return;
-        c.cx.retarget(at, box.center.dx, spring: spring);
-        c.cy.retarget(at, box.center.dy, spring: spring);
-        c.w.retarget(at, box.width * spec.appearScale, spring: spring);
-        c.h.retarget(at, box.height * spec.appearScale, spring: spring);
-      });
+      plans[c] = LayoutPlan(
+        spring: spring,
+        delay: spec.frameDelay,
+        destination: _shrunk(box),
+        rest: _landing,
+      );
     }
-    final liveIds = {
-      for (final c in _capsules)
-        if (!c.leaving) c.id,
-    };
-    for (final c in _capsules) {
-      if (c.leaving && liveIds.contains(c.id)) c.id = GlassBarDepartedId(c.id);
-    }
-    for (final c in resolved) {
-      final target = layoutOf[c]!;
-      final born = births.containsKey(c);
-      final appearing = inPlace.contains(c);
-      final changed =
-          born ||
-          (!appearing && (hosts.contains(c) || _itemsChanged(c, target.items)));
-      final moves = c.target != target.rect;
-      c.target = target.rect;
-      final generation = ++c.generation;
-      final delay = !born && birthSegments.contains(c.segment) && moves
-          ? spec.birthStaggerDelay
-          : spec.frameDelay;
-      _timeline.at(t + delay, (double at) {
-        if (c.generation != generation) return;
-        c.cx.retarget(at, target.rect.center.dx, spring: spring);
-        c.cy.retarget(at, target.rect.center.dy, spring: spring);
-        c.w.retarget(at, target.rect.width, spring: spring);
-        c.h.retarget(at, target.rect.height, spring: spring);
-      });
-      final presence = c.presence;
-      if (presence != null) {
-        _timeline.at(t + spec.segmentDelay, (double at) {
-          if (c.generation != generation) return;
-          presence.retarget(at, 1, spring: spring);
-        });
+    for (final MapEntry(:key, value: entry) in entries.entries) {
+      if (entry.phase == LayoutPhase.leaving || plans.containsKey(key)) {
+        continue;
       }
-      if (changed) _schedulePulse(c, t, generation, target.rect.size);
+      final c = key as _Capsule;
+      final target = _layoutOf[c]!;
+      final moves = _capsules.laidOut(c) != target.rect;
+      final changed = hosts.contains(c) || _itemsChanged(c, target.items);
+      plans[c] = LayoutPlan(
+        spring: spring,
+        delay: entry.phase == LayoutPhase.entering && c.apart
+            ? spec.segmentDelay
+            : birthSegments.contains(c.segment) && moves
+            ? spec.birthStaggerDelay
+            : spec.frameDelay,
+        accent: changed ? _pulse(target.rect.size) : null,
+      );
     }
-    final newCenters = {
-      for (var k = 0; k < layout.length; k++)
-        resolved[k]: layout[k].rect.center,
-      ...deaths,
+    _births = births;
+    _deaths = deaths;
+    _bornInPlace = bornInPlace;
+    _oldCenters = {
+      for (final MapEntry(key: c, value: entry) in survivors.entries)
+        c: entry.shown!.center,
     };
-    for (final i in _items) {
-      if (i.leaving) continue;
-      if (_findItem(layout, i.id) != null) continue;
-      i.leaving = true;
-      final generation = ++i.generation;
-      final end =
-          newCenters[i.capsule] ?? Offset(i.cx.valueAt(t), i.cy.valueAt(t));
-      _timeline.at(t + spec.contentDelay, (double at) {
-        if (i.generation != generation) return;
-        i.cx.retarget(at, end.dx, spring: content);
-        i.cy.retarget(at, end.dy, spring: content);
-        i.presence.retarget(at, 0, spring: content);
-      });
-    }
-    for (var k = 0; k < layout.length; k++) {
-      final c = layout[k];
-      final capsule = resolved[k];
-      for (final item in c.items) {
-        final existing = _item(item.id);
-        if (existing != null) {
-          existing.capsule = capsule;
-          existing.size = item.rect.size;
-          final generation = ++existing.generation;
-          _timeline.at(t + spec.contentDelay, (double at) {
-            if (existing.generation != generation) return;
-            existing.cx.retarget(at, item.rect.center.dx, spring: content);
-            existing.cy.retarget(at, item.rect.center.dy, spring: content);
-            existing.presence.retarget(at, 1, spring: content);
-          });
-          continue;
-        }
-        if (inPlace.contains(capsule)) {
-          _items.add(
-            _Item(item.id, capsule, item.rect.center, item.rect.size, content),
-          );
-          continue;
-        }
-        final start =
-            oldCenters[capsule] ?? births[capsule] ?? item.rect.center;
-        final born = _Item(item.id, capsule, start, item.rect.size, content);
-        born.presence.snap(t, 0);
-        _items.add(born);
-        final generation = born.generation;
-        _timeline.at(t + spec.contentDelay, (double at) {
-          if (born.generation != generation) return;
-          born.cx.retarget(at, item.rect.center.dx, spring: content);
-          born.cy.retarget(at, item.rect.center.dy, spring: content);
-          born.presence.retarget(at, 1, spring: content);
-        });
-      }
-    }
+    return plans;
   }
 
-  void _schedulePulse(_Capsule c, double t, int generation, Size size) {
-    final start = t + spec.pulseDelay;
-    _timeline.at(start, (double at) {
-      if (c.generation != generation) return;
-      c.pulseW.retarget(
-        at,
-        spec.pulseScaleFor(size.width),
-        spring: spec.pulseUpSpring,
-      );
-      c.pulseH.retarget(
-        at,
-        spec.pulseScaleFor(size.height),
-        spring: spec.pulseUpSpring,
-      );
-    });
-    _timeline.at(start + spec.pulseHeightDownDelay, (double at) {
-      if (c.generation != generation) return;
-      c.pulseH.retarget(at, 1, spring: spec.pulseHeightDownSpring);
-    });
-    _timeline.at(start + spec.pulseWidthDownDelay, (double at) {
-      if (c.generation != generation) return;
-      c.pulseW.retarget(at, 1, spring: spec.pulseWidthDownSpring);
-    });
-  }
+  // Finer than the visible rest: the device replacement replay keeps the
+  // remaining capsules' centers within 1.2 pt rms only when a shrunk
+  // capsule is dropped at a 0.05 pt landing or later (0.1 pt gives 1.31).
+  static const double _landing = 0.05;
 
   bool _itemsChanged(_Capsule capsule, List<GlassBarItemLayout> items) {
+    final next = {for (final i in items) i.id};
     final before = [
-      for (final i in _items)
-        if (!i.leaving && i.capsule == capsule) i.id,
+      for (final id in _items.ids)
+        if (identical(_capsuleOf[id], capsule) &&
+            (!_items.isLeaving(id) || next.contains(id)))
+          id,
     ];
     if (before.length != items.length) return true;
     for (var k = 0; k < items.length; k++) {
@@ -932,140 +758,158 @@ class GlassBarMotion {
     return false;
   }
 
-  GlassBarItemLayout? _findItem(List<GlassBarCapsuleLayout> layout, Object id) {
-    for (final c in layout) {
-      for (final i in c.items) {
-        if (i.id == id) return i;
+  Map<Object, LayoutPlan> _planItems(LayoutChange change) {
+    if (change.spring == null) return const {};
+    final spring = spec.contentSpring;
+    final delay = spec.contentDelay;
+    final plans = <Object, LayoutPlan>{};
+    for (final MapEntry(key: id, value: entry) in change.entries.entries) {
+      switch (entry.phase) {
+        case LayoutPhase.leaving:
+          final c = _capsuleOf[id];
+          final end =
+              (c == null ? null : _deaths[c] ?? _layoutOf[c]?.rect.center) ??
+              entry.shown!.center;
+          plans[id] = LayoutPlan(
+            spring: spring,
+            delay: delay,
+            destination: Rect.fromCenter(
+              center: end,
+              width: entry.from!.width,
+              height: entry.from!.height,
+            ),
+          );
+        case LayoutPhase.entering when entry.shown == null:
+          final c = _nextCapsuleOf[id]!;
+          final to = entry.to!;
+          if (_bornInPlace.contains(c)) {
+            plans[id] = const LayoutPlan();
+            continue;
+          }
+          final start = _oldCenters[c] ?? _births[c] ?? to.center;
+          plans[id] = LayoutPlan(
+            spring: spring,
+            delay: delay,
+            origin: Rect.fromCenter(
+              center: start,
+              width: to.width,
+              height: to.height,
+            ),
+          );
+        case LayoutPhase.entering || LayoutPhase.staying:
+          plans[id] = LayoutPlan(spring: spring, delay: delay);
       }
     }
-    return null;
+    return plans;
   }
 
   void _snap(double t, List<GlassBarCapsuleLayout> layout) {
     _driftTo = const {};
     _driftPaired = null;
     _drift = 0;
-    _timeline.clear();
-    _capsules.clear();
-    _items.clear();
-    for (final c in layout) {
-      final capsule = _Capsule(
-        c.id,
-        c.segment,
-        c.rect,
-        spec,
-        anonymous: c.anonymous,
-      );
-      capsule.target = c.rect;
-      _capsules.add(capsule);
-      for (final i in c.items) {
-        _items.add(
-          _Item(i.id, capsule, i.rect.center, i.rect.size, spec.contentSpring),
-        );
+    _capsules.lean(null, 0);
+    final capsules = [
+      for (final c in layout) _Capsule(c.id, c.segment, anonymous: c.anonymous),
+    ];
+    _capsules.layout(t, {
+      for (var k = 0; k < layout.length; k++) capsules[k]: layout[k].rect,
+    }, jump: true);
+    _items.layout(t, {
+      for (final c in layout)
+        for (final item in c.items) item.id: item.rect,
+    }, jump: true);
+    _capsuleOf.clear();
+    for (var k = 0; k < layout.length; k++) {
+      for (final item in layout[k].items) {
+        _capsuleOf[item.id] = capsules[k];
       }
     }
   }
 
   /// The capsules at the current time, leaving ones included.
   List<GlassBarCapsuleFrame> get capsules => [
-    for (final c in _capsules)
+    for (final c in _all)
       GlassBarCapsuleFrame(
         c.id,
-        _pulsed(c),
-        leaving: c.leaving,
+        _drawn(c),
+        leaving: _capsules.isLeaving(c),
         segment: c.segment,
-        opacity: (c.presence?.valueAt(_now) ?? 1).clamp(0.0, 1.0),
-        apart: c.presence != null,
+        opacity: c.apart ? _capsules.presenceAt(c).clamp(0.0, 1.0) : 1,
+        apart: c.apart,
       ),
   ];
 
   /// The swell of a capsule that appears or leaves in place, per axis.
   Offset _apartScale(_Capsule c) {
-    final presence = c.presence;
-    if (presence == null) return const Offset(1, 1);
-    final rest = 1 - presence.valueAt(_now);
+    if (!c.apart) return const Offset(1, 1);
+    final rest = 1 - _capsules.presenceAt(c);
+    final target = _capsules.laidOut(c)!;
     return Offset(
-      1 + (spec.pulseScaleFor(c.target.width) - 1) * rest,
-      1 + (spec.pulseScaleFor(c.target.height) - 1) * rest,
+      1 + (spec.pulseScaleFor(target.width) - 1) * rest,
+      1 + (spec.pulseScaleFor(target.height) - 1) * rest,
     );
   }
 
-  Rect _pulsed(_Capsule c) {
-    final base = _drifted(c, _now);
+  Rect _drawn(_Capsule c) {
+    final rect = _capsules.itemAt(c).rect;
     final apart = _apartScale(c);
     return Rect.fromCenter(
-      center: base.center,
-      width: math.max(
-        0,
-        (base.width + (c.pulseW.valueAt(_now) - 1) * c.target.width) * apart.dx,
-      ),
-      height: math.max(
-        0,
-        (base.height + (c.pulseH.valueAt(_now) - 1) * c.target.height) *
-            apart.dy,
-      ),
+      center: rect.center,
+      width: math.max(0, rect.width * apart.dx),
+      height: math.max(0, rect.height * apart.dy),
     );
   }
 
   /// The items at the current time, leaving ones included.
-  List<GlassBarItemFrame> get items {
-    final pulse = {
-      for (final c in _capsules)
-        if (!c.leaving) c: c.pulseH.valueAt(_now),
-    };
-    final shift = <_Capsule, Offset>{
-      if (isDrifting)
-        for (final c in _capsules)
-          if (!c.leaving && _driftTo.containsKey(c))
-            c: _drifted(c, _now).center - _visible(c, _now).center,
-    };
-    return [
-      for (final i in _items)
-        () {
-          final p = i.presence.valueAt(_now);
-          final s = lerpDouble(spec.appearScale, 1, p)!;
-          var center =
-              Offset(i.cx.valueAt(_now), i.cy.valueAt(_now)) +
-              (i.leaving ? Offset.zero : shift[i.capsule] ?? Offset.zero);
-          var scale = s * (pulse[i.capsule] ?? 1);
-          var presence = p.clamp(0.0, 1.0);
-          var blur = math.max<double>(0, spec.appearBlur * (1 - p));
-          final capsule = i.capsule;
-          final apart = capsule.presence;
-          if (apart != null) {
-            final q = apart.valueAt(_now);
-            final f = _apartScale(capsule);
-            final origin = _drifted(capsule, _now).center;
-            center =
-                origin +
-                Offset(
-                  (center.dx - origin.dx) * f.dx,
-                  (center.dy - origin.dy) * f.dy,
-                );
-            scale *= f.dy;
-            presence *= q.clamp(0.0, 1.0);
-            blur = math.max(blur, spec.appearBlur * (1 - q));
-          }
-          return GlassBarItemFrame(
-            i.id,
-            center: center,
-            size: i.size,
-            scale: math.max(0, scale),
-            presence: presence,
-            blur: blur,
-            leaving: i.leaving,
+  List<GlassBarItemFrame> get items => [
+    for (final id in _items.ids)
+      if (_frameOf(id) case final frame?) frame,
+  ];
+
+  GlassBarItemFrame? _frameOf(Object id) {
+    final capsule = _capsuleOf[id];
+    if (capsule == null) return null;
+    final present = _capsules.contains(capsule);
+    if (capsule.apart && !present) return null;
+    final leaving = _items.isLeaving(id);
+    final riding = present && !_capsules.isLeaving(capsule);
+    final p = _items.presenceAt(id);
+    var center =
+        _items.itemAt(id).rect.center +
+        (riding && !leaving ? _capsules.leanOf(capsule) : Offset.zero);
+    var scale =
+        lerpDouble(spec.appearScale, 1, p)! *
+        (riding ? _capsules.accentAt(capsule).height : 1);
+    var presence = p.clamp(0.0, 1.0);
+    var blur = math.max<double>(0, spec.appearBlur * (1 - p));
+    if (capsule.apart) {
+      final q = _capsules.presenceAt(capsule);
+      final f = _apartScale(capsule);
+      final origin = _capsules.itemAt(capsule).rect.center;
+      center =
+          origin +
+          Offset(
+            (center.dx - origin.dx) * f.dx,
+            (center.dy - origin.dy) * f.dy,
           );
-        }(),
-    ];
+      scale *= f.dy;
+      presence *= q.clamp(0.0, 1.0);
+      blur = math.max(blur, spec.appearBlur * (1 - q));
+    }
+    return GlassBarItemFrame(
+      id,
+      center: center,
+      size: _items.laidOut(id)!.size,
+      scale: math.max(0, scale),
+      presence: presence,
+      blur: blur,
+      leaving: leaving,
+    );
   }
 
   /// The frame of the item [id], or null when it is not in the bar.
-  GlassBarItemFrame? itemFrame(Object id) {
-    for (final f in items) {
-      if (f.id == id) return f;
-    }
-    return null;
-  }
+  GlassBarItemFrame? itemFrame(Object id) =>
+      _items.contains(id) ? _frameOf(id) : null;
 
   /// The frame of the capsule [id], or null when it is not in the bar.
   GlassBarCapsuleFrame? capsuleFrame(Object id) {

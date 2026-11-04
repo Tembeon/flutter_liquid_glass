@@ -33,18 +33,12 @@ final _bans = <String, (RegExp, Set<String>)>{
   ),
   // A motion keeps its time on its Motion's cursor and asks its parts
   // whether they rest; A5 (bars) and A9 (menu) move these.
-  'a motion keeps no clock of its own': (
-    RegExp(r'\bdouble _now\b'),
-    {
-      'lib/src/motion/bar_motion.dart',
-    },
-  ),
+  'a motion keeps no clock of its own': (RegExp(r'\bdouble _now\b'), {}),
   'rest is asked of the part (restsAt)': (
     RegExp(r'\.isWithin\('),
     {
       'lib/src/chrome/navigation_bar.dart',
       'lib/src/menu/motion.dart',
-      'lib/src/motion/bar_motion.dart',
       'lib/src/motion/flex_interaction.dart',
     },
   ),

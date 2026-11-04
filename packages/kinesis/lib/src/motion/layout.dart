@@ -77,6 +77,18 @@ final class LayoutMotion extends Motion {
   Map<Object, Rect>? _toward;
   double _amount = 0;
 
+  /// How present [id] is as its spring has it, overshoot included: 0 for
+  /// an item that enters or has gone, 1 for one that is there.
+  double presenceAt(Object id) => _slots[id]?.presence.valueAt(now) ?? 0;
+
+  /// Whether [id]'s presence rests where it heads, within
+  /// [MotionRest.opacity].
+  bool presenceRests(Object id) {
+    final presence = _slots[id]?.presence;
+    return presence == null ||
+        (presence.restsAt(now, MotionRest.opacity) && presence.nextDue == null);
+  }
+
   /// The swell of [id]'s size by its accent, per axis, as a share of its
   /// laid out size: 1 by 1 at rest.
   Size accentAt(Object id) {
@@ -323,6 +335,8 @@ final class LayoutMotion extends Motion {
       MotionValue<double>(1),
       rest: () => _swellRest(slot.model?.height),
     );
+    unschedule((#swellH, id));
+    unschedule((#swellW, id));
     final start = t + accent.delay;
     at(start, (t) {
       w.retarget(t, accent.scale.width, spring: accent.up);
