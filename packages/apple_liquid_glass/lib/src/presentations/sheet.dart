@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motion/sheet_motion.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
+import 'package:apple_liquid_glass/src/surface/shape.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
@@ -12,7 +13,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// Shows an iOS 27 sheet over the page and completes with the result it
 /// is closed with.
@@ -734,8 +734,8 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
                           children: [
                             if (!structure.opaque)
                               const GlassSurface(
-                                shape: LiquidRoundedSuperellipse(
-                                  borderRadius: SheetTuning.topRadius,
+                                shape: GlassShape.superellipse(
+                                  SheetTuning.topRadius,
                                 ),
                                 role: GlassRole.sheet,
                                 child: SizedBox.expand(),

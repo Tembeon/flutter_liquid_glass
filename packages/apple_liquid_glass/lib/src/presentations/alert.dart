@@ -7,6 +7,7 @@ import 'package:apple_liquid_glass/src/motion/popover_motion.dart';
 import 'package:apple_liquid_glass/src/presentations/popover.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
+import 'package:apple_liquid_glass/src/surface/shape.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
@@ -16,7 +17,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 enum _Role { normal, cancel, destructive }
 
@@ -301,9 +301,7 @@ class _AlertViewState extends State<_AlertView> {
   late final MotionSelection<double> _scale;
   late final MotionSelection<bool> _leaving;
   late final MotionSelection<GlassFrame> _frame;
-  static const LiquidShape _platter = LiquidRoundedSuperellipse(
-    borderRadius: AlertTuning.cornerRadius,
-  );
+  static const _platter = GlassShape.superellipse(AlertTuning.cornerRadius);
 
   List<GlassAlertAction> _shown = const [];
 

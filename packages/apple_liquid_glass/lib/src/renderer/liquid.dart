@@ -278,7 +278,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
           );
     final outline = frame.outline;
     return LiquidGlassShapeFrame(
-      shape: frame.shape,
+      shape: frame.shape.liquid,
       appearance: frame.opacity >= 1
           ? appearance
           : appearance.copyWith(
@@ -365,11 +365,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
       box,
       LiquidGlassGlow(
         bounds: body,
-        cornerRadius: switch (frame.shape) {
-          LiquidRoundedSuperellipse(:final borderRadius) ||
-          LiquidRoundedRectangle(:final borderRadius) => borderRadius,
-          LiquidOval() => body.shortestSide / 2,
-        },
+        cornerRadius: frame.shape.radiusIn(body),
         center: transform == null
             ? glow.center
             : MatrixUtils.transformPoint(transform, glow.center),

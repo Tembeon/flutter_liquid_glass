@@ -40,7 +40,7 @@ void main() {
   setUp(MotionClock.debugReset);
 
   test('a capsule is a stadium in any box', () {
-    final outline = GlassFrame.capsule.getOuterPath(
+    final outline = GlassShape.capsule.pathIn(
       const Rect.fromLTWH(0, 0, 100, 44),
     );
     expect(outline.contains(const Offset(2, 22)), isTrue);

@@ -322,7 +322,7 @@ class RenderFlatGlass extends RenderProxyBox {
   void _paintSurface(PaintingContext context, Offset offset) {
     final frame = _frame.value;
     final body = frame.drawnIn(size);
-    final outline = frame.outline?.path ?? frame.shape.getOuterPath(body);
+    final outline = frame.outline?.path ?? frame.shape.pathIn(body);
     final canvas = context.canvas;
     canvas.save();
     canvas.translate(offset.dx, offset.dy);
@@ -419,7 +419,7 @@ class RenderFlatGlass extends RenderProxyBox {
       return;
     }
     final rect = body.shift(shift);
-    switch (frame.shape) {
+    switch (frame.shape.liquid) {
       case LiquidRoundedSuperellipse(:final borderRadius, :final bottomRadius):
         final radii = BorderRadius.vertical(
           top: Radius.circular(borderRadius),
@@ -439,7 +439,7 @@ class RenderFlatGlass extends RenderProxyBox {
   // An outline body strokes its own edge: the rim is too thin for the
   // stroke's straddle of the edge to show.
   static Path _rimPath(GlassFrame frame, Rect body, double inset) =>
-      frame.outline?.path ?? frame.shape.getOuterPath(body.deflate(inset));
+      frame.outline?.path ?? frame.shape.pathIn(body.deflate(inset));
 
   void _paintContent(PaintingContext context, Offset offset, GlassFrame frame) {
     final transform = frame.contentTransformIn(size);

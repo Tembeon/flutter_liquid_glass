@@ -1,12 +1,12 @@
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
+import 'package:apple_liquid_glass/src/surface/shape.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// A glass body behind [child], drawn by the ambient `GlassRenderer`.
 ///
@@ -21,7 +21,7 @@ class GlassSurface extends StatefulWidget {
   /// Creates a still body whose outline is `shape`, a capsule by default.
   const GlassSurface({
     required this.child,
-    LiquidShape this._shape = GlassFrame.capsule,
+    GlassShape this._shape = GlassShape.capsule,
     this.role = GlassRole.control,
     this.glass = const Glass.regular(),
     super.key,
@@ -37,7 +37,7 @@ class GlassSurface extends StatefulWidget {
     super.key,
   }) : _shape = null;
 
-  final LiquidShape? _shape;
+  final GlassShape? _shape;
 
   /// The frames of a live surface, or null for a still one.
   final ValueListenable<GlassFrame>? frame;
@@ -143,10 +143,7 @@ class _Border extends CustomPainter {
       canvas.drawPath(outline.path, paint);
       return;
     }
-    canvas.drawPath(
-      now.shape.getOuterPath(now.drawnIn(size).deflate(0.5)),
-      paint,
-    );
+    canvas.drawPath(now.shape.pathIn(now.drawnIn(size).deflate(0.5)), paint);
   }
 
   @override

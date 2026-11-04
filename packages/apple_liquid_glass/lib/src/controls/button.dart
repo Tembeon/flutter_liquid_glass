@@ -5,6 +5,7 @@ import 'package:apple_liquid_glass/src/menu/entries.dart';
 import 'package:apple_liquid_glass/src/motion/glass_press.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
+import 'package:apple_liquid_glass/src/surface/shape.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/style.dart';
@@ -14,7 +15,6 @@ import 'package:apple_liquid_glass/src/theme/typography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// Builds a glass button from [details]; it runs again when the button's
 /// states change, never while the button moves.
@@ -64,7 +64,7 @@ class GlassPressable extends StatefulWidget {
     required this.onPressed,
     required this.builder,
     required this.child,
-    this.shape = GlassFrame.capsule,
+    this.shape = GlassShape.capsule,
     this.statesController,
     this.focusNode,
     this.autofocus = false,
@@ -82,7 +82,7 @@ class GlassPressable extends StatefulWidget {
   final Widget child;
 
   /// The outline of the button's body.
-  final LiquidShape shape;
+  final GlassShape shape;
 
   /// Where the button writes its states, or null for its own.
   final WidgetStatesController? statesController;
@@ -111,7 +111,7 @@ class _GlassPressableState extends State<GlassPressable>
   ];
   late MotionSelection<GlassFrame> _body = _bodyOf(widget.shape);
 
-  MotionSelection<GlassFrame> _bodyOf(LiquidShape shape) => _press.select(
+  MotionSelection<GlassFrame> _bodyOf(GlassShape shape) => _press.select(
     (press) => press.isAtRest
         ? GlassFrame(shape: shape)
         : GlassFrame(

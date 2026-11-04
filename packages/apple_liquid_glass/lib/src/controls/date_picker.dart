@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/src/motion/date_picker_motion.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
+import 'package:apple_liquid_glass/src/surface/shape.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
@@ -16,7 +17,6 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// What a [GlassDatePicker] picks.
 enum GlassDatePickerMode {
@@ -753,9 +753,7 @@ class _OverlayViewState extends State<_OverlayView> {
   late final _opacity = _motion.select((m) => m.opacity);
   late final _glass = _motion.select(
     (m) => GlassFrame(
-      shape: const LiquidRoundedSuperellipse(
-        borderRadius: DatePickerTuning.cornerRadius,
-      ),
+      shape: const GlassShape.superellipse(DatePickerTuning.cornerRadius),
       opacity: m.opacity,
     ),
   );

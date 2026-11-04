@@ -7,6 +7,7 @@ import 'package:apple_liquid_glass/src/renderer/flat.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/outline.dart';
+import 'package:apple_liquid_glass/src/surface/shape.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
@@ -17,7 +18,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// Shows [builder]'s content in an iOS 27 popover next to its source and
 /// completes with the result it is closed with.
@@ -272,9 +272,7 @@ class _PopoverGlassState extends State<_PopoverGlass> {
 
   void _publish() {
     _frame.value = GlassFrame(
-      shape: const LiquidRoundedSuperellipse(
-        borderRadius: PopoverTuning.cornerRadius,
-      ),
+      shape: const GlassShape.superellipse(PopoverTuning.cornerRadius),
       opacity: widget.opacity.value,
       outline: _outline,
     );

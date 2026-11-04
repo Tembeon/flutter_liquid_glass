@@ -12,6 +12,7 @@ import 'package:apple_liquid_glass/src/menu/rows.dart';
 import 'package:apple_liquid_glass/src/motion/live.dart';
 import 'package:apple_liquid_glass/src/renderer/flat.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
+import 'package:apple_liquid_glass/src/surface/shape.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
@@ -22,7 +23,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// Opens and closes a `GlassButton`'s or a [GlassContextMenu]'s menu from
 /// code.
@@ -1109,7 +1109,7 @@ class _MenuLayerState extends State<_MenuLayer> {
               child: LiveGlassSurface(
                 live: _frames,
                 frameOf: () => GlassFrame(
-                  shape: LiquidRoundedRectangle(borderRadius: radius()),
+                  shape: GlassShape.roundedRect(radius()),
                   opacity: card().platterOpacity * _motion.cardMaterialOpacity,
                 ),
               ),
@@ -1353,7 +1353,7 @@ GlassFrame _menuFrame(
   final source = motion.drawsSource ? motion.buttonBlob.rrect : null;
   if (source == null || _inside(root, source)) {
     return GlassFrame(
-      shape: LiquidRoundedRectangle(borderRadius: root.tlRadiusX),
+      shape: GlassShape.roundedRect(root.tlRadiusX),
       rect: root.outerRect,
       tint: tint,
       tintAmount: tintAmount,

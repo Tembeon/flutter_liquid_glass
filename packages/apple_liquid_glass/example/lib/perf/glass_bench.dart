@@ -576,9 +576,7 @@ class _DropsState extends State<_Drops> {
         math.cos(t * 1.1 + i * 2) * 24,
       );
       _frames[i].value = GlassFrame(
-        shape: i == 1
-            ? const LiquidRoundedSuperellipse(borderRadius: 26)
-            : GlassFrame.capsule,
+        shape: i == 1 ? const GlassShape.superellipse(26) : GlassShape.capsule,
         rect: Rect.fromCenter(
           center: size.center(Offset.zero) + drift,
           width: size.width,

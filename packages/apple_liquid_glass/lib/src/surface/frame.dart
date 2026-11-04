@@ -1,7 +1,7 @@
 import 'package:apple_liquid_glass/src/motion/touch_glow.dart';
 import 'package:apple_liquid_glass/src/surface/outline.dart';
+import 'package:apple_liquid_glass/src/surface/shape.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// One frame of one glass surface: where its body is drawn, how far it is
 /// lifted, the tint it turns to and how a touch lights it.
@@ -15,7 +15,7 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 final class GlassFrame {
   /// Creates a frame of a body of [shape].
   const GlassFrame({
-    this.shape = capsule,
+    this.shape = GlassShape.capsule,
     this.rect,
     this.scaleX = 1,
     this.scaleY = 1,
@@ -30,14 +30,8 @@ final class GlassFrame {
          'An outline body is drawn where its path is.',
        );
 
-  /// A capsule in any box: renderers clamp a corner radius to half the
-  /// short side of the box they draw in, as Flutter's rounded borders do.
-  static const LiquidShape capsule = LiquidRoundedSuperellipse(
-    borderRadius: 10000,
-  );
-
   /// The outline of the body.
-  final LiquidShape shape;
+  final GlassShape shape;
 
   /// Where the body is drawn in the box the surface was laid out in, or
   /// null to fill that box. Hit testing keeps that box, as UIKit hit-tests

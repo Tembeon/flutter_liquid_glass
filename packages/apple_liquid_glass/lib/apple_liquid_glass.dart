@@ -41,6 +41,7 @@ export 'src/surface/frame.dart';
 export 'src/surface/glass.dart';
 export 'src/surface/group.dart';
 export 'src/surface/outline.dart';
+export 'src/surface/shape.dart';
 export 'src/surface/surface.dart' hide LiveGlassSurface, StillGlassFrame;
 export 'src/theme/colors.dart';
 export 'src/theme/theme.dart';
