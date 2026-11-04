@@ -29,10 +29,6 @@ final _bans = <String, (RegExp, Set<String>)>{
     RegExp(r'\bVelocityTracker\b'),
     {'lib/src/presentations/sheet.dart'},
   ),
-  'a host steps no driver; it selects from its Motion': (
-    RegExp(r'(implements|extends|with)[^{]*\bMotionDriver\b|addDriver\('),
-    {},
-  ),
   // A motion keeps its time on its Motion's cursor and asks its parts
   // whether they rest.
   'a motion keeps no clock of its own': (RegExp(r'\bdouble _now\b'), {}),

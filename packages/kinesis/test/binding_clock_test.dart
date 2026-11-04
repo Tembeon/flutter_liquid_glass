@@ -4,22 +4,21 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/clock.dart';
 
-class _Driver extends MotionDriver {
-  _Driver({this.frames = 1 << 30});
+class _Stepped implements MotionFollowed {
+  _Stepped({this.frames = 1 << 30});
 
   int frames;
   double? wake;
   final List<double> steps = [];
 
   @override
-  void step(double time) {
+  bool stepTo(double time) {
     steps.add(time);
     frames--;
+    return frames > 0;
   }
-
-  @override
-  bool get isActive => frames > 0;
 
   @override
   double? get wakeTime {
@@ -27,6 +26,12 @@ class _Driver extends MotionDriver {
     if (at == null || steps.isEmpty || steps.last >= at) return null;
     return at;
   }
+
+  @override
+  void publish({required bool widgets}) {}
+
+  @override
+  bool get hasWidgetFollowers => false;
 }
 
 Future<void> _dilated(double dilation, Future<void> Function() body) async {
@@ -67,7 +72,7 @@ void main() {
           await tester.pumpWidget(const SizedBox());
           await _dilated(dilation, () async {
             final clock = MotionClock.instance;
-            final driver = _Driver();
+            final driver = _Stepped();
             final read = <double>[];
             final ticker = const TestVSync().createTicker((_) {
               read.add(clock.now);
@@ -75,9 +80,9 @@ void main() {
             addTearDown(ticker.dispose);
             if (tickerFirst) {
               unawaited(ticker.start());
-              clock.addDriver(driver);
+              clock.follow(driver);
             } else {
-              clock.addDriver(driver);
+              clock.follow(driver);
               unawaited(ticker.start());
             }
             final frame = Duration(
@@ -87,7 +92,7 @@ void main() {
               await tester.pump(frame);
             }
             ticker.stop();
-            clock.removeDriver(driver);
+            clock.unfollow(driver);
             final steps = driver.steps;
             for (var i = 2; i < steps.length; i++) {
               expect(read[i], steps[i]);
@@ -101,14 +106,14 @@ void main() {
     }
   }
 
-  testWidgets('a driver that waits dozes on a timer, and the doze counts', (
+  testWidgets('a value that waits dozes on a timer, and the doze counts', (
     tester,
   ) async {
     await tester.pumpWidget(const SizedBox());
     const frame = Duration(microseconds: 16667);
     final clock = MotionClock.instance;
-    final driver = _Driver();
-    clock.addDriver(driver);
+    final driver = _Stepped();
+    clock.follow(driver);
     await tester.pump(frame);
     final start = driver.steps.single;
     driver.wake = start + 0.5;
@@ -124,26 +129,17 @@ void main() {
     final woken = driver.steps[2];
     expect(woken, greaterThan(start + 0.5 - 1 / 60));
     expect(woken, lessThan(start + 0.5 + 2 / 60));
-    clock.removeDriver(driver);
+    clock.unfollow(driver);
     await tester.pump(frame);
     expect(tester.binding.hasScheduledFrame, isFalse);
-  });
-
-  testWidgets('an inactive driver asks for no frame', (tester) async {
-    await tester.pumpWidget(const SizedBox());
-    final clock = MotionClock.instance;
-    final driver = _Driver(frames: 0);
-    clock.addDriver(driver);
-    expect(tester.binding.hasScheduledFrame, isFalse);
-    clock.removeDriver(driver);
   });
 
   testWidgets('a change ends a doze', (tester) async {
     await tester.pumpWidget(const SizedBox());
     const frame = Duration(microseconds: 16667);
     final clock = MotionClock.instance;
-    final driver = _Driver();
-    clock.addDriver(driver);
+    final driver = _Stepped();
+    clock.follow(driver);
     await tester.pump(frame);
     driver.wake = driver.steps.single + 1;
     await tester.pump(frame);
@@ -155,7 +151,7 @@ void main() {
     await tester.pump(frame);
     await tester.pump(frame);
     expect(value.value, greaterThan(0));
-    clock.removeDriver(driver);
+    clock.unfollow(driver);
     await tester.pumpAndSettle();
   });
 
@@ -164,18 +160,18 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     const frame = Duration(milliseconds: 100);
     final clock = MotionClock.instance;
-    final first = _Driver(frames: 2);
-    clock.addDriver(first);
+    final first = _Stepped(frames: 2);
+    clock.follow(first);
     await tester.pump(frame);
     await tester.pump(frame);
     final slept = clock.now;
-    final second = _Driver(frames: 3);
-    clock.addDriver(second);
+    final second = _Stepped(frames: 3);
+    clock.follow(second);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 60));
     expect(second.steps, [slept, closeTo(slept + 0.06, 1e-9)]);
-    clock.removeDriver(first);
-    clock.removeDriver(second);
+    clock.unfollow(first);
+    clock.unfollow(second);
   });
 
   testWidgets('under a fake frame clock, time asleep does not count', (
@@ -184,20 +180,20 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     const frame = Duration(microseconds: 16667);
     final clock = MotionClock.instance;
-    final first = _Driver(frames: 3);
-    clock.addDriver(first);
+    final first = _Stepped(frames: 3);
+    clock.follow(first);
     for (var i = 0; i < 5; i++) {
       await tester.pump(frame);
     }
     final slept = clock.now;
     await tester.pump(const Duration(seconds: 3));
     expect(clock.now, slept);
-    final second = _Driver(frames: 2);
-    clock.addDriver(second);
+    final second = _Stepped(frames: 2);
+    clock.follow(second);
     await tester.pump(frame);
     expect(second.steps.single, closeTo(slept, 0.02));
-    clock.removeDriver(first);
-    clock.removeDriver(second);
+    clock.unfollow(first);
+    clock.unfollow(second);
   });
 
   testWidgets('where frame stamps follow the engine clock, time asleep '
@@ -214,8 +210,8 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     const frame = Duration(microseconds: 16667);
     final clock = MotionClock.instance;
-    final first = _Driver(frames: 3);
-    clock.addDriver(first);
+    final first = _Stepped(frames: 3);
+    clock.follow(first);
     for (var i = 0; i < 5; i++) {
       await tester.pump(frame);
     }
@@ -224,12 +220,12 @@ void main() {
     await tester.pump(const Duration(seconds: 3));
     expect(clock.now, closeTo(slept + 3, 0.001));
     expect(clock.stamp(engine()), closeTo(slept + 3, 0.02));
-    final second = _Driver(frames: 2);
-    clock.addDriver(second);
+    final second = _Stepped(frames: 2);
+    clock.follow(second);
     await tester.pump(frame);
     expect(second.steps.first, closeTo(slept + 3 + 1 / 60, 0.02));
-    clock.removeDriver(first);
-    clock.removeDriver(second);
+    clock.unfollow(first);
+    clock.unfollow(second);
   });
 
   testWidgets('touches while asleep keep their spacing, slowed by '

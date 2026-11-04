@@ -9,7 +9,6 @@
 library;
 
 export 'kinesis.dart';
-export 'src/clock.dart' show MotionDriver;
 export 'src/motion/band.dart' show Band;
 export 'src/motion/layout.dart' show LayoutMotion;
 export 'src/motion/loop.dart' show MotionLoop;
@@ -31,5 +30,4 @@ export 'src/motion/timed.dart' show TimedValue;
 export 'src/presentation/presented.dart' show Presented;
 export 'src/presentation/route.dart' show DismissTrigger;
 export 'src/presentation/source.dart' show Sourced;
-export 'src/timeline.dart' show MotionTimeline;
 export 'src/value.dart' show MotionValueCommands;

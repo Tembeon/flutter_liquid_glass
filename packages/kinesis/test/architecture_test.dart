@@ -90,8 +90,6 @@ void main() {
     for (final name in [
       'MotionValueCommands',
       'MotionPart',
-      'MotionDriver',
-      'MotionTimeline',
     ]) {
       expect(app.contains(name), isFalse, reason: name);
     }

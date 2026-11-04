@@ -3,25 +3,35 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/clock.dart';
 
-class _Driver extends MotionDriver {
+class _Stepped implements MotionFollowed {
   final List<double> steps = [];
 
   @override
-  void step(double time) => steps.add(time);
+  bool stepTo(double time) {
+    steps.add(time);
+    return true;
+  }
 
   @override
-  bool get isActive => true;
+  double? get wakeTime => null;
+
+  @override
+  void publish({required bool widgets}) {}
+
+  @override
+  bool get hasWidgetFollowers => false;
 }
 
 void main() {
   setUp(MotionClock.debugReset);
   tearDown(MotionClock.debugReset);
 
-  test('a publish callback runs once, after the drivers stepped', () {
+  test('a publish callback runs once, after the values stepped', () {
     final clock = ManualMotionClock();
-    final driver = _Driver();
-    clock.addDriver(driver);
+    final driver = _Stepped();
+    clock.follow(driver);
     final seen = <List<double>>[];
     clock.schedulePublish(() => seen.add(List.of(driver.steps)));
     clock.advanceTo(0.1);
@@ -86,8 +96,8 @@ void main() {
   testWidgets('a publish callback asked for after the phases of a frame '
       'ran still runs in that frame', (tester) async {
     await tester.pumpWidget(const SizedBox());
-    final driver = _Driver();
-    MotionClock.instance.addDriver(driver);
+    final driver = _Stepped();
+    MotionClock.instance.follow(driver);
     await tester.pump(const Duration(milliseconds: 16));
     final stepsBefore = driver.steps.length;
     var runs = 0;
@@ -100,7 +110,7 @@ void main() {
     expect(runs, 1);
     expect(driver.steps.length, stepsBefore + 2);
     expect(driver.steps.last, driver.steps[driver.steps.length - 2]);
-    MotionClock.instance.removeDriver(driver);
+    MotionClock.instance.unfollow(driver);
   });
 
   testWidgets('a publish callback outside a frame asks for one frame', (

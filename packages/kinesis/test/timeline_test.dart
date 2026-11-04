@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/timeline.dart';
 
 void main() {
   group('MotionTimeline', () {

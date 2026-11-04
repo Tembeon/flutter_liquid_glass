@@ -9,25 +9,6 @@ import 'package:kinesis/src/pointer_clock_stub.dart'
 import 'package:kinesis/src/timeline.dart';
 import 'package:kinesis/src/transaction.dart';
 
-/// Something a [MotionClock] steps once per frame while it is active: a
-/// control's measured motion, a UIKit-style per-frame loop.
-///
-/// A driver that becomes active, or whose [wakeTime] moves earlier, calls
-/// [MotionClock.wake] with itself.
-abstract class MotionDriver {
-  /// Advances the driver to [time], in seconds.
-  void step(double time);
-
-  /// Whether the driver needs another frame.
-  bool get isActive;
-
-  /// The time before which the driver shows nothing new, or null when it
-  /// changes every frame. A driver that would wait longer than two frames
-  /// is not stepped until half a frame before then, and the clock dozes
-  /// when every active driver waits.
-  double? get wakeTime => null;
-}
-
 /// A value the clock steps and publishes while it moves and something
 /// follows it.
 @internal
@@ -60,7 +41,7 @@ abstract interface class MotionDerived {
 
 /// Runs [body], reporting what it throws as the error of [context] in
 /// kinesis, as `ChangeNotifier` does for its listeners, so one failing
-/// listener or driver does not stop the frame.
+/// listener does not stop the frame.
 @internal
 void guardMotion(VoidCallback body, String context) {
   try {
@@ -81,7 +62,7 @@ void guardMotion(VoidCallback body, String context) {
 /// value of the app advances.
 ///
 /// A frame runs in phases: timelines (due actions, each at its own time),
-/// drivers, the step (values start due delayed changes, come to rest and
+/// the step (values start due delayed changes, come to rest and
 /// snap), then publish (values tell their followers, derived values
 /// recompute once each), all before build; then, after layout, resolve
 /// (layouts place what they just laid out, and the values that change
@@ -121,8 +102,6 @@ abstract class MotionClock {
   }
 
   final MotionTimeline _timeline = MotionTimeline();
-  final List<MotionDriver> _drivers = [];
-  final Map<MotionDriver, double> _dozing = {};
   final Set<MotionFollowed> _followed = {};
   final Set<MotionDerived> _dirty = {};
   final Set<MotionFollowed> _owed = {};
@@ -172,27 +151,10 @@ abstract class MotionClock {
   /// the clock.
   double stamp(Duration timeStamp);
 
-  /// Makes sure the clock produces a frame for work that is now pending,
-  /// stepping [driver] in it if it was waiting.
-  void wake([MotionDriver? driver]) {
-    if (driver != null) _dozing.remove(driver);
-    _wake();
-  }
+  /// Makes sure the clock produces a frame for work that is now pending.
+  void wake() => _wake();
 
   void _wake();
-
-  /// Steps [driver] once per frame while it [MotionDriver.isActive].
-  void addDriver(MotionDriver driver) {
-    _drivers.add(driver);
-    if (driver.isActive) wake();
-  }
-
-  /// Stops stepping [driver].
-  void removeDriver(MotionDriver driver) {
-    _drivers.remove(driver);
-    _dozing.remove(driver);
-    _idleCheck();
-  }
 
   /// Runs [action] at [time], in the timelines phase of the frame that
   /// reaches it, with that time; the returned callback cancels it.
@@ -305,20 +267,6 @@ abstract class MotionClock {
   @protected
   void runFrame(double time) {
     _timeline.runDue(time);
-    final period = 1 / frameRate;
-    for (final driver in List.of(_drivers)) {
-      if (!driver.isActive) continue;
-      final until = _dozing[driver];
-      if (until != null) {
-        // Back half a frame early, so the frame that shows the change is
-        // never missed.
-        if (time < until - 0.5 * period) continue;
-        _dozing.remove(driver);
-      }
-      guardMotion(() => driver.step(time), 'while stepping a motion driver');
-      final wake = driver.wakeTime;
-      if (wake != null && wake - time > 2 * period) _dozing[driver] = wake;
-    }
     final stepped = List.of(_followed);
     for (final value in stepped) {
       if (!value.stepTo(time)) _followed.remove(value);
@@ -372,7 +320,6 @@ abstract class MotionClock {
       _dirty.isNotEmpty ||
       _owed.isNotEmpty ||
       _owedDerived.isNotEmpty ||
-      _drivers.any((driver) => driver.isActive) ||
       !_timeline.isEmpty;
 
   /// The time before which no frame would change anything, or null when
@@ -383,12 +330,6 @@ abstract class MotionClock {
       return null;
     }
     var wake = _timeline.nextDue ?? double.infinity;
-    for (final driver in _drivers) {
-      if (!driver.isActive) continue;
-      final at = driver.wakeTime;
-      if (at == null) return null;
-      if (at < wake) wake = at;
-    }
     for (final value in _followed) {
       final at = value.wakeTime;
       if (at == null) return null;
