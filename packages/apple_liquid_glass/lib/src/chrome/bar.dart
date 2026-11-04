@@ -5,6 +5,7 @@ import 'package:apple_liquid_glass/src/chrome/bar_entry.dart';
 import 'package:apple_liquid_glass/src/chrome/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/chrome/toolbar.dart';
 import 'package:apple_liquid_glass/src/menu/anchor.dart';
+import 'package:apple_liquid_glass/src/menu/motion.dart' show MenuCapsuleSource;
 import 'package:apple_liquid_glass/src/motion/bar_layout.dart';
 import 'package:apple_liquid_glass/src/motion/bar_motion.dart';
 import 'package:apple_liquid_glass/src/motion/glass_press.dart';
@@ -674,16 +675,46 @@ final class _Bar {
     if (items != null) publish();
   }
 
-  /// The capsule of [item] in [ancestor]'s coordinates.
-  Rect? capsuleIn(Object item, RenderBox ancestor) {
+  /// Whether a menu has taken over the capsule [item] stands in.
+  bool inMenuCapsule(Object item) =>
+      _menuCapsules.isNotEmpty &&
+      _menuCapsules.containsValue(_capsuleOf(item)?.id);
+
+  /// What a menu of [item] grows out of, in [ancestor]'s coordinates.
+  MenuCapsuleSource? menuSource(Object item, RenderBox ancestor) {
     final capsule = _capsuleOf(item);
+    final frame = itemFrames[item];
     final box = items;
-    if (capsule == null || box == null) return null;
-    return MatrixUtils.transformRect(
-      box.getTransformTo(ancestor),
-      capsule.rect,
+    if (capsule == null || frame == null || box == null) return null;
+    final transform = box.getTransformTo(ancestor);
+    return (
+      rect: MatrixUtils.transformRect(transform, capsule.rect),
+      origin: MatrixUtils.transformPoint(transform, frame.center),
+      height: metrics.buttonHeight,
+      alone: capsuleItems(item).length < 2,
     );
   }
+
+  /// The items of [item]'s capsule, [item] included, with their frames in it.
+  List<(Object, Rect)> capsuleItems(Object item) {
+    final capsule = _capsuleOf(item);
+    if (capsule == null) return const [];
+    return [
+      for (final MapEntry(key: id, value: frame) in itemFrames.entries)
+        if (_capsuleOf(id)?.id == capsule.id)
+          (
+            id,
+            Rect.fromCenter(
+              center: frame.center - capsule.rect.topLeft,
+              width: frame.size.width,
+              height: frame.size.height,
+            ),
+          ),
+    ];
+  }
+
+  /// The size of [item]'s capsule.
+  Size? capsuleSize(Object item) => _capsuleOf(item)?.rect.size;
 
   void pressDown(Object item, Duration stamp, Offset position, Size box) {
     final frame = itemFrames[item];
@@ -852,7 +883,7 @@ final class _Bar {
               : entry.icon != null
               ? GlassBarButtonKind.icon
               : GlassBarButtonKind.label;
-          if (entry.prominent || entry.menuChildren != null) {
+          if (entry.prominent) {
             close();
             out.add([(id, _Button.item(entry, kind))]);
             continue;
@@ -1343,67 +1374,17 @@ class _BarItem extends StatelessWidget {
     if (button.item?.child case final child?) {
       return _ItemBox(id: id, child: child);
     }
-    final theme = GlassTheme.of(context);
-    final look = bar.itemStyleOf(theme);
     final back = button.back;
     final item = button.item;
     final menu = item?.menuChildren;
-    final enabled = back != null || item?.onPressed != null || menu != null;
-    final prominent = item?.prominent ?? false;
-    final color = GlassDynamicColor.resolve(
-      prominent
-          ? look?.prominentForegroundColor ?? const Color(0xFFFFFFFF)
-          : look?.foregroundColor?.resolve({
-                  if (!enabled) WidgetState.disabled,
-                }) ??
-                (enabled ? theme.labelColor : theme.tertiaryLabelColor),
-      context,
-    );
-    final text = resolveGlassText(
-      TextStyle(
-        fontSize: 17,
-        fontWeight: prominent ? FontWeight.w600 : FontWeight.w500,
-        height: 1.2,
-      ).merge(look?.textStyle).copyWith(color: color),
-      context,
-    );
-    final Widget content;
     final String? semantics;
     final VoidCallback? onTap;
+    final content = _glyphOf(context, button);
     if (back != null) {
-      const metrics = GlassBarMetrics.navigation;
-      final rtl = Directionality.of(context) == TextDirection.rtl;
-      content = Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(width: metrics.backChevronInset),
-          SizedBox(
-            width: metrics.backChevronWidth,
-            height: _chevronHeight,
-            child: CustomPaint(
-              painter: _ChevronPainter(color: color, mirrored: rtl),
-            ),
-          ),
-          if (back.label case final title?) ...[
-            SizedBox(width: metrics.backChevronGap),
-            Text(title, style: text, maxLines: 1),
-            SizedBox(width: metrics.backTrailingPadding),
-          ] else
-            SizedBox(width: metrics.backChevronInset),
-        ],
-      );
       semantics = back.label ?? 'Back';
       onTap = back.onPressed;
     } else {
       final it = item!;
-      content = IconTheme.merge(
-        data: IconThemeData(size: bar.metrics.iconSize, color: color),
-        child: DefaultTextStyle(
-          style: text,
-          maxLines: 1,
-          child: it.icon ?? it.label!,
-        ),
-      );
       semantics = it.semanticLabel;
       onTap = it.onPressed;
     }
@@ -1426,9 +1407,17 @@ class _BarItem extends StatelessWidget {
             entries: menu,
             onPressed: onTap,
             semanticLabel: semantics,
-            label: content,
+            label: _CapsuleLook(
+              bar: bar,
+              item: id,
+              glyphs: {
+                for (final MapEntry(key: id, value: button)
+                    in bar.buttons.entries)
+                  if (button.item?.child == null) id: _glyphOf(context, button),
+              },
+            ),
             scalesOnPress: false,
-            sourceOf: (overlay) => bar.capsuleIn(id, overlay),
+            sourceOf: (overlay) => bar.menuSource(id, overlay),
             onShowing: (showing) => bar.menuShowing(id, showing: showing),
             child: content,
           ),
@@ -1468,7 +1457,100 @@ class _BarItem extends StatelessWidget {
     );
   }
 
+  Widget _glyphOf(BuildContext context, _Button button) {
+    final theme = GlassTheme.of(context);
+    final look = bar.itemStyleOf(theme);
+    final item = button.item;
+    final enabled =
+        button.back != null ||
+        item?.onPressed != null ||
+        item?.menuChildren != null;
+    final prominent = item?.prominent ?? false;
+    final color = GlassDynamicColor.resolve(
+      prominent
+          ? look?.prominentForegroundColor ?? const Color(0xFFFFFFFF)
+          : look?.foregroundColor?.resolve({
+                  if (!enabled) WidgetState.disabled,
+                }) ??
+                (enabled ? theme.labelColor : theme.tertiaryLabelColor),
+      context,
+    );
+    final text = resolveGlassText(
+      TextStyle(
+        fontSize: 17,
+        fontWeight: prominent ? FontWeight.w600 : FontWeight.w500,
+        height: 1.2,
+      ).merge(look?.textStyle).copyWith(color: color),
+      context,
+    );
+    if (button.back case final back?) {
+      const metrics = GlassBarMetrics.navigation;
+      final rtl = Directionality.of(context) == TextDirection.rtl;
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(width: metrics.backChevronInset),
+          SizedBox(
+            width: metrics.backChevronWidth,
+            height: _chevronHeight,
+            child: CustomPaint(
+              painter: _ChevronPainter(color: color, mirrored: rtl),
+            ),
+          ),
+          if (back.label case final title?) ...[
+            SizedBox(width: metrics.backChevronGap),
+            Text(title, style: text, maxLines: 1),
+            SizedBox(width: metrics.backTrailingPadding),
+          ] else
+            SizedBox(width: metrics.backChevronInset),
+        ],
+      );
+    }
+    return IconTheme.merge(
+      data: IconThemeData(size: bar.metrics.iconSize, color: color),
+      child: DefaultTextStyle(
+        style: text,
+        maxLines: 1,
+        child: item!.icon ?? item.label!,
+      ),
+    );
+  }
+
   static const double _chevronHeight = 23;
+}
+
+/// The glyphs of [item]'s capsule, each where it stands in the capsule: what
+/// rides the capsule's shape as it shrinks into a menu. An item with a custom
+/// view has no copy to ride it, so it is left out.
+class _CapsuleLook extends StatelessWidget {
+  const _CapsuleLook({
+    required this.bar,
+    required this.item,
+    required this.glyphs,
+  });
+
+  final _Bar bar;
+  final Object item;
+  final Map<Object, Widget> glyphs;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = bar.capsuleSize(item);
+    if (size == null) return const SizedBox.shrink();
+    return SizedBox.fromSize(
+      size: size,
+      child: Stack(
+        children: [
+          for (final (id, rect) in bar.capsuleItems(item))
+            if (glyphs[id] case final glyph?)
+              Positioned.fromRect(
+                rect: rect,
+                child: Center(child: glyph),
+              ),
+        ],
+      ),
+    );
+  }
 }
 
 /// The back chevron, pointing to the leading edge; [mirrored] flips it.
@@ -1644,7 +1726,10 @@ class _RenderBarItems extends RenderBox
       final id = _idOf(child);
       final frame = bar.itemFrames[id];
       final handle = _layers.putIfAbsent(child, LayerHandle.new);
-      if (frame == null || frame.presence <= 0 || frame.scale <= 0) {
+      if (frame == null ||
+          frame.presence <= 0 ||
+          frame.scale <= 0 ||
+          bar.inMenuCapsule(id)) {
         handle.layer = null;
         child = childAfter(child);
         continue;

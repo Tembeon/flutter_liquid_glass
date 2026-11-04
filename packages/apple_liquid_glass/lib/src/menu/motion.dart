@@ -32,6 +32,9 @@ class MenuTuning {
     this.radiusDelay = 0.098,
     this.sourceEndScale = 0.25,
     this.sourceTravel = 0.25,
+    this.capsuleAloneLanding = 2,
+    this.capsuleSharedLanding = 3.33,
+    this.capsuleHoldLanding = 8,
     this.crossfadeBlur = 4,
     this.fadeLead = 0.015,
     this.lookFadeStart = 0.07,
@@ -385,6 +388,21 @@ class MenuTuning {
   /// How far the shrinking button travels toward the menu center, as a
   /// fraction of the distance.
   final double sourceTravel;
+
+  /// How far past the sides of a bar capsule holding one item a tap's menu
+  /// lands: the settled right edge is 388 against the capsule's 386 (iPhone 16
+  /// Pro).
+  final double capsuleAloneLanding;
+
+  /// How far past the sides of a bar capsule holding several items a tap's menu
+  /// lands, whichever item opened it: the settled right edge is 389.33 against
+  /// the capsule's 386 with two and with three items (iPhone 16 Pro).
+  final double capsuleSharedLanding;
+
+  /// How far past the sides of a bar capsule a hold's menu lands: the settled
+  /// right edge is 394 against the capsule's 386 with three items (iPhone 16
+  /// Pro). Used for any number of items, which is an approximation.
+  final double capsuleHoldLanding;
 
   /// The blur radius of the button's look per unit of progress.
   final double crossfadeBlur;
@@ -1164,6 +1182,17 @@ class MenuCard {
   final int? source;
 }
 
+/// A capsule of a bar that a menu grows out of, in an overlay's coordinates:
+/// its `rect`, the center of the tapped item as `origin`, the `height` of the
+/// items it holds, and whether that item stands in it `alone`.
+@internal
+typedef MenuCapsuleSource = ({
+  Rect rect,
+  Offset origin,
+  double height,
+  bool alone,
+});
+
 /// The motion of a glass button turning into its menu and back: a pure
 /// function of the touches it is fed and the time it is advanced to.
 ///
@@ -1226,6 +1255,9 @@ class MenuMotion extends Motion with Presented {
   /// and no source shape is drawn ([drawsSource]). [button] is then the
   /// held view's frame, which a finger holding the menu open leaves to
   /// choose.
+  ///
+  /// With a [capsule] [button] is that capsule: all of it morphs and shrinks
+  /// to a square, and the menu grows out of the tapped item (menu passport).
   MenuMotion({
     required Rect button,
     required this._bounds,
@@ -1234,12 +1266,14 @@ class MenuMotion extends Motion with Presented {
     this._padding = EdgeInsets.zero,
     double? sourceHeight,
     this._sourceRadius,
+    MenuCapsuleSource? capsule,
     this.tuning = MenuTuning.standard,
     this._attachment,
     super.clock,
   }) : _button = button,
        _layoutFor = layout,
-       _sourceHeight = sourceHeight ?? button.height {
+       _capsule = capsule,
+       _sourceHeight = capsule?.height ?? sourceHeight ?? button.height {
     _radius = own(
       MotionValue<double>(0, spring: tuning.openSpring),
       rest: () => _progressRest,
@@ -1274,6 +1308,7 @@ class MenuMotion extends Motion with Presented {
   EdgeInsets _padding;
   double _sourceHeight;
   double? _sourceRadius;
+  MenuCapsuleSource? _capsule;
 
   late final MotionValue<double> _radius;
   late final GlassPress _press = own(
@@ -1462,15 +1497,17 @@ class MenuMotion extends Motion with Presented {
     required Size bounds,
     EdgeInsets padding = EdgeInsets.zero,
     double? sourceRadius,
+    MenuCapsuleSource? capsule,
     MenuAttachment? attachment,
   }) {
     if (_phase != _Phase.idle) return;
     _sourceRadius = sourceRadius;
+    _capsule = capsule;
     _attachment = attachment;
     _button = button;
     _bounds = bounds;
     _padding = padding;
-    _sourceHeight = button.height;
+    _sourceHeight = capsule?.height ?? button.height;
     _press.size = button.size;
     _root = _build(reversed: _reversed);
     _rootHeight.snap(_now, _visibleRoot(_root));
@@ -1916,7 +1953,7 @@ class MenuMotion extends Motion with Presented {
     if (_cardContainerActive) {
       final frame = menuRect;
       final scale = contentScale;
-      final at = _button.center + (frame.topLeft - _button.center) * scale;
+      final at = _growsFrom + (frame.topLeft - _growsFrom) * scale;
       return Rect.fromLTWH(
         at.dx,
         at.dy,
@@ -2081,7 +2118,7 @@ class MenuMotion extends Motion with Presented {
     final s0 = 0.5 * _sourceHeight / math.max(w, h);
     final scale = s0 + (1 - s0) * p;
     final localHeight = w + (h - w) * p;
-    final from = _button.center;
+    final from = _growsFrom;
     final to = frame.center;
     final sign = _down ? 1.0 : -1.0;
     final flex = flexed ? _flexAt(_now) : _noFlex;
@@ -2262,20 +2299,27 @@ class MenuMotion extends Motion with Presented {
     return _blobFor(root, parentScale: parentScale);
   }
 
+  Offset get _growsFrom => _capsule?.origin ?? _button.center;
+
   /// The button shape: shrinks into the menu.
   MenuBlob get buttonBlob {
     final p = progress;
     final from = _sourceScaleAt(_now);
     final scale = from + (tuning.sourceEndScale - from) * p;
     final start = _button.center;
-    final travel = (menuRect.center - start) * (tuning.sourceTravel * p);
+    final grows = _growsFrom;
+    final end = grows + (menuRect.center - grows) * tuning.sourceTravel;
     final sign = _down ? 1.0 : -1.0;
-    final center = start + travel + Offset(0, sign * buttonKick);
+    final center = start + (end - start) * p + Offset(0, sign * buttonKick);
     final size = _button.size * scale;
+    final endWidth =
+        (_capsule == null ? _button.width : _button.height) *
+        tuning.sourceEndScale;
+    final startWidth = _button.width * from;
     return MenuBlob(
       rect: Rect.fromCenter(
         center: center,
-        width: size.width,
+        width: startWidth + (endWidth - startWidth) * p,
         height: size.height,
       ),
       radius: math.min(
@@ -2836,11 +2880,25 @@ class MenuMotion extends Motion with Presented {
 
   void _place(double sourceScale) {
     _sourceScale = sourceScale;
-    final pressed = Rect.fromCenter(
-      center: _button.center,
-      width: _button.width * sourceScale,
-      height: _button.height * sourceScale,
-    );
+    final pressed = switch (_capsule) {
+      final capsule? => Rect.fromCenter(
+        center: _button.center,
+        width:
+            _button.width +
+            2 *
+                (_pointer?.openedByHold ?? false
+                    ? tuning.capsuleHoldLanding
+                    : capsule.alone
+                    ? tuning.capsuleAloneLanding
+                    : tuning.capsuleSharedLanding),
+        height: _button.height,
+      ),
+      null => Rect.fromCenter(
+        center: _button.center,
+        width: _button.width * sourceScale,
+        height: _button.height * sourceScale,
+      ),
+    };
     final height = _visibleRoot(_root);
     final size = Size(tuning.menuWidth, height);
     final attachment = _attachment;

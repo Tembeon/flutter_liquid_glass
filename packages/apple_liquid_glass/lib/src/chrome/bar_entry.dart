@@ -176,13 +176,15 @@ final class GlassBarItem extends GlassBarEntry {
   /// The custom content of [GlassBarItem.custom].
   final Widget? child;
 
-  /// The menu of this button, which grows out of its capsule and lands with
-  /// its top on the capsule's top: a tap opens it, or a hold when [onPressed]
-  /// takes the tap.
+  /// The menu of this button: a tap opens it, or a hold when [onPressed] takes
+  /// the tap.
   ///
-  /// The button stands in a capsule of its own. UIKit also grows a menu out of
-  /// a capsule shared with other items, the whole capsule morphing (menu
-  /// passport); this is not supported yet.
+  /// The whole capsule this button stands in morphs, whatever else shares it:
+  /// its glyphs ride the shrinking shape and blur out, and the menu grows from
+  /// this button and lands with its top on the capsule's top. Where it lands
+  /// does not depend on which button of the capsule opened it. This follows a
+  /// capture on an iPhone 16 Pro; the pressed glyph's dimming is left out and a
+  /// custom view in the capsule hides without riding the shape (near).
   final List<GlassMenuEntry>? menuChildren;
 }
 

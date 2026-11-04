@@ -122,7 +122,7 @@ class RawGlassMenu extends StatefulWidget {
   /// Where the menu grows out of in the coordinates of the given overlay, when
   /// that is not [child]'s box, or null to use the box.
   @internal
-  final Rect? Function(RenderBox overlay)? sourceOf;
+  final MenuCapsuleSource? Function(RenderBox overlay)? sourceOf;
 
   /// Told when the menu starts to show and when it has gone, for a source
   /// whose glass [child] does not draw.
@@ -488,8 +488,13 @@ class _RawGlassMenuState extends _MenuHost<RawGlassMenu> {
   @override
   Color? get _sourceTint => widget.tint;
 
+  MenuCapsuleSource? _capsule;
+
   @override
-  Rect? _sourceIn(RenderBox overlay) => widget.sourceOf?.call(overlay);
+  Rect? _sourceIn(RenderBox overlay) {
+    _capsule = widget.sourceOf?.call(overlay);
+    return _capsule?.rect;
+  }
 
   @override
   void initState() {
@@ -513,6 +518,7 @@ class _RawGlassMenuState extends _MenuHost<RawGlassMenu> {
       bounds: bounds,
       padding: padding,
       sourceRadius: widget.radius,
+      capsule: _capsule,
       tuning: widget.tuning,
     );
     motion.opensOnTap = widget.onPressed == null;
@@ -531,6 +537,7 @@ class _RawGlassMenuState extends _MenuHost<RawGlassMenu> {
       bounds: bounds,
       padding: padding,
       sourceRadius: widget.radius,
+      capsule: _capsule,
     );
     motion.opensOnTap = widget.onPressed == null;
   }
