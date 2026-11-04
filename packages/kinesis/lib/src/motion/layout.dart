@@ -77,6 +77,26 @@ final class LayoutMotion extends Motion {
   Map<Object, Rect>? _toward;
   double _amount = 0;
 
+  /// The swell of [id]'s size by its accent, per axis, as a share of its
+  /// laid out size: 1 by 1 at rest.
+  Size accentAt(Object id) {
+    final slot = _slots[id];
+    final w = slot?.swellW;
+    final h = slot?.swellH;
+    if (w == null || h == null) return const Size(1, 1);
+    return Size(w.valueAt(now), h.valueAt(now));
+  }
+
+  /// How far the lean moves [id]'s center.
+  Offset leanOf(Object id) {
+    final slot = _slots[id];
+    final toward = _toward?[id];
+    if (slot == null || toward == null || slot.leaving || _amount == 0) {
+      return Offset.zero;
+    }
+    return (toward.center - slot.frame.valueAt(now).center) * _amount;
+  }
+
   /// Leans the items [amount] of the way toward their rects in [toward],
   /// by key, as an interactive transition does: a pure function of
   /// [amount] over where the springs have them. Leaving items and items
@@ -115,7 +135,7 @@ final class LayoutMotion extends Motion {
   bool itemRests(Object id) {
     final slot = _slots[id];
     if (slot == null) return true;
-    return slot.frame.restsAt(now, MotionRest.length) &&
+    return slot.frame.restsAt(now, slot.rest) &&
         slot.presence.restsAt(now, MotionRest.opacity) &&
         slot.frame.nextDue == null &&
         slot.presence.nextDue == null &&
@@ -158,14 +178,16 @@ final class LayoutMotion extends Motion {
     final moving = jumps ? null : planner.spring ?? spring;
     _laidOut = true;
     final entries = <Object, LayoutEntry>{};
+    var changed = false;
     for (final MapEntry(key: id, value: to) in rects.entries) {
       final slot = _slots[id];
       if (slot == null) {
         entries[id] = LayoutEntry(phase: LayoutPhase.entering, to: to);
+        changed = true;
         continue;
       }
       final returning = slot.leaving || slot.presence.target != 1;
-      if (!returning && slot.model == to) continue;
+      if (returning || slot.model != to) changed = true;
       entries[id] = LayoutEntry(
         phase: returning ? LayoutPhase.entering : LayoutPhase.staying,
         from: returning ? null : slot.model,
@@ -174,7 +196,9 @@ final class LayoutMotion extends Motion {
       );
     }
     for (final MapEntry(key: id, value: slot) in _slots.entries.toList()) {
-      if (rects.containsKey(id) || slot.leavePlanned) continue;
+      if (rects.containsKey(id)) continue;
+      if (slot.leavePlanned && !jumps) continue;
+      changed = true;
       if (moving == null || slot.model == null) {
         _drop(id);
         continue;
@@ -185,7 +209,7 @@ final class LayoutMotion extends Motion {
         shown: slot.frame.valueAt(t),
       );
     }
-    if (entries.isEmpty) return null;
+    if (!changed) return null;
     final change = LayoutChange(time: t, entries: entries, spring: moving);
     final plans = planner.plan(change);
     for (final MapEntry(key: id, value: entry) in entries.entries) {
@@ -238,6 +262,7 @@ final class LayoutMotion extends Motion {
         final slot = existing ?? _own(id, plan.origin ?? to);
         slot.leaving = false;
         slot.leavePlanned = false;
+        slot.rest = plan.rest;
         slot.model = to;
         slot.effect = _effect(plan.effect);
         if (springs == null) {
@@ -256,6 +281,7 @@ final class LayoutMotion extends Motion {
         final slot = _slots[id]!;
         final from = entry.from!;
         final to = entry.to!;
+        if (from == to) return;
         slot.model = to;
         if (springs != null) {
           slot.frame.retarget(t, to, springs: springs, delay: delay);
@@ -268,6 +294,7 @@ final class LayoutMotion extends Motion {
         final slot = _slots[id]!;
         slot.leaving = true;
         slot.leavePlanned = true;
+        slot.rest = plan.rest;
         slot.effect = _effect(plan.effect);
         final destination = plan.destination;
         if (spring == null) {
@@ -317,12 +344,11 @@ final class LayoutMotion extends Motion {
 
   _Slot _own(Object id, Rect rect) {
     final slot = _Slot(
-      own(
-        MotionRect(rect, springs: const RectSprings.all(Spring.smooth)),
-        rest: _length,
-      ),
-      own(MotionValue<double>(1), rest: _opacity),
+      MotionRect(rect, springs: const RectSprings.all(Spring.smooth)),
+      MotionValue<double>(1),
     );
+    own(slot.frame, rest: () => slot.rest);
+    own(slot.presence, rest: _opacity);
     _slots[id] = slot;
     return slot;
   }
@@ -339,8 +365,6 @@ final class LayoutMotion extends Motion {
     unschedule((#swellH, id));
   }
 
-  static double _length() => MotionRest.length;
-
   static double _opacity() => MotionRest.opacity;
 
   @override
@@ -350,7 +374,9 @@ final class LayoutMotion extends Motion {
         if (value.leaving &&
             value.presence.target == 0 &&
             value.presence.restsAt(t, MotionRest.opacity) &&
-            value.presence.nextDue == null)
+            value.presence.nextDue == null &&
+            value.frame.restsAt(t, value.rest) &&
+            value.frame.nextDue == null)
           key,
     ];
     gone.forEach(_drop);
@@ -366,6 +392,7 @@ final class _Slot {
   MotionValue<double>? swellH;
   MotionEffect effect = MotionEffect.identity;
   Rect? model;
+  double rest = MotionRest.length;
   bool leaving = false;
   bool leavePlanned = false;
 }
@@ -467,7 +494,9 @@ final class LayoutChange {
   /// The time of the change, in seconds.
   final double time;
 
-  /// The items that moved, arrived or left, by key.
+  /// Every item laid out, by key, and the items that left: an item whose
+  /// rect did not change stays with [LayoutEntry.from] equal to
+  /// [LayoutEntry.to] and keeps its course.
   final Map<Object, LayoutEntry> entries;
 
   /// The spring of the change (the planner's or a transaction's), or null
@@ -487,6 +516,7 @@ final class LayoutPlan {
     this.destination,
     this.effect,
     this.accent,
+    this.rest = MotionRest.length,
   });
 
   /// The spring of the presence and, without [springs], of the rect; null
@@ -511,6 +541,12 @@ final class LayoutPlan {
 
   /// A swell of the item's size over its move, or null for none.
   final LayoutAccent? accent;
+
+  /// The distance, in logical pixels, within which the item's rect rests;
+  /// a leaving item goes once its presence and its rect both rest, so a
+  /// finer [rest] keeps an item that shrinks into a [destination] drawn
+  /// until it lands.
+  final double rest;
 }
 
 /// A transient swell of an item's size over a change, as a bar's capsule

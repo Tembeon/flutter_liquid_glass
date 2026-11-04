@@ -245,4 +245,72 @@ void main() {
     motion.advance(5);
     expect(motion.itemAt('b').scale, 1);
   });
+
+  test('a change lists every item, an unchanged one keeping its course', () {
+    final planner = _Planner((_, _) => const LayoutPlan(spring: _spring));
+    final motion = _laidOut({'a': _a, 'b': _b}, planner: planner);
+    motion.layout(0, {'a': _far, 'b': _b});
+    final drawn = _at(motion, 0.1, 'a');
+    motion.layout(0.1, {'a': _far, 'b': _farther}, spring: _spring);
+    final entries = planner.changes.last.entries;
+    expect(entries['a']!.from, entries['a']!.to);
+    expect(entries['a']!.shown, drawn);
+    expect(_at(motion, 0.2, 'a').left, greaterThan(drawn.left));
+    expect(motion.layout(0.2, {'a': _far, 'b': _farther}), isNull);
+  });
+
+  test('a leaving item goes once its rect rests within its plan', () {
+    const destination = Rect.fromLTWH(0, 0, 2, 2);
+    final motion = _laidOut(
+      {'a': _a, 'b': _b},
+      planner: _Planner(
+        (_, entry) => LayoutPlan(
+          spring: const Spring.response(0.05),
+          springs: const RectSprings.all(Spring.response(1)),
+          destination: entry.phase == LayoutPhase.leaving ? destination : null,
+          rest: 0.05,
+          effect: MotionEffect.fade,
+        ),
+      ),
+    );
+    motion.layout(0, {'a': _a}, spring: _spring);
+    motion.advance(0.5);
+    expect(motion.itemAt('b').opacity, closeTo(0, 1e-9));
+    expect(motion.contains('b'), isTrue);
+    motion.advance(5);
+    expect(motion.contains('b'), isFalse);
+  });
+
+  test('a jump drops the items that leave', () {
+    final motion = _laidOut({'a': _a, 'b': _b});
+    motion.layout(0, {'a': _a}, spring: _spring);
+    expect(motion.isLeaving('b'), isTrue);
+    motion.layout(0.05, {'a': _far}, jump: true);
+    expect(motion.contains('b'), isFalse);
+  });
+
+  test('accentAt and leanOf read the swell and the lean', () {
+    const accent = LayoutAccent(
+      scale: Size(1.2, 1.4),
+      up: Spring.response(0.1),
+      widthDown: Spring.response(0.2),
+      heightDown: Spring.response(0.2),
+      widthDownDelay: 1,
+      heightDownDelay: 1,
+    );
+    final motion = _laidOut(
+      {'a': _a},
+      planner: _Planner(
+        (_, _) => const LayoutPlan(spring: _spring, accent: accent),
+      ),
+    );
+    expect(motion.accentAt('a'), const Size(1, 1));
+    motion.layout(0, {'a': _far});
+    motion.advance(0.5);
+    expect(motion.accentAt('a').width, closeTo(1.2, 0.01));
+    expect(motion.accentAt('a').height, closeTo(1.4, 0.01));
+    motion.advance(5);
+    motion.lean({'a': _farther}, 0.5);
+    expect(motion.leanOf('a'), const Offset(50, 0));
+  });
 }
