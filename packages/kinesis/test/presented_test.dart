@@ -36,6 +36,7 @@ Presentation<String, _Card> _presentation(
   MotionSource? source,
   bool modal = true,
   List<DismissTrigger>? vetoes,
+  List<String?>? dismissed,
 }) => Presentation<String, _Card>(
   motion: (_) {
     final card = _Card();
@@ -56,6 +57,7 @@ Presentation<String, _Card> _presentation(
   dismiss: dismiss,
   modal: modal ? null : (_) => false,
   onVeto: vetoes?.add,
+  onDismissed: dismissed?.add,
   semanticsLabel: 'Panel',
 );
 
@@ -208,8 +210,12 @@ void main() {
       ) async {
         final shell = make();
         final made = <_Card>[];
+        final dismissed = <String?>[];
         await shell.pump(tester, const SizedBox.expand());
-        await shell.present(tester, _presentation(made));
+        await shell.present(
+          tester,
+          _presentation(made, dismissed: dismissed),
+        );
         await tester.pump();
         await tester.pump();
         expect(made, hasLength(1));
@@ -221,7 +227,9 @@ void main() {
         await tester.pump();
         expect(made.single.left, [DismissTrigger.programmatic]);
         expect(find.byKey(_contentKey), findsOneWidget);
+        expect(dismissed, isEmpty);
         await _settle(tester);
+        expect(dismissed, ['tapped']);
         expect(find.byKey(_contentKey), findsNothing);
         expect(shell.isPresented, isFalse);
         if (shell is _RouteShell) expect(shell.result, 'tapped');

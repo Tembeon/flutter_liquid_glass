@@ -63,6 +63,7 @@ class _PresentationPortalState extends State<PresentationPortal>
   SourceLease? _lease;
   ModalRoute<Object?>? _route;
   FocusNode? _restore;
+  Object? _result;
   bool _leaving = false;
 
   @override
@@ -129,11 +130,15 @@ class _PresentationPortalState extends State<PresentationPortal>
   }
 
   void _end() {
+    if (_motion == null) return;
     _lease?.release();
     _lease = null;
     _motion = null;
     _leaving = false;
     _canPop.value = true;
+    final result = _result;
+    _result = null;
+    widget.presentation.dismissed(result);
   }
 
   @override
@@ -146,6 +151,7 @@ class _PresentationPortalState extends State<PresentationPortal>
       return;
     }
     _leaving = true;
+    _result = presentation.resultOf(result);
     if (!motion.leave(MotionClock.instance.now, trigger)) didLeave();
   }
 

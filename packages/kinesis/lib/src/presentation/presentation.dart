@@ -65,7 +65,7 @@ final class PresentationEnvironment {
 ///   motion: (environment) => AlertMotion(),
 ///   builder: (context, motion) => AlertCard(motion: motion),
 ///   dismiss: DismissPolicy.modal,
-///   dim: (motion) => motion.dimming,
+///   dim: (motion) => 0.2 * motion.dimming,
 /// );
 /// showPresentation(context, PresentationRoute(presentation: alert));
 /// ```
@@ -78,10 +78,11 @@ final class Presentation<T, M extends Presented> {
     this.source,
     this.dismiss = const DismissPolicy(),
     this.dim,
-    this.dimColor = const Color(0x33000000),
+    this.dimColor = const Color(0xFF000000),
     this.modal,
     this.result,
     this.onVeto,
+    this.onDismissed,
     this.semanticsLabel,
   });
 
@@ -98,10 +99,10 @@ final class Presentation<T, M extends Presented> {
   /// Which user dismissals go through.
   final DismissPolicy dismiss;
 
-  /// The strength of the dim behind the content, 0 to 1; none when null.
+  /// The opacity of the dim behind the content, 0 to 1; none when null.
   final double Function(M motion)? dim;
 
-  /// The color of the dim at full strength.
+  /// The color of the dim at opacity 1, black by default.
   final Color dimColor;
 
   /// Whether the presentation is modal now (its barrier absorbs taps and
@@ -114,6 +115,11 @@ final class Presentation<T, M extends Presented> {
 
   /// Called when [dismiss] or a `PopScope` refused a dismissal.
   final void Function(DismissTrigger trigger)? onVeto;
+
+  /// Called once the presentation has gone, with what it completed with, as
+  /// UIKit calls a dismissal's completion: an alert runs the chosen
+  /// action's handler here.
+  final void Function(T? result)? onDismissed;
 
   /// The name screen readers announce for the content.
   final String? semanticsLabel;
@@ -131,7 +137,7 @@ final class Presentation<T, M extends Presented> {
   Widget build(BuildContext context, Presented motion) =>
       builder(context, motion as M);
 
-  /// The dim's strength for [motion], or null for none.
+  /// The dim's opacity for [motion], or null for none.
   @internal
   MotionSelection<double>? dimOf(Presented motion) {
     final dim = this.dim;
@@ -146,6 +152,10 @@ final class Presentation<T, M extends Presented> {
   /// Whether the presentation is modal for [motion] now.
   @internal
   bool modalOf(Presented motion) => modal?.call(motion as M) ?? true;
+
+  /// Tells [onDismissed] the presentation has gone with [result].
+  @internal
+  void dismissed(Object? result) => onDismissed?.call(result as T?);
 
   /// The result a dismissal with [popped] completes with.
   @internal

@@ -148,7 +148,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   /// Called once, when the route's close has finished or the route was
   /// disposed before that, with the result the route completed with.
   @protected
-  void didFinish(T? result) {}
+  void didFinish(T? result) => presentation?.dismissed(result);
 
   /// Whether the route was dismissed and its content closes.
   bool get isLeaving => _projection.status == AnimationStatus.reverse;
