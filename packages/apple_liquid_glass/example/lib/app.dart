@@ -2,6 +2,7 @@ import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_accessibility/apple_liquid_glass_accessibility.dart';
 import 'package:apple_liquid_glass_example/pages/controls_page.dart';
 import 'package:apple_liquid_glass_example/pages/liquid_page.dart';
+import 'package:apple_liquid_glass_example/pages/motion_page.dart';
 import 'package:apple_liquid_glass_example/pages/photos_page.dart';
 import 'package:apple_liquid_glass_example/pages/present_page.dart';
 import 'package:apple_liquid_glass_example/pages/search_page.dart';
@@ -84,7 +85,7 @@ class _Ambient extends StatelessWidget {
   );
 }
 
-enum GalleryTab { liquid, controls, present, photos }
+enum GalleryTab { liquid, controls, present, motion, photos }
 
 class GalleryHome extends StatefulWidget {
   const GalleryHome({super.key});
@@ -127,6 +128,10 @@ class _GalleryHomeState extends State<GalleryHome> {
           label: Text('Present'),
         ),
         GlassTabDestination(
+          icon: Icon(CupertinoIcons.wind),
+          label: Text('Motion'),
+        ),
+        GlassTabDestination(
           icon: Icon(CupertinoIcons.photo_on_rectangle),
           selectedIcon: Icon(CupertinoIcons.photo_fill_on_rectangle_fill),
           label: Text('Photos'),
@@ -142,6 +147,7 @@ class _GalleryHomeState extends State<GalleryHome> {
       GalleryTab.liquid => const LiquidPage(),
       GalleryTab.controls => const ControlsPage(),
       GalleryTab.present => const PresentPage(),
+      GalleryTab.motion => const MotionPage(),
       GalleryTab.photos => const PhotosPage(),
     },
     searchBuilder: (context) => SearchPage(controller: _search, onOpen: _open),

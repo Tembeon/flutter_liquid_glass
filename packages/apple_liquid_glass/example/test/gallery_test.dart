@@ -108,7 +108,7 @@ void main() {
     await _frames(tester, 60 * 20);
     expect(tester.binding.hasScheduledFrame, isFalse);
 
-    for (final tab in ['Controls', 'Present', 'Photos']) {
+    for (final tab in ['Controls', 'Present', 'Motion', 'Photos']) {
       await tester.tap(find.text(tab));
       await _frames(tester, 120);
       expect(tester.binding.hasScheduledFrame, isFalse, reason: tab);

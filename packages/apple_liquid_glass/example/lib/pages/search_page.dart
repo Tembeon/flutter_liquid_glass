@@ -74,6 +74,24 @@ class SearchPage extends StatelessWidget {
       CupertinoIcons.list_bullet,
     ),
     (
+      'Animated layouts',
+      'Notes, chips, a grid and a list',
+      GalleryTab.motion,
+      CupertinoIcons.square_grid_2x2_fill,
+    ),
+    (
+      'Own presentation',
+      'A peek and a reactions bar',
+      GalleryTab.motion,
+      CupertinoIcons.rectangle_on_rectangle,
+    ),
+    (
+      'Slow replay',
+      'A touch replayed at 0.1x',
+      GalleryTab.motion,
+      CupertinoIcons.play_circle_fill,
+    ),
+    (
       'Menus',
       'Sections, submenus, palettes',
       GalleryTab.present,
@@ -156,6 +174,7 @@ class SearchPage extends StatelessWidget {
                             GalleryTab.liquid => GlassColors.systemBlue,
                             GalleryTab.controls => GlassColors.systemGreen,
                             GalleryTab.present => GlassColors.systemOrange,
+                            GalleryTab.motion => GlassColors.systemGray,
                             GalleryTab.photos => GlassColors.systemRed,
                           },
                         ),
