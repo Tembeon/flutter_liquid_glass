@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:flutter/painting.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
@@ -145,13 +144,13 @@ abstract final class PopoverTuning {
 /// popover animation uses the identity transform instead of its shrink
 /// under Reduce Motion.
 @internal
-class PopoverMotion {
+class PopoverMotion extends Motion {
   /// Creates the motion of a popover that is not shown yet.
   PopoverMotion({
     this.presentSpring = PopoverTuning.presentSpring,
     this.dismissSpring = PopoverTuning.dismissSpring,
     this.hiddenScale = PopoverTuning.hiddenScale,
-  }) : _progress = MotionValue<double>(0, spring: presentSpring);
+  });
 
   /// The spring the popover presents on.
   final Spring presentSpring;
@@ -162,23 +161,22 @@ class PopoverMotion {
   /// The scale of the hidden popover.
   final double hiddenScale;
 
-  final MotionValue<double> _progress;
-  double _now = 0;
+  /// The progress rests within 1e-3 (NEAR): that lands the far edge of a
+  /// 300 pt popover by up to 0.3 pt, looser than [MotionRest.length];
+  /// resting at 0.1 pt keeps an action sheet's dismissal 64 ms longer.
+  static const double _rest = 1e-3;
+
+  late final _progress = own(
+    MotionValue<double>(0, spring: presentSpring),
+    rest: () => _rest,
+  );
   bool _dismissing = false;
 
   /// Whether the popover moves for Reduce Motion, at its size.
   bool reducedMotion = false;
 
   /// Whether the popover has left and nothing moves any more.
-  bool get isDismissed => _dismissing && _rests;
-
-  /// Whether nothing moves visibly. NEAR: the progress rests within 1e-3,
-  /// which lands the far edge of a 300 pt popover by up to 0.3 pt, looser
-  /// than [GlassRest.length]; resting at 0.1 pt keeps an action sheet's
-  /// dismissal 64 ms longer.
-  bool get isSettled => _rests;
-
-  bool get _rests => _progress.isWithin(_now, 1e-3);
+  bool get isDismissed => _dismissing && _progress.restsAt(now, _rest);
 
   /// Starts presenting the popover at time [t].
   void present(double t) {
@@ -194,17 +192,8 @@ class PopoverMotion {
     _progress.retarget(t, 0, spring: dismissSpring);
   }
 
-  /// Advances the motion to time [t].
-  void advance(double t) {
-    if (t > _now) _now = t;
-  }
-
-  /// Lands a settled motion exactly at its end, so a shown popover rests
-  /// at its size.
-  void settle() => _progress.snap(_now, _dismissing ? 0 : 1);
-
   /// The presentation progress: 0 hidden, 1 shown.
-  double get progress => _progress.valueAt(_now);
+  double get progress => _progress.valueAt(now);
 
   /// The scale of the popover about its arrow tip.
   double get scale => reducedMotion

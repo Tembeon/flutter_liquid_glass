@@ -1,4 +1,3 @@
-import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
@@ -122,14 +121,16 @@ abstract final class AlertTuning {
 /// of 1.2 under Reduce Motion and keeps the timing.
 ///
 /// Times are seconds on the caller's clock.
+///
+/// The fade and the dimming rest within [MotionRest.opacity], the scale
+/// within [MotionRest.scale] of the alert's width (NEAR, invisible).
 @internal
-class AlertMotion {
+class AlertMotion extends Motion {
   /// Creates the motion of an alert that is not shown yet.
   AlertMotion({
     this.spring = AlertTuning.spring,
     this.presentScale = AlertTuning.presentScale,
-  }) : _progress = MotionValue<double>(0, spring: spring),
-       _scale = MotionValue<double>(presentScale, spring: spring);
+  });
 
   /// The spring of the progress and the scale.
   final Spring spring;
@@ -137,9 +138,14 @@ class AlertMotion {
   /// The scale the alert presents from.
   final double presentScale;
 
-  final MotionValue<double> _progress;
-  final MotionValue<double> _scale;
-  double _now = 0;
+  late final _progress = own(
+    MotionValue<double>(0, spring: spring),
+    rest: () => MotionRest.opacity,
+  );
+  late final _scale = own(
+    MotionValue<double>(presentScale, spring: spring),
+    rest: () => MotionRest.scale(AlertTuning.width),
+  );
   bool _dismissing = false;
 
   /// Whether the alert presents for Reduce Motion, at its size.
@@ -147,21 +153,7 @@ class AlertMotion {
 
   /// Whether the alert has left and nothing moves any more.
   bool get isDismissed =>
-      _dismissing && _progress.isWithin(_now, GlassRest.opacity);
-
-  /// Whether nothing moves visibly any more: the fade and the dimming
-  /// swing less than [GlassRest.opacity] and the scale less than
-  /// [GlassRest.scale] of the alert's width ([settle] lands them).
-  bool get isSettled =>
-      _progress.isWithin(_now, GlassRest.opacity) &&
-      _scale.isWithin(_now, GlassRest.scale(AlertTuning.width));
-
-  /// Lands every spring on its target at the motion's time: at a visible
-  /// rest ([isSettled]) nothing that shows moves (NEAR, invisible).
-  void settle() {
-    _progress.settle(_now);
-    _scale.settle(_now);
-  }
+      _dismissing && _progress.restsAt(now, MotionRest.opacity);
 
   /// Starts presenting the alert at time [t].
   void present(double t) {
@@ -181,13 +173,8 @@ class AlertMotion {
     _progress.retarget(t, 0);
   }
 
-  /// Advances the motion to time [t].
-  void advance(double t) {
-    if (t > _now) _now = t;
-  }
-
   /// The presentation progress: 0 hidden, 1 shown.
-  double get progress => _progress.valueAt(_now);
+  double get progress => _progress.valueAt(now);
 
   /// The opacity of the alert.
   double get opacity => progress.clamp(0.0, 1.0);
@@ -197,5 +184,5 @@ class AlertMotion {
   double get dimming => progress.clamp(0.0, 1.0);
 
   /// The scale of the alert.
-  double get scale => reducedMotion ? 1 : _scale.valueAt(_now);
+  double get scale => reducedMotion ? 1 : _scale.valueAt(now);
 }
