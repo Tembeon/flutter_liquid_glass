@@ -2,57 +2,87 @@
 
 ## 0.1.0-dev.1
 
+Values and transactions (`package:kinesis/kinesis.dart`):
+
 - `Spring` in SwiftUI's form (duration, bounce) and UIKit's (response,
   damping ratio), with a tracking spring, a retarget impulse, a release
   projection and a Reduce Motion alternative.
 - `MotionValue`: a value with a target, what is on screen and its velocity;
-  every retarget continues from the current value and velocity.
+  every retarget continues from the current value and velocity. Listeners
+  hear it every frame it moves and once more when it rests on its target.
 - `MotionConverter` for doubles, offsets, sizes, rects, radii and colors.
-- `withSpring` and `withoutAnimation` transactions.
-- `MotionClock`: one frame clock per binding. A frame runs timelines,
-  drivers, the step and publish in a microtask after every ticker and before
-  build, on the display's frame grid; pointer events are stamped at their own
-  time; the clock dozes until a later change and asks for no frames at rest.
-  `MotionDriver` for per-frame loops. `ManualMotionClock` runs the same
-  phases on demand. The binding's clock, woken by a ticker or by a
-  microtask of a frame that has not built yet, runs its phases in that
-  frame.
+- `withSpring` and `withoutAnimation` transactions; `MotionTraits` and
+  `MotionTraitsOverride` for Reduce Motion and other preferences.
+- `MotionSelection`: a value derived from motions, recomputed once per
+  frame when what it reads changed. `addRenderListener` hears it in the
+  resolve phase, before paint.
+
+The clock:
+
+- `MotionClock`: one frame clock per binding. A frame runs the due
+  scheduled actions, steps and publishes every moving value in a microtask
+  after every ticker and before build, on the display's frame grid, then
+  resolves after layout. Pointer events are stamped at their own time. The
+  clock dozes until a later change and asks for no frames at rest.
+- `ManualMotionClock` runs the same phases on demand.
 - `MotionClock.schedulePublish` runs a callback once in the coming publish
-  phase, after the frame's motions stepped and before build.
-- `MotionValue` listeners hear the value every frame it moves, and once more
-  when it rests and snaps to its target.
-- `MotionComputed`: derived values that follow what they read and publish
-  once per frame.
-- `MotionTimeline` for explicit time.
-- The resolve phase: after layout and before paint, layouts place what they
-  just laid out; render listeners (`addRenderListener`) hear the values that
-  change at once, other listeners in the next frame.
+  phase, after the frame's values stepped and before build.
+- Errors thrown by listeners and scheduled actions are reported through
+  `FlutterError` and do not stop the frame.
+
+On screen:
+
 - `MotionTransition`: offset, scale, rotation, opacity, blur, clip and size
   from listenable values, through one composited layer, without building,
   laying out or repainting the child.
 - `MotionDriven`: any chain of single-child render-object widgets driven by
   motion values without building.
-- `MotionLayout`: animates whatever layout did to its children, under the
-  frame's transaction, with `LayoutMotion.flip`, a pure `plan` and
-  `MotionEffect` insert and remove effects.
-- Errors thrown by listeners, drivers and scheduled actions are reported
-  through `FlutterError` and do not stop the frame.
-- Input: pure `Interaction`s (`PressInteraction`, `LongPressInteraction`,
-  `DragInteraction`, `TapInteraction`, `ScrubInteraction`, with
-  `exclusively` and `simultaneously`) and `InteractionSession`, which
-  replays stamped input exactly, including UIKit's 0.15 s scroll delay.
-  `InputRegion` feeds them from pointer, keyboard, hover and accessibility
-  input with stamped times and the raw release velocity; `MotionPressable`
-  and `MotionDragDetector` are built on it.
-- `rubberBand`.
-- Presentations: `PresentationRoute` (a popup) and `PresentationPageRoute`
-  (a page), routes whose motion lives in their content: the animation's
-  status follows the motion while its value stays 1, and a push completes
-  at the open's rest. One dismissal gate (`allows`, then the content's
-  `PopScope`s, `didVetoDismiss` on a refusal) serves outside taps, Escape,
-  Back, a screen reader's dismiss and the content's own gestures; a
-  dismissal closes its own route, never the top one, and one under another
-  route closes under it. While `modal`, the barrier absorbs taps and hides
-  the routes below from screen readers. `showPresentation`,
-  `PresentationLevel` and `PresentationContext` pick the navigator inside
-  the presenting view.
+- `MotionLayout` and `SliverMotionList`: animate whatever layout did to
+  their children under the frame's transaction, with `LayoutPlanner.flip`,
+  a pure `LayoutPlan` and `MotionEffect` insert and remove effects.
+  `MotionMeasure` reports a child's size in the frame that laid it out;
+  `MotionResolveHost` places a render object from this frame's layout.
+- `MotionScope` holds a `Motion` on the clock while it is in the tree;
+  `MotionScroll` reads a scroll view as a motion.
+
+Input:
+
+- Pure `Interaction`s (`PressInteraction`, `LongPressInteraction`,
+  `DragInteraction`, `TapInteraction`, `ScrubInteraction`,
+  `FollowInteraction`, with `exclusively` and `simultaneously`) and
+  `InteractionSession`, which replays stamped input exactly, including
+  UIKit's 0.15 s scroll delay.
+- `InputRegion` feeds them from pointer, keyboard, hover and accessibility
+  input with stamped times and the raw release velocity; `InputPort` takes
+  the rest of a touch after a hand-off.
+
+Presentations:
+
+- `Presentation` and its `PresentationHandle`: the motion a presentation
+  plays and the content over it. `PresentationRoute` (a popup),
+  `PresentationPageRoute` (a page) and `PresentationPortal` (the root
+  overlay, no route) are its shells. A route's animation status follows
+  the motion, and a push completes at the open's rest.
+- One dismissal gate (`DismissPolicy`, then the content's `PopScope`s)
+  serves outside taps, Escape, Back, a screen reader's dismiss and the
+  content's own gestures; a dismissal closes its own presentation, never
+  the top one. While modal, the barrier absorbs taps and hides what is
+  below from screen readers. `showPresentation`, `PresentationLevel` and
+  `PresentationContext` pick the navigator inside the presenting view.
+- `MotionSource` and `MotionSourceBox`: what a presentation grows out of
+  and back into.
+
+Writing motions (`package:kinesis/motion.dart`):
+
+- `Motion`: a tree of parts with one time cursor and one timeline of
+  delayed reactions; every command takes an explicit time, so a motion is
+  a pure function of its stamped inputs and replays exactly in a test.
+  The clock steps it while something looks at it and settles it at rest.
+- Parts: `MotionValue` with `MotionValueCommands`, `MotionRect` on
+  `RectSprings`, `Presence`, `TimedValue`, `MotionSignal`, `MotionLoop`
+  (a per-frame loop at its own fixed rate) and `LayoutMotion`; rest
+  tolerances are `MotionRest`.
+- `Band` (a rubber band), `Projection` (where a release lands and which
+  stop or exit it picks) and `Ramp`.
+- `Presented` and `Sourced` connect a motion to a presentation shell and
+  its source.
