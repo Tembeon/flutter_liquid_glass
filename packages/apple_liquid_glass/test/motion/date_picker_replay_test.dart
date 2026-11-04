@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/src/motion/date_picker_motion.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/motion.dart';
 
 const _dir = 'test/fixtures/ios27/date_picker';
 const double _frame = 1 / 60;
@@ -47,8 +48,8 @@ Rect _box(List<Object?> v) {
   );
 }
 
-extension on DatePickerMotion {
-  DatePickerMotion at(double t) {
+extension<M extends Motion> on M {
+  M seenAt(double t) {
     advance(t);
     return this;
   }
@@ -80,9 +81,9 @@ void main() {
             ...() {
               final t = _d(r, 't') + _frame;
               return [
-                m.at(t).scale - _d(r, 'sx'),
-                m.at(t).opacity - _d(r, 'a').clamp(0.0, 1.0),
-                (m.at(t).height(332) - _d(r, 'bh')) / 332,
+                m.seenAt(t).scale - _d(r, 'sx'),
+                m.seenAt(t).opacity - _d(r, 'a').clamp(0.0, 1.0),
+                (m.seenAt(t).height(332) - _d(r, 'bh')) / 332,
               ];
             }(),
       ];
@@ -112,7 +113,7 @@ void main() {
           if (_d(r, 't') >= openUp && _d(r, 't') < closeUp)
             ...() {
               final t = _d(r, 't') + _frame;
-              final s = m.at(t).scale;
+              final s = m.seenAt(t).scale;
               final a = placement.anchor;
               final left = a.dx + s * (placement.rect.left - a.dx);
               final top = a.dy + s * (placement.rect.top - a.dy);
@@ -195,7 +196,7 @@ void main() {
         m.turnPage(start, 1);
         return [
           for (final r in day)
-            (222.33 - 320 * m.at(_d(r, 't') + _frame).page) - _d(r, 'x'),
+            (222.33 - 320 * m.seenAt(_d(r, 't') + _frame).page) - _d(r, 'x'),
         ];
       });
       expect(rms, lessThan(2.5));
@@ -217,12 +218,12 @@ void main() {
             r,
       ];
       final (_, rms) = _fit(down - 0.02, 0.04, (at) {
-        final m = DatePickerMotion();
+        final m = DatePickerLabelMotion();
         m.press(at);
         m.release(at + up - down);
         return [
           for (final r in label)
-            m.at(_d(r, 't') + _frame).highlight - _d(r, 'a'),
+            m.seenAt(_d(r, 't') + _frame).highlight - _d(r, 'a'),
         ];
       });
       expect(rms, lessThan(0.03));
@@ -273,7 +274,7 @@ void main() {
               (t > closeUp && _d(r, 'a') == 0)) {
             continue;
           }
-          final e = m.at(t).scale - _d(r, 'sx');
+          final e = m.seenAt(t).scale - _d(r, 'sx');
           if (t < closeUp) {
             open.add(e);
           } else {
@@ -309,8 +310,8 @@ void main() {
                 (_d(r, 'sx') == 0.2 && t > lifts.first + 0.16)) {
               continue;
             }
-            out.add(m.at(t).scale - _d(r, 'sx'));
-            out.add(m.at(t).opacity - _d(r, 'a').clamp(0.0, 1.0));
+            out.add(m.seenAt(t).scale - _d(r, 'sx'));
+            out.add(m.seenAt(t).opacity - _d(r, 'a').clamp(0.0, 1.0));
           }
           return out;
         }
@@ -345,10 +346,10 @@ void main() {
           }
           if (r['id'] == ids.first) {
             if (t > closeUp + 0.04 && _d(r, 'sx') == 0.2) continue;
-            closing.add(old.at(t).scale - _d(r, 'sx'));
+            closing.add(old.seenAt(t).scale - _d(r, 'sx'));
           } else {
-            opening.add(fresh.at(t).scale - _d(r, 'sx'));
-            opening.add(fresh.at(t).opacity - _d(r, 'a').clamp(0.0, 1.0));
+            opening.add(fresh.seenAt(t).scale - _d(r, 'sx'));
+            opening.add(fresh.seenAt(t).opacity - _d(r, 'a').clamp(0.0, 1.0));
           }
         }
         expect(closing.length, greaterThan(20));
@@ -454,9 +455,9 @@ void main() {
           }
           if (t <= titleTaps.first || t >= closeTap) continue;
           if (r['cls'] == '_UICalendarWeekdayView') {
-            fade.add(m.at(t).yearPicker - (1 - _d(r, 'a')));
+            fade.add(m.seenAt(t).yearPicker - (1 - _d(r, 'a')));
           } else if (r['cls'] == 'chevron') {
-            chevron.add(m.at(t).yearPickerTurn - turn(r));
+            chevron.add(m.seenAt(t).yearPickerTurn - turn(r));
           }
         }
         expect(fade.length, greaterThan(50));
@@ -507,11 +508,11 @@ void main() {
     test('opens from a fifth of its size and its 50 point box', () {
       final m = DatePickerMotion();
       m.open(0);
-      expect(m.at(0).scale, DatePickerTuning.hiddenScale);
-      expect(m.at(0).height(332), 50);
+      expect(m.seenAt(0).scale, DatePickerTuning.hiddenScale);
+      expect(m.seenAt(0).height(332), 50);
       m.advance(2);
-      expect(m.at(2).scale, closeTo(1, 1e-3));
-      expect(m.at(2).height(332), closeTo(332, 0.5));
+      expect(m.seenAt(2).scale, closeTo(1, 1e-3));
+      expect(m.seenAt(2).height(332), closeTo(332, 0.5));
       m.close(2);
       m.advance(4);
       expect(m.isClosed, isTrue);
@@ -522,13 +523,13 @@ void main() {
       m.showYearPicker(1, show: true);
       expect(m.showsYearPicker, isTrue);
       const show = DatePickerTuning.yearPickerShowDelay;
-      expect(m.at(1 + show).yearPicker, 0);
-      expect(m.at(1 + show + 0.125).yearPicker, closeTo(0.5, 1e-9));
-      expect(m.at(1 + show + 0.25).yearPicker, 1);
+      expect(m.seenAt(1 + show).yearPicker, 0);
+      expect(m.seenAt(1 + show + 0.125).yearPicker, closeTo(0.5, 1e-9));
+      expect(m.seenAt(1 + show + 0.25).yearPicker, 1);
       m.showYearPicker(2, show: false);
       const hide = DatePickerTuning.yearPickerHideDelay;
-      expect(m.at(2 + hide).yearPicker, 1);
-      expect(m.at(2 + hide + 0.125).yearPicker, closeTo(0.5, 1e-9));
+      expect(m.seenAt(2 + hide).yearPicker, 1);
+      expect(m.seenAt(2 + hide + 0.125).yearPicker, closeTo(0.5, 1e-9));
     });
 
     test('a reversal restarts from where the change stands', () {
@@ -537,17 +538,17 @@ void main() {
       m.showYearPicker(0.15, show: false);
       const hide = DatePickerTuning.yearPickerHideDelay;
       const at = 0.15 + hide;
-      final before = m.at(at - 1e-6).yearPicker;
+      final before = m.seenAt(at - 1e-6).yearPicker;
       expect(before, greaterThan(0));
-      expect(m.at(at).yearPicker, closeTo(before, 1e-4));
-      expect(m.at(at + 0.25).yearPicker, 0);
+      expect(m.seenAt(at).yearPicker, closeTo(before, 1e-4));
+      expect(m.seenAt(at + 0.25).yearPicker, 0);
       // A reversal scheduled to start before the change has started
       // leaves it where it was.
       final n = DatePickerMotion();
       n.showYearPicker(0, show: true);
       n.showYearPicker(0.01, show: false);
       for (var t = 0.0; t < 0.6; t += 0.01) {
-        expect(n.at(t).yearPicker, 0);
+        expect(n.seenAt(t).yearPicker, 0);
       }
     });
   });
@@ -556,23 +557,34 @@ void main() {
     final motion = DatePickerMotion();
     motion.open(0);
     expect(motion.progress, 0);
-    expect(motion.time, 0);
+    expect(motion.now, 0);
     expect(motion.isSettled, isFalse);
     expect(motion.isClosed, isFalse);
-    expect(motion.at(0.05).progress, 0);
+    expect(motion.seenAt(0.05).progress, 0);
     motion.close(0.06);
     expect(motion.progress, 0);
     motion.advance(1);
     expect(motion.isClosed, isTrue);
   });
 
-  test('another page turn cannot reset the running slide', () {
+  test('another page turn waits for the running slide, then runs', () {
     final motion = DatePickerMotion();
+    final turns = <int>[];
+    motion.onTurn = (direction) {
+      turns.add(direction);
+      return true;
+    };
     motion.turnPage(0, 1);
-    final before = motion.at(0.15).page;
-    motion.turnPage(0.15, 1);
-    expect(motion.at(0.15).page, before);
-    expect(motion.at(0.3).page, 1);
+    final before = motion.seenAt(0.15).page;
+    motion.turnPage(0.15, -1);
+    expect(motion.seenAt(0.15).page, before);
+    expect(turns, [1]);
+    expect(motion.seenAt(0.29).page, lessThan(1));
+    expect(motion.seenAt(0.45).page, closeTo(0.5, 0.01));
+    expect(turns, [1, -1]);
+    expect(motion.pageDirection, -1);
+    expect(motion.seenAt(0.6).page, 1);
+    expect(motion.isSettled, isTrue);
   });
 
   test('reduced motion drops the label dim and fades the overlay', () {
@@ -581,19 +593,22 @@ void main() {
     reduced.reducedMotion = true;
     regular.open(0);
     reduced.open(0);
-    regular.press(0);
-    reduced.press(0);
-    expect(regular.at(0.2).highlight, lessThan(1));
-    expect(reduced.at(0.2).highlight, 1);
+    final pressed = DatePickerLabelMotion();
+    final calm = DatePickerLabelMotion();
+    calm.reducedMotion = true;
+    pressed.press(0);
+    calm.press(0);
+    expect(pressed.seenAt(0.2).highlight, lessThan(1));
+    expect(calm.seenAt(0.2).highlight, 1);
     const start = DatePickerTuning.openDelay;
     const fade = DatePickerTuning.reducedMotionDuration;
     reduced.advance(start + fade / 2);
-    expect(reduced.at(start + fade / 2).opacity, closeTo(0.5, 1e-9));
-    expect(reduced.at(start + fade / 2).scale, 1);
-    expect(reduced.at(start + fade / 2).height(300), 300);
-    expect(regular.at(start + fade / 2).scale, lessThan(1));
+    expect(reduced.seenAt(start + fade / 2).opacity, closeTo(0.5, 1e-9));
+    expect(reduced.seenAt(start + fade / 2).scale, 1);
+    expect(reduced.seenAt(start + fade / 2).height(300), 300);
+    expect(regular.seenAt(start + fade / 2).scale, lessThan(1));
     reduced.advance(start + fade);
-    expect(reduced.at(start + fade).opacity, 1);
+    expect(reduced.seenAt(start + fade).opacity, 1);
     reduced.close(1);
     reduced.advance(1 + DatePickerTuning.closeDelay + fade);
     expect(reduced.isClosed, isTrue);

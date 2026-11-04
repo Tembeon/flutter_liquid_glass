@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motion/date_picker_motion.dart';
-import 'package:apple_liquid_glass/src/motion/live.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
+import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
@@ -456,7 +456,7 @@ enum _Part { date, time }
 
 class _GlassDatePickerState extends State<GlassDatePicker> {
   _Part? _open;
-  int _closing = 0;
+  DatePickerMotion? _overlay;
   final Map<_Part, GlobalKey> _labels = {
     _Part.date: GlobalKey(debugLabel: 'date'),
     _Part.time: GlobalKey(debugLabel: 'time'),
@@ -485,13 +485,19 @@ class _GlassDatePickerState extends State<GlassDatePicker> {
     if (box is! RenderBox || !box.hasSize) return;
     final rect = box.localToGlobal(Offset.zero) & box.size;
     setState(() => _open = part);
+    final reopening = _overlay?.presence == PresenceStatus.leaving;
     await showPresentation<void>(
       context,
-      _DatePickerRoute(
-        picker: this,
-        part: part,
-        label: rect,
-        reopening: _closing > 0,
+      PresentationRoute(
+        presentation: Presentation<void, DatePickerMotion>(
+          motion: (_) => _overlay = DatePickerMotion(reopening: reopening),
+          builder: (context, motion) => _OverlayView(
+            picker: this,
+            motion: motion,
+            part: part,
+            label: rect,
+          ),
+        ),
       ),
     );
     if (mounted) setState(() => _open = null);
@@ -572,17 +578,11 @@ class _CompactLabel extends StatefulWidget {
   State<_CompactLabel> createState() => _CompactLabelState();
 }
 
-class _CompactLabelState extends State<_CompactLabel>
-    with _Clocked<_CompactLabel> {
-  final DatePickerMotion _motion = DatePickerMotion();
+class _CompactLabelState extends State<_CompactLabel> {
+  final _motion = DatePickerLabelMotion();
+  late final _highlight = _motion.select((m) => m.highlight);
   bool _focused = false;
   int? _pointer;
-
-  @override
-  void advanceMotion(double t) => _motion.advance(t);
-
-  @override
-  bool get motionSettled => _motion.isSettled;
 
   void _down(PointerDownEvent event) {
     if (!widget.enabled ||
@@ -592,7 +592,7 @@ class _CompactLabelState extends State<_CompactLabel>
     }
     _pointer = event.pointer;
     _motion.reducedMotion = GlassTraits.of(context).reduceMotion;
-    _motion.press(stamp(event));
+    _motion.press(MotionClock.instance.stamp(event.timeStamp));
   }
 
   @override
@@ -600,15 +600,14 @@ class _CompactLabelState extends State<_CompactLabel>
     super.didUpdateWidget(oldWidget);
     if (!widget.enabled && _pointer != null) {
       _pointer = null;
-      _motion.release(clock);
-      wake();
+      _motion.release(MotionClock.instance.now);
     }
   }
 
   void _up(PointerEvent event) {
     if (event.pointer != _pointer) return;
     _pointer = null;
-    _motion.release(stamp(event));
+    _motion.release(MotionClock.instance.stamp(event.timeStamp));
     final box = context.findRenderObject();
     if (event is PointerUpEvent && box is RenderBox && box.hasSize) {
       final local = box.globalToLocal(event.position);
@@ -621,59 +620,73 @@ class _CompactLabelState extends State<_CompactLabel>
     final style = _Appearance.resolve(context);
     final scaler = MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 2);
     final label = widget.semanticLabel;
-    return FocusableActionDetector(
-      enabled: widget.enabled,
-      onShowFocusHighlight: (focused) => setState(() => _focused = focused),
-      actions: {
-        ActivateIntent: CallbackAction<ActivateIntent>(
-          onInvoke: (_) {
-            widget.onOpen(context);
-            return null;
-          },
-        ),
-      },
-      child: Semantics(
-        button: true,
+    return MotionScope(
+      motion: _motion,
+      child: FocusableActionDetector(
         enabled: widget.enabled,
-        expanded: widget.open,
-        label: label == null ? widget.text : '$label, ${widget.text}',
-        onTap: widget.enabled ? () => widget.onOpen(context) : null,
-        child: ExcludeSemantics(
-          child: Listener(
-            behavior: HitTestBehavior.opaque,
-            onPointerDown: _down,
-            onPointerUp: _up,
-            onPointerCancel: _up,
-            child: Container(
-              constraints: BoxConstraints(minHeight: widget.height),
-              padding: const EdgeInsets.symmetric(
-                horizontal: DatePickerTuning.labelPadding,
-              ),
-              decoration: widget.enabled
-                  ? ShapeDecoration(
-                      color: style.labelFillColor,
-                      shape: StadiumBorder(
-                        side: _focused
-                            ? BorderSide(color: style.accentColor, width: 2)
-                            : BorderSide.none,
-                      ),
-                    )
-                  : null,
-              child: Center(
-                widthFactor: 1,
-                heightFactor: 1,
-                child: LiveFadedText(
-                  widget.text,
-                  live: frames,
-                  opacityOf: () => widget.enabled ? _motion.highlight : 1,
-                  maxLines: 1,
-                  textScaler: scaler,
-                  style: _Type.resolve(
-                    _Type.datePickerCompact.copyWith(
-                      height: 20.33 / 17,
-                      color: widget.open ? style.accentColor : style.labelColor,
-                    ),
-                    context: context,
+        onShowFocusHighlight: (focused) => setState(() => _focused = focused),
+        actions: {
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              widget.onOpen(context);
+              return null;
+            },
+          ),
+        },
+        child: Semantics(
+          button: true,
+          enabled: widget.enabled,
+          expanded: widget.open,
+          label: label == null ? widget.text : '$label, ${widget.text}',
+          onTap: widget.enabled ? () => widget.onOpen(context) : null,
+          child: ExcludeSemantics(
+            child: Listener(
+              behavior: HitTestBehavior.opaque,
+              onPointerDown: _down,
+              onPointerUp: _up,
+              onPointerCancel: _up,
+              child: Container(
+                constraints: BoxConstraints(minHeight: widget.height),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: DatePickerTuning.labelPadding,
+                ),
+                decoration: widget.enabled
+                    ? ShapeDecoration(
+                        color: style.labelFillColor,
+                        shape: StadiumBorder(
+                          side: _focused
+                              ? BorderSide(color: style.accentColor, width: 2)
+                              : BorderSide.none,
+                        ),
+                      )
+                    : null,
+                child: Center(
+                  widthFactor: 1,
+                  heightFactor: 1,
+                  child: ValueListenableBuilder<double>(
+                    valueListenable: _highlight,
+                    builder: (context, highlight, _) {
+                      final color = widget.open
+                          ? style.accentColor
+                          : style.labelColor;
+                      final opacity = widget.enabled
+                          ? highlight.clamp(0.0, 1.0)
+                          : 1.0;
+                      return Text(
+                        widget.text,
+                        maxLines: 1,
+                        textScaler: scaler,
+                        style: _Type.resolve(
+                          _Type.datePickerCompact.copyWith(
+                            height: 20.33 / 17,
+                            color: opacity >= 1
+                                ? color
+                                : color.withValues(alpha: color.a * opacity),
+                          ),
+                          context: context,
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
@@ -685,80 +698,21 @@ class _CompactLabelState extends State<_CompactLabel>
   }
 }
 
-/// A value read from a motion on every frame of [frames], for render
-/// objects that follow an animation without a rebuild.
-class _FrameValue extends Animation<double> {
-  _FrameValue(this.frames, this.read);
-
-  final Listenable frames;
-  final double Function() read;
-
-  @override
-  double get value => read();
-
-  @override
-  AnimationStatus get status => AnimationStatus.forward;
-
-  @override
-  void addListener(VoidCallback listener) => frames.addListener(listener);
-
-  @override
-  void removeListener(VoidCallback listener) => frames.removeListener(listener);
-
-  @override
-  void addStatusListener(AnimationStatusListener listener) {}
-
-  @override
-  void removeStatusListener(AnimationStatusListener listener) {}
-}
-
-class _DatePickerRoute extends PresentationRoute<void> {
-  _DatePickerRoute({
-    required this.picker,
-    required this.part,
-    required this.label,
-    required this.reopening,
-  });
-
-  final _GlassDatePickerState picker;
-  final _Part part;
-  final Rect label;
-
-  /// Whether the overlay opens while an earlier one is still closing.
-  final bool reopening;
-  _OverlayViewState? _view;
-  bool _closing = false;
-
-  @override
-  Widget buildContent(BuildContext context) => _OverlayView(route: this);
-
-  @override
-  bool leave(DismissTrigger trigger) {
-    if (!_closing) {
-      _closing = true;
-      picker._closing++;
-    }
-    final view = _view;
-    if (view == null) return false;
-    view._leave();
-    return true;
-  }
-
-  @override
-  void didFinish(void result) {
-    if (!_closing) return;
-    _closing = false;
-    picker._closing--;
-  }
-}
-
 /// The largest text scale the overlay's fixed-size calendar follows.
 const double _overlayMaxTextScale = 1.2;
 
 class _OverlayView extends StatefulWidget {
-  const _OverlayView({required this.route});
+  const _OverlayView({
+    required this.picker,
+    required this.motion,
+    required this.part,
+    required this.label,
+  });
 
-  final _DatePickerRoute route;
+  final _GlassDatePickerState picker;
+  final DatePickerMotion motion;
+  final _Part part;
+  final Rect label;
 
   @override
   State<_OverlayView> createState() => _OverlayViewState();
@@ -776,33 +730,35 @@ extension on GlassDatePicker {
   DateTime? get _maximum => _boundsHold ? maximumDate : null;
 }
 
-class _OverlayViewState extends State<_OverlayView>
-    with _Clocked<_OverlayView> {
-  final DatePickerMotion _motion = DatePickerMotion();
-  bool _leaving = false;
+class _OverlayViewState extends State<_OverlayView> {
   late DateTime _value = _bounded(_picker.value);
   late DateTime _month = DateTime(_value.year, _value.month);
   DateTime? _previousMonth;
-  int _queuedTurns = 0;
   int? _outside;
-  late _Part _part = widget.route.part;
-  late Rect _label = widget.route.label;
+  late _Part _part = widget.part;
+  late Rect _label = widget.label;
   _Part? _fromPart;
   Rect? _fromLabel;
-  final _swap = MotionValue<double>(
-    1,
-    spring: DatePickerTuning.switchSpring,
-  );
 
   // The tree rebuilds only when one of these flips; every other frame
   // reads the motion through render objects.
-  final ValueNotifier<bool> _pageTurning = ValueNotifier(false);
-  final ValueNotifier<bool> _yearsVisible = ValueNotifier(false);
-
-  // Ticks only on the frames that move the overlay's box: a page turn or
-  // the year wheels leave the box's layers alone.
-  final ValueNotifier<int> _boxFrames = ValueNotifier(0);
-  (double, double)? _boxState;
+  late final _leaving = _motion.select((m) => !m.isOpen);
+  late final _switching = _motion.select((m) => m.switching);
+  late final _pageTurning = _motion.select((m) => m.page < 1);
+  late final _yearsVisible = _motion.select(
+    (m) => m.yearPicker.clamp(0.0, 1.0) > 0,
+  );
+  late final _swap = _motion.select((m) => m.swap.clamp(0.0, 1.0));
+  late final _unswap = _motion.select((m) => 1 - m.swap.clamp(0.0, 1.0));
+  late final _opacity = _motion.select((m) => m.opacity);
+  late final _glass = _motion.select(
+    (m) => GlassFrame(
+      shape: const LiquidRoundedSuperellipse(
+        borderRadius: DatePickerTuning.cornerRadius,
+      ),
+      opacity: m.opacity,
+    ),
+  );
 
   // The day grid (the time wheels) mounts on the frame after the
   // overlay's: the overlay stays transparent for at least the reopen
@@ -810,20 +766,13 @@ class _OverlayViewState extends State<_OverlayView>
   // two frames unseen.
   final ValueNotifier<bool> _contentReady = ValueNotifier(false);
 
-  void _syncStructure() {
-    final t = _motion.time;
-    _pageTurning.value = _motion.page < 1;
-    _yearsVisible.value = _motion.yearPicker.clamp(0.0, 1.0) > 0;
-    final box = (_motion.progress, _swap.valueAt(t));
-    if (box != _boxState) {
-      _boxState = box;
-      _boxFrames.value++;
-    }
-  }
+  DatePickerMotion get _motion => widget.motion;
 
-  _DatePickerRoute get _route => widget.route;
+  _GlassDatePickerState get _host => widget.picker;
 
-  GlassDatePicker get _picker => _route.picker.widget;
+  GlassDatePicker get _picker => _host.widget;
+
+  double get _now => MotionClock.instance.now;
 
   @override
   void didChangeDependencies() {
@@ -834,16 +783,10 @@ class _OverlayViewState extends State<_OverlayView>
   @override
   void initState() {
     super.initState();
-    _route._view = this;
-    _route.picker._routeView = this;
-    _motion.open(
-      clock,
-      delay: _route.reopening
-          ? DatePickerTuning.reopenDelay
-          : DatePickerTuning.openDelay,
-    );
-    _syncStructure();
-    wake();
+    _host._routeView = this;
+    _motion.onTurn = _turned;
+    _leaving.addListener(_rebuild);
+    _switching.addListener(_switched);
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (mounted) _contentReady.value = true;
     });
@@ -851,106 +794,69 @@ class _OverlayViewState extends State<_OverlayView>
 
   @override
   void dispose() {
+    _leaving.removeListener(_rebuild);
+    _switching.removeListener(_switched);
     _contentReady.dispose();
-    _pageTurning.dispose();
-    _yearsVisible.dispose();
-    _boxFrames.dispose();
-    if (_route._view == this) _route._view = null;
-    if (_route.picker._routeView == this) _route.picker._routeView = null;
+    if (_host._routeView == this) _host._routeView = null;
+    if (_motion.onTurn == _turned) _motion.onTurn = null;
     super.dispose();
   }
 
-  @override
-  void advanceMotion(double t) {
-    _motion.advance(t);
-    if (_queuedTurns != 0 && _motion.page >= 1) {
-      final direction = _queuedTurns.sign;
-      _queuedTurns -= direction;
-      _turn(direction);
-    }
-    if (_fromPart != null && _swap.isWithin(t, DatePickerMotion.overlayRest)) {
+  void _rebuild() => setState(() {});
+
+  void _switched() {
+    if (!_switching.value && _fromPart != null) {
       setState(() => _fromPart = null);
     }
-    _syncStructure();
-    if (_leaving && _motion.isClosed) {
-      _route.didLeave();
-    } else if (!_leaving && _motion.isSettled) {
-      _route.didOpen();
-    }
   }
-
-  @override
-  bool get motionSettled =>
-      _queuedTurns == 0 &&
-      _motion.isSettled &&
-      _swap.isWithin(_motion.time, DatePickerMotion.overlayRest);
 
   _Part? _otherLabelAt(Offset position) {
     for (final part in _Part.values) {
       if (part == _part) continue;
-      final rect = _route.picker._labelRect(part);
+      final rect = _host._labelRect(part);
       if (rect != null && rect.contains(position)) return part;
     }
     return null;
   }
 
   void _switchTo(_Part part) {
-    final label = _route.picker._labelRect(part);
-    if (label == null || _leaving) return;
-    final t = clock;
-    final q = _swap.valueAt(t);
-    final v = _swap.velocityAt(t);
+    final label = _host._labelRect(part);
+    if (label == null || !_motion.isOpen) return;
+    _motion.switchPicker(_now, back: part == _fromPart);
     setState(() {
-      final start = t + DatePickerTuning.switchDelay;
-      if (part == _fromPart && q < 1) {
-        _swap.setPresentation(start, 1 - q, velocity: -v);
-      } else {
-        _swap.setPresentation(start, 0);
-      }
       _fromPart = _part;
       _fromLabel = _label;
       _part = part;
       _label = label;
     });
-    _swap.retarget(t + DatePickerTuning.switchDelay, 1);
-    _syncStructure();
-    _route.picker._switched(part);
-    wake();
-  }
-
-  void _leave() {
-    if (_leaving) return;
-    setState(() => _leaving = true);
-    _motion.close(clock);
-    _syncStructure();
-    wake();
+    _host._switched(part);
   }
 
   void _close(DismissTrigger trigger) {
-    if (_leaving) return;
-    _route.dismiss(trigger);
+    if (!_motion.isOpen) return;
+    PresentationHandle.of(context).dismiss(trigger);
   }
 
   DateTime _bounded(DateTime value) =>
       _clampDate(value, _picker._minimum, _picker._maximum);
 
   void _pick(DateTime value) {
-    if (!_route.picker.mounted || !_route.picker._enabled) return;
+    if (!_host.mounted || !_host._enabled) return;
     final next = _bounded(value);
     setState(() => _value = next);
-    _route.picker._changed(next);
+    _host._changed(next);
     WidgetsBinding.instance.addPostFrameCallback((_) => _reconcile());
   }
 
   void _reconcile() {
-    if (!mounted || !_route.picker.mounted) return;
-    if (!_route.picker._enabled) {
+    if (!mounted || !_host.mounted) return;
+    if (!_host._enabled) {
       _close(DismissTrigger.programmatic);
       return;
     }
     final value = _bounded(_picker.value);
     final shown = _shown;
-    final twentyFour = _route.picker._twentyFour;
+    final twentyFour = _host._twentyFour;
     if (_value == value &&
         twentyFour == _shownTwentyFour &&
         shown != null &&
@@ -982,31 +888,24 @@ class _OverlayViewState extends State<_OverlayView>
       a.localizations.daySemanticFormatter ==
           b.localizations.daySemanticFormatter;
 
-  void _turn(int direction) {
-    _motion.advance(clock);
-    if (_motion.page < 1) {
-      _queuedTurns += direction;
-      wake();
-      return;
-    }
-    if (!_canTurnMonth(_month, direction, _picker._minimum, _picker._maximum)) {
-      return;
+  void _turn(int direction) => _motion.turnPage(_now, direction);
+
+  bool _turned(int direction) {
+    if (!mounted ||
+        !_canTurnMonth(_month, direction, _picker._minimum, _picker._maximum)) {
+      return false;
     }
     setState(() {
       _previousMonth = _month;
       _month = DateTime(_month.year, _month.month + direction);
     });
-    _motion.turnPage(clock, direction);
-    _syncStructure();
-    wake();
+    return true;
   }
 
   void _toggleYearPicker() {
-    if (_leaving) return;
+    if (!_motion.isOpen) return;
     setState(() {});
-    _motion.showYearPicker(clock, show: !_motion.showsYearPicker);
-    _syncStructure();
-    wake();
+    _motion.showYearPicker(_now, show: !_motion.showsYearPicker);
   }
 
   void _pickMonth(int year, int month) {
@@ -1040,7 +939,7 @@ class _OverlayViewState extends State<_OverlayView>
   @override
   Widget build(BuildContext context) {
     _shown = _picker;
-    _shownTwentyFour = _route.picker._twentyFour;
+    _shownTwentyFour = _host._twentyFour;
     final style = _Appearance.resolve(context);
     final media = MediaQuery.of(context);
     final direction = Directionality.maybeOf(context) ?? TextDirection.ltr;
@@ -1057,7 +956,7 @@ class _OverlayViewState extends State<_OverlayView>
             localize: _picker.localizations.localize,
             numberFormatter: _picker.localizations.numberFormatter,
             minuteInterval: _picker.minuteInterval,
-            twentyFour: _route.picker._twentyFour,
+            twentyFour: _host._twentyFour,
             style: style,
             onChanged: _pick,
           )
@@ -1066,7 +965,6 @@ class _OverlayViewState extends State<_OverlayView>
             month: _month,
             previousMonth: _previousMonth,
             motion: _motion,
-            frames: frames,
             pageTurning: _pageTurning,
             gridReady: _contentReady,
             yearsVisible: _yearsVisible,
@@ -1105,8 +1003,8 @@ class _OverlayViewState extends State<_OverlayView>
             alignment: below
                 ? AlignmentDirectional.topStart
                 : AlignmentDirectional.bottomStart,
-            frames: frames,
-            fade: () => _swap.valueAt(_motion.time),
+            fadeIn: _swap,
+            fadeOut: _unswap,
             from: from == null
                 ? null
                 : ExcludeSemantics(
@@ -1154,7 +1052,7 @@ class _OverlayViewState extends State<_OverlayView>
             children: [
               Positioned.fill(
                 child: IgnorePointer(
-                  ignoring: _leaving,
+                  ignoring: _leaving.value,
                   child: Listener(
                     behavior: HitTestBehavior.opaque,
                     onPointerDown: (PointerDownEvent e) => _outside = e.pointer,
@@ -1176,6 +1074,7 @@ class _OverlayViewState extends State<_OverlayView>
               _box(
                 target: target,
                 source: source,
+                screen: constraints.biggest,
                 child: overlayFor(below: target.below),
               ),
             ],
@@ -1190,74 +1089,70 @@ class _OverlayViewState extends State<_OverlayView>
   Widget _box({
     required DatePickerPlacement target,
     required DatePickerPlacement? source,
+    required Size screen,
     required Widget child,
   }) {
     final below = target.below;
-    _BoxFrame? cached;
-    double? cachedAt;
-    _BoxFrame frame() {
-      final t = _motion.time;
-      final hit = cached;
-      if (hit != null && cachedAt == t) return hit;
-      final q = _swap.valueAt(t);
+    final frame = _motion.select((m) {
+      final q = m.swap;
       final placement = source == null
           ? target
           : DatePickerPlacement(
               rect: Rect.lerp(source.rect, target.rect, q)!,
               anchor: Offset.lerp(source.anchor, target.anchor, q)!,
             );
-      final next = _BoxFrame.of(_motion, placement, below: below);
-      cached = next;
-      cachedAt = t;
-      return next;
-    }
-
+      return _BoxFrame.of(m, placement, below: below);
+    });
     return Positioned.fill(
       child: IgnorePointer(
-        ignoring: _leaving,
-        child: LiveTransform(
-          live: _boxFrames,
-          matrixOf: () => frame().transform,
-          alignment: null,
-          child: LivePlacement(
-            live: _boxFrames,
-            rectOf: () => frame().box,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // The menu's material: over black the native overlay reads
-                // 32 gray on an iPhone 16 Pro film, as the native menu does.
-                LiveGlassSurface(
-                  live: _boxFrames,
-                  frameOf: () => GlassFrame(
-                    shape: const LiquidRoundedSuperellipse(
-                      borderRadius: DatePickerTuning.cornerRadius,
-                    ),
-                    opacity: frame().opacity,
+        ignoring: _leaving.value,
+        child: MotionDriven(
+          template: () {
+            final f = frame.value;
+            return Transform(
+              transform: f.transform,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  f.box.left,
+                  f.box.top,
+                  screen.width - f.box.right,
+                  screen.height - f.box.bottom,
+                ),
+              ),
+            );
+          },
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // The menu's material: over black the native overlay reads
+              // 32 gray on an iPhone 16 Pro film, as the native menu does.
+              GlassSurface.live(
+                role: GlassRole.menu,
+                frame: _glass,
+                child: const SizedBox.expand(),
+              ),
+              ClipRRect(
+                borderRadius: const BorderRadius.all(
+                  Radius.circular(DatePickerTuning.cornerRadius),
+                ),
+                child: OverflowBox(
+                  alignment: below
+                      ? AlignmentDirectional.topStart
+                      : AlignmentDirectional.bottomStart,
+                  minWidth: 0,
+                  maxWidth: double.infinity,
+                  minHeight: 0,
+                  maxHeight: double.infinity,
+                  // The content keeps its size while the scale, clip and
+                  // opacity above it change every frame; its own layer,
+                  // below the clip, keeps its raster through a reclip.
+                  child: MotionTransition(
+                    opacity: _opacity,
+                    child: RepaintBoundary(child: child),
                   ),
                 ),
-                ClipRRect(
-                  clipper: _OverlayClipper(_boxFrames, () => frame().shape),
-                  child: OverflowBox(
-                    alignment: below
-                        ? AlignmentDirectional.topStart
-                        : AlignmentDirectional.bottomStart,
-                    minWidth: 0,
-                    maxWidth: double.infinity,
-                    minHeight: 0,
-                    maxHeight: double.infinity,
-                    // The content keeps its size while the scale, clip and
-                    // opacity above it change every frame; its own layer,
-                    // below the clip, keeps its raster through a reclip.
-                    child: LiveFade(
-                      live: frames,
-                      opacityOf: () => frame().opacity,
-                      child: RepaintBoundary(child: child),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1273,11 +1168,11 @@ class _OverlayViewState extends State<_OverlayView>
 
 /// The overlay's box at one time: where it sits, how it scales about its
 /// anchor and how far it shows.
+@immutable
 class _BoxFrame {
-  _BoxFrame({
+  const _BoxFrame({
     required this.box,
     required this.transform,
-    required this.shape,
     required this.opacity,
   });
 
@@ -1305,10 +1200,6 @@ class _BoxFrame {
     return _BoxFrame(
       box: box,
       transform: transform,
-      shape: RRect.fromRectAndRadius(
-        Offset.zero & box.size,
-        const Radius.circular(DatePickerTuning.cornerRadius),
-      ),
       opacity: motion.opacity,
     );
   }
@@ -1319,25 +1210,32 @@ class _BoxFrame {
   /// The scale about the anchor, in the overlay's coordinates.
   final Matrix4 transform;
 
-  /// The platter's shape in the box's coordinates.
-  final RRect shape;
-
   /// The platter's and the content's opacity.
   final double opacity;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _BoxFrame &&
+      other.box == box &&
+      other.transform == transform &&
+      other.opacity == opacity;
+
+  @override
+  int get hashCode => Object.hash(box, transform, opacity);
 }
 
 class _Crossfade extends StatelessWidget {
   const _Crossfade({
-    required this.frames,
-    required this.fade,
+    required this.fadeIn,
+    required this.fadeOut,
     required this.from,
     required this.to,
     required this.alignment,
   });
 
   final AlignmentDirectional alignment;
-  final Listenable frames;
-  final double Function() fade;
+  final ValueListenable<double> fadeIn;
+  final ValueListenable<double> fadeOut;
   final Widget? from;
   final Widget to;
 
@@ -1350,53 +1248,12 @@ class _Crossfade extends StatelessWidget {
       clipBehavior: Clip.none,
       children: [
         IgnorePointer(
-          child: FadeTransition(
-            opacity: _FrameValue(frames, () => 1 - fade().clamp(0.0, 1.0)),
-            child: old,
-          ),
+          child: MotionTransition(opacity: fadeOut, child: old),
         ),
-        FadeTransition(
-          opacity: _FrameValue(frames, () => fade().clamp(0.0, 1.0)),
-          child: to,
-        ),
+        MotionTransition(opacity: fadeIn, child: to),
       ],
     );
   }
-}
-
-class _OverlayClipper extends CustomClipper<RRect> {
-  _OverlayClipper(Listenable reclip, this.shape) : super(reclip: reclip);
-
-  final RRect Function() shape;
-
-  @override
-  RRect getClip(Size size) => shape();
-
-  @override
-  bool shouldReclip(_OverlayClipper oldClipper) =>
-      !identical(oldClipper.shape, shape);
-}
-
-/// The rotation [Transform.rotate] builds for [radians], bit for bit.
-Matrix4 _rotationZ(double radians) {
-  if (radians == 0.0) return Matrix4.identity();
-  final sin = math.sin(radians);
-  if (sin == 1.0) return _zRotation(1, 0);
-  if (sin == -1.0) return _zRotation(-1, 0);
-  final cos = math.cos(radians);
-  if (cos == -1.0) return _zRotation(0, -1);
-  return _zRotation(sin, cos);
-}
-
-Matrix4 _zRotation(double sin, double cos) {
-  final result = Matrix4.zero();
-  result.storage[0] = cos;
-  result.storage[1] = sin;
-  result.storage[4] = -sin;
-  result.storage[5] = cos;
-  result.storage[10] = 1.0;
-  result.storage[15] = 1.0;
-  return result;
 }
 
 /// The layout of the calendar, read from UIKit's views at 320 points wide.
@@ -1429,7 +1286,6 @@ class _Calendar extends StatelessWidget {
     required this.month,
     required this.previousMonth,
     required this.motion,
-    required this.frames,
     required this.pageTurning,
     required this.gridReady,
     required this.yearsVisible,
@@ -1452,7 +1308,6 @@ class _Calendar extends StatelessWidget {
   final DateTime month;
   final DateTime? previousMonth;
   final DatePickerMotion motion;
-  final Listenable frames;
 
   /// Whether a page turn runs: the old month is on screen.
   final ValueListenable<bool> pageTurning;
@@ -1483,11 +1338,9 @@ class _Calendar extends StatelessWidget {
   bool _canTurn(int direction) =>
       _canTurnMonth(month, direction, firstDate, lastDate);
 
-  double _years() => motion.yearPicker;
-
-  Widget _fading(Widget child, {required bool out}) => FadeTransition(
-    opacity: _FrameValue(frames, () {
-      final q = _years().clamp(0.0, 1.0);
+  Widget _fading(Widget child, {required bool out}) => MotionTransition(
+    opacity: motion.select((m) {
+      final q = m.yearPicker.clamp(0.0, 1.0);
       return out ? 1 - q : q;
     }),
     child: child,
@@ -1576,11 +1429,11 @@ class _Calendar extends StatelessWidget {
                                     const SizedBox(
                                       width: _CalendarMetrics.titleChevronGap,
                                     ),
-                                    LiveTransform(
-                                      live: frames,
-                                      matrixOf: () => _rotationZ(
-                                        (rtl ? -1 : 1) *
-                                            motion.yearPickerTurn *
+                                    MotionTransition(
+                                      rotation: motion.select(
+                                        (m) =>
+                                            (rtl ? -1 : 1) *
+                                            m.yearPickerTurn *
                                             math.pi /
                                             2,
                                       ),
@@ -1697,10 +1550,8 @@ class _Calendar extends StatelessWidget {
                                         return const SizedBox.shrink();
                                       }
                                       final turning = pageTurning.value;
-                                      double p() => motion.page;
-                                      double dir() =>
-                                          motion.pageDirection *
-                                          (rtl ? -1.0 : 1.0);
+                                      double dir(DatePickerMotion m) =>
+                                          m.pageDirection * (rtl ? -1.0 : 1.0);
                                       return Stack(
                                         clipBehavior: Clip.none,
                                         children: [
@@ -1712,11 +1563,12 @@ class _Calendar extends StatelessWidget {
                                               left: 0,
                                               top: 0,
                                               width: grid,
-                                              child: LiveShift(
-                                                live: frames,
-                                                offsetOf: () => Offset(
-                                                  -dir() * grid * p(),
-                                                  0,
+                                              child: MotionTransition(
+                                                offset: motion.select(
+                                                  (m) => Offset(
+                                                    -dir(m) * grid * m.page,
+                                                    0,
+                                                  ),
                                                 ),
                                                 child: previousGrid,
                                               ),
@@ -1726,17 +1578,16 @@ class _Calendar extends StatelessWidget {
                                             left: 0,
                                             top: 0,
                                             width: grid,
-                                            child: LiveShift(
-                                              live: frames,
-                                              offsetOf: () {
-                                                final q = p();
+                                            child: MotionTransition(
+                                              offset: motion.select((m) {
+                                                final q = m.page;
                                                 return Offset(
                                                   previousGrid != null && q < 1
-                                                      ? dir() * grid * (1 - q)
+                                                      ? dir(m) * grid * (1 - q)
                                                       : 0,
                                                   0,
                                                 );
-                                              },
+                                              }),
                                               child: monthGrid,
                                             ),
                                           ),
@@ -1783,10 +1634,9 @@ class _Calendar extends StatelessWidget {
                 ignoring: !years,
                 child: ExcludeSemantics(
                   excluding: !years,
-                  child: FadeTransition(
-                    opacity: _FrameValue(
-                      frames,
-                      () => _years().clamp(0.0, 1.0),
+                  child: MotionTransition(
+                    opacity: motion.select(
+                      (m) => m.yearPicker.clamp(0.0, 1.0),
                     ),
                     child: child,
                   ),
@@ -3029,51 +2879,4 @@ abstract final class _Type {
 
   static TextStyle resolve(TextStyle style, {BuildContext? context}) =>
       context == null ? style : resolveGlassText(style, context);
-}
-
-/// A state whose motion steps on the motion clock: [frames] notifies on
-/// every step, [stamp] reads an event's time and wakes the clock.
-mixin _Clocked<T extends StatefulWidget> on State<T> implements MotionDriver {
-  final _frames = ValueNotifier<int>(0);
-
-  Listenable get frames => _frames;
-
-  double get clock => MotionClock.instance.now;
-
-  void advanceMotion(double t);
-
-  bool get motionSettled;
-
-  @override
-  bool get isActive => !motionSettled;
-
-  @override
-  double? get wakeTime => null;
-
-  @override
-  void step(double time) {
-    advanceMotion(time);
-    if (mounted) _frames.value++;
-  }
-
-  double stamp(PointerEvent event) {
-    final time = MotionClock.instance.stamp(event.timeStamp);
-    wake();
-    return time;
-  }
-
-  void wake() => MotionClock.instance.wake(this);
-
-  @override
-  void initState() {
-    super.initState();
-    MotionClock.instance.addDriver(this);
-  }
-
-  @override
-  void dispose() {
-    MotionClock.instance.removeDriver(this);
-    _frames.dispose();
-    super.dispose();
-  }
 }

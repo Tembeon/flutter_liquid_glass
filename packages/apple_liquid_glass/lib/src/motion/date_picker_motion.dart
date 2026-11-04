@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
@@ -251,85 +250,76 @@ DatePickerPlacement placeDatePicker({
   );
 }
 
-/// The motion of a compact date picker: the overlay opening out of its
-/// label and closing back, the label's highlight, the calendar's page
-/// turns, and the calendar's change between its day grid and its month
-/// and year wheels.
+/// The press highlight of a compact date picker's label: the text dims
+/// under a finger over [DatePickerTuning.highlightDuration] on
+/// [DatePickerTuning.highlightCurve] and comes back on release.
+///
+/// Times are seconds on the motion's timeline.
+@internal
+final class DatePickerLabelMotion extends Motion {
+  late final _highlight = own(TimedValue(1));
+
+  /// Whether the label skips its press dimming for Reduce Motion
+  /// (approximation, not recorded on the device).
+  bool reducedMotion = false;
+
+  /// The label's text dims under a finger at time [t].
+  void press(double t) => _to(t, DatePickerTuning.highlightOpacity);
+
+  /// The finger left the label at time [t].
+  void release(double t) => _to(t, 1);
+
+  void _to(double t, double opacity) {
+    advance(t);
+    _highlight.animate(
+      t,
+      reducedMotion ? 1 : opacity,
+      duration: DatePickerTuning.highlightDuration,
+      curve: DatePickerTuning.highlightCurve,
+    );
+  }
+
+  /// The opacity of the label's text.
+  double get highlight => _highlight.valueAt(now);
+}
+
+/// The motion of a compact date picker's overlay: opening out of its label
+/// and closing back, the calendar's page turns, the calendar's change
+/// between its day grid and its month and year wheels, and a switch
+/// between the date and the time picker.
 ///
 /// One progress drives the overlay: it scales about its anchor from
 /// [DatePickerTuning.hiddenScale], fades in, and grows its box from
 /// [DatePickerTuning.hiddenHeight] to its own height, on
 /// [DatePickerTuning.openSpring]; closing reverses it on
-/// [DatePickerTuning.closeSpring], velocity included.
+/// [DatePickerTuning.closeSpring], velocity included. The progress and a
+/// switch rest within [overlayRest].
 ///
-/// Times are seconds on the caller's clock.
+/// Times are seconds on the motion's timeline.
 @internal
-class DatePickerMotion {
-  /// Creates the motion of a closed picker.
-  DatePickerMotion();
+final class DatePickerMotion extends Motion with Presented {
+  /// Creates the motion of a closed overlay; a [reopening] one opens while
+  /// an earlier overlay of the same picker still closes.
+  DatePickerMotion({this.reopening = false});
 
-  final _progress = MotionValue<double>(
-    0,
-    spring: DatePickerTuning.openSpring,
-  );
-  double _now = 0;
-  bool _open = false;
-  double _highlightStart = double.negativeInfinity;
-  double _highlightFrom = 1;
-  double _highlightTo = 1;
-  double _pageStart = double.negativeInfinity;
-  int _pageDirection = 0;
+  /// Whether the overlay opens while an earlier one still closes: it opens
+  /// [DatePickerTuning.reopenDelay] after the tap instead of
+  /// [DatePickerTuning.openDelay].
+  final bool reopening;
 
   /// Whether the motion follows Reduce Motion: the overlay fades in and
   /// out at its full size over [DatePickerTuning.reducedMotionDuration]
-  /// (read from UIKit, notes private), and the label skips its press
-  /// dimming and page turns keep their timing (approximations, not
-  /// recorded on the device).
+  /// (read from UIKit, notes private); page turns keep their timing
+  /// (approximation, not recorded on the device).
   bool reducedMotion = false;
 
-  double _fadeStart = double.negativeInfinity;
-  double _fadeFrom = 0;
-  double _fadeTo = 0;
-
-  double _fade(double t) {
-    final k = ((t - _fadeStart) / DatePickerTuning.reducedMotionDuration).clamp(
-      0.0,
-      1.0,
-    );
-    return _fadeFrom +
-        (_fadeTo - _fadeFrom) *
-            DatePickerTuning.reducedMotionCurve.transform(k);
-  }
-
-  bool _fadeDone(double t) =>
-      t >= _fadeStart + DatePickerTuning.reducedMotionDuration;
-
-  /// The time the motion was last advanced to.
-  double get time => _now;
-
-  /// Whether the overlay is open or opening.
-  bool get isOpen => _open;
-
-  /// Whether the overlay has closed and nothing moves.
-  bool get isClosed {
-    if (reducedMotion) return !_open && _pendingAt == null && _fadeDone(_now);
-    final spring = _spring(_now);
-    return !_open && _pendingAt == null && spring.isWithin(_now, _closedRest);
-  }
-
-  // Rests by value and velocity (within [overlayRest] of its target and
-  // slower than ten times that per second) rather than by the reach bound of
-  // `MotionValue.isWithin`, which holds the overlay a frame longer.
-  bool get _overlaySettled {
-    if (reducedMotion) return _fadeDone(_now);
-    final spring = _spring(_now);
-    return (spring.valueAt(_now) - spring.target).abs() < overlayRest &&
-        spring.velocityAt(_now).abs() < overlayRest * 10;
-  }
+  /// Takes a page turn in the given direction as it starts, or refuses it
+  /// with false: the host turns the month the calendar shows.
+  bool Function(int direction)? onTurn;
 
   /// The swing of the overlay's progress, and of a switch between the
   /// pickers, at which they rest. NEAR: the calendar's edge lands by up to
-  /// 0.27 pt, looser than [GlassRest.length]; resting at 0.1 pt costs 20
+  /// 0.27 pt, looser than [MotionRest.length]; resting at 0.1 pt costs 20
   /// more frames in the date-picker perf scene (172 to 192).
   static const double overlayRest = 1e-3;
 
@@ -338,29 +328,84 @@ class DatePickerMotion {
   /// on the calendar's edge, behind an overlay that has faded out.
   static const double _closedRest = 2e-3;
 
-  /// Whether nothing moves.
-  bool get isSettled {
-    return _pendingAt == null &&
-        _overlaySettled &&
-        _now >= _highlightStart + DatePickerTuning.highlightDuration &&
-        _now >= _pageStart + DatePickerTuning.pageDuration &&
-        _yearPickerSettledAt(_now);
+  static double _rest() => overlayRest;
+
+  late final _progress = own(
+    MotionValue<double>(0, spring: DatePickerTuning.openSpring),
+    rest: _rest,
+  );
+  late final _fade = own(TimedValue(0));
+  late final _page = own(TimedValue(1));
+  late final _years = own(TimedValue(0));
+  late final _turns = own(TimedValue(0, additive: true));
+  late final _swap = own(
+    MotionValue<double>(1, spring: DatePickerTuning.switchSpring),
+    rest: _rest,
+  );
+
+  bool _open = false;
+  double? _pendingAt;
+  MotionCancel _cancelPending = _keep;
+  int _pending = 0;
+  int _pageDirection = 0;
+  int _queued = 0;
+  bool _switching = false;
+
+  static void _keep() {}
+
+  static const _queue = Object();
+
+  /// Whether the overlay is open or opening.
+  bool get isOpen => _open;
+
+  /// Whether the overlay has closed and nothing of it moves.
+  bool get isClosed =>
+      !_open &&
+      _pendingAt == null &&
+      (reducedMotion
+          ? _fade.restsAt(now)
+          : _progress.restsAt(now, _closedRest));
+
+  bool get _overlayRests {
+    if (_pendingAt != null) return false;
+    if (reducedMotion) return _fade.restsAt(now);
+    final rest = _progress.restTime(overlayRest);
+    return rest != null && rest <= now;
   }
 
-  /// Advances the motion to time [t].
-  void advance(double t) {
-    if (t < _now) return;
-    _applyPending(t);
-    _now = t;
+  @override
+  PresenceStatus get presence {
+    if (_open) {
+      return _overlayRests ? PresenceStatus.shown : PresenceStatus.opening;
+    }
+    return isClosed ? PresenceStatus.hidden : PresenceStatus.leaving;
   }
 
   /// Opens the overlay at time [t]: the spring starts [delay] seconds
-  /// later ([DatePickerTuning.openDelay] by default, UIKit's latency
-  /// from the lift of the tap); until then whatever motion runs goes on.
-  void open(double t, {double delay = DatePickerTuning.openDelay}) {
+  /// later ([DatePickerTuning.openDelay] by default, UIKit's latency from
+  /// the lift of the tap, or [DatePickerTuning.reopenDelay] when
+  /// [reopening]); until then whatever motion runs goes on.
+  @override
+  void open(double t, {double? delay}) {
     advance(t);
     _open = true;
-    _schedule(t + delay, 1, DatePickerTuning.openSpring);
+    _schedule(
+      t +
+          (delay ??
+              (reopening
+                  ? DatePickerTuning.reopenDelay
+                  : DatePickerTuning.openDelay)),
+      1,
+      DatePickerTuning.openSpring,
+    );
+  }
+
+  @override
+  bool leave(double t, DismissTrigger trigger) {
+    advance(t);
+    if (!_open && isClosed) return false;
+    close(t);
+    return true;
   }
 
   /// Closes the overlay at time [t], the spring starting [delay] seconds
@@ -371,7 +416,9 @@ class DatePickerMotion {
     advance(t);
     final opening =
         _pendingAt != null ||
-        (reducedMotion ? !_fadeDone(t) : !_spring(t).isWithin(t, _closedRest));
+        (reducedMotion
+            ? !_fade.restsAt(t)
+            : !_progress.restsAt(t, _closedRest));
     _open = false;
     _schedule(
       t +
@@ -384,139 +431,97 @@ class DatePickerMotion {
     );
   }
 
-  double? _pendingAt;
-  double _pendingTarget = 0;
-  Spring _pendingSpring = DatePickerTuning.openSpring;
-
-  void _schedule(double at, double target, Spring spring) {
+  // A later command waits for an earlier one still due before it, which
+  // runs at its own time; one due after it is dropped.
+  void _schedule(double due, double target, Spring spring) {
     final pending = _pendingAt;
-    if (pending != null && at >= pending) _applyPending(pending);
-    _pendingAt = at;
-    _pendingTarget = target;
-    _pendingSpring = spring;
-  }
-
-  void _applyPending(double t) {
-    final at = _pendingAt;
-    if (at == null || t < at) return;
-    _pendingAt = null;
-    if (reducedMotion) {
-      _fadeFrom = _fade(at);
-      _fadeTo = _pendingTarget;
-      _fadeStart = at;
-      _progress.snap(at, _pendingTarget);
-      return;
-    }
-    _progress.retarget(at, _pendingTarget, spring: _pendingSpring);
-  }
-
-  MotionValue<double> _spring(double t) {
-    final at = _pendingAt;
-    if (at == null || t < at) return _progress;
-    final projected = MotionValue<double>(
-      _progress.valueAt(at),
-      spring: _pendingSpring,
-    );
-    projected.setVelocity(at, _progress.velocityAt(at));
-    projected.retarget(at, _pendingTarget);
-    return projected;
+    if (pending != null && due < pending) _cancelPending();
+    final id = ++_pending;
+    _pendingAt = due;
+    _cancelPending = at(due, (s) {
+      if (id == _pending) _pendingAt = null;
+      if (reducedMotion) {
+        _fade.animate(
+          s,
+          target,
+          duration: DatePickerTuning.reducedMotionDuration,
+          curve: DatePickerTuning.reducedMotionCurve,
+        );
+        _progress.snap(s, target);
+        return;
+      }
+      _progress.retarget(s, target, spring: spring);
+    });
   }
 
   /// The overlay's progress: 0 hidden, 1 open.
-  double get progress => _progressAt(_now);
-
-  double _progressAt(double t) {
-    if (!reducedMotion) return _spring(t).valueAt(t);
-    final at = _pendingAt;
-    if (at == null || t < at) return _fade(t);
-    final from = _fade(at);
-    final k = ((t - at) / DatePickerTuning.reducedMotionDuration).clamp(
-      0.0,
-      1.0,
-    );
-    return from +
-        (_pendingTarget - from) *
-            DatePickerTuning.reducedMotionCurve.transform(k);
-  }
+  double get progress =>
+      reducedMotion ? _fade.valueAt(now) : _progress.valueAt(now);
 
   /// The overlay's scale about its anchor.
-  double get scale => _scaleAt(_now);
-
-  double _scaleAt(double t) => reducedMotion
+  double get scale => reducedMotion
       ? 1
       : DatePickerTuning.hiddenScale +
-            (1 - DatePickerTuning.hiddenScale) * _progressAt(t);
+            (1 - DatePickerTuning.hiddenScale) * progress;
 
   /// The overlay's opacity.
-  double get opacity => _opacityAt(_now);
+  double get opacity => progress.clamp(0.0, 1.0);
 
-  double _opacityAt(double t) => _progressAt(t).clamp(0.0, 1.0);
-
-  /// The height of the overlay's box before the scale, for an
-  /// overlay [full] points tall.
-  double height(double full) => _heightAt(_now, full);
-
-  double _heightAt(double t, double full) => reducedMotion
+  /// The height of the overlay's box before the scale, for an overlay
+  /// [full] points tall.
+  double height(double full) => reducedMotion
       ? full
       : DatePickerTuning.hiddenHeight +
-            (full - DatePickerTuning.hiddenHeight) * _progressAt(t);
-
-  /// The label's text dims under a finger at time [t].
-  void press(double t) => _highlight(t, DatePickerTuning.highlightOpacity);
-
-  /// The finger left the label at time [t].
-  void release(double t) => _highlight(t, 1);
-
-  void _highlight(double t, double to) {
-    advance(t);
-    _highlightFrom = _highlightAt(t);
-    _highlightTo = reducedMotion ? 1 : to;
-    _highlightStart = t;
-  }
-
-  /// The opacity of the label's text.
-  double get highlight => _highlightAt(_now);
-
-  double _highlightAt(double t) {
-    final k = ((t - _highlightStart) / DatePickerTuning.highlightDuration)
-        .clamp(0.0, 1.0);
-    return _highlightFrom +
-        (_highlightTo - _highlightFrom) *
-            DatePickerTuning.highlightCurve.transform(k);
-  }
+            (full - DatePickerTuning.hiddenHeight) * progress;
 
   /// Turns the calendar one month forward ([direction] 1) or back (-1) at
-  /// time [t]. A running turn completes before another can start.
+  /// time [t], after [onTurn] takes the turn. A running turn completes
+  /// before another can start: one asked for meanwhile waits for it, and
+  /// turns asked for together add up and run one by one.
   void turnPage(double t, int direction) {
     advance(t);
-    if (_pageAt(t) < 1) return;
-    _pageStart = t;
+    _queued += direction;
+    _nextTurn(t);
+  }
+
+  void _nextTurn(double t) {
+    while (_queued != 0 && _page.valueAt(t) >= 1) {
+      final direction = _queued.sign;
+      _queued -= direction;
+      _turnPage(t, direction);
+    }
+    if (_queued != 0) at(_page.restTime()!, _nextTurn, slot: _queue);
+  }
+
+  void _turnPage(double t, int direction) {
+    if (!(onTurn?.call(direction) ?? true)) return;
     _pageDirection = direction;
+    _page.snap(t, 0);
+    _page.animate(
+      t,
+      1,
+      duration: DatePickerTuning.pageDuration,
+      curve: const _SineInOut(),
+    );
+  }
+
+  @override
+  void didAdvance(double t) {
+    if (_switching) {
+      final rest = _swap.restTime(overlayRest);
+      if (rest != null && rest <= t) _switching = false;
+    }
   }
 
   /// How far the current page turn has gone, from 0 (the old
   /// month in place) to 1 (the new one); 1 when no turn runs.
-  double get page => _pageAt(_now);
-
-  double _pageAt(double t) {
-    final k = (t - _pageStart) / DatePickerTuning.pageDuration;
-    if (k >= 1) return 1;
-    if (k <= 0) return 0;
-    return (1 - math.cos(math.pi * k)) / 2;
-  }
+  double get page => _page.valueAt(now);
 
   /// The direction of the latest page turn: 1 forward, -1 back, 0 none.
   int get pageDirection => _pageDirection;
 
-  _Tween _years = const _Tween(start: double.negativeInfinity, from: 0, to: 0);
-  _Tween _yearsBefore = const _Tween(
-    start: double.negativeInfinity,
-    from: 0,
-    to: 0,
-  );
-
   /// Whether the calendar shows, or turns to, its month and year wheels.
-  bool get showsYearPicker => _years.to == 1;
+  bool get showsYearPicker => _years.target == 1;
 
   /// Turns the calendar to its month and year wheels ([show] true) or back
   /// to its day grid at time [t], the tap's lift.
@@ -529,83 +534,79 @@ class DatePickerMotion {
   /// [DatePickerTuning.yearPickerCurve] from wherever the previous
   /// change stands then, as UIKit restarts its animations from the
   /// presentation value; until then the previous change goes on.
+  ///
+  /// The month title's chevron ([yearPickerTurn]) adds each change on top
+  /// of the ones still running instead of restarting from the current
+  /// angle (an iPhone 16 Pro: a second tap 0.12 s into the change carries
+  /// the chevron on to 0.82 of the turn before it comes back, while the
+  /// fades turn around at once).
   void showYearPicker(double t, {required bool show}) {
     advance(t);
     final target = show ? 1.0 : 0.0;
-    final moving = t < _years.start + DatePickerTuning.yearPickerDuration;
-    final start =
-        t +
-        (show
-            ? DatePickerTuning.yearPickerShowDelay
-            : moving
-            ? DatePickerTuning.yearPickerHideDelayWhileShowing
-            : DatePickerTuning.yearPickerHideDelay);
-    final running = start >= _years.start ? _years : _yearsBefore;
-    _yearsBefore = running;
-    _years = _Tween(start: start, from: running.value(start), to: target);
-    if (target != _turnTarget) {
-      _turns.removeWhere(
-        (_Turn turn) => turn.start + DatePickerTuning.yearPickerDuration <= t,
+    final moving = t < (_years.restTime() ?? double.infinity);
+    final delay = show
+        ? DatePickerTuning.yearPickerShowDelay
+        : moving
+        ? DatePickerTuning.yearPickerHideDelayWhileShowing
+        : DatePickerTuning.yearPickerHideDelay;
+    _years.animate(
+      t,
+      target,
+      duration: DatePickerTuning.yearPickerDuration,
+      curve: DatePickerTuning.yearPickerCurve,
+      delay: delay,
+    );
+    if (target != _turns.target) {
+      _turns.animate(
+        t,
+        target,
+        duration: DatePickerTuning.yearPickerDuration,
+        curve: DatePickerTuning.yearPickerCurve,
+        delay: delay,
       );
-      _turns.add((start: start, delta: _turnTarget - target));
-      _turnTarget = target;
     }
   }
-
-  final List<_Turn> _turns = [];
-  double _turnTarget = 0;
 
   /// How far the month title's chevron has turned toward pointing down: 0
   /// pointing forward, 1 down.
-  ///
-  /// UIKit adds each change of the chevron's transform on top of the ones
-  /// still running instead of restarting from the current angle (an
-  /// iPhone 16 Pro: a second tap 0.12 s into the change carries the
-  /// chevron on to 0.82 of the turn before it comes back, while the fades
-  /// turn around at once), so the turn is the sum of every change's
-  /// remaining part.
-  double get yearPickerTurn => _yearPickerTurnAt(_now);
-
-  double _yearPickerTurnAt(double t) {
-    var value = _turnTarget;
-    for (final turn in _turns) {
-      final k = (t - turn.start) / DatePickerTuning.yearPickerDuration;
-      if (k >= 1) continue;
-      value +=
-          turn.delta *
-          (1 - (k <= 0 ? 0 : DatePickerTuning.yearPickerCurve.transform(k)));
-    }
-    return value;
-  }
+  double get yearPickerTurn => _turns.valueAt(now);
 
   /// How far the calendar has turned to its month and year wheels: 0 the
   /// day grid, 1 the wheels.
-  double get yearPicker => _yearPickerAt(_now);
+  double get yearPicker => _years.valueAt(now);
 
-  double _yearPickerAt(double t) =>
-      t >= _years.start ? _years.value(t) : _yearsBefore.value(t);
+  /// Switches the overlay to the other picker at time [t], the lift of the
+  /// tap on its label: [DatePickerTuning.switchDelay] later the platter
+  /// moves to the new picker's placement on [DatePickerTuning.switchSpring]
+  /// while the two contents cross-fade ([swap]). Switching [back] to the
+  /// picker a running switch leaves turns that switch around from where it
+  /// stands, velocity included.
+  void switchPicker(double t, {required bool back}) {
+    advance(t);
+    final q = _swap.valueAt(t);
+    final v = _swap.velocityAt(t);
+    final start = t + DatePickerTuning.switchDelay;
+    if (back && q < 1) {
+      _swap.setPresentation(start, 1 - q, velocity: -v);
+    } else {
+      _swap.setPresentation(start, 0);
+    }
+    _swap.retarget(start, 1);
+    _switching = true;
+  }
 
-  bool _yearPickerSettledAt(double t) =>
-      t >= _years.start + DatePickerTuning.yearPickerDuration &&
-      _turns.every(
-        (_Turn turn) => t >= turn.start + DatePickerTuning.yearPickerDuration,
-      );
+  /// How far a switch between the pickers has gone: 0 the old picker's
+  /// placement and content, 1 the new one's.
+  double get swap => _swap.valueAt(now);
+
+  /// Whether a switch between the pickers runs or waits to start.
+  bool get switching => _switching;
 }
 
-typedef _Turn = ({double start, double delta});
+/// A sine ease in and out, `(1 - cos(pi k)) / 2`: a page turn's curve.
+final class _SineInOut extends Curve {
+  const _SineInOut();
 
-@immutable
-class _Tween {
-  const _Tween({required this.start, required this.from, required this.to});
-
-  final double start;
-  final double from;
-  final double to;
-
-  double value(double t) {
-    final k = (t - start) / DatePickerTuning.yearPickerDuration;
-    if (k <= 0) return from;
-    if (k >= 1) return to;
-    return from + (to - from) * DatePickerTuning.yearPickerCurve.transform(k);
-  }
+  @override
+  double transformInternal(double t) => (1 - math.cos(math.pi * t)) / 2;
 }

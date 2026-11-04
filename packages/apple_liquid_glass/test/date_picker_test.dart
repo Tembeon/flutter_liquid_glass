@@ -533,17 +533,16 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 120));
       double opacity() => tester
-          .renderObject<RenderOpacity>(
-            find
-                .ancestor(
-                  of: find.text('October 2026'),
-                  matching: find.byWidgetPredicate(
-                    (w) => w.runtimeType.toString() == 'LiveFade',
-                  ),
-                )
-                .first,
+          .widgetList<MotionTransition>(
+            find.ancestor(
+              of: find.text('October 2026'),
+              matching: find.byType(MotionTransition),
+            ),
           )
-          .opacity;
+          .where((w) => w.opacity != null)
+          .last
+          .opacity!
+          .value;
       expect(opacity(), 0);
       await tester.pump(const Duration(milliseconds: 100));
       expect(opacity(), greaterThan(0.1));
@@ -837,15 +836,15 @@ void main() {
       await tester.tap(find.text('October 2026'));
       await tester.pump();
       double wheels() => tester
-          .widget<FadeTransition>(
-            find
-                .ancestor(
-                  of: find.byType(ListWheelScrollView).first,
-                  matching: find.byType(FadeTransition),
-                )
-                .first,
+          .widgetList<MotionTransition>(
+            find.ancestor(
+              of: find.byType(ListWheelScrollView).first,
+              matching: find.byType(MotionTransition),
+            ),
           )
-          .opacity
+          .where((w) => w.opacity != null)
+          .first
+          .opacity!
           .value;
       await tester.pump(const Duration(milliseconds: 60));
       expect(wheels(), 0);
