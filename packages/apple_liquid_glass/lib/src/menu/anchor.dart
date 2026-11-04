@@ -1498,6 +1498,25 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   );
   late final _growth = _hold.select((hold) => hold.growth);
 
+  // The hold itself listens outside the gesture arena (see [_stamp]); this
+  // member only claims the touch when the menu opens, so a surrounding
+  // scroll view does not take the finger sliding into the rows.
+  late final _claim = _MenuInput(
+    claimAfter: ContextHold.openAfter,
+    toGlobal: (local) => local,
+    down: (pointer, t, global) => _enabled && !(_motion?.isPresented ?? false),
+    move: (pointer, t, global) {},
+    up: (pointer, t, global) {},
+    cancel: (pointer, t) {},
+  );
+  final _claimFocus = FocusNode(skipTraversal: true);
+
+  @override
+  void dispose() {
+    _claimFocus.dispose();
+    super.dispose();
+  }
+
   int? _held;
   Offset _from = Offset.zero;
   Offset _finger = Offset.zero;
@@ -1762,18 +1781,23 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
       Semantics(
         enabled: enabled,
         onLongPress: enabled ? _openFromCode : null,
-        child: Listener(
-          behavior: HitTestBehavior.translucent,
-          onPointerDown: _down,
-          onPointerMove: _move,
-          onPointerUp: _up,
-          onPointerCancel: _cancel,
-          child: MotionSourceBox(
-            source: _source,
-            child: LiveTransform(
-              live: _growth,
-              matrixOf: _growthTransform,
-              child: widget.child,
+        child: InputRegion(
+          interactions: [_claim],
+          enabled: enabled,
+          focusNode: _claimFocus,
+          child: Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: _down,
+            onPointerMove: _move,
+            onPointerUp: _up,
+            onPointerCancel: _cancel,
+            child: MotionSourceBox(
+              source: _source,
+              child: LiveTransform(
+                live: _growth,
+                matrixOf: _growthTransform,
+                child: widget.child,
+              ),
             ),
           ),
         ),
