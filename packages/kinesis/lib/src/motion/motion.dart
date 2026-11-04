@@ -192,8 +192,10 @@ abstract class Motion extends MotionPart {
     return true;
   }
 
+  // Index loops: a part owned lazily registers while its owner steps.
   void _runLoops(double t, {bool before = false}) {
-    for (final part in _parts) {
+    for (var i = 0; i < _parts.length; i++) {
+      final part = _parts[i];
       if (part is MotionLoop) part.run(t, before: before);
       if (part is Motion) part._runLoops(t, before: before);
     }
@@ -201,7 +203,8 @@ abstract class Motion extends MotionPart {
 
   void _didAdvance(double t) {
     didAdvance(t);
-    for (final part in _parts) {
+    for (var i = 0; i < _parts.length; i++) {
+      final part = _parts[i];
       if (part is Motion) part._didAdvance(t);
     }
   }
