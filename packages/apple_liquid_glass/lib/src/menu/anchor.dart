@@ -267,9 +267,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W>
   }
 
   void _reach(MenuMotion motion, double t) {
-    while (!motion.advanceToRequest(t)) {
-      _deliver(motion);
-    }
+    motion.advance(t);
     _deliver(motion);
   }
 
@@ -286,7 +284,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W>
         events = motion.drainEvents()
       ) {
         for (final event in events) {
-          _receive(motion, event);
+          _receive(event);
         }
       }
     } finally {
@@ -294,7 +292,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W>
     }
   }
 
-  void _receive(MenuMotion motion, MenuEvent event) {
+  void _receive(MenuEvent event) {
     switch (event) {
       case MenuHighlightChanged(:final from, :final to, :final tracked):
         _content.highlight(from, to);
@@ -303,10 +301,6 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W>
         _content.activate(target);
       case MenuTapped():
         if (_enabled) _onTap?.call();
-      case MenuCloseRequested():
-        if (!motion.admitClose(event) && motion.isOpen) {
-          motion.close(math.max(_now, motion.time));
-        }
     }
   }
 

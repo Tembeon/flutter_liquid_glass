@@ -1108,10 +1108,7 @@ class MenuCard {
 /// opened the menu by holding chooses only after it has left the button:
 /// released on the button it leaves the menu open, as UIKit does.
 ///
-/// What a host acts on comes out as [MenuEvent]s ([drainEvents]). A
-/// release that closes the menu raises [MenuCloseRequested] for its
-/// host to answer before the menu starts closing ([advanceToRequest]); a
-/// motion advanced with [advance] closes on its own at that time.
+/// What a host acts on comes out as [MenuEvent]s ([drainEvents]).
 class MenuMotion extends Motion {
   /// Creates the motion of the button at `button` whose menu is `layout`
   /// (uniform rows of `itemCount` when null), inside `bounds` minus the
@@ -1254,9 +1251,6 @@ class MenuMotion extends Motion {
   void _lightGlow(double t, Offset position) {
     if (lightsGlow) _touchGlow.pointerDown(t, position);
   }
-
-  MenuCloseRequested? _request;
-  bool _yields = false;
 
   /// Whether a tap on the button opens the menu, as a menu that is the
   /// button's primary action; false opens it only by holding, and a tap
@@ -2467,7 +2461,7 @@ class MenuMotion extends Motion {
     if (hit.beside) {
       at(t + tuning.backDelay, _back);
     } else if (!pointer.fromButton && !_onMenu(position)) {
-      at(t + tuning.dismissDelay, _requestClose);
+      at(t + tuning.dismissDelay, _close);
     }
   }
 
@@ -2483,45 +2477,13 @@ class MenuMotion extends Motion {
   }
 
   /// Advances the motion to time [t]: runs every event due by then and
-  /// samples the progress, integrating the kicks over the interval. A close
-  /// requested on the way starts at its own time, unanswered. An earlier
-  /// [t] changes nothing.
+  /// samples the progress, integrating the kicks over the interval. A
+  /// release that closes the menu starts the close at its measured
+  /// deadline. An earlier [t] changes nothing.
   @override
-  void advance(double t) => _advance(t);
-
-  /// Advances the motion toward time [t] as [advance] does, but stops at a
-  /// [MenuCloseRequested] that comes due on the way, the last event it
-  /// raised; returns whether the motion reached [t].
-  ///
-  /// Stopped, the motion stands at the request's time, still open and
-  /// sampled no further: [admitClose] starts the close there, at the
-  /// measured deadline, as if nothing had stopped. Any later advance or
-  /// command goes on with the menu open, which refuses the request; it is
-  /// not raised again, and a close the owner approves later is a [close] at
-  /// the current time.
-  bool advanceToRequest(double t) {
-    _yields = true;
-    try {
-      return _advance(t);
-    } finally {
-      _yields = false;
-    }
-  }
-
-  /// Starts the close [request] asked for, at its time, while the motion
-  /// stands at it ([advanceToRequest]); returns false and changes nothing
-  /// once the motion has moved on.
-  bool admitClose(MenuCloseRequested request) {
-    if (!identical(request, _request)) return false;
-    _request = null;
-    _close(request.time);
-    return true;
-  }
-
-  bool _advance(double t) {
-    _request = null;
-    if (t < _now) return true;
-    if (!advanceUntil(t, () => _request != null)) return false;
+  void advance(double t) {
+    if (t < _now) return;
+    advanceUntil(t, null);
     _sample(t);
     for (var i = _cards.length - 1; i >= 0; i--) {
       final card = _cards[i];
@@ -2545,7 +2507,6 @@ class MenuMotion extends Motion {
       _openReference = null;
       _closeReference = null;
     }
-    return true;
   }
 
   /// The final frame of a menu of [size] opened from a button whose frame
@@ -2799,21 +2760,10 @@ class MenuMotion extends Motion {
     if (row != null && target != null && target.kind == MenuTargetKind.action) {
       _setHighlight(row, 0);
       at(t + tuning.actionDelay, (double s) => _activate(s, 0, row));
-      at(t + tuning.earlyCloseDelay, _requestClose);
+      at(t + tuning.earlyCloseDelay, _close);
     } else if (!_onMenu(release.position)) {
-      at(t + tuning.earlyCloseDelay, _requestClose);
+      at(t + tuning.earlyCloseDelay, _close);
     }
-  }
-
-  void _requestClose(double t) {
-    if (_phase != _Phase.opening) return;
-    if (!_yields) {
-      _close(t);
-      return;
-    }
-    final request = MenuCloseRequested(t);
-    _request = request;
-    _emit(request);
   }
 
   void _close(double t) {
@@ -2910,7 +2860,7 @@ class MenuMotion extends Motion {
         at(t + delay, (double s) => _activate(s, card, index));
         at(
           t + (card == 0 ? tuning.dismissDelay : tuning.submenuCloseDelay),
-          _requestClose,
+          _close,
         );
     }
   }
@@ -3107,15 +3057,4 @@ final class MenuActivated extends MenuEvent {
 final class MenuTapped extends MenuEvent {
   /// Creates the event.
   const MenuTapped(super.time);
-}
-
-/// The menu would start closing now, at the measured reaction to a
-/// release outside it, on an action or before it appeared.
-///
-/// Raised by [MenuMotion.advanceToRequest], which stops here until
-/// the host answers with [MenuMotion.admitClose] or goes on, which
-/// refuses it.
-final class MenuCloseRequested extends MenuEvent {
-  /// Creates the event.
-  MenuCloseRequested(super.time);
 }
