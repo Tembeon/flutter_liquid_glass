@@ -111,7 +111,8 @@ class RawGlassMenu extends StatefulWidget {
   /// The look of the menu's rows, over the theme's.
   final GlassMenuStyle? style;
 
-  /// The measured behavior of the menu, read when it first opens.
+  /// The measured behavior of the menu, read once: a later tuning is
+  /// ignored.
   @internal
   final MenuTuning tuning;
 
@@ -572,7 +573,7 @@ class _RawGlassMenuState extends _MenuHost<RawGlassMenu> {
 /// The touches of a region over a menu's source or its layer, handed to
 /// the menu in global coordinates at their stamps.
 ///
-/// It hears a touch at contact and holds it [claimAfter] later, when a
+/// It hears a touch at contact and claims it [claimAfter] later, when a
 /// hold opens the menu under the finger, or at once without one: a scroll
 /// view around the source takes a finger that moves before then and never
 /// one that may choose from the menu.
@@ -1497,8 +1498,8 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   );
   late final _growth = _hold.select((hold) => hold.growth);
 
-  // The hold itself listens outside the gesture arena (see [_stamp]); this
-  // member only claims the touch when the menu opens, so a surrounding
+  // The hold itself listens outside the gesture arena (the Listener in build);
+  // this member only claims the touch when the menu opens, so a surrounding
   // scroll view does not take the finger sliding into the rows.
   late final _claim = _MenuInput(
     claimAfter: ContextHold.openAfter,
@@ -1642,9 +1643,6 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     _hold.release(t);
   }
 
-  // The hold listens outside the gesture arena: a child that claims its
-  // touch at once, a glass button, would win it, and Flutter's arena
-  // never hands a won touch on, where UIKit cancels the button's.
   static double _stamp(PointerEvent event) =>
       MotionClock.instance.stamp(event.timeStamp);
 
@@ -1784,6 +1782,10 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
           interactions: [_claim],
           enabled: enabled,
           focusNode: _claimFocus,
+          // The hold listens outside the gesture arena: a child that claims
+          // its touch at once, a glass button, would win it, and Flutter's
+          // arena never hands a won touch on, where UIKit cancels the
+          // button's.
           child: Listener(
             behavior: HitTestBehavior.translucent,
             onPointerDown: _down,

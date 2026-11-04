@@ -571,7 +571,7 @@ abstract final class _TracerBuffers {
 /// The latest unions, the one used last at the end.
 final List<(List<RRect>, GlassOutline)> _recentUnions = [];
 
-/// The unions retained by the isolate.
+/// How many unions [_recentUnions] keeps per isolate.
 const int _recentLimit = 4;
 
 /// The plain union of [shapes], whose corners must share one circular

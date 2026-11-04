@@ -1004,7 +1004,10 @@ class _DrivenKick {
 /// longer gap, in which every kick rings out.
 final class _KickLoop extends MotionLoop {
   _KickLoop(this._motion)
-    : super(rate: 1 / MenuTuning.kickIntegrationStep, maxFrames: 3000);
+    : super(
+        rate: 1 / MenuTuning.kickIntegrationStep,
+        maxFrames: (3 / MenuTuning.kickIntegrationStep).round(),
+      );
 
   final MenuMotion _motion;
 
@@ -1137,8 +1140,7 @@ class MenuCard {
 }
 
 /// The motion of a glass button turning into its menu and back: a pure
-/// function of the touches it is fed, the progress it reads and the time
-/// it is advanced to.
+/// function of the touches it is fed and the time it is advanced to.
 ///
 /// One progress drives two shapes. The menu shape grows out of the button: a
 /// square of the menu's width scaled down to half the button's height that
@@ -1325,8 +1327,8 @@ class MenuMotion extends Motion with Presented {
   // it retracts (context-menu.md); a fresh open keeps it whole.
   bool _fadesGlass = false;
 
-  /// How far the page under the menu is dimmed, 0 clear to 1 at
-  /// [MenuTuning.dim]'s full dim; 0 without a dim.
+  /// How far the page under the menu is dimmed, 0 clear to 1 fully dimmed;
+  /// 0 without a [MenuTuning.dim].
   double get dim => _dim.valueAt(_now).clamp(0.0, 1.0);
 
   /// How present the menu's glass is, 0 gone to 1 there: it follows [dim]
@@ -1948,8 +1950,8 @@ class MenuMotion extends Motion with Presented {
   /// shapes and radius at the next [MenuFusion.prefetchFrames]
   /// frames' times as the motion stands, the kicks integrated up to each.
   /// A fusion that comes back after the next frame started still serves
-  /// the frame after it. The fusions carry the field once any frame of
-  /// the motion asked for it, and are the edge alone before.
+  /// the frame after it. The fusions carry the field once a renderer has
+  /// read one ([MenuFusion.shades]), and are the edge alone before.
   ///
   /// The coming frames are the nodes of the source clock's frame grid
   /// after the motion's time (the [clock]'s frame time plus multiples of
@@ -2203,8 +2205,8 @@ class MenuMotion extends Motion with Presented {
   }
 
   /// Whether something besides the parts keeps the motion awake: a finger
-  /// scrolling the content, a close under way, or the kicks and the fusion
-  /// of the open menu still moving.
+  /// scrolling the content, a close under way, or the fusion of the open
+  /// menu still turning.
   ///
   /// A finger resting on the menu or its button does not keep it awake once
   /// the glow under it has faded in: its next move or release wakes it.

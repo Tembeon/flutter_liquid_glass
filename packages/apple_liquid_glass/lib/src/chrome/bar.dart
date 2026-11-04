@@ -589,7 +589,7 @@ final class _Bar {
   final GlassBarKind kind;
   late final GlassBarMotion motion = GlassBarMotion(spec: navigationSpec);
 
-  late final MotionSelection<Object?> _changes = motion.select<Object?>(
+  late final MotionSelection<Object?> _steps = motion.select<Object?>(
     (_) => null,
     equals: (_, _) => false,
   );
@@ -619,8 +619,8 @@ final class _Bar {
   _RenderBarItems? get items => _items;
   _RenderBarItems? _items;
   set items(_RenderBarItems? items) {
-    if (_items == null && items != null) _changes.addRenderListener(publish);
-    if (_items != null && items == null) _changes.removeRenderListener(publish);
+    if (_items == null && items != null) _steps.addRenderListener(publish);
+    if (_items != null && items == null) _steps.removeRenderListener(publish);
     _items = items;
   }
 
@@ -1127,11 +1127,9 @@ class GlassBarView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final reduceMotion = GlassTraits.of(context).reduceMotion;
-    for (final bar in host._bars.values) {
-      bar.motion.reducedMotion = reduceMotion;
-    }
     final theme = GlassTheme.of(context);
     for (final bar in host._bars.values) {
+      bar.motion.reducedMotion = reduceMotion;
       bar.tint = GlassDynamicColor.resolve(
         bar.itemStyleOf(theme)?.prominentColor ??
             theme.primaryColor ??

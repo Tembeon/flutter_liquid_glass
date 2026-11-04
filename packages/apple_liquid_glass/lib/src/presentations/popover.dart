@@ -305,8 +305,7 @@ class _PopoverGlassState extends State<_PopoverGlass> {
   @override
   void didUpdateWidget(_PopoverGlass oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.opacity, widget.opacity) ||
-        oldWidget.shape != widget.shape) {
+    if (oldWidget.shape != widget.shape) {
       _frame = _frameNow();
     }
   }
@@ -364,7 +363,7 @@ class _RenderPopover extends RenderBox
     required this._direction,
   });
 
-  // The view's own notifiers, which live as long as the view.
+  // The view's own selections, which live as long as the view.
   final ValueListenable<double> scale;
   final ValueListenable<double> opacity;
 

@@ -448,7 +448,6 @@ class _AlertViewState extends State<_AlertView> {
       _opacity = popover.select((m) => m.opacity);
       _scale = popover.select((m) => m.scale);
       _leaving = popover.select((m) => m.isLeaving);
-      _frame = popover.select((m) => GlassFrame(opacity: m.opacity));
     } else {
       final alert = _alert!;
       _opacity = alert.select((m) => m.opacity);

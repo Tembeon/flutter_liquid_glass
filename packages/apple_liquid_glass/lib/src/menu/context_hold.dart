@@ -4,8 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:kinesis/motion.dart';
 
 /// A finger resting on a context menu's view before its menu opens, as
-/// UIKit's `UIContextMenuInteraction` measures it (iPhone 16 Pro, iOS 27,
-/// context-menu.md).
+/// UIKit's `UIContextMenuInteraction` runs it (measured on iPhone 16 Pro,
+/// iOS 27, context-menu.md).
 ///
 /// The view grows by [growthAfter] while the finger rests. At
 /// [commitAfter] the hold commits ([onCommit]): a release from then on
@@ -48,7 +48,8 @@ final class ContextHold extends Motion {
   /// cancelled and 0.433 s opened).
   static const double commitAfter = 0.42;
 
-  /// The hold time at which the menu opens under the finger.
+  /// The hold time at which the menu opens under the finger (measured
+  /// 0.768 - 0.797 s).
   static const double openAfter = 0.78;
 
   static const _commitSlot = #commit;

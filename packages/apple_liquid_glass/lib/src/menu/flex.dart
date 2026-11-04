@@ -20,10 +20,7 @@ import 'package:meta/meta.dart';
 /// its velocity sways the targets, until held still it can no longer move
 /// the menu by [MenuTuning.flexPulseRest].
 ///
-/// Positions are in the coordinates [frame] answers in; [frame] is the
-/// menu's frame at rest, [side] +1 for a menu below its button and -1
-/// above it, and [active] whether the menu is open, read when a delayed
-/// touch comes due.
+/// Positions are in the coordinates [frame] answers in.
 @internal
 final class MenuFlex extends Motion {
   /// Creates the flex of a menu at rest.
@@ -46,7 +43,7 @@ final class MenuFlex extends Motion {
   /// +1 for a menu below its button, -1 above it.
   final double Function() side;
 
-  /// Whether the menu is open.
+  /// Whether the menu is open, read when a delayed touch comes due.
   final bool Function() active;
 
   static const _down = #down;
@@ -118,7 +115,7 @@ final class MenuFlex extends Motion {
   /// The finger lifted, or stopped flexing the menu, at time [t]: the flex
   /// takes it up [MenuTuning.flexDelay] later, where UIKit zeroes the
   /// pulse channel's velocity and sends the channels to rest on the flex
-  /// spec's scale spring, from where they show with their velocity.
+  /// spec's scale spring from their current values and velocities.
   void up(double t) {
     unschedule(_down);
     unschedule(_step);

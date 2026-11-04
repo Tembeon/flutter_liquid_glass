@@ -873,16 +873,14 @@ class _RenderStackedLayout extends RenderBox
     super.dispose();
   }
 
-  double get _scrolled => _offset.value;
-
   double get _shown => shown.value.clamp(0.0, 1.0);
 
   // How far the field has folded, 0 to its height; a presented field does
   // not fold.
   double get _fold =>
-      _scrolled.clamp(0.0, _StackedMetrics.fieldHeight) * (1 - _shown);
+      _offset.value.clamp(0.0, _StackedMetrics.fieldHeight) * (1 - _shown);
 
-  double get _pull => math.max(0, -_scrolled);
+  double get _pull => math.max(0, -_offset.value);
 
   Rect get _field {
     const side = _StackedMetrics.sideInset;
