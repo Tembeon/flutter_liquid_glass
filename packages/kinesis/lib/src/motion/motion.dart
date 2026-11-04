@@ -120,7 +120,8 @@ abstract class Motion extends MotionPart {
   /// asked; the part's own rest when it is null. A smaller motion joins
   /// this motion's cursor and timeline and rests within its own parts'
   /// tolerances. A `MotionLoop` steps its frames as the motion advances,
-  /// each at its own time between the reactions.
+  /// each at its own time between the reactions. Joining is a change: the
+  /// root's selections read the part from now on.
   @protected
   P own<P extends MotionPart>(P part, {double Function()? rest}) {
     assert(part.owner == null, 'A part has one owner.');
@@ -131,6 +132,7 @@ abstract class Motion extends MotionPart {
     part.owner = this;
     _parts.add(part);
     _rests.add(rest);
+    partChanged();
     return part;
   }
 
@@ -138,13 +140,16 @@ abstract class Motion extends MotionPart {
   /// [now], when [t] is not later than [now], and as the motion advances
   /// past [t] otherwise, at [t] itself however coarse the steps.
   ///
-  /// A reaction with a [slot] replaces a pending one with the same slot, so
-  /// re-issuing a command never stacks its reactions. Reactions with equal
-  /// times run in the order they were scheduled.
+  /// A reaction with a [slot] replaces a pending one this motion scheduled
+  /// in the same slot, so re-issuing a command never stacks its reactions.
+  /// Slots belong to the motion: equal slots of two motions on one timeline
+  /// never meet, so a `const Object()` slot, canonical across classes, is
+  /// safe. Reactions with equal times run in the order they were
+  /// scheduled.
   @protected
   MotionCancel at(double t, void Function(double t) action, {Object? slot}) {
     final root = _root;
-    if (slot != null) root._reactions.removeWhere((r) => r.slot == slot);
+    if (slot != null) root._reactions.removeWhere((r) => r.fills(this, slot));
     if (t <= root._now) {
       action(root._now);
       return _noCancel;
@@ -161,10 +166,10 @@ abstract class Motion extends MotionPart {
 
   static void _noCancel() {}
 
-  /// Drops the pending reaction in [slot], if any.
+  /// Drops the pending reaction this motion scheduled in [slot], if any.
   @protected
   void unschedule(Object slot) =>
-      _root._reactions.removeWhere((reaction) => reaction.slot == slot);
+      _root._reactions.removeWhere((reaction) => reaction.fills(this, slot));
 
   /// Drops every pending reaction this motion scheduled, as a motion that
   /// starts over does; those of the motions it owns stay.
@@ -173,10 +178,10 @@ abstract class Motion extends MotionPart {
     (reaction) => identical(reaction.motion, this),
   );
 
-  /// Whether a reaction waits in [slot].
+  /// Whether a reaction this motion scheduled waits in [slot].
   @protected
   bool isScheduled(Object slot) =>
-      _root._reactions.any((reaction) => reaction.slot == slot);
+      _root._reactions.any((reaction) => reaction.fills(this, slot));
 
   /// Moves to [t]: runs every reaction due by [t] at its own time, then
   /// moves [now] to [t]. A [t] before [now] runs nothing and keeps [now].
@@ -306,6 +311,9 @@ final class _Reaction {
   final void Function(double t) action;
   final Object? slot;
   final Motion motion;
+
+  bool fills(Motion owner, Object slot) =>
+      identical(motion, owner) && slot == this.slot;
 }
 
 /// What a renderer, a transition or a widget reads of a motion.

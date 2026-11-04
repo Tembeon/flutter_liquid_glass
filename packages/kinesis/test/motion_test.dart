@@ -26,7 +26,8 @@ class _Pair extends Motion {
 class _Outer extends Motion {
   late final inner = own(_Pair());
 
-  void later(double t, void Function() action) => at(t, (_) => action());
+  void later(double t, void Function() action, {Object? slot}) =>
+      at(t, (_) => action(), slot: slot);
   late final fade = own(
     MotionValue<double>(0, spring: _glow),
     rest: () => MotionRest.opacity,
@@ -71,6 +72,21 @@ void main() {
       m.drop(#land);
       m.advance(2);
       expect(m.log, [('second', 0.3)]);
+    });
+
+    test('slots belong to their motion: dropping or refilling a slot leaves '
+        'an equal slot of another motion on the timeline alone', () {
+      const slot = Object();
+      final outer = _Outer();
+      final seen = <String>[];
+      outer.later(0.25, () => seen.add('outer'), slot: slot);
+      outer.inner.schedule(0.2, 'inner', slot: slot);
+      outer.inner.schedule(0.3, 'inner again', slot: slot);
+      outer.inner.drop(slot);
+      expect(outer.inner.waits(slot), isFalse);
+      outer.advance(1);
+      expect(seen, ['outer']);
+      expect(outer.inner.log, isEmpty);
     });
 
     test('unscheduleAll drops only the reactions the motion scheduled', () {
