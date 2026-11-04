@@ -10,6 +10,7 @@ import 'package:apple_liquid_glass/src/controls/slider.dart';
 import 'package:apple_liquid_glass/src/controls/stepper.dart';
 import 'package:apple_liquid_glass/src/controls/switch.dart';
 import 'package:apple_liquid_glass/src/controls/tab_bar.dart';
+import 'package:apple_liquid_glass/src/menu/appearance.dart';
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
@@ -119,6 +120,7 @@ class GlassThemeData {
     this.navigationBarStyle,
     this.badgeStyle,
     this.datePickerStyle,
+    this.menuStyle,
   });
 
   /// The theme between [a] and [b] at [t]: colors and styles interpolate;
@@ -173,6 +175,7 @@ class GlassThemeData {
         b.datePickerStyle,
         t,
       ),
+      menuStyle: GlassMenuStyle.lerp(a.menuStyle, b.menuStyle, t),
     );
   }
 
@@ -230,6 +233,9 @@ class GlassThemeData {
   /// The colors of date pickers.
   final GlassDatePickerStyle? datePickerStyle;
 
+  /// The look of menus and context menus.
+  final GlassMenuStyle? menuStyle;
+
   /// This theme with the non-null fields of [other] over it; styles and
   /// schemes merge too.
   GlassThemeData merge(GlassThemeData? other) {
@@ -261,6 +267,7 @@ class GlassThemeData {
       badgeStyle: other.badgeStyle?.merge(badgeStyle) ?? badgeStyle,
       datePickerStyle:
           other.datePickerStyle?.merge(datePickerStyle) ?? datePickerStyle,
+      menuStyle: other.menuStyle?.merge(menuStyle) ?? menuStyle,
     );
   }
 
@@ -284,7 +291,8 @@ class GlassThemeData {
       other.listStyle == listStyle &&
       other.navigationBarStyle == navigationBarStyle &&
       other.badgeStyle == badgeStyle &&
-      other.datePickerStyle == datePickerStyle;
+      other.datePickerStyle == datePickerStyle &&
+      other.menuStyle == menuStyle;
 
   @override
   int get hashCode => Object.hashAll([
@@ -306,6 +314,7 @@ class GlassThemeData {
     navigationBarStyle,
     badgeStyle,
     datePickerStyle,
+    menuStyle,
   ]);
 }
 

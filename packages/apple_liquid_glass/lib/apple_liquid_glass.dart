@@ -107,6 +107,7 @@ export 'src/controls/tab_bar.dart'
         GlassTabDestination;
 export 'src/menu/anchor.dart'
     show GlassContextMenu, GlassMenuController, RawGlassMenu;
+export 'src/menu/appearance.dart' show GlassMenuStyle;
 export 'src/menu/entries.dart'
     show
         GlassMenuDeferred,

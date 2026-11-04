@@ -69,6 +69,7 @@ class RawGlassMenu extends StatefulWidget {
     this.controller,
     this.semanticLabel,
     this.order = GlassMenuOrder.automatic,
+    this.style,
     @internal this.tuning = MenuTuning.standard,
     super.key,
   });
@@ -106,6 +107,9 @@ class RawGlassMenu extends StatefulWidget {
 
   /// How the rows order in a menu that opens upward.
   final GlassMenuOrder order;
+
+  /// The look of the menu's rows, over the theme's.
+  final GlassMenuStyle? style;
 
   /// The measured behavior of the menu, read when it first opens.
   @internal
@@ -537,7 +541,7 @@ class _RawGlassMenuState extends _MenuHost<RawGlassMenu> {
 
   @override
   Widget build(BuildContext context) {
-    _style = MenuAppearance.resolve(context);
+    _style = MenuAppearance.of(context, widget.style);
     final enabled = widget.enabled;
     final hold = widget.onPressed != null;
     return _host(
@@ -856,7 +860,7 @@ class _MenuLayerState extends State<_MenuLayer> {
   }
 
   Widget _rowsOf(MenuLayout layout, MenuAppearance style) {
-    if (!identical(style, _rowsStyle)) {
+    if (style != _rowsStyle) {
       _rows.clear();
       _rowsStyle = style;
     }
@@ -1452,6 +1456,7 @@ class GlassContextMenu extends StatefulWidget {
     this.enabled = true,
     this.semanticLabel,
     this.order = GlassMenuOrder.automatic,
+    this.style,
     super.key,
   });
 
@@ -1476,6 +1481,9 @@ class GlassContextMenu extends StatefulWidget {
 
   /// How the rows order in a menu that opens upward.
   final GlassMenuOrder order;
+
+  /// The look of the menu's rows, over the theme's.
+  final GlassMenuStyle? style;
 
   /// The scale of UIKit's open preview over a preview of natural [size]:
   /// 1.15 while that adds at most 26 points along its longest side, those
@@ -1775,7 +1783,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
 
   @override
   Widget build(BuildContext context) {
-    _style = MenuAppearance.resolve(context);
+    _style = MenuAppearance.of(context, widget.style);
     final enabled = widget.enabled;
     return _host(
       Semantics(

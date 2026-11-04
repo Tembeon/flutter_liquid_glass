@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -8,6 +9,8 @@ void main() {
   Future<List<String>> pumpMenu(
     WidgetTester tester, {
     VoidCallback? onPressed,
+    GlassMenuStyle? style,
+    GlassMenuStyle? themeStyle,
   }) async {
     tester.view.physicalSize = const Size(402, 874) * 3;
     tester.view.devicePixelRatio = 3;
@@ -19,16 +22,25 @@ void main() {
         pageRouteBuilder: <T>(settings, builder) =>
             GlassPageRoute<T>(builder: builder, settings: settings),
         builder: (context, child) => GlassTheme(
-          data: const GlassThemeData(renderer: GlassRenderer.flat()),
+          data: GlassThemeData(
+            renderer: const GlassRenderer.flat(),
+            menuStyle: themeStyle,
+          ),
           child: child!,
         ),
         home: Center(
           child: RawGlassMenu(
             key: const Key('source'),
             onPressed: onPressed,
+            style: style,
             entries: [
               for (final title in ['Copy', 'Share'])
                 GlassMenuItem(title: title, onPressed: () => log.add(title)),
+              GlassMenuItem(
+                title: 'Delete',
+                destructive: true,
+                onPressed: () => log.add('Delete'),
+              ),
             ],
             label: const Text('Label'),
             child: const SizedBox(width: 120, height: 44, child: Text('Face')),
@@ -67,5 +79,27 @@ void main() {
     await settle(tester);
     expect(pressed, 1);
     expect(find.text('Copy'), findsNothing);
+  });
+
+  testWidgets('the theme styles the rows and the menu style overrides it', (
+    tester,
+  ) async {
+    Color? color(String title) => tester
+        .renderObject<RenderParagraph>(find.text(title))
+        .text
+        .style
+        ?.color;
+    await pumpMenu(
+      tester,
+      themeStyle: const GlassMenuStyle(
+        textStyle: TextStyle(color: Color(0xFF00AA00)),
+        destructiveColor: Color(0xFFAA00AA),
+      ),
+      style: const GlassMenuStyle(destructiveColor: Color(0xFF0000AA)),
+    );
+    await tester.tap(find.byKey(const Key('source')));
+    await settle(tester);
+    expect(color('Copy'), const Color(0xFF00AA00));
+    expect(color('Delete'), const Color(0xFF0000AA));
   });
 }
