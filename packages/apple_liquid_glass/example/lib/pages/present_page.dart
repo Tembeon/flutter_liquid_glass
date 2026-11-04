@@ -37,9 +37,13 @@ class _PresentPageState extends State<PresentPage> {
   var _ascending = false;
   var _tag = _Tag.blue;
   var _favorite = false;
+  var _more = false;
   var _status = 'Hold a photo or open a menu';
 
-  void _say(String status) => setState(() => _status = status);
+  void _say(String status) => setState(() {
+    _status = status;
+    _more = false;
+  });
 
   GlassMenuItemState _on(bool on) =>
       on ? GlassMenuItemState.on : GlassMenuItemState.off;
@@ -77,6 +81,30 @@ class _PresentPageState extends State<PresentPage> {
       icon: const Icon(CupertinoIcons.folder_badge_plus),
       onPressed: () => _say('New folder'),
     ),
+    if (_more) ...[
+      GlassMenuItem(
+        title: 'Duplicate',
+        icon: const Icon(CupertinoIcons.plus_square_on_square),
+        onPressed: () => _say('Duplicated'),
+      ),
+      GlassMenuItem(
+        title: 'Rename',
+        icon: const Icon(CupertinoIcons.pencil),
+        onPressed: () => _say('Renamed'),
+      ),
+      GlassMenuItem(
+        title: 'Show Less',
+        icon: const Icon(CupertinoIcons.chevron_up),
+        keepsMenuOpen: true,
+        onPressed: () => setState(() => _more = false),
+      ),
+    ] else
+      GlassMenuItem(
+        title: 'Show More',
+        icon: const Icon(CupertinoIcons.chevron_down),
+        keepsMenuOpen: true,
+        onPressed: () => setState(() => _more = true),
+      ),
     GlassSubmenu(
       title: 'Sort By',
       subtitle: switch (_sort) {
@@ -226,6 +254,27 @@ class _PresentPageState extends State<PresentPage> {
     );
   }
 
+  Future<void> _styledAlert() async {
+    await showGlassAlert(
+      context,
+      title: const Text('Join the beta?'),
+      message: const Text('New features arrive a few weeks early.'),
+      style: const GlassAlertStyle(
+        titleTextStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+        actionColor: Color(0xFFFF9500),
+        defaultActionFillColor: Color(0xFFFF9500),
+      ),
+      actions: [
+        const GlassAlertAction(child: Text('Not Now')),
+        GlassAlertAction(
+          isDefaultAction: true,
+          child: const Text('Join'),
+          onPressed: () => _say('Joined the beta'),
+        ),
+      ],
+    );
+  }
+
   Future<void> _actionSheet() async {
     await showGlassActionSheet(
       context,
@@ -255,6 +304,22 @@ class _PresentPageState extends State<PresentPage> {
       largestUndimmedDetent: GlassSheetDetent.medium,
       showDragHandle: true,
       builder: (context) => const _PlacesSheet(),
+    );
+  }
+
+  Future<void> _styledSheet() async {
+    await showGlassSheet<void>(
+      context,
+      detents: const [GlassSheetDetent.fitted],
+      showDragHandle: true,
+      style: const GlassSheetStyle(
+        backgroundColor: GlassDynamicColor.withBrightness(
+          color: Color(0xFFFFF4E5),
+          darkColor: Color(0xFF3A2A12),
+        ),
+        dragHandleColor: Color(0xFFFF9500),
+      ),
+      builder: (context) => const _RecipeSheet(),
     );
   }
 
@@ -352,6 +417,12 @@ class _PresentPageState extends State<PresentPage> {
                 'Action sheet',
                 _actionSheet,
               ),
+              _row(
+                CupertinoIcons.paintbrush_fill,
+                GlassColors.systemOrange,
+                'Styled alert',
+                _styledAlert,
+              ),
             ],
           ),
           GlassListSection(
@@ -377,7 +448,8 @@ class _PresentPageState extends State<PresentPage> {
             header: const Text('Sheets'),
             footer: const Text(
               'The first sheet leaves the page live under its medium '
-              'detent; the second asks before it lets you swipe it away.',
+              'detent; the second asks before it lets you swipe it away; '
+              'the third is as tall as its content and follows it.',
             ),
             children: [
               _row(
@@ -391,6 +463,12 @@ class _PresentPageState extends State<PresentPage> {
                 GlassColors.systemGray,
                 'Form sheet',
                 _formSheet,
+              ),
+              _row(
+                CupertinoIcons.book_fill,
+                GlassColors.systemOrange,
+                'Styled sheet',
+                _styledSheet,
               ),
             ],
           ),
@@ -617,6 +695,55 @@ class _ComposeSheet extends StatelessWidget {
         const Text(
           'This sheet refuses to go away on a swipe and asks first, the way '
           'a compose sheet guards a draft.',
+        ),
+      ],
+    ),
+  );
+}
+
+class _RecipeSheet extends StatefulWidget {
+  const _RecipeSheet();
+
+  @override
+  State<_RecipeSheet> createState() => _RecipeSheetState();
+}
+
+class _RecipeSheetState extends State<_RecipeSheet> {
+  var _steps = false;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const GlassDefaultTextStyle(
+          role: GlassTextRole.title2,
+          child: Text(
+            'Lemon pasta',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Text('20 minutes, serves two.'),
+        if (_steps) ...[
+          const SizedBox(height: 16),
+          for (final step in const [
+            'Boil the pasta in salted water.',
+            'Melt butter, add lemon zest and juice.',
+            'Toss with the pasta and a splash of its water.',
+            'Finish with parmesan and black pepper.',
+          ])
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(step),
+            ),
+        ],
+        const SizedBox(height: 16),
+        GlassButton.prominent(
+          onPressed: () => setState(() => _steps = !_steps),
+          child: Text(_steps ? 'Hide Steps' : 'Show Steps'),
         ),
       ],
     ),

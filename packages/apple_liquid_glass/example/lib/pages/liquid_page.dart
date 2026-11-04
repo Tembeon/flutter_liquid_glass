@@ -2,18 +2,20 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:apple_liquid_glass/motion.dart';
 import 'package:apple_liquid_glass_example/backdrop.dart';
 import 'package:apple_liquid_glass_example/settings.dart';
 import 'package:apple_liquid_glass_example/settings_sheet.dart';
 import 'package:apple_liquid_glass_example/widgets.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
-import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 /// Glass drops floating over a drifting wallpaper. A finger lifts a drop and
 /// drags it; drops that come close fuse into one body, and a released drop
-/// flies home on a bouncy spring with the finger's momentum.
+/// flies home on a bouncy spring with the finger's momentum. Each drop is a
+/// `Motion` of its own that follows its finger through an `InputRegion`,
+/// every command at the input's stamp.
 ///
 /// The drops and the wallpaper move for a while after the page shows or a
 /// finger touches it, then come to rest, so a page nobody touches draws no
@@ -77,7 +79,8 @@ class _LiquidPageState extends State<LiquidPage> {
       ),
     ),
   ];
-  final _grabs = <int, _Grab>{};
+  late final _pool = _Pool(_drops);
+  late final List<Interaction> _wakers = [FollowInteraction(_Waker(this))];
   Size _size = Size.zero;
   Timer? _floating;
   Timer? _asleep;
@@ -117,73 +120,38 @@ class _LiquidPageState extends State<LiquidPage> {
     _asleep?.cancel();
     if (!_drifting) return;
     _drifting = false;
-    withSpring(_float, () {
-      for (final drop in _drops) {
-        drop.drift.target = Offset.zero;
-      }
-    });
+    final t = MotionClock.instance.now;
+    for (final drop in _drops) {
+      drop.driftTo(t, Offset.zero, _float);
+    }
   }
 
-  void _drift() => withSpring(_float, () {
+  void _drift() {
+    final t = MotionClock.instance.now;
     for (final drop in _drops) {
-      drop.drift.target = Offset(
-        _random.nextDouble() * 18 - 9,
-        _random.nextDouble() * 18 - 9,
+      drop.driftTo(
+        t,
+        Offset(_random.nextDouble() * 18 - 9, _random.nextDouble() * 18 - 9),
+        _float,
       );
     }
-  });
+  }
 
   void _layout(Size size) {
     if (size == _size) return;
     _size = size;
-    withoutAnimation(() {
-      for (final drop in _drops) {
-        drop.measure(size);
-        drop.center.target = drop.homeIn(size);
-      }
-    });
+    final t = MotionClock.instance.now;
+    for (final drop in _drops) {
+      drop.measure(t, size);
+    }
   }
 
-  void _down(PointerDownEvent event) {
+  void _touched() {
     if (_drifting) {
       _wake();
     } else {
       setState(_wake);
     }
-    for (final drop in _drops.reversed) {
-      if (_grabs.values.any((grab) => grab.drop == drop)) continue;
-      if (!drop.rect.inflate(10).contains(event.localPosition)) continue;
-      final grab = _Grab(drop, event.localPosition - drop.center.value);
-      grab.velocity.addPosition(event.timeStamp, event.localPosition);
-      _grabs[event.pointer] = grab;
-      withoutAnimation(() => drop.touch.target = event.localPosition);
-      withSpring(Spring.snappy, () => drop.press.target = 1);
-      unawaited(HapticFeedback.selectionClick());
-      return;
-    }
-  }
-
-  void _move(PointerMoveEvent event) {
-    final grab = _grabs[event.pointer];
-    if (grab == null) return;
-    grab.velocity.addPosition(event.timeStamp, event.localPosition);
-    withoutAnimation(() => grab.drop.touch.target = event.localPosition);
-    withSpring(
-      Spring.interactive,
-      () => grab.drop.center.target = event.localPosition - grab.offset,
-      tracking: true,
-    );
-  }
-
-  void _up(PointerEvent event) {
-    final grab = _grabs.remove(event.pointer);
-    if (grab == null) return;
-    final drop = grab.drop;
-    drop.center.velocity = grab.velocity.getVelocity().pixelsPerSecond;
-    withSpring(Spring.bouncy, () {
-      drop.center.target = drop.homeIn(_size);
-      drop.press.target = 0;
-    });
   }
 
   @override
@@ -196,35 +164,55 @@ class _LiquidPageState extends State<LiquidPage> {
         fit: StackFit.expand,
         children: [
           DriftingWallpaper(wallpaper: _wallpaper, drifts: _drifting),
-          Listener(
-            behavior: HitTestBehavior.opaque,
-            onPointerDown: _down,
-            onPointerMove: _move,
-            onPointerUp: _up,
-            onPointerCancel: _up,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                _layout(constraints.biggest);
-                return GlassGroup(
-                  merge: _fusion < 1
-                      ? const GlassMerge.none()
-                      : GlassMerge.spacing(_fusion),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      for (final drop in _drops)
-                        Positioned.fromRect(
-                          rect: drop.origin & drop.size,
-                          child: GlassSurface.live(
-                            frame: drop.frame,
-                            glass: glass,
-                            child: Center(child: drop.child),
+          MotionScope(
+            motion: _pool,
+            child: InputRegion(
+              interactions: _wakers,
+              child: ColoredBox(
+                color: const Color(0x00000000),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    _layout(constraints.biggest);
+                    return Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        GlassGroup(
+                          merge: _fusion < 1
+                              ? const GlassMerge.none()
+                              : GlassMerge.spacing(_fusion),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              for (final drop in _drops)
+                                Positioned.fromRect(
+                                  rect: drop.origin & drop.size,
+                                  child: GlassSurface.live(
+                                    frame: drop.frame,
+                                    glass: glass,
+                                    child: Center(child: drop.child),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
-                    ],
-                  ),
-                );
-              },
+                        for (final drop in _drops)
+                          Positioned.fromRect(
+                            rect: drop.grabArea,
+                            child: MotionTransition(
+                              offset: drop.shift,
+                              child: InputRegion(
+                                interactions: drop.interactions,
+                                child: const ColoredBox(
+                                  color: Color(0x00000000),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+              ),
             ),
           ),
           Positioned(
@@ -357,15 +345,41 @@ class _LiquidPageState extends State<LiquidPage> {
   }
 }
 
-class _Grab {
-  _Grab(this.drop, this.offset);
-
-  final _Drop drop;
-  final Offset offset;
-  final velocity = VelocityTracker.withKind(PointerDeviceKind.touch);
+/// The drops, one motion on screen.
+final class _Pool extends Motion {
+  _Pool(List<_Drop> drops) {
+    for (final drop in drops) {
+      own(drop);
+    }
+  }
 }
 
-class _Drop {
+/// Wakes the page on any touch.
+final class _Waker implements PointerFollower {
+  _Waker(this._page);
+
+  final _LiquidPageState _page;
+
+  @override
+  void down(PointerDownInput input) => _page._touched();
+
+  @override
+  void move(PointerMoveInput input) {}
+
+  @override
+  void up(PointerUpInput input) {}
+
+  @override
+  void cancel(PointerCancelInput input) {}
+
+  @override
+  void hover(PointerHoverInput input) {}
+}
+
+/// A drop: where it floats, how far it drifts, how pressed it is and where
+/// its finger is, each a value of its own motion. It follows one finger at
+/// a time, in the coordinates of its grab area.
+final class _Drop extends Motion implements PointerFollower {
   _Drop({
     required this.home,
     required Size Function(double width) size,
@@ -373,33 +387,50 @@ class _Drop {
     this.shape = GlassShape.capsule,
   }) : _sizeFor = size;
 
+  /// How far outside its body a finger still grabs the drop.
+  static const _reach = 10.0;
+
   final Alignment home;
   final Size Function(double width) _sizeFor;
   final GlassShape shape;
   final Widget child;
   Size size = Size.zero;
 
-  final center = MotionValue(Offset.zero);
-  final drift = MotionValue(Offset.zero);
-  final press = MotionValue<double>(0);
-  final touch = MotionValue(Offset.zero);
+  late final center = own(MotionValue(Offset.zero));
+  late final drift = own(MotionValue(Offset.zero));
+  late final press = own(MotionValue<double>(0));
+  late final touch = own(MotionValue(Offset.zero));
+  late final List<Interaction> interactions = [FollowInteraction(this)];
+  Offset _homeCenter = Offset.zero;
+  Offset _grab = Offset.zero;
+  Offset _area = Offset.zero;
 
   /// The top left of the box the drop is laid out in, at home. The body
   /// moves inside a box of its own size, where every renderer moves the
   /// content with it the same way.
   Offset origin = Offset.zero;
 
-  late final MotionSelection<GlassFrame> frame = MotionSelection(() {
-    final pressed = press.value;
+  /// Where a finger grabs the drop at home; [shift] moves it with the body.
+  Rect get grabArea => (origin & size).inflate(_reach);
+
+  Offset _shiftAt(double t) =>
+      center.valueAt(t) + drift.valueAt(t) - _homeCenter;
+
+  /// How far the body stands from home.
+  late final MotionSelection<Offset> shift = select((d) => d._shiftAt(d.now));
+
+  late final MotionSelection<GlassFrame> frame = select((d) {
+    final t = d.now;
+    final pressed = d.press.valueAt(t);
     final scale = 1 + 0.14 * pressed;
-    final local = center.value + drift.value - origin;
-    final middle = size.center(Offset.zero);
+    final local = d.center.valueAt(t) + d.drift.valueAt(t) - d.origin;
+    final middle = d.size.center(Offset.zero);
     return GlassFrame(
-      shape: shape,
+      shape: d.shape,
       rect: Rect.fromCenter(
         center: local,
-        width: size.width,
-        height: size.height,
+        width: d.size.width,
+        height: d.size.height,
       ),
       scaleX: scale,
       scaleY: scale,
@@ -407,23 +438,69 @@ class _Drop {
           ? null
           : GlassTouchGlow(
               wash: 0.03 * pressed,
-              center: middle + (touch.value - origin - local) / scale,
-              radius: 0.568 * size.shortestSide,
+              center: middle + (d.touch.valueAt(t) - d.origin - local) / scale,
+              radius: 0.568 * d.size.shortestSide,
               spot: 0.22 * pressed,
             ),
     );
   });
 
-  Rect get rect => Rect.fromCenter(
-    center: center.value + drift.value,
-    width: size.width,
-    height: size.height,
-  );
-
-  void measure(Size area) {
+  void measure(double t, Size area) {
+    advance(t);
     size = _sizeFor(area.width);
-    origin = homeIn(area) - size.center(Offset.zero);
+    _homeCenter = home.alongSize(area);
+    origin = _homeCenter - size.center(Offset.zero);
+    center.snap(t, _homeCenter);
   }
 
-  Offset homeIn(Size area) => home.alongSize(area);
+  void driftTo(double t, Offset to, Spring spring) {
+    advance(t);
+    drift.retarget(t, to, spring: spring);
+  }
+
+  // A finger's position in the page: its grab area stood where the body
+  // stood when the finger touched.
+  Offset _inPage(Offset position) => _area + position;
+
+  @override
+  void down(PointerDownInput input) {
+    final t = input.time;
+    advance(t);
+    _area = grabArea.topLeft + _shiftAt(t);
+    final finger = _inPage(input.position);
+    _grab = finger - center.valueAt(t);
+    touch.snap(t, finger);
+    press.retarget(t, 1, spring: Spring.snappy);
+    unawaited(HapticFeedback.selectionClick());
+  }
+
+  @override
+  void move(PointerMoveInput input) {
+    final t = input.time;
+    advance(t);
+    final finger = _inPage(input.position);
+    touch.snap(t, finger);
+    center.retarget(
+      t,
+      finger - _grab,
+      spring: Spring.interactive,
+      tracking: true,
+    );
+  }
+
+  @override
+  void up(PointerUpInput input) => _release(input.time, input.velocity);
+
+  @override
+  void cancel(PointerCancelInput input) => _release(input.time, Offset.zero);
+
+  @override
+  void hover(PointerHoverInput input) {}
+
+  void _release(double t, Offset velocity) {
+    advance(t);
+    center.setVelocity(t, velocity);
+    center.retarget(t, _homeCenter, spring: Spring.bouncy);
+    press.retarget(t, 0, spring: Spring.bouncy);
+  }
 }

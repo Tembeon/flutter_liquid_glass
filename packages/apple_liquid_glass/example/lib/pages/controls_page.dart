@@ -33,6 +33,18 @@ class _ControlsPageState extends State<ControlsPage> {
   var _trip = DateTime(2026, 12, 20);
   var _alarm = DateTime(2026, 11, 15, 7, 15);
   var _checked = 1;
+  final _cities = ['Paris', 'Rome', 'Oslo'];
+  var _city = 'Rome';
+  final _reminders = <String>['Water the plants', 'Call the bank'];
+  var _nextReminder = 0;
+
+  static const _moreCities = ['Lima', 'Kyoto', 'Cairo', 'Quito'];
+  static const _moreReminders = [
+    'Book the tickets',
+    'Buy a birthday card',
+    'Renew the passport',
+    'Return the library books',
+  ];
 
   @override
   void initState() {
@@ -56,14 +68,15 @@ class _ControlsPageState extends State<ControlsPage> {
   @override
   Widget build(BuildContext context) {
     final sections = <(String, Widget)>[
-      ('Page control', _carousel()),
-      ('Switches', _switches()),
-      ('Sliders', _sliders()),
-      ('Steppers', _steppers()),
-      ('Segmented controls', _segments()),
-      ('Buttons', _buttons()),
-      ('Date pickers', _dates()),
-      ('Lists', _lists()),
+      ('Page control', SliverToBoxAdapter(child: _carousel())),
+      ('Switches', SliverToBoxAdapter(child: _switches())),
+      ('Sliders', SliverToBoxAdapter(child: _sliders())),
+      ('Steppers', SliverToBoxAdapter(child: _steppers())),
+      ('Segmented controls', SliverToBoxAdapter(child: _segments())),
+      ('Buttons', SliverToBoxAdapter(child: _buttons())),
+      ('Date pickers', SliverToBoxAdapter(child: _dates())),
+      ('Lists', SliverToBoxAdapter(child: _lists())),
+      ('Reminders list', _reminderList()),
     ];
     return GlassPageScaffold(
       backgroundColor: GlassColors.systemGroupedBackground,
@@ -76,8 +89,8 @@ class _ControlsPageState extends State<ControlsPage> {
         ),
       ),
       child: GlassContentScroll(
-        child: ListView(
-          children: [
+        child: CustomScrollView(
+          slivers: [
             for (final (title, section) in sections)
               if (_shows(title)) section,
           ],
@@ -293,8 +306,104 @@ class _ControlsPageState extends State<ControlsPage> {
           ),
         ),
       ),
+      Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Expanded(
+              child: GlassSegmentedControl<String>(
+                segments: [
+                  for (final city in _cities)
+                    GlassSegment(value: city, label: Text(city)),
+                ],
+                groupValue: _city,
+                onChanged: (city) => setState(() => _city = city),
+              ),
+            ),
+            const SizedBox(width: 10),
+            GlassButton(
+              onPressed: _cities.length > 1 ? _removeCity : null,
+              semanticLabel: 'Remove city',
+              child: const Icon(CupertinoIcons.minus),
+            ),
+            const SizedBox(width: 6),
+            GlassButton(
+              onPressed: _cities.length < 4 ? _addCity : null,
+              semanticLabel: 'Add city',
+              child: const Icon(CupertinoIcons.plus),
+            ),
+          ],
+        ),
+      ),
     ],
   );
+
+  void _addCity() => withSpring(
+    Spring.snappy,
+    () => setState(
+      () => _cities.add(_moreCities.firstWhere((c) => !_cities.contains(c))),
+    ),
+  );
+
+  void _removeCity() => withSpring(
+    Spring.snappy,
+    () => setState(
+      () => _cities.remove(_cities.lastWhere((city) => city != _city)),
+    ),
+  );
+
+  void _changeReminders(VoidCallback change) =>
+      withSpring(Spring.smooth, () => setState(change));
+
+  Widget _reminderList() {
+    const add = #add;
+    final ids = <Object>[..._reminders, add];
+    return GlassSliverListSection(
+      header: const Text('Reminders list'),
+      footer: const Text(
+        'Rows insert and delete on a spring; swipe a row for its actions.',
+      ),
+      ids: ids,
+      itemCount: ids.length,
+      itemBuilder: (context, i) {
+        final id = ids[i];
+        if (id == add) {
+          return GlassListRow(
+            leading: const SettingsIcon(
+              icon: CupertinoIcons.plus,
+              color: GlassColors.systemBlue,
+            ),
+            title: const Text('Add Reminder'),
+            onPressed: () => _changeReminders(
+              () => _reminders.add(
+                _moreReminders[_nextReminder++ % _moreReminders.length],
+              ),
+            ),
+          );
+        }
+        final reminder = id as String;
+        return GlassSwipeActions(
+          trailing: [
+            GlassSwipeAction(
+              title: 'Delete',
+              destructive: true,
+              onPressed: () =>
+                  _changeReminders(() => _reminders.remove(reminder)),
+            ),
+            GlassSwipeAction(
+              title: 'Top',
+              backgroundColor: GlassColors.systemOrange,
+              onPressed: () => _changeReminders(() {
+                _reminders.remove(reminder);
+                _reminders.insert(0, reminder);
+              }),
+            ),
+          ],
+          child: GlassListRow(title: Text(reminder)),
+        );
+      },
+    );
+  }
 
   Widget _buttons() => Padding(
     padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),

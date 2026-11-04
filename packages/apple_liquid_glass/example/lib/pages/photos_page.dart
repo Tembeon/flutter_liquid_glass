@@ -9,6 +9,8 @@ import 'package:flutter/widgets.dart';
 
 /// A photo library: every photo zooms into its own page, which shrinks back
 /// into the grid when it closes. Scrolling down tucks the tab bar away.
+/// Select swaps the bar's items and brings a toolbar whose items change
+/// with the selection.
 class PhotosPage extends StatefulWidget {
   const PhotosPage({super.key});
 
@@ -42,6 +44,57 @@ class _PhotosPageState extends State<PhotosPage> {
       ),
   ];
 
+  var _selecting = false;
+  final _selected = <_Photo>{};
+
+  void _select({required bool on}) => setState(() {
+    _selecting = on;
+    _selected.clear();
+  });
+
+  void _toggle(_Photo photo) => setState(() {
+    if (!_selected.remove(photo)) _selected.add(photo);
+  });
+
+  void _delete() => setState(() {
+    _photos.removeWhere(_selected.contains);
+    _selected.clear();
+    _selecting = false;
+  });
+
+  GlassToolbar _toolbar() {
+    final count = _selected.length;
+    return GlassToolbar(
+      items: [
+        GlassBarItem(
+          icon: const Icon(CupertinoIcons.share),
+          semanticLabel: 'Share',
+          onPressed: count == 0 ? null : () {},
+        ),
+        const GlassBarSpacer.flexible(),
+        GlassBarItem.custom(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              switch (count) {
+                0 => 'Select Items',
+                1 => '1 Photo Selected',
+                _ => '$count Photos Selected',
+              },
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+        const GlassBarSpacer.flexible(),
+        GlassBarItem(
+          icon: const Icon(CupertinoIcons.trash),
+          semanticLabel: 'Delete Selected',
+          onPressed: count == 0 ? null : _delete,
+        ),
+      ],
+    );
+  }
+
   void _open(_Photo photo) => unawaited(
     Navigator.of(context).push(
       GlassPageRoute<void>(
@@ -55,11 +108,22 @@ class _PhotosPageState extends State<PhotosPage> {
   Widget build(BuildContext context) => GlassPageScaffold(
     navigationBar: GlassNavigationBar(
       largeTitle: const Text('Photos'),
-      trailing: [
-        GlassBarItem(label: const Text('Select'), onPressed: () {}),
-        settingsItem(context),
-      ],
+      trailing: _selecting
+          ? [
+              GlassBarItem.prominent(
+                label: const Text('Done'),
+                onPressed: () => _select(on: false),
+              ),
+            ]
+          : [
+              GlassBarItem(
+                label: const Text('Select'),
+                onPressed: () => _select(on: true),
+              ),
+              settingsItem(context),
+            ],
     ),
+    toolbar: _selecting ? _toolbar() : null,
     child: GlassContentScroll(
       child: GridView.builder(
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -99,14 +163,28 @@ class _PhotosPageState extends State<PhotosPage> {
               ),
             ],
             child: GestureDetector(
-              onTap: () => _open(photo),
-              child: GlassZoomSource(
-                source: photo.source,
-                child: Image(
-                  image: photo.wallpaper.image,
-                  fit: BoxFit.cover,
-                  alignment: photo.alignment,
-                ),
+              onTap: () => _selecting ? _toggle(photo) : _open(photo),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  GlassZoomSource(
+                    source: photo.source,
+                    child: Image(
+                      image: photo.wallpaper.image,
+                      fit: BoxFit.cover,
+                      alignment: photo.alignment,
+                    ),
+                  ),
+                  if (_selected.contains(photo))
+                    const Positioned(
+                      right: 6,
+                      bottom: 6,
+                      child: Icon(
+                        CupertinoIcons.checkmark_circle_fill,
+                        color: Color(0xFFFFFFFF),
+                      ),
+                    ),
+                ],
               ),
             ),
           );
