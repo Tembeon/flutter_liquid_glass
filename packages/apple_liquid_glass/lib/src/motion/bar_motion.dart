@@ -854,16 +854,26 @@ final class GlassBarMotion extends Motion {
 
   /// The capsules at the current time, leaving ones included.
   List<GlassBarCapsuleFrame> get capsules => [
-    for (final c in _all)
-      GlassBarCapsuleFrame(
-        c.id,
-        _drawn(c),
-        leaving: _capsules.isLeaving(c),
-        segment: c.segment,
-        opacity: c.apart ? _capsules.presenceAt(c).clamp(0.0, 1.0) : 1,
-        apart: c.apart,
-      ),
+    for (final c in _all) _capsuleFrame(c),
   ];
+
+  /// The capsule [item] stands in at the current time, or null when it stands
+  /// in none.
+  GlassBarCapsuleFrame? capsuleOf(Object item) {
+    final capsule = _capsuleOf[item];
+    return capsule != null && _capsules.contains(capsule)
+        ? _capsuleFrame(capsule)
+        : null;
+  }
+
+  GlassBarCapsuleFrame _capsuleFrame(_Capsule c) => GlassBarCapsuleFrame(
+    c.id,
+    _drawn(c),
+    leaving: _capsules.isLeaving(c),
+    segment: c.segment,
+    opacity: c.apart ? _capsules.presenceAt(c).clamp(0.0, 1.0) : 1,
+    apart: c.apart,
+  );
 
   /// The swell of a capsule that appears or leaves in place, per axis.
   Offset _apartScale(_Capsule c) {

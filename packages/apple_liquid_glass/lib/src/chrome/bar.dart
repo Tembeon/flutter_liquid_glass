@@ -650,14 +650,7 @@ final class _Bar {
 
   bool get _navigation => kind == GlassBarKind.navigation;
 
-  GlassBarCapsuleFrame? _capsuleOf(Object item) {
-    final frame = itemFrames[item];
-    if (frame == null) return null;
-    for (final capsule in motion.capsules) {
-      if (capsule.rect.contains(frame.center)) return capsule;
-    }
-    return null;
-  }
+  GlassBarCapsuleFrame? _capsuleOf(Object item) => motion.capsuleOf(item);
 
   // The capsules whose glass a menu has taken over, by the item that opened
   // the menu.
