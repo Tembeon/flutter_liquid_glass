@@ -143,6 +143,17 @@ final class LiquidGlassRenderer extends GlassRenderer {
   }
 }
 
+// The tint [frame] gives a body whose glass has [own], crossing from it
+// (or from none: an untinted iOS material is one with a transparent tint)
+// by the frame's amount, or null where the frame keeps the glass's look.
+Color? _tintOf(GlassFrame frame, Color? own) {
+  final tint = frame.tint;
+  final amount = frame.tintAmount.clamp(0.0, 1.0);
+  if (tint == null || amount == 0) return null;
+  if (amount == 1) return tint;
+  return Color.lerp(own ?? tint.withValues(alpha: 0), tint, amount);
+}
+
 bool _lifts(GlassRole role) => switch (role) {
   GlassRole.lens ||
   GlassRole.tabBarLens ||
@@ -252,7 +263,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
   LiquidGlassShapeFrame get _shapeFrame {
     final frame = _source.value;
     final role = widget.details.role;
-    final tint = frame.tint;
+    final tint = _tintOf(frame, widget.details.glass.tint);
     final appearance = _lifts(role)
         ? LiquidGlassAppearance(
             visibility: FlatGlassLook.glassness(frame.lift),

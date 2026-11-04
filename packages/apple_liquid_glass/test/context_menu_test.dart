@@ -153,4 +153,44 @@ void main() {
     await _frames(tester, 60);
     expect(find.text('Preview'), findsOneWidget);
   });
+
+  testWidgets('a closing menu fades its glass with the dim, gone before the '
+      'layer leaves; an open keeps it whole', (tester) async {
+    _phone(tester);
+    await tester.pumpWidget(_app(log: <String>[]));
+    final rest = tester.getRect(find.byKey(_held));
+    final gesture = await tester.startGesture(rest.center);
+    for (var i = 0; i < 60; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      if (_menuGlass(tester) case final frame?) {
+        expect(frame.opacity, 1);
+      }
+    }
+    await gesture.up();
+    await _frames(tester, 60);
+    expect(_menuGlass(tester)!.opacity, 1);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    final closing = <double>[];
+    for (var i = 0; i < 120; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      final frame = _menuGlass(tester);
+      if (frame == null) break;
+      closing.add(frame.opacity);
+    }
+    expect(_menuGlass(tester), isNull);
+    for (var i = 1; i < closing.length; i++) {
+      expect(closing[i], lessThanOrEqualTo(closing[i - 1] + 1e-9));
+    }
+    expect(closing.last, lessThan(0.02));
+  });
+}
+
+// The menu's glass now, or null while no menu shows.
+GlassFrame? _menuGlass(WidgetTester tester) {
+  // ignore: invalid_use_of_internal_member
+  final surfaces = tester.widgetList<LiveGlassSurface>(
+    // ignore: invalid_use_of_internal_member
+    find.byType(LiveGlassSurface),
+  );
+  return surfaces.isEmpty ? null : surfaces.first.frameOf();
 }

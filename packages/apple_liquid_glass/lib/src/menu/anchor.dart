@@ -66,6 +66,7 @@ class MenuAnchor extends StatefulWidget {
     required this.entries,
     required this.face,
     required this.look,
+    this.sourceTint,
     this.sourceRadius,
     this.trigger = MenuTrigger.tap,
     this.onTap,
@@ -86,6 +87,13 @@ class MenuAnchor extends StatefulWidget {
   /// The source's label or glyph, drawn on the glass while it grows into
   /// the menu.
   final Widget look;
+
+  /// The color of the source's glass at rest, already resolved, or null
+  /// for untinted glass. The glass takes it at both hand-offs and crosses
+  /// it into the menu's glass while the look fades, fused body included
+  /// (menu-button.md); the color hand-off of a tinted `UIButton` is not
+  /// recorded.
+  final Color? sourceTint;
 
   /// The corner radius of the source's glass at rest; null for a capsule.
   final double? sourceRadius;
@@ -170,6 +178,12 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W>
   /// The source's look drawn on the glass while it grows into the menu,
   /// or null for a menu that does not grow out of its source's glass.
   Widget? get _look;
+
+  /// The color of the source's glass at rest (see [MenuAnchor.sourceTint]).
+  Color? get _sourceTint => null;
+
+  /// How present the menu's glass is, 0 gone to 1 there.
+  double get _glassOpacity => 1;
 
   /// The motion of a menu opening from [source], in the overlay's
   /// coordinates.
@@ -506,6 +520,9 @@ class _MenuAnchorState extends _MenuHost<MenuAnchor> {
 
   @override
   Widget? get _look => widget.look;
+
+  @override
+  Color? get _sourceTint => widget.sourceTint;
 
   @override
   MenuMotion _createMotion(Rect source, Size bounds, EdgeInsets padding) {
@@ -1247,7 +1264,12 @@ class _MenuLayerState extends State<_MenuLayer> {
           IgnorePointer(
             child: LiveGlassSurface(
               live: _frames,
-              frameOf: () => _menuFrame(motion, shaded: shaded),
+              frameOf: () => _menuFrame(
+                motion,
+                shaded: shaded,
+                sourceTint: _anchor._sourceTint,
+                opacity: _anchor._glassOpacity,
+              ),
             ),
           ),
           if (motion.drawsSource)
@@ -1308,13 +1330,25 @@ bool _inside(RRect outer, RRect inner) {
       outer.outerRect.deflate(corner).contains(inner.outerRect.bottomRight);
 }
 
-GlassFrame _menuFrame(MenuMotion motion, {required bool shaded}) {
+// The menu's glass in [motion]'s frame. A tinted source's color stays on
+// the glass, fused body included, until its look has faded.
+GlassFrame _menuFrame(
+  MenuMotion motion, {
+  required bool shaded,
+  Color? sourceTint,
+  double opacity = 1,
+}) {
   final glow = motion.touchGlow;
+  final tint = motion.drawsSource ? sourceTint : null;
+  final tintAmount = tint == null ? 1.0 : motion.buttonLookOpacity;
   final root = motion.rootBlob.rrect;
   if (motion.fusionRadius >= MenuFusion.minimumRadius) {
     return GlassFrame(
       outline: motion.silhouetteFor(withField: shaded),
+      tint: tint,
+      tintAmount: tintAmount,
       glow: glow,
+      opacity: opacity,
     );
   }
   final source = motion.drawsSource ? motion.buttonBlob.rrect : null;
@@ -1322,13 +1356,19 @@ GlassFrame _menuFrame(MenuMotion motion, {required bool shaded}) {
     return GlassFrame(
       shape: LiquidRoundedRectangle(borderRadius: root.tlRadiusX),
       rect: root.outerRect,
+      tint: tint,
+      tintAmount: tintAmount,
       glow: glow,
+      opacity: opacity,
     );
   }
   final shapes = [root, source];
   return GlassFrame(
     outline: shaded ? unionFieldOutline(shapes) : plainUnionOutline(shapes),
+    tint: tint,
+    tintAmount: tintAmount,
     glow: glow,
+    opacity: opacity,
   );
 }
 
@@ -1509,6 +1549,11 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   ({double at, double target, Spring spring})? _dimPending;
   double _dimTarget = 0;
 
+  // Whether the menu's glass fades with the dim: from a close until the dim
+  // is back. UIKit fades the menu view out on 0.35 / 0.85 as it retracts
+  // (context-menu.md), the dim's close spring; a fresh open keeps it whole.
+  bool _fadesGlass = false;
+
   int? _held;
   Offset _from = Offset.zero;
   Offset _finger = Offset.zero;
@@ -1612,7 +1657,14 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   }
 
   @override
-  void _onShow() => _scheduleDim(1);
+  void _onShow() {
+    _fadesGlass = false;
+    _scheduleDim(1);
+  }
+
+  @override
+  double get _glassOpacity =>
+      _fadesGlass ? _dim.valueAt(MotionClock.instance.now).clamp(0.0, 1.0) : 1;
 
   void _scheduleDim(double target) {
     if (target == _dimTarget) return;
@@ -1648,11 +1700,15 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
       _dim.retarget(pending.at, pending.target, spring: pending.spring);
     } else if (pending == null && !_dimMoving(time)) {
       _dim.snap(time, _dimTarget);
+      if (_dimTarget == 1) _fadesGlass = false;
     }
     final motion = _motion;
     if (motion != null && motion.isClosing) {
+      _fadesGlass = true;
       _scheduleDim(0);
       _home = _heldRect;
+    } else if (motion != null && motion.isPresented) {
+      _scheduleDim(1);
     }
     if (_held == null) return;
     final held = time - _heldSince;

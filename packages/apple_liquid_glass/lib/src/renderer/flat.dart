@@ -326,7 +326,10 @@ class RenderFlatGlass extends RenderProxyBox {
     final canvas = context.canvas;
     canvas.save();
     canvas.translate(offset.dx, offset.dy);
-    final color = frame.tint ?? _look.fill;
+    final tint = frame.tint;
+    final color = tint == null
+        ? _look.fill
+        : Color.lerp(_look.fill, tint, frame.tintAmount.clamp(0.0, 1.0))!;
     final liftRim = _look.liftRim;
     if (liftRim != null) {
       _paintLifting(canvas, frame, body, color, liftRim);

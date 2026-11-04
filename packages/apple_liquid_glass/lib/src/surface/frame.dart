@@ -20,6 +20,7 @@ final class GlassFrame {
     this.scaleX = 1,
     this.scaleY = 1,
     this.tint,
+    this.tintAmount = 1,
     this.lift = 0,
     this.glow,
     this.opacity = 1,
@@ -55,6 +56,11 @@ final class GlassFrame {
   /// place of its glass's tint in this frame, or null to keep it: a
   /// switch's track turning on.
   final Color? tint;
+
+  /// How much of [tint] the body takes in place of its glass's own look,
+  /// 0 none to 1 all: a body that crosses from a tinted source into its
+  /// own glass, as a tinted button's glass grows into its menu.
+  final double tintAmount;
 
   /// How far a lens or knob is lifted, 0 resting and 1 lifted: a resting
   /// one is an opaque platter, a lifted one clear glass. Other roles ignore
@@ -113,6 +119,7 @@ final class GlassFrame {
       other.scaleX == scaleX &&
       other.scaleY == scaleY &&
       other.tint == tint &&
+      other.tintAmount == tintAmount &&
       other.lift == lift &&
       other.glow == glow &&
       other.opacity == opacity &&
@@ -125,6 +132,7 @@ final class GlassFrame {
     scaleX,
     scaleY,
     tint,
+    tintAmount,
     lift,
     glow,
     opacity,

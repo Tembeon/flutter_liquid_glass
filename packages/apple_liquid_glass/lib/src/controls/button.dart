@@ -644,6 +644,10 @@ class GlassButton extends StatelessWidget {
       controller: menuController,
       semanticLabel: semanticLabel,
       look: _label(context, states, child),
+      sourceTint: GlassDynamicColor.maybeResolve(
+        _lookOf(context).backgroundColor?.resolve(states),
+        context,
+      ),
       face: _defaultBody(
         context,
         GlassButtonDetails(

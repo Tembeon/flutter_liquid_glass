@@ -309,4 +309,53 @@ void main() {
     expect(log, ['Date']);
     expect(find.text('Copy'), findsNothing);
   });
+
+  testWidgets('a prominent button keeps its color on the glass at both '
+      'hand-offs and crosses it into the menu glass as its label fades', (
+    tester,
+  ) async {
+    _phone(tester);
+    await tester.pumpWidget(
+      _app(
+        GlassButton.prominent(
+          key: const Key('button'),
+          onPressed: null,
+          menuChildren: _entries(<String>[]),
+          child: const Text('Add'),
+        ),
+      ),
+    );
+    await tester.tap(_source);
+    final opening = <double>[];
+    for (var i = 0; i < 30; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      if (_menuGlass(tester) case final frame?) {
+        expect(frame.tint, isNotNull);
+        opening.add(frame.tintAmount);
+      }
+    }
+    expect(opening.first, greaterThan(0.95));
+    await _settle(tester);
+    expect(_menuGlass(tester)!.tintAmount, 0);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    double? last;
+    for (var i = 0; i < 120; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      final frame = _menuGlass(tester);
+      if (frame == null) break;
+      last = frame.tintAmount;
+    }
+    expect(_menuGlass(tester), isNull);
+    expect(last, greaterThan(0.95));
+  });
+}
+
+// The menu's glass now, or null while no menu shows.
+GlassFrame? _menuGlass(WidgetTester tester) {
+  // ignore: invalid_use_of_internal_member
+  final surfaces = tester.widgetList<LiveGlassSurface>(
+    // ignore: invalid_use_of_internal_member
+    find.byType(LiveGlassSurface),
+  );
+  return surfaces.isEmpty ? null : surfaces.first.frameOf();
 }
