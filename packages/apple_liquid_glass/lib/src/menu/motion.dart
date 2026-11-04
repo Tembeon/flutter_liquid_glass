@@ -968,6 +968,7 @@ class _Pointer {
   bool holdForfeited = false;
   bool scrolled = false;
   bool leftButton = false;
+  bool touchesMenu = true;
 }
 
 /// A damped spring driven by an input.
@@ -2397,6 +2398,8 @@ class MenuMotion extends Motion with Presented {
         return;
       }
       _track(t, pointer, position);
+      pointer.touchesMenu = _onMenu(position);
+      if (!pointer.touchesMenu) return;
       _lightGlow(t, position);
       _flex.down(t, position);
       return;
@@ -2461,6 +2464,7 @@ class MenuMotion extends Motion with Presented {
     if (hit.target != _highlighted || hit.card != _highlightCard) {
       _track(t, pointer, position);
     }
+    if (!pointer.touchesMenu) return;
     // A finger that held the menu open lights it once it moves (device:
     // none under a still hold).
     if (_touchGlow.isDown) {

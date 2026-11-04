@@ -351,6 +351,22 @@ void main() {
   });
 
   group('the flex while the finger is down and after it lifts', () {
+    test('a finger that touches down beside the menu neither stretches nor '
+        'lights it, even sliding onto it', () {
+      final motion = _open();
+      final rest = motion.menuRect;
+      final beside = rest.centerRight.translate(4, 0);
+      motion.pointerDown(0, beside);
+      motion.pointerMove(0.01, beside.translate(120, 40));
+      motion.advance(0.5);
+      expect(motion.flexedMenuRect, rest);
+      expect(motion.touchGlow, isNull);
+      motion.pointerMove(0.51, rest.center);
+      motion.advance(1);
+      expect(motion.flexedMenuRect, rest);
+      expect(motion.touchGlow, isNull);
+    });
+
     test('the shown menu settles on the targets of a still finger', () {
       for (final down in [true, false]) {
         final motion = _open(down: down);
