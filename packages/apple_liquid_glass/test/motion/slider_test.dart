@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/motion/glass_button_motion.dart';
+import 'package:apple_liquid_glass/src/motion/glass_press.dart';
 import 'package:apple_liquid_glass/src/motion/slider_motion.dart';
 import 'package:apple_liquid_glass/src/motion/small_lens.dart';
 import 'package:flutter/gestures.dart';
@@ -186,7 +186,7 @@ SmallLens _lens() => SmallLens(
 /// press and release starts solved from the first moving frames because
 /// the simulator delivers touches 16 to 45 ms late; `releaseLag` is the
 /// model's release stamp, which the model takes up
-/// [GlassButtonMotion.touchDelay] later, minus the recorded one.
+/// [GlassPress.touchDelay] later, minus the recorded one.
 ({double press, double release, double peak, double releaseLag}) _buttonReplay(
   String file,
   Size size,
@@ -201,7 +201,7 @@ SmallLens _lens() => SmallLens(
   final first = rows[moving];
   final pressDt = _solveStart(
     (dt) {
-      final m = GlassButtonMotion(size: size);
+      final m = GlassPress(size: size);
       m.pointerDown(0, center);
       m.advance(dt);
       return m.scale;
@@ -216,7 +216,7 @@ SmallLens _lens() => SmallLens(
   final drop = rows[dropping];
   final releaseDt = _solveStart(
     (dt) {
-      final m = GlassButtonMotion(size: size);
+      final m = GlassPress(size: size);
       m.pointerDown(-5, center);
       m.pointerUp(0, center);
       m.advance(dt);
@@ -226,7 +226,7 @@ SmallLens _lens() => SmallLens(
     0.1,
   );
   final releaseAt = drop.t - releaseDt;
-  final m = GlassButtonMotion(size: size);
+  final m = GlassPress(size: size);
   m.advance(first.t - pressDt - 0.1);
   m.pointerDown(first.t - pressDt, center);
   final press = <double>[];
@@ -257,7 +257,7 @@ SmallLens _lens() => SmallLens(
   );
   const size = Size(120, 44);
   final origin = Offset((device ? _deviceControlX : _controlX) - 60, 400 - 22);
-  final m = GlassButtonMotion(size: size);
+  final m = GlassPress(size: size);
   m.advance(trace.touches.first.t - 1);
   final touches = _Touches(trace);
   final up = trace.touches.lastWhere((t) => t.phase == 3).t;
@@ -549,7 +549,7 @@ void main() {
         expect(e.release, lessThan(3e-4), reason: '$file release');
         expect(e.peak.abs(), lessThan(1e-4), reason: '$file lifted scale');
         expect(
-          (e.releaseLag + GlassButtonMotion.touchDelay).abs(),
+          (e.releaseLag + GlassPress.touchDelay).abs(),
           lessThan(0.02),
           reason: '$file release',
         );
@@ -557,7 +557,7 @@ void main() {
     });
 
     test('a glass button leans after a finger that drags off', () {
-      // The flex takes up each touch GlassButtonMotion.touchDelay
+      // The flex takes up each touch GlassPress.touchDelay
       // after its stamp, as UIKit's does: the device lean halves (0.065 to
       // 0.026 pt rms) and the stretch, against the touches taken up at
       // once, grows from 0.0015 / 0.0016 to 0.0024 / 0.0026.

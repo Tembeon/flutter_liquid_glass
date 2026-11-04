@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
-import 'package:apple_liquid_glass/src/motion/glass_button_motion.dart';
+import 'package:apple_liquid_glass/src/motion/glass_press.dart';
 import 'package:apple_liquid_glass/src/motion/lens_motion.dart';
 import 'package:apple_liquid_glass/src/motion/segment_highlight.dart';
 import 'package:apple_liquid_glass/src/motion/touch_glow.dart';
@@ -191,7 +191,7 @@ class RawGlassSelector extends StatefulWidget {
   /// this package's fixtures). 70 with the bottom and right edges
   /// excluded, the way `CGRectContainsPoint` tests a point, also gives the
   /// glass button's measured edges.
-  static const double segmentedReleaseSlop = GlassButtonMotion.highlightSlop;
+  static const double segmentedReleaseSlop = GlassPress.highlightSlop;
 
   @override
   State<RawGlassSelector> createState() => _RawGlassSelectorState();

@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motion/alert_motion.dart';
-import 'package:apple_liquid_glass/src/motion/glass_button_motion.dart';
+import 'package:apple_liquid_glass/src/motion/glass_press.dart';
 import 'package:apple_liquid_glass/src/motion/popover_motion.dart';
 import 'package:apple_liquid_glass/src/presentations/popover.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
@@ -269,7 +269,7 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
     final PopoverMotion popover => popover,
     _ => null,
   };
-  final _press = GlassButtonMotion(size: Size.zero);
+  final _press = GlassPress();
   final _card = GlobalKey();
   late final List<GlobalKey> _keys = [
     for (final _ in widget.actions) GlobalKey(),

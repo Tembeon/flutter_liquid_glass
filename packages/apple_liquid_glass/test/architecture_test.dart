@@ -23,6 +23,16 @@ final _read = RegExp(
 // that stops offending fails too, so the list only shrinks.
 final _bans = <String, (RegExp, Set<String>)>{
   'haptics through MotionHaptic.play': (RegExp(r'\bHapticFeedback\.'), {}),
+  // A4 (lens, search) and A9 (menu) move these onto GlassPress.
+  'a press is a GlassPress': (
+    RegExp(r'\bFlexInteraction\('),
+    {
+      'lib/src/menu/motion.dart',
+      'lib/src/motion/flex_interaction.dart',
+      'lib/src/motion/lens_motion.dart',
+      'lib/src/motion/search_motion.dart',
+    },
+  ),
 };
 
 void main() {

@@ -6,7 +6,7 @@ import 'package:apple_liquid_glass/src/chrome/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/chrome/toolbar.dart';
 import 'package:apple_liquid_glass/src/motion/bar_layout.dart';
 import 'package:apple_liquid_glass/src/motion/bar_motion.dart';
-import 'package:apple_liquid_glass/src/motion/glass_button_motion.dart';
+import 'package:apple_liquid_glass/src/motion/glass_press.dart';
 import 'package:apple_liquid_glass/src/motion/navigation_motion.dart';
 import 'package:apple_liquid_glass/src/motion/touch_glow.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
@@ -626,7 +626,7 @@ final class _Bar {
   // button's motion (bars passport): the capsule's identity, the motion,
   // and where the touched button's box sits in the capsule.
   Object? pressed;
-  GlassButtonMotion? press;
+  GlassPress? press;
   Offset _pressOrigin = Offset.zero;
 
   bool get _navigation => kind == GlassBarKind.navigation;
@@ -645,7 +645,7 @@ final class _Bar {
     final capsule = _capsuleOf(item);
     if (frame == null || capsule == null) return;
     final lift = pressed == capsule.id ? press : null;
-    final motion = lift ?? GlassButtonMotion(size: capsule.rect.size);
+    final motion = lift ?? GlassPress(size: capsule.rect.size);
     motion.size = capsule.rect.size;
     motion.reducedMotion = this.motion.reducedMotion;
     pressed = capsule.id;

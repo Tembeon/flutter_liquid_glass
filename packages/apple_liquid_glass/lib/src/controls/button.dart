@@ -2,7 +2,7 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:apple_liquid_glass/src/menu/anchor.dart';
 import 'package:apple_liquid_glass/src/menu/entries.dart';
-import 'package:apple_liquid_glass/src/motion/glass_button_motion.dart';
+import 'package:apple_liquid_glass/src/motion/glass_press.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
@@ -106,7 +106,7 @@ class _RawGlassButtonState extends State<RawGlassButton>
   late final _ButtonBody _body = _ButtonBody(widget.shape);
   late final List<Interaction> _interactions = [
     PressInteraction(
-      releaseSlop: const EdgeInsets.all(GlassButtonMotion.highlightSlop),
+      releaseSlop: const EdgeInsets.all(GlassPress.highlightSlop),
       onTap: (t) => widget.onPressed?.call(),
     ).simultaneously(FollowInteraction(_body)),
   ];
@@ -173,7 +173,7 @@ final class _ButtonBody extends ChangeNotifier
 
   LiquidShape _shape;
   GlassFrame _value;
-  GlassButtonMotion? _motion;
+  GlassPress? _motion;
   bool _shapeChanged = false;
 
   bool reducedMotion = false;
@@ -220,7 +220,7 @@ final class _ButtonBody extends ChangeNotifier
   @override
   void down(PointerDownInput input) {
     final size = input.regionSize;
-    final motion = _motion ??= GlassButtonMotion(size: size);
+    final motion = _motion ??= GlassPress(size: size);
     motion.size = size;
     motion.reducedMotion = reducedMotion;
     motion.pointerDown(input.time, input.position);

@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:apple_liquid_glass/src/motion/glass_button_motion.dart';
+import 'package:apple_liquid_glass/src/motion/glass_press.dart';
 
 import 'onset.dart';
 import 'trace.dart';
@@ -13,7 +13,7 @@ typedef GlassTouch = ({double t, int phase, Offset at});
 /// released at [up], [dt] seconds after the touch.
 double _scale(Size size, double dt, {double? up}) {
   final center = size.center(Offset.zero);
-  final m = GlassButtonMotion(size: size);
+  final m = GlassPress(size: size);
   m.pointerDown(0, center);
   if (up != null) {
     m.advance(up);
@@ -58,7 +58,7 @@ List<({double t, bool pressed, double error})> glassErrors(
   List<GlassTouch> touches,
   double until,
 ) {
-  final m = GlassButtonMotion(size: size);
+  final m = GlassPress(size: size);
   m.advance(touches.first.t - 1);
   final from = rows.firstWhere((f) => f.t > touches.first.t && f.sx > 1.0005);
   final errors = <({double t, bool pressed, double error})>[];

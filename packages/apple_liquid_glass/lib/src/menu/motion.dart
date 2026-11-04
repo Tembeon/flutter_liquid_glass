@@ -6,7 +6,7 @@ import 'package:apple_liquid_glass/src/menu/morph_spec.dart';
 import 'package:apple_liquid_glass/src/menu/outline_math.dart';
 import 'package:apple_liquid_glass/src/motion/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
-import 'package:apple_liquid_glass/src/motion/glass_button_motion.dart';
+import 'package:apple_liquid_glass/src/motion/glass_press.dart';
 import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:apple_liquid_glass/src/motion/touch_glow.dart';
 import 'package:apple_liquid_glass/src/surface/outline.dart';
@@ -44,7 +44,7 @@ class MenuTuning {
     this.contentKickBlur = 6,
     this.tapOpenDelay = 0.089,
     this.holdDuration = 0.22,
-    this.tapSlop = GlassButtonMotion.highlightSlop,
+    this.tapSlop = GlassPress.highlightSlop,
     this.dismissDelay = 0.059,
     this.earlyCloseDelay = 0.016,
     this.actionDelay = 0.016,

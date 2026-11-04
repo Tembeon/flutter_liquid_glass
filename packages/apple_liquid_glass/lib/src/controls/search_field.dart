@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/controls/search_glyphs.dart';
-import 'package:apple_liquid_glass/src/motion/flex_interaction.dart';
+import 'package:apple_liquid_glass/src/motion/glass_press.dart';
 import 'package:apple_liquid_glass/src/motion/search_motion.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
@@ -638,58 +638,58 @@ class SearchEnds extends InheritedWidget {
 /// frames of its glass.
 final class _FieldBody extends ChangeNotifier
     implements ValueListenable<GlassFrame>, MotionDriver {
-  final FlexInteraction _flex = FlexInteraction(
+  final GlassPress _press = GlassPress(
     size: const Size(346, GlassSearchField.height),
-    stretches: false,
-    activationDelay: GlassSearchField.pressDelay,
+    law: const FlexLaw(
+      stretches: false,
+      activationDelay: GlassSearchField.pressDelay,
+    ),
   );
   GlassFrame _value = const GlassFrame();
 
-  set reducedMotion(bool value) => _flex.reducedMotion = value;
-  bool get reducedMotion => _flex.reducedMotion;
+  set reducedMotion(bool value) => _press.reducedMotion = value;
+  bool get reducedMotion => _press.reducedMotion;
 
   @override
   GlassFrame get value => _value;
 
-  // A released lift comes to rest between frames; one more step lands it
-  // exactly on rest, invisibly.
   @override
   bool get isActive =>
-      !_flex.isSettled(MotionClock.instance.now) ||
-      (!_flex.isPressed && _value != const GlassFrame());
+      !_press.isSettled || (!_press.isPressed && _value != const GlassFrame());
 
   @override
   double? get wakeTime => null;
 
   @override
   void step(double time) {
-    _flex.advance(time);
-    final next = !_flex.isPressed && _flex.isSettled(time)
+    _press.advance(time);
+    if (_press.isSettled) _press.settle();
+    final next = _press.isAtRest
         ? const GlassFrame()
-        : GlassFrame(scaleX: _flex.scaleX(time), scaleY: _flex.scaleY(time));
+        : GlassFrame(scaleX: _press.scaleX, scaleY: _press.scaleY);
     if (next == _value) return;
     _value = next;
     notifyListeners();
   }
 
   void down(double t, Offset position, Size size) {
-    _flex.size = size;
-    _flex.pointerDown(t, position);
+    _press.size = size;
+    _press.pointerDown(t, position);
     MotionClock.instance.wake(this);
   }
 
   void move(double t, Offset position) {
-    _flex.pointerMove(t, position);
+    _press.pointerMove(t, position);
     MotionClock.instance.wake(this);
   }
 
-  void up(double t) {
-    _flex.pointerUp(t);
+  void up(double t, Offset position) {
+    _press.pointerUp(t, position);
     MotionClock.instance.wake(this);
   }
 
   void cancel(double t) {
-    _flex.pointerCancel(t);
+    _press.pointerCancel(t);
     MotionClock.instance.wake(this);
   }
 }
@@ -722,7 +722,7 @@ final class _LiftInput extends Interaction {
         _owner._body.move(input.time, input.position);
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
-        _owner._body.up(input.time);
+        _owner._body.up(input.time, input.position);
         if ((input.position - _down).distance < kTouchSlop) {
           _owner._focus.requestFocus();
         }
