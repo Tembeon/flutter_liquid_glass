@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/chrome/bar.dart';
+import 'package:apple_liquid_glass/src/chrome/chrome.dart';
 import 'package:apple_liquid_glass/src/renderer/scroll_edge.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -278,5 +279,48 @@ void main() {
     lift.value = 0;
     await tester.pump();
     expect(clip, isNot(paints..clipRect()));
+  });
+
+  testWidgets('a tab scaffold that rebuilds leaves the page its scroll view: '
+      'the large title stays away', (tester) async {
+    await _phone(tester);
+    late StateSetter rebuild;
+    await tester.pumpWidget(
+      _app(
+        StatefulBuilder(
+          builder: (context, setState) {
+            rebuild = setState;
+            return GlassTabScaffold(
+              tabBar: GlassTabBar(
+                destinations: const [
+                  GlassTabDestination(icon: SizedBox(), label: Text('One')),
+                  GlassTabDestination(icon: SizedBox(), label: Text('Two')),
+                ],
+                selectedIndex: 0,
+                onDestinationSelected: (_) {},
+              ),
+              tabBuilder: (context, index) =>
+                  _page(largeTitle: const Text('Big')),
+            );
+          },
+        ),
+      ),
+    );
+    await _settle(tester);
+    final context = tester.element(find.byType(GlassContentScroll));
+    final chrome = context.getInheritedWidgetOfExactType<GlassChrome>()!;
+    final scroll = chrome.active.value;
+    expect(scroll, isNotNull);
+    await tester.drag(find.byType(ListView), const Offset(0, -300));
+    await _settle(tester);
+    final followed = <MotionScroll?>[];
+    chrome.active.addListener(() => followed.add(chrome.active.value));
+
+    rebuild(() {});
+    await tester.pump(_frame);
+    await tester.pump(_frame);
+
+    expect(followed, isEmpty);
+    expect(chrome.active.value, same(scroll));
   });
 }

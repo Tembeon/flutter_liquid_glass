@@ -245,7 +245,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final chrome = GlassChrome.maybeOf(context);
-    if (!identical(chrome, _chrome)) _release();
+    if (!_followedBySameBars(chrome, _chrome)) _release();
     _chrome = chrome;
     _reduceMotion = GlassTraits.of(context).reduceMotion;
     _scrolled();
@@ -271,14 +271,22 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
     super.dispose();
   }
 
+  // A scaffold around this one rebuilds with a new chrome for the same bars:
+  // only other bars take the claim away, or the bars would drop the scroll
+  // view for a frame and a large title scrolled away would come back.
+  static bool _followedBySameBars(GlassChrome? a, GlassChrome? b) {
+    if (a == null || b == null) return identical(a, b);
+    return identical(a.active, b.active) &&
+        _followedBySameBars(a.outer, b.outer);
+  }
+
   // The bars rebuild when the scroll view they follow changes, so the
   // claim waits for the end of the frame that built this one.
   void _claim() {
-    final chrome = _chrome;
-    if (chrome == null) return;
+    if (_chrome == null) return;
     SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !identical(chrome, _chrome)) return;
-      for (GlassChrome? scope = chrome; scope != null; scope = scope.outer) {
+      if (!mounted) return;
+      for (var scope = _chrome; scope != null; scope = scope.outer) {
         scope.active.value = _scroll;
       }
     });
