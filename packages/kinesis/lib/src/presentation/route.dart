@@ -615,6 +615,9 @@ final class _RouteShell<T> implements PresentationShell {
       route.dismiss(trigger, result as T?);
 
   @override
+  bool canDismiss(DismissTrigger trigger) => route.canDismiss(trigger);
+
+  @override
   void beginInteraction() => route.beginInteraction();
 
   @override

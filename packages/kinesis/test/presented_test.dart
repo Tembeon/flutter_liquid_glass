@@ -255,9 +255,15 @@ void main() {
         await tester.sendKeyEvent(LogicalKeyboardKey.escape);
         await tester.pump();
         expect(made.single.left, isEmpty);
+        final handle = PresentationHandle.of(
+          tester.element(find.byKey(_contentKey)),
+        );
+        expect(handle.canDismiss(DismissTrigger.escape), isFalse);
+        expect(handle.canDismiss(DismissTrigger.back), isTrue);
         await tester.binding.handlePopRoute();
         await tester.pump();
         expect(made.single.left, [DismissTrigger.back]);
+        expect(handle.canDismiss(DismissTrigger.programmatic), isFalse);
         await _settle(tester);
         expect(shell.isPresented, isFalse);
       });

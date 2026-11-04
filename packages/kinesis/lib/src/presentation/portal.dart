@@ -156,6 +156,12 @@ class _PresentationPortalState extends State<PresentationPortal>
   }
 
   @override
+  bool canDismiss(DismissTrigger trigger) =>
+      _motion != null &&
+      !_leaving &&
+      widget.presentation.dismiss.allows(trigger);
+
+  @override
   void didOpen() {}
 
   @override

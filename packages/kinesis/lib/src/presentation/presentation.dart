@@ -178,6 +178,10 @@ abstract interface class PresentationHandle {
   /// policy and `PopScope`s unless [trigger] is programmatic.
   void dismiss(DismissTrigger trigger, [Object? result]);
 
+  /// Whether a dismissal by [trigger] would go through now: a sheet asks
+  /// before a drag whether the drag may take it away.
+  bool canDismiss(DismissTrigger trigger);
+
   /// Shows what is below while a gesture of the content moves it toward
   /// its dismissal; [endInteraction] ends it.
   void beginInteraction();
