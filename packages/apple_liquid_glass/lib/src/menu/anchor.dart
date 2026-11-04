@@ -345,40 +345,41 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     return box is RenderBox ? box.globalToLocal(global) : global;
   }
 
-  double _stamp(PointerEvent event) =>
-      MotionClock.instance.stamp(event.timeStamp);
-
-  void _pointerDown(PointerDownEvent event) {
-    if (_motion == null ||
-        _pointer != null ||
-        event.buttons != kPrimaryButton) {
-      return;
-    }
-    _pointer = event.pointer;
-    final local = _local(event.position);
-    _command((motion, t) => motion.pointerDown(t, local), at: _stamp(event));
+  Offset _toGlobal(Offset local) {
+    final box = context.findRenderObject();
+    return box is RenderBox ? box.localToGlobal(local) : local;
   }
 
-  void _pointerMove(PointerMoveEvent event) {
-    if (event.pointer != _pointer) return;
-    final local = _local(event.position);
-    _command((motion, t) => motion.pointerMove(t, local), at: _stamp(event));
+  /// A finger touched the menu at [global] at time [t]; whether the menu
+  /// takes the touch.
+  bool _pointerDown(int pointer, double t, Offset global) {
+    if (_motion == null || _pointer != null) return false;
+    _pointer = pointer;
+    final local = _local(global);
+    _command((motion, t) => motion.pointerDown(t, local), at: t);
+    return true;
   }
 
-  void _pointerUp(PointerUpEvent event) {
-    if (event.pointer != _pointer) return;
+  void _pointerMove(int pointer, double t, Offset global) {
+    if (pointer != _pointer) return;
+    final local = _local(global);
+    _command((motion, t) => motion.pointerMove(t, local), at: t);
+  }
+
+  void _pointerUp(int pointer, double t, Offset global) {
+    if (pointer != _pointer) return;
     _pointer = null;
     final motion = _motion;
     if (motion == null) return;
-    final local = _local(event.position);
-    _command((motion, t) => motion.pointerUp(t, local), at: _stamp(event));
+    final local = _local(global);
+    _command((motion, t) => motion.pointerUp(t, local), at: t);
     if (motion.isOpenPending) _route();
   }
 
-  void _pointerCancel(PointerCancelEvent event) {
-    if (event.pointer != _pointer) return;
+  void _pointerCancel(int pointer, double t) {
+    if (pointer != _pointer) return;
     _pointer = null;
-    _command((motion, t) => motion.pointerCancel(t), at: _stamp(event));
+    _command((motion, t) => motion.pointerCancel(t), at: t);
   }
 
   // A touch made between a tap's release and the menu's opening belongs
@@ -395,7 +396,10 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     GestureBinding.instance.pointerRouter.removeGlobalRoute(_earlyEvent);
   }
 
+  // No region lies under such a touch yet: the menu shows only once it
+  // opens.
   void _earlyEvent(PointerEvent event) {
+    final t = MotionClock.instance.stamp(event.timeStamp);
     if (event is PointerDownEvent) {
       if (!(_motion?.isOpenPending ?? false) ||
           _pointer != null ||
@@ -403,17 +407,17 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
         return;
       }
       _early = event.pointer;
-      _pointerDown(event);
+      _pointerDown(event.pointer, t, event.position);
     } else if (event.pointer == _early) {
       switch (event) {
         case PointerMoveEvent():
-          _pointerMove(event);
+          _pointerMove(event.pointer, t, event.position);
         case PointerUpEvent():
           _early = null;
-          _pointerUp(event);
+          _pointerUp(event.pointer, t, event.position);
         case PointerCancelEvent():
           _early = null;
-          _pointerCancel(event);
+          _pointerCancel(event.pointer, t);
         default:
       }
     }
@@ -500,15 +504,20 @@ class _MenuAnchorState extends _MenuHost<MenuAnchor> {
     );
   }
 
-  void _sourceDown(PointerDownEvent event) {
-    if (!widget.enabled ||
-        event.buttons != kPrimaryButton ||
-        _pointer != null ||
-        _isOpen) {
-      return;
-    }
+  late final _input = _MenuInput(
+    claimAfter: widget.tuning.holdDuration,
+    toGlobal: _toGlobal,
+    down: _sourceDown,
+    move: _pointerMove,
+    up: _pointerUp,
+    cancel: _pointerCancel,
+    activate: _activate,
+  );
+
+  bool _sourceDown(int pointer, double t, Offset global) {
+    if (!widget.enabled || _pointer != null || _isOpen) return false;
     _prepare();
-    _pointerDown(event);
+    return _pointerDown(pointer, t, global);
   }
 
   void _activate() {
@@ -536,16 +545,10 @@ class _MenuAnchorState extends _MenuHost<MenuAnchor> {
     final enabled = widget.enabled;
     final hold = widget.trigger == MenuTrigger.hold;
     return _host(
-      FocusableActionDetector(
+      InputRegion(
+        interactions: [_input],
         enabled: enabled,
-        actions: {
-          ActivateIntent: CallbackAction<ActivateIntent>(
-            onInvoke: (_) {
-              _activate();
-              return null;
-            },
-          ),
-        },
+        semanticLabel: widget.semanticLabel,
         child: ValueListenableBuilder<bool>(
           valueListenable: _showing,
           child: LiveTransform(
@@ -555,24 +558,86 @@ class _MenuAnchorState extends _MenuHost<MenuAnchor> {
           ),
           builder: (context, showing, face) => Semantics(
             button: true,
-            enabled: enabled,
             expanded: showing,
-            label: widget.semanticLabel,
             excludeSemantics: widget.semanticLabel != null,
-            onTap: enabled ? _activate : null,
             onLongPress: enabled && hold ? _openFromCode : null,
-            child: Listener(
-              behavior: HitTestBehavior.opaque,
-              onPointerDown: _sourceDown,
-              onPointerMove: _pointerMove,
-              onPointerUp: _pointerUp,
-              onPointerCancel: _pointerCancel,
-              child: Visibility.maintain(visible: !showing, child: face!),
-            ),
+            child: Visibility.maintain(visible: !showing, child: face!),
           ),
         ),
       ),
     );
+  }
+}
+
+/// The touches of a region over a menu's source or its layer, handed to
+/// the menu in global coordinates at their stamps.
+///
+/// It hears a touch at contact and holds it [claimAfter] later, when a
+/// hold opens the menu under the finger, or at once without one: a scroll
+/// view around the source takes a finger that moves before then and never
+/// one that may choose from the menu.
+final class _MenuInput extends Interaction {
+  _MenuInput({
+    required this.toGlobal,
+    required this.down,
+    required this.move,
+    required this.up,
+    required this.cancel,
+    this.activate,
+    this.claimAfter,
+  });
+
+  final Offset Function(Offset local) toGlobal;
+  final bool Function(int pointer, double t, Offset global) down;
+  final void Function(int pointer, double t, Offset global) move;
+  final void Function(int pointer, double t, Offset global) up;
+  final void Function(int pointer, double t) cancel;
+  final VoidCallback? activate;
+  final double? claimAfter;
+
+  int? _pointer;
+  double? _claimAt;
+
+  @override
+  bool get activates => activate != null;
+
+  @override
+  double? get nextDue => _claimAt;
+
+  @override
+  InteractionUpdate advance(double time) {
+    final due = _claimAt;
+    if (due == null || time < due) return InteractionUpdate.none;
+    _claimAt = null;
+    return const InteractionUpdate(claims: true);
+  }
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    switch (input) {
+      case PointerDownInput() when _pointer == null && accepts(input):
+        if (!down(input.pointer, input.time, toGlobal(input.position))) {
+          return InteractionUpdate.none;
+        }
+        _pointer = input.pointer;
+        final after = claimAfter;
+        if (after == null) return const InteractionUpdate(claims: true);
+        _claimAt = input.time + after;
+      case PointerMoveInput() when input.pointer == _pointer:
+        move(input.pointer, input.time, toGlobal(input.position));
+      case PointerUpInput() when input.pointer == _pointer:
+        _pointer = null;
+        _claimAt = null;
+        up(input.pointer, input.time, toGlobal(input.position));
+      case PointerCancelInput() when input.pointer == _pointer:
+        _pointer = null;
+        _claimAt = null;
+        cancel(input.pointer, input.time);
+      case ActivateInput():
+        activate?.call();
+      default:
+    }
+    return InteractionUpdate.none;
   }
 }
 
@@ -647,6 +712,19 @@ class _MenuLayerState extends State<_MenuLayer> {
 
   late final Listenable _frames = _anchor._frames;
 
+  late final _input = _MenuInput(
+    toGlobal: (local) =>
+        (context.findRenderObject()! as RenderBox).localToGlobal(local),
+    down: _anchor._pointerDown,
+    move: _anchor._pointerMove,
+    up: _anchor._pointerUp,
+    cancel: _anchor._pointerCancel,
+  );
+
+  // The menu's own Focus takes the keys; the region's stays out of the
+  // traversal.
+  final _regionFocus = FocusNode(skipTraversal: true);
+
   MenuMotion get _motion => _anchor._motion!;
 
   double get _width => _motion.tuning.menuWidth;
@@ -662,6 +740,7 @@ class _MenuLayerState extends State<_MenuLayer> {
   @override
   void dispose() {
     _frames.removeListener(_tick);
+    _regionFocus.dispose();
     _scroll.dispose();
     for (final hidden in _hidden.values) {
       hidden.dispose();
@@ -1167,12 +1246,9 @@ class _MenuLayerState extends State<_MenuLayer> {
         if (top > 0) _card(top, layouts[top], style),
       ],
     );
-    final layer = Listener(
-      behavior: HitTestBehavior.opaque,
-      onPointerDown: _anchor._pointerDown,
-      onPointerMove: _anchor._pointerMove,
-      onPointerUp: _anchor._pointerUp,
-      onPointerCancel: _anchor._pointerCancel,
+    final layer = InputRegion(
+      interactions: [_input],
+      focusNode: _regionFocus,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -1549,6 +1625,12 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     _hold.release(t);
   }
 
+  // The hold listens outside the gesture arena: a child that claims its
+  // touch at once, a glass button, would win it, and Flutter's arena
+  // never hands a won touch on, where UIKit cancels the button's.
+  static double _stamp(PointerEvent event) =>
+      MotionClock.instance.stamp(event.timeStamp);
+
   void _down(PointerDownEvent event) {
     if (!_enabled ||
         event.buttons != kPrimaryButton ||
@@ -1564,37 +1646,37 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   }
 
   void _move(PointerMoveEvent event) {
+    final t = _stamp(event);
     if (event.pointer == _held) {
       _finger = event.position;
-      if ((event.position - _from).distance > kTouchSlop) {
-        _drop(_stamp(event));
-      }
+      if ((event.position - _from).distance > kTouchSlop) _drop(t);
       return;
     }
-    _pointerMove(event);
+    _pointerMove(event.pointer, t, event.position);
   }
 
   void _up(PointerUpEvent event) {
+    final t = _stamp(event);
     if (event.pointer == _held) {
       _finger = event.position;
-      final t = _stamp(event);
       if (_hold.isCommitted) {
         _openUnder(t, _hold.release(t));
-        _pointerUp(event);
+        _pointerUp(event.pointer, t, event.position);
       } else {
         _drop(t);
       }
       return;
     }
-    _pointerUp(event);
+    _pointerUp(event.pointer, t, event.position);
   }
 
   void _cancel(PointerCancelEvent event) {
+    final t = _stamp(event);
     if (event.pointer == _held) {
-      _drop(_stamp(event));
+      _drop(t);
       return;
     }
-    _pointerCancel(event);
+    _pointerCancel(event.pointer, t);
   }
 
   Matrix4 _growthTransform() {
