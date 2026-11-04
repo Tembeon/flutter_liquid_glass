@@ -614,6 +614,28 @@ void main() {
     expect(_sheet(tester).bottom, lessThan(874 - 34));
   });
 
+  testWidgets('a fitted sheet follows content that changes its height', (
+    tester,
+  ) async {
+    _phone(tester);
+    var height = 200.0;
+    late StateSetter grow;
+    await _present(
+      tester,
+      (context) => StatefulBuilder(
+        builder: (context, setState) {
+          grow = setState;
+          return SizedBox(key: _contentKey, height: height);
+        },
+      ),
+      detents: const [GlassSheetDetent.fitted],
+    );
+    final scale = _sheet(tester).height / 200;
+    grow(() => height = 300);
+    await _settle(tester);
+    expect(_sheet(tester).height, moreOrLessEquals(300 * scale, epsilon: 0.5));
+  });
+
   testWidgets('a sheet style sets the content text; a popover adapted to a '
       'sheet keeps its own text style', (tester) async {
     _phone(tester);

@@ -11,7 +11,6 @@ import 'package:apple_liquid_glass/src/theme/typography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 
@@ -450,17 +449,24 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   bool get _dismissAllowed =>
       PresentationHandle.of(context).canDismiss(DismissTrigger.interaction);
 
-  void _fittedHeight(double height) {
-    if (!mounted || _fitted == height) return;
-    setState(() => _fitted = height);
+  void _fittedHeight(double t, Size size) {
+    if (!mounted || _fitted == size.height) return;
+    _fitted = size.height;
+    _layout(_size, _padding, _keyboard, at: t);
   }
 
   // A keyboard raises the sheet as UIKit's does (simulator capture): each
   // detent grows by the keyboard's height up to the maximum, and the sheet
   // moves to its largest detent while the keyboard shows, back to the
   // selected one when it hides, neither reported as a detent change.
-  void _layout(Size size, EdgeInsets padding, double keyboard) {
-    if (size == _size &&
+  void _layout(
+    Size size,
+    EdgeInsets padding,
+    double keyboard, {
+    double? at,
+  }) {
+    if (at == null &&
+        size == _size &&
         padding == _padding &&
         keyboard == _keyboard &&
         _motion != null) {
@@ -508,7 +514,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
       widget.motion.attach(_now, created);
     } else {
       motion.relayout(
-        _now,
+        at ?? _now,
         heights,
         size.width,
         fullHeight: maximum + padding.bottom,
@@ -724,9 +730,12 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
       content = _content = DefaultTextStyle(
         style: style,
         child: detents.any((d) => d.isFitted)
-            ? _FitReport(
-                onHeight: _fittedHeight,
-                child: Builder(builder: _spec.builder),
+            ? Align(
+                alignment: Alignment.topLeft,
+                child: MotionMeasure(
+                  onSize: _fittedHeight,
+                  child: Builder(builder: _spec.builder),
+                ),
               )
             : Builder(builder: _spec.builder),
       );
@@ -1031,49 +1040,5 @@ class _SheetScrollPosition extends ScrollPositionWithSingleContext {
   void dispose() {
     if (_owns) sheet._release(0);
     super.dispose();
-  }
-}
-
-/// Lays its child out with a loose height at its top and reports the
-/// child's height after layout: the content height a fitted detent rests
-/// at.
-class _FitReport extends SingleChildRenderObjectWidget {
-  const _FitReport({required this.onHeight, super.child});
-
-  final ValueChanged<double> onHeight;
-
-  @override
-  _RenderFitReport createRenderObject(BuildContext context) =>
-      _RenderFitReport(onHeight);
-
-  @override
-  void updateRenderObject(BuildContext context, _RenderFitReport renderObject) {
-    renderObject.onHeight = onHeight;
-  }
-}
-
-class _RenderFitReport extends RenderProxyBox {
-  _RenderFitReport(this.onHeight);
-
-  ValueChanged<double> onHeight;
-  double? _reported;
-
-  @override
-  void performLayout() {
-    final child = this.child;
-    if (child == null) {
-      size = constraints.smallest;
-      return;
-    }
-    child.layout(constraints.loosen(), parentUsesSize: true);
-    size = constraints.constrain(
-      constraints.hasBoundedHeight
-          ? Size(child.size.width, constraints.maxHeight)
-          : child.size,
-    );
-    final height = child.size.height;
-    if (height == _reported) return;
-    _reported = height;
-    SchedulerBinding.instance.addPostFrameCallback((_) => onHeight(height));
   }
 }
