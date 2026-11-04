@@ -71,6 +71,9 @@ class RawGlassMenu extends StatefulWidget {
     this.order = GlassMenuOrder.automatic,
     this.style,
     @internal this.tuning = MenuTuning.standard,
+    @internal this.sourceOf,
+    @internal this.onShowing,
+    @internal this.scalesOnPress = true,
     super.key,
   });
 
@@ -116,6 +119,21 @@ class RawGlassMenu extends StatefulWidget {
   @internal
   final MenuTuning tuning;
 
+  /// Where the menu grows out of in the coordinates of the given overlay, when
+  /// that is not [child]'s box, or null to use the box.
+  @internal
+  final Rect? Function(RenderBox overlay)? sourceOf;
+
+  /// Told when the menu starts to show and when it has gone, for a source
+  /// whose glass [child] does not draw.
+  @internal
+  final ValueChanged<bool>? onShowing;
+
+  /// Whether [child] scales under a finger; false when something around it
+  /// already does.
+  @internal
+  final bool scalesOnPress;
+
   @override
   State<RawGlassMenu> createState() => _RawGlassMenuState();
 }
@@ -159,6 +177,10 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
 
   /// The color of the source's glass at rest (see [RawGlassMenu.tint]).
   Color? get _sourceTint => null;
+
+  /// Where the menu grows out of in [overlay]'s coordinates, or null for
+  /// this widget's box.
+  Rect? _sourceIn(RenderBox overlay) => null;
 
   /// The motion of a menu opening from [source], in the overlay's
   /// coordinates.
@@ -297,6 +319,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     final box = context.findRenderObject()! as RenderBox;
     final overlayBox = overlay.context.findRenderObject()! as RenderBox;
     final source =
+        _sourceIn(overlayBox) ??
         box.localToGlobal(Offset.zero, ancestor: overlayBox) & box.size;
     final media = MediaQuery.of(context);
     final padding = media.padding.copyWith(
@@ -466,6 +489,23 @@ class _RawGlassMenuState extends _MenuHost<RawGlassMenu> {
   Color? get _sourceTint => widget.tint;
 
   @override
+  Rect? _sourceIn(RenderBox overlay) => widget.sourceOf?.call(overlay);
+
+  @override
+  void initState() {
+    super.initState();
+    _showing.addListener(_reportShowing);
+  }
+
+  @override
+  void dispose() {
+    if (_showing.value) widget.onShowing?.call(false);
+    super.dispose();
+  }
+
+  void _reportShowing() => widget.onShowing?.call(_showing.value);
+
+  @override
   MenuMotion _createMotion(Rect source, Size bounds, EdgeInsets padding) {
     final motion = MenuMotion(
       button: source,
@@ -532,7 +572,7 @@ class _RawGlassMenuState extends _MenuHost<RawGlassMenu> {
 
   Matrix4 _pressTransform() {
     final motion = _motion;
-    if (motion == null) return Matrix4.identity();
+    if (motion == null || !widget.scalesOnPress) return Matrix4.identity();
     final s = motion.isPresented ? 1.0 : motion.pressScale;
     return Matrix4.diagonal3Values(s, s, 1);
   }

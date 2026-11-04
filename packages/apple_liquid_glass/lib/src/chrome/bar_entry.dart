@@ -1,3 +1,4 @@
+import 'package:apple_liquid_glass/src/menu/entries.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/style.dart';
 import 'package:flutter/widgets.dart';
@@ -123,6 +124,7 @@ final class GlassBarItem extends GlassBarEntry {
     this.label,
     this.onPressed,
     this.semanticLabel,
+    this.menuChildren,
   }) : assert(icon != null || label != null, 'an icon or a label'),
        prominent = false,
        child = null;
@@ -137,7 +139,8 @@ final class GlassBarItem extends GlassBarEntry {
     this.semanticLabel,
   }) : assert(icon != null || label != null, 'an icon or a label'),
        prominent = true,
-       child = null;
+       child = null,
+       menuChildren = null;
 
   /// Creates an item of custom content in the capsule, such as a segmented
   /// control (UIKit `customView`); [child] handles its own input.
@@ -148,7 +151,8 @@ final class GlassBarItem extends GlassBarEntry {
   }) : icon = null,
        label = null,
        onPressed = null,
-       prominent = false;
+       prominent = false,
+       menuChildren = null;
 
   /// The identity of the item across changes of the bar and across pages.
   final LocalKey? key;
@@ -171,6 +175,15 @@ final class GlassBarItem extends GlassBarEntry {
 
   /// The custom content of [GlassBarItem.custom].
   final Widget? child;
+
+  /// The menu of this button, which grows out of its capsule and lands with
+  /// its top on the capsule's top: a tap opens it, or a hold when [onPressed]
+  /// takes the tap.
+  ///
+  /// The button stands in a capsule of its own. UIKit also grows a menu out of
+  /// a capsule shared with other items, the whole capsule morphing (menu
+  /// passport); this is not supported yet.
+  final List<GlassMenuEntry>? menuChildren;
 }
 
 /// A break between capsules.

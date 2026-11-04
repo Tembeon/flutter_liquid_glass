@@ -159,7 +159,14 @@ class _LiquidPageState extends State<LiquidPage> {
     child: GlassPageScaffold(
       navigationBar: GlassNavigationBar(
         largeTitle: const Text('Liquid'),
-        trailing: [settingsItem(context)],
+        trailing: [
+          GlassBarItem(
+            icon: const Icon(CupertinoIcons.paintbrush),
+            semanticLabel: 'Look',
+            menuChildren: _menu(context),
+          ),
+          settingsItem(context),
+        ],
       ),
       child: Stack(
         fit: StackFit.expand,
@@ -239,13 +246,6 @@ class _LiquidPageState extends State<LiquidPage> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                GlassButton(
-                  onPressed: null,
-                  semanticLabel: 'Look',
-                  menuChildren: _menu(context),
-                  child: const Icon(CupertinoIcons.paintbrush),
-                ),
-                const SizedBox(width: 16),
                 const Icon(
                   CupertinoIcons.circle_grid_hex,
                   color: Color(0xFFFFFFFF),

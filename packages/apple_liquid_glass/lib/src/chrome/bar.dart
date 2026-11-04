@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:apple_liquid_glass/src/chrome/bar_entry.dart';
 import 'package:apple_liquid_glass/src/chrome/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/chrome/toolbar.dart';
+import 'package:apple_liquid_glass/src/menu/anchor.dart';
 import 'package:apple_liquid_glass/src/motion/bar_layout.dart';
 import 'package:apple_liquid_glass/src/motion/bar_motion.dart';
 import 'package:apple_liquid_glass/src/motion/glass_press.dart';
@@ -555,6 +556,7 @@ final class GlassBarHost {
       if (p is GlassBarItem && q is GlassBarItem) {
         if (_identity(p) != _identity(q) ||
             p.prominent != q.prominent ||
+            (p.menuChildren == null) != (q.menuChildren == null) ||
             (p.onPressed == null) != (q.onPressed == null) ||
             p.child != q.child) {
           return false;
@@ -654,6 +656,33 @@ final class _Bar {
       if (capsule.rect.contains(frame.center)) return capsule;
     }
     return null;
+  }
+
+  // The capsules whose glass a menu has taken over, by the item that opened
+  // the menu.
+  final Map<Object, Object> _menuCapsules = {};
+
+  /// Hides or shows the capsule of [item], whose menu grows out of it.
+  void menuShowing(Object item, {required bool showing}) {
+    if (showing) {
+      final capsule = _capsuleOf(item);
+      if (capsule == null) return;
+      _menuCapsules[item] = capsule.id;
+    } else {
+      _menuCapsules.remove(item);
+    }
+    if (items != null) publish();
+  }
+
+  /// The capsule of [item] in [ancestor]'s coordinates.
+  Rect? capsuleIn(Object item, RenderBox ancestor) {
+    final capsule = _capsuleOf(item);
+    final box = items;
+    if (capsule == null || box == null) return null;
+    return MatrixUtils.transformRect(
+      box.getTransformTo(ancestor),
+      capsule.rect,
+    );
   }
 
   void pressDown(Object item, Duration stamp, Offset position, Size box) {
@@ -823,7 +852,7 @@ final class _Bar {
               : entry.icon != null
               ? GlassBarButtonKind.icon
               : GlassBarButtonKind.label;
-          if (entry.prominent) {
+          if (entry.prominent || entry.menuChildren != null) {
             close();
             out.add([(id, _Button.item(entry, kind))]);
             continue;
@@ -1029,7 +1058,9 @@ final class _Bar {
                   radius: glow.radius,
                   spot: glow.spot,
                 ),
-          opacity: frame.opacity * fade,
+          opacity: _menuCapsules.containsValue(frame.id)
+              ? 0
+              : frame.opacity * fade,
           tint: prominent.contains(frame.id) ? tint : null,
         );
       }
@@ -1316,7 +1347,8 @@ class _BarItem extends StatelessWidget {
     final look = bar.itemStyleOf(theme);
     final back = button.back;
     final item = button.item;
-    final enabled = back != null || item?.onPressed != null;
+    final menu = item?.menuChildren;
+    final enabled = back != null || item?.onPressed != null || menu != null;
     final prominent = item?.prominent ?? false;
     final color = GlassDynamicColor.resolve(
       prominent
@@ -1374,6 +1406,34 @@ class _BarItem extends StatelessWidget {
       );
       semantics = it.semanticLabel;
       onTap = it.onPressed;
+    }
+    if (menu != null) {
+      return _ItemBox(
+        id: id,
+        child: Listener(
+          onPointerDown: (event) => bar.pressDown(
+            id,
+            event.timeStamp,
+            event.localPosition,
+            context.size ?? Size.zero,
+          ),
+          onPointerMove: (event) =>
+              bar.pressMove(event.timeStamp, event.localPosition),
+          onPointerUp: (event) =>
+              bar.pressUp(event.timeStamp, event.localPosition),
+          onPointerCancel: (event) => bar.pressCancel(event.timeStamp),
+          child: RawGlassMenu(
+            entries: menu,
+            onPressed: onTap,
+            semanticLabel: semantics,
+            label: content,
+            scalesOnPress: false,
+            sourceOf: (overlay) => bar.capsuleIn(id, overlay),
+            onShowing: (showing) => bar.menuShowing(id, showing: showing),
+            child: content,
+          ),
+        ),
+      );
     }
     return _ItemBox(
       id: id,

@@ -161,6 +161,10 @@ void main() {
       expect(tester.getRect(find.byIcon(icon).first).top, greaterThan(bar));
     }
     expect(find.text('Liquid Glass'), findsNothing);
+    expect(
+      tester.getRect(find.byIcon(CupertinoIcons.paintbrush)).bottom,
+      lessThan(bar),
+    );
   });
 
   testWidgets('Liquid: a drop follows its finger and flies home', (
