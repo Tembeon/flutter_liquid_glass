@@ -235,8 +235,6 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W>
       _frames.value++;
       return;
     }
-    motion.frameTime = time;
-    motion.framePeriod = MotionClock.instance.framePeriod;
     _reach(motion, math.max(time, motion.time));
     if (motion.isSettled) motion.settle();
     if (_early == null && !motion.isOpenPending) _unroute();

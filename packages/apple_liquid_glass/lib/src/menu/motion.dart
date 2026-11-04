@@ -1137,6 +1137,7 @@ class MenuMotion extends Motion {
     this._sourceRadius,
     this.tuning = MenuTuning.standard,
     this._attachment,
+    super.clock,
   }) : _button = button,
        _layoutFor = layout,
        _sourceHeight = sourceHeight ?? button.height {
@@ -1277,16 +1278,6 @@ class MenuMotion extends Motion {
 
   double? _peekTime;
   double? _prefetchedFrom;
-
-  /// The time of the latest frame on the source clock's frame grid
-  /// (kinesis's `MotionClock`); the coming frames follow it at multiples
-  /// of [framePeriod].
-  double frameTime = 0;
-
-  /// The period of the source clock's frame grid
-  /// (`MotionClock.framePeriod`), or null while it has seen no steady
-  /// frames; the motion fuses nothing ahead without it.
-  double? framePeriod;
 
   /// The time the motion was last advanced to, in seconds.
   double get time => _now;
@@ -1895,16 +1886,18 @@ class MenuMotion extends Motion {
   /// the motion asked for it, and are the edge alone before.
   ///
   /// The coming frames are the nodes of the source clock's frame grid
-  /// after the motion's time ([frameTime] plus multiples of
-  /// [framePeriod]), so a frame on the grid asks for exactly the time it
-  /// was fused for, and a silhouette read at an event's time between
-  /// frames still predicts the frames.
+  /// after the motion's time (the [clock]'s frame time plus multiples of
+  /// its frame period), so a frame on the grid asks for exactly the time
+  /// it was fused for, and a silhouette read at an event's time between
+  /// frames still predicts the frames. Nothing is fused ahead before the
+  /// clock has seen steady frames.
   void _prefetchSilhouette() {
     if (!MenuFusion.prefetches) return;
-    final period = framePeriod;
+    final period = clock.framePeriod;
     final t = now;
     if (period == null || t == _prefetchedFrom) return;
     _prefetchedFrom = t;
+    final frameTime = clock.frameTime;
     var ahead = frameTime + period * ((t - frameTime) / period + 1).floor();
     if (ahead <= t) ahead += period;
     for (var frame = 0; frame < MenuFusion.prefetchFrames; frame++) {
