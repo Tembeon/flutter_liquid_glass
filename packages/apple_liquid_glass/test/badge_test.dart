@@ -57,4 +57,43 @@ void main() {
       paints..rrect(color: const Color(0xFFFF4245)),
     );
   });
+
+  testWidgets('the theme colors badges and a badge style overrides it', (
+    tester,
+  ) async {
+    Color fill() =>
+        (tester.widget<Container>(find.byType(Container)).decoration!
+                as ShapeDecoration)
+            .color!;
+    Widget themed(Widget badge) => MediaQuery(
+      data: const MediaQueryData(),
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: GlassTheme(
+          data: const GlassThemeData(
+            brightness: Brightness.light,
+            badgeStyle: GlassBadgeStyle(backgroundColor: Color(0xFF00AA00)),
+          ),
+          child: Center(child: badge),
+        ),
+      ),
+    );
+    await tester.pumpWidget(themed(const GlassBadge.count(3)));
+    expect(fill(), const Color(0xFF00AA00));
+    final small = tester.getSize(find.byType(GlassBadge)).height;
+
+    await tester.pumpWidget(
+      themed(
+        const GlassBadge.count(
+          3,
+          style: GlassBadgeStyle(
+            backgroundColor: Color(0xFF0000AA),
+            textStyle: TextStyle(fontSize: 20),
+          ),
+        ),
+      ),
+    );
+    expect(fill(), const Color(0xFF0000AA));
+    expect(tester.getSize(find.byType(GlassBadge)).height, greaterThan(small));
+  });
 }

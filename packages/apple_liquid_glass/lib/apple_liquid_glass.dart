@@ -28,7 +28,7 @@ export 'src/chrome/navigation_bar.dart'
 export 'src/chrome/page_route.dart' show GlassPageRoute, GlassZoomSource;
 export 'src/chrome/tab_scaffold.dart' show GlassTabScaffold;
 export 'src/chrome/toolbar.dart' show GlassToolbar;
-export 'src/controls/badge.dart' show GlassBadge;
+export 'src/controls/badge.dart' show GlassBadge, GlassBadgeStyle;
 export 'src/controls/button.dart'
     show
         GlassButton,

@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/src/chrome/navigation_bar.dart';
+import 'package:apple_liquid_glass/src/controls/badge.dart';
 import 'package:apple_liquid_glass/src/controls/button.dart';
 import 'package:apple_liquid_glass/src/controls/list.dart';
 import 'package:apple_liquid_glass/src/controls/page_control.dart';
@@ -115,6 +116,7 @@ class GlassThemeData {
     this.searchFieldStyle,
     this.listStyle,
     this.navigationBarStyle,
+    this.badgeStyle,
   });
 
   /// The theme between [a] and [b] at [t]: colors and styles interpolate;
@@ -163,6 +165,7 @@ class GlassThemeData {
         b.navigationBarStyle,
         t,
       ),
+      badgeStyle: GlassBadgeStyle.lerp(a.badgeStyle, b.badgeStyle, t),
     );
   }
 
@@ -214,6 +217,9 @@ class GlassThemeData {
   /// The look of navigation bars.
   final GlassNavigationBarStyle? navigationBarStyle;
 
+  /// The look of badges.
+  final GlassBadgeStyle? badgeStyle;
+
   /// This theme with the non-null fields of [other] over it; styles and
   /// schemes merge too.
   GlassThemeData merge(GlassThemeData? other) {
@@ -242,6 +248,7 @@ class GlassThemeData {
       navigationBarStyle:
           other.navigationBarStyle?.merge(navigationBarStyle) ??
           navigationBarStyle,
+      badgeStyle: other.badgeStyle?.merge(badgeStyle) ?? badgeStyle,
     );
   }
 
@@ -263,10 +270,11 @@ class GlassThemeData {
       other.tabBarStyle == tabBarStyle &&
       other.searchFieldStyle == searchFieldStyle &&
       other.listStyle == listStyle &&
-      other.navigationBarStyle == navigationBarStyle;
+      other.navigationBarStyle == navigationBarStyle &&
+      other.badgeStyle == badgeStyle;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     brightness,
     primaryColor,
     fontFamily,
@@ -283,7 +291,8 @@ class GlassThemeData {
     searchFieldStyle,
     listStyle,
     navigationBarStyle,
-  );
+    badgeStyle,
+  ]);
 }
 
 /// Sets the look of the glass widgets below it.

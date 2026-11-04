@@ -1,43 +1,100 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/theme/colors.dart';
+import 'package:apple_liquid_glass/src/theme/style.dart';
+import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:apple_liquid_glass/src/theme/typography.dart';
 import 'package:flutter/widgets.dart';
+
+/// The look of a [GlassBadge]; a null field leaves it to the theme's
+/// style, then the default.
+@immutable
+class GlassBadgeStyle {
+  /// Creates a style.
+  const GlassBadgeStyle({
+    this.backgroundColor,
+    this.foregroundColor,
+    this.textStyle,
+  });
+
+  /// The fill of the badge; [GlassColors.systemRed] by default.
+  final Color? backgroundColor;
+
+  /// The color of the text; white by default.
+  final Color? foregroundColor;
+
+  /// The text: [GlassBadge.fontSize] points, medium, by default. The
+  /// badge sizes its capsule to it.
+  final TextStyle? textStyle;
+
+  /// This style over [other].
+  GlassBadgeStyle merge(GlassBadgeStyle? other) {
+    if (other == null) return this;
+    return GlassBadgeStyle(
+      backgroundColor: backgroundColor ?? other.backgroundColor,
+      foregroundColor: foregroundColor ?? other.foregroundColor,
+      textStyle: other.textStyle?.merge(textStyle) ?? textStyle,
+    );
+  }
+
+  /// The style between [a] and [b] at [t].
+  static GlassBadgeStyle? lerp(
+    GlassBadgeStyle? a,
+    GlassBadgeStyle? b,
+    double t,
+  ) {
+    if (identical(a, b)) return a;
+    if (a == null || b == null) return t < 0.5 ? a : b;
+    return GlassBadgeStyle(
+      backgroundColor: snapNull(GlassDynamicColor.lerp)(
+        a.backgroundColor,
+        b.backgroundColor,
+        t,
+      ),
+      foregroundColor: snapNull(GlassDynamicColor.lerp)(
+        a.foregroundColor,
+        b.foregroundColor,
+        t,
+      ),
+      textStyle: snapNull(TextStyle.lerp)(a.textStyle, b.textStyle, t),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlassBadgeStyle &&
+      other.backgroundColor == backgroundColor &&
+      other.foregroundColor == foregroundColor &&
+      other.textStyle == textStyle;
+
+  @override
+  int get hashCode => Object.hash(backgroundColor, foregroundColor, textStyle);
+}
 
 /// A badge on a tab: a count, a short text or a dot.
 ///
 /// UIKit: `UITabBarItem.badgeValue`, `UIBarButtonItem.Badge`. SwiftUI:
 /// `badge(_:)`. Flutter: `Badge`.
 ///
-/// It draws in [GlassColors.systemRed] with white text unless its colors
-/// are given: a capsule of [fontSize] medium text with [verticalPadding]
-/// and [horizontalPadding], at least as wide as it is tall and at most
-/// [maxWidth]; the dot is [dotSize] across. Its text does not follow the
-/// text size setting. These metrics are read from UIKit (notes private);
+/// It draws in [GlassColors.systemRed] with white text unless its [style]
+/// or the theme's says otherwise: a capsule of [fontSize] medium text
+/// with [verticalPadding] and [horizontalPadding], at least as wide as it
+/// is tall and at most [maxWidth]; the dot is [dotSize] across. Its text
+/// does not follow the text size setting. These metrics are read from UIKit (notes private);
 /// how a badge appears, changes and leaves (UIKit fades it with the bar's
 /// update animation) is not reproduced.
 class GlassBadge extends StatelessWidget {
   /// A badge showing [count]; a count of zero or less shows no badge.
-  const GlassBadge.count(
-    int this.count, {
-    this.foregroundColor,
-    this.backgroundColor,
-    super.key,
-  }) : text = null;
+  const GlassBadge.count(int this.count, {this.style, super.key}) : text = null;
 
   /// A badge showing [text]; an empty text shows no badge.
-  const GlassBadge.text(
-    String this.text, {
-    this.foregroundColor,
-    this.backgroundColor,
-    super.key,
-  }) : count = null;
+  const GlassBadge.text(String this.text, {this.style, super.key})
+    : count = null;
 
   /// A dot without text (UIKit `Badge.indicator()`).
-  const GlassBadge.indicator({this.backgroundColor, super.key})
+  const GlassBadge.indicator({this.style, super.key})
     : count = null,
-      text = null,
-      foregroundColor = null;
+      text = null;
 
   /// The number shown, or null.
   final int? count;
@@ -45,11 +102,8 @@ class GlassBadge extends StatelessWidget {
   /// The text shown, or null.
   final String? text;
 
-  /// The color of the text; null is white.
-  final Color? foregroundColor;
-
-  /// The fill of the badge; null is [GlassColors.systemRed].
-  final Color? backgroundColor;
+  /// The look, over the theme's and the badge's defaults.
+  final GlassBadgeStyle? style;
 
   /// The size of the text.
   static const double fontSize = 12;
@@ -66,6 +120,11 @@ class GlassBadge extends StatelessWidget {
   /// The size of a badge without text.
   static const double dotSize = 18;
 
+  static const _text = TextStyle(
+    fontSize: fontSize,
+    fontWeight: FontWeight.w500,
+  );
+
   bool get _visible => switch ((count, text)) {
     (final int n, _) => n > 0,
     (_, final String t) => t.isNotEmpty,
@@ -76,8 +135,11 @@ class GlassBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!_visible) return const SizedBox.shrink();
     final label = count?.toString() ?? text;
+    final look = (style ?? const GlassBadgeStyle()).merge(
+      GlassTheme.of(context).badgeStyle,
+    );
     final fill = GlassDynamicColor.resolve(
-      backgroundColor ?? GlassColors.systemRed,
+      look.backgroundColor ?? GlassColors.systemRed,
       context,
     );
     return MediaQuery.withNoTextScaling(
@@ -94,14 +156,14 @@ class GlassBadge extends StatelessWidget {
             );
           }
           final style = resolveGlassText(
-            TextStyle(
-              fontSize: fontSize,
-              fontWeight: FontWeight.w500,
-              color: GlassDynamicColor.resolve(
-                foregroundColor ?? const Color(0xFFFFFFFF),
-                context,
-              ),
-            ),
+            _text
+                .merge(look.textStyle)
+                .copyWith(
+                  color: GlassDynamicColor.resolve(
+                    look.foregroundColor ?? const Color(0xFFFFFFFF),
+                    context,
+                  ),
+                ),
             context,
           );
           final painter = TextPainter(
