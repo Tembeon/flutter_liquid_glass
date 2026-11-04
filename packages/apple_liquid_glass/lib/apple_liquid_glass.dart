@@ -21,7 +21,8 @@ export 'src/controls/date_picker.dart';
 export 'src/controls/list.dart';
 export 'src/controls/page_control.dart';
 export 'src/controls/search_controller.dart';
-export 'src/controls/search_field.dart' hide SearchEnds, SearchFieldStacking;
+export 'src/controls/search_field.dart'
+    hide SearchEndSignal, SearchEnds, SearchFieldStacking;
 export 'src/controls/segmented_control.dart';
 export 'src/controls/selector.dart';
 export 'src/controls/slider.dart';
@@ -42,7 +43,7 @@ export 'src/surface/frame.dart';
 export 'src/surface/glass.dart';
 export 'src/surface/group.dart';
 export 'src/surface/outline.dart';
-export 'src/surface/surface.dart';
+export 'src/surface/surface.dart' hide LiveGlassSurface, StillGlassFrame;
 export 'src/theme/colors.dart';
 export 'src/theme/theme.dart';
 export 'src/theme/traits.dart';
