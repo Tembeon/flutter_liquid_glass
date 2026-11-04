@@ -39,7 +39,14 @@ final class GlassTabDestination {
     this.badge,
     this.enabled = true,
     this.semanticLabel,
+    this.id,
   });
+
+  /// What tells the tab apart across changes of the destinations, or null
+  /// to tell it by its position: a change inside `withSpring` slides the
+  /// tabs that stay, fades new ones in and old ones out, and the lens
+  /// moves with its tab ([RawGlassSelector.itemKeys]).
+  final Object? id;
 
   /// The tab's glyph, 24 points by default.
   final Widget icon;
@@ -387,6 +394,10 @@ class GlassTabBar extends StatelessWidget {
     final bar = RawGlassSelector(
       motion: GlassSelectorMotion.tabBar,
       itemCount: destinations.length,
+      itemKeys: [
+        for (final (i, destination) in destinations.indexed)
+          if (destination.id == null) (null, i) else (destination.id, null),
+      ],
       selectedIndex: selectedIndex,
       onChanged: onSelected,
       onReselected: onSelected,

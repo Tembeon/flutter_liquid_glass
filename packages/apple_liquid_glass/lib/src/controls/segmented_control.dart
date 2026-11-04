@@ -158,7 +158,10 @@ class GlassSegmentedStyle {
 /// [GlassSelectorMotion.segmented]. Labels follow the text scale up to
 /// [maxTextScale], and a segment is as wide as the wider of its label's
 /// regular and selected styles. A disabled control draws at half opacity,
-/// as UIKit does (iPhone 16 Pro, light and dark).
+/// as UIKit does (iPhone 16 Pro, light and dark). Segments are told apart
+/// by their values: a change of [segments] inside `withSpring` slides the
+/// segments that stay, fades new ones in and old ones out, and the lens
+/// moves with its segment ([RawGlassSelector.itemKeys]).
 class GlassSegmentedControl<T> extends StatelessWidget {
   /// Creates a segmented control showing [groupValue] selected.
   const GlassSegmentedControl({
@@ -273,6 +276,7 @@ class GlassSegmentedControl<T> extends StatelessWidget {
     final onReselected = this.onReselected;
     return RawGlassSelector(
       itemCount: segments.length,
+      itemKeys: [for (final segment in segments) ValueKey<T>(segment.value)],
       selectedIndex: groupValue == null ? null : _selectedIndex,
       onChanged: onChanged == null
           ? null

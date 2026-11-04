@@ -120,6 +120,7 @@ class RawGlassSelector extends StatefulWidget {
     this.motion = GlassSelectorMotion.segmented,
     this.onReselected,
     this.disabledItems = const {},
+    this.itemKeys,
     this.itemWidths,
     this.proportionalWidth = false,
     this.statesController,
@@ -127,10 +128,23 @@ class RawGlassSelector extends StatefulWidget {
     this.autofocus = false,
     this.semanticLabel,
     super.key,
-  });
+  }) : assert(
+         itemKeys == null || itemKeys.length == itemCount,
+         'One key per item.',
+       );
 
   /// The number of items.
   final int itemCount;
+
+  /// What identifies each item across changes of the items, or null to
+  /// identify them by position.
+  ///
+  /// When the items change inside `withSpring`, the items that stay slide
+  /// to their new slots, new ones fade in, the ones that go fade out where
+  /// they were, and the lens moves with its item; outside one the change
+  /// jumps. Not measured: UIKit's animated `insertSegment`,
+  /// `removeSegment` and `setItems` were not captured.
+  final List<Object>? itemKeys;
 
   /// The selected item, clamped to the items, or null for none
   /// (`UISegmentedControl.noSegment`): the lens is hidden, and a tap
@@ -213,6 +227,12 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     hovered: null,
   ));
   final _lensShrink = ValueNotifier(GlassLensShrink.none);
+  late List<Object> _keys = _keysOf(widget);
+  // Items gone from the widget that still fade out where they were, and
+  // the last children each item built, which a fading item keeps.
+  final List<Object> _ghosts = [];
+  final Map<Object, List<Widget>> _built = {};
+  bool _dropPending = false;
   int? _noneDown;
   int? _downSlot;
   int? _downSelected;
@@ -236,6 +256,9 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       index < widget.itemCount &&
       !widget.disabledItems.contains(index);
 
+  static List<Object> _keysOf(RawGlassSelector widget) =>
+      widget.itemKeys ?? [for (var i = 0; i < widget.itemCount; i++) i];
+
   _SelectorMotion _create(int selected) => _SelectorMotion(
     kind: widget.motion,
     selected: selected,
@@ -252,7 +275,31 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       _motion = _create(_motion.selected);
       _frames = _SelectorFrames(_motion, mirrored: _frames.mirrored);
     }
-    _sync(oldWidget.selectedIndex == null);
+    final keys = _keysOf(widget);
+    final wasNone = oldWidget.selectedIndex == null;
+    if (listEquals(keys, _keys)) {
+      _sync(wasNone);
+    } else {
+      final present = keys.toSet();
+      for (final key in _keys) {
+        if (!present.contains(key) &&
+            _built.containsKey(key) &&
+            !_ghosts.contains(key)) {
+          _ghosts.add(key);
+        }
+      }
+      _ghosts.removeWhere(present.contains);
+      _built.removeWhere(
+        (key, _) => !present.contains(key) && !_ghosts.contains(key),
+      );
+      _keys = keys;
+      final selected = _selected;
+      if (selected != null && !wasNone) {
+        _motion.remap(selected);
+      } else {
+        _sync(wasNone);
+      }
+    }
     final pressed = _pointing.value.pressed;
     if (pressed != null && !_selectable(pressed)) {
       _pointing.value = (pressed: null, hovered: _pointing.value.hovered);
@@ -284,6 +331,26 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     } else if (_motion.selected != selected) {
       _motion.choose(_now, selected, notify: false);
     }
+  }
+
+  // A ghost the layout motion dropped goes after the frame that drew it
+  // last.
+  void _dropGhostsLater() {
+    if (_dropPending) return;
+    _dropPending = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _dropPending = false;
+      if (!mounted) return;
+      final gone = [
+        for (final key in _ghosts)
+          if (!_motion.items.contains(key)) key,
+      ];
+      if (gone.isEmpty) return;
+      setState(() {
+        _ghosts.removeWhere(gone.contains);
+        gone.forEach(_built.remove);
+      });
+    });
   }
 
   // Callbacks may rebuild ancestors: a cancel from the region's own update
@@ -484,13 +551,29 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     );
   }
 
-  Widget _items(BuildContext context, Widget? lens) {
-    final count = widget.itemCount;
-    Widget selected(int index) => widget.itemBuilder(
+  List<Widget> _build(BuildContext context, int index) {
+    final key = _keys[index];
+    Widget selected() => widget.itemBuilder(
       context,
       index,
       _itemStates(index, selected: true),
     );
+    return _built[key] = [
+      RepaintBoundary(key: ValueKey((0, key)), child: _item(context, index)),
+      // The copy under the glass draws once per strip of the lens: a
+      // boundary's layer could sit in only one.
+      ExcludeSemantics(
+        key: ValueKey((1, key)),
+        child: Center(child: selected()),
+      ),
+      ExcludeSemantics(
+        key: ValueKey((2, key)),
+        child: RepaintBoundary(child: Center(child: selected())),
+      ),
+    ];
+  }
+
+  Widget _items(BuildContext context, Widget? lens) {
     return ValueListenableBuilder(
       valueListenable: _pointing,
       builder: (context, _, _) {
@@ -498,21 +581,17 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
           motion: _motion,
           frames: _frames,
           kind: widget.motion,
+          keys: _keys,
+          ghosts: List.of(_ghosts),
+          onGhostGone: _dropGhostsLater,
           itemWidths: widget.itemWidths,
           proportional: widget.proportionalWidth,
           showsLens: _selected != null,
           hasLens: lens != null,
           lensShrink: _lensShrink,
           children: [
-            for (var i = 0; i < count; i++) ...[
-              RepaintBoundary(child: _item(context, i)),
-              // The copy under the glass draws once per strip of the lens:
-              // a boundary's layer could sit in only one.
-              ExcludeSemantics(child: Center(child: selected(i))),
-              ExcludeSemantics(
-                child: RepaintBoundary(child: Center(child: selected(i))),
-              ),
-            ],
+            for (var i = 0; i < _keys.length; i++) ..._build(context, i),
+            for (final key in _ghosts) ..._built[key]!,
             if (lens != null) GlassLensShrink(shrink: _lensShrink, child: lens),
           ],
         );
@@ -774,8 +853,9 @@ final class _Geometry {
   }
 }
 
-/// The motion of a selector: its lens, made at the first layout, the
-/// dimming of a pressed segment and a tab bar's touch glow.
+/// The motion of a selector: its lens, made at the first layout, its
+/// items and bounds through changes of the items, the dimming of a pressed
+/// segment and a tab bar's touch glow.
 final class _SelectorMotion extends Motion {
   _SelectorMotion({
     required this.kind,
@@ -790,8 +870,15 @@ final class _SelectorMotion extends Motion {
 
   late final highlight = own(SegmentHighlight());
   late final glow = own(_tabBarGlow());
+
+  /// The items by key, and the control's bounds, in the selector's box
+  /// moved by [_anchor].
+  late final items = own(LayoutMotion());
+  static final Object _bounds = Object();
+  Offset _anchor = Offset.zero;
   LensMotion? _lens;
   int _selected;
+  int? _remapped;
   List<LensSlot> _lenses = const [];
   bool _reducedMotion = false;
 
@@ -820,17 +907,66 @@ final class _SelectorMotion extends Motion {
 
   LensMotion? get lens => _lens;
 
-  int get selected => _lens?.selected ?? _selected;
+  int get selected => _remapped ?? _lens?.selected ?? _selected;
 
   bool get isDragging => _lens?.isDragging ?? false;
 
   int slotAt(double x) => _lens?.slotAt(x) ?? -1;
 
-  void layout(_Geometry geometry) {
+  /// Where [key] is drawn in the selector's box and its opacity, or null
+  /// once it is gone.
+  (Rect, double)? drawn(Object key) {
+    if (!items.contains(key)) return null;
+    final item = items.itemAt(key);
+    return (item.rect.shift(-_anchor), item.opacity);
+  }
+
+  /// Where the bounds are drawn while they move to a new size, or null at
+  /// rest.
+  Rect? get movingBounds => items.contains(_bounds) && !items.itemRests(_bounds)
+      ? items.itemAt(_bounds).rect.shift(-_anchor)
+      : null;
+
+  /// Selects [index] of the items laid out next, without travel: the
+  /// selected item moved to it in a change of the items.
+  void remap(int index) {
+    _selected = index;
+    _remapped = index;
+  }
+
+  /// Lays the items out at [rects] in the selector's box at time [t], on
+  /// [spring] when it is not null; [shift] is how far the box moved in
+  /// its parents in this layout, which the items and the lens keep their
+  /// place on screen through.
+  void layout(
+    double t,
+    _Geometry geometry,
+    Map<Object, Rect> rects, {
+    required Offset shift,
+    required bool mirrored,
+    Spring? spring,
+  }) {
+    final jump = spring?.isImmediate ?? false;
+    final moves = jump ? null : spring;
+    final before = size;
+    _anchor += shift;
+    items.layout(
+      t,
+      {
+        for (final MapEntry(:key, :value) in rects.entries)
+          key: value.shift(_anchor),
+        _bounds: _anchor & geometry.size,
+      },
+      spring: moves,
+      carry: spring == null,
+      jump: jump,
+    );
     final changed =
         !listEquals(geometry.lenses, _lenses) || geometry.size != size;
     size = geometry.size;
     _lenses = geometry.lenses;
+    final remapped = _remapped;
+    _remapped = null;
     final lens = _lens;
     if (lens == null) {
       final created = LensMotion(
@@ -847,19 +983,29 @@ final class _SelectorMotion extends Motion {
       );
       created.isSelectable = isSelectable;
       _lens = own(created);
-    } else if (changed) {
-      lens.slots = geometry.lenses;
+    } else if (changed || remapped != null) {
+      lens.reslot(
+        t,
+        geometry.lenses,
+        remapped ?? lens.selected,
+        spring: moves,
+        shift: mirrored
+            ? shift.dx + geometry.size.width - before.width
+            : -shift.dx,
+      );
       lens.chromeSize = geometry.size;
     }
   }
 
   void choose(double t, int index, {bool notify = true}) {
     _selected = index;
+    _remapped = null;
     _lens?.select(t, index, notify: notify);
   }
 
   void place(double t, int index) {
     _selected = index;
+    _remapped = null;
     _lens?.place(t, index);
   }
 
@@ -918,8 +1064,16 @@ final class _SelectorFrames {
   });
 
   late final MotionSelection<GlassFrame> body = _motion.select(
-    (motion) =>
-        motion.tabBar ? GlassFrame(glow: motion.glow.glow) : const GlassFrame(),
+    (motion) => GlassFrame(
+      rect: motion.movingBounds,
+      glow: motion.tabBar ? motion.glow.glow : null,
+    ),
+  );
+
+  /// Where every item is drawn, ghosts included.
+  late final MotionSelection<List<(Rect, double)?>> items = _motion.select(
+    (motion) => [for (final id in motion.items.ids) motion.drawn(id)],
+    equals: listEquals,
   );
 
   late final MotionSelection<(int?, double)> dim = _motion.select((motion) {
@@ -983,14 +1137,18 @@ final class _SelectorInput extends Interaction {
 
 /// The items of a selector in their slots, each as three children, its
 /// regular look and two copies of its selected look, which show inside the
-/// lens, one under its glass and one over its resting platter, and the lens
-/// last when the look gives one; laying them out publishes the slots to the
-/// selector's motion.
+/// lens, one under its glass and one over its resting platter, then the
+/// items fading out, and the lens last when the look gives one; laying
+/// them out publishes the slots to the selector's motion in the resolve
+/// phase.
 class _SelectorRow extends MultiChildRenderObjectWidget {
   const _SelectorRow({
     required this.motion,
     required this.frames,
     required this.kind,
+    required this.keys,
+    required this.ghosts,
+    required this.onGhostGone,
     required this.itemWidths,
     required this.proportional,
     required this.showsLens,
@@ -1002,6 +1160,9 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
   final _SelectorMotion motion;
   final _SelectorFrames frames;
   final GlassSelectorMotion kind;
+  final List<Object> keys;
+  final List<Object> ghosts;
+  final VoidCallback onGhostGone;
   final List<double?>? itemWidths;
   final bool proportional;
   final bool showsLens;
@@ -1021,6 +1182,9 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
         motion: motion,
         frames: frames,
         kind: kind,
+        keys: keys,
+        ghosts: ghosts,
+        onGhostGone: onGhostGone,
         itemWidths: itemWidths,
         proportional: proportional,
         showsLens: showsLens,
@@ -1037,6 +1201,9 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
     renderObject.motion = motion;
     renderObject.frames = frames;
     renderObject.kind = kind;
+    renderObject.keys = keys;
+    renderObject.ghosts = ghosts;
+    renderObject.onGhostGone = onGhostGone;
     renderObject.itemWidths = itemWidths;
     renderObject.proportional = proportional;
     renderObject.showsLens = showsLens;
@@ -1075,11 +1242,15 @@ const double _tabBarMagnification = 0.16;
 class _RenderSelectorRow extends RenderBox
     with
         ContainerRenderObjectMixin<RenderBox, _RowParentData>,
-        RenderBoxContainerDefaultsMixin<RenderBox, _RowParentData> {
+        RenderBoxContainerDefaultsMixin<RenderBox, _RowParentData>,
+        MotionResolveHost {
   _RenderSelectorRow({
     required this._motion,
     required this._frames,
     required this._kind,
+    required this._keys,
+    required this._ghosts,
+    required this.onGhostGone,
     required this._itemWidths,
     required this._proportional,
     required this._showsLens,
@@ -1113,6 +1284,24 @@ class _RenderSelectorRow extends RenderBox
     _kind = value;
     markNeedsLayout();
   }
+
+  List<Object> _keys;
+  List<Object> get keys => _keys;
+  set keys(List<Object> value) {
+    if (listEquals(value, _keys)) return;
+    _keys = value;
+    markNeedsLayout();
+  }
+
+  List<Object> _ghosts;
+  List<Object> get ghosts => _ghosts;
+  set ghosts(List<Object> value) {
+    if (listEquals(value, _ghosts)) return;
+    _ghosts = value;
+    markNeedsLayout();
+  }
+
+  VoidCallback onGhostGone;
 
   List<double?>? _itemWidths;
   List<double?>? get itemWidths => _itemWidths;
@@ -1164,15 +1353,18 @@ class _RenderSelectorRow extends RenderBox
     markNeedsLayout();
   }
 
-  // The lens masks the selected looks; the dimming fades a segment's item.
+  // The lens masks the selected looks; the dimming fades a segment's item;
+  // a change of the items moves them.
   void _listen() {
     _frames.lens.addListener(markNeedsPaint);
     _frames.dim.addListener(markNeedsPaint);
+    _frames.items.addRenderListener(markNeedsPaint);
   }
 
   void _unlisten() {
     _frames.lens.removeListener(markNeedsPaint);
     _frames.dim.removeListener(markNeedsPaint);
+    _frames.items.removeRenderListener(markNeedsPaint);
   }
 
   @override
@@ -1198,8 +1390,12 @@ class _RenderSelectorRow extends RenderBox
 
   RenderBox? get _lens => _hasLens ? lastChild : null;
 
+  /// The items of the selector, without those fading out.
+  Iterable<(RenderBox, RenderBox, RenderBox)> get _live =>
+      _items.take(_keys.length);
+
   /// Every item's regular look and its selected copies under and over the
-  /// lens, in order.
+  /// lens, in order, then those of the items fading out.
   Iterable<(RenderBox, RenderBox, RenderBox)> get _items sync* {
     final lens = _lens;
     var child = firstChild;
@@ -1213,7 +1409,7 @@ class _RenderSelectorRow extends RenderBox
   }
 
   List<double> _itemExtents(double height) => [
-    for (final (regular, _, selected) in _items)
+    for (final (regular, _, selected) in _live)
       math.max(
         regular.getMaxIntrinsicWidth(height),
         selected.getMaxIntrinsicWidth(height),
@@ -1258,13 +1454,35 @@ class _RenderSelectorRow extends RenderBox
         )
       : slot;
 
+  // The box's offset in its box ancestors, up to the first that is not a
+  // box (a sliver under a scroll, which moves without a layout).
+  Offset _origin() {
+    var offset = Offset.zero;
+    RenderObject node = this;
+    while (node.parent is RenderBox) {
+      if (node.parentData case final BoxParentData data) offset += data.offset;
+      node = node.parent!;
+    }
+    return offset;
+  }
+
+  ({_Geometry geometry, Map<Object, Rect> rects, Offset origin})? _laidOut;
+
   @override
   void performLayout() {
     final geometry = _geometry(constraints);
     size = geometry.size;
+    final rects = <Object, Rect>{};
     var i = 0;
     for (final (regular, under, over) in _items) {
-      final slot = _shown(geometry.slots[i]);
+      final Rect slot;
+      if (i < _keys.length) {
+        slot = _shown(geometry.slots[i]);
+        rects[_keys[i]] = slot;
+      } else {
+        final ghost = _motion.items.laidOut(_ghosts[i - _keys.length]);
+        slot = Offset.zero & (ghost?.size ?? Size.zero);
+      }
       for (final child in [regular, under, over]) {
         child.layout(BoxConstraints.tight(slot.size));
         (child.parentData! as _RowParentData).offset = slot.topLeft;
@@ -1272,12 +1490,30 @@ class _RenderSelectorRow extends RenderBox
       i++;
     }
     _lens?.layout(BoxConstraints.tight(size));
-    _motion.layout(geometry);
+    // The parents place the box after this layout: the offset read now is
+    // the one it was drawn at.
+    _laidOut = (geometry: geometry, rects: rects, origin: _origin());
+    scheduleResolve();
+  }
+
+  @override
+  void resolve() {
+    final laidOut = _laidOut;
+    if (laidOut == null) return;
+    _laidOut = null;
+    _motion.layout(
+      MotionClock.instance.now,
+      laidOut.geometry,
+      laidOut.rects,
+      shift: _origin() - laidOut.origin,
+      mirrored: _direction == TextDirection.rtl,
+      spring: layoutSpring,
+    );
   }
 
   @override
   bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
-    for (final (item, _, _) in _items) {
+    for (final (item, _, _) in _live) {
       final hit = result.addWithPaintOffset(
         offset: (item.parentData! as _RowParentData).offset,
         position: position,
@@ -1303,10 +1539,26 @@ class _RenderSelectorRow extends RenderBox
           )
         : null;
     final (dimmed, opacity) = _frames.dim.value;
+    final slots = <Rect>[];
+    var gone = false;
     var i = 0;
     for (final (regular, _, _) in _items) {
-      final slot =
-          (regular.parentData! as _RowParentData).offset & regular.size;
+      final live = i < _keys.length;
+      final drawn = _motion.drawn(
+        live ? _keys[i] : _ghosts[i - _keys.length],
+      );
+      final laid = (regular.parentData! as _RowParentData).offset;
+      final slot = Rect.fromCenter(
+        center: drawn?.$1.center ?? (laid & regular.size).center,
+        width: regular.size.width,
+        height: regular.size.height,
+      );
+      if (live) slots.add(slot);
+      if (!live && drawn == null) {
+        gone = true;
+        i++;
+        continue;
+      }
       void paintRegular(PaintingContext context, Offset offset) {
         if (mask == null || !mask.outerRect.overlaps(slot)) {
           context.paintChild(regular, offset + slot.topLeft);
@@ -1334,10 +1586,11 @@ class _RenderSelectorRow extends RenderBox
         );
       }
 
-      if (i == dimmed && opacity < 1) {
+      final alpha = (drawn?.$2 ?? 1) * (i == dimmed ? opacity : 1);
+      if (alpha < 1) {
         context.pushOpacity(
           offset,
-          Color.getAlphaFromOpacity(opacity),
+          Color.getAlphaFromOpacity(alpha.clamp(0.0, 1.0)),
           paintRegular,
         );
       } else {
@@ -1345,6 +1598,7 @@ class _RenderSelectorRow extends RenderBox
       }
       i++;
     }
+    if (gone) onGhostGone();
     final lift = frame.lift.clamp(0.0, 1.0);
     final glass = mask == null ? 0.0 : FlatGlassLook.glassness(lift);
     final zoom = _kind == GlassSelectorMotion.tabBar
@@ -1356,6 +1610,7 @@ class _RenderSelectorRow extends RenderBox
         context,
         offset,
         mask,
+        slots,
         opacity: glass,
         under: true,
         zoom: zoom,
@@ -1370,6 +1625,7 @@ class _RenderSelectorRow extends RenderBox
         context,
         offset,
         mask,
+        slots,
         opacity: 1 - glass,
         under: false,
         zoom: zoom,
@@ -1392,7 +1648,8 @@ class _RenderSelectorRow extends RenderBox
   void _paintCopies(
     PaintingContext context,
     Offset offset,
-    RSuperellipse mask, {
+    RSuperellipse mask,
+    List<Rect> slots, {
     required double opacity,
     required bool under,
     required double zoom,
@@ -1469,10 +1726,10 @@ class _RenderSelectorRow extends RenderBox
               context,
               offset,
             ) {
-              for (final (_, below, above) in _items) {
+              var i = 0;
+              for (final (_, below, above) in _live) {
                 final copy = under ? below : above;
-                final slot =
-                    (copy.parentData! as _RowParentData).offset & copy.size;
+                final slot = slots[i++];
                 final transform = _copyTransform(
                   slot.center,
                   zoom,
@@ -1532,7 +1789,7 @@ class _RenderSelectorRow extends RenderBox
 
   @override
   void visitChildrenForSemantics(RenderObjectVisitor visitor) {
-    for (final (item, _, _) in _items) {
+    for (final (item, _, _) in _live) {
       visitor(item);
     }
   }

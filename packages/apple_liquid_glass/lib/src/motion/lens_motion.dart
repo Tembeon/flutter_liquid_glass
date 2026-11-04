@@ -478,6 +478,47 @@ final class LensMotion extends Motion {
     _flex.reset(slot.center);
   }
 
+  /// Replaces the slots after a change of the items around the lens, with
+  /// [selected] its slot among them, at time [t].
+  ///
+  /// [shift] is how far the lens's coordinates moved under it along the
+  /// track: the lens keeps its place on screen through it. On [spring] it
+  /// then moves to its slot and takes the slot's width, as the items that
+  /// stay do (not measured: UIKit's animated `insertSegment` and
+  /// `setItems` were not captured); with no spring, an immediate one or a
+  /// finger on the control, it snaps there as [slots] does.
+  void reslot(
+    double t,
+    List<LensSlot> slots,
+    int selected, {
+    Spring? spring,
+    double shift = 0,
+  }) {
+    advance(t);
+    _selected = _index(selected, slots.length);
+    if (spring == null ||
+        spring.isImmediate ||
+        _pointer != null ||
+        slots.isEmpty ||
+        _slots.isEmpty) {
+      this.slots = slots;
+      return;
+    }
+    _slots = List.of(slots);
+    final slot = _slot;
+    _restWidth = slot.width;
+    if (shift != 0) {
+      final velocity = _travel.velocityAt(t);
+      _travel.snap(t, _travel.valueAt(t) + shift);
+      _travel.setVelocity(t, velocity);
+      _previousVisible = _visible(t);
+      _flex.reset(_visible(t));
+    }
+    _travel.retarget(t, slot.center, spring: spring);
+    _width.retarget(t, slot.width, spring: spring);
+    _loop.wake(t);
+  }
+
   /// The center the travel spring carries, before the deformation drift.
   double get travelCenter => _travel.valueAt(now);
 
