@@ -51,10 +51,22 @@ export 'src/controls/list.dart'
         GlassListStyle,
         GlassSliverListSection;
 export 'src/controls/page_control.dart'
-    show GlassPageControl, GlassPageControlBackground, GlassPageControlStyle;
+    show
+        GlassPageControl,
+        GlassPageControlBackground,
+        GlassPageControlBuilder,
+        GlassPageControlDetails,
+        GlassPageControlPose,
+        GlassPageControlStyle,
+        RawGlassPageControl;
 export 'src/controls/search_controller.dart' show GlassSearchController;
 export 'src/controls/search_field.dart'
-    show GlassSearchField, GlassSearchFieldStyle;
+    show
+        GlassSearchField,
+        GlassSearchFieldBuilder,
+        GlassSearchFieldDetails,
+        GlassSearchFieldStyle,
+        RawGlassSearchField;
 export 'src/controls/segmented_control.dart'
     show GlassSegment, GlassSegmentedControl, GlassSegmentedStyle;
 export 'src/controls/selector.dart'

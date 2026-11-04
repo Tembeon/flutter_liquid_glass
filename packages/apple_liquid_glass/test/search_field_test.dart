@@ -140,4 +140,46 @@ void main() {
     await tester.pump();
     expect(placeholder(), isSameColorAs(const Color(0x993C3C43)));
   });
+
+  testWidgets('a raw field types through its look and clears on request', (
+    tester,
+  ) async {
+    final changes = <String>[];
+    final states = <Set<WidgetState>>[];
+    late GlassSearchFieldDetails seen;
+    final focus = FocusNode();
+    addTearDown(focus.dispose);
+    await tester.pumpWidget(
+      _app(
+        RawGlassSearchField(
+          focusNode: focus,
+          onChanged: changes.add,
+          builder: (context, details) {
+            seen = details;
+            states.add(details.states);
+            return details.text(
+              style: const TextStyle(fontSize: 17),
+              cursorColor: const Color(0xFF0000FF),
+              placeholderColor: const Color(0xFF808080),
+            );
+          },
+        ),
+      ),
+    );
+    expect(
+      tester.getSize(find.byType(RawGlassSearchField)).height,
+      GlassSearchField.height,
+    );
+    focus.requestFocus();
+    await tester.pump();
+    await tester.pump();
+    expect(states.last, contains(WidgetState.focused));
+    await tester.enterText(find.byType(EditableText), 'glass');
+    await tester.pump();
+    expect(seen.controller.text, 'glass');
+    seen.clear!();
+    await tester.pump();
+    expect(changes, ['glass', '']);
+    expect(seen.controller.text, isEmpty);
+  });
 }

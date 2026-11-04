@@ -19,10 +19,10 @@ import 'package:kinesis/motion.dart';
 
 /// The look of a [GlassSearchField], like Flutter's `ButtonStyle`.
 ///
-/// Each property resolves against the field's states (focused, pressed,
-/// hovered, disabled) and falls through, state by state, from this style
-/// to the theme's to the field's defaults: a null for a state leaves that
-/// state to the next one.
+/// Every property but [builder] resolves against the field's states
+/// (focused, pressed, hovered, disabled) and falls through, state by state,
+/// from this style to the theme's to the field's defaults: a null for a
+/// state leaves that state to the next one.
 @immutable
 class GlassSearchFieldStyle {
   /// Creates a style.
@@ -33,6 +33,7 @@ class GlassSearchFieldStyle {
     this.iconColor,
     this.cursorColor,
     this.textStyle,
+    this.builder,
   });
 
   /// A tint over the field's glass, or, disabled, the plain fill that
@@ -58,6 +59,11 @@ class GlassSearchFieldStyle {
   /// by default.
   final WidgetStateProperty<TextStyle?>? textStyle;
 
+  /// Builds the field in place of its default look, which then ignores the
+  /// other fields. Null leaves it to the theme's builder, then the default
+  /// look.
+  final GlassSearchFieldBuilder? builder;
+
   /// This style over [other], state by state.
   GlassSearchFieldStyle merge(GlassSearchFieldStyle? other) {
     if (other == null) return this;
@@ -68,10 +74,12 @@ class GlassSearchFieldStyle {
       iconColor: fallThrough(iconColor, other.iconColor),
       cursorColor: fallThrough(cursorColor, other.cursorColor),
       textStyle: fallThrough(textStyle, other.textStyle),
+      builder: builder ?? other.builder,
     );
   }
 
-  /// The style between [a] and [b] at [t].
+  /// The style between [a] and [b] at [t]; the builder switches at the
+  /// half.
   static GlassSearchFieldStyle? lerp(
     GlassSearchFieldStyle? a,
     GlassSearchFieldStyle? b,
@@ -100,6 +108,7 @@ class GlassSearchFieldStyle {
         t,
         snapNull(TextStyle.lerp),
       ),
+      builder: t < 0.5 ? a.builder : b.builder,
     );
   }
 
@@ -111,7 +120,8 @@ class GlassSearchFieldStyle {
       other.placeholderColor == placeholderColor &&
       other.iconColor == iconColor &&
       other.cursorColor == cursorColor &&
-      other.textStyle == textStyle;
+      other.textStyle == textStyle &&
+      other.builder == builder;
 
   @override
   int get hashCode => Object.hash(
@@ -121,7 +131,286 @@ class GlassSearchFieldStyle {
     iconColor,
     cursorColor,
     textStyle,
+    builder,
   );
+}
+
+/// Builds a search field from [details]; it runs again when the field's
+/// states change, never while it moves.
+typedef GlassSearchFieldBuilder = Widget Function(
+  BuildContext context,
+  GlassSearchFieldDetails details,
+);
+
+/// What a [GlassSearchFieldBuilder] builds a search field from.
+final class GlassSearchFieldDetails {
+  const GlassSearchFieldDetails._(
+    this._text, {
+    required this.frame,
+    required this.states,
+    required this.controller,
+    required this.clear,
+  });
+
+  /// The frame of the field's glass as a touch lifts it; under a
+  /// navigation bar's large title its opacity follows the glass's presence,
+  /// and the field's text and glyphs stay.
+  final MotionSelection<GlassFrame> frame;
+
+  /// The states the field is in: focused, pressed, hovered, disabled.
+  final Set<WidgetState> states;
+
+  /// The field's text; a look listens to it to show a placeholder or a
+  /// clear button.
+  final TextEditingController controller;
+
+  /// Clears the text and reports it, or null while the field is disabled.
+  final VoidCallback? clear;
+
+  final Widget Function(TextStyle style, Color cursor, Color placeholder) _text;
+
+  /// The editable text with its gestures and semantics, drawn in [style]
+  /// with a [cursorColor] cursor; [placeholderColor] colors the cursor
+  /// while it moves over the text.
+  Widget text({
+    required TextStyle style,
+    required Color cursorColor,
+    required Color placeholderColor,
+  }) => _text(style, cursorColor, placeholderColor);
+}
+
+/// A search field with the measured lift of iOS 27's `UISearchTextField`
+/// and no look of its own: [builder] decides how it looks and places the
+/// editable text it gets from [GlassSearchFieldDetails.text].
+///
+/// UIKit: `UISearchTextField`. SwiftUI: the field of `searchable`. Flutter:
+/// `CupertinoSearchTextField`.
+///
+/// It is 48 points tall. A touch lifts it 0.05 s later on the glass
+/// button's lift, without stretching (fitted, search passport), and a tap
+/// focuses it. Text follows the text scale up to
+/// [GlassSearchField.maxTextScale]. The keyboard offers no suggestions, as
+/// UIKit's search field does not. On iOS a long press shows the system
+/// edit menu; other platforms show none.
+class RawGlassSearchField extends StatefulWidget {
+  /// Creates a search field.
+  const RawGlassSearchField({
+    required this.builder,
+    this.controller,
+    this.focusNode,
+    this.onChanged,
+    this.onSubmitted,
+    this.enabled = true,
+    this.autofocus = false,
+    this.semanticLabel,
+    super.key,
+  });
+
+  /// Builds the field's look.
+  final GlassSearchFieldBuilder builder;
+
+  /// The text, or null for the field's own.
+  final TextEditingController? controller;
+
+  /// The field's focus node, or null for its own.
+  final FocusNode? focusNode;
+
+  /// Called with the text as the user edits it or clears it.
+  final ValueChanged<String>? onChanged;
+
+  /// Called with the text when the user submits it from the keyboard.
+  final ValueChanged<String>? onSubmitted;
+
+  /// Whether the field takes input.
+  final bool enabled;
+
+  /// Whether the field takes focus when it first appears.
+  final bool autofocus;
+
+  /// What accessibility reads for the field; `Search` when null.
+  final String? semanticLabel;
+
+  @override
+  State<RawGlassSearchField> createState() => _RawGlassSearchFieldState();
+}
+
+class _RawGlassSearchFieldState extends State<RawGlassSearchField>
+    implements TextSelectionGestureDetectorBuilderDelegate {
+  final GlassPress _press = GlassPress(
+    size: const Size(346, SearchTuning.height),
+    law: SearchTuning.pressLaw,
+  );
+  late final _lift = _press.select(
+    (p) => p.isAtRest
+        ? const GlassFrame()
+        : GlassFrame(scaleX: p.scaleX, scaleY: p.scaleY),
+  );
+  late final _LiftInput _input = _LiftInput(this);
+  late final List<Interaction> _interactions = [_input];
+  final _regionFocus = FocusNode(skipTraversal: true);
+  final _states = WidgetStatesController();
+  late final TextSelectionGestureDetectorBuilder _gestures =
+      TextSelectionGestureDetectorBuilder(delegate: this);
+  final _editable = GlobalKey<EditableTextState>();
+  TextEditingController? _ownController;
+  FocusNode? _ownFocus;
+
+  TextEditingController get _controller =>
+      widget.controller ?? (_ownController ??= TextEditingController());
+
+  FocusNode get _focus =>
+      widget.focusNode ??
+      (_ownFocus ??= FocusNode(debugLabel: 'GlassSearchField'));
+
+  @override
+  GlobalKey<EditableTextState> get editableTextKey => _editable;
+
+  @override
+  bool get forcePressEnabled => false;
+
+  @override
+  bool get selectionEnabled => widget.enabled && _focus.hasFocus;
+
+  @override
+  void initState() {
+    super.initState();
+    _states.update(WidgetState.disabled, !widget.enabled);
+    _states.addListener(_statesChanged);
+    _focus.addListener(_focusChanged);
+  }
+
+  @override
+  void didUpdateWidget(RawGlassSearchField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final focus = oldWidget.focusNode ?? _ownFocus;
+    if (!identical(focus, _focus)) {
+      focus?.removeListener(_focusChanged);
+      _focus.addListener(_focusChanged);
+    }
+    _states.update(WidgetState.disabled, !widget.enabled);
+    if (!widget.enabled) {
+      _states.update(WidgetState.pressed, false);
+      if (_focus.hasFocus) _focus.unfocus();
+    }
+  }
+
+  @override
+  void dispose() {
+    _ends?.removeListener(_ended);
+    _focus.removeListener(_focusChanged);
+    _states.dispose();
+    _regionFocus.dispose();
+    _ownController?.dispose();
+    _ownFocus?.dispose();
+    super.dispose();
+  }
+
+  Listenable? _ends;
+  MotionValue<double>? _fadedGlass;
+  late MotionSelection<GlassFrame> _faded;
+
+  MotionSelection<GlassFrame> _fadedBy(MotionValue<double> glass) {
+    if (identical(glass, _fadedGlass)) return _faded;
+    _fadedGlass = glass;
+    return _faded = MotionSelection(() {
+      final frame = _lift.value;
+      return frame.copyWith(
+        opacity: frame.opacity * glass.value.clamp(0.0, 1.0),
+      );
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final ends = SearchEnds.maybeOf(context);
+    if (identical(ends, _ends)) return;
+    _ends?.removeListener(_ended);
+    _ends = ends;
+    ends?.addListener(_ended);
+  }
+
+  void _ended() {
+    if (_controller.text.isNotEmpty) _clear();
+    _focus.unfocus();
+  }
+
+  void _statesChanged() => setState(() {});
+
+  void _focusChanged() {
+    _states.update(WidgetState.focused, _focus.hasFocus);
+    if (_focus.hasFocus) _press.pointerCancel(MotionClock.instance.now);
+  }
+
+  void _clear() {
+    _controller.clear();
+    widget.onChanged?.call('');
+  }
+
+  Widget _text(TextStyle style, Color cursor, Color placeholder) {
+    final editable = EditableText(
+      key: _editable,
+      controller: _controller,
+      focusNode: _focus,
+      readOnly: !widget.enabled,
+      autofocus: widget.autofocus,
+      style: style,
+      textScaler: MediaQuery.textScalerOf(
+        context,
+      ).clamp(maxScaleFactor: GlassSearchField.maxTextScale),
+      cursorColor: cursor,
+      backgroundCursorColor: placeholder,
+      selectionColor: cursor.withValues(alpha: 0.25),
+      textInputAction: TextInputAction.search,
+      keyboardAppearance: GlassTraits.of(context).brightness,
+      textCapitalization: TextCapitalization.sentences,
+      // UIKit's search field offers no suggestions. iOS's engine ties
+      // spell checking, and with it the prediction bar, to this flag.
+      autocorrect: false,
+      enableSuggestions: false,
+      rendererIgnoresPointer: true,
+      contextMenuBuilder: SystemContextMenu.isSupported(context)
+          ? (context, state) =>
+                SystemContextMenu.editableText(editableTextState: state)
+          : null,
+      onChanged: widget.onChanged,
+      onSubmitted: widget.onSubmitted,
+    );
+    return Semantics(
+      label: widget.semanticLabel ?? 'Search',
+      child: widget.enabled
+          ? _gestures.buildGestureDetector(
+              behavior: HitTestBehavior.translucent,
+              child: editable,
+            )
+          : IgnorePointer(child: ExcludeFocus(child: editable)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _press.reducedMotion = GlassTraits.of(context).reduceMotion;
+    final stacking = SearchFieldStacking.maybeOf(context);
+    return InputRegion(
+      interactions: _interactions,
+      enabled: widget.enabled,
+      statesController: _states,
+      focusNode: _regionFocus,
+      child: SizedBox(
+        height: stacking?.height ?? SearchTuning.height,
+        child: widget.builder(
+          context,
+          GlassSearchFieldDetails._(
+            _text,
+            frame: stacking == null ? _lift : _fadedBy(stacking.glass),
+            states: {..._states.value},
+            controller: _controller,
+            clear: widget.enabled ? _clear : null,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// An iOS 27 search field.
@@ -130,15 +419,11 @@ class GlassSearchFieldStyle {
 /// `CupertinoSearchTextField`.
 ///
 /// A glass capsule 48 points tall with a magnifier, the text, and a clear
-/// button while it holds text. A touch lifts the capsule 0.05 s later on
-/// the glass button's lift, without stretching (fitted, search passport),
-/// and a tap focuses the field. Disabled, the field drops its glass for a
-/// plain fill and keeps its magnifier and placeholder, as UIKit's does
-/// (iPhone 16 Pro, iOS 27.0.1). Text follows the text scale up to
-/// [maxTextScale]. The keyboard offers no suggestions, as UIKit's search
-/// field does not. On iOS a long press shows the system edit menu; other
-/// platforms show none.
-class GlassSearchField extends StatefulWidget {
+/// button while it holds text; its lift and input are
+/// [RawGlassSearchField]'s. Disabled, the field drops its glass for a plain
+/// fill and keeps its magnifier and placeholder, as UIKit's does (iPhone 16
+/// Pro, iOS 27.0.1).
+class GlassSearchField extends StatelessWidget {
   /// Creates a search field.
   const GlassSearchField({
     this.controller,
@@ -232,139 +517,83 @@ class GlassSearchField extends StatefulWidget {
   );
 
   @override
-  State<GlassSearchField> createState() => _GlassSearchFieldState();
+  Widget build(BuildContext context) {
+    final look = (style ?? const GlassSearchFieldStyle()).merge(
+      GlassTheme.of(context).searchFieldStyle,
+    );
+    return RawGlassSearchField(
+      controller: controller,
+      focusNode: focusNode,
+      onChanged: onChanged,
+      onSubmitted: onSubmitted,
+      enabled: enabled,
+      autofocus: autofocus,
+      semanticLabel: semanticLabel,
+      builder:
+          look.builder ??
+          (context, details) => _SearchFieldLook(
+            details: details,
+            style: look.merge(_defaults(context)),
+            placeholder: placeholder,
+            clearSemanticLabel: clearSemanticLabel,
+          ),
+    );
+  }
+
+  static GlassSearchFieldStyle _defaults(BuildContext context) {
+    final label =
+        GlassTheme.of(context).colorScheme?.label ?? GlassColors.label;
+    return GlassSearchFieldStyle(
+      backgroundColor: const ByState(null, GlassSearchField.disabledFill),
+      foregroundColor: WidgetStatePropertyAll(label),
+      placeholderColor: GlassSearchField.placeholderColors,
+      iconColor: WidgetStatePropertyAll(label),
+      cursorColor: const WidgetStatePropertyAll(GlassSearchField.cursor),
+      textStyle: const WidgetStatePropertyAll(GlassSearchField._text),
+    );
+  }
 }
 
-class _GlassSearchFieldState extends State<GlassSearchField>
-    implements TextSelectionGestureDetectorBuilderDelegate {
-  final GlassPress _press = GlassPress(
-    size: const Size(346, GlassSearchField.height),
-    law: SearchTuning.pressLaw,
-  );
-  late final _body = _press.select(
-    (p) => p.isAtRest
-        ? const GlassFrame()
-        : GlassFrame(scaleX: p.scaleX, scaleY: p.scaleY),
-  );
-  late final _scaleX = _press.select((p) => p.isAtRest ? 1.0 : p.scaleX);
-  late final _scaleY = _press.select((p) => p.isAtRest ? 1.0 : p.scaleY);
-  late final _LiftInput _input = _LiftInput(this);
-  late final List<Interaction> _interactions = [_input];
-  final _regionFocus = FocusNode(skipTraversal: true);
-  final _states = WidgetStatesController();
-  late final TextSelectionGestureDetectorBuilder _gestures =
-      TextSelectionGestureDetectorBuilder(delegate: this);
-  final _editable = GlobalKey<EditableTextState>();
-  TextEditingController? _ownController;
-  FocusNode? _ownFocus;
+class _SearchFieldLook extends StatefulWidget {
+  const _SearchFieldLook({
+    required this.details,
+    required this.style,
+    required this.placeholder,
+    required this.clearSemanticLabel,
+  });
 
-  TextEditingController get _controller =>
-      widget.controller ?? (_ownController ??= TextEditingController());
-
-  FocusNode get _focus =>
-      widget.focusNode ??
-      (_ownFocus ??= FocusNode(debugLabel: 'GlassSearchField'));
+  final GlassSearchFieldDetails details;
+  final GlassSearchFieldStyle style;
+  final Widget? placeholder;
+  final String? clearSemanticLabel;
 
   @override
-  GlobalKey<EditableTextState> get editableTextKey => _editable;
+  State<_SearchFieldLook> createState() => _SearchFieldLookState();
+}
 
-  @override
-  bool get forcePressEnabled => false;
+class _SearchFieldLookState extends State<_SearchFieldLook> {
+  MotionSelection<GlassFrame>? _scaledBy;
+  late MotionSelection<double> _scaleX;
+  late MotionSelection<double> _scaleY;
 
-  @override
-  bool get selectionEnabled => widget.enabled && _focus.hasFocus;
-
-  @override
-  void initState() {
-    super.initState();
-    _states.update(WidgetState.disabled, !widget.enabled);
-    _states.addListener(_statesChanged);
-    _focus.addListener(_focusChanged);
-  }
-
-  @override
-  void didUpdateWidget(GlassSearchField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final focus = oldWidget.focusNode ?? _ownFocus;
-    if (!identical(focus, _focus)) {
-      focus?.removeListener(_focusChanged);
-      _focus.addListener(_focusChanged);
-    }
-    _states.update(WidgetState.disabled, !widget.enabled);
-    if (!widget.enabled) {
-      _states.update(WidgetState.pressed, false);
-      if (_focus.hasFocus) _focus.unfocus();
-    }
-  }
-
-  @override
-  void dispose() {
-    _ends?.removeListener(_ended);
-    _focus.removeListener(_focusChanged);
-    _states.dispose();
-    _regionFocus.dispose();
-    _ownController?.dispose();
-    _ownFocus?.dispose();
-    super.dispose();
-  }
-
-  Listenable? _ends;
-  MotionValue<double>? _fadedGlass;
-  late MotionSelection<GlassFrame> _faded;
-
-  MotionSelection<GlassFrame> _fadedBy(MotionValue<double> glass) {
-    if (identical(glass, _fadedGlass)) return _faded;
-    _fadedGlass = glass;
-    return _faded = MotionSelection(() {
-      final frame = _body.value;
-      return frame.copyWith(
-        opacity: frame.opacity * glass.value.clamp(0.0, 1.0),
-      );
-    });
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final ends = SearchEnds.maybeOf(context);
-    if (identical(ends, _ends)) return;
-    _ends?.removeListener(_ended);
-    _ends = ends;
-    ends?.addListener(_ended);
-  }
-
-  void _ended() {
-    if (_controller.text.isNotEmpty) _clear();
-    _focus.unfocus();
-  }
-
-  void _statesChanged() => setState(() {});
-
-  void _focusChanged() {
-    _states.update(WidgetState.focused, _focus.hasFocus);
-    if (_focus.hasFocus) _press.pointerCancel(MotionClock.instance.now);
-  }
-
-  void _clear() {
-    _controller.clear();
-    widget.onChanged?.call('');
+  void _scaleOf(MotionSelection<GlassFrame> frame) {
+    if (identical(frame, _scaledBy)) return;
+    _scaledBy = frame;
+    _scaleX = MotionSelection(() => frame.value.scaleX);
+    _scaleY = MotionSelection(() => frame.value.scaleY);
   }
 
   @override
   Widget build(BuildContext context) {
-    _press.reducedMotion = GlassTraits.of(context).reduceMotion;
-    final look = (widget.style ?? const GlassSearchFieldStyle())
-        .merge(GlassTheme.of(context).searchFieldStyle)
-        .merge(_defaults(context));
-    final states = _states.value;
+    final details = widget.details;
+    final look = widget.style;
+    final states = details.states;
+    final controller = details.controller;
     Color resolve(WidgetStateProperty<Color?>? property) =>
         GlassDynamicColor.resolve(property!.resolve(states)!, context);
     final background = look.backgroundColor?.resolve(states);
     final icon = resolve(look.iconColor);
-    final cursor = resolve(look.cursorColor);
-    final scaler = MediaQuery.textScalerOf(
-      context,
-    ).clamp(maxScaleFactor: GlassSearchField.maxTextScale);
+    final placeholderColor = resolve(look.placeholderColor);
     final text = resolveGlassText(
       look.textStyle!
           .resolve(states)!
@@ -373,38 +602,12 @@ class _GlassSearchFieldState extends State<GlassSearchField>
           ),
       context,
     );
-    final editable = EditableText(
-      key: _editable,
-      controller: _controller,
-      focusNode: _focus,
-      readOnly: !widget.enabled,
-      autofocus: widget.autofocus,
-      style: text,
-      textScaler: scaler,
-      cursorColor: cursor,
-      backgroundCursorColor: resolve(look.placeholderColor),
-      selectionColor: cursor.withValues(alpha: 0.25),
-      textInputAction: TextInputAction.search,
-      keyboardAppearance: GlassTraits.of(context).brightness,
-      textCapitalization: TextCapitalization.sentences,
-      // UIKit's search field offers no suggestions. iOS's engine ties
-      // spell checking, and with it the prediction bar, to this flag.
-      autocorrect: false,
-      enableSuggestions: false,
-      rendererIgnoresPointer: true,
-      contextMenuBuilder: SystemContextMenu.isSupported(context)
-          ? (context, state) =>
-                SystemContextMenu.editableText(editableTextState: state)
-          : null,
-      onChanged: widget.onChanged,
-      onSubmitted: widget.onSubmitted,
-    );
     final placeholder = ListenableBuilder(
-      listenable: _controller,
-      builder: (context, _) => _controller.text.isEmpty
+      listenable: controller,
+      builder: (context, _) => controller.text.isEmpty
           ? ExcludeSemantics(
               child: DefaultTextStyle(
-                style: text.copyWith(color: resolve(look.placeholderColor)),
+                style: text.copyWith(color: placeholderColor),
                 maxLines: 1,
                 softWrap: false,
                 child: MediaQuery.withClampedTextScaling(
@@ -424,10 +627,10 @@ class _GlassSearchFieldState extends State<GlassSearchField>
         container: true,
         button: true,
         label: widget.clearSemanticLabel ?? 'Clear text',
-        onTap: widget.enabled ? _clear : null,
+        onTap: details.clear,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: widget.enabled ? _clear : null,
+          onTap: details.clear,
           child: SizedBox.square(
             dimension: SearchTuning.clearSize,
             child: CustomPaint(
@@ -465,21 +668,17 @@ class _GlassSearchFieldState extends State<GlassSearchField>
               alignment: AlignmentDirectional.centerStart,
               children: [
                 placeholder,
-                Semantics(
-                  label: widget.semanticLabel ?? 'Search',
-                  child: widget.enabled
-                      ? _gestures.buildGestureDetector(
-                          behavior: HitTestBehavior.translucent,
-                          child: editable,
-                        )
-                      : IgnorePointer(child: ExcludeFocus(child: editable)),
+                details.text(
+                  style: text,
+                  cursorColor: resolve(look.cursorColor),
+                  placeholderColor: placeholderColor,
                 ),
               ],
             ),
           ),
           ListenableBuilder(
-            listenable: _controller,
-            builder: (context, child) => _controller.text.isEmpty
+            listenable: controller,
+            builder: (context, child) => controller.text.isEmpty
                 ? const SizedBox(width: SearchTuning.clearInset)
                 : child!,
             child: clear,
@@ -487,50 +686,30 @@ class _GlassSearchFieldState extends State<GlassSearchField>
         ],
       ),
     );
-    final stacking = SearchFieldStacking.maybeOf(context);
     final glass = Glass.regular(tint: background);
-    final Widget body;
-    if (!widget.enabled) {
-      body = GlassSurface(role: GlassRole.track, glass: glass, child: content);
-    } else if (stacking == null) {
-      body = GlassSurface.live(frame: _body, glass: glass, child: content);
-    } else {
-      // A surface fades its content with its glass, and a stacked field's
-      // glyph and text stay while its glass comes and goes.
-      body = Stack(
-        fit: StackFit.expand,
-        children: [
-          GlassSurface.live(
-            frame: _fadedBy(stacking.glass),
-            glass: glass,
-            child: const SizedBox.expand(),
-          ),
-          MotionTransition(scaleX: _scaleX, scaleY: _scaleY, child: content),
-        ],
+    if (states.contains(WidgetState.disabled)) {
+      return GlassSurface(role: GlassRole.track, glass: glass, child: content);
+    }
+    if (SearchFieldStacking.maybeOf(context) == null) {
+      return GlassSurface.live(
+        frame: details.frame,
+        glass: glass,
+        child: content,
       );
     }
-    return InputRegion(
-      interactions: _interactions,
-      enabled: widget.enabled,
-      statesController: _states,
-      focusNode: _regionFocus,
-      child: SizedBox(
-        height: stacking?.height ?? GlassSearchField.height,
-        child: body,
-      ),
-    );
-  }
-
-  GlassSearchFieldStyle _defaults(BuildContext context) {
-    final label =
-        GlassTheme.of(context).colorScheme?.label ?? GlassColors.label;
-    return GlassSearchFieldStyle(
-      backgroundColor: const ByState(null, GlassSearchField.disabledFill),
-      foregroundColor: WidgetStatePropertyAll(label),
-      placeholderColor: GlassSearchField.placeholderColors,
-      iconColor: WidgetStatePropertyAll(label),
-      cursorColor: const WidgetStatePropertyAll(GlassSearchField.cursor),
-      textStyle: const WidgetStatePropertyAll(GlassSearchField._text),
+    _scaleOf(details.frame);
+    // A surface fades its content with its glass, and a stacked field's
+    // glyph and text stay while its glass comes and goes.
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        GlassSurface.live(
+          frame: details.frame,
+          glass: glass,
+          child: const SizedBox.expand(),
+        ),
+        MotionTransition(scaleX: _scaleX, scaleY: _scaleY, child: content),
+      ],
     );
   }
 }
@@ -595,7 +774,7 @@ class SearchEnds extends InheritedWidget {
 final class _LiftInput extends Interaction {
   _LiftInput(this._owner) : super(role: InteractionRole.content);
 
-  final _GlassSearchFieldState _owner;
+  final _RawGlassSearchFieldState _owner;
   int? _pointer;
   Offset _down = Offset.zero;
 
