@@ -9,8 +9,8 @@ import 'package:apple_liquid_glass/src/menu/motion.dart';
 import 'package:apple_liquid_glass/src/motion/live.dart';
 import 'package:apple_liquid_glass/src/theme/typography.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/motion.dart';
 
 class _RowKey extends LocalKey {
   const _RowKey(this.index);
@@ -527,49 +527,12 @@ class _MenuElement extends StatelessWidget {
         padding: .symmetric(horizontal: _metrics.widgetInset),
         child: entry.height != null || key == null
             ? child
-            : _HeightReporter(
-                onHeight: (double height) => content.reportHeight(key, height),
+            : MotionMeasure(
+                onSize: (_, size) => content.reportHeight(key, size.height),
                 child: child,
               ),
       ),
     );
-  }
-}
-
-/// Reports the height [child] lays out at, after the frame.
-class _HeightReporter extends SingleChildRenderObjectWidget {
-  const _HeightReporter({required this.onHeight, required super.child});
-
-  final ValueChanged<double> onHeight;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) =>
-      _RenderHeightReporter(onHeight);
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    _RenderHeightReporter renderObject,
-  ) {
-    renderObject.onHeight = onHeight;
-  }
-}
-
-class _RenderHeightReporter extends RenderProxyBox {
-  _RenderHeightReporter(this.onHeight);
-
-  ValueChanged<double> onHeight;
-  double? _reported;
-
-  @override
-  void performLayout() {
-    super.performLayout();
-    final height = size.height;
-    if (_reported == height) return;
-    _reported = height;
-    WidgetsBinding.instance.addPostFrameCallback((Duration _) {
-      if (attached) onHeight(height);
-    });
   }
 }
 

@@ -130,6 +130,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   final _portal = PresentationPortalController();
   late final _content = MenuContent(onChanged: _contentChanged);
   final _showing = ValueNotifier<bool>(false);
+  final _source = MotionSource();
   MenuMotion? _motion;
   MotionSelection<MenuMotion>? _steps;
   OverlayState? _overlay;
@@ -432,6 +433,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     presentation: Presentation<Object?, MenuMotion>(
       motion: (_) => _motion!,
       builder: (context, motion) => _MenuLayer(anchor: this),
+      source: _source,
       dim: _dim(context),
       semanticsLabel: _semanticLabel,
       onDismissed: (_) => _showing.value = false,
@@ -551,17 +553,20 @@ class _MenuAnchorState extends _MenuHost<MenuAnchor> {
         semanticLabel: widget.semanticLabel,
         child: ValueListenableBuilder<bool>(
           valueListenable: _showing,
-          child: LiveTransform(
-            live: _frames,
-            matrixOf: _pressTransform,
-            child: widget.face,
+          child: MotionSourceBox(
+            source: _source,
+            child: LiveTransform(
+              live: _frames,
+              matrixOf: _pressTransform,
+              child: widget.face,
+            ),
           ),
           builder: (context, showing, face) => Semantics(
             button: true,
             expanded: showing,
             excludeSemantics: widget.semanticLabel != null,
             onLongPress: enabled && hold ? _openFromCode : null,
-            child: Visibility.maintain(visible: !showing, child: face!),
+            child: face,
           ),
         ),
       ),
@@ -1769,15 +1774,13 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
           onPointerMove: _move,
           onPointerUp: _up,
           onPointerCancel: _cancel,
-          child: ValueListenableBuilder<bool>(
-            valueListenable: _showing,
+          child: MotionSourceBox(
+            source: _source,
             child: LiveTransform(
               live: _growth,
               matrixOf: _growthTransform,
               child: widget.child,
             ),
-            builder: (context, showing, child) =>
-                Visibility.maintain(visible: !showing, child: child!),
           ),
         ),
       ),
