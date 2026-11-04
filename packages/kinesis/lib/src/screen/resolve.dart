@@ -1,8 +1,8 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:kinesis/src/clock.dart';
+import 'package:kinesis/src/spring.dart';
 import 'package:kinesis/src/transaction.dart';
-import 'package:meta/meta.dart';
 
 /// A render object that places its presentation from this frame's layout,
 /// in the frame's resolve phase: after the whole view is laid out, before
@@ -12,10 +12,19 @@ import 'package:meta/meta.dart';
 /// must not mark layout. Values it changes publish at once
 /// ([MotionClock.resolve]), so what draws them shows this frame's
 /// presentation, never the previous one.
-@internal
+///
+/// A render object that animates its own layout mixes it in to hear the
+/// app's `withSpring` and `withoutAnimation` around a change through
+/// [layoutSpring], as `MotionLayout` does.
 mixin MotionResolveHost on RenderObject {
   /// Places the presentation from this frame's layout.
   void resolve();
+
+  /// The spring of this frame's layout changes: the spring of the latest
+  /// outermost `withSpring` that closed since the previous frame drew,
+  /// [Spring.immediate] for a `withoutAnimation`, or null when neither
+  /// did. A host jumps on null unless it has a spring of its own.
+  Spring? get layoutSpring => MotionTransaction.layout?.spring;
 
   /// Whether [resolve] runs in every frame's resolve phase while the host
   /// is attached, not only after [scheduleResolve]: for what follows

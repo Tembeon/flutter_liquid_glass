@@ -64,6 +64,7 @@ export 'src/screen/driven.dart' show MotionDriven;
 export 'src/screen/input_region.dart' show InputRegion, MotionHapticPlay;
 export 'src/screen/layout.dart' show MotionLayout, MotionLayoutBuilder;
 export 'src/screen/measure.dart' show MotionMeasure;
+export 'src/screen/resolve.dart' show MotionResolveHost;
 export 'src/screen/scope.dart' show MotionScope, MotionTraitsOverride;
 export 'src/screen/scroll.dart' show MotionScroll, MotionScrollPhase;
 export 'src/screen/sliver_layout.dart' show SliverMotionList;
