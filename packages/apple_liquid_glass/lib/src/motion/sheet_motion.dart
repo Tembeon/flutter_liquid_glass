@@ -765,7 +765,7 @@ class SheetMotion extends Motion {
   }
 
   void _letGo(double t) {
-    cancel(_pressSlot);
+    unschedule(_pressSlot);
     _press.retarget(t, 1);
   }
 

@@ -157,7 +157,7 @@ abstract class Motion extends MotionPart {
 
   /// Drops the pending reaction in [slot], if any.
   @protected
-  void cancel(Object slot) =>
+  void unschedule(Object slot) =>
       _root._reactions.removeWhere((reaction) => reaction.slot == slot);
 
   /// Whether a reaction waits in [slot].

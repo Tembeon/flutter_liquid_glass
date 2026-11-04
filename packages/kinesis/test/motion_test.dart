@@ -16,7 +16,7 @@ class _Pair extends Motion {
   void schedule(double t, String name, {Object? slot}) =>
       at(t, (t) => log.add((name, t)), slot: slot);
 
-  void drop(Object slot) => cancel(slot);
+  void drop(Object slot) => unschedule(slot);
 
   bool waits(Object slot) => isScheduled(slot);
 }
