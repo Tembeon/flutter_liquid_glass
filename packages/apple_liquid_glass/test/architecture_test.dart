@@ -23,6 +23,22 @@ final _read = RegExp(
 // that stops offending fails too, so the list only shrinks.
 final _bans = <String, (RegExp, Set<String>)>{
   'haptics through MotionHaptic.play': (RegExp(r'\bHapticFeedback\.'), {}),
+  'a host steps no driver; it selects from its Motion': (
+    RegExp(r'(implements|extends|with)[^{]*\bMotionDriver\b|addDriver\('),
+    {
+      'lib/src/chrome/bar.dart',
+      'lib/src/chrome/navigation_bar.dart',
+      'lib/src/chrome/page_route.dart',
+      'lib/src/chrome/toolbar.dart',
+      'lib/src/controls/date_picker.dart',
+      'lib/src/controls/page_control.dart',
+      'lib/src/controls/selector.dart',
+      'lib/src/controls/slider.dart',
+      'lib/src/controls/switch.dart',
+      'lib/src/controls/tab_bar.dart',
+      'lib/src/menu/anchor.dart',
+    },
+  ),
   // A4 (lens, search) and A9 (menu) move these onto GlassPress.
   'a press is a GlassPress': (
     RegExp(r'\bFlexInteraction\('),

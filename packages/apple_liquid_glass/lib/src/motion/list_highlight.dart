@@ -1,8 +1,9 @@
 import 'package:flutter/animation.dart';
+import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
 /// The highlight of a tappable list row (UIKit `UITableViewCell` in a
-/// table), as a function of the touch and time.
+/// table).
 ///
 /// Inside a scroll view the highlight waits [touchDelay] after the touch
 /// went down; a tap released sooner shows it at the release. It appears
@@ -12,6 +13,10 @@ import 'package:meta/meta.dart';
 /// deselects it, and this is `deselectRow(at:animated: true)`, the fade of
 /// the standard tap handler.
 ///
+/// As a [PointerFollower] it shows at the touch's arrival: a region inside
+/// a scroll view delivers the touch once the scroll's delay has passed, or
+/// at its release if that comes sooner.
+///
 /// Measured on the iOS 27.0 simulator (UITableView inset grouped, taps
 /// and holds through XCUITest, 60 Hz): the delay is the scroll view's
 /// `_touchDelayForScrollDetection`, 0.15 s, read from UIKit (notes
@@ -19,7 +24,7 @@ import 'package:meta/meta.dart';
 /// frame later); the fade is the CABasicAnimation UIKit adds, read from
 /// the layer. Times are seconds.
 @internal
-class ListRowHighlight {
+final class ListRowHighlight extends Motion implements PointerFollower {
   /// The delay between a touch and the highlight inside a scroll view.
   static const double touchDelay = 0.15;
 
@@ -29,68 +34,52 @@ class ListRowHighlight {
   /// The curve of the fade after a tap: UIKit's ease-in-ease-out.
   static const Curve fadeCurve = Curves.easeInOut;
 
-  double? _showAt;
-  double? _fadeFrom;
-  double? _undecidedUntil;
+  late final _opacity = own(TimedValue(0));
+  bool _shown = false;
 
-  /// A touch went down at [t]; until a tap claims it ([press]) or
-  /// [touchDelay] passes, the motion keeps time without drawing.
-  void touch(double t) => _undecidedUntil = t + touchDelay;
+  /// How strongly the row shows highlighted, 0 to 1.
+  double get opacity => _opacity.valueAt(now);
 
-  /// The touch that went down at [downTime] may become a tap: the
-  /// highlight shows at [downTime] plus [delay], or at [now] when that is
-  /// later.
-  void press(double downTime, double now, {double delay = touchDelay}) {
-    _undecidedUntil = null;
-    _fadeFrom = null;
-    final at = downTime + delay;
-    _showAt = at > now ? at : now;
+  /// At [t] the touch that went down at [contact] becomes a tap: the
+  /// highlight shows [delay] after the contact, or at once when that has
+  /// passed.
+  void press(double t, {required double contact, double delay = touchDelay}) {
+    advance(t);
+    _shown = true;
+    final at = contact + delay;
+    _opacity.animate(t, 1, duration: 0, delay: at > t ? at - t : 0);
   }
 
-  /// The tap was released at [t]: the highlight shows if it still waited,
-  /// then fades out.
-  void release(double t) {
-    if (_showAt == null) return;
-    _showAt = null;
-    _fadeFrom = t;
+  /// The tap was released at [t]: a highlight not shown yet shows now, and
+  /// it fades out.
+  void fadeOut(double t) {
+    advance(t);
+    if (!_shown) return;
+    _shown = false;
+    _opacity.snap(t, 1);
+    _opacity.animate(t, 0, duration: fadeDuration, curve: fadeCurve);
   }
 
-  /// The touch was taken by a scroll or lost: the highlight goes at once.
-  void cancel() {
-    _undecidedUntil = null;
-    _showAt = null;
-    _fadeFrom = null;
+  /// The touch went to a scroll at [t]: the highlight goes at once.
+  void clear(double t) {
+    advance(t);
+    _shown = false;
+    _opacity.snap(t, 0);
   }
 
-  /// The highlight's strength at [t], 0 to 1.
-  double opacity(double t) {
-    final show = _showAt;
-    if (show != null) return t >= show ? 1 : 0;
-    final from = _fadeFrom;
-    if (from == null) return 0;
-    final p = ((t - from) / fadeDuration).clamp(0.0, 1.0);
-    return 1 - fadeCurve.transform(p);
-  }
+  @override
+  void down(PointerDownInput input) =>
+      press(input.time, contact: input.contactTime, delay: 0);
 
-  /// Whether nothing changes after [t].
-  bool isSettled(double t) {
-    final undecided = _undecidedUntil;
-    if (undecided != null && t < undecided) return false;
-    final show = _showAt;
-    if (show != null) return t >= show;
-    final from = _fadeFrom;
-    return from == null || t >= from + fadeDuration;
-  }
+  @override
+  void move(PointerMoveInput input) {}
 
-  /// The time before which the highlight shows nothing new, or null while
-  /// it changes every frame.
-  double? wakeTime(double t) {
-    final show = _showAt;
-    if (show != null) return t < show ? show : null;
-    final undecided = _undecidedUntil;
-    if (_fadeFrom == null && undecided != null && t < undecided) {
-      return undecided;
-    }
-    return null;
-  }
+  @override
+  void up(PointerUpInput input) => fadeOut(input.time);
+
+  @override
+  void cancel(PointerCancelInput input) => clear(input.time);
+
+  @override
+  void hover(PointerHoverInput input) {}
 }

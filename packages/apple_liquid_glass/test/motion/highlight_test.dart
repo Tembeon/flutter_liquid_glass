@@ -6,42 +6,44 @@ void main() {
   group('list row', () {
     test('waits the touch delay, then fades after the tap', () {
       final motion = ListRowHighlight();
-      motion.touch(0);
-      expect(motion.isSettled(0.1), isFalse);
-      motion.press(0, 0.1);
-      expect(motion.opacity(0.149), 0);
-      expect(motion.opacity(0.15), 1);
-      motion.release(0.6);
-      expect(motion.opacity(0.6), 1);
-      expect(motion.opacity(0.85), closeTo(0.5, 1e-9));
-      expect(motion.opacity(1.1), 0);
-      expect(motion.isSettled(1.1), isTrue);
+      motion.press(0.1, contact: 0);
+      expect(motion.isSettled, isFalse);
+      motion.advance(0.149);
+      expect(motion.opacity, 0);
+      motion.advance(0.15);
+      expect(motion.opacity, 1);
+      motion.fadeOut(0.6);
+      expect(motion.opacity, 1);
+      motion.advance(0.85);
+      expect(motion.opacity, closeTo(0.5, 1e-9));
+      motion.advance(1.1);
+      expect(motion.opacity, 0);
+      expect(motion.isSettled, isTrue);
     });
 
     test('a tap released before the delay shows at the release', () {
       final motion = ListRowHighlight();
-      motion.touch(0);
-      motion.press(0, 0.067);
-      motion.release(0.067);
-      expect(motion.opacity(0.067), 1);
-      expect(motion.opacity(0.2), greaterThan(0.8));
+      motion.press(0.067, contact: 0);
+      motion.fadeOut(0.067);
+      expect(motion.opacity, 1);
+      motion.advance(0.2);
+      expect(motion.opacity, greaterThan(0.8));
     });
 
     test('a scroll removes it at once', () {
       final motion = ListRowHighlight();
-      motion.touch(0);
-      motion.press(0, 0.1);
-      expect(motion.opacity(0.2), 1);
-      motion.cancel();
-      expect(motion.opacity(0.2), 0);
-      expect(motion.isSettled(0.2), isTrue);
+      motion.press(0.1, contact: 0);
+      motion.advance(0.2);
+      expect(motion.opacity, 1);
+      motion.clear(0.2);
+      expect(motion.opacity, 0);
+      expect(motion.isSettled, isTrue);
     });
 
-    test('an undecided touch keeps time only for the delay', () {
+    test('a pending highlight wakes the clock at its time', () {
       final motion = ListRowHighlight();
-      motion.touch(0);
-      expect(motion.wakeTime(0), 0.15);
-      expect(motion.isSettled(0.15), isTrue);
+      motion.press(0, contact: 0);
+      expect(motion.wakeTime, 0.15);
     });
   });
 

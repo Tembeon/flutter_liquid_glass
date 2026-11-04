@@ -436,13 +436,16 @@ class GlassListRow extends StatefulWidget {
 
 class _GlassListRowState extends State<GlassListRow>
     with ControlStates<GlassListRow> {
-  late final _RowBody _body = _RowBody();
+  final _highlight = ListRowHighlight();
+  late final _strength = _highlight.select((h) => h.opacity);
   final _textStart = ValueNotifier<double>(_Metrics.contentInset);
   late final List<Interaction> _interactions = [
     PressInteraction(
       role: InteractionRole.content,
       onTap: (t) => widget.onPressed?.call(),
-    ).simultaneously(FollowInteraction(_body, role: InteractionRole.content)),
+    ).simultaneously(
+      FollowInteraction(_highlight, role: InteractionRole.content),
+    ),
   ];
   late final List<Interaction> _accessoryInteractions = [
     PressInteraction(onTap: (t) => widget.onAccessoryPressed?.call()),
@@ -454,21 +457,13 @@ class _GlassListRowState extends State<GlassListRow>
   bool get _active => widget.onPressed != null && widget.enabled;
 
   @override
-  void initState() {
-    super.initState();
-    MotionClock.instance.addDriver(_body);
-  }
-
-  @override
   void didUpdateWidget(GlassListRow oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!_active) _body.clear();
+    if (!_active) _highlight.clear(MotionClock.instance.now);
   }
 
   @override
   void dispose() {
-    MotionClock.instance.removeDriver(_body);
-    _body.dispose();
     _textStart.dispose();
     super.dispose();
   }
@@ -608,7 +603,7 @@ class _GlassListRowState extends State<GlassListRow>
     );
     final separated = place != null && !place.last;
     final surface = _RowSurface(
-      strength: _body.strength,
+      strength: _strength,
       focused: states.contains(WidgetState.focused),
       fill: color(look.overlayColor),
       separator: separated ? color(look.separatorColor) : null,
@@ -802,56 +797,6 @@ class _SectionLabel extends StatelessWidget {
       ),
     );
   }
-}
-
-/// The highlight of a row, stepped on the motion clock.
-final class _RowBody implements MotionDriver, PointerFollower {
-  final ListRowHighlight _highlight = ListRowHighlight();
-  final strength = ValueNotifier<double>(0);
-
-  double get _now => MotionClock.instance.now;
-
-  // A fade can end between frames; one more step publishes its end.
-  @override
-  bool get isActive =>
-      !_highlight.isSettled(_now) || strength.value != _highlight.opacity(_now);
-
-  @override
-  double? get wakeTime => _highlight.wakeTime(_now);
-
-  @override
-  void step(double time) => strength.value = _highlight.opacity(time);
-
-  // The region delivers a touch inside a scroll view once the scroll's
-  // delay has passed, or at its release if that comes sooner, so the
-  // highlight shows when the touch arrives.
-  @override
-  void down(PointerDownInput input) {
-    _highlight.press(input.contactTime, input.time, delay: 0);
-    MotionClock.instance.wake(this);
-  }
-
-  @override
-  void move(PointerMoveInput input) {}
-
-  @override
-  void up(PointerUpInput input) {
-    _highlight.release(input.time);
-    MotionClock.instance.wake(this);
-  }
-
-  @override
-  void cancel(PointerCancelInput input) => clear();
-
-  void clear() {
-    _highlight.cancel();
-    strength.value = 0;
-  }
-
-  @override
-  void hover(PointerHoverInput input) {}
-
-  void dispose() => strength.dispose();
 }
 
 /// Paints a row's highlight under it and its separator over it, following
