@@ -11,6 +11,7 @@ import 'package:apple_liquid_glass/src/controls/stepper.dart';
 import 'package:apple_liquid_glass/src/controls/switch.dart';
 import 'package:apple_liquid_glass/src/controls/tab_bar.dart';
 import 'package:apple_liquid_glass/src/menu/appearance.dart';
+import 'package:apple_liquid_glass/src/presentations/alert.dart';
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
@@ -121,6 +122,7 @@ class GlassThemeData {
     this.badgeStyle,
     this.datePickerStyle,
     this.menuStyle,
+    this.alertStyle,
   });
 
   /// The theme between [a] and [b] at [t]: colors and styles interpolate;
@@ -176,6 +178,7 @@ class GlassThemeData {
         t,
       ),
       menuStyle: GlassMenuStyle.lerp(a.menuStyle, b.menuStyle, t),
+      alertStyle: GlassAlertStyle.lerp(a.alertStyle, b.alertStyle, t),
     );
   }
 
@@ -236,6 +239,9 @@ class GlassThemeData {
   /// The look of menus and context menus.
   final GlassMenuStyle? menuStyle;
 
+  /// The look of alerts and action sheets.
+  final GlassAlertStyle? alertStyle;
+
   /// This theme with the non-null fields of [other] over it; styles and
   /// schemes merge too.
   GlassThemeData merge(GlassThemeData? other) {
@@ -268,6 +274,7 @@ class GlassThemeData {
       datePickerStyle:
           other.datePickerStyle?.merge(datePickerStyle) ?? datePickerStyle,
       menuStyle: other.menuStyle?.merge(menuStyle) ?? menuStyle,
+      alertStyle: other.alertStyle?.merge(alertStyle) ?? alertStyle,
     );
   }
 
@@ -292,7 +299,8 @@ class GlassThemeData {
       other.navigationBarStyle == navigationBarStyle &&
       other.badgeStyle == badgeStyle &&
       other.datePickerStyle == datePickerStyle &&
-      other.menuStyle == menuStyle;
+      other.menuStyle == menuStyle &&
+      other.alertStyle == alertStyle;
 
   @override
   int get hashCode => Object.hashAll([
@@ -315,6 +323,7 @@ class GlassThemeData {
     badgeStyle,
     datePickerStyle,
     menuStyle,
+    alertStyle,
   ]);
 }
 

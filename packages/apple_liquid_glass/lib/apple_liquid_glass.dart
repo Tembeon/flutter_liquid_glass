@@ -125,7 +125,11 @@ export 'src/motion/sheet_motion.dart' show GlassSheetDetent;
 export 'src/motion/tab_minimize.dart' show GlassTabBarMinimizeBehavior;
 export 'src/motion/touch_glow.dart' show GlassTouchGlow;
 export 'src/presentations/alert.dart'
-    show GlassAlertAction, showGlassActionSheet, showGlassAlert;
+    show
+        GlassAlertAction,
+        GlassAlertStyle,
+        showGlassActionSheet,
+        showGlassAlert;
 export 'src/presentations/popover.dart' show showGlassPopover;
 export 'src/presentations/sheet.dart' show GlassSheet, showGlassSheet;
 export 'src/renderer/renderer.dart' show GlassRenderer;

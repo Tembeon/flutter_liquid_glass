@@ -10,6 +10,7 @@ import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/shape.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
+import 'package:apple_liquid_glass/src/theme/style.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:apple_liquid_glass/src/theme/typography.dart';
@@ -19,6 +20,126 @@ import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 
 enum _Role { normal, cancel, destructive }
+
+/// The look of alerts and action sheets; a null field leaves it to the
+/// theme's style, then the default (iPhone 16 Pro, iOS 27).
+@immutable
+class GlassAlertStyle {
+  /// Creates a style.
+  const GlassAlertStyle({
+    this.titleTextStyle,
+    this.messageTextStyle,
+    this.actionTextStyle,
+    this.actionColor,
+    this.destructiveActionColor,
+    this.defaultActionColor,
+    this.actionFillColor,
+    this.defaultActionFillColor,
+  });
+
+  /// The title, over the default 17 points in label, semibold above a
+  /// message.
+  final TextStyle? titleTextStyle;
+
+  /// The message, over the default 15 points in secondaryLabel under a
+  /// title and the title's style alone.
+  final TextStyle? messageTextStyle;
+
+  /// The action labels, over the default 17 points, medium; an alert
+  /// measures [Text] labels in it to choose a row of two buttons over a
+  /// column.
+  final TextStyle? actionTextStyle;
+
+  /// The label of an action; label by default.
+  final Color? actionColor;
+
+  /// The label of a destructive action; systemRed by default.
+  final Color? destructiveActionColor;
+
+  /// The label of the default action; white by default.
+  final Color? defaultActionColor;
+
+  /// The capsule behind an action; tertiarySystemFill by default.
+  final Color? actionFillColor;
+
+  /// The capsule behind the default action; the theme's primary color,
+  /// then systemBlue, by default.
+  final Color? defaultActionFillColor;
+
+  /// This style over [other].
+  GlassAlertStyle merge(GlassAlertStyle? other) {
+    if (other == null) return this;
+    return GlassAlertStyle(
+      titleTextStyle:
+          other.titleTextStyle?.merge(titleTextStyle) ?? titleTextStyle,
+      messageTextStyle:
+          other.messageTextStyle?.merge(messageTextStyle) ?? messageTextStyle,
+      actionTextStyle:
+          other.actionTextStyle?.merge(actionTextStyle) ?? actionTextStyle,
+      actionColor: actionColor ?? other.actionColor,
+      destructiveActionColor:
+          destructiveActionColor ?? other.destructiveActionColor,
+      defaultActionColor: defaultActionColor ?? other.defaultActionColor,
+      actionFillColor: actionFillColor ?? other.actionFillColor,
+      defaultActionFillColor:
+          defaultActionFillColor ?? other.defaultActionFillColor,
+    );
+  }
+
+  /// The style between [a] and [b] at [t].
+  static GlassAlertStyle? lerp(
+    GlassAlertStyle? a,
+    GlassAlertStyle? b,
+    double t,
+  ) {
+    if (identical(a, b)) return a;
+    if (a == null || b == null) return t < 0.5 ? a : b;
+    final color = snapNull(GlassDynamicColor.lerp);
+    final text = snapNull(TextStyle.lerp);
+    return GlassAlertStyle(
+      titleTextStyle: text(a.titleTextStyle, b.titleTextStyle, t),
+      messageTextStyle: text(a.messageTextStyle, b.messageTextStyle, t),
+      actionTextStyle: text(a.actionTextStyle, b.actionTextStyle, t),
+      actionColor: color(a.actionColor, b.actionColor, t),
+      destructiveActionColor: color(
+        a.destructiveActionColor,
+        b.destructiveActionColor,
+        t,
+      ),
+      defaultActionColor: color(a.defaultActionColor, b.defaultActionColor, t),
+      actionFillColor: color(a.actionFillColor, b.actionFillColor, t),
+      defaultActionFillColor: color(
+        a.defaultActionFillColor,
+        b.defaultActionFillColor,
+        t,
+      ),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlassAlertStyle &&
+      other.titleTextStyle == titleTextStyle &&
+      other.messageTextStyle == messageTextStyle &&
+      other.actionTextStyle == actionTextStyle &&
+      other.actionColor == actionColor &&
+      other.destructiveActionColor == destructiveActionColor &&
+      other.defaultActionColor == defaultActionColor &&
+      other.actionFillColor == actionFillColor &&
+      other.defaultActionFillColor == defaultActionFillColor;
+
+  @override
+  int get hashCode => Object.hash(
+    titleTextStyle,
+    messageTextStyle,
+    actionTextStyle,
+    actionColor,
+    destructiveActionColor,
+    defaultActionColor,
+    actionFillColor,
+    defaultActionFillColor,
+  );
+}
 
 /// One button of an alert or an action sheet.
 ///
@@ -100,6 +221,7 @@ Future<GlassAlertAction?> showGlassAlert(
   Widget? title,
   Widget? message,
   List<GlassAlertAction> actions = const [],
+  GlassAlertStyle? style,
   PresentationLevel level = PresentationLevel.window,
 }) => showPresentation(
   context,
@@ -108,6 +230,7 @@ Future<GlassAlertAction?> showGlassAlert(
       title: title,
       message: message,
       actions: actions,
+      style: style,
       actionSheet: false,
     ),
   ),
@@ -137,6 +260,7 @@ Future<GlassAlertAction?> showGlassActionSheet(
   List<GlassAlertAction> actions = const [],
   BuildContext? anchor,
   Rect? anchorRect,
+  GlassAlertStyle? style,
   PresentationLevel level = PresentationLevel.window,
 }) => showPresentation(
   context,
@@ -145,6 +269,7 @@ Future<GlassAlertAction?> showGlassActionSheet(
       title: title,
       message: message,
       actions: actions,
+      style: style,
       actionSheet: true,
       anchorRect: anchor == null && anchorRect == null
           ? null
@@ -165,6 +290,7 @@ Presentation<GlassAlertAction, Presented> _alert({
   required Widget? title,
   required Widget? message,
   required List<GlassAlertAction> actions,
+  required GlassAlertStyle? style,
   required bool actionSheet,
   Rect? anchorRect,
 }) {
@@ -177,6 +303,7 @@ Presentation<GlassAlertAction, Presented> _alert({
       title: title,
       message: message,
       actions: actions,
+      style: style,
       actionSheet: actionSheet,
       anchorRect: anchorRect,
     ),
@@ -231,6 +358,13 @@ List<GlassAlertAction> _ordered(
   return row ? [...cancel, ...rest] : [...rest, ...cancel];
 }
 
+extension on TextStyle {
+  TextStyle resolvedColor(BuildContext context) => switch (color) {
+    final color? => copyWith(color: GlassDynamicColor.resolve(color, context)),
+    null => this,
+  };
+}
+
 // The message color of an alert, light and dark (UIKit's rendering on an
 // iPhone 16 Pro).
 const _messageColor = GlassDynamicColor.withBrightness(
@@ -244,6 +378,7 @@ class _AlertView extends StatefulWidget {
     required this.title,
     required this.message,
     required this.actions,
+    required this.style,
     required this.actionSheet,
     required this.anchorRect,
   });
@@ -253,6 +388,7 @@ class _AlertView extends StatefulWidget {
   final Widget? title;
   final Widget? message;
   final List<GlassAlertAction> actions;
+  final GlassAlertStyle? style;
   final bool actionSheet;
   final Rect? anchorRect;
 
@@ -368,6 +504,8 @@ class _AlertViewState extends State<_AlertView> {
     _ => null,
   };
 
+  GlassAlertStyle _look = const GlassAlertStyle();
+
   bool _fitsInRow(double width, BuildContext context) {
     final each =
         (width - 2 * AlertTuning.buttonInset - AlertTuning.buttonGap) / 2;
@@ -391,30 +529,47 @@ class _AlertViewState extends State<_AlertView> {
   }
 
   TextStyle _labelStyle(GlassAlertAction action, BuildContext context) {
+    final look = _look;
     final label =
         GlassTheme.of(context).colorScheme?.label ?? GlassColors.label;
     final color = !action.enabled
         ? GlassColors.tertiaryLabel
         : action.isDefaultAction
-        ? const Color(0xFFFFFFFF)
+        ? look.defaultActionColor ?? const Color(0xFFFFFFFF)
         : action.isDestructive
-        ? GlassColors.systemRed
-        : label;
+        ? look.destructiveActionColor ?? GlassColors.systemRed
+        : look.actionColor ?? label;
     return resolveGlassText(
       TextStyle(
-        fontSize: AlertTuning.textFontSize,
-        height: AlertTuning.textHeight,
-        fontWeight: action.isDefaultAction
-            ? AlertTuning.preferredWeight
-            : FontWeight.w500,
-        color: GlassDynamicColor.resolve(color, context),
-      ),
+            fontSize: AlertTuning.textFontSize,
+            height: AlertTuning.textHeight,
+            fontWeight: action.isDefaultAction
+                ? AlertTuning.preferredWeight
+                : FontWeight.w500,
+          )
+          .merge(look.actionTextStyle)
+          .copyWith(
+            color: GlassDynamicColor.resolve(color, context),
+          ),
       context,
     );
   }
 
+  Color _fillOf(GlassAlertAction action, BuildContext context) =>
+      GlassDynamicColor.resolve(
+        action.isDefaultAction && action.enabled
+            ? _look.defaultActionFillColor ??
+                  GlassTheme.of(context).primaryColor ??
+                  GlassColors.systemBlue
+            : _look.actionFillColor ?? GlassColors.tertiarySystemFill,
+        context,
+      );
+
   @override
   Widget build(BuildContext context) {
+    _look = (widget.style ?? const GlassAlertStyle()).merge(
+      GlassTheme.of(context).alertStyle,
+    );
     final reduced = GlassTraits.of(context).reduceMotion;
     _alert?.reducedMotion = reduced;
     _popover?.reducedMotion = reduced;
@@ -493,8 +648,8 @@ class _AlertViewState extends State<_AlertView> {
               fontWeight: both
                   ? FontWeight.w600
                   : AlertTuning.singleHeaderWeight,
-              color: GlassDynamicColor.resolve(label, context),
-            ),
+              color: label,
+            ).merge(_look.titleTextStyle).resolvedColor(context),
             context,
           ),
           child: title,
@@ -503,17 +658,19 @@ class _AlertViewState extends State<_AlertView> {
       if (message != null)
         DefaultTextStyle(
           style: resolveGlassText(
-            both
-                ? TextStyle(
-                    fontSize: 15,
-                    height: AlertTuning.messageHeight,
-                    color: GlassDynamicColor.resolve(_messageColor, context),
-                  )
-                : TextStyle(
-                    fontSize: AlertTuning.textFontSize,
-                    height: AlertTuning.textHeight,
-                    color: GlassDynamicColor.resolve(label, context),
-                  ),
+            (both
+                    ? const TextStyle(
+                        fontSize: 15,
+                        height: AlertTuning.messageHeight,
+                        color: _messageColor,
+                      )
+                    : TextStyle(
+                        fontSize: AlertTuning.textFontSize,
+                        height: AlertTuning.textHeight,
+                        color: label,
+                      ))
+                .merge(_look.messageTextStyle)
+                .resolvedColor(context),
             context,
           ),
           child: message,
@@ -528,6 +685,7 @@ class _AlertViewState extends State<_AlertView> {
             action: action,
             highlighted: _highlighted,
             label: _labelStyle(action, context),
+            fill: _fillOf(action, context),
             onChoose: _choose,
           ),
         ),
@@ -635,23 +793,18 @@ class _AlertButton extends StatelessWidget {
     required this.action,
     required this.highlighted,
     required this.label,
+    required this.fill,
     required this.onChoose,
   });
 
   final GlassAlertAction action;
   final ValueListenable<GlassAlertAction?> highlighted;
   final TextStyle label;
+  final Color fill;
   final ValueChanged<GlassAlertAction> onChoose;
 
   @override
   Widget build(BuildContext context) {
-    final preferred = action.isDefaultAction && action.enabled;
-    final fill = GlassDynamicColor.resolve(
-      preferred
-          ? GlassTheme.of(context).primaryColor ?? GlassColors.systemBlue
-          : GlassColors.tertiarySystemFill,
-      context,
-    );
     return Semantics(
       container: true,
       button: true,

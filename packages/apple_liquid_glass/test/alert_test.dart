@@ -329,4 +329,42 @@ void main() {
       reason: 'the platter has the alert corners, not a capsule',
     );
   });
+
+  testWidgets('a style colors the title, the actions and their capsules', (
+    tester,
+  ) async {
+    await _phone(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_app(navigator));
+    unawaited(
+      showGlassAlert(
+        _context(navigator),
+        title: const Text('Title'),
+        actions: const [
+          GlassAlertAction.cancel(child: Text('Cancel')),
+          GlassAlertAction(isDefaultAction: true, child: Text('OK')),
+        ],
+        style: const GlassAlertStyle(
+          titleTextStyle: TextStyle(color: Color(0xFF00AA00)),
+          actionColor: Color(0xFFAA0000),
+          defaultActionFillColor: Color(0xFF0000AA),
+        ),
+      ),
+    );
+    await _settle(tester);
+    Color? color(String text) => DefaultTextStyle.of(
+      tester.element(find.text(text)),
+    ).style.color;
+    expect(color('Title'), const Color(0xFF00AA00));
+    expect(color('Cancel'), const Color(0xFFAA0000));
+    final fills = tester
+        .widgetList<DecoratedBox>(
+          find.ancestor(
+            of: find.text('OK'),
+            matching: find.byType(DecoratedBox),
+          ),
+        )
+        .map((box) => (box.decoration as ShapeDecoration).color);
+    expect(fills, contains(const Color(0xFF0000AA)));
+  });
 }
