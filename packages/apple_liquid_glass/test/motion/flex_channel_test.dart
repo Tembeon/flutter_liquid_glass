@@ -1,3 +1,4 @@
+import 'package:apple_liquid_glass/src/menu/flex.dart';
 import 'package:apple_liquid_glass/src/motion/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
 import 'package:flutter_test/flutter_test.dart';

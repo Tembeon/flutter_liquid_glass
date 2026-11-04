@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/menu/flex.dart';
 import 'package:apple_liquid_glass/src/menu/fusion.dart';
 import 'package:apple_liquid_glass/src/menu/layout.dart';
 import 'package:apple_liquid_glass/src/menu/morph_spec.dart';
@@ -961,15 +962,6 @@ class _SpringProgress extends MenuProgress {
 
 enum _Phase { idle, opening, closing }
 
-/// The stretch of the open menu: its width and height scales and the
-/// drifts of its center across and of its edge facing the button.
-typedef _Deformation = ({
-  double scaleX,
-  double scaleY,
-  double driftX,
-  double driftY,
-});
-
 class _Pointer {
   _Pointer({
     required this.fromButton,
@@ -982,24 +974,6 @@ class _Pointer {
   bool holdForfeited = false;
   bool scrolled = false;
   bool leftButton = false;
-}
-
-/// A finger flexing the open menu, as the flex sees it
-/// [MenuTuning.flexDelay] after the touches.
-class _FlexTouch {
-  _FlexTouch(this.origin, this.start) : position = origin;
-
-  /// Where the finger touched down.
-  final Offset origin;
-
-  /// When the flex saw the touch-down; the pulse channel steps from here.
-  final double start;
-
-  /// Where the finger is.
-  Offset position;
-
-  /// When the pulse channel steps next, or null while it rests.
-  double? nextStep;
 }
 
 /// A damped spring driven by an input, integrated from samples.
@@ -1258,11 +1232,6 @@ class MenuMotion extends Motion {
        _sourceHeight = sourceHeight ?? button.height,
        _progress = progress ?? MenuProgress.spring(tuning) {
     _radius = MotionValue<double>(0, spring: tuning.openSpring);
-    _flexSpring = tuning.flex.channelSpring;
-    _pulse = FlexPulse(
-      tuning.flexPulseSpring,
-      retargetStep: tuning.flexPulseRetargetStep,
-    );
     _root = _build(reversed: false);
     _rootHeight = MotionValue<double>(
       _visibleRoot(_root),
@@ -1294,14 +1263,14 @@ class MenuMotion extends Motion {
       law: FlexLaw(stretches: false, activationDelay: tuning.pressDelay),
     ),
   );
-  late final Spring _flexSpring;
-  final _flexScaleX = MotionValue<double>(1);
-  final _flexScaleY = MotionValue<double>(1);
-  final _flexDriftX = MotionValue<double>(0);
-  final _flexDriftY = MotionValue<double>(0);
-  late final FlexPulse _pulse;
-  _FlexTouch? _flexTouch;
-  int _flexGeneration = 0;
+  late final MenuFlex _flex = own(
+    MenuFlex(
+      tuning,
+      frame: () => _menu,
+      side: () => _down ? 1.0 : -1.0,
+      active: () => _phase == _Phase.opening,
+    ),
+  );
   late MotionValue<double> _rootHeight;
   late final MotionValue<double> _cardContainer;
   bool _cardContainerActive = false;
@@ -2179,24 +2148,11 @@ class MenuMotion extends Motion {
     );
   }
 
-  bool _flexAtRest(double t) {
-    final frame = _menu;
-    final rest = _flexTouch == null
-        ? MenuTuning.flexReturnRest
-        : MenuTuning.flexPulseRest;
-    final scaleRest = rest / math.max(1.0, math.max(frame.width, frame.height));
-    return _flexScaleX.isWithin(t, scaleRest) &&
-        _flexScaleY.isWithin(t, scaleRest) &&
-        _flexDriftX.isWithin(t, rest) &&
-        _flexDriftY.isWithin(t, rest);
-  }
-
   /// What the flex's pulse channel ([MenuTuning.flexPulseSpring])
   /// last published: its value and its velocity per second of its own
   /// clock.
   @visibleForTesting
-  ({double value, double velocity}) get flexPulse =>
-      (value: _pulse.value, velocity: _pulse.velocity);
+  ({double value, double velocity}) get flexPulse => _flex.pulse;
 
   /// [menuRect] flexed by the finger on the menu, without the morph from
   /// the button: the frame UIKit's `_UIContextMenuListView` takes.
@@ -2214,11 +2170,11 @@ class MenuMotion extends Motion {
   /// The flex of the open menu under a finger at time [t]: the shift of
   /// its center and the growth of its width and height.
   ///
-  /// The menu takes the scales and drifts of [_deformationAt]: its width
+  /// The menu takes the scales and drifts of [MenuFlex.valuesAt]: its width
   /// and height scale about the center across and about the edge facing
   /// the button along the vertical, which the vertical drift moves.
   ({Offset shift, double width, double height}) _flexAt(double t) {
-    final d = _deformationAt(t);
+    final d = _flex.valuesAt(t);
     if (d.scaleX == 1 && d.scaleY == 1 && d.driftX == 0 && d.driftY == 0) {
       return _noFlex;
     }
@@ -2229,35 +2185,6 @@ class MenuMotion extends Motion {
       shift: Offset(d.driftX, d.driftY + side * grow / 2),
       width: frame.width * (d.scaleX - 1),
       height: grow,
-    );
-  }
-
-  /// The scales and drifts of the open menu's flex at time [t]: four
-  /// channels that chase the targets of the finger on it
-  /// ([MenuTuning.flexTargets]) on the flex spec's tracking spring
-  /// while it is down and return to rest on its scale spring after it
-  /// lifts, each changed target pushing them by the spec's retarget
-  /// impulse ([chaseFlexChannel]).
-  _Deformation _deformationAt(double t) => (
-    scaleX: _flexScaleX.valueAt(t),
-    scaleY: _flexScaleY.valueAt(t),
-    driftX: _flexDriftX.valueAt(t),
-    driftY: _flexDriftY.valueAt(t),
-  );
-
-  _Deformation _targetsOf(_FlexTouch touch) {
-    final frame = _menu;
-    final at = touch.position;
-    final inside = Offset(
-      at.dx.clamp(frame.left, frame.right),
-      at.dy.clamp(frame.top, frame.bottom),
-    );
-    return tuning.flexTargets(
-      translation: at - touch.origin,
-      inBounds: inside - touch.origin,
-      size: frame.size,
-      velocity: _pulse.velocity,
-      side: _down ? 1.0 : -1.0,
     );
   }
 
@@ -2364,7 +2291,7 @@ class MenuMotion extends Motion {
     final t = _now;
     if (_pointer?.scrolled ?? false) return false;
     if (_phase == _Phase.closing) return false;
-    if (!_press.restsAt(t) || !_flexAtRest(t)) return false;
+    if (!_press.restsAt(t) || !_flex.restsAt(t)) return false;
     if (_phase == _Phase.opening) {
       final rest = _progressRest;
       return _progress.restsWithin(t, rest) &&
@@ -2458,6 +2385,7 @@ class MenuMotion extends Motion {
     _openPending = false;
     unscheduleAll();
     _press.unscheduleAll();
+    _flex.unscheduleAll();
     _resizeGeneration++;
     _pointer = null;
     advance(t);
@@ -2523,7 +2451,7 @@ class MenuMotion extends Motion {
       }
       _track(t, pointer, position);
       _lightGlow(t, position);
-      _flexDown(t, position);
+      _flex.down(t, position);
       return;
     }
     if (_openPending) {
@@ -2599,74 +2527,8 @@ class MenuMotion extends Motion {
     } else {
       _lightGlow(t, position);
     }
-    if (_flexTouch == null && !_flexPending) _flexDown(t, previous);
-    at(t + tuning.flexDelay, (double s) {
-      final touch = _flexTouch;
-      if (touch == null || _phase != _Phase.opening) return;
-      final before = _targetsOf(touch);
-      touch.position = position;
-      _noteChange(touch, s, before);
-      _schedulePulse(touch, s);
-    });
-  }
-
-  bool _flexPending = false;
-
-  /// Sends the targets of [touch] to the flex channels at time [t] on
-  /// their tracking spring when they changed from [before].
-  void _noteChange(_FlexTouch touch, double t, _Deformation before) {
-    final after = _targetsOf(touch);
-    if (after == before) return;
-    final spring = _flexSpring;
-    chaseFlexChannel(_flexScaleX, t, after.scaleX, spring, tracking: true);
-    chaseFlexChannel(_flexScaleY, t, after.scaleY, spring, tracking: true);
-    chaseFlexChannel(_flexDriftX, t, after.driftX, spring, tracking: true);
-    chaseFlexChannel(_flexDriftY, t, after.driftY, spring, tracking: true);
-  }
-
-  /// The flex starts under a finger that touched down at [position] at
-  /// time [t]: UIKit resets the pulse channel without animation.
-  void _flexDown(double t, Offset position) {
-    final generation = ++_flexGeneration;
-    _flexPending = true;
-    at(t + tuning.flexDelay, (double s) {
-      if (generation != _flexGeneration) return;
-      _flexPending = false;
-      if (_phase != _Phase.opening) return;
-      _pulse.snap(s, 0);
-      _flexTouch = _FlexTouch(position, s);
-    });
-  }
-
-  /// Makes sure the pulse channel steps after time [t] while the finger
-  /// is down, on its grid from the touch-down.
-  void _schedulePulse(_FlexTouch touch, double t) {
-    if (touch.nextStep != null) return;
-    final period = 1 / tuning.flexPulseRate;
-    final steps = ((t - touch.start) / period + 1e-6).floor() + 1;
-    final due = touch.start + steps * period;
-    touch.nextStep = due;
-    final generation = _flexGeneration;
-    at(due, (double s) {
-      if (generation != _flexGeneration || !identical(_flexTouch, touch)) {
-        return;
-      }
-      touch.nextStep = null;
-      final target = touch.position.dy - touch.origin.dy;
-      final before = _targetsOf(touch);
-      _pulse.step(s, target);
-      _noteChange(touch, s, before);
-      final flex = tuning.flex;
-      final reach =
-          math.max(
-            flex.interactionPulseScaleX / 2,
-            flex.interactionPulseScaleY * (1 + flex.interactionPulseDriftRatio),
-          ) /
-          flex.interactionPulseNormalizationFactor;
-      if (!_pulse.holdsWithin(target, reach, MenuTuning.flexPulseRest)) {
-        _schedulePulse(touch, s);
-      }
-    });
+    if (!_flex.isTouched) _flex.down(t, previous);
+    _flex.move(t, position);
   }
 
   /// The finger on the menu started to scroll its content: it no longer
@@ -3243,27 +3105,8 @@ class MenuMotion extends Motion {
   }
 
   void _relax(double t) {
-    final generation = ++_flexGeneration;
-    _flexPending = false;
-    at(t + tuning.flexDelay, (double s) {
-      if (generation != _flexGeneration) return;
-      _flexUp(s);
-    });
+    _flex.up(t);
     _touchGlow.pointerUp(t);
-  }
-
-  /// The finger that flexed the menu lifted at time [t]: UIKit zeroes the
-  /// pulse channel's velocity and sends the flex channels to rest on the
-  /// flex spec's scale spring, from where they show with their velocity.
-  void _flexUp(double t) {
-    final touch = _flexTouch;
-    if (touch == null) return;
-    _flexTouch = null;
-    _pulse.velocity = 0;
-    chaseFlexChannel(_flexScaleX, t, 1, _flexSpring);
-    chaseFlexChannel(_flexScaleY, t, 1, _flexSpring);
-    chaseFlexChannel(_flexDriftX, t, 0, _flexSpring);
-    chaseFlexChannel(_flexDriftY, t, 0, _flexSpring);
   }
 
   double _sourceScaleAt(double t) {
