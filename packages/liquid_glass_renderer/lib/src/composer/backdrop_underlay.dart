@@ -217,7 +217,6 @@ class BackdropUnderlay {
       frame: GlassComposer.planning(view),
       anchor: anchor,
       own: own,
-      devicePixelRatio: devicePixelRatio,
       grid: grid,
       screen: screen,
       band: grid._snapOut(region).intersect(screen),
@@ -619,7 +618,7 @@ class BackdropUnderlay {
   static _Scan _scanOf(_Ask ask) => _Scan.of(
     ask.frame,
     _rootOf(ask.anchor),
-    ask.devicePixelRatio,
+    ask.grid._devicePixelRatio,
     ask.anchor,
   );
 
@@ -715,7 +714,6 @@ final class _Ask {
     required this.frame,
     required this.anchor,
     required this.own,
-    required this.devicePixelRatio,
     required this.grid,
     required this.screen,
     required this.band,
@@ -730,7 +728,6 @@ final class _Ask {
   final UnderlayFrame? frame;
   final Layer anchor;
   final OpacitySeedLayer? own;
-  final double devicePixelRatio;
   // The grid asked for, which a copy holding glass may not be drawn on.
   final CopyGrid grid;
   final Rect screen;
@@ -954,14 +951,13 @@ class _Prefix {
 
   final Layer stop;
   final Rect band;
-  double get devicePixelRatio => scan.devicePixelRatio;
   // The bodies of the glass the copy is for, if it is for glass.
   final List<Rect> bodies;
   // Without one, the walk only signs what it meets.
   ui.PictureRecorder? recorder;
   Canvas? canvas;
   final out = <Object?>[];
-  double _pixels = 1;
+  late CopyGrid _grid;
 
   // What the copy draws before each glass over a copy not drawn yet, and
   // that glass, which reads it: the copy goes on in a picture after it.
@@ -996,7 +992,7 @@ class _Prefix {
   // on [grid] from the band's origin, or returns null when that cannot be
   // drawn again.
   ui.Picture? record(CopyGrid grid) {
-    _pixels = grid._pixels;
+    _grid = grid;
     _begin();
     run();
     final content = recorder!.endRecording();
@@ -1013,16 +1009,17 @@ class _Prefix {
 
   void _begin() {
     final rect = band;
-    final dpr = devicePixelRatio;
+    final grid = _grid;
+    final pixels = grid._pixels;
     final c = canvas!;
     // A picture drawn into a canvas clipped to the copy is culled to what
     // reaches it while it is recorded.
     c.clipRect(
-      Rect.fromLTWH(0, 0, rect.width * _pixels, rect.height * _pixels),
+      Rect.fromLTWH(0, 0, rect.width * pixels, rect.height * pixels),
       doAntiAlias: false,
     );
-    if (_pixels != dpr) {
-      c.scale(_pixels / dpr);
+    if (grid._share > 1) {
+      c.scale(1 / grid._share);
       // Impeller sets text drawn at a translation and a scale alone on whole
       // pixels of its target (impeller/entity/contents/text_contents.cc):
       // text moving under glass would step a pixel of the copy, up to four
@@ -1030,7 +1027,10 @@ class _Prefix {
       // where it is drawn, read from its atlas bilinearly.
       if (BackdropUnderlay.debugPlaceText) c.skew(0, 1e-6);
     }
-    c.translate(-rect.left * dpr, -rect.top * dpr);
+    c.translate(
+      -rect.left * grid._devicePixelRatio,
+      -rect.top * grid._devicePixelRatio,
+    );
   }
 
   // Ends the picture before [fold] and begins the next one inside the
