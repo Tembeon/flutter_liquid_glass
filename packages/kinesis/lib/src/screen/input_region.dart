@@ -24,10 +24,10 @@ import 'package:kinesis/src/input/port.dart';
 /// control inside a scroll view. When an interaction [Interaction.activates]
 /// (a press, a tap), Space, Enter and the accessibility tap activate it.
 /// With a [port] it also hears the touches another region hands on to it
-/// (`InputPort.forward`), mapped into its own coordinates. It
-/// writes pressed, hovered, focused, dragged and disabled into
-/// [statesController], and plays the haptic [feedback] picks for each
-/// event as it happens; keyboard and accessibility activations play none.
+/// (`InputPort.forward`), mapped into its own coordinates. It writes pressed,
+/// hovered, focused, dragged and disabled into [statesController], and plays
+/// the haptic [feedback] picks for each event as it happens; keyboard and
+/// accessibility activations play none.
 class InputRegion extends StatefulWidget {
   /// Creates a region whose [interactions] answer input on [child].
   const InputRegion({

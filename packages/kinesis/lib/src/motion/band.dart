@@ -54,7 +54,8 @@ final class Band {
 
   /// The raw position that [show] maps to [shown]: the inverse, for a
   /// finger that grabs a value already out on the band. A shown value at or
-  /// past the asymptote maps to the raw position 0.1% short of it.
+  /// past the asymptote maps to the raw position that shows 0.1% short of
+  /// it.
   double unshow(double shown) {
     if (shown < min) return min - _unresist(min - shown);
     if (shown > max) return max + _unresist(shown - max);

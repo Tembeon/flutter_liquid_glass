@@ -120,7 +120,7 @@ class _SliverMotionListState extends State<SliverMotionList> {
 
   void _unbind() => _drawn.removeRenderListener(_dropped);
 
-  // Heard in a frame's resolve or step, where nothing may rebuild.
+  // Heard in the resolve phase too, where nothing may rebuild.
   void _dropped() {
     if (_leftPending || _ghosts.every(motion.contains)) return;
     _leftPending = true;

@@ -61,9 +61,10 @@ void guardMotion(VoidCallback body, String context) {
 /// Owns motion time and the frame: the one ordered step in which every
 /// value of the app advances.
 ///
-/// A frame runs in phases: timelines (due actions, each at its own time),
-/// the step (values start due delayed changes, come to rest and
-/// snap), then publish (values tell their followers, derived values
+/// A frame runs in phases: scheduled actions (each at its own time), the
+/// step (values and motions advance to the frame's time, running their due
+/// reactions and delayed changes, and are declared at rest once they
+/// rest), then publish (values tell their followers, derived values
 /// recompute once each), all before build; then, after layout, resolve
 /// (layouts place what they just laid out, and the values that change
 /// tell their render followers before paint). Every read in a frame
@@ -156,8 +157,8 @@ abstract class MotionClock {
 
   void _wake();
 
-  /// Runs [action] at [time], in the timelines phase of the frame that
-  /// reaches it, with that time; the returned callback cancels it.
+  /// Runs [action] at [time], in the scheduled-actions phase of the frame
+  /// that reaches it, with that time; the returned callback cancels it.
   @internal
   VoidCallback schedule(double time, void Function(double time) action) {
     void run(double t) =>

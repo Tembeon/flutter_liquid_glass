@@ -292,8 +292,8 @@ abstract class Motion extends MotionPart {
     return rest != null && rest <= now;
   }
 
-  /// Declares at rest every part that rests at [now], each from its own
-  /// rest time; parts still moving keep their courses.
+  /// Declares at rest every part whose rest time has come by [now], each
+  /// from that time; parts still moving keep their courses.
   void settle() => restFrom(now);
 
   /// When the motion next changes while nothing visible moves now and a

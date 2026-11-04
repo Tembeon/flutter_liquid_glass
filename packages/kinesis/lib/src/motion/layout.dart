@@ -16,8 +16,10 @@ import 'package:kinesis/src/value.dart';
 /// and a presence from 0 to 1 that its effect reads. [layout] plans every
 /// change through [planner]: items that moved head to their new rects,
 /// items that arrived enter and items that left stay drawn while they
-/// leave, then go. Items rest within [MotionRest.length] and their
-/// presence within [MotionRest.opacity].
+/// leave, then go. Each item's rect rests within its plan's
+/// [LayoutPlan.rest] ([MotionRest.length] by default), its presence within
+/// [MotionRest.opacity] and an accent's swell within [MotionRest.scale] of
+/// its size.
 final class LayoutMotion extends Motion {
   /// Creates a layout motion that plans its changes with [planner].
   LayoutMotion({this.planner = const LayoutPlanner.flip()});

@@ -3,9 +3,10 @@
 ///
 /// A `Motion` is a tree of parts with one time cursor; every command takes
 /// the time it happens at and every read answers at the motion's time, so a
-/// motion is a pure function of its stamped inputs. This library adds the
-/// explicit-time commands of `MotionValue` (`MotionValueCommands`) to
-/// everything `package:kinesis/kinesis.dart` exports.
+/// motion is a pure function of its stamped inputs. This library adds
+/// `Motion`, its parts and the explicit-time commands of `MotionValue`
+/// (`MotionValueCommands`) to everything `package:kinesis/kinesis.dart`
+/// exports.
 library;
 
 export 'kinesis.dart';

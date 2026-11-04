@@ -7,7 +7,8 @@ import 'package:kinesis/src/transaction.dart';
 /// of its place ([MotionTraitsOverride], else the platform and
 /// `MediaQuery.disableAnimations`).
 ///
-/// Under a muted `TickerMode` the motion is not stepped; nothing is lost,
+/// Under a muted `TickerMode` the scope lets go of the motion; the clock
+/// still steps it while a selection of it has listeners. Nothing is lost,
 /// because a motion is a function of its commands: shown again, it reads
 /// where it would be.
 class MotionScope extends StatefulWidget {

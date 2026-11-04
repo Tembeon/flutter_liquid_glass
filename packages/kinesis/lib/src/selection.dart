@@ -7,10 +7,9 @@ import 'package:kinesis/src/tracker.dart';
 /// scale: what a renderer, a transition or a widget reads.
 ///
 /// Every `MotionValue` and [MotionSelection] that [compute] reads through
-/// `value`, `target` or `velocity` is followed automatically; a selection
-/// made with `Motion.select` follows its motion instead and tracks no
-/// reads. While it has
-/// listeners, a [MotionSelection] recomputes in the publish phase of
+/// `value`, `target` or `velocity` is followed automatically; a selection made
+/// with `Motion.select` follows its motion instead and tracks no reads. While
+/// it has listeners, a [MotionSelection] recomputes in the publish phase of
 /// [clock], after the values it reads, and its listeners hear it at most
 /// once per frame and only when the result differs (`equals`, `==` by
 /// default): a derived boolean under a `ValueListenableBuilder` rebuilds

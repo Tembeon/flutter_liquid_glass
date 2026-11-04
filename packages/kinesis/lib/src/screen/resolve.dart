@@ -13,9 +13,9 @@ import 'package:kinesis/src/transaction.dart';
 /// ([MotionClock.resolve]), so what draws them shows this frame's
 /// presentation, never the previous one.
 ///
-/// A render object that animates its own layout mixes it in to hear the
-/// app's `withSpring` and `withoutAnimation` around a change through
-/// [layoutSpring], as `MotionLayout` does.
+/// A render object that animates its own layout reads the app's
+/// `withSpring` and `withoutAnimation` around a change through
+/// [layoutSpring].
 mixin MotionResolveHost on RenderObject {
   /// Places the presentation from this frame's layout.
   void resolve();

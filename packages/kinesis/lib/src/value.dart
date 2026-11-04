@@ -32,12 +32,11 @@ import 'package:kinesis/src/transaction.dart';
 /// steps it every frame and its listeners hear it in the publish phase;
 /// once a frame passes its [restTime] it is declared at rest from that
 /// time ([restFrom]), reads answer its target and they hear it once more.
-/// The declaration is not a change: a command stamped before it starts
-/// from the course at its own time. A change made in the
-/// frame's resolve phase reaches render listeners ([addRenderListener]) in
-/// that phase and the others in the next publish.
-/// A value without listeners is not stepped by the clock at all; its
-/// owner reads it at the times it needs.
+/// The declaration is not a change: a command stamped before it starts from the
+/// course at its own time. A change made in the frame's resolve phase reaches
+/// render listeners ([addRenderListener]) in that phase and the others in the
+/// next publish. A value without listeners is not stepped by the clock at all;
+/// its owner reads it at the times it needs.
 ///
 /// Every component of the value moves on the same spring ([converter]).
 class MotionValue<T> extends MotionPart
@@ -586,7 +585,8 @@ extension MotionValueCommands<T> on MotionValue<T> {
   }
 
   /// Declares the value at rest from [t] ([restFrom]): the course is kept,
-  /// reads from [t] on answer its target and its listeners hear it.
+  /// reads from [t] on answer its target and its listeners hear it. [t] is
+  /// no earlier than [restTime]; an earlier one jumps to the target.
   void settle(double t) {
     restFrom(t);
     _follow();

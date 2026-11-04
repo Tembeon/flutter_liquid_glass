@@ -351,11 +351,11 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     valueListenable: _barrierModal ??= ValueNotifier<bool>(modal),
     builder: (context, modal, _) => modal
         ? ModalBarrier(
+            barrierSemanticsDismissible: allows(DismissTrigger.outsideTap),
+            semanticsLabel: barrierLabel,
             // Every tap goes through the gate, so a refused one is
             // reported as a veto, as UIKit reports a tap on the dimming of
             // a sheet that may not leave.
-            barrierSemanticsDismissible: allows(DismissTrigger.outsideTap),
-            semanticsLabel: barrierLabel,
             onDismiss: () => dismiss(DismissTrigger.outsideTap),
           )
         : const SizedBox.shrink(),
@@ -436,9 +436,8 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
 /// [didVetoDismiss], as a trigger [allows] refuses does. On the first route
 /// of its navigator Back goes on to whatever is outside the navigator. A
 /// dismissal always pops this route, never whatever is on top: one under
-/// another route closes under it and leaves the navigator when its close
-/// ends. `Navigator.pop` is programmatic and
-/// consults nothing.
+/// another route closes under it and leaves the navigator when its close ends.
+/// `Navigator.pop` is programmatic and consults nothing.
 ///
 /// While [modal], the barrier absorbs taps and hides the routes below from
 /// screen readers; with a [barrierLabel] and an [allows] outside tap it is

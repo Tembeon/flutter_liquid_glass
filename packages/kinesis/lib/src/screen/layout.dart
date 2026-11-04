@@ -142,8 +142,8 @@ class _MotionLayoutState extends State<MotionLayout> {
 
   bool _leftPending = false;
 
-  // Heard in a frame's resolve or step, where nothing may rebuild: the
-  // rebuild that lets the ghosts go waits for the end of the frame.
+  // Heard in the resolve phase too, where nothing may rebuild: the rebuild
+  // that lets the ghosts go waits for the end of the frame.
   void _dropped() {
     if (_leftPending || _ghosts.every(motion.contains)) return;
     _leftPending = true;

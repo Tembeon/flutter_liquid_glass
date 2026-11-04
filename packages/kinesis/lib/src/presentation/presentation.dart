@@ -177,8 +177,9 @@ abstract interface class PresentationHandle {
     return scope!.handle;
   }
 
-  /// Dismisses the presentation for [trigger] with [result], through its
-  /// policy and `PopScope`s unless [trigger] is programmatic.
+  /// Dismisses the presentation for [trigger] with [result]. Unless
+  /// [trigger] is programmatic it goes through the policy and, in a route,
+  /// the content's `PopScope`s.
   void dismiss(DismissTrigger trigger, [Object? result]);
 
   /// Whether a dismissal by [trigger] would go through now: a sheet asks

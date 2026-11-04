@@ -29,10 +29,11 @@ abstract class MotionPart {
   /// later.
   bool restsAt(double t, [double? tolerance]);
 
-  /// Declares the part at rest from [t]: reads at or after [t] answer where
-  /// it comes to rest, with no velocity. The course is kept, so a later
-  /// command stamped before [t] starts from the course at its own time; the
-  /// declaration only rounds what is drawn, by less than the part's rest.
+  /// Declares the part at rest from [t], which is no earlier than
+  /// [restTime]: reads at or after [t] answer where it comes to rest, with
+  /// no velocity. The course is kept, so a later command stamped before [t]
+  /// starts from the course at its own time; the declaration only rounds
+  /// what is drawn, by less than the part's rest.
   void restFrom(double t);
 
   /// The time of the part's next change of its own (a delayed retarget, a

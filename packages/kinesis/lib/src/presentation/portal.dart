@@ -27,10 +27,11 @@ final class PresentationPortalController {
 }
 
 /// The overlay shell: the [presentation] shows on the root overlay over
-/// [child], with the gate, dim, barrier, focus, Escape, Back and the screen
-/// reader's dismiss of a route, but nothing is pushed, so the touch that
-/// presented it is never cancelled: a hold that opens a context menu keeps
-/// its finger on the rows.
+/// [child], with the dismissal policy, dim, barrier, focus, Escape, Back and
+/// the screen reader's dismiss of a route, but nothing is pushed, so the
+/// touch that presented it is never cancelled: a hold that opens a context
+/// menu keeps its finger on the rows. The content's `PopScope`s are not
+/// asked.
 class PresentationPortal extends StatefulWidget {
   /// Shows [presentation] over [child] when [controller] presents it.
   const PresentationPortal({

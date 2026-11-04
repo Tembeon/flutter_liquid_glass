@@ -14,8 +14,8 @@ final class MotionSignal<T> extends MotionPart {
   /// The latest value written.
   T get value => _writes.last.$2;
 
-  /// Sets the value to [value] from time [t]. A write stamped before the
-  /// latest one replaces every write after it.
+  /// Sets the value to [value] from time [t], replacing every write stamped
+  /// at or after [t].
   void write(double t, T value) {
     while (_writes.length > 1 && _writes.last.$1 >= t) {
       _writes.removeLast();
