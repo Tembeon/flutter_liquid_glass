@@ -16,7 +16,9 @@ final class PresentationPortalController {
   /// Whether the presentation shows, leaving included.
   bool get isPresented => _portal?._motion != null;
 
-  /// Presents at the clock's time: inside an input, the input's stamp.
+  /// Presents at the clock's time: inside an input, the input's stamp. A
+  /// presentation on its way out comes back: its motion opens again from
+  /// where it is.
   void present() => _portal?._present();
 
   /// Dismisses for [trigger], through the policy unless it is
@@ -105,9 +107,17 @@ class _PresentationPortalState extends State<PresentationPortal>
   }
 
   void _present() {
-    if (_motion != null) return;
-    final presentation = widget.presentation;
     final t = MotionClock.instance.now;
+    final shown = _motion;
+    if (shown != null) {
+      if (!_leaving) return;
+      _leaving = false;
+      _result = null;
+      _canPop.value = false;
+      shown.open(t);
+      return;
+    }
+    final presentation = widget.presentation;
     final motion = _motion = presentation.create(
       PresentationEnvironment.of(context, t),
     );

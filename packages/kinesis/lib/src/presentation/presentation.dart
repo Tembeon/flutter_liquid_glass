@@ -56,9 +56,12 @@ final class PresentationEnvironment {
 /// The shell commands the motion at stamped times: it opens it at the
 /// commit and starts its leave at the dismissal's stamp. It completes the
 /// push once the motion's presence is shown and ends once it is hidden
-/// after a leave. It draws the [dim], owns the barrier, Back, Escape, focus
-/// and the screen reader's dismiss, and holds the [source] while it shows;
-/// a [Sourced] motion hears where the source is in every frame.
+/// after a leave. A motion that starts leaving on its own dismisses the
+/// presentation programmatically; its [Presented.leave] then answers true
+/// for the leave already under way. The shell draws the [dim], owns the
+/// barrier, Back, Escape, focus and the screen reader's dismiss, and holds
+/// the [source] while it shows; a [Sourced] motion hears where the source
+/// is in every frame.
 ///
 /// ```dart
 /// final alert = Presentation<bool, AlertMotion>(
@@ -292,6 +295,10 @@ class _PresentedContentState extends State<PresentedContent> {
         shell.didOpen();
       case PresenceStatus.hidden when shell.isLeaving:
         shell.didLeave();
+      // A motion that leaves on its own, as a menu does once a row is
+      // chosen, takes the shell with it.
+      case PresenceStatus.leaving when !shell.isLeaving:
+        shell.dismiss(DismissTrigger.programmatic);
       case PresenceStatus.shown ||
           PresenceStatus.hidden ||
           PresenceStatus.opening ||

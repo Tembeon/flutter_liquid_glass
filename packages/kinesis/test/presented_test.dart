@@ -24,6 +24,9 @@ final class _Card extends Motion with Presented, Sourced {
     return true;
   }
 
+  /// Leaves without being dismissed, as a menu does once a row is chosen.
+  void leaveOnOwn(double t) => _show.hide(t);
+
   @override
   void sourceMoved(double t, SourceGeometry? geometry) => sources.add(geometry);
 }
@@ -235,6 +238,31 @@ void main() {
         if (shell is _RouteShell) expect(shell.result, 'tapped');
       });
 
+      testWidgets('a motion that leaves on its own takes the presentation '
+          'with it', (tester) async {
+        final shell = make();
+        final made = <_Card>[];
+        final dismissed = <String?>[];
+        await shell.pump(tester, const SizedBox.expand());
+        await shell.present(
+          tester,
+          _presentation(
+            made,
+            dismissed: dismissed,
+            dismiss: const DismissPolicy({}),
+          ),
+        );
+        await tester.pump();
+        await _settle(tester);
+        made.single.leaveOnOwn(MotionClock.instance.now);
+        await tester.pump();
+        expect(made.single.left, [DismissTrigger.programmatic]);
+        await _settle(tester);
+        expect(dismissed, [null]);
+        expect(find.byKey(_contentKey), findsNothing);
+        expect(shell.isPresented, isFalse);
+      });
+
       testWidgets('Escape and Back dismiss only as the policy lets them', (
         tester,
       ) async {
@@ -384,6 +412,37 @@ void main() {
       await gesture.moveBy(const Offset(0, 10));
       await gesture.up();
       expect(events, ['down', 'move', 'up']);
+    });
+
+    testWidgets('presenting again while it leaves brings it back', (
+      tester,
+    ) async {
+      final shell = _PortalShell();
+      final made = <_Card>[];
+      final dismissed = <String?>[];
+      await shell.pump(tester, const SizedBox.expand());
+      await shell.present(tester, _presentation(made, dismissed: dismissed));
+      await tester.pump();
+      await _settle(tester);
+      shell.controller.dismiss(DismissTrigger.programmatic);
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(made.single.presence, PresenceStatus.leaving);
+      shell.controller.present();
+      await tester.pump();
+      expect(made, hasLength(1));
+      expect(made.single.presence, isNot(PresenceStatus.leaving));
+      await _settle(tester);
+      expect(made.single.presence, PresenceStatus.shown);
+      expect(find.byKey(_contentKey), findsOneWidget);
+      expect(dismissed, isEmpty);
+      shell.controller.dismiss(DismissTrigger.outsideTap);
+      expect(made.single.left, [
+        DismissTrigger.programmatic,
+        DismissTrigger.outsideTap,
+      ]);
+      await _settle(tester);
+      expect(dismissed, [null]);
+      expect(shell.isPresented, isFalse);
     });
 
     testWidgets('takes the focus and gives it back', (tester) async {
