@@ -40,6 +40,15 @@ export 'src/input/interaction.dart'
         SessionOutput,
         TapInteraction;
 export 'src/input/port.dart' show InputPort;
+export 'src/motion/layout.dart'
+    show
+        LayoutAccent,
+        LayoutChange,
+        LayoutEntry,
+        LayoutItem,
+        LayoutPhase,
+        LayoutPlan,
+        LayoutPlanner;
 export 'src/presentation/level.dart'
     show PresentationContext, PresentationLevel, showPresentation;
 export 'src/presentation/portal.dart'
@@ -53,16 +62,8 @@ export 'src/presentation/source.dart'
     show MotionSource, MotionSourceBox, SourceGeometry;
 export 'src/screen/driven.dart' show MotionDriven;
 export 'src/screen/input_region.dart' show InputRegion, MotionHapticPlay;
-export 'src/screen/layout.dart'
-    show
-        LayoutChange,
-        LayoutEntry,
-        LayoutItem,
-        LayoutMotion,
-        LayoutPhase,
-        LayoutPlan,
-        MotionLayout,
-        MotionLayoutBuilder;
+export 'src/screen/layout.dart' show MotionLayout, MotionLayoutBuilder;
+export 'src/screen/measure.dart' show MotionMeasure;
 export 'src/screen/scope.dart' show MotionScope, MotionTraitsOverride;
 export 'src/screen/scroll_observer.dart'
     show MotionScrollObserver, MotionScrollPhase;

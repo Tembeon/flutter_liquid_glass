@@ -143,6 +143,28 @@ abstract class Motion extends MotionPart {
     return part;
   }
 
+  /// Lets go of [part], which [own] registered: it no longer counts for
+  /// rest or wakes the root, and a smaller motion's pending reactions are
+  /// dropped. The place is [didAdvance], once a part has finished leaving.
+  @protected
+  void disown(MotionPart part) {
+    final i = _parts.indexOf(part);
+    assert(i >= 0, 'Only an owned part is disowned.');
+    if (i < 0) return;
+    _parts.removeAt(i);
+    _rests.removeAt(i);
+    part.owner = null;
+    if (part is Motion) {
+      _root._reactions.removeWhere((reaction) {
+        for (Motion? m = reaction.motion; m != null; m = m.owner) {
+          if (identical(m, part)) return true;
+        }
+        return false;
+      });
+    }
+    partChanged();
+  }
+
   /// Runs [action] at time [t] on the root's timeline: right away, at
   /// [now], when [t] is not later than [now], and as the motion advances
   /// past [t] otherwise, at [t] itself however coarse the steps.
@@ -374,8 +396,10 @@ final class _RootFollower implements MotionFollowed, Listenable {
   @override
   double? get wakeTime => motion.wakeTime;
 
+  // Its listeners are selections, which publish to their own widget
+  // followers.
   @override
-  bool get hasWidgetFollowers => _listeners.isNotEmpty;
+  bool get hasWidgetFollowers => false;
 
   @override
   void publish({required bool widgets}) => invalidate();

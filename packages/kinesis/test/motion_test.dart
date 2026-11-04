@@ -22,6 +22,8 @@ class _Pair extends Motion {
 
   bool waits(Object slot) => isScheduled(slot);
 
+  void letGo(MotionPart part) => disown(part);
+
   void hold({required bool held}) {
     this.held = held;
     changed();
@@ -51,6 +53,15 @@ void main() {
       m.hold(held: true);
       expect(held.value, isTrue);
       held.removeListener(listener);
+    });
+
+    test('a disowned part no longer keeps the motion from resting', () {
+      final m = _Pair();
+      m.a.retarget(0, 1);
+      expect(m.restsAt(0.01), isFalse);
+      m.letGo(m.a);
+      expect(m.restsAt(0.01), isTrue);
+      expect(m.a.owner, isNull);
     });
 
     test('the cursor only moves forward', () {

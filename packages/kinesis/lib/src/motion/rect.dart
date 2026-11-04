@@ -108,6 +108,26 @@ final class MotionRect extends MotionPart {
     owner?.partChanged();
   }
 
+  /// Moves the whole course by the change from [from] to [to], keeping the
+  /// velocities and the time left: a rect in flight whose layout moved
+  /// under it.
+  @internal
+  void shift(Rect from, Rect to) {
+    _center.shift(from.center, to.center);
+    _width.shift(from.width, to.width);
+    _height.shift(from.height, to.height);
+    owner?.partChanged();
+  }
+
+  /// Puts the rect at [value] at [t], keeping its target and the velocity
+  /// each axis had there: a drawn offset baked into the springs.
+  void setPresentation(double t, Rect value) {
+    _center.setPresentation(t, value.center, velocity: _center.velocityAt(t));
+    _width.setPresentation(t, value.width, velocity: _width.velocityAt(t));
+    _height.setPresentation(t, value.height, velocity: _height.velocityAt(t));
+    owner?.partChanged();
+  }
+
   /// Puts the rect at rest on [value] at [t].
   void snap(double t, Rect value) {
     _center.snap(t, value.center);

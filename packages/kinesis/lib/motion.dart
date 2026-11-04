@@ -11,6 +11,7 @@ library;
 export 'kinesis.dart';
 export 'src/clock.dart' show MotionDriver;
 export 'src/motion/band.dart' show Band;
+export 'src/motion/layout.dart' show LayoutMotion;
 export 'src/motion/loop.dart' show MotionLoop;
 export 'src/motion/motion.dart' show Motion, MotionCancel, MotionSelect;
 export 'src/motion/part.dart' show MotionPart;

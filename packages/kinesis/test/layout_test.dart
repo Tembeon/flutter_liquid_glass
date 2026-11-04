@@ -184,7 +184,7 @@ void main() {
       Directionality(
         textDirection: TextDirection.ltr,
         child: MotionLayout(
-          motion: const _Snapping(),
+          planner: const _Snapping(),
           layoutBuilder: layout.layoutBuilder,
           children: [_row('a'), _row('b')],
         ),
@@ -194,7 +194,7 @@ void main() {
       Directionality(
         textDirection: TextDirection.ltr,
         child: MotionLayout(
-          motion: const _Snapping(),
+          planner: const _Snapping(),
           layoutBuilder: layout.layoutBuilder,
           children: [_row('a')],
         ),
@@ -279,9 +279,54 @@ void main() {
     expect(items['b']!.value.rect, const Rect.fromLTWH(0, 20, 10, 20));
   });
 
+  testWidgets('a child that adopts its item is drawn where layout put it', (
+    tester,
+  ) async {
+    ValueListenable<LayoutItem>? adopted;
+    final ids = ValueNotifier(['a', 'b', 'c', 'd']);
+    addTearDown(ids.dispose);
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: ValueListenableBuilder(
+            valueListenable: ids,
+            builder: (context, ids, _) => MotionLayout(
+              layoutBuilder: (context, children) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: children,
+              ),
+              children: [
+                for (final id in ids)
+                  if (id == 'c')
+                    Builder(
+                      key: const ValueKey('c'),
+                      builder: (context) {
+                        adopted = MotionLayout.adoptItem(context);
+                        return const SizedBox(width: 100, height: 20);
+                      },
+                    )
+                  else
+                    _row(id),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    withSpring(_spring, () => ids.value = ['a', 'c', 'd']);
+    await tester.pump(_frame);
+    await tester.pump(_frame);
+    await tester.pump(_frame);
+    expect(_top(tester, 'c'), 20);
+    expect(adopted!.value.rect.top, inExclusiveRange(20, 40));
+    expect(_top(tester, 'd'), inExclusiveRange(40, 60));
+  });
+
   test('flip plans the transaction spring and the effects per phase', () {
-    const motion = LayoutMotion.flip(remove: MotionEffect(scale: (0.5, 1)));
-    final plans = motion.plan(
+    const planner = LayoutPlanner.flip(remove: MotionEffect(scale: (0.5, 1)));
+    final plans = planner.plan(
       const LayoutChange(
         time: 1,
         spring: _spring,
@@ -335,7 +380,7 @@ class _LabeledRowsState extends State<_LabeledRows> {
   );
 }
 
-class _Snapping extends LayoutMotion {
+class _Snapping extends LayoutPlanner {
   const _Snapping();
 
   @override
