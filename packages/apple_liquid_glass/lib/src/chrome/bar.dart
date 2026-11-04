@@ -265,7 +265,6 @@ final class GlassBarHost {
   late final Map<GlassBarKind, _Bar> _bars = {
     for (final kind in GlassBarKind.values) kind: _Bar(this, kind),
   };
-  Color? _tint;
 
   double get _now => MotionClock.instance.now;
 
@@ -596,6 +595,13 @@ final class _Bar {
   double width = 0;
   bool rtl = false;
   Element? view;
+  // The capsule of a prominent item, from the theme.
+  Color? tint;
+
+  GlassBarItemStyle? itemStyleOf(GlassThemeData theme) => switch (kind) {
+    GlassBarKind.navigation => theme.navigationBarStyle?.itemStyle,
+    GlassBarKind.toolbar => theme.toolbarStyle?.itemStyle,
+  };
 
   // The frames follow the motion while the bar's items are on screen.
   _RenderBarItems? get items => _items;
@@ -998,7 +1004,7 @@ final class _Bar {
                   spot: glow.spot,
                 ),
           opacity: frame.opacity,
-          tint: prominent.contains(frame.id) ? host._tint : null,
+          tint: prominent.contains(frame.id) ? tint : null,
         );
       }
     }
@@ -1114,10 +1120,15 @@ class GlassBarView extends StatelessWidget {
     for (final bar in host._bars.values) {
       bar.motion.reducedMotion = reduceMotion;
     }
-    host._tint = GlassDynamicColor.resolve(
-      GlassTheme.of(context).primaryColor ?? _prominentColor,
-      context,
-    );
+    final theme = GlassTheme.of(context);
+    for (final bar in host._bars.values) {
+      bar.tint = GlassDynamicColor.resolve(
+        bar.itemStyleOf(theme)?.prominentColor ??
+            theme.primaryColor ??
+            _prominentColor,
+        context,
+      );
+    }
     final only = this.only;
     if (only != null) return _Band(bar: host._bars[only]!);
     final media = MediaQuery.of(context);
@@ -1266,26 +1277,28 @@ class _BarItem extends StatelessWidget {
       return _ItemBox(id: id, child: child);
     }
     final theme = GlassTheme.of(context);
-    final label = GlassDynamicColor.resolve(
-      theme.colorScheme?.label ?? GlassColors.label,
-      context,
-    );
+    final look = bar.itemStyleOf(theme);
     final back = button.back;
     final item = button.item;
     final enabled = back != null || item?.onPressed != null;
     final prominent = item?.prominent ?? false;
-    final color = prominent
-        ? const Color(0xFFFFFFFF)
-        : enabled
-        ? label
-        : GlassDynamicColor.resolve(GlassColors.tertiaryLabel, context);
+    final color = GlassDynamicColor.resolve(
+      prominent
+          ? look?.prominentForegroundColor ?? const Color(0xFFFFFFFF)
+          : look?.foregroundColor?.resolve({
+                  if (!enabled) WidgetState.disabled,
+                }) ??
+                (enabled
+                    ? theme.colorScheme?.label ?? GlassColors.label
+                    : GlassColors.tertiaryLabel),
+      context,
+    );
     final text = resolveGlassText(
       TextStyle(
         fontSize: 17,
         fontWeight: prominent ? FontWeight.w600 : FontWeight.w500,
         height: 1.2,
-        color: color,
-      ),
+      ).merge(look?.textStyle).copyWith(color: color),
       context,
     );
     final Widget content;

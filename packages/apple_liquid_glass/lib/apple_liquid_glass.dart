@@ -16,6 +16,7 @@ export 'src/chrome/bar_entry.dart'
         GlassBackButtonDisplayMode,
         GlassBarEntry,
         GlassBarItem,
+        GlassBarItemStyle,
         GlassBarSpacer;
 export 'src/chrome/chrome.dart'
     show
@@ -27,7 +28,7 @@ export 'src/chrome/navigation_bar.dart'
     show GlassNavigationBar, GlassNavigationBarStyle;
 export 'src/chrome/page_route.dart' show GlassPageRoute, GlassZoomSource;
 export 'src/chrome/tab_scaffold.dart' show GlassTabScaffold;
-export 'src/chrome/toolbar.dart' show GlassToolbar;
+export 'src/chrome/toolbar.dart' show GlassToolbar, GlassToolbarStyle;
 export 'src/controls/badge.dart' show GlassBadge, GlassBadgeStyle;
 export 'src/controls/button.dart'
     show

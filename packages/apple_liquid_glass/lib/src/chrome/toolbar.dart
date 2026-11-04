@@ -8,10 +8,49 @@ import 'package:apple_liquid_glass/src/controls/search_field.dart';
 import 'package:apple_liquid_glass/src/controls/search_glyphs.dart';
 import 'package:apple_liquid_glass/src/motion/search_motion.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
+import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
+
+/// The look of toolbars, set on the theme.
+@immutable
+class GlassToolbarStyle {
+  /// Creates a style.
+  const GlassToolbarStyle({this.itemStyle});
+
+  /// The look of the toolbar's items and of its search's close button.
+  final GlassBarItemStyle? itemStyle;
+
+  /// This style over [other].
+  GlassToolbarStyle merge(GlassToolbarStyle? other) {
+    if (other == null) return this;
+    return GlassToolbarStyle(
+      itemStyle: itemStyle?.merge(other.itemStyle) ?? other.itemStyle,
+    );
+  }
+
+  /// The style between [a] and [b] at [t].
+  static GlassToolbarStyle? lerp(
+    GlassToolbarStyle? a,
+    GlassToolbarStyle? b,
+    double t,
+  ) {
+    if (identical(a, b)) return a;
+    if (a == null || b == null) return t < 0.5 ? a : b;
+    return GlassToolbarStyle(
+      itemStyle: GlassBarItemStyle.lerp(a.itemStyle, b.itemStyle, t),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlassToolbarStyle && other.itemStyle == itemStyle;
+
+  @override
+  int get hashCode => itemStyle.hashCode;
+}
 
 /// An iOS 27 toolbar: glass capsules floating over the bottom of the
 /// screen.
@@ -266,7 +305,13 @@ class _SearchBarState extends State<_SearchBar> {
     final media = MediaQuery.of(context);
     final keyboard = _frozen ?? media.viewInsets.bottom;
     final rtl = Directionality.of(context) == TextDirection.rtl;
-    final glyph = GlassDynamicColor.resolve(GlassColors.label, context);
+    final theme = GlassTheme.of(context);
+    final glyph = GlassDynamicColor.resolve(
+      theme.toolbarStyle?.itemStyle?.foregroundColor?.resolve(const {}) ??
+          theme.colorScheme?.label ??
+          GlassColors.label,
+      context,
+    );
     Widget item(_Slot slot, Widget child) => LayoutId(
       id: slot,
       child: MotionTransition(scale: _swell, opacity: _fade, child: child),

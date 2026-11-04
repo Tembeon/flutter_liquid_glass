@@ -27,6 +27,7 @@ class GlassNavigationBarStyle {
     this.foregroundColor,
     this.titleTextStyle,
     this.largeTitleTextStyle,
+    this.itemStyle,
   });
 
   /// A fill behind the bar (UIKit `backgroundColor` of the bar's
@@ -43,6 +44,10 @@ class GlassNavigationBarStyle {
   /// The large title's style: 34 points bold by default.
   final TextStyle? largeTitleTextStyle;
 
+  /// The look of the bar's items; read from the theme's style only (see
+  /// [GlassBarItemStyle]).
+  final GlassBarItemStyle? itemStyle;
+
   /// This style over [other]: a null field takes [other]'s.
   GlassNavigationBarStyle merge(GlassNavigationBarStyle? other) {
     if (other == null) return this;
@@ -54,6 +59,7 @@ class GlassNavigationBarStyle {
       largeTitleTextStyle:
           other.largeTitleTextStyle?.merge(largeTitleTextStyle) ??
           largeTitleTextStyle,
+      itemStyle: itemStyle?.merge(other.itemStyle) ?? other.itemStyle,
     );
   }
 
@@ -76,6 +82,7 @@ class GlassNavigationBarStyle {
         b.largeTitleTextStyle,
         t,
       ),
+      itemStyle: GlassBarItemStyle.lerp(a.itemStyle, b.itemStyle, t),
     );
   }
 
@@ -85,7 +92,8 @@ class GlassNavigationBarStyle {
       other.backgroundColor == backgroundColor &&
       other.foregroundColor == foregroundColor &&
       other.titleTextStyle == titleTextStyle &&
-      other.largeTitleTextStyle == largeTitleTextStyle;
+      other.largeTitleTextStyle == largeTitleTextStyle &&
+      other.itemStyle == itemStyle;
 
   @override
   int get hashCode => Object.hash(
@@ -93,6 +101,7 @@ class GlassNavigationBarStyle {
     foregroundColor,
     titleTextStyle,
     largeTitleTextStyle,
+    itemStyle,
   );
 }
 

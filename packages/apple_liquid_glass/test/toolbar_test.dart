@@ -209,4 +209,63 @@ void main() {
       expect(field(tester).bottom, 874 - 10);
     });
   });
+
+  testWidgets('a toolbar style on the theme colors the items by state and '
+      'tints a prominent capsule', (tester) async {
+    await _phone(tester);
+    const style = GlassToolbarStyle(
+      itemStyle: GlassBarItemStyle(
+        foregroundColor: WidgetStateMapper({
+          WidgetState.disabled: Color(0xFFAA0000),
+          WidgetState.any: Color(0xFF00AA00),
+        }),
+        prominentColor: Color(0xFF0000AA),
+      ),
+    );
+    await tester.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(
+          size: Size(402, 874),
+          devicePixelRatio: 3,
+          padding: EdgeInsets.only(top: 62, bottom: 34),
+        ),
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: GlassTheme(
+            data: const GlassThemeData(
+              renderer: GlassRenderer.flat(),
+              toolbarStyle: style,
+            ),
+            child: GlassPageScaffold(
+              toolbar: GlassToolbar(
+                items: [
+                  GlassBarItem(label: const Text('Edit'), onPressed: () {}),
+                  const GlassBarSpacer.flexible(),
+                  const GlassBarItem(label: Text('Off')),
+                  const GlassBarSpacer.flexible(),
+                  GlassBarItem.prominent(
+                    label: const Text('Go'),
+                    onPressed: () {},
+                  ),
+                ],
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    Color? color(String text) =>
+        DefaultTextStyle.of(tester.element(find.text(text))).style.color;
+    expect(color('Edit'), const Color(0xFF00AA00));
+    expect(color('Off'), const Color(0xFFAA0000));
+    final tints = [
+      for (final surface in tester.widgetList<GlassSurface>(
+        find.byType(GlassSurface),
+      ))
+        surface.frame?.value.tint,
+    ];
+    expect(tints, contains(const Color(0xFF0000AA)));
+  });
 }

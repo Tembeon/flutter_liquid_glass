@@ -1,4 +1,92 @@
+import 'package:apple_liquid_glass/src/theme/colors.dart';
+import 'package:apple_liquid_glass/src/theme/style.dart';
 import 'package:flutter/widgets.dart';
+
+/// The look of a bar's items; a null field leaves it to the default.
+///
+/// The bars of a navigator are shared by its pages and their capsules
+/// change from one page's into the next's, so items take their look from
+/// the theme: `GlassNavigationBarStyle.itemStyle` and
+/// `GlassToolbarStyle.itemStyle` of `GlassThemeData`.
+@immutable
+class GlassBarItemStyle {
+  /// Creates a style.
+  const GlassBarItemStyle({
+    this.foregroundColor,
+    this.prominentColor,
+    this.prominentForegroundColor,
+    this.textStyle,
+  });
+
+  /// The glyphs and labels of items, resolved against
+  /// [WidgetState.disabled] for an item without an action; label, and
+  /// tertiaryLabel disabled, by default.
+  final WidgetStateProperty<Color?>? foregroundColor;
+
+  /// The capsule of a prominent item; the theme's primary color, then
+  /// 0x0088FF, by default.
+  final Color? prominentColor;
+
+  /// The glyph and label of a prominent item; white by default.
+  final Color? prominentForegroundColor;
+
+  /// The labels, over 17 points, medium (semibold when prominent).
+  final TextStyle? textStyle;
+
+  /// This style over [other].
+  GlassBarItemStyle merge(GlassBarItemStyle? other) {
+    if (other == null) return this;
+    return GlassBarItemStyle(
+      foregroundColor: fallThrough(foregroundColor, other.foregroundColor),
+      prominentColor: prominentColor ?? other.prominentColor,
+      prominentForegroundColor:
+          prominentForegroundColor ?? other.prominentForegroundColor,
+      textStyle: other.textStyle?.merge(textStyle) ?? textStyle,
+    );
+  }
+
+  /// The style between [a] and [b] at [t].
+  static GlassBarItemStyle? lerp(
+    GlassBarItemStyle? a,
+    GlassBarItemStyle? b,
+    double t,
+  ) {
+    if (identical(a, b)) return a;
+    if (a == null || b == null) return t < 0.5 ? a : b;
+    final color = snapNull(GlassDynamicColor.lerp);
+    return GlassBarItemStyle(
+      foregroundColor: WidgetStateProperty.lerp<Color?>(
+        a.foregroundColor,
+        b.foregroundColor,
+        t,
+        color,
+      ),
+      prominentColor: color(a.prominentColor, b.prominentColor, t),
+      prominentForegroundColor: color(
+        a.prominentForegroundColor,
+        b.prominentForegroundColor,
+        t,
+      ),
+      textStyle: snapNull(TextStyle.lerp)(a.textStyle, b.textStyle, t),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlassBarItemStyle &&
+      other.foregroundColor == foregroundColor &&
+      other.prominentColor == prominentColor &&
+      other.prominentForegroundColor == prominentForegroundColor &&
+      other.textStyle == textStyle;
+
+  @override
+  int get hashCode => Object.hash(
+    foregroundColor,
+    prominentColor,
+    prominentForegroundColor,
+    textStyle,
+  );
+}
 
 /// One entry of a `GlassNavigationBar` side or of a `GlassToolbar`: an item
 /// or a spacer.

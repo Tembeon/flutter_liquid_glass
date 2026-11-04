@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/src/chrome/navigation_bar.dart';
+import 'package:apple_liquid_glass/src/chrome/toolbar.dart';
 import 'package:apple_liquid_glass/src/controls/badge.dart';
 import 'package:apple_liquid_glass/src/controls/button.dart';
 import 'package:apple_liquid_glass/src/controls/date_picker.dart';
@@ -127,6 +128,7 @@ class GlassThemeData {
     this.alertStyle,
     this.sheetStyle,
     this.popoverStyle,
+    this.toolbarStyle,
   });
 
   /// The theme between [a] and [b] at [t]: colors and styles interpolate;
@@ -185,6 +187,7 @@ class GlassThemeData {
       alertStyle: GlassAlertStyle.lerp(a.alertStyle, b.alertStyle, t),
       sheetStyle: GlassSheetStyle.lerp(a.sheetStyle, b.sheetStyle, t),
       popoverStyle: GlassPopoverStyle.lerp(a.popoverStyle, b.popoverStyle, t),
+      toolbarStyle: GlassToolbarStyle.lerp(a.toolbarStyle, b.toolbarStyle, t),
     );
   }
 
@@ -254,6 +257,9 @@ class GlassThemeData {
   /// The look of popovers.
   final GlassPopoverStyle? popoverStyle;
 
+  /// The look of toolbars.
+  final GlassToolbarStyle? toolbarStyle;
+
   /// This theme with the non-null fields of [other] over it; styles and
   /// schemes merge too.
   GlassThemeData merge(GlassThemeData? other) {
@@ -289,6 +295,7 @@ class GlassThemeData {
       alertStyle: other.alertStyle?.merge(alertStyle) ?? alertStyle,
       sheetStyle: other.sheetStyle?.merge(sheetStyle) ?? sheetStyle,
       popoverStyle: other.popoverStyle?.merge(popoverStyle) ?? popoverStyle,
+      toolbarStyle: other.toolbarStyle?.merge(toolbarStyle) ?? toolbarStyle,
     );
   }
 
@@ -316,7 +323,8 @@ class GlassThemeData {
       other.menuStyle == menuStyle &&
       other.alertStyle == alertStyle &&
       other.sheetStyle == sheetStyle &&
-      other.popoverStyle == popoverStyle;
+      other.popoverStyle == popoverStyle &&
+      other.toolbarStyle == toolbarStyle;
 
   @override
   int get hashCode => Object.hashAll([
@@ -342,6 +350,7 @@ class GlassThemeData {
     alertStyle,
     sheetStyle,
     popoverStyle,
+    toolbarStyle,
   ]);
 }
 
