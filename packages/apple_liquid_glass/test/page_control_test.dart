@@ -180,4 +180,37 @@ void main() {
     final withProgress = tester.getSize(find.byType(GlassPageControl)).width;
     expect(withProgress - plain, closeTo(27.33 - 9.67, 1e-9));
   });
+
+  testWidgets('a raw control builds its look from the pose, mirrored in a '
+      'right-to-left context', (tester) async {
+    GlassPageControlDetails? seen;
+    Widget raw(TextDirection direction) => _app(
+      RawGlassPageControl(
+        count: 3,
+        page: 0,
+        onChanged: null,
+        backgroundStyle: GlassPageControlBackground.prominent,
+        builder: (context, details) {
+          seen = details;
+          return const SizedBox.expand();
+        },
+      ),
+      direction: direction,
+    );
+    await tester.pumpWidget(raw(TextDirection.ltr));
+    final box = tester.getSize(find.byType(RawGlassPageControl));
+    final ltr = seen!.pose.value;
+    expect(seen!.states, {WidgetState.disabled});
+    expect(ltr.platter, 1);
+    expect(ltr.indicators, hasLength(3));
+    expect(ltr.indicators.first.center.dx, lessThan(box.width / 2));
+
+    await tester.pumpWidget(raw(TextDirection.rtl));
+    final rtl = seen!.pose.value;
+    expect(rtl.indicators.first.center.dx, greaterThan(box.width / 2));
+    expect(
+      rtl.indicators.first.center.dx,
+      closeTo(box.width - ltr.indicators.first.center.dx, 1e-9),
+    );
+  });
 }
