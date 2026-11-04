@@ -16,6 +16,8 @@ class _Pair extends Motion {
   void schedule(double t, String name, {Object? slot}) =>
       at(t, (t) => log.add((name, t)), slot: slot);
 
+  void react(double t, void Function() action) => at(t, (_) => action());
+
   void drop(Object slot) => unschedule(slot);
 
   void dropAll() => unscheduleAll();
@@ -137,6 +139,19 @@ void main() {
       expect(m.now, 0.1);
       expect(m.advanceUntil(1, () => false), isTrue);
       expect(m.log.last, ('b', 0.2));
+    });
+
+    test('a command a reaction gives at its time leaves the reactions due '
+        'with it in their order', () {
+      final m = _Pair();
+      m.schedule(0.1, 'first');
+      m.react(0.2, () {
+        m.advance(0.2);
+        m.log.add(('second', m.now));
+      });
+      m.schedule(0.2, 'third');
+      m.advance(1);
+      expect(m.log, [('first', 0.1), ('second', 0.2), ('third', 0.2)]);
     });
 
     test('an owned motion shares the cursor and the timeline', () {

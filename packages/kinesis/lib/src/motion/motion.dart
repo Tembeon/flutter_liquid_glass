@@ -56,6 +56,7 @@ abstract class Motion extends MotionPart {
   MotionTraits? _traits;
   int _retains = 0;
   double _now = 0;
+  bool _advancing = false;
 
   Motion get _root {
     var motion = this;
@@ -214,6 +215,10 @@ abstract class Motion extends MotionPart {
 
   /// Moves to [t]: runs every reaction due by [t] at its own time, then
   /// moves [now] to [t]. A [t] before [now] runs nothing and keeps [now].
+  ///
+  /// A command a reaction gives at the reaction's own time, which advances
+  /// to that time first, runs nothing: the reactions due at the same time
+  /// run after the one under way, in their order.
   void advance(double t) => advanceUntil(t, null);
 
   /// Advances toward [t] like [advance], stopping right after a reaction
@@ -221,22 +226,34 @@ abstract class Motion extends MotionPart {
   /// Returns whether [t] was reached.
   bool advanceUntil(double t, bool Function()? stop) {
     final root = _root;
-    while (root._reactions.isNotEmpty && root._reactions.first.time <= t) {
-      final reaction = root._reactions.removeAt(0);
-      if (reaction.time > root._now) {
-        root._runLoops(reaction.time, before: true);
-        root._now = reaction.time;
-      }
-      reaction.action(reaction.time);
-      if (stop != null && stop()) {
-        root._didAdvance(root._now);
-        return false;
-      }
+    if (root._advancing) {
+      assert(
+        t <= root._now,
+        'A reaction advances its motion no further than its own time.',
+      );
+      return true;
     }
-    if (t > root._now) root._now = t;
-    root._runLoops(root._now);
-    root._didAdvance(root._now);
-    return true;
+    root._advancing = true;
+    try {
+      while (root._reactions.isNotEmpty && root._reactions.first.time <= t) {
+        final reaction = root._reactions.removeAt(0);
+        if (reaction.time > root._now) {
+          root._runLoops(reaction.time, before: true);
+          root._now = reaction.time;
+        }
+        reaction.action(reaction.time);
+        if (stop != null && stop()) {
+          root._didAdvance(root._now);
+          return false;
+        }
+      }
+      if (t > root._now) root._now = t;
+      root._runLoops(root._now);
+      root._didAdvance(root._now);
+      return true;
+    } finally {
+      root._advancing = false;
+    }
   }
 
   // Index loops: a part owned lazily registers while its owner steps.
