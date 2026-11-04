@@ -43,8 +43,8 @@ void main() {
     motion.setValue(0.1, 0.4);
     for (var i = 1; i <= 40; i++) {
       motion.advance(0.1 + i / 120);
-      expect(motion.lens.scaleX(motion.time), closeTo(1, 1e-10));
-      expect(motion.lens.scaleY(motion.time), closeTo(1, 1e-10));
+      expect(motion.lens.scaleX(motion.now), closeTo(1, 1e-10));
+      expect(motion.lens.scaleY(motion.now), closeTo(1, 1e-10));
     }
   });
 
@@ -55,8 +55,8 @@ void main() {
     motion.width = 600;
     for (var i = 1; i <= 40; i++) {
       motion.advance(0.1 + i / 120);
-      expect(motion.lens.scaleX(motion.time), closeTo(1, 1e-10));
-      expect(motion.lens.scaleY(motion.time), closeTo(1, 1e-10));
+      expect(motion.lens.scaleX(motion.now), closeTo(1, 1e-10));
+      expect(motion.lens.scaleY(motion.now), closeTo(1, 1e-10));
     }
   });
 
@@ -82,15 +82,19 @@ void main() {
     expect(motion.thumbCenter, closeTo(18.5 + 0.7 * motion.travel, 1e-9));
     for (var i = 1; i <= 40; i++) {
       motion.advance(1.5 + i / 120);
-      expect(motion.lens.scaleX(motion.time), closeTo(1, 1e-10));
+      expect(motion.lens.scaleX(motion.now), closeTo(1, 1e-10));
     }
   });
 
   test('C2 extreme physical samples never invert the small lens', () {
-    final lens = _small();
-    lens.advance(0, (_) => 0);
+    final lens = SmallLens(
+      restSize: const Size(37, 24),
+      liftedSize: const Size(58, 38.33),
+      position: (t) => t < 0.1 ? 0 : 1000000,
+    );
+    lens.follow(0);
     for (var i = 1; i <= 60; i++) {
-      lens.advance(i / 120, (t) => t < 0.1 ? 0 : 1000000);
+      lens.advance(i / 120);
       expect(lens.scaleY(i / 120), greaterThan(0));
     }
   });

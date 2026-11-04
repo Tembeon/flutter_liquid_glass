@@ -4,7 +4,6 @@ import 'dart:ui';
 import 'package:apple_liquid_glass/src/motion/flex_integrator.dart';
 import 'package:apple_liquid_glass/src/motion/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
-import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
@@ -23,22 +22,31 @@ import 'package:meta/meta.dart';
 /// deformation UIKit records on switch knobs and slider thumbs to 1e-4 -
 /// 4e-3 rms (device recordings).
 ///
-/// The owner calls [advance] with the frame time and the lens position
-/// as a function of time; the stretch filter steps once per frame of
-/// [frameRate] in motion time, at the position of each frame. The
-/// outputs can be read at any time.
+/// The owner gives the lens position as a function of time and calls
+/// [follow] whenever that course changes; the stretch filter steps once
+/// per frame of [frameRate] in motion time, at the position of each
+/// frame, until the lens is undeformed and the position still. UIKit's
+/// filters weigh each frame the same whatever the frame rate, so the
+/// stretch reacts twice as fast at 120 Hz as at 60 Hz. The outputs can be
+/// read at any time.
 ///
-/// The lens settles once every part's remaining swing is below
-/// [GlassRest] and snaps onto its targets: invisible, NEAR.
+/// The lift and size rest within a visible step; the deformation rests
+/// once its filter is still, and comes to rest undeformed with the filter
+/// primed at the position.
 @internal
-class SmallLens {
+final class SmallLens extends Motion {
   /// Creates a lens that rests at [restSize] and lifts to [liftedSize],
-  /// filtering its motion at [frameRate] frames per second.
+  /// filtering its motion at [frameRate] frames per second, at [position].
   SmallLens({
     required this.restSize,
     required this.liftedSize,
     this.frameRate = 120,
-  }) : _frames = FlexSubClock(frameRate);
+    double Function(double t)? position,
+  }) : _position = position ?? _resting {
+    _loop = own(_LensLoop(this, rate: frameRate));
+  }
+
+  static double _resting(double t) => 0;
 
   /// The resting size of the lens.
   final Size restSize;
@@ -80,27 +88,47 @@ class SmallLens {
   /// lens tuning (read from UIKit, notes private).
   static const double hangTime = 0.22;
 
-  final _progress = MotionValue<double>(0, spring: liftSpring);
-  final _size = MotionValue<double>(0, spring: liftSpring);
-  final _scaleX = MotionValue<double>(1, spring: stretchSpring);
-  final _scaleY = MotionValue<double>(1, spring: stretchSpring);
-  final _drift = MotionValue<double>(0, spring: stretchSpring);
+  late final _progress = own(
+    MotionValue<double>(0, spring: liftSpring),
+    rest: _opacity,
+  );
+  late final _size = own(
+    MotionValue<double>(0, spring: liftSpring),
+    rest: _sizeRest,
+  );
+  late final _scaleX = own(
+    MotionValue<double>(1, spring: stretchSpring),
+    rest: _scaleRest,
+  );
+  late final _scaleY = own(
+    MotionValue<double>(1, spring: stretchSpring),
+    rest: _scaleRest,
+  );
+  late final _drift = own(
+    MotionValue<double>(0, spring: stretchSpring),
+    rest: _length,
+  );
+  late final _LensLoop _loop;
   Size? _loupeSize;
   FlexSpec _loupe = FlexSpec.smallLoupe;
 
-  final MotionTimeline _timeline = MotionTimeline();
-  final FlexSubClock _frames;
+  final double Function(double t) _position;
   final FlexIntegrator _flex = FlexIntegrator();
   double _liftStart = -double.infinity;
   double? _previous;
+  static const _landing = Object();
+
+  static double _opacity() => MotionRest.opacity;
+  static double _length() => MotionRest.length;
+  double _scaleRest() => MotionRest.scale(liftedSize.width);
 
   /// Seconds the size trails the lift progress by: one frame.
-  double get sizeLag => _frames.frame;
+  double get sizeLag => _loop.frame;
 
-  /// The rest of the lift's size progress ([GlassRest], NEAR): a swing
-  /// that grows the lens by less than [GlassRest.length].
-  double get _sizeRest =>
-      GlassRest.length /
+  /// The rest of the lift's size progress: a swing that grows the lens by
+  /// less than [MotionRest.length].
+  double _sizeRest() =>
+      MotionRest.length /
       math.max(
         math.max(
           liftedSize.width - restSize.width,
@@ -115,14 +143,15 @@ class SmallLens {
   /// Lifts the lens at time [t], carrying its current value and velocity.
   /// The measured initial velocity applies only to a spring at rest.
   void lift(double t) {
-    _timeline.clear();
+    unschedule(_landing);
     if (isLifted || reducedMotion) return;
     _liftStart = t;
-    final progressResting = _progress.isWithin(t, GlassRest.opacity);
+    follow(t);
+    final progressResting = _progress.isWithin(t, MotionRest.opacity);
     _progress.retarget(t, 1, spring: liftSpring);
     if (progressResting) _progress.setVelocity(t, liftVelocity);
     final at = t + sizeLag;
-    final sizeResting = _size.isWithin(at, _sizeRest);
+    final sizeResting = _size.isWithin(at, _sizeRest());
     _size.retarget(at, 1, spring: liftSpring);
     if (sizeResting) _size.setVelocity(at, liftVelocity);
   }
@@ -130,40 +159,31 @@ class SmallLens {
   /// Lands the lens at time [t], or once it has hung for [hangTime].
   void unlift(double t) {
     if (!isLifted) return;
-    final at = math.max(t, _liftStart + hangTime);
-    if (at <= t) {
+    final due = math.max(t, _liftStart + hangTime);
+    if (due <= t) {
       _land(t);
+    } else if (due <= now) {
+      // A release stamped before the cursor lands at its own time.
+      _land(due);
     } else {
-      _timeline.clear();
-      _timeline.insert(at, _land);
+      at(due, _land, slot: _landing);
     }
   }
 
   void _land(double t) {
-    _timeline.clear();
+    unschedule(_landing);
+    follow(t);
     _progress.retarget(t, 0, spring: unliftSpring);
     _size.retarget(t, 0, spring: sizeUnliftSpring);
   }
 
-  /// Advances the lens to time [t]: applies a landing that came due and
-  /// steps the stretch filter through every frame since the last call,
-  /// reading the lens position at each frame from [position].
-  ///
-  /// UIKit's filters weigh each frame the same whatever the frame rate, so
-  /// the stretch reacts twice as fast at 120 Hz as at 60 Hz.
-  void advance(double t, [double Function(double t)? position]) {
-    if (position != null) {
-      _frames.run(t, (double s) {
-        _timeline.runDue(s);
-        _sample(s, position(s));
-      });
-    }
-    _timeline.runDue(t);
-  }
+  /// Tells the lens that its position's course changed at [t], so the
+  /// stretch filter follows it again.
+  void follow(double t) => _loop.wake(t);
 
   void _sample(double t, double position) {
     final previous = _previous ?? position;
-    final af = _flex.step(previous, _frames.frame);
+    final af = _flex.step(previous, _loop.frame);
     if (reducedMotion) {
       _scaleX.retarget(t, 1);
       _scaleY.retarget(t, 1);
@@ -222,37 +242,40 @@ class SmallLens {
   /// UIKit scales the drifted lens.
   double shift(double t) => _drift.valueAt(t) * _scaleX.valueAt(t);
 
-  /// Whether the deformation loop has sampled the lens at [position]: a
-  /// lens whose track moved under a held finger since its last frame has
-  /// a frame of following left.
-  bool hasSampled(double t, double position) {
-    final previous = _previous;
-    return previous == null ||
-        (position + shift(t) - previous).abs() < GlassRest.length;
-  }
-
-  /// Whether what remains of the lens's motion at time [t] is invisible:
-  /// every spring's remaining swing is below [GlassRest] (NEAR,
-  /// invisible; [settle] snaps the rest).
-  bool isSettled(double t) {
-    if (!_timeline.isEmpty) return false;
-    const length = GlassRest.length;
-    final scale = GlassRest.scale(liftedSize.width);
-    return _progress.isWithin(t, GlassRest.opacity) &&
-        _size.isWithin(t, _sizeRest) &&
-        _scaleX.isWithin(t, scale) &&
-        (_scaleX.target - 1).abs() < scale &&
-        _scaleY.isWithin(t, scale) &&
+  // Whether the deformation is still at [t], with nothing left to follow:
+  // undeformed, its targets at rest, and the position no further than a
+  // visible step from where the next frame samples it.
+  bool _still(double t) {
+    final scale = _scaleRest();
+    const length = MotionRest.length;
+    return (_scaleX.target - 1).abs() < scale &&
         (_scaleY.target - 1).abs() < scale &&
-        _drift.isWithin(t, length) &&
-        _drift.target.abs() < length;
+        _drift.target.abs() < length &&
+        _scaleX.restsAt(t, scale) &&
+        _scaleY.restsAt(t, scale) &&
+        _drift.restsAt(t, length) &&
+        (_position(t + _loop.frame) - _position(t)).abs() < length;
+  }
+}
+
+/// Steps the lens's stretch filter at its frame rate while the lens
+/// deforms or its position moves; at rest it primes the filter at the
+/// position, undeformed.
+final class _LensLoop extends MotionLoop {
+  _LensLoop(this._lens, {required super.rate});
+
+  final SmallLens _lens;
+
+  @override
+  bool step(double t) {
+    _lens._sample(t, _lens._position(t));
+    return !_lens._still(t);
   }
 
-  /// Puts a settled lens onto its targets at time [t], undeformed, its
-  /// filter primed at [position].
-  void settle(double t, double position) {
-    _progress.settle(t);
-    _size.settle(t);
-    resetFlex(t, position);
+  @override
+  void restFrom(double t) {
+    super.restFrom(t);
+    final now = _lens.now;
+    _lens.resetFlex(now, _lens._position(now));
   }
 }

@@ -153,17 +153,20 @@ class RawGlassSlider extends StatefulWidget {
 
 class _RawGlassSliderState extends State<RawGlassSlider>
     with ControlStates<RawGlassSlider> {
-  late final _SliderBody _body = _SliderBody(
-    _deliver,
+  late final SliderMotion _motion = SliderMotion(
+    width: 0,
     value: _unit(widget.value),
     ticks: widget.ticks,
+    frameRate: MotionClock.instance.frameRate,
+    onEvent: _deliver,
   );
   late final _SliderInput _input = _SliderInput(
-    body: _body,
+    motion: _motion,
     start: _start,
     end: _endUnlessGliding,
   );
   late final List<Interaction> _interactions = [_input];
+  late _SliderFrames _frames = _SliderFrames(_motion, mirrored: false);
   Widget? _visual;
   Object? _visualKey;
   Set<WidgetState>? _visualStates;
@@ -174,31 +177,26 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   @override
   WidgetStatesController? get givenStates => widget.statesController;
 
-  @override
-  void initState() {
-    super.initState();
-    MotionClock.instance.addDriver(_body);
-  }
+  bool get _leading => _motion.isDragging || _motion.isGliding;
 
   @override
   void didUpdateWidget(RawGlassSlider oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _body.ticks = widget.ticks;
+    _motion.ticks = widget.ticks;
     if (oldWidget.min != widget.min || oldWidget.max != widget.max) {
       _reported = null;
     }
-    if (!_inSync && !_body.leading) {
-      _body.setValue(_unit(widget.value), animated: widget.animated);
+    if (!_inSync && !_leading) {
+      _setValue(_unit(widget.value), animated: widget.animated);
       _reported = widget.value;
     }
   }
 
-  @override
-  void dispose() {
-    MotionClock.instance.removeDriver(_body);
-    _body.dispose();
-    super.dispose();
-  }
+  void _setValue(double value, {bool animated = false}) => _motion.setValue(
+    MotionClock.instance.now,
+    value,
+    animated: animated,
+  );
 
   @override
   void writeStates() =>
@@ -210,7 +208,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   double _out(double unit) => widget.min + unit * (widget.max - widget.min);
 
   bool get _inSync =>
-      widget.value == _reported || _unit(widget.value) == _body.reportedValue;
+      widget.value == _reported || _unit(widget.value) == _motion.reportedValue;
 
   // Callbacks may rebuild ancestors: a cancel from the region's own update
   // or dispose arrives while the framework builds or finalizes the tree,
@@ -255,7 +253,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   // A touch that never dragged, or left nothing to glide, raises no
   // SliderChangeEnded; it still ends the change it started.
   void _endUnlessGliding() {
-    if (_body.leading) return;
+    if (_leading) return;
     if (SchedulerBinding.instance.schedulerPhase ==
         SchedulerPhase.persistentCallbacks) {
       SchedulerBinding.instance.addPostFrameCallback((_) {
@@ -274,11 +272,11 @@ class _RawGlassSliderState extends State<RawGlassSlider>
     SchedulerBinding.instance.addPostFrameCallback((_) {
       _reconcilePending = false;
       if (!mounted || _inSync) return;
-      if (_body.leading) {
+      if (_leading) {
         _reconcileLater();
         return;
       }
-      _body.setValue(_unit(widget.value));
+      _setValue(_unit(widget.value));
       _reported = widget.value;
     });
   }
@@ -307,7 +305,8 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   }
 
   Widget _visualFor(BuildContext context, double width) {
-    final key = (widget.builder, width, widget.ticks, _body.mirrored);
+    final frames = _frames;
+    final key = (widget.builder, width, widget.ticks, frames);
     final visual = _visual;
     if (visual != null &&
         key == _visualKey &&
@@ -319,10 +318,10 @@ class _RawGlassSliderState extends State<RawGlassSlider>
     return _visual = widget.builder(
       context,
       GlassSliderDetails(
-        track: _body.track,
-        fill: _body.fill,
-        thumb: _body.thumb,
-        ticks: _body.tickCenters,
+        track: frames.track,
+        fill: frames.fill,
+        thumb: frames.thumb,
+        ticks: frames.tickCenters,
         states: states,
       ),
     );
@@ -330,48 +329,54 @@ class _RawGlassSliderState extends State<RawGlassSlider>
 
   @override
   Widget build(BuildContext context) {
-    _body.reducedMotion = GlassTraits.of(context).reduceMotion;
+    _motion.lens.reducedMotion = GlassTraits.of(context).reduceMotion;
     final rtl = Directionality.maybeOf(context) == TextDirection.rtl;
-    _body.mirrored = rtl;
+    if (rtl != _frames.mirrored) {
+      _frames = _SliderFrames(_motion, mirrored: rtl);
+    }
     _input.mirrored = rtl;
     final enabled = widget.onChanged != null;
     final value = _unit(widget.value);
     String percent(double v) => '${(v * 100).round()}%';
     final back = rtl ? 1 : -1;
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _nudge(back),
-        const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
-            _nudge(-back),
-        const SingleActivator(LogicalKeyboardKey.arrowDown): () => _nudge(-1),
-        const SingleActivator(LogicalKeyboardKey.arrowUp): () => _nudge(1),
-      },
-      child: Semantics(
-        slider: true,
-        value: percent(value),
-        increasedValue: percent(_stepFrom(value, 1)),
-        decreasedValue: percent(_stepFrom(value, -1)),
-        onIncrease: enabled && value < 1 ? () => _nudge(1) : null,
-        onDecrease: enabled && value > 0 ? () => _nudge(-1) : null,
-        child: InputRegion(
-          interactions: _interactions,
-          enabled: enabled,
-          statesController: widgetStates,
-          focusNode: widget.focusNode,
-          autofocus: widget.autofocus,
-          semanticLabel: widget.semanticLabel,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final width = constraints.hasBoundedWidth
-                  ? constraints.maxWidth
-                  : 200.0;
-              _body.width = width;
-              return SizedBox(
-                width: width,
-                height: RawGlassSlider.height,
-                child: _visualFor(context, width),
-              );
-            },
+    return MotionScope(
+      motion: _motion,
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
+              _nudge(back),
+          const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
+              _nudge(-back),
+          const SingleActivator(LogicalKeyboardKey.arrowDown): () => _nudge(-1),
+          const SingleActivator(LogicalKeyboardKey.arrowUp): () => _nudge(1),
+        },
+        child: Semantics(
+          slider: true,
+          value: percent(value),
+          increasedValue: percent(_stepFrom(value, 1)),
+          decreasedValue: percent(_stepFrom(value, -1)),
+          onIncrease: enabled && value < 1 ? () => _nudge(1) : null,
+          onDecrease: enabled && value > 0 ? () => _nudge(-1) : null,
+          child: InputRegion(
+            interactions: _interactions,
+            enabled: enabled,
+            statesController: widgetStates,
+            focusNode: widget.focusNode,
+            autofocus: widget.autofocus,
+            semanticLabel: widget.semanticLabel,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.hasBoundedWidth
+                    ? constraints.maxWidth
+                    : 200.0;
+                _motion.width = width;
+                return SizedBox(
+                  width: width,
+                  height: RawGlassSlider.height,
+                  child: _visualFor(context, width),
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -379,79 +384,65 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   }
 }
 
-/// The motion of a slider, stepped on the motion clock and published as
-/// the frames of its track, fill and thumb.
-final class _SliderBody extends MotionDriver {
-  _SliderBody(this._deliver, {required double value, required int ticks})
-    : _motion = SliderMotion(
-        width: 0,
-        value: value,
-        ticks: ticks,
-        frameRate: MotionClock.instance.frameRate,
-      ) {
-    _publish();
-  }
+/// What a slider shows of its motion: the frames of its track, fill and
+/// thumb, laid out left to right or mirrored.
+final class _SliderFrames {
+  _SliderFrames(this._motion, {required this.mirrored});
 
   final SliderMotion _motion;
-  final void Function(SliderEvent event) _deliver;
-  final track = ValueNotifier(const GlassFrame());
-  final fill = ValueNotifier(const GlassFrame());
-  final thumb = ValueNotifier(const GlassFrame());
+  final bool mirrored;
 
-  bool get leading => _motion.isDragging || _motion.isGliding;
+  static const double _y = RawGlassSlider.height / 2;
 
-  double get reportedValue => _motion.reportedValue;
+  late final MotionSelection<GlassFrame> track = _motion.select((motion) {
+    final ends = motion.trackEnds;
+    final height = _trackHeight(motion);
+    return GlassFrame(
+      rect: _shown(
+        Rect.fromLTRB(ends.left, _y - height / 2, ends.right, _y + height / 2),
+      ),
+    );
+  });
+
+  late final MotionSelection<GlassFrame> fill = _motion.select((motion) {
+    final ends = motion.trackEnds;
+    final height = _trackHeight(motion);
+    final end = motion.fillEnd.clamp(ends.left, double.infinity);
+    return GlassFrame(
+      rect: _shown(
+        Rect.fromLTRB(ends.left, _y - height / 2, end, _y + height / 2),
+      ),
+    );
+  });
+
+  late final MotionSelection<GlassFrame> thumb = _motion.select((motion) {
+    final t = motion.now;
+    final lens = motion.lens;
+    final size = lens.size(t);
+    return GlassFrame(
+      rect: _shown(
+        Rect.fromCenter(
+          center: Offset(motion.thumbCenter + lens.shift(t), _y),
+          width: size.width * lens.scaleX(t),
+          height: size.height * lens.scaleY(t),
+        ),
+      ),
+      lift: lens.progress(t).clamp(0.0, 1.0),
+    );
+  });
 
   List<Offset> get tickCenters => [
     for (final x in _motion.tickCenters)
       Offset(
-        _mirrored ? _motion.width - x : x,
-        RawGlassSlider.height / 2 + SliderMotion.tickOffset,
+        mirrored ? _motion.width - x : x,
+        _y + SliderMotion.tickOffset,
       ),
   ];
 
-  bool get reducedMotion => _motion.lens.reducedMotion;
-  set reducedMotion(bool value) => _motion.lens.reducedMotion = value;
+  static double _trackHeight(SliderMotion motion) =>
+      motion.currentTrackHeight.clamp(0.0, double.infinity);
 
-  bool _mirrored = false;
-  bool get mirrored => _mirrored;
-  set mirrored(bool value) {
-    if (value == _mirrored) return;
-    _mirrored = value;
-    _publish();
-  }
-
-  double get width => _motion.width;
-  set width(double value) {
-    if (value == _motion.width) return;
-    _motion.width = value;
-    _publish();
-  }
-
-  int get ticks => _motion.ticks;
-  set ticks(int value) {
-    if (value == _motion.ticks) return;
-    _motion.ticks = value;
-    _publish();
-    _wake();
-  }
-
-  bool hitsThumb(double x) => _motion.hitsThumb(x);
-
-  bool get isDragging => _motion.isDragging;
-
-  @override
-  bool get isActive => !_motion.isSettled;
-
-  @override
-  void step(double time) {
-    _motion.advance(time);
-    if (_motion.isSettled) _motion.settle();
-    _publish();
-    _drain();
-  }
-
-  Rect _shown(Rect rect) => _mirrored
+  Rect _shown(Rect rect) => mirrored
       ? Rect.fromLTRB(
           _motion.width - rect.right,
           rect.top,
@@ -459,93 +450,15 @@ final class _SliderBody extends MotionDriver {
           rect.bottom,
         )
       : rect;
-
-  void _publish() {
-    final motion = _motion;
-    final t = motion.time;
-    const y = RawGlassSlider.height / 2;
-    final ends = motion.trackEnds;
-    final height = motion.currentTrackHeight.clamp(0.0, double.infinity);
-    final fillEnd = motion.fillEnd.clamp(ends.left, double.infinity);
-    track.value = GlassFrame(
-      rect: _shown(
-        Rect.fromLTRB(ends.left, y - height / 2, ends.right, y + height / 2),
-      ),
-    );
-    fill.value = GlassFrame(
-      rect: _shown(
-        Rect.fromLTRB(ends.left, y - height / 2, fillEnd, y + height / 2),
-      ),
-    );
-    final lens = motion.lens;
-    final size = lens.size(t);
-    thumb.value = GlassFrame(
-      rect: _shown(
-        Rect.fromCenter(
-          center: Offset(motion.thumbCenter + lens.shift(t), y),
-          width: size.width * lens.scaleX(t),
-          height: size.height * lens.scaleY(t),
-        ),
-      ),
-      lift: lens.progress(t).clamp(0.0, 1.0),
-    );
-  }
-
-  void _drain() {
-    for (final event in _motion.drainEvents()) {
-      _deliver(event);
-    }
-  }
-
-  void _wake() => MotionClock.instance.wake(this);
-
-  // A jump settles the motion at once, and the clock steps only active
-  // drivers, so it publishes here.
-  void setValue(double value, {bool animated = false}) {
-    _motion.setValue(MotionClock.instance.now, value, animated: animated);
-    _publish();
-    _drain();
-    _wake();
-  }
-
-  void down(double t, double x) {
-    _motion.pointerDown(t, x);
-    _drain();
-    _wake();
-  }
-
-  void move(double t, double x) {
-    _motion.pointerMove(t, x);
-    _drain();
-    _wake();
-  }
-
-  void up(double t, double x, double velocity) {
-    _motion.pointerUp(t, x, velocity: velocity);
-    _drain();
-    _wake();
-  }
-
-  void cancel(double t, {required bool revert}) {
-    _motion.pointerCancel(t, revert: revert);
-    _drain();
-    _wake();
-  }
-
-  void dispose() {
-    track.dispose();
-    fill.dispose();
-    thumb.dispose();
-  }
 }
 
 /// A slider's touch: it takes a touch only on the thumb and holds it
 /// against a scroll.
 final class _SliderInput extends Interaction {
-  _SliderInput({required this.body, required this.start, required this.end})
+  _SliderInput({required this.motion, required this.start, required this.end})
     : super(role: InteractionRole.control);
 
-  final _SliderBody body;
+  final SliderMotion motion;
   final VoidCallback start;
   final VoidCallback end;
   bool mirrored = false;
@@ -555,16 +468,16 @@ final class _SliderInput extends Interaction {
   bool get pressed => _pointer != null;
 
   @override
-  bool get dragged => _pointer != null && body.isDragging;
+  bool get dragged => _pointer != null && motion.isDragging;
 
   double _x(Offset position) =>
-      mirrored ? body.width - position.dx : position.dx;
+      mirrored ? motion.width - position.dx : position.dx;
 
   @override
   bool accepts(PointerDownInput down) =>
       _pointer == null &&
       super.accepts(down) &&
-      body.hitsThumb(_x(down.position));
+      motion.hitsThumb(_x(down.position));
 
   @override
   InteractionUpdate handle(InteractionInput input) {
@@ -575,23 +488,23 @@ final class _SliderInput extends Interaction {
       case PointerDownInput() when accepts(input):
         _pointer = input.pointer;
         start();
-        body.down(input.time, _x(input.position));
+        motion.pointerDown(input.time, _x(input.position));
         return const InteractionUpdate(claims: true);
       case PointerMoveInput() when input.pointer == _pointer:
-        body.move(input.time, _x(input.position));
+        motion.pointerMove(input.time, _x(input.position));
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
         final velocity = input.velocity.dx;
-        body.up(
+        motion.pointerUp(
           input.time,
           _x(input.position),
-          mirrored ? -velocity : velocity,
+          velocity: mirrored ? -velocity : velocity,
         );
         end();
         return const InteractionUpdate(recognizes: true);
       case PointerCancelInput() when input.pointer == _pointer:
         _pointer = null;
-        body.cancel(
+        motion.pointerCancel(
           input.time,
           revert: input.reason == PointerCancelReason.taken,
         );

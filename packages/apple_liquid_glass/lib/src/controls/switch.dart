@@ -96,33 +96,49 @@ class RawGlassSwitch extends StatefulWidget {
 
 class _RawGlassSwitchState extends State<RawGlassSwitch>
     with ControlStates<RawGlassSwitch> {
-  late final _SwitchBody _body = _SwitchBody(_deliver, value: widget.value);
+  late final SwitchMotion _motion = SwitchMotion(
+    value: widget.value,
+    frameRate: MotionClock.instance.frameRate,
+    onEvent: _deliver,
+  );
   late final _SwitchInput _input = _SwitchInput(
-    body: _body,
+    motion: _motion,
     toggle: () => widget.onChanged?.call(!widget.value),
   );
   late final List<Interaction> _interactions = [_input];
+  late MotionSelection<GlassFrame> _thumb = _thumbOf(mirrored: false);
+  late final MotionSelection<double> _progress = _motion.select(
+    (motion) => motion.color,
+  );
+
+  MotionSelection<GlassFrame> _thumbOf({required bool mirrored}) =>
+      _motion.select((motion) {
+        final t = motion.now;
+        final lens = motion.lens;
+        final size = lens.size(t);
+        var x =
+            SwitchMotion.inset +
+            SwitchMotion.knobSize.width / 2 +
+            motion.knob +
+            lens.shift(t);
+        if (mirrored) x = SwitchMotion.trackSize.width - x;
+        return GlassFrame(
+          rect: Rect.fromCenter(
+            center: Offset(x, SwitchMotion.trackSize.height / 2),
+            width: size.width * lens.scaleX(t),
+            height: size.height * lens.scaleY(t),
+          ),
+          lift: lens.progress(t).clamp(0.0, 1.0),
+        );
+      });
 
   @override
   WidgetStatesController? get givenStates => widget.statesController;
 
   @override
-  void initState() {
-    super.initState();
-    MotionClock.instance.addDriver(_body);
-  }
-
-  @override
   void didUpdateWidget(RawGlassSwitch oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _body.setValue(value: widget.value);
-  }
-
-  @override
-  void dispose() {
-    MotionClock.instance.removeDriver(_body);
-    _body.dispose();
-    super.dispose();
+    _setValue(widget.value);
   }
 
   @override
@@ -133,12 +149,17 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
     widgetStates.update(WidgetState.selected, widget.value);
   }
 
+  void _setValue(bool value) {
+    if (value == _motion.value) return;
+    _motion.setValue(MotionClock.instance.now, value: value);
+  }
+
   void _deliver(SwitchEvent event) {
     switch (event) {
       case SwitchChanged(:final on):
         if (on != widget.value) widget.onChanged?.call(on);
         SchedulerBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _body.setValue(value: widget.value);
+          if (mounted) _setValue(widget.value);
         });
       case SwitchShown():
         MotionHaptic.lightImpact.play();
@@ -147,29 +168,35 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
 
   @override
   Widget build(BuildContext context) {
-    _body.reducedMotion = GlassTraits.of(context).reduceMotion;
-    _input.mirrored = Directionality.maybeOf(context) == TextDirection.rtl;
-    _body.mirrored = _input.mirrored;
-    return Align(
-      widthFactor: 1,
-      heightFactor: 1,
-      child: Semantics(
-        toggled: widget.value,
-        child: InputRegion(
-          interactions: _interactions,
-          enabled: widget.onChanged != null,
-          statesController: widgetStates,
-          focusNode: widget.focusNode,
-          autofocus: widget.autofocus,
-          semanticLabel: widget.semanticLabel,
-          child: SizedBox.fromSize(
-            size: RawGlassSwitch.size,
-            child: widget.builder(
-              context,
-              GlassSwitchDetails(
-                thumb: _body.thumb,
-                progress: _body.progress,
-                states: {...widgetStates.value},
+    _motion.reducedMotion = GlassTraits.of(context).reduceMotion;
+    final mirrored = Directionality.maybeOf(context) == TextDirection.rtl;
+    if (mirrored != _input.mirrored) {
+      _input.mirrored = mirrored;
+      _thumb = _thumbOf(mirrored: mirrored);
+    }
+    return MotionScope(
+      motion: _motion,
+      child: Align(
+        widthFactor: 1,
+        heightFactor: 1,
+        child: Semantics(
+          toggled: widget.value,
+          child: InputRegion(
+            interactions: _interactions,
+            enabled: widget.onChanged != null,
+            statesController: widgetStates,
+            focusNode: widget.focusNode,
+            autofocus: widget.autofocus,
+            semanticLabel: widget.semanticLabel,
+            child: SizedBox.fromSize(
+              size: RawGlassSwitch.size,
+              child: widget.builder(
+                context,
+                GlassSwitchDetails(
+                  thumb: _thumb,
+                  progress: _progress,
+                  states: {...widgetStates.value},
+                ),
               ),
             ),
           ),
@@ -179,114 +206,13 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
   }
 }
 
-/// The motion of a switch, stepped on the motion clock and published as
-/// the knob's frame and the track's progress.
-final class _SwitchBody extends MotionDriver {
-  _SwitchBody(this._deliver, {required bool value})
-    : _motion = SwitchMotion(
-        value: value,
-        frameRate: MotionClock.instance.frameRate,
-      ) {
-    _publish();
-  }
-
-  final SwitchMotion _motion;
-  final void Function(SwitchEvent event) _deliver;
-  final thumb = ValueNotifier(const GlassFrame());
-  final progress = ValueNotifier<double>(0);
-
-  bool _mirrored = false;
-  bool get mirrored => _mirrored;
-  set mirrored(bool value) {
-    if (value == _mirrored) return;
-    _mirrored = value;
-    _publish();
-  }
-
-  bool get reducedMotion => _motion.reducedMotion;
-  set reducedMotion(bool value) => _motion.reducedMotion = value;
-
-  @override
-  bool get isActive => !_motion.isSettled;
-
-  @override
-  void step(double time) {
-    _motion.advance(time);
-    if (_motion.isSettled) _motion.settle();
-    _publish();
-  }
-
-  void _publish() {
-    final t = _motion.time;
-    final lens = _motion.lens;
-    final size = lens.size(t);
-    final width = size.width * lens.scaleX(t);
-    final height = size.height * lens.scaleY(t);
-    var x =
-        SwitchMotion.inset +
-        SwitchMotion.knobSize.width / 2 +
-        _motion.knob +
-        lens.shift(t);
-    if (_mirrored) x = SwitchMotion.trackSize.width - x;
-    thumb.value = GlassFrame(
-      rect: Rect.fromCenter(
-        center: Offset(x, SwitchMotion.trackSize.height / 2),
-        width: width,
-        height: height,
-      ),
-      lift: lens.progress(t).clamp(0.0, 1.0),
-    );
-    progress.value = _motion.color;
-  }
-
-  void _drain() {
-    for (final event in _motion.drainEvents()) {
-      _deliver(event);
-    }
-  }
-
-  void _wake() => MotionClock.instance.wake(this);
-
-  void setValue({required bool value}) {
-    if (value == _motion.value) return;
-    _motion.setValue(MotionClock.instance.now, value: value);
-    _wake();
-  }
-
-  void down(double t, double x) {
-    _motion.pointerDown(t, x);
-    _wake();
-  }
-
-  void move(double t, double x) {
-    _motion.pointerMove(t, x);
-    _drain();
-    _wake();
-  }
-
-  void up(double t, double x) {
-    _motion.pointerUp(t, x);
-    _drain();
-    _wake();
-  }
-
-  void cancel(double t) {
-    _motion.pointerCancel(t);
-    _wake();
-  }
-
-  void dispose() {
-    thumb.dispose();
-    progress.dispose();
-  }
-}
-
 /// A switch's touch: the press tracks the highlight and holds the touch
-/// against a scroll, the body follows the finger, and an activation toggles.
+/// against a scroll, the motion follows the finger, and an activation
+/// toggles.
 final class _SwitchInput extends PressInteraction {
-  _SwitchInput({required this.body, required this.toggle});
+  _SwitchInput({required this.motion, required this.toggle});
 
-  final _SwitchBody body;
+  final SwitchMotion motion;
   final VoidCallback toggle;
   bool mirrored = false;
   int? _pointer;
@@ -304,15 +230,15 @@ final class _SwitchInput extends PressInteraction {
         );
       case PointerDownInput() when _pointer == null && accepts(input):
         _pointer = input.pointer;
-        body.down(input.time, _x(input.position));
+        motion.pointerDown(input.time, _x(input.position));
       case PointerMoveInput() when input.pointer == _pointer:
-        body.move(input.time, _x(input.position));
+        motion.pointerMove(input.time, _x(input.position));
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
-        body.up(input.time, _x(input.position));
+        motion.pointerUp(input.time, _x(input.position));
       case PointerCancelInput() when input.pointer == _pointer:
         _pointer = null;
-        body.cancel(input.time);
+        motion.pointerCancel(input.time);
       default:
     }
     return super.handle(input);

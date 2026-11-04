@@ -1,6 +1,5 @@
 import 'dart:ui';
 
-import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:apple_liquid_glass/src/motion/small_lens.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
@@ -28,29 +27,37 @@ import 'package:meta/meta.dart';
 ///
 /// Times are seconds and positions pixels along the track.
 ///
-/// The switch settles once every part's remaining swing is below
-/// [GlassRest] and snaps onto its targets: invisible, NEAR.
+/// Every part rests within [MotionRest]: invisible, NEAR. Each event goes
+/// to [onEvent] as the command that raises it runs.
 @internal
-class SwitchMotion {
+final class SwitchMotion extends Motion {
   /// Creates a switch resting at [value] whose knob lens filters its
   /// motion at [frameRate] frames per second of motion time.
-  SwitchMotion({required bool value, this.frameRate = 120})
-    : _value = value,
-      _knob = MotionValue<double>(
-        value ? travel : 0,
-        spring: knobSpring,
-        restDistance: GlassRest.length,
-      ),
-      _color = MotionValue<double>(
-        value ? 1 : 0,
-        spring: onColorSpring,
-        restDistance: GlassRest.opacity,
-      ),
-      lens = SmallLens(
+  SwitchMotion({required bool value, this.frameRate = 120, this.onEvent})
+    : _value = value {
+    _knob = own(
+      MotionValue<double>(value ? travel : 0, spring: knobSpring),
+      rest: _length,
+    );
+    _color = own(
+      MotionValue<double>(value ? 1 : 0, spring: onColorSpring),
+      rest: _opacity,
+    );
+    lens = own(
+      SmallLens(
         restSize: knobSize,
         liftedSize: liftedKnobSize,
         frameRate: frameRate,
-      );
+        position: _knob.valueAt,
+      ),
+    );
+  }
+
+  static double _length() => MotionRest.length;
+  static double _opacity() => MotionRest.opacity;
+
+  /// Hears each event the switch raises.
+  final void Function(SwitchEvent event)? onEvent;
 
   /// The frames per second of motion time the knob lens filters at: 120
   /// for a ProMotion display, 60 for a 60 Hz one.
@@ -115,15 +122,13 @@ class SwitchMotion {
   static const (double, double) overdrag = (12, 0.54);
 
   bool _value;
-  final List<SwitchEvent> _events = [];
-  final MotionValue<double> _knob;
-  final MotionValue<double> _color;
+  late final MotionValue<double> _knob;
+  late final MotionValue<double> _color;
 
-  /// The knob's lens.
-  final SmallLens lens;
+  /// The knob's lens; it follows the knob.
+  late final SmallLens lens;
 
-  final MotionTimeline _timeline = MotionTimeline(now: 0);
-  bool _started = false;
+  static const _colorSlot = Object();
   double? _downX;
   double _anchor = 0;
   double _downT = 0;
@@ -141,42 +146,11 @@ class SwitchMotion {
   /// Whether the switch is on.
   bool get value => _value;
 
-  /// The events raised since the last call, oldest first.
-  List<SwitchEvent> drainEvents() {
-    if (_events.isEmpty) return const [];
-    final drained = List<SwitchEvent>.of(_events);
-    _events.clear();
-    return drained;
-  }
-
-  double get _now => _timeline.now;
-
-  /// The time the motion was last advanced to.
-  double get time => _now;
-
   /// The knob position from the off end, rubber band included.
-  double get knob => _knob.valueAt(_now);
+  double get knob => _knob.valueAt(now);
 
   /// How far the track color has turned toward on, 0 to 1.
-  double get color => _color.valueAt(_now).clamp(0.0, 1.0);
-
-  /// Whether what remains of the switch's motion is invisible: nothing
-  /// pending and every spring's remaining swing below [GlassRest] (NEAR,
-  /// invisible; [settle] snaps the rest). A finger held still counts: the
-  /// lifted knob rests until the finger moves or lifts.
-  bool get isSettled =>
-      _timeline.isEmpty &&
-      _knob.isWithin(_now) &&
-      _color.isWithin(_now) &&
-      lens.isSettled(_now) &&
-      lens.hasSampled(_now, _knob.valueAt(_now));
-
-  /// Puts a settled switch exactly onto its targets.
-  void settle() {
-    _knob.settle(_now);
-    _color.settle(_now);
-    lens.settle(_now, _knob.target);
-  }
+  double get color => _color.valueAt(now).clamp(0.0, 1.0);
 
   /// A finger touched the switch at [x].
   void pointerDown(double t, double x) {
@@ -202,16 +176,13 @@ class SwitchMotion {
       _committed = !_committed;
       _everCommitted = true;
       _colorLater(t, on: !shown);
-      _events.add(SwitchShown(on: !shown));
+      _emit(SwitchShown(on: !shown));
     }
     final slop = _slop ??= t - _downT < deadZoneWindow ? deadZone : 0;
     final dx = x - downX;
     if (dx.abs() <= slop) return;
     final position = _downKnob + dx - slop * dx.sign;
-    _knob.retarget(
-      t,
-      reducedMotion ? position.clamp(0.0, travel) : _band(position),
-    );
+    _knobTo(t, reducedMotion ? position.clamp(0.0, travel) : _band(position));
   }
 
   /// The finger left the switch at [x].
@@ -221,10 +192,10 @@ class SwitchMotion {
     _downX = null;
     final shown = _committed != _value;
     final next = _everCommitted ? shown : !_value;
-    _timeline.clear();
+    unschedule(_colorSlot);
     _settle(t, next: next);
     lens.unlift(t);
-    if (next != shown) _events.add(SwitchShown(on: next));
+    if (next != shown) _emit(SwitchShown(on: next));
   }
 
   /// The touch was cancelled; the switch keeps its value.
@@ -232,8 +203,8 @@ class SwitchMotion {
     advance(t);
     if (_downX == null) return;
     _downX = null;
-    _timeline.clear();
-    _knob.retarget(t, _value ? travel : 0);
+    unschedule(_colorSlot);
+    _knobTo(t, _value ? travel : 0);
     _colorTo(t, on: _value);
     lens.unlift(t);
   }
@@ -242,43 +213,36 @@ class SwitchMotion {
   void setValue(double t, {required bool value}) {
     advance(t);
     if (value == _value) return;
-    _timeline.clear();
+    unschedule(_colorSlot);
     _value = value;
     lens.resetFlex(t, knob);
-    _knob.retarget(t, value ? travel : 0);
+    _knobTo(t, value ? travel : 0);
     _colorTo(t, on: value);
   }
 
   void _settle(double t, {required bool next}) {
     final changed = next != _value;
     _value = next;
-    _knob.retarget(t, next ? travel : 0);
+    _knobTo(t, next ? travel : 0);
     _colorTo(t, on: next);
-    if (changed) _events.add(SwitchChanged(on: next));
+    if (changed) _emit(SwitchChanged(on: next));
   }
 
+  void _knobTo(double t, double position) {
+    _knob.retarget(t, position);
+    lens.follow(t);
+  }
+
+  void _emit(SwitchEvent event) => onEvent?.call(event);
+
   void _colorLater(double t, {required bool on}) {
-    _timeline.clear();
-    _timeline.at(t + colorDelay, (double s) => _colorTo(s, on: on));
+    at(t + colorDelay, (s) => _colorTo(s, on: on), slot: _colorSlot);
   }
 
   void _colorTo(double t, {required bool on}) {
     final target = on ? 1.0 : 0.0;
     if (_color.target == target) return;
     _color.retarget(t, target, spring: on ? onColorSpring : offColorSpring);
-  }
-
-  /// Advances the motion to [t]; an earlier [t] changes nothing.
-  void advance(double t) {
-    if (!_started) {
-      _started = true;
-      _timeline.runDue(t);
-      lens.advance(t, _knob.valueAt);
-      return;
-    }
-    if (t < _now) return;
-    _timeline.runDue(t);
-    lens.advance(t, _knob.valueAt);
   }
 
   static double _band(double position) {

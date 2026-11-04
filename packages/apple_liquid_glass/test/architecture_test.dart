@@ -33,8 +33,6 @@ final _bans = <String, (RegExp, Set<String>)>{
       'lib/src/controls/date_picker.dart',
       'lib/src/controls/page_control.dart',
       'lib/src/controls/selector.dart',
-      'lib/src/controls/slider.dart',
-      'lib/src/controls/switch.dart',
       'lib/src/controls/tab_bar.dart',
       'lib/src/menu/anchor.dart',
     },

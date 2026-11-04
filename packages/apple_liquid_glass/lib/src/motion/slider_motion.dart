@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:apple_liquid_glass/src/motion/small_lens.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
@@ -44,8 +43,13 @@ import 'package:meta/meta.dart';
 /// curve, without a glide.
 ///
 /// Times are seconds and positions pixels from the track's left end.
+///
+/// Every part rests within [MotionRest]: invisible, NEAR. A stepped
+/// slider's place rests once its remaining swing, seen through the detent
+/// curve, moves the thumb less than [MotionRest.length]. Each event goes
+/// to [onEvent] as the command or the glide that raises it runs.
 @internal
-class SliderMotion {
+final class SliderMotion extends Motion {
   /// Creates a slider of track [width] resting at [value] whose thumb
   /// lens filters its motion at [frameRate] frames per second of motion
   /// time.
@@ -54,19 +58,31 @@ class SliderMotion {
     required double value,
     this.frameRate = 120,
     this._ticks = 0,
+    this.onEvent,
   }) : _value = value.clamp(0.0, 1.0),
-       _reported = value.clamp(0.0, 1.0),
-       _settle = MotionValue<double>(
-         value.clamp(0.0, 1.0),
-         spring: tickReleaseSpring,
-       ),
-       lens = SmallLens(
-         restSize: thumbSize,
-         liftedSize: liftedThumbSize,
-         frameRate: frameRate,
-       );
+       _reported = value.clamp(0.0, 1.0) {
+    _stretch = own(
+      MotionValue<double>(0, spring: releaseSpring),
+      rest: _length,
+    );
+    _settle = own(
+      MotionValue<double>(_value, spring: tickReleaseSpring),
+      rest: _settleRest,
+    );
+    lens = own(
+      SmallLens(
+        restSize: thumbSize,
+        liftedSize: liftedThumbSize,
+        frameRate: frameRate,
+        position: _thumbAt,
+      ),
+    );
+  }
 
-  final List<SliderEvent> _events = [];
+  static double _length() => MotionRest.length;
+
+  /// Hears each event the slider raises.
+  final void Function(SliderEvent event)? onEvent;
 
   /// The frames per second of motion time the thumb lens filters at: 120
   /// for a ProMotion display, 60 for a 60 Hz one.
@@ -181,11 +197,12 @@ class SliderMotion {
     if (_ticks == value) return;
     final wasStepped = _stepped;
     _ticks = value;
+    lens.follow(now);
     if (wasStepped || !_stepped) return;
     _programmatic = false;
-    _settle.snap(_now, this.value);
+    _settle.snap(now, this.value);
     _detented = false;
-    lens.resetFlex(_now, _thumbAt(_now));
+    lens.resetFlex(now, _thumbAt(now));
   }
 
   bool get _stepped => ticks >= 2;
@@ -198,49 +215,51 @@ class SliderMotion {
   set width(double value) {
     if (_width == value) return;
     _width = value;
-    lens.resetFlex(_now, _thumbAt(_now));
+    lens.resetFlex(now, _thumbAt(now));
+    lens.follow(now);
   }
 
   double _value;
   double _reported;
   bool _programmatic = false;
-  final _stretch = MotionValue<double>(0, spring: releaseSpring);
+  late final MotionValue<double> _stretch;
   _Glide? _glide;
-  final MotionValue<double> _settle;
+  late final MotionValue<double> _settle;
 
   /// Whether a stepped slider shows its place through the detent curve:
   /// from a drag on, until the value is set from outside.
   bool _detented = false;
 
-  /// The thumb's lens.
-  final SmallLens lens;
+  /// The thumb's lens; it follows the thumb.
+  late final SmallLens lens;
 
-  final MotionTimeline _timeline = MotionTimeline(now: 0);
-  bool _started = false;
   _Press? _press;
-
-  double get _now => _timeline.now;
+  static const _release = Object();
 
   /// How far the thumb center travels between the ends.
   double get travel => math.max(0, width - thumbSize.width);
 
-  /// The value's visible rest ([GlassRest], NEAR): a swing that moves the
-  /// thumb less than [GlassRest.length] along [travel].
-  double get _valueRest => GlassRest.scale(travel);
+  /// The value's visible rest: a swing that moves the thumb less than
+  /// [MotionRest.length] along [travel].
+  double get _valueRest => MotionRest.scale(travel);
 
-  /// The time the motion was last advanced to.
-  double get time => _now;
-
-  /// The events raised since the last call, oldest first.
-  List<SliderEvent> drainEvents() {
-    if (_events.isEmpty) return const [];
-    final drained = List<SliderEvent>.of(_events);
-    _events.clear();
-    return drained;
+  /// The rest of the place a stepped slider shows through the detent
+  /// curve: the swing whose curved image moves the thumb less than
+  /// [MotionRest.length]. Within half a step of a stop the curve shows a
+  /// swing r as `half * (r / half)^tickExponent`.
+  double _settleRest() {
+    final rest = _valueRest;
+    if (!_stepped || !_detented) return rest;
+    final half = 0.5 / (ticks - 1);
+    if (rest >= half) return rest;
+    return half * math.pow(rest / half, 1 / tickExponent);
   }
 
+  @override
+  bool get holds => _glide != null;
+
   /// The current value, 0 to 1.
-  double get value => _valueAt(_now);
+  double get value => _valueAt(now);
 
   /// The value last reported in a [SliderChanged], or set from
   /// outside.
@@ -254,18 +273,18 @@ class SliderMotion {
 
   /// Whether an animated [setValue] is moving the thumb.
   bool get isAnimatingValueChange =>
-      _programmatic && !_settle.isWithin(_now, _valueRest);
+      _programmatic && !_settle.restsAt(now, _valueRest);
 
   /// How far the stretched track's near end has moved: positive past the
   /// maximum end, negative past the minimum end.
-  double get stretch => _stretch.valueAt(_now);
+  double get stretch => _stretch.valueAt(now);
 
   /// The thumb center along the track, stretch included.
-  double get thumbCenter => _thumbAt(_now);
+  double get thumbCenter => _thumbAt(now);
 
   /// Where the thumb shows the value, 0 to 1: the value itself, or for a
   /// stepped slider its place seen through the detent curve.
-  double get position => _positionAt(_now);
+  double get position => _positionAt(now);
 
   /// The right end of the fill, stretch included: under the thumb center,
   /// running out to the track end within [fillRamp] of either end.
@@ -300,23 +319,6 @@ class SliderMotion {
   /// The track height, thinner while stretched.
   double get currentTrackHeight => trackHeight - squish * stretch.abs();
 
-  /// Whether every part of the slider is at rest. A finger held still
-  /// counts: the lifted thumb rests until the finger moves or lifts.
-  bool get isSettled =>
-      _glide == null &&
-      _timeline.isEmpty &&
-      _stretch.isWithin(_now, GlassRest.length) &&
-      _settleAtRest &&
-      lens.isSettled(_now) &&
-      lens.hasSampled(_now, _thumbAt(_now));
-
-  /// Puts the settled thumb lens, and a released stepped slider's place,
-  /// onto their targets.
-  void settle() {
-    if (_stepped && _press == null) _settle.settle(_now);
-    lens.settle(_now, _thumbAt(_now));
-  }
-
   /// Whether a press at [x] grabs the thumb.
   bool hitsThumb(double x) =>
       (x - thumbCenter).abs() <= thumbSize.width / 2 + thumbSlop;
@@ -324,7 +326,11 @@ class SliderMotion {
   /// A finger touched the slider at [x]; only the thumb responds.
   void pointerDown(double t, double x) {
     advance(t);
-    _timeline.flush(t);
+    if (isScheduled(_release)) {
+      unschedule(_release);
+      _stretch.retarget(t, 0);
+      lens.follow(t);
+    }
     if (!hitsThumb(x)) return;
     _stopGlide();
     _stopProgrammatic(t);
@@ -354,10 +360,11 @@ class SliderMotion {
     press.sample(t, x);
     final raw = press.from + (x - press.anchor) / width;
     _stretch.snap(t, _stretchFor(raw));
+    lens.follow(t);
     final clamped = raw.clamp(0.0, 1.0);
     if (!_stepped) {
       if (clamped != _value && (clamped == 0 || clamped == 1)) {
-        _events.add(const SliderFelt(detent: false));
+        _emit(const SliderFelt(detent: false));
       }
       _set(clamped);
       return;
@@ -365,7 +372,7 @@ class SliderMotion {
     _detented = true;
     _settle.snap(t, clamped);
     final stop = _stopNear(clamped);
-    if (stop != _value) _events.add(SliderFelt(detent: stop > 0 && stop < 1));
+    if (stop != _value) _emit(SliderFelt(detent: stop > 0 && stop < 1));
     _set(stop);
   }
 
@@ -387,14 +394,15 @@ class SliderMotion {
     final speed = velocity ?? _velocity(press.samples);
     if (_stepped) {
       _settleOnStop(t, speed);
-      _events.add(SliderChangeEnded(_value));
+      _emit(SliderChangeEnded(_value));
       return;
     }
     if (speed == 0 || stretched) {
-      _events.add(SliderChangeEnded(_value));
+      _emit(SliderChangeEnded(_value));
       return;
     }
     _glide = _Glide(start: t, from: _value, speed: speed / width);
+    lens.follow(t);
   }
 
   /// The touch was cancelled; the value stays where it is, or, with
@@ -411,10 +419,11 @@ class SliderMotion {
       _stretch.snap(t, 0);
       _set(_stepped ? _stopNear(press.from) : press.from);
       _settle.snap(t, press.from);
+      lens.follow(t);
     }
     _releaseStretch(t);
     if (_stepped && !revert) _settleOnStop(t, _velocity(press.samples));
-    _events.add(SliderChangeEnded(_value));
+    _emit(SliderChangeEnded(_value));
   }
 
   /// Sends a released stepped slider's place, moving at [speed] pixels per
@@ -428,6 +437,7 @@ class SliderMotion {
     _settle.setVelocity(t, v);
     _settle.retarget(t, stop, spring: tickReleaseSpring);
     _set(stop);
+    lens.follow(t);
   }
 
   /// The index of the stop nearest to [x]; a tie goes to the lower one.
@@ -455,20 +465,6 @@ class SliderMotion {
     return stop + half * math.pow(u, tickExponent);
   }
 
-  /// Whether the stepped slider's settle no longer shows: its remaining
-  /// swing, seen through the detent curve, moves the thumb less than
-  /// [GlassRest.length].
-  bool get _settleAtRest {
-    if (!_stepped || !_detented) return _settle.isWithin(_now, _valueRest);
-    if (_press != null) return false;
-    final half = 0.5 / (ticks - 1);
-    final reach = _settle.reach(_now);
-    final shown = reach >= half
-        ? reach
-        : half * math.pow(reach / half, tickExponent);
-    return shown * travel < GlassRest.length;
-  }
-
   /// Sets the value without a touch: the thumb jumps there, or with
   /// [animated] travels there on [programmaticSpring] from where it shows,
   /// as UIKit's `setValue(_:animated: true)` does.
@@ -479,7 +475,7 @@ class SliderMotion {
   void setValue(double t, double value, {bool animated = false}) {
     advance(t);
     final shown = _positionAt(t);
-    _timeline.clear();
+    unschedule(_release);
     _glide = null;
     _value = value.clamp(0.0, 1.0);
     _reported = _value;
@@ -489,6 +485,7 @@ class SliderMotion {
       if (!_programmatic) _settle.snap(t, shown);
       _programmatic = true;
       _settle.retarget(t, _value, spring: programmaticSpring);
+      lens.follow(t);
       return;
     }
     _programmatic = false;
@@ -503,32 +500,17 @@ class SliderMotion {
     _settle.snap(t, _value);
   }
 
-  /// Advances the motion to [t]; an earlier [t] changes nothing.
-  void advance(double t) {
-    if (!_started) {
-      _started = true;
-      _timeline.runDue(t);
-      lens.advance(t, _thumbAt);
-      return;
-    }
-    if (t < _now) return;
-    final glideFrom = _now;
-    lens.advance(t, (double s) {
-      _timeline.runDue(s);
-      return _thumbAt(s);
-    });
-    _timeline.runDue(t);
-    if (t > glideFrom) _tickGlide(t);
-  }
+  @override
+  void didAdvance(double t) => _tickGlide(t);
 
   void _tickGlide(double t) {
     final glide = _glide;
     if (glide == null) return;
     // Half the visible rest, so the glide's snap onto its end is invisible.
-    if (glide.remaining(t) * travel < GlassRest.length / 2) {
+    if (glide.remaining(t) * travel < MotionRest.length / 2) {
       _glide = null;
       _set(glide.end.clamp(0.0, 1.0));
-      _events.add(SliderChangeEnded(_value));
+      _emit(SliderChangeEnded(_value));
       return;
     }
     _set(glide.value(t).clamp(0.0, 1.0));
@@ -546,14 +528,18 @@ class SliderMotion {
 
   void _stopGlide() {
     if (_glide == null) return;
-    _value = _valueAt(_now);
+    _value = _valueAt(now);
     _glide = null;
-    _stretch.snap(_now, 0);
+    _stretch.snap(now, 0);
+    lens.follow(now);
   }
 
   void _releaseStretch(double t) {
     if (_stretch.target == 0 && _stretch.valueAt(t) == 0) return;
-    _timeline.at(t + releaseDelay, (s) => _stretch.retarget(s, 0));
+    at(t + releaseDelay, (s) {
+      _stretch.retarget(s, 0);
+      lens.follow(s);
+    }, slot: _release);
   }
 
   void _set(double value) {
@@ -564,8 +550,10 @@ class SliderMotion {
   void _report(double value) {
     if (value == _reported) return;
     _reported = value;
-    _events.add(SliderChanged(value));
+    _emit(SliderChanged(value));
   }
+
+  void _emit(SliderEvent event) => onEvent?.call(event);
 
   double _valueAt(double t) => _glide?.value(t).clamp(0.0, 1.0) ?? _value;
 
