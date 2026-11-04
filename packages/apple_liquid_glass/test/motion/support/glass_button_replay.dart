@@ -51,7 +51,7 @@ double glassReleaseLag(List<TraceFrame> rows, Size size, double up) {
 ///
 /// A frame at which the recording rests on its target is left out: UIKit
 /// snaps a spring that has nearly settled, morph only once what remains
-/// is invisible (`GlassRest`, NEAR).
+/// is invisible (`MotionRest`, NEAR).
 List<({double t, bool pressed, double error})> glassErrors(
   List<TraceFrame> rows,
   Size size,

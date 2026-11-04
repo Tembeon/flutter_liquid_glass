@@ -6,7 +6,7 @@ import 'package:kinesis/motion.dart';
 const _card = Key('card');
 const _page = Key('page');
 
-Widget _app(GlobalKey<NavigatorState> navigator, GlassZoomLink link) =>
+Widget _app(GlobalKey<NavigatorState> navigator, MotionSource link) =>
     WidgetsApp(
       navigatorKey: navigator,
       color: const Color(0xFF000000),
@@ -21,7 +21,7 @@ Widget _app(GlobalKey<NavigatorState> navigator, GlassZoomLink link) =>
         child: Align(
           alignment: const Alignment(0, -0.3),
           child: GlassZoomSource(
-            link: link,
+            source: link,
             borderRadius: 16,
             child: const SizedBox(
               key: _card,
@@ -47,7 +47,7 @@ Future<void> _frames(WidgetTester tester, int count) async {
   }
 }
 
-Route<void> _route(GlassZoomLink link) => GlassPageRoute<void>(
+Route<void> _route(MotionSource link) => GlassPageRoute<void>(
   source: link,
   builder: (context) => const ColoredBox(
     key: _page,
@@ -63,7 +63,7 @@ void main() {
       'hides meanwhile', (tester) async {
     _phone(tester);
     final navigator = GlobalKey<NavigatorState>();
-    final link = GlassZoomLink();
+    final link = MotionSource();
     await tester.pumpWidget(_app(navigator, link));
     final card = tester.getRect(find.byKey(_card));
     navigator.currentState!.push(_route(link));
@@ -77,17 +77,7 @@ void main() {
       tester.getRect(find.byKey(_page)),
       const Rect.fromLTWH(0, 0, 402, 874),
     );
-    expect(
-      tester
-          .widget<Visibility>(
-            find.ancestor(
-              of: find.byKey(_card),
-              matching: find.byType(Visibility),
-            ),
-          )
-          .visible,
-      isFalse,
-    );
+    expect(link.isHidden, isTrue);
     expect(tester.binding.hasScheduledFrame, isFalse);
   });
 
@@ -96,7 +86,7 @@ void main() {
   ) async {
     _phone(tester);
     final navigator = GlobalKey<NavigatorState>();
-    final link = GlassZoomLink();
+    final link = MotionSource();
     await tester.pumpWidget(_app(navigator, link));
     final card = tester.getRect(find.byKey(_card));
     navigator.currentState!.push(_route(link));
@@ -107,17 +97,7 @@ void main() {
     expect(shrinking.width, lessThan(402));
     await _frames(tester, 90);
     expect(find.byKey(_page), findsNothing);
-    expect(
-      tester
-          .widget<Visibility>(
-            find.ancestor(
-              of: find.byKey(_card),
-              matching: find.byType(Visibility),
-            ),
-          )
-          .visible,
-      isTrue,
-    );
+    expect(link.isHidden, isFalse);
     expect(tester.getRect(find.byKey(_card)), card);
   });
 
@@ -125,7 +105,7 @@ void main() {
       'returns', (tester) async {
     _phone(tester);
     final navigator = GlobalKey<NavigatorState>();
-    final link = GlassZoomLink();
+    final link = MotionSource();
     await tester.pumpWidget(_app(navigator, link));
     navigator.currentState!.push(_route(link));
     await _frames(tester, 90);
@@ -151,12 +131,12 @@ void main() {
   testWidgets('without an attached source the page slides', (tester) async {
     _phone(tester);
     final navigator = GlobalKey<NavigatorState>();
-    await tester.pumpWidget(_app(navigator, GlassZoomLink()));
-    navigator.currentState!.push(_route(GlassZoomLink()));
+    await tester.pumpWidget(_app(navigator, MotionSource()));
+    navigator.currentState!.push(_route(MotionSource()));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
     final rect = tester.getRect(find.byKey(_page));
-    expect(rect.width, 402, reason: 'a slide keeps the width');
+    expect(rect.width, closeTo(402, 1e-9), reason: 'a slide keeps the width');
     expect(rect.left, greaterThan(0));
     await _frames(tester, 90);
   });

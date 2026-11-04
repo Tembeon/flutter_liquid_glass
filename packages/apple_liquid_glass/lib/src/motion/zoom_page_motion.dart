@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:apple_liquid_glass/src/motion/rest.dart';
+import 'package:apple_liquid_glass/src/motion/navigation_motion.dart';
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
@@ -161,44 +161,74 @@ class ZoomPageTuning {
   static const standard = ZoomPageTuning();
 }
 
-/// The zoom of a pushed page out of its source and back, as a pure
-/// function of time and of the touches it is fed.
+/// The zoom of a pushed page out of its source and back, in the page's
+/// coordinates.
 ///
 /// The container is four quantities in points - its center, width and
-/// height - each a spring of its own. [open] sends them from the source
-/// to the page, [close] back into the source, carrying each one's
-/// velocity, so a reversal is continuous. While a finger drags the page
-/// ([dragStart], [dragUpdate]) the container is a pure function of the
-/// finger's travel ([dragFrame]); [dragEnd] either returns the page or
-/// reports a dismissal, after which the owner pops the page and calls
-/// [close], which starts from where the finger left the page, at rest.
+/// height - each a spring of its own. [open] puts it on the source and
+/// [start] sends it to the page; [leave] sends it back into the source,
+/// carrying each one's velocity, so a reversal is continuous. While a
+/// finger drags the page ([dragStart], [dragUpdate]) the container is a
+/// pure function of the finger's travel ([dragFrame]); [dragEnd] either
+/// returns the page or reports a dismissal, after which the shell pops the
+/// page and [leave] starts from where the finger left the page, at rest.
+///
+/// It rests within [MotionRest.length] for the frame and
+/// [MotionRest.opacity] for the crossfade and the dimming (NEAR).
 @internal
-class ZoomPageMotion {
-  /// Creates a motion resting at the page.
-  ZoomPageMotion({this.tuning = ZoomPageTuning.standard})
-    : _cx = MotionValue<double>(0, spring: tuning.openSpring),
-      _cy = MotionValue<double>(0, spring: tuning.openSpring),
-      _w = MotionValue<double>(0, spring: tuning.openSpring),
-      _h = MotionValue<double>(0, spring: tuning.openHeightSpring),
-      _fade = MotionValue<double>(1, spring: tuning.openFadeSpring),
-      _dim = MotionValue<double>(1, spring: tuning.openDimmingSpring);
+final class ZoomPageMotion extends PageMotion with Sourced {
+  /// Creates a motion for a page filling [page], in global coordinates.
+  ZoomPageMotion({
+    this.tuning = ZoomPageTuning.standard,
+    Rect page = Rect.zero,
+  }) : _origin = page.topLeft,
+       _size = page.size;
 
   /// The measured behavior this motion reproduces.
   final ZoomPageTuning tuning;
 
-  final MotionValue<double> _cx;
-  final MotionValue<double> _cy;
-  final MotionValue<double> _w;
-  final MotionValue<double> _h;
-  final MotionValue<double> _fade;
-  final MotionValue<double> _dim;
-  double _now = 0;
-  bool _opening = true;
+  /// The radius of the display's corners, which the container's corners
+  /// turn into.
+  double displayRadius = NavigationTuning.fallbackCardRadius;
+
+  late final _cx = own(
+    MotionValue<double>(0, spring: tuning.openSpring),
+    rest: _length,
+  );
+  late final _cy = own(
+    MotionValue<double>(0, spring: tuning.openSpring),
+    rest: _length,
+  );
+  late final _w = own(
+    MotionValue<double>(0, spring: tuning.openSpring),
+    rest: _length,
+  );
+  late final _h = own(
+    MotionValue<double>(0, spring: tuning.openHeightSpring),
+    rest: _length,
+  );
+  late final _fade = own(
+    MotionValue<double>(1, spring: tuning.openFadeSpring),
+    rest: _opacity,
+  );
+  late final _dim = own(
+    MotionValue<double>(1, spring: tuning.openDimmingSpring),
+    rest: _opacity,
+  );
+  final Offset _origin;
+  Size _size;
+  bool _shown = false;
+  bool _started = false;
   Rect _source = Rect.zero;
-  Rect _page = Rect.zero;
+  double _sourceRadius = 0;
   Offset? _dragFrom;
   Offset _dragDelta = Offset.zero;
   bool _dragMoved = false;
+
+  static double _length() => MotionRest.length;
+  static double _opacity() => MotionRest.opacity;
+
+  Rect get _page => Offset.zero & _size;
 
   /// Whether a finger drags the page.
   bool get isDragging => _dragFrom != null;
@@ -206,15 +236,65 @@ class ZoomPageMotion {
   /// The source frame the motion zooms out of and back into.
   Rect get source => _source;
 
-  /// Zooms out of [source] into [page] from time [t].
-  void open(double t, Rect source, Rect page) {
+  /// Whether the page is shown or opening, not leaving.
+  bool get isShown => _shown;
+
+  /// Whether a finger may take the page now.
+  bool get takesDrag => _shown && presence == PresenceStatus.shown;
+
+  @override
+  bool get holds => _dragFrom != null || (_shown && !_started);
+
+  @override
+  PresenceStatus get presence {
+    final settled = isSettled;
+    if (_shown) return settled ? PresenceStatus.shown : PresenceStatus.opening;
+    return settled ? PresenceStatus.hidden : PresenceStatus.leaving;
+  }
+
+  @override
+  double get progress => reach;
+
+  @override
+  void sourceMoved(double t, SourceGeometry? geometry) {
+    if (geometry == null) return;
     advance(t);
-    _source = source;
-    _page = page;
-    _opening = true;
-    _set(t, source);
+    _source = geometry.rect.shift(-_origin);
+    _sourceRadius = geometry.radius.topLeft.x;
+    if (_dragFrom != null) return;
+    if (!_started) {
+      _set(t, _source);
+    } else if (!_shown) {
+      _retarget(t, _source);
+    }
+  }
+
+  /// The page takes [size] from time [t]: a page shown heads to it.
+  void resize(double t, Size size) {
+    if (size == _size) return;
+    advance(t);
+    _size = size;
+    if (_dragFrom == null && _shown && _started) _retarget(t, _page);
+  }
+
+  /// Puts the container on the source at time [t], to zoom out of it once
+  /// [start] runs.
+  @override
+  void open(double t) {
+    advance(t);
+    _shown = true;
+    _started = false;
+    _set(t, _source);
     _fade.snap(t, 0);
     _dim.snap(t, 0);
+  }
+
+  /// Zooms out of the source into the page from time [t].
+  @override
+  void start(double t) {
+    advance(t);
+    _started = true;
+    final page = _page;
     _cx.retarget(t, page.center.dx, spring: tuning.openSpring);
     _cy.retarget(t, page.center.dy, spring: tuning.openSpring);
     _w.retarget(t, page.width, spring: tuning.openSpring);
@@ -228,52 +308,45 @@ class ZoomPageMotion {
     );
   }
 
-  /// Shows the page in place at time [t], without a zoom.
-  void showInPlace(double t, Rect source, Rect page) {
+  @override
+  void showInPlace(double t) {
     advance(t);
-    _source = source;
-    _page = page;
-    _opening = true;
-    _set(t, page);
+    _started = true;
+    _set(t, _page);
     _fade.snap(t, 1);
     _dim.snap(t, 1);
   }
 
-  /// Zooms back into [source] from time [t]. After a drag the container
+  /// Zooms back into the source from time [t]. After a drag the container
   /// starts from where the finger left the page, at rest (a 100 point
   /// flick on the device leaves without carrying the finger's speed), and
   /// rides [ZoomPageTuning.dismissSpring] and
   /// [ZoomPageTuning.dismissHeightSpring]; otherwise
   /// [ZoomPageTuning.closeSpring].
-  void close(double t, Rect source) {
+  @override
+  bool leave(double t, DismissTrigger trigger) {
     advance(t);
     final from = _dragFrom;
     if (from != null) {
       _set(t, dragFrame(_page, from, _dragDelta));
       _dragFrom = null;
     }
-    _source = source;
-    _opening = false;
+    _shown = false;
+    _started = true;
     final spring = from == null ? tuning.closeSpring : tuning.dismissSpring;
     final height = from == null
         ? tuning.closeSpring
         : tuning.dismissHeightSpring;
-    _cx.retarget(t, source.center.dx, spring: spring);
-    _cy.retarget(t, source.center.dy, spring: spring);
-    _w.retarget(t, source.width, spring: spring);
-    _h.retarget(t, source.height, spring: height);
+    _cx.retarget(t, _source.center.dx, spring: spring);
+    _cy.retarget(t, _source.center.dy, spring: spring);
+    _w.retarget(t, _source.width, spring: spring);
+    _h.retarget(t, _source.height, spring: height);
     _fade.retarget(t, 0, spring: tuning.closeFadeSpring);
     _dim.retarget(t, 0, spring: tuning.closeDimmingSpring);
+    return true;
   }
 
-  /// Moves the end the motion heads to when the source or the page
-  /// changes frame at time [t]; the springs carry on from where they are.
-  void retargetEnds(double t, {Rect? source, Rect? page}) {
-    advance(t);
-    if (source != null) _source = source;
-    if (page != null) _page = page;
-    if (_dragFrom != null) return;
-    final to = _opening ? _page : _source;
+  void _retarget(double t, Rect to) {
     if (_cx.target != to.center.dx) _cx.retarget(t, to.center.dx);
     if (_cy.target != to.center.dy) _cy.retarget(t, to.center.dy);
     if (_w.target != to.width) _w.retarget(t, to.width);
@@ -286,6 +359,7 @@ class ZoomPageMotion {
     _dragFrom = position;
     _dragDelta = Offset.zero;
     _dragMoved = false;
+    changed();
   }
 
   /// The dragging finger is at [position] at time [t].
@@ -295,14 +369,12 @@ class ZoomPageMotion {
     if (from == null) return;
     _dragDelta = position - from;
     if (_dragDelta.distance > tuning.dragSlop) _dragMoved = true;
-    final frame = dragFrame(_page, from, _dragDelta);
-    _set(t, frame);
+    _set(t, dragFrame(_page, from, _dragDelta));
   }
 
   /// The finger left the page at time [t] moving at [velocity] points per
   /// second; returns whether the page zooms back into its source (the
-  /// owner then pops the page and calls [close]) or returns to full
-  /// screen.
+  /// shell then pops the page and [leave] runs) or returns to full screen.
   bool dragEnd(double t, Offset velocity) {
     advance(t);
     if (_dragFrom == null) return false;
@@ -314,13 +386,21 @@ class ZoomPageMotion {
         (d > tuning.dismissDistance || along > tuning.dismissVelocity)) {
       return true;
     }
-    _dragFrom = null;
-    final spring = tuning.returnSpring;
-    _cx.retarget(t, _page.center.dx, spring: spring);
-    _cy.retarget(t, _page.center.dy, spring: spring);
-    _w.retarget(t, _page.width, spring: spring);
-    _h.retarget(t, _page.height, spring: spring);
+    stay(t);
     return false;
+  }
+
+  /// Returns the page to full screen from time [t]: the finger let go
+  /// short of a dismissal, or the dismissal it asked for was refused.
+  void stay(double t) {
+    advance(t);
+    _dragFrom = null;
+    final page = _page;
+    final spring = tuning.returnSpring;
+    _cx.retarget(t, page.center.dx, spring: spring);
+    _cy.retarget(t, page.center.dy, spring: spring);
+    _w.retarget(t, page.width, spring: spring);
+    _h.retarget(t, page.height, spring: spring);
   }
 
   /// Whether a drag that has travelled [delta] heads where the page
@@ -373,86 +453,44 @@ class ZoomPageMotion {
     _h.snap(t, r.height);
   }
 
-  /// Advances the motion to time [t].
-  void advance(double t) {
-    if (t > _now) _now = t;
-  }
-
-  /// Lands a settled motion exactly on its targets, so a page at rest
-  /// fills the screen to the pixel.
-  void settle() {
-    for (final value in [_cx, _cy, _w, _h, _fade, _dim]) {
-      value.snap(_now, value.target);
-    }
-  }
-
   /// The container's frame.
-  Rect get rect => _rectAt(_now);
-
-  Rect _rectAt(double t) => Rect.fromCenter(
-    center: Offset(_cx.valueAt(t), _cy.valueAt(t)),
-    width: math.max(0, _w.valueAt(t)),
-    height: math.max(0, _h.valueAt(t)),
+  Rect get rect => Rect.fromCenter(
+    center: Offset(_cx.valueAt(now), _cy.valueAt(now)),
+    width: math.max(0, _w.valueAt(now)),
+    height: math.max(0, _h.valueAt(now)),
   );
 
   /// How far the container's frame has come from the source toward the
   /// page: the mean of its width's and its height's share, 0
   /// at the source and 1 at the page.
-  double get reach => _reachAt(_now);
-
-  double _reachAt(double t) {
-    final r = _rectAt(t);
+  double get reach {
+    final r = rect;
+    final page = _page;
     double share(double v, double a, double b) =>
         (b - a).abs() < 1e-6 ? 1 : ((v - a) / (b - a)).clamp(0.0, 1.0);
-    return (share(r.width, _source.width, _page.width) +
-            share(r.height, _source.height, _page.height)) /
+    return (share(r.width, _source.width, page.width) +
+            share(r.height, _source.height, page.height)) /
         2;
   }
 
-  /// The container's corner radius, from the source's
-  /// [sourceRadius] to the display's [pageRadius] by [reach] (device: 0.6
-  /// points off along four pushes).
-  double radius(double sourceRadius, double pageRadius) =>
-      _radiusAt(_now, sourceRadius, pageRadius);
-
-  double _radiusAt(double t, double sourceRadius, double pageRadius) =>
-      lerpDouble(sourceRadius, pageRadius, _reachAt(t))!;
+  /// The container's corner radius, from the source's to [displayRadius]
+  /// by [reach] (device: 0.6 points off along four pushes).
+  double get radius => lerpDouble(_sourceRadius, displayRadius, reach)!;
 
   /// The uniform scale the page's content is drawn at in the container:
   /// the container's width over the page's.
-  double get contentScale => _contentScaleAt(_now);
+  double get contentScale => _size.width <= 0 ? 1 : rect.width / _size.width;
 
-  double _contentScaleAt(double t) =>
-      _page.width <= 0 ? 1 : _rectAt(t).width / _page.width;
+  /// The uniform scale the source's look is drawn at in the container:
+  /// the container's width over the source's.
+  double get lookScale => _source.width <= 0 ? 1 : rect.width / _source.width;
 
   /// The opacity of the page's content; the source's look
   /// shows at one minus it.
-  double get fade => _fade.valueAt(_now).clamp(0.0, 1.0);
+  double get fade => _fade.valueAt(now).clamp(0.0, 1.0);
 
   /// The fraction of the dimming and of the shadow.
-  double get dimming => _dimmingAt(_now);
-
-  double _dimmingAt(double t) => _dim.valueAt(t).clamp(0.0, 1.0);
-
-  /// Whether what remains of the motion is invisible ([GlassRest], NEAR):
-  /// the frame's center and size swing less than [GlassRest.length], the
-  /// crossfade and the dimming less than [GlassRest.opacity].
-  bool get _rests =>
-      _cx.isWithin(_now, GlassRest.length) &&
-      _cy.isWithin(_now, GlassRest.length) &&
-      _w.isWithin(_now, GlassRest.length) &&
-      _h.isWithin(_now, GlassRest.length) &&
-      _fade.isWithin(_now, GlassRest.opacity) &&
-      _dim.isWithin(_now, GlassRest.opacity);
-
-  /// Whether the motion has come back to the source and rests there.
-  bool get isClosed => !_opening && _dragFrom == null && _rests;
-
-  /// Whether the page shows at full screen and nothing moves.
-  bool get isOpen => _opening && _dragFrom == null && _rests;
-
-  /// Whether nothing moves and nothing is pending.
-  bool get isSettled => _dragFrom == null && _rests;
+  double get dimming => _dim.valueAt(now).clamp(0.0, 1.0);
 }
 
 /// UIKit's zoom-in spring (`_UIZoomTransitionSpec`): the dimming rises on

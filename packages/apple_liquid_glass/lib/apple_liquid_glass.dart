@@ -14,7 +14,6 @@ export 'src/chrome/navigation_bar.dart';
 export 'src/chrome/page_route.dart';
 export 'src/chrome/tab_scaffold.dart';
 export 'src/chrome/toolbar.dart';
-export 'src/chrome/zoom_source.dart';
 export 'src/controls/badge.dart';
 export 'src/controls/button.dart';
 export 'src/controls/date_picker.dart';

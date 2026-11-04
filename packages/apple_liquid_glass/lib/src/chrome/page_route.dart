@@ -1,8 +1,5 @@
 import 'package:apple_liquid_glass/src/chrome/bar.dart';
-import 'package:apple_liquid_glass/src/chrome/zoom_source.dart';
-import 'package:apple_liquid_glass/src/motion/live.dart';
 import 'package:apple_liquid_glass/src/motion/navigation_motion.dart';
-import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:apple_liquid_glass/src/motion/zoom_page_motion.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:flutter/foundation.dart';
@@ -64,22 +61,42 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
   /// Builds the page.
   final WidgetBuilder builder;
 
-  /// The source the page zooms out of and back into, or null for a page
-  /// that slides in.
-  final GlassZoomLink? source;
+  /// The source the page zooms out of and back into, shown by a
+  /// [GlassZoomSource], or null for a page that slides in.
+  final MotionSource? source;
 
   // Fixed when the page is installed, so the page and the route agree on
   // its transition for its whole life.
-  late final bool _zooms = source?.isAttached ?? false;
-  _ZoomState? _zoom;
+  late final bool _zooms = source?.geometry != null;
 
-  final _presence = MotionValue<double>(
-    0,
-    spring: NavigationTuning.pushSpring,
-    restDistance: GlassRest.opacity / 10,
+  late final PageMotion _motion = _zooms
+      ? ZoomPageMotion(page: _navigatorRect())
+      : PageSlideMotion();
+  late final MotionSelection<double> _progress = _motion.select(
+    (m) => m.progress,
   );
-  final _fades = ValueNotifier<bool>(false);
-  _SlideState? _slide;
+  late final MotionSelection<bool> _fades = _motion.select((m) => m.fades);
+
+  @override
+  Presentation<T, Presented> get presentation => _presentation;
+
+  late final Presentation<T, Presented> _presentation =
+      Presentation<T, PageMotion>(
+        motion: (_) => _motion,
+        builder: (context, motion) => motion is ZoomPageMotion
+            ? _Zoom(
+                route: this,
+                motion: motion,
+                child: Builder(builder: builder),
+              )
+            : _Slide(
+                route: this,
+                motion: motion as PageSlideMotion,
+                child: Builder(builder: builder),
+              ),
+        source: _zooms ? source : null,
+        dismiss: DismissPolicy.modal,
+      );
 
   // The motion time of the call that presented the page.
   double _presented = 0;
@@ -95,14 +112,17 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
   // The time of the finger's lift that committed a swipe's pop.
   double? _lifted;
 
-  @override
-  void install() {
-    _bar = GlassBarHost.of(navigator!).attach(this, presence: _presence);
-    super.install();
+  Rect _navigatorRect() {
+    final box = navigator?.context.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return Rect.zero;
+    return box.localToGlobal(Offset.zero) & box.size;
   }
 
   @override
-  bool get maintainState => true;
+  void install() {
+    _bar = GlassBarHost.of(navigator!).attach(this, presence: _progress);
+    super.install();
+  }
 
   @override
   void didPresent() {
@@ -125,7 +145,7 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
             ModalRoute.of(context) is GlassPageRoute
             ? null
             : _Card(
-                presence: _presence,
+                presence: _progress,
                 fades: _fades,
                 top: false,
                 child: child,
@@ -206,46 +226,42 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
     _uncover();
     _bar.host.detach(_bar);
     _cover.dispose();
-    _fades.dispose();
     super.dispose();
   }
 
   @override
-  Widget buildContent(BuildContext context) => GlassBarSlot(
-    link: _bar,
-    child: _zooms
-        ? _Zoom(
-            route: this,
-            child: Builder(builder: builder),
-          )
-        : _Slide(
-            route: this,
-            child: Builder(builder: builder),
-          ),
-  );
+  Widget buildContent(BuildContext context) =>
+      GlassBarSlot(link: _bar, child: super.buildContent(context));
 
   @override
   bool leave(DismissTrigger trigger) {
     final lifted = trigger == DismissTrigger.interaction ? _lifted : null;
     _lifted = null;
     _bar.host.leaving(_bar, time: lifted ?? MotionClock.instance.now);
-    if (_zooms) {
-      final zoom = _zoom;
-      if (zoom == null) return false;
-      zoom.leave();
-      return true;
-    }
-    final slide = _slide;
-    if (slide == null) return false;
-    slide.leave();
-    return true;
+    return super.leave(trigger);
+  }
+
+  // The time a push's transition counts from, read in the first frame
+  // after it.
+  double _origin() {
+    final clock = MotionClock.instance;
+    return transitionOrigin(
+      call: _presented,
+      firstFrame: clock.now,
+      framePeriod: clock.framePeriod,
+    );
   }
 }
 
 class _Slide extends StatefulWidget {
-  const _Slide({required this.route, required this.child});
+  const _Slide({
+    required this.route,
+    required this.motion,
+    required this.child,
+  });
 
   final GlassPageRoute<Object?> route;
+  final PageSlideMotion motion;
   final Widget child;
 
   @override
@@ -253,187 +269,73 @@ class _Slide extends StatefulWidget {
 }
 
 /// The page's slide, its cross-fade for Prefer Cross-Fade Transitions and its
-/// interactive pop, reported to the route's lifecycle.
-class _SlideState extends State<_Slide> implements MotionDriver {
+/// interactive pop.
+class _SlideState extends State<_Slide> {
   // The page moves under the card of a page pushed above it and back; the
   // key carries its state along.
   final _page = GlobalKey(debugLabel: 'GlassPageRoute.page');
   late final _input = _SwipePop(this);
   late final List<Interaction> _interactions = [_input];
-  bool _opening = true;
-  bool _leaving = false;
-  bool _interacting = false;
-  bool _returning = false;
-  double _width = 400;
-
-  // A cross-fade's start and direction, or null while the page slides.
-  double? _fadeStart;
-  double _fadeTo = 1;
 
   GlassPageRoute<Object?> get route => widget.route;
-  MotionValue<double> get _presence => route._presence;
-
-  double get _now => MotionClock.instance.now;
+  PageSlideMotion get motion => widget.motion;
 
   @override
   void initState() {
     super.initState();
-    route._slide = this;
-    MotionClock.instance.addDriver(this);
+    motion.onReturned = route.endInteraction;
     // A page added without a push, as a navigator's first, stands in place.
     if (route.animation?.status == AnimationStatus.completed) {
-      _opening = false;
-      _presence.snap(_now, 1);
+      motion.showInPlace(MotionClock.instance.now);
       return;
     }
     SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_opening) return;
-      final clock = MotionClock.instance;
-      _move(
-        to: 1,
-        at: transitionOrigin(
-          call: route._presented,
-          firstFrame: clock.now,
-          framePeriod: clock.framePeriod,
-        ),
-      );
+      if (mounted && motion.isShown) motion.start(route._origin());
     });
   }
 
   @override
   void dispose() {
-    if (identical(route._slide, this)) route._slide = null;
-    MotionClock.instance.removeDriver(this);
+    motion.onReturned = null;
     super.dispose();
   }
 
-  bool get _crossFades => GlassTraits.of(context).prefersCrossFade;
-
-  // A push or pop without a finger: a slide that leaves at full speed, or
-  // a cross-fade for Prefer Cross-Fade Transitions.
-  void _move({required double to, double? at}) {
-    final t = at ?? _now;
-    if (_crossFades) {
-      route._fades.value = true;
-      _fadeStart = t;
-      _fadeTo = to;
-    } else {
-      route._fades.value = false;
-      _fadeStart = null;
-      _presence.setVelocity(
-        t,
-        to > _presence.value
-            ? NavigationTuning.pushVelocity
-            : -NavigationTuning.pushVelocity,
-      );
-      _presence.retarget(t, to, spring: NavigationTuning.pushSpring);
-    }
-    MotionClock.instance.wake(this);
-  }
-
-  void leave() {
-    _leaving = true;
-    _opening = false;
-    // Under a finger, its release takes the page out.
-    if (_interacting && !_returning) return;
-    if (_returning) {
-      _returning = false;
-      _interacting = false;
-      route.endInteraction();
-    }
-    _move(to: 0);
-  }
-
-  @override
-  bool get isActive =>
-      _fadeStart != null ||
-      (_opening && _presence.value >= 1) ||
-      (_leaving && _presence.value <= 0) ||
-      (_returning && _presence.value >= 1) ||
-      !_presence.isWithin(_now, GlassRest.length / _width);
-
-  @override
-  double? get wakeTime => null;
-
-  @override
-  void step(double time) {
-    final start = _fadeStart;
-    if (start != null) {
-      final p = ((time - start) / NavigationTuning.crossFadeDuration).clamp(
-        0.0,
-        1.0,
-      );
-      final eased = NavigationTuning.crossFadeCurve.transform(p);
-      _presence.snap(time, _fadeTo == 1 ? eased : 1 - eased);
-      if (p >= 1) _fadeStart = null;
-    } else if (_presence.isWithin(time, GlassRest.length / _width)) {
-      _presence.snap(time, _presence.target);
-    }
-    final value = _presence.value;
-    if (_opening && value >= 1 && _fadeStart == null) {
-      _opening = false;
-      route.didOpen();
-    }
-    if (_leaving && value <= 0 && _fadeStart == null) {
-      _leaving = false;
-      route.didLeave();
-    }
-    if (_returning && value >= 1) {
-      _returning = false;
-      _interacting = false;
-      route.endInteraction();
-    }
-  }
-
   bool get _canPop =>
-      !_opening &&
-      !_leaving &&
+      motion.takesSwipe &&
       route.isCurrent &&
       route.canDismiss(DismissTrigger.interaction);
 
-  void _dragStarted() {
-    _interacting = true;
-    _returning = false;
+  void _dragStarted(double t) {
+    motion.hold(t);
     route.beginInteraction();
   }
 
-  void _dragged(double progress) {
-    _presence.snap(_now, 1 - NavigationTuning.rubberBand(progress));
-  }
-
-  void _released({required bool pops, required double velocity}) {
-    final t = _now;
-    _presence.setVelocity(t, -velocity);
-    if (pops || _leaving) {
-      _presence.retarget(t, 0, spring: NavigationTuning.interactiveSpring);
+  void _released(double t, {required bool pops, required double velocity}) {
+    motion.release(t, pops: pops, velocity: velocity);
+    if (!pops && motion.isShown) return;
+    if (motion.isShown) {
+      route._lifted = t;
       route.dismiss(DismissTrigger.interaction);
-      _interacting = false;
-      route.endInteraction();
-      if (!_leaving) {
-        // A PopScope vetoed the pop: the page returns.
-        _presence.retarget(t, 1, spring: NavigationTuning.interactiveSpring);
-        _interacting = true;
-        _returning = true;
-        route.beginInteraction();
-      }
-    } else {
-      _presence.retarget(t, 1, spring: NavigationTuning.interactiveSpring);
-      _returning = true;
     }
-    MotionClock.instance.wake(this);
+    route.endInteraction();
+    if (motion.isShown) {
+      // A PopScope vetoed the pop: the page returns.
+      motion.stay(t);
+      route.beginInteraction();
+    }
   }
 
   // The page builds in the build phase, never under a LayoutBuilder: what
   // it declares to the shared bar is in place before any layout.
   @override
   Widget build(BuildContext context) {
-    final rtl = Directionality.of(context) == TextDirection.rtl;
-    _width = MediaQuery.sizeOf(context).width;
-    _input.rtl = rtl;
+    motion.width = MediaQuery.sizeOf(context).width;
+    motion.crossFades = GlassTraits.of(context).prefersCrossFade;
+    _input.rtl = Directionality.of(context) == TextDirection.rtl;
     return InputRegion(
       interactions: _interactions,
       child: _Card(
-        presence: _presence,
+        presence: route._progress,
         fades: route._fades,
         top: true,
         child: ValueListenableBuilder(
@@ -441,7 +343,7 @@ class _SlideState extends State<_Slide> implements MotionDriver {
           builder: (context, cover, child) => cover == null
               ? child!
               : _Card(
-                  presence: cover._presence,
+                  presence: cover._progress,
                   fades: cover._fades,
                   top: false,
                   child: child,
@@ -517,12 +419,12 @@ final class _SwipePop extends Interaction {
           }
           _dragging = true;
           _start = input.position;
-          _slide._dragStarted();
+          _slide._dragStarted(input.time);
           predictor.begin(input.time);
           return const InteractionUpdate(recognizes: true);
         }
         final progress = travel / _width;
-        _slide._dragged(progress);
+        _slide.motion.drag(input.time, progress);
         predictor.update(input.time, progress);
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
@@ -531,8 +433,8 @@ final class _SwipePop extends Interaction {
         final predictor = _predictor;
         final progress = (_along(input.position) - _along(_start)) / _width;
         predictor.update(input.time, progress, ending: true);
-        _slide.route._lifted = input.time;
         _slide._released(
+          input.time,
           pops: predictor.shouldPop(progress),
           velocity: predictor.settleVelocity,
         );
@@ -540,7 +442,7 @@ final class _SwipePop extends Interaction {
         _pointer = null;
         if (_dragging) {
           _dragging = false;
-          _slide._released(pops: false, velocity: 0);
+          _slide._released(input.time, pops: false, velocity: 0);
         }
         return const InteractionUpdate(fails: true);
       default:
@@ -753,248 +655,153 @@ class _RenderCard extends RenderProxyBox {
 }
 
 class _Zoom extends StatefulWidget {
-  const _Zoom({required this.route, required this.child});
+  const _Zoom({required this.route, required this.motion, required this.child});
 
   final GlassPageRoute<Object?> route;
+  final ZoomPageMotion motion;
   final Widget child;
 
   @override
   State<_Zoom> createState() => _ZoomState();
 }
 
-/// The page's zoom out of its source and back, and its drag to dismiss,
-/// reported to the route's lifecycle.
-class _ZoomState extends State<_Zoom> implements MotionDriver {
-  final _motion = ZoomPageMotion();
-  final _frames = ValueNotifier<int>(0);
+/// The page's zoom out of its source and back, and its drag to dismiss.
+class _ZoomState extends State<_Zoom> {
   late final _input = _ZoomDrag(this);
   late final List<Interaction> _interactions = [_input];
-  bool _opening = true;
-  bool _leaving = false;
-  bool _started = false;
-  Size _size = Size.zero;
-  double _displayRadius = NavigationTuning.fallbackCardRadius;
-  Size _sourceSize = Size.zero;
+  late final _dim = motion.select((m) => m.tuning.dimmingOpacity * m.dimming);
+  late final _shadow = motion.select((m) => (m.rect, m.radius, m.dimming));
+  late final _frame = motion.select((m) => (m.rect, m.radius));
+  late final _fade = motion.select((m) => m.fade);
+  late final _lookFade = motion.select((m) => 1 - m.fade);
+  late final _scale = motion.select((m) => m.contentScale);
+  late final _lookScale = motion.select((m) => m.lookScale);
+  bool _begun = false;
 
   GlassPageRoute<Object?> get route => widget.route;
-
-  GlassZoomLink get _link => route.source!;
-
-  double get _now => MotionClock.instance.now;
+  ZoomPageMotion get motion => widget.motion;
 
   @override
-  void initState() {
-    super.initState();
-    route._zoom = this;
-    MotionClock.instance.addDriver(this);
-    SchedulerBinding.instance.addPostFrameCallback((_) => _start());
-  }
-
-  @override
-  void dispose() {
-    if (identical(route._zoom, this)) route._zoom = null;
-    MotionClock.instance.removeDriver(this);
-    _link.reveal();
-    _frames.dispose();
-    super.dispose();
-  }
-
-  Rect _page() => Offset.zero & _size;
-
-  Rect _source() {
-    final box = context.findRenderObject();
-    final rect = box is RenderBox ? _link.rectIn(box) : null;
-    if (rect != null && !rect.isEmpty) _sourceSize = rect.size;
-    return rect ?? _motion.source;
-  }
-
-  void _start() {
-    if (!mounted || _started) return;
-    _started = true;
-    final source = _source();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _resize();
+    if (_begun) return;
+    _begun = true;
     // A page added without a push, as a navigator's first, stands in place.
     if (route.animation?.status == AnimationStatus.completed) {
-      _opening = false;
-      _motion.showInPlace(_now, source, _page());
-      route._presence.snap(_now, 1);
-      _link.hide();
-      _frames.value++;
+      motion.showInPlace(MotionClock.instance.now);
       return;
     }
-    final clock = MotionClock.instance;
-    final t = transitionOrigin(
-      call: route._presented,
-      firstFrame: clock.now,
-      framePeriod: clock.framePeriod,
-    );
-    _motion.open(t, source, _page());
-    _link.hide();
-    MotionClock.instance.wake(this);
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted && motion.isShown) motion.start(route._origin());
+    });
   }
 
-  void leave() {
-    _leaving = true;
-    _opening = false;
-    _motion.close(_now, _source());
-    MotionClock.instance.wake(this);
-  }
-
-  @override
-  bool get isActive => _started && !_motion.isSettled;
-
-  @override
-  double? get wakeTime => null;
-
-  @override
-  void step(double time) {
-    _motion.advance(time);
-    if (!_motion.isDragging) {
-      _motion.retargetEnds(
-        time,
-        source: _leaving ? _source() : null,
-        page: _page(),
-      );
-    }
-    if (_motion.isSettled) _motion.settle();
-    route._presence.snap(time, _motion.reach);
-    _frames.value++;
-    if (_opening && _motion.isOpen) {
-      _opening = false;
-      route.didOpen();
-    }
-    if (_leaving && _motion.isClosed) {
-      _leaving = false;
-      _link.reveal();
-      route.didLeave();
-    }
+  void _resize() {
+    motion.displayRadius = _cardRadius(context).topLeft.x;
+    motion.resize(MotionClock.instance.now, MediaQuery.sizeOf(context));
   }
 
   bool get _canPop =>
-      !_opening &&
-      !_leaving &&
+      motion.takesDrag &&
       route.isCurrent &&
       route.canDismiss(DismissTrigger.interaction);
 
   void _dragStarted(double t, Offset from) {
     route.beginInteraction();
-    _motion.dragStart(t, from);
-    MotionClock.instance.wake(this);
-  }
-
-  void _dragged(double t, Offset position) {
-    _motion.dragUpdate(t, position);
-    MotionClock.instance.wake(this);
+    motion.dragStart(t, from);
   }
 
   void _released(double t, Offset velocity) {
-    final dismisses = _motion.dragEnd(t, velocity);
+    final dismisses = motion.dragEnd(t, velocity);
     route.endInteraction();
-    if (dismisses) {
-      route._lifted = t;
-      route.dismiss(DismissTrigger.interaction);
-      if (!_leaving) {
-        // A PopScope vetoed the pop: the page returns.
-        _motion.dragEnd(t, Offset.zero);
-      }
-    }
-    MotionClock.instance.wake(this);
-  }
-
-  double _radius() => _motion.radius(_link.radius, _displayRadius);
-
-  Matrix4 _pageScale() {
-    final s = _motion.contentScale;
-    return Matrix4.diagonal3Values(s, s, 1);
-  }
-
-  Matrix4 _lookScale() {
-    final width = _sourceSize.width;
-    final s = width <= 0 ? 1.0 : _motion.rect.width / width;
-    return Matrix4.diagonal3Values(s, s, 1);
+    if (!dismisses) return;
+    route._lifted = t;
+    route.dismiss(DismissTrigger.interaction);
+    // A PopScope vetoed the pop: the page returns.
+    if (motion.isDragging) motion.stay(t);
   }
 
   @override
   Widget build(BuildContext context) {
-    _size = MediaQuery.sizeOf(context);
-    _displayRadius = _cardRadius(context).topLeft.x;
     _input.rtl = Directionality.of(context) == TextDirection.rtl;
-    final tuning = _motion.tuning;
-    final look = _link.look;
+    final size = MediaQuery.sizeOf(context);
+    final tuning = motion.tuning;
+    final source = route.source;
+    final look = source == null ? null : _looks[source];
+    final sourceSize = motion.source.size;
     return InputRegion(
       interactions: _interactions,
       child: Stack(
         fit: StackFit.expand,
         children: [
           IgnorePointer(
-            child: LiveFade(
-              live: _frames,
-              opacityOf: () =>
-                  _started ? tuning.dimmingOpacity * _motion.dimming : 0,
+            child: MotionTransition(
+              opacity: _dim,
               child: const ColoredBox(color: Color(0xFF000000)),
             ),
           ),
           IgnorePointer(
             child: CustomPaint(
               painter: _ZoomShadow(
-                frames: _frames,
-                state: this,
+                _shadow,
                 color: Color.fromRGBO(0, 0, 0, tuning.shadowOpacity),
                 sigma: tuning.shadowSigma,
                 offset: tuning.shadowOffset,
               ),
             ),
           ),
-          LivePlacement(
-            live: _frames,
-            rectOf: () => _started ? _motion.rect : _page(),
-            child: LiveClipRRect(
-              live: _frames,
-              rrectOf: () => RRect.fromRectAndRadius(
-                Offset.zero & (_started ? _motion.rect.size : _size),
-                Radius.circular(_started ? _radius() : 0),
-              ),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  LiveFade(
-                    live: _frames,
-                    opacityOf: () => _started ? _motion.fade : 0,
-                    child: OverflowBox(
-                      alignment: Alignment.topLeft,
-                      minWidth: _size.width,
-                      maxWidth: _size.width,
-                      minHeight: _size.height,
-                      maxHeight: _size.height,
-                      child: LiveTransform(
-                        live: _frames,
+          MotionDriven(
+            template: () {
+              final (rect, radius) = _frame.value;
+              return CustomSingleChildLayout(
+                delegate: _Place(rect),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.all(Radius.circular(radius)),
+                ),
+              );
+            },
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                MotionTransition(
+                  opacity: _fade,
+                  child: OverflowBox(
+                    alignment: Alignment.topLeft,
+                    minWidth: size.width,
+                    maxWidth: size.width,
+                    minHeight: size.height,
+                    maxHeight: size.height,
+                    child: MotionDriven(
+                      template: () => Transform.scale(
                         alignment: Alignment.topLeft,
-                        matrixOf: _pageScale,
-                        child: RepaintBoundary(child: widget.child),
+                        scale: _scale.value,
                       ),
+                      child: RepaintBoundary(child: widget.child),
                     ),
                   ),
-                  if (look != null)
-                    IgnorePointer(
-                      child: LiveFade(
-                        live: _frames,
-                        opacityOf: () => _started ? 1 - _motion.fade : 1,
-                        child: OverflowBox(
-                          alignment: Alignment.topLeft,
-                          minWidth: _sourceSize.width,
-                          maxWidth: _sourceSize.width,
-                          minHeight: _sourceSize.height,
-                          maxHeight: _sourceSize.height,
-                          child: LiveTransform(
-                            live: _frames,
+                ),
+                if (look != null)
+                  IgnorePointer(
+                    child: MotionTransition(
+                      opacity: _lookFade,
+                      child: OverflowBox(
+                        alignment: Alignment.topLeft,
+                        minWidth: sourceSize.width,
+                        maxWidth: sourceSize.width,
+                        minHeight: sourceSize.height,
+                        maxHeight: sourceSize.height,
+                        child: MotionDriven(
+                          template: () => Transform.scale(
                             alignment: Alignment.topLeft,
-                            matrixOf: _lookScale,
-                            child: look,
+                            scale: _lookScale.value,
                           ),
+                          child: look,
                         ),
                       ),
                     ),
-                ],
-              ),
+                  ),
+              ],
             ),
           ),
         ],
@@ -1003,35 +810,49 @@ class _ZoomState extends State<_Zoom> implements MotionDriver {
   }
 }
 
+/// Lays its child out at [rect].
+class _Place extends SingleChildLayoutDelegate {
+  _Place(this.rect);
+
+  final Rect rect;
+
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
+      BoxConstraints.tight(rect.size);
+
+  @override
+  Offset getPositionForChild(Size size, Size childSize) => rect.topLeft;
+
+  @override
+  bool shouldRelayout(_Place oldDelegate) => oldDelegate.rect != rect;
+}
+
 /// The shadow the zooming card casts on the page underneath, faded with
 /// the dimming.
 class _ZoomShadow extends CustomPainter {
-  _ZoomShadow({
-    required Listenable frames,
-    required this.state,
+  _ZoomShadow(
+    this.shadow, {
     required this.color,
     required this.sigma,
     required this.offset,
-  }) : super(repaint: frames);
+  }) : super(repaint: shadow);
 
-  final _ZoomState state;
+  final ValueListenable<(Rect, double, double)> shadow;
   final Color color;
   final double sigma;
   final double offset;
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (!state._started) return;
-    final motion = state._motion;
-    final shown = motion.dimming;
+    final (rect, radius, shown) = shadow.value;
     if (shown <= 0) return;
     final paint = Paint();
     paint.color = color.withValues(alpha: color.a * shown);
     paint.maskFilter = MaskFilter.blur(BlurStyle.normal, sigma);
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        motion.rect.shift(Offset(0, offset)),
-        Radius.circular(state._radius()),
+        rect.shift(Offset(0, offset)),
+        Radius.circular(radius),
       ),
       paint,
     );
@@ -1039,6 +860,7 @@ class _ZoomShadow extends CustomPainter {
 
   @override
   bool shouldRepaint(_ZoomShadow oldDelegate) =>
+      !identical(oldDelegate.shadow, shadow) ||
       oldDelegate.color != color ||
       oldDelegate.sigma != sigma ||
       oldDelegate.offset != offset;
@@ -1066,6 +888,7 @@ final class _ZoomDrag extends Interaction {
 
   @override
   InteractionUpdate handle(InteractionInput input) {
+    final motion = _zoom.motion;
     switch (input) {
       case PointerDownInput() when _pointer == null && accepts(input):
         _pointer = input.pointer;
@@ -1077,24 +900,24 @@ final class _ZoomDrag extends Interaction {
         _tracker.addPosition(_duration(input.time), input.position);
         final delta = input.position - _start;
         if (!_dragging) {
-          if (delta.distance < _zoom._motion.tuning.dragSlop) break;
-          if (!_zoom._motion.allowsDrag(delta, rtl: rtl)) {
+          if (delta.distance < motion.tuning.dragSlop) break;
+          if (!motion.allowsDrag(delta, rtl: rtl)) {
             _pointer = null;
             return const InteractionUpdate(fails: true);
           }
           _dragging = true;
           _zoom._dragStarted(input.time, _start);
-          _zoom._dragged(input.time, input.position);
+          motion.dragUpdate(input.time, input.position);
           return const InteractionUpdate(recognizes: true);
         }
-        _zoom._dragged(input.time, input.position);
+        motion.dragUpdate(input.time, input.position);
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
         if (!_dragging) return const InteractionUpdate(fails: true);
         _dragging = false;
         _tracker.addPosition(_duration(input.time), input.position);
         final velocity = _tracker.getVelocity().pixelsPerSecond;
-        _zoom._dragged(input.time, input.position);
+        motion.dragUpdate(input.time, input.position);
         _zoom._released(input.time, velocity);
       case PointerCancelInput() when input.pointer == _pointer:
         _pointer = null;
@@ -1110,4 +933,48 @@ final class _ZoomDrag extends Interaction {
 
   static Duration _duration(double seconds) =>
       Duration(microseconds: (seconds * 1e6).round());
+}
+
+// What each zoom source shows, which its page draws while the source's look
+// crossfades into the page.
+final _looks = Expando<Widget>('GlassZoomSource.look');
+
+/// The widget a [GlassPageRoute] with a [source] grows out of when it is
+/// pushed and lands in when it is popped.
+///
+/// UIKit: the `sourceViewProvider` of `.zoom`. SwiftUI:
+/// `matchedTransitionSource(id:in:)`.
+///
+/// The source hides from the frame its page is pushed in until the page
+/// has gone, as UIKit hides a zoom transition's source view, and stays
+/// tappable meanwhile; the zoom draws [child] while it crossfades into the
+/// page.
+class GlassZoomSource extends StatelessWidget {
+  /// Marks [child] as the [source] of a page.
+  const GlassZoomSource({
+    required this.source,
+    required this.child,
+    this.borderRadius = 0,
+    super.key,
+  });
+
+  /// The source the page is pushed with.
+  final MotionSource source;
+
+  /// The radius of the source's corners, which the zoom's corners turn
+  /// from into the display's.
+  final double borderRadius;
+
+  /// The source.
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    _looks[source] = child;
+    return MotionSourceBox(
+      source: source,
+      radius: BorderRadius.all(Radius.circular(borderRadius)),
+      child: child,
+    );
+  }
 }

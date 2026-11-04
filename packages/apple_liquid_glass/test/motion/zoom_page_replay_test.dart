@@ -5,12 +5,37 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/src/motion/zoom_page_motion.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/motion.dart';
 
 extension on ZoomPageMotion {
-  ZoomPageMotion at(double t) {
+  ZoomPageMotion seenAt(double t) {
     advance(t);
     return this;
   }
+}
+
+ZoomPageMotion _opened(
+  double t,
+  Rect source,
+  Rect page, {
+  double sourceRadius = 0,
+}) {
+  final motion = ZoomPageMotion(page: page);
+  motion.sourceMoved(
+    t,
+    SourceGeometry(
+      rect: source,
+      radius: BorderRadius.all(Radius.circular(sourceRadius)),
+    ),
+  );
+  motion.open(t);
+  motion.start(t);
+  return motion;
+}
+
+void _close(ZoomPageMotion motion, double t, Rect source) {
+  motion.sourceMoved(t, SourceGeometry(rect: source));
+  motion.leave(t, DismissTrigger.programmatic);
 }
 
 Rect _rect(List<Object?> v) => Rect.fromLTRB(
@@ -74,13 +99,14 @@ void main() {
       test('$name follows the recording', () {
         final from = _rect(segment['from']! as List<Object?>);
         final to = _rect(segment['to']! as List<Object?>);
-        final motion = ZoomPageMotion();
+        final page = way == 'open' ? to : from;
+        final ZoomPageMotion motion;
         if (way == 'open') {
-          motion.open(0, from, to);
+          motion = _opened(0, from, to);
         } else {
-          motion.open(-10, to, from);
+          motion = _opened(-10, to, from);
           motion.advance(0);
-          motion.close(0, to);
+          _close(motion, 0, to);
         }
         final pairs = <(Rect, Rect)>[];
         var fadeError = 0.0;
@@ -88,12 +114,15 @@ void main() {
           final t = (f['t']! as num).toDouble();
           if (t < 0) continue;
           motion.advance(t);
-          pairs.add((motion.at(t).rect, _rect(f['rect']! as List<Object?>)));
+          pairs.add((
+            motion.seenAt(t).rect.shift(page.topLeft),
+            _rect(f['rect']! as List<Object?>),
+          ));
           final fade = f['fade'] as num?;
           if (fade != null) {
             fadeError = math.max(
               fadeError,
-              (motion.at(t).fade - fade.toDouble()).abs(),
+              (motion.seenAt(t).fade - fade.toDouble()).abs(),
             );
           }
         }
@@ -112,8 +141,7 @@ void main() {
             [for (final x in (v! as List<Object?>)) (x! as num).toDouble()],
         ];
         final lift = (drag['lift']! as num).toDouble() - _rowsTrail;
-        final motion = ZoomPageMotion();
-        motion.open(-10, _card, _page);
+        final motion = _opened(-10, _card, _page);
         motion.advance(0);
         motion.dragStart(0, Offset(touches.first[1], touches.first[2]));
         var next = 1;
@@ -143,10 +171,10 @@ void main() {
             );
             motion.dragUpdate(lift, Offset(last[1], last[2]));
             dismissed = motion.dragEnd(lift, velocity);
-            if (dismissed) motion.close(lift, _card);
+            if (dismissed) _close(motion, lift, _card);
           }
           motion.advance(t);
-          final r = motion.at(t).rect;
+          final r = motion.seenAt(t).rect;
           final want = f['rect']! as List<Object?>;
           final got = [r.left, r.top, r.right, r.bottom];
           for (var i = 0; i < 4; i++) {
@@ -174,35 +202,32 @@ void main() {
 
   group('motion', () {
     test('a pop mid-open turns around with the velocity it had', () {
-      final motion = ZoomPageMotion();
-      motion.open(0, _card, _page);
-      final opening = ZoomPageMotion();
-      opening.open(0, _card, _page);
-      final ahead = opening.at(0.081).rect;
-      final before = motion.at(0.08).rect;
-      motion.close(0.08, _card);
+      final motion = _opened(0, _card, _page);
+      final opening = _opened(0, _card, _page);
+      final ahead = opening.seenAt(0.081).rect;
+      final before = motion.seenAt(0.08).rect;
+      _close(motion, 0.08, _card);
       expect(motion.rect, before);
-      final after = motion.at(0.081).rect;
+      final after = motion.seenAt(0.081).rect;
       expect((after.width - ahead.width).abs(), lessThan(0.5));
     });
 
     test('the corner radius runs from the source to the display', () {
-      final motion = ZoomPageMotion();
-      motion.open(0, _card, _page);
-      expect(motion.at(0).radius(16, 62), closeTo(16, 1e-9));
+      final motion = _opened(0, _card, _page, sourceRadius: 16);
+      motion.displayRadius = 62;
+      expect(motion.seenAt(0).radius, closeTo(16, 1e-9));
       motion.advance(3);
-      expect(motion.at(3).radius(16, 62), closeTo(62, 0.1));
-      expect(motion.isOpen, isTrue);
+      expect(motion.seenAt(3).radius, closeTo(62, 0.1));
+      expect(motion.presence, PresenceStatus.shown);
     });
 
     test('a close rests on the source', () {
-      final motion = ZoomPageMotion();
-      motion.open(0, _card, _page);
+      final motion = _opened(0, _card, _page);
       motion.advance(2);
-      motion.close(2, _card);
+      _close(motion, 2, _card);
       motion.advance(4);
-      expect(motion.isClosed, isTrue);
-      final r = motion.at(4).rect;
+      expect(motion.presence, PresenceStatus.hidden);
+      final r = motion.seenAt(4).rect;
       expect(r.left, closeTo(_card.left, 0.1));
       expect(r.height, closeTo(_card.height, 0.1));
     });

@@ -2,7 +2,6 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
-import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
@@ -34,7 +33,7 @@ typedef FlexValues = ({
 /// Times are seconds, positions pixels in the surface's own space.
 ///
 /// A surface settles ([isSettled]) once every part's remaining swing is below
-/// [GlassRest] and snaps onto its targets: invisible, NEAR.
+/// [MotionRest] and snaps onto its targets: invisible, NEAR.
 @internal
 class FlexInteraction {
   /// Creates the flex of a surface of [size] at rest.
@@ -306,7 +305,7 @@ class FlexInteraction {
       Offset(_glowX.valueAt(t), _glowY.valueAt(t));
 
   /// Whether what remains of the surface's motion at time [t] is
-  /// invisible ([GlassRest], NEAR): the scales' swing over the surface's
+  /// invisible ([MotionRest], NEAR): the scales' swing over the surface's
   /// longer side, the drifts' swing and the glow's change (fading in under
   /// a finger or out after it) below a visible step, and no reaction
   /// pending. A finger held still counts: a held surface sleeps until the
@@ -319,8 +318,8 @@ class FlexInteraction {
 
   bool _shapeSettled(double t) {
     if (_ownsTimeline && !_timeline.isEmpty) return false;
-    const length = GlassRest.length;
-    final scale = GlassRest.scale(math.max(_size.width, _size.height));
+    const length = MotionRest.length;
+    final scale = MotionRest.scale(math.max(_size.width, _size.height));
     return _scaleX.isWithin(t, scale) &&
         _scaleY.isWithin(t, scale) &&
         _driftX.isWithin(t, length) &&
@@ -328,10 +327,10 @@ class FlexInteraction {
   }
 
   bool _glowSettled(double t) {
-    if (_down == null) return _glowOut.isWithin(t, GlassRest.opacity);
-    const length = GlassRest.length;
+    if (_down == null) return _glowOut.isWithin(t, MotionRest.opacity);
+    const length = MotionRest.length;
     final peak = math.max(_spec.bigGlowOpacity, _spec.littleGlowOpacity);
-    return (1 - glow(t)) * peak < GlassRest.opacity &&
+    return (1 - glow(t)) * peak < MotionRest.opacity &&
         _glowX.isWithin(t, length) &&
         _glowY.isWithin(t, length);
   }

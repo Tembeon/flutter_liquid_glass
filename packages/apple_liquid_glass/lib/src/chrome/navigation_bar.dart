@@ -6,7 +6,6 @@ import 'package:apple_liquid_glass/src/chrome/chrome.dart';
 import 'package:apple_liquid_glass/src/controls/button.dart';
 import 'package:apple_liquid_glass/src/controls/search_field.dart';
 import 'package:apple_liquid_glass/src/controls/search_glyphs.dart';
-import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:apple_liquid_glass/src/motion/search_motion.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/style.dart';
@@ -222,7 +221,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
   late final _title = MotionValue<double>(
     widget.largeTitle == null ? 1 : 0,
     spring: _Metrics.showSpring,
-    restDistance: GlassRest.opacity,
+    restDistance: MotionRest.opacity,
   );
   late final _opacity = MotionSelection(() => _title.value.clamp(0.0, 1.0));
   late final _rise = MotionSelection(
@@ -738,8 +737,8 @@ class _StackedSearchState extends State<_StackedSearch>
 
   @override
   bool get isActive =>
-      !_shown.isWithin(_now, GlassRest.opacity) ||
-      !_glass.isWithin(_now, GlassRest.opacity);
+      !_shown.isWithin(_now, MotionRest.opacity) ||
+      !_glass.isWithin(_now, MotionRest.opacity);
 
   @override
   double? get wakeTime => null;
@@ -748,7 +747,7 @@ class _StackedSearchState extends State<_StackedSearch>
   void step(double time) {
     for (final value in [_shown, _glass]) {
       if (value.valueAt(time) != value.target &&
-          value.isWithin(time, GlassRest.opacity)) {
+          value.isWithin(time, MotionRest.opacity)) {
         value.snap(time, value.target);
       }
     }

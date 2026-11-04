@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
-import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
@@ -407,7 +406,7 @@ class GlassBarMotion {
       if (presence != null &&
           !c.leaving &&
           presence.target == 1 &&
-          presence.isWithin(_now, GlassRest.opacity)) {
+          presence.isWithin(_now, MotionRest.opacity)) {
         c.presence = null;
       }
     }
@@ -416,14 +415,15 @@ class GlassBarMotion {
           (i.capsule.presence != null && !_capsules.contains(i.capsule)) ||
           (i.leaving &&
               i.presence.target == 0 &&
-              i.presence.isWithin(_now, GlassRest.opacity)),
+              i.presence.isWithin(_now, MotionRest.opacity)),
     );
   }
 
   bool _gone(_Capsule c) {
     final presence = c.presence;
     if (presence != null) {
-      return presence.target == 0 && presence.isWithin(_now, GlassRest.opacity);
+      return presence.target == 0 &&
+          presence.isWithin(_now, MotionRest.opacity);
     }
     // Finer than the visible rest: the device replacement replay keeps the
     // remaining capsules' centers within 1.2 pt rms only when a shrunk
@@ -434,12 +434,12 @@ class GlassBarMotion {
   }
 
   /// Whether what remains of the motion is invisible: nothing comes or
-  /// goes, and every spring's remaining swing is below [GlassRest] (a
+  /// goes, and every spring's remaining swing is below [MotionRest] (a
   /// pulse's over its capsule's length; NEAR, invisible). [settle] snaps
   /// the rest.
   bool get isSettled {
     if (!_timeline.isEmpty) return false;
-    const length = GlassRest.length;
+    const length = MotionRest.length;
     for (final c in _capsules) {
       if (c.leaving || c.presence != null) return false;
       if (!c.cx.isWithin(_now, length) ||
@@ -448,8 +448,8 @@ class GlassBarMotion {
           !c.h.isWithin(_now, length)) {
         return false;
       }
-      if (!c.pulseW.isWithin(_now, GlassRest.scale(c.w.target)) ||
-          !c.pulseH.isWithin(_now, GlassRest.scale(c.h.target))) {
+      if (!c.pulseW.isWithin(_now, MotionRest.scale(c.w.target)) ||
+          !c.pulseH.isWithin(_now, MotionRest.scale(c.h.target))) {
         return false;
       }
     }
@@ -457,7 +457,7 @@ class GlassBarMotion {
       if (i.leaving) return false;
       if (!i.cx.isWithin(_now, length) ||
           !i.cy.isWithin(_now, length) ||
-          !i.presence.isWithin(_now, GlassRest.opacity)) {
+          !i.presence.isWithin(_now, MotionRest.opacity)) {
         return false;
       }
     }

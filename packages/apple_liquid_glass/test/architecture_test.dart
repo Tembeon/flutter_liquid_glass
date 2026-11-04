@@ -28,10 +28,27 @@ final _bans = <String, (RegExp, Set<String>)>{
     {
       'lib/src/chrome/bar.dart',
       'lib/src/chrome/navigation_bar.dart',
-      'lib/src/chrome/page_route.dart',
       'lib/src/menu/anchor.dart',
     },
   ),
+  // A motion keeps its time on its Motion's cursor and asks its parts
+  // whether they rest; A5 (bars) and A9 (menu) move these.
+  'a motion keeps no clock of its own': (
+    RegExp(r'\bdouble _now\b'),
+    {
+      'lib/src/motion/bar_motion.dart',
+    },
+  ),
+  'rest is asked of the part (restsAt)': (
+    RegExp(r'\.isWithin\('),
+    {
+      'lib/src/chrome/navigation_bar.dart',
+      'lib/src/menu/motion.dart',
+      'lib/src/motion/bar_motion.dart',
+      'lib/src/motion/flex_interaction.dart',
+    },
+  ),
+  'rest tolerances are MotionRest': (RegExp(r'\bGlassRest\b'), {}),
   // A9 (menu) moves these onto GlassPress.
   'a press is a GlassPress': (
     RegExp(r'\bFlexInteraction\('),

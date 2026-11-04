@@ -2,8 +2,8 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motion/sheet_motion.dart';
 import 'package:flutter/animation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:kinesis/motion.dart';
-import 'package:meta/meta.dart';
 
 /// The tuning of a page sliding onto and off a navigation stack.
 ///
@@ -283,5 +283,215 @@ class NavigationPopMotion {
         predictionTime * _averageVelocity +
         0.5 * predictionTime * predictionTime * _averageAcceleration;
     return projected > math.min(predictionDistance / width, predictionFraction);
+  }
+}
+
+/// The motion of a pushed page, which the navigator's shared bar and the
+/// page below follow through [progress].
+@internal
+abstract class PageMotion extends Motion with Presented {
+  /// How far the page has come in, 0 hidden to 1 shown: a slide's
+  /// progress, a zoom's reach.
+  double get progress;
+
+  /// Whether the page cross-fades instead of sliding.
+  bool get fades => false;
+
+  /// Starts at [t] the open that [open] committed: the first frame after
+  /// the push picks [t] ([transitionOrigin]).
+  void start(double t);
+
+  /// Shows the page in place at [t], without a transition, as a
+  /// navigator's first page stands.
+  void showInPlace(double t);
+}
+
+/// A page's slide on and off the stack, its cross-fade for Prefer
+/// Cross-Fade Transitions and the finger of its interactive pop.
+///
+/// [open] waits for [start]. A finger takes the page with [hold], moves it
+/// with [drag] and lets it go with [release]; a leave asked for while the
+/// finger holds waits for the release, which then takes the page out.
+@internal
+final class PageSlideMotion extends PageMotion {
+  /// The page's width, which sets how close to its end the slide rests.
+  double width = 400;
+
+  /// Whether a push or pop without a finger cross-fades.
+  bool crossFades = false;
+
+  /// Called when a page a finger let go of has come back, or leaves
+  /// before it did: the interaction the finger began ends.
+  VoidCallback? onReturned;
+
+  late final _slide = own(
+    MotionValue<double>(0, spring: NavigationTuning.pushSpring),
+    rest: () => MotionRest.length / width,
+  );
+  late final _fade = own(TimedValue(0));
+  bool _fades = false;
+  bool _shown = false;
+  bool _started = false;
+  bool _held = false;
+  bool _returning = false;
+
+  @override
+  double get progress => _fades ? _fade.valueAt(now) : _slide.valueAt(now);
+
+  @override
+  bool get fades => _fades;
+
+  /// Whether the page is shown or opening, not leaving.
+  bool get isShown => _shown;
+
+  /// Whether a released finger's page heads back to full screen.
+  bool get isReturning => _returning;
+
+  /// Whether a finger may take the page for an interactive pop now.
+  bool get takesSwipe =>
+      _shown && (_returning || presence == PresenceStatus.shown);
+
+  @override
+  bool get holds => _held || (_shown && !_started);
+
+  @override
+  PresenceStatus get presence {
+    final arrived = _arrived;
+    if (_shown) return arrived ? PresenceStatus.shown : PresenceStatus.opening;
+    return arrived ? PresenceStatus.hidden : PresenceStatus.leaving;
+  }
+
+  // A slide ends where it first reaches its end, as the interactive
+  // spring's overshoot does, or where it rests.
+  bool get _arrived {
+    if (holds) return false;
+    final end = _shown ? 1.0 : 0.0;
+    if (_fades) return _fade.target == end && _fade.restsAt(now);
+    final p = _slide.valueAt(now);
+    return (_shown ? p >= 1 : p <= 0) ||
+        (_slide.target == end &&
+            _slide.restsAt(now, MotionRest.length / width) &&
+            _slide.nextDue == null);
+  }
+
+  @override
+  void open(double t) {
+    advance(t);
+    _shown = true;
+    _started = false;
+    changed();
+  }
+
+  @override
+  void start(double t) {
+    advance(t);
+    _started = true;
+    _move(t, 1);
+  }
+
+  @override
+  void showInPlace(double t) {
+    advance(t);
+    _started = true;
+    _fades = false;
+    _slide.snap(t, 1);
+  }
+
+  @override
+  bool leave(double t, DismissTrigger trigger) {
+    advance(t);
+    _shown = false;
+    _started = true;
+    _endReturn();
+    final heading = _fades ? _fade.target : _slide.target;
+    if (!_held && heading != 0) {
+      _move(t, 0);
+    } else {
+      changed();
+    }
+    return true;
+  }
+
+  void _move(double t, double to) {
+    final from = _fades ? _fade.valueAt(t) : _slide.valueAt(t);
+    if (crossFades) {
+      _fades = true;
+      _fade.snap(t, from);
+      _fade.animate(
+        t,
+        to,
+        duration: NavigationTuning.crossFadeDuration,
+        curve: NavigationTuning.crossFadeCurve,
+      );
+      return;
+    }
+    if (_fades) {
+      _fades = false;
+      _slide.snap(t, from);
+    }
+    _slide.setVelocity(
+      t,
+      to > from
+          ? NavigationTuning.pushVelocity
+          : -NavigationTuning.pushVelocity,
+    );
+    _slide.retarget(t, to, spring: NavigationTuning.pushSpring);
+  }
+
+  /// A finger takes the page at [t].
+  void hold(double t) {
+    advance(t);
+    if (_fades) {
+      _slide.snap(t, _fade.valueAt(t));
+      _fades = false;
+    }
+    _held = true;
+    _returning = false;
+    changed();
+  }
+
+  /// The finger has dragged the page [travel] widths toward the pop by
+  /// [t]; past either end the page rubber bands.
+  void drag(double t, double travel) {
+    advance(t);
+    _slide.snap(t, 1 - NavigationTuning.rubberBand(travel));
+  }
+
+  /// The finger lets go at [t], the page moving toward the pop at
+  /// [velocity] widths a second: it heads out when [pops] or when a leave
+  /// came while the finger held, back to full screen otherwise.
+  void release(double t, {required bool pops, required double velocity}) {
+    advance(t);
+    _held = false;
+    _slide.setVelocity(t, -velocity);
+    if (pops || !_shown) {
+      _slide.retarget(t, 0, spring: NavigationTuning.interactiveSpring);
+      changed();
+    } else {
+      stay(t);
+    }
+  }
+
+  /// Sends the page back to full screen at [t]: a pop the finger asked for
+  /// was refused.
+  void stay(double t) {
+    advance(t);
+    _slide.retarget(t, 1, spring: NavigationTuning.interactiveSpring);
+    _returning = true;
+  }
+
+  @override
+  void didAdvance(double t) {
+    if (_returning &&
+        (_slide.valueAt(t) >= 1 ||
+            _slide.restsAt(t, MotionRest.length / width))) {
+      _endReturn();
+    }
+  }
+
+  void _endReturn() {
+    if (!_returning) return;
+    _returning = false;
+    onReturned?.call();
   }
 }

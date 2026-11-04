@@ -7,7 +7,6 @@ import 'package:apple_liquid_glass/src/menu/outline_math.dart';
 import 'package:apple_liquid_glass/src/motion/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
 import 'package:apple_liquid_glass/src/motion/glass_press.dart';
-import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:apple_liquid_glass/src/motion/touch_glow.dart';
 import 'package:apple_liquid_glass/src/surface/outline.dart';
 import 'package:flutter/painting.dart';
@@ -1637,17 +1636,17 @@ class MenuMotion {
 
   /// The swing at which a card's progress and the card container rest.
   /// NEAR: a card lands by up to 0.001 of its travel (0.25 pt on a 250 pt
-  /// menu), looser than [GlassRest.length]; resting at 0.1 pt adds five
+  /// menu), looser than [MotionRest.length]; resting at 0.1 pt adds five
   /// frames of captured glass to the menu-card perf scene.
   static const double _cardRest = 1e-3;
 
-  /// The visible rest ([GlassRest], NEAR) of the progresses that grow the
+  /// The visible rest ([MotionRest], NEAR) of the progresses that grow the
   /// menu, its corners and its cards out of the button: a swing below it
-  /// moves no edge of the open menu by [GlassRest.length] and changes no
-  /// fade by [GlassRest.opacity].
+  /// moves no edge of the open menu by [MotionRest.length] and changes no
+  /// fade by [MotionRest.opacity].
   double get _progressRest => math.min(
-    GlassRest.opacity,
-    GlassRest.scale(math.max(tuning.menuWidth, _rootHeight.target)),
+    MotionRest.opacity,
+    MotionRest.scale(math.max(tuning.menuWidth, _rootHeight.target)),
   );
 
   Rect _frameAt(double t) {
@@ -2385,7 +2384,7 @@ class MenuMotion {
       final rest = _progressRest;
       return _progress.restsWithin(t, rest) &&
           _radius.isWithin(t, rest) &&
-          _rootHeight.isWithin(t, GlassRest.length) &&
+          _rootHeight.isWithin(t, MotionRest.length) &&
           (!_cardContainerActive || _cardContainer.isWithin(t, _cardRest)) &&
           _cards.every((_Card card) => card.progress.isWithin(t, _cardRest)) &&
           _menuKick.isAtRest &&

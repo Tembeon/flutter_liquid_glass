@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/chrome/bar.dart';
 import 'package:apple_liquid_glass/src/chrome/toolbar.dart';
-import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
@@ -226,12 +225,12 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
   final _top = MotionValue<double>(
     0,
     spring: GlassContentScroll.edgeSpring,
-    restDistance: GlassRest.opacity,
+    restDistance: MotionRest.opacity,
   );
   final _bottom = MotionValue<double>(
     0,
     spring: GlassContentScroll.edgeSpring,
-    restDistance: GlassRest.opacity,
+    restDistance: MotionRest.opacity,
   );
   GlassChrome? _chrome;
   bool _reduceMotion = false;

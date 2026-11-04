@@ -6,6 +6,7 @@ import 'package:apple_liquid_glass_example/widgets.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/kinesis.dart';
 
 /// A photo library: every photo zooms into its own page, which shrinks back
 /// into the grid when it closes. Scrolling down tucks the tab bar away.
@@ -21,7 +22,7 @@ class _Photo {
 
   final Wallpaper wallpaper;
   final Alignment alignment;
-  final link = GlassZoomLink();
+  final source = MotionSource();
 }
 
 class _PhotosPageState extends State<PhotosPage> {
@@ -45,7 +46,7 @@ class _PhotosPageState extends State<PhotosPage> {
   void _open(_Photo photo) => unawaited(
     Navigator.of(context).push(
       GlassPageRoute<void>(
-        source: photo.link,
+        source: photo.source,
         builder: (context) => _PhotoPage(photo: photo),
       ),
     ),
@@ -101,7 +102,7 @@ class _PhotosPageState extends State<PhotosPage> {
             child: GestureDetector(
               onTap: () => _open(photo),
               child: GlassZoomSource(
-                link: photo.link,
+                source: photo.source,
                 child: Image(
                   image: photo.wallpaper.image,
                   fit: BoxFit.cover,
