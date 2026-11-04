@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motion/rest.dart';
@@ -284,11 +283,12 @@ class SwitchMotion {
 
   static double _band(double position) {
     final (limit, stiffness) = overdrag;
-    double shown(double over) =>
-        rubberBand(over, dimension: limit, coefficient: stiffness);
-    if (position < 0) return -shown(-position);
-    if (position > travel) return travel + shown(position - travel);
-    return math.max(0, position);
+    return Band(
+      0,
+      travel,
+      dimension: limit,
+      coefficient: stiffness,
+    ).show(position);
   }
 }
 

@@ -791,19 +791,11 @@ class SheetMotion {
     final top = _top;
     final largest = _heights.last;
     final room = _rubberRoom;
-    _dragTop = top > largest && room > 0
-        ? largest + _unstretched(top - largest, room)
+    _dragTop = room > 0
+        ? Band(double.negativeInfinity, largest, dimension: room).unshow(top)
         : top;
     _height.snap(t, _height.valueAt(t));
     _offset.snap(t, _offset.valueAt(t));
-  }
-
-  // The finger travel that [rubberBand], at its default coefficient c, maps
-  // to [y] with [dimension].
-  static double _unstretched(double y, double dimension) {
-    const c = 0.55;
-    final held = math.min(y, dimension * 0.999);
-    return held * dimension / (c * (dimension - held));
   }
 
   /// The finger moved to screen position [y].
@@ -814,13 +806,11 @@ class SheetMotion {
     if (_stretching) _track(t, (y - from).abs());
     final raw = _dragTop - (y - from);
     final largest = _heights.last;
-    final top = raw <= largest
-        ? raw
-        : largest +
-              rubberBand(
-                raw - largest,
-                dimension: _rubberRoom,
-              );
+    final top = Band(
+      double.negativeInfinity,
+      largest,
+      dimension: _rubberRoom,
+    ).show(raw);
     final lowest = _heights.first;
     if (top >= lowest) {
       _height.snap(t, top);
@@ -836,10 +826,11 @@ class SheetMotion {
         t,
         dismissible
             ? below
-            : rubberBand(
-                below,
+            : -Band(
+                lowest,
+                double.infinity,
                 dimension: SheetTuning.refusedPullExtent,
-              ),
+              ).stretch(top),
       );
     }
   }

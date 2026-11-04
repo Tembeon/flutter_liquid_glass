@@ -12,6 +12,7 @@ const _allowed = {
   'dart:math',
   'dart:typed_data',
   'dart:ui',
+  'package:flutter/animation.dart',
   'package:flutter/foundation.dart',
   'package:flutter/physics.dart',
   'package:flutter/scheduler.dart',
@@ -36,8 +37,9 @@ const _input = {
 };
 
 void main() {
-  test('lib imports only the Dart core, foundation, physics, scheduler and '
-      'meta; the screen bindings add rendering and widgets', () {
+  test('lib imports only the Dart core, animation curves, foundation, '
+      'physics, scheduler and meta; the screen bindings add rendering and '
+      'widgets', () {
     final directive = RegExp(r'''^(?:import|export)\s+'([^']+)'.*$''');
     final offenders = <String>[];
     final files = Directory('lib')

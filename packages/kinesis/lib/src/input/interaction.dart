@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/painting.dart';
-import 'package:kinesis/src/rubber_band.dart';
+import 'package:kinesis/src/motion/band.dart';
 import 'package:kinesis/src/spring.dart';
 import 'package:kinesis/src/value.dart';
 
@@ -730,10 +730,7 @@ class DragInteraction extends Interaction {
 
   static double _band(double p, (double, double)? bounds, double dimension) {
     if (bounds == null) return p;
-    final (min, max) = bounds;
-    if (p < min) return min - rubberBand(min - p, dimension: dimension);
-    if (p > max) return max + rubberBand(p - max, dimension: dimension);
-    return p;
+    return Band(bounds.$1, bounds.$2, dimension: dimension).show(p);
   }
 }
 

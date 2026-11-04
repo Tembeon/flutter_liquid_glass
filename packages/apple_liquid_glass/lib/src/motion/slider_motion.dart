@@ -535,12 +535,13 @@ class SliderMotion {
   }
 
   double _stretchFor(double raw) {
-    final excess = raw > 1
-        ? (raw - 1) * width
-        : raw < 0
-        ? raw * width
-        : 0.0;
-    return excess.sign * _band(excess.abs());
+    final (limit, stiffness) = overdrag;
+    return Band(
+      0,
+      width,
+      dimension: limit,
+      coefficient: stiffness,
+    ).stretch(raw * width);
   }
 
   void _stopGlide() {
@@ -588,11 +589,6 @@ class SliderMotion {
       }
     }
     return 0;
-  }
-
-  static double _band(double over) {
-    final (limit, stiffness) = overdrag;
-    return rubberBand(over, dimension: limit, coefficient: stiffness);
   }
 }
 

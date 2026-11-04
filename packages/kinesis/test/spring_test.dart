@@ -108,23 +108,4 @@ void main() {
       expect(Spring.immediate.copyWith(impulse: 1), Spring.immediate);
     });
   });
-
-  group('rubberBand', () {
-    test('shows nothing at or before the edge', () {
-      expect(rubberBand(0, dimension: 12), 0);
-      expect(rubberBand(-3, dimension: 12), 0);
-    });
-
-    test('starts with the coefficient as its slope and approaches the '
-        'dimension', () {
-      expect(
-        rubberBand(1e-6, dimension: 12, coefficient: 0.54) / 1e-6,
-        moreOrLessEquals(0.54, epsilon: 1e-6),
-      );
-      expect(
-        rubberBand(1000000000, dimension: 12),
-        moreOrLessEquals(12, epsilon: 1e-6),
-      );
-    });
-  });
 }

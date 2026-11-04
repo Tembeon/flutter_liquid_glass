@@ -10,8 +10,22 @@ library;
 
 export 'kinesis.dart';
 export 'src/clock.dart' show MotionDriver;
+export 'src/motion/band.dart' show Band;
+export 'src/motion/loop.dart' show MotionLoop;
 export 'src/motion/motion.dart' show Motion, MotionCancel, MotionSelect;
 export 'src/motion/part.dart' show MotionPart;
+export 'src/motion/presence.dart' show Presence, PresenceStatus;
+export 'src/motion/projection.dart'
+    show
+        Projection,
+        ProjectionChoice,
+        ProjectionExit,
+        ProjectionExited,
+        ProjectionStop;
+export 'src/motion/ramp.dart' show Ramp;
+export 'src/motion/rect.dart' show MotionRect, RectSprings;
 export 'src/motion/rest.dart' show MotionRest;
+export 'src/motion/signal.dart' show MotionSignal;
+export 'src/motion/timed.dart' show TimedValue;
 export 'src/timeline.dart' show MotionTimeline;
 export 'src/value.dart' show MotionValueCommands;

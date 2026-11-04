@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/src/clock.dart';
+import 'package:kinesis/src/motion/loop.dart';
 import 'package:kinesis/src/motion/part.dart';
 import 'package:kinesis/src/selection.dart';
 import 'package:kinesis/src/transaction.dart';
@@ -112,7 +113,8 @@ abstract class Motion extends MotionPart {
   /// [rest] is the tolerance the part rests within, read whenever rest is
   /// asked; the part's own rest when it is null. A smaller motion joins
   /// this motion's cursor and timeline and rests within its own parts'
-  /// tolerances.
+  /// tolerances. A `MotionLoop` steps its frames as the motion advances,
+  /// each at its own time between the reactions.
   @protected
   P own<P extends MotionPart>(P part, {double Function()? rest}) {
     assert(part.owner == null, 'A part has one owner.');
@@ -174,7 +176,10 @@ abstract class Motion extends MotionPart {
     final root = _root;
     while (root._reactions.isNotEmpty && root._reactions.first.time <= t) {
       final reaction = root._reactions.removeAt(0);
-      if (reaction.time > root._now) root._now = reaction.time;
+      if (reaction.time > root._now) {
+        root._runLoops(reaction.time, before: true);
+        root._now = reaction.time;
+      }
       reaction.action(reaction.time);
       if (stop != null && stop()) {
         root._didAdvance(root._now);
@@ -182,8 +187,16 @@ abstract class Motion extends MotionPart {
       }
     }
     if (t > root._now) root._now = t;
+    root._runLoops(root._now);
     root._didAdvance(root._now);
     return true;
+  }
+
+  void _runLoops(double t, {bool before = false}) {
+    for (final part in _parts) {
+      if (part is MotionLoop) part.run(t, before: before);
+      if (part is Motion) part._runLoops(t, before: before);
+    }
   }
 
   void _didAdvance(double t) {

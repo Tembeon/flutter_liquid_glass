@@ -180,12 +180,6 @@ class MotionValue<T> extends MotionPart
   /// its position and target: a finger's speed handed to the spring.
   set velocity(T next) => setVelocity(clock.now, next);
 
-  /// Where the value lands if released now: the value at the clock's time
-  /// plus its velocity times the [Spring.projection] of [spring], or of
-  /// [MotionValue.spring] when it is null. A sheet or a slider picks the detent
-  /// nearest to it.
-  T project([Spring? spring]) => projectAt(clock.now, spring);
-
   @override
   void addListener(VoidCallback listener) {
     _listeners.add(listener);
@@ -593,17 +587,6 @@ extension MotionValueCommands<T> on MotionValue<T> {
 
   /// Puts the value at rest on its target at time [t].
   void settle(double t) => snap(t, target);
-
-  /// Where the value lands if released at time [t] ([project]).
-  T projectAt(double t, [Spring? spring]) {
-    _state(t);
-    final ahead = (spring ?? _spring).projection;
-    final landing = Float64List(_n);
-    for (var i = 0; i < _n; i++) {
-      landing[i] = _memoY[i] + _memoV[i] * ahead;
-    }
-    return converter.read(landing);
-  }
 
   /// A bound on how far any component still swings from its target at any
   /// time from [t] on, until the next change.

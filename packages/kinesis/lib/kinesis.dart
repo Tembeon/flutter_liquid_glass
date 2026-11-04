@@ -47,7 +47,6 @@ export 'src/presentation/level.dart'
         showPresentation;
 export 'src/presentation/route.dart'
     show DismissTrigger, PresentationPageRoute, PresentationRoute;
-export 'src/rubber_band.dart' show rubberBand;
 export 'src/screen/driven.dart' show MotionDriven;
 export 'src/screen/input_region.dart'
     show InputRegion, MotionDragDetector, MotionPressable;

@@ -256,23 +256,6 @@ void main() {
       expect(color.restDistance, 0.002);
     });
 
-    test('projects the landing from the velocity', () {
-      const sheet = Spring.response(0.3441, projection: 0.143);
-      final value = MotionValue<double>(100, spring: sheet);
-      value.setPresentation(0, 100, velocity: 1000);
-      expect(value.projectAt(0), 100 + 1000 * 0.143);
-      expect(
-        value.projectAt(0, Spring.smooth),
-        100 + 1000 * Spring.normalProjection,
-      );
-      final offset = MotionValue(Offset.zero);
-      offset.setVelocity(0, const Offset(10, -20));
-      expect(
-        offset.projectAt(0),
-        const Offset(10, -20) * Spring.normalProjection,
-      );
-    });
-
     test('a type without a converter is refused', () {
       expect(() => MotionValue<String>('a'), throwsArgumentError);
     });

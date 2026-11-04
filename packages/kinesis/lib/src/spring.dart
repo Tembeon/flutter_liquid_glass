@@ -110,7 +110,7 @@ class Spring {
   final double impulse;
 
   /// How far ahead, in seconds at the current velocity, a released value
-  /// is projected to land (`MotionValue.project`), as UIKit projects a
+  /// is projected to land (`Projection.of`), as UIKit projects a
   /// flick through a deceleration rate `r` per millisecond:
   /// `r / (1000 * (1 - r))` seconds.
   final double projection;
