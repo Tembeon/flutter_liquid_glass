@@ -1302,9 +1302,7 @@ class _BarItem extends StatelessWidget {
           : look?.foregroundColor?.resolve({
                   if (!enabled) WidgetState.disabled,
                 }) ??
-                (enabled
-                    ? theme.colorScheme?.label ?? GlassColors.label
-                    : GlassColors.tertiaryLabel),
+                (enabled ? theme.labelColor : theme.tertiaryLabelColor),
       context,
     );
     final text = resolveGlassText(

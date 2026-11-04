@@ -1,6 +1,7 @@
 import 'package:apple_liquid_glass/src/surface/shape.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:meta/meta.dart';
 
 /// The outline of a glass body that no [GlassShape] describes, such as a
 /// popover and its arrow as one shape.
@@ -18,7 +19,7 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 final class GlassOutline {
   /// Creates the outline whose edge is [path] and whose field, if any,
   /// [field] computes when first read.
-  GlassOutline(this.path, {LiquidGlassField? Function()? field})
+  GlassOutline(this.path, {@internal LiquidGlassField? Function()? field})
     : _fieldOf = field;
 
   /// The edge of the body.
@@ -27,9 +28,11 @@ final class GlassOutline {
   final LiquidGlassField? Function()? _fieldOf;
 
   /// Whether the body has a [field] to shade it from.
+  @internal
   bool get hasField => _fieldOf != null;
 
   /// The body's signed distance field, or null.
+  @internal
   late final LiquidGlassField? field = _fieldOf?.call();
 
   /// The box the body occupies.

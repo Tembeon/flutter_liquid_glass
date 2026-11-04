@@ -255,7 +255,7 @@ class GlassSegmentedControl<T> extends StatelessWidget {
     ),
     thumbColor: const WidgetStatePropertyAll(thumb),
     foregroundColor: WidgetStatePropertyAll(
-      GlassTheme.of(context).colorScheme?.label ?? GlassColors.label,
+      GlassTheme.of(context).labelColor,
     ),
     textStyle: const BySelection(_label, _selectedLabel),
   );

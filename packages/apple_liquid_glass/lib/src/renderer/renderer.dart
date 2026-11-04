@@ -34,23 +34,24 @@ abstract class GlassRenderer {
   /// floating ones, no backdrop reads.
   const factory GlassRenderer.flat() = FlatGlassRenderer;
 
-  /// Draws with [capable] on a device whose GPU draws full glass well, and
-  /// with [fallback] on any other, as [precache] finds it once per run;
-  /// [capable] draws until it has.
+  /// Draws with [capable] on a device whose GPU draws full glass well and
+  /// with [fallback] on any other. [precache] finds which, or else the
+  /// first adaptive surface does; [capable] draws until one has.
   const factory GlassRenderer.adaptive({
     required GlassRenderer capable,
     required GlassRenderer fallback,
   }) = AdaptiveGlassRenderer;
 
   /// Loads the glass shaders and finds whether this device draws full
-  /// glass, ahead of the first glass frame; it may be awaited before
-  /// `runApp`. With [warmUp] it also draws every glass pipeline once,
-  /// offscreen, which spares the first frame after an install a stall on a
-  /// mid-range Android phone and costs every launch. Failures are reported
-  /// through `FlutterError`, never thrown; calling it again does nothing.
-  static Future<void> precache({bool warmUp = false}) async {
-    await LiquidGlass.precache(warmUp: warmUp);
-  }
+  /// glass, ahead of the first glass frame, so that [GlassRenderer.adaptive]
+  /// draws its pick from that frame on; it may be awaited before `runApp`.
+  /// With [warmUp] it also draws every glass pipeline once, offscreen,
+  /// which spares the first frame after an install a stall on a mid-range
+  /// Android phone and costs every launch. Failures are reported through
+  /// `FlutterError`, never thrown. A later call loads nothing new, and
+  /// warms up only if no earlier call did.
+  static Future<void> precache({bool warmUp = false}) =>
+      AdaptiveGlassRenderer.learn(LiquidGlass.precache(warmUp: warmUp));
 
   /// Builds the surface [details] describes.
   Widget buildSurface(BuildContext context, GlassSurfaceDetails details);

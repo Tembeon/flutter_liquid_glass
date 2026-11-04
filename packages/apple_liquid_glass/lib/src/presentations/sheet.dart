@@ -718,7 +718,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   Widget _contentFor(BuildContext context) {
     final text = TextStyle(
       fontSize: 17,
-      color: GlassTheme.of(context).colorScheme?.label ?? GlassColors.label,
+      color: GlassTheme.of(context).labelColor,
     ).merge(_spec.lookOf(context).textStyle);
     final style = resolveGlassText(
       text.copyWith(color: GlassDynamicColor.resolve(text.color!, context)),

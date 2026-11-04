@@ -374,7 +374,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
       theme.navigationBarStyle,
     );
     final color = GlassDynamicColor.resolve(
-      look.foregroundColor ?? theme.colorScheme?.label ?? GlassColors.label,
+      look.foregroundColor ?? theme.labelColor,
       context,
     );
     final title = widget.title ?? widget.largeTitle;
@@ -686,7 +686,7 @@ class _StackedSearchState extends State<_StackedSearch> {
   @override
   Widget build(BuildContext context) {
     final glyph = GlassDynamicColor.resolve(
-      GlassTheme.of(context).colorScheme?.label ?? GlassColors.label,
+      GlassTheme.of(context).labelColor,
       context,
     );
     return SizedBox(

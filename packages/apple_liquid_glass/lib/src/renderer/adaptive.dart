@@ -5,7 +5,8 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:meta/meta.dart';
 
 /// Draws with [capable] where full glass runs well and with [fallback]
-/// elsewhere, as `GlassRenderer.precache` finds it once per run.
+/// elsewhere, as `GlassRenderer.precache` or the first adaptive surface
+/// finds it.
 @internal
 final class AdaptiveGlassRenderer extends GlassRenderer {
   /// Creates an adaptive renderer.
@@ -20,7 +21,13 @@ final class AdaptiveGlassRenderer extends GlassRenderer {
   static LiquidGlassSupport? _support;
   static Future<LiquidGlassSupport>? _loading;
 
-  /// Forgets what `GlassRenderer.precache` found, for tests.
+  /// Keeps what [support] finds about this device for every adaptive
+  /// renderer; the surfaces built before it answers draw with [capable].
+  static Future<void> learn(Future<LiquidGlassSupport> support) async {
+    _support = await (_loading = support);
+  }
+
+  /// Forgets the device class the adaptive renderers found, for tests.
   @visibleForTesting
   static void debugReset() {
     _support = null;
@@ -76,9 +83,9 @@ class _ResolveState extends State<_Resolve> {
   void initState() {
     super.initState();
     if (AdaptiveGlassRenderer._support != null) return;
-    final loading = AdaptiveGlassRenderer._loading ??= LiquidGlass.precache();
-    loading.then((support) {
-      AdaptiveGlassRenderer._support = support;
+    AdaptiveGlassRenderer.learn(
+      AdaptiveGlassRenderer._loading ?? LiquidGlass.precache(),
+    ).then((_) {
       if (mounted) setState(() {});
     }).ignore();
   }

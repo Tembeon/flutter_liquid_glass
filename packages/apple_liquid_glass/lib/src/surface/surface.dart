@@ -110,7 +110,7 @@ class _GlassSurfaceState extends State<GlassSurface> {
     );
     if (!GlassTraits.of(context).showBorders) return body;
     final label = GlassDynamicColor.resolve(
-      GlassTheme.of(context).colorScheme?.label ?? GlassColors.label,
+      GlassTheme.of(context).labelColor,
       context,
     );
     return CustomPaint(
@@ -199,7 +199,6 @@ class LiveGlassSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) => GlassSurface.live(
     role: GlassRole.panel,
-    part: GlassPart.menu,
     frame: MotionSelection(() {
       live.value;
       return frameOf();

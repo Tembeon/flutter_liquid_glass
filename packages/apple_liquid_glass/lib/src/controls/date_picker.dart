@@ -1245,7 +1245,6 @@ class _OverlayViewState extends State<_OverlayView> {
               // 32 gray on an iPhone 16 Pro film, as the native menu does.
               GlassSurface.live(
                 role: GlassRole.panel,
-                part: GlassPart.menu,
                 frame: _glass,
                 child: const SizedBox.expand(),
               ),

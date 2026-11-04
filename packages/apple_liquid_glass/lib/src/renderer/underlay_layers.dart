@@ -1,4 +1,4 @@
-import 'package:kinesis/motion.dart' show MotionTransitionLayer;
+import 'package:kinesis/kinesis.dart' show MotionTransitionLayer;
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:meta/meta.dart';
 

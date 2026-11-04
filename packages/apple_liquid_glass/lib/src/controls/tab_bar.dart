@@ -1492,8 +1492,7 @@ class _SearchTabBarState extends State<_SearchTabBar> {
   @override
   Widget build(BuildContext context) {
     final rtl = Directionality.of(context) == TextDirection.rtl;
-    final label =
-        GlassTheme.of(context).colorScheme?.label ?? GlassColors.label;
+    final label = GlassTheme.of(context).labelColor;
     final glyph = GlassDynamicColor.resolve(label, context);
     return MotionScope(
       motion: _motion,

@@ -210,7 +210,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   bool get _inSync =>
       widget.value == _reported || _unit(widget.value) == _motion.reportedValue;
 
-  void _deliver(SliderEvent event) => afterBuild(() {
+  void _deliver(SliderEvent event) => runAfterBuild(this, () {
     switch (event) {
       case SliderChanged(:final value):
         final out = _reported = _out(value);
@@ -240,7 +240,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   // SliderChangeEnded; it still ends the change it started.
   void _endUnlessGliding() {
     if (_leading) return;
-    afterBuild(() => _end(widget.value));
+    runAfterBuild(this, () => _end(widget.value));
     _reconcileLater();
   }
 

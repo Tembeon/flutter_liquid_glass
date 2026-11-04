@@ -106,6 +106,22 @@ final class BySelection<T> implements WidgetStateProperty<T?> {
   int get hashCode => Object.hash(unselected, selected);
 }
 
+/// Runs [callback] now, or after the frame while the framework builds or
+/// finalizes the tree, if [state] is still mounted then: a callback may
+/// rebuild ancestors, and a cancel from a widget's own update or dispose
+/// arrives in those phases.
+@internal
+void runAfterBuild(State<StatefulWidget> state, VoidCallback callback) {
+  if (SchedulerBinding.instance.schedulerPhase ==
+      SchedulerPhase.persistentCallbacks) {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (state.mounted) callback();
+    });
+    return;
+  }
+  callback();
+}
+
 /// A control's [WidgetStatesController]: the one its widget gives
 /// ([givenStates]) or one of the state's own, which [writeStates] fills
 /// before it is listened to and again on every widget update; a change of
@@ -139,20 +155,6 @@ mixin ControlStates<T extends StatefulWidget> on State<T> {
   }
 
   void _changed() => setState(() {});
-
-  /// Runs [callback] now, or after the frame while the framework builds or
-  /// finalizes the tree: a callback may rebuild ancestors, and a cancel
-  /// from the region's own update or dispose arrives in those phases.
-  void afterBuild(VoidCallback callback) {
-    if (SchedulerBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (mounted) callback();
-      });
-      return;
-    }
-    callback();
-  }
 
   @override
   void initState() {

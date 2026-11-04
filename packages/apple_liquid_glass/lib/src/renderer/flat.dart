@@ -414,12 +414,11 @@ class RenderFlatGlass extends RenderProxyBox {
     }
     final rect = body.shift(shift);
     switch (frame.shape.liquid) {
-      case LiquidRoundedSuperellipse(:final borderRadius, :final bottomRadius):
-        final radii = BorderRadius.vertical(
-          top: Radius.circular(borderRadius),
-          bottom: Radius.circular(bottomRadius ?? borderRadius),
+      case LiquidRoundedSuperellipse(:final borderRadius):
+        canvas.drawRSuperellipse(
+          RSuperellipse.fromRectAndRadius(rect, Radius.circular(borderRadius)),
+          paint,
         );
-        canvas.drawRSuperellipse(radii.toRSuperellipse(rect), paint);
       case LiquidOval():
         canvas.drawOval(rect, paint);
       case LiquidRoundedRectangle(:final borderRadius):

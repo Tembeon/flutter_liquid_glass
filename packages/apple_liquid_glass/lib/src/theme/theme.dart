@@ -206,6 +206,15 @@ class GlassThemeData {
   /// The app's semantic colors.
   final GlassColorScheme? colorScheme;
 
+  /// [colorScheme]'s label, or [GlassColors.label].
+  @internal
+  Color get labelColor => colorScheme?.label ?? GlassColors.label;
+
+  /// [colorScheme]'s tertiary label, or [GlassColors.tertiaryLabel].
+  @internal
+  Color get tertiaryLabelColor =>
+      colorScheme?.tertiaryLabel ?? GlassColors.tertiaryLabel;
+
   /// The look of regular and clear glass buttons.
   final GlassButtonStyle? buttonStyle;
 
@@ -434,8 +443,10 @@ class _GlassThemeScope extends InheritedModel<_GlassThemeAspect> {
 /// [GlassThemeData.lerp] interpolates.
 ///
 /// Flutter: `AnimatedTheme`. Under Reduce Motion it switches at once. While
-/// it moves, widgets that read the whole theme ([GlassTheme.of]) rebuild
-/// every frame; at rest it is [data] exactly.
+/// it moves, widgets that read the whole theme ([GlassTheme.of]), or a
+/// color scheme that differs between the two themes
+/// ([GlassTheme.colorSchemeOf]), rebuild every frame; at rest it is [data]
+/// exactly.
 class AnimatedGlassTheme extends StatefulWidget {
   /// Animates [child]'s theme to [data] on [spring].
   const AnimatedGlassTheme({

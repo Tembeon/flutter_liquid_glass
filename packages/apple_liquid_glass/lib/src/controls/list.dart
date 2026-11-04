@@ -643,7 +643,7 @@ class _GlassListRowState extends State<GlassListRow>
 
 GlassListStyle _sectionLook(BuildContext context, GlassListStyle? style) {
   final theme = GlassTheme.of(context);
-  final label = theme.colorScheme?.label ?? GlassColors.label;
+  final label = theme.labelColor;
   return (style ?? const GlassListStyle())
       .merge(theme.listStyle)
       .merge(
@@ -662,9 +662,7 @@ GlassListStyle _sectionLook(BuildContext context, GlassListStyle? style) {
           iconColor: WidgetStatePropertyAll(
             theme.primaryColor ?? GlassColors.systemBlue,
           ),
-          disclosureColor: const WidgetStatePropertyAll(
-            GlassColors.tertiaryLabel,
-          ),
+          disclosureColor: WidgetStatePropertyAll(theme.tertiaryLabelColor),
         ),
       );
 }

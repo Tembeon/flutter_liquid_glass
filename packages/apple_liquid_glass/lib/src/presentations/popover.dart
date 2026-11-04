@@ -189,8 +189,7 @@ class _PopoverViewState extends State<_PopoverView> {
   Widget build(BuildContext context) {
     widget.motion.reducedMotion = GlassTraits.of(context).reduceMotion;
     final media = MediaQuery.of(context);
-    final label =
-        GlassTheme.of(context).colorScheme?.label ?? GlassColors.label;
+    final label = GlassTheme.of(context).labelColor;
     return PopoverLayout(
       source: widget.source,
       scale: _scale,
@@ -325,7 +324,6 @@ class _PopoverGlassState extends State<_PopoverGlass> {
   @override
   Widget build(BuildContext context) => GlassSurface.live(
     role: GlassRole.panel,
-    part: GlassPart.menu,
     frame: _frame,
     child: const SizedBox.expand(),
   );

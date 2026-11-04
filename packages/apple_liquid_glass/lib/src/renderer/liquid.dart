@@ -9,6 +9,7 @@ import 'package:apple_liquid_glass/src/renderer/underlay_layers.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/outline.dart';
+import 'package:apple_liquid_glass/src/theme/style.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -19,10 +20,11 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 /// The liquid renderer: every surface is liquid glass, and the members of
 /// a group share one glass layer.
 ///
-/// A body with a [GlassFrame.outline] is shaded from the outline's field
-/// in a layer of its own, its shadow cast by the outline's path; the
-/// renderer picks this or a flat body when it builds the surface, from
-/// the frame then.
+/// A lone body whose [GlassFrame.outline] has a field is shaded from that
+/// field in a layer of its own, its shadow cast by the outline's path; an
+/// outlined body in a group, on fake glass or without a field draws flat.
+/// The renderer chooses from the frame the surface builds with, not per
+/// frame.
 ///
 /// A surface outside a group draws as a group of one, and a track as a
 /// plain fill, as iOS draws one. A lens or knob is an opaque platter at
@@ -30,10 +32,12 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 /// is lifted; on fake glass the layer keeps the lifted optics for the whole
 /// lift and the glass's fade carries the change, a NEAR trade that keeps
 /// the fake layer from rebuilding every frame.
+///
 /// Layers use the fitted iOS 27 settings: clear for clear glass (a group
 /// only when all its members are clear), regular in the ambient brightness
 /// ([GlassTraits.brightness]) otherwise, both at the Liquid Glass slider's
 /// position ([GlassTraits.glassTintAmount]).
+///
 /// Under Reduce Transparency the surfaces draw flat, an unmeasured
 /// stand-in for iOS's frosted glass.
 @internal
@@ -178,7 +182,7 @@ LiquidGlassSettings _lensSettings(
   final l = lift.clamp(0.0, 1.0);
   final small = part == GlassPart.knob || part == GlassPart.thumb;
   final displacement = small ? 50 + (9 - 50) * l : 9 * l;
-  final (shrink, rim) = _shrinkOf(part);
+  final (:shrink, :rim) = _shrinkOf(part);
   return base.copyWith(
     frost: small ? 6 * (1 - l) : 0,
     refractionAmount: displacement * 2,
@@ -189,11 +193,11 @@ LiquidGlassSettings _lensSettings(
   );
 }
 
-(double, double) _shrinkOf(GlassPart? part) => switch (part) {
-  GlassPart.tabBarLens => (0.16, 0.75),
-  null => (0.20, 1.0),
-  GlassPart.knob => (0.25, 1.0),
-  _ => (0.0, 0.0),
+GlassLensShrinkage _shrinkOf(GlassPart? part) => switch (part) {
+  GlassPart.tabBarLens => (shrink: 0.16, rim: 0.75),
+  null => (shrink: 0.20, rim: 1.0),
+  GlassPart.knob => (shrink: 0.25, rim: 1.0),
+  _ => (shrink: 0.0, rim: 0.0),
 };
 
 // The group is an ancestor: it cannot be marked to build while the framework
@@ -209,15 +213,7 @@ bool get _framing =>
 bool _drawsFake(bool fake) => fake || !ImageFilter.isShaderFilterSupported;
 
 mixin _RebuildOutsideFrame<T extends StatefulWidget> on State<T> {
-  void _rebuild(VoidCallback fn) {
-    if (_framing) {
-      _afterFrame(() {
-        if (mounted) setState(fn);
-      });
-    } else {
-      setState(fn);
-    }
-  }
+  void _rebuild(VoidCallback fn) => runAfterBuild(this, () => setState(fn));
 }
 
 class _LiquidSurface extends StatefulWidget {
@@ -755,10 +751,9 @@ class _LiquidLensState extends State<_LiquidLens> with _RebuildOutsideFrame {
     final details = widget.details;
     final report = _report = GlassLensShrink.maybeOf(context);
     if (report != null) {
-      final (shrink, rim) = _shrinkOf(details.part);
       report.value = _drawsFake(widget.fake)
           ? GlassLensShrink.none
-          : (shrink: shrink, rim: rim);
+          : _shrinkOf(details.part);
     }
     return Stack(
       fit: StackFit.passthrough,

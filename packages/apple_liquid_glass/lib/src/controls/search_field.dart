@@ -543,8 +543,7 @@ class GlassSearchField extends StatelessWidget {
   }
 
   static GlassSearchFieldStyle _defaults(BuildContext context) {
-    final label =
-        GlassTheme.of(context).colorScheme?.label ?? GlassColors.label;
+    final label = GlassTheme.of(context).labelColor;
     return GlassSearchFieldStyle(
       backgroundColor: const ByState(null, GlassSearchField.disabledFill),
       foregroundColor: WidgetStatePropertyAll(label),

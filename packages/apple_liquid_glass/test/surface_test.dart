@@ -647,6 +647,29 @@ void main() {
             : findsNothing,
       );
     });
+
+    testWidgets('adaptive draws what GlassRenderer.precache found from its '
+        'first frame', (tester) async {
+      AdaptiveGlassRenderer.debugReset();
+      addTearDown(AdaptiveGlassRenderer.debugReset);
+      await tester.runAsync(GlassRenderer.precache);
+      final support = (await tester.runAsync(LiquidGlass.precache))!;
+      await tester.pumpWidget(
+        _app(
+          const GlassRenderer.adaptive(
+            capable: GlassRenderer.liquid(),
+            fallback: GlassRenderer.flat(),
+          ),
+          const GlassSurface(child: SizedBox(width: 100, height: 44)),
+        ),
+      );
+      expect(
+        find.byType(LiquidGlass),
+        support.deviceClass == LiquidGlassDeviceClass.capable
+            ? findsOneWidget
+            : findsNothing,
+      );
+    });
   });
 
   testWidgets('a clip follows the frames of its glass without a rebuild', (

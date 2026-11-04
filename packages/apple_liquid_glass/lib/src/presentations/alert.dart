@@ -527,10 +527,10 @@ class _AlertViewState extends State<_AlertView> {
 
   TextStyle _labelStyle(GlassAlertAction action, BuildContext context) {
     final look = _look;
-    final label =
-        GlassTheme.of(context).colorScheme?.label ?? GlassColors.label;
+    final theme = GlassTheme.of(context);
+    final label = theme.labelColor;
     final color = !action.enabled
-        ? GlassColors.tertiaryLabel
+        ? theme.tertiaryLabelColor
         : action.isDefaultAction
         ? look.defaultActionColor ?? const Color(0xFFFFFFFF)
         : action.isDestructive
@@ -630,8 +630,7 @@ class _AlertViewState extends State<_AlertView> {
   }
 
   Widget _buildCard(double width, bool row, BuildContext context) {
-    final label =
-        GlassTheme.of(context).colorScheme?.label ?? GlassColors.label;
+    final label = GlassTheme.of(context).labelColor;
     final title = widget.title;
     final message = widget.message;
     final both = title != null && message != null;
@@ -755,7 +754,6 @@ class _AlertViewState extends State<_AlertView> {
                   Positioned.fill(
                     child: GlassSurface.live(
                       role: GlassRole.panel,
-                      part: GlassPart.menu,
                       frame: _frame,
                       child: const SizedBox.expand(),
                     ),

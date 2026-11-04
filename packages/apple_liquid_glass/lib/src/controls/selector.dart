@@ -353,7 +353,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     });
   }
 
-  void _deliver(LensEvent event) => afterBuild(() {
+  void _deliver(LensEvent event) => runAfterBuild(this, () {
     switch (event) {
       case LensSelected(:final index):
         _chosen(index);
@@ -434,7 +434,8 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       if (_selectable(slot)) next = slot;
     }
     if (next == _pointing.value.pressed) return;
-    afterBuild(
+    runAfterBuild(
+      this,
       () => _pointing.value = (pressed: next, hovered: _pointing.value.hovered),
     );
   }
@@ -442,7 +443,8 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   void _hover(Offset? position) {
     final next = position == null ? null : _motion.slotAt(_x(position));
     if (next == _pointing.value.hovered) return;
-    afterBuild(
+    runAfterBuild(
+      this,
       () => _pointing.value = (pressed: _pointing.value.pressed, hovered: next),
     );
   }
@@ -495,7 +497,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
         _motion.selected == before &&
         (_segmented || down == before);
     if (reselected && _selectable(before)) {
-      afterBuild(() => widget.onReselected?.call(before));
+      runAfterBuild(this, () => widget.onReselected?.call(before));
     }
   }
 

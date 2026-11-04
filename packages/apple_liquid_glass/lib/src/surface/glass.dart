@@ -65,9 +65,6 @@ enum GlassPart {
   /// The thumb of a slider.
   thumb,
 
-  /// A menu's, popover's or alert's card.
-  menu,
-
   /// A sheet's card.
   sheet,
 }

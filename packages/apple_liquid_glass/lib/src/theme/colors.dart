@@ -274,15 +274,15 @@ GlassDynamicColor _asDynamic(Color color) => switch (color) {
 ///
 /// UIKit: `UIColor`'s system colors. Flutter: `CupertinoColors`.
 ///
-/// systemBlue, systemGreen, systemRed, systemFill, secondarySystemFill and
-/// tertiarySystemFill take the iOS 27 values of the states passport: light
-/// and dark measured on iOS 27 for the blue, the red and
-/// tertiarySystemFill (states, lists and menu passports), the rest read
-/// from UIKit's color tables. tertiaryLabel and systemGray4 match the light
-/// and dark measured there. Every other value, including the Increase
-/// Contrast values of the labels and grays and every elevated value, is
-/// UIKit's catalogue as Flutter's `CupertinoColors` carries it, not
-/// measured on iOS 27.
+/// Light and dark of systemBlue, systemRed and tertiarySystemFill are
+/// measured on iOS 27 (states, lists and menu passports); their Increase
+/// Contrast values and every value of systemGreen, systemFill and
+/// secondarySystemFill are read from iOS 27's UIKit color tables (states
+/// passport). tertiaryLabel and systemGray4 are the catalogue values,
+/// matched by the iOS 27 measurements. Every other value, including the
+/// Increase Contrast values of the labels and grays and every elevated
+/// value, is UIKit's catalogue as Flutter's `CupertinoColors` carries it,
+/// not measured on iOS 27.
 abstract final class GlassColors {
   /// The primary text.
   static const label = GlassDynamicColor.withBrightness(

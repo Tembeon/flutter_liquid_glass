@@ -1,6 +1,6 @@
 import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/motion.dart';
+import 'package:kinesis/kinesis.dart';
 
 /// How far forward an interface sits; wrap presented content in a
 /// `GlassTraitsOverride` to raise it (the package's presentations do not).
@@ -131,10 +131,10 @@ final class GlassTraits {
 /// Sets the traits Flutter does not report for the subtree below it; a
 /// null field keeps the enclosing value.
 ///
-/// Bold Text, contrast, Reduce Motion and text size are overridden through
-/// `MediaQuery`, brightness through `GlassThemeData.brightness`. Reduce
-/// Motion is also on while kinesis's `MotionTraitsOverride` or the platform
-/// say so.
+/// Bold Text, contrast and text size are overridden through `MediaQuery`,
+/// brightness through `GlassThemeData.brightness`, and Reduce Motion
+/// through kinesis's `MotionTraitsOverride` (`MediaQuery.disableAnimations`
+/// can only turn it on).
 class GlassTraitsOverride extends StatelessWidget {
   /// Overrides the given traits for [child].
   const GlassTraitsOverride({

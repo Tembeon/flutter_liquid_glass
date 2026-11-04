@@ -24,7 +24,7 @@ abstract final class _Edge {
   /// The blur of the soft band.
   static const double softBlur = 1.5;
 
-  /// The blur of the hard band; UIKit uses 2 under a navigation bar.
+  /// The blur of the hard band, a navigation bar's.
   static const double hardBlur = 2;
 
   /// The saturation of the content under the hard band.
