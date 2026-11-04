@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/src/clock.dart';
 import 'package:kinesis/src/presentation/presentation.dart';
@@ -31,7 +32,8 @@ final class PresentationPortalController {
 /// the screen reader's dismiss of a route, but nothing is pushed, so the
 /// touch that presented it is never cancelled: a hold that opens a context
 /// menu keeps its finger on the rows. The content's `PopScope`s are not
-/// asked.
+/// asked. As on a route, new touches reach what is below as soon as the
+/// presentation leaves, while its close plays on.
 class PresentationPortal extends StatefulWidget {
   /// Shows [presentation] over [child] when [controller] presents it.
   const PresentationPortal({
@@ -225,7 +227,7 @@ class _PresentationPortalState extends State<PresentationPortal>
     final motion = _motion;
     if (motion == null) return const SizedBox.shrink();
     final presentation = widget.presentation;
-    return Stack(
+    final content = Stack(
       fit: StackFit.expand,
       children: [
         ValueListenableBuilder<bool>(
@@ -269,5 +271,37 @@ class _PresentationPortalState extends State<PresentationPortal>
         ),
       ],
     );
+    return _LeavingGate(isLeaving: () => _leaving, child: content);
   }
+}
+
+/// Takes no new touches while [isLeaving], asked at each touch: a close can
+/// start in any phase of a frame, and a finger already down stays with what
+/// it touched.
+class _LeavingGate extends SingleChildRenderObjectWidget {
+  const _LeavingGate({required this.isLeaving, required super.child});
+
+  final bool Function() isLeaving;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderLeavingGate(isLeaving);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderLeavingGate renderObject,
+  ) {
+    renderObject.isLeaving = isLeaving;
+  }
+}
+
+class _RenderLeavingGate extends RenderProxyBox {
+  _RenderLeavingGate(this.isLeaving);
+
+  bool Function() isLeaving;
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) =>
+      !isLeaving() && super.hitTest(result, position: position);
 }

@@ -40,6 +40,7 @@ Presentation<String, _Card> _presentation(
   bool modal = true,
   List<DismissTrigger>? vetoes,
   List<String?>? dismissed,
+  VoidCallback? onContentPointer,
 }) => Presentation<String, _Card>(
   motion: (_) {
     final card = _Card();
@@ -47,13 +48,17 @@ Presentation<String, _Card> _presentation(
     return card;
   },
   builder: (context, motion) => Center(
-    child: GestureDetector(
-      key: _contentKey,
-      behavior: HitTestBehavior.opaque,
-      onTap: () => PresentationHandle.of(
-        context,
-      ).dismiss(DismissTrigger.programmatic, 'tapped'),
-      child: const SizedBox(width: 100, height: 100),
+    child: Listener(
+      onPointerDown: (_) => onContentPointer?.call(),
+      onPointerMove: (_) => onContentPointer?.call(),
+      child: GestureDetector(
+        key: _contentKey,
+        behavior: HitTestBehavior.opaque,
+        onTap: () => PresentationHandle.of(
+          context,
+        ).dismiss(DismissTrigger.programmatic, 'tapped'),
+        child: const SizedBox(width: 100, height: 100),
+      ),
     ),
   ),
   source: source,
@@ -443,6 +448,55 @@ void main() {
       await _settle(tester);
       expect(dismissed, [null]);
       expect(shell.isPresented, isFalse);
+    });
+
+    testWidgets('a new touch reaches what is below while it leaves, and one '
+        'already on it stays', (tester) async {
+      final shell = _PortalShell();
+      final made = <_Card>[];
+      var below = 0;
+      var onIt = 0;
+      await shell.pump(
+        tester,
+        Listener(
+          behavior: HitTestBehavior.opaque,
+          onPointerDown: (_) => below++,
+          child: const SizedBox.expand(),
+        ),
+      );
+      await shell.present(
+        tester,
+        _presentation(
+          made,
+          dismiss: DismissPolicy.modal,
+          onContentPointer: () => onIt++,
+        ),
+      );
+      await tester.pump();
+      await _settle(tester);
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pump();
+      expect(below, 0);
+
+      final held = await tester.startGesture(
+        tester.getCenter(find.byKey(_contentKey)),
+      );
+      expect(onIt, 1);
+      shell.controller.dismiss(DismissTrigger.programmatic);
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pump();
+      expect(below, 1);
+      await held.moveBy(const Offset(1, 1));
+      expect(onIt, 2);
+      await held.up();
+
+      shell.controller.present();
+      await tester.pump();
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pump();
+      expect(below, 1);
+      await _settle(tester);
     });
 
     testWidgets('takes the focus and gives it back', (tester) async {

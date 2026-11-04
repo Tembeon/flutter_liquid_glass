@@ -69,8 +69,10 @@ Presentations:
   serves outside taps, Escape, Back, a screen reader's dismiss and the
   content's own gestures; a dismissal closes its own presentation, never
   the top one. While modal, the barrier absorbs taps and hides what is
-  below from screen readers. `showPresentation`, `PresentationLevel` and
-  `PresentationContext` pick the navigator inside the presenting view.
+  below from screen readers. A presentation that is leaving takes no new
+  touches, so what is below does not wait for its close to end.
+  `showPresentation`, `PresentationLevel` and `PresentationContext` pick the
+  navigator inside the presenting view.
 - `MotionSource` and `MotionSourceBox`: what a presentation grows out of
   and back into.
 
