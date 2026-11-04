@@ -53,7 +53,9 @@ final class LiquidGlassRenderer extends GlassRenderer {
         details.role == GlassRole.track) {
       return FlatGlassRenderer.flatSurface(context, details);
     }
-    if (_lifts(details.role)) return _LiquidLens(details: details, fake: fake);
+    if (details.role == GlassRole.lens) {
+      return _LiquidLens(details: details, fake: fake);
+    }
     final grouped = _LiquidGroupScope.maybeOf(context) != null;
     if (details.frame.value.outline case final outline?
         when fake || grouped || !outline.hasField) {
@@ -115,23 +117,20 @@ final class LiquidGlassRenderer extends GlassRenderer {
 
   /// The shadows of a body of [role] lifted by [lift].
   ///
-  /// Engineering defaults, not measured: one soft body shadow for controls,
-  /// menus and sheets; a lens's or knob's drops from 1.5 to 3.5 and blurs
-  /// from 3 to 9 as it lifts.
+  /// Engineering defaults, not measured: one soft body shadow for controls
+  /// and panels; a lens's drops from 1.5 to 3.5 and blurs from 3 to 9 as it
+  /// lifts.
   static List<BoxShadow> shadowsOf(GlassRole role, {double lift = 0}) {
     final l = lift.clamp(0.0, 1.0);
     return switch (role) {
-      GlassRole.control || GlassRole.menu || GlassRole.sheet => const [
+      GlassRole.control || GlassRole.panel => const [
         BoxShadow(
           color: Color(0x14000000),
           offset: Offset(0, 4),
           blurRadius: 16,
         ),
       ],
-      GlassRole.lens ||
-      GlassRole.tabBarLens ||
-      GlassRole.knob ||
-      GlassRole.thumb => [
+      GlassRole.lens => [
         BoxShadow(
           color: const Color(0x1A000000),
           offset: Offset(0, 1.5 + 2 * l),
@@ -154,19 +153,8 @@ Color? _tintOf(GlassFrame frame, Color? own) {
   return Color.lerp(own ?? tint.withValues(alpha: 0), tint, amount);
 }
 
-bool _lifts(GlassRole role) => switch (role) {
-  GlassRole.lens ||
-  GlassRole.tabBarLens ||
-  GlassRole.knob ||
-  GlassRole.thumb => true,
-  GlassRole.bar ||
-  GlassRole.control ||
-  GlassRole.track ||
-  GlassRole.menu ||
-  GlassRole.sheet => false,
-};
-
-/// The settings of a lens, knob or thumb of [role] lifted by [lift].
+/// The settings of a lens lifted by [lift]: a knob's or thumb's for those
+/// [part]s, a plain one's for none.
 ///
 /// UIKit's lens configuration (read from UIKit, notes private) bends what
 /// is behind a resting knob or thumb by 50 and blurs it by 6, a lifted one
@@ -185,12 +173,12 @@ bool _lifts(GlassRole role) => switch (role) {
 LiquidGlassSettings _lensSettings(
   LiquidGlassSettings base,
   double lift, {
-  required GlassRole role,
+  required GlassPart? part,
 }) {
   final l = lift.clamp(0.0, 1.0);
-  final small = role == GlassRole.knob || role == GlassRole.thumb;
+  final small = part == GlassPart.knob || part == GlassPart.thumb;
   final displacement = small ? 50 + (9 - 50) * l : 9 * l;
-  final (shrink, rim) = _shrinkOf(role);
+  final (shrink, rim) = _shrinkOf(part);
   return base.copyWith(
     frost: small ? 6 * (1 - l) : 0,
     refractionAmount: displacement * 2,
@@ -201,10 +189,10 @@ LiquidGlassSettings _lensSettings(
   );
 }
 
-(double, double) _shrinkOf(GlassRole role) => switch (role) {
-  GlassRole.tabBarLens => (0.16, 0.75),
-  GlassRole.lens => (0.20, 1.0),
-  GlassRole.knob => (0.25, 1.0),
+(double, double) _shrinkOf(GlassPart? part) => switch (part) {
+  GlassPart.tabBarLens => (0.16, 0.75),
+  null => (0.20, 1.0),
+  GlassPart.knob => (0.25, 1.0),
   _ => (0.0, 0.0),
 };
 
@@ -264,7 +252,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
     final frame = _source.value;
     final role = widget.details.role;
     final tint = _tintOf(frame, widget.details.glass.tint);
-    final appearance = _lifts(role)
+    final appearance = role == GlassRole.lens
         ? LiquidGlassAppearance(
             visibility: FlatGlassLook.glassness(frame.lift),
           )
@@ -584,7 +572,7 @@ class _LiquidGroupState extends State<_LiquidGroup> with _RebuildOutsideFrame {
     return _lensSettings(
       _base,
       _drawsFake(widget.fake) ? 1 : lens.frame.value.lift,
-      role: lens.role,
+      part: lens.part,
     );
   }
 
@@ -767,7 +755,7 @@ class _LiquidLensState extends State<_LiquidLens> with _RebuildOutsideFrame {
     final details = widget.details;
     final report = _report = GlassLensShrink.maybeOf(context);
     if (report != null) {
-      final (shrink, rim) = _shrinkOf(details.role);
+      final (shrink, rim) = _shrinkOf(details.part);
       report.value = _drawsFake(widget.fake)
           ? GlassLensShrink.none
           : (shrink: shrink, rim: rim);
@@ -786,6 +774,7 @@ class _LiquidLensState extends State<_LiquidLens> with _RebuildOutsideFrame {
                 glows: !widget.fake,
                 details: GlassSurfaceDetails(
                   role: details.role,
+                  part: details.part,
                   glass: details.glass,
                   frame: details.frame,
                   child: const SizedBox.expand(),

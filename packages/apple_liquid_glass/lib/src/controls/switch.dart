@@ -439,7 +439,8 @@ class GlassSwitch extends StatelessWidget {
         ),
         Positioned.fill(
           child: GlassSurface.live(
-            role: GlassRole.knob,
+            role: GlassRole.lens,
+            part: GlassPart.knob,
             glass: Glass.regular(
               tint: resolve(look.thumbColor, const Color(0xFFFFFFFF)),
             ),

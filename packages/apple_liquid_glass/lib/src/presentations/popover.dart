@@ -279,7 +279,8 @@ class _PopoverGlassState extends State<_PopoverGlass> {
   Widget build(BuildContext context) {
     _publish();
     return GlassSurface.live(
-      role: GlassRole.menu,
+      role: GlassRole.panel,
+      part: GlassPart.menu,
       frame: _frame,
       child: const SizedBox.expand(),
     );

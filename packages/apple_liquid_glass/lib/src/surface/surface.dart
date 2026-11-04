@@ -24,6 +24,7 @@ class GlassSurface extends StatefulWidget {
     GlassShape this._shape = GlassShape.capsule,
     this.role = GlassRole.control,
     this.glass = const Glass.regular(),
+    @internal this.part,
     super.key,
   }) : frame = null;
 
@@ -34,6 +35,7 @@ class GlassSurface extends StatefulWidget {
     required this.child,
     this.role = GlassRole.control,
     this.glass = const Glass.regular(),
+    @internal this.part,
     super.key,
   }) : _shape = null;
 
@@ -44,6 +46,10 @@ class GlassSurface extends StatefulWidget {
 
   /// The glass family of the surface.
   final GlassRole role;
+
+  /// The package's own surface of [role] this is, for its renderers.
+  @internal
+  final GlassPart? part;
 
   /// The glass it is made of.
   final Glass glass;
@@ -76,6 +82,7 @@ class _GlassSurfaceState extends State<GlassSurface> {
       context,
       GlassSurfaceDetails(
         role: widget.role,
+        part: widget.part,
         glass: _resolved(context),
         frame: frame,
         child: KeyedSubtree(key: _child, child: widget.child),
@@ -151,7 +158,7 @@ class _Border extends CustomPainter {
       oldDelegate.frame != frame || oldDelegate.color != color;
 }
 
-/// A [GlassSurface.live] of [role] over its whole box, whose frame is
+/// A menu's [GlassSurface.live] over its whole box, whose frame is
 /// [frameOf], read again on every notification of [live] and on every
 /// rebuild.
 @internal
@@ -160,7 +167,6 @@ class LiveGlassSurface extends StatefulWidget {
   const LiveGlassSurface({
     required this.live,
     required this.frameOf,
-    this.role = GlassRole.menu,
     super.key,
   });
 
@@ -169,9 +175,6 @@ class LiveGlassSurface extends StatefulWidget {
 
   /// The surface's frame now.
   final GlassFrame Function() frameOf;
-
-  /// What the surface is.
-  final GlassRole role;
 
   @override
   State<LiveGlassSurface> createState() => _LiveGlassSurfaceState();
@@ -207,7 +210,8 @@ class _LiveGlassSurfaceState extends State<LiveGlassSurface> {
 
   @override
   Widget build(BuildContext context) => GlassSurface.live(
-    role: widget.role,
+    role: GlassRole.panel,
+    part: GlassPart.menu,
     frame: _frame,
     child: const SizedBox.expand(),
   );

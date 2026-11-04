@@ -126,7 +126,7 @@ class GlassNavigationBarStyle {
 /// page's title, as the first leading capsule; [leading] replaces it and
 /// [automaticallyImplyLeading] false removes it. Elsewhere, the bar draws
 /// its capsules for its page alone.
-class GlassNavigationBar extends StatefulWidget implements ChromeBarWidget {
+class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   /// Creates a navigation bar.
   const GlassNavigationBar({
     this.leading = const [],
@@ -206,10 +206,9 @@ class GlassNavigationBar extends StatefulWidget implements ChromeBarWidget {
   @override
   Size get preferredSize => Size.fromHeight(height + scrolledUnderAfter);
 
-  @override
-  ChromeBar get chromeBar => ChromeBar.navigation;
-
-  @override
+  /// How far the content scrolls before it passes under the bar: the
+  /// large title and the search field it scrolls away first.
+  @internal
   double get scrolledUnderAfter =>
       (largeTitle == null ? 0 : largeTitleHeight) + _search;
 

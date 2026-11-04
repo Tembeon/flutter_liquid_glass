@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:meta/meta.dart';
 
 /// The glass a surface is made of: regular or clear, and an optional tint.
 ///
@@ -39,9 +40,22 @@ enum GlassRole {
   /// A button or another free-standing control.
   control,
 
-  /// The lens a segmented control's selection slides as.
+  /// A card that floats over the page: a menu, popover, alert or sheet.
+  panel,
+
+  /// A selection that slides over its control, or a knob or thumb that
+  /// lifts into a clear lens under the finger.
   lens,
 
+  /// A plain fill that draws no glass: a switch's or segmented control's
+  /// track, a slider's track and fill, a disabled search field.
+  track,
+}
+
+/// The package's own surface a [GlassRole] is drawn as, where its
+/// renderers draw it apart from the rest of the role.
+@internal
+enum GlassPart {
   /// The lens a tab bar's selection slides as, over the bar.
   tabBarLens,
 
@@ -51,13 +65,15 @@ enum GlassRole {
   /// The thumb of a slider.
   thumb,
 
-  /// A plain fill that draws no glass: a switch's or segmented control's
-  /// track, a slider's track and fill, a disabled search field.
-  track,
-
   /// A menu's, popover's or alert's card.
   menu,
 
   /// A sheet's card.
-  sheet,
+  sheet;
+
+  /// The role the part belongs to.
+  GlassRole get role => switch (this) {
+    tabBarLens || knob || thumb => GlassRole.lens,
+    menu || sheet => GlassRole.panel,
+  };
 }

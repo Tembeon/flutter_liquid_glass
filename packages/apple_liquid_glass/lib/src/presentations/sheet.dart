@@ -737,7 +737,8 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
                                 shape: GlassShape.superellipse(
                                   SheetTuning.topRadius,
                                 ),
-                                role: GlassRole.sheet,
+                                role: GlassRole.panel,
+                                part: GlassPart.sheet,
                                 child: SizedBox.expand(),
                               ),
                             if (structure.opaque)

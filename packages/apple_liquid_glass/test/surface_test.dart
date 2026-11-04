@@ -4,6 +4,7 @@ import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/motion/touch_glow.dart';
 import 'package:apple_liquid_glass/src/renderer/adaptive.dart';
 import 'package:apple_liquid_glass/src/renderer/flat.dart';
+import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -210,17 +211,18 @@ void main() {
 
     testWidgets('a lifted lens shows what is under it smaller, by the '
         'measured amount of its control', (tester) async {
-      for (final (role, shrink, rim) in [
-        (GlassRole.tabBarLens, 0.16, 0.75),
-        (GlassRole.lens, 0.20, 1.0),
-        (GlassRole.knob, 0.25, 1.0),
-        (GlassRole.thumb, 0.0, 0.0),
+      for (final (part, shrink, rim) in [
+        (GlassPart.tabBarLens, 0.16, 0.75),
+        (null, 0.20, 1.0),
+        (GlassPart.knob, 0.25, 1.0),
+        (GlassPart.thumb, 0.0, 0.0),
       ]) {
         await tester.pumpWidget(
           _app(
             const GlassRenderer.liquid(),
             GlassSurface.live(
-              role: role,
+              role: GlassRole.lens,
+              part: part,
               frame: ValueNotifier(const GlassFrame(lift: 1)),
               child: const SizedBox(width: 60, height: 30),
             ),
@@ -234,9 +236,9 @@ void main() {
         expect(
           settings.backdropShrink,
           moreOrLessEquals(shrink),
-          reason: '$role',
+          reason: '$part',
         );
-        expect(settings.backdropShrinkRim, rim, reason: '$role');
+        expect(settings.backdropShrinkRim, rim, reason: '$part');
       }
     });
 

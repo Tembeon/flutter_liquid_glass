@@ -766,10 +766,12 @@ class _SliderLook extends StatelessWidget {
     Widget surface(
       GlassRole role,
       ValueListenable<GlassFrame> frame,
-      Color tint,
-    ) => Positioned.fill(
+      Color tint, {
+      GlassPart? part,
+    }) => Positioned.fill(
       child: GlassSurface.live(
         role: role,
+        part: part,
         glass: Glass.regular(tint: tint),
         frame: frame,
         child: const SizedBox.expand(),
@@ -795,9 +797,10 @@ class _SliderLook extends StatelessWidget {
               ),
             ),
           surface(
-            GlassRole.thumb,
+            GlassRole.lens,
             details.thumb,
             resolve(look.thumbColor, const Color(0xFFFFFFFF)),
+            part: GlassPart.thumb,
           ),
         ],
       ),

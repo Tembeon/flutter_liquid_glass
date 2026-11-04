@@ -78,10 +78,15 @@ final class GlassSurfaceDetails {
     required this.glass,
     required this.frame,
     required this.child,
+    @internal this.part,
   });
 
   /// The glass family of the surface.
   final GlassRole role;
+
+  /// The package's own surface of [role] this is, for its renderers.
+  @internal
+  final GlassPart? part;
 
   /// The glass it is made of.
   final Glass glass;

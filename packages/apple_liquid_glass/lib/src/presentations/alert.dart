@@ -599,7 +599,8 @@ class _AlertViewState extends State<_AlertView> {
                 if (_popover == null)
                   Positioned.fill(
                     child: GlassSurface.live(
-                      role: GlassRole.menu,
+                      role: GlassRole.panel,
+                      part: GlassPart.menu,
                       frame: _frame,
                       child: const SizedBox.expand(),
                     ),

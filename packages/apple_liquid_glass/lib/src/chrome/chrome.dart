@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/chrome/bar.dart';
+import 'package:apple_liquid_glass/src/chrome/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/chrome/toolbar.dart';
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
@@ -76,17 +77,6 @@ enum ChromeBar {
 
   /// Any other bar.
   custom,
-}
-
-/// A bar that tells the page's chrome what it is.
-@internal
-abstract interface class ChromeBarWidget implements PreferredSizeWidget {
-  /// The kind of bar.
-  ChromeBar get chromeBar;
-
-  /// How far the content scrolls before it passes under the bar: the
-  /// height of a large title the content scrolls away first.
-  double get scrolledUnderAfter;
 }
 
 /// What a page's chrome tells the scroll views and bars under it.
@@ -497,7 +487,8 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
 
   static ChromeBar _kind(PreferredSizeWidget? bar) => switch (bar) {
     null => ChromeBar.none,
-    ChromeBarWidget(:final chromeBar) => chromeBar,
+    GlassNavigationBar() => ChromeBar.navigation,
+    GlassToolbar() => ChromeBar.floating,
     _ => ChromeBar.custom,
   };
 
@@ -526,7 +517,7 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
       top: _kind(navigationBar),
       topExtent: top,
       scrolledUnderAfter: switch (navigationBar) {
-        ChromeBarWidget(:final scrolledUnderAfter) => scrolledUnderAfter,
+        GlassNavigationBar(:final scrolledUnderAfter) => scrolledUnderAfter,
         _ => 0,
       },
       bottom: toolbar == null

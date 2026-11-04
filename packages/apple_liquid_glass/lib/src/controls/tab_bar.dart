@@ -449,9 +449,11 @@ class _TabBarLook extends StatelessWidget {
     Widget surface(
       GlassRole role,
       ValueListenable<GlassFrame> frame,
-      Color? tint,
-    ) => GlassSurface.live(
+      Color? tint, {
+      GlassPart? part,
+    }) => GlassSurface.live(
       role: role,
+      part: part,
       glass: Glass.regular(tint: tint),
       frame: frame,
       child: const SizedBox.expand(),
@@ -467,9 +469,10 @@ class _TabBarLook extends StatelessWidget {
         ),
         details.items(
           lens: surface(
-            GlassRole.tabBarLens,
+            GlassRole.lens,
             details.lens,
             resolve(look.thumbColor),
+            part: GlassPart.tabBarLens,
           ),
         ),
       ],

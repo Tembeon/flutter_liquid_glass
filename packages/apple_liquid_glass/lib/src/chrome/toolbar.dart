@@ -50,7 +50,7 @@ import 'package:kinesis/motion.dart';
 /// Flutter reports the keyboard as it rises, so the field follows it
 /// there. Without a keyboard the search starts 0.3 s after the focus, a
 /// guard of the port: UIKit has no such wait.
-class GlassToolbar extends StatefulWidget implements ChromeBarWidget {
+class GlassToolbar extends StatefulWidget implements PreferredSizeWidget {
   /// Creates a toolbar of [items].
   const GlassToolbar({
     required this.items,
@@ -85,12 +85,6 @@ class GlassToolbar extends StatefulWidget implements ChromeBarWidget {
 
   @override
   Size get preferredSize => const Size.fromHeight(height + bottomInset);
-
-  @override
-  ChromeBar get chromeBar => ChromeBar.floating;
-
-  @override
-  double get scrolledUnderAfter => 0;
 
   @override
   State<GlassToolbar> createState() => _GlassToolbarState();

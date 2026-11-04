@@ -86,10 +86,7 @@ final class FlatGlassLook {
     final tint = glass.tint;
     final surface = scheme?.surfaces[role];
     switch (role) {
-      case GlassRole.knob ||
-          GlassRole.thumb ||
-          GlassRole.lens ||
-          GlassRole.tabBarLens:
+      case GlassRole.lens:
         return FlatGlassLook(
           fill: resolve(tint ?? surface ?? _platter),
           shadow: _liftShadow,
@@ -100,10 +97,7 @@ final class FlatGlassLook {
         return FlatGlassLook(
           fill: resolve(tint ?? surface ?? GlassColors.systemFill),
         );
-      case GlassRole.control ||
-          GlassRole.menu ||
-          GlassRole.sheet ||
-          GlassRole.bar:
+      case GlassRole.control || GlassRole.panel || GlassRole.bar:
         final floating = role != GlassRole.bar;
         return FlatGlassLook(
           fill: resolve(tint ?? surface ?? (glass.isClear ? _clear : _fill)),
