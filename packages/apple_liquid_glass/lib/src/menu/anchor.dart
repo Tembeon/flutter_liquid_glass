@@ -1087,14 +1087,26 @@ class _MenuLayerState extends State<_MenuLayer> {
             motion.visibleRootHeight,
           );
         }
-        return lastShown.topLeft & card().rect.size;
+        final flex = motion.cardFlex(index);
+        final center = lastShown.center + flex.shift;
+        return Offset(
+              center.dx - (lastShown.width + flex.width) / 2,
+              center.dy - (lastShown.height + flex.height) / 2,
+            ) &
+            card().rect.size;
       },
       child: LiveTransform(
         live: _frames,
         alignment: Alignment.topLeft,
         matrixOf: () {
           final s = card().scale;
-          return Matrix4.diagonal3Values(s, s, 1);
+          final size = card().rect.size;
+          final flex = _motion.cardFlex(index);
+          return Matrix4.diagonal3Values(
+            s + flex.width / size.width,
+            s + flex.height / size.height,
+            1,
+          );
         },
         child: Stack(
           fit: StackFit.expand,
@@ -1105,6 +1117,7 @@ class _MenuLayerState extends State<_MenuLayer> {
                 live: _frames,
                 frameOf: () => GlassFrame(
                   shape: GlassShape.roundedRect(radius()),
+                  glow: _motion.cardGlow(index),
                   opacity: card().platterOpacity * _motion.cardMaterialOpacity,
                 ),
               ),
@@ -1315,7 +1328,7 @@ GlassFrame _menuFrame(
   Color? sourceTint,
   double opacity = 1,
 }) {
-  final glow = motion.touchGlow;
+  final glow = motion.rootGlow;
   final tint = motion.drawsSource ? sourceTint : null;
   final tintAmount = tint == null ? 1.0 : motion.buttonLookOpacity;
   final root = motion.rootBlob.rrect;

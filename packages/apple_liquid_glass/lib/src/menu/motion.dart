@@ -134,6 +134,13 @@ class MenuTuning {
   /// The driven kick velocity considered at rest, in points per second.
   static const double kickRestVelocity = 0.1;
 
+  /// How far, in points, a finger that touched down beside the menu moves
+  /// before the menu closes under it: 14 - 22 at the point the close started,
+  /// 67 - 128 ms after its first move, at about 250 points a second on an
+  /// iPhone 16 Pro. The captures do not tell a distance from a time; a still
+  /// finger holds the menu open until its lift (NEAR).
+  static const double outsideMoveClose = 18;
+
   /// The largest move, in points, of a menu edge that the flex pulse
   /// channel may still make once it stops stepping while a finger rests.
   ///
@@ -968,7 +975,20 @@ class _Pointer {
   bool holdForfeited = false;
   bool scrolled = false;
   bool leftButton = false;
-  bool touchesMenu = true;
+
+  /// Whether the touch started on the top list, and so stretches and lights
+  /// it, highlights its rows and can choose one. A touch elsewhere does none
+  /// of this wherever it goes (an iPhone 16 Pro).
+  bool touchesTopList = true;
+
+  /// Whether the touch started on the parent list showing under a submenu.
+  bool startedOnParent = false;
+
+  /// Where a touch off the top list started.
+  Offset start = Offset.zero;
+
+  /// The flex this finger stretches, once it does.
+  MenuFlex? flex;
 }
 
 /// A damped spring driven by an input.
@@ -1068,6 +1088,10 @@ class _Card {
   double top;
 
   final MotionValue<double> progress;
+
+  /// The card's own flex: UIKit attaches one to each list, and a finger on a
+  /// card leaves the list under it where it is.
+  late final MenuFlex flex;
   bool backing = false;
 
   /// The progress the card had when it started back to its row.
@@ -1600,8 +1624,13 @@ class MenuMotion extends Motion with Presented {
 
   void _dropCards(int from) {
     while (_cards.length > from) {
-      disown(_cards.removeLast().progress);
+      _dropCard(_cards.removeLast());
     }
+  }
+
+  void _dropCard(_Card card) {
+    disown(card.progress);
+    disown(card.flex);
   }
 
   double _cardsExtra(double t) {
@@ -1753,6 +1782,41 @@ class MenuMotion extends Motion with Presented {
   /// The glow under a finger on the menu, centered in the motion's
   /// coordinates, or null while it does not show.
   GlassTouchGlow? get touchGlow => _touchGlow.glow;
+
+  /// [touchGlow] on the root list: while a card is on top, the finger lights
+  /// the card.
+  GlassTouchGlow? get rootGlow => _topCard == 0 ? touchGlow : null;
+
+  /// [touchGlow] on card [index], in the card's own coordinates, while it is
+  /// the top card.
+  GlassTouchGlow? cardGlow(int index) {
+    final glow = touchGlow;
+    if (glow == null || index == 0 || index != _topCard) return null;
+    return GlassTouchGlow(
+      wash: glow.wash,
+      center: _unflexed(glow.center) - _cardFrame(_cards[index - 1]).topLeft,
+      radius: glow.radius,
+      spot: glow.spot,
+    );
+  }
+
+  Rect _cardFrame(_Card card) {
+    final frame = menuRect;
+    return Rect.fromLTWH(
+      frame.left,
+      frame.top + card.top,
+      tuning.menuWidth,
+      math.min(card.layout.height, _cap),
+    );
+  }
+
+  /// The flex of card [index] under a finger: the shift of its center and
+  /// the growth of its width and height. Its content rides it 1:1.
+  ({Offset shift, double width, double height}) cardFlex(int index) {
+    if (index == 0 || index > _cards.length) return _noFlex;
+    final card = _cards[index - 1];
+    return _flexIn(card.flex, _cardFrame(card), _now);
+  }
 
   final List<MenuEvent> _events = [];
 
@@ -2115,14 +2179,26 @@ class MenuMotion extends Motion with Presented {
   /// what the flexed one shows at [position].
   Offset _unflexed(Offset position) {
     final stretch = _stretch;
-    if (stretch == null) return position;
-    final from = stretch.from;
-    final to = stretch.to;
-    return Offset(
-      from.left + (position.dx - to.left) * from.width / to.width,
-      from.top + (position.dy - to.top) * from.height / to.height,
+    final inMenu = stretch == null
+        ? position
+        : _mapped(position, stretch.to, stretch.from);
+    final top = _topCard;
+    if (top == 0) return inMenu;
+    final flex = cardFlex(top);
+    if (identical(flex, _noFlex)) return inMenu;
+    final from = _cardFrame(_cards[top - 1]);
+    final to = Rect.fromCenter(
+      center: from.center + flex.shift,
+      width: from.width + flex.width,
+      height: from.height + flex.height,
     );
+    return _mapped(inMenu, to, from);
   }
+
+  static Offset _mapped(Offset position, Rect from, Rect to) => Offset(
+    to.left + (position.dx - from.left) * to.width / from.width,
+    to.top + (position.dy - from.top) * to.height / from.height,
+  );
 
   /// What the flex's pulse channel ([MenuTuning.flexPulseSpring])
   /// last published: its value and its velocity per second of its own
@@ -2149,12 +2225,18 @@ class MenuMotion extends Motion with Presented {
   /// The menu takes the scales and drifts of [MenuFlex.valuesAt]: its width
   /// and height scale about the center across and about the edge facing
   /// the button along the vertical, which the vertical drift moves.
-  ({Offset shift, double width, double height}) _flexAt(double t) {
-    final d = _flex.valuesAt(t);
+  ({Offset shift, double width, double height}) _flexAt(double t) =>
+      _flexIn(_flex, menuRect, t);
+
+  ({Offset shift, double width, double height}) _flexIn(
+    MenuFlex list,
+    Rect frame,
+    double t,
+  ) {
+    final d = list.valuesAt(t);
     if (d.scaleX == 1 && d.scaleY == 1 && d.driftX == 0 && d.driftY == 0) {
       return _noFlex;
     }
-    final frame = menuRect;
     final side = _down ? 1.0 : -1.0;
     final grow = frame.height * (d.scaleY - 1);
     return (
@@ -2241,6 +2323,11 @@ class MenuMotion extends Motion with Presented {
 
   /// Whether [position] is on the menu as it shows, flexed.
   bool _onMenu(Offset position) => menuRect.contains(_unflexed(position));
+
+  MenuFlex get _topFlex {
+    final top = _topCard;
+    return top == 0 ? _flex : _cards[top - 1].flex;
+  }
 
   ({int card, int? target, bool beside}) _hitAt(Offset shown) {
     final position = _unflexed(shown);
@@ -2335,6 +2422,9 @@ class MenuMotion extends Motion with Presented {
     unscheduleAll();
     _press.unscheduleAll();
     _flex.unscheduleAll();
+    for (final card in _cards) {
+      card.flex.unscheduleAll();
+    }
     _pointer = null;
     advance(t);
     _close(t);
@@ -2397,11 +2487,16 @@ class MenuMotion extends Motion with Presented {
         pointer.scrolled = true;
         return;
       }
+      pointer.startedOnParent = _hitAt(position).beside;
+      pointer.touchesTopList = _onMenu(position) && !pointer.startedOnParent;
+      if (!pointer.touchesTopList) {
+        pointer.start = position;
+        return;
+      }
       _track(t, pointer, position);
-      pointer.touchesMenu = _onMenu(position);
-      if (!pointer.touchesMenu) return;
       _lightGlow(t, position);
-      _flex.down(t, position);
+      final flex = pointer.flex = _topFlex;
+      flex.down(t, position);
       return;
     }
     if (_openPending) {
@@ -2460,11 +2555,17 @@ class MenuMotion extends Motion with Presented {
       }
     }
     if (_phase != _Phase.opening || pointer.scrolled) return;
+    if (!pointer.touchesTopList) {
+      if (!pointer.startedOnParent &&
+          (position - pointer.start).distance >= MenuTuning.outsideMoveClose) {
+        _close(t);
+      }
+      return;
+    }
     final hit = _hitAt(position);
     if (hit.target != _highlighted || hit.card != _highlightCard) {
       _track(t, pointer, position);
     }
-    if (!pointer.touchesMenu) return;
     // A finger that held the menu open lights it once it moves (device:
     // none under a still hold).
     if (_touchGlow.isDown) {
@@ -2472,8 +2573,9 @@ class MenuMotion extends Motion with Presented {
     } else {
       _lightGlow(t, position);
     }
-    if (!_flex.isTouched) _flex.down(t, previous);
-    _flex.move(t, position);
+    final flex = pointer.flex ??= _topFlex;
+    if (!flex.isTouched) flex.down(t, previous);
+    flex.move(t, position);
   }
 
   /// The finger on the menu started to scroll its content: it no longer
@@ -2515,6 +2617,14 @@ class MenuMotion extends Motion with Presented {
       return;
     }
     if (pointer.scrolled) return;
+    if (!pointer.touchesTopList) {
+      if (!pointer.startedOnParent) {
+        at(t + tuning.dismissDelay, _close);
+      } else if (_hitAt(position).beside) {
+        at(t + tuning.backDelay, _back);
+      }
+      return;
+    }
     if (pointer.fromButton && !pointer.leftButton) {
       _setHighlight(null, _highlightCard);
       return;
@@ -2528,7 +2638,7 @@ class MenuMotion extends Motion with Presented {
     _setHighlight(null, _highlightCard);
     if (hit.beside) {
       at(t + tuning.backDelay, _back);
-    } else if (!pointer.fromButton && !_onMenu(position)) {
+    } else if (!pointer.fromButton && _topCard == 0 && !_onMenu(position)) {
       at(t + tuning.dismissDelay, _close);
     }
   }
@@ -2557,7 +2667,7 @@ class MenuMotion extends Motion with Presented {
     for (var i = _cards.length - 1; i >= 0; i--) {
       final card = _cards[i];
       if (card.backing && card.progress.valueAt(t) < tuning.cardGone) {
-        disown(_cards.removeAt(i).progress);
+        _dropCard(_cards.removeAt(i));
       }
     }
     if (_phase == _Phase.closing &&
@@ -2951,7 +3061,7 @@ class MenuMotion extends Motion with Presented {
         _setHighlight(null, card + 1);
         return;
       }
-      disown(_cards.removeLast().progress);
+      _dropCard(_cards.removeLast());
     }
     if (_cards.length != card) return;
     final layout = submenuLayout?.call(source);
@@ -2972,20 +3082,26 @@ class MenuMotion extends Motion with Presented {
       rest: () => _cardRest,
     );
     progress.retarget(t, 1);
-    _cards.add(
-      _Card(
-        layout: layout,
-        source: index,
-        from: from,
-        top: _clampCardTop(
-          shown.rect.top +
-              (rowLocal - tuning.cardLead) *
-                  (card == 0 ? 1 : tuning.parentScale),
-          layout.height,
-        ),
-        progress: progress,
+    final opened = _Card(
+      layout: layout,
+      source: index,
+      from: from,
+      top: _clampCardTop(
+        shown.rect.top +
+            (rowLocal - tuning.cardLead) * (card == 0 ? 1 : tuning.parentScale),
+        layout.height,
+      ),
+      progress: progress,
+    );
+    opened.flex = own(
+      MenuFlex(
+        tuning,
+        frame: () => _cardFrame(opened),
+        side: () => _down ? 1.0 : -1.0,
+        active: () => _phase == _Phase.opening,
       ),
     );
+    _cards.add(opened);
     _setHighlight(null, card + 1);
   }
 
@@ -3002,6 +3118,9 @@ class MenuMotion extends Motion with Presented {
 
   void _relax(double t) {
     _flex.up(t);
+    for (final card in _cards) {
+      card.flex.up(t);
+    }
     _touchGlow.pointerUp(t);
   }
 
