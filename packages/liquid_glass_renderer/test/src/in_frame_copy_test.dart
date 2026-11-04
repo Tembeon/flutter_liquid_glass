@@ -285,6 +285,35 @@ void main() {
     }, skip: skipProperGlassTests);
   }
 
+  // The frost takes a copy at a quarter of the screen's pixels, which lies
+  // in the corner of its layer; a layer grown past the clip leaves that
+  // corner outside it and the glass reads nothing, 153 levels off.
+  testWidgets('frosted glass over a smaller copy a clip cuts reads the copy', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(260, 640) * 3;
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    const clip = Rect.fromLTRB(0, 230, 260, 640);
+    final image = await _drawn(
+      tester,
+      inFrame: false,
+      pixelRatio: 3,
+      frost: 4.5,
+      second: false,
+      clip: clip,
+    );
+    final inFrame = await _drawn(
+      tester,
+      inFrame: true,
+      pixelRatio: 3,
+      frost: 4.5,
+      second: false,
+      clip: clip,
+    );
+    expect(_difference(image, inFrame), lessThanOrEqualTo(2));
+  }, skip: skipProperGlassTests);
+
   // The lower glass's frosted copy is an image at a fraction of the screen's
   // pixels, and the upper glass is drawn in the frame inside it as a filter,
   // whose fragments are the image's pixels.

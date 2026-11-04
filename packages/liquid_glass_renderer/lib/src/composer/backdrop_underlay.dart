@@ -279,10 +279,7 @@ class BackdropUnderlay {
     final scan = _scanOf(ask);
     final limit = scan.reach(ask.anchor);
     final clip = (limit < 0 ? null : scan.clip)?.intersect(ask.screen);
-    final layer = clip == null
-        ? ask.band
-        : _layerIn(ask.band, clip, ask.pixelRatio);
-    if (layer.isEmpty) {
+    if (clip != null && ask.band.intersect(clip).isEmpty) {
       release();
       _count(debugMisses, 'off screen');
       return null;
@@ -322,7 +319,19 @@ class BackdropUnderlay {
       return InFrameCopy._(
         content,
         ask.band,
-        pixels == ask.pixelRatio ? layer : _snapOut(layer, pixels),
+        switch (clip) {
+          null => ask.band,
+          // A smaller copy lies in its layer's corner, which a layer grown
+          // past the clip leaves outside it, and Impeller draws none of the
+          // copy there (host test): the layer starts inside the clip. NEAR:
+          // glass reads what lies past the clip mirrored at it, as where a
+          // clip leaves no room to grow.
+          _ when pixels < ask.devicePixelRatio => _snapOut(
+            ask.band.intersect(clip),
+            pixels,
+          ),
+          _ => _layerIn(ask.band, clip, pixels),
+        },
         pixels,
       );
     }
@@ -2134,7 +2143,7 @@ final class InFrameCopy {
 
   /// The rect of the layer the copy is drawn in: [band], grown where a clip
   /// would cut the layer, or the part of [band] inside a clip that leaves
-  /// no room to grow.
+  /// no room to grow or that cuts a copy smaller than the screen.
   final Rect layer;
 
   /// The copy's pixels per logical pixel along each side.
