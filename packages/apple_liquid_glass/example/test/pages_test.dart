@@ -136,6 +136,23 @@ void main() {
     );
   });
 
+  testWidgets('Motion and Controls start their content below the navigation '
+      'bar', (tester) async {
+    await _open(tester, 'Motion');
+    double barBottom() =>
+        tester.getBottomLeft(find.byType(GlassNavigationBar)).dy;
+    expect(
+      tester.getTopLeft(find.text('Two lines')).dy,
+      greaterThanOrEqualTo(barBottom()),
+    );
+    await tester.tap(find.text('Controls'));
+    await _frames(tester);
+    expect(
+      tester.getTopLeft(find.byType(PageView)).dy,
+      greaterThanOrEqualTo(barBottom()),
+    );
+  });
+
   testWidgets('Liquid: a drop follows its finger and flies home', (
     tester,
   ) async {

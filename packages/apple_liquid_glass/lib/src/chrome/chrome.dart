@@ -405,8 +405,10 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
 /// `NavigationStack`. Flutter: `CupertinoPageScaffold`.
 ///
 /// The bars float over [child]; the media query padding below them grows
-/// by their extents, so a scroll view's content starts under the
-/// navigation bar and can scroll clear of the toolbar, and a
+/// by their extents, so a `ListView`'s content starts under the navigation
+/// bar and can scroll clear of the toolbar (a `CustomScrollView` takes the
+/// padding through a `SliverSafeArea`, as under `CupertinoPageScaffold`),
+/// and a
 /// [GlassContentScroll] in [child] draws its edge effects under them. A
 /// tap on the status bar scrolls the content the bars follow to its
 /// start, as `CupertinoPageScaffold` does it (500 ms, linear to ease out,

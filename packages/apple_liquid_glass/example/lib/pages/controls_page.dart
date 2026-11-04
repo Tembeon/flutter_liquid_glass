@@ -91,8 +91,14 @@ class _ControlsPageState extends State<ControlsPage> {
       child: GlassContentScroll(
         child: CustomScrollView(
           slivers: [
-            for (final (title, section) in sections)
-              if (_shows(title)) section,
+            SliverSafeArea(
+              sliver: SliverMainAxisGroup(
+                slivers: [
+                  for (final (title, section) in sections)
+                    if (_shows(title)) section,
+                ],
+              ),
+            ),
           ],
         ),
       ),

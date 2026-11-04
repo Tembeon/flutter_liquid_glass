@@ -41,20 +41,27 @@ class _MotionPageState extends State<MotionPage> {
       child: GlassContentScroll(
         child: CustomScrollView(
           slivers: [
-            SliverToBoxAdapter(
-              child: TwoLines(
-                reduceMotion: _reduceMotion,
-                onReduceMotion: (on) => setState(() => _reduceMotion = on),
+            SliverSafeArea(
+              sliver: SliverMainAxisGroup(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: TwoLines(
+                      reduceMotion: _reduceMotion,
+                      onReduceMotion: (on) =>
+                          setState(() => _reduceMotion = on),
+                    ),
+                  ),
+                  const NotesSection(),
+                  const SliverToBoxAdapter(child: ChipsSection()),
+                  const SliverToBoxAdapter(child: GridListSection()),
+                  const SliverToBoxAdapter(child: PeekSection()),
+                  SliverToBoxAdapter(
+                    child: OwnControlSection(recording: _recording),
+                  ),
+                  SliverToBoxAdapter(child: Replay(recording: _recording)),
+                ],
               ),
             ),
-            const NotesSection(),
-            const SliverToBoxAdapter(child: ChipsSection()),
-            const SliverToBoxAdapter(child: GridListSection()),
-            const SliverToBoxAdapter(child: PeekSection()),
-            SliverToBoxAdapter(
-              child: OwnControlSection(recording: _recording),
-            ),
-            SliverToBoxAdapter(child: Replay(recording: _recording)),
           ],
         ),
       ),
