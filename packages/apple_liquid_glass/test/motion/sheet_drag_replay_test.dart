@@ -100,7 +100,7 @@ _replay(String name, {String dir = _dir, double frame = _frame}) {
   );
   motion.present(0);
   motion.advance(down.$1 - 2);
-  final rect = motion.at(down.$1 - 2).visibleRect(_h);
+  final rect = motion.atTime(down.$1 - 2).visibleRect(_h);
   if ((rect.top - before.top).abs() > 1) {
     throw StateError('$name rests at ${before.top}, model ${rect.top}');
   }
@@ -127,8 +127,9 @@ _replay(String name, {String dir = _dir, double frame = _frame}) {
           motion.dragEnd(t, v);
         } else {
           motion.unpress(t);
-          final top = motion.at(t).visibleRect(_h).top;
-          if ((y - top) / motion.at(t).scale < SheetTuning.grabberHitHeight) {
+          final top = motion.atTime(t).visibleRect(_h).top;
+          if ((y - top) / motion.atTime(t).scale <
+              SheetTuning.grabberHitHeight) {
             motion.tapGrabber(t);
           }
         }
@@ -146,10 +147,10 @@ _replay(String name, {String dir = _dir, double frame = _frame}) {
     if (row.t < down.$1) continue;
     feed(row.t);
     motion.advance(row.t);
-    final r = motion.at(row.t).visibleRect(_h);
+    final r = motion.atTime(row.t).visibleRect(_h);
     final e = [r.top - row.top, r.bottom - row.bottom];
-    stretchErrors.add(motion.at(row.t).stretch - row.ratio);
-    areaErrors.add(motion.at(row.t).scale - row.area);
+    stretchErrors.add(motion.atTime(row.t).stretch - row.ratio);
+    areaErrors.add(motion.atTime(row.t).scale - row.area);
     if (e.any((double v) => v.abs() > 60) && row.top <= 0.5) continue;
     if (row.top >= _h - 1 && r.top >= _h - 1) continue;
     errors.addAll(e);
@@ -180,8 +181,10 @@ _replay(String name, {String dir = _dir, double frame = _frame}) {
 // on the projection boundary both ways the bracketing flicks put it
 // (0.143 s at 680 pt/s), and UIKit took it to medium.
 extension on SheetMotion {
-  SheetMotion at(double t) {
+  // As the clock steps a root on screen: advance, then settle at rest.
+  SheetMotion atTime(double t) {
     advance(t);
+    if (isSettled) settle();
     return this;
   }
 }
@@ -317,20 +320,20 @@ void main() {
       motion.dragUpdate(t, y);
     }
     motion.dragEnd(t, -1300);
-    final peak = motion.at(t).stretch;
+    final peak = motion.atTime(t).stretch;
     expect(peak, greaterThan(1.02));
     final regrab = t + 0.1;
     motion.advance(regrab);
-    final before = motion.at(regrab).stretch;
+    final before = motion.atTime(regrab).stretch;
     expect(before, greaterThan(1.01));
-    expect(motion.at(regrab).dock, lessThan(1));
+    expect(motion.atTime(regrab).dock, lessThan(1));
     motion.dragStart(regrab, y);
-    expect(motion.at(regrab).stretch, closeTo(before, 1e-9));
+    expect(motion.atTime(regrab).stretch, closeTo(before, 1e-9));
     var last = before;
     for (var i = 1; i <= 24; i++) {
       final s = regrab + i * step;
       motion.dragUpdate(s, y);
-      final now = motion.at(s).stretch;
+      final now = motion.atTime(s).stretch;
       expect((now - last).abs(), lessThan(0.003));
       last = now;
     }

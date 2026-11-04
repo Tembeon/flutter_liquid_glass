@@ -132,7 +132,7 @@ double _max(GlassSheetDetent d) => d.resolve(_h - _top - _bottom) + _bottom;
     _Row row, {
     required bool presenting,
   }) {
-    final rect = motion.at(row.t).visibleRect(_h);
+    final rect = motion.atTime(row.t).visibleRect(_h);
     final top = row.d('y') - row.d('h') / 2;
     final bottom = row.d('y') + row.d('h') / 2;
     final left = row.d('x') - row.d('w') / 2;
@@ -184,7 +184,7 @@ double _max(GlassSheetDetent d) => d.resolve(_h - _top - _bottom) + _bottom;
         }
         m.advance(row.t);
         final bg = (row.raw['bg']! as List).cast<num>();
-        dims.add(m.at(row.t).dimming * SheetTuning.dimmingOpacity - bg[3]);
+        dims.add(m.atTime(row.t).dimming * SheetTuning.dimmingOpacity - bg[3]);
       }
     }
     return errors;
@@ -220,8 +220,10 @@ double _max(GlassSheetDetent d) => d.resolve(_h - _top - _bottom) + _bottom;
 }
 
 extension on SheetMotion {
-  SheetMotion at(double t) {
+  // As the clock steps a root on screen: advance, then settle at rest.
+  SheetMotion atTime(double t) {
     advance(t);
+    if (isSettled) settle();
     return this;
   }
 }

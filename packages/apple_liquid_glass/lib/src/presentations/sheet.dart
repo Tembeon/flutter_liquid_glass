@@ -58,9 +58,9 @@ Future<T?> showGlassSheet<T>(
   ValueChanged<GlassSheetDetent>? onDetentChanged,
   VoidCallback? onDismissAttempt,
   PresentationLevel level = PresentationLevel.window,
-}) => showPresentation(
-  context,
-  GlassSheetRoute<T>(
+}) {
+  assert(detents.isNotEmpty, 'a sheet rests at a detent');
+  final spec = _SheetSpec(
     builder: builder,
     detents: detents,
     initialDetent: initialDetent,
@@ -68,87 +68,88 @@ Future<T?> showGlassSheet<T>(
     showDragHandle: showDragHandle,
     isDismissible: isDismissible,
     scrollingExpandsSheet: scrollingExpandsSheet,
-    semanticLabel: semanticLabel,
     onDetentChanged: onDetentChanged,
-    onDismissAttempt: onDismissAttempt,
-  ),
-  level: level,
-);
+  );
+  return showPresentation(
+    context,
+    PresentationRoute(
+      presentation: Presentation<T, _SheetPresented>(
+        motion: (_) => _SheetPresented(),
+        builder: (context, motion) => _SheetView(motion: motion, spec: spec),
+        // Back and Navigator.pop close it either way.
+        dismiss: isDismissible
+            ? const DismissPolicy()
+            : const DismissPolicy({DismissTrigger.back}),
+        dim: (motion) =>
+            SheetTuning.dimmingOpacity * (motion.sheet?.dimming ?? 0),
+        modal: (motion) => (motion.sheet?.dimming ?? 1) > 0,
+        onVeto: onDismissAttempt == null ? null : (_) => onDismissAttempt(),
+        semanticsLabel: semanticLabel,
+      ),
+    ),
+    level: level,
+  );
+}
 
-/// The route [showGlassSheet] pushes.
-final class GlassSheetRoute<T> extends PresentationRoute<T> {
-  /// Creates the route of a sheet.
-  GlassSheetRoute({
+/// What [showGlassSheet] was asked for.
+@immutable
+class _SheetSpec {
+  const _SheetSpec({
     required this.builder,
-    this.detents = const [GlassSheetDetent.large],
-    this.initialDetent,
-    this.largestUndimmedDetent,
-    this.showDragHandle = false,
-    this.isDismissible = true,
-    this.scrollingExpandsSheet = true,
-    String? semanticLabel,
-    this.onDetentChanged,
-    this.onDismissAttempt,
-    super.settings,
-  }) : assert(detents.isNotEmpty, 'a sheet rests at a detent'),
-       super(semanticsLabel: semanticLabel);
+    required this.detents,
+    required this.initialDetent,
+    required this.largestUndimmedDetent,
+    required this.showDragHandle,
+    required this.isDismissible,
+    required this.scrollingExpandsSheet,
+    required this.onDetentChanged,
+  });
 
-  /// Builds the sheet's content.
   final WidgetBuilder builder;
-
-  /// The heights the sheet rests at.
   final List<GlassSheetDetent> detents;
-
-  /// The detent the sheet presents at; null for the first of [detents].
   final GlassSheetDetent? initialDetent;
-
-  /// The largest detent that leaves the page undimmed and touchable; null
-  /// dims at every detent.
   final GlassSheetDetent? largestUndimmedDetent;
-
-  /// Whether the grabber shows at the sheet's top.
   final bool showDragHandle;
-
-  /// Whether the user may dismiss the sheet by a drag down, a tap outside,
-  /// Escape or a screen reader's dismiss; Back and `Navigator.pop` close it
-  /// either way.
   final bool isDismissible;
-
-  /// Whether a drag up on content scrolled to its top expands the sheet
-  /// toward its largest detent before the content scrolls (UIKit's
-  /// `prefersScrollingExpandsWhenScrolledToEdge`).
   final bool scrollingExpandsSheet;
-
-  /// Called with the detent the user moves the sheet to, by a drag or a
-  /// tap at its top; [GlassSheet.animateTo] does not call it.
   final ValueChanged<GlassSheetDetent>? onDetentChanged;
+}
 
-  /// Called when the user tries to dismiss a sheet that stays (UIKit's
-  /// `presentationControllerDidAttemptToDismiss`).
-  final VoidCallback? onDismissAttempt;
+/// A sheet's presentation: its [SheetMotion] comes with the first layout,
+/// whose detents it needs, and presents then.
+final class _SheetPresented extends Motion with Presented {
+  SheetMotion? _sheet;
+  bool _opened = false;
+  bool _left = false;
 
-  _SheetViewState? _view;
+  SheetMotion? get sheet => _sheet;
 
-  @override
-  bool allows(DismissTrigger trigger) => switch (trigger) {
-    .back || .programmatic => true,
-    .outsideTap || .escape || .accessibility || .interaction => isDismissible,
-  };
+  /// Whether the presentation was dismissed.
+  bool get left => _left;
 
-  @override
-  void didVetoDismiss(DismissTrigger trigger) => onDismissAttempt?.call();
-
-  @override
-  bool get modal => _view?._structure.value.dimmed ?? true;
-
-  @override
-  Widget buildContent(BuildContext context) => _SheetView(route: this);
+  void attach(double t, SheetMotion sheet) {
+    _sheet = own(sheet);
+    if (_opened && !_left) sheet.present(t);
+  }
 
   @override
-  bool leave(DismissTrigger trigger) {
-    final view = _view;
-    if (view == null) return false;
-    view._leave();
+  PresenceStatus get presence {
+    final sheet = _sheet;
+    if (sheet == null) return _opened && !_left ? .opening : .hidden;
+    if (sheet.isDismissing) return sheet.isDismissed ? .hidden : .leaving;
+    return isSettled ? .shown : .opening;
+  }
+
+  @override
+  void open(double t) => _opened = true;
+
+  @override
+  bool leave(double t, DismissTrigger trigger) {
+    _left = true;
+    final sheet = _sheet;
+    if (sheet == null) return false;
+    if (sheet.isDragging) sheet.dragCancel(t);
+    if (!sheet.isDismissing) sheet.dismiss(t);
     return true;
   }
 }
@@ -169,7 +170,7 @@ abstract interface class GlassSheet {
   static GlassSheet of(BuildContext context) {
     final sheet = maybeOf(context);
     if (sheet == null) {
-      throw FlutterError('GlassSheet.of called outside a GlassSheetRoute.');
+      throw FlutterError('GlassSheet.of called outside a glass sheet.');
     }
     return sheet;
   }
@@ -191,7 +192,7 @@ abstract interface class GlassSheet {
     );
     if (scope == null) {
       throw FlutterError(
-        'GlassSheet.scrollControllerOf called outside a GlassSheetRoute.',
+        'GlassSheet.scrollControllerOf called outside a glass sheet.',
       );
     }
     return scope.state._scroll;
@@ -221,7 +222,7 @@ class _SheetScope extends InheritedModel<_SheetAspect> {
 }
 
 /// What the sheet's tree is built from; it rebuilds only when this changes.
-typedef _Structure = ({bool opaque, bool filling, bool dimmed});
+typedef _Structure = ({bool opaque, bool filling});
 
 /// The sheet's geometry in one frame.
 @immutable
@@ -250,17 +251,29 @@ abstract final class _Colors {
 }
 
 class _SheetView extends StatefulWidget {
-  const _SheetView({required this.route});
+  const _SheetView({required this.motion, required this.spec});
 
-  final GlassSheetRoute<Object?> route;
+  final _SheetPresented motion;
+  final _SheetSpec spec;
 
   @override
   State<_SheetView> createState() => _SheetViewState();
 }
 
-class _SheetViewState extends State<_SheetView>
-    implements MotionDriver, GlassSheet {
-  SheetMotion? _motion;
+class _SheetViewState extends State<_SheetView> implements GlassSheet {
+  // Everything _publish reads, so a frame that moved the sheet publishes it
+  // and one that did not costs nothing.
+  late final MotionSelection<Object?> _frames = widget.motion.select((m) {
+    final sheet = m.sheet;
+    if (sheet == null) return null;
+    return (
+      sheet.height,
+      sheet.visibleRect(_size.height),
+      sheet.bottomRadius,
+      sheet.fill,
+      sheet.hasEvents,
+    );
+  });
   late final _SheetScrollController _scroll = _SheetScrollController(this);
   final _frame = ValueNotifier(
     _Frame(
@@ -269,12 +282,10 @@ class _SheetViewState extends State<_SheetView>
       body: RSuperellipse.zero,
     ),
   );
-  final _dim = ValueNotifier<double>(0);
   final _fill = ValueNotifier<double>(0);
   final _structure = ValueNotifier<_Structure>((
     opaque: false,
     filling: false,
-    dimmed: true,
   ));
   List<int> _order = const [];
   int _index = 0;
@@ -283,7 +294,6 @@ class _SheetViewState extends State<_SheetView>
   double _keyboard = 0;
   double? _fitted;
   double? _displayRadius;
-  bool _leaving = false;
   double _dragY = 0;
   double _stamp = 0;
   double? _slopFrom;
@@ -304,12 +314,16 @@ class _SheetViewState extends State<_SheetView>
   VelocityTracker? _tracker;
   double? _releaseVelocity;
 
-  GlassSheetRoute<Object?> get _route => widget.route;
+  _SheetSpec get _spec => widget.spec;
+
+  SheetMotion? get _motion => widget.motion.sheet;
+
+  bool get _leaving => widget.motion.left;
 
   double get _now => MotionClock.instance.now;
 
   @override
-  List<GlassSheetDetent> get detents => _route.detents;
+  List<GlassSheetDetent> get detents => _spec.detents;
 
   @override
   GlassSheetDetent get detent => detents[_index];
@@ -317,44 +331,24 @@ class _SheetViewState extends State<_SheetView>
   @override
   void initState() {
     super.initState();
-    _route._view = this;
-    _index = math.max(0, detents.indexOf(_route.initialDetent ?? detents[0]));
-    MotionClock.instance.addDriver(this);
+    _index = math.max(0, detents.indexOf(_spec.initialDetent ?? detents[0]));
+    _frames.addListener(_stepped);
   }
 
   @override
   void dispose() {
-    if (identical(_route._view, this)) _route._view = null;
-    MotionClock.instance.removeDriver(this);
+    _frames.removeListener(_stepped);
     _scroll.dispose();
     _frame.dispose();
-    _dim.dispose();
     _fill.dispose();
     _structure.dispose();
     super.dispose();
   }
 
-  @override
-  bool get isActive => !(_motion?.isSettled ?? true);
-
-  @override
-  double? get wakeTime => null;
-
-  @override
-  void step(double time) {
-    final motion = _motion;
-    if (motion == null) return;
-    motion.advance(time);
+  void _stepped() {
     _deliver();
     _publish();
-    if (_leaving && motion.isDismissed) {
-      _route.didLeave();
-    } else if (!_leaving && motion.isSettled) {
-      _route.didOpen();
-    }
   }
-
-  void _wake() => MotionClock.instance.wake(this);
 
   @override
   void animateTo(GlassSheetDetent detent) {
@@ -363,7 +357,6 @@ class _SheetViewState extends State<_SheetView>
     if (i < 0 || motion == null || _leaving) return;
     motion.animateTo(_now, _order.indexOf(i));
     _deliver();
-    _wake();
   }
 
   void _deliver() {
@@ -375,30 +368,19 @@ class _SheetViewState extends State<_SheetView>
         case SheetDetentChanged(:final index, :final byUser):
           setState(() => _index = _order[index]);
           // UIKit reports a detent the user picks, not one set from code.
-          if (byUser) _route.onDetentChanged?.call(detent);
+          if (byUser) _spec.onDetentChanged?.call(detent);
         case SheetDismissed() || SheetDismissRefused():
-          if (!_leaving) _route.dismiss(DismissTrigger.interaction);
+          if (!_leaving) {
+            PresentationHandle.of(
+              context,
+            ).dismiss(DismissTrigger.interaction);
+          }
       }
     }
   }
 
-  void _leave() {
-    _leaving = true;
-    final motion = _motion;
-    if (motion == null) {
-      _route.didLeave();
-      return;
-    }
-    if (motion.isDragging) motion.dragCancel(_now);
-    if (!motion.isDismissing) motion.dismiss(_now);
-    _wake();
-  }
-
-  bool get _dismissAllowed => _route.canDismiss(DismissTrigger.interaction);
-
-  void _outside() {
-    if (!_leaving) _route.dismiss(DismissTrigger.outsideTap);
-  }
+  bool get _dismissAllowed =>
+      PresentationHandle.of(context).canDismiss(DismissTrigger.interaction);
 
   void _fittedHeight(double height) {
     if (!mounted || _fitted == height) return;
@@ -438,7 +420,7 @@ class _SheetViewState extends State<_SheetView>
     _order = order;
     final heights = [for (final i in order) values[i]];
     final docked = order.indexWhere((i) => detents[i].isLarge);
-    final undimmed = _route.largestUndimmedDetent;
+    final undimmed = _spec.largestUndimmedDetent;
     final undimmedAt = undimmed == null
         ? -1
         : order.indexWhere((i) => detents[i] == undimmed);
@@ -452,11 +434,10 @@ class _SheetViewState extends State<_SheetView>
         fullHeight: maximum + padding.bottom,
         dockedIndex: docked < 0 ? null : docked,
         undimmedIndex: undimmedAt < 0 ? null : undimmedAt,
-        dismissible: _route.isDismissible,
+        dismissible: _spec.isDismissible,
         displayRadius: _displayRadius,
       );
-      created.present(_now);
-      _motion = created;
+      widget.motion.attach(_now, created);
     } else {
       motion.relayout(
         _now,
@@ -466,7 +447,6 @@ class _SheetViewState extends State<_SheetView>
         index: raised == wasRaised ? null : index,
       );
     }
-    _wake();
   }
 
   void _publish() {
@@ -494,15 +474,9 @@ class _SheetViewState extends State<_SheetView>
         bottomRight: bottom,
       ),
     );
-    final dim = SheetTuning.dimmingOpacity * motion.dimming;
     final fill = motion.fill;
-    _dim.value = dim;
     _fill.value = fill;
-    final structure = (opaque: fill >= 1, filling: fill > 0, dimmed: dim > 0);
-    if (structure != _structure.value) {
-      _structure.value = structure;
-      _route.modalityChanged();
-    }
+    _structure.value = (opaque: fill >= 1, filling: fill > 0);
   }
 
   void _stampEvent(PointerEvent event) {
@@ -532,7 +506,6 @@ class _SheetViewState extends State<_SheetView>
     tracker.addPosition(event.timeStamp, event.position);
     _releaseVelocity = null;
     motion.press(_stamp);
-    _wake();
   }
 
   void _move(PointerMoveEvent event) {
@@ -564,7 +537,6 @@ class _SheetViewState extends State<_SheetView>
       motion.tapGrabber(_stamp);
     }
     _deliver();
-    _wake();
   }
 
   void _configureDrag(VerticalDragGestureRecognizer drag) {
@@ -583,7 +555,6 @@ class _SheetViewState extends State<_SheetView>
       return;
     }
     _motion?.dragCancel(_now);
-    _wake();
   }
 
   // Alone in the gesture arena the drag is accepted at the touch, so the
@@ -604,7 +575,6 @@ class _SheetViewState extends State<_SheetView>
     motion.dismissible = _dismissAllowed;
     _dragY = y;
     motion.dragStart(_stamp, _dragY);
-    _wake();
   }
 
   void _dragUpdate(DragUpdateDetails details) {
@@ -638,7 +608,6 @@ class _SheetViewState extends State<_SheetView>
     if (motion == null || !motion.isDragging) return;
     motion.dragEnd(math.max(_stamp, _now), velocity);
     _deliver();
-    _wake();
   }
 
   void _scrollDragBy(double delta) {
@@ -650,7 +619,6 @@ class _SheetViewState extends State<_SheetView>
       motion.dismissible = _dismissAllowed;
       _dragY = 0;
       motion.dragStart(t, 0);
-      _wake();
     }
     _dragY += delta;
     motion.dragUpdate(t, _dragY);
@@ -692,9 +660,9 @@ class _SheetViewState extends State<_SheetView>
         child: detents.any((d) => d.isFitted)
             ? _FitReport(
                 onHeight: _fittedHeight,
-                child: Builder(builder: _route.builder),
+                child: Builder(builder: _spec.builder),
               )
-            : Builder(builder: _route.builder),
+            : Builder(builder: _spec.builder),
       );
     }
     final scope = _scope;
@@ -736,23 +704,6 @@ class _SheetViewState extends State<_SheetView>
           child: inner,
           builder: (context, structure, child) => Stack(
             children: [
-              if (structure.dimmed)
-                Positioned.fill(
-                  key: const ValueKey('dim'),
-                  child: Semantics(
-                    onTap: _route.isDismissible ? _outside : null,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: _outside,
-                      child: MotionTransition(
-                        opacity: _dim,
-                        child: const ColoredBox(color: Color(0xFF000000)),
-                      ),
-                    ),
-                  ),
-                ),
-              // Keyed so the dimming appearing mid-drag does not re-inflate
-              // the sheet and dispose its drag recognizer.
               Positioned.fill(
                 key: const ValueKey('sheet'),
                 child: _SheetBox(
@@ -797,7 +748,7 @@ class _SheetViewState extends State<_SheetView>
                                 child: ColoredBox(color: docked),
                               ),
                             child!,
-                            if (_route.showDragHandle)
+                            if (_spec.showDragHandle)
                               Align(
                                 alignment: Alignment.topCenter,
                                 child: Padding(
@@ -982,7 +933,7 @@ class _SheetScrollPosition extends ScrollPositionWithSingleContext {
     final atTop = pixels <= minScrollExtent;
     if (_owns ||
         (delta > 0 && atTop) ||
-        (delta < 0 && sheet._route.scrollingExpandsSheet && sheet._canExpand)) {
+        (delta < 0 && sheet._spec.scrollingExpandsSheet && sheet._canExpand)) {
       _owns = true;
       sheet._scrollDragBy(delta);
       if (!sheet._scrollDragging) _owns = false;

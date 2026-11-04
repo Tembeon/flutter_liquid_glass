@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
@@ -320,7 +319,7 @@ abstract final class SheetTuning {
 /// times the finger's velocity. A tap on the grabber band cycles to the
 /// next detent.
 @internal
-class SheetMotion {
+class SheetMotion extends Motion {
   /// Creates a motion with the given detent [heights] (ascending), resting
   /// hidden below the screen until [present].
   ///
@@ -340,15 +339,8 @@ class SheetMotion {
   }) : _heights = List<double>.of(heights),
        _fullHeight = fullHeight ?? heights.last,
        _index = initial,
-       _height = MotionValue<double>(
-         heights[initial],
-         spring: SheetTuning.spring,
-       ),
-       _offset = MotionValue<double>(0, spring: SheetTuning.spring),
-       _fill = MotionValue<double>(
-         initial == dockedIndex ? 1 : 0,
-         spring: SheetTuning.spring,
-       ) {
+       _restingHeight = heights[initial],
+       _restingFill = initial == dockedIndex ? 1 : 0 {
     _toDocked = initial == dockedIndex;
     _dockStart = _toDocked ? 1 : 0;
     _radiusStart = _toDocked ? dockedRadius : floatingRadius;
@@ -384,28 +376,49 @@ class SheetMotion {
   /// The gap around the floating sheet in pixels.
   final double inset;
 
-  final MotionValue<double> _height;
-  final MotionValue<double> _offset;
-  final MotionValue<double> _fill;
-  final MotionTimeline _timeline = MotionTimeline(now: 0);
-  double? _pressAt;
-  final _press = MotionValue<double>(1, spring: SheetTuning.pressSpring);
-  final _stretch = MotionValue<double>(
-    0,
-    spring: SheetTuning.stretchSpring,
+  final double _restingHeight;
+  final double _restingFill;
+
+  // Height and offset rest within MotionRest.length, the press and the
+  // stretch within MotionRest.scale of the sheet's longer side, the fill
+  // within MotionRest.opacity (NEAR, invisible).
+  late final MotionValue<double> _height = own(
+    MotionValue<double>(_restingHeight, spring: SheetTuning.spring),
+    rest: () => MotionRest.length,
   );
-  final _drift = MotionValue<double>(0, spring: SheetTuning.spring);
+  late final MotionValue<double> _offset = own(
+    MotionValue<double>(0, spring: SheetTuning.spring),
+    rest: () => MotionRest.length,
+  );
+  late final MotionValue<double> _fill = own(
+    MotionValue<double>(_restingFill, spring: SheetTuning.spring),
+    rest: () => MotionRest.opacity,
+  );
+  late final MotionValue<double> _press = own(
+    MotionValue<double>(1, spring: SheetTuning.pressSpring),
+    rest: () => _scaleRest,
+  );
+  late final MotionValue<double> _stretch = own(
+    MotionValue<double>(0, spring: SheetTuning.stretchSpring),
+    rest: () => _scaleRest,
+  );
+  late final MotionValue<double> _drift = own(
+    MotionValue<double>(0, spring: SheetTuning.spring),
+    rest: () => _driftRest,
+  );
+  // Not a part: it moves the sheet only while a drag stretches it, and the
+  // drag holds the motion.
   final _lag = MotionValue<double>(
     0,
     spring: SheetTuning.stretchLagSpring,
   );
+  static const Object _pressSlot = #press;
   bool _stretching = false;
   double _travel = 0;
   double _travelAt = 0;
   double _travelVelocity = 0;
   int _index;
   bool _dismissing = false;
-  double _now = 0;
 
   bool _toDocked = false;
   double _dockStart = 0;
@@ -433,6 +446,9 @@ class SheetMotion {
     return drained;
   }
 
+  /// Whether events wait for [drainEvents].
+  bool get hasEvents => _events.isNotEmpty;
+
   /// Whether the sheet is leaving or has left.
   bool get isDismissing => _dismissing;
 
@@ -458,50 +474,40 @@ class SheetMotion {
   /// than half a point about the hidden offset, where the sheet's top sits
   /// at the container's bottom edge.
   bool get isDismissed =>
-      _dismissing && _offset.isWithin(_now, 0.5) && _dragFrom == null;
+      _dismissing && _offset.restsAt(now, 0.5) && _dragFrom == null;
 
-  /// Whether nothing moves visibly ([GlassRest], NEAR): height and offset
-  /// swing less than [GlassRest.length], the press and the stretch less
-  /// than [GlassRest.scale] of the sheet's longer side and the fill less
-  /// than [GlassRest.opacity].
-  bool get isSettled =>
-      _dragFrom == null &&
-      _height.isWithin(_now, GlassRest.length) &&
-      _offset.isWithin(_now, GlassRest.length) &&
-      _timeline.isEmpty &&
-      _pressAt == null &&
-      !_released &&
-      _press.isWithin(_now, _scaleRest) &&
-      _fill.isWithin(_now, GlassRest.opacity) &&
-      !_stretching &&
-      _stretch.isWithin(_now, _scaleRest) &&
-      _drift.isWithin(_now, _driftRest);
+  @override
+  bool get holds => _dragFrom != null || _released || _stretching;
 
-  double get _driftRest => inset <= 0 ? 1 : GlassRest.length / inset;
+  double get _driftRest => inset <= 0 ? 1 : MotionRest.length / inset;
 
-  double get _scaleRest => GlassRest.scale(math.max(width, _heights[_index]));
+  double get _scaleRest => MotionRest.scale(math.max(width, _heights[_index]));
 
   /// The unscaled height.
-  double get height => _heightAt(_now);
+  double get height => _heightAt(now);
 
   double _heightAt(double t) => _height.valueAt(t);
 
   /// The translation down from the resting place.
-  double get offset => _offsetAt(_now);
+  double get offset => _offsetAt(now);
 
   double _offsetAt(double t) => _offset.valueAt(t);
 
   /// The docking progress: 0 floating, 1 edge to edge.
-  double get dock => _dockAt(_now);
+  double get dock => _dockAt(now);
 
   double _dockAt(double t) => _dockFor(_heightAt(t));
 
   /// The opacity of the opaque fill, 0 to 1: 0 shows the
   /// glass of a floating sheet, 1 the fill of a docked one, which hides
   /// the glass.
-  double get fill => _fillAt(_now);
+  double get fill => _fillAt(now);
 
-  double _fillAt(double t) => _fill.valueAt(t).clamp(0.0, 1.0);
+  // A fill within its rest reads its target even while a drag holds the
+  // motion, so the glass gives way to the opaque fill as the drag docks.
+  double _fillAt(double t) => _fill.restsAt(t, MotionRest.opacity)
+      ? _fill.target
+      : _fill.valueAt(t).clamp(0.0, 1.0);
 
   /// The radius of the bottom corners of a floating sheet, in unscaled
   /// pixels: the display's less [inset] (62 - 8 = 54 on an iPhone 16 Pro),
@@ -530,7 +536,7 @@ class SheetMotion {
   /// rounds the gap up to a third of a point, this curve is smooth: NEAR). A
   /// sheet presented docked keeps [dockedRadius] (a large-only sheet reads
   /// 62 through its present and dismissal).
-  double get bottomRadius => _bottomRadiusAt(_now);
+  double get bottomRadius => _bottomRadiusAt(now);
 
   double _bottomRadiusAt(double t) {
     final floating = floatingRadius;
@@ -540,7 +546,7 @@ class SheetMotion {
     if (_dragFrom != null) {
       radius = docked - (docked - floating) * (1 - d) * (1 - d);
     } else if (_toDocked) {
-      if (_height.isWithin(t, GlassRest.length)) {
+      if (_height.restsAt(t, MotionRest.length)) {
         radius = _squareAtRest ? 0 : docked;
       } else {
         final span = 1 - _dockStart;
@@ -595,7 +601,7 @@ class SheetMotion {
 
   /// The uniform scale of the sheet, the swell of a touch
   /// included.
-  double get scale => _scaleAt(_now);
+  double get scale => _scaleAt(now);
 
   double _scaleAt(double t) => _scaleFor(_dockAt(t)) * _pressScaleAt(t);
 
@@ -606,7 +612,7 @@ class SheetMotion {
   /// catches the sheet while a stretch still returns stretches it on top
   /// of that remainder, which keeps returning on
   /// [SheetTuning.stretchSpring].
-  double get stretch => _stretchAt(_now);
+  double get stretch => _stretchAt(now);
 
   double _stretchAt(double t) =>
       1 +
@@ -633,7 +639,7 @@ class SheetMotion {
 
   /// How strongly the sheet dims what is behind it, 0 to 1;
   /// multiply by [SheetTuning.dimmingOpacity].
-  double get dimming => _dimmingAt(_now);
+  double get dimming => _dimmingAt(now);
 
   double _dimmingAt(double t) {
     final hidden = hiddenOffset;
@@ -731,7 +737,7 @@ class SheetMotion {
     if (changed) _events.add(SheetDetentChanged(index, byUser: byUser));
   }
 
-  double get _top => _height.valueAt(_now) - _offset.valueAt(_now);
+  double get _top => _height.valueAt(now) - _offset.valueAt(now);
 
   void _fillToward(double t, double target) {
     if (dockedIndex == null || _fill.target == target) return;
@@ -745,7 +751,11 @@ class SheetMotion {
   void press(double t) {
     advance(t);
     if (_dockAt(t) >= 1) return;
-    _pressAt = t + SheetTuning.pressDelay;
+    at(
+      t + SheetTuning.pressDelay,
+      (s) => _press.retarget(s, SheetTuning.pressScale),
+      slot: _pressSlot,
+    );
   }
 
   /// The touch ended without a drag: the swell goes.
@@ -755,7 +765,7 @@ class SheetMotion {
   }
 
   void _letGo(double t) {
-    _pressAt = null;
+    cancel(_pressSlot);
     _press.retarget(t, 1);
   }
 
@@ -764,7 +774,7 @@ class SheetMotion {
   void tapGrabber(double t) {
     advance(t);
     if (_heights.length < 2 || _dismissing) return;
-    _timeline.at(t + SheetTuning.grabberTapDelay, (double s) {
+    at(t + SheetTuning.grabberTapDelay, (s) {
       if (_dragFrom == null && !_dismissing) {
         _transition(s, (_index + 1) % _heights.length);
       }
@@ -852,7 +862,7 @@ class SheetMotion {
     if (_dragFrom == null || _released) return;
     _holdStretch(t);
     _released = true;
-    _timeline.at(t + SheetTuning.releaseDelay, (double s) {
+    at(t + SheetTuning.releaseDelay, (s) {
       _letGo(s);
       _released = false;
       _settle(s, velocity);
@@ -918,29 +928,10 @@ class SheetMotion {
     _transition(t, _index);
   }
 
-  /// Advances the motion to time [t] (an earlier [t] keeps the time); a
-  /// spring whose remaining swing is invisible ([isSettled]'s thresholds)
-  /// comes to rest on its target.
-  void advance(double t) {
-    if (t > _now) _now = t;
-    final pressAt = _pressAt;
-    if (pressAt != null && pressAt <= _now) {
-      _pressAt = null;
-      _press.retarget(pressAt, SheetTuning.pressScale);
-    }
-    _timeline.runDue(_now);
-    if (_fill.isWithin(_now, GlassRest.opacity)) _fill.settle(_now);
-    if (_dragFrom != null) return;
-    if (_height.isWithin(_now, GlassRest.length)) _height.settle(_now);
-    if (_offset.isWithin(_now, GlassRest.length)) _offset.settle(_now);
-    if (_stretch.isWithin(_now, _scaleRest)) _stretch.settle(_now);
-    if (_drift.isWithin(_now, _driftRest)) _drift.settle(_now);
-  }
-
   /// The sheet's visible rect in a container [containerHeight]
   /// pixels tall, transforms applied.
   Rect visibleRect(double containerHeight) =>
-      _visibleRectAt(_now, containerHeight);
+      _visibleRectAt(now, containerHeight);
 
   Rect _visibleRectAt(double t, double containerHeight) {
     final h = _heightAt(t);
