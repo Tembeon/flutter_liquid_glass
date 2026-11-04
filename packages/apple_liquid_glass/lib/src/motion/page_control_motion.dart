@@ -1,4 +1,3 @@
-import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
@@ -68,96 +67,69 @@ abstract final class PageControlTuning {
 /// shows the progress; when the page changes, the old capsule shrinks to a dot
 /// and the new one grows on [PageControlTuning.widthSpring] while the old fill
 /// fades out on [PageControlTuning.fadeSpring]. Times are seconds.
+///
+/// The platter and the old fill rest within [MotionRest.opacity] and the
+/// widths within [MotionRest.length]: invisible, NEAR. A resting finger
+/// holds nothing: its moves and lift arrive as stamped commands. Each pick
+/// goes to [onEvent] as the command that makes it runs.
 @internal
-class PageControlMotion {
+final class PageControlMotion extends Motion {
   /// Creates a motion of [count] pages showing [page].
   PageControlMotion({
     required int count,
     required int page,
     this.showsProgress = false,
-  }) : _page = count > 0 ? page.clamp(0, count - 1) : 0,
-       _widths = [
-         for (var i = 0; i < count; i++)
-           MotionValue<double>(
-             _restWidth(i == page.clamp(0, count - 1), showsProgress),
-             spring: PageControlTuning.widthSpring,
-           ),
-       ];
+    this.onEvent,
+  }) : _page = count > 0 ? page.clamp(0, count - 1) : 0 {
+    _widths = [
+      for (var i = 0; i < count; i++)
+        own(
+          MotionValue<double>(
+            _restWidth(i == _page, showsProgress),
+            spring: PageControlTuning.widthSpring,
+          ),
+          rest: _length,
+        ),
+    ];
+  }
 
   static double _restWidth(bool current, bool progress) => current && progress
       ? PageControlTuning.progressIndicatorWidth
       : PageControlTuning.indicatorSize;
 
+  static double _length() => MotionRest.length;
+  static double _opacity() => MotionRest.opacity;
+
   /// Whether the current indicator shows a progress.
   bool showsProgress;
 
+  /// Hears each page a touch picks.
+  final void Function(PageControlEvent event)? onEvent;
+
   int _page;
-  final List<MotionValue<double>> _widths;
-  final _platter = MotionValue<double>(
-    0,
-    spring: PageControlTuning.platterInSpring,
+  late final List<MotionValue<double>> _widths;
+  late final _platter = own(
+    MotionValue<double>(0, spring: PageControlTuning.platterInSpring),
+    rest: _opacity,
   );
-  final MotionTimeline _timeline = MotionTimeline(now: 0);
+  late final _fade = own(
+    MotionValue<double>(0, spring: PageControlTuning.fadeSpring),
+    rest: _opacity,
+  );
+  int _fading = -1;
   double? _downX;
   bool _scrubbing = false;
   bool _stepped = false;
+  static const _platterSlot = Object();
 
   /// The opacity of the platter under a touch, 0 to 1.
-  double get platter => _platter.valueAt(_now).clamp(0.0, 1.0);
-
-  MotionValue<double>? _fade;
-  int _fading = -1;
-  double _now = 0;
-  final List<PageControlEvent> _events = [];
-
-  /// The events raised since the last call, oldest first.
-  List<PageControlEvent> drainEvents() {
-    if (_events.isEmpty) return const [];
-    final drained = List<PageControlEvent>.of(_events);
-    _events.clear();
-    return drained;
-  }
+  double get platter => _platter.valueAt(now).clamp(0.0, 1.0);
 
   /// The number of pages.
   int get count => _widths.length;
 
   /// The current page.
   int get page => _page;
-
-  /// Whether nothing moves. A resting finger does not count: the
-  /// control's moves and lift arrive as stamped pointer events, which wake
-  /// the clock.
-  bool get isSettled => _timeline.isEmpty && _still;
-
-  /// Puts what is still moving onto its targets.
-  void settle() {
-    _platter.settle(_now);
-    for (final w in _widths) {
-      w.settle(_now);
-    }
-    _fade?.settle(_now);
-  }
-
-  /// Whether what remains is invisible ([GlassRest], NEAR): the platter
-  /// and the old fill fade by less than [GlassRest.opacity], the widths
-  /// swing less than [GlassRest.length].
-  bool get _still =>
-      _platter.isWithin(_now, GlassRest.opacity) &&
-      _widths.every(
-        (MotionValue<double> w) => w.isWithin(_now, GlassRest.length),
-      ) &&
-      (_fade?.isWithin(_now, GlassRest.opacity) ?? true);
-
-  /// The time before which nothing moves, or null while something does:
-  /// a touch waiting out the platter's delay draws nothing new.
-  double? get wakeTime => _still ? _timeline.nextDue : null;
-
-  /// Advances the motion to [t]; an earlier [t] changes nothing.
-  void advance(double t) {
-    if (t < _now) return;
-    _timeline.runDue(t);
-    _now = t;
-  }
 
   /// A finger touched the control at [x], measured from the start of the
   /// dots.
@@ -167,14 +139,10 @@ class PageControlMotion {
     _downX = x;
     _scrubbing = false;
     _stepped = false;
-    _timeline.clear();
-    _timeline.at(
+    at(
       t + PageControlTuning.platterDelay,
-      (double s) => _platter.retarget(
-        s,
-        1,
-        spring: PageControlTuning.platterInSpring,
-      ),
+      (s) => _platter.retarget(s, 1, spring: PageControlTuning.platterInSpring),
+      slot: _platterSlot,
     );
   }
 
@@ -200,7 +168,7 @@ class PageControlMotion {
     if (next != _page) {
       _stepped = true;
       setPage(t, next);
-      _events.add(PageControlPicked(next, scrubbed: true));
+      onEvent?.call(PageControlPicked(next, scrubbed: true));
     }
   }
 
@@ -220,7 +188,7 @@ class PageControlMotion {
     final next = (_page + (x > mid ? 1 : -1)).clamp(0, count - 1);
     if (next != _page) {
       setPage(t, next);
-      _events.add(PageControlPicked(next, scrubbed: false));
+      onEvent?.call(PageControlPicked(next, scrubbed: false));
     }
   }
 
@@ -233,14 +201,11 @@ class PageControlMotion {
   }
 
   void _hidePlatter(double t) {
-    _timeline.clear();
-    _timeline.at(
+    at(
       t + PageControlTuning.platterOutDelay,
-      (double s) => _platter.retarget(
-        s,
-        0,
-        spring: PageControlTuning.platterOutSpring,
-      ),
+      (s) =>
+          _platter.retarget(s, 0, spring: PageControlTuning.platterOutSpring),
+      slot: _platterSlot,
     );
   }
 
@@ -260,24 +225,20 @@ class PageControlMotion {
     }
     _widths[previous].retarget(t, PageControlTuning.indicatorSize);
     _widths[next].retarget(t, PageControlTuning.progressIndicatorWidth);
-    final fade = MotionValue<double>(
-      1,
-      spring: PageControlTuning.fadeSpring,
-    );
-    fade.retarget(t, 0);
-    _fade = fade;
+    _fade.snap(t, 1);
+    _fade.retarget(t, 0);
     _fading = previous;
   }
 
   /// The width of indicator [index].
   double width(int index) =>
-      index >= 0 && index < count ? _widths[index].valueAt(_now) : 0;
+      index >= 0 && index < count ? _widths[index].valueAt(now) : 0;
 
   /// The opacity of the fill of indicator [index]: 1 on the current page,
   /// fading on the page just left, 0 elsewhere.
   double fillOpacity(int index) {
     if (index == _page) return 1;
-    if (index == _fading) return (_fade?.valueAt(_now) ?? 0).clamp(0.0, 1.0);
+    if (index == _fading) return _fade.valueAt(now).clamp(0.0, 1.0);
     return 0;
   }
 

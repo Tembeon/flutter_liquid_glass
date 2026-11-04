@@ -4,6 +4,7 @@ import 'package:apple_liquid_glass/src/motion/page_control_motion.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/style.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -208,7 +209,8 @@ class GlassPageControl extends StatefulWidget {
 }
 
 class _GlassPageControlState extends State<GlassPageControl> {
-  late _PageControlBody _body = _create();
+  late PageControlMotion _motion = _create();
+  late MotionSelection<_Pose> _pose = _poseOf(_motion);
   late final _PageControlInput _input = _PageControlInput(this);
   late final List<Interaction> _interactions = [_input];
 
@@ -218,40 +220,31 @@ class _GlassPageControlState extends State<GlassPageControl> {
 
   bool get _enabled => widget.onChanged != null && _count > 0;
 
-  _PageControlBody _create() {
-    final body = _PageControlBody(
-      PageControlMotion(
-        count: _count,
-        page: _page,
-        showsProgress: widget.progress != null,
-      ),
-      _deliver,
-    );
-    MotionClock.instance.addDriver(body);
-    return body;
-  }
+  PageControlMotion _create() => PageControlMotion(
+    count: _count,
+    page: _page,
+    showsProgress: widget.progress != null,
+    onEvent: _deliver,
+  );
+
+  static MotionSelection<_Pose> _poseOf(PageControlMotion motion) =>
+      motion.select(_Pose.of);
 
   @override
   void didUpdateWidget(GlassPageControl oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.count != oldWidget.count ||
         (widget.progress == null) != (oldWidget.progress == null)) {
-      _dispose(_body);
-      _body = _create();
+      _motion = _create();
+      _pose = _poseOf(_motion);
       return;
     }
-    _body.setPage(_page);
+    _setPage(_page);
   }
 
-  @override
-  void dispose() {
-    _dispose(_body);
-    super.dispose();
-  }
-
-  void _dispose(_PageControlBody body) {
-    MotionClock.instance.removeDriver(body);
-    body.dispose();
+  void _setPage(int page) {
+    if (page == _motion.page) return;
+    _motion.setPage(MotionClock.instance.now, page);
   }
 
   void _deliver(PageControlEvent event) {
@@ -260,7 +253,7 @@ class _GlassPageControlState extends State<GlassPageControl> {
         if (page != _page) widget.onChanged?.call(page);
         if (scrubbed) MotionHaptic.selection.play();
         SchedulerBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _body.setPage(_page);
+          if (mounted) _setPage(_page);
         });
     }
   }
@@ -272,7 +265,7 @@ class _GlassPageControlState extends State<GlassPageControl> {
   }
 
   Size get _size => Size(
-    _body.motion.contentWidth + 2 * PageControlTuning.padding,
+    _motion.contentWidth + 2 * PageControlTuning.padding,
     PageControlTuning.height,
   );
 
@@ -286,35 +279,39 @@ class _GlassPageControlState extends State<GlassPageControl> {
         widget.semanticValueFormatter?.call(page, count) ??
         'page $page of $count';
     final back = rtl ? 1 : -1;
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _step(back),
-        const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
-            _step(-back),
-        const SingleActivator(LogicalKeyboardKey.arrowUp): () => _step(1),
-        const SingleActivator(LogicalKeyboardKey.arrowDown): () => _step(-1),
-      },
-      child: Semantics(
-        container: true,
-        label: widget.semanticLabel,
-        value: count == 0 ? null : value(page + 1),
-        increasedValue: page + 1 < count ? value(page + 2) : null,
-        decreasedValue: page > 0 ? value(page) : null,
-        onIncrease: _enabled && page + 1 < count ? () => _step(1) : null,
-        onDecrease: _enabled && page > 0 ? () => _step(-1) : null,
-        child: InputRegion(
-          interactions: _interactions,
-          enabled: _enabled,
-          focusNode: widget.focusNode,
-          autofocus: widget.autofocus,
-          child: _PageControlLook(
-            body: _body,
-            size: _size,
-            rtl: rtl,
-            background: widget.backgroundStyle,
-            progress: widget.progress,
-            style: (widget.style ?? const GlassPageControlStyle()).merge(
-              GlassTheme.of(context).pageControlStyle,
+    return MotionScope(
+      motion: _motion,
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
+              _step(back),
+          const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
+              _step(-back),
+          const SingleActivator(LogicalKeyboardKey.arrowUp): () => _step(1),
+          const SingleActivator(LogicalKeyboardKey.arrowDown): () => _step(-1),
+        },
+        child: Semantics(
+          container: true,
+          label: widget.semanticLabel,
+          value: count == 0 ? null : value(page + 1),
+          increasedValue: page + 1 < count ? value(page + 2) : null,
+          decreasedValue: page > 0 ? value(page) : null,
+          onIncrease: _enabled && page + 1 < count ? () => _step(1) : null,
+          onDecrease: _enabled && page > 0 ? () => _step(-1) : null,
+          child: InputRegion(
+            interactions: _interactions,
+            enabled: _enabled,
+            focusNode: widget.focusNode,
+            autofocus: widget.autofocus,
+            child: _PageControlLook(
+              pose: _pose,
+              size: _size,
+              rtl: rtl,
+              background: widget.backgroundStyle,
+              progress: widget.progress,
+              style: (widget.style ?? const GlassPageControlStyle()).merge(
+                GlassTheme.of(context).pageControlStyle,
+              ),
             ),
           ),
         ),
@@ -323,66 +320,39 @@ class _GlassPageControlState extends State<GlassPageControl> {
   }
 }
 
-/// The motion of a page control, stepped on the motion clock; the look
-/// repaints from it.
-final class _PageControlBody extends ChangeNotifier implements MotionDriver {
-  _PageControlBody(this.motion, this._deliver);
+/// What the look paints of a page control's motion.
+@immutable
+final class _Pose {
+  const _Pose({
+    required this.widths,
+    required this.fills,
+    required this.platter,
+    required this.page,
+  });
 
-  final PageControlMotion motion;
-  final void Function(PageControlEvent event) _deliver;
+  factory _Pose.of(PageControlMotion motion) => _Pose(
+    widths: [for (var i = 0; i < motion.count; i++) motion.width(i)],
+    fills: [for (var i = 0; i < motion.count; i++) motion.fillOpacity(i)],
+    platter: motion.platter,
+    page: motion.page,
+  );
+
+  final List<double> widths;
+  final List<double> fills;
+  final double platter;
+  final int page;
 
   @override
-  bool get isActive => !motion.isSettled;
+  bool operator ==(Object other) =>
+      other is _Pose &&
+      other.platter == platter &&
+      other.page == page &&
+      listEquals(other.widths, widths) &&
+      listEquals(other.fills, fills);
 
   @override
-  double? get wakeTime => motion.wakeTime;
-
-  @override
-  void step(double time) {
-    motion.advance(time);
-    if (motion.isSettled) motion.settle();
-    notifyListeners();
-    _drain();
-  }
-
-  void _drain() {
-    for (final event in motion.drainEvents()) {
-      _deliver(event);
-    }
-  }
-
-  void _wake() => MotionClock.instance.wake(this);
-
-  void setPage(int page) {
-    if (page == motion.page) return;
-    motion.setPage(MotionClock.instance.now, page);
-    notifyListeners();
-    _wake();
-  }
-
-  void down(double t, double x) {
-    motion.pointerDown(t, x);
-    _wake();
-  }
-
-  void move(double t, double x) {
-    motion.pointerMove(t, x);
-    notifyListeners();
-    _drain();
-    _wake();
-  }
-
-  void up(double t, double x, double width) {
-    motion.pointerUp(t, x, width: width);
-    notifyListeners();
-    _drain();
-    _wake();
-  }
-
-  void cancel(double t) {
-    motion.pointerCancel(t);
-    _wake();
-  }
+  int get hashCode =>
+      Object.hash(platter, page, Object.hashAll(widths), Object.hashAll(fills));
 }
 
 /// A page control's touch: taps and scrubs anywhere on it, held against a
@@ -405,21 +375,25 @@ final class _PageControlInput extends Interaction {
 
   @override
   InteractionUpdate handle(InteractionInput input) {
-    final body = state._body;
+    final motion = state._motion;
     switch (input) {
       case PointerDownInput() when _pointer == null && accepts(input):
         _pointer = input.pointer;
-        body.down(input.time, _x(input.position));
+        motion.pointerDown(input.time, _x(input.position));
         return const InteractionUpdate(claims: true);
       case PointerMoveInput() when input.pointer == _pointer:
-        body.move(input.time, _x(input.position));
+        motion.pointerMove(input.time, _x(input.position));
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
-        body.up(input.time, _x(input.position), state._size.width);
+        motion.pointerUp(
+          input.time,
+          _x(input.position),
+          width: state._size.width,
+        );
         return const InteractionUpdate(recognizes: true);
       case PointerCancelInput() when input.pointer == _pointer:
         _pointer = null;
-        body.cancel(input.time);
+        motion.pointerCancel(input.time);
         return const InteractionUpdate(fails: true);
       default:
     }
@@ -429,7 +403,7 @@ final class _PageControlInput extends Interaction {
 
 class _PageControlLook extends StatelessWidget {
   const _PageControlLook({
-    required this.body,
+    required this.pose,
     required this.size,
     required this.rtl,
     required this.background,
@@ -437,7 +411,7 @@ class _PageControlLook extends StatelessWidget {
     required this.style,
   });
 
-  final _PageControlBody body;
+  final ValueListenable<_Pose> pose;
   final Size size;
   final bool rtl;
   final GlassPageControlBackground background;
@@ -472,7 +446,7 @@ class _PageControlLook extends StatelessWidget {
     return CustomPaint(
       size: size,
       painter: _PageControlPainter(
-        body: body,
+        pose: pose,
         rtl: rtl,
         platter: switch (background) {
           GlassPageControlBackground.prominent => true,
@@ -497,7 +471,7 @@ class _PageControlLook extends StatelessWidget {
 
 class _PageControlPainter extends CustomPainter {
   _PageControlPainter({
-    required this.body,
+    required this.pose,
     required this.rtl,
     required this.platter,
     required this.progress,
@@ -505,9 +479,9 @@ class _PageControlPainter extends CustomPainter {
     required this.currentPageIndicator,
     required this.platterColor,
     required this.platterIndicator,
-  }) : super(repaint: body);
+  }) : super(repaint: pose);
 
-  final _PageControlBody body;
+  final ValueListenable<_Pose> pose;
   final bool rtl;
   final bool? platter;
   final double? progress;
@@ -518,11 +492,11 @@ class _PageControlPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final motion = body.motion;
+    final frame = pose.value;
     final shown = switch (platter) {
       true => 1.0,
       false => 0.0,
-      null => motion.platter,
+      null => frame.platter,
     };
     if (shown > 0) {
       final paint = Paint();
@@ -540,8 +514,8 @@ class _PageControlPainter extends CustomPainter {
     const inset = (PageControlTuning.indicatorSize - dot) / 2;
     final cy = size.height / 2;
     var x = 0.0;
-    for (var i = 0; i < motion.count; i++) {
-      final w = motion.width(i);
+    for (var i = 0; i < frame.widths.length; i++) {
+      final w = frame.widths[i];
       var cx = PageControlTuning.padding + x + w / 2;
       x += w + PageControlTuning.spacing;
       if (rtl) cx = size.width - cx;
@@ -554,13 +528,13 @@ class _PageControlPainter extends CustomPainter {
         const Radius.circular(dot / 2),
       );
       final base = Paint();
-      base.color = progress == null && i == motion.page
+      base.color = progress == null && i == frame.page
           ? currentPageIndicator
           : other;
       canvas.drawRRect(shape, base);
-      final fill = progress == null ? 0.0 : motion.fillOpacity(i);
+      final fill = progress == null ? 0.0 : frame.fills[i];
       if (fill <= 0) continue;
-      final fraction = i == motion.page ? (progress ?? 0) : 1.0;
+      final fraction = i == frame.page ? (progress ?? 0) : 1.0;
       final fillWidth = dot + (shape.width - dot) * fraction.clamp(0, 1);
       final left = rtl ? shape.right - fillWidth : shape.left;
       final paint = Paint();
@@ -579,7 +553,7 @@ class _PageControlPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_PageControlPainter oldDelegate) =>
-      oldDelegate.body != body ||
+      oldDelegate.pose != pose ||
       oldDelegate.rtl != rtl ||
       oldDelegate.platter != platter ||
       oldDelegate.progress != progress ||

@@ -101,13 +101,14 @@ void main() {
         String name,
       ) {
         final rows = _rows('$dir/$name.jsonl');
-        final motion = PageControlMotion(count: 5, page: 0);
         final model = <int>[];
-        void collect() {
-          for (final event in motion.drainEvents()) {
+        final motion = PageControlMotion(
+          count: 5,
+          page: 0,
+          onEvent: (event) {
             if (event is PageControlPicked) model.add(event.page);
-          }
-        }
+          },
+        );
 
         final recorded = [
           for (final r in rows)
@@ -137,7 +138,6 @@ void main() {
             motion.advance(shown);
             errors.add(motion.platter - _d(r, 'a'));
           }
-          collect();
         }
         return (
           model: model,
