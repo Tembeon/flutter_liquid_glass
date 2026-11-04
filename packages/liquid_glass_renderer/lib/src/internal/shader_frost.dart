@@ -2,12 +2,6 @@ import 'dart:math';
 
 import 'package:meta/meta.dart';
 
-/// How a shader frosts an unblurred copy for a Gaussian blur of a sigma:
-/// the copy holds `downscale` device pixels in each of its pixels along each
-/// side, and the shader's taps frost it by `frost` device pixels.
-@internal
-typedef ShaderFrost = ({int downscale, double frost});
-
 // The share of the sigma asked that Impeller's blur delivers, which the
 // shader's frost matches so a copy and the live filter blur alike: the best
 // of 0.70 to 1.0 against ImageFilter.blur at 3, 5 and 8 device px, where
@@ -23,16 +17,17 @@ const double _shaderFrostTexels = 3.5;
 // frosts stands for at most.
 const int _shaderFrostMaxDownscale = 4;
 
-/// How the shader frosts a copy for Impeller's blur by [sigma] device
-/// pixels, or null when the frost is too wide for it.
+/// How many device pixels along each side one pixel of a copy holds that
+/// the shader frosts for Impeller's blur by [sigma] device pixels, or null
+/// when the frost is too wide for it.
 ///
 /// The copy is the largest whose pixels the frost spans by at most 3.5,
-/// then halved while the frost still spans [minTexels] of its pixels. The
-/// shader frosts by what is left: a pixel of a smaller copy averages k x k
-/// device px (a box, variance k^2 / 12), every bilinear tap adds a tent of
-/// a copy pixel (k^2 / 6), and Gaussians add in variance.
+/// then halved while the frost still spans [minTexels] of its pixels.
 @internal
-ShaderFrost? shaderFrost(double sigma, {double minTexels = double.infinity}) {
+int? shaderFrostDownscale(
+  double sigma, {
+  double minTexels = double.infinity,
+}) {
   final delivered = sigma * _deliveredFrost;
   var downscale = 1;
   while (downscale < _shaderFrostMaxDownscale &&
@@ -46,9 +41,19 @@ ShaderFrost? shaderFrost(double sigma, {double minTexels = double.infinity}) {
       delivered / (downscale * 2) >= minTexels) {
     downscale *= 2;
   }
-  final carried = downscale * downscale * (downscale > 1 ? 1 / 4 : 1 / 6);
-  return (
-    downscale: downscale,
-    frost: sqrt(max(delivered * delivered - carried, 0)),
-  );
+  return downscale;
+}
+
+/// The sigma, in device pixels, the shader's taps frost a copy by for
+/// Impeller's blur by [sigma] device pixels, where each pixel of the copy
+/// holds [share] device pixels along each side.
+///
+/// The taps frost by what the copy leaves: a pixel of a smaller copy
+/// averages k x k device px (a box, variance k^2 / 12), every bilinear tap
+/// adds a tent of a copy pixel (k^2 / 6), and Gaussians add in variance.
+@internal
+double shaderFrostResidual(double sigma, {required int share}) {
+  final delivered = sigma * _deliveredFrost;
+  final carried = share * share * (share > 1 ? 1 / 4 : 1 / 6);
+  return sqrt(max(delivered * delivered - carried, 0));
 }

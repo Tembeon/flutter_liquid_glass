@@ -1864,7 +1864,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // This frame's copy asked for: the glass's transform to the screen, the
   // logical rect the shader draws, the material it paints there and the
-  // sigma, in device px, the shader frosts the copy by.
+  // sigma of the blur, in the screen's logical pixels, the shader frosts the
+  // copy for, 0 where the copy is blurred or the glass unfrosted.
   ({Matrix4 screen, Rect logical, Rect drawn, double frost})? _asked;
 
   // Asks for the copy of what lies under the glass, or returns null when the
@@ -1909,12 +1910,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // copy: the copy's blur passes become its taps. The shader frosts round,
     // so glass stretched past 5 % keeps the copy's blur, which follows each
     // axis.
+    final round = sigma * sqrt(scaleX * scaleY);
     final frosted =
         sigma > 0 && _frostsCopies && (scaleX / scaleY - 1).abs() <= 0.05
-        ? shaderFrost(sigma * dpr * sqrt(scaleX * scaleY))
+        ? shaderFrostDownscale(round * dpr)
         : null;
-    var downscale = frosted?.downscale ?? 1;
-    final frost = frosted?.frost ?? 0.0;
+    var downscale = frosted ?? 1;
+    final frost = frosted == null ? 0.0 : round;
     if (frosted == null) {
       // A copy blurred by at least [_copySigma] of its own pixels is drawn
       // as the blur leaves it at a fraction of the screen's pixels: sampled
@@ -1995,10 +1997,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           final read = inFrame.readIn(region);
           if (read == null) return null;
           return _readingCopy(
-            read.glassSampling,
+            read.glassSampling(frost),
             globalToMatte: globalToMatte,
             backdropBounds: backdropBounds,
-            frost: frost,
             draw: (shader) =>
                 read.record(bilinearShaderFilter(shader), screenToCanvas),
           );
@@ -2031,12 +2032,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
 
     ui.Picture record() {
-      final sampling = copy.glassSampling;
       return _readingCopy(
-        sampling,
+        copy.glassSampling(frost),
         globalToMatte: globalToMatte,
         backdropBounds: backdropBounds,
-        frost: frost,
         draw: (shader) {
           final recorder = ui.PictureRecorder();
           final canvas = Canvas(recorder);
@@ -2060,7 +2059,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       target.glassSampling,
       globalToMatte: globalToMatte,
       backdropBounds: backdropBounds,
-      frost: 0,
       draw: (shader) {
         _updateShaderFilter();
         addFoldedFilter(
@@ -2080,8 +2078,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
   }
 
-  // Draws the glass with [draw] over a copy read as [sampling], frosted by
-  // [frost] device pixels, with the shader's uniforms set for it, and sets
+  // Draws the glass with [draw] over a copy read as [sampling], with the
+  // shader's uniforms set for it, and sets
   // them back to the live filter's after: a shader filter takes the
   // uniforms when it is created, a paint when it draws. The shader's
   // fragment coordinates start at the sampling's origin, so the mapping
@@ -2092,7 +2090,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     GlassSampling sampling, {
     required Matrix4 globalToMatte,
     required Rect? backdropBounds,
-    required double frost,
     required T Function(FragmentShader shader) draw,
   }) {
     final shader = renderShader;
@@ -2117,7 +2114,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       shader.setFloat(_FinalUniforms.backdropOrigin + 1, sampling.origin.dy);
     }
     shader.setFloat(_FinalUniforms.reducedBackdrop, sampling.reduced);
-    shader.setFloat(_FinalUniforms.backdropFrost, frost);
+    shader.setFloat(_FinalUniforms.backdropFrost, sampling.frost);
     if (sampling.image case final image?) {
       shader.setImageSampler(0, image, filterQuality: FilterQuality.low);
     }

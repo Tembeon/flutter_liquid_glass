@@ -41,15 +41,15 @@ Offset? screenOffsetOf(Layer anchor, double devicePixelRatio) {
   return Offset(m[12], m[13]);
 }
 
-/// How a shader frosts a copy: the frost, and the taps that draw it.
-@internal
-typedef CopyFrosting = ({LiquidGlassBackdropFrost frost, ShaderFrost taps});
-
 /// A copy [requestCopy] asked for: the part of the screen the clip covers,
-/// the shift from the anchor's coordinates to the screen's, and how a shader
-/// frosts the copy, or null when the copy is filtered.
+/// the shift from the anchor's coordinates to the screen's, and the frost a
+/// shader draws from the copy, or null when the copy is filtered.
 @internal
-typedef CopyAsk = ({Rect shifted, Offset origin, CopyFrosting? frosting});
+typedef CopyAsk = ({
+  Rect shifted,
+  Offset origin,
+  LiquidGlassBackdropFrost? frosting,
+});
 
 /// Asks [underlay] for a copy of what lies under [clip], in [anchor]'s
 /// coordinates, that [filter] composited with [blendMode] stands on;
@@ -80,20 +80,19 @@ CopyAsk? requestCopy(
   if (origin == null) return null;
   final shifted = clip.shift(origin);
   if (frost != null) {
-    if (_frostTaps(frost, devicePixelRatio) case final taps?) {
-      // The taps reach 2.8 sigma, one copy pixel more sampled bilinearly.
-      final frostReach = (2.8 * taps.frost + taps.downscale) / devicePixelRatio;
+    final sigma = frost.sigma * devicePixelRatio;
+    if (_frostDownscale(sigma) case final downscale?) {
+      // The taps reach 2.8 sigma, one copy pixel more sampled bilinearly. A
+      // copy drawn at the screen's pixels in place of the ones asked reaches
+      // less: its taps lie at most a sigma wider and its pixel is smaller.
+      final taps = shaderFrostResidual(sigma, share: downscale);
       underlay.request(
         anchor: anchor,
         devicePixelRatio: devicePixelRatio,
-        region: shifted.inflate(frostReach),
-        downscale: taps.downscale,
+        region: shifted.inflate((2.8 * taps + downscale) / devicePixelRatio),
+        downscale: downscale,
       );
-      return (
-        shifted: shifted,
-        origin: origin,
-        frosting: (frost: frost, taps: taps),
-      );
+      return (shifted: shifted, origin: origin, frosting: frost);
     }
   }
   final region = shifted.inflate(reach);
@@ -108,11 +107,9 @@ CopyAsk? requestCopy(
   return (shifted: shifted, origin: origin, frosting: null);
 }
 
-// How the shader frosts [frost], or null where it cannot (see requestCopy).
-ShaderFrost? _frostTaps(
-  LiquidGlassBackdropFrost frost,
-  double devicePixelRatio,
-) {
+// The downscale of a copy the shader frosts for Impeller's blur by [sigma]
+// device pixels, or null where it cannot (see requestCopy).
+int? _frostDownscale(double sigma) {
   if (!LiquidGlassBackdropFrost.debugShaderFrost ||
       !ui.ImageFilter.isShaderFilterSupported) {
     return null;
@@ -123,7 +120,7 @@ ShaderFrost? _frostTaps(
   }
   // A copy whose pixels the frost spans by less than 1.5 is not halved
   // again: drawn smaller, its edges show through the frost.
-  return shaderFrost(frost.sigma * devicePixelRatio, minTexels: 1.5);
+  return shaderFrostDownscale(sigma, minTexels: 1.5);
 }
 
 /// The copy [asked] stands for and the part of it the clip shows, in
@@ -188,7 +185,7 @@ ui.Picture recordFilteredCopy(
 ui.FragmentShader newFrostShader() =>
     MultiShaderBuilder.cached(ShaderKeys.backdropFrost)!.fragmentShader();
 
-/// [frost] drawn from the unblurred [copy] by [shader] as [taps] say, into
+/// [frost] drawn from the unblurred [copy] by [shader], into
 /// coordinates that [origin] shifts to the screen's: the part [shown], in
 /// screen coordinates, composited with [blendMode] and cut to [outline],
 /// in the drawn coordinates, when there is one.
@@ -201,13 +198,12 @@ ui.Picture recordFrostedCopy(
   Rect shown,
   Offset origin, {
   required LiquidGlassBackdropFrost frost,
-  required ShaderFrost taps,
   required ui.FragmentShader shader,
   BlendMode blendMode = BlendMode.srcOver,
   Path? outline,
 }) {
   final read = copy.readOf(shown);
-  _setFrost(shader, read.frostSampling, frost: frost, taps: taps);
+  _setFrost(shader, read.frostSampling(frost.sigma), frost);
   shader.setImageSampler(0, copy.image, filterQuality: FilterQuality.low);
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
@@ -223,7 +219,7 @@ ui.Picture recordFrostedCopy(
   return recorder.endRecording();
 }
 
-/// [frost] drawn by [shader] as [taps] say from [copy], drawn in the frame
+/// [frost] drawn by [shader] from [copy], drawn in the frame
 /// (see [BackdropUnderlay.serveInFrame]), into coordinates that [origin]
 /// shifts to the screen's: the part of [shown] inside [region], both in
 /// screen coordinates, or null where none of it is.
@@ -243,14 +239,13 @@ ui.Picture? recordFrostedInFrame(
   Rect region,
   Offset origin, {
   required LiquidGlassBackdropFrost frost,
-  required ShaderFrost taps,
   required ui.FragmentShader shader,
   required double devicePixelRatio,
 }) {
   final read = copy.readIn(region);
-  final sampling = read?.frostSampling(shown);
+  final sampling = read?.frostSampling(shown, frost.sigma);
   if (read == null || sampling == null) return null;
-  _setFrost(shader, sampling, frost: frost, taps: taps);
+  _setFrost(shader, sampling, frost);
   shader.setImageSampler(0, _bilinear, filterQuality: FilterQuality.low);
   final toLocal = Matrix4.translationValues(-origin.dx, -origin.dy, 0);
   toLocal.scaleByDouble(1 / devicePixelRatio, 1 / devicePixelRatio, 1, 1);
@@ -260,11 +255,10 @@ ui.Picture? recordFrostedInFrame(
 // The uniforms of backdrop_frost.frag.
 void _setFrost(
   ui.FragmentShader shader,
-  FrostSampling sampling, {
-  required LiquidGlassBackdropFrost frost,
-  required ShaderFrost taps,
-}) {
-  final FrostSampling(:size, :bounds, :scale, :shown) = sampling;
+  FrostSampling sampling,
+  LiquidGlassBackdropFrost frost,
+) {
+  final FrostSampling(:size, :bounds, frost: taps, :scale, :shown) = sampling;
   final m = frost.colorMatrix ?? _identityMatrix;
   var i = 0;
   void put(double value) => shader.setFloat(i++, value);
@@ -274,7 +268,7 @@ void _setFrost(
   put(bounds.top);
   put(bounds.right);
   put(bounds.bottom);
-  put(taps.frost / taps.downscale);
+  put(taps);
   put(scale);
   put(shown.left);
   put(shown.top);
@@ -707,14 +701,13 @@ class BackdropRig {
       copy,
       read.clip,
       keyOf: () =>
-          (copy.image, copy.placement, shown, origin, outline, frosting?.frost),
+          (copy.image, copy.placement, shown, origin, outline, frosting),
       record: () => switch (frosting) {
-        (:final frost, :final taps) => recordFrostedCopy(
+        final frost? => recordFrostedCopy(
           copy,
           shown,
           origin,
           frost: frost,
-          taps: taps,
           shader: _frostShader ??= newFrostShader(),
           outline: outline,
         ),

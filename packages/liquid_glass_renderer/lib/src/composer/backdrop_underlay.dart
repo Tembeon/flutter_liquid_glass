@@ -13,6 +13,7 @@ import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart'
 import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/internal/retained_glass_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/running_under_flutter_test.dart';
+import 'package:liquid_glass_renderer/src/internal/shader_frost.dart';
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_render_object_mixin.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_underlay.dart';
 
@@ -2124,23 +2125,25 @@ final class UnderlayCopy {
 
   /// Equal while the copy lies at the same place in [image] on the same
   /// grid.
-  Object get placement => (offset, _grid);
+  Object get placement => (_offset, _grid);
 
   // Where [rect]'s top left corner sits in [image], in its pixels.
-  Offset get offset {
+  Offset get _offset {
     if (!ready) _underlay._island?.atlas?.flush('read');
     return _underlay._offset;
   }
 
   /// How the final shader reads the copy, painted in the screen's device
-  /// pixels.
-  GlassSampling get glassSampling {
+  /// pixels, to frost it for Impeller's blur by [frost] (see
+  /// [GlassSampling.frost]).
+  GlassSampling glassSampling(double frost) {
     final image = this.image;
     final share = _grid._share;
     return GlassSampling._(
       origin:
-          rect.topLeft * _grid._devicePixelRatio - offset * share.toDouble(),
+          rect.topLeft * _grid._devicePixelRatio - _offset * share.toDouble(),
       reduced: share > 1 ? 1 : 0,
+      frost: _grid._frost(frost),
       image: image,
       size: Size(
         image.width * share.toDouble(),

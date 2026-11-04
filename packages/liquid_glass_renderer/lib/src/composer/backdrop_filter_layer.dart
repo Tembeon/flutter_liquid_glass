@@ -154,8 +154,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
       inFrame.shown,
       region,
       inFrame.origin,
-      frost: inFrame.frosting.frost,
-      taps: inFrame.frosting.taps,
+      frost: inFrame.frosting,
       shader: _frostShader ??= newFrostShader(),
       devicePixelRatio: _devicePixelRatio,
     );
@@ -173,12 +172,11 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     if (serving == null) return null;
     final (:copy, :shown, :origin, :frosting) = serving;
     final served = switch (frosting) {
-      (:final frost, :final taps) => recordFrostedCopy(
+      final frost? => recordFrostedCopy(
         copy,
         shown,
         origin,
         frost: frost,
-        taps: taps,
         shader: _frostShader ??= newFrostShader(),
         blendMode: _blendMode,
       ),
@@ -195,7 +193,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     serving.shown,
     serving.origin,
     switch (serving.frosting) {
-      (:final frost, taps: _) => (frost, _blendMode),
+      final frost? => (frost, _blendMode),
       null => null,
     },
   );
@@ -285,7 +283,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   // A frost drawn from a copy the frame draws again: a picture each frame.
   // False when the frame cannot draw the copy, and [serveCopy] takes the
   // request.
-  bool _composeInFrame(CopyAsk asked, CopyFrosting frosting) {
+  bool _composeInFrame(CopyAsk asked, LiquidGlassBackdropFrost frosting) {
     markNeedsAddToScene();
     _served?.dispose();
     _served = null;
@@ -352,7 +350,7 @@ typedef _Serving = ({
   UnderlayCopy copy,
   Rect shown,
   Offset origin,
-  CopyFrosting? frosting,
+  LiquidGlassBackdropFrost? frosting,
 });
 
 // A copy drawn in the frame that the frost is drawn from, the part of the
@@ -361,5 +359,5 @@ typedef _InFrame = ({
   InFrameCopy copy,
   Rect shown,
   Offset origin,
-  CopyFrosting frosting,
+  LiquidGlassBackdropFrost frosting,
 });

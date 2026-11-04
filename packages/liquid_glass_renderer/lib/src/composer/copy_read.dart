@@ -34,6 +34,18 @@ final class CopyGrid {
   // [rect] (logical pixels) grown to whole pixels of the copy.
   Rect _snapOut(Rect rect) => BackdropUnderlay._snapOut(rect, _pixels);
 
+  // The sigma, in device pixels, the shaders' taps frost a copy on this grid
+  // by for Impeller's blur by [sigma] screen logical pixels. The copy's own
+  // pixels already blur by what they hold, which a band holding glass that
+  // a filter draws, at the screen's pixels whatever was asked, holds less
+  // of. NEAR there: the taps lie up to 14 of its pixels apart, past the 3.5
+  // [shaderFrostDownscale] keeps to; under the scroll edge over glass the
+  // frost is 0.35 levels off the live read on average and 21 at most, and
+  // 0.27 and 21 for a copy at the pixels asked (host test, 2.625 dpr).
+  double _frost(double sigma) => sigma > 0
+      ? shaderFrostResidual(sigma * _devicePixelRatio, share: _share)
+      : 0;
+
   @override
   bool operator ==(Object other) =>
       other is CopyGrid &&
@@ -58,6 +70,7 @@ final class GlassSampling {
   const GlassSampling._({
     required this.origin,
     required this.reduced,
+    this.frost = 0,
     this.image,
     this.size,
     this.holds,
@@ -71,6 +84,12 @@ final class GlassSampling {
   /// copy; 1 for an image copy at fewer pixels than the screen, which [size]
   /// stretches; the share for a copy in the top-left share of a layer.
   final double reduced;
+
+  /// uBackdropFrost: the sigma, in device pixels, the shader's taps frost
+  /// the copy by, 0 for none. A reading takes the sigma of the Impeller blur
+  /// the frost stands for, in the screen's logical pixels, and leaves out
+  /// what the copy's pixels already blur by.
+  final double frost;
 
   /// The image the shader samples, for glass painted over an image copy.
   /// Null where the glass filters a layer, whose texture the engine binds.
@@ -93,6 +112,7 @@ final class FrostSampling {
   const FrostSampling._({
     required this.size,
     required this.bounds,
+    required this.frost,
     required this.scale,
     required this.shown,
   });
@@ -103,6 +123,10 @@ final class FrostSampling {
   /// uBounds: the copy in the texture, in the copy's pixels, half a pixel
   /// in from its edge.
   final Rect bounds;
+
+  /// uFrost: the sigma, in the copy's pixels, the taps frost it by, as
+  /// [GlassSampling.frost] says.
+  final double frost;
 
   /// uScale: the copy's pixels per fragment.
   final double scale;
@@ -125,7 +149,7 @@ final class ImageRead {
   /// [shown] in the image's pixels.
   Rect get source {
     final pixels = _copy._grid._pixels;
-    final offset = _copy.offset;
+    final offset = _copy._offset;
     final rect = _copy.rect;
     return Rect.fromLTRB(
       (shown.left - rect.left) * pixels + offset.dx,
@@ -144,10 +168,12 @@ final class ImageRead {
     canvas.translate(-source.left, -source.top);
   }
 
-  /// How `backdrop_frost.frag` reads [source] drawn under [toImage].
-  FrostSampling get frostSampling {
-    final pixels = _copy._grid._pixels;
-    final offset = _copy.offset;
+  /// How `backdrop_frost.frag` reads [source] drawn under [toImage] to frost
+  /// it for Impeller's blur by [frost] (see [GlassSampling.frost]).
+  FrostSampling frostSampling(double frost) {
+    final grid = _copy._grid;
+    final pixels = grid._pixels;
+    final offset = _copy._offset;
     final image = _copy.image;
     return FrostSampling._(
       size: Size(image.width.toDouble(), image.height.toDouble()),
@@ -157,6 +183,7 @@ final class ImageRead {
         offset.dx + _copy.rect.width * pixels - 0.5,
         offset.dy + _copy.rect.height * pixels - 0.5,
       ),
+      frost: grid._frost(frost) / grid._share,
       scale: 1,
       // The rect drawn bounds the frost.
       shown: Rect.largest,
@@ -196,10 +223,12 @@ final class CornerRead {
     (_copy._band.top * _dpr - _device.top) / _share,
   );
 
-  /// How the final shader reads the layer.
-  GlassSampling get glassSampling => GlassSampling._(
+  /// How the final shader reads the layer to frost it for Impeller's blur
+  /// by [frost] (see [GlassSampling.frost]).
+  GlassSampling glassSampling(double frost) => GlassSampling._(
     origin: _device.topLeft,
     reduced: _share > 1 ? _share.toDouble() : 0,
+    frost: _copy._grid._frost(frost),
     holds: Rect.fromLTRB(
       _device.left / _dpr,
       _device.top / _dpr,
@@ -209,9 +238,9 @@ final class CornerRead {
   );
 
   /// How `backdrop_frost.frag` reads the layer to cover [shown] (screen
-  /// logical pixels) pixel by pixel, or null where none of [shown] lies in
-  /// it.
-  FrostSampling? frostSampling(Rect shown) {
+  /// logical pixels) pixel by pixel, frosted for Impeller's blur by [frost]
+  /// (see [GlassSampling.frost]), or null where none of [shown] lies in it.
+  FrostSampling? frostSampling(Rect shown, double frost) {
     final drawn = shown.intersect(_cut);
     if (drawn.isEmpty) return null;
     final at = _at;
@@ -224,6 +253,7 @@ final class CornerRead {
         min(at.dx + _copy._band.width * pixels, _device.width / _share) - 0.5,
         min(at.dy + _copy._band.height * pixels, _device.height / _share) - 0.5,
       ),
+      frost: _copy._grid._frost(frost) / _share,
       scale: 1 / _share,
       shown: Rect.fromLTRB(
         drawn.left * _dpr,
