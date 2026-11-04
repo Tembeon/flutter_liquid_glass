@@ -783,7 +783,22 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
         _publish();
         return ValueListenableBuilder<_Structure>(
           valueListenable: _structure,
-          child: inner,
+          // Fitted content lays out up to the maximum, not the sheet's
+          // height, so content that grows is measured at its new height
+          // in the frame it grows, while the sheet follows a frame later.
+          child: detents.any((d) => d.isFitted)
+              ? OverflowBox(
+                  alignment: Alignment.topLeft,
+                  minHeight: 0,
+                  maxHeight: math.max(
+                    0,
+                    constraints.maxHeight -
+                        media.padding.top -
+                        media.padding.bottom,
+                  ),
+                  child: inner,
+                )
+              : inner,
           builder: (context, structure, child) => Stack(
             children: [
               Positioned.fill(

@@ -636,6 +636,37 @@ void main() {
     expect(_sheet(tester).height, moreOrLessEquals(300 * scale, epsilon: 0.5));
   });
 
+  testWidgets('fitted content that grows past the sheet lays out at its new '
+      'height in the frame it grows', (tester) async {
+    _phone(tester);
+    var tall = false;
+    late StateSetter grow;
+    await _present(
+      tester,
+      (context) => StatefulBuilder(
+        builder: (context, setState) {
+          grow = setState;
+          return Column(
+            key: _contentKey,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 100),
+              if (tall) const SizedBox(height: 400),
+            ],
+          );
+        },
+      ),
+      detents: const [GlassSheetDetent.fitted],
+    );
+    final short = _sheet(tester).height;
+    grow(() => tall = true);
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(tester.takeException(), isNull);
+    expect(tester.getSize(find.byKey(_contentKey)).height, 500);
+    await _settle(tester);
+    expect(_sheet(tester).height, greaterThan(short * 4));
+  });
+
   testWidgets('a sheet style sets the content text; a popover adapted to a '
       'sheet keeps its own text style', (tester) async {
     _phone(tester);
