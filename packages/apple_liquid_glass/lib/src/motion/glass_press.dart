@@ -173,7 +173,11 @@ final class GlassPress extends Motion implements PointerFollower {
 
   /// The lift: the mean of [scaleX] and [scaleY], which the stretch leaves
   /// alone.
-  double get scale => (scaleX + scaleY) / 2;
+  double get scale => scaleAt(now);
+
+  /// The lift at time [t] as the press stands, its pending reactions not
+  /// run: for an owner that samples ahead of its cursor.
+  double scaleAt(double t) => (_scaleX.valueAt(t) + _scaleY.valueAt(t)) / 2;
 
   /// The horizontal scale, lift and drag stretch combined.
   double get scaleX => _scaleX.valueAt(now);

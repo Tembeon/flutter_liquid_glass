@@ -1,10 +1,8 @@
-import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motion/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/motion.dart';
 
 const _eps = 1e-12;
 
@@ -238,121 +236,5 @@ void main() {
         moreOrLessEquals(y.low - (y.high - y.low) / 3, epsilon: 1e-9),
       );
     });
-  });
-
-  group('interaction', () {
-    const size = Size(120, 44);
-
-    test('press rides the tracking spring, release the scale spring', () {
-      final flex = FlexInteraction(size: size);
-      final spec = flex.spec;
-      final lift = MotionValue<double>(1, spring: spec.trackingSpring);
-      flex.pointerDown(0, const Offset(60, 22));
-      lift.retarget(0, flex.liftedScale);
-      expect(flex.isActive, isTrue);
-      expect(
-        flex.scale(0.1),
-        moreOrLessEquals(lift.valueAt(0.1), epsilon: _eps),
-      );
-      expect(flex.scaleX(0.1), flex.scaleY(0.1));
-      flex.pointerUp(0.3);
-      lift.retarget(0.3, 1, spring: spec.scaleSpring);
-      expect(
-        flex.scale(0.4),
-        moreOrLessEquals(lift.valueAt(0.4), epsilon: _eps),
-      );
-      expect(flex.isSettled(5), isTrue);
-    });
-
-    test('a drag stretches and shows the drift at the scale', () {
-      final flex = FlexInteraction(size: size);
-      flex.pointerDown(0, const Offset(60, 22));
-      flex.pointerMove(0.1, const Offset(210, 22));
-      final v = flex.values(5);
-      final target = flex.targets;
-      expect(v.scaleX, moreOrLessEquals(target.scaleX, epsilon: 1e-9));
-      expect(
-        flex.translation(5).dx,
-        moreOrLessEquals(target.driftX * target.scaleX, epsilon: 1e-6),
-      );
-      expect(flex.scale(5), moreOrLessEquals(flex.liftedScale, epsilon: 1e-9));
-    });
-
-    test('a delayed activation waits and a quick release skips it', () {
-      final timeline = MotionTimeline(now: 0);
-      final flex = FlexInteraction(
-        size: size,
-        stretches: false,
-        activationDelay: 0.05,
-        timeline: timeline,
-      );
-      flex.pointerDown(0, const Offset(60, 22));
-      timeline.runDue(0.04);
-      expect(flex.isActive, isFalse);
-      expect(flex.scale(0.04), 1);
-      timeline.runDue(0.05);
-      expect(flex.isActive, isTrue);
-      flex.pointerUp(0.2);
-      final quick = FlexInteraction(size: size, activationDelay: 0.05);
-      quick.pointerDown(0, const Offset(60, 22));
-      quick.pointerUp(0.02);
-      quick.advance(0.1);
-      expect(quick.isActive, isFalse);
-      expect(quick.scale(0.1), 1);
-    });
-
-    test('reduced motion glows but never deforms', () {
-      final flex = FlexInteraction(size: size, glows: true);
-      flex.reducedMotion = true;
-      flex.pointerDown(0, const Offset(60, 22));
-      flex.pointerMove(0.05, const Offset(200, 22));
-      expect(flex.values(0.2), FlexInteraction.rest);
-      expect(flex.glow(0.2), greaterThan(0.99));
-    });
-
-    test('the glow fades in under the finger and out after it', () {
-      final flex = FlexInteraction(size: size, glows: true);
-      flex.pointerDown(0, const Offset(30, 10));
-      expect(
-        flex.glow(0.023),
-        moreOrLessEquals(1 - math.exp(-1), epsilon: 1e-9),
-      );
-      expect(flex.littleGlowCenter(0.01), const Offset(30, 10));
-      flex.pointerUp(0.5);
-      expect(flex.littleGlowScale(5), moreOrLessEquals(4, epsilon: 1e-3));
-      expect(flex.glow(5), lessThan(1e-3));
-      final silent = FlexInteraction(size: size);
-      silent.pointerDown(0, Offset.zero);
-      expect(silent.glow(0.1), 0);
-    });
-  });
-
-  test('a released glow fades on through a settle of the shape', () {
-    FlexInteraction pressed() {
-      final flex = FlexInteraction(size: const Size(120, 44), glows: true);
-      flex.pointerDown(0, const Offset(60, 22));
-      flex.pointerUp(0.3);
-      return flex;
-    }
-
-    final flex = pressed();
-    final twin = pressed();
-    var t = 0.3;
-    while (!flex.isGlowOnly(t) && t < 2) {
-      t += 1 / 120;
-    }
-    expect(flex.isGlowOnly(t), isTrue);
-    expect(flex.isSettled(t), isFalse);
-    expect(flex.glow(t), greaterThan(0));
-    flex.settle(t);
-    for (final at in [t + 0.05, t + 0.1]) {
-      expect(flex.glow(at), twin.glow(at));
-      expect(flex.littleGlowScale(at), twin.littleGlowScale(at));
-    }
-    while (!flex.isSettled(t) && t < 4) {
-      t += 1 / 120;
-    }
-    expect(flex.isSettled(t), isTrue);
-    expect(flex.isGlowOnly(t), isFalse);
   });
 }

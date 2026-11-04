@@ -1223,7 +1223,7 @@ class MenuCard {
 /// release that closes the menu raises [MenuCloseRequested] for its
 /// host to answer before the menu starts closing ([advanceToRequest]); a
 /// motion advanced with [advance] closes on its own at that time.
-class MenuMotion {
+class MenuMotion extends Motion {
   /// Creates the motion of the button at `button` whose menu is `layout`
   /// (uniform rows of `itemCount` when null), inside `bounds` minus the
   /// safe-area `padding`.
@@ -1258,12 +1258,6 @@ class MenuMotion {
        _sourceHeight = sourceHeight ?? button.height,
        _progress = progress ?? MenuProgress.spring(tuning) {
     _radius = MotionValue<double>(0, spring: tuning.openSpring);
-    _press = FlexInteraction(
-      size: button.size,
-      stretches: false,
-      activationDelay: tuning.pressDelay,
-      timeline: _timeline,
-    );
     _flexSpring = tuning.flex.channelSpring;
     _pulse = FlexPulse(
       tuning.flexPulseSpring,
@@ -1294,7 +1288,12 @@ class MenuMotion {
   double? _sourceRadius;
 
   late final MotionValue<double> _radius;
-  late final FlexInteraction _press;
+  late final GlassPress _press = own(
+    GlassPress(
+      size: _button.size,
+      law: FlexLaw(stretches: false, activationDelay: tuning.pressDelay),
+    ),
+  );
   late final Spring _flexSpring;
   final _flexScaleX = MotionValue<double>(1);
   final _flexScaleY = MotionValue<double>(1);
@@ -1366,7 +1365,6 @@ class MenuMotion {
     if (lightsGlow) _touchGlow.pointerDown(t, position);
   }
 
-  final MotionTimeline _timeline = MotionTimeline(now: 0);
   MenuCloseRequested? _request;
   bool _yields = false;
 
@@ -1391,7 +1389,7 @@ class MenuMotion {
   /// step with its scroll view so touches find the rows under them.
   double scrollOffset = 0;
 
-  double get _now => _peekTime ?? _timeline.now;
+  double get _now => _peekTime ?? now;
 
   double? _peekTime;
   double? _prefetchedFrom;
@@ -1502,7 +1500,7 @@ class MenuMotion {
     _press.size = button.size;
     _root = _build(reversed: _reversed);
     _rootHeight.snap(_now, _visibleRoot(_root));
-    _place(_press.scale(_now));
+    _place(_press.scaleAt(_now));
   }
 
   /// Lays the content out again at time [t], as after a change of the
@@ -1544,7 +1542,7 @@ class MenuMotion {
     if (_phase == _Phase.idle || !animate) {
       _resizeGeneration++;
       _rootHeight.snap(t, height);
-      if (_phase == _Phase.idle) _place(_press.scale(t));
+      if (_phase == _Phase.idle) _place(_press.scaleAt(t));
       return;
     }
     final unchanged = (height - _rootHeight.target).abs() < 1e-6;
@@ -1564,7 +1562,7 @@ class MenuMotion {
     _resizePending = generation;
     _resizeTo = height;
     _resizeGrows = grow;
-    _timeline.at(t + (grow ? tuning.growDelay : tuning.shrinkDelay), (
+    at(t + (grow ? tuning.growDelay : tuning.shrinkDelay), (
       double s,
     ) {
       if (generation != _resizeGeneration) return;
@@ -1772,7 +1770,7 @@ class MenuMotion {
   bool get opensDown => _down;
 
   /// The scale of the button's press growth.
-  double get pressScale => _press.scale(_now);
+  double get pressScale => _press.scaleAt(_now);
 
   /// The highlighted target of [highlightedCard] - under the finger, or
   /// the chosen one while the menu closes.
@@ -2010,7 +2008,7 @@ class MenuMotion {
   void _prefetchSilhouette() {
     if (!MenuFusion.prefetches) return;
     final period = framePeriod;
-    final t = _timeline.now;
+    final t = now;
     if (period == null || t == _prefetchedFrom) return;
     _prefetchedFrom = t;
     var ahead = frameTime + period * ((t - frameTime) / period + 1).floor();
@@ -2320,7 +2318,7 @@ class MenuMotion {
   /// Whether all of the motion but its touch glow has settled while the
   /// glow still moves ([isGlowing]).
   @internal
-  bool get isGlowOnly => _timeline.isEmpty && _still && isGlowing;
+  bool get isGlowOnly => nextDue == null && _still && isGlowing;
 
   /// Lands the menu's height, corners and cards on their targets at the
   /// motion's time; a host calls it once the motion [isSettled] or only its
@@ -2328,6 +2326,7 @@ class MenuMotion {
   /// invisible); the glow keeps moving. The progress keeps its
   /// remainder, which no layout reads exactly, and so does the flex a held
   /// finger leaves.
+  @override
   void settle() {
     final t = _now;
     _radius.settle(t);
@@ -2343,7 +2342,8 @@ class MenuMotion {
   /// A finger resting on the menu or its button does not keep it awake once
   /// the glow under it has faded in: its next move or release wakes it. A
   /// finger scrolling the content does.
-  bool get isSettled => _timeline.isEmpty && _still && !isGlowing;
+  @override
+  bool get isSettled => nextDue == null && _still && !isGlowing;
 
   /// The motion time of the next pending event while a finger rests and
   /// nothing else moves, or null otherwise.
@@ -2354,8 +2354,9 @@ class MenuMotion {
   /// [MenuTuning.hoverOpenDelay]); the reactions to a release come
   /// due within a few frames, which keep coming, so a test's
   /// `pumpAndSettle` still sees them through.
+  @override
   double? get wakeTime {
-    final due = _timeline.nextDue;
+    final due = nextDue;
     return due != null && _pointer != null && _still && !isGlowing ? due : null;
   }
 
@@ -2363,7 +2364,7 @@ class MenuMotion {
     final t = _now;
     if (_pointer?.scrolled ?? false) return false;
     if (_phase == _Phase.closing) return false;
-    if (!_press.isSettled(t) || !_flexAtRest(t)) return false;
+    if (!_press.restsAt(t) || !_flexAtRest(t)) return false;
     if (_phase == _Phase.opening) {
       final rest = _progressRest;
       return _progress.restsWithin(t, rest) &&
@@ -2455,7 +2456,8 @@ class MenuMotion {
   /// Closes the menu at time [t].
   void close(double t) {
     _openPending = false;
-    _timeline.clear();
+    unscheduleAll();
+    _press.unscheduleAll();
     _resizeGeneration++;
     _pointer = null;
     advance(t);
@@ -2538,7 +2540,7 @@ class MenuMotion {
     );
     _pointer = pointer;
     _press.pointerDown(t, position - _button.topLeft);
-    _timeline.at(t + tuning.holdDuration, (double s) {
+    at(t + tuning.holdDuration, (double s) {
       if (!identical(_pointer, pointer) ||
           _phase == _Phase.opening ||
           pointer.holdForfeited) {
@@ -2561,7 +2563,7 @@ class MenuMotion {
     final generation = _dwellGeneration;
     final card = hit.card;
     final index = hit.target!;
-    _timeline.at(t + tuning.hoverOpenDelay, (double s) {
+    at(t + tuning.hoverOpenDelay, (double s) {
       if (generation != _dwellGeneration ||
           !identical(_pointer, pointer) ||
           _phase != _Phase.opening) {
@@ -2598,7 +2600,7 @@ class MenuMotion {
       _lightGlow(t, position);
     }
     if (_flexTouch == null && !_flexPending) _flexDown(t, previous);
-    _timeline.at(t + tuning.flexDelay, (double s) {
+    at(t + tuning.flexDelay, (double s) {
       final touch = _flexTouch;
       if (touch == null || _phase != _Phase.opening) return;
       final before = _targetsOf(touch);
@@ -2627,7 +2629,7 @@ class MenuMotion {
   void _flexDown(double t, Offset position) {
     final generation = ++_flexGeneration;
     _flexPending = true;
-    _timeline.at(t + tuning.flexDelay, (double s) {
+    at(t + tuning.flexDelay, (double s) {
       if (generation != _flexGeneration) return;
       _flexPending = false;
       if (_phase != _Phase.opening) return;
@@ -2642,10 +2644,10 @@ class MenuMotion {
     if (touch.nextStep != null) return;
     final period = 1 / tuning.flexPulseRate;
     final steps = ((t - touch.start) / period + 1e-6).floor() + 1;
-    final at = touch.start + steps * period;
-    touch.nextStep = at;
+    final due = touch.start + steps * period;
+    touch.nextStep = due;
     final generation = _flexGeneration;
-    _timeline.at(at, (double s) {
+    at(due, (double s) {
       if (generation != _flexGeneration || !identical(_flexTouch, touch)) {
         return;
       }
@@ -2696,7 +2698,7 @@ class MenuMotion {
         }
         if (_phase != _Phase.opening && inside) {
           _openPending = true;
-          _timeline.at(t + tuning.tapOpenDelay, _open);
+          at(t + tuning.tapOpenDelay, _open);
         }
         return;
       }
@@ -2718,9 +2720,9 @@ class MenuMotion {
     }
     _setHighlight(null, _highlightCard);
     if (hit.beside) {
-      _timeline.at(t + tuning.backDelay, _back);
+      at(t + tuning.backDelay, _back);
     } else if (!pointer.fromButton && !_onMenu(position)) {
-      _timeline.at(t + tuning.dismissDelay, _requestClose);
+      at(t + tuning.dismissDelay, _requestClose);
     }
   }
 
@@ -2739,6 +2741,7 @@ class MenuMotion {
   /// samples the progress, integrating the kicks over the interval. A close
   /// requested on the way starts at its own time, unanswered. An earlier
   /// [t] changes nothing.
+  @override
   void advance(double t) => _advance(t);
 
   /// Advances the motion toward time [t] as [advance] does, but stops at a
@@ -2773,7 +2776,7 @@ class MenuMotion {
   bool _advance(double t) {
     _request = null;
     if (t < _now) return true;
-    if (!_timeline.runDue(t, until: () => _request != null)) return false;
+    if (!advanceUntil(t, () => _request != null)) return false;
     _sample(t);
     for (var i = _cards.length - 1; i >= 0; i--) {
       final card = _cards[i];
@@ -3005,7 +3008,7 @@ class MenuMotion {
     final fresh = _phase == _Phase.idle;
     final opacity = fresh ? 0.0 : _contentOpacityAt(t);
     if (_phase == _Phase.idle) {
-      _place(sourceScale ?? _press.scale(t));
+      _place(sourceScale ?? _press.scaleAt(t));
       _radiusFrom = tuning.openingRadius;
     } else {
       _sourceScale = sourceScale ?? _sourceScaleAt(t);
@@ -3035,7 +3038,7 @@ class MenuMotion {
     _fade(t, from: opacity, opening: true, fresh: fresh);
     _radius.snap(t, 0);
     final generation = ++_openGeneration;
-    _timeline.at(t + tuning.radiusDelay, (double s) {
+    at(t + tuning.radiusDelay, (double s) {
       if (generation != _openGeneration) return;
       _radius.retarget(s, 1, spring: tuning.openSpring);
     });
@@ -3055,10 +3058,10 @@ class MenuMotion {
     final target = _targetOf(0, row);
     if (row != null && target != null && target.kind == MenuTargetKind.action) {
       _setHighlight(row, 0);
-      _timeline.at(t + tuning.actionDelay, (double s) => _activate(s, 0, row));
-      _timeline.at(t + tuning.earlyCloseDelay, _requestClose);
+      at(t + tuning.actionDelay, (double s) => _activate(s, 0, row));
+      at(t + tuning.earlyCloseDelay, _requestClose);
     } else if (!_onMenu(release.position)) {
-      _timeline.at(t + tuning.earlyCloseDelay, _requestClose);
+      at(t + tuning.earlyCloseDelay, _requestClose);
     }
   }
 
@@ -3081,7 +3084,7 @@ class MenuMotion {
     _closeProgress = _progress.valueAt(t);
     _closeStart = t;
     _closeSource = _sourceScale;
-    _closeLive = _press.scale(t);
+    _closeLive = _press.scaleAt(t);
     _openGeneration++;
     _resizeGeneration++;
     _phase = _Phase.closing;
@@ -3107,13 +3110,13 @@ class MenuMotion {
       _cardContainer.snap(t, 1);
     }
     if (_cardContainerActive) {
-      _timeline.at(t + tuning.cardContainerDelay, (double s) {
+      at(t + tuning.cardContainerDelay, (double s) {
         if (generation != _openGeneration || _phase != _Phase.closing) return;
         _cardContainer.retarget(s, 0, spring: tuning.cardContainerSpring);
       });
     }
     if (!tuning.morph.kicks) return;
-    _timeline.at(t + tuning.closeKickDelay, (double s) {
+    at(t + tuning.closeKickDelay, (double s) {
       if (generation != _openGeneration || _phase != _Phase.closing) return;
       _sample(s);
       final reach = tuning.closeKickReach * _closeAmplitude;
@@ -3138,7 +3141,7 @@ class MenuMotion {
             ? tuning.submenuDelay
             : tuning.deeperSubmenuDelay;
         final generation = _openGeneration;
-        _timeline.at(t + delay, (double s) {
+        at(t + delay, (double s) {
           if (generation != _openGeneration || _phase != _Phase.opening) {
             return;
           }
@@ -3146,7 +3149,7 @@ class MenuMotion {
         });
       case MenuTargetKind.back:
         _setHighlight(null, card);
-        _timeline.at(t + tuning.backDelay, _back);
+        at(t + tuning.backDelay, _back);
       case MenuTargetKind.action:
         final keep = switch (dismissOnSelect) {
           null => target.keepsOpen,
@@ -3154,7 +3157,7 @@ class MenuMotion {
         };
         if (keep) {
           _setHighlight(null, card);
-          _timeline.at(
+          at(
             t + tuning.keptActionDelay,
             (double s) => _activate(s, card, index),
           );
@@ -3164,8 +3167,8 @@ class MenuMotion {
         final delay = card == 0
             ? tuning.actionDelay
             : tuning.submenuActionDelay;
-        _timeline.at(t + delay, (double s) => _activate(s, card, index));
-        _timeline.at(
+        at(t + delay, (double s) => _activate(s, card, index));
+        at(
           t + (card == 0 ? tuning.dismissDelay : tuning.submenuCloseDelay),
           _requestClose,
         );
@@ -3242,7 +3245,7 @@ class MenuMotion {
   void _relax(double t) {
     final generation = ++_flexGeneration;
     _flexPending = false;
-    _timeline.at(t + tuning.flexDelay, (double s) {
+    at(t + tuning.flexDelay, (double s) {
       if (generation != _flexGeneration) return;
       _flexUp(s);
     });
@@ -3265,7 +3268,7 @@ class MenuMotion {
 
   double _sourceScaleAt(double t) {
     if (_phase != _Phase.closing) return _sourceScale;
-    final live = _press.scale(t);
+    final live = _press.scaleAt(t);
     final decay = math.exp(-(t - _closeStart) / tuning.sourceRelax);
     return live + (_closeSource - _closeLive) * decay;
   }

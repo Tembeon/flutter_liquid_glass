@@ -1,8 +1,10 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motion/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motion/glass_press.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/motion.dart';
 
 const _size = Size(120, 44);
 const _center = Offset(60, 22);
@@ -84,5 +86,68 @@ void main() {
     press.pointerDown(0, _center);
     final away = Offset(_size.width + GlassPress.highlightSlop + 1, 22);
     expect(press.pointerUp(0.2, away), isFalse);
+  });
+
+  test('a press rides the tracking spring, a release the scale spring', () {
+    final press = GlassPress(size: _size, law: const FlexLaw());
+    final spec = press.spec;
+    final lift = MotionValue<double>(1, spring: spec.trackingSpring);
+    press.pointerDown(0, _center);
+    lift.retarget(0, press.liftedScale);
+    press.advance(0.1);
+    expect(press.scale, moreOrLessEquals(lift.valueAt(0.1), epsilon: 1e-12));
+    expect(press.scaleX, press.scaleY);
+    press.pointerUp(0.3, _center);
+    lift.retarget(0.3, 1, spring: spec.scaleSpring);
+    press.advance(0.4);
+    expect(press.scale, moreOrLessEquals(lift.valueAt(0.4), epsilon: 1e-12));
+  });
+
+  test('a drag stretches the surface and leans it at its scale', () {
+    final press = GlassPress(size: _size, law: const FlexLaw());
+    press.pointerDown(0, _center);
+    press.pointerMove(0.1, const Offset(210, 22));
+    press.advance(5);
+    final target = press.targets;
+    expect(press.scaleX, moreOrLessEquals(target.scaleX, epsilon: 1e-9));
+    expect(
+      press.lean.dx,
+      moreOrLessEquals(target.driftX * target.scaleX, epsilon: 1e-6),
+    );
+    expect(press.scale, moreOrLessEquals(press.liftedScale, epsilon: 1e-9));
+  });
+
+  test('reduced motion glows but never deforms', () {
+    final press = GlassPress(size: _size);
+    press.reducedMotion = true;
+    press.pointerDown(0, _center);
+    press.pointerMove(0.05, const Offset(200, 22));
+    press.advance(0.2);
+    expect(press.values, FlexInteraction.rest);
+    expect(press.glow, greaterThan(0.99));
+  });
+
+  test('the glow fades in under the finger and out after it', () {
+    final press = GlassPress(size: _size, law: const FlexLaw(glows: true));
+    press.pointerDown(0, const Offset(30, 10));
+    press.advance(0.023);
+    expect(press.glow, moreOrLessEquals(1 - math.exp(-1), epsilon: 1e-9));
+    expect(press.littleGlowCenter, const Offset(30, 10));
+    press.pointerUp(0.5, const Offset(30, 10));
+    press.advance(5);
+    expect(press.littleGlowScale, moreOrLessEquals(4, epsilon: 1e-3));
+    expect(press.glow, lessThan(1e-3));
+  });
+
+  test('a press without a glow rests while its activation waits', () {
+    final press = GlassPress(
+      size: _size,
+      law: const FlexLaw(stretches: false, activationDelay: 0.05),
+    );
+    press.pointerDown(0, _center);
+    press.advance(0.01);
+    expect(press.glow, 0);
+    expect(press.restsAt(0.01), isTrue);
+    expect(press.isSettled, isFalse, reason: 'the activation is pending');
   });
 }

@@ -38,7 +38,7 @@ final _bans = <String, (RegExp, Set<String>)>{
   'a motion keeps no clock of its own': (RegExp(r'\bdouble _now\b'), {}),
   'rest is asked of the part (restsAt)': (
     RegExp(r'\.isWithin\('),
-    {'lib/src/menu/motion.dart', 'lib/src/motion/flex_interaction.dart'},
+    {'lib/src/menu/motion.dart'},
   ),
   'rest tolerances are MotionRest': (RegExp(r'\bGlassRest\b'), {}),
   // A renderer reads a body's field when it draws one (GlassOutline).
@@ -46,14 +46,7 @@ final _bans = <String, (RegExp, Set<String>)>{
     RegExp(r'(?<!other )\bis!? (?:Flat|Liquid|Adaptive)GlassRenderer\b'),
     {},
   ),
-  // A9 (menu) moves these onto GlassPress.
-  'a press is a GlassPress': (
-    RegExp(r'\bFlexInteraction\('),
-    {
-      'lib/src/menu/motion.dart',
-      'lib/src/motion/flex_interaction.dart',
-    },
-  ),
+  'a press is a GlassPress': (RegExp(r'\bFlexInteraction\('), {}),
 };
 
 void main() {
