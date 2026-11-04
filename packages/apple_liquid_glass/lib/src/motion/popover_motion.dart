@@ -144,7 +144,7 @@ abstract final class PopoverTuning {
 /// popover animation uses the identity transform instead of its shrink
 /// under Reduce Motion.
 @internal
-class PopoverMotion extends Motion {
+class PopoverMotion extends Motion with Presented {
   /// Creates the motion of a popover that is not shown yet.
   PopoverMotion({
     this.presentSpring = PopoverTuning.presentSpring,
@@ -175,6 +175,9 @@ class PopoverMotion extends Motion {
   /// Whether the popover moves for Reduce Motion, at its size.
   bool reducedMotion = false;
 
+  /// Whether the popover was dismissed and leaves.
+  bool get isLeaving => _dismissing;
+
   /// Whether the popover has left and nothing moves any more.
   bool get isDismissed => _dismissing && _progress.restsAt(now, _rest);
 
@@ -190,6 +193,24 @@ class PopoverMotion extends Motion {
     advance(t);
     _dismissing = true;
     _progress.retarget(t, 0, spring: dismissSpring);
+  }
+
+  @override
+  PresenceStatus get presence => _dismissing
+      ? (isDismissed ? .hidden : .leaving)
+      : _progress.target == 0
+      ? .hidden
+      : isSettled
+      ? .shown
+      : .opening;
+
+  @override
+  void open(double t) => present(t);
+
+  @override
+  bool leave(double t, DismissTrigger trigger) {
+    dismiss(t);
+    return true;
   }
 
   /// The presentation progress: 0 hidden, 1 shown.

@@ -56,16 +56,20 @@ Future<T?> showGlassPopover<T>(
       level: level,
     );
   }
+  final source = popoverSource(
+    anchor: anchor,
+    anchorRect: anchorRect,
+    caller: 'showGlassPopover',
+  );
   return showPresentation(
     context,
-    GlassPopoverRoute<T>(
-      builder: builder,
-      anchorRect: popoverSource(
-        anchor: anchor,
-        anchorRect: anchorRect,
-        caller: 'showGlassPopover',
+    PresentationRoute(
+      presentation: Presentation<T, PopoverMotion>(
+        motion: (_) => PopoverMotion(),
+        builder: (context, motion) =>
+            _PopoverView(motion: motion, source: source, builder: builder),
+        semanticsLabel: semanticLabel,
       ),
-      semanticLabel: semanticLabel,
     ),
     level: level,
   );
@@ -95,108 +99,40 @@ Rect popoverSource({
   );
 }
 
-/// The route [showGlassPopover] pushes when it presents a popover.
-final class GlassPopoverRoute<T> extends PresentationRoute<T> {
-  /// Creates the route of a popover pointing at [anchorRect], in global
-  /// coordinates.
-  GlassPopoverRoute({
-    required this.builder,
-    required this.anchorRect,
-    String? semanticLabel,
-    super.settings,
-  }) : super(semanticsLabel: semanticLabel);
-
-  /// Builds the popover's content.
-  final WidgetBuilder builder;
-
-  /// The source the popover points at, in global coordinates.
-  final Rect anchorRect;
-
-  _PopoverViewState? _view;
-
-  @override
-  Widget buildContent(BuildContext context) => _PopoverView(route: this);
-
-  @override
-  bool leave(DismissTrigger trigger) {
-    final view = _view;
-    if (view == null) return false;
-    view._leave();
-    return true;
-  }
-}
-
 class _PopoverView extends StatefulWidget {
-  const _PopoverView({required this.route});
+  const _PopoverView({
+    required this.motion,
+    required this.source,
+    required this.builder,
+  });
 
-  final GlassPopoverRoute<Object?> route;
+  final PopoverMotion motion;
+  final Rect source;
+  final WidgetBuilder builder;
 
   @override
   State<_PopoverView> createState() => _PopoverViewState();
 }
 
-class _PopoverViewState extends State<_PopoverView> implements MotionDriver {
-  final _motion = PopoverMotion();
-  final _scale = ValueNotifier<double>(PopoverTuning.hiddenScale);
-  final _opacity = ValueNotifier<double>(0);
-  bool _leaving = false;
-
-  GlassPopoverRoute<Object?> get _route => widget.route;
-
-  double get _now => MotionClock.instance.now;
-
-  @override
-  void initState() {
-    super.initState();
-    _route._view = this;
-    _motion.present(_now);
-    MotionClock.instance.addDriver(this);
-  }
-
-  @override
-  void dispose() {
-    if (identical(_route._view, this)) _route._view = null;
-    MotionClock.instance.removeDriver(this);
-    _scale.dispose();
-    _opacity.dispose();
-    super.dispose();
-  }
-
-  @override
-  bool get isActive => !_motion.isSettled;
-
-  @override
-  double? get wakeTime => null;
-
-  @override
-  void step(double time) {
-    _motion.advance(time);
-    if (_motion.isSettled) _motion.settle();
-    _scale.value = _motion.scale;
-    _opacity.value = _motion.opacity;
-    if (_leaving) {
-      if (_motion.isDismissed) _route.didLeave();
-    } else if (_motion.isSettled) {
-      _route.didOpen();
-    }
-  }
-
-  void _leave() {
-    if (_leaving) return;
-    _leaving = true;
-    _motion.dismiss(_now);
-    setState(() {});
-    MotionClock.instance.wake(this);
-  }
+class _PopoverViewState extends State<_PopoverView> {
+  late final MotionSelection<double> _scale = widget.motion.select(
+    (m) => m.scale,
+  );
+  late final MotionSelection<double> _opacity = widget.motion.select(
+    (m) => m.opacity,
+  );
+  late final MotionSelection<bool> _leaving = widget.motion.select(
+    (m) => m.isLeaving,
+  );
 
   @override
   Widget build(BuildContext context) {
-    _motion.reducedMotion = GlassTraits.of(context).reduceMotion;
+    widget.motion.reducedMotion = GlassTraits.of(context).reduceMotion;
     final media = MediaQuery.of(context);
     final label =
         GlassTheme.of(context).colorScheme?.label ?? GlassColors.label;
     return PopoverLayout(
-      source: _route.anchorRect,
+      source: widget.source,
       scale: _scale,
       opacity: _opacity,
       maxWidth: media.size.width - 2 * PopoverTuning.margin,
@@ -204,8 +140,10 @@ class _PopoverViewState extends State<_PopoverView> implements MotionDriver {
         bottom: math.max(media.padding.bottom, media.viewInsets.bottom),
       ),
       direction: Directionality.of(context),
-      card: IgnorePointer(
-        ignoring: _leaving,
+      card: ValueListenableBuilder<bool>(
+        valueListenable: _leaving,
+        builder: (context, leaving, child) =>
+            IgnorePointer(ignoring: leaving, child: child),
         child: MotionTransition(
           opacity: _opacity,
           child: ClipRSuperellipse(
@@ -218,7 +156,7 @@ class _PopoverViewState extends State<_PopoverView> implements MotionDriver {
                 ),
                 context,
               ),
-              child: Builder(builder: _route.builder),
+              child: Builder(builder: widget.builder),
             ),
           ),
         ),

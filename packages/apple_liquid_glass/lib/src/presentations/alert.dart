@@ -103,7 +103,14 @@ Future<GlassAlertAction?> showGlassAlert(
   PresentationLevel level = PresentationLevel.window,
 }) => showPresentation(
   context,
-  GlassAlertRoute(title: title, message: message, actions: actions),
+  PresentationRoute(
+    presentation: _alert(
+      title: title,
+      message: message,
+      actions: actions,
+      actionSheet: false,
+    ),
+  ),
   level: level,
 );
 
@@ -133,113 +140,76 @@ Future<GlassAlertAction?> showGlassActionSheet(
   PresentationLevel level = PresentationLevel.window,
 }) => showPresentation(
   context,
-  GlassAlertRoute.actionSheet(
-    title: title,
-    message: message,
-    actions: actions,
-    anchorRect: anchor == null && anchorRect == null
-        ? null
-        : popoverSource(
-            anchor: anchor,
-            anchorRect: anchorRect,
-            caller: 'showGlassActionSheet',
-          ),
+  PresentationRoute(
+    presentation: _alert(
+      title: title,
+      message: message,
+      actions: actions,
+      actionSheet: true,
+      anchorRect: anchor == null && anchorRect == null
+          ? null
+          : popoverSource(
+              anchor: anchor,
+              anchorRect: anchorRect,
+              caller: 'showGlassActionSheet',
+            ),
+    ),
   ),
   level: level,
 );
 
-/// The route [showGlassAlert] and [showGlassActionSheet] push.
-///
-/// Back, Escape and a screen reader's dismiss choose the cancel action;
-/// `Navigator.pop` closes it with its result, the cancel action for none.
-final class GlassAlertRoute extends PresentationRoute<GlassAlertAction> {
-  /// Creates the route of an alert.
-  GlassAlertRoute({
-    this.title,
-    this.message,
-    this.actions = const [],
-    super.settings,
-  }) : actionSheet = false,
-       anchorRect = null,
-       super(semanticsLabel: _text(title) ?? _text(message));
+// An alert waits for an answer: without a cancel action only its buttons
+// close it. Back, Escape and a screen reader's dismiss choose the cancel
+// action, and its handler runs once the alert has gone.
+Presentation<GlassAlertAction, Presented> _alert({
+  required Widget? title,
+  required Widget? message,
+  required List<GlassAlertAction> actions,
+  required bool actionSheet,
+  Rect? anchorRect,
+}) {
+  final cancel = _cancelOf(actions);
+  final keys = actionSheet || cancel != null;
+  return Presentation(
+    motion: (_) => anchorRect == null ? AlertMotion() : PopoverMotion(),
+    builder: (context, motion) => _AlertView(
+      motion: motion,
+      title: title,
+      message: message,
+      actions: actions,
+      actionSheet: actionSheet,
+      anchorRect: anchorRect,
+    ),
+    dismiss: DismissPolicy({
+      if (actionSheet) DismissTrigger.outsideTap,
+      if (keys) ...{
+        DismissTrigger.escape,
+        DismissTrigger.back,
+        DismissTrigger.accessibility,
+      },
+      DismissTrigger.interaction,
+    }),
+    dim: anchorRect == null
+        ? (motion) =>
+              AlertTuning.dimmingOpacity * (motion as AlertMotion).dimming
+        : null,
+    result: (result) => result ?? cancel,
+    onDismissed: (action) => action?.onPressed?.call(),
+    semanticsLabel: _text(title) ?? _text(message),
+  );
+}
 
-  /// Creates the route of an action sheet, a popover pointing at
-  /// [anchorRect] (in global coordinates) when one is given.
-  GlassAlertRoute.actionSheet({
-    this.title,
-    this.message,
-    this.actions = const [],
-    this.anchorRect,
-    super.settings,
-  }) : actionSheet = true,
-       super(semanticsLabel: _text(title) ?? _text(message));
+String? _text(Widget? widget) => switch (widget) {
+  Text(:final data?) => data,
+  _ => null,
+};
 
-  /// The bold line at the top.
-  final Widget? title;
-
-  /// The text below the title.
-  final Widget? message;
-
-  /// The buttons.
-  final List<GlassAlertAction> actions;
-
-  /// Whether this is an action sheet: a tap outside cancels it.
-  final bool actionSheet;
-
-  /// The source an action sheet presents from as a popover, in global
-  /// coordinates, or null.
-  final Rect? anchorRect;
-
-  bool get _popover => anchorRect != null;
-
-  _AlertViewState? _view;
-  bool _ran = false;
-
-  static String? _text(Widget? widget) => switch (widget) {
-    Text(:final data?) => data,
-    _ => null,
-  };
-
-  @override
-  Widget buildContent(BuildContext context) => _AlertView(route: this);
-
-  @override
-  GlassAlertAction? resultFor(GlassAlertAction? result) => result ?? _cancel;
-
-  // An alert waits for an answer: without a cancel action only its buttons
-  // close it.
-  @override
-  bool allows(DismissTrigger trigger) => switch (trigger) {
-    DismissTrigger.outsideTap => actionSheet,
-    DismissTrigger.escape ||
-    DismissTrigger.back ||
-    DismissTrigger.accessibility => actionSheet || _cancel != null,
-    DismissTrigger.interaction || DismissTrigger.programmatic => true,
-  };
-
-  @override
-  bool leave(DismissTrigger trigger) {
-    final view = _view;
-    if (view == null) return false;
-    view._leave();
-    return true;
+// A disabled cancel action answers nothing, as its button does nothing.
+GlassAlertAction? _cancelOf(List<GlassAlertAction> actions) {
+  for (final action in actions) {
+    if (action.isCancel) return action.enabled ? action : null;
   }
-
-  @override
-  void didFinish(GlassAlertAction? result) {
-    if (result != null && !_ran) {
-      _ran = true;
-      result.onPressed?.call();
-    }
-  }
-
-  // A disabled cancel action answers nothing, as its button does nothing.
-  GlassAlertAction? get _cancel {
-    for (final action in actions) {
-      if (action.isCancel) return action.enabled ? action : null;
-    }
-    return null;
-  }
+  return null;
 }
 
 /// The actions in the order they show: the cancel action first in a row,
@@ -269,28 +239,46 @@ const _messageColor = GlassDynamicColor.withBrightness(
 );
 
 class _AlertView extends StatefulWidget {
-  const _AlertView({required this.route});
+  const _AlertView({
+    required this.motion,
+    required this.title,
+    required this.message,
+    required this.actions,
+    required this.actionSheet,
+    required this.anchorRect,
+  });
 
-  final GlassAlertRoute route;
+  // An AlertMotion, or a PopoverMotion for an action sheet with a source.
+  final Presented motion;
+  final Widget? title;
+  final Widget? message;
+  final List<GlassAlertAction> actions;
+  final bool actionSheet;
+  final Rect? anchorRect;
 
   @override
   State<_AlertView> createState() => _AlertViewState();
 }
 
 class _AlertViewState extends State<_AlertView> implements MotionDriver {
-  final _motion = AlertMotion();
-  late final PopoverMotion? _popover = widget.route._popover
-      ? PopoverMotion()
-      : null;
+  late final AlertMotion? _alert = switch (widget.motion) {
+    final AlertMotion alert => alert,
+    _ => null,
+  };
+  late final PopoverMotion? _popover = switch (widget.motion) {
+    final PopoverMotion popover => popover,
+    _ => null,
+  };
   final _press = GlassButtonMotion(size: Size.zero);
   final _card = GlobalKey();
   late final List<GlobalKey> _keys = [
-    for (final _ in widget.route.actions) GlobalKey(),
+    for (final _ in widget.actions) GlobalKey(),
   ];
   final _highlighted = ValueNotifier<GlassAlertAction?>(null);
-  final _dimming = ValueNotifier<double>(0);
-  final _opacity = ValueNotifier<double>(0);
-  final _scale = ValueNotifier<double>(AlertTuning.presentScale);
+  late final MotionSelection<double> _opacity;
+  late final MotionSelection<double> _scale;
+  late final MotionSelection<bool> _leaving;
+  late final MotionSelection<GlassFrame> _frame;
   final _lean = ValueNotifier<Offset>(Offset.zero);
   final _pressX = ValueNotifier<double>(1);
   final _pressY = ValueNotifier<double>(1);
@@ -298,98 +286,64 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
     borderRadius: AlertTuning.cornerRadius,
   );
 
-  final _frame = ValueNotifier(const GlassFrame(shape: _platter, opacity: 0));
   List<GlassAlertAction> _shown = const [];
-  bool _leaving = false;
   int? _pointer;
   // A finger that scrolled the content chooses nothing until it lifts.
   bool _scrolled = false;
-
-  GlassAlertRoute get _route => widget.route;
 
   double get _now => MotionClock.instance.now;
 
   @override
   void initState() {
     super.initState();
-    _route._view = this;
-    _motion.present(_now);
-    _popover?.present(_now);
-    MotionClock.instance.addDriver(this);
+    if (_popover case final popover?) {
+      _opacity = popover.select((m) => m.opacity);
+      _scale = popover.select((m) => m.scale);
+      _leaving = popover.select((m) => m.isLeaving);
+      _frame = popover.select((m) => GlassFrame(opacity: m.opacity));
+    } else {
+      final alert = _alert!;
+      _opacity = alert.select((m) => m.opacity);
+      _scale = alert.select((m) => m.scale);
+      _leaving = alert.select((m) => m.isLeaving);
+      _frame = alert.select(
+        (m) => GlassFrame(shape: _platter, opacity: m.opacity),
+      );
+      MotionClock.instance.addDriver(this);
+    }
+    _leaving.addListener(_left);
   }
 
   @override
   void dispose() {
-    if (identical(_route._view, this)) _route._view = null;
+    _leaving.removeListener(_left);
     MotionClock.instance.removeDriver(this);
-    for (final notifier in [
-      _dimming,
-      _opacity,
-      _scale,
-      _pressX,
-      _pressY,
-    ]) {
-      notifier.dispose();
-    }
+    _pressX.dispose();
+    _pressY.dispose();
     _highlighted.dispose();
     _lean.dispose();
-    _frame.dispose();
     super.dispose();
   }
 
+  // The press runs on its own until it is a part of the alert's motion.
   @override
-  bool get isActive => switch (_popover) {
-    final popover? => !popover.isSettled,
-    null => !_motion.isSettled || !_press.isSettled,
-  };
+  bool get isActive => !_press.isSettled;
 
   @override
   double? get wakeTime => null;
 
   @override
   void step(double time) {
-    if (_popover case final popover?) {
-      popover.advance(time);
-      if (popover.isSettled) popover.settle();
-      _opacity.value = popover.opacity;
-      _scale.value = popover.scale;
-      if (_leaving) {
-        if (popover.isDismissed) _route.didLeave();
-      } else if (popover.isSettled) {
-        _route.didOpen();
-      }
-      return;
-    }
-    _motion.advance(time);
     _press.advance(time);
-    if (_motion.isSettled) _motion.settle();
     if (_press.isSettled) _press.settle();
-    _publish();
-    if (_leaving) {
-      if (_motion.isDismissed) _route.didLeave();
-    } else if (_motion.isSettled) {
-      _route.didOpen();
-    }
-  }
-
-  void _publish() {
-    final opacity = _motion.opacity;
-    _dimming.value = _motion.dimming;
-    _opacity.value = opacity;
-    _scale.value = _motion.scale;
     _lean.value = _press.lean;
     _pressX.value = _press.scaleX;
     _pressY.value = _press.scaleY;
-    _frame.value = GlassFrame(shape: _platter, opacity: opacity);
   }
 
-  void _leave() {
-    if (_leaving) return;
-    _leaving = true;
-    final t = _now;
-    _motion.dismiss(t);
-    _popover?.dismiss(t);
-    if (_press.isPressed) _press.pointerCancel(t);
+  void _left() {
+    if (!_leaving.value) return;
+    if (_press.isPressed) _press.pointerCancel(_now);
     _pointer = null;
     _highlighted.value = null;
     setState(() {});
@@ -397,14 +351,10 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
   }
 
   void _choose(GlassAlertAction action) {
-    if (_leaving || !action.enabled) return;
-    _route.dismiss(DismissTrigger.programmatic, action);
-  }
-
-  void _outside() {
-    if (_leaving || !_route.actionSheet) return;
-    final cancel = _route._cancel;
-    _route.dismiss(DismissTrigger.outsideTap, cancel);
+    if (_leaving.value || !action.enabled) return;
+    PresentationHandle.of(
+      context,
+    ).dismiss(DismissTrigger.programmatic, action);
   }
 
   void _return() {
@@ -419,7 +369,7 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
   GlassAlertAction? _actionAt(Offset global) {
     for (var i = 0; i < _shown.length; i++) {
       final action = _shown[i];
-      final key = _keys[_route.actions.indexOf(action)];
+      final key = _keys[widget.actions.indexOf(action)];
       final box = key.currentContext?.findRenderObject();
       if (box is! RenderBox || !box.attached || !box.hasSize) continue;
       if ((Offset.zero & box.size).contains(box.globalToLocal(global))) {
@@ -437,7 +387,7 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
   }
 
   void _down(PointerDownEvent event) {
-    if (_leaving || _pointer != null || event.buttons != kPrimaryButton) {
+    if (_leaving.value || _pointer != null || event.buttons != kPrimaryButton) {
       return;
     }
     final local = _cardLocal(event.position);
@@ -512,7 +462,7 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
         (width - 2 * AlertTuning.buttonInset - AlertTuning.buttonGap) / 2;
     final direction = Directionality.of(context);
     final scaler = MediaQuery.textScalerOf(context);
-    for (final action in _route.actions) {
+    for (final action in widget.actions) {
       final label = action.child;
       if (label is! Text || label.data == null) return false;
       final painter = TextPainter(
@@ -555,19 +505,19 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
   @override
   Widget build(BuildContext context) {
     final reduced = GlassTraits.of(context).reduceMotion;
-    _motion.reducedMotion = reduced;
+    _alert?.reducedMotion = reduced;
     _popover?.reducedMotion = reduced;
-    final popover = _route.anchorRect;
+    final popover = widget.anchorRect;
     final screen = MediaQuery.sizeOf(context);
     final width = math.min(
       popover == null ? AlertTuning.width : AlertTuning.popoverWidth,
       screen.width - 2 * AlertTuning.screenMargin,
     );
     final row =
-        !_route.actionSheet &&
-        _route.actions.length == 2 &&
+        !widget.actionSheet &&
+        widget.actions.length == 2 &&
         _fitsInRow(width, context);
-    _shown = _ordered(_route.actions, row: row, popover: popover != null);
+    _shown = _ordered(widget.actions, row: row, popover: popover != null);
     final card = NotificationListener<ScrollNotification>(
       onNotification: _scrolledContent,
       child: _buildCard(width, row, context),
@@ -577,7 +527,7 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
       child: FocusScope(
         autofocus: true,
         child: IgnorePointer(
-          ignoring: _leaving,
+          ignoring: _leaving.value,
           child: Listener(
             onPointerDown: _down,
             onPointerMove: _move,
@@ -590,81 +540,48 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
     );
     if (popover != null) {
       final media = MediaQuery.of(context);
-      return Stack(
-        children: [
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: _outside,
-            ),
-          ),
-          Positioned.fill(
-            child: PopoverLayout(
-              source: popover,
-              scale: _scale,
-              opacity: _opacity,
-              maxWidth: AlertTuning.popoverWidth,
-              padding: media.padding.copyWith(
-                bottom: math.max(
-                  media.padding.bottom,
-                  media.viewInsets.bottom,
-                ),
-              ),
-              direction: Directionality.of(context),
-              card: interactive(card),
-            ),
-          ),
-        ],
+      return PopoverLayout(
+        source: popover,
+        scale: _scale,
+        opacity: _opacity,
+        maxWidth: AlertTuning.popoverWidth,
+        padding: media.padding.copyWith(
+          bottom: math.max(media.padding.bottom, media.viewInsets.bottom),
+        ),
+        direction: Directionality.of(context),
+        card: interactive(card),
       );
     }
     final safe = MediaQuery.paddingOf(context);
     final keyboard = MediaQuery.viewInsetsOf(context).bottom;
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: _outside,
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        safe.left,
+        safe.top,
+        safe.right,
+        math.max(safe.bottom, keyboard),
+      ),
+      child: Center(
+        child: interactive(
+          MotionTransition(
+            scale: _scale,
             child: MotionTransition(
-              opacity: _dimming,
-              child: const ColoredBox(
-                color: Color.fromRGBO(0, 0, 0, AlertTuning.dimmingOpacity),
-              ),
+              offset: _lean,
+              scaleX: _pressX,
+              scaleY: _pressY,
+              child: card,
             ),
           ),
         ),
-        Positioned.fill(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              safe.left,
-              safe.top,
-              safe.right,
-              math.max(safe.bottom, keyboard),
-            ),
-            child: Center(
-              child: interactive(
-                MotionTransition(
-                  scale: _scale,
-                  child: MotionTransition(
-                    offset: _lean,
-                    scaleX: _pressX,
-                    scaleY: _pressY,
-                    child: card,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
   Widget _buildCard(double width, bool row, BuildContext context) {
     final label =
         GlassTheme.of(context).colorScheme?.label ?? GlassColors.label;
-    final title = _route.title;
-    final message = _route.message;
+    final title = widget.title;
+    final message = widget.message;
     final both = title != null && message != null;
     final header = <Widget>[
       if (title != null)
@@ -705,7 +622,7 @@ class _AlertViewState extends State<_AlertView> implements MotionDriver {
     final buttons = [
       for (final action in _shown)
         _AlertButton(
-          key: _keys[_route.actions.indexOf(action)],
+          key: _keys[widget.actions.indexOf(action)],
           action: action,
           highlighted: _highlighted,
           label: _labelStyle(action, context),

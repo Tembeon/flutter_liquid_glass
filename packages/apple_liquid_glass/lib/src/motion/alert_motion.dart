@@ -125,7 +125,7 @@ abstract final class AlertTuning {
 /// The fade and the dimming rest within [MotionRest.opacity], the scale
 /// within [MotionRest.scale] of the alert's width (NEAR, invisible).
 @internal
-class AlertMotion extends Motion {
+class AlertMotion extends Motion with Presented {
   /// Creates the motion of an alert that is not shown yet.
   AlertMotion({
     this.spring = AlertTuning.spring,
@@ -151,6 +151,9 @@ class AlertMotion extends Motion {
   /// Whether the alert presents for Reduce Motion, at its size.
   bool reducedMotion = false;
 
+  /// Whether the alert was dismissed and leaves.
+  bool get isLeaving => _dismissing;
+
   /// Whether the alert has left and nothing moves any more.
   bool get isDismissed =>
       _dismissing && _progress.restsAt(now, MotionRest.opacity);
@@ -171,6 +174,24 @@ class AlertMotion extends Motion {
     advance(t);
     _dismissing = true;
     _progress.retarget(t, 0);
+  }
+
+  @override
+  PresenceStatus get presence => _dismissing
+      ? (isDismissed ? .hidden : .leaving)
+      : _progress.target == 0
+      ? .hidden
+      : isSettled
+      ? .shown
+      : .opening;
+
+  @override
+  void open(double t) => present(t);
+
+  @override
+  bool leave(double t, DismissTrigger trigger) {
+    dismiss(t);
+    return true;
   }
 
   /// The presentation progress: 0 hidden, 1 shown.
