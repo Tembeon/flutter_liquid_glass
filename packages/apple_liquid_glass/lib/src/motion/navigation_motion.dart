@@ -331,9 +331,6 @@ final class PageSlideMotion extends PageMotion {
   /// Whether the page is shown or opening, not leaving.
   bool get isShown => _shown;
 
-  /// Whether a released finger's page heads back to full screen.
-  bool get isReturning => _returning;
-
   /// Whether a finger may take the page for an interactive pop now.
   bool get takesSwipe =>
       _shown && (_returning || presence == PresenceStatus.shown);

@@ -66,9 +66,7 @@ class OutlineBoxes {
   /// Whether box [i]'s optical normals ever differ from its exact ones:
   /// false for a capsule or a circle, whose corners are already as round
   /// as its thickness allows.
-  bool turns(int i) =>
-      _data[i * 5 + 4] * opticalCornerScale > _data[i * 5 + 4] &&
-      _data[i * 5 + 4] < halfMinor(i);
+  bool turns(int i) => _data[i * 5 + 4] > 0 && _data[i * 5 + 4] < halfMinor(i);
 
   /// The signed distance from (x, y) to box [i].
   double distance(int i, double x, double y) {

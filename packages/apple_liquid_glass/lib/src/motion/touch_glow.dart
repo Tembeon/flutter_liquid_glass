@@ -305,15 +305,8 @@ final class TouchGlowMotion extends Motion {
     return _scale.valueAt(t);
   }
 
-  /// The glow to paint at time [t], from [now] on, with the spot's center
-  /// moved by [transform].
-  GlassTouchGlow? glowAt(double t, {Offset Function(Offset)? transform}) {
-    advance(t);
-    return _glow(t, transform);
-  }
-
   /// The glow to paint now.
-  GlassTouchGlow? get glow => _glow(now, null);
+  GlassTouchGlow? get glow => _glow(now);
 
   double _wash(double t) {
     final value = washPeak * _progress.valueAt(t).clamp(0.0, 1.0);
@@ -326,13 +319,13 @@ final class TouchGlowMotion extends Motion {
     return value < hideBelow ? 0 : value;
   }
 
-  GlassTouchGlow? _glow(double t, Offset Function(Offset)? transform) {
+  GlassTouchGlow? _glow(double t) {
     final wash = _wash(t);
     final spot = _spot(t);
     if (wash == 0 && spot == 0) return null;
     return GlassTouchGlow(
       wash: washOffset * wash,
-      center: transform == null ? _center : transform(_center),
+      center: _center,
       radius: spotSpread * diameter * _scale.valueAt(t),
       spot: spotCore * spot,
     );

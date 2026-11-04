@@ -695,7 +695,7 @@ final class LensMotion extends Motion {
     _selected = selected;
     if (notify) onEvent?.call(LensSelected(selected));
     final slot = _slots[selected];
-    _resetFlex();
+    _flex.reset(_previousVisible ?? center);
     _travelTo(t, slot);
     _restWidth = slot.width;
   }
@@ -835,10 +835,6 @@ final class LensMotion extends Motion {
 
   void _flagOn(double t) {
     _flag = true;
-    _resetFlex();
-  }
-
-  void _resetFlex() {
     _flex.reset(_previousVisible ?? center);
   }
 

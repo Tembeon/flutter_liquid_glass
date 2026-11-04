@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:meta/meta.dart';
@@ -53,8 +55,7 @@ final class _Superellipse extends GlassShape {
   LiquidShape get liquid => LiquidRoundedSuperellipse(borderRadius: radius);
 
   @override
-  double radiusIn(Rect box) =>
-      radius < box.shortestSide / 2 ? radius : box.shortestSide / 2;
+  double radiusIn(Rect box) => math.min(radius, box.shortestSide / 2);
 
   @override
   Widget clip(Widget? child) => ClipRSuperellipse(
@@ -79,8 +80,7 @@ final class _RoundedRect extends GlassShape {
   LiquidShape get liquid => LiquidRoundedRectangle(borderRadius: radius);
 
   @override
-  double radiusIn(Rect box) =>
-      radius < box.shortestSide / 2 ? radius : box.shortestSide / 2;
+  double radiusIn(Rect box) => math.min(radius, box.shortestSide / 2);
 
   @override
   Widget clip(Widget? child) => ClipRRect(

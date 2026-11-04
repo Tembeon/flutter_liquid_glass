@@ -69,11 +69,5 @@ enum GlassPart {
   menu,
 
   /// A sheet's card.
-  sheet;
-
-  /// The role the part belongs to.
-  GlassRole get role => switch (this) {
-    tabBarLens || knob || thumb => GlassRole.lens,
-    menu || sheet => GlassRole.panel,
-  };
+  sheet,
 }
