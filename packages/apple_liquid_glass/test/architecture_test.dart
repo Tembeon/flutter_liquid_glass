@@ -19,7 +19,31 @@ final _read = RegExp(
   r'BackdropFilter|BackdropKey|BackdropGroup|SeededBackdropPassLayer)\(',
 );
 
+// Code the stack replaced, with the files that still hold it. A listed file
+// that stops offending fails too, so the list only shrinks.
+final _bans = <String, (RegExp, Set<String>)>{
+  'haptics through MotionHaptic.play': (RegExp(r'\bHapticFeedback\.'), {}),
+};
+
 void main() {
+  for (final MapEntry(key: rule, value: (pattern, allowed)) in _bans.entries) {
+    test('lib: $rule', () {
+      final found = <String>{};
+      final files = Directory('lib')
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((file) => file.path.endsWith('.dart'));
+      for (final file in files) {
+        final code = file.readAsLinesSync().where(
+          (line) => !line.trimLeft().startsWith('//'),
+        );
+        if (code.any(pattern.hasMatch)) found.add(file.path);
+      }
+      expect(found.difference(allowed), isEmpty, reason: 'new offenders');
+      expect(allowed.difference(found), isEmpty, reason: 'drop from the list');
+    });
+  }
+
   test('no backdrop read outside the renderer', () {
     final found = <String, int>{};
     final files = Directory('lib')
