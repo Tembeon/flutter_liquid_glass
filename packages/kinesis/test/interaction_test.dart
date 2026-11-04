@@ -341,6 +341,26 @@ void main() {
       expect(committed, 'b');
     });
 
+    test('a release over nothing clears the selection', () {
+      final changes = <Object?>[];
+      final session = InteractionSession([
+        ScrubInteraction(
+          hit: (p) => p.dy < 20 ? 'a' : null,
+          onChanged: (selected, t) => changes.add(selected),
+        ),
+      ]);
+      session.handle(
+        const PointerDownInput(
+          time: 0,
+          pointer: 1,
+          position: Offset(10, 10),
+          regionSize: _size,
+        ),
+      );
+      session.handle(_up(0.2, const Offset(10, 30)));
+      expect(changes, ['a', null]);
+    });
+
     test('marks the change that came with the touch-down', () {
       final session = InteractionSession([
         ScrubInteraction(hit: (p) => p.dy < 20 ? 'a' : 'b'),

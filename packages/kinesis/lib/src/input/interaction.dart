@@ -722,7 +722,7 @@ class ScrubInteraction extends Interaction {
 
   /// Called when the finger touches or moves onto something else, or off
   /// everything, with the input's time; with null when the scrub is
-  /// cancelled.
+  /// cancelled or the finger lifts over nothing.
   void Function(Object? selected, double t)? onChanged;
 
   /// Called with what lies under a release, and its time.
@@ -760,8 +760,12 @@ class ScrubInteraction extends Interaction {
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
         final selected = hit(input.position);
+        final was = _selected;
         _selected = null;
-        if (selected == null) return const InteractionUpdate(fails: true);
+        if (selected == null) {
+          if (was != null) onChanged?.call(null, input.time);
+          return const InteractionUpdate(fails: true);
+        }
         onCommit?.call(selected, input.time);
         return const InteractionUpdate(recognizes: true);
       case PointerCancelInput() when input.pointer == _pointer:
