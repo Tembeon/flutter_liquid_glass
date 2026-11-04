@@ -1,156 +1,10 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/geometry/boxes.dart';
 import 'package:apple_liquid_glass/src/surface/outline.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-
-/// How much larger a corner radius the glass's optical normals turn on
-/// than the shape's own: the factor the renderer's analytic shapes use
-/// (`kOpticalCornerRadiusScale` in its sdf.glsl, fitted to iOS 27 card
-/// corners), so a fused body turns its light at a corner where the same
-/// shape drawn alone does.
-@internal
-const double opticalCornerScale = 1.5;
-
-/// The rounded boxes a fused outline is made of, laid out for the inner
-/// loops: per box its center, half extents and clamped corner radius.
-@internal
-class OutlineBoxes {
-  /// Lays out [shapes], whose corners must share one circular radius.
-  OutlineBoxes(List<RRect> shapes)
-    : length = shapes.length,
-      _data = Float64List(shapes.length * 5) {
-    for (var i = 0; i < shapes.length; i++) {
-      final shape = shapes[i];
-      _requireUniform(shape);
-      final hx = shape.width / 2;
-      final hy = shape.height / 2;
-      _data[i * 5] = shape.center.dx;
-      _data[i * 5 + 1] = shape.center.dy;
-      _data[i * 5 + 2] = hx;
-      _data[i * 5 + 3] = hy;
-      _data[i * 5 + 4] = math.min(shape.tlRadiusX, math.min(hx, hy));
-    }
-  }
-
-  /// The number of boxes.
-  final int length;
-
-  /// Whether box [i]'s optical normals ever differ from its exact ones:
-  /// false for a capsule or a circle, whose corners are already as round
-  /// as its thickness allows.
-  bool turns(int i) =>
-      _data[i * 5 + 4] * opticalCornerScale > _data[i * 5 + 4] &&
-      _data[i * 5 + 4] < halfMinor(i);
-
-  final Float64List _data;
-
-  /// The half thickness of box [i].
-  double halfMinor(int i) => math.min(_data[i * 5 + 2], _data[i * 5 + 3]);
-
-  /// The signed distance from (x, y) to box [i].
-  double distance(int i, double x, double y) {
-    final r = _data[i * 5 + 4];
-    final qx = (x - _data[i * 5]).abs() - _data[i * 5 + 2] + r;
-    final qy = (y - _data[i * 5 + 1]).abs() - _data[i * 5 + 3] + r;
-    return boxDistance(qx, qy, r);
-  }
-
-  /// Whether (x, y) lies where box [i]'s optical normals can differ from
-  /// its exact ones: in the square of a corner of the optical radius.
-  bool inOpticalCorner(int i, double x, double y) {
-    final hx = _data[i * 5 + 2];
-    final hy = _data[i * 5 + 3];
-    final optical = math.min(
-      _data[i * 5 + 4] * opticalCornerScale,
-      math.min(hx, hy),
-    );
-    return (x - _data[i * 5]).abs() > hx - optical &&
-        (y - _data[i * 5 + 1]).abs() > hy - optical;
-  }
-
-  /// Whether [x] lies in the columns of box [i]'s optical corners: the
-  /// horizontal half of [inOpticalCorner].
-  bool inOpticalCornerColumns(int i, double x) {
-    final hx = _data[i * 5 + 2];
-    final hy = _data[i * 5 + 3];
-    final optical = math.min(
-      _data[i * 5 + 4] * opticalCornerScale,
-      math.min(hx, hy),
-    );
-    return (x - _data[i * 5]).abs() > hx - optical;
-  }
-
-  /// Whether [y] lies in the rows of box [i]'s optical corners: the
-  /// vertical half of [inOpticalCorner].
-  bool inOpticalCornerRows(int i, double y) {
-    final hx = _data[i * 5 + 2];
-    final hy = _data[i * 5 + 3];
-    final optical = math.min(
-      _data[i * 5 + 4] * opticalCornerScale,
-      math.min(hx, hy),
-    );
-    return (y - _data[i * 5 + 1]).abs() > hy - optical;
-  }
-
-  /// The rotation from box [i]'s exact normal at (x, y) to its optical
-  /// normal, the one a corner [opticalCornerScale] times rounder
-  /// gives, as (cos, sin) written into [out] at [at].
-  void opticalTurn(int i, double x, double y, Float64List out, int at) {
-    final hx = _data[i * 5 + 2];
-    final hy = _data[i * 5 + 3];
-    final half = math.min(hx, hy);
-    final exact = _data[i * 5 + 4];
-    final optical = math.min(exact * opticalCornerScale, half);
-    out[at] = 1;
-    out[at + 1] = 0;
-    if (optical <= exact) return;
-    final px = x - _data[i * 5];
-    final py = y - _data[i * 5 + 1];
-    final ax = px.abs() - hx;
-    final ay = py.abs() - hy;
-    final ox = ax + optical;
-    final oy = ay + optical;
-    if (ox <= 0 || oy <= 0) return;
-    final ex = ax + exact;
-    final ey = ay + exact;
-    double enx;
-    double eny;
-    if (ex > 0 && ey > 0) {
-      final length = math.sqrt(ex * ex + ey * ey);
-      enx = ex / length;
-      eny = ey / length;
-    } else if (ex > ey) {
-      enx = 1;
-      eny = 0;
-    } else {
-      enx = 0;
-      eny = 1;
-    }
-    final length = math.sqrt(ox * ox + oy * oy);
-    final onx = ox / length;
-    final ony = oy / length;
-    final mirrored = (px < 0) != (py < 0);
-    out[at] = enx * onx + eny * ony;
-    out[at + 1] = (enx * ony - eny * onx) * (mirrored ? -1 : 1);
-  }
-}
-
-/// The signed distance of a rounded box from its corner-relative offsets
-/// [qx], [qy] (the distance past the box's inner rectangle along each
-/// axis) and its corner radius [r].
-@internal
-double boxDistance(double qx, double qy, double r) {
-  double outside;
-  if (qx > 0) {
-    outside = qy > 0 ? math.sqrt(qx * qx + qy * qy) : qx;
-  } else {
-    outside = qy > 0 ? qy : 0;
-  }
-  final inner = qx > qy ? qx : qy;
-  return outside + (inner < 0 ? inner : 0.0) - r;
-}
 
 /// A fused outline before it becomes a [GlassOutline]: its field
 /// samples and its edge as closed loops of contour crossings, plain typed
@@ -755,7 +609,7 @@ GlassOutline unionOutline(List<RRect> shapes, {double step = 4}) {
 /// connected part, a box inside another adding nothing.
 Path _unionPath(List<RRect> shapes) {
   for (final shape in shapes) {
-    _requireUniform(shape);
+    assertUniformCorners(shape);
   }
   final kept = [
     for (var i = 0; i < shapes.length; i++)
@@ -786,64 +640,6 @@ bool _covered(List<RRect> shapes, int i) {
     }
   }
   return false;
-}
-
-/// Whether rounded box [outer] covers rounded box [inner]: every corner
-/// circle of [inner] lies inside it, and with them, [outer] being convex,
-/// all of [inner].
-@internal
-bool encloses(RRect outer, RRect inner) {
-  final r = _radius(inner);
-  final hx = inner.width / 2 - r;
-  final hy = inner.height / 2 - r;
-  final center = inner.center;
-  _requireUniform(outer);
-  final ohx = outer.width / 2;
-  final ohy = outer.height / 2;
-  final outerRadius = math.min(outer.tlRadiusX, math.min(ohx, ohy));
-  final ocx = outer.center.dx;
-  final ocy = outer.center.dy;
-  for (final (sx, sy) in const [
-    (-1.0, -1.0),
-    (1.0, -1.0),
-    (-1.0, 1.0),
-    (1.0, 1.0),
-  ]) {
-    final qx = (center.dx + sx * hx - ocx).abs() - ohx + outerRadius;
-    final qy = (center.dy + sy * hy - ocy).abs() - ohy + outerRadius;
-    if (boxDistance(qx, qy, outerRadius) > -r) return false;
-  }
-  return true;
-}
-
-/// Normalizes the (cos, sin) pair at [at], blended from several turns.
-@internal
-void normalizeTurn(Float64List turn, int at) {
-  final c = turn[at];
-  final s = turn[at + 1];
-  final length = math.sqrt(c * c + s * s);
-  if (length < 1e-9) {
-    turn[at] = 1;
-    turn[at + 1] = 0;
-  } else {
-    turn[at] = c / length;
-    turn[at + 1] = s / length;
-  }
-}
-
-double _radius(RRect shape) {
-  _requireUniform(shape);
-  return math.min(shape.tlRadiusX, shape.outerRect.shortestSide / 2);
-}
-
-void _requireUniform(RRect shape) {
-  assert(
-    shape.tlRadiusX == shape.tlRadiusY &&
-        shape.tlRadius == shape.trRadius &&
-        shape.tlRadius == shape.blRadius &&
-        shape.tlRadius == shape.brRadius,
-    'Glass distance fields require uniform circular corner radii.',
-  );
 }
 
 LiquidGlassField _unionField(List<RRect> kept, Rect bounds, double step) {

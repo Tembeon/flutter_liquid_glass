@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:apple_liquid_glass/src/geometry/boxes.dart';
 import 'package:apple_liquid_glass/src/menu/fusion_worker.dart';
 import 'package:apple_liquid_glass/src/menu/outline_math.dart';
 import 'package:apple_liquid_glass/src/surface/outline.dart';
@@ -276,7 +277,8 @@ OutlineParts menuSilhouetteParts(
   for (var k = 0; k < kernel.length; k++) {
     kernel[k] /= sum;
   }
-  final f = _BlurredUnion(menu, source, area, step, cols, rows, kernel);
+  final boxes = OutlineBoxes([menu, source]);
+  final f = _BlurredUnion(boxes, area, step, cols, rows, kernel);
   final shift = 1.26 * radius;
   final band = shift + 1.5 * step;
   final fieldCols = (cols - 1) ~/ stride + 1;
@@ -285,8 +287,7 @@ OutlineParts menuSilhouetteParts(
   final clearance = _Scratch.field(2, fieldCols * fieldRows);
   final optics = withField
       ? _MenuOptics(
-          menu,
-          source,
+          boxes,
           area,
           step,
           radius,
@@ -399,24 +400,23 @@ OutlineParts menuSilhouetteParts(
 /// to and the turn of its normal toward the shapes' optical corners.
 class _MenuOptics {
   _MenuOptics(
-    RRect menu,
-    RRect source,
+    OutlineBoxes boxes,
     Rect area,
     double step,
     double radius,
     int stride,
     int fieldCols,
     int fieldRows,
-  ) : _boxes = OutlineBoxes([menu, source]),
-      _halfMenu = menu.outerRect.shortestSide / 2,
-      _halfSource = source.outerRect.shortestSide / 2,
+  ) : _boxes = boxes,
+      _halfMenu = boxes.halfMinor(0),
+      _halfSource = boxes.halfMinor(1),
       _blend = math.max(radius, step),
       distance = _Scratch.field(0, fieldCols * fieldRows),
       halfMinor = _Scratch.field(1, fieldCols * fieldRows),
       turn = _Scratch.field(3, 2 * fieldCols * fieldRows),
       _cornerColumns = _Scratch.columns(fieldCols),
-      _menuOptics = _OpticalCorners(menu, 0, fieldCols, fieldRows),
-      _sourceOptics = _OpticalCorners(source, 1, fieldCols, fieldRows) {
+      _menuOptics = _OpticalCorners(boxes, 0, fieldCols, fieldRows),
+      _sourceOptics = _OpticalCorners(boxes, 1, fieldCols, fieldRows) {
     _menuTurns = _boxes.turns(0);
     _sourceTurns = _boxes.turns(1);
     _sourceTurn[0] = 1;
@@ -509,22 +509,15 @@ class _MenuOptics {
 /// over the field grid, its per-axis terms computed once per column and
 /// once per row.
 class _OpticalCorners {
-  _OpticalCorners(RRect shape, int index, int cols, int rows)
-    : _centerX = shape.center.dx,
-      _centerY = shape.center.dy,
-      _halfX = shape.width / 2,
-      _halfY = shape.height / 2,
-      _exact = math.min(
-        shape.tlRadiusX,
-        math.min(shape.width / 2, shape.height / 2),
-      ),
-      _optical = math.min(
-        math.min(shape.tlRadiusX, math.min(shape.width / 2, shape.height / 2)) *
-            opticalCornerScale,
-        math.min(shape.width / 2, shape.height / 2),
-      ),
-      _columns = _Scratch.optics(index * 2, cols * 3),
-      _rows = _Scratch.optics(index * 2 + 1, rows * 3);
+  _OpticalCorners(OutlineBoxes boxes, int i, int cols, int rows)
+    : _centerX = boxes.centerX(i),
+      _centerY = boxes.centerY(i),
+      _halfX = boxes.halfX(i),
+      _halfY = boxes.halfY(i),
+      _exact = boxes.radius(i),
+      _optical = boxes.opticalRadius(i),
+      _columns = _Scratch.optics(i * 2, cols * 3),
+      _rows = _Scratch.optics(i * 2 + 1, rows * 3);
 
   final double _centerX;
   final double _centerY;
@@ -558,35 +551,17 @@ class _OpticalCorners {
   /// The rotation from the exact normal at field node ([fi], [fj]) to
   /// the optical one, as (cos, sin) written into [out] at [at].
   @pragma('vm:unsafe:no-bounds-checks')
-  void turn(int fi, int fj, Float64List out, int at) {
-    out[at] = 1;
-    out[at + 1] = 0;
-    if (_optical <= _exact) return;
-    final ox = _columns[fi * 3 + 1];
-    final oy = _rows[fj * 3 + 1];
-    if (ox <= 0 || oy <= 0) return;
-    final ex = _columns[fi * 3 + 2];
-    final ey = _rows[fj * 3 + 2];
-    double enx;
-    double eny;
-    if (ex > 0 && ey > 0) {
-      final length = math.sqrt(ex * ex + ey * ey);
-      enx = ex / length;
-      eny = ey / length;
-    } else if (ex > ey) {
-      enx = 1;
-      eny = 0;
-    } else {
-      enx = 0;
-      eny = 1;
-    }
-    final length = math.sqrt(ox * ox + oy * oy);
-    final onx = ox / length;
-    final ony = oy / length;
-    final mirrored = (_columns[fi * 3] < 0) != (_rows[fj * 3] < 0);
-    out[at] = enx * onx + eny * ony;
-    out[at + 1] = (enx * ony - eny * onx) * (mirrored ? -1 : 1);
-  }
+  void turn(int fi, int fj, Float64List out, int at) => writeOpticalTurn(
+    exact: _exact,
+    optical: _optical,
+    ox: _columns[fi * 3 + 1],
+    oy: _rows[fj * 3 + 1],
+    ex: _columns[fi * 3 + 2],
+    ey: _rows[fj * 3 + 2],
+    mirrored: (_columns[fi * 3] < 0) != (_rows[fj * 3] < 0),
+    out: out,
+    at: at,
+  );
 }
 
 /// The union of two rounded boxes on a grid and its Gaussian blur, both
@@ -600,8 +575,7 @@ class _OpticalCorners {
 /// computed once.
 class _BlurredUnion {
   _BlurredUnion(
-    RRect menu,
-    RRect source,
+    OutlineBoxes boxes,
     Rect area,
     double step,
     this.cols,
@@ -617,27 +591,27 @@ class _BlurredUnion {
       _menuY = Float64List(rows + kernel.length - 1),
       _sourceX = Float64List(cols + kernel.length - 1),
       _sourceY = Float64List(rows + kernel.length - 1),
-      _menuRadius = _cornerOf(menu),
-      _sourceRadius = _cornerOf(source),
+      _menuRadius = boxes.radius(0),
+      _sourceRadius = boxes.radius(1),
       _menuInner = Offset(
-        menu.width / 2 - _cornerOf(menu),
-        menu.height / 2 - _cornerOf(menu),
+        boxes.halfX(0) - boxes.radius(0),
+        boxes.halfY(0) - boxes.radius(0),
       ),
       _sourceInner = Offset(
-        source.width / 2 - _cornerOf(source),
-        source.height / 2 - _cornerOf(source),
+        boxes.halfX(1) - boxes.radius(1),
+        boxes.halfY(1) - boxes.radius(1),
       ) {
     final left = area.left - reach * step;
     final top = area.top - reach * step;
     for (var i = 0; i < width; i++) {
       final x = left + i * step;
-      _menuX[i] = (x - menu.center.dx).abs() - _menuInner.dx;
-      _sourceX[i] = (x - source.center.dx).abs() - _sourceInner.dx;
+      _menuX[i] = (x - boxes.centerX(0)).abs() - _menuInner.dx;
+      _sourceX[i] = (x - boxes.centerX(1)).abs() - _sourceInner.dx;
     }
     for (var j = 0; j < height; j++) {
       final y = top + j * step;
-      _menuY[j] = (y - menu.center.dy).abs() - _menuInner.dy;
-      _sourceY[j] = (y - source.center.dy).abs() - _sourceInner.dy;
+      _menuY[j] = (y - boxes.centerY(0)).abs() - _menuInner.dy;
+      _sourceY[j] = (y - boxes.centerY(1)).abs() - _sourceInner.dy;
     }
     _Scratch.begin(width * height, cols * height);
     _rawValues = _Scratch.raw;
@@ -672,9 +646,6 @@ class _BlurredUnion {
     }
     return math.sqrt(variance);
   }
-
-  static double _cornerOf(RRect shape) =>
-      math.min(shape.tlRadiusX, math.min(shape.width, shape.height) / 2);
 
   final int cols;
   final Float64List kernel;

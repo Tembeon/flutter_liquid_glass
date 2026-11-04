@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:apple_liquid_glass/src/geometry/boxes.dart';
 import 'package:apple_liquid_glass/src/menu/appearance.dart';
 import 'package:apple_liquid_glass/src/menu/content.dart';
 import 'package:apple_liquid_glass/src/menu/entries.dart';
