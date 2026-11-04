@@ -225,10 +225,18 @@ final class LongPressStartEvent extends InteractionEvent {
 /// A scrub moved onto another region.
 final class ScrubChangeEvent extends InteractionEvent {
   /// Creates a scrub change.
-  const ScrubChangeEvent({required super.time, required this.selected});
+  const ScrubChangeEvent({
+    required super.time,
+    required this.selected,
+    this.atDown = false,
+  });
 
   /// The region now under the finger, or null.
   final Object? selected;
+
+  /// Whether the change came with the touch-down rather than a move: a
+  /// control plays its selection haptic only for a finger that slides.
+  final bool atDown;
 }
 
 /// What an interaction made of an input.
@@ -723,13 +731,19 @@ class ScrubInteraction extends Interaction {
   int? _pointer;
   Object? _selected;
 
-  InteractionUpdate _select(double time, Offset position) {
+  InteractionUpdate _select(
+    double time,
+    Offset position, {
+    bool atDown = false,
+  }) {
     final selected = hit(position);
     if (selected == _selected) return InteractionUpdate.none;
     _selected = selected;
     onChanged?.call(selected, time);
     return InteractionUpdate(
-      events: [ScrubChangeEvent(time: time, selected: selected)],
+      events: [
+        ScrubChangeEvent(time: time, selected: selected, atDown: atDown),
+      ],
     );
   }
 
@@ -740,7 +754,7 @@ class ScrubInteraction extends Interaction {
         if (_pointer != null || !accepts(input)) return InteractionUpdate.none;
         _pointer = input.pointer;
         _selected = null;
-        return _select(input.time, input.position);
+        return _select(input.time, input.position, atDown: true);
       case PointerMoveInput() when input.pointer == _pointer:
         return _select(input.time, input.position);
       case PointerUpInput() when input.pointer == _pointer:

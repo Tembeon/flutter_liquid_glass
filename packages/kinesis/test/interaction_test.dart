@@ -340,6 +340,28 @@ void main() {
       expect(changes, ['a', 'b']);
       expect(committed, 'b');
     });
+
+    test('marks the change that came with the touch-down', () {
+      final session = InteractionSession([
+        ScrubInteraction(hit: (p) => p.dy < 20 ? 'a' : 'b'),
+      ]);
+      final down = session.handle(
+        const PointerDownInput(
+          time: 0,
+          pointer: 1,
+          position: Offset(10, 10),
+          regionSize: _size,
+        ),
+      );
+      final moved = session.handle(_move(0.1, const Offset(10, 30)));
+      final atDown = [
+        for (final output in [down, moved])
+          for (final event in output.events)
+            if (event case ScrubChangeEvent(:final selected, :final atDown))
+              (selected, atDown),
+      ];
+      expect(atDown, [('a', true), ('b', false)]);
+    });
   });
 
   group('relations', () {
