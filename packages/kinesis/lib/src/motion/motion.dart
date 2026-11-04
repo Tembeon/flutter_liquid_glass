@@ -173,9 +173,10 @@ abstract class Motion extends MotionPart {
   /// A reaction with a [slot] replaces a pending one this motion scheduled
   /// in the same slot, so re-issuing a command never stacks its reactions.
   /// Slots belong to the motion: equal slots of two motions on one timeline
-  /// never meet, so a `const Object()` slot, canonical across classes, is
-  /// safe. Reactions with equal times run in the order they were
-  /// scheduled.
+  /// never meet. The slots of one motion must differ by `==`: a symbol per
+  /// slot (`#rise`, `#fall`) does, where every `const Object()` is one and
+  /// the same object. Reactions with equal times run in the order they
+  /// were scheduled.
   @protected
   MotionCancel at(double t, void Function(double t) action, {Object? slot}) {
     final root = _root;

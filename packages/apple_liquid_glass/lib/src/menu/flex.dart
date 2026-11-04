@@ -49,9 +49,9 @@ final class MenuFlex extends Motion {
   /// Whether the menu is open.
   final bool Function() active;
 
-  static const _down = Object();
-  static const _up = Object();
-  static const _step = Object();
+  static const _down = #down;
+  static const _up = #up;
+  static const _step = #step;
 
   double _rest() =>
       _touch == null ? MenuTuning.flexReturnRest : MenuTuning.flexPulseRest;

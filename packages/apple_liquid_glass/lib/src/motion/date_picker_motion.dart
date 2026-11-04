@@ -353,7 +353,7 @@ final class DatePickerMotion extends Motion with Presented {
 
   static void _keep() {}
 
-  static const _queue = Object();
+  static const _queue = #queue;
 
   /// Whether the overlay is open or opening.
   bool get isOpen => _open;

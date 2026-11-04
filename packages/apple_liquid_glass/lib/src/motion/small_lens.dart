@@ -116,7 +116,7 @@ final class SmallLens extends Motion {
   final FlexIntegrator _flex = FlexIntegrator();
   double _liftStart = -double.infinity;
   double? _previous;
-  static const _landing = Object();
+  static const _landing = #landing;
 
   static double _opacity() => MotionRest.opacity;
   static double _length() => MotionRest.length;

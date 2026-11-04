@@ -373,8 +373,8 @@ final class TabBarMinimizeMotion extends Motion {
     rest: _rest,
   );
 
-  static const _follow = Object();
-  static const _hold = Object();
+  static const _follow = #follow;
+  static const _hold = #hold;
 
   /// The behavior; a bar that no longer minimizes expands.
   GlassTabBarMinimizeBehavior get behavior => _behavior;

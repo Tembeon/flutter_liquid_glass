@@ -1231,12 +1231,12 @@ class MenuMotion extends Motion {
   double _resizeTo = 0;
   bool _resizeGrows = false;
 
-  static const _resizeSlot = Object();
-  static const _dwellSlot = Object();
-  static const _cardSlot = Object();
-  static const _radiusSlot = Object();
-  static const _containerSlot = Object();
-  static const _closeKickSlot = Object();
+  static const _resizeSlot = #resize;
+  static const _dwellSlot = #dwell;
+  static const _cardSlot = #card;
+  static const _radiusSlot = #radius;
+  static const _containerSlot = #container;
+  static const _closeKickSlot = #closeKick;
 
   late final _KickLoop _kicks;
   MotionValue<double>? _openReference;

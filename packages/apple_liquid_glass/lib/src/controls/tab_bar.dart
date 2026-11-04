@@ -1323,7 +1323,7 @@ final class _SearchTabMotion extends Motion {
   // NEAR: the shapes land by up to 0.001 of their travel.
   static double _morphRest() => 1e-3;
 
-  static const _activation = Object();
+  static const _activation = #activation;
 
   /// Whether the search is open or heading there.
   bool get isOpen => _open;

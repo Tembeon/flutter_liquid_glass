@@ -298,7 +298,7 @@ final class SearchMotion extends Motion {
 
   static double _rest() => 1e-3;
 
-  static const _turn = Object();
+  static const _turn = #turn;
 
   /// Whether the field is focused or heading there.
   bool get isFocused => _focused;

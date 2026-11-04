@@ -235,9 +235,9 @@ final class TouchGlowMotion extends Motion {
   Offset _center = Offset.zero;
   Offset? _down;
   bool _dragging = false;
-  static const _riseSlot = Object();
-  static const _dragSlot = Object();
-  static const _fallSlot = Object();
+  static const _riseSlot = #rise;
+  static const _dragSlot = #drag;
+  static const _fallSlot = #fall;
 
   /// Whether a finger is down.
   bool get isDown => _down != null;

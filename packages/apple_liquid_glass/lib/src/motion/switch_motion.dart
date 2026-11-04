@@ -128,7 +128,7 @@ final class SwitchMotion extends Motion {
   /// The knob's lens; it follows the knob.
   late final SmallLens lens;
 
-  static const _colorSlot = Object();
+  static const _colorSlot = #color;
   double? _downX;
   double _anchor = 0;
   double _downT = 0;

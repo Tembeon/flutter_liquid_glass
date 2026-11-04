@@ -138,7 +138,7 @@ final class GlassPress extends Motion implements PointerFollower {
     rest: _positionRest,
   );
 
-  static const _activation = Object();
+  static const _activation = #activation;
 
   bool _pressed = false;
   bool _inside = false;

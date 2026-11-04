@@ -234,7 +234,7 @@ final class SliderMotion extends Motion {
   late final SmallLens lens;
 
   _Press? _press;
-  static const _release = Object();
+  static const _release = #release;
 
   /// How far the thumb center travels between the ends.
   double get travel => math.max(0, width - thumbSize.width);

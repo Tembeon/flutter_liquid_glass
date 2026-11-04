@@ -120,7 +120,7 @@ final class PageControlMotion extends Motion {
   double? _downX;
   bool _scrubbing = false;
   bool _stepped = false;
-  static const _platterSlot = Object();
+  static const _platterSlot = #platter;
 
   /// The opacity of the platter under a touch, 0 to 1.
   double get platter => _platter.valueAt(now).clamp(0.0, 1.0);

@@ -44,6 +44,12 @@ final _bans = <String, (RegExp, Set<String>)>{
     {},
   ),
   'a press is a GlassPress': (RegExp(r'\bFlexInteraction\('), {}),
+  // Every const Object() is one object, so two such slots of a motion
+  // would replace each other's reactions.
+  'a reaction slot is a symbol': (
+    RegExp(r'static const _\w+ = Object\(\);'),
+    {},
+  ),
 };
 
 void main() {
