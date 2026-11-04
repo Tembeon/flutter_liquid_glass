@@ -14,6 +14,11 @@ abstract class MotionPart {
   @internal
   Motion? owner;
 
+  /// Tells the owning motion that the part changed, so its root wakes on
+  /// the clock; a part calls it after every command that moves it.
+  @protected
+  void changed() => owner?.partChanged();
+
   /// The earliest time from which every component stays within [tolerance]
   /// of where it comes to rest, or null while a change of the part's own
   /// is pending ([nextDue]). A null [tolerance] is the part's own rest.
