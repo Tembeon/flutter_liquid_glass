@@ -118,7 +118,13 @@ class MenuTuning {
   /// The horizontal placement margin from the device menu traces.
   static const double defaultEdgeMargin = 8;
 
-  /// The numerical integration step of the measured driven kicks, in seconds.
+  /// The numerical integration step of the measured driven kicks, in
+  /// seconds: the kicks step on a fixed grid of it in motion time.
+  ///
+  /// NEAR: the kicks were fitted stepping this long between frame samples;
+  /// on the grid the menu kick stays within 0.85 pt of that at its 31 pt
+  /// peak and the button kick within 0.08 pt (menu-button.md, Spec -
+  /// kicks).
   static const double kickIntegrationStep = 0.001;
 
   /// The driven kick displacement considered at rest, in points.
@@ -126,11 +132,6 @@ class MenuTuning {
 
   /// The driven kick velocity considered at rest, in points per second.
   static const double kickRestVelocity = 0.1;
-
-  /// The remaining idle span above which kick integration skips ahead.
-  ///
-  /// This numerical optimization threshold is not a measured motion value.
-  static const double kickSkipSpan = 1;
 
   /// The largest move, in points, of a menu edge that the flex pulse
   /// channel may still make once it stops stepping while a finger rests.
@@ -926,7 +927,7 @@ class _Pointer {
   bool leftButton = false;
 }
 
-/// A damped spring driven by an input, integrated from samples.
+/// A damped spring driven by an input.
 class _DrivenKick {
   double value = 0;
   double velocity = 0;
@@ -940,32 +941,60 @@ class _DrivenKick {
     velocity = 0;
   }
 
-  /// Integrates from time [from] to [to] on [spring], chasing [input]
-  /// (zero when null).
-  void step(
-    double from,
-    double to,
-    Spring spring,
-    double Function(double t)? input, {
-    bool Function(double t)? inputAtRest,
-  }) {
-    final steps = math.max(
-      1,
-      ((to - from) / MenuTuning.kickIntegrationStep).ceil(),
+  /// One step of [h] seconds on [spring] toward [target].
+  void integrate(double h, Spring spring, double target) {
+    velocity +=
+        (spring.stiffness * (target - value) - spring.damping * velocity) * h;
+    value += velocity * h;
+  }
+}
+
+/// The menu's two driven kicks, stepped on a fixed grid of
+/// [MenuTuning.kickIntegrationStep] whatever the frames sample: the
+/// recorded kicks were fitted with this step, and the grid makes a replay
+/// at any frame rate step the same frames (NEAR, see
+/// [MenuTuning.kickIntegrationStep]).
+///
+/// The loop sleeps once both kicks and the springs that drive them rest,
+/// keeping what is left (below [MenuTuning.kickRestValue]), and wakes when
+/// the menu opens, closes or kicks. It steps up to three seconds of a
+/// longer gap, in which every kick rings out.
+final class _KickLoop extends MotionLoop {
+  _KickLoop(this._motion)
+    : super(rate: 1 / MenuTuning.kickIntegrationStep, maxFrames: 3000);
+
+  final MenuMotion _motion;
+
+  /// The kick of the menu shape.
+  final menu = _DrivenKick();
+
+  /// The kick of the button shape.
+  final button = _DrivenKick();
+
+  @override
+  bool step(double t) => _motion._stepKicks(t, menu, button);
+
+  /// Answers [read] with the kicks stepped on to time [t] as the loop will
+  /// step them while nothing else changes, then puts them back.
+  T peek<T>(double t, T Function() read) {
+    if (!isMoving) return read();
+    final (mv, mw, bv, bw) = (
+      menu.value,
+      menu.velocity,
+      button.value,
+      button.velocity,
     );
-    final h = (to - from) / steps;
-    final k = spring.stiffness;
-    final c = spring.damping;
-    for (var i = 0; i < steps; i++) {
-      final sample = from + i * h;
-      if (to - sample > MenuTuning.kickSkipSpan &&
-          isAtRest &&
-          (inputAtRest?.call(sample) ?? input == null)) {
-        return;
+    try {
+      final end = (t * rate + 1e-6).floor();
+      for (var k = (lastFrame * rate).round() + 1; k <= end; k++) {
+        if (!_motion._stepKicks(k / rate, menu, button)) break;
       }
-      final target = input == null ? 0.0 : input(from + (i + 0.5) * h);
-      velocity += (k * (target - value) - c * velocity) * h;
-      value += velocity * h;
+      return read();
+    } finally {
+      menu.value = mv;
+      menu.velocity = mw;
+      button.value = bv;
+      button.velocity = bw;
     }
   }
 }
@@ -1145,6 +1174,7 @@ class MenuMotion extends Motion {
       MotionValue<double>(0, spring: tuning.openSpring),
       rest: () => _progressRest,
     );
+    _kicks = own(_KickLoop(this));
     _root = _build(reversed: false);
     _rootHeight = own(
       MotionValue<double>(_visibleRoot(_root), spring: tuning.growSpring),
@@ -1208,21 +1238,17 @@ class MenuMotion extends Motion {
   static const _containerSlot = Object();
   static const _closeKickSlot = Object();
 
-  final _DrivenKick _menuKick = _DrivenKick();
-  final _DrivenKick _buttonKick = _DrivenKick();
+  late final _KickLoop _kicks;
   MotionValue<double>? _openReference;
   MotionValue<double>? _closeReference;
 
-  // A kick skips a long quiet span only while its input, the reference's
-  // velocity, has died out: the rule the recorded kicks were fitted with.
-  static bool Function(double t) _referenceRests(MotionValue<double> spring) =>
-      (double t) =>
-          (spring.valueAt(t) - spring.target).abs() <
-              MenuTuning.kickRestValue &&
-          spring.velocityAt(t).abs() < MenuTuning.kickRestVelocity;
+  // A kick sleeps only while its input, the reference's velocity, has
+  // died out.
+  static bool _referenceRests(MotionValue<double> spring, double t) =>
+      (spring.valueAt(t) - spring.target).abs() < MenuTuning.kickRestValue &&
+      spring.velocityAt(t).abs() < MenuTuning.kickRestVelocity;
   late final FusionTurns _fusions = FusionTurns(tuning);
   final MenuFusion _fusion = MenuFusion();
-  double _sampleTime = double.negativeInfinity;
 
   _Phase _phase = _Phase.idle;
   double _sourceScale = 1;
@@ -1904,13 +1930,7 @@ class MenuMotion extends Motion {
     }
   }
 
-  void _prefetchAt(double ahead) {
-    final menuKick = _menuKick.value;
-    final menuKickVelocity = _menuKick.velocity;
-    final buttonKick = _buttonKick.value;
-    final buttonKickVelocity = _buttonKick.velocity;
-    final sampleTime = _sampleTime;
-    _sample(ahead);
+  void _prefetchAt(double ahead) => _kicks.peek(ahead, () {
     _peekTime = ahead;
     try {
       final radius = fusionRadius;
@@ -1919,13 +1939,8 @@ class MenuMotion extends Motion {
       }
     } finally {
       _peekTime = null;
-      _sampleTime = sampleTime;
-      _menuKick.value = menuKick;
-      _menuKick.velocity = menuKickVelocity;
-      _buttonKick.value = buttonKick;
-      _buttonKick.velocity = buttonKickVelocity;
     }
-  }
+  });
 
   bool _fusionAtRest(double t) {
     if (!_fusions.endedAt(t)) return false;
@@ -1935,11 +1950,11 @@ class MenuMotion extends Motion {
 
   /// The vertical kick of the menu shape, positive toward the side the
   /// menu opens to.
-  double get menuKick => _menuKick.value;
+  double get menuKick => _kicks.menu.value;
 
   /// The vertical kick of the button shape, positive toward the side the
   /// menu opens to.
-  double get buttonKick => _buttonKick.value;
+  double get buttonKick => _kicks.button.value;
 
   /// The menu shape: grows out of the button into the menu.
   MenuBlob get menuBlob => _blobFor(_menu);
@@ -2157,8 +2172,7 @@ class MenuMotion extends Motion {
     if (_pointer?.scrolled ?? false) return true;
     return switch (_phase) {
       _Phase.closing => true,
-      _Phase.opening =>
-        !_menuKick.isAtRest || !_buttonKick.isAtRest || !_fusionAtRest(_now),
+      _Phase.opening => !_fusionAtRest(_now),
       _Phase.idle => false,
     };
   }
@@ -2469,7 +2483,6 @@ class MenuMotion extends Motion {
   void advance(double t) {
     if (t < _now) return;
     advanceUntil(t, null);
-    _sample(t);
     for (var i = _cards.length - 1; i >= 0; i--) {
       final card = _cards[i];
       if (card.backing && card.progress.valueAt(t) < tuning.cardGone) {
@@ -2478,8 +2491,8 @@ class MenuMotion extends Motion {
     }
     if (_phase == _Phase.closing &&
         _progress.restsAt(t, _progressRest) &&
-        _menuKick.isAtRest &&
-        _buttonKick.isAtRest &&
+        _kicks.menu.isAtRest &&
+        _kicks.button.isAtRest &&
         _fusionAtRest(t)) {
       _phase = _Phase.idle;
       _highlighted = null;
@@ -2487,8 +2500,8 @@ class MenuMotion extends Motion {
       _dropCards(0);
       _cardContainerActive = false;
       scrollOffset = 0;
-      _menuKick.reset();
-      _buttonKick.reset();
+      _kicks.menu.reset();
+      _kicks.button.reset();
       _openReference = null;
       _closeReference = null;
     }
@@ -2611,39 +2624,33 @@ class MenuMotion extends Motion {
     return table.last.$2;
   }
 
-  void _sample(double t) {
-    final from = _sampleTime;
-    if (t > from &&
-        from.isFinite &&
-        _phase != _Phase.idle &&
-        tuning.morph.kicks) {
-      final a = _amplitude;
-      final open = _openReference;
-      final close = _closeReference;
-      final opening = _phase == _Phase.opening;
-      _menuKick.step(
-        from,
-        t,
-        opening ? tuning.openKickSpring : tuning.closeKickSpring,
-        open == null || !opening
-            ? null
-            : (double s) => tuning.openKickGain * a * open.velocityAt(s),
-        inputAtRest: open == null || !opening ? null : _referenceRests(open),
-      );
-      _buttonKick.step(
-        from,
-        t,
-        tuning.sourceKickSpring,
-        close == null
-            ? null
-            : (double s) =>
-                  tuning.sourceKickGain *
-                  _sourceAmplitude *
-                  close.velocityAt(s),
-        inputAtRest: close == null ? null : _referenceRests(close),
-      );
-    }
-    if (t >= from) _sampleTime = t;
+  /// One frame of the kicks at time [t]; answers whether they need
+  /// another.
+  bool _stepKicks(double t, _DrivenKick menu, _DrivenKick button) {
+    if (_phase == _Phase.idle || !tuning.morph.kicks) return false;
+    const h = MenuTuning.kickIntegrationStep;
+    final mid = t - h / 2;
+    final opening = _phase == _Phase.opening;
+    final open = opening ? _openReference : null;
+    final close = _closeReference;
+    menu.integrate(
+      h,
+      opening ? tuning.openKickSpring : tuning.closeKickSpring,
+      open == null
+          ? 0
+          : tuning.openKickGain * _amplitude * open.velocityAt(mid),
+    );
+    button.integrate(
+      h,
+      tuning.sourceKickSpring,
+      close == null
+          ? 0
+          : tuning.sourceKickGain * _sourceAmplitude * close.velocityAt(mid),
+    );
+    return !(menu.isAtRest &&
+        button.isAtRest &&
+        (open == null || _referenceRests(open, t)) &&
+        (close == null || _referenceRests(close, t)));
   }
 
   void _place(double sourceScale) {
@@ -2695,7 +2702,6 @@ class MenuMotion extends Motion {
   void _open(double t, {double? sourceScale}) {
     _openPending = false;
     if (_phase == _Phase.opening) return;
-    _sample(t);
     final fresh = _phase == _Phase.idle;
     final opacity = fresh ? 0.0 : _contentOpacityAt(t);
     if (_phase == _Phase.idle) {
@@ -2718,6 +2724,7 @@ class MenuMotion extends Motion {
     final reference = MotionValue<double>(0, spring: tuning.openSpring);
     reference.retarget(t, 1);
     _openReference = reference;
+    _kicks.wake(t);
     final p = _cardFadeProgress(t);
     _cardFade = Ramp(from: fresh ? 1 : _cardFade.at(p), start: p);
     _progress.retarget(t, 1, spring: tuning.openSpring);
@@ -2755,7 +2762,6 @@ class MenuMotion extends Motion {
 
   void _close(double t) {
     if (_phase != _Phase.opening) return;
-    _sample(t);
     final opacity = _contentOpacityAt(t);
     _closeRadius = _openingRadius(t);
     _closeProgress = _progress.valueAt(t);
@@ -2773,6 +2779,7 @@ class MenuMotion extends Motion {
     final reference = MotionValue<double>(1, spring: tuning.closeSpring);
     reference.retarget(t, 0);
     _closeReference = reference;
+    _kicks.wake(t);
     final p = _cardFadeProgress(t);
     _cardFade = Ramp(
       from: _cardFade.at(p),
@@ -2796,10 +2803,11 @@ class MenuMotion extends Motion {
     }
     if (!tuning.morph.kicks) return;
     at(t + tuning.closeKickDelay, (double s) {
-      _sample(s);
+      final kick = _kicks.menu;
       final reach = tuning.closeKickReach * _closeAmplitude;
-      final room = (1 - _menuKick.value / reach).clamp(0.0, 1.0);
-      _menuKick.velocity += tuning.closeKickImpulse * _closeAmplitude * room;
+      final room = (1 - kick.value / reach).clamp(0.0, 1.0);
+      kick.velocity += tuning.closeKickImpulse * _closeAmplitude * room;
+      _kicks.wake(s);
     }, slot: _closeKickSlot);
   }
 

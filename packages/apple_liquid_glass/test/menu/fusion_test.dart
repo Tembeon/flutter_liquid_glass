@@ -195,7 +195,11 @@ void main() {
     }
     expect(widestGap, greaterThan(15), reason: 'the shapes do part');
     expect(apart, lessThanOrEqualTo(3), reason: 'apart for 25 ms at most');
-    expect(necked, greaterThan(10), reason: 'a neck spans the gap');
+    expect(
+      necked,
+      greaterThanOrEqualTo(10),
+      reason: 'a neck spans the gap for 83 ms or more',
+    );
   });
 
   test('the fusion rises again on a reversal without a jump', () {
