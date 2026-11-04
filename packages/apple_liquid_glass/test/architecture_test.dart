@@ -31,18 +31,16 @@ final _bans = <String, (RegExp, Set<String>)>{
       'lib/src/chrome/page_route.dart',
       'lib/src/chrome/toolbar.dart',
       'lib/src/controls/date_picker.dart',
-      'lib/src/controls/selector.dart',
       'lib/src/controls/tab_bar.dart',
       'lib/src/menu/anchor.dart',
     },
   ),
-  // A4 (lens, search) and A9 (menu) move these onto GlassPress.
+  // A4 (search) and A9 (menu) move these onto GlassPress.
   'a press is a GlassPress': (
     RegExp(r'\bFlexInteraction\('),
     {
       'lib/src/menu/motion.dart',
       'lib/src/motion/flex_interaction.dart',
-      'lib/src/motion/lens_motion.dart',
       'lib/src/motion/search_motion.dart',
     },
   ),

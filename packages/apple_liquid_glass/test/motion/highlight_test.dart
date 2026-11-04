@@ -51,26 +51,28 @@ void main() {
     test('dims on the measured curve and returns faster', () {
       final motion = SegmentHighlight();
       motion.press(0, 1);
-      expect(motion.opacity(0, 1), 1);
-      expect(motion.opacity(0, 0), 1);
-      expect(motion.opacity(0.47, 1), closeTo(0.2, 1e-9));
-      expect(motion.isSettled(0.47), isTrue);
+      expect(motion.opacity(1), 1);
+      expect(motion.opacity(0), 1);
+      motion.advance(0.47);
+      expect(motion.opacity(1), closeTo(0.2, 1e-9));
+      expect(motion.isSettled, isTrue);
       motion.release(1);
-      expect(motion.opacity(1, 1), closeTo(0.2, 1e-9));
-      expect(motion.opacity(1.2, 1), closeTo(1, 1e-6));
+      expect(motion.opacity(1), closeTo(0.2, 1e-9));
       motion.advance(1.2);
+      expect(motion.opacity(1), closeTo(1, 1e-6));
       expect(motion.index, isNull);
-      expect(motion.isSettled(1.2), isTrue);
+      expect(motion.isSettled, isTrue);
     });
 
     test('a quick tap returns from where the dimming reached', () {
       final motion = SegmentHighlight();
       motion.press(0, 2);
-      final reached = motion.opacity(0.067, 2);
+      motion.advance(0.067);
+      final reached = motion.opacity(2);
       expect(reached, lessThan(1));
       expect(reached, greaterThan(0.85));
       motion.release(0.067);
-      expect(motion.opacity(0.067, 2), closeTo(reached, 1e-9));
+      expect(motion.opacity(2), closeTo(reached, 1e-9));
     });
   });
 }

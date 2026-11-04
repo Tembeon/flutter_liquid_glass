@@ -41,6 +41,6 @@ void main() {
     motion.advance(2);
     expect(motion.washOpacity(2), 0);
     expect(motion.spotOpacity(2), 0);
-    expect(motion.isSettled(2), isTrue);
+    expect(motion.isSettled, isTrue);
   });
 }

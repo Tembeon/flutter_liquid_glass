@@ -283,6 +283,12 @@ final class GlassPress extends Motion implements PointerFollower {
   /// The touch was cancelled; the surface returns without activating.
   void pointerCancel(double t) {
     advance(t);
+    release(t);
+  }
+
+  /// Ends the touch at [t] without activating and without advancing: for
+  /// an owner that lets go of the surface from a reaction of its own.
+  void release(double t) {
     if (!_pressed) return;
     _release(t);
   }

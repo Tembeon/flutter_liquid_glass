@@ -1,4 +1,5 @@
 import 'package:flutter/animation.dart';
+import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
 /// The dimming of a segmented control's label under the finger (UIKit
@@ -13,7 +14,7 @@ import 'package:meta/meta.dart';
 /// measured: the dimming stays on the segment the touch went down on. Times
 /// are seconds.
 @internal
-class SegmentHighlight {
+final class SegmentHighlight extends Motion {
   /// The opacity a pressed label dims to.
   static const double dimmedOpacity = 0.2;
 
@@ -26,49 +27,34 @@ class SegmentHighlight {
   /// The curve of both: Core Animation's default timing function.
   static const Curve curve = Curves.ease;
 
+  late final _opacity = own(TimedValue(1));
   int? _index;
-  double _start = 0;
-  double _from = 1;
-  double _to = 1;
-  double _duration = 0;
 
   /// The segment whose label is dimmed or returning, if any.
   int? get index => _index;
 
   /// A touch went down on segment [index] at [t].
   void press(double t, int index) {
-    final from = _index == index ? _value(t) : 1.0;
+    advance(t);
+    if (_index != index) _opacity.snap(t, 1);
     _index = index;
-    _set(t, from, dimmedOpacity, dimDuration);
+    _opacity.animate(t, dimmedOpacity, duration: dimDuration, curve: curve);
   }
 
   /// The touch ended or was cancelled at [t].
   void release(double t) {
+    advance(t);
     if (_index == null) return;
-    _set(t, _value(t), 1, restoreDuration);
+    _opacity.animate(t, 1, duration: restoreDuration, curve: curve);
   }
 
-  void _set(double t, double from, double to, double duration) {
-    _start = t;
-    _from = from;
-    _to = to;
-    _duration = duration;
+  /// The opacity of segment [index]'s label.
+  double opacity(int index) => index == _index ? _opacity.valueAt(now) : 1;
+
+  @override
+  void didAdvance(double t) {
+    if (_index != null && _opacity.target == 1 && _opacity.restsAt(t)) {
+      _index = null;
+    }
   }
-
-  double _value(double t) {
-    final p = _duration <= 0 ? 1.0 : ((t - _start) / _duration).clamp(0.0, 1.0);
-    return _from + (_to - _from) * curve.transform(p);
-  }
-
-  /// The opacity of segment [index]'s label at [t].
-  double opacity(double t, int index) => index == _index ? _value(t) : 1;
-
-  /// Advances to [t]: a label back at full opacity is no longer tracked.
-  void advance(double t) {
-    if (_index != null && _to == 1 && t >= _start + _duration) _index = null;
-  }
-
-  /// Whether nothing changes after [t].
-  bool isSettled(double t) =>
-      _index == null || (_to != 1 && t >= _start + _duration);
 }

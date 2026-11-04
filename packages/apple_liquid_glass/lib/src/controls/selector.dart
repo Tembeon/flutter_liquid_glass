@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/motion/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
 import 'package:apple_liquid_glass/src/motion/glass_press.dart';
 import 'package:apple_liquid_glass/src/motion/lens_motion.dart';
@@ -199,11 +200,8 @@ class RawGlassSelector extends StatefulWidget {
 
 class _RawGlassSelectorState extends State<RawGlassSelector>
     with ControlStates<RawGlassSelector> {
-  late final _SelectorBody _body = _SelectorBody(
-    _deliver,
-    kind: widget.motion,
-    selected: widget.selectedIndex ?? 0,
-  );
+  late _SelectorMotion _motion = _create(widget.selectedIndex ?? 0);
+  late _SelectorFrames _frames = _SelectorFrames(_motion, mirrored: false);
   late final _SelectorInput _input = _SelectorInput(this);
   late final List<Interaction> _interactions = [_input];
   bool _reconcilePending = false;
@@ -238,17 +236,22 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       index < widget.itemCount &&
       !widget.disabledItems.contains(index);
 
-  @override
-  void initState() {
-    super.initState();
-    _body.isSelectable = _selectable;
-    MotionClock.instance.addDriver(_body);
-  }
+  _SelectorMotion _create(int selected) => _SelectorMotion(
+    kind: widget.motion,
+    selected: selected,
+    isSelectable: _selectable,
+    onEvent: _deliver,
+  );
+
+  double get _now => MotionClock.instance.now;
 
   @override
   void didUpdateWidget(RawGlassSelector oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _body.kind = widget.motion;
+    if (widget.motion != _motion.kind) {
+      _motion = _create(_motion.selected);
+      _frames = _SelectorFrames(_motion, mirrored: _frames.mirrored);
+    }
     _sync(oldWidget.selectedIndex == null);
     final pressed = _pointing.value.pressed;
     if (pressed != null && !_selectable(pressed)) {
@@ -260,8 +263,6 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   void dispose() {
     _pointing.dispose();
     _lensShrink.dispose();
-    MotionClock.instance.removeDriver(_body);
-    _body.dispose();
     super.dispose();
   }
 
@@ -279,9 +280,9 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     final selected = _selected;
     if (selected == null) return;
     if (wasNone) {
-      _body.place(selected);
-    } else if (_body.selected != selected) {
-      _body.select(selected, notify: false);
+      _motion.place(_now, selected);
+    } else if (_motion.selected != selected) {
+      _motion.choose(_now, selected, notify: false);
     }
   }
 
@@ -323,8 +324,8 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
         return;
       }
       final selected = _selected;
-      if (selected != null && _body.selected != selected) {
-        _body.select(selected, notify: false);
+      if (selected != null && _motion.selected != selected) {
+        _motion.choose(_now, selected, notify: false);
       }
     });
   }
@@ -333,12 +334,12 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     if (!_selectable(index)) return;
     final selected = _selected;
     if (selected == null) {
-      _body.place(index);
+      _motion.place(_now, index);
       _chosen(index);
     } else if (index == selected) {
       widget.onReselected?.call(index);
     } else {
-      _body.select(index);
+      _motion.choose(_now, index);
     }
   }
 
@@ -364,11 +365,11 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   double _x(Offset position) =>
-      _rtl ? _body.size.width - position.dx : position.dx;
+      _rtl ? _motion.size.width - position.dx : position.dx;
 
   bool _within(Offset position) {
     if (!_segmented) return true;
-    return (Offset.zero & _body.size)
+    return (Offset.zero & _motion.size)
         .inflate(RawGlassSelector.segmentedReleaseSlop)
         .contains(position);
   }
@@ -376,7 +377,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   void _setPreview(Offset? position) {
     int? next;
     if (position != null && _within(position)) {
-      final slot = _body.slotAt(_x(position));
+      final slot = _motion.slotAt(_x(position));
       if (_selectable(slot)) next = slot;
     }
     if (next == _pointing.value.pressed) return;
@@ -386,7 +387,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   void _hover(Offset? position) {
-    final next = position == null ? null : _body.slotAt(_x(position));
+    final next = position == null ? null : _motion.slotAt(_x(position));
     if (next == _pointing.value.hovered) return;
     _later(
       () => _pointing.value = (pressed: _pointing.value.pressed, hovered: next),
@@ -396,49 +397,49 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   void _down(PointerDownInput input) {
     final x = _x(input.position);
     _setPreview(input.position);
-    final slot = _body.slotAt(x);
+    final slot = _motion.slotAt(x);
     final selected = _selected;
     if (_segmented && _selectable(slot) && slot != selected) {
-      _body.press(input.time, slot);
+      _motion.highlight.press(input.time, slot);
     }
     if (selected == null) {
       _noneDown = slot;
       return;
     }
     _downSlot = slot;
-    _downSelected = _body.selected;
-    _body.down(input.time, x, input.position, glows: _selectable(slot));
+    _downSelected = _motion.selected;
+    _motion.down(input.time, x, input.position, glows: _selectable(slot));
   }
 
   void _move(PointerMoveInput input) {
     _setPreview(input.position);
     if (_noneDown != null) return;
-    _body.move(input.time, _x(input.position), input.position);
+    _motion.move(input.time, _x(input.position), input.position);
   }
 
   void _up(PointerUpInput input) {
     _setPreview(null);
     final x = _x(input.position);
-    final slot = _body.slotAt(x);
+    final slot = _motion.slotAt(x);
     final before = _downSelected;
     final down = _downSlot;
     _downSlot = null;
     _downSelected = null;
     if (_noneDown != null) {
       _noneDown = null;
-      _body.cancel(input.time);
+      _motion.cancel(input.time);
       if (_within(input.position)) _select(slot);
       return;
     }
     if (!_within(input.position)) {
-      _body.cancel(input.time);
+      _motion.cancel(input.time);
       return;
     }
-    _body.up(input.time, x);
+    _motion.up(input.time, x);
     final reselected =
         before != null &&
         slot == before &&
-        _body.selected == before &&
+        _motion.selected == before &&
         (_segmented || down == before);
     if (reselected && _selectable(before)) {
       _later(() => widget.onReselected?.call(before));
@@ -450,7 +451,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     _noneDown = null;
     _downSlot = null;
     _downSelected = null;
-    _body.cancel(time);
+    _motion.cancel(time);
   }
 
   Set<WidgetState> _itemStates(int index, {required bool selected}) => {
@@ -494,7 +495,8 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       valueListenable: _pointing,
       builder: (context, _, _) {
         final row = _SelectorRow(
-          body: _body,
+          motion: _motion,
+          frames: _frames,
           kind: widget.motion,
           itemWidths: widget.itemWidths,
           proportional: widget.proportionalWidth,
@@ -527,44 +529,49 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
 
   @override
   Widget build(BuildContext context) {
-    _body.reducedMotion = GlassTraits.of(context).reduceMotion;
+    _motion.reducedMotion = GlassTraits.of(context).reduceMotion;
     _rtl = Directionality.maybeOf(context) == TextDirection.rtl;
-    _body.mirrored = _rtl;
+    if (_rtl != _frames.mirrored) {
+      _frames = _SelectorFrames(_motion, mirrored: _rtl);
+    }
     final look = widget.builder(
       context,
       GlassSelectorDetails(
-        body: _body.body,
-        lens: _body.lens,
+        body: _frames.body,
+        lens: _frames.lens,
         items: (lens) => _items(context, lens),
         selectedIndex: _selected,
         states: {...widgetStates.value},
       ),
     );
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _step(-1),
-        const SingleActivator(LogicalKeyboardKey.arrowRight): () => _step(1),
-        const SingleActivator(LogicalKeyboardKey.enter): _reselect,
-        const SingleActivator(LogicalKeyboardKey.space): _reselect,
-      },
-      child: Semantics(
-        container: true,
-        explicitChildNodes: true,
-        child: InputRegion(
-          interactions: _interactions,
-          enabled: _enabled && widget.itemCount > 0,
-          statesController: widgetStates,
-          focusNode: widget.focusNode,
-          autofocus: widget.autofocus,
-          semanticLabel: widget.semanticLabel,
-          child: _segmented
-              ? look
-              : MotionTransition(
-                  offset: _body.drift,
-                  scaleX: _body.scaleX,
-                  scaleY: _body.scaleY,
-                  child: look,
-                ),
+    return MotionScope(
+      motion: _motion,
+      child: CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _step(-1),
+          const SingleActivator(LogicalKeyboardKey.arrowRight): () => _step(1),
+          const SingleActivator(LogicalKeyboardKey.enter): _reselect,
+          const SingleActivator(LogicalKeyboardKey.space): _reselect,
+        },
+        child: Semantics(
+          container: true,
+          explicitChildNodes: true,
+          child: InputRegion(
+            interactions: _interactions,
+            enabled: _enabled && widget.itemCount > 0,
+            statesController: widgetStates,
+            focusNode: widget.focusNode,
+            autofocus: widget.autofocus,
+            semanticLabel: widget.semanticLabel,
+            child: _segmented
+                ? look
+                : MotionTransition(
+                    offset: _frames.drift,
+                    scaleX: _frames.scaleX,
+                    scaleY: _frames.scaleY,
+                    child: look,
+                  ),
+          ),
         ),
       ),
     );
@@ -767,42 +774,29 @@ final class _Geometry {
   }
 }
 
-/// The motion of a selector, stepped on the motion clock and published as
-/// the frames of its body and lens.
-final class _SelectorBody extends MotionDriver {
-  _SelectorBody(
-    this._deliver, {
-    required this._kind,
+/// The motion of a selector: its lens, made at the first layout, the
+/// dimming of a pressed segment and a tab bar's touch glow.
+final class _SelectorMotion extends Motion {
+  _SelectorMotion({
+    required this.kind,
     required this._selected,
+    required this.isSelectable,
+    required this.onEvent,
   });
 
-  final void Function(LensEvent event) _deliver;
+  final GlassSelectorMotion kind;
+  final bool Function(int index) isSelectable;
+  final void Function(LensEvent event) onEvent;
 
-  GlassSelectorMotion get kind => _kind;
-  GlassSelectorMotion _kind;
-  set kind(GlassSelectorMotion value) {
-    if (value == _kind) return;
-    _kind = value;
-    _motion = null;
-    _lenses = const [];
-  }
-
-  final body = ValueNotifier(const GlassFrame());
-  final lens = ValueNotifier(const GlassFrame());
-  final dim = ValueNotifier<(int?, double)>((null, 1));
-  final drift = ValueNotifier(Offset.zero);
-  final scaleX = ValueNotifier<double>(1);
-  final scaleY = ValueNotifier<double>(1);
-  late bool Function(int index) isSelectable;
-  bool reducedMotion = false;
-  bool mirrored = false;
-
-  LensMotion? _motion;
+  late final highlight = own(SegmentHighlight());
+  late final glow = own(_tabBarGlow());
+  LensMotion? _lens;
   int _selected;
   List<LensSlot> _lenses = const [];
+  bool _reducedMotion = false;
+
+  /// The size of the control at its last layout.
   Size size = Size.zero;
-  final SegmentHighlight _highlight = SegmentHighlight();
-  final TouchGlowMotion _glow = _tabBarGlow();
 
   static TouchGlowMotion _tabBarGlow() {
     // The glow's peaks are the flex spec of the measured 274 point bar
@@ -816,21 +810,29 @@ final class _SelectorBody extends MotionDriver {
     );
   }
 
-  int get selected => _motion?.selected ?? _selected;
+  bool get tabBar => kind == GlassSelectorMotion.tabBar;
 
-  bool get isDragging => _motion?.isDragging ?? false;
+  bool get reducedMotion => _reducedMotion;
+  set reducedMotion(bool value) {
+    _reducedMotion = value;
+    _lens?.reducedMotion = value;
+  }
 
-  int slotAt(double x) => _motion?.slotAt(x) ?? -1;
+  LensMotion? get lens => _lens;
 
-  double get _now => MotionClock.instance.now;
+  int get selected => _lens?.selected ?? _selected;
+
+  bool get isDragging => _lens?.isDragging ?? false;
+
+  int slotAt(double x) => _lens?.slotAt(x) ?? -1;
 
   void layout(_Geometry geometry) {
     final changed =
         !listEquals(geometry.lenses, _lenses) || geometry.size != size;
     size = geometry.size;
     _lenses = geometry.lenses;
-    final motion = _motion;
-    if (motion == null) {
+    final lens = _lens;
+    if (lens == null) {
       final created = LensMotion(
         tuning: kind == GlassSelectorMotion.segmented
             ? LensTuning.segmented
@@ -839,144 +841,104 @@ final class _SelectorBody extends MotionDriver {
         selected: _selected,
         height: _Geometry.lensHeight(kind),
         frameRate: MotionClock.instance.frameRate,
+        reducedMotion: _reducedMotion,
         chromeSize: geometry.size,
+        onEvent: onEvent,
       );
       created.isSelectable = isSelectable;
-      _motion = created;
+      _lens = own(created);
     } else if (changed) {
-      motion.slots = geometry.lenses;
-      motion.chromeSize = geometry.size;
+      lens.slots = geometry.lenses;
+      lens.chromeSize = geometry.size;
     }
-    _publish();
   }
 
-  void select(int index, {bool notify = true}) {
+  void choose(double t, int index, {bool notify = true}) {
     _selected = index;
-    final motion = _motion;
-    if (motion == null) return;
-    motion.reducedMotion = reducedMotion;
-    motion.select(_now, index, notify: notify);
-    _drain();
-    _wake();
+    _lens?.select(t, index, notify: notify);
   }
 
-  void place(int index) {
+  void place(double t, int index) {
     _selected = index;
-    _motion?.place(_now, index);
-    _publish();
-    _wake();
-  }
-
-  void press(double t, int slot) {
-    _highlight.press(t, slot);
-    _publish();
-    _wake();
+    _lens?.place(t, index);
   }
 
   void down(double t, double x, Offset position, {required bool glows}) {
-    final motion = _motion;
-    if (motion == null) return;
-    motion.reducedMotion = reducedMotion;
-    motion.pointerDown(t, x, y: position.dy);
-    if (glows && kind == GlassSelectorMotion.tabBar) {
-      _glow.pointerDown(t, position);
-    }
-    _drain();
-    _wake();
+    final lens = _lens;
+    if (lens == null) return;
+    lens.pointerDown(t, x, y: position.dy);
+    if (glows && tabBar) glow.pointerDown(t, position);
   }
 
   void move(double t, double x, Offset position) {
-    _motion?.pointerMove(t, x, y: position.dy);
-    if (kind == GlassSelectorMotion.tabBar) _glow.pointerMove(t, position);
-    _drain();
-    _wake();
+    _lens?.pointerMove(t, x, y: position.dy);
+    if (tabBar) glow.pointerMove(t, position);
   }
 
   void up(double t, double x) {
-    _motion?.pointerUp(t, x);
+    _lens?.pointerUp(t, x);
     _release(t);
   }
 
   void cancel(double t) {
-    _motion?.pointerCancel(t);
+    _lens?.pointerCancel(t);
     _release(t);
   }
 
   void _release(double t) {
-    _highlight.release(t);
-    _glow.pointerUp(t);
-    _drain();
-    _wake();
+    highlight.release(t);
+    glow.pointerUp(t);
   }
+}
 
-  @override
-  bool get isActive {
-    final motion = _motion;
-    final t = _now;
-    return (motion != null && !motion.isSettled) ||
-        !_highlight.isSettled(t) ||
-        !_glow.isSettled(t);
-  }
+/// What a selector shows of its motion, laid out left to right or
+/// mirrored.
+final class _SelectorFrames {
+  _SelectorFrames(this._motion, {required this.mirrored});
 
-  @override
-  void step(double time) {
-    final motion = _motion;
-    if (motion != null) {
-      motion.advance(time);
-      if (motion.isSettled) motion.settle();
-    }
-    _highlight.advance(time);
-    _glow.advance(time);
-    _publish();
-    _drain();
-  }
+  final _SelectorMotion _motion;
+  final bool mirrored;
 
-  void _publish() {
-    final motion = _motion;
-    if (motion == null) return;
-    final lensSize = motion.size;
-    final center = mirrored ? size.width - motion.center : motion.center;
-    lens.value = GlassFrame(
+  late final MotionSelection<GlassFrame> lens = _motion.select((motion) {
+    final lens = motion.lens;
+    if (lens == null) return const GlassFrame();
+    final size = lens.size;
+    final width = motion.size.width;
+    return GlassFrame(
       rect: Rect.fromCenter(
-        center: Offset(center, size.height / 2),
-        width: lensSize.width * motion.scaleX,
-        height: lensSize.height * motion.scaleY,
+        center: Offset(
+          mirrored ? width - lens.center : lens.center,
+          motion.size.height / 2,
+        ),
+        width: size.width * lens.scaleX,
+        height: size.height * lens.scaleY,
       ),
-      lift: motion.lift.clamp(0.0, 1.0),
+      lift: lens.lift.clamp(0.0, 1.0),
     );
-    final t = motion.time;
-    final index = _highlight.index;
-    dim.value = (index, index == null ? 1.0 : _highlight.opacity(t, index));
-    if (kind == GlassSelectorMotion.tabBar) {
-      body.value = GlassFrame(glow: _glow.glowAt(t));
-      final chrome = motion.chrome;
-      scaleX.value = chrome.scaleX;
-      scaleY.value = chrome.scaleY;
-      drift.value = Offset(
-        mirrored ? -chrome.driftX : chrome.driftX,
-        chrome.driftY,
-      );
-    }
-  }
+  });
 
-  void _drain() {
-    final motion = _motion;
-    if (motion == null) return;
-    for (final event in motion.drainEvents()) {
-      _deliver(event);
-    }
-  }
+  late final MotionSelection<GlassFrame> body = _motion.select(
+    (motion) =>
+        motion.tabBar ? GlassFrame(glow: motion.glow.glow) : const GlassFrame(),
+  );
 
-  void _wake() => MotionClock.instance.wake(this);
+  late final MotionSelection<(int?, double)> dim = _motion.select((motion) {
+    final index = motion.highlight.index;
+    return (index, index == null ? 1.0 : motion.highlight.opacity(index));
+  });
 
-  void dispose() {
-    body.dispose();
-    lens.dispose();
-    dim.dispose();
-    drift.dispose();
-    scaleX.dispose();
-    scaleY.dispose();
-  }
+  late final MotionSelection<Offset> drift = _motion.select((motion) {
+    final chrome = motion.lens?.chrome ?? FlexInteraction.rest;
+    return Offset(mirrored ? -chrome.driftX : chrome.driftX, chrome.driftY);
+  });
+
+  late final MotionSelection<double> scaleX = _motion.select(
+    (motion) => (motion.lens?.chrome ?? FlexInteraction.rest).scaleX,
+  );
+
+  late final MotionSelection<double> scaleY = _motion.select(
+    (motion) => (motion.lens?.chrome ?? FlexInteraction.rest).scaleY,
+  );
 }
 
 /// A selector's touch, which it holds against a scroll.
@@ -992,7 +954,7 @@ final class _SelectorInput extends Interaction {
   bool get pressed => _pointer != null;
 
   @override
-  bool get dragged => _pointer != null && _owner._body.isDragging;
+  bool get dragged => _pointer != null && _owner._motion.isDragging;
 
   @override
   InteractionUpdate handle(InteractionInput input) {
@@ -1026,7 +988,8 @@ final class _SelectorInput extends Interaction {
 /// selector's motion.
 class _SelectorRow extends MultiChildRenderObjectWidget {
   const _SelectorRow({
-    required this.body,
+    required this.motion,
+    required this.frames,
     required this.kind,
     required this.itemWidths,
     required this.proportional,
@@ -1036,7 +999,8 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
     required super.children,
   });
 
-  final _SelectorBody body;
+  final _SelectorMotion motion;
+  final _SelectorFrames frames;
   final GlassSelectorMotion kind;
   final List<double?>? itemWidths;
   final bool proportional;
@@ -1054,7 +1018,8 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
   @override
   _RenderSelectorRow createRenderObject(BuildContext context) =>
       _RenderSelectorRow(
-        body: body,
+        motion: motion,
+        frames: frames,
         kind: kind,
         itemWidths: itemWidths,
         proportional: proportional,
@@ -1069,7 +1034,8 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
     BuildContext context,
     _RenderSelectorRow renderObject,
   ) {
-    renderObject.body = body;
+    renderObject.motion = motion;
+    renderObject.frames = frames;
     renderObject.kind = kind;
     renderObject.itemWidths = itemWidths;
     renderObject.proportional = proportional;
@@ -1111,7 +1077,8 @@ class _RenderSelectorRow extends RenderBox
         ContainerRenderObjectMixin<RenderBox, _RowParentData>,
         RenderBoxContainerDefaultsMixin<RenderBox, _RowParentData> {
   _RenderSelectorRow({
-    required this._body,
+    required this._motion,
+    required this._frames,
     required this._kind,
     required this._itemWidths,
     required this._proportional,
@@ -1121,14 +1088,22 @@ class _RenderSelectorRow extends RenderBox
     required this._direction,
   });
 
-  _SelectorBody _body;
-  _SelectorBody get body => _body;
-  set body(_SelectorBody value) {
-    if (identical(value, _body)) return;
-    if (attached) _unlisten();
-    _body = value;
-    if (attached) _listen();
+  _SelectorMotion _motion;
+  _SelectorMotion get motion => _motion;
+  set motion(_SelectorMotion value) {
+    if (identical(value, _motion)) return;
+    _motion = value;
     markNeedsLayout();
+  }
+
+  _SelectorFrames _frames;
+  _SelectorFrames get frames => _frames;
+  set frames(_SelectorFrames value) {
+    if (identical(value, _frames)) return;
+    if (attached) _unlisten();
+    _frames = value;
+    if (attached) _listen();
+    markNeedsPaint();
   }
 
   GlassSelectorMotion _kind;
@@ -1191,13 +1166,13 @@ class _RenderSelectorRow extends RenderBox
 
   // The lens masks the selected looks; the dimming fades a segment's item.
   void _listen() {
-    _body.lens.addListener(markNeedsPaint);
-    _body.dim.addListener(markNeedsPaint);
+    _frames.lens.addListener(markNeedsPaint);
+    _frames.dim.addListener(markNeedsPaint);
   }
 
   void _unlisten() {
-    _body.lens.removeListener(markNeedsPaint);
-    _body.dim.removeListener(markNeedsPaint);
+    _frames.lens.removeListener(markNeedsPaint);
+    _frames.dim.removeListener(markNeedsPaint);
   }
 
   @override
@@ -1297,7 +1272,7 @@ class _RenderSelectorRow extends RenderBox
       i++;
     }
     _lens?.layout(BoxConstraints.tight(size));
-    _body.layout(geometry);
+    _motion.layout(geometry);
   }
 
   @override
@@ -1319,7 +1294,7 @@ class _RenderSelectorRow extends RenderBox
   // items around it.
   @override
   void paint(PaintingContext context, Offset offset) {
-    final frame = _body.lens.value;
+    final frame = _frames.lens.value;
     final rect = frame.drawnIn(size);
     final mask = _showsLens
         ? RRect.fromRectAndRadius(
@@ -1327,7 +1302,7 @@ class _RenderSelectorRow extends RenderBox
             Radius.circular(math.min(rect.width, rect.height) / 2),
           )
         : null;
-    final (dimmed, opacity) = _body.dim.value;
+    final (dimmed, opacity) = _frames.dim.value;
     var i = 0;
     for (final (regular, _, _) in _items) {
       final slot =

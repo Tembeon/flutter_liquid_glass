@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'package:apple_liquid_glass/src/motion/flex_integrator.dart';
 import 'package:apple_liquid_glass/src/motion/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
-import 'package:apple_liquid_glass/src/motion/rest.dart';
+import 'package:apple_liquid_glass/src/motion/glass_press.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
@@ -14,9 +14,6 @@ import 'package:meta/meta.dart';
 /// UISegmentedControl and UITabBar on iOS 27; the two controls share the
 /// travel and lift springs and differ in when they react, how far the lens
 /// lifts and how strongly it deforms.
-///
-/// The lens settles once every part's remaining swing is below
-/// [GlassRest] and snaps onto its targets: invisible, NEAR.
 @internal
 class LensTuning {
   /// Creates a tuning from explicit values.
@@ -284,8 +281,16 @@ typedef LensSlot = ({double center, double width});
 /// Feed pointer events with their timestamps, call [advance] with the
 /// frame time, then read [center], [size], [scaleX] and [scaleY]. All
 /// lengths are pixels along the track, all times seconds.
+///
+/// Every part rests within [MotionRest]: a scale over the lens's extent on
+/// its own axis (the lifted width along the track, which holds while it
+/// lands, and the current height across it), the lift over its largest
+/// growth. The deformation loop sleeps once the lens is undeformed and
+/// still. A finger held still counts: the lens rests lifted under it until
+/// the finger moves or lifts. Each selection goes to [onEvent] as the
+/// command that makes it runs.
 @internal
-class LensMotion {
+final class LensMotion extends Motion {
   /// Creates a lens resting in [selected] among [slots].
   /// Empty slots have selection -1 and ignore input; other indices clamp
   /// to the available slots.
@@ -302,26 +307,47 @@ class LensMotion {
     bool reducedMotion = false,
     Size chromeSize = Size.zero,
     double? startDelay,
+    this.onEvent,
   }) : startDelay = startDelay ?? tuning.startDelay,
        _slots = List.of(slots),
        _selected = _index(selected, slots.length),
        _restWidth = slots.isEmpty
            ? 0
-           : slots[_index(selected, slots.length)].width,
-       _frames = FlexSubClock(frameRate) {
+           : slots[_index(selected, slots.length)].width {
     final slot = _slot;
-    _travel = MotionValue<double>(slot.center, spring: tuning.travelSpring);
-    _width = MotionValue<double>(slot.width, spring: tuning.liftSpring);
-    _lift = MotionValue<double>(0, spring: tuning.liftSpring);
-    _chrome = FlexInteraction(
-      size: tuning.chromeFlexes ? chromeSize : Size.zero,
-      activationDelay: tuning.chromeLag,
-      timeline: _timeline,
+    _travel = own(
+      MotionValue<double>(slot.center, spring: tuning.travelSpring),
+      rest: _length,
     );
+    _width = own(
+      MotionValue<double>(slot.width, spring: tuning.liftSpring),
+      rest: _length,
+    );
+    _lift = own(
+      MotionValue<double>(0, spring: tuning.liftSpring),
+      rest: _liftRest,
+    );
+    _chrome = own(
+      GlassPress(
+        size: tuning.chromeFlexes ? chromeSize : Size.zero,
+        law: FlexLaw(activationDelay: tuning.chromeLag),
+      ),
+    );
+    _drift = own(
+      MotionValue<double>(0, spring: tuning.presentationSpring),
+      rest: _length,
+    );
+    _scaleX = own(
+      MotionValue<double>(1, spring: tuning.presentationSpring),
+      rest: _scaleXRest,
+    );
+    _scaleY = own(
+      MotionValue<double>(1, spring: tuning.presentationSpring),
+      rest: _scaleYRest,
+    );
+    _loop = own(_LensLoop(this, rate: frameRate));
+    _previousVisible = slot.center;
     this.reducedMotion = reducedMotion;
-    _drift = MotionValue<double>(0, spring: tuning.presentationSpring);
-    _scaleX = MotionValue<double>(1, spring: tuning.presentationSpring);
-    _scaleY = MotionValue<double>(1, spring: tuning.presentationSpring);
   }
 
   /// The measured behavior this lens reproduces.
@@ -336,6 +362,9 @@ class LensMotion {
 
   /// Seconds between a selecting touch and the start of the motion.
   final double startDelay;
+
+  /// Hears each selection the lens makes.
+  final void Function(LensEvent event)? onEvent;
 
   /// Whether the lens moves for Reduce Motion: it never lifts, as UIKit's
   /// lens does not (read from UIKit, notes private), and travels on the
@@ -366,24 +395,33 @@ class LensMotion {
       _travel.snap(t, slot.center);
       _width.snap(t, slot.width);
     }
+    _loop.wake(t);
   }
+
+  static double _length() => MotionRest.length;
+
+  double _liftRest() =>
+      MotionRest.length /
+      math.max(math.max(tuning.liftWidth, tuning.liftHeight), 1);
+
+  double _scaleXRest() => MotionRest.scale(_restWidth + tuning.liftWidth);
+
+  double _scaleYRest() => MotionRest.scale(size.height);
 
   List<LensSlot> _slots;
   int _selected;
   late final MotionValue<double> _travel;
   late final MotionValue<double> _width;
   late final MotionValue<double> _lift;
-  late final FlexInteraction _chrome;
+  late final GlassPress _chrome;
   _Pointer? _chromePointer;
   late final MotionValue<double> _drift;
   late final MotionValue<double> _scaleX;
   late final MotionValue<double> _scaleY;
+  late final _LensLoop _loop;
   double _restWidth;
 
-  final MotionTimeline _timeline = MotionTimeline(now: 0);
-  final FlexSubClock _frames;
   final FlexIntegrator _flex = FlexIntegrator();
-  bool _started = false;
   Size? _loupeSize;
   FlexSpec _loupe = FlexSpec.smallLoupe;
   double? _previousVisible;
@@ -402,8 +440,6 @@ class LensMotion {
   bool Function(int index)? isSelectable;
 
   bool _selectable(int index) => isSelectable?.call(index) ?? true;
-
-  double get _now => _timeline.now;
 
   /// The index of the selected slot, or -1 when there are no slots.
   int get selected => _selected;
@@ -425,59 +461,48 @@ class LensMotion {
     _slots = List.of(value);
     _selected = _index(_selected, _slots.length);
     final slot = _slot;
-    _travel.snap(_now, slot.center);
-    _width.snap(_now, slot.width);
+    _travel.snap(now, slot.center);
+    _width.snap(now, slot.width);
     _restWidth = slot.width;
     if (_slots.isEmpty) {
-      _timeline.clear();
+      unscheduleAll();
       _pointer = null;
       _flag = false;
-      _lift.retarget(_now, 0);
-      _chrome.release(_now);
+      _lift.retarget(now, 0);
+      _chrome.release(now);
     }
-    _drift.snap(_now, 0);
-    _scaleX.snap(_now, 1);
-    _scaleY.snap(_now, 1);
+    _drift.snap(now, 0);
+    _scaleX.snap(now, 1);
+    _scaleY.snap(now, 1);
     _previousVisible = slot.center;
     _flex.reset(slot.center);
   }
 
-  /// The time the motion was last advanced to.
-  double get time => _now;
-
-  final List<LensEvent> _events = [];
-
-  /// The events raised since the last call, oldest first.
-  List<LensEvent> drainEvents() {
-    if (_events.isEmpty) return const [];
-    final drained = List<LensEvent>.of(_events);
-    _events.clear();
-    return drained;
-  }
-
   /// The center the travel spring carries, before the deformation drift.
-  double get travelCenter => _travel.valueAt(_now);
+  double get travelCenter => _travel.valueAt(now);
 
   /// The visible center along the track, drift included.
-  double get center => _travel.valueAt(_now) + _drift.valueAt(_now);
+  double get center => _visible(now);
+
+  double _visible(double t) => _travel.valueAt(t) + _drift.valueAt(t);
 
   /// The lens bounds before the deformation scale: rest size plus lift.
   ({double width, double height}) get size {
-    final lift = _lift.valueAt(_now);
+    final lift = _lift.valueAt(now);
     return (
-      width: _width.valueAt(_now) + tuning.liftWidth * lift,
+      width: _width.valueAt(now) + tuning.liftWidth * lift,
       height: height + tuning.liftHeight * lift,
     );
   }
 
   /// The deformation scale along the track.
-  double get scaleX => _scaleX.valueAt(_now);
+  double get scaleX => _scaleX.valueAt(now);
 
   /// The deformation scale across the track.
-  double get scaleY => _scaleY.valueAt(_now);
+  double get scaleY => _scaleY.valueAt(now);
 
   /// The lift progress, 0 resting and 1 fully lifted.
-  double get lift => _lift.valueAt(_now);
+  double get lift => _lift.valueAt(now);
 
   /// The size of the whole control, which flexes under a finger when the
   /// tuning says so ([LensTuning.chromeFlexes]).
@@ -490,48 +515,11 @@ class LensMotion {
   /// The flex of the whole control now: its scales about its center and
   /// its drift along and across the track, [FlexInteraction.rest]
   /// exactly while it rests. The control shows the drift times the scale
-  /// ([FlexInteraction.translation]).
-  FlexValues get chrome => _chrome.values(_now);
+  /// ([GlassPress.lean]).
+  FlexValues get chrome => _chrome.values;
 
   /// Whether the finger currently drags the lens.
   bool get isDragging => _pointer?.dragging ?? false;
-
-  /// Whether what remains of the motion is invisible: nothing pending and every
-  /// spring's remaining swing below [GlassRest] (NEAR, invisible; [settle]
-  /// snaps the rest), a scale's over the lens's extent on its own axis: the
-  /// lifted width for the scale along the track, which holds while it lands,
-  /// and the current height for the scale across it. A finger held still
-  /// counts: the lens rests lifted under it until the finger moves or lifts.
-  bool get isSettled {
-    if (!_timeline.isEmpty || (_pointer?.unfollowed ?? false)) return false;
-    const length = GlassRest.length;
-    final lifted = math.max(tuning.liftWidth, tuning.liftHeight);
-    final scaleX = GlassRest.scale(_restWidth + tuning.liftWidth);
-    final scaleY = GlassRest.scale(size.height);
-    return _travel.isWithin(_now, length) &&
-        _width.isWithin(_now, length) &&
-        _lift.isWithin(_now, length / math.max(lifted, 1)) &&
-        _chrome.isSettled(_now) &&
-        _drift.isWithin(_now, length) &&
-        _drift.target.abs() < length &&
-        _scaleX.isWithin(_now, scaleX) &&
-        (_scaleX.target - 1).abs() < scaleX &&
-        _scaleY.isWithin(_now, scaleY) &&
-        (_scaleY.target - 1).abs() < scaleY;
-  }
-
-  /// Puts a settled lens exactly onto its slot, flat and undeformed.
-  void settle() {
-    _travel.settle(_now);
-    _width.settle(_now);
-    _lift.settle(_now);
-    _chrome.settle(_now);
-    _drift.snap(_now, 0);
-    _scaleX.snap(_now, 1);
-    _scaleY.snap(_now, 1);
-    _previousVisible = _travel.target;
-    _flex.reset(_travel.target);
-  }
 
   /// The index of the slot nearest to [x].
   int slotAt(double x) {
@@ -572,7 +560,7 @@ class LensMotion {
       _flagOn(t);
       final liftAt = t + tuning.pressDelay;
       pointer.unliftNotBefore = t + tuning.pressHang;
-      _timeline.at(liftAt, (double s) {
+      at(liftAt, (s) {
         if (!pointer.cancelled) _liftTo(s, 1);
       });
     } else if (tuning.selectsOnPointerDown) {
@@ -593,6 +581,7 @@ class LensMotion {
     pointer.dragging = true;
     pointer.x = x;
     pointer.unfollowed = true;
+    _loop.wake(t);
   }
 
   /// The finger left the track at [x], [y] across it; the slot nearest the
@@ -619,16 +608,13 @@ class LensMotion {
       if (index != _selected) _setSelected(index);
       final slot = _slots[_selected];
       _restWidth = slot.width;
-      _timeline.at(
-        t + tuning.releaseDelay,
-        (double s) => _travelTo(s, _slotFor(index)),
-      );
+      at(t + tuning.releaseDelay, (s) => _travelTo(s, _slotFor(index)));
       final unliftAt = math.max(
         t + tuning.releaseDelay,
         pointer.unliftNotBefore,
       );
-      _timeline.at(unliftAt - tuning.flagLead, (s) => _flag = false);
-      _timeline.at(unliftAt, (s) => _lift.retarget(s, 0));
+      at(unliftAt - tuning.flagLead, (s) => _flag = false);
+      at(unliftAt, (s) => _lift.retarget(s, 0));
     } else {
       _selectWithLift(t, index, hold: false);
     }
@@ -659,13 +645,13 @@ class LensMotion {
     final selected = _index(index, _slots.length);
     if (selected == _selected) return;
     if (!notify) {
-      _timeline.clear();
+      unscheduleAll();
       _flag = false;
       _lift.retarget(t, 0);
       if (_pointer == null) _chrome.release(t);
     }
     _selected = selected;
-    if (notify) _events.add(LensSelected(selected));
+    if (notify) onEvent?.call(LensSelected(selected));
     final slot = _slots[selected];
     _resetFlex();
     _travelTo(t, slot);
@@ -678,7 +664,7 @@ class LensMotion {
   void place(double t, int index) {
     advance(t);
     if (_slots.isEmpty) return;
-    _timeline.clear();
+    unscheduleAll();
     _pointer = null;
     _chrome.release(t);
     _flag = false;
@@ -687,35 +673,44 @@ class LensMotion {
     slots = _slots;
   }
 
-  /// Advances the lens to time [t], stepping the deformation loop once
-  /// for every frame of [frameRate] on the way.
-  void advance(double t) {
-    if (!_started) {
-      _started = true;
-      _timeline.runDue(t);
-      _frames.start(t);
-      _previousVisible = center;
-      return;
-    }
-    if (t < _now) return;
-    _frames.run(t, _frame);
-    _timeline.runDue(t);
-  }
-
   void _frame(double t) {
-    _timeline.runDue(t);
     final pointer = _pointer;
     if (pointer != null && pointer.dragging) {
       _follow(t, pointer);
       pointer.unfollowed = false;
     }
-    final visible = _travel.valueAt(t) + _drift.valueAt(t);
+    final visible = _visible(t);
     final previous = _previousVisible ?? visible;
     if (_flex.pf != null) {
-      _flex.step(previous, _frames.frame);
+      _flex.step(previous, _loop.frame);
       _retargetFlex(t);
     }
     _previousVisible = visible;
+  }
+
+  // Whether the deformation is still at [t] with nothing to follow:
+  // undeformed, its targets at rest, the travel at rest and no move of the
+  // finger waiting for the next frame.
+  bool _still(double t) {
+    if (_pointer?.unfollowed ?? false) return false;
+    const length = MotionRest.length;
+    final scaleX = _scaleXRest();
+    final scaleY = _scaleYRest();
+    return _travel.restsAt(t, length) &&
+        _drift.target.abs() < length &&
+        _drift.restsAt(t, length) &&
+        (_scaleX.target - 1).abs() < scaleX &&
+        _scaleX.restsAt(t, scaleX) &&
+        (_scaleY.target - 1).abs() < scaleY &&
+        _scaleY.restsAt(t, scaleY);
+  }
+
+  void _restDeformation(double t) {
+    _drift.snap(t, 0);
+    _scaleX.snap(t, 1);
+    _scaleY.snap(t, 1);
+    _previousVisible = _travel.target;
+    _flex.reset(_travel.target);
   }
 
   void _retargetFlex(double t) {
@@ -783,7 +778,7 @@ class LensMotion {
         tuning.hangTimePerPixel *
             math.max(0, distance - tuning.hangReferenceDistance);
     _restWidth = slot.width;
-    _timeline.at(start, (s) {
+    at(start, (s) {
       _travelTo(s, _slotFor(index));
       _liftTo(s, 1);
     });
@@ -791,8 +786,8 @@ class LensMotion {
     if (hold) {
       _pointer?.unliftNotBefore = landing;
     } else {
-      _timeline.at(landing - tuning.flagLead, (s) => _flag = false);
-      _timeline.at(landing, (s) => _lift.retarget(s, 0));
+      at(landing - tuning.flagLead, (s) => _flag = false);
+      at(landing, (s) => _lift.retarget(s, 0));
     }
   }
 
@@ -814,7 +809,7 @@ class LensMotion {
 
   void _releaseChrome(double t, _Pointer pointer, {required double lag}) {
     if (!tuning.chromeFlexes) return;
-    _timeline.at(math.max(t + lag, pointer.swellsAt), (s) {
+    at(math.max(t + lag, pointer.swellsAt), (s) {
       if (identical(_chromePointer, pointer)) _chrome.release(s);
     });
   }
@@ -825,7 +820,28 @@ class LensMotion {
 
   void _setSelected(int index) {
     _selected = index;
-    _events.add(LensSelected(index));
+    onEvent?.call(LensSelected(index));
+  }
+}
+
+/// Steps the lens's deformation loop at its frame rate while the lens
+/// travels, deforms or follows a finger; at rest it snaps the lens flat
+/// onto its travel and primes the filter there.
+final class _LensLoop extends MotionLoop {
+  _LensLoop(this._lens, {required super.rate});
+
+  final LensMotion _lens;
+
+  @override
+  bool step(double t) {
+    _lens._frame(t);
+    return !_lens._still(t);
+  }
+
+  @override
+  void restFrom(double t) {
+    super.restFrom(t);
+    _lens._restDeformation(_lens.now);
   }
 }
 

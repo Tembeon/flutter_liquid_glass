@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motion/flex_spec.dart' show FlexSpec;
-import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
@@ -84,7 +83,13 @@ class GlassTouchGlow {
 /// for the wash, its little glow opacity for the spot - so a 62 pixel
 /// tall bar peaks at 0.845 and 0.2845, and an open menu
 /// ([FlexSpec.menu]) at 0 and 0.5.
-class TouchGlowMotion {
+///
+/// Under a finger the rise rests within [MotionRest.opacity] and the
+/// spot's size and strength within a visible step; after it the glow rests
+/// once both glows read zero ([hideBelow]) and the fall is within
+/// [MotionRest.opacity]. A finger held still counts: the glow rests lit
+/// until the finger moves or lifts.
+final class TouchGlowMotion extends Motion {
   /// Creates a resting glow with the peaks of a surface's flex spec.
   TouchGlowMotion({
     required this.washPeak,
@@ -204,112 +209,132 @@ class TouchGlowMotion {
     return spotGain(brightness);
   }
 
-  final _progress = MotionValue<double>(0, spring: riseSpring);
-  final _scale = MotionValue<double>(1, spring: fallSpring);
-  final _strength = MotionValue<double>(1, spring: fallSpring);
+  double _progressRest() {
+    if (_down != null) return MotionRest.opacity;
+    final peak = math.max(math.max(washPeak, spotPeak), hideBelow);
+    return math.min(MotionRest.opacity, hideBelow / peak);
+  }
+
+  double _scaleRest() =>
+      _down == null ? double.infinity : MotionRest.scale(diameter);
+  double _strengthRest() =>
+      _down == null ? double.infinity : MotionRest.opacity;
+
+  late final _progress = own(
+    MotionValue<double>(0, spring: riseSpring),
+    rest: _progressRest,
+  );
+  late final _scale = own(
+    MotionValue<double>(1, spring: fallSpring),
+    rest: _scaleRest,
+  );
+  late final _strength = own(
+    MotionValue<double>(1, spring: fallSpring),
+    rest: _strengthRest,
+  );
   Offset _center = Offset.zero;
   Offset? _down;
   bool _dragging = false;
-  final MotionTimeline _timeline = MotionTimeline();
+  static const _riseSlot = Object();
+  static const _dragSlot = Object();
+  static const _fallSlot = Object();
 
   /// Whether a finger is down.
   bool get isDown => _down != null;
 
-  void _due(double t) => _timeline.runDue(t);
-
   /// A finger touched at [position] at time [t].
   void pointerDown(double t, Offset position) {
-    _due(t);
-    _timeline.clear();
+    advance(t);
+    unschedule(_dragSlot);
+    unschedule(_fallSlot);
     _center = position;
     _down = position;
     _dragging = false;
     _scale.snap(t, 1);
     _strength.snap(t, 1);
     _riseAt = t + riseLag;
-    _timeline.insert(_riseAt, _rise);
+    at(_riseAt, _rise, slot: _riseSlot);
   }
 
   void _rise(double at) => _progress.retarget(at, 1, spring: riseSpring);
 
   /// The finger moved to [position] at time [t].
   void pointerMove(double t, Offset position) {
-    _due(t);
+    advance(t);
     final down = _down;
     if (down == null) return;
     _center = position;
     if (_dragging || (position - down).distance < dragDistance) return;
     _dragging = true;
-    final start = t + riseLag;
-    _timeline.insert(start, (at) {
+    at(t + riseLag, (at) {
       _scale.retarget(at, dragGrowth, spring: fallSpring);
       _strength.retarget(at, dragStrength, spring: fallSpring);
-    });
+    }, slot: _dragSlot);
   }
 
   /// The finger lifted, or its touch was cancelled, at time [t].
   void pointerUp(double t) {
-    _due(t);
+    advance(t);
     if (_down == null) return;
     _down = null;
-    _timeline.clear();
-    if (minimumLit > 0 && _riseAt > t) _timeline.insert(_riseAt, _rise);
+    unschedule(_riseSlot);
+    unschedule(_dragSlot);
+    if (minimumLit > 0 && _riseAt > t) at(_riseAt, _rise, slot: _riseSlot);
     final start = math.max(t + releaseLag, _riseAt + minimumLit);
-    _timeline.insert(start, (at) {
+    at(start, (at) {
       _progress.retarget(at, 0, spring: fallSpring);
       _scale.retarget(at, releaseGrowth, spring: fallSpring);
-    });
+    }, slot: _fallSlot);
   }
 
-  /// Applies the reactions due by time [t].
-  void advance(double t) => _due(t);
-
-  /// The wash's opacity at time [t].
+  /// The wash's opacity at time [t], from [now] on.
   double washOpacity(double t) {
-    _due(t);
+    advance(t);
+    return _wash(t);
+  }
+
+  /// The spot's opacity at time [t], from [now] on.
+  double spotOpacity(double t) {
+    advance(t);
+    return _spot(t);
+  }
+
+  /// The spot's scale over [diameter] at time [t], from [now] on.
+  double spotScale(double t) {
+    advance(t);
+    return _scale.valueAt(t);
+  }
+
+  /// The glow to paint at time [t], from [now] on, with the spot's center
+  /// moved by [transform].
+  GlassTouchGlow? glowAt(double t, {Offset Function(Offset)? transform}) {
+    advance(t);
+    return _glow(t, transform);
+  }
+
+  /// The glow to paint now.
+  GlassTouchGlow? get glow => _glow(now, null);
+
+  double _wash(double t) {
     final value = washPeak * _progress.valueAt(t).clamp(0.0, 1.0);
     return value < hideBelow ? 0 : value;
   }
 
-  /// The spot's opacity at time [t].
-  double spotOpacity(double t) {
-    _due(t);
+  double _spot(double t) {
     final value =
         spotPeak * _progress.valueAt(t).clamp(0.0, 1.0) * _strength.valueAt(t);
     return value < hideBelow ? 0 : value;
   }
 
-  /// The spot's scale over [diameter] at time [t].
-  double spotScale(double t) {
-    _due(t);
-    return _scale.valueAt(t);
-  }
-
-  /// The glow to paint at time [t], with the spot's center moved by
-  /// [transform].
-  GlassTouchGlow? glowAt(double t, {Offset Function(Offset)? transform}) {
-    final wash = washOpacity(t);
-    final spot = spotOpacity(t);
+  GlassTouchGlow? _glow(double t, Offset Function(Offset)? transform) {
+    final wash = _wash(t);
+    final spot = _spot(t);
     if (wash == 0 && spot == 0) return null;
     return GlassTouchGlow(
       wash: washOffset * wash,
       center: transform == null ? _center : transform(_center),
-      radius: spotSpread * diameter * spotScale(t),
+      radius: spotSpread * diameter * _scale.valueAt(t),
       spot: spotCore * spot,
     );
-  }
-
-  /// Whether nothing is left to animate at time [t]. Under a finger held
-  /// still the glow rests lit until the finger moves or lifts.
-  bool isSettled(double t) {
-    _due(t);
-    if (!_timeline.isEmpty || !_progress.isWithin(t, GlassRest.opacity)) {
-      return false;
-    }
-    if (_down != null) {
-      return _scale.isWithin(t, GlassRest.scale(diameter)) &&
-          _strength.isWithin(t, GlassRest.opacity);
-    }
-    return washOpacity(t) == 0 && spotOpacity(t) == 0;
   }
 }

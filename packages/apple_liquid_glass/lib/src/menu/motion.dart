@@ -2329,7 +2329,10 @@ class MenuMotion {
   /// Whether the touch glow under a finger still rises, follows the finger
   /// or fades ([touchGlow]).
   @internal
-  bool get isGlowing => !_touchGlow.isSettled(_now);
+  bool get isGlowing {
+    _touchGlow.advance(_now);
+    return !_touchGlow.isSettled;
+  }
 
   /// Whether all of the motion but its touch glow has settled while the
   /// glow still moves ([isGlowing]).
