@@ -32,6 +32,8 @@ class MenuTuning {
     this.radiusDelay = 0.098,
     this.sourceEndScale = 0.25,
     this.sourceTravel = 0.25,
+    this.sourceReturnTolerance = 0.17,
+    this.sourceReturnAfter = 0.4,
     this.capsuleAloneLanding = 2,
     this.capsuleSharedLanding = 3.33,
     this.capsuleHoldLanding = 8,
@@ -388,6 +390,20 @@ class MenuTuning {
   /// How far the shrinking button travels toward the menu center, as a
   /// fraction of the distance.
   final double sourceTravel;
+
+  /// How close the source's shape must be to its rest for a close to end, half
+  /// a pixel at 3x.
+  ///
+  /// The springs ring on for about 250 ms more, moving nothing the eye can see,
+  /// while the menu's layer keeps its glass on screen and the real source stays
+  /// hidden. Ending here is near, not identical: the last sixth of a point of
+  /// the ring is skipped.
+  final double sourceReturnTolerance;
+
+  /// How long a close runs before it may end at [sourceReturnTolerance]: past
+  /// the close's kick, which peaks at about 0.15 s and is down to half a point
+  /// by 0.4 s (replayed recordings).
+  final double sourceReturnAfter;
 
   /// How far past the sides of a bar capsule holding one item a tap's menu
   /// lands: the settled right edge is 388 against the capsule's 386 (iPhone 16
@@ -836,6 +852,9 @@ class FusionTurns {
     if (radius < tuning.fusionCutoff) return 0;
     return math.min(radius, tuning.fusionRadius);
   }
+
+  /// Drops every envelope.
+  void clear() => _turns.clear();
 
   /// Whether every envelope has ended by time [t]; the ended ones are
   /// dropped.
@@ -1403,6 +1422,7 @@ class MenuMotion extends Motion with Presented {
   double _closeLive = 1;
   Ramp _contentFade = const Ramp();
   bool _openPending = false;
+  bool _returned = false;
   ({double t, Offset position})? _earlyRelease;
   _Pointer? _pointer;
   int? _highlighted;
@@ -2114,6 +2134,27 @@ class MenuMotion extends Motion with Presented {
     }
   });
 
+  // A close that starts near the source kicks it away first, so the source
+  // being near says nothing until the kick has come and gone.
+  bool _sourceReturned(double t) {
+    if (!drawsSource ||
+        _cards.isNotEmpty ||
+        t - _closeStart < tuning.sourceReturnAfter) {
+      return false;
+    }
+    final rest = _source.shape;
+    final shape = buttonBlob.rect;
+    final tolerance = tuning.sourceReturnTolerance;
+    final bounds = rest.inflate(tolerance);
+    final menu = menuBlob.rect;
+    return (shape.left - rest.left).abs() <= tolerance &&
+        (shape.top - rest.top).abs() <= tolerance &&
+        (shape.right - rest.right).abs() <= tolerance &&
+        (shape.bottom - rest.bottom).abs() <= tolerance &&
+        bounds.contains(menu.topLeft) &&
+        bounds.contains(menu.bottomRight);
+  }
+
   bool _fusionAtRest(double t) {
     if (!_fusions.endedAt(t)) return false;
     _fusion.settle();
@@ -2467,7 +2508,9 @@ class MenuMotion extends Motion with Presented {
   }
 
   /// Where the menu stands: shown once its open has come to rest, leaving
-  /// from its close until it has closed and nothing of it moves.
+  /// from its close until the source's shape is back
+  /// ([MenuTuning.sourceReturnTolerance]), or, for a menu without a source
+  /// shape, until nothing of it moves.
   @override
   PresenceStatus get presence => switch (_phase) {
     _Phase.opening =>
@@ -2475,7 +2518,8 @@ class MenuMotion extends Motion with Presented {
           ? PresenceStatus.shown
           : PresenceStatus.opening,
     _Phase.closing => PresenceStatus.leaving,
-    _Phase.idle => isSettled ? PresenceStatus.hidden : PresenceStatus.leaving,
+    _Phase.idle =>
+      _returned || isSettled ? PresenceStatus.hidden : PresenceStatus.leaving,
   };
 
   /// Closes the menu at time [t] for any [trigger]; a menu already on its
@@ -2743,11 +2787,19 @@ class MenuMotion extends Motion with Presented {
         _dropCard(_cards.removeAt(i));
       }
     }
-    if (_phase == _Phase.closing &&
-        _progress.restsAt(t, _progressRest) &&
-        _kicks.menu.isAtRest &&
-        _kicks.button.isAtRest &&
-        _fusionAtRest(t)) {
+    final returned = _phase == _Phase.closing && _sourceReturned(t);
+    if (returned) {
+      _returned = true;
+      _fusions.clear();
+      _fusion.settle();
+      _progress.snap(t, 0);
+    }
+    if (returned ||
+        (_phase == _Phase.closing &&
+            _progress.restsAt(t, _progressRest) &&
+            _kicks.menu.isAtRest &&
+            _kicks.button.isAtRest &&
+            _fusionAtRest(t))) {
       _phase = _Phase.idle;
       _highlighted = null;
       _highlightCard = 0;
@@ -2969,6 +3021,7 @@ class MenuMotion extends Motion with Presented {
 
   void _open(double t, {double? sourceScale}) {
     _openPending = false;
+    _returned = false;
     if (_phase == _Phase.opening) return;
     final fresh = _phase == _Phase.idle;
     final opacity = fresh ? 0.0 : _contentOpacityAt(t);

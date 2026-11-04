@@ -274,6 +274,17 @@ void main() {
       expect(find.text('Other'), findsNothing);
     });
 
+    testWidgets('the capsule is back before the springs stop ringing', (
+      tester,
+    ) async {
+      await closing(tester);
+      for (var i = 0; i < 25; i++) {
+        await tester.pump(_frame);
+      }
+      expect(find.text('Other'), findsNothing);
+      expect(_capsules(tester), [1]);
+    });
+
     testWidgets('a tap on the item that opened it opens it again', (
       tester,
     ) async {

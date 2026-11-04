@@ -16,6 +16,10 @@ const _screen = Size(390, 844);
 const _safeArea = EdgeInsets.only(top: 47, bottom: 34);
 const _tuning = MenuTuning.standard;
 
+// The captures record the springs ringing out to rest, past the point where the
+// close hands the source back.
+const _toRest = MenuTuning(sourceReturnTolerance: 0);
+
 /// A compact menu recording: touches, actions and per-frame values, each
 /// frame carrying every value last reported.
 class _Capture {
@@ -167,6 +171,7 @@ class _Replay {
           .round(),
       bounds: _screen,
       padding: _safeArea,
+      tuning: _toRest,
     );
     motion.advance(openStart - 0.5);
     motion.open(openStart, sourceScale: sourceScale);
@@ -775,6 +780,7 @@ void main() {
       motion.advance(t);
     }
     expect(motion.isPresented, isFalse);
+    motion.advance(t + 2);
     expect(motion.isSettled, isTrue);
   });
 

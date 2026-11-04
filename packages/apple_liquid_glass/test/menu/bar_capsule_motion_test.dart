@@ -1,3 +1,4 @@
+import 'package:apple_liquid_glass/motion.dart';
 import 'package:apple_liquid_glass/src/menu/motion.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -52,6 +53,43 @@ void main() {
       motion.pointerDown(0, at);
       motion.advance(3);
       expect(motion.menuRect.right, 394);
+      expect(motion.menuRect.top, 62);
+    });
+
+    test('ends its close once the capsule is back, before the springs stop '
+        'ringing', () {
+      const at = Offset(255, 84);
+      final motion = _motion(_shared, at);
+      _tap(motion, at);
+      motion.advance(3);
+      motion.pointerDown(3, const Offset(40, 500));
+      motion.pointerUp(3.05, const Offset(40, 500));
+      var t = 3.05;
+      while (!motion.isClosing && t < 4) {
+        t += 1 / 120;
+        motion.advance(t);
+      }
+      final start = t;
+      Rect? last;
+      while (motion.isClosing && t < 6) {
+        last = motion.buttonBlob.rect;
+        t += 1 / 120;
+        motion.advance(t);
+      }
+      expect(t - start, inInclusiveRange(0.45, 0.72));
+      expect(last!.left - _shared.left, closeTo(0, 0.35));
+      expect(last.bottom - _shared.bottom, closeTo(0, 0.35));
+      expect(motion.fusionRadius, 0);
+      expect(motion.progress, 0);
+      expect(motion.isPresented, isFalse);
+      expect(motion.presence, PresenceStatus.hidden);
+
+      motion.pointerDown(t, at);
+      motion.pointerUp(t + 0.05, at);
+      motion.advance(t + 3);
+      expect(motion.isOpen, isTrue);
+      expect(motion.progress, closeTo(1, 0.001));
+      expect(motion.menuRect.left, closeTo(139.33, 0.01));
       expect(motion.menuRect.top, 62);
     });
 
