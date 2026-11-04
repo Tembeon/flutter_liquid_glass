@@ -875,12 +875,16 @@ class SheetMotion extends Motion {
     if (_dragFrom == null) return;
     _releaseStretch(t);
     const gain = SheetTuning.releaseVelocityGain;
+    const projection = Projection(rate: SheetTuning.projection);
     final below = _offset.valueAt(t);
     if (below > 0) {
       final hidden = hiddenOffset;
-      final projected = below + velocity * SheetTuning.projection;
+      final dismiss = ProjectionExit(
+        threshold: hidden / 2,
+        flickVelocity: SheetTuning.dismissVelocity,
+      );
       if (dismissible &&
-          (projected > hidden / 2 || velocity > SheetTuning.dismissVelocity)) {
+          dismiss.passes(projection.landing(below, velocity), velocity)) {
         _dragFrom = null;
         _dismissing = true;
         final flicked = velocity > 0;
@@ -906,16 +910,13 @@ class SheetMotion extends Motion {
       _transition(t, 0, velocity: 0);
       return;
     }
-    final projected = _height.valueAt(t) - velocity * SheetTuning.projection;
-    var best = 0;
-    for (var i = 1; i < _heights.length; i++) {
-      if ((_heights[i] - projected).abs() <
-          (_heights[best] - projected).abs()) {
-        best = i;
-      }
-    }
+    final ProjectionStop(:index) = projection.choose(
+      _height.valueAt(t),
+      -velocity,
+      stops: _heights,
+    ) as ProjectionStop;
     _offset.retarget(t, 0, spring: SheetTuning.spring);
-    _transition(t, best, velocity: -velocity * gain);
+    _transition(t, index, velocity: -velocity * gain);
   }
 
   /// The drag was cancelled; the sheet returns to its detent.

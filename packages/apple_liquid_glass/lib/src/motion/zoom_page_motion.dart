@@ -382,10 +382,11 @@ final class ZoomPageMotion extends PageMotion with Sourced {
     final along = d == 0
         ? 0.0
         : (velocity.dx * _dragDelta.dx + velocity.dy * _dragDelta.dy) / d;
-    if (_dragMoved &&
-        (d > tuning.dismissDistance || along > tuning.dismissVelocity)) {
-      return true;
-    }
+    final exit = ProjectionExit(
+      threshold: tuning.dismissDistance,
+      flickVelocity: tuning.dismissVelocity,
+    );
+    if (_dragMoved && exit.passes(d, along)) return true;
     stay(t);
     return false;
   }

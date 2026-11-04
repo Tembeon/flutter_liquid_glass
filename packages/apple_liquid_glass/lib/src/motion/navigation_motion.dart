@@ -75,14 +75,11 @@ abstract final class NavigationTuning {
   static double contentFunnel(double along) =>
       math.min(25, 0.8 * along.abs() + 10);
 
-  /// How far a page dragged past either end of its travel moves, at most,
-  /// as a share of its width, with [rubberBandCoefficient]: UIKit rubber
-  /// bands the progress outside 0 - 1 (read from UIKit; the coefficient is
-  /// UIKit's default for scrolling, assumed for touch).
-  static const double rubberBandExtent = 0.5;
-
-  /// See [rubberBandExtent].
-  static const double rubberBandCoefficient = 0.55;
+  /// The drag progress, rubber banded past either end of its travel as
+  /// UIKit does: at most half the page's width past an end, with the
+  /// coefficient 0.55 (read from UIKit; the coefficient is UIKit's default
+  /// for scrolling, assumed for touch).
+  static const Band band = Band(0, 1, dimension: 0.5);
 
   /// The share of an interactive pop's progress the navigation bar's
   /// capsules lean toward their places on the page below while the finger
@@ -98,16 +95,6 @@ abstract final class NavigationTuning {
 
   /// The easing of the cross-fade: UIView's default animation curve.
   static const Curve crossFadeCurve = Curves.easeInOut;
-
-  /// The drag progress outside 0 - 1 rubber banded as UIKit does.
-  static double rubberBand(double progress) {
-    double band(double over) =>
-        rubberBandExtent *
-        (1 - 1 / (rubberBandCoefficient * over / rubberBandExtent + 1));
-    if (progress > 1) return 1 + band(progress - 1);
-    if (progress < 0) return -band(-progress);
-    return progress;
-  }
 }
 
 /// The time a navigation transition counts from, shared by the page's slide
@@ -454,7 +441,7 @@ final class PageSlideMotion extends PageMotion {
   /// [t]; past either end the page rubber bands.
   void drag(double t, double travel) {
     advance(t);
-    _slide.snap(t, 1 - NavigationTuning.rubberBand(travel));
+    _slide.snap(t, 1 - NavigationTuning.band.show(travel));
   }
 
   /// The finger lets go at [t], the page moving toward the pop at

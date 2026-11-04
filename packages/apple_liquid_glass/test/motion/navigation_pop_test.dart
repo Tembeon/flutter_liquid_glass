@@ -115,13 +115,13 @@ void main() {
   });
 
   test('a drag past either end of the travel rubber bands', () {
-    expect(NavigationTuning.rubberBand(0.4), 0.4);
-    expect(NavigationTuning.rubberBand(1.2), inExclusiveRange(1, 1.2));
-    expect(NavigationTuning.rubberBand(-0.2), inExclusiveRange(-0.2, 0));
-    expect(NavigationTuning.rubberBand(50), lessThan(1.5));
+    expect(NavigationTuning.band.show(0.4), 0.4);
+    expect(NavigationTuning.band.show(1.2), inExclusiveRange(1, 1.2));
+    expect(NavigationTuning.band.show(-0.2), inExclusiveRange(-0.2, 0));
+    expect(NavigationTuning.band.show(50), lessThan(1.5));
     expect(
-      NavigationTuning.rubberBand(-0.2),
-      -(NavigationTuning.rubberBand(1.2) - 1),
+      NavigationTuning.band.show(-0.2),
+      closeTo(-(NavigationTuning.band.show(1.2) - 1), 1e-12),
     );
   });
 }

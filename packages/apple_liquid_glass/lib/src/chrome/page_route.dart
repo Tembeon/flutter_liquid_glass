@@ -3,7 +3,6 @@ import 'package:apple_liquid_glass/src/motion/navigation_motion.dart';
 import 'package:apple_liquid_glass/src/motion/zoom_page_motion.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
@@ -877,7 +876,6 @@ final class _ZoomDrag extends Interaction {
   int? _pointer;
   Offset _start = Offset.zero;
   bool _dragging = false;
-  late VelocityTracker _tracker;
 
   @override
   bool get dragged => _dragging;
@@ -894,10 +892,7 @@ final class _ZoomDrag extends Interaction {
         _pointer = input.pointer;
         _start = input.position;
         _dragging = false;
-        _tracker = VelocityTracker.withKind(PointerDeviceKind.touch);
-        _tracker.addPosition(_duration(input.time), input.position);
       case PointerMoveInput() when input.pointer == _pointer:
-        _tracker.addPosition(_duration(input.time), input.position);
         final delta = input.position - _start;
         if (!_dragging) {
           if (delta.distance < motion.tuning.dragSlop) break;
@@ -915,10 +910,8 @@ final class _ZoomDrag extends Interaction {
         _pointer = null;
         if (!_dragging) return const InteractionUpdate(fails: true);
         _dragging = false;
-        _tracker.addPosition(_duration(input.time), input.position);
-        final velocity = _tracker.getVelocity().pixelsPerSecond;
         motion.dragUpdate(input.time, input.position);
-        _zoom._released(input.time, velocity);
+        _zoom._released(input.time, input.velocity);
       case PointerCancelInput() when input.pointer == _pointer:
         _pointer = null;
         if (_dragging) {
@@ -930,9 +923,6 @@ final class _ZoomDrag extends Interaction {
     }
     return InteractionUpdate.none;
   }
-
-  static Duration _duration(double seconds) =>
-      Duration(microseconds: (seconds * 1e6).round());
 }
 
 // What each zoom source shows, which its page draws while the source's look

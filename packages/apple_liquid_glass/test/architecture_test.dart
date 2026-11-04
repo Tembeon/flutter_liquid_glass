@@ -23,6 +23,12 @@ final _read = RegExp(
 // that stops offending fails too, so the list only shrinks.
 final _bans = <String, (RegExp, Set<String>)>{
   'haptics through MotionHaptic.play': (RegExp(r'\bHapticFeedback\.'), {}),
+  // The sheet reads the finger in screen coordinates while it moves under
+  // it, which a region inside the moving sheet cannot.
+  'a release velocity comes from InputRegion': (
+    RegExp(r'\bVelocityTracker\b'),
+    {'lib/src/presentations/sheet.dart'},
+  ),
   'a host steps no driver; it selects from its Motion': (
     RegExp(r'(implements|extends|with)[^{]*\bMotionDriver\b|addDriver\('),
     {'lib/src/menu/anchor.dart'},

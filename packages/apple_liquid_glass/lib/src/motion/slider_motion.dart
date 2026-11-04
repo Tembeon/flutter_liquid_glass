@@ -431,9 +431,11 @@ final class SliderMotion extends Motion {
   void _settleOnStop(double t, double speed) {
     final from = _settle.valueAt(t);
     final v = width > 0 ? speed / width : 0.0;
-    final ahead = tickProjection * v;
-    final far = (ahead * width).abs() >= tickProjectionThreshold;
-    final stop = _stopNear(far ? from + ahead : from);
+    final projection = Projection(
+      rate: tickProjection,
+      minDistance: width > 0 ? tickProjectionThreshold / width : 0,
+    );
+    final stop = _stopNear(projection.landing(from, v));
     _settle.setVelocity(t, v);
     _settle.retarget(t, stop, spring: tickReleaseSpring);
     _set(stop);
