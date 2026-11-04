@@ -441,8 +441,11 @@ class _GlassListRowState extends State<GlassListRow>
   late final List<Interaction> _interactions = [
     PressInteraction(
       role: InteractionRole.content,
-      onTap: () => widget.onPressed?.call(),
+      onTap: (t) => widget.onPressed?.call(),
     ).simultaneously(_HighlightInput(_body)),
+  ];
+  late final List<Interaction> _accessoryInteractions = [
+    PressInteraction(onTap: (t) => widget.onAccessoryPressed?.call()),
   ];
 
   @override
@@ -590,8 +593,9 @@ class _GlassListRowState extends State<GlassListRow>
                 label: widget.accessorySemanticLabel ?? 'More info',
                 onTap: widget.onAccessoryPressed,
                 child: ExcludeSemantics(
-                  child: MotionPressable(
-                    onPressed: widget.onAccessoryPressed,
+                  child: InputRegion(
+                    interactions: _accessoryInteractions,
+                    enabled: widget.onAccessoryPressed != null,
                     child: _Glyph(painter: _InfoPainter(icon)),
                   ),
                 ),

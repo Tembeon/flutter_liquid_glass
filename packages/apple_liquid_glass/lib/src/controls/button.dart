@@ -107,7 +107,7 @@ class _RawGlassButtonState extends State<RawGlassButton>
   late final List<Interaction> _interactions = [
     PressInteraction(
       releaseSlop: const EdgeInsets.all(GlassButtonMotion.highlightSlop),
-      onTap: () => widget.onPressed?.call(),
+      onTap: (t) => widget.onPressed?.call(),
     ).simultaneously(_FlexInput(_body)),
   ];
 

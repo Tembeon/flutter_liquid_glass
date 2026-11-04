@@ -11,6 +11,7 @@ library;
 export 'src/clock.dart' show ManualMotionClock, MotionClock;
 export 'src/converter.dart' show MotionConverter;
 export 'src/effect.dart' show MotionEffect;
+export 'src/input/follow.dart' show FollowInteraction, PointerFollower;
 export 'src/input/interaction.dart'
     show
         ActivateInput,
@@ -27,7 +28,6 @@ export 'src/input/interaction.dart'
         LongPressInteraction,
         LongPressStartEvent,
         MotionHaptic,
-        MotionTarget,
         PointerCancelInput,
         PointerCancelReason,
         PointerDownInput,
@@ -39,6 +39,7 @@ export 'src/input/interaction.dart'
         ScrubInteraction,
         SessionOutput,
         TapInteraction;
+export 'src/input/port.dart' show InputPort;
 export 'src/presentation/level.dart'
     show
         PresentationContext,
@@ -48,8 +49,7 @@ export 'src/presentation/level.dart'
 export 'src/presentation/route.dart'
     show DismissTrigger, PresentationPageRoute, PresentationRoute;
 export 'src/screen/driven.dart' show MotionDriven;
-export 'src/screen/input_region.dart'
-    show InputRegion, MotionDragDetector, MotionPressable;
+export 'src/screen/input_region.dart' show InputRegion;
 export 'src/screen/layout.dart'
     show
         LayoutChange,

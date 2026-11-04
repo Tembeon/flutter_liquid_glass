@@ -44,7 +44,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         Center(
-          child: MotionPressable(
+          child: _Pressable(
             onPressed: () => presses++,
             haptic: MotionHaptic.lightImpact,
             statesController: states,
@@ -54,7 +54,7 @@ void main() {
       ),
     );
     final gesture = await tester.startGesture(
-      tester.getCenter(find.byType(MotionPressable)),
+      tester.getCenter(find.byType(_Pressable)),
     );
     await tester.pump(const Duration(milliseconds: 16));
     expect(states.value, contains(WidgetState.pressed));
@@ -72,7 +72,7 @@ void main() {
     addTearDown(states.dispose);
     await tester.pumpWidget(
       _list(
-        MotionPressable(
+        _Pressable(
           onPressed: () {},
           statesController: states,
           child: const SizedBox.expand(),
@@ -80,7 +80,7 @@ void main() {
       ),
     );
     final gesture = await tester.startGesture(
-      tester.getCenter(find.byType(MotionPressable)),
+      tester.getCenter(find.byType(_Pressable)),
     );
     // A test's frame clock and engine clock disagree, so the motion clock
     // starts counting at the first frame after the touch.
@@ -105,14 +105,14 @@ void main() {
     );
     await tester.pumpWidget(
       _list(
-        MotionPressable(
+        _Pressable(
           onPressed: () => presses++,
           statesController: states,
           child: const SizedBox.expand(),
         ),
       ),
     );
-    await tester.drag(find.byType(MotionPressable), const Offset(0, -200));
+    await tester.drag(find.byType(_Pressable), const Offset(0, -200));
     await tester.pumpAndSettle();
     final list = tester.state<ScrollableState>(find.byType(Scrollable));
     expect(list.position.pixels, greaterThan(0));
@@ -139,15 +139,19 @@ void main() {
     await tester.pumpWidget(
       _app(
         Center(
-          child: MotionDragDetector(
-            axis: Axis.horizontal,
-            onEnd: (details) => end = details,
+          child: InputRegion(
+            interactions: [
+              DragInteraction(
+                axis: Axis.horizontal,
+                onEnd: (details) => end = details,
+              ),
+            ],
             child: const SizedBox(width: 300, height: 100),
           ),
         ),
       ),
     );
-    final start = tester.getCenter(find.byType(MotionDragDetector));
+    final start = tester.getCenter(find.byType(InputRegion));
     final reference = VelocityTracker.withKind(PointerDeviceKind.touch);
     final gesture = await tester.createGesture();
     await gesture.down(start);
@@ -176,7 +180,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         Center(
-          child: MotionPressable(
+          child: _Pressable(
             onPressed: () => heard.add('press'),
             onLongPress: () => heard.add('long'),
             child: const SizedBox(width: 80, height: 40),
@@ -185,7 +189,7 @@ void main() {
       ),
     );
     final gesture = await tester.startGesture(
-      tester.getCenter(find.byType(MotionPressable)),
+      tester.getCenter(find.byType(_Pressable)),
     );
     await tester.pump();
     for (var i = 0; i < 40; i++) {
@@ -201,7 +205,7 @@ void main() {
     addTearDown(states.dispose);
     await tester.pumpWidget(
       _app(
-        MotionPressable(
+        _Pressable(
           onPressed: null,
           statesController: states,
           child: const SizedBox(width: 80, height: 40),
@@ -211,7 +215,7 @@ void main() {
     expect(states.value, contains(WidgetState.disabled));
   });
 
-  testWidgets('Space activates a focused pressable', (tester) async {
+  testWidgets('Space activates a focused press', (tester) async {
     var presses = 0;
     final focus = FocusNode();
     addTearDown(focus.dispose);
@@ -220,7 +224,7 @@ void main() {
         Center(
           child: Focus(
             focusNode: focus,
-            child: MotionPressable(
+            child: _Pressable(
               onPressed: () => presses++,
               child: const SizedBox(width: 80, height: 40),
             ),
@@ -292,4 +296,40 @@ final class _Held extends Interaction {
         return InteractionUpdate.none;
     }
   }
+}
+
+class _Pressable extends StatefulWidget {
+  const _Pressable({
+    required this.onPressed,
+    required this.child,
+    this.onLongPress,
+    this.haptic,
+    this.statesController,
+  });
+
+  final VoidCallback? onPressed;
+  final VoidCallback? onLongPress;
+  final MotionHaptic? haptic;
+  final WidgetStatesController? statesController;
+  final Widget child;
+
+  @override
+  State<_Pressable> createState() => _PressableState();
+}
+
+class _PressableState extends State<_Pressable> {
+  late final List<Interaction> _interactions = [
+    if (widget.onLongPress != null)
+      LongPressInteraction(onStart: (t) => widget.onLongPress?.call()),
+    PressInteraction(onTap: (t) => widget.onPressed?.call()),
+  ];
+
+  @override
+  Widget build(BuildContext context) => InputRegion(
+    interactions: _interactions,
+    enabled: widget.onPressed != null,
+    statesController: widget.statesController,
+    feedback: (event) => event is ActivationEvent ? widget.haptic : null,
+    child: widget.child,
+  );
 }

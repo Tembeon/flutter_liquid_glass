@@ -13,6 +13,13 @@ PointerDownInput _down(double time, {Set<Axis> scroll = const {}}) =>
       scrollAxes: scroll,
     );
 
+PointerDownInput _downAt(double time, Offset position) => PointerDownInput(
+  time: time,
+  pointer: 1,
+  position: position,
+  regionSize: _size,
+);
+
 PointerMoveInput _move(double time, Offset position) =>
     PointerMoveInput(time: time, pointer: 1, position: position);
 
@@ -31,8 +38,9 @@ void main() {
       var taps = 0;
       final press = PressInteraction(
         releaseSlop: const EdgeInsets.all(20),
-        onHighlightChanged: highlights.add,
-        onTap: () => taps++,
+        onHighlightChanged: (t, {required highlighted}) =>
+            highlights.add(highlighted),
+        onTap: (t) => taps++,
       );
       final session = InteractionSession([press]);
       expect(session.handle(_down(0)).claim, isTrue);
@@ -48,7 +56,7 @@ void main() {
     test('a release outside does not tap', () {
       var taps = 0;
       final session = InteractionSession([
-        PressInteraction(onTap: () => taps++),
+        PressInteraction(onTap: (t) => taps++),
       ]);
       session.handle(_down(0));
       final release = session.handle(_up(0.1, const Offset(200, 20)));
@@ -62,8 +70,8 @@ void main() {
     test('a long press that is recognized cancels the press', () {
       final heard = <String>[];
       final session = InteractionSession([
-        LongPressInteraction(onStart: () => heard.add('long')),
-        PressInteraction(onTap: () => heard.add('tap')),
+        LongPressInteraction(onStart: (t) => heard.add('long')),
+        PressInteraction(onTap: (t) => heard.add('tap')),
       ]);
       session.handle(_down(0));
       session.advance(0.5);
@@ -83,7 +91,8 @@ void main() {
       final heard = <String>[];
       final session = InteractionSession([
         PressInteraction(
-          onHighlightChanged: (on) => heard.add('press $on'),
+          onHighlightChanged: (t, {required highlighted}) =>
+              heard.add('press $highlighted'),
         ).simultaneously(
           DragInteraction(
             axis: Axis.horizontal,
@@ -115,7 +124,10 @@ void main() {
         'and claims then', () {
       final highlights = <bool>[];
       final session = InteractionSession([
-        PressInteraction(onHighlightChanged: highlights.add),
+        PressInteraction(
+          onHighlightChanged: (t, {required highlighted}) =>
+              highlights.add(highlighted),
+        ),
       ]);
       final down = session.handle(_down(0, scroll: {Axis.vertical}));
       expect(down.claim, isFalse);
@@ -130,8 +142,9 @@ void main() {
       final heard = <String>[];
       final session = InteractionSession([
         PressInteraction(
-          onHighlightChanged: (on) => heard.add(on ? 'on' : 'off'),
-          onTap: () => heard.add('tap'),
+          onHighlightChanged: (t, {required highlighted}) =>
+              heard.add(highlighted ? 'on' : 'off'),
+          onTap: (t) => heard.add('tap'),
         ),
       ]);
       session.handle(_down(0, scroll: {Axis.vertical}));
@@ -145,7 +158,8 @@ void main() {
       final session = InteractionSession([
         PressInteraction(
           role: InteractionRole.content,
-          onHighlightChanged: heard.add,
+          onHighlightChanged: (t, {required highlighted}) =>
+              heard.add(highlighted),
         ),
       ]);
       session.handle(_down(0, scroll: {Axis.vertical}));
@@ -170,26 +184,27 @@ void main() {
   });
 
   group('LongPressInteraction', () {
-    test('is recognized at its duration from contact and claims', () {
-      final heard = <String>[];
+    test('is recognized at its duration from contact, however late the '
+        'frame that runs it, and claims', () {
+      final heard = <(String, double)>[];
       final long = LongPressInteraction(
-        onStart: () => heard.add('start'),
-        onCommit: () => heard.add('commit'),
+        onStart: (t) => heard.add(('start', t)),
+        onCommit: (t) => heard.add(('commit', t)),
       );
       final session = InteractionSession([long]);
-      session.handle(_down(0));
-      expect(session.nextDue, 0.5);
-      final due = session.advance(0.5);
+      session.handle(_down(0.01));
+      expect(session.nextDue, 0.51);
+      final due = session.advance(0.523);
       expect(due.claim, isTrue);
-      expect(due.events.single, isA<LongPressStartEvent>());
+      expect((due.events.single as LongPressStartEvent).time, 0.51);
       session.handle(_up(0.7, const Offset(50, 20)));
-      expect(heard, ['start', 'commit']);
+      expect(heard, [('start', 0.51), ('commit', 0.7)]);
     });
 
     test('fails when the finger travels first', () {
       var started = false;
       final session = InteractionSession([
-        LongPressInteraction(onStart: () => started = true),
+        LongPressInteraction(onStart: (t) => started = true),
       ]);
       session.handle(_down(0));
       final move = session.handle(_move(0.2, const Offset(80, 20)));
@@ -232,43 +247,53 @@ void main() {
       expect(move.claim, isFalse);
     });
 
-    test('tracks with a rubber band and settles on the projected stop', () {
-      const spring = Spring.response(0.3, projection: 0.143);
-      const details = DragInteractionDetails(
-        time: 1,
-        translation: Offset(0, 300),
-        velocity: Offset(0, 900),
+    test('a touch from the leading edge starts past the edge slop, one '
+        'elsewhere past the slop; mayBegin gives a touch up', () {
+      late DragInteraction drag;
+      drag = DragInteraction(
+        axis: Axis.horizontal,
+        slop: 20,
+        edgeZone: 0.1,
+        edgeSlop: 5,
+        mayBegin: (travel) => drag.fromEdge || travel.dx > -8,
       );
-      final track = DragInteraction.track(
-        details,
-        grab: 0,
-        spring: spring,
-        dimension: 100,
-        bounds: (0, 200),
+      final session = InteractionSession([drag]);
+      session.handle(_downAt(0, const Offset(4, 20)));
+      expect(drag.fromEdge, isTrue);
+      expect(session.handle(_move(0.01, const Offset(10, 20))).claim, isTrue);
+      session.handle(_up(0.02, const Offset(10, 20)));
+      session.handle(_downAt(1, const Offset(50, 20)));
+      expect(drag.fromEdge, isFalse);
+      expect(session.handle(_move(1.01, const Offset(60, 20))).claim, isFalse);
+      expect(session.handle(_move(1.02, const Offset(71, 20))).claim, isTrue);
+      session.handle(_up(1.03, const Offset(71, 20)));
+      session.handle(_downAt(2, const Offset(50, 20)));
+      expect(session.handle(_move(2.01, const Offset(41, 20))).reject, isTrue);
+    });
+
+    test('mirrored, the leading edge and the travel are on the right', () {
+      final travel = <double>[];
+      final drag = DragInteraction(
+        axis: Axis.horizontal,
+        edgeZone: 0.1,
+        mirrored: true,
+        onStart: (d) => travel.add(d.translation.dx),
+        onUpdate: (d) => travel.add(d.translation.dx),
       );
-      expect(track.value, greaterThan(200));
-      expect(track.value, lessThan(300));
-      expect(track.tracking, isTrue);
-      final settle = DragInteraction.settle(
-        details,
-        position: 150,
-        spring: spring,
-        stops: [0, 200, 400],
-      );
-      expect(settle.value, 200);
-      expect(settle.velocity, 900);
-      final value = MotionValue<double>(150);
-      settle.applyTo(value);
-      expect(value.velocityAt(1), 900);
-      expect(value.target, 200);
+      final session = InteractionSession([drag]);
+      session.handle(_downAt(0, const Offset(96, 20)));
+      expect(drag.fromEdge, isTrue);
+      session.handle(_move(0.01, const Offset(80, 20)));
+      session.handle(_move(0.02, const Offset(70, 20)));
+      expect(travel, [6, 16]);
     });
   });
 
   group('TapInteraction', () {
     test('a single tap waits for the double tap to time out', () {
       final heard = <String>[];
-      final double = TapInteraction(count: 2, onTap: () => heard.add('two'));
-      final single = TapInteraction(onTap: () => heard.add('one'));
+      final double = TapInteraction(count: 2, onTap: (t) => heard.add('two'));
+      final single = TapInteraction(onTap: (t) => heard.add('one'));
       final session = InteractionSession([double.exclusively(single)]);
       session.handle(_down(0));
       session.handle(_up(0.05, const Offset(50, 20)));
@@ -280,8 +305,8 @@ void main() {
 
     test('a double tap is preferred to a single one, which waits', () {
       final heard = <String>[];
-      final double = TapInteraction(count: 2, onTap: () => heard.add('two'));
-      final single = TapInteraction(onTap: () => heard.add('one'));
+      final double = TapInteraction(count: 2, onTap: (t) => heard.add('two'));
+      final single = TapInteraction(onTap: (t) => heard.add('one'));
       final session = InteractionSession([double.exclusively(single)]);
       session.handle(_down(0));
       session.handle(_up(0.05, const Offset(50, 20)));
@@ -297,12 +322,9 @@ void main() {
       final changes = <Object?>[];
       Object? committed;
       final scrub = ScrubInteraction(
-        regions: {
-          'a': const Rect.fromLTWH(0, 0, 100, 20),
-          'b': const Rect.fromLTWH(0, 20, 100, 20),
-        },
-        onChanged: changes.add,
-        onCommit: (key) => committed = key,
+        hit: (p) => p.dy < 20 ? 'a' : 'b',
+        onChanged: (selected, t) => changes.add(selected),
+        onCommit: (key, t) => committed = key,
       );
       final session = InteractionSession([scrub]);
       session.handle(
@@ -319,4 +341,112 @@ void main() {
       expect(committed, 'b');
     });
   });
+
+  group('relations', () {
+    test('activates when a press or a tap is in it', () {
+      expect(PressInteraction().activates, isTrue);
+      expect(TapInteraction().activates, isTrue);
+      expect(DragInteraction().activates, isFalse);
+      expect(
+        DragInteraction().simultaneously(PressInteraction()).activates,
+        isTrue,
+      );
+      expect(
+        LongPressInteraction().sequenced(PressInteraction()).activates,
+        isFalse,
+      );
+    });
+
+    test('sequenced hands the rest of the touch on from the moment the '
+        'first recognizes, where the finger is then', () {
+      final heard = <String>[];
+      final rows = ScrubInteraction(
+        hit: (p) => p.dy > 30 ? 'row' : null,
+        onChanged: (selected, t) => heard.add('over $selected at $t'),
+        onCommit: (selected, t) => heard.add('commit $selected at $t'),
+      );
+      final session = InteractionSession([
+        LongPressInteraction(
+          onStart: (t) => heard.add('hold at $t'),
+        ).sequenced(rows),
+      ]);
+      session.handle(_down(0));
+      session.handle(_move(0.3, const Offset(52, 22)));
+      session.advance(0.55);
+      session.handle(_move(0.6, const Offset(52, 35)));
+      session.handle(_up(0.7, const Offset(52, 35)));
+      expect(heard, [
+        'hold at 0.5',
+        'over row at 0.6',
+        'commit row at 0.7',
+      ]);
+    });
+
+    test('sequenced hears nothing on a touch the first gives up', () {
+      var heard = 0;
+      final session = InteractionSession([
+        LongPressInteraction().sequenced(
+          FollowInteraction(_Count(() => heard++)),
+        ),
+      ]);
+      session.handle(_down(0));
+      session.handle(_move(0.1, const Offset(90, 20)));
+      session.handle(_up(0.2, const Offset(90, 20)));
+      expect(heard, 0);
+    });
+  });
+
+  group('FollowInteraction', () {
+    test('feeds one pointer, mirrored when asked, and decides nothing', () {
+      final follower = _Log();
+      final follow = FollowInteraction(follower, mirrored: true);
+      final session = InteractionSession([follow]);
+      final down = session.handle(_down(0));
+      session.handle(_move(0.1, const Offset(30, 20)));
+      session.handle(
+        _up(0.2, const Offset(30, 20), velocity: const Offset(100, 5)),
+      );
+      expect(down.claim, isFalse);
+      expect(follower.log, [
+        'down 50.0',
+        'move 70.0',
+        'up 70.0 -100.0',
+      ]);
+    });
+  });
+}
+
+class _Log extends PointerFollower {
+  final List<String> log = [];
+
+  @override
+  void down(PointerDownInput input) => log.add('down ${input.position.dx}');
+
+  @override
+  void move(PointerMoveInput input) => log.add('move ${input.position.dx}');
+
+  @override
+  void up(PointerUpInput input) =>
+      log.add('up ${input.position.dx} ${input.velocity.dx}');
+
+  @override
+  void cancel(PointerCancelInput input) => log.add('cancel');
+}
+
+class _Count extends PointerFollower {
+  _Count(this.heard);
+
+  final VoidCallback heard;
+
+  @override
+  void down(PointerDownInput input) => heard();
+
+  @override
+  void move(PointerMoveInput input) => heard();
+
+  @override
+  void up(PointerUpInput input) => heard();
+
+  @override
+  void cancel(PointerCancelInput input) => heard();
 }

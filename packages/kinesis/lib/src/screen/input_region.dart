@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/src/clock.dart';
 import 'package:kinesis/src/input/interaction.dart';
+import 'package:kinesis/src/input/port.dart';
 
 /// Turns pointer, keyboard, hover and accessibility input into the input
 /// of its [interactions].
@@ -20,8 +21,10 @@ import 'package:kinesis/src/input/interaction.dart';
 /// gesture arena only for touches an interaction accepts, so one that
 /// takes nothing never blocks a scroll, and it holds or gives up a touch as
 /// its [InteractionSession] decides, including the scroll delay of a
-/// control inside a scroll view. When a press or a tap is among the
-/// interactions, Space, Enter and the accessibility tap activate it. It
+/// control inside a scroll view. When an interaction [Interaction.activates]
+/// (a press, a tap), Space, Enter and the accessibility tap activate it.
+/// With a [port] it also hears the touches another region hands on to it
+/// (`InputPort.forward`), mapped into its own coordinates. It
 /// writes pressed, hovered, focused, dragged and disabled into
 /// [statesController], and plays the haptic [feedback] picks for each
 /// event as it happens; keyboard and accessibility activations play none.
@@ -37,6 +40,7 @@ class InputRegion extends StatefulWidget {
     this.focusNode,
     this.autofocus = false,
     this.semanticLabel,
+    this.port,
     super.key,
   });
 
@@ -68,6 +72,9 @@ class InputRegion extends StatefulWidget {
   /// What accessibility reads for the region.
   final String? semanticLabel;
 
+  /// Where touches handed on from another region arrive, or null.
+  final InputPort? port;
+
   @override
   State<InputRegion> createState() => _InputRegionState();
 }
@@ -87,10 +94,14 @@ class _InputRegionState extends State<InputRegion> {
   Iterable<Interaction> get _all =>
       widget.interactions.expand(flattenInteraction);
 
+  _RenderListener? _box;
+
   @override
   void initState() {
     super.initState();
     widget.statesController?.update(WidgetState.disabled, !widget.enabled);
+    _bindForwards();
+    _attachPort(widget.port);
   }
 
   @override
@@ -99,19 +110,53 @@ class _InputRegionState extends State<InputRegion> {
     if (!listEquals(oldWidget.interactions, widget.interactions)) {
       _cancelAll(PointerCancelReason.platform);
       _session = InteractionSession(widget.interactions);
+      _bindForwards();
     }
     if (oldWidget.enabled && !widget.enabled) {
       _cancelAll(PointerCancelReason.disabled);
+    }
+    if (oldWidget.port != widget.port) {
+      oldWidget.port?.detach(_receive);
+      _attachPort(widget.port);
     }
     widget.statesController?.update(WidgetState.disabled, !widget.enabled);
   }
 
   @override
   void dispose() {
+    widget.port?.detach(_receive);
     _cancelAll(PointerCancelReason.platform);
     _cancelDue?.call();
     _ownFocus?.dispose();
     super.dispose();
+  }
+
+  void _bindForwards() {
+    for (final forward in _all.whereType<PortForward>()) {
+      forward.toGlobal = _toGlobal;
+    }
+  }
+
+  Offset _toGlobal(Offset local) => _box?.localToGlobal(local) ?? local;
+
+  // The receiver maps positions with its render box, which is laid out
+  // only after the frame that built it.
+  void _attachPort(InputPort? port) {
+    if (port == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && widget.port == port) port.attach(_receive);
+    });
+  }
+
+  void _receive(PortEvent event) {
+    final box = _box;
+    if (!widget.enabled || box == null || !box.hasSize) return;
+    final input = event.input(
+      box.globalToLocal,
+      size: box.size,
+      scrollAxes: event.phase == PortPhase.down ? _scrollAxes() : const {},
+    );
+    _clock.input(input.time, () => _answer(_session.handle(input)));
   }
 
   Set<Axis> _scrollAxes() {
@@ -315,8 +360,7 @@ class _InputRegionState extends State<InputRegion> {
     return KeyEventResult.handled;
   }
 
-  bool get _activates =>
-      _all.any((i) => i is PressInteraction || i is TapInteraction);
+  bool get _activates => widget.interactions.any((i) => i.activates);
 
   @override
   Widget build(BuildContext context) {
@@ -381,12 +425,16 @@ class _Listener extends SingleChildRenderObjectWidget {
   final _InputRegionState state;
 
   @override
-  _RenderListener createRenderObject(BuildContext context) =>
-      _RenderListener(state);
+  _RenderListener createRenderObject(BuildContext context) {
+    final box = _RenderListener(state);
+    state._box = box;
+    return box;
+  }
 
   @override
   void updateRenderObject(BuildContext context, _RenderListener renderObject) {
     renderObject.state = state;
+    state._box = renderObject;
   }
 }
 
@@ -401,133 +449,5 @@ class _RenderListener extends RenderProxyBox {
   @override
   void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
     state._pointer(event, size);
-  }
-}
-
-/// A widget that activates when pressed, with the states of a UIKit
-/// control and no look of its own.
-///
-/// UIKit: a `UIControl` with a primary action. SwiftUI: `Button` with a
-/// plain style. Flutter: `InkWell` without the ink.
-class MotionPressable extends StatefulWidget {
-  /// Creates a pressable around [child].
-  const MotionPressable({
-    required this.onPressed,
-    required this.child,
-    this.onLongPress,
-    this.haptic,
-    this.statesController,
-    this.releaseSlop = EdgeInsets.zero,
-    super.key,
-  });
-
-  /// Called when pressed; null disables it.
-  final VoidCallback? onPressed;
-
-  /// Called when held, or null.
-  final VoidCallback? onLongPress;
-
-  /// The haptic a press plays, or null for none (a plain `UIButton` plays
-  /// none).
-  final MotionHaptic? haptic;
-
-  /// Where the pressable writes its states, or null.
-  final WidgetStatesController? statesController;
-
-  /// How far outside the widget a finger still counts as inside.
-  final EdgeInsets releaseSlop;
-
-  /// The widget pressed.
-  final Widget child;
-
-  @override
-  State<MotionPressable> createState() => _MotionPressableState();
-}
-
-class _MotionPressableState extends State<MotionPressable> {
-  late final PressInteraction _press = PressInteraction(
-    onTap: () => widget.onPressed?.call(),
-  );
-  late final LongPressInteraction _long = LongPressInteraction(
-    onStart: () => widget.onLongPress?.call(),
-  );
-
-  @override
-  Widget build(BuildContext context) {
-    _press.releaseSlop = widget.releaseSlop;
-    final interactions = widget.onLongPress == null
-        ? <Interaction>[_press]
-        : <Interaction>[_long, _press];
-    return InputRegion(
-      interactions: interactions,
-      enabled: widget.onPressed != null,
-      statesController: widget.statesController,
-      feedback: (event) => event is ActivationEvent ? widget.haptic : null,
-      child: widget.child,
-    );
-  }
-}
-
-/// Follows a finger dragging over its child, with the release velocity of
-/// the lift's own sample and the stamped time of every update.
-///
-/// UIKit: `UIPanGestureRecognizer`. SwiftUI: `DragGesture`. Flutter:
-/// `GestureDetector`'s pan callbacks.
-///
-/// Updates carry their input's motion time: drive values with
-/// `DragInteraction.track` and `DragInteraction.settle`, whose targets
-/// apply at that time.
-class MotionDragDetector extends StatefulWidget {
-  /// Creates a drag detector along [axis], or free when [axis] is null.
-  const MotionDragDetector({
-    required this.child,
-    this.axis,
-    this.slop = 10,
-    this.onStart,
-    this.onUpdate,
-    this.onEnd,
-    this.onCancel,
-    super.key,
-  });
-
-  /// The axis followed, or null for any direction.
-  final Axis? axis;
-
-  /// How far the finger travels before the drag starts.
-  final double slop;
-
-  /// Called when the drag starts.
-  final ValueChanged<DragInteractionDetails>? onStart;
-
-  /// Called on every move of a started drag.
-  final ValueChanged<DragInteractionDetails>? onUpdate;
-
-  /// Called on the release of a started drag.
-  final ValueChanged<DragInteractionDetails>? onEnd;
-
-  /// Called when a started drag ends without a release.
-  final VoidCallback? onCancel;
-
-  /// The widget dragged over.
-  final Widget child;
-
-  @override
-  State<MotionDragDetector> createState() => _MotionDragDetectorState();
-}
-
-class _MotionDragDetectorState extends State<MotionDragDetector> {
-  late final DragInteraction _drag = DragInteraction(
-    onStart: (details) => widget.onStart?.call(details),
-    onUpdate: (details) => widget.onUpdate?.call(details),
-    onEnd: (details) => widget.onEnd?.call(details),
-    onCancel: () => widget.onCancel?.call(),
-  );
-  late final List<Interaction> _interactions = [_drag];
-
-  @override
-  Widget build(BuildContext context) {
-    _drag.axis = widget.axis;
-    _drag.slop = widget.slop;
-    return InputRegion(interactions: _interactions, child: widget.child);
   }
 }

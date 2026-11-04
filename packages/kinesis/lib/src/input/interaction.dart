@@ -3,9 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/painting.dart';
-import 'package:kinesis/src/motion/band.dart';
-import 'package:kinesis/src/spring.dart';
-import 'package:kinesis/src/value.dart';
 
 /// How a region takes part in a touch that may also scroll.
 ///
@@ -234,42 +231,6 @@ final class ScrubChangeEvent extends InteractionEvent {
   final Object? selected;
 }
 
-/// Where a motion value goes after an input: a value on a spring, with
-/// the velocity it starts with.
-@immutable
-final class MotionTarget<T> {
-  /// Describes a target.
-  const MotionTarget({
-    required this.value,
-    required this.spring,
-    required this.time,
-    this.tracking = false,
-    this.velocity,
-  });
-
-  /// The value to go to.
-  final T value;
-
-  /// The spring to go on.
-  final Spring spring;
-
-  /// The input's motion time.
-  final double time;
-
-  /// Whether a finger drives the value: it follows the tracking spring.
-  final bool tracking;
-
-  /// The velocity it starts with, or null to keep its own.
-  final T? velocity;
-
-  /// Sends [motionValue] here at the input's own time.
-  void applyTo(MotionValue<T> motionValue) {
-    final v = velocity;
-    if (v != null) motionValue.setVelocity(time, v);
-    motionValue.retarget(time, value, spring: spring, tracking: tracking);
-  }
-}
-
 /// What an interaction made of an input.
 @immutable
 final class InteractionUpdate {
@@ -331,6 +292,10 @@ abstract class Interaction {
   /// while one does.
   bool get dragged => false;
 
+  /// Whether the keyboard (Space, Enter) and the accessibility tap
+  /// activate the region through this interaction ([ActivateInput]).
+  bool get activates => false;
+
   /// Answers [input].
   InteractionUpdate handle(InteractionInput input);
 
@@ -348,6 +313,12 @@ abstract class Interaction {
   /// This interaction and [other] at once, each hearing the touch when its
   /// own role does.
   Interaction simultaneously(Interaction other) => _Simultaneous(this, other);
+
+  /// This interaction, and once it recognizes, [next] too: [next] hears
+  /// the rest of the touch from a down at the moment this one recognized,
+  /// where the finger is then. A hold that opens a menu hands the finger
+  /// on to the menu's rows this way, with `InputPort.forward` as [next].
+  Interaction sequenced(Interaction next) => _Sequenced(this, next);
 }
 
 /// A press that highlights while the finger is inside and activates on a
@@ -367,11 +338,11 @@ class PressInteraction extends Interaction {
   /// How far outside the region the finger still counts as inside.
   EdgeInsets releaseSlop;
 
-  /// Called when the highlight turns on or off.
-  ValueChanged<bool>? onHighlightChanged;
+  /// Called when the highlight turns on or off, with the input's time.
+  void Function(double t, {required bool highlighted})? onHighlightChanged;
 
-  /// Called on a release inside, or an activation input.
-  VoidCallback? onTap;
+  /// Called on a release inside, or an activation input, with its time.
+  void Function(double t)? onTap;
 
   int? _pointer;
   Rect _bounds = Rect.zero;
@@ -383,10 +354,13 @@ class PressInteraction extends Interaction {
   @override
   bool get pressed => highlighted;
 
-  void _highlight(bool on) {
+  @override
+  bool get activates => true;
+
+  void _highlight(bool on, double t) {
     if (on == _inside) return;
     _inside = on;
-    onHighlightChanged?.call(on);
+    onHighlightChanged?.call(t, highlighted: on);
   }
 
   @override
@@ -400,17 +374,17 @@ class PressInteraction extends Interaction {
         if (!accepts(input)) return InteractionUpdate.none;
         _pointer = input.pointer;
         _bounds = releaseSlop.inflateRect(Offset.zero & input.regionSize);
-        _highlight(true);
+        _highlight(true, input.time);
         return InteractionUpdate(claims: role == InteractionRole.control);
       case PointerMoveInput() when input.pointer == _pointer:
-        _highlight(_bounds.contains(input.position));
+        _highlight(_bounds.contains(input.position), input.time);
         return InteractionUpdate.none;
       case PointerUpInput() when input.pointer == _pointer:
-        _highlight(_bounds.contains(input.position));
+        _highlight(_bounds.contains(input.position), input.time);
         final inside = _inside;
-        _end();
+        _end(input.time);
         if (!inside) return const InteractionUpdate(fails: true);
-        onTap?.call();
+        onTap?.call(input.time);
         return InteractionUpdate(
           recognizes: true,
           events: [
@@ -421,10 +395,10 @@ class PressInteraction extends Interaction {
           ],
         );
       case PointerCancelInput() when input.pointer == _pointer:
-        _end();
+        _end(input.time);
         return const InteractionUpdate(fails: true);
       case ActivateInput():
-        onTap?.call();
+        onTap?.call(input.time);
         return InteractionUpdate(
           events: [ActivationEvent(time: input.time, source: input.source)],
         );
@@ -433,8 +407,8 @@ class PressInteraction extends Interaction {
     }
   }
 
-  void _end() {
-    _highlight(false);
+  void _end(double t) {
+    _highlight(false, t);
     _pointer = null;
   }
 }
@@ -462,14 +436,16 @@ class LongPressInteraction extends Interaction {
   /// How far the finger may travel before the press fails.
   double allowableMovement;
 
-  /// Called when the press is recognized; it then holds the touch.
-  VoidCallback? onStart;
+  /// Called when the press is recognized, at its due time: [duration]
+  /// after contact, however late the frame that runs it. It then holds the
+  /// touch.
+  void Function(double t)? onStart;
 
   /// Called on the release after the press was recognized.
-  VoidCallback? onCommit;
+  void Function(double t)? onCommit;
 
   /// Called when a recognized press ends without a release.
-  VoidCallback? onCancel;
+  void Function(double t)? onCancel;
 
   int? _pointer;
   Offset _origin = Offset.zero;
@@ -501,12 +477,12 @@ class LongPressInteraction extends Interaction {
         final recognized = _recognized;
         _reset();
         if (!recognized) return const InteractionUpdate(fails: true);
-        onCommit?.call();
+        onCommit?.call(input.time);
         return InteractionUpdate.none;
       case PointerCancelInput() when input.pointer == _pointer:
         final recognized = _recognized;
         _reset();
-        if (recognized) onCancel?.call();
+        if (recognized) onCancel?.call(input.time);
         return const InteractionUpdate(fails: true);
       default:
         return InteractionUpdate.none;
@@ -519,7 +495,7 @@ class LongPressInteraction extends Interaction {
     if (due == null || time < due) return InteractionUpdate.none;
     _due = null;
     _recognized = true;
-    onStart?.call();
+    onStart?.call(due);
     return InteractionUpdate(
       claims: true,
       recognizes: true,
@@ -560,11 +536,14 @@ final class DragInteractionDetails {
 /// UIKit: `UIPanGestureRecognizer`. SwiftUI: `DragGesture`. Flutter:
 /// `PanGestureRecognizer`.
 ///
-/// Travel counts from past the [slop]. The drag holds the touch once it
+/// Travel counts from past the slop. The drag holds the touch once it
 /// starts, unless a scroll view around the region scrolls along its
-/// [axis]. [track] turns the travel into a target for a value, meeting a
-/// rubber band past its bounds, and [settle] projects a release with the
-/// spring's projection onto the nearest stop.
+/// [axis]. A touch that starts within [edgeZone] of the leading edge
+/// ([fromEdge]) starts past [edgeSlop], as an interactive pop does, and
+/// [mayBegin] can give a touch up while it has not started: a content
+/// swipe's funnel. Positions are mirrored when [mirrored], so the leading
+/// edge and the travel follow a right-to-left layout. Feed the travel to a
+/// `Band` and a release to a `Projection`.
 class DragInteraction extends Interaction {
   /// Creates a drag along [axis], or free when [axis] is null, past
   /// UIKit's pan hysteresis of 10 points.
@@ -572,6 +551,10 @@ class DragInteraction extends Interaction {
     super.role,
     this.axis,
     this.slop = 10,
+    this.edgeZone = 0,
+    this.edgeSlop,
+    this.mayBegin,
+    this.mirrored = false,
     this.onStart,
     this.onUpdate,
     this.onEnd,
@@ -584,6 +567,20 @@ class DragInteraction extends Interaction {
   /// How far the finger travels before the drag starts.
   double slop;
 
+  /// The share of the region's extent along [axis] (its width for a free
+  /// drag) from the leading edge where a touch counts as [fromEdge].
+  double edgeZone;
+
+  /// The slop of a touch [fromEdge]; [slop] when null.
+  double? edgeSlop;
+
+  /// Asked on every move before the drag starts, with the travel since
+  /// contact along [axis]; false gives the touch up.
+  bool Function(Offset travel)? mayBegin;
+
+  /// Whether positions are mirrored left to right.
+  bool mirrored;
+
   /// Called when the drag starts.
   ValueChanged<DragInteractionDetails>? onStart;
 
@@ -593,19 +590,28 @@ class DragInteraction extends Interaction {
   /// Called on the release of a started drag.
   ValueChanged<DragInteractionDetails>? onEnd;
 
-  /// Called when a started drag ends without a release.
-  VoidCallback? onCancel;
+  /// Called when a started drag ends without a release, with the time.
+  void Function(double t)? onCancel;
 
   int? _pointer;
   Offset _origin = Offset.zero;
+  double _width = 0;
   bool _started = false;
+  bool _fromEdge = false;
   Set<Axis> _scrollAxes = const {};
 
   /// Whether a drag has started.
   bool get started => _started;
 
+  /// Whether the touch started within [edgeZone] of the leading edge.
+  bool get fromEdge => _fromEdge;
+
   @override
   bool get dragged => _started;
+
+  double get _slop => (_fromEdge ? edgeSlop : null) ?? slop;
+
+  Offset _mirror(Offset p) => mirrored ? Offset(_width - p.dx, p.dy) : p;
 
   Offset _along(Offset delta) => switch (axis) {
     Axis.horizontal => Offset(delta.dx, 0),
@@ -614,10 +620,10 @@ class DragInteraction extends Interaction {
   };
 
   Offset _travel(Offset position) {
-    final delta = _along(position - _origin);
+    final delta = _along(_mirror(position) - _origin);
     final distance = delta.distance;
-    if (distance <= slop) return Offset.zero;
-    return delta * ((distance - slop) / distance);
+    if (distance <= _slop) return Offset.zero;
+    return delta * ((distance - _slop) / distance);
   }
 
   @override
@@ -626,9 +632,15 @@ class DragInteraction extends Interaction {
       case PointerDownInput():
         if (_pointer != null || !accepts(input)) return InteractionUpdate.none;
         _pointer = input.pointer;
-        _origin = input.position;
+        _width = input.regionSize.width;
+        _origin = _mirror(input.position);
         _started = false;
         _scrollAxes = input.scrollAxes;
+        final extent = axis == Axis.vertical
+            ? input.regionSize.height
+            : input.regionSize.width;
+        final lead = axis == Axis.vertical ? _origin.dy : _origin.dx;
+        _fromEdge = lead <= extent * edgeZone;
         return InteractionUpdate.none;
       case PointerMoveInput() when input.pointer == _pointer:
         final travel = _travel(input.position);
@@ -638,9 +650,13 @@ class DragInteraction extends Interaction {
           velocity: Offset.zero,
         );
         if (!_started) {
-          if (_along(input.position - _origin).distance <= slop) {
-            return InteractionUpdate.none;
+          final delta = _along(_mirror(input.position) - _origin);
+          final may = mayBegin;
+          if (may != null && !may(delta)) {
+            _pointer = null;
+            return const InteractionUpdate(fails: true);
           }
+          if (delta.distance <= _slop) return InteractionUpdate.none;
           _started = true;
           onStart?.call(details);
           final holds = axis == null || !_scrollAxes.contains(axis);
@@ -653,11 +669,14 @@ class DragInteraction extends Interaction {
         _pointer = null;
         _started = false;
         if (!started) return const InteractionUpdate(fails: true);
+        final velocity = input.velocity;
         onEnd?.call(
           DragInteractionDetails(
             time: input.time,
             translation: _travel(input.position),
-            velocity: _along(input.velocity),
+            velocity: _along(
+              mirrored ? Offset(-velocity.dx, velocity.dy) : velocity,
+            ),
           ),
         );
         return InteractionUpdate.none;
@@ -665,113 +684,50 @@ class DragInteraction extends Interaction {
         final started = _started;
         _pointer = null;
         _started = false;
-        if (started) onCancel?.call();
+        if (started) onCancel?.call(input.time);
         return const InteractionUpdate(fails: true);
       default:
         return InteractionUpdate.none;
     }
   }
-
-  /// The tracking target of a value grabbed at [grab] after [details]:
-  /// [grab] plus the travel along [axis], past [bounds] on a rubber band
-  /// [dimension] long.
-  static MotionTarget<double> track(
-    DragInteractionDetails details, {
-    required double grab,
-    required Spring spring,
-    required double dimension,
-    Axis axis = Axis.vertical,
-    (double, double)? bounds,
-  }) {
-    final travel = axis == Axis.horizontal
-        ? details.translation.dx
-        : details.translation.dy;
-    return MotionTarget(
-      value: _band(grab + travel, bounds, dimension),
-      spring: spring,
-      time: details.time,
-      tracking: true,
-    );
-  }
-
-  /// The settle target of a value released at [position] after
-  /// [details]: projected by the spring's projection, onto the nearest of
-  /// [stops] (or within [bounds]), starting with the finger's velocity. A
-  /// projection shorter than [minProjection] is dropped: the landing is
-  /// [position] before the stops and bounds apply.
-  static MotionTarget<double> settle(
-    DragInteractionDetails details, {
-    required double position,
-    required Spring spring,
-    Axis axis = Axis.vertical,
-    List<double> stops = const [],
-    (double, double)? bounds,
-    double minProjection = 0,
-  }) {
-    final velocity = axis == Axis.horizontal
-        ? details.velocity.dx
-        : details.velocity.dy;
-    var landing = position + velocity * spring.projection;
-    if ((landing - position).abs() < minProjection) landing = position;
-    if (stops.isNotEmpty) {
-      landing = stops.reduce(
-        (a, b) => (a - landing).abs() <= (b - landing).abs() ? a : b,
-      );
-    } else if (bounds != null) {
-      landing = landing.clamp(bounds.$1, bounds.$2);
-    }
-    return MotionTarget(
-      value: landing,
-      spring: spring,
-      time: details.time,
-      velocity: velocity,
-    );
-  }
-
-  static double _band(double p, (double, double)? bounds, double dimension) {
-    if (bounds == null) return p;
-    return Band(bounds.$1, bounds.$2, dimension: dimension).show(p);
-  }
 }
 
-/// Hold-drag-to-select: a finger moves across regions, and a release on
-/// one commits it.
+/// Hold-drag-to-select: a finger moves across what [hit] answers, and a
+/// release on one commits it.
 ///
-/// UIKit: dragging through a menu's rows. SwiftUI: none. Flutter: none.
+/// UIKit: dragging through a menu's rows or a segmented control's
+/// segments. SwiftUI: none. Flutter: none.
+///
+/// [hit] answers what lies under a position in the region's coordinates
+/// (a slot map the layout writes, a motion's row at a point), or null.
 class ScrubInteraction extends Interaction {
-  /// Creates a scrub over [regions].
+  /// Creates a scrub over what [hit] answers.
   ScrubInteraction({
+    required this.hit,
     super.role,
-    this.regions = const {},
     this.onChanged,
     this.onCommit,
   });
 
-  /// The regions by key, in the region's coordinates.
-  Map<Object, Rect> regions;
+  /// What lies under a position, or null.
+  Object? Function(Offset position) hit;
 
-  /// Called when the finger touches or moves onto another region, or off
-  /// them all; with null when the scrub is cancelled.
-  ValueChanged<Object?>? onChanged;
+  /// Called when the finger touches or moves onto something else, or off
+  /// everything, with the input's time; with null when the scrub is
+  /// cancelled.
+  void Function(Object? selected, double t)? onChanged;
 
-  /// Called with the region under a release.
-  ValueChanged<Object>? onCommit;
+  /// Called with what lies under a release, and its time.
+  void Function(Object selected, double t)? onCommit;
 
   int? _pointer;
   Object? _selected;
 
-  Object? _at(Offset position) {
-    for (final MapEntry(:key, :value) in regions.entries) {
-      if (value.contains(position)) return key;
-    }
-    return null;
-  }
-
   InteractionUpdate _select(double time, Offset position) {
-    final selected = _at(position);
+    final selected = hit(position);
     if (selected == _selected) return InteractionUpdate.none;
     _selected = selected;
-    onChanged?.call(selected);
+    onChanged?.call(selected, time);
     return InteractionUpdate(
       events: [ScrubChangeEvent(time: time, selected: selected)],
     );
@@ -789,15 +745,15 @@ class ScrubInteraction extends Interaction {
         return _select(input.time, input.position);
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
-        final selected = _at(input.position);
+        final selected = hit(input.position);
         _selected = null;
         if (selected == null) return const InteractionUpdate(fails: true);
-        onCommit?.call(selected);
+        onCommit?.call(selected, input.time);
         return const InteractionUpdate(recognizes: true);
       case PointerCancelInput() when input.pointer == _pointer:
         _pointer = null;
         _selected = null;
-        onChanged?.call(null);
+        onChanged?.call(null, input.time);
         return const InteractionUpdate(fails: true);
       default:
         return InteractionUpdate.none;
@@ -830,8 +786,9 @@ class TapInteraction extends Interaction {
   /// The longest pause between taps, in seconds.
   double interval;
 
-  /// Called when the taps complete.
-  VoidCallback? onTap;
+  /// Called when the taps complete, or on an activation input, with the
+  /// time.
+  void Function(double t)? onTap;
 
   int? _pointer;
   Offset _first = Offset.zero;
@@ -840,6 +797,9 @@ class TapInteraction extends Interaction {
 
   @override
   double? get nextDue => _due;
+
+  @override
+  bool get activates => true;
 
   @override
   InteractionUpdate handle(InteractionInput input) {
@@ -867,7 +827,7 @@ class TapInteraction extends Interaction {
           return const InteractionUpdate(claims: true);
         }
         _taps = 0;
-        onTap?.call();
+        onTap?.call(input.time);
         return InteractionUpdate(
           claims: true,
           recognizes: true,
@@ -883,7 +843,7 @@ class TapInteraction extends Interaction {
         _taps = 0;
         return const InteractionUpdate(fails: true);
       case ActivateInput():
-        onTap?.call();
+        onTap?.call(input.time);
         return InteractionUpdate(
           events: [ActivationEvent(time: input.time, source: input.source)],
         );
@@ -935,6 +895,9 @@ final class _Simultaneous extends Interaction {
   double get onset => math.min(a.onset, b.onset);
 
   @override
+  bool get activates => a.activates || b.activates;
+
+  @override
   bool accepts(PointerDownInput down) => a.accepts(down) || b.accepts(down);
 
   InteractionUpdate _both(InteractionUpdate fromA, InteractionUpdate fromB) {
@@ -976,6 +939,9 @@ final class _Exclusive extends Interaction {
 
   @override
   double get onset => a.onset;
+
+  @override
+  bool get activates => a.activates || b.activates;
 
   @override
   bool accepts(PointerDownInput down) => a.accepts(down) || b.accepts(down);
@@ -1028,11 +994,94 @@ final class _Exclusive extends Interaction {
   }
 }
 
+final class _Sequenced extends Interaction {
+  _Sequenced(this.a, this.b) : super(role: a.role);
+
+  final Interaction a;
+  final Interaction b;
+  PointerDownInput? _down;
+  Offset _latest = Offset.zero;
+  bool _handedOn = false;
+
+  @override
+  double get onset => a.onset;
+
+  @override
+  bool get activates => a.activates;
+
+  @override
+  bool accepts(PointerDownInput down) => a.accepts(down);
+
+  InteractionUpdate _fromA(InteractionUpdate update, double time) {
+    final down = _down;
+    if (!update.recognizes || _handedOn || down == null) return update;
+    _handedOn = true;
+    return _then(
+      update,
+      b.handle(
+        PointerDownInput(
+          time: time,
+          pointer: down.pointer,
+          position: _latest,
+          regionSize: down.regionSize,
+          kind: down.kind,
+          buttons: down.buttons,
+          scrollAxes: down.scrollAxes,
+        ),
+      ),
+    );
+  }
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    switch (input) {
+      case PointerDownInput():
+        _down = input;
+        _latest = input.position;
+        _handedOn = false;
+        return _fromA(a.handle(input), input.time);
+      case PointerMoveInput():
+        _latest = input.position;
+      case PointerUpInput():
+        _latest = input.position;
+      case PointerCancelInput() || PointerHoverInput() || ActivateInput():
+    }
+    final fromA = _fromA(a.handle(input), input.time);
+    if (!_handedOn || input is PointerHoverInput || input is ActivateInput) {
+      return fromA;
+    }
+    final handed = _then(fromA, b.handle(input));
+    if (input is PointerUpInput || input is PointerCancelInput) {
+      _down = null;
+      _handedOn = false;
+    }
+    return handed;
+  }
+
+  @override
+  double? get nextDue =>
+      _handedOn ? _earliest(a.nextDue, b.nextDue) : a.nextDue;
+
+  @override
+  InteractionUpdate advance(double time) {
+    final due = a.nextDue;
+    final fromA = due != null && due <= time
+        ? _fromA(a.advance(time), due)
+        : InteractionUpdate.none;
+    if (!_handedOn) return fromA;
+    final dueB = b.nextDue;
+    if (dueB == null || dueB > time) return fromA;
+    return _then(fromA, b.advance(time));
+  }
+}
+
 /// [interaction] and the interactions its relations hold.
 @internal
 Iterable<Interaction> flattenInteraction(Interaction interaction) sync* {
   switch (interaction) {
-    case _Simultaneous(:final a, :final b) || _Exclusive(:final a, :final b):
+    case _Simultaneous(:final a, :final b) ||
+        _Exclusive(:final a, :final b) ||
+        _Sequenced(:final a, :final b):
       yield* flattenInteraction(a);
       yield* flattenInteraction(b);
     default:
