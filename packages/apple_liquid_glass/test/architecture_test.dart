@@ -34,12 +34,9 @@ final _bans = <String, (RegExp, Set<String>)>{
     {'lib/src/menu/anchor.dart'},
   ),
   // A motion keeps its time on its Motion's cursor and asks its parts
-  // whether they rest; A5 (bars) and A9 (menu) move these.
+  // whether they rest.
   'a motion keeps no clock of its own': (RegExp(r'\bdouble _now\b'), {}),
-  'rest is asked of the part (restsAt)': (
-    RegExp(r'\.isWithin\('),
-    {'lib/src/menu/motion.dart'},
-  ),
+  'rest is asked of the part (restsAt)': (RegExp(r'\.isWithin\('), {}),
   'rest tolerances are MotionRest': (RegExp(r'\bGlassRest\b'), {}),
   // A renderer reads a body's field when it draws one (GlassOutline).
   'no widget asks which renderer draws it': (

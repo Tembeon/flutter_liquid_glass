@@ -720,7 +720,11 @@ void main() {
       final more = _element(motion.layout, 'More');
       motion.pointerDown(1, motion.menuRect.topLeft + more.center);
       motion.advance(1.01);
-      expect(motion.wakeTime, isNull, reason: 'the glow still moves');
+      expect(
+        motion.wakeTime,
+        moreOrLessEquals(1 + MenuTuning.standard.flexDelay),
+        reason: 'nothing moves before the flex takes up the touch',
+      );
       motion.advance(1.4);
       expect(motion.isSettled, isFalse);
       expect(

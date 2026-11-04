@@ -1143,13 +1143,19 @@ class MenuMotion extends Motion {
   }) : _button = button,
        _layoutFor = layout,
        _sourceHeight = sourceHeight ?? button.height {
-    _radius = MotionValue<double>(0, spring: tuning.openSpring);
-    _root = _build(reversed: false);
-    _rootHeight = MotionValue<double>(
-      _visibleRoot(_root),
-      spring: tuning.growSpring,
+    _radius = own(
+      MotionValue<double>(0, spring: tuning.openSpring),
+      rest: () => _progressRest,
     );
-    _cardContainer = MotionValue<double>(1, spring: tuning.cardContainerSpring);
+    _root = _build(reversed: false);
+    _rootHeight = own(
+      MotionValue<double>(_visibleRoot(_root), spring: tuning.growSpring),
+      rest: () => MotionRest.length,
+    );
+    _cardContainer = own(
+      MotionValue<double>(1, spring: tuning.cardContainerSpring),
+      rest: () => _cardContainerActive ? _cardRest : double.infinity,
+    );
     _place(1);
   }
 
@@ -1186,7 +1192,7 @@ class MenuMotion extends Motion {
       active: () => _phase == _Phase.opening,
     ),
   );
-  late MotionValue<double> _rootHeight;
+  late final MotionValue<double> _rootHeight;
   late final MotionValue<double> _cardContainer;
   bool _cardContainerActive = false;
 
@@ -1238,7 +1244,7 @@ class MenuMotion extends Motion {
   _Pointer? _pointer;
   int? _highlighted;
   int _highlightCard = 0;
-  late final TouchGlowMotion _touchGlow = tuning.touchGlow();
+  late final TouchGlowMotion _touchGlow = own(tuning.touchGlow());
 
   /// Whether a finger lights the open menu ([touchGlow]): false where its
   /// glass draws no glow (the flat tier, no painter), so the
@@ -1411,7 +1417,7 @@ class MenuMotion extends Motion {
           ? null
           : submenuLayout?.call(source);
       if (layout == null) {
-        _cards.removeRange(i, _cards.length);
+        _dropCards(i);
         _setHighlight(null, 0);
         break;
       }
@@ -1536,6 +1542,12 @@ class MenuMotion extends Motion {
     final maxBottom = _bounds.height - _padding.bottom;
     top = math.max(_padding.top, math.min(top, maxBottom - h));
     return Rect.fromLTWH(_left, top, tuning.menuWidth, h);
+  }
+
+  void _dropCards(int from) {
+    while (_cards.length > from) {
+      disown(_cards.removeLast().progress);
+    }
   }
 
   double _cardsExtra(double t) {
@@ -1686,7 +1698,7 @@ class MenuMotion extends Motion {
 
   /// The glow under a finger on the menu, centered in the motion's
   /// coordinates, or null while it does not show.
-  GlassTouchGlow? get touchGlow => _touchGlow.glowAt(_now);
+  GlassTouchGlow? get touchGlow => _touchGlow.glow;
 
   final List<MenuEvent> _events = [];
 
@@ -2148,48 +2160,22 @@ class MenuMotion extends Motion {
     );
   }
 
-  /// Whether nothing but the touch glow moves now ([isGlowing]); pending
-  /// reactions and a resting finger may still change the picture later.
-  @internal
-  bool get isStill => _still;
-
-  /// Whether the touch glow under a finger still rises, follows the finger
-  /// or fades ([touchGlow]).
-  @internal
-  bool get isGlowing {
-    _touchGlow.advance(_now);
-    return !_touchGlow.isSettled;
-  }
-
-  /// Whether all of the motion but its touch glow has settled while the
-  /// glow still moves ([isGlowing]).
-  @internal
-  bool get isGlowOnly => nextDue == null && _still && isGlowing;
-
-  /// Lands the menu's height, corners and cards on their targets at the
-  /// motion's time; a host calls it once the motion [isSettled] or only its
-  /// glow moves ([isGlowOnly]), when what remains does not show (NEAR,
-  /// invisible); the glow keeps moving. The progress keeps its
-  /// remainder, which no layout reads exactly, and so does the flex a held
-  /// finger leaves.
-  @override
-  void settle() {
-    final t = _now;
-    _radius.settle(t);
-    _rootHeight.settle(t);
-    _cardContainer.settle(t);
-    for (final card in _cards) {
-      card.progress.settle(t);
-    }
-  }
-
-  /// Whether nothing moves and nothing is pending.
+  /// Whether something besides the parts keeps the motion awake: a finger
+  /// scrolling the content, a close under way, or the kicks and the fusion
+  /// of the open menu still moving.
   ///
   /// A finger resting on the menu or its button does not keep it awake once
-  /// the glow under it has faded in: its next move or release wakes it. A
-  /// finger scrolling the content does.
+  /// the glow under it has faded in: its next move or release wakes it.
   @override
-  bool get isSettled => nextDue == null && _still && !isGlowing;
+  bool get holds {
+    if (_pointer?.scrolled ?? false) return true;
+    return switch (_phase) {
+      _Phase.closing => true,
+      _Phase.opening =>
+        !_menuKick.isAtRest || !_buttonKick.isAtRest || !_fusionAtRest(_now),
+      _Phase.idle => false,
+    };
+  }
 
   /// The motion time of the next pending event while a finger rests and
   /// nothing else moves, or null otherwise.
@@ -2201,29 +2187,7 @@ class MenuMotion extends Motion {
   /// due within a few frames, which keep coming, so a test's
   /// `pumpAndSettle` still sees them through.
   @override
-  double? get wakeTime {
-    final due = nextDue;
-    return due != null && _pointer != null && _still && !isGlowing ? due : null;
-  }
-
-  bool get _still {
-    final t = _now;
-    if (_pointer?.scrolled ?? false) return false;
-    if (_phase == _Phase.closing) return false;
-    if (!_press.restsAt(t) || !_flex.restsAt(t)) return false;
-    if (_phase == _Phase.opening) {
-      final rest = _progressRest;
-      return _progress.restsAt(t, rest) &&
-          _radius.isWithin(t, rest) &&
-          _rootHeight.isWithin(t, MotionRest.length) &&
-          (!_cardContainerActive || _cardContainer.isWithin(t, _cardRest)) &&
-          _cards.every((_Card card) => card.progress.isWithin(t, _cardRest)) &&
-          _menuKick.isAtRest &&
-          _buttonKick.isAtRest &&
-          _fusionAtRest(t);
-    }
-    return true;
-  }
+  double? get wakeTime => _pointer != null ? super.wakeTime : null;
 
   /// The target at [position] on the top card, or null.
   ///
@@ -2562,7 +2526,7 @@ class MenuMotion extends Motion {
     for (var i = _cards.length - 1; i >= 0; i--) {
       final card = _cards[i];
       if (card.backing && card.progress.valueAt(t) < tuning.cardGone) {
-        _cards.removeAt(i);
+        disown(_cards.removeAt(i).progress);
       }
     }
     if (_phase == _Phase.closing &&
@@ -2573,7 +2537,7 @@ class MenuMotion extends Motion {
       _phase = _Phase.idle;
       _highlighted = null;
       _highlightCard = 0;
-      _cards.clear();
+      _dropCards(0);
       _cardContainerActive = false;
       scrollOffset = 0;
       _menuKick.reset();
@@ -2968,7 +2932,7 @@ class MenuMotion extends Motion {
         _setHighlight(null, card + 1);
         return;
       }
-      _cards.removeLast();
+      disown(_cards.removeLast().progress);
     }
     if (_cards.length != card) return;
     final layout = submenuLayout?.call(source);
@@ -2984,7 +2948,10 @@ class MenuMotion extends Motion {
     final spring = card == 0
         ? tuning.submenuSpring
         : tuning.deeperSubmenuSpring;
-    final progress = MotionValue<double>(0, spring: spring);
+    final progress = own(
+      MotionValue<double>(0, spring: spring),
+      rest: () => _cardRest,
+    );
     progress.retarget(t, 1);
     _cards.add(
       _Card(

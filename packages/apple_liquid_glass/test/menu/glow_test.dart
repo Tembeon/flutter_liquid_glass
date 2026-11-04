@@ -126,40 +126,25 @@ void main() {
       expect(motion.touchGlow?.center, row);
     });
 
-    test('the glow of a tap fades on alone once the menu stands still', () {
+    test('the glow of a tap keeps the menu awake until it has faded', () {
       final motion = menu();
-      final twin = menu();
-      for (final m in [motion, twin]) {
-        m.dismissOnSelect = false;
-        m.open(0);
-        m.advance(1);
-        final row = m.menuRect.center;
-        m.pointerDown(1, row);
-        m.advance(1.06);
-        m.pointerUp(1.06, row);
-      }
+      motion.dismissOnSelect = false;
+      motion.open(0);
+      motion.advance(1);
+      final row = motion.menuRect.center;
+      motion.pointerDown(1, row);
+      motion.advance(1.06);
+      motion.pointerUp(1.06, row);
       var t = 1.06;
-      while (!motion.isGlowOnly && t < 3) {
-        t += 1 / 120;
-        motion.advance(t);
-      }
-      expect(motion.isGlowOnly, isTrue);
-      expect(motion.isStill, isTrue);
-      expect(motion.isSettled, isFalse);
-      expect(motion.touchGlow, isNotNull);
-      motion.settle();
-      for (final at in [t + 0.05, t + 0.1]) {
-        motion.advance(at);
-        twin.advance(at);
-        expect(motion.touchGlow, twin.touchGlow);
-        expect(motion.touchGlow, isNotNull);
-      }
+      var lit = 0.0;
       while (!motion.isSettled && t < 6) {
         t += 1 / 120;
         motion.advance(t);
+        if (motion.touchGlow != null) lit = t;
       }
       expect(motion.isSettled, isTrue);
       expect(motion.touchGlow, isNull);
+      expect(lit, greaterThan(1.5), reason: 'the glow fades on its own');
     });
 
     test('a menu whose glass shows no glow lights none and rests', () {
