@@ -229,11 +229,12 @@ abstract class MotionClock {
   @internal
   void follow(MotionFollowed value) {
     _followed.add(value);
-    final resolved = _resolved;
-    if (resolved == null) {
-      wake();
-    } else {
+    if (_resolved case final resolved?) {
       resolved.add(value);
+    } else if (_commanded case final commanded?) {
+      commanded.add(value);
+    } else {
+      wake();
     }
   }
 
@@ -247,7 +248,7 @@ abstract class MotionClock {
   /// one when it runs.
   @internal
   void markDirty(MotionDerived derived) {
-    if (_dirty.add(derived) && !_resolving) wake();
+    if (_dirty.add(derived) && !_resolving && _commanded == null) wake();
   }
 
   /// Whether the frame's resolve phase runs: after layout, before paint.
@@ -330,8 +331,39 @@ abstract class MotionClock {
     for (final value in owed) {
       value.publish(widgets: true);
     }
-    _drain(widgets: true);
+    _drainCommanded(time);
   }
+
+  // The values a listener commands while the publish phase drains, which
+  // that frame steps and publishes too.
+  Set<MotionFollowed>? _commanded;
+
+  // A listener that commands a value in the publish phase, such as a title
+  // that fades in once a scroll passes it, has it drawn in this frame.
+  void _drainCommanded(double time) {
+    for (var pass = 0; ; pass++) {
+      final commanded = _commanded = {};
+      try {
+        _drain(widgets: true);
+      } finally {
+        _commanded = null;
+      }
+      if (commanded.isEmpty) return;
+      if (pass == _commandPasses) {
+        wake();
+        return;
+      }
+      for (final value in commanded) {
+        if (!value.stepTo(time)) _followed.remove(value);
+      }
+      for (final value in commanded) {
+        value.publish(widgets: true);
+      }
+    }
+  }
+
+  // Listeners that keep commanding each other finish in the next frame.
+  static const _commandPasses = 8;
 
   /// Whether anything moves or is pending.
   @protected

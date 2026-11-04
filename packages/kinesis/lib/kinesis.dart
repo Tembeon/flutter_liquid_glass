@@ -65,8 +65,7 @@ export 'src/screen/input_region.dart' show InputRegion, MotionHapticPlay;
 export 'src/screen/layout.dart' show MotionLayout, MotionLayoutBuilder;
 export 'src/screen/measure.dart' show MotionMeasure;
 export 'src/screen/scope.dart' show MotionScope, MotionTraitsOverride;
-export 'src/screen/scroll_observer.dart'
-    show MotionScrollObserver, MotionScrollPhase;
+export 'src/screen/scroll.dart' show MotionScroll, MotionScrollPhase;
 export 'src/screen/transition.dart'
     show MotionTransition, MotionTransitionLayer;
 export 'src/selection.dart' show MotionSelection;

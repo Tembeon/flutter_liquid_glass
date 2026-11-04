@@ -1,4 +1,6 @@
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/src/motion/motion.dart';
+import 'package:kinesis/src/motion/signal.dart';
 
 /// What a scroll view's content is doing.
 ///
@@ -19,8 +21,10 @@ enum MotionScrollPhase {
   programmatic,
 }
 
-/// Follows one scroll view through the notifications it dispatches, so any
-/// scrollable reports to it without its controller being passed around.
+/// One scroll view as a motion: its metrics and phase as signals written
+/// as its notifications arrive, so a selection over it (a large title's
+/// fade, a bar that minimizes, an edge effect) follows the content without
+/// a listener of its own.
 ///
 /// UIKit: a `UIScrollView`'s delegate (`scrollViewDidScroll`).
 /// SwiftUI: `onScrollGeometryChange` with `onScrollPhaseChange`. Flutter: a
@@ -32,25 +36,32 @@ enum MotionScrollPhase {
 /// the predicate selects it. A scroll view dispatches its notifications as
 /// its offset changes, so [metrics] is current in the frame the content
 /// moved in; it is null until the scroll view has laid out and reported
-/// once, and its extents are those of the last layout. Listeners hear every
-/// change of [metrics] or [phase].
-class MotionScrollObserver extends ChangeNotifier {
-  /// Creates an observer of the scroll notifications [predicate] accepts.
-  MotionScrollObserver({this.predicate = defaultScrollNotificationPredicate});
+/// once, and its extents are those of the last layout. A selection over
+/// the scroll recomputes once per frame: a render listener hears it before
+/// that frame paints, even when the notification came during layout.
+final class MotionScroll extends Motion {
+  /// Creates the motion of the scroll view whose notifications [predicate]
+  /// accepts.
+  MotionScroll({
+    this.predicate = defaultScrollNotificationPredicate,
+    super.clock,
+  });
 
-  /// Which scroll notifications the observer follows.
+  /// Which scroll notifications the motion follows.
   final ScrollNotificationPredicate predicate;
 
-  ScrollMetrics? _metrics;
-  MotionScrollPhase _phase = MotionScrollPhase.idle;
+  late final MotionSignal<ScrollMetrics?> _metrics = own(MotionSignal(null));
+  late final MotionSignal<MotionScrollPhase> _phase = own(
+    MotionSignal(MotionScrollPhase.idle),
+  );
   ScrollPosition? _position;
 
   /// The scroll view's metrics from its latest notification, or null before
   /// its first.
-  ScrollMetrics? get metrics => _metrics;
+  ScrollMetrics? get metrics => _metrics.value;
 
   /// What the content is doing.
-  MotionScrollPhase get phase => _phase;
+  MotionScrollPhase get phase => _phase.value;
 
   /// The position of the scroll view the latest notification came from: to
   /// scroll it to its start when the status bar is tapped, say.
@@ -66,24 +77,24 @@ class MotionScrollObserver extends ChangeNotifier {
     };
     if (scroll == null || !predicate(scroll)) return false;
     final phase = notification is ScrollMetricsNotification
-        ? _phase
+        ? this.phase
         : _next(scroll);
     final metrics = scroll.metrics.copyWith();
     final context = scroll.context;
     if (context != null && context.mounted) {
       _position = Scrollable.maybeOf(context)?.position ?? _position;
     }
-    if (phase == _phase && _same(metrics, _metrics)) return false;
-    _phase = phase;
-    _metrics = metrics;
-    notifyListeners();
+    final t = clock.now;
+    if (phase != this.phase) _phase.write(t, phase);
+    if (!_same(metrics, this.metrics)) _metrics.write(t, metrics);
     return false;
   }
 
   MotionScrollPhase _next(ScrollNotification notification) {
+    final phase = this.phase;
     final user =
-        _phase == MotionScrollPhase.dragging ||
-        _phase == MotionScrollPhase.decelerating;
+        phase == MotionScrollPhase.dragging ||
+        phase == MotionScrollPhase.decelerating;
     return switch (notification) {
       ScrollStartNotification(dragDetails: _?) => MotionScrollPhase.dragging,
       ScrollStartNotification() =>
@@ -93,11 +104,11 @@ class MotionScrollObserver extends ChangeNotifier {
       ScrollUpdateNotification() || OverscrollNotification() =>
         user
             ? MotionScrollPhase.decelerating
-            : _phase == MotionScrollPhase.idle
+            : phase == MotionScrollPhase.idle
             ? MotionScrollPhase.programmatic
-            : _phase,
+            : phase,
       ScrollEndNotification() => MotionScrollPhase.idle,
-      _ => _phase,
+      _ => phase,
     };
   }
 

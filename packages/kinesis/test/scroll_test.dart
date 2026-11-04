@@ -3,13 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
 
 Widget _list(
-  MotionScrollObserver observer, {
+  MotionScroll scroll, {
   ScrollController? controller,
   int count = 50,
 }) => Directionality(
   textDirection: TextDirection.ltr,
   child: NotificationListener<Notification>(
-    onNotification: observer.handle,
+    onNotification: scroll.handle,
     child: ListView(
       controller: controller,
       children: [
@@ -21,53 +21,70 @@ Widget _list(
 
 void main() {
   testWidgets('a drag reads as dragging, its fling as decelerating, then '
-      'idle', (tester) async {
-    final observer = MotionScrollObserver();
-    addTearDown(observer.dispose);
-    await tester.pumpWidget(_list(observer));
+      'idle, and a selection hears each frame', (tester) async {
+    final scroll = MotionScroll();
+    await tester.pumpWidget(_list(scroll));
     await tester.pump();
-    expect(observer.phase, MotionScrollPhase.idle);
-    expect(observer.metrics!.pixels, 0);
+    expect(scroll.phase, MotionScrollPhase.idle);
+    expect(scroll.metrics!.pixels, 0);
+    final phase = scroll.select((s) => s.phase);
     final phases = <MotionScrollPhase>[];
-    observer.addListener(() {
-      if (phases.isEmpty || phases.last != observer.phase) {
-        phases.add(observer.phase);
-      }
-    });
-    await tester.fling(find.byType(ListView), const Offset(0, -200), 2000);
+    void heard() => phases.add(phase.value);
+    phase.addListener(heard);
+    addTearDown(() => phase.removeListener(heard));
+    await tester.timedDrag(
+      find.byType(ListView),
+      const Offset(0, -300),
+      const Duration(milliseconds: 100),
+    );
     await tester.pumpAndSettle();
     expect(phases, [
       MotionScrollPhase.dragging,
       MotionScrollPhase.decelerating,
       MotionScrollPhase.idle,
     ]);
-    expect(observer.metrics!.pixels, greaterThan(200));
-    expect(observer.metrics!.hasContentDimensions, isTrue);
+    expect(scroll.metrics!.pixels, greaterThan(200));
+    expect(scroll.metrics!.hasContentDimensions, isTrue);
+  });
+
+  testWidgets('a render listener hears a scroll before the frame paints', (
+    tester,
+  ) async {
+    final scroll = MotionScroll();
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(_list(scroll, controller: controller));
+    final pixels = scroll.select((s) => s.metrics?.pixels ?? 0);
+    final heard = <double>[];
+    void listener() => heard.add(pixels.value);
+    pixels.addRenderListener(listener);
+    addTearDown(() => pixels.removeRenderListener(listener));
+    controller.jumpTo(120);
+    await tester.pump();
+    expect(heard, [120]);
   });
 
   testWidgets('a drag released without a fling goes idle', (tester) async {
-    final observer = MotionScrollObserver();
-    addTearDown(observer.dispose);
-    await tester.pumpWidget(_list(observer));
+    final scroll = MotionScroll();
+    await tester.pumpWidget(_list(scroll));
     final gesture = await tester.startGesture(const Offset(400, 300));
     await gesture.moveBy(const Offset(0, -40));
     await gesture.moveBy(const Offset(0, -40));
     await tester.pump();
-    expect(observer.phase, MotionScrollPhase.dragging);
+    expect(scroll.phase, MotionScrollPhase.dragging);
     await tester.pump(const Duration(milliseconds: 500));
     await gesture.up();
     await tester.pumpAndSettle();
-    expect(observer.phase, MotionScrollPhase.idle);
+    expect(scroll.phase, MotionScrollPhase.idle);
   });
 
   testWidgets('the app moving the content reads as programmatic', (
     tester,
   ) async {
-    final observer = MotionScrollObserver();
+    final scroll = MotionScroll();
     final controller = ScrollController();
-    addTearDown(observer.dispose);
     addTearDown(controller.dispose);
-    await tester.pumpWidget(_list(observer, controller: controller));
+    await tester.pumpWidget(_list(scroll, controller: controller));
     controller
         .animateTo(
           300,
@@ -77,22 +94,20 @@ void main() {
         .ignore();
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
-    expect(observer.phase, MotionScrollPhase.programmatic);
+    expect(scroll.phase, MotionScrollPhase.programmatic);
     await tester.pumpAndSettle();
-    expect(observer.phase, MotionScrollPhase.idle);
-    expect(observer.metrics!.pixels, 300);
-    expect(observer.position, same(controller.position));
+    expect(scroll.phase, MotionScrollPhase.idle);
+    expect(scroll.metrics!.pixels, 300);
+    expect(scroll.position, same(controller.position));
   });
 
   testWidgets('only depth 0 is heard unless the predicate says otherwise', (
     tester,
   ) async {
-    final outer = MotionScrollObserver();
-    final inner = MotionScrollObserver(
+    final outer = MotionScroll();
+    final inner = MotionScroll(
       predicate: (notification) => notification.depth == 1,
     );
-    addTearDown(outer.dispose);
-    addTearDown(inner.dispose);
     final controller = ScrollController();
     addTearDown(controller.dispose);
     await tester.pumpWidget(
@@ -115,32 +130,30 @@ void main() {
       ),
     );
     await tester.pump();
-    var outerHeard = 0;
-    outer.addListener(() => outerHeard++);
+    final before = outer.metrics;
     controller.jumpTo(120);
     await tester.pump();
     expect(inner.metrics!.pixels, 120);
-    expect(outerHeard, 0);
+    expect(outer.metrics, same(before));
   });
 
   testWidgets('new content reports its extents without a scroll', (
     tester,
   ) async {
-    final observer = MotionScrollObserver();
-    addTearDown(observer.dispose);
+    final scroll = MotionScroll();
     Widget page(double height) => Directionality(
       textDirection: TextDirection.ltr,
       child: NotificationListener<Notification>(
-        onNotification: observer.handle,
+        onNotification: scroll.handle,
         child: SingleChildScrollView(child: SizedBox(height: height)),
       ),
     );
     await tester.pumpWidget(page(1000));
     await tester.pump();
-    expect(observer.metrics!.maxScrollExtent, 400);
+    expect(scroll.metrics!.maxScrollExtent, 400);
     await tester.pumpWidget(page(1400));
     await tester.pump();
-    expect(observer.metrics!.maxScrollExtent, 800);
-    expect(observer.phase, MotionScrollPhase.idle);
+    expect(scroll.metrics!.maxScrollExtent, 800);
+    expect(scroll.phase, MotionScrollPhase.idle);
   });
 }

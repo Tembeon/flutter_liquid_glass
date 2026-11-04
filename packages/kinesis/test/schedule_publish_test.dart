@@ -43,6 +43,18 @@ void main() {
     expect(heard, ['first', 'second']);
   });
 
+  test('a value commanded while publishing is drawn in that frame', () {
+    final clock = ManualMotionClock();
+    final title = MotionValue<double>(0, clock: clock);
+    final heard = <double>[];
+    void listener() => heard.add(title.value);
+    title.addListener(listener);
+    addTearDown(() => title.removeListener(listener));
+    clock.schedulePublish(() => title.snap(clock.now, 1));
+    clock.advanceTo(0.1);
+    expect(heard, [1]);
+  });
+
   test('a cancelled publish callback never runs', () {
     final clock = ManualMotionClock();
     var runs = 0;
