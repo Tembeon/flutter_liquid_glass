@@ -31,7 +31,7 @@ final _bans = <String, (RegExp, Set<String>)>{
   ),
   'a host steps no driver; it selects from its Motion': (
     RegExp(r'(implements|extends|with)[^{]*\bMotionDriver\b|addDriver\('),
-    {'lib/src/menu/anchor.dart'},
+    {},
   ),
   // A motion keeps its time on its Motion's cursor and asks its parts
   // whether they rest.

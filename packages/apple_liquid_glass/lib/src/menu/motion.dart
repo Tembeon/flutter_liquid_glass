@@ -23,6 +23,7 @@ class MenuTuning {
   /// Creates a tuning from explicit values.
   const MenuTuning({
     this.morph = MenuMorphSpec.standard,
+    this.dim,
     this.menuWidth = defaultMenuWidth,
     this.rowHeight = 42,
     this.verticalPadding = 10,
@@ -338,6 +339,10 @@ class MenuTuning {
 
   /// The morph tuning the menu's open and close springs come from.
   final MenuMorphSpec morph;
+
+  /// How the page under the menu dims, or null for a menu that leaves it
+  /// as it is.
+  final MenuDim? dim;
 
   /// The spring that opens the menu: the morph's eject spring at its
   /// speed.
@@ -731,8 +736,46 @@ class MenuTuning {
   static const standard = MenuTuning();
 
   /// The measured iOS 27 context menu: the menu of [standard] on the
-  /// morph of [MenuMorphSpec.context].
-  static const context = MenuTuning(morph: MenuMorphSpec.context);
+  /// morph of [MenuMorphSpec.context], dimming the page by
+  /// [MenuDim.context].
+  static const context = MenuTuning(
+    morph: MenuMorphSpec.context,
+    dim: MenuDim.context,
+  );
+}
+
+/// How the page under an open menu dims: black, alpha only, on a spring
+/// of its own that starts a delay after the menu's open or close.
+@immutable
+class MenuDim {
+  /// Creates a dim from explicit values.
+  const MenuDim({
+    required this.openSpring,
+    required this.openDelay,
+    required this.closeSpring,
+    required this.closeDelay,
+  });
+
+  /// The spring the dim comes in on.
+  final Spring openSpring;
+
+  /// Seconds from the menu's open to the dim's.
+  final double openDelay;
+
+  /// The spring the dim goes on; the menu's glass fades on it too as the
+  /// menu closes.
+  final Spring closeSpring;
+
+  /// Seconds from the menu's close to the dim's.
+  final double closeDelay;
+
+  /// The dim of an iOS 27 context menu (iPhone 16 Pro, context-menu.md).
+  static const context = MenuDim(
+    openSpring: Spring.response(0.32, dampingRatio: 0.8),
+    openDelay: 0.0145,
+    closeSpring: Spring.response(0.35, dampingRatio: 0.85),
+    closeDelay: 0.0125,
+  );
 }
 
 /// The fusion of a liquid morph's two shapes over its turns.
@@ -1273,6 +1316,25 @@ class MenuMotion extends Motion {
   int _highlightCard = 0;
   late final TouchGlowMotion _touchGlow = own(tuning.touchGlow());
 
+  late final MotionValue<double> _dim = own(
+    MotionValue<double>(0),
+    rest: () => MotionRest.opacity,
+  );
+
+  // Whether the menu's glass fades with the dim: from a close until a
+  // fresh open. UIKit fades the menu view out on the dim's close spring as
+  // it retracts (context-menu.md); a fresh open keeps it whole.
+  bool _fadesGlass = false;
+
+  /// How far the page under the menu is dimmed, 0 clear to 1 at
+  /// [MenuTuning.dim]'s full dim; 0 without a dim.
+  double get dim => _dim.valueAt(_now).clamp(0.0, 1.0);
+
+  /// How present the menu's glass is, 0 gone to 1 there: it follows [dim]
+  /// out from a close, and back in should the menu reopen before it has
+  /// gone.
+  double get glassOpacity => _fadesGlass ? dim : 1;
+
   /// Whether a finger lights the open menu ([touchGlow]): false where its
   /// glass draws no glow (the flat tier, no painter), so the
   /// menu spends no frame on a glow nobody sees.
@@ -1419,7 +1481,7 @@ class MenuMotion extends Motion {
   /// Open cards are laid out again from the targets that opened them; a
   /// card whose target is gone closes.
   void updateLayout(double t, {bool animate = true}) {
-    advance(t);
+    _take(t);
     _root = _build(reversed: _reversed);
     for (var i = 0; i < _cards.length; i++) {
       final card = _cards[i];
@@ -2259,12 +2321,13 @@ class MenuMotion extends Motion {
   /// [sourceScale] is the button's scale at that moment, which sizes the
   /// frame the menu aligns to; it defaults to the current press scale.
   void open(double t, {double? sourceScale}) {
-    advance(t);
+    _take(t);
     _open(t, sourceScale: sourceScale);
   }
 
   /// Closes the menu at time [t].
   void close(double t) {
+    changed();
     _openPending = false;
     unscheduleAll();
     _press.unscheduleAll();
@@ -2277,7 +2340,7 @@ class MenuMotion extends Motion {
   /// Chooses target [index] of the top card at time [t] as a release on
   /// it would.
   void select(double t, int index) {
-    advance(t);
+    _take(t);
     if (_phase != _Phase.opening) return;
     final card = _topCard;
     if (index < 0 || index >= _layoutOf(card).targets.length) return;
@@ -2287,7 +2350,7 @@ class MenuMotion extends Motion {
   /// Highlights target [index] of the top card at time [t], as a finger
   /// or the keyboard would; null clears the highlight.
   void highlight(double t, int? index) {
-    advance(t);
+    _take(t);
     if (_phase != _Phase.opening) return;
     _setHighlight(index, _topCard);
   }
@@ -2295,7 +2358,7 @@ class MenuMotion extends Motion {
   /// Sends the top submenu card back into its row at time [t]; returns
   /// whether there was one.
   bool back(double t) {
-    advance(t);
+    _take(t);
     if (_phase != _Phase.opening || _topCard == 0) return false;
     _back(t);
     return true;
@@ -2307,7 +2370,7 @@ class MenuMotion extends Motion {
   /// release before it left the source (a context menu's preview) keeps
   /// the menu open.
   void holdOpen(double t, Offset position) {
-    advance(t);
+    _take(t);
     final pointer = _Pointer(
       fromButton: true,
       position: position,
@@ -2319,7 +2382,7 @@ class MenuMotion extends Motion {
 
   /// A finger touched down at [position].
   void pointerDown(double t, Offset position) {
-    advance(t);
+    _take(t);
     if (_pointer != null) return;
     if (_phase == _Phase.opening) {
       final pointer = _Pointer(
@@ -2379,7 +2442,7 @@ class MenuMotion extends Motion {
 
   /// The finger moved to [position].
   void pointerMove(double t, Offset position) {
-    advance(t);
+    _take(t);
     final pointer = _pointer;
     if (pointer == null) return;
     final previous = pointer.position;
@@ -2410,7 +2473,7 @@ class MenuMotion extends Motion {
   /// The finger on the menu started to scroll its content: it no longer
   /// chooses anything.
   void pointerScrolled(double t) {
-    advance(t);
+    _take(t);
     final pointer = _pointer;
     if (pointer == null || pointer.scrolled) return;
     pointer.scrolled = true;
@@ -2420,7 +2483,7 @@ class MenuMotion extends Motion {
 
   /// The finger lifted at [position].
   void pointerUp(double t, Offset position) {
-    advance(t);
+    _take(t);
     final pointer = _pointer;
     _pointer = null;
     if (pointer == null) return;
@@ -2466,7 +2529,7 @@ class MenuMotion extends Motion {
 
   /// The touch was cancelled.
   void pointerCancel(double t) {
-    advance(t);
+    _take(t);
     final pointer = _pointer;
     _pointer = null;
     if (pointer == null) return;
@@ -2479,6 +2542,14 @@ class MenuMotion extends Motion {
   /// samples the progress, integrating the kicks over the interval. A
   /// release that closes the menu starts the close at its measured
   /// deadline. An earlier [t] changes nothing.
+  // A command advances to its time and tells the selections it may have
+  // changed what they read, the flags of the layout and the highlight
+  // included.
+  void _take(double t) {
+    advance(t);
+    changed();
+  }
+
   @override
   void advance(double t) {
     if (t < _now) return;
@@ -2712,6 +2783,10 @@ class MenuMotion extends Motion {
       _radiusFrom = _closingRadius(_progress.valueAt(t));
     }
     _phase = _Phase.opening;
+    if (tuning.dim case final dim?) {
+      if (fresh) _fadesGlass = false;
+      _dim.retarget(t, 1, spring: dim.openSpring, delay: dim.openDelay);
+    }
     if (fresh) {
       _cardContainerActive = false;
       _cardContainer.snap(t, 1);
@@ -2772,6 +2847,10 @@ class MenuMotion extends Motion {
     unschedule(_resizeSlot);
     unschedule(_cardSlot);
     _phase = _Phase.closing;
+    if (tuning.dim case final dim?) {
+      _fadesGlass = true;
+      _dim.retarget(t, 0, spring: dim.closeSpring, delay: dim.closeDelay);
+    }
     if (tuning.morph.fuses && drawsSource) {
       _fusions.start(t, opening: false);
     }

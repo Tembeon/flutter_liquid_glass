@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:apple_liquid_glass/src/geometry/boxes.dart';
 import 'package:apple_liquid_glass/src/menu/appearance.dart';
 import 'package:apple_liquid_glass/src/menu/content.dart';
+import 'package:apple_liquid_glass/src/menu/context_hold.dart';
 import 'package:apple_liquid_glass/src/menu/entries.dart';
 import 'package:apple_liquid_glass/src/menu/fusion.dart';
 import 'package:apple_liquid_glass/src/menu/layout.dart';
@@ -121,15 +122,16 @@ class MenuAnchor extends StatefulWidget {
   State<MenuAnchor> createState() => _MenuAnchorState();
 }
 
-/// The state of a widget whose menu shows on the overlay: the motion and
-/// its clock, the commands and events, the touches of the open menu.
-abstract class _MenuHost<W extends StatefulWidget> extends State<W>
-    implements MotionDriver {
+/// The state of a widget whose menu shows on the overlay: the motion, the
+/// commands and events, the touches of the open menu.
+abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
+  static final Listenable _still = Listenable.merge(const []);
+
   final _portal = OverlayPortalController(debugLabel: 'glass menu');
   late final _content = MenuContent(onChanged: _contentChanged);
-  final _frames = ValueNotifier<int>(0);
   final _showing = ValueNotifier<bool>(false);
   MenuMotion? _motion;
+  MotionSelection<MenuMotion>? _steps;
   OverlayState? _overlay;
   MenuAppearance _style = MenuAppearance.light;
   int? _pointer;
@@ -140,6 +142,10 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W>
   double get _now => MotionClock.instance.now;
 
   bool get _isOpen => _motion?.isOpen ?? false;
+
+  /// What the menu's live widgets follow: every frame that moved the
+  /// motion and every command to it.
+  Listenable get _frames => _steps ?? _still;
 
   List<GlassMenuEntry> get _entries;
   GlassMenuOrder get _order;
@@ -156,9 +162,6 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W>
   /// The color of the source's glass at rest (see [MenuAnchor.sourceTint]).
   Color? get _sourceTint => null;
 
-  /// How present the menu's glass is, 0 gone to 1 there.
-  double get _glassOpacity => 1;
-
   /// The motion of a menu opening from [source], in the overlay's
   /// coordinates.
   MenuMotion _createMotion(Rect source, Size bounds, EdgeInsets padding);
@@ -174,19 +177,12 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W>
   /// What the layer draws under the menu.
   List<Widget> _backdrop(_MenuLayerState layer) => const [];
 
-  /// Whether the host animates something of its own besides the menu.
-  bool get _ownMotion => false;
-
-  /// Steps what the host animates of its own.
-  void _stepOwn(double time) {}
-
   @override
   void initState() {
     super.initState();
     _controller?._anchor = this;
     _content.entries = _entries;
     _content.order = _order;
-    MotionClock.instance.addDriver(this);
   }
 
   /// Takes a new configuration of the host's widget.
@@ -214,42 +210,36 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W>
       _controller?._anchor = null;
     }
     _unroute();
-    MotionClock.instance.removeDriver(this);
+    _steps?.removeListener(_stepped);
     _content.dispose();
-    _frames.dispose();
     _showing.dispose();
     super.dispose();
   }
 
-  @override
-  bool get isActive => _ownMotion || !(_motion?.isSettled ?? true);
-
-  @override
-  double? get wakeTime => _ownMotion ? null : _motion?.wakeTime;
-
-  @override
-  void step(double time) {
-    _stepOwn(time);
-    final motion = _motion;
-    if (motion == null) {
-      _frames.value++;
-      return;
-    }
-    _reach(motion, math.max(time, motion.time));
-    if (motion.isSettled) motion.settle();
-    if (_early == null && !motion.isOpenPending) _unroute();
-    _frames.value++;
-    if (!motion.isPresented &&
-        motion.isSettled &&
-        !_ownMotion &&
-        _showing.value) {
-      _portal.hide();
-      _showing.value = false;
-      if (mounted) setState(() {});
-    }
+  void _adopt(MenuMotion motion) {
+    _steps?.removeListener(_stepped);
+    _hide();
+    _motion = motion;
+    final steps = _steps = MotionSelect(
+      motion,
+    ).select((m) => m, equals: (_, _) => false);
+    steps.addListener(_stepped);
   }
 
-  void _wake() => MotionClock.instance.wake(this);
+  void _stepped() {
+    final motion = _motion;
+    if (motion == null) return;
+    _deliver(motion);
+    if (_early == null && !motion.isOpenPending) _unroute();
+    if (!motion.isPresented && motion.isSettled) _hide();
+  }
+
+  void _hide() {
+    if (!_showing.value) return;
+    _portal.hide();
+    _showing.value = false;
+    if (mounted) setState(() {});
+  }
 
   void _command(
     void Function(MenuMotion motion, double t) command, {
@@ -258,14 +248,9 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W>
     final motion = _motion;
     if (motion == null) return;
     final t = at ?? _now;
-    _reach(motion, t);
-    command(motion, t);
-    _deliver(motion);
-    _wake();
-  }
-
-  void _reach(MenuMotion motion, double t) {
     motion.advance(t);
+    _deliver(motion);
+    command(motion, t);
     _deliver(motion);
   }
 
@@ -309,7 +294,9 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W>
     _command((motion, t) => motion.updateLayout(t, animate: animated));
   }
 
-  MenuMotion _prepare() {
+  /// The motion, laid out for the source where it is now and advanced to
+  /// [at] (now when null) if it is new.
+  MenuMotion _prepare({double? at}) {
     final current = _motion;
     if (current != null && current.isPresented) {
       if (current.isClosing) {
@@ -338,20 +325,18 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W>
     } else {
       motion = _createMotion(source, overlayBox.size, padding);
       motion.submenuLayout = _content.submenu;
-      motion.advance(_now);
-      _motion = motion;
+      motion.advance(at ?? _now);
+      _adopt(motion);
+      setState(() {});
     }
     motion.lightsGlow = !GlassTraits.of(context).reduceTransparency;
     return motion;
   }
 
-  void _onShow() {}
-
   void _show() {
     if (!mounted || _showing.value) return;
     _showing.value = true;
     _portal.show();
-    _onShow();
     setState(() {});
   }
 
@@ -364,7 +349,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W>
   void _close() {
     final motion = _motion;
     if (motion == null) return;
-    _command((motion, t) => motion.close(t), at: math.max(_now, motion.time));
+    _command((motion, t) => motion.close(t), at: math.max(_now, motion.now));
   }
 
   Offset _local(Offset global) {
@@ -677,7 +662,7 @@ class _MenuLayerState extends State<_MenuLayer> {
 
   _MenuHost<StatefulWidget> get _anchor => widget.anchor;
 
-  ValueListenable<int> get _frames => _anchor._frames;
+  late final Listenable _frames = _anchor._frames;
 
   MenuMotion get _motion => _anchor._motion!;
 
@@ -1230,7 +1215,7 @@ class _MenuLayerState extends State<_MenuLayer> {
               frameOf: () => _menuFrame(
                 motion,
                 sourceTint: _anchor._sourceTint,
-                opacity: _anchor._glassOpacity,
+                opacity: motion.glassOpacity,
               ),
             ),
           ),
@@ -1451,19 +1436,6 @@ class GlassContextMenu extends StatefulWidget {
   /// How the rows order in a menu that opens upward.
   final GlassMenuOrder order;
 
-  /// UIKit's growth of a held preview before its menu opens, in points
-  /// along its longest side, after [held] seconds (iPhone 16 Pro, iOS 27,
-  /// within 0.21 points of every frame).
-  @internal
-  static double holdGrowth(double held) {
-    if (held <= _growthStart) return 0;
-    if (held <= _growthKnee) return _growthFastRate * (held - _growthStart);
-    return math.min(
-      _growthKneePoints + _growthSlowRate * (held - _growthKnee),
-      _growthPoints,
-    );
-  }
-
   /// The scale of UIKit's open preview over a preview of natural [size]:
   /// 1.15 while that adds at most 26 points along its longest side, those
   /// points beyond (iPhone 16 Pro, iOS 27).
@@ -1474,46 +1446,20 @@ class GlassContextMenu extends StatefulWidget {
     return 1 + math.min(0.15 * longest, 26) / longest;
   }
 
-  static const double _growthStart = 0.184;
-  static const double _growthKnee = 0.434;
-  static const double _growthFastRate = 32;
-  static const double _growthSlowRate = 20;
-  static const double _growthPoints = 15;
-  static const double _growthKneePoints =
-      _growthFastRate * (_growthKnee - _growthStart);
-
-  /// The hold time past which a release opens the menu anyway (0.400 s
-  /// cancelled and 0.433 s opened on an iPhone 16 Pro).
-  static const double _commit = 0.42;
-
-  /// The hold time at which the menu opens under the finger.
-  static const double _hold = 0.78;
-
   @override
   State<GlassContextMenu> createState() => _ContextMenuState();
 }
 
 class _ContextMenuState extends _MenuHost<GlassContextMenu> {
-  static const _dimOpen = Spring.response(0.32, dampingRatio: 0.8);
-  static const _dimClose = Spring.response(0.35, dampingRatio: 0.85);
-  static const double _dimOpenDelay = 0.0145;
-  static const double _dimCloseDelay = 0.0125;
-
-  final _dim = MotionValue<double>(0, spring: _dimOpen);
-  ({double at, double target, Spring spring})? _dimPending;
-  double _dimTarget = 0;
-
-  // Whether the menu's glass fades with the dim: from a close until the dim
-  // is back. UIKit fades the menu view out on 0.35 / 0.85 as it retracts
-  // (context-menu.md), the dim's close spring; a fresh open keeps it whole.
-  bool _fadesGlass = false;
+  late final _hold = ContextHold(
+    onCommit: MotionHaptic.heavyImpact.play,
+    onOpen: _openUnder,
+  );
+  late final _growth = _hold.select((hold) => hold.growth);
 
   int? _held;
   Offset _from = Offset.zero;
   Offset _finger = Offset.zero;
-  double _heldSince = 0;
-  double _growth = 0;
-  bool _committed = false;
   Rect _heldRect = Rect.zero;
   Rect _previewRect = Rect.zero;
 
@@ -1610,91 +1556,34 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   }
 
   @override
-  void _onShow() {
-    _fadesGlass = false;
-    _scheduleDim(1);
+  void _stepped() {
+    super._stepped();
+    if (_motion?.isClosing ?? false) _home = _heldRect;
   }
 
-  @override
-  double get _glassOpacity =>
-      _fadesGlass ? _dim.valueAt(MotionClock.instance.now).clamp(0.0, 1.0) : 1;
-
-  void _scheduleDim(double target) {
-    if (target == _dimTarget) return;
-    _dimTarget = target;
-    final now = MotionClock.instance.now;
-    _steppedAt = now;
-    _dimPending = target == 1
-        ? (at: now + _dimOpenDelay, target: 1, spring: _dimOpen)
-        : (at: now + _dimCloseDelay, target: 0, spring: _dimClose);
-    _wake();
-  }
-
-  // The dim rests within a thousandth of its opacity, slower than a
-  // hundredth a second: beyond what the dim (48 percent at most) can show.
-  bool _dimMoving(double t) =>
-      (_dim.valueAt(t) - _dimTarget).abs() > 1e-3 ||
-      _dim.velocityAt(t).abs() > 1e-2;
-
-  // The time of the latest step: whether the dim still moves is asked
-  // there, so the clock stops on the step that saw it rest.
-  double _steppedAt = 0;
-
-  @override
-  bool get _ownMotion =>
-      _held != null || _dimPending != null || _dimMoving(_steppedAt);
-
-  @override
-  void _stepOwn(double time) {
-    _steppedAt = time;
-    final pending = _dimPending;
-    if (pending != null && time >= pending.at) {
-      _dimPending = null;
-      _dim.retarget(pending.at, pending.target, spring: pending.spring);
-    } else if (pending == null && !_dimMoving(time)) {
-      _dim.snap(time, _dimTarget);
-      if (_dimTarget == 1) _fadesGlass = false;
-    }
-    final motion = _motion;
-    if (motion != null && motion.isClosing) {
-      _fadesGlass = true;
-      _scheduleDim(0);
-      _home = _heldRect;
-    } else if (motion != null && motion.isPresented) {
-      _scheduleDim(1);
-    }
-    if (_held == null) return;
-    final held = time - _heldSince;
-    _growth = GlassContextMenu.holdGrowth(held);
-    if (!_committed && held >= GlassContextMenu._commit) {
-      _committed = true;
-      MotionHaptic.heavyImpact.play();
-    }
-    if (held >= GlassContextMenu._hold) _openUnder(_held!);
-  }
-
-  void _openUnder(int pointer) {
+  void _openUnder(double t, double growth) {
+    final pointer = _held;
     _held = null;
-    if (!mounted || !_enabled || _isOpen) return;
-    _prepare();
+    if (pointer == null || !mounted || !_enabled || _isOpen) return;
+    final motion = _prepare(at: t);
     final longest = _heldRect.size.longestSide;
-    final grown = longest <= 0 ? 1.0 : 1 + _growth / longest;
+    final grown = longest <= 0 ? 1.0 : 1 + growth / longest;
     _home = Rect.fromCenter(
       center: _heldRect.center,
       width: _heldRect.width * grown,
       height: _heldRect.height * grown,
     );
-    _growth = 0;
     _pointer = pointer;
     final local = _local(_finger);
-    _command((motion, t) => motion.holdOpen(t, local));
+    _command(
+      (motion, t) => motion.holdOpen(t, local),
+      at: math.max(t, motion.now),
+    );
   }
 
-  void _drop() {
+  void _drop(double t) {
     _held = null;
-    _committed = false;
-    _growth = 0;
-    _frames.value++;
+    _hold.release(t);
   }
 
   void _down(PointerDownEvent event) {
@@ -1708,15 +1597,15 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     _held = event.pointer;
     _from = event.position;
     _finger = event.position;
-    _heldSince = _stamp(event);
-    _committed = false;
-    _wake();
+    _hold.down(_stamp(event));
   }
 
   void _move(PointerMoveEvent event) {
     if (event.pointer == _held) {
       _finger = event.position;
-      if ((event.position - _from).distance > kTouchSlop) _drop();
+      if ((event.position - _from).distance > kTouchSlop) {
+        _drop(_stamp(event));
+      }
       return;
     }
     _pointerMove(event);
@@ -1725,11 +1614,12 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   void _up(PointerUpEvent event) {
     if (event.pointer == _held) {
       _finger = event.position;
-      if (_committed) {
-        _openUnder(event.pointer);
+      final t = _stamp(event);
+      if (_hold.isCommitted) {
+        _openUnder(t, _hold.release(t));
         _pointerUp(event);
       } else {
-        _drop();
+        _drop(t);
       }
       return;
     }
@@ -1738,7 +1628,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
 
   void _cancel(PointerCancelEvent event) {
     if (event.pointer == _held) {
-      _drop();
+      _drop(_stamp(event));
       return;
     }
     _pointerCancel(event);
@@ -1749,7 +1639,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
         ? (context.findRenderObject() as RenderBox?)?.size ?? Size.zero
         : _heldRect.size;
     final longest = size.longestSide;
-    final s = longest <= 0 ? 1.0 : 1 + _growth / longest;
+    final s = longest <= 0 ? 1.0 : 1 + _hold.growth / longest;
     return Matrix4.diagonal3Values(s, s, 1);
   }
 
@@ -1787,7 +1677,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
       IgnorePointer(
         child: LiveFade(
           live: _frames,
-          opacityOf: () => dim * _dim.valueAt(MotionClock.instance.now),
+          opacityOf: () => dim * (_motion?.dim ?? 0),
           child: const ColoredBox(color: Color(0xFF000000)),
         ),
       ),
@@ -1836,7 +1726,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
           child: ValueListenableBuilder<bool>(
             valueListenable: _showing,
             child: LiveTransform(
-              live: _frames,
+              live: _growth,
               matrixOf: _growthTransform,
               child: widget.child,
             ),
