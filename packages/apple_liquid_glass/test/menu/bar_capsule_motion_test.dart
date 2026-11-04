@@ -7,11 +7,15 @@ const _alone = Rect.fromLTWH(342, 62, 44, 44);
 
 MenuMotion _motion(Rect capsule, Offset origin, {bool alone = false}) =>
     MenuMotion(
-      button: capsule,
+      source: MenuCapsuleSource(
+        capsule: capsule,
+        item: Rect.fromCenter(center: origin, width: 44, height: 44),
+        height: 36,
+        alone: alone,
+      ),
       bounds: const Size(402, 874),
       padding: const EdgeInsets.only(top: 62, bottom: 34),
       itemCount: 4,
-      capsule: (rect: capsule, origin: origin, height: 36, alone: alone),
     );
 
 void _tap(MenuMotion motion, Offset at) {
@@ -49,6 +53,15 @@ void main() {
       motion.advance(3);
       expect(motion.menuRect.right, 394);
       expect(motion.menuRect.top, 62);
+    });
+
+    test('takes a touch on the item only, not on the rest of the capsule', () {
+      const at = Offset(255, 84);
+      final motion = _motion(_shared, at);
+      motion.pointerDown(0, const Offset(364, 84));
+      motion.pointerUp(0.05, const Offset(364, 84));
+      motion.advance(3);
+      expect(motion.isOpen, isFalse);
     });
 
     test('grows the menu from the tapped item as an 18 pt square', () {

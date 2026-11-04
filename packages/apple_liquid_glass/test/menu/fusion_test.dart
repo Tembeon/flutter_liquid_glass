@@ -155,10 +155,12 @@ void main() {
 
   test('a tall menu closing into a bottom button keeps no separate ball', () {
     final motion = MenuMotion(
-      button: Rect.fromCenter(
-        center: const Offset(201, 796),
-        width: 48,
-        height: 48,
+      source: MenuSource(
+        Rect.fromCenter(
+          center: const Offset(201, 796),
+          width: 48,
+          height: 48,
+        ),
       ),
       itemCount: 10,
       bounds: const Size(402, 874),
@@ -204,10 +206,12 @@ void main() {
 
   test('the fusion rises again on a reversal without a jump', () {
     final motion = MenuMotion(
-      button: Rect.fromCenter(
-        center: const Offset(201, 437),
-        width: 48,
-        height: 48,
+      source: MenuSource(
+        Rect.fromCenter(
+          center: const Offset(201, 437),
+          width: 48,
+          height: 48,
+        ),
       ),
       itemCount: 3,
       bounds: const Size(402, 874),
@@ -383,10 +387,12 @@ void main() {
         'too', () async {
       final clock = ManualMotionClock(frameRate: 60);
       final motion = MenuMotion(
-        button: Rect.fromCenter(
-          center: const Offset(201, 120),
-          width: 48,
-          height: 48,
+        source: MenuSource(
+          Rect.fromCenter(
+            center: const Offset(201, 120),
+            width: 48,
+            height: 48,
+          ),
         ),
         itemCount: 10,
         bounds: const Size(402, 874),
@@ -488,10 +494,12 @@ void main() {
 
     test('a motion that comes to rest leaves no fusion behind', () async {
       final motion = MenuMotion(
-        button: Rect.fromCenter(
-          center: const Offset(201, 120),
-          width: 48,
-          height: 48,
+        source: MenuSource(
+          Rect.fromCenter(
+            center: const Offset(201, 120),
+            width: 48,
+            height: 48,
+          ),
         ),
         itemCount: 10,
         bounds: const Size(402, 874),

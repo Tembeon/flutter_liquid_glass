@@ -101,7 +101,7 @@ class _Capture {
   /// was before the gesture.
   MenuMotion open({MenuTuning tuning = _device}) {
     final motion = MenuMotion(
-      button: button,
+      source: MenuSource(button),
       itemCount: 4,
       bounds: const Size(402, 874),
       padding: const EdgeInsets.only(top: 62, bottom: 34),
@@ -393,7 +393,7 @@ void main() {
 
   test('a finger resting where it touched down leaves the menu still', () {
     final motion = MenuMotion(
-      button: const Rect.fromLTWH(179, 300, 44, 44),
+      source: MenuSource(const Rect.fromLTWH(179, 300, 44, 44)),
       itemCount: 4,
       bounds: const Size(402, 874),
     );

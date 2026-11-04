@@ -5,7 +5,8 @@ import 'package:apple_liquid_glass/src/chrome/bar_entry.dart';
 import 'package:apple_liquid_glass/src/chrome/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/chrome/toolbar.dart';
 import 'package:apple_liquid_glass/src/menu/anchor.dart';
-import 'package:apple_liquid_glass/src/menu/motion.dart' show MenuCapsuleSource;
+import 'package:apple_liquid_glass/src/menu/motion.dart'
+    show MenuCapsuleSource, MenuSource;
 import 'package:apple_liquid_glass/src/motion/bar_layout.dart';
 import 'package:apple_liquid_glass/src/motion/bar_motion.dart';
 import 'package:apple_liquid_glass/src/motion/glass_press.dart';
@@ -674,15 +675,22 @@ final class _Bar {
       _menuCapsules.containsValue(_capsuleOf(item)?.id);
 
   /// What a menu of [item] grows out of, in [ancestor]'s coordinates.
-  MenuCapsuleSource? menuSource(Object item, RenderBox ancestor) {
+  MenuSource? menuSource(Object item, RenderBox ancestor) {
     final capsule = _capsuleOf(item);
     final frame = itemFrames[item];
     final box = items;
     if (capsule == null || frame == null || box == null) return null;
     final transform = box.getTransformTo(ancestor);
-    return (
-      rect: MatrixUtils.transformRect(transform, capsule.rect),
-      origin: MatrixUtils.transformPoint(transform, frame.center),
+    return MenuCapsuleSource(
+      capsule: MatrixUtils.transformRect(transform, capsule.rect),
+      item: MatrixUtils.transformRect(
+        transform,
+        Rect.fromCenter(
+          center: frame.center,
+          width: frame.size.width,
+          height: capsule.rect.height,
+        ),
+      ),
       height: metrics.buttonHeight,
       alone: capsuleItems(item).length < 2,
     );

@@ -122,7 +122,7 @@ class RawGlassMenu extends StatefulWidget {
   /// Where the menu grows out of in the coordinates of the given overlay, when
   /// that is not [child]'s box, or null to use the box.
   @internal
-  final MenuCapsuleSource? Function(RenderBox overlay)? sourceOf;
+  final MenuSource? Function(RenderBox overlay)? sourceOf;
 
   /// Told when the menu starts to show and when it has gone, for a source
   /// whose glass [child] does not draw.
@@ -180,16 +180,16 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
 
   /// Where the menu grows out of in [overlay]'s coordinates, or null for
   /// this widget's box.
-  Rect? _sourceIn(RenderBox overlay) => null;
+  MenuSource _sourceIn(RenderBox overlay, Rect box) => MenuSource(box);
 
   /// The motion of a menu opening from [source], in the overlay's
   /// coordinates.
-  MenuMotion _createMotion(Rect source, Size bounds, EdgeInsets padding);
+  MenuMotion _createMotion(MenuSource source, Size bounds, EdgeInsets padding);
 
   /// Lays a closed motion out again for [source].
   void _relayout(
     MenuMotion motion,
-    Rect source,
+    MenuSource source,
     Size bounds,
     EdgeInsets padding,
   );
@@ -318,9 +318,10 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     final overlay = _overlay = Overlay.of(context, rootOverlay: true);
     final box = context.findRenderObject()! as RenderBox;
     final overlayBox = overlay.context.findRenderObject()! as RenderBox;
-    final source =
-        _sourceIn(overlayBox) ??
-        box.localToGlobal(Offset.zero, ancestor: overlayBox) & box.size;
+    final source = _sourceIn(
+      overlayBox,
+      box.localToGlobal(Offset.zero, ancestor: overlayBox) & box.size,
+    );
     final media = MediaQuery.of(context);
     final padding = media.padding.copyWith(
       bottom: math.max(media.padding.bottom, media.viewInsets.bottom),
@@ -488,13 +489,9 @@ class _RawGlassMenuState extends _MenuHost<RawGlassMenu> {
   @override
   Color? get _sourceTint => widget.tint;
 
-  MenuCapsuleSource? _capsule;
-
   @override
-  Rect? _sourceIn(RenderBox overlay) {
-    _capsule = widget.sourceOf?.call(overlay);
-    return _capsule?.rect;
-  }
+  MenuSource _sourceIn(RenderBox overlay, Rect box) =>
+      widget.sourceOf?.call(overlay) ?? MenuSource(box, radius: widget.radius);
 
   @override
   void initState() {
@@ -511,14 +508,16 @@ class _RawGlassMenuState extends _MenuHost<RawGlassMenu> {
   void _reportShowing() => widget.onShowing?.call(_showing.value);
 
   @override
-  MenuMotion _createMotion(Rect source, Size bounds, EdgeInsets padding) {
+  MenuMotion _createMotion(
+    MenuSource source,
+    Size bounds,
+    EdgeInsets padding,
+  ) {
     final motion = MenuMotion(
-      button: source,
+      source: source,
       layout: _content.root,
       bounds: bounds,
       padding: padding,
-      sourceRadius: widget.radius,
-      capsule: _capsule,
       tuning: widget.tuning,
     );
     motion.opensOnTap = widget.onPressed == null;
@@ -528,17 +527,11 @@ class _RawGlassMenuState extends _MenuHost<RawGlassMenu> {
   @override
   void _relayout(
     MenuMotion motion,
-    Rect source,
+    MenuSource source,
     Size bounds,
     EdgeInsets padding,
   ) {
-    motion.relayout(
-      button: source,
-      bounds: bounds,
-      padding: padding,
-      sourceRadius: widget.radius,
-      capsule: _capsule,
-    );
+    motion.relayout(source: source, bounds: bounds, padding: padding);
     motion.opensOnTap = widget.onPressed == null;
   }
 
@@ -1640,34 +1633,38 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   }
 
   @override
-  MenuMotion _createMotion(Rect source, Size bounds, EdgeInsets padding) {
-    final attachment = _attach(source, bounds, padding);
+  MenuMotion _createMotion(
+    MenuSource source,
+    Size bounds,
+    EdgeInsets padding,
+  ) {
+    final attachment = _attach(source.shape, bounds, padding);
     final motion = MenuMotion(
-      button: source,
+      source: source,
       layout: _content.root,
       bounds: bounds,
       padding: padding,
       tuning: MenuTuning.context,
       attachment: attachment,
     );
-    _placePreview(motion, source);
+    _placePreview(motion, source.shape);
     return motion;
   }
 
   @override
   void _relayout(
     MenuMotion motion,
-    Rect source,
+    MenuSource source,
     Size bounds,
     EdgeInsets padding,
   ) {
     motion.relayout(
-      button: source,
+      source: source,
       bounds: bounds,
       padding: padding,
-      attachment: _attach(source, bounds, padding),
+      attachment: _attach(source.shape, bounds, padding),
     );
-    _placePreview(motion, source);
+    _placePreview(motion, source.shape);
   }
 
   void _placePreview(MenuMotion motion, Rect held) {

@@ -6,7 +6,7 @@ const _button = Rect.fromLTWH(24, 80, 44, 44);
 const _outside = Offset(350, 500);
 
 MenuMotion _motion({MenuTuning tuning = MenuTuning.standard}) => MenuMotion(
-  button: _button,
+  source: MenuSource(_button),
   bounds: const Size(402, 874),
   itemCount: 3,
   tuning: tuning,

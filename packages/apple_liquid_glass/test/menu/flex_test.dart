@@ -36,7 +36,7 @@ const _period = 1 / 30;
 
 MenuMotion _open({bool down = true}) {
   final motion = MenuMotion(
-    button: Rect.fromLTWH(179, down ? 300 : 760, 44, 44),
+    source: MenuSource(Rect.fromLTWH(179, down ? 300 : 760, 44, 44)),
     itemCount: 4,
     bounds: const Size(402, 874),
     padding: const EdgeInsets.only(top: 62, bottom: 34),

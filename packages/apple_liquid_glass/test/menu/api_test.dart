@@ -175,10 +175,12 @@ MenuMotion _motion(
   content.entries = entries;
   final motion = MenuMotion(
     tuning: tuning,
-    button: Rect.fromCenter(
-      center: const Offset(201, 150),
-      width: 48,
-      height: 48,
+    source: MenuSource(
+      Rect.fromCenter(
+        center: const Offset(201, 150),
+        width: 48,
+        height: 48,
+      ),
     ),
     layout: content.root,
     bounds: const Size(402, 874),
@@ -597,10 +599,12 @@ void main() {
       ];
       content.entries = entries();
       final motion = MenuMotion(
-        button: Rect.fromCenter(
-          center: const Offset(201, 150),
-          width: 48,
-          height: 48,
+        source: MenuSource(
+          Rect.fromCenter(
+            center: const Offset(201, 150),
+            width: 48,
+            height: 48,
+          ),
         ),
         layout: content.root,
         bounds: const Size(402, 874),
@@ -660,10 +664,12 @@ void main() {
 
     MenuMotion open(MenuContent content) {
       final motion = MenuMotion(
-        button: Rect.fromCenter(
-          center: const Offset(201, 150),
-          width: 48,
-          height: 48,
+        source: MenuSource(
+          Rect.fromCenter(
+            center: const Offset(201, 150),
+            width: 48,
+            height: 48,
+          ),
         ),
         layout: content.root,
         bounds: const Size(402, 874),

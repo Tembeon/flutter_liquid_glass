@@ -41,7 +41,7 @@ MenuMotion _motion(Size size, {double height = 208}) {
   );
   final lift = _previewScale(size);
   return MenuMotion(
-    button: held,
+    source: MenuSource(held),
     bounds: _screen,
     tuning: MenuTuning.context,
     layout: ({required bool reversed}) => MenuLayout.uniform(

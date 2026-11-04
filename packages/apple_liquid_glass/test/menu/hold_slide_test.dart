@@ -10,7 +10,7 @@ void main() {
   test('a finger held on the source opens the menu at the hold, slides '
       'into the rows and chooses the one it lifts from', () {
     final motion = MenuMotion(
-      button: _button,
+      source: MenuSource(_button),
       bounds: const Size(402, 874),
       itemCount: 4,
     );

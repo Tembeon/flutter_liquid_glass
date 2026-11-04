@@ -93,7 +93,7 @@ void main() {
     const button = Rect.fromLTWH(177, 413, 48, 48);
     MenuMotion menu() {
       final motion = MenuMotion(
-        button: button,
+        source: MenuSource(button),
         itemCount: 3,
         bounds: const Size(402, 874),
         padding: const EdgeInsets.only(top: 62, bottom: 34),

@@ -1182,16 +1182,62 @@ class MenuCard {
   final int? source;
 }
 
-/// A capsule of a bar that a menu grows out of, in an overlay's coordinates:
-/// its `rect`, the center of the tapped item as `origin`, the `height` of the
-/// items it holds, and whether that item stands in it `alone`.
+/// What a menu grows out of, in an overlay's coordinates.
 @internal
-typedef MenuCapsuleSource = ({
-  Rect rect,
-  Offset origin,
-  double height,
-  bool alone,
-});
+class MenuSource {
+  /// A button: [rect] morphs, takes the touches, and places the menu, which
+  /// grows from its center.
+  ///
+  /// [height] is the height the menu's first blob derives from, [rect]'s by
+  /// default; [radius] is the corner radius of the shape, a capsule's by
+  /// default.
+  MenuSource(Rect rect, {double? height, this.radius})
+    : shape = rect,
+      touches = rect,
+      origin = rect.center,
+      height = height ?? rect.height;
+
+  MenuSource._capsule({
+    required this.shape,
+    required this.touches,
+    required this.origin,
+    required this.height,
+  }) : radius = null;
+
+  /// The shape that morphs.
+  final Rect shape;
+
+  /// Where a touch belongs to the source.
+  final Rect touches;
+
+  /// Where the menu grows from and closes into.
+  final Offset origin;
+
+  /// The height the menu's first blob derives from.
+  final double height;
+
+  /// The corner radius of [shape]; null for a capsule's.
+  final double? radius;
+}
+
+/// A capsule of a bar: all of it morphs and shrinks to a square, while the
+/// menu grows out of the tapped item and lands where the capsule says, not
+/// where the item does (menu passport).
+@internal
+final class MenuCapsuleSource extends MenuSource {
+  /// The capsule's [capsule] rect with its tapped [item]'s slot in it.
+  ///
+  /// [alone] says that the item is the only one in the capsule.
+  MenuCapsuleSource({
+    required Rect capsule,
+    required Rect item,
+    required super.height,
+    required this.alone,
+  }) : super._capsule(shape: capsule, touches: item, origin: item.center);
+
+  /// Whether the tapped item is the only one in the capsule.
+  final bool alone;
+}
 
 /// The motion of a glass button turning into its menu and back: a pure
 /// function of the touches it is fed and the time it is advanced to.
@@ -1238,42 +1284,31 @@ typedef MenuCapsuleSource = ({
 ///
 /// What a host acts on comes out as [MenuEvent]s ([drainEvents]).
 class MenuMotion extends Motion with Presented {
-  /// Creates the motion of the button at `button` whose menu is `layout`
+  /// Creates the motion of the source `source` whose menu is `layout`
   /// (uniform rows of `itemCount` when null), inside `bounds` minus the
   /// safe-area `padding`.
   ///
   /// `layout` is asked for the content in the order it shows: reversed when the
-  /// menu opens upward. `sourceHeight` is the height of the view the menu shape
-  /// starts from; it defaults to the button's height, and a source whose glass
-  /// is taller than its frame passes its own. `sourceRadius` is the corner
-  /// radius of the source at rest; null keeps it a capsule.
+  /// menu opens upward.
   ///
   /// With an [attachment] the menu is a context menu: it stands beside the
   /// attachment's preview and grows out of the blob at the held view's
-  /// center ([MenuAttachment.blobSize]) instead of out of [button],
+  /// center ([MenuAttachment.blobSize]) instead of out of the source,
   /// along a straight line from the blob to its frame on the progress,
-  /// and no source shape is drawn ([drawsSource]). [button] is then the
+  /// and no source shape is drawn ([drawsSource]). The source is then the
   /// held view's frame, which a finger holding the menu open leaves to
   /// choose.
   ///
-  /// With a [capsule] [button] is that capsule: all of it morphs and shrinks
-  /// to a square, and the menu grows out of the tapped item (menu passport).
   MenuMotion({
-    required Rect button,
+    required this._source,
     required this._bounds,
     this._itemCount = 0,
     MenuLayout Function({required bool reversed})? layout,
     this._padding = EdgeInsets.zero,
-    double? sourceHeight,
-    this._sourceRadius,
-    MenuCapsuleSource? capsule,
     this.tuning = MenuTuning.standard,
     this._attachment,
     super.clock,
-  }) : _button = button,
-       _layoutFor = layout,
-       _capsule = capsule,
-       _sourceHeight = capsule?.height ?? sourceHeight ?? button.height {
+  }) : _layoutFor = layout {
     _radius = own(
       MotionValue<double>(0, spring: tuning.openSpring),
       rest: () => _progressRest,
@@ -1300,20 +1335,17 @@ class MenuMotion extends Motion with Presented {
   );
   final MenuLayout Function({required bool reversed})? _layoutFor;
 
-  Rect _button;
+  MenuSource _source;
   MenuAttachment? _attachment;
   Offset _shift = Offset.zero;
   final int _itemCount;
   Size _bounds;
   EdgeInsets _padding;
-  double _sourceHeight;
-  double? _sourceRadius;
-  MenuCapsuleSource? _capsule;
 
   late final MotionValue<double> _radius;
   late final GlassPress _press = own(
     GlassPress(
-      size: _button.size,
+      size: _source.shape.size,
       law: FlexLaw(stretches: false, activationDelay: tuning.pressDelay),
     ),
   );
@@ -1447,9 +1479,9 @@ class MenuMotion extends Motion with Presented {
 
   /// The blob a context menu grows out of, centered on the held view.
   Rect get _blob {
-    final size = MenuAttachment.blobSize(_button.size, menuRect.height);
+    final size = MenuAttachment.blobSize(_source.shape.size, menuRect.height);
     return Rect.fromCenter(
-      center: _button.center,
+      center: _source.shape.center,
       width: size.width,
       height: size.height,
     );
@@ -1459,7 +1491,7 @@ class MenuMotion extends Motion with Presented {
   /// the button, or a context menu's lifted preview.
   Rect get _holdArea {
     final attachment = _attachment;
-    if (attachment == null) return _button;
+    if (attachment == null) return _source.shape;
     return attachment.preview.shift(_shift);
   }
 
@@ -1493,22 +1525,17 @@ class MenuMotion extends Motion with Presented {
 
   /// Updates the geometry; ignored while the menu is shown.
   void relayout({
-    required Rect button,
+    required MenuSource source,
     required Size bounds,
     EdgeInsets padding = EdgeInsets.zero,
-    double? sourceRadius,
-    MenuCapsuleSource? capsule,
     MenuAttachment? attachment,
   }) {
     if (_phase != _Phase.idle) return;
-    _sourceRadius = sourceRadius;
-    _capsule = capsule;
     _attachment = attachment;
-    _button = button;
+    _source = source;
     _bounds = bounds;
     _padding = padding;
-    _sourceHeight = capsule?.height ?? button.height;
-    _press.size = button.size;
+    _press.size = source.shape.size;
     _root = _build(reversed: _reversed);
     _rootHeight.snap(_now, _visibleRoot(_root));
     _place(_press.scaleAt(_now));
@@ -1953,7 +1980,7 @@ class MenuMotion extends Motion with Presented {
     if (_cardContainerActive) {
       final frame = menuRect;
       final scale = contentScale;
-      final at = _growsFrom + (frame.topLeft - _growsFrom) * scale;
+      final at = _source.origin + (frame.topLeft - _source.origin) * scale;
       return Rect.fromLTWH(
         at.dx,
         at.dy,
@@ -2115,10 +2142,10 @@ class MenuMotion extends Motion with Presented {
     final p = progress;
     final w = frame.width;
     final h = frame.height;
-    final s0 = 0.5 * _sourceHeight / math.max(w, h);
+    final s0 = 0.5 * _source.height / math.max(w, h);
     final scale = s0 + (1 - s0) * p;
     final localHeight = w + (h - w) * p;
-    final from = _growsFrom;
+    final from = _source.origin;
     final to = frame.center;
     final sign = _down ? 1.0 : -1.0;
     final flex = flexed ? _flexAt(_now) : _noFlex;
@@ -2299,23 +2326,23 @@ class MenuMotion extends Motion with Presented {
     return _blobFor(root, parentScale: parentScale);
   }
 
-  Offset get _growsFrom => _capsule?.origin ?? _button.center;
-
   /// The button shape: shrinks into the menu.
   MenuBlob get buttonBlob {
     final p = progress;
     final from = _sourceScaleAt(_now);
     final scale = from + (tuning.sourceEndScale - from) * p;
-    final start = _button.center;
-    final grows = _growsFrom;
+    final start = _source.shape.center;
+    final grows = _source.origin;
     final end = grows + (menuRect.center - grows) * tuning.sourceTravel;
     final sign = _down ? 1.0 : -1.0;
     final center = start + (end - start) * p + Offset(0, sign * buttonKick);
-    final size = _button.size * scale;
+    final size = _source.shape.size * scale;
     final endWidth =
-        (_capsule == null ? _button.width : _button.height) *
+        (_source is MenuCapsuleSource
+            ? _source.shape.height
+            : _source.shape.width) *
         tuning.sourceEndScale;
-    final startWidth = _button.width * from;
+    final startWidth = _source.shape.width * from;
     return MenuBlob(
       rect: Rect.fromCenter(
         center: center,
@@ -2324,10 +2351,10 @@ class MenuMotion extends Motion with Presented {
       ),
       radius: math.min(
         math.min(size.width, size.height) / 2,
-        (_sourceRadius ?? double.infinity) * scale,
+        (_source.radius ?? double.infinity) * scale,
       ),
       scale: scale,
-      localSize: _button.size,
+      localSize: _source.shape.size,
     );
   }
 
@@ -2550,13 +2577,13 @@ class MenuMotion extends Motion with Presented {
       );
       return;
     }
-    if (!_button.contains(position)) return;
+    if (!_source.touches.contains(position)) return;
     final pointer = _Pointer(
       fromButton: true,
       position: position,
     );
     _pointer = pointer;
-    _press.pointerDown(t, position - _button.topLeft);
+    _press.pointerDown(t, position - _source.shape.topLeft);
     at(t + tuning.holdDuration, (double s) {
       if (!identical(_pointer, pointer) ||
           _phase == _Phase.opening ||
@@ -2594,7 +2621,7 @@ class MenuMotion extends Motion with Presented {
     if (pointer.fromButton && !_holdArea.contains(position)) {
       pointer.leftButton = true;
       if (!pointer.openedByHold &&
-          !_button.inflate(tuning.tapSlop).contains(position)) {
+          !_source.touches.inflate(tuning.tapSlop).contains(position)) {
         pointer.holdForfeited = true;
       }
     }
@@ -2644,7 +2671,9 @@ class MenuMotion extends Motion with Presented {
     if (pointer.fromButton) {
       _press.release(t);
       if (!pointer.openedByHold) {
-        final inside = _button.inflate(tuning.tapSlop).contains(position);
+        final inside = _source.touches
+            .inflate(tuning.tapSlop)
+            .contains(position);
         if (!opensOnTap) {
           if (_phase != _Phase.opening && inside) _emit(MenuTapped(t));
           return;
@@ -2880,23 +2909,23 @@ class MenuMotion extends Motion with Presented {
 
   void _place(double sourceScale) {
     _sourceScale = sourceScale;
-    final pressed = switch (_capsule) {
-      final capsule? => Rect.fromCenter(
-        center: _button.center,
+    final pressed = switch (_source) {
+      final MenuCapsuleSource capsule => Rect.fromCenter(
+        center: _source.shape.center,
         width:
-            _button.width +
+            _source.shape.width +
             2 *
                 (_pointer?.openedByHold ?? false
                     ? tuning.capsuleHoldLanding
                     : capsule.alone
                     ? tuning.capsuleAloneLanding
                     : tuning.capsuleSharedLanding),
-        height: _button.height,
+        height: _source.shape.height,
       ),
-      null => Rect.fromCenter(
-        center: _button.center,
-        width: _button.width * sourceScale,
-        height: _button.height * sourceScale,
+      _ => Rect.fromCenter(
+        center: _source.shape.center,
+        width: _source.shape.width * sourceScale,
+        height: _source.shape.height * sourceScale,
       ),
     };
     final height = _visibleRoot(_root);

@@ -155,16 +155,18 @@ class _Replay {
 
   MenuMotion motion({double? close}) {
     final motion = MenuMotion(
-      button: Rect.fromCenter(
-        center: buttonCenter,
-        width: buttonSize.width,
-        height: buttonSize.height,
+      source: MenuSource(
+        Rect.fromCenter(
+          center: buttonCenter,
+          width: buttonSize.width,
+          height: buttonSize.height,
+        ),
+        height: sourceHeight,
       ),
       itemCount: ((height - 2 * _tuning.verticalPadding) / _tuning.rowHeight)
           .round(),
       bounds: _screen,
       padding: _safeArea,
-      sourceHeight: sourceHeight,
     );
     motion.advance(openStart - 0.5);
     motion.open(openStart, sourceScale: sourceScale);
@@ -488,10 +490,12 @@ void main() {
     final capture = _Capture.load('center3-reopen-stroke.jsonl', dir: _device);
     final first = capture.frames.first;
     final motion = MenuMotion(
-      button: Rect.fromCenter(
-        center: Offset(_d(first, 'S_px'), _d(first, 'S_py')),
-        width: _d(first, 'S_bw'),
-        height: _d(first, 'S_bh'),
+      source: MenuSource(
+        Rect.fromCenter(
+          center: Offset(_d(first, 'S_px'), _d(first, 'S_py')),
+          width: _d(first, 'S_bw'),
+          height: _d(first, 'S_bh'),
+        ),
       ),
       itemCount: 3,
       bounds: const Size(402, 874),
@@ -538,10 +542,12 @@ void main() {
         double openDelay,
       ) {
         final motion = MenuMotion(
-          button: Rect.fromCenter(
-            center: replay.buttonCenter,
-            width: replay.buttonSize.width,
-            height: replay.buttonSize.height,
+          source: MenuSource(
+            Rect.fromCenter(
+              center: replay.buttonCenter,
+              width: replay.buttonSize.width,
+              height: replay.buttonSize.height,
+            ),
           ),
           itemCount: 3,
           bounds: const Size(402, 874),
@@ -653,10 +659,12 @@ void main() {
 
   test('the driven kicks follow the recorded kicks of a 146 pixel menu', () {
     MenuMotion motion() => MenuMotion(
-      button: Rect.fromCenter(
-        center: const Offset(195, 422),
-        width: 48,
-        height: 48,
+      source: MenuSource(
+        Rect.fromCenter(
+          center: const Offset(195, 422),
+          width: 48,
+          height: 48,
+        ),
       ),
       itemCount: 3,
       bounds: _screen,
@@ -744,10 +752,12 @@ void main() {
 
   test('a close during the open carries the velocity', () {
     final motion = MenuMotion(
-      button: Rect.fromCenter(
-        center: const Offset(195, 422),
-        width: 48,
-        height: 48,
+      source: MenuSource(
+        Rect.fromCenter(
+          center: const Offset(195, 422),
+          width: 48,
+          height: 48,
+        ),
       ),
       itemCount: 3,
       bounds: _screen,
@@ -770,10 +780,12 @@ void main() {
 
   test('the glyph leaves early and the content unfolds with the drop', () {
     final motion = MenuMotion(
-      button: Rect.fromCenter(
-        center: const Offset(195, 422),
-        width: 48,
-        height: 48,
+      source: MenuSource(
+        Rect.fromCenter(
+          center: const Offset(195, 422),
+          width: 48,
+          height: 48,
+        ),
       ),
       itemCount: 3,
       bounds: _screen,
@@ -862,7 +874,7 @@ void main() {
         in placements.entries) {
       test(name, () {
         final motion = MenuMotion(
-          button: button,
+          source: MenuSource(button),
           itemCount: rows,
           bounds: screen,
           padding: safe,
