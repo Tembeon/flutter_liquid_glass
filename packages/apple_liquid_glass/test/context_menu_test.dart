@@ -3,7 +3,6 @@ import 'package:apple_liquid_glass/src/surface/surface.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/motion.dart';
 
 const _held = Key('held');
 

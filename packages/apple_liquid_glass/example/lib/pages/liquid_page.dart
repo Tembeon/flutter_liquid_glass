@@ -10,7 +10,6 @@ import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
 
 /// Glass drops floating over a drifting wallpaper. A finger lifts a drop and
 /// drags it; drops that come close fuse into one body, and a released drop

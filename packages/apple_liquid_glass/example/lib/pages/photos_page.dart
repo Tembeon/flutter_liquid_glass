@@ -6,7 +6,6 @@ import 'package:apple_liquid_glass_example/widgets.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
 
 /// A photo library: every photo zooms into its own page, which shrinks back
 /// into the grid when it closes. Scrolling down tucks the tab bar away.

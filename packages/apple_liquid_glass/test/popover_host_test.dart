@@ -7,7 +7,7 @@ import 'package:apple_liquid_glass/src/presentations/popover_shape.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/motion.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: the glass
 // shades its outline's field, which only Impeller's compositor draws.

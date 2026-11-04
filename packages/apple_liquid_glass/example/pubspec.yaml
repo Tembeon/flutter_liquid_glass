@@ -16,6 +16,7 @@ dependencies:
   flutter:
     sdk: flutter
   kinesis: ^0.1.0-dev.1
+  liquid_glass_renderer: ^1.0.0-dev.2
 
 dev_dependencies:
   flutter_test:

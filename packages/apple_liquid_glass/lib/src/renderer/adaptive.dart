@@ -5,7 +5,7 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:meta/meta.dart';
 
 /// Draws with [capable] where full glass runs well and with [fallback]
-/// elsewhere, as `LiquidGlass.precache` finds it once per run.
+/// elsewhere, as `GlassRenderer.precache` finds it once per run.
 @internal
 final class AdaptiveGlassRenderer extends GlassRenderer {
   /// Creates an adaptive renderer.
@@ -20,7 +20,7 @@ final class AdaptiveGlassRenderer extends GlassRenderer {
   static LiquidGlassSupport? _support;
   static Future<LiquidGlassSupport>? _loading;
 
-  /// Forgets what `LiquidGlass.precache` found, for tests.
+  /// Forgets what `GlassRenderer.precache` found, for tests.
   @visibleForTesting
   static void debugReset() {
     _support = null;

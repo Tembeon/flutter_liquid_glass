@@ -6,6 +6,6 @@ import 'package:flutter/widgets.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  unawaited(LiquidGlass.precache());
+  unawaited(GlassRenderer.precache());
   runApp(const GalleryApp());
 }

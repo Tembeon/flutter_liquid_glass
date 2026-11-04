@@ -7,7 +7,7 @@ import 'package:apple_liquid_glass/src/renderer/flat.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/motion.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 Widget _app(GlassRenderer renderer, Widget child) => Directionality(
   textDirection: TextDirection.ltr,

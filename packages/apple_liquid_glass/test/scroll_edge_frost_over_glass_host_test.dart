@@ -12,7 +12,7 @@ import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/motion.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 
 const _key = ValueKey('page');

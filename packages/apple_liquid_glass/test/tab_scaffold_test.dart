@@ -2,7 +2,6 @@ import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/renderer/scroll_edge.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/motion.dart';
 
 Widget _app(Widget child) => MediaQuery(
   data: const MediaQueryData(

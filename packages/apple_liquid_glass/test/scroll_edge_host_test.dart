@@ -4,7 +4,6 @@ import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/motion.dart';
 
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: the band
 // reads its backdrop through a seed and a blur, which only Impeller's

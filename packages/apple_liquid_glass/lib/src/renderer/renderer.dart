@@ -7,6 +7,7 @@ import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/group.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// How every glass surface is drawn: real glass, fake glass, one flat look
 /// or an app's own, chosen by the app or its user in `GlassTheme` and
@@ -34,12 +35,22 @@ abstract class GlassRenderer {
   const factory GlassRenderer.flat() = FlatGlassRenderer;
 
   /// Draws with [capable] on a device whose GPU draws full glass well, and
-  /// with [fallback] on any other, as `LiquidGlass.precache` finds it once
-  /// per run; [capable] draws until it has.
+  /// with [fallback] on any other, as [precache] finds it once per run;
+  /// [capable] draws until it has.
   const factory GlassRenderer.adaptive({
     required GlassRenderer capable,
     required GlassRenderer fallback,
   }) = AdaptiveGlassRenderer;
+
+  /// Loads the glass shaders and finds whether this device draws full
+  /// glass, ahead of the first glass frame; it may be awaited before
+  /// `runApp`. With [warmUp] it also draws every glass pipeline once,
+  /// offscreen, which spares the first frame after an install a stall on a
+  /// mid-range Android phone and costs every launch. Failures are reported
+  /// through `FlutterError`, never thrown; calling it again does nothing.
+  static Future<void> precache({bool warmUp = false}) async {
+    await LiquidGlass.precache(warmUp: warmUp);
+  }
 
   /// Builds the surface [details] describes.
   Widget buildSurface(BuildContext context, GlassSurfaceDetails details);

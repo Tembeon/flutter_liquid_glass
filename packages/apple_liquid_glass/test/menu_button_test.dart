@@ -6,7 +6,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/motion.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 const _titles = ['Copy', 'Share', 'Rename', 'Move', 'Delete'];
 

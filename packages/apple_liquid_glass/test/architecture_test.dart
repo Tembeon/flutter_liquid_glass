@@ -104,4 +104,62 @@ void main() {
     }
     expect(offenders, isEmpty);
   });
+
+  group('public libraries', () {
+    final export = RegExp(
+      r'''export\s+'([^']+)'\s*(show\s+([^;]*))?;''',
+      multiLine: true,
+    );
+    final libraries = Directory(
+      'lib',
+    ).listSync().whereType<File>().where((file) => file.path.endsWith('.dart'));
+
+    test('export their own files by show lists only', () {
+      final offenders = <String>[];
+      for (final library in libraries) {
+        for (final match in export.allMatches(library.readAsStringSync())) {
+          final uri = match.group(1)!;
+          if (uri.startsWith('package:kinesis/')) continue;
+          if (uri.startsWith('package:') || match.group(2) == null) {
+            offenders.add('${library.path}: $uri');
+          }
+        }
+      }
+      expect(offenders, isEmpty);
+    });
+
+    test('show no internal name', () {
+      final offenders = <String>[];
+      for (final library in libraries) {
+        for (final match in export.allMatches(library.readAsStringSync())) {
+          final names = match.group(3);
+          if (names == null) continue;
+          final source = File('lib/${match.group(1)}').readAsStringSync();
+          for (final name in names.split(',').map((name) => name.trim())) {
+            final declared = RegExp(
+              r'((?:^@\w+(?:\([^)]*\))?\n)*)^[^\n/]*?'
+              '(?:class|enum|typedef|mixin|extension)\\s+$name\\b',
+              multiLine: true,
+            ).firstMatch(source);
+            if (declared?.group(1)?.contains('@internal') ?? false) {
+              offenders.add('${library.path}: $name');
+            }
+          }
+        }
+      }
+      expect(offenders, isEmpty);
+    });
+
+    test('the renderer seam is only in glass_renderer.dart', () {
+      final main = File('lib/apple_liquid_glass.dart').readAsStringSync();
+      for (final name in [
+        'package:liquid_glass_renderer',
+        'GlassSurfaceDetails',
+        'GlassGroupDetails',
+        'GlassScrollEdgeDetails',
+      ]) {
+        expect(main.contains(name), isFalse, reason: name);
+      }
+    });
+  });
 }
