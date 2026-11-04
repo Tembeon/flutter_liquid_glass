@@ -30,10 +30,11 @@ class _GridListSectionState extends State<GridListSection> {
   ];
 
   final _layout = LayoutMotion();
-  final _frames = <(Object, GlassShape), MotionSelection<GlassFrame>>{};
+  final _frames = <(Key, GlassShape), MotionSelection<GlassFrame>>{};
   var _arrangement = _Arrangement.grid;
 
-  MotionSelection<GlassFrame> _frameOf(Object id, GlassShape shape) =>
+  // The layout knows each tile by its key.
+  MotionSelection<GlassFrame> _frameOf(Key id, GlassShape shape) =>
       _frames[(id, shape)] ??= _layout.select((layout) {
         final box = layout.laidOut(id);
         if (box == null) return GlassFrame(shape: shape);
@@ -115,7 +116,7 @@ class _GridListSectionState extends State<GridListSection> {
             key: ValueKey(title),
             size: size,
             child: _Tile(
-              frame: _frameOf(title, shape),
+              frame: _frameOf(ValueKey(title), shape),
               child: grid
                   ? Column(
                       mainAxisAlignment: MainAxisAlignment.center,

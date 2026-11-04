@@ -106,9 +106,8 @@ void main() {
     expect(find.text('Books'), findsNothing);
   });
 
-  testWidgets('a tapped chip moves to the front; the grid becomes a list', (
-    tester,
-  ) async {
+  testWidgets('a tapped chip moves to the front; the grid springs into a '
+      'list', (tester) async {
     await _open(tester);
     await _show(tester, find.text('Replay'));
     final first = tester.getTopLeft(find.text('Flutter'));
@@ -124,9 +123,13 @@ void main() {
     await _show(tester, find.text('Rain'));
     final grid = tester.getCenter(find.text('Rain'));
     await tester.tap(find.bySemanticsLabel('List'));
+    await _frames(tester, 4);
+    final flying = tester.getCenter(find.text('Rain'));
     await _frames(tester, 90);
     final list = tester.getCenter(find.text('Rain'));
     expect(list, isNot(grid));
+    expect((flying - grid).distance, greaterThan(2));
+    expect((flying - list).distance, greaterThan(2));
   });
 
   testWidgets('the peek opens from its button, drags down and comes back '
