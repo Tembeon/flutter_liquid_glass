@@ -230,8 +230,16 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
   late final _blur = MotionSelection(
     () => _reduceMotion ? 0.0 : _Metrics.hiddenBlur * (1 - _opacity.value),
   );
-  final _scroll = ValueNotifier<MotionScrollObserver?>(null);
-  ValueNotifier<MotionScrollObserver?>? _active;
+  ValueNotifier<MotionScroll?>? _active;
+  MotionScroll? _scroll;
+  MotionSelection<ScrollMetrics?>? _metrics;
+  MotionSelection<double>? _scrolledBy;
+  final _followed = _Followed();
+  late final MotionSelection<double> _offset = _followed.select(
+    (m) => m.offset.value,
+  );
+  MotionSelection<double>? _away;
+  double? _awayDelay;
   bool _reduceMotion = false;
   bool _laidOut = false;
   GlassPageBarLink? _link;
@@ -276,8 +284,8 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     }
     _withdrawLater();
     _active?.removeListener(_follow);
-    _scroll.value?.removeListener(_scrolled);
-    _scroll.dispose();
+    _metrics?.removeRenderListener(_scrolled);
+    _scrolledBy?.removeRenderListener(_moved);
     super.dispose();
   }
 
@@ -292,19 +300,48 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     });
   }
 
+  // How far the content has scrolled from its start.
+  static double _offsetIn(ScrollMetrics? metrics) {
+    if (metrics == null || !metrics.hasContentDimensions) return 0;
+    return metrics.pixels - metrics.minScrollExtent;
+  }
+
+  // The scroll view the bar follows changes during a build, so the bar
+  // follows it without building: its offset feeds the bar's own.
   void _follow() {
     final next = _active?.value;
-    final previous = _scroll.value;
-    if (identical(next, previous)) return;
-    previous?.removeListener(_scrolled);
-    next?.addListener(_scrolled);
-    _scroll.value = next;
+    if (identical(next, _scroll)) return;
+    _metrics?.removeRenderListener(_scrolled);
+    _scrolledBy?.removeRenderListener(_moved);
+    _scroll = next;
+    final metrics = _metrics = next?.select((s) => s.metrics);
+    metrics?.addRenderListener(_scrolled);
+    final scrolledBy = _scrolledBy = next?.select((s) => _offsetIn(s.metrics));
+    scrolledBy?.addRenderListener(_moved);
+    _moved();
     _laidOut = false;
     _scrolled();
   }
 
+  void _moved() => _followed.offset.write(
+    MotionClock.instance.now,
+    _scrolledBy?.value ?? 0,
+  );
+
+  // The large title moves with the content once a stacked search field
+  // has folded away.
+  MotionSelection<double> _awayAfter(double delay) {
+    final away = _away;
+    if (away != null && delay == _awayDelay) return away;
+    _awayDelay = delay;
+    return _away = _followed.select((m) {
+      final o = m.offset.value;
+      return o < 0 ? -o : -math.max<double>(0, o - delay);
+    });
+  }
+
   void _scrolled() {
-    final metrics = _scroll.value?.metrics;
+    final metrics = _scroll?.metrics;
     final laidOut = metrics != null && metrics.hasContentDimensions;
     final shown =
         widget.largeTitle == null ||
@@ -317,7 +354,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     if (_title.target == target) return;
     final now = MotionClock.instance.now;
     // A jump of the content switches the title at once, as UIKit does.
-    final moving = _scroll.value?.position?.isScrollingNotifier.value ?? false;
+    final moving = _scroll?.position?.isScrollingNotifier.value ?? false;
     if (appears || _reduceMotion || !moving) {
       _title.snap(now, target);
     } else {
@@ -420,8 +457,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
           SizedBox(
             height: GlassNavigationBar.largeTitleHeight,
             child: _ScrollAway(
-              scroll: _scroll,
-              delay: widget._search,
+              shift: _awayAfter(widget._search),
               child: Padding(
                 padding: const EdgeInsetsDirectional.only(
                   start: _Metrics.largeTitleInset,
@@ -453,7 +489,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
         if (widget.searchField case final field?)
           _StackedSearch(
             field: field,
-            scroll: _scroll,
+            offset: _offset,
             travel:
                 GlassNavigationBar.height +
                 (largeTitle == null ? 0 : GlassNavigationBar.largeTitleHeight),
@@ -559,132 +595,42 @@ class _TitleLayout extends SingleChildLayoutDelegate {
       !identical(room, oldDelegate.room) || direction != oldDelegate.direction;
 }
 
+// The content offset of whichever scroll view the bar follows.
+final class _Followed extends Motion {
+  late final MotionSignal<double> offset = own(MotionSignal(0));
+}
+
 /// A large title that scrolls away with the content: it paints its child
 /// moved by the content's offset and cut off at its own top, following the
 /// scroll view without building or laying out.
-class _ScrollAway extends SingleChildRenderObjectWidget {
-  const _ScrollAway({
-    required this.scroll,
-    required this.delay,
-    required super.child,
-  });
+class _ScrollAway extends StatelessWidget {
+  const _ScrollAway({required this.shift, required this.child});
 
-  final ValueListenable<MotionScrollObserver?> scroll;
-
-  // How far the content scrolls before the title moves: a stacked search
-  // field folds away first.
-  final double delay;
+  final ValueListenable<double> shift;
+  final Widget child;
 
   @override
-  _RenderScrollAway createRenderObject(BuildContext context) =>
-      _RenderScrollAway(scroll, delay);
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    _RenderScrollAway renderObject,
-  ) {
-    renderObject.scroll = scroll;
-    renderObject.delay = delay;
-  }
+  Widget build(BuildContext context) => IgnorePointer(
+    child: ClipRect(
+      clipper: const _BelowItsTop(),
+      child: MotionTransition(translateY: shift, child: child),
+    ),
+  );
 }
 
-class _RenderScrollAway extends RenderProxyBox {
-  _RenderScrollAway(this._scroll, this._delay);
+// Pushed up, the title goes under the row above; pulled down, it follows
+// the content below its area.
+class _BelowItsTop extends CustomClipper<Rect> {
+  const _BelowItsTop();
 
-  double _delay;
-  double get delay => _delay;
-  set delay(double value) {
-    if (value == _delay) return;
-    _delay = value;
-    markNeedsPaint();
-  }
-
-  final _clip = LayerHandle<ClipRectLayer>();
-  MotionScrollObserver? _observer;
-
-  ValueListenable<MotionScrollObserver?> _scroll;
-  ValueListenable<MotionScrollObserver?> get scroll => _scroll;
-  set scroll(ValueListenable<MotionScrollObserver?> value) {
-    if (identical(value, _scroll)) return;
-    if (attached) _unlisten();
-    _scroll = value;
-    if (attached) _listen();
-    markNeedsPaint();
-  }
-
-  void _listen() {
-    _scroll.addListener(_observe);
-    _observe();
-  }
-
-  void _unlisten() {
-    _scroll.removeListener(_observe);
-    _observer?.removeListener(markNeedsPaint);
-    _observer = null;
-  }
-
-  void _observe() {
-    _observer?.removeListener(markNeedsPaint);
-    _observer = _scroll.value;
-    _observer?.addListener(markNeedsPaint);
-    markNeedsPaint();
-  }
+  static const double _below = 10000;
 
   @override
-  void attach(PipelineOwner owner) {
-    super.attach(owner);
-    _listen();
-  }
+  Rect getClip(Size size) =>
+      Rect.fromLTRB(0, 0, size.width, size.height + _below);
 
   @override
-  void detach() {
-    _unlisten();
-    super.detach();
-  }
-
-  @override
-  void dispose() {
-    _clip.layer = null;
-    super.dispose();
-  }
-
-  double get _offset {
-    final metrics = _observer?.metrics;
-    if (metrics == null || !metrics.hasContentDimensions) return 0;
-    final offset = metrics.pixels - metrics.minScrollExtent;
-    return offset < 0 ? offset : math.max(0, offset - _delay);
-  }
-
-  @override
-  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
-      false;
-
-  @override
-  void applyPaintTransform(RenderBox child, Matrix4 transform) {
-    transform.translateByDouble(0, -_offset, 0, 1);
-  }
-
-  @override
-  void paint(PaintingContext context, Offset offset) {
-    final child = this.child;
-    if (child == null) return;
-    final shift = _offset;
-    if (shift >= size.height) {
-      _clip.layer = null;
-      return;
-    }
-    // Pulled down, the title follows the content below its area; pushed
-    // up, it goes under the row above.
-    _clip.layer = context.pushClipRect(
-      needsCompositing,
-      offset,
-      Rect.fromLTRB(0, 0, size.width, size.height + math.max(0, -shift)),
-      (context, offset) =>
-          context.paintChild(child, offset.translate(0, -shift)),
-      oldLayer: _clip.layer,
-    );
-  }
+  bool shouldReclip(_BelowItsTop oldClipper) => false;
 }
 
 /// A search field stacked under the navigation bar's titles: folded away
@@ -693,13 +639,15 @@ class _RenderScrollAway extends RenderProxyBox {
 class _StackedSearch extends StatefulWidget {
   const _StackedSearch({
     required this.field,
-    required this.scroll,
+    required this.offset,
     required this.travel,
     required this.lift,
   });
 
   final Widget field;
-  final ValueListenable<MotionScrollObserver?> scroll;
+
+  // How far the content has scrolled from its start.
+  final MotionSelection<double> offset;
 
   // How far the field rises to sit under the status bar.
   final double travel;
@@ -764,7 +712,7 @@ class _StackedSearchState extends State<_StackedSearch> {
       child: _StackedLayout(
         shown: _shown,
         glass: _glass,
-        scroll: widget.scroll,
+        offset: widget.offset,
         fill: GlassDynamicColor.resolve(_StackedMetrics.fill, context),
         children: [
           SearchEnds(
@@ -843,14 +791,14 @@ class _StackedLayout extends MultiChildRenderObjectWidget {
   const _StackedLayout({
     required this.shown,
     required this.glass,
-    required this.scroll,
+    required this.offset,
     required this.fill,
     required super.children,
   });
 
   final ValueListenable<double> shown;
   final ValueListenable<double> glass;
-  final ValueListenable<MotionScrollObserver?> scroll;
+  final MotionSelection<double> offset;
   final Color fill;
 
   @override
@@ -858,7 +806,7 @@ class _StackedLayout extends MultiChildRenderObjectWidget {
       _RenderStackedLayout(
         shown: shown,
         glass: glass,
-        scroll: scroll,
+        offset: offset,
         fill: fill,
         rtl: Directionality.of(context) == TextDirection.rtl,
       );
@@ -885,15 +833,15 @@ class _RenderStackedLayout extends RenderBox
   _RenderStackedLayout({
     required this.shown,
     required this.glass,
-    required this._scroll,
+    required this._offset,
     required this._fill,
     required this._rtl,
   });
 
   final ValueListenable<double> shown;
   final ValueListenable<double> glass;
-  final ValueListenable<MotionScrollObserver?> _scroll;
-  MotionScrollObserver? _observer;
+  final MotionSelection<double> _offset;
+
   final _layers = LayerHandle<OpacityLayer>();
   final _clip = LayerHandle<ClipRRectLayer>();
   final _closeLayer = LayerHandle<OpacityLayer>();
@@ -924,17 +872,14 @@ class _RenderStackedLayout extends RenderBox
     super.attach(owner);
     shown.addListener(markNeedsLayout);
     glass.addListener(markNeedsPaint);
-    _scroll.addListener(_observe);
-    _observe();
+    _offset.addRenderListener(markNeedsPaint);
   }
 
   @override
   void detach() {
     shown.removeListener(markNeedsLayout);
     glass.removeListener(markNeedsPaint);
-    _scroll.removeListener(_observe);
-    _observer?.removeListener(markNeedsPaint);
-    _observer = null;
+    _offset.removeRenderListener(markNeedsPaint);
     super.detach();
   }
 
@@ -946,27 +891,16 @@ class _RenderStackedLayout extends RenderBox
     super.dispose();
   }
 
-  void _observe() {
-    _observer?.removeListener(markNeedsPaint);
-    _observer = _scroll.value;
-    _observer?.addListener(markNeedsPaint);
-    markNeedsPaint();
-  }
-
-  double get _offset {
-    final metrics = _observer?.metrics;
-    if (metrics == null || !metrics.hasContentDimensions) return 0;
-    return metrics.pixels - metrics.minScrollExtent;
-  }
+  double get _scrolled => _offset.value;
 
   double get _shown => shown.value.clamp(0.0, 1.0);
 
   // How far the field has folded, 0 to its height; a presented field does
   // not fold.
   double get _fold =>
-      _offset.clamp(0.0, _StackedMetrics.fieldHeight) * (1 - _shown);
+      _scrolled.clamp(0.0, _StackedMetrics.fieldHeight) * (1 - _shown);
 
-  double get _pull => math.max(0, -_offset);
+  double get _pull => math.max(0, -_scrolled);
 
   Rect get _field {
     const side = _StackedMetrics.sideInset;

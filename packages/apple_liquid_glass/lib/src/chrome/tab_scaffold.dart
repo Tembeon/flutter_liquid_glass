@@ -54,7 +54,7 @@ class GlassTabScaffold extends StatefulWidget {
 }
 
 class _GlassTabScaffoldState extends State<GlassTabScaffold> {
-  final _active = ValueNotifier<MotionScrollObserver?>(null);
+  final _active = ValueNotifier<MotionScroll?>(null);
   final _built = <int>{};
   final _focus = <FocusScopeNode>[];
   final _searchFocus = FocusScopeNode(debugLabel: 'GlassTabScaffold search');

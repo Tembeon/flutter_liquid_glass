@@ -159,7 +159,7 @@ class GlassChrome extends InheritedWidget {
   final ChromeEdges edges;
 
   /// The scroll view the bars follow, or null for none.
-  final ValueNotifier<MotionScrollObserver?> active;
+  final ValueNotifier<MotionScroll?> active;
 
   /// The chrome around this one, such as a tab scaffold's around a page:
   /// its bars follow the same scroll view.
@@ -221,7 +221,10 @@ class GlassContentScroll extends StatefulWidget {
 }
 
 class _GlassContentScrollState extends State<GlassContentScroll> {
-  late MotionScrollObserver _observer = _observe();
+  late MotionScroll _scroll = MotionScroll(
+    predicate: widget.notificationPredicate,
+  );
+  late MotionSelection<ScrollMetrics?> _metrics;
   final _top = MotionValue<double>(
     0,
     spring: GlassContentScroll.edgeSpring,
@@ -236,12 +239,16 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
   bool _reduceMotion = false;
   bool _laidOut = false;
 
-  MotionScrollObserver _observe() {
-    final observer = MotionScrollObserver(
-      predicate: widget.notificationPredicate,
-    );
-    observer.addListener(_scrolled);
-    return observer;
+  MotionSelection<ScrollMetrics?> _follow(MotionScroll scroll) {
+    final metrics = scroll.select((s) => s.metrics);
+    metrics.addRenderListener(_scrolled);
+    return metrics;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _metrics = _follow(_scroll);
   }
 
   @override
@@ -260,8 +267,9 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.notificationPredicate != widget.notificationPredicate) {
       _release();
-      _observer.dispose();
-      _observer = _observe();
+      _metrics.removeRenderListener(_scrolled);
+      _scroll = MotionScroll(predicate: widget.notificationPredicate);
+      _metrics = _follow(_scroll);
       _claim();
     }
   }
@@ -269,7 +277,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
   @override
   void dispose() {
     _release();
-    _observer.dispose();
+    _metrics.removeRenderListener(_scrolled);
     super.dispose();
   }
 
@@ -281,24 +289,24 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !identical(chrome, _chrome)) return;
       for (GlassChrome? scope = chrome; scope != null; scope = scope.outer) {
-        scope.active.value = _observer;
+        scope.active.value = _scroll;
       }
     });
   }
 
   void _release() {
     for (var scope = _chrome; scope != null; scope = scope.outer) {
-      if (identical(scope.active.value, _observer)) scope.active.value = null;
+      if (identical(scope.active.value, _scroll)) scope.active.value = null;
     }
   }
 
-  // A glide that starts while the observer still sees a drag starts at
+  // A glide that starts while the scroll still reads as a drag starts at
   // the finger's release.
-  bool _released() => _observer.phase == MotionScrollPhase.dragging;
+  bool _released() => _scroll.phase == MotionScrollPhase.dragging;
 
   void _scrolled() {
     final after = _chrome?.edges.scrolledUnderAfter ?? 0;
-    final metrics = _observer.metrics;
+    final metrics = _scroll.metrics;
     final laidOut = metrics != null && metrics.hasContentDimensions;
     // Content under a bar when the page appears shows its effect at once.
     final appears = laidOut && !_laidOut;
@@ -311,7 +319,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
     final target = shown ? 1.0 : 0.0;
     if (presence.target == target) return;
     final now = MotionClock.instance.now;
-    final moving = _observer.position?.isScrollingNotifier.value ?? false;
+    final moving = _scroll.position?.isScrollingNotifier.value ?? false;
     if (_reduceMotion || appears || !moving) {
       presence.snap(now, target);
     } else {
@@ -362,7 +370,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
             child: widget.child,
           );
     return NotificationListener<Notification>(
-      onNotification: _observer.handle,
+      onNotification: _scroll.handle,
       child: Stack(
         fit: StackFit.passthrough,
         children: [
@@ -442,7 +450,7 @@ class GlassPageScaffold extends StatefulWidget {
 
 class _GlassPageScaffoldState extends State<GlassPageScaffold>
     with WidgetsBindingObserver {
-  final _active = ValueNotifier<MotionScrollObserver?>(null);
+  final _active = ValueNotifier<MotionScroll?>(null);
   final _statusBar = GlobalKey();
   final _lift = ValueNotifier<double>(0);
 

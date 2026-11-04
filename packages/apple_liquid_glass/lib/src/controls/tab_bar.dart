@@ -605,8 +605,9 @@ class _MinimizingBarState extends State<_MinimizingBar> {
   );
 
   double get _now => MotionClock.instance.now;
-  ValueNotifier<MotionScrollObserver?>? _active;
-  MotionScrollObserver? _observer;
+  ValueNotifier<MotionScroll?>? _active;
+  MotionScroll? _scroll;
+  MotionSelection<Object?>? _scrolling;
   MotionScrollPhase _phase = MotionScrollPhase.idle;
   Size _barSize = const Size(0, GlassTabBar.height);
 
@@ -633,27 +634,30 @@ class _MinimizingBarState extends State<_MinimizingBar> {
   @override
   void dispose() {
     _active?.removeListener(_follow);
-    _observer?.removeListener(_scrolled);
+    _scrolling?.removeRenderListener(_scrolled);
     super.dispose();
   }
 
   void _follow() {
     final next = _active?.value;
-    if (identical(next, _observer)) return;
-    _observer?.removeListener(_scrolled);
-    _observer = next;
+    if (identical(next, _scroll)) return;
+    _scrolling?.removeRenderListener(_scrolled);
+    _scroll = next;
     _phase = MotionScrollPhase.idle;
-    next?.addListener(_scrolled);
+    final scrolling = _scrolling = next?.select((s) => (s.phase, s.metrics));
+    scrolling?.addRenderListener(_scrolled);
   }
 
+  // Heard once a frame: a drag that began and went into its glide within
+  // one frame begins and ends here too.
   void _scrolled() {
-    final observer = _observer;
-    final metrics = observer?.metrics;
-    if (observer == null || metrics == null || !metrics.hasContentDimensions) {
+    final scroll = _scroll;
+    final metrics = scroll?.metrics;
+    if (scroll == null || metrics == null || !metrics.hasContentDimensions) {
       return;
     }
     final away = _body.motion.scrollAway;
-    final phase = observer.phase;
+    final phase = scroll.phase;
     final previous = _phase;
     _phase = phase;
     final offset = metrics.pixels;
@@ -664,9 +668,16 @@ class _MinimizingBarState extends State<_MinimizingBar> {
       return;
     }
     _body.motion.advance(_now);
+    final user =
+        previous == MotionScrollPhase.dragging ||
+        previous == MotionScrollPhase.decelerating;
     if (phase == MotionScrollPhase.dragging &&
         previous != MotionScrollPhase.dragging) {
       away.beginDrag();
+    }
+    if (phase == MotionScrollPhase.decelerating && !user) {
+      away.beginDrag();
+      away.endDrag(decelerates: true);
     }
     if (previous == MotionScrollPhase.dragging &&
         phase != MotionScrollPhase.dragging) {
