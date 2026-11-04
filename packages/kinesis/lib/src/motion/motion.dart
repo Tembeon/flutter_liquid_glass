@@ -149,7 +149,7 @@ abstract class Motion extends MotionPart {
       action(root._now);
       return _noCancel;
     }
-    final reaction = _Reaction(t, action, slot);
+    final reaction = _Reaction(t, action, slot, this);
     var i = root._reactions.length;
     while (i > 0 && root._reactions[i - 1].time > t) {
       i--;
@@ -165,6 +165,13 @@ abstract class Motion extends MotionPart {
   @protected
   void unschedule(Object slot) =>
       _root._reactions.removeWhere((reaction) => reaction.slot == slot);
+
+  /// Drops every pending reaction this motion scheduled, as a motion that
+  /// starts over does; those of the motions it owns stay.
+  @protected
+  void unscheduleAll() => _root._reactions.removeWhere(
+    (reaction) => identical(reaction.motion, this),
+  );
 
   /// Whether a reaction waits in [slot].
   @protected
@@ -293,11 +300,12 @@ abstract class Motion extends MotionPart {
 }
 
 final class _Reaction {
-  _Reaction(this.time, this.action, this.slot);
+  _Reaction(this.time, this.action, this.slot, this.motion);
 
   final double time;
   final void Function(double t) action;
   final Object? slot;
+  final Motion motion;
 }
 
 /// What a renderer, a transition or a widget reads of a motion.

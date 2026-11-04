@@ -18,11 +18,15 @@ class _Pair extends Motion {
 
   void drop(Object slot) => unschedule(slot);
 
+  void dropAll() => unscheduleAll();
+
   bool waits(Object slot) => isScheduled(slot);
 }
 
 class _Outer extends Motion {
   late final inner = own(_Pair());
+
+  void later(double t, void Function() action) => at(t, (_) => action());
   late final fade = own(
     MotionValue<double>(0, spring: _glow),
     rest: () => MotionRest.opacity,
@@ -67,6 +71,18 @@ void main() {
       m.drop(#land);
       m.advance(2);
       expect(m.log, [('second', 0.3)]);
+    });
+
+    test('unscheduleAll drops only the reactions the motion scheduled', () {
+      final outer = _Outer();
+      final other = _Pair();
+      outer.inner.schedule(0.2, 'mine', slot: #a);
+      outer.inner.schedule(0.3, 'mine too');
+      outer.later(0.25, () => other.log.add(('outer', 0.25)));
+      outer.inner.dropAll();
+      outer.advance(1);
+      expect(outer.inner.log, isEmpty);
+      expect(other.log, [('outer', 0.25)]);
     });
 
     test('advanceUntil stops right after the reaction that answers', () {
