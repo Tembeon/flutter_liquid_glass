@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/controls/swipe_actions.dart';
 import 'package:apple_liquid_glass/src/motion/list_highlight.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/style.dart';
@@ -259,23 +260,29 @@ class GlassListSection extends StatelessWidget {
 ///
 /// It looks like [GlassListSection]: [header], the [itemCount] rows that
 /// [itemBuilder] builds on one rounded card, [footer]. Rows are built only
-/// while they are in view, each in a layer of its own.
+/// while they are in view, each in a layer of its own. With [ids], rows
+/// insert, delete and reorder on the app's `withSpring` ([RawGlassList]).
 class GlassSliverListSection extends StatelessWidget {
   /// Creates a section of [itemCount] rows built by [itemBuilder].
   const GlassSliverListSection({
     required this.itemBuilder,
     required this.itemCount,
+    this.ids,
     this.header,
     this.footer,
     this.style,
     super.key,
-  });
+  }) : assert(ids == null || ids.length == itemCount, 'One id per row.');
 
   /// Builds the row at an index, usually a [GlassListRow].
   final IndexedWidgetBuilder itemBuilder;
 
   /// The number of rows.
   final int itemCount;
+
+  /// What identifies each row across changes of the rows, or null to
+  /// identify them by position, which animates nothing.
+  final List<Object>? ids;
 
   /// The label above the card; see [GlassListSection.header].
   final Widget? header;
@@ -291,6 +298,27 @@ class GlassSliverListSection extends StatelessWidget {
     final look = _sectionLook(context, style);
     const radius = Radius.circular(_Metrics.cornerRadius);
     final card = _resolve(look.backgroundColor, const {}, context);
+    Widget piece(BuildContext context, int i) {
+      final last = i == itemCount - 1;
+      return RepaintBoundary(
+        child: ClipRRect(
+          borderRadius: BorderRadius.vertical(
+            top: i == 0 ? radius : Radius.zero,
+            bottom: last ? radius : Radius.zero,
+          ),
+          child: ColoredBox(
+            color: card,
+            child: _RowPlace(
+              last: last,
+              look: look,
+              child: itemBuilder(context, i),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final indexOf = {for (final (i, id) in (ids ?? const []).indexed) id: i};
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: _Metrics.sectionInset),
       sliver: SliverMainAxisGroup(
@@ -298,29 +326,13 @@ class GlassSliverListSection extends StatelessWidget {
           SliverToBoxAdapter(
             child: _SectionLabel.header(look: look, label: header),
           ),
-          SliverList.builder(
-            itemCount: itemCount,
-            itemBuilder: (context, i) {
-              final first = i == 0;
-              final last = i == itemCount - 1;
-              return RepaintBoundary(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.vertical(
-                    top: first ? radius : Radius.zero,
-                    bottom: last ? radius : Radius.zero,
-                  ),
-                  child: ColoredBox(
-                    color: card,
-                    child: _RowPlace(
-                      last: last,
-                      look: look,
-                      child: itemBuilder(context, i),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
+          if (ids case final ids?)
+            RawGlassList(
+              ids: ids,
+              itemBuilder: (context, id) => piece(context, indexOf[id]!),
+            )
+          else
+            SliverList.builder(itemCount: itemCount, itemBuilder: piece),
           SliverToBoxAdapter(
             child: _SectionLabel.footer(look: look, label: footer),
           ),

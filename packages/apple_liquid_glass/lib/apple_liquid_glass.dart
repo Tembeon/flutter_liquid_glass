@@ -93,6 +93,8 @@ export 'src/controls/stepper.dart'
         GlassStepperHalf,
         GlassStepperStyle,
         RawGlassStepper;
+export 'src/controls/swipe_actions.dart'
+    show GlassSwipeAction, GlassSwipeActions, RawGlassList;
 export 'src/controls/switch.dart'
     show
         GlassSwitch,
