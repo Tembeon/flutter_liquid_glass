@@ -108,7 +108,7 @@ class _RawGlassButtonState extends State<RawGlassButton>
     PressInteraction(
       releaseSlop: const EdgeInsets.all(GlassButtonMotion.highlightSlop),
       onTap: (t) => widget.onPressed?.call(),
-    ).simultaneously(_FlexInput(_body)),
+    ).simultaneously(FollowInteraction(_body)),
   ];
 
   @override
@@ -168,7 +168,7 @@ class _RawGlassButtonState extends State<RawGlassButton>
 /// The body of a glass button: its measured motion stepped on the motion
 /// clock, published as a [GlassFrame] when it changes.
 final class _ButtonBody extends ChangeNotifier
-    implements ValueListenable<GlassFrame>, MotionDriver {
+    implements ValueListenable<GlassFrame>, MotionDriver, PointerFollower {
   _ButtonBody(this._shape) : _value = GlassFrame(shape: _shape);
 
   LiquidShape _shape;
@@ -217,61 +217,36 @@ final class _ButtonBody extends ChangeNotifier
     notifyListeners();
   }
 
-  void down(double time, Offset position, Size size) {
+  @override
+  void down(PointerDownInput input) {
+    final size = input.regionSize;
     final motion = _motion ??= GlassButtonMotion(size: size);
     motion.size = size;
     motion.reducedMotion = reducedMotion;
-    motion.pointerDown(time, position);
+    motion.pointerDown(input.time, input.position);
     MotionClock.instance.wake(this);
   }
-
-  void move(double time, Offset position) {
-    _motion?.pointerMove(time, position);
-    MotionClock.instance.wake(this);
-  }
-
-  void up(double time, Offset position) {
-    _motion?.pointerUp(time, position);
-    MotionClock.instance.wake(this);
-  }
-
-  void cancel(double time) {
-    _motion?.pointerCancel(time);
-    MotionClock.instance.wake(this);
-  }
-}
-
-/// Feeds one touch of the button to its body; the press decides what the
-/// touch does, this only follows it.
-///
-/// It hears the touch at contact even in a scroll view, which holds back
-/// only the press: UIKit's flex lifts a button in a `UIScrollView` as soon
-/// as outside one (device, glass-button passport), so a quick tap there
-/// still shows its lift.
-final class _FlexInput extends Interaction {
-  _FlexInput(this._body);
-
-  final _ButtonBody _body;
-  int? _pointer;
 
   @override
-  InteractionUpdate handle(InteractionInput input) {
-    switch (input) {
-      case PointerDownInput() when _pointer == null:
-        _pointer = input.pointer;
-        _body.down(input.time, input.position, input.regionSize);
-      case PointerMoveInput() when input.pointer == _pointer:
-        _body.move(input.time, input.position);
-      case PointerUpInput() when input.pointer == _pointer:
-        _pointer = null;
-        _body.up(input.time, input.position);
-      case PointerCancelInput() when input.pointer == _pointer:
-        _pointer = null;
-        _body.cancel(input.time);
-      default:
-    }
-    return InteractionUpdate.none;
+  void move(PointerMoveInput input) {
+    _motion?.pointerMove(input.time, input.position);
+    MotionClock.instance.wake(this);
   }
+
+  @override
+  void up(PointerUpInput input) {
+    _motion?.pointerUp(input.time, input.position);
+    MotionClock.instance.wake(this);
+  }
+
+  @override
+  void cancel(PointerCancelInput input) {
+    _motion?.pointerCancel(input.time);
+    MotionClock.instance.wake(this);
+  }
+
+  @override
+  void hover(PointerHoverInput input) {}
 }
 
 /// The look of a [GlassButton], like Flutter's `ButtonStyle`.

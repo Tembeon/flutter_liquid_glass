@@ -442,7 +442,7 @@ class _GlassListRowState extends State<GlassListRow>
     PressInteraction(
       role: InteractionRole.content,
       onTap: (t) => widget.onPressed?.call(),
-    ).simultaneously(_HighlightInput(_body)),
+    ).simultaneously(FollowInteraction(_body, role: InteractionRole.content)),
   ];
   late final List<Interaction> _accessoryInteractions = [
     PressInteraction(onTap: (t) => widget.onAccessoryPressed?.call()),
@@ -462,7 +462,7 @@ class _GlassListRowState extends State<GlassListRow>
   @override
   void didUpdateWidget(GlassListRow oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!_active) _body.cancel();
+    if (!_active) _body.clear();
   }
 
   @override
@@ -805,7 +805,7 @@ class _SectionLabel extends StatelessWidget {
 }
 
 /// The highlight of a row, stepped on the motion clock.
-final class _RowBody implements MotionDriver {
+final class _RowBody implements MotionDriver, PointerFollower {
   final ListRowHighlight _highlight = ListRowHighlight();
   final strength = ValueNotifier<double>(0);
 
@@ -825,48 +825,33 @@ final class _RowBody implements MotionDriver {
   // The region delivers a touch inside a scroll view once the scroll's
   // delay has passed, or at its release if that comes sooner, so the
   // highlight shows when the touch arrives.
-  void press(double contact, double time) {
-    _highlight.press(contact, time, delay: 0);
+  @override
+  void down(PointerDownInput input) {
+    _highlight.press(input.contactTime, input.time, delay: 0);
     MotionClock.instance.wake(this);
   }
 
-  void release(double time) {
-    _highlight.release(time);
+  @override
+  void move(PointerMoveInput input) {}
+
+  @override
+  void up(PointerUpInput input) {
+    _highlight.release(input.time);
     MotionClock.instance.wake(this);
   }
 
-  void cancel() {
+  @override
+  void cancel(PointerCancelInput input) => clear();
+
+  void clear() {
     _highlight.cancel();
     strength.value = 0;
   }
 
-  void dispose() => strength.dispose();
-}
-
-/// Feeds one touch of a row to its highlight; the press decides what the
-/// touch does, this only follows it.
-final class _HighlightInput extends Interaction {
-  _HighlightInput(this._body) : super(role: InteractionRole.content);
-
-  final _RowBody _body;
-  int? _pointer;
-
   @override
-  InteractionUpdate handle(InteractionInput input) {
-    switch (input) {
-      case PointerDownInput() when _pointer == null:
-        _pointer = input.pointer;
-        _body.press(input.contactTime, input.time);
-      case PointerUpInput() when input.pointer == _pointer:
-        _pointer = null;
-        _body.release(input.time);
-      case PointerCancelInput() when input.pointer == _pointer:
-        _pointer = null;
-        _body.cancel();
-      default:
-    }
-    return InteractionUpdate.none;
-  }
+  void hover(PointerHoverInput input) {}
+
+  void dispose() => strength.dispose();
 }
 
 /// Paints a row's highlight under it and its separator over it, following
