@@ -431,10 +431,10 @@ List<({double rms, double delay, double progress})> _reopens(String name) {
         samples.where((s) => s.t > up.t && s.t < up.t + 0.6).length < 20) {
       continue;
     }
-    MenuProgress closing(double close) {
-      final progress = MenuProgress.spring(_tuning);
-      progress.open(close - 5);
-      progress.close(close);
+    MotionValue<double> closing(double close) {
+      final progress = MotionValue<double>(0, spring: _tuning.openSpring);
+      progress.retarget(close - 5, 1, spring: _tuning.openSpring);
+      progress.retarget(close, 0, spring: _tuning.closeSpring);
       return progress;
     }
 
@@ -445,7 +445,7 @@ List<({double rms, double delay, double progress})> _reopens(String name) {
     final closed = closing(close);
     double Function(double t) reopened(double at) {
       final progress = closing(close);
-      progress.open(at);
+      progress.retarget(at, 1, spring: _tuning.openSpring);
       return (double t) => t < at ? closed.valueAt(t) : progress.valueAt(t);
     }
 

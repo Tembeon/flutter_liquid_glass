@@ -910,56 +910,6 @@ class MenuBlob {
   );
 }
 
-/// The progress of a menu morph: 0 is the button, 1 the menu.
-///
-/// [MenuMotion] reads it and asks it to open and to close; it never
-/// integrates the progress itself. [MenuProgress.spring] is the
-/// measured spring evaluated at explicit times, which makes the motion a
-/// pure function of time; a host wraps it to act on the opening, as the
-/// anchor shows its overlay.
-abstract class MenuProgress {
-  /// Creates a progress.
-  MenuProgress();
-
-  /// The measured progress spring of [tuning], evaluated in closed form:
-  /// it opens on [MenuTuning.openSpring] and closes on
-  /// [MenuTuning.closeSpring], and a reversal carries the velocity.
-  factory MenuProgress.spring(MenuTuning tuning) = _SpringProgress;
-
-  /// The progress at time [t].
-  double valueAt(double t);
-
-  /// Whether the progress's remaining swing stays below [rest] from time
-  /// [t] on.
-  bool restsWithin(double t, double rest);
-
-  /// Sends the progress toward 1 from time [t].
-  void open(double t);
-
-  /// Sends the progress toward 0 from time [t].
-  void close(double t);
-}
-
-class _SpringProgress extends MenuProgress {
-  _SpringProgress(this.tuning)
-    : _spring = MotionValue<double>(0, spring: tuning.openSpring);
-
-  final MenuTuning tuning;
-  final MotionValue<double> _spring;
-
-  @override
-  double valueAt(double t) => _spring.valueAt(t);
-
-  @override
-  bool restsWithin(double t, double rest) => _spring.isWithin(t, rest);
-
-  @override
-  void open(double t) => _spring.retarget(t, 1, spring: tuning.openSpring);
-
-  @override
-  void close(double t) => _spring.retarget(t, 0, spring: tuning.closeSpring);
-}
-
 enum _Phase { idle, opening, closing }
 
 class _Pointer {
@@ -1046,41 +996,6 @@ class _Card {
 
   /// The progress the card had when it started back to its row.
   double backFrom = 1;
-}
-
-/// A fade anchored on the progress at its start: [from] at [anchor],
-/// [to] at [end], linear in between; every reversal starts a new one
-/// from the current value, so the opacity never jumps.
-class _Fade {
-  _Fade({this.from = 1});
-
-  /// The end a fade that closes from progress [p] lands at: [end], or
-  /// nothing left when [p] is already within a twentieth of it.
-  static double closeEnd(double p, double end) => p > end + 0.05 ? end : 0;
-
-  double from;
-  double to = 1;
-  double anchor = 0;
-  double end = 1;
-
-  void start({
-    required double from,
-    required double to,
-    required double anchor,
-    required double end,
-  }) {
-    this.from = from;
-    this.to = to;
-    this.anchor = anchor;
-    this.end = end;
-  }
-
-  double at(double p) {
-    final span = anchor - end;
-    if (span.abs() < 1e-6) return to;
-    final f = ((p - end) / span).clamp(0.0, 1.0);
-    return to + (from - to) * f;
-  }
 }
 
 /// One card of a menu as drawn at the time the motion was last advanced
@@ -1206,8 +1121,7 @@ class MenuMotion extends Motion {
   /// menu opens upward. `sourceHeight` is the height of the view the menu shape
   /// starts from; it defaults to the button's height, and a source whose glass
   /// is taller than its frame passes its own. `sourceRadius` is the corner
-  /// radius of the source at rest; null keeps it a capsule. `progress` defaults
-  /// to [MenuProgress.spring] of [tuning].
+  /// radius of the source at rest; null keeps it a capsule.
   ///
   /// With an [attachment] the menu is a context menu: it stands beside the
   /// attachment's preview and grows out of the blob at the held view's
@@ -1225,12 +1139,10 @@ class MenuMotion extends Motion {
     double? sourceHeight,
     this._sourceRadius,
     this.tuning = MenuTuning.standard,
-    MenuProgress? progress,
     this._attachment,
   }) : _button = button,
        _layoutFor = layout,
-       _sourceHeight = sourceHeight ?? button.height,
-       _progress = progress ?? MenuProgress.spring(tuning) {
+       _sourceHeight = sourceHeight ?? button.height {
     _radius = MotionValue<double>(0, spring: tuning.openSpring);
     _root = _build(reversed: false);
     _rootHeight = MotionValue<double>(
@@ -1244,7 +1156,10 @@ class MenuMotion extends Motion {
   /// The measured behavior this motion reproduces.
   final MenuTuning tuning;
 
-  final MenuProgress _progress;
+  late final MotionValue<double> _progress = own(
+    MotionValue<double>(0, spring: tuning.openSpring),
+    rest: () => _progressRest,
+  );
   final MenuLayout Function({required bool reversed})? _layoutFor;
 
   Rect _button;
@@ -1278,7 +1193,7 @@ class MenuMotion extends Motion {
   late MenuLayout _root;
   bool _reversed = false;
   final List<_Card> _cards = [];
-  final _Fade _cardFade = _Fade();
+  Ramp _cardFade = const Ramp(from: 1);
   int _resizeGeneration = 0;
   int _resizePending = -1;
   double _resizeTo = 0;
@@ -1316,7 +1231,7 @@ class MenuMotion extends Motion {
   double _closeStart = 0;
   double _closeSource = 1;
   double _closeLive = 1;
-  final _Fade _contentFade = _Fade(from: 0);
+  Ramp _contentFade = const Ramp();
   int _openGeneration = 0;
   bool _openPending = false;
   ({double t, Offset position})? _earlyRelease;
@@ -1548,7 +1463,7 @@ class MenuMotion extends Motion {
       card == 0 || card > _cards.length ? _root : _cards[card - 1].layout;
 
   /// The progress of the morph at the time the motion was last advanced
-  /// to, read from its [MenuProgress]: 0 is the button, 1 the menu.
+  /// to: 0 is the button, 1 the menu.
   ///
   /// The opening spring overshoots, so the value briefly exceeds 1, and
   /// the closing one briefly dips below 0.
@@ -1806,13 +1721,13 @@ class MenuMotion extends Motion {
     bool fresh = false,
   }) {
     final p = _progress.valueAt(t + tuning.fadeLead);
-    _contentFade.start(
+    _contentFade = Ramp(
       from: from,
       to: opening ? 1 : 0,
-      anchor: opening && fresh ? tuning.contentFadeStart : p,
+      start: opening && fresh ? tuning.contentFadeStart : p,
       end: opening
           ? tuning.contentFadeEnd
-          : _Fade.closeEnd(p, tuning.contentCloseFadeEnd),
+          : _closeEnd(p, tuning.contentCloseFadeEnd),
     );
   }
 
@@ -1932,6 +1847,10 @@ class MenuMotion extends Motion {
     final height = _menu.height;
     return height > 0 ? menuKick / height : 0;
   }
+
+  /// The end a fade that closes from progress [p] lands at: [end], or
+  /// nothing left when [p] is already within a twentieth of it.
+  static double _closeEnd(double p, double end) => p > end + 0.05 ? end : 0;
 
   static double _ramp(double value, double from, double to) =>
       ((value - from) / (to - from)).clamp(0.0, 1.0);
@@ -2294,7 +2213,7 @@ class MenuMotion extends Motion {
     if (!_press.restsAt(t) || !_flex.restsAt(t)) return false;
     if (_phase == _Phase.opening) {
       final rest = _progressRest;
-      return _progress.restsWithin(t, rest) &&
+      return _progress.restsAt(t, rest) &&
           _radius.isWithin(t, rest) &&
           _rootHeight.isWithin(t, MotionRest.length) &&
           (!_cardContainerActive || _cardContainer.isWithin(t, _cardRest)) &&
@@ -2647,7 +2566,7 @@ class MenuMotion extends Motion {
       }
     }
     if (_phase == _Phase.closing &&
-        _progress.restsWithin(t, _progressRest) &&
+        _progress.restsAt(t, _progressRest) &&
         _menuKick.isAtRest &&
         _buttonKick.isAtRest &&
         _fusionAtRest(t)) {
@@ -2890,13 +2809,8 @@ class MenuMotion extends Motion {
     reference.retarget(t, 1);
     _openReference = reference;
     final p = _cardFadeProgress(t);
-    _cardFade.start(
-      from: fresh ? 1 : _cardFade.at(p),
-      to: 1,
-      anchor: p,
-      end: 1,
-    );
-    _progress.open(t);
+    _cardFade = Ramp(from: fresh ? 1 : _cardFade.at(p), start: p);
+    _progress.retarget(t, 1, spring: tuning.openSpring);
     _fade(t, from: opacity, opening: true, fresh: fresh);
     _radius.snap(t, 0);
     final generation = ++_openGeneration;
@@ -2958,13 +2872,13 @@ class MenuMotion extends Motion {
     reference.retarget(t, 0);
     _closeReference = reference;
     final p = _cardFadeProgress(t);
-    _cardFade.start(
+    _cardFade = Ramp(
       from: _cardFade.at(p),
       to: 0,
-      anchor: p,
-      end: _Fade.closeEnd(p, tuning.cardCloseFadeEnd),
+      start: p,
+      end: _closeEnd(p, tuning.cardCloseFadeEnd),
     );
-    _progress.close(t);
+    _progress.retarget(t, 0, spring: tuning.closeSpring);
     _fade(t, from: opacity, opening: false);
     final generation = _openGeneration;
     if (_cards.isNotEmpty && !_cardContainerActive) {

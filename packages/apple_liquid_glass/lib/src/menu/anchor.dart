@@ -121,30 +121,6 @@ class MenuAnchor extends StatefulWidget {
   State<MenuAnchor> createState() => _MenuAnchorState();
 }
 
-/// The menu's progress, which shows the overlay when the menu opens.
-class _ShowingProgress extends MenuProgress {
-  _ShowingProgress(MenuTuning tuning, {required this.onOpen})
-    : _spring = MenuProgress.spring(tuning);
-
-  final VoidCallback onOpen;
-  final MenuProgress _spring;
-
-  @override
-  double valueAt(double t) => _spring.valueAt(t);
-
-  @override
-  bool restsWithin(double t, double rest) => _spring.restsWithin(t, rest);
-
-  @override
-  void open(double t) {
-    _spring.open(t);
-    onOpen();
-  }
-
-  @override
-  void close(double t) => _spring.close(t);
-}
-
 /// The state of a widget whose menu shows on the overlay: the motion and
 /// its clock, the commands and events, the touches of the open menu.
 abstract class _MenuHost<W extends StatefulWidget> extends State<W>
@@ -300,6 +276,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W>
   // Events a callback raises while others are delivered follow them, in
   // order, instead of interrupting them.
   void _deliver(MenuMotion motion) {
+    if (motion.isPresented) _show();
     if (_delivering) return;
     _delivering = true;
     try {
@@ -529,7 +506,6 @@ class _MenuAnchorState extends _MenuHost<MenuAnchor> {
       padding: padding,
       sourceRadius: widget.sourceRadius,
       tuning: widget.tuning,
-      progress: _ShowingProgress(widget.tuning, onOpen: _show),
     );
     motion.opensOnTap = widget.trigger == MenuTrigger.tap;
     return motion;
@@ -1614,7 +1590,6 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
       padding: padding,
       tuning: MenuTuning.context,
       attachment: attachment,
-      progress: _ShowingProgress(MenuTuning.context, onOpen: _show),
     );
     _placePreview(motion, source);
     return motion;
