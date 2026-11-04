@@ -27,6 +27,23 @@ void main() {
     expect(heard, [width.valueAt(0.05) * height.valueAt(0.05)]);
   });
 
+  test('a value read between publishes reaches the listeners even when the '
+      'inputs come back before the publish', () {
+    final x = MotionSignal<double>(5);
+    final source = _Signals(x, clock);
+    final read = source.select((_) => x.value);
+    final heard = <double>[];
+    read.addRenderListener(() => heard.add(read.value));
+    clock.advanceTo(0.01);
+
+    x.write(0.01, 0);
+    expect(read.value, 0);
+    x.write(0.01, 5);
+    clock.advanceTo(0.02);
+
+    expect(heard, [5]);
+  });
+
   test('listeners hear only a changed result', () {
     final x = MotionValue<double>(0, clock: clock);
     final past = MotionSelection(() => x.value > 5, clock: clock);
@@ -63,4 +80,11 @@ void main() {
     expect(doubled.value, 8);
     expect(computes, 1);
   });
+}
+
+final class _Signals extends Motion {
+  _Signals(MotionSignal<double> signal, MotionClock clock)
+    : super(clock: clock) {
+    own(signal);
+  }
 }

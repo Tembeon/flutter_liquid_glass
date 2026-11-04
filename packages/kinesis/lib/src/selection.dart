@@ -63,7 +63,15 @@ class MotionSelection<T> implements ValueListenable<T>, MotionDerived {
   @override
   T get value {
     ReadTracker.read(this);
-    if (_dirty || !_followed) _evaluate();
+    if (_dirty || !_followed) {
+      _evaluate();
+      // A reader between publishes may draw this value: the next publish
+      // tells the listeners even if the inputs came back by then.
+      if (_toRender.has && !_same(_toRender.value, _value)) _toRender.clear();
+      if (_toWidgets.has && !_same(_toWidgets.value, _value)) {
+        _toWidgets.clear();
+      }
+    }
     return _value;
   }
 
