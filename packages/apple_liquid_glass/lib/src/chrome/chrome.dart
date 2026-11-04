@@ -551,8 +551,8 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
                 top: media.padding.top,
                 left: 0,
                 right: 0,
-                child: ClipRect(
-                  clipper: const BelowTop(),
+                child: ClipWhileLifted(
+                  lift: _lift,
                   child: MotionTransition(
                     translateY: _lift,
                     child: PageLift(lift: _lift, child: navigationBar),

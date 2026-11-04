@@ -1149,8 +1149,8 @@ class GlassBarView extends StatelessWidget {
           left: 0,
           right: 0,
           height: GlassNavigationBar.height,
-          child: ClipRect(
-            clipper: const BelowTop(),
+          child: ClipWhileLifted(
+            lift: host._lift,
             child: MotionTransition(
               translateY: host._lift,
               child: _Band(bar: host._bars[GlassBarKind.navigation]!),
@@ -1181,8 +1181,97 @@ class GlassBarView extends StatelessWidget {
 const double navigationSideInset = 16;
 
 /// Cuts off what a lifted bar moves above its own top, into the status
-/// bar, and nothing below: a pulled large title still follows the content
-/// down.
+/// bar, while [lift] is below zero, and nothing below. At rest it cuts
+/// nothing: a pressed button stretches into the status bar.
+@internal
+class ClipWhileLifted extends SingleChildRenderObjectWidget {
+  /// Clips [child] while [lift] is below zero.
+  const ClipWhileLifted({required this.lift, required super.child, super.key});
+
+  /// The bar's offset, 0 at rest and negative while lifted.
+  final ValueListenable<double> lift;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      RenderClipWhileLifted(lift);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    RenderClipWhileLifted renderObject,
+  ) {
+    renderObject.lift = lift;
+  }
+}
+
+/// Paints [ClipWhileLifted].
+@internal
+class RenderClipWhileLifted extends RenderProxyBox {
+  /// Clips while [lift] is below zero.
+  RenderClipWhileLifted(this._lift);
+
+  ValueListenable<double> _lift;
+
+  /// The bar's offset, 0 at rest and negative while lifted.
+  ValueListenable<double> get lift => _lift;
+  set lift(ValueListenable<double> value) {
+    if (identical(_lift, value)) return;
+    if (attached) {
+      _lift.removeListener(_changed);
+      value.addListener(_changed);
+    }
+    _lift = value;
+    _changed();
+  }
+
+  bool _clips = false;
+  final _clip = LayerHandle<ClipRectLayer>();
+
+  void _changed() {
+    final clips = _lift.value < 0;
+    if (clips == _clips) return;
+    _clips = clips;
+    markNeedsPaint();
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _lift.addListener(_changed);
+    _clips = _lift.value < 0;
+  }
+
+  @override
+  void detach() {
+    _lift.removeListener(_changed);
+    super.detach();
+  }
+
+  @override
+  void dispose() {
+    _clip.layer = null;
+    super.dispose();
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    if (!_clips) {
+      _clip.layer = null;
+      super.paint(context, offset);
+      return;
+    }
+    _clip.layer = context.pushClipRect(
+      needsCompositing,
+      offset,
+      const BelowTop().getClip(size),
+      super.paint,
+      oldLayer: _clip.layer,
+    );
+  }
+}
+
+/// Cuts off what moves above the clipped box's top, and nothing below: a
+/// pulled large title still follows the content down.
 @internal
 class BelowTop extends CustomClipper<Rect> {
   /// Creates the clipper.

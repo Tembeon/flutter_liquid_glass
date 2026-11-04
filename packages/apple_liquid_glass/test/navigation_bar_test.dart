@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:apple_liquid_glass/src/chrome/bar.dart';
 import 'package:apple_liquid_glass/src/renderer/scroll_edge.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -253,5 +254,29 @@ void main() {
     final style = DefaultTextStyle.of(tester.element(find.text('Title'))).style;
     expect(style.color, isSameColorAs(const Color(0xFF123456)));
     expect(style.fontSize, 17);
+  });
+
+  testWidgets('the bar is cut at its top only while the page lifts it, so '
+      'a pressed button stretches into the status bar at rest', (
+    tester,
+  ) async {
+    final lift = ValueNotifier<double>(0);
+    addTearDown(lift.dispose);
+    await tester.pumpWidget(
+      Center(
+        child: ClipWhileLifted(
+          lift: lift,
+          child: const SizedBox(width: 100, height: 44),
+        ),
+      ),
+    );
+    final clip = tester.renderObject(find.byType(ClipWhileLifted));
+    expect(clip, isNot(paints..clipRect()));
+    lift.value = -20;
+    await tester.pump();
+    expect(clip, paints..clipRect());
+    lift.value = 0;
+    await tester.pump();
+    expect(clip, isNot(paints..clipRect()));
   });
 }
