@@ -191,7 +191,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   // What the picture is drawn from: an equal key draws an equal picture.
   Object _keyOf(_Serving serving) => (
     serving.copy.image,
-    serving.copy.offset,
+    serving.copy.placement,
     serving.shown,
     serving.origin,
     switch (serving.frosting) {
@@ -208,7 +208,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   /// Adds the filter to a copy drawn with the frame's copies that holds this
   /// layer while its own copy is not drawn yet (see [UnderlayFold]).
   @internal
-  void addFold(ui.SceneBuilder builder, Rect rect, Offset offset) {
+  void addFold(ui.SceneBuilder builder, FoldTarget target) {
     final serving = _serving;
     if (serving == null) return;
     addFoldedFilter(
@@ -250,7 +250,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     final asked = _asked;
     _asked = null;
     final wasInFrame = _inFrame != null;
-    _inFrame?.copy.content.dispose();
+    _inFrame?.copy.dispose();
     _inFrame = null;
     if (asked?.frosting case final frosting?
         when _blendMode == BlendMode.srcOver &&
@@ -301,7 +301,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     );
     _served = servedWithin(copy.layer);
     if (_served == null) {
-      copy.content.dispose();
+      copy.dispose();
       _inFrame = null;
     }
     return true;
@@ -339,7 +339,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     _served?.dispose();
     _served = null;
     _serving = null;
-    _inFrame?.copy.content.dispose();
+    _inFrame?.copy.dispose();
     _inFrame = null;
     _underlay.release();
     super.dispose();

@@ -1940,10 +1940,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   // The glass as one rect painted with the final shader over the underlay's
-  // copy, or null when there is no copy. The shader reads the copy as
-  // a filter reads its input: fragment coordinates are taken from the copy's
-  // origin (uBackdropOrigin), so the mapping into the matte is the screen's
-  // shifted by that origin.
+  // copy, or null when there is no copy. The shader reads the copy as a
+  // filter reads its input, from the copy's origin (see _readingCopy).
   PictureLayer? _recordUnderlay() {
     final asked = _asked;
     _asked = null;
@@ -1978,10 +1976,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       backdropBounds == backdropSampleBounds,
       'The copy samples the bounds the live filter does.',
     );
-    (double, double, double, double, double, double) mappingFrom(
-      Offset origin,
-    ) => _matteMapping(globalToMatte, dpr, origin);
-
     // A copy for glass nearby holds this glass only where it paints.
     final pictureBounds = MatrixUtils.transformRect(
       screenToCanvas,
@@ -1997,15 +1991,18 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       final picture = InFrameGlassLayer(
         pictureBounds,
         inFrame,
-        (region) => _recordInFrame(
-          inFrame,
-          region,
-          screenToCanvas: screenToCanvas,
-          globalToMatte: globalToMatte,
-          mapping: mappingFrom,
-          backdropBounds: backdropBounds,
-          frost: frost,
-        ),
+        (region) {
+          final read = inFrame.readIn(region);
+          if (read == null) return null;
+          return _readingCopy(
+            read.glassSampling,
+            globalToMatte: globalToMatte,
+            backdropBounds: backdropBounds,
+            frost: frost,
+            draw: (shader) =>
+                read.record(bilinearShaderFilter(shader), screenToCanvas),
+          );
+        },
       );
       picture.picture = picture.within(inFrame.layer);
       if (picture.picture == null) {
@@ -2022,7 +2019,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _updateShaderFilter();
       return (
         copy.image,
-        copy.offset,
+        copy.placement,
         copy.rect,
         _filterGeneration,
         device,
@@ -2034,66 +2031,45 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
 
     ui.Picture record() {
-      final image = copy.image;
-      // The shader reads the copy in device pixels: a smaller copy stands
-      // for an image as many times larger.
-      final stretch = dpr / copy.pixelRatio;
-      final origin = copy.rect.topLeft * dpr - copy.offset * stretch;
-      final shader = renderShader;
-      _writeCoordinateMapping(shader, mappingFrom(origin), backdropBounds);
-      shader.setFloat(0, image.width * stretch);
-      shader.setFloat(1, image.height * stretch);
-      shader.setFloat(_FinalUniforms.backdropOrigin, origin.dx);
-      shader.setFloat(_FinalUniforms.backdropOrigin + 1, origin.dy);
-      shader.setFloat(_FinalUniforms.reducedBackdrop, stretch > 1 ? 1 : 0);
-      shader.setFloat(_FinalUniforms.backdropFrost, frost);
-      shader.setImageSampler(0, image, filterQuality: FilterQuality.low);
-      final recorder = ui.PictureRecorder();
-      final canvas = Canvas(recorder);
-      canvas.transform(screenToCanvas.storage);
-      final paint = Paint();
-      paint.shader = shader;
-      // The filter's clip cuts its output with a hard edge.
-      paint.isAntiAlias = false;
-      canvas.drawRect(device, paint);
-      // The live filter takes the shader's uniforms when it is next created:
-      // they go back to the filter's.
-      shader.setFloat(_FinalUniforms.backdropOrigin, 0);
-      shader.setFloat(_FinalUniforms.backdropOrigin + 1, 0);
-      shader.setFloat(_FinalUniforms.reducedBackdrop, 0);
-      shader.setFloat(_FinalUniforms.backdropFrost, 0);
-      _restoreLiveMapping(shader);
-      if (_geometryImage case final matte?) {
-        shader.setImageSampler(0, matte, filterQuality: FilterQuality.low);
-      }
-      return recorder.endRecording();
+      final sampling = copy.glassSampling;
+      return _readingCopy(
+        sampling,
+        globalToMatte: globalToMatte,
+        backdropBounds: backdropBounds,
+        frost: frost,
+        draw: (shader) {
+          final recorder = ui.PictureRecorder();
+          final canvas = Canvas(recorder);
+          canvas.transform(screenToCanvas.storage);
+          final paint = Paint();
+          paint.shader = shader;
+          // The filter's clip cuts its output with a hard edge.
+          paint.isAntiAlias = false;
+          canvas.drawRect(device, paint);
+          return recorder.endRecording();
+        },
+      );
     }
 
     // Inside a copy drawn at the screen's pixels together with this glass's
     // own, the glass is its live filter over what that copy holds before
-    // it: the filter's fragments lie in that copy's pixels, and what it
-    // reads holds nothing past the copy, except in a layer of copies under
-    // one blur, where it reads what lies beside the copy (NEAR).
-    void fold(ui.SceneBuilder builder, Rect rect, Offset offset) {
-      final shader = renderShader;
-      final within = MatrixUtils.transformRect(globalToMatte, rect);
-      _writeCoordinateMapping(
-        shader,
-        mappingFrom(rect.topLeft * dpr - offset),
-        backdropBounds?.intersect(within) ?? within,
-      );
-      _updateShaderFilter();
-      final filter = _frosted(
-        bilinearShaderFilter(shader),
-        _filterFrostSigma ?? 0,
-      );
-      addFoldedFilter(
-        builder,
-        MatrixUtils.transformRect(screenToCanvas, device),
-        filter,
-      );
-      _restoreLiveMapping(shader);
-    }
+    // it, and what it reads holds nothing past the copy, except in a layer
+    // of copies under one blur, where it reads what lies beside the copy
+    // (NEAR).
+    void fold(ui.SceneBuilder builder, FoldTarget target) => _readingCopy(
+      target.glassSampling,
+      globalToMatte: globalToMatte,
+      backdropBounds: backdropBounds,
+      frost: 0,
+      draw: (shader) {
+        _updateShaderFilter();
+        addFoldedFilter(
+          builder,
+          MatrixUtils.transformRect(screenToCanvas, device),
+          _frosted(bilinearShaderFilter(shader), _filterFrostSigma ?? 0),
+        );
+      },
+    );
 
     return _rig.servedPicture(
       copy,
@@ -2104,84 +2080,61 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
   }
 
-  // The glass over [copy] inside [region] of the screen (logical pixels): the
-  // final shader as the image filter of a layer holding the copy, in the
-  // layer's corner at the copy's pixels. Fragment coordinates start at the
-  // layer's corner; the shader reads the copy in device pixels, and the
-  // layer's texture at the share of it the copy fills.
-  ui.Picture? _recordInFrame(
-    InFrameCopy copy,
-    Rect region, {
-    required Matrix4 screenToCanvas,
+  // Draws the glass with [draw] over a copy read as [sampling], frosted by
+  // [frost] device pixels, with the shader's uniforms set for it, and sets
+  // them back to the live filter's after: a shader filter takes the
+  // uniforms when it is created, a paint when it draws. The shader's
+  // fragment coordinates start at the sampling's origin, so the mapping
+  // into the matte is the screen's shifted by it. A paint over an image
+  // draws in the screen's device pixels, from which the shader takes the
+  // origin (uBackdropOrigin); a filter's fragments start there already.
+  T _readingCopy<T>(
+    GlassSampling sampling, {
     required Matrix4 globalToMatte,
-    required (double, double, double, double, double, double) Function(
-      Offset origin,
-    )
-    mapping,
     required Rect? backdropBounds,
     required double frost,
+    required T Function(FragmentShader shader) draw,
   }) {
-    final shown = region.intersect(copy.layer);
-    if (shown.isEmpty) return null;
-    final dpr = devicePixelRatio;
-    final pixels = copy.pixelRatio;
-    final stretch = (dpr / pixels).roundToDouble();
-    final layer = Rect.fromLTRB(
-      (shown.left * pixels).floorToDouble() * stretch,
-      (shown.top * pixels).floorToDouble() * stretch,
-      (shown.right * pixels).ceilToDouble() * stretch,
-      (shown.bottom * pixels).ceilToDouble() * stretch,
-    );
-    // Past the copy the layer is empty: reads mirror at the copy's edge.
-    final within = MatrixUtils.transformRect(
-      globalToMatte,
-      Rect.fromLTRB(
-        layer.left / dpr,
-        layer.top / dpr,
-        layer.right / dpr,
-        layer.bottom / dpr,
-      ).intersect(copy.band),
-    );
     final shader = renderShader;
+    final holds = sampling.holds;
+    final within = holds == null
+        ? null
+        : MatrixUtils.transformRect(globalToMatte, holds);
     _writeCoordinateMapping(
       shader,
-      mapping(layer.topLeft),
-      backdropBounds?.intersect(within) ?? within,
+      _matteMapping(globalToMatte, devicePixelRatio, sampling.origin),
+      within == null
+          ? backdropBounds
+          : backdropBounds?.intersect(within) ?? within,
     );
-    shader.setFloat(_FinalUniforms.reducedBackdrop, stretch > 1 ? stretch : 0);
+    if (sampling.size case final size?) {
+      shader.setFloat(0, size.width);
+      shader.setFloat(1, size.height);
+    }
+    final paints = sampling.image != null;
+    if (paints) {
+      shader.setFloat(_FinalUniforms.backdropOrigin, sampling.origin.dx);
+      shader.setFloat(_FinalUniforms.backdropOrigin + 1, sampling.origin.dy);
+    }
+    shader.setFloat(_FinalUniforms.reducedBackdrop, sampling.reduced);
     shader.setFloat(_FinalUniforms.backdropFrost, frost);
-    final paint = Paint();
-    paint.imageFilter = bilinearShaderFilter(shader);
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    canvas.transform(screenToCanvas.storage);
-    canvas.saveLayer(layer, paint);
-    // Impeller sizes a layer by what is drawn in it: a pixel cleared at
-    // each corner holds it to [layer] where the copy is transparent.
-    final clear = Paint();
-    clear.blendMode = BlendMode.clear;
-    canvas.drawRect(Rect.fromLTWH(layer.left, layer.top, 1, 1), clear);
-    canvas.drawRect(
-      Rect.fromLTRB(
-        layer.right - 1,
-        layer.bottom - 1,
-        layer.right,
-        layer.bottom,
-      ),
-      clear,
-    );
-    canvas.translate(
-      layer.left + (copy.band.left * dpr - layer.left) / stretch,
-      layer.top + (copy.band.top * dpr - layer.top) / stretch,
-    );
-    canvas.drawPicture(copy.content);
-    canvas.restore();
-    // The shader filter took the uniforms as the layer was saved: they go
-    // back to the live filter's.
-    shader.setFloat(_FinalUniforms.reducedBackdrop, 0);
-    shader.setFloat(_FinalUniforms.backdropFrost, 0);
-    _restoreLiveMapping(shader);
-    return recorder.endRecording();
+    if (sampling.image case final image?) {
+      shader.setImageSampler(0, image, filterQuality: FilterQuality.low);
+    }
+    try {
+      return draw(shader);
+    } finally {
+      shader.setFloat(_FinalUniforms.reducedBackdrop, 0);
+      shader.setFloat(_FinalUniforms.backdropFrost, 0);
+      _restoreLiveMapping(shader);
+      if (paints) {
+        shader.setFloat(_FinalUniforms.backdropOrigin, 0);
+        shader.setFloat(_FinalUniforms.backdropOrigin + 1, 0);
+        if (_geometryImage case final matte?) {
+          shader.setImageSampler(0, matte, filterQuality: FilterQuality.low);
+        }
+      }
+    }
   }
 
   @override

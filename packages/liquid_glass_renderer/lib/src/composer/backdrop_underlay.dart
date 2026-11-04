@@ -261,7 +261,7 @@ class BackdropUnderlay {
   /// null when it cannot be drawn in the frame: [serve] then takes the
   /// request, while what lies there might still be drawn into an image.
   ///
-  /// The caller draws [InFrameCopy.content] into a layer of its own whose
+  /// The caller draws the copy ([InFrameCopy.readIn]) into a layer whose
   /// image filter reads it: Impeller renders the layer into a target of its
   /// render target cache, ahead of the frame's pass in the frame's one
   /// submission, and draws the filter's output straight into the pass. No
@@ -1937,15 +1937,11 @@ sealed class _Entry {
 }
 
 /// Adds glass to a scene as its live filter over what the scene draws
-/// before it, in the glass's own coordinates: the scene holds the copy of
-/// [rect] of the screen (logical pixels), one pixel of it per device pixel
-/// of the screen, and a filter's fragment lies [offset] past the copy's
-/// pixel.
+/// before it, in the glass's own coordinates: the scene holds [target].
 @internal
 typedef UnderlayFold = void Function(
   ui.SceneBuilder builder,
-  Rect rect,
-  Offset offset,
+  FoldTarget target,
 );
 
 // Glass a copy draws as its filter: [add] in [transform] from the glass's
@@ -2098,12 +2094,12 @@ final class _Served extends _Open {
 }
 
 /// A copy that [BackdropUnderlay.serve] hands over: [rect] of the screen, in
-/// logical pixels, at [offset] (the image's pixels) in [image], at
-/// [pixelRatio].
+/// logical pixels, somewhere in [image]. Glass reads it as [glassSampling]
+/// says, a surface paints the part [readOf] gives.
 ///
 /// A copy recorded this frame is drawn by [UnderlayFrame.drawPending] with
-/// the frame's other copies; reading [image] or [offset] earlier draws the
-/// pending copies then.
+/// the frame's other copies; reading [image], [placement] or a read earlier
+/// draws the pending copies then.
 @internal
 final class UnderlayCopy {
   const UnderlayCopy._(this._underlay, this.rect, this._grid);
@@ -2113,9 +2109,6 @@ final class UnderlayCopy {
 
   /// The screen rect the copy holds, in logical pixels.
   final Rect rect;
-
-  /// The copy's pixels per logical pixel along each side.
-  double get pixelRatio => _grid._pixels;
 
   /// Whether [image] is drawn already.
   bool get ready => _underlay._image != null;
@@ -2129,37 +2122,65 @@ final class UnderlayCopy {
     return _underlay._image!;
   }
 
-  /// Where [rect]'s top left corner sits in [image], in its pixels.
+  /// Equal while the copy lies at the same place in [image] on the same
+  /// grid.
+  Object get placement => (offset, _grid);
+
+  // Where [rect]'s top left corner sits in [image], in its pixels.
   Offset get offset {
     if (!ready) _underlay._island?.atlas?.flush('read');
     return _underlay._offset;
   }
+
+  /// How the final shader reads the copy, painted in the screen's device
+  /// pixels.
+  GlassSampling get glassSampling {
+    final image = this.image;
+    final share = _grid._share;
+    return GlassSampling._(
+      origin:
+          rect.topLeft * _grid._devicePixelRatio - offset * share.toDouble(),
+      reduced: share > 1 ? 1 : 0,
+      image: image,
+      size: Size(
+        image.width * share.toDouble(),
+        image.height * share.toDouble(),
+      ),
+    );
+  }
+
+  /// The part [shown] (screen logical pixels, inside [rect]) of the copy.
+  ImageRead readOf(Rect shown) => ImageRead._(this, shown);
 }
 
-/// A copy that [BackdropUnderlay.serveInFrame] hands over: [content] holds
-/// what is painted before the glass in [band] of the screen (logical
-/// pixels), at [pixelRatio] pixels per logical pixel from the band's top
-/// left, drawn in a layer of [layer].
+/// A copy that [BackdropUnderlay.serveInFrame] hands over: what is painted
+/// before the glass in a band of the screen, drawn in a layer of [layer].
+/// A reader draws the part of the layer [readIn] gives; its owner disposes
+/// it.
 @internal
 final class InFrameCopy {
-  const InFrameCopy._(this.content, this.band, this.layer, this._grid);
+  const InFrameCopy._(this._content, this._band, this.layer, this._grid);
 
   final CopyGrid _grid;
+  final ui.Picture _content;
+  // The screen rect the copy holds, in logical pixels, on its grid.
+  final Rect _band;
 
-  /// What is painted before the glass in [band].
-  final ui.Picture content;
-
-  /// The screen rect the copy holds, in logical pixels, on the grid of its
-  /// pixels.
-  final Rect band;
-
-  /// The rect of the layer the copy is drawn in: [band], grown where a clip
-  /// would cut the layer, or the part of [band] inside a clip that leaves
-  /// no room to grow or that cuts a copy smaller than the screen.
+  /// The rect of the layer the copy is drawn in, in the screen's logical
+  /// pixels: the copy's band, grown where a clip would cut the layer, or the
+  /// part of the band inside a clip that leaves no room to grow or that cuts
+  /// a copy smaller than the screen.
   final Rect layer;
 
-  /// The copy's pixels per logical pixel along each side.
-  double get pixelRatio => _grid._pixels;
+  /// The part of the copy's layer inside [region] (screen logical pixels),
+  /// or null where none of it is.
+  CornerRead? readIn(Rect region) {
+    final cut = region.intersect(layer);
+    return cut.isEmpty ? null : CornerRead._(this, cut);
+  }
+
+  /// Releases the copy.
+  void dispose() => _content.dispose();
 }
 
 /// A picture of glass, drawn over its copy.
@@ -2228,7 +2249,7 @@ class InFrameGlassLayer extends GlassPictureLayer {
 
   @override
   void dispose() {
-    copy.content.dispose();
+    copy.dispose();
     super.dispose();
   }
 }
@@ -2364,7 +2385,7 @@ final class _Atlas {
         b.pushClipRect(clip, clipBehavior: Clip.hardEdge);
       }
       b.pushTransform(fold.transform.storage);
-      fold.add(b, tile.rect, origin);
+      fold.add(b, FoldTarget._(tile.grid, tile.rect, origin));
       b.pop();
       if (fold.clip != null) b.pop();
       b.pop();

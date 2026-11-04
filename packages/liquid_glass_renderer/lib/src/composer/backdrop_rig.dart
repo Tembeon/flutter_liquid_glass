@@ -2,7 +2,6 @@
 // ignore_for_file: cascade_invocations
 
 import 'dart:async';
-import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -176,22 +175,10 @@ ui.Picture recordFilteredCopy(
   final canvas = Canvas(recorder);
   if (outline != null) canvas.clipPath(outline);
   canvas.translate(-origin.dx, -origin.dy);
-  final source = shown.shift(-copy.rect.topLeft);
-  final offset = copy.offset;
   final paint = Paint();
   paint.blendMode = BlendMode.src;
   paint.filterQuality = FilterQuality.none;
-  canvas.drawImageRect(
-    copy.image,
-    Rect.fromLTRB(
-      source.left * copy.pixelRatio + offset.dx,
-      source.top * copy.pixelRatio + offset.dy,
-      source.right * copy.pixelRatio + offset.dx,
-      source.bottom * copy.pixelRatio + offset.dy,
-    ),
-    shown,
-    paint,
-  );
+  canvas.drawImageRect(copy.image, copy.readOf(shown).source, shown, paint);
   return recorder.endRecording();
 }
 
@@ -219,37 +206,15 @@ ui.Picture recordFrostedCopy(
   BlendMode blendMode = BlendMode.srcOver,
   Path? outline,
 }) {
-  final image = copy.image;
-  final offset = copy.offset;
-  final pixels = copy.pixelRatio;
-  final source = Rect.fromLTRB(
-    (shown.left - copy.rect.left) * pixels + offset.dx,
-    (shown.top - copy.rect.top) * pixels + offset.dy,
-    (shown.right - copy.rect.left) * pixels + offset.dx,
-    (shown.bottom - copy.rect.top) * pixels + offset.dy,
-  );
-  _setFrost(
-    shader,
-    size: Size(image.width.toDouble(), image.height.toDouble()),
-    bounds: Rect.fromLTRB(
-      offset.dx + 0.5,
-      offset.dy + 0.5,
-      offset.dx + copy.rect.width * pixels - 0.5,
-      offset.dy + copy.rect.height * pixels - 0.5,
-    ),
-    frost: frost,
-    taps: taps,
-    scale: 1,
-    // The rect drawn bounds the frost.
-    shown: Rect.largest,
-  );
-  shader.setImageSampler(0, image, filterQuality: FilterQuality.low);
+  final read = copy.readOf(shown);
+  _setFrost(shader, read.frostSampling, frost: frost, taps: taps);
+  shader.setImageSampler(0, copy.image, filterQuality: FilterQuality.low);
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
   if (outline != null) canvas.clipPath(outline);
-  canvas.translate(shown.left - origin.dx, shown.top - origin.dy);
-  canvas.scale(1 / pixels);
-  canvas.translate(-source.left, -source.top);
+  canvas.translate(-origin.dx, -origin.dy);
+  read.toImage(canvas);
+  final source = read.source;
   final paint = Paint();
   paint.shader = shader;
   paint.blendMode = blendMode;
@@ -282,75 +247,24 @@ ui.Picture? recordFrostedInFrame(
   required ui.FragmentShader shader,
   required double devicePixelRatio,
 }) {
-  final cut = region.intersect(copy.layer);
-  final drawn = shown.intersect(cut);
-  if (drawn.isEmpty) return null;
-  final dpr = devicePixelRatio;
-  final pixels = copy.pixelRatio;
-  final stretch = (dpr / pixels).roundToDouble();
-  final layer = Rect.fromLTRB(
-    (cut.left * pixels).floorToDouble() * stretch,
-    (cut.top * pixels).floorToDouble() * stretch,
-    (cut.right * pixels).ceilToDouble() * stretch,
-    (cut.bottom * pixels).ceilToDouble() * stretch,
-  );
-  // Where the copy's top left lies in the layer, in the copy's pixels.
-  final at = Offset(
-    (copy.band.left * dpr - layer.left) / stretch,
-    (copy.band.top * dpr - layer.top) / stretch,
-  );
-  _setFrost(
-    shader,
-    size: layer.size,
-    bounds: Rect.fromLTRB(
-      max(at.dx, 0) + 0.5,
-      max(at.dy, 0) + 0.5,
-      min(at.dx + copy.band.width * pixels, layer.width / stretch) - 0.5,
-      min(at.dy + copy.band.height * pixels, layer.height / stretch) - 0.5,
-    ),
-    frost: frost,
-    taps: taps,
-    scale: 1 / stretch,
-    shown: Rect.fromLTRB(
-      drawn.left * dpr,
-      drawn.top * dpr,
-      drawn.right * dpr,
-      drawn.bottom * dpr,
-    ).shift(-layer.topLeft),
-  );
+  final read = copy.readIn(region);
+  final sampling = read?.frostSampling(shown);
+  if (read == null || sampling == null) return null;
+  _setFrost(shader, sampling, frost: frost, taps: taps);
   shader.setImageSampler(0, _bilinear, filterQuality: FilterQuality.low);
-  final paint = Paint();
-  paint.imageFilter = bilinearShaderFilter(shader);
-  final recorder = ui.PictureRecorder();
-  final canvas = Canvas(recorder);
-  canvas.translate(-origin.dx, -origin.dy);
-  canvas.scale(1 / dpr);
-  canvas.saveLayer(layer, paint);
-  // Impeller sizes a layer by what is drawn in it: a pixel cleared at each
-  // corner holds it to [layer] where the copy is transparent.
-  final clear = Paint();
-  clear.blendMode = BlendMode.clear;
-  canvas.drawRect(Rect.fromLTWH(layer.left, layer.top, 1, 1), clear);
-  canvas.drawRect(
-    Rect.fromLTRB(layer.right - 1, layer.bottom - 1, layer.right, layer.bottom),
-    clear,
-  );
-  canvas.translate(layer.left + at.dx, layer.top + at.dy);
-  canvas.drawPicture(copy.content);
-  canvas.restore();
-  return recorder.endRecording();
+  final toLocal = Matrix4.translationValues(-origin.dx, -origin.dy, 0);
+  toLocal.scaleByDouble(1 / devicePixelRatio, 1 / devicePixelRatio, 1, 1);
+  return read.record(bilinearShaderFilter(shader), toLocal);
 }
 
 // The uniforms of backdrop_frost.frag.
 void _setFrost(
-  ui.FragmentShader shader, {
-  required Size size,
-  required Rect bounds,
+  ui.FragmentShader shader,
+  FrostSampling sampling, {
   required LiquidGlassBackdropFrost frost,
   required ShaderFrost taps,
-  required double scale,
-  required Rect shown,
 }) {
+  final FrostSampling(:size, :bounds, :scale, :shown) = sampling;
   final m = frost.colorMatrix ?? _identityMatrix;
   var i = 0;
   void put(double value) => shader.setFloat(i++, value);
@@ -793,7 +707,7 @@ class BackdropRig {
       copy,
       read.clip,
       keyOf: () =>
-          (copy.image, copy.offset, shown, origin, outline, frosting?.frost),
+          (copy.image, copy.placement, shown, origin, outline, frosting?.frost),
       record: () => switch (frosting) {
         (:final frost, :final taps) => recordFrostedCopy(
           copy,
@@ -806,7 +720,7 @@ class BackdropRig {
         ),
         null => recordFilteredCopy(copy, shown, origin, outline: outline),
       },
-      fold: (builder, _, _) => addFoldedFilter(
+      fold: (builder, _) => addFoldedFilter(
         builder,
         shown.shift(-origin),
         read.filter,
