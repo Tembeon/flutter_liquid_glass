@@ -2,6 +2,7 @@ import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_example/app.dart';
 import 'package:apple_liquid_glass_example/pages/motion_page.dart';
 import 'package:apple_liquid_glass_example/settings.dart';
+import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -136,7 +137,12 @@ void main() {
       'on a tap while it closes', (tester) async {
     await _open(tester);
     await _show(tester, find.text('Peek'));
+    final button = tester.getCenter(find.text('Peek'));
     await tester.tap(find.text('Peek'));
+    await _frames(tester, 2);
+    // The button draws nothing while the peek holds it; the peek draws its
+    // label as it grows.
+    expect(find.text('Peek'), findsNWidgets(2));
     await _frames(tester, 90);
     expect(find.text('Drag me down to close.'), findsOneWidget);
 
@@ -147,7 +153,7 @@ void main() {
     );
     await _frames(tester, 4);
     expect(find.text('Drag me down to close.'), findsOneWidget);
-    await tester.tap(find.text('Peek'), warnIfMissed: false);
+    await tester.tapAt(button);
     await _frames(tester, 90);
     expect(find.text('Drag me down to close.'), findsOneWidget);
 
@@ -171,6 +177,22 @@ void main() {
     await gesture.up();
     await _frames(tester);
     expect(find.textContaining('You reacted with'), findsOneWidget);
+  });
+
+  testWidgets('a held finger lifted away from the reactions closes them', (
+    tester,
+  ) async {
+    await _open(tester);
+    await _show(tester, find.text('Hold to react'));
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('Hold to react')),
+    );
+    await _frames(tester, 45);
+    expect(find.byIcon(CupertinoIcons.flame_fill), findsOneWidget);
+    await gesture.up();
+    await _frames(tester);
+    expect(find.byIcon(CupertinoIcons.flame_fill), findsNothing);
+    expect(find.textContaining('You reacted with'), findsNothing);
   });
 
   testWidgets('a drag on the knob is recorded and replays on a fresh copy', (

@@ -10,14 +10,16 @@ import 'package:flutter/widgets.dart';
 /// Two presentations of the app's own, on kinesis's portal.
 ///
 /// The peek grows out of its button (a `MotionSource`) on a `Presence` and
-/// a `MotionRect`, follows a finger that drags it down and leaves when the
-/// release projects past a third of it. A tap on the button while it
-/// shrinks back takes it over where it is.
+/// a `MotionRect`, its content fading in over the button's label, follows
+/// a finger that drags it down and leaves when the release projects past a
+/// third of it. A tap on the button while it shrinks back takes it over
+/// where it is.
 ///
 /// The reactions bar opens above the button a finger holds, and the finger
 /// keeps sliding over its icons: the hold hands the rest of its touch on
 /// (`Interaction.sequenced`) and the portal pushes no route, so the touch
-/// is never cancelled. Lifting over an icon picks it.
+/// is never cancelled. Lifting over an icon picks it, lifting anywhere
+/// else closes the bar; its glass fades as it shrinks back to the button.
 ///
 /// Not measured: the springs and the sizes are chosen by eye.
 class PeekSection extends StatefulWidget {
@@ -232,6 +234,9 @@ class _PeekPanelState extends State<_PeekPanel> {
   late final _opacity = widget.motion.select(
     (m) => m.shown.progressAt(m.now).clamp(0.0, 1.0),
   );
+  late final _label = widget.motion.select(
+    (m) => 1 - m.shown.progressAt(m.now).clamp(0.0, 1.0),
+  );
   late final _drag = DragInteraction(
     axis: Axis.vertical,
     onUpdate: _update,
@@ -272,32 +277,44 @@ class _PeekPanelState extends State<_PeekPanel> {
           interactions: _interactions,
           child: GlassSurface.live(
             frame: _body,
-            child: MotionTransition(
-              opacity: _opacity,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: ClipRSuperellipse(
-                        borderRadius: BorderRadius.circular(20),
-                        child: Image(
-                          image: Wallpaper.alpine.image,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    const GlassDefaultTextStyle(
-                      role: GlassTextRole.headline,
-                      child: Text('Alpine'),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text('Drag me down to close.'),
-                  ],
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // The button draws nothing while the peek holds it.
+                MotionTransition(
+                  opacity: _label,
+                  child: const Center(
+                    child: Text('Peek', style: TextStyle(fontSize: 17)),
+                  ),
                 ),
-              ),
+                MotionTransition(
+                  opacity: _opacity,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: ClipRSuperellipse(
+                            borderRadius: BorderRadius.circular(20),
+                            child: Image(
+                              image: Wallpaper.alpine.image,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        const GlassDefaultTextStyle(
+                          role: GlassTextRole.headline,
+                          child: Text('Alpine'),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text('Drag me down to close.'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -396,7 +413,10 @@ final class _ReactionsMotion extends Motion with Presented {
     final progress = shown.progressAt(now);
     final from = anchor.shift(-bar.topLeft);
     final to = Offset.zero & bar.size;
-    return GlassFrame(rect: Rect.lerp(from, to, progress));
+    return GlassFrame(
+      rect: Rect.lerp(from, to, progress),
+      opacity: progress.clamp(0.0, 1.0),
+    );
   }
 }
 
@@ -472,12 +492,20 @@ final class _ReactionsFollower implements PointerFollower {
     if (motion == null || !section._reactions.isPresented) return;
     motion.hover(input.time, section._global(input.position));
     final picked = motion.hovered;
-    if (picked != null) section._picked(picked);
+    if (picked != null) {
+      section._picked(picked);
+    } else {
+      section._reactions.dismiss(DismissTrigger.interaction);
+    }
   }
 
   @override
-  void cancel(PointerCancelInput input) =>
-      section._reactionsMotion?.hover(input.time, null);
+  void cancel(PointerCancelInput input) {
+    section._reactionsMotion?.hover(input.time, null);
+    if (section._reactions.isPresented) {
+      section._reactions.dismiss(DismissTrigger.interaction);
+    }
+  }
 
   @override
   void hover(PointerHoverInput input) {}
