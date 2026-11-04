@@ -203,6 +203,88 @@ void main() {
     expect(find.text('Other'), findsNothing);
   });
 
+  group('while the menu closes', () {
+    var plain = 0;
+    var below = 0;
+
+    Future<void> closing(WidgetTester tester) async {
+      plain = 0;
+      below = 0;
+      tester.view.physicalSize = const Size(402 * 3, 874 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        _app(
+          GlassPageScaffold(
+            navigationBar: GlassNavigationBar(
+              title: const Text('Page'),
+              trailing: [
+                const GlassBarItem(
+                  icon: SizedBox.square(key: Key('menu'), dimension: 22),
+                  semanticLabel: 'Look',
+                  menuChildren: [GlassMenuItem(title: 'Other')],
+                ),
+                GlassBarItem(
+                  icon: const SizedBox.square(key: Key('plain'), dimension: 22),
+                  onPressed: () => plain++,
+                ),
+              ],
+            ),
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => below++,
+                child: const SizedBox(
+                  key: Key('below'),
+                  width: 200,
+                  height: 60,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      await tester.tapAt(tester.getCenter(find.byKey(const Key('menu'))));
+      await _settle(tester);
+      await tester.tapAt(const Offset(40, 500));
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(_frame);
+      }
+      expect(find.text('Other'), findsOneWidget);
+    }
+
+    testWidgets('a neighbour in the capsule takes its tap, and the menu goes '
+        'on closing', (tester) async {
+      await closing(tester);
+      final at = tester.getCenter(find.byKey(const Key('plain')).first);
+      await tester.tapAt(at);
+      await _settle(tester);
+      expect(plain, 1);
+      expect(find.text('Other'), findsNothing);
+    });
+
+    testWidgets('what is below the menu takes its tap', (tester) async {
+      await closing(tester);
+      await tester.tapAt(tester.getCenter(find.byKey(const Key('below'))));
+      await _settle(tester);
+      expect(below, 1);
+      expect(find.text('Other'), findsNothing);
+    });
+
+    testWidgets('a tap on the item that opened it opens it again', (
+      tester,
+    ) async {
+      await closing(tester);
+      await tester.tapAt(tester.getCenter(find.byKey(const Key('menu')).first));
+      await _settle(tester);
+      expect(find.text('Other'), findsOneWidget);
+      expect(plain, 0);
+    });
+  });
+
   testWidgets('the open menu follows the entries the page declares', (
     tester,
   ) async {

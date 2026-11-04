@@ -456,6 +456,9 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
       builder: (context, motion) => _MenuLayer(host: this),
       source: _source,
       dim: _dim(context),
+      // The close plays on for most of a second, the last of it invisible,
+      // and what is below must not wait for it.
+      modal: (motion) => !motion.isClosing,
       semanticsLabel: _semanticLabel,
       onDismissed: (_) => _showing.value = false,
     ),
@@ -695,6 +698,7 @@ class _Structure {
   const _Structure({
     required this.layouts,
     required this.open,
+    required this.passesTouches,
     required this.scrolls,
     required this.highlighted,
     required this.highlightedCard,
@@ -703,6 +707,7 @@ class _Structure {
 
   final List<MenuLayout> layouts;
   final bool open;
+  final bool passesTouches;
   final bool scrolls;
   final int? highlighted;
   final int highlightedCard;
@@ -712,6 +717,7 @@ class _Structure {
   bool operator ==(Object other) {
     if (other is! _Structure ||
         other.open != open ||
+        other.passesTouches != passesTouches ||
         other.scrolls != scrolls ||
         other.highlighted != highlighted ||
         other.highlightedCard != highlightedCard ||
@@ -728,6 +734,7 @@ class _Structure {
   @override
   int get hashCode => Object.hash(
     open,
+    passesTouches,
     scrolls,
     highlighted,
     highlightedCard,
@@ -808,6 +815,7 @@ class _MenuLayerState extends State<_MenuLayer> {
     return _Structure(
       layouts: [for (final card in cards) card.layout],
       open: motion.isOpen,
+      passesTouches: motion.isClosing && !motion.isOpenPending,
       scrolls: root.height > motion.visibleRootHeight + 0.5,
       highlighted: motion.highlighted,
       highlightedCard: motion.highlightedCard,
@@ -1362,7 +1370,14 @@ class _MenuLayerState extends State<_MenuLayer> {
       explicitChildNodes: true,
       role: ui.SemanticsRole.menu,
       child: BlockSemantics(
-        child: Focus(autofocus: true, onKeyEvent: _key, child: layer),
+        child: Focus(
+          autofocus: true,
+          onKeyEvent: _key,
+          child: IgnorePointer(
+            ignoring: structure.passesTouches,
+            child: layer,
+          ),
+        ),
       ),
     );
   }
