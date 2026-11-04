@@ -56,7 +56,7 @@ final class LiquidGlassRenderer extends GlassRenderer {
     if (_lifts(details.role)) return _LiquidLens(details: details, fake: fake);
     final grouped = _LiquidGroupScope.maybeOf(context) != null;
     if (details.frame.value.outline case final outline?
-        when fake || grouped || outline.field == null) {
+        when fake || grouped || !outline.hasField) {
       return FlatGlassRenderer.flatSurface(context, details);
     }
     if (grouped) return _LiquidSurface(details: details, glows: !fake);

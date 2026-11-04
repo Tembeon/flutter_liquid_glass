@@ -10,11 +10,9 @@ import 'package:apple_liquid_glass/src/menu/motion.dart';
 import 'package:apple_liquid_glass/src/menu/outline_math.dart';
 import 'package:apple_liquid_glass/src/menu/rows.dart';
 import 'package:apple_liquid_glass/src/motion/live.dart';
-import 'package:apple_liquid_glass/src/renderer/flat.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/shape.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
-import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:apple_liquid_glass/src/theme/typography.dart';
 import 'package:flutter/foundation.dart';
@@ -373,9 +371,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W>
       motion.advance(_now);
       _motion = motion;
     }
-    motion.lightsGlow =
-        GlassTheme.rendererOf(context) is! FlatGlassRenderer &&
-        !GlassTraits.of(context).reduceTransparency;
+    motion.lightsGlow = !GlassTraits.of(context).reduceTransparency;
     return motion;
   }
 
@@ -1225,7 +1221,6 @@ class _MenuLayerState extends State<_MenuLayer> {
       return const SizedBox.shrink();
     }
     final style = _anchor._style;
-    final shaded = GlassTheme.rendererOf(context) is! FlatGlassRenderer;
     final layouts = structure.layouts;
     final top = layouts.length - 1;
     final under = top == 0 ? layouts.length : top;
@@ -1265,7 +1260,6 @@ class _MenuLayerState extends State<_MenuLayer> {
               live: _frames,
               frameOf: () => _menuFrame(
                 motion,
-                shaded: shaded,
                 sourceTint: _anchor._sourceTint,
                 opacity: _anchor._glassOpacity,
               ),
@@ -1323,17 +1317,10 @@ class _MenuLayerState extends State<_MenuLayer> {
   }
 }
 
-bool _inside(RRect outer, RRect inner) {
-  final corner = outer.tlRadiusX * (1 - math.sqrt1_2);
-  return outer.outerRect.deflate(corner).contains(inner.outerRect.topLeft) &&
-      outer.outerRect.deflate(corner).contains(inner.outerRect.bottomRight);
-}
-
 // The menu's glass in [motion]'s frame. A tinted source's color stays on
 // the glass, fused body included, until its look has faded.
 GlassFrame _menuFrame(
   MenuMotion motion, {
-  required bool shaded,
   Color? sourceTint,
   double opacity = 1,
 }) {
@@ -1343,7 +1330,7 @@ GlassFrame _menuFrame(
   final root = motion.rootBlob.rrect;
   if (motion.fusionRadius >= MenuFusion.minimumRadius) {
     return GlassFrame(
-      outline: motion.silhouetteFor(withField: shaded),
+      outline: motion.silhouette,
       tint: tint,
       tintAmount: tintAmount,
       glow: glow,
@@ -1351,7 +1338,7 @@ GlassFrame _menuFrame(
     );
   }
   final source = motion.drawsSource ? motion.buttonBlob.rrect : null;
-  if (source == null || _inside(root, source)) {
+  if (source == null || encloses(root, source)) {
     return GlassFrame(
       shape: GlassShape.roundedRect(root.tlRadiusX),
       rect: root.outerRect,
@@ -1361,9 +1348,8 @@ GlassFrame _menuFrame(
       opacity: opacity,
     );
   }
-  final shapes = [root, source];
   return GlassFrame(
-    outline: shaded ? unionFieldOutline(shapes) : plainUnionOutline(shapes),
+    outline: unionOutline([root, source]),
     tint: tint,
     tintAmount: tintAmount,
     glow: glow,

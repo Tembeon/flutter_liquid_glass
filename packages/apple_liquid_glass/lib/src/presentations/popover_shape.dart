@@ -70,28 +70,24 @@ class PopoverShape {
   /// The edge of the shape.
   Path get path => _trace.path;
 
-  /// The shape as one glass body: with its distance field for a renderer
-  /// that shades it ([shaded]), its edge alone otherwise.
+  /// The shape as one glass body, whose distance field is sampled when a
+  /// renderer first reads it.
   ///
-  /// The last shaded shapes keep their outline, so a popover shown again
-  /// where it was neither samples nor uploads its field again.
-  GlassOutline outline({required bool shaded}) {
-    if (!shaded) return _plain ??= GlassOutline(path);
-    final kept = _shaded;
-    if (kept != null) return kept;
+  /// The last shapes keep their outline, so a popover shown again where
+  /// it was neither samples nor uploads its field again.
+  late final GlassOutline outline = _outline();
+
+  GlassOutline _outline() {
     for (final (shape, outline) in _recent) {
-      if (shape._sameAs(this)) return _shaded = outline;
+      if (shape._sameAs(this)) return outline;
     }
-    final outline = _shaded = GlassOutline(path, field: _trace.field());
+    final outline = GlassOutline(path, field: _trace.field);
     _recent.insert(0, (this, outline));
     if (_recent.length > 2) _recent.removeLast();
     return outline;
   }
 
   static final List<(PopoverShape, GlassOutline)> _recent = [];
-
-  GlassOutline? _shaded;
-  GlassOutline? _plain;
 
   bool _sameAs(PopoverShape other) =>
       other.content == content &&

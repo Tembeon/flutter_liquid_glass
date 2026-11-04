@@ -41,6 +41,11 @@ final _bans = <String, (RegExp, Set<String>)>{
     {'lib/src/menu/motion.dart', 'lib/src/motion/flex_interaction.dart'},
   ),
   'rest tolerances are MotionRest': (RegExp(r'\bGlassRest\b'), {}),
+  // A renderer reads a body's field when it draws one (GlassOutline).
+  'no widget asks which renderer draws it': (
+    RegExp(r'(?<!other )\bis!? (?:Flat|Liquid|Adaptive)GlassRenderer\b'),
+    {},
+  ),
   // A9 (menu) moves these onto GlassPress.
   'a press is a GlassPress': (
     RegExp(r'\bFlexInteraction\('),

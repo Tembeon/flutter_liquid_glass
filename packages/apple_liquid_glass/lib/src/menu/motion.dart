@@ -1395,7 +1395,6 @@ class MenuMotion {
 
   double? _peekTime;
   double? _prefetchedFrom;
-  bool _prefetchField = false;
 
   /// The time of the latest frame on the source clock's frame grid
   /// (kinesis's `MotionClock`); the coming frames follow it at multiples
@@ -1983,25 +1982,15 @@ class MenuMotion {
 
   /// The silhouette of [rootBlob] and [buttonBlob] fused at
   /// [fusionRadius], in the motion's coordinates. Below 1 pixel it is
-  /// the exact plain union of the two; null only while idle.
-  GlassOutline? get silhouette => silhouetteFor(withField: true);
-
-  /// The [silhouette], with the fused field a renderer shades the body
-  /// from only when [withField] is true; false gives the same edge alone,
-  /// for a host whose glass only fills the body (the flat renderer).
-  GlassOutline? silhouetteFor({required bool withField}) {
+  /// the exact plain union of the two; null only while idle. Its field is
+  /// computed when a renderer first reads it.
+  GlassOutline? get silhouette {
     if (_phase == _Phase.idle) return null;
-    if (!drawsSource) return plainUnionOutline([rootBlob.rrect]);
+    if (!drawsSource) return unionOutline([rootBlob.rrect]);
     final radius = fusionRadius;
     final outline = radius < MenuFusion.minimumRadius
-        ? plainUnionOutline([rootBlob.rrect, buttonBlob.rrect])
-        : _fusion.outline(
-            rootBlob.rrect,
-            buttonBlob.rrect,
-            radius,
-            withField: withField,
-          )!;
-    _prefetchField |= withField;
+        ? unionOutline([rootBlob.rrect, buttonBlob.rrect])
+        : _fusion.outline(rootBlob.rrect, buttonBlob.rrect, radius)!;
     _prefetchSilhouette();
     return outline;
   }
@@ -2042,12 +2031,7 @@ class MenuMotion {
     try {
       final radius = fusionRadius;
       if (radius >= MenuFusion.minimumRadius) {
-        _fusion.prefetch(
-          rootBlob.rrect,
-          buttonBlob.rrect,
-          radius,
-          withField: _prefetchField,
-        );
+        _fusion.prefetch(rootBlob.rrect, buttonBlob.rrect, radius);
       }
     } finally {
       _peekTime = null;

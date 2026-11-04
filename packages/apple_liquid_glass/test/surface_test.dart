@@ -501,7 +501,7 @@ void main() {
       step: 60,
     );
     final frames = ValueNotifier(
-      GlassFrame(outline: GlassOutline(edge, field: field)),
+      GlassFrame(outline: GlassOutline(edge, field: () => field)),
     );
     addTearDown(frames.dispose);
     Widget surface(GlassRenderer renderer, {bool grouped = false}) {
@@ -543,7 +543,7 @@ void main() {
       findsNothing,
       reason: 'an outline without a field draws flat',
     );
-    frames.value = GlassFrame(outline: GlassOutline(edge, field: field));
+    frames.value = GlassFrame(outline: GlassOutline(edge, field: () => field));
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(
       surface(const GlassRenderer.liquid(), grouped: true),

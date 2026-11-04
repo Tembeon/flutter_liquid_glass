@@ -79,44 +79,33 @@ class MenuFusion {
   RRect? _source;
   double _radius = 0;
   GlassOutline? _outline;
-  bool _shaded = false;
   bool _prefetched = false;
   final Float64List _inputs = Float64List(inputCount);
+
+  /// Whether a renderer has read the field of one of this fusion's
+  /// outlines: from then on the fusion computes the field with the edge,
+  /// here and ahead. Before, it fuses the edge alone, which is all a
+  /// renderer that only fills the body reads.
+  bool shades = false;
 
   /// The fused outline of [menu] and [source] blurred by [radius], or
   /// null when [radius] is under [minimumRadius] and the silhouette is
   /// their plain union.
   ///
-  /// With [withField] false the outline may be the edge alone
-  /// ([menuSilhouette]), for a body that is only filled; the edge is
-  /// the same either way. An outline with its field answers both kinds of
-  /// request, an edge alone only those without.
+  /// The outline always has a field; one fused without it ([shades]
+  /// false) computes it when a renderer first reads it.
   ///
   /// When the fusion was computed ahead ([prefetch]) for inputs within
   /// [prefetchTolerance] of these, that outline is the one returned.
-  GlassOutline? outline(
-    RRect menu,
-    RRect source,
-    double radius, {
-    bool withField = true,
-  }) {
+  GlassOutline? outline(RRect menu, RRect source, double radius) {
     if (radius < minimumRadius) return null;
-    if (menu == _menu &&
-        source == _source &&
-        radius == _radius &&
-        (_shaded || !withField)) {
+    if (menu == _menu && source == _source && radius == _radius) {
       return _outline;
     }
     _menu = menu;
     _source = source;
     _radius = radius;
-    final frame = encode(
-      menu,
-      source,
-      radius,
-      _inputs,
-      withField: withField,
-    );
+    final frame = encode(menu, source, radius, _inputs, withField: shades);
     final ahead = prefetches
         ? FusionWorker.take(frame, prefetchTolerance)
         : null;
@@ -125,9 +114,12 @@ class MenuFusion {
     } else {
       debugFusedHere++;
     }
-    _shaded = ahead?.hasField ?? withField;
     return _outline = outlineFromParts(
-      ahead ?? menuSilhouetteParts(menu, source, radius, withField: withField),
+      ahead ?? menuSilhouetteParts(menu, source, radius, withField: shades),
+      shaded: () {
+        shades = true;
+        return menuSilhouetteParts(menu, source, radius);
+      },
     );
   }
 
@@ -144,14 +136,8 @@ class MenuFusion {
   /// Starts fusing [menu] and [source] blurred by [radius] on a
   /// background isolate, for a later [outline] call to pick up.
   ///
-  /// With [withField] false the worker fuses the edge alone, which serves
-  /// only an [outline] call without the field.
-  void prefetch(
-    RRect menu,
-    RRect source,
-    double radius, {
-    bool withField = true,
-  }) {
+  /// Until the fusion [shades], the worker fuses the edge alone.
+  void prefetch(RRect menu, RRect source, double radius) {
     if (!prefetches || radius < minimumRadius) return;
     _prefetched = true;
     FusionWorker.request(
@@ -160,7 +146,7 @@ class MenuFusion {
         source,
         radius,
         Float64List(inputCount),
-        withField: withField,
+        withField: shades,
       ),
       owner: this,
     );

@@ -90,7 +90,7 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       await tester.pumpWidget(
-        _page(renderer, GlassFrame(outline: _shape.outline(shaded: shaded))),
+        _page(renderer, GlassFrame(outline: _shape.outline)),
       );
       await tester.pump();
       final bytes = await _capture(tester);

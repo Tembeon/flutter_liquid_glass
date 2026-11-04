@@ -351,7 +351,9 @@ void main() {
     );
 
     test('is the fusion of its inputs, bit for bit', () async {
-      MenuFusion().prefetch(menu, button, 6.5);
+      final fusion = MenuFusion();
+      fusion.shades = true;
+      fusion.prefetch(menu, button, 6.5);
       await ready();
       final ahead = FusionWorker.take(
         MenuFusion.encode(
@@ -409,7 +411,7 @@ void main() {
 
     test('fuses the edge alone for a flat body, and serves only a flat '
         'frame with it', () async {
-      MenuFusion().prefetch(menu, button, 6.5, withField: false);
+      MenuFusion().prefetch(menu, button, 6.5);
       await ready();
       Float64List inputs({required bool withField}) => MenuFusion.encode(
         menu,
@@ -432,13 +434,26 @@ void main() {
     });
 
     test('a field fusion serves a flat frame too', () async {
-      MenuFusion().prefetch(menu, button, 6.5);
+      final shading = MenuFusion();
+      shading.shades = true;
+      shading.prefetch(menu, button, 6.5);
       await ready();
       final fusion = MenuFusion();
-      final outline = fusion.outline(menu, button, 6.5, withField: false)!;
+      final outline = fusion.outline(menu, button, 6.5)!;
       expect(FusionWorker.debugHasReady, isFalse);
       expect(outline.field, isNotNull);
+      expect(fusion.shades, isFalse, reason: 'the field came with the edge');
       expect(fusion.outline(menu, button, 6.5), same(outline));
+    });
+
+    test('reading the field of an edge makes the fusion shade', () {
+      final fusion = MenuFusion();
+      final outline = fusion.outline(menu, button, 6.5)!;
+      expect(fusion.shades, isFalse);
+      final field = outline.field!;
+      expect(fusion.shades, isTrue);
+      final shaded = menuSilhouetteParts(menu, button, 6.5);
+      expect(field.samples, shaded.samples);
     });
 
     test('settling drops the fusions still on their way', () async {
@@ -484,7 +499,7 @@ void main() {
       motion.close(20 / 60);
       for (var frame = 21; motion.isPresented && frame < 600; frame++) {
         motion.advance(frame / 60);
-        if (motion.isPresented) motion.silhouetteFor(withField: false);
+        if (motion.isPresented) motion.silhouette;
       }
       expect(motion.isPresented, isFalse);
       await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -493,6 +508,7 @@ void main() {
 
     test('serves a frame within the tolerance and no other', () async {
       final fusion = MenuFusion();
+      fusion.shades = true;
       fusion.prefetch(menu, button, 6.5);
       await ready();
       final far = menu.shift(const Offset(0, 0.05));

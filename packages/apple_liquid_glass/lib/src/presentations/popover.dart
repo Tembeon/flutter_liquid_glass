@@ -3,10 +3,8 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/src/motion/popover_motion.dart';
 import 'package:apple_liquid_glass/src/presentations/popover_shape.dart';
 import 'package:apple_liquid_glass/src/presentations/sheet.dart';
-import 'package:apple_liquid_glass/src/renderer/flat.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
-import 'package:apple_liquid_glass/src/surface/outline.dart';
 import 'package:apple_liquid_glass/src/surface/shape.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
@@ -246,7 +244,6 @@ class _PopoverGlass extends StatefulWidget {
 
 class _PopoverGlassState extends State<_PopoverGlass> {
   final _frame = ValueNotifier(const GlassFrame(opacity: 0));
-  GlassOutline? _outline;
 
   @override
   void initState() {
@@ -274,14 +271,12 @@ class _PopoverGlassState extends State<_PopoverGlass> {
     _frame.value = GlassFrame(
       shape: const GlassShape.superellipse(PopoverTuning.cornerRadius),
       opacity: widget.opacity.value,
-      outline: _outline,
+      outline: widget.shape.outline,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final flat = GlassTheme.rendererOf(context) is FlatGlassRenderer;
-    _outline = widget.shape.outline(shaded: !flat);
     _publish();
     return GlassSurface.live(
       role: GlassRole.menu,

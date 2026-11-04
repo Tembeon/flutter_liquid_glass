@@ -1,7 +1,8 @@
+import 'package:apple_liquid_glass/src/surface/shape.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
-/// The outline of a glass body that no [LiquidShape] describes, such as a
+/// The outline of a glass body that no [GlassShape] describes, such as a
 /// popover and its arrow as one shape.
 ///
 /// [path] is the body's edge in the coordinates of the box its surface
@@ -11,27 +12,26 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 /// glass, edge light and refraction included, when the surface has a
 /// layer of its own; without a field, on fake glass and in a shared group
 /// the liquid renderer draws the body flat.
-@immutable
+///
+/// The field is computed the first time a renderer reads it, so a
+/// renderer that only fills the body never pays for it.
 final class GlassOutline {
-  /// Creates the outline whose edge is [path].
-  const GlassOutline(this.path, {this.field});
+  /// Creates the outline whose edge is [path] and whose field, if any,
+  /// [field] computes when first read.
+  GlassOutline(this.path, {LiquidGlassField? Function()? field})
+    : _fieldOf = field;
 
   /// The edge of the body.
   final Path path;
 
+  final LiquidGlassField? Function()? _fieldOf;
+
+  /// Whether the body has a [field] to shade it from.
+  bool get hasField => _fieldOf != null;
+
   /// The body's signed distance field, or null.
-  final LiquidGlassField? field;
+  late final LiquidGlassField? field = _fieldOf?.call();
 
   /// The box the body occupies.
   Rect get bounds => path.getBounds();
-
-  /// Outlines are equal when they share one path and an equal field.
-  @override
-  bool operator ==(Object other) =>
-      other is GlassOutline &&
-      identical(other.path, path) &&
-      other.field == field;
-
-  @override
-  int get hashCode => Object.hash(identityHashCode(path), field);
 }

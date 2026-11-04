@@ -121,7 +121,7 @@ void main() {
         arrowCenter: 132.17,
       ),
     ]) {
-      final field = shape.outline(shaded: true).field!;
+      final field = shape.outline.field!;
       var worst = 0.0;
       for (final metric in shape.path.computeMetrics()) {
         for (var d = 0.0; d < metric.length; d += 0.25) {

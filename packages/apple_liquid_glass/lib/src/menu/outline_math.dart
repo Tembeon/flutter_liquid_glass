@@ -310,27 +310,32 @@ OutlineParts outlineEdgeParts({
 }
 
 /// The outline [parts] describe: the quadratic B-spline through each loop
-/// of crossings as one even-odd path, shaded from the field samples, or
-/// its edge alone when the parts carry no samples.
+/// of crossings as one even-odd path, shaded from the field samples.
+///
+/// Parts that carry no samples give the field [shaded] computes when a
+/// renderer first reads it, and no field without [shaded].
 ///
 /// A run of crossings along one grid row or column, where the spline is
 /// straight, becomes one line.
 @internal
 @pragma('vm:unsafe:no-bounds-checks')
-GlassOutline outlineFromParts(OutlineParts parts) {
+GlassOutline outlineFromParts(
+  OutlineParts parts, {
+  OutlineParts Function()? shaded,
+}) {
   final path = _outlinePath(parts.points, parts.loops);
-  if (!parts.hasField) return GlassOutline(path);
-  return GlassOutline(
-    path,
-    field: LiquidGlassField(
-      samples: parts.samples,
-      cols: parts.cols,
-      rows: parts.rows,
-      origin: Offset(parts.left, parts.top),
-      step: parts.step,
-    ),
-  );
+  if (parts.hasField) return GlassOutline(path, field: () => _field(parts));
+  if (shaded == null) return GlassOutline(path);
+  return GlassOutline(path, field: () => _field(shaded()));
 }
+
+LiquidGlassField _field(OutlineParts parts) => LiquidGlassField(
+  samples: parts.samples,
+  cols: parts.cols,
+  rows: parts.rows,
+  origin: Offset(parts.left, parts.top),
+  step: parts.step,
+);
 
 @pragma('vm:unsafe:no-bounds-checks')
 Path _outlinePath(Float64List xy, Int32List loops) {
@@ -709,42 +714,40 @@ abstract final class _TracerBuffers {
   }
 }
 
-/// The latest plain unions, the one used last at the end.
+/// The latest unions, the one used last at the end.
 final List<(List<RRect>, GlassOutline)> _recentUnions = [];
 
-/// The unions and fields retained by the isolate.
+/// The unions retained by the isolate.
 const int _recentLimit = 4;
-
-/// Moves entry [k] of [recent] to the end, as the one used last.
-void _used<T>(List<T> recent, int k) {
-  if (k == recent.length - 1) return;
-  recent.add(recent.removeAt(k));
-}
-
-/// Adds [entry] to [recent] as the one used last, dropping the one used
-/// longest ago past [_recentLimit].
-void _remember<T>(List<T> recent, T entry) {
-  recent.add(entry);
-  if (recent.length > _recentLimit) recent.removeAt(0);
-}
 
 /// The plain union of [shapes], whose corners must share one circular
 /// radius each: one closed contour per connected part, a box inside
 /// another adding nothing. The latest unions are kept.
+///
+/// Its field, computed when a renderer first reads it, is sampled every
+/// [step] points over the union and a margin: each node holds the
+/// distance to the nearest shape, its gradient by central differences,
+/// turned as the renderer turns a rounded box's normals near its corners
+/// ([opticalCornerScale]), and that shape's half thickness.
 @internal
-GlassOutline plainUnionOutline(List<RRect> shapes) => _plainUnion(shapes);
-
-GlassOutline _plainUnion(List<RRect> shapes) {
+GlassOutline unionOutline(List<RRect> shapes, {double step = 4}) {
   for (var k = 0; k < _recentUnions.length; k++) {
     final (recent, outline) = _recentUnions[k];
     if (listEquals(recent, shapes)) {
-      _used(_recentUnions, k);
+      if (k < _recentUnions.length - 1) {
+        _recentUnions.add(_recentUnions.removeAt(k));
+      }
       return outline;
     }
   }
   final kept = List<RRect>.unmodifiable(shapes);
-  final outline = GlassOutline(_unionPath(kept));
-  _remember(_recentUnions, (kept, outline));
+  final path = _unionPath(kept);
+  final outline = GlassOutline(
+    path,
+    field: () => _unionField(kept, path.getBounds(), step),
+  );
+  _recentUnions.add((kept, outline));
+  if (_recentUnions.length > _recentLimit) _recentUnions.removeAt(0);
   return outline;
 }
 
@@ -778,7 +781,7 @@ bool _covered(List<RRect> shapes, int i) {
   for (var j = 0; j < shapes.length; j++) {
     if (j == i) continue;
     final other = shapes[j];
-    if (_encloses(other, shape) && (j < i || !_encloses(shape, other))) {
+    if (encloses(other, shape) && (j < i || !encloses(shape, other))) {
       return true;
     }
   }
@@ -788,7 +791,8 @@ bool _covered(List<RRect> shapes, int i) {
 /// Whether rounded box [outer] covers rounded box [inner]: every corner
 /// circle of [inner] lies inside it, and with them, [outer] being convex,
 /// all of [inner].
-bool _encloses(RRect outer, RRect inner) {
+@internal
+bool encloses(RRect outer, RRect inner) {
   final r = _radius(inner);
   final hx = inner.width / 2 - r;
   final hy = inner.height / 2 - r;
@@ -842,27 +846,9 @@ void _requireUniform(RRect shape) {
   );
 }
 
-final List<(List<RRect>, GlassOutline)> _recentFields = [];
-
-/// The plain union of [shapes] with its signed distance field sampled every
-/// [step] points over it and a margin, for a renderer that shades the body
-/// from the field: each node holds the distance to the nearest shape, its
-/// gradient by central differences, turned as the renderer turns a rounded
-/// box's normals near its corners ([opticalCornerScale]), and that shape's
-/// half thickness. The latest fields are kept.
-@internal
-GlassOutline unionFieldOutline(List<RRect> shapes, {double step = 4}) {
-  for (var k = 0; k < _recentFields.length; k++) {
-    final (recent, outline) = _recentFields[k];
-    if (listEquals(recent, shapes)) {
-      _used(_recentFields, k);
-      return outline;
-    }
-  }
-  final kept = List<RRect>.unmodifiable(shapes);
-  final path = _plainUnion(kept).path;
+LiquidGlassField _unionField(List<RRect> kept, Rect bounds, double step) {
   final boxes = OutlineBoxes(kept);
-  final area = path.getBounds().inflate(2 * step + 4);
+  final area = bounds.inflate(2 * step + 4);
   final cols = (area.width / step).ceil() + 1;
   final rows = (area.height / step).ceil() + 1;
   final distance = Float64List(cols * rows);
@@ -915,16 +901,11 @@ GlassOutline unionFieldOutline(List<RRect> shapes, {double step = 4}) {
       samples[out + 3] = boxes.halfMinor(which);
     }
   }
-  final outline = GlassOutline(
-    path,
-    field: LiquidGlassField(
-      samples: samples,
-      cols: cols,
-      rows: rows,
-      origin: area.topLeft,
-      step: step,
-    ),
+  return LiquidGlassField(
+    samples: samples,
+    cols: cols,
+    rows: rows,
+    origin: area.topLeft,
+    step: step,
   );
-  _remember(_recentFields, (kept, outline));
-  return outline;
 }
