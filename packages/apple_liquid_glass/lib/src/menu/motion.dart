@@ -1181,7 +1181,7 @@ class MenuCard {
 /// released on the button it leaves the menu open, as UIKit does.
 ///
 /// What a host acts on comes out as [MenuEvent]s ([drainEvents]).
-class MenuMotion extends Motion {
+class MenuMotion extends Motion with Presented {
   /// Creates the motion of the button at `button` whose menu is `layout`
   /// (uniform rows of `itemCount` when null), inside `bounds` minus the
   /// safe-area `padding`.
@@ -2320,9 +2320,30 @@ class MenuMotion extends Motion {
   ///
   /// [sourceScale] is the button's scale at that moment, which sizes the
   /// frame the menu aligns to; it defaults to the current press scale.
+  @override
   void open(double t, {double? sourceScale}) {
     _take(t);
     _open(t, sourceScale: sourceScale);
+  }
+
+  /// Where the menu stands: shown once its open has come to rest, leaving
+  /// from its close until it has closed and nothing of it moves.
+  @override
+  PresenceStatus get presence => switch (_phase) {
+    _Phase.opening =>
+      _progress.restsAt(_now, _progressRest)
+          ? PresenceStatus.shown
+          : PresenceStatus.opening,
+    _Phase.closing => PresenceStatus.leaving,
+    _Phase.idle => isSettled ? PresenceStatus.hidden : PresenceStatus.leaving,
+  };
+
+  /// Closes the menu at time [t] for any [trigger]; a menu already on its
+  /// way out keeps going.
+  @override
+  bool leave(double t, DismissTrigger trigger) {
+    if (_phase == _Phase.opening) close(t);
+    return presence != PresenceStatus.hidden;
   }
 
   /// Closes the menu at time [t].

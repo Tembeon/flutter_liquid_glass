@@ -115,7 +115,7 @@ class MenuAnchor extends StatefulWidget {
   /// How the rows order in a menu that opens upward.
   final GlassMenuOrder order;
 
-  /// The measured behavior of the menu.
+  /// The measured behavior of the menu, read when it first opens.
   final MenuTuning tuning;
 
   @override
@@ -127,7 +127,7 @@ class MenuAnchor extends StatefulWidget {
 abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   static final Listenable _still = Listenable.merge(const []);
 
-  final _portal = OverlayPortalController(debugLabel: 'glass menu');
+  final _portal = PresentationPortalController();
   late final _content = MenuContent(onChanged: _contentChanged);
   final _showing = ValueNotifier<bool>(false);
   MenuMotion? _motion;
@@ -153,7 +153,6 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   bool get _enabled;
   String? get _semanticLabel;
   VoidCallback? get _onTap;
-  MenuTuning get _tuning;
 
   /// The source's look drawn on the glass while it grows into the menu,
   /// or null for a menu that does not grow out of its source's glass.
@@ -217,8 +216,6 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   }
 
   void _adopt(MenuMotion motion) {
-    _steps?.removeListener(_stepped);
-    _hide();
     _motion = motion;
     final steps = _steps = MotionSelect(
       motion,
@@ -231,14 +228,6 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     if (motion == null) return;
     _deliver(motion);
     if (_early == null && !motion.isOpenPending) _unroute();
-    if (!motion.isPresented && motion.isSettled) _hide();
-  }
-
-  void _hide() {
-    if (!_showing.value) return;
-    _portal.hide();
-    _showing.value = false;
-    if (mounted) setState(() {});
   }
 
   void _command(
@@ -257,7 +246,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   // Events a callback raises while others are delivered follow them, in
   // order, instead of interrupting them.
   void _deliver(MenuMotion motion) {
-    if (motion.isPresented) _show();
+    if (motion.isOpen) _show();
     if (_delivering) return;
     _delivering = true;
     try {
@@ -319,7 +308,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     _content.textScaler = MediaQuery.textScalerOf(context);
     _content.beginSession();
     final MenuMotion motion;
-    if (current != null && identical(current.tuning, _tuning)) {
+    if (current != null) {
       _relayout(current, source, overlayBox.size, padding);
       motion = current;
     } else {
@@ -334,10 +323,9 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   }
 
   void _show() {
-    if (!mounted || _showing.value) return;
+    if (!mounted) return;
+    _portal.present();
     _showing.value = true;
-    _portal.show();
-    setState(() {});
   }
 
   void _openFromCode() {
@@ -431,18 +419,20 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     }
   }
 
-  /// The overlay's menu, with the page behind it kept from Back.
-  Widget _host(Widget child) => PopScope<Object?>(
-    canPop: !_showing.value,
-    onPopInvokedWithResult: (didPop, _) {
-      if (!didPop) _close();
-    },
-    child: OverlayPortal(
-      controller: _portal,
-      overlayLocation: OverlayChildLocation.rootOverlay,
-      overlayChildBuilder: (context) => _MenuLayer(anchor: this),
-      child: child,
+  /// The opacity of the dim under the open menu, or null for none.
+  double Function(MenuMotion motion)? _dim(BuildContext context) => null;
+
+  /// The menu on the root overlay over [child], the source.
+  Widget _host(Widget child) => PresentationPortal(
+    controller: _portal,
+    presentation: Presentation<Object?, MenuMotion>(
+      motion: (_) => _motion!,
+      builder: (context, motion) => _MenuLayer(anchor: this),
+      dim: _dim(context),
+      semanticsLabel: _semanticLabel,
+      onDismissed: (_) => _showing.value = false,
     ),
+    child: child,
   );
 }
 
@@ -464,9 +454,6 @@ class _MenuAnchorState extends _MenuHost<MenuAnchor> {
 
   @override
   VoidCallback? get _onTap => widget.onTap;
-
-  @override
-  MenuTuning get _tuning => widget.tuning;
 
   @override
   Widget? get _look => widget.look;
@@ -546,7 +533,6 @@ class _MenuAnchorState extends _MenuHost<MenuAnchor> {
   @override
   Widget build(BuildContext context) {
     _style = MenuAppearance.resolve(context);
-    final presented = _showing.value;
     final enabled = widget.enabled;
     final hold = widget.trigger == MenuTrigger.hold;
     return _host(
@@ -560,29 +546,28 @@ class _MenuAnchorState extends _MenuHost<MenuAnchor> {
             },
           ),
         },
-        child: Semantics(
-          button: true,
-          enabled: enabled,
-          expanded: presented,
-          label: widget.semanticLabel,
-          excludeSemantics: widget.semanticLabel != null,
-          onTap: enabled ? _activate : null,
-          onLongPress: enabled && hold ? _openFromCode : null,
-          child: Listener(
-            behavior: HitTestBehavior.opaque,
-            onPointerDown: _sourceDown,
-            onPointerMove: _pointerMove,
-            onPointerUp: _pointerUp,
-            onPointerCancel: _pointerCancel,
-            child: ValueListenableBuilder<bool>(
-              valueListenable: _showing,
-              child: LiveTransform(
-                live: _frames,
-                matrixOf: _pressTransform,
-                child: widget.face,
-              ),
-              builder: (context, showing, face) =>
-                  Visibility.maintain(visible: !showing, child: face!),
+        child: ValueListenableBuilder<bool>(
+          valueListenable: _showing,
+          child: LiveTransform(
+            live: _frames,
+            matrixOf: _pressTransform,
+            child: widget.face,
+          ),
+          builder: (context, showing, face) => Semantics(
+            button: true,
+            enabled: enabled,
+            expanded: showing,
+            label: widget.semanticLabel,
+            excludeSemantics: widget.semanticLabel != null,
+            onTap: enabled ? _activate : null,
+            onLongPress: enabled && hold ? _openFromCode : null,
+            child: Listener(
+              behavior: HitTestBehavior.opaque,
+              onPointerDown: _sourceDown,
+              onPointerMove: _pointerMove,
+              onPointerUp: _pointerUp,
+              onPointerCancel: _pointerCancel,
+              child: Visibility.maintain(visible: !showing, child: face!),
             ),
           ),
         ),
@@ -657,8 +642,6 @@ class _MenuLayerState extends State<_MenuLayer> {
   MenuAppearance? _rowsStyle;
   _Structure? _built;
   bool _parentLocked = false;
-  final _focus = FocusNode(debugLabel: 'glass menu');
-  FocusNode? _restore;
 
   _MenuHost<StatefulWidget> get _anchor => widget.anchor;
 
@@ -674,21 +657,10 @@ class _MenuLayerState extends State<_MenuLayer> {
     _frames.addListener(_tick);
     _scroll.addListener(_scrolled);
     _built = _structure();
-    // The menu takes the keyboard while it shows, as a presentation's
-    // focus scope does, and hands it back when it goes.
-    _restore = FocusManager.instance.primaryFocus;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focus.requestFocus();
-    });
   }
 
   @override
   void dispose() {
-    final restore = _restore;
-    if (_focus.hasFocus && restore != null && restore.context != null) {
-      restore.requestFocus();
-    }
-    _focus.dispose();
     _frames.removeListener(_tick);
     _scroll.dispose();
     for (final hidden in _hidden.values) {
@@ -798,11 +770,7 @@ class _MenuLayerState extends State<_MenuLayer> {
                 : LogicalKeyboardKey.arrowLeft)) {
       var back = false;
       _anchor._command((motion, t) => back = motion.back(t));
-
-      if (!back) {
-        if (key != LogicalKeyboardKey.escape) return KeyEventResult.ignored;
-        _anchor._close();
-      }
+      if (!back) return KeyEventResult.ignored;
     } else {
       return KeyEventResult.ignored;
     }
@@ -1262,10 +1230,8 @@ class _MenuLayerState extends State<_MenuLayer> {
       container: true,
       explicitChildNodes: true,
       role: ui.SemanticsRole.menu,
-      label: _anchor._semanticLabel,
-      onDismiss: _anchor._close,
       child: BlockSemantics(
-        child: Focus(focusNode: _focus, onKeyEvent: _key, child: layer),
+        child: Focus(autofocus: true, onKeyEvent: _key, child: layer),
       ),
     );
   }
@@ -1487,9 +1453,6 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   VoidCallback? get _onTap => null;
 
   @override
-  MenuTuning get _tuning => MenuTuning.context;
-
-  @override
   Widget? get _look => null;
 
   @override
@@ -1649,10 +1612,18 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     return Rect.lerp(_home, _previewRect, motion.progress) ?? _previewRect;
   }
 
+  // The page dims to 20 percent black in light mode, 48 in dark
+  // (context-menu.md).
+  @override
+  double Function(MenuMotion motion) _dim(BuildContext context) {
+    final full = GlassTraits.of(context).brightness == Brightness.dark
+        ? 0.48
+        : 0.2;
+    return (motion) => full * motion.dim;
+  }
+
   @override
   List<Widget> _backdrop(_MenuLayerState layer) {
-    final brightness = GlassTraits.of(layer.context).brightness;
-    final dim = brightness == Brightness.dark ? 0.48 : 0.2;
     final natural = _heldRect.size;
     final builder = widget.previewBuilder;
     Widget carried(Size size, Widget child) => LivePlacement(
@@ -1674,13 +1645,6 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     );
     double shown() => ((_motion?.progress ?? 0) * 2).clamp(0.0, 1.0);
     return [
-      IgnorePointer(
-        child: LiveFade(
-          live: _frames,
-          opacityOf: () => dim * (_motion?.dim ?? 0),
-          child: const ColoredBox(color: Color(0xFF000000)),
-        ),
-      ),
       IgnorePointer(
         child: Stack(
           children: [

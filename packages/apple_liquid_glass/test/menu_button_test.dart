@@ -2,6 +2,7 @@ import 'dart:ui' show Tristate;
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -219,23 +220,33 @@ void main() {
     expect(copy.bottom, lessThan(tester.getRect(_source).bottom + 1));
   });
 
-  testWidgets('screen readers see an expandable button and a menu of items', (
-    tester,
-  ) async {
+  testWidgets('screen readers see an expandable button, then a menu of '
+      'items in its place', (tester) async {
     _phone(tester);
     final handle = tester.ensureSemantics();
     await tester.pumpWidget(_app(_button(<String>[])));
-    final button = find.bySemanticsLabel('More').first;
     expect(
-      tester.getSemantics(button).flagsCollection.isExpanded,
+      tester
+          .getSemantics(find.bySemanticsLabel('More'))
+          .flagsCollection
+          .isExpanded,
       Tristate.isFalse,
     );
     await tester.tap(_source);
     await _settle(tester);
     expect(find.bySemanticsLabel('Copy'), findsOneWidget);
+    final menu = tester.getSemantics(find.bySemanticsLabel('More').last);
+    expect(menu.flagsCollection.scopesRoute, isTrue);
+    expect(menu.getSemanticsData().hasAction(SemanticsAction.dismiss), isTrue);
+    menu.owner!.performAction(menu.id, SemanticsAction.dismiss);
+    await _settle(tester);
+    expect(find.bySemanticsLabel('Copy'), findsNothing);
     expect(
-      tester.getSemantics(button).flagsCollection.isExpanded,
-      Tristate.isTrue,
+      tester
+          .getSemantics(find.bySemanticsLabel('More'))
+          .flagsCollection
+          .isExpanded,
+      Tristate.isFalse,
     );
     handle.dispose();
   });
