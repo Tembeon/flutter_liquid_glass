@@ -36,7 +36,7 @@ final class GlassButtonDetails {
   /// The frames of the button's body: the measured lift, lean and touch
   /// glow, in the button's own box. A builder hands it to a
   /// [GlassSurface.live] that fills the button.
-  final ValueListenable<GlassFrame> body;
+  final MotionSelection<GlassFrame> body;
 
   /// The states the button is in.
   final Set<WidgetState> states;
@@ -526,6 +526,8 @@ class GlassButton extends StatelessWidget {
     return _button(context);
   }
 
+  static final _restingBody = MotionSelection(() => const GlassFrame());
+
   Widget _menuButton(BuildContext context, List<GlassMenuEntry> menu) {
     const states = <WidgetState>{};
     return RawGlassMenu(
@@ -541,7 +543,7 @@ class GlassButton extends StatelessWidget {
       child: _defaultBody(
         context,
         GlassButtonDetails(
-          body: const StillGlassFrame(GlassFrame()),
+          body: _restingBody,
           states: states,
           label: child,
         ),

@@ -16,6 +16,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:apple_liquid_glass/motion.dart';
 import 'package:apple_liquid_glass_example/backdrop.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/rendering.dart';
@@ -533,10 +534,8 @@ class _Drops extends StatefulWidget {
 }
 
 class _DropsState extends State<_Drops> {
-  final _frames = List.generate(
-    5,
-    (_) => ValueNotifier(const GlassFrame(rect: Rect.zero)),
-  );
+  final _phase = MotionValue<double>(0);
+  late List<MotionSelection<GlassFrame>> _frames = _framesIn(widget.area);
 
   Size _size(int i, double w) => switch (i) {
     0 => Size.square(w * 0.36),
@@ -556,36 +555,42 @@ class _DropsState extends State<_Drops> {
   @override
   void didUpdateWidget(_Drops old) {
     super.didUpdateWidget(old);
+    if (old.area != widget.area) _frames = _framesIn(widget.area);
     _update();
   }
 
   @override
   void dispose() {
     widget.t.removeListener(_update);
-    for (final f in _frames) {
-      f.dispose();
-    }
     super.dispose();
   }
 
-  void _update() {
-    final t = widget.moving ? widget.t.value : 0.0;
-    for (var i = 0; i < 5; i++) {
-      final size = _size(i, widget.area.width);
-      final drift = Offset(
-        math.sin(t * 1.3 + i) * 30,
-        math.cos(t * 1.1 + i * 2) * 24,
-      );
-      _frames[i].value = GlassFrame(
-        shape: i == 1 ? const GlassShape.superellipse(26) : GlassShape.capsule,
-        rect: Rect.fromCenter(
-          center: size.center(Offset.zero) + drift,
-          width: size.width,
-          height: size.height,
-        ),
-      );
-    }
-  }
+  void _update() => _phase.snap(
+    MotionClock.instance.now,
+    widget.moving ? widget.t.value : 0.0,
+  );
+
+  List<MotionSelection<GlassFrame>> _framesIn(Size area) => [
+    for (var i = 0; i < 5; i++)
+      MotionSelection(() {
+        final t = _phase.value;
+        final size = _size(i, area.width);
+        final drift = Offset(
+          math.sin(t * 1.3 + i) * 30,
+          math.cos(t * 1.1 + i * 2) * 24,
+        );
+        return GlassFrame(
+          shape: i == 1
+              ? const GlassShape.superellipse(26)
+              : GlassShape.capsule,
+          rect: Rect.fromCenter(
+            center: size.center(Offset.zero) + drift,
+            width: size.width,
+            height: size.height,
+          ),
+        );
+      }),
+  ];
 
   @override
   Widget build(BuildContext context) {

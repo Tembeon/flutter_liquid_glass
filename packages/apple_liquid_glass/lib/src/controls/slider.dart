@@ -35,14 +35,14 @@ final class GlassSliderDetails {
 
   /// The frames of the track in the slider's box: it stretches toward a
   /// finger dragged past an end and thins.
-  final ValueListenable<GlassFrame> track;
+  final MotionSelection<GlassFrame> track;
 
   /// The frames of the fill from the track's start to the value.
-  final ValueListenable<GlassFrame> fill;
+  final MotionSelection<GlassFrame> fill;
 
   /// The frames of the thumb: where it sits, how it stretches, and how far
   /// a finger has lifted it into glass.
-  final ValueListenable<GlassFrame> thumb;
+  final MotionSelection<GlassFrame> thumb;
 
   /// The centers of the tick marks in the slider's box, empty for a
   /// continuous slider.
@@ -765,7 +765,7 @@ class _SliderLook extends StatelessWidget {
     );
     Widget surface(
       GlassRole role,
-      ValueListenable<GlassFrame> frame,
+      MotionSelection<GlassFrame> frame,
       Color tint, {
       GlassPart? part,
     }) => Positioned.fill(

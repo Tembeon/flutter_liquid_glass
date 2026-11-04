@@ -2,6 +2,7 @@ import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/shape.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/kinesis.dart';
 
 /// Clips its child to a glass body, so content laid over the glass ends
 /// where the renderer draws the glass's edge.
@@ -14,7 +15,7 @@ class GlassClip extends StatelessWidget {
   /// child's box: its outline, or its shape where it is drawn. The clip
   /// follows the frames without a rebuild.
   const GlassClip.live({
-    required ValueListenable<GlassFrame> this.frame,
+    required MotionSelection<GlassFrame> this.frame,
     super.key,
     this.child,
   }) : shape = null;
@@ -23,7 +24,7 @@ class GlassClip extends StatelessWidget {
   final GlassShape? shape;
 
   /// The frames whose bodies clip, or null for [shape]'s.
-  final ValueListenable<GlassFrame>? frame;
+  final MotionSelection<GlassFrame>? frame;
 
   /// The clipped widget.
   final Widget? child;

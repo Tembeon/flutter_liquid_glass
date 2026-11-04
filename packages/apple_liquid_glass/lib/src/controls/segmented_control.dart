@@ -6,8 +6,8 @@ import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/style.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:apple_liquid_glass/src/theme/typography.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/kinesis.dart';
 
 /// One segment of a [GlassSegmentedControl].
 ///
@@ -315,7 +315,7 @@ class _SegmentedLook extends StatelessWidget {
         GlassDynamicColor.resolve(property!.resolve(states)!, context);
     Widget surface(
       GlassRole role,
-      ValueListenable<GlassFrame> frame,
+      MotionSelection<GlassFrame> frame,
       Color tint,
     ) => GlassSurface.live(
       role: role,

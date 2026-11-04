@@ -48,7 +48,7 @@ Widget _page(GlassRenderer renderer, GlassFrame frame) => Directionality(
                   size: _shape.bounds.size,
                   child: GlassSurface.live(
                     role: GlassRole.panel,
-                    frame: ValueNotifier(frame),
+                    frame: MotionSelection(() => frame),
                     child: const SizedBox.expand(),
                   ),
                 ),

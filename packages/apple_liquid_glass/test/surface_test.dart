@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:apple_liquid_glass/motion.dart';
 import 'package:apple_liquid_glass/src/motion/touch_glow.dart';
 import 'package:apple_liquid_glass/src/renderer/adaptive.dart';
 import 'package:apple_liquid_glass/src/renderer/flat.dart';
@@ -73,13 +74,12 @@ void main() {
     testWidgets('a live surface repaints for a frame and never rebuilds', (
       tester,
     ) async {
-      final frames = ValueNotifier(const GlassFrame());
-      addTearDown(frames.dispose);
+      final frames = _Frames(const GlassFrame());
       final builds = <int>[];
       await tester.pumpWidget(
         _app(
           const GlassRenderer.flat(),
-          GlassSurface.live(frame: frames, child: _Counted(builds)),
+          GlassSurface.live(frame: frames.selection, child: _Counted(builds)),
         ),
       );
       final body = tester.renderObject<RenderFlatGlass>(
@@ -91,7 +91,6 @@ void main() {
       );
       expect(body.debugNeedsPaint, isFalse);
       frames.value = const GlassFrame(scaleX: 1.1, scaleY: 1.1);
-      expect(body.debugNeedsPaint, isTrue);
       await tester.pump();
       expect(builds, [0]);
       expect(
@@ -223,7 +222,7 @@ void main() {
             GlassSurface.live(
               role: GlassRole.lens,
               part: part,
-              frame: ValueNotifier(const GlassFrame(lift: 1)),
+              frame: MotionSelection(() => const GlassFrame(lift: 1)),
               child: const SizedBox(width: 60, height: 30),
             ),
           ),
@@ -274,8 +273,7 @@ void main() {
     testWidgets('a touch lights the layer, in the layer of its group', (
       tester,
     ) async {
-      final frames = ValueNotifier(const GlassFrame());
-      addTearDown(frames.dispose);
+      final frames = _Frames(const GlassFrame());
       await tester.pumpWidget(
         _app(
           const GlassRenderer.liquid(),
@@ -285,7 +283,7 @@ void main() {
               children: [
                 const GlassSurface(child: SizedBox(width: 44, height: 44)),
                 GlassSurface.live(
-                  frame: frames,
+                  frame: frames.selection,
                   child: const SizedBox(width: 100, height: 44),
                 ),
               ],
@@ -307,12 +305,14 @@ void main() {
           spot: 0.3,
         ),
       );
+      await tester.pump();
       final lit = glow()!;
       expect(lit.bounds, const Rect.fromLTWH(44, 0, 100, 44));
       expect(lit.center, const Offset(74, 22));
       expect(lit.wash, 0.04);
       expect(lit.gain, closeTo(0.3 * TouchGlowMotion.spotGain(.light), 1e-9));
       frames.value = const GlassFrame();
+      await tester.pump();
       expect(glow(), isNull);
     });
   });
@@ -320,8 +320,7 @@ void main() {
   group('liquid settings and rest', () {
     testWidgets('fake glass takes no glow; a lone clear surface and the '
         'dark appearance get their iOS 27 settings', (tester) async {
-      final frames = ValueNotifier(const GlassFrame());
-      addTearDown(frames.dispose);
+      final frames = _Frames(const GlassFrame());
       LiquidGlassLayerFrame layer() => tester
           .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
           .live!
@@ -330,7 +329,7 @@ void main() {
         _app(
           const GlassRenderer.fake(),
           GlassSurface.live(
-            frame: frames,
+            frame: frames.selection,
             child: const SizedBox(width: 100, height: 44),
           ),
         ),
@@ -429,17 +428,16 @@ void main() {
     testWidgets('a still surface in place of a lifted live one draws at rest', (
       tester,
     ) async {
-      final frames = ValueNotifier(
+      final frames = _Frames(
         const GlassFrame(scaleX: 1.2, scaleY: 1.2),
       );
-      addTearDown(frames.dispose);
       LiquidGlassShapeFrame shape() =>
           tester.widget<LiquidGlass>(find.byType(LiquidGlass)).frame!.value;
       await tester.pumpWidget(
         _app(
           const GlassRenderer.liquid(),
           GlassSurface.live(
-            frame: frames,
+            frame: frames.selection,
             child: const SizedBox(width: 100, height: 44),
           ),
         ),
@@ -458,12 +456,11 @@ void main() {
   testWidgets("a frame's opacity fades the glass on both renderers", (
     tester,
   ) async {
-    final frames = ValueNotifier(const GlassFrame(opacity: 0.25));
-    addTearDown(frames.dispose);
+    final frames = _Frames(const GlassFrame(opacity: 0.25));
     Widget surface(GlassRenderer renderer) => _app(
       renderer,
       GlassSurface.live(
-        frame: frames,
+        frame: frames.selection,
         child: const SizedBox(width: 100, height: 44),
       ),
     );
@@ -502,13 +499,12 @@ void main() {
       origin: Offset.zero,
       step: 60,
     );
-    final frames = ValueNotifier(
+    final frames = _Frames(
       GlassFrame(outline: GlassOutline(edge, field: () => field)),
     );
-    addTearDown(frames.dispose);
     Widget surface(GlassRenderer renderer, {bool grouped = false}) {
       final body = GlassSurface.live(
-        frame: frames,
+        frame: frames.selection,
         child: const RepaintBoundary(child: SizedBox(width: 100, height: 60)),
       );
       return _app(
@@ -558,14 +554,13 @@ void main() {
   });
 
   testWidgets('flat content reports where it is drawn', (tester) async {
-    final frames = ValueNotifier(const GlassFrame());
-    addTearDown(frames.dispose);
+    final frames = _Frames(const GlassFrame());
     const key = Key('content');
     await tester.pumpWidget(
       _app(
         const GlassRenderer.flat(),
         GlassSurface.live(
-          frame: frames,
+          frame: frames.selection,
           child: const SizedBox(key: key, width: 100, height: 44),
         ),
       ),
@@ -573,6 +568,7 @@ void main() {
     final box = tester.renderObject<RenderBox>(find.byKey(key));
     final rest = box.localToGlobal(Offset.zero);
     frames.value = const GlassFrame(rect: Rect.fromLTWH(10, 0, 100, 44));
+    await tester.pump();
     expect(box.localToGlobal(Offset.zero), rest + const Offset(10, 0));
   });
 
@@ -580,11 +576,10 @@ void main() {
     testWidgets('a renderer switch rebuilds surfaces and keeps their '
         "content's state", (tester) async {
       final builds = <int>[];
-      final frames = ValueNotifier(const GlassFrame());
-      addTearDown(frames.dispose);
+      final frames = _Frames(const GlassFrame());
       Widget surface(GlassRenderer renderer) => _app(
         renderer,
-        GlassSurface.live(frame: frames, child: _Counted(builds)),
+        GlassSurface.live(frame: frames.selection, child: _Counted(builds)),
       );
       await tester.pumpWidget(surface(const GlassRenderer.flat()));
       expect(find.byType(LiquidGlass), findsNothing);
@@ -657,15 +652,14 @@ void main() {
   testWidgets('a clip follows the frames of its glass without a rebuild', (
     tester,
   ) async {
-    final frames = ValueNotifier(
+    final frames = _Frames(
       const GlassFrame(rect: Rect.fromLTWH(10, 0, 40, 20)),
     );
-    addTearDown(frames.dispose);
     final builds = <int>[];
     await tester.pumpWidget(
       _app(
         const GlassRenderer.flat(),
-        GlassClip.live(frame: frames, child: _Counted(builds)),
+        GlassClip.live(frame: frames.selection, child: _Counted(builds)),
       ),
     );
     final box = tester.renderObject<RenderClipPath>(find.byType(ClipPath));
@@ -695,3 +689,23 @@ void main() {
 }
 
 final class _NoContext extends Fake implements BuildContext {}
+
+/// Frames a test writes; the surface follows them as a selection.
+final class _Frames {
+  _Frames(this._frame);
+
+  GlassFrame _frame;
+  final _version = MotionValue<double>(0);
+
+  late final MotionSelection<GlassFrame> selection = MotionSelection(() {
+    _version.value;
+    return _frame;
+  });
+
+  GlassFrame get value => _frame;
+
+  set value(GlassFrame frame) {
+    _frame = frame;
+    _version.snap(MotionClock.instance.now, _version.value + 1);
+  }
+}

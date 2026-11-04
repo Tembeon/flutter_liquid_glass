@@ -1238,7 +1238,10 @@ class _Surfaces extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           for (final frame in frames)
-            GlassSurface.live(frame: frame, child: const SizedBox.expand()),
+            GlassSurface.written(
+              frame: frame,
+              child: const SizedBox.expand(),
+            ),
         ],
       ),
     ),

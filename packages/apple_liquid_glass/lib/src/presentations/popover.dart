@@ -199,7 +199,7 @@ class PopoverLayout extends MultiChildRenderObjectWidget {
   final ValueListenable<double> scale;
 
   /// The popover's opacity.
-  final ValueListenable<double> opacity;
+  final MotionSelection<double> opacity;
 
   /// The widest the card may be.
   final double maxWidth;
@@ -236,55 +236,43 @@ class _PopoverGlass extends StatefulWidget {
   const _PopoverGlass({required this.shape, required this.opacity});
 
   final PopoverShape shape;
-  final ValueListenable<double> opacity;
+  final MotionSelection<double> opacity;
 
   @override
   State<_PopoverGlass> createState() => _PopoverGlassState();
 }
 
 class _PopoverGlassState extends State<_PopoverGlass> {
-  final _frame = ValueNotifier(const GlassFrame(opacity: 0));
-
-  @override
-  void initState() {
-    super.initState();
-    widget.opacity.addListener(_publish);
-  }
+  late MotionSelection<GlassFrame> _frame = _frameNow();
 
   @override
   void didUpdateWidget(_PopoverGlass oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.opacity != widget.opacity) {
-      oldWidget.opacity.removeListener(_publish);
-      widget.opacity.addListener(_publish);
+    if (!identical(oldWidget.opacity, widget.opacity) ||
+        oldWidget.shape != widget.shape) {
+      _frame = _frameNow();
     }
   }
 
-  @override
-  void dispose() {
-    widget.opacity.removeListener(_publish);
-    _frame.dispose();
-    super.dispose();
-  }
-
-  void _publish() {
-    _frame.value = GlassFrame(
-      shape: const GlassShape.superellipse(PopoverTuning.cornerRadius),
-      opacity: widget.opacity.value,
-      outline: widget.shape.outline,
+  MotionSelection<GlassFrame> _frameNow() {
+    final opacity = widget.opacity;
+    final outline = widget.shape.outline;
+    return MotionSelection(
+      () => GlassFrame(
+        shape: const GlassShape.superellipse(PopoverTuning.cornerRadius),
+        opacity: opacity.value,
+        outline: outline,
+      ),
     );
   }
 
   @override
-  Widget build(BuildContext context) {
-    _publish();
-    return GlassSurface.live(
-      role: GlassRole.panel,
-      part: GlassPart.menu,
-      frame: _frame,
-      child: const SizedBox.expand(),
-    );
-  }
+  Widget build(BuildContext context) => GlassSurface.live(
+    role: GlassRole.panel,
+    part: GlassPart.menu,
+    frame: _frame,
+    child: const SizedBox.expand(),
+  );
 }
 
 class _PopoverConstraints extends BoxConstraints {

@@ -6,7 +6,6 @@ import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/style.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
@@ -30,10 +29,10 @@ final class GlassSwitchDetails {
 
   /// The frames of the knob in the switch's 63 x 28 box: where it sits,
   /// how it stretches, and how far a finger has lifted it into glass.
-  final ValueListenable<GlassFrame> thumb;
+  final MotionSelection<GlassFrame> thumb;
 
   /// How far the track has turned on, 0 off and 1 on.
-  final ValueListenable<double> progress;
+  final MotionSelection<double> progress;
 
   /// The states the switch is in; [WidgetState.selected] when it is on.
   final Set<WidgetState> states;
@@ -433,7 +432,15 @@ class GlassSwitch extends StatelessWidget {
         Positioned.fill(
           child: GlassSurface.live(
             role: GlassRole.track,
-            frame: _TrackFrames(details.progress, off, on),
+            frame: MotionSelection(
+              () => GlassFrame(
+                tint: Color.lerp(
+                  off,
+                  on,
+                  details.progress.value.clamp(0.0, 1.0),
+                ),
+              ),
+            ),
             child: const SizedBox.expand(),
           ),
         ),
@@ -455,36 +462,4 @@ class GlassSwitch extends StatelessWidget {
       child: body,
     );
   }
-}
-
-/// The track's frames: the off color turning into the on color with the
-/// switch's progress.
-@immutable
-final class _TrackFrames implements ValueListenable<GlassFrame> {
-  const _TrackFrames(this.progress, this.off, this.on);
-
-  final ValueListenable<double> progress;
-  final Color off;
-  final Color on;
-
-  @override
-  GlassFrame get value =>
-      GlassFrame(tint: Color.lerp(off, on, progress.value.clamp(0.0, 1.0)));
-
-  @override
-  void addListener(VoidCallback listener) => progress.addListener(listener);
-
-  @override
-  void removeListener(VoidCallback listener) =>
-      progress.removeListener(listener);
-
-  @override
-  bool operator ==(Object other) =>
-      other is _TrackFrames &&
-      other.progress == progress &&
-      other.off == off &&
-      other.on == on;
-
-  @override
-  int get hashCode => Object.hash(progress, off, on);
 }

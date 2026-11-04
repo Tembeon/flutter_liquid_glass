@@ -448,7 +448,7 @@ class _TabBarLook extends StatelessWidget {
 
     Widget surface(
       GlassRole role,
-      ValueListenable<GlassFrame> frame,
+      MotionSelection<GlassFrame> frame,
       Color? tint, {
       GlassPart? part,
     }) => GlassSurface.live(
@@ -809,36 +809,34 @@ class _Accessory extends StatefulWidget {
 }
 
 class _AccessoryState extends State<_Accessory> {
-  final _frame = ValueNotifier(const GlassFrame());
+  late MotionSelection<GlassFrame> _frame = _frameNow();
   final _placement = ValueNotifier(GlassTabAccessoryPlacement.expanded);
-
-  List<Listenable> get _sources => [
-    widget.body.accessoryX,
-    widget.body.accessoryY,
-    widget.body.minimized,
-  ];
 
   @override
   void initState() {
     super.initState();
-    for (final source in _sources) {
-      source.addListener(_moved);
-    }
-    _moved();
+    widget.body.minimized.addListener(_placed);
+    _placed();
   }
 
   @override
   void didUpdateWidget(_Accessory oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _moved();
+    if (!identical(oldWidget.body, widget.body)) {
+      oldWidget.body.minimized.removeListener(_placed);
+      widget.body.minimized.addListener(_placed);
+    }
+    if (!identical(oldWidget.body, widget.body) ||
+        oldWidget.width != widget.width ||
+        oldWidget.rtl != widget.rtl) {
+      _frame = _frameNow();
+    }
+    _placed();
   }
 
   @override
   void dispose() {
-    for (final source in _sources) {
-      source.removeListener(_moved);
-    }
-    _frame.dispose();
+    widget.body.minimized.removeListener(_placed);
     _placement.dispose();
     super.dispose();
   }
@@ -879,20 +877,26 @@ class _AccessoryState extends State<_Accessory> {
     );
   }
 
-  void _moved() {
-    final x = widget.body.accessoryX.value;
-    final y = widget.body.accessoryY.value;
+  MotionSelection<GlassFrame> _frameNow() {
+    final body = widget.body;
     final from = _expanded;
     final to = _inline;
     double lerp(double a, double b, double t) => a + (b - a) * t;
-    _frame.value = GlassFrame(
-      rect: Rect.fromLTRB(
-        lerp(from.left, to.left, x),
-        lerp(from.top, to.top, y),
-        lerp(from.right, to.right, x),
-        lerp(from.bottom, to.bottom, y),
-      ),
-    );
+    return MotionSelection(() {
+      final x = body.accessoryX.value;
+      final y = body.accessoryY.value;
+      return GlassFrame(
+        rect: Rect.fromLTRB(
+          lerp(from.left, to.left, x),
+          lerp(from.top, to.top, y),
+          lerp(from.right, to.right, x),
+          lerp(from.bottom, to.bottom, y),
+        ),
+      );
+    });
+  }
+
+  void _placed() {
     _placement.value = widget.body.minimized.value
         ? GlassTabAccessoryPlacement.inline
         : GlassTabAccessoryPlacement.expanded;
@@ -991,7 +995,7 @@ class _CollapsingTabs extends StatefulWidget {
 
   final double width;
   final Size barSize;
-  final ValueListenable<double> morph;
+  final MotionSelection<double> morph;
   final List<GlassTabDestination> destinations;
   final int selectedIndex;
   final GlassTabBarStyle look;
@@ -1004,7 +1008,7 @@ class _CollapsingTabs extends StatefulWidget {
 }
 
 class _CollapsingTabsState extends State<_CollapsingTabs> {
-  final _frame = ValueNotifier(const GlassFrame());
+  late MotionSelection<GlassFrame> _frame = _frameNow();
   final _fade = ValueNotifier<double>(1);
   final _travel = ValueNotifier(Offset.zero);
 
@@ -1022,21 +1026,34 @@ class _CollapsingTabsState extends State<_CollapsingTabs> {
       oldWidget.morph.removeListener(_moved);
       widget.morph.addListener(_moved);
     }
+    if (!identical(oldWidget.morph, widget.morph) ||
+        oldWidget.width != widget.width ||
+        oldWidget.barSize != widget.barSize ||
+        oldWidget.rtl != widget.rtl) {
+      _frame = _frameNow();
+    }
     _moved();
   }
 
   @override
   void dispose() {
     widget.morph.removeListener(_moved);
-    _frame.dispose();
     _fade.dispose();
     _travel.dispose();
     super.dispose();
   }
 
+  MotionSelection<GlassFrame> _frameNow() {
+    final morph = widget.morph;
+    final rest = _rest;
+    final circle = _circle;
+    return MotionSelection(
+      () => GlassFrame(rect: Rect.lerp(rest, circle, morph.value)),
+    );
+  }
+
   void _moved() {
     final morph = widget.morph.value;
-    _frame.value = GlassFrame(rect: Rect.lerp(_rest, _circle, morph));
     _fade.value = (1 - morph).clamp(0.0, 1.0);
     _travel.value = _glyphTravel * morph;
   }

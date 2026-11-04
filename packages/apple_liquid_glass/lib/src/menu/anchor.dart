@@ -709,7 +709,7 @@ class _MenuLayerState extends State<_MenuLayer> {
 
   _MenuHost<StatefulWidget> get _anchor => widget.anchor;
 
-  late final Listenable _frames = _anchor._frames;
+  late final MotionSelection<MenuMotion> _frames = _anchor._steps!;
 
   late final _input = _MenuInput(
     toGlobal: (local) =>

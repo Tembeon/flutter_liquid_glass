@@ -13,7 +13,6 @@ import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:apple_liquid_glass/src/theme/typography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
@@ -300,7 +299,6 @@ class _GlassSearchFieldState extends State<GlassSearchField>
 
   @override
   void dispose() {
-    _faded?.dispose();
     _ends?.removeListener(_ended);
     _focus.removeListener(_focusChanged);
     _states.dispose();
@@ -311,16 +309,18 @@ class _GlassSearchFieldState extends State<GlassSearchField>
   }
 
   Listenable? _ends;
-  _Faded? _faded;
+  MotionValue<double>? _fadedGlass;
+  late MotionSelection<GlassFrame> _faded;
 
-  ValueListenable<GlassFrame> _fadedBy(ValueListenable<double> glass) {
-    final faded = _faded;
-    if (faded != null && identical(faded._presence, glass)) return faded;
-    // The surface lets go of the old source as it rebuilds.
-    if (faded != null) {
-      SchedulerBinding.instance.addPostFrameCallback((_) => faded.dispose());
-    }
-    return _faded = _Faded(_body, glass);
+  MotionSelection<GlassFrame> _fadedBy(MotionValue<double> glass) {
+    if (identical(glass, _fadedGlass)) return _faded;
+    _fadedGlass = glass;
+    return _faded = MotionSelection(() {
+      final frame = _body.value;
+      return frame.copyWith(
+        opacity: frame.opacity * glass.value.clamp(0.0, 1.0),
+      );
+    });
   }
 
   @override
@@ -552,7 +552,7 @@ class SearchFieldStacking extends InheritedWidget {
   final double height;
 
   /// How present the field's glass is, 0 to 1.
-  final ValueListenable<double> glass;
+  final MotionValue<double> glass;
 
   /// The stacking around [context], or null.
   static SearchFieldStacking? maybeOf(BuildContext context) =>
@@ -561,31 +561,6 @@ class SearchFieldStacking extends InheritedWidget {
   @override
   bool updateShouldNotify(SearchFieldStacking oldWidget) =>
       height != oldWidget.height || glass != oldWidget.glass;
-}
-
-class _Faded extends ChangeNotifier implements ValueListenable<GlassFrame> {
-  _Faded(this._frames, this._presence) {
-    _frames.addListener(notifyListeners);
-    _presence.addListener(notifyListeners);
-  }
-
-  final ValueListenable<GlassFrame> _frames;
-  final ValueListenable<double> _presence;
-
-  @override
-  GlassFrame get value {
-    final frame = _frames.value;
-    return frame.copyWith(
-      opacity: frame.opacity * _presence.value.clamp(0.0, 1.0),
-    );
-  }
-
-  @override
-  void dispose() {
-    _frames.removeListener(notifyListeners);
-    _presence.removeListener(notifyListeners);
-    super.dispose();
-  }
 }
 
 /// The signal a host's close button fires through [end] when a search ends.

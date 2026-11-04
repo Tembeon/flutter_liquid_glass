@@ -70,11 +70,11 @@ final class GlassSelectorDetails {
 
   /// The frames of the track or bar, which fills the selector: the glow a
   /// finger raises on a tab bar.
-  final ValueListenable<GlassFrame> body;
+  final MotionSelection<GlassFrame> body;
 
   /// The frames of the lens in the selector's box: where it sits, how it
   /// stretches, and how far a finger has lifted it into glass.
-  final ValueListenable<GlassFrame> lens;
+  final MotionSelection<GlassFrame> lens;
 
   final Widget Function(Widget? lens) _items;
 

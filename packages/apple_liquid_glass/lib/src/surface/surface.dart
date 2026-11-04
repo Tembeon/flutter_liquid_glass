@@ -7,6 +7,7 @@ import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/kinesis.dart';
 
 /// A glass body behind [child], drawn by the ambient `GlassRenderer`.
 ///
@@ -29,15 +30,32 @@ class GlassSurface extends StatefulWidget {
   }) : frame = null;
 
   /// Creates a body that follows [frame]: moved, scaled, lifted, tinted and
-  /// lit frame by frame without a rebuild.
+  /// lit frame by frame without a rebuild. [frame] is a selection of the
+  /// motion that moves the body, so its frames publish in the frame's
+  /// resolve phase and the glass is never a frame behind its layout.
   const GlassSurface.live({
-    required ValueListenable<GlassFrame> this.frame,
+    required MotionSelection<GlassFrame> this.frame,
     required this.child,
     this.role = GlassRole.control,
     this.glass = const Glass.regular(),
     @internal this.part,
     super.key,
   }) : _shape = null;
+
+  // A bar writes its capsules' frames in the frame's resolve phase, after
+  // its items are laid out; the renderers hear a selection only in the
+  // publish phase, so a selection would draw the bar's glass a frame late.
+  /// Creates a body that follows frames its owner writes in the frame's
+  /// resolve phase.
+  @internal
+  const GlassSurface.written({
+    required ValueListenable<GlassFrame> this.frame,
+    required this.child,
+    super.key,
+  }) : _shape = null,
+       role = GlassRole.control,
+       glass = const Glass.regular(),
+       part = null;
 
   final GlassShape? _shape;
 
@@ -159,10 +177,10 @@ class _Border extends CustomPainter {
 }
 
 /// A menu's [GlassSurface.live] over its whole box, whose frame is
-/// [frameOf], read again on every notification of [live] and on every
+/// [frameOf], read again on every step [live] publishes and on every
 /// rebuild.
 @internal
-class LiveGlassSurface extends StatefulWidget {
+class LiveGlassSurface extends StatelessWidget {
   /// Creates the surface.
   const LiveGlassSurface({
     required this.live,
@@ -170,49 +188,20 @@ class LiveGlassSurface extends StatefulWidget {
     super.key,
   });
 
-  /// Notifies when [frameOf] has a new frame.
-  final Listenable live;
+  /// Publishes when [frameOf] has a new frame.
+  final MotionSelection<Object?> live;
 
   /// The surface's frame now.
   final GlassFrame Function() frameOf;
 
   @override
-  State<LiveGlassSurface> createState() => _LiveGlassSurfaceState();
-}
-
-class _LiveGlassSurfaceState extends State<LiveGlassSurface> {
-  late final _frame = ValueNotifier(widget.frameOf());
-
-  void _changed() => _frame.value = widget.frameOf();
-
-  @override
-  void initState() {
-    super.initState();
-    widget.live.addListener(_changed);
-  }
-
-  @override
-  void didUpdateWidget(LiveGlassSurface oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.live != widget.live) {
-      oldWidget.live.removeListener(_changed);
-      widget.live.addListener(_changed);
-    }
-    _changed();
-  }
-
-  @override
-  void dispose() {
-    widget.live.removeListener(_changed);
-    _frame.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) => GlassSurface.live(
     role: GlassRole.panel,
     part: GlassPart.menu,
-    frame: _frame,
+    frame: MotionSelection(() {
+      live.value;
+      return frameOf();
+    }),
     child: const SizedBox.expand(),
   );
 }
