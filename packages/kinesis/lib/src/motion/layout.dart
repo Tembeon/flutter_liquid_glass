@@ -143,6 +143,14 @@ final class LayoutMotion extends Motion {
     changed();
   }
 
+  /// Drops [id] at once, without a leave: for a host whose item went out
+  /// of view, as a lazy list's row scrolls away.
+  void forget(Object id) {
+    if (!_slots.containsKey(id)) return;
+    _drop(id);
+    changed();
+  }
+
   /// Whether [id] rests where it is drawn.
   bool itemRests(Object id) {
     final slot = _slots[id];

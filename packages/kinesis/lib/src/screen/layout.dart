@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart';
 import 'package:kinesis/src/clock.dart';
 import 'package:kinesis/src/motion/layout.dart';
 import 'package:kinesis/src/motion/motion.dart';
+import 'package:kinesis/src/screen/layout_item.dart';
 import 'package:kinesis/src/screen/resolve.dart';
 import 'package:kinesis/src/screen/scope.dart';
 import 'package:kinesis/src/screen/transition.dart';
@@ -83,50 +84,23 @@ class MotionLayout extends StatefulWidget {
   /// Where the nearest child of a [MotionLayout] is drawn, in the layout's
   /// coordinates, or null outside one.
   static ValueListenable<LayoutItem>? itemOf(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<_ItemScope>()?.item;
+      LayoutItemScope.of(context);
 
   /// Like [itemOf], and tells the child's probe that [context] draws the
   /// item itself, as a glass surface takes its frame from the item at
   /// paint: while any descendant adopts it, the probe adds no transform,
   /// opacity or blur of its own, and the adopter moves, fades and scales
   /// what it draws.
-  static ValueListenable<LayoutItem>? adoptItem(BuildContext context) => context
-      .dependOnInheritedWidgetOfExactType<_ItemScope>(aspect: _adopts)
-      ?.item;
+  static ValueListenable<LayoutItem>? adoptItem(BuildContext context) =>
+      LayoutItemScope.of(context, adopt: true);
 
   @override
   State<MotionLayout> createState() => _MotionLayoutState();
 }
 
-const Object _adopts = #adopts;
-
-final class _Child {
-  _Child(LayoutMotion motion, this.id)
-    : item = motion.select((m) => m.itemAt(id));
-
-  final Object id;
-  final MotionSelection<LayoutItem> item;
-  final GlobalKey key = GlobalKey();
-  final Set<Element> _adopters = {};
-  _RenderProbe? probe;
-  Widget? last;
-
-  bool get adopted => _adopters.isNotEmpty;
-
-  void adopt(Element adopter, {required bool adopts}) {
-    final was = adopted;
-    if (adopts) {
-      _adopters.add(adopter);
-    } else {
-      _adopters.remove(adopter);
-    }
-    if (adopted != was) probe?.markNeedsCompositedLayerUpdate();
-  }
-}
-
 class _MotionLayoutState extends State<MotionLayout> {
   LayoutMotion? _kept;
-  final Map<Object, _Child> _children = {};
+  final Map<Object, LayoutItemEntry> _children = {};
   List<Object> _ids = const [];
   final Set<Object> _ghosts = {};
   late MotionSelection<int> _drawn;
@@ -247,14 +221,14 @@ class _MotionLayoutState extends State<MotionLayout> {
   }
 
   Widget _probe(Object id, Widget child, {required bool ghost}) {
-    final entry = _children[id] ??= _Child(motion, id);
+    final entry = _children[id] ??= LayoutItemEntry(motion, id);
     if (!ghost) entry.last = child;
     return _Probe(
       key: entry.key,
       motion: motion,
       child: entry,
       ghost: ghost,
-      content: _ItemScope(entry: entry, child: child),
+      content: LayoutItemScope(entry: entry, child: child),
     );
   }
 
@@ -275,50 +249,6 @@ class _MotionLayoutState extends State<MotionLayout> {
     if (change == null) return;
     widget.onLayout?.call(change);
     host.markProbesChanged();
-  }
-}
-
-class _ItemScope extends InheritedWidget {
-  const _ItemScope({required this.entry, required super.child});
-
-  final _Child entry;
-
-  ValueListenable<LayoutItem> get item => entry.item;
-
-  @override
-  bool updateShouldNotify(_ItemScope oldWidget) =>
-      !identical(oldWidget.entry, entry);
-
-  @override
-  InheritedElement createElement() => _ItemScopeElement(this);
-}
-
-class _ItemScopeElement extends InheritedElement {
-  _ItemScopeElement(super.widget);
-
-  _Child get _entry => (widget as _ItemScope).entry;
-
-  @override
-  void updateDependencies(Element dependent, Object? aspect) {
-    super.updateDependencies(dependent, aspect);
-    if (identical(aspect, _adopts)) _entry.adopt(dependent, adopts: true);
-  }
-
-  @override
-  void removeDependent(Element dependent) {
-    _entry.adopt(dependent, adopts: false);
-    super.removeDependent(dependent);
-  }
-
-  @override
-  void updated(_ItemScope oldWidget) {
-    if (!identical(oldWidget.entry, _entry)) {
-      for (final adopter in oldWidget.entry._adopters.toList()) {
-        oldWidget.entry.adopt(adopter, adopts: false);
-        _entry.adopt(adopter, adopts: true);
-      }
-    }
-    super.updated(oldWidget);
   }
 }
 
@@ -435,7 +365,7 @@ class _RenderHost extends RenderBox
 class _Probe extends SingleChildRenderObjectWidget {
   const _Probe({
     required this.motion,
-    required _Child child,
+    required LayoutItemEntry child,
     required this.ghost,
     required Widget content,
     super.key,
@@ -443,7 +373,7 @@ class _Probe extends SingleChildRenderObjectWidget {
        super(child: content);
 
   final LayoutMotion motion;
-  final _Child entry;
+  final LayoutItemEntry entry;
   final bool ghost;
 
   @override
@@ -464,9 +394,9 @@ class _RenderProbe extends RenderProxyBox {
   LayoutMotion motion;
   bool ghost;
 
-  _Child _entry;
-  _Child get entry => _entry;
-  set entry(_Child value) {
+  LayoutItemEntry _entry;
+  LayoutItemEntry get entry => _entry;
+  set entry(LayoutItemEntry value) {
     if (identical(value, _entry)) return;
     _unfollow();
     _entry = value;

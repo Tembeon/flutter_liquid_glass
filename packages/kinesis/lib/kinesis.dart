@@ -66,6 +66,7 @@ export 'src/screen/layout.dart' show MotionLayout, MotionLayoutBuilder;
 export 'src/screen/measure.dart' show MotionMeasure;
 export 'src/screen/scope.dart' show MotionScope, MotionTraitsOverride;
 export 'src/screen/scroll.dart' show MotionScroll, MotionScrollPhase;
+export 'src/screen/sliver_layout.dart' show SliverMotionList;
 export 'src/screen/transition.dart'
     show MotionTransition, MotionTransitionLayer;
 export 'src/selection.dart' show MotionSelection;
