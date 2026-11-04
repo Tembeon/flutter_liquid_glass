@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
@@ -44,6 +45,42 @@ void main() {
     expect(motion.itemAt('a').rect, _a);
     expect(motion.itemAt('b').opacity, 1);
     expect(motion.isSettled, isTrue);
+  });
+
+  group('an id it never laid out', () {
+    late List<FlutterErrorDetails> reported;
+    late FlutterExceptionHandler? handler;
+    setUp(() {
+      reported = [];
+      handler = FlutterError.onError;
+      FlutterError.onError = reported.add;
+    });
+    tearDown(() => FlutterError.onError = handler);
+
+    test('is reported at the next layout, with the key it meant', () {
+      final motion = _laidOut({const ValueKey('a'): _a});
+      expect(motion.laidOut('a'), isNull);
+      motion.layout(0.1, {const ValueKey('a'): _a});
+      expect(reported, hasLength(1));
+      final message = reported.single.exception.toString();
+      expect(message, contains('never laid out'));
+      expect(message, contains("[<'a'>]"));
+    });
+
+    test('is not reported when the next layout brings it', () {
+      final motion = _laidOut({'a': _a});
+      expect(motion.itemAt('b').rect, Rect.zero);
+      motion.layout(0.1, {'a': _a, 'b': _b});
+      expect(reported, isEmpty);
+    });
+
+    test('is not reported once it has left', () {
+      final motion = _laidOut({'a': _a, 'b': _b});
+      motion.layout(0.1, {'a': _a});
+      expect(motion.laidOut('b'), isNull);
+      motion.layout(0.2, {'a': _a});
+      expect(reported, isEmpty);
+    });
   });
 
   test('a change pairs each item with where it was drawn', () {

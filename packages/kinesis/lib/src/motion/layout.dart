@@ -30,6 +30,47 @@ final class LayoutMotion extends Motion {
   final Map<Object, _Slot> _slots = {};
   bool _laidOut = false;
 
+  // Debug only: ids asked for before they were laid out, checked at the
+  // next layout, and every id ever laid out, so that an id that has gone
+  // is not taken for one that never was.
+  final Set<Object> _debugAsked = {};
+  final Set<Object> _debugSeen = {};
+
+  void _debugAsk(Object id) {
+    if (!_slots.containsKey(id)) _debugAsked.add(id);
+  }
+
+  void _debugCheckAsked() {
+    final unknown = _debugAsked.where((id) => !_debugSeen.contains(id));
+    for (final id in unknown) {
+      final key = _debugSeen
+          .whereType<ValueKey<Object?>>()
+          .where((key) => key.value == id)
+          .firstOrNull;
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: FlutterError.fromParts([
+            ErrorSummary(
+              'LayoutMotion was asked for $id, which it never laid out.',
+            ),
+            ErrorDescription(
+              'A layout knows its items by the ids its layouts give: '
+              "MotionLayout uses each child's key, or its type and index "
+              'among the unkeyed children of that type.',
+            ),
+            if (key != null)
+              ErrorHint('It lays out $key: ask for the key, not its value.')
+            else
+              ErrorHint('It lays out ${_slots.keys.take(3).join(', ')}.'),
+          ]),
+          library: 'kinesis',
+          context: ErrorDescription('while checking a LayoutMotion'),
+        ),
+      );
+    }
+    _debugAsked.clear();
+  }
+
   /// The keys of the items drawn, those leaving included.
   Iterable<Object> get ids => _slots.keys;
 
@@ -40,10 +81,31 @@ final class LayoutMotion extends Motion {
   bool isLeaving(Object id) => _slots[id]?.leaving ?? false;
 
   /// Where layout put [id], or null before its first layout.
-  Rect? laidOut(Object id) => _slots[id]?.model;
+  ///
+  /// In debug mode an [id] the next [layout] does not have either, and
+  /// never had, is reported as an error: `MotionLayout` knows its children
+  /// by their keys, not by the values in them.
+  Rect? laidOut(Object id) {
+    if (kDebugMode) _debugAsk(id);
+    return hostLaidOut(id);
+  }
 
-  /// Where [id] is drawn now: its springs, its accent and the lean.
+  /// [laidOut] without the check, for a host that asks about children its
+  /// layouts may leave out, such as rows scrolled out of a sliver.
+  @internal
+  Rect? hostLaidOut(Object id) => _slots[id]?.model;
+
+  /// Where [id] is drawn now: its springs, its accent and the lean; a rect
+  /// of zero before its first layout. An unknown [id] is reported as for
+  /// [laidOut].
   LayoutItem itemAt(Object id) {
+    if (kDebugMode) _debugAsk(id);
+    return hostItemAt(id);
+  }
+
+  /// [itemAt] without the check, as [hostLaidOut].
+  @internal
+  LayoutItem hostItemAt(Object id) {
     final slot = _slots[id];
     if (slot == null) return const LayoutItem(rect: Rect.zero);
     final p = slot.presence.valueAt(now);
@@ -194,6 +256,24 @@ final class LayoutMotion extends Motion {
     Spring? spring,
     bool carry = false,
     bool jump = false,
+  }) {
+    final change = _layout(
+      t,
+      rects,
+      spring: spring,
+      carry: carry,
+      jump: jump,
+    );
+    if (kDebugMode) _debugCheckAsked();
+    return change;
+  }
+
+  LayoutChange? _layout(
+    double t,
+    Map<Object, Rect> rects, {
+    required Spring? spring,
+    required bool carry,
+    required bool jump,
   }) {
     advance(t);
     final jumps = jump || !_laidOut;
@@ -372,6 +452,7 @@ final class LayoutMotion extends Motion {
     own(slot.frame, rest: () => slot.rest);
     own(slot.presence, rest: _opacity);
     _slots[id] = slot;
+    if (kDebugMode) _debugSeen.add(id);
     return slot;
   }
 

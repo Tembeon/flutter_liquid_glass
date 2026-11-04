@@ -178,7 +178,7 @@ class _SliverMotionListState extends State<SliverMotionList> {
     for (final id in _ids) {
       if (present.contains(id) || _ghosts.contains(id)) continue;
       final entry = _entries[id];
-      if (_animates && entry?.probe != null && motion.laidOut(id) != null) {
+      if (_animates && entry?.probe != null && motion.hostLaidOut(id) != null) {
         _ghosts.add(id);
       } else {
         _entries.remove(id);
@@ -479,7 +479,7 @@ class _RenderProbe extends RenderProxyBox {
   Matrix4? get _transform {
     if (!_drawsItem || !hasSize) return null;
     final item = _entry.item.value;
-    if (motion.laidOut(id) == null) return null;
+    if (motion.hostLaidOut(id) == null) return null;
     final here = listFrame();
     final shift = item.rect.center - here.center;
     final scale = item.scale;

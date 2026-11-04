@@ -10,7 +10,7 @@ import 'package:kinesis/src/selection.dart';
 final class LayoutItemEntry {
   /// Follows [id] of [motion].
   LayoutItemEntry(LayoutMotion motion, this.id)
-    : item = motion.select((m) => m.itemAt(id));
+    : item = motion.select((m) => m.hostItemAt(id));
 
   /// The item's key.
   final Object id;

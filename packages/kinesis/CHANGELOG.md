@@ -42,6 +42,8 @@ On screen:
   a pure `LayoutPlan` and `MotionEffect` insert and remove effects.
   `MotionMeasure` reports a child's size in the frame that laid it out;
   `MotionResolveHost` places a render object from this frame's layout.
+- In debug mode, `LayoutMotion` reports an id that its code asked for and
+  that no layout ever had, such as a key's value in place of the key.
 - `MotionScope` holds a `Motion` on the clock while it is in the tree;
   `MotionScroll` reads a scroll view as a motion.
 

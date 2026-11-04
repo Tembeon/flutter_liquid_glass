@@ -191,7 +191,7 @@ class _MotionLayoutState extends State<MotionLayout> {
     final present = ids.toSet();
     for (final id in _ids) {
       if (present.contains(id) || _ghosts.contains(id)) continue;
-      if (_animates && motion.laidOut(id) != null) {
+      if (_animates && motion.hostLaidOut(id) != null) {
         _ghosts.add(id);
       } else {
         _children.remove(id);
@@ -307,7 +307,7 @@ class _RenderHost extends RenderBox
       final probe = ghost as _RenderProbe;
       ghost.layout(probe.lastConstraints ?? constraints.loosen());
       final data = ghost.parentData! as _HostParentData;
-      data.offset = state.motion.laidOut(probe.id)?.topLeft ?? Offset.zero;
+      data.offset = state.motion.hostLaidOut(probe.id)?.topLeft ?? Offset.zero;
       ghost = childAfter(ghost);
     }
     scheduleResolve();
@@ -548,7 +548,7 @@ class _RenderProbe extends RenderProxyBox {
 
   Matrix4? get _transform {
     if (!_drawsItem) return null;
-    final model = motion.laidOut(id);
+    final model = motion.hostLaidOut(id);
     final item = _entry.item.value;
     final shift = model == null ? Offset.zero : item.rect.center - model.center;
     final scale = item.scale;
