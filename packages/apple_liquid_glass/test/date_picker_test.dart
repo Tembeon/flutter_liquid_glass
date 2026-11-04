@@ -68,6 +68,7 @@ void main() {
       double textScale = 1,
       bool use24 = true,
       Alignment alignment = const Alignment(0, -0.4),
+      GlassDatePickerStyle? style,
     }) async {
       await tester.binding.setSurfaceSize(const Size(440, 956));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -87,6 +88,7 @@ void main() {
               child: GlassDatePicker(
                 value: current,
                 mode: mode,
+                style: style,
                 use24HourFormat: use24,
                 today: DateTime(2026, 10, 3),
                 semanticLabel: 'Date',
@@ -102,6 +104,31 @@ void main() {
         ),
       );
     }
+
+    testWidgets('a style colors the label and its open accent', (
+      tester,
+    ) async {
+      const accent = Color(0xFFAA0000);
+      const label = Color(0xFF00AA00);
+      await pump(
+        tester,
+        onChanged: (_) {},
+        style: const GlassDatePickerStyle(
+          accentColor: accent,
+          labelColor: label,
+        ),
+      );
+      Color? color() =>
+          tester.widget<Text>(find.text('Oct 3, 2026')).style?.color;
+      expect(color(), label);
+      await tester.tap(find.text('Oct 3, 2026'));
+      await tester.pumpAndSettle(
+        const Duration(milliseconds: 100),
+        EnginePhase.sendSemanticsUpdate,
+        const Duration(seconds: 10),
+      );
+      expect(color(), accent);
+    });
 
     testWidgets('opens the calendar, picks a day, stays open, closes', (
       tester,

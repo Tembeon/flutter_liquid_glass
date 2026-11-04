@@ -41,7 +41,8 @@ export 'src/controls/date_picker.dart'
         GlassDatePicker,
         GlassDatePickerLocalizations,
         GlassDatePickerMode,
-        GlassDatePickerStyle;
+        GlassDatePickerStyle,
+        GlassDatePickerVariant;
 export 'src/controls/list.dart'
     show
         GlassListAccessory,

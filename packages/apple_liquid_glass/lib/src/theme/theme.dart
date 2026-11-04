@@ -1,6 +1,7 @@
 import 'package:apple_liquid_glass/src/chrome/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/controls/badge.dart';
 import 'package:apple_liquid_glass/src/controls/button.dart';
+import 'package:apple_liquid_glass/src/controls/date_picker.dart';
 import 'package:apple_liquid_glass/src/controls/list.dart';
 import 'package:apple_liquid_glass/src/controls/page_control.dart';
 import 'package:apple_liquid_glass/src/controls/search_field.dart';
@@ -117,6 +118,7 @@ class GlassThemeData {
     this.listStyle,
     this.navigationBarStyle,
     this.badgeStyle,
+    this.datePickerStyle,
   });
 
   /// The theme between [a] and [b] at [t]: colors and styles interpolate;
@@ -166,6 +168,11 @@ class GlassThemeData {
         t,
       ),
       badgeStyle: GlassBadgeStyle.lerp(a.badgeStyle, b.badgeStyle, t),
+      datePickerStyle: GlassDatePickerStyle.lerp(
+        a.datePickerStyle,
+        b.datePickerStyle,
+        t,
+      ),
     );
   }
 
@@ -220,6 +227,9 @@ class GlassThemeData {
   /// The look of badges.
   final GlassBadgeStyle? badgeStyle;
 
+  /// The colors of date pickers.
+  final GlassDatePickerStyle? datePickerStyle;
+
   /// This theme with the non-null fields of [other] over it; styles and
   /// schemes merge too.
   GlassThemeData merge(GlassThemeData? other) {
@@ -249,6 +259,8 @@ class GlassThemeData {
           other.navigationBarStyle?.merge(navigationBarStyle) ??
           navigationBarStyle,
       badgeStyle: other.badgeStyle?.merge(badgeStyle) ?? badgeStyle,
+      datePickerStyle:
+          other.datePickerStyle?.merge(datePickerStyle) ?? datePickerStyle,
     );
   }
 
@@ -271,7 +283,8 @@ class GlassThemeData {
       other.searchFieldStyle == searchFieldStyle &&
       other.listStyle == listStyle &&
       other.navigationBarStyle == navigationBarStyle &&
-      other.badgeStyle == badgeStyle;
+      other.badgeStyle == badgeStyle &&
+      other.datePickerStyle == datePickerStyle;
 
   @override
   int get hashCode => Object.hashAll([
@@ -292,6 +305,7 @@ class GlassThemeData {
     listStyle,
     navigationBarStyle,
     badgeStyle,
+    datePickerStyle,
   ]);
 }
 

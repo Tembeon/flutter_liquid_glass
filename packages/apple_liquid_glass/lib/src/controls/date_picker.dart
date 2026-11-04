@@ -8,6 +8,7 @@ import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/shape.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
+import 'package:apple_liquid_glass/src/theme/style.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:apple_liquid_glass/src/theme/typography.dart';
@@ -33,7 +34,7 @@ enum GlassDatePickerMode {
 
 /// How a [GlassDatePicker] shows itself, after UIKit's
 /// `UIDatePickerStyle` (`preferredDatePickerStyle`).
-enum GlassDatePickerStyle {
+enum GlassDatePickerVariant {
   /// Labels that open the calendar or the wheels in an overlay: the only
   /// style implemented.
   compact,
@@ -44,6 +45,111 @@ enum GlassDatePickerStyle {
 
   /// The wheels in place. Reserved: not implemented yet.
   wheels,
+}
+
+/// The colors of a [GlassDatePicker] and its overlay; a null field leaves
+/// it to the theme's style, then the default, which follows the
+/// brightness and Increase Contrast.
+@immutable
+class GlassDatePickerStyle {
+  /// Creates a style.
+  const GlassDatePickerStyle({
+    this.accentColor,
+    this.labelColor,
+    this.labelFillColor,
+    this.weekdayColor,
+    this.todayFillColor,
+    this.selectedDayTextColor,
+    this.wheelBandColor,
+  });
+
+  /// The accent: the text of an open label, the month title's chevron,
+  /// today's number and, when today is the chosen day, its disc; the
+  /// theme's primary color, then systemBlue, by default.
+  final Color? accentColor;
+
+  /// The text of a compact label, the month title, a day, the month
+  /// chevrons, the wheels' rows and the disc behind the chosen day when it
+  /// is not today; label by default.
+  final Color? labelColor;
+
+  /// The fill of a compact label; tertiarySystemFill by default.
+  final Color? labelFillColor;
+
+  /// The weekday initials; secondaryLabel by default.
+  final Color? weekdayColor;
+
+  /// The fill behind today when it is not selected; the accent at the
+  /// default's opacity by default.
+  final Color? todayFillColor;
+
+  /// The chosen day's number on its [labelColor] disc; the opposite of
+  /// label by default.
+  final Color? selectedDayTextColor;
+
+  /// The band behind the wheels' selected row; tertiarySystemFill by
+  /// default.
+  final Color? wheelBandColor;
+
+  /// This style over [other].
+  GlassDatePickerStyle merge(GlassDatePickerStyle? other) {
+    if (other == null) return this;
+    return GlassDatePickerStyle(
+      accentColor: accentColor ?? other.accentColor,
+      labelColor: labelColor ?? other.labelColor,
+      labelFillColor: labelFillColor ?? other.labelFillColor,
+      weekdayColor: weekdayColor ?? other.weekdayColor,
+      todayFillColor: todayFillColor ?? other.todayFillColor,
+      selectedDayTextColor: selectedDayTextColor ?? other.selectedDayTextColor,
+      wheelBandColor: wheelBandColor ?? other.wheelBandColor,
+    );
+  }
+
+  /// The style between [a] and [b] at [t].
+  static GlassDatePickerStyle? lerp(
+    GlassDatePickerStyle? a,
+    GlassDatePickerStyle? b,
+    double t,
+  ) {
+    if (identical(a, b)) return a;
+    if (a == null || b == null) return t < 0.5 ? a : b;
+    final color = snapNull(GlassDynamicColor.lerp);
+    return GlassDatePickerStyle(
+      accentColor: color(a.accentColor, b.accentColor, t),
+      labelColor: color(a.labelColor, b.labelColor, t),
+      labelFillColor: color(a.labelFillColor, b.labelFillColor, t),
+      weekdayColor: color(a.weekdayColor, b.weekdayColor, t),
+      todayFillColor: color(a.todayFillColor, b.todayFillColor, t),
+      selectedDayTextColor: color(
+        a.selectedDayTextColor,
+        b.selectedDayTextColor,
+        t,
+      ),
+      wheelBandColor: color(a.wheelBandColor, b.wheelBandColor, t),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlassDatePickerStyle &&
+      other.accentColor == accentColor &&
+      other.labelColor == labelColor &&
+      other.labelFillColor == labelFillColor &&
+      other.weekdayColor == weekdayColor &&
+      other.todayFillColor == todayFillColor &&
+      other.selectedDayTextColor == selectedDayTextColor &&
+      other.wheelBandColor == wheelBandColor;
+
+  @override
+  int get hashCode => Object.hash(
+    accentColor,
+    labelColor,
+    labelFillColor,
+    weekdayColor,
+    todayFillColor,
+    selectedDayTextColor,
+    wheelBandColor,
+  );
 }
 
 /// The texts and formats of a [GlassDatePicker], in one place as UIKit's
@@ -120,6 +226,37 @@ class _Appearance {
     this.selectedDayTextColor = const Color(0xFFFFFFFF),
     this.wheelBandColor = const Color(0x1F767680),
   });
+
+  /// The table for the ambient brightness and contrast under [style] and
+  /// the theme's style; an accent without a today fill of its own lends
+  /// [todayFillColor] its color at the table's opacity.
+  factory _Appearance.of(BuildContext context, GlassDatePickerStyle? style) {
+    final traits = GlassTraits.of(context);
+    final night = traits.brightness == Brightness.dark;
+    final table = traits.highContrast
+        ? (night ? darkHighContrast : lightHighContrast)
+        : (night ? dark : light);
+    final theme = GlassTheme.of(context);
+    final look = (style ?? const GlassDatePickerStyle()).merge(
+      theme.datePickerStyle,
+    );
+    Color? resolved(Color? color) =>
+        color == null ? null : GlassDynamicColor.resolve(color, context);
+    final accent = resolved(look.accentColor ?? theme.primaryColor);
+    return _Appearance(
+      labelFillColor: resolved(look.labelFillColor) ?? table.labelFillColor,
+      labelColor: resolved(look.labelColor) ?? table.labelColor,
+      accentColor: accent ?? table.accentColor,
+      weekdayColor: resolved(look.weekdayColor) ?? table.weekdayColor,
+      todayFillColor:
+          resolved(look.todayFillColor) ??
+          accent?.withValues(alpha: table.todayFillColor.a) ??
+          table.todayFillColor,
+      selectedDayTextColor:
+          resolved(look.selectedDayTextColor) ?? table.selectedDayTextColor,
+      wheelBandColor: resolved(look.wheelBandColor) ?? table.wheelBandColor,
+    );
+  }
 
   /// The fill of a compact label: tertiarySystemFill. A disabled picker's
   /// labels drop it and keep their text, as UIKit's do (iPhone 16 Pro, iOS
@@ -201,30 +338,6 @@ class _Appearance {
     selectedDayTextColor: Color(0xFF000000),
     wheelBandColor: Color(0x52767680),
   );
-
-  _Appearance _withAccent(Color accent) => _Appearance(
-    labelFillColor: labelFillColor,
-    labelColor: labelColor,
-    accentColor: accent,
-    weekdayColor: weekdayColor,
-    todayFillColor: accent.withValues(alpha: todayFillColor.a),
-    selectedDayTextColor: selectedDayTextColor,
-    wheelBandColor: wheelBandColor,
-  );
-
-  /// The table for the ambient brightness and contrast, with the theme's
-  /// primary color as its [accentColor] and, at the table's own opacity,
-  /// its [todayFillColor].
-  static _Appearance resolve(BuildContext context) {
-    final traits = GlassTraits.of(context);
-    final night = traits.brightness == Brightness.dark;
-    final table = traits.highContrast
-        ? (night ? darkHighContrast : lightHighContrast)
-        : (night ? dark : light);
-    final tint = GlassTheme.of(context).primaryColor;
-    if (tint == null) return table;
-    return table._withAccent(GlassDynamicColor.resolve(tint, context));
-  }
 
   @override
   bool operator ==(Object other) =>
@@ -379,7 +492,8 @@ class GlassDatePicker extends StatefulWidget {
     required this.value,
     required this.onChanged,
     this.mode = GlassDatePickerMode.date,
-    this.style = GlassDatePickerStyle.compact,
+    this.variant = GlassDatePickerVariant.compact,
+    this.style,
     this.minuteInterval = 1,
     this.minimumDate,
     this.maximumDate,
@@ -390,8 +504,8 @@ class GlassDatePicker extends StatefulWidget {
     this.localizations = const GlassDatePickerLocalizations(),
     super.key,
   }) : assert(
-         style == GlassDatePickerStyle.compact,
-         'Only GlassDatePickerStyle.compact is implemented.',
+         variant == GlassDatePickerVariant.compact,
+         'Only GlassDatePickerVariant.compact is implemented.',
        ),
        assert(
          minuteInterval >= 1 &&
@@ -401,8 +515,11 @@ class GlassDatePicker extends StatefulWidget {
        );
 
   /// How the picker shows itself (UIKit `preferredDatePickerStyle`);
-  /// only [GlassDatePickerStyle.compact] is implemented.
-  final GlassDatePickerStyle style;
+  /// only [GlassDatePickerVariant.compact] is implemented.
+  final GlassDatePickerVariant variant;
+
+  /// The colors, over the theme's and the picker's defaults.
+  final GlassDatePickerStyle? style;
 
   /// The step of the minute wheel in minutes, a divisor of 60 from 1 to
   /// 30 (UIKit `minuteInterval`). As UIKit's `roundsToMinuteInterval`
@@ -548,6 +665,7 @@ class _GlassDatePickerState extends State<GlassDatePicker> {
                 : DatePickerTuning.timeLabelHeight,
             open: _open == parts[i].$1,
             enabled: _enabled,
+            style: widget.style,
             semanticLabel: widget.semanticLabel,
             onOpen: (BuildContext anchor) => _show(parts[i].$1, anchor),
           ),
@@ -563,6 +681,7 @@ class _CompactLabel extends StatefulWidget {
     required this.height,
     required this.open,
     required this.enabled,
+    required this.style,
     required this.semanticLabel,
     required this.onOpen,
     super.key,
@@ -572,6 +691,7 @@ class _CompactLabel extends StatefulWidget {
   final double height;
   final bool open;
   final bool enabled;
+  final GlassDatePickerStyle? style;
   final String? semanticLabel;
   final void Function(BuildContext anchor) onOpen;
 
@@ -618,7 +738,7 @@ class _CompactLabelState extends State<_CompactLabel> {
 
   @override
   Widget build(BuildContext context) {
-    final style = _Appearance.resolve(context);
+    final style = _Appearance.of(context, widget.style);
     final scaler = MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 2);
     final label = widget.semanticLabel;
     return MotionScope(
@@ -939,7 +1059,7 @@ class _OverlayViewState extends State<_OverlayView> {
   Widget build(BuildContext context) {
     _shown = _picker;
     _shownTwentyFour = _host._twentyFour;
-    final style = _Appearance.resolve(context);
+    final style = _Appearance.of(context, _picker.style);
     final media = MediaQuery.of(context);
     final direction = Directionality.maybeOf(context) ?? TextDirection.ltr;
     final origin = _origin(context);
