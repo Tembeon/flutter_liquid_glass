@@ -562,62 +562,19 @@ class _Badged extends StatelessWidget {
   );
 }
 
-/// The minimize motion of a bar, stepped on the motion clock and published
-/// as the hint scale, the morph to the circle, the accessory's two axes,
-/// whether the bar is minimized and whether it rests expanded.
-final class _MinimizeBody implements MotionDriver {
-  _MinimizeBody(GlassTabBarMinimizeBehavior behavior)
-    : motion = TabBarMinimizeMotion(behavior: behavior);
+/// What a minimizing bar reads of its motion: the hint scale, the morph to
+/// the circle, the accessory's two axes, whether the bar is minimized and
+/// whether it rests expanded.
+final class _MinimizeFrames {
+  _MinimizeFrames(this.motion);
 
   final TabBarMinimizeMotion motion;
-  final hint = ValueNotifier<double>(1);
-  final morph = ValueNotifier<double>(0);
-  final accessoryX = ValueNotifier<double>(0);
-  final accessoryY = ValueNotifier<double>(0);
-  final minimized = ValueNotifier<bool>(false);
-  final resting = ValueNotifier<bool>(true);
-  double width = 400;
-
-  double get _now => MotionClock.instance.now;
-
-  @override
-  bool get isActive => !motion.isSettled(extent: width);
-
-  @override
-  double? get wakeTime => motion.wakeTime(extent: width);
-
-  @override
-  void step(double time) {
-    motion.advance(time);
-    if (motion.isSettled(extent: width)) motion.settle(time);
-    _publish();
-  }
-
-  void _publish() {
-    hint.value = motion.hint;
-    morph.value = motion.morph;
-    accessoryX.value = motion.accessoryX;
-    accessoryY.value = motion.accessoryY;
-    minimized.value = motion.minimized;
-    resting.value = motion.restsExpanded;
-  }
-
-  void input(void Function(double t) action) {
-    final t = _now;
-    motion.advance(t);
-    action(t);
-    _publish();
-    MotionClock.instance.wake(this);
-  }
-
-  void dispose() {
-    hint.dispose();
-    morph.dispose();
-    accessoryX.dispose();
-    accessoryY.dispose();
-    minimized.dispose();
-    resting.dispose();
-  }
+  late final hint = motion.select((m) => m.hint);
+  late final morph = motion.select((m) => m.morph);
+  late final accessoryX = motion.select((m) => m.accessoryX);
+  late final accessoryY = motion.select((m) => m.accessoryY);
+  late final minimized = motion.select((m) => m.minimized);
+  late final resting = motion.select((m) => m.restsExpanded);
 }
 
 /// A tab bar that minimizes into a circle as the followed content scrolls.
@@ -643,17 +600,15 @@ class _MinimizingBar extends StatefulWidget {
 }
 
 class _MinimizingBarState extends State<_MinimizingBar> {
-  late final _MinimizeBody _body = _MinimizeBody(widget.behavior);
+  late final _MinimizeFrames _body = _MinimizeFrames(
+    TabBarMinimizeMotion(behavior: widget.behavior),
+  );
+
+  double get _now => MotionClock.instance.now;
   ValueNotifier<MotionScrollObserver?>? _active;
   MotionScrollObserver? _observer;
   MotionScrollPhase _phase = MotionScrollPhase.idle;
   Size _barSize = const Size(0, GlassTabBar.height);
-
-  @override
-  void initState() {
-    super.initState();
-    MotionClock.instance.addDriver(_body);
-  }
 
   @override
   void didChangeDependencies() {
@@ -671,7 +626,7 @@ class _MinimizingBarState extends State<_MinimizingBar> {
   void didUpdateWidget(_MinimizingBar oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.behavior != widget.behavior) {
-      _body.input((t) => _body.motion.setBehavior(t, widget.behavior));
+      _body.motion.setBehavior(_now, widget.behavior);
     }
   }
 
@@ -679,8 +634,6 @@ class _MinimizingBarState extends State<_MinimizingBar> {
   void dispose() {
     _active?.removeListener(_follow);
     _observer?.removeListener(_scrolled);
-    MotionClock.instance.removeDriver(_body);
-    _body.dispose();
     super.dispose();
   }
 
@@ -710,99 +663,101 @@ class _MinimizingBarState extends State<_MinimizingBar> {
       away.last = offset;
       return;
     }
-    _body.input((t) {
-      if (phase == MotionScrollPhase.dragging &&
-          previous != MotionScrollPhase.dragging) {
-        away.beginDrag();
-      }
-      if (previous == MotionScrollPhase.dragging &&
-          phase != MotionScrollPhase.dragging) {
-        away.endDrag(decelerates: phase == MotionScrollPhase.decelerating);
-      }
-      switch (phase) {
-        case MotionScrollPhase.dragging || MotionScrollPhase.decelerating:
-          away.scroll(
-            offset,
-            min: min,
-            max: max,
-            tracking: phase == MotionScrollPhase.dragging,
-          );
-        case MotionScrollPhase.programmatic || MotionScrollPhase.idle:
-          away.last = offset;
-          if (previous == MotionScrollPhase.decelerating) {
-            away.endDeceleration();
-          }
-          if (_body.motion.minimized && offset <= min + 0.5) {
-            away.scrollToTop();
-          }
-      }
-    });
+    _body.motion.advance(_now);
+    if (phase == MotionScrollPhase.dragging &&
+        previous != MotionScrollPhase.dragging) {
+      away.beginDrag();
+    }
+    if (previous == MotionScrollPhase.dragging &&
+        phase != MotionScrollPhase.dragging) {
+      away.endDrag(decelerates: phase == MotionScrollPhase.decelerating);
+    }
+    switch (phase) {
+      case MotionScrollPhase.dragging || MotionScrollPhase.decelerating:
+        away.scroll(
+          offset,
+          min: min,
+          max: max,
+          tracking: phase == MotionScrollPhase.dragging,
+        );
+      case MotionScrollPhase.programmatic || MotionScrollPhase.idle:
+        away.last = offset;
+        if (previous == MotionScrollPhase.decelerating) {
+          away.endDeceleration();
+        }
+        if (_body.motion.minimized && offset <= min + 0.5) {
+          away.scrollToTop();
+        }
+    }
   }
 
   void _expand() {
     if (!_body.motion.minimized) return;
-    _body.input((t) => _body.motion.setMinimized(t, minimized: false));
+    _body.motion.setMinimized(_now, minimized: false);
   }
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final width = constraints.hasBoundedWidth
-          ? constraints.maxWidth
-          : _barSize.width;
-      _body.width = width;
-      final accessory = widget.accessory;
-      final rtl = Directionality.of(context) == TextDirection.rtl;
-      final bar = SizedBox(
-        width: width,
-        height: GlassTabBar.height,
-        child: ValueListenableBuilder<bool>(
-          valueListenable: _body.resting,
-          builder: (context, resting, _) => resting
-              ? Align(
-                  child: MotionTransition(
+  Widget build(BuildContext context) => MotionScope(
+    motion: _body.motion,
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : _barSize.width;
+        _body.motion.extent = width;
+        final accessory = widget.accessory;
+        final rtl = Directionality.of(context) == TextDirection.rtl;
+        final bar = SizedBox(
+          width: width,
+          height: GlassTabBar.height,
+          child: ValueListenableBuilder<bool>(
+            valueListenable: _body.resting,
+            builder: (context, resting, _) => resting
+                ? Align(
+                    child: MotionTransition(
+                      scale: _body.hint,
+                      child: _SizeNote(
+                        onSize: (size) => _barSize = size,
+                        child: widget.bar,
+                      ),
+                    ),
+                  )
+                : MotionTransition(
                     scale: _body.hint,
-                    child: _SizeNote(
-                      onSize: (size) => _barSize = size,
-                      child: widget.bar,
+                    child: _CollapsingTabs(
+                      width: width,
+                      barSize: _barSize,
+                      morph: _body.morph,
+                      destinations: widget.destinations,
+                      selectedIndex: widget.selectedIndex,
+                      look: widget.look,
+                      rtl: rtl,
+                      onTap: _expand,
                     ),
                   ),
-                )
-              : MotionTransition(
-                  scale: _body.hint,
-                  child: _CollapsingTabs(
-                    width: width,
-                    barSize: _barSize,
-                    morph: _body.morph,
-                    destinations: widget.destinations,
-                    selectedIndex: widget.selectedIndex,
-                    look: widget.look,
-                    rtl: rtl,
-                    onTap: _expand,
-                  ),
+          ),
+        );
+        if (accessory == null) return bar;
+        return SizedBox(
+          width: width,
+          height: GlassTabBar.groupHeight(accessory: true),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: _Accessory(
+                  body: _body,
+                  width: width,
+                  rtl: rtl,
+                  look: widget.look,
+                  child: accessory,
                 ),
-        ),
-      );
-      if (accessory == null) return bar;
-      return SizedBox(
-        width: width,
-        height: GlassTabBar.groupHeight(accessory: true),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: _Accessory(
-                body: _body,
-                width: width,
-                rtl: rtl,
-                look: widget.look,
-                child: accessory,
               ),
-            ),
-            Positioned(left: 0, right: 0, bottom: 0, child: bar),
-          ],
-        ),
-      );
-    },
+              Positioned(left: 0, right: 0, bottom: 0, child: bar),
+            ],
+          ),
+        );
+      },
+    ),
   );
 }
 
@@ -828,7 +783,7 @@ class _Accessory extends StatefulWidget {
     required this.child,
   });
 
-  final _MinimizeBody body;
+  final _MinimizeFrames body;
   final double width;
   final bool rtl;
   final GlassTabBarStyle look;
@@ -1352,29 +1307,93 @@ class _SearchTabBar extends StatefulWidget {
   State<_SearchTabBar> createState() => _SearchTabBarState();
 }
 
-class _SearchTabBarState extends State<_SearchTabBar> implements MotionDriver {
-  late final _morph = MotionValue<double>(
-    _open ? 1 : 0,
-    spring: SearchTuning.tabSpring,
+/// The motion of a tab bar with a search tab: the morph of the bar into
+/// the field and back, the field's focus, and the focus the search takes
+/// [SearchTuning.tabActivationDelay] after it opens.
+final class _SearchTabMotion extends Motion {
+  _SearchTabMotion({required bool open, required this.onActivate})
+    : _open = open {
+    _morph = own(
+      MotionValue<double>(open ? 1 : 0, spring: SearchTuning.tabSpring),
+      rest: _morphRest,
+    );
+    focus = own(SearchMotion(spring: SearchTuning.tabFocusSpring));
+  }
+
+  /// Gives the field the focus once the opened search activates.
+  final VoidCallback onActivate;
+
+  late final MotionValue<double> _morph;
+
+  /// The field's focus transition.
+  late final SearchMotion focus;
+
+  bool _open;
+
+  // NEAR: the shapes land by up to 0.001 of their travel.
+  static double _morphRest() => 1e-3;
+
+  static const _activation = Object();
+
+  /// Whether the search is open or heading there.
+  bool get isOpen => _open;
+
+  /// The morph: 0 a tab bar, 1 a search field.
+  double get morph => _morph.valueAt(now);
+
+  /// Opens or closes the search at time [t].
+  void turn(double t, {required bool open}) {
+    advance(t);
+    if (open == _open) return;
+    _open = open;
+    _morph.retarget(t, open ? 1 : 0);
+    if (open) {
+      at(
+        t + SearchTuning.tabActivationDelay,
+        (_) => onActivate(),
+        slot: _activation,
+      );
+    } else {
+      unschedule(_activation);
+    }
+  }
+
+  _SearchState get state {
+    final q = morph;
+    final p = focus.progress;
+    final focused = focus.isFocused && !focus.waitsForKeyboard;
+    final settled = _open && (q - 1).abs() < 0.001;
+    return _SearchState(
+      resting: !_open && q.abs() < 0.001,
+      settled: settled,
+      focused: focused,
+      closeShown: settled && (p > 0.001 || focused),
+      tabTakesTaps: _open && p < 0.5,
+    );
+  }
+}
+
+class _SearchTabBarState extends State<_SearchTabBar> {
+  late final _motion = _SearchTabMotion(
+    open: widget.controller.isOpen,
+    onActivate: _activate,
   );
-  final _focusMotion = SearchMotion(spring: SearchTuning.tabFocusSpring);
   final _focus = FocusNode(debugLabel: 'GlassTabBar search');
-  final _q = ValueNotifier<double>(0);
-  final _p = ValueNotifier<double>(0);
-  final _tabFade = ValueNotifier<double>(1);
-  final _placeholder = ValueNotifier<double>(0);
-  final _closeScale = ValueNotifier<double>(SearchTuning.appearScale);
-  late final _state = ValueNotifier<_SearchState>(_stateNow());
-  late bool _open = widget.controller.isOpen;
-  double? _keyboardWait;
+  late final _q = _motion.select((m) => m.morph);
+  late final _p = _motion.select((m) => m.focus.progress);
+  late final _tabFade = _motion.select(
+    (m) => (1 - m.focus.progress).clamp(0.0, 1.0),
+  );
+  late final _placeholder = _motion.select(
+    (m) => ((m.morph - 0.4) / 0.6).clamp(0.0, 1.0),
+  );
+  late final _closeScale = _motion.select(
+    (m) => SearchMotion.appearScaleFor(m.focus.progress),
+  );
+  late final _state = _motion.select((m) => m.state);
   double? _frozenKeyboard;
-  double? _activateAt;
   double _keyboard = 0;
   double _barWidth = 0;
-
-  // The swing of the morph at which it lands. NEAR: the shapes land by up
-  // to 0.001 of their travel.
-  static const double _morphRest = 1e-3;
 
   double get _now => MotionClock.instance.now;
 
@@ -1383,19 +1402,14 @@ class _SearchTabBarState extends State<_SearchTabBar> implements MotionDriver {
     super.initState();
     widget.controller.addListener(_changed);
     _focus.addListener(_focusChanged);
-    MotionClock.instance.addDriver(this);
-    _publish(_now);
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _focusMotion.reducedMotion = GlassTraits.of(context).reduceMotion;
     _keyboard = MediaQuery.viewInsetsOf(context).bottom;
-    if (_keyboardWait != null && _keyboard > 0) {
-      _keyboardWait = null;
-      _focusMotion.focus(_now, delay: SearchTuning.tabKeyboardLag);
-      MotionClock.instance.wake(this);
+    if (_keyboard > 0) {
+      _motion.focus.keyboardRose(_now, lag: SearchTuning.tabKeyboardLag);
     }
   }
 
@@ -1413,112 +1427,42 @@ class _SearchTabBarState extends State<_SearchTabBar> implements MotionDriver {
   void dispose() {
     widget.controller.removeListener(_changed);
     _focus.removeListener(_focusChanged);
-    MotionClock.instance.removeDriver(this);
     _focus.dispose();
-    _q.dispose();
-    _p.dispose();
-    _tabFade.dispose();
-    _placeholder.dispose();
-    _closeScale.dispose();
-    _state.dispose();
     super.dispose();
   }
 
-  @override
-  bool get isActive =>
-      !_morph.isWithin(_now, _morphRest) ||
-      !_focusMotion.isSettled ||
-      _keyboardWait != null ||
-      _activateAt != null;
-
-  @override
-  double? get wakeTime => null;
-
-  @override
-  void step(double time) {
-    _focusMotion.advance(time);
-    final wait = _keyboardWait;
-    if (wait != null && time - wait >= SearchTuning.keyboardWaitLimit) {
-      _keyboardWait = null;
-      _focusMotion.focus(time, delay: 0);
-    }
-    _focusMotion.land(time);
-    if (_morph.valueAt(time) != _morph.target &&
-        _morph.isWithin(time, _morphRest)) {
-      _morph.snap(time, _morph.target);
-    }
-    final activate = _activateAt;
-    if (activate != null && time >= activate) {
-      _activateAt = null;
-      if (_open && !_focus.hasFocus) _focus.requestFocus();
-    }
-    _publish(time);
-  }
-
-  void _publish(double time) {
-    final q = _morph.valueAt(time);
-    final p = _focusMotion.progress;
-    _q.value = q;
-    _p.value = p;
-    _tabFade.value = (1 - p).clamp(0.0, 1.0);
-    _placeholder.value = ((q - 0.4) / 0.6).clamp(0.0, 1.0);
-    _closeScale.value = SearchMotion.appearScaleFor(p);
-    _state.value = _stateNow();
-  }
-
-  _SearchState _stateNow() {
-    final q = _q.value;
-    final p = _p.value;
-    final focused = _focusMotion.isFocused;
-    final settled = _open && (q - 1).abs() < 0.001;
-    return _SearchState(
-      resting: !_open && q.abs() < 0.001,
-      settled: settled,
-      focused: focused,
-      closeShown: settled && (p > 0.001 || focused),
-      tabTakesTaps: _open && p < 0.5,
-    );
-  }
-
-  void _wake() {
-    _publish(_now);
-    MotionClock.instance.wake(this);
+  void _activate() {
+    if (mounted && _motion.isOpen && !_focus.hasFocus) _focus.requestFocus();
   }
 
   void _changed() {
     final open = widget.controller.isOpen;
-    if (open == _open) return;
-    _open = open;
-    final t = _now;
-    _morph.retarget(t, open ? 1 : 0);
-    _activateAt = open ? t + SearchTuning.tabActivationDelay : null;
+    if (open == _motion.isOpen) return;
+    _motion.turn(_now, open: open);
     if (!open) {
       _focus.unfocus();
       // The query clears after the frame that closed the search, as the
       // field turns back.
       SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (mounted && !_open) widget.controller.clear();
+        if (mounted && !_motion.isOpen) widget.controller.clear();
       });
     }
-    _wake();
   }
 
   void _focusChanged() {
     final t = _now;
-    if (_focus.hasFocus && !_focusMotion.isFocused && _keyboardWait == null) {
+    final focus = _motion.focus;
+    if (_focus.hasFocus && !focus.isFocused) {
       _frozenKeyboard = null;
       if (_keyboard > 0) {
-        _focusMotion.focus(t, delay: SearchTuning.tabKeyboardLag);
+        focus.focus(t, delay: SearchTuning.tabKeyboardLag);
       } else {
-        _keyboardWait = t;
+        focus.focusAfterKeyboard(t);
       }
-    } else if (!_focus.hasFocus &&
-        (_focusMotion.isFocused || _keyboardWait != null)) {
-      _keyboardWait = null;
+    } else if (!_focus.hasFocus && focus.isFocused) {
       _frozenKeyboard = _keyboard;
-      _focusMotion.unfocus(t, delay: SearchTuning.tabUnfocusDelay);
+      focus.unfocus(t, delay: SearchTuning.tabUnfocusDelay);
     }
-    _wake();
   }
 
   void _end() {
@@ -1532,100 +1476,105 @@ class _SearchTabBarState extends State<_SearchTabBar> implements MotionDriver {
     final label =
         GlassTheme.of(context).colorScheme?.label ?? GlassColors.label;
     final glyph = GlassDynamicColor.resolve(label, context);
-    return CallbackShortcuts(
-      bindings: {const SingleActivator(LogicalKeyboardKey.escape): _end},
-      child: ValueListenableBuilder<_SearchState>(
-        valueListenable: _state,
-        builder: (context, state, _) => CustomMultiChildLayout(
-          delegate: _SearchTabLayout(
-            q: _q,
-            p: _p,
-            keyboard: state.focused ? _keyboard : _frozenKeyboard ?? _keyboard,
-            rtl: rtl,
-            onBarWidth: (width) => _barWidth = width,
-          ),
-          children: [
-            LayoutId(
-              id: _SearchSlot.bar,
-              child: Visibility(
-                visible: state.resting,
-                maintainState: true,
-                maintainAnimation: true,
-                maintainSize: true,
-                child: widget.bar,
-              ),
+    return MotionScope(
+      motion: _motion,
+      child: CallbackShortcuts(
+        bindings: {const SingleActivator(LogicalKeyboardKey.escape): _end},
+        child: ValueListenableBuilder<_SearchState>(
+          valueListenable: _state,
+          builder: (context, state, _) => CustomMultiChildLayout(
+            delegate: _SearchTabLayout(
+              q: _q,
+              p: _p,
+              keyboard: state.focused
+                  ? _keyboard
+                  : _frozenKeyboard ?? _keyboard,
+              rtl: rtl,
+              onBarWidth: (width) => _barWidth = width,
             ),
-            if (!state.resting && widget.destinations.isNotEmpty)
+            children: [
               LayoutId(
-                id: _SearchSlot.tabs,
-                child: MotionTransition(
-                  opacity: _tabFade,
-                  child: _CollapsingTabs(
-                    width: _barWidth,
-                    barSize: Size(_barWidth, GlassTabBar.height),
-                    morph: _q,
-                    destinations: widget.destinations,
-                    selectedIndex: widget.selectedIndex,
-                    look: widget.look,
-                    rtl: rtl,
-                    onTap: widget.controller.closeView,
-                    takesTaps: state.tabTakesTaps,
-                  ),
+                id: _SearchSlot.bar,
+                child: Visibility(
+                  visible: state.resting,
+                  maintainState: true,
+                  maintainAnimation: true,
+                  maintainSize: true,
+                  child: widget.bar,
                 ),
               ),
-            if (!state.settled)
-              LayoutId(
-                id: _SearchSlot.circle,
-                child: IgnorePointer(
-                  ignoring: !state.resting,
-                  child: _SearchCircle(
-                    q: _q,
-                    placeholder: _placeholder,
-                    glyph: glyph,
-                    rtl: rtl,
-                    onTap: widget.controller.openView,
-                  ),
-                ),
-              ),
-            if (_open || state.settled)
-              LayoutId(
-                id: _SearchSlot.field,
-                child: IgnorePointer(
-                  ignoring: !state.settled,
-                  child: Opacity(
-                    opacity: state.settled ? 1 : 0,
-                    alwaysIncludeSemantics: true,
-                    child: GlassSearchField(
-                      controller: widget.controller,
-                      focusNode: _focus,
+              if (!state.resting && widget.destinations.isNotEmpty)
+                LayoutId(
+                  id: _SearchSlot.tabs,
+                  child: MotionTransition(
+                    opacity: _tabFade,
+                    child: _CollapsingTabs(
+                      width: _barWidth,
+                      barSize: Size(_barWidth, GlassTabBar.height),
+                      morph: _q,
+                      destinations: widget.destinations,
+                      selectedIndex: widget.selectedIndex,
+                      look: widget.look,
+                      rtl: rtl,
+                      onTap: widget.controller.closeView,
+                      takesTaps: state.tabTakesTaps,
                     ),
                   ),
                 ),
-              ),
-            if (state.closeShown)
-              LayoutId(
-                id: _SearchSlot.close,
-                child: IgnorePointer(
-                  ignoring: !state.focused,
-                  child: MotionTransition(
-                    opacity: _p,
-                    scale: _closeScale,
-                    child: GlassButton(
-                      onPressed: _end,
-                      child: Semantics(
-                        label: 'Close',
-                        child: SizedBox.fromSize(
-                          size: SearchTuning.closeGlyphSize,
-                          child: CustomPaint(
-                            painter: SearchCrossPainter(glyph),
+              if (!state.settled)
+                LayoutId(
+                  id: _SearchSlot.circle,
+                  child: IgnorePointer(
+                    ignoring: !state.resting,
+                    child: _SearchCircle(
+                      q: _q,
+                      placeholder: _placeholder,
+                      glyph: glyph,
+                      rtl: rtl,
+                      onTap: widget.controller.openView,
+                    ),
+                  ),
+                ),
+              if (_motion.isOpen || state.settled)
+                LayoutId(
+                  id: _SearchSlot.field,
+                  child: IgnorePointer(
+                    ignoring: !state.settled,
+                    child: Opacity(
+                      opacity: state.settled ? 1 : 0,
+                      alwaysIncludeSemantics: true,
+                      child: GlassSearchField(
+                        controller: widget.controller,
+                        focusNode: _focus,
+                      ),
+                    ),
+                  ),
+                ),
+              if (state.closeShown)
+                LayoutId(
+                  id: _SearchSlot.close,
+                  child: IgnorePointer(
+                    ignoring: !state.focused,
+                    child: MotionTransition(
+                      opacity: _p,
+                      scale: _closeScale,
+                      child: GlassButton(
+                        onPressed: _end,
+                        child: Semantics(
+                          label: 'Close',
+                          child: SizedBox.fromSize(
+                            size: SearchTuning.closeGlyphSize,
+                            child: CustomPaint(
+                              painter: SearchCrossPainter(glyph),
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

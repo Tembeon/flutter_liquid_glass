@@ -1,8 +1,6 @@
 import 'dart:ui';
 
-import 'package:apple_liquid_glass/src/motion/flex_interaction.dart';
-import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
-import 'package:apple_liquid_glass/src/motion/rest.dart';
+import 'package:apple_liquid_glass/src/motion/glass_press.dart';
 import 'package:apple_liquid_glass/src/motion/tab_minimize.dart';
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/motion.dart';
@@ -43,6 +41,14 @@ abstract final class SearchTuning {
   /// The time from a touch to the start of the field's lift (fitted 0.051
   /// s, rounded to 0.05; the lift itself is the glass button's).
   static const double pressDelay = 0.05;
+
+  /// How the field takes a touch: it lifts like a glass button of its size
+  /// [pressDelay] after the contact. No drag on it was measured, so it does
+  /// not stretch.
+  static const pressLaw = FlexLaw(
+    stretches: false,
+    activationDelay: pressDelay,
+  );
 
   /// The height of the field, the close button and the toolbar's items.
   static const double height = 48;
@@ -258,8 +264,7 @@ Rect lerpRect(Rect a, Rect b, double t) {
   );
 }
 
-/// The motion of an iOS 27 search field: the focus transition and the
-/// touch lift.
+/// The focus transition of an iOS 27 search field.
 ///
 /// One progress, 0 at rest and 1 focused, drives the whole transition on
 /// [SearchTuning.transitionSpring], starting
@@ -267,149 +272,97 @@ Rect lerpRect(Rect a, Rect b, double t) {
 /// frame, the close button arriving (its opacity is the progress, its
 /// scale 1.2 at nothing) and the toolbar's other items leaving the same
 /// way in reverse. A change in the middle of another reverses from where
-/// it stands, velocity included.
+/// it stands, velocity included. A focus that brings up the keyboard waits
+/// for it ([focusAfterKeyboard], [keyboardRose]).
 ///
-/// A touch lifts the field like a glass button of its size, through the
-/// shared flex interaction ([FlexSpec.forSize]: the tracking spring
-/// up, the scale spring back), [SearchTuning.pressDelay] after the
-/// contact. The field only lifts: no drag on it was measured, so it does
-/// not stretch.
+/// The progress rests within 0.001 of its travel. NEAR: the field lands by
+/// up to 0.3 pt over a 300 pt rise, looser than [MotionRest.length];
+/// resting at 0.1 pt keeps a cancel two frames longer.
 ///
-/// Times are seconds on the caller's clock.
+/// The field's touch lift is the glass search field's own press
+/// ([SearchTuning.pressLaw]).
+///
+/// Times are seconds on the motion's timeline.
 @internal
-class SearchMotion {
-  /// Creates the motion of a field of [size], resting; the focus
-  /// transition rides [spring].
-  SearchMotion({
-    Size size = const Size(346, 48),
-    Spring spring = SearchTuning.transitionSpring,
-  }) : _progress = MotionValue<double>(0, spring: spring) {
-    _lift = FlexInteraction(
-      size: size,
-      stretches: false,
-      activationDelay: SearchTuning.pressDelay,
-      timeline: _timeline,
-    );
+final class SearchMotion extends Motion {
+  /// Creates the motion of a resting field; the focus transition rides
+  /// [spring].
+  SearchMotion({Spring spring = SearchTuning.transitionSpring})
+    : _progress = MotionValue<double>(0, spring: spring) {
+    own(_progress, rest: _rest);
   }
 
-  final MotionTimeline _timeline = MotionTimeline(now: 0);
   final MotionValue<double> _progress;
-  late final FlexInteraction _lift;
-  double _now = 0;
   bool _focused = false;
-  int _focusGeneration = 0;
+  bool _waiting = false;
 
-  /// The swing of the transition's progress at which it rests. NEAR: the
-  /// field lands by up to 0.001 of its travel (0.3 pt over a 300 pt rise),
-  /// looser than [GlassRest.length]; resting at 0.1 pt keeps a cancel two
-  /// frames longer.
-  static const double _progressRest = 1e-3;
+  static double _rest() => 1e-3;
 
-  /// Whether the field moves for Reduce Motion: the transition still runs,
-  /// but nothing lifts. An approximation; it is not measured.
-  bool get reducedMotion => _lift.reducedMotion;
-
-  set reducedMotion(bool value) => _lift.reducedMotion = value;
-
-  /// The size of the field at rest, which sets its lift.
-  Size get size => _lift.size;
-
-  set size(Size value) => _lift.size = value;
-
-  /// The time the motion was last advanced to.
-  double get time => _now;
+  static const _turn = Object();
 
   /// Whether the field is focused or heading there.
   bool get isFocused => _focused;
 
-  /// Whether a finger is down on the field.
-  bool get isPressed => _lift.isPressed;
+  /// Whether a focus waits for the keyboard to start rising.
+  bool get waitsForKeyboard => _waiting;
 
-  /// Whether nothing moves and nothing is pending.
-  bool get isSettled =>
-      _timeline.isEmpty &&
-      !_lift.isPressed &&
-      _progress.isWithin(_now, _progressRest) &&
-      _lift.isSettled(_now);
-
-  /// The scale of the fully lifted field.
-  double get liftedScale => _lift.liftedScale;
-
-  /// Advances the motion to time [t].
-  void advance(double t) {
-    _timeline.runDue(t);
-    if (t > _now) _now = t;
-  }
-
-  /// Lands the transition on its target at time [t] once it rests
-  /// ([_progressRest]), instead of swinging through a tail that would lay
-  /// the field out for nothing; a host calls it after [advance].
-  void land(double t) {
-    if (_timeline.isEmpty &&
-        _progress.valueAt(t) != _progress.target &&
-        _progress.isWithin(t, _progressRest)) {
-      _progress.settle(t);
-    }
-  }
+  /// The focus progress: 0 at rest, 1 focused.
+  double get progress => _progress.valueAt(now);
 
   /// Focuses the field at time [t]; the transition starts [delay] seconds
   /// later.
   void focus(double t, {double delay = SearchTuning.transitionDelay}) =>
-      _transition(t, focused: true, delay: delay);
+      _turnTo(t, focused: true, delay: delay);
 
   /// Ends the search at time [t]; the transition starts [delay] seconds
   /// later.
   void unfocus(double t, {double delay = SearchTuning.transitionDelay}) =>
-      _transition(t, focused: false, delay: delay);
+      _turnTo(t, focused: false, delay: delay);
 
-  void _transition(
+  /// Focuses the field at time [t] while the keyboard is still to rise:
+  /// the transition waits for [keyboardRose], and starts anyway [limit]
+  /// seconds later.
+  void focusAfterKeyboard(
     double t, {
-    required bool focused,
-    double delay = SearchTuning.transitionDelay,
+    double limit = SearchTuning.keyboardWaitLimit,
   }) {
     advance(t);
-    if (_focused == focused) return;
-    _focused = focused;
-    final generation = ++_focusGeneration;
-    _timeline.at(t + delay, (double at) {
-      if (generation != _focusGeneration) return;
-      _progress.retarget(at, focused ? 1 : 0);
-    });
+    if (_focused) return;
+    _focused = true;
+    _waiting = true;
+    at(t + limit, _arrive, slot: _turn);
+  }
+
+  /// The keyboard started rising at time [t]: a waiting focus starts its
+  /// transition [lag] seconds later.
+  void keyboardRose(double t, {required double lag}) {
+    advance(t);
+    if (!_waiting) return;
+    _waiting = false;
+    at(t + lag, _arrive, slot: _turn);
   }
 
   /// Puts the transition at rest, focused or not, at time [t].
   void snap(double t, {required bool focused}) {
     advance(t);
     _focused = focused;
-    _focusGeneration++;
+    _waiting = false;
+    unschedule(_turn);
     _progress.snap(t, focused ? 1 : 0);
   }
 
-  /// A finger touched the field at time [t].
-  void pointerDown(double t) {
+  void _turnTo(double t, {required bool focused, required double delay}) {
     advance(t);
-    _lift.pointerDown(t, Offset.zero);
+    if (_focused == focused) return;
+    _focused = focused;
+    _waiting = false;
+    at(t + delay, (s) => _progress.retarget(s, focused ? 1 : 0), slot: _turn);
   }
 
-  /// The finger left the field at time [t].
-  void pointerUp(double t) {
-    advance(t);
-    if (!_lift.isPressed) return;
-    _lift.release(t);
+  void _arrive(double t) {
+    _waiting = false;
+    _progress.retarget(t, 1);
   }
-
-  /// The touch was cancelled at time [t].
-  void pointerCancel(double t) => pointerUp(t);
-
-  /// The focus progress: 0 at rest, 1 focused.
-  double get progress => _progressAt(_now);
-
-  double _progressAt(double t) => _progress.valueAt(t);
-
-  /// The lift scale of the field.
-  double get pressScale => _pressScaleAt(_now);
-
-  double _pressScaleAt(double t) => _lift.scale(t);
 
   /// The scale of an item that is [presence] there (0 gone, 1 fully
   /// there): [SearchTuning.appearScale] at nothing.

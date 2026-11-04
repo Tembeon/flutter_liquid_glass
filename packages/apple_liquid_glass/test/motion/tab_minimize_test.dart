@@ -11,7 +11,7 @@ void _drag(ScrollAway away, double distance, {int steps = 10}) {
 }
 
 extension on TabBarMinimizeMotion {
-  TabBarMinimizeMotion at(double t) {
+  TabBarMinimizeMotion seenAt(double t) {
     advance(t);
     return this;
   }
@@ -119,10 +119,10 @@ void main() {
       final away = motion.scrollAway;
       _drag(away, 32);
       motion.advance(1);
-      expect(motion.at(1).hint, closeTo(1 - 0.5 * 0.05, 1e-6));
+      expect(motion.seenAt(1).hint, closeTo(1 - 0.5 * 0.05, 1e-6));
       away.endDrag(decelerates: false);
       motion.advance(3);
-      expect(motion.at(3).hint, closeTo(1, 1e-6));
+      expect(motion.seenAt(3).hint, closeTo(1, 1e-6));
       expect(motion.minimized, isFalse);
     });
 
@@ -133,24 +133,24 @@ void main() {
       _drag(motion.scrollAway, 100);
       expect(motion.minimized, isTrue);
       motion.advance(0.04);
-      expect(motion.at(0.04).morph, greaterThan(0));
-      expect(motion.at(0.04).accessoryX, greaterThan(0));
-      expect(motion.at(0.04).accessoryY, 0);
+      expect(motion.seenAt(0.04).morph, greaterThan(0));
+      expect(motion.seenAt(0.04).accessoryX, greaterThan(0));
+      expect(motion.seenAt(0.04).accessoryY, 0);
       motion.advance(0.1);
-      expect(motion.at(0.1).accessoryY, greaterThan(0));
+      expect(motion.seenAt(0.1).accessoryY, greaterThan(0));
       motion.advance(3);
-      expect(motion.at(3).isSettled(), isTrue);
-      motion.settle(3);
-      expect(motion.at(3).morph, 1);
+      expect(motion.seenAt(3).isSettled, isTrue);
+      motion.settle();
+      expect(motion.seenAt(3).morph, 1);
       motion.setMinimized(3, minimized: false);
       motion.advance(3.04);
-      expect(motion.at(3.04).accessoryY, lessThan(1));
-      expect(motion.at(3.04).accessoryX, 1);
-      expect(motion.at(3.04).morph, lessThan(1));
+      expect(motion.seenAt(3.04).accessoryY, lessThan(1));
+      expect(motion.seenAt(3.04).accessoryX, 1);
+      expect(motion.seenAt(3.04).morph, lessThan(1));
       motion.advance(6);
-      expect(motion.at(6).restsExpanded, isFalse);
-      motion.settle(6);
-      expect(motion.at(6).restsExpanded, isTrue);
+      expect(motion.seenAt(6).restsExpanded, isFalse);
+      motion.settle();
+      expect(motion.seenAt(6).restsExpanded, isTrue);
     });
 
     TabBarMinimizeMotion minimized() {
@@ -158,7 +158,7 @@ void main() {
       motion.advance(0);
       _drag(motion.scrollAway, 100);
       motion.advance(3);
-      motion.settle(3);
+      motion.settle();
       expect(motion.minimized, isTrue);
       return motion;
     }
@@ -168,7 +168,7 @@ void main() {
       motion.pressDown(3, 50);
       motion.advance(3.2);
       expect(motion.minimized, isTrue);
-      expect(motion.at(3.2).wakeTime(), closeTo(3.22, 1e-9));
+      expect(motion.seenAt(3.2).wakeTime, closeTo(3.22, 1e-9));
       motion.advance(3.23);
       expect(motion.minimized, isFalse);
       expect(motion.pressMove(3.3, 53), isFalse);

@@ -240,10 +240,7 @@ class _GlassSearchFieldState extends State<GlassSearchField>
     implements TextSelectionGestureDetectorBuilderDelegate {
   final GlassPress _press = GlassPress(
     size: const Size(346, GlassSearchField.height),
-    law: const FlexLaw(
-      stretches: false,
-      activationDelay: GlassSearchField.pressDelay,
-    ),
+    law: SearchTuning.pressLaw,
   );
   late final _body = _press.select(
     (p) => p.isAtRest

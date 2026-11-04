@@ -8,7 +8,6 @@ import 'package:apple_liquid_glass/src/controls/search_field.dart';
 import 'package:apple_liquid_glass/src/controls/search_glyphs.dart';
 import 'package:apple_liquid_glass/src/motion/search_motion.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
-import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
@@ -177,52 +176,6 @@ class _GlassToolbarState extends State<GlassToolbar> {
   }
 }
 
-/// The focus transition of a bottom search bar, stepped on the motion clock
-/// and published as its progress.
-final class _SearchBody implements MotionDriver {
-  final motion = SearchMotion();
-  final progress = ValueNotifier<double>(0);
-
-  /// When the field took the focus while no keyboard had risen yet.
-  double? keyboardWait;
-
-  double get _now => MotionClock.instance.now;
-
-  @override
-  bool get isActive =>
-      keyboardWait != null ||
-      !motion.isSettled ||
-      progress.value != motion.progress;
-
-  @override
-  double? get wakeTime {
-    final wait = keyboardWait;
-    if (wait != null) return wait + SearchTuning.keyboardWaitLimit;
-    return null;
-  }
-
-  @override
-  void step(double time) {
-    final wait = keyboardWait;
-    if (wait != null && time - wait >= SearchTuning.keyboardWaitLimit) {
-      keyboardWait = null;
-      motion.focus(time, delay: 0);
-    }
-    motion.advance(time);
-    motion.land(time);
-    progress.value = motion.progress;
-  }
-
-  void input(void Function(double t) action) {
-    final t = _now;
-    motion.advance(t);
-    action(t);
-    MotionClock.instance.wake(this);
-  }
-
-  void dispose() => progress.dispose();
-}
-
 class _SearchBar extends StatefulWidget {
   const _SearchBar({
     required this.leading,
@@ -241,21 +194,19 @@ class _SearchBar extends StatefulWidget {
 }
 
 class _SearchBarState extends State<_SearchBar> {
-  final _body = _SearchBody();
+  final _motion = SearchMotion();
   final _ends = SearchEndSignal();
-  late final _swell = _Derived(
-    _body.progress,
-    (p) => 1 + (SearchTuning.appearScale - 1) * p,
+  late final _progress = _motion.select((m) => m.progress);
+  late final _swell = _motion.select(
+    (m) => 1 + (SearchTuning.appearScale - 1) * m.progress,
   );
-  late final _fade = _Derived(_body.progress, (p) => 1 - p);
-  late final _arrive = _Derived(_body.progress, (p) => p);
-  late final _arriveScale = _Derived(
-    _body.progress,
-    (p) => SearchTuning.appearScale + (1 - SearchTuning.appearScale) * p,
+  late final _fade = _motion.select((m) => 1 - m.progress);
+  late final _arriveScale = _motion.select(
+    (m) =>
+        SearchTuning.appearScale + (1 - SearchTuning.appearScale) * m.progress,
   );
-  late final _arriveBlur = _Derived(
-    _body.progress,
-    (p) => SearchTuning.appearBlur * (1 - p),
+  late final _arriveBlur = _motion.select(
+    (m) => SearchTuning.appearBlur * (1 - m.progress),
   );
   bool _focused = false;
 
@@ -263,63 +214,51 @@ class _SearchBarState extends State<_SearchBar> {
   // the field returns, so nothing follows the keyboard down.
   double? _frozen;
 
+  double get _now => MotionClock.instance.now;
+
   @override
   void initState() {
     super.initState();
-    _body.progress.addListener(_returned);
-    MotionClock.instance.addDriver(_body);
+    _progress.addListener(_returned);
   }
 
   void _returned() {
-    if (_frozen == null || _focused || _body.progress.value != 0) return;
+    if (_frozen == null || _focused || _progress.value != 0) return;
     setState(() => _frozen = null);
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _body.motion.reducedMotion = GlassTraits.of(context).reduceMotion;
     final keyboard = MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0;
-    if (_body.keyboardWait != null && keyboard > 0) {
-      _body.keyboardWait = null;
-      _body.input(
-        (t) => _body.motion.focus(t, delay: SearchTuning.keyboardLag),
-      );
+    if (keyboard > 0) {
+      _motion.keyboardRose(_now, lag: SearchTuning.keyboardLag);
     }
   }
 
   @override
   void dispose() {
-    _body.progress.removeListener(_returned);
-    MotionClock.instance.removeDriver(_body);
-    _body.dispose();
+    _progress.removeListener(_returned);
     _ends.dispose();
-    for (final value in [_swell, _fade, _arrive, _arriveScale, _arriveBlur]) {
-      value.dispose();
-    }
     super.dispose();
   }
 
   void _focusChanged(bool focused) {
-    if (!focused || _body.motion.isFocused || _body.keyboardWait != null) {
-      return;
-    }
+    if (!focused || _motion.isFocused) return;
     setState(() {
       _focused = true;
       _frozen = null;
     });
     final keyboard = MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0;
     if (keyboard > 0) {
-      _body.input(_body.motion.focus);
+      _motion.focus(_now);
     } else {
-      _body.keyboardWait = MotionClock.instance.now;
-      MotionClock.instance.wake(_body);
+      _motion.focusAfterKeyboard(_now);
     }
   }
 
   void _end() {
-    _body.keyboardWait = null;
-    _body.input(_body.motion.unfocus);
+    _motion.unfocus(_now);
     final keyboard = MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0;
     setState(() {
       _focused = false;
@@ -338,91 +277,66 @@ class _SearchBarState extends State<_SearchBar> {
       id: slot,
       child: MotionTransition(scale: _swell, opacity: _fade, child: child),
     );
-    return SizedBox(
-      height: math.max(
-        SearchTuning.height + SearchTuning.restInset,
-        keyboard + SearchTuning.keyboardGap + SearchTuning.height,
-      ),
-      child: SearchEnds(
-        ends: _ends,
-        child: CustomMultiChildLayout(
-          delegate: _SearchLayout(
-            progress: _body.progress,
-            leading: widget.leading.length,
-            trailing: widget.trailing.length,
-            keyboard: keyboard,
-            returning: _frozen != null,
-            rtl: rtl,
-          ),
-          children: [
-            for (var i = 0; i < widget.leading.length; i++)
-              item((_SlotKind.leading, i), widget.leading[i]),
-            LayoutId(
-              id: (_SlotKind.field, 0),
-              child: Focus(
-                canRequestFocus: false,
-                skipTraversal: true,
-                onFocusChange: _focusChanged,
-                child: widget.field,
-              ),
+    return MotionScope(
+      motion: _motion,
+      child: SizedBox(
+        height: math.max(
+          SearchTuning.height + SearchTuning.restInset,
+          keyboard + SearchTuning.keyboardGap + SearchTuning.height,
+        ),
+        child: SearchEnds(
+          ends: _ends,
+          child: CustomMultiChildLayout(
+            delegate: _SearchLayout(
+              progress: _progress,
+              leading: widget.leading.length,
+              trailing: widget.trailing.length,
+              keyboard: keyboard,
+              returning: _frozen != null,
+              rtl: rtl,
             ),
-            for (var i = 0; i < widget.trailing.length; i++)
-              item((_SlotKind.trailing, i), widget.trailing[i]),
-            LayoutId(
-              id: (_SlotKind.close, 0),
-              child: IgnorePointer(
-                ignoring: !_focused,
-                child: MotionTransition(
-                  opacity: _arrive,
-                  scale: _arriveScale,
-                  blur: _arriveBlur,
-                  child: GlassButton(
-                    onPressed: _end,
-                    child: Semantics(
-                      label: widget.closeSemanticLabel,
-                      child: SizedBox.fromSize(
-                        size: SearchTuning.closeGlyphSize,
-                        child: CustomPaint(painter: SearchCrossPainter(glyph)),
+            children: [
+              for (var i = 0; i < widget.leading.length; i++)
+                item((_SlotKind.leading, i), widget.leading[i]),
+              LayoutId(
+                id: (_SlotKind.field, 0),
+                child: Focus(
+                  canRequestFocus: false,
+                  skipTraversal: true,
+                  onFocusChange: _focusChanged,
+                  child: widget.field,
+                ),
+              ),
+              for (var i = 0; i < widget.trailing.length; i++)
+                item((_SlotKind.trailing, i), widget.trailing[i]),
+              LayoutId(
+                id: (_SlotKind.close, 0),
+                child: IgnorePointer(
+                  ignoring: !_focused,
+                  child: MotionTransition(
+                    opacity: _progress,
+                    scale: _arriveScale,
+                    blur: _arriveBlur,
+                    child: GlassButton(
+                      onPressed: _end,
+                      child: Semantics(
+                        label: widget.closeSemanticLabel,
+                        child: SizedBox.fromSize(
+                          size: SearchTuning.closeGlyphSize,
+                          child: CustomPaint(
+                            painter: SearchCrossPainter(glyph),
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
-  }
-}
-
-/// A [ValueListenable] of a function of another one, recomputed when it
-/// changes.
-class _Derived<T, S> extends ChangeNotifier implements ValueListenable<T> {
-  _Derived(this.source, this.compute) : _value = compute(source.value) {
-    source.addListener(_changed);
-  }
-
-  final ValueListenable<S> source;
-
-  final T Function(S value) compute;
-
-  T _value;
-
-  @override
-  T get value => _value;
-
-  void _changed() {
-    final next = compute(source.value);
-    if (next == _value) return;
-    _value = next;
-    notifyListeners();
-  }
-
-  @override
-  void dispose() {
-    source.removeListener(_changed);
-    super.dispose();
   }
 }
 

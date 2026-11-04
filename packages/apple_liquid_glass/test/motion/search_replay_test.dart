@@ -2,17 +2,21 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/motion/glass_press.dart';
 import 'package:apple_liquid_glass/src/motion/search_motion.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
 
 extension on SearchMotion {
-  SearchMotion at(double t) {
+  SearchMotion seenAt(double t) {
     advance(t);
     return this;
   }
 }
+
+GlassPress _lift(Size size) =>
+    GlassPress(size: size, law: SearchTuning.pressLaw);
 
 const _dir = 'test/fixtures/ios27/search';
 
@@ -113,7 +117,6 @@ void main() {
           bottom: size.height - keyboard - SearchTuning.keyboardGap,
           focused: true,
         );
-        final restWidth = rest.field.width;
         final rows = _rows('search-toolbar.jsonl', dir: dir);
         final focusCall = _script(rows, 'focus');
         final cancelCall = _script(rows, 'cancel');
@@ -144,7 +147,7 @@ void main() {
             if (_d(r, 't') > from && _d(r, 't') < to)
               ...() {
                 final t = _d(r, 't') + frame;
-                final p = motion.at(t).progress;
+                final p = motion.seenAt(t).progress;
                 final model = Rect.lerp(rest.field, focused.field, p)!;
                 final seen = _rect(r);
                 return [
@@ -155,7 +158,7 @@ void main() {
               }(),
         ];
         SearchMotion focusAt(double call) {
-          final motion = SearchMotion(size: Size(restWidth, 48));
+          final motion = SearchMotion();
           motion.focus(call);
           return motion;
         }
@@ -176,8 +179,8 @@ void main() {
               if (_d(r, 't') < cancelCall && _d(r, 'ea') > 0)
                 ...() {
                   final t = _d(r, 't') + frame;
-                  final p = motion.at(t).progress;
-                  final lagged = lagging.at(t - lagFrames * frame).progress;
+                  final p = motion.seenAt(t).progress;
+                  final lagged = lagging.seenAt(t - lagFrames * frame).progress;
                   final model = Rect.lerp(rest.close, focused.close, lagged)!;
                   return [
                     (SearchMotion.appearScaleFor(p) - _d(r, 'w') / 48) * 48,
@@ -194,7 +197,7 @@ void main() {
         ].reduce(math.min);
         expect(closeRms, lessThan(2));
         List<double> cancelErrors(double call) {
-          final m = SearchMotion(size: Size(restWidth, 48));
+          final m = SearchMotion();
           m.snap(0, focused: true);
           m.unfocus(call);
           return fieldErrors(m, cancelCall, double.infinity);
@@ -250,7 +253,7 @@ void main() {
         trailing: const [48],
       );
       List<double> fieldErrors(double call) {
-        final m = SearchMotion(size: const Size(264, 48));
+        final m = SearchMotion();
         m.focus(call);
         return [
           for (final r in fieldRows)
@@ -258,7 +261,7 @@ void main() {
               Rect.lerp(
                     items.field,
                     itemsFocused.field,
-                    m.at(_d(r, 't') + _frame).progress,
+                    m.seenAt(_d(r, 't') + _frame).progress,
                   )!.left -
                   _rect(r).left,
         ];
@@ -266,7 +269,7 @@ void main() {
 
       final (focusFit, fieldRms) = _fit(focusCall, 0.6, fieldErrors);
       expect(fieldRms, lessThan(1.5));
-      final leaving = SearchMotion(size: const Size(264, 48));
+      final leaving = SearchMotion();
       leaving.focus(focusFit);
       final firstSeen = <int, double>{};
       for (final r in glass) {
@@ -282,7 +285,7 @@ void main() {
         final seen = _rect(r);
         final isLead = seen.center.dx < _w / 2;
         if (seen.center.dy < 700) continue;
-        final p = leaving.at(t).progress;
+        final p = leaving.seenAt(t).progress;
         final home = isLead ? items.leading.single : items.trailing.single;
         out.add(home.center.dx - seen.center.dx);
         out.add(home.center.dy - seen.center.dy);
@@ -293,7 +296,7 @@ void main() {
       }
       expect(_rms(out), lessThan(1.5));
       List<double> back(double call) {
-        final m = SearchMotion(size: const Size(264, 48));
+        final m = SearchMotion();
         m.snap(0, focused: true);
         m.unfocus(call);
         return [
@@ -302,7 +305,7 @@ void main() {
               ...() {
                 final seen = _rect(r);
                 final isLead = seen.center.dx < _w / 2;
-                final p = m.at(_d(r, 't') + _frame).progress;
+                final p = m.seenAt(_d(r, 't') + _frame).progress;
                 final from = isLead
                     ? virtual.leading.single
                     : virtual.trailing.single;
@@ -340,13 +343,13 @@ void main() {
             r,
       ];
       List<double> errors(double at) {
-        final motion = SearchMotion(size: const Size(384, 48));
-        motion.pointerDown(at);
+        final press = _lift(const Size(384, 48));
+        press.pointerDown(at, Offset.zero);
         final out = <double>[];
         for (final r in field) {
           final t = _d(r, 't') + _frame;
-          motion.advance(t);
-          out.add((motion.at(t).pressScale - _d(r, 'w') / 384) * 384);
+          press.advance(t);
+          out.add((press.scale - _d(r, 'w') / 384) * 384);
         }
         return out;
       }
@@ -389,13 +392,13 @@ void main() {
         for (final r in field)
           if (_d(r, 't') > from && _d(r, 't') < to)
             ...() {
-              final p = motion.at(_d(r, 't')).progress;
+              final p = motion.seenAt(_d(r, 't')).progress;
               final model = Rect.lerp(rest.field, focused.field, p)!;
               return [model.top - _d(r, 'y') + 24];
             }(),
       ];
       SearchMotion at(double start, {required bool focus}) {
-        final motion = SearchMotion(size: rest.field.size);
+        final motion = SearchMotion();
         if (!focus) motion.snap(0, focused: true);
         if (focus) {
           motion.focus(start, delay: 0);
@@ -444,13 +447,13 @@ void main() {
             r,
       ];
       List<double> errors(double at) {
-        final motion = SearchMotion(size: Size(width, 48));
-        motion.pointerDown(at);
+        final press = _lift(Size(width, 48));
+        press.pointerDown(at, Offset.zero);
         final out = <double>[];
         for (final r in field) {
           final t = _d(r, 't');
-          motion.advance(t);
-          out.add((motion.at(t).pressScale - _d(r, 'w') / width) * width);
+          press.advance(t);
+          out.add((press.scale - _d(r, 'w') / width) * width);
         }
         return out;
       }
@@ -509,7 +512,7 @@ void main() {
           if (_d(r, 't') > close && _d(r, 't') < close + 0.6)
             ...() {
               motion.advance(_d(r, 't'));
-              final p = motion.at(_d(r, 't')).progress;
+              final p = motion.seenAt(_d(r, 't')).progress;
               return [restY + (focusedY - restY) * p - _d(r, 'y')];
             }(),
       ];
@@ -556,7 +559,7 @@ void main() {
           if (_d(r, 't') > from && _d(r, 't') < to)
             ...() {
               motion.advance(_d(r, 't'));
-              final p = motion.at(_d(r, 't')).progress;
+              final p = motion.seenAt(_d(r, 't')).progress;
               return [restY + (focusedY - restY) * p - _d(r, 'y')];
             }(),
       ];
@@ -586,9 +589,9 @@ void main() {
       final motion = SearchMotion();
       motion.focus(0);
       motion.advance(SearchTuning.transitionDelay - 0.001);
-      expect(motion.at(motion.time).progress, 0);
+      expect(motion.seenAt(motion.now).progress, 0);
       motion.advance(1);
-      expect(motion.at(1).progress, closeTo(1, 1e-3));
+      expect(motion.seenAt(1).progress, closeTo(1, 1e-3));
       expect(motion.isSettled, isTrue);
     });
 
@@ -596,30 +599,49 @@ void main() {
       final motion = SearchMotion();
       motion.focus(0);
       motion.advance(0.15);
-      final p = motion.at(0.15).progress;
+      final p = motion.seenAt(0.15).progress;
       motion.unfocus(0.15);
       motion.advance(0.15 + SearchTuning.transitionDelay);
       expect(
-        motion.at(0.15 + SearchTuning.transitionDelay).progress,
+        motion.seenAt(0.15 + SearchTuning.transitionDelay).progress,
         greaterThan(p),
       );
       motion.advance(2);
-      expect(motion.at(2).progress, closeTo(0, 1e-3));
+      expect(motion.seenAt(2).progress, closeTo(0, 1e-3));
     });
 
-    test('a quick tap barely lifts; reduced motion never does', () {
-      final motion = SearchMotion(size: const Size(384, 48));
-      motion.pointerDown(0);
-      motion.advance(0.04);
-      expect(motion.at(0.04).pressScale, 1);
-      motion.pointerUp(0.04);
-      motion.advance(1);
-      expect(motion.at(1).pressScale, closeTo(1, 1e-4));
-      final calm = SearchMotion(size: const Size(384, 48));
+    test('a focus waits for the keyboard, and starts anyway at the limit', () {
+      final waiting = SearchMotion();
+      waiting.focusAfterKeyboard(0);
+      expect(waiting.isFocused, isTrue);
+      waiting.advance(0.2);
+      expect(waiting.seenAt(0.2).progress, 0);
+      waiting.keyboardRose(0.2, lag: SearchTuning.keyboardLag);
+      expect(waiting.waitsForKeyboard, isFalse);
+      expect(waiting.seenAt(0.2 + SearchTuning.keyboardLag).progress, 0);
+      expect(waiting.seenAt(0.25).progress, greaterThan(0));
+      final timedOut = SearchMotion();
+      timedOut.focusAfterKeyboard(0);
+      expect(timedOut.seenAt(SearchTuning.keyboardWaitLimit).progress, 0);
+      expect(timedOut.waitsForKeyboard, isFalse);
+      expect(timedOut.seenAt(0.4).progress, greaterThan(0));
+      expect(timedOut.seenAt(2).progress, 1);
+      expect(timedOut.isSettled, isTrue);
+    });
+
+    test('a quick tap barely lifts the field; reduced motion never does', () {
+      final press = _lift(const Size(384, 48));
+      press.pointerDown(0, Offset.zero);
+      press.advance(0.04);
+      expect(press.scale, 1);
+      press.pointerUp(0.04, Offset.zero);
+      press.advance(1);
+      expect(press.scale, closeTo(1, 1e-4));
+      final calm = _lift(const Size(384, 48));
       calm.reducedMotion = true;
-      calm.pointerDown(0);
+      calm.pointerDown(0, Offset.zero);
       calm.advance(0.5);
-      expect(calm.at(0.5).pressScale, 1);
+      expect(calm.scale, 1);
     });
   });
 

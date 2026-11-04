@@ -1,4 +1,3 @@
-import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
@@ -329,9 +328,12 @@ enum _State { accumulating, active, idle }
 /// one after the other. A change in the middle of another turns it around
 /// with its velocity.
 ///
-/// Times are seconds on the caller's clock.
+/// Every spring rests within a visible scale step of a bar group [extent]
+/// points wide ([MotionRest.scale]).
+///
+/// Times are seconds on the motion's timeline.
 @internal
-class TabBarMinimizeMotion {
+final class TabBarMinimizeMotion extends Motion {
   /// Creates the motion of a bar that minimizes as [behavior] says.
   TabBarMinimizeMotion({
     GlassTabBarMinimizeBehavior behavior =
@@ -342,28 +344,37 @@ class TabBarMinimizeMotion {
     scrollAway.onProgress = _progressChanged;
   }
 
-  /// The scroll-away interaction; feed it the content's scrolls.
+  /// The scroll-away interaction; feed it the content's scrolls after
+  /// [advance] to their time.
   final ScrollAway scrollAway = ScrollAway();
 
-  final _hint = MotionValue<double>(
-    1,
-    spring: TabBarMinimizeTuning.hintResetSpring,
+  /// The width of the bar group, which sets how closely the springs rest.
+  double extent = 400;
+
+  double _rest() => MotionRest.scale(extent);
+
+  late final _hint = own(
+    MotionValue<double>(1, spring: TabBarMinimizeTuning.hintResetSpring),
+    rest: _rest,
   );
-  final _morph = MotionValue<double>(
-    0,
-    spring: TabBarMinimizeTuning.morphSpring,
+  late final _morph = own(
+    MotionValue<double>(0, spring: TabBarMinimizeTuning.morphSpring),
+    rest: _rest,
   );
-  final _accessoryX = MotionValue<double>(
-    0,
-    spring: TabBarMinimizeTuning.accessoryCollapseSpring,
+  late final _accessoryX = own(
+    MotionValue<double>(
+      0,
+      spring: TabBarMinimizeTuning.accessoryCollapseSpring,
+    ),
+    rest: _rest,
   );
-  final _accessoryY = MotionValue<double>(
-    0,
-    spring: TabBarMinimizeTuning.accessoryExpandSpring,
+  late final _accessoryY = own(
+    MotionValue<double>(0, spring: TabBarMinimizeTuning.accessoryExpandSpring),
+    rest: _rest,
   );
-  final MotionTimeline _timeline = MotionTimeline(now: 0);
-  double _now = 0;
-  int _generation = 0;
+
+  static const _follow = Object();
+  static const _hold = Object();
 
   /// The behavior; a bar that no longer minimizes expands.
   GlassTabBarMinimizeBehavior get behavior => _behavior;
@@ -371,13 +382,14 @@ class TabBarMinimizeMotion {
 
   /// Changes the behavior at time [t].
   void setBehavior(double t, GlassTabBarMinimizeBehavior value) {
+    advance(t);
     if (value == _behavior) return;
     _behavior = value;
     scrollAway.minimizesOnScrollUp =
         value == GlassTabBarMinimizeBehavior.onScrollUp;
     scrollAway.reset(0);
     _hint.retarget(t, 1, spring: TabBarMinimizeTuning.hintResetSpring);
-    if (!value.minimizes) setMinimized(t, minimized: false);
+    if (!value.minimizes) _setMinimized(t, minimized: false);
   }
 
   /// Whether the morph runs on its Reduce Motion spring.
@@ -389,6 +401,11 @@ class TabBarMinimizeMotion {
 
   /// Minimizes or expands the bar at time [t].
   void setMinimized(double t, {required bool minimized}) {
+    advance(t);
+    _setMinimized(t, minimized: minimized);
+  }
+
+  void _setMinimized(double t, {required bool minimized}) {
     scrollAway.reset(minimized ? 1 : 0);
     if (_hint.target != 1) {
       _hint.retarget(t, 1, spring: TabBarMinimizeTuning.hintResetSpring);
@@ -397,7 +414,7 @@ class TabBarMinimizeMotion {
   }
 
   void _progressChanged(double progress, {required bool tracking}) {
-    final t = _now;
+    final t = now;
     if (progress > 0 && progress < 1) {
       _hint.retarget(
         t,
@@ -418,7 +435,6 @@ class TabBarMinimizeMotion {
   void _transition(double t, {required bool minimized}) {
     if (minimized == _minimized) return;
     _minimized = minimized;
-    final generation = ++_generation;
     final target = minimized ? 1.0 : 0.0;
     _morph.retarget(
       t,
@@ -438,22 +454,22 @@ class TabBarMinimizeMotion {
           ? TabBarMinimizeTuning.accessoryCollapseSpring
           : TabBarMinimizeTuning.accessoryExpandSpring,
     );
-    _timeline.at(t + TabBarMinimizeTuning.accessoryFollowDelay, (double at) {
-      if (generation != _generation) return;
-      second.retarget(
-        at,
+    at(
+      t + TabBarMinimizeTuning.accessoryFollowDelay,
+      (s) => second.retarget(
+        s,
         target,
         spring: minimized
             ? TabBarMinimizeTuning.accessoryCollapseFollowSpring
             : TabBarMinimizeTuning.accessoryExpandFollowSpring,
-      );
-    });
+      ),
+      slot: _follow,
+    );
   }
 
   double? _pressX;
   bool _held = false;
   bool _scrubs = false;
-  int _press = 0;
 
   /// Whether a finger that went down on the minimized bar is still on it.
   bool get pressed => _pressX != null;
@@ -472,16 +488,16 @@ class TabBarMinimizeMotion {
   /// response 0.4 out; 0.75, 0.4 back; read from UIKit); this motion runs
   /// both on [TabBarMinimizeTuning.morphSpring] (approximation).
   void pressDown(double t, double x) {
+    advance(t);
     if (!_minimized) return;
     _pressX = x;
     _held = false;
     _scrubs = false;
-    final press = ++_press;
-    _timeline.at(t + TabBarMinimizeTuning.holdDuration, (double at) {
-      if (press != _press || _pressX == null || _scrubs) return;
+    at(t + TabBarMinimizeTuning.holdDuration, (s) {
+      if (_scrubs) return;
       _held = true;
-      setMinimized(at, minimized: false);
-    });
+      _setMinimized(s, minimized: false);
+    }, slot: _hold);
   }
 
   /// The finger moved to [x] along the bar at time [t]; true on the move
@@ -491,13 +507,14 @@ class TabBarMinimizeMotion {
   /// finger went down, before or after the hold expanded the bar, expands
   /// it for good: from then on the touch is the expanded bar's drag.
   bool pressMove(double t, double x) {
+    advance(t);
     final from = _pressX;
     if (from == null || _scrubs) return false;
     if ((x - from).abs() < TabBarMinimizeTuning.holdHysteresis) {
       return false;
     }
     _scrubs = true;
-    if (_minimized) setMinimized(t, minimized: false);
+    if (_minimized) _setMinimized(t, minimized: false);
     return true;
   }
 
@@ -509,91 +526,54 @@ class TabBarMinimizeMotion {
   /// (`expandsOnTap` is NO), but a tap on the minimized bar has no other
   /// path back to the tabs in the code read (not recorded).
   void pressUp(double t) {
+    advance(t);
     if (_pressX == null) return;
     final held = _held;
     final scrubs = _scrubs;
     _endPress();
     if (scrubs) return;
-    setMinimized(t, minimized: held);
+    _setMinimized(t, minimized: held);
   }
 
   /// The touch was taken away at time [t]: a held bar collapses back.
   void pressCancel(double t) {
+    advance(t);
     if (_pressX == null) return;
     final back = _held && !_scrubs;
     _endPress();
-    if (back) setMinimized(t, minimized: true);
+    if (back) _setMinimized(t, minimized: true);
   }
 
   void _endPress() {
-    _press++;
+    unschedule(_hold);
     _pressX = null;
     _held = false;
     _scrubs = false;
   }
 
-  /// The time the motion next changes on its own (a held finger's
-  /// expansion) while every spring rests within [GlassRest] for a bar
-  /// group [extent] points wide, or null.
-  double? wakeTime({double extent = 400}) {
-    final due = _timeline.nextDue;
-    if (due == null) return null;
-    return _resting(extent) ? due : null;
-  }
-
-  /// Advances the motion to time [t]; feed scrolls stamped at [t] after.
-  void advance(double t) {
-    _timeline.runDue(t);
-    if (t > _now) _now = t;
-  }
-
   /// The scale of the bar group: 1, or less while a scroll
   /// hints at minimizing.
-  double get hint => _hintAt(_now);
-
-  double _hintAt(double t) => _hint.valueAt(t);
+  double get hint => _hint.valueAt(now);
 
   /// The morph's way from the expanded bar (0) to the minimized circle
   /// (1): of the glass's shape and of the content.
-  double get morph => _morph.valueAt(_now);
+  double get morph => _morph.valueAt(now);
 
   /// The bottom accessory's way from above the bar (0) to beside the
   /// circle (1) along the bar: its horizontal position and width.
-  double get accessoryX => _accessoryX.valueAt(_now);
+  double get accessoryX => _accessoryX.valueAt(now);
 
   /// The bottom accessory's way from above the bar (0) to beside the
   /// circle (1) up the screen: its vertical position and height.
-  double get accessoryY => _accessoryY.valueAt(_now);
-
-  List<MotionValue<double>> get _channels => [_morph, _accessoryX, _accessoryY];
+  double get accessoryY => _accessoryY.valueAt(now);
 
   /// Whether the bar rests expanded: nothing of the morph moves and
   /// nothing is pending.
   bool get restsExpanded =>
       !_minimized &&
-      _timeline.isEmpty &&
-      _channels.every(
-        (value) => value.target == 0 && value.valueAt(_now) == 0,
+      !isScheduled(_follow) &&
+      !isScheduled(_hold) &&
+      [_morph, _accessoryX, _accessoryY].every(
+        (value) => value.target == 0 && value.valueAt(now) == 0,
       );
-
-  bool _resting(double extent) =>
-      _hint.isWithin(_now, GlassRest.scale(extent)) &&
-      _channels.every(
-        (value) => value.isWithin(_now, GlassRest.scale(extent)),
-      );
-
-  /// Whether nothing moves: every spring is within its visible rest
-  /// ([GlassRest]) for a bar group [extent] points wide, and nothing is
-  /// pending.
-  bool isSettled({double extent = 400}) =>
-      _timeline.isEmpty && _resting(extent);
-
-  /// Puts every spring onto its target at time [t] (NEAR, invisible: the
-  /// motion has settled within [GlassRest]).
-  void settle(double t) {
-    _hint.settle(t);
-    for (final value in _channels) {
-      value.settle(t);
-    }
-  }
 }
