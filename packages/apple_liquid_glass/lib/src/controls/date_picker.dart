@@ -879,10 +879,8 @@ class _OverlayViewState extends State<_OverlayView> {
     ),
   );
 
-  // The day grid (the time wheels) mounts on the frame after the
-  // overlay's: the overlay stays transparent for at least the reopen
-  // delay after the lift, so the two halves of the open's work land on
-  // two frames unseen.
+  // Safe one frame late: the overlay stays transparent for at least the
+  // reopen delay after the lift.
   final ValueNotifier<bool> _contentReady = ValueNotifier(false);
 
   DatePickerMotion get _motion => widget.motion;

@@ -100,12 +100,13 @@ final class GlassPageControlPose {
     );
   }
 
-  /// Each page's indicator: a capsule as tall as it is thin, mirrored in a
-  /// right-to-left context.
+  /// Each page's indicator box, a dot tall and as wide as the indicator, in
+  /// which a look draws a capsule; mirrored in a right-to-left context.
   final List<Rect> indicators;
 
-  /// How far each indicator shows the current page's color over its own,
-  /// 0 to 1; only a control with a progress fills its indicators.
+  /// How far each indicator's fill shows, 0 to 1: 1 on the current page,
+  /// fading on the page just left, 0 elsewhere. The default look draws the
+  /// fill only while the control shows a progress.
   final List<double> fills;
 
   /// How far the platter behind the indicators shows, 0 to 1.

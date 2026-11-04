@@ -254,7 +254,8 @@ class PopoverLayout extends MultiChildRenderObjectWidget {
   /// The popover's scale about its arrow's tip.
   final ValueListenable<double> scale;
 
-  /// The popover's opacity.
+  /// The opacity the popover's glass paints at; at 0 the popover neither
+  /// paints nor takes touches.
   final MotionSelection<double> opacity;
 
   /// The widest the card may be.

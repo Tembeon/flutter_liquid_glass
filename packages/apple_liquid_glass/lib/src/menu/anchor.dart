@@ -29,16 +29,16 @@ import 'package:kinesis/motion.dart';
 ///
 /// Flutter: `MenuController`.
 class GlassMenuController {
-  _MenuHost<StatefulWidget>? _anchor;
+  _MenuHost<StatefulWidget>? _host;
 
   /// Whether the menu shows or is on its way to showing.
-  bool get isOpen => _anchor?._isOpen ?? false;
+  bool get isOpen => _host?._isOpen ?? false;
 
   /// Opens the menu.
-  void open() => _anchor?._openFromCode();
+  void open() => _host?._openFromCode();
 
   /// Closes the menu.
-  void close() => _anchor?._close();
+  void close() => _host?._close();
 }
 
 /// A source whose glass grows into a menu of [entries], as a `UIButton`
@@ -177,7 +177,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   @override
   void initState() {
     super.initState();
-    _controller?._anchor = this;
+    _controller?._host = this;
     _content.entries = _entries;
     _content.order = _order;
   }
@@ -188,10 +188,10 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     required bool wasEnabled,
   }) {
     if (oldController != _controller) {
-      if (identical(oldController?._anchor, this)) {
-        oldController?._anchor = null;
+      if (identical(oldController?._host, this)) {
+        oldController?._host = null;
       }
-      _controller?._anchor = this;
+      _controller?._host = this;
     }
     final changed =
         !identical(_entries, _content.entries) || _order != _content.order;
@@ -203,8 +203,8 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
 
   @override
   void dispose() {
-    if (identical(_controller?._anchor, this)) {
-      _controller?._anchor = null;
+    if (identical(_controller?._host, this)) {
+      _controller?._host = null;
     }
     _unroute();
     _steps?.removeListener(_stepped);
@@ -429,7 +429,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     controller: _portal,
     presentation: Presentation<Object?, MenuMotion>(
       motion: (_) => _motion!,
-      builder: (context, motion) => _MenuLayer(anchor: this),
+      builder: (context, motion) => _MenuLayer(host: this),
       source: _source,
       dim: _dim(context),
       semanticsLabel: _semanticLabel,
@@ -530,11 +530,8 @@ class _RawGlassMenuState extends _MenuHost<RawGlassMenu> {
   }
 
   Matrix4 _pressTransform() {
-    final box = context.findRenderObject();
     final motion = _motion;
-    if (motion == null || box is! RenderBox || !box.hasSize) {
-      return Matrix4.identity();
-    }
+    if (motion == null) return Matrix4.identity();
     final s = motion.isPresented ? 1.0 : motion.pressScale;
     return Matrix4.diagonal3Values(s, s, 1);
   }
@@ -695,9 +692,9 @@ class _Structure {
 /// rows and the submenu cards over them, each following the motion's
 /// frames without a rebuild.
 class _MenuLayer extends StatefulWidget {
-  const _MenuLayer({required this.anchor});
+  const _MenuLayer({required this.host});
 
-  final _MenuHost<StatefulWidget> anchor;
+  final _MenuHost<StatefulWidget> host;
 
   @override
   State<_MenuLayer> createState() => _MenuLayerState();
@@ -708,27 +705,27 @@ class _MenuLayerState extends State<_MenuLayer> {
   final Map<MenuLayout, ValueNotifier<int?>> _hidden = Map.identity();
   final Map<MenuLayout, Widget> _rows = Map.identity();
   MenuAppearance? _rowsStyle;
-  _Structure? _built;
+  late _Structure _built;
   bool _parentLocked = false;
 
-  _MenuHost<StatefulWidget> get _anchor => widget.anchor;
+  _MenuHost<StatefulWidget> get _host => widget.host;
 
-  late final MotionSelection<MenuMotion> _frames = _anchor._steps!;
+  late final MotionSelection<MenuMotion> _frames = _host._steps!;
 
   late final _input = _MenuInput(
     toGlobal: (local) =>
         (context.findRenderObject()! as RenderBox).localToGlobal(local),
-    down: _anchor._pointerDown,
-    move: _anchor._pointerMove,
-    up: _anchor._pointerUp,
-    cancel: _anchor._pointerCancel,
+    down: _host._pointerDown,
+    move: _host._pointerMove,
+    up: _host._pointerUp,
+    cancel: _host._pointerCancel,
   );
 
   // The menu's own Focus takes the keys; the region's stays out of the
   // traversal.
   final _regionFocus = FocusNode(skipTraversal: true);
 
-  MenuMotion get _motion => _anchor._motion!;
+  MenuMotion get _motion => _host._motion!;
 
   double get _width => _motion.tuning.menuWidth;
 
@@ -751,9 +748,8 @@ class _MenuLayerState extends State<_MenuLayer> {
     super.dispose();
   }
 
-  _Structure? _structure() {
-    final motion = _anchor._motion;
-    if (motion == null) return null;
+  _Structure _structure() {
+    final motion = _motion;
     final cards = motion.cards;
     for (var i = 0; i < cards.length; i++) {
       _hiddenOf(cards[i].layout).value = i + 1 < cards.length
@@ -781,9 +777,7 @@ class _MenuLayerState extends State<_MenuLayer> {
       _hidden.putIfAbsent(layout, () => ValueNotifier<int?>(null));
 
   void _scrolled() {
-    final motion = _anchor._motion;
-    if (motion == null || !_scroll.hasClients) return;
-    motion.scrollOffset = _scroll.offset;
+    if (_scroll.hasClients) _motion.scrollOffset = _scroll.offset;
   }
 
   bool _scrollStarted(ScrollNotification notification) {
@@ -795,19 +789,19 @@ class _MenuLayerState extends State<_MenuLayer> {
   }
 
   void _scrollGesture() =>
-      _anchor._command((motion, t) => motion.pointerScrolled(t));
+      _host._command((motion, t) => motion.pointerScrolled(t));
 
   void _select(MenuLayout layout, int target) {
-    final motion = _anchor._motion;
-    if (motion == null || !motion.isOpen) return;
+    final motion = _motion;
+    if (!motion.isOpen) return;
     if (!identical(motion.cards[motion.topCard].layout, layout)) return;
-    _anchor._command((motion, t) => motion.select(t, target));
+    _host._command((motion, t) => motion.select(t, target));
   }
 
   KeyEventResult _key(FocusNode node, KeyEvent event) {
     if (event is KeyUpEvent) return KeyEventResult.ignored;
-    final motion = _anchor._motion;
-    if (motion == null || !motion.isOpen) return KeyEventResult.ignored;
+    final motion = _motion;
+    if (!motion.isOpen) return KeyEventResult.ignored;
     final top = motion.topCard;
     final layout = motion.cards[top].layout;
     final order = [for (var i = 0; i < layout.targets.length; i++) i];
@@ -818,7 +812,7 @@ class _MenuLayerState extends State<_MenuLayer> {
       return dy != 0 ? dy : ra.left.compareTo(rb.left);
     });
     final current = motion.highlightedCard == top ? motion.highlighted : null;
-    final rtl = _anchor._content.rtl;
+    final rtl = _host._content.rtl;
     final key = event.logicalKey;
     void move(int step) {
       if (order.isEmpty) return;
@@ -826,7 +820,7 @@ class _MenuLayerState extends State<_MenuLayer> {
       final next = at < 0
           ? (step > 0 ? 0 : order.length - 1)
           : (at + step).clamp(0, order.length - 1);
-      _anchor._command((motion, t) => motion.highlight(t, order[next]));
+      _host._command((motion, t) => motion.highlight(t, order[next]));
     }
 
     if (key == LogicalKeyboardKey.arrowDown) {
@@ -837,21 +831,21 @@ class _MenuLayerState extends State<_MenuLayer> {
         key == LogicalKeyboardKey.numpadEnter ||
         key == LogicalKeyboardKey.space) {
       if (current == null) return KeyEventResult.ignored;
-      _anchor._command((motion, t) => motion.select(t, current));
+      _host._command((motion, t) => motion.select(t, current));
     } else if (key ==
         (rtl ? LogicalKeyboardKey.arrowLeft : LogicalKeyboardKey.arrowRight)) {
       if (current == null ||
           layout.targets[current].kind != MenuTargetKind.submenu) {
         return KeyEventResult.ignored;
       }
-      _anchor._command((motion, t) => motion.select(t, current));
+      _host._command((motion, t) => motion.select(t, current));
     } else if (key == LogicalKeyboardKey.escape ||
         key ==
             (rtl
                 ? LogicalKeyboardKey.arrowRight
                 : LogicalKeyboardKey.arrowLeft)) {
       var back = false;
-      _anchor._command((motion, t) => back = motion.back(t));
+      _host._command((motion, t) => back = motion.back(t));
       if (!back) return KeyEventResult.ignored;
     } else {
       return KeyEventResult.ignored;
@@ -871,7 +865,7 @@ class _MenuLayerState extends State<_MenuLayer> {
           layout: layout,
           style: style,
           hidden: _hiddenOf(layout),
-          content: _anchor._content,
+          content: _host._content,
           onSelect: (target) => _select(layout, target),
         ),
       ),
@@ -879,7 +873,7 @@ class _MenuLayerState extends State<_MenuLayer> {
   }
 
   Widget? _highlight(MenuLayout layout, MenuAppearance style, int card) {
-    final structure = _built!;
+    final structure = _built;
     final index = structure.highlighted;
     if (index == null || structure.highlightedCard != card) return null;
     if (index >= layout.targets.length) return null;
@@ -988,7 +982,7 @@ class _MenuLayerState extends State<_MenuLayer> {
         children: [?_highlight(layout, style, 0), _rowsOf(layout, style)],
       ),
     );
-    final body = _built!.scrolls
+    final body = _built.scrolls
         ? NotificationListener<ScrollNotification>(
             onNotification: _scrollStarted,
             child: RawScrollbar(
@@ -1026,7 +1020,7 @@ class _MenuLayerState extends State<_MenuLayer> {
   Widget _card(int index, MenuLayout layout, MenuAppearance style) {
     final width = _width;
     if (index == 0) {
-      final locked = _built!.layouts.length > 1;
+      final locked = _built.layouts.length > 1;
       if (locked && !_parentLocked && _scroll.hasClients) {
         (_scroll.position as ScrollPositionWithSingleContext).goIdle();
       }
@@ -1181,7 +1175,7 @@ class _MenuLayerState extends State<_MenuLayer> {
                                     },
                                     style: style,
                                     width: layout.width,
-                                    content: _anchor._content,
+                                    content: _host._content,
                                     onSelect: (target) =>
                                         _select(layout, target),
                                   ),
@@ -1220,11 +1214,8 @@ class _MenuLayerState extends State<_MenuLayer> {
   @override
   Widget build(BuildContext context) {
     final structure = _built;
-    final motion = _anchor._motion;
-    if (structure == null || motion == null || structure.layouts.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    final style = _anchor._style;
+    final motion = _motion;
+    final style = _host._style;
     final layouts = structure.layouts;
     final top = layouts.length - 1;
     final under = top == 0 ? layouts.length : top;
@@ -1255,13 +1246,13 @@ class _MenuLayerState extends State<_MenuLayer> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          ..._anchor._backdrop(this),
+          ..._host._backdrop(this),
           IgnorePointer(
             child: LiveGlassSurface(
               live: _frames,
               frameOf: () => _menuFrame(
                 motion,
-                sourceTint: _anchor._sourceTint,
+                sourceTint: _host._sourceTint,
                 opacity: motion.glassOpacity,
               ),
             ),
@@ -1280,7 +1271,7 @@ class _MenuLayerState extends State<_MenuLayer> {
                     child: _LiveBlur(
                       live: _frames,
                       sigmaOf: () => _motion.buttonLookBlur,
-                      child: Center(child: _anchor._look),
+                      child: Center(child: _host._look),
                     ),
                   ),
                 ),
@@ -1377,7 +1368,7 @@ class _LiveBlur extends SingleChildRenderObjectWidget {
 class _RenderLiveBlur extends RenderProxyBox {
   _RenderLiveBlur(this._live, this.sigmaOf);
 
-  // The anchor's frame ticks, which live as long as the layer.
+  // The host's frame ticks, which live as long as the layer.
   final Listenable _live;
   double Function() sigmaOf;
   double _sigma = 0;

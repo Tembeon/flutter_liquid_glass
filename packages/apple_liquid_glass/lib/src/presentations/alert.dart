@@ -42,7 +42,7 @@ class GlassAlertStyle {
   final TextStyle? titleTextStyle;
 
   /// The message, over the default 15 points in secondaryLabel under a
-  /// title and the title's style alone.
+  /// title, or the title's default (17 points in label) without one.
   final TextStyle? messageTextStyle;
 
   /// The action labels, over the default 17 points, medium; an alert
@@ -283,9 +283,6 @@ Future<GlassAlertAction?> showGlassActionSheet(
   level: level,
 );
 
-// An alert waits for an answer: without a cancel action only its buttons
-// close it. Back, Escape and a screen reader's dismiss choose the cancel
-// action, and its handler runs once the alert has gone.
 Presentation<GlassAlertAction, Presented> _alert({
   required Widget? title,
   required Widget? message,
@@ -295,7 +292,10 @@ Presentation<GlassAlertAction, Presented> _alert({
   Rect? anchorRect,
 }) {
   final cancel = _cancelOf(actions);
-  final keys = actionSheet || cancel != null;
+  // An alert without an enabled cancel action waits for one of its
+  // buttons; an action sheet always closes on Escape, Back and a screen
+  // reader's dismiss, with its cancel action or none.
+  final closable = actionSheet || cancel != null;
   return Presentation(
     motion: (_) => anchorRect == null ? AlertMotion() : PopoverMotion(),
     builder: (context, motion) => _AlertView(
@@ -309,7 +309,7 @@ Presentation<GlassAlertAction, Presented> _alert({
     ),
     dismiss: DismissPolicy({
       if (actionSheet) DismissTrigger.outsideTap,
-      if (keys) ...{
+      if (closable) ...{
         DismissTrigger.escape,
         DismissTrigger.back,
         DismissTrigger.accessibility,
@@ -339,8 +339,6 @@ GlassAlertAction? _cancelOf(List<GlassAlertAction> actions) {
   return null;
 }
 
-/// The actions in the order they show: the cancel action first in a row,
-/// last in a column, and left out of a popover.
 List<GlassAlertAction> _ordered(
   List<GlassAlertAction> actions, {
   required bool row,

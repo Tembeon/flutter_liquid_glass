@@ -278,9 +278,10 @@ typedef LensSlot = ({double center, double width});
 /// A control that flexes ([LensTuning.chromeFlexes]) carries its own
 /// flex of [chromeSize] under the finger, read as [chrome].
 ///
-/// Feed pointer events with their timestamps, call [advance] with the
-/// frame time, then read [center], [size], [scaleX] and [scaleY]. All
-/// lengths are pixels along the track, all times seconds.
+/// Feed pointer events with their timestamps and read [center], [size],
+/// [scaleX] and [scaleY] at [now]: on screen the clock advances the motion,
+/// in a test [advance] does. All lengths are pixels along the track, all
+/// times seconds.
 ///
 /// Every part rests within [MotionRest]: a scale over the lens's extent on
 /// its own axis (the lifted width along the track, which holds while it

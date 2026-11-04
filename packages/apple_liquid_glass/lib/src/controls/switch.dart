@@ -10,8 +10,8 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 
-/// Builds a glass switch from [details]; it runs again when the switch's
-/// states change, never while it moves.
+/// Builds a glass switch from [details]; it runs when the switch builds,
+/// such as when its states change, never on a frame of its motion.
 typedef GlassSwitchBuilder = Widget Function(
   BuildContext context,
   GlassSwitchDetails details,

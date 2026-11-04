@@ -73,7 +73,7 @@ class PopoverShape {
   /// The shape as one glass body, whose distance field is sampled when a
   /// renderer first reads it.
   ///
-  /// The last shapes keep their outline, so a popover shown again where
+  /// The last two shapes keep their outline, so a popover shown again where
   /// it was neither samples nor uploads its field again.
   late final GlassOutline outline = _outline();
 
@@ -202,7 +202,18 @@ class _Trace {
     _y = h;
     // Each fillet bends over two thirds of the run from its start to the
     // side's end and half the rise, its controls a third along the edge.
-    _cubic(c - base, h, c - base, h, c - 7.5, h + 6, _arrowRun, _arrowSteps);
+    const bend = reach - (reach - 2) * 2 / 3;
+    const rise = (length - 1) / 2;
+    _cubic(
+      c - base,
+      h,
+      c - base,
+      h,
+      c - bend,
+      h + rise,
+      _arrowRun,
+      _arrowSteps,
+    );
     _line(c - 2, h + length - 1, _arrowRun);
     _cubic(
       c,
@@ -214,7 +225,7 @@ class _Trace {
       _arrowRun,
       _arrowSteps,
     );
-    _line(c + 7.5, h + 6, _arrowRun);
+    _line(c + bend, h + rise, _arrowRun);
     _cubic(c + base, h, c + base, h, c + reach, h, _arrowRun, _arrowSteps);
     _line(w - _high, h, null);
     _corner(w, h, -1, 0, 0, -1, _high);

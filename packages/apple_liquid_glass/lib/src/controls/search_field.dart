@@ -135,8 +135,8 @@ class GlassSearchFieldStyle {
   );
 }
 
-/// Builds a search field from [details]; it runs again when the field's
-/// states change, never while it moves.
+/// Builds a search field from [details]; it runs when the field builds,
+/// such as when its states change, never on a frame of its motion.
 typedef GlassSearchFieldBuilder = Widget Function(
   BuildContext context,
   GlassSearchFieldDetails details,
@@ -170,13 +170,15 @@ final class GlassSearchFieldDetails {
   final Widget Function(TextStyle style, Color cursor, Color placeholder) _text;
 
   /// The editable text with its gestures and semantics, drawn in [style]
-  /// with a [cursorColor] cursor; [placeholderColor] colors the cursor
-  /// while it moves over the text.
+  /// with a [cursorColor] cursor; [backgroundCursorColor] colors the
+  /// cursor's resting ghost while a force press moves it
+  /// (`EditableText.backgroundCursorColor`). The default look passes the
+  /// placeholder color.
   Widget text({
     required TextStyle style,
     required Color cursorColor,
-    required Color placeholderColor,
-  }) => _text(style, cursorColor, placeholderColor);
+    required Color backgroundCursorColor,
+  }) => _text(style, cursorColor, backgroundCursorColor);
 }
 
 /// A search field with the measured lift of iOS 27's `UISearchTextField`
@@ -671,7 +673,7 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
                 details.text(
                   style: text,
                   cursorColor: resolve(look.cursorColor),
-                  placeholderColor: placeholderColor,
+                  backgroundCursorColor: placeholderColor,
                 ),
               ],
             ),

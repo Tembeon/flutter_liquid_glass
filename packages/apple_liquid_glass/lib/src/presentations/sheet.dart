@@ -29,7 +29,8 @@ class GlassSheetStyle {
   /// another; white in light and 0x1C1C1E in dark by default (simulator).
   final Color? backgroundColor;
 
-  /// The drag handle; tertiaryLabel's 30 percent by default.
+  /// The drag handle; 0x3C3C43 at 30 percent in light and 0xEBEBF5 at 30
+  /// percent in dark (tertiaryLabel's color, simulator) by default.
   final Color? dragHandleColor;
 
   /// The default text of the content, over 17 points in label.

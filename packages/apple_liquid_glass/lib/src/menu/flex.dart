@@ -98,7 +98,7 @@ final class MenuFlex extends Motion {
     at(t + tuning.flexDelay, (double s) {
       _pending = false;
       if (!active()) return;
-      _pulse.snap(s, 0);
+      _pulse.snap(s);
       _touch = _Touch(position, s);
     }, slot: _down);
   }
@@ -164,14 +164,14 @@ final class MenuFlex extends Motion {
   /// Makes sure the pulse channel steps after time [t] while the finger
   /// is down, on its grid from the touch-down.
   void _schedulePulse(_Touch touch, double t) {
-    if (touch.nextStep != null) return;
+    if (touch.stepping) return;
     final period = 1 / tuning.flexPulseRate;
     final steps = ((t - touch.start) / period + 1e-6).floor() + 1;
     final due = touch.start + steps * period;
-    touch.nextStep = due;
+    touch.stepping = true;
     at(due, (double s) {
       if (!identical(_touch, touch)) return;
-      touch.nextStep = null;
+      touch.stepping = false;
       final target = touch.position.dy - touch.origin.dy;
       final before = _targetsOf(touch);
       _pulse.step(s, target);
@@ -204,8 +204,8 @@ class _Touch {
   /// Where the finger is.
   Offset position;
 
-  /// When the pulse channel steps next, or null while it rests.
-  double? nextStep;
+  /// Whether a step of the pulse channel is pending.
+  bool stepping = false;
 }
 
 /// The open menu's pulse channel: a spring that runs on a clock of its own,
@@ -234,9 +234,9 @@ class FlexPulse {
   /// own clock; UIKit zeroes it when the finger lifts, leaving the spring.
   double velocity = 0;
 
-  /// Puts the channel at rest on [to] at motion time [t].
-  void snap(double t, double to) {
-    _channel.snap(_clock, to);
+  /// Puts the channel at rest on 0 at motion time [t].
+  void snap(double t) {
+    _channel.snap(_clock, 0);
     _stepped = t;
     velocity = 0;
   }

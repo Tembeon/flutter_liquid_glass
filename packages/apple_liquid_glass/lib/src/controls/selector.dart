@@ -353,21 +353,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     });
   }
 
-  // Callbacks may rebuild ancestors: a cancel from the region's own update
-  // or dispose arrives while the framework builds or finalizes the tree,
-  // so they wait for the end of the frame there.
-  void _later(VoidCallback callback) {
-    if (SchedulerBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (mounted) callback();
-      });
-      return;
-    }
-    callback();
-  }
-
-  void _deliver(LensEvent event) => _later(() {
+  void _deliver(LensEvent event) => afterBuild(() {
     switch (event) {
       case LensSelected(:final index):
         _chosen(index);
@@ -448,7 +434,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       if (_selectable(slot)) next = slot;
     }
     if (next == _pointing.value.pressed) return;
-    _later(
+    afterBuild(
       () => _pointing.value = (pressed: next, hovered: _pointing.value.hovered),
     );
   }
@@ -456,7 +442,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   void _hover(Offset? position) {
     final next = position == null ? null : _motion.slotAt(_x(position));
     if (next == _pointing.value.hovered) return;
-    _later(
+    afterBuild(
       () => _pointing.value = (pressed: _pointing.value.pressed, hovered: next),
     );
   }
@@ -509,7 +495,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
         _motion.selected == before &&
         (_segmented || down == before);
     if (reselected && _selectable(before)) {
-      _later(() => widget.onReselected?.call(before));
+      afterBuild(() => widget.onReselected?.call(before));
     }
   }
 
@@ -1353,8 +1339,9 @@ class _RenderSelectorRow extends RenderBox
     markNeedsLayout();
   }
 
-  // The lens masks the selected looks; the dimming fades a segment's item;
-  // a change of the items moves them.
+  // The items move in the resolve phase, after this box's layout, so only a
+  // render listener hears them in the frame they move; the lens and the
+  // dimming publish before build.
   void _listen() {
     _frames.lens.addListener(markNeedsPaint);
     _frames.dim.addListener(markNeedsPaint);

@@ -318,6 +318,11 @@ abstract final class SheetTuning {
 /// otherwise. The settle carries [SheetTuning.releaseVelocityGain]
 /// times the finger's velocity. A tap on the grabber band cycles to the
 /// next detent.
+///
+/// Height and offset rest within [MotionRest.length], the swell and the
+/// stretch within [MotionRest.scale] of the sheet's longer side, the
+/// sideways drift within [MotionRest.length] of the inset, the fill within
+/// [MotionRest.opacity]: invisible, NEAR.
 @internal
 class SheetMotion extends Motion {
   /// Creates a motion with the given detent [heights] (ascending), resting
@@ -379,9 +384,6 @@ class SheetMotion extends Motion {
   final double _restingHeight;
   final double _restingFill;
 
-  // Height and offset rest within MotionRest.length, the press and the
-  // stretch within MotionRest.scale of the sheet's longer side, the fill
-  // within MotionRest.opacity (NEAR, invisible).
   late final MotionValue<double> _height = own(
     MotionValue<double>(_restingHeight, spring: SheetTuning.spring),
     rest: () => MotionRest.length,

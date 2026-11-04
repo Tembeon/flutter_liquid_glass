@@ -500,12 +500,12 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
     final top = navigationBar == null
         ? media.padding.top
         : media.padding.top + navigationBar.preferredSize.height;
-    // A floating bar keeps its own inset from the screen's bottom edge.
     final bottomBar = _kind(toolbar);
     final floating = bottomBar == ChromeBar.floating;
     final bottom = toolbar == null
         ? media.padding.bottom
         : floating
+        // A floating bar keeps its own inset from the screen's bottom edge.
         ? math.max(media.padding.bottom, toolbar.preferredSize.height)
         : media.padding.bottom + toolbar.preferredSize.height;
     final background = GlassDynamicColor.resolve(
@@ -614,7 +614,8 @@ class PageLift extends InheritedWidget {
 /// UIKit's threshold for it is not read (approximation).
 @internal
 class LargeTitleScrollPhysics extends ScrollPhysics {
-  /// Creates the physics for a large title [collapseExtent] tall.
+  /// Creates the physics for a bar whose collapsing part is
+  /// [collapseExtent] tall.
   const LargeTitleScrollPhysics({
     required this.collapseExtent,
     required this.released,

@@ -467,10 +467,22 @@ final class GlassBarHost {
     link._declaredToolbar = true;
   }
 
-  /// Withdraws what [declarer] declared for [link]'s page if it still
-  /// stands: its tab was left or it went away, and the page's bar empties
-  /// unless another bar declared since.
-  void withdraw(GlassPageBarLink link, Object declarer) {
+  /// Withdraws what [declarer] declared for [link]'s page, and [lift] as
+  /// its lift, if they still stand: its tab was left or it went away, and
+  /// the page's bar empties unless another bar declared since. It happens
+  /// after the frame, once a bar that shows now has declared.
+  void withdraw(
+    GlassPageBarLink link,
+    Object declarer, {
+    ValueListenable<double>? lift,
+  }) {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _withdraw(link, declarer);
+      if (lift != null) dropLift(link, lift);
+    });
+  }
+
+  void _withdraw(GlassPageBarLink link, Object declarer) {
     if (!_pages.contains(link)) return;
     if (identical(link._declarer, declarer)) {
       link._declarer = null;
@@ -675,11 +687,9 @@ final class _Bar {
   GlassBarMetrics get metrics =>
       _navigation ? GlassBarMetrics.navigation : GlassBarMetrics.toolbar;
 
-  /// The space between the screen's sides and the outer capsules: 16 for a
-  /// navigation bar on a 402 point screen (bars passport; the Pro Max's 20
-  /// is not followed, an approximation), [GlassToolbar.sideInset] for a
-  /// toolbar.
-  double get sideInset => _navigation ? 16 : GlassToolbar.sideInset;
+  /// The space between the screen's sides and the outer capsules.
+  double get sideInset =>
+      _navigation ? navigationSideInset : GlassToolbar.sideInset;
 
   /// The tuning of a change on a push or a pop: a navigation bar's own
   /// timing; for a toolbar, its item replacement timing (an approximation:
@@ -1165,6 +1175,12 @@ class GlassBarView extends StatelessWidget {
   /// The prominent capsule's tint without a primary color (device).
   static const _prominentColor = Color(0xFF0088FF);
 }
+
+/// The space between the screen's sides and a navigation bar's outer
+/// items: 16 on a 402 point screen (bars passport); the Pro Max's 20 is not
+/// followed (approximation).
+@internal
+const double navigationSideInset = 16;
 
 /// Cuts off what a lifted bar moves above its own top, into the status
 /// bar, and nothing below: a pulled large title still follows the content

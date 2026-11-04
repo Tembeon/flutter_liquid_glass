@@ -26,9 +26,8 @@ import 'package:flutter/foundation.dart';
 /// moves a distance field by at most `1.26 s`, so farther from the edge
 /// the sign, all the trace needs, is the unblurred one; inside the body
 /// the blur reaches [shadedDepth] deeper, as far as a renderer shades
-/// it. A body that is only filled (the flat renderer)
-/// asks for the edge alone, which skips that deeper blur and the field a
-/// renderer shades from. The last outline is reused while its inputs do
+/// it. Until a renderer reads the field it fuses the edge alone, which
+/// skips that deeper blur. The last outline is reused while its inputs do
 /// not change.
 ///
 /// In profile and release builds that have isolates, a motion fuses its

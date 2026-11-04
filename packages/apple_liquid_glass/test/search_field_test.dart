@@ -160,7 +160,7 @@ void main() {
             return details.text(
               style: const TextStyle(fontSize: 17),
               cursorColor: const Color(0xFF0000FF),
-              placeholderColor: const Color(0xFF808080),
+              backgroundCursorColor: const Color(0xFF808080),
             );
           },
         ),

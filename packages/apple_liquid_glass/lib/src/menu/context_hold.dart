@@ -73,7 +73,7 @@ final class ContextHold extends Motion {
   };
 
   @override
-  bool get holds => _since != null;
+  bool get holds => isHeld;
 
   /// A finger came to rest on the view at time [t].
   void down(double t) {

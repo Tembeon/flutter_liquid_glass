@@ -16,8 +16,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 
-/// Builds a glass button from [details]; it runs again when the button's
-/// states change, never while the button moves.
+/// Builds a glass button from [details]; it runs when the button builds,
+/// such as when its states change, never on a frame of its motion.
 typedef GlassButtonBuilder = Widget Function(
   BuildContext context,
   GlassButtonDetails details,

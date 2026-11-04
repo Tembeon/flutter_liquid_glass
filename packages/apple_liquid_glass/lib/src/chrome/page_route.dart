@@ -104,7 +104,6 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
   final _cover = ValueNotifier<GlassPageRoute<Object?>?>(null);
   GlassPageRoute<Object?>? _below;
 
-  // The page's end of its navigator's shared bar.
   late final GlassPageBarLink _bar;
   bool _presenting = false;
 
@@ -484,11 +483,7 @@ class _Card extends SingleChildRenderObjectWidget {
   }
 }
 
-/// A page in a slide, painted from the top page's progress without
-/// building or laying out: the top page offset by what is left of its
-/// travel, the page below offset by its share and dimmed, both clipped to
-/// the display's corners and the top one shadowed while they move; under a
-/// cross-fade the top page fades in and the one below fades out.
+/// Paints the card from the progress without building or laying out.
 class _RenderCard extends RenderProxyBox {
   _RenderCard({
     required this._presence,
@@ -809,7 +804,6 @@ class _ZoomState extends State<_Zoom> {
   }
 }
 
-/// Lays its child out at [rect].
 class _Place extends SingleChildLayoutDelegate {
   _Place(this.rect);
 
@@ -955,7 +949,8 @@ class GlassZoomSource extends StatelessWidget {
   /// from into the display's.
   final double borderRadius;
 
-  /// The source.
+  /// The widget the page grows out of and lands in; the zoom draws it
+  /// while it crossfades into the page.
   final Widget child;
 
   @override

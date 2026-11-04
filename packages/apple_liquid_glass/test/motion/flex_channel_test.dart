@@ -89,7 +89,7 @@ void main() {
     const spring = Spring.response(0.574, dampingRatio: 0.548);
     final pulse = FlexPulse(spring, retargetStep: 1 / 60);
     final reference = MotionValue<double>(0, spring: spring);
-    pulse.snap(0, 0);
+    pulse.snap(0);
     pulse.step(1 / 30, 10);
     reference.retarget(0, 10);
     expect(pulse.value, reference.valueAt(1 / 60));

@@ -304,7 +304,6 @@ final class _Capsule {
   final Object? segment;
   final bool anonymous;
 
-  // Appears or leaves in place, in a glass container of its own.
   bool apart = false;
 }
 
@@ -381,8 +380,8 @@ final class GlassBarMotion extends Motion {
   List<GlassBarCapsuleLayout>? _driftPaired;
   double _drift = 0;
 
-  // The change being planned: the capsule each of its layouts goes to, the
-  // capsule of each of its items, and what the capsules' plan decided.
+  // Valid only inside setLayout: the planners run inside its two layout
+  // calls and read what it paired.
   Map<_Capsule, GlassBarCapsuleLayout> _layoutOf = const {};
   Map<Object, _Capsule> _nextCapsuleOf = const {};
   Map<_Capsule, Offset> _births = const {};

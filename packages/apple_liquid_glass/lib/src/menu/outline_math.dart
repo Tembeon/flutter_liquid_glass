@@ -578,13 +578,13 @@ const int _recentLimit = 4;
 /// radius each: one closed contour per connected part, a box inside
 /// another adding nothing. The latest unions are kept.
 ///
-/// Its field, computed when a renderer first reads it, is sampled every
-/// [step] points over the union and a margin: each node holds the
+/// Its field, computed when a renderer first reads it, is sampled every 4
+/// points over the union and a margin: each node holds the
 /// distance to the nearest shape, its gradient by central differences,
 /// turned as the renderer turns a rounded box's normals near its corners
 /// ([opticalCornerScale]), and that shape's half thickness.
 @internal
-GlassOutline unionOutline(List<RRect> shapes, {double step = 4}) {
+GlassOutline unionOutline(List<RRect> shapes) {
   for (var k = 0; k < _recentUnions.length; k++) {
     final (recent, outline) = _recentUnions[k];
     if (listEquals(recent, shapes)) {
@@ -598,7 +598,7 @@ GlassOutline unionOutline(List<RRect> shapes, {double step = 4}) {
   final path = _unionPath(kept);
   final outline = GlassOutline(
     path,
-    field: () => _unionField(kept, path.getBounds(), step),
+    field: () => _unionField(kept, path.getBounds()),
   );
   _recentUnions.add((kept, outline));
   if (_recentUnions.length > _recentLimit) _recentUnions.removeAt(0);
@@ -642,7 +642,8 @@ bool _covered(List<RRect> shapes, int i) {
   return false;
 }
 
-LiquidGlassField _unionField(List<RRect> kept, Rect bounds, double step) {
+LiquidGlassField _unionField(List<RRect> kept, Rect bounds) {
+  const step = 4.0;
   final boxes = OutlineBoxes(kept);
   final area = bounds.inflate(2 * step + 4);
   final cols = (area.width / step).ceil() + 1;

@@ -14,7 +14,6 @@ import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:apple_liquid_glass/src/theme/typography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 
@@ -297,18 +296,12 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     super.dispose();
   }
 
-  // After the frame, once a bar that shows now has declared.
   void _withdrawLater() {
-    final link = _link;
-    if (link == null) return;
-    final lift = _reportedLift;
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      link.host.withdraw(link, this);
-      if (lift != null) link.host.dropLift(link, lift);
-    });
+    if (_link case final link?) {
+      link.host.withdraw(link, this, lift: _reportedLift);
+    }
   }
 
-  // How far the content has scrolled from its start.
   static double _offsetIn(ScrollMetrics? metrics) {
     if (metrics == null || !metrics.hasContentDimensions) return 0;
     return metrics.pixels - metrics.minScrollExtent;
@@ -514,10 +507,6 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
 }
 
 abstract final class _Metrics {
-  /// The space between the screen's sides and the outer items: 16 on a 402
-  /// point screen; the Pro Max's 20 is not followed (approximation).
-  static const double sideInset = 16;
-
   /// How far below the status bar the capsules and the inline title are
   /// centered: the capsules sit at the row's top (device recordings).
   static const double capsuleCenter = 22;
@@ -572,7 +561,7 @@ class _TitleLayout extends SingleChildLayoutDelegate {
 
   GlassTitleRoom _roomIn(Size size) =>
       room.value ??
-      (start: _Metrics.sideInset, end: size.width - _Metrics.sideInset);
+      (start: navigationSideInset, end: size.width - navigationSideInset);
 
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
@@ -620,25 +609,10 @@ class _ScrollAway extends StatelessWidget {
   @override
   Widget build(BuildContext context) => IgnorePointer(
     child: ClipRect(
-      clipper: const _BelowItsTop(),
+      clipper: const BelowTop(),
       child: MotionTransition(translateY: shift, child: child),
     ),
   );
-}
-
-// Pushed up, the title goes under the row above; pulled down, it follows
-// the content below its area.
-class _BelowItsTop extends CustomClipper<Rect> {
-  const _BelowItsTop();
-
-  static const double _below = 10000;
-
-  @override
-  Rect getClip(Size size) =>
-      Rect.fromLTRB(0, 0, size.width, size.height + _below);
-
-  @override
-  bool shouldReclip(_BelowItsTop oldClipper) => false;
 }
 
 /// A search field stacked under the navigation bar's titles: folded away

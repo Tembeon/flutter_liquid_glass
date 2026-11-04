@@ -1,3 +1,4 @@
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:meta/meta.dart';
 
@@ -138,6 +139,20 @@ mixin ControlStates<T extends StatefulWidget> on State<T> {
   }
 
   void _changed() => setState(() {});
+
+  /// Runs [callback] now, or after the frame while the framework builds or
+  /// finalizes the tree: a callback may rebuild ancestors, and a cancel
+  /// from the region's own update or dispose arrives in those phases.
+  void afterBuild(VoidCallback callback) {
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) callback();
+      });
+      return;
+    }
+    callback();
+  }
 
   @override
   void initState() {

@@ -45,7 +45,8 @@ final class GlassTabDestination {
   /// What tells the tab apart across changes of the destinations, or null
   /// to tell it by its position: a change inside `withSpring` slides the
   /// tabs that stay, fades new ones in and old ones out, and the lens
-  /// moves with its tab ([RawGlassSelector.itemKeys]).
+  /// moves with its tab ([RawGlassSelector.itemKeys]). Not measured: UIKit's
+  /// animated setItems was not captured.
   final Object? id;
 
   /// The tab's glyph, 24 points by default.
@@ -663,8 +664,6 @@ class _MinimizingBarState extends State<_MinimizingBar> {
     scrolling?.addRenderListener(_scrolled);
   }
 
-  // Heard once a frame: a drag that began and went into its glide within
-  // one frame begins and ends here too.
   void _scrolled() {
     final scroll = _scroll;
     final metrics = scroll?.metrics;
@@ -690,6 +689,8 @@ class _MinimizingBarState extends State<_MinimizingBar> {
         previous != MotionScrollPhase.dragging) {
       away.beginDrag();
     }
+    // A drag that began and went into its glide within one frame is heard
+    // only as its glide.
     if (phase == MotionScrollPhase.decelerating && !user) {
       away.beginDrag();
       away.endDrag(decelerates: true);
@@ -868,22 +869,19 @@ class _AccessoryState extends State<_Accessory> {
     TabBarMinimizeTuning.accessoryHeight,
   );
 
-  // Level with the circle, [TabBarMinimizeTuning.inlineGap] beside it,
-  // reaching to the bar group's trailing side.
   Rect get _inline {
     const inset = TabBarMinimizeTuning.collapsedInset;
-    const top =
+    const circleTop =
         TabBarMinimizeTuning.accessoryGap +
         TabBarMinimizeTuning.accessoryHeight +
         inset;
+    const circleEnd = inset + TabBarMinimizeTuning.collapsedSize;
     return _mirror(
       Rect.fromLTRB(
-        inset +
-            TabBarMinimizeTuning.collapsedSize +
-            TabBarMinimizeTuning.inlineGap,
-        top,
+        circleEnd + TabBarMinimizeTuning.inlineGap,
+        circleTop,
         widget.width,
-        top + TabBarMinimizeTuning.accessoryHeight,
+        circleTop + TabBarMinimizeTuning.accessoryHeight,
       ),
     );
   }
@@ -1118,8 +1116,8 @@ class _CollapsingTabsState extends State<_CollapsingTabs> {
 
   static const double _sideInset = 8;
 
-  // The column of glyph, gap and a 10 point title line, the line taken as
-  // 12 points (by eye), centered in the bar.
+  // The column of glyph, gap and a 10 point title line centered in the bar;
+  // the line counts as 12 points (not measured, set by eye).
   static const double _column =
       GlassTabBar.iconSize + GlassTabBar.labelGap + 12;
 

@@ -1157,12 +1157,12 @@ class MenuCard {
 /// started opening, on [MenuTuning.openKickSpring]; a close strikes
 /// it away from the button ([MenuTuning.closeKickImpulse]) and it
 /// rings out on [MenuTuning.closeKickSpring], and the button
-/// shape's kick chases the velocity of the closing spring. Each kick is
-/// integrated over every [advance], so it carries through every
-/// reversal.
+/// shape's kick chases the velocity of the closing spring. Each kick steps
+/// on its own fixed grid ([MenuTuning.kickIntegrationStep]), so it carries
+/// through every reversal.
 ///
-/// The content is a [MenuLayout]: uniform rows for a plain
-/// [itemCount], or whatever the `layout` builder lays out. A submenu
+/// The content is a [MenuLayout]: uniform rows for a plain item count, or
+/// whatever the `layout` builder lays out. A submenu
 /// target opens a card that grows out of its row over the menu
 /// ([MenuTuning.submenuSpring]), the cards under it shrink to
 /// [MenuTuning.parentScale] and dim, and the menu grows to cover the
@@ -1172,8 +1172,8 @@ class MenuCard {
 /// Content taller than [MenuMetrics.maxHeight] or the safe area is
 /// cut to it and scrolls by [scrollOffset].
 ///
-/// Feed pointer events in the coordinate space of [bounds] with their
-/// timestamps, call [advance] with the frame time, then read [menuBlob],
+/// Feed pointer events in the coordinate space the menu is placed in with
+/// their timestamps, call [advance] with the frame time, then read [menuBlob],
 /// [buttonBlob] and the crossfade values. A tap opens on release, a hold
 /// opens after [MenuTuning.holdDuration]; a release outside the
 /// menu closes it and a release on a target chooses it. The finger that
@@ -1242,7 +1242,7 @@ class MenuMotion extends Motion with Presented {
   Rect _button;
   MenuAttachment? _attachment;
   Offset _shift = Offset.zero;
-  int _itemCount;
+  final int _itemCount;
   Size _bounds;
   EdgeInsets _padding;
   double _sourceHeight;
@@ -1258,7 +1258,7 @@ class MenuMotion extends Motion with Presented {
   late final MenuFlex _flex = own(
     MenuFlex(
       tuning,
-      frame: () => _menu,
+      frame: () => menuRect,
       side: () => _down ? 1.0 : -1.0,
       active: () => _phase == _Phase.opening,
     ),
@@ -1295,7 +1295,6 @@ class MenuMotion extends Motion with Presented {
 
   _Phase _phase = _Phase.idle;
   double _sourceScale = 1;
-  Rect _pressed = Rect.zero;
   double _left = 0;
   double _anchor = 0;
   bool _down = true;
@@ -1335,9 +1334,8 @@ class MenuMotion extends Motion with Presented {
   /// gone.
   double get glassOpacity => _fadesGlass ? dim : 1;
 
-  /// Whether a finger lights the open menu ([touchGlow]): false where its
-  /// glass draws no glow (the flat tier, no painter), so the
-  /// menu spends no frame on a glow nobody sees.
+  /// Whether a finger lights the open menu ([touchGlow]): false under
+  /// Reduce Transparency, so the menu spends no frame on a glow.
   bool lightsGlow = true;
 
   void _lightGlow(double t, Offset position) {
@@ -1373,10 +1371,6 @@ class MenuMotion extends Motion with Presented {
   /// The time the motion was last advanced to, in seconds.
   double get time => _now;
 
-  /// The layout frame of the button, or of the held view of a context
-  /// menu.
-  Rect get button => _button;
-
   /// Where a context menu stands, or null for a menu that grows out of its
   /// button.
   MenuAttachment? get attachment => _attachment;
@@ -1391,7 +1385,7 @@ class MenuMotion extends Motion with Presented {
 
   /// The blob a context menu grows out of, centered on the held view.
   Rect get _blob {
-    final size = MenuAttachment.blobSize(_button.size, _menu.height);
+    final size = MenuAttachment.blobSize(_button.size, menuRect.height);
     return Rect.fromCenter(
       center: _button.center,
       width: size.width,
@@ -1407,18 +1401,8 @@ class MenuMotion extends Motion with Presented {
     return attachment.preview.shift(_shift);
   }
 
-  /// The number of rows of a uniform menu.
-  int get itemCount => _itemCount;
-
-  /// The bounds the menu is placed in.
-  Size get bounds => _bounds;
-
   /// The content of the root list, in the order it shows.
   MenuLayout get layout => _root;
-
-  /// Whether the content shows in reverse order, as a menu opening upward
-  /// does.
-  bool get reversed => _reversed;
 
   /// The height of the menu's visible root list.
   double get visibleRootHeight => _rootHeight.valueAt(_now);
@@ -1450,8 +1434,6 @@ class MenuMotion extends Motion with Presented {
     required Rect button,
     required Size bounds,
     EdgeInsets padding = EdgeInsets.zero,
-    int? itemCount,
-    double? sourceHeight,
     double? sourceRadius,
     MenuAttachment? attachment,
   }) {
@@ -1461,8 +1443,7 @@ class MenuMotion extends Motion with Presented {
     _button = button;
     _bounds = bounds;
     _padding = padding;
-    _itemCount = itemCount ?? _itemCount;
-    _sourceHeight = sourceHeight ?? button.height;
+    _sourceHeight = button.height;
     _press.size = button.size;
     _root = _build(reversed: _reversed);
     _rootHeight.snap(_now, _visibleRoot(_root));
@@ -1590,8 +1571,6 @@ class MenuMotion extends Motion with Presented {
   /// The frame of the open menu at the time the motion was last advanced
   /// to; its height follows resizes and submenu cards.
   Rect get menuRect => _frameAt(_now);
-
-  Rect get _menu => _frameAt(_now);
 
   /// The swing at which a card's progress and the card container rest.
   /// NEAR: a card lands by up to 0.001 of its travel (0.25 pt on a 250 pt
@@ -1868,7 +1847,7 @@ class MenuMotion extends Motion with Presented {
 
   Rect get _contentRectUnflexed {
     if (_cardContainerActive) {
-      final frame = _menu;
+      final frame = menuRect;
       final scale = contentScale;
       final at = _button.center + (frame.topLeft - _button.center) * scale;
       return Rect.fromLTWH(
@@ -1878,8 +1857,8 @@ class MenuMotion extends Motion with Presented {
         frame.height * scale,
       );
     }
-    final menu = _blobFor(_menu, flexed: false);
-    final frame = _menu;
+    final menu = _blobFor(menuRect, flexed: false);
+    final frame = menuRect;
     final scale = _contentScale(menu);
     final width = frame.width * scale;
     final height = frame.height * scale;
@@ -1928,7 +1907,7 @@ class MenuMotion extends Motion with Presented {
       : _progress.valueAt(_now + tuning.fadeLead);
 
   double get _relativeKick {
-    final height = _menu.height;
+    final height = menuRect.height;
     return height > 0 ? menuKick / height : 0;
   }
 
@@ -2019,7 +1998,7 @@ class MenuMotion extends Motion with Presented {
   double get buttonKick => _kicks.button.value;
 
   /// The menu shape: grows out of the button into the menu.
-  MenuBlob get menuBlob => _blobFor(_menu);
+  MenuBlob get menuBlob => _blobFor(menuRect);
 
   MenuBlob _blobFor(
     Rect frame, {
@@ -2104,7 +2083,7 @@ class MenuMotion extends Motion with Presented {
     if (flex.shift == Offset.zero && flex.width == 0 && flex.height == 0) {
       return null;
     }
-    final from = _blobFor(_menu, flexed: false).rect;
+    final from = _blobFor(menuRect, flexed: false).rect;
     if (from.width <= 0 || from.height <= 0) return null;
     return (from: from, to: menuBlob.rect);
   }
@@ -2152,7 +2131,7 @@ class MenuMotion extends Motion with Presented {
   /// the button: the frame UIKit's `_UIContextMenuListView` takes.
   @visibleForTesting
   Rect get flexedMenuRect {
-    final frame = _menu;
+    final frame = menuRect;
     final flex = _flexAt(_now);
     return Rect.fromCenter(
       center: frame.center + flex.shift,
@@ -2172,7 +2151,7 @@ class MenuMotion extends Motion with Presented {
     if (d.scaleX == 1 && d.scaleY == 1 && d.driftX == 0 && d.driftY == 0) {
       return _noFlex;
     }
-    final frame = _menu;
+    final frame = menuRect;
     final side = _down ? 1.0 : -1.0;
     final grow = frame.height * (d.scaleY - 1);
     return (
@@ -2187,7 +2166,7 @@ class MenuMotion extends Motion with Presented {
   /// that holds the whole stack; [menuBlob] while no card is open.
   MenuBlob get rootBlob {
     if (_cards.isEmpty) return menuBlob;
-    final frame = _menu;
+    final frame = menuRect;
     final parentScale = _scaleUnder(0, _now);
     final root = Rect.fromLTWH(
       frame.left + frame.width * (1 - parentScale) / 2,
@@ -2204,7 +2183,7 @@ class MenuMotion extends Motion with Presented {
     final from = _sourceScaleAt(_now);
     final scale = from + (tuning.sourceEndScale - from) * p;
     final start = _button.center;
-    final travel = (_menu.center - start) * (tuning.sourceTravel * p);
+    final travel = (menuRect.center - start) * (tuning.sourceTravel * p);
     final sign = _down ? 1.0 : -1.0;
     final center = start + travel + Offset(0, sign * buttonKick);
     final size = _button.size * scale;
@@ -2258,13 +2237,13 @@ class MenuMotion extends Motion with Presented {
   int? rowAt(Offset position) => _hitAt(position).target;
 
   /// Whether [position] is on the menu as it shows, flexed.
-  bool _onMenu(Offset position) => _menu.contains(_unflexed(position));
+  bool _onMenu(Offset position) => menuRect.contains(_unflexed(position));
 
   ({int card, int? target, bool beside}) _hitAt(Offset shown) {
     final position = _unflexed(shown);
     final top = _topCard;
     if (_phase == _Phase.idle) return (card: top, target: null, beside: false);
-    final frame = _menu;
+    final frame = menuRect;
     if (!frame.contains(position)) {
       return (card: top, target: null, beside: false);
     }
@@ -2289,7 +2268,7 @@ class MenuMotion extends Motion with Presented {
 
   bool _onWidgetRow(Offset shown) {
     final position = _unflexed(shown);
-    final frame = _menu;
+    final frame = menuRect;
     if (!frame.contains(position)) return false;
     final local = position - frame.topLeft;
     final top = _topCard;
@@ -2511,7 +2490,7 @@ class MenuMotion extends Motion with Presented {
     pointer.position = position;
     _relax(t);
     if (pointer.fromButton) {
-      _release(t);
+      _press.release(t);
       if (!pointer.openedByHold) {
         final inside = _button.inflate(tuning.tapSlop).contains(position);
         if (!opensOnTap) {
@@ -2556,13 +2535,9 @@ class MenuMotion extends Motion with Presented {
     if (pointer == null) return;
     _relax(t);
     if (_phase == _Phase.opening) _setHighlight(null, _highlightCard);
-    if (pointer.fromButton) _release(t);
+    if (pointer.fromButton) _press.release(t);
   }
 
-  /// Advances the motion to time [t]: runs every event due by then and
-  /// samples the progress, integrating the kicks over the interval. A
-  /// release that closes the menu starts the close at its measured
-  /// deadline. An earlier [t] changes nothing.
   // A command advances to its time and tells the selections it may have
   // changed what they read, the flags of the layout and the highlight
   // included.
@@ -2572,9 +2547,7 @@ class MenuMotion extends Motion with Presented {
   }
 
   @override
-  void advance(double t) {
-    if (t < _now) return;
-    advanceUntil(t, null);
+  void didAdvance(double t) {
     for (var i = _cards.length - 1; i >= 0; i--) {
       final card = _cards[i];
       if (card.backing && card.progress.valueAt(t) < tuning.cardGone) {
@@ -2747,7 +2720,7 @@ class MenuMotion extends Motion with Presented {
 
   void _place(double sourceScale) {
     _sourceScale = sourceScale;
-    _pressed = Rect.fromCenter(
+    final pressed = Rect.fromCenter(
       center: _button.center,
       width: _button.width * sourceScale,
       height: _button.height * sourceScale,
@@ -2769,7 +2742,7 @@ class MenuMotion extends Motion with Presented {
       _anchor = _down ? placed.rect.top : placed.rect.bottom;
     } else {
       final placed = place(
-        button: _pressed,
+        button: pressed,
         size: size,
         bounds: _bounds,
         padding: _padding,
@@ -3019,10 +2992,6 @@ class MenuMotion extends Motion with Presented {
     card.backFrom = card.progress.valueAt(t);
     card.progress.retarget(t, 0, spring: tuning.backSpring);
     _setHighlight(null, top - 1);
-  }
-
-  void _release(double t) {
-    _press.release(t);
   }
 
   void _relax(double t) {

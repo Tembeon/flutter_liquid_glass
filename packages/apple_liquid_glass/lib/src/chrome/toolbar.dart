@@ -10,7 +10,6 @@ import 'package:apple_liquid_glass/src/motion/search_motion.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 
@@ -152,13 +151,8 @@ class _GlassToolbarState extends State<GlassToolbar> {
     super.dispose();
   }
 
-  // After the frame, once a bar that shows now has declared.
   void _withdrawLater() {
-    final link = _link;
-    if (link == null) return;
-    SchedulerBinding.instance.addPostFrameCallback(
-      (_) => link.host.withdraw(link, this),
-    );
+    if (_link case final link?) link.host.withdraw(link, this);
   }
 
   static Widget _button(GlassBarItem item) =>

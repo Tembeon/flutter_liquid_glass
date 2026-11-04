@@ -210,21 +210,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   bool get _inSync =>
       widget.value == _reported || _unit(widget.value) == _motion.reportedValue;
 
-  // Callbacks may rebuild ancestors: a cancel from the region's own update
-  // or dispose arrives while the framework builds or finalizes the tree,
-  // so they wait for the end of the frame there.
-  void _deliver(SliderEvent event) {
-    if (SchedulerBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _deliverNow(event);
-      });
-      return;
-    }
-    _deliverNow(event);
-  }
-
-  void _deliverNow(SliderEvent event) {
+  void _deliver(SliderEvent event) => afterBuild(() {
     switch (event) {
       case SliderChanged(:final value):
         final out = _reported = _out(value);
@@ -236,7 +222,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
       case SliderFelt(:final detent):
         (detent ? MotionHaptic.selection : MotionHaptic.lightImpact).play();
     }
-  }
+  });
 
   void _start() {
     if (_changing) return;
@@ -254,14 +240,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   // SliderChangeEnded; it still ends the change it started.
   void _endUnlessGliding() {
     if (_leading) return;
-    if (SchedulerBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _end(widget.value);
-      });
-    } else {
-      _end(widget.value);
-    }
+    afterBuild(() => _end(widget.value));
     _reconcileLater();
   }
 

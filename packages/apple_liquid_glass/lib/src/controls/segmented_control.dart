@@ -161,7 +161,8 @@ class GlassSegmentedStyle {
 /// as UIKit does (iPhone 16 Pro, light and dark). Segments are told apart
 /// by their values: a change of [segments] inside `withSpring` slides the
 /// segments that stay, fades new ones in and old ones out, and the lens
-/// moves with its segment ([RawGlassSelector.itemKeys]).
+/// moves with its segment ([RawGlassSelector.itemKeys]). Not measured:
+/// UIKit's animated insertSegment was not captured.
 class GlassSegmentedControl<T> extends StatelessWidget {
   /// Creates a segmented control showing [groupValue] selected.
   const GlassSegmentedControl({

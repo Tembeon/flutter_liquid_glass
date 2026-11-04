@@ -159,7 +159,8 @@ abstract final class DatePickerTuning {
   static const double highlightOpacity = 0.5;
 
   /// The duration of a month page turn, in seconds: the grid slides one
-  /// page on a sine ease in and out.
+  /// page on a sine ease in and out, fitted within 2 px rms; UIScrollView's
+  /// own curve differs (approximation, date-picker passport).
   static const double pageDuration = 0.3;
 
   /// The height of the compact date label.

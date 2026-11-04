@@ -120,7 +120,7 @@ abstract final class AlertTuning {
 /// private: UIAlertController starts the presentation at scale 1 instead
 /// of 1.2 under Reduce Motion and keeps the timing.
 ///
-/// Times are seconds on the caller's clock.
+/// Times are seconds on the motion's timeline.
 ///
 /// The fade and the dimming rest within [MotionRest.opacity], the scale
 /// within [MotionRest.scale] of the alert's width (NEAR, invisible).
