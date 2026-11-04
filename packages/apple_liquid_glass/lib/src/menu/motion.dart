@@ -1198,11 +1198,15 @@ class MenuMotion extends Motion {
   bool _reversed = false;
   final List<_Card> _cards = [];
   Ramp _cardFade = const Ramp(from: 1);
-  int _resizeGeneration = 0;
-  int _resizePending = -1;
   double _resizeTo = 0;
   bool _resizeGrows = false;
-  int _dwellGeneration = 0;
+
+  static const _resizeSlot = Object();
+  static const _dwellSlot = Object();
+  static const _cardSlot = Object();
+  static const _radiusSlot = Object();
+  static const _containerSlot = Object();
+  static const _closeKickSlot = Object();
 
   final _DrivenKick _menuKick = _DrivenKick();
   final _DrivenKick _buttonKick = _DrivenKick();
@@ -1236,7 +1240,6 @@ class MenuMotion extends Motion {
   double _closeSource = 1;
   double _closeLive = 1;
   Ramp _contentFade = const Ramp();
-  int _openGeneration = 0;
   bool _openPending = false;
   ({double t, Offset position})? _earlyRelease;
   _Pointer? _pointer;
@@ -1415,16 +1418,16 @@ class MenuMotion extends Motion {
     }
     final height = _visibleRoot(_root);
     if (_phase == _Phase.idle || !animate) {
-      _resizeGeneration++;
+      unschedule(_resizeSlot);
       _rootHeight.snap(t, height);
       if (_phase == _Phase.idle) _place(_press.scaleAt(t));
       return;
     }
     final unchanged = (height - _rootHeight.target).abs() < 1e-6;
     final grow = height > _rootHeight.target;
-    if (_resizePending == _resizeGeneration) {
+    if (isScheduled(_resizeSlot)) {
       if (unchanged) {
-        _resizeGeneration++;
+        unschedule(_resizeSlot);
         return;
       }
       if (grow == _resizeGrows) {
@@ -1433,21 +1436,17 @@ class MenuMotion extends Motion {
       }
     }
     if (unchanged) return;
-    final generation = ++_resizeGeneration;
-    _resizePending = generation;
     _resizeTo = height;
     _resizeGrows = grow;
-    at(t + (grow ? tuning.growDelay : tuning.shrinkDelay), (
-      double s,
-    ) {
-      if (generation != _resizeGeneration) return;
-      _resizePending = -1;
-      _rootHeight.retarget(
+    at(
+      t + (grow ? tuning.growDelay : tuning.shrinkDelay),
+      (double s) => _rootHeight.retarget(
         s,
         _resizeTo,
         spring: grow ? tuning.growSpring : tuning.shrinkSpring,
-      );
-    });
+      ),
+      slot: _resizeSlot,
+    );
   }
 
   MenuLayout _layoutOf(int card) =>
@@ -1668,7 +1667,7 @@ class MenuMotion extends Motion {
     final from = _targetOf(_highlightCard, _highlighted);
     _highlighted = target;
     _highlightCard = card;
-    _dwellGeneration++;
+    unschedule(_dwellSlot);
     final to = _targetOf(card, target);
     if (from != null || to != null || tracked) {
       _emit(MenuHighlightChanged(_now, from, to, tracked: tracked));
@@ -2256,7 +2255,6 @@ class MenuMotion extends Motion {
     unscheduleAll();
     _press.unscheduleAll();
     _flex.unscheduleAll();
-    _resizeGeneration++;
     _pointer = null;
     advance(t);
     _close(t);
@@ -2358,17 +2356,11 @@ class MenuMotion extends Motion {
     _setHighlight(hit.target, hit.card, tracked: moved);
     final target = _targetOf(hit.card, hit.target);
     if (target == null || target.kind != MenuTargetKind.submenu) return;
-    final generation = _dwellGeneration;
     final card = hit.card;
     final index = hit.target!;
     at(t + tuning.hoverOpenDelay, (double s) {
-      if (generation != _dwellGeneration ||
-          !identical(_pointer, pointer) ||
-          _phase != _Phase.opening) {
-        return;
-      }
-      _openCard(s, card, index);
-    });
+      if (identical(_pointer, pointer)) _openCard(s, card, index);
+    }, slot: _dwellSlot);
   }
 
   /// The finger moved to [position].
@@ -2731,11 +2723,13 @@ class MenuMotion extends Motion {
     _progress.retarget(t, 1, spring: tuning.openSpring);
     _fade(t, from: opacity, opening: true, fresh: fresh);
     _radius.snap(t, 0);
-    final generation = ++_openGeneration;
-    at(t + tuning.radiusDelay, (double s) {
-      if (generation != _openGeneration) return;
-      _radius.retarget(s, 1, spring: tuning.openSpring);
-    });
+    unschedule(_containerSlot);
+    unschedule(_closeKickSlot);
+    at(
+      t + tuning.radiusDelay,
+      (double s) => _radius.retarget(s, 1, spring: tuning.openSpring),
+      slot: _radiusSlot,
+    );
     _takeEarlyTouch(t);
   }
 
@@ -2768,8 +2762,9 @@ class MenuMotion extends Motion {
     _closeStart = t;
     _closeSource = _sourceScale;
     _closeLive = _press.scaleAt(t);
-    _openGeneration++;
-    _resizeGeneration++;
+    unschedule(_radiusSlot);
+    unschedule(_resizeSlot);
+    unschedule(_cardSlot);
     _phase = _Phase.closing;
     if (tuning.morph.fuses && drawsSource) {
       _fusions.start(t, opening: false);
@@ -2787,25 +2782,25 @@ class MenuMotion extends Motion {
     );
     _progress.retarget(t, 0, spring: tuning.closeSpring);
     _fade(t, from: opacity, opening: false);
-    final generation = _openGeneration;
     if (_cards.isNotEmpty && !_cardContainerActive) {
       _cardContainerActive = true;
       _cardContainer.snap(t, 1);
     }
     if (_cardContainerActive) {
-      at(t + tuning.cardContainerDelay, (double s) {
-        if (generation != _openGeneration || _phase != _Phase.closing) return;
-        _cardContainer.retarget(s, 0, spring: tuning.cardContainerSpring);
-      });
+      at(
+        t + tuning.cardContainerDelay,
+        (double s) =>
+            _cardContainer.retarget(s, 0, spring: tuning.cardContainerSpring),
+        slot: _containerSlot,
+      );
     }
     if (!tuning.morph.kicks) return;
     at(t + tuning.closeKickDelay, (double s) {
-      if (generation != _openGeneration || _phase != _Phase.closing) return;
       _sample(s);
       final reach = tuning.closeKickReach * _closeAmplitude;
       final room = (1 - _menuKick.value / reach).clamp(0.0, 1.0);
       _menuKick.velocity += tuning.closeKickImpulse * _closeAmplitude * room;
-    });
+    }, slot: _closeKickSlot);
   }
 
   void _activate(double t, int card, int index) {
@@ -2823,13 +2818,7 @@ class MenuMotion extends Motion {
         final delay = card == 0
             ? tuning.submenuDelay
             : tuning.deeperSubmenuDelay;
-        final generation = _openGeneration;
-        at(t + delay, (double s) {
-          if (generation != _openGeneration || _phase != _Phase.opening) {
-            return;
-          }
-          _openCard(s, card, index);
-        });
+        at(t + delay, (double s) => _openCard(s, card, index), slot: _cardSlot);
       case MenuTargetKind.back:
         _setHighlight(null, card);
         at(t + tuning.backDelay, _back);
