@@ -215,7 +215,7 @@ class _PresentationPortalState extends State<PresentationPortal>
           valueListenable: _modal,
           builder: (context, modal, _) => modal
               ? ModalBarrier(
-                  dismissible: presentation.dismiss.allows(
+                  barrierSemanticsDismissible: presentation.dismiss.allows(
                     DismissTrigger.outsideTap,
                   ),
                   onDismiss: () => dismiss(DismissTrigger.outsideTap),

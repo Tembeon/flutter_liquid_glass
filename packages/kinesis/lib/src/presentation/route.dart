@@ -351,7 +351,10 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     valueListenable: _barrierModal ??= ValueNotifier<bool>(modal),
     builder: (context, modal, _) => modal
         ? ModalBarrier(
-            dismissible: allows(DismissTrigger.outsideTap),
+            // Every tap goes through the gate, so a refused one is
+            // reported as a veto, as UIKit reports a tap on the dimming of
+            // a sheet that may not leave.
+            barrierSemanticsDismissible: allows(DismissTrigger.outsideTap),
             semanticsLabel: barrierLabel,
             onDismiss: () => dismiss(DismissTrigger.outsideTap),
           )
