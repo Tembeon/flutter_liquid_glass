@@ -58,12 +58,15 @@ final class FlexLaw {
 /// own stamp, as UIKit's button does; whether the surface is pressed and
 /// whether a release activates it follow the touch at once.
 ///
+/// As a [PointerFollower] it takes the touch in its region's box, whose size
+/// it takes at the touch-down.
+///
 /// Times are seconds and positions pixels in the surface's own space. The
 /// channels rest within a tenth of a pixel over the long side and the glow
 /// within a visible opacity step; a finger held still counts, so a held
 /// surface stops asking for frames once its lift and glow are in place.
 @internal
-final class GlassPress extends Motion {
+final class GlassPress extends Motion implements PointerFollower {
   /// Creates the press of a surface of [size] at rest, taking touches by
   /// [law].
   GlassPress({Size size = Size.zero, this.law = FlexLaw.button})
@@ -232,6 +235,24 @@ final class GlassPress extends Motion {
     );
   }
 
+  @override
+  void down(PointerDownInput input) {
+    size = input.regionSize;
+    pointerDown(input.time, input.position);
+  }
+
+  @override
+  void move(PointerMoveInput input) => pointerMove(input.time, input.position);
+
+  @override
+  void up(PointerUpInput input) => pointerUp(input.time, input.position);
+
+  @override
+  void cancel(PointerCancelInput input) => pointerCancel(input.time);
+
+  @override
+  void hover(PointerHoverInput input) {}
+
   /// A finger touched the surface at [position].
   void pointerDown(double t, Offset position) {
     advance(t);
@@ -314,7 +335,7 @@ final class GlassPress extends Motion {
   }
 
   void _flexRelease(double t) {
-    cancel(_activation);
+    unschedule(_activation);
     final strength = _glowAt(t);
     final wasDown = _down != null;
     _down = null;

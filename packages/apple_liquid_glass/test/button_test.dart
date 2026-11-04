@@ -84,7 +84,7 @@ void main() {
       await tester.pumpWidget(
         _app(
           counting,
-          RawGlassButton(
+          GlassPressable(
             onPressed: () => presses++,
             builder: probe.build,
             child: _Label(labels),
@@ -95,7 +95,7 @@ void main() {
       expect(probe.body!.value, const GlassFrame());
 
       final gesture = await tester.startGesture(
-        tester.getCenter(find.byType(RawGlassButton)),
+        tester.getCenter(find.byType(GlassPressable)),
       );
       await tester.pump(_frame);
       expect(probe.states, contains(WidgetState.pressed));
@@ -126,7 +126,7 @@ void main() {
       // only from there.
       final settled = labels.length;
       final again = await tester.startGesture(
-        tester.getCenter(find.byType(RawGlassButton)),
+        tester.getCenter(find.byType(GlassPressable)),
       );
       for (var i = 0; i < 12; i++) {
         await tester.pump(_frame);
@@ -145,7 +145,7 @@ void main() {
     final probe = _Probe();
     final labels = <int>[];
     var presses = 0;
-    final rawButton = RawGlassButton(
+    final rawButton = GlassPressable(
       onPressed: () => presses++,
       builder: probe.build,
       child: _Label(labels),
@@ -153,7 +153,7 @@ void main() {
     Widget button(GlassRenderer renderer) => _app(renderer, rawButton);
     await tester.pumpWidget(button(const GlassRenderer.flat()));
     final gesture = await tester.startGesture(
-      tester.getCenter(find.byType(RawGlassButton)),
+      tester.getCenter(find.byType(GlassPressable)),
     );
     for (var i = 0; i < 8; i++) {
       await tester.pump(_frame);
@@ -188,14 +188,14 @@ void main() {
     await tester.pumpWidget(
       _app(
         const GlassRenderer.flat(),
-        RawGlassButton(
+        GlassPressable(
           onPressed: () => presses++,
           builder: _Probe().build,
           child: const SizedBox(width: 100, height: 44),
         ),
       ),
     );
-    final center = tester.getCenter(find.byType(RawGlassButton));
+    final center = tester.getCenter(find.byType(GlassPressable));
     final gesture = await tester.startGesture(center);
     await tester.pump(_frame);
     await gesture.moveTo(center + const Offset(0, 50));
@@ -227,7 +227,7 @@ void main() {
             children: [
               const SizedBox(height: 100),
               Center(
-                child: RawGlassButton(
+                child: GlassPressable(
                   onPressed: () => presses++,
                   builder: probe.build,
                   child: const SizedBox(width: 100, height: 44),
@@ -239,7 +239,7 @@ void main() {
         ),
       ),
     );
-    final center = tester.getCenter(find.byType(RawGlassButton));
+    final center = tester.getCenter(find.byType(GlassPressable));
     final tap = await tester.startGesture(center);
     for (var i = 0; i < 5; i++) {
       await tester.pump(_frame);
@@ -274,7 +274,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         const GlassRenderer.flat(),
-        RawGlassButton(
+        GlassPressable(
           onPressed: () => presses++,
           builder: _Probe().build,
           focusNode: focus,
@@ -284,7 +284,7 @@ void main() {
       ),
     );
     expect(
-      tester.getSemantics(find.byType(RawGlassButton)),
+      tester.getSemantics(find.byType(GlassPressable)),
       matchesSemantics(
         label: 'Done',
         isButton: true,
@@ -312,7 +312,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         const GlassRenderer.flat(),
-        RawGlassButton(
+        GlassPressable(
           onPressed: null,
           builder: probe.build,
           child: const SizedBox(width: 100, height: 44),
@@ -320,7 +320,7 @@ void main() {
       ),
     );
     expect(probe.states, {WidgetState.disabled});
-    await tester.tap(find.byType(RawGlassButton));
+    await tester.tap(find.byType(GlassPressable));
     await tester.pump(_frame);
     expect(probe.body!.value, const GlassFrame());
     expect(probe.builds, 1);
@@ -333,7 +333,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         const GlassRenderer.flat(),
-        RawGlassButton(
+        GlassPressable(
           onPressed: () {},
           builder: probe.build,
           child: const SizedBox(width: 100, height: 44),
@@ -342,7 +342,7 @@ void main() {
       ),
     );
     final gesture = await tester.startGesture(
-      tester.getCenter(find.byType(RawGlassButton)),
+      tester.getCenter(find.byType(GlassPressable)),
     );
     for (var i = 0; i < 12; i++) {
       await tester.pump(_frame);

@@ -34,9 +34,8 @@ final class GlassButtonDetails {
   });
 
   /// The frames of the button's body: the measured lift, lean and touch
-  /// glow, in the button's own box. The button keeps this listenable for
-  /// its whole life; a builder hands it to a [GlassSurface.live] that fills
-  /// the button.
+  /// glow, in the button's own box. A builder hands it to a
+  /// [GlassSurface.live] that fills the button.
   final ValueListenable<GlassFrame> body;
 
   /// The states the button is in.
@@ -46,8 +45,8 @@ final class GlassButtonDetails {
   final Widget label;
 }
 
-/// A button with the measured press of an iOS 27 glass button and no look
-/// of its own: [builder] decides how it looks.
+/// Anything pressable with the measured press of an iOS 27 glass button and
+/// no look of its own: [builder] decides how it looks.
 ///
 /// UIKit: `UIButton` with a glass configuration. SwiftUI: `Button` with
 /// `.buttonStyle(.glass)`. Flutter: `RawMaterialButton`.
@@ -59,9 +58,9 @@ final class GlassButtonDetails {
 /// moves. Space, Enter and the accessibility tap press it too. Under
 /// Reduce Motion the body glows but never lifts or leans (an
 /// approximation, not measured).
-class RawGlassButton extends StatefulWidget {
+class GlassPressable extends StatefulWidget {
   /// Creates a button labeled [child] whose look [builder] builds.
-  const RawGlassButton({
+  const GlassPressable({
     required this.onPressed,
     required this.builder,
     required this.child,
@@ -98,39 +97,39 @@ class RawGlassButton extends StatefulWidget {
   final String? semanticLabel;
 
   @override
-  State<RawGlassButton> createState() => _RawGlassButtonState();
+  State<GlassPressable> createState() => _GlassPressableState();
 }
 
-class _RawGlassButtonState extends State<RawGlassButton>
-    with ControlStates<RawGlassButton> {
-  late final _ButtonBody _body = _ButtonBody(widget.shape);
+class _GlassPressableState extends State<GlassPressable>
+    with ControlStates<GlassPressable> {
+  final GlassPress _press = GlassPress();
   late final List<Interaction> _interactions = [
     PressInteraction(
       releaseSlop: const EdgeInsets.all(GlassPress.highlightSlop),
       onTap: (t) => widget.onPressed?.call(),
-    ).simultaneously(FollowInteraction(_body)),
+    ).simultaneously(FollowInteraction(_press)),
   ];
+  late MotionSelection<GlassFrame> _body = _bodyOf(widget.shape);
+
+  MotionSelection<GlassFrame> _bodyOf(LiquidShape shape) => _press.select(
+    (press) => press.isAtRest
+        ? GlassFrame(shape: shape)
+        : GlassFrame(
+            shape: shape,
+            rect: (Offset.zero & press.size).shift(press.lean),
+            scaleX: press.scaleX,
+            scaleY: press.scaleY,
+            glow: press.touchGlow,
+          ),
+  );
 
   @override
   WidgetStatesController? get givenStates => widget.statesController;
 
   @override
-  void initState() {
-    super.initState();
-    MotionClock.instance.addDriver(_body);
-  }
-
-  @override
-  void didUpdateWidget(RawGlassButton oldWidget) {
+  void didUpdateWidget(GlassPressable oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _body.shape = widget.shape;
-  }
-
-  @override
-  void dispose() {
-    MotionClock.instance.removeDriver(_body);
-    _body.dispose();
-    super.dispose();
+    if (widget.shape != oldWidget.shape) _body = _bodyOf(widget.shape);
   }
 
   @override
@@ -142,7 +141,7 @@ class _RawGlassButtonState extends State<RawGlassButton>
 
   @override
   Widget build(BuildContext context) {
-    _body.reducedMotion = GlassTraits.of(context).reduceMotion;
+    _press.reducedMotion = GlassTraits.of(context).reduceMotion;
     return Semantics(
       button: true,
       child: InputRegion(
@@ -163,90 +162,6 @@ class _RawGlassButtonState extends State<RawGlassButton>
       ),
     );
   }
-}
-
-/// The body of a glass button: its measured motion stepped on the motion
-/// clock, published as a [GlassFrame] when it changes.
-final class _ButtonBody extends ChangeNotifier
-    implements ValueListenable<GlassFrame>, MotionDriver, PointerFollower {
-  _ButtonBody(this._shape) : _value = GlassFrame(shape: _shape);
-
-  LiquidShape _shape;
-  GlassFrame _value;
-  GlassPress? _motion;
-  bool _shapeChanged = false;
-
-  bool reducedMotion = false;
-
-  LiquidShape get shape => _shape;
-  set shape(LiquidShape value) {
-    if (value == _shape) return;
-    _shape = value;
-    _shapeChanged = true;
-    MotionClock.instance.wake(this);
-  }
-
-  @override
-  GlassFrame get value => _value;
-
-  @override
-  bool get isActive => _shapeChanged || !(_motion?.isSettled ?? true);
-
-  @override
-  double? get wakeTime => null;
-
-  @override
-  void step(double time) {
-    _shapeChanged = false;
-    final motion = _motion;
-    if (motion != null) {
-      motion.advance(time);
-      if (motion.isSettled) motion.settle();
-    }
-    final next = motion == null || motion.isAtRest
-        ? GlassFrame(shape: _shape)
-        : GlassFrame(
-            shape: _shape,
-            rect: (Offset.zero & motion.size).shift(motion.lean),
-            scaleX: motion.scaleX,
-            scaleY: motion.scaleY,
-            glow: motion.touchGlow,
-          );
-    if (next == _value) return;
-    _value = next;
-    notifyListeners();
-  }
-
-  @override
-  void down(PointerDownInput input) {
-    final size = input.regionSize;
-    final motion = _motion ??= GlassPress(size: size);
-    motion.size = size;
-    motion.reducedMotion = reducedMotion;
-    motion.pointerDown(input.time, input.position);
-    MotionClock.instance.wake(this);
-  }
-
-  @override
-  void move(PointerMoveInput input) {
-    _motion?.pointerMove(input.time, input.position);
-    MotionClock.instance.wake(this);
-  }
-
-  @override
-  void up(PointerUpInput input) {
-    _motion?.pointerUp(input.time, input.position);
-    MotionClock.instance.wake(this);
-  }
-
-  @override
-  void cancel(PointerCancelInput input) {
-    _motion?.pointerCancel(input.time);
-    MotionClock.instance.wake(this);
-  }
-
-  @override
-  void hover(PointerHoverInput input) {}
 }
 
 /// The look of a [GlassButton], like Flutter's `ButtonStyle`.
@@ -421,7 +336,7 @@ enum _Variant { regular, prominent, clear, prominentClear }
 /// `.buttonStyle(.glass)`. Flutter: `FilledButton`.
 ///
 /// Its body is a [GlassSurface] of the ambient renderer, its press the
-/// measured one of [RawGlassButton]. A disabled regular button keeps its
+/// measured one of [GlassPressable]. A disabled regular button keeps its
 /// glass, and every disabled button draws its label in tertiaryLabel, as
 /// UIKit does (iPhone 16 Pro, iOS 27.0.1, light and dark).
 class GlassButton extends StatelessWidget {
@@ -634,7 +549,7 @@ class GlassButton extends StatelessWidget {
     );
   }
 
-  Widget _button(BuildContext context) => RawGlassButton(
+  Widget _button(BuildContext context) => GlassPressable(
     onPressed: onPressed,
     statesController: statesController,
     focusNode: focusNode,
