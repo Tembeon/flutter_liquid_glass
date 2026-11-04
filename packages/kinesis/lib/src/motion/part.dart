@@ -1,3 +1,6 @@
+import 'package:kinesis/src/motion/motion.dart';
+import 'package:meta/meta.dart';
+
 /// Something a `Motion` owns and moves on its time cursor: a spring value,
 /// a timed value, a rect, a loop or a smaller motion.
 ///
@@ -6,6 +9,11 @@
 /// command stamped before that time still starts from the course at its own
 /// time.
 abstract class MotionPart {
+  /// The motion that owns this part ([Motion.own]), told of every change
+  /// the part makes so its root wakes on the clock.
+  @internal
+  Motion? owner;
+
   /// The earliest time from which every component stays within [tolerance]
   /// of where it comes to rest, or null while a change of the part's own
   /// is pending ([nextDue]). A null [tolerance] is the part's own rest.

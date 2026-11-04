@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 const _frame = Duration(milliseconds: 16);
 

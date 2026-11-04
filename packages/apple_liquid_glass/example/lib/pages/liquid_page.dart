@@ -390,7 +390,7 @@ class _Drop {
   /// content with it the same way.
   Offset origin = Offset.zero;
 
-  late final MotionComputed<GlassFrame> frame = MotionComputed(() {
+  late final MotionSelection<GlassFrame> frame = MotionSelection(() {
     final pressed = press.value;
     final scale = 1 + 0.14 * pressed;
     final local = center.value + drift.value - origin;

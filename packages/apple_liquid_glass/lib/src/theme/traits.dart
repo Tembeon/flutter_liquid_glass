@@ -1,6 +1,6 @@
 import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 /// How far forward an interface sits; wrap presented content in a
 /// `GlassTraitsOverride` to raise it (the package's presentations do not).
@@ -22,7 +22,8 @@ enum GlassInterfaceLevel {
 ///
 /// [GlassTraits.of] reads the theme's brightness, then the platform's;
 /// contrast and Bold Text from `MediaQuery`; Reduce Motion from
-/// `MediaQuery.disableAnimations` or `MotionAccessibility.reduceMotion`; the
+/// kinesis's `MotionTraitsOverride.of` (the platform, `MediaQuery`
+/// disabled animations, or an override); the
 /// interface level and the settings Flutter does not report from the
 /// nearest `GlassTraitsOverride`.
 @immutable
@@ -45,15 +46,12 @@ final class GlassTraits {
   factory GlassTraits.of(BuildContext context) {
     final overrides = context
         .dependOnInheritedWidgetOfExactType<_GlassTraitsScope>();
-    final reduceMotion =
-        MotionAccessibility.reduceMotion ||
-        (MediaQuery.maybeDisableAnimationsOf(context) ?? false);
+    final motion = MotionTraitsOverride.of(context);
+    final reduceMotion = motion.reduceMotion;
     // iOS offers Prefer Cross-Fade Transitions with Reduce Motion, on by
     // default: unreported, it follows Reduce Motion.
     final crossFade =
-        overrides?.prefersCrossFade ??
-        MotionAccessibility.preferCrossFade ??
-        reduceMotion;
+        overrides?.prefersCrossFade ?? motion.preferCrossFade ?? reduceMotion;
     return GlassTraits(
       brightness:
           GlassTheme.brightnessOf(context) ??
@@ -135,7 +133,8 @@ final class GlassTraits {
 ///
 /// Bold Text, contrast, Reduce Motion and text size are overridden through
 /// `MediaQuery`, brightness through `GlassThemeData.brightness`. Reduce
-/// Motion is also on while kinesis's `MotionAccessibility.reduceMotion` is.
+/// Motion is also on while kinesis's `MotionTraitsOverride` or the platform
+/// say so.
 class GlassTraitsOverride extends StatelessWidget {
   /// Overrides the given traits for [child].
   const GlassTraitsOverride({

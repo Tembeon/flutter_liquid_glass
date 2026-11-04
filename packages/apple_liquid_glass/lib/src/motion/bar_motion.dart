@@ -3,7 +3,7 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
 /// UIKit's tuning for glass bar items that change: the

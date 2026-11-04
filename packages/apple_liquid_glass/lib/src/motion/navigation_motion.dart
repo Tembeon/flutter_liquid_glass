@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motion/sheet_motion.dart';
 import 'package:flutter/animation.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
 /// The tuning of a page sliding onto and off a navigation stack.

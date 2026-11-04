@@ -12,7 +12,7 @@ import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 /// An iOS 27 toolbar: glass capsules floating over the bottom of the
 /// screen.

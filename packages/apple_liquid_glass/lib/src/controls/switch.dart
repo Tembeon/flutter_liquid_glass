@@ -10,7 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 /// Builds a glass switch from [details]; it runs again when the switch's
 /// states change, never while it moves.

@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/physics.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 void main() {
   group('Spring', () {

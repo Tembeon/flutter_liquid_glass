@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 void main() {
   const spring = Spring.response(0.4, dampingRatio: 0.8);
   late ManualMotionClock clock;
 
   setUp(() => clock = ManualMotionClock());
-  tearDown(() => MotionAccessibility.reduceMotion = false);
+  tearDown(() => MotionTraits.debugPlatformOverride = null);
 
   MotionValue<double> value([double start = 0]) =>
       MotionValue(start, clock: clock);
@@ -62,7 +62,7 @@ void main() {
   test('Reduce Motion picks the reduced spring', () {
     const reduced = Spring.response(0.25);
     const preferred = Spring.response(0.5, dampingRatio: 0.7, reduced: reduced);
-    MotionAccessibility.reduceMotion = true;
+    MotionTraits.debugPlatformOverride = const MotionTraits(reduceMotion: true);
     final v = value();
     withSpring(preferred, () => v.target = 10);
     expect(v.spring, reduced);
@@ -84,7 +84,7 @@ void main() {
     withSpring(
       spring,
       () => v.target = 10,
-      delay: const Duration(milliseconds: 40),
+      delay: 0.04,
     );
     expect(v.target, 10);
     clock.advanceTo(0.03);

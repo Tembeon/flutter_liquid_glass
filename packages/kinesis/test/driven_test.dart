@@ -1,7 +1,7 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 Widget _app(Widget child) => Directionality(
   textDirection: TextDirection.ltr,

@@ -1,6 +1,6 @@
 import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
 /// The measured tuning and geometry of an iOS 27 alert

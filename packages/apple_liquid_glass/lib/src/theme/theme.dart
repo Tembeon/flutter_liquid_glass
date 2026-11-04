@@ -14,7 +14,7 @@ import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 /// The app's overrides of the iOS semantic colors.
 ///

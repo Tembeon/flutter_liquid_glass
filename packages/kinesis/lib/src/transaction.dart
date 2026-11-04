@@ -1,22 +1,49 @@
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/src/spring.dart';
 
-/// The motion preferences animations honor, which the app mirrors from the
-/// platform.
+/// The motion preferences a motion honors.
 ///
-/// UIKit: `UIAccessibility.isReduceMotionEnabled`. Flutter:
-/// `AccessibilityFeatures.reduceMotion` in `dart:ui`.
-abstract final class MotionAccessibility {
+/// UIKit: `UIAccessibility.isReduceMotionEnabled` and
+/// `prefersCrossFadeTransitions`. A motion reads the traits of the
+/// `MotionScope` that holds it, which reads `MotionTraitsOverride` or the
+/// platform; a value outside a scope reads [MotionTraits.platform].
+@immutable
+class MotionTraits {
+  /// Creates motion preferences.
+  const MotionTraits({this.reduceMotion = false, this.preferCrossFade});
+
+  /// The platform's preferences: Reduce Motion or disabled animations.
+  factory MotionTraits.platform() {
+    final override = debugPlatformOverride;
+    if (override != null) return override;
+    final features = PlatformDispatcher.instance.accessibilityFeatures;
+    return MotionTraits(
+      reduceMotion: features.reduceMotion || features.disableAnimations,
+    );
+  }
+
   /// Whether `withSpring` resolves its spring to the Reduce Motion
   /// alternative (`Spring.reduced`). A retarget that names its spring keeps
   /// it: a measured control applies its own Reduce Motion rule.
-  static bool reduceMotion = false;
+  final bool reduceMotion;
 
   /// Whether the user prefers transitions that cross-fade over ones that
   /// move, or null where the platform does not say: iOS's Prefer
-  /// Cross-Fade Transitions, a part of Reduce Motion. UIKit:
-  /// `UIAccessibility.prefersCrossFadeTransitions`.
-  static bool? preferCrossFade;
+  /// Cross-Fade Transitions, a part of Reduce Motion.
+  final bool? preferCrossFade;
+
+  /// Replaces [MotionTraits.platform] for the whole app: for tests.
+  @visibleForTesting
+  static MotionTraits? debugPlatformOverride;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MotionTraits &&
+      other.reduceMotion == reduceMotion &&
+      other.preferCrossFade == preferCrossFade;
+
+  @override
+  int get hashCode => Object.hash(reduceMotion, preferCrossFade);
 }
 
 /// How the changes made inside one `withSpring` or `withoutAnimation` body
@@ -29,8 +56,8 @@ class MotionTransaction {
     this.delay = 0,
   });
 
-  /// The spring the changes follow, already resolved for Reduce Motion;
-  /// [Spring.immediate] when they jump.
+  /// The spring the changes follow, resolved for Reduce Motion by each
+  /// value from its motion's traits; [Spring.immediate] when they jump.
   final Spring spring;
 
   /// Whether a finger drives the changes, so values follow the spring's
@@ -63,23 +90,14 @@ class MotionTransaction {
   /// The transaction in effect, or null outside every body.
   ///
   /// An enclosing `withoutAnimation` dominates every spring inside it;
-  /// otherwise the innermost spring wins, resolved for Reduce Motion.
+  /// otherwise the innermost spring wins.
   @internal
   static MotionTransaction? get current {
     if (_stack.isEmpty) return null;
     for (final transaction in _stack) {
       if (transaction.spring.isImmediate) return transaction;
     }
-    final innermost = _stack.last;
-    final spring = innermost.spring.resolve(
-      reduceMotion: MotionAccessibility.reduceMotion,
-    );
-    if (identical(spring, innermost.spring)) return innermost;
-    return MotionTransaction._(
-      spring: spring,
-      tracking: innermost.tracking,
-      delay: innermost.delay,
-    );
+    return _stack.last;
   }
 
   static void _run(MotionTransaction transaction, VoidCallback changes) {
@@ -96,7 +114,7 @@ class MotionTransaction {
         ? transaction
         : MotionTransaction._(
             spring: transaction.spring.resolve(
-              reduceMotion: MotionAccessibility.reduceMotion,
+              reduceMotion: MotionTraits.platform().reduceMotion,
             ),
           );
     notify();
@@ -111,9 +129,14 @@ class MotionTransaction {
 /// A value already moving continues from where it is, at the speed it has
 /// plus the spring's retarget [Spring.impulse], if any.
 /// With [tracking] the values follow the spring's tracking spring, as they
-/// do under a finger. With a [delay] each value keeps its course for that
-/// long before it heads to the new target; its target reads the new value
-/// at once. Inside an enclosing [withoutAnimation] the changes jump.
+/// do under a finger. With a [delay] in seconds each value keeps its course
+/// for that long before it heads to the new target; its target reads the
+/// new value at once. Inside an enclosing [withoutAnimation] the changes
+/// jump. Under Reduce Motion each value moves on [spring]'s reduced
+/// alternative ([MotionTraits.reduceMotion] of its motion).
+///
+/// The changes start at the clock's time: inside an input callback that is
+/// the input's own stamp (`MotionClock.input`).
 ///
 /// It also animates what layout does in the frame it closes before: a
 /// `MotionLayout` slides its children on [spring].
@@ -121,13 +144,9 @@ void withSpring(
   Spring spring,
   VoidCallback changes, {
   bool tracking = false,
-  Duration delay = Duration.zero,
+  double delay = 0,
 }) => MotionTransaction._run(
-  MotionTransaction._(
-    spring: spring,
-    tracking: tracking,
-    delay: delay.inMicroseconds / Duration.microsecondsPerSecond,
-  ),
+  MotionTransaction._(spring: spring, tracking: tracking, delay: delay),
   changes,
 );
 

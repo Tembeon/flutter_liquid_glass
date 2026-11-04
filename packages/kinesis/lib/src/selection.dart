@@ -3,26 +3,39 @@ import 'package:kinesis/src/clock.dart';
 import 'package:kinesis/src/listen.dart';
 import 'package:kinesis/src/tracker.dart';
 
-/// A value derived from motion values, such as a card's shadow from its lift
-/// and scale.
+/// A value derived from motions, such as a card's shadow from its lift and
+/// scale: what a renderer, a transition or a widget reads.
 ///
-/// Every `MotionValue` and [MotionComputed] that [compute] reads through
-/// `value`, `target` or `velocity` is followed automatically. While it has
-/// listeners, a [MotionComputed] recomputes in the publish phase of
+/// Every `MotionValue` and [MotionSelection] that [compute] reads through
+/// `value`, `target` or `velocity` is followed automatically; a selection
+/// made with `Motion.select` follows its motion instead and tracks no
+/// reads. While it has
+/// listeners, a [MotionSelection] recomputes in the publish phase of
 /// [clock], after the values it reads, and its listeners hear it at most
 /// once per frame and only when the result differs (`equals`, `==` by
 /// default): a derived boolean under a `ValueListenableBuilder` rebuilds
 /// only when it flips. Render listeners ([addRenderListener]) also hear it
 /// when the frame's resolve phase changes what it reads. Without listeners
 /// it follows nothing and computes on every read, so it needs no dispose.
-class MotionComputed<T> implements ValueListenable<T>, MotionDerived {
+class MotionSelection<T> implements ValueListenable<T>, MotionDerived {
   /// Derives a value with [compute], published on [clock]
   /// ([MotionClock.instance] when null).
-  MotionComputed(
+  MotionSelection(
     this.compute, {
     MotionClock? clock,
     this._equals,
-  }) : clock = clock ?? MotionClock.instance;
+  }) : clock = clock ?? MotionClock.instance,
+       _source = null;
+
+  /// Derives a value with [compute] that changes only when [source]
+  /// notifies: no reads are tracked, so a recompute allocates nothing.
+  @internal
+  MotionSelection.of(
+    Listenable source,
+    this.compute, {
+    required this.clock,
+    this._equals,
+  }) : _source = source;
 
   /// Computes the value from the values it reads.
   final T Function() compute;
@@ -31,6 +44,7 @@ class MotionComputed<T> implements ValueListenable<T>, MotionDerived {
   final MotionClock clock;
 
   final bool Function(T a, T b)? _equals;
+  final Listenable? _source;
   final List<VoidCallback> _listeners = [];
   final List<VoidCallback> _renderListeners = [];
   final Set<Listenable> _inputs = {};
@@ -55,6 +69,17 @@ class MotionComputed<T> implements ValueListenable<T>, MotionDerived {
   }
 
   void _evaluate() {
+    final source = _source;
+    if (source != null) {
+      _value = ReadTracker.untracked(compute);
+      _hasValue = true;
+      _dirty = false;
+      if (_followed && _inputs.isEmpty) {
+        _inputs.add(source);
+        listenForRender(source, _onInput);
+      }
+      return;
+    }
     final reads = <Listenable>{};
     _value = ReadTracker.track(reads, compute);
     _hasValue = true;
@@ -88,7 +113,7 @@ class MotionComputed<T> implements ValueListenable<T>, MotionDerived {
     if (published.has && _same(published.value, _value)) return;
     published.set(_value);
     for (final listener in List<VoidCallback>.of(listeners)) {
-      guardMotion(listener, 'while notifying a MotionComputed listener');
+      guardMotion(listener, 'while notifying a MotionSelection listener');
     }
   }
 
@@ -139,7 +164,7 @@ class MotionComputed<T> implements ValueListenable<T>, MotionDerived {
 
   @override
   String toString() =>
-      'MotionComputed<$T>(${_hasValue ? _value : 'not computed'})';
+      'MotionSelection<$T>(${_hasValue ? _value : 'not computed'})';
 }
 
 final class _Published<T> {

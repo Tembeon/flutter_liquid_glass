@@ -3,7 +3,7 @@ import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
 import 'package:apple_liquid_glass/src/motion/rest.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
 /// The four channels a flex deforms a surface by: the scale of its width

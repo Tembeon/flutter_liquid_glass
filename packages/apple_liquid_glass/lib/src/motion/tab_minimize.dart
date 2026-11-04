@@ -1,5 +1,5 @@
 import 'package:apple_liquid_glass/src/motion/rest.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
 /// When a tab bar minimizes to its selected tab while the content under it

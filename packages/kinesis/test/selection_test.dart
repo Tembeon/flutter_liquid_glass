@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 void main() {
   const spring = Spring.response(0.3);
@@ -11,7 +11,7 @@ void main() {
     final width = MotionValue<double>(10, clock: clock);
     final height = MotionValue<double>(20, clock: clock);
     var computes = 0;
-    final area = MotionComputed(() {
+    final area = MotionSelection(() {
       computes++;
       return width.value * height.value;
     }, clock: clock);
@@ -29,7 +29,7 @@ void main() {
 
   test('listeners hear only a changed result', () {
     final x = MotionValue<double>(0, clock: clock);
-    final past = MotionComputed(() => x.value > 5, clock: clock);
+    final past = MotionSelection(() => x.value > 5, clock: clock);
     final heard = <bool>[];
     past.addListener(() => heard.add(past.value));
     x.retarget(0, 10, spring: spring);
@@ -41,8 +41,8 @@ void main() {
 
   test('a computed of computeds recomputes in the same frame', () {
     final x = MotionValue<double>(1, clock: clock);
-    final doubled = MotionComputed(() => x.value * 2, clock: clock);
-    final quadrupled = MotionComputed(() => doubled.value * 2, clock: clock);
+    final doubled = MotionSelection(() => x.value * 2, clock: clock);
+    final quadrupled = MotionSelection(() => doubled.value * 2, clock: clock);
     final heard = <double>[];
     quadrupled.addListener(() => heard.add(quadrupled.value));
     x.snap(0, 3);
@@ -53,7 +53,7 @@ void main() {
   test('without listeners it follows nothing and computes on read', () {
     final x = MotionValue<double>(1, clock: clock);
     var computes = 0;
-    final doubled = MotionComputed(() {
+    final doubled = MotionSelection(() {
       computes++;
       return x.value * 2;
     }, clock: clock);

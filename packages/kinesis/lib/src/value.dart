@@ -155,7 +155,9 @@ class MotionValue<T> extends MotionPart
     _change(
       t,
       components,
-      transaction.spring,
+      transaction.spring.resolve(
+        reduceMotion: (owner?.traits ?? MotionTraits.platform()).reduceMotion,
+      ),
       tracking: transaction.tracking,
       delay: transaction.delay,
     );
@@ -178,154 +180,11 @@ class MotionValue<T> extends MotionPart
   /// its position and target: a finger's speed handed to the spring.
   set velocity(T next) => setVelocity(clock.now, next);
 
-  /// The value at time [t].
-  T valueAt(double t) {
-    _state(t);
-    return converter.read(_memoY);
-  }
-
-  /// The velocity at time [t], per second.
-  T velocityAt(double t) {
-    _state(t);
-    return converter.read(_memoV);
-  }
-
-  /// Sends the value toward [target] from its state at time [t], on
-  /// [spring] when one is given and on [MotionValue.spring] otherwise; on
-  /// that spring's tracking spring when [tracking].
-  ///
-  /// With a [delay] in seconds the value keeps its course until `t + delay`
-  /// and turns toward [target] then; the `target` getter reads the new
-  /// value at once. A change replaces a delayed change still pending.
-  void retarget(
-    double t,
-    T target, {
-    Spring? spring,
-    bool tracking = false,
-    double delay = 0,
-  }) => _change(
-    t,
-    _components(target),
-    spring ?? _spring,
-    tracking: tracking,
-    delay: delay,
-  );
-
-  /// Puts the value at rest on [value] at time [t].
-  void snap(double t, T value) {
-    _clearPending();
-    _snapAt(t, _components(value));
-    _follow();
-  }
-
-  /// Gives the value [velocity] at time [t], keeping its position and
-  /// target.
-  void setVelocity(double t, T velocity) {
-    _state(t);
-    _place(t, _memoY, _components(velocity));
-    _follow();
-  }
-
-  /// Puts the value at [value] with [velocity] (none when null) at time
-  /// [t], keeping its target.
-  void setPresentation(double t, T value, {T? velocity}) {
-    _applyPending(t);
-    _place(
-      t,
-      _components(value),
-      velocity == null ? Float64List(_n) : _components(velocity),
-    );
-    _follow();
-  }
-
-  /// Puts the value at rest on its target at time [t].
-  void settle(double t) => snap(t, target);
-
   /// Where the value lands if released now: the value at the clock's time
   /// plus its velocity times the [Spring.projection] of [spring], or of
   /// [MotionValue.spring] when it is null. A sheet or a slider picks the detent
   /// nearest to it.
   T project([Spring? spring]) => projectAt(clock.now, spring);
-
-  /// Where the value lands if released at time [t] ([project]).
-  T projectAt(double t, [Spring? spring]) {
-    _state(t);
-    final ahead = (spring ?? _spring).projection;
-    final landing = Float64List(_n);
-    for (var i = 0; i < _n; i++) {
-      landing[i] = _memoY[i] + _memoV[i] * ahead;
-    }
-    return converter.read(landing);
-  }
-
-  /// A bound on how far any component still swings from its target at any
-  /// time from [t] on, until the next change.
-  ///
-  /// An underdamped spring's offset stays inside its decaying envelope; a
-  /// critically damped or overdamped one inside the sum of its modes.
-  double reach(double t) {
-    _state(t);
-    var reach = 0.0;
-    for (var i = 0; i < _n; i++) {
-      reach = math.max(reach, _reach(_memoY[i] - _target[i], _memoV[i]));
-    }
-    return reach;
-  }
-
-  /// Whether every component's remaining swing ([reach]) stays below
-  /// [tolerance], or [restDistance] when it is null, from time [t] on, with
-  /// no delayed change pending.
-  bool isWithin(double t, [double? tolerance]) {
-    _state(t);
-    if (_pendingDue != null) return false;
-    return reach(t) < (tolerance ?? restDistance);
-  }
-
-  /// The first time from [from] on at which [component] crosses [level], or
-  /// null when it does not cross before a delayed change or within
-  /// [horizon] responses of the spring.
-  ///
-  /// The value is sampled every 1/64 of the spring's response and a
-  /// crossing found between samples is refined to within a nanosecond, so
-  /// a level the value only grazes between two samples can be missed.
-  double? crossing(
-    double level, {
-    required double from,
-    int component = 0,
-    double horizon = 10,
-  }) {
-    _state(from);
-    final start = math.max(from, _origin);
-    var end = start + horizon * _motion.response;
-    final due = _pendingDue;
-    if (due != null && due < end) end = due;
-    double offset(double t) => _componentAt(component, t) - level;
-    var a = start;
-    var fa = offset(a);
-    if (fa == 0) return a;
-    final step = _motion.response / 64;
-    while (a < end) {
-      final b = math.min(a + step, end);
-      final fb = offset(b);
-      if (fb == 0) return b;
-      if (fa.sign != fb.sign) {
-        var lo = a;
-        var hi = b;
-        while (hi - lo > 1e-9) {
-          final mid = (lo + hi) / 2;
-          if (offset(mid).sign == fa.sign) {
-            lo = mid;
-          } else {
-            hi = mid;
-          }
-        }
-        return hi;
-      }
-      a = b;
-      fa = fb;
-    }
-    return null;
-  }
 
   @override
   void addListener(VoidCallback listener) {
@@ -359,6 +218,7 @@ class MotionValue<T> extends MotionPart
   }
 
   void _follow() {
+    owner?.partChanged();
     _wakeTime = null;
     if (_listeners.isNotEmpty || _renderListeners.isNotEmpty) {
       clock.follow(this);
@@ -661,4 +521,156 @@ class MotionValue<T> extends MotionPart
   @override
   String toString() =>
       'MotionValue<$T>(${valueAt(_memoT.isNaN ? _origin : _memoT)} -> $target)';
+}
+
+/// The explicit-time commands and reads of a [MotionValue], for motions
+/// that replay recorded input: every one takes the time it happens at, in
+/// seconds. A change never reaches back before the previous one: a time
+/// earlier than the last change takes effect at that change's time.
+///
+/// Apps write the ambient forms (`target`, `value`, `velocity`); a `Motion`
+/// subclass commands its parts with these.
+extension MotionValueCommands<T> on MotionValue<T> {
+  /// The value at time [t].
+  T valueAt(double t) {
+    _state(t);
+    return converter.read(_memoY);
+  }
+
+  /// The velocity at time [t], per second.
+  T velocityAt(double t) {
+    _state(t);
+    return converter.read(_memoV);
+  }
+
+  /// Sends the value toward [target] from its state at time [t], on
+  /// [spring] when one is given and on [MotionValue.spring] otherwise; on
+  /// that spring's tracking spring when [tracking].
+  ///
+  /// With a [delay] in seconds the value keeps its course until `t + delay`
+  /// and turns toward [target] then; the `target` getter reads the new
+  /// value at once. A change replaces a delayed change still pending.
+  void retarget(
+    double t,
+    T target, {
+    Spring? spring,
+    bool tracking = false,
+    double delay = 0,
+  }) => _change(
+    t,
+    _components(target),
+    spring ?? _spring,
+    tracking: tracking,
+    delay: delay,
+  );
+
+  /// Puts the value at rest on [value] at time [t].
+  void snap(double t, T value) {
+    _clearPending();
+    _snapAt(t, _components(value));
+    _follow();
+  }
+
+  /// Gives the value [velocity] at time [t], keeping its position and
+  /// target.
+  void setVelocity(double t, T velocity) {
+    _state(t);
+    _place(t, _memoY, _components(velocity));
+    _follow();
+  }
+
+  /// Puts the value at [value] with [velocity] (none when null) at time
+  /// [t], keeping its target.
+  void setPresentation(double t, T value, {T? velocity}) {
+    _applyPending(t);
+    _place(
+      t,
+      _components(value),
+      velocity == null ? Float64List(_n) : _components(velocity),
+    );
+    _follow();
+  }
+
+  /// Puts the value at rest on its target at time [t].
+  void settle(double t) => snap(t, target);
+
+  /// Where the value lands if released at time [t] ([project]).
+  T projectAt(double t, [Spring? spring]) {
+    _state(t);
+    final ahead = (spring ?? _spring).projection;
+    final landing = Float64List(_n);
+    for (var i = 0; i < _n; i++) {
+      landing[i] = _memoY[i] + _memoV[i] * ahead;
+    }
+    return converter.read(landing);
+  }
+
+  /// A bound on how far any component still swings from its target at any
+  /// time from [t] on, until the next change.
+  ///
+  /// An underdamped spring's offset stays inside its decaying envelope; a
+  /// critically damped or overdamped one inside the sum of its modes.
+  double reach(double t) {
+    _state(t);
+    var reach = 0.0;
+    for (var i = 0; i < _n; i++) {
+      reach = math.max(reach, _reach(_memoY[i] - _target[i], _memoV[i]));
+    }
+    return reach;
+  }
+
+  /// Whether every component's remaining swing ([reach]) stays below
+  /// [tolerance], or [restDistance] when it is null, from time [t] on, with
+  /// no delayed change pending.
+  bool isWithin(double t, [double? tolerance]) {
+    _state(t);
+    if (_pendingDue != null) return false;
+    return reach(t) < (tolerance ?? restDistance);
+  }
+
+  /// The first time from [from] on at which [component] crosses [level], or
+  /// null when it does not cross before a delayed change or within
+  /// [horizon] responses of the spring.
+  ///
+  /// The value is sampled every 1/64 of the spring's response and a
+  /// crossing found between samples is refined to within a nanosecond, so
+  /// a level the value only grazes between two samples can be missed.
+  double? crossing(
+    double level, {
+    required double from,
+    int component = 0,
+    double horizon = 10,
+  }) {
+    _state(from);
+    final start = math.max(from, _origin);
+    var end = start + horizon * _motion.response;
+    final due = _pendingDue;
+    if (due != null && due < end) end = due;
+    double offset(double t) => _componentAt(component, t) - level;
+    var a = start;
+    var fa = offset(a);
+    if (fa == 0) return a;
+    final step = _motion.response / 64;
+    while (a < end) {
+      final b = math.min(a + step, end);
+      final fb = offset(b);
+      if (fb == 0) return b;
+      if (fa.sign != fb.sign) {
+        var lo = a;
+        var hi = b;
+        while (hi - lo > 1e-9) {
+          final mid = (lo + hi) / 2;
+          if (offset(mid).sign == fa.sign) {
+            lo = mid;
+          } else {
+            hi = mid;
+          }
+        }
+        return hi;
+      }
+      a = b;
+      fa = fb;
+    }
+    return null;
+  }
 }

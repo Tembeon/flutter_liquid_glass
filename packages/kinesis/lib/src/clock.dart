@@ -130,8 +130,36 @@ abstract class MotionClock {
   Set<MotionFollowed>? _resolved;
   bool _resolving = false;
 
-  /// The current time, in seconds.
-  double get now;
+  double? _inputTime;
+  double _lastInput = double.negativeInfinity;
+
+  /// The time the ambient forms read, in seconds: the stamp of the input
+  /// being dispatched inside [input], the frame's time ([frameTime])
+  /// otherwise.
+  double get now => _inputTime ?? frameTime;
+
+  /// The time of the current frame, or of the coming one between frames,
+  /// in seconds.
+  double get frameTime;
+
+  /// Runs [body] as input stamped [time]: inside it [now] is that stamp,
+  /// so `withSpring`, a `target` written and anything else that reads the
+  /// clock's time starts where the input happened, often a frame or two
+  /// before the frame that draws it.
+  ///
+  /// Inputs commit in the order they arrive: a stamp earlier than the
+  /// previous input's takes that input's time.
+  void input(double time, VoidCallback body) {
+    final at = time < _lastInput ? _lastInput : time;
+    _lastInput = at;
+    final saved = _inputTime;
+    _inputTime = at;
+    try {
+      body();
+    } finally {
+      _inputTime = saved;
+    }
+  }
 
   /// The display's frame period in seconds, or null before steady frames.
   double? get framePeriod;
@@ -168,6 +196,7 @@ abstract class MotionClock {
 
   /// Runs [action] at [time], in the timelines phase of the frame that
   /// reaches it, with that time; the returned callback cancels it.
+  @internal
   VoidCallback schedule(double time, void Function(double time) action) {
     void run(double t) =>
         guardMotion(() => action(t), 'while running a scheduled action');
@@ -243,7 +272,7 @@ abstract class MotionClock {
       } finally {
         _resolved = null;
       }
-      final time = now;
+      final time = frameTime;
       for (final value in resolved) {
         if (!value.stepTo(time)) _followed.remove(value);
       }
@@ -365,7 +394,7 @@ class ManualMotionClock extends MotionClock {
   final double frameRate;
 
   @override
-  double get now => _now;
+  double get frameTime => _now;
 
   @override
   double? get framePeriod => 1 / frameRate;
@@ -455,7 +484,7 @@ class _BindingClock extends MotionClock {
   double _dozeTime = 0;
 
   @override
-  double get now {
+  double get frameTime {
     if (_callbackId != null) {
       final scheduler = SchedulerBinding.instance;
       if (scheduler.schedulerPhase == SchedulerPhase.transientCallbacks) {

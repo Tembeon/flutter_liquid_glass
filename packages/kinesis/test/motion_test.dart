@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 const _bouncy = Spring.response(0.4, dampingRatio: 0.6);
 const _glow = Spring.response(0.6);

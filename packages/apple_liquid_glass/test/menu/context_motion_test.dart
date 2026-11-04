@@ -7,7 +7,7 @@ import 'package:apple_liquid_glass/src/menu/morph_spec.dart';
 import 'package:apple_liquid_glass/src/menu/motion.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 import 'menu_events.dart';
 

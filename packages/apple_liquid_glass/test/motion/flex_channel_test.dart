@@ -1,7 +1,7 @@
 import 'package:apple_liquid_glass/src/motion/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 /// The open menu's driftY channel returning from a lift, as an iPhone 16
 /// Pro (iOS 27.0.1) published it every 33.339 ms: progress toward the new

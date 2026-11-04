@@ -17,7 +17,7 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motion/lens_motion.dart';
 import 'package:flutter/physics.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 import 'trace.dart';
 

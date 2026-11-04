@@ -5,7 +5,7 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/src/motion/search_motion.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 extension on SearchMotion {
   SearchMotion at(double t) {

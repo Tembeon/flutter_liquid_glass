@@ -5,7 +5,7 @@ import 'package:apple_liquid_glass/src/chrome/chrome.dart';
 import 'package:apple_liquid_glass/src/controls/tab_bar.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 /// An iOS 27 tab interface: a tab bar floating over the bottom of the
 /// screen and the selected tab's page under it.

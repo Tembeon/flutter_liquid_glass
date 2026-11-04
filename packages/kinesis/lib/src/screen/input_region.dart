@@ -131,6 +131,10 @@ class _InputRegionState extends State<InputRegion> {
       return;
     }
     final time = _clock.stamp(event.timeStamp);
+    _clock.input(time, () => _dispatch(event, size, time));
+  }
+
+  void _dispatch(PointerEvent event, Size size, double time) {
     switch (event) {
       case PointerDownEvent():
         final tracker = VelocityTracker.withKind(event.kind);
@@ -230,7 +234,7 @@ class _InputRegionState extends State<InputRegion> {
 
   void _input(InteractionInput input) {
     if (!widget.enabled) return;
-    _answer(_session.handle(input));
+    _clock.input(input.time, () => _answer(_session.handle(input)));
   }
 
   void _answer(SessionOutput output, {int? pointer}) {
@@ -278,7 +282,13 @@ class _InputRegionState extends State<InputRegion> {
       _scheduled = null;
       _cancelDue = null;
       if (!mounted) return;
-      _answer(_session.advance(time), pointer: _members.keys.firstOrNull);
+      _clock.input(
+        time,
+        () => _answer(
+          _session.advance(time),
+          pointer: _members.keys.firstOrNull,
+        ),
+      );
     });
   }
 

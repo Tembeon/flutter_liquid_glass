@@ -3,7 +3,7 @@ import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:apple_liquid_glass/src/motion/small_lens.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
 /// The motion of an iOS 27 switch: knob, track color and knob lens.

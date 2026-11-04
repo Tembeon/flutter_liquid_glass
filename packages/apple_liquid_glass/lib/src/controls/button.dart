@@ -13,7 +13,7 @@ import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:apple_liquid_glass/src/theme/typography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// Builds a glass button from [details]; it runs again when the button's

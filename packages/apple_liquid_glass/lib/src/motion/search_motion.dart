@@ -5,7 +5,7 @@ import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
 import 'package:apple_liquid_glass/src/motion/rest.dart';
 import 'package:apple_liquid_glass/src/motion/tab_minimize.dart';
 import 'package:flutter/foundation.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
 /// The measured tuning and geometry of the iOS 27 search field: a

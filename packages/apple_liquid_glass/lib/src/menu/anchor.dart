@@ -22,7 +22,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// Opens and closes a `GlassButton`'s or a [GlassContextMenu]'s menu from

@@ -70,4 +70,29 @@ void main() {
     }
     expect(offenders, isEmpty);
   });
+
+  test('delays are seconds: no Duration delay parameter in lib', () {
+    final offenders = <String>[];
+    for (final file in Directory('lib').listSync(recursive: true)) {
+      if (file is! File || !file.path.endsWith('.dart')) continue;
+      final source = file.readAsStringSync();
+      if (RegExp(r'Duration\??\s+delay\b').hasMatch(source)) {
+        offenders.add(file.path);
+      }
+    }
+    expect(offenders, isEmpty);
+  });
+
+  test('the app library exports no authoring name', () {
+    final app = File('lib/kinesis.dart').readAsStringSync();
+    for (final name in [
+      'MotionValueCommands',
+      'MotionPart',
+      'MotionDriver',
+      'MotionTimeline',
+    ]) {
+      expect(app.contains(name), isFalse, reason: name);
+    }
+    expect(RegExp(r'^\s+Motion,$', multiLine: true).hasMatch(app), isFalse);
+  });
 }

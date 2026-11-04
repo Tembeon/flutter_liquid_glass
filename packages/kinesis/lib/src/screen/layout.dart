@@ -4,10 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/src/clock.dart';
-import 'package:kinesis/src/computed.dart';
 import 'package:kinesis/src/effect.dart';
 import 'package:kinesis/src/screen/resolve.dart';
 import 'package:kinesis/src/screen/transition.dart';
+import 'package:kinesis/src/selection.dart';
 import 'package:kinesis/src/spring.dart';
 import 'package:kinesis/src/transaction.dart';
 import 'package:kinesis/src/value.dart';
@@ -189,7 +189,7 @@ final class LayoutPlan {
   /// Describes how a child animates.
   const LayoutPlan({
     this.spring,
-    this.delay = Duration.zero,
+    this.delay = 0,
     this.origin,
     this.effect,
   });
@@ -197,8 +197,8 @@ final class LayoutPlan {
   /// The spring, or null to jump.
   final Spring? spring;
 
-  /// How long the child keeps its course before it moves.
-  final Duration delay;
+  /// Seconds the child keeps its course before it moves.
+  final double delay;
 
   /// Where an entering child starts, instead of where layout puts it.
   final Rect? origin;
@@ -251,7 +251,7 @@ final class _Item {
   final Object id;
   final MotionValue<Rect> frame;
   final MotionValue<double> presence;
-  late final MotionComputed<LayoutItem> item = MotionComputed(_item);
+  late final MotionSelection<LayoutItem> item = MotionSelection(_item);
   final GlobalKey key = GlobalKey();
   MotionEffect effect = MotionEffect.identity;
   Rect? model;
@@ -407,7 +407,7 @@ class _MotionLayoutState extends State<MotionLayout> {
   }
 
   static MotionEffect _reduced(MotionEffect effect) =>
-      MotionAccessibility.reduceMotion ? effect.reduced : effect;
+      MotionTraits.platform().reduceMotion ? effect.reduced : effect;
 
   void _apply(
     _Item item,
@@ -417,7 +417,7 @@ class _MotionLayoutState extends State<MotionLayout> {
     required bool jump,
   }) {
     final spring = plan.spring;
-    final delay = plan.delay.inMicroseconds / Duration.microsecondsPerSecond;
+    final delay = plan.delay;
     final effect = plan.effect ?? MotionEffect.identity;
     switch (entry.phase) {
       case LayoutPhase.entering:

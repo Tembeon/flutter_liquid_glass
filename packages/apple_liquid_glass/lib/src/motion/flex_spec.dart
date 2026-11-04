@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 /// The deformation tuning of a glass surface that responds to touch.
 ///

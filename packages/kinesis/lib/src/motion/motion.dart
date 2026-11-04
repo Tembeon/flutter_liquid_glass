@@ -1,7 +1,10 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:kinesis/src/clock.dart';
 import 'package:kinesis/src/motion/part.dart';
+import 'package:kinesis/src/selection.dart';
+import 'package:kinesis/src/transaction.dart';
 
 /// Drops a reaction scheduled with [Motion.at] before it runs.
 typedef MotionCancel = void Function();
@@ -33,20 +36,71 @@ typedef MotionCancel = void Function();
 /// its own otherwise. Rest is per part and declared, never a change:
 /// [settle] declares each part that rests from its own rest time and leaves
 /// the others moving.
+///
+/// On screen the clock steps the root of the tree while something looks at
+/// it (a selection made with [MotionSelect.select] has listeners, or a
+/// `MotionScope` holds it): every frame it advances the root to the frame's
+/// time and, once the root [isSettled], settles it and stops stepping it
+/// until a command or a reaction moves it again.
 abstract class Motion extends MotionPart {
+  /// Creates a motion stepped by [clock] when it is a root on screen
+  /// ([MotionClock.instance] when null).
+  Motion({this._clock});
+
+  final MotionClock? _clock;
   final List<MotionPart> _parts = [];
   final List<double Function()?> _rests = [];
   final List<_Reaction> _reactions = [];
-  Motion? _owner;
+  late final _RootFollower _follower = _RootFollower(this);
+  MotionTraits? _traits;
+  int _holds = 0;
   double _now = 0;
 
   Motion get _root {
     var motion = this;
     while (true) {
-      final owner = motion._owner;
+      final owner = motion.owner;
       if (owner == null) return motion;
       motion = owner;
     }
+  }
+
+  /// The clock that steps the root on screen; the ambient forms of its
+  /// values read it too. Explicit-time commands never do.
+  MotionClock get clock => _root._clock ?? MotionClock.instance;
+
+  /// The motion preferences of the root: those of the `MotionScope` that
+  /// holds it, [MotionTraits.platform] otherwise.
+  MotionTraits get traits => _root._traits ?? MotionTraits.platform();
+
+  /// Sets the root's preferences; `MotionScope` writes them.
+  @internal
+  set traits(MotionTraits? traits) => _root._traits = traits;
+
+  /// Keeps the root on the clock while held, as `MotionScope` does.
+  @internal
+  void hold() {
+    final root = _root;
+    root._holds++;
+    root._wake();
+  }
+
+  /// Ends a [hold].
+  @internal
+  void release() {
+    final root = _root;
+    root._holds--;
+    if (!root._attached) root.clock.unfollow(root._follower);
+  }
+
+  /// Tells the root that a part changed, so the clock steps it.
+  @internal
+  void partChanged() => _root._wake();
+
+  bool get _attached => _holds > 0 || _follower.hasListeners;
+
+  void _wake() {
+    if (_attached) clock.follow(_follower);
   }
 
   /// The latest time the motion was advanced or commanded to; it never
@@ -61,14 +115,12 @@ abstract class Motion extends MotionPart {
   /// tolerances.
   @protected
   P own<P extends MotionPart>(P part, {double Function()? rest}) {
-    if (part is Motion) {
-      assert(part._owner == null, 'A motion has one owner.');
-      assert(
-        part._reactions.isEmpty,
-        'A motion joins its owner before it schedules a reaction.',
-      );
-      part._owner = this;
-    }
+    assert(part.owner == null, 'A part has one owner.');
+    assert(
+      part is! Motion || part._reactions.isEmpty,
+      'A motion joins its owner before it schedules a reaction.',
+    );
+    part.owner = this;
     _parts.add(part);
     _rests.add(rest);
     return part;
@@ -95,6 +147,7 @@ abstract class Motion extends MotionPart {
       i--;
     }
     root._reactions.insert(i, reaction);
+    root._wake();
     return () => root._reactions.remove(reaction);
   }
 
@@ -206,7 +259,7 @@ abstract class Motion extends MotionPart {
 
   @override
   double? get nextDue {
-    var due = _owner == null && _reactions.isNotEmpty
+    var due = owner == null && _reactions.isNotEmpty
         ? _reactions.first.time
         : null;
     for (final part in _parts) {
@@ -223,4 +276,64 @@ final class _Reaction {
   final double time;
   final void Function(double t) action;
   final Object? slot;
+}
+
+/// What a renderer, a transition or a widget reads of a motion.
+extension MotionSelect<M extends Motion> on M {
+  /// [read] of this motion, recomputed after each frame that stepped its
+  /// root or a command that moved it, and heard only when the result
+  /// changes (`equals`, `==` by default). It tracks no reads: it depends on
+  /// the root alone. Bind it once, in a State field.
+  MotionSelection<T> select<T>(
+    T Function(M motion) read, {
+    bool Function(T a, T b)? equals,
+  }) => MotionSelection<T>.of(
+    _root._follower,
+    () => read(this),
+    clock: clock,
+    equals: equals,
+  );
+}
+
+final class _RootFollower implements MotionFollowed, Listenable {
+  _RootFollower(this.motion);
+
+  final Motion motion;
+  final List<VoidCallback> _listeners = [];
+
+  bool get hasListeners => _listeners.isNotEmpty;
+
+  @override
+  void addListener(VoidCallback listener) {
+    final first = _listeners.isEmpty;
+    _listeners.add(listener);
+    if (first) motion._wake();
+  }
+
+  @override
+  void removeListener(VoidCallback listener) {
+    _listeners.remove(listener);
+    if (!motion._attached) motion.clock.unfollow(this);
+  }
+
+  @override
+  bool stepTo(double time) {
+    motion.advance(time);
+    if (!motion.isSettled) return true;
+    motion.settle();
+    return false;
+  }
+
+  @override
+  double? get wakeTime => motion.wakeTime;
+
+  @override
+  bool get hasWidgetFollowers => _listeners.isNotEmpty;
+
+  @override
+  void publish({required bool widgets}) {
+    for (final listener in List<VoidCallback>.of(_listeners)) {
+      guardMotion(listener, 'while notifying a selection of a Motion');
+    }
+  }
 }

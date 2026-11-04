@@ -1,6 +1,6 @@
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 const _size = Size(100, 40);
 

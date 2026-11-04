@@ -17,7 +17,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 /// The look of a [GlassNavigationBar].
 @immutable
@@ -224,11 +224,11 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     spring: _Metrics.showSpring,
     restDistance: GlassRest.opacity,
   );
-  late final _opacity = MotionComputed(() => _title.value.clamp(0.0, 1.0));
-  late final _rise = MotionComputed(
+  late final _opacity = MotionSelection(() => _title.value.clamp(0.0, 1.0));
+  late final _rise = MotionSelection(
     () => _reduceMotion ? 0.0 : _Metrics.hiddenOffset * (1 - _opacity.value),
   );
-  late final _blur = MotionComputed(
+  late final _blur = MotionSelection(
     () => _reduceMotion ? 0.0 : _Metrics.hiddenBlur * (1 - _opacity.value),
   );
   final _scroll = ValueNotifier<MotionScrollObserver?>(null);

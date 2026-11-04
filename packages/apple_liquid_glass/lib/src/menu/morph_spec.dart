@@ -1,4 +1,4 @@
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 /// The tuning of UIKit's morph between a control and the surface it opens,
 /// such as a button turning into its menu.

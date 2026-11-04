@@ -1,5 +1,5 @@
 import 'package:apple_liquid_glass/src/motion/rest.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
 /// The measured geometry and motion of iOS 27's UIPageControl.

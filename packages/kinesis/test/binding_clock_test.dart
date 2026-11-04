@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 class _Driver extends MotionDriver {
   _Driver({this.frames = 1 << 30});

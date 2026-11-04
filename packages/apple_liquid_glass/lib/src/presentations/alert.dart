@@ -15,7 +15,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 enum _Role { normal, cancel, destructive }

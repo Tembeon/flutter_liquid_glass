@@ -4,7 +4,7 @@ import 'package:apple_liquid_glass/src/menu/motion.dart';
 import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 const _tuning = MenuTuning(verticalPadding: 41);
 const _d = 0.023;

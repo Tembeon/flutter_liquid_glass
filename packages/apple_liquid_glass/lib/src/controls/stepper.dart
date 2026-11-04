@@ -4,7 +4,7 @@ import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 /// A half of a stepper.
 enum GlassStepperHalf {

@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'package:apple_liquid_glass/src/motion/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 const _eps = 1e-12;
 

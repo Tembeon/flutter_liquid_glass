@@ -1,7 +1,7 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 late GlassTraits _seen;
 
@@ -33,9 +33,9 @@ Widget _probe({
 void main() {
   setUp(() {
     MotionClock.debugReset();
-    MotionAccessibility.preferCrossFade = null;
+    MotionTraits.debugPlatformOverride = null;
   });
-  tearDown(() => MotionAccessibility.preferCrossFade = null);
+  tearDown(() => MotionTraits.debugPlatformOverride = null);
 
   testWidgets('prefer cross-fade follows Reduce Motion unless the platform '
       'or an override says otherwise', (tester) async {
@@ -43,7 +43,9 @@ void main() {
     expect(_seen.prefersCrossFade, isFalse);
     await tester.pumpWidget(_probe(reduceMotion: true));
     expect(_seen.prefersCrossFade, isTrue);
-    MotionAccessibility.preferCrossFade = false;
+    MotionTraits.debugPlatformOverride = const MotionTraits(
+      preferCrossFade: false,
+    );
     await tester.pumpWidget(_probe(reduceMotion: true, showBorders: true));
     expect(_seen.prefersCrossFade, isFalse);
     await tester.pumpWidget(_probe(reduceMotion: true, prefersCrossFade: true));

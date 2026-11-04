@@ -11,7 +11,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// Shows an iOS 27 sheet over the page and completes with the result it

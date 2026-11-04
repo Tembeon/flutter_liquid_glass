@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: the
 // composited layer adds several retained engine layers in one, which only

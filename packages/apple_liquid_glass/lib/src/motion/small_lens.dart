@@ -5,7 +5,7 @@ import 'package:apple_liquid_glass/src/motion/flex_integrator.dart';
 import 'package:apple_liquid_glass/src/motion/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
 import 'package:apple_liquid_glass/src/motion/rest.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
 /// The small liquid lens of a switch knob or a slider thumb.
