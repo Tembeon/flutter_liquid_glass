@@ -94,9 +94,15 @@ abstract class Motion extends MotionPart {
     if (!root._attached) root.clock.unfollow(root._follower);
   }
 
-  /// Tells the root that a part changed, so the clock steps it.
+  /// Tells the root that a part changed, so the clock steps it and its
+  /// selections read the change from now on, before the next frame
+  /// publishes it.
   @internal
-  void partChanged() => _root._wake();
+  void partChanged() {
+    final root = _root;
+    root._wake();
+    root._follower.invalidate();
+  }
 
   bool get _attached => _holds > 0 || _follower.hasListeners;
 
@@ -298,8 +304,10 @@ final class _Reaction {
 extension MotionSelect<M extends Motion> on M {
   /// [read] of this motion, recomputed after each frame that stepped its
   /// root or a command that moved it, and heard only when the result
-  /// changes (`equals`, `==` by default). It tracks no reads: it depends on
-  /// the root alone. Bind it once, in a State field.
+  /// changes (`equals`, `==` by default). A read right after a command,
+  /// such as a paint in the frame whose layout commanded it, answers the
+  /// change; its followers hear it in the next publish phase. It tracks no
+  /// reads: it depends on the root alone. Bind it once, in a State field.
   MotionSelection<T> select<T>(
     T Function(M motion) read, {
     bool Function(T a, T b)? equals,
@@ -347,7 +355,11 @@ final class _RootFollower implements MotionFollowed, Listenable {
   bool get hasWidgetFollowers => _listeners.isNotEmpty;
 
   @override
-  void publish({required bool widgets}) {
+  void publish({required bool widgets}) => invalidate();
+
+  // A selection hears its root as an input: it recomputes on its next read
+  // and publishes in the coming publish phase.
+  void invalidate() {
     for (final listener in List<VoidCallback>.of(_listeners)) {
       guardMotion(listener, 'while notifying a selection of a Motion');
     }

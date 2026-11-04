@@ -78,6 +78,20 @@ void main() {
       expect(moving.value, isTrue);
     });
 
+    test('a read right after a command answers it before the frame '
+        'publishes it', () {
+      final clock = ManualMotionClock();
+      final card = _Card(clock: clock);
+      final x = card.select((m) => m.x.target);
+      final heard = <double>[];
+      x.addListener(() => heard.add(x.value));
+      card.show(0);
+      expect(x.value, 100);
+      expect(heard, isEmpty);
+      clock.advanceBy(1 / 120);
+      expect(heard, [100]);
+    });
+
     test('reads are the same whatever frames ran (E1)', () {
       final random = Random(3);
       final reads = <List<double>>[];
