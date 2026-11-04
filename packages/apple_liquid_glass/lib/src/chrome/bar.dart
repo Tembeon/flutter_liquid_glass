@@ -190,10 +190,11 @@ enum GlassBarKind {
 /// which page's slot draws them ([painter]) and of what they head to.
 /// Every change counts from the event that caused it (a push or pop call,
 /// a finger's lift, a page's build), never from when a bar laid it out.
-/// Nothing builds or lays out per frame: [step] advances the motions and
-/// writes frames, and the view paints them.
+/// Nothing builds or lays out per frame: the clock steps each bar's motion
+/// while its view shows, and the bar writes its frames as the motion
+/// changes.
 @internal
-final class GlassBarHost implements MotionDriver {
+final class GlassBarHost {
   GlassBarHost._();
 
   /// A host for one page outside any glass page route, which draws its
@@ -203,8 +204,6 @@ final class GlassBarHost implements MotionDriver {
     _pages.add(link);
     _show(link);
     _painter.value = link;
-    _registered = true;
-    MotionClock.instance.addDriver(this);
   }
 
   /// The bars of [navigator]'s glass pages.
@@ -266,7 +265,6 @@ final class GlassBarHost implements MotionDriver {
   late final Map<GlassBarKind, _Bar> _bars = {
     for (final kind in GlassBarKind.values) kind: _Bar(this, kind),
   };
-  bool _registered = false;
   Color? _tint;
 
   double get _now => MotionClock.instance.now;
@@ -280,10 +278,6 @@ final class GlassBarHost implements MotionDriver {
   }) {
     final link = GlassPageBarLink._(this, route, presence);
     _pages.add(link);
-    if (!_registered) {
-      _registered = true;
-      MotionClock.instance.addDriver(this);
-    }
     return link;
   }
 
@@ -294,15 +288,11 @@ final class GlassBarHost implements MotionDriver {
       if (identical(page._below, link)) page._below = null;
     }
     if (identical(_shown, link)) _show(null);
-    if (identical(_swiped, link)) _swiped = null;
+    if (identical(_swiped, link)) _unswipe();
     if (identical(_painter.value, link)) {
       _painter.value = _pages.isEmpty ? null : _pages.last;
     }
     link.titleRoom.dispose();
-    if (_pages.isEmpty && _registered) {
-      _registered = false;
-      MotionClock.instance.removeDriver(this);
-    }
   }
 
   /// Reports that [link]'s page was presented at [time], the call, with
@@ -378,7 +368,7 @@ final class GlassBarHost implements MotionDriver {
     if (!identical(link, _shown)) return;
     final below = link._below;
     _show(below);
-    _swiped = null;
+    _unswipe();
     for (final bar in _bars.values) {
       bar.enqueue(_Change(below, time, bar.navigationSpec));
     }
@@ -397,17 +387,32 @@ final class GlassBarHost implements MotionDriver {
   /// way out; the toolbar stays.
   void swipeStarted(GlassPageBarLink link) {
     if (!identical(link, _shown) || link._below == null) return;
+    _unswipe();
     _swiped = link;
+    link._presence?.addListener(_drift);
     _bars[GlassBarKind.navigation]!.rebuild();
-    MotionClock.instance.wake(this);
+    _drift();
   }
 
   /// Reports that the finger's drag of [link]'s page ended.
   void swipeEnded(GlassPageBarLink link) {
     if (!identical(_swiped, link)) return;
-    _swiped = null;
+    _unswipe();
     _bars[GlassBarKind.navigation]!.motion.endDrift(_now);
-    MotionClock.instance.wake(this);
+  }
+
+  void _unswipe() {
+    _swiped?._presence?.removeListener(_drift);
+    _swiped = null;
+  }
+
+  void _drift() {
+    final presence = _swiped?._presence;
+    if (presence == null) return;
+    _bars[GlassBarKind.navigation]!.motion.setDrift(
+      _swiped?._below?._layouts[GlassBarKind.navigation],
+      NavigationTuning.barDrift * (1 - presence.value).clamp(0.0, 1.0),
+    );
   }
 
   // --- the page's declarations --------------------------------------------
@@ -562,40 +567,6 @@ final class GlassBarHost implements MotionDriver {
       if (below != null && seen.add(below)) yield below;
     }
   }
-
-  // --- MotionDriver -------------------------------------------------------
-
-  @override
-  bool get isActive =>
-      _swiped != null ||
-      _bars.values.any((bar) => !bar.motion.isSettled || bar.press != null);
-
-  @override
-  double? get wakeTime => null;
-
-  @override
-  void step(double time) {
-    final swiped = _swiped;
-    final presence = swiped?._presence;
-    for (final bar in _bars.values) {
-      final motion = bar.motion;
-      motion.advance(time);
-      if (bar.kind == GlassBarKind.navigation &&
-          swiped != null &&
-          presence != null) {
-        motion.setDrift(
-          swiped._below?._layouts[bar.kind],
-          NavigationTuning.barDrift * (1 - presence.value).clamp(0.0, 1.0),
-        );
-      }
-      if ((swiped == null || bar.kind == GlassBarKind.toolbar) &&
-          motion.isSettled) {
-        motion.settle();
-      }
-      bar.stepPress(time);
-      bar.publish();
-    }
-  }
 }
 
 // One bar of a host: its motion, the changes waiting for their layouts,
@@ -606,6 +577,11 @@ final class _Bar {
   final GlassBarHost host;
   final GlassBarKind kind;
   late final GlassBarMotion motion = GlassBarMotion(spec: navigationSpec);
+
+  late final MotionSelection<Object?> _changes = motion.select<Object?>(
+    (_) => null,
+    equals: (_, _) => false,
+  );
   final List<_Change> changes = [];
   final List<ValueNotifier<GlassFrame>> container = [];
   final List<ValueNotifier<GlassFrame>> apart = [];
@@ -620,13 +596,20 @@ final class _Bar {
   double width = 0;
   bool rtl = false;
   Element? view;
-  _RenderBarItems? items;
+
+  // The frames follow the motion while the bar's items are on screen.
+  _RenderBarItems? get items => _items;
+  _RenderBarItems? _items;
+  set items(_RenderBarItems? items) {
+    if (_items == null && items != null) _changes.addRenderListener(publish);
+    if (_items != null && items == null) _changes.removeRenderListener(publish);
+    _items = items;
+  }
 
   // A finger on a button lifts the button's whole capsule on the glass
-  // button's motion (bars passport): the capsule's identity, the motion,
-  // and where the touched button's box sits in the capsule.
+  // button's motion (bars passport): the capsule's identity and where the
+  // touched button's box sits in the capsule.
   Object? pressed;
-  GlassPress? press;
   Offset _pressOrigin = Offset.zero;
 
   bool get _navigation => kind == GlassBarKind.navigation;
@@ -644,50 +627,31 @@ final class _Bar {
     final frame = itemFrames[item];
     final capsule = _capsuleOf(item);
     if (frame == null || capsule == null) return;
-    final lift = pressed == capsule.id ? press : null;
-    final motion = lift ?? GlassPress(size: capsule.rect.size);
-    motion.size = capsule.rect.size;
-    motion.reducedMotion = this.motion.reducedMotion;
+    final lift = pressed == capsule.id ? motion.press : null;
+    final press = lift ?? GlassPress(size: capsule.rect.size);
+    press.size = capsule.rect.size;
+    press.reducedMotion = motion.reducedMotion;
     pressed = capsule.id;
-    press = motion;
     _pressOrigin =
         frame.center - box.center(Offset.zero) - capsule.rect.topLeft;
-    motion.pointerDown(_stamp(stamp), _pressOrigin + position);
-    MotionClock.instance.wake(host);
+    motion.pressDown(press, _stamp(stamp), _pressOrigin + position);
   }
 
-  void pressMove(Duration stamp, Offset position) {
-    press?.pointerMove(_stamp(stamp), _pressOrigin + position);
-    MotionClock.instance.wake(host);
-  }
+  void pressMove(Duration stamp, Offset position) =>
+      motion.press?.pointerMove(_stamp(stamp), _pressOrigin + position);
 
-  void pressUp(Duration stamp, Offset position) {
-    press?.pointerUp(_stamp(stamp), _pressOrigin + position);
-    MotionClock.instance.wake(host);
-  }
+  void pressUp(Duration stamp, Offset position) =>
+      motion.press?.pointerUp(_stamp(stamp), _pressOrigin + position);
 
-  void pressCancel(Duration stamp) {
-    press?.pointerCancel(_stamp(stamp));
-    MotionClock.instance.wake(host);
-  }
+  void pressCancel(Duration stamp) =>
+      motion.press?.pointerCancel(_stamp(stamp));
 
   static double _stamp(Duration stamp) => MotionClock.instance.stamp(stamp);
-
-  void stepPress(double time) {
-    final motion = press;
-    if (motion == null) return;
-    motion.advance(time);
-    if (motion.isSettled) motion.settle();
-    if (motion.isAtRest) {
-      press = null;
-      pressed = null;
-    }
-  }
 
   /// How the pressed capsule moves [item] with it, in the bar's
   /// coordinates, or null when [item] is not in it.
   Matrix4? liftOf(Object item) {
-    final motion = press;
+    final motion = this.motion.press;
     if (motion == null || motion.isAtRest) return null;
     final capsule = _capsuleOf(item);
     if (capsule == null || capsule.id != pressed) return null;
@@ -721,7 +685,6 @@ final class _Bar {
   void enqueue(_Change change) {
     changes.add(change);
     rebuild();
-    MotionClock.instance.wake(host);
   }
 
   void rebuild() {
@@ -1003,6 +966,8 @@ final class _Bar {
   }
 
   void publish() {
+    final press = motion.press;
+    if (press == null) pressed = null;
     final joined = <GlassBarCapsuleFrame>[];
     final apartFrames = <GlassBarCapsuleFrame>[];
     for (final capsule in motion.capsules) {
@@ -1226,29 +1191,32 @@ class _Band extends StatelessWidget {
           ValueNotifier(const GlassFrame(rect: Rect.zero, opacity: 0)),
         );
       }
-      return RepaintBoundary(
-        child: Stack(
-          clipBehavior: Clip.none,
-          fit: StackFit.expand,
-          children: [
-            _Surfaces(
-              frames: bar.container,
-              merge: const GlassMerge.spacing(GlassToolbar.fusion),
-            ),
-            _Surfaces(frames: bar.apart, merge: const GlassMerge.none()),
-            _BarItems(
-              bar: bar,
-              children: [
-                for (final MapEntry(key: id, value: button) in roster.entries)
-                  _BarItem(
-                    key: ValueKey(id),
-                    bar: bar,
-                    id: id,
-                    button: button,
-                  ),
-              ],
-            ),
-          ],
+      return MotionScope(
+        motion: bar.motion,
+        child: RepaintBoundary(
+          child: Stack(
+            clipBehavior: Clip.none,
+            fit: StackFit.expand,
+            children: [
+              _Surfaces(
+                frames: bar.container,
+                merge: const GlassMerge.spacing(GlassToolbar.fusion),
+              ),
+              _Surfaces(frames: bar.apart, merge: const GlassMerge.none()),
+              _BarItems(
+                bar: bar,
+                children: [
+                  for (final MapEntry(key: id, value: button) in roster.entries)
+                    _BarItem(
+                      key: ValueKey(id),
+                      bar: bar,
+                      id: id,
+                      button: button,
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       );
     },

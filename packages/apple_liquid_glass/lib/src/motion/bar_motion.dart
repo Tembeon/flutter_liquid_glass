@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
+import 'package:apple_liquid_glass/src/motion/glass_press.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
@@ -391,8 +392,34 @@ final class GlassBarMotion extends Motion {
 
   Iterable<_Capsule> get _all => _capsules.ids.cast<_Capsule>();
 
+  GlassPress? _press;
+
+  /// The press lifting a capsule, owned from the finger's touch until it
+  /// settles; null while no capsule is lifted.
+  GlassPress? get press => _press;
+
+  bool _touching = false;
+
+  /// Lifts a capsule on [press], in place of the press before, as a finger
+  /// touches it at [position] at time [t].
+  void pressDown(GlassPress press, double t, Offset position) {
+    if (!identical(press, _press)) {
+      if (_press case final before?) disown(before);
+      _press = own(press);
+    }
+    // The touch advances the press before it holds; a press at rest then
+    // is not let go.
+    _touching = true;
+    press.pointerDown(t, position);
+    _touching = false;
+  }
+
   @override
   void didAdvance(double t) {
+    if (_press case final press? when !_touching && press.isAtRest) {
+      disown(press);
+      _press = null;
+    }
     for (final c in _all) {
       if (c.apart && !_capsules.isLeaving(c) && _capsules.presenceRests(c)) {
         c.apart = false;

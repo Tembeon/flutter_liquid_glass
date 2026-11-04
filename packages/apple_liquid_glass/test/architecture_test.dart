@@ -25,10 +25,7 @@ final _bans = <String, (RegExp, Set<String>)>{
   'haptics through MotionHaptic.play': (RegExp(r'\bHapticFeedback\.'), {}),
   'a host steps no driver; it selects from its Motion': (
     RegExp(r'(implements|extends|with)[^{]*\bMotionDriver\b|addDriver\('),
-    {
-      'lib/src/chrome/bar.dart',
-      'lib/src/menu/anchor.dart',
-    },
+    {'lib/src/menu/anchor.dart'},
   ),
   // A motion keeps its time on its Motion's cursor and asks its parts
   // whether they rest; A5 (bars) and A9 (menu) move these.
