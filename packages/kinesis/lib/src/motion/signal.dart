@@ -27,7 +27,7 @@ final class MotionSignal<T> extends MotionPart {
       }
     }
     _writes.add((t, value));
-    owner?.partChanged();
+    changed();
   }
 
   /// The latest value written at or before [t].

@@ -55,7 +55,7 @@ abstract class MotionLoop extends MotionPart {
     if (_moving) return;
     _last = _index(t);
     _moving = true;
-    owner?.partChanged();
+    changed();
   }
 
   /// One frame at time [t]; answers whether the loop needs another.

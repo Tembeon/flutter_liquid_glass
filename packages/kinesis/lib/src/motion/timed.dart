@@ -59,7 +59,7 @@ final class TimedValue extends MotionPart {
       _curves.add(_Curve(start, duration, curve, from, to));
     }
     _target = to;
-    owner?.partChanged();
+    changed();
   }
 
   /// Puts the value at rest on [value] at time [t], dropping every curve.
@@ -67,7 +67,7 @@ final class TimedValue extends MotionPart {
     _curves.clear();
     _base = value;
     _target = value;
-    owner?.partChanged();
+    changed();
   }
 
   /// The value at [t].

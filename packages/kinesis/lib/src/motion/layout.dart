@@ -219,7 +219,7 @@ final class LayoutMotion extends Motion {
     }
     for (final MapEntry(key: id, value: slot) in _slots.entries.toList()) {
       if (rects.containsKey(id)) continue;
-      if (slot.leavePlanned && !jumps) continue;
+      if (slot.leaving && !jumps) continue;
       changed = true;
       if (moving == null || slot.model == null) {
         _drop(id);
@@ -283,7 +283,6 @@ final class LayoutMotion extends Motion {
         final existing = _slots[id];
         final slot = existing ?? _own(id, plan.origin ?? to);
         slot.leaving = false;
-        slot.leavePlanned = false;
         slot.rest = plan.rest;
         slot.model = to;
         slot.effect = _effect(plan.effect);
@@ -315,7 +314,6 @@ final class LayoutMotion extends Motion {
       case LayoutPhase.leaving:
         final slot = _slots[id]!;
         slot.leaving = true;
-        slot.leavePlanned = true;
         slot.rest = plan.rest;
         slot.effect = _effect(plan.effect);
         final destination = plan.destination;
@@ -418,7 +416,6 @@ final class _Slot {
   Rect? model;
   double rest = MotionRest.length;
   bool leaving = false;
-  bool leavePlanned = false;
 }
 
 /// Plans how a change of layout animates. Pure.

@@ -153,9 +153,7 @@ abstract class MotionClock {
   double stamp(Duration timeStamp);
 
   /// Makes sure the clock produces a frame for work that is now pending.
-  void wake() => _wake();
-
-  void _wake();
+  void wake();
 
   /// Runs [action] at [time], in the scheduled-actions phase of the frame
   /// that reaches it, with that time; the returned callback cancels it.
@@ -377,7 +375,8 @@ class ManualMotionClock extends MotionClock {
   double stamp(Duration timeStamp) => _now;
 
   @override
-  void _wake() {}
+  @override
+  void wake() {}
 
   /// Moves the clock to [t] and runs a frame there; time never runs
   /// backwards.
@@ -541,7 +540,8 @@ class _BindingClock extends MotionClock {
   }
 
   @override
-  void _wake() {
+  @override
+  void wake() {
     _doze?.cancel();
     _doze = null;
     final scheduler = SchedulerBinding.instance;

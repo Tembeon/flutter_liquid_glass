@@ -18,7 +18,7 @@ void toggle() => withSpring(
 The ambient `target` and `value` read the binding's frame clock,
 `MotionClock.instance`. While a value moves, its listeners hear it once per
 frame, before build; at rest the clock asks for no frames. A
-`MotionComputed` derives a value from others; its listeners hear it at most
+`MotionSelection` derives a value from others; its listeners hear it at most
 once per frame.
 
 `Spring` speaks both dialects with an exact mapping:

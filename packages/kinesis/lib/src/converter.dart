@@ -1,5 +1,7 @@
 import 'dart:ui' show Color, Offset, Radius, Rect, Size;
 
+import 'package:kinesis/src/motion/rest.dart';
+
 /// Maps a value of type [T] to the doubles a spring moves and back.
 ///
 /// Every component moves on the same spring. [restDistance] is how far a
@@ -68,7 +70,7 @@ class _SingleConverter extends MotionConverter<double> {
   int get dimensions => 1;
 
   @override
-  double get restDistance => 0.1;
+  double get restDistance => MotionRest.length;
 
   @override
   void write(double value, List<double> out) => out[0] = value;
@@ -84,7 +86,7 @@ class _OffsetConverter extends MotionConverter<Offset> {
   int get dimensions => 2;
 
   @override
-  double get restDistance => 0.1;
+  double get restDistance => MotionRest.length;
 
   @override
   void write(Offset value, List<double> out) {
@@ -103,7 +105,7 @@ class _SizeConverter extends MotionConverter<Size> {
   int get dimensions => 2;
 
   @override
-  double get restDistance => 0.1;
+  double get restDistance => MotionRest.length;
 
   @override
   void write(Size value, List<double> out) {
@@ -122,7 +124,7 @@ class _RectConverter extends MotionConverter<Rect> {
   int get dimensions => 4;
 
   @override
-  double get restDistance => 0.1;
+  double get restDistance => MotionRest.length;
 
   @override
   void write(Rect value, List<double> out) {
@@ -144,7 +146,7 @@ class _RadiusConverter extends MotionConverter<Radius> {
   int get dimensions => 2;
 
   @override
-  double get restDistance => 0.1;
+  double get restDistance => MotionRest.length;
 
   @override
   void write(Radius value, List<double> out) {
@@ -163,7 +165,7 @@ class _ColorConverter extends MotionConverter<Color> {
   int get dimensions => 4;
 
   @override
-  double get restDistance => 0.002;
+  double get restDistance => MotionRest.opacity;
 
   @override
   void write(Color value, List<double> out) {

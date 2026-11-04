@@ -211,7 +211,7 @@ class MotionValue<T> extends MotionPart
   }
 
   void _follow() {
-    owner?.partChanged();
+    changed();
     _wakeTime = null;
     if (_listeners.isNotEmpty || _renderListeners.isNotEmpty) {
       clock.follow(this);

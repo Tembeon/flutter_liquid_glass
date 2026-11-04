@@ -105,7 +105,7 @@ final class MotionRect extends MotionPart {
       tracking: tracking,
       delay: delay,
     );
-    owner?.partChanged();
+    changed();
   }
 
   /// Moves the whole course by the change from [from] to [to], keeping the
@@ -116,7 +116,7 @@ final class MotionRect extends MotionPart {
     _center.shift(from.center, to.center);
     _width.shift(from.width, to.width);
     _height.shift(from.height, to.height);
-    owner?.partChanged();
+    changed();
   }
 
   /// Puts the rect at [value] at [t], keeping its target and the velocity
@@ -125,7 +125,7 @@ final class MotionRect extends MotionPart {
     _center.setPresentation(t, value.center, velocity: _center.velocityAt(t));
     _width.setPresentation(t, value.width, velocity: _width.velocityAt(t));
     _height.setPresentation(t, value.height, velocity: _height.velocityAt(t));
-    owner?.partChanged();
+    changed();
   }
 
   /// Puts the rect at rest on [value] at [t].
@@ -133,7 +133,7 @@ final class MotionRect extends MotionPart {
     _center.snap(t, value.center);
     _width.snap(t, value.width);
     _height.snap(t, value.height);
-    owner?.partChanged();
+    changed();
   }
 
   /// The rect at [t].
