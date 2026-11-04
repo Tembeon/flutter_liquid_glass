@@ -613,4 +613,45 @@ void main() {
     expect(_sheet(tester).height, moreOrLessEquals(200 * 386 / 402));
     expect(_sheet(tester).bottom, lessThan(874 - 34));
   });
+
+  testWidgets('a sheet style sets the content text; a popover adapted to a '
+      'sheet keeps its own text style', (tester) async {
+    _phone(tester);
+    Color? color() =>
+        DefaultTextStyle.of(tester.element(find.text('sheet'))).style.color;
+    var popover = false;
+    await tester.pumpWidget(
+      _app(
+        onPresent: (context) => unawaited(
+          popover
+              ? showGlassPopover<void>(
+                  context,
+                  anchorRect: const Rect.fromLTWH(0, 0, 10, 10),
+                  builder: _content,
+                  style: const GlassPopoverStyle(
+                    textStyle: TextStyle(color: Color(0xFF0000AA)),
+                  ),
+                )
+              : showGlassSheet<void>(
+                  context,
+                  builder: _content,
+                  style: const GlassSheetStyle(
+                    textStyle: TextStyle(color: Color(0xFF00AA00)),
+                  ),
+                ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('present'));
+    await _settle(tester);
+    expect(color(), const Color(0xFF00AA00));
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await _settle(tester);
+    expect(find.text('sheet'), findsNothing);
+
+    popover = true;
+    await tester.tap(find.text('present'));
+    await _settle(tester);
+    expect(color(), const Color(0xFF0000AA));
+  });
 }

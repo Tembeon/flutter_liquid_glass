@@ -5,6 +5,7 @@ import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/shape.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
+import 'package:apple_liquid_glass/src/theme/style.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:apple_liquid_glass/src/theme/typography.dart';
 import 'package:flutter/foundation.dart';
@@ -13,6 +14,64 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
+
+/// The look of sheets, and of popovers that adapt to one; a null field
+/// leaves it to the theme's style, then the default.
+@immutable
+class GlassSheetStyle {
+  /// Creates a style.
+  const GlassSheetStyle({
+    this.backgroundColor,
+    this.dragHandleColor,
+    this.textStyle,
+  });
+
+  /// The opaque fill of a sheet that fills the screen or sits under
+  /// another; white in light and 0x1C1C1E in dark by default (simulator).
+  final Color? backgroundColor;
+
+  /// The drag handle; tertiaryLabel's 30 percent by default.
+  final Color? dragHandleColor;
+
+  /// The default text of the content, over 17 points in label.
+  final TextStyle? textStyle;
+
+  /// This style over [other].
+  GlassSheetStyle merge(GlassSheetStyle? other) {
+    if (other == null) return this;
+    return GlassSheetStyle(
+      backgroundColor: backgroundColor ?? other.backgroundColor,
+      dragHandleColor: dragHandleColor ?? other.dragHandleColor,
+      textStyle: other.textStyle?.merge(textStyle) ?? textStyle,
+    );
+  }
+
+  /// The style between [a] and [b] at [t].
+  static GlassSheetStyle? lerp(
+    GlassSheetStyle? a,
+    GlassSheetStyle? b,
+    double t,
+  ) {
+    if (identical(a, b)) return a;
+    if (a == null || b == null) return t < 0.5 ? a : b;
+    final color = snapNull(GlassDynamicColor.lerp);
+    return GlassSheetStyle(
+      backgroundColor: color(a.backgroundColor, b.backgroundColor, t),
+      dragHandleColor: color(a.dragHandleColor, b.dragHandleColor, t),
+      textStyle: snapNull(TextStyle.lerp)(a.textStyle, b.textStyle, t),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlassSheetStyle &&
+      other.backgroundColor == backgroundColor &&
+      other.dragHandleColor == dragHandleColor &&
+      other.textStyle == textStyle;
+
+  @override
+  int get hashCode => Object.hash(backgroundColor, dragHandleColor, textStyle);
+}
 
 /// Shows an iOS 27 sheet over the page and completes with the result it
 /// is closed with.
@@ -54,6 +113,7 @@ Future<T?> showGlassSheet<T>(
   bool showDragHandle = false,
   bool isDismissible = true,
   bool scrollingExpandsSheet = true,
+  GlassSheetStyle? style,
   String? semanticLabel,
   ValueChanged<GlassSheetDetent>? onDetentChanged,
   VoidCallback? onDismissAttempt,
@@ -68,6 +128,7 @@ Future<T?> showGlassSheet<T>(
     showDragHandle: showDragHandle,
     isDismissible: isDismissible,
     scrollingExpandsSheet: scrollingExpandsSheet,
+    style: style,
     onDetentChanged: onDetentChanged,
   );
   return showPresentation(
@@ -102,6 +163,7 @@ class _SheetSpec {
     required this.showDragHandle,
     required this.isDismissible,
     required this.scrollingExpandsSheet,
+    required this.style,
     required this.onDetentChanged,
   });
 
@@ -112,7 +174,13 @@ class _SheetSpec {
   final bool showDragHandle;
   final bool isDismissible;
   final bool scrollingExpandsSheet;
+  final GlassSheetStyle? style;
   final ValueChanged<GlassSheetDetent>? onDetentChanged;
+
+  GlassSheetStyle lookOf(BuildContext context) =>
+      (style ?? const GlassSheetStyle()).merge(
+        GlassTheme.of(context).sheetStyle,
+      );
 }
 
 /// A sheet's presentation: its [SheetMotion] comes with the first layout,
@@ -641,14 +709,12 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   _SheetScope? _scope;
 
   Widget _contentFor(BuildContext context) {
+    final text = TextStyle(
+      fontSize: 17,
+      color: GlassTheme.of(context).colorScheme?.label ?? GlassColors.label,
+    ).merge(_spec.lookOf(context).textStyle);
     final style = resolveGlassText(
-      TextStyle(
-        fontSize: 17,
-        color: GlassDynamicColor.resolve(
-          GlassTheme.of(context).colorScheme?.label ?? GlassColors.label,
-          context,
-        ),
-      ),
+      text.copyWith(color: GlassDynamicColor.resolve(text.color!, context)),
       context,
     );
     var content = _content;
@@ -677,8 +743,15 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
       context,
     )?.bottomLeft.x;
     final content = _contentFor(context);
-    final docked = GlassDynamicColor.resolve(_Colors.docked, context);
-    final grabber = GlassDynamicColor.resolve(_Colors.grabber, context);
+    final look = _spec.lookOf(context);
+    final docked = GlassDynamicColor.resolve(
+      look.backgroundColor ?? _Colors.docked,
+      context,
+    );
+    final grabber = GlassDynamicColor.resolve(
+      look.dragHandleColor ?? _Colors.grabber,
+      context,
+    );
     final inner = MediaQuery(
       data: media.copyWith(
         padding: media.padding.copyWith(

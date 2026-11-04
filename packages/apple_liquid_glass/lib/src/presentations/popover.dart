@@ -8,6 +8,7 @@ import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/shape.dart';
 import 'package:apple_liquid_glass/src/surface/surface.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
+import 'package:apple_liquid_glass/src/theme/style.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:apple_liquid_glass/src/theme/typography.dart';
@@ -16,6 +17,46 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
+
+/// The look of popovers; a null field leaves it to the theme's style,
+/// then the default. A popover that adapts to a sheet draws in the
+/// sheet's style with this style's text.
+@immutable
+class GlassPopoverStyle {
+  /// Creates a style.
+  const GlassPopoverStyle({this.textStyle});
+
+  /// The default text of the content, over 17 points in label.
+  final TextStyle? textStyle;
+
+  /// This style over [other].
+  GlassPopoverStyle merge(GlassPopoverStyle? other) {
+    if (other == null) return this;
+    return GlassPopoverStyle(
+      textStyle: other.textStyle?.merge(textStyle) ?? textStyle,
+    );
+  }
+
+  /// The style between [a] and [b] at [t].
+  static GlassPopoverStyle? lerp(
+    GlassPopoverStyle? a,
+    GlassPopoverStyle? b,
+    double t,
+  ) {
+    if (identical(a, b)) return a;
+    if (a == null || b == null) return t < 0.5 ? a : b;
+    return GlassPopoverStyle(
+      textStyle: snapNull(TextStyle.lerp)(a.textStyle, b.textStyle, t),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlassPopoverStyle && other.textStyle == textStyle;
+
+  @override
+  int get hashCode => textStyle.hashCode;
+}
 
 /// Shows [builder]'s content in an iOS 27 popover next to its source and
 /// completes with the result it is closed with.
@@ -43,13 +84,18 @@ Future<T?> showGlassPopover<T>(
   BuildContext? anchor,
   Rect? anchorRect,
   bool adaptsToSheet = true,
+  GlassPopoverStyle? style,
   String? semanticLabel,
   PresentationLevel level = PresentationLevel.window,
 }) {
   if (adaptsToSheet && MediaQuery.sizeOf(context).shortestSide < 600) {
+    final look = (style ?? const GlassPopoverStyle()).merge(
+      GlassTheme.of(context).popoverStyle,
+    );
     return showGlassSheet<T>(
       context,
       builder: builder,
+      style: GlassSheetStyle(textStyle: look.textStyle),
       semanticLabel: semanticLabel,
       level: level,
     );
@@ -64,8 +110,12 @@ Future<T?> showGlassPopover<T>(
     PresentationRoute(
       presentation: Presentation<T, PopoverMotion>(
         motion: (_) => PopoverMotion(),
-        builder: (context, motion) =>
-            _PopoverView(motion: motion, source: source, builder: builder),
+        builder: (context, motion) => _PopoverView(
+          motion: motion,
+          source: source,
+          style: style,
+          builder: builder,
+        ),
         semanticsLabel: semanticLabel,
       ),
     ),
@@ -101,11 +151,13 @@ class _PopoverView extends StatefulWidget {
   const _PopoverView({
     required this.motion,
     required this.source,
+    required this.style,
     required this.builder,
   });
 
   final PopoverMotion motion;
   final Rect source;
+  final GlassPopoverStyle? style;
   final WidgetBuilder builder;
 
   @override
@@ -122,6 +174,16 @@ class _PopoverViewState extends State<_PopoverView> {
   late final MotionSelection<bool> _leaving = widget.motion.select(
     (m) => m.isLeaving,
   );
+
+  TextStyle _textStyle(Color label, BuildContext context) {
+    final look = (widget.style ?? const GlassPopoverStyle()).merge(
+      GlassTheme.of(context).popoverStyle,
+    );
+    final text = TextStyle(fontSize: 17, color: label).merge(look.textStyle);
+    return text.copyWith(
+      color: GlassDynamicColor.resolve(text.color!, context),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -147,13 +209,7 @@ class _PopoverViewState extends State<_PopoverView> {
           child: ClipRSuperellipse(
             borderRadius: BorderRadius.circular(PopoverTuning.cornerRadius),
             child: DefaultTextStyle(
-              style: resolveGlassText(
-                TextStyle(
-                  fontSize: 17,
-                  color: GlassDynamicColor.resolve(label, context),
-                ),
-                context,
-              ),
+              style: resolveGlassText(_textStyle(label, context), context),
               child: Builder(builder: widget.builder),
             ),
           ),

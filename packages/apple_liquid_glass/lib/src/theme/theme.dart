@@ -12,6 +12,8 @@ import 'package:apple_liquid_glass/src/controls/switch.dart';
 import 'package:apple_liquid_glass/src/controls/tab_bar.dart';
 import 'package:apple_liquid_glass/src/menu/appearance.dart';
 import 'package:apple_liquid_glass/src/presentations/alert.dart';
+import 'package:apple_liquid_glass/src/presentations/popover.dart';
+import 'package:apple_liquid_glass/src/presentations/sheet.dart';
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
@@ -123,6 +125,8 @@ class GlassThemeData {
     this.datePickerStyle,
     this.menuStyle,
     this.alertStyle,
+    this.sheetStyle,
+    this.popoverStyle,
   });
 
   /// The theme between [a] and [b] at [t]: colors and styles interpolate;
@@ -179,6 +183,8 @@ class GlassThemeData {
       ),
       menuStyle: GlassMenuStyle.lerp(a.menuStyle, b.menuStyle, t),
       alertStyle: GlassAlertStyle.lerp(a.alertStyle, b.alertStyle, t),
+      sheetStyle: GlassSheetStyle.lerp(a.sheetStyle, b.sheetStyle, t),
+      popoverStyle: GlassPopoverStyle.lerp(a.popoverStyle, b.popoverStyle, t),
     );
   }
 
@@ -242,6 +248,12 @@ class GlassThemeData {
   /// The look of alerts and action sheets.
   final GlassAlertStyle? alertStyle;
 
+  /// The look of sheets.
+  final GlassSheetStyle? sheetStyle;
+
+  /// The look of popovers.
+  final GlassPopoverStyle? popoverStyle;
+
   /// This theme with the non-null fields of [other] over it; styles and
   /// schemes merge too.
   GlassThemeData merge(GlassThemeData? other) {
@@ -275,6 +287,8 @@ class GlassThemeData {
           other.datePickerStyle?.merge(datePickerStyle) ?? datePickerStyle,
       menuStyle: other.menuStyle?.merge(menuStyle) ?? menuStyle,
       alertStyle: other.alertStyle?.merge(alertStyle) ?? alertStyle,
+      sheetStyle: other.sheetStyle?.merge(sheetStyle) ?? sheetStyle,
+      popoverStyle: other.popoverStyle?.merge(popoverStyle) ?? popoverStyle,
     );
   }
 
@@ -300,7 +314,9 @@ class GlassThemeData {
       other.badgeStyle == badgeStyle &&
       other.datePickerStyle == datePickerStyle &&
       other.menuStyle == menuStyle &&
-      other.alertStyle == alertStyle;
+      other.alertStyle == alertStyle &&
+      other.sheetStyle == sheetStyle &&
+      other.popoverStyle == popoverStyle;
 
   @override
   int get hashCode => Object.hashAll([
@@ -324,6 +340,8 @@ class GlassThemeData {
     datePickerStyle,
     menuStyle,
     alertStyle,
+    sheetStyle,
+    popoverStyle,
   ]);
 }
 
