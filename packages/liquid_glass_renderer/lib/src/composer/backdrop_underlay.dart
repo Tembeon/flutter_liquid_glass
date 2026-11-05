@@ -310,8 +310,16 @@ class BackdropUnderlay {
           _count(debugMisses, why);
           debugMiss = 'blocked by $why';
         }
-        // An image can fold glass over a copy not drawn yet, which the
-        // frame cannot: [serve] takes the request.
+        _ask = ask;
+        return null;
+      }
+      // An image can fold glass over a copy not drawn yet, which the frame
+      // cannot: [serve] takes the request.
+      if (replay.pieces.isNotEmpty) {
+        content.dispose();
+        for (final (picture, _) in replay.pieces) {
+          picture.dispose();
+        }
         _ask = ask;
         return null;
       }

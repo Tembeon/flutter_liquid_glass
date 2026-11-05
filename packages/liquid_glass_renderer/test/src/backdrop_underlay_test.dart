@@ -618,6 +618,73 @@ void main() {
     expect(largest, lessThanOrEqualTo(3));
   }, skip: skipProperGlassTests);
 
+  testWidgets('a copy drawn in the frame over glass whose copy is pending '
+      'folds that glass into an image and loses nothing under it', (
+    tester,
+  ) async {
+    BackdropUnderlay.debugEnabledOverride = true;
+    BackdropUnderlay.debugInFrame = true;
+    addTearDown(() => BackdropUnderlay.debugInFrame = false);
+    tester.view.physicalSize = const Size(260, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    Widget layer(LiquidGlassSettings settings, Rect rect) => LiquidGlassLayer(
+      settings: settings,
+      child: Stack(
+        children: [
+          Positioned.fromRect(
+            rect: rect,
+            child: const LiquidGlass(
+              shape: LiquidRoundedSuperellipse(borderRadius: 28),
+              child: SizedBox.expand(),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // Frosted glass stretched past 5 % keeps the blur in its copy, which is
+    // an image; unfrosted glass above it copies in the frame.
+    Widget scene(Color page) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: RepaintBoundary(
+        key: _key,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: RepaintBoundary(child: ColoredBox(color: page)),
+            ),
+            Positioned.fill(
+              child: Transform(
+                transform: Matrix4.diagonal3Values(1, 1.2, 1),
+                child: layer(
+                  LiquidGlassSettings.ios27RegularLight().copyWith(frost: 8),
+                  const Rect.fromLTWH(30, 40, 200, 90),
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: layer(
+                LiquidGlassSettings.ios27RegularLight().copyWith(frost: 0),
+                const Rect.fromLTWH(80, 60, 100, 60),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(scene(const Color(0xFF3B82F6)));
+    final folded = BackdropUnderlay.debugFolds;
+    await tester.pumpWidget(scene(const Color(0xFFF59E0B)));
+    expect(BackdropUnderlay.debugFolds, folded + 1);
+    final pixels = await _pixels(tester);
+    const center = (90 * 260 + 130) * 4;
+    expect(pixels[center], greaterThan(150));
+    expect(pixels[center + 1], greaterThan(90));
+  }, skip: skipProperGlassTests);
+
   testWidgets('copies of glass side by side are drawn as one island, as '
       'each draws its own', (tester) async {
     copyIntoImages();
