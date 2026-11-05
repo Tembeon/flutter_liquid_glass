@@ -351,10 +351,12 @@ final class CornerRead {
   void addToScene(
     ui.SceneBuilder builder,
     ui.ImageFilter filter,
-    Matrix4 deviceToLocal,
-  ) {
+    Matrix4 deviceToLocal, {
+    ui.Path? clip,
+  }) {
     final at = _at;
     builder.pushTransform(deviceToLocal.storage);
+    if (clip != null) builder.pushClipPath(clip, clipBehavior: Clip.hardEdge);
     builder.pushImageFilter(filter);
     builder.addPicture(_device.topLeft, _corners(_device.size));
     _copy._addTo(
@@ -363,6 +365,7 @@ final class CornerRead {
       _device,
     );
     builder.pop();
+    if (clip != null) builder.pop();
     builder.pop();
   }
 

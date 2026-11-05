@@ -142,6 +142,7 @@ final class GlassComposer extends PipelineOwner {
     try {
       if (root != null) {
         _prepare(root);
+        _underlays.planGroups();
         _underlays.plan();
         _compose(root);
       }

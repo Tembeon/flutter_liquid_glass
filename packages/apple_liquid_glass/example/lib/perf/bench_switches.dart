@@ -12,11 +12,23 @@ import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 import 'package:liquid_glass_renderer/src/internal/shader_frost.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
+import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 
 /// The switches an A/B run can flip, by name. `none` flips nothing: an A/A
 /// run that shows the noise floor.
 final benchSwitches = <String, void Function({required bool on})>{
   'none': ({required on}) {},
+  'groups': ({required on}) => BackdropUnderlay.debugGroups = on,
+  'group_bands': ({required on}) => BackdropUnderlay.debugBandGroups = on,
+  'no_shadows': ({required on}) {
+    LiquidGlassRenderObject.debugNoShadows = on;
+    void update(RenderObject node) {
+      if (node is RenderLiquidGlassLayer) node.debugUpdateGeometry();
+      node.visitChildren(update);
+    }
+
+    RendererBinding.instance.renderViews.forEach(update);
+  },
   // B draws every second vsync while nothing fast moves; A every vsync.
   'cadence': ({required on}) => FrameCadence.enabled = on,
   'wide_frost': ({required on}) => debugShaderFrostMaxDownscale = on ? 8 : 4,

@@ -32,6 +32,12 @@ precision mediump float;
 #define FROST 1
 #endif
 
+// Whether the variant draws a scroll edge's frost, fade and hairline where
+// the glass paints nothing, reading the same copy (FrostBand).
+#ifndef FROST_BAND
+#define FROST_BAND 0
+#endif
+
 #include <flutter/runtime_effect.glsl>
 #include "render.glsl"
 #include "glass_glow.glsl"
@@ -93,7 +99,9 @@ uniform vec4 uColorModelParams[18];
 
 // Float index 133.
 //   uLowResMatte:  how many matte pixels one low-res matte texel covers in
-//                  each direction, then the texture's size in texels.
+//                  each direction, the texture's size in texels, and half
+//                  the short side of the surface, which sizes the bevel: glass
+//                  over a matte of a group has its own, not the matte's.
 //   uLowResOptics: refraction height in px, and whether refraction fits the
 //                  shape. These two set the bevel.
 uniform highp vec4 uLowResMatte;
@@ -217,6 +225,62 @@ uniform sampler2D uMaterialLinearTexture;
 #endif
 
 layout(location = 0) out vec4 fragColor;
+
+#if FROST_BAND
+// From float index 163.
+// [0] the band's rect in fragment coordinates
+// [1] x the frost in device pixels; y, z the fragment rows where the fade is
+//     whole and where it is gone; w the color's brightness
+// [2] the fade, premultiplied
+// [3] xy the fragment rows of the hairline, z its gray, w the presence
+// [4] x saturation
+uniform highp vec4 uBand[5];
+
+vec4 bandColor(highp vec2 fragment) {
+    vec2 inside = clamp(
+        min(fragment + 0.5, uBand[0].zw) - max(fragment - 0.5, uBand[0].xy),
+        0.0,
+        1.0
+    );
+    float coverage = inside.x * inside.y;
+    if (coverage <= 0.0) return vec4(0.0);
+    highp vec2 invSize = 1.0 / uSize;
+    highp float copyScale = 1.0 / max(uBackdropReduced, 1.0);
+    highp vec2 halfTexel = invSize * 0.5;
+    vec4 color = frostEight(
+        uBackgroundTexture,
+        fragment * invSize * copyScale,
+        uBand[1].x,
+        invSize * copyScale * frostMirror(fragment),
+        halfTexel * copyScale,
+        (vec2(1.0) - halfTexel) * copyScale
+    );
+    vec3 rgb = color.rgb;
+    float luminance = dot(rgb, LUMA_WEIGHTS);
+    rgb = clamp(mix(vec3(luminance), rgb, uBand[4].x) + uBand[1].w * color.a, 0.0, 1.0);
+    vec4 filtered = vec4(rgb, color.a) * uBand[3].w;
+    vec4 fade = uBand[2] * clamp(
+        (fragment.y - uBand[1].z) / (uBand[1].y - uBand[1].z),
+        0.0,
+        1.0
+    );
+    if (fragment.y >= uBand[3].x && fragment.y < uBand[3].y) {
+        fade = vec4(uBand[3].z * 0.1, uBand[3].z * 0.1, uBand[3].z * 0.1, 0.1) * uBand[3].w +
+            fade * (1.0 - 0.1 * uBand[3].w);
+    }
+    return (fade + filtered * (1.0 - fade.a)) * coverage;
+}
+
+vec4 bandRim(highp vec2 fragment) {
+    highp vec2 uv = fragment / uSize / max(uBackdropReduced, 1.0);
+    vec4 color = texture(uBackgroundTexture, uv);
+    vec4 fade = uBand[2];
+    return fade + color * (1.0 - fade.a);
+}
+#define EMPTY_FRAGMENT bandColor(FlutterFragCoord().xy - uBackdropOrigin)
+#else
+#define EMPTY_FRAGMENT vec4(0.0)
+#endif
 
 #if SHAPE_APPEARANCE
 vec4 shapeLookup(
@@ -495,7 +559,7 @@ vec3 applySpecularHighlights(
     if (uBevelShadowStrength >= 0.001) {
         float configuredBevelDepth = max(uBevelShadowDepth, 0.001);
         float sizeAwareBevelDepth = configuredBevelDepth;
-        float surfaceHalfMinor = min(uGeometrySize.x, uGeometrySize.y) * 0.5;
+        float surfaceHalfMinor = uLowResMatte.w;
         float sizeProgress = smoothstep(
             configuredBevelDepth * 3.5,
             configuredBevelDepth * 5.0,
@@ -688,7 +752,7 @@ void main() {
         any(lessThan(geometryUV, vec2(0.0))) ||
         any(greaterThan(geometryUV, vec2(1.0)))
     ) {
-        fragColor = vec4(0.0);
+        fragColor = EMPTY_FRAGMENT;
         return;
     }
 
@@ -887,7 +951,7 @@ void main() {
         materialAlpha < 0.01 &&
         contourCoverage(signedEdgeDistance).x * gContourAlpha < 0.01
     ) {
-        fragColor = vec4(0.0);
+        fragColor = EMPTY_FRAGMENT;
         return;
     }
     // The surface direction is only computed where something uses it: the
@@ -1251,4 +1315,7 @@ void main() {
         uContourColor.rgb * externalContourAlpha;
 
     fragColor = vec4(premultipliedColor, alpha);
+#if FROST_BAND
+    if (alpha < 0.999) fragColor += bandRim(FlutterFragCoord().xy - uBackdropOrigin) * (1.0 - alpha);
+#endif
 }

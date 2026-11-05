@@ -10,6 +10,7 @@ import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/internal/shader_frost.dart';
 
 /// A backdrop filter over [clip] that, wherever it can, filters a copy of
 /// what is painted under it instead of reading the backdrop, so a frame
@@ -124,6 +125,99 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     markNeedsAddToScene();
   }
 
+  /// What this layer's children paint over its frost, set by a caller whose
+  /// children paint nothing else: glass over the layer can then draw the band
+  /// in its own filter, and the children stay out of the scene.
+  FrostBandPaint? bandPaint;
+
+  FilterOffer? _offer;
+  FilterGroup? _group;
+  FilterGroup? _drawn;
+
+  /// Whether this frame's frost is drawn in the filter of the glass over it.
+  @internal
+  bool get drawsGroup => _drawn != null;
+
+  CopyAsk? _askCopy() => BackdropUnderlay.enabled
+      ? requestCopy(
+          _underlay,
+          this,
+          filter: _filter,
+          frost: _frost,
+          blendMode: _blendMode,
+          clip: _clip,
+          reach: _reach,
+          devicePixelRatio: _devicePixelRatio,
+          filtersReach: false,
+        )
+      : null;
+
+  FilterOffer? _offerBand() {
+    final paint = bandPaint;
+    final frost = _frost;
+    final view = owner;
+    if (paint == null ||
+        frost == null ||
+        _blendMode != BlendMode.srcOver ||
+        !BackdropUnderlay.enabled ||
+        view is! RenderView) {
+      return null;
+    }
+    final frame = GlassComposer.planning(view);
+    if (frame == null || !frame.groups) return null;
+    final origin = screenOffsetOf(this, _devicePixelRatio);
+    if (origin == null) return null;
+    final sigma = frost.sigma * _devicePixelRatio;
+    final downscale = shaderFrostDownscale(sigma, minTexels: 1.5) ?? 1;
+    final shown = _clip.shift(origin);
+    final offer = _BandOffer(
+      this,
+      anchor: this,
+      underlay: _underlay,
+      devicePixelRatio: _devicePixelRatio,
+      drawn: shown,
+      reads: shown.inflate(
+        // The eight taps of the band shader reach 2.8 frosts.
+        (2.8 * shaderFrostResidual(sigma, share: downscale) + downscale) /
+            _devicePixelRatio,
+      ),
+      downscale: downscale,
+      sigma: frost.sigma,
+      origin: origin,
+      paint: paint,
+    );
+    frame.offer(offer);
+    return offer;
+  }
+
+  // The frost drawn by [group]'s filter: false when the group came apart.
+  bool _composeGroup(FilterGroup group) {
+    final copy = group.settle();
+    if (copy == null) return false;
+    final band = group.band!;
+    _inFrame = (
+      copy: copy,
+      shown: band.drawn,
+      origin: band.origin,
+      frosting: _frost!,
+    );
+    _drawn = group;
+    final read = copy.inScene ? copy.readIn(copy.layer) : null;
+    if (read != null) {
+      _sceneFilter = group.painter.filter(group, read);
+      _sceneFilterKey = null;
+      _sceneRead = read;
+    } else {
+      _served = servedWithin(copy.layer);
+      if (_served == null) {
+        copy.dispose();
+        _inFrame = null;
+        _drawn = null;
+      }
+    }
+    return true;
+  }
+
   final _underlay = BackdropUnderlay();
   CopyAsk? _asked;
   ui.FragmentShader? _frostShader;
@@ -155,6 +249,13 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   ui.Picture? servedWithin(Rect region) {
     final inFrame = _inFrame;
     if (inFrame == null) return null;
+    if (_drawn case final group?) {
+      final read = inFrame.copy.readIn(region);
+      return read?.record(
+        group.painter.filter(group, read),
+        frostToLocal(inFrame.origin, _devicePixelRatio),
+      );
+    }
     return recordFrostedInFrame(
       inFrame.copy,
       inFrame.shown,
@@ -233,19 +334,9 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   @internal
   @override
   void prepare() {
-    _asked = BackdropUnderlay.enabled
-        ? requestCopy(
-            _underlay,
-            this,
-            filter: _filter,
-            frost: _frost,
-            blendMode: _blendMode,
-            clip: _clip,
-            reach: _reach,
-            devicePixelRatio: _devicePixelRatio,
-            filtersReach: false,
-          )
-        : null;
+    _group = null;
+    _offer = _offerBand();
+    _asked = _offer == null ? _askCopy() : null;
   }
 
   // Runs for every built scene, also when an ancestor stays retained, after
@@ -254,12 +345,30 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   @internal
   @override
   void compose() {
-    final asked = _asked;
+    var asked = _asked;
     _asked = null;
     final wasInFrame = _inFrame != null;
     _inFrame?.copy.dispose();
     _inFrame = null;
     _sceneRead = null;
+    final group = _group;
+    final drew = _drawn != null;
+    _group = null;
+    _drawn = null;
+    if (drew || group != null) {
+      markNeedsAddToScene();
+      _served?.dispose();
+      _served = null;
+      _servedKey = null;
+      _serving = null;
+      _sceneFilterKey = null;
+    }
+    if (group != null) {
+      if (_composeGroup(group)) return;
+      _offer?.askAlone();
+      asked = _asked;
+      _asked = null;
+    }
     if (asked?.frosting case final frosting?
         when _blendMode == BlendMode.srcOver &&
             _underlay.servesInFrame &&
@@ -353,13 +462,13 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
         _sceneFilter,
         frostToLocal(_inFrame!.origin, _devicePixelRatio),
       );
-      addChildrenToScene(builder);
+      if (_drawn == null) addChildrenToScene(builder);
       return;
     }
     final served = servedPicture;
     if (served != null) {
       builder.addPicture(Offset.zero, served);
-      addChildrenToScene(builder);
+      if (_drawn == null) addChildrenToScene(builder);
       return;
     }
     if (confinesRead) {
@@ -392,6 +501,100 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     _underlay.release();
     super.dispose();
   }
+}
+
+final class _BandOffer extends BandOffer {
+  _BandOffer(
+    this.layer, {
+    required super.anchor,
+    required super.underlay,
+    required super.devicePixelRatio,
+    required super.drawn,
+    required super.reads,
+    required super.downscale,
+    required super.sigma,
+    required super.origin,
+    required super.paint,
+  });
+
+  final LiquidGlassBackdropFilterLayer layer;
+
+  @override
+  void askAlone() => layer._asked = layer._askCopy();
+
+  @override
+  void enter(FilterGroup group) => layer._group = group;
+}
+
+/// What a scroll edge paints over its frost, in its layer's coordinates, and
+/// how its frost changes the color.
+@immutable
+final class FrostBandPaint {
+  /// Creates the paint.
+  const FrostBandPaint({
+    required this.fade,
+    required this.whole,
+    required this.gone,
+    required this.lineStart,
+    required this.lineEnd,
+    required this.lineGray,
+    required this.presence,
+    required this.saturation,
+    required this.brightness,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is FrostBandPaint &&
+      other.fade == fade &&
+      other.whole == whole &&
+      other.gone == gone &&
+      other.lineStart == lineStart &&
+      other.lineEnd == lineEnd &&
+      other.lineGray == lineGray &&
+      other.presence == presence &&
+      other.saturation == saturation &&
+      other.brightness == brightness;
+
+  @override
+  int get hashCode => Object.hash(
+    fade,
+    whole,
+    gone,
+    lineStart,
+    lineEnd,
+    lineGray,
+    presence,
+    saturation,
+    brightness,
+  );
+
+  /// The fade, straight.
+  final Color fade;
+
+  /// The row where the fade is whole.
+  final double whole;
+
+  /// The row where the fade is gone.
+  final double gone;
+
+  /// Where the hairline starts.
+  final double lineStart;
+
+  /// Where the hairline ends.
+  final double lineEnd;
+
+  /// The hairline's gray.
+  final double lineGray;
+
+  /// How much of the band shows.
+  final double presence;
+
+  /// The saturation of what lies under the band.
+  final double saturation;
+
+  /// The brightness added.
+  final double brightness;
 }
 
 // The copy a frame draws in place of the backdrop read, the part of it the

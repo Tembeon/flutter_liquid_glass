@@ -856,6 +856,9 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   @protected
   bool shadowsUnderGlass = false;
 
+  /// Bench: no glass draws its shadows.
+  static bool debugNoShadows = false;
+
   /// [shadowsUnderGlass], for tests.
   @visibleForTesting
   bool get debugShadowsUnderGlass => shadowsUnderGlass;
@@ -876,6 +879,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// silhouette scale with shape visibility.
   @protected
   void drawGlassShadows(Canvas canvas, Offset offset) {
+    if (debugNoShadows) return;
     final hasShadows = shapesWithGeometry.any(
       (entry) => entry.$2.shapes.any((shape) => shape.shadows.isNotEmpty),
     );

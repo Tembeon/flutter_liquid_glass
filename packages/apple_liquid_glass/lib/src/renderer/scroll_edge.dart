@@ -256,7 +256,10 @@ class _RenderEdge extends RenderBox {
       return;
     }
     _painted = presence;
-    if (_blurs) blur!.frost = _frost(presence);
+    if (_blurs) {
+      blur!.frost = _frost(presence);
+      blur.bandPaint = _bandPaint(presence, blur.clip);
+    }
     fade.alpha = Color.getAlphaFromOpacity(presence);
     markNeedsCompositedLayerUpdate();
   }
@@ -356,10 +359,47 @@ class _RenderEdge extends RenderBox {
       devicePixelRatio: _devicePixelRatio,
     );
     blur.frost = frost;
+    blur.bandPaint = _bandPaint(presence, box);
     blur.clip = box;
     blur.reach = reach;
     blur.devicePixelRatio = _devicePixelRatio;
     context.pushLayer(blur, fade, offset);
+  }
+
+  FrostBandPaint _bandPaint(double presence, Rect box) {
+    final background = _details.background;
+    final fade = background.withValues(
+      alpha: background.a * _Edge.fade(_brightness),
+    );
+    final top = _details.edge == AxisDirection.up;
+    final hairline = 1 / _devicePixelRatio;
+    return FrostBandPaint(
+      fade: fade,
+      whole: _details.hard
+          ? -1e5 + 1
+          : top
+          ? box.top + box.height * _Edge.softFadeStart
+          : box.bottom - box.height * _Edge.softFadeStart,
+      gone: _details.hard
+          ? -1e5
+          : top
+          ? box.bottom
+          : box.top,
+      lineStart: !_details.hard
+          ? 0
+          : top
+          ? box.bottom - hairline
+          : box.top,
+      lineEnd: !_details.hard
+          ? 0
+          : top
+          ? box.bottom
+          : box.top + hairline,
+      lineGray: _brightness == Brightness.dark ? 1 : 0,
+      presence: presence,
+      saturation: _details.hard ? _Edge.hardSaturation : 1,
+      brightness: _details.hard ? _Edge.hardBrightness : 0,
+    );
   }
 
   void _paintFade(Canvas canvas, Rect box) {

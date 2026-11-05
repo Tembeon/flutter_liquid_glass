@@ -54,7 +54,12 @@ enum FinalShaderModels {
 @internal
 @immutable
 final class FinalShaderVariant {
-  const FinalShaderVariant._(this.kind, this.models, {this.frost = false});
+  const FinalShaderVariant._(
+    this.kind,
+    this.models, {
+    this.frost = false,
+    this.band = false,
+  });
 
   /// Where the variant reads its geometry and appearance from.
   final FinalShaderKind kind;
@@ -65,10 +70,13 @@ final class FinalShaderVariant {
   /// Whether this is the frosted twin of a variant that cannot frost.
   final bool frost;
 
+  /// Whether the variant also draws a scroll edge beside the glass.
+  final bool band;
+
   /// The shader's file name without its extension.
   String get name =>
       'liquid_glass_final_render${kind.suffix}${models.suffix}'
-      '${frost ? '_frost' : ''}';
+      '${frost ? '_frost' : ''}${band ? '_band' : ''}';
 
   /// The asset key of the compiled shader.
   String get assetKey => ShaderKeys.finalRender(name);
@@ -96,6 +104,9 @@ final class FinalShaderVariant {
           FinalShaderVariant._(kind, models),
           if (_frostTwins.contains((kind, models)))
             FinalShaderVariant._(kind, models, frost: true),
+          if (kind == FinalShaderKind.single &&
+              models == FinalShaderModels.ios27)
+            FinalShaderVariant._(kind, models, frost: true, band: true),
         ],
   ];
 
@@ -105,6 +116,7 @@ final class FinalShaderVariant {
     FinalShaderKind kind,
     FinalShaderModels models, {
     bool frost = false,
+    bool band = false,
   }) {
     final general = kind == FinalShaderKind.material;
     final shaded = general ? FinalShaderModels.all : models;
@@ -112,7 +124,8 @@ final class FinalShaderVariant {
       (variant) =>
           variant.kind == kind &&
           variant.models == shaded &&
-          variant.frost == (frost && _frostTwins.contains((kind, shaded))),
+          variant.frost == (frost && _frostTwins.contains((kind, shaded))) &&
+          variant.band == band,
     );
     assert(index >= 0, 'No final shader for $kind $models.');
     return index;

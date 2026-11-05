@@ -66,7 +66,7 @@ void main() {
   test('every kind but the material map has a variant per model family', () {
     final names = {for (final v in FinalShaderVariant.all) v.name};
     expect(names, hasLength(FinalShaderVariant.all.length));
-    expect(FinalShaderVariant.all, hasLength(13));
+    expect(FinalShaderVariant.all, hasLength(14));
     final material =
         FinalShaderVariant.all[FinalShaderVariant.indexOf(
           FinalShaderKind.material,
@@ -90,7 +90,11 @@ void main() {
         expect((frosted.kind, frosted.models), (plain.kind, plain.models));
       }
     }
-    expect(FinalShaderVariant.all.where((v) => v.frost), hasLength(3));
+    expect(
+      FinalShaderVariant.all.where((v) => v.frost && !v.band),
+      hasLength(3),
+    );
+    expect(FinalShaderVariant.all.where((v) => v.band), hasLength(1));
   });
 
   test('the build hook compiles each variant: one '

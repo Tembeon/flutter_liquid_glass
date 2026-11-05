@@ -246,12 +246,17 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
           ...appearances.skip(1),
         ];
       });
-      await check('zero crossing removes contributor', () {
-        appearances = [
-          const LiquidGlassAppearance(visibility: 0),
-          ...appearances.skip(1),
-        ];
-      }, geometryChanged: true, uniform: true);
+      await check(
+        'zero crossing removes contributor',
+        () {
+          appearances = [
+            const LiquidGlassAppearance(visibility: 0),
+            ...appearances.skip(1),
+          ];
+        },
+        geometryChanged: true,
+        uniform: true,
+      );
       expect(layer.debugUsesShapeAppearances, isFalse);
       await check('restore contributor', () {
         appearances = [

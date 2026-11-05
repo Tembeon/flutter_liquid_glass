@@ -536,6 +536,12 @@ class BackdropRig {
     slot.append(child);
   }
 
+  /// Leaves the slot empty: another layer draws this glass.
+  void hide() {
+    final slot = _slot.layer;
+    if (slot?.firstChild != null) slot!.removeAllChildren();
+  }
+
   /// Whether the rig has a pass.
   bool get usesPass => _pass.layer != null;
 

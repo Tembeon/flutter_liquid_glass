@@ -675,6 +675,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           kind,
           _colorModelFamily,
           frost: _frostsCopies,
+          band: _drawsBand && kind == FinalShaderKind.single,
         )];
     if (_staleShaders.remove(shader)) {
       _writeCommonShaderUniforms(
@@ -1211,6 +1212,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (delta == null) return false;
     _geometryMatteBounds = _geometryMatteBounds.shift(delta);
     _materialCenterInMatte += delta;
+    _encodedShift += delta;
     _rememberEncodedGeometry(bounds);
     return true;
   }
@@ -1324,7 +1326,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // (_syncMaterialFilter, or _paintOverSolid over a solid color) once this
   // frame's material bounds are set; written here it would use the previous
   // frame's.
-  void _bindGeometryShader(ui.Image geometryImage) {
+  void _bindGeometryShader(ui.Image geometryImage, {double? halfMinor}) {
     final activeRenderShader = renderShader;
     activeRenderShader
       ..setFloatUniforms(initialIndex: _FinalUniforms.lowResMatte, (value) {
@@ -1332,7 +1334,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           _matteScale.toDouble(),
           _geometryTextureSize.width,
           _geometryTextureSize.height,
-          0,
+          halfMinor ?? _halfMinor,
           settings.effectiveRefractionHeight * devicePixelRatio,
           settings.refractionFitsShape ? 1 : 0,
         ]);
@@ -1802,7 +1804,338 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @override
   void onPreparing() {
     runCompositorPoll();
-    _asked = _rig.hasSlot ? _askUnderlay() : null;
+    _group = null;
+    _offer = _rig.hasSlot ? _offerToGroup() : null;
+    _asked = _rig.hasSlot && _offer == null ? _askUnderlay() : null;
+  }
+
+  // This frame's offer to share a filter, and the group that took it.
+  _GlassOffer? _offer;
+  FilterGroup? _group;
+  // Whether the shader is set up to draw a group.
+  bool _inGroup = false;
+  bool _drawsBand = false;
+  _GroupMatte? _groupMatte;
+  int _encoded = 0;
+
+  /// How many times the matte of a group was drawn.
+  @visibleForTesting
+  static int debugGroupMatteRenders = 0;
+
+  // Moves [_shapeData] and the bounds took since they were encoded.
+  Offset _encodedShift = Offset.zero;
+
+  // Glass whose shader a group's other glass can share: over one matte, one
+  // set of uniforms and a copy read in screen space. Shadows that fade with
+  // their shape stay cut outside it, which a filter drawn earlier in paint
+  // order cannot keep under it.
+  _GlassOffer? _offerToGroup() {
+    final bounds = _filterMaterialBounds;
+    final anchor = layer;
+    final view = anchor?.owner;
+    if (bounds == null ||
+        anchor == null ||
+        view is! RenderView ||
+        drawableEmpty ||
+        _analytic ||
+        _field != null ||
+        _usesShapeAppearances ||
+        _glow != null ||
+        _shapeData.isEmpty ||
+        _geometryImage == null ||
+        settings.effectiveBackdropShrink != 0 ||
+        glassShadowsFade) {
+      return null;
+    }
+    final frame = GlassComposer.planning(view);
+    if (frame == null || !frame.groups) return null;
+    final dpr = devicePixelRatio;
+    final screen = filterPassTransform(
+      this,
+      seeding: false,
+      devicePixelRatio: dpr,
+      translation: compositorTranslation,
+    );
+    final storage = screen.storage;
+    if ((storage[0] - 1).abs() > 1e-6 ||
+        (storage[5] - 1).abs() > 1e-6 ||
+        storage[1].abs() > 1e-6 ||
+        storage[4].abs() > 1e-6) {
+      return null;
+    }
+    final sigma = _frostSigmaForCurrentShapes();
+    if (sigma > 0 && !_frostsCopies) return null;
+    final downscale = sigma > 0
+        ? shaderFrostDownscale(sigma * dpr, minTexels: debugFrostMinTexels)
+        : 1;
+    if (downscale == null) return null;
+    final drawn = MatrixUtils.transformRect(screen, bounds);
+    final offer = _GlassOffer(
+      this,
+      screen,
+      anchor: anchor,
+      own: paintLayer,
+      underlay: _rig.underlay,
+      devicePixelRatio: dpr,
+      drawn: drawn,
+      reads: drawn.inflate(backdropSamplingReach(bounds) + 1),
+      downscale: downscale,
+      frost: sigma,
+      drawsBand:
+          sigma > 0 &&
+          _frostsCopies &&
+          _colorModelFamily == FinalShaderModels.ios27,
+      key: (
+        settings,
+        _uniformAppearance ?? defaultAppearance,
+        dpr,
+        _matteScale,
+        sigma,
+        downscale,
+        _colorModelFamily,
+        // Past this size the shader's bevel no longer asks how large the
+        // surface is.
+        min(_halfMinor, GlassRim.bevelShadowDepth * dpr * 5),
+      ),
+    );
+    frame.offer(offer);
+    return offer;
+  }
+
+  double get _halfMinor =>
+      _geometryMatteBounds.shortestSide * devicePixelRatio / 2;
+
+  // Sets the shader up to draw [group], over a matte of all its glass unless
+  // it has only this.
+  bool _beginGroup(FilterGroup group) {
+    final glass = group.glass;
+    if (glass.length > 1) {
+      final matte = _groupMatte ??= _GroupMatte.tryCreate();
+      if (matte == null) return false;
+      matte.gather(glass);
+    }
+    _inGroup = true;
+    final band = group.band != null;
+    final rebind = band != _drawsBand;
+    _drawsBand = band;
+    if (glass.length > 1) {
+      final matte = _groupMatte!;
+      if (rebind ||
+          !identical(_boundGeometryImage, matte.image) ||
+          _boundMatteBounds != matte.bounds) {
+        final bounds = _geometryMatteBounds;
+        final textureSize = _geometryTextureSize;
+        final halfMinor = _halfMinor;
+        _geometryMatteBounds = matte.bounds;
+        _geometryTextureSize = matte.textureSize;
+        _bindGeometryShader(matte.image!, halfMinor: halfMinor);
+        _geometryMatteBounds = bounds;
+        _geometryTextureSize = textureSize;
+      }
+    } else if (_geometryImage case final image?
+        when rebind || !identical(_boundGeometryImage, image)) {
+      _bindGeometryShader(image);
+    }
+    return true;
+  }
+
+  void _endGroup() {
+    if (!_inGroup) return;
+    _inGroup = false;
+    _drawsBand = false;
+    if (_geometryImage case final image?) _bindGeometryShader(image);
+    if (!drawableEmpty) {
+      syncCoordinateMapping();
+      _bindFilter();
+    }
+  }
+
+  // The filter that draws [group] over [read].
+  ImageFilter _groupFilter(
+    FilterGroup group,
+    _GlassOffer offer,
+    CornerRead read,
+  ) {
+    final sampling = read.glassSampling(offer.frost);
+    final matte = group.glass.length > 1 ? _groupMatte : null;
+    final origin = matte?.origin;
+    final globalToMatte = origin == null
+        ? Matrix4.inverted(offer.screen)
+        : Matrix4.translationValues(-origin.dx, -origin.dy, 0);
+    final backdropBounds = origin == null
+        ? _backdropBounds
+        : group.reads.shift(-origin);
+    final band = group.band;
+    final shown = band == null
+        ? null
+        : read.frostSampling(band.drawn, band.sigma)?.shown ?? Rect.zero;
+    final shader = renderShader;
+    final key = (
+      shader,
+      _shaderInputsRevision,
+      sampling.origin,
+      sampling.reduced,
+      sampling.frost,
+      sampling.holds,
+      globalToMatte,
+      backdropBounds,
+      shown,
+      band?.paint,
+      band?.origin,
+    );
+    if (key == _inSceneFilterKey) return _inSceneFilter!;
+    _inSceneFilterKey = key;
+    if (band != null) _writeBand(shader, band, read, sampling, shown!);
+    try {
+      return _inSceneFilter = _readingCopy<ImageFilter>(
+        sampling,
+        globalToMatte: globalToMatte,
+        backdropBounds: backdropBounds,
+        draw: shaderFilterNow,
+      );
+    } finally {
+      if (band != null) shader.setFloat(_FinalUniforms.overlay + 3, 0);
+    }
+  }
+
+  // uBand, with the rows of the band's fade and hairline in the fragment
+  // coordinates of [sampling], and what lies under the glass over the band:
+  // its fade, laid over what it reads.
+  void _writeBand(
+    FragmentShader shader,
+    BandOffer band,
+    CornerRead read,
+    GlassSampling sampling,
+    Rect shown,
+  ) {
+    final paint = band.paint;
+    final dpr = band.devicePixelRatio;
+    final top = sampling.origin.dy;
+    double row(double y) => (y + band.origin.dy) * dpr - top;
+    var i = _FinalUniforms.band;
+    void put(double value) => shader.setFloat(i++, value);
+    put(shown.left);
+    put(shown.top);
+    put(shown.right);
+    put(shown.bottom);
+    put(read.glassSampling(band.sigma).frost);
+    put(row(paint.whole));
+    put(row(paint.gone));
+    put(paint.brightness);
+    final fade = paint.fade;
+    final alpha = fade.a * paint.presence;
+    put(fade.r * alpha);
+    put(fade.g * alpha);
+    put(fade.b * alpha);
+    put(alpha);
+    put(row(paint.lineStart));
+    put(row(paint.lineEnd));
+    put(paint.lineGray);
+    put(paint.presence);
+    put(paint.saturation);
+    put(0);
+    put(0);
+    put(0);
+    shader.setFloat(_FinalUniforms.overlay, fade.r);
+    shader.setFloat(_FinalUniforms.overlay + 1, fade.g);
+    shader.setFloat(_FinalUniforms.overlay + 2, fade.b);
+    shader.setFloat(_FinalUniforms.overlay + 3, alpha);
+  }
+
+  // This glass leads [group] without a band: a layer in its slot draws the
+  // filter, over the shadows of all.
+  void _showGroup(FilterGroup group, _GlassOffer lead, InFrameCopy copy) {
+    final dpr = devicePixelRatio;
+    final canvasToScreen = lead.screen.clone();
+    canvasToScreen.multiply(
+      Matrix4.translationValues(
+        -_filterPaintOffset.dx,
+        -_filterPaintOffset.dy,
+        0,
+      ),
+    );
+    final screenToCanvas = Matrix4.tryInvert(canvasToScreen)!;
+    screenToCanvas.multiply(Matrix4.diagonal3Values(1 / dpr, 1 / dpr, 1));
+    final all = group.drawn;
+    final shadows = <(ui.Picture, Offset)>[
+      for (final offer in group.glass.cast<_GlassOffer>())
+        if (!identical(offer, lead))
+          if (offer.glass._shadowUnderGroup() case final picture?)
+            (picture, offer.canvasOnScreen - lead.canvasOnScreen),
+    ];
+    final picture = InFrameGlassLayer(
+      MatrixUtils.transformRect(
+        screenToCanvas,
+        Rect.fromLTRB(
+          all.left * dpr,
+          all.top * dpr,
+          all.right * dpr,
+          all.bottom * dpr,
+        ),
+      ).inflate(1),
+      copy,
+      (region) {
+        final read = copy.readIn(region);
+        if (read == null) return null;
+        final body = read.record(
+          _groupFilter(group, lead, read),
+          screenToCanvas,
+        );
+        if (shadows.isEmpty) return body;
+        final recorder = ui.PictureRecorder();
+        final canvas = Canvas(recorder);
+        for (final (shadow, offset) in shadows) {
+          canvas.save();
+          canvas.translate(offset.dx, offset.dy);
+          canvas.drawPicture(shadow);
+          canvas.restore();
+        }
+        canvas.drawPicture(body);
+        body.dispose();
+        return recorder.endRecording();
+      },
+    );
+    final read = copy.inScene ? copy.readIn(copy.layer) : null;
+    if (read != null) {
+      picture.showInScene(
+        read,
+        _groupFilter(group, lead, read),
+        screenToCanvas,
+        clip: group.clipIn(copy.layer),
+        under: shadows,
+      );
+    } else {
+      picture.picture = picture.within(copy.layer);
+      if (picture.picture == null) {
+        picture.dispose();
+        _hideForGroup(group);
+        return;
+      }
+    }
+    compositionSeedSuppressed = true;
+    debugDrewOverUnderlay = true;
+    _placeShadows(under: true);
+    _rig.show(_rig.servedInFrame(picture), under: glassShadowPicture);
+  }
+
+  ui.Picture? _shadowUnderGroup() {
+    _placeShadows(under: true);
+    return glassShadowPicture?.picture;
+  }
+
+  // Another layer draws this glass. Its shadows lie under that layer's filter,
+  // or, over a band, stay cut outside the glass: a band's bar spends next to
+  // nothing on them (tool/audit/2026-11-05-one-pass/results.md).
+  void _hideForGroup(FilterGroup group) {
+    compositionSeedSuppressed = true;
+    debugDrewOverUnderlay = true;
+    _rig.hide();
+    if (group.band == null) {
+      _placeShadows(under: true);
+      glassShadowPicture?.remove();
+    } else {
+      _placeShadows(under: false);
+    }
   }
 
   @override
@@ -1830,6 +2163,26 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // (the seeded pass, or the clip around the filter) while what lies under
   // the glass cannot be copied.
   void _composeUnderlay() {
+    final group = _group;
+    final offer = _offer;
+    _group = null;
+    _offer = null;
+    if (group != null && offer != null) {
+      if (identical(group.lead, offer)) {
+        if (group.settle() case final copy?) {
+          _showGroup(group, offer, copy);
+          return;
+        }
+      }
+      if (group.holds(offer)) {
+        _hideForGroup(group);
+        return;
+      }
+      _endGroup();
+      offer.askAlone();
+    } else {
+      _endGroup();
+    }
     // Glass over its copy reads no backdrop: an opacity pass around it needs
     // no seed.
     compositionSeedSuppressed = true;
@@ -1879,6 +2232,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// Bench: a copy is halved while the frost still spans this many of its
   /// pixels.
   static double debugFrostMinTexels = double.infinity;
+
+  /// Encodes the geometry again, after a bench changed what it draws.
+  void debugUpdateGeometry() {
+    needsGeometryUpdate = true;
+    markNeedsPaint();
+  }
 
   /// Picks this layer's shaders again, after [debugShaderFrost] changed.
   @visibleForTesting
@@ -2266,6 +2625,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _rig.dispose();
     _clearGeometryImage();
     _gpuGeometryRenderer = null;
+    _groupMatte?.dispose();
+    _groupMatte = null;
     super.dispose();
   }
 
@@ -2488,6 +2849,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // Gather shapes in cache order. A negative blend marker starts a new
     // group; this preserves smooth unions within a group without blending
     // unrelated standalone glass widgets together.
+    _encodedShift = Offset.zero;
+    _encoded++;
     _shapeData.clear();
     _rseData.clear();
     _rseLowerData.clear();
@@ -2736,6 +3099,176 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 }
 
+final class _GlassOffer extends GlassOffer {
+  _GlassOffer(
+    this.glass,
+    this.screen, {
+    required super.anchor,
+    required super.underlay,
+    required super.devicePixelRatio,
+    required super.drawn,
+    required super.reads,
+    required super.downscale,
+    required super.own,
+    required super.key,
+    required super.frost,
+    required super.drawsBand,
+  });
+
+  final RenderLiquidGlassLayer glass;
+
+  // From the layer's coordinates to the screen's logical pixels.
+  final Matrix4 screen;
+
+  // Where the origin of the canvas the glass paints in lies on the screen.
+  Offset get canvasOnScreen {
+    final storage = screen.storage;
+    return Offset(storage[12], storage[13]) - glass._filterPaintOffset;
+  }
+
+  // Where the origin of the encoded shapes lies on the screen, in device
+  // pixels.
+  Offset get shapesOnScreen {
+    final storage = screen.storage;
+    return (Offset(storage[12], storage[13]) + glass._encodedShift) *
+        devicePixelRatio;
+  }
+
+  @override
+  void askAlone() => glass._asked = glass._askUnderlay();
+
+  @override
+  void enter(FilterGroup group) => glass._group = group;
+
+  @override
+  bool begin(FilterGroup group) => glass._beginGroup(group);
+
+  @override
+  ImageFilter filter(FilterGroup group, CornerRead read) =>
+      glass._groupFilter(group, this, read);
+}
+
+// One matte of a group's glass, its origin on the first's. Glass that moves
+// together lies where it lay in it, so a scroll under it renders nothing and
+// only moves the mapping.
+final class _GroupMatte {
+  _GroupMatte._(this._renderer);
+
+  static _GroupMatte? tryCreate() {
+    final renderer = FlutterGpuGeometryRenderer.tryCreateCached(
+      ShaderKeys.gpuGeometryShaderBundle,
+    );
+    return renderer == null ? null : _GroupMatte._(renderer);
+  }
+
+  final FlutterGpuGeometryRenderer _renderer;
+  var _signature = const <Object?>[];
+
+  ui.Image? image;
+  Rect bounds = Rect.zero;
+  Size textureSize = Size.zero;
+
+  // Where the matte's origin lies on the screen, in logical pixels.
+  Offset origin = Offset.zero;
+
+  void gather(List<GlassOffer> offers) {
+    final glass = offers.cast<_GlassOffer>();
+    final first = glass.first;
+    final dpr = first.devicePixelRatio;
+    final base = first.shapesOnScreen;
+    origin = base / dpr;
+    // A 64th of a pixel keeps rounding in the layers' moves from drawing the
+    // matte again; the glass lies that much off, unseen.
+    double fixed(double value) => (value * 64).roundToDouble() / 64;
+    final signature = <Object?>[
+      first.glass.settings,
+      dpr,
+      first.glass._matteScale,
+    ];
+    for (final offer in glass) {
+      final at = offer.shapesOnScreen - base;
+      signature.add(offer.glass);
+      signature.add(offer.glass._encoded);
+      signature.add(fixed(at.dx));
+      signature.add(fixed(at.dy));
+    }
+    if (image != null && listEquals(signature, _signature)) return;
+    _signature = signature;
+    RenderLiquidGlassLayer.debugGroupMatteRenders++;
+    final shapes = <double>[];
+    final rse = <double>[];
+    final rseLower = <double>[];
+    final boxes = <double>[];
+    Rect? rect;
+    for (final offer in glass) {
+      final layer = offer.glass;
+      final at = offer.shapesOnScreen - base;
+      final dx = fixed(at.dx);
+      final dy = fixed(at.dy);
+      final from = shapes.length;
+      shapes.addAll(layer._shapeData);
+      for (var i = from + 8; i < shapes.length; i += 12) {
+        shapes[i] += dx;
+        shapes[i + 1] += dy;
+      }
+      final box = boxes.length;
+      boxes.addAll(layer._boundsData);
+      for (var i = box; i < boxes.length; i += 4) {
+        boxes[i] += dx;
+        boxes[i + 1] += dy;
+        boxes[i + 2] += dx;
+        boxes[i + 3] += dy;
+      }
+      rse.addAll(layer._rseData);
+      rseLower.addAll(layer._rseLowerData);
+      final drawn = Rect.fromLTRB(
+        offer.drawn.left * dpr - base.dx,
+        offer.drawn.top * dpr - base.dy,
+        offer.drawn.right * dpr - base.dx,
+        offer.drawn.bottom * dpr - base.dy,
+      );
+      rect = rect?.expandToInclude(drawn) ?? drawn;
+    }
+    final all = rect!;
+    final lead = first.glass;
+    final contour = max(0.5 / dpr, lead._contourOutset) * dpr;
+    final room = contour.ceilToDouble() + 2;
+    final left = (all.left - room).floorToDouble();
+    final top = (all.top - room).floorToDouble();
+    final settings = lead.settings;
+    final result = _renderer.render(
+      width: (all.right + room - left).ceil(),
+      height: (all.bottom + room - top).ceil(),
+      shapeData: shapes,
+      rseData: rse,
+      rseLowerData: rseLower,
+      boundsData: boxes,
+      numShapes: shapes.length ~/ 12,
+      refractionHeight: settings.effectiveRefractionHeight * dpr,
+      refractionAmount: settings.effectiveRefractionAmount * dpr,
+      edgeDistanceRange: settings.effectiveEdgeDistanceRange * dpr,
+      refractionFitsShape: settings.refractionFitsShape,
+      contourExtent: contour,
+      offsetX: left,
+      offsetY: top,
+      matteScale: lead._matteScale,
+    );
+    image = result.image;
+    bounds = Rect.fromLTWH(
+      left / dpr,
+      top / dpr,
+      result.width / dpr,
+      result.height / dpr,
+    );
+    textureSize = Size(
+      result.textureWidth.toDouble(),
+      result.textureHeight.toDouble(),
+    );
+  }
+
+  void dispose() => _renderer.dispose();
+}
+
 // Images here borrow the renderer's handles. A retained temporary frame must
 // clone both images before another render can dispose those borrowed handles.
 typedef _GpuGeometryFrame = ({
@@ -2790,6 +3323,8 @@ abstract final class _FinalUniforms {
 
   /// uLowResMatte and uLowResOptics, six floats.
   static const int lowResMatte = 133;
+  // The band variant's uBand, where the analytic variant has its own.
+  static const int band = analytic;
 
   /// uSolidBackdrop, four floats.
   static const int solidBackdrop = 139;

@@ -18,6 +18,7 @@ import 'package:liquid_glass_renderer/src/internal/transform_tracking_render_obj
 import 'package:liquid_glass_renderer/src/liquid_glass_underlay.dart';
 
 part 'copy_read.dart';
+part 'filter_group.dart';
 
 /// A copy of what is painted under one backdrop effect, optionally run
 /// through the effect's filter, that the effect draws from instead of
@@ -143,6 +144,12 @@ class BackdropUnderlay {
   /// scene as the layers it holds rather than recorded into a picture.
   static bool debugInScene = true;
 
+  /// Whether glass of equal looks shares one filter ([FilterGroup]).
+  static bool debugGroups = true;
+
+  /// Whether a scroll edge joins the filter of the glass over it.
+  static bool debugBandGroups = true;
+
   /// Whether a copy of few pixels leaves glass out.
   static bool debugDropsGlass = true;
 
@@ -229,6 +236,8 @@ class BackdropUnderlay {
     int downscale = 1,
     Rect? body,
     double frost = 0,
+    List<Rect>? parts,
+    List<Rect>? bodies,
   }) {
     assert(
       blur == null ||
@@ -256,6 +265,8 @@ class BackdropUnderlay {
       filterBlendMode: filterBlendMode,
       body: body,
       frost: frost,
+      parts: parts,
+      bodies: bodies,
     );
     _ask = ask;
     if (!ask.band.isEmpty) ask.frame?._asks.add(this);
@@ -320,7 +331,13 @@ class BackdropUnderlay {
     }
     final scan = _scanOf(ask);
     final limit = scan.reach(ask.anchor);
-    final clip = (limit < 0 ? null : scan.clip)?.intersect(ask.screen);
+    return _drawInFrame(ask, scan, limit, limit < 0 ? null : scan.clip);
+  }
+
+  // [serveInFrame] over [scan], walked to [limit], the entry of [ask]'s anchor,
+  // with [around] the clip around it.
+  InFrameCopy? _drawInFrame(_Ask ask, _Scan scan, int limit, Rect? around) {
+    final clip = around?.intersect(ask.screen);
     if (clip != null && ask.band.intersect(clip).isEmpty) {
       release();
       _count(debugMisses, 'off screen');
@@ -336,10 +353,11 @@ class BackdropUnderlay {
         inScene ? null : ui.PictureRecorder(),
         scan: scan,
         limit: limit,
-        bodies: [?ask.body],
+        bodies: ask.bodies ?? [?ask.body],
         dropsGlass: BackdropUnderlay.debugDropsGlass && grid._share >= 4,
         shown: shown,
         frost: BackdropUnderlay.debugDropsFrost ? ask.frost : 0,
+        parts: ask.parts,
       );
       final content = inScene ? null : replay.record(grid);
       if (inScene) {
@@ -726,6 +744,33 @@ final class UnderlayFrame {
   _Scan? _scan;
   final _atlas = _Atlas();
   final _asks = <BackdropUnderlay>[];
+  final _offers = <FilterOffer>[];
+
+  /// Whether layers should [offer] themselves rather than ask for copies.
+  bool get groups =>
+      BackdropUnderlay.debugGroups && BackdropUnderlay.debugInFrame;
+
+  /// Takes this frame's [offer], which [planGroups] answers.
+  void offer(FilterOffer offer) => _offers.add(offer);
+
+  /// Sorts the offers of this frame into groups that share a filter, and has
+  /// the rest ask alone. The composer calls it once every layer has prepared.
+  void planGroups() {
+    if (_offers.isEmpty) return;
+    final view = _offers.first.anchor.owner;
+    final size = view is RenderView ? view.size : Size.zero;
+    final groups = _groupsOf(_offers, size.width * size.height);
+    final grouped = Set<FilterOffer>.identity();
+    for (final group in groups) {
+      group._ask();
+      grouped.add(group.lead);
+      grouped.addAll(group._offered);
+    }
+    for (final offer in _offers) {
+      if (!grouped.contains(offer)) offer.askAlone();
+    }
+    _offers.clear();
+  }
 
   /// Plans the copies asked for so far as islands: copies of glass side by
   /// side, in paint order, with one filter at one pixel ratio, whose bands
@@ -788,7 +833,13 @@ final class _Ask {
     required this.filterBlendMode,
     required this.body,
     this.frost = 0,
+    this.parts,
+    this.bodies,
   });
+
+  // The parts of the band a group reads, and what it paints.
+  final List<Rect>? parts;
+  final List<Rect>? bodies;
 
   // The frame the view's composer plans, or null in a scene it does not.
   final UnderlayFrame? frame;
@@ -998,7 +1049,20 @@ class _Prefix {
     this.dropsGlass = false,
     this.shown,
     this.frost = 0,
+    this.parts,
   }) : canvas = recorder == null ? null : Canvas(recorder);
+
+  // The parts of the band read, where glass reads less than the band.
+  final List<Rect>? parts;
+
+  bool readsAt(Rect bounds) {
+    final held = parts;
+    if (held == null) return true;
+    for (final part in held) {
+      if (_meets(bounds, part)) return true;
+    }
+    return false;
+  }
 
   // What is painted before [stop] in [band], signed without drawing it.
   factory _Prefix.signed(
@@ -1781,7 +1845,9 @@ final class _Scan {
         case _Glass() when prefix.beside(entry.bounds):
           break;
         case _Leaf(glass: false) when shown != null:
-          if (_meets(entry.bounds, band)) shown.add(entry);
+          if (_meets(entry.bounds, band) && prefix.readsAt(entry.bounds)) {
+            shown.add(entry);
+          }
         case _Leaf() || _Glass() when shown != null:
           final bounds = entry is _Leaf
               ? entry.bounds
@@ -1878,7 +1944,22 @@ final class _Scan {
               skip(entry);
               if (!through) break loop;
               continue loop;
-            case _Served(:final layer) when prefix._hides(layer):
+            case _Served(:final layer, :final transform, :final clip)
+                when layer.drawsGroup && !prefix.dropsGlass && shown == null:
+              prefix.holdsGlass = true;
+              signInFrame(
+                layer.inFrameLayer!,
+                layer.servedPicture!,
+                layer.servedWithin,
+                transform,
+                clip,
+                entry.state,
+              );
+              skip(entry);
+              if (!through) break loop;
+              continue loop;
+            case _Served(:final layer)
+                when !layer.drawsGroup && prefix._hides(layer):
               break;
             case _Served(:final layer) when !layer.serves:
               if (_meets(entry.reads, band)) {
@@ -2793,12 +2874,19 @@ class InFrameGlassLayer extends GlassPictureLayer {
   void showInScene(
     CornerRead read,
     ui.ImageFilter filter,
-    Matrix4 deviceToLocal,
-  ) {
+    Matrix4 deviceToLocal, {
+    ui.Path? clip,
+    List<(ui.Picture, Offset)> under = const [],
+  }) {
     _read = read;
     _filter = filter;
     _deviceToLocal = deviceToLocal;
+    _clip = clip;
+    _under = under;
   }
+
+  ui.Path? _clip;
+  List<(ui.Picture, Offset)> _under = const [];
 
   @override
   ui.Picture? get picture {
@@ -2811,7 +2899,10 @@ class InFrameGlassLayer extends GlassPictureLayer {
   @override
   void addToScene(ui.SceneBuilder builder) {
     if (_read case final read?) {
-      read.addToScene(builder, _filter, _deviceToLocal);
+      for (final (picture, offset) in _under) {
+        builder.addPicture(offset, picture);
+      }
+      read.addToScene(builder, _filter, _deviceToLocal, clip: _clip);
     } else {
       super.addToScene(builder);
     }
