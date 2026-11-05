@@ -999,9 +999,16 @@ void main() {
                 uBackgroundTexture,
                 refractedUV * copyScale,
                 uBackdropFrost,
-                invUSize * copyScale * frostMirror(fragCoord),
+                invUSize * copyScale,
                 halfTexel * copyScale,
-                (vec2(1.0) - halfTexel) * copyScale
+                (vec2(1.0) - halfTexel) * copyScale,
+                #if SHAPE_TINT
+                // The dither takes this variant past the registers of full
+                // occupancy, and a tint hides the most of what it hides.
+                vec2(0.0)
+                #else
+                fragCoord
+                #endif
             );
         }
         #endif

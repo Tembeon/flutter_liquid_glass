@@ -34,7 +34,7 @@ void main() {
   // frost meets: the shader's 24 taps differ from Impeller's blur most
   // there, and the copy's size adds to it as it does for a blurred copy.
   for (final (frost, size, near) in [
-    (3.0, (260, 200), 20),
+    (3.0, (260, 200), 22),
     (8.0, (130, 100), 31),
     (12.0, (65, 50), 27),
   ]) {

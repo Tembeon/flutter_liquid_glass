@@ -1,8 +1,16 @@
+// Which way the fragment at [fragment] mirrors its taps along each axis.
+vec2 frostMirror(vec2 fragment) {
+    return step(0.5, fract(fragment * 0.5)) * 2.0 - 1.0;
+}
+
 // A Gaussian frost of [copy] around [uv] by [sigma] texels: 12 bilinear taps
 // importance-sampled from the Gaussian on a golden-angle spiral, equal
 // weights, each clamped to [lo, hi] in uv. It stands in for a copy's blur
-// passes, over a copy taken unblurred. [invSize] is one texel in uv, signed by
-// [frostMirror].
+// passes, over a copy taken unblurred. [invSize] is one texel in uv.
+//
+// Each pixel of a 2 x 2 cell at [fragment] starts the spiral a quarter turn on
+// from the last, so a hard edge shows as a faint dither in place of faint
+// copies; a constant [fragment] gives up the dither for the registers it holds.
 //
 // [sigma] must be positive. The loop runs to a bound read from it, 12 for
 // any positive [sigma]: unrolled, the reads are all kept in flight and double
@@ -15,10 +23,12 @@ vec4 frostTaps(
     float sigma,
     highp vec2 invSize,
     highp vec2 lo,
-    highp vec2 hi
+    highp vec2 hi,
+    vec2 fragment
 ) {
     vec4 frost = vec4(0.0);
-    vec2 direction = vec2(1.0, 0.0);
+    vec2 cell = frostMirror(fragment);
+    vec2 direction = 0.5 * cell.x * vec2(1.0 + cell.y, 1.0 - cell.y);
     int taps = 12 - int(min(sigma, 0.0));
     for (int i = 0; i < taps; i++) {
         float u = (float(i) + 0.5) / 12.0;
@@ -64,10 +74,6 @@ vec4 frostEight(
     return frost * 0.125;
 }
 
-// Which way the fragment at [fragment] mirrors its taps along each axis.
-vec2 frostMirror(vec2 fragment) {
-    return step(0.5, fract(fragment * 0.5)) * 2.0 - 1.0;
-}
 
 vec4 frostSixteen(
     sampler2D copy,
