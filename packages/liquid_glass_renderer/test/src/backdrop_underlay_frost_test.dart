@@ -34,9 +34,9 @@ void main() {
   // frost meets: the shader's 24 taps differ from Impeller's blur most
   // there, and the copy's size adds to it as it does for a blurred copy.
   for (final (frost, size, near) in [
-    (3.0, (260, 200), 14),
-    (8.0, (130, 100), 14),
-    (12.0, (65, 50), 22),
+    (3.0, (260, 200), 20),
+    (8.0, (130, 100), 31),
+    (12.0, (65, 50), 27),
   ]) {
     testWidgets('glass frosted by $frost over an unblurred copy draws near '
         'what reading the backdrop draws', (tester) async {
@@ -62,7 +62,7 @@ void main() {
       'reading the backdrop draws', (tester) async {
     expect(
       await underlayParity(tester, frost: 8, scale: 1.2),
-      lessThanOrEqualTo(26),
+      lessThanOrEqualTo(28),
     );
   }, skip: skipProperGlassTests);
 }

@@ -1859,12 +1859,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// Whether the final shader frosts an unblurred copy instead of the copy
   /// being blurred.
   ///
-  /// NEAR: the shader's 24 taps are not Impeller's blur. Over the white bars
-  /// of the host test they differ from the live filter by at most 14 channel
-  /// levels over a full or a half-size copy and 22 over a quarter-size one,
-  /// where the blurred half-size copy differs by 4, and by 26 for glass
-  /// scaled 1.2 over a quarter-size copy; by 1.2 to 3.1 on average where
-  /// they differ.
+  /// NEAR: the shader's 12 taps, mirrored over a 2 x 2 cell of pixels, are not
+  /// Impeller's blur, and a thin hard edge under the frost shows a faint
+  /// dither. Over the white bars of the host test they differ from the live
+  /// filter by at most 20 channel levels over a full-size copy, 31 over a
+  /// half-size one and 27 over a quarter-size one, where the blurred half-size
+  /// copy differs by 4, and by 28 for glass scaled 1.2 over a quarter-size
+  /// copy.
   /// In return a frosted copy takes no blur passes.
   ///
   /// A layer picks its shaders by it: after a change, call

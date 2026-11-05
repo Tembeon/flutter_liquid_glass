@@ -26,8 +26,8 @@ precision mediump float;
 
 // Whether the variant frosts an unblurred copy itself (uBackdropFrost). The
 // 32-register variants leave it out and have a frosted twin: with it, the
-// Mali-G78 compiler keeps work across the 24 reads and doubles their
-// registers, halving their occupancy for clear glass too.
+// Mali-G78 compiler keeps work across the reads and doubles their registers,
+// halving their occupancy for clear glass too.
 #ifndef FROST
 #define FROST 1
 #endif
@@ -999,7 +999,7 @@ void main() {
                 uBackgroundTexture,
                 refractedUV * copyScale,
                 uBackdropFrost,
-                invUSize * copyScale,
+                invUSize * copyScale * frostMirror(fragCoord),
                 halfTexel * copyScale,
                 (vec2(1.0) - halfTexel) * copyScale
             );

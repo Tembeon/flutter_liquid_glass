@@ -284,7 +284,7 @@ ui.FragmentShader? _inPlaceFrost;
 /// The filter that frosts [read]'s copy in place for Impeller's blur by
 /// [frost], which glass then reads as it is, or null where glass frosts it.
 ///
-/// NEAR: the glass takes one read for its 24 taps per fragment, over a copy
+/// NEAR: the glass takes one read for its 12 taps per fragment, over a copy
 /// of an eighth or a quarter of the screen's pixels the frost spans by at
 /// least 1.75 of them, and the copy's pixels show no more than through the
 /// taps.
