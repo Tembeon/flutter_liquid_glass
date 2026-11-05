@@ -1,4 +1,8 @@
+// The edge switch is a bench switch, which the library keeps private.
+// ignore_for_file: implementation_imports
+
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:apple_liquid_glass/src/renderer/scroll_edge.dart';
 import 'package:apple_liquid_glass_example/app.dart';
 import 'package:apple_liquid_glass_example/perf/device_check.dart';
 import 'package:apple_liquid_glass_example/settings.dart';
@@ -173,9 +177,21 @@ class _SettingsSheet extends StatelessWidget {
         GlassListSection(
           header: const Text('Performance'),
           footer: const Text(
-            'Measures how this phone draws glass and makes a report to send.',
+            'Off, content under a bar only fades and stays sharp, for less '
+            'GPU. Device check measures how this phone draws glass and makes '
+            'a report to send.',
           ),
           children: [
+            _Toggle(
+              icon: CupertinoIcons.drop,
+              color: GlassColors.systemBlue,
+              title: 'Blur Scroll Edges',
+              value: settings.edgeBlur,
+              onChanged: (on) {
+                debugSetEdgeBlurs(on: on);
+                update((s) => s.copyWith(edgeBlur: on));
+              },
+            ),
             GlassListRow(
               title: const Text('Device check'),
               onPressed: () => runDeviceCheck(
