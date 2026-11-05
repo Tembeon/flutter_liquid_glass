@@ -228,7 +228,7 @@ final class CornerRead {
   GlassSampling glassSampling(double frost) => GlassSampling._(
     origin: _device.topLeft,
     reduced: _share > 1 ? _share.toDouble() : 0,
-    frost: _copy._grid._frost(frost),
+    frost: _copy._grid._frost(_copy._frostOver(frost)),
     holds: Rect.fromLTRB(
       _device.left / _dpr,
       _device.top / _dpr,

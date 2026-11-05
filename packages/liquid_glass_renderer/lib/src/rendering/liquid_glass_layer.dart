@@ -1960,6 +1960,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       blur: sigma > 0 && frosted == null ? (frostX, frostY) : null,
       downscale: downscale,
       body: drawn,
+      frost: frost,
     );
     return (screen: screen, logical: logical, drawn: drawn, frost: frost);
   }

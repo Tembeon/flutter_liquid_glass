@@ -146,6 +146,18 @@ class BackdropUnderlay {
   /// Whether a copy of few pixels leaves glass out.
   static bool debugDropsGlass = true;
 
+  /// Whether a copy for frosted glass leaves out a backdrop frost no wider
+  /// than the glass's and frosts by what it left out: Gaussians add in
+  /// variance, so the frost that lies under the glass stays in its frost.
+  ///
+  /// NEAR: where the band that frost covers ends under the glass, the rest of
+  /// the glass frosts that much wider than what lies under it asks: a
+  /// tab bar's 2.2 logical px against 2.7 over the scroll edge's 1.5. A frost
+  /// that also changes the color loses that under the glass: a hard scroll
+  /// edge's saturation of 1.25 and brightness of 0.03, on the Pixel 6a about
+  /// 2 levels of 255 on average under a search button over photos, 14 at most.
+  static bool debugDropsFrost = true;
+
   /// Whether the last [request] is served by [serveInFrame], not [serve].
   bool get servesInFrame => (_ask?.inFrame ?? false) && !_stillUnder;
 
@@ -216,6 +228,7 @@ class BackdropUnderlay {
     BlendMode filterBlendMode = BlendMode.src,
     int downscale = 1,
     Rect? body,
+    double frost = 0,
   }) {
     assert(
       blur == null ||
@@ -242,6 +255,7 @@ class BackdropUnderlay {
       filterClip: filterClip,
       filterBlendMode: filterBlendMode,
       body: body,
+      frost: frost,
     );
     _ask = ask;
     if (!ask.band.isEmpty) ask.frame?._asks.add(this);
@@ -325,6 +339,7 @@ class BackdropUnderlay {
         bodies: [?ask.body],
         dropsGlass: BackdropUnderlay.debugDropsGlass && grid._share >= 4,
         shown: shown,
+        frost: BackdropUnderlay.debugDropsFrost ? ask.frost : 0,
       );
       final content = inScene ? null : replay.record(grid);
       if (inScene) {
@@ -370,6 +385,7 @@ class BackdropUnderlay {
       return InFrameCopy._(
         content,
         shown,
+        replay.frostLeftOut,
         ask.band,
         switch (clip) {
           null => ask.band,
@@ -771,6 +787,7 @@ final class _Ask {
     required this.filterClip,
     required this.filterBlendMode,
     required this.body,
+    this.frost = 0,
   });
 
   // The frame the view's composer plans, or null in a scene it does not.
@@ -786,6 +803,8 @@ final class _Ask {
   final Rect? filterClip;
   final BlendMode filterBlendMode;
   final Rect? body;
+  // The frost of the glass the copy is for, in logical pixels.
+  final double frost;
 
   // What copies under the same filter share.
   Object? get filterKey => blur ?? filter;
@@ -978,6 +997,7 @@ class _Prefix {
     this.bodies = const [],
     this.dropsGlass = false,
     this.shown,
+    this.frost = 0,
   }) : canvas = recorder == null ? null : Canvas(recorder);
 
   // What is painted before [stop] in [band], signed without drawing it.
@@ -1041,6 +1061,18 @@ class _Prefix {
 
   // Whether a walk that leaves what it draws met glass in the band.
   bool metGlass = false;
+
+  // The frost of the glass the copy is for, in logical pixels, which hides a
+  // backdrop frost no wider, and the widest it left out.
+  final double frost;
+  double frostLeftOut = 0;
+
+  bool _hides(LiquidGlassBackdropFilterLayer layer) {
+    final hidden = layer.frost;
+    if (hidden == null || hidden.sigma > frost) return false;
+    frostLeftOut = max(frostLeftOut, hidden.sigma);
+    return true;
+  }
 
   static Set<Layer> _ancestors(Layer layer) {
     final path = Set<Layer>.identity();
@@ -1811,6 +1843,8 @@ final class _Scan {
               skip(entry);
               if (!through) break loop;
               continue loop;
+            case _Served(:final layer) when prefix._hides(layer):
+              break;
             case _Served(:final layer) when !layer.serves:
               if (_meets(entry.reads, band)) {
                 prefix.blocked = true;
@@ -2534,6 +2568,7 @@ final class InFrameCopy {
   InFrameCopy._(
     this._picture,
     this._shown,
+    this._frostLeftOut,
     this._band,
     this.layer,
     this._grid,
@@ -2543,6 +2578,14 @@ final class InFrameCopy {
   ui.Picture? _picture;
   // What the copy draws, for a copy that is added to the scene.
   final List<_Entry>? _shown;
+  // The backdrop frost the copy left out, in logical pixels.
+  final double _frostLeftOut;
+
+  // The frost, in logical pixels, that stands for [frost] over what the copy
+  // left out.
+  double _frostOver(double frost) => frost > 0 && _frostLeftOut > 0
+      ? sqrt(frost * frost + _frostLeftOut * _frostLeftOut)
+      : frost;
 
   /// Whether readers can add the copy to the scene instead of drawing
   /// [_content].

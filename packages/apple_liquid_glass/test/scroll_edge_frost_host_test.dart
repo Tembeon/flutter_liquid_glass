@@ -17,61 +17,65 @@ import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 
 const _key = ValueKey('page');
 
-Widget _page(ScrollController controller, double dpr, {required bool hard}) =>
-    MediaQuery(
-      data: MediaQueryData(size: const Size(300, 400), devicePixelRatio: dpr),
-      child: Directionality(
-        textDirection: TextDirection.ltr,
-        child: GlassTheme(
-          data: const GlassThemeData(renderer: GlassRenderer.liquid()),
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: SizedBox(
-              width: 300,
-              height: 400,
-              child: RepaintBoundary(
-                key: _key,
-                child: GlassPageScaffold(
-                  backgroundColor: const Color(0xFFFFFFFF),
-                  navigationBar: const PreferredSize(
-                    preferredSize: Size.fromHeight(60),
-                    child: SizedBox(height: 60),
-                  ),
-                  child: GlassContentScroll(
-                    edgeEffects: GlassScrollEdgeEffects(
-                      top: hard
-                          ? GlassScrollEdgeEffect.hard
-                          : GlassScrollEdgeEffect.soft,
-                    ),
-                    child: ListView(
-                      controller: controller,
-                      children: [
-                        // Hard edges every few pixels, where the frost's
-                        // taps part most from Impeller's blur.
-                        for (var i = 0; i < 40; i++)
-                          Container(
-                            height: 30,
-                            color: Color(
-                              0xFF000000 | (i * 2654435761) & 0xFFFFFF,
-                            ),
-                            alignment: Alignment.centerLeft,
-                            padding: EdgeInsets.only(left: 10.0 + i * 5),
-                            child: const SizedBox(
-                              width: 3,
-                              height: 30,
-                              child: ColoredBox(color: Color(0xFFFFFFFF)),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
+Widget _page(
+  ScrollController controller,
+  double dpr, {
+  required bool hard,
+  Widget bar = const SizedBox(height: 60),
+}) => MediaQuery(
+  data: MediaQueryData(size: const Size(300, 400), devicePixelRatio: dpr),
+  child: Directionality(
+    textDirection: TextDirection.ltr,
+    child: GlassTheme(
+      data: const GlassThemeData(renderer: GlassRenderer.liquid()),
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: SizedBox(
+          width: 300,
+          height: 400,
+          child: RepaintBoundary(
+            key: _key,
+            child: GlassPageScaffold(
+              backgroundColor: const Color(0xFFFFFFFF),
+              navigationBar: PreferredSize(
+                preferredSize: const Size.fromHeight(60),
+                child: bar,
+              ),
+              child: GlassContentScroll(
+                edgeEffects: GlassScrollEdgeEffects(
+                  top: hard
+                      ? GlassScrollEdgeEffect.hard
+                      : GlassScrollEdgeEffect.soft,
+                ),
+                child: ListView(
+                  controller: controller,
+                  children: [
+                    // Hard edges every few pixels, where the frost's
+                    // taps part most from Impeller's blur.
+                    for (var i = 0; i < 40; i++)
+                      Container(
+                        height: 30,
+                        color: Color(
+                          0xFF000000 | (i * 2654435761) & 0xFFFFFF,
+                        ),
+                        alignment: Alignment.centerLeft,
+                        padding: EdgeInsets.only(left: 10.0 + i * 5),
+                        child: const SizedBox(
+                          width: 3,
+                          height: 30,
+                          child: ColoredBox(color: Color(0xFFFFFFFF)),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
 
 LiquidGlassBackdropFilterLayer _band(WidgetTester tester) =>
     tester.layers.whereType<LiquidGlassBackdropFilterLayer>().single;
@@ -80,11 +84,12 @@ Future<Uint8List> _scrolled(
   WidgetTester tester,
   double dpr, {
   required bool hard,
+  Widget bar = const SizedBox(height: 60),
 }) async {
   final controller = ScrollController();
   addTearDown(controller.dispose);
   await tester.pumpWidget(const SizedBox());
-  await tester.pumpWidget(_page(controller, dpr, hard: hard));
+  await tester.pumpWidget(_page(controller, dpr, hard: hard, bar: bar));
   await tester.pump();
   controller.jumpTo(200);
   for (var i = 0; i < 60; i++) {
@@ -119,6 +124,7 @@ void main() {
   tearDown(() {
     BackdropUnderlay.debugEnabledOverride = null;
     BackdropUnderlay.debugInFrame = inFrameDefault;
+    BackdropUnderlay.debugDropsFrost = true;
     LiquidGlassBackdropFrost.debugShaderFrost = true;
   });
 
@@ -181,4 +187,32 @@ void main() {
       );
     }, skip: !ui.ImageFilter.isShaderFilterSupported);
   }
+
+  testWidgets('frosted glass over the hard band leaves its frost out of the '
+      'copy near what the copy holding it draws', (tester) async {
+    const dpr = 3.0;
+    tester.view.physicalSize = const Size(300 * dpr, 400 * dpr);
+    tester.view.devicePixelRatio = dpr;
+    addTearDown(tester.view.reset);
+    final bar = LiquidGlassLayer(
+      settings: LiquidGlassSettings.ios27RegularLight().copyWith(frost: 3),
+      child: const Align(
+        alignment: Alignment.topRight,
+        child: LiquidGlass(
+          shape: LiquidOval(),
+          child: SizedBox.square(dimension: 44),
+        ),
+      ),
+    );
+
+    BackdropUnderlay.debugDropsFrost = false;
+    final kept = await _scrolled(tester, dpr, hard: true, bar: bar);
+    BackdropUnderlay.debugDropsFrost = true;
+    final dropped = await _scrolled(tester, dpr, hard: true, bar: bar);
+
+    final difference = _difference(kept, dropped);
+    expect(difference, greaterThan(0));
+    // NEAR, see BackdropUnderlay.debugDropsFrost.
+    expect(difference, lessThanOrEqualTo(12));
+  }, skip: !ui.ImageFilter.isShaderFilterSupported);
 }

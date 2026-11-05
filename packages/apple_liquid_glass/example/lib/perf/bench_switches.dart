@@ -31,6 +31,8 @@ final benchSwitches = <String, void Function({required bool on})>{
   'edge_fade': ({required on}) => debugSetEdgeBlurs(on: !on),
   // B adds a copy to the scene as its layers, A records it into a picture.
   'in_scene': ({required on}) => BackdropUnderlay.debugInScene = on,
+  // B leaves a backdrop frost out of a copy for wider frosted glass.
+  'drops_frost': ({required on}) => BackdropUnderlay.debugDropsFrost = on,
   // B leaves glass out of a copy of few pixels.
   'drops_glass': ({required on}) => BackdropUnderlay.debugDropsGlass = on,
   'islands': ({required on}) => BackdropUnderlay.debugIslandsEnabled = on,
