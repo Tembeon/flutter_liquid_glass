@@ -1790,12 +1790,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @override
   void onTransformChanged() {
     _mappingMoved = true;
-    // Retained geometry follows the move in onPreparing; glass with nothing
-    // to reuse repaints.
-    if (!hasReusableGeometry && !hasReusableIdleContents) {
-      GlassComposer.repaint(this);
-    }
+    // Retained geometry follows the move in onPreparing.
+    if (repaintsOnMove) GlassComposer.repaint(this);
   }
+
+  // Glass with nothing to reuse repaints.
+  @override
+  bool get repaintsOnMove => !hasReusableGeometry && !hasReusableIdleContents;
 
   @override
   void onPreparing() {

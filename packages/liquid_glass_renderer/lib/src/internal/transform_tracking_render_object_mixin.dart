@@ -56,6 +56,10 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
   /// while the layer composites (see [GlassComposer.repaint]).
   void onTransformChanged();
 
+  /// Whether [onTransformChanged] would repaint, so that it must run before
+  /// paint for the repaint to land in the same frame.
+  bool get repaintsOnMove => false;
+
   /// Runs every time this tracking layer is composited, before any glass of
   /// the view composes, including frames where the tracked transform is
   /// unchanged: where the glass polls its retained motion and asks for its

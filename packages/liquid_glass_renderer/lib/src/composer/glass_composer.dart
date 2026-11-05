@@ -125,7 +125,7 @@ final class GlassComposer extends PipelineOwner {
   void flushCompositingBits() {
     super.flushCompositingBits();
     for (final site in _sites) {
-      site.layer?.pollTransform();
+      if (site.repaintsOnMove) site.layer?.pollTransform();
     }
   }
 

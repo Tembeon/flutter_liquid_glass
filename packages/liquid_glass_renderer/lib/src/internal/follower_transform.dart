@@ -22,27 +22,23 @@ Matrix4 transformToNow(RenderObject node, [RenderObject? ancestor]) =>
   RenderObject node, [
   RenderObject? ancestor,
 ]) {
-  final path = <RenderObject>[];
-  for (
-    RenderObject? at = node;
-    at != null && !identical(at, ancestor);
-    at = at.parent
-  ) {
-    path.add(at);
-  }
-  if (ancestor != null) {
-    path.add(ancestor);
-  } else if (path.isNotEmpty) {
-    // As getTransformTo(null) does, leave out the root view's own transform
-    // (the device pixel ratio).
-    path.removeLast();
-  }
   final transform = Matrix4.identity();
-  var last = false;
-  for (var i = path.length - 1; i > 0; i--) {
-    if (applyPaintTransformNow(path[i], path[i - 1], transform)) last = true;
-  }
+  final last = _applyFromTop(node, ancestor, transform);
   return (transform: transform, last: last);
+}
+
+bool _applyFromTop(
+  RenderObject node,
+  RenderObject? ancestor,
+  Matrix4 transform,
+) {
+  final parent = node.parent;
+  if (parent == null || identical(node, ancestor)) return false;
+  // As getTransformTo(null) does, leave out the root view's own transform
+  // (the device pixel ratio).
+  if (ancestor == null && parent.parent == null) return false;
+  final last = _applyFromTop(parent, ancestor, transform);
+  return applyPaintTransformNow(parent, node, transform) || last;
 }
 
 /// [parent]'s [RenderObject.applyPaintTransform] for [child], with a

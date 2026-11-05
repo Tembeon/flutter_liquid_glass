@@ -84,18 +84,26 @@ Rect clipGeometryBounds(Object geometry) => switch (geometry) {
 /// skipped too, as their bounding box would overstate what they keep.
 Rect? localPaintClipAbove(RenderObject node) {
   Rect? result;
+  // Chrome asks every frame through a tree with few clips: only a clip pays
+  // for the transforms below it.
   var toAncestor = Matrix4.identity();
+  var mapped = node;
   var child = node;
   for (
     var ancestor = child.parent;
     ancestor != null && ancestor.parent != null;
     child = ancestor, ancestor = ancestor.parent
   ) {
-    final step = Matrix4.identity();
-    applyPaintTransformNow(ancestor, child, step);
-    toAncestor = step..multiply(toAncestor);
     final clip = paintClipOfAncestor(ancestor, child);
-    if (clip != null && isRectilinearTransform(toAncestor)) {
+    if (clip == null) continue;
+    for (var at = mapped; !identical(at, ancestor); at = at.parent!) {
+      final step = Matrix4.identity();
+      applyPaintTransformNow(at.parent!, at, step);
+      step.multiply(toAncestor);
+      toAncestor = step;
+    }
+    mapped = ancestor;
+    if (isRectilinearTransform(toAncestor)) {
       final toNode = Matrix4.tryInvert(toAncestor);
       if (toNode != null) {
         final local = MatrixUtils.transformRect(toNode, clip);

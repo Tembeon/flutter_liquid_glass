@@ -1455,6 +1455,25 @@ final class _Scan {
           when layer.runtimeType == OffsetLayer ||
               layer is GeometryTransformTrackingLayer ||
               layer is ThinOffsetLayer:
+        // A repaint boundary over one picture, a list's item: its scan takes
+        // one entry, not a group of three, and no cursor.
+        final child = layer.firstChild;
+        if (child is PictureLayer &&
+            identical(child, layer.lastChild) &&
+            child.runtimeType == PictureLayer &&
+            layer is! GeometryTransformTrackingLayer) {
+          if (child.picture case final picture?) {
+            final bounds = at.filtered
+                ? _everywhere
+                : _clipped(child.canvasBounds.shift(offset), at);
+            _add(
+              at,
+              _Leaf(picture, at, clip, state, bounds, shift: offset),
+              bounds,
+            );
+            return true;
+          }
+        }
         _push(layer, _ShiftOpen(offset), at, shift: offset);
       case ColorFilterLayer(:final colorFilter?):
         _push(
@@ -1498,7 +1517,7 @@ final class _Scan {
         );
       case ClipPathLayer(:final clipPath?, :final clipBehavior)
           when clipBehavior != Clip.none:
-        _pushClip(layer, clipPath, clipPath.getBounds(), clipBehavior, at);
+        _pushClip(layer, clipPath, _boundsOf(clipPath), clipBehavior, at);
       case NativeClipLayer(
             enabled: true,
             :final geometry?,
@@ -1512,7 +1531,7 @@ final class _Scan {
             final Rect rect => rect,
             final RRect rect => rect.outerRect,
             final RSuperellipse rect => rect.outerRect,
-            final Path path => path.getBounds(),
+            final Path path => _boundsOf(path),
             _ => Rect.largest,
           },
           clipBehavior,
@@ -1568,6 +1587,12 @@ final class _Scan {
     }
     return true;
   }
+
+  // A clip layer keeps its path from frame to frame, and asking the engine
+  // for its bounds crosses to native code.
+  static final _pathBounds = Expando<Rect>();
+
+  static Rect _boundsOf(Path path) => _pathBounds[path] ??= path.getBounds();
 
   static Rect _clipped(Rect local, _Cursor at) {
     final bounds = MatrixUtils.transformRect(at.base, local.shift(at.shift));
@@ -1673,14 +1698,24 @@ final class _Scan {
       ui.Picture picture,
       Matrix4 transform,
       Rect? clip,
-      List<Object?> state,
-    ) {
+      List<Object?> state, {
+      Offset shift = Offset.zero,
+    }) {
       out.add(picture);
       out.add(transform);
       out.add(clip);
       out.addAll(state);
       out.add(#leaf);
-      prefix.canvas?.drawPicture(picture);
+      final canvas = prefix.canvas;
+      if (canvas == null) return;
+      if (shift == Offset.zero) {
+        canvas.drawPicture(picture);
+        return;
+      }
+      canvas.save();
+      canvas.translate(shift.dx, shift.dy);
+      canvas.drawPicture(picture);
+      canvas.restore();
     }
 
     // A picture drawn in the frame over a layer of [layer] (see
@@ -1764,7 +1799,7 @@ final class _Scan {
           if (_meets(entry.bounds, band)) {
             if (entry.glass) prefix.holdsGlass = true;
             if (inFrame == null) {
-              sign(entry.picture, transform, clip, state);
+              sign(entry.picture, transform, clip, state, shift: entry.shift);
             } else {
               signInFrame(
                 inFrame.layer,
@@ -2027,6 +2062,7 @@ final class _Leaf extends _Entry {
     this.bounds, {
     bool glass = false,
     this.inFrame,
+    this.shift = Offset.zero,
   }) : glass = glass || inFrame != null;
 
   // Glass whose copy is drawn.
@@ -2038,7 +2074,15 @@ final class _Leaf extends _Entry {
   final ui.Picture? _picture;
   ui.Picture get picture => _picture ?? inFrame!.picture!;
   final _Cursor _at;
-  Matrix4 get transform => _at.transform;
+  // Where the picture lies in its cursor's coordinates.
+  final Offset shift;
+  Matrix4 get transform {
+    if (shift == Offset.zero) return _at.transform;
+    final moved = _at.transform.clone();
+    moved.translateByDouble(shift.dx, shift.dy, 0, 1);
+    return moved;
+  }
+
   final Rect? clip;
   final List<Object?> state;
   final Rect bounds;
@@ -2424,9 +2468,9 @@ final class _SceneOut {
   void add(List<_Entry> entries) {
     for (final entry in entries) {
       switch (entry) {
-        case _Leaf(:final picture):
+        case _Leaf(:final picture, :final shift):
           settleMatrix();
-          builder.addPicture(at, picture);
+          builder.addPicture(at + shift, picture);
         case _Close():
           leave();
         case _Open():
@@ -2601,8 +2645,15 @@ final class InFrameCopy {
     final open = <(int, _Open)>[];
     for (final entry in _shown!) {
       switch (entry) {
-        case _Leaf(:final picture):
-          c.drawPicture(picture);
+        case _Leaf(:final picture, :final shift):
+          if (shift == Offset.zero) {
+            c.drawPicture(picture);
+          } else {
+            c.save();
+            c.translate(shift.dx, shift.dy);
+            c.drawPicture(picture);
+            c.restore();
+          }
         case _Close():
           final (saves, group) = open.removeLast();
           group.finish(c, saves);
