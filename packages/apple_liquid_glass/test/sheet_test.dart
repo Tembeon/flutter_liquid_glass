@@ -483,6 +483,51 @@ void main() {
     expect(find.text('row 0'), findsNothing);
   });
 
+  testWidgets('a finger that moves a little at a time scrolls the list of an '
+      'expanded sheet, and the sheet stays', (tester) async {
+    _phone(tester);
+    await _present(tester, _list, detents: const [GlassSheetDetent.large]);
+    final top = _sheet(tester).top;
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('row 4')),
+    );
+    for (var i = 0; i < 60; i++) {
+      await gesture.moveBy(const Offset(0, -3));
+      await tester.pump(_frame);
+      expect(_sheet(tester).top, top);
+    }
+    await gesture.up();
+    await _settle(tester);
+    expect(_sheet(tester).top, top);
+    expect(find.text('row 0'), findsNothing);
+  });
+
+  testWidgets('a finger that moves a little at a time on a plain list scrolls '
+      'it, not the sheet', (tester) async {
+    _phone(tester);
+    await _present(
+      tester,
+      (context) => ListView.builder(
+        key: _contentKey,
+        itemCount: 50,
+        itemBuilder: (context, i) =>
+            SizedBox(height: 50, child: Text('row $i')),
+      ),
+    );
+    final top = _sheet(tester).top;
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('row 4')),
+    );
+    for (var i = 0; i < 40; i++) {
+      await gesture.moveBy(const Offset(0, -3));
+      await tester.pump(_frame);
+    }
+    await gesture.up();
+    await _settle(tester);
+    expect(_sheet(tester).top, top);
+    expect(find.text('row 0'), findsNothing);
+  });
+
   testWidgets('the sheet is a named route for screen readers', (tester) async {
     _phone(tester);
     final handle = tester.ensureSemantics();

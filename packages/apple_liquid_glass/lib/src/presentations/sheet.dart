@@ -618,10 +618,15 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     _deliver();
   }
 
+  double _contendedSlop = kTouchSlop;
+
   void _configureDrag(VerticalDragGestureRecognizer drag) {
-    drag.gestureSettings = const DeviceGestureSettings(
-      touchSlop: SheetTuning.dragSlop,
-    );
+    // A list in the sheet takes the touch at this slop, and asks first: at
+    // UIKit's 12 the sheet would take a finger before any list could. Where
+    // nothing else wants the touch it is accepted at once (see [_pastSlop]);
+    // only over a control that wants it too, a drag starts past this slop.
+    // NEAR: 18 points there, against 12 on the device.
+    drag.gestureSettings = DeviceGestureSettings(touchSlop: _contendedSlop);
     drag.onStart = _dragStart;
     drag.onUpdate = _dragUpdate;
     drag.onEnd = _dragEnd;
@@ -753,6 +758,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
+    _contendedSlop = media.gestureSettings.touchSlop ?? kTouchSlop;
     _displayRadius = MediaQuery.maybeDisplayCornerRadiiOf(
       context,
     )?.bottomLeft.x;
