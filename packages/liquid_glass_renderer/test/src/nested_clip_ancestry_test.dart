@@ -1,3 +1,6 @@
+@Tags(['macos_pixels'])
+library;
+
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';

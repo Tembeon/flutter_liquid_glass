@@ -1,3 +1,6 @@
+@Tags(['macos_pixels'])
+library;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 

@@ -138,4 +138,5 @@ jobs:
         id: coverage-report
         uses: whynotmake-it/dart-coverage-assistant@v1.1
         with:
-          generate_badges: pr
+          # A fork's token cannot push the badge branch or open its pull request.
+          generate_badges: ${{ github.repository == 'whynotmake-it/flutter_liquid_glass' && 'pr' || 'false' }}

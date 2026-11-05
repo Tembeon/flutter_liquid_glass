@@ -1,3 +1,6 @@
+@Tags(['macos_pixels'])
+library;
+
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: the band
 // frosts its copy through a runtime effect, which only Impeller draws.
 //

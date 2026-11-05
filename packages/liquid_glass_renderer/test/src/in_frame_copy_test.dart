@@ -1,3 +1,6 @@
+@Tags(['macos_pixels'])
+library;
+
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: the copies
 // are drawn as Impeller draws them.
 import 'dart:typed_data';
