@@ -252,7 +252,10 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
 
     var anyShapeChangedInLayer = false;
 
+    // A hidden shape draws nothing: in the bounds it stretches the matte, the
+    // copy and the glass's pass from wherever it lies to the shapes that show.
     Rect? layerBounds;
+    Rect? everyBounds;
 
     for (final MapEntry(key: renderObject, value: shape) in link.shapeEntries) {
       if (!renderObject.attached ||
@@ -263,9 +266,14 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
       final index = shapes.length;
       final shapeData = _computeShapeInfo(renderObject, shape);
       shapes.add(shapeData);
-      layerBounds =
-          layerBounds?.expandToInclude(shapeData.shapeBounds) ??
+      everyBounds =
+          everyBounds?.expandToInclude(shapeData.shapeBounds) ??
           shapeData.shapeBounds;
+      if (shapeData.appearance.visibility > 0) {
+        layerBounds =
+            layerBounds?.expandToInclude(shapeData.shapeBounds) ??
+            shapeData.shapeBounds;
+      }
       final existingShape = cachedShapes.length > index
           ? cachedShapes[index]
           : null;
@@ -283,7 +291,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
     if (cachedShapes.length != shapes.length) anyShapeChangedInLayer = true;
 
     return (
-      (layerBounds ?? Rect.zero).inflate(blend * .25),
+      (layerBounds ?? everyBounds ?? Rect.zero).inflate(blend * .25),
       shapes,
       anyShapeChangedInLayer,
     );

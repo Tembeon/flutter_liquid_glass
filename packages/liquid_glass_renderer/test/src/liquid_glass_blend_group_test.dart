@@ -46,6 +46,56 @@ void main() {
       );
     }
 
+    testWidgets('a hidden shape leaves the group bounds to what shows', (
+      tester,
+    ) async {
+      Widget group({required double hidden}) => CupertinoApp(
+        home: Align(
+          alignment: Alignment.topLeft,
+          child: LiquidGlassLayer(
+            settings: const LiquidGlassSettings(),
+            child: LiquidGlassBlendGroup(
+              blend: 8,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LiquidGlassVisibility(
+                    visibility: hidden,
+                    child: const LiquidGlass.grouped(
+                      shape: LiquidOval(),
+                      child: SizedBox.square(dimension: 100),
+                    ),
+                  ),
+                  const SizedBox(width: 200),
+                  const LiquidGlass.grouped(
+                    shape: LiquidOval(),
+                    child: SizedBox.square(dimension: 40),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      Rect bounds() => tester.allRenderObjects
+          .whereType<RenderLiquidGlassBlendGroup>()
+          .firstWhere((group) => group.geometryBlend == 8)
+          .maybeRebuildGeometry()!
+          .bounds;
+
+      await tester.pumpWidget(group(hidden: 0));
+      await tester.pump();
+      expect(bounds().width, moreOrLessEquals(44, epsilon: 2));
+
+      await tester.pumpWidget(group(hidden: 0.5));
+      await tester.pump();
+      expect(bounds().width, moreOrLessEquals(344, epsilon: 2));
+
+      await tester.pumpWidget(group(hidden: 0));
+      await tester.pump();
+      expect(bounds().width, moreOrLessEquals(44, epsilon: 2));
+    });
+
     testWidgets('generates reusable GPU geometry metadata', (tester) async {
       await tester.pumpWidget(
         build(const LiquidGlassSettings(refractionHeight: 30), 24),
