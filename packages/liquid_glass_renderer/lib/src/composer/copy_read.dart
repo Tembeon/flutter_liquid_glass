@@ -3,7 +3,7 @@
 
 part of 'backdrop_underlay.dart';
 
-/// The pixel grid a copy is drawn on: one, two or four device pixels of
+/// The pixel grid a copy is drawn on: one, two, four or eight device pixels of
 /// the screen along each side of each of its pixels, on a grid anchored at
 /// the screen's origin.
 ///
@@ -16,8 +16,8 @@ part of 'backdrop_underlay.dart';
 final class CopyGrid {
   const CopyGrid._(this._devicePixelRatio, this._share)
     : assert(
-        _share == 1 || _share == 2 || _share == 4,
-        'A copy holds one, two or four device pixels along each side.',
+        _share == 1 || _share == 2 || _share == 4 || _share == 8,
+        'A copy holds one, two, four or eight device pixels along each side.',
       );
 
   final double _devicePixelRatio;
@@ -264,10 +264,43 @@ final class CornerRead {
     );
   }
 
+  // The part of the layer the copy's own pixels fill, in the layer's own
+  // pixels.
+  Size get _copySize => Size(
+    (_device.width / _share).ceilToDouble(),
+    (_device.height / _share).ceilToDouble(),
+  );
+
+  /// How `backdrop_frost.frag` frosts the copy where it lies in the layer, at
+  /// its own pixels, for Impeller's blur by [frost], or null when the copy is
+  /// too large for that to pay: glass then frosts it fragment by fragment.
+  FrostSampling? inPlaceFrostSampling(double frost) {
+    if (frost <= 0 || _share < 4) return null;
+    final at = _at;
+    final size = _copySize;
+    final pixels = _copy._grid._pixels;
+    return FrostSampling._(
+      size: size,
+      bounds: Rect.fromLTRB(
+        max(at.dx, 0) + 0.5,
+        max(at.dy, 0) + 0.5,
+        min(at.dx + _copy._band.width * pixels, size.width) - 0.5,
+        min(at.dy + _copy._band.height * pixels, size.height) - 0.5,
+      ),
+      frost: _copy._grid._frost(frost) / _share,
+      scale: 1,
+      shown: Offset.zero & size,
+    );
+  }
+
   /// Records the layer with [filter] as its image filter, in coordinates
-  /// [deviceToLocal] takes the screen's device pixels to. A shader filter
-  /// takes its shader's uniforms now.
-  ui.Picture record(ui.ImageFilter filter, Matrix4 deviceToLocal) {
+  /// [deviceToLocal] takes the screen's device pixels to, the copy passing
+  /// through [inPlace] first. A shader filter takes its shader's uniforms now.
+  ui.Picture record(
+    ui.ImageFilter filter,
+    Matrix4 deviceToLocal, {
+    ui.ImageFilter? inPlace,
+  }) {
     final paint = Paint();
     paint.imageFilter = filter;
     final recorder = ui.PictureRecorder();
@@ -289,8 +322,25 @@ final class CornerRead {
       clear,
     );
     final at = _at;
+    if (inPlace != null) {
+      final inner = Paint();
+      inner.imageFilter = inPlace;
+      final corner = _device.topLeft & _copySize;
+      canvas.saveLayer(corner, inner);
+      canvas.drawRect(Rect.fromLTWH(corner.left, corner.top, 1, 1), clear);
+      canvas.drawRect(
+        Rect.fromLTRB(
+          corner.right - 1,
+          corner.bottom - 1,
+          corner.right,
+          corner.bottom,
+        ),
+        clear,
+      );
+    }
     canvas.translate(_device.left + at.dx, _device.top + at.dy);
     canvas.drawPicture(_copy._content);
+    if (inPlace != null) canvas.restore();
     canvas.restore();
     return recorder.endRecording();
   }

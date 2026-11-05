@@ -1855,6 +1855,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   static bool debugShaderFrost = true;
 
+  /// Bench: a copy is halved while the frost still spans this many of its
+  /// pixels.
+  static double debugFrostMinTexels = double.infinity;
+
   /// Picks this layer's shaders again, after [debugShaderFrost] changed.
   @visibleForTesting
   void debugUpdateShaders() {
@@ -1913,7 +1917,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final round = sigma * sqrt(scaleX * scaleY);
     final frosted =
         sigma > 0 && _frostsCopies && (scaleX / scaleY - 1).abs() <= 0.05
-        ? shaderFrostDownscale(round * dpr)
+        ? shaderFrostDownscale(round * dpr, minTexels: debugFrostMinTexels)
         : null;
     var downscale = frosted ?? 1;
     final frost = frosted == null ? 0.0 : round;
@@ -1996,12 +2000,16 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         (region) {
           final read = inFrame.readIn(region);
           if (read == null) return null;
+          final inPlace = inPlaceFrostFilter(read, frost);
           return _readingCopy(
-            read.glassSampling(frost),
+            read.glassSampling(inPlace == null ? frost : 0),
             globalToMatte: globalToMatte,
             backdropBounds: backdropBounds,
-            draw: (shader) =>
-                read.record(bilinearShaderFilter(shader), screenToCanvas),
+            draw: (shader) => read.record(
+              bilinearShaderFilter(shader),
+              screenToCanvas,
+              inPlace: inPlace,
+            ),
           );
         },
       );

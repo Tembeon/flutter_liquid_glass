@@ -13,9 +13,10 @@ const double _deliveredFrost = 0.84;
 // copies: they show at 5 copy pixels in the host test and not at 3.4.
 const double _shaderFrostTexels = 3.5;
 
-// How many device pixels along each side one pixel of a copy the shader
-// frosts stands for at most.
-const int _shaderFrostMaxDownscale = 4;
+/// How many device pixels along each side one pixel of a copy the shader
+/// frosts stands for at most.
+@visibleForTesting
+int debugShaderFrostMaxDownscale = 4;
 
 /// How many device pixels along each side one pixel of a copy holds that
 /// the shader frosts for Impeller's blur by [sigma] device pixels, or null
@@ -30,14 +31,14 @@ int? shaderFrostDownscale(
 }) {
   final delivered = sigma * _deliveredFrost;
   var downscale = 1;
-  while (downscale < _shaderFrostMaxDownscale &&
+  while (downscale < debugShaderFrostMaxDownscale &&
       delivered / downscale > _shaderFrostTexels) {
     downscale *= 2;
   }
   if (delivered <= 0 || delivered / downscale > _shaderFrostTexels) {
     return null;
   }
-  while (downscale < _shaderFrostMaxDownscale &&
+  while (downscale < debugShaderFrostMaxDownscale &&
       delivered / (downscale * 2) >= minTexels) {
     downscale *= 2;
   }

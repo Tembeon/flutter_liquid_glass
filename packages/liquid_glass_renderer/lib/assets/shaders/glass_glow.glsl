@@ -13,7 +13,13 @@
 // squared device px, gain.
 // box: the lit surface's center and half extents (matte device px).
 // shape: x the corner radius (device px), y the wash.
-vec3 applyGlassGlow(vec3 color, vec2 p, vec4 spot, vec4 box, vec4 shape) {
+vec3 applyGlassGlow(
+    vec3 color,
+    highp vec2 p,
+    highp vec4 spot,
+    highp vec4 box,
+    highp vec4 shape
+) {
     vec2 q = abs(p - box.xy) - box.zw + shape.x;
     float d = length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - shape.x;
     float cover = clamp(0.5 - d, 0.0, 1.0);

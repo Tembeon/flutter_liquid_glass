@@ -4,10 +4,15 @@
 // This shader reads the low-res matte (edge distance, surface direction, half
 // the shorter side) and applies the liquid glass effect efficiently
 
-// Refraction is evaluated in global filter coordinates. Keep the affine
-// mapping and sub-pixel displacement in high precision on GLES; mediump turns
-// the coordinate subtraction into visible shimmer on large layers.
+// Refraction is evaluated in global filter coordinates: the affine mapping and
+// everything that holds a position stay highp, as mediump turns the coordinate
+// subtraction into visible shimmer on large layers. The rest is mediump, which
+// fits the shader in the 32 registers a Mali GPU runs at full occupancy.
+#if defined(ANALYTIC_GEOMETRY) && ANALYTIC_GEOMETRY
 precision highp float;
+#else
+precision mediump float;
+#endif
 
 // The color models a variant shades: every model, the direct model alone,
 // or one iOS 27 model in slot 0 alone. A variant that shades one family fits
@@ -40,9 +45,9 @@ precision highp float;
 // one read blends the four nearest texels. The edge, surface direction and
 // refraction are computed from that for each pixel.
 
-uniform vec2 uSize;
-uniform vec2 uGeometryOffset;
-uniform vec2 uGeometrySize;
+uniform highp vec2 uSize;
+uniform highp vec2 uGeometryOffset;
+uniform highp vec2 uGeometrySize;
 
 uniform vec4 uTint;
 uniform vec3 uOpticalProps;
@@ -52,12 +57,12 @@ uniform vec4 uHighlightColor;
 uniform vec4 uContourColor;
 uniform vec4 uLightingShapeConfig;
 uniform vec3 uContourConfig;
-uniform vec4 uProfileConfig;
+uniform highp vec4 uProfileConfig;
 uniform vec3 uMaterialConfig;
 uniform vec3 uBevelShadowConfig;
 uniform vec3 uAppearanceConfig;
-uniform vec4 uFilterToMatteBasis;
-uniform vec2 uFilterToMatteOffset;
+uniform highp vec4 uFilterToMatteBasis;
+uniform highp vec2 uFilterToMatteOffset;
 // 1.0 lets material alpha cross-fade the frost away, and the rest of the
 // material with it; 0.0 keeps unfrosted glass opaque and cross-fades the
 // material to the refracted backdrop instead, so visibility 0 is an exact
@@ -66,12 +71,12 @@ uniform float uBlurFade;
 // Matte-space rect (LTRB, device px) the filter captured backdrop for.
 // Outside it the filter input is transparent or clamped, so displaced samples
 // are mirrored back in at its edge.
-uniform vec4 uBackdropBounds;
+uniform highp vec4 uBackdropBounds;
 // Where fragment coordinates start, in device px: zero for a filter, whose
 // coordinates are its input's; the origin of the copy a paint samples.
-uniform vec2 uBackdropOrigin;
+uniform highp vec2 uBackdropOrigin;
 // Texel size of the material map's texture; the map fills its top-left.
-uniform vec2 uMaterialTextureSize;
+uniform highp vec2 uMaterialTextureSize;
 
 // Per-model parameter blocks for the three adaptive color-model slots the
 // layer assigned this frame: slot code 1..3 selects
@@ -91,7 +96,7 @@ uniform vec4 uColorModelParams[18];
 //                  each direction, then the texture's size in texels.
 //   uLowResOptics: refraction height in px, and whether refraction fits the
 //                  shape. These two set the bevel.
-uniform vec4 uLowResMatte;
+uniform highp vec4 uLowResMatte;
 uniform vec2 uLowResOptics;
 // The inputs of the optional effects, in one declaration: impellerc gives
 // every uniform declaration its own Metal buffer slot, Metal has 31, and a
@@ -114,7 +119,7 @@ uniform vec2 uLowResOptics;
 //     as it is.
 // [5] uBackdropOverlay: a color laid over the read backdrop at its alpha,
 //     the dimming between a cached copy of the page and the glass.
-uniform vec4 uEffects[6];
+uniform highp vec4 uEffects[6];
 #define uSolidBackdrop uEffects[0]
 #define uGlowSpot uEffects[1]
 #define uGlowBox uEffects[2]
@@ -146,7 +151,7 @@ float uEdgeWidth = uContourConfig.x;
 float uContourTransmittance = uContourConfig.y;
 float uContourDirectionality = uContourConfig.z;
 float uContourOffset = uProfileConfig.x;
-vec2 uMaterialCenter = uProfileConfig.yz;
+highp vec2 uMaterialCenter = uProfileConfig.yz;
 float uSpecularWrap = uProfileConfig.w;
 float uTransmissionGamma = uMaterialConfig.x;
 float uVibrancy = uMaterialConfig.y;
@@ -192,6 +197,14 @@ float gGlintVibrancy = kGlintVibrancy;
 // decoding and geometry placement remain bit-for-bit unchanged.
 const float kContourCoverageFeather = 1.0;
 
+// One iOS 27 model and one appearance: the face in the middle of the glass
+// has a fixed shape, and takes it in a few 16-bit operations.
+#if COLOR_MODELS == COLOR_MODELS_IOS27 && !SHAPE_APPEARANCE && !SHAPE_TINT
+#define PLAIN_INTERIOR 1
+#else
+#define PLAIN_INTERIOR 0
+#endif
+
 uniform sampler2D uBackgroundTexture;
 #if !ANALYTIC_GEOMETRY
 uniform sampler2D uGeometryTexture;
@@ -208,8 +221,8 @@ layout(location = 0) out vec4 fragColor;
 #if SHAPE_APPEARANCE
 vec4 shapeLookup(
     int index,
-    vec2 materialTextureSize,
-    float rowCenter
+    highp vec2 materialTextureSize,
+    highp float rowCenter
 ) {
     return texture(
         uMaterialTexture,
@@ -340,20 +353,20 @@ float contourDirection(vec2 surfaceNormal) {
     );
 }
 
-vec2 mirrorBackgroundUV(vec2 uv, vec2 inverseTextureSize) {
+highp vec2 mirrorBackgroundUV(highp vec2 uv, highp vec2 inverseTextureSize) {
     // Image-filter sampler edge behavior differs between Impeller backends.
     // Preserve every coordinate inside the input texture exactly, and mirror
     // only displaced samples that genuinely leave it. This avoids GLES decal
     // black without clamping Metal samples into stretched edge pixels.
-    vec2 mirrored = vec2(1.0) - abs(mod(uv, vec2(2.0)) - vec2(1.0));
-    vec2 halfTexel = inverseTextureSize * 0.5;
+    highp vec2 mirrored = vec2(1.0) - abs(mod(uv, vec2(2.0)) - vec2(1.0));
+    highp vec2 halfTexel = inverseTextureSize * 0.5;
     return clamp(mirrored, halfTexel, vec2(1.0) - halfTexel);
 }
 
-vec2 filterDeltaFromMatteDelta(vec2 matteDelta, vec4 basis) {
+highp vec2 filterDeltaFromMatteDelta(highp vec2 matteDelta, highp vec4 basis) {
     // Invert the live filter->matte affine basis so material-centered source
     // mapping remains stable under ancestor transforms.
-    float determinant = basis.x * basis.w - basis.y * basis.z;
+    highp float determinant = basis.x * basis.w - basis.y * basis.z;
     if (abs(determinant) < 1e-6) {
         return vec2(0.0);
     }
@@ -363,21 +376,21 @@ vec2 filterDeltaFromMatteDelta(vec2 matteDelta, vec4 basis) {
     ) / determinant;
 }
 
-vec2 mirrorIntoBackdrop(vec2 sourceOffset, vec2 matteCoord) {
-    vec2 sampleMatte = matteCoord + vec2(
+highp vec2 mirrorIntoBackdrop(highp vec2 sourceOffset, highp vec2 matteCoord) {
+    highp vec2 sampleMatte = matteCoord + vec2(
         dot(uFilterToMatteBasis.xy, sourceOffset),
         dot(uFilterToMatteBasis.zw, sourceOffset)
     );
     // Keep bilinear footprints off the uncaptured side of the edge.
     float margin = 0.5;
-    vec2 lo = uBackdropBounds.xy + margin;
-    vec2 hi = uBackdropBounds.zw - margin;
+    highp vec2 lo = uBackdropBounds.xy + margin;
+    highp vec2 hi = uBackdropBounds.zw - margin;
     if (all(greaterThanEqual(sampleMatte, lo)) &&
         all(lessThanEqual(sampleMatte, hi))) {
         return sourceOffset;
     }
-    vec2 extent = max(hi - lo, vec2(0.0));
-    vec2 mirrored = lo + extent - abs(extent - abs(sampleMatte - lo));
+    highp vec2 extent = max(hi - lo, vec2(0.0));
+    highp vec2 mirrored = lo + extent - abs(extent - abs(sampleMatte - lo));
     mirrored = clamp(mirrored, lo, max(hi, lo));
     return sourceOffset + filterDeltaFromMatteDelta(
         mirrored - sampleMatte,
@@ -588,13 +601,13 @@ const float kMinBlendedNormalLength = 0.5;
 // opposite directions and cancel out, so the blended direction means nothing.
 // There, read the nearest texel instead. That extra read only happens on a
 // line one or two pixels wide.
-vec3 lowResNormalFiltered(vec4 lowResTexel, vec2 texelCoord) {
+vec3 lowResNormalFiltered(vec4 lowResTexel, highp vec2 texelCoord) {
     vec2 sum = lowResTexel.yz;
     float sumLength = length(sum);
     // An analytic texel is the fragment's own, never a blend.
     #if !ANALYTIC_GEOMETRY
     if (sumLength < kMinBlendedNormalLength) {
-        vec2 nearestUV =
+        highp vec2 nearestUV =
             (floor(texelCoord + 0.5) + 0.5) / uLowResMatte.yz;
         sum = texture(uGeometryTexture, nearestUV).yz;
         sumLength = length(sum);
@@ -605,6 +618,24 @@ vec3 lowResNormalFiltered(vec4 lowResTexel, vec2 texelCoord) {
         sumLength
     );
 }
+
+#if PLAIN_INTERIOR
+// How deep a pixel needs no bevel and no rim light. Glass that carries
+// anything else over its whole face never takes this path.
+float plainInteriorDepth() {
+    bool plain = abs(uBackdropScale - 1.0) <= 0.0001 &&
+        uBackdropFrost <= 0.0 &&
+        uTint.a < 0.001 &&
+        uAppearanceConfig.y >= 1.0 &&
+        uTransmissionGamma == 1.0 &&
+        uVibrancy <= 0.0 &&
+        uGlowSpot.w <= 0.0 &&
+        uGlowShape.y <= 0.0 &&
+        uSolidBackdrop.a <= 0.5 &&
+        uBackdropOverlay.a <= 0.0;
+    return plain ? max(uLowResOptics.x, rimReach()) + 1.0 : 32000.0;
+}
+#endif
 
 // How far the backdrop is shifted at this pixel, in px, toward the inside of
 // the shape. The glass is flat in the middle with a rounded (quarter-circle)
@@ -644,14 +675,14 @@ void main() {
     // matte. Apple Metal surfaces expose global filter coordinates, while
     // other backends may expose clip-local coordinates. These uniforms are
     // snapshotted with the frame, never overwritten through a shared texture.
-    vec2 fragCoord = FlutterFragCoord().xy - uBackdropOrigin;
-    vec2 screenUV = fragCoord / uSize;
+    highp vec2 fragCoord = FlutterFragCoord().xy - uBackdropOrigin;
+    highp vec2 screenUV = fragCoord / uSize;
 
-    vec2 matteCoord = vec2(
+    highp vec2 matteCoord = vec2(
         dot(uFilterToMatteBasis.xy, fragCoord),
         dot(uFilterToMatteBasis.zw, fragCoord)
     ) + uFilterToMatteOffset;
-    vec2 geometryUV = (matteCoord - uGeometryOffset) / uGeometrySize;
+    highp vec2 geometryUV = (matteCoord - uGeometryOffset) / uGeometrySize;
 
     if (
         any(lessThan(geometryUV, vec2(0.0))) ||
@@ -664,7 +695,7 @@ void main() {
     // This pixel's position in low-res matte texels. Texel (i, j) was
     // computed at the center of matte pixel (i * scale, j * scale)
     // (kPixelCenter in geometry_fragment.glsl).
-    vec2 lowResTexelCoord =
+    highp vec2 lowResTexelCoord =
         (matteCoord - uGeometryOffset - 0.5) / uLowResMatte.x;
     #if ANALYTIC_GEOMETRY
     // Deeper than the bevel and the rim, only coverage reads the distance.
@@ -681,6 +712,44 @@ void main() {
         (lowResTexelCoord + 0.5) / uLowResMatte.yz
     );
     #endif
+    #if PLAIN_INTERIOR
+    if (lowResTexel.x > plainInteriorDepth()) {
+        vec3 backdrop;
+        #ifndef IMPELLER_TARGET_OPENGLES
+        if (uBackdropReduced == 0.0) {
+            backdrop = texelFetch(
+                uBackgroundTexture,
+                ivec2(floor(fragCoord)),
+                0
+            ).rgb;
+        } else
+        #endif
+        {
+            highp vec2 halfTexel = 0.5 / uSize;
+            backdrop = texture(
+                uBackgroundTexture,
+                clamp(screenUV, halfTexel, vec2(1.0) - halfTexel) /
+                    max(uBackdropReduced, 1.0)
+            ).rgb;
+        }
+        vec4 wash = parametricNeutralTint(0, uTintAmount);
+        vec2 transfer = parametricFaceTransfer(0, uTintAmount);
+        float luminance = dot(backdrop, LUMA_WEIGHTS);
+        fragColor = vec4(
+            clamp(
+                wash.rgb * wash.a +
+                    luminance *
+                        (1.0 + transfer.x * (1.0 - luminance)) *
+                        (1.0 - wash.a) +
+                    (backdrop - luminance) * (transfer.y * uSaturation),
+                0.0,
+                1.0
+            ),
+            1.0
+        );
+        return;
+    }
+    #endif
     vec4 materialTint = uTint;
     float appearanceVisibility = clamp(uAppearanceConfig.y, 0.0, 1.0);
     // Weight of the material over the refracted backdrop. Frosted glass
@@ -691,29 +760,29 @@ void main() {
     vec4 colorModelShares = colorModelSharesOf(uAppearanceConfig.x);
     #if SHAPE_TINT
     {
-        float materialRasterScale = max(uAppearanceConfig.z, 1.0);
-        vec2 materialSize = max(
+        highp float materialRasterScale = max(uAppearanceConfig.z, 1.0);
+        highp vec2 materialSize = max(
             ceil(uGeometrySize / materialRasterScale),
             vec2(1.0)
         );
-        vec2 materialTextureSize = uMaterialTextureSize;
-        vec2 materialLinearUV =
+        highp vec2 materialTextureSize = uMaterialTextureSize;
+        highp vec2 materialLinearUV =
             (geometryUV * (materialSize - vec2(1.0)) + vec2(0.5)) /
             materialTextureSize;
         materialTint = texture(uMaterialTexture, materialLinearUV);
     }
     #elif SHAPE_APPEARANCE
     {
-        float materialRasterScale = max(uAppearanceConfig.z, 1.0);
-        vec2 materialSize = max(
+        highp float materialRasterScale = max(uAppearanceConfig.z, 1.0);
+        highp vec2 materialSize = max(
             ceil(uGeometrySize / materialRasterScale),
             vec2(1.0)
         );
-        vec2 materialTextureSize = uMaterialTextureSize;
-        vec2 materialNearestUV =
+        highp vec2 materialTextureSize = uMaterialTextureSize;
+        highp vec2 materialNearestUV =
             (floor(geometryUV * materialSize) + vec2(0.5)) /
             materialTextureSize;
-        vec2 materialLinearUV =
+        highp vec2 materialLinearUV =
             (geometryUV * (materialSize - vec2(1.0)) + vec2(0.5)) /
             materialTextureSize;
         // Keep contributor IDs discrete, while bilinearly upsampling only the
@@ -846,18 +915,18 @@ void main() {
         }
     }
 
-    vec2 invUSize = 1.0 / uSize;
+    highp vec2 invUSize = 1.0 / uSize;
     // From the copy's uv to its texture's.
-    float copyScale = 1.0 / max(uBackdropReduced, 1.0);
-    vec2 backdropScaleOffset = vec2(0.0);
+    highp float copyScale = 1.0 / max(uBackdropReduced, 1.0);
+    highp vec2 backdropScaleOffset = vec2(0.0);
     if (abs(uBackdropScale - 1.0) > 0.0001) {
         // backdropShrink is one lens over the whole face, uniform up to the
         // silhouette, about the nearest point of the segment
         // +-uBackdropShrinkAxis through the material center. The bevel
         // displacement adds on top of it. It never enlarges: magnifiers
         // re-render their content instead (see the example's loupe).
-        vec2 shrinkAnchor = uMaterialCenter;
-        float axisLengthSquared = dot(uBackdropShrinkAxis, uBackdropShrinkAxis);
+        highp vec2 shrinkAnchor = uMaterialCenter;
+        highp float axisLengthSquared = dot(uBackdropShrinkAxis, uBackdropShrinkAxis);
         if (axisLengthSquared > 0.0) {
             shrinkAnchor += uBackdropShrinkAxis * clamp(
                 dot(matteCoord - uMaterialCenter, uBackdropShrinkAxis) /
@@ -866,7 +935,7 @@ void main() {
                 1.0
             );
         }
-        vec2 filterDeltaFromAnchor = filterDeltaFromMatteDelta(
+        highp vec2 filterDeltaFromAnchor = filterDeltaFromMatteDelta(
             matteCoord - shrinkAnchor,
             uFilterToMatteBasis
         );
@@ -888,8 +957,8 @@ void main() {
         // subpixel. The uniform predicate stays coherent across the layer and
         // the displacement bound keeps this optimization valid for either CA
         // sign.
-        vec2 sourceOffset = backdropScaleOffset + displacement;
-        vec2 refractedUV;
+        highp vec2 sourceOffset = backdropScaleOffset + displacement;
+        highp vec2 refractedUV;
         if (
             sourceOffset.x == 0.0 &&
             sourceOffset.y == 0.0 &&
@@ -925,7 +994,7 @@ void main() {
             // The copy is taken unblurred and grown by three sigma, so the
             // taps read real backdrop past the rim; one refracted past it
             // reads the copy's edge.
-            vec2 halfTexel = invUSize * 0.5;
+            highp vec2 halfTexel = invUSize * 0.5;
             refractColor = frostTaps(
                 uBackgroundTexture,
                 refractedUV * copyScale,
@@ -941,21 +1010,21 @@ void main() {
         vec2 redOffset = displacement * (1.0 + dispersionStrength);
         vec2 blueOffset = displacement * (1.0 - dispersionStrength);
         
-        vec2 redUV = mirrorBackgroundUV(
+        highp vec2 redUV = mirrorBackgroundUV(
             screenUV + mirrorIntoBackdrop(
                 backdropScaleOffset + redOffset,
                 matteCoord
             ) * invUSize,
             invUSize
         );
-        vec2 greenUV = mirrorBackgroundUV(
+        highp vec2 greenUV = mirrorBackgroundUV(
             screenUV + mirrorIntoBackdrop(
                 backdropScaleOffset + displacement,
                 matteCoord
             ) * invUSize,
             invUSize
         );
-        vec2 blueUV = mirrorBackgroundUV(
+        highp vec2 blueUV = mirrorBackgroundUV(
             screenUV + mirrorIntoBackdrop(
                 backdropScaleOffset + blueOffset,
                 matteCoord
@@ -1158,7 +1227,7 @@ void main() {
     // Mali GPUs. The matte coordinate is derived again, so no register
     // holds it across the shading.
     if (uGlowSpot.w > 0.0 || uGlowShape.y > 0.0) {
-        vec2 glowCoord = FlutterFragCoord().xy - uBackdropOrigin;
+        highp vec2 glowCoord = FlutterFragCoord().xy - uBackdropOrigin;
         finalColor = applyGlassGlow(
             finalColor,
             vec2(

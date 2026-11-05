@@ -203,7 +203,7 @@ ui.Picture recordFrostedCopy(
   Path? outline,
 }) {
   final read = copy.readOf(shown);
-  _setFrost(shader, read.frostSampling(frost.sigma), frost);
+  _setFrost(shader, read.frostSampling(frost.sigma), frost.colorMatrix);
   shader.setImageSampler(0, copy.image, filterQuality: FilterQuality.low);
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
@@ -245,21 +245,49 @@ ui.Picture? recordFrostedInFrame(
   final read = copy.readIn(region);
   final sampling = read?.frostSampling(shown, frost.sigma);
   if (read == null || sampling == null) return null;
-  _setFrost(shader, sampling, frost);
+  _setFrost(shader, sampling, frost.colorMatrix);
   shader.setImageSampler(0, _bilinear, filterQuality: FilterQuality.low);
   final toLocal = Matrix4.translationValues(-origin.dx, -origin.dy, 0);
   toLocal.scaleByDouble(1 / devicePixelRatio, 1 / devicePixelRatio, 1, 1);
   return read.record(bilinearShaderFilter(shader), toLocal);
 }
 
+/// Whether a copy of few pixels is frosted once, at its own pixels, rather
+/// than by every fragment of the glass over it.
+@visibleForTesting
+bool debugFrostsInPlace = false;
+
+ui.FragmentShader? _inPlaceFrost;
+
+/// The filter that frosts [read]'s copy in place for Impeller's blur by
+/// [frost], which glass then reads as it is, or null where glass frosts it.
+///
+/// NEAR: the glass takes one read for its 24 taps per fragment, over a copy
+/// of an eighth or a quarter of the screen's pixels the frost spans by at
+/// least 1.75 of them, and the copy's pixels show no more than through the
+/// taps.
+@internal
+ui.ImageFilter? inPlaceFrostFilter(CornerRead read, double frost) {
+  if (!debugFrostsInPlace) return null;
+  final sampling = read.inPlaceFrostSampling(frost);
+  if (sampling == null) return null;
+  final shader = _inPlaceFrost ??= MultiShaderBuilder.cached(
+    ShaderKeys.backdropFrost,
+  )?.fragmentShader();
+  if (shader == null) return null;
+  _setFrost(shader, sampling, null);
+  shader.setImageSampler(0, _bilinear, filterQuality: FilterQuality.low);
+  return bilinearShaderFilter(shader);
+}
+
 // The uniforms of backdrop_frost.frag.
 void _setFrost(
   ui.FragmentShader shader,
   FrostSampling sampling,
-  LiquidGlassBackdropFrost frost,
+  List<double>? colorMatrix,
 ) {
   final FrostSampling(:size, :bounds, frost: taps, :scale, :shown) = sampling;
-  final m = frost.colorMatrix ?? _identityMatrix;
+  final m = colorMatrix ?? _identityMatrix;
   var i = 0;
   void put(double value) => shader.setFloat(i++, value);
   put(size.width);

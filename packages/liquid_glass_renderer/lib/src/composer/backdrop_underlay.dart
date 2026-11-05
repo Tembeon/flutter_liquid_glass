@@ -139,8 +139,21 @@ class BackdropUnderlay {
   @visibleForTesting
   static final debugImageAsks = <String, int>{};
 
+  /// Whether a copy of few pixels leaves glass out.
+  static bool debugDropsGlass = true;
+
   /// Whether the last [request] is served by [serveInFrame], not [serve].
-  bool get servesInFrame => _ask?.inFrame ?? false;
+  bool get servesInFrame => (_ask?.inFrame ?? false) && !_stillUnder;
+
+  /// Whether a copy that drew the same as the frame before moves to an image,
+  /// which holds, until what lies under it changes.
+  static bool debugPromotes = false;
+
+  // What the copy drawn in the frame last drew.
+  List<Object?>? _inFrameOut;
+
+  // Whether what lies under the copy held still, so an image serves it.
+  bool _stillUnder = false;
 
   /// The image that holds the copy, once it is drawn.
   @visibleForTesting
@@ -257,6 +270,10 @@ class BackdropUnderlay {
     return _islandOf([this], [ask], scan, limit)?.copy;
   }
 
+  // Whether the copy drawn in the frame last held glass. The next is likely to,
+  // so it starts at the screen's pixels without recording it twice.
+  bool _heldGlass = false;
+
   /// The copy the last [request] asked for as a picture this frame draws, or
   /// null when it cannot be drawn in the frame: [serve] then takes the
   /// request, while what lies there might still be drawn into an image.
@@ -291,7 +308,7 @@ class BackdropUnderlay {
       _count(debugMisses, 'off screen');
       return null;
     }
-    var grid = ask.grid;
+    var grid = _heldGlass ? ask.grid._screen : ask.grid;
     while (true) {
       final replay = _Prefix(
         ask.anchor,
@@ -300,6 +317,7 @@ class BackdropUnderlay {
         scan: scan,
         limit: limit,
         bodies: [?ask.body],
+        dropsGlass: BackdropUnderlay.debugDropsGlass && grid._share >= 4,
       );
       final content = replay.record(grid);
       if (content == null) {
@@ -323,6 +341,10 @@ class BackdropUnderlay {
         _ask = ask;
         return null;
       }
+      _heldGlass = replay.holdsGlass;
+      final last = _inFrameOut;
+      _inFrameOut = replay.out;
+      _stillUnder = debugPromotes && last != null && _same(replay.out, last);
       if (replay.holdsGlass && grid != grid._screen) {
         content.dispose();
         grid = grid._screen;
@@ -456,6 +478,10 @@ class BackdropUnderlay {
         !signed.blocked &&
         signed.reached &&
         _same(signed.out, last!.signature);
+    if (!held && first._stillUnder && last != null) {
+      first._stillUnder = false;
+      first._inFrameOut = null;
+    }
     if (held) {
       var inside = true;
       for (final i in kept!) {
@@ -935,6 +961,7 @@ class _Prefix {
     required this.scan,
     required this.limit,
     this.bodies = const [],
+    this.dropsGlass = false,
   }) : canvas = recorder == null ? null : Canvas(recorder);
 
   // What is painted before [stop] in [band], signed without drawing it.
@@ -987,6 +1014,10 @@ class _Prefix {
 
   // Whether the copy draws glass.
   bool holdsGlass = false;
+
+  // Whether glass is left out of the copy, whose frost is wide enough to hide
+  // it, and only what lies on it is drawn.
+  final bool dropsGlass;
 
   static Set<Layer> _ancestors(Layer layer) {
     final path = Set<Layer>.identity();
@@ -1717,6 +1748,10 @@ final class _Scan {
     while (i < limit) {
       final entry = entries[i];
       switch (entry) {
+        case _Leaf(glass: true) when prefix.dropsGlass:
+          break;
+        case _Glass() when prefix.dropsGlass:
+          break;
         case _Leaf(glass: true) when prefix.beside(entry.bounds):
           break;
         case _Glass() when prefix.beside(entry.bounds):
@@ -1819,7 +1854,9 @@ final class _Scan {
               if (!through) break loop;
               continue loop;
             case _Served(:final layer, :final transform, :final clip):
-              if (layer.pending) {
+              if (prefix.dropsGlass) {
+                // Only what lies on the glass is drawn.
+              } else if (layer.pending) {
                 if (!fold(layer, layer.addFold, transform, clip)) break loop;
               } else if (layer.inFrameLayer case final inFrame?) {
                 prefix.holdsGlass = true;
