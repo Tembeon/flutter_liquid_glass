@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/src/clock.dart';
+import 'package:kinesis/src/frame_cadence.dart';
 import 'package:kinesis/src/input/interaction.dart';
 import 'package:kinesis/src/input/port.dart';
 
@@ -179,9 +180,25 @@ class _InputRegionState extends State<InputRegion> {
     _clock.input(time, () => _dispatch(event, size, time));
   }
 
+  Duration? _movedAt;
+
+  void _reportSpeed(PointerMoveEvent event) {
+    final last = _movedAt;
+    _movedAt = event.timeStamp;
+    if (last == null || !mounted) return;
+    final seconds = (event.timeStamp - last).inMicroseconds / 1e6;
+    if (seconds <= 0) return;
+    FrameCadence.instance.input(
+      pixelsPerSecond:
+          event.delta.distance * View.of(context).devicePixelRatio / seconds,
+    );
+  }
+
   void _dispatch(PointerEvent event, Size size, double time) {
     switch (event) {
       case PointerDownEvent():
+        _movedAt = event.timeStamp;
+        FrameCadence.instance.input(changed: true);
         final tracker = VelocityTracker.withKind(event.kind);
         tracker.addPosition(event.timeStamp, event.localPosition);
         final output = _session.handle(
@@ -212,6 +229,7 @@ class _InputRegionState extends State<InputRegion> {
           event.timeStamp,
           event.localPosition,
         );
+        _reportSpeed(event);
         _answer(
           _session.handle(
             PointerMoveInput(
@@ -223,6 +241,7 @@ class _InputRegionState extends State<InputRegion> {
           pointer: event.pointer,
         );
       case PointerUpEvent():
+        FrameCadence.instance.input(changed: true);
         final tracker = _trackers.remove(event.pointer);
         tracker?.addPosition(event.timeStamp, event.localPosition);
         final velocity = tracker?.getVelocity().pixelsPerSecond ?? Offset.zero;

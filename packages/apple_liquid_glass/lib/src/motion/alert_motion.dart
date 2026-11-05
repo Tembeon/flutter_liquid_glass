@@ -132,6 +132,10 @@ class AlertMotion extends Motion with Presented {
     this.presentScale = AlertTuning.presentScale,
   });
 
+  // UIKit asks at least 80 Hz of this (read from UIKit, notes private).
+  @override
+  double get minFrameRate => 80;
+
   /// The spring of the progress and the scale.
   final Spring spring;
 

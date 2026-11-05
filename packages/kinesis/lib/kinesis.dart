@@ -11,6 +11,7 @@ library;
 export 'src/clock.dart' show ManualMotionClock, MotionClock;
 export 'src/converter.dart' show MotionConverter;
 export 'src/effect.dart' show MotionEffect;
+export 'src/frame_cadence.dart' show FrameCadence;
 export 'src/input/follow.dart' show FollowInteraction, PointerFollower;
 export 'src/input/interaction.dart'
     show

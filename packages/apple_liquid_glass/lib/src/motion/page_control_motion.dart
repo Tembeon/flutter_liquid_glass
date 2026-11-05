@@ -93,6 +93,10 @@ final class PageControlMotion extends Motion {
     ];
   }
 
+  // UIKit asks at least 80 Hz of this (read from UIKit, notes private).
+  @override
+  double get minFrameRate => 80;
+
   static double _restWidth(bool current, bool progress) => current && progress
       ? PageControlTuning.progressIndicatorWidth
       : PageControlTuning.indicatorSize;

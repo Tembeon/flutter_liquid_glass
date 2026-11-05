@@ -190,6 +190,10 @@ final class _SheetPresented extends Motion with Presented {
   bool _opened = false;
   bool _left = false;
 
+  // UIKit asks at least 80 Hz of this (read from UIKit, notes private).
+  @override
+  double get minFrameRate => 80;
+
   SheetMotion? get sheet => _sheet;
 
   /// Whether the presentation was dismissed.

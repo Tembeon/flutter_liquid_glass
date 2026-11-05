@@ -29,6 +29,10 @@ The clock:
   phase, after the frame's values stepped and before build.
 - Errors thrown by listeners and scheduled actions are reported through
   `FlutterError` and do not stop the frame.
+- `FrameCadence`: on a display faster than 90 Hz, once started, the app draws
+  every second vsync while nothing fast moves. A scroll or a finger past
+  UIKit's speed and a `Motion` with a floor above 60 Hz draw every vsync; a
+  device that cannot keep up stays at the lower rate.
 
 On screen:
 

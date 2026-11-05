@@ -354,6 +354,10 @@ class SheetMotion extends Motion {
     _offset.snap(0, hiddenOffset);
   }
 
+  // UIKit asks at least 80 Hz of this (read from UIKit, notes private).
+  @override
+  double get minFrameRate => 80;
+
   List<double> _heights;
   double _fullHeight;
 

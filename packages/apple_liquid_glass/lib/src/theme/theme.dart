@@ -370,6 +370,11 @@ class GlassThemeData {
 ///
 /// A widget that reads one part of the theme ([rendererOf], [brightnessOf],
 /// [colorSchemeOf]) rebuilds only when that part changes.
+///
+/// The outermost theme starts `FrameCadence`, which on a fast display draws
+/// about 60 frames a second while nothing fast moves, and reports it the
+/// scrolls below the theme. Put it above the app's scroll views: a scroll
+/// outside any theme stays at the lower rate.
 class GlassTheme extends StatelessWidget {
   /// Applies [data] to [child].
   const GlassTheme({required this.data, required this.child, super.key});
@@ -410,7 +415,24 @@ class GlassTheme extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final outer = maybeOf(context);
-    return _GlassThemeScope(data: outer?.merge(data) ?? data, child: child);
+    final scope = _GlassThemeScope(
+      data: outer?.merge(data) ?? data,
+      child: child,
+    );
+    if (outer != null) return scope;
+    FrameCadence.instance.start();
+    return NotificationListener<ScrollUpdateNotification>(
+      onNotification: (notification) {
+        if (notification.scrollDelta case final delta?) {
+          FrameCadence.instance.scrolled(
+            delta,
+            notification.metrics.devicePixelRatio,
+          );
+        }
+        return false;
+      },
+      child: scope,
+    );
   }
 }
 

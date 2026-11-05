@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/src/clock.dart';
+import 'package:kinesis/src/frame_cadence.dart';
 import 'package:kinesis/src/motion/loop.dart';
 import 'package:kinesis/src/motion/part.dart';
 import 'package:kinesis/src/selection.dart';
@@ -279,6 +280,11 @@ abstract class Motion extends MotionPart {
   @protected
   void didAdvance(double t) {}
 
+  /// The lowest frame rate this motion asks of a fast display while it moves,
+  /// as UIKit's frame rate ranges do: above 60 the display draws every vsync
+  /// (see `FrameCadence`).
+  double get minFrameRate => 0;
+
   /// Whether something outside the parts keeps the motion awake: a finger
   /// still down, a hold that has not come due.
   @protected
@@ -406,7 +412,12 @@ final class _RootFollower implements MotionFollowed, Listenable {
   @override
   bool stepTo(double time) {
     motion.advance(time);
-    if (!motion.isSettled) return true;
+    if (!motion.isSettled) {
+      if (motion.minFrameRate > FrameCadence.fullFloor) {
+        FrameCadence.instance.hold();
+      }
+      return true;
+    }
     motion.settle();
     return false;
   }

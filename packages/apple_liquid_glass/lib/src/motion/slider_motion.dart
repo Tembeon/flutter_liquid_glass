@@ -79,6 +79,10 @@ final class SliderMotion extends Motion {
     );
   }
 
+  // UIKit asks at least 80 Hz of this (read from UIKit, notes private).
+  @override
+  double get minFrameRate => 80;
+
   static double _length() => MotionRest.length;
 
   /// Hears each event the slider raises.

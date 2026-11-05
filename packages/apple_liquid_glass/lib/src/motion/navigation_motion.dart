@@ -277,6 +277,10 @@ class NavigationPopMotion {
 /// page below follow through [progress].
 @internal
 abstract class PageMotion extends Motion with Presented {
+  // UIKit asks at least 80 Hz of this (read from UIKit, notes private).
+  @override
+  double get minFrameRate => 80;
+
   /// How far the page has come in, 0 hidden to 1 shown: a slide's
   /// progress, a zoom's reach.
   double get progress;
