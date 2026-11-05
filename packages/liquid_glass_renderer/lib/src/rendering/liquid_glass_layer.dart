@@ -1058,8 +1058,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   ) => geometries.any(
     (entry) => entry.$2.shapes.any(
       (shape) =>
+          shape.appearance.visibility > 0 &&
           _matteShapeBasis(entry.$3, shape.shapeToGeometry ?? _identity) !=
-          null,
+              null,
     ),
   );
 
@@ -2499,6 +2500,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     for (final (_, geometry, geometryToLayer) in geometries) {
       var firstInGroup = true;
       for (final shape in geometry.shapes) {
+        // A shape at visibility 0 draws nothing. Left in, it would count as
+        // an appearance of its own and take the layer to the material map.
+        if (shape.appearance.visibility <= 0) continue;
         final shapeToGeometry = shape.shapeToGeometry ?? _identity;
         final basis = _matteShapeBasis(geometryToLayer, shapeToGeometry);
         if (basis == null) continue;
@@ -2599,11 +2603,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
         _shapeData
           // vec4 0: primitive parameters.
-          ..add(
-            shape.appearance.visibility <= 0
-                ? 0
-                : shape.rawShapeType.shaderIndex,
-          )
+          ..add(shape.rawShapeType.shaderIndex)
           ..add(size.width * devicePixelRatio)
           ..add(size.height * devicePixelRatio)
           ..add(cornerRadius * devicePixelRatio)

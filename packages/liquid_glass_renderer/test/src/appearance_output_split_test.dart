@@ -251,7 +251,8 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
           const LiquidGlassAppearance(visibility: 0),
           ...appearances.skip(1),
         ];
-      }, geometryChanged: true);
+      }, geometryChanged: true, uniform: true);
+      expect(layer.debugUsesShapeAppearances, isFalse);
       await check('restore contributor', () {
         appearances = [
           const LiquidGlassAppearance(tint: Color(0xA0FF3050)),
