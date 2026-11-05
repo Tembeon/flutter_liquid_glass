@@ -171,7 +171,7 @@ class _LiquidPageState extends State<LiquidPage> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          DriftingWallpaper(wallpaper: _wallpaper, drifts: _drifting),
+          DriftingWallpaper(wallpaper: _wallpaper, drifts: false),
           Builder(builder: _area),
         ],
       ),

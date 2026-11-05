@@ -35,7 +35,7 @@ enum Scene {
   /// Five clear drops in one group move over a still wallpaper.
   drops,
 
-  /// The Liquid tab: moving drops over a drifting wallpaper.
+  /// Moving drops over a drifting wallpaper.
   liquid,
 
   /// A list of photos scrolls under a navigation bar and a tab bar.
