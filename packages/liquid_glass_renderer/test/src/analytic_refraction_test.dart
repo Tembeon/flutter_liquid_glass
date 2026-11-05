@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
 import 'shared.dart';
@@ -49,11 +50,13 @@ Future<Uint8List> _capture(WidgetTester tester, double ratio) async {
 }
 
 void main() {
-  // One test: flutter_tester renders only a process's first backdrop filter
-  // reliably.
   testWidgets('an analytic frame refracts what its matte refracts', (
     tester,
   ) async {
+    // The glass reads a copy: flutter_tester renders only a process's first
+    // backdrop filter reliably, and this test draws two.
+    BackdropUnderlay.debugEnabledOverride = true;
+    addTearDown(() => BackdropUnderlay.debugEnabledOverride = null);
     const ratio = 2.0;
     tester.view
       ..physicalSize = _view * ratio
