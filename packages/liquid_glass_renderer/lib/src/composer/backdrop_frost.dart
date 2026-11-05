@@ -8,8 +8,8 @@ import 'package:flutter/foundation.dart';
 /// the frost is narrow enough for the shader; otherwise the copy is
 /// filtered.
 ///
-/// NEAR: the shader's 24 taps over a smaller copy are not Impeller's blur
-/// (see [debugShaderFrost]).
+/// NEAR: the shader's taps over a smaller copy are not Impeller's blur (see
+/// [debugShaderFrost]).
 @immutable
 final class LiquidGlassBackdropFrost {
   /// Creates the filter: a blur by [sigma] logical pixels along both axes,
@@ -25,17 +25,18 @@ final class LiquidGlassBackdropFrost {
   /// Whether a frost is drawn from an unblurred copy through a shader;
   /// without, its copy is filtered as [filter] filters the backdrop.
   ///
-  /// NEAR: over the colored rows and white lines of apple_liquid_glass's
-  /// scroll edge frost host test, the bands differ from the copy filtered as
-  /// the backdrop by at most 16 channel levels at a device pixel ratio of
-  /// 2.625 and 12 at 3, by under 0.5 on average. Fake glass with 6 px of
-  /// frost over the test font's white blocks, the hardest edges a frost
-  /// meets, differs by at most 28 at 2.625 and 36 at 2 (13 for the filtered
-  /// copy at 2.625); at 3 the frost is too wide for the shader and the copy
-  /// stays filtered. In return the copy takes no blur passes and, once the
-  /// frost spans 3.6 device px, holds a quarter of the pixels or fewer; a
-  /// change of the color matrix alone, as a band or a glass fades in, keeps
-  /// it.
+  /// NEAR: the shader reads 8 or 16 taps per fragment, mirrored over a 2 x 2
+  /// cell of pixels, so a thin hard edge under the frost shows a faint dither
+  /// a screen's pixels hide. Over the colored rows and white lines of
+  /// apple_liquid_glass's scroll edge frost host test, the bands differ from
+  /// the copy filtered as the backdrop by at most 27 channel levels at a
+  /// device pixel ratio of 2.625 and 22 at 3, by under 0.7 on average, with
+  /// 0.3 to 0.5 % of the channels off by more than 8. Fake glass with 6 px of
+  /// frost over the test font's white blocks, the hardest edges a frost meets,
+  /// differs by at most 30 at 2.625 (13 for the filtered copy); at 3 the frost
+  /// is too wide for the shader and the copy stays filtered. In return the copy takes no blur passes and, once the frost
+  /// spans 3.6 device px, holds a quarter of the pixels or fewer; a change of
+  /// the color matrix alone, as a band or a glass fades in, keeps it.
   static bool debugShaderFrost = true;
 
   /// The blur's sigma, in logical pixels.

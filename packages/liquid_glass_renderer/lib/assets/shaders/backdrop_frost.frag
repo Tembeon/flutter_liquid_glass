@@ -42,14 +42,16 @@ void main() {
         return;
     }
     vec2 invSize = 1.0 / uSize;
-    vec4 color = frostTaps(
-        uCopy,
-        fragment * uScale * invSize,
-        uFrost,
-        invSize,
-        uBounds.xy * invSize,
-        uBounds.zw * invSize
-    );
+    vec2 uv = fragment * uScale * invSize;
+    vec2 mirrored = invSize * frostMirror(fragment);
+    vec2 lo = uBounds.xy * invSize;
+    vec2 hi = uBounds.zw * invSize;
+    vec4 color;
+    if (uFrost > 2.8) {
+        color = frostSixteen(uCopy, uv, uFrost, mirrored, lo, hi);
+    } else {
+        color = frostEight(uCopy, uv, uFrost, mirrored, lo, hi);
+    }
     vec3 rgb = color.a > 0.0 ? color.rgb / color.a : vec3(0.0);
     vec4 filtered = clamp(uMatrix * vec4(rgb, color.a) + uOffset, 0.0, 1.0);
     fragColor = vec4(filtered.rgb * filtered.a, filtered.a) * coverage;

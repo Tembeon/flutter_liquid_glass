@@ -40,8 +40,8 @@ final class CopyGrid {
   // a filter draws, at the screen's pixels whatever was asked, holds less
   // of. NEAR there: the taps lie up to 14 of its pixels apart, past the 3.5
   // [shaderFrostDownscale] keeps to; under the scroll edge over glass the
-  // frost is 0.35 levels off the live read on average and 21 at most, and
-  // 0.27 and 21 for a copy at the pixels asked (host test, 2.625 dpr).
+  // frost is 0.55 levels off the live read on average at 2.625 dpr and 0.41
+  // at 3 (host test).
   double _frost(double sigma) => sigma > 0
       ? shaderFrostResidual(sigma * _devicePixelRatio, share: _share)
       : 0;

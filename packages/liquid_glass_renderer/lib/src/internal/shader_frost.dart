@@ -8,9 +8,9 @@ import 'package:meta/meta.dart';
 // Impeller's blur passes deliver 0.84 to 0.87 of the sigma.
 const double _deliveredFrost = 0.84;
 
-// The largest sigma, in the copy's own pixels, the shader frosts by. Its 24
-// taps lie about a sigma apart, so a wider frost shows hard edges as faint
-// copies: they show at 5 copy pixels in the host test and not at 3.4.
+// The largest sigma, in the copy's own pixels, the shader frosts by. Its taps
+// lie about a sigma apart, so a wider frost shows hard edges as faint copies:
+// they show at 5 copy pixels in the host test and not at 3.4.
 const double _shaderFrostTexels = 3.5;
 
 /// How many device pixels along each side one pixel of a copy the shader

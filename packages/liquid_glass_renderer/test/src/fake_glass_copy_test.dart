@@ -147,6 +147,6 @@ void main() {
     final copied = await _pixels(tester, dpr: dpr);
     // NEAR, see LiquidGlassBackdropFrost.debugShaderFrost: the test font's
     // white blocks are the hardest edges a frost meets.
-    expect(_difference(reading, copied), lessThanOrEqualTo(28));
+    expect(_difference(reading, copied), lessThanOrEqualTo(30));
   }, skip: skipProperGlassTests);
 }

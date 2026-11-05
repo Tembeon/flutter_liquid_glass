@@ -228,7 +228,7 @@ ui.Picture recordFrostedCopy(
 /// copy's layer inside [region], whose top-left corner holds the copy at its
 /// own pixels, and covers each pixel as much as it lies inside [shown]: a
 /// clip would also cut the copy the layer holds. NEAR: on a row of pixels
-/// the edge of [shown] splits, up to 29 channel levels off the frost of an
+/// the edge of [shown] splits, up to 33 channel levels off the frost of an
 /// image, which a clip covers otherwise (2.625 dpr, the scroll edge host
 /// test). Composited with [BlendMode.srcOver] only: past [shown] the layer
 /// is transparent.
