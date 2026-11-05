@@ -563,8 +563,20 @@ final class LensMotion extends Motion {
   /// Whether the finger currently drags the lens.
   bool get isDragging => _pointer?.dragging ?? false;
 
-  /// The index of the slot nearest to [x].
+  /// The index of the slot under [x]: where slots overlap, as a tab bar's
+  /// buttons do, the selected one if it is among them, else the first (read
+  /// from UIKit; a lift 47 points from one tab and 38 from the next selected
+  /// the first on an iPhone 16 Pro). Off every slot, the nearest.
   int slotAt(double x) {
+    bool under(LensSlot slot) => (slot.center - x).abs() <= slot.width / 2;
+    if (_selected >= 0 &&
+        _selected < _slots.length &&
+        under(_slots[_selected])) {
+      return _selected;
+    }
+    for (var i = 0; i < _slots.length; i++) {
+      if (under(_slots[i])) return i;
+    }
     var best = -1;
     var bestDistance = double.infinity;
     for (var i = 0; i < _slots.length; i++) {
@@ -610,6 +622,25 @@ final class LensMotion extends Motion {
       pointer.offset = 0;
       _selectWithLift(t, index, hold: true);
     }
+  }
+
+  /// A finger already on the control at [x], [y] across it takes the lens
+  /// from where it rests and starts to drag it, selecting nothing until it
+  /// lifts: a finger that slides off a tab bar's minimized circle.
+  void pointerDrag(double t, double x, {double y = 0}) {
+    advance(t);
+    if (_slots.isEmpty || _pointer != null) return;
+    final pointer = _Pointer(offset: 0, pressedSelected: true, x: x);
+    pointer.dragging = true;
+    pointer.unfollowed = true;
+    _pointer = pointer;
+    _pressChrome(t, pointer, Offset(x, y));
+    _flagOn(t);
+    pointer.unliftNotBefore = t + tuning.pressHang;
+    at(t + tuning.pressDelay, (s) {
+      if (!pointer.cancelled) _liftTo(s, 1);
+    });
+    _loop.wake(t);
   }
 
   /// The finger moved to [x], [y] across the track.

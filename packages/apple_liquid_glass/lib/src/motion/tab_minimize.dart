@@ -37,9 +37,9 @@ enum GlassTabBarMinimizeBehavior {
 /// matched to the measured search tab circle (48 pt, 28 from the side and
 /// the bottom). The bar turns into the circle in one liquid morph of its
 /// shape and content ([morphSpring]); the four collapse and expand springs
-/// move only the bottom accessory, one axis after the other. The morph,
-/// the accessory's path and the hold expansion are not filmed
-/// (approximation).
+/// move only the bottom accessory, one axis after the other (iPhone 16 Pro,
+/// layer rows, within 0.09 points). What the content does during the morph
+/// is taken from films of the same phone, by eye.
 @internal
 abstract final class TabBarMinimizeTuning {
   /// The scroll in the minimizing direction, in points, before the bar
@@ -144,17 +144,44 @@ abstract final class TabBarMinimizeTuning {
   /// not offer).
   static const double accessoryHeight = 48;
 
-  /// How long a finger rests on the minimized bar before the bar expands
-  /// under it: UIKit's `minimumPressDuration` of the tab bar's interactive
-  /// expansion, 0.22 s, read from UIKit.
-  static const double holdDuration = 0.22;
-
   /// How far a finger on the minimized bar moves along the bar, in points,
-  /// before the bar expands at once and the touch becomes the bar's
-  /// selection drag: UIKit's `expansionHysteresis`, 4, read from UIKit
-  /// (the selection gesture of the floating tab bar applies the same 4
-  /// points).
-  static const double holdHysteresis = 4;
+  /// before the bar expands and the touch becomes the bar's selection drag:
+  /// 4, read from UIKit. A finger that only rests does nothing more: a 1.6 s
+  /// hold leaves the circle lifted until the lift (iPhone 16 Pro).
+  static const double dragHysteresis = 4;
+
+  /// How far a finger lifts the circle: from 48 to 64 points (iPhone 16 Pro).
+  static const double pressGrowth = 8;
+
+  /// The spring of that lift: damping 0.625, response 0.262, fitted to the
+  /// device's rows within 0.01 points.
+  static const pressSpring = Spring.response(0.262, dampingRatio: 0.625);
+
+  /// The time from the touch to the start of that lift: 0.032 s.
+  static const double pressLag = 0.032;
+
+  /// The height of a tab's glyph center in the bar: 24 points, read from
+  /// UIKit.
+  static const double glyphCenter = 24;
+
+  /// The morph's progress at which the lens has gone: it goes within two
+  /// frames of the start (film), and comes back as late.
+  static const double lensGoneAt = 0.1;
+
+  /// The morph's progress at which the titles have gone: 0.07 s into it
+  /// (film).
+  static const double titlesGoneAt = 0.48;
+
+  /// The morph's progress at which the other tabs have gone: 0.13 s into it
+  /// (film).
+  static const double othersGoneAt = 0.85;
+
+  /// How much the tabs that dissolve draw together toward the circle over
+  /// the whole morph, by eye.
+  static const double othersDrift = 0.15;
+
+  /// The blur the dissolving tabs reach, by eye: UIKit's radius is not read.
+  static const double othersBlur = 3;
 }
 
 /// The scroll-away interaction of a minimizing tab bar: how far a user's
@@ -372,9 +399,13 @@ final class TabBarMinimizeMotion extends Motion {
     MotionValue<double>(0, spring: TabBarMinimizeTuning.accessoryExpandSpring),
     rest: _rest,
   );
+  late final _press = own(
+    MotionValue<double>(0, spring: TabBarMinimizeTuning.pressSpring),
+    rest: _rest,
+  );
 
   static const _follow = #follow;
-  static const _hold = #hold;
+  static const _lift = #lift;
 
   /// The behavior; a bar that no longer minimizes expands.
   GlassTabBarMinimizeBehavior get behavior => _behavior;
@@ -468,88 +499,61 @@ final class TabBarMinimizeMotion extends Motion {
   }
 
   double? _pressX;
-  bool _held = false;
-  bool _scrubs = false;
 
   /// Whether a finger that went down on the minimized bar is still on it.
   bool get pressed => _pressX != null;
 
-  /// Whether the finger on the bar has become the bar's selection drag
-  /// ([pressMove] returned true): it scrubs the tabs and its release
-  /// selects, as the expanded bar's own drag does.
-  bool get scrubs => _scrubs;
-
-  /// A finger went down at [x] along the minimized bar at time [t].
-  ///
-  /// Held for [TabBarMinimizeTuning.holdDuration] without moving,
-  /// the bar expands under it (UIKit's interactive expansion of the
-  /// minimized tab bar). Nothing happens on a bar that is not minimized.
-  /// UIKit grows the bar from the circle on its own springs (damping 0.5,
-  /// response 0.4 out; 0.75, 0.4 back; read from UIKit); this motion runs
-  /// both on [TabBarMinimizeTuning.morphSpring] (approximation).
+  /// A finger went down at [x] along the minimized bar at time [t]; the
+  /// circle lifts under it. Nothing happens on a bar that is not minimized.
   void pressDown(double t, double x) {
     advance(t);
     if (!_minimized) return;
     _pressX = x;
-    _held = false;
-    _scrubs = false;
-    at(t + TabBarMinimizeTuning.holdDuration, (s) {
-      if (_scrubs) return;
-      _held = true;
-      _setMinimized(s, minimized: false);
-    }, slot: _hold);
+    if (reducedMotion) return;
+    at(
+      t + TabBarMinimizeTuning.pressLag,
+      (s) => _press.retarget(s, 1, spring: TabBarMinimizeTuning.pressSpring),
+      slot: _lift,
+    );
   }
 
   /// The finger moved to [x] along the bar at time [t]; true on the move
-  /// that makes it the bar's selection drag.
-  ///
-  /// A move of [TabBarMinimizeTuning.holdHysteresis] from where the
-  /// finger went down, before or after the hold expanded the bar, expands
-  /// it for good: from then on the touch is the expanded bar's drag.
+  /// that makes it the bar's selection drag: the bar expands, for good.
   bool pressMove(double t, double x) {
     advance(t);
     final from = _pressX;
-    if (from == null || _scrubs) return false;
-    if ((x - from).abs() < TabBarMinimizeTuning.holdHysteresis) {
-      return false;
-    }
-    _scrubs = true;
+    if (from == null) return false;
+    if ((x - from).abs() < TabBarMinimizeTuning.dragHysteresis) return false;
+    _endPress(t);
     if (_minimized) _setMinimized(t, minimized: false);
     return true;
   }
 
-  /// The finger lifted at time [t].
-  ///
-  /// After a hold that did not move, the bar collapses back, as UIKit's
-  /// interactive expansion ends; a drag leaves it expanded. A release
-  /// before the hold expands the bar: UIKit's tab bar does not
-  /// (`expandsOnTap` is NO), but a tap on the minimized bar has no other
-  /// path back to the tabs in the code read (not recorded).
+  /// The finger lifted at time [t] without having moved along the bar: the
+  /// bar expands and stays expanded, and selects nothing, however long the
+  /// finger rested (iPhone 16 Pro).
   void pressUp(double t) {
     advance(t);
     if (_pressX == null) return;
-    final held = _held;
-    final scrubs = _scrubs;
-    _endPress();
-    if (scrubs) return;
-    _setMinimized(t, minimized: held);
+    _endPress(t);
+    _setMinimized(t, minimized: false);
   }
 
-  /// The touch was taken away at time [t]: a held bar collapses back.
+  /// The touch was taken away at time [t]: the circle settles back.
   void pressCancel(double t) {
     advance(t);
     if (_pressX == null) return;
-    final back = _held && !_scrubs;
-    _endPress();
-    if (back) _setMinimized(t, minimized: true);
+    _endPress(t);
   }
 
-  void _endPress() {
-    unschedule(_hold);
+  void _endPress(double t) {
+    unschedule(_lift);
     _pressX = null;
-    _held = false;
-    _scrubs = false;
+    _press.retarget(t, 0, spring: TabBarMinimizeTuning.morphSpring);
   }
+
+  /// How far a finger has lifted the circle, 0 to 1.
+  double get press => _press.valueAt(now);
 
   /// The scale of the bar group: 1, or less while a scroll
   /// hints at minimizing.
@@ -566,14 +570,4 @@ final class TabBarMinimizeMotion extends Motion {
   /// The bottom accessory's way from above the bar (0) to beside the
   /// circle (1) up the screen: its vertical position and height.
   double get accessoryY => _accessoryY.valueAt(now);
-
-  /// Whether the bar rests expanded: nothing of the morph moves and
-  /// nothing is pending.
-  bool get restsExpanded =>
-      !_minimized &&
-      !isScheduled(_follow) &&
-      !isScheduled(_hold) &&
-      [_morph, _accessoryX, _accessoryY].every(
-        (value) => value.target == 0 && value.valueAt(now) == 0,
-      );
 }

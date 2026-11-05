@@ -97,8 +97,8 @@ void main() {
     expect(
       probe.lens.rect,
       Rect.fromCenter(
-        center: const Offset(51, 31),
-        width: 98,
+        center: const Offset(51.5, 31),
+        width: 95,
         height: 54,
       ),
     );
@@ -117,12 +117,100 @@ void main() {
         ),
       ),
     );
-    expect(tester.getSize(find.byType(RawGlassSelector)), const Size(356, 62));
+    expect(tester.getSize(find.byType(RawGlassSelector)), const Size(360, 62));
     await tester.pumpWidget(_app(const _Controlled(count: 5)));
-    expect(
-      tester.getSize(find.byType(RawGlassSelector)).width,
-      greaterThan(356),
+    expect(tester.getSize(find.byType(RawGlassSelector)), const Size(360, 62));
+  });
+
+  testWidgets('long titles leave a bar of four tabs as it is and end in an '
+      'ellipsis', (tester) async {
+    await tester.pumpWidget(
+      _app(
+        GlassTabBar(
+          destinations: [
+            for (var i = 0; i < 4; i++)
+              GlassTabDestination(
+                icon: const SizedBox.square(key: Key('icon'), dimension: 24),
+                label: Text('A very long title $i'),
+              ),
+          ],
+          selectedIndex: 0,
+          onDestinationSelected: (_) {},
+        ),
+      ),
     );
+    expect(tester.getSize(find.byType(RawGlassSelector)), const Size(360, 62));
+    expect(tester.takeException(), isNull);
+    final title = find.text('A very long title 1').first;
+    expect(tester.getSize(title).height, lessThan(30));
+    expect(
+      tester
+          .widget<RichText>(
+            find.descendant(of: title, matching: find.byType(RichText)),
+          )
+          .overflow,
+      TextOverflow.ellipsis,
+    );
+  });
+
+  testWidgets('a bar of two or three tabs hugs its widest title, up to what '
+      'it is given', (tester) async {
+    Widget two(String title) => SizedBox(
+      width: 360,
+      child: Center(
+        child: GlassTabBar(
+          destinations: [
+            GlassTabDestination(
+              icon: const SizedBox.square(dimension: 24),
+              label: Text(title),
+            ),
+            const GlassTabDestination(
+              icon: SizedBox.square(dimension: 24),
+              label: Text('B'),
+            ),
+          ],
+          selectedIndex: 0,
+          onDestinationSelected: (_) {},
+        ),
+      ),
+    );
+    await tester.pumpWidget(_app(two('A')));
+    expect(tester.getSize(find.byType(RawGlassSelector)), const Size(188, 62));
+    await tester.pumpWidget(_app(two('A title of some length')));
+    final wide = tester.getSize(find.byType(RawGlassSelector));
+    expect(wide.width, greaterThan(188));
+    expect(wide.height, 62);
+    await tester.pumpWidget(_app(two('A title of some length ' * 20)));
+    expect(tester.getSize(find.byType(RawGlassSelector)), const Size(360, 62));
+  });
+
+  testWidgets('the glyph stands at 24 and a title grows upward from 51', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        GlassTabBar(
+          destinations: [
+            for (final (i, size) in [11.0, 20.0, 11.0, 11.0].indexed)
+              GlassTabDestination(
+                icon: SizedBox.square(key: ValueKey(i), dimension: 24),
+                label: Text('T$i', style: TextStyle(fontSize: size)),
+              ),
+          ],
+          selectedIndex: 3,
+          onDestinationSelected: (_) {},
+        ),
+      ),
+    );
+    final bar = tester.getTopLeft(find.byType(RawGlassSelector)).dy;
+    for (var i = 0; i < 3; i++) {
+      final glyph = find.byKey(ValueKey(i)).first;
+      expect(tester.getCenter(glyph).dy - bar, closeTo(24, 0.01));
+      expect(
+        tester.getBottomLeft(find.text('T$i').first).dy - bar,
+        closeTo(51, 0.01),
+      );
+    }
   });
 
   testWidgets('a tap selects; a tap on the selected tab reselects it', (

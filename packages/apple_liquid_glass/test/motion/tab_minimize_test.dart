@@ -148,9 +148,8 @@ void main() {
       expect(motion.seenAt(3.04).accessoryX, 1);
       expect(motion.seenAt(3.04).morph, lessThan(1));
       motion.advance(6);
-      expect(motion.seenAt(6).restsExpanded, isFalse);
       motion.settle();
-      expect(motion.seenAt(6).restsExpanded, isTrue);
+      expect(motion.seenAt(6).morph, 0);
     });
 
     TabBarMinimizeMotion minimized() {
@@ -163,60 +162,60 @@ void main() {
       return motion;
     }
 
-    test('a finger held 0.22 s expands the bar; lifted, it collapses', () {
+    test('a finger on the circle lifts it after 32 ms and nothing expands '
+        'until it lifts, however late', () {
       final motion = minimized();
       motion.pressDown(3, 50);
+      motion.advance(3.03);
+      expect(motion.seenAt(3.03).press, 0);
       motion.advance(3.2);
+      expect(motion.seenAt(3.2).press, greaterThan(0.5));
+      motion.advance(4.6);
       expect(motion.minimized, isTrue);
-      expect(motion.seenAt(3.2).wakeTime, closeTo(3.22, 1e-9));
-      motion.advance(3.23);
+      motion.pressUp(4.6);
       expect(motion.minimized, isFalse);
-      expect(motion.pressMove(3.3, 53), isFalse);
-      motion.pressUp(3.4);
-      expect(motion.minimized, isTrue);
       expect(motion.pressed, isFalse);
-    });
-
-    test('4 points along the bar expand it at once and scrub', () {
-      final motion = minimized();
-      motion.pressDown(3, 50);
-      expect(motion.pressMove(3.05, 53.9), isFalse);
-      expect(motion.minimized, isTrue);
-      expect(motion.pressMove(3.06, 46), isTrue);
-      expect(motion.minimized, isFalse);
-      expect(motion.scrubs, isTrue);
-      expect(motion.pressMove(3.1, 200), isFalse);
-      motion.advance(3.5);
-      motion.pressUp(3.5);
+      motion.advance(8);
+      motion.settle();
+      expect(motion.seenAt(8).press, 0);
       expect(motion.minimized, isFalse);
     });
 
-    test('a move after the hold keeps the bar expanded', () {
-      final motion = minimized();
-      motion.pressDown(3, 50);
-      motion.advance(3.3);
-      expect(motion.minimized, isFalse);
-      expect(motion.pressMove(3.35, 60), isTrue);
-      motion.pressUp(3.5);
-      expect(motion.minimized, isFalse);
-    });
+    test(
+      '4 points along the bar expand it at once and hand the finger over',
+      () {
+        final motion = minimized();
+        motion.pressDown(3, 50);
+        expect(motion.pressMove(3.05, 53.9), isFalse);
+        expect(motion.minimized, isTrue);
+        expect(motion.pressMove(3.06, 46), isTrue);
+        expect(motion.minimized, isFalse);
+        expect(motion.pressMove(3.1, 200), isFalse);
+        motion.advance(3.5);
+        motion.pressUp(3.5);
+        expect(motion.minimized, isFalse);
+      },
+    );
 
-    test('a quick tap expands; the late hold does nothing', () {
-      final motion = minimized();
-      motion.pressDown(3, 50);
-      motion.advance(3.1);
-      motion.pressUp(3.1);
-      expect(motion.minimized, isFalse);
-      motion.advance(3.5);
-      expect(motion.minimized, isFalse);
-    });
-
-    test('a cancelled hold collapses back', () {
+    test('a cancelled press settles back, minimized', () {
       final motion = minimized();
       motion.pressDown(3, 50);
       motion.advance(3.3);
       motion.pressCancel(3.3);
       expect(motion.minimized, isTrue);
+      motion.advance(6);
+      motion.settle();
+      expect(motion.seenAt(6).press, 0);
+    });
+
+    test('Reduce Motion lifts nothing and still expands', () {
+      final motion = minimized();
+      motion.reducedMotion = true;
+      motion.pressDown(3, 50);
+      motion.advance(3.2);
+      expect(motion.seenAt(3.2).press, 0);
+      motion.pressUp(3.2);
+      expect(motion.minimized, isFalse);
     });
 
     test('a press on an expanded bar does nothing', () {

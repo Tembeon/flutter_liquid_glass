@@ -17,6 +17,8 @@ Widget _app({
   ScrollController? controller,
   int rows = 60,
   Widget? accessory,
+  ValueChanged<int>? onSelected,
+  TextDirection direction = TextDirection.ltr,
 }) => MediaQuery(
   data: const MediaQueryData(
     size: Size(402, 874),
@@ -24,7 +26,7 @@ Widget _app({
     padding: EdgeInsets.only(top: 62, bottom: 34),
   ),
   child: Directionality(
-    textDirection: TextDirection.ltr,
+    textDirection: direction,
     child: GlassTheme(
       data: const GlassThemeData(renderer: GlassRenderer.flat()),
       child: GlassTabScaffold(
@@ -33,7 +35,7 @@ Widget _app({
           bottomAccessory: accessory,
           destinations: const [
             GlassTabDestination(
-              icon: SizedBox.square(dimension: 24),
+              icon: SizedBox.square(key: Key('glyph 0'), dimension: 24),
               label: Text('One'),
             ),
             GlassTabDestination(
@@ -46,7 +48,7 @@ Widget _app({
             ),
           ],
           selectedIndex: 0,
-          onDestinationSelected: (_) {},
+          onDestinationSelected: onSelected ?? (_) {},
         ),
         tabBuilder: (context, i) => GlassPageScaffold(
           child: GlassContentScroll(
@@ -87,8 +89,21 @@ Future<void> _dragUp(WidgetTester tester, double distance) async {
   await _settle(tester);
 }
 
-bool _expanded(WidgetTester tester) =>
-    find.byType(RawGlassSelector).evaluate().isNotEmpty;
+// The bar's own glass, in screen coordinates.
+Rect _body(WidgetTester tester) {
+  final body = find
+      .descendant(
+        of: find.byType(RawGlassSelector),
+        matching: find.byType(GlassSurface),
+      )
+      .first;
+  final rect =
+      tester.widget<GlassSurface>(body).frame!.value.rect ??
+      Offset.zero & tester.getSize(body);
+  return rect.shift(tester.getTopLeft(body));
+}
+
+bool _expanded(WidgetTester tester) => _body(tester).width > 100;
 
 void main() {
   setUp(MotionClock.debugReset);
@@ -113,9 +128,7 @@ void main() {
     expect(_expanded(tester), isTrue);
     await _dragUp(tester, 200);
     expect(_expanded(tester), isFalse);
-    final surface = tester.widget<GlassSurface>(find.byType(GlassSurface));
-    final group = tester.getTopLeft(find.byType(GlassSurface));
-    final circle = surface.frame!.value.rect!.shift(group);
+    final circle = _body(tester);
     expect(circle.left, closeTo(28, 0.5));
     expect(circle.bottom, closeTo(874 - 28, 0.5));
     expect(circle.width, closeTo(48, 0.5));
@@ -205,7 +218,209 @@ void main() {
     expect(find.text('inline'), findsOneWidget);
     final inline = tester.getRect(find.byKey(const Key('accessory')));
     expect(inline.left, closeTo(21 + 7 + 48 + 14 + 16, 0.5));
-    expect(inline.right, closeTo(402 - 21 - 16, 0.5));
+    expect(inline.right, closeTo(402 - 28 - 16, 0.5));
     expect(inline.top, closeTo(874 - 21 - 62 + 7 + 8, 0.5));
+  });
+
+  group('a finger on the circle', () {
+    Future<Rect> minimized(WidgetTester tester, {List<int>? selected}) async {
+      await _phone(tester);
+      await tester.pumpWidget(
+        _app(
+          behavior: GlassTabBarMinimizeBehavior.onScrollDown,
+          onSelected: selected?.add,
+        ),
+      );
+      await tester.pump();
+      await _dragUp(tester, 200);
+      return _body(tester);
+    }
+
+    testWidgets('lifts it to 64 points, and however long it stays, the lift '
+        'expands the bar and selects nothing', (tester) async {
+      final selected = <int>[];
+      final circle = await minimized(tester, selected: selected);
+      final gesture = await tester.startGesture(circle.center);
+      await _settle(tester);
+      await tester.pump(const Duration(seconds: 2));
+      await _settle(tester);
+      expect(_body(tester).width, closeTo(64, 0.5));
+      await gesture.up();
+      await _settle(tester);
+      expect(_expanded(tester), isTrue);
+      expect(selected, isEmpty);
+    });
+
+    testWidgets('a quick tap expands the bar and selects nothing', (
+      tester,
+    ) async {
+      final selected = <int>[];
+      final circle = await minimized(tester, selected: selected);
+      await tester.tapAt(circle.center);
+      await _settle(tester);
+      expect(_expanded(tester), isTrue);
+      expect(selected, isEmpty);
+    });
+
+    testWidgets('moved along the bar, expands it under the finger and selects '
+        'the tab it lifts over', (tester) async {
+      final selected = <int>[];
+      final circle = await minimized(tester, selected: selected);
+      final gesture = await tester.startGesture(circle.center);
+      await tester.pump(_frame);
+      await gesture.moveBy(const Offset(4, 0));
+      await tester.pump(_frame);
+      await tester.pump(_frame);
+      final early = _body(tester).width;
+      expect(early, lessThan(200));
+      for (var i = 0; i < 20; i++) {
+        await gesture.moveBy(const Offset(7, 0));
+        await tester.pump(_frame);
+      }
+      await _settle(tester);
+      expect(_body(tester).width, closeTo(274, 8));
+      expect(selected, isEmpty);
+      await gesture.up();
+      await _settle(tester);
+      expect(selected, [1]);
+      expect(_expanded(tester), isTrue);
+    });
+
+    testWidgets('in a right-to-left bar stands at the right', (tester) async {
+      await _phone(tester);
+      await tester.pumpWidget(
+        _app(
+          behavior: GlassTabBarMinimizeBehavior.onScrollDown,
+          direction: TextDirection.rtl,
+        ),
+      );
+      await tester.pump();
+      await _dragUp(tester, 200);
+      final circle = _body(tester);
+      expect(circle.right, closeTo(402 - 28, 0.5));
+      expect(circle.width, closeTo(48, 0.5));
+    });
+
+    testWidgets('leaves what is beside the circle to its owner', (
+      tester,
+    ) async {
+      final circle = await minimized(tester);
+      final beside = circle.center + const Offset(120, 0);
+      final at = tester.hitTestOnBinding(beside);
+      expect(
+        at.path.any(
+          (entry) => entry.target.runtimeType.toString().contains('Selector'),
+        ),
+        isFalse,
+      );
+    });
+  });
+
+  group('the morph', () {
+    Future<void> scrolled(WidgetTester tester) async {
+      await _phone(tester);
+      await tester.pumpWidget(
+        _app(behavior: GlassTabBarMinimizeBehavior.onScrollDown),
+      );
+      await tester.pump();
+      final gesture = await tester.startGesture(const Offset(201, 400));
+      for (var i = 0; i < 20; i++) {
+        await gesture.moveBy(const Offset(0, -10));
+        await tester.pump(_frame);
+      }
+      await gesture.up();
+    }
+
+    testWidgets('keeps the selector and its state from start to end', (
+      tester,
+    ) async {
+      await _phone(tester);
+      await tester.pumpWidget(
+        _app(behavior: GlassTabBarMinimizeBehavior.onScrollDown),
+      );
+      await tester.pump();
+      final before = tester.state(find.byType(RawGlassSelector));
+      await _dragUp(tester, 200);
+      expect(tester.state(find.byType(RawGlassSelector)), same(before));
+      await tester.tapAt(_body(tester).center);
+      await _settle(tester);
+      expect(tester.state(find.byType(RawGlassSelector)), same(before));
+    });
+
+    testWidgets('moves the bar without a jump and centers the glyph in the '
+        'circle', (tester) async {
+      await scrolled(tester);
+      final glyph = find.byKey(const Key('glyph 0'), skipOffstage: false).last;
+      var last = tester.getCenter(glyph);
+      for (var i = 0; i < 120; i++) {
+        await tester.pump(_frame);
+        final now = tester.getCenter(glyph);
+        expect((now - last).distance, lessThan(30));
+        last = now;
+      }
+      final circle = _body(tester);
+      expect((last - circle.center).distance, lessThan(0.5));
+    });
+
+    testWidgets('carries the accessory content with its glass, and a touch '
+        'beside the circle reaches the accessory', (tester) async {
+      var taps = 0;
+      await _phone(tester);
+      await tester.pumpWidget(
+        _app(
+          behavior: GlassTabBarMinimizeBehavior.onScrollDown,
+          accessory: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => taps++,
+            child: const SizedBox.expand(key: Key('accessory')),
+          ),
+        ),
+      );
+      await tester.pump();
+      final accessory = find.byKey(const Key('accessory'));
+      final top = tester.getRect(accessory);
+      final gesture = await tester.startGesture(const Offset(201, 400));
+      for (var i = 0; i < 20; i++) {
+        await gesture.moveBy(const Offset(0, -10));
+        await tester.pump(_frame);
+      }
+      await gesture.up();
+      var last = tester.getCenter(accessory);
+      for (var i = 0; i < 120; i++) {
+        await tester.pump(_frame);
+        final now = tester.getCenter(accessory);
+        expect((now - last).distance, lessThan(30));
+        last = now;
+      }
+      expect(last.dy, greaterThan(top.center.dy + 40));
+      await tester.tapAt(last);
+      await _settle(tester);
+      expect(taps, 1);
+    });
+
+    testWidgets('brings the lens back as the bar rests', (tester) async {
+      await _phone(tester);
+      await tester.pumpWidget(
+        _app(behavior: GlassTabBarMinimizeBehavior.onScrollDown),
+      );
+      await tester.pump();
+      GlassFrame lens() => tester
+          .widget<GlassSurface>(
+            find
+                .descendant(
+                  of: find.byType(RawGlassSelector),
+                  matching: find.byType(GlassSurface),
+                )
+                .last,
+          )
+          .frame!
+          .value;
+      expect(lens().opacity, 1);
+      await _dragUp(tester, 200);
+      expect(lens().opacity, 0);
+      await tester.tapAt(_body(tester).center);
+      await _settle(tester);
+      expect(lens().opacity, 1);
+    });
   });
 }

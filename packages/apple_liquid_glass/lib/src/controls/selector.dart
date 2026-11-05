@@ -1,10 +1,14 @@
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
+import 'package:apple_liquid_glass/src/controls/bar_collapse.dart';
 import 'package:apple_liquid_glass/src/motion/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
 import 'package:apple_liquid_glass/src/motion/glass_press.dart';
 import 'package:apple_liquid_glass/src/motion/lens_motion.dart';
 import 'package:apple_liquid_glass/src/motion/segment_highlight.dart';
+import 'package:apple_liquid_glass/src/motion/tab_bar_layout.dart';
+import 'package:apple_liquid_glass/src/motion/tab_minimize.dart';
 import 'package:apple_liquid_glass/src/motion/touch_glow.dart';
 import 'package:apple_liquid_glass/src/renderer/flat.dart';
 import 'package:apple_liquid_glass/src/renderer/lens_shrink.dart';
@@ -216,6 +220,9 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     with ControlStates<RawGlassSelector> {
   late _SelectorMotion _motion = _create(widget.selectedIndex ?? 0);
   late _SelectorFrames _frames = _SelectorFrames(_motion, mirrored: false);
+  BarCollapse? _collapse;
+  bool _hosted = false;
+  bool _fingerOnCircle = false;
   late final _SelectorInput _input = _SelectorInput(this);
   late final List<Interaction> _interactions = [_input];
   bool _reconcilePending = false;
@@ -273,7 +280,11 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     super.didUpdateWidget(oldWidget);
     if (widget.motion != _motion.kind) {
       _motion = _create(_motion.selected);
-      _frames = _SelectorFrames(_motion, mirrored: _frames.mirrored);
+      _frames = _SelectorFrames(
+        _motion,
+        mirrored: _frames.mirrored,
+        collapse: _collapse,
+      );
     }
     final keys = _keysOf(widget);
     final wasNone = oldWidget.selectedIndex == null;
@@ -450,6 +461,12 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   void _down(PointerDownInput input) {
+    final collapse = _collapse;
+    if (collapse != null && collapse.takesFinger) {
+      _fingerOnCircle = true;
+      collapse.pressDown(input.time, input.position.dx);
+      return;
+    }
     final x = _x(input.position);
     _setPreview(input.position);
     final slot = _motion.slotAt(x);
@@ -467,12 +484,22 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   void _move(PointerMoveInput input) {
+    if (_fingerOnCircle) {
+      if (!_collapse!.pressMove(input.time, input.position.dx)) return;
+      _fingerOnCircle = false;
+      _motion.drag(input.time, _x(input.position), input.position);
+    }
     _setPreview(input.position);
     if (_noneDown != null) return;
     _motion.move(input.time, _x(input.position), input.position);
   }
 
   void _up(PointerUpInput input) {
+    if (_fingerOnCircle) {
+      _fingerOnCircle = false;
+      _collapse!.pressUp(input.time);
+      return;
+    }
     _setPreview(null);
     final x = _x(input.position);
     final slot = _motion.slotAt(x);
@@ -502,11 +529,25 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   void _cancel(double time) {
+    if (_fingerOnCircle) {
+      _fingerOnCircle = false;
+      _collapse!.pressCancel(time);
+      return;
+    }
     _setPreview(null);
     _noneDown = null;
     _downSlot = null;
     _downSelected = null;
     _motion.cancel(time);
+  }
+
+  void _activate(int index) {
+    final collapse = _collapse;
+    if (collapse != null && collapse.takesFinger) {
+      collapse.activate();
+    } else {
+      _select(index);
+    }
   }
 
   Set<WidgetState> _itemStates(int index, {required bool selected}) => {
@@ -528,7 +569,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       role: _segmented ? null : SemanticsRole.tab,
       selected: selected,
       enabled: enabled,
-      onTap: enabled ? () => _select(index) : null,
+      onTap: enabled ? () => _activate(index) : null,
       child: Center(
         child: widget.itemBuilder(
           context,
@@ -574,6 +615,8 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
           onGhostGone: _dropGhostsLater,
           itemWidths: widget.itemWidths,
           proportional: widget.proportionalWidth,
+          collapse: _collapse,
+          hosted: _hosted,
           showsLens: _selected != null,
           hasLens: lens != null,
           lensShrink: _lensShrink,
@@ -598,8 +641,12 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   Widget build(BuildContext context) {
     _motion.reducedMotion = GlassTraits.of(context).reduceMotion;
     _rtl = Directionality.maybeOf(context) == TextDirection.rtl;
-    if (_rtl != _frames.mirrored) {
-      _frames = _SelectorFrames(_motion, mirrored: _rtl);
+    final scope = BarCollapseScope.maybeOf(context);
+    final collapse = scope?.collapse;
+    _hosted = scope?.hosted ?? false;
+    if (_rtl != _frames.mirrored || !identical(collapse, _collapse)) {
+      _collapse = collapse;
+      _frames = _SelectorFrames(_motion, mirrored: _rtl, collapse: collapse);
     }
     final look = widget.builder(
       context,
@@ -611,6 +658,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
         states: {...widgetStates.value},
       ),
     );
+    final body = _collapse == null ? null : _frames.body;
     return MotionScope(
       motion: _motion,
       child: CallbackShortcuts(
@@ -623,21 +671,24 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
         child: Semantics(
           container: true,
           explicitChildNodes: true,
-          child: InputRegion(
-            interactions: _interactions,
-            enabled: _enabled && widget.itemCount > 0,
-            statesController: widgetStates,
-            focusNode: widget.focusNode,
-            autofocus: widget.autofocus,
-            semanticLabel: widget.semanticLabel,
-            child: _segmented
-                ? look
-                : MotionTransition(
-                    offset: _frames.drift,
-                    scaleX: _frames.scaleX,
-                    scaleY: _frames.scaleY,
-                    child: look,
-                  ),
+          child: _TouchesInside(
+            frame: body,
+            child: InputRegion(
+              interactions: _interactions,
+              enabled: _enabled && widget.itemCount > 0,
+              statesController: widgetStates,
+              focusNode: widget.focusNode,
+              autofocus: widget.autofocus,
+              semanticLabel: widget.semanticLabel,
+              child: _segmented
+                  ? look
+                  : MotionTransition(
+                      offset: _frames.drift,
+                      scaleX: _frames.scaleX,
+                      scaleY: _frames.scaleY,
+                      child: look,
+                    ),
+            ),
           ),
         ),
       ),
@@ -652,6 +703,7 @@ final class _Geometry {
     required this.size,
     required this.slots,
     required this.lenses,
+    this.drawn,
   });
 
   factory _Geometry.of(
@@ -660,6 +712,8 @@ final class _Geometry {
     List<double> items, {
     required List<double?>? fixed,
     required bool proportional,
+    required bool spans,
+    required bool hosted,
   }) {
     final h = height(kind);
     switch (kind) {
@@ -684,31 +738,46 @@ final class _Geometry {
         }
         return _Geometry(size: size, slots: slots, lenses: lenses);
       case GlassSelectorMotion.tabBar:
-        final bar = _tabBar(items, room: constraints.maxWidth);
-        final size = constraints.constrain(Size(bar.width, h));
+        final box = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : tabBarWidth;
+        final bar = TabBarLayout.of(
+          items,
+          available: box < TabBarLayout.phoneBelow ? box : tabBarWidth,
+          hosted: hosted,
+        );
+        final size = constraints.constrain(
+          Size(spans ? box : bar.width, h),
+        );
+        final left = (size.width - bar.width) / 2;
         return _Geometry(
           size: size,
+          drawn: Rect.fromLTWH(left, 0, bar.width, size.height),
           slots: [
-            for (var i = 0; i < items.length; i++)
+            for (final button in bar.buttons)
               Rect.fromLTWH(
-                tabBarSideInset + bar.pitch * i,
+                left + button.center - button.width / 2,
                 0,
-                bar.pitch,
+                button.width,
                 size.height,
               ),
           ],
           lenses: [
-            for (var i = 0; i < items.length; i++)
-              (
-                center: tabBarSideInset + bar.pitch * (i + 0.5),
-                width: bar.lens,
-              ),
+            for (final button in bar.buttons)
+              (center: left + button.center, width: button.width),
           ],
         );
     }
   }
 
   final Size size;
+
+  /// Where a tab bar under a [BarCollapse] draws in its box, which spans the
+  /// whole group.
+  final Rect? drawn;
+
+  /// Where the control draws its track or bar in its box.
+  Rect get bar => drawn ?? Offset.zero & size;
 
   /// Each item's box, left to right.
   final List<Rect> slots;
@@ -734,23 +803,9 @@ final class _Geometry {
   /// The height of a tab bar's resting lens (tab bar passport).
   static const double tabBarLensHeight = 54;
 
-  /// The inset of a tab bar's items from its sides (tab bar passport).
-  static const double tabBarSideInset = 8;
-
-  /// The room a tab bar's item keeps on each side before the bar widens
-  /// for it (tab bar passport).
-  static const double tabBarItemPadding = 12;
-
-  /// The slot pitch of a tab bar of [count] tabs (tab bar passport).
-  static double tabBarPitch(int count) => count <= 4 ? 86 : 68;
-
-  /// The resting lens width of a tab bar of [count] tabs (tab bar
-  /// passport).
-  static double tabBarLensWidth(int count) => switch (count) {
-    <= 3 => 94,
-    4 => 98,
-    _ => 77,
-  };
+  /// The width of a tab bar without a bound: an iPhone's 402 points, less
+  /// the bar's 21 at each side.
+  static const double tabBarWidth = 360;
 
   static double height(GlassSelectorMotion kind) => switch (kind) {
     GlassSelectorMotion.segmented => segmentedHeight,
@@ -776,7 +831,7 @@ final class _Geometry {
         }
         return total;
       case GlassSelectorMotion.tabBar:
-        return _tabBar(items).width;
+        return TabBarLayout.of(items, available: tabBarWidth).width;
     }
   }
 
@@ -785,27 +840,6 @@ final class _Geometry {
 
   static double _claim(double item) =>
       math.max(segmentedHeight, item + 2 * segmentedPadding);
-
-  /// The slots of a tab bar of [items]: the measured pitch, widened for a
-  /// wide item and narrowed to fit [room], as UIKit narrows the tabs beside
-  /// a search tab.
-  static ({double pitch, double lens, double width}) _tabBar(
-    List<double> items, {
-    double room = double.infinity,
-  }) {
-    final count = items.length;
-    final measured = tabBarPitch(count);
-    final widest = items.fold<double>(0, math.max);
-    final pitch = math.min(
-      math.max(measured, widest + 2 * tabBarItemPadding),
-      count == 0 ? double.infinity : (room - 2 * tabBarSideInset) / count,
-    );
-    return (
-      pitch: pitch,
-      lens: tabBarLensWidth(count) + pitch - measured,
-      width: pitch * count + 2 * tabBarSideInset,
-    );
-  }
 
   /// The widths of segments in a control [width] wide: a segment with a
   /// fixed width keeps it and the others share the rest, equally, or with
@@ -872,6 +906,9 @@ final class _SelectorMotion extends Motion {
 
   /// The size of the control at its last layout.
   Size size = Size.zero;
+
+  /// Where the control draws its track or bar at its last layout.
+  Rect bar = Rect.zero;
 
   static TouchGlowMotion _tabBarGlow() {
     // The glow's peaks are the flex spec of the measured 274 point bar
@@ -943,7 +980,7 @@ final class _SelectorMotion extends Motion {
       {
         for (final MapEntry(:key, :value) in rects.entries)
           key: value.shift(_anchor),
-        _bounds: _anchor & geometry.size,
+        _bounds: geometry.bar.shift(_anchor),
       },
       spring: moves,
       carry: spring == null,
@@ -952,6 +989,7 @@ final class _SelectorMotion extends Motion {
     final changed =
         !listEquals(geometry.lenses, _lenses) || geometry.size != size;
     size = geometry.size;
+    bar = geometry.bar;
     _lenses = geometry.lenses;
     final remapped = _remapped;
     _remapped = null;
@@ -966,7 +1004,7 @@ final class _SelectorMotion extends Motion {
         height: _Geometry.lensHeight(kind),
         frameRate: MotionClock.instance.frameRate,
         reducedMotion: _reducedMotion,
-        chromeSize: geometry.size,
+        chromeSize: geometry.bar.size,
         onEvent: onEvent,
       );
       created.isSelectable = isSelectable;
@@ -981,7 +1019,7 @@ final class _SelectorMotion extends Motion {
             ? shift.dx + geometry.size.width - before.width
             : -shift.dx,
       );
-      lens.chromeSize = geometry.size;
+      lens.chromeSize = geometry.bar.size;
     }
   }
 
@@ -1002,6 +1040,12 @@ final class _SelectorMotion extends Motion {
     if (lens == null) return;
     lens.pointerDown(t, x, y: position.dy);
     if (glows && tabBar) glow.pointerDown(t, position);
+  }
+
+  /// A finger that slid off a minimized bar's circle takes the lens.
+  void drag(double t, double x, Offset position) {
+    _lens?.pointerDrag(t, x, y: position.dy);
+    if (tabBar) glow.pointerDown(t, position);
   }
 
   void move(double t, double x, Offset position) {
@@ -1028,12 +1072,32 @@ final class _SelectorMotion extends Motion {
 /// What a selector shows of its motion, laid out left to right or
 /// mirrored.
 final class _SelectorFrames {
-  _SelectorFrames(this._motion, {required this.mirrored});
+  _SelectorFrames(this._motion, {required this.mirrored, this.collapse});
 
   final _SelectorMotion _motion;
   final bool mirrored;
 
-  late final MotionSelection<GlassFrame> lens = _motion.select((motion) {
+  /// What collapses the bar, when something does.
+  final BarCollapse? collapse;
+
+  late final MotionSelection<GlassFrame> lens = collapse == null
+      ? _lens
+      : MotionSelection(() {
+          final frame = _lens.value;
+          final morph = collapse!.morph.value;
+          if (morph <= 0) return frame;
+          return frame.copyWith(opacity: lensOpacity(morph, frame.lift));
+        });
+
+  /// How much of the lens shows at [morph]: a lens a finger carries stays.
+  static double lensOpacity(double morph, double lift) => math
+      .max(
+        1 - morph / TabBarMinimizeTuning.lensGoneAt,
+        lift,
+      )
+      .clamp(0.0, 1.0);
+
+  late final MotionSelection<GlassFrame> _lens = _motion.select((motion) {
     final lens = motion.lens;
     if (lens == null) return const GlassFrame();
     final size = lens.size;
@@ -1051,9 +1115,22 @@ final class _SelectorFrames {
     );
   });
 
-  late final MotionSelection<GlassFrame> body = _motion.select(
+  late final MotionSelection<GlassFrame> body = collapse == null
+      ? _body
+      : MotionSelection(() {
+          final frame = _body.value;
+          final morph = collapse!.morph.value;
+          if (morph == 0) return frame;
+          final lifted = collapse!.press?.value ?? 0;
+          final circle = collapse!
+              .circleIn(_motion.size)
+              .inflate(TabBarMinimizeTuning.pressGrowth * lifted);
+          return frame.copyWith(rect: Rect.lerp(frame.rect, circle, morph));
+        });
+
+  late final MotionSelection<GlassFrame> _body = _motion.select(
     (motion) => GlassFrame(
-      rect: motion.movingBounds,
+      rect: motion.movingBounds ?? (collapse == null ? null : motion.bar),
       glow: motion.tabBar ? motion.glow.glow : null,
     ),
   );
@@ -1139,6 +1216,8 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
     required this.onGhostGone,
     required this.itemWidths,
     required this.proportional,
+    required this.collapse,
+    required this.hosted,
     required this.showsLens,
     required this.hasLens,
     required this.lensShrink,
@@ -1153,6 +1232,8 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
   final VoidCallback onGhostGone;
   final List<double?>? itemWidths;
   final bool proportional;
+  final BarCollapse? collapse;
+  final bool hosted;
   final bool showsLens;
 
   /// Whether the last child is the lens.
@@ -1175,6 +1256,8 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
         onGhostGone: onGhostGone,
         itemWidths: itemWidths,
         proportional: proportional,
+        collapse: collapse,
+        hosted: hosted,
         showsLens: showsLens,
         hasLens: hasLens,
         lensShrink: lensShrink,
@@ -1194,6 +1277,8 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
     renderObject.onGhostGone = onGhostGone;
     renderObject.itemWidths = itemWidths;
     renderObject.proportional = proportional;
+    renderObject.collapse = collapse;
+    renderObject.hosted = hosted;
     renderObject.showsLens = showsLens;
     renderObject.hasLens = hasLens;
     renderObject.lensShrink = lensShrink;
@@ -1241,6 +1326,8 @@ class _RenderSelectorRow extends RenderBox
     required this.onGhostGone,
     required this._itemWidths,
     required this._proportional,
+    required this._collapse,
+    required this._hosted,
     required this._showsLens,
     required this._hasLens,
     required this._lensShrink,
@@ -1307,6 +1394,26 @@ class _RenderSelectorRow extends RenderBox
     markNeedsLayout();
   }
 
+  BarCollapse? _collapse;
+  BarCollapse? get collapse => _collapse;
+  set collapse(BarCollapse? value) {
+    if (identical(value, _collapse)) return;
+    if (attached) _unlistenCollapse();
+    final spans = (value == null) != (_collapse == null);
+    _collapse = value;
+    if (attached) _listenCollapse();
+    if (spans) markNeedsLayout();
+    markNeedsPaint();
+  }
+
+  bool _hosted;
+  bool get hosted => _hosted;
+  set hosted(bool value) {
+    if (value == _hosted) return;
+    _hosted = value;
+    markNeedsLayout();
+  }
+
   bool _showsLens;
   bool get showsLens => _showsLens;
   set showsLens(bool value) {
@@ -1356,16 +1463,33 @@ class _RenderSelectorRow extends RenderBox
     _frames.items.removeRenderListener(markNeedsPaint);
   }
 
+  void _listenCollapse() {
+    _collapse?.morph.addListener(_collapsed);
+    _collapse?.press?.addListener(markNeedsPaint);
+  }
+
+  void _unlistenCollapse() {
+    _collapse?.morph.removeListener(_collapsed);
+    _collapse?.press?.removeListener(markNeedsPaint);
+  }
+
+  void _collapsed() {
+    markNeedsPaint();
+    markNeedsSemanticsUpdate();
+  }
+
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
     _listen();
+    _listenCollapse();
     _lensShrink.addListener(markNeedsPaint);
   }
 
   @override
   void detach() {
     _unlisten();
+    _unlistenCollapse();
     _lensShrink.removeListener(markNeedsPaint);
     super.detach();
   }
@@ -1397,12 +1521,16 @@ class _RenderSelectorRow extends RenderBox
     }
   }
 
+  // UIKit sizes a tab by its regular title, not its bolder selected one.
   List<double> _itemExtents(double height) => [
     for (final (regular, _, selected) in _live)
-      math.max(
-        regular.getMaxIntrinsicWidth(height),
-        selected.getMaxIntrinsicWidth(height),
-      ),
+      if (_kind == GlassSelectorMotion.tabBar)
+        regular.getMaxIntrinsicWidth(height)
+      else
+        math.max(
+          regular.getMaxIntrinsicWidth(height),
+          selected.getMaxIntrinsicWidth(height),
+        ),
   ];
 
   double get _height => _Geometry.height(_kind);
@@ -1428,6 +1556,8 @@ class _RenderSelectorRow extends RenderBox
     _itemExtents(_height),
     fixed: _itemWidths,
     proportional: _proportional,
+    spans: _collapse != null,
+    hosted: _hosted,
   );
 
   @override
@@ -1513,12 +1643,43 @@ class _RenderSelectorRow extends RenderBox
     return false;
   }
 
+  // How far the selected glyph has travelled toward the circle from the tab
+  // it stands on in [slot].
+  Offset _glyphTravel(Rect slot, double morph) {
+    final circle = _collapse!.circleIn(size);
+    return (circle.center -
+            Offset(slot.center.dx, TabBarMinimizeTuning.glyphCenter)) *
+        morph;
+  }
+
+  @override
+  void applyPaintTransform(RenderBox child, Matrix4 transform) {
+    final morph = _collapse?.morph.value ?? 0;
+    if (morph != 0) {
+      final selected = _motion.selected;
+      var i = 0;
+      for (final (regular, _, above) in _live) {
+        if (i == selected && identical(child, above)) {
+          final travel = _glyphTravel(
+            (regular.parentData! as _RowParentData).offset & regular.size,
+            morph,
+          );
+          transform.translateByDouble(travel.dx, travel.dy, 0, 1);
+        }
+        i++;
+      }
+    }
+    super.applyPaintTransform(child, transform);
+  }
+
   // UIKit draws the regular items under the lens, cut out where it sits,
   // and a selected copy of every item masked by the lens (tab bar
   // passport); the lifted lens's glass bends the copy and, at its rim, the
   // items around it.
   @override
   void paint(PaintingContext context, Offset offset) {
+    final collapse = _collapse;
+    final morph = collapse?.morph.value ?? 0;
     final frame = _frames.lens.value;
     final rect = frame.drawnIn(size);
     final mask = _showsLens
@@ -1527,6 +1688,7 @@ class _RenderSelectorRow extends RenderBox
             Radius.circular(frame.shape.radiusIn(rect)),
           )
         : null;
+    final cutter = morph == 0 ? mask : null;
     final (dimmed, opacity) = _frames.dim.value;
     final slots = <Rect>[];
     var gone = false;
@@ -1549,7 +1711,7 @@ class _RenderSelectorRow extends RenderBox
         continue;
       }
       void paintRegular(PaintingContext context, Offset offset) {
-        if (mask == null || !mask.outerRect.overlaps(slot)) {
+        if (cutter == null || !cutter.outerRect.overlaps(slot)) {
           context.paintChild(regular, offset + slot.topLeft);
           return;
         }
@@ -1559,7 +1721,7 @@ class _RenderSelectorRow extends RenderBox
         final cut = Path();
         cut.fillType = PathFillType.evenOdd;
         cut.addRect(slot);
-        cut.addRSuperellipse(mask);
+        cut.addRSuperellipse(cutter);
         context.pushClipRect(
           needsCompositing,
           offset,
@@ -1576,7 +1738,9 @@ class _RenderSelectorRow extends RenderBox
       }
 
       final alpha = (drawn?.$2 ?? 1) * (i == dimmed ? opacity : 1);
-      if (alpha < 1) {
+      if (morph != 0) {
+        // Drawn together below, where they dissolve as one.
+      } else if (alpha < 1) {
         context.pushOpacity(
           offset,
           Color.getAlphaFromOpacity(alpha.clamp(0.0, 1.0)),
@@ -1588,19 +1752,21 @@ class _RenderSelectorRow extends RenderBox
       i++;
     }
     if (gone) onGhostGone();
+    if (morph != 0) _paintDissolving(context, offset, slots, morph);
+    final copies = frame.opacity;
     final lift = frame.lift.clamp(0.0, 1.0);
     final glass = mask == null ? 0.0 : FlatGlassLook.glassness(lift);
     final zoom = _kind == GlassSelectorMotion.tabBar
         ? 1 + _tabBarMagnification * lift
         : 1.0;
-    if (mask != null && glass > 0) {
+    if (mask != null && glass > 0 && copies > 0) {
       final (:shrink, :rim) = _lensShrink.value;
       _paintCopies(
         context,
         offset,
         mask,
         slots,
-        opacity: glass,
+        opacity: glass * copies,
         under: true,
         zoom: zoom,
         grow: 1 + (1 / (1 - shrink * lift) - 1) * glass,
@@ -1609,19 +1775,117 @@ class _RenderSelectorRow extends RenderBox
     }
     final lens = _lens;
     if (lens != null) context.paintChild(lens, offset);
-    if (mask != null && glass < 1) {
+    if (mask != null && glass < 1 && copies > 0) {
       _paintCopies(
         context,
         offset,
         mask,
         slots,
-        opacity: 1 - glass,
+        opacity: (1 - glass) * copies,
         under: false,
         zoom: zoom,
         grow: 1,
         rim: 0,
       );
     }
+    if (morph != 0) _paintGlyph(context, offset, slots, morph, lift);
+  }
+
+  // The tabs, the selected one's regular look among them, stay about where
+  // they are inside the shrinking glass and dissolve as one.
+  void _paintDissolving(
+    PaintingContext context,
+    Offset offset,
+    List<Rect> slots,
+    double morph,
+  ) {
+    final left = 1 - morph / TabBarMinimizeTuning.othersGoneAt;
+    if (left <= 0) return;
+    final body = _frames.body.value.drawnIn(size);
+    final toward = _collapse!.circleIn(size).center.dx;
+    final together = 1 - TabBarMinimizeTuning.othersDrift * morph;
+    void items(PaintingContext context, Offset offset) {
+      var i = 0;
+      for (final (regular, _, _) in _live) {
+        final slot = slots[i++];
+        final x = toward + (slot.center.dx - toward) * together;
+        context.paintChild(
+          regular,
+          offset + Offset(x - slot.width / 2, slot.top),
+        );
+      }
+    }
+
+    void dissolved(PaintingContext context, Offset offset) {
+      final sigma = TabBarMinimizeTuning.othersBlur * morph.clamp(0.0, 1.0);
+      if (sigma <= 0) return items(context, offset);
+      context.pushLayer(
+        ImageFilterLayer(
+          imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+        ),
+        items,
+        offset,
+      );
+    }
+
+    context.pushClipRSuperellipse(
+      true,
+      offset,
+      body,
+      RSuperellipse.fromRectAndRadius(
+        body,
+        Radius.circular(body.shortestSide / 2),
+      ),
+      (context, offset) => context.pushOpacity(
+        offset,
+        Color.getAlphaFromOpacity(left.clamp(0.0, 1.0)),
+        dissolved,
+      ),
+    );
+  }
+
+  // The selected glyph travels to the circle and stands in it, lifted with
+  // it under a finger. Once a finger carries the lens, the lens shows the
+  // selected look, and this copy goes as it lands.
+  void _paintGlyph(
+    PaintingContext context,
+    Offset offset,
+    List<Rect> slots,
+    double morph,
+    double lift,
+  ) {
+    final selected = _motion.selected;
+    if (!_showsLens || selected < 0 || selected >= slots.length) return;
+    final slot = slots[selected];
+    final (_, _, above) = _live.elementAt(selected);
+    final travel = _glyphTravel(slot, morph);
+    final scale =
+        1 +
+        (_collapse!.press?.value ?? 0) *
+            TabBarMinimizeTuning.pressGrowth *
+            2 /
+            TabBarMinimizeTuning.collapsedSize;
+    final center =
+        Offset(slot.center.dx, TabBarMinimizeTuning.glyphCenter) + travel;
+    final transform = Matrix4.translationValues(center.dx, center.dy, 0);
+    transform.scaleByDouble(scale, scale, 1, 1);
+    transform.translateByDouble(
+      -center.dx + travel.dx,
+      -center.dy + travel.dy,
+      0,
+      1,
+    );
+    void glyph(PaintingContext context, Offset offset) => context.pushTransform(
+      needsCompositing,
+      offset,
+      transform,
+      (context, offset) => context.paintChild(above, offset + slot.topLeft),
+    );
+    final shows =
+        1 -
+        lift * (1 - morph / TabBarMinimizeTuning.lensGoneAt).clamp(0.0, 1.0);
+    if (shows >= 1) return glyph(context, offset);
+    context.pushOpacity(offset, Color.getAlphaFromOpacity(shows), glyph);
   }
 
   // The copy under the glass shows through it as the lifted lens takes
@@ -1778,8 +2042,44 @@ class _RenderSelectorRow extends RenderBox
 
   @override
   void visitChildrenForSemantics(RenderObjectVisitor visitor) {
+    final only = (_collapse?.takesFinger ?? false) ? _motion.selected : null;
+    var i = 0;
     for (final (item, _, _) in _live) {
-      visitor(item);
+      if (only == null || i == only) visitor(item);
+      i++;
     }
+  }
+}
+
+/// Takes touches only inside [frame]'s body: a bar under a [BarCollapse]
+/// spans its group, and what is beside the bar or the circle stays free.
+class _TouchesInside extends SingleChildRenderObjectWidget {
+  const _TouchesInside({required this.frame, required super.child});
+
+  final ValueListenable<GlassFrame>? frame;
+
+  @override
+  _RenderTouchesInside createRenderObject(BuildContext context) =>
+      _RenderTouchesInside(frame);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderTouchesInside renderObject,
+  ) {
+    renderObject.frame = frame;
+  }
+}
+
+class _RenderTouchesInside extends RenderProxyBox {
+  _RenderTouchesInside(this.frame);
+
+  ValueListenable<GlassFrame>? frame;
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    final rect = frame?.value.rect;
+    if (rect != null && !rect.contains(position)) return false;
+    return super.hitTest(result, position: position);
   }
 }
