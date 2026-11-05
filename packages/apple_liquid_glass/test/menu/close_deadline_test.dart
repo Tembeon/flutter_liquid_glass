@@ -1,6 +1,7 @@
 import 'package:apple_liquid_glass/src/menu/motion.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/kinesis.dart';
 
 const _button = Rect.fromLTWH(24, 80, 44, 44);
 const _outside = Offset(350, 500);
@@ -66,6 +67,10 @@ void main() {
       expect(motion.isPresented, isFalse);
     });
   }
+
+  test('the morph asks for every vsync of a fast display', () {
+    expect(_motion().minFrameRate, greaterThan(FrameCadence.fullFloor));
+  });
 
   test('explicit close is a command at its own time', () {
     final motion = _motion();

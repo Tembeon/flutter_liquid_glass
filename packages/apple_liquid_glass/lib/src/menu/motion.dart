@@ -1345,6 +1345,12 @@ class MenuMotion extends Motion with Presented {
     _place(1);
   }
 
+  // UIKit's link for the open and the close asks for 48 - 120 Hz and the
+  // device's rows step at 120 Hz [device, menu-button.md]: at 60 the morph
+  // reads as stuttering beside everything else on a 120 Hz screen.
+  @override
+  double get minFrameRate => 120;
+
   /// The measured behavior this motion reproduces.
   final MenuTuning tuning;
 
