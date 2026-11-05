@@ -105,6 +105,17 @@ double _halfResolutionSigma(double sigma, double devicePixelRatio) {
   return raised <= sigma * 1.12 ? raised : sigma;
 }
 
+/// Bench switch: whether scroll edges blur at all.
+void debugSetEdgeBlurs({required bool on}) {
+  _edgeBlurs = on;
+  for (final edge in _liveEdges) {
+    edge.markNeedsPaint();
+  }
+}
+
+bool _edgeBlurs = true;
+final _liveEdges = <_RenderEdge>{};
+
 /// A scroll edge effect as [details] describe it; it blurs the content
 /// under it only when [blurs].
 @internal
@@ -253,11 +264,13 @@ class _RenderEdge extends RenderBox {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
+    _liveEdges.add(this);
     _details.presence.addListener(_presenceChanged);
   }
 
   @override
   void detach() {
+    _liveEdges.remove(this);
     _details.presence.removeListener(_presenceChanged);
     super.detach();
   }
@@ -329,7 +342,7 @@ class _RenderEdge extends RenderBox {
       );
     }
 
-    if (!_blurs) {
+    if (!_blurs || !_edgeBlurs) {
       _blur.layer = null;
       fade(context, offset);
       return;

@@ -1,4 +1,6 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:apple_liquid_glass_example/app.dart';
+import 'package:apple_liquid_glass_example/perf/device_check.dart';
 import 'package:apple_liquid_glass_example/settings.dart';
 import 'package:apple_liquid_glass_example/widgets.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
@@ -165,6 +167,20 @@ class _SettingsSheet extends StatelessWidget {
               title: 'Prefer Cross-Fade',
               value: settings.crossFade,
               onChanged: (on) => update((s) => s.copyWith(crossFade: on)),
+            ),
+          ],
+        ),
+        GlassListSection(
+          header: const Text('Performance'),
+          footer: const Text(
+            'Measures how this phone draws glass and makes a report to send.',
+          ),
+          children: [
+            GlassListRow(
+              title: const Text('Device check'),
+              onPressed: () => runDeviceCheck(
+                leave: () => runApp(GalleryApp(settings: settings)),
+              ),
             ),
           ],
         ),

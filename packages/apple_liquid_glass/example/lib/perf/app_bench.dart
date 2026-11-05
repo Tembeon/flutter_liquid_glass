@@ -19,6 +19,7 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_example/app.dart';
+import 'package:apple_liquid_glass_example/perf/bench_switches.dart';
 import 'package:apple_liquid_glass_example/settings.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/gestures.dart';
@@ -28,7 +29,6 @@ import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
 const _census = bool.fromEnvironment('BENCH_CENSUS');
 const _measured = Duration(
@@ -55,40 +55,11 @@ const _abWindow = Duration(
   seconds: int.fromEnvironment('BENCH_AB_WINDOW_S', defaultValue: 5),
 );
 
-// The switches an A/B run can flip, by name. `none` flips nothing: an A/A
-// run that shows the noise floor.
 final _switches = <String, void Function({required bool on})>{
-  'none': ({required on}) {},
+  ...benchSwitches,
   'crowd': ({required on}) => _crowd.value = on ? _crowdB : _crowdA,
   'spread': ({required on}) => _spread.value = on,
   'grouped': ({required on}) => _grouped.value = on,
-  'islands': ({required on}) => BackdropUnderlay.debugIslandsEnabled = on,
-  'downscale4': ({required on}) =>
-      RenderLiquidGlassLayer.debugMaxCopyDownscale = on ? 4 : 2,
-  // B draws the copies asked for without a filter in the frame, A into
-  // images.
-  'in_frame': ({required on}) => BackdropUnderlay.debugInFrame = on,
-  // B reads the backdrop live instead of drawing copies.
-  'live_reads': ({required on}) =>
-      BackdropUnderlay.debugEnabledOverride = on ? false : null,
-  // B frosts copies in the glass shader; A blurs them and draws frosted
-  // glass with the shaders that cannot frost, as before.
-  'shader_frost': ({required on}) {
-    RenderLiquidGlassLayer.debugShaderFrost = on;
-    void update(RenderObject node) {
-      if (node is RenderLiquidGlassLayer) node.debugUpdateShaders();
-      node.visitChildren(update);
-    }
-
-    RendererBinding.instance.renderViews.forEach(update);
-  },
-  // B frosts the copies of scroll edges and fake glass in a shader; A
-  // filters them in the atlas.
-  'copy_frost': ({required on}) =>
-      LiquidGlassBackdropFrost.debugShaderFrost = on,
-  // B draws the text of a copy smaller than the screen where it lies, A on
-  // the copy's pixels.
-  'place_text': ({required on}) => BackdropUnderlay.debugPlaceText = on,
 };
 
 // The crowd: glass buttons in a grid over every page, BENCH_CROWD_A of them
@@ -153,6 +124,13 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   for (final name in _off.split(',')) {
     if (name.isNotEmpty) _switches[name]!(on: false);
+  }
+  // Switches held for the whole launch: name=1 or name=0, comma separated.
+  const base = String.fromEnvironment('BENCH_BASE');
+  for (final held in base.split(',')) {
+    if (held.isEmpty) continue;
+    final [name, value] = held.split('=');
+    _switches[name]!(on: value == '1');
   }
   unawaited(LiquidGlass.precache());
   runApp(
@@ -324,6 +302,7 @@ final _steps = <_Step>[
 
 class _Journey {
   final _windows = <_Window>[];
+  final _flips = <Map<String, Object>>[];
   _Window? _open;
   var _pointer = 1;
   late final Rect screen;
@@ -419,6 +398,12 @@ class _Journey {
       final on = const [false, true, true, false][n % 4];
       flip(on: on);
       if (n == 1) BackdropUnderlay.debugImageAsks.clear();
+      _flips.add({
+        'step': step,
+        'on': on,
+        'wall': _wallNow(),
+        'frames': _frames,
+      });
       debugPrint(
         'GLASS_BENCH_AB $step ${on ? 'B' : 'A'} $n ${_wallNow()} $_frames '
         'img=${BackdropUnderlay.debugImagesDrawn}',
@@ -546,7 +531,7 @@ class _Journey {
     dir.createSync();
     File(
       '${dir.path}/report.json',
-    ).writeAsStringSync(jsonEncode({'windows': lines}));
+    ).writeAsStringSync(jsonEncode({'windows': lines, 'flips': _flips}));
     final anchor = _windows.first;
     final first = {
       'scene': anchor.step,
