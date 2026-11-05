@@ -14,6 +14,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
@@ -317,6 +318,8 @@ final _steps = <_Step>[
       }
     },
   ),
+  _Step('motion_still', enter: (j) => j.tapTab('Motion')),
+  _Step('motion_scroll', act: (j, open) => j.scrolling(open)),
 ];
 
 class _Journey {
@@ -507,6 +510,7 @@ class _Journey {
       return s[math.min(s.length - 1, (s.length * p).floor())];
     }
 
+    final lines = <Map<String, Object?>>[];
     for (final w in _windows) {
       final seconds = w.end - w.start;
       final line = {
@@ -521,6 +525,7 @@ class _Journey {
         'build_p50': pct(w.build, 0.5),
         'images_per_s': w.images / seconds,
       };
+      lines.add(line);
       debugPrint('GLASS_BENCH_WINDOW ${jsonEncode(line)}', wrapWidth: 1 << 20);
       if (_census && w.walked > 0) {
         final per = {
@@ -536,6 +541,12 @@ class _Journey {
         );
       }
     }
+    // The iPhone's bench reads the windows from a file: its log is not at hand.
+    final dir = Directory('${Directory.systemTemp.path}/glass_bench');
+    dir.createSync();
+    File(
+      '${dir.path}/report.json',
+    ).writeAsStringSync(jsonEncode({'windows': lines}));
     final anchor = _windows.first;
     final first = {
       'scene': anchor.step,
