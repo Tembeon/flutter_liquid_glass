@@ -21,3 +21,12 @@ ui.ImageFilter bilinearShaderFilter(ui.FragmentShader shader) {
   }
   return ui.ImageFilter.shader(shader);
 }
+
+/// [bilinearShaderFilter] holding the uniforms [shader] has now, which a
+/// filter otherwise takes when a paint or a scene first holds it.
+@internal
+ui.ImageFilter shaderFilterNow(ui.FragmentShader shader) {
+  final filter = bilinearShaderFilter(shader);
+  ui.Paint().imageFilter = filter;
+  return filter;
+}

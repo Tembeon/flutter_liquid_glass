@@ -139,6 +139,10 @@ class BackdropUnderlay {
   @visibleForTesting
   static final debugImageAsks = <String, int>{};
 
+  /// Whether a copy drawn in the frame without glass in it is added to the
+  /// scene as the layers it holds rather than recorded into a picture.
+  static bool debugInScene = true;
+
   /// Whether a copy of few pixels leaves glass out.
   static bool debugDropsGlass = true;
 
@@ -309,18 +313,28 @@ class BackdropUnderlay {
       return null;
     }
     var grid = _heldGlass ? ask.grid._screen : ask.grid;
+    var inScene = debugInScene && !debugPromotes && !_heldGlass;
     while (true) {
+      final shown = inScene ? <_Entry>[] : null;
       final replay = _Prefix(
         ask.anchor,
         ask.band,
-        ui.PictureRecorder(),
+        inScene ? null : ui.PictureRecorder(),
         scan: scan,
         limit: limit,
         bodies: [?ask.body],
         dropsGlass: BackdropUnderlay.debugDropsGlass && grid._share >= 4,
+        shown: shown,
       );
-      final content = replay.record(grid);
-      if (content == null) {
+      final content = inScene ? null : replay.record(grid);
+      if (inScene) {
+        replay.run();
+        if (replay.metGlass) {
+          inScene = false;
+          continue;
+        }
+      }
+      if (inScene ? replay.blocked || !replay.reached : content == null) {
         if (!kReleaseMode) {
           final why = replay.blocked
               ? '${replay.blocker.runtimeType}'
@@ -334,7 +348,7 @@ class BackdropUnderlay {
       // An image can fold glass over a copy not drawn yet, which the frame
       // cannot: [serve] takes the request.
       if (replay.pieces.isNotEmpty) {
-        content.dispose();
+        content!.dispose();
         for (final (picture, _) in replay.pieces) {
           picture.dispose();
         }
@@ -346,7 +360,7 @@ class BackdropUnderlay {
       _inFrameOut = replay.out;
       _stillUnder = debugPromotes && last != null && _same(replay.out, last);
       if (replay.holdsGlass && grid != grid._screen) {
-        content.dispose();
+        content!.dispose();
         grid = grid._screen;
         continue;
       }
@@ -355,6 +369,7 @@ class BackdropUnderlay {
       debugMiss = null;
       return InFrameCopy._(
         content,
+        shown,
         ask.band,
         switch (clip) {
           null => ask.band,
@@ -962,6 +977,7 @@ class _Prefix {
     required this.limit,
     this.bodies = const [],
     this.dropsGlass = false,
+    this.shown,
   }) : canvas = recorder == null ? null : Canvas(recorder);
 
   // What is painted before [stop] in [band], signed without drawing it.
@@ -1019,6 +1035,13 @@ class _Prefix {
   // it, and only what lies on it is drawn.
   final bool dropsGlass;
 
+  // Where the walk leaves what the copy draws, to add it to the scene,
+  // instead of drawing it on a canvas or signing it. It gives up at glass.
+  final List<_Entry>? shown;
+
+  // Whether a walk that leaves what it draws met glass in the band.
+  bool metGlass = false;
+
   static Set<Layer> _ancestors(Layer layer) {
     final path = Set<Layer>.identity();
     for (var node = layer.parent; node != null; node = node.parent) {
@@ -1046,11 +1069,10 @@ class _Prefix {
     return content;
   }
 
-  void _begin() {
-    final rect = band;
-    final grid = _grid;
+  void _begin() => _beginCopy(canvas!, band, _grid);
+
+  static void _beginCopy(Canvas c, Rect rect, CopyGrid grid) {
     final pixels = grid._pixels;
-    final c = canvas!;
     // A picture drawn into a canvas clipped to the copy is culled to what
     // reaches it while it is recorded.
     c.clipRect(
@@ -1175,6 +1197,7 @@ final class _Scan {
         null,
         root,
         Matrix4.diagonal3Values(1 / devicePixelRatio, 1 / devicePixelRatio, 1),
+        Offset.zero,
         null,
         const [],
         filtered: false,
@@ -1206,7 +1229,7 @@ final class _Scan {
 
   final Layer root;
   final double devicePixelRatio;
-  final _walked = Expando<int>();
+  final _walked = Map<Layer, int>.identity();
 
   // Where [layer] begins in [entries], once the walk reached it.
   int? startOf(Layer layer) => _walked[layer];
@@ -1257,21 +1280,29 @@ final class _Scan {
   void _push(
     ContainerLayer layer,
     _Open open,
-    Matrix4 transform,
+    _Cursor at, {
+    Matrix4? transform,
+    Offset shift = Offset.zero,
+    bool dropClip = false,
     Rect? clip,
-    List<Object?> state, {
-    required bool filtered,
+    List<Object?>? state,
+    bool filters = false,
   }) {
     entries.add(open);
-    _walked[layer] = entries.length - 1;
+    // Only these anchor a copy.
+    if (layer is GeometryTransformTrackingLayer ||
+        layer is LiquidGlassBackdropFilterLayer) {
+      _walked[layer] = entries.length - 1;
+    }
     _cursors.add(
       _Cursor(
         layer,
         layer.firstChild,
-        transform,
-        clip,
-        state,
-        filtered: filtered,
+        transform ?? at.base,
+        transform == null ? at.shift + shift : Offset.zero,
+        dropClip ? clip : at.clip,
+        state ?? at.state,
+        filtered: at.filtered || filters,
         open: entries.length - 1,
       ),
     );
@@ -1289,103 +1320,28 @@ final class _Scan {
   // Adds [layer] as a child of [at]; false when it is a container whose
   // children are not walked.
   bool _visit(Layer layer, _Cursor at) {
-    final transform = at.transform;
     final clip = at.clip;
     final state = at.state;
     final filtered = at.filtered;
 
-    Rect clipped(Rect local) {
-      final bounds = MatrixUtils.transformRect(transform, local);
-      return clip == null ? bounds : clip.intersect(bounds);
-    }
-
-    Rect reaching(Rect local) => filtered ? _everywhere : clipped(local);
-
-    // Transforms are never changed in place, so a layer that does not
-    // shift shares its parent's.
-    Matrix4 shifted(Offset offset) {
-      if (offset == Offset.zero) return transform;
-      final next = transform.clone();
-      next.translateByDouble(offset.dx, offset.dy, 0, 1);
-      return next;
-    }
-
-    void push(
-      ContainerLayer layer,
-      _Open open, {
-      Matrix4? next,
-      Rect? nextClip,
-      bool keepClip = true,
-      List<Object?>? nextState,
-      bool nextFiltered = false,
-    }) => _push(
-      layer,
-      open,
-      next ?? transform,
-      keepClip ? clip : nextClip,
-      nextState ?? state,
-      filtered: filtered || nextFiltered,
-    );
-
-    void pushClip(ContainerLayer layer, Object geometry, Clip behavior) {
-      final (bounds, clipTo) = switch (geometry) {
-        final Rect rect => (
-          rect,
-          (Canvas c, {required bool antiAlias}) =>
-              c.clipRect(rect, doAntiAlias: antiAlias),
-        ),
-        final RRect rect => (
-          rect.outerRect,
-          (Canvas c, {required bool antiAlias}) =>
-              c.clipRRect(rect, doAntiAlias: antiAlias),
-        ),
-        final RSuperellipse rect => (
-          rect.outerRect,
-          (Canvas c, {required bool antiAlias}) =>
-              c.clipRSuperellipse(rect, doAntiAlias: antiAlias),
-        ),
-        final Path path => (
-          path.getBounds(),
-          (Canvas c, {required bool antiAlias}) =>
-              c.clipPath(path, doAntiAlias: antiAlias),
-        ),
-        _ => (Rect.largest, null),
-      };
-      push(
-        layer,
-        clipTo == null
-            ? _Undrawable(layer)
-            : _Open((c) {
-                c.save();
-                clipTo(c, antiAlias: behavior != Clip.hardEdge);
-                if (behavior != Clip.antiAliasWithSaveLayer) return 1;
-                c.saveLayer(bounds, Paint());
-                return 2;
-              }, layered: behavior == Clip.antiAliasWithSaveLayer),
-        keepClip: false,
-        nextClip: clipped(bounds),
-        nextState: [...state, geometry, behavior],
-      );
-    }
-
     switch (layer) {
       case UnderlayPictureLayer():
-        final bounds = reaching(layer.canvasBounds);
-        _add(at, _Glass(layer, transform, clip, state, bounds), bounds);
-      case InFrameGlassLayer(:final picture?):
-        final bounds = reaching(layer.canvasBounds);
+        final bounds = _reaching(layer.canvasBounds, at);
+        _add(at, _Glass(layer, at.transform, clip, state, bounds), bounds);
+      case InFrameGlassLayer():
+        final bounds = _reaching(layer.canvasBounds, at);
         _add(
           at,
-          _Leaf(picture, transform, clip, state, bounds, inFrame: layer),
+          _Leaf(null, at, clip, state, bounds, inFrame: layer),
           bounds,
         );
       case PictureLayer(:final picture?):
-        final bounds = reaching(layer.canvasBounds);
+        final bounds = _reaching(layer.canvasBounds, at);
         _add(
           at,
           _Leaf(
             picture,
-            transform,
+            at,
             clip,
             state,
             bounds,
@@ -1396,39 +1352,37 @@ final class _Scan {
       case PictureLayer():
         break;
       case TextureLayer(:final rect) || PlatformViewLayer(:final rect):
-        final bounds = reaching(rect);
+        final bounds = _reaching(rect, at);
         _add(at, _Block(layer, bounds), bounds);
       case OpacitySeedLayer():
         final reads = filtered ? _everywhere : clip ?? _everywhere;
-        push(layer, _Seed(layer, reads));
+        _push(layer, _Seed(layer, reads), at);
       case BackdropFilterLayer():
         final reads = filtered ? _everywhere : clip ?? _everywhere;
         _add(at, _Block(layer, reads), reads);
         return false;
       case SeededBackdropPassLayer():
-        push(layer, _Pass(layer, transform, clip, filtered: filtered));
+        _push(layer, _Pass(layer, at.transform, clip, filtered: filtered), at);
       case LiquidGlassBackdropFilterLayer(clip: final rect, :final reach):
-        push(
+        _push(
           layer,
           _Served(
             layer,
-            transform,
+            at.transform,
             clip,
             state,
-            filtered ? _everywhere : clipped(rect.inflate(reach)),
+            filtered ? _everywhere : _clipped(rect.inflate(reach), at),
           ),
+          at,
         );
       case TransformLayer(:final offset):
         final effective = Matrix4.translationValues(offset.dx, offset.dy, 0);
         if (layer.transform case final matrix?) effective.multiply(matrix);
-        push(
+        _push(
           layer,
-          _Open((c) {
-            c.save();
-            c.transform(effective.storage);
-            return 1;
-          }),
-          next: transform.multiplied(effective),
+          _MatrixOpen(effective),
+          at,
+          transform: at.transform.multiplied(effective),
         );
       // Shown nowhere: its addToScene adds nothing.
       case FollowerLayer(:final link, :final showWhenUnlinked)
@@ -1436,14 +1390,11 @@ final class _Scan {
         return false;
       case FollowerLayer():
         final effective = followerTransformNow(layer);
-        push(
+        _push(
           layer,
-          _Open((c) {
-            c.save();
-            c.transform(effective.storage);
-            return 1;
-          }),
-          next: transform.multiplied(effective),
+          _MatrixOpen(effective),
+          at,
+          transform: at.transform.multiplied(effective),
         );
       // Transparent: it shows nothing, though drawing it would still pay
       // for its layers and filters.
@@ -1451,54 +1402,34 @@ final class _Scan {
         return false;
       case OpacityLayer(:final offset):
         final alpha = layer.alpha ?? 255;
-        push(
+        _push(
           layer,
-          _Open((c) {
-            c.save();
-            c.translate(offset.dx, offset.dy);
-            if (alpha == 255) return 1;
-            c.saveLayer(null, _Prefix._alpha(alpha));
-            return 2;
-          }, layered: alpha != 255),
-          next: shifted(offset),
-          nextState: [...state, alpha],
+          _AlphaOpen(alpha, offset),
+          at,
+          shift: offset,
+          state: [...state, alpha],
         );
       case ImageFilterLayer(:final imageFilter?, :final offset):
-        push(
+        _push(
           layer,
-          _Open((c) {
-            c.save();
-            c.translate(offset.dx, offset.dy);
-            c.saveLayer(_drawnBounds(layer), _Prefix._filtering(imageFilter));
-            return 2;
-          }, layered: true),
-          next: shifted(offset),
-          keepClip: false,
-          nextState: [...state, imageFilter],
-          nextFiltered: true,
+          _FilterOpen(layer, imageFilter, offset),
+          at,
+          shift: offset,
+          dropClip: true,
+          state: [...state, imageFilter],
+          filters: true,
         );
       case OffsetLayer(:final offset)
           when layer.runtimeType == OffsetLayer ||
-              layer is GeometryTransformTrackingLayer:
-        push(
-          layer,
-          _Open((c) {
-            c.save();
-            c.translate(offset.dx, offset.dy);
-            return 1;
-          }),
-          next: shifted(offset),
-        );
+              layer is GeometryTransformTrackingLayer ||
+              layer is ThinOffsetLayer:
+        _push(layer, _ShiftOpen(offset), at, shift: offset);
       case ColorFilterLayer(:final colorFilter?):
-        push(
+        _push(
           layer,
-          _Open((c) {
-            final paint = Paint();
-            paint.colorFilter = colorFilter;
-            c.saveLayer(null, paint);
-            return 1;
-          }, layered: true),
-          nextState: [...state, colorFilter],
+          _ColorOpen(colorFilter),
+          at,
+          state: [...state, colorFilter],
         );
       case ShaderMaskLayer(
         :final shader?,
@@ -1507,65 +1438,69 @@ final class _Scan {
       ):
         // A FragmentShader keeps its identity while its uniforms change.
         final token = shader is ui.FragmentShader ? Object() : shader;
-        final open = _Open(
-          (c) {
-            c.saveLayer(null, Paint());
-            return 1;
-          },
-          mask: (shader, maskRect, blendMode),
-          layered: true,
-        );
-        open.extra = reaching(maskRect);
-        push(
+        final open = _MaskOpen(shader, maskRect, blendMode);
+        open.extra = _reaching(maskRect, at);
+        _push(
           layer,
           open,
-          nextState: [...state, token, maskRect, blendMode],
+          at,
+          state: [...state, token, maskRect, blendMode],
         );
       case ClipRectLayer(:final clipRect?, :final clipBehavior)
           when clipBehavior != Clip.none:
-        pushClip(layer, clipRect, clipBehavior);
+        _pushClip(layer, clipRect, clipRect, clipBehavior, at);
       case ClipRRectLayer(:final clipRRect?, :final clipBehavior)
           when clipBehavior != Clip.none:
-        pushClip(layer, clipRRect, clipBehavior);
+        _pushClip(layer, clipRRect, clipRRect.outerRect, clipBehavior, at);
       case ClipRSuperellipseLayer(
             :final clipRSuperellipse?,
             :final clipBehavior,
           )
           when clipBehavior != Clip.none:
-        pushClip(layer, clipRSuperellipse, clipBehavior);
+        _pushClip(
+          layer,
+          clipRSuperellipse,
+          clipRSuperellipse.outerRect,
+          clipBehavior,
+          at,
+        );
       case ClipPathLayer(:final clipPath?, :final clipBehavior)
           when clipBehavior != Clip.none:
-        pushClip(layer, clipPath, clipBehavior);
+        _pushClip(layer, clipPath, clipPath.getBounds(), clipBehavior, at);
       case NativeClipLayer(
             enabled: true,
             :final geometry?,
             :final clipBehavior,
           )
           when clipBehavior != Clip.none:
-        pushClip(layer, geometry, clipBehavior);
-      case LeaderLayer(:final offset):
-        push(
+        _pushClip(
           layer,
-          _Open((c) {
-            c.save();
-            c.translate(offset.dx, offset.dy);
-            return 1;
-          }),
-          next: shifted(offset),
+          geometry,
+          switch (geometry) {
+            final Rect rect => rect,
+            final RRect rect => rect.outerRect,
+            final RSuperellipse rect => rect.outerRect,
+            final Path path => path.getBounds(),
+            _ => Rect.largest,
+          },
+          clipBehavior,
+          at,
         );
+      case LeaderLayer(:final offset):
+        _push(layer, _ShiftOpen(offset), at, shift: offset);
       case ClipRectLayer() ||
           ClipRRectLayer() ||
           ClipRSuperellipseLayer() ||
           ClipPathLayer() ||
           NativeClipLayer() ||
           AnnotatedRegionLayer():
-        push(layer as ContainerLayer, _Open.plain());
+        _push(layer as ContainerLayer, _Open(), at);
       case ContainerLayer() when layer.runtimeType == ContainerLayer:
-        push(layer, _Open.plain());
+        _push(layer, _Open(), at);
       case ContainerLayer() when LiquidGlassUnderlay.effectsOf(layer) != null:
         final effects = LiquidGlassUnderlay.effectsOf(layer)!;
         if (effects.alpha == 0) return false;
-        final next = transform.multiplied(effects.transform);
+        final next = at.transform.multiplied(effects.transform);
         var nextClip = clip;
         final effectState = <Object?>[];
         final rounded = effects.clip;
@@ -1581,43 +1516,64 @@ final class _Scan {
           effectState.add(blur);
           nextClip = null;
         }
-        push(
+        _push(
           layer,
-          _Open((c) {
-            c.save();
-            c.transform(effects.transform.storage);
-            if (rounded != null) c.clipRRect(rounded);
-            var saves = 1;
-            if (alpha != null) {
-              c.saveLayer(null, _Prefix._alpha(alpha));
-              saves++;
-            }
-            if (blur > 0) {
-              c.saveLayer(
-                _drawnBounds(layer),
-                _Prefix._filtering(
-                  ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-                ),
-              );
-              saves++;
-            }
-            return saves;
-          }, layered: alpha != null || blur > 0),
-          next: next,
-          keepClip: false,
-          nextClip: nextClip,
-          nextState: [...state, ...effectState],
-          nextFiltered: blur > 0,
+          _EffectsOpen(layer, effects.transform, rounded, alpha, blur),
+          at,
+          transform: next,
+          dropClip: true,
+          clip: nextClip,
+          state: [...state, ...effectState],
+          filters: blur > 0,
         );
       default:
         _add(
           at,
-          _Unknown(layer, transform, clip, filtered: filtered),
+          _Unknown(layer, at.transform, clip, filtered: filtered),
           _everywhere,
         );
         return layer is! ContainerLayer;
     }
     return true;
+  }
+
+  static Rect _clipped(Rect local, _Cursor at) {
+    final bounds = MatrixUtils.transformRect(at.base, local.shift(at.shift));
+    final clip = at.clip;
+    return clip == null ? bounds : clip.intersect(bounds);
+  }
+
+  static Rect _reaching(Rect local, _Cursor at) =>
+      at.filtered ? _everywhere : _clipped(local, at);
+
+  void _pushClip(
+    ContainerLayer layer,
+    Object geometry,
+    Rect bounds,
+    Clip behavior,
+    _Cursor at,
+  ) {
+    final known =
+        geometry is Rect ||
+        geometry is RRect ||
+        geometry is RSuperellipse ||
+        geometry is Path;
+    final onScreen = _clipped(bounds, at);
+    _push(
+      layer,
+      known
+          ? _ClipOpen(
+              geometry,
+              bounds,
+              behavior,
+              at.filtered ? null : onScreen,
+            )
+          : _Undrawable(layer),
+      at,
+      dropClip: true,
+      clip: onScreen,
+      state: [...at.state, geometry, behavior],
+    );
   }
 
   // Whether nothing is painted in [band] between entries [from] and [to] but
@@ -1674,7 +1630,8 @@ final class _Scan {
   // canvas, if it has one, and signs them.
   void replay(_Prefix prefix, int limit) {
     final band = prefix.band;
-    final drawing = prefix.canvas != null;
+    final shown = prefix.shown;
+    final drawing = prefix.canvas != null || shown != null;
     final out = prefix.out;
     final open = <(int, _Open)>[];
     var i = 0;
@@ -1756,8 +1713,17 @@ final class _Scan {
           break;
         case _Glass() when prefix.beside(entry.bounds):
           break;
+        case _Leaf(glass: false) when shown != null:
+          if (_meets(entry.bounds, band)) shown.add(entry);
+        case _Leaf() || _Glass() when shown != null:
+          final bounds = entry is _Leaf
+              ? entry.bounds
+              : (entry as _Glass).bounds;
+          if (_meets(bounds, band)) {
+            prefix.metGlass = true;
+            break loop;
+          }
         case _Leaf(
-          :final picture,
           :final transform,
           :final clip,
           :final state,
@@ -1766,11 +1732,11 @@ final class _Scan {
           if (_meets(entry.bounds, band)) {
             if (entry.glass) prefix.holdsGlass = true;
             if (inFrame == null) {
-              sign(picture, transform, clip, state);
+              sign(entry.picture, transform, clip, state);
             } else {
               signInFrame(
                 inFrame.layer,
-                picture,
+                entry.picture,
                 inFrame.within,
                 transform,
                 clip,
@@ -1812,6 +1778,7 @@ final class _Scan {
         case _Close():
           final (saves, group) = open.removeLast();
           if (prefix.canvas case final c?) group.finish(c, saves);
+          shown?.add(entry);
         case _Open():
           if (entry.end >= 0 &&
               entry.end < limit &&
@@ -1856,6 +1823,9 @@ final class _Scan {
             case _Served(:final layer, :final transform, :final clip):
               if (prefix.dropsGlass) {
                 // Only what lies on the glass is drawn.
+              } else if (shown != null) {
+                prefix.metGlass = true;
+                break loop;
               } else if (layer.pending) {
                 if (!fold(layer, layer.addFold, transform, clip)) break loop;
               } else if (layer.inFrameLayer case final inFrame?) {
@@ -1882,6 +1852,9 @@ final class _Scan {
             prefix.canvas == null ? 0 : entry.apply(prefix.canvas!),
             entry,
           ));
+          shown?.add(
+            entry is _ClipOpen && entry.keepsAll(band) ? _Open.nothing : entry,
+          );
       }
       i++;
     }
@@ -1904,7 +1877,8 @@ final class _Cursor {
   _Cursor(
     this.layer,
     this.next,
-    this.transform,
+    this.base,
+    this.shift,
     this.clip,
     this.state, {
     required this.filtered,
@@ -1913,7 +1887,23 @@ final class _Cursor {
 
   final ContainerLayer? layer;
   Layer? next;
-  final Matrix4 transform;
+
+  // The transform to the screen as [base] and the translation after it: most
+  // layers only shift, and most of those lie outside every copy.
+  final Matrix4 base;
+  final Offset shift;
+  Matrix4? _transform;
+
+  // Transforms are never changed in place, so a layer that does not shift
+  // shares its parent's.
+  Matrix4 get transform {
+    if (_transform case final held?) return held;
+    if (shift == Offset.zero) return _transform = base;
+    final next = base.clone();
+    next.translateByDouble(shift.dx, shift.dy, 0, 1);
+    return _transform = next;
+  }
+
   final Rect? clip;
   final List<Object?> state;
   final bool filtered;
@@ -1996,8 +1986,8 @@ typedef _Fold = ({UnderlayFold add, Matrix4 transform, Rect? clip});
 
 final class _Leaf extends _Entry {
   _Leaf(
-    this.picture,
-    this.transform,
+    this._picture,
+    this._at,
     this.clip,
     this.state,
     this.bounds, {
@@ -2011,8 +2001,10 @@ final class _Leaf extends _Entry {
   // Glass over a copy drawn in the frame.
   final InFrameGlassLayer? inFrame;
 
-  final ui.Picture picture;
-  final Matrix4 transform;
+  final ui.Picture? _picture;
+  ui.Picture get picture => _picture ?? inFrame!.picture!;
+  final _Cursor _at;
+  Matrix4 get transform => _at.transform;
   final Rect? clip;
   final List<Object?> state;
   final Rect bounds;
@@ -2051,49 +2043,382 @@ final class _Close extends _Entry {
   const _Close();
 }
 
-// A container: what it applies to the canvas around its children and how
-// many saves that takes, and the extent of what it draws once its children
-// are walked.
+// A container: what it applies around its children and the extent of what it
+// draws once its children are walked.
 class _Open extends _Entry {
-  _Open(this.apply, {this.mask, this.layered = false});
+  _Open({this.layered = false});
 
-  _Open.plain() : apply = _none, mask = null, layered = false;
+  // What stands for a container that adds nothing to a copy.
+  static final nothing = _Open();
 
-  static int _none(Canvas c) => 0;
-
-  final int Function(Canvas c) apply;
-  final (Shader, Rect, BlendMode)? mask;
   // Whether it draws its children in a layer of their own.
   final bool layered;
   Rect extra = Rect.zero;
   Rect bounds = _everywhere;
   int end = -1;
 
+  // Applies it to [c] and returns how many saves that takes.
+  int apply(Canvas c) => 0;
+
   void finish(Canvas c, int saves) {
-    if (mask case (final shader, final rect, final blendMode)) {
-      // The engine draws a shader mask over what it masks, in a layer.
-      final paint = Paint();
-      paint.shader = shader;
-      paint.blendMode = blendMode;
-      c.translate(rect.left, rect.top);
-      c.drawRect(Offset.zero & rect.size, paint);
-    }
     for (var n = 0; n < saves; n++) {
       c.restore();
+    }
+  }
+
+  // Adds it to a scene as the layer it is.
+  void enter(_SceneOut out) {}
+}
+
+final class _ShiftOpen extends _Open {
+  _ShiftOpen(this.offset);
+
+  final Offset offset;
+
+  @override
+  int apply(Canvas c) {
+    c.save();
+    c.translate(offset.dx, offset.dy);
+    return 1;
+  }
+
+  @override
+  void enter(_SceneOut out) => out.at += offset;
+}
+
+final class _MatrixOpen extends _Open {
+  _MatrixOpen(this.matrix);
+
+  final Matrix4 matrix;
+
+  @override
+  int apply(Canvas c) {
+    c.save();
+    c.transform(matrix.storage);
+    return 1;
+  }
+
+  @override
+  void enter(_SceneOut out) => out.transform(matrix);
+}
+
+final class _AlphaOpen extends _Open {
+  _AlphaOpen(this.alpha, this.offset) : super(layered: alpha != 255);
+
+  final int alpha;
+  final Offset offset;
+
+  @override
+  int apply(Canvas c) {
+    c.save();
+    c.translate(offset.dx, offset.dy);
+    if (alpha == 255) return 1;
+    c.saveLayer(null, _Prefix._alpha(alpha));
+    return 2;
+  }
+
+  @override
+  void enter(_SceneOut out) {
+    if (alpha == 255) {
+      out.at += offset;
+      return;
+    }
+    out.settleMatrix();
+    out.builder.pushOpacity(alpha, offset: out.at + offset);
+    out.at = Offset.zero;
+    out.pushes++;
+  }
+}
+
+final class _FilterOpen extends _Open {
+  _FilterOpen(this.layer, this.filter, this.offset) : super(layered: true);
+
+  final ContainerLayer layer;
+  final ui.ImageFilter filter;
+  final Offset offset;
+
+  @override
+  int apply(Canvas c) {
+    c.save();
+    c.translate(offset.dx, offset.dy);
+    c.saveLayer(_drawnBounds(layer), _Prefix._filtering(filter));
+    return 2;
+  }
+
+  @override
+  void enter(_SceneOut out) {
+    out.settleMatrix();
+    out.builder.pushImageFilter(filter, offset: out.at + offset);
+    out.at = Offset.zero;
+    out.pushes++;
+  }
+}
+
+final class _ColorOpen extends _Open {
+  _ColorOpen(this.filter) : super(layered: true);
+
+  final ColorFilter filter;
+
+  @override
+  int apply(Canvas c) {
+    final paint = Paint();
+    paint.colorFilter = filter;
+    c.saveLayer(null, paint);
+    return 1;
+  }
+
+  @override
+  void enter(_SceneOut out) {
+    out.settle();
+    out.builder.pushColorFilter(filter);
+    out.pushes++;
+  }
+}
+
+final class _MaskOpen extends _Open {
+  _MaskOpen(this.shader, this.rect, this.blendMode) : super(layered: true);
+
+  final Shader shader;
+  final Rect rect;
+  final BlendMode blendMode;
+
+  @override
+  int apply(Canvas c) {
+    c.saveLayer(null, Paint());
+    return 1;
+  }
+
+  @override
+  void finish(Canvas c, int saves) {
+    // The engine draws a shader mask over what it masks, in a layer.
+    final paint = Paint();
+    paint.shader = shader;
+    paint.blendMode = blendMode;
+    c.translate(rect.left, rect.top);
+    c.drawRect(Offset.zero & rect.size, paint);
+    super.finish(c, saves);
+  }
+
+  @override
+  void enter(_SceneOut out) {
+    out.settle();
+    out.builder.pushShaderMask(shader, rect, blendMode);
+    out.pushes++;
+  }
+}
+
+final class _ClipOpen extends _Open {
+  _ClipOpen(this.geometry, this.rect, this.behavior, this.onScreen)
+    : super(layered: behavior == Clip.antiAliasWithSaveLayer);
+
+  final Object geometry;
+  final Rect rect;
+  final Clip behavior;
+
+  // The clip on the screen, null where a filter lies above it, which draws
+  // what the clip cuts into what it keeps.
+  final Rect? onScreen;
+
+  // Whether the clip cuts nothing of a copy of [band].
+  bool keepsAll(Rect band) =>
+      geometry is Rect &&
+      behavior != Clip.antiAliasWithSaveLayer &&
+      onScreen != null &&
+      rectContains(onScreen!, band);
+
+  @override
+  int apply(Canvas c) {
+    c.save();
+    final antiAlias = behavior != Clip.hardEdge;
+    switch (geometry) {
+      case final Rect rect:
+        c.clipRect(rect, doAntiAlias: antiAlias);
+      case final RRect rect:
+        c.clipRRect(rect, doAntiAlias: antiAlias);
+      case final RSuperellipse rect:
+        c.clipRSuperellipse(rect, doAntiAlias: antiAlias);
+      case final Path path:
+        c.clipPath(path, doAntiAlias: antiAlias);
+    }
+    if (behavior != Clip.antiAliasWithSaveLayer) return 1;
+    c.saveLayer(rect, Paint());
+    return 2;
+  }
+
+  @override
+  void enter(_SceneOut out) {
+    out.settle();
+    final builder = out.builder;
+    switch (geometry) {
+      case final Rect rect:
+        builder.pushClipRect(rect, clipBehavior: behavior);
+      case final RRect rect:
+        builder.pushClipRRect(rect, clipBehavior: behavior);
+      case final RSuperellipse rect:
+        builder.pushClipRSuperellipse(rect, clipBehavior: behavior);
+      case final Path path:
+        builder.pushClipPath(path, clipBehavior: behavior);
+    }
+    out.pushes++;
+  }
+}
+
+// What [LiquidGlassUnderlay] applies, a layer the copy knows by its effects.
+final class _EffectsOpen extends _Open {
+  _EffectsOpen(
+    this.layer,
+    this.matrix,
+    this.rounded,
+    this.alpha,
+    this.blur,
+  ) : super(layered: alpha != null || blur > 0);
+
+  final ContainerLayer layer;
+  final Matrix4 matrix;
+  final RRect? rounded;
+  final int? alpha;
+  final double blur;
+
+  @override
+  int apply(Canvas c) {
+    c.save();
+    c.transform(matrix.storage);
+    if (rounded case final rounded?) c.clipRRect(rounded);
+    var saves = 1;
+    if (alpha case final alpha?) {
+      c.saveLayer(null, _Prefix._alpha(alpha));
+      saves++;
+    }
+    if (blur > 0) {
+      c.saveLayer(
+        _drawnBounds(layer),
+        _Prefix._filtering(ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur)),
+      );
+      saves++;
+    }
+    return saves;
+  }
+
+  @override
+  void enter(_SceneOut out) {
+    out.transform(matrix);
+    final builder = out.builder;
+    if (rounded case final rounded?) {
+      out.settle();
+      builder.pushClipRRect(rounded);
+      out.pushes++;
+    }
+    if (alpha case final alpha? when alpha != 255) {
+      out.settleMatrix();
+      builder.pushOpacity(alpha, offset: out.at);
+      out.at = Offset.zero;
+      out.pushes++;
+    }
+    if (blur > 0) {
+      out.settleMatrix();
+      builder.pushImageFilter(
+        ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        offset: out.at,
+      );
+      out.at = Offset.zero;
+      out.pushes++;
+    }
+  }
+}
+
+// A scene a copy adds itself to. What only moves the coordinates waits for
+// what needs them: a picture takes a translation as its offset, and a layer
+// pushed costs both threads.
+final class _SceneOut {
+  _SceneOut(this.builder, this.matrix);
+
+  final ui.SceneBuilder builder;
+
+  // The transform no layer holds yet, then the translation after it.
+  Matrix4? matrix;
+  Offset at = Offset.zero;
+  int pushes = 0;
+  final _marks = <(Matrix4?, Offset, int)>[];
+
+  void transform(Matrix4 by) {
+    if (MatrixUtils.getAsTranslation(by) case final shift?) {
+      at += shift;
+      return;
+    }
+    final next = (matrix ?? Matrix4.identity()).clone();
+    next.translateByDouble(at.dx, at.dy, 0, 1);
+    next.multiply(by);
+    matrix = next;
+    at = Offset.zero;
+  }
+
+  // Pushes the waiting transform with its translation.
+  void settleMatrix() {
+    final held = matrix;
+    if (held == null) return;
+    if (at != Offset.zero) {
+      final next = held.clone();
+      next.translateByDouble(at.dx, at.dy, 0, 1);
+      builder.pushTransform(next.storage);
+    } else {
+      builder.pushTransform(held.storage);
+    }
+    matrix = null;
+    at = Offset.zero;
+    pushes++;
+  }
+
+  // Leaves the coordinates of what comes next to the layers pushed.
+  void settle() {
+    settleMatrix();
+    if (at == Offset.zero) return;
+    builder.pushOffset(at.dx, at.dy);
+    at = Offset.zero;
+    pushes++;
+  }
+
+  void leave() {
+    final (heldMatrix, heldAt, pushed) = _marks.removeLast();
+    while (pushes > pushed) {
+      builder.pop();
+      pushes--;
+    }
+    matrix = heldMatrix;
+    at = heldAt;
+  }
+
+  void add(List<_Entry> entries) {
+    for (final entry in entries) {
+      switch (entry) {
+        case _Leaf(:final picture):
+          settleMatrix();
+          builder.addPicture(at, picture);
+        case _Close():
+          leave();
+        case _Open():
+          _marks.add((matrix, at, pushes));
+          entry.enter(this);
+        default:
+          break;
+      }
+    }
+    while (pushes > 0) {
+      builder.pop();
+      pushes--;
     }
   }
 }
 
 // A clip the copy cannot draw: a copy drawn under it fails.
 final class _Undrawable extends _Open {
-  _Undrawable(this.layer) : super(_Open._none);
+  _Undrawable(this.layer);
 
   final Layer layer;
 }
 
 // An opacity pass that glass seeds with its backdrop while it reads it.
 final class _Seed extends _Open {
-  _Seed(this.layer, this.reads) : super(_Open._none) {
+  _Seed(this.layer, this.reads) {
     extra = reads;
   }
 
@@ -2103,8 +2428,7 @@ final class _Seed extends _Open {
 
 // A seeded backdrop pass, hidden or read as glass composites.
 final class _Pass extends _Open {
-  _Pass(this.layer, this.transform, this.clip, {required this.filtered})
-    : super(_Open._none) {
+  _Pass(this.layer, this.transform, this.clip, {required this.filtered}) {
     extra = _everywhere;
   }
 
@@ -2128,7 +2452,7 @@ final class _Served extends _Open {
     this.clip,
     this.state,
     this.reads,
-  ) : super(_Open._none) {
+  ) {
     extra = reads;
   }
 
@@ -2207,10 +2531,80 @@ final class UnderlayCopy {
 /// it.
 @internal
 final class InFrameCopy {
-  const InFrameCopy._(this._content, this._band, this.layer, this._grid);
+  InFrameCopy._(
+    this._picture,
+    this._shown,
+    this._band,
+    this.layer,
+    this._grid,
+  );
 
   final CopyGrid _grid;
-  final ui.Picture _content;
+  ui.Picture? _picture;
+  // What the copy draws, for a copy that is added to the scene.
+  final List<_Entry>? _shown;
+
+  /// Whether readers can add the copy to the scene instead of drawing
+  /// [_content].
+  bool get inScene => _shown != null;
+
+  // The copy as a picture, recorded only for a reader that draws it.
+  ui.Picture get _content => _picture ??= _record();
+
+  ui.Picture _record() {
+    final recorder = ui.PictureRecorder();
+    final c = Canvas(recorder);
+    _Prefix._beginCopy(c, _band, _grid);
+    final open = <(int, _Open)>[];
+    for (final entry in _shown!) {
+      switch (entry) {
+        case _Leaf(:final picture):
+          c.drawPicture(picture);
+        case _Close():
+          final (saves, group) = open.removeLast();
+          group.finish(c, saves);
+        case _Open():
+          open.add((entry.apply(c), entry));
+        default:
+          break;
+      }
+    }
+    for (final (saves, group) in open.reversed) {
+      group.finish(c, saves);
+    }
+    return recorder.endRecording();
+  }
+
+  // Adds the copy's layers to [builder], with the copy's top-left corner at
+  // [origin] in the coordinates there, cut to [within].
+  void _addTo(ui.SceneBuilder builder, Offset origin, Rect within) {
+    final grid = _grid;
+    final pixels = grid._pixels;
+    builder.pushClipRect(
+      (origin & Size(_band.width * pixels, _band.height * pixels)).intersect(
+        within,
+      ),
+      clipBehavior: Clip.hardEdge,
+    );
+    // _Prefix._beginCopy as one matrix.
+    final share = grid._share;
+    final scale = 1 / share;
+    final skew = share > 1 && BackdropUnderlay.debugPlaceText ? 1e-6 : 0.0;
+    final left = _band.left * grid._devicePixelRatio;
+    final top = _band.top * grid._devicePixelRatio;
+    final matrix = Matrix4.zero();
+    final storage = matrix.storage;
+    storage[0] = scale;
+    storage[1] = scale * skew;
+    storage[5] = scale;
+    storage[10] = 1;
+    storage[12] = origin.dx - scale * left;
+    storage[13] = origin.dy - scale * top - scale * skew * left;
+    storage[15] = 1;
+    _SceneOut(builder, matrix).add(_shown!);
+    builder.pop();
+  }
+
   // The screen rect the copy holds, in logical pixels, on its grid.
   final Rect _band;
 
@@ -2228,7 +2622,7 @@ final class InFrameCopy {
   }
 
   /// Releases the copy.
-  void dispose() => _content.dispose();
+  void dispose() => _picture?.dispose();
 }
 
 /// A picture of glass, drawn over its copy.
@@ -2294,6 +2688,40 @@ class InFrameGlassLayer extends GlassPictureLayer {
   /// Records the glass over the part of its copy inside a rect of the screen
   /// (logical pixels), or returns null when none of it is.
   final ui.Picture? Function(Rect region) within;
+
+  CornerRead? _read;
+  late ui.ImageFilter _filter;
+  late Matrix4 _deviceToLocal;
+
+  /// Adds the glass to the scene as [read] filtered by [filter], in
+  /// coordinates [deviceToLocal] takes the screen's device pixels to, and
+  /// records it only for a copy that draws it.
+  void showInScene(
+    CornerRead read,
+    ui.ImageFilter filter,
+    Matrix4 deviceToLocal,
+  ) {
+    _read = read;
+    _filter = filter;
+    _deviceToLocal = deviceToLocal;
+  }
+
+  @override
+  ui.Picture? get picture {
+    if (super.picture == null && _read != null) {
+      super.picture = within(layer);
+    }
+    return super.picture;
+  }
+
+  @override
+  void addToScene(ui.SceneBuilder builder) {
+    if (_read case final read?) {
+      read.addToScene(builder, _filter, _deviceToLocal);
+    } else {
+      super.addToScene(builder);
+    }
+  }
 
   @override
   void dispose() {

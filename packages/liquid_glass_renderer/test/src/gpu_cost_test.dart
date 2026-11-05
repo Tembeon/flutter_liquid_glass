@@ -32,7 +32,6 @@ const _settings = LiquidGlassSettings(
 );
 
 const _shape = LiquidRoundedSuperellipse(borderRadius: 28);
-const _backdropLayer = 'GeometryTransformTrackingLayer';
 
 typedef _Budget = ({int passes, double traffic});
 
@@ -202,11 +201,6 @@ void _expectBudget(GpuReport report, Map<String, _Budget> budgets) {
         '${frame.traffic.relativeToPlainFrame.toStringAsFixed(2)}x traffic';
 
     // A silently unmodeled custom layer would make the estimate too low.
-    expect(
-      frame.sceneLayers,
-      contains(_backdropLayer),
-      reason: '$where; the glass backdrop layer was not read by Impeeler.',
-    );
     expect(frame.unmodeledLayers, isEmpty, reason: where);
     expect(frame.missingPictures, 0, reason: where);
     expect(

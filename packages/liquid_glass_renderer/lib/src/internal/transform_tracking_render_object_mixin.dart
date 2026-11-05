@@ -127,6 +127,12 @@ class GeometryTransformTrackingLayer extends OffsetLayer with ComposedLayer {
     return currentTransform;
   }
 
+  // It draws nothing: where it lies is all the site reads.
+  @override
+  void addToScene(ui.SceneBuilder builder) {
+    if (firstChild != null) super.addToScene(builder);
+  }
+
   @override
   void updateSubtreeNeedsAddToScene() {
     final planned = composedAhead;
@@ -134,6 +140,22 @@ class GeometryTransformTrackingLayer extends OffsetLayer with ComposedLayer {
     // The composer submits a planned frame's GPU work once; a scene it did
     // not plan submits here, before it reaches raster.
     if (!planned) FlutterGpuGeometryRenderer.flushPendingSubmissions();
+  }
+}
+
+/// An [OffsetLayer] that holds no layer of the scene while it does not shift:
+/// glass over a scroll adds its layers again every frame, and each one the
+/// scene holds costs both threads.
+@internal
+class ThinOffsetLayer extends OffsetLayer {
+  @override
+  void addToScene(ui.SceneBuilder builder) {
+    if (offset != Offset.zero) {
+      super.addToScene(builder);
+      return;
+    }
+    engineLayer = null;
+    addChildrenToScene(builder);
   }
 }
 

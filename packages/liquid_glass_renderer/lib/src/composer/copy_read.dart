@@ -344,6 +344,52 @@ final class CornerRead {
     canvas.restore();
     return recorder.endRecording();
   }
+
+  /// Adds the layer to [builder] with [filter] as its image filter, in
+  /// coordinates [deviceToLocal] takes the screen's device pixels to: the
+  /// layers [record] draws, with nothing recorded.
+  void addToScene(
+    ui.SceneBuilder builder,
+    ui.ImageFilter filter,
+    Matrix4 deviceToLocal,
+  ) {
+    final at = _at;
+    builder.pushTransform(deviceToLocal.storage);
+    builder.pushImageFilter(filter);
+    builder.addPicture(_device.topLeft, _corners(_device.size));
+    _copy._addTo(
+      builder,
+      Offset(_device.left + at.dx, _device.top + at.dy),
+      _device,
+    );
+    builder.pop();
+    builder.pop();
+  }
+
+  // A pixel cleared at each corner of a layer of [size], which holds Impeller
+  // to the layer where the copy is transparent. Chrome keeps its few sizes
+  // across frames.
+  static final _cornersOf = <Size, ui.Picture>{};
+
+  static ui.Picture _corners(Size size) {
+    if (_cornersOf[size] case final held?) return held;
+    if (_cornersOf.length >= 32) {
+      for (final picture in _cornersOf.values) {
+        picture.dispose();
+      }
+      _cornersOf.clear();
+    }
+    final clear = Paint();
+    clear.blendMode = BlendMode.clear;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    canvas.drawRect(const Rect.fromLTWH(0, 0, 1, 1), clear);
+    canvas.drawRect(
+      Rect.fromLTRB(size.width - 1, size.height - 1, size.width, size.height),
+      clear,
+    );
+    return _cornersOf[size] = recorder.endRecording();
+  }
 }
 
 /// A copy drawn at the screen's pixels together with glass whose own copy

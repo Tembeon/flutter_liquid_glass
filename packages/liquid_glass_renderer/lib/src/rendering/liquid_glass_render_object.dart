@@ -793,7 +793,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     Offset offset,
     PaintingContextCallback painter,
   ) {
-    final layer = (_effectLayer.layer ??= OffsetLayer())
+    final layer = (_effectLayer.layer ??= ThinOffsetLayer())
       ..offset = _effectTranslation;
     (_frameState == GlassFrameState.idle ? _idleAncestorClips : _ancestorClips)
         .pushLayer(

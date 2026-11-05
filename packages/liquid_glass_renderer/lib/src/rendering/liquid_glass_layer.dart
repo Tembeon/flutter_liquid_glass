@@ -686,7 +686,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
     if (!identical(shader, _lastShader)) {
       _lastShader = shader;
-      _shaderInputsChanged = true;
+      _noteShaderInputs();
     }
     return shader;
   }
@@ -752,6 +752,15 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   bool _shaderInputsChanged = true;
 
+  // Counts the changes of a uniform or sampler of [renderShader], for what
+  // holds a filter apart from [takeShaderInputsChanged].
+  int _shaderInputsRevision = 0;
+
+  void _noteShaderInputs() {
+    _shaderInputsChanged = true;
+    _shaderInputsRevision++;
+  }
+
   /// Whether a uniform or sampler of [renderShader] changed since the last
   /// call, which also resets it.
   ///
@@ -767,7 +776,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   void _updateShaderSettings() {
-    _shaderInputsChanged = true;
+    _noteShaderInputs();
     _staleShaders.addAll(finalShaders);
     // Reading renderShader writes the picked shader's uniforms; the others
     // are written when a frame picks them.
@@ -949,7 +958,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // filter, without painting the layer and its shapes. Every final shader
     // takes them: the layer switches between them without rewriting them.
     finalShaders.forEach(_writeGlow);
-    _shaderInputsChanged = true;
+    _noteShaderInputs();
     if (!_refreshRetainedFilter()) markNeedsPaint();
   }
 
@@ -1393,7 +1402,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _boundGeometryImage = geometryImage;
       _boundMaterialImage = _materialImage;
       _boundMatteBounds = _geometryMatteBounds;
-      _shaderInputsChanged = true;
+      _noteShaderInputs();
     }
   }
 
@@ -1414,6 +1423,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   (double, double, double, double, double, double)? _coordinateMapping;
   Rect? _backdropBounds;
+  FragmentShader? _mappedShader;
+  bool _mappingMoved = true;
+  Object? _mappingInputs;
 
   /// Layer-local rect the native filter captures backdrop for, or `null`
   /// when it is unbounded. Refraction mirrors samples that would leave it:
@@ -1458,8 +1470,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         mapping != _coordinateMapping || backdropBounds != _backdropBounds;
     _coordinateMapping = mapping;
     _backdropBounds = backdropBounds;
-    if (changed) _shaderInputsChanged = true;
-    _writeCoordinateMapping(renderShader, mapping, backdropBounds);
+    if (changed) _noteShaderInputs();
+    final shader = renderShader;
+    if (changed || !identical(shader, _mappedShader)) {
+      _mappedShader = shader;
+      _writeCoordinateMapping(shader, mapping, backdropBounds);
+    }
     return changed;
   }
 
@@ -1773,6 +1789,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   @override
   void onTransformChanged() {
+    _mappingMoved = true;
     // Retained geometry follows the move in onPreparing; glass with nothing
     // to reuse repaints.
     if (!hasReusableGeometry && !hasReusableIdleContents) {
@@ -1945,6 +1962,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return (screen: screen, logical: logical, drawn: drawn, frost: frost);
   }
 
+  ImageFilter? _inSceneFilter;
+  Object? _inSceneFilterKey;
+
   // The glass as one rect painted with the final shader over the underlay's
   // copy, or null when there is no copy. The shader reads the copy as a
   // filter reads its input, from the copy's origin (see _readingCopy).
@@ -2013,6 +2033,32 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           );
         },
       );
+      final read = inFrame.inScene ? inFrame.readIn(inFrame.layer) : null;
+      if (read != null && inPlaceFrostFilter(read, frost) == null) {
+        final sampling = read.glassSampling(frost);
+        final key = (
+          renderShader,
+          _shaderInputsRevision,
+          sampling.origin,
+          sampling.reduced,
+          sampling.frost,
+          sampling.holds,
+          globalToMatte,
+          backdropBounds,
+        );
+        // A chrome over a scroll reads as it did the frame before.
+        if (key != _inSceneFilterKey) {
+          _inSceneFilter = _readingCopy(
+            sampling,
+            globalToMatte: globalToMatte,
+            backdropBounds: backdropBounds,
+            draw: shaderFilterNow,
+          );
+          _inSceneFilterKey = key;
+        }
+        picture.showInScene(read, _inSceneFilter!, screenToCanvas);
+        return _rig.servedInFrame(picture);
+      }
       picture.picture = picture.within(inFrame.layer);
       if (picture.picture == null) {
         picture.dispose();
@@ -2144,6 +2190,25 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   @override
   void onCompositorTranslated(Offset translation) {
+    // Nothing to map: a shape that appears repaints.
+    if (shapesWithGeometry.isEmpty) return;
+    // Chrome over a scroll keeps all of it, frame after frame.
+    final inputs = (
+      translation,
+      _filterMaterialBounds,
+      _filterPaintOffset,
+      compositionProbeSeeding,
+      _frostSigmaForCurrentShapes(),
+      devicePixelRatio,
+      retainedClipBounds,
+      localPaintClipAbove(this),
+    );
+    // A pass that changes size counts the frames it holds still here.
+    if (!_mappingMoved && !_rig.passResizing && inputs == _mappingInputs) {
+      return;
+    }
+    _mappingMoved = false;
+    _mappingInputs = inputs;
     final clip = _filterClip;
     if (clip != null && _rig.hasClip) {
       _innerClipLayerRect = clip.shift(_filterPaintOffset);
@@ -2338,7 +2403,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // Every analytic variant, so the one a frame picks by its color models
     // has them.
     _analyticShaders.forEach(write);
-    _shaderInputsChanged = true;
+    _noteShaderInputs();
   }
 
   /// [area] less the shapes' box areas, times [numShapes]; overlapping boxes

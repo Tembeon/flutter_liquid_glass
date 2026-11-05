@@ -29,6 +29,8 @@ final benchSwitches = <String, void Function({required bool on})>{
   'promotes': ({required on}) => BackdropUnderlay.debugPromotes = on,
   // B: scroll edges only fade, without blur.
   'edge_fade': ({required on}) => debugSetEdgeBlurs(on: !on),
+  // B adds a copy to the scene as its layers, A records it into a picture.
+  'in_scene': ({required on}) => BackdropUnderlay.debugInScene = on,
   // B leaves glass out of a copy of few pixels.
   'drops_glass': ({required on}) => BackdropUnderlay.debugDropsGlass = on,
   'islands': ({required on}) => BackdropUnderlay.debugIslandsEnabled = on,

@@ -247,9 +247,31 @@ ui.Picture? recordFrostedInFrame(
   if (read == null || sampling == null) return null;
   _setFrost(shader, sampling, frost.colorMatrix);
   shader.setImageSampler(0, _bilinear, filterQuality: FilterQuality.low);
+  return read.record(
+    bilinearShaderFilter(shader),
+    frostToLocal(origin, devicePixelRatio),
+  );
+}
+
+/// From the screen's device pixels to a frost's coordinates, which begin at
+/// [origin] of the screen.
+@internal
+Matrix4 frostToLocal(Offset origin, double devicePixelRatio) {
   final toLocal = Matrix4.translationValues(-origin.dx, -origin.dy, 0);
   toLocal.scaleByDouble(1 / devicePixelRatio, 1 / devicePixelRatio, 1, 1);
-  return read.record(bilinearShaderFilter(shader), toLocal);
+  return toLocal;
+}
+
+/// The filter that frosts as [sampling] says, through [colorMatrix].
+@internal
+ui.ImageFilter frostFilter(
+  FrostSampling sampling,
+  List<double>? colorMatrix,
+  ui.FragmentShader shader,
+) {
+  _setFrost(shader, sampling, colorMatrix);
+  shader.setImageSampler(0, _bilinear, filterQuality: FilterQuality.low);
+  return shaderFilterNow(shader);
 }
 
 /// Whether a copy of few pixels is frosted once, at its own pixels, rather
@@ -412,6 +434,10 @@ class BackdropRig {
   /// [BackdropPassPlan.unsupported].
   BackdropPassPlan get passPlan =>
       _pass.layer?.passRect != null ? _plan : BackdropPassPlan.unsupported;
+
+  /// Whether the pass last placed changes size, which it stops doing after
+  /// being placed unchanged for some frames.
+  bool get passResizing => _plan.resizing;
 
   /// Whether the rig has painted its clip.
   bool get hasClip => _clipRect.layer != null || _clipPath.layer != null;

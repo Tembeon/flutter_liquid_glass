@@ -132,6 +132,12 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   ui.Picture? _served;
   Object? _servedKey;
 
+  // The frost as layers of the scene, for a copy added to the scene too; it
+  // is recorded only when a copy for other glass draws it.
+  CornerRead? _sceneRead;
+  late ui.ImageFilter _sceneFilter;
+  Object? _sceneFilterKey;
+
   /// Whether this frame draws a copy in place of the backdrop read.
   @internal
   bool get serves => _serving != null || _inFrame != null;
@@ -168,6 +174,9 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   @internal
   ui.Picture? get servedPicture {
     if (_served case final served?) return served;
+    if (_inFrame case final inFrame?) {
+      return _served = servedWithin(inFrame.copy.layer);
+    }
     final serving = _serving;
     if (serving == null) return null;
     final (:copy, :shown, :origin, :frosting) = serving;
@@ -250,6 +259,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     final wasInFrame = _inFrame != null;
     _inFrame?.copy.dispose();
     _inFrame = null;
+    _sceneRead = null;
     if (asked?.frosting case final frosting?
         when _blendMode == BlendMode.srcOver &&
             _underlay.servesInFrame &&
@@ -297,6 +307,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
       origin: asked.origin,
       frosting: frosting,
     );
+    if (_frostInScene(copy, asked.shifted, frosting)) return true;
     _served = servedWithin(copy.layer);
     if (_served == null) {
       copy.dispose();
@@ -305,8 +316,46 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     return true;
   }
 
+  bool _frostInScene(
+    InFrameCopy copy,
+    Rect shown,
+    LiquidGlassBackdropFrost frosting,
+  ) {
+    if (!copy.inScene) return false;
+    final read = copy.readIn(copy.layer);
+    final sampling = read?.frostSampling(shown, frosting.sigma);
+    if (read == null || sampling == null) return false;
+    final key = (
+      sampling.size,
+      sampling.bounds,
+      sampling.frost,
+      sampling.scale,
+      sampling.shown,
+      frosting.colorMatrix,
+    );
+    if (key != _sceneFilterKey) {
+      _sceneFilter = frostFilter(
+        sampling,
+        frosting.colorMatrix,
+        _frostShader ??= newFrostShader(),
+      );
+      _sceneFilterKey = key;
+    }
+    _sceneRead = read;
+    return true;
+  }
+
   @override
   void addToScene(ui.SceneBuilder builder) {
+    if (_sceneRead case final read?) {
+      read.addToScene(
+        builder,
+        _sceneFilter,
+        frostToLocal(_inFrame!.origin, _devicePixelRatio),
+      );
+      addChildrenToScene(builder);
+      return;
+    }
     final served = servedPicture;
     if (served != null) {
       builder.addPicture(Offset.zero, served);
@@ -339,6 +388,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     _serving = null;
     _inFrame?.copy.dispose();
     _inFrame = null;
+    _sceneRead = null;
     _underlay.release();
     super.dispose();
   }
