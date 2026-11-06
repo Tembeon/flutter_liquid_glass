@@ -1,6 +1,28 @@
 import 'package:flutter/rendering.dart';
 import 'package:meta/meta.dart';
 
+/// What every glass of a frame asks about the same ancestors: their
+/// transforms to the screen and whether any clip lies above them, kept at
+/// repaint boundaries, where the paths of glass nearby join.
+///
+/// Holds while the view's composer composes, between paint and the scene,
+/// when nothing moves a render object.
+@internal
+final class FrameAncestors {
+  /// The memo of the frame the composer composes, if any.
+  static FrameAncestors? current;
+
+  final _transforms = <RenderObject, (Matrix4, bool)>{};
+  final Set<RenderObject> _clearAbove = Set.identity();
+
+  /// Whether no clip is painted strictly above [boundary]. Its own clip
+  /// depends on the child asking, what lies above it does not.
+  bool clearAbove(RenderObject boundary) => _clearAbove.contains(boundary);
+
+  /// Remembers that no clip is painted strictly above [boundary].
+  void noteClearAbove(RenderObject boundary) => _clearAbove.add(boundary);
+}
+
 /// [node]'s transform to [ancestor], or to the screen in logical pixels when
 /// [ancestor] is null, as [RenderObject.getTransformTo] gives it, except that
 /// a follower maps where its leader is in this frame.
@@ -37,7 +59,19 @@ bool _applyFromTop(
   // As getTransformTo(null) does, leave out the root view's own transform
   // (the device pixel ratio).
   if (ancestor == null && parent.parent == null) return false;
-  final last = _applyFromTop(parent, ancestor, transform);
+  final bool last;
+  final memo = ancestor == null && parent.isRepaintBoundary
+      ? FrameAncestors.current?._transforms
+      : null;
+  if (memo == null) {
+    last = _applyFromTop(parent, ancestor, transform);
+  } else if (memo[parent] case (final held, final heldLast)) {
+    transform.setFrom(held);
+    last = heldLast;
+  } else {
+    last = _applyFromTop(parent, ancestor, transform);
+    memo[parent] = (transform.clone(), last);
+  }
   return applyPaintTransformNow(parent, node, transform) || last;
 }
 

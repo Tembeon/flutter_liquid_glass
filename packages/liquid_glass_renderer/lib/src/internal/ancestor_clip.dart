@@ -89,28 +89,38 @@ Rect? localPaintClipAbove(RenderObject node) {
   var toAncestor = Matrix4.identity();
   var mapped = node;
   var child = node;
+  final memo = FrameAncestors.current;
+  // The boundaries passed since the last clip.
+  List<RenderObject>? clear;
   for (
     var ancestor = child.parent;
     ancestor != null && ancestor.parent != null;
     child = ancestor, ancestor = ancestor.parent
   ) {
     final clip = paintClipOfAncestor(ancestor, child);
-    if (clip == null) continue;
-    for (var at = mapped; !identical(at, ancestor); at = at.parent!) {
-      final step = Matrix4.identity();
-      applyPaintTransformNow(at.parent!, at, step);
-      step.multiply(toAncestor);
-      toAncestor = step;
-    }
-    mapped = ancestor;
-    if (isRectilinearTransform(toAncestor)) {
-      final toNode = Matrix4.tryInvert(toAncestor);
-      if (toNode != null) {
-        final local = MatrixUtils.transformRect(toNode, clip);
-        result = result?.intersect(local) ?? local;
+    if (clip != null) {
+      clear?.clear();
+      for (var at = mapped; !identical(at, ancestor); at = at.parent!) {
+        final step = Matrix4.identity();
+        applyPaintTransformNow(at.parent!, at, step);
+        step.multiply(toAncestor);
+        toAncestor = step;
+      }
+      mapped = ancestor;
+      if (isRectilinearTransform(toAncestor)) {
+        final toNode = Matrix4.tryInvert(toAncestor);
+        if (toNode != null) {
+          final local = MatrixUtils.transformRect(toNode, clip);
+          result = result?.intersect(local) ?? local;
+        }
       }
     }
+    if (memo != null && ancestor.isRepaintBoundary) {
+      if (memo.clearAbove(ancestor)) break;
+      (clear ??= []).add(ancestor);
+    }
   }
+  if (memo != null && clear != null) clear.forEach(memo.noteClearAbove);
   return result;
 }
 

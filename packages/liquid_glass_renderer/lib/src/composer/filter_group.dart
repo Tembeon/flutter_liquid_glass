@@ -263,6 +263,7 @@ final class FilterGroup {
     if (limit < 0) return null;
     final clip = scan.clip;
     final state = scan._cursors.last.state;
+    final mark = scan._mark();
     final starts = <int>{limit};
     final owned = <Layer>{?lead.own};
     final kept = <GlassOffer>[];
@@ -287,9 +288,7 @@ final class FilterGroup {
         if (offer.own case final own?) owned.add(own);
       }
     }
-    // The walk went past the leader before the layers there composed: later
-    // copies walk anew.
-    ask.frame?._scan = null;
+    scan._rewind(mark);
     if (kept.isEmpty || band == null && kept.length < 2) return null;
     _kept = kept;
     if (!painter.begin(this)) {
@@ -336,12 +335,15 @@ List<FilterGroup> _groupsOf(List<FilterOffer> offers, double screen) {
   final open = <FilterGroup>[];
   for (final offer in offers) {
     if (offer is! GlassOffer || grouped.contains(offer)) continue;
-    final joined = open.where((group) => group._admits(offer, screen));
-    if (joined.firstOrNull case final group?) {
-      group._offered.add(offer);
-    } else {
-      open.add(FilterGroup._(null, offer));
+    var joined = false;
+    for (final group in open) {
+      if (group._admits(offer, screen)) {
+        group._offered.add(offer);
+        joined = true;
+        break;
+      }
     }
+    if (!joined) open.add(FilterGroup._(null, offer));
   }
   groups.addAll(open.where((group) => group._offered.length >= 2));
   return groups;

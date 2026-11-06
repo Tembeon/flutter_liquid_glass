@@ -1368,6 +1368,33 @@ final class _Scan {
     }
   }
 
+  // Where the walk stands, for [_rewind].
+  _ScanMark _mark() => (
+    entries: entries.length,
+    cursors: [
+      for (final cursor in _cursors) (cursor, cursor.next, cursor.bounds),
+    ],
+  );
+
+  // Forgets the walk past [mark], which read layers that have not composed
+  // yet: the next [reach] walks them as they are then.
+  void _rewind(_ScanMark mark) {
+    _cursors.clear();
+    for (final (cursor, next, bounds) in mark.cursors) {
+      cursor.next = next;
+      cursor.bounds = bounds;
+      _cursors.add(cursor);
+      if (cursor.open >= 0) {
+        final open = entries[cursor.open] as _Open;
+        open.end = -1;
+        open.bounds = _everywhere;
+      }
+    }
+    entries.length = mark.entries;
+    _walked.removeWhere((_, at) => at >= mark.entries);
+    blocker = null;
+  }
+
   void _add(_Cursor at, _Entry entry, Rect bounds) {
     entries.add(entry);
     at.include(bounds);
@@ -2022,6 +2049,11 @@ const _everywhere = Rect.largest;
 // Content clipped away reaches no band, even where its empty rect lies
 // across one.
 bool _meets(Rect bounds, Rect band) => !bounds.isEmpty && bounds.overlaps(band);
+
+typedef _ScanMark = ({
+  int entries,
+  List<(_Cursor, Layer?, Rect)> cursors,
+});
 
 final class _Cursor {
   _Cursor(

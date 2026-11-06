@@ -923,10 +923,18 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// [_frostSigmaForCurrentShapes], which applies the shape-size response.
   double get blurPassSigma => settings.frostSigmaAt(devicePixelRatio);
 
-  double _frostSigmaForCurrentShapes() => settings.frostSigmaAt(
-    devicePixelRatio,
-    shapeShortSide: _shapeShortSide,
-  );
+  double _frostSigmaForCurrentShapes() {
+    final inputs = (settings, devicePixelRatio, _shapeShortSide);
+    if (inputs == _frostInputs) return _frostSigma;
+    _frostInputs = inputs;
+    return _frostSigma = settings.frostSigmaAt(
+      devicePixelRatio,
+      shapeShortSide: _shapeShortSide,
+    );
+  }
+
+  (LiquidGlassSettings, double, double)? _frostInputs;
+  double _frostSigma = 0;
 
   /// The color of a [LiquidGlassBackdrop.solid], or null to read the
   /// backdrop; only an opaque color is painted over.
@@ -1038,8 +1046,18 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// Whether the committed shapes exist but none can be drawn by this effect.
   /// It reads the committed geometry, so it stays right when a retained
   /// refresh commits new shapes between paints.
-  bool get drawableEmpty =>
+  bool get drawableEmpty => _drawableEmpty ??=
       shapesWithGeometry.isNotEmpty && !hasDrawableGlass(shapesWithGeometry);
+
+  bool? _drawableEmpty;
+
+  @override
+  void commitFrameGeometry(
+    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> candidate,
+  ) {
+    super.commitFrameGeometry(candidate);
+    _drawableEmpty = null;
+  }
 
   /// True once geometry has been encoded, so ancestor motion can stay on the
   /// compositor without crossing this layer's repaint boundary.

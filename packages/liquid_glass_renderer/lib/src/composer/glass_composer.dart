@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
+import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_render_object_mixin.dart';
 import 'package:meta/meta.dart';
 
@@ -139,6 +140,7 @@ final class GlassComposer extends PipelineOwner {
     FlutterGpuGeometryRenderer.flushPendingSubmissions();
     final root = _root();
     _composing = true;
+    FrameAncestors.current = FrameAncestors();
     try {
       if (root != null) {
         _prepare(root);
@@ -148,6 +150,7 @@ final class GlassComposer extends PipelineOwner {
       }
     } finally {
       _composing = false;
+      FrameAncestors.current = null;
       FlutterGpuGeometryRenderer.flushPendingSubmissions();
       _underlays.drawPending();
     }
