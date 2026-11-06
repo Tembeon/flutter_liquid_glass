@@ -885,16 +885,53 @@ mixin _Matrix on OpenNode {
   double _ownedDy = 0;
   late Matrix4 _combined;
 
-  // The transform of what this layer holds. Allocates only when it changed.
-  Matrix4 _resolve(FormWorld outside, Matrix4 own) {
+  bool _noteOwn(Matrix4 own) {
     final last = _own;
     final same = last != null && _storageEqual(last.storage, own.storage);
     if (!same) edited = true;
+    _own = own;
+    return same;
+  }
+
+  // Writes [world] under [own]. A translation stays in the world's offset, with
+  // the base of what lies above: a scroll moves what lies under it, and a new
+  // base would make everything below compute its own matrix again.
+  bool _placeUnder(
+    FormWorld outside,
+    Matrix4 own,
+    Rect? clip,
+    StateChain state, {
+    required bool filtered,
+  }) {
+    if (MatrixUtils.getAsTranslation(own) case final shift?) {
+      _noteOwn(own);
+      _ownedBase = null;
+      return world.set(
+        outside.base,
+        outside.dx + shift.dx,
+        outside.dy + shift.dy,
+        clip,
+        state,
+        filtered: filtered,
+      );
+    }
+    return world.set(
+      _resolve(outside, own),
+      0,
+      0,
+      clip,
+      state,
+      filtered: filtered,
+    );
+  }
+
+  // The transform of what this layer holds. Allocates only when it changed.
+  Matrix4 _resolve(FormWorld outside, Matrix4 own) {
+    final same = _noteOwn(own);
     if (!same ||
         !identical(_ownedBase, outside.base) ||
         _ownedDx != outside.dx ||
         _ownedDy != outside.dy) {
-      _own = own;
       _ownedBase = outside.base;
       _ownedDx = outside.dx;
       _ownedDy = outside.dy;
@@ -934,10 +971,9 @@ final class TransformNode extends OpenNode with _Matrix {
       own = Matrix4.translationValues(offset.dx, offset.dy, 0);
       if (matrix != null) own.multiply(matrix);
     }
-    return world.set(
-      _resolve(outside, own),
-      0,
-      0,
+    return _placeUnder(
+      outside,
+      own,
       outside.clip,
       outside.state,
       filtered: outside.filtered,
@@ -959,10 +995,9 @@ final class FollowerNode extends OpenNode with _Matrix {
   }
 
   @override
-  bool updateWorld(FormWorld outside) => world.set(
-    _resolve(outside, followerTransformNow(layer as FollowerLayer)),
-    0,
-    0,
+  bool updateWorld(FormWorld outside) => _placeUnder(
+    outside,
+    followerTransformNow(layer as FollowerLayer),
     outside.clip,
     outside.state,
     filtered: outside.filtered,
@@ -1352,7 +1387,6 @@ final class EffectsNode extends OpenNode with _Matrix {
   bool updateWorld(FormWorld outside) {
     final effects = LiquidGlassUnderlay.effectsOf(layer)!;
     _hidden = effects.alpha == 0;
-    final at = _resolve(outside, effects.transform);
     final token = (effects.clip, effects.alpha, effects.blur);
     if (_token != token) edited = true;
     if (_chain == null ||
@@ -1364,16 +1398,19 @@ final class EffectsNode extends OpenNode with _Matrix {
       _chainParent = outside.state;
       _token = token;
     }
+    final own = effects.transform;
     var clip = outside.clip;
     if (effects.clip case final rounded?) {
-      final bounds = MatrixUtils.transformRect(at, rounded.outerRect);
+      final bounds = MatrixUtils.transformRect(
+        _resolve(outside, own),
+        rounded.outerRect,
+      );
       clip = clip == null ? bounds : clip.intersect(bounds);
     }
     final blurred = effects.blur > 0;
-    return world.set(
-      at,
-      0,
-      0,
+    return _placeUnder(
+      outside,
+      own,
       blurred ? null : clip,
       _chain!,
       filtered: outside.filtered || blurred,
