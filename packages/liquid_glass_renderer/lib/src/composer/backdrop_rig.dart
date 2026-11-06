@@ -8,7 +8,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_frost.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/internal/multi_shader_builder.dart';
 import 'package:liquid_glass_renderer/src/internal/shader_filter.dart';
@@ -19,6 +20,17 @@ import 'package:liquid_glass_renderer/src/shaders.dart';
 /// or null when a transform above it scales or turns it.
 @internal
 Offset? screenOffsetOf(Layer anchor, double devicePixelRatio) {
+  final m = _toScreen(anchor, devicePixelRatio).storage;
+  if ((m[0] - 1).abs() > 1e-6 ||
+      (m[5] - 1).abs() > 1e-6 ||
+      m[1].abs() > 1e-6 ||
+      m[4].abs() > 1e-6) {
+    return null;
+  }
+  return Offset(m[12], m[13]);
+}
+
+Matrix4 _toScreen(Layer anchor, double devicePixelRatio) {
   final toScreen = Matrix4.diagonal3Values(
     1 / devicePixelRatio,
     1 / devicePixelRatio,
@@ -31,85 +43,15 @@ Offset? screenOffsetOf(Layer anchor, double devicePixelRatio) {
   for (var i = chain.length - 1; i > 0; i--) {
     applyTransformNow(chain[i] as ContainerLayer, chain[i - 1], toScreen);
   }
-  final m = toScreen.storage;
-  if ((m[0] - 1).abs() > 1e-6 ||
-      (m[5] - 1).abs() > 1e-6 ||
-      m[1].abs() > 1e-6 ||
-      m[4].abs() > 1e-6) {
-    return null;
-  }
-  return Offset(m[12], m[13]);
+  return toScreen;
 }
 
-/// A copy [requestCopy] asked for: the part of the screen the clip covers,
-/// the shift from the anchor's coordinates to the screen's, and the frost a
-/// shader draws from the copy, or null when the copy is filtered.
+/// The downscale of a copy the shader frosts for Impeller's blur by [sigma]
+/// device pixels, or null where it cannot: shader frost is off, the renderer is
+/// not Impeller (its program is built for Impeller alone), the frost is too
+/// wide for it, or the program is not loaded yet.
 @internal
-typedef CopyAsk = ({
-  Rect shifted,
-  Offset origin,
-  LiquidGlassBackdropFrost? frosting,
-});
-
-/// Asks [underlay] for a copy of what lies under [clip], in [anchor]'s
-/// coordinates, that [filter] composited with [blendMode] stands on;
-/// [serveCopy] hands it over. Null where none can serve: [anchor] does not
-/// lie on the screen untransformed.
-///
-/// Where [frost] stands for [filter] and the shader can draw it, the copy is
-/// unblurred, at the fraction of the screen's pixels the frost allows, for
-/// the frost shader to draw. The shader cannot when shader frost is off, the
-/// renderer is not Impeller (its program is built for Impeller alone), the
-/// frost is too wide for it, or the program is not loaded yet. Otherwise
-/// the copy holds [reach] around [clip] run through [filter] as a backdrop
-/// filter: with [filtersReach] over all of it, as a live filter that reads
-/// a pass reaching past its clip does; without, inside [clip] only.
-@internal
-CopyAsk? requestCopy(
-  BackdropUnderlay underlay,
-  Layer anchor, {
-  required ui.ImageFilter filter,
-  required LiquidGlassBackdropFrost? frost,
-  required BlendMode blendMode,
-  required Rect clip,
-  required double reach,
-  required double devicePixelRatio,
-  required bool filtersReach,
-}) {
-  final origin = screenOffsetOf(anchor, devicePixelRatio);
-  if (origin == null) return null;
-  final shifted = clip.shift(origin);
-  if (frost != null) {
-    final sigma = frost.sigma * devicePixelRatio;
-    if (_frostDownscale(sigma) case final downscale?) {
-      // The taps reach 2.8 sigma, one copy pixel more sampled bilinearly. A
-      // copy drawn at the screen's pixels in place of the ones asked reaches
-      // less: its taps lie at most a sigma wider and its pixel is smaller.
-      final taps = shaderFrostResidual(sigma, share: downscale);
-      underlay.request(
-        anchor: anchor,
-        devicePixelRatio: devicePixelRatio,
-        region: shifted.inflate((2.8 * taps + downscale) / devicePixelRatio),
-        downscale: downscale,
-      );
-      return (shifted: shifted, origin: origin, frosting: frost);
-    }
-  }
-  final region = shifted.inflate(reach);
-  underlay.request(
-    anchor: anchor,
-    devicePixelRatio: devicePixelRatio,
-    region: region,
-    filter: filter,
-    filterClip: filtersReach ? region : shifted,
-    filterBlendMode: blendMode,
-  );
-  return (shifted: shifted, origin: origin, frosting: null);
-}
-
-// The downscale of a copy the shader frosts for Impeller's blur by [sigma]
-// device pixels, or null where it cannot (see requestCopy).
-int? _frostDownscale(double sigma) {
+int? frostDownscale(double sigma) {
   if (!LiquidGlassBackdropFrost.debugShaderFrost ||
       !ui.ImageFilter.isShaderFilterSupported) {
     return null;
@@ -123,38 +65,6 @@ int? _frostDownscale(double sigma) {
   return shaderFrostDownscale(sigma, minTexels: 1.5);
 }
 
-/// The copy [asked] stands for and the part of it the clip shows, in
-/// screen coordinates. Null where none serves.
-@internal
-({UnderlayCopy copy, Rect shown})? serveCopy(
-  BackdropUnderlay underlay,
-  CopyAsk asked,
-) {
-  final copy = underlay.serve();
-  if (copy == null) return null;
-  return (copy: copy, shown: asked.shifted.intersect(copy.rect));
-}
-
-/// Adds [filter] composited with [blendMode] as a backdrop filter inside
-/// [clip] and [outline], in the caller's coordinates: glass a copy drawn
-/// with its own holds (see [UnderlayFold]). A shader filter takes its
-/// shader's uniforms now.
-@internal
-void addFoldedFilter(
-  ui.SceneBuilder builder,
-  Rect clip,
-  ui.ImageFilter filter, {
-  BlendMode blendMode = BlendMode.srcOver,
-  Path? outline,
-}) {
-  builder.pushClipRect(clip, clipBehavior: Clip.hardEdge);
-  if (outline != null) builder.pushClipPath(outline);
-  builder.pushBackdropFilter(filter, blendMode: blendMode);
-  builder.pop();
-  if (outline != null) builder.pop();
-  builder.pop();
-}
-
 /// A filtered [copy] drawn into coordinates that [origin] shifts to the
 /// screen's: the part [shown], in screen coordinates, cut to [outline], in
 /// the drawn coordinates, when there is one.
@@ -163,7 +73,7 @@ void addFoldedFilter(
 /// backdrop: it replaces what lies under it.
 @internal
 ui.Picture recordFilteredCopy(
-  UnderlayCopy copy,
+  PageCopy copy,
   Rect shown,
   Offset origin, {
   Path? outline,
@@ -179,7 +89,7 @@ ui.Picture recordFilteredCopy(
   return recorder.endRecording();
 }
 
-/// The shader [recordFrostedCopy] and [recordFrostedInFrame] frost with;
+/// The shader [recordFrostedCopy] frosts with;
 /// its owner disposes it.
 @internal
 ui.FragmentShader newFrostShader() =>
@@ -194,7 +104,7 @@ ui.FragmentShader newFrostShader() =>
 /// coordinate is the pixel of the image it frosts around.
 @internal
 ui.Picture recordFrostedCopy(
-  UnderlayCopy copy,
+  PageCopy copy,
   Rect shown,
   Offset origin, {
   required LiquidGlassBackdropFrost frost,
@@ -217,40 +127,6 @@ ui.Picture recordFrostedCopy(
   paint.isAntiAlias = false;
   canvas.drawRect(source, paint);
   return recorder.endRecording();
-}
-
-/// [frost] drawn by [shader] from [copy], drawn in the frame
-/// (see [BackdropUnderlay.serveInFrame]), into coordinates that [origin]
-/// shifts to the screen's: the part of [shown] inside [region], both in
-/// screen coordinates, or null where none of it is.
-///
-/// The shader filters a layer of the screen's pixels over the part of the
-/// copy's layer inside [region], whose top-left corner holds the copy at its
-/// own pixels, and covers each pixel as much as it lies inside [shown]: a
-/// clip would also cut the copy the layer holds. NEAR: on a row of pixels
-/// the edge of [shown] splits, up to 33 channel levels off the frost of an
-/// image, which a clip covers otherwise (2.625 dpr, the scroll edge host
-/// test). Composited with [BlendMode.srcOver] only: past [shown] the layer
-/// is transparent.
-@internal
-ui.Picture? recordFrostedInFrame(
-  InFrameCopy copy,
-  Rect shown,
-  Rect region,
-  Offset origin, {
-  required LiquidGlassBackdropFrost frost,
-  required ui.FragmentShader shader,
-  required double devicePixelRatio,
-}) {
-  final read = copy.readIn(region);
-  final sampling = read?.frostSampling(shown, frost.sigma);
-  if (read == null || sampling == null) return null;
-  _setFrost(shader, sampling, frost.colorMatrix);
-  shader.setImageSampler(0, _bilinear, filterQuality: FilterQuality.low);
-  return read.record(
-    bilinearShaderFilter(shader),
-    frostToLocal(origin, devicePixelRatio),
-  );
 }
 
 /// From the screen's device pixels to a frost's coordinates, which begin at
@@ -376,9 +252,8 @@ typedef BackdropPassPlanner = BackdropPassPlan Function(
 
 /// How a surface reads its backdrop: live, as a backdrop filter in a clip,
 /// the clip in a seeded pass where seeds are on (see
-/// [SeededBackdropPassLayer]), or as a picture the surface draws over a copy
-/// of what lies under it (see [BackdropUnderlay]), chosen per frame while
-/// the scene composites.
+/// [SeededBackdropPassLayer]), or over a copy of what lies under it, as the
+/// frame's plan says.
 ///
 /// The clip is the surface's outline, or a rect, and the rig keeps its
 /// layers from frame to frame.
@@ -413,16 +288,14 @@ class BackdropRig {
   final _pass = LayerHandle<SeededBackdropPassLayer>();
   final _sizing = BackdropPassSizing();
 
-  final _underlay = BackdropUnderlay();
-  final _slot = LayerHandle<ContainerLayer>();
-  final _served = LayerHandle<PictureLayer>();
-  Object? _servedKey;
+  final _slot = LayerHandle<GlassSlotLayer>();
+  final _read = LayerHandle<ReadLayer>();
+  final _page = LayerHandle<PictureLayer>();
+  Object? _pageKey;
 
   // What the last [paint] read, for a copy to stand in for. Null when the
   // rig takes no copies.
-  _Read? _read;
-  // The copy asked for this frame, until [compose].
-  CopyAsk? _asked;
+  _Asked? _asked;
   ui.FragmentShader? _frostShader;
 
   Rect? _inner;
@@ -455,29 +328,53 @@ class BackdropRig {
   /// Whether the rig has painted its clip.
   bool get hasClip => _clipRect.layer != null || _clipPath.layer != null;
 
-  /// The copy of what lies under the surface.
-  BackdropUnderlay get underlay => _underlay;
-
   /// Whether the last paint left room for a picture over a copy (see
   /// [paintSite]).
   bool get hasSlot => _slot.layer != null;
 
-  /// Paints the live read with [live]. With [copies], it paints in a slot
-  /// that [show] can fill with a picture over a copy instead; without, the
-  /// copy is released.
+  /// Paints the live read with [live]. With a [site], it paints in a slot the
+  /// site's fate can fill with a read of a copy instead.
   void paintSite(
     PaintingContext context,
     Offset offset, {
-    required bool copies,
+    required PlanSite? site,
     required PaintingContextCallback live,
   }) {
-    if (copies) {
-      context.pushLayer(_slot.layer ??= ContainerLayer(), live, offset);
+    if (site != null) {
+      final slot = _slot.layer ??= GlassSlotLayer();
+      slot.site = site;
+      context.pushLayer(slot, live, offset);
       return;
     }
     _slot.layer = null;
-    _underlay.release();
     live(context, offset);
+  }
+
+  /// The layer a read of the scene shows in.
+  ReadLayer get readLayer => _read.layer ??= ReadLayer();
+
+  /// The picture [record] draws, kept while [key] stays equal.
+  PictureLayer pagePicture(
+    Object key,
+    Rect bounds,
+    ui.Picture Function() record,
+  ) {
+    final previous = _page.layer;
+    if (previous != null && _pageKey == key) return previous;
+    final picture = PictureLayer(bounds);
+    picture.picture = record();
+    _page.layer = picture;
+    _pageKey = key;
+    return picture;
+  }
+
+  /// The picture [pagePicture] last drew.
+  ui.Picture? get pageShown => _page.layer?.picture;
+
+  /// Shows the live read.
+  void showLive() {
+    show(null);
+    _pass.layer?.compose();
   }
 
   /// Leaves no slot until the next [paintSite].
@@ -485,47 +382,9 @@ class BackdropRig {
     _slot.layer = null;
   }
 
-  /// The picture [record] draws over [copy] inside [bounds]. A drawn copy
-  /// keeps its picture while [keyOf] stays equal; a copy not drawn yet is
-  /// recorded when the scene is added, after every copy of the frame is
-  /// drawn: they are drawn together.
-  PictureLayer servedPicture(
-    UnderlayCopy copy,
-    Rect bounds, {
-    required Object Function() keyOf,
-    required ui.Picture Function() record,
-    required UnderlayFold fold,
-  }) {
-    if (!copy.ready) {
-      final picture = UnderlayPictureLayer(bounds, copy, () {
-        _servedKey = keyOf();
-        return record();
-      }, fold);
-      _served.layer = picture;
-      _servedKey = null;
-      return picture;
-    }
-    final key = keyOf();
-    final previous = _served.layer;
-    if (previous != null && _servedKey == key) return previous;
-    final picture = GlassPictureLayer(bounds);
-    picture.picture = record();
-    _served.layer = picture;
-    _servedKey = key;
-    return picture;
-  }
-
-  /// Keeps [picture], drawn over a copy in the frame (see
-  /// [BackdropUnderlay.serveInFrame]), as the picture the slot shows.
-  PictureLayer servedInFrame(InFrameGlassLayer picture) {
-    _served.layer = picture;
-    _servedKey = null;
-    return picture;
-  }
-
   /// Fills the slot with [served] over [under], or with the live read
   /// without [served].
-  void show(PictureLayer? served, {Layer? under}) {
+  void show(Layer? served, {Layer? under}) {
     assert(under == null || served != null, 'Only a copy covers [under].');
     final slot = _slot.layer;
     if (slot == null) return;
@@ -679,10 +538,10 @@ class BackdropRig {
   /// Paints [filter] over the backdrop inside [outline], whose bounds are
   /// [bounds]. With seeds on and a [blur] to crop, the filter paints in a
   /// pass reaching [reach] past [bounds], seeded by a small backdrop filter,
-  /// and reads that pass; otherwise only the clip and the filter (and, with
-  /// [copies], the slot around them). With [copies], [compose] can draw the
-  /// filter over a copy of what lies under [outline] instead: where [frost]
-  /// stands for [filter], an unblurred copy frosted by a shader.
+  /// and reads that pass; otherwise only the clip and the filter (and, with a
+  /// [site], the slot around them). With a [site], its fate can draw the filter
+  /// over a copy of what lies under [outline] instead: where [frost] stands for
+  /// [filter], an unblurred copy frosted by a shader.
   void paint(
     PaintingContext context,
     Offset offset, {
@@ -692,14 +551,14 @@ class BackdropRig {
     required Path outline,
     required double reach,
     required double devicePixelRatio,
-    bool copies = false,
+    PlanSite? site,
     LiquidGlassBackdropFrost? frost,
   }) {
     final seeds = SeededBackdropPassLayer.enabled && blur != null;
     usesPass = seeds;
     if (seeds) place(bounds.shift(offset), offset, reach);
     bindFilter(filter, blur);
-    _read = copies
+    _asked = site != null
         ? (
             filter: filter,
             frost: frost,
@@ -711,86 +570,97 @@ class BackdropRig {
     paintSite(
       context,
       offset,
-      copies: copies,
+      site: site,
       live: (liveContext, liveOffset) =>
           paintLive(liveContext, liveOffset, bounds: bounds, outline: outline),
     );
   }
 
-  /// Asks for this frame's copy of what lies under the outline, while the
-  /// rig may draw over one. The owner calls it from its onPreparing, before
-  /// any glass of the frame composes.
-  void ask() {
-    final slot = _slot.layer;
-    final read = _read;
-    if (slot == null ||
-        read == null ||
-        _outline == null ||
-        !BackdropUnderlay.enabled) {
-      _asked = null;
+  /// Writes what the frame's plan reads of the filter this rig last painted,
+  /// which reads an image whenever it reads a copy: the live filter reads a
+  /// pass reaching past its clip (or the whole backdrop), not the backdrop cut
+  /// at the clip, so a filtered copy is filtered over all it holds.
+  void fillPlanFacts(SiteFacts facts) {
+    final asked = _asked;
+    final anchor = _slot.layer;
+    _frosts = false;
+    if (anchor == null || asked == null || _outline == null) {
+      facts.hidden = true;
       return;
     }
-    // The live filter reads a pass reaching past its clip (or the whole
-    // backdrop), not the backdrop cut at the clip: the blur near the edge
-    // takes what lies outside, so a filtered copy is filtered over all it
-    // holds.
-    _asked = requestCopy(
-      _underlay,
-      slot,
-      filter: read.filter,
-      frost: read.frost,
-      blendMode: BlendMode.srcOver,
-      clip: read.clip,
-      reach: read.reach,
-      devicePixelRatio: read.devicePixelRatio,
-      filtersReach: true,
+    facts.noJoin = NoJoin.noMatte;
+    final origin = screenOffsetOf(anchor, asked.devicePixelRatio);
+    _origin = origin;
+    if (origin == null) {
+      facts.turned = true;
+      facts.drawn = MatrixUtils.transformRect(
+        _toScreen(anchor, asked.devicePixelRatio),
+        asked.clip,
+      );
+      facts.reads = facts.drawn.inflate(asked.reach);
+      return;
+    }
+    final shifted = asked.clip.shift(origin);
+    facts.drawn = shifted;
+    if (asked.frost case final frost?) {
+      final sigma = frost.sigma * asked.devicePixelRatio;
+      if (frostDownscale(sigma) case final downscale?) {
+        // The taps reach 2.8 sigma, one copy pixel more sampled bilinearly. A
+        // copy drawn at the screen's pixels in place of the ones asked reaches
+        // less: its taps lie at most a sigma wider and its pixel is smaller.
+        final taps = shaderFrostResidual(sigma, share: downscale);
+        facts.reads = shifted.inflate(
+          (2.8 * taps + downscale) / asked.devicePixelRatio,
+        );
+        _frosts = true;
+        facts.look = Look(
+          key: null,
+          frost: frost.sigma,
+          downscale: downscale,
+          devicePixelRatio: asked.devicePixelRatio,
+          page: PageFilter.none,
+        );
+        return;
+      }
+    }
+    final region = shifted.inflate(asked.reach);
+    facts.reads = region;
+    facts.look = Look(
+      key: null,
+      frost: 0,
+      downscale: 1,
+      devicePixelRatio: asked.devicePixelRatio,
+      page: PageFilter(filter: asked.filter, clip: region),
     );
   }
 
-  /// Fills the slot with the filter drawn over the copy [ask] asked for, or
-  /// with the live read where there is no copy; returns whether a copy
-  /// serves. The owner calls it from its onCompositing, which the composer
-  /// runs in paint order.
-  bool compose() {
-    final asked = _asked;
-    _asked = null;
-    final slot = _slot.layer;
-    if (slot == null) return false;
-    final served = asked == null || _read == null
-        ? null
-        : _serveCopy(_read!, asked);
-    show(served);
-    return served != null;
-  }
+  // Where the last [fillPlanFacts] found the clip's coordinates on the screen,
+  // and whether a shader frosts the copy there.
+  Offset? _origin;
+  bool _frosts = false;
 
-  PictureLayer? _serveCopy(_Read read, CopyAsk asked) {
-    final outline = _outline;
-    if (outline == null) return null;
-    final served = serveCopy(_underlay, asked);
-    if (served == null) return null;
-    final (:copy, :shown) = served;
-    final (:origin, :frosting, shifted: _) = asked;
-    return servedPicture(
-      copy,
-      read.clip,
-      keyOf: () =>
-          (copy.image, copy.placement, shown, origin, outline, frosting),
-      record: () => switch (frosting) {
-        final frost? => recordFrostedCopy(
-          copy,
-          shown,
-          origin,
-          frost: frost,
-          shader: _frostShader ??= newFrostShader(),
-          outline: outline,
-        ),
-        null => recordFilteredCopy(copy, shown, origin, outline: outline),
-      },
-      fold: (builder, _) => addFoldedFilter(
-        builder,
-        shown.shift(-origin),
-        read.filter,
-        outline: outline,
+  /// Fills the slot with the filter drawn over [page].
+  void showPage(PageCopy page) {
+    final asked = _asked!;
+    final outline = _outline!;
+    final origin = _origin!;
+    final frost = _frosts ? asked.frost : null;
+    final shown = asked.clip.shift(origin).intersect(page.rect);
+    show(
+      pagePicture(
+        (page.image, page.placement, shown, origin, outline, frost),
+        asked.clip,
+        () => switch (frost) {
+          final frost? => recordFrostedCopy(
+            page,
+            shown,
+            origin,
+            frost: frost,
+            shader: _frostShader ??= newFrostShader(),
+            outline: outline,
+          ),
+          null => recordFilteredCopy(page, shown, origin, outline: outline),
+        },
       ),
     );
   }
@@ -848,11 +718,10 @@ class BackdropRig {
     _plan = BackdropPassPlan.unsupported;
   }
 
-  /// Releases every layer but the picture over the copy, and keeps the copy
-  /// for the next paint.
+  /// Releases every layer but the picture over the copy.
   void clear() {
     _clearPass();
-    _read = null;
+    _asked = null;
     _slot.layer = null;
     _filter.layer = null;
     _clipPath.layer = null;
@@ -863,18 +732,18 @@ class BackdropRig {
     _rectPathRect = null;
   }
 
-  /// Releases every layer and the copy.
+  /// Releases every layer.
   void dispose() {
     clear();
-    _served.layer = null;
-    _underlay.release();
+    _page.layer = null;
+    _read.layer = null;
     _frostShader?.dispose();
     _frostShader = null;
   }
 }
 
 // A read a copy can stand in for; the clip is in the slot's coordinates.
-typedef _Read = ({
+typedef _Asked = ({
   ui.ImageFilter filter,
   LiquidGlassBackdropFrost? frost,
   Rect clip,

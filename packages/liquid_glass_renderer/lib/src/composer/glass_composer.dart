@@ -1,10 +1,11 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 import 'package:liquid_glass_renderer/src/composer/form.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_render_object_mixin.dart';
@@ -21,12 +22,9 @@ import 'package:meta/meta.dart';
 ///
 /// Before paint it polls where each site is on the screen, so glass that
 /// moved past what its retained layers can follow repaints in this frame.
-/// After paint it walks the view's layers in paint order twice: every
-/// [ComposedLayer] first asks for what its decisions need
-/// ([ComposedLayer.prepare]), the copies asked for are planned together, and
-/// then each makes its decisions for the frame ([ComposedLayer.compose]).
-/// It then submits the frame's flutter_gpu passes and draws the frame's
-/// copies of what lies under glass, before any scene is built.
+/// After paint it lowers the view's layers into a [Form], asks every site for
+/// its facts, compiles the frame's [Plan] and draws it, before any scene is
+/// built. Then it submits the frame's flutter_gpu passes.
 ///
 /// One composer per view owner, adopted by the first glass that attaches
 /// there ([track]) and dropped and disposed when the last one detaches, so a
@@ -103,22 +101,14 @@ final class GlassComposer extends PipelineOwner {
     });
   }
 
-  /// The copies the composer of [view] plans while it composes the view's
-  /// layers, or null outside that: a copy asked for then is drawn at once.
-  static UnderlayFrame? planning(RenderView view) {
-    final owner = view.owner;
-    final composer = owner == null ? null : _of(owner);
-    return composer != null && composer._composing ? composer._underlays : null;
-  }
-
   final Set<TransformTrackingRenderObjectMixin> _sites = Set.identity();
 
-  final _underlays = UnderlayFrame();
+  final _composition = _Composition();
 
   bool _composing = false;
 
-  // Stamps the layers composed in this frame; see [ComposedLayer].
-  int _frame = 0;
+  // The frame this composer planned the scene of.
+  Duration? _planned;
 
   /// What this composer saw since it was adopted.
   @visibleForTesting
@@ -137,82 +127,38 @@ final class GlassComposer extends PipelineOwner {
     super.flushPaint();
     census.frames++;
     census.sites += _sites.length;
-    _frame++;
-    // Copies drawn while composing replay glass whose mattes paint wrote.
-    FlutterGpuGeometryRenderer.flushPendingSubmissions();
     final root = _root();
+    if (root == null) return;
     _composing = true;
-    FrameAncestors.current = FrameAncestors();
     try {
-      if (root != null) {
-        final plans = UnderlayFrame.debugPlansGroups;
-        final lowered = (plans || debugFormRests) && _lower(root);
-        _prepare(root);
-        if (plans && lowered) {
-          _underlays.takeGroups(_compilePlan());
-        } else {
-          _underlays.planGroups();
-        }
-        _underlays.plan();
-        _compose(root);
-      }
+      _composition.run(root);
+      _planned = SchedulerBinding.instance.currentFrameTimeStamp;
     } finally {
       _composing = false;
-      FrameAncestors.current = null;
-      FlutterGpuGeometryRenderer.flushPendingSubmissions();
-      _underlays.drawPending();
     }
+  }
+
+  @override
+  void dispose() {
+    _composition.dispose();
+    super.dispose();
   }
 
   /// What the frame's plan pays for what it weighs.
   @internal
   static Prices debugPrices = const Prices();
 
+  /// The decisions the frame's plan keeps to; a bench swaps it for a window.
+  @internal
+  static Policy debugPolicy = const Policy();
+
   /// Handed each frame's plan, with its reasons, while set.
   @visibleForTesting
   static void Function(Form form, Plan plan)? debugOnPlan;
 
-  /// Whether glass with nothing changed around it skips reading where it lies.
-  @internal
-  static bool debugFormRests = true;
-
   /// Sites that rested since this was last cleared.
   @internal
   static int debugRests = 0;
-
-  final _form = Form();
-  final _ledger = Ledger();
-
-  bool _lower(ContainerLayer root) {
-    final view = root.owner;
-    if (view is! RenderView) return false;
-    final flutterView = view.flutterView;
-    _form.lower(root, flutterView.devicePixelRatio, flutterView.physicalSize);
-    _underlays.form = _form.top;
-    return true;
-  }
-
-  Plan _compilePlan() {
-    for (final node in _form.siteNodes) {
-      final facts = node.facts;
-      final before = facts.drawn;
-      node.fill();
-      if (_underlays.holdsUnder(facts.id)) facts.noJoin = NoJoin.held;
-      _form.noteSiteDrawn(facts, before);
-    }
-    _form.settleFloors();
-    final (plan, edits) = compile(
-      _form,
-      _ledger,
-      debugPrices,
-      Policy(bands: BackdropUnderlay.debugBandGroups),
-      _form.frame,
-      explain: debugOnPlan != null,
-    );
-    debugOnPlan?.call(_form, plan);
-    edits.applyTo(_ledger, _form.frame);
-    return plan;
-  }
 
   ContainerLayer? _root() {
     for (final site in _sites) {
@@ -226,71 +172,133 @@ final class GlassComposer extends PipelineOwner {
     return null;
   }
 
-  void _prepare(ContainerLayer layer) {
-    if (layer is ComposedLayer) layer.prepare();
-    var child = layer.firstChild;
-    while (child != null) {
-      if (child is ContainerLayer) _prepare(child);
-      child = child.nextSibling;
+  static bool _plannedAhead(Layer layer) {
+    if (SchedulerBinding.instance.schedulerPhase !=
+        SchedulerPhase.persistentCallbacks) {
+      return false;
     }
+    final view = layer.owner;
+    if (view is! RenderView) return false;
+    final owner = view.owner;
+    if (owner == null) return false;
+    final composer = _of(owner);
+    return composer != null &&
+        composer._planned == SchedulerBinding.instance.currentFrameTimeStamp;
   }
 
-  // Parents before children, children in paint order, each read after its
-  // parent's decisions moved layers: the order of the update pass.
-  void _compose(ContainerLayer layer) {
-    if (layer is ComposedLayer) layer._composeFor(this);
-    var child = layer.firstChild;
-    while (child != null) {
-      if (child is ContainerLayer) _compose(child);
-      child = child.nextSibling;
+  // The roots a scene no composer planned was composed for, until the scene's
+  // update pass is over.
+  static final _composedRoots = Set<ContainerLayer>.identity();
+
+  // What a view with no tracked site holds between frames: a view that shows
+  // nothing but scroll edges still holds still.
+  static final _alone = Map<ContainerLayer, _Composition>.identity();
+
+  // A scene the view's composer did not plan: glass in a view with no tracked
+  // site, or an image of a subtree taken outside a frame, which plans once from
+  // nothing held. What it draws stands until the next plan.
+  static void _composeAlone(Layer layer) {
+    Layer top = layer;
+    while (top.parent != null) {
+      top = top.parent!;
     }
+    final root = top as ContainerLayer;
+    if (!_composedRoots.add(root)) return;
+    if (_composedRoots.length == 1) {
+      scheduleMicrotask(_composedRoots.clear);
+    }
+    final scheduler = SchedulerBinding.instance;
+    if (scheduler.schedulerPhase != SchedulerPhase.persistentCallbacks) {
+      final composition = _Composition();
+      try {
+        composition.run(root);
+      } finally {
+        composition.dispose();
+      }
+      return;
+    }
+    final composition = _alone[root] ??= _Composition();
+    composition.run(root);
+    final ranAt = scheduler.currentFrameTimeStamp;
+    composition.ranAt = ranAt;
+    // Dropped when the next frame's scene does not ask for it.
+    scheduler.addPostFrameCallback((_) {
+      scheduler.addPostFrameCallback((_) {
+        if (composition.ranAt != ranAt) return;
+        if (scheduler.currentFrameTimeStamp == ranAt) return;
+        composition.dispose();
+        _alone.remove(root);
+      });
+    });
   }
 }
 
-/// A layer whose decisions for a frame are made after every layer has
-/// painted and before the scene is built ([compose]).
-///
-/// The view's [GlassComposer] has every such layer of the view [prepare] in
-/// paint order, then [compose] in paint order. A scene the composer did not
-/// plan, such as an image of a subtree taken outside a frame or before the
-/// composer ran, prepares and composes it in the update pass that builds the
-/// scene, which also runs parents before children.
-@internal
-mixin ComposedLayer on ContainerLayer {
-  GlassComposer? _composedBy;
-  int _composedIn = 0;
+// One view's frame: the form of its layers, what the plan keeps between frames
+// and what its reads hold.
+final class _Composition {
+  // The frame it last planned, while it plans alone.
+  Duration? ranAt;
 
-  /// Asks for what this frame's decisions need, such as a copy of what lies
-  /// under the layer, before any layer of the frame decides.
-  void prepare() {}
+  final _form = Form();
+  final _ledger = Ledger();
+  final _emit = GlassEmit();
 
-  /// Makes this frame's decisions. Layers painted before this one have made
-  /// theirs.
-  void compose();
-
-  void _composeFor(GlassComposer composer) {
-    compose();
-    _composedBy = composer;
-    _composedIn = composer._frame;
+  void run(ContainerLayer root) {
+    final view = root.owner;
+    if (view is! RenderView) return;
+    final flutterView = view.flutterView;
+    final dpr = flutterView.devicePixelRatio;
+    // What the sites read and the pages replay holds mattes paint wrote.
+    FlutterGpuGeometryRenderer.flushPendingSubmissions();
+    FrameAncestors.current = FrameAncestors();
+    try {
+      final form = _form;
+      form.lower(root, dpr, flutterView.physicalSize);
+      for (final node in form.siteNodes) {
+        final facts = node.facts;
+        final before = facts.drawn;
+        final stamp = facts.stamp;
+        node.site.fillPlanFacts(facts);
+        form.noteSiteDrawn(facts, before, stamp);
+      }
+      form.settleFloors();
+      final (plan, edits) = compile(
+        form,
+        _ledger,
+        GlassComposer.debugPrices,
+        GlassCopies.enabled ? GlassComposer.debugPolicy : const Policy(copies: false),
+        form.frame,
+        explain: GlassComposer.debugOnPlan != null,
+      );
+      GlassComposer.debugOnPlan?.call(form, plan);
+      edits.applyTo(_ledger, form.frame);
+      _emit.emit(plan, form, dpr);
+      for (final node in form.siteNodes) {
+        node.site.endFrame();
+      }
+    } finally {
+      FrameAncestors.current = null;
+      FlutterGpuGeometryRenderer.flushPendingSubmissions();
+    }
   }
 
-  /// Whether the view's composer composed this layer for the scene being
-  /// built. Read before `super.updateSubtreeNeedsAddToScene`, which consumes
-  /// it.
+  void dispose() => _emit.dispose();
+}
+
+/// A layer whose decisions for a frame are the frame's plan's.
+///
+/// A scene the view's [GlassComposer] did not plan, such as an image of a
+/// subtree taken outside a frame or before the composer ran, plans in the
+/// update pass that builds the scene.
+@internal
+mixin ComposedLayer on ContainerLayer {
+  /// Whether the view's composer planned the scene being built.
   @protected
-  bool get composedAhead =>
-      _composedBy?._frame == _composedIn &&
-      SchedulerBinding.instance.schedulerPhase ==
-          SchedulerPhase.persistentCallbacks;
+  bool get composedAhead => GlassComposer._plannedAhead(this);
 
   @override
   void updateSubtreeNeedsAddToScene() {
-    if (composedAhead) {
-      _composedBy = null;
-    } else {
-      prepare();
-      compose();
-    }
+    if (!composedAhead) GlassComposer._composeAlone(this);
     super.updateSubtreeNeedsAddToScene();
   }
 }

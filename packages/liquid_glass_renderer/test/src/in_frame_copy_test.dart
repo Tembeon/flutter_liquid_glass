@@ -9,7 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
 import 'shared.dart';
@@ -136,7 +138,7 @@ Future<Uint8List> _drawn(
   double secondFrost = 0,
   Rect? clip,
 }) async {
-  BackdropUnderlay.debugInFrame = inFrame;
+  GlassComposer.debugPolicy = Policy(maxTargets: inFrame ? 64 : 0);
   await tester.pumpWidget(const SizedBox());
   await tester.pumpWidget(
     _scene(
@@ -147,7 +149,7 @@ Future<Uint8List> _drawn(
       clip: clip,
     ),
   );
-  final drawn = BackdropUnderlay.debugImagesDrawn;
+  final drawn = GlassCopies.debugImagesDrawn;
   await tester.pumpWidget(
     _scene(
       frost: frost,
@@ -161,19 +163,18 @@ Future<Uint8List> _drawn(
       .toSet();
   expect(glass.every((g) => g.debugDrewOverUnderlay), isTrue);
   if (inFrame && secondFrost == 0) {
-    expect(BackdropUnderlay.debugImagesDrawn, drawn);
+    expect(GlassCopies.debugImagesDrawn, drawn);
   }
   return _pixels(tester, pixelRatio);
 }
 
 void main() {
-  final inFrame = BackdropUnderlay.debugInFrame;
   setUp(() {
-    BackdropUnderlay.debugEnabledOverride = true;
+    GlassCopies.debugEnabledOverride = true;
   });
   tearDown(() {
-    BackdropUnderlay.debugEnabledOverride = null;
-    BackdropUnderlay.debugInFrame = inFrame;
+    GlassCopies.debugEnabledOverride = null;
+    GlassComposer.debugPolicy = const Policy();
   });
 
   for (final pixelRatio in [1.0, 2.0]) {
@@ -336,14 +337,14 @@ void main() {
         pixelRatio: pixelRatio,
         secondFrost: 12,
       );
-      final images = BackdropUnderlay.debugImagesDrawn;
+      final images = GlassCopies.debugImagesDrawn;
       final inFrame = await _drawn(
         tester,
         inFrame: true,
         pixelRatio: pixelRatio,
         secondFrost: 12,
       );
-      expect(BackdropUnderlay.debugImagesDrawn, greaterThan(images));
+      expect(GlassCopies.debugImagesDrawn, greaterThan(images));
       // At the image's own pixels the upper glass lands twice as far from
       // its layer's corner, over 70 levels off.
       expect(_difference(image, inFrame), lessThanOrEqualTo(5));
@@ -351,21 +352,19 @@ void main() {
   }
 
   group('a copy over what holds still', () {
-    final promotes = BackdropUnderlay.debugPromotes;
-    tearDown(() => BackdropUnderlay.debugPromotes = promotes);
-
     Future<Uint8List> fresh(
       WidgetTester tester, {
       required double top,
       double shift = 0,
       bool second = true,
     }) async {
-      BackdropUnderlay.debugPromotes = false;
+      // Pinned to the scene: an image would never pay.
+      GlassComposer.debugPrices = const Prices(imageGpu: 1e6);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(_scene(top: top, shift: shift, second: second));
       await tester.pumpWidget(_scene(top: top, shift: shift, second: second));
       final pixels = await _pixels(tester, 2);
-      BackdropUnderlay.debugPromotes = true;
+      GlassComposer.debugPrices = const Prices();
       await tester.pumpWidget(const SizedBox());
       return pixels;
     }
@@ -388,15 +387,16 @@ void main() {
         for (var top = 200.0; top <= 203; top++) {
           await tester.pumpWidget(_scene(top: top, second: second));
         }
-        final images = BackdropUnderlay.debugImagesDrawn;
+        final images = GlassCopies.debugImagesDrawn;
         expect(images, greaterThan(0));
         await tester.pumpWidget(_scene(top: 204, second: second));
         await tester.pumpWidget(_scene(top: 205, second: second));
         await tester.pumpWidget(_scene(top: 206, second: second));
         expect(
-          BackdropUnderlay.debugImagesDrawn,
-          images,
-          reason: 'glass moves within the image while the page holds still',
+          GlassCopies.debugImagesDrawn,
+          lessThanOrEqualTo(images + 1),
+          reason: 'glass moves within the room of its image, which grows when '
+              'it runs out, while the page holds still',
         );
         expect(
           _difference(await _pixels(tester, 2), moved),
@@ -421,11 +421,11 @@ void main() {
       for (var top = 0.0; top <= 8; top++) {
         await tester.pumpWidget(_scene(top: top, second: false));
       }
-      final images = BackdropUnderlay.debugImagesDrawn;
+      final images = GlassCopies.debugImagesDrawn;
       for (var top = 8.0; top <= 248; top += 8) {
         await tester.pumpWidget(_scene(top: top, second: false));
       }
-      expect(BackdropUnderlay.debugImagesDrawn - images, lessThanOrEqualTo(6));
+      expect(GlassCopies.debugImagesDrawn - images, lessThanOrEqualTo(6));
     }, skip: skipProperGlassTests);
 
     testWidgets('draws in the frame again once the page keeps changing', (
@@ -438,13 +438,13 @@ void main() {
         await tester.pumpWidget(_scene(top: top, second: false));
       }
       await tester.pumpWidget(_scene(top: 204, shift: 0.1, second: false));
-      final images = BackdropUnderlay.debugImagesDrawn;
+      final images = GlassCopies.debugImagesDrawn;
       for (var i = 2; i < 40; i++) {
         await tester.pumpWidget(
           _scene(top: 204, shift: i / 100, second: false),
         );
       }
-      expect(BackdropUnderlay.debugImagesDrawn, images);
+      expect(GlassCopies.debugImagesDrawn, images);
     }, skip: skipProperGlassTests);
   });
 }

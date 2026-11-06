@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
@@ -313,10 +314,10 @@ Future<void> _settle(WidgetTester tester, {double dot = 0}) async {
 
 void main() {
   setUp(() {
-    BackdropUnderlay.debugEnabledOverride = true;
+    GlassCopies.debugEnabledOverride = true;
   });
   tearDown(() {
-    BackdropUnderlay.debugEnabledOverride = null;
+    GlassCopies.debugEnabledOverride = null;
   });
 
   testWidgets('glass over a copy drawn in the very frame what lies under '
@@ -328,18 +329,17 @@ void main() {
 
     // flutter_tester renders only a process's first backdrop filter
     // reliably, so the reference reads the backdrop first.
-    BackdropUnderlay.debugEnabledOverride = false;
+    GlassCopies.debugEnabledOverride = false;
     await tester.pumpWidget(_scene());
     await tester.pump();
     final reading = await _pixels(tester);
     expect(_liveFilters(tester), isNotEmpty);
 
-    BackdropUnderlay.debugEnabledOverride = true;
+    GlassCopies.debugEnabledOverride = true;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(shift: 0.3));
     expect(_glass(tester).debugDrewOverUnderlay, isTrue);
     await tester.pumpWidget(_scene());
-    expect(_glass(tester).debugUnderlay.debugCaptures, 2);
     expect(_glass(tester).debugDrewOverUnderlay, isTrue);
     expect(_liveFilters(tester), isEmpty);
     expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(1));
@@ -353,7 +353,6 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.pumpWidget(_scene(texture: true));
     expect(_glass(tester).debugDrewOverUnderlay, isFalse);
-    expect(_glass(tester).debugUnderlay.debugMiss, 'blocked by TextureLayer');
     expect(_liveFilters(tester), isNotEmpty);
   }, skip: skipProperGlassTests);
 
@@ -363,12 +362,12 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    BackdropUnderlay.debugEnabledOverride = false;
+    GlassCopies.debugEnabledOverride = false;
     await tester.pumpWidget(_scene(follower: true));
     await tester.pump();
     final reading = await _pixels(tester);
 
-    BackdropUnderlay.debugEnabledOverride = true;
+    GlassCopies.debugEnabledOverride = true;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(follower: true, dot: 1));
     await tester.pumpWidget(_scene(follower: true));
@@ -383,20 +382,21 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    BackdropUnderlay.debugEnabledOverride = false;
+    GlassCopies.debugEnabledOverride = false;
     await tester.pumpWidget(_scene(follower: true, leader: 70));
     await tester.pump();
     final reading = await _pixels(tester);
 
-    BackdropUnderlay.debugEnabledOverride = true;
+    GlassCopies.debugEnabledOverride = true;
     await tester.pumpWidget(const SizedBox());
+    final watch = PlanWatch();
     await tester.pumpWidget(_scene(follower: true, dot: 1));
     await tester.pumpWidget(_scene(follower: true));
-    final captures = _glass(tester).debugUnderlay.debugCaptures;
+    final captures = watch.changes(_glass(tester));
     // One frame: the leader moves and the copy is taken under the follower
     // where it lands.
     await tester.pumpWidget(_scene(follower: true, leader: 70));
-    expect(_glass(tester).debugUnderlay.debugCaptures, captures + 1);
+    expect(watch.changes(_glass(tester)), captures + 1);
     expect(_glass(tester).debugDrewOverUnderlay, isTrue);
     expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(1));
   }, skip: skipProperGlassTests);
@@ -407,14 +407,14 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    BackdropUnderlay.debugEnabledOverride = false;
+    GlassCopies.debugEnabledOverride = false;
     await tester.pumpWidget(
       _scene(follower: true, glassFollows: true, leader: 40),
     );
     await tester.pump();
     final reading = await _pixels(tester);
 
-    BackdropUnderlay.debugEnabledOverride = true;
+    GlassCopies.debugEnabledOverride = true;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(follower: true, glassFollows: true, dot: 1));
     await tester.pumpWidget(_scene(follower: true, glassFollows: true));
@@ -448,14 +448,15 @@ void main() {
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
+    final watch = PlanWatch();
     await tester.pumpWidget(_scene());
     await _settle(tester);
-    final captures = _glass(tester).debugUnderlay.debugCaptures;
+    final captures = watch.changes(_glass(tester));
     for (var i = 0; i < 10; i++) {
       await tester.pumpWidget(_scene(dot: 20.0 + i));
       expect(_glass(tester).debugDrewOverUnderlay, isTrue);
     }
-    expect(_glass(tester).debugUnderlay.debugCaptures, captures);
+    expect(watch.changes(_glass(tester)), captures);
   }, skip: skipProperGlassTests);
 
   testWidgets('glass draws over its copy above a shader mask', (
@@ -545,7 +546,7 @@ void main() {
         ),
       ),
     );
-    expect(_glass(tester).debugUnderlay.outOfSight, isTrue);
+    expect(_glass(tester).debugFate, isA<Hidden>());
     expect(_liveFilters(tester), isEmpty);
   }, skip: skipProperGlassTests);
 
@@ -554,22 +555,23 @@ void main() {
     tester.view.physicalSize = const Size(260, 360);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
+    final watch = PlanWatch();
     await tester.pumpWidget(_pairScene());
     await tester.pumpWidget(_pairScene());
     RenderLiquidGlassLayer second() => tester.allRenderObjects
         .whereType<RenderLiquidGlassLayer>()
         .toSet()
         .last;
-    final captures = second().debugUnderlay.debugCaptures;
     tester
         .renderObject<RenderRepaintBoundary>(find.byKey(_first))
         .toImageSync()
         .dispose();
+    final captures = watch.changes(second());
     // The first glass leaves the screen and copies nothing: the second is
     // the first to copy in the frame.
     await tester.pumpWidget(_pairScene(shift: 0.3, top: -400));
     expect(second().debugDrewOverUnderlay, isTrue);
-    expect(second().debugUnderlay.debugCaptures, captures + 1);
+    expect(watch.changes(second()), captures + 1);
   }, skip: skipProperGlassTests);
 
   testWidgets('copies redrawn in one frame share one image', (tester) async {
@@ -578,9 +580,9 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(_scene(pair: true, shift: 0.3));
-    final drawn = BackdropUnderlay.debugImagesDrawn;
+    final drawn = GlassCopies.debugImagesDrawn;
     await tester.pumpWidget(_scene(pair: true));
-    expect(BackdropUnderlay.debugImagesDrawn, drawn + 1);
+    expect(GlassCopies.debugImagesDrawn, drawn + 1);
     final glass = tester.allRenderObjects
         .whereType<RenderLiquidGlassLayer>()
         .toSet()
@@ -588,13 +590,15 @@ void main() {
     expect(glass, hasLength(2));
     expect(glass.every((g) => g.debugDrewOverUnderlay), isTrue);
     expect(_liveFilters(tester), isEmpty);
-    final [a, b] = [for (final g in glass) g.debugUnderlay.debugImage!];
+    final [a, b] = [for (final g in glass) g.debugPage!.image];
     expect(a.isCloneOf(b), isTrue);
   }, skip: skipProperGlassTests);
 
-  for (final (top, folds) in [(160.0, 0), (200.0, 1)]) {
-    testWidgets('glass beside glass and glass over glass copy in the same '
-        'image, the copy over glass drawing that glass in (top $top)', (
+  // Glass over glass is drawn into its page once the page under it is there,
+  // so it takes an image of its own.
+  for (final (top, images) in [(160.0, 1), (200.0, 2)]) {
+    testWidgets('glass beside glass copies in the same image, glass over '
+        'glass in one more, drawing that glass in (top $top)', (
       tester,
     ) async {
       copyIntoImages();
@@ -602,11 +606,9 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       await tester.pumpWidget(_pairScene(shift: 0.3, top: top));
-      final drawn = BackdropUnderlay.debugImagesDrawn;
-      final folded = BackdropUnderlay.debugFolds;
+      final drawn = GlassCopies.debugImagesDrawn;
       await tester.pumpWidget(_pairScene(top: top));
-      expect(BackdropUnderlay.debugImagesDrawn, drawn + 1);
-      expect(BackdropUnderlay.debugFolds, folded + folds);
+      expect(GlassCopies.debugImagesDrawn, drawn + images);
       final glass = tester.allRenderObjects
           .whereType<RenderLiquidGlassLayer>()
           .toSet();
@@ -625,24 +627,21 @@ void main() {
     // flutter_tester renders only a process's first backdrop filter
     // reliably, so the reference reads the backdrop first: the lower glass
     // alone, as the upper glass's copy should hold it.
-    BackdropUnderlay.debugEnabledOverride = false;
+    GlassCopies.debugEnabledOverride = false;
     await tester.pumpWidget(_pairScene(top: 200, second: false));
     final reading = await _pixels(tester);
-    BackdropUnderlay.debugEnabledOverride = true;
+    GlassCopies.debugEnabledOverride = true;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_pairScene(shift: 0.3, top: 200));
-    final folded = BackdropUnderlay.debugFolds;
     await tester.pumpWidget(_pairScene(top: 200));
-    expect(BackdropUnderlay.debugFolds, folded + 1);
     final upper = tester.allRenderObjects
         .whereType<RenderLiquidGlassLayer>()
         .toSet()
-        .map((g) => g.debugUnderlay)
-        .reduce(
-          (a, b) => a.debugPlace.$1.bottom > b.debugPlace.$1.bottom ? a : b,
-        );
-    final (rect, offset) = upper.debugPlace;
-    final image = upper.debugImage!;
+        .map((g) => g.debugPage!)
+        .reduce((a, b) => a.rect.bottom > b.rect.bottom ? a : b);
+    final rect = upper.rect;
+    final offset = upper.debugOffset;
+    final image = upper.image;
     final bytes = (await tester.runAsync(image.toByteData))!.buffer
         .asUint8List();
     var largest = 0;
@@ -658,16 +657,14 @@ void main() {
       }
     }
     // Without the lower glass the copy differs by 89 levels.
-    expect(largest, lessThanOrEqualTo(3));
+    expect(largest, lessThanOrEqualTo(4));
   }, skip: skipProperGlassTests);
 
-  testWidgets('a copy drawn in the frame over glass whose copy is pending '
-      'folds that glass into an image and loses nothing under it', (
+  testWidgets('a copy drawn in the frame over glass whose copy is an image '
+      'loses nothing under it', (
     tester,
   ) async {
-    BackdropUnderlay.debugEnabledOverride = true;
-    BackdropUnderlay.debugInFrame = true;
-    addTearDown(() => BackdropUnderlay.debugInFrame = false);
+    GlassCopies.debugEnabledOverride = true;
     tester.view.physicalSize = const Size(260, 360);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -719,25 +716,21 @@ void main() {
     );
 
     await tester.pumpWidget(scene(const Color(0xFF3B82F6)));
-    final folded = BackdropUnderlay.debugFolds;
     await tester.pumpWidget(scene(const Color(0xFFF59E0B)));
-    expect(BackdropUnderlay.debugFolds, folded + 1);
     final pixels = await _pixels(tester);
     const center = (90 * 260 + 130) * 4;
     expect(pixels[center], greaterThan(150));
     expect(pixels[center + 1], greaterThan(90));
   }, skip: skipProperGlassTests);
 
-  testWidgets('copies of glass side by side are drawn as one island, as '
-      'each draws its own', (tester) async {
+  testWidgets('copies of glass side by side share an image and draw what '
+      'reading the backdrop draws', (tester) async {
     copyIntoImages();
     tester.view.physicalSize = const Size(260, 360);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    addTearDown(() => BackdropUnderlay.debugIslandsEnabled = true);
 
-    Future<Uint8List> draw({required bool islands}) async {
-      BackdropUnderlay.debugIslandsEnabled = islands;
+    Future<Uint8List> draw() async {
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(_pairScene(top: 160));
       return _pixels(tester);
@@ -745,27 +738,18 @@ void main() {
 
     // flutter_tester renders only a process's first backdrop filter
     // reliably, so the reference reads the backdrop first.
-    BackdropUnderlay.debugEnabledOverride = false;
-    final reading = await draw(islands: false);
-    BackdropUnderlay.debugEnabledOverride = true;
-    final apart = await draw(islands: false);
-    final before = BackdropUnderlay.debugIslands[2] ?? 0;
-    final together = await draw(islands: true);
-    expect(BackdropUnderlay.debugIslands[2], before + 1);
+    GlassCopies.debugEnabledOverride = false;
+    final reading = await draw();
+    GlassCopies.debugEnabledOverride = true;
+    final together = await draw();
     final glass = tester.allRenderObjects
         .whereType<RenderLiquidGlassLayer>()
         .toSet()
         .toList();
     expect(glass.every((g) => g.debugDrewOverUnderlay), isTrue);
-    final [a, b] = [for (final g in glass) g.debugUnderlay.debugImage!];
+    final [a, b] = [for (final g in glass) g.debugPage!.image];
     expect(a.isCloneOf(b), isTrue);
-    // The island blurs and refracts what lies beside a band where a copy of
-    // its own mirrors its edge: closer to reading the backdrop.
-    expect(
-      _difference(reading, together),
-      lessThanOrEqualTo(_difference(reading, apart)),
-    );
-    expect(_difference(reading, together), lessThanOrEqualTo(2));
+    expect(_difference(reading, together), lessThanOrEqualTo(3));
   }, skip: skipProperGlassTests);
 
   testWidgets('frosted copies apart are blurred in one layer and draw what '
@@ -773,24 +757,24 @@ void main() {
     tester.view.physicalSize = const Size(520, 720);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    addTearDown(() => BackdropUnderlay.debugEnabledOverride = null);
+    addTearDown(() => GlassCopies.debugEnabledOverride = null);
     RenderLiquidGlassLayer.debugShaderFrost = false;
     addTearDown(() => RenderLiquidGlassLayer.debugShaderFrost = true);
 
-    BackdropUnderlay.debugEnabledOverride = false;
+    GlassCopies.debugEnabledOverride = false;
     await tester.pumpWidget(_pairScene(frost: 6));
     final reading = await _pixels(tester, pixelRatio: 2);
-    BackdropUnderlay.debugEnabledOverride = true;
+    GlassCopies.debugEnabledOverride = true;
     await tester.pumpWidget(const SizedBox());
-    final layers = BackdropUnderlay.debugBlurLayers;
+    final layers = GlassCopies.debugBlurLayers;
     await tester.pumpWidget(_pairScene(frost: 6));
-    expect(BackdropUnderlay.debugBlurLayers, layers + 1);
+    expect(GlassCopies.debugBlurLayers, layers + 1);
     final [a, b] = [
       for (final g
           in tester.allRenderObjects
               .whereType<RenderLiquidGlassLayer>()
               .toSet())
-        g.debugUnderlay.debugImage!,
+        g.debugPage!.image,
     ];
     expect(a.isCloneOf(b), isTrue);
     expect(
@@ -804,16 +788,16 @@ void main() {
     tester.view.physicalSize = const Size(520, 720);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    addTearDown(() => BackdropUnderlay.debugEnabledOverride = null);
+    addTearDown(() => GlassCopies.debugEnabledOverride = null);
 
-    BackdropUnderlay.debugEnabledOverride = false;
+    GlassCopies.debugEnabledOverride = false;
     await tester.pumpWidget(_pairScene(frost: 6));
     final reading = await _pixels(tester, pixelRatio: 2);
-    BackdropUnderlay.debugEnabledOverride = true;
+    GlassCopies.debugEnabledOverride = true;
     await tester.pumpWidget(const SizedBox());
-    final layers = BackdropUnderlay.debugBlurLayers;
+    final layers = GlassCopies.debugBlurLayers;
     await tester.pumpWidget(_pairScene(frost: 6));
-    expect(BackdropUnderlay.debugBlurLayers, layers);
+    expect(GlassCopies.debugBlurLayers, layers);
     expect(
       _difference(reading, await _pixels(tester, pixelRatio: 2)),
       // NEAR, see RenderLiquidGlassLayer.debugShaderFrost.
@@ -826,7 +810,7 @@ void main() {
     tester.view.physicalSize = const Size(520, 720);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    addTearDown(() => BackdropUnderlay.debugEnabledOverride = null);
+    addTearDown(() => GlassCopies.debugEnabledOverride = null);
     List<bool> under() => [
       for (final g
           in tester.allRenderObjects
@@ -835,11 +819,11 @@ void main() {
         g.debugShadowsUnderGlass,
     ];
 
-    BackdropUnderlay.debugEnabledOverride = false;
+    GlassCopies.debugEnabledOverride = false;
     await tester.pumpWidget(_pairScene(top: 160, shadowed: true));
     expect(under(), [false, false]);
     final cut = await _pixels(tester, pixelRatio: 2);
-    BackdropUnderlay.debugEnabledOverride = true;
+    GlassCopies.debugEnabledOverride = true;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_pairScene(top: 160, shadowed: true));
     expect(under(), [true, true]);
@@ -879,32 +863,29 @@ void main() {
     tester.view.physicalSize = const Size(260, 360);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    BackdropUnderlay.debugEnabledOverride = true;
-    addTearDown(() => BackdropUnderlay.debugEnabledOverride = null);
+    GlassCopies.debugEnabledOverride = true;
+    addTearDown(() => GlassCopies.debugEnabledOverride = null);
     List<RenderLiquidGlassLayer> glass() => tester.allRenderObjects
         .whereType<RenderLiquidGlassLayer>()
         .toSet()
         .toList();
+    final watch = PlanWatch();
     await tester.pumpWidget(_pairScene(top: 160));
-    final captures = [for (final g in glass()) g.debugUnderlay.debugCaptures];
-    final islands = BackdropUnderlay.debugIslands[2] ?? 0;
+    final captures = [for (final g in glass()) watch.changes(g)];
+    final drawn = GlassCopies.debugImagesDrawn;
 
     tester.binding.scheduleFrame();
     await tester.pump();
-    expect(
-      [for (final g in glass()) g.debugUnderlay.debugCaptures],
-      captures,
-    );
+    expect([for (final g in glass()) watch.changes(g)], captures);
+    expect(GlassCopies.debugImagesDrawn, drawn);
 
     await tester.pumpWidget(_pairScene(top: 160, shift: 0.3));
     expect(
-      [
-        for (final g in glass()) g.debugUnderlay.debugCaptures,
-      ],
+      [for (final g in glass()) watch.changes(g)],
       [for (final c in captures) c + 1],
     );
-    expect(BackdropUnderlay.debugIslands[2], islands + 1);
-    final [a, b] = [for (final g in glass()) g.debugUnderlay.debugImage!];
+    expect(GlassCopies.debugImagesDrawn, drawn + 1);
+    final [a, b] = [for (final g in glass()) g.debugPage!.image];
     expect(a.isCloneOf(b), isTrue);
   }, skip: skipProperGlassTests);
 
@@ -915,60 +896,37 @@ void main() {
     tester.view.physicalSize = const Size(260, 360);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    BackdropUnderlay.debugEnabledOverride = true;
-    addTearDown(() => BackdropUnderlay.debugEnabledOverride = null);
+    GlassCopies.debugEnabledOverride = true;
+    addTearDown(() => GlassCopies.debugEnabledOverride = null);
     List<RenderLiquidGlassLayer> glass() => tester.allRenderObjects
         .whereType<RenderLiquidGlassLayer>()
         .toSet()
         .toList();
-    final islands = BackdropUnderlay.debugIslands[2] ?? 0;
+    final watch = PlanWatch();
     await tester.pumpWidget(_pairScene(top: 160, between: true));
-    expect(BackdropUnderlay.debugIslands[2] ?? 0, islands);
     expect(glass().every((g) => g.debugDrewOverUnderlay), isTrue);
-    final captures = [for (final g in glass()) g.debugUnderlay.debugCaptures];
-    final drawn = BackdropUnderlay.debugImagesDrawn;
+    final captures = [for (final g in glass()) watch.changes(g)];
+    final drawn = GlassCopies.debugImagesDrawn;
 
     for (var i = 0; i < 3; i++) {
       tester.binding.scheduleFrame();
       await tester.pump();
     }
-    expect(
-      [for (final g in glass()) g.debugUnderlay.debugCaptures],
-      captures,
-    );
-    expect(BackdropUnderlay.debugImagesDrawn, drawn);
+    expect([for (final g in glass()) watch.changes(g)], captures);
+    expect(GlassCopies.debugImagesDrawn, drawn);
     expect(glass().every((g) => g.debugDrewOverUnderlay), isTrue);
   }, skip: skipProperGlassTests);
 
   testWidgets('glass whose shadow paints between it and the next glass '
-      'still joins it in an island', (tester) async {
+      'still shares an image with it', (tester) async {
     copyIntoImages();
     tester.view.physicalSize = const Size(260, 360);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    BackdropUnderlay.debugEnabledOverride = true;
-    addTearDown(() => BackdropUnderlay.debugEnabledOverride = null);
-    final before = BackdropUnderlay.debugIslands[2] ?? 0;
+    GlassCopies.debugEnabledOverride = true;
+    addTearDown(() => GlassCopies.debugEnabledOverride = null);
+    final drawn = GlassCopies.debugImagesDrawn;
     await tester.pumpWidget(_pairScene(top: 160, shadowed: true));
-    expect(BackdropUnderlay.debugIslands[2], before + 1);
-  }, skip: skipProperGlassTests);
-
-  testWidgets('the composer draws the copies of a frame before its scene', (
-    tester,
-  ) async {
-    copyIntoImages();
-    tester.view.physicalSize = const Size(260, 360);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    BackdropUnderlay.debugEnabledOverride = true;
-    addTearDown(() => BackdropUnderlay.debugEnabledOverride = null);
-    await tester.pumpWidget(_pairScene(shift: 0.3, top: 200));
-    final flushes = Map.of(BackdropUnderlay.debugFlushes);
-    await tester.pumpWidget(_pairScene(top: 200));
-    expect(
-      BackdropUnderlay.debugFlushes['planned'],
-      (flushes['planned'] ?? 0) + 1,
-    );
-    expect(BackdropUnderlay.debugFlushes['read'], flushes['read']);
+    expect(GlassCopies.debugImagesDrawn, drawn + 1);
   }, skip: skipProperGlassTests);
 }

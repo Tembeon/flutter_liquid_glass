@@ -15,7 +15,9 @@ import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
 
 const _viewSize = Size(300, 400);
 
@@ -103,7 +105,7 @@ Future<(Uint8List, bool)> _draw(
   required bool hard,
   required bool groups,
 }) async {
-  BackdropUnderlay.debugBandGroups = groups;
+  GlassComposer.debugPolicy = Policy(bands: groups);
   final controller = ScrollController();
   addTearDown(controller.dispose);
   await tester.pumpWidget(
@@ -129,10 +131,10 @@ Future<(Uint8List, bool)> _draw(
 }
 
 void main() {
-  setUp(() => BackdropUnderlay.debugEnabledOverride = true);
+  setUp(() => GlassCopies.debugEnabledOverride = true);
   tearDown(() {
-    BackdropUnderlay.debugEnabledOverride = null;
-    BackdropUnderlay.debugBandGroups = true;
+    GlassCopies.debugEnabledOverride = null;
+    GlassComposer.debugPolicy = const Policy();
   });
 
   for (final hard in [true, false]) {

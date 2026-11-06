@@ -756,7 +756,7 @@ class SeededBackdropPassLayer extends ContainerLayer with ComposedLayer {
   // A native seed reads the backdrop when the scene is rasterized, like any
   // backdrop filter, so the pass is only added to the scene again when its
   // own decision changes.
-  @override
+  /// Decides how the pass seeds this frame.
   void compose() {
     final rect = _plan.layerRect;
     _setSeed(_nativeSeedFor(rect));

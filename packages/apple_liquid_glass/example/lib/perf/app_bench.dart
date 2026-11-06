@@ -27,8 +27,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
 
 const _census = bool.fromEnvironment('BENCH_CENSUS');
 const _measured = Duration(
@@ -311,7 +311,7 @@ class _Journey {
   late final Rect screen;
 
   Future<void> run() async {
-    if (_live) BackdropUnderlay.debugEnabledOverride = false;
+    if (_live) GlassCopies.debugEnabledOverride = false;
     SchedulerBinding.instance.addTimingsCallback(_timings);
     if (_census) SchedulerBinding.instance.addPersistentFrameCallback(_frame);
     await wait(4000);
@@ -345,10 +345,7 @@ class _Journey {
     }
     final window = _Window(step.name, _seconds());
     debugPrint('APP_BENCH_START ${step.name}');
-    final images = BackdropUnderlay.debugImagesDrawn;
-    final misses = {...BackdropUnderlay.debugMisses};
-    final folds = BackdropUnderlay.debugFolds;
-    final flushes = {...BackdropUnderlay.debugFlushes};
+    final images = GlassCopies.debugImagesDrawn;
     final composed = _composed();
     _open = window;
     final flips = _ab.isEmpty ? null : _flipping(step.name);
@@ -365,26 +362,13 @@ class _Journey {
       _switches[_ab]!(on: false);
       debugPrint(
         'GLASS_BENCH_AB_END ${step.name} ${_wallNow()} $_frames '
-        'img=${BackdropUnderlay.debugImagesDrawn}',
+        'img=${GlassCopies.debugImagesDrawn}',
       );
-      debugPrint('GLASS_BENCH_ASKS ${BackdropUnderlay.debugImageAsks}');
     }
     _open = null;
     window.end = _seconds();
     window.wallEnd = DateTime.now().millisecondsSinceEpoch / 1e3;
-    window.images = BackdropUnderlay.debugImagesDrawn - images;
-    for (final MapEntry(:key, :value) in BackdropUnderlay.debugMisses.entries) {
-      final count = value - (misses[key] ?? 0);
-      if (count > 0) window.misses[key] = count;
-    }
-    if (BackdropUnderlay.debugFolds - folds case final count when count > 0) {
-      window.misses['folds'] = count;
-    }
-    for (final MapEntry(:key, :value)
-        in BackdropUnderlay.debugFlushes.entries) {
-      final count = value - (flushes[key] ?? 0);
-      if (count > 0) window.misses['flushes $key'] = count;
-    }
+    window.images = GlassCopies.debugImagesDrawn - images;
     final (frames, sites) = _composed();
     if (frames > composed.$1) {
       window.misses['composer frames'] = frames - composed.$1;
@@ -400,7 +384,6 @@ class _Journey {
     void next() {
       final on = const [false, true, true, false][n % 4];
       flip(on: on);
-      if (n == 1) BackdropUnderlay.debugImageAsks.clear();
       _flips.add({
         'step': step,
         'on': on,
@@ -409,7 +392,7 @@ class _Journey {
       });
       debugPrint(
         'GLASS_BENCH_AB $step ${on ? 'B' : 'A'} $n ${_wallNow()} $_frames '
-        'img=${BackdropUnderlay.debugImagesDrawn} '
+        'img=${GlassCopies.debugImagesDrawn} '
         'rests=${GlassComposer.debugRests}',
       );
       n++;

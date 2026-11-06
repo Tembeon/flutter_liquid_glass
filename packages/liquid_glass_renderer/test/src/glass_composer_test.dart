@@ -79,8 +79,8 @@ void main() {
     semantics.dispose();
   });
 
-  testWidgets('the composer composes each layer once a frame, ahead of the '
-      'scene, and a scene it did not plan composes its own', (tester) async {
+  testWidgets('the composer plans a frame ahead of the scene, and a scene it '
+      'did not plan plans its own', (tester) async {
     final log = <String>[];
     await tester.pumpWidget(
       Directionality(
@@ -106,12 +106,7 @@ void main() {
     log.clear();
     tester.binding.scheduleFrame();
     await tester.pump();
-    expect(log, [
-      'outer composed',
-      'inner composed',
-      'outer planned',
-      'inner planned',
-    ]);
+    expect(log, ['outer planned', 'inner planned']);
 
     log.clear();
     final boundary = tester.renderObject<RenderRepaintBoundary>(
@@ -123,12 +118,7 @@ void main() {
           .first,
     );
     (await tester.runAsync(boundary.toImage))!.dispose();
-    expect(log, [
-      'outer unplanned',
-      'outer composed',
-      'inner unplanned',
-      'inner composed',
-    ]);
+    expect(log, ['outer unplanned', 'inner unplanned']);
   });
 
   test('each owner gets its own composer and can be disposed after', () {
@@ -192,9 +182,6 @@ class _RecordingLayer extends OffsetLayer with ComposedLayer {
 
   final List<String> log;
   final String name;
-
-  @override
-  void compose() => log.add('$name composed');
 
   @override
   void updateSubtreeNeedsAddToScene() {

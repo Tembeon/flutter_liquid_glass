@@ -6,7 +6,9 @@ import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
+import 'package:liquid_glass_renderer/src/composer/scene_out.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/internal/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/internal/paint_fake_glass_surface.dart';
@@ -331,9 +333,11 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
           // drawn from a copy would leave them no shared read, so they would
           // filter its output where they overlap: while one paints, the
           // shared filter reads live too.
-          copies:
-              BackdropUnderlay.enabled &&
-              !_cachedClipClasses.contains(_BackdropClass.separate),
+          site:
+              GlassCopies.enabled &&
+                  !_cachedClipClasses.contains(_BackdropClass.separate)
+              ? layer
+              : null,
         );
       } else {
         _sharedRig.clear();
@@ -496,17 +500,49 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     for (final rig in _separateRigs.values) {
       rig.sync();
     }
-    _sharedRig.ask();
   }
 
   @override
-  void onCompositing() {
+  void fillPlanFacts(SiteFacts facts) {
+    facts.hidden = false;
+    facts.turned = false;
+    facts.look = Look.none;
+    _sharedRig.fillPlanFacts(facts);
+  }
+
+  @override
+  void beginFate(Fate fate) {
+    _fate = fate;
+    if (fate is Hidden && _sharedRig.hasSlot) {
+      compositionSeedSuppressed = true;
+      debugDrewOverCopy = false;
+      _sharedRig.hide();
+    }
+  }
+
+  Fate _fate = const Hidden();
+
+  @override
+  void showPage(Read read, PageCopy page) {
     // Glass over its copy reads no backdrop: an opacity pass around it needs
     // no seed, and a seeded one would stand in the copy's way.
     compositionSeedSuppressed = true;
-    final served = _sharedRig.compose();
-    if (!served) compositionSeedSuppressed = false;
-    debugDrewOverCopy = served;
+    debugDrewOverCopy = true;
+    _sharedRig.showPage(page);
+  }
+
+  @override
+  void showLive() {
+    compositionSeedSuppressed = false;
+    debugDrewOverCopy = false;
+    if (_sharedRig.hasSlot) _sharedRig.showLive();
+  }
+
+  @override
+  void addOutput(SceneOut out, ReadCopy outer) {
+    if (_fate case Leads(read: Read(source: ImageRead()))) {
+      if (_sharedRig.pageShown case final page?) out.picture(page);
+    }
   }
 
   // A glass without a blur, or that is nothing but a blur, needs no seed.

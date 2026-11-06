@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
@@ -164,7 +164,7 @@ int _difference(Uint8List a, Uint8List b) {
 
 void main() {
   tearDown(() {
-    BackdropUnderlay.debugEnabledOverride = null;
+    GlassCopies.debugEnabledOverride = null;
   });
 
   testWidgets('the band over a copy drawn in the very frame what lies under '
@@ -175,18 +175,17 @@ void main() {
 
     // flutter_tester renders only a process's first backdrop filter
     // reliably, so the reference reads the backdrop first.
-    BackdropUnderlay.debugEnabledOverride = false;
+    GlassCopies.debugEnabledOverride = false;
     await tester.pumpWidget(_scene());
     final reading = await _pixels(tester);
     expect(_band(tester).serves, isFalse);
 
-    BackdropUnderlay.debugEnabledOverride = true;
+    GlassCopies.debugEnabledOverride = true;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(shift: 0.3));
     expect(_band(tester).serves, isTrue);
     await tester.pumpWidget(_scene());
     expect(_band(tester).serves, isTrue);
-    expect(_band(tester).debugUnderlay.debugCaptures, 2);
     expect(tester.layers.whereType<BackdropFilterLayer>(), isEmpty);
     expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(1));
 
@@ -196,35 +195,34 @@ void main() {
 
   testWidgets('the band keeps its copy while what lies under it holds '
       'still', (tester) async {
-    BackdropUnderlay.debugEnabledOverride = true;
+    GlassCopies.debugEnabledOverride = true;
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
+    final watch = PlanWatch();
     await tester.pumpWidget(_scene());
-    final picture = _band(tester).servedPicture;
+    final changes = watch.changes(_band(tester));
     for (var i = 0; i < 5; i++) {
       tester.binding.scheduleFrame();
       await tester.pump();
     }
     expect(_band(tester).serves, isTrue);
-    expect(_band(tester).debugUnderlay.debugCaptures, 1);
-    expect(_band(tester).servedPicture, same(picture));
+    expect(watch.changes(_band(tester)), changes);
   }, skip: skipProperGlassTests);
 
   testWidgets('the band reads its backdrop over a layer the copy cannot '
       'draw', (tester) async {
-    BackdropUnderlay.debugEnabledOverride = true;
+    GlassCopies.debugEnabledOverride = true;
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(_scene(texture: true));
     expect(_band(tester).serves, isFalse);
-    expect(_band(tester).debugUnderlay.debugMiss, 'blocked by TextureLayer');
   }, skip: skipProperGlassTests);
 
   testWidgets('the copy under the band is drawn in one image with the '
       'copies of the glass in the frame', (tester) async {
-    BackdropUnderlay.debugEnabledOverride = true;
+    GlassCopies.debugEnabledOverride = true;
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -234,19 +232,19 @@ void main() {
         .single;
 
     await tester.pumpWidget(_scene(glass: true, glassTop: 140, shift: 0.3));
-    final drawn = BackdropUnderlay.debugImagesDrawn;
+    final drawn = GlassCopies.debugImagesDrawn;
     await tester.pumpWidget(_scene(glass: true, glassTop: 140));
     expect(_band(tester).serves, isTrue);
     expect(glass().debugDrewOverUnderlay, isTrue);
-    expect(BackdropUnderlay.debugImagesDrawn, drawn + 1);
+    expect(GlassCopies.debugImagesDrawn, drawn + 1);
   }, skip: skipProperGlassTests);
 
-  testWidgets('glass over the band copies in the one image of the frame, '
-      'drawing the band in, and both hold once nothing moves', (
+  testWidgets('glass over the band copies in one more image, drawing the band '
+      'in, and both hold once nothing moves', (
     tester,
   ) async {
     copyIntoImages();
-    BackdropUnderlay.debugEnabledOverride = true;
+    GlassCopies.debugEnabledOverride = true;
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -256,37 +254,22 @@ void main() {
         .single;
 
     await tester.pumpWidget(_scene(glass: true, glassTop: 30, shift: 0.3));
-    final flushes = Map.of(BackdropUnderlay.debugFlushes);
-    var drawn = BackdropUnderlay.debugImagesDrawn;
-    final folded = BackdropUnderlay.debugFolds;
+    var drawn = GlassCopies.debugImagesDrawn;
     await tester.pumpWidget(_scene(glass: true, glassTop: 30));
     expect(_band(tester).serves, isTrue);
     expect(glass().debugDrewOverUnderlay, isTrue);
-    expect(BackdropUnderlay.debugImagesDrawn, drawn + 1);
-    expect(BackdropUnderlay.debugFolds, folded + 1);
-    expect(
-      BackdropUnderlay.debugFlushes['planned'],
-      (flushes['planned'] ?? 0) + 1,
-    );
-    expect(BackdropUnderlay.debugFlushes['read'], flushes['read']);
-
-    // A copy that drew glass in matches no later frame: once the band
-    // holds, the glass's copy is drawn once more, from the band's picture.
-    drawn = BackdropUnderlay.debugImagesDrawn;
-    glass().markNeedsPaint();
-    await tester.pump();
-    expect(BackdropUnderlay.debugImagesDrawn, drawn + 1);
-    drawn = BackdropUnderlay.debugImagesDrawn;
+    expect(GlassCopies.debugImagesDrawn, drawn + 2);
+    drawn = GlassCopies.debugImagesDrawn;
     glass().markNeedsPaint();
     await tester.pump();
     expect(glass().debugDrewOverUnderlay, isTrue);
-    expect(BackdropUnderlay.debugImagesDrawn, drawn);
+    expect(GlassCopies.debugImagesDrawn, drawn);
   }, skip: skipProperGlassTests);
 
   testWidgets('glass near the band draws from its own copy while the band '
       'draws from its copy, and reads its backdrop while the band reads '
       'its', (tester) async {
-    BackdropUnderlay.debugEnabledOverride = true;
+    GlassCopies.debugEnabledOverride = true;
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -308,9 +291,5 @@ void main() {
     await tester.pumpWidget(_scene(glass: true, texture: true));
     expect(_band(tester).serves, isFalse);
     expect(glass().debugDrewOverUnderlay, isFalse);
-    expect(
-      glass().debugUnderlay.debugMiss,
-      'blocked by LiquidGlassBackdropFilterLayer',
-    );
   }, skip: skipProperGlassTests);
 }

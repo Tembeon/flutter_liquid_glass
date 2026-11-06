@@ -8,9 +8,11 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_frost.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/form.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
+import 'package:liquid_glass_renderer/src/composer/scene_out.dart';
 import 'package:liquid_glass_renderer/src/internal/shader_frost.dart';
 
 /// A backdrop filter over [clip] that, wherever it can, filters a copy of
@@ -21,15 +23,13 @@ import 'package:liquid_glass_renderer/src/internal/shader_frost.dart';
 /// A backdrop filter anywhere in a frame makes Impeller render the whole
 /// frame offscreen, split the root pass at every read and blit the result to
 /// the screen. This layer draws what lies under [clip] again from the layer
-/// tree while the frame composites. For a [frost] the shader can draw,
+/// tree, as the frame's plan says. For a [frost] the shader can draw,
 /// composited with [BlendMode.srcOver], the copy is drawn unblurred in the
 /// frame itself and frosted as it is drawn.
 /// Any other copy is drawn into a small image, filtered as the backdrop
-/// would be, which serves later frames while those layers are unchanged;
-/// a frosted copy falls back to an unblurred image at a fraction of the
-/// screen's pixels where the frame cannot draw it. Under a texture, a
-/// platform view, a live backdrop filter or a layer type the copy cannot
-/// draw (see `LiquidGlassUnderlay`) it reads the backdrop like a
+/// would be, which serves later frames while those layers are unchanged. Under
+/// a texture, a platform view, a live backdrop filter or a layer type the copy
+/// cannot draw (see `LiquidGlassUnderlay`) it reads the backdrop like a
 /// [BackdropFilterLayer], confined to [reach] around [clip] while
 /// [confinesRead].
 ///
@@ -133,341 +133,131 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   /// in its own filter, and the children stay out of the scene.
   FrostBandPaint? bandPaint;
 
-  FilterOffer? _offer;
-  FilterGroup? _group;
-  FilterGroup? _drawn;
+  @override
+  SiteNode? formNode;
+
+  // Where this layer's coordinates begin on the screen, while on it untouched.
+  Offset? _origin;
+  Fate _fate = const Hidden();
+
+  // How this frame's read draws.
+  _Scene? _scene;
+  Object? _sceneKey;
+  ui.ImageFilter? _frostFilter;
+  Object? _frostKey;
+  ui.Picture? _page;
+  Object? _pageKey;
+  ui.FragmentShader? _frostShader;
+
+  /// The page this frame draws from, if it draws from one.
+  @visibleForTesting
+  PageCopy? debugPage;
 
   /// Whether this frame's frost is drawn in the filter of the glass over it.
   @internal
-  bool get drawsGroup => _drawn != null;
-
-  CopyAsk? _askCopy() => BackdropUnderlay.enabled
-      ? requestCopy(
-          _underlay,
-          this,
-          filter: _filter,
-          frost: _frost,
-          blendMode: _blendMode,
-          clip: _clip,
-          reach: _reach,
-          devicePixelRatio: _devicePixelRatio,
-          filtersReach: false,
-        )
-      : null;
-
-  @override
-  void fillPlanFacts(SiteFacts facts) {
-    final offer = _offer;
-    facts.hidden = false;
-    if (offer is BandOffer) {
-      facts.drawn = offer.drawn;
-      facts.reads = offer.reads;
-      facts.noJoin = null;
-      facts.look = Look(
-        key: 'band',
-        frost: offer.sigma,
-        downscale: offer.downscale,
-        isBand: true,
-        devicePixelRatio: offer.devicePixelRatio,
-      );
-      return;
-    }
-    facts.noJoin = NoJoin.noOffer;
-    facts.look = Look.none;
-    final origin = screenOffsetOf(this, _devicePixelRatio);
-    if (origin == null) {
-      facts.hidden = true;
-      return;
-    }
-    facts.drawn = _clip.shift(origin);
-    facts.reads = facts.drawn.inflate(reach);
-  }
-
-  FilterOffer? _offerBand() {
-    final paint = bandPaint;
-    final frost = _frost;
-    final view = owner;
-    if (paint == null ||
-        frost == null ||
-        _blendMode != BlendMode.srcOver ||
-        !BackdropUnderlay.enabled ||
-        view is! RenderView) {
-      return null;
-    }
-    final frame = GlassComposer.planning(view);
-    if (frame == null || !frame.groups) return null;
-    final origin = screenOffsetOf(this, _devicePixelRatio);
-    if (origin == null) return null;
-    final sigma = frost.sigma * _devicePixelRatio;
-    final downscale = shaderFrostDownscale(sigma, minTexels: 1.5) ?? 1;
-    final shown = _clip.shift(origin);
-    final offer = _BandOffer(
-      this,
-      anchor: this,
-      underlay: _underlay,
-      devicePixelRatio: _devicePixelRatio,
-      drawn: shown,
-      reads: shown.inflate(
-        // The eight taps of the band shader reach 2.8 frosts.
-        (2.8 * shaderFrostResidual(sigma, share: downscale) + downscale) /
-            _devicePixelRatio,
-      ),
-      downscale: downscale,
-      sigma: frost.sigma,
-      origin: origin,
-      paint: paint,
-    );
-    frame.offer(offer);
-    return offer;
-  }
-
-  // The frost drawn by [group]'s filter: false when the group came apart.
-  bool _composeGroup(FilterGroup group) {
-    final copy = group.settle();
-    if (copy == null) return false;
-    final band = group.band!;
-    _inFrame = (
-      copy: copy,
-      shown: band.drawn,
-      origin: band.origin,
-      frosting: _frost!,
-    );
-    _drawn = group;
-    final read = copy.inScene ? copy.readIn(copy.layer) : null;
-    if (read != null) {
-      _sceneFilter = group.painter.filter(group, read);
-      _sceneInPlace = group.painter.inPlace(group, read);
-      _sceneFilterKey = null;
-      _sceneRead = read;
-    } else {
-      _served = servedWithin(copy.layer);
-      if (_served == null) {
-        copy.dispose();
-        _inFrame = null;
-        _drawn = null;
-      }
-    }
-    return true;
-  }
-
-  final _underlay = BackdropUnderlay();
-  CopyAsk? _asked;
-  ui.FragmentShader? _frostShader;
-  _Serving? _serving;
-  _InFrame? _inFrame;
-  ui.Picture? _served;
-  Object? _servedKey;
-
-  // The frost as layers of the scene, for a copy added to the scene too; it
-  // is recorded only when a copy for other glass draws it.
-  CornerRead? _sceneRead;
-  late ui.ImageFilter _sceneFilter;
-  ui.ImageFilter? _sceneInPlace;
-  Object? _sceneFilterKey;
+  bool get drawsGroup => _painterOf(_fate) != null;
 
   /// Whether this frame draws a copy in place of the backdrop read.
   @internal
-  bool get serves => _serving != null || _inFrame != null;
+  bool get serves => _scene != null || _page != null;
 
-  /// The rect of the layer the frost filters, in the screen's logical
-  /// pixels, when this frame frosts a copy drawn in the frame.
+  /// Where this layer's coordinates begin on the screen this frame.
   @internal
-  Rect? get inFrameLayer => _inFrame?.copy.layer;
+  Offset get screenOrigin => _origin ?? Offset.zero;
 
-  /// The frost of a copy drawn in the frame, in this layer's coordinates,
-  /// over the part of its layer inside [region] of the screen, or null when
-  /// none of it is; a copy for other glass whose pass does not hold
-  /// [inFrameLayer] draws it so (see [InFrameGlassLayer]).
+  /// What the filter covers on the screen this frame.
   @internal
-  ui.Picture? servedWithin(Rect region) {
-    final inFrame = _inFrame;
-    if (inFrame == null) return null;
-    if (_drawn case final group?) {
-      final read = inFrame.copy.readIn(region);
-      return read?.record(
-        group.painter.filter(group, read),
-        frostToLocal(inFrame.origin, _devicePixelRatio),
-        inPlace: group.painter.inPlace(group, read),
-      );
-    }
-    return recordFrostedInFrame(
-      inFrame.copy,
-      inFrame.shown,
-      region,
-      inFrame.origin,
-      frost: inFrame.frosting,
-      shader: _frostShader ??= newFrostShader(),
-      devicePixelRatio: _devicePixelRatio,
-    );
-  }
+  Rect get shown => _clip.shift(screenOrigin);
 
-  /// The copy this frame draws in place of the backdrop read, in
-  /// this layer's coordinates, or null while the layer reads the backdrop.
-  /// A frost drawn in the frame is recorded as the layer composes; one drawn
-  /// from an image when first read, once the copy is drawn with the other
-  /// copies of the frame.
-  @internal
-  ui.Picture? get servedPicture {
-    if (_served case final served?) return served;
-    if (_inFrame case final inFrame?) {
-      return _served = servedWithin(inFrame.copy.layer);
-    }
-    final serving = _serving;
-    if (serving == null) return null;
-    final (:copy, :shown, :origin, :frosting) = serving;
-    final served = switch (frosting) {
-      final frost? => recordFrostedCopy(
-        copy,
-        shown,
-        origin,
-        frost: frost,
-        shader: _frostShader ??= newFrostShader(),
-        blendMode: _blendMode,
-      ),
-      null => recordFilteredCopy(copy, shown, origin),
-    };
-    _servedKey = _keyOf(serving);
-    return _served = served;
-  }
+  /// The glass that draws this layer's frost in its filter, if any.
+  static ReadPainter? _painterOf(Fate fate) => switch (fate) {
+    Leads(:final read) when read.members.length > 1 =>
+      (read.members[1].id as PlanSite).readPainter,
+    _ => null,
+  };
 
-  // What the picture is drawn from: an equal key draws an equal picture.
-  Object _keyOf(_Serving serving) => (
-    serving.copy.image,
-    serving.copy.placement,
-    serving.shown,
-    serving.origin,
-    switch (serving.frosting) {
-      final frost? => (frost, _blendMode),
-      null => null,
-    },
-  );
-
-  /// Whether the copy this frame filters is drawn with the frame's copies,
-  /// not yet drawn.
-  @internal
-  bool get pending => _serving?.copy.pending ?? false;
-
-  /// Adds the filter to a copy drawn with the frame's copies that holds this
-  /// layer while its own copy is not drawn yet (see [UnderlayFold]).
-  @internal
-  void addFold(ui.SceneBuilder builder, FoldTarget target) {
-    final serving = _serving;
-    if (serving == null) return;
-    addFoldedFilter(
-      builder,
-      serving.shown.shift(-serving.origin),
-      _filter,
-      blendMode: _blendMode,
-    );
-  }
-
-  /// The copy this layer filters.
-  @visibleForTesting
-  BackdropUnderlay get debugUnderlay => _underlay;
-
-  @internal
   @override
-  void prepare() {
-    _group = null;
-    _offer = _offerBand();
-    _asked = _offer == null ? _askCopy() : null;
-  }
-
-  // Runs for every built scene, also when an ancestor stays retained, after
-  // every layer has painted: the choice between the copy and the backdrop
-  // is made here, where it can still mark the layer for adding.
-  @internal
-  @override
-  void compose() {
-    var asked = _asked;
-    _asked = null;
-    final wasInFrame = _inFrame != null;
-    _inFrame?.copy.dispose();
-    _inFrame = null;
-    _sceneRead = null;
-    final group = _group;
-    final drew = _drawn != null;
-    _group = null;
-    _drawn = null;
-    if (drew || group != null) {
-      markNeedsAddToScene();
-      _served?.dispose();
-      _served = null;
-      _servedKey = null;
-      _serving = null;
-      _sceneFilterKey = null;
-    }
-    if (group != null) {
-      if (_composeGroup(group)) return;
-      _offer?.askAlone();
-      asked = _asked;
-      _asked = null;
-    }
-    if (asked?.frosting case final frosting?
-        when _blendMode == BlendMode.srcOver &&
-            _underlay.servesInFrame &&
-            _composeInFrame(asked!, frosting)) {
+  void fillPlanFacts(SiteFacts facts) {
+    facts.hidden = false;
+    facts.turned = false;
+    facts.noJoin = NoJoin.noMatte;
+    facts.look = Look.none;
+    facts.stamp = (_filter, _frost, bandPaint, _blendMode);
+    final screen = formNode?.screenTransform(Offset.zero);
+    final origin = screen == null
+        ? screenOffsetOf(this, _devicePixelRatio)
+        : MatrixUtils.getAsTranslation(screen);
+    _origin = origin;
+    if (origin == null) {
+      facts.turned = true;
+      facts.drawn = screen == null
+          ? _clip
+          : MatrixUtils.transformRect(screen, _clip);
+      facts.reads = facts.drawn.inflate(_reach);
       return;
     }
-    final served = asked == null ? null : serveCopy(_underlay, asked);
-    final serving = served == null
-        ? null
-        : (
-            copy: served.copy,
-            shown: served.shown,
-            origin: asked!.origin,
-            frosting: asked.frosting,
-          );
-    // A copy drawn in an earlier frame keeps its picture while it lies where
-    // it did; a copy not drawn yet is drawn with the frame's other copies.
-    final key = serving != null && serving.copy.ready ? _keyOf(serving) : null;
-    if (serving == null || key == null || key != _servedKey) {
-      if (wasInFrame || _serving != null || serving != null) {
-        markNeedsAddToScene();
-      }
-      _served?.dispose();
-      _served = null;
+    final shifted = _clip.shift(origin);
+    facts.drawn = shifted;
+    final dpr = _devicePixelRatio;
+    final frost = _frost;
+    final downscale = frost == null ? null : frostDownscale(frost.sigma * dpr);
+    if (frost == null || downscale == null) {
+      facts.reads = shifted.inflate(_reach);
+      facts.look = Look(
+        key: null,
+        frost: 0,
+        downscale: 1,
+        devicePixelRatio: dpr,
+        page: PageFilter(
+          filter: _filter,
+          clip: shifted,
+          blendMode: _blendMode,
+        ),
+      );
+      return;
     }
-    _serving = serving;
-    _servedKey = key;
-    if (serving == null) _underlay.release();
-  }
-
-  // A frost drawn from a copy the frame draws again: a picture each frame.
-  // False when the frame cannot draw the copy, and [serveCopy] takes the
-  // request.
-  bool _composeInFrame(CopyAsk asked, LiquidGlassBackdropFrost frosting) {
-    markNeedsAddToScene();
-    _served?.dispose();
-    _served = null;
-    _servedKey = null;
-    _serving = null;
-    final copy = _underlay.serveInFrame();
-    if (copy == null) return false;
-    _inFrame = (
-      copy: copy,
-      shown: asked.shifted,
-      origin: asked.origin,
-      frosting: frosting,
+    // The eight taps of the frost shader reach 2.8 frosts.
+    facts.reads = shifted.inflate(
+      (2.8 * shaderFrostResidual(frost.sigma * dpr, share: downscale) +
+              downscale) /
+          dpr,
     );
-    if (_frostInScene(copy, asked.shifted, frosting)) return true;
-    _served = servedWithin(copy.layer);
-    if (_served == null) {
-      copy.dispose();
-      _inFrame = null;
-    }
-    return true;
+    final over = _blendMode == BlendMode.srcOver;
+    final band = over && bandPaint != null;
+    if (band) facts.noJoin = null;
+    facts.look = Look(
+      key: 'band',
+      frost: frost.sigma,
+      downscale: downscale,
+      isBand: band,
+      devicePixelRatio: dpr,
+      page: over ? null : PageFilter.none,
+    );
   }
 
-  bool _frostInScene(
-    InFrameCopy copy,
-    Rect shown,
-    LiquidGlassBackdropFrost frosting,
-  ) {
-    if (!copy.inScene) return false;
-    final read = copy.readIn(copy.layer);
-    final sampling = read?.frostSampling(shown, frosting.sigma);
-    if (read == null || sampling == null) return false;
+  @override
+  void beginFate(Fate fate) {
+    if (fate.runtimeType != _fate.runtimeType) markNeedsAddToScene();
+    _fate = fate;
+    if (fate is Hidden) _showNothing();
+  }
+
+  void _showNothing() {
+    debugPage = null;
+    if (_scene != null || _page != null) markNeedsAddToScene();
+    _scene = null;
+    _sceneKey = null;
+    _page?.dispose();
+    _page = null;
+    _pageKey = null;
+  }
+
+  // The frost of the part [corner] holds, as a filter: a band over a scroll
+  // keeps its place, so its filter too.
+  ui.ImageFilter? _frostOf(CornerRead corner) {
+    final frosting = _frost!;
+    final sampling = corner.frostSampling(shown, frosting.sigma);
+    if (sampling == null) return null;
     final key = (
       sampling.size,
       sampling.bounds,
@@ -476,35 +266,143 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
       sampling.shown,
       frosting.colorMatrix,
     );
-    if (key != _sceneFilterKey) {
-      _sceneFilter = frostFilter(
+    if (key != _frostKey || _frostFilter == null) {
+      _frostFilter = frostFilter(
         sampling,
         frosting.colorMatrix,
         _frostShader ??= newFrostShader(),
       );
-      _sceneFilterKey = key;
+      _frostKey = key;
     }
-    _sceneInPlace = null;
-    _sceneRead = read;
-    return true;
+    return _frostFilter;
+  }
+
+  _Scene? _sceneOf(Read read, CornerRead corner) {
+    if (_painterOf(_fate) case final painter?) {
+      final inPlace = painter.readInPlace(read, corner);
+      return (
+        corner: corner,
+        filter: painter.readFilter(read, corner, inPlace),
+        inPlace: inPlace,
+      );
+    }
+    final filter = _frostOf(corner);
+    return filter == null
+        ? null
+        : (corner: corner, filter: filter, inPlace: null);
   }
 
   @override
-  void addToScene(ui.SceneBuilder builder) {
-    if (_sceneRead case final read?) {
-      read.addToScene(
-        builder,
-        _sceneFilter,
-        frostToLocal(_inFrame!.origin, _devicePixelRatio),
-        inPlace: _sceneInPlace,
-      );
-      if (_drawn == null) addChildrenToScene(builder);
+  void showScene(Read read, ReadCopy copy) {
+    final corner = copy.readIn(copy.layer);
+    final scene = corner == null ? null : _sceneOf(read, corner);
+    if (scene == null) {
+      _showNothing();
       return;
     }
-    final served = servedPicture;
-    if (served != null) {
-      builder.addPicture(Offset.zero, served);
-      if (_drawn == null) addChildrenToScene(builder);
+    debugPage = null;
+    _page?.dispose();
+    _page = null;
+    _pageKey = null;
+    final key = (scene.filter, scene.inPlace, copy.layer, _origin);
+    if (read.changed || key != _sceneKey || _scene == null) {
+      markNeedsAddToScene();
+    }
+    _scene = scene;
+    _sceneKey = key;
+  }
+
+  @override
+  void showPage(Read read, PageCopy page) {
+    debugPage = page;
+    final painter = _painterOf(_fate);
+    final origin = screenOrigin;
+    final region = shown.intersect(page.rect);
+    final key = (
+      page.image,
+      page.placement,
+      region,
+      origin,
+      _frost,
+      _blendMode,
+      painter?.readRevision(read),
+    );
+    _scene = null;
+    _sceneKey = null;
+    if (key == _pageKey && _page != null) return;
+    _page?.dispose();
+    _pageKey = key;
+    _page = switch (painter) {
+      final painter? => painter.recordPage(
+        read,
+        page,
+        frostToLocal(origin, _devicePixelRatio),
+      ),
+      null when read.lead.look.page?.key == null => recordFrostedCopy(
+        page,
+        region,
+        origin,
+        frost: _frost!,
+        shader: _frostShader ??= newFrostShader(),
+        blendMode: _blendMode,
+      ),
+      null => recordFilteredCopy(page, region, origin),
+    };
+    markNeedsAddToScene();
+  }
+
+  @override
+  void showLive() => _showNothing();
+
+  @override
+  void addOutput(SceneOut out, ReadCopy outer) {
+    final fate = _fate;
+    if (fate is! Leads) return;
+    final read = fate.read;
+    if (read.source is ImageRead) {
+      if (_page case final page?) out.picture(page);
+      return;
+    }
+    final copy = read.output! as ReadCopy;
+    final corner = copy.readIn(copy.regionIn(outer, read.lead.clip));
+    final scene = corner == null ? null : _sceneOf(read, corner);
+    if (scene == null) return;
+    out.settle();
+    scene.corner.addToScene(
+      out.builder,
+      scene.filter,
+      frostToLocal(screenOrigin, _devicePixelRatio),
+      inPlace: scene.inPlace,
+    );
+  }
+
+  @override
+  bool get drawsOwnChildren => drawsGroup;
+
+  @override
+  bool get outputsInPlace => true;
+
+  @override
+  ReadPainter? get readPainter => null;
+
+  @override
+  void endFrame() {}
+
+  @override
+  void addToScene(ui.SceneBuilder builder) {
+    if (_scene case final scene?) {
+      scene.corner.addToScene(
+        builder,
+        scene.filter,
+        frostToLocal(screenOrigin, _devicePixelRatio),
+        inPlace: scene.inPlace,
+      );
+      if (!drawsGroup) addChildrenToScene(builder);
+      return;
+    }
+    if (_page case final page?) {
+      builder.addPicture(Offset.zero, page);
+      if (!drawsGroup) addChildrenToScene(builder);
       return;
     }
     if (confinesRead) {
@@ -528,38 +426,11 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   void dispose() {
     _frostShader?.dispose();
     _frostShader = null;
-    _served?.dispose();
-    _served = null;
-    _serving = null;
-    _inFrame?.copy.dispose();
-    _inFrame = null;
-    _sceneRead = null;
-    _underlay.release();
+    _page?.dispose();
+    _page = null;
+    _scene = null;
     super.dispose();
   }
-}
-
-final class _BandOffer extends BandOffer {
-  _BandOffer(
-    this.layer, {
-    required super.anchor,
-    required super.underlay,
-    required super.devicePixelRatio,
-    required super.drawn,
-    required super.reads,
-    required super.downscale,
-    required super.sigma,
-    required super.origin,
-    required super.paint,
-  });
-
-  final LiquidGlassBackdropFilterLayer layer;
-
-  @override
-  void askAlone() => layer._asked = layer._askCopy();
-
-  @override
-  void enter(FilterGroup group) => layer._group = group;
 }
 
 /// What a scroll edge paints over its frost, in its layer's coordinates, and
@@ -633,20 +504,9 @@ final class FrostBandPaint {
   final double brightness;
 }
 
-// The copy a frame draws in place of the backdrop read, the part of it the
-// clip shows and the shift to the screen, as [requestCopy] asked for it.
-typedef _Serving = ({
-  UnderlayCopy copy,
-  Rect shown,
-  Offset origin,
-  LiquidGlassBackdropFrost? frosting,
-});
-
-// A copy drawn in the frame that the frost is drawn from, the part of the
-// screen the clip shows and the shift to the screen.
-typedef _InFrame = ({
-  InFrameCopy copy,
-  Rect shown,
-  Offset origin,
-  LiquidGlassBackdropFrost frosting,
+// A frost or a group's glass drawn over a layer of the scene.
+typedef _Scene = ({
+  CornerRead corner,
+  ui.ImageFilter filter,
+  ui.ImageFilter? inPlace,
 });

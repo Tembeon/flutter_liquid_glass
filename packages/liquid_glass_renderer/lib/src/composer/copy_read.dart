@@ -1,7 +1,7 @@
 // Canvas setup reads as one statement per call, without cascades.
 // ignore_for_file: cascade_invocations
 
-part of 'backdrop_underlay.dart';
+part of 'read.dart';
 
 /// The pixel grid a copy is drawn on: one, two, four or eight device pixels of
 /// the screen along each side of each of its pixels, on a grid anchored at
@@ -32,7 +32,32 @@ final class CopyGrid {
   CopyGrid get _screen => _share == 1 ? this : CopyGrid._(_devicePixelRatio, 1);
 
   // [rect] (logical pixels) grown to whole pixels of the copy.
-  Rect _snapOut(Rect rect) => BackdropUnderlay._snapOut(rect, _pixels);
+  Rect _snapOut(Rect rect) => _snapOutAt(rect, _pixels);
+
+  // From the coordinates of a form's root to a copy of [rect], its top left
+  // at [origin]: one scale, and the layers' own transforms after it.
+  //
+  // Impeller sets text drawn at a translation and a scale alone on whole
+  // pixels of its target (impeller/entity/contents/text_contents.cc): text
+  // moving under glass would step a pixel of the copy, up to four of the
+  // screen's, at a time. Under a skew too small to see it lies where it is
+  // drawn, read from its atlas bilinearly.
+  Matrix4 _copyMatrix(Rect rect, Offset origin) {
+    final scale = 1 / _share;
+    final skew = _share > 1 && GlassCopies.debugPlaceText ? 1e-6 : 0.0;
+    final left = rect.left * _devicePixelRatio;
+    final top = rect.top * _devicePixelRatio;
+    final matrix = Matrix4.zero();
+    final storage = matrix.storage;
+    storage[0] = scale;
+    storage[1] = scale * skew;
+    storage[5] = scale;
+    storage[10] = 1;
+    storage[12] = origin.dx - scale * left;
+    storage[13] = origin.dy - scale * top - scale * skew * left;
+    storage[15] = 1;
+    return matrix;
+  }
 
   // The sigma, in device pixels, the shaders' taps frost a copy on this grid
   // by for Impeller's blur by [sigma] screen logical pixels. The copy's own
@@ -135,13 +160,13 @@ final class FrostSampling {
   final Rect shown;
 }
 
-/// The part [shown] (screen logical pixels) of an image copy that a
-/// surface paints from its image.
+/// The part [shown] (screen logical pixels) of a page that a surface paints
+/// from its image.
 @internal
-final class ImageRead {
-  ImageRead._(this._copy, this.shown);
+final class PagePart {
+  PagePart._(this._copy, this.shown);
 
-  final UnderlayCopy _copy;
+  final PageCopy _copy;
 
   /// The part painted, in the screen's logical pixels.
   final Rect shown;
@@ -183,7 +208,7 @@ final class ImageRead {
         offset.dx + _copy.rect.width * pixels - 0.5,
         offset.dy + _copy.rect.height * pixels - 0.5,
       ),
-      frost: grid._frost(frost) / grid._share,
+      frost: frost == _copy._heldFrost ? 0 : grid._frost(frost) / grid._share,
       scale: 1,
       // The rect drawn bounds the frost.
       shown: Rect.largest,
@@ -191,7 +216,7 @@ final class ImageRead {
   }
 }
 
-/// One layer of the screen's pixels holding an in-frame copy for the part
+/// One layer of the screen's pixels holding a read's copy for the part
 /// of it inside a region: the layer's top-left share holds the copy at its
 /// own pixels, and a filter on the layer sees fragments of the screen's
 /// pixels from the layer's corner. The only code that lays a copy out so.
@@ -208,7 +233,7 @@ final class CornerRead {
         (_cut.bottom * _copy._grid._pixels).ceilToDouble() * _copy._grid._share,
       );
 
-  final InFrameCopy _copy;
+  final ReadCopy _copy;
   // The part of the copy's layer read, in the screen's logical pixels.
   final Rect _cut;
   // The layer, in the screen's device pixels, on the copy's grid.
@@ -303,63 +328,10 @@ final class CornerRead {
     );
   }
 
-  /// Records the layer with [filter] as its image filter, in coordinates
-  /// [deviceToLocal] takes the screen's device pixels to, the copy passing
-  /// through [inPlace] first. A shader filter takes its shader's uniforms now.
-  ui.Picture record(
-    ui.ImageFilter filter,
-    Matrix4 deviceToLocal, {
-    ui.ImageFilter? inPlace,
-  }) {
-    final paint = Paint();
-    paint.imageFilter = filter;
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    canvas.transform(deviceToLocal.storage);
-    canvas.saveLayer(_device, paint);
-    // Impeller sizes a layer by what is drawn in it: a pixel cleared at each
-    // corner holds it to the layer where the copy is transparent.
-    final clear = Paint();
-    clear.blendMode = BlendMode.clear;
-    canvas.drawRect(Rect.fromLTWH(_device.left, _device.top, 1, 1), clear);
-    canvas.drawRect(
-      Rect.fromLTRB(
-        _device.right - 1,
-        _device.bottom - 1,
-        _device.right,
-        _device.bottom,
-      ),
-      clear,
-    );
-    final at = _at;
-    if (inPlace != null) {
-      final inner = Paint();
-      inner.imageFilter = inPlace;
-      final corner = _device.topLeft & _copySize;
-      canvas.saveLayer(corner, inner);
-      canvas.drawRect(Rect.fromLTWH(corner.left, corner.top, 1, 1), clear);
-      canvas.drawRect(
-        Rect.fromLTRB(
-          corner.right - 1,
-          corner.bottom - 1,
-          corner.right,
-          corner.bottom,
-        ),
-        clear,
-      );
-    }
-    canvas.translate(_device.left + at.dx, _device.top + at.dy);
-    canvas.drawPicture(_copy._content);
-    if (inPlace != null) canvas.restore();
-    canvas.restore();
-    return recorder.endRecording();
-  }
-
   /// Adds the layer to [builder] with [filter] as its image filter, in
-  /// coordinates [deviceToLocal] takes the screen's device pixels to: the
-  /// layers [record] draws, with nothing recorded. The copy passes through
-  /// [inPlace] first.
-  void addToScene(
+  /// coordinates [deviceToLocal] takes the screen's device pixels to. The
+  /// copy passes through [inPlace] first. Returns the outermost engine layer.
+  ui.TransformEngineLayer addToScene(
     ui.SceneBuilder builder,
     ui.ImageFilter filter,
     Matrix4 deviceToLocal, {
@@ -367,7 +339,7 @@ final class CornerRead {
     ui.ImageFilter? inPlace,
   }) {
     final at = _at;
-    builder.pushTransform(deviceToLocal.storage);
+    final engine = builder.pushTransform(deviceToLocal.storage);
     if (clip != null) builder.pushClipPath(clip, clipBehavior: Clip.hardEdge);
     builder.pushImageFilter(filter);
     builder.addPicture(_device.topLeft, _corners(_device.size));
@@ -384,6 +356,7 @@ final class CornerRead {
     builder.pop();
     if (clip != null) builder.pop();
     builder.pop();
+    return engine;
   }
 
   // A pixel cleared at each corner of a layer of [size], which holds Impeller
@@ -410,27 +383,4 @@ final class CornerRead {
     );
     return _cornersOf[size] = recorder.endRecording();
   }
-}
-
-/// A copy drawn at the screen's pixels together with glass whose own copy
-/// is not drawn yet, that the glass draws itself into as its filter: the
-/// filter's fragments are the copy's pixels, which are the screen's.
-@internal
-final class FoldTarget {
-  FoldTarget._(CopyGrid grid, this._rect, this._offset)
-    : _devicePixelRatio = grid._devicePixelRatio,
-      assert(grid._share == 1, 'Glass folds only into the screen pixels.');
-
-  final double _devicePixelRatio;
-  // The screen rect the copy holds, in logical pixels.
-  final Rect _rect;
-  // Where a fragment lies past the copy's pixel.
-  final Offset _offset;
-
-  /// How the final shader reads the copy as a filter inside it.
-  GlassSampling get glassSampling => GlassSampling._(
-    origin: _rect.topLeft * _devicePixelRatio - _offset,
-    reduced: 0,
-    holds: _rect,
-  );
 }

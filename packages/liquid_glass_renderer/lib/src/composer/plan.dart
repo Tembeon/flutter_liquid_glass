@@ -4,13 +4,6 @@ import 'dart:ui';
 import 'package:liquid_glass_renderer/src/internal/shader_frost.dart';
 import 'package:meta/meta.dart';
 
-/// A layer that can say what the frame's plan reads of it.
-@internal
-abstract interface class PlanSite {
-  /// Writes what the frame's plan reads of this site.
-  void fillPlanFacts(SiteFacts facts);
-}
-
 /// All [compile] needs of a frame. A form answers from a layer tree; a test
 /// answers from a generated scene, ten thousand scenes in seconds.
 @internal
@@ -147,8 +140,43 @@ enum NoJoin {
   /// Its shadows fade with their shape, cut outside a filter drawn later.
   fadingShadows,
 
-  /// It has no matte yet, or no offer was made.
-  noOffer,
+  /// It has no matte yet, or draws through no filter it could share.
+  noMatte,
+
+  /// Scaled, so its shapes lie in no matte the others share.
+  scaled,
+}
+
+/// What a read that can only come from an image does to it, past the plain
+/// copy glass frosts by itself.
+@internal
+final class PageFilter {
+  /// Creates the filter of a page.
+  const PageFilter({
+    this.filter,
+    this.blur,
+    this.clip,
+    this.blendMode = BlendMode.src,
+  });
+
+  /// A plain copy, which what reads it composites as it needs to.
+  static const PageFilter none = PageFilter();
+
+  /// A filter applied as a backdrop filter over the page.
+  final ImageFilter? filter;
+
+  /// A mirrored Gaussian blur by these sigmas in logical pixels, standing for
+  /// [filter].
+  final (double, double)? blur;
+
+  /// Where [filter] applies, the whole page when null, on the screen.
+  final Rect? clip;
+
+  /// How [filter]'s output composites over the page.
+  final BlendMode blendMode;
+
+  /// What pages under one filter share.
+  Object? get key => blur ?? filter;
 }
 
 /// What one filter's uniforms must share.
@@ -164,6 +192,7 @@ final class Look {
     this.devicePixelRatio = 1,
     this.tint,
     this.shapes = 1,
+    this.page,
   });
 
   /// No look: a site that draws nothing through a filter.
@@ -192,6 +221,10 @@ final class Look {
 
   /// How many shapes it adds to a shared matte.
   final int shapes;
+
+  /// What a read of this site that can only come from an image does to it,
+  /// or null for glass that frosts a copy by itself.
+  final PageFilter? page;
 
   /// Whether a shader's written-out taps stay smooth drawing this band for
   /// [glass] over one copy: past 2.8 of the copy's pixels they speckle, by the
@@ -244,6 +277,12 @@ final class SiteFacts {
 
   /// Whether a read of it must stay live: it is turned or skewed.
   bool turned = false;
+
+  /// Changes when what it paints changes in place.
+  Object? stamp;
+
+  /// Its index in the frame's sites and in [Plan.fates].
+  int index = 0;
 }
 
 /// Where a read's backdrop comes from.
@@ -315,6 +354,19 @@ final class Read {
 
   /// Zero over pictures alone, else one more than the highest read it holds.
   int level = 0;
+
+  /// The widest frost left out of it under glass that frosts as wide, which
+  /// the glass adds to its own, in logical pixels.
+  double frostLeftOut = 0;
+
+  /// The room of an image bought or held this frame, on the screen.
+  Rect? imageRect;
+
+  /// The frost of the glass that reads it, in logical pixels.
+  double get frost => lead.look.isBand ? 0 : lead.look.frost;
+
+  /// What the frame's emit keeps of the read.
+  Object? output;
 
   /// Whether what it holds differs from the last frame.
   bool changed = false;
@@ -417,6 +469,10 @@ final class ReadMemo {
   /// The frame this memo was last used, to forget leads that left.
   int seenAt = 0;
 
+  /// The leads of the reads its image holds, and its grid.
+  List<Object> holds = const [];
+  int downscale = 1;
+
   /// Where its band was a frame ago, to see how fast it moves.
   Rect? lastBand;
 }
@@ -495,7 +551,16 @@ final class Policy {
     this.maxTargets = 8,
     this.maxShapes = 16,
     this.bands = true,
+    this.copies = true,
+    this.dropsFrost = true,
   });
+
+  /// Whether a band under glass that frosts as wide stays out of what the
+  /// glass reads, the glass adding its frost to its own.
+  final bool dropsFrost;
+
+  /// Whether a read may come from anything but the live backdrop.
+  final bool copies;
 
   /// Whether glass may draw a scroll edge under it in its own filter.
   final bool bands;
@@ -586,6 +651,7 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
   if (read.lead.noJoin case final reason?) {
     return 'its lead never joins: ${reason.name}';
   }
+  if (read.lead.look.page != null) return 'its lead reads a page';
   if (read.source is LiveRead) return 'its lead reads live';
   if (read.lead.order < site.floor) return 'painted over after its lead';
   if (!site.state.same(read.lead.state)) return 'other clip, alpha or filter';
@@ -616,16 +682,27 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
   final notes = <String>[];
   final reads = <Read>[];
   final fates = <Fate>[];
-  for (final site in scene.sites) {
-    if (site.hidden) {
+  final screen = scene.screen;
+  final sites = scene.sites;
+  for (var at = 0; at < sites.length; at++) {
+    final site = sites[at];
+    site.index = at;
+    if (site.hidden ||
+        !site.drawn.overlaps(screen) ||
+        (site.clip != null && !site.clip!.overlaps(site.drawn))) {
       fates.add(const Hidden());
       continue;
     }
-    final limit = site.turned ? ReadLimit.liveOnly : scene.limitUnder(site);
+    final limit = _limitOf(site, reads, scene, policy);
+    final pageOnly = site.look.page != null;
     Read? joined;
-    if (site.noJoin != null || site.turned) {
+    if (site.noJoin != null ||
+        site.turned ||
+        pageOnly ||
+        limit == ReadLimit.liveOnly) {
       if (explain) {
-        notes.add('${site.id}: never joins: ${site.noJoin?.name ?? 'turned'}');
+        final why = site.noJoin?.name ?? (site.turned ? 'turned' : 'live');
+        notes.add('${site.id}: never joins: $why');
       }
     } else {
       for (var i = reads.length - 1; i >= 0; i--) {
@@ -641,6 +718,7 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
         if (read.lead.noJoin == null &&
             (policy.bands || !band) &&
             read.source is! LiveRead &&
+            read.lead.look.page == null &&
             read.lead.order >= site.floor &&
             site.state.same(read.lead.state) &&
             _insideClips(read, site) &&
@@ -674,13 +752,22 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
 
   for (var i = 0; i < reads.length; i++) {
     final read = reads[i];
+    if (read.source is LiveRead) continue;
     for (var j = 0; j < i; j++) {
       final below = reads[j];
-      if (below.source is LiveRead && read.source is! LiveRead) continue;
-      if (below.members.any((m) => m.drawn.overlaps(read.band))) {
-        read.holds.add(below);
-        read.level = math.max(read.level, below.level + 1);
+      if (below.source is LiveRead || !_under(below, read)) continue;
+      if (policy.dropsFrost &&
+          below.lead.look.isBand &&
+          below.members.length == 1 &&
+          read.frost > 0 &&
+          below.lead.look.frost <= read.frost) {
+        read.frostLeftOut = math.max(read.frostLeftOut, below.lead.look.frost);
+        continue;
       }
+      // A copy of few pixels leaves glass out: its frost hides it.
+      if (read.downscale >= 4) continue;
+      read.holds.add(below);
+      read.level = math.max(read.level, below.level + 1);
     }
   }
 
@@ -696,8 +783,13 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
     final next = ReadMemo();
     next.seenAt = frame;
     next.lastBand = read.band;
+    next.downscale = read.downscale;
+    final holds = [for (final held in read.holds) held.lead.id];
+    next.holds = holds;
+    var imageRect = memo?.imageRect;
+    final watched = imageRect ?? read.band;
     final changed =
-        scene.dirty.meets(read.lead.order, read.band) ||
+        scene.dirty.meets(read.lead.order, watched) ||
         read.holds.any((held) => held.changed);
     read.changed = changed;
     next.changedAt = changed
@@ -705,25 +797,34 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
         : memo?.changedAt ?? scene.lastChangedUnder(read.lead.order, read.band);
     next.misses = memo?.misses ?? 0;
     final rent = prices.rent(read.band, read.downscale);
-    var imageRect = memo?.imageRect;
     var boughtAt = memo?.boughtAt;
-    if (imageRect != null && (changed || !_contains(imageRect, read.band))) {
+    if (imageRect != null &&
+        (changed ||
+            !_contains(imageRect, read.band) ||
+            memo!.downscale != read.downscale ||
+            !_sameIds(memo.holds, holds))) {
       // A hold that ended before it paid makes the next wait longer.
       final held = frame - boughtAt!;
       next.misses = held < rent ? math.min(next.misses + 1, 6) : 0;
       imageRect = null;
       boughtAt = null;
     }
+    final pageOnly = read.lead.look.page != null;
     final need = rent << next.misses;
-    final allowed = scene.limitUnder(read.lead) == ReadLimit.none;
+    final allowed =
+        policy.copies && scene.limitUnder(read.lead) == ReadLimit.none;
     if (imageRect != null) {
       read.source = const ImageRead(held: true);
-    } else if (allowed && !changed && frame - next.changedAt >= need) {
+    } else if (allowed &&
+        (pageOnly || (!changed && frame - next.changedAt >= need))) {
       read.source = const ImageRead(held: false);
       newImages++;
-      imageRect = _withRoom(read, memo, rent, scene.screen);
+      imageRect = _withRoom(read, memo, rent, screen);
       boughtAt = frame;
+    } else if (pageOnly) {
+      read.source = const LiveRead();
     }
+    read.imageRect = imageRect;
     next.imageRect = imageRect;
     next.boughtAt = boughtAt;
     edits.writes[id] = next;
@@ -744,6 +845,9 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
         continue;
       }
       read.source = const ImageRead(held: false);
+      read.imageRect = read.band;
+      edits.writes[read.lead.id]?.imageRect = read.band;
+      edits.writes[read.lead.id]?.boughtAt = frame;
       newImages++;
       issued = targets();
       if (explain) notes.add('${read.lead.id}: over budget, reads an image');
@@ -764,12 +868,52 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
   );
 }
 
+// What the content and the glass under [site] allow a read of it to be. A
+// read over a live read has to read live too: only the frame's own pass holds
+// what that one drew.
+ReadLimit _limitOf(
+  SiteFacts site,
+  List<Read> reads,
+  Scenery scene,
+  Policy policy,
+) {
+  if (site.turned || !policy.copies) return ReadLimit.liveOnly;
+  for (final read in reads) {
+    if (read.source is! LiveRead) continue;
+    for (final member in read.members) {
+      if (member.drawn.overlaps(site.reads)) return ReadLimit.liveOnly;
+    }
+  }
+  return scene.limitUnder(site);
+}
+
+// Whether [below]'s glass lies under [read]'s rather than beside it: glass
+// beside it stays out of what it reads, NEAR: it does not show a neighbour in
+// what it reads at its rim.
+bool _under(Read below, Read read) {
+  for (final held in below.members) {
+    for (final member in read.members) {
+      if (held.drawn.overlaps(member.drawn)) return true;
+    }
+  }
+  return false;
+}
+
+bool _sameIds(List<Object> a, List<Object> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (!identical(a[i], b[i])) return false;
+  }
+  return true;
+}
+
 // An image takes room for glass that moves in it: what the band moved in a
 // frame times the frames the image has to hold to pay, at least twice the
 // room that last ran out.
 Rect _withRoom(Read read, ReadMemo? memo, int rent, Rect screen) {
   final last = memo?.lastBand;
   var room = 0.0;
+  if (read.changed || read.lead.look.page?.clip != null) return read.band;
   if (last != null) {
     final moved = math.max(
       (last.left - read.band.left).abs(),

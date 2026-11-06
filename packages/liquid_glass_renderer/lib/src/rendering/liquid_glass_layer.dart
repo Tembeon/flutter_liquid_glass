@@ -10,11 +10,13 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
+import 'package:liquid_glass_renderer/src/composer/scene_out.dart';
 import 'package:liquid_glass_renderer/src/internal/ancestor_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/filter_pass_transform.dart';
 import 'package:liquid_glass_renderer/src/internal/final_shader_variant.dart';
@@ -549,7 +551,8 @@ class LiquidGlassLayerFrame {
 /// final shader filter over it.
 @internal
 class RenderLiquidGlassLayer extends LiquidGlassRenderObject
-    with TransformTrackingRenderObjectMixin {
+    with TransformTrackingRenderObjectMixin
+    implements ReadPainter {
   RenderLiquidGlassLayer({
     required this.finalShaders,
     required super.devicePixelRatio,
@@ -954,9 +957,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   bool debugDrewOverUnderlay = false;
 
-  /// The copy of what lies under the glass.
+  /// The page this glass reads in the last composited frame, if it reads one.
   @visibleForTesting
-  BackdropUnderlay get debugUnderlay => _rig.underlay;
+  PageCopy? debugPage;
+
+  /// What the last plan has this glass do.
+  @visibleForTesting
+  Fate? get debugFate => _fate;
 
   /// See [LiquidGlassLayer.glow].
   LiquidGlassGlow? get glow => _glow;
@@ -1649,11 +1656,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   ImageFilter? _cachedShaderFilter;
   double? _filterFrostSigma;
 
-  // Counts the filters [_updateShaderFilter] made. A key holds this rather
-  // than the filter: comparing shader filters makes dart:ui convert both to
-  // native filters.
-  int _filterGeneration = 0;
-
   // Hands the filter to its layer. A seeded pass may take the blur over and
   // keep only the shader (see SeededBackdropPassLayer.bindFilter): the shader
   // inputs it sees are the same either way, because the blurred pass is what
@@ -1683,7 +1685,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _cachedFilter = filter;
     _cachedShaderFilter = shader;
     _filterFrostSigma = frostSigma;
-    _filterGeneration++;
     return filter;
   }
 
@@ -1744,7 +1745,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // paint directly in this layer.
     _rig.usesPass = seedsBackdrop && _passReach > 0;
     final filterBounds = _syncMaterialFilter(materialBounds, offset);
-    final copies = BackdropUnderlay.enabled && !drawableEmpty;
+    final copies = GlassCopies.enabled && !drawableEmpty;
     // Only glass over its copy can cover the shadows (see _placeShadows).
     if (!copies) shadowsUnderGlass = false;
 
@@ -1760,7 +1761,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
     // The live filter, or the glass painted over a copy of what lies under
     // it: compositing picks one per frame.
-    _rig.paintSite(context, offset, copies: copies, live: paintLive);
+    _rig.paintSite(
+      context,
+      offset,
+      site: copies ? layer : null,
+      live: paintLive,
+    );
   }
 
   // Over a solid backdrop the glass is a rect painted with the final shader.
@@ -1826,42 +1832,29 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   bool get repaintsOnMove => !hasReusableGeometry && !hasReusableIdleContents;
 
   @override
-  void onPreparing() {
-    runCompositorPoll();
-    onResting();
-  }
+  void onPreparing() => runCompositorPoll();
 
+  // Nothing around it changed: what it read of its place holds.
   @override
-  void onResting() {
-    _group = null;
-    _offer = _rig.hasSlot ? _offerToGroup() : null;
-    _asked = _rig.hasSlot && _offer == null ? _askUnderlay() : null;
-  }
+  void onResting() {}
 
   // A pass that changes size counts the frames it holds still in the poll, and
   // glass drawn analytically counts its way back to a matte there.
   @override
   bool get mayRest => !_rig.passResizing && !_analytic;
 
+  // This frame's place on the screen: the glass's transform to the screen, the
+  // logical rect the shader draws, the material it paints there and the sigma
+  // of the blur, in the screen's logical pixels, the shader frosts the copy
+  // for, 0 where the copy is blurred or the glass unfrosted.
+  ({Matrix4 screen, Rect logical, Rect drawn, double frost})? _frame;
+
   @override
   void fillPlanFacts(SiteFacts facts) {
+    _frame = null;
     facts.hidden = false;
     facts.turned = false;
-    final offer = _offer;
-    if (offer != null) {
-      facts.drawn = offer.drawn;
-      facts.reads = offer.reads;
-      facts.noJoin = null;
-      facts.look = Look(
-        key: offer.key,
-        frost: offer.frost,
-        downscale: offer.downscale,
-        drawsBand: offer.drawsBand,
-        tint: offer.tint,
-        shapes: offer.shapes,
-      );
-      return;
-    }
+    facts.look = Look.none;
     facts.noJoin = _analytic
         ? NoJoin.analytic
         : _field != null || _usesShapeAppearances
@@ -1872,8 +1865,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         ? NoJoin.shrink
         : glassShadowsFade
         ? NoJoin.fadingShadows
-        : NoJoin.noOffer;
-    facts.look = Look.none;
+        : _shapeData.isEmpty || _geometryImage == null
+        ? NoJoin.noMatte
+        : null;
     final bounds = _filterMaterialBounds;
     if (!_rig.hasSlot || bounds == null || drawableEmpty) {
       facts.hidden = true;
@@ -1886,18 +1880,101 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       devicePixelRatio: dpr,
       translation: compositorTranslation,
     );
+    // The copy is taken in screen space: glass that is turned reads the
+    // backdrop. A scale along the axes scales the filter's blur and reach on
+    // the screen, along each axis on its own, as Impeller scales the live
+    // filter's blur. Impeller blurs a scaled canvas with other taps than the
+    // same blur unscaled: NEAR, at most 5 channel levels apart in the host
+    // test of glass scaled 1.2 under 8 px of frost, and only while the glass
+    // is scaled.
     final storage = screen.storage;
-    facts.turned = storage[1].abs() > 1e-6 || storage[4].abs() > 1e-6;
-    facts.drawn = MatrixUtils.transformRect(screen, bounds);
-    facts.reads = facts.drawn.inflate(backdropSamplingReach(bounds) + 1);
+    final scaleX = storage[0];
+    final scaleY = storage[5];
+    // What the shader paints: the material, not the rect it is drawn in.
+    final drawn = MatrixUtils.transformRect(screen, bounds);
+    facts.drawn = drawn;
+    facts.reads = drawn.inflate(
+      (backdropSamplingReach(bounds) + 1) * max(scaleX.abs(), scaleY.abs()),
+    );
+    if (scaleX <= 0 ||
+        scaleY <= 0 ||
+        storage[1].abs() > 1e-6 ||
+        storage[4].abs() > 1e-6) {
+      facts.turned = true;
+      return;
+    }
+    if ((scaleX - 1).abs() > 1e-6 || (scaleY - 1).abs() > 1e-6) {
+      facts.noJoin ??= NoJoin.scaled;
+    }
+    final logical = MatrixUtils.transformRect(
+      screen,
+      bounds.expandToPixelBuckets(dpr),
+    );
+    final sigma = _frostSigmaForCurrentShapes();
+    final frostX = sigma * scaleX;
+    final frostY = sigma * scaleY;
+    // Frost the final shader can draw is drawn there, over an unblurred
+    // copy: the copy's blur passes become its taps. The shader frosts round,
+    // so glass stretched past 5 % keeps the copy's blur, which follows each
+    // axis.
+    final round = sigma * sqrt(scaleX * scaleY);
+    final frosted =
+        sigma > 0 && _frostsCopies && (scaleX / scaleY - 1).abs() <= 0.05
+        ? shaderFrostDownscale(round * dpr, minTexels: debugFrostMinTexels)
+        : null;
+    var downscale = frosted ?? 1;
+    final frost = frosted == null ? 0.0 : round;
+    if (frosted == null) {
+      // A copy blurred by at least [_copySigma] of its own pixels is drawn
+      // as the blur leaves it at a fraction of the screen's pixels: sampled
+      // back up, it adds a tent of its pixel's width to a blur many times
+      // wider.
+      while (downscale * 2 <= debugMaxCopyDownscale &&
+          min(frostX, frostY) * dpr / (downscale * 2) >= _copySigma) {
+        downscale *= 2;
+      }
+    }
+    final appearance = _uniformAppearance ?? defaultAppearance;
+    _frame = (screen: screen, logical: logical, drawn: drawn, frost: frost);
+    facts.stamp = _shaderInputsRevision;
+    facts.look = Look(
+      key: (
+        settings,
+        appearance.colorModel,
+        appearance.visibility,
+        dpr,
+        _matteScale,
+        frost,
+        downscale,
+        _colorModelFamily,
+        // The shader's bevel asks how large a surface is only between these
+        // sizes.
+        (_halfMinor.clamp(
+                  GlassRim.bevelShadowDepth * dpr * 3.5,
+                  GlassRim.bevelShadowDepth * dpr * 5,
+                ) *
+                64)
+            .round(),
+      ),
+      frost: frost,
+      downscale: downscale,
+      drawsBand:
+          frost > 0 && _frostsCopies && _colorModelFamily == FinalShaderModels.ios27,
+      tint: appearance.tint,
+      shapes: _shapeData.length ~/ 12,
+      devicePixelRatio: dpr,
+      page: sigma > 0 && frosted == null
+          ? PageFilter(blur: (frostX, frostY))
+          : null,
+    );
   }
 
   // Whether the shader draws a group whose matte holds its tints.
   bool _groupTints = false;
 
-  // This frame's offer to share a filter, and the group that took it.
-  _GlassOffer? _offer;
-  FilterGroup? _group;
+  // This frame's fate.
+  Fate _fate = const Hidden();
+
   // Whether the shader is set up to draw a group.
   bool _inGroup = false;
   bool _drawsBand = false;
@@ -1911,106 +1988,52 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // Moves [_shapeData] and the bounds took since they were encoded.
   Offset _encodedShift = Offset.zero;
 
-  // Glass whose shader a group's other glass can share: over one matte, one
-  // set of uniforms and a copy read in screen space. Shadows that fade with
-  // their shape stay cut outside it, which a filter drawn earlier in paint
-  // order cannot keep under it.
-  _GlassOffer? _offerToGroup() {
-    final bounds = _filterMaterialBounds;
-    final anchor = layer;
-    final view = anchor?.owner;
-    if (bounds == null ||
-        anchor == null ||
-        view is! RenderView ||
-        drawableEmpty ||
-        _analytic ||
-        _field != null ||
-        _usesShapeAppearances ||
-        _glow != null ||
-        _shapeData.isEmpty ||
-        _geometryImage == null ||
-        settings.effectiveBackdropShrink != 0 ||
-        glassShadowsFade) {
-      return null;
-    }
-    final frame = GlassComposer.planning(view);
-    if (frame == null || !frame.groups) return null;
-    final dpr = devicePixelRatio;
-    final screen = filterPassTransform(
-      this,
-      seeding: false,
-      devicePixelRatio: dpr,
-      translation: compositorTranslation,
-    );
-    final storage = screen.storage;
-    if ((storage[0] - 1).abs() > 1e-6 ||
-        (storage[5] - 1).abs() > 1e-6 ||
-        storage[1].abs() > 1e-6 ||
-        storage[4].abs() > 1e-6) {
-      return null;
-    }
-    final sigma = _frostSigmaForCurrentShapes();
-    if (sigma > 0 && !_frostsCopies) return null;
-    final downscale = sigma > 0
-        ? shaderFrostDownscale(sigma * dpr, minTexels: debugFrostMinTexels)
-        : 1;
-    if (downscale == null) return null;
-    final drawn = MatrixUtils.transformRect(screen, bounds);
-    final appearance = _uniformAppearance ?? defaultAppearance;
-    final offer = _GlassOffer(
-      this,
-      screen,
-      anchor: anchor,
-      own: paintLayer,
-      underlay: _rig.underlay,
-      devicePixelRatio: dpr,
-      drawn: drawn,
-      reads: drawn.inflate(backdropSamplingReach(bounds) + 1),
-      downscale: downscale,
-      frost: sigma,
-      drawsBand:
-          sigma > 0 &&
-          _frostsCopies &&
-          _colorModelFamily == FinalShaderModels.ios27,
-      tint: appearance.tint,
-      shapes: _shapeData.length ~/ 12,
-      key: (
-        settings,
-        appearance.colorModel,
-        appearance.visibility,
-        dpr,
-        _matteScale,
-        sigma,
-        downscale,
-        _colorModelFamily,
-        // The shader's bevel asks how large a surface is only between these
-        // sizes.
-        (_halfMinor.clamp(
-                  GlassRim.bevelShadowDepth * dpr * 3.5,
-                  GlassRim.bevelShadowDepth * dpr * 5,
-                ) *
-                64)
-            .round(),
-      ),
-    );
-    frame.offer(offer);
-    return offer;
-  }
-
   double get _halfMinor =>
       _geometryMatteBounds.shortestSide * devicePixelRatio / 2;
 
-  // Sets the shader up to draw [group], over a matte of all its glass unless
-  // it has only this.
-  bool _beginGroup(FilterGroup group) {
-    final glass = group.glass;
+  // Where the origin of the canvas the glass paints in lies on the screen.
+  Offset get _canvasOnScreen {
+    final storage = _frame!.screen.storage;
+    return Offset(storage[12], storage[13]) - _filterPaintOffset;
+  }
+
+  // Where the origin of the encoded shapes lies on the screen, in device
+  // pixels.
+  Offset get _shapesOnScreen {
+    final storage = _frame!.screen.storage;
+    return (Offset(storage[12], storage[13]) + _encodedShift) *
+        devicePixelRatio;
+  }
+
+  static RenderLiquidGlassLayer _glassOf(SiteFacts facts) =>
+      (facts.id as GeometryTransformTrackingLayer).trackedSite!
+          as RenderLiquidGlassLayer;
+
+  // The glass of [read], its band left out.
+  static List<RenderLiquidGlassLayer> _glassIn(Read read) => [
+    for (final member in read.members)
+      if (!member.look.isBand) _glassOf(member),
+  ];
+
+  static LiquidGlassBackdropFilterLayer? _bandOf(Read read) =>
+      read.lead.look.isBand
+      ? read.lead.id as LiquidGlassBackdropFilterLayer
+      : null;
+
+  // Sets the shader up to draw [read], over a matte of all its glass unless it
+  // has only this.
+  void _beginRead(Read read) {
+    final glass = _glassIn(read);
+    final band = _bandOf(read) != null;
+    if (glass.length == 1 && !band) {
+      _endGroup();
+      return;
+    }
     if (glass.length > 1) {
-      final matte = _groupMatte ??= _GroupMatte.tryCreate();
-      if (matte == null) return false;
+      final matte = _groupMatte ??= _GroupMatte.tryCreate()!;
       matte.gather(glass);
     }
     _inGroup = true;
-    final band = group.band != null;
     final tints = glass.length > 1 && _groupMatte!.tints != null;
     final rebind = band != _drawsBand || tints != _groupTints;
     _drawsBand = band;
@@ -2037,7 +2060,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         when rebind || !identical(_boundGeometryImage, image)) {
       _bindGeometryShader(image);
     }
-    return true;
   }
 
   void _endGroup() {
@@ -2052,38 +2074,38 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
   }
 
-  // What frosts [read]'s copy for [group], or null where its glass does. A band
-  // adds to that frost what it still lacks, so it can't take less of it.
-  ImageFilter? _groupInPlace(
-    FilterGroup group,
-    _GlassOffer offer,
-    CornerRead read,
-  ) {
-    final band = group.band;
-    if (band != null && band.sigma < offer.frost) return null;
-    return inPlaceFrostFilter(read, offer.frost);
+  // A band adds to the frost what it still lacks, so it can't take less of it.
+  @override
+  ImageFilter? readInPlace(Read read, CornerRead corner) {
+    final frost = _frame!.frost;
+    final band = _bandOf(read);
+    if (band != null && band.frost!.sigma < frost) return null;
+    return inPlaceFrostFilter(corner, frost);
   }
 
-  // The filter that draws [group] over [read].
-  ImageFilter _groupFilter(
-    FilterGroup group,
-    _GlassOffer offer,
-    CornerRead read,
-    ImageFilter? inPlace,
-  ) {
-    final sampling = read.glassSampling(inPlace == null ? offer.frost : 0);
-    final matte = group.glass.length > 1 ? _groupMatte : null;
+  // From the screen's device pixels into the matte [read] is drawn over, and
+  // what its shader samples of the backdrop there.
+  (Matrix4, Rect?) _readMapping(Read read) {
+    final matte = _glassIn(read).length > 1 ? _groupMatte : null;
     final origin = matte?.origin;
-    final globalToMatte = origin == null
-        ? Matrix4.inverted(offer.screen)
-        : Matrix4.translationValues(-origin.dx, -origin.dy, 0);
-    final backdropBounds = origin == null
-        ? _backdropBounds
-        : group.reads.shift(-origin);
-    final band = group.band;
+    return origin == null
+        ? (Matrix4.inverted(_frame!.screen), _backdropBounds)
+        : (
+            Matrix4.translationValues(-origin.dx, -origin.dy, 0),
+            read.band.shift(-origin),
+          );
+  }
+
+  @override
+  ImageFilter readFilter(Read read, CornerRead corner, ImageFilter? inPlace) {
+    final frost = _frame!.frost;
+    final sampling = corner.glassSampling(inPlace == null ? frost : 0);
+    final (globalToMatte, backdropBounds) = _readMapping(read);
+    final band = _bandOf(read);
     final shown = band == null
         ? null
-        : read.frostSampling(band.drawn, band.sigma)?.shown ?? Rect.zero;
+        : corner.frostSampling(band.shown, band.frost!.sigma)?.shown ??
+              Rect.zero;
     final shader = renderShader;
     final key = (
       shader,
@@ -2095,8 +2117,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       globalToMatte,
       backdropBounds,
       shown,
-      band?.paint,
-      band?.origin,
+      band?.bandPaint,
+      band?.screenOrigin,
     );
     if (key == _inSceneFilterKey) return _inSceneFilter!;
     _inSceneFilterKey = key;
@@ -2104,10 +2126,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _writeBand(
         shader,
         band,
-        read,
-        sampling,
+        sampling.origin.dy,
         shown!,
-        inPlace == null ? 0 : read.glassSampling(offer.frost).frost,
+        corner.glassSampling(band.frost!.sigma).frost,
+        inPlace == null ? 0 : corner.glassSampling(frost).frost,
       );
     }
     try {
@@ -2122,28 +2144,89 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
   }
 
-  // uBand, with the rows of the band's fade and hairline in the fragment
-  // coordinates of [sampling], and what lies under the glass over the band:
-  // its fade, laid over what it reads.
+  @override
+  Object readRevision(Read read) => (
+    _shaderInputsRevision,
+    _bandOf(read)?.bandPaint,
+    _bandOf(read)?.screenOrigin,
+    _frame!.frost,
+    read.quad,
+    read.band,
+    _groupMatte?.origin,
+  );
+
+  @override
+  ui.Picture recordPage(Read read, PageCopy page, Matrix4 screenToCanvas) {
+    final frost = _frame!.frost;
+    final sampling = page.glassSampling(frost);
+    final (globalToMatte, backdropBounds) = _readMapping(read);
+    final band = _bandOf(read);
+    final shader = renderShader;
+    if (band != null) {
+      _writeBand(
+        shader,
+        band,
+        sampling.origin.dy,
+        page.fragmentsOf(band.shown),
+        page.frostOf(band.frost!.sigma),
+        0,
+      );
+    }
+    final dpr = devicePixelRatio;
+    final glass = _glassIn(read);
+    final logical = glass.length == 1
+        ? _frame!.logical
+        : read.quad.expandToPixelBuckets(dpr);
+    final device = Rect.fromLTRB(
+      logical.left * dpr,
+      logical.top * dpr,
+      logical.right * dpr,
+      logical.bottom * dpr,
+    );
+    try {
+      return _readingCopy<ui.Picture>(
+        sampling,
+        globalToMatte: globalToMatte,
+        backdropBounds: backdropBounds,
+        draw: (shader) {
+          final recorder = ui.PictureRecorder();
+          final canvas = Canvas(recorder);
+          canvas.transform(screenToCanvas.storage);
+          final paint = Paint();
+          paint.shader = shader;
+          // The filter's clip cuts its output with a hard edge.
+          paint.isAntiAlias = false;
+          canvas.drawRect(device, paint);
+          return recorder.endRecording();
+        },
+      );
+    } finally {
+      if (band != null) shader.setFloat(_FinalUniforms.overlay + 3, 0);
+    }
+  }
+
+  // uBand, with the rows of the band's fade and hairline in fragment
+  // coordinates that start at the screen's device row [top], the frost
+  // [whole] of the band, of which [frosted] is there already, and what lies
+  // under the glass over the band: its fade, laid over what it reads.
   void _writeBand(
     FragmentShader shader,
-    BandOffer band,
-    CornerRead read,
-    GlassSampling sampling,
+    LiquidGlassBackdropFilterLayer band,
+    double top,
     Rect shown,
+    double whole,
     double frosted,
   ) {
-    final paint = band.paint;
+    final paint = band.bandPaint!;
     final dpr = band.devicePixelRatio;
-    final top = sampling.origin.dy;
-    double row(double y) => (y + band.origin.dy) * dpr - top;
+    final origin = band.screenOrigin;
+    double row(double y) => (y + origin.dy) * dpr - top;
     var i = _FinalUniforms.band;
     void put(double value) => shader.setFloat(i++, value);
     put(shown.left);
     put(shown.top);
     put(shown.right);
     put(shown.bottom);
-    final whole = read.glassSampling(band.sigma).frost;
     put(sqrt(max(whole * whole - frosted * frosted, 0)));
     put(row(paint.whole));
     put(row(paint.gone));
@@ -2168,11 +2251,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     shader.setFloat(_FinalUniforms.overlay + 3, alpha);
   }
 
-  // This glass leads [group] without a band: a layer in its slot draws the
-  // filter, over the shadows of all.
-  void _showGroup(FilterGroup group, _GlassOffer lead, InFrameCopy copy) {
-    final dpr = devicePixelRatio;
-    final canvasToScreen = lead.screen.clone();
+  // From the screen's device pixels to the canvas the glass paints in.
+  Matrix4 _screenToCanvas() {
+    final canvasToScreen = _frame!.screen.clone();
     canvasToScreen.multiply(
       Matrix4.translationValues(
         -_filterPaintOffset.dx,
@@ -2181,38 +2262,213 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       ),
     );
     final screenToCanvas = Matrix4.tryInvert(canvasToScreen)!;
-    screenToCanvas.multiply(Matrix4.diagonal3Values(1 / dpr, 1 / dpr, 1));
-    final all = group.drawn;
-    final shadows = <(ui.Picture, Offset)>[
-      for (final offer in group.glass.cast<_GlassOffer>())
-        if (!identical(offer, lead))
-          if (offer.glass._shadowUnderGroup() case final picture?)
-            (picture, offer.canvasOnScreen - lead.canvasOnScreen),
+    screenToCanvas.multiply(
+      Matrix4.diagonal3Values(1 / devicePixelRatio, 1 / devicePixelRatio, 1),
+    );
+    return screenToCanvas;
+  }
+
+  // The shadows of the other glass [read] draws, where they lie in this glass's
+  // canvas: under its filter, which covers them inside their silhouettes.
+  List<(ui.Picture, Offset)> _shadowsOfOthers(Read read) {
+    if (_bandOf(read) != null) return const [];
+    return [
+      for (final glass in _glassIn(read))
+        if (!identical(glass, this))
+          if (glass._shadowUnderRead() case final picture?)
+            (picture, glass._canvasOnScreen - _canvasOnScreen),
     ];
-    final picture = InFrameGlassLayer(
-      MatrixUtils.transformRect(
-        screenToCanvas,
-        Rect.fromLTRB(
-          all.left * dpr,
-          all.top * dpr,
-          all.right * dpr,
-          all.bottom * dpr,
-        ),
-      ).inflate(1),
-      copy,
-      (region) {
-        final read = copy.readIn(region);
-        if (read == null) return null;
-        final inPlace = _groupInPlace(group, lead, read);
-        final body = read.record(
-          _groupFilter(group, lead, read, inPlace),
-          screenToCanvas,
-          inPlace: inPlace,
-        );
-        if (shadows.isEmpty) return body;
+  }
+
+  ui.Picture? _shadowUnderRead() {
+    _placeShadows(under: true);
+    return glassShadowPicture?.picture;
+  }
+
+  // The hard edge around glass far apart, in the screen's device pixels, or
+  // null where it fills most of [layer], the filter's layer on the screen: it
+  // rejects the pixels of the layer no glass paints, which saved 0.6 ms of GPU
+  // time over twelve buttons on the Pixel 6a.
+  //
+  // A pixel at two corners keeps the edge's bounds at the layer's: Impeller
+  // cuts a layer a clip cuts by 30 % or more, and the fragment coordinates the
+  // glass reads start at the cut (see [GlassCopies.keepsWhole]).
+  ui.Path? _clipIn(Read read, Rect layer) {
+    if (read.members.length < 2 || _bandOf(read) != null) return null;
+    double area(Rect rect) => rect.width * rect.height;
+    var sum = 0.0;
+    for (final member in read.members) {
+      sum += area(member.drawn);
+    }
+    if (area(read.quad) <= sum * 1.3) return null;
+    final dpr = devicePixelRatio;
+    final path = ui.Path();
+    void add(Rect rect) => path.addRect(
+      Rect.fromLTRB(
+        rect.left * dpr,
+        rect.top * dpr,
+        rect.right * dpr,
+        rect.bottom * dpr,
+      ),
+    );
+    for (final member in read.members) {
+      add(member.drawn.inflate(2 / dpr));
+    }
+    add(layer.topLeft & Size.square(1 / dpr));
+    add(
+      Rect.fromPoints(
+        layer.bottomRight - Offset(1 / dpr, 1 / dpr),
+        layer.bottomRight,
+      ),
+    );
+    return path;
+  }
+
+  @override
+  void beginFate(Fate fate) {
+    _fate = fate;
+    debugPage = null;
+    if (!_rig.hasSlot) {
+      _endGroup();
+      _placeShadows(under: false);
+      return;
+    }
+    switch (fate) {
+      case Hidden():
+        _endGroup();
+        compositionSeedSuppressed = true;
+        debugDrewOverUnderlay = false;
+        _rig.hide();
+        _placeShadows(under: false);
+      case Leads(:final read) when read.source is LiveRead:
+        // Set up here too: a read drawn over a copy above this one holds what
+        // this frame's fates decided.
+        _endGroup();
+      case Leads(:final read):
+        // Glass over its copy reads no backdrop: an opacity pass around it
+        // needs no seed.
+        compositionSeedSuppressed = true;
+        debugDrewOverUnderlay = true;
+        _beginRead(read);
+        _placeShadows(under: !glassShadowsFade);
+      case Follows(:final read):
+        compositionSeedSuppressed = true;
+        debugDrewOverUnderlay = true;
+        // The glass over a band draws it, in the band's place.
+        if (_bandOf(read) != null && identical(_glassIn(read).first, this)) {
+          _beginRead(read);
+        } else {
+          _endGroup();
+        }
+        _rig.hide();
+        // Another layer draws this glass. Its shadows lie under that layer's
+        // filter, or, over a band, stay cut outside the glass: a band's bar
+        // spends next to nothing on them
+        // (tool/audit/2026-11-05-one-pass/results.md).
+        if (_bandOf(read) == null) {
+          _placeShadows(under: true);
+          glassShadowPicture?.remove();
+        } else {
+          _placeShadows(under: false);
+        }
+    }
+  }
+
+  // Where this glass's read shows in the scene.
+  CornerRead? _shownCorner;
+  ImageFilter? _shownFilter;
+  ImageFilter? _shownInPlace;
+  ui.Path? _shownClip;
+  Matrix4? _shownToCanvas;
+  List<(ui.Picture, Offset)> _shownUnder = const [];
+  Object? _shownKey;
+
+  @override
+  void showScene(Read read, ReadCopy copy) {
+    final corner = copy.readIn(copy.layer);
+    if (corner == null) {
+      _rig.hide();
+      _placeShadows(under: false);
+      debugDrewOverUnderlay = false;
+      return;
+    }
+    final inPlace = readInPlace(read, corner);
+    final filter = readFilter(read, corner, inPlace);
+    final toCanvas = _screenToCanvas();
+    final under = _shadowsOfOthers(read);
+    final clip = _clipIn(read, copy.layer);
+    final key = [
+      filter,
+      inPlace,
+      toCanvas,
+      copy.layer,
+      if (clip != null) ...[for (final member in read.members) member.drawn],
+      for (final (picture, offset) in under) ...[picture, offset],
+    ];
+    final layer = _rig.readLayer;
+    final held = _shownKey;
+    final changed =
+        read.changed ||
+        layer.parent == null ||
+        held is! List<Object?> ||
+        !listEquals(held, key);
+    _shownCorner = corner;
+    _shownFilter = filter;
+    _shownInPlace = inPlace;
+    _shownClip = clip;
+    _shownToCanvas = toCanvas;
+    _shownUnder = under;
+    _shownKey = key;
+    layer.show(_addRead, changed: changed);
+    _rig.show(layer, under: glassShadowsFade ? null : glassShadowPicture);
+  }
+
+  ui.TransformEngineLayer? _addRead(ui.SceneBuilder builder) {
+    for (final (picture, offset) in _shownUnder) {
+      builder.addPicture(offset, picture);
+    }
+    return _shownCorner!.addToScene(
+      builder,
+      _shownFilter!,
+      _shownToCanvas!,
+      clip: _shownClip,
+      inPlace: _shownInPlace,
+    );
+  }
+
+  @override
+  void showPage(Read read, PageCopy page) {
+    debugPage = page;
+    final toCanvas = _screenToCanvas();
+    final under = _shadowsOfOthers(read);
+    final dpr = devicePixelRatio;
+    final quad = read.quad;
+    final bounds = MatrixUtils.transformRect(
+      toCanvas,
+      Rect.fromLTRB(
+        quad.left * dpr,
+        quad.top * dpr,
+        quad.right * dpr,
+        quad.bottom * dpr,
+      ),
+    ).inflate(1);
+    final key = (
+      page.image,
+      page.placement,
+      page.rect,
+      readRevision(read),
+      toCanvas,
+      Object.hashAll([
+        for (final (picture, offset) in under) ...[picture, offset],
+      ]),
+    );
+    _rig.show(
+      _rig.pagePicture(key, bounds, () {
+        final body = recordPage(read, page, toCanvas);
+        if (under.isEmpty) return body;
         final recorder = ui.PictureRecorder();
         final canvas = Canvas(recorder);
-        for (final (shadow, offset) in shadows) {
+        for (final (shadow, offset) in under) {
           canvas.save();
           canvas.translate(offset.dx, offset.dy);
           canvas.drawPicture(shadow);
@@ -2221,60 +2477,53 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         canvas.drawPicture(body);
         body.dispose();
         return recorder.endRecording();
-      },
+      }),
+      under: glassShadowsFade ? null : glassShadowPicture,
     );
-    final read = copy.inScene ? copy.readIn(copy.layer) : null;
-    if (read != null) {
-      final inPlace = _groupInPlace(group, lead, read);
-      picture.showInScene(
-        read,
-        _groupFilter(group, lead, read, inPlace),
-        screenToCanvas,
-        clip: group.clipIn(copy.layer),
-        under: shadows,
-        inPlace: inPlace,
-      );
-    } else {
-      picture.picture = picture.within(copy.layer);
-      if (picture.picture == null) {
-        picture.dispose();
-        _hideForGroup(group);
-        return;
-      }
-    }
-    compositionSeedSuppressed = true;
-    debugDrewOverUnderlay = true;
-    _placeShadows(under: true);
-    _rig.show(_rig.servedInFrame(picture), under: glassShadowPicture);
-  }
-
-  ui.Picture? _shadowUnderGroup() {
-    _placeShadows(under: true);
-    return glassShadowPicture?.picture;
-  }
-
-  // Another layer draws this glass. Its shadows lie under that layer's filter,
-  // or, over a band, stay cut outside the glass: a band's bar spends next to
-  // nothing on them (tool/audit/2026-11-05-one-pass/results.md).
-  void _hideForGroup(FilterGroup group) {
-    compositionSeedSuppressed = true;
-    debugDrewOverUnderlay = true;
-    _rig.hide();
-    if (group.band == null) {
-      _placeShadows(under: true);
-      glassShadowPicture?.remove();
-    } else {
-      _placeShadows(under: false);
-    }
   }
 
   @override
-  void onCompositing() {
-    if (_rig.hasSlot) {
-      _composeUnderlay();
-    } else {
-      _placeShadows(under: false);
+  void showLive() {
+    compositionSeedSuppressed = false;
+    debugDrewOverUnderlay = false;
+    _placeShadows(under: false);
+    _rig.showLive();
+  }
+
+  @override
+  ReadPainter get readPainter => this;
+
+  @override
+  void addOutput(SceneOut out, ReadCopy outer) {
+    final fate = _fate;
+    if (fate is! Leads) return;
+    final read = fate.read;
+    if (glassShadowPicture?.picture case final shadow?
+        when !glassShadowsFade) {
+      out.picture(shadow);
     }
+    if (read.source is ImageRead) {
+      if (_rig.pageShown case final page?) out.picture(page);
+      return;
+    }
+    final copy = read.output! as ReadCopy;
+    final corner = copy.readIn(copy.regionIn(outer, read.lead.clip));
+    if (corner == null) return;
+    for (final (picture, offset) in _shadowsOfOthers(read)) {
+      out.mark();
+      out.at += offset;
+      out.picture(picture);
+      out.leave();
+    }
+    final inPlace = readInPlace(read, corner);
+    final filter = readFilter(read, corner, inPlace);
+    out.settle();
+    corner.addToScene(
+      out.builder,
+      filter,
+      _screenToCanvas(),
+      inPlace: inPlace,
+    );
   }
 
   // Glass over its copy paints its silhouettes opaquely over the slot, so
@@ -2286,48 +2535,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (under == shadowsUnderGlass) return;
     shadowsUnderGlass = under;
     if (glassShadowPicture != null) recordGlassShadows(retainedPaintOffset);
-  }
-
-  // Chosen at compositing: what lies under the glass can change in a frame
-  // in which this layer does not repaint. The slot holds the live filter
-  // (the seeded pass, or the clip around the filter) while what lies under
-  // the glass cannot be copied.
-  void _composeUnderlay() {
-    final group = _group;
-    final offer = _offer;
-    _group = null;
-    _offer = null;
-    if (group != null && offer != null) {
-      if (identical(group.lead, offer)) {
-        if (group.settle() case final copy?) {
-          _showGroup(group, offer, copy);
-          return;
-        }
-      }
-      if (group.holds(offer)) {
-        _hideForGroup(group);
-        return;
-      }
-      _endGroup();
-      offer.askAlone();
-    } else {
-      _endGroup();
-    }
-    // Glass over its copy reads no backdrop: an opacity pass around it needs
-    // no seed.
-    compositionSeedSuppressed = true;
-    final served = _recordUnderlay();
-    if (served == null && _rig.underlay.outOfSight) {
-      debugDrewOverUnderlay = false;
-      _rig.hide();
-      _placeShadows(under: false);
-      return;
-    }
-    if (served == null) compositionSeedSuppressed = false;
-    debugDrewOverUnderlay = served != null;
-    final under = served != null && !glassShadowsFade;
-    _placeShadows(under: under);
-    _rig.show(served, under: under ? glassShadowPicture : null);
   }
 
   /// How many device pixels along each side one pixel of a copy that
@@ -2380,261 +2587,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     markNeedsPaint();
   }
 
-  // This frame's copy asked for: the glass's transform to the screen, the
-  // logical rect the shader draws, the material it paints there and the
-  // sigma of the blur, in the screen's logical pixels, the shader frosts the
-  // copy for, 0 where the copy is blurred or the glass unfrosted.
-  ({Matrix4 screen, Rect logical, Rect drawn, double frost})? _asked;
-
-  // Asks for the copy of what lies under the glass, or returns null when the
-  // glass reads its backdrop this frame.
-  ({Matrix4 screen, Rect logical, Rect drawn, double frost})? _askUnderlay() {
-    final bounds = _filterMaterialBounds;
-    final anchor = layer;
-    if (bounds == null || anchor == null || drawableEmpty) return null;
-    final dpr = devicePixelRatio;
-    final screen = filterPassTransform(
-      this,
-      seeding: false,
-      devicePixelRatio: dpr,
-      translation: compositorTranslation,
-    );
-    // The copy is taken in screen space: glass that is turned reads the
-    // backdrop. A scale along the axes scales the filter's blur and reach on
-    // the screen, along each axis on its own, as Impeller scales the live
-    // filter's blur. Impeller blurs a scaled canvas with other taps than the
-    // same blur unscaled: NEAR, at most 5 channel levels apart in the host
-    // test of glass scaled 1.2 under 8 px of frost, and only while the glass
-    // is scaled.
-    final storage = screen.storage;
-    final scaleX = storage[0];
-    final scaleY = storage[5];
-    if (scaleX <= 0 ||
-        scaleY <= 0 ||
-        storage[1].abs() > 1e-6 ||
-        storage[4].abs() > 1e-6) {
-      return null;
-    }
-    final logical = MatrixUtils.transformRect(
-      screen,
-      bounds.expandToPixelBuckets(dpr),
-    );
-    // What the shader paints: the material, not the rect it is drawn in.
-    final drawn = MatrixUtils.transformRect(screen, bounds);
-    final sigma = _frostSigmaForCurrentShapes();
-    final frostX = sigma * scaleX;
-    final frostY = sigma * scaleY;
-    // Frost the final shader can draw is drawn there, over an unblurred
-    // copy: the copy's blur passes become its taps. The shader frosts round,
-    // so glass stretched past 5 % keeps the copy's blur, which follows each
-    // axis.
-    final round = sigma * sqrt(scaleX * scaleY);
-    final frosted =
-        sigma > 0 && _frostsCopies && (scaleX / scaleY - 1).abs() <= 0.05
-        ? shaderFrostDownscale(round * dpr, minTexels: debugFrostMinTexels)
-        : null;
-    var downscale = frosted ?? 1;
-    final frost = frosted == null ? 0.0 : round;
-    if (frosted == null) {
-      // A copy blurred by at least [_copySigma] of its own pixels is drawn
-      // as the blur leaves it at a fraction of the screen's pixels: sampled
-      // back up, it adds a tent of its pixel's width to a blur many times
-      // wider.
-      while (downscale * 2 <= debugMaxCopyDownscale &&
-          min(frostX, frostY) * dpr / (downscale * 2) >= _copySigma) {
-        downscale *= 2;
-      }
-    }
-    _rig.underlay.request(
-      anchor: anchor,
-      own: paintLayer,
-      devicePixelRatio: dpr,
-      region: drawn.inflate(
-        (backdropSamplingReach(bounds) + 1) * max(scaleX, scaleY),
-      ),
-      blur: sigma > 0 && frosted == null ? (frostX, frostY) : null,
-      downscale: downscale,
-      body: drawn,
-      frost: frost,
-    );
-    return (screen: screen, logical: logical, drawn: drawn, frost: frost);
-  }
-
   ImageFilter? _inSceneFilter;
   Object? _inSceneFilterKey;
-
-  // The glass as one rect painted with the final shader over the underlay's
-  // copy, or null when there is no copy. The shader reads the copy as a
-  // filter reads its input, from the copy's origin (see _readingCopy).
-  PictureLayer? _recordUnderlay() {
-    final asked = _asked;
-    _asked = null;
-    if (asked == null) return null;
-    final underlay = _rig.underlay;
-    final inFrame = underlay.servesInFrame ? underlay.serveInFrame() : null;
-    final served = inFrame == null ? underlay.serve() : null;
-    if (inFrame == null && served == null) return null;
-    final (:screen, :logical, :drawn, :frost) = asked;
-    final dpr = devicePixelRatio;
-    final canvasToScreen = screen.clone();
-    canvasToScreen.multiply(
-      Matrix4.translationValues(
-        -_filterPaintOffset.dx,
-        -_filterPaintOffset.dy,
-        0,
-      ),
-    );
-    final screenToCanvas = Matrix4.zero();
-    if (screenToCanvas.copyInverse(canvasToScreen) == 0) return null;
-    screenToCanvas.multiply(Matrix4.diagonal3Values(1 / dpr, 1 / dpr, 1));
-    final globalToMatte = Matrix4.inverted(screen);
-    final device = Rect.fromLTRB(
-      logical.left * dpr,
-      logical.top * dpr,
-      logical.right * dpr,
-      logical.bottom * dpr,
-    );
-    // The compositor poll wrote this frame's bounds to the live filter.
-    final backdropBounds = _backdropBounds;
-    assert(
-      backdropBounds == backdropSampleBounds,
-      'The copy samples the bounds the live filter does.',
-    );
-    // A copy for glass nearby holds this glass only where it paints.
-    final pictureBounds = MatrixUtils.transformRect(
-      screenToCanvas,
-      Rect.fromLTRB(
-        drawn.left * dpr,
-        drawn.top * dpr,
-        drawn.right * dpr,
-        drawn.bottom * dpr,
-      ),
-    ).inflate(1);
-
-    if (inFrame != null) {
-      final picture = InFrameGlassLayer(
-        pictureBounds,
-        inFrame,
-        (region) {
-          final read = inFrame.readIn(region);
-          if (read == null) return null;
-          final inPlace = inPlaceFrostFilter(read, frost);
-          return _readingCopy(
-            read.glassSampling(inPlace == null ? frost : 0),
-            globalToMatte: globalToMatte,
-            backdropBounds: backdropBounds,
-            draw: (shader) => read.record(
-              bilinearShaderFilter(shader),
-              screenToCanvas,
-              inPlace: inPlace,
-            ),
-          );
-        },
-      );
-      final read = inFrame.inScene ? inFrame.readIn(inFrame.layer) : null;
-      if (read != null) {
-        final inPlace = inPlaceFrostFilter(read, frost);
-        final sampling = read.glassSampling(inPlace == null ? frost : 0);
-        final key = (
-          renderShader,
-          _shaderInputsRevision,
-          sampling.origin,
-          sampling.reduced,
-          sampling.frost,
-          sampling.holds,
-          globalToMatte,
-          backdropBounds,
-        );
-        // A chrome over a scroll reads as it did the frame before.
-        if (key != _inSceneFilterKey) {
-          _inSceneFilter = _readingCopy(
-            sampling,
-            globalToMatte: globalToMatte,
-            backdropBounds: backdropBounds,
-            draw: shaderFilterNow,
-          );
-          _inSceneFilterKey = key;
-        }
-        picture.showInScene(
-          read,
-          _inSceneFilter!,
-          screenToCanvas,
-          inPlace: inPlace,
-        );
-        return _rig.servedInFrame(picture);
-      }
-      picture.picture = picture.within(inFrame.layer);
-      if (picture.picture == null) {
-        picture.dispose();
-        return null;
-      }
-      return _rig.servedInFrame(picture);
-    }
-    final copy = served!;
-    final paintOffset = _filterPaintOffset;
-    // The live filter's inputs, as one object: a new one whenever a uniform
-    // or sampler changed.
-    Object keyOf() {
-      _updateShaderFilter();
-      return (
-        copy.image,
-        copy.placement,
-        copy.rect,
-        _filterGeneration,
-        device,
-        backdropBounds,
-        paintOffset,
-        screen,
-        frost,
-      );
-    }
-
-    ui.Picture record() {
-      return _readingCopy(
-        copy.glassSampling(frost),
-        globalToMatte: globalToMatte,
-        backdropBounds: backdropBounds,
-        draw: (shader) {
-          final recorder = ui.PictureRecorder();
-          final canvas = Canvas(recorder);
-          canvas.transform(screenToCanvas.storage);
-          final paint = Paint();
-          paint.shader = shader;
-          // The filter's clip cuts its output with a hard edge.
-          paint.isAntiAlias = false;
-          canvas.drawRect(device, paint);
-          return recorder.endRecording();
-        },
-      );
-    }
-
-    // Inside a copy drawn at the screen's pixels together with this glass's
-    // own, the glass is its live filter over what that copy holds before
-    // it, and what it reads holds nothing past the copy, except in a layer
-    // of copies under one blur, where it reads what lies beside the copy
-    // (NEAR).
-    void fold(ui.SceneBuilder builder, FoldTarget target) => _readingCopy(
-      target.glassSampling,
-      globalToMatte: globalToMatte,
-      backdropBounds: backdropBounds,
-      draw: (shader) {
-        _updateShaderFilter();
-        addFoldedFilter(
-          builder,
-          MatrixUtils.transformRect(screenToCanvas, device),
-          _frosted(bilinearShaderFilter(shader), _filterFrostSigma ?? 0),
-        );
-      },
-    );
-
-    return _rig.servedPicture(
-      copy,
-      pictureBounds,
-      keyOf: keyOf,
-      record: record,
-      fold: fold,
-    );
-  }
 
   // Draws the glass with [draw] over a copy read as [sampling], with the
   // shader's uniforms set for it, and sets
@@ -3239,61 +3193,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 }
 
-final class _GlassOffer extends GlassOffer {
-  _GlassOffer(
-    this.glass,
-    this.screen, {
-    required super.anchor,
-    required super.underlay,
-    required super.devicePixelRatio,
-    required super.drawn,
-    required super.reads,
-    required super.downscale,
-    required super.own,
-    required super.key,
-    required super.tint,
-    required super.shapes,
-    required super.frost,
-    required super.drawsBand,
-  });
-
-  final RenderLiquidGlassLayer glass;
-
-  // From the layer's coordinates to the screen's logical pixels.
-  final Matrix4 screen;
-
-  // Where the origin of the canvas the glass paints in lies on the screen.
-  Offset get canvasOnScreen {
-    final storage = screen.storage;
-    return Offset(storage[12], storage[13]) - glass._filterPaintOffset;
-  }
-
-  // Where the origin of the encoded shapes lies on the screen, in device
-  // pixels.
-  Offset get shapesOnScreen {
-    final storage = screen.storage;
-    return (Offset(storage[12], storage[13]) + glass._encodedShift) *
-        devicePixelRatio;
-  }
-
-  @override
-  void askAlone() => glass._asked = glass._askUnderlay();
-
-  @override
-  void enter(FilterGroup group) => glass._group = group;
-
-  @override
-  bool begin(FilterGroup group) => glass._beginGroup(group);
-
-  @override
-  ImageFilter filter(FilterGroup group, CornerRead read) =>
-      glass._groupFilter(group, this, read, inPlace(group, read));
-
-  @override
-  ImageFilter? inPlace(FilterGroup group, CornerRead read) =>
-      glass._groupInPlace(group, this, read);
-}
-
 // One matte of a group's glass, its origin on the first's. Glass that moves
 // together lies where it lay in it, so a scroll under it renders nothing and
 // only moves the mapping.
@@ -3323,25 +3222,22 @@ final class _GroupMatte {
   // Where the matte's origin lies on the screen, in logical pixels.
   Offset origin = Offset.zero;
 
-  void gather(List<GlassOffer> offers) {
-    final glass = offers.cast<_GlassOffer>();
+  void gather(List<RenderLiquidGlassLayer> glass) {
     final first = glass.first;
     final dpr = first.devicePixelRatio;
-    final base = first.shapesOnScreen;
+    final base = first._shapesOnScreen;
     origin = base / dpr;
     // A 64th of a pixel keeps rounding in the layers' moves from drawing the
     // matte again; the glass lies that much off, unseen.
     double fixed(double value) => (value * 64).roundToDouble() / 64;
-    final signature = <Object?>[
-      first.glass.settings,
-      dpr,
-      first.glass._matteScale,
-    ];
-    for (final offer in glass) {
-      final at = offer.shapesOnScreen - base;
-      signature.add(offer.glass);
-      signature.add(offer.glass._encoded);
-      signature.add(offer.tint);
+    final signature = <Object?>[first.settings, dpr, first._matteScale];
+    Object? tintOf(RenderLiquidGlassLayer layer) =>
+        (layer._uniformAppearance ?? layer.defaultAppearance).tint;
+    for (final layer in glass) {
+      final at = layer._shapesOnScreen - base;
+      signature.add(layer);
+      signature.add(layer._encoded);
+      signature.add(tintOf(layer));
       signature.add(fixed(at.dx));
       signature.add(fixed(at.dy));
     }
@@ -3353,9 +3249,8 @@ final class _GroupMatte {
     final rseLower = <double>[];
     final boxes = <double>[];
     Rect? rect;
-    for (final offer in glass) {
-      final layer = offer.glass;
-      final at = offer.shapesOnScreen - base;
+    for (final layer in glass) {
+      final at = layer._shapesOnScreen - base;
       final dx = fixed(at.dx);
       final dy = fixed(at.dy);
       final from = shapes.length;
@@ -3374,31 +3269,31 @@ final class _GroupMatte {
       }
       rse.addAll(layer._rseData);
       rseLower.addAll(layer._rseLowerData);
+      final shown = layer._frame!.drawn;
       final drawn = Rect.fromLTRB(
-        offer.drawn.left * dpr - base.dx,
-        offer.drawn.top * dpr - base.dy,
-        offer.drawn.right * dpr - base.dx,
-        offer.drawn.bottom * dpr - base.dy,
+        shown.left * dpr - base.dx,
+        shown.top * dpr - base.dy,
+        shown.right * dpr - base.dx,
+        shown.bottom * dpr - base.dy,
       );
       rect = rect?.expandToInclude(drawn) ?? drawn;
     }
     final all = rect!;
-    final lead = first.glass;
+    final lead = first;
     final contour = max(0.5 / dpr, lead._contourOutset) * dpr;
     final room = contour.ceilToDouble() + 2;
     final left = (all.left - room).floorToDouble();
     final top = (all.top - room).floorToDouble();
     final settings = lead.settings;
-    final mixed = glass.any((offer) => offer.tint != first.tint);
+    final mixed = glass.any((layer) => tintOf(layer) != tintOf(first));
     final result = _renderer.render(
       writeMaterials: mixed,
       writeTintOnly: mixed,
       appearanceData: mixed
           ? lead._appearanceLookupData([
-              for (final offer in glass)
-                for (var i = 0; i < offer.shapes; i++)
-                  (offer.glass._uniformAppearance ??
-                      offer.glass.defaultAppearance),
+              for (final layer in glass)
+                for (var i = 0; i < layer._shapeData.length ~/ 12; i++)
+                  (layer._uniformAppearance ?? layer.defaultAppearance),
             ])
           : const <double>[],
       width: (all.right + room - left).ceil(),

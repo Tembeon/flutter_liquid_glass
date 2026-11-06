@@ -1,11 +1,14 @@
 import 'dart:io' show Platform;
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Form;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/form.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/internal/transform_tracking_render_object_mixin.dart';
 
 const expectFlutterGpuFallback = bool.fromEnvironment(
   'EXPECT_FLUTTER_GPU_FALLBACK',
@@ -97,7 +100,38 @@ List<SeededBackdropPassLayer> seededPasses(WidgetTester tester) => tester
 /// Draws every copy of the current test into an image, as copies asked for
 /// with a filter always are, for tests of how images are shared and held.
 void copyIntoImages() {
-  final inFrame = BackdropUnderlay.debugInFrame;
-  BackdropUnderlay.debugInFrame = false;
-  addTearDown(() => BackdropUnderlay.debugInFrame = inFrame);
+  GlassComposer.debugPolicy = const Policy(maxTargets: 0);
+  addTearDown(() => GlassComposer.debugPolicy = const Policy());
+}
+
+/// What the plans of the current test decided.
+final class PlanWatch {
+  /// Watches every plan from here to the end of the test.
+  PlanWatch() {
+    GlassComposer.debugOnPlan = _note;
+    addTearDown(() => GlassComposer.debugOnPlan = null);
+  }
+
+  final _changes = Map<Object, int>.identity();
+
+  /// The last plan.
+  Plan? last;
+
+  void _note(Form form, Plan plan) {
+    last = plan;
+    for (var i = 0; i < plan.fates.length; i++) {
+      final read = switch (plan.fates[i]) {
+        Leads(:final read) || Follows(:final read) => read,
+        Hidden() => null,
+      };
+      if (read == null || !read.changed) continue;
+      final id = form.sites[i].id;
+      final site = id is GeometryTransformTrackingLayer ? id.trackedSite! : id;
+      _changes[site] = (_changes[site] ?? 0) + 1;
+    }
+  }
+
+  /// In how many plans the read of [site], a render object or a filter layer,
+  /// held something new.
+  int changes(Object site) => _changes[site] ?? 0;
 }

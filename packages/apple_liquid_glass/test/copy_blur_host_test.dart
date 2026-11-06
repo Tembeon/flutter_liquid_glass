@@ -13,7 +13,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
 
 const _key = ValueKey('page');
 
@@ -116,7 +116,7 @@ int _difference(Uint8List a, Uint8List b) {
 void main() {
   setUp(MotionClock.debugReset);
   tearDown(() {
-    BackdropUnderlay.debugEnabledOverride = null;
+    GlassCopies.debugEnabledOverride = null;
     LiquidGlassBackdropFrost.debugShaderFrost = true;
   });
 
@@ -130,10 +130,10 @@ void main() {
     // Exact parity needs the band's filtered copy; the shader frost is NEAR.
     LiquidGlassBackdropFrost.debugShaderFrost = false;
 
-    BackdropUnderlay.debugEnabledOverride = false;
+    GlassCopies.debugEnabledOverride = false;
     final live = await _scrolled(tester);
 
-    BackdropUnderlay.debugEnabledOverride = true;
+    GlassCopies.debugEnabledOverride = true;
     final copied = await _scrolled(tester);
     expect(_band(tester).serves, isTrue);
     expect(_difference(live, copied), 0);

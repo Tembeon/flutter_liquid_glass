@@ -16,7 +16,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
 
 const _key = ValueKey('page');
 
@@ -148,11 +150,12 @@ double _meanInBand(Uint8List a, Uint8List b, double dpr) {
 }
 
 void main() {
-  final inFrameDefault = BackdropUnderlay.debugInFrame;
+  // The glass in the list and the band holding it are over the frame's targets
+  // here, which moves the band to an image; the test is of the frame's own.
   setUp(MotionClock.debugReset);
   tearDown(() {
-    BackdropUnderlay.debugEnabledOverride = null;
-    BackdropUnderlay.debugInFrame = inFrameDefault;
+    GlassCopies.debugEnabledOverride = null;
+    GlassComposer.debugPolicy = const Policy();
   });
 
   // Over the rows the frosted copy is 0.35 levels off the live read on
@@ -164,12 +167,12 @@ void main() {
       tester.view.physicalSize = Size(300 * dpr, 400 * dpr);
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
-      BackdropUnderlay.debugInFrame = true;
-      BackdropUnderlay.debugEnabledOverride = false;
+      GlassCopies.debugEnabledOverride = false;
       final live = await _scrolled(tester, dpr, glass: true, serves: false);
-      BackdropUnderlay.debugEnabledOverride = true;
+      GlassCopies.debugEnabledOverride = true;
+      GlassComposer.debugPolicy = const Policy(maxTargets: 64);
       final copied = await _scrolled(tester, dpr, glass: true, serves: true);
-      expect(_band(tester).inFrameLayer, isNotNull);
+      expect(_band(tester).debugPage, isNull);
       expect(_meanInBand(live, copied, dpr), lessThan(0.6));
     }, skip: !ui.ImageFilter.isShaderFilterSupported);
   }

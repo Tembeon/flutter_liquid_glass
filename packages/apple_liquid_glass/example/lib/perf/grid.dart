@@ -2,6 +2,7 @@
 // kind of glass, moving at a fixed speed with no touches, while one lever
 // flips every window, A and B in ABBA order. A cell takes seconds, so a run
 // covers more content than a walk through the gallery does in the same time.
+// ignore_for_file: depend_on_referenced_packages
 // ignore_for_file: invalid_use_of_protected_member
 // ignore_for_file: use_build_context_synchronously
 
@@ -18,12 +19,49 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// What lies under the glass.
-enum GridContent { photos, text, solid, video }
+enum GridContent {
+  /// A grid of photos.
+  photos,
+
+  /// A list of text.
+  text,
+
+  /// A list of solid rows.
+  solid,
+
+  /// A new picture over the whole screen every frame.
+  video,
+
+  /// Rows of text and photos, glass in some of them.
+  mixedList,
+
+  /// Rows with a texture and a glass button over it.
+  videoList,
+
+  /// One boundary of 12 rows, each painting a background under its glass.
+  settingsCard,
+}
 
 /// The glass over it.
-enum GridGlass { chrome, crowd, sheet }
+enum GridGlass {
+  /// A navigation bar and a tab bar.
+  chrome,
+
+  /// 12 buttons scattered over the content.
+  crowd,
+
+  /// A sheet over the chrome.
+  sheet,
+
+  /// Four panes of glass, each over the one before.
+  nest,
+
+  /// A page of buttons fading in and out over the content.
+  fade,
+}
 
 /// One scene of the grid.
 @immutable
@@ -57,6 +95,11 @@ const gridCells = [
   GridCell(GridContent.photos, GridGlass.crowd),
   GridCell(GridContent.text, GridGlass.sheet),
   GridCell(GridContent.photos, GridGlass.sheet),
+  GridCell(GridContent.mixedList, GridGlass.chrome),
+  GridCell(GridContent.videoList, GridGlass.chrome),
+  GridCell(GridContent.settingsCard, GridGlass.chrome),
+  GridCell(GridContent.photos, GridGlass.nest),
+  GridCell(GridContent.photos, GridGlass.fade),
 ];
 
 /// The scene a [GridStage] shows and what moves it.
@@ -169,6 +212,27 @@ class _Scene extends StatelessWidget {
             const ColoredBox(color: Color(0xFFEDEDF2)),
       ),
       GridContent.video => const _Video(),
+      GridContent.mixedList => ListView.builder(
+        controller: scroll,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: 600,
+        itemExtent: 72,
+        itemBuilder: (context, index) => _MixedRow(index),
+      ),
+      GridContent.videoList => ListView.builder(
+        controller: scroll,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: 600,
+        itemExtent: 180,
+        itemBuilder: (context, index) => const _VideoRow(),
+      ),
+      GridContent.settingsCard => ListView.builder(
+        controller: scroll,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: 60,
+        itemExtent: 12 * 56 + 32,
+        itemBuilder: (context, index) => const _SettingsCard(),
+      ),
     };
     return switch (cell.glass) {
       GridGlass.chrome || GridGlass.sheet => GlassTabScaffold(
@@ -220,8 +284,179 @@ class _Scene extends StatelessWidget {
             ),
         ],
       ),
+      GridGlass.nest => Stack(
+        fit: StackFit.expand,
+        children: [
+          content,
+          for (var i = 0; i < 4; i++)
+            Positioned(
+              left: 24.0 + i * 24,
+              top: 160.0 + i * 56,
+              width: 240,
+              height: 150,
+              child: LiquidGlassLayer(
+                settings: LiquidGlassSettings.ios27RegularLight(),
+                child: const LiquidGlass(
+                  shape: LiquidRoundedSuperellipse(borderRadius: 28),
+                  child: SizedBox.expand(),
+                ),
+              ),
+            ),
+        ],
+      ),
+      GridGlass.fade => Stack(
+        fit: StackFit.expand,
+        children: [content, const _FadingPage()],
+      ),
     };
   }
+}
+
+class _MixedRow extends StatelessWidget {
+  const _MixedRow(this.index);
+
+  final int index;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    child: Row(
+      children: [
+        if (index.isEven)
+          SizedBox.square(
+            dimension: 56,
+            child: Image(
+              image: ResizeImage(
+                Wallpaper.values[index % Wallpaper.values.length].image,
+                width: 200,
+              ),
+              fit: BoxFit.cover,
+            ),
+          ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text('Row $index of mixed content'),
+          ),
+        ),
+        if (index % 3 != 2)
+          GlassButton(
+            onPressed: () {},
+            semanticLabel: 'Row $index',
+            child: const Icon(CupertinoIcons.heart),
+          ),
+      ],
+    ),
+  );
+}
+
+class _VideoRow extends StatelessWidget {
+  const _VideoRow();
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(8),
+    child: Stack(
+      fit: StackFit.expand,
+      children: [
+        const ColoredBox(
+          color: Color(0xFF203040),
+          child: Texture(textureId: 1),
+        ),
+        Positioned(
+          right: 8,
+          bottom: 8,
+          child: GlassButton(
+            onPressed: () {},
+            semanticLabel: 'Play',
+            child: const Icon(CupertinoIcons.play),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _SettingsCard extends StatelessWidget {
+  const _SettingsCard();
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      children: [
+        for (var i = 0; i < 12; i++)
+          SizedBox(
+            height: 56,
+            child: ColoredBox(
+              color: const Color(0xFFFFFFFF),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text('Setting $i'),
+                    ),
+                  ),
+                  GlassButton(
+                    onPressed: () {},
+                    semanticLabel: 'Setting $i',
+                    child: const Icon(CupertinoIcons.heart),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+}
+
+class _FadingPage extends StatefulWidget {
+  const _FadingPage();
+
+  @override
+  State<_FadingPage> createState() => _FadingPageState();
+}
+
+class _FadingPageState extends State<_FadingPage>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _fade;
+
+  @override
+  void initState() {
+    super.initState();
+    _fade = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    );
+    unawaited(_fade.repeat(reverse: true));
+  }
+
+  @override
+  void dispose() {
+    _fade.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FadeTransition(
+    opacity: _fade,
+    child: Stack(
+      children: [
+        for (var i = 0; i < 6; i++)
+          Positioned(
+            left: 24.0 + (i % 3) * 110,
+            top: 200.0 + (i ~/ 3) * 180,
+            child: GlassButton(
+              onPressed: () {},
+              semanticLabel: 'Fading $i',
+              child: const Icon(CupertinoIcons.star),
+            ),
+          ),
+      ],
+    ),
+  );
 }
 
 class _Video extends StatefulWidget {

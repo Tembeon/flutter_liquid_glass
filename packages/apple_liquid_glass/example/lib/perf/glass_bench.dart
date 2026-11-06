@@ -23,7 +23,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
 
 enum Scene {
   /// Nothing moves: the cost of a screen of glass that is only shown.
@@ -166,7 +166,7 @@ class _BenchAppState extends State<GlassBenchApp>
     ]) {
       final shots = <ByteData>[];
       for (final on in [false, true]) {
-        BackdropUnderlay.debugEnabledOverride = on;
+        GlassCopies.debugEnabledOverride = on;
         setState(() {
           _scene = scene;
           _moving = true;
@@ -240,7 +240,7 @@ class _BenchAppState extends State<GlassBenchApp>
           ]
         : [for (final scene in Scene.values) (scene, null)];
     for (final (scene, on) in runs) {
-      if (on != null) BackdropUnderlay.debugEnabledOverride = on;
+      if (on != null) GlassCopies.debugEnabledOverride = on;
       setState(() {
         _scene = scene;
         _moving = false;

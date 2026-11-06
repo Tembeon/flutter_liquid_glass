@@ -3,9 +3,10 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
+import 'package:liquid_glass_renderer/src/composer/scene_out.dart';
 import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/internal/retained_glass_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_render_object_mixin.dart';
@@ -49,6 +50,10 @@ final class Form implements Scenery {
   /// The site nodes, parallel to [sites].
   List<SiteNode> get siteNodes => _siteNodes;
 
+  /// The seeded passes the walk found outside every slot, in paint order.
+  List<SeededBackdropPassLayer> get passes => _passes;
+  final List<SeededBackdropPassLayer> _passes = [];
+
   @override
   Rect get screen => _screen;
   Rect _screen = Rect.zero;
@@ -65,7 +70,7 @@ final class Form implements Scenery {
 
   int _suppress = 0;
   int _next = 0;
-  SiteNode? _site;
+  OpenNode? _owner;
 
   /// Compares [root]'s tree with the last frame's.
   void lower(ContainerLayer root, double devicePixelRatio, Size physicalSize) {
@@ -76,6 +81,7 @@ final class Form implements Scenery {
     _volatileCount = 0;
     _sites.length = 0;
     _siteNodes.length = 0;
+    _passes.length = 0;
     _screen = Offset.zero & (physicalSize / devicePixelRatio);
     if (!identical(root, _root) || devicePixelRatio != _dpr) {
       _root = root;
@@ -94,7 +100,7 @@ final class Form implements Scenery {
 
   void _enter(FormNode node) {
     node.order = _next++;
-    node.insideSite = _site;
+    node.owner = _owner;
     if (_count == _flat.length) {
       _flat.add(node);
     } else {
@@ -113,9 +119,9 @@ final class Form implements Scenery {
   /// The node at [order] in paint order.
   FormNode nodeAt(int order) => _flat[order];
 
-  /// Notes that [site]'s glass moved, which what lies over it reads.
-  void noteSiteDrawn(SiteFacts site, Rect before) {
-    if (before == site.drawn) return;
+  /// Notes that [site]'s glass moved or changed, which what lies over it reads.
+  void noteSiteDrawn(SiteFacts site, Rect before, Object? stampBefore) {
+    if (before == site.drawn && stampBefore == site.stamp) return;
     dirty.add(site.order, _union(before, site.drawn));
   }
 
@@ -143,7 +149,7 @@ final class Form implements Scenery {
       final node = _flat[i];
       // What another site paints with its glass moves back with it or lies
       // over it, as the plan decides from that site's own facts.
-      final other = node.insideSite;
+      final other = node.owner;
       if (other != null && other.end <= site.order) {
         i = other.order - 1;
         continue;
@@ -299,8 +305,9 @@ sealed class FormNode {
   /// The frame it last changed.
   int changedAt = 0;
 
-  /// The innermost site whose layer holds it, itself if it is one.
-  SiteNode? insideSite;
+  /// The innermost container of what one site paints with its glass that
+  /// holds it, itself if it is one.
+  OpenNode? owner;
 
   /// What it covers on the screen.
   Rect get extent;
@@ -358,12 +365,16 @@ final class PictureNode extends FormNode {
   }
 }
 
-/// What the composer itself paints for a site. The plan accounts for it through
-/// the site's own facts, so it says nothing about what changed.
+/// What the composer itself shows for a site, whose fate holds no layer of the
+/// walk. The plan accounts for it through the site's own facts, so it says
+/// nothing about what changed.
 @internal
 final class OutputNode extends FormNode {
   /// Creates the node.
-  OutputNode(super.layer);
+  OutputNode(GlassSlotLayer super.layer);
+
+  /// The site the slot shows.
+  PlanSite? get site => (layer as GlassSlotLayer).site;
 
   @override
   Rect get extent => Rect.zero;
@@ -463,6 +474,10 @@ abstract class OpenNode extends FormNode {
   /// Writes [world] from [outside] and the layer's values; true when any
   /// differs.
   bool updateWorld(FormWorld outside);
+
+  /// Adds to [out] what the layer applies to what it holds, around a read of
+  /// [band].
+  void enter(SceneOut out, Rect band) {}
 
   @override
   void removedFrom(Form form) => form._log(order, bounds);
@@ -577,20 +592,25 @@ abstract class OpenNode extends FormNode {
 // Teaches the walk a layer type: this is the only place that switches on one.
 FormNode _nodeOf(Layer layer) {
   switch (layer) {
-    case GlassPictureLayer() || ThinOffsetLayer():
+    case GlassSlotLayer():
       return OutputNode(layer);
     case PictureLayer():
       return PictureNode(layer);
     case TextureLayer():
-      return VolatileNode(layer, ReadLimit.sceneOnly);
+      return VolatileNode(
+        layer,
+        GlassCopies.debugTextureInScene
+            ? ReadLimit.sceneOnly
+            : ReadLimit.liveOnly,
+      );
     case PlatformViewLayer():
       return VolatileNode(layer, ReadLimit.liveOnly);
     case OpacitySeedLayer():
-      return PlainNode(layer);
+      return OwnNode(layer);
     case BackdropFilterLayer():
       return VolatileNode(layer, ReadLimit.liveOnly);
     case SeededBackdropPassLayer():
-      return PlainNode(layer);
+      return PassNode(layer);
     case LiquidGlassBackdropFilterLayer():
       return SiteNode(layer);
     case GeometryTransformTrackingLayer():
@@ -603,10 +623,12 @@ FormNode _nodeOf(Layer layer) {
       return AlphaNode(layer);
     case ImageFilterLayer():
       return FilterNode(layer);
+    case ThinOffsetLayer():
+      return ShiftNode(layer);
     case OffsetLayer() when layer.runtimeType == OffsetLayer:
       return ShiftNode(layer);
     case ColorFilterLayer():
-      return TokenNode(layer, () => layer.colorFilter);
+      return ColorNode(layer);
     case ShaderMaskLayer():
       return MaskNode(layer);
     case ClipRectLayer() ||
@@ -630,16 +652,43 @@ FormNode _nodeOf(Layer layer) {
 
 /// A container that adds nothing.
 @internal
-final class PlainNode extends OpenNode {
+class PlainNode extends OpenNode {
   /// Creates the node.
   PlainNode(super.layer);
 
-  // The rig's slots are plain containers, as is what glass adds to the scene.
-  @override
-  bool get composes => true;
-
   @override
   bool updateWorld(FormWorld outside) => world.inherit(outside);
+}
+
+/// A seeded pass painted in the tree: it decides how it seeds as the frame
+/// composes.
+@internal
+final class PassNode extends PlainNode {
+  /// Creates the node.
+  PassNode(SeededBackdropPassLayer super.layer);
+
+  @override
+  bool refreshIn(Form form, FormWorld outside) {
+    form._passes.add(layer as SeededBackdropPassLayer);
+    return super.refreshIn(form, outside);
+  }
+}
+
+/// All one glass paints: what lies here moves back with its glass or lies over
+/// it, as the plan decides from the glass's own facts.
+@internal
+final class OwnNode extends PlainNode {
+  /// Creates the node.
+  OwnNode(super.layer);
+
+  @override
+  bool refreshIn(Form form, FormWorld outside) {
+    final above = form._owner;
+    form._owner = this;
+    final changed = super.refreshIn(form, outside);
+    form._owner = above;
+    return changed;
+  }
 }
 
 /// An offset: what most repaint boundaries are, and all a scroll changes.
@@ -653,6 +702,9 @@ class ShiftNode extends OpenNode {
     LeaderLayer(:final offset) => offset,
     _ => Offset.zero,
   };
+
+  @override
+  void enter(SceneOut out, Rect band) => out.at += _offset;
 
   @override
   bool updateWorld(FormWorld outside) {
@@ -672,17 +724,34 @@ class ShiftNode extends OpenNode {
 @internal
 final class SiteNode extends ShiftNode {
   /// Creates the node.
-  SiteNode(super.layer) : facts = SiteFacts(layer) {
-    if (layer case final GeometryTransformTrackingLayer tracking) {
-      tracking.formNode = this;
-    }
-  }
+  SiteNode(super.layer) : facts = SiteFacts(layer);
 
   /// What the plan reads of it.
   final SiteFacts facts;
 
-  /// Reads [facts] from the layer.
-  void fill() => (layer as PlanSite).fillPlanFacts(facts);
+  /// The site's layer.
+  PlanSite get site => layer as PlanSite;
+
+  Matrix4? _screen;
+  Offset _screenAt = Offset.zero;
+  int _screenStamp = -1;
+
+  /// The transform from the coordinates [at] in this layer's to the screen's
+  /// logical pixels, and whether what lies above can say it: a filter above
+  /// moves things in ways no matrix tells. Allocates only when it changed.
+  Matrix4? screenTransform(Offset at) {
+    if (world.filtered) return null;
+    final held = _screen;
+    if (held != null && _screenStamp == world.stamp && _screenAt == at) {
+      return held;
+    }
+    final next = world.base.clone();
+    next.translateByDouble(world.dx + at.dx, world.dy + at.dy, 0, 1);
+    _screen = next;
+    _screenAt = at;
+    _screenStamp = world.stamp;
+    return next;
+  }
 
   @override
   bool get composes => true;
@@ -710,16 +779,23 @@ final class SiteNode extends ShiftNode {
     facts.clip = outside.clip;
     form._sites.add(facts);
     form._siteNodes.add(this);
-    final above = form._site;
-    form._site = this;
+    site.formNode = this;
+    final above = form._owner;
+    form._owner = this;
     final changed = super.refreshIn(form, outside);
-    form._site = above;
+    form._owner = above;
     return changed;
   }
 }
 
 mixin _Matrix on OpenNode {
   Matrix4? _own;
+
+  @override
+  void enter(SceneOut out, Rect band) {
+    if (_own case final own?) out.transform(own);
+  }
+
   Matrix4? _ownedBase;
   double _ownedDx = 0;
   double _ownedDy = 0;
@@ -822,6 +898,20 @@ final class AlphaNode extends OpenNode {
   bool get shows => (layer as OpacityLayer).alpha != 0;
 
   @override
+  void enter(SceneOut out, Rect band) {
+    final layer = this.layer as OpacityLayer;
+    final alpha = layer.alpha ?? 255;
+    if (alpha == 255) {
+      out.at += layer.offset;
+      return;
+    }
+    out.settleMatrix();
+    out.builder.pushOpacity(alpha, offset: out.at + layer.offset);
+    out.at = Offset.zero;
+    out.pushes++;
+  }
+
+  @override
   bool updateWorld(FormWorld outside) {
     final layer = this.layer as OpacityLayer;
     final alpha = layer.alpha ?? 255;
@@ -855,6 +945,17 @@ final class FilterNode extends OpenNode {
   ui.ImageFilter? _chainFilter;
 
   @override
+  void enter(SceneOut out, Rect band) {
+    final layer = this.layer as ImageFilterLayer;
+    final filter = layer.imageFilter;
+    if (filter == null) return;
+    out.settleMatrix();
+    out.builder.pushImageFilter(filter, offset: out.at + layer.offset);
+    out.at = Offset.zero;
+    out.pushes++;
+  }
+
+  @override
   bool updateWorld(FormWorld outside) {
     final layer = this.layer as ImageFilterLayer;
     final filter = layer.imageFilter;
@@ -878,21 +979,27 @@ final class FilterNode extends OpenNode {
   }
 }
 
-/// A layer that adds one value to the state of what it holds.
+/// A color filter.
 @internal
-final class TokenNode extends OpenNode {
-  /// Creates the node, reading its value from [token].
-  TokenNode(super.layer, this.token);
-
-  /// Reads the value.
-  final Object? Function() token;
+final class ColorNode extends OpenNode {
+  /// Creates the node.
+  ColorNode(ColorFilterLayer super.layer);
 
   StateChain? _chain;
   StateChain? _chainParent;
 
   @override
+  void enter(SceneOut out, Rect band) {
+    final filter = (layer as ColorFilterLayer).colorFilter;
+    if (filter == null) return;
+    out.settle();
+    out.builder.pushColorFilter(filter);
+    out.pushes++;
+  }
+
+  @override
   bool updateWorld(FormWorld outside) {
-    final value = token();
+    final value = (layer as ColorFilterLayer).colorFilter;
     if (_chain == null ||
         !identical(_chainParent, outside.state) ||
         _chain!.token != value) {
@@ -926,6 +1033,18 @@ final class MaskNode extends OpenNode {
 
   @override
   Rect get extra => _extra;
+
+  @override
+  void enter(SceneOut out, Rect band) {
+    final layer = this.layer as ShaderMaskLayer;
+    final shader = layer.shader;
+    final rect = layer.maskRect;
+    final blend = layer.blendMode;
+    if (shader == null || rect == null || blend == null) return;
+    out.settle();
+    out.builder.pushShaderMask(shader, rect, blend);
+    out.pushes++;
+  }
 
   @override
   bool updateWorld(FormWorld outside) {
@@ -1011,6 +1130,38 @@ final class ClipNode extends OpenNode {
   };
 
   @override
+  void enter(SceneOut out, Rect band) {
+    final (geometry, behavior) = _read();
+    if (geometry == null || behavior == Clip.none) return;
+    // A rect that cuts nothing of the read costs a layer for nothing.
+    if (geometry is Rect &&
+        behavior != Clip.antiAliasWithSaveLayer &&
+        !world.filtered &&
+        _clip != null &&
+        _clip!.left <= band.left &&
+        _clip!.top <= band.top &&
+        _clip!.right >= band.right &&
+        _clip!.bottom >= band.bottom) {
+      return;
+    }
+    out.settle();
+    final builder = out.builder;
+    switch (geometry) {
+      case final Rect rect:
+        builder.pushClipRect(rect, clipBehavior: behavior);
+      case final RRect rect:
+        builder.pushClipRRect(rect, clipBehavior: behavior);
+      case final RSuperellipse rect:
+        builder.pushClipRSuperellipse(rect, clipBehavior: behavior);
+      case final Path path:
+        builder.pushClipPath(path, clipBehavior: behavior);
+      default:
+        return;
+    }
+    out.pushes++;
+  }
+
+  @override
   bool updateWorld(FormWorld outside) {
     final (geometry, behavior) = _read();
     if (geometry == null || behavior == Clip.none) {
@@ -1052,6 +1203,33 @@ final class EffectsNode extends OpenNode with _Matrix {
 
   @override
   bool get shows => !_hidden;
+
+  @override
+  void enter(SceneOut out, Rect band) {
+    final effects = LiquidGlassUnderlay.effectsOf(layer)!;
+    out.transform(effects.transform);
+    final builder = out.builder;
+    if (effects.clip case final rounded?) {
+      out.settle();
+      builder.pushClipRRect(rounded);
+      out.pushes++;
+    }
+    if (effects.alpha case final alpha? when alpha != 255) {
+      out.settleMatrix();
+      builder.pushOpacity(alpha, offset: out.at);
+      out.at = Offset.zero;
+      out.pushes++;
+    }
+    if (effects.blur > 0) {
+      out.settleMatrix();
+      builder.pushImageFilter(
+        ui.ImageFilter.blur(sigmaX: effects.blur, sigmaY: effects.blur),
+        offset: out.at,
+      );
+      out.at = Offset.zero;
+      out.pushes++;
+    }
+  }
 
   @override
   bool updateWorld(FormWorld outside) {

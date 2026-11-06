@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
 const _key = ValueKey('screen');
@@ -97,13 +97,13 @@ Future<int> underlayParity(
   tester.view.physicalSize = const Size(260, 200);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  addTearDown(() => BackdropUnderlay.debugEnabledOverride = null);
+  addTearDown(() => GlassCopies.debugEnabledOverride = null);
   // flutter_tester renders only a process's first backdrop filter reliably,
   // so the reference reads the backdrop first.
-  BackdropUnderlay.debugEnabledOverride = false;
+  GlassCopies.debugEnabledOverride = false;
   await tester.pumpWidget(underlayScene(frost: frost, scale: scale));
   final reading = await underlayPixels(tester);
-  BackdropUnderlay.debugEnabledOverride = true;
+  GlassCopies.debugEnabledOverride = true;
   await tester.pumpWidget(const SizedBox());
   await tester.pumpWidget(underlayScene(frost: frost, scale: scale));
   expect(underlayGlass(tester).debugDrewOverUnderlay, isTrue);

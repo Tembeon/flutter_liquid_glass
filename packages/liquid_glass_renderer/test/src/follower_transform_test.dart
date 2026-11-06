@@ -2,6 +2,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_render_object_mixin.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
@@ -131,7 +132,8 @@ class _RenderProbe extends RenderProxyBox
   void onTransformChanged() {}
 
   @override
-  void onCompositing() {
+  void fillPlanFacts(SiteFacts facts) {
     composed.add(MatrixUtils.transformPoint(transformToScreen(), Offset.zero));
+    super.fillPlanFacts(facts);
   }
 }

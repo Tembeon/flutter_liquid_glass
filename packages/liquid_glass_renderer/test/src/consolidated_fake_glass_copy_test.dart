@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/rendering/consolidated_fake_glass_layer.dart';
 
@@ -87,7 +87,7 @@ int _difference(Uint8List a, Uint8List b) {
 
 void main() {
   tearDown(() {
-    BackdropUnderlay.debugEnabledOverride = null;
+    GlassCopies.debugEnabledOverride = null;
     LiquidGlassBackdropFrost.debugShaderFrost = true;
   });
 
@@ -100,13 +100,13 @@ void main() {
 
     // flutter_tester renders only a process's first backdrop filter
     // reliably, so the reference reads the backdrop first.
-    BackdropUnderlay.debugEnabledOverride = false;
+    GlassCopies.debugEnabledOverride = false;
     await tester.pumpWidget(_scene());
     await tester.pump();
     final reading = await _pixels(tester);
     expect(_glass(tester).debugDrewOverCopy, isFalse);
 
-    BackdropUnderlay.debugEnabledOverride = true;
+    GlassCopies.debugEnabledOverride = true;
     LiquidGlassBackdropFrost.debugShaderFrost = false;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(shift: 0.3));
@@ -125,7 +125,7 @@ void main() {
   }, skip: skipProperGlassTests);
 
   testWidgets('fading grouped fake glass draws over a copy', (tester) async {
-    BackdropUnderlay.debugEnabledOverride = true;
+    GlassCopies.debugEnabledOverride = true;
     await tester.pumpWidget(_scene(shift: 0.3, opacity: 0.5));
     await tester.pumpWidget(_scene(opacity: 0.5));
     expect(_glass(tester).debugDrewOverCopy, isTrue);

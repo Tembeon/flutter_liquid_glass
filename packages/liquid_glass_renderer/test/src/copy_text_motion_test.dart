@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
 
 import 'shared.dart';
 
@@ -78,8 +78,8 @@ Future<List<int>> _underGlass(WidgetTester tester) async {
 }
 
 void main() {
-  setUp(() => BackdropUnderlay.debugEnabledOverride = true);
-  tearDown(() => BackdropUnderlay.debugEnabledOverride = null);
+  setUp(() => GlassCopies.debugEnabledOverride = true);
+  tearDown(() => GlassCopies.debugEnabledOverride = null);
 
   // A copy at a half or a quarter of the screen's pixels: text set on its
   // pixels would leave every other step, or three in four, unchanged.

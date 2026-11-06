@@ -13,7 +13,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
 
 const _key = ValueKey('page');
 
@@ -116,15 +118,13 @@ int _difference(Uint8List a, Uint8List b, {int? width, int? columns}) {
 }
 
 void main() {
-  final inFrameDefault = BackdropUnderlay.debugInFrame;
   setUp(() {
     MotionClock.debugReset();
-    BackdropUnderlay.debugEnabledOverride = true;
+    GlassCopies.debugEnabledOverride = true;
   });
   tearDown(() {
-    BackdropUnderlay.debugEnabledOverride = null;
-    BackdropUnderlay.debugInFrame = inFrameDefault;
-    BackdropUnderlay.debugDropsFrost = true;
+    GlassCopies.debugEnabledOverride = null;
+    GlassComposer.debugPolicy = const Policy();
     LiquidGlassBackdropFrost.debugShaderFrost = true;
   });
 
@@ -139,16 +139,16 @@ void main() {
       tester.view.physicalSize = Size(300 * dpr, 400 * dpr);
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
-      BackdropUnderlay.debugInFrame = false;
+      GlassComposer.debugPolicy = const Policy(maxTargets: 0);
 
       LiquidGlassBackdropFrost.debugShaderFrost = false;
       final filtered = await _scrolled(tester, dpr, hard: hard);
-      final full = _band(tester).debugUnderlay.debugImage!.width;
+      final full = _band(tester).debugPage!.image.width;
 
       LiquidGlassBackdropFrost.debugShaderFrost = true;
       final frosted = await _scrolled(tester, dpr, hard: hard);
       // The copy spans the screen's width, at half size.
-      expect(_band(tester).debugUnderlay.debugImage!.width, (full / 2).round());
+      expect(_band(tester).debugPage!.image.width, (full / 2).round());
       // NEAR, see LiquidGlassBackdropFrost.debugShaderFrost.
       expect(_difference(filtered, frosted), lessThanOrEqualTo(near));
     }, skip: !ui.ImageFilter.isShaderFilterSupported);
@@ -167,15 +167,15 @@ void main() {
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
 
-      BackdropUnderlay.debugInFrame = false;
+      GlassComposer.debugPolicy = const Policy(maxTargets: 0);
       final image = await _scrolled(tester, dpr, hard: true);
-      expect(_band(tester).inFrameLayer, isNull);
+      expect(_band(tester).debugPage, isNotNull);
 
-      BackdropUnderlay.debugInFrame = true;
-      final drawn = BackdropUnderlay.debugImagesDrawn;
+      GlassComposer.debugPolicy = const Policy();
+      final drawn = GlassCopies.debugImagesDrawn;
       final inFrame = await _scrolled(tester, dpr, hard: true);
-      expect(_band(tester).inFrameLayer, isNotNull);
-      expect(BackdropUnderlay.debugImagesDrawn, drawn);
+      expect(_band(tester).debugPage, isNull);
+      expect(GlassCopies.debugImagesDrawn, drawn);
       expect(
         _difference(
           image,
@@ -205,14 +205,14 @@ void main() {
       ),
     );
 
-    BackdropUnderlay.debugDropsFrost = false;
+    GlassComposer.debugPolicy = const Policy(bands: false, dropsFrost: false);
     final kept = await _scrolled(tester, dpr, hard: true, bar: bar);
-    BackdropUnderlay.debugDropsFrost = true;
+    GlassComposer.debugPolicy = const Policy(bands: false);
     final dropped = await _scrolled(tester, dpr, hard: true, bar: bar);
 
     final difference = _difference(kept, dropped);
     expect(difference, greaterThan(0));
-    // NEAR, see BackdropUnderlay.debugDropsFrost.
+    // NEAR, see Policy.dropsFrost.
     expect(difference, lessThanOrEqualTo(12));
   }, skip: !ui.ImageFilter.isShaderFilterSupported);
 }

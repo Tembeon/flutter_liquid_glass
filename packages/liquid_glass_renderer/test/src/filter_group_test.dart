@@ -10,7 +10,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
 import 'shared.dart';
@@ -93,9 +95,9 @@ Future<(Uint8List, int)> _draw(
   List<Widget> children, {
   required bool groups,
 }) async {
-  final was = BackdropUnderlay.debugGroups;
-  BackdropUnderlay.debugGroups = groups;
-  addTearDown(() => BackdropUnderlay.debugGroups = was);
+  // Nothing shares when no site fits a matte with another.
+  GlassComposer.debugPolicy = Policy(maxShapes: groups ? 16 : 0);
+  addTearDown(() => GlassComposer.debugPolicy = const Policy());
   await tester.pumpWidget(
     View(view: view, child: const SizedBox()),
     wrapWithView: false,
@@ -116,7 +118,7 @@ int _layersOf(WidgetTester tester, _CapturingView view) {
       .debugLayer!;
   var count = 0;
   void walk(Layer layer) {
-    if (layer is InFrameGlassLayer) count++;
+    if (layer is ReadLayer) count++;
     if (layer is ContainerLayer) {
       var child = layer.firstChild;
       while (child != null) {
@@ -144,10 +146,10 @@ int _layersOf(WidgetTester tester, _CapturingView view) {
 
 void main() {
   setUp(() {
-    BackdropUnderlay.debugEnabledOverride = true;
+    GlassCopies.debugEnabledOverride = true;
     RenderLiquidGlassLayer.debugGroupMatteRenders = 0;
   });
-  tearDown(() => BackdropUnderlay.debugEnabledOverride = null);
+  tearDown(() => GlassCopies.debugEnabledOverride = null);
 
   Future<void> expectSame(
     WidgetTester tester,
