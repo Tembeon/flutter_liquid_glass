@@ -266,16 +266,26 @@ final class CornerRead {
 
   // The part of the layer the copy's own pixels fill, in the layer's own
   // pixels.
-  Size get _copySize => Size(
-    (_device.width / _share).ceilToDouble(),
-    (_device.height / _share).ceilToDouble(),
-  );
+  Size get _copySize {
+    final at = _at;
+    final pixels = _copy._grid._pixels;
+    return Size(
+      min(
+        (max(at.dx, 0) + _copy._band.width * pixels).ceilToDouble(),
+        _device.width,
+      ),
+      min(
+        (max(at.dy, 0) + _copy._band.height * pixels).ceilToDouble(),
+        _device.height,
+      ),
+    );
+  }
 
   /// How `backdrop_frost.frag` frosts the copy where it lies in the layer, at
   /// its own pixels, for Impeller's blur by [frost], or null when the copy is
   /// too large for that to pay: glass then frosts it fragment by fragment.
   FrostSampling? inPlaceFrostSampling(double frost) {
-    if (frost <= 0 || _share < 4) return null;
+    if (frost <= 0 || _share < 2) return null;
     final at = _at;
     final size = _copySize;
     final pixels = _copy._grid._pixels;
@@ -287,7 +297,7 @@ final class CornerRead {
         min(at.dx + _copy._band.width * pixels, size.width) - 0.5,
         min(at.dy + _copy._band.height * pixels, size.height) - 0.5,
       ),
-      frost: _copy._grid._frost(frost) / _share,
+      frost: _copy._grid._frost(_copy._frostOver(frost)) / _share,
       scale: 1,
       shown: Offset.zero & size,
     );
@@ -347,23 +357,30 @@ final class CornerRead {
 
   /// Adds the layer to [builder] with [filter] as its image filter, in
   /// coordinates [deviceToLocal] takes the screen's device pixels to: the
-  /// layers [record] draws, with nothing recorded.
+  /// layers [record] draws, with nothing recorded. The copy passes through
+  /// [inPlace] first.
   void addToScene(
     ui.SceneBuilder builder,
     ui.ImageFilter filter,
     Matrix4 deviceToLocal, {
     ui.Path? clip,
+    ui.ImageFilter? inPlace,
   }) {
     final at = _at;
     builder.pushTransform(deviceToLocal.storage);
     if (clip != null) builder.pushClipPath(clip, clipBehavior: Clip.hardEdge);
     builder.pushImageFilter(filter);
     builder.addPicture(_device.topLeft, _corners(_device.size));
+    if (inPlace != null) {
+      builder.pushImageFilter(inPlace);
+      builder.addPicture(_device.topLeft, _corners(_copySize));
+    }
     _copy._addTo(
       builder,
       Offset(_device.left + at.dx, _device.top + at.dy),
-      _device,
+      inPlace == null ? _device : _device.topLeft & _copySize,
     );
+    if (inPlace != null) builder.pop();
     builder.pop();
     if (clip != null) builder.pop();
     builder.pop();

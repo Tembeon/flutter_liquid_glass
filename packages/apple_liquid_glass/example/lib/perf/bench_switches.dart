@@ -37,6 +37,11 @@ final benchSwitches = <String, void Function({required bool on})>{
   'wide_frost': ({required on}) => debugShaderFrostMaxDownscale = on ? 8 : 4,
   // B frosts a small copy once, A in every fragment of the glass over it.
   'in_place': ({required on}) => debugFrostsInPlace = on,
+  // B also takes the smallest copy the frost allows, so most frost is baked.
+  'bake': ({required on}) {
+    debugFrostsInPlace = on;
+    RenderLiquidGlassLayer.debugFrostMinTexels = on ? 1.0 : double.infinity;
+  },
   // B: copies as small as the frost allows, A: as large.
   'small_copies': ({required on}) =>
       RenderLiquidGlassLayer.debugFrostMinTexels = on ? 1.2 : double.infinity,

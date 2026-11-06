@@ -7,6 +7,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_filter_layer.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart'
+    show debugFrostsInPlace, frostFilterOf;
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart';
@@ -65,6 +67,8 @@ class BackdropUnderlay {
   static const double _roomMost = 400;
 
   ui.Image? _image;
+  // The frost [_image] holds, in logical pixels.
+  double _heldFrost = 0;
   Offset _offset = Offset.zero;
   // The screen rect the copy holds.
   Rect _rect = Rect.zero;
@@ -1078,7 +1082,29 @@ final class _Island {
 
   Rect get bounds => offset & Size(width.toDouble(), height.toDouble());
 
+  // How `backdrop_frost.frag` frosts the island's copy in a layer of its own.
+  FrostSampling frostSampling(double frost) {
+    final size = Size(width.toDouble(), height.toDouble());
+    return FrostSampling._(
+      size: size,
+      bounds: Rect.fromLTRB(0.5, 0.5, size.width - 0.5, size.height - 0.5),
+      frost: grid._frost(frost) / grid._share,
+      scale: 1,
+      shown: Offset.zero & size,
+    );
+  }
+
+  // The frost the island's copy holds, in logical pixels: frosted once, at the
+  // copy's own pixels, so glass over it takes one read per fragment (see
+  // inPlaceFrostFilter). A copy that folds glass in holds it at the screen's
+  // pixels, where the frost would cost more than the taps.
+  double get holdsFrost =>
+      debugFrostsInPlace && !filtered && pieces.isEmpty && grid._share >= 2
+      ? _ask.frost
+      : 0;
+
   bool fits(_Ask ask) =>
+      (!debugFrostsInPlace || ask.frost == _ask.frost) &&
       ask.filterKey == filterKey &&
       ask.filterClip == filterClip &&
       ask.filterBlendMode == filterBlendMode &&
@@ -2765,7 +2791,7 @@ final class UnderlayCopy {
       origin:
           rect.topLeft * _grid._devicePixelRatio - _offset * share.toDouble(),
       reduced: share > 1 ? 1 : 0,
-      frost: _grid._frost(frost),
+      frost: frost == _underlay._heldFrost ? 0 : _grid._frost(frost),
       image: image,
       size: Size(
         image.width * share.toDouble(),
@@ -2971,15 +2997,18 @@ class InFrameGlassLayer extends GlassPictureLayer {
     Matrix4 deviceToLocal, {
     ui.Path? clip,
     List<(ui.Picture, Offset)> under = const [],
+    ui.ImageFilter? inPlace,
   }) {
     _read = read;
     _filter = filter;
     _deviceToLocal = deviceToLocal;
     _clip = clip;
     _under = under;
+    _inPlace = inPlace;
   }
 
   ui.Path? _clip;
+  ui.ImageFilter? _inPlace;
   List<(ui.Picture, Offset)> _under = const [];
 
   @override
@@ -2996,7 +3025,13 @@ class InFrameGlassLayer extends GlassPictureLayer {
       for (final (picture, offset) in _under) {
         builder.addPicture(offset, picture);
       }
-      read.addToScene(builder, _filter, _deviceToLocal, clip: _clip);
+      read.addToScene(
+        builder,
+        _filter,
+        _deviceToLocal,
+        clip: _clip,
+        inPlace: _inPlace,
+      );
     } else {
       super.addToScene(builder);
     }
@@ -3155,7 +3190,31 @@ final class _Atlas {
     void place(Canvas canvas, _Island tile) {
       canvas.save();
       canvas.translate(tile.offset.dx, tile.offset.dy);
+      final frost = tile.holdsFrost;
+      final filter = frost > 0
+          ? frostFilterOf(tile.frostSampling(frost))
+          : null;
+      if (filter != null) {
+        final inner = Paint();
+        inner.imageFilter = filter;
+        final size = Size(tile.width.toDouble(), tile.height.toDouble());
+        canvas.saveLayer(Offset.zero & size, inner);
+        // Impeller sizes a layer by what is drawn in it.
+        final clear = Paint();
+        clear.blendMode = BlendMode.clear;
+        canvas.drawRect(const Rect.fromLTWH(0, 0, 1, 1), clear);
+        canvas.drawRect(
+          Rect.fromLTRB(
+            size.width - 1,
+            size.height - 1,
+            size.width,
+            size.height,
+          ),
+          clear,
+        );
+      }
       canvas.drawPicture(tile.content!);
+      if (filter != null) canvas.restore();
       canvas.restore();
     }
 
@@ -3255,6 +3314,7 @@ final class _Atlas {
         final shift =
             (member._rect.topLeft - tile.rect.topLeft) * tile.grid._pixels;
         member._image = image.clone();
+        member._heldFrost = tile.holdsFrost;
         member._offset =
             tile.offset +
             Offset(shift.dx.roundToDouble(), shift.dy.roundToDouble());

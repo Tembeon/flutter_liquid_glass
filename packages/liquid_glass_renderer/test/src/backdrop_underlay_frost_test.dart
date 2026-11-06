@@ -31,11 +31,11 @@ void main() {
   }, skip: skipProperGlassTests);
 
   // The scene's text is white bars under the glass, the hardest edges a
-  // frost meets: the shader's 24 taps differ from Impeller's blur most
-  // there, and the copy's size adds to it as it does for a blurred copy.
+  // frost meets: the frost's taps differ from Impeller's blur most there, and
+  // the copy's size adds to it as it does for a blurred copy.
   for (final (frost, size, near) in [
-    (3.0, (260, 200), 22),
-    (8.0, (130, 100), 31),
+    (3.0, (130, 100), 22),
+    (8.0, (65, 50), 36),
     (12.0, (65, 50), 27),
   ]) {
     testWidgets('glass frosted by $frost over an unblurred copy draws near '
@@ -62,7 +62,7 @@ void main() {
       'reading the backdrop draws', (tester) async {
     expect(
       await underlayParity(tester, frost: 8, scale: 1.2),
-      lessThanOrEqualTo(28),
+      lessThanOrEqualTo(30),
     );
   }, skip: skipProperGlassTests);
 }

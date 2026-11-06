@@ -2022,13 +2022,26 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
   }
 
+  // What frosts [read]'s copy for [group], or null where its glass does. A band
+  // adds to that frost what it still lacks, so it can't take less of it.
+  ImageFilter? _groupInPlace(
+    FilterGroup group,
+    _GlassOffer offer,
+    CornerRead read,
+  ) {
+    final band = group.band;
+    if (band != null && band.sigma < offer.frost) return null;
+    return inPlaceFrostFilter(read, offer.frost);
+  }
+
   // The filter that draws [group] over [read].
   ImageFilter _groupFilter(
     FilterGroup group,
     _GlassOffer offer,
     CornerRead read,
+    ImageFilter? inPlace,
   ) {
-    final sampling = read.glassSampling(offer.frost);
+    final sampling = read.glassSampling(inPlace == null ? offer.frost : 0);
     final matte = group.glass.length > 1 ? _groupMatte : null;
     final origin = matte?.origin;
     final globalToMatte = origin == null
@@ -2057,7 +2070,16 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
     if (key == _inSceneFilterKey) return _inSceneFilter!;
     _inSceneFilterKey = key;
-    if (band != null) _writeBand(shader, band, read, sampling, shown!);
+    if (band != null) {
+      _writeBand(
+        shader,
+        band,
+        read,
+        sampling,
+        shown!,
+        inPlace == null ? 0 : read.glassSampling(offer.frost).frost,
+      );
+    }
     try {
       return _inSceneFilter = _readingCopy<ImageFilter>(
         sampling,
@@ -2079,6 +2101,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     CornerRead read,
     GlassSampling sampling,
     Rect shown,
+    double frosted,
   ) {
     final paint = band.paint;
     final dpr = band.devicePixelRatio;
@@ -2090,7 +2113,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     put(shown.top);
     put(shown.right);
     put(shown.bottom);
-    put(read.glassSampling(band.sigma).frost);
+    final whole = read.glassSampling(band.sigma).frost;
+    put(sqrt(max(whole * whole - frosted * frosted, 0)));
     put(row(paint.whole));
     put(row(paint.gone));
     put(paint.brightness);
@@ -2149,9 +2173,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       (region) {
         final read = copy.readIn(region);
         if (read == null) return null;
+        final inPlace = _groupInPlace(group, lead, read);
         final body = read.record(
-          _groupFilter(group, lead, read),
+          _groupFilter(group, lead, read, inPlace),
           screenToCanvas,
+          inPlace: inPlace,
         );
         if (shadows.isEmpty) return body;
         final recorder = ui.PictureRecorder();
@@ -2169,12 +2195,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
     final read = copy.inScene ? copy.readIn(copy.layer) : null;
     if (read != null) {
+      final inPlace = _groupInPlace(group, lead, read);
       picture.showInScene(
         read,
-        _groupFilter(group, lead, read),
+        _groupFilter(group, lead, read, inPlace),
         screenToCanvas,
         clip: group.clipIn(copy.layer),
         under: shadows,
+        inPlace: inPlace,
       );
     } else {
       picture.picture = picture.within(copy.layer);
@@ -2295,11 +2323,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// NEAR: the shader's 12 taps, turned over a 2 x 2 cell of pixels except in
   /// the tinted variants, are not Impeller's blur, and a thin hard edge under
   /// the frost shows a faint dither. Over the white bars of the host test they
-  /// differ from the live filter by at most 22 channel levels over a full-size
-  /// copy, 31 over a
-  /// half-size one and 27 over a quarter-size one, where the blurred half-size
-  /// copy differs by 4, and by 28 for glass scaled 1.2 over a quarter-size
-  /// copy.
+  /// differ from the live filter by at most 22 channel levels over a half-size
+  /// copy and 36 over a quarter-size one, where the blurred half-size copy
+  /// differs by 4, and by 30 for glass scaled 1.2 over a quarter-size copy.
   /// In return a frosted copy takes no blur passes.
   ///
   /// A layer picks its shaders by it: after a change, call
@@ -2307,9 +2333,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   static bool debugShaderFrost = true;
 
-  /// Bench: a copy is halved while the frost still spans this many of its
-  /// pixels.
-  static double debugFrostMinTexels = double.infinity;
+  /// A copy is halved while the frost still spans this many of its pixels:
+  /// the fewer the pixels, the less it costs to draw and to frost.
+  static double debugFrostMinTexels = 1;
 
   /// Encodes the geometry again, after a bench changed what it draws.
   void debugUpdateGeometry() {
@@ -2476,8 +2502,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         },
       );
       final read = inFrame.inScene ? inFrame.readIn(inFrame.layer) : null;
-      if (read != null && inPlaceFrostFilter(read, frost) == null) {
-        final sampling = read.glassSampling(frost);
+      if (read != null) {
+        final inPlace = inPlaceFrostFilter(read, frost);
+        final sampling = read.glassSampling(inPlace == null ? frost : 0);
         final key = (
           renderShader,
           _shaderInputsRevision,
@@ -2498,7 +2525,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           );
           _inSceneFilterKey = key;
         }
-        picture.showInScene(read, _inSceneFilter!, screenToCanvas);
+        picture.showInScene(
+          read,
+          _inSceneFilter!,
+          screenToCanvas,
+          inPlace: inPlace,
+        );
         return _rig.servedInFrame(picture);
       }
       picture.picture = picture.within(inFrame.layer);
@@ -3223,7 +3255,11 @@ final class _GlassOffer extends GlassOffer {
 
   @override
   ImageFilter filter(FilterGroup group, CornerRead read) =>
-      glass._groupFilter(group, this, read);
+      glass._groupFilter(group, this, read, inPlace(group, read));
+
+  @override
+  ImageFilter? inPlace(FilterGroup group, CornerRead read) =>
+      glass._groupInPlace(group, this, read);
 }
 
 // One matte of a group's glass, its origin on the first's. Glass that moves

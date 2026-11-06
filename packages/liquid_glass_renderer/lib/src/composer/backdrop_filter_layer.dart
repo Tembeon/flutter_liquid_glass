@@ -235,6 +235,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     final read = copy.inScene ? copy.readIn(copy.layer) : null;
     if (read != null) {
       _sceneFilter = group.painter.filter(group, read);
+      _sceneInPlace = group.painter.inPlace(group, read);
       _sceneFilterKey = null;
       _sceneRead = read;
     } else {
@@ -260,6 +261,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   // is recorded only when a copy for other glass draws it.
   CornerRead? _sceneRead;
   late ui.ImageFilter _sceneFilter;
+  ui.ImageFilter? _sceneInPlace;
   Object? _sceneFilterKey;
 
   /// Whether this frame draws a copy in place of the backdrop read.
@@ -284,6 +286,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
       return read?.record(
         group.painter.filter(group, read),
         frostToLocal(inFrame.origin, _devicePixelRatio),
+        inPlace: group.painter.inPlace(group, read),
       );
     }
     return recordFrostedInFrame(
@@ -480,6 +483,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
       );
       _sceneFilterKey = key;
     }
+    _sceneInPlace = null;
     _sceneRead = read;
     return true;
   }
@@ -491,6 +495,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
         builder,
         _sceneFilter,
         frostToLocal(_inFrame!.origin, _devicePixelRatio),
+        inPlace: _sceneInPlace,
       );
       if (_drawn == null) addChildrenToScene(builder);
       return;

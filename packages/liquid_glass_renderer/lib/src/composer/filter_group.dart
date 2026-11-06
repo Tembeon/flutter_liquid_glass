@@ -113,6 +113,10 @@ abstract class GlassOffer extends FilterOffer {
 
   /// The filter that draws [group] over [read].
   ui.ImageFilter filter(FilterGroup group, CornerRead read);
+
+  /// What frosts [read]'s copy for [group] before [filter], or null where
+  /// the filter itself frosts it.
+  ui.ImageFilter? inPlace(FilterGroup group, CornerRead read);
 }
 
 /// Layers of one frame drawn through one filter over one copy.

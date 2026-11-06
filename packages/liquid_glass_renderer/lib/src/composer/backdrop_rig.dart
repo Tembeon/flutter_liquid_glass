@@ -274,10 +274,10 @@ ui.ImageFilter frostFilter(
   return shaderFilterNow(shader);
 }
 
-/// Whether a copy of few pixels is frosted once, at its own pixels, rather
-/// than by every fragment of the glass over it.
-@visibleForTesting
-bool debugFrostsInPlace = false;
+/// Whether a copy smaller than the screen is frosted once, at its own pixels,
+/// rather than by every fragment of the glass over it.
+@internal
+bool debugFrostsInPlace = true;
 
 ui.FragmentShader? _inPlaceFrost;
 
@@ -285,22 +285,35 @@ ui.FragmentShader? _inPlaceFrost;
 /// [frost], which glass then reads as it is, or null where glass frosts it.
 ///
 /// NEAR: the glass takes one read for its 12 taps per fragment, over a copy
-/// of an eighth or a quarter of the screen's pixels the frost spans by at
-/// least 1.75 of them, and the copy's pixels show no more than through the
-/// taps.
+/// of a quarter of the screen's pixels along each side where the frost spans
+/// at least one of them, and the copy's pixels show no more than through the
+/// taps. On a Pixel 6a, in-launch pairs: main pass -0.50 ms a frame over
+/// photos, for one more pass and +0.4 ms on the raster thread.
 @internal
 ui.ImageFilter? inPlaceFrostFilter(CornerRead read, double frost) {
   if (!debugFrostsInPlace) return null;
   final sampling = read.inPlaceFrostSampling(frost);
-  if (sampling == null) return null;
+  return sampling == null ? null : frostFilterOf(sampling);
+}
+
+/// The filter that frosts a layer as [sampling] says, or null before its
+/// shader is loaded.
+@internal
+ui.ImageFilter? frostFilterOf(FrostSampling sampling) {
   final shader = _inPlaceFrost ??= MultiShaderBuilder.cached(
     ShaderKeys.backdropFrost,
   )?.fragmentShader();
   if (shader == null) return null;
+  final key = (sampling.size, sampling.bounds, sampling.frost, sampling.shown);
+  if (_inPlaceFilters[key] case final held?) return held;
+  if (_inPlaceFilters.length >= 32) _inPlaceFilters.clear();
   _setFrost(shader, sampling, null);
   shader.setImageSampler(0, _bilinear, filterQuality: FilterQuality.low);
-  return bilinearShaderFilter(shader);
+  return _inPlaceFilters[key] = bilinearShaderFilter(shader);
 }
+
+// Chrome over a scroll keeps a copy's place, so its filter too.
+final _inPlaceFilters = <Object, ui.ImageFilter>{};
 
 // The uniforms of backdrop_frost.frag.
 void _setFrost(
