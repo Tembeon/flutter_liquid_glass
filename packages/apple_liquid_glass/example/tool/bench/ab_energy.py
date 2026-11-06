@@ -104,6 +104,9 @@ def run(apk, out):
     clock = adb('shell', 'date +%s.%N; cat /proc/uptime').split()
     boot_epoch = float(clock[0]) - float(clock[1])
     time.sleep(2)
+    # Android may bring the task back while the phone cools: a start would
+    # land in that process, whose log this run cleared.
+    adb('shell', 'am', 'force-stop', PKG)
     adb('shell', 'am', 'start', '-n', f'{PKG}/.MainActivity')
     app = ''
     while not app:

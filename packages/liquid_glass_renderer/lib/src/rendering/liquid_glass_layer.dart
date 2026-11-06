@@ -1913,7 +1913,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         _colorModelFamily,
         // Past this size the shader's bevel no longer asks how large the
         // surface is.
-        min(_halfMinor, GlassRim.bevelShadowDepth * dpr * 5),
+        (min(_halfMinor, GlassRim.bevelShadowDepth * dpr * 5) * 64).round(),
       ),
     );
     frame.offer(offer);
