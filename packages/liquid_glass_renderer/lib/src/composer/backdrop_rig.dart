@@ -7,6 +7,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_frost.dart';
+import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
@@ -77,6 +78,7 @@ ui.Picture recordFilteredCopy(
   Offset origin, {
   Path? outline,
 }) {
+  if (!kReleaseMode) GlassWork.pictures++;
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
   if (outline != null) canvas.clipPath(outline);
@@ -114,6 +116,7 @@ ui.Picture recordFrostedCopy(
   final read = copy.readOf(shown);
   _setFrost(shader, read.frostSampling(frost.sigma), frost.colorMatrix);
   shader.setImageSampler(0, copy.image, filterQuality: FilterQuality.low);
+  if (!kReleaseMode) GlassWork.pictures++;
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
   if (outline != null) canvas.clipPath(outline);

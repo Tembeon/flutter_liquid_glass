@@ -6,6 +6,13 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 export 'src/composer/backdrop_filter_layer.dart'
     show LiquidGlassBackdropFilterLayer, FrostBandPaint;
 export 'src/composer/backdrop_frost.dart' show LiquidGlassBackdropFrost;
+export 'src/composer/frame_report.dart'
+    show
+        GlassFrameReport,
+        GlassPlanOverlay,
+        GlassReadReport,
+        GlassReadSource,
+        debugDumpGlassPlan;
 export 'src/fake_glass.dart' show FakeGlass;
 export 'src/glass_glow.dart' show GlassGlow, GlassGlowLayer;
 export 'src/internal/glass_drag_builder.dart' show GestureMode;

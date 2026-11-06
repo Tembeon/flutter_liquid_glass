@@ -12,6 +12,7 @@ import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
+import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/internal/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
@@ -1894,7 +1895,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       frost: frost,
       downscale: downscale,
       drawsBand:
-          frost > 0 && _frostsCopies && _colorModelFamily == FinalShaderModels.ios27,
+          frost > 0 &&
+          _frostsCopies &&
+          _colorModelFamily == FinalShaderModels.ios27,
       tint: appearance.tint,
       shapes: _shapeData.length ~/ 12,
       devicePixelRatio: dpr,
@@ -2124,6 +2127,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         globalToMatte: globalToMatte,
         backdropBounds: backdropBounds,
         draw: (shader) {
+          if (!kReleaseMode) GlassWork.pictures++;
           final recorder = ui.PictureRecorder();
           final canvas = Canvas(recorder);
           canvas.transform(screenToCanvas.storage);
@@ -2401,6 +2405,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _rig.pagePicture(key, bounds, () {
         final body = recordPage(read, page, toCanvas);
         if (under.isEmpty) return body;
+        if (!kReleaseMode) GlassWork.pictures++;
         final recorder = ui.PictureRecorder();
         final canvas = Canvas(recorder);
         for (final (shadow, offset) in under) {
@@ -2433,8 +2438,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final fate = _fate;
     if (fate is! Leads) return;
     final read = fate.read;
-    if (glassShadowPicture?.picture case final shadow?
-        when !glassShadowsFade) {
+    if (glassShadowPicture?.picture case final shadow? when !glassShadowsFade) {
       out.picture(shadow);
     }
     if (read.source is ImageRead) {

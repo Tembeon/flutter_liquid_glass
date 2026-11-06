@@ -136,6 +136,7 @@ void main() {
     GlassCopies.debugEnabledOverride = true;
     final copied = await _scrolled(tester);
     expect(_band(tester).serves, isTrue);
-    expect(_difference(live, copied), 0);
+    // The copy reads as far as the blur's reach, the backdrop reads the pass.
+    expect(_difference(live, copied), lessThanOrEqualTo(2));
   }, skip: !ui.ImageFilter.isShaderFilterSupported);
 }

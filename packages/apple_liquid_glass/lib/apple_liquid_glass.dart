@@ -137,6 +137,13 @@ export 'src/presentations/popover.dart'
     show GlassPopoverStyle, showGlassPopover;
 export 'src/presentations/sheet.dart'
     show GlassSheet, GlassSheetStyle, showGlassSheet;
+export 'src/renderer/frame_report.dart'
+    show
+        GlassFrameReport,
+        GlassPlanOverlay,
+        GlassReadReport,
+        GlassReadSource,
+        debugDumpGlassPlan;
 export 'src/renderer/renderer.dart' show GlassRenderer;
 export 'src/surface/clip.dart' show GlassClip;
 export 'src/surface/frame.dart' show GlassFrame;

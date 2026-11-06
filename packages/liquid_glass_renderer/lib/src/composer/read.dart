@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart'
     show frostFilterOf;
+import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/internal/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/composer/form.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
@@ -369,6 +370,7 @@ final class _Replay {
           if (parts != null && !parts.any((m) => _meets(screen, m.reads))) {
             continue;
           }
+          if (!kReleaseMode) GlassWork.replayed++;
           GlassCopies.debugReplayed++;
           out.picture(layer.picture!);
         case OutputNode(:final site?):
@@ -564,6 +566,7 @@ final class _Pages {
     final key = (sigmaX, sigmaY);
     if (_blurs[key] case final held?) return held;
     if (_blurs.length >= 16) _blurs.clear();
+    if (!kReleaseMode) GlassWork.filters++;
     return _blurs[key] = ui.ImageFilter.blur(
       sigmaX: sigmaX,
       sigmaY: sigmaY,
@@ -637,6 +640,7 @@ final class _Pages {
   }
 
   void _draw(List<_Tile> tiles, int width, int height) {
+    if (!kReleaseMode) GlassWork.images++;
     GlassCopies.debugImagesDrawn++;
     final b = ui.SceneBuilder();
     void add(_Tile tile, Rect within) {

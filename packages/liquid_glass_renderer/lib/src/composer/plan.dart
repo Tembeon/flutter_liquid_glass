@@ -20,6 +20,9 @@ abstract interface class Scenery {
   /// What the content under [site] allows a read over it to be.
   ReadLimit limitUnder(SiteFacts site);
 
+  /// What makes [limitUnder] of [site] what it is, for a person, if anything.
+  String? whyLimited(SiteFacts site);
+
   /// The frame something meeting [band] before [order] last changed, or the
   /// frame the scenery began.
   int lastChangedUnder(int order, Rect band);
@@ -262,6 +265,10 @@ final class SiteFacts {
 
   /// Inherited alpha, filters and clips.
   StateChain state = StateChain.root;
+
+  /// The [state] and [clip] the dirty log last knew: glass draws no picture, so
+  /// a fade or a clip around it reaches the log only through this.
+  (StateChain, Rect?) noted = (StateChain.root, null);
 
   /// The clip around it on the screen, if any.
   Rect? clip;
@@ -711,7 +718,11 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
         pageOnly ||
         limit == ReadLimit.liveOnly) {
       if (explain) {
-        final why = site.noJoin?.name ?? (site.turned ? 'turned' : 'live');
+        final why =
+            site.noJoin?.name ??
+            (site.turned
+                ? 'turned'
+                : scene.whyLimited(site) ?? 'over glass that reads live');
         notes.add('${site.id}: never joins: $why');
       }
     } else {

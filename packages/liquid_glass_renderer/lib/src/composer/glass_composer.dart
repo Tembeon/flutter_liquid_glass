@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:liquid_glass_renderer/src/composer/form.dart';
+import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
@@ -91,6 +93,7 @@ final class GlassComposer extends PipelineOwner {
   /// and the node paints in the next frame, as a mark made while the scene
   /// is built would.
   static void repaint(RenderObject node) {
+    if (!kReleaseMode) GlassWork.marks++;
     final owner = node.owner;
     if (owner == null || !(_of(owner)?._composing ?? false)) {
       node.markNeedsPaint();
@@ -248,6 +251,9 @@ final class _Composition {
     if (view is! RenderView) return;
     final flutterView = view.flutterView;
     final dpr = flutterView.devicePixelRatio;
+    final listening = GlassFrameReport.listening;
+    final clock = Stopwatch();
+    if (listening) clock.start();
     // What the sites read and the pages replay holds mattes paint wrote.
     FlutterGpuGeometryRenderer.flushPendingSubmissions();
     FrameAncestors.current = FrameAncestors();
@@ -262,24 +268,63 @@ final class _Composition {
         form.noteSiteDrawn(facts, before, stamp);
       }
       form.settleFloors();
+      final walk = clock.elapsed;
+      final policy = GlassCopies.enabled
+          ? GlassComposer.debugPolicy
+          : const Policy(copies: false);
       final (plan, edits) = compile(
         form,
         _ledger,
         GlassComposer.debugPrices,
-        GlassCopies.enabled ? GlassComposer.debugPolicy : const Policy(copies: false),
+        policy,
         form.frame,
-        explain: GlassComposer.debugOnPlan != null,
+        explain: listening || GlassComposer.debugOnPlan != null,
       );
+      final planned = clock.elapsed;
       GlassComposer.debugOnPlan?.call(form, plan);
       edits.applyTo(_ledger, form.frame);
       _emit.emit(plan, form, dpr);
       for (final node in form.siteNodes) {
         node.site.endFrame();
       }
+      if (listening) {
+        _report(form, plan, policy, walk, planned, clock.elapsed);
+      }
     } finally {
       FrameAncestors.current = null;
       FlutterGpuGeometryRenderer.flushPendingSubmissions();
     }
+  }
+
+  void _report(
+    Form form,
+    Plan plan,
+    Policy policy,
+    Duration walk,
+    Duration planned,
+    Duration done,
+  ) {
+    final frame = form.frame;
+    final reads = [
+      for (final read in plan.reads) GlassFrameReport.readOf(read),
+    ];
+    GlassFrameReport.deliver(
+      () => GlassFrameReport(
+        frame: frame,
+        reads: reads,
+        targetBudget: policy.maxTargets,
+        issuedTargets: plan.issuedTargets,
+        walk: walk,
+        compile: planned - walk,
+        emit: done - planned,
+        filtersBuilt: GlassWork.filters,
+        picturesRecorded: GlassWork.pictures,
+        imagesDrawn: GlassWork.images,
+        layersReplayed: GlassWork.replayed,
+        repaintsAsked: GlassWork.marks,
+        notes: plan.notes,
+      ),
+    );
   }
 
   void dispose() => _emit.dispose();

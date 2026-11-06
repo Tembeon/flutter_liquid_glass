@@ -1,7 +1,9 @@
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_filter_layer.dart';
+import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
@@ -48,7 +50,6 @@ final class Form implements Scenery {
 
   /// The site nodes, parallel to [sites].
   List<SiteNode> get siteNodes => _siteNodes;
-
 
   @override
   Rect get screen => _screen;
@@ -108,6 +109,10 @@ final class Form implements Scenery {
     if (_suppress == 0) dirty.add(order, rect);
   }
 
+  // A node that left has no order this frame. Its place is where the walk
+  // stands: what comes next, the first that painted over it, gets [_next].
+  void _logGone(Rect rect) => _log(_next - 1, rect);
+
   /// The root's node, once a [lower] found one.
   FormNode? get top => _top;
 
@@ -116,7 +121,9 @@ final class Form implements Scenery {
 
   /// Notes that [site]'s glass moved or changed, which what lies over it reads.
   void noteSiteDrawn(SiteFacts site, Rect before, Object? stampBefore) {
-    if (before == site.drawn && stampBefore == site.stamp) return;
+    final around = site.state.same(site.noted.$1) && site.clip == site.noted.$2;
+    site.noted = (site.state, site.clip);
+    if (around && before == site.drawn && stampBefore == site.stamp) return;
     dirty.add(site.order, _union(before, site.drawn));
   }
 
@@ -181,6 +188,26 @@ final class Form implements Scenery {
       limit = ReadLimit.sceneOnly;
     }
     return limit;
+  }
+
+  @override
+  String? whyLimited(SiteFacts site) {
+    for (var i = 0; i < _volatileCount; i++) {
+      final node = _volatile[i];
+      if (node.order >= site.order || !node.screen.overlaps(site.reads)) {
+        continue;
+      }
+      final layer = node.layer;
+      return switch (layer) {
+        TextureLayer() => 'a texture lies under it',
+        PlatformViewLayer() => 'a platform view lies under it',
+        BackdropFilterLayer() => 'a backdrop filter lies under it',
+        _ =>
+          '${layer.runtimeType} (unregistered) reaches its band -> '
+              'LiquidGlassUnderlay.registerLayer',
+      };
+    }
+    return null;
   }
 
   @override
@@ -315,7 +342,7 @@ sealed class FormNode {
   bool refreshIn(Form form, FormWorld world);
 
   /// Notes that this node left the tree.
-  void removedFrom(Form form) => form._log(order, extent);
+  void removedFrom(Form form) => form._logGone(extent);
 }
 
 /// A picture.
@@ -475,7 +502,7 @@ abstract class OpenNode extends FormNode {
   void enter(SceneOut out, Rect band) {}
 
   @override
-  void removedFrom(Form form) => form._log(order, bounds);
+  void removedFrom(Form form) => form._logGone(bounds);
 
   @override
   bool refreshIn(Form form, FormWorld outside) {
@@ -1200,6 +1227,7 @@ final class EffectsNode extends OpenNode with _Matrix {
       out.pushes++;
     }
     if (effects.blur > 0) {
+      if (!kReleaseMode) GlassWork.filters++;
       out.settleMatrix();
       builder.pushImageFilter(
         ui.ImageFilter.blur(sigmaX: effects.blur, sigmaY: effects.blur),

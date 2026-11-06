@@ -58,7 +58,9 @@ class _GalleryAppState extends State<GalleryApp> {
               showBorders: settings.showBorders ? true : null,
               prefersCrossFade: settings.crossFade ? true : null,
               glassTintAmount: settings.glassTint,
-              child: _Ambient(child: child!),
+              child: const bool.fromEnvironment('GLASS_PLAN_OVERLAY')
+                  ? GlassPlanOverlay(child: _Ambient(child: child!))
+                  : _Ambient(child: child!),
             ),
           ),
         ),

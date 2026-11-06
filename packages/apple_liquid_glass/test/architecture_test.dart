@@ -115,7 +115,10 @@ void main() {
       for (final library in libraries) {
         for (final match in export.allMatches(library.readAsStringSync())) {
           final uri = match.group(1)!;
-          if (uri.startsWith('package:kinesis/')) continue;
+          if (uri.startsWith('package:kinesis/') ||
+              uri == 'package:liquid_glass_renderer/testing.dart') {
+            continue;
+          }
           if (uri.startsWith('package:') || match.group(2) == null) {
             offenders.add('${library.path}: $uri');
           }
@@ -129,7 +132,7 @@ void main() {
       for (final library in libraries) {
         for (final match in export.allMatches(library.readAsStringSync())) {
           final names = match.group(3);
-          if (names == null) continue;
+          if (names == null || match.group(1)!.startsWith('package:')) continue;
           final source = File('lib/${match.group(1)}').readAsStringSync();
           for (final name in names.split(',').map((name) => name.trim())) {
             final declared = RegExp(

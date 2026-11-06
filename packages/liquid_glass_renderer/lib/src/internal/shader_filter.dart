@@ -1,5 +1,7 @@
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
+import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:meta/meta.dart';
 
 /// [ui.ImageFilter.shader] over [shader], reading its input bilinearly.
@@ -11,6 +13,7 @@ import 'package:meta/meta.dart';
 /// [ui.FilterQuality.low] wherever the parameter exists.
 @internal
 ui.ImageFilter bilinearShaderFilter(ui.FragmentShader shader) {
+  if (!kReleaseMode) GlassWork.filters++;
   const Object create = ui.ImageFilter.shader;
   if (create
       is ui.ImageFilter Function(

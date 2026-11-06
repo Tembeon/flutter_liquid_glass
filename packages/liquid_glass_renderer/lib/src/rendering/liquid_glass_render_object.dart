@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
@@ -1105,6 +1106,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     slot.removeAllChildren();
     _shadowPicture.layer = null;
     if (!hasDrawableGlass(shapesWithGeometry)) return slot;
+    if (!kReleaseMode) GlassWork.pictures++;
     final recorder = ui.PictureRecorder();
     drawGlassShadows(Canvas(recorder), offset);
     final picture = PictureLayer(effectPaintBounds.shift(offset))

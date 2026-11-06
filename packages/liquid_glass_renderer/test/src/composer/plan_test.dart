@@ -34,6 +34,9 @@ final class _Scene implements Scenery {
   }
 
   @override
+  String? whyLimited(SiteFacts site) => null;
+
+  @override
   int lastChangedUnder(int order, Rect band) => changedAt;
 }
 
