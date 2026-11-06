@@ -20,10 +20,7 @@ import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.d
 final benchSwitches = <String, void Function({required bool on})>{
   'none': ({required on}) {},
   // B also lowers the frame's layers and compiles a plan it does not use.
-  'shadow': ({required on}) {
-    GlassComposer.debugShadowPlan = on;
-    if (!on) GlassComposer.debugShadowCensus.take();
-  },
+  'shadow': ({required on}) => GlassComposer.debugShadowPlan = on,
   'groups': ({required on}) => BackdropUnderlay.debugGroups = on,
   'group_bands': ({required on}) => BackdropUnderlay.debugBandGroups = on,
   'no_shadows': ({required on}) {
