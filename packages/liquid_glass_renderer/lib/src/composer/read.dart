@@ -294,9 +294,17 @@ final class ReadCopy {
   /// The region of this copy's layer to read inside [outer], where the layer of
   /// the read holding this one is cut by [clip], the clip around this one's
   /// lead on the screen.
+  ///
+  /// A smaller copy starts inside that layer, as [layer] does inside a clip:
+  /// it lies in its layer's corner, which the cut would leave outside, and
+  /// on Metal the glass over it then reads black (iPhone 16 Pro, a sheet
+  /// moving over glass; Vulkan does not show it). NEAR: glass reads what lies
+  /// past the cut mirrored at it, under the frost of the read holding it.
   Rect regionIn(ReadCopy outer, Rect? clip) {
     final held = clip == null ? outer.band : outer.band.intersect(clip);
-    return GlassCopies.keepsWhole(layer, held) ? layer : held;
+    return _grid._share == 1 && GlassCopies.keepsWhole(layer, held)
+        ? layer
+        : held;
   }
 
   void _addTo(ui.SceneBuilder builder, Offset origin, Rect within) {

@@ -1,0 +1,97 @@
+@Tags(['macos_pixels'])
+library;
+
+// Run with `flutter test --enable-impeller --enable-flutter-gpu`: without
+// Impeller there is no glass to read.
+//
+// Glass under a sheet is drawn again into the sheet's image. Its copy lies in
+// its layer's corner, and the image cuts that layer. The black this led to
+// shows on Metal alone, so the test holds the layer to the cut rather than
+// looking at pixels.
+// ignore_for_file: invalid_use_of_internal_member
+
+import 'dart:ui' as ui;
+
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
+
+Widget _glass(Rect rect, double highlight) => Positioned.fromRect(
+  rect: rect,
+  child: LiquidGlassLayer(
+    // A frost that a copy at half the screen's pixels bakes in place.
+    settings: LiquidGlassSettings.ios27RegularLight(
+      frost: 1.5,
+    ).copyWith(highlight: highlight),
+    child: const LiquidGlass(
+      shape: LiquidRoundedSuperellipse(borderRadius: 30),
+      child: SizedBox.expand(),
+    ),
+  ),
+);
+
+void main() {
+  setUp(() => GlassCopies.debugEnabledOverride = true);
+  tearDown(() {
+    GlassCopies.debugEnabledOverride = null;
+    GlassComposer.debugPolicy = const Policy();
+    GlassComposer.debugOnPlan = null;
+  });
+
+  testWidgets('a smaller copy held by a moving sheet starts inside its image', (
+    tester,
+  ) async {
+    if (!ui.ImageFilter.isShaderFilterSupported) return;
+    tester.view.physicalSize = const Size(1206, 2622);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    // Over budget the sheet reads an image and the glass under it stays live,
+    // as on a screen of glass.
+    GlassComposer.debugPolicy = const Policy(maxTargets: 1);
+    Plan? plan;
+    GlassComposer.debugOnPlan = (_, next) => plan = next;
+
+    // The sheet's image cuts less than 30 % off the layer of the glass under
+    // it, which Impeller would draw whole.
+    Widget frame(double spot) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: Stack(
+        children: [
+          const Positioned.fill(child: ColoredBox(color: Color(0xFF00E000))),
+          // Changes under the glass every frame, so that it reads no image.
+          Positioned(
+            left: spot,
+            top: 240,
+            width: 20,
+            height: 20,
+            child: const ColoredBox(color: Color(0xFF00D000)),
+          ),
+          _glass(const Rect.fromLTWH(30, 260, 180, 180), 0.3),
+          _glass(const Rect.fromLTWH(8, 310, 386, 564), 0.4),
+        ],
+      ),
+    );
+    await tester.pumpWidget(frame(100));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 200)),
+    );
+    await tester.pumpWidget(frame(104));
+    await tester.pumpWidget(frame(100));
+
+    final [glass, sheet] = plan!.reads;
+    expect(glass.source, isA<SceneRead>());
+    expect(glass.downscale, 2);
+    expect(glass.bakesFrost, isTrue);
+    expect(sheet.source, isA<ImageRead>());
+    expect(sheet.holds, contains(glass));
+
+    final copy = glass.output! as ReadCopy;
+    final image = sheet.output! as ReadCopy;
+    expect(copy.layer.top, lessThan(image.band.top));
+    expect(GlassCopies.keepsWhole(copy.layer, image.band), isTrue);
+    expect(copy.regionIn(image, null).top, image.band.top);
+  });
+}
