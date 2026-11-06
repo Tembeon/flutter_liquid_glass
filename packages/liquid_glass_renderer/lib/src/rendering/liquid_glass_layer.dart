@@ -1082,6 +1082,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   bool get _canRebindFilter =>
       _rig.filterLayer != null && !drawableEmpty && hasReusableGeometry;
 
+  // Whether the frame shows the live filter. Glass over a copy reads through
+  // a filter of its own, so moving it builds no live one: [showLive] brings
+  // the filter up to date when the plan turns to it.
+  bool get _readsLive => switch (_fate) {
+    Leads(read: Read(source: LiveRead())) => true,
+    _ => false,
+  };
+
   @override
   GlassFrameState get hiddenFrameState => GlassFrameState.idle;
 
@@ -2431,6 +2439,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     compositionSeedSuppressed = false;
     debugDrewOverCopy = false;
     _placeShadows(under: false);
+    if (_canRebindFilter) _bindFilter();
     _rig.showLive(group);
   }
 
@@ -2613,7 +2622,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _rig.clipTo(_innerClipLayerRect!);
     }
     final remapped = syncCoordinateMapping();
-    if (remapped && _canRebindFilter) _bindFilter();
+    if (remapped && _readsLive && _canRebindFilter) _bindFilter();
   }
 
   @override
