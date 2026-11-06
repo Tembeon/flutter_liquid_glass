@@ -248,6 +248,7 @@ class BackdropUnderlay {
     );
     _ask = null;
     _plan = null;
+    _outOfSight = false;
     final view = anchor.owner;
     if (view is! RenderView) return;
     final screen = Offset.zero & view.size;
@@ -290,6 +291,7 @@ class BackdropUnderlay {
     _plan = null;
     if (ask == null) return null;
     if (ask.band.isEmpty) {
+      _outOfSight = true;
       _count(debugMisses, 'off screen');
       return null;
     }
@@ -298,6 +300,14 @@ class BackdropUnderlay {
     if (plan?.serve(this, ask, scan, limit) case final copy?) return copy;
     return _islandOf([this], [ask], scan, limit)?.copy;
   }
+
+  // Whether the last request lies off the screen or outside its clips.
+  bool _outOfSight = false;
+
+  /// Whether the glass of the last [request] lies off the screen or outside
+  /// its clips, as far as it reads: [serve] and [serveInFrame] gave no copy
+  /// because none of it shows, and it needs no backdrop either.
+  bool get outOfSight => _outOfSight;
 
   // Whether the copy drawn in the frame last held glass. The next is likely to,
   // so it starts at the screen's pixels without recording it twice.
@@ -326,6 +336,7 @@ class BackdropUnderlay {
     if (ask == null) return null;
     if (ask.band.isEmpty) {
       release();
+      _outOfSight = true;
       _count(debugMisses, 'off screen');
       return null;
     }
@@ -340,6 +351,7 @@ class BackdropUnderlay {
     final clip = around?.intersect(ask.screen);
     if (clip != null && ask.band.intersect(clip).isEmpty) {
       release();
+      _outOfSight = true;
       _count(debugMisses, 'off screen');
       return null;
     }

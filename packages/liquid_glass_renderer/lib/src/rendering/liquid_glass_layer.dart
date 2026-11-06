@@ -2210,6 +2210,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // no seed.
     compositionSeedSuppressed = true;
     final served = _recordUnderlay();
+    if (served == null && _rig.underlay.outOfSight) {
+      debugDrewOverUnderlay = false;
+      _rig.hide();
+      _placeShadows(under: false);
+      return;
+    }
     if (served == null) compositionSeedSuppressed = false;
     debugDrewOverUnderlay = served != null;
     final under = served != null && !glassShadowsFade;

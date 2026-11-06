@@ -506,6 +506,49 @@ void main() {
     expect(_liveFilters(tester), isEmpty);
   }, skip: skipProperGlassTests);
 
+  testWidgets('glass outside its clip reads no backdrop', (tester) async {
+    tester.view.physicalSize = const Size(260, 200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Stack(
+          children: [
+            Positioned(
+              left: 0,
+              top: 0,
+              width: 60,
+              height: 60,
+              child: ClipRect(
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned(
+                      left: 200,
+                      top: 20,
+                      width: 50,
+                      height: 40,
+                      child: LiquidGlassLayer(
+                        settings: LiquidGlassSettings.ios27RegularLight(),
+                        child: const LiquidGlass(
+                          shape: LiquidRoundedSuperellipse(borderRadius: 20),
+                          child: SizedBox.expand(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    expect(_glass(tester).debugUnderlay.outOfSight, isTrue);
+    expect(_liveFilters(tester), isEmpty);
+  }, skip: skipProperGlassTests);
+
   testWidgets('an image taken between frames leaves the next frame to copy '
       'what it changed', (tester) async {
     tester.view.physicalSize = const Size(260, 360);
