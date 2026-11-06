@@ -230,6 +230,16 @@ void main() {
       page: page,
     );
 
+    test('glass whose read reaches past the screen keeps its image', () {
+      final scene = _Scene([_site(0, const Rect.fromLTWH(-4, 200, 500, 90))]);
+      final ledger = Ledger();
+      for (var frame = 1; frame <= 60; frame++) {
+        _plan(scene, ledger: ledger, frame: frame);
+      }
+      final read = _plan(scene, ledger: ledger, frame: 61).reads.single;
+      expect(read.source, const ImageRead(held: true));
+    });
+
     test('a held image goes when the frost baked into it changes', () {
       final site = _site(0, const Rect.fromLTWH(20, 200, 200, 90));
       site.look = look(4);

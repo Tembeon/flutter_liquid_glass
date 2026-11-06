@@ -844,7 +844,7 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
     var boughtAt = memo?.boughtAt;
     if (imageRect != null &&
         (changed ||
-            !_contains(imageRect, read.band) ||
+            !_contains(imageRect, read.band.intersect(screen)) ||
             memo!.downscale != read.downscale ||
             !_sameIds(memo.holds, holds))) {
       // A hold that ended before it paid makes the next wait longer.
