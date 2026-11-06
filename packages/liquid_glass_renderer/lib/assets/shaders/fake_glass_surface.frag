@@ -6,36 +6,41 @@ precision mediump float;
 #include <flutter/runtime_effect.glsl>
 
 uniform vec2 uSize;
-uniform float uShapeType;
-uniform float uCornerRadius;
-uniform vec4 uTint;
-uniform float uHighlight;
-uniform float uHighlightWidth;
-uniform float uThickness;
-uniform float uHighlightWrap;
-uniform float uOppositeHighlight;
-uniform float uContourStrength;
-uniform float uContourWidth;
-uniform float uContourTransmittance;
-uniform float uContourOffset;
-uniform float uContourDirectionality;
-uniform float uBevelStrength;
-uniform float uBevelDepth;
-uniform float uBevelOffset;
-uniform float uBevelDirectionality;
-uniform float uBevelSizeResponse;
-uniform vec2 uLightDirection;
+// The floats Dart writes, four to a vec4 in the order it writes them, and the
+// names below are lanes of them: impellerc gives every uniform declaration its
+// own Metal buffer, bound per draw, where Vulkan binds one struct.
+uniform vec4 uFake[7];
+uniform float uFakeEnd;
+#define uShapeType uFake[0].x
+#define uCornerRadius uFake[0].y
+#define uTint vec4(uFake[0].zw, uFake[1].xy)
+#define uHighlight uFake[1].z
+#define uHighlightWidth uFake[1].w
+#define uThickness uFake[2].x
+#define uHighlightWrap uFake[2].y
+#define uOppositeHighlight uFake[2].z
+#define uContourStrength uFake[2].w
+#define uContourWidth uFake[3].x
+#define uContourTransmittance uFake[3].y
+#define uContourOffset uFake[3].z
+#define uContourDirectionality uFake[3].w
+#define uBevelStrength uFake[4].x
+#define uBevelDepth uFake[4].y
+#define uBevelOffset uFake[4].z
+#define uBevelDirectionality uFake[4].w
+#define uBevelSizeResponse uFake[5].x
+#define uLightDirection uFake[5].yz
 // Logical size of one physical pixel.
-uniform float uPixelSize;
-// 1 when drawing only the border ring outside the shape clip. The clip path is
+#define uPixelSize uFake[5].w
+// 1 when drawing only the border ring outside the shape clip. The clip draws
 // the silhouette there; the analytic SDF may approximate it by a pixel.
-uniform float uExteriorOnly;
+#define uExteriorOnly uFake[6].x
 // Luminance of the neutral glint target: FakeGlass cannot scale it by the
 // face it cannot see, so clear glass uses its best constant.
-uniform float uGlintLuminance;
+#define uGlintLuminance uFake[6].y
 // Premultiplied emission of the face the backdrop filter produced, so the
 // inner shadow can shade only the transmitted part of that face.
-uniform vec3 uFaceEmission;
+#define uFaceEmission vec3(uFake[6].zw, uFakeEnd)
 // Rounded superellipse parameters (see roundedSuperellipseParameters): the
 // degree and spans, the circle centers, the semi-axis and radii, and a
 // pair's bottom half after them (see roundedSuperellipsePairParameters). One
@@ -49,20 +54,21 @@ uniform vec4 uRse[6];
 #define uRseLowerCircleCenters uRse[4]
 #define uRseLowerSemiAxisAndRadii uRse[5]
 // Face contribution to the glint target (see the color model's
-// glintFaceGain and glintVibrancy). FakeGlass approximates the face with
-// the surface tint plus emission; clear glass brightens that proxy
+// glintFaceGain and glintVibrancy): x, y of uLate. FakeGlass approximates the
+// face with the surface tint plus emission; clear glass brightens that proxy
 // strongly while regular glass brightens mostly the transmitted chroma.
-uniform float uGlintFaceGain;
-uniform float uGlintVibrancy;
-// 1 when drawing only the additive highlight pass. FakeGlass paints the
+// z: 1 when drawing only the additive highlight pass. FakeGlass paints the
 // surface first and adds the glint in a second draw so the highlight can
-// exceed the surface's premultiplied alpha (and SDR white) without clamping
+// exceed the surface's premultiplied alpha (and SDR white) without clipping
 // the translucent face.
-uniform float uHighlightsOnly;
-// A pair's bottom corner radius (LiquidRoundedSuperellipse.bottomRadius), or
-// -1 for one radius. Below the split line the shape is then its bottom half,
-// a squircle centered on the line.
-uniform float uBottomRadius;
+// w: a pair's bottom corner radius (LiquidRoundedSuperellipse.bottomRadius),
+// or -1 for one radius. Below the split line the shape is then its bottom
+// half, a squircle centered on the line.
+uniform vec4 uLate;
+#define uGlintFaceGain uLate.x
+#define uGlintVibrancy uLate.y
+#define uHighlightsOnly uLate.z
+#define uBottomRadius uLate.w
 
 const vec3 LUMA_WEIGHTS = vec3(0.2126, 0.7152, 0.0722);
 // The reference rim's peak is lower than a source-over mix of the same glint

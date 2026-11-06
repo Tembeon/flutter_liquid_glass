@@ -52,37 +52,45 @@ precision mediump float;
 // refraction are computed from that for each pixel.
 
 uniform highp vec2 uSize;
-uniform highp vec2 uGeometryOffset;
-uniform highp vec2 uGeometrySize;
 
-uniform vec4 uTint;
-uniform vec3 uOpticalProps;
-uniform vec3 uLightConfig;
-uniform vec2 uLightDirection;
-uniform vec4 uHighlightColor;
-uniform vec4 uContourColor;
-uniform vec4 uLightingShapeConfig;
-uniform vec3 uContourConfig;
-uniform highp vec4 uProfileConfig;
-uniform vec3 uMaterialConfig;
-uniform vec3 uBevelShadowConfig;
-uniform vec3 uAppearanceConfig;
-uniform highp vec4 uFilterToMatteBasis;
-uniform highp vec2 uFilterToMatteOffset;
-// 1.0 lets material alpha cross-fade the frost away, and the rest of the
-// material with it; 0.0 keeps unfrosted glass opaque and cross-fades the
-// material to the refracted backdrop instead, so visibility 0 is an exact
-// identity of the backdrop.
-uniform float uBlurFade;
+// The floats Dart writes, four to a vec4 in the order it writes them, and the
+// names below are lanes of them: impellerc gives every uniform declaration its
+// own Metal buffer, bound per draw, where Vulkan binds one struct. A value that
+// straddles two vec4s is put back together here. Positions and whatever maps
+// them stay highp; values a highp vec4 holds with them are read into mediump
+// globals below, or they would turn the arithmetic around them highp.
+uniform highp vec4 uGeometryBounds; // Float index 2.
+#define uGeometryOffset uGeometryBounds.xy
+#define uGeometrySize uGeometryBounds.zw
+
+uniform vec4 uFace[7]; // Float index 6.
+#define uTint uFace[0]
+#define uOpticalProps uFace[1].xyz
+#define uLightDirection uFace[2].zw
+#define uHighlightColor uFace[3]
+#define uContourColor uFace[4]
+#define uLightingShapeConfig uFace[5]
+#define uContourConfig uFace[6].xyz
+
+// uMaterialCenter, uSpecularWrap, uTransmissionGamma. Float index 34.
+uniform highp vec4 uProfile;
+
+uniform vec4 uMaterial[2]; // Float index 38.
+#define uAppearanceConfig uMaterial[1].yzw
+
+uniform highp vec4 uMapping[3]; // Float index 46.
+uniform highp vec3 uMappingEnd; // Float index 58.
+#define uFilterToMatteBasis uMapping[0]
+#define uFilterToMatteOffset uMapping[1].xy
 // Matte-space rect (LTRB, device px) the filter captured backdrop for.
 // Outside it the filter input is transparent or clamped, so displaced samples
 // are mirrored back in at its edge.
-uniform highp vec4 uBackdropBounds;
+#define uBackdropBounds vec4(uMapping[1].w, uMapping[2].xyz)
 // Where fragment coordinates start, in device px: zero for a filter, whose
 // coordinates are its input's; the origin of the copy a paint samples.
-uniform highp vec2 uBackdropOrigin;
+#define uBackdropOrigin vec2(uMapping[2].w, uMappingEnd.x)
 // Texel size of the material map's texture; the map fills its top-left.
-uniform highp vec2 uMaterialTextureSize;
+#define uMaterialTextureSize uMappingEnd.yz
 
 // Per-model parameter blocks for the three adaptive color-model slots the
 // layer assigned this frame: slot code 1..3 selects
@@ -106,10 +114,10 @@ uniform vec4 uColorModelParams[18];
 //                  shape. These two set the bevel.
 uniform highp vec4 uLowResMatte;
 uniform vec2 uLowResOptics;
-// The inputs of the optional effects, in one declaration: impellerc gives
-// every uniform declaration its own Metal buffer slot, Metal has 31, and a
-// shader past them fails to compile on Metal alone (Vulkan and GLES accept
-// it). The analytic variant declares its shapes after these. From float
+// The inputs of the optional effects, in one declaration: a Metal stage has
+// 31 buffer slots, and a shader past them fails to compile on Metal alone
+// (Vulkan and GLES accept it). The analytic variant declares its shapes after
+// these. From float
 // index 139:
 // [0] uSolidBackdrop: the opaque color the glass is shaded over when it is
 //     drawn as a paint instead of a backdrop filter; every backdrop read
@@ -148,26 +156,31 @@ vec4 colorModelSlot(int slot, int field) {
     return uColorModelParams[slot * 6 + field];
 }
 
+// 1.0 lets material alpha cross-fade the frost away, and the rest of the
+// material with it; 0.0 keeps unfrosted glass opaque and cross-fades the
+// material to the refracted backdrop instead, so visibility 0 is an exact
+// identity of the backdrop.
+float uBlurFade = uMapping[1].z;
 float uDisplacementScale = uOpticalProps.x;
 float uDispersion = uOpticalProps.y;
 // Rim lighting depth.
 float uThickness = uOpticalProps.z;
-float uLightIntensity = uLightConfig.x;
-float uBackdropScale = uLightConfig.y;
-float uSaturation = uLightConfig.z;
+float uLightIntensity = uFace[1].w;
+float uBackdropScale = uFace[2].x;
+float uSaturation = uFace[2].y;
 float uEdgeWidth = uContourConfig.x;
 float uContourTransmittance = uContourConfig.y;
 float uContourDirectionality = uContourConfig.z;
-float uContourOffset = uProfileConfig.x;
-highp vec2 uMaterialCenter = uProfileConfig.yz;
-float uSpecularWrap = uProfileConfig.w;
-float uTransmissionGamma = uMaterialConfig.x;
-float uVibrancy = uMaterialConfig.y;
+float uContourOffset = uFace[6].w;
+#define uMaterialCenter uProfile.xy
+float uSpecularWrap = uProfile.z;
+float uTransmissionGamma = uProfile.w;
+float uVibrancy = uMaterial[0].x;
 // iOS 27 Liquid Glass slider: 0 = Clear, 1 = Tinted.
-float uTintAmount = clamp(uMaterialConfig.z, 0.0, 1.0);
-float uBevelShadowStrength = uBevelShadowConfig.x;
-float uBevelShadowDepth = uBevelShadowConfig.y;
-float uBevelShadowOffset = uBevelShadowConfig.z;
+float uTintAmount = clamp(uMaterial[0].y, 0.0, 1.0);
+float uBevelShadowStrength = uMaterial[0].z;
+float uBevelShadowDepth = uMaterial[0].w;
+float uBevelShadowOffset = uMaterial[1].x;
 float uBevelShadowDirectionality = uLightingShapeConfig.x;
 float uBevelShadowSizeResponse = uLightingShapeConfig.y;
 float uHighlightWidth = uLightingShapeConfig.z;
