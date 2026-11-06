@@ -405,6 +405,7 @@ final class _Replay {
               !_meets(open.bounds, band)) {
             continue;
           }
+          if (_addHeld(open, parts)) continue;
           out.mark();
           open.enter(out, band);
           final through = children(open);
@@ -414,7 +415,64 @@ final class _Replay {
     }
     return true;
   }
+
+  // Adds [open] as one layer the read keeps between frames, while it holds no
+  // glass and nothing in it changed: a scroll moves rows, not what lies in
+  // them. False where it has to be walked.
+  bool _addHeld(OpenNode open, List<SiteFacts>? parts) {
+    final frame = copy._form.frame;
+    if (open.holdsComposed ||
+        open.contentAt == frame ||
+        open.heldFrame == frame ||
+        open.end - open.order < _heldLayers) {
+      return false;
+    }
+    if (parts != null && !parts.any((m) => _meets(open.bounds, m.reads))) {
+      return true;
+    }
+    open.heldFrame = frame;
+    final moves = open is ShiftNode;
+    out.mark();
+    if (moves) open.enter(out, band);
+    out.settle();
+    final builder = out.builder;
+    if (open.held case final held?) {
+      builder.addRetained(held);
+    } else {
+      open.held = builder.pushOffset(0, 0);
+      final inner = SceneOut(builder, null);
+      if (!moves) open.enter(inner, Rect.largest);
+      _addWhole(open, inner);
+      inner.finish();
+      builder.pop();
+    }
+    out.leave();
+    return true;
+  }
+
+  // All that [node] holds, wherever it lies now: the next frames' reads keep it
+  // as it moves into them.
+  void _addWhole(OpenNode node, SceneOut out) {
+    for (var child = node.first; child != null; child = child.next) {
+      switch (child) {
+        case PictureNode(:final picture?):
+          if (!kReleaseMode) GlassWork.replayed++;
+          out.picture(picture);
+        case final OpenNode open:
+          out.mark();
+          open.enter(out, Rect.largest);
+          _addWhole(open, out);
+          out.leave();
+        default:
+          break;
+      }
+    }
+  }
 }
+
+// Fewer layers than this add no fewer calls to a scene held than walked: an
+// offset and its picture take as many as an offset and a held layer.
+const _heldLayers = 3;
 
 /// Where a read's page lies in an image: [rect] of the screen, in logical
 /// pixels. Glass reads it as [glassSampling] says, a surface paints the part

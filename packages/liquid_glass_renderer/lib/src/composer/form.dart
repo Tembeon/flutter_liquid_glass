@@ -357,6 +357,11 @@ sealed class FormNode {
   /// The frame it last changed.
   int changedAt = 0;
 
+  /// The frame what a read adds for it last changed. A move of what holds it,
+  /// which [changedAt] counts, changes none of that, and neither does a
+  /// [ShiftNode]'s own offset, which counts for its parent.
+  int contentAt = -1;
+
   /// The innermost container of what one site paints with its glass that
   /// holds it, itself if it is one.
   OpenNode? owner;
@@ -407,6 +412,7 @@ final class PictureNode extends FormNode {
       return false;
     }
     final before = screen;
+    if (!identical(drawn, picture)) contentAt = form.frame;
     picture = drawn;
     local = bounds;
     _seen = world.stamp;
@@ -478,6 +484,7 @@ final class VolatileNode extends FormNode {
     final changed = next != screen;
     if (changed) screen = next;
     changedAt = form.frame;
+    contentAt = form.frame;
     if (form._volatileCount == form._volatile.length) {
       form._volatile.add(this);
     } else {
@@ -531,8 +538,30 @@ abstract class OpenNode extends FormNode {
   /// [band].
   void enter(SceneOut out, Rect band) {}
 
+  /// Set while reading the layer when what [enter] adds or what it holds
+  /// changed.
+  @protected
+  bool edited = false;
+
+  /// What a read keeps of it between frames, while [contentAt] holds.
+  ui.OffsetEngineLayer? held;
+
+  /// The frame [held] last went into a scene, which takes it once.
+  int heldFrame = -1;
+
+  void _release() {
+    held?.dispose();
+    held = null;
+    for (var child = first; child != null; child = child.next) {
+      if (child is OpenNode) child._release();
+    }
+  }
+
   @override
-  void removedFrom(Form form) => form._logGone(bounds);
+  void removedFrom(Form form) {
+    form._logGone(bounds);
+    _release();
+  }
 
   @override
   bool refreshIn(Form form, FormWorld outside) {
@@ -552,6 +581,7 @@ abstract class OpenNode extends FormNode {
         if (!moved) form._log(order, bounds);
         first = null;
         changed = true;
+        edited = true;
       }
     }
     if (moved) {
@@ -562,6 +592,13 @@ abstract class OpenNode extends FormNode {
       _recomputeBounds();
       changedAt = form.frame;
       if (moved) form._log(order, bounds);
+    }
+    if (edited) {
+      edited = false;
+      contentAt = form.frame;
+      // A row that scrolled away keeps none of what it drew.
+      held?.dispose();
+      held = null;
     }
     return changed;
   }
@@ -599,6 +636,7 @@ abstract class OpenNode extends FormNode {
           while (!identical(gone, found)) {
             gone.removedFrom(form);
             changed = true;
+            edited = true;
             gone = gone.next!;
           }
           node = found;
@@ -607,9 +645,11 @@ abstract class OpenNode extends FormNode {
           node = _nodeOf(child);
           node.parent = this;
           if (node is! OutputNode) changed = true;
+          edited = true;
         }
       }
       if (node.refreshIn(form, world)) changed = true;
+      if (node.contentAt == form.frame) edited = true;
       if (node.holdsComposed) composed = true;
       if (last == null) {
         first = node;
@@ -620,6 +660,7 @@ abstract class OpenNode extends FormNode {
     }
     for (var gone = old; gone != null; gone = gone.next) {
       if (gone is! OutputNode) changed = true;
+      edited = true;
       gone.removedFrom(form);
     }
     if (last == null) {
@@ -743,9 +784,15 @@ class ShiftNode extends OpenNode {
   @override
   void enter(SceneOut out, Rect band) => out.at += _offset;
 
+  Offset _placed = Offset.zero;
+
   @override
   bool updateWorld(FormWorld outside) {
     final offset = _offset;
+    if (offset != _placed) {
+      _placed = offset;
+      parent?.edited = true;
+    }
     return world.set(
       outside.base,
       outside.dx + offset.dx,
@@ -840,12 +887,13 @@ mixin _Matrix on OpenNode {
 
   // The transform of what this layer holds. Allocates only when it changed.
   Matrix4 _resolve(FormWorld outside, Matrix4 own) {
-    final held = _own;
-    if (held == null ||
+    final last = _own;
+    final same = last != null && _storageEqual(last.storage, own.storage);
+    if (!same) edited = true;
+    if (!same ||
         !identical(_ownedBase, outside.base) ||
         _ownedDx != outside.dx ||
-        _ownedDy != outside.dy ||
-        !_storageEqual(held.storage, own.storage)) {
+        _ownedDy != outside.dy) {
       _own = own;
       _ownedBase = outside.base;
       _ownedDx = outside.dx;
@@ -930,6 +978,7 @@ final class AlphaNode extends OpenNode {
   StateChain? _chain;
   StateChain? _chainParent;
   int? _chainAlpha;
+  Offset _placed = Offset.zero;
 
   @override
   bool get shows => (layer as OpacityLayer).alpha != 0;
@@ -952,6 +1001,11 @@ final class AlphaNode extends OpenNode {
   bool updateWorld(FormWorld outside) {
     final layer = this.layer as OpacityLayer;
     final alpha = layer.alpha ?? 255;
+    final offset = layer.offset;
+    if (_chainAlpha != alpha || offset != _placed) {
+      edited = true;
+      _placed = offset;
+    }
     if (_chain == null ||
         !identical(_chainParent, outside.state) ||
         _chainAlpha != alpha) {
@@ -959,7 +1013,6 @@ final class AlphaNode extends OpenNode {
       _chainParent = outside.state;
       _chainAlpha = alpha;
     }
-    final offset = layer.offset;
     return world.set(
       outside.base,
       outside.dx + offset.dx,
@@ -980,6 +1033,8 @@ final class FilterNode extends OpenNode {
   StateChain? _chain;
   StateChain? _chainParent;
   ui.ImageFilter? _chainFilter;
+  ui.ImageFilter? _read;
+  Offset _placed = Offset.zero;
 
   @override
   void enter(SceneOut out, Rect band) {
@@ -996,6 +1051,12 @@ final class FilterNode extends OpenNode {
   bool updateWorld(FormWorld outside) {
     final layer = this.layer as ImageFilterLayer;
     final filter = layer.imageFilter;
+    final offset = layer.offset;
+    if (!identical(_read, filter) || offset != _placed) {
+      edited = true;
+      _read = filter;
+      _placed = offset;
+    }
     if (filter == null) return world.inherit(outside);
     if (_chain == null ||
         !identical(_chainParent, outside.state) ||
@@ -1004,7 +1065,6 @@ final class FilterNode extends OpenNode {
       _chainParent = outside.state;
       _chainFilter = filter;
     }
-    final offset = layer.offset;
     return world.set(
       outside.base,
       outside.dx + offset.dx,
@@ -1024,6 +1084,7 @@ final class ColorNode extends OpenNode {
 
   StateChain? _chain;
   StateChain? _chainParent;
+  ui.ColorFilter? _read;
 
   @override
   void enter(SceneOut out, Rect band) {
@@ -1037,6 +1098,10 @@ final class ColorNode extends OpenNode {
   @override
   bool updateWorld(FormWorld outside) {
     final value = (layer as ColorFilterLayer).colorFilter;
+    if (value != _read) {
+      edited = true;
+      _read = value;
+    }
     if (_chain == null ||
         !identical(_chainParent, outside.state) ||
         _chain!.token != value) {
@@ -1089,7 +1154,16 @@ final class MaskNode extends OpenNode {
     final shader = layer.shader;
     final rect = layer.maskRect;
     final blend = layer.blendMode;
+    if (shader is ui.FragmentShader ||
+        !identical(_shader, shader) ||
+        _rect != rect ||
+        _blend != blend) {
+      edited = true;
+    }
     if (shader == null || rect == null || blend == null) {
+      _shader = shader;
+      _rect = rect;
+      _blend = blend;
       return world.inherit(outside);
     }
     if (_chain == null ||
@@ -1201,16 +1275,21 @@ final class ClipNode extends OpenNode {
   @override
   bool updateWorld(FormWorld outside) {
     final (geometry, behavior) = _read();
+    final same =
+        _behavior == behavior &&
+        (identical(_geometry, geometry) || _geometry == geometry);
+    if (!same) {
+      edited = true;
+      _geometry = geometry;
+      _behavior = behavior;
+    }
     if (geometry == null || behavior == Clip.none) {
       return world.inherit(outside);
     }
     if (_chain == null ||
+        !same ||
         _seen != outside.stamp ||
-        !identical(_chainParent, outside.state) ||
-        _behavior != behavior ||
-        !(identical(_geometry, geometry) || _geometry == geometry)) {
-      _geometry = geometry;
-      _behavior = behavior;
+        !identical(_chainParent, outside.state)) {
       _seen = outside.stamp;
       _clip = outside.reaching(_boundsOf(geometry));
       _chain = StateChain(StateChain(outside.state, geometry), behavior);
@@ -1275,6 +1354,7 @@ final class EffectsNode extends OpenNode with _Matrix {
     _hidden = effects.alpha == 0;
     final at = _resolve(outside, effects.transform);
     final token = (effects.clip, effects.alpha, effects.blur);
+    if (_token != token) edited = true;
     if (_chain == null ||
         !identical(_chainParent, outside.state) ||
         _token != token) {
