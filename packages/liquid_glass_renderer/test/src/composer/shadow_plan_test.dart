@@ -117,6 +117,44 @@ void main() {
     expect(await restsOfAFrame(), 0, reason: 'it moved');
   });
 
+  testWidgets('a scan walks only what the copies can reach', (tester) async {
+    if (skipProperGlassTests) return;
+    Future<int> entries() async {
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Stack(
+            children: [
+              for (var i = 0; i < 40; i++)
+                Positioned(
+                  left: 0,
+                  top: 200.0 + i * 10,
+                  width: 100,
+                  height: 10,
+                  child: const RepaintBoundary(
+                    child: ColoredBox(color: Color(0xFF102030)),
+                  ),
+                ),
+              _button(10, 10),
+            ],
+          ),
+        ),
+      );
+      UnderlayFrame.debugEntries = 0;
+      tester.binding.scheduleFrame();
+      await tester.pump();
+      return UnderlayFrame.debugEntries;
+    }
+
+    final pruned = await entries();
+    UnderlayFrame.debugPrunes = false;
+    addTearDown(() => UnderlayFrame.debugPrunes = true);
+    final full = await entries();
+    expect(full, greaterThan(40));
+    expect(pruned, lessThan(full - 39));
+  });
+
   testWidgets('sees no sites once the glass is gone', (tester) async {
     await tester.pumpWidget(
       Directionality(

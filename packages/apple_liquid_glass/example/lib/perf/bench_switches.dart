@@ -23,6 +23,8 @@ final benchSwitches = <String, void Function({required bool on})>{
   'shadow': ({required on}) => GlassComposer.debugShadowPlan = on,
   // B: glass with nothing changed around it skips reading where it lies.
   'form_rests': ({required on}) => GlassComposer.debugFormRests = on,
+  // B: the frame's scan skips what no copy can reach.
+  'scan_prune': ({required on}) => UnderlayFrame.debugPrunes = on,
   'groups': ({required on}) => BackdropUnderlay.debugGroups = on,
   'group_bands': ({required on}) => BackdropUnderlay.debugBandGroups = on,
   'no_shadows': ({required on}) {

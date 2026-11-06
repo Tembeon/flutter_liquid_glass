@@ -91,7 +91,10 @@ final class Form implements Scenery {
       _outside = FormWorld(
         Matrix4.diagonal3Values(1 / devicePixelRatio, 1 / devicePixelRatio, 1),
       );
-      _top = PlainNode(root);
+      _top = switch (_nodeOf(root)) {
+        final OpenNode node => node,
+        _ => PlainNode(root),
+      };
       dirty.add(0, _everywhere);
     }
     _top!.refreshIn(this, _outside!);
@@ -110,6 +113,9 @@ final class Form implements Scenery {
   void _log(int order, Rect rect) {
     if (_suppress == 0) dirty.add(order, rect);
   }
+
+  /// The root's node, once a [lower] found one.
+  FormNode? get top => _top;
 
   /// The node at [order] in paint order.
   FormNode nodeAt(int order) => _flat[order];
@@ -283,6 +289,10 @@ sealed class FormNode {
   /// What it covers on the screen.
   Rect get extent;
 
+  /// Whether the frame's composing may change what lies here after the walk
+  /// read it, so [extent] says nothing about it.
+  bool get holdsComposed => false;
+
   /// Reads the layer; true when what it covers changed.
   bool refreshIn(Form form, FormWorld world);
 
@@ -341,6 +351,9 @@ final class OutputNode extends FormNode {
 
   @override
   Rect get extent => Rect.zero;
+
+  @override
+  bool get holdsComposed => true;
 
   @override
   void removedFrom(Form form) {}
@@ -420,6 +433,14 @@ abstract class OpenNode extends FormNode {
   @override
   Rect get extent => bounds;
 
+  /// Whether the frame's composing edits this layer's children.
+  bool get composes => false;
+
+  bool _holdsComposed = false;
+
+  @override
+  bool get holdsComposed => _holdsComposed;
+
   /// Whether its children show at all.
   bool get shows => true;
 
@@ -442,9 +463,12 @@ abstract class OpenNode extends FormNode {
     var changed = moved;
     if (shows) {
       if (_walkChildren(form)) changed = true;
-    } else if (first != null || !bounds.isEmpty) {
-      first = null;
-      changed = true;
+    } else {
+      _holdsComposed = composes;
+      if (first != null || !bounds.isEmpty) {
+        first = null;
+        changed = true;
+      }
     }
     if (moved) {
       form._suppress--;
@@ -472,6 +496,7 @@ abstract class OpenNode extends FormNode {
   bool _walkChildren(Form form) {
     final layer = this.layer as ContainerLayer;
     var changed = false;
+    var composed = composes;
     var old = first;
     FormNode? last;
     for (
@@ -501,6 +526,7 @@ abstract class OpenNode extends FormNode {
         }
       }
       if (node.refreshIn(form, world)) changed = true;
+      if (node.holdsComposed) composed = true;
       if (last == null) {
         first = node;
       } else {
@@ -517,6 +543,7 @@ abstract class OpenNode extends FormNode {
     } else {
       last.next = null;
     }
+    _holdsComposed = composed;
     return changed;
   }
 
@@ -534,7 +561,7 @@ abstract class OpenNode extends FormNode {
 // Teaches the walk a layer type: this is the only place that switches on one.
 FormNode _nodeOf(Layer layer) {
   switch (layer) {
-    case GlassPictureLayer():
+    case GlassPictureLayer() || ThinOffsetLayer():
       return OutputNode(layer);
     case PictureLayer():
       return PictureNode(layer);
@@ -560,8 +587,7 @@ FormNode _nodeOf(Layer layer) {
       return AlphaNode(layer);
     case ImageFilterLayer():
       return FilterNode(layer);
-    case OffsetLayer()
-        when layer.runtimeType == OffsetLayer || layer is ThinOffsetLayer:
+    case OffsetLayer() when layer.runtimeType == OffsetLayer:
       return ShiftNode(layer);
     case ColorFilterLayer():
       return TokenNode(layer, () => layer.colorFilter);
@@ -591,6 +617,10 @@ FormNode _nodeOf(Layer layer) {
 final class PlainNode extends OpenNode {
   /// Creates the node.
   PlainNode(super.layer);
+
+  // The rig's slots are plain containers, as is what glass adds to the scene.
+  @override
+  bool get composes => true;
 
   @override
   bool updateWorld(FormWorld outside) => world.set(
@@ -641,6 +671,9 @@ final class SiteNode extends ShiftNode {
 
   /// What the plan reads of it.
   final SiteFacts facts;
+
+  @override
+  bool get composes => true;
 
   Form? _form;
   int _seen = -1;

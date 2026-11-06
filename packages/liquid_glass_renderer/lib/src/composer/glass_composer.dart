@@ -196,6 +196,7 @@ final class GlassComposer extends PipelineOwner {
     );
     clock.stop();
     _lowerMicros = clock.elapsedMicroseconds;
+    _underlays.form = _form.top;
   }
 
   void _shadow() {

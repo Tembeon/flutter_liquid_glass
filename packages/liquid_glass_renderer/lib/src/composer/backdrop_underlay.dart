@@ -10,6 +10,7 @@ import 'package:liquid_glass_renderer/src/composer/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart'
     show debugFrostsInPlace, frostFilterOf;
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
+import 'package:liquid_glass_renderer/src/composer/form.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
@@ -312,7 +313,15 @@ class BackdropUnderlay {
       bodies: bodies,
     );
     _ask = ask;
-    if (!ask.band.isEmpty) ask.frame?._asks.add(this);
+    if (!ask.band.isEmpty) {
+      if (ask.frame case final frame?) {
+        frame._asks.add(this);
+        // A copy may grow its room once more before it draws, and holds what
+        // it drew around glass that moved inside it.
+        frame._needs(ask.band.inflate(2 * _room + 1));
+        if (_island case final island?) frame._needs(island.rect);
+      }
+    }
   }
 
   /// The copy the last [request] asked for, or null when what lies there
@@ -801,10 +810,47 @@ class BackdropUnderlay {
 /// recorded and not drawn yet.
 @internal
 final class UnderlayFrame {
+  /// Whether a scan skips what no copy of the frame can reach.
+  @internal
+  static bool debugPrunes = true;
+
+  /// Entries of the scans that finished, since this was last cleared.
+  @visibleForTesting
+  static int debugEntries = 0;
+
+  /// The frame's layers as the composer's walk found them, while it plans.
+  FormNode? form;
+
   _Scan? _scan;
   final _atlas = _Atlas();
   final _asks = <BackdropUnderlay>[];
   final _offers = <FilterOffer>[];
+
+  // Where the frame's copies may read, and how often that grew.
+  final _bands = <Rect>[];
+  int _bandsGrew = 0;
+
+  static const int _bandsMost = 16;
+
+  void _needs(Rect band) {
+    if (band.isEmpty) return;
+    for (final held in _bands) {
+      if (rectContains(held, band)) return;
+    }
+    _bandsGrew++;
+    if (_bands.length < _bandsMost) {
+      _bands.add(band);
+    } else {
+      _bands.last = _bands.last.expandToInclude(band);
+    }
+  }
+
+  bool _reaches(Rect bounds) {
+    for (final band in _bands) {
+      if (_meets(bounds, band)) return true;
+    }
+    return false;
+  }
 
   /// Whether layers should [offer] themselves rather than ask for copies.
   bool get groups =>
@@ -871,7 +917,10 @@ final class UnderlayFrame {
   void drawPending() {
     _asks.clear();
     _atlas.flush('planned');
+    if (_scan case final scan?) debugEntries += scan.entries.length;
     _scan = null;
+    form = null;
+    _bands.clear();
   }
 }
 
@@ -1374,7 +1423,9 @@ class _Prefix {
 // glass that composites is final; the layers whose drawing glass decides
 // while it composites are kept and read when a copy replays them.
 final class _Scan {
-  _Scan._(this.root, this.devicePixelRatio) {
+  _Scan._(this.root, this.devicePixelRatio, [this._frame])
+    : _bandsGrew = _frame?._bandsGrew ?? 0 {
+    final form = _frame?.form;
     _cursors.add(
       _Cursor(
         null,
@@ -1385,9 +1436,21 @@ final class _Scan {
         const [],
         filtered: false,
         open: -1,
+        node: UnderlayFrame.debugPrunes && identical(form?.layer, root)
+            ? form
+            : null,
       ),
     );
   }
+
+  final UnderlayFrame? _frame;
+  final int _bandsGrew;
+
+  // What the walk found at the layer it is on, for the cursor it pushes.
+  FormNode? _node;
+
+  // What the walk left out, so that a replay can be checked against it.
+  final _debugPruned = <Rect>[];
 
   // The scan of the pass that composites [root] in [frame], begun anew when
   // the scan walked to or past [anchor] already: the tree composites again.
@@ -1404,10 +1467,11 @@ final class _Scan {
     if (scan != null &&
         identical(scan.root, root) &&
         scan.devicePixelRatio == devicePixelRatio &&
+        scan._bandsGrew == frame._bandsGrew &&
         scan._walked[anchor] == null) {
       return scan;
     }
-    return frame._scan = _Scan._(root, devicePixelRatio);
+    return frame._scan = _Scan._(root, devicePixelRatio, frame);
   }
 
   final Layer root;
@@ -1445,6 +1509,17 @@ final class _Scan {
         return entries.length;
       }
       at.next = layer.nextSibling;
+      final node = at.take(layer);
+      if (node != null &&
+          !node.holdsComposed &&
+          !_frame!._reaches(node.extent)) {
+        assert(() {
+          _debugPruned.add(_debugReachOf(layer, at));
+          return true;
+        }());
+        continue;
+      }
+      _node = node;
       if (!_visit(layer, at)) {
         path ??= _Prefix._ancestors(anchor);
         if (path.contains(layer)) {
@@ -1455,11 +1530,41 @@ final class _Scan {
     }
   }
 
+  // What [layer] reaches by this walk's own reckoning, not the form's.
+  Rect _debugReachOf(Layer layer, _Cursor at) {
+    final probe = _Scan._(root, devicePixelRatio);
+    final held = _Cursor(
+      null,
+      null,
+      at.base,
+      at.shift,
+      at.clip,
+      at.state,
+      filtered: at.filtered,
+      open: -1,
+    );
+    probe._cursors.clear();
+    probe._cursors.add(held);
+    probe._visit(layer, held);
+    while (probe._cursors.length > 1) {
+      final top = probe._cursors.last;
+      final next = top.next;
+      if (next == null) {
+        probe._close();
+      } else {
+        top.next = next.nextSibling;
+        probe._visit(next, top);
+      }
+    }
+    return held.bounds;
+  }
+
   // Where the walk stands, for [_rewind].
   _ScanMark _mark() => (
     entries: entries.length,
     cursors: [
-      for (final cursor in _cursors) (cursor, cursor.next, cursor.bounds),
+      for (final cursor in _cursors)
+        (cursor, cursor.next, cursor.bounds, cursor.node),
     ],
   );
 
@@ -1467,9 +1572,10 @@ final class _Scan {
   // yet: the next [reach] walks them as they are then.
   void _rewind(_ScanMark mark) {
     _cursors.clear();
-    for (final (cursor, next, bounds) in mark.cursors) {
+    for (final (cursor, next, bounds, node) in mark.cursors) {
       cursor.next = next;
       cursor.bounds = bounds;
+      cursor.node = node;
       _cursors.add(cursor);
       if (cursor.open >= 0) {
         final open = entries[cursor.open] as _Open;
@@ -1514,6 +1620,10 @@ final class _Scan {
         state ?? at.state,
         filtered: at.filtered || filters,
         open: entries.length - 1,
+        node: switch (_node) {
+          final OpenNode node => node.first,
+          _ => null,
+        },
       ),
     );
   }
@@ -1865,6 +1975,10 @@ final class _Scan {
   // canvas, if it has one, and signs them.
   void replay(_Prefix prefix, int limit) {
     final band = prefix.band;
+    assert(
+      !_debugPruned.any((extent) => _meets(extent, band)),
+      'A scan left out what a copy of the frame reads.',
+    );
     final shown = prefix.shown;
     final drawing = prefix.canvas != null || shown != null;
     final out = prefix.out;
@@ -2140,7 +2254,7 @@ bool _meets(Rect bounds, Rect band) => !bounds.isEmpty && bounds.overlaps(band);
 
 typedef _ScanMark = ({
   int entries,
-  List<(_Cursor, Layer?, Rect)> cursors,
+  List<(_Cursor, Layer?, Rect, FormNode?)> cursors,
 });
 
 final class _Cursor {
@@ -2153,10 +2267,27 @@ final class _Cursor {
     this.state, {
     required this.filtered,
     required this.open,
+    this.node,
   });
 
   final ContainerLayer? layer;
   Layer? next;
+
+  // The node of a layer at or after [next], in the composer's walk. Glass adds
+  // and takes away layers after the walk, which have none.
+  FormNode? node;
+
+  FormNode? take(Layer layer) {
+    var at = node;
+    for (var i = 0; at != null && i < 8; i++) {
+      if (identical(at.layer, layer)) {
+        node = at.next;
+        return at;
+      }
+      at = at.next;
+    }
+    return null;
+  }
 
   // The transform to the screen as [base] and the translation after it: most
   // layers only shift, and most of those lie outside every copy.
