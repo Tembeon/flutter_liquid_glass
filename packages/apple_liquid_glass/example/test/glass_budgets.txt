@@ -1,5 +1,5 @@
 Controls@0       reads 2  targets 2  images 0  live 0
-Controls@500     reads 5  targets 5  images 0  live 0
-Controls@1000    reads 5  targets 5  images 0  live 0
+Controls@500     reads 4  targets 4  images 0  live 0
+Controls@1000    reads 4  targets 4  images 0  live 0
 Photos@100       reads 2  targets 2  images 0  live 0
-Motion@300       reads 3  targets 4  images 0  live 0
+Motion@300       reads 2  targets 2  images 0  live 0
