@@ -181,7 +181,8 @@ ui.ImageFilter? frostFilterOf(FrostSampling sampling) {
   if (_inPlaceFilters.length >= 32) _inPlaceFilters.clear();
   _setFrost(shader, sampling, null);
   shader.setImageSampler(0, _bilinear, filterQuality: FilterQuality.low);
-  return _inPlaceFilters[key] = bilinearShaderFilter(shader);
+  // The one shader holds other uniforms by the time a scene takes this.
+  return _inPlaceFilters[key] = shaderFilterNow(shader);
 }
 
 // Chrome over a scroll keeps a copy's place, so its filter too.
