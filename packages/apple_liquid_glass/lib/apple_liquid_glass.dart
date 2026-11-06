@@ -151,6 +151,7 @@ export 'src/surface/glass.dart' show Glass, GlassRole;
 export 'src/surface/group.dart' show GlassGroup, GlassMerge;
 export 'src/surface/outline.dart' show GlassOutline;
 export 'src/surface/shape.dart' show GlassShape;
+export 'src/surface/solid_backdrop.dart' show GlassSolidBackdrop;
 export 'src/surface/surface.dart' show GlassSurface;
 export 'src/theme/colors.dart' show GlassColors, GlassDynamicColor;
 export 'src/theme/theme.dart'

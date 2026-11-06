@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/controls/swipe_actions.dart';
 import 'package:apple_liquid_glass/src/motion/list_highlight.dart';
+import 'package:apple_liquid_glass/src/surface/solid_backdrop.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/style.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
@@ -229,7 +230,7 @@ class GlassListSection extends StatelessWidget {
               borderRadius: const BorderRadius.all(
                 Radius.circular(_Metrics.cornerRadius),
               ),
-              child: ColoredBox(
+              child: _Card(
                 color: _resolve(look.backgroundColor, const {}, context),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -306,7 +307,7 @@ class GlassSliverListSection extends StatelessWidget {
             top: i == 0 ? radius : Radius.zero,
             bottom: last ? radius : Radius.zero,
           ),
-          child: ColoredBox(
+          child: _Card(
             color: card,
             child: _RowPlace(
               last: last,
@@ -1213,4 +1214,18 @@ class _InfoPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_InfoPainter oldDelegate) => color != oldDelegate.color;
+}
+
+// A section's card: glass on it reads the card's color rather than the screen.
+class _Card extends StatelessWidget {
+  const _Card({required this.color, required this.child});
+
+  final Color color;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    color: color,
+    child: GlassSolidBackdrop(color: color, child: child),
+  );
 }

@@ -9,6 +9,7 @@ import 'package:apple_liquid_glass/src/renderer/underlay_layers.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
 import 'package:apple_liquid_glass/src/surface/outline.dart';
+import 'package:apple_liquid_glass/src/surface/solid_backdrop.dart';
 import 'package:apple_liquid_glass/src/theme/style.dart';
 import 'package:apple_liquid_glass/src/theme/traits.dart';
 import 'package:flutter/foundation.dart';
@@ -741,9 +742,15 @@ class _LiquidGroupState extends State<_LiquidGroup> with _RebuildOutsideFrame {
     _writeSettings();
     final blend = widget.blend;
     final child = widget.child;
+    final solid = widget.lens == null && !_drawsFake(widget.fake)
+        ? GlassSolidBackdrop.colorOf(context)
+        : null;
     return LiquidGlassLayer.live(
       frame: _layer,
       fake: widget.fake,
+      backdrop: solid == null
+          ? const LiquidGlassBackdrop.read()
+          : LiquidGlassBackdrop.solid(solid),
       // A lens moves every frame of a drag: shaded from its shape, it spares
       // the frame a matte pass and its submission until it rests.
       analyticGeometry: widget.lens != null,
