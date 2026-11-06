@@ -1911,9 +1911,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         sigma,
         downscale,
         _colorModelFamily,
-        // Past this size the shader's bevel no longer asks how large the
-        // surface is.
-        (min(_halfMinor, GlassRim.bevelShadowDepth * dpr * 5) * 64).round(),
+        // The shader's bevel asks how large a surface is only between these
+        // sizes.
+        (_halfMinor.clamp(
+                  GlassRim.bevelShadowDepth * dpr * 3.5,
+                  GlassRim.bevelShadowDepth * dpr * 5,
+                ) *
+                64)
+            .round(),
       ),
     );
     frame.offer(offer);
