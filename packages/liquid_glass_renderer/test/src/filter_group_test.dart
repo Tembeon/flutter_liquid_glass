@@ -234,6 +234,30 @@ void main() {
     );
   });
 
+  testWidgets('glass under other clips groups with its own neighbours', (
+    tester,
+  ) async {
+    Widget card(double top, List<Widget> buttons) => Positioned(
+      left: 10,
+      top: top,
+      width: 280,
+      height: 80,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(children: buttons),
+      ),
+    );
+    await expectSame(
+      tester,
+      [
+        card(10, [_button(10, 20), _button(110, 20)]),
+        card(110, [_button(10, 20), _button(110, 20)]),
+      ],
+      layersOn: 2,
+      layersOff: 4,
+    );
+  });
+
   testWidgets('an opacity around one button leaves it out', (tester) async {
     await expectSame(
       tester,

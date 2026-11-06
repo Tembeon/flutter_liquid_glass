@@ -224,6 +224,14 @@ final class FilterGroup {
   }
 
   void _ask() {
+    _request();
+    band?.enter(this);
+    for (final offer in _offered) {
+      offer.enter(this);
+    }
+  }
+
+  void _request() {
     final lead = this.lead;
     final band = this.band;
     var downscale = lead.downscale;
@@ -240,15 +248,12 @@ final class FilterGroup {
       parts: [?band?.reads, for (final offer in _offered) offer.reads],
       bodies: [?band?.drawn, for (final offer in _offered) offer.drawn],
     );
-    band?.enter(this);
-    for (final offer in _offered) {
-      offer.enter(this);
-    }
   }
 
   /// Decides at the leader's compositing who stays, and draws the copy of
-  /// what lies before the leader: null when the group came apart and each of
-  /// its members asks alone.
+  /// what lies before the leader: null when the group came apart. Who leaves
+  /// forms groups of its own, as controls in the next card do, and a member
+  /// without one asks alone.
   ///
   /// A member stays when it lies under the leader's clips and opacity and
   /// nothing but the group's glass is painted under it between the leader and
@@ -257,7 +262,7 @@ final class FilterGroup {
   /// shadow, as glass drawn over one copy never does.
   InFrameCopy? settle() {
     final underlay = lead.underlay;
-    final ask = underlay._ask;
+    var ask = underlay._ask;
     if (ask == null || ask.band.isEmpty) return null;
     final scan = BackdropUnderlay._scanOf(ask);
     final limit = scan.reach(ask.anchor);
@@ -290,7 +295,22 @@ final class FilterGroup {
       }
     }
     scan._rewind(mark);
+    if (kept.length < _offered.length) {
+      final left = [
+        for (final offer in _offered)
+          if (!kept.contains(offer)) offer,
+      ];
+      final screen = ask.screen.size;
+      for (final group in _openGroups(left, screen.width * screen.height)) {
+        group._ask();
+      }
+    }
     if (kept.isEmpty || band == null && kept.length < 2) return null;
+    if (kept.length < _offered.length) {
+      _offered.retainWhere(kept.contains);
+      _request();
+      ask = underlay._ask!;
+    }
     _kept = kept;
     if (!painter.begin(this)) {
       _kept = const [];
@@ -333,9 +353,22 @@ List<FilterGroup> _groupsOf(List<FilterOffer> offers, double screen) {
       if (group != null) groups.add(group);
     }
   }
+  groups.addAll(
+    _openGroups(
+      [
+        for (final offer in offers)
+          if (offer is GlassOffer && !grouped.contains(offer)) offer,
+      ],
+      screen,
+    ),
+  );
+  return groups;
+}
+
+// The groups of [offers] with no band: each joins the first it can.
+Iterable<FilterGroup> _openGroups(List<GlassOffer> offers, double screen) {
   final open = <FilterGroup>[];
   for (final offer in offers) {
-    if (offer is! GlassOffer || grouped.contains(offer)) continue;
     var joined = false;
     for (final group in open) {
       if (group._admits(offer, screen)) {
@@ -346,8 +379,7 @@ List<FilterGroup> _groupsOf(List<FilterOffer> offers, double screen) {
     }
     if (!joined) open.add(FilterGroup._(null, offer));
   }
-  groups.addAll(open.where((group) => group._offered.length >= 2));
-  return groups;
+  return open.where((group) => group._offered.length >= 2);
 }
 
 // A band's frost in the pixels of a copy it shares with [glass].
