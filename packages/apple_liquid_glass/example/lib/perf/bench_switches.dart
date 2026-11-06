@@ -20,6 +20,8 @@ import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.d
 /// run that shows the noise floor.
 final benchSwitches = <String, void Function({required bool on})>{
   'none': ({required on}) {},
+  // B: a read keeps what did not change between frames, A walks all of it.
+  'keeps_layers': ({required on}) => GlassCopies.debugKeepsLayers = on,
   // B: pixels a group's clip cuts cost next to nothing, so chrome at both ends
   // of the screen shares a filter.
   'dead_cheap': ({required on}) => GlassComposer.debugPrices = on

@@ -152,6 +152,10 @@ abstract final class GlassCopies {
   @internal
   static bool debugTextureInScene = false;
 
+  /// A/B run: false walks every layer of every read each frame.
+  @internal
+  static bool debugKeepsLayers = true;
+
   /// Whether Impeller draws a layer of [layer] whole inside a clip of
   /// [clip] (both in the same space): it cuts the layer to the clip, and
   /// starts fragment coordinates at the cut, only once the part it cuts off
@@ -420,6 +424,7 @@ final class _Replay {
   // glass and nothing in it changed: a scroll moves rows, not what lies in
   // them. False where it has to be walked.
   bool _addHeld(OpenNode open, List<SiteFacts>? parts) {
+    if (!GlassCopies.debugKeepsLayers) return false;
     final frame = copy._form.frame;
     if (open.holdsComposed ||
         open.contentAt == frame ||
