@@ -190,6 +190,36 @@ void main() {
     );
   });
 
+  testWidgets('buttons of different tints draw in one layer as they do alone', (
+    tester,
+  ) async {
+    Widget tinted(double left, double top, Color tint) => Positioned(
+      left: left,
+      top: top,
+      width: 80,
+      height: 40,
+      child: LiquidGlassLayer(
+        settings: LiquidGlassSettings.ios27RegularLight(),
+        child: LiquidGlass(
+          shape: const LiquidRoundedSuperellipse(borderRadius: 20),
+          appearance: LiquidGlassAppearance.ios27RegularLight(tint: tint),
+          child: const SizedBox.expand(),
+        ),
+      ),
+    );
+    await expectSame(
+      tester,
+      [
+        tinted(20, 20, const Color(0x00007AFF)),
+        tinted(120, 20, const Color(0xFF0088FF)),
+        tinted(20, 80, const Color(0x00007AFF)),
+        tinted(120, 80, const Color(0xCCFF3B30)),
+      ],
+      layersOn: 1,
+      layersOff: 4,
+    );
+  });
+
   testWidgets('something painted over a later button leaves it out', (
     tester,
   ) async {

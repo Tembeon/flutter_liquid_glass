@@ -147,10 +147,15 @@ final class GlassComposer extends PipelineOwner {
     FrameAncestors.current = FrameAncestors();
     try {
       if (root != null) {
-        if (debugFormRests || debugShadowPlan) _lower(root);
+        final plans = UnderlayFrame.debugPlansGroups;
+        if (plans || debugFormRests || debugShadowPlan) _lower(root);
         _prepare(root);
-        if (debugShadowPlan) _shadow();
-        _underlays.planGroups();
+        final plan = plans || debugShadowPlan ? _shadow() : null;
+        if (plans && plan != null) {
+          _underlays.takeGroups(plan);
+        } else {
+          _underlays.planGroups();
+        }
         _underlays.plan();
         _compose(root);
       }
@@ -166,6 +171,14 @@ final class GlassComposer extends PipelineOwner {
   /// does not use, so a bench can price them and compare them with the frame.
   @visibleForTesting
   static bool debugShadowPlan = false;
+
+  /// What the frame's plan pays for what it weighs.
+  @internal
+  static Prices debugPrices = const Prices();
+
+  /// Handed each frame's shadow plan, with its reasons, while set.
+  @visibleForTesting
+  static void Function(Form form, Plan plan)? debugOnShadow;
 
   /// What the shadow plan cost and said since it was last read.
   @visibleForTesting
@@ -199,7 +212,9 @@ final class GlassComposer extends PipelineOwner {
     _underlays.form = _form.top;
   }
 
-  void _shadow() {
+  Plan? _shadow() {
+    final view = _form.top?.layer.owner;
+    if (view is! RenderView) return null;
     final clock = Stopwatch();
     clock.start();
     final nodes = _form.siteNodes;
@@ -212,25 +227,31 @@ final class GlassComposer extends PipelineOwner {
       } else if (layer is LiquidGlassBackdropFilterLayer) {
         layer.fillPlanFacts(facts);
       }
+      if (_underlays.holdsUnder(facts.id)) facts.noJoin = NoJoin.held;
       _form.noteSiteDrawn(facts, before);
     }
     _form.settleFloors();
     final (plan, edits) = compile(
       _form,
       _ledger,
-      const Prices(),
-      const Policy(),
+      debugPrices,
+      Policy(bands: BackdropUnderlay.debugBandGroups),
       _form.frame,
+      explain: debugOnShadow != null,
     );
+    debugOnShadow?.call(_form, plan);
     edits.applyTo(_ledger, _form.frame);
     clock.stop();
-    debugShadowCensus.add(
-      _lowerMicros,
-      _lowerMicros + clock.elapsedMicroseconds,
-      _form.length,
-      nodes.length,
-      plan,
-    );
+    if (debugShadowPlan) {
+      debugShadowCensus.add(
+        _lowerMicros,
+        _lowerMicros + clock.elapsedMicroseconds,
+        _form.length,
+        nodes.length,
+        plan,
+      );
+    }
+    return plan;
   }
 
   ContainerLayer? _root() {

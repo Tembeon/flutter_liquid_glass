@@ -11,6 +11,7 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart' show Prices;
 import 'package:liquid_glass_renderer/src/internal/shader_frost.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
@@ -25,6 +26,19 @@ final benchSwitches = <String, void Function({required bool on})>{
   'form_rests': ({required on}) => GlassComposer.debugFormRests = on,
   // B: the frame's scan skips what no copy can reach.
   'scan_prune': ({required on}) => UnderlayFrame.debugPrunes = on,
+  // B: the frame's groups come from its plan.
+  'plan_groups': ({required on}) => UnderlayFrame.debugPlansGroups = on,
+  // B: everything the planner took over so far.
+  'planner': ({required on}) {
+    GlassComposer.debugFormRests = on;
+    UnderlayFrame.debugPrunes = on;
+    UnderlayFrame.debugPlansGroups = on;
+  },
+  // B: pixels a group's clip cuts cost next to nothing, so chrome at both ends
+  // of the screen shares a filter.
+  'dead_cheap': ({required on}) => GlassComposer.debugPrices = on
+      ? const Prices(deadGpuPerMpx: 0.02)
+      : const Prices(),
   'groups': ({required on}) => BackdropUnderlay.debugGroups = on,
   'group_bands': ({required on}) => BackdropUnderlay.debugBandGroups = on,
   'no_shadows': ({required on}) {

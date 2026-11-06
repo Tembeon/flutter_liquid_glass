@@ -74,6 +74,8 @@ final class Form implements Scenery {
 
   int _suppress = 0;
   int _next = 0;
+  SiteNode? _site;
+  SiteNode? _enterSite;
 
   /// Compares [root]'s tree with the last frame's.
   void lower(ContainerLayer root, double devicePixelRatio, Size physicalSize) {
@@ -102,6 +104,11 @@ final class Form implements Scenery {
 
   void _enter(FormNode node) {
     node.order = _next++;
+    node.insideSite = _site;
+    if (_enterSite case final site?) {
+      _site = site;
+      _enterSite = null;
+    }
     if (_count == _flat.length) {
       _flat.add(node);
     } else {
@@ -148,6 +155,13 @@ final class Form implements Scenery {
     var i = site.order - 1;
     while (i >= 0) {
       final node = _flat[i];
+      // What another site paints with its glass moves back with it or lies
+      // over it, as the plan decides from that site's own facts.
+      final other = node.insideSite;
+      if (other != null && other.end <= site.order) {
+        i = other.order - 1;
+        continue;
+      }
       final parent = node.parent;
       if (parent != null &&
           parent.end <= site.order &&
@@ -285,6 +299,9 @@ sealed class FormNode {
 
   /// The frame it last changed.
   int changedAt = 0;
+
+  /// The site whose layer holds it, if one does.
+  SiteNode? insideSite;
 
   /// What it covers on the screen.
   Rect get extent;
@@ -704,7 +721,11 @@ final class SiteNode extends ShiftNode {
     facts.clip = outside.clip;
     form._sites.add(facts);
     form._siteNodes.add(this);
-    return super.refreshIn(form, outside);
+    final above = form._site;
+    form._enterSite = this;
+    final changed = super.refreshIn(form, outside);
+    form._site = above;
+    return changed;
   }
 }
 
@@ -1075,7 +1096,9 @@ final class EffectsNode extends OpenNode with _Matrix {
     if (_chain == null ||
         !identical(_chainParent, outside.state) ||
         _token != token) {
-      _chain = StateChain(outside.state, token);
+      final adds =
+          effects.clip != null || effects.alpha != null || effects.blur > 0;
+      _chain = adds ? StateChain(outside.state, token) : outside.state;
       _chainParent = outside.state;
       _token = token;
     }

@@ -12,7 +12,9 @@ import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart'
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/form.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart' hide ImageRead;
 import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart';
+import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/internal/retained_glass_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/running_under_flutter_test.dart';
@@ -814,6 +816,14 @@ final class UnderlayFrame {
   @internal
   static bool debugPrunes = true;
 
+  /// Filters over a copy added to scenes, since this was last cleared.
+  @internal
+  static int debugSceneFilters = 0;
+
+  /// Backdrop filters added to scenes, since this was last cleared.
+  @internal
+  static int debugSceneLive = 0;
+
   /// Entries of the scans that finished, since this was last cleared.
   @visibleForTesting
   static int debugEntries = 0;
@@ -873,6 +883,46 @@ final class UnderlayFrame {
     ], size.width * size.height);
     final grouped = Set<FilterOffer>.identity();
     for (final group in groups) {
+      group._ask();
+      grouped.add(group.lead);
+      grouped.addAll(group._offered);
+    }
+    for (final offer in _offers) {
+      if (!grouped.contains(offer)) offer.askAlone();
+    }
+    _offers.clear();
+  }
+
+  /// Whether a frame's groups come from its plan.
+  @internal
+  static bool debugPlansGroups = true;
+
+  /// Whether what lies under the site anchored at [anchor] comes from an
+  /// image, which takes no filter of its own.
+  bool holdsUnder(Object anchor) {
+    for (final offer in _offers) {
+      if (identical(offer.anchor, anchor)) return offer.underlay._held;
+    }
+    return false;
+  }
+
+  /// Draws what [plan] joined through one filter each and has the rest ask
+  /// alone. The composer calls it once every layer has prepared.
+  void takeGroups(Plan plan) {
+    if (_offers.isEmpty) return;
+    final grouped = Set<FilterOffer>.identity();
+    FilterOffer? offerOf(SiteFacts site) {
+      for (final offer in _offers) {
+        if (identical(offer.anchor, site.id)) return offer;
+      }
+      return null;
+    }
+
+    for (final read in plan.reads) {
+      if (read.members.length < 2) continue;
+      final group = FilterGroup._planned([
+        for (final member in read.members) ?offerOf(member),
+      ]);
       group._ask();
       grouped.add(group.lead);
       grouped.addAll(group._offered);

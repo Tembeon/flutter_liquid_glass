@@ -167,6 +167,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
         frost: offer.sigma,
         downscale: offer.downscale,
         isBand: true,
+        devicePixelRatio: offer.devicePixelRatio,
       );
       return;
     }
@@ -513,6 +514,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
       builder.pushBackdropFilter(identityColorFilter, blendMode: BlendMode.src);
     }
     builder.pushClipRect(_clip, clipBehavior: Clip.hardEdge);
+    UnderlayFrame.debugSceneLive++;
     builder.pushBackdropFilter(_filter, blendMode: _blendMode);
     addChildrenToScene(builder);
     builder.pop();

@@ -663,8 +663,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   FragmentShader get renderShader {
     final kind = switch ((
       _analytic,
-      _usesShapeAppearances,
-      _usesTintOnlyAppearance,
+      _usesShapeAppearances || _groupTints,
+      _usesTintOnlyAppearance || _groupTints,
     )) {
       (true, _, _) => FinalShaderKind.analytic,
       (false, false, _) => FinalShaderKind.single,
@@ -1403,8 +1403,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         filterQuality: FilterQuality.low,
       );
     }
-    if (_materialImage case final materialImage? when _usesShapeAppearances) {
-      if (_usesTintOnlyAppearance) {
+    final material = _groupTints
+        ? _groupMatte?.tints
+        : _usesShapeAppearances
+        ? _materialImage
+        : null;
+    if (material case final materialImage?) {
+      if (_usesTintOnlyAppearance || _groupTints) {
         activeRenderShader.setImageSampler(
           2,
           materialImage,
@@ -1418,11 +1423,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
     if (!identical(activeRenderShader, _boundRenderShader) ||
         !identical(geometryImage, _boundGeometryImage) ||
-        !identical(_materialImage, _boundMaterialImage) ||
+        !identical(material ?? _materialImage, _boundMaterialImage) ||
         _geometryMatteBounds != _boundMatteBounds) {
       _boundRenderShader = activeRenderShader;
       _boundGeometryImage = geometryImage;
-      _boundMaterialImage = _materialImage;
+      _boundMaterialImage = material ?? _materialImage;
       _boundMatteBounds = _geometryMatteBounds;
       _noteShaderInputs();
     }
@@ -1853,6 +1858,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         frost: offer.frost,
         downscale: offer.downscale,
         drawsBand: offer.drawsBand,
+        tint: offer.tint,
+        shapes: offer.shapes,
       );
       return;
     }
@@ -1885,6 +1892,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     facts.drawn = MatrixUtils.transformRect(screen, bounds);
     facts.reads = facts.drawn.inflate(backdropSamplingReach(bounds) + 1);
   }
+
+  // Whether the shader draws a group whose matte holds its tints.
+  bool _groupTints = false;
 
   // This frame's offer to share a filter, and the group that took it.
   _GlassOffer? _offer;
@@ -1947,6 +1957,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         : 1;
     if (downscale == null) return null;
     final drawn = MatrixUtils.transformRect(screen, bounds);
+    final appearance = _uniformAppearance ?? defaultAppearance;
     final offer = _GlassOffer(
       this,
       screen,
@@ -1962,9 +1973,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           sigma > 0 &&
           _frostsCopies &&
           _colorModelFamily == FinalShaderModels.ios27,
+      tint: appearance.tint,
+      shapes: _shapeData.length ~/ 12,
       key: (
         settings,
-        _uniformAppearance ?? defaultAppearance,
+        appearance.colorModel,
+        appearance.visibility,
         dpr,
         _matteScale,
         sigma,
@@ -1998,21 +2012,27 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
     _inGroup = true;
     final band = group.band != null;
-    final rebind = band != _drawsBand;
+    final tints = glass.length > 1 && _groupMatte!.tinted;
+    final rebind = band != _drawsBand || tints != _groupTints;
     _drawsBand = band;
+    _groupTints = tints;
     if (glass.length > 1) {
       final matte = _groupMatte!;
       if (rebind ||
           !identical(_boundGeometryImage, matte.image) ||
+          !identical(_boundMaterialImage, matte.tints) ||
           _boundMatteBounds != matte.bounds) {
         final bounds = _geometryMatteBounds;
         final textureSize = _geometryTextureSize;
+        final tintsSize = _materialTextureSize;
         final halfMinor = _halfMinor;
         _geometryMatteBounds = matte.bounds;
         _geometryTextureSize = matte.textureSize;
+        if (tints) _materialTextureSize = matte.tintsSize;
         _bindGeometryShader(matte.image!, halfMinor: halfMinor);
         _geometryMatteBounds = bounds;
         _geometryTextureSize = textureSize;
+        _materialTextureSize = tintsSize;
       }
     } else if (_geometryImage case final image?
         when rebind || !identical(_boundGeometryImage, image)) {
@@ -2025,6 +2045,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (!_inGroup) return;
     _inGroup = false;
     _drawsBand = false;
+    _groupTints = false;
     if (_geometryImage case final image?) _bindGeometryShader(image);
     if (!drawableEmpty) {
       syncCoordinateMapping();
@@ -3231,6 +3252,8 @@ final class _GlassOffer extends GlassOffer {
     required super.downscale,
     required super.own,
     required super.key,
+    required super.tint,
+    required super.shapes,
     required super.frost,
     required super.drawsBand,
   });
@@ -3292,6 +3315,13 @@ final class _GroupMatte {
   Rect bounds = Rect.zero;
   Size textureSize = Size.zero;
 
+  // The tint of each shape, where they differ; a low-resolution map, so glass
+  // reads it as the color of the nearest shape. NEAR: 8 bits a channel where a
+  // uniform holds the tint exactly.
+  ui.Image? tints;
+  Size tintsSize = const Size(1, 1);
+  bool get tinted => tints != null;
+
   // Where the matte's origin lies on the screen, in logical pixels.
   Offset origin = Offset.zero;
 
@@ -3313,6 +3343,7 @@ final class _GroupMatte {
       final at = offer.shapesOnScreen - base;
       signature.add(offer.glass);
       signature.add(offer.glass._encoded);
+      signature.add(offer.tint);
       signature.add(fixed(at.dx));
       signature.add(fixed(at.dy));
     }
@@ -3360,7 +3391,18 @@ final class _GroupMatte {
     final left = (all.left - room).floorToDouble();
     final top = (all.top - room).floorToDouble();
     final settings = lead.settings;
+    final mixed = glass.any((offer) => offer.tint != first.tint);
     final result = _renderer.render(
+      writeMaterials: mixed,
+      writeTintOnly: mixed,
+      appearanceData: mixed
+          ? lead._appearanceLookupData([
+              for (final offer in glass)
+                for (var i = 0; i < offer.shapes; i++)
+                  (offer.glass._uniformAppearance ??
+                      offer.glass.defaultAppearance),
+            ])
+          : const <double>[],
       width: (all.right + room - left).ceil(),
       height: (all.bottom + room - top).ceil(),
       shapeData: shapes,
@@ -3388,6 +3430,11 @@ final class _GroupMatte {
       result.textureWidth.toDouble(),
       result.textureHeight.toDouble(),
     );
+    final map = mixed ? _renderer.materialImage : null;
+    tints = map;
+    tintsSize = map == null
+        ? const Size(1, 1)
+        : Size(map.width.toDouble(), map.height.toDouble());
   }
 
   void dispose() => _renderer.dispose();

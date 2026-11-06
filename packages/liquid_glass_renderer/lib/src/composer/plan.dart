@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:liquid_glass_renderer/src/internal/shader_frost.dart';
 import 'package:meta/meta.dart';
 
 /// All [compile] needs of a frame. A form answers from a layer tree; a test
@@ -136,6 +137,9 @@ enum NoJoin {
   /// Its glow is drawn per surface.
   glow,
 
+  /// What lies under it comes from an image, with no filter of its own.
+  held,
+
   /// Its backdrop shrinks towards its own center.
   shrink,
 
@@ -156,6 +160,9 @@ final class Look {
     required this.downscale,
     this.drawsBand = false,
     this.isBand = false,
+    this.devicePixelRatio = 1,
+    this.tint,
+    this.shapes = 1,
   });
 
   /// No look: a site that draws nothing through a filter.
@@ -175,6 +182,27 @@ final class Look {
 
   /// Whether this site is a scroll edge rather than glass.
   final bool isBand;
+
+  /// The screen's device pixels per logical pixel.
+  final double devicePixelRatio;
+
+  /// The tint, which one filter can draw per shape, but not beside a band.
+  final Object? tint;
+
+  /// How many shapes it adds to a shared matte.
+  final int shapes;
+
+  /// Whether a shader's written-out taps stay smooth drawing this band for
+  /// [glass] over one copy: past 2.8 of the copy's pixels they speckle, by the
+  /// Mali model, which counts them in parallel unlike a loop of twelve.
+  bool bandFits(Look glass) {
+    final share = math.min(downscale, glass.downscale);
+    final residual = shaderFrostResidual(
+      frost * devicePixelRatio,
+      share: share,
+    );
+    return residual / share <= 2.8;
+  }
 }
 
 /// One site's facts for a frame, in the screen's logical pixels.
@@ -257,9 +285,13 @@ final class Read {
   Read(this.lead)
     : band = lead.reads,
       quad = lead.drawn,
-      downscale = lead.look.downscale {
+      downscale = lead.look.downscale,
+      shapes = lead.look.isBand ? 0 : lead.look.shapes {
     members.add(lead);
   }
+
+  /// The shapes in its members' shared matte.
+  int shapes;
 
   /// The first member in paint order; the filter draws at its place.
   final SiteFacts lead;
@@ -476,7 +508,19 @@ final class Prices {
 @internal
 final class Policy {
   /// Creates a policy.
-  const Policy({this.maxTargets = 8, this.images = true, this.groups = true});
+  const Policy({
+    this.maxTargets = 8,
+    this.images = true,
+    this.groups = true,
+    this.maxShapes = 16,
+    this.bands = true,
+  });
+
+  /// Whether glass may draw a scroll edge under it in its own filter.
+  final bool bands;
+
+  /// Shapes one shared matte can hold.
+  final int maxShapes;
 
   /// Targets a frame may issue before reads move to images.
   final int maxTargets;
@@ -547,10 +591,12 @@ bool _contains(Rect outer, Rect inner) =>
     outer.bottom >= inner.bottom;
 
 // A filter draws under its lead's clips, so the glass it draws must lie inside
-// them, and inside its own, which the filter does not apply.
+// them, and inside its own, which the filter does not apply. Under the same
+// clip the filter cuts it as it would itself.
 bool _insideClips(Read read, SiteFacts site) {
   final lead = read.lead.clip;
   final own = site.clip;
+  if (lead == own) return true;
   return (lead == null || _contains(lead, site.drawn)) &&
       (own == null || _contains(own, site.drawn));
 }
@@ -558,9 +604,14 @@ bool _insideClips(Read read, SiteFacts site) {
 bool _lookFits(Read read, SiteFacts site) {
   final lead = read.lead.look;
   final look = site.look;
-  if (look.isBand) return lead.drawsBand || lead.isBand;
+  if (look.isBand) return false;
   if (lead.isBand) {
-    return look.drawsBand && read.members.every((m) => m.look.isBand);
+    return look.drawsBand &&
+        _meet(site.drawn, read.lead.drawn) &&
+        lead.bandFits(look) &&
+        (read.members.length == 1 ||
+            read.members[1].look.key == look.key &&
+                read.members[1].look.tint == look.tint);
   }
   return lead.key == look.key;
 }
@@ -595,7 +646,6 @@ String _whyApart(Read read, SiteFacts site, Prices prices) {
 }) {
   final notes = <String>[];
   final reads = <Read>[];
-  final open = <Read>[];
   final fates = <Fate>[];
   for (final site in scene.sites) {
     if (site.hidden) {
@@ -609,22 +659,36 @@ String _whyApart(Read read, SiteFacts site, Prices prices) {
     final limit = site.turned ? ReadLimit.liveOnly : scene.limitUnder(site);
     Read? joined;
     if (policy.groups && site.noJoin == null && !site.turned) {
-      for (var i = open.length - 1; i >= 0; i--) {
-        final read = open[i];
-        if (read.lead.order >= site.floor &&
+      for (var i = reads.length - 1; i >= 0; i--) {
+        final read = reads[i];
+        final band = read.lead.look.isBand;
+        final overGlass = read.members
+            .skip(band ? 1 : 0)
+            .any((m) => _meet(m.drawn, site.drawn));
+        if (overGlass) {
+          if (explain) notes.add('${site.id}: overlaps');
+          break;
+        }
+        if (read.lead.noJoin == null &&
+            (policy.bands || !band) &&
+            read.source is! LiveRead &&
+            read.lead.order >= site.floor &&
             site.state.same(read.lead.state) &&
             _insideClips(read, site) &&
-            !read.members.any((m) => _meet(m.drawn, site.drawn)) &&
             _lookFits(read, site) &&
-            mergeDelta(read, site, prices) < 0) {
+            read.shapes + site.look.shapes <= policy.maxShapes &&
+            (band || mergeDelta(read, site, prices) < 0)) {
           joined = read;
           break;
         }
         if (explain) notes.add('${site.id}: ${_whyApart(read, site, prices)}');
+        // Joining a read further down would draw this glass under the band.
+        if (band && _meet(read.lead.drawn, site.drawn)) break;
       }
     }
     if (joined != null) {
       joined.members.add(site);
+      joined.shapes += site.look.shapes;
       joined.band = joined.band.expandToInclude(site.reads);
       joined.quad = joined.quad.expandToInclude(site.drawn);
       joined.downscale = math.min(joined.downscale, site.look.downscale);
@@ -634,7 +698,6 @@ String _whyApart(Read read, SiteFacts site, Prices prices) {
     final read = Read(site);
     if (limit == ReadLimit.liveOnly) read.source = const LiveRead();
     reads.add(read);
-    if (site.noJoin == null && limit != ReadLimit.liveOnly) open.add(read);
     fates.add(Leads(read));
   }
 

@@ -143,11 +143,30 @@ void main() {
       expect(_plan(_Scene(sites)).reads, hasLength(2));
     });
 
-    test('a band joins the glass that can draw it, whatever comes first', () {
+    test('a band joins the glass over it that can draw it', () {
       final band = _site(0, const Rect.fromLTWH(0, 0, 411, 100));
-      band.look = const Look(key: 'band', frost: 8, downscale: 2, isBand: true);
-      final glass = _site(2, const Rect.fromLTWH(8, 110, 44, 44));
+      band.look = const Look(key: 'band', frost: 2, downscale: 2, isBand: true);
+      final glass = _site(2, const Rect.fromLTWH(8, 50, 44, 44));
+      glass.look = const Look(
+        key: 'a',
+        frost: 2,
+        downscale: 2,
+        drawsBand: true,
+      );
+      final beside = _site(4, const Rect.fromLTWH(8, 110, 44, 44));
+      beside.look = glass.look;
       expect(_plan(_Scene([band, glass])).reads, hasLength(1));
+      expect(_plan(_Scene([band, beside])).reads, hasLength(2));
+    });
+
+    test('glass stays over the glass it overlaps', () {
+      final low = _site(0, const Rect.fromLTWH(0, 0, 100, 100));
+      final other = _site(2, const Rect.fromLTWH(200, 0, 100, 100));
+      other.look = const Look(key: 'other', frost: 0, downscale: 1);
+      final top = _site(4, const Rect.fromLTWH(250, 50, 20, 20));
+      top.look = low.look;
+      top.floor = -1;
+      expect(_plan(_Scene([low, other, top])).reads, hasLength(3));
     });
 
     test('chrome at both ends of the screen does not share a whole screen', () {

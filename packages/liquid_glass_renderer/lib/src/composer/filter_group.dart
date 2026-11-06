@@ -95,12 +95,20 @@ abstract class GlassOffer extends FilterOffer {
     required super.downscale,
     required super.own,
     required this.key,
+    required this.tint,
+    required this.shapes,
     required this.frost,
     required this.drawsBand,
   });
 
-  /// Equal for glass one shader's uniforms can draw.
+  /// Equal for glass one shader's uniforms can draw, its tint aside.
   final Object key;
+
+  /// The tint, which a group's matte can hold per shape.
+  final Color tint;
+
+  /// How many shapes it adds to a group's matte.
+  final int shapes;
 
   /// The frost the glass reads with, in logical pixels.
   final double frost;
@@ -127,7 +135,21 @@ abstract class GlassOffer extends FilterOffer {
 /// where that shows.
 @internal
 final class FilterGroup {
-  FilterGroup._(this.band, GlassOffer first) : _offered = [first];
+  FilterGroup._(this.band, GlassOffer first)
+    : _offered = [first],
+      _plannedAlready = false;
+
+  // What a frame's plan joined, a scroll edge first if there is one: whatever
+  // is painted between them the plan has already judged.
+  FilterGroup._planned(List<FilterOffer> offers)
+    : band = switch (offers.first) {
+        final BandOffer band => band,
+        _ => null,
+      },
+      _offered = [...offers.whereType<GlassOffer>()],
+      _plannedAlready = true;
+
+  final bool _plannedAlready;
 
   /// The scroll edge drawn with the glass, if there is one.
   final BandOffer? band;
@@ -218,6 +240,12 @@ final class FilterGroup {
 
   bool _admits(GlassOffer offer, double screen) {
     if (offer.key != _offered.first.key) return false;
+    if (band != null && offer.tint != _offered.first.tint) return false;
+    var shapes = offer.shapes;
+    for (final other in _offered) {
+      shapes += other.shapes;
+    }
+    if (shapes > FlutterGpuGeometryRenderer.maxShapesPerDraw) return false;
     var all = offer.drawn;
     for (final other in _offered) {
       if (_meets(other.drawn, offer.drawn)) return false;
@@ -254,24 +282,8 @@ final class FilterGroup {
     );
   }
 
-  /// Decides at the leader's compositing who stays, and draws the copy of
-  /// what lies before the leader: null when the group came apart. Who leaves
-  /// forms groups of its own, as controls in the next card do, and a member
-  /// without one asks alone.
-  ///
-  /// A member stays when it lies under the leader's clips and opacity and
-  /// nothing but the group's glass is painted under it between the leader and
-  /// itself. NEAR: glass does not show what is painted beside it after the
-  /// leader in what it reads at its rim, such as a neighbour's label or
-  /// shadow, as glass drawn over one copy never does.
-  InFrameCopy? settle() {
-    final underlay = lead.underlay;
-    var ask = underlay._ask;
-    if (ask == null || ask.band.isEmpty) return null;
-    final scan = BackdropUnderlay._scanOf(ask);
-    final limit = scan.reach(ask.anchor);
-    if (limit < 0) return null;
-    final clip = scan.clip;
+  // Walks on to each member to see what is painted between it and the leader.
+  List<GlassOffer> _walkAhead(_Scan scan, int limit) {
     final state = scan._cursors.last.state;
     final mark = scan._mark();
     final starts = <int>{limit};
@@ -299,6 +311,28 @@ final class FilterGroup {
       }
     }
     scan._rewind(mark);
+    return kept;
+  }
+
+  /// Decides at the leader's compositing who stays, and draws the copy of
+  /// what lies before the leader: null when the group came apart. Who leaves
+  /// forms groups of its own, as controls in the next card do, and a member
+  /// without one asks alone.
+  ///
+  /// A member stays when it lies under the leader's clips and opacity and
+  /// nothing but the group's glass is painted under it between the leader and
+  /// itself. NEAR: glass does not show what is painted beside it after the
+  /// leader in what it reads at its rim, such as a neighbour's label or
+  /// shadow, as glass drawn over one copy never does.
+  InFrameCopy? settle() {
+    final underlay = lead.underlay;
+    var ask = underlay._ask;
+    if (ask == null || ask.band.isEmpty) return null;
+    final scan = BackdropUnderlay._scanOf(ask);
+    final limit = scan.reach(ask.anchor);
+    if (limit < 0) return null;
+    final clip = scan.clip;
+    final kept = _plannedAlready ? _offered : _walkAhead(scan, limit);
     if (kept.length < _offered.length) {
       final left = [
         for (final offer in _offered)
