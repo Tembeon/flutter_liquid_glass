@@ -42,12 +42,34 @@ class _CapturingView extends TestFlutterView {
   }
 }
 
-Widget _page(_CapturingView view, {required bool reads, required int key}) {
-  Widget button = GlassButton(
-    onPressed: () {},
-    child: const SizedBox(width: 120, height: 20),
-  );
-  if (reads) button = GlassSolidBackdrop(color: null, child: button);
+Widget _button() => GlassButton(
+  onPressed: () {},
+  child: const SizedBox(width: 120, height: 20),
+);
+
+Widget _row({required bool reads}) => GlassListRow(
+  child: const SizedBox(),
+  trailing: reads
+      ? GlassSolidBackdrop(color: null, child: _button())
+      : _button(),
+);
+
+// Paints what a photo would, in the card's own layer.
+Widget _photo() => SizedBox(
+  height: 100,
+  child: ColoredBox(
+    color: _photoColor,
+    child: Center(child: _button()),
+  ),
+);
+
+Widget _highlightingRow() => GlassListRow(
+  onPressed: () {},
+  trailing: _button(),
+  child: const SizedBox(),
+);
+
+Widget _page(_CapturingView view, Widget content, {required int key}) {
   return View(
     key: ValueKey(key),
     view: view,
@@ -67,9 +89,7 @@ Widget _page(_CapturingView view, {required bool reads, required int key}) {
                   style: const GlassListStyle(
                     backgroundColor: WidgetStatePropertyAll(Color(0xFF2C2C2E)),
                   ),
-                  children: [
-                    SizedBox(height: 100, child: Center(child: button)),
-                  ],
+                  children: [content],
                 ),
               ),
             ),
@@ -82,15 +102,16 @@ Widget _page(_CapturingView view, {required bool reads, required int key}) {
 
 Future<(Uint8List, GlassFrameReport)> _draw(
   WidgetTester tester,
-  _CapturingView view, {
-  required bool reads,
+  _CapturingView view,
+  Widget content, {
+  required int key,
 }) async {
   GlassFrameReport? last;
   void listener(GlassFrameReport report) => last = report;
   GlassFrameReport.addListener(listener);
   addTearDown(() => GlassFrameReport.removeListener(listener));
   await tester.pumpWidget(
-    _page(view, reads: reads, key: reads ? 1 : 0),
+    _page(view, content, key: key),
     wrapWithView: false,
   );
   await tester.runAsync(
@@ -108,18 +129,30 @@ Future<(Uint8List, GlassFrameReport)> _draw(
   return (data.buffer.asUint8List(), last!);
 }
 
+const _photoColor = Color(0xFF20D040);
+
 void main() {
   setUp(() => GlassCopies.debugEnabledOverride = true);
   tearDown(() => GlassCopies.debugEnabledOverride = null);
 
-  testWidgets('glass on a card reads nothing and looks the same', (
+  testWidgets('a control on a row reads nothing and looks the same', (
     tester,
   ) async {
     if (!ui.ImageFilter.isShaderFilterSupported) return;
     await tester.runAsync(GlassRenderer.precache);
     final view = _CapturingView(tester);
-    final (read, readReport) = await _draw(tester, view, reads: true);
-    final (solid, solidReport) = await _draw(tester, view, reads: false);
+    final (read, readReport) = await _draw(
+      tester,
+      view,
+      _row(reads: true),
+      key: 1,
+    );
+    final (solid, solidReport) = await _draw(
+      tester,
+      view,
+      _row(reads: false),
+      key: 0,
+    );
     expect(readReport.reads, isNotEmpty);
     expect(solidReport.reads, isEmpty);
 
@@ -140,5 +173,27 @@ void main() {
     }
     expect(max, lessThan(40));
     expect(sum / (inside * 3), lessThan(2));
+  });
+
+  testWidgets('glass over a picture on a card reads the picture', (
+    tester,
+  ) async {
+    if (!ui.ImageFilter.isShaderFilterSupported) return;
+    await tester.runAsync(GlassRenderer.precache);
+    final view = _CapturingView(tester);
+    final (pixels, report) = await _draw(tester, view, _photo(), key: 2);
+    expect(report.reads, isNotEmpty);
+
+    final width = (_viewSize.width * _dpr).toInt();
+    final at = (((60 + 50) * _dpr).toInt() * width + width ~/ 2) * 4;
+    expect(pixels[at + 1], greaterThan(pixels[at] + 40));
+  });
+
+  testWidgets('a control on a row that highlights reads', (tester) async {
+    if (!ui.ImageFilter.isShaderFilterSupported) return;
+    await tester.runAsync(GlassRenderer.precache);
+    final view = _CapturingView(tester);
+    final (_, report) = await _draw(tester, view, _highlightingRow(), key: 3);
+    expect(report.reads, isNotEmpty);
   });
 }

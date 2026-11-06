@@ -230,7 +230,7 @@ class GlassListSection extends StatelessWidget {
               borderRadius: const BorderRadius.all(
                 Radius.circular(_Metrics.cornerRadius),
               ),
-              child: _Card(
+              child: ColoredBox(
                 color: _resolve(look.backgroundColor, const {}, context),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -307,7 +307,7 @@ class GlassSliverListSection extends StatelessWidget {
             top: i == 0 ? radius : Radius.zero,
             bottom: last ? radius : Radius.zero,
           ),
-          child: _Card(
+          child: ColoredBox(
             color: card,
             child: _RowPlace(
               last: last,
@@ -524,6 +524,10 @@ class _GlassListRowState extends State<GlassListRow>
     final check = kind == GlassListAccessory.checkmark;
     final mark = chevron || info || check;
     final accessory = trailing != null || mark;
+    // A row that highlights has more than the card's color under its control.
+    final card = place != null && widget.onPressed == null
+        ? _resolve(place.look.backgroundColor, const {}, context)
+        : null;
     if (leading == null) _textStart.value = _Metrics.contentInset;
     final text = Padding(
       padding: const EdgeInsets.symmetric(vertical: _Metrics.rowPadding),
@@ -591,7 +595,8 @@ class _GlassListRowState extends State<GlassListRow>
           children: [
             Expanded(child: text),
             if (accessory) const SizedBox(width: _Metrics.gap),
-            ?trailing,
+            if (trailing != null)
+              GlassSolidBackdrop(color: card, child: trailing),
             if (trailing != null && mark) const SizedBox(width: _Metrics.gap),
             if (check) _Glyph(painter: _CheckPainter(icon)),
             if (info)
@@ -1214,18 +1219,4 @@ class _InfoPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_InfoPainter oldDelegate) => color != oldDelegate.color;
-}
-
-// A section's card: glass on it reads the card's color rather than the screen.
-class _Card extends StatelessWidget {
-  const _Card({required this.color, required this.child});
-
-  final Color color;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: color,
-    child: GlassSolidBackdrop(color: color, child: child),
-  );
 }

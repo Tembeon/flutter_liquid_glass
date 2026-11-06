@@ -3,11 +3,12 @@ import 'package:flutter/widgets.dart';
 /// Says that [color] is what lies under the glass in [child], so the glass
 /// reads nothing of the screen: no copy, no pass, no blur.
 ///
-/// [GlassListSection] and [GlassSliverListSection] say it for their cards. A
-/// card of the app's own says it with this widget, around the content it
-/// paints on an opaque color. A translucent [color] reads the screen as
-/// usual. So does a [null] one, for glass in [child] over content of its own,
-/// such as a photo on a card.
+/// [GlassListRow] says it for its `trailing` control, in a section and with no
+/// `onPressed`: nothing but the card lies under that control. Anything else on
+/// a card reads the screen, because a card can hold a photo. Content of the
+/// app's own that paints only an opaque color says it with this widget. A
+/// translucent [color] reads the screen as usual, and so does a null one, for
+/// a `trailing` control over a picture of its own.
 ///
 /// NEAR: what is painted between the color and the glass does not show
 /// through the glass, such as a separator its rim would bend. A button on a
