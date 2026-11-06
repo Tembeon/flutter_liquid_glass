@@ -21,6 +21,15 @@ final class FrameAncestors {
 
   /// Remembers that no clip is painted strictly above [boundary].
   void noteClearAbove(RenderObject boundary) => _clearAbove.add(boundary);
+
+  final Set<RenderObject> _opaqueAbove = Set.identity();
+
+  /// Whether no fractional or zero opacity lies strictly above [boundary], up
+  /// to the glass enclosing it.
+  bool opaqueAbove(RenderObject boundary) => _opaqueAbove.contains(boundary);
+
+  /// Remembers that no such opacity lies above [boundary].
+  void noteOpaqueAbove(RenderObject boundary) => _opaqueAbove.add(boundary);
 }
 
 /// [node]'s transform to [ancestor], or to the screen in logical pixels when

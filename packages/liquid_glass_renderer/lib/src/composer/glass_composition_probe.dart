@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/internal/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/internal/ancestor_clip.dart';
+import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 import 'package:meta/meta.dart';
 
@@ -53,23 +54,37 @@ class GlassCompositionProbe {
     if (layer == null) return;
     var fractional = false;
     var blocked = false;
+    // Glass nearby shares its path up, and a scroll polls all of it.
+    final memo = FrameAncestors.current;
+    List<RenderObject>? opaque;
     for (
       var ancestor = owner.parent;
       ancestor != null && ancestor is! LiquidGlassRenderObject;
       ancestor = ancestor.parent
     ) {
-      final alpha = ui.Color.getAlphaFromOpacity(
-        switch (ancestor) {
-          RenderOpacity() => ancestor.opacity,
-          RenderAnimatedOpacity() => ancestor.opacity.value,
-          _ => 1.0,
-        },
-      );
-      if (alpha == 0) {
-        blocked = true;
-        break;
+      final opacity = switch (ancestor) {
+        RenderOpacity() => ancestor.opacity,
+        RenderAnimatedOpacity() => ancestor.opacity.value,
+        _ => null,
+      };
+      if (opacity != null) {
+        final alpha = ui.Color.getAlphaFromOpacity(opacity);
+        if (alpha == 0) {
+          blocked = true;
+          break;
+        }
+        if (alpha < 255) {
+          fractional = true;
+          opaque?.clear();
+        }
       }
-      if (alpha < 255) fractional = true;
+      if (memo != null && ancestor.isRepaintBoundary) {
+        if (memo.opaqueAbove(ancestor)) break;
+        (opaque ??= []).add(ancestor);
+      }
+    }
+    if (memo != null && opaque != null && !blocked) {
+      opaque.forEach(memo.noteOpaqueAbove);
     }
     _wanted = fractional && !blocked;
     layer.seeded = _wanted && !_suppressed;
