@@ -11,20 +11,27 @@ import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/widgets.dart';
 
 class GalleryApp extends StatefulWidget {
-  const GalleryApp({this.settings = const GallerySettings(), super.key});
+  const GalleryApp({
+    this.settings = const GallerySettings(),
+    this.notifier,
+    super.key,
+  });
 
   final GallerySettings settings;
+
+  /// Holds the settings instead of the app, for a bench that flips them.
+  final ValueNotifier<GallerySettings>? notifier;
 
   @override
   State<GalleryApp> createState() => _GalleryAppState();
 }
 
 class _GalleryAppState extends State<GalleryApp> {
-  late final _settings = ValueNotifier(widget.settings);
+  late final _settings = widget.notifier ?? ValueNotifier(widget.settings);
 
   @override
   void dispose() {
-    _settings.dispose();
+    if (widget.notifier == null) _settings.dispose();
     super.dispose();
   }
 

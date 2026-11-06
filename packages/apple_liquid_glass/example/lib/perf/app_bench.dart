@@ -60,7 +60,19 @@ final _switches = <String, void Function({required bool on})>{
   'crowd': ({required on}) => _crowd.value = on ? _crowdB : _crowdA,
   'spread': ({required on}) => _spread.value = on,
   'grouped': ({required on}) => _grouped.value = on,
+  'renderer': ({required on}) => _settings.value = _settings.value.copyWith(
+    renderer: on ? GalleryRenderer.liquid : GalleryRenderer.flat,
+  ),
 };
+
+// A/B of the renderer prices glass against flat in the real gallery.
+final _settings = ValueNotifier(
+  GallerySettings(
+    renderer: GalleryRenderer.values.byName(
+      const String.fromEnvironment('BENCH_RENDERER', defaultValue: 'liquid'),
+    ),
+  ),
+);
 
 // The crowd: glass buttons in a grid over every page, BENCH_CROWD_A of them
 // and, while the `crowd` switch is on, BENCH_CROWD_B, so an A/B run prices
@@ -134,16 +146,7 @@ void main() {
   }
   unawaited(LiquidGlass.precache());
   runApp(
-    GalleryApp(
-      settings: GallerySettings(
-        renderer: GalleryRenderer.values.byName(
-          const String.fromEnvironment(
-            'BENCH_RENDERER',
-            defaultValue: 'liquid',
-          ),
-        ),
-      ),
-    ),
+    GalleryApp(notifier: _settings),
   );
   unawaited(_Journey().run());
 }
