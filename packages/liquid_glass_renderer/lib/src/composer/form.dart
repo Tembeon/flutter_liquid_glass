@@ -633,10 +633,28 @@ class ShiftNode extends OpenNode {
 @internal
 final class SiteNode extends ShiftNode {
   /// Creates the node.
-  SiteNode(super.layer) : facts = SiteFacts(layer);
+  SiteNode(super.layer) : facts = SiteFacts(layer) {
+    if (layer case final GeometryTransformTrackingLayer tracking) {
+      tracking.formNode = this;
+    }
+  }
 
   /// What the plan reads of it.
   final SiteFacts facts;
+
+  Form? _form;
+  int _seen = -1;
+
+  /// Whether this frame's walk reached the site and found nothing changed
+  /// around it: where it lies, and all that its parent holds, which is all
+  /// that paints with it.
+  bool get rests {
+    final frame = _form?.frame;
+    return frame == _seen &&
+        changedAt != frame &&
+        parent != null &&
+        parent!.changedAt != frame;
+  }
 
   @override
   Offset get _offset => switch (layer) {
@@ -646,6 +664,8 @@ final class SiteNode extends ShiftNode {
 
   @override
   bool refreshIn(Form form, FormWorld outside) {
+    _form = form;
+    _seen = form.frame;
     facts.order = form._next;
     facts.state = outside.state;
     facts.clip = outside.clip;

@@ -67,6 +67,56 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('glass rests until something around it changes', (tester) async {
+    if (skipProperGlassTests) return;
+    final beside = ValueNotifier<int>(0);
+    final glassAt = ValueNotifier<double>(10);
+    addTearDown(beside.dispose);
+    addTearDown(glassAt.dispose);
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Stack(
+          children: [
+            ValueListenableBuilder<double>(
+              valueListenable: glassAt,
+              builder: (_, left, _) => _button(left, 10),
+            ),
+            Positioned(
+              left: 10,
+              top: 100,
+              width: 40,
+              height: 40,
+              child: RepaintBoundary(
+                child: ValueListenableBuilder<int>(
+                  valueListenable: beside,
+                  builder: (_, value, _) => ColoredBox(
+                    color: Color(0xFF000000 + value),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pump();
+    Future<int> restsOfAFrame() async {
+      GlassComposer.debugRests = 0;
+      tester.binding.scheduleFrame();
+      await tester.pump();
+      return GlassComposer.debugRests;
+    }
+
+    await restsOfAFrame();
+    expect(await restsOfAFrame(), 1, reason: 'an empty frame');
+    beside.value = 1;
+    expect(await restsOfAFrame(), 1, reason: 'a repaint beside it');
+    glassAt.value = 30;
+    expect(await restsOfAFrame(), 0, reason: 'it moved');
+  });
+
   testWidgets('sees no sites once the glass is gone', (tester) async {
     await tester.pumpWidget(
       Directionality(

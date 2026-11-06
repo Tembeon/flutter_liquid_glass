@@ -147,8 +147,9 @@ final class GlassComposer extends PipelineOwner {
     FrameAncestors.current = FrameAncestors();
     try {
       if (root != null) {
+        if (debugFormRests || debugShadowPlan) _lower(root);
         _prepare(root);
-        if (debugShadowPlan) _shadow(root);
+        if (debugShadowPlan) _shadow();
         _underlays.planGroups();
         _underlays.plan();
         _compose(root);
@@ -170,10 +171,19 @@ final class GlassComposer extends PipelineOwner {
   @visibleForTesting
   static final ShadowCensus debugShadowCensus = ShadowCensus();
 
+  /// Whether glass with nothing changed around it skips reading where it lies.
+  @internal
+  static bool debugFormRests = true;
+
+  /// Sites that rested since this was last cleared.
+  @internal
+  static int debugRests = 0;
+
   final _form = Form();
   final _ledger = Ledger();
+  int _lowerMicros = 0;
 
-  void _shadow(ContainerLayer root) {
+  void _lower(ContainerLayer root) {
     final view = root.owner;
     if (view is! RenderView) return;
     final clock = Stopwatch();
@@ -184,7 +194,13 @@ final class GlassComposer extends PipelineOwner {
       flutterView.devicePixelRatio,
       flutterView.physicalSize,
     );
-    final lowered = clock.elapsedMicroseconds;
+    clock.stop();
+    _lowerMicros = clock.elapsedMicroseconds;
+  }
+
+  void _shadow() {
+    final clock = Stopwatch();
+    clock.start();
     final nodes = _form.siteNodes;
     for (var i = 0; i < nodes.length; i++) {
       final facts = nodes[i].facts;
@@ -208,8 +224,8 @@ final class GlassComposer extends PipelineOwner {
     edits.applyTo(_ledger, _form.frame);
     clock.stop();
     debugShadowCensus.add(
-      lowered,
-      clock.elapsedMicroseconds,
+      _lowerMicros,
+      _lowerMicros + clock.elapsedMicroseconds,
       _form.length,
       nodes.length,
       plan,

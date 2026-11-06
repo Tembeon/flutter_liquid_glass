@@ -1823,10 +1823,20 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @override
   void onPreparing() {
     runCompositorPoll();
+    onResting();
+  }
+
+  @override
+  void onResting() {
     _group = null;
     _offer = _rig.hasSlot ? _offerToGroup() : null;
     _asked = _rig.hasSlot && _offer == null ? _askUnderlay() : null;
   }
+
+  // A pass that changes size counts the frames it holds still in the poll, and
+  // glass drawn analytically counts its way back to a matte there.
+  @override
+  bool get mayRest => !_rig.passResizing && !_analytic;
 
   @override
   void fillPlanFacts(SiteFacts facts) {

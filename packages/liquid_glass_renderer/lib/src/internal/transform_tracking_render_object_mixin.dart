@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/composer/form.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
@@ -70,6 +71,14 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
   /// copy. Repaints from here go through [GlassComposer.repaint].
   void onPreparing() {}
 
+  /// Whether this frame may run [onResting] in place of [onPreparing] when
+  /// nothing changed around the object.
+  bool get mayRest => true;
+
+  /// Runs in place of [onPreparing] on a frame that changed nothing around the
+  /// object: its layers, and so where its glass lies, are as they were.
+  void onResting() => onPreparing();
+
   /// Runs after [onPreparing] for every glass of the view, in paint order:
   /// where the glass chooses between its copy and the backdrop. Repaints
   /// from here go through [GlassComposer.repaint].
@@ -86,6 +95,9 @@ class GeometryTransformTrackingLayer extends OffsetLayer with ComposedLayer {
   Matrix4? _composited;
   // The transform [prepare] read, for [compose] in the same frame.
   Matrix4? _prepared;
+
+  /// Where this frame's lowering of the layers found the layer.
+  SiteNode? formNode;
 
   /// Writes what the frame's plan reads of the tracked object.
   void fillPlanFacts(SiteFacts facts) {
@@ -113,6 +125,25 @@ class GeometryTransformTrackingLayer extends OffsetLayer with ComposedLayer {
   void prepare() {
     final site = _site;
     if (site == null || !site.attached) return;
+    final last = _lastTransform;
+    if (last != null &&
+        GlassComposer.debugFormRests &&
+        site.mayRest &&
+        (formNode?.rests ?? false)) {
+      assert(
+        MatrixUtils.matrixEquals(transformToNow(site), last),
+        'A site moved with no layer around it changing.',
+      );
+      GlassComposer.debugRests++;
+      _composited = last;
+      try {
+        site.onResting();
+      } finally {
+        _composited = null;
+      }
+      _prepared = last;
+      return;
+    }
     _prepared = _poll(site, site.onPreparing);
   }
 

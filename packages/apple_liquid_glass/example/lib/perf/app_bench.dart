@@ -414,7 +414,8 @@ class _Journey {
       }
       debugPrint(
         'GLASS_BENCH_AB $step ${on ? 'B' : 'A'} $n ${_wallNow()} $_frames '
-        'img=${BackdropUnderlay.debugImagesDrawn}',
+        'img=${BackdropUnderlay.debugImagesDrawn} '
+        'rests=${GlassComposer.debugRests}',
       );
       n++;
     }
