@@ -236,14 +236,15 @@ final class GlassFrameReport {
     });
   }
 
-  /// Describes a [read], [changed] or not this frame.
+  /// Describes a [read] of the frame's plan, or of the last one where that
+  /// [stands].
   @internal
-  static GlassReadReport readOf(Read read, {required bool changed}) =>
+  static GlassReadReport readOf(Read read, {required bool stands}) =>
       GlassReadReport(
         source: switch (read.source) {
           SceneRead() => GlassReadSource.scene,
-          ImageRead(held: true) => GlassReadSource.heldImage,
-          ImageRead() => GlassReadSource.image,
+          ImageRead(:final held) =>
+            held || stands ? GlassReadSource.heldImage : GlassReadSource.image,
           LiveRead() => GlassReadSource.live,
         },
         level: read.level,
@@ -251,7 +252,7 @@ final class GlassFrameReport {
         hasBand: read.lead.look.isBand,
         band: read.band,
         targets: read.targets,
-        changed: changed,
+        changed: !stands && read.changed,
       );
 }
 

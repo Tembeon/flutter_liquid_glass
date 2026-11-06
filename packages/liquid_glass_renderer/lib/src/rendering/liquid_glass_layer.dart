@@ -680,7 +680,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           kind,
           _colorModelFamily,
           frost: _frostsCopies,
-          band: _drawsBand && kind == FinalShaderKind.single,
+          // A look that changed since the read began has no band variant.
+          band:
+              _drawsBand &&
+              kind == FinalShaderKind.single &&
+              _frostsCopies &&
+              _colorModelFamily == FinalShaderModels.ios27,
         )];
     if (_staleShaders.remove(shader)) {
       _writeCommonShaderUniforms(
@@ -956,7 +961,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// Whether the last composited frame drew the glass over the underlay's
   /// copy rather than reading the backdrop.
   @visibleForTesting
-  bool debugDrewOverUnderlay = false;
+  bool debugDrewOverCopy = false;
 
   /// The page this glass reads in the last composited frame, if it reads one.
   @visibleForTesting
@@ -1492,7 +1497,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   @protected
   bool syncCoordinateMapping() {
-    final mapping = _currentCoordinateMapping();
+    // Scaled to nothing, it draws nothing: the last mapping holds.
+    final toMatte = Matrix4.tryInvert(shaderCoordinateTransform);
+    if (toMatte == null) return false;
+    final mapping = _matteMapping(toMatte, devicePixelRatio);
     final backdropBounds = backdropSampleBounds;
     final changed =
         mapping != _coordinateMapping || backdropBounds != _backdropBounds;
@@ -1506,12 +1514,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
     return changed;
   }
-
-  (double, double, double, double, double, double)
-  _currentCoordinateMapping() => _matteMapping(
-    Matrix4.inverted(shaderCoordinateTransform),
-    devicePixelRatio,
-  );
 
   // From fragment coordinates that begin at [origin] in the screen's device
   // pixels to the matte.
@@ -1690,7 +1692,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         context,
         offset,
         bounds: filterBounds,
-        needsCompositing: needsCompositing,
         drawsFilter: !drawableEmpty,
       );
     }
@@ -1745,6 +1746,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         ..isAntiAlias = false,
     );
     shader.setFloat(_FinalUniforms.solidBackdrop + 3, 0);
+    _mappedShader = null;
   }
 
   /// Drops the native backdrop filter and its clip.
@@ -1775,9 +1777,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   void onResting() {}
 
   // A pass that changes size counts the frames it holds still in the poll, and
-  // glass drawn analytically counts its way back to a matte there.
+  // glass drawn analytically counts its way back to a matte there. A shape
+  // under the glass's own repaint boundary changes nothing around it.
   @override
-  bool get mayRest => !_analytic;
+  bool get mayRest => !_analytic && !link.isDirty && !needsGeometryUpdate;
 
   // This frame's place on the screen: the glass's transform to the screen, the
   // logical rect the shader draws, the material it paints there and the sigma
@@ -2276,7 +2279,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       case Hidden():
         _endGroup();
         compositionSeedSuppressed = true;
-        debugDrewOverUnderlay = false;
+        debugDrewOverCopy = false;
         _rig.hide();
         _placeShadows(under: false);
       case Leads(:final read) when read.source is LiveRead:
@@ -2287,12 +2290,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         // Glass over its copy reads no backdrop: an opacity pass around it
         // needs no seed.
         compositionSeedSuppressed = true;
-        debugDrewOverUnderlay = true;
+        debugDrewOverCopy = true;
         _beginRead(read);
         _placeShadows(under: !glassShadowsFade);
       case Follows(:final read):
         compositionSeedSuppressed = true;
-        debugDrewOverUnderlay = true;
+        debugDrewOverCopy = true;
         // The glass over a band draws it, in the band's place.
         if (_bandOf(read) != null && identical(_glassIn(read).first, this)) {
           _beginRead(read);
@@ -2328,7 +2331,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (corner == null) {
       _rig.hide();
       _placeShadows(under: false);
-      debugDrewOverUnderlay = false;
+      debugDrewOverCopy = false;
       return;
     }
     final inPlace = readInPlace(read, corner);
@@ -2358,7 +2361,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _shownToCanvas = toCanvas;
     _shownUnder = under;
     _shownKey = key;
-    layer.show(_addRead, changed: changed);
+    // Shadows added beside the engine layer are not in what it retains.
+    layer.show(_addRead, changed: changed || under.isNotEmpty);
     _rig.show(layer, under: glassShadowsFade ? null : glassShadowPicture);
   }
 
@@ -2425,7 +2429,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @override
   void showLive(BackdropKey? group) {
     compositionSeedSuppressed = false;
-    debugDrewOverUnderlay = false;
+    debugDrewOverCopy = false;
     _placeShadows(under: false);
     _rig.showLive(group);
   }

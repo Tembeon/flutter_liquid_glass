@@ -45,6 +45,18 @@ int? shaderFrostDownscale(
   return downscale;
 }
 
+/// The logical pixels the shader reads around a region to frost it for
+/// Impeller's blur by [sigma] device pixels, where each pixel of the copy holds
+/// [share] device pixels along each side: the taps reach 2.8 frosts, one copy
+/// pixel more sampled bilinearly.
+@internal
+double shaderFrostReach(
+  double sigma, {
+  required int share,
+  required double devicePixelRatio,
+}) =>
+    (2.8 * shaderFrostResidual(sigma, share: share) + share) / devicePixelRatio;
+
 /// The sigma, in device pixels, the shader's taps frost a copy by for
 /// Impeller's blur by [sigma] device pixels, where each pixel of the copy
 /// holds [share] device pixels along each side.

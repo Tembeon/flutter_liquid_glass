@@ -161,7 +161,7 @@ Future<Uint8List> _drawn(
   final glass = tester.allRenderObjects
       .whereType<RenderLiquidGlassLayer>()
       .toSet();
-  expect(glass.every((g) => g.debugDrewOverUnderlay), isTrue);
+  expect(glass.every((g) => g.debugDrewOverCopy), isTrue);
   if (inFrame && secondFrost == 0) {
     expect(GlassCopies.debugImagesDrawn, drawn);
   }

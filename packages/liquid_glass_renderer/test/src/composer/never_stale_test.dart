@@ -84,6 +84,174 @@ PictureLayer _picture(Rect rect) {
 }
 
 void main() {
+  group('layers that change places', () {
+    const glassKey = ValueKey('glass');
+    const pictureKey = ValueKey('picture');
+
+    Widget places({required bool glassFirst}) {
+      final glass = KeyedSubtree(
+        key: glassKey,
+        child: LiquidGlassLayer(
+          settings: LiquidGlassSettings.ios27RegularLight(),
+          child: const LiquidGlass(
+            shape: LiquidRoundedSuperellipse(borderRadius: 28),
+            child: SizedBox.expand(),
+          ),
+        ),
+      );
+      const picture = RepaintBoundary(
+        key: pictureKey,
+        child: ColoredBox(color: Color(0xFF80A040), child: SizedBox.expand()),
+      );
+      return Directionality(
+        textDirection: TextDirection.ltr,
+        child: Stack(
+          fit: StackFit.expand,
+          children: glassFirst ? [glass, picture] : [picture, glass],
+        ),
+      );
+    }
+
+    testWidgets('a held read sees a retained layer that came under it', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(400, 400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      GlassCopies.debugEnabledOverride = true;
+      addTearDown(() => GlassCopies.debugEnabledOverride = null);
+
+      await tester.pumpWidget(places(glassFirst: true));
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      final watch = PlanWatch();
+      await tester.pumpWidget(places(glassFirst: false));
+      expect(watch.last!.reads.last.changed, isTrue);
+    }, skip: skipProperGlassTests);
+  });
+
+  testWidgets('a held read sees it when a follower of what it holds leaves', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    GlassCopies.debugEnabledOverride = true;
+    addTearDown(() => GlassCopies.debugEnabledOverride = null);
+    final settings = LiquidGlassSettings.ios27RegularLight();
+
+    Widget glassAt(double left) => Positioned(
+      key: ValueKey(left),
+      left: left,
+      top: 100,
+      width: 90,
+      height: 60,
+      child: LiquidGlassLayer(
+        settings: settings,
+        child: const LiquidGlass(
+          shape: LiquidRoundedSuperellipse(borderRadius: 20),
+          child: SizedBox.expand(),
+        ),
+      ),
+    );
+
+    Widget scene({required bool follower}) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: MediaQuery(
+        data: const MediaQueryData(size: Size(400, 800)),
+        child: Stack(
+          children: [
+            const Positioned.fill(child: ColoredBox(color: Color(0xFF204060))),
+            glassAt(20),
+            if (follower) glassAt(130),
+            Positioned(
+              key: const ValueKey('upper'),
+              left: 40,
+              top: 130,
+              width: 200,
+              height: 90,
+              child: LiquidGlassLayer(
+                settings: settings.copyWith(highlight: 1),
+                child: const LiquidGlass(
+                  shape: LiquidRoundedSuperellipse(borderRadius: 28),
+                  child: SizedBox.expand(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(scene(follower: true));
+    for (var i = 0; i < 60; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    final watch = PlanWatch();
+    await tester.pump(const Duration(milliseconds: 16));
+    await tester.pumpWidget(scene(follower: true));
+    final before = watch.last!;
+    expect(before.reads.first.members, hasLength(2));
+    expect(before.reads.last.holds, hasLength(1));
+    await tester.pumpWidget(scene(follower: false));
+    expect(watch.last!.reads.last.changed, isTrue);
+  }, skip: skipProperGlassTests);
+
+  testWidgets('a shape that grows under the glass own repaint boundary '
+      'shows in the same frame', (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    GlassCopies.debugEnabledOverride = true;
+    addTearDown(() => GlassCopies.debugEnabledOverride = null);
+    final width = ValueNotifier<double>(100);
+    addTearDown(width.dispose);
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: MediaQuery(
+          data: const MediaQueryData(size: Size(400, 800)),
+          child: Stack(
+            children: [
+              const Positioned.fill(
+                child: ColoredBox(color: Color(0xFF204060)),
+              ),
+              LiquidGlassLayer(
+                settings: LiquidGlassSettings.ios27RegularLight(),
+                child: RepaintBoundary(
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: ValueListenableBuilder(
+                      valueListenable: width,
+                      builder: (_, value, _) => SizedBox(
+                        width: value,
+                        height: 60,
+                        child: const LiquidGlass(
+                          shape: LiquidRoundedSuperellipse(borderRadius: 20),
+                          child: SizedBox.expand(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    final watch = PlanWatch();
+    width.value = 200;
+    await tester.pump(const Duration(milliseconds: 16));
+    final drawn = watch.last!.reads.single.lead.drawn;
+    expect(drawn.width, greaterThan(150));
+  }, skip: skipProperGlassTests);
+
   test('what left from just under a read is under it in the log', () {
     const rect = Rect.fromLTWH(0, 0, 100, 100);
     final root = ContainerLayer();

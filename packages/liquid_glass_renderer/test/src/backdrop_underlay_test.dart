@@ -338,9 +338,9 @@ void main() {
     GlassCopies.debugEnabledOverride = true;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(shift: 0.3));
-    expect(_glass(tester).debugDrewOverUnderlay, isTrue);
+    expect(_glass(tester).debugDrewOverCopy, isTrue);
     await tester.pumpWidget(_scene());
-    expect(_glass(tester).debugDrewOverUnderlay, isTrue);
+    expect(_glass(tester).debugDrewOverCopy, isTrue);
     expect(_liveFilters(tester), isEmpty);
     expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(1));
   }, skip: skipProperGlassTests);
@@ -352,7 +352,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(_scene(texture: true));
-    expect(_glass(tester).debugDrewOverUnderlay, isFalse);
+    expect(_glass(tester).debugDrewOverCopy, isFalse);
     expect(_liveFilters(tester), isNotEmpty);
   }, skip: skipProperGlassTests);
 
@@ -371,7 +371,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(follower: true, dot: 1));
     await tester.pumpWidget(_scene(follower: true));
-    expect(_glass(tester).debugDrewOverUnderlay, isTrue);
+    expect(_glass(tester).debugDrewOverCopy, isTrue);
     expect(_liveFilters(tester), isEmpty);
     expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(1));
   }, skip: skipProperGlassTests);
@@ -397,7 +397,7 @@ void main() {
     // where it lands.
     await tester.pumpWidget(_scene(follower: true, leader: 70));
     expect(watch.changes(_glass(tester)), captures + 1);
-    expect(_glass(tester).debugDrewOverUnderlay, isTrue);
+    expect(_glass(tester).debugDrewOverCopy, isTrue);
     expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(1));
   }, skip: skipProperGlassTests);
 
@@ -418,11 +418,11 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(follower: true, glassFollows: true, dot: 1));
     await tester.pumpWidget(_scene(follower: true, glassFollows: true));
-    expect(_glass(tester).debugDrewOverUnderlay, isTrue);
+    expect(_glass(tester).debugDrewOverCopy, isTrue);
     await tester.pumpWidget(
       _scene(follower: true, glassFollows: true, leader: 40),
     );
-    expect(_glass(tester).debugDrewOverUnderlay, isTrue);
+    expect(_glass(tester).debugDrewOverCopy, isTrue);
     expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(1));
   }, skip: skipProperGlassTests);
 
@@ -432,11 +432,11 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(_scene(opacity: 0.6));
-    expect(_glass(tester).debugDrewOverUnderlay, isTrue);
+    expect(_glass(tester).debugDrewOverCopy, isTrue);
     expect(_liveFilters(tester), isEmpty);
 
     await tester.pumpWidget(_scene(opacity: 0.6, texture: true));
-    expect(_glass(tester).debugDrewOverUnderlay, isFalse);
+    expect(_glass(tester).debugDrewOverCopy, isFalse);
     expect(
       tester.layers.whereType<OpacitySeedLayer>().single.seeded,
       isTrue,
@@ -454,7 +454,7 @@ void main() {
     final captures = watch.changes(_glass(tester));
     for (var i = 0; i < 10; i++) {
       await tester.pumpWidget(_scene(dot: 20.0 + i));
-      expect(_glass(tester).debugDrewOverUnderlay, isTrue);
+      expect(_glass(tester).debugDrewOverCopy, isTrue);
     }
     expect(watch.changes(_glass(tester)), captures);
   }, skip: skipProperGlassTests);
@@ -467,7 +467,7 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.pumpWidget(_scene(mask: true));
     await tester.pumpWidget(_scene(mask: true, shift: 0.3));
-    expect(_glass(tester).debugDrewOverUnderlay, isTrue);
+    expect(_glass(tester).debugDrewOverCopy, isTrue);
     expect(_liveFilters(tester), isEmpty);
   }, skip: skipProperGlassTests);
 
@@ -481,7 +481,7 @@ void main() {
     await tester.pumpWidget(
       _scene(frost: 6, scaleX: 1.2, scaleY: 0.8, shift: 0.3),
     );
-    expect(_glass(tester).debugDrewOverUnderlay, isTrue);
+    expect(_glass(tester).debugDrewOverCopy, isTrue);
     expect(_liveFilters(tester), isEmpty);
   }, skip: skipProperGlassTests);
 
@@ -491,7 +491,7 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.pumpWidget(_scene(frost: 6, scaleX: -1));
     await tester.pumpWidget(_scene(frost: 6, scaleX: -1, shift: 0.3));
-    expect(_glass(tester).debugDrewOverUnderlay, isFalse);
+    expect(_glass(tester).debugDrewOverCopy, isFalse);
     expect(_liveFilters(tester), isNotEmpty);
   }, skip: skipProperGlassTests);
 
@@ -503,7 +503,7 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.pumpWidget(_scene(clipped: true));
     await tester.pumpWidget(_scene(clipped: true, shift: 0.3));
-    expect(_glass(tester).debugDrewOverUnderlay, isTrue);
+    expect(_glass(tester).debugDrewOverCopy, isTrue);
     expect(_liveFilters(tester), isEmpty);
   }, skip: skipProperGlassTests);
 
@@ -570,7 +570,7 @@ void main() {
     // The first glass leaves the screen and copies nothing: the second is
     // the first to copy in the frame.
     await tester.pumpWidget(_pairScene(shift: 0.3, top: -400));
-    expect(second().debugDrewOverUnderlay, isTrue);
+    expect(second().debugDrewOverCopy, isTrue);
     expect(watch.changes(second()), captures + 1);
   }, skip: skipProperGlassTests);
 
@@ -588,7 +588,7 @@ void main() {
         .toSet()
         .toList();
     expect(glass, hasLength(2));
-    expect(glass.every((g) => g.debugDrewOverUnderlay), isTrue);
+    expect(glass.every((g) => g.debugDrewOverCopy), isTrue);
     expect(_liveFilters(tester), isEmpty);
     final [a, b] = [for (final g in glass) g.debugPage!.image];
     expect(a.isCloneOf(b), isTrue);
@@ -613,7 +613,7 @@ void main() {
           .whereType<RenderLiquidGlassLayer>()
           .toSet();
       expect(glass, hasLength(2));
-      expect(glass.every((g) => g.debugDrewOverUnderlay), isTrue);
+      expect(glass.every((g) => g.debugDrewOverCopy), isTrue);
     }, skip: skipProperGlassTests);
   }
 
@@ -746,7 +746,7 @@ void main() {
         .whereType<RenderLiquidGlassLayer>()
         .toSet()
         .toList();
-    expect(glass.every((g) => g.debugDrewOverUnderlay), isTrue);
+    expect(glass.every((g) => g.debugDrewOverCopy), isTrue);
     final [a, b] = [for (final g in glass) g.debugPage!.image];
     expect(a.isCloneOf(b), isTrue);
     expect(_difference(reading, together), lessThanOrEqualTo(3));
@@ -904,7 +904,7 @@ void main() {
         .toList();
     final watch = PlanWatch();
     await tester.pumpWidget(_pairScene(top: 160, between: true));
-    expect(glass().every((g) => g.debugDrewOverUnderlay), isTrue);
+    expect(glass().every((g) => g.debugDrewOverCopy), isTrue);
     final captures = [for (final g in glass()) watch.changes(g)];
     final drawn = GlassCopies.debugImagesDrawn;
 
@@ -914,7 +914,7 @@ void main() {
     }
     expect([for (final g in glass()) watch.changes(g)], captures);
     expect(GlassCopies.debugImagesDrawn, drawn);
-    expect(glass().every((g) => g.debugDrewOverUnderlay), isTrue);
+    expect(glass().every((g) => g.debugDrewOverCopy), isTrue);
   }, skip: skipProperGlassTests);
 
   testWidgets('glass whose shadow paints between it and the next glass '

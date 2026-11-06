@@ -142,7 +142,8 @@ final class GlassComposer extends PipelineOwner {
     if (root == null) return;
     _composing = true;
     try {
-      _composition.run(root, painted: _painted);
+      // A site's poll may paint it again while the plan's facts are filled.
+      _composition.run(root, painted: () => _painted);
       _painted = false;
       _planned = SchedulerBinding.instance.currentFrameTimeStamp;
     } finally {
@@ -256,7 +257,6 @@ final class _Composition {
   final _emit = GlassEmit();
 
   Plan? _plan;
-  List<SiteFacts> _planSites = const [];
   Policy? _planPolicy;
   Prices? _planPrices;
   Rect _planScreen = Rect.zero;
@@ -264,26 +264,20 @@ final class _Composition {
 
   // Whether the last plan stands: nothing painted or changed and no read is due
   // an image. What it drew is in the layers and stays there.
-  bool _stands(Form form, Policy policy, Prices prices, bool explain) {
+  bool _stands(Policy policy, Prices prices, bool explain) {
     final plan = _plan;
-    if (plan == null ||
-        !form.dirty.isEmpty ||
-        form.frame >= plan.dueAt ||
-        !identical(policy, _planPolicy) ||
-        !identical(prices, _planPrices) ||
-        explain != _planExplained ||
-        form.screen != _planScreen) {
-      return false;
-    }
-    final sites = form.sites;
-    if (sites.length != _planSites.length) return false;
-    for (var i = 0; i < sites.length; i++) {
-      if (!identical(sites[i], _planSites[i])) return false;
-    }
-    return true;
+    final form = _form;
+    return plan != null &&
+        form.sitesHeld &&
+        form.dirty.isEmpty &&
+        form.frame < plan.dueAt &&
+        identical(policy, _planPolicy) &&
+        identical(prices, _planPrices) &&
+        explain == _planExplained &&
+        form.screen == _planScreen;
   }
 
-  void run(ContainerLayer root, {bool painted = true}) {
+  void run(ContainerLayer root, {bool Function()? painted}) {
     final view = root.owner;
     if (view is! RenderView) return;
     final flutterView = view.flutterView;
@@ -304,6 +298,7 @@ final class _Composition {
         node.site.fillPlanFacts(facts);
         form.noteSiteDrawn(facts, before, stamp);
       }
+      form.noteSitesGone();
       form.settleFloors();
       final walk = clock.elapsed;
       final policy = GlassCopies.enabled
@@ -311,7 +306,8 @@ final class _Composition {
           : const Policy(copies: false);
       final prices = GlassComposer.debugPrices;
       final explain = listening || GlassComposer.debugOnPlan != null;
-      final stands = !painted && _stands(form, policy, prices, explain);
+      final stands =
+          painted != null && !painted() && _stands(policy, prices, explain);
       if (!stands) {
         final (plan, edits) = compile(
           form,
@@ -324,7 +320,6 @@ final class _Composition {
         GlassComposer.debugOnPlan?.call(form, plan);
         edits.applyTo(_ledger, form.frame);
         _plan = plan;
-        _planSites = [...form.sites];
         _planPolicy = policy;
         _planPrices = prices;
         _planScreen = form.screen;
@@ -356,7 +351,7 @@ final class _Composition {
     final frame = form.frame;
     final reads = [
       for (final read in plan.reads)
-        GlassFrameReport.readOf(read, changed: !stands && read.changed),
+        GlassFrameReport.readOf(read, stands: stands),
     ];
     GlassFrameReport.deliver(
       () => GlassFrameReport(

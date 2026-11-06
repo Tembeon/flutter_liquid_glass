@@ -236,7 +236,7 @@ void main() {
     final drawn = GlassCopies.debugImagesDrawn;
     await tester.pumpWidget(_scene(glass: true, glassTop: 140));
     expect(_band(tester).serves, isTrue);
-    expect(glass().debugDrewOverUnderlay, isTrue);
+    expect(glass().debugDrewOverCopy, isTrue);
     expect(GlassCopies.debugImagesDrawn, drawn + 1);
   }, skip: skipProperGlassTests);
 
@@ -258,12 +258,12 @@ void main() {
     var drawn = GlassCopies.debugImagesDrawn;
     await tester.pumpWidget(_scene(glass: true, glassTop: 30));
     expect(_band(tester).serves, isTrue);
-    expect(glass().debugDrewOverUnderlay, isTrue);
+    expect(glass().debugDrewOverCopy, isTrue);
     expect(GlassCopies.debugImagesDrawn, drawn + 2);
     drawn = GlassCopies.debugImagesDrawn;
     glass().markNeedsPaint();
     await tester.pump();
-    expect(glass().debugDrewOverUnderlay, isTrue);
+    expect(glass().debugDrewOverCopy, isTrue);
     expect(GlassCopies.debugImagesDrawn, drawn);
   }, skip: skipProperGlassTests);
 
@@ -281,7 +281,7 @@ void main() {
 
     await tester.pumpWidget(_scene(glass: true));
     expect(_band(tester).serves, isTrue);
-    expect(glass().debugDrewOverUnderlay, isTrue);
+    expect(glass().debugDrewOverCopy, isTrue);
     expect(
       tester.layers.whereType<BackdropFilterLayer>().where(
         (layer) => layer is! OpacitySeedLayer || layer.seeded,
@@ -291,6 +291,6 @@ void main() {
 
     await tester.pumpWidget(_scene(glass: true, texture: true));
     expect(_band(tester).serves, isFalse);
-    expect(glass().debugDrewOverUnderlay, isFalse);
+    expect(glass().debugDrewOverCopy, isFalse);
   }, skip: skipProperGlassTests);
 }

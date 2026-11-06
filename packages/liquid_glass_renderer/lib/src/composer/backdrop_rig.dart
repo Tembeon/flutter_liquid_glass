@@ -310,6 +310,12 @@ class BackdropRig {
     return picture;
   }
 
+  // Its picture holds the image it reads, an atlas other glass may have left.
+  void _dropPage() {
+    _page.layer = null;
+    _pageKey = null;
+  }
+
   /// The picture [pagePicture] last drew.
   ui.Picture? get pageShown => _page.layer?.picture;
 
@@ -329,6 +335,7 @@ class BackdropRig {
   /// without [served].
   void show(Layer? served, {Layer? under}) {
     assert(under == null || served != null, 'Only a copy covers [under].');
+    if (!identical(served, _page.layer)) _dropPage();
     final slot = _slot.layer;
     if (slot == null) return;
     final child = served ?? _clipRect.layer ?? _clipPath.layer;
@@ -353,6 +360,7 @@ class BackdropRig {
 
   /// Leaves the slot empty: another layer draws this glass.
   void hide() {
+    _dropPage();
     final slot = _slot.layer;
     if (slot?.firstChild != null) slot!.removeAllChildren();
   }
@@ -386,7 +394,6 @@ class BackdropRig {
     Offset offset, {
     required Rect bounds,
     Path? outline,
-    bool needsCompositing = true,
     bool drawsFilter = true,
   }) {
     void paintFilter(PaintingContext clipContext, Offset clipOffset) {
@@ -399,7 +406,7 @@ class BackdropRig {
       if (outline == null) {
         _clipPath.layer = null;
         _clipRect.layer = clipContext.pushClipRect(
-          needsCompositing,
+          true,
           clipOffset,
           bounds,
           paintFilter,
@@ -408,7 +415,7 @@ class BackdropRig {
       } else {
         _clipRect.layer = null;
         final layer = clipContext.pushClipPath(
-          needsCompositing,
+          true,
           clipOffset,
           bounds,
           outline,
@@ -486,12 +493,15 @@ class BackdropRig {
     if (asked.frost case final frost?) {
       final sigma = frost.sigma * asked.devicePixelRatio;
       if (frostDownscale(sigma) case final downscale?) {
-        // The taps reach 2.8 sigma, one copy pixel more sampled bilinearly. A
-        // copy drawn at the screen's pixels in place of the ones asked reaches
-        // less: its taps lie at most a sigma wider and its pixel is smaller.
-        final taps = shaderFrostResidual(sigma, share: downscale);
+        // A copy drawn at the screen's pixels in place of the ones asked
+        // reaches less: its taps lie at most a sigma wider and its pixel is
+        // smaller.
         facts.reads = shifted.inflate(
-          (2.8 * taps + downscale) / asked.devicePixelRatio,
+          shaderFrostReach(
+            sigma,
+            share: downscale,
+            devicePixelRatio: asked.devicePixelRatio,
+          ),
         );
         _frosts = true;
         facts.look = Look(

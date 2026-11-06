@@ -206,7 +206,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   void _dropFilterCache() {
     _cachedFilter = null;
     _cachedFilterSigma = null;
-    markNeedsCompositingBitsUpdate();
   }
 
   @override
@@ -501,10 +500,14 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   @override
   void beginFate(Fate fate) {
     _fate = fate;
-    if (fate is Hidden && _sharedRig.hasSlot) {
+    if (fate is! Hidden) return;
+    if (_sharedRig.hasSlot) {
       compositionSeedSuppressed = true;
       debugDrewOverCopy = false;
       _sharedRig.hide();
+    } else {
+      // Without a slot it is the live read.
+      compositionSeedSuppressed = false;
     }
   }
 
@@ -548,6 +551,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       GlassComposer.repaint(this);
       return;
     }
+    GlassComposer.sitePainted(owner!);
     prepareFrameGeometry();
     slot.removeAllChildren();
     final context = PaintingContext(

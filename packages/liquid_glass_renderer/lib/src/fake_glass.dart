@@ -43,7 +43,6 @@ class FakeGlass extends StatelessWidget {
        inheritVisibility = true,
        live = null,
        fakeKey = null,
-       shadowKey = null,
        fadeKey = null;
 
   /// Creates a new [FakeGlass] widget that takes settings from the nearest
@@ -59,7 +58,6 @@ class FakeGlass extends StatelessWidget {
        inheritVisibility = true,
        live = null,
        fakeKey = null,
-       shadowKey = null,
        fadeKey = null;
 
   /// Creates the glass of a [LiquidGlass] in a fake layer, which reads the
@@ -75,7 +73,6 @@ class FakeGlass extends StatelessWidget {
     super.key,
   }) : settings = null,
        shadows = const [],
-       shadowKey = null,
        _handledByLayer = true,
        inheritVisibility = false;
 
@@ -126,10 +123,6 @@ class FakeGlass extends StatelessWidget {
   /// its child.
   @internal
   final Key? fakeKey;
-
-  /// See [fakeKey].
-  @internal
-  final Key? shadowKey;
 
   /// See [fakeKey].
   @internal
@@ -192,7 +185,6 @@ class FakeGlass extends StatelessWidget {
     );
     if (shadows.isEmpty) return clipped;
     return GlassShadow(
-      key: shadowKey,
       shape: shape,
       shadows: shadows,
       appearanceVisibility: appearance.visibility,

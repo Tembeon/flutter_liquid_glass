@@ -152,10 +152,6 @@ abstract final class GlassCopies {
   @internal
   static bool debugTextureInScene = false;
 
-  /// What a frame's reads added of the layers under them, since cleared.
-  @visibleForTesting
-  static int debugReplayed = 0;
-
   /// Whether Impeller draws a layer of [layer] whole inside a clip of
   /// [clip] (both in the same space): it cuts the layer to the clip, and
   /// starts fragment coordinates at the cut, only once the part it cuts off
@@ -282,9 +278,6 @@ final class ReadCopy {
   /// The screen rect the copy holds, in logical pixels.
   Rect get band => _band;
 
-  /// The screen's device pixels per logical pixel.
-  double get devicePixelRatio => _grid._devicePixelRatio;
-
   // The frost, in logical pixels, that stands for [frost] over what the copy
   // left out.
   double _frostOver(double frost) => frost > 0 && read.frostLeftOut > 0
@@ -371,7 +364,6 @@ final class _Replay {
             continue;
           }
           if (!kReleaseMode) GlassWork.replayed++;
-          GlassCopies.debugReplayed++;
           out.picture(layer.picture!);
         case OutputNode(:final site?):
           copy._addHeld(site, out);
@@ -457,19 +449,19 @@ final class PageCopy {
   /// How the final shader reads the page, painted in the screen's device
   /// pixels, to frost it for Impeller's blur by [frost] (see
   /// [GlassSampling.frost]).
+  // The frost, in logical pixels, that stands for [frost] over what the page
+  // left out.
+  double _frostOver(double frost) => frost > 0 && _frostLeftOut > 0
+      ? sqrt(frost * frost + _frostLeftOut * _frostLeftOut)
+      : frost;
+
   GlassSampling glassSampling(double frost) {
     final share = _grid._share;
     return GlassSampling._(
       origin:
           rect.topLeft * _grid._devicePixelRatio - _offset * share.toDouble(),
       reduced: share > 1 ? 1 : 0,
-      frost: frost == _heldFrost
-          ? 0
-          : _grid._frost(
-              frost > 0 && _frostLeftOut > 0
-                  ? sqrt(frost * frost + _frostLeftOut * _frostLeftOut)
-                  : frost,
-            ),
+      frost: frost == _heldFrost ? 0 : _grid._frost(_frostOver(frost)),
       image: image,
       size: Size(
         image.width * share.toDouble(),
@@ -524,12 +516,15 @@ final class _Tile {
     null => false,
   };
 
-  // The frost the page holds, in logical pixels: frosted once, at the page's
-  // own pixels, so glass over it takes one read per fragment (see
+  // The frost to hold in the page, in logical pixels: frosted once, at the
+  // page's own pixels, so glass over it takes one read per fragment (see
   // inPlaceFrostFilter). A page holding glass holds it at the screen's pixels,
   // where the frost would cost more than the taps.
-  double get holdsFrost =>
+  double get bakedFrost =>
       copy.read.bakesFrost && !filtered ? copy.read.frost : 0;
+
+  // What the drawn page holds: nothing before the frost's shader is loaded.
+  double holdsFrost = 0;
 
   // How `backdrop_frost.frag` frosts the page in a layer of its own.
   FrostSampling frostSampling(double frost) {
@@ -659,13 +654,14 @@ final class _Pages {
     final layered = <(Object?, CopyGrid), List<_Tile>>{};
     for (final tile in tiles) {
       if (!tile.filtered) {
-        final frost = tile.holdsFrost;
+        final frost = tile.bakedFrost;
         final filter = frost > 0
             ? frostFilterOf(tile.frostSampling(tile.copy._frostOver(frost)))
             : null;
         if (filter == null) {
           add(tile, tile.bounds);
         } else {
+          tile.holdsFrost = frost;
           final size = tile.bounds.size;
           b.pushOffset(tile.offset.dx, tile.offset.dy);
           b.pushImageFilter(filter);

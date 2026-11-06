@@ -208,7 +208,9 @@ final class PagePart {
         offset.dx + _copy.rect.width * pixels - 0.5,
         offset.dy + _copy.rect.height * pixels - 0.5,
       ),
-      frost: frost == _copy._heldFrost ? 0 : grid._frost(frost) / grid._share,
+      frost: frost == _copy._heldFrost
+          ? 0
+          : grid._frost(_copy._frostOver(frost)) / grid._share,
       scale: 1,
       // The rect drawn bounds the frost.
       shown: Rect.largest,
@@ -278,7 +280,7 @@ final class CornerRead {
         min(at.dx + _copy._band.width * pixels, _device.width / _share) - 0.5,
         min(at.dy + _copy._band.height * pixels, _device.height / _share) - 0.5,
       ),
-      frost: _copy._grid._frost(frost) / _share,
+      frost: _copy._grid._frost(_copy._frostOver(frost)) / _share,
       scale: 1 / _share,
       shown: Rect.fromLTRB(
         drawn.left * _dpr,

@@ -16,16 +16,12 @@ import 'package:meta/meta.dart';
 class GlassCompositionProbe {
   final _layer = LayerHandle<OpacitySeedLayer>();
 
-  /// The layer the owner paints into: its glass, shadows and children.
-  OpacitySeedLayer? get layer => _layer.layer;
-
   /// Whether the owner paints inside a fractional opacity pass that a live
   /// backdrop read needs seeded, also while [suppressed].
   bool get seeding => _wanted;
   bool _wanted = false;
 
   /// Leaves the pass unseeded while the owner reads no backdrop.
-  bool get suppressed => _suppressed;
   bool _suppressed = false;
   set suppressed(bool value) {
     if (value == _suppressed) return;

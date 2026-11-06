@@ -57,6 +57,10 @@ SiteFacts _site(int order, Rect drawn, {int look = 0, int floor = -1}) {
   return site;
 }
 
+int _newImages(Plan plan) => plan.reads
+    .where((read) => read.source == const ImageRead(held: false))
+    .length;
+
 /// A row of [count] buttons, each 44 lp, in paint order from [order].
 List<SiteFacts> _row(int count, {int order = 0, double top = 100}) => [
   for (var i = 0; i < count; i++)
@@ -210,12 +214,61 @@ void main() {
       final ledger = Ledger();
       var images = 0;
       for (var frame = 1; frame <= 60; frame++) {
-        images += _plan(scene, ledger: ledger, frame: frame).newImages;
+        images += _newImages(_plan(scene, ledger: ledger, frame: frame));
       }
       expect(images, 1);
       final read = _plan(scene, ledger: ledger, frame: 61).reads.single;
       expect(read.source, isA<ImageRead>());
       expect((read.source as ImageRead).held, isTrue);
+    });
+
+    Look look(double frost, {PageFilter? page}) => Look(
+      key: 'glass',
+      frost: frost,
+      downscale: 2,
+      devicePixelRatio: 2.625,
+      page: page,
+    );
+
+    test('a held image goes when the frost baked into it changes', () {
+      final site = _site(0, const Rect.fromLTWH(20, 200, 200, 90));
+      site.look = look(4);
+      final scene = _Scene([site]);
+      final ledger = Ledger();
+      for (var frame = 1; frame <= 60; frame++) {
+        _plan(scene, ledger: ledger, frame: frame);
+      }
+      final held = _plan(scene, ledger: ledger, frame: 61).reads.single;
+      expect(held.source, const ImageRead(held: true));
+      site.look = look(5);
+      final read = _plan(scene, ledger: ledger, frame: 62).reads.single;
+      expect(read.changed, isTrue);
+      expect(read.source, isA<SceneRead>());
+    });
+
+    test('a held image goes when the filter baked into it changes', () {
+      final site = _site(0, const Rect.fromLTWH(20, 200, 200, 90));
+      site.look = look(0, page: const PageFilter(blur: (4, 4)));
+      final scene = _Scene([site]);
+      final ledger = Ledger();
+      _plan(scene, ledger: ledger, frame: 1);
+      final held = _plan(scene, ledger: ledger, frame: 2).reads.single;
+      expect(held.source, const ImageRead(held: true));
+      site.look = look(0, page: const PageFilter(blur: (8, 8)));
+      final read = _plan(scene, ledger: ledger, frame: 3).reads.single;
+      expect(read.source, const ImageRead(held: false));
+    });
+
+    test('a filter of a page over a texture reads live, and so does '
+        'what lies over it', () {
+      final page = _site(2, const Rect.fromLTWH(20, 200, 200, 90));
+      page.look = look(0, page: const PageFilter(blur: (4, 4)));
+      final over = _site(4, const Rect.fromLTWH(20, 200, 200, 90));
+      final scene = _Scene([page, over]);
+      scene.texturesBefore = 1;
+      final plan = _plan(scene, frame: 1);
+      expect(plan.reads.first.source, isA<LiveRead>());
+      expect(plan.reads.last.source, isA<LiveRead>());
     });
 
     test('a menu over a page long still buys in its first frame', () {
@@ -257,7 +310,7 @@ void main() {
           frame++;
           waited++;
           final plan = _plan(scene, ledger: ledger, frame: frame);
-          if (plan.newImages == 1) return waited;
+          if (_newImages(plan) == 1) return waited;
           expect(waited, lessThan(2000));
         }
       }

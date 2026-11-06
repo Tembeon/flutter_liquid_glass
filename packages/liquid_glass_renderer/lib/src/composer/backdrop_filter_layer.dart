@@ -83,12 +83,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   /// How the filtered backdrop composites over the backdrop, as
   /// [BackdropFilterLayer.blendMode] does.
   BlendMode get blendMode => _blendMode;
-  BlendMode _blendMode;
-  set blendMode(BlendMode value) {
-    if (value == _blendMode) return;
-    _blendMode = value;
-    markNeedsAddToScene();
-  }
+  final BlendMode _blendMode;
 
   /// Where the filter applies, in this layer's coordinates.
   Rect get clip => _clip;
@@ -205,11 +200,12 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
       );
       return;
     }
-    // The eight taps of the frost shader reach 2.8 frosts.
     facts.reads = shifted.inflate(
-      (2.8 * shaderFrostResidual(frost.sigma * dpr, share: downscale) +
-              downscale) /
-          dpr,
+      shaderFrostReach(
+        frost.sigma * dpr,
+        share: downscale,
+        devicePixelRatio: dpr,
+      ),
     );
     final over = _blendMode == BlendMode.srcOver;
     final band = over && bandPaint != null;

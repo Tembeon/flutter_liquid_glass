@@ -352,6 +352,9 @@ final class Read {
   /// Where the backdrop comes from.
   ReadSource source = const SceneRead();
 
+  /// What the layers under its lead leave it.
+  ReadLimit limit = ReadLimit.none;
+
   /// Earlier reads whose glass lies in [band]: each is drawn again inside this
   /// read, so nesting doubles a read's targets.
   final List<Read> holds = [];
@@ -383,7 +386,8 @@ final class Read {
   /// first of them, or null for a read on its own.
   int? liveGroup;
 
-  /// The targets this read issues, what it holds drawn again counted.
+  /// The targets this read issues, what it holds drawn again counted. A frost
+  /// baked in place is left out: it adds a pass of a copy's few pixels.
   int get targets {
     if (source is ImageRead) return 0;
     var total = 1;
@@ -435,7 +439,6 @@ final class Plan {
     this.reads,
     this.fates, {
     required this.issuedTargets,
-    required this.newImages,
     required this.dueAt,
     required this.notes,
   });
@@ -448,9 +451,6 @@ final class Plan {
 
   /// Targets the frame issues, nested replays counted.
   final int issuedTargets;
-
-  /// Images the frame draws.
-  final int newImages;
 
   /// The first frame a read that holds still can buy its image, if none
   /// changes before it.
@@ -489,6 +489,9 @@ final class ReadMemo {
   /// The leads of the reads its image holds, and its grid.
   List<Object> holds = const [];
   int downscale = 1;
+
+  /// What the read's image would hold of its own glass: its filter and frost.
+  Object? baked;
 
   /// Where its band was a frame ago, to see how fast it moves.
   Rect? lastBand;
@@ -673,6 +676,7 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
   if (read.lead.noJoin case final reason?) {
     return 'its lead never joins: ${reason.name}';
   }
+  if (read.lead.look.isBand && !policy.bands) return 'bands stay apart';
   if (read.lead.look.page != null) return 'its lead reads a page';
   if (read.source is LiveRead) return 'its lead reads live';
   if (read.lead.order < site.floor) return 'painted over after its lead';
@@ -718,10 +722,7 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
     final limit = _limitOf(site, reads, scene, policy);
     final pageOnly = site.look.page != null;
     Read? joined;
-    if (site.noJoin != null ||
-        site.turned ||
-        pageOnly ||
-        limit == ReadLimit.liveOnly) {
+    if (site.noJoin != null || pageOnly || limit == ReadLimit.liveOnly) {
       if (explain) {
         final why =
             site.noJoin?.name ??
@@ -771,7 +772,11 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
       continue;
     }
     final read = Read(site);
-    if (limit == ReadLimit.liveOnly) read.source = const LiveRead();
+    read.limit = limit;
+    // A filter of a page has no scene read to fall back on.
+    if (limit == ReadLimit.liveOnly || (pageOnly && limit != ReadLimit.none)) {
+      read.source = const LiveRead();
+    }
     reads.add(read);
     fates.add(Leads(read));
   }
@@ -802,7 +807,6 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
   }
 
   final edits = LedgerEdits();
-  var newImages = 0;
   var dueAt = _never;
   for (final read in reads) {
     if (read.source is LiveRead) {
@@ -819,9 +823,18 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
     next.holds = holds;
     var imageRect = memo?.imageRect;
     final watched = imageRect ?? read.band;
+    final page = read.lead.look.page;
+    final baked = (
+      page?.key,
+      page?.blendMode,
+      read.bakesFrost ? read.frost : 0.0,
+      read.frostLeftOut,
+    );
+    next.baked = baked;
     final changed =
         scene.dirty.meets(read.lead.order, watched) ||
-        read.holds.any((held) => held.changed);
+        read.holds.any((held) => held.changed) ||
+        (memo != null && memo.baked != baked);
     read.changed = changed;
     next.changedAt = changed
         ? frame
@@ -842,18 +855,14 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
     }
     final pageOnly = read.lead.look.page != null;
     final need = rent << next.misses;
-    final allowed =
-        policy.copies && scene.limitUnder(read.lead) == ReadLimit.none;
+    final allowed = read.limit == ReadLimit.none;
     if (imageRect != null) {
       read.source = const ImageRead(held: true);
     } else if (allowed &&
         (pageOnly || (!changed && frame - next.changedAt >= need))) {
       read.source = const ImageRead(held: false);
-      newImages++;
       imageRect = _withRoom(read, memo, rent, screen);
       boughtAt = frame;
-    } else if (pageOnly) {
-      read.source = const LiveRead();
     } else if (allowed) {
       dueAt = math.min(dueAt, next.changedAt + need);
     }
@@ -873,15 +882,11 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
     final order = [...deepest, ...reads.reversed];
     for (final read in order) {
       if (issued <= policy.maxTargets) break;
-      if (read.source is! SceneRead ||
-          scene.limitUnder(read.lead) != ReadLimit.none) {
-        continue;
-      }
+      if (read.source is! SceneRead || read.limit != ReadLimit.none) continue;
       read.source = const ImageRead(held: false);
       read.imageRect = read.band;
       edits.writes[read.lead.id]?.imageRect = read.band;
       edits.writes[read.lead.id]?.boughtAt = frame;
-      newImages++;
       issued = targets();
       if (explain) notes.add('${read.lead.id}: over budget, reads an image');
     }
@@ -895,7 +900,6 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
       reads,
       fates,
       issuedTargets: issued,
-      newImages: newImages,
       dueAt: dueAt,
       notes: notes,
     ),

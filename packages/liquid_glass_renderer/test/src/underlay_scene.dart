@@ -106,6 +106,6 @@ Future<int> underlayParity(
   GlassCopies.debugEnabledOverride = true;
   await tester.pumpWidget(const SizedBox());
   await tester.pumpWidget(underlayScene(frost: frost, scale: scale));
-  expect(underlayGlass(tester).debugDrewOverUnderlay, isTrue);
+  expect(underlayGlass(tester).debugDrewOverCopy, isTrue);
   return largestDifference(reading, await underlayPixels(tester));
 }

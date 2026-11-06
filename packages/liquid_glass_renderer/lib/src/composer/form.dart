@@ -45,7 +45,13 @@ final class Form implements Scenery {
   /// The sites of the last [lower], in paint order.
   @override
   List<SiteFacts> get sites => _sites;
-  final List<SiteFacts> _sites = [];
+  List<SiteFacts> _sites = [];
+  List<SiteFacts> _lastSites = [];
+
+  /// Whether the sites are those of the last frame, in that order.
+  bool get sitesHeld => _sitesHeld;
+  bool _sitesHeld = false;
+
   final List<SiteNode> _siteNodes = [];
 
   /// The site nodes, parallel to [sites].
@@ -76,6 +82,9 @@ final class Form implements Scenery {
     _next = 0;
     _count = 0;
     _volatileCount = 0;
+    final recycled = _lastSites;
+    _lastSites = _sites;
+    _sites = recycled;
     _sites.length = 0;
     _siteNodes.length = 0;
     _screen = Offset.zero & (physicalSize / devicePixelRatio);
@@ -92,6 +101,25 @@ final class Form implements Scenery {
       dirty.add(0, _everywhere);
     }
     _top!.refreshIn(this, _outside!);
+    _flat.length = _count;
+    _volatile.length = _volatileCount;
+  }
+
+  /// Logs what glass that left drew. A layer holding it may cover nothing of
+  /// its own, and what reads over it holds its glass.
+  void noteSitesGone() {
+    final last = _lastSites;
+    var held = last.length == _sites.length;
+    for (var i = 0; held && i < last.length; i++) {
+      held = identical(last[i], _sites[i]);
+    }
+    _sitesHeld = held;
+    if (held) return;
+    final kept = Set<SiteFacts>.identity();
+    kept.addAll(_sites);
+    for (final site in last) {
+      if (!kept.contains(site)) dirty.add(-1, site.drawn);
+    }
   }
 
   void _enter(FormNode node) {
@@ -521,6 +549,7 @@ abstract class OpenNode extends FormNode {
     } else {
       _holdsComposed = composes;
       if (first != null || !bounds.isEmpty) {
+        if (!moved) form._log(order, bounds);
         first = null;
         changed = true;
       }
