@@ -2602,18 +2602,26 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   void onCompositorTranslated(Offset translation) {
     // Nothing to map: a shape that appears repaints.
     if (shapesWithGeometry.isEmpty) return;
-    // Chrome over a scroll keeps all of it, frame after frame.
-    final inputs = (
-      translation,
-      _filterMaterialBounds,
-      _filterPaintOffset,
-      compositionProbeSeeding,
-      _frostSigmaForCurrentShapes(),
-      devicePixelRatio,
-      retainedClipBounds,
-      localPaintClipAbove(this),
-    );
-    if (!_mappingMoved && inputs == _mappingInputs) return;
+    // Glass drawing nothing reads no mapping: paint maps what it draws.
+    if (drawableEmpty || !_rig.hasSlot) {
+      _mappingMoved = true;
+      return;
+    }
+    // Chrome over a scroll keeps all of it, frame after frame. Glass that moved
+    // maps whatever the rest holds, so it asks for none of it.
+    final inputs = _mappingMoved
+        ? null
+        : (
+            translation,
+            _filterMaterialBounds,
+            _filterPaintOffset,
+            compositionProbeSeeding,
+            _frostSigmaForCurrentShapes(),
+            devicePixelRatio,
+            retainedClipBounds,
+            localPaintClipAbove(this),
+          );
+    if (inputs != null && inputs == _mappingInputs) return;
     _mappingMoved = false;
     _mappingInputs = inputs;
     final clip = _filterClip;
