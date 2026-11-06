@@ -1846,7 +1846,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @override
   void fillPlanFacts(SiteFacts facts) {
     facts.hidden = false;
-    facts.overSolid = false;
     facts.turned = false;
     final offer = _offer;
     if (offer != null) {
@@ -2012,7 +2011,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
     _inGroup = true;
     final band = group.band != null;
-    final tints = glass.length > 1 && _groupMatte!.tinted;
+    final tints = glass.length > 1 && _groupMatte!.tints != null;
     final rebind = band != _drawsBand || tints != _groupTints;
     _drawsBand = band;
     _groupTints = tints;
@@ -3320,7 +3319,6 @@ final class _GroupMatte {
   // uniform holds the tint exactly.
   ui.Image? tints;
   Size tintsSize = const Size(1, 1);
-  bool get tinted => tints != null;
 
   // Where the matte's origin lies on the screen, in logical pixels.
   Offset origin = Offset.zero;

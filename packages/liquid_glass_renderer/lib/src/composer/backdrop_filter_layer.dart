@@ -35,7 +35,9 @@ import 'package:liquid_glass_renderer/src/internal/shader_frost.dart';
 ///
 /// The filter applies to the screen-aligned backdrop: under a transform that
 /// scales or turns the layer, it reads the backdrop.
-class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
+class LiquidGlassBackdropFilterLayer extends ContainerLayer
+    with ComposedLayer
+    implements PlanSite {
   /// Creates the layer.
   LiquidGlassBackdropFilterLayer({
     required this._filter,
@@ -153,11 +155,10 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
         )
       : null;
 
-  /// Writes what the frame's plan reads of this scroll edge.
+  @override
   void fillPlanFacts(SiteFacts facts) {
     final offer = _offer;
     facts.hidden = false;
-    facts.overSolid = false;
     if (offer is BandOffer) {
       facts.drawn = offer.drawn;
       facts.reads = offer.reads;
@@ -176,7 +177,6 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     final origin = screenOffsetOf(this, _devicePixelRatio);
     if (origin == null) {
       facts.hidden = true;
-      facts.turned = true;
       return;
     }
     facts.drawn = _clip.shift(origin);
@@ -514,7 +514,6 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
       builder.pushBackdropFilter(identityColorFilter, blendMode: BlendMode.src);
     }
     builder.pushClipRect(_clip, clipBehavior: Clip.hardEdge);
-    UnderlayFrame.debugSceneLive++;
     builder.pushBackdropFilter(_filter, blendMode: _blendMode);
     addChildrenToScene(builder);
     builder.pop();

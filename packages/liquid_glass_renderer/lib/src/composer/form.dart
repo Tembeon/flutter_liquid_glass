@@ -14,12 +14,6 @@ import 'package:meta/meta.dart';
 
 const Rect _everywhere = Rect.largest;
 
-bool _meet(Rect a, Rect b) =>
-    a.left < b.right &&
-    b.left < a.right &&
-    a.top < b.bottom &&
-    b.top < a.bottom;
-
 Rect _union(Rect a, Rect b) {
   if (a.isEmpty) return b;
   if (b.isEmpty) return a;
@@ -37,16 +31,13 @@ Rect _union(Rect a, Rect b) {
 /// would hold. The soundness test asserts it after every generated mutation.
 @internal
 final class Form implements Scenery {
-  /// Creates an empty form.
-  Form();
-
   @override
   final DirtyLog dirty = DirtyLog();
 
   /// This frame's number.
   int frame = 0;
 
-  /// Layers visited by the last [lower], for benches and tests.
+  /// Layers visited by the last [lower], for tests.
   int get length => _count;
 
   /// The sites of the last [lower], in paint order.
@@ -75,7 +66,6 @@ final class Form implements Scenery {
   int _suppress = 0;
   int _next = 0;
   SiteNode? _site;
-  SiteNode? _enterSite;
 
   /// Compares [root]'s tree with the last frame's.
   void lower(ContainerLayer root, double devicePixelRatio, Size physicalSize) {
@@ -105,10 +95,6 @@ final class Form implements Scenery {
   void _enter(FormNode node) {
     node.order = _next++;
     node.insideSite = _site;
-    if (_enterSite case final site?) {
-      _site = site;
-      _enterSite = null;
-    }
     if (_count == _flat.length) {
       _flat.add(node);
     } else {
@@ -165,16 +151,16 @@ final class Form implements Scenery {
       final parent = node.parent;
       if (parent != null &&
           parent.end <= site.order &&
-          !_meet(parent.bounds, reads) &&
-          !_meet(parent.bounds, drawn)) {
+          !parent.bounds.overlaps(reads) &&
+          !parent.bounds.overlaps(drawn)) {
         i = parent.order - 1;
         continue;
       }
       switch (node) {
         case PictureNode(:final screen):
-          if (_meet(screen, drawn)) return i;
+          if (screen.overlaps(drawn)) return i;
         case VolatileNode(:final screen):
-          if (_meet(screen, reads)) return i;
+          if (screen.overlaps(reads)) return i;
         case OpenNode() || OutputNode():
           break;
       }
@@ -188,7 +174,8 @@ final class Form implements Scenery {
     var limit = ReadLimit.none;
     for (var i = 0; i < _volatileCount; i++) {
       final node = _volatile[i];
-      if (node.order >= site.order || !_meet(node.screen, site.reads)) continue;
+      if (node.order >= site.order || !node.screen.overlaps(site.reads))
+        continue;
       if (node.limit == ReadLimit.liveOnly) return ReadLimit.liveOnly;
       limit = ReadLimit.sceneOnly;
     }
@@ -201,11 +188,13 @@ final class Form implements Scenery {
     var i = 0;
     while (i < order && i < _count) {
       final node = _flat[i];
-      if (node is OpenNode && node.end <= order && !_meet(node.bounds, band)) {
+      if (node is OpenNode &&
+          node.end <= order &&
+          !node.bounds.overlaps(band)) {
         i = node.end;
         continue;
       }
-      if (node.changedAt > latest && _meet(node.extent, band)) {
+      if (node.changedAt > latest && node.extent.overlaps(band)) {
         latest = node.changedAt;
       }
       i++;
@@ -250,6 +239,16 @@ final class FormWorld {
     final held = clip;
     return held == null ? bounds : held.intersect(bounds);
   }
+
+  /// Takes the values of [outside]; true when any differs.
+  bool inherit(FormWorld outside) => set(
+    outside.base,
+    outside.dx,
+    outside.dy,
+    outside.clip,
+    outside.state,
+    filtered: outside.filtered,
+  );
 
   /// Writes the values; true when any differs.
   bool set(
@@ -300,7 +299,7 @@ sealed class FormNode {
   /// The frame it last changed.
   int changedAt = 0;
 
-  /// The site whose layer holds it, if one does.
+  /// The innermost site whose layer holds it, itself if it is one.
   SiteNode? insideSite;
 
   /// What it covers on the screen.
@@ -640,14 +639,7 @@ final class PlainNode extends OpenNode {
   bool get composes => true;
 
   @override
-  bool updateWorld(FormWorld outside) => world.set(
-    outside.base,
-    outside.dx,
-    outside.dy,
-    outside.clip,
-    outside.state,
-    filtered: outside.filtered,
-  );
+  bool updateWorld(FormWorld outside) => world.inherit(outside);
 }
 
 /// An offset: what most repaint boundaries are, and all a scroll changes.
@@ -689,6 +681,9 @@ final class SiteNode extends ShiftNode {
   /// What the plan reads of it.
   final SiteFacts facts;
 
+  /// Reads [facts] from the layer.
+  void fill() => (layer as PlanSite).fillPlanFacts(facts);
+
   @override
   bool get composes => true;
 
@@ -707,12 +702,6 @@ final class SiteNode extends ShiftNode {
   }
 
   @override
-  Offset get _offset => switch (layer) {
-    OffsetLayer(:final offset) => offset,
-    _ => Offset.zero,
-  };
-
-  @override
   bool refreshIn(Form form, FormWorld outside) {
     _form = form;
     _seen = form.frame;
@@ -722,7 +711,7 @@ final class SiteNode extends ShiftNode {
     form._sites.add(facts);
     form._siteNodes.add(this);
     final above = form._site;
-    form._enterSite = this;
+    form._site = this;
     final changed = super.refreshIn(form, outside);
     form._site = above;
     return changed;
@@ -869,16 +858,7 @@ final class FilterNode extends OpenNode {
   bool updateWorld(FormWorld outside) {
     final layer = this.layer as ImageFilterLayer;
     final filter = layer.imageFilter;
-    if (filter == null) {
-      return world.set(
-        outside.base,
-        outside.dx,
-        outside.dy,
-        outside.clip,
-        outside.state,
-        filtered: outside.filtered,
-      );
-    }
+    if (filter == null) return world.inherit(outside);
     if (_chain == null ||
         !identical(_chainParent, outside.state) ||
         !identical(_chainFilter, filter)) {
@@ -954,14 +934,7 @@ final class MaskNode extends OpenNode {
     final rect = layer.maskRect;
     final blend = layer.blendMode;
     if (shader == null || rect == null || blend == null) {
-      return world.set(
-        outside.base,
-        outside.dx,
-        outside.dy,
-        outside.clip,
-        outside.state,
-        filtered: outside.filtered,
-      );
+      return world.inherit(outside);
     }
     if (_chain == null ||
         shader is ui.FragmentShader ||
@@ -1041,14 +1014,7 @@ final class ClipNode extends OpenNode {
   bool updateWorld(FormWorld outside) {
     final (geometry, behavior) = _read();
     if (geometry == null || behavior == Clip.none) {
-      return world.set(
-        outside.base,
-        outside.dx,
-        outside.dy,
-        outside.clip,
-        outside.state,
-        filtered: outside.filtered,
-      );
+      return world.inherit(outside);
     }
     if (_chain == null ||
         _seen != outside.stamp ||

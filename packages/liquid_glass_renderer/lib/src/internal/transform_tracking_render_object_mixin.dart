@@ -86,7 +86,9 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
 }
 
 @internal
-class GeometryTransformTrackingLayer extends OffsetLayer with ComposedLayer {
+class GeometryTransformTrackingLayer extends OffsetLayer
+    with ComposedLayer
+    implements PlanSite {
   GeometryTransformTrackingLayer();
 
   // The render object whose transform the layer tracks.
@@ -99,7 +101,7 @@ class GeometryTransformTrackingLayer extends OffsetLayer with ComposedLayer {
   /// Where this frame's lowering of the layers found the layer.
   SiteNode? formNode;
 
-  /// Writes what the frame's plan reads of the tracked object.
+  @override
   void fillPlanFacts(SiteFacts facts) {
     final site = _site;
     if (site == null || !site.attached) {

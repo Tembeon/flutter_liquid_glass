@@ -20,8 +20,6 @@ import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.d
 /// run that shows the noise floor.
 final benchSwitches = <String, void Function({required bool on})>{
   'none': ({required on}) {},
-  // B also lowers the frame's layers and compiles a plan it does not use.
-  'shadow': ({required on}) => GlassComposer.debugShadowPlan = on,
   // B: glass with nothing changed around it skips reading where it lies.
   'form_rests': ({required on}) => GlassComposer.debugFormRests = on,
   // B: the frame's scan skips what no copy can reach.

@@ -149,7 +149,6 @@ void addFoldedFilter(
 }) {
   builder.pushClipRect(clip, clipBehavior: Clip.hardEdge);
   if (outline != null) builder.pushClipPath(outline);
-  UnderlayFrame.debugSceneLive++;
   builder.pushBackdropFilter(filter, blendMode: blendMode);
   builder.pop();
   if (outline != null) builder.pop();

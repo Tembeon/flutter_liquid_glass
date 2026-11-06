@@ -12,7 +12,7 @@ import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart'
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/form.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/composer/plan.dart' hide ImageRead;
+import 'package:liquid_glass_renderer/src/composer/plan.dart' show Plan;
 import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
@@ -816,14 +816,6 @@ final class UnderlayFrame {
   @internal
   static bool debugPrunes = true;
 
-  /// Filters over a copy added to scenes, since this was last cleared.
-  @internal
-  static int debugSceneFilters = 0;
-
-  /// Backdrop filters added to scenes, since this was last cleared.
-  @internal
-  static int debugSceneLive = 0;
-
   /// Entries of the scans that finished, since this was last cleared.
   @visibleForTesting
   static int debugEntries = 0;
@@ -877,10 +869,16 @@ final class UnderlayFrame {
     final size = view is RenderView ? view.size : Size.zero;
     // What lies under an offer that held still comes from an image, which
     // takes no filter of its own.
-    final groups = _groupsOf([
-      for (final offer in _offers)
-        if (!offer.underlay._held) offer,
-    ], size.width * size.height);
+    _askGroups(
+      _groupsOf([
+        for (final offer in _offers)
+          if (!offer.underlay._held) offer,
+      ], size.width * size.height),
+    );
+  }
+
+  // Asks for what [groups] draw and has the other offers ask alone.
+  void _askGroups(List<FilterGroup> groups) {
     final grouped = Set<FilterOffer>.identity();
     for (final group in groups) {
       group._ask();
@@ -893,44 +891,32 @@ final class UnderlayFrame {
     _offers.clear();
   }
 
+  FilterOffer? _offerAt(Object anchor) {
+    for (final offer in _offers) {
+      if (identical(offer.anchor, anchor)) return offer;
+    }
+    return null;
+  }
+
   /// Whether a frame's groups come from its plan.
   @internal
   static bool debugPlansGroups = true;
 
   /// Whether what lies under the site anchored at [anchor] comes from an
   /// image, which takes no filter of its own.
-  bool holdsUnder(Object anchor) {
-    for (final offer in _offers) {
-      if (identical(offer.anchor, anchor)) return offer.underlay._held;
-    }
-    return false;
-  }
+  bool holdsUnder(Object anchor) => _offerAt(anchor)?.underlay._held ?? false;
 
   /// Draws what [plan] joined through one filter each and has the rest ask
   /// alone. The composer calls it once every layer has prepared.
   void takeGroups(Plan plan) {
     if (_offers.isEmpty) return;
-    final grouped = Set<FilterOffer>.identity();
-    FilterOffer? offerOf(SiteFacts site) {
-      for (final offer in _offers) {
-        if (identical(offer.anchor, site.id)) return offer;
-      }
-      return null;
-    }
-
-    for (final read in plan.reads) {
-      if (read.members.length < 2) continue;
-      final group = FilterGroup._planned([
-        for (final member in read.members) ?offerOf(member),
-      ]);
-      group._ask();
-      grouped.add(group.lead);
-      grouped.addAll(group._offered);
-    }
-    for (final offer in _offers) {
-      if (!grouped.contains(offer)) offer.askAlone();
-    }
-    _offers.clear();
+    _askGroups([
+      for (final read in plan.reads)
+        if (read.members.length > 1)
+          FilterGroup._planned([
+            for (final member in read.members) ?_offerAt(member.id),
+          ]),
+    ]);
   }
 
   /// Plans the copies asked for so far as islands: copies of glass side by
@@ -3381,18 +3367,7 @@ final class _Atlas {
         final size = Size(tile.width.toDouble(), tile.height.toDouble());
         canvas.saveLayer(Offset.zero & size, inner);
         // Impeller sizes a layer by what is drawn in it.
-        final clear = Paint();
-        clear.blendMode = BlendMode.clear;
-        canvas.drawRect(const Rect.fromLTWH(0, 0, 1, 1), clear);
-        canvas.drawRect(
-          Rect.fromLTRB(
-            size.width - 1,
-            size.height - 1,
-            size.width,
-            size.height,
-          ),
-          clear,
-        );
+        canvas.drawPicture(CornerRead._corners(size));
       }
       canvas.drawPicture(tile.content!);
       if (filter != null) canvas.restore();

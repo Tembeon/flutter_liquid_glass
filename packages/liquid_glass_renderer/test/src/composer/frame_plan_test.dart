@@ -22,27 +22,24 @@ Widget _button(double left, double top) => Positioned(
   ),
 );
 
-Map<String, String> _census() {
-  final words = GlassComposer.debugShadowCensus.take().split(' ');
-  return {
-    for (final word in words) word.split('=').first: word.split('=').last,
-  };
-}
-
 void main() {
   setUp(() {
     BackdropUnderlay.debugEnabledOverride = true;
-    GlassComposer.debugShadowPlan = true;
-    GlassComposer.debugShadowCensus.take();
   });
 
   tearDown(() {
     BackdropUnderlay.debugEnabledOverride = null;
-    GlassComposer.debugShadowPlan = false;
   });
 
   testWidgets('joins three disjoint buttons on a real frame', (tester) async {
     if (skipProperGlassTests) return;
+    var sites = 0;
+    var reads = 0;
+    GlassComposer.debugOnPlan = (form, plan) {
+      sites = form.sites.length;
+      reads = plan.reads.length;
+    };
+    addTearDown(() => GlassComposer.debugOnPlan = null);
     await tester.pumpWidget(
       Directionality(
         textDirection: TextDirection.ltr,
@@ -60,10 +57,8 @@ void main() {
       ),
     );
     await tester.pump();
-    final census = _census();
-    expect(int.parse(census['frames']!), greaterThan(0));
-    expect(double.parse(census['sites']!), greaterThanOrEqualTo(3));
-    expect(double.parse(census['reads']!), 1);
+    expect(sites, greaterThanOrEqualTo(3));
+    expect(reads, 1);
     expect(tester.takeException(), isNull);
   });
 
@@ -163,7 +158,6 @@ void main() {
       ),
     );
     await tester.pumpWidget(const SizedBox());
-    GlassComposer.debugShadowCensus.take();
     await tester.pump();
     expect(tester.takeException(), isNull);
   });

@@ -118,6 +118,23 @@ void main() {
       expect(plan.fates.skip(1), everyElement(isA<Follows>()));
     });
 
+    test('says why glass stays apart when asked', () {
+      final sites = _row(3);
+      sites[1].floor = sites[0].order + 1;
+      sites[2].noJoin = NoJoin.field;
+      final (plan, _) = compile(
+        _Scene(sites),
+        Ledger(),
+        const Prices(),
+        const Policy(),
+        100,
+        explain: true,
+      );
+      expect(plan.notes, hasLength(2));
+      expect(plan.notes.first, endsWith('painted over after its lead'));
+      expect(plan.notes.last, endsWith('never joins: field'));
+    });
+
     test('something painted under glass after the lead keeps it apart', () {
       final sites = _row(2);
       sites[1].floor = sites[0].order + 1;

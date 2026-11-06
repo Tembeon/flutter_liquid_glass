@@ -369,7 +369,6 @@ final class CornerRead {
     final at = _at;
     builder.pushTransform(deviceToLocal.storage);
     if (clip != null) builder.pushClipPath(clip, clipBehavior: Clip.hardEdge);
-    UnderlayFrame.debugSceneFilters++;
     builder.pushImageFilter(filter);
     builder.addPicture(_device.topLeft, _corners(_device.size));
     if (inPlace != null) {

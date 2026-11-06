@@ -4,6 +4,13 @@ import 'dart:ui';
 import 'package:liquid_glass_renderer/src/internal/shader_frost.dart';
 import 'package:meta/meta.dart';
 
+/// A layer that can say what the frame's plan reads of it.
+@internal
+abstract interface class PlanSite {
+  /// Writes what the frame's plan reads of this site.
+  void fillPlanFacts(SiteFacts facts);
+}
+
 /// All [compile] needs of a frame. A form answers from a layer tree; a test
 /// answers from a generated scene, ten thousand scenes in seconds.
 @internal
@@ -81,13 +88,7 @@ final class DirtyLog {
   bool meets(int before, Rect band) {
     for (var i = 0; i < _count; i++) {
       if (_orders[i] >= before) continue;
-      final rect = _rects[i];
-      if (rect.left < band.right &&
-          band.left < rect.right &&
-          rect.top < band.bottom &&
-          band.top < rect.bottom) {
-        return true;
-      }
+      if (_rects[i].overlaps(band)) return true;
     }
     return false;
   }
@@ -168,7 +169,7 @@ final class Look {
   /// No look: a site that draws nothing through a filter.
   static const Look none = Look(key: null, frost: 0, downscale: 1);
 
-  /// Equal for glass one shader's uniforms can draw.
+  /// Equal for glass one shader's uniforms can draw, its tint aside.
   final Object? key;
 
   /// The frost, in logical pixels.
@@ -240,9 +241,6 @@ final class SiteFacts {
 
   /// Whether it draws nothing this frame.
   bool hidden = false;
-
-  /// Whether it draws over a solid color and reads nothing.
-  bool overSolid = false;
 
   /// Whether a read of it must stay live: it is turned or skewed.
   bool turned = false;
@@ -321,17 +319,10 @@ final class Read {
   /// Whether what it holds differs from the last frame.
   bool changed = false;
 
-  /// Why this read is apart from the one before it, when asked.
-  String? note;
-
   /// The targets this read issues, what it holds drawn again counted.
   int get targets {
-    final own = switch (source) {
-      SceneRead() || LiveRead() => 1,
-      ImageRead() => 0,
-    };
-    if (source is ImageRead) return own;
-    var total = own;
+    if (source is ImageRead) return 0;
+    var total = 1;
     for (final held in holds) {
       total += held.targets;
     }
@@ -350,13 +341,6 @@ sealed class Fate {
 final class Hidden extends Fate {
   /// Creates the fate.
   const Hidden();
-}
-
-/// Painted at paint over a solid color; nothing to plan.
-@internal
-final class OverSolid extends Fate {
-  /// Creates the fate.
-  const OverSolid();
 }
 
 /// Draws [read]'s filter at its own place.
@@ -503,15 +487,12 @@ final class Prices {
       math.max(1, (imageCost / passCost(band, downscale)).ceil());
 }
 
-/// Decisions a person made once. A bench swaps it per window for an in-launch
-/// pair, which replaces the route and lever switches.
+/// Decisions a person made once.
 @internal
 final class Policy {
   /// Creates a policy.
   const Policy({
     this.maxTargets = 8,
-    this.images = true,
-    this.groups = true,
     this.maxShapes = 16,
     this.bands = true,
   });
@@ -524,12 +505,6 @@ final class Policy {
 
   /// Targets a frame may issue before reads move to images.
   final int maxTargets;
-
-  /// Whether reads may use images at all.
-  final bool images;
-
-  /// Whether glass may share reads.
-  final bool groups;
 }
 
 /// Edits to a [Ledger] that [compile] asks for.
@@ -537,9 +512,6 @@ final class Policy {
 final class LedgerEdits {
   /// The memos to write, by lead.
   final Map<Object, ReadMemo> writes = Map.identity();
-
-  /// The frame a read over still content falls due, or null for none.
-  int? nextDue;
 
   /// Applies the edits, and forgets leads gone for a while.
   void applyTo(Ledger ledger, int frame) {
@@ -578,12 +550,6 @@ double mergeDelta(Read read, SiteFacts site, Prices prices) {
       prices.rasterWeight * prices.passRaster;
 }
 
-bool _meet(Rect a, Rect b) =>
-    a.left < b.right &&
-    b.left < a.right &&
-    a.top < b.bottom &&
-    b.top < a.bottom;
-
 bool _contains(Rect outer, Rect inner) =>
     outer.left <= inner.left &&
     outer.top <= inner.top &&
@@ -607,7 +573,7 @@ bool _lookFits(Read read, SiteFacts site) {
   if (look.isBand) return false;
   if (lead.isBand) {
     return look.drawsBand &&
-        _meet(site.drawn, read.lead.drawn) &&
+        site.drawn.overlaps(read.lead.drawn) &&
         lead.bandFits(look) &&
         (read.members.length == 1 ||
             read.members[1].look.key == look.key &&
@@ -616,13 +582,16 @@ bool _lookFits(Read read, SiteFacts site) {
   return lead.key == look.key;
 }
 
-String _whyApart(Read read, SiteFacts site, Prices prices) {
-  if (site.noJoin case final reason?) return 'never joins: ${reason.name}';
+String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
+  if (read.lead.noJoin case final reason?) {
+    return 'its lead never joins: ${reason.name}';
+  }
+  if (read.source is LiveRead) return 'its lead reads live';
   if (read.lead.order < site.floor) return 'painted over after its lead';
   if (!site.state.same(read.lead.state)) return 'other clip, alpha or filter';
   if (!_insideClips(read, site)) return 'a clip would cut it';
-  if (read.members.any((m) => _meet(m.drawn, site.drawn))) return 'overlaps';
   if (!_lookFits(read, site)) return 'other look';
+  if (read.shapes + site.look.shapes > policy.maxShapes) return 'matte is full';
   return 'costs more together: '
       '${mergeDelta(read, site, prices).toStringAsFixed(2)}';
 }
@@ -652,19 +621,19 @@ String _whyApart(Read read, SiteFacts site, Prices prices) {
       fates.add(const Hidden());
       continue;
     }
-    if (site.overSolid) {
-      fates.add(const OverSolid());
-      continue;
-    }
     final limit = site.turned ? ReadLimit.liveOnly : scene.limitUnder(site);
     Read? joined;
-    if (policy.groups && site.noJoin == null && !site.turned) {
+    if (site.noJoin != null || site.turned) {
+      if (explain) {
+        notes.add('${site.id}: never joins: ${site.noJoin?.name ?? 'turned'}');
+      }
+    } else {
       for (var i = reads.length - 1; i >= 0; i--) {
         final read = reads[i];
         final band = read.lead.look.isBand;
         final overGlass = read.members
             .skip(band ? 1 : 0)
-            .any((m) => _meet(m.drawn, site.drawn));
+            .any((m) => m.drawn.overlaps(site.drawn));
         if (overGlass) {
           if (explain) notes.add('${site.id}: overlaps');
           break;
@@ -681,9 +650,11 @@ String _whyApart(Read read, SiteFacts site, Prices prices) {
           joined = read;
           break;
         }
-        if (explain) notes.add('${site.id}: ${_whyApart(read, site, prices)}');
+        if (explain) {
+          notes.add('${site.id}: ${_whyApart(read, site, prices, policy)}');
+        }
         // Joining a read further down would draw this glass under the band.
-        if (band && _meet(read.lead.drawn, site.drawn)) break;
+        if (band && read.lead.drawn.overlaps(site.drawn)) break;
       }
     }
     if (joined != null) {
@@ -706,7 +677,7 @@ String _whyApart(Read read, SiteFacts site, Prices prices) {
     for (var j = 0; j < i; j++) {
       final below = reads[j];
       if (below.source is LiveRead && read.source is! LiveRead) continue;
-      if (below.members.any((m) => _meet(m.drawn, read.band))) {
+      if (below.members.any((m) => m.drawn.overlaps(read.band))) {
         read.holds.add(below);
         read.level = math.max(read.level, below.level + 1);
       }
@@ -744,8 +715,7 @@ String _whyApart(Read read, SiteFacts site, Prices prices) {
       boughtAt = null;
     }
     final need = rent << next.misses;
-    final allowed =
-        policy.images && scene.limitUnder(read.lead) == ReadLimit.none;
+    final allowed = scene.limitUnder(read.lead) == ReadLimit.none;
     if (imageRect != null) {
       read.source = const ImageRead(held: true);
     } else if (allowed && !changed && frame - next.changedAt >= need) {
@@ -753,11 +723,6 @@ String _whyApart(Read read, SiteFacts site, Prices prices) {
       newImages++;
       imageRect = _withRoom(read, memo, rent, scene.screen);
       boughtAt = frame;
-    } else if (allowed && !changed) {
-      edits.nextDue = math.min(
-        edits.nextDue ?? frame + need,
-        next.changedAt + need,
-      );
     }
     next.imageRect = imageRect;
     next.boughtAt = boughtAt;
@@ -766,7 +731,7 @@ String _whyApart(Read read, SiteFacts site, Prices prices) {
 
   int targets() => reads.fold(0, (sum, read) => sum + read.targets);
   var issued = targets();
-  if (issued > policy.maxTargets && policy.images) {
+  if (issued > policy.maxTargets) {
     // The deepest read another holds first: doubling becomes linear. Then the
     // last in paint order, so the same frame always moves the same reads.
     final deepest = reads.where((read) => read.level > 0).toList();
