@@ -104,6 +104,7 @@ Future<(Uint8List, bool)> _draw(
   _CapturingView view, {
   required bool hard,
   required bool groups,
+  bool held = false,
 }) async {
   GlassComposer.debugPolicy = Policy(bands: groups);
   final controller = ScrollController();
@@ -125,6 +126,14 @@ Future<(Uint8List, bool)> _draw(
     await tester.pump(const Duration(milliseconds: 16));
   }
   final band = tester.layers.whereType<LiquidGlassBackdropFilterLayer>().single;
+  if (held) {
+    // A read that stood still long enough reads an image.
+    for (var i = 0; i < 600 && band.debugPage == null; i++) {
+      tester.binding.scheduleFrame();
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(band.debugPage, isNotNull);
+  }
   final merged = band.drawsGroup;
   final data = (await tester.runAsync(view.last!.toByteData))!;
   return (data.buffer.asUint8List(), merged);
@@ -169,4 +178,28 @@ void main() {
       expect(mean, lessThan(0.5), reason: 'mean $mean, most $most');
     });
   }
+
+  // The glass draws the band's frost and fade for all the band covers, not
+  // only under the glass.
+  testWidgets('an edge and the glass over it cover the band over an image', (
+    tester,
+  ) async {
+    if (!ui.ImageFilter.isShaderFilterSupported) return;
+    final view = _CapturingView(tester);
+    final (alone, _) = await _draw(tester, view, hard: false, groups: false);
+    final (merged, mergedOn) = await _draw(
+      tester,
+      view,
+      hard: false,
+      groups: true,
+      held: true,
+    );
+    expect(mergedOn, isTrue);
+    var sum = 0;
+    for (var i = 0; i < alone.length; i++) {
+      if (i % 4 != 3) sum += (alone[i] - merged[i]).abs();
+    }
+    final mean = sum / (alone.length * 3 / 4);
+    expect(mean, lessThan(2));
+  });
 }
