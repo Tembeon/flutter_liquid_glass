@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
+import 'package:liquid_glass_renderer/src/internal/glass_blur.dart';
 import 'package:meta/meta.dart';
 
 /// Saturation and a midtone secant of transmissionGamma as Flutter's 4x5
@@ -130,14 +130,12 @@ List<double> fakeGlassFaceMatrix({
 @internal
 typedef FakeGlassFilterParts = ({
   ImageFilter full,
-  ImageFilter withoutBlur,
   double sigma,
   LiquidGlassBackdropFrost? frost,
 });
 
-/// The backdrop filter of fake glass, standalone or consolidated, with its
-/// blur-free variant (just the color transfer), the blur's logical sigma and
-/// its frost. Tint stays in the analytic surface pass, so contour
+/// The backdrop filter of fake glass, standalone or consolidated, with the
+/// blur's logical sigma and its frost. Tint stays in the analytic surface pass, so contour
 /// transmittance treats tint and backdrop energy apart.
 @internal
 FakeGlassFilterParts? fakeGlassBackdropFilterParts(
@@ -196,7 +194,6 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
   if (full == null) return null;
   return (
     full: full,
-    withoutBlur: colorTransfer ?? identityColorFilter,
     sigma: sigma,
     frost: frost,
   );

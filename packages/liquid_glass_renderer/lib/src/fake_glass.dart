@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
+import 'package:liquid_glass_renderer/src/internal/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/internal/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/internal/live_paint_size.dart';
@@ -402,7 +402,6 @@ class RenderFakeGlass extends RenderProxyBox with LivePaintSize {
       reach: reach,
       devicePixelRatio: devicePixelRatio,
       blendMode: BlendMode.srcATop,
-      confinesRead: false,
     );
     if (parts.frost case final frost?) {
       layer.frost = frost;

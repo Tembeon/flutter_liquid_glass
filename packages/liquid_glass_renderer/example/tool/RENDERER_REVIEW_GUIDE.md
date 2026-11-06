@@ -64,9 +64,7 @@ that real and fake glass track every submitted scroll frame.
 Metal and Vulkan render correctly:
 
 - It renders only the first subpass that contains a `BackdropFilter` per
-  process; later ones are black. The host runs of the tests that compare
-  pixels of seeded glass therefore pin the plain path
-  (`pinPlainBackdropPath`); the seeded run is on a device.
+  process; later ones are black.
 - It rasterizes the first fractional frame after a fully transparent one
   wrong, including content outside the glass. The outer optical fade, seeded
   nested fade and real/fake opacity cases skip under `flutter_tester`

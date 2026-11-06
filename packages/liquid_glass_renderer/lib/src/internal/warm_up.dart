@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
+import 'package:liquid_glass_renderer/src/internal/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/internal/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/internal/final_shader_variant.dart';
@@ -17,11 +17,11 @@ import 'package:liquid_glass_renderer/src/liquid_shape.dart';
 import 'package:liquid_glass_renderer/src/shaders.dart';
 
 /// The draws the last completed [warmLiquidGlassPipelines] submitted, or
-/// null before one completed: the backdrop filters and seeded passes of one
+/// null before one completed: the backdrop filters of one
 /// row, the shader paints (each final shader over a solid backdrop, and one
 /// fake glass surface) and the shadows under them.
 @visibleForTesting
-({int filters, int passes, int paints, int shadows})? debugWarmUpDraws;
+({int filters, int paints, int shadows})? debugWarmUpDraws;
 
 /// The longest the warm-up waits for its scene on the raster thread.
 const Duration _sceneTimeout = Duration(seconds: 2);
@@ -37,9 +37,9 @@ const List<double> _frostSigmas = [1, 2, 8, 14];
 /// Draws once with each Flutter GPU pipeline of the geometry matte (shapes,
 /// material map, tint map, field), then rasterizes an offscreen scene over
 /// a backdrop with glass shadows: each final shader as a backdrop filter,
-/// alone and over each frost sigma, in a seeded pass, and painted as a
-/// layer over a solid backdrop paints it; the fake glass filters, plain,
-/// source-atop in a shape and in a seeded pass; and a fake glass surface.
+/// alone and over each frost sigma, and painted as a layer over a solid
+/// backdrop paints it; the fake glass filters, plain and source-atop in a
+/// shape; and a fake glass surface.
 /// The glow and every other effect of a final shader is a uniform, which
 /// picks no pipeline.
 ///
@@ -107,7 +107,6 @@ Future<void> warmLiquidGlassPipelines(
       ShaderKeys.fakeGlassSurface,
     )).fragmentShader();
     final filters = <ui.ImageFilter>[];
-    final passes = <_Pass>[];
     final solids = <ui.FragmentShader>[];
     for (final (index, program) in programs.indexed) {
       // Bound as a layer binds them: a draw needs every sampler its variant
@@ -132,23 +131,10 @@ Future<void> warmLiquidGlassPipelines(
       for (final sigma in _frostSigmas) {
         filters.add(ui.ImageFilter.compose(inner: _blur(sigma), outer: filter));
       }
-      // The passes take the frost sigmas in turn, so each downsample path
-      // seeds one.
-      passes.add((
-        seed: _blur(_frostSigmas[index % _frostSigmas.length]),
-        filter: filter,
-        fake: false,
-      ));
       // Uniform values pick no pipeline: painted, the filter's shader draws
       // what a layer over a solid backdrop draws, whatever they hold.
       solids.add(shader);
     }
-    // A pass Impeller would not crop a blur for is seeded by an identity.
-    passes.add((
-      seed: identityColorFilter,
-      filter: filters.first,
-      fake: false,
-    ));
     final fakes = <ui.ImageFilter>[];
     for (final brightness in Brightness.values) {
       for (final sigma in _frostSigmas) {
@@ -161,20 +147,10 @@ Future<void> warmLiquidGlassPipelines(
         );
         if (parts == null) continue;
         fakes.add(parts.full);
-        // One pass per brightness, whose color transfer may be built of
-        // other filters.
-        if (sigma == _frostSigmas.last) {
-          passes.add((
-            seed: _blur(parts.sigma),
-            filter: parts.withoutBlur,
-            fake: true,
-          ));
-        }
       }
     }
     final draws = (
       filters: filters.length + 2 * fakes.length,
-      passes: passes.length,
       paints: solids.length + 1,
       shadows: 2 * _shadowShapes.length,
     );
@@ -198,9 +174,6 @@ Future<void> warmLiquidGlassPipelines(
           ),
         );
       }
-      for (final pass in passes) {
-        layers.add(_seededPass(pass, cell(layers.length), key));
-      }
       // A paint reads no backdrop: the first row alone draws them.
       if (key == null) {
         for (final solid in solids) {
@@ -209,7 +182,7 @@ Future<void> warmLiquidGlassPipelines(
         layers.add(_fakeSurface(surface, cell(layers.length)));
       }
       return layers;
-    }, draws.filters + draws.passes + draws.paints);
+    }, draws.filters + draws.paints);
     debugWarmUpDraws = draws;
   } on Object catch (error, stackTrace) {
     FlutterError.reportError(
@@ -234,38 +207,6 @@ ui.ImageFilter _blur(double sigma) => ui.ImageFilter.blur(
   sigmaY: sigma,
   tileMode: glassBlurTileMode,
 );
-
-/// A seeded pass: the seed, the glass's filter without its blur, and
-/// whether it is a fake glass's.
-typedef _Pass = ({ui.ImageFilter seed, ui.ImageFilter filter, bool fake});
-
-/// [pass] as a SeededBackdropPassLayer adds it: the seed reads the backdrop
-/// into a pass of [bounds], the glass's filter replaces the pass inside
-/// the glass's clip (a rect for glass, the shape for fake glass), and the
-/// rest of the pass is cleared.
-ClipRectLayer _seededPass(_Pass pass, Rect bounds, BackdropKey? key) {
-  final shape = _fakeGlassShape.getOuterPath(bounds);
-  final recorder = ui.PictureRecorder();
-  Canvas(recorder, bounds).drawPath(
-    Path.combine(PathOperation.difference, Path()..addRect(bounds), shape),
-    Paint()
-      ..blendMode = BlendMode.clear
-      ..isAntiAlias = pass.fake,
-  );
-  final clip = pass.fake
-      ? ClipPathLayer(clipPath: shape)
-      : ClipRectLayer(clipRect: bounds.deflate(2));
-  return ClipRectLayer(clipRect: bounds)..append(
-    BackdropFilterLayer(filter: pass.seed)
-      ..backdropKey = key
-      ..append(
-        clip..append(
-          BackdropFilterLayer(filter: pass.filter)..blendMode = BlendMode.src,
-        ),
-      )
-      ..append(PictureLayer(bounds)..picture = recorder.endRecording()),
-  );
-}
 
 /// A FakeGlass surface with its highlight and its exterior border ring,
 /// painted as a FakeGlass paints them.

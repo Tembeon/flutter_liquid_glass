@@ -12,7 +12,7 @@ import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
+import 'package:liquid_glass_renderer/src/internal/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
@@ -1452,7 +1452,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     seeding: compositionProbeSeeding,
     devicePixelRatio: devicePixelRatio,
     translation: compositorTranslation,
-    passOrigin: _rig.passPlan.globalOrigin,
   );
 
   (double, double, double, double, double, double)? _coordinateMapping;
@@ -1469,17 +1468,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final clip = _filterClip;
     if (clip == null) return null;
     final translation = compositorTranslation;
-    // The backdrop the filter reads is the seeded pass, which holds nothing
-    // outside its rect.
-    final pass = _rig.passPlan.frameLocalRect;
     // Unblurred, the filter input is the backdrop inside the filter's own
     // clip. With a blur pass, Impeller re-rasterizes the blurred input into
     // the filter's coverage, which every clip around the filter narrows: the
     // retained clips between this layer and its shapes, and the clips above
     // this layer up to its pass. The texture is transparent outside it.
-    if (blurPassSigma <= 0) return pass == null ? clip : clip.intersect(pass);
+    if (blurPassSigma <= 0) return clip;
     var captured = clip.shift(translation);
-    if (pass != null) captured = captured.intersect(pass.shift(translation));
     final ancestorClips = [
       retainedClipBounds,
       localPaintClipAbove(this),
@@ -1496,8 +1491,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   @protected
   bool syncCoordinateMapping() {
-    // The pass origin is part of the mapping, so it is placed first.
-    _syncBackdropPass();
     final mapping = _currentCoordinateMapping();
     final backdropBounds = backdropSampleBounds;
     final changed =
@@ -1578,46 +1571,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // MARK: Native filter
 
-  // The live read: a filter in a clip, inside a seeded pass while seeds are
-  // on and the frost blurs. Whether the pass is in effect changes the
-  // coordinate mapping, so the rig reports it through onActiveChanged. No
-  // share: a filter inside a seeded pass reads that pass, and sharing one
-  // backdrop would hand every glass the first one's pass.
-  late final _rig = BackdropRig(
-    plan: planBackdropPass,
-    onActiveChanged: _onPassActiveChanged,
-  );
+  // The live read: a filter in a clip.
+  final _rig = BackdropRig();
 
-  // The clip around the filter in the coordinates of the layer holding the
-  // pass.
+  // The clip around the filter in the coordinates of the layer painting it.
   Rect? _innerClipLayerRect;
-
-  @visibleForTesting
-  BackdropPassPlan get debugBackdropPassPlan => _rig.passPlan;
-
-  /// How far the blur reads past the filter's clip.
-  double get _passReach => glassBlurReach(_frostSigmaForCurrentShapes());
-
-  // Requests the pass. Whether it is in effect is the pass layer's decision,
-  // made when it composes, so the plan that shaders map coordinates by is
-  // the requested one only while the layer says so. The rig may pin the clip
-  // to the pass, and nothing the shader reads depends on the clip's size:
-  // [backdropSampleBounds] is derived from the bucketed bounds, and the
-  // coordinate mapping depends only on the pass origin.
-  void _syncBackdropPass() {
-    _rig.place(
-      drawableEmpty ? null : _innerClipLayerRect,
-      _filterPaintOffset,
-      _passReach,
-    );
-  }
-
-  // The pass layer switched between seeding and painting without a pass while
-  // the scene was being prepared: map coordinates for the one that
-  // will be built, before the filter is added to the scene.
-  void _onPassActiveChanged() {
-    if (attached) _resyncMappingIntoFilter();
-  }
 
   // Re-syncs the coordinate mapping into the retained filter, or repaints
   // when its inputs cannot be reused.
@@ -1653,24 +1611,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   ImageFilter? _cachedFilter;
-  ImageFilter? _cachedShaderFilter;
   double? _filterFrostSigma;
 
-  // Hands the filter to its layer. A seeded pass may take the blur over and
-  // keep only the shader (see SeededBackdropPassLayer.bindFilter): the shader
-  // inputs it sees are the same either way, because the blurred pass is what
-  // the filter would have produced, so uBlurFade and the sample bounds stay
-  // those of a blurred filter.
-  void _bindFilter() {
-    final full = _updateShaderFilter();
-    final sigma = _filterFrostSigma ?? 0;
-    _rig.bindFilter(
-      full,
-      sigma > 0
-          ? PassBlur(sigma: sigma, withoutBlur: _cachedShaderFilter!)
-          : null,
-    );
-  }
+  void _bindFilter() => _rig.bindFilter(_updateShaderFilter());
 
   ImageFilter _updateShaderFilter() {
     final inputsChanged = takeShaderInputsChanged();
@@ -1683,7 +1626,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final shader = bilinearShaderFilter(renderShader);
     final filter = _frosted(shader, frostSigma);
     _cachedFilter = filter;
-    _cachedShaderFilter = shader;
     _filterFrostSigma = frostSigma;
     return filter;
   }
@@ -1699,10 +1641,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         )
       : shader;
 
-  void _dropFilterCache() {
-    _cachedFilter = null;
-    _cachedShaderFilter = null;
-  }
+  void _dropFilterCache() => _cachedFilter = null;
 
   void _restoreLiveMapping(FragmentShader shader) {
     if (_coordinateMapping case final live?) {
@@ -1722,7 +1661,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (drawableEmpty) {
       _rig.releaseFilter();
       _dropFilterCache();
-      _syncBackdropPass();
     } else {
       syncCoordinateMapping();
       _bindFilter();
@@ -1741,9 +1679,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _paintOverSolid(context, offset, materialBounds);
       return;
     }
-    // Without seeds or a blur there is no pass: the clip and the filter
-    // paint directly in this layer.
-    _rig.usesPass = seedsBackdrop && _passReach > 0;
     final filterBounds = _syncMaterialFilter(materialBounds, offset);
     final copies = GlassCopies.enabled && !drawableEmpty;
     // Only glass over its copy can cover the shadows (see _placeShadows).
@@ -1841,7 +1776,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // A pass that changes size counts the frames it holds still in the poll, and
   // glass drawn analytically counts its way back to a matte there.
   @override
-  bool get mayRest => !_rig.passResizing && !_analytic;
+  bool get mayRest => !_analytic;
 
   // This frame's place on the screen: the glass's transform to the screen, the
   // logical rect the shader draws, the material it paints there and the sigma
@@ -2483,11 +2418,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   @override
-  void showLive() {
+  void showLive(BackdropKey? group) {
     compositionSeedSuppressed = false;
     debugDrewOverUnderlay = false;
     _placeShadows(under: false);
-    _rig.showLive();
+    _rig.showLive(group);
   }
 
   @override
@@ -2661,10 +2596,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       retainedClipBounds,
       localPaintClipAbove(this),
     );
-    // A pass that changes size counts the frames it holds still here.
-    if (!_mappingMoved && !_rig.passResizing && inputs == _mappingInputs) {
-      return;
-    }
+    if (!_mappingMoved && inputs == _mappingInputs) return;
     _mappingMoved = false;
     _mappingInputs = inputs;
     final clip = _filterClip;
@@ -2672,7 +2604,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _innerClipLayerRect = clip.shift(_filterPaintOffset);
       _rig.clipTo(_innerClipLayerRect!);
     }
-    // Also moves the pass, whose placement depends on where the glass is now.
     final remapped = syncCoordinateMapping();
     if (remapped && _canRebindFilter) _bindFilter();
   }

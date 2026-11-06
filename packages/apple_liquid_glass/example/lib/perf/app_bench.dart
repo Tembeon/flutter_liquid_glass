@@ -451,7 +451,7 @@ class _Journey {
       _ => '${layer.runtimeType}',
     };
     if (name != null) counts[name] = (counts[name] ?? 0) + 1;
-    if (name == 'BackdropFilterLayer' || name == 'SeededBackdropPassLayer') {
+    if (name == 'BackdropFilterLayer') {
       final chain = <String>[];
       for (
         var up = layer.parent;

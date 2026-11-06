@@ -19,11 +19,6 @@ void runOpacityCompositionBoundsTests(TestWidgetsFlutterBinding testBinding) {
   final binding = (testBinding as SubmittedSceneCapture)
     ..captureWidth = 240
     ..captureHeight = 160;
-  // flutter_tester renders a native seed's pass wrong and differently from
-  // run to run (see `pinPlainBackdropPath`); a device runs the production
-  // defaults.
-  if (binding.isFlutterTester) setUp(pinPlainBackdropPath);
-
   for (final fake in [true, false]) {
     testWidgets(
       'composition preserves foreground bounds and motion fake=$fake',
@@ -104,9 +99,6 @@ void runOpacityCompositionBoundsTests(TestWidgetsFlutterBinding testBinding) {
         List<int> pixel(Uint8List frame, int x, int y) =>
             frame.sublist((y * 240 + x) * 4, (y * 240 + x) * 4 + 4);
         final before = await capture();
-        if (!binding.isFlutterTester && !fake) {
-          expect(seededPasses(tester), isNotEmpty, reason: 'seeds are on');
-        }
         movement.value = const Offset(20, 0);
         final moved = await capture();
         expect(

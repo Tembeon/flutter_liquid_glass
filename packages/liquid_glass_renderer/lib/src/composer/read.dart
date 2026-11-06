@@ -8,8 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart'
     show frostFilterOf;
-import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart'
-    show glassBlurTileMode;
+import 'package:liquid_glass_renderer/src/internal/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/composer/form.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/scene_out.dart';
@@ -43,7 +42,7 @@ abstract interface class PlanSite {
   void showPage(Read read, PageCopy page);
 
   /// Reads the live backdrop.
-  void showLive();
+  void showLive(BackdropKey? group);
 
   /// Adds the read this site leads to [out], inside a copy of what lies under
   /// glass over it.
@@ -749,6 +748,19 @@ final class _Pages {
 }
 
 /// Draws a frame's [Plan]: every route of the frame is a value in there.
+// Keys of the frame's live groups, the same ones every frame, so a plan that
+// holds adds nothing to the scene again.
+final _liveKeys = <BackdropKey>[];
+
+BackdropKey? _liveKeyOf(Read read) {
+  final group = read.liveGroup;
+  if (group == null) return null;
+  while (_liveKeys.length <= group) {
+    _liveKeys.add(BackdropKey());
+  }
+  return _liveKeys[group];
+}
+
 @internal
 final class GlassEmit {
   final _pages = _Pages();
@@ -769,9 +781,6 @@ final class GlassEmit {
     _pages.retain(keep);
     for (var i = 0; i < plan.fates.length; i++) {
       form.siteNodes[i].site.beginFate(plan.fates[i]);
-    }
-    for (final pass in form.passes) {
-      pass.compose();
     }
     // What the pages hold reads the mattes paint and the fates wrote.
     FlutterGpuGeometryRenderer.flushPendingSubmissions();
@@ -796,7 +805,7 @@ final class GlassEmit {
           case ImageRead():
             lead.showPage(read, _pages.held(read)!);
           case LiveRead():
-            lead.showLive();
+            lead.showLive(_liveKeyOf(read));
         }
       }
     }

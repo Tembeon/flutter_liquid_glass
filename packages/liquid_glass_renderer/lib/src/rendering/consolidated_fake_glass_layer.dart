@@ -5,7 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
+import 'package:liquid_glass_renderer/src/internal/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/composer/scene_out.dart';
@@ -97,16 +97,12 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   /// separately served shape would sample the shared filter's output in
   /// overlapping pixels and compound both transfers; sharing one capture
   /// also collapses their backdrop readbacks into one.
-  final _share = BackdropShare();
+  final _share = BackdropKey();
 
   /// The read under the shared union clip.
   late final _sharedRig = _rig();
 
-  BackdropRig _rig() => BackdropRig(
-    plan: planBackdropPass,
-    share: _share,
-    seedWhileResizing: true,
-  );
+  BackdropRig _rig() => BackdropRig(key: _share);
 
   final _retainedFrameSlot = LayerHandle<ContainerLayer>();
 
@@ -324,7 +320,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
           effectOffset,
           filter: sharedFilter.full,
           frost: sharedFilter.frost,
-          blur: _passBlur(sharedFilter),
           bounds: bounds,
           outline: clipPath,
           reach: glassBlurReach(sharedFilter.sigma),
@@ -437,7 +432,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
           context,
           offset,
           filter: filter.full,
-          blur: _passBlur(filter),
           bounds: clipBounds,
           outline: shape.shape
               .getOuterPath(shapeBounds)
@@ -494,12 +488,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   @override
   void onPreparing() {
     runCompositorPoll();
-    // Where the glass is on screen decides how its passes are cut, and
-    // retained motion moves it without repainting.
-    _sharedRig.sync();
-    for (final rig in _separateRigs.values) {
-      rig.sync();
-    }
   }
 
   @override
@@ -532,10 +520,10 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   }
 
   @override
-  void showLive() {
+  void showLive(BackdropKey? group) {
     compositionSeedSuppressed = false;
     debugDrewOverCopy = false;
-    if (_sharedRig.hasSlot) _sharedRig.showLive();
+    if (_sharedRig.hasSlot) _sharedRig.showLive(group);
   }
 
   @override
@@ -546,11 +534,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   }
 
   // A glass without a blur, or that is nothing but a blur, needs no seed.
-  PassBlur? _passBlur(FakeGlassFilterParts parts) =>
-      parts.sigma > 0 && !identical(parts.withoutBlur, identityColorFilter)
-      ? PassBlur(sigma: parts.sigma, withoutBlur: parts.withoutBlur)
-      : null;
-
   @override
   void onCompositorTranslationMissed(
     ({bool needsRepaint, Offset? translation}) motion,

@@ -254,9 +254,9 @@ class LiquidGlass extends StatefulWidget {
   ///
   /// The first glass frame still creates its GPU pipelines, which stalls it
   /// on a mid-range Android phone when none are cached. With [warmUp] the
-  /// precache draws the shaders, backdrop filters, seeded passes and
-  /// shadows of glass layers and fake glass once, offscreen, so that frame
-  /// finds their pipelines created. Pipelines are cached on disk, so this
+  /// precache draws the shaders, backdrop filters and shadows of glass
+  /// layers and fake glass once, offscreen, so that frame finds their
+  /// pipelines created. Pipelines are cached on disk, so this
   /// spares only the first launch after an install or a cleared cache, while
   /// the offscreen draws cost every launch: it is off by default.
   ///

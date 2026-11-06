@@ -9,7 +9,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
@@ -301,41 +300,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
   @visibleForTesting
   Offset get debugCompositorTranslation => _effectTranslation;
-
-  /// Places the seeded pass around a backdrop effect clipped to
-  /// [innerLayerRect] (in the layer coordinates it is painted in, [paintOffset]
-  /// from this object's), whose blur reads [reach] past that clip.
-  ///
-  /// Inside a seeded fractional-opacity pass the effect already renders in a
-  /// pass that starts at the enclosing clips, so no extra pass is placed.
-  /// Neither is one without a blur to crop or where seeds are off (see
-  /// [seedsBackdrop]).
-  ///
-  /// A large pass is sized by [sizing], which keeps it from changing size on
-  /// every bucket step; each effect painting its own pass needs its own.
-  @protected
-  BackdropPassPlan planBackdropPass(
-    Rect innerLayerRect,
-    Offset paintOffset,
-    double reach,
-    BackdropPassSizing sizing,
-  ) => !seedsBackdrop || reach <= 0 || compositionProbeSeeding
-      ? BackdropPassPlan.unsupported
-      : planSeededBackdropPass(
-          owner: this,
-          innerLayerRect: innerLayerRect,
-          paintOffset: paintOffset,
-          translation: _effectTranslation,
-          reach: reach,
-          devicePixelRatio: devicePixelRatio,
-          ownerClip: retainedClipBounds,
-          sizing: sizing,
-        );
-
-  /// Whether this glass paints its backdrop effects in seeded passes (see
-  /// [SeededBackdropPassLayer.enabled]).
-  @protected
-  bool get seedsBackdrop => SeededBackdropPassLayer.enabled;
 
   /// Moves all layer-owned painting without recording it again.
   @protected

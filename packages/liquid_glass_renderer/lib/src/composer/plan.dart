@@ -372,6 +372,10 @@ final class Read {
   /// Whether what it holds differs from the last frame.
   bool changed = false;
 
+  /// The group of live reads that share one copy of the backdrop, taken at the
+  /// first of them, or null for a read on its own.
+  int? liveGroup;
+
   /// The targets this read issues, what it holds drawn again counted.
   int get targets {
     if (source is ImageRead) return 0;
@@ -866,6 +870,7 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
       notes.add('over budget at $issued: what is left can not use an image');
     }
   }
+  _groupLiveReads(reads);
   return (
     Plan(
       reads,
@@ -876,6 +881,44 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
     ),
     edits,
   );
+}
+
+// Live reads with nothing painted under the later ones since the first share
+// its copy of the backdrop: Impeller flips to a new target once, not per read
+// (BackdropKey). A read over another's glass has to see that glass, so it starts
+// a group of its own. Scroll edges and fake glass filter through a layer of
+// their own, with no key to take.
+void _groupLiveReads(List<Read> reads) {
+  var groups = 0;
+  final open = <Read>[];
+  void close() {
+    if (open.length > 1) {
+      for (final read in open) {
+        read.liveGroup = groups;
+      }
+      groups++;
+    }
+    open.clear();
+  }
+
+  for (final read in reads) {
+    final lead = read.lead;
+    if (read.source is! LiveRead ||
+        lead.look.isBand ||
+        lead.noJoin == NoJoin.noMatte) {
+      continue;
+    }
+    if (open.isNotEmpty) {
+      final first = open.first;
+      final apart =
+          first.lead.order >= lead.floor &&
+          lead.state.same(first.lead.state) &&
+          !open.any((other) => other.lead.drawn.overlaps(lead.reads));
+      if (!apart) close();
+    }
+    open.add(read);
+  }
+  close();
 }
 
 // What the content and the glass under [site] allow a read of it to be. A

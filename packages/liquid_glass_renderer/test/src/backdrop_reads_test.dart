@@ -3,16 +3,14 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 // What reads a backdrop or takes a copy of the screen: a layer that filters
-// the backdrop, the keys and groups that share one, a seeded pass, an
-// opacity pass's seed, a copy of what lies under a surface and the pictures
-// drawn over it, an image taken of a scene. Surfaces read through the
+// the backdrop, the keys and groups that share one, an opacity pass's seed, an
+// image taken of a scene. Surfaces read through the
 // composer's own types, such as LiquidGlassBackdropFilterLayer and
 // BackdropRig.
 final _read = RegExp(
   r'toImageSync\(|pushBackdropFilter\(|(?<![\w.])(?:BackdropFilterLayer|'
-  r'BackdropFilter|BackdropKey|BackdropGroup|SeededBackdropPassLayer|'
-  r'OpacitySeedLayer|BackdropUnderlay|UnderlayPictureLayer|'
-  r'GlassPictureLayer)\(',
+  r'BackdropFilter|BackdropKey|BackdropGroup|'
+  r'OpacitySeedLayer|GlassCopies)\(',
 );
 
 // The only reads outside the composer, per file. The shader warm-up draws
@@ -20,7 +18,8 @@ final _read = RegExp(
 // image is the empty 1x1 placeholder bound to the matte sampler. Every other
 // surface reads its backdrop through the view's composer.
 const _outsideComposer = {
-  'lib/src/internal/warm_up.dart': 5,
+  'lib/src/internal/warm_up.dart': 3,
+  'lib/src/rendering/consolidated_fake_glass_layer.dart': 1,
   'lib/src/rendering/liquid_glass_layer.dart': 1,
 };
 

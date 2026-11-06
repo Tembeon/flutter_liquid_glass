@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
-import 'shared.dart';
 import 'submitted_scene_binding.dart';
 
 const _width = 240;
@@ -17,8 +16,6 @@ void main() {
   final binding = SubmittedSceneBinding()
     ..captureWidth = _width
     ..captureHeight = _height;
-  setUp(pinPlainBackdropPath);
-
   Future<Uint8List> capture(WidgetTester tester) async {
     binding
       ..captureNextScene = true

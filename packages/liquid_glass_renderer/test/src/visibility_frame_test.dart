@@ -21,11 +21,6 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
   final binding = (testBinding as SubmittedSceneCapture)
     ..captureWidth = 240
     ..captureHeight = 160;
-  // flutter_tester renders a native seed's pass wrong and differently from
-  // run to run (see `pinPlainBackdropPath`); a device runs the production
-  // defaults.
-  if (binding.isFlutterTester) setUp(pinPlainBackdropPath);
-
   for (final grouped in [false, true]) {
     for (final mode in ['uniform', 'tint', 'response']) {
       testWidgets(
@@ -118,9 +113,6 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
           await tester.pumpWidget(buildScene(fresh: false));
           await tester.pumpAndSettle();
           final before = await capture();
-          if (!binding.isFlutterTester) {
-            expect(seededPasses(tester), isNotEmpty, reason: 'seeds are on');
-          }
           final layer = tester.allRenderObjects
               .whereType<RenderLiquidGlassLayer>()
               .last;

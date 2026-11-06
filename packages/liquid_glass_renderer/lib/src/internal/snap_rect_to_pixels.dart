@@ -1,22 +1,9 @@
 import 'package:flutter/rendering.dart';
 import 'package:meta/meta.dart';
 
-/// Device-pixel bucket sizes for render targets that would otherwise change
-/// size every frame: Impeller reuses an offscreen target only at exactly the
-/// same size, and allocating one stalls the frame (11-36 ms on a Pixel 10).
-@internal
-abstract final class PixelBuckets {
-  /// Most targets: a glass filter's clip, a shadow layer, a larger pass.
-  static const standard = 64;
-
-  /// Small backdrop passes (a pill or a button), where a 64 px bucket would
-  /// be a large share of the pass.
-  static const fine = 32;
-
-  /// Large backdrop passes while they resize. 64 px on a sheet that grows
-  /// 545 px/s is a new target every 7 frames; 256 px makes it every ~28.
-  static const coarse = 256;
-}
+// Impeller reuses an offscreen target only at exactly the same size, and
+// allocating one stalls the frame (11-36 ms on a Pixel 10).
+const _pixelBucket = 64;
 
 @internal
 extension SnapRectToPixels on Rect {
@@ -29,13 +16,10 @@ extension SnapRectToPixels on Rect {
     );
   }
 
-  /// Expands this rect outward to multiples of [bucketSize] device pixels
-  /// (see [PixelBuckets]).
-  Rect expandToPixelBuckets(
-    double devicePixelRatio, {
-    int bucketSize = PixelBuckets.standard,
-  }) {
-    final logicalBucket = bucketSize / devicePixelRatio;
+  /// Expands this rect outward to multiples of 64 device pixels, for a
+  /// render target that would otherwise change size every frame.
+  Rect expandToPixelBuckets(double devicePixelRatio) {
+    final logicalBucket = _pixelBucket / devicePixelRatio;
     return Rect.fromLTRB(
       (left / logicalBucket).floorToDouble() * logicalBucket,
       (top / logicalBucket).floorToDouble() * logicalBucket,

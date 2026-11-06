@@ -187,7 +187,8 @@ void main() {
     await tester.pumpWidget(_scene());
     expect(_band(tester).serves, isTrue);
     expect(tester.layers.whereType<BackdropFilterLayer>(), isEmpty);
-    expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(1));
+    // The copy reads as far as the blur's reach, the backdrop reads the pass.
+    expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(2));
 
     await tester.pumpWidget(_scene(band: false));
     expect(_difference(reading, await _pixels(tester)), greaterThan(40));

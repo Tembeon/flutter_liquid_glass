@@ -17,7 +17,6 @@ void main() {
     // over a solid and a fake glass surface; two shadows per glass shape.
     final finals = FinalShaderVariant.all.length;
     expect(debugWarmUpDraws?.filters, greaterThan(finals * 5));
-    expect(debugWarmUpDraws?.passes, finals + 1 + 2);
     expect(debugWarmUpDraws?.paints, finals + 1);
     expect(debugWarmUpDraws?.shadows, 6);
 

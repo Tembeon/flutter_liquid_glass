@@ -7,7 +7,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_frost.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
@@ -232,55 +231,23 @@ const _identityMatrix = <double>[
   0, 0, 0, 1, 0,
 ];
 
-/// Places a rig's pass around a clip, given in the layer coordinates it is
-/// painted in, the paint offset from the owner, how far the blur reads past
-/// the clip, and the [BackdropPassSizing] that holds the pass's size from
-/// frame to frame.
-@internal
-typedef BackdropPassPlanner = BackdropPassPlan Function(
-  Rect inner,
-  Offset offset,
-  double reach,
-  BackdropPassSizing sizing,
-);
-
-/// How a surface reads its backdrop: live, as a backdrop filter in a clip,
-/// the clip in a seeded pass where seeds are on (see
-/// [SeededBackdropPassLayer]), or over a copy of what lies under it, as the
-/// frame's plan says.
+/// How a surface reads its backdrop: live, as a backdrop filter in a clip, or
+/// over a copy of what lies under it, as the frame's plan says.
 ///
 /// The clip is the surface's outline, or a rect, and the rig keeps its
 /// layers from frame to frame.
 @internal
 class BackdropRig {
-  /// Creates a rig whose passes are placed by [plan] and whose reads share
-  /// [share], if any.
-  BackdropRig({
-    required this.plan,
-    this.share,
-    this.seedWhileResizing = false,
-    this.onActiveChanged,
-  });
+  /// Creates a rig whose live reads share the backdrop of [key], if any.
+  BackdropRig({this.key});
 
-  /// Places the pass.
-  final BackdropPassPlanner plan;
-
-  /// The backdrop read this rig shares with others, if any.
-  final BackdropShare? share;
-
-  /// Whether the pass stays seeded while its size changes (see
-  /// [SeededBackdropPassLayer.seedWhileResizing]).
-  final bool seedWhileResizing;
-
-  /// Runs, after the clip follows, when the pass starts or stops being in
-  /// effect as it composes.
-  final VoidCallback? onActiveChanged;
+  /// The backdrop this rig reads live, shared with every other rig of the key,
+  /// when the frame's plan gives it no other.
+  final BackdropKey? key;
 
   final _filter = LayerHandle<BackdropFilterLayer>();
   final _clipPath = LayerHandle<ClipPathLayer>();
   final _clipRect = LayerHandle<ClipRectLayer>();
-  final _pass = LayerHandle<SeededBackdropPassLayer>();
-  final _sizing = BackdropPassSizing();
 
   final _slot = LayerHandle<GlassSlotLayer>();
   final _read = LayerHandle<ReadLayer>();
@@ -292,32 +259,10 @@ class BackdropRig {
   _Asked? _asked;
   ui.FragmentShader? _frostShader;
 
-  Rect? _inner;
-  Offset _offset = Offset.zero;
-  double _reach = 0;
-  BackdropPassPlan _plan = BackdropPassPlan.unsupported;
-
-  // The clip without a pass: the outline, or the rect.
   Path? _outline;
-  Rect? _clipBounds;
-
-  Rect? _rectPathRect;
-  Path? _rectPath;
 
   /// The filter layer the rig reads the backdrop with.
   BackdropFilterLayer? get filterLayer => _filter.layer;
-
-  /// The pass the filter paints in, if the rig has one.
-  SeededBackdropPassLayer? get passLayer => _pass.layer;
-
-  /// The pass's plan while it is in effect, otherwise
-  /// [BackdropPassPlan.unsupported].
-  BackdropPassPlan get passPlan =>
-      _pass.layer?.passRect != null ? _plan : BackdropPassPlan.unsupported;
-
-  /// Whether the pass last placed changes size, which it stops doing after
-  /// being placed unchanged for some frames.
-  bool get passResizing => _plan.resizing;
 
   /// Whether the rig has painted its clip.
   bool get hasClip => _clipRect.layer != null || _clipPath.layer != null;
@@ -365,10 +310,11 @@ class BackdropRig {
   /// The picture [pagePicture] last drew.
   ui.Picture? get pageShown => _page.layer?.picture;
 
-  /// Shows the live read.
-  void showLive() {
+  /// Shows the live read, taken from the backdrop of [group] where the frame's
+  /// plan shares one between reads.
+  void showLive(BackdropKey? group) {
+    _filter.layer?.backdropKey = group ?? key;
     show(null);
-    _pass.layer?.compose();
   }
 
   /// Leaves no slot until the next [paintSite].
@@ -382,7 +328,7 @@ class BackdropRig {
     assert(under == null || served != null, 'Only a copy covers [under].');
     final slot = _slot.layer;
     if (slot == null) return;
-    final child = served ?? _pass.layer ?? _clipRect.layer ?? _clipPath.layer;
+    final child = served ?? _clipRect.layer ?? _clipPath.layer;
     if (child == null) {
       slot.removeAllChildren();
       return;
@@ -408,39 +354,11 @@ class BackdropRig {
     if (slot?.firstChild != null) slot!.removeAllChildren();
   }
 
-  /// Whether the rig has a pass.
-  bool get usesPass => _pass.layer != null;
-
-  /// Gives the rig a pass, or takes it away.
-  set usesPass(bool value) {
-    if (!value) {
-      _clearPass();
-      return;
-    }
-    if (_pass.layer != null) return;
-    final pass = SeededBackdropPassLayer(
-      seedWhileResizing: seedWhileResizing,
-    );
-    pass.onActiveChanged = _activeChanged;
-    _pass.layer = pass;
-  }
-
-  void _activeChanged() {
-    _syncChildClip();
-    onActiveChanged?.call();
-  }
-
-  /// Hands [filter] to the filter layer, and to the pass, which takes over
-  /// a [blur] when it seeds its backdrop with it (see
-  /// [SeededBackdropPassLayer.bindFilter]).
-  void bindFilter(ui.ImageFilter filter, PassBlur? blur) {
+  /// Hands [filter] to the filter layer.
+  void bindFilter(ui.ImageFilter filter) {
     final backdrop = _filter.layer ??= _newFilterLayer();
     backdrop.filter = filter;
-    if (_pass.layer case final pass?) {
-      pass.bindFilter(backdrop, share, blur: blur);
-    } else {
-      backdrop.backdropKey = share?.key;
-    }
+    backdrop.backdropKey ??= key;
   }
 
   // A filter made after the clip was painted goes into the clip: a retained
@@ -457,31 +375,9 @@ class BackdropRig {
     _filter.layer = null;
   }
 
-  /// Plans the pass around [inner], in the pass layer's parent's
-  /// coordinates, [offset] from the owner, for a blur reaching [reach] past
-  /// it. A null [inner] plans no pass.
-  void place(Rect? inner, Offset offset, double reach) {
-    _inner = inner;
-    _offset = offset;
-    _reach = reach;
-    sync();
-  }
-
-  /// Places the pass where the surface is on screen now: retained motion
-  /// moves it without a repaint.
-  void sync() {
-    final pass = _pass.layer;
-    final inner = _inner;
-    _plan = pass == null || inner == null
-        ? BackdropPassPlan.unsupported
-        : plan(inner, _offset, _reach, _sizing);
-    pass?.apply(_plan);
-    _syncChildClip();
-  }
-
-  /// Paints the pass, the clip [outline] (or the rect [bounds] without one)
-  /// and the filter in it, [offset] from [context]'s layer. Without
-  /// [drawsFilter] the clip is empty.
+  /// Paints the clip [outline] (or the rect [bounds] without one) and the filter
+  /// in it, [offset] from [context]'s layer. Without [drawsFilter] the clip is
+  /// empty.
   void paintLive(
     PaintingContext context,
     Offset offset, {
@@ -519,28 +415,19 @@ class BackdropRig {
         _clipPath.layer = layer;
         _outline = layer?.clipPath;
       }
-      _syncChildClip();
     }
 
-    if (_pass.layer case final pass?) {
-      context.pushLayer(pass, paintClip, offset);
-    } else {
-      paintClip(context, offset);
-    }
+    paintClip(context, offset);
   }
 
   /// Paints [filter] over the backdrop inside [outline], whose bounds are
-  /// [bounds]. With seeds on and a [blur] to crop, the filter paints in a
-  /// pass reaching [reach] past [bounds], seeded by a small backdrop filter,
-  /// and reads that pass; otherwise only the clip and the filter (and, with a
-  /// [site], the slot around them). With a [site], its fate can draw the filter
-  /// over a copy of what lies under [outline] instead: where [frost] stands for
-  /// [filter], an unblurred copy frosted by a shader.
+  /// [bounds], reading [reach] past them. With a [site], its fate can draw the
+  /// filter over a copy of what lies under [outline] instead: where [frost]
+  /// stands for [filter], an unblurred copy frosted by a shader.
   void paint(
     PaintingContext context,
     Offset offset, {
     required ui.ImageFilter filter,
-    required PassBlur? blur,
     required Rect bounds,
     required Path outline,
     required double reach,
@@ -548,10 +435,7 @@ class BackdropRig {
     PlanSite? site,
     LiquidGlassBackdropFrost? frost,
   }) {
-    final seeds = SeededBackdropPassLayer.enabled && blur != null;
-    usesPass = seeds;
-    if (seeds) place(bounds.shift(offset), offset, reach);
-    bindFilter(filter, blur);
+    bindFilter(filter);
     _asked = site != null
         ? (
             filter: filter,
@@ -571,9 +455,9 @@ class BackdropRig {
   }
 
   /// Writes what the frame's plan reads of the filter this rig last painted,
-  /// which reads an image whenever it reads a copy: the live filter reads a
-  /// pass reaching past its clip (or the whole backdrop), not the backdrop cut
-  /// at the clip, so a filtered copy is filtered over all it holds.
+  /// which reads an image whenever it reads a copy: the live filter reads the
+  /// whole backdrop, not the backdrop cut at the clip, so a filtered copy is
+  /// filtered over all it holds.
   void fillPlanFacts(SiteFacts facts) {
     final asked = _asked;
     final anchor = _slot.layer;
@@ -659,71 +543,20 @@ class BackdropRig {
     );
   }
 
-  /// Sets the clip rect the rig has without a pass, in the pass layer's
-  /// parent's coordinates, and makes the clip follow.
+  /// Sets the clip rect the rig has in place of an outline.
   void clipTo(Rect bounds) {
-    _clipBounds = bounds;
-    _syncChildClip();
-  }
-
-  // The backdrop filter's saveLayer takes the size of its clip, Impeller
-  // crops it at the screen edge, and it reuses an offscreen target only at
-  // exactly the same size, so a surface growing from a screen edge would
-  // resize it nearly every frame. The pass rect is on a global pixel grid,
-  // already cut to the screen, and contains the clip, so while the pass is
-  // in effect the filter paints the whole of it and the pass clears
-  // everything outside the real clip (SeededBackdropPassLayer.silhouette).
-  void _syncChildClip() {
-    final pass = _pass.layer;
-    final rect = pass?.passRect;
-    if (_clipPath.layer case final clip?) {
-      final outline = _outline;
-      if (outline == null) return;
-      pass?.silhouette = outline;
-      final wanted = rect == null ? outline : _rectPathOf(rect);
-      if (!identical(clip.clipPath, wanted)) clip.clipPath = wanted;
-      return;
-    }
     final clip = _clipRect.layer;
-    final inner = _clipBounds;
-    if (clip == null || inner == null) return;
-    if (pass == null || rect == null) {
-      pass?.silhouette = null;
-      if (clip.clipRect != inner) clip.clipRect = inner;
-      return;
-    }
-    pass.silhouette = _rectPathOf(inner);
-    if (clip.clipRect != rect) clip.clipRect = rect;
-  }
-
-  // A path of exactly [rect], the same object for the same rect.
-  Path _rectPathOf(Rect rect) {
-    if (_rectPath case final path? when _rectPathRect == rect) return path;
-    final path = Path();
-    path.addRect(rect);
-    _rectPathRect = rect;
-    return _rectPath = path;
-  }
-
-  void _clearPass() {
-    _pass.layer?.onActiveChanged = null;
-    _pass.layer = null;
-    _inner = null;
-    _plan = BackdropPassPlan.unsupported;
+    if (clip != null && clip.clipRect != bounds) clip.clipRect = bounds;
   }
 
   /// Releases every layer but the picture over the copy.
   void clear() {
-    _clearPass();
     _asked = null;
     _slot.layer = null;
     _filter.layer = null;
     _clipPath.layer = null;
     _clipRect.layer = null;
     _outline = null;
-    _clipBounds = null;
-    _rectPath = null;
-    _rectPathRect = null;
   }
 
   /// Releases every layer.

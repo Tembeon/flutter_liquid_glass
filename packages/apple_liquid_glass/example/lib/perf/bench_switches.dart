@@ -8,8 +8,6 @@ import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/renderer/scroll_edge.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart'
     show Policy, Prices;
@@ -65,9 +63,6 @@ final benchSwitches = <String, void Function({required bool on})>{
   // B adds a texture to a read's scene again, A reads the backdrop live over
   // it. B only shows true where the texture shows the same frame in both.
   'texture_in_scene': ({required on}) => GlassCopies.debugTextureInScene = on,
-  // B reads live without a seeded pass.
-  'plain_live': ({required on}) => SeededBackdropPassLayer.debugModeOverride =
-      on ? BackdropSeed.none : null,
   // B: scroll edges only fade, without blur.
   'edge_fade': ({required on}) => debugSetEdgeBlurs(on: !on),
   // B leaves a backdrop frost out of a copy for wider frosted glass.

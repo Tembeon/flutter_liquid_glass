@@ -91,7 +91,7 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
   void showPage(Read read, PageCopy page) {}
 
   /// See [PlanSite.showLive].
-  void showLive() {}
+  void showLive(BackdropKey? group) {}
 
   /// See [PlanSite.addOutput].
   void addOutput(SceneOut out, ReadCopy outer) {}
@@ -199,8 +199,8 @@ class GeometryTransformTrackingLayer extends OffsetLayer
   }
 
   @override
-  void showLive() {
-    if (_live) _site!.showLive();
+  void showLive(BackdropKey? group) {
+    if (_live) _site!.showLive(group);
   }
 
   @override

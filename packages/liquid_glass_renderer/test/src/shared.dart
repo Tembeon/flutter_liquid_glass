@@ -4,7 +4,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart' hide Form;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/form.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
@@ -62,40 +61,6 @@ Widget buildWithGridPaper(Widget child) {
     ),
   );
 }
-
-/// Pins the optimization that changes what the plain backdrop path draws or
-/// how many passes it costs (the native seeds) off for the current test, so it
-/// measures that path whatever `--dart-define`s set the default to
-/// (`melos run test:defaults` runs the suite with the production one). A test
-/// that wants seeds turns them on itself, after this. Call it from `setUp`;
-/// the flag is restored after the test.
-///
-/// Also used by the tests that compare captured pixels of real glass, in
-/// flutter_tester: it renders a seeded pass of real glass wrongly there
-/// (colour and alpha, differently from run to run: the foreground painted
-/// after the pass is erased, or the whole frame comes out partly transparent),
-/// while macOS Metal renders it exactly as the plain path does. The same
-/// scenes run unpinned on a device by the `*_device_test.dart` wrappers in
-/// `example/integration_test`.
-void pinPlainBackdropPath() {
-  final override = SeededBackdropPassLayer.debugModeOverride;
-  SeededBackdropPassLayer.debugModeOverride = BackdropSeed.none;
-  addTearDown(() => SeededBackdropPassLayer.debugModeOverride = override);
-}
-
-/// The passes of the current frame that are natively seeded.
-///
-/// A device run uses the production defaults, so a scene with a blurred glass
-/// has some; a host run pins them off (see [pinPlainBackdropPath]).
-List<SeededBackdropPassLayer> seededPasses(WidgetTester tester) => tester
-    .binding
-    .renderViews
-    .single
-    .debugLayer!
-    .depthFirstIterateChildren()
-    .whereType<SeededBackdropPassLayer>()
-    .where((pass) => pass.nativeSeed != BackdropSeed.none)
-    .toList();
 
 /// Draws every copy of the current test into an image, as copies asked for
 /// with a filter always are, for tests of how images are shared and held.

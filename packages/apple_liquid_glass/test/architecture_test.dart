@@ -16,7 +16,7 @@ const _banned = [
 // (LiquidGlassBackdropFilterLayer for a filter of the widget layer's own).
 final _read = RegExp(
   r'toImageSync\(|pushBackdropFilter\(|(?<![\w.])(?:BackdropFilterLayer|'
-  r'BackdropFilter|BackdropKey|BackdropGroup|SeededBackdropPassLayer)\(',
+  r'BackdropFilter|BackdropKey|BackdropGroup)\(',
 );
 
 // Code the stack replaced, with the files that still hold it. A listed file

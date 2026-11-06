@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/internal/fake_glass_color.dart';
@@ -505,19 +504,10 @@ void main() {
         find.byType(ConsolidatedFakeGlassLayer).last,
       );
       // Both filters share the layer's capture.
-      // With native seeds on, a filter inside its pass has no key and the
-      // pass remembers it instead.
-      BackdropKey? keyOf(BackdropFilterLayer filter) {
-        for (Layer? l = filter; l != null; l = l.parent) {
-          if (l is SeededBackdropPassLayer) return l.backdropGroupKey;
-        }
-        return filter.backdropKey;
-      }
-
-      final sharedKey = keyOf(layer.debugBackdropFilterLayer!);
+      final sharedKey = layer.debugBackdropFilterLayer!.backdropKey;
       expect(sharedKey, isNotNull);
       expect(
-        keyOf(layer.debugSeparateBackdropLayers.single),
+        layer.debugSeparateBackdropLayers.single.backdropKey,
         same(sharedKey),
       );
 

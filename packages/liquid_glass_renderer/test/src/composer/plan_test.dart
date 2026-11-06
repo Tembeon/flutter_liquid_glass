@@ -288,6 +288,70 @@ void main() {
     });
   });
 
+  group('live groups', () {
+    // Different looks keep the reads apart, so each one is a read of its own.
+    _Scene live(List<SiteFacts> sites) {
+      final scene = _Scene(sites);
+      scene.platformBefore = 0;
+      return scene;
+    }
+
+    List<SiteFacts> pair({double gap = 200}) => [
+      _site(1, const Rect.fromLTWH(8, 100, 44, 44)),
+      _site(3, Rect.fromLTWH(8 + gap, 100, 44, 44), look: 1),
+    ];
+
+    test('glass side by side shares one backdrop grab', () {
+      final plan = _plan(live(pair()));
+      expect(plan.reads, hasLength(2));
+      expect(plan.reads.every((read) => read.source is LiveRead), isTrue);
+      expect(plan.reads.first.liveGroup, isNotNull);
+      expect(plan.reads.last.liveGroup, plan.reads.first.liveGroup);
+    });
+
+    test('keeps a read apart when something paints under it', () {
+      final sites = pair();
+      sites.last.floor = 2;
+      final plan = _plan(live(sites));
+      expect(plan.reads.map((read) => read.liveGroup), [null, null]);
+    });
+
+    test('keeps a read apart when it reads what the last one drew', () {
+      final plan = _plan(live(pair(gap: 30)));
+      expect(plan.reads.map((read) => read.liveGroup), [null, null]);
+    });
+
+    test('keeps a read apart under another clip', () {
+      final sites = pair();
+      sites.last.state = const StateChain(StateChain.root, 'clip');
+      final plan = _plan(live(sites));
+      expect(plan.reads.map((read) => read.liveGroup), [null, null]);
+    });
+
+    test('leaves out glass that has no matte', () {
+      final sites = pair();
+      sites.last.noJoin = NoJoin.noMatte;
+      final plan = _plan(live(sites));
+      expect(plan.reads.map((read) => read.liveGroup), [null, null]);
+    });
+
+    test('numbers runs apart', () {
+      final sites = [
+        ...pair(),
+        _site(5, const Rect.fromLTWH(8, 300, 44, 44), look: 2, floor: 4),
+        _site(7, const Rect.fromLTWH(208, 300, 44, 44), look: 3, floor: 4),
+      ];
+      final plan = _plan(live(sites));
+      final groups = [for (final read in plan.reads) read.liveGroup];
+      expect(groups, [0, 0, 1, 1]);
+    });
+
+    test('never groups a read that uses a scene copy or an image', () {
+      final plan = _plan(_Scene(pair()));
+      expect(plan.reads.map((read) => read.liveGroup), everyElement(isNull));
+    });
+  });
+
   group('every generated frame', () {
     const seeds = 3000;
 

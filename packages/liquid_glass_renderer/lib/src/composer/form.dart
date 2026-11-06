@@ -2,7 +2,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_filter_layer.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
@@ -50,9 +49,6 @@ final class Form implements Scenery {
   /// The site nodes, parallel to [sites].
   List<SiteNode> get siteNodes => _siteNodes;
 
-  /// The seeded passes the walk found outside every slot, in paint order.
-  List<SeededBackdropPassLayer> get passes => _passes;
-  final List<SeededBackdropPassLayer> _passes = [];
 
   @override
   Rect get screen => _screen;
@@ -81,7 +77,6 @@ final class Form implements Scenery {
     _volatileCount = 0;
     _sites.length = 0;
     _siteNodes.length = 0;
-    _passes.length = 0;
     _screen = Offset.zero & (physicalSize / devicePixelRatio);
     if (!identical(root, _root) || devicePixelRatio != _dpr) {
       _root = root;
@@ -609,8 +604,6 @@ FormNode _nodeOf(Layer layer) {
       return OwnNode(layer);
     case BackdropFilterLayer():
       return VolatileNode(layer, ReadLimit.liveOnly);
-    case SeededBackdropPassLayer():
-      return PassNode(layer);
     case LiquidGlassBackdropFilterLayer():
       return SiteNode(layer);
     case GeometryTransformTrackingLayer():
@@ -658,20 +651,6 @@ class PlainNode extends OpenNode {
 
   @override
   bool updateWorld(FormWorld outside) => world.inherit(outside);
-}
-
-/// A seeded pass painted in the tree: it decides how it seeds as the frame
-/// composes.
-@internal
-final class PassNode extends PlainNode {
-  /// Creates the node.
-  PassNode(SeededBackdropPassLayer super.layer);
-
-  @override
-  bool refreshIn(Form form, FormWorld outside) {
-    form._passes.add(layer as SeededBackdropPassLayer);
-    return super.refreshIn(form, outside);
-  }
 }
 
 /// All one glass paints: what lies here moves back with its glass or lies over

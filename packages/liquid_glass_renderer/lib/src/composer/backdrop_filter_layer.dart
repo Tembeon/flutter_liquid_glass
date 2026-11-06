@@ -7,7 +7,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_frost.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/form.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
@@ -30,8 +29,7 @@ import 'package:liquid_glass_renderer/src/internal/shader_frost.dart';
 /// would be, which serves later frames while those layers are unchanged. Under
 /// a texture, a platform view, a live backdrop filter or a layer type the copy
 /// cannot draw (see `LiquidGlassUnderlay`) it reads the backdrop like a
-/// [BackdropFilterLayer], confined to [reach] around [clip] while
-/// [confinesRead].
+/// [BackdropFilterLayer].
 ///
 /// The filter applies to the screen-aligned backdrop: under a transform that
 /// scales or turns the layer, it reads the backdrop.
@@ -45,7 +43,6 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     required this._reach,
     required this._devicePixelRatio,
     this._blendMode = BlendMode.srcOver,
-    this.confinesRead = true,
   });
 
   /// Creates the layer for [frost], drawn from an unblurred copy wherever a
@@ -57,16 +54,8 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     required this._reach,
     required this._devicePixelRatio,
     this._blendMode = BlendMode.srcOver,
-    this.confinesRead = true,
   }) : _frost = frost,
        _filter = frost.filter;
-
-  /// Whether a live read is confined to [reach] around [clip]: a pass of
-  /// that size, seeded with the backdrop, is what the filter reads. Without
-  /// it the filter reads the pass it composites in, as a
-  /// [BackdropFilterLayer] does, which inside a fractional opacity is the
-  /// group's own layer.
-  final bool confinesRead;
 
   /// The filter applied to what lies under [clip], composited over it as a
   /// [BackdropFilterLayer] composites its output.
@@ -352,7 +341,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   }
 
   @override
-  void showLive() => _showNothing();
+  void showLive(BackdropKey? group) => _showNothing();
 
   @override
   void addOutput(SceneOut out, ReadCopy outer) {
@@ -405,21 +394,11 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
       if (!drawsGroup) addChildrenToScene(builder);
       return;
     }
-    if (confinesRead) {
-      builder.pushClipRect(_clip.inflate(_reach), clipBehavior: Clip.hardEdge);
-      // Under the clip, an identity read gives the filter inside it a pass
-      // of the clip's size to read instead of the whole pass behind it.
-      builder.pushBackdropFilter(identityColorFilter, blendMode: BlendMode.src);
-    }
     builder.pushClipRect(_clip, clipBehavior: Clip.hardEdge);
     builder.pushBackdropFilter(_filter, blendMode: _blendMode);
     addChildrenToScene(builder);
     builder.pop();
     builder.pop();
-    if (confinesRead) {
-      builder.pop();
-      builder.pop();
-    }
   }
 
   @override

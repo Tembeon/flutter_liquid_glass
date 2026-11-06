@@ -9,22 +9,16 @@ import 'package:meta/meta.dart';
 ///
 /// Filter fragment coordinates are local to the innermost enclosing pass: the
 /// screen at the root, else a seeded fractional-opacity pass ([seeding])
-/// bounded by the enclosing clips. When that pass wraps the effect itself,
-/// pass its screen-space top-left as [passOrigin]; it takes precedence over
-/// [seeding].
+/// bounded by the enclosing clips.
 @internal
 Matrix4 filterPassTransform(
   RenderObject owner, {
   required bool seeding,
   required double devicePixelRatio,
   required Offset translation,
-  Offset? passOrigin,
 }) {
   final Matrix4 transform;
-  if (passOrigin != null) {
-    transform = screenTransformOf(owner)
-      ..leftTranslateByDouble(-passOrigin.dx, -passOrigin.dy, 0, 1);
-  } else if (seeding) {
+  if (seeding) {
     final origin = GlassCompositionProbe.seededPassOrigin(
       owner,
       devicePixelRatio,

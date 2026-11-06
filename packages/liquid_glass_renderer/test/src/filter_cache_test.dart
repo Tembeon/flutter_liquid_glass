@@ -7,7 +7,6 @@ import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'shared.dart';
 
 void main() {
-  setUp(pinPlainBackdropPath);
   RenderLiquidGlassLayer findLayer(WidgetTester tester) {
     return tester.allRenderObjects.whereType<RenderLiquidGlassLayer>().last;
   }
