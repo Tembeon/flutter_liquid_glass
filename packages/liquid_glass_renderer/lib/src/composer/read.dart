@@ -7,7 +7,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart'
-    show debugFrostsInPlace, frostFilterOf;
+    show frostFilterOf;
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart'
     show glassBlurTileMode;
 import 'package:liquid_glass_renderer/src/composer/form.dart';
@@ -525,9 +525,7 @@ final class _Tile {
   // inPlaceFrostFilter). A page holding glass holds it at the screen's pixels,
   // where the frost would cost more than the taps.
   double get holdsFrost =>
-      debugFrostsInPlace && !filtered && grid._share >= 2
-      ? copy.read.frost
-      : 0;
+      copy.read.bakesFrost && !filtered ? copy.read.frost : 0;
 
   // How `backdrop_frost.frag` frosts the page in a layer of its own.
   FrostSampling frostSampling(double frost) {

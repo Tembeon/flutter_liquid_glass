@@ -150,11 +150,6 @@ ui.ImageFilter frostFilter(
   return shaderFilterNow(shader);
 }
 
-/// Whether a copy smaller than the screen is frosted once, at its own pixels,
-/// rather than by every fragment of the glass over it.
-@internal
-bool debugFrostsInPlace = true;
-
 ui.FragmentShader? _inPlaceFrost;
 
 /// The filter that frosts [read]'s copy in place for Impeller's blur by
@@ -167,7 +162,6 @@ ui.FragmentShader? _inPlaceFrost;
 /// photos, for one more pass and +0.4 ms on the raster thread.
 @internal
 ui.ImageFilter? inPlaceFrostFilter(CornerRead read, double frost) {
-  if (!debugFrostsInPlace) return null;
   final sampling = read.inPlaceFrostSampling(frost);
   return sampling == null ? null : frostFilterOf(sampling);
 }

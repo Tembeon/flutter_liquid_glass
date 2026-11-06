@@ -310,7 +310,7 @@ final class CornerRead {
   /// its own pixels, for Impeller's blur by [frost], or null when the copy is
   /// too large for that to pay: glass then frosts it fragment by fragment.
   FrostSampling? inPlaceFrostSampling(double frost) {
-    if (frost <= 0 || _share < 2) return null;
+    if (frost <= 0 || !_copy.read.bakesFrost) return null;
     final at = _at;
     final size = _copySize;
     final pixels = _copy._grid._pixels;

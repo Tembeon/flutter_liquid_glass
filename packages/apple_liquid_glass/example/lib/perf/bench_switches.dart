@@ -9,6 +9,7 @@ import 'package:apple_liquid_glass/src/renderer/scroll_edge.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart'
     show Policy, Prices;
@@ -44,10 +45,11 @@ final benchSwitches = <String, void Function({required bool on})>{
   'cadence': ({required on}) => FrameCadence.enabled = on,
   'wide_frost': ({required on}) => debugShaderFrostMaxDownscale = on ? 8 : 4,
   // B frosts a small copy once, A in every fragment of the glass over it.
-  'in_place': ({required on}) => debugFrostsInPlace = on,
+  'in_place': ({required on}) =>
+      GlassComposer.debugPolicy = Policy(bakesFrost: on),
   // B also takes the smallest copy the frost allows, so most frost is baked.
   'bake': ({required on}) {
-    debugFrostsInPlace = on;
+    GlassComposer.debugPolicy = Policy(bakesFrost: on);
     RenderLiquidGlassLayer.debugFrostMinTexels = on ? 1.0 : double.infinity;
   },
   // B: copies as small as the frost allows, A: as large.
@@ -57,6 +59,15 @@ final benchSwitches = <String, void Function({required bool on})>{
   'promotes': ({required on}) => GlassComposer.debugPrices = on
       ? const Prices()
       : const Prices(imageGpu: 1e6),
+  // B: a frame past its targets moves reads to images, A stays over.
+  'overflow': ({required on}) =>
+      GlassComposer.debugPolicy = Policy(maxTargets: on ? 8 : 1024),
+  // B adds a texture to a read's scene again, A reads the backdrop live over
+  // it. B only shows true where the texture shows the same frame in both.
+  'texture_in_scene': ({required on}) => GlassCopies.debugTextureInScene = on,
+  // B reads live without a seeded pass.
+  'plain_live': ({required on}) => SeededBackdropPassLayer.debugModeOverride =
+      on ? BackdropSeed.none : null,
   // B: scroll edges only fade, without blur.
   'edge_fade': ({required on}) => debugSetEdgeBlurs(on: !on),
   // B leaves a backdrop frost out of a copy for wider frosted glass.

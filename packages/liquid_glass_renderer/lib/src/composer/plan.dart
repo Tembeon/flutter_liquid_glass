@@ -131,9 +131,6 @@ enum NoJoin {
   /// Its glow is drawn per surface.
   glow,
 
-  /// What lies under it comes from an image, with no filter of its own.
-  held,
-
   /// Its backdrop shrinks towards its own center.
   shrink,
 
@@ -362,6 +359,10 @@ final class Read {
   /// The room of an image bought or held this frame, on the screen.
   Rect? imageRect;
 
+  /// Whether its copy holds the frost, frosted once at the copy's own pixels,
+  /// so glass takes one read per fragment in place of its taps.
+  bool bakesFrost = false;
+
   /// The frost of the glass that reads it, in logical pixels.
   double get frost => lead.look.isBand ? 0 : lead.look.frost;
 
@@ -553,7 +554,12 @@ final class Policy {
     this.bands = true,
     this.copies = true,
     this.dropsFrost = true,
+    this.bakesFrost = true,
   });
+
+  /// Whether a copy smaller than the screen is frosted once rather than by
+  /// every fragment of the glass over it.
+  final bool bakesFrost;
 
   /// Whether a band under glass that frosts as wide stays out of what the
   /// glass reads, the glass adding its frost to its own.
@@ -769,6 +775,10 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
       read.holds.add(below);
       read.level = math.max(read.level, below.level + 1);
     }
+    // A copy holding glass lies at the screen's pixels, where a frost costs
+    // more than the taps it saves.
+    read.bakesFrost =
+        policy.bakesFrost && read.downscale >= 2 && read.holds.isEmpty;
   }
 
   final edits = LedgerEdits();
