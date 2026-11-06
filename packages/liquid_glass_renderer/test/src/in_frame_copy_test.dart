@@ -395,7 +395,8 @@ void main() {
         expect(
           GlassCopies.debugImagesDrawn,
           lessThanOrEqualTo(images + 1),
-          reason: 'glass moves within the room of its image, which grows when '
+          reason:
+              'glass moves within the room of its image, which grows when '
               'it runs out, while the page holds still',
         );
         expect(

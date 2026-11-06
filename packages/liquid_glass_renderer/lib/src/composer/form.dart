@@ -121,8 +121,10 @@ final class Form implements Scenery {
 
   /// Notes that [site]'s glass moved or changed, which what lies over it reads.
   void noteSiteDrawn(SiteFacts site, Rect before, Object? stampBefore) {
-    final around = site.state.same(site.noted.$1) && site.clip == site.noted.$2;
-    site.noted = (site.state, site.clip);
+    final (state, clip, hidden) = site.noted;
+    final around =
+        site.state.same(state) && site.clip == clip && site.hidden == hidden;
+    site.noted = (site.state, site.clip, site.hidden);
     if (around && before == site.drawn && stampBefore == site.stamp) return;
     dirty.add(site.order, _union(before, site.drawn));
   }

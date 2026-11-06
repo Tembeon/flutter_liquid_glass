@@ -110,6 +110,14 @@ final class GlassComposer extends PipelineOwner {
 
   bool _composing = false;
 
+  // Whether glass painted since the last plan: it paints a slot the plan fills.
+  bool _painted = true;
+
+  /// Notes that a site of [owner]'s composer painted this frame.
+  static void sitePainted(PipelineOwner owner) {
+    _of(owner)?._painted = true;
+  }
+
   // The frame this composer planned the scene of.
   Duration? _planned;
 
@@ -134,7 +142,8 @@ final class GlassComposer extends PipelineOwner {
     if (root == null) return;
     _composing = true;
     try {
-      _composition.run(root);
+      _composition.run(root, painted: _painted);
+      _painted = false;
       _planned = SchedulerBinding.instance.currentFrameTimeStamp;
     } finally {
       _composing = false;
@@ -246,7 +255,35 @@ final class _Composition {
   final _ledger = Ledger();
   final _emit = GlassEmit();
 
-  void run(ContainerLayer root) {
+  Plan? _plan;
+  List<SiteFacts> _planSites = const [];
+  Policy? _planPolicy;
+  Prices? _planPrices;
+  Rect _planScreen = Rect.zero;
+  bool _planExplained = false;
+
+  // Whether the last plan stands: nothing painted or changed and no read is due
+  // an image. What it drew is in the layers and stays there.
+  bool _stands(Form form, Policy policy, Prices prices, bool explain) {
+    final plan = _plan;
+    if (plan == null ||
+        !form.dirty.isEmpty ||
+        form.frame >= plan.dueAt ||
+        !identical(policy, _planPolicy) ||
+        !identical(prices, _planPrices) ||
+        explain != _planExplained ||
+        form.screen != _planScreen) {
+      return false;
+    }
+    final sites = form.sites;
+    if (sites.length != _planSites.length) return false;
+    for (var i = 0; i < sites.length; i++) {
+      if (!identical(sites[i], _planSites[i])) return false;
+    }
+    return true;
+  }
+
+  void run(ContainerLayer root, {bool painted = true}) {
     final view = root.owner;
     if (view is! RenderView) return;
     final flutterView = view.flutterView;
@@ -272,23 +309,34 @@ final class _Composition {
       final policy = GlassCopies.enabled
           ? GlassComposer.debugPolicy
           : const Policy(copies: false);
-      final (plan, edits) = compile(
-        form,
-        _ledger,
-        GlassComposer.debugPrices,
-        policy,
-        form.frame,
-        explain: listening || GlassComposer.debugOnPlan != null,
-      );
+      final prices = GlassComposer.debugPrices;
+      final explain = listening || GlassComposer.debugOnPlan != null;
+      final stands = !painted && _stands(form, policy, prices, explain);
+      if (!stands) {
+        final (plan, edits) = compile(
+          form,
+          _ledger,
+          prices,
+          policy,
+          form.frame,
+          explain: explain,
+        );
+        GlassComposer.debugOnPlan?.call(form, plan);
+        edits.applyTo(_ledger, form.frame);
+        _plan = plan;
+        _planSites = [...form.sites];
+        _planPolicy = policy;
+        _planPrices = prices;
+        _planScreen = form.screen;
+        _planExplained = explain;
+      }
       final planned = clock.elapsed;
-      GlassComposer.debugOnPlan?.call(form, plan);
-      edits.applyTo(_ledger, form.frame);
-      _emit.emit(plan, form, dpr);
+      if (!stands) _emit.emit(_plan!, form, dpr);
       for (final node in form.siteNodes) {
         node.site.endFrame();
       }
       if (listening) {
-        _report(form, plan, policy, walk, planned, clock.elapsed);
+        _report(form, _plan!, policy, walk, planned, clock.elapsed, stands);
       }
     } finally {
       FrameAncestors.current = null;
@@ -303,14 +351,17 @@ final class _Composition {
     Duration walk,
     Duration planned,
     Duration done,
+    bool stands,
   ) {
     final frame = form.frame;
     final reads = [
-      for (final read in plan.reads) GlassFrameReport.readOf(read),
+      for (final read in plan.reads)
+        GlassFrameReport.readOf(read, changed: !stands && read.changed),
     ];
     GlassFrameReport.deliver(
       () => GlassFrameReport(
         frame: frame,
+        planned: !stands,
         reads: reads,
         targetBudget: policy.maxTargets,
         issuedTargets: plan.issuedTargets,

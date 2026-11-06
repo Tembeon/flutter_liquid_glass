@@ -48,6 +48,7 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
   @mustCallSuper
   @override
   void paint(PaintingContext context, ui.Offset offset) {
+    GlassComposer.sitePainted(owner!);
     final tracking = layer ??= GeometryTransformTrackingLayer();
     tracking._site = this;
     tracking._paintOffset = offset;

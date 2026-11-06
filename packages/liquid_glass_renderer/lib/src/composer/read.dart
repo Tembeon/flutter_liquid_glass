@@ -377,6 +377,12 @@ final class _Replay {
           copy._addHeld(site, out);
         case OutputNode():
           break;
+        case VolatileNode(
+          layer: final TextureLayer texture,
+          limit: ReadLimit.sceneOnly,
+          :final screen,
+        ):
+          if (_meets(screen, band)) out.texture(texture);
         case VolatileNode():
           break;
         case final SiteNode site:
@@ -444,9 +450,6 @@ final class PageCopy {
 
   /// Equal while the page lies at the same place on the same grid.
   Object get placement => (_offset, _grid);
-
-  /// The frost the page holds, in logical pixels, 0 for none.
-  double get heldFrost => _heldFrost;
 
   /// What [glassSampling] stands for by the frost [sigma] of a band.
   double frostOf(double sigma) => _grid._frost(sigma);

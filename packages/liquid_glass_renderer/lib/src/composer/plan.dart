@@ -266,9 +266,9 @@ final class SiteFacts {
   /// Inherited alpha, filters and clips.
   StateChain state = StateChain.root;
 
-  /// The [state] and [clip] the dirty log last knew: glass draws no picture, so
-  /// a fade or a clip around it reaches the log only through this.
-  (StateChain, Rect?) noted = (StateChain.root, null);
+  /// The [state], [clip] and [hidden] the dirty log last knew: glass draws no
+  /// picture, so a fade or a clip around it reaches the log only through this.
+  (StateChain, Rect?, bool) noted = (StateChain.root, null, false);
 
   /// The clip around it on the screen, if any.
   Rect? clip;
@@ -436,6 +436,7 @@ final class Plan {
     this.fates, {
     required this.issuedTargets,
     required this.newImages,
+    required this.dueAt,
     required this.notes,
   });
 
@@ -450,6 +451,10 @@ final class Plan {
 
   /// Images the frame draws.
   final int newImages;
+
+  /// The first frame a read that holds still can buy its image, if none
+  /// changes before it.
+  final int dueAt;
 
   /// Why the frame is what it is; empty unless asked for.
   final List<String> notes;
@@ -798,6 +803,7 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
 
   final edits = LedgerEdits();
   var newImages = 0;
+  var dueAt = _never;
   for (final read in reads) {
     if (read.source is LiveRead) {
       read.changed = true;
@@ -848,6 +854,8 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
       boughtAt = frame;
     } else if (pageOnly) {
       read.source = const LiveRead();
+    } else if (allowed) {
+      dueAt = math.min(dueAt, next.changedAt + need);
     }
     read.imageRect = imageRect;
     next.imageRect = imageRect;
@@ -888,11 +896,15 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
       fates,
       issuedTargets: issued,
       newImages: newImages,
+      dueAt: dueAt,
       notes: notes,
     ),
     edits,
   );
 }
+
+// No frame comes this far.
+const _never = 1 << 52;
 
 // Live reads with nothing painted under the later ones since the first share
 // its copy of the backdrop: Impeller flips to a new target once, not per read

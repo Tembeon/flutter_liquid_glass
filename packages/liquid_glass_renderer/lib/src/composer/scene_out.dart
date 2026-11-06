@@ -70,6 +70,20 @@ final class SceneOut {
     builder.addPicture(at, picture);
   }
 
+  /// Adds [texture] where it lies in the coordinates.
+  void texture(TextureLayer texture) {
+    settleMatrix();
+    final rect = texture.rect;
+    builder.addTexture(
+      texture.textureId,
+      offset: at + rect.topLeft,
+      width: rect.width,
+      height: rect.height,
+      freeze: texture.freeze,
+      filterQuality: texture.filterQuality,
+    );
+  }
+
   /// Remembers where the coordinates stand, for [leave].
   void mark() => _marks.add((matrix, at, pushes));
 

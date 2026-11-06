@@ -108,6 +108,7 @@ final class GlassFrameReport {
   /// Describes a frame.
   const GlassFrameReport({
     required this.frame,
+    required this.planned,
     required this.reads,
     required this.targetBudget,
     required this.issuedTargets,
@@ -124,6 +125,10 @@ final class GlassFrameReport {
 
   /// The planner's frame count for its view.
   final int frame;
+
+  /// Whether the frame planned; a frame nothing changed in stands on the last
+  /// plan and takes only the [walk].
+  final bool planned;
 
   /// The frame's reads in paint order.
   final List<GlassReadReport> reads;
@@ -177,7 +182,8 @@ final class GlassFrameReport {
   @override
   String toString() {
     final lines = <String>[
-      'frame $frame  reads ${reads.length}  targets $issuedTargets/'
+      'frame $frame${planned ? '' : ' (as planned before)'}  '
+          'reads ${reads.length}  targets $issuedTargets/'
           '$targetBudget  images $imageReads  live $liveReads  '
           'walk ${walk.inMicroseconds}us  compile ${compile.inMicroseconds}us  '
           'emit ${emit.inMicroseconds}us',
@@ -230,22 +236,23 @@ final class GlassFrameReport {
     });
   }
 
-  /// Describes a [read].
+  /// Describes a [read], [changed] or not this frame.
   @internal
-  static GlassReadReport readOf(Read read) => GlassReadReport(
-    source: switch (read.source) {
-      SceneRead() => GlassReadSource.scene,
-      ImageRead(held: true) => GlassReadSource.heldImage,
-      ImageRead() => GlassReadSource.image,
-      LiveRead() => GlassReadSource.live,
-    },
-    level: read.level,
-    glass: read.members.where((site) => !site.look.isBand).length,
-    hasBand: read.lead.look.isBand,
-    band: read.band,
-    targets: read.targets,
-    changed: read.changed,
-  );
+  static GlassReadReport readOf(Read read, {required bool changed}) =>
+      GlassReadReport(
+        source: switch (read.source) {
+          SceneRead() => GlassReadSource.scene,
+          ImageRead(held: true) => GlassReadSource.heldImage,
+          ImageRead() => GlassReadSource.image,
+          LiveRead() => GlassReadSource.live,
+        },
+        level: read.level,
+        glass: read.members.where((site) => !site.look.isBand).length,
+        hasBand: read.lead.look.isBand,
+        band: read.band,
+        targets: read.targets,
+        changed: changed,
+      );
 }
 
 /// Prints the next frame's [GlassFrameReport], in debug and profile builds.

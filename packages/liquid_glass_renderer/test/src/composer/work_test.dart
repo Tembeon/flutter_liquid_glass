@@ -72,15 +72,83 @@ void main() {
         await tester.pump(const Duration(milliseconds: 16));
       }
 
+      // The first frame someone listens to plans, to say why.
+      await expectGlassBudget(tester);
       final report = await expectGlassBudget(
         tester,
         filtersBuilt: 0,
         picturesRecorded: 0,
         imagesDrawn: 0,
       );
+      expect(report.planned, isFalse, reason: '$report');
       expect(report.layersReplayed, 0, reason: '$report');
       expect(report.repaintsAsked, 0, reason: '$report');
       expect(report.reads.first.changed, isFalse, reason: '$report');
+    }, skip: skipProperGlassTests);
+  });
+
+  group('a frame nothing changed in stands on the last plan', () {
+    Future<GlassFrameReport> settled(
+      WidgetTester tester,
+      ScrollController controller,
+    ) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(_screen(controller));
+      for (var i = 0; i < 90; i++) {
+        tester.binding.scheduleFrame();
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await expectGlassBudget(tester);
+      return expectGlassBudget(tester);
+    }
+
+    testWidgets('until a read is due its image', (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(_screen(controller));
+      final reports = <GlassFrameReport>[];
+      for (var i = 0; i < 120; i++) {
+        reports.add(await expectGlassBudget(tester));
+      }
+      final bought = reports.indexWhere((report) => report.imagesDrawn > 0);
+      expect(bought, greaterThan(0), reason: reports.last.toString());
+      expect(reports[bought].planned, isTrue);
+      expect(reports[bought - 1].planned, isFalse);
+      expect(reports.last.planned, isFalse);
+      expect(reports.last.imageReads, reports.last.reads.length);
+    }, skip: skipProperGlassTests);
+
+    testWidgets('but not when the page moved', (tester) async {
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+      await settled(tester, controller);
+      controller.jumpTo(30);
+      final report = await expectGlassBudget(tester);
+      expect(report.planned, isTrue, reason: '$report');
+      expect(report.reads.first.changed, isTrue, reason: '$report');
+    }, skip: skipProperGlassTests);
+
+    testWidgets('but not when glass painted', (tester) async {
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+      await settled(tester, controller);
+      tester.renderObject(find.byType(LiquidGlassLayer).first).markNeedsPaint();
+      final report = await expectGlassBudget(tester);
+      expect(report.planned, isTrue, reason: '$report');
+    }, skip: skipProperGlassTests);
+
+    testWidgets('but not when the glass went away', (tester) async {
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+      await settled(tester, controller);
+      await tester.pumpWidget(_screen(controller, buttons: 4));
+      final report = await expectGlassBudget(tester);
+      expect(report.reads.first.glass, 4, reason: '$report');
     }, skip: skipProperGlassTests);
   });
 
@@ -134,6 +202,34 @@ void main() {
       expect(await replayed(2000), lessThanOrEqualTo(await replayed(40) + 2));
     }, skip: skipProperGlassTests);
   });
+
+  testWidgets('a texture under glass stays in a scene read when asked', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    GlassCopies.debugTextureInScene = true;
+    addTearDown(() => GlassCopies.debugTextureInScene = false);
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: MediaQuery(
+          data: const MediaQueryData(size: Size(400, 800)),
+          child: Stack(
+            children: [
+              const Positioned.fill(child: Texture(textureId: 1)),
+              _button(8, 100, LiquidGlassSettings.ios27RegularLight()),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    final report = await expectGlassBudget(tester, liveReads: 0);
+    expect(report.reads.single.source, GlassReadSource.scene);
+    expect(report.reads.single.changed, isTrue);
+  }, skip: skipProperGlassTests);
 
   group('the report', () {
     testWidgets('says what the frame read and made', (tester) async {
