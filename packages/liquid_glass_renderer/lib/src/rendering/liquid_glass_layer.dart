@@ -2115,7 +2115,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
     final dpr = devicePixelRatio;
     final glass = _glassIn(read);
-    final logical = glass.length == 1
+    final logical = glass.length == 1 && band == null
         ? _frame!.logical
         : read.quad.expandToPixelBuckets(dpr);
     final device = Rect.fromLTRB(
