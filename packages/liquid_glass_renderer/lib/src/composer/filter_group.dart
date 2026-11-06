@@ -323,7 +323,9 @@ final class FilterGroup {
       _kept = const [];
     } else if (underlay._stillUnder) {
       for (final offer in kept) {
-        offer.underlay._stillUnder = true;
+        if (offer.underlay._stillNeeded <= underlay._stillNeeded) {
+          offer.underlay._stillUnder = true;
+        }
       }
     }
     return copy;

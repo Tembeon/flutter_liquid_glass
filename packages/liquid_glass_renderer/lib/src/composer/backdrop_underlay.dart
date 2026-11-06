@@ -187,13 +187,17 @@ class BackdropUnderlay {
   // How many frames in a row the copy drawn in the frame drew the same.
   int _stillFrames = 0;
 
-  // How many it takes for an image to serve it: an image that did not hold
-  // doubles it, as what looks still may not be, and frames it holds take it
-  // back down.
+  // How many it takes for an image to serve it. An image that holds for a few
+  // frames costs more than the copies it saves, and clears the text shadows
+  // the frame keeps: one that did not hold long doubles it.
   int _stillNeeded = _stillFramesFirst;
+
+  // How many frames the image has served since it was drawn.
+  int _heldFrames = 0;
 
   static const int _stillFramesFirst = 2;
   static const int _stillFramesMost = 64;
+  static const int _heldFramesLong = 30;
 
   // The room an image takes around glass that moves in it, in logical pixels:
   // glass that leaves it doubles it, so that a sheet on its way up asks for
@@ -206,7 +210,10 @@ class BackdropUnderlay {
     _stillUnder = false;
     _stillFrames = 0;
     _inFrameOut = null;
-    _stillNeeded = min(_stillNeeded * 2, _stillFramesMost);
+    _stillNeeded = _heldFrames < _heldFramesLong
+        ? min(_stillNeeded * 2, _stillFramesMost)
+        : _stillFramesFirst;
+    _heldFrames = 0;
   }
 
   /// The image that holds the copy, once it is drawn.
@@ -318,6 +325,7 @@ class BackdropUnderlay {
   UnderlayCopy? serve() {
     final ask = _ask;
     final plan = _plan;
+    _heldFrames++;
     _ask = null;
     _plan = null;
     if (ask == null) return null;
@@ -581,7 +589,6 @@ class BackdropUnderlay {
       }
       if (!inside) first._room = min(first._room * 2, _roomMost);
       if (inside) {
-        first._stillNeeded = max(first._stillNeeded - 1, _stillFramesFirst);
         first.debugMiss = null;
         return (
           copy: UnderlayCopy._(first, first._rect, last.grid),
