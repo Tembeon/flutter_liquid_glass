@@ -1085,9 +1085,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // Whether the frame shows the live filter. Glass over a copy reads through
   // a filter of its own, so moving it builds no live one: [showLive] brings
   // the filter up to date when the plan turns to it.
+  // Glass with no slot shows its live filter whatever its fate says: no plan
+  // draws it.
   bool get _readsLive => switch (_fate) {
     Leads(read: Read(source: LiveRead())) => true,
-    _ => false,
+    _ => !_rig.hasSlot,
   };
 
   @override
@@ -2602,8 +2604,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   void onCompositorTranslated(Offset translation) {
     // Nothing to map: a shape that appears repaints.
     if (shapesWithGeometry.isEmpty) return;
-    // Glass drawing nothing reads no mapping: paint maps what it draws.
-    if (drawableEmpty || !_rig.hasSlot) {
+    // Glass with no filter or copy to draw reads no mapping: paint maps what it
+    // draws.
+    if (drawableEmpty || (!_rig.hasSlot && _rig.filterLayer == null)) {
       _mappingMoved = true;
       return;
     }
