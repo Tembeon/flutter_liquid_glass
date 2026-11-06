@@ -347,4 +347,102 @@ void main() {
       expect(_difference(image, inFrame), lessThanOrEqualTo(5));
     }, skip: skipProperGlassTests);
   }
+
+  group('a copy over what holds still', () {
+    final promotes = BackdropUnderlay.debugPromotes;
+    tearDown(() => BackdropUnderlay.debugPromotes = promotes);
+
+    Future<Uint8List> fresh(
+      WidgetTester tester, {
+      required double top,
+      double shift = 0,
+      bool second = true,
+    }) async {
+      BackdropUnderlay.debugPromotes = false;
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(_scene(top: top, shift: shift, second: second));
+      await tester.pumpWidget(_scene(top: top, shift: shift, second: second));
+      final pixels = await _pixels(tester, 2);
+      BackdropUnderlay.debugPromotes = true;
+      await tester.pumpWidget(const SizedBox());
+      return pixels;
+    }
+
+    for (final second in [false, true]) {
+      testWidgets('moves to an image that draws what the frame draws, and '
+          'draws what changes in the frame it changes '
+          '(${second ? 'two glass' : 'one glass'})', (tester) async {
+        tester.view.physicalSize = const Size(260, 360) * 2;
+        tester.view.devicePixelRatio = 2;
+        addTearDown(tester.view.reset);
+        final moved = await fresh(tester, top: 206, second: second);
+        final changed = await fresh(
+          tester,
+          top: 206,
+          shift: 0.3,
+          second: second,
+        );
+
+        for (var top = 200.0; top <= 203; top++) {
+          await tester.pumpWidget(_scene(top: top, second: second));
+        }
+        final images = BackdropUnderlay.debugImagesDrawn;
+        expect(images, greaterThan(0));
+        await tester.pumpWidget(_scene(top: 204, second: second));
+        await tester.pumpWidget(_scene(top: 205, second: second));
+        await tester.pumpWidget(_scene(top: 206, second: second));
+        expect(
+          BackdropUnderlay.debugImagesDrawn,
+          images,
+          reason: 'glass moves within the image while the page holds still',
+        );
+        expect(
+          _difference(await _pixels(tester, 2), moved),
+          lessThanOrEqualTo(2),
+        );
+
+        await tester.pumpWidget(_scene(top: 206, shift: 0.3, second: second));
+        expect(
+          _difference(await _pixels(tester, 2), changed),
+          lessThanOrEqualTo(2),
+          reason: 'the frame that changes the page shows it',
+        );
+      }, skip: skipProperGlassTests);
+    }
+
+    testWidgets('asks for few images while glass moves far over it', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(260, 360) * 2;
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.reset);
+      for (var top = 0.0; top <= 8; top++) {
+        await tester.pumpWidget(_scene(top: top, second: false));
+      }
+      final images = BackdropUnderlay.debugImagesDrawn;
+      for (var top = 8.0; top <= 248; top += 8) {
+        await tester.pumpWidget(_scene(top: top, second: false));
+      }
+      expect(BackdropUnderlay.debugImagesDrawn - images, lessThanOrEqualTo(6));
+    }, skip: skipProperGlassTests);
+
+    testWidgets('draws in the frame again once the page keeps changing', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(260, 360) * 2;
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.reset);
+      for (var top = 200.0; top <= 204; top++) {
+        await tester.pumpWidget(_scene(top: top, second: false));
+      }
+      await tester.pumpWidget(_scene(top: 204, shift: 0.1, second: false));
+      final images = BackdropUnderlay.debugImagesDrawn;
+      for (var i = 2; i < 40; i++) {
+        await tester.pumpWidget(
+          _scene(top: 204, shift: i / 100, second: false),
+        );
+      }
+      expect(BackdropUnderlay.debugImagesDrawn, images);
+    }, skip: skipProperGlassTests);
+  });
 }

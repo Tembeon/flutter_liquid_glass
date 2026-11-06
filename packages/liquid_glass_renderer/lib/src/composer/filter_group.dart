@@ -319,7 +319,13 @@ final class FilterGroup {
     underlay._ask = null;
     underlay._plan = null;
     final copy = underlay._drawInFrame(ask, scan, limit, clip);
-    if (copy == null) _kept = const [];
+    if (copy == null) {
+      _kept = const [];
+    } else if (underlay._stillUnder) {
+      for (final offer in kept) {
+        offer.underlay._stillUnder = true;
+      }
+    }
     return copy;
   }
 }

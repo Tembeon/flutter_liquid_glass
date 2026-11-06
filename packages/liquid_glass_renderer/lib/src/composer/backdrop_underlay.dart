@@ -62,6 +62,7 @@ class BackdropUnderlay {
   // Room past the band a copy holds, in logical pixels, so glass that moves
   // or grows a little stays inside it.
   static const double _margin = 12;
+  static const double _roomMost = 400;
 
   ui.Image? _image;
   Offset _offset = Offset.zero;
@@ -166,17 +167,47 @@ class BackdropUnderlay {
   static bool debugDropsFrost = true;
 
   /// Whether the last [request] is served by [serveInFrame], not [serve].
-  bool get servesInFrame => (_ask?.inFrame ?? false) && !_stillUnder;
+  bool get servesInFrame => (_ask?.inFrame ?? false) && !_held;
 
-  /// Whether a copy that drew the same as the frame before moves to an image,
-  /// which holds, until what lies under it changes.
-  static bool debugPromotes = false;
+  /// Whether a copy that drew the same in the frames before moves to an image,
+  /// which holds until what lies under it changes: glass moving over a page
+  /// that holds still then takes no offscreen pass. The frame that finds a
+  /// change draws from a new copy, so the backdrop is never a frame late. On
+  /// the Pixel 6a a menu opening takes 28 % fewer fragment cycles and 2.7 ms
+  /// less on the raster thread, a tab bar drag 9 % and 1.3 ms
+  /// (tool/audit/2026-11-05-one-pass/results.md).
+  static bool debugPromotes = true;
 
   // What the copy drawn in the frame last drew.
   List<Object?>? _inFrameOut;
 
   // Whether what lies under the copy held still, so an image serves it.
   bool _stillUnder = false;
+
+  // How many frames in a row the copy drawn in the frame drew the same.
+  int _stillFrames = 0;
+
+  // How many it takes for an image to serve it: an image that did not hold
+  // doubles it, as what looks still may not be, and frames it holds take it
+  // back down.
+  int _stillNeeded = _stillFramesFirst;
+
+  static const int _stillFramesFirst = 2;
+  static const int _stillFramesMost = 64;
+
+  // The room an image takes around glass that moves in it, in logical pixels:
+  // glass that leaves it doubles it, so that a sheet on its way up asks for
+  // few images and not one each frame.
+  double _room = _margin;
+
+  bool get _held => debugPromotes && _stillUnder;
+
+  void _stirred() {
+    _stillUnder = false;
+    _stillFrames = 0;
+    _inFrameOut = null;
+    _stillNeeded = min(_stillNeeded * 2, _stillFramesMost);
+  }
 
   /// The image that holds the copy, once it is drawn.
   @visibleForTesting
@@ -356,7 +387,7 @@ class BackdropUnderlay {
       return null;
     }
     var grid = _heldGlass ? ask.grid._screen : ask.grid;
-    var inScene = debugInScene && !debugPromotes && !_heldGlass;
+    var inScene = debugInScene && !_heldGlass;
     while (true) {
       final shown = inScene ? <_Entry>[] : null;
       final replay = _Prefix(
@@ -401,14 +432,17 @@ class BackdropUnderlay {
         return null;
       }
       _heldGlass = replay.holdsGlass;
-      final last = _inFrameOut;
-      _inFrameOut = replay.out;
-      _stillUnder = debugPromotes && last != null && _same(replay.out, last);
       if (replay.holdsGlass && grid != grid._screen) {
         content!.dispose();
         grid = grid._screen;
         continue;
       }
+      _stillFrames = debugPromotes && _same(replay.out, _inFrameOut)
+          ? _stillFrames + 1
+          : 0;
+      _inFrameOut = replay.out;
+      _stillUnder = _stillFrames >= _stillNeeded;
+      _room = _margin;
       release();
       debugCaptures++;
       debugMiss = null;
@@ -539,16 +573,15 @@ class BackdropUnderlay {
         !signed.blocked &&
         signed.reached &&
         _same(signed.out, last!.signature);
-    if (!held && first._stillUnder && last != null) {
-      first._stillUnder = false;
-      first._inFrameOut = null;
-    }
+    if (!held && first._stillUnder && last != null) first._stirred();
     if (held) {
       var inside = true;
       for (final i in kept!) {
         inside = inside && rectContains(members[i]._rect, asks[i].band);
       }
+      if (!inside) first._room = min(first._room * 2, _roomMost);
       if (inside) {
+        first._stillNeeded = max(first._stillNeeded - 1, _stillFramesFirst);
         first.debugMiss = null;
         return (
           copy: UnderlayCopy._(first, first._rect, last.grid),
@@ -561,16 +594,20 @@ class BackdropUnderlay {
     // Glass that moved over content that held still takes room to move on;
     // under content that changes, the copy holds no more than the band.
     Rect roomy(_Ask ask) =>
-        ask.grid._snapOut(ask.band.inflate(_margin)).intersect(ask.screen);
+        ask.grid._snapOut(ask.band.inflate(first._room)).intersect(ask.screen);
     final rects = [
       for (final ask in asks)
-        if (held && ask.filterClip == null) roomy(ask) else ask.band,
+        if ((held || first._held) && ask.filterClip == null)
+          roomy(ask)
+        else
+          ask.band,
     ];
     final rect = rects.reduce((a, b) => a.expandToInclude(b));
     if (signed == null || signed.band != rect) {
       signed = _Prefix.signed(ask.anchor, rect, scan, limit, bodies);
     }
     if (signed.blocked || !signed.reached) {
+      if (first._stillUnder) first._stirred();
       if (alone && !kReleaseMode) {
         final why = signed.blocked
             ? '${signed.blocker.runtimeType}'
@@ -771,7 +808,12 @@ final class UnderlayFrame {
     if (_offers.isEmpty) return;
     final view = _offers.first.anchor.owner;
     final size = view is RenderView ? view.size : Size.zero;
-    final groups = _groupsOf(_offers, size.width * size.height);
+    // What lies under an offer that held still comes from an image, which
+    // takes no filter of its own.
+    final groups = _groupsOf([
+      for (final offer in _offers)
+        if (!offer.underlay._held) offer,
+    ], size.width * size.height);
     final grouped = Set<FilterOffer>.identity();
     for (final group in groups) {
       group._ask();
@@ -1886,6 +1928,7 @@ final class _Scan {
         case _Leaf(glass: false) when shown != null:
           if (_meets(entry.bounds, band) && prefix.readsAt(entry.bounds)) {
             shown.add(entry);
+            sign(entry.picture, entry.transform, entry.clip, entry.state);
           }
         case _Leaf() || _Glass() when shown != null:
           final bounds = entry is _Leaf
