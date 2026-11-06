@@ -211,6 +211,29 @@ void main() {
     );
   });
 
+  testWidgets('something painted beside a later button leaves it in', (
+    tester,
+  ) async {
+    await expectSame(
+      tester,
+      [
+        _button(20, 20),
+        const Positioned(
+          left: 106,
+          top: 30,
+          width: 8,
+          height: 20,
+          child: RepaintBoundary(
+            child: ColoredBox(color: Color(0xFFFF0000)),
+          ),
+        ),
+        _button(120, 20),
+      ],
+      layersOn: 1,
+      layersOff: 2,
+    );
+  });
+
   testWidgets('an opacity around one button leaves it out', (tester) async {
     await expectSame(
       tester,

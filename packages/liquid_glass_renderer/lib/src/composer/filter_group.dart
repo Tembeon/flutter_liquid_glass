@@ -251,8 +251,9 @@ final class FilterGroup {
   /// its members asks alone.
   ///
   /// A member stays when it lies under the leader's clips and opacity and
-  /// nothing but the group's glass is painted where it reads between the
-  /// leader and itself. NEAR: glass does not show its neighbour's label and
+  /// nothing but the group's glass is painted under it between the leader and
+  /// itself. NEAR: glass does not show what is painted beside it after the
+  /// leader in what it reads at its rim, such as a neighbour's label or
   /// shadow, as glass drawn over one copy never does.
   InFrameCopy? settle() {
     final underlay = lead.underlay;

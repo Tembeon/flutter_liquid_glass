@@ -1724,11 +1724,14 @@ final class _Scan {
     );
   }
 
-  // Whether nothing is painted in [band] between entries [from] and [to] but
-  // the glass of an island, what it paints with its glass ([owned]) and
-  // glass beside [body], and nothing there reads the backdrop: then the copy
-  // of what lies before the island's first glass holds what lies under the
-  // glass at [to]. [starts] are where the island's glass begins.
+  // Whether the entries between [from] and [to] leave the glass at [to] free
+  // to draw at [from], over the copy of what lies before it: nothing but the
+  // glass of an island and what it paints with its glass ([owned]) is painted
+  // under [body], nothing reads the backdrop in [band], and nothing a copy
+  // cannot draw lies there. [starts] are where the island's glass begins.
+  //
+  // What is painted beside [body] stays over the glass, as it is, and stays
+  // out of what the glass reads at its rim.
   bool onlyIslandBetween(
     int from,
     int to,
@@ -1748,12 +1751,9 @@ final class _Scan {
         continue;
       }
       switch (entry) {
-        case _Leaf(glass: true, :final bounds) || _Glass(:final bounds)
-            when !_meets(bounds, body):
-          break;
-        case _Leaf(:final bounds) ||
-            _Glass(:final bounds) ||
-            _Block(:final bounds):
+        case _Leaf(:final bounds) || _Glass(:final bounds):
+          if (_meets(bounds, body)) return false;
+        case _Block(:final bounds):
           if (_meets(bounds, band)) return false;
         case _Served(:final reads):
           if (_meets(reads, band)) return false;
