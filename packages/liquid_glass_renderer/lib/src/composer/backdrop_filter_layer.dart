@@ -10,6 +10,7 @@ import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/internal/shader_frost.dart';
 
 /// A backdrop filter over [clip] that, wherever it can, filters a copy of
@@ -151,6 +152,35 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
           filtersReach: false,
         )
       : null;
+
+  /// Writes what the frame's plan reads of this scroll edge.
+  void fillPlanFacts(SiteFacts facts) {
+    final offer = _offer;
+    facts.hidden = false;
+    facts.overSolid = false;
+    if (offer is BandOffer) {
+      facts.drawn = offer.drawn;
+      facts.reads = offer.reads;
+      facts.noJoin = null;
+      facts.look = Look(
+        key: 'band',
+        frost: offer.sigma,
+        downscale: offer.downscale,
+        isBand: true,
+      );
+      return;
+    }
+    facts.noJoin = NoJoin.noOffer;
+    facts.look = Look.none;
+    final origin = screenOffsetOf(this, _devicePixelRatio);
+    if (origin == null) {
+      facts.hidden = true;
+      facts.turned = true;
+      return;
+    }
+    facts.drawn = _clip.shift(origin);
+    facts.reads = facts.drawn.inflate(reach);
+  }
 
   FilterOffer? _offerBand() {
     final paint = bandPaint;

@@ -14,6 +14,7 @@ import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_seed.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/internal/ancestor_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/filter_pass_transform.dart';
 import 'package:liquid_glass_renderer/src/internal/final_shader_variant.dart';
@@ -1825,6 +1826,54 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _group = null;
     _offer = _rig.hasSlot ? _offerToGroup() : null;
     _asked = _rig.hasSlot && _offer == null ? _askUnderlay() : null;
+  }
+
+  @override
+  void fillPlanFacts(SiteFacts facts) {
+    facts.hidden = false;
+    facts.overSolid = false;
+    facts.turned = false;
+    final offer = _offer;
+    if (offer != null) {
+      facts.drawn = offer.drawn;
+      facts.reads = offer.reads;
+      facts.noJoin = null;
+      facts.look = Look(
+        key: offer.key,
+        frost: offer.frost,
+        downscale: offer.downscale,
+        drawsBand: offer.drawsBand,
+      );
+      return;
+    }
+    facts.noJoin = _analytic
+        ? NoJoin.analytic
+        : _field != null || _usesShapeAppearances
+        ? NoJoin.field
+        : _glow != null
+        ? NoJoin.glow
+        : settings.effectiveBackdropShrink != 0
+        ? NoJoin.shrink
+        : glassShadowsFade
+        ? NoJoin.fadingShadows
+        : NoJoin.noOffer;
+    facts.look = Look.none;
+    final bounds = _filterMaterialBounds;
+    if (!_rig.hasSlot || bounds == null || drawableEmpty) {
+      facts.hidden = true;
+      return;
+    }
+    final dpr = devicePixelRatio;
+    final screen = filterPassTransform(
+      this,
+      seeding: false,
+      devicePixelRatio: dpr,
+      translation: compositorTranslation,
+    );
+    final storage = screen.storage;
+    facts.turned = storage[1].abs() > 1e-6 || storage[4].abs() > 1e-6;
+    facts.drawn = MatrixUtils.transformRect(screen, bounds);
+    facts.reads = facts.drawn.inflate(backdropSamplingReach(bounds) + 1);
   }
 
   // This frame's offer to share a filter, and the group that took it.

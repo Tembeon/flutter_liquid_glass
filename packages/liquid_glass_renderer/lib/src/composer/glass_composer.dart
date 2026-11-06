@@ -2,7 +2,11 @@ import 'dart:ui';
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_filter_layer.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart'
+    hide ImageRead;
+import 'package:liquid_glass_renderer/src/composer/form.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_render_object_mixin.dart';
@@ -144,6 +148,7 @@ final class GlassComposer extends PipelineOwner {
     try {
       if (root != null) {
         _prepare(root);
+        if (debugShadowPlan) _shadow(root);
         _underlays.planGroups();
         _underlays.plan();
         _compose(root);
@@ -154,6 +159,61 @@ final class GlassComposer extends PipelineOwner {
       FlutterGpuGeometryRenderer.flushPendingSubmissions();
       _underlays.drawPending();
     }
+  }
+
+  /// Whether the frame also lowers its layers and compiles a plan, which it
+  /// does not use, so a bench can price them and compare them with the frame.
+  @visibleForTesting
+  static bool debugShadowPlan = false;
+
+  /// What the shadow plan cost and said since it was last read.
+  @visibleForTesting
+  static final ShadowCensus debugShadowCensus = ShadowCensus();
+
+  final _form = Form();
+  final _ledger = Ledger();
+
+  void _shadow(ContainerLayer root) {
+    final view = root.owner;
+    if (view is! RenderView) return;
+    final clock = Stopwatch();
+    clock.start();
+    final flutterView = view.flutterView;
+    _form.lower(
+      root,
+      flutterView.devicePixelRatio,
+      flutterView.physicalSize,
+    );
+    final lowered = clock.elapsedMicroseconds;
+    final nodes = _form.siteNodes;
+    for (var i = 0; i < nodes.length; i++) {
+      final facts = nodes[i].facts;
+      final before = facts.drawn;
+      final layer = nodes[i].layer;
+      if (layer is GeometryTransformTrackingLayer) {
+        layer.fillPlanFacts(facts);
+      } else if (layer is LiquidGlassBackdropFilterLayer) {
+        layer.fillPlanFacts(facts);
+      }
+      _form.noteSiteDrawn(facts, before);
+    }
+    _form.settleFloors();
+    final (plan, edits) = compile(
+      _form,
+      _ledger,
+      const Prices(),
+      const Policy(),
+      _form.frame,
+    );
+    edits.applyTo(_ledger, _form.frame);
+    clock.stop();
+    debugShadowCensus.add(
+      lowered,
+      clock.elapsedMicroseconds,
+      _form.length,
+      nodes.length,
+      plan,
+    );
   }
 
   ContainerLayer? _root() {
@@ -234,6 +294,61 @@ mixin ComposedLayer on ContainerLayer {
       compose();
     }
     super.updateSubtreeNeedsAddToScene();
+  }
+}
+
+/// What [GlassComposer.debugShadowPlan] cost and said.
+@internal
+final class ShadowCensus {
+  final _walk = <int>[];
+  final _total = <int>[];
+  int _layers = 0;
+  int _sites = 0;
+  int _reads = 0;
+  int _targets = 0;
+  int _held = 0;
+  int _images = 0;
+  int _live = 0;
+
+  /// Notes one frame.
+  void add(int walk, int total, int layers, int sites, Plan plan) {
+    _walk.add(walk);
+    _total.add(total);
+    _layers += layers;
+    _sites += sites;
+    _reads += plan.reads.length;
+    _targets += plan.issuedTargets;
+    _images += plan.newImages;
+    for (final read in plan.reads) {
+      if (read.source case ImageRead(held: true)) _held++;
+      if (read.source is LiveRead) _live++;
+    }
+  }
+
+  /// One line of medians and means, and forgets them.
+  String take() {
+    final frames = _walk.length;
+    if (frames == 0) return 'frames=0';
+    _walk.sort();
+    _total.sort();
+    String mean(int value) => (value / frames).toStringAsFixed(2);
+    final line =
+        'frames=$frames walk_p50=${_walk[frames ~/ 2]} '
+        'total_p50=${_total[frames ~/ 2]} '
+        'total_p90=${_total[frames * 9 ~/ 10]} layers=${mean(_layers)} '
+        'sites=${mean(_sites)} reads=${mean(_reads)} '
+        'targets=${mean(_targets)} held=${mean(_held)} '
+        'images=${mean(_images)} live=${mean(_live)}';
+    _walk.clear();
+    _total.clear();
+    _layers = 0;
+    _sites = 0;
+    _reads = 0;
+    _targets = 0;
+    _held = 0;
+    _images = 0;
+    _live = 0;
+    return line;
   }
 }
 

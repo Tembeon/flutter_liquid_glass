@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 import 'package:meta/meta.dart';
@@ -56,6 +57,9 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
   /// while the layer composites (see [GlassComposer.repaint]).
   void onTransformChanged();
 
+  /// Writes what the frame's plan reads of this site.
+  void fillPlanFacts(SiteFacts facts) => facts.hidden = true;
+
   /// Whether [onTransformChanged] would repaint, so that it must run before
   /// paint for the repaint to land in the same frame.
   bool get repaintsOnMove => false;
@@ -82,6 +86,16 @@ class GeometryTransformTrackingLayer extends OffsetLayer with ComposedLayer {
   Matrix4? _composited;
   // The transform [prepare] read, for [compose] in the same frame.
   Matrix4? _prepared;
+
+  /// Writes what the frame's plan reads of the tracked object.
+  void fillPlanFacts(SiteFacts facts) {
+    final site = _site;
+    if (site == null || !site.attached) {
+      facts.hidden = true;
+      return;
+    }
+    site.fillPlanFacts(facts);
+  }
 
   /// Reads the tracked object's transform before paint and reports a
   /// change, so that a repaint it asks for lands in the same frame.

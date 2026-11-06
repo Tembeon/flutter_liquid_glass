@@ -407,6 +407,11 @@ class _Journey {
         'wall': _wallNow(),
         'frames': _frames,
       });
+      if (_ab == 'shadow' && !on) {
+        debugPrint(
+          'GLASS_SHADOW $step ${GlassComposer.debugShadowCensus.take()}',
+        );
+      }
       debugPrint(
         'GLASS_BENCH_AB $step ${on ? 'B' : 'A'} $n ${_wallNow()} $_frames '
         'img=${BackdropUnderlay.debugImagesDrawn}',

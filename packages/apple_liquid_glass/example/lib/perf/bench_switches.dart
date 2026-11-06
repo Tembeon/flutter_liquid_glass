@@ -10,6 +10,7 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_underlay.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/internal/shader_frost.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
@@ -18,6 +19,11 @@ import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.d
 /// run that shows the noise floor.
 final benchSwitches = <String, void Function({required bool on})>{
   'none': ({required on}) {},
+  // B also lowers the frame's layers and compiles a plan it does not use.
+  'shadow': ({required on}) {
+    GlassComposer.debugShadowPlan = on;
+    if (!on) GlassComposer.debugShadowCensus.take();
+  },
   'groups': ({required on}) => BackdropUnderlay.debugGroups = on,
   'group_bands': ({required on}) => BackdropUnderlay.debugBandGroups = on,
   'no_shadows': ({required on}) {
