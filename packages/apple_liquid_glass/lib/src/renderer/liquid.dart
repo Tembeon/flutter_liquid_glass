@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:apple_liquid_glass/src/renderer/flat.dart';
+import 'package:apple_liquid_glass/src/renderer/follow_frame.dart';
 import 'package:apple_liquid_glass/src/renderer/lens_shrink.dart';
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
 import 'package:apple_liquid_glass/src/renderer/scroll_edge.dart';
@@ -281,7 +282,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
   @override
   void initState() {
     super.initState();
-    _source.addListener(_onFrame);
+    followFrame(_source, _onFrame);
   }
 
   @override
@@ -289,13 +290,13 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.details.frame != _source) {
       oldWidget.details.frame.removeListener(_onFrame);
-      _source.addListener(_onFrame);
+      followFrame(_source, _onFrame);
     }
   }
 
   @override
   void dispose() {
-    _source.removeListener(_onFrame);
+    unfollowFrame(_source, _onFrame);
     _leave(_group);
     _shape.dispose();
     super.dispose();
@@ -500,9 +501,9 @@ class _RenderOutlineShadow extends RenderProxyBox {
   ValueListenable<GlassFrame> get frame => _frame;
   set frame(ValueListenable<GlassFrame> value) {
     if (value == _frame) return;
-    if (attached) _frame.removeListener(_changed);
+    if (attached) unfollowFrame(_frame, _changed);
     _frame = value;
-    if (attached) _frame.addListener(_changed);
+    if (attached) followFrame(_frame, _changed);
     markNeedsPaint();
   }
 
@@ -527,12 +528,12 @@ class _RenderOutlineShadow extends RenderProxyBox {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _frame.addListener(_changed);
+    followFrame(_frame, _changed);
   }
 
   @override
   void detach() {
-    _frame.removeListener(_changed);
+    unfollowFrame(_frame, _changed);
     super.detach();
   }
 

@@ -1,3 +1,4 @@
+import 'package:apple_liquid_glass/src/renderer/follow_frame.dart';
 import 'package:apple_liquid_glass/src/renderer/renderer.dart';
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/glass.dart';
@@ -231,9 +232,9 @@ class RenderFlatGlass extends RenderProxyBox {
   ValueListenable<GlassFrame> get frame => _frame;
   set frame(ValueListenable<GlassFrame> value) {
     if (value == _frame) return;
-    if (attached) _frame.removeListener(_framed);
+    if (attached) unfollowFrame(_frame, _framed);
     _frame = value;
-    if (attached) _frame.addListener(_framed);
+    if (attached) followFrame(_frame, _framed);
     _framed();
   }
 
@@ -269,13 +270,13 @@ class RenderFlatGlass extends RenderProxyBox {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _frame.addListener(_framed);
+    followFrame(_frame, _framed);
     _fading = _frame.value.opacity < 1;
   }
 
   @override
   void detach() {
-    _frame.removeListener(_framed);
+    unfollowFrame(_frame, _framed);
     super.detach();
   }
 

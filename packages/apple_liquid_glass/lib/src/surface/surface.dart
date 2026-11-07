@@ -32,9 +32,9 @@ class GlassSurface extends StatefulWidget {
   /// Creates a body that follows [frame]: moved, scaled, lifted, tinted and
   /// lit frame by frame without a rebuild. Pass a selection of the motion
   /// that moves the body (`Motion.select`): the renderer hears it in the
-  /// frame's publish phase, before build, so the glass shows each step in
-  /// the frame the motion takes it; a command given during layout reaches
-  /// the glass on the next frame.
+  /// frame's publish phase, before build, or in its resolve phase after a
+  /// layout commanded the motion, so the glass shows each step in the frame
+  /// the motion takes it.
   const GlassSurface.live({
     required MotionSelection<GlassFrame> this.frame,
     required this.child,
@@ -45,8 +45,7 @@ class GlassSurface extends StatefulWidget {
   }) : _shape = null;
 
   // A bar writes its capsules' frames in the frame's resolve phase, after
-  // its items are laid out; the renderers hear a selection only in the
-  // publish phase, so a selection would draw the bar's glass a frame late.
+  // its items are laid out, from what no selection can read.
   /// Creates a body that follows frames its owner writes in the frame's
   /// resolve phase.
   @internal
