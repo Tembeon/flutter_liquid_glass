@@ -278,7 +278,6 @@ class FlutterGpuGeometryRenderer {
   gpu.Texture? _texture;
   ui.Image? _image;
   gpu.RenderTarget? _renderTarget;
-  gpu.RenderTarget? _clearingRenderTarget;
   gpu.Texture? _materialTexture;
   ui.Image? _materialImage;
   gpu.RenderTarget? _materialRenderTarget;
@@ -385,15 +384,12 @@ class FlutterGpuGeometryRenderer {
         _image?.dispose();
         _image = null;
         _renderTarget = null;
-        _clearingRenderTarget = null;
         _texture = null;
         assert(() {
           _debugActiveGeometryTextureCount--;
           return true;
         }(), 'Track replaced geometry textures in debug builds.');
       }
-      // Drawn whole, the pass writes every texel of the sub-rect, so its load
-      // action is dontCare; the rest of the texture is never sampled.
       // The low-res matte has a texel on both edges of the matte, so it
       // needs one more texel than width / scale in each direction.
       final matte = _mattes.next(
@@ -405,7 +401,6 @@ class FlutterGpuGeometryRenderer {
       );
       _texture = matte.texture;
       _renderTarget = matte.renderTarget;
-      _clearingRenderTarget = matte.clearingRenderTarget;
       _image = _texture!.asImage();
       assert(() {
         _debugActiveGeometryTextureCount++;
@@ -527,10 +522,8 @@ class FlutterGpuGeometryRenderer {
         geometryCommandBuffer.submit();
         rethrow;
       }
-      // Only texels near a shape hold anything but "far outside". When those
-      // are a small part of the low-res matte, clear the texture to "far
-      // outside" and draw just that part. The clear writes the same value the
-      // shader would.
+      // Only texels near a shape hold anything but "far outside", which is
+      // what the texture is cleared to, so the pass draws just those.
       final passWidth = matteWidth ~/ scale + 1;
       final passHeight = matteHeight ~/ scale + 1;
       final drawRect = clusters != null
@@ -547,9 +540,7 @@ class FlutterGpuGeometryRenderer {
               scale: scale,
             );
       final geometryPass = geometryCommandBuffer.createRenderPass(
-        drawRect == null && clusters == null
-            ? _renderTarget!
-            : _clearingRenderTarget!,
+        _renderTarget!,
       )..setPrimitiveType(gpu.PrimitiveType.triangleStrip);
       if (field != null) {
         _packFieldUniformData(field, fieldScale, fieldTexture!);
@@ -657,8 +648,7 @@ class FlutterGpuGeometryRenderer {
   /// This is the same test the geometry shader uses to skip a texel, done once
   /// for a whole rectangle: a texel farther from every shape's box than the
   /// border, two texels and the blend radius is "far outside". Without shape
-  /// boxes there is nothing to go on, and when the rectangle covers most of
-  /// the texture, the clear isn't worth it.
+  /// boxes there is nothing to go on.
   static _PixelRect? _occupiedRect({
     required List<double> shapeData,
     required List<double> boundsData,
@@ -676,7 +666,7 @@ class FlutterGpuGeometryRenderer {
         shapeData.length < count * 12) {
       return null;
     }
-    final rect = _texels(
+    return _texels(
       [for (var i = 0; i < count; i++) i],
       shapeData: shapeData,
       boundsData: boundsData,
@@ -687,16 +677,6 @@ class FlutterGpuGeometryRenderer {
       height: height,
       scale: scale,
     );
-    if (rect == null) return null;
-    // On some GPUs a clear writes the whole texture once more. The low-res
-    // matte is small, so that costs little, but it only pays off when most of
-    // the texture can be skipped.
-    final textureWidth = width ~/ scale + 1;
-    final textureHeight = height ~/ scale + 1;
-    if (rect.width * rect.height > 0.9 * textureWidth * textureHeight) {
-      return null;
-    }
-    return rect;
   }
 
   /// The low-res matte texels [shapes] can write anything but "far outside"
@@ -1170,7 +1150,6 @@ class FlutterGpuGeometryRenderer {
     _materials.release();
     _fieldTextures.release();
     _renderTarget = null;
-    _clearingRenderTarget = null;
     _image?.dispose();
     _image = null;
     _materialRenderTarget = null;
@@ -1229,26 +1208,17 @@ final class _Cluster {
 /// A texture and its render target.
 final class _RingTexture {
   _RingTexture(this.texture, {vm.Vector4? clearValue})
-    : _clearValue = clearValue,
-      renderTarget = gpu.RenderTarget.singleColor(
-        gpu.ColorAttachment(
-          texture: texture,
-          loadAction: gpu.LoadAction.dontCare,
-        ),
+    : renderTarget = gpu.RenderTarget.singleColor(
+        gpu.ColorAttachment(texture: texture, clearValue: clearValue),
       );
-
-  final vm.Vector4? _clearValue;
 
   final gpu.Texture texture;
-  final gpu.RenderTarget renderTarget;
 
-  /// Clears the whole texture before drawing, for passes that draw only part
-  /// of it. It clears to the ring's `clearValue`, or transparent black when
-  /// there is none. Created on first use.
-  late final gpu.RenderTarget clearingRenderTarget =
-      gpu.RenderTarget.singleColor(
-        gpu.ColorAttachment(texture: texture, clearValue: _clearValue),
-      );
+  /// Clears the whole texture to the ring's `clearValue`, or transparent black
+  /// when there is none. A pass that didn't clear left what a GPU has in that
+  /// memory where glass reads it: old mattes on the host, black or white
+  /// streaks across glass on phones.
+  final gpu.RenderTarget renderTarget;
 
   /// Frame count when this texture was last replaced or released.
   int retiredFrame = 0;
