@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -151,4 +152,19 @@ void main() {
     await tester.pump();
     expect(layer.glow, _glow);
   }, skip: skipProperGlassTests);
+
+  test('the shader holds device pixels in highp', () {
+    final source = File(
+      'lib/assets/shaders/glass_glow.glsl',
+    ).readAsStringSync();
+
+    for (final variable in const [
+      'highp vec2 q',
+      'highp float d',
+      'highp vec2 r',
+      'highp float factor',
+    ]) {
+      expect(source, contains(variable));
+    }
+  });
 }
