@@ -136,6 +136,7 @@ class _DeviceCheckAppState extends State<_DeviceCheckApp> {
         pairs: 6,
         proxyRounds: 20,
       );
+      benchSwitches[lever]!(on: _levers[lever]!);
     }
     return {
       'version': 1,
