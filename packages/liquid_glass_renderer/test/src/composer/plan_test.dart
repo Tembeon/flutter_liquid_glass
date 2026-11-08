@@ -193,6 +193,16 @@ void main() {
       expect(_plan(_Scene([low, other, top])).reads, hasLength(3));
     });
 
+    test('a copy of few pixels still holds the glass under it', () {
+      final low = _site(0, const Rect.fromLTWH(0, 0, 100, 100));
+      final top = _site(2, const Rect.fromLTWH(20, 20, 300, 60));
+      top.look = const Look(key: 'thick', frost: 20, downscale: 4);
+      top.floor = -1;
+      final plan = _plan(_Scene([low, top]));
+      expect(plan.reads, hasLength(2));
+      expect(plan.reads[1].holds, [plan.reads[0]]);
+    });
+
     test('chrome at both ends of the screen does not share a whole screen', () {
       final top = _site(0, const Rect.fromLTWH(8, 40, 395, 60));
       final bottom = _site(2, const Rect.fromLTWH(8, 830, 395, 60));

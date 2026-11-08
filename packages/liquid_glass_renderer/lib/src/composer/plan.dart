@@ -795,8 +795,6 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
         read.frostLeftOut = math.max(read.frostLeftOut, below.lead.look.frost);
         continue;
       }
-      // A copy of few pixels leaves glass out: its frost hides it.
-      if (read.downscale >= 4) continue;
       read.holds.add(below);
       read.level = math.max(read.level, below.level + 1);
     }
