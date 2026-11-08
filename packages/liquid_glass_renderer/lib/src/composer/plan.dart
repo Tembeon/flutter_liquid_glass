@@ -574,7 +574,13 @@ final class Policy {
     this.copies = true,
     this.dropsFrost = true,
     this.bakesFrost = true,
+    this.coarseHolds = true,
   });
+
+  /// Whether a copy of a quarter of the screen's pixels or fewer holds the
+  /// glass under it. Without, that glass is left out of it: its colour
+  /// goes from the copy, which the frost cannot hide.
+  final bool coarseHolds;
 
   /// Whether a copy smaller than the screen is frosted once rather than by
   /// every fragment of the glass over it.
@@ -795,6 +801,7 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
         read.frostLeftOut = math.max(read.frostLeftOut, below.lead.look.frost);
         continue;
       }
+      if (!policy.coarseHolds && read.downscale >= 4) continue;
       read.holds.add(below);
       read.level = math.max(read.level, below.level + 1);
     }

@@ -70,6 +70,10 @@ final benchSwitches = <String, void Function({required bool on})>{
   // B leaves a backdrop frost out of a copy for wider frosted glass.
   'drops_frost': ({required on}) =>
       GlassComposer.debugPolicy = Policy(dropsFrost: on),
+  // B: a copy of a quarter of the screen's pixels holds the glass under it,
+  // at the screen's pixels; A leaves that glass out.
+  'coarse_holds': ({required on}) =>
+      GlassComposer.debugPolicy = Policy(coarseHolds: on),
   'downscale4': ({required on}) =>
       RenderLiquidGlassLayer.debugMaxCopyDownscale = on ? 4 : 2,
   // B draws the copies asked for without a filter in the frame, A into
