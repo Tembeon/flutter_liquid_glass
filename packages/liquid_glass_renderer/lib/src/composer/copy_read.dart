@@ -34,6 +34,28 @@ final class CopyGrid {
   // [rect] (logical pixels) grown to whole pixels of the copy.
   Rect _snapOut(Rect rect) => _snapOutAt(rect, _pixels);
 
+  // [rect] (logical pixels) in the screen's device pixels, grown to whole
+  // pixels of the copy: the layer a copy of it is drawn in.
+  Rect _device(Rect rect) => Rect.fromLTRB(
+    _floorPixels(rect.left * _pixels) * _share,
+    _floorPixels(rect.top * _pixels) * _share,
+    _ceilPixels(rect.right * _pixels) * _share,
+    _ceilPixels(rect.bottom * _pixels) * _share,
+  );
+
+  // Whether Impeller draws the layer of a copy of [layer] whole inside
+  // [clip] (both logical pixels). It measures the layer as drawn: the whole
+  // pixels it grows to can tip a layer just under the bound over it.
+  bool _keepsWhole(Rect layer, Rect clip) => GlassCopies.keepsWhole(
+    _device(layer),
+    Rect.fromLTRB(
+      clip.left * _devicePixelRatio,
+      clip.top * _devicePixelRatio,
+      clip.right * _devicePixelRatio,
+      clip.bottom * _devicePixelRatio,
+    ),
+  );
+
   // From the coordinates of a form's root to a copy of [rect], its top left
   // at [origin]: one scale, and the layers' own transforms after it.
   //
@@ -227,13 +249,7 @@ final class PagePart {
 /// edge.
 @internal
 final class CornerRead {
-  CornerRead._(this._copy, this._cut)
-    : _device = Rect.fromLTRB(
-        (_cut.left * _copy._grid._pixels).floorToDouble() * _copy._grid._share,
-        (_cut.top * _copy._grid._pixels).floorToDouble() * _copy._grid._share,
-        (_cut.right * _copy._grid._pixels).ceilToDouble() * _copy._grid._share,
-        (_cut.bottom * _copy._grid._pixels).ceilToDouble() * _copy._grid._share,
-      );
+  CornerRead._(this._copy, this._cut) : _device = _copy._grid._device(_cut);
 
   final ReadCopy _copy;
   // The part of the copy's layer read, in the screen's logical pixels.
@@ -298,11 +314,11 @@ final class CornerRead {
     final pixels = _copy._grid._pixels;
     return Size(
       min(
-        (max(at.dx, 0) + _copy._band.width * pixels).ceilToDouble(),
+        _ceilPixels(max(at.dx, 0) + _copy._band.width * pixels),
         _device.width,
       ),
       min(
-        (max(at.dy, 0) + _copy._band.height * pixels).ceilToDouble(),
+        _ceilPixels(max(at.dy, 0) + _copy._band.height * pixels),
         _device.height,
       ),
     );

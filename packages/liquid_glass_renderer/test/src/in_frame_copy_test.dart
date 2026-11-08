@@ -137,12 +137,14 @@ Future<Uint8List> _drawn(
   bool second = true,
   double secondFrost = 0,
   Rect? clip,
+  double top = 200,
 }) async {
   GlassComposer.debugPolicy = Policy(maxTargets: inFrame ? 64 : 0);
   await tester.pumpWidget(const SizedBox());
   await tester.pumpWidget(
     _scene(
       shift: 0.3,
+      top: top,
       frost: frost,
       second: second,
       secondFrost: secondFrost,
@@ -152,6 +154,7 @@ Future<Uint8List> _drawn(
   final drawn = GlassCopies.debugImagesDrawn;
   await tester.pumpWidget(
     _scene(
+      top: top,
       frost: frost,
       second: second,
       secondFrost: secondFrost,
@@ -318,6 +321,39 @@ void main() {
     // The frost's dither lies on the layer's cell, which a clip shifts from
     // the image's: 14 levels over the test's hard bars.
     expect(_difference(image, inFrame), lessThanOrEqualTo(14));
+  }, skip: skipProperGlassTests);
+
+  // Impeller weighs the cut on the layer's device pixels. Glass at 203.8
+  // reads from row 408 at dpr 2.625, which 408 / 2.625 * 2.625 misses by a
+  // hair, and clips from 198.2 to 198.6 cut that band by about 30 %: a layer
+  // a pixel taller than its band tips over the bound and Impeller cuts it.
+  testWidgets('glass a clip cuts by about the bound reads where it lies', (
+    tester,
+  ) async {
+    const pixelRatio = 2.625;
+    tester.view.physicalSize = const Size(260, 640) * pixelRatio;
+    tester.view.devicePixelRatio = pixelRatio;
+    addTearDown(tester.view.reset);
+    for (var cut = 198.2; cut < 198.65; cut += 0.05) {
+      final clip = Rect.fromLTRB(0, cut, 260, 640);
+      final image = await _drawn(
+        tester,
+        inFrame: false,
+        pixelRatio: pixelRatio,
+        second: false,
+        clip: clip,
+        top: 203.8,
+      );
+      final inFrame = await _drawn(
+        tester,
+        inFrame: true,
+        pixelRatio: pixelRatio,
+        second: false,
+        clip: clip,
+        top: 203.8,
+      );
+      expect(_difference(image, inFrame), lessThanOrEqualTo(2), reason: '$cut');
+    }
   }, skip: skipProperGlassTests);
 
   // The lower glass's frosted copy is an image at a fraction of the screen's

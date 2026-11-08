@@ -170,11 +170,17 @@ abstract final class GlassCopies {
 }
 
 Rect _snapOutAt(Rect rect, double dpr) => Rect.fromLTRB(
-  (rect.left * dpr).floorToDouble() / dpr,
-  (rect.top * dpr).floorToDouble() / dpr,
-  (rect.right * dpr).ceilToDouble() / dpr,
-  (rect.bottom * dpr).ceilToDouble() / dpr,
+  _floorPixels(rect.left * dpr) / dpr,
+  _floorPixels(rect.top * dpr) / dpr,
+  _ceilPixels(rect.right * dpr) / dpr,
+  _ceilPixels(rect.bottom * dpr) / dpr,
 );
+
+// The whole pixels below and above [pixels]. A rect snapped once and scaled
+// back lands a hair off its pixels (837 / 2.625 * 2.625 is 836.999...); it
+// stays on them, or a second snap grows its layer by a pixel.
+double _floorPixels(double pixels) => (pixels + 1e-6).floorToDouble();
+double _ceilPixels(double pixels) => (pixels - 1e-6).ceilToDouble();
 
 // Content clipped away reaches no band, even where its empty rect lies across
 // one.
@@ -189,7 +195,7 @@ bool _meets(Rect bounds, Rect band) => !bounds.isEmpty && bounds.overlaps(band);
 // there, glass reads the copy mirrored at the clip, up to 163 levels off
 // over the 30 px of glass the host test leaves above such a clip.
 Rect _layerIn(Rect band, Rect clip, CopyGrid grid) {
-  if (GlassCopies.keepsWhole(band, clip)) return band;
+  if (grid._keepsWhole(band, clip)) return band;
   // Along one axis: the span from [lo] to [hi] grown inside [from, to].
   (double, double)? grow(double lo, double hi, double from, double to) {
     final cut = max(from - lo, 0) + max(hi - to, 0);
@@ -213,7 +219,7 @@ Rect _layerIn(Rect band, Rect clip, CopyGrid grid) {
     return grid._snapOut(band.intersect(clip));
   }
   final grown = grid._snapOut(Rect.fromLTRB(x.$1, y.$1, x.$2, y.$2));
-  return GlassCopies.keepsWhole(grown, clip)
+  return grid._keepsWhole(grown, clip)
       ? grown
       : grid._snapOut(band.intersect(clip));
 }
@@ -306,9 +312,7 @@ final class ReadCopy {
   /// past the cut mirrored at it, under the frost of the read holding it.
   Rect regionIn(ReadCopy outer, Rect? clip) {
     final held = clip == null ? outer.band : outer.band.intersect(clip);
-    return _grid._share == 1 && GlassCopies.keepsWhole(layer, held)
-        ? layer
-        : held;
+    return _grid._share == 1 && _grid._keepsWhole(layer, held) ? layer : held;
   }
 
   void _addTo(ui.SceneBuilder builder, Offset origin, Rect within) {
