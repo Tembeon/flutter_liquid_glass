@@ -176,7 +176,7 @@ void main() {
   );
 
   testWidgets(
-    'rebuilds the filter when settings change the shader uniforms',
+    'rebuilds the filter only when settings change the shader uniforms',
     (tester) async {
       await tester.pumpWidget(glass());
       await tester.pumpAndSettle();
@@ -185,8 +185,19 @@ void main() {
       final firstFilter = renderObject.debugBackdropFilterLayer?.filter;
       expect(firstFilter, isNotNull);
 
+      // The default frost passed explicitly: other settings, the same
+      // uniforms and blur.
       await tester.pumpWidget(
         glass(settings: const LiquidGlassSettings(frost: 8)),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        renderObject.debugBackdropFilterLayer?.filter,
+        same(firstFilter),
+      );
+
+      await tester.pumpWidget(
+        glass(settings: const LiquidGlassSettings(frost: 8, highlight: 0.3)),
       );
       await tester.pumpAndSettle();
 

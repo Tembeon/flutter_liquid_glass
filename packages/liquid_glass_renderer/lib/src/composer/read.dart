@@ -102,8 +102,8 @@ abstract interface class ReadPainter {
     ui.ImageFilter? inPlace,
   );
 
-  /// Changes when what [recordPage] draws for [read] changes, its page aside.
-  Object readRevision(Read read);
+  /// Equal while [recordPage] draws the same for [read] over [page].
+  Object pageKey(Read read, PageCopy page);
 
   /// Records [read] over [page], in the coordinates [screenToCanvas] takes the
   /// screen's device pixels to.

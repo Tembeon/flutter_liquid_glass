@@ -228,7 +228,7 @@ void main() {
             .whereType<RenderLiquidGlassLayer>()
             .last;
         final renderer = renderObject.gpuGeometryRenderer!;
-        final renderShader = renderObject.renderShader;
+        final renderShader = renderObject.debugLiveShader;
         final renderCount = renderer.debugRenderCount;
         expect(
           FlutterGpuGeometryRenderer.debugActiveRendererCount,
@@ -245,7 +245,7 @@ void main() {
         revision.value++;
         await tester.pump();
         expect(renderer.debugRenderCount, renderCount);
-        expect(renderObject.renderShader, same(renderShader));
+        expect(renderObject.debugLiveShader, same(renderShader));
         expect(renderShader.debugDisposed, isFalse);
         expect(
           FlutterGpuGeometryRenderer.debugActiveGeometryTextureCount,
@@ -279,7 +279,7 @@ void main() {
             .whereType<RenderLiquidGlassLayer>()
             .last;
         final replacement = replacementRenderObject.gpuGeometryRenderer!;
-        final replacementShader = replacementRenderObject.renderShader;
+        final replacementShader = replacementRenderObject.debugLiveShader;
         expect(replacement, isNot(same(renderer)));
 
         await tester.pumpWidget(const SizedBox());

@@ -140,7 +140,7 @@ void main() {
           : FinalShaderKind.single;
       expect(
         identical(
-          layer.renderShader,
+          layer.debugLiveShader,
           // The scene's glass is frosted, so it draws with a variant that
           // can frost a copy.
           layer.finalShaders[FinalShaderVariant.indexOf(
@@ -155,10 +155,9 @@ void main() {
 
       RenderLiquidGlassLayer.debugShaderFrost = false;
       addTearDown(() => RenderLiquidGlassLayer.debugShaderFrost = true);
-      layer.debugUpdateShaders();
       expect(
         identical(
-          layer.renderShader,
+          layer.debugLiveShader,
           layer.finalShaders[FinalShaderVariant.indexOf(kind, models)],
         ),
         isTrue,

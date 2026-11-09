@@ -331,7 +331,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
       origin,
       _frost,
       _blendMode,
-      painter?.readRevision(read),
+      painter?.pageKey(read, page),
     );
     _scene = null;
     _sceneKey = null;

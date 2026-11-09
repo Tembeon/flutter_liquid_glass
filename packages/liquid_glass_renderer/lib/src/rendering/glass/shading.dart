@@ -1,0 +1,827 @@
+// Uniform writes read as one statement per value, without cascades.
+// ignore_for_file: cascade_invocations
+
+import 'dart:math';
+import 'dart:ui' as ui;
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
+import 'package:liquid_glass_renderer/src/internal/final_shader_variant.dart';
+import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
+import 'package:liquid_glass_renderer/src/internal/shader_filter.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_appearance.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_color_model.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_settings.dart';
+
+/// One draw of the final glass shader: every uniform and sampler it reads,
+/// in sections that each own their uniforms.
+///
+/// [GlassShading] writes all of a draw before it makes a filter or paint of
+/// it, so no draw depends on what another left in the shader.
+@internal
+@immutable
+final class GlassDraw {
+  /// Creates the draw.
+  const GlassDraw({
+    required this.variant,
+    required this.face,
+    required this.glow,
+    required this.matte,
+    required this.mapping,
+    this.reading = LiveReading.backdrop,
+    this.band,
+    this.analytic,
+  });
+
+  /// The index in [FinalShaderVariant.all] of the shader it draws with.
+  final int variant;
+
+  /// The material: settings, appearance and color models.
+  final GlassFace face;
+
+  /// The touch glow, as `LiquidGlassGlow.uniformsOf` lays it out.
+  final List<double> glow;
+
+  /// Where the shader reads its shapes.
+  final MatteBinding matte;
+
+  /// From fragment coordinates into the matte.
+  final MatteMapping mapping;
+
+  /// What the shader reads under the glass.
+  final GlassReading reading;
+
+  /// The scroll edge the band variant draws beside the glass; a variant
+  /// without one lays nothing over what it reads.
+  final BandOverlay? band;
+
+  /// The shapes an analytic variant evaluates.
+  final AnalyticShapes? analytic;
+
+  /// This draw with the parts given changed.
+  GlassDraw copyWith({
+    int? variant,
+    MatteBinding? matte,
+    MatteMapping? mapping,
+    GlassReading? reading,
+  }) => GlassDraw(
+    variant: variant ?? this.variant,
+    face: face,
+    glow: glow,
+    matte: matte ?? this.matte,
+    mapping: mapping ?? this.mapping,
+    reading: reading ?? this.reading,
+    band: band,
+    analytic: analytic,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlassDraw &&
+      other.variant == variant &&
+      other.face == face &&
+      _sameFloats(other.glow, glow) &&
+      other.matte == matte &&
+      other.mapping == mapping &&
+      other.reading == reading &&
+      other.band == band &&
+      other.analytic == analytic;
+
+  @override
+  int get hashCode => Object.hash(variant, matte, mapping, reading);
+}
+
+/// The final shader's floats one layout of the glass's material sets.
+@internal
+@immutable
+final class GlassFace {
+  const GlassFace._({
+    required this.face,
+    required this.wrap,
+    required this.gamma,
+    required this.material,
+    required this.blurFade,
+    required this.colorModels,
+  });
+
+  /// The material of [appearance] under [settings], its color model in slot
+  /// [modelCode] of [colorModels].
+  ///
+  /// Colors go in at 8 bits a channel, as the material has always been
+  /// written. The shader fades the whole material with visibility, so the
+  /// color factors go in at full strength. Frosted glass cross-fades its
+  /// blur away ([blurs]), unfrosted glass stays alpha 1 and cross-fades its
+  /// material in the shader, so both match the backdrop at visibility 0.
+  factory GlassFace.of({
+    required LiquidGlassSettings settings,
+    required LiquidGlassAppearance appearance,
+    required List<GlassColorParameters> colorModels,
+    required double modelCode,
+    required double devicePixelRatio,
+    required bool blurs,
+  }) {
+    final dpr = devicePixelRatio;
+    final tint = appearance.tint;
+    final contour = (settings.contourStrength.clamp(0.0, 1.0) * 255).round();
+    return GlassFace._(
+      face: List.unmodifiable(<double>[
+        _channel(tint.r),
+        _channel(tint.g),
+        _channel(tint.b),
+        _channel(tint.a),
+        settings.effectiveDisplacementScale * dpr,
+        settings.dispersion,
+        settings.effectiveEdgeDistanceRange * dpr,
+        settings.highlight,
+        1 - settings.effectiveBackdropShrink,
+        appearance.colorModel.saturation,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        contour / 255,
+        GlassRim.bevelShadowDirectionality,
+        0,
+        GlassRim.highlightWidth * dpr,
+        GlassRim.highlightOppositeStrength,
+        settings.contourWidth * dpr,
+        0,
+        settings.contourDirectionality,
+        0,
+      ]),
+      wrap: GlassRim.highlightWrap,
+      gamma: appearance.colorModel.transmissionGamma,
+      material: List.unmodifiable(<double>[
+        appearance.colorModel.vibrancy,
+        settings.effectiveTintAmount,
+        settings.bevelShadowStrength,
+        GlassRim.bevelShadowDepth * dpr,
+        GlassRim.bevelShadowOffset * dpr,
+        modelCode,
+        appearance.visibility,
+        FlutterGpuGeometryRenderer.materialRasterScale.toDouble(),
+      ]),
+      blurFade: blurs ? 1 : 0,
+      colorModels: List.unmodifiable(<double>[
+        for (var i = 0; i < 3; i++)
+          ...i < colorModels.length
+              ? colorModels[i].toShaderParameters()
+              : GlassColorParameters.ios27Light.toShaderParameters(),
+      ]),
+    );
+  }
+
+  static double _channel(double value) =>
+      (value * 255).round().clamp(0, 255) / 255;
+
+  /// uFace: tint, optics, light, highlight and contour colors, rim, contour.
+  final List<double> face;
+
+  /// uProfile.z, the highlight's wrap.
+  final double wrap;
+
+  /// uProfile.w, the transmission gamma.
+  final double gamma;
+
+  /// uMaterial: vibrancy, tint amount, bevel, model code, visibility, raster
+  /// scale.
+  final List<double> material;
+
+  /// uBlurFade: 1 where the frost fades out with visibility.
+  final double blurFade;
+
+  /// uColorModelParams: three slots of the color models.
+  final List<double> colorModels;
+
+  /// The bevel's displacement, which reads the backdrop by device pixels.
+  double get displacement => face[4];
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GlassFace &&
+          other.wrap == wrap &&
+          other.gamma == gamma &&
+          other.blurFade == blurFade &&
+          listEquals(other.face, face) &&
+          listEquals(other.material, material) &&
+          listEquals(other.colorModels, colorModels);
+
+  @override
+  int get hashCode => Object.hash(wrap, gamma, blurFade, face[0], face[4]);
+}
+
+/// Where the final shader reads its shapes: a low-res matte, or the
+/// placeholder an analytic frame binds, and the material map where the
+/// shapes' appearances differ.
+@internal
+@immutable
+final class MatteBinding {
+  /// Creates the binding. Rects, points and sizes are in device pixels.
+  const MatteBinding({
+    required this.image,
+    required this.origin,
+    required this.size,
+    required this.textureSize,
+    required this.matteScale,
+    required this.halfMinor,
+    required this.refractionHeight,
+    required this.fitsShape,
+    required this.materialCenter,
+    required this.shrinkAxis,
+    required this.materialTextureSize,
+    this.material,
+  });
+
+  /// The matte, sampled bilinearly. Sampler 0 takes its filtering from the
+  /// image bound to it, so a filter binds this there too.
+  final ui.Image image;
+
+  /// uGeometryBounds.xy: where the matte's top-left lies.
+  final Offset origin;
+
+  /// uGeometryBounds.zw: the matte's size.
+  final Size size;
+
+  /// The matte's texture, which it fills the top-left of.
+  final Size textureSize;
+
+  /// Matte pixels per texel.
+  final int matteScale;
+
+  /// Half the short side of the glass, which sizes the bevel.
+  final double halfMinor;
+
+  /// uLowResOptics.x: how far in the refraction reaches.
+  final double refractionHeight;
+
+  /// uLowResOptics.y: whether refraction fits the shape.
+  final bool fitsShape;
+
+  /// uMaterialCenter, in the matte.
+  final Offset materialCenter;
+
+  /// uBackdropShrinkAxis.
+  final Offset shrinkAxis;
+
+  /// uMaterialTextureSize.
+  final Size materialTextureSize;
+
+  /// The tint or material map, for the variants that read one.
+  final ui.Image? material;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MatteBinding &&
+      identical(other.image, image) &&
+      identical(other.material, material) &&
+      other.origin == origin &&
+      other.size == size &&
+      other.textureSize == textureSize &&
+      other.matteScale == matteScale &&
+      other.halfMinor == halfMinor &&
+      other.refractionHeight == refractionHeight &&
+      other.fitsShape == fitsShape &&
+      other.materialCenter == materialCenter &&
+      other.shrinkAxis == shrinkAxis &&
+      other.materialTextureSize == materialTextureSize;
+
+  @override
+  int get hashCode => Object.hash(
+    identityHashCode(image),
+    identityHashCode(material),
+    origin,
+    size,
+    textureSize,
+    matteScale,
+    halfMinor,
+    materialCenter,
+    shrinkAxis,
+    materialTextureSize,
+  );
+}
+
+/// From fragment coordinates to the matte, both in device pixels, and the
+/// part of the matte past which the backdrop the shader reads holds nothing.
+@internal
+@immutable
+final class MatteMapping {
+  /// The mapping [toMatte] (basis x.x, y.x, x.y, y.y, then offset) and the
+  /// device rect [backdropBounds] of the matte.
+  const MatteMapping(this.toMatte, this.backdropBounds);
+
+  /// The mapping from the fragments of a draw whose coordinate zero lies at
+  /// [origin] on the screen, in device pixels, one fragment [scale] of
+  /// them, through [screenToMatte] (logical pixels) into the matte.
+  /// [backdropBounds] is in the matte's logical pixels, null for none.
+  factory MatteMapping.of(
+    Matrix4 screenToMatte, {
+    required double devicePixelRatio,
+    Offset origin = Offset.zero,
+    double scale = 1,
+    Rect? backdropBounds,
+  }) {
+    final dpr = devicePixelRatio;
+    final o = MatrixUtils.transformPoint(screenToMatte, Offset.zero);
+    final ax = MatrixUtils.transformPoint(screenToMatte, const Offset(1, 0));
+    final ay = MatrixUtils.transformPoint(screenToMatte, const Offset(0, 1));
+    final bounds = backdropBounds ?? Rect.largest;
+    return MatteMapping(
+      (
+        (ax.dx - o.dx) * scale,
+        (ay.dx - o.dx) * scale,
+        (ax.dy - o.dy) * scale,
+        (ay.dy - o.dy) * scale,
+        o.dx * dpr + (ax.dx - o.dx) * origin.dx + (ay.dx - o.dx) * origin.dy,
+        o.dy * dpr + (ax.dy - o.dy) * origin.dx + (ay.dy - o.dy) * origin.dy,
+      ),
+      Rect.fromLTRB(
+        bounds.left * dpr,
+        bounds.top * dpr,
+        bounds.right * dpr,
+        bounds.bottom * dpr,
+      ),
+    );
+  }
+
+  /// Maps nothing anywhere: the mapping before the glass has a place.
+  static const MatteMapping none = MatteMapping((0, 0, 0, 0, 0, 0), Rect.zero);
+
+  /// uFilterToMatteBasis and uFilterToMatteOffset.
+  final (double, double, double, double, double, double) toMatte;
+
+  /// uBackdropBounds.
+  final Rect backdropBounds;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MatteMapping &&
+      other.toMatte == toMatte &&
+      other.backdropBounds == backdropBounds;
+
+  @override
+  int get hashCode => Object.hash(toMatte, backdropBounds);
+}
+
+/// What the final shader reads under the glass.
+@internal
+@immutable
+sealed class GlassReading {
+  const GlassReading();
+}
+
+/// The backdrop a filter is given: the live one, or a layer's corner the
+/// filter reads as the screen.
+@internal
+final class LiveReading extends GlassReading {
+  const LiveReading._();
+
+  /// The reading.
+  static const LiveReading backdrop = LiveReading._();
+}
+
+/// A copy of the backdrop, as [GlassSampling] lays it out.
+@internal
+final class CopyReading extends GlassReading {
+  /// The copy [sampling] describes.
+  CopyReading(GlassSampling sampling)
+    : origin = sampling.image == null ? Offset.zero : sampling.origin,
+      scale = sampling.scale,
+      reduced = sampling.reduced,
+      frost = sampling.frost,
+      size = sampling.size,
+      image = sampling.image;
+
+  /// uBackdropOrigin: where a paint's fragment zero lies on the screen;
+  /// zero for a filter, whose fragments start there.
+  final Offset origin;
+
+  /// Device pixels per fragment.
+  final int scale;
+
+  /// uBackdropReduced.
+  final double reduced;
+
+  /// The frost, in device pixels, the shader's taps add.
+  final double frost;
+
+  /// uSize of a paint; a filter's is the engine's.
+  final Size? size;
+
+  /// The image a paint samples; a filter samples its input.
+  final ui.Image? image;
+
+  @override
+  bool operator ==(Object other) =>
+      other is CopyReading &&
+      identical(other.image, image) &&
+      other.origin == origin &&
+      other.scale == scale &&
+      other.reduced == reduced &&
+      other.frost == frost &&
+      other.size == size;
+
+  @override
+  int get hashCode =>
+      Object.hash(identityHashCode(image), origin, scale, reduced, frost, size);
+}
+
+/// An opaque color in place of the backdrop, for glass painted as a rect.
+@internal
+final class SolidReading extends GlassReading {
+  /// Reads [color] over a target of [size] device pixels.
+  const SolidReading(this.color, this.size);
+
+  /// The color, in extended sRGB.
+  final ui.Color color;
+
+  /// uSize: only backdrop reads divide by it, so any nonzero size works.
+  final Size size;
+
+  @override
+  bool operator ==(Object other) =>
+      other is SolidReading && other.color == color && other.size == size;
+
+  @override
+  int get hashCode => Object.hash(color, size);
+}
+
+/// The scroll edge the band variant draws: uBand and the fade laid over
+/// what the glass reads.
+@internal
+@immutable
+final class BandOverlay {
+  const BandOverlay._(this.band, this.overlay);
+
+  /// The band [look] in a draw whose fragment zero lies at [origin] on the
+  /// screen, one fragment [scale] device pixels: [shown] (device pixels from
+  /// [origin]) of the band in it, frosted by [whole] device pixels, of which
+  /// [held] is in what it reads already.
+  factory BandOverlay.of(
+    BandLook look, {
+    required Offset origin,
+    required int scale,
+    required Rect shown,
+    required double whole,
+    required double held,
+  }) {
+    final paint = look.paint;
+    final dpr = look.devicePixelRatio;
+    final from = look.origin.dy;
+    double row(double y) => ((y + from) * dpr - origin.dy) / scale;
+    final fade = paint.fade;
+    final alpha = fade.a * paint.presence;
+    return BandOverlay._(
+      List.unmodifiable(<double>[
+        shown.left / scale,
+        shown.top / scale,
+        shown.right / scale,
+        shown.bottom / scale,
+        sqrt(max(whole * whole - held * held, 0)) / scale,
+        row(paint.whole),
+        row(paint.gone),
+        paint.brightness,
+        fade.r * alpha,
+        fade.g * alpha,
+        fade.b * alpha,
+        alpha,
+        row(paint.lineStart),
+        row(paint.lineEnd),
+        paint.lineGray,
+        paint.presence,
+        paint.saturation,
+        0,
+        0,
+        0,
+      ]),
+      List.unmodifiable(<double>[fade.r, fade.g, fade.b, alpha]),
+    );
+  }
+
+  /// uBand.
+  final List<double> band;
+
+  /// uBackdropOverlay.
+  final List<double> overlay;
+
+  @override
+  bool operator ==(Object other) =>
+      other is BandOverlay &&
+      listEquals(other.band, band) &&
+      listEquals(other.overlay, overlay);
+
+  @override
+  int get hashCode => Object.hashAll(overlay);
+}
+
+/// The shapes an analytic variant evaluates, laid out from uAnalyticHeader as
+/// analytic_geometry.glsl declares them.
+@internal
+@immutable
+final class AnalyticShapes {
+  const AnalyticShapes._(this.floats);
+
+  /// [count] shapes of 12 floats in [shapes], with their superellipse halves,
+  /// boxes and cull ratios, each array padded to its declared length.
+  factory AnalyticShapes.pack({
+    required int count,
+    required double contourExtent,
+    required bool blended,
+    required List<double> shapes,
+    required List<double> superellipses,
+    required List<double> superellipsesLower,
+    required List<double> boxes,
+    required List<double> cull,
+  }) {
+    final floats = <double>[];
+    void fill(List<double> values, int length) {
+      floats.addAll(values);
+      floats.addAll(List<double>.filled(length - values.length, 0));
+    }
+
+    fill([count.toDouble(), max(0.5, contourExtent), if (blended) 1 else 0], 4);
+    fill(shapes, maxShapes * 12);
+    fill(superellipses, maxShapes * 12);
+    fill(superellipsesLower, maxShapes * 12);
+    fill(boxes, maxShapes * 4);
+    fill(cull, maxShapes);
+    return AnalyticShapes._(List.unmodifiable(floats));
+  }
+
+  /// The most shapes an analytic frame evaluates (ANALYTIC_MAX_SHAPES).
+  static const int maxShapes = 8;
+
+  /// The floats, from uAnalyticHeader.
+  final List<double> floats;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AnalyticShapes && listEquals(other.floats, floats);
+
+  @override
+  int get hashCode => Object.hash(floats.length, floats[0]);
+}
+
+/// Where a final shader variant takes each uniform the glass writes: floats
+/// read from its program by name, samplers in the order they are declared.
+///
+/// `FragmentShader.getImageSampler` counts samplers in the order the
+/// program's reflection lists them, which is not the order
+/// `setImageSampler` binds them in (Flutter 3.47): in the material variant
+/// it puts the backdrop third.
+@internal
+final class FinalLayout {
+  /// The layout of [shader], a shader of [variant].
+  FinalLayout(ui.FragmentShader shader, FinalShaderVariant variant)
+    : size = _float(shader, 'uSize'),
+      geometryBounds = _float(shader, 'uGeometryBounds'),
+      face = _float(shader, 'uFace'),
+      profile = _float(shader, 'uProfile'),
+      material = _float(shader, 'uMaterial'),
+      mapping = _float(shader, 'uMapping'),
+      mappingEnd = _float(shader, 'uMappingEnd'),
+      colorModels = _float(shader, 'uColorModelParams'),
+      lowResMatte = _float(shader, 'uLowResMatte'),
+      lowResOptics = _float(shader, 'uLowResOptics'),
+      effects = _float(shader, 'uEffects'),
+      band = variant.band ? _float(shader, 'uBand') : null,
+      analytic = variant.kind == FinalShaderKind.analytic
+          ? _float(shader, 'uAnalyticHeader')
+          : null,
+      geometry = variant.kind == FinalShaderKind.analytic ? null : 1,
+      materialMap = switch (variant.kind) {
+        FinalShaderKind.tint || FinalShaderKind.material => 2,
+        _ => null,
+      },
+      materialLinear = variant.kind == FinalShaderKind.material ? 3 : null;
+
+  static int _float(ui.FragmentShader shader, String name) =>
+      shader.getUniformFloat(name).shaderIndex;
+
+  /// The float index of uSize.
+  final int size;
+
+  /// The float index of uGeometryBounds.
+  final int geometryBounds;
+
+  /// The float index of uFace.
+  final int face;
+
+  /// The float index of uProfile.
+  final int profile;
+
+  /// The float index of uMaterial.
+  final int material;
+
+  /// The float index of uMapping.
+  final int mapping;
+
+  /// The float index of uMappingEnd.
+  final int mappingEnd;
+
+  /// The float index of uColorModelParams.
+  final int colorModels;
+
+  /// The float index of uLowResMatte.
+  final int lowResMatte;
+
+  /// The float index of uLowResOptics.
+  final int lowResOptics;
+
+  /// The float index of uEffects.
+  final int effects;
+
+  /// uBand, in the band variant.
+  final int? band;
+
+  /// uAnalyticHeader, in the analytic variants.
+  final int? analytic;
+
+  /// uBackgroundTexture's sampler: what the glass reads.
+  final int backdrop = 0;
+
+  /// uGeometryTexture's sampler, where the variant reads a matte.
+  final int? geometry;
+
+  /// uMaterialTexture's sampler, where the variant reads a material map.
+  final int? materialMap;
+
+  /// uMaterialLinearTexture's sampler, in the material variant.
+  final int? materialLinear;
+}
+
+/// The glass's final shaders and the only code that writes them.
+///
+/// A shader filter takes its uniforms when it is first converted, which a
+/// scene may do frames after it was made, and a paint when it records. So
+/// every filter made here is converted at once and holds its draw: a later
+/// draw written to the same shader cannot reach it.
+@internal
+final class GlassShading {
+  /// Shades with [shaders], one per [FinalShaderVariant.all].
+  GlassShading(this.shaders)
+    : _layouts = List<FinalLayout?>.filled(shaders.length, null);
+
+  /// The shaders, by variant.
+  final List<ui.FragmentShader> shaders;
+
+  final List<FinalLayout?> _layouts;
+
+  /// A filter that draws [draw] over its input.
+  ui.ImageFilter filter(GlassDraw draw) => shaderFilterNow(_write(draw));
+
+  /// Draws [rect] with [draw] on [canvas]. Its edge is hard, as a filter's
+  /// clip cuts.
+  void paintRect(ui.Canvas canvas, Rect rect, GlassDraw draw) {
+    final paint = ui.Paint();
+    paint.shader = _write(draw);
+    paint.isAntiAlias = false;
+    canvas.drawRect(rect, paint);
+  }
+
+  static const _clear = <double>[0, 0, 0, 0];
+
+  ui.FragmentShader _write(GlassDraw draw) {
+    final shader = shaders[draw.variant];
+    final layout = _layouts[draw.variant] ??= FinalLayout(
+      shader,
+      FinalShaderVariant.all[draw.variant],
+    );
+    void put(int at, List<double> values) {
+      for (var i = 0; i < values.length; i++) {
+        shader.setFloat(at + i, values[i]);
+      }
+    }
+
+    final face = draw.face;
+    final matte = draw.matte;
+    final toMatte = draw.mapping.toMatte;
+    final bounds = draw.mapping.backdropBounds;
+    final (
+      origin,
+      scale,
+      reduced,
+      frost,
+      size,
+      image,
+      solid,
+    ) = switch (draw.reading) {
+      LiveReading() => (Offset.zero, 1, 0.0, 0.0, null, null, _clear),
+      CopyReading(
+        :final origin,
+        :final scale,
+        :final reduced,
+        :final frost,
+        :final size,
+        :final image,
+      ) =>
+        (origin, scale, reduced, frost, size, image, _clear),
+      SolidReading(:final color, :final size) => (
+        Offset.zero,
+        1,
+        0.0,
+        0.0,
+        size,
+        null,
+        <double>[color.r, color.g, color.b, 1],
+      ),
+    };
+    if (size != null) put(layout.size, [size.width, size.height]);
+    put(layout.geometryBounds, [
+      matte.origin.dx,
+      matte.origin.dy,
+      matte.size.width,
+      matte.size.height,
+    ]);
+    put(layout.face, face.face);
+    // The bevel shifts what it reads by device pixels: a fragment spans
+    // [scale] of them.
+    if (scale != 1) shader.setFloat(layout.face + 4, face.displacement / scale);
+    put(layout.profile, [
+      matte.materialCenter.dx,
+      matte.materialCenter.dy,
+      face.wrap,
+      face.gamma,
+    ]);
+    put(layout.material, face.material);
+    put(layout.mapping, [
+      toMatte.$1,
+      toMatte.$2,
+      toMatte.$3,
+      toMatte.$4,
+      toMatte.$5,
+      toMatte.$6,
+      face.blurFade,
+      bounds.left,
+      bounds.top,
+      bounds.right,
+      bounds.bottom,
+      origin.dx,
+    ]);
+    put(layout.mappingEnd, [
+      origin.dy,
+      matte.materialTextureSize.width,
+      matte.materialTextureSize.height,
+    ]);
+    put(layout.colorModels, face.colorModels);
+    put(layout.lowResMatte, [
+      matte.matteScale.toDouble(),
+      matte.textureSize.width,
+      matte.textureSize.height,
+      matte.halfMinor,
+    ]);
+    put(layout.lowResOptics, [
+      matte.refractionHeight,
+      if (matte.fitsShape) 1 else 0,
+    ]);
+    put(layout.effects, solid);
+    put(layout.effects + 4, draw.glow);
+    // The frost's taps lie device pixels apart.
+    put(layout.effects + 16, [
+      matte.shrinkAxis.dx,
+      matte.shrinkAxis.dy,
+      reduced,
+      frost / scale,
+    ]);
+    put(layout.effects + 20, draw.band?.overlay ?? _clear);
+    if (layout.band case final at?) put(at, draw.band!.band);
+    if (layout.analytic case final at?) put(at, draw.analytic!.floats);
+    // The engine binds a filter's input to sampler 0 but keeps the sampling
+    // of the image bound here: bilinear.
+    shader.setImageSampler(
+      layout.backdrop,
+      image ?? matte.image,
+      filterQuality: FilterQuality.low,
+    );
+    if (layout.geometry case final at?) {
+      shader.setImageSampler(at, matte.image, filterQuality: FilterQuality.low);
+    }
+    if (matte.material case final map?) {
+      if (layout.materialMap case final at?) {
+        // The tint map is read filtered, the material map texel by texel
+        // beside its filtered twin.
+        shader.setImageSampler(
+          at,
+          map,
+          filterQuality: layout.materialLinear == null
+              ? FilterQuality.low
+              : FilterQuality.none,
+        );
+      }
+      if (layout.materialLinear case final at?) {
+        shader.setImageSampler(at, map, filterQuality: FilterQuality.low);
+      }
+    }
+    return shader;
+  }
+}
+
+bool _sameFloats(List<double> a, List<double> b) =>
+    identical(a, b) || listEquals(a, b);
