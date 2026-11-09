@@ -266,10 +266,14 @@ final class Tiling {
     required this.droppedShapes,
     required this.looks,
     required this.deepLooks,
+    this.slack = 0,
+    this._tiled,
   });
 
   /// Classifies a buffer of [width] x [height] pixels holding [shapes],
-  /// encoded in buffer pixels, which wear [looks] where they differ.
+  /// encoded in buffer pixels, which wear [looks] where they differ. With
+  /// [slack] every bound allows each shape that many pixels of movement,
+  /// so the tiling still holds once they have moved ([held]).
   ///
   /// A ring that outgrows one atlas is tiled again with half the inward
   /// reach until it fits. Past the reach a read takes the deep value, so a
@@ -281,6 +285,7 @@ final class Tiling {
     required int height,
     required GlassReach reach,
     ShapeLooks? looks,
+    double slack = 0,
   }) {
     final columns = _tilesOver(width);
     final rows = _tilesOver(height);
@@ -292,8 +297,9 @@ final class Tiling {
           shapes,
           i,
           cell: cell,
-          foldMargin: 2.0 * reach.coarseTexel,
+          foldMargin: 2.0 * reach.coarseTexel + slack,
           apron: reach.coarseTexel / 2,
+          slack: slack,
         )..prepare((width + cell - 1) ~/ cell, (height + cell - 1) ~/ cell),
     ];
     final bounds = over(size);
@@ -348,6 +354,7 @@ final class Tiling {
       droppedShapes: dropped,
       looks: looks,
       deepLooks: deepLooks,
+      slack: slack,
     );
     if (tiling._fits || reach.inward <= 1) return tiling;
     return Tiling.shapes(
@@ -356,6 +363,7 @@ final class Tiling {
       height: height,
       reach: reach._shallower,
       looks: looks,
+      slack: slack,
     );
   }
 
@@ -428,6 +436,84 @@ final class Tiling {
     );
   }
 
+  /// This tiling with [shapes] and [looks] in place of its own, where it
+  /// still holds for them, else null: [shapes] are the shapes it was made
+  /// for, none more than [slack] from where it was then, in a buffer of
+  /// the same tiles, asked the same [reach], with looks shared out among
+  /// the shapes as before. The atlas such a tiling draws holds the shapes
+  /// where they are now; only which tiles are constant, which shapes a
+  /// strip evaluates and how fine its texels are date from the first.
+  Tiling? held(
+    ShapeSet shapes, {
+    required GlassReach reach,
+    ShapeLooks? looks,
+  }) {
+    final tiled = _tiled ?? this;
+    if (slack <= 0 || field != null || reach != this.reach) return null;
+    final from = this.looks;
+    if ((looks == null) != (from == null)) return null;
+    if (looks != null &&
+        from != null &&
+        (looks.tintOnly != from.tintOnly ||
+            !listEquals(looks.lookOf, from.lookOf))) {
+      return null;
+    }
+    final moved = _moved(tiled.shapes, shapes);
+    if (moved == null || moved > slack) return null;
+    return Tiling._(
+      reach: reach,
+      shapes: shapes,
+      field: null,
+      columns: columns,
+      rows: rows,
+      kinds: kinds,
+      runs: runs,
+      shapeSets: shapeSets,
+      droppedShapes: droppedShapes,
+      looks: looks,
+      deepLooks: deepLooks,
+      slack: slack,
+      tiled: tiled,
+    );
+  }
+
+  /// How far the shape of [shapes] that moved most lies from where this
+  /// tiling last drew it, in buffer pixels; null where [shapes] are not its
+  /// shapes moved.
+  double? motionTo(ShapeSet shapes) => _moved(this.shapes, shapes);
+
+  // The greatest distance between the centers of [from]'s shapes and
+  // [to]'s, or null unless they are the same shapes but for their centers.
+  static double? _moved(ShapeSet from, ShapeSet to) {
+    if (from.count != to.count) return null;
+    final a = from.shapes;
+    final b = to.shapes;
+    var farthest = 0.0;
+    for (var o = 0; o < a.length; o += 12) {
+      for (var k = 0; k < 12; k++) {
+        if (k == 8 || k == 9) continue;
+        // A shape's transform is the difference of two transformed points,
+        // which rounds differently wherever the shape lies.
+        final value = a[o + k];
+        if ((value - b[o + k]).abs() > 1e-6 * (1 + value.abs())) return null;
+      }
+      if (a[o] == RawShapeType.squirclePair.shaderIndex) {
+        for (final k in const [8, 9]) {
+          final value = from.superellipsesLower[o + k];
+          if ((value - to.superellipsesLower[o + k]).abs() >
+              1e-6 * (1 + value.abs())) {
+            return null;
+          }
+        }
+      }
+      final dx = a[o + 8] - b[o + 8];
+      final dy = a[o + 9] - b[o + 9];
+      final distance = dx * dx + dy * dy;
+      if (distance > farthest) farthest = distance;
+    }
+    return sqrt(farthest);
+  }
+
   // The ring tiles as runs along each row, a run sharing one set of shapes,
   // one list of them and one density.
   static List<TileRun> _runs(
@@ -470,9 +556,16 @@ final class Tiling {
 
   bool get _fits => layout.height <= AtlasLayout.maxSize;
 
+  /// How far each shape may move from where it was tiled with the tiling
+  /// still holding ([held]).
+  final double slack;
+
+  // The tiling this one holds for other shapes, if it is held.
+  final Tiling? _tiled;
+
   /// Where the atlas holds this tiling's table and strips: about as wide as
   /// it is tall.
-  late final AtlasLayout layout = AtlasLayout._of(this);
+  late final AtlasLayout layout = _tiled?.layout ?? AtlasLayout._of(this);
 
   /// [layout] packed into an atlas [width] texels wide instead, or null
   /// where no strip or table fits that width or the atlas grows too tall.
@@ -1121,23 +1214,30 @@ final class _ShapeBounds {
     required this.foldMargin,
     required this.apron,
     required this.cell,
+    required double slack,
   }) : _half = cell / 2 + apron,
        _extentX = (a.abs() + b.abs()) * (cell / 2 + apron),
        _extentY = (c.abs() + d.abs()) * (cell / 2 + apron),
        _ellipse = type == RawShapeType.ellipse.shaderIndex,
-       _slack = type == RawShapeType.roundedRectangle.shaderIndex
-           ? 0
-           : _solveSlack;
+       // A shape that moves by some distance changes its own distance by
+       // no more anywhere.
+       _slack =
+           slack +
+           (type == RawShapeType.roundedRectangle.shaderIndex
+               ? 0
+               : _solveSlack);
 
   /// Shape [i] of [shapes] over tiles of [cell] buffer pixels a side;
   /// [foldsOverTile] looks [foldMargin] pixels around a tile, and every
-  /// bound [apron] pixels around it.
+  /// bound [apron] pixels around it, for the shape anywhere within [slack]
+  /// pixels of where it is.
   factory _ShapeBounds.of(
     ShapeSet shapes,
     int i, {
     int cell = Tiling.size,
     double foldMargin = 0,
     double apron = 0.5,
+    double slack = 0,
   }) {
     final row = shapes.shapes;
     final o = i * 12;
@@ -1194,6 +1294,7 @@ final class _ShapeBounds {
       foldMargin: foldMargin,
       apron: apron,
       cell: cell,
+      slack: slack,
     );
   }
 

@@ -411,6 +411,156 @@ void main() {
     expect(shorter, greaterThan(250));
   });
 
+  test('a tiling with slack holds for its shapes moved within it', () {
+    final random = Random(29);
+    const slack = 3.0;
+    const reach = GlassReach(inward: 24, outward: 2, coarseTexel: 4);
+    final blended = reach.outward + 1.5 * reach.coarseTexel;
+    var held = 0;
+    for (var scene = 0; scene < 16; scene++) {
+      final shapes = _randomScene(
+        random,
+        count: 1 + random.nextInt(8),
+        width: width.toDouble(),
+        height: height.toDouble(),
+        largest: scene.isEven ? 240 : 90,
+      );
+      final tiled = Tiling.shapes(
+        _encode(shapes),
+        width: width,
+        height: height,
+        reach: reach,
+        slack: slack,
+      );
+      for (var step = 0; step < 3; step++) {
+        final moved = [
+          for (final shape in shapes)
+            () {
+              final angle = random.nextDouble() * 2 * pi;
+              final far = step == 2 ? slack : random.nextDouble() * slack;
+              return _Shape(
+                type: shape.type,
+                width: shape.width,
+                height: shape.height,
+                radius: shape.radius,
+                centerX: shape.centerX + far * 0.999 * cos(angle),
+                centerY: shape.centerY + far * 0.999 * sin(angle),
+                angle: shape.angle,
+                stretchX: shape.stretchX,
+                stretchY: shape.stretchY,
+                blend: shape.blend,
+                startsGroup: shape.startsGroup,
+              );
+            }(),
+        ];
+        final tiling = tiled.held(_encode(moved), reach: reach);
+        expect(tiling, isNotNull, reason: 'scene $scene, step $step');
+        held++;
+        expect(tiling!.runs, same(tiled.runs));
+        expect(tiling.layout, same(tiled.layout));
+        final all = List<int>.generate(moved.length, (i) => i);
+        for (var row = 0; row < tiling.rows; row++) {
+          for (var column = 0; column < tiling.columns; column++) {
+            final kind = tiling.kindAt(column, row);
+            if (kind == TileKind.ring) continue;
+            for (final (x, y) in _pixels(column, row, width, height)) {
+              final reason = 'scene $scene, $kind tile $column, $row';
+              if (kind == TileKind.outside) {
+                expect(
+                  _sceneDistance(moved, all, x, y, smooth: true),
+                  greaterThanOrEqualTo(reach.outward),
+                  reason: reason,
+                );
+              } else {
+                expect(
+                  _sceneDistance(moved, all, x, y, smooth: false),
+                  lessThanOrEqualTo(-reach.inward),
+                  reason: reason,
+                );
+              }
+            }
+          }
+        }
+        for (final run in tiling.runs) {
+          if (run.members == 0) continue;
+          final members = run.listed;
+          for (
+            var y = run.row * Tiling.size - 2.0;
+            y <= (run.row + 1) * Tiling.size + 2;
+            y += 2
+          ) {
+            for (
+              var x = run.column * Tiling.size - 2.0;
+              x <= (run.column + run.length) * Tiling.size + 2;
+              x += 2
+            ) {
+              for (final smooth in [true, false]) {
+                final full = _sceneDistance(moved, all, x, y, smooth: smooth);
+                final list = _listedDistance(
+                  moved,
+                  members,
+                  x,
+                  y,
+                  smooth: smooth,
+                );
+                if (full < blended) {
+                  expect(list, full, reason: 'scene $scene at $x, $y');
+                } else {
+                  expect(list, greaterThanOrEqualTo(blended));
+                }
+              }
+            }
+          }
+        }
+      }
+      // Past the slack, with another size or another reach it holds no more.
+      _Shape first({double by = 0, double wider = 0}) => _Shape(
+        type: shapes.first.type,
+        width: shapes.first.width + wider,
+        height: shapes.first.height,
+        radius: shapes.first.radius,
+        centerX: shapes.first.centerX + by,
+        centerY: shapes.first.centerY,
+        angle: shapes.first.angle,
+        stretchX: shapes.first.stretchX,
+        stretchY: shapes.first.stretchY,
+        blend: shapes.first.blend,
+      );
+      expect(
+        tiled.held(
+          _encode([first(by: slack * 1.01), ...shapes.skip(1)]),
+          reach: reach,
+        ),
+        isNull,
+      );
+      expect(
+        tiled.held(
+          _encode([first(wider: 0.5), ...shapes.skip(1)]),
+          reach: reach,
+        ),
+        isNull,
+      );
+      expect(
+        tiled.held(
+          _encode(shapes),
+          reach: const GlassReach(inward: 25, outward: 2, coarseTexel: 4),
+        ),
+        isNull,
+      );
+      expect(
+        Tiling.shapes(
+          _encode(shapes),
+          width: width,
+          height: height,
+          reach: reach,
+        ).held(_encode(shapes), reach: reach),
+        isNull,
+        reason: 'a tiling without slack holds for nothing',
+      );
+    }
+    expect(held, 48);
+  });
+
   test('a ring tile of a large scene evaluates every group that reaches it, '
       'in chain order', () {
     final random = Random(11);

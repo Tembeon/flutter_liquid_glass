@@ -2090,6 +2090,23 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // The shapes of the latest encode.
   ShapeSet _shapes = ShapeSet.empty;
 
+  /// The tiling of the latest atlas.
+  @visibleForTesting
+  Tiling? get debugTiling => _tiling;
+
+  // The tiling of the latest atlas, the layer-local bounds of its buffer
+  // and the pixel ratio it was tiled at.
+  Tiling? _tiling;
+  Rect _tilingBounds = Rect.zero;
+  double _tilingRatio = 0;
+
+  // How many encodes running found the shapes of the one before only moved.
+  int _driftingEncodes = 0;
+
+  // How far, in device pixels, a drifting shape may move at most before
+  // its layer is tiled again.
+  static const double _tilingSlack = 3;
+
   @override
   double get materialOutset => _contourOutset;
 
@@ -2143,12 +2160,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // The geometry buffer is in this layer's local coordinates. Ancestor
     // transforms are applied once by the compositor; baking them in would
     // apply scale and rotation twice.
-    final boundsInMatteSpace = bounds.inflate(aaPadding).snapToPixels(dpr);
-    final physicalSize = boundsInMatteSpace.size * dpr;
-    final width = physicalSize.width.ceil();
-    final height = physicalSize.height.ceil();
-
-    if (width <= 0 || height <= 0) {
+    var boundsInMatteSpace = bounds.inflate(aaPadding).snapToPixels(dpr);
+    if (boundsInMatteSpace.isEmpty) {
       throw StateError('Cannot render empty liquid-glass geometry.');
     }
 
@@ -2165,8 +2178,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       shapes = shapes.take(geometryMaxShapesPerDraw);
     }
     _shapes = shapes;
-    final origin = boundsInMatteSpace.topLeft * dpr;
-    final inBuffer = ShapeSet.join([(shapes, -origin)]);
     final looks = _usesShapeAppearances
         ? shapeLooks(
             shapes.appearances,
@@ -2179,26 +2190,80 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       devicePixelRatio: dpr,
       contourExtent: aaPadding * dpr,
     );
-    final atlas = renderer.renderAtlas(switch (_field) {
-      final field? => Tiling.field(
-        BufferField(
-          field,
-          layerToBuffer: (dpr, 0, 0, dpr, -origin.dx, -origin.dy),
+
+    // Shapes that drift keep the tiling of an earlier frame while each stays
+    // within its slack, in that frame's buffer: only the pass runs again.
+    Tiling? tiling;
+    ShapeSet? inLast;
+    var slack = 0.0;
+    final last = _tiling;
+    if (last != null && _field == null && _tilingRatio == dpr) {
+      inLast = ShapeSet.join([(shapes, -_tilingBounds.topLeft * dpr)]);
+      final motion = last.motionTo(inLast);
+      if (motion == null) {
+        _driftingEncodes = 0;
+      } else {
+        if (_tilingBounds.left <= boundsInMatteSpace.left &&
+            _tilingBounds.top <= boundsInMatteSpace.top &&
+            _tilingBounds.right >= boundsInMatteSpace.right &&
+            _tilingBounds.bottom >= boundsInMatteSpace.bottom) {
+          tiling = last.held(inLast, reach: reach, looks: looks);
+        }
+        // Slack rings a few more tiles, so only shapes seen to move slowly
+        // twice running are tiled with it, and with no more than serves
+        // them for about six frames. Shapes encoded again where they were,
+        // for a new look, say nothing of how they move.
+        if (motion > 0) {
+          if (motion <= _tilingSlack / 2 && _driftingEncodes > 0) {
+            slack = (6 * motion).clamp(1, _tilingSlack);
+          }
+          _driftingEncodes++;
+        }
+      }
+    } else {
+      _driftingEncodes = 0;
+    }
+    if (tiling != null) {
+      boundsInMatteSpace = _tilingBounds;
+    } else if (slack > 0) {
+      boundsInMatteSpace = bounds
+          .inflate(aaPadding + slack / dpr)
+          .snapToPixels(dpr);
+    }
+    final physicalSize = boundsInMatteSpace.size * dpr;
+    final width = physicalSize.width.ceil();
+    final height = physicalSize.height.ceil();
+    final origin = boundsInMatteSpace.topLeft * dpr;
+    if (tiling == null) {
+      final inBuffer = inLast != null && boundsInMatteSpace == _tilingBounds
+          ? inLast
+          : ShapeSet.join([(shapes, -origin)]);
+      tiling = switch (_field) {
+        final field? => Tiling.field(
+          BufferField(
+            field,
+            layerToBuffer: (dpr, 0, 0, dpr, -origin.dx, -origin.dy),
+          ),
+          width: width,
+          height: height,
+          reach: reach,
+          shapes: inBuffer,
+          looks: looks,
         ),
-        width: width,
-        height: height,
-        reach: reach,
-        shapes: inBuffer,
-        looks: looks,
-      ),
-      null => Tiling.shapes(
-        inBuffer,
-        width: width,
-        height: height,
-        reach: reach,
-        looks: looks,
-      ),
-    });
+        null => Tiling.shapes(
+          inBuffer,
+          width: width,
+          height: height,
+          reach: reach,
+          looks: looks,
+          slack: slack,
+        ),
+      };
+    }
+    _tiling = tiling;
+    _tilingBounds = boundsInMatteSpace;
+    _tilingRatio = dpr;
+    final atlas = renderer.renderAtlas(tiling);
     if (renderer.droppedShapes > 0) _debugWarnShapeLimitExceeded();
     return (
       image: atlas.image,
