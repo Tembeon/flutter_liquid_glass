@@ -13,6 +13,7 @@ import 'package:liquid_glass_renderer/src/internal/shader_filter.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_settings.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass/shape_set.dart';
 
 /// One draw of the final glass shader: every uniform and sampler it reads,
 /// in sections that each own their uniforms.
@@ -527,30 +528,25 @@ final class BandOverlay {
 final class AnalyticShapes {
   const AnalyticShapes._(this.floats);
 
-  /// [count] shapes of 12 floats in [shapes], with their superellipse halves,
-  /// boxes and cull ratios, each array padded to its declared length.
-  factory AnalyticShapes.pack({
-    required int count,
-    required double contourExtent,
-    required bool blended,
-    required List<double> shapes,
-    required List<double> superellipses,
-    required List<double> superellipsesLower,
-    required List<double> boxes,
-    required List<double> cull,
-  }) {
+  /// The shapes of [set], at most [maxShapes], each array padded to its
+  /// declared length.
+  factory AnalyticShapes.of(ShapeSet set, {required double contourExtent}) {
     final floats = <double>[];
     void fill(List<double> values, int length) {
       floats.addAll(values);
       floats.addAll(List<double>.filled(length - values.length, 0));
     }
 
-    fill([count.toDouble(), max(0.5, contourExtent), if (blended) 1 else 0], 4);
-    fill(shapes, maxShapes * 12);
-    fill(superellipses, maxShapes * 12);
-    fill(superellipsesLower, maxShapes * 12);
-    fill(boxes, maxShapes * 4);
-    fill(cull, maxShapes);
+    fill([
+      set.count.toDouble(),
+      max(0.5, contourExtent),
+      if (set.blended) 1 else 0,
+    ], 4);
+    fill(set.shapes, maxShapes * 12);
+    fill(set.superellipses, maxShapes * 12);
+    fill(set.superellipsesLower, maxShapes * 12);
+    fill(set.boxes, maxShapes * 4);
+    fill(set.cull, maxShapes);
     return AnalyticShapes._(List.unmodifiable(floats));
   }
 

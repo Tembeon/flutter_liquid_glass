@@ -13,7 +13,7 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
-import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass/group_matte.dart';
 
 import 'shared.dart';
 
@@ -147,7 +147,7 @@ int _layersOf(WidgetTester tester, _CapturingView view) {
 void main() {
   setUp(() {
     GlassCopies.debugEnabledOverride = true;
-    RenderLiquidGlassLayer.debugGroupMatteRenders = 0;
+    GroupMatte.debugRenders = 0;
   });
   tearDown(() => GlassCopies.debugEnabledOverride = null);
 
@@ -351,13 +351,13 @@ void main() {
     );
     await tester.pump();
     await tester.pump();
-    final rendered = RenderLiquidGlassLayer.debugGroupMatteRenders;
+    final rendered = GroupMatte.debugRenders;
     expect(rendered, greaterThan(0));
     for (var i = 1; i <= 10; i++) {
       offset.value = i * 3.3;
       await tester.pump();
     }
-    expect(RenderLiquidGlassLayer.debugGroupMatteRenders, rendered);
+    expect(GroupMatte.debugRenders, rendered);
     expect(_layersOf(tester, view), 1);
     await tester.pumpWidget(
       View(view: view, child: const SizedBox()),
