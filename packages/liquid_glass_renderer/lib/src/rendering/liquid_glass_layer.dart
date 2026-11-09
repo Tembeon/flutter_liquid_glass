@@ -100,7 +100,6 @@ class LiquidGlassLayer extends StatefulWidget {
     this.field,
     this.backdrop = const LiquidGlassBackdrop.read(),
     this.glow,
-    this.analyticGeometry = false,
     super.key,
   }) : live = null;
 
@@ -120,7 +119,6 @@ class LiquidGlassLayer extends StatefulWidget {
     this.defaultAppearance,
     this.fake = false,
     this.backdrop = const LiquidGlassBackdrop.read(),
-    this.analyticGeometry = false,
     super.key,
   }) : live = frame,
        settings = const LiquidGlassSettings(),
@@ -167,28 +165,6 @@ class LiquidGlassLayer extends StatefulWidget {
   /// changes only the final pass's uniforms: no geometry pass runs, and a
   /// layer whose retained filter reads the backdrop does not repaint.
   final LiquidGlassGlow? glow;
-
-  /// Whether the final pass works out this layer's shapes itself while they
-  /// change, instead of drawing them into the matte first, when the layer
-  /// holds more than one shape.
-  ///
-  /// A frame shaded this way records and submits no geometry pass, which
-  /// cuts UI-thread time while a shape moves or resizes. The GPU pays
-  /// instead: the final shader works out the shapes at every pixel rather
-  /// than once per matte texel. A layer of one shape that draws apart from
-  /// other glass does this whatever this says: its shader costs about what
-  /// the matte's does. For several shapes it costs much more GPU time and
-  /// energy than the matte; turn it on for small groups that move often on
-  /// a busy UI thread, such as a segmented control's lens, and leave it off
-  /// for blend groups. Once the shapes stop, the layer draws the matte and
-  /// shades from it again.
-  ///
-  /// A layer with shapes that differ in appearance, a field (its own or a
-  /// live frame's), more than eight shapes or mostly empty space keeps the
-  /// matte either way.
-  ///
-  /// Defaults to false.
-  final bool analyticGeometry;
 
   /// The frames of a layer made with [LiquidGlassLayer.live], or null for
   /// one that uses [settings], [field] and [glow].
@@ -408,7 +384,6 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
                 field: _field,
                 solidBackdrop: solidColorOf(widget.backdrop),
                 glow: _glow,
-                analyticGeometry: widget.analyticGeometry,
                 settings: _settings,
                 defaultAppearance: defaultAppearance,
                 link: _link,
@@ -467,7 +442,6 @@ class _RawShapes extends SingleChildRenderObjectWidget {
     required this.field,
     required this.solidBackdrop,
     required this.glow,
-    required this.analyticGeometry,
     required this.settings,
     required this.defaultAppearance,
     required Widget super.child,
@@ -482,7 +456,6 @@ class _RawShapes extends SingleChildRenderObjectWidget {
 
   final Color? solidBackdrop;
   final LiquidGlassGlow? glow;
-  final bool analyticGeometry;
   final LiquidGlassSettings settings;
   final LiquidGlassAppearance defaultAppearance;
   final GeometryRenderLink link;
@@ -505,8 +478,7 @@ class _RawShapes extends SingleChildRenderObjectWidget {
       )
       ..field = field
       ..solidBackdrop = solidBackdrop
-      ..glow = glow
-      ..analyticGeometry = analyticGeometry;
+      ..glow = glow;
   }
 
   @override
@@ -523,8 +495,7 @@ class _RawShapes extends SingleChildRenderObjectWidget {
       ..matteScale = matteScale
       ..field = field
       ..solidBackdrop = solidBackdrop
-      ..glow = glow
-      ..analyticGeometry = analyticGeometry;
+      ..glow = glow;
   }
 }
 
@@ -575,38 +546,20 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   static bool debugShaderVariants = true;
 
-  /// Whether a frame whose geometry changes may shade the shapes
-  /// analytically (see [LiquidGlassLayer.analyticGeometry]): the final
-  /// shader evaluates them where each fragment is, so the frame encodes no
-  /// matte and submits no Flutter GPU pass. [debugAnalyticIneligibility]
-  /// names why a frame encoded a matte anyway. [analyticRestFrames] frames
-  /// after the geometry last changed, the layer encodes one matte and rests
-  /// on it, which is cheaper to shade.
-  ///
-  /// A layer of one shape that draws through a read of its own does this
-  /// without it, from the frame its matte would change.
-  bool analyticGeometry = false;
-
-  /// Whether a layer of one shape shades it analytically while it changes
-  /// without [analyticGeometry]. Off, it encodes a matte each such frame.
+  /// Whether a layer of one shape shades it analytically while it changes:
+  /// the final shader evaluates the shape where each fragment is, so the
+  /// frame encodes no matte and submits no Flutter GPU pass, from the frame
+  /// its matte would change while the layer draws through a read of its own.
+  /// [debugAnalyticIneligibility] names why a frame encoded a matte anyway.
+  /// [analyticRestFrames] frames after the shape last changed, the layer
+  /// encodes one matte and rests on it, which is cheaper to shade. Off, it
+  /// encodes a matte each such frame.
   @visibleForTesting
   static bool debugAnalyticShape = true;
 
   /// How many frames after its latest analytic frame the layer encodes a
   /// matte to rest on.
   static const int analyticRestFrames = 2;
-
-  /// The most shape tests an analytic frame spends where no shape is: the
-  /// matte's device pixels outside the shapes' boxes, times the shapes.
-  /// Each such pixel tests every shape's box before it finds itself empty,
-  /// so a sparse layer (a page of buttons in one layer) costs the GPU more
-  /// than encoding its low-res matte, a quarter or a sixteenth of the pixels.
-  /// Glass that fills its rect, however large, stays analytic, and so do
-  /// rows that fill most of theirs. The bound sits between the two on a
-  /// Mali-G78 phone: a column of eight round buttons over a page is sparse,
-  /// eight full-width rows and a sheet are not.
-  @visibleForTesting
-  static int analyticMaxEmptyTests = 6000000;
 
   bool _analytic = false;
 
@@ -671,7 +624,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _usesShapeAppearances || groupTints,
       _usesTintOnlyAppearance || groupTints,
     )) {
-      (true, _, _) => _analyticShapes!.kind,
+      (true, _, _) => FinalShaderKind.shape,
       (false, false, _) => FinalShaderKind.single,
       (false, true, true) => FinalShaderKind.tint,
       (false, true, false) => FinalShaderKind.material,
@@ -2346,39 +2299,29 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
     final rest = _restRequested;
     _restRequested = false;
-    // One shape in a read of its own evaluates in 32 Mali-G78 registers,
-    // like the matte variant. In a shared read, the read's other glass would
-    // lose the filter this layer draws them through. New shapes get a matte:
-    // they may never change.
-    final oneShape =
-        numShapes == 1 &&
-        debugAnalyticShape &&
-        changes &&
-        switch (_fate) {
-          Leads(:final read) => read.members.length == 1,
-          Hidden() => true,
-          Follows() => false,
-        };
+    // One shape evaluates in 32 Mali-G78 registers, like the matte variant;
+    // more cost much more GPU time than their matte. In a shared read, the
+    // read's other glass would lose the filter this layer draws them
+    // through. New shapes get a matte: they may never change.
     _analyticIneligibility = switch (()) {
-      _ when !analyticGeometry && !oneShape => 'off',
+      _ when !debugAnalyticShape => 'off',
+      _ when numShapes > 1 => 'more than one shape',
+      _ when !changes => 'new shapes',
       _ when !writeMatte => 'material update',
       _ when rest => 'rest',
       _ when _field != null => 'field',
-      _ when kind.mixed => 'shape appearances',
-      _ when numShapes > AnalyticShapes.maxShapes =>
-        'more than ${AnalyticShapes.maxShapes}',
       _
-          when shapes.emptyTests(textureWidth * textureHeight) >
-              analyticMaxEmptyTests =>
-        'sparse',
+          when switch (_fate) {
+            Leads(:final read) => read.members.length > 1,
+            Hidden() => false,
+            Follows() => true,
+          } =>
+        'shared read',
       _ => null,
     };
     _analytic = _analyticIneligibility == null;
     if (_analytic) {
-      _analyticShapes = AnalyticShapes.of(
-        shapes,
-        contourExtent: aaPadding * devicePixelRatio,
-      );
+      _analyticShapes = AnalyticShapes.of(shapes);
       _scheduleAnalyticRest();
       _needsMaterialUpdate = false;
       return (

@@ -12,76 +12,6 @@ const _key = ValueKey('analytic');
 const _view = Size(300, 200);
 const _gray = Color(0xFF808080);
 
-Widget _scene({required bool tints, Matrix4? transform}) {
-  LiquidGlassAppearance? tinted(Color color) =>
-      tints ? LiquidGlassAppearance.ios27RegularLight(tint: color) : null;
-  return Directionality(
-    textDirection: TextDirection.ltr,
-    child: Center(
-      child: RepaintBoundary(
-        key: _key,
-        child: SizedBox.fromSize(
-          size: _view,
-          child: ColoredBox(
-            color: _gray,
-            child: _transformed(
-              transform,
-              LiquidGlassLayer(
-                analyticGeometry: true,
-                settings: LiquidGlassSettings.ios27RegularLight(),
-                // A paint over a solid color, not a backdrop filter:
-                // flutter_tester renders only a process's first backdrop
-                // filter reliably.
-                backdrop: const LiquidGlassBackdrop.solid(_gray),
-                child: Stack(
-                  children: [
-                    Positioned(
-                      left: 16,
-                      top: 20,
-                      width: 140,
-                      height: 160,
-                      child: LiquidGlass(
-                        shape: const LiquidRoundedSuperellipse(
-                          borderRadius: 16,
-                          bottomRadius: 44,
-                        ),
-                        appearance: tinted(const Color(0x66FF3B30)),
-                        child: const SizedBox.expand(),
-                      ),
-                    ),
-                    Positioned(
-                      left: 170,
-                      top: 24,
-                      width: 110,
-                      height: 70,
-                      child: LiquidGlass(
-                        shape: const LiquidOval(),
-                        appearance: tinted(const Color(0x6634C759)),
-                        child: const SizedBox.expand(),
-                      ),
-                    ),
-                    Positioned(
-                      left: 170,
-                      top: 110,
-                      width: 110,
-                      height: 70,
-                      child: LiquidGlass(
-                        shape: const LiquidRoundedRectangle(borderRadius: 18),
-                        appearance: tinted(const Color(0x66007AFF)),
-                        child: const SizedBox.expand(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
 Widget _transformed(Matrix4? transform, Widget child) => transform == null
     ? child
     : Transform(
@@ -89,6 +19,46 @@ Widget _transformed(Matrix4? transform, Widget child) => transform == null
         alignment: Alignment.center,
         child: child,
       );
+
+Widget _one(
+  LiquidShape shape, {
+  double width = 180,
+  double height = 120,
+  Matrix4? transform,
+}) => Directionality(
+  textDirection: TextDirection.ltr,
+  child: Center(
+    child: RepaintBoundary(
+      key: _key,
+      child: SizedBox.fromSize(
+        size: _view,
+        child: ColoredBox(
+          color: _gray,
+          child: _transformed(
+            transform,
+            LiquidGlassLayer(
+              settings: LiquidGlassSettings.ios27RegularLight(),
+              // A paint over a solid color, not a backdrop filter:
+              // flutter_tester renders only a process's first backdrop
+              // filter reliably.
+              backdrop: const LiquidGlassBackdrop.solid(_gray),
+              child: Center(
+                child: SizedBox(
+                  width: width,
+                  height: height,
+                  child: LiquidGlass(
+                    shape: shape,
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  ),
+);
 
 /// The scene at the view's own pixel ratio: a capture at another scale
 /// resamples the matte, which the screen never does.
@@ -120,20 +90,30 @@ RenderLiquidGlassLayer _layer(WidgetTester tester) =>
   return (total / a.length, differing / a.length);
 }
 
-Future<(double, double)> _analyticAgainstRest(
+/// Pumps [scene] at width 170, then at 180, which the layer shades
+/// analytically, and returns what that frame draws.
+Future<Uint8List> _analyticFrame(
   WidgetTester tester,
-  Widget scene,
+  Widget Function(double width) scene,
   double ratio,
 ) async {
   tester.view
     ..physicalSize = _view * ratio
     ..devicePixelRatio = ratio;
   addTearDown(tester.view.reset);
-
-  await tester.pumpWidget(scene);
+  await tester.pumpWidget(scene(170));
+  expect(_layer(tester).debugAnalyticIneligibility, 'new shapes');
+  await tester.pumpWidget(scene(180));
   expect(_layer(tester).debugAnalytic, isTrue);
-  final analytic = await _capture(tester, ratio);
+  return _capture(tester, ratio);
+}
 
+Future<(double, double)> _analyticAgainstRest(
+  WidgetTester tester,
+  Widget Function(double width) scene,
+  double ratio,
+) async {
+  final analytic = await _analyticFrame(tester, scene, ratio);
   for (var i = 0; i < RenderLiquidGlassLayer.analyticRestFrames + 2; i++) {
     await tester.pump();
   }
@@ -148,230 +128,20 @@ Future<(double, double)> _analyticAgainstRest(
   return _difference(matte, analytic);
 }
 
-Widget _capsule(double radius) => Directionality(
-  textDirection: TextDirection.ltr,
-  child: Center(
-    child: RepaintBoundary(
-      key: _key,
-      child: SizedBox.fromSize(
-        size: _view,
-        child: ColoredBox(
-          color: _gray,
-          child: LiquidGlassLayer(
-            analyticGeometry: true,
-            settings: LiquidGlassSettings.ios27RegularLight(),
-            backdrop: const LiquidGlassBackdrop.solid(_gray),
-            child: Center(
-              child: SizedBox(
-                width: 160,
-                height: 44,
-                child: LiquidGlass(
-                  shape: LiquidRoundedSuperellipse(borderRadius: radius),
-                  child: const SizedBox.expand(),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ),
-  ),
-);
-
-Widget _one(
-  LiquidShape shape, {
-  bool analyticGeometry = false,
-  double width = 180,
-  Matrix4? transform,
-}) => Directionality(
-  textDirection: TextDirection.ltr,
-  child: Center(
-    child: RepaintBoundary(
-      key: _key,
-      child: SizedBox.fromSize(
-        size: _view,
-        child: ColoredBox(
-          color: _gray,
-          child: _transformed(
-            transform,
-            LiquidGlassLayer(
-              analyticGeometry: analyticGeometry,
-              settings: LiquidGlassSettings.ios27RegularLight(),
-              backdrop: const LiquidGlassBackdrop.solid(_gray),
-              child: Center(
-                child: SizedBox(
-                  width: width,
-                  height: 120,
-                  child: LiquidGlass(
-                    shape: shape,
-                    child: const SizedBox.expand(),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ),
-  ),
-);
-
 void main() {
   testWidgets('a capsule with an oversized radius draws what one of half '
       'its height draws', (tester) async {
-    tester.view.physicalSize = _view;
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    await tester.pumpWidget(_capsule(22));
-    expect(_layer(tester).debugAnalytic, isTrue);
-    final half = await _capture(tester, 1);
-    await tester.pumpWidget(_capsule(10000));
-    expect(_layer(tester).debugAnalytic, isTrue);
-    final oversized = await _capture(tester, 1);
+    Widget Function(double width) capsule(double radius) =>
+        (width) => _one(
+          LiquidRoundedSuperellipse(borderRadius: radius),
+          width: width,
+          height: 44,
+        );
+    final half = await _analyticFrame(tester, capsule(22), 1);
+    await tester.pumpWidget(const SizedBox());
+    final oversized = await _analyticFrame(tester, capsule(10000), 1);
     expect(_difference(half, oversized), (0.0, 0.0));
   }, skip: skipProperGlassTests);
-
-  for (final (name, ratio, transform) in [
-    ('1x', 1.0, null),
-    ('2x', 2.0, null),
-    ('3x', 2.625, null),
-    ('turned', 1.0, Matrix4.rotationZ(0.2)),
-    ('scaled', 1.0, Matrix4.diagonal3Values(0.8, 0.8, 1)),
-    (
-      '3x, scaled and turned',
-      2.625,
-      Matrix4.rotationZ(0.2)..scaleByDouble(0.8, 0.8, 1, 1),
-    ),
-  ]) {
-    testWidgets('an analytic frame draws what its matte draws ($name)', (
-      tester,
-    ) async {
-      final (mean, share) = await _analyticAgainstRest(
-        tester,
-        _scene(tints: false, transform: transform),
-        ratio,
-      );
-      expect(mean, lessThan(0.05));
-      expect(share, lessThan(0.0005));
-    }, skip: skipProperGlassTests);
-  }
-
-  Widget blendScene() => Directionality(
-    textDirection: TextDirection.ltr,
-    child: Center(
-      child: RepaintBoundary(
-        key: _key,
-        child: SizedBox.fromSize(
-          size: _view,
-          child: ColoredBox(
-            color: _gray,
-            child: LiquidGlassLayer(
-              analyticGeometry: true,
-              settings: LiquidGlassSettings.ios27RegularLight(),
-              backdrop: const LiquidGlassBackdrop.solid(_gray),
-              child: Center(
-                child: LiquidGlassBlendGroup(
-                  blend: 30,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (var i = 0; i < 2; i++) ...[
-                        const LiquidGlass.grouped(
-                          shape: LiquidOval(),
-                          child: SizedBox.square(dimension: 80),
-                        ),
-                        const SizedBox(width: 12),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-
-  testWidgets('a blended analytic frame draws what its matte draws', (
-    tester,
-  ) async {
-    final (mean, share) = await _analyticAgainstRest(tester, blendScene(), 2);
-    expect(mean, lessThan(0.05));
-    expect(share, lessThan(0.0005));
-  }, skip: skipProperGlassTests);
-
-  // Separate shapes over each other, as a segmented control's thumb over
-  // its track: the thumb's box holds pixels of both.
-  Widget trackScene(Matrix4? transform) => Directionality(
-    textDirection: TextDirection.ltr,
-    child: Center(
-      child: RepaintBoundary(
-        key: _key,
-        child: SizedBox.fromSize(
-          size: _view,
-          child: ColoredBox(
-            color: _gray,
-            child: _transformed(
-              transform,
-              LiquidGlassLayer(
-                analyticGeometry: true,
-                settings: LiquidGlassSettings.ios27RegularLight(),
-                backdrop: const LiquidGlassBackdrop.solid(_gray),
-                child: const Stack(
-                  children: [
-                    Positioned(
-                      left: 10,
-                      top: 40,
-                      width: 280,
-                      height: 120,
-                      child: LiquidGlass(
-                        shape: LiquidRoundedSuperellipse(borderRadius: 40),
-                        child: SizedBox.expand(),
-                      ),
-                    ),
-                    Positioned(
-                      left: 120,
-                      top: 56,
-                      width: 110,
-                      height: 88,
-                      child: LiquidGlass(
-                        // A capsule, radius half its height: the largest
-                        // radius shapeDepthBound bounds.
-                        shape: LiquidRoundedSuperellipse(borderRadius: 44),
-                        child: SizedBox.expand(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-
-  for (final (name, ratio, transform) in [
-    ('1x', 1.0, null),
-    (
-      '3x, scaled and turned',
-      2.625,
-      Matrix4.rotationZ(0.2)..scaleByDouble(0.9, 0.7, 1, 1),
-    ),
-  ]) {
-    testWidgets('a thumb over its track draws what its matte draws ($name)', (
-      tester,
-    ) async {
-      final (mean, share) = await _analyticAgainstRest(
-        tester,
-        trackScene(transform),
-        ratio,
-      );
-      expect(mean, lessThan(0.05));
-      expect(share, lessThan(0.0005));
-    }, skip: skipProperGlassTests);
-  }
 
   for (final (name, shape) in [
     ('rounded superellipse', const LiquidRoundedSuperellipse(borderRadius: 30)),
@@ -384,8 +154,9 @@ void main() {
   ]) {
     for (final (scale, ratio, transform) in [
       ('1x', 1.0, null),
+      ('2x', 2.0, null),
       (
-        '3x, scaled and turned',
+        '2.625x, scaled and turned',
         2.625,
         Matrix4.rotationZ(0.2)..scaleByDouble(0.9, 0.7, 1, 1),
       ),
@@ -395,10 +166,9 @@ void main() {
       ) async {
         final (mean, share) = await _analyticAgainstRest(
           tester,
-          _one(shape, analyticGeometry: true, transform: transform),
+          (width) => _one(shape, width: width, transform: transform),
           ratio,
         );
-        expect(_layer(tester).debugLiveDraw, isNotNull);
         expect(mean, lessThan(0.05));
         expect(share, lessThan(0.0005));
       }, skip: skipProperGlassTests);
@@ -412,10 +182,9 @@ void main() {
     await tester.pumpWidget(_one(shape));
     final layer = _layer(tester);
     expect(layer.debugAnalytic, isFalse, reason: 'a new shape has a matte');
-    expect(layer.debugAnalyticIneligibility, 'off');
+    expect(layer.debugAnalyticIneligibility, 'new shapes');
 
     await tester.pumpWidget(_one(shape, width: 200));
-    expect(layer.debugAnalyticIneligibility, isNull);
     expect(layer.debugAnalytic, isTrue);
     expect(
       layer.debugLiveShader,
@@ -438,22 +207,30 @@ void main() {
     expect(layer.debugAnalyticIneligibility, 'off');
   }, skip: skipProperGlassTests);
 
-  testWidgets('a sparse layer keeps the matte', (tester) async {
-    final maxEmptyTests = RenderLiquidGlassLayer.analyticMaxEmptyTests;
-    addTearDown(
-      () => RenderLiquidGlassLayer.analyticMaxEmptyTests = maxEmptyTests,
+  testWidgets('more than one shape keeps the matte', (tester) async {
+    Widget two(double width) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: LiquidGlassLayer(
+        settings: LiquidGlassSettings.ios27RegularLight(),
+        backdrop: const LiquidGlassBackdrop.solid(_gray),
+        child: Row(
+          children: [
+            for (var i = 0; i < 2; i++)
+              SizedBox(
+                width: width,
+                height: 60,
+                child: const LiquidGlass(
+                  shape: LiquidOval(),
+                  child: SizedBox.expand(),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
-    RenderLiquidGlassLayer.analyticMaxEmptyTests = 10000;
-    await tester.pumpWidget(_scene(tints: false));
+    await tester.pumpWidget(two(80));
+    await tester.pumpWidget(two(90));
     expect(_layer(tester).debugAnalytic, isFalse);
-    expect(_layer(tester).debugAnalyticIneligibility, 'sparse');
-  }, skip: skipProperGlassTests);
-
-  testWidgets('shapes with their own appearances keep the matte', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_scene(tints: true));
-    expect(_layer(tester).debugAnalytic, isFalse);
-    expect(_layer(tester).debugAnalyticIneligibility, 'shape appearances');
+    expect(_layer(tester).debugAnalyticIneligibility, 'more than one shape');
   }, skip: skipProperGlassTests);
 }

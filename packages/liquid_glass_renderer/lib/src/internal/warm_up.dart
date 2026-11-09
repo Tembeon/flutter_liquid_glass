@@ -126,9 +126,7 @@ Future<void> warmLiquidGlassPipelines(
               ..setImageSampler(3, material, filterQuality: FilterQuality.low);
           case FinalShaderKind.tint:
             shader.setImageSampler(2, tint, filterQuality: FilterQuality.low);
-          case FinalShaderKind.single ||
-              FinalShaderKind.shape ||
-              FinalShaderKind.analytic:
+          case FinalShaderKind.single || FinalShaderKind.shape:
             break;
         }
       }

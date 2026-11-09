@@ -5,8 +5,6 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/appearance.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass/shading.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass/shape_set.dart';
 
 int _define(String path, String name) {
   final source = File('lib/assets/shaders/$path').readAsStringSync();
@@ -43,21 +41,7 @@ void main() {
     );
   });
 
-  test('an analytic frame holds as many shapes as its shader', () {
-    const most = AnalyticShapes.maxShapes;
-    expect(_define('analytic_geometry.glsl', 'ANALYTIC_MAX_SHAPES'), most);
-    // The header, then uShapeData, uRseData's two halves and uShapeBounds,
-    // its boxes followed by a cull ratio a shape.
-    expect(
-      AnalyticShapes.of(ShapeSet.empty, contourExtent: 1).floats.length,
-      4 + most * (12 + 12 + 12 + 4 + 1),
-    );
-  });
-
-  test('a one-shape variant holds one shape', () {
-    expect(
-      _define('liquid_glass_final_render_shape.frag', 'ANALYTIC_MAX_SHAPES'),
-      1,
-    );
+  test('an analytic frame holds one shape', () {
+    expect(_define('analytic_geometry.glsl', 'MAX_SHAPES'), 1);
   });
 }

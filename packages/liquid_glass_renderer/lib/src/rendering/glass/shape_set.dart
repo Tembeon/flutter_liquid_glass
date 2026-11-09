@@ -79,7 +79,6 @@ final class ShapeSet {
     required this.superellipses,
     required this.superellipsesLower,
     required this.boxes,
-    required this.cull,
     required this.appearances,
     required this.blended,
   });
@@ -98,7 +97,6 @@ final class ShapeSet {
     final superellipses = <double>[];
     final superellipsesLower = <double>[];
     final boxes = <double>[];
-    final cull = <double>[];
     final appearances = <LiquidGlassAppearance>[];
     var blended = false;
 
@@ -134,8 +132,6 @@ final class ShapeSet {
         final distanceScale = sqrt(
           max(0.0, (trace - sqrt(discriminant)) * 0.5),
         );
-        // trace + sqrt(discriminant) > 0: the basis is invertible.
-        cull.add(distanceScale / sqrt((trace + sqrt(discriminant)) * 0.5));
         if (!firstInGroup) blended = true;
 
         final size = shape.renderObject.paintSize;
@@ -226,7 +222,6 @@ final class ShapeSet {
       superellipses: List.unmodifiable(superellipses),
       superellipsesLower: List.unmodifiable(superellipsesLower),
       boxes: List.unmodifiable(boxes),
-      cull: List.unmodifiable(cull),
       appearances: List.unmodifiable(appearances),
       blended: blended,
     );
@@ -239,7 +234,6 @@ final class ShapeSet {
     final superellipses = <double>[];
     final superellipsesLower = <double>[];
     final boxes = <double>[];
-    final cull = <double>[];
     final appearances = <LiquidGlassAppearance>[];
     var blended = false;
     for (final (set, by) in sets) {
@@ -257,7 +251,6 @@ final class ShapeSet {
       }
       superellipses.addAll(set.superellipses);
       superellipsesLower.addAll(set.superellipsesLower);
-      cull.addAll(set.cull);
       appearances.addAll(set.appearances);
       blended = blended || set.blended;
     }
@@ -266,7 +259,6 @@ final class ShapeSet {
       superellipses: List.unmodifiable(superellipses),
       superellipsesLower: List.unmodifiable(superellipsesLower),
       boxes: List.unmodifiable(boxes),
-      cull: List.unmodifiable(cull),
       appearances: List.unmodifiable(appearances),
       blended: blended,
     );
@@ -278,7 +270,6 @@ final class ShapeSet {
     superellipses: [],
     superellipsesLower: [],
     boxes: [],
-    cull: [],
     appearances: [],
     blended: false,
   );
@@ -296,9 +287,6 @@ final class ShapeSet {
   /// 4 floats a shape: its box in the matte.
   final List<double> boxes;
 
-  /// Each shape's smallest stretch over its largest, for analytic frames.
-  final List<double> cull;
-
   /// Each shape's appearance.
   final List<LiquidGlassAppearance> appearances;
 
@@ -306,7 +294,7 @@ final class ShapeSet {
   final bool blended;
 
   /// How many shapes the set has.
-  int get count => cull.length;
+  int get count => appearances.length;
 
   /// The first [most] shapes.
   ShapeSet take(int most) => count <= most
@@ -316,19 +304,7 @@ final class ShapeSet {
           superellipses: superellipses.sublist(0, most * 12),
           superellipsesLower: superellipsesLower.sublist(0, most * 12),
           boxes: boxes.sublist(0, most * 4),
-          cull: cull.sublist(0, most),
           appearances: appearances.sublist(0, most),
           blended: blended,
         );
-
-  /// [area] less the shapes' box areas, times [count]: the tests an analytic
-  /// frame spends on pixels no shape covers. Overlapping boxes count twice,
-  /// which errs toward analytic.
-  int emptyTests(int area) {
-    var covered = 0.0;
-    for (var i = 0; i + 3 < boxes.length; i += 4) {
-      covered += (boxes[i + 2] - boxes[i]) * (boxes[i + 3] - boxes[i + 1]);
-    }
-    return max(0, area - covered.round()) * count;
-  }
 }

@@ -1,54 +1,37 @@
-// Analytic geometry for the final pass: up to ANALYTIC_MAX_SHAPES shapes
-// (8, or 1 for the one-shape variants) evaluated where the fragment is, with the geometry pass's own scene
-// (gpu/sdf.glsl), instead of read from a Flutter GPU matte. It yields the
-// matte's texel at the fragment itself - the distance, the normal times its
-// strength and half the shorter side - so the rest of the final pass reads
-// it as it reads the matte.
+// Analytic geometry for the final pass: the layer's one shape evaluated
+// where the fragment is, with the geometry pass's own scene (gpu/sdf.glsl),
+// instead of read from a Flutter GPU matte. It yields the matte's texel at
+// the fragment itself - the distance, the normal times its strength and half
+// the shorter side - so the rest of the final pass reads it as it reads the
+// matte.
 //
 // The geometry pass shades a texel per block of matte pixels; this runs for
-// every pixel, so it skips the work whose result the final pass would not
-// read: the shapes deeper inside than the pass reads, and the separate
-// shapes that cannot be the nearest.
+// every pixel, so it skips the pixels deeper inside than the pass reads.
 //
 // Included by liquid_glass_final_render_core.glsl after its float uniforms.
 // impellerc gives every uniform declaration its own Metal buffer slot and
-// Metal has 31; these four fit because the core packs its optional effects
+// Metal has 31; these two fit because the core packs its optional effects
 // into uEffects.
 //
-// The shapes are highp, as the matte pass shades them; the core's mediump
-// returns after them. A whole highp shader holds 64 work registers on a
-// Mali-G78, half its occupancy; one shape scoped this way holds 32.
+// The shape is highp, as the matte pass shades it; the core's mediump
+// returns after it. A whole highp shader holds 64 work registers on a
+// Mali-G78, half its occupancy; the shape scoped this way holds 32.
 precision highp float;
 
-#ifndef ANALYTIC_MAX_SHAPES
-#define ANALYTIC_MAX_SHAPES 8
-#endif
-#define MAX_SHAPES ANALYTIC_MAX_SHAPES
+#define MAX_SHAPES 1
 
-#if MAX_SHAPES > 1
-// x: the number of shapes, y: how far past the shapes' outlines a fragment
-// can still matter (the contour extent), device px, z: 1 when a group blends
-// two or more shapes.
-uniform vec4 uAnalyticHeader;
-#endif
-uniform vec4 uShapeData[MAX_SHAPES * 3];
-// Each shape's three rounded superellipse rows, then from MAX_SHAPES * 3
-// each pair's bottom-half rows, as gpu/sdf.glsl reads them.
-uniform vec4 uRseData[MAX_SHAPES * 6];
-// MAX_SHAPES shape bounds (what gpu/sdf.glsl reads), then each shape's cull
-// factor, four to a row: its basis's smallest stretch over its largest. A
-// shape's distance is at least its box's distance times that. One shape
-// reads neither.
-#if MAX_SHAPES > 1
-uniform vec4 uShapeBounds[MAX_SHAPES + MAX_SHAPES / 4];
-#define shapeCull(i) uShapeBounds[MAX_SHAPES + (i) / 4][(i) - ((i) / 4) * 4]
-#else
+// The shape's primitive, inverse basis and placement, as gpu/sdf.glsl reads
+// them.
+uniform vec4 uShapeData[3];
+// Its three rounded superellipse rows, then a pair's bottom-half rows.
+uniform vec4 uRseData[6];
+// gpu/sdf.glsl's scene functions read shape bounds; one shape never calls
+// them.
 vec4 uShapeBounds[1];
-#endif
 
 #include "gpu/sdf.glsl"
 
-// A lower bound of how deep p lies inside shape [index], device px, or 0.
+// A lower bound of how deep p lies inside the shape, device px, or 0.
 // A rounded box is convex, and at twice its corner radius from each corner
 // (or at the side's middle, if nearer) its outline lies on its box's side
 // to within a thousandth of the radius; a rounded superellipse's sides are
@@ -58,18 +41,18 @@ vec4 uShapeBounds[1];
 // bounds its depth. That needs the radius to be at most half the box's
 // shorter side (a capsule at most) and, for a pair, four times its larger
 // radius to fit in the shorter side; ellipses and the rest report 0.
-float shapeDepthBound(int index, vec2 p) {
-    vec4 primitive = uShapeData[index * 3];
+float shapeDepthBound(vec2 p) {
+    vec4 primitive = uShapeData[0];
     if (primitive.x == 0.0 || primitive.x == 2.0) {
         return 0.0;
     }
-    vec4 inverseBasis = uShapeData[index * 3 + 1];
-    vec4 placement = uShapeData[index * 3 + 2];
+    vec4 inverseBasis = uShapeData[1];
+    vec4 placement = uShapeData[2];
     vec2 halfSize = primitive.yz * 0.5;
     float radius = primitive.w;
     float shorter = min(halfSize.x, halfSize.y);
     if (primitive.x == 4.0) {
-        radius = max(radius, uRseData[MAX_SHAPES * 3 + index * 3 + 2].x);
+        radius = max(radius, uRseData[5].x);
         if (2.0 * radius > shorter) {
             return 0.0;
         }
@@ -109,72 +92,17 @@ vec4 sceneTexel(SceneSample scene) {
     );
 }
 
-#if MAX_SHAPES == 1
 // The geometry pass's texel at p (geometry_fragment.glsl); deeper inside than
 // [readDepth], where the final pass only checks that the distance is past
 // it, some depth past it with no normal. The glass is drawn over the shape's
 // own box, so few pixels lie far outside it; a test for them would double
 // the registers (64 on a Mali-G78).
 vec4 analyticTexel(vec2 p, float readDepth) {
-    float depth = shapeDepthBound(0, p);
+    float depth = shapeDepthBound(p);
     if (depth > readDepth) {
         return vec4(depth, 0.0, 0.0, 0.0);
     }
     return sceneTexel(getShapeSampleFromArray(0, p, false));
 }
-#else
-// The nearest of shapes that never blend, in sceneSample's order and tie
-// rule (each its own group: a later equal shape wins, except the last,
-// which must be strictly nearer). A shape whose box is farther than the
-// nearest so far, by its cull factor, cannot win and is not solved.
-SceneSample nearestShape(vec2 p, int count) {
-    SceneSample best;
-    best.distance = 1e9;
-    best.halfMinor = 0.0;
-    best.curvatureFactor = 0.0;
-    best.normal = vec2(0.0);
-    best.opticalNormal = vec2(0.0);
-    for (int i = 0; i < MAX_SHAPES; i++) {
-        if (i >= count) break;
-        float bound = sqrt(shapeBoundsDistanceSquared(uShapeBounds[i], p)) *
-            shapeCull(i);
-        if (bound > max(best.distance, 0.0)) continue;
-        SceneSample shape = getShapeSampleFromArray(i, p, count > 1);
-        bool nearer = i == count - 1
-            ? shape.distance < best.distance
-            : shape.distance <= best.distance;
-        if (nearer) {
-            best = shape;
-        }
-    }
-    return best;
-}
-
-// The geometry pass's texel at p (geometry_fragment.glsl). Where no shape can
-// reach, a far-outside texel; deeper inside than [readDepth], where the final
-// pass only checks that the distance is past it, some depth past it with no
-// normal.
-vec4 analyticTexel(vec2 p, float readDepth) {
-    int count = int(uAnalyticHeader.x);
-    // Most pixels of a sparse layer are far outside: that test comes first.
-    vec2 outside = sceneBoundsOutsideSquared(p, count);
-    float reach = uAnalyticHeader.y + 2.0 + outside.y;
-    if (outside.x > reach * reach) {
-        return vec4(-4096.0, 0.0, 0.0, 0.0);
-    }
-    // A union, smooth or not, is at least as deep as each of its shapes.
-    for (int i = 0; i < MAX_SHAPES; i++) {
-        if (i >= count) break;
-        if (shapeBoundsDistanceSquared(uShapeBounds[i], p) > 0.0) continue;
-        float depth = shapeDepthBound(i, p);
-        if (depth > readDepth) {
-            return vec4(depth, 0.0, 0.0, 0.0);
-        }
-    }
-    return sceneTexel(
-        uAnalyticHeader.z > 0.5 ? sceneSample(p, count) : nearestShape(p, count)
-    );
-}
-#endif
 
 precision mediump float;

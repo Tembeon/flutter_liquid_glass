@@ -62,58 +62,47 @@ void main() {
       ..physicalSize = _view * ratio
       ..devicePixelRatio = ratio;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: RepaintBoundary(
-          key: _key,
-          child: SizedBox.fromSize(
-            size: _view,
-            child: Stack(
-              children: [
-                const Positioned.fill(
-                  child: ColoredBox(
-                    color: Color(0xFFF0F0F0),
-                    child: CustomPaint(painter: _Stripes()),
-                  ),
+    Widget scene(double width) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: RepaintBoundary(
+        key: _key,
+        child: SizedBox.fromSize(
+          size: _view,
+          child: Stack(
+            children: [
+              const Positioned.fill(
+                child: ColoredBox(
+                  color: Color(0xFFF0F0F0),
+                  child: CustomPaint(painter: _Stripes()),
                 ),
-                LiquidGlassLayer(
-                  analyticGeometry: true,
-                  settings: LiquidGlassSettings.ios27RegularLight(),
-                  child: const Stack(
-                    children: [
-                      Positioned(
-                        left: 10,
-                        top: 30,
-                        width: 280,
-                        height: 140,
-                        child: LiquidGlass(
-                          shape: LiquidRoundedSuperellipse(borderRadius: 44),
-                          child: SizedBox.expand(),
+              ),
+              LiquidGlassLayer(
+                settings: LiquidGlassSettings.ios27RegularLight(),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: 10,
+                      top: 30,
+                      width: width,
+                      height: 140,
+                      child: const LiquidGlass(
+                        shape: LiquidRoundedSuperellipse(
+                          borderRadius: 24,
+                          bottomRadius: 48,
                         ),
+                        child: SizedBox.expand(),
                       ),
-                      Positioned(
-                        left: 130,
-                        top: 50,
-                        width: 120,
-                        height: 100,
-                        child: LiquidGlass(
-                          shape: LiquidRoundedSuperellipse(
-                            borderRadius: 20,
-                            bottomRadius: 48,
-                          ),
-                          child: SizedBox.expand(),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
+    await tester.pumpWidget(scene(260));
+    await tester.pumpWidget(scene(280));
     final layer = tester.allRenderObjects
         .whereType<RenderLiquidGlassLayer>()
         .toSet()

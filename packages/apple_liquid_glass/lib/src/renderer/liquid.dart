@@ -752,9 +752,6 @@ class _LiquidGroupState extends State<_LiquidGroup> with _RebuildOutsideFrame {
       backdrop: solid == null
           ? const LiquidGlassBackdrop.read()
           : LiquidGlassBackdrop.solid(solid),
-      // A lens moves every frame of a drag: shaded from its shape, it spares
-      // the frame a matte pass and its submission until it rests.
-      analyticGeometry: widget.lens != null,
       child: _LiquidGroupScope(
         group: this,
         blends: blends,

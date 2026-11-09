@@ -514,62 +514,33 @@ final class BandOverlay {
   int get hashCode => Object.hashAll(overlay);
 }
 
-/// The shapes a per-fragment variant evaluates, laid out as
-/// analytic_geometry.glsl declares them for its [kind].
+/// The one shape a [FinalShaderKind.shape] variant evaluates, laid out from
+/// uShapeData as analytic_geometry.glsl declares it.
 @internal
 @immutable
 final class AnalyticShapes {
-  const AnalyticShapes._(this.kind, this.floats);
+  const AnalyticShapes._(this.floats);
 
-  /// The shapes of [set], at most [maxShapes], each array padded to its
-  /// declared length: one shape for [FinalShaderKind.shape], which reads
-  /// only its shape and superellipse rows, more for
-  /// [FinalShaderKind.analytic].
-  factory AnalyticShapes.of(ShapeSet set, {required double contourExtent}) {
-    final one = set.count == 1;
-    final slots = one ? 1 : maxShapes;
-    final floats = <double>[];
-    void fill(List<double> values, int length) {
-      floats
-        ..addAll(values)
-        ..addAll(List<double>.filled(length - values.length, 0));
-    }
-
-    if (!one) {
-      fill([
-        set.count.toDouble(),
-        max(0.5, contourExtent),
-        if (set.blended) 1 else 0,
-      ], 4);
-    }
-    fill(set.shapes, slots * 12);
-    fill(set.superellipses, slots * 12);
-    fill(set.superellipsesLower, slots * 12);
-    if (!one) {
-      fill(set.boxes, slots * 4);
-      fill(set.cull, slots);
-    }
+  /// The shape of [set], which holds one: its shape row and its two
+  /// superellipse halves.
+  factory AnalyticShapes.of(ShapeSet set) {
+    assert(set.count == 1, 'An analytic frame evaluates one shape.');
     return AnalyticShapes._(
-      one ? FinalShaderKind.shape : FinalShaderKind.analytic,
-      List.unmodifiable(floats),
+      List.unmodifiable([
+        ...set.shapes,
+        ...set.superellipses,
+        ...set.superellipsesLower,
+      ]),
     );
   }
 
-  /// The most shapes an analytic frame evaluates (ANALYTIC_MAX_SHAPES).
-  static const int maxShapes = 8;
-
-  /// The variant kind that reads [floats].
-  final FinalShaderKind kind;
-
-  /// The floats, from uAnalyticHeader, or from uShapeData for one shape.
+  /// The floats, from uShapeData.
   final List<double> floats;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is AnalyticShapes &&
-          other.kind == kind &&
-          listEquals(other.floats, floats);
+      other is AnalyticShapes && listEquals(other.floats, floats);
 
   @override
   int get hashCode => Object.hash(floats.length, floats[0]);
@@ -598,11 +569,7 @@ final class FinalLayout {
       lowResOptics = _float(shader, 'uLowResOptics'),
       effects = _float(shader, 'uEffects'),
       band = variant.band ? _float(shader, 'uBand') : null,
-      analytic = switch (variant.kind) {
-        FinalShaderKind.analytic => _float(shader, 'uAnalyticHeader'),
-        FinalShaderKind.shape => _float(shader, 'uShapeData'),
-        _ => null,
-      },
+      analytic = variant.kind.perFragment ? _float(shader, 'uShapeData') : null,
       geometry = variant.kind.perFragment ? null : 1,
       materialMap = switch (variant.kind) {
         FinalShaderKind.tint || FinalShaderKind.material => 2,
@@ -649,8 +616,7 @@ final class FinalLayout {
   /// uBand, in the band variant.
   final int? band;
 
-  /// The first analytic uniform, in the per-fragment variants:
-  /// uAnalyticHeader, or uShapeData for one shape.
+  /// uShapeData, in the per-fragment variants.
   final int? analytic;
 
   /// uBackgroundTexture's sampler: what the glass reads.

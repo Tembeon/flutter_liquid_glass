@@ -14,19 +14,16 @@ enum FinalShaderKind {
   material('_material'),
 
   /// One shape evaluated per fragment, one appearance.
-  shape('_shape'),
-
-  /// Up to eight shapes evaluated per fragment, one appearance.
-  analytic('_analytic');
+  shape('_shape');
 
   const FinalShaderKind(this.suffix);
 
   /// The file name part of the kind.
   final String suffix;
 
-  /// Whether the variant works out its shapes per fragment instead of
+  /// Whether the variant works out its shape per fragment instead of
   /// reading a matte, so it binds no matte sampler.
-  bool get perFragment => this == shape || this == analytic;
+  bool get perFragment => this == shape;
 }
 
 /// The color models a final shader variant shades.

@@ -8,5 +8,4 @@
 #define SHAPE_APPEARANCE 0
 #define SHAPE_TINT 0
 #define ANALYTIC_GEOMETRY 1
-#define ANALYTIC_MAX_SHAPES 1
 #include "liquid_glass_final_render_core.glsl"
