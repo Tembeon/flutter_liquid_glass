@@ -1147,11 +1147,15 @@ final class _ShapeBounds {
     final shorter = min(halfWidth, halfHeight);
     var radius = row[o + 3];
     var least = radius;
+    // A pair's corner can be as tall as its box, which no rounded rectangle
+    // inside it follows.
+    var hollow = false;
     if (type == RawShapeType.squirclePair.shaderIndex) {
       // The row holds the top radius as it was asked for, which a pair that
       // does not fit scales down: only the pair's box is known to hold it.
       least = 0;
       radius = max(radius, shapes.superellipsesLower[i * 12 + 8]);
+      hollow = radius > shorter;
     }
     final corner = min(radius, shorter);
     var foldInset = corner;
@@ -1170,9 +1174,6 @@ final class _ShapeBounds {
     final exact = type == RawShapeType.roundedRectangle.shaderIndex;
     final inset = exact ? 0.0 : min(0.02 * corner + 0.01, shorter / 2);
     final around = min(least, shorter);
-    // A pair's corner can be as tall as its box, which no rounded rectangle
-    // inside it follows.
-    final hollow = radius > shorter;
     return _ShapeBounds._(
       type: type,
       halfWidth: halfWidth,

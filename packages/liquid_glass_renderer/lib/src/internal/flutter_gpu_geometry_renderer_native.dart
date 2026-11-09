@@ -24,8 +24,8 @@ const double kFarInward = -4096;
 @internal
 const double kDeepInward = 4096;
 
-/// Floats per vertex of tile_vertex.glsl: position, value and ramp.
-const int _tileVertexFloats = 10;
+/// Floats per instance of tile_vertex.glsl: rectangle, value and ramp.
+const int _quadFloats = 12;
 
 /// What an atlas pass writes beside the atlas, by [Tiling.looks]: no look,
 /// the tint, or the whole look (look_targets.glsl).
@@ -52,21 +52,25 @@ enum _LookTargets {
 const _tileVertexLayout = gpu.VertexLayout(
   buffers: [
     gpu.VertexBuffer(
-      strideInBytes: _tileVertexFloats * 4,
+      strideInBytes: 8,
       attributes: [
-        gpu.VertexAttribute(
-          name: 'position',
-          format: gpu.VertexFormat.float32x2,
-        ),
+        gpu.VertexAttribute(name: 'corner', format: gpu.VertexFormat.float32x2),
+      ],
+    ),
+    gpu.VertexBuffer(
+      strideInBytes: _quadFloats * 4,
+      stepMode: gpu.VertexStepMode.instance,
+      attributes: [
+        gpu.VertexAttribute(name: 'rect', format: gpu.VertexFormat.float32x4),
         gpu.VertexAttribute(
           name: 'value',
           format: gpu.VertexFormat.float32x4,
-          offsetInBytes: 8,
+          offsetInBytes: 16,
         ),
         gpu.VertexAttribute(
           name: 'ramp',
           format: gpu.VertexFormat.float32x4,
-          offsetInBytes: 24,
+          offsetInBytes: 32,
         ),
       ],
     ),
@@ -281,6 +285,10 @@ class FlutterGpuGeometryRenderer {
 
   static final _AtlasQuads _quads = _AtlasQuads();
 
+  // The corners of the unit square as two triangles, which every quad of
+  // every atlas is an instance of.
+  static gpu.BufferView? _corners;
+
   /// The latest geometry atlas.
   ui.Image? get atlasImage => _atlasImage;
 
@@ -428,10 +436,19 @@ class FlutterGpuGeometryRenderer {
     }
 
     final hostBuffer = _hostBufferForUniformSize(_uniformSize);
-    final vertices = _vertexScratch.write(quads.bytes);
+    final instances = _vertexScratch.write(quads.bytes);
+    final corners = _corners ??= gpu.BufferView(
+      gpu.gpuContext.createDeviceBufferWithCopy(
+        ByteData.sublistView(
+          Float32List.fromList(const [0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1]),
+        ),
+      ),
+      offsetInBytes: 0,
+      lengthInBytes: 48,
+    );
     gpu.BufferView range(int first, int count) => gpu.BufferView(
-      vertices.buffer,
-      offsetInBytes: vertices.offsetInBytes + first * _AtlasQuads.bytesPerQuad,
+      instances.buffer,
+      offsetInBytes: instances.offsetInBytes + first * _AtlasQuads.bytesPerQuad,
       lengthInBytes: count * _AtlasQuads.bytesPerQuad,
     );
 
@@ -458,8 +475,9 @@ class FlutterGpuGeometryRenderer {
     // A binding outlives its draw: the fill's looks would bind over the
     // shapes of the passes after it.
     pass
-      ..bindVertexBuffer(range(0, fills))
-      ..draw(fills * 6)
+      ..bindVertexBuffer(corners)
+      ..bindVertexBuffer(range(0, fills), slot: 1)
+      ..draw(6, instanceCount: fills)
       ..clearBindings();
     gpu.BufferView shapeUniforms(List<int> members) {
       _packShapes(tiling.shapes, members, reachOutward: tiling.reach.outward);
@@ -485,19 +503,22 @@ class FlutterGpuGeometryRenderer {
           );
         }
         pass
-          ..bindVertexBuffer(range(fills, strips))
-          ..draw(strips * 6);
+          ..bindVertexBuffer(corners)
+          ..bindVertexBuffer(range(fills, strips), slot: 1)
+          ..draw(6, instanceCount: strips);
       }
     } else if (sets.isNotEmpty) {
-      pass.bindPipeline(pipelines.geometry);
+      pass
+        ..bindPipeline(pipelines.geometry)
+        ..bindVertexBuffer(corners);
       for (final (set, first, count) in sets) {
         pass
           ..bindUniform(
             pipelines.geometryShapes,
             shapeUniforms(tiling.shapeSets[set]),
           )
-          ..bindVertexBuffer(range(first, count))
-          ..draw(count * 6);
+          ..bindVertexBuffer(range(first, count), slot: 1)
+          ..draw(6, instanceCount: count);
       }
     }
     _submitOrDefer(commands);
@@ -795,15 +816,10 @@ class FlutterGpuGeometryRenderer {
   }
 }
 
-/// The quads of one atlas pass as tile_vertex.glsl reads them: two
-/// triangles each, corners in clip space for a target of [_width] x
-/// [_height] texels, top row first. One list serves every pass in turn.
+/// The quads of one atlas pass as tile_vertex.glsl reads its instances: a
+/// rectangle in clip space for a target of [_width] x [_height] texels, top
+/// row first, with a value and a ramp. One list serves every pass in turn.
 final class _AtlasQuads {
-  static const int _quadFloats = 6 * _tileVertexFloats;
-
-  // The six corners of a quad's two triangles, 1 for its far side.
-  static const List<int> _corners = [0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1];
-
   static const int bytesPerQuad = _quadFloats * 4;
 
   int _width = 1;
@@ -821,7 +837,7 @@ final class _AtlasQuads {
   /// The quads written since [reset].
   ByteData get bytes => ByteData.sublistView(_floats, 0, count * _quadFloats);
 
-  /// The texels [x], [y] to [x] + [w], [y] + [h], every vertex carrying the
+  /// The texels [x], [y] to [x] + [w], [y] + [h], every fragment getting the
   /// value ([v0], [v1], [v2], [v3]) and the ramp: for a fill quad
   /// [rampFrom], [rampStep] and the [look] a fill pass with looks writes
   /// beside a constant tile, none where it is negative; for a strip the
@@ -845,50 +861,39 @@ final class _AtlasQuads {
     if ((count + 1) * _quadFloats > _floats.length) {
       _floats = Float32List(_floats.length * 2)..setAll(0, _floats);
     }
-    final x0 = 2 * x / _width - 1;
-    final x1 = 2 * (x + w) / _width - 1;
-    final y0 = 1 - 2 * y / _height;
-    final y1 = 1 - 2 * (y + h) / _height;
-    var r0 = rampFrom;
-    var r1 = rampStep;
-    var r2 = look.toDouble();
-    var r3 = 0.0;
-    if (members != null) {
-      double member(int slot) {
-        final byte = (members >> (8 * slot)) & 0xff;
-        return byte == 0 ? -1 : (byte & 0x7f) - 1 + (byte & 0x80 != 0 ? 32 : 0);
-      }
-
-      r0 = member(0);
-      r1 = member(1);
-      r2 = member(2);
-      r3 = member(3);
-    }
     final floats = _floats;
-    var at = count * _quadFloats;
-    for (var corner = 0; corner < _corners.length; corner += 2) {
-      floats[at] = _corners[corner] == 0 ? x0 : x1;
-      floats[at + 1] = _corners[corner + 1] == 0 ? y0 : y1;
-      floats[at + 2] = v0;
-      floats[at + 3] = v1;
-      floats[at + 4] = v2;
-      floats[at + 5] = v3;
-      floats[at + 6] = r0;
-      floats[at + 7] = r1;
-      floats[at + 8] = r2;
-      floats[at + 9] = r3;
-      at += _tileVertexFloats;
+    final at = count * _quadFloats;
+    floats[at] = 2 * x / _width - 1;
+    floats[at + 1] = 1 - 2 * y / _height;
+    floats[at + 2] = 2 * (x + w) / _width - 1;
+    floats[at + 3] = 1 - 2 * (y + h) / _height;
+    floats[at + 4] = v0;
+    floats[at + 5] = v1;
+    floats[at + 6] = v2;
+    floats[at + 7] = v3;
+    if (members == null) {
+      floats[at + 8] = rampFrom;
+      floats[at + 9] = rampStep;
+      floats[at + 10] = look.toDouble();
+      floats[at + 11] = 0;
+    } else {
+      for (var slot = 0; slot < 4; slot++) {
+        final byte = (members >> (8 * slot)) & 0xff;
+        floats[at + 8 + slot] = byte == 0
+            ? -1
+            : (byte & 0x7f) - 1 + (byte & 0x80 != 0 ? 32 : 0);
+      }
     }
     count++;
   }
 }
 
-/// The vertex data of a frame's atlas passes, written at a cursor into one of
+/// The quads of a frame's atlas passes, written at a cursor into one of
 /// four host-visible buffers, so a buffer is written again only once the
 /// frames that read it are done, as [gpu.HostBuffer] cycles its blocks.
 ///
 /// [gpu.HostBuffer] itself fails an emplacement that starts inside a block
-/// and runs past its end, which variable-length vertex data does.
+/// and runs past its end, which a variable number of quads does.
 final class _VertexScratch {
   static const int _frames = 4;
 
@@ -918,7 +923,7 @@ final class _VertexScratch {
     }
     final offset = _cursor;
     if (!buffer.overwrite(bytes, destinationOffsetInBytes: offset)) {
-      throw StateError('Could not write $length bytes of atlas vertices.');
+      throw StateError('Could not write $length bytes of atlas quads.');
     }
     _cursor = (offset + length + alignment - 1) ~/ alignment * alignment;
     return gpu.BufferView(buffer, offsetInBytes: offset, lengthInBytes: length);
