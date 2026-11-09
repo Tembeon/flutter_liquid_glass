@@ -54,6 +54,25 @@ Widget _screen(ScrollController controller, {int buttons = 5, int rows = 80}) {
   );
 }
 
+// The glass slots of the frame that hold what their glass shows.
+int _filledSlots(WidgetTester tester) {
+  var filled = 0;
+  void visit(Layer layer) {
+    if (layer is GlassSlotLayer && layer.firstChild != null) filled++;
+    if (layer is! ContainerLayer) return;
+    for (
+      var child = layer.firstChild;
+      child != null;
+      child = child.nextSibling
+    ) {
+      visit(child);
+    }
+  }
+
+  visit(tester.binding.renderViews.first.debugLayer!);
+  return filled;
+}
+
 void main() {
   setUp(() => GlassCopies.debugEnabledOverride = true);
   tearDown(() => GlassCopies.debugEnabledOverride = null);
@@ -133,13 +152,21 @@ void main() {
       expect(report.reads.first.changed, isTrue, reason: '$report');
     }, skip: skipProperGlassTests);
 
-    testWidgets('but not when glass painted', (tester) async {
+    // A paint empties the slot the plan fills; the plan is shown into it
+    // again as it was.
+    testWidgets('and shows it again when glass painted', (tester) async {
       final controller = ScrollController();
       addTearDown(controller.dispose);
       await settled(tester, controller);
-      tester.renderObject(find.byType(LiquidGlassLayer).first).markNeedsPaint();
+      final filled = _filledSlots(tester);
+      expect(filled, greaterThan(0));
+      for (final glass in find.byType(LiquidGlassLayer).evaluate()) {
+        glass.renderObject!.markNeedsPaint();
+      }
       final report = await expectGlassBudget(tester);
-      expect(report.planned, isTrue, reason: '$report');
+      expect(report.planned, isFalse, reason: '$report');
+      expect(report.imagesDrawn, 0, reason: '$report');
+      expect(_filledSlots(tester), filled);
     }, skip: skipProperGlassTests);
 
     testWidgets('but not when the glass went away', (tester) async {

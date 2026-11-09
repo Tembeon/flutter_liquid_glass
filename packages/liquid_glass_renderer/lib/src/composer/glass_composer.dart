@@ -262,8 +262,9 @@ final class _Composition {
   Rect _planScreen = Rect.zero;
   bool _planExplained = false;
 
-  // Whether the last plan stands: nothing painted, asked anew or changed and no
-  // read is due an image. What it drew is in the layers and stays there.
+  // Whether the last plan stands: nothing asked anew or changed and no read is
+  // due an image. A paint empties the slots it fills, so it is shown again;
+  // nothing it decided changes.
   bool _stands(Policy policy, Prices prices, bool explain) {
     final plan = _plan;
     final form = _form;
@@ -303,8 +304,9 @@ final class _Composition {
           : const Policy(copies: false);
       final prices = GlassComposer.debugPrices;
       final explain = listening || GlassComposer.debugOnPlan != null;
-      final stands =
-          painted != null && !painted() && _stands(policy, prices, explain);
+      // Without a word of what painted, every frame plans.
+      final stands = painted != null && _stands(policy, prices, explain);
+      final shows = painted == null || !stands || painted();
       if (!stands) {
         final (plan, edits) = compile(
           form,
@@ -323,7 +325,7 @@ final class _Composition {
         _planExplained = explain;
       }
       final planned = clock.elapsed;
-      if (!stands) _emit.emit(_plan!, form);
+      if (shows) _emit.emit(_plan!, form, again: stands);
       for (final node in form.siteNodes) {
         node.site.endFrame();
       }

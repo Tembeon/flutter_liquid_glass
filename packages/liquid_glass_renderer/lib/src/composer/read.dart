@@ -858,7 +858,10 @@ final class GlassEmit {
 
   /// Tells each site of [form] its fate and draws what the reads need before
   /// the scene is built, deepest last, so what a page holds is drawn by then.
-  void emit(Plan plan, Form form) {
+  ///
+  /// [again] shows a plan an earlier frame emitted: the images it bought are
+  /// drawn already.
+  void emit(Plan plan, Form form, {bool again = false}) {
     final reads = plan.reads;
     var deepest = 0;
     final keep = Set<Object>.identity();
@@ -877,7 +880,7 @@ final class GlassEmit {
       for (final read in reads) {
         if (read.level != level) continue;
         if (read.source case ImageRead(:final held)) {
-          if (held && _pages.held(read) != null) continue;
+          if ((held || again) && _pages.held(read) != null) continue;
           tiles.add(
             _Tile(
               ReadCopy(read, plan, form),
