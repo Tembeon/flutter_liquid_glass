@@ -47,7 +47,6 @@ class FlutterGpuGeometryRenderer {
   int get droppedShapes => 0;
 
   int debugRenderCount = 0;
-  int debugMatteDrawCount = 0;
   Object get debugPipelineIdentity => this;
   int get debugHostBufferBlockLength => 0;
   Object? get debugHostBufferIdentity => null;
@@ -58,7 +57,6 @@ class FlutterGpuGeometryRenderer {
   ({
     ui.Image image,
     List<ui.Image> looks,
-    AtlasLayout layout,
     int textureWidth,
     int textureHeight,
   })

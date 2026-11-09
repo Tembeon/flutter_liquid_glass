@@ -286,10 +286,6 @@ class FlutterGpuGeometryRenderer {
   /// and color model shares.
   List<ui.Image> get lookImages => _lookImages;
 
-  /// Atlas draws.
-  @visibleForTesting
-  int debugMatteDrawCount = 0;
-
   /// How many shapes the latest atlas left out: past
   /// [geometryMaxShapesPerDraw] reaching one tile (Tiling.droppedShapes).
   int droppedShapes = 0;
@@ -307,7 +303,6 @@ class FlutterGpuGeometryRenderer {
   ({
     ui.Image image,
     List<ui.Image> looks,
-    AtlasLayout layout,
     int textureWidth,
     int textureHeight,
   })
@@ -315,7 +310,6 @@ class FlutterGpuGeometryRenderer {
     assert(() {
       debugRenderCount++;
       _debugTotalRenderCount++;
-      debugMatteDrawCount++;
       return true;
     }(), 'Track geometry submissions in debug builds.');
     _ensureFrameCounter();
@@ -507,7 +501,6 @@ class FlutterGpuGeometryRenderer {
     return (
       image: image,
       looks: _lookImages,
-      layout: layout,
       textureWidth: texture.width,
       textureHeight: texture.height,
     );

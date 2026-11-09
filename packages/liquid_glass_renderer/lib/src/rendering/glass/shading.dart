@@ -253,7 +253,7 @@ final class MatteBinding {
     required this.fitsShape,
     required this.materialCenter,
     required this.shrinkAxis,
-    this.looks = const [],
+    required this.looks,
   });
 
   /// The atlas: its strips sampled bilinearly, its table texel by texel.
@@ -293,7 +293,7 @@ final class MatteBinding {
   bool operator ==(Object other) =>
       other is MatteBinding &&
       identical(other.image, image) &&
-      _sameImages(other.looks, looks) &&
+      listEquals(other.looks, looks) &&
       other.origin == origin &&
       other.size == size &&
       other.textureSize == textureSize &&
@@ -303,18 +303,10 @@ final class MatteBinding {
       other.materialCenter == materialCenter &&
       other.shrinkAxis == shrinkAxis;
 
-  static bool _sameImages(List<ui.Image> a, List<ui.Image> b) {
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (!identical(a[i], b[i])) return false;
-    }
-    return true;
-  }
-
   @override
   int get hashCode => Object.hash(
     identityHashCode(image),
-    Object.hashAll(looks.map(identityHashCode)),
+    Object.hashAll(looks),
     origin,
     size,
     textureSize,

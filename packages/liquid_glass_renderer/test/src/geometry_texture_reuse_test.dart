@@ -336,7 +336,7 @@ void runGeometryTextureReuseTests() {
         expect(first.debugDisposed, isTrue);
         render(ShapeLooks(List.filled(8, 1), tintOnly: false), index: 2);
         expect(renderer.lookImages, hasLength(3));
-        expect(renderer.debugMatteDrawCount, 3);
+        expect(renderer.debugRenderCount, 3);
         expect(
           _reused - reusedBefore,
           0,

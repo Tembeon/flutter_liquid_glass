@@ -31,10 +31,10 @@ class LiquidGlassBlendGroup extends StatefulWidget {
   final Widget child;
 
   /// Maximum number of glass shapes a [LiquidGlassLayer] renders in one
-  /// cluster: shapes that blend, or lie within a few pixels of each other's
-  /// edges. A layer renders any number of clusters, but caps the whole layer
-  /// at this many shapes when the shapes carry their own appearances or the
-  /// layer draws a field.
+  /// cluster: shapes whose edges reach the same 16-pixel tile of the layer.
+  /// A layer renders any number of clusters, but caps the whole layer at
+  /// this many shapes when it draws a field whose shapes carry their own
+  /// appearances.
   ///
   /// Shapes beyond it are not drawn; debug builds print a warning when that
   /// happens. Split the glass across several layers if you need more.

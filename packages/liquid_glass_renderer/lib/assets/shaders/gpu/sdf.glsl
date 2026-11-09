@@ -179,7 +179,6 @@ float getShapeSDF(
 struct SceneSample {
     float distance;
     float halfMinor;
-    float curvatureFactor;
     // Gradients of the distance (see getShapeGradients), blended like the
     // distance itself for a group. `normal` has the true corners and sets the
     // blend angle; `opticalNormal` has smoothed corners and drives
@@ -267,28 +266,6 @@ float smoothMinWeight(float a, float b, float k) {
     return clamp(0.5 + (b - a) / (2.0 * max(k, 1e-4)), 0.0, 1.0);
 }
 
-float getShapeCurvatureFactor(
-    float type,
-    vec2 localPoint,
-    vec2 size,
-    float rawRadius
-) {
-    if (type == 2.0) { // ellipse
-        return 1.0;
-    }
-    vec2 halfSize = size * 0.5;
-    float radius = min(rawRadius, min(halfSize.x, halfSize.y));
-    if (radius <= 1e-4) {
-        return 0.0;
-    }
-    // Rounded rectangles, capsules, and Flutter's continuous rounded
-    // superellipse all share the same straight-to-corner support. A signed
-    // one-pixel transition avoids a hard lighting cutoff at the join while
-    // leaving the exact distance implementation unchanged.
-    vec2 cornerPosition = abs(localPoint) - (halfSize - radius);
-    return smoothstep(-1.0, 1.0, min(cornerPosition.x, cornerPosition.y));
-}
-
 // The half of pair [index] the local point p lies in: moves p to that half's
 // center on the split line and makes primitive that half's own squircle, its
 // box twice the half's height. Both halves are vertical at the sides on the
@@ -359,17 +336,6 @@ float getShapeDistance(
     return localDistance * placement.z;
 }
 
-float getShapeDistanceFromArray(int index, vec2 p) {
-    int baseIndex = index * 3;
-    return getShapeDistance(
-        index,
-        p,
-        uShapeData[baseIndex],
-        uShapeData[baseIndex + 1],
-        uShapeData[baseIndex + 2]
-    );
-}
-
 // Squared distance from p to the matte-space box around a primitive. The box
 // contains the primitive under any affine transform, so this is a lower bound
 // for the primitive's exact distance without mapping p into its local space.
@@ -429,13 +395,6 @@ SceneSample getShapeSampleFromArray(int index, vec2 p, bool blended) {
     // it beside the SDF avoids a second traversal and lets optical spread be
     // shape-relative rather than thickness-relative.
     resultSample.halfMinor = 0.5 * min(primitive.y, primitive.z) * placement.z;
-    // Lighting depth is shape-class aware but constant within a primitive.
-    // Per-fragment rounded-rect curvature regions expose their medial/sector
-    // boundaries as rectangular or V-shaped shading seams. Ellipses need the
-    // deeper size response observed in the circle holdout; rounded and
-    // continuous-superellipse primitives use the shallower response. Smooth
-    // unions interpolate this value below.
-    resultSample.curvatureFactor = primitive.x == 2.0 ? 1.0 : 0.0;
     vec2 delta = p - placement.xy;
     vec2 localPoint = vec2(
         inverseBasis.x * delta.x + inverseBasis.y * delta.y,
@@ -485,11 +444,6 @@ SceneSample smoothUnionSample(SceneSample a, SceneSample b, float k) {
     SceneSample result;
     result.distance = distance;
     result.halfMinor = mix(b.halfMinor, a.halfMinor, weightA);
-    result.curvatureFactor = mix(
-        b.curvatureFactor,
-        a.curvatureFactor,
-        weightA
-    );
     // The distance's gradient splits by the smooth minimum's own weight. Not
     // renormalized, so it shortens at a bridge's saddle like the distance
     // field's gradient does.
@@ -510,7 +464,6 @@ SceneSample sceneSample(vec2 p, int numShapes) {
     SceneSample empty;
     empty.distance = 1e9;
     empty.halfMinor = 0.0;
-    empty.curvatureFactor = 0.0;
     empty.normal = vec2(0.0);
     empty.opticalNormal = vec2(0.0);
 #if SCENE_LOOKS

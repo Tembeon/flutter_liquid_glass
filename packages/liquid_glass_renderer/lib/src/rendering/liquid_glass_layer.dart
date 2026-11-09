@@ -1074,7 +1074,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     required ui.Image image,
     required Rect bounds,
     required Size textureSize,
-    List<ui.Image> looks = const [],
+    required List<ui.Image> looks,
   }) {
     final dpr = devicePixelRatio;
     // Along the glass's long side.
@@ -1557,7 +1557,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         settings: first.settings,
         devicePixelRatio: first.devicePixelRatio,
         contourOutset: first._contourOutset,
-        fallback: first.defaultAppearance,
       ),
     );
   }

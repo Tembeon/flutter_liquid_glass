@@ -35,7 +35,6 @@ uniform sampler2D uField;
 #define uFieldSize fieldUniforms.uFieldSize
 
 #if LOOKS
-#include "geometry_uniforms.glsl"
 #include "sdf.glsl"
 #endif
 #include "matte_encoding.glsl"

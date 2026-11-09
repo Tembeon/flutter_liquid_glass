@@ -11,7 +11,6 @@ precision highp float;
 #endif
 #define SCENE_LOOKS LOOKS
 
-#include "geometry_uniforms.glsl"
 #include "sdf.glsl"
 #include "matte_encoding.glsl"
 

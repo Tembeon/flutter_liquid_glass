@@ -84,7 +84,6 @@ final class ShapeSet {
     required this.superellipsesLower,
     required this.boxes,
     required this.appearances,
-    required this.blended,
   });
 
   /// The shapes of [geometries] that draw: visible, with an invertible
@@ -102,7 +101,6 @@ final class ShapeSet {
     final superellipsesLower = <double>[];
     final boxes = <double>[];
     final appearances = <LiquidGlassAppearance>[];
-    var blended = false;
 
     for (final (_, geometry, geometryToLayer) in geometries) {
       var firstInGroup = true;
@@ -133,7 +131,6 @@ final class ShapeSet {
         final distanceScale = sqrt(
           max(0.0, (trace - sqrt(discriminant)) * 0.5),
         );
-        if (!firstInGroup) blended = true;
 
         final size = shape.renderObject.paintSize;
         final centerInGeometry = Offset(size.width / 2, size.height / 2);
@@ -224,7 +221,6 @@ final class ShapeSet {
       superellipsesLower: List.unmodifiable(superellipsesLower),
       boxes: List.unmodifiable(boxes),
       appearances: List.unmodifiable(appearances),
-      blended: blended,
     );
   }
 
@@ -236,7 +232,6 @@ final class ShapeSet {
     final superellipsesLower = <double>[];
     final boxes = <double>[];
     final appearances = <LiquidGlassAppearance>[];
-    var blended = false;
     for (final (set, by) in sets) {
       final from = shapes.length;
       shapes.addAll(set.shapes);
@@ -253,7 +248,6 @@ final class ShapeSet {
       superellipses.addAll(set.superellipses);
       superellipsesLower.addAll(set.superellipsesLower);
       appearances.addAll(set.appearances);
-      blended = blended || set.blended;
     }
     return ShapeSet._(
       shapes: List.unmodifiable(shapes),
@@ -261,7 +255,6 @@ final class ShapeSet {
       superellipsesLower: List.unmodifiable(superellipsesLower),
       boxes: List.unmodifiable(boxes),
       appearances: List.unmodifiable(appearances),
-      blended: blended,
     );
   }
 
@@ -284,9 +277,6 @@ final class ShapeSet {
       ),
       boxes: List.unmodifiable(boxes),
       appearances: List.filled(count, const LiquidGlassAppearance()),
-      blended: [
-        for (var i = 0; i < count; i++) shapes[i * 12 + 11],
-      ].any((marker) => marker >= 0),
     );
   }
 
@@ -297,7 +287,6 @@ final class ShapeSet {
     superellipsesLower: [],
     boxes: [],
     appearances: [],
-    blended: false,
   );
 
   /// 12 floats a shape: primitive, inverse basis, center, distance scale and
@@ -316,9 +305,6 @@ final class ShapeSet {
   /// Each shape's appearance.
   final List<LiquidGlassAppearance> appearances;
 
-  /// Whether a geometry has more than one shape, which blend.
-  final bool blended;
-
   /// How many shapes the set has.
   int get count => appearances.length;
 
@@ -331,6 +317,5 @@ final class ShapeSet {
           superellipsesLower: superellipsesLower.sublist(0, most * 12),
           boxes: boxes.sublist(0, most * 4),
           appearances: appearances.sublist(0, most),
-          blended: blended,
         );
 }

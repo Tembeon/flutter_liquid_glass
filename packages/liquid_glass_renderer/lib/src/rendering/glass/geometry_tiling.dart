@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
+import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_field.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/shape_set.dart';
 
@@ -248,14 +249,18 @@ final class Tiling {
       kinds,
       looks: looks != null,
     );
-    final tiling = Tiling._runsOf(
-      (reach, shapes, null, looks, deepLooks),
-      columns,
-      rows,
-      kinds,
-      sets,
-      tileSets,
-      dropped,
+    final tiling = Tiling._(
+      reach: reach,
+      shapes: shapes,
+      field: null,
+      columns: columns,
+      rows: rows,
+      kinds: kinds,
+      runs: _runs(columns, rows, kinds, tileSets),
+      shapeSets: List.unmodifiable(sets),
+      droppedShapes: dropped,
+      looks: looks,
+      deepLooks: deepLooks,
     );
     if (tiling._fits || reach.inward <= 1) return tiling;
     return Tiling.shapes(
@@ -289,25 +294,23 @@ final class Tiling {
     final deepLooks = looks == null
         ? null
         : _lookKinds(shapes, looks, columns, rows, kinds);
-    final tiling = Tiling._runsOf(
-      (
-        reach,
-        looks == null ? ShapeSet.empty : shapes,
-        field,
-        looks,
-        deepLooks,
-      ),
-      columns,
-      rows,
-      kinds,
-      [
+    final tiling = Tiling._(
+      reach: reach,
+      shapes: looks == null ? ShapeSet.empty : shapes,
+      field: field,
+      columns: columns,
+      rows: rows,
+      kinds: kinds,
+      runs: _runs(columns, rows, kinds, Int32List(columns * rows)),
+      shapeSets: List.unmodifiable([
         if (looks == null)
           const <int>[]
         else
           List<int>.generate(shapes.count, (i) => i, growable: false),
-      ],
-      Int32List(columns * rows),
-      0,
+      ]),
+      droppedShapes: 0,
+      looks: looks,
+      deepLooks: deepLooks,
     );
     if (tiling._fits || reach.inward <= 1) return tiling;
     return Tiling.field(
@@ -320,14 +323,12 @@ final class Tiling {
     );
   }
 
-  factory Tiling._runsOf(
-    (GlassReach, ShapeSet, BufferField?, ShapeLooks?, Uint8List?) source,
+  // The ring tiles as runs along each row, a run sharing one set of shapes.
+  static List<TileRun> _runs(
     int columns,
     int rows,
     Uint8List kinds,
-    List<List<int>> sets,
     Int32List tileSets,
-    int dropped,
   ) {
     final runs = <TileRun>[];
     for (var row = 0; row < rows; row++) {
@@ -350,19 +351,7 @@ final class Tiling {
         column = end;
       }
     }
-    return Tiling._(
-      reach: source.$1,
-      shapes: source.$2,
-      field: source.$3,
-      columns: columns,
-      rows: rows,
-      kinds: kinds,
-      runs: List.unmodifiable(runs),
-      shapeSets: List.unmodifiable(sets),
-      droppedShapes: dropped,
-      looks: source.$4,
-      deepLooks: source.$5,
-    );
+    return List.unmodifiable(runs);
   }
 
   bool get _fits => AtlasLayout._pack(this).height <= AtlasLayout.maxSize;
@@ -695,7 +684,7 @@ final class _ShapeBounds {
     final halfWidth = row[o + 1] / 2;
     final halfHeight = row[o + 2] / 2;
     var radius = row[o + 3];
-    if (type == _pair) {
+    if (type == RawShapeType.squirclePair.shaderIndex) {
       radius = max(radius, shapes.superellipsesLower[i * 12 + 8]);
     }
     return _ShapeBounds._(
@@ -709,9 +698,6 @@ final class _ShapeBounds {
       scale: row[o + 10],
     );
   }
-
-  static const double _ellipse = 2;
-  static const double _pair = 4;
 
   final double type;
   final double halfWidth;
@@ -773,7 +759,9 @@ final class _ShapeBounds {
     final double gx = max(0, qx - halfWidth);
     final double gy = max(0, qy - halfHeight);
     final boxDistance = sqrt(gx * gx + gy * gy);
-    if (type != _ellipse || halfWidth <= 0 || halfHeight <= 0) {
+    if (type != RawShapeType.ellipse.shaderIndex ||
+        halfWidth <= 0 ||
+        halfHeight <= 0) {
       return boxDistance == 0 ? double.negativeInfinity : boxDistance * scale;
     }
     final a2 = halfWidth * halfWidth;
@@ -814,14 +802,15 @@ final class _ShapeBounds {
     final (lx, ly) = _local(x, y);
     final ax = lx.abs();
     final ay = ly.abs();
-    if (type == _ellipse) {
+    if (type == RawShapeType.ellipse.shaderIndex) {
       if (halfWidth <= 0 || halfHeight <= 0) return 0;
       final rx = ax / halfWidth;
       final ry = ay / halfHeight;
       return (1 - sqrt(rx * rx + ry * ry)) * min(halfWidth, halfHeight);
     }
     final shorter = min(halfWidth, halfHeight);
-    if (type == _pair ? 2 * radius > shorter : radius > shorter) return 0;
+    final pair = type == RawShapeType.squirclePair.shaderIndex;
+    if ((pair ? 2 * radius : radius) > shorter) return 0;
     final insideX = halfWidth - ax;
     final insideY = halfHeight - ay;
     var depth = min(insideX, insideY);

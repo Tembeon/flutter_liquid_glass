@@ -28,7 +28,6 @@ typedef GroupLead = ({
   LiquidGlassSettings settings,
   double devicePixelRatio,
   double contourOutset,
-  LiquidGlassAppearance fallback,
 });
 
 /// One geometry atlas of a group's glass, its origin on the first's. Glass

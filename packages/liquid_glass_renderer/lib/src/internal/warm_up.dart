@@ -15,6 +15,7 @@ import 'package:liquid_glass_renderer/src/liquid_glass_field.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/liquid_shape.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/geometry_tiling.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass/shading.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/shape_set.dart';
 import 'package:liquid_glass_renderer/src/shaders.dart';
 
@@ -124,17 +125,27 @@ Future<void> warmLiquidGlassPipelines(
     for (final (index, program) in programs.indexed) {
       // Bound as a layer binds them: a draw needs every sampler its variant
       // declares.
-      final shader = program.fragmentShader()
-        ..setImageSampler(0, matte!, filterQuality: FilterQuality.low)
-        ..setImageSampler(1, matte, filterQuality: FilterQuality.low)
-        ..setImageSampler(2, matte);
-      final looks = switch (variants[index].kind) {
-        FinalShaderKind.single => const <ui.Image>[],
-        FinalShaderKind.tint => [tint!],
-        FinalShaderKind.material => [material!, material, material],
-      };
-      for (final (at, look) in looks.indexed) {
-        shader.setImageSampler(3 + at, look, filterQuality: FilterQuality.low);
+      final shader = program.fragmentShader();
+      final layout = FinalLayout(shader, variants[index]);
+      shader
+        ..setImageSampler(
+          layout.backdrop,
+          matte!,
+          filterQuality: FilterQuality.low,
+        )
+        ..setImageSampler(
+          layout.geometry,
+          matte,
+          filterQuality: FilterQuality.low,
+        )
+        ..setImageSampler(layout.table, matte);
+      final look = layout.looks == 1 ? tint : material;
+      for (var at = 0; at < layout.looks; at++) {
+        shader.setImageSampler(
+          layout.firstLook + at,
+          look!,
+          filterQuality: FilterQuality.low,
+        );
       }
       final filter = bilinearShaderFilter(shader);
       filters.add(filter);
