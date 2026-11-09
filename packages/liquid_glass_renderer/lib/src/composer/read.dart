@@ -822,22 +822,22 @@ final class _Pages {
 }
 
 /// Draws a frame's [Plan]: every route of the frame is a value in there.
-// Keys of the frame's live groups, the same ones every frame, so a plan that
-// holds adds nothing to the scene again.
-final _liveKeys = <BackdropKey>[];
-
-BackdropKey? _liveKeyOf(Read read) {
-  final group = read.liveGroup;
-  if (group == null) return null;
-  while (_liveKeys.length <= group) {
-    _liveKeys.add(BackdropKey());
-  }
-  return _liveKeys[group];
-}
-
 @internal
 final class GlassEmit {
   final _pages = _Pages();
+
+  // Keys of the view's live groups, the same ones every frame, so a plan that
+  // holds adds nothing to the scene again.
+  final _liveKeys = <BackdropKey>[];
+
+  BackdropKey? _liveKeyOf(Read read) {
+    final group = read.liveGroup;
+    if (group == null) return null;
+    while (_liveKeys.length <= group) {
+      _liveKeys.add(BackdropKey());
+    }
+    return _liveKeys[group];
+  }
 
   /// Tells each site of [form] its fate and draws what the reads need before
   /// the scene is built, deepest last, so what a page holds is drawn by then.
