@@ -18,5 +18,21 @@
     "GeometryFieldFragment": {
         "type": "fragment",
         "file": "lib/assets/shaders/gpu/geometry_field_fragment.glsl"
+    },
+    "TileVertex": {
+        "type": "vertex",
+        "file": "lib/assets/shaders/gpu/tile_vertex.glsl"
+    },
+    "TileFillFragment": {
+        "type": "fragment",
+        "file": "lib/assets/shaders/gpu/tile_fill_fragment.glsl"
+    },
+    "TileGeometryFragment": {
+        "type": "fragment",
+        "file": "lib/assets/shaders/gpu/tile_geometry_fragment.glsl"
+    },
+    "TileFieldFragment": {
+        "type": "fragment",
+        "file": "lib/assets/shaders/gpu/tile_field_fragment.glsl"
     }
 }

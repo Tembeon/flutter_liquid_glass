@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_field.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/shape_set.dart';
 
 /// How far from a silhouette the final shader needs exact geometry, in
@@ -66,35 +67,57 @@ final class TileRun {
   final int shapes;
 }
 
-/// An owner-fused body sampled on a grid, as the tiler and the field pass
-/// read it.
+/// A fused body (`LiquidGlassLayer.field`) placed in a geometry buffer.
 @internal
 @immutable
-final class TileField {
-  /// Creates the field.
-  const TileField({
-    required this.samples,
-    required this.cols,
-    required this.rows,
+final class BufferField {
+  /// Places [field], whose frame is in its layer's logical pixels, by
+  /// [layerToBuffer]: `(xx, xy, yx, yy, tx, ty)` with
+  /// `buffer.x = xx * x + xy * y + tx`.
+  factory BufferField(
+    LiquidGlassField field, {
+    required (double, double, double, double, double, double) layerToBuffer,
+  }) {
+    final (xx, xy, yx, yy, tx, ty) = layerToBuffer;
+    final determinant = xx * yy - xy * yx;
+    final step = field.step;
+    final ix = yy / determinant / step;
+    final ixy = -xy / determinant / step;
+    final iyx = -yx / determinant / step;
+    final iy = xx / determinant / step;
+    final ox = field.origin.dx / step;
+    final oy = field.origin.dy / step;
+    final trace = xx * xx + xy * xy + yx * yx + yy * yy;
+    final spread = sqrt(max(0, trace * trace - 4 * determinant * determinant));
+    return BufferField._(
+      field,
+      bufferToGrid: (
+        ix,
+        ixy,
+        iyx,
+        iy,
+        -(ix * tx + ixy * ty) - ox,
+        -(iyx * tx + iy * ty) - oy,
+      ),
+      distanceScale: sqrt(max(0, (trace - spread) / 2)),
+    );
+  }
+
+  const BufferField._(
+    this.field, {
     required this.bufferToGrid,
     required this.distanceScale,
   });
 
-  /// Four floats a node: distance (negative inside), gradient, half minor
-  /// extent, in the field's own units.
-  final Float32List samples;
-
-  /// Nodes along x.
-  final int cols;
-
-  /// Nodes along y.
-  final int rows;
+  /// The field.
+  final LiquidGlassField field;
 
   /// Buffer pixels to grid coordinates (node (i, j) at (i, j)):
   /// `(xx, xy, yx, yy, dx, dy)` with `grid.x = xx * x + xy * y + dx`.
   final (double, double, double, double, double, double) bufferToGrid;
 
-  /// Buffer pixels per unit of the field's distances.
+  /// Buffer pixels per logical pixel of the field's distances: the
+  /// placement's least stretch, as a shape's distance scale.
   final double distanceScale;
 }
 
@@ -110,6 +133,9 @@ final class TileField {
 @immutable
 final class Tiling {
   const Tiling._({
+    required this.reach,
+    required this.shapes,
+    required this.field,
     required this.columns,
     required this.rows,
     required this.kinds,
@@ -136,13 +162,21 @@ final class Tiling {
       reach,
       kinds,
     );
-    return Tiling._runsOf(columns, rows, kinds, sets, tileSets, dropped);
+    return Tiling._runsOf(
+      (reach, shapes, null),
+      columns,
+      rows,
+      kinds,
+      sets,
+      tileSets,
+      dropped,
+    );
   }
 
   /// Classifies a buffer of [width] x [height] pixels holding the body of
   /// [field].
   factory Tiling.field(
-    TileField field, {
+    BufferField field, {
     required int width,
     required int height,
     required GlassReach reach,
@@ -150,6 +184,7 @@ final class Tiling {
     final columns = _tilesOver(width);
     final rows = _tilesOver(height);
     return Tiling._runsOf(
+      (reach, ShapeSet.empty, field),
       columns,
       rows,
       _fieldKinds(field, columns, rows, reach),
@@ -160,6 +195,7 @@ final class Tiling {
   }
 
   factory Tiling._runsOf(
+    (GlassReach, ShapeSet, BufferField?) source,
     int columns,
     int rows,
     Uint8List kinds,
@@ -189,6 +225,9 @@ final class Tiling {
       }
     }
     return Tiling._(
+      reach: source.$1,
+      shapes: source.$2,
+      field: source.$3,
       columns: columns,
       rows: rows,
       kinds: kinds,
@@ -199,6 +238,15 @@ final class Tiling {
   }
 
   static int _tilesOver(int pixels) => max(1, (pixels + size - 1) ~/ size);
+
+  /// How far from the silhouette texels are exact.
+  final GlassReach reach;
+
+  /// The shapes tiled, in buffer pixels; empty for a [field].
+  final ShapeSet shapes;
+
+  /// The fused body tiled, if any.
+  final BufferField? field;
 
   /// Tile edge in buffer pixels.
   static const int size = 16;
@@ -270,14 +318,14 @@ final class Tiling {
   }
 
   static Uint8List _fieldKinds(
-    TileField field,
+    BufferField field,
     int columns,
     int rows,
     GlassReach reach,
   ) {
     final kinds = Uint8List(columns * rows);
     final (xx, xy, yx, yy, dx, dy) = field.bufferToGrid;
-    final samples = field.samples;
+    final LiquidGlassField(:samples, :cols, rows: nodeRows) = field.field;
     for (var row = 0; row < rows; row++) {
       for (var column = 0; column < columns; column++) {
         var gx0 = double.infinity;
@@ -296,15 +344,15 @@ final class Tiling {
         }
         // Bilinear values stay within their nodes, and the field pass
         // clamps to the grid, so the nodes over the tile bound it.
-        final i0 = gx0.floor().clamp(0, field.cols - 1);
-        final i1 = gx1.ceil().clamp(0, field.cols - 1);
-        final j0 = gy0.floor().clamp(0, field.rows - 1);
-        final j1 = gy1.ceil().clamp(0, field.rows - 1);
+        final i0 = gx0.floor().clamp(0, cols - 1);
+        final i1 = gx1.ceil().clamp(0, cols - 1);
+        final j0 = gy0.floor().clamp(0, nodeRows - 1);
+        final j1 = gy1.ceil().clamp(0, nodeRows - 1);
         var lowest = double.infinity;
         var highest = double.negativeInfinity;
         for (var j = j0; j <= j1; j++) {
           for (var i = i0; i <= i1; i++) {
-            final d = samples[(j * field.cols + i) * 4];
+            final d = samples[(j * cols + i) * 4];
             lowest = min(lowest, d);
             highest = max(highest, d);
           }

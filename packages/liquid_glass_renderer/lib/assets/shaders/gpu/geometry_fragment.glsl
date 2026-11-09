@@ -55,12 +55,6 @@ layout(std140) uniform GeometryUniforms {
 
 out vec4 fragColor;
 
-// The distance stored in texels far away from every shape. It is far outside
-// and still fits in a 16-bit float. The renderer clears the texture to the
-// same value, so the pass only has to draw the part near the shapes. Keep in
-// sync with kLowResFarInward in the renderer.
-const float kFarInward = -4096.0;
-
 void main() {
     float scale = geometryUniforms.uLowRes.x;
     // Texel (i, j) is computed at the center of matte pixel (i * scale,

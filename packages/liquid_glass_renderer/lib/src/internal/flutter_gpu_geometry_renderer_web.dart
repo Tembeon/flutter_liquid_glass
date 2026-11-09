@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_field.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_support.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass/geometry_tiling.dart';
 import 'package:meta/meta.dart';
 
 /// Web stand-in for the Flutter GPU geometry renderer: the web has no
@@ -90,6 +91,10 @@ class FlutterGpuGeometryRenderer {
     LiquidGlassField? field,
     double fieldScale = 1,
   }) => throw UnsupportedError('Flutter GPU is not available on the web.');
+
+  ({ui.Image image, AtlasLayout layout, int textureWidth, int textureHeight})
+  renderAtlas(Tiling tiling) =>
+      throw UnsupportedError('Flutter GPU is not available on the web.');
 
   void releaseOutput() {}
 

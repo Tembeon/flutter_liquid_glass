@@ -11,6 +11,7 @@ import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_field.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_support.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass/geometry_tiling.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 /// The edge distance stored in low-res matte texels that are far away from
@@ -18,6 +19,38 @@ import 'package:vector_math/vector_math.dart' as vm;
 /// texture is cleared to it.
 @internal
 const double kLowResFarInward = -4096;
+
+/// The edge distance of a geometry atlas's deep tile: past every inward
+/// reach, and within a 16-bit float.
+@internal
+const double kDeepInward = 4096;
+
+/// Floats per vertex of tile_vertex.glsl: position, value and ramp.
+const int _tileVertexFloats = 10;
+
+const _tileVertexLayout = gpu.VertexLayout(
+  buffers: [
+    gpu.VertexBuffer(
+      strideInBytes: _tileVertexFloats * 4,
+      attributes: [
+        gpu.VertexAttribute(
+          name: 'position',
+          format: gpu.VertexFormat.float32x2,
+        ),
+        gpu.VertexAttribute(
+          name: 'value',
+          format: gpu.VertexFormat.float32x4,
+          offsetInBytes: 8,
+        ),
+        gpu.VertexAttribute(
+          name: 'ramp',
+          format: gpu.VertexFormat.float32x4,
+          offsetInBytes: 24,
+        ),
+      ],
+    ),
+  ],
+);
 
 /// Renders the liquid glass low-res matte (see `geometry_fragment.glsl`)
 /// using flutter_gpu.
@@ -55,6 +88,14 @@ class FlutterGpuGeometryRenderer {
     _materialTintGradientPipeline = resources.materialTintGradientPipeline;
     _offsetULowRes = resources.offsetULowRes;
     _fieldPipeline = resources.fieldPipeline;
+    _tileFillPipeline = resources.tileFillPipeline;
+    _tileGeometryPipeline = resources.tileGeometryPipeline;
+    _tileGeometryUniformSlot = resources.tileGeometryUniformSlot;
+    _tileFieldPipeline = resources.tileFieldPipeline;
+    _tileFieldUniformSlot = resources.tileFieldUniformSlot;
+    _tileFieldTextureSlot = resources.tileFieldTextureSlot;
+    _tileFieldOffsets = resources.tileFieldOffsets;
+    _tileFieldUniformData = ByteData(resources.tileFieldUniformSize);
     _fieldUniformSlot = resources.fieldUniformSlot;
     _fieldTextureSlot = resources.fieldTextureSlot;
     _fieldUniformSize = resources.fieldUniformSize;
@@ -118,11 +159,19 @@ class FlutterGpuGeometryRenderer {
       final materialTintGradientFragmentShader =
           library?['MaterialTintGradientFragment'];
       final fieldFragmentShader = library?['GeometryFieldFragment'];
+      final tileVertexShader = library?['TileVertex'];
+      final tileFillFragmentShader = library?['TileFillFragment'];
+      final tileGeometryFragmentShader = library?['TileGeometryFragment'];
+      final tileFieldFragmentShader = library?['TileFieldFragment'];
       if (vertexShader == null ||
           fragmentShader == null ||
           materialGradientFragmentShader == null ||
           materialTintGradientFragmentShader == null ||
-          fieldFragmentShader == null) {
+          fieldFragmentShader == null ||
+          tileVertexShader == null ||
+          tileFillFragmentShader == null ||
+          tileGeometryFragmentShader == null ||
+          tileFieldFragmentShader == null) {
         throw StateError(
           'LiquidGlass requires Flutter GPU. Run with Flutter 3.47 or newer '
           'and enable Flutter GPU for the target platform.',
@@ -134,6 +183,10 @@ class FlutterGpuGeometryRenderer {
         materialGradientFragmentShader: materialGradientFragmentShader,
         materialTintGradientFragmentShader: materialTintGradientFragmentShader,
         fieldFragmentShader: fieldFragmentShader,
+        tileVertexShader: tileVertexShader,
+        tileFillFragmentShader: tileFillFragmentShader,
+        tileGeometryFragmentShader: tileGeometryFragmentShader,
+        tileFieldFragmentShader: tileFieldFragmentShader,
       );
     }();
     try {
@@ -183,6 +236,8 @@ class FlutterGpuGeometryRenderer {
   static Duration? _sharedHostBufferFrame;
 
   static const int _hostBufferSlotsPerFrame = 32;
+
+  static final _VertexScratch _vertexScratch = _VertexScratch();
 
   // These ownership counters exclude clones held by callers and native
   // references retained by submitted scenes; they are not GPU memory metrics.
@@ -239,6 +294,29 @@ class FlutterGpuGeometryRenderer {
   late final _FieldUniformOffsets _fieldOffsets;
   late final ByteData _fieldUniformData;
   final _FieldTextures _fieldTextures = _FieldTextures();
+  late final gpu.RenderPipeline _tileFillPipeline;
+  late final gpu.RenderPipeline _tileGeometryPipeline;
+  late final gpu.UniformSlot _tileGeometryUniformSlot;
+  late final gpu.RenderPipeline _tileFieldPipeline;
+  late final gpu.UniformSlot _tileFieldUniformSlot;
+  late final gpu.UniformSlot _tileFieldTextureSlot;
+  late final _TileFieldUniformOffsets _tileFieldOffsets;
+  late final ByteData _tileFieldUniformData;
+
+  // Latest geometry atlas. Older scenes retain their own native references.
+  gpu.Texture? _atlasTexture;
+  ui.Image? _atlasImage;
+
+  // Cleared to the outside tile's table entry (geometry_tiling.dart).
+  final _TextureRing _atlases = _TextureRing(
+    format: gpu.PixelFormat.r16g16b16a16Float,
+    clearValue: vm.Vector4(
+      AtlasLayout.outsideEntry.$1.toDouble(),
+      AtlasLayout.outsideEntry.$2.toDouble(),
+      0,
+      1,
+    ),
+  );
 
   @visibleForTesting
   Object get debugPipelineIdentity => _pipeline;
@@ -637,6 +715,208 @@ class FlutterGpuGeometryRenderer {
       textureWidth: _texture!.width,
       textureHeight: _texture!.height,
     );
+  }
+
+  /// Draws the geometry atlas of [tiling] (geometry_tiling.dart) in one
+  /// pass: the constant tiles, the table and every ring strip, the strips
+  /// evaluating the tiling's shapes set by set, or its field.
+  ///
+  /// Table texels hold their tile's entry in x and y and 1 in w. The returned
+  /// image belongs to the renderer, as [render]'s does: its texture is
+  /// written again [reuseAfterFrames] frames after a later atlas replaces it.
+  ({ui.Image image, AtlasLayout layout, int textureWidth, int textureHeight})
+  renderAtlas(Tiling tiling) {
+    assert(() {
+      debugRenderCount++;
+      _debugTotalRenderCount++;
+      debugMatteDrawCount++;
+      return true;
+    }(), 'Track geometry submissions in debug builds.');
+    _ensureFrameCounter();
+    final layout = AtlasLayout.of(tiling);
+    if (_atlasTexture != null) {
+      _atlasImage?.dispose();
+      _atlasImage = null;
+      _atlasTexture = null;
+      assert(() {
+        _debugActiveGeometryTextureCount--;
+        return true;
+      }(), 'Track replaced geometry textures in debug builds.');
+    }
+    final atlas = _atlases.next(
+      _completedFrames,
+      width: layout.width,
+      height: layout.height,
+      maxWidth: AtlasLayout.maxSize,
+      maxHeight: AtlasLayout.maxSize,
+    );
+    final texture = _atlasTexture = atlas.texture;
+    final image = _atlasImage = texture.asImage();
+    assert(() {
+      _debugActiveGeometryTextureCount++;
+      return true;
+    }(), 'Track live geometry textures in debug builds.');
+
+    const strip = Tiling.size + 2;
+    final quads = _AtlasQuads(texture.width, texture.height)
+      ..add(0, 0, strip, strip, value: (kLowResFarInward, 0, 0, 0))
+      ..add(strip, 0, strip, strip, value: (kDeepInward, 0, 0, 0));
+    final (tableX, tableY) = layout.tableOrigin;
+    final (deepX, deepY) = AtlasLayout.deepEntry;
+    for (var row = 0; row < tiling.rows; row++) {
+      var column = 0;
+      while (column < tiling.columns) {
+        if (tiling.kindAt(column, row) != TileKind.deep) {
+          column++;
+          continue;
+        }
+        var end = column + 1;
+        while (end < tiling.columns &&
+            tiling.kindAt(end, row) == TileKind.deep) {
+          end++;
+        }
+        quads.add(
+          tableX + column,
+          tableY + row,
+          end - column,
+          1,
+          value: (deepX.toDouble(), deepY.toDouble(), 0, 1),
+        );
+        column = end;
+      }
+    }
+    final runs = tiling.runs;
+    for (var i = 0; i < runs.length; i++) {
+      final run = runs[i];
+      final (entryX, entryY) = layout.entryOf(i, 0);
+      quads.add(
+        tableX + run.column,
+        tableY + run.row,
+        run.length,
+        1,
+        value: (entryX.toDouble(), entryY.toDouble(), 0, 1),
+        ramp: ((tableX + run.column).toDouble(), Tiling.size.toDouble()),
+      );
+    }
+    final fills = quads.count;
+    final sets = <(int, int, int)>[];
+    for (var set = 0; set < tiling.shapeSets.length; set++) {
+      final start = quads.count;
+      for (var i = 0; i < runs.length; i++) {
+        final run = runs[i];
+        if (run.shapes != set) continue;
+        final x = layout.strips[i * 2];
+        final y = layout.strips[i * 2 + 1];
+        quads.add(
+          x,
+          y,
+          run.length * Tiling.size + 2,
+          strip,
+          value: (
+            (run.column * Tiling.size - x - 1).toDouble(),
+            (run.row * Tiling.size - y - 1).toDouble(),
+            0,
+            0,
+          ),
+        );
+      }
+      if (quads.count > start) sets.add((set, start, quads.count - start));
+    }
+
+    final hostBuffer = _hostBufferForUniformSize(_uniformSize);
+    final vertices = _vertexScratch.write(quads.bytes);
+    gpu.BufferView range(int first, int count) => gpu.BufferView(
+      vertices.buffer,
+      offsetInBytes: vertices.offsetInBytes + first * _AtlasQuads.bytesPerQuad,
+      lengthInBytes: count * _AtlasQuads.bytesPerQuad,
+    );
+
+    final commands = gpu.gpuContext.createCommandBuffer();
+    final field = tiling.field;
+    gpu.Texture? fieldTexture;
+    try {
+      fieldTexture = field == null ? null : _uploadField(field.field, commands);
+    } on Object {
+      commands.submit();
+      rethrow;
+    }
+    final pass = commands.createRenderPass(atlas.renderTarget)
+      ..setPrimitiveType(gpu.PrimitiveType.triangle)
+      ..bindPipeline(_tileFillPipeline)
+      ..bindVertexBuffer(range(0, fills))
+      ..draw(fills * 6);
+    if (field != null) {
+      final strips = quads.count - fills;
+      if (strips > 0) {
+        _packTileFieldUniformData(field, fieldTexture!);
+        pass
+          ..bindPipeline(_tileFieldPipeline)
+          ..bindUniform(
+            _tileFieldUniformSlot,
+            hostBuffer.emplace(_tileFieldUniformData),
+          )
+          ..bindTexture(_tileFieldTextureSlot, fieldTexture)
+          ..bindVertexBuffer(range(fills, strips))
+          ..draw(strips * 6);
+      }
+    } else if (sets.isNotEmpty) {
+      final shapes = tiling.shapes;
+      pass.bindPipeline(_tileGeometryPipeline);
+      for (final (set, first, count) in sets) {
+        final members = tiling.shapeSets[set];
+        List<double> pick(List<double> data, int stride) => [
+          for (final i in members)
+            ...data.getRange(i * stride, (i + 1) * stride),
+        ];
+        _packShapes(
+          numShapes: members.length.toDouble(),
+          shapeData: pick(shapes.shapes, 12),
+          rseData: pick(shapes.superellipses, 12),
+          rseLowerData: pick(shapes.superellipsesLower, 12),
+          boundsData: pick(shapes.boxes, 4),
+        );
+        _uniformData.setFloat32(
+          _offsetContourProps,
+          tiling.reach.outward,
+          Endian.host,
+        );
+        pass
+          ..bindUniform(
+            _tileGeometryUniformSlot,
+            hostBuffer.emplace(_uniformData),
+          )
+          ..bindVertexBuffer(range(first, count))
+          ..draw(count * 6);
+      }
+    }
+    _submitOrDefer(commands);
+    droppedShapes = tiling.droppedShapes;
+    return (
+      image: image,
+      layout: layout,
+      textureWidth: texture.width,
+      textureHeight: texture.height,
+    );
+  }
+
+  void _packTileFieldUniformData(BufferField field, gpu.Texture texture) {
+    final to = _tileFieldUniformData.buffer.asFloat32List();
+    final offsets = _tileFieldOffsets;
+    final (xx, xy, yx, yy, dx, dy) = field.bufferToGrid;
+    final toGrid = offsets.bufferToGrid ~/ 4;
+    to[toGrid] = xx;
+    to[toGrid + 1] = xy;
+    to[toGrid + 2] = yx;
+    to[toGrid + 3] = yy;
+    final shift = offsets.gridShift ~/ 4;
+    to[shift] = dx;
+    to[shift + 1] = dy;
+    to[shift + 2] = field.distanceScale;
+    final size = offsets.fieldSize ~/ 4;
+    to[size] = field.field.cols.toDouble();
+    to[size + 1] = field.field.rows.toDouble();
+    to[size + 2] = 1 / texture.width;
+    to[size + 3] = 1 / texture.height;
   }
 
   /// The low-res matte texels (for a matte of [width] x [height] pixels at
@@ -1151,6 +1431,16 @@ class FlutterGpuGeometryRenderer {
   /// Independent clones and submitted native scenes remain valid.
   void releaseOutput() {
     _mattes.release();
+    _atlases.release();
+    if (_atlasTexture != null) {
+      assert(() {
+        _debugActiveGeometryTextureCount--;
+        return true;
+      }(), 'Track disposed geometry textures in debug builds.');
+    }
+    _atlasTexture = null;
+    _atlasImage?.dispose();
+    _atlasImage = null;
     _materials.release();
     _fieldTextures.release();
     _renderTarget = null;
@@ -1184,6 +1474,92 @@ class FlutterGpuGeometryRenderer {
       _debugActiveRendererCount--;
       return true;
     }(), 'Track disposed geometry renderers in debug builds.');
+  }
+}
+
+/// The quads of one atlas pass as tile_vertex.glsl reads them: two
+/// triangles each, corners in clip space for a target of [_width] x
+/// [_height] texels, top row first.
+final class _AtlasQuads {
+  _AtlasQuads(this._width, this._height);
+
+  static const int bytesPerQuad = 6 * _tileVertexFloats * 4;
+
+  final int _width;
+  final int _height;
+  final List<double> _floats = [];
+
+  int get count => _floats.length ~/ (6 * _tileVertexFloats);
+
+  ByteData get bytes => ByteData.sublistView(Float32List.fromList(_floats));
+
+  /// The texels [x], [y] to [x] + [w], [y] + [h].
+  void add(
+    int x,
+    int y,
+    int w,
+    int h, {
+    required (double, double, double, double) value,
+    (double, double) ramp = (0, 0),
+  }) {
+    final x0 = 2 * x / _width - 1;
+    final x1 = 2 * (x + w) / _width - 1;
+    final y0 = 1 - 2 * y / _height;
+    final y1 = 1 - 2 * (y + h) / _height;
+    final (v0, v1, v2, v3) = value;
+    final (r0, r1) = ramp;
+    for (final (px, py) in [
+      (x0, y0),
+      (x1, y0),
+      (x0, y1),
+      (x1, y0),
+      (x1, y1),
+      (x0, y1),
+    ]) {
+      _floats.addAll([px, py, v0, v1, v2, v3, r0, r1, 0, 0]);
+    }
+  }
+}
+
+/// The vertex data of a frame's atlas passes, written at a cursor into one of
+/// four host-visible buffers, so a buffer is written again only once the
+/// frames that read it are done, as [gpu.HostBuffer] cycles its blocks.
+///
+/// [gpu.HostBuffer] itself fails an emplacement that starts inside a block
+/// and runs past its end, which variable-length vertex data does.
+final class _VertexScratch {
+  static const int _frames = 4;
+
+  final List<gpu.DeviceBuffer?> _buffers = List.filled(_frames, null);
+  int _frame = 0;
+  int _cursor = 0;
+  Duration? _stamp;
+
+  gpu.BufferView write(ByteData bytes) {
+    final stamp = SchedulerBinding.instance.currentSystemFrameTimeStamp;
+    if (_stamp != stamp) {
+      _stamp = stamp;
+      _frame = (_frame + 1) % _frames;
+      _cursor = 0;
+    }
+    final alignment = gpu.gpuContext.minimumUniformByteAlignment;
+    final length = bytes.lengthInBytes;
+    var buffer = _buffers[_frame];
+    if (buffer == null || _cursor + length > buffer.sizeInBytes) {
+      // Views into the buffer this replaces keep it alive for the passes
+      // that read them.
+      buffer = _buffers[_frame] = gpu.gpuContext.createDeviceBuffer(
+        gpu.StorageMode.hostVisible,
+        math.max(length, math.max(16384, (buffer?.sizeInBytes ?? 0) * 2)),
+      );
+      _cursor = 0;
+    }
+    final offset = _cursor;
+    if (!buffer.overwrite(bytes, destinationOffsetInBytes: offset)) {
+      throw StateError('Could not write $length bytes of atlas vertices.');
+    }
+    _cursor = (offset + length + alignment - 1) ~/ alignment * alignment;
+    return gpu.BufferView(buffer, offsetInBytes: offset, lengthInBytes: length);
   }
 }
 
@@ -1354,7 +1730,35 @@ class _SharedGeometryResources {
     required gpu.Shader materialGradientFragmentShader,
     required gpu.Shader materialTintGradientFragmentShader,
     required gpu.Shader fieldFragmentShader,
+    required gpu.Shader tileVertexShader,
+    required gpu.Shader tileFillFragmentShader,
+    required gpu.Shader tileGeometryFragmentShader,
+    required gpu.Shader tileFieldFragmentShader,
   }) {
+    gpu.RenderPipeline tilePipeline(gpu.Shader fragment) =>
+        gpu.gpuContext.createRenderPipeline(
+          tileVertexShader,
+          fragment,
+          vertexLayout: _tileVertexLayout,
+        );
+    tileFillPipeline = tilePipeline(tileFillFragmentShader);
+    tileGeometryPipeline = tilePipeline(tileGeometryFragmentShader);
+    tileGeometryUniformSlot = tileGeometryFragmentShader.getUniformSlot(
+      'GeometryUniforms',
+    );
+    tileFieldPipeline = tilePipeline(tileFieldFragmentShader);
+    tileFieldUniformSlot = tileFieldFragmentShader.getUniformSlot(
+      'TileFieldUniforms',
+    );
+    tileFieldTextureSlot = tileFieldFragmentShader.getUniformSlot('uField');
+    tileFieldUniformSize = tileFieldUniformSlot.sizeInBytes ?? 0;
+    int tileField(String name) =>
+        tileFieldUniformSlot.getMemberOffsetInBytes(name) ?? 0;
+    tileFieldOffsets = (
+      bufferToGrid: tileField('uBufferToGrid'),
+      gridShift: tileField('uGridShift'),
+      fieldSize: tileField('uFieldSize'),
+    );
     pipeline = gpu.gpuContext.createRenderPipeline(
       vertexShader,
       fragmentShader,
@@ -1422,6 +1826,14 @@ class _SharedGeometryResources {
   late final gpu.RenderPipeline materialTintGradientPipeline;
   late final int offsetULowRes;
   late final gpu.RenderPipeline fieldPipeline;
+  late final gpu.RenderPipeline tileFillPipeline;
+  late final gpu.RenderPipeline tileGeometryPipeline;
+  late final gpu.UniformSlot tileGeometryUniformSlot;
+  late final gpu.RenderPipeline tileFieldPipeline;
+  late final gpu.UniformSlot tileFieldUniformSlot;
+  late final gpu.UniformSlot tileFieldTextureSlot;
+  late final int tileFieldUniformSize;
+  late final _TileFieldUniformOffsets tileFieldOffsets;
   late final gpu.UniformSlot fieldUniformSlot;
   late final gpu.UniformSlot fieldTextureSlot;
   late final int fieldUniformSize;
@@ -1446,6 +1858,13 @@ typedef _FieldUniformOffsets = ({
   int lowRes,
   int offset,
   int fieldFrame,
+  int fieldSize,
+});
+
+/// Byte offsets of the tile field pass's uniform members.
+typedef _TileFieldUniformOffsets = ({
+  int bufferToGrid,
+  int gridShift,
   int fieldSize,
 });
 

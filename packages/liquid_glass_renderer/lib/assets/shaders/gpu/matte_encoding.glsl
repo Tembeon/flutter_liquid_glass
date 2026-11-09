@@ -8,6 +8,9 @@ const float kPixelCenter = 0.5;
 // reports a distance of 1e9, which would otherwise become infinity and break
 // the blending between texels.
 const float kInwardLimit = 16000.0;
+// The value of texels far outside every shape: far outside, and still within
+// a 16-bit float. Keep in sync with kLowResFarInward in the renderer.
+const float kFarInward = -4096.0;
 
 // R: the distance to the edge, positive inside. GB: the direction the surface
 // faces, scaled by the square root of the gradient's length, so it refracts

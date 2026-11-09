@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_field.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/shape_set.dart';
 
@@ -387,20 +388,17 @@ void main() {
             pixelsPerUnit;
       }
     }
-    final field = TileField(
-      samples: samples,
-      cols: cols,
-      rows: rows,
-      bufferToGrid: (
-        1 / step,
-        0,
-        0,
-        1 / step,
-        -originX / step,
-        -originY / step,
+    final field = BufferField(
+      LiquidGlassField(
+        samples: samples,
+        cols: cols,
+        rows: rows,
+        origin: const Offset(originX / pixelsPerUnit, originY / pixelsPerUnit),
+        step: step / pixelsPerUnit,
       ),
-      distanceScale: pixelsPerUnit,
+      layerToBuffer: (pixelsPerUnit, 0, 0, pixelsPerUnit, 0, 0),
     );
+    expect(field.distanceScale, closeTo(pixelsPerUnit, 1e-9));
     double fieldAt(double x, double y) {
       final gx = ((x - originX) / step).clamp(0, cols - 1);
       final gy = ((y - originY) / step).clamp(0, rows - 1);
