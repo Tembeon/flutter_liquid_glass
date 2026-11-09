@@ -158,10 +158,7 @@ final class PagePart {
 @internal
 final class CornerRead {
   CornerRead._(this._copy, this._cut, this._scale)
-    : _device = _onGrain(
-        _copy.read.geometry.lattice.toDevice(_cut),
-        max(_scale, _copy.read.geometry.lattice.share),
-      );
+    : _grid = _copy.read.geometry.lattice.inside(_scale);
 
   /// The copy laid out over its whole layer in the frame's scene.
   factory CornerRead.inFrame(ReadCopy copy) {
@@ -176,23 +173,20 @@ final class CornerRead {
   // How many device pixels one pixel of the target the layer is drawn into
   // stands for.
   final int _scale;
-  // The layer, in the screen's device pixels, on the copy's grid and on the
-  // target's: a layer off the target's pixels starts its fragments at the
-  // pixel it is rounded out to.
-  final Rect _device;
-
-  static Rect _onGrain(Rect device, int grain) => grain == 1
-      ? device
-      : Rect.fromLTRB(
-          (device.left / grain).floorToDouble() * grain,
-          (device.top / grain).floorToDouble() * grain,
-          (device.right / grain).ceilToDouble() * grain,
-          (device.bottom / grain).ceilToDouble() * grain,
-        );
+  // The grid the copy is drawn at: its own, or the target's where that is
+  // coarser.
+  final Lattice _grid;
+  // The layer, in the screen's device pixels, on [_grid]: a layer off the
+  // target's pixels starts its fragments at the pixel it is rounded out to.
+  late final Rect _device = _grid.toDevice(_cut);
 
   ReadGeometry get _geometry => _copy.read.geometry;
-  double get _dpr => _geometry.lattice.devicePixelRatio;
-  int get _share => _geometry.lattice.share;
+  double get _dpr => _grid.devicePixelRatio;
+  // The device pixels along each side one pixel of the layer holds of the
+  // copy, past the target's own.
+  int get _share => _grid.share ~/ _scale;
+  // The copy's pixels per logical pixel, in the layer.
+  double get _pixels => _dpr / _share;
 
   // Where the copy's top left lies in the layer, in the copy's pixels.
   Offset get _at => Offset(
@@ -202,8 +196,7 @@ final class CornerRead {
 
   // The sigma, in device pixels, the taps frost the copy by for Impeller's
   // blur by [frost].
-  double _residual(double frost) =>
-      _geometry.lattice.residual(_geometry.frostFor(frost));
+  double _residual(double frost) => _grid.residual(_geometry.frostFor(frost));
 
   /// How the final shader reads the layer to frost it for Impeller's blur
   /// by [frost] (see [GlassSampling.frost]).
@@ -228,7 +221,7 @@ final class CornerRead {
     if (drawn.isEmpty) return null;
     final at = _at;
     final band = _geometry.band;
-    final pixels = _geometry.lattice.pixels;
+    final pixels = _pixels;
     return FrostSampling._(
       size: _device.size,
       bounds: Rect.fromLTRB(
@@ -253,7 +246,7 @@ final class CornerRead {
   Size get _copySize {
     final at = _at;
     final band = _geometry.band;
-    final pixels = _geometry.lattice.pixels;
+    final pixels = _pixels;
     return Size(
       min(ceilPixels(max(at.dx, 0) + band.width * pixels), _device.width),
       min(ceilPixels(max(at.dy, 0) + band.height * pixels), _device.height),
@@ -273,7 +266,7 @@ final class CornerRead {
     final at = _at;
     final size = _copySize;
     final band = _geometry.band;
-    final pixels = _geometry.lattice.pixels;
+    final pixels = _pixels;
     return frostFilterOf(
       FrostSampling._(
         size: size,
@@ -311,6 +304,7 @@ final class CornerRead {
     }
     _copy._addTo(
       builder,
+      Lattice(_dpr, _share),
       Offset(_device.left + at.dx, _device.top + at.dy),
       inPlace == null ? _device : _device.topLeft & _copySize,
     );

@@ -325,17 +325,23 @@ final class ReadCopy {
           );
   }
 
-  void _addTo(ui.SceneBuilder builder, Offset origin, Rect within) {
-    final geometry = read.geometry;
-    final band = geometry.band;
-    final pixels = geometry.lattice.pixels;
+  // Adds the copy at [origin], its pixels holding [lattice]'s share of the
+  // device pixels of the layer it is drawn in.
+  void _addTo(
+    ui.SceneBuilder builder,
+    Lattice lattice,
+    Offset origin,
+    Rect within,
+  ) {
+    final band = read.geometry.band;
+    final pixels = lattice.pixels;
     builder.pushClipRect(
       (origin & Size(band.width * pixels, band.height * pixels)).intersect(
         within,
       ),
       clipBehavior: Clip.hardEdge,
     );
-    _replay(builder, geometry.lattice, band, origin);
+    _replay(builder, lattice, band, origin);
     builder.pop();
   }
 

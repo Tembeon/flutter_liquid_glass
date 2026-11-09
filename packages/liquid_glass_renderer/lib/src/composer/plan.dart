@@ -1106,7 +1106,9 @@ bool _under(Read below, Read read) {
 /// blur (host, dpr 2 and 3, clear glass held): 5 to 13 levels off under a
 /// frost of 12 and 20 logical pixels, 40 to 51 under 6; drawn at the
 /// screen's pixels and as a picture, 4 to 35. It saves 12 % of the fragment
-/// work of a scroll with glass under the tab bar on the Pixel 6a.
+/// work of a scroll with glass under the tab bar on the Pixel 6a. Glass that
+/// frosts its own copy keeps it at the coarser of the two grids
+/// ([Lattice.inside]).
 bool _holdsAtOwnGrid(Read read) => read.holds.every(
   (held) => held.holds.isEmpty && held.members.every((m) => m.look.anyGrid),
 );

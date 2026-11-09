@@ -368,6 +368,47 @@ void main() {
     }
   }, skip: skipProperGlassTests);
 
+  // The upper glass frosts its own copy in its shader, and that copy is
+  // held in the lower glass's coarser one. Drawn at both shares at once, its
+  // pixels held 16 device pixels each and the glass was 16 levels off the
+  // same scene copied at the screen's pixels, under the lower glass's frost.
+  testWidgets('glass held in a coarse copy is drawn at the coarser grid', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(260, 360) * 2;
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    addTearDown(() => RenderLiquidGlassLayer.debugMaxCopyDownscale = 2);
+    Plan? plan;
+    GlassComposer.debugOnPlan = (_, next) => plan = next;
+    addTearDown(() => GlassComposer.debugOnPlan = null);
+    for (final frost in [3.0, 6.0]) {
+      Future<Uint8List> drawn(int downscale) {
+        RenderLiquidGlassLayer.debugMaxCopyDownscale = downscale;
+        return _drawn(
+          tester,
+          inFrame: true,
+          pixelRatio: 2,
+          frost: frost,
+          secondFrost: 20,
+        );
+      }
+
+      final atScreen = await drawn(1);
+      for (final downscale in [2, 4]) {
+        final shown = await drawn(downscale);
+        final holding = plan!.reads.singleWhere((r) => r.holds.isNotEmpty);
+        expect(holding.geometry.lattice.share, downscale);
+        expect(holding.holds.single.geometry.lattice.share, greaterThan(1));
+        expect(
+          _difference(atScreen, shown),
+          lessThanOrEqualTo(8),
+          reason: 'frost $frost, copy share $downscale',
+        );
+      }
+    }
+  }, skip: skipProperGlassTests);
+
   // Impeller weighs the cut on the layer's device pixels. Glass at 203.8
   // reads from row 408 at dpr 2.625, which 408 / 2.625 * 2.625 misses by a
   // hair, and clips from 198.2 to 198.6 cut that band by about 30 %: a layer

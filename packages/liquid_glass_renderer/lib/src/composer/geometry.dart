@@ -219,6 +219,15 @@ final class Lattice {
   /// The same grid at the screen's pixels.
   Lattice get atScreen => share == 1 ? this : Lattice(devicePixelRatio, 1);
 
+  /// The grid a copy on this one is drawn at in a target whose pixels hold
+  /// [target] device pixels each: the coarser of the two. Drawn finer, its
+  /// pixels would hold the product of both shares, more than either asked:
+  /// glass frosting itself by 6 logical pixels, held at share 4 under a frost
+  /// of 20, was 16 levels off the scene copied at the screen's pixels, and is
+  /// 8 at most (host test, dpr 2).
+  Lattice inside(int target) =>
+      target <= share ? this : Lattice(devicePixelRatio, target);
+
   /// [rect] (logical pixels) grown to whole pixels of the copy.
   Rect snapOut(Rect rect) {
     final pixels = this.pixels;
