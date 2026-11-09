@@ -13,10 +13,9 @@ const double _deliveredFrost = 0.84;
 // they show at 5 copy pixels in the host test and not at 3.4.
 const double _shaderFrostTexels = 3.5;
 
-/// How many device pixels along each side one pixel of a copy the shader
-/// frosts stands for at most.
-@visibleForTesting
-int debugShaderFrostMaxDownscale = 4;
+// How many device pixels along each side one pixel of a copy the shader
+// frosts stands for at most. 8 gave no clear GPU gain on the Pixel 6a.
+const int _shaderFrostMaxDownscale = 4;
 
 // How many device pixels along each side one pixel holds where Impeller's
 // blur by [sigma] device pixels downsamples (GaussianBlurFilterContents::
@@ -41,17 +40,15 @@ int? shaderFrostDownscale(
 }) {
   final delivered = sigma * _deliveredFrost;
   var downscale = 1;
-  while (downscale < debugShaderFrostMaxDownscale &&
+  while (downscale < _shaderFrostMaxDownscale &&
       delivered / downscale > _shaderFrostTexels) {
     downscale *= 2;
   }
   if (delivered <= 0 || delivered / downscale > _shaderFrostTexels) {
     return null;
   }
-  final floor = atBlurScale
-      ? _blurDownscale(sigma)
-      : debugShaderFrostMaxDownscale;
-  while (downscale < debugShaderFrostMaxDownscale &&
+  final floor = atBlurScale ? _blurDownscale(sigma) : _shaderFrostMaxDownscale;
+  while (downscale < _shaderFrostMaxDownscale &&
       downscale * 2 <= floor &&
       delivered / (downscale * 2) >= minTexels) {
     downscale *= 2;

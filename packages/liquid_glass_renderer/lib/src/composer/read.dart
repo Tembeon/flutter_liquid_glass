@@ -138,11 +138,6 @@ abstract final class GlassCopies {
   @visibleForTesting
   static int debugImagesDrawn = 0;
 
-  /// Whether a copy smaller than the screen draws its text where it lies
-  /// rather than on the copy's pixels, for an A/B run.
-  @visibleForTesting
-  static bool debugPlaceText = true;
-
   /// How many filtered layers the pages were drawn in.
   @visibleForTesting
   static int debugBlurLayers = 0;

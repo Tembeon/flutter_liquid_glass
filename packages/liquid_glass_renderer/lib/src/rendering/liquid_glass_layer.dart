@@ -1874,7 +1874,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         sigma > 0 && _frostsCopies && (scaleX / scaleY - 1).abs() <= 0.05
         ? shaderFrostDownscale(
             round * dpr,
-            minTexels: debugFrostMinTexels,
+            minTexels: 1,
             atBlurScale: true,
           )
         : null;
@@ -2538,16 +2538,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// [debugUpdateShaders].
   @visibleForTesting
   static bool debugShaderFrost = true;
-
-  /// A copy is halved while the frost still spans this many of its pixels:
-  /// the fewer the pixels, the less it costs to draw and to frost.
-  static double debugFrostMinTexels = 1;
-
-  /// Encodes the geometry again, after a bench changed what it draws.
-  void debugUpdateGeometry() {
-    needsGeometryUpdate = true;
-    markNeedsPaint();
-  }
 
   /// Picks this layer's shaders again, after [debugShaderFrost] changed.
   @visibleForTesting

@@ -65,7 +65,6 @@ class GallerySettings {
     this.showBorders = false,
     this.crossFade = false,
     this.glassTint,
-    this.edgeBlur = true,
   });
 
   final GalleryRenderer renderer;
@@ -80,9 +79,6 @@ class GallerySettings {
   /// The Liquid Glass slider's position, or null to follow the system's.
   final double? glassTint;
 
-  /// Whether scroll edges blur what lies under them, or only fade it.
-  final bool edgeBlur;
-
   GallerySettings copyWith({
     GalleryRenderer? renderer,
     Brightness? Function()? brightness,
@@ -91,7 +87,6 @@ class GallerySettings {
     bool? showBorders,
     bool? crossFade,
     double? Function()? glassTint,
-    bool? edgeBlur,
   }) => GallerySettings(
     renderer: renderer ?? this.renderer,
     brightness: brightness == null ? this.brightness : brightness(),
@@ -100,7 +95,6 @@ class GallerySettings {
     showBorders: showBorders ?? this.showBorders,
     crossFade: crossFade ?? this.crossFade,
     glassTint: glassTint == null ? this.glassTint : glassTint(),
-    edgeBlur: edgeBlur ?? this.edgeBlur,
   );
 }
 

@@ -66,7 +66,7 @@ final class CopyGrid {
   // drawn, read from its atlas bilinearly.
   Matrix4 _copyMatrix(Rect rect, Offset origin) {
     final scale = 1 / _share;
-    final skew = _share > 1 && GlassCopies.debugPlaceText ? 1e-6 : 0.0;
+    final skew = _share > 1 ? 1e-6 : 0.0;
     final left = rect.left * _devicePixelRatio;
     final top = rect.top * _devicePixelRatio;
     final matrix = Matrix4.zero();

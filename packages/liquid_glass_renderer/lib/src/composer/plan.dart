@@ -592,18 +592,7 @@ final class Policy {
     this.bands = true,
     this.copies = true,
     this.dropsFrost = true,
-    this.bakesFrost = true,
-    this.coarseHolds = true,
   });
-
-  /// Whether a copy of a quarter of the screen's pixels or fewer holds the
-  /// glass under it. Without, that glass is left out of it: its colour
-  /// goes from the copy, which the frost cannot hide.
-  final bool coarseHolds;
-
-  /// Whether a copy smaller than the screen is frosted once rather than by
-  /// every fragment of the glass over it.
-  final bool bakesFrost;
 
   /// Whether a band under glass that frosts as wide stays out of what the
   /// glass reads, the glass adding its frost to its own.
@@ -820,7 +809,6 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
         read.frostLeftOut = math.max(read.frostLeftOut, below.lead.look.frost);
         continue;
       }
-      if (!policy.coarseHolds && read.downscale >= 4) continue;
       read.holds.add(below);
       read.level = math.max(read.level, below.level + 1);
     }
@@ -830,8 +818,7 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
     );
     // A copy holding glass lies at the screen's pixels, where a frost costs
     // more than the taps it saves.
-    read.bakesFrost =
-        policy.bakesFrost && read.downscale >= 2 && read.holds.isEmpty;
+    read.bakesFrost = read.downscale >= 2 && read.holds.isEmpty;
   }
 
   final edits = LedgerEdits();

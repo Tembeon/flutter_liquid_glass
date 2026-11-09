@@ -29,7 +29,7 @@ Future<Map<String, Object?>?> _thermal() async =>
     (await _device<Map<Object?, Object?>>('thermal'))?.cast<String, Object?>();
 
 // The levers the check tries, with the state the gallery runs in.
-const _levers = {'edge_fade': false, 'in_frame': true, 'cadence': true};
+const _levers = {'in_frame': true, 'cadence': true};
 
 /// Replaces the running app with the check, so that nothing of the app stays
 /// behind what it measures, and with [leave]'s app when it ends.
