@@ -19,6 +19,9 @@ final class _Scene implements Scenery {
   @override
   Rect get screen => _screen;
 
+  @override
+  double get devicePixelRatio => 1;
+
   int texturesBefore = -1;
   int platformBefore = -1;
   int changedAt = 0;

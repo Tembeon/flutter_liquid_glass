@@ -3,105 +3,6 @@
 
 part of 'read.dart';
 
-/// The pixel grid a copy is drawn on: one, two, four or eight device pixels of
-/// the screen along each side of each of its pixels, on a grid anchored at
-/// the screen's origin.
-///
-/// A copy's grid is the one it is drawn on, which a band holding glass that
-/// a filter draws takes at the screen's pixels whatever was asked: that
-/// glass takes its fragments for the screen's pixels. Only the copies make
-/// grids, so a reader meets no other ratio than the one drawn.
-@internal
-@immutable
-final class CopyGrid {
-  const CopyGrid._(this._devicePixelRatio, this._share)
-    : assert(
-        _share == 1 || _share == 2 || _share == 4 || _share == 8,
-        'A copy holds one, two, four or eight device pixels along each side.',
-      );
-
-  final double _devicePixelRatio;
-
-  // How many device pixels along each side one pixel of the copy holds.
-  final int _share;
-
-  // The copy's pixels per logical pixel.
-  double get _pixels => _devicePixelRatio / _share;
-
-  // The same grid at the screen's pixels.
-  CopyGrid get _screen => _share == 1 ? this : CopyGrid._(_devicePixelRatio, 1);
-
-  // [rect] (logical pixels) grown to whole pixels of the copy.
-  Rect _snapOut(Rect rect) => _snapOutAt(rect, _pixels);
-
-  // [rect] (logical pixels) in the screen's device pixels, grown to whole
-  // pixels of the copy: the layer a copy of it is drawn in.
-  Rect _device(Rect rect) => Rect.fromLTRB(
-    _floorPixels(rect.left * _pixels) * _share,
-    _floorPixels(rect.top * _pixels) * _share,
-    _ceilPixels(rect.right * _pixels) * _share,
-    _ceilPixels(rect.bottom * _pixels) * _share,
-  );
-
-  // Whether Impeller draws the layer of a copy of [layer] whole inside
-  // [clip] (both logical pixels). It measures the layer as drawn: the whole
-  // pixels it grows to can tip a layer just under the bound over it.
-  bool _keepsWhole(Rect layer, Rect clip) => GlassCopies.keepsWhole(
-    _device(layer),
-    Rect.fromLTRB(
-      clip.left * _devicePixelRatio,
-      clip.top * _devicePixelRatio,
-      clip.right * _devicePixelRatio,
-      clip.bottom * _devicePixelRatio,
-    ),
-  );
-
-  // From the coordinates of a form's root to a copy of [rect], its top left
-  // at [origin]: one scale, and the layers' own transforms after it.
-  //
-  // Impeller sets text drawn at a translation and a scale alone on whole
-  // pixels of its target (impeller/entity/contents/text_contents.cc): text
-  // moving under glass would step a pixel of the copy, up to four of the
-  // screen's, at a time. Under a skew too small to see it lies where it is
-  // drawn, read from its atlas bilinearly.
-  Matrix4 _copyMatrix(Rect rect, Offset origin) {
-    final scale = 1 / _share;
-    final skew = _share > 1 ? 1e-6 : 0.0;
-    final left = rect.left * _devicePixelRatio;
-    final top = rect.top * _devicePixelRatio;
-    final matrix = Matrix4.zero();
-    final storage = matrix.storage;
-    storage[0] = scale;
-    storage[1] = scale * skew;
-    storage[5] = scale;
-    storage[10] = 1;
-    storage[12] = origin.dx - scale * left;
-    storage[13] = origin.dy - scale * top - scale * skew * left;
-    storage[15] = 1;
-    return matrix;
-  }
-
-  // The sigma, in device pixels, the shaders' taps frost a copy on this grid
-  // by for Impeller's blur by [sigma] screen logical pixels. The copy's own
-  // pixels already blur by what they hold, which a band holding glass that
-  // a filter draws, at the screen's pixels whatever was asked, holds less
-  // of. NEAR there: the taps lie up to 14 of its pixels apart, past the 3.5
-  // a shader-frosted copy keeps to; under the scroll edge over glass the
-  // frost is 0.55 levels off the live read on average at 2.625 dpr and 0.41
-  // at 3 (host test).
-  double _frost(double sigma) =>
-      sigma > 0 ? frostResidual(sigma * _devicePixelRatio, share: _share) : 0;
-
-  @override
-  bool operator ==(Object other) =>
-      other is CopyGrid &&
-      other._devicePixelRatio == _devicePixelRatio &&
-      other._share == _share;
-
-  @override
-  int get hashCode => Object.hash(_devicePixelRatio, _share);
-}
-
 /// How the final glass shader reads a copy: the one place that says where
 /// its fragments lie and what its texture holds, written to the shader by
 /// the glass alone.
@@ -201,7 +102,7 @@ final class PagePart {
 
   /// [shown] in the image's pixels.
   Rect get source {
-    final pixels = _copy._grid._pixels;
+    final pixels = _copy.geometry.lattice.pixels;
     final offset = _copy._offset;
     final rect = _copy.rect;
     return Rect.fromLTRB(
@@ -217,15 +118,16 @@ final class PagePart {
   void toImage(Canvas canvas) {
     final source = this.source;
     canvas.translate(shown.left, shown.top);
-    canvas.scale(1 / _copy._grid._pixels);
+    canvas.scale(1 / _copy.geometry.lattice.pixels);
     canvas.translate(-source.left, -source.top);
   }
 
   /// How `backdrop_frost.frag` reads [source] drawn under [toImage] to frost
   /// it for Impeller's blur by [frost] (see [GlassSampling.frost]).
   FrostSampling frostSampling(double frost) {
-    final grid = _copy._grid;
-    final pixels = grid._pixels;
+    final geometry = _copy.geometry;
+    final lattice = geometry.lattice;
+    final pixels = lattice.pixels;
     final offset = _copy._offset;
     final image = _copy.image;
     return FrostSampling._(
@@ -238,7 +140,7 @@ final class PagePart {
       ),
       frost: frost == _copy._heldFrost
           ? 0
-          : grid._frost(_copy._frostOver(frost)) / grid._share,
+          : lattice.residual(geometry.frostFor(frost)) / lattice.share,
       scale: 1,
       // The rect drawn bounds the frost.
       shown: Rect.largest,
@@ -257,9 +159,16 @@ final class PagePart {
 final class CornerRead {
   CornerRead._(this._copy, this._cut, this._scale)
     : _device = _onGrain(
-        _copy._grid._device(_cut),
-        max(_scale, _copy._grid._share),
+        _copy.read.geometry.lattice.toDevice(_cut),
+        max(_scale, _copy.read.geometry.lattice.share),
       );
+
+  /// The copy laid out over its whole layer in the frame's scene.
+  factory CornerRead.inFrame(ReadCopy copy) {
+    final layer = copy.read.geometry.layer;
+    assert(!layer.isEmpty, 'A read that draws holds some of the screen.');
+    return CornerRead._(copy, layer, 1);
+  }
 
   final ReadCopy _copy;
   // The part of the copy's layer read, in the screen's logical pixels.
@@ -281,28 +190,34 @@ final class CornerRead {
           (device.bottom / grain).ceilToDouble() * grain,
         );
 
-  double get _dpr => _copy._grid._devicePixelRatio;
-  int get _share => _copy._grid._share;
+  ReadGeometry get _geometry => _copy.read.geometry;
+  double get _dpr => _geometry.lattice.devicePixelRatio;
+  int get _share => _geometry.lattice.share;
 
   // Where the copy's top left lies in the layer, in the copy's pixels.
   Offset get _at => Offset(
-    (_copy._band.left * _dpr - _device.left) / _share,
-    (_copy._band.top * _dpr - _device.top) / _share,
+    (_geometry.band.left * _dpr - _device.left) / _share,
+    (_geometry.band.top * _dpr - _device.top) / _share,
   );
+
+  // The sigma, in device pixels, the taps frost the copy by for Impeller's
+  // blur by [frost].
+  double _residual(double frost) =>
+      _geometry.lattice.residual(_geometry.frostFor(frost));
 
   /// How the final shader reads the layer to frost it for Impeller's blur
   /// by [frost] (see [GlassSampling.frost]).
   GlassSampling glassSampling(double frost) => GlassSampling._(
     origin: _device.topLeft,
     reduced: _share > 1 ? _share.toDouble() : 0,
-    frost: _copy._grid._frost(_copy._frostOver(frost)),
+    frost: _residual(frost),
     scale: _scale,
     holds: Rect.fromLTRB(
       _device.left / _dpr,
       _device.top / _dpr,
       _device.right / _dpr,
       _device.bottom / _dpr,
-    ).intersect(_copy._band),
+    ).intersect(_geometry.band),
   );
 
   /// How `backdrop_frost.frag` reads the layer to cover [shown] (screen
@@ -312,16 +227,17 @@ final class CornerRead {
     final drawn = shown.intersect(_cut);
     if (drawn.isEmpty) return null;
     final at = _at;
-    final pixels = _copy._grid._pixels;
+    final band = _geometry.band;
+    final pixels = _geometry.lattice.pixels;
     return FrostSampling._(
       size: _device.size,
       bounds: Rect.fromLTRB(
         max(at.dx, 0) + 0.5,
         max(at.dy, 0) + 0.5,
-        min(at.dx + _copy._band.width * pixels, _device.width / _share) - 0.5,
-        min(at.dy + _copy._band.height * pixels, _device.height / _share) - 0.5,
+        min(at.dx + band.width * pixels, _device.width / _share) - 0.5,
+        min(at.dy + band.height * pixels, _device.height / _share) - 0.5,
       ),
-      frost: _copy._grid._frost(_copy._frostOver(frost)) / _share,
+      frost: _residual(frost) / _share,
       scale: 1 / _share,
       shown: Rect.fromLTRB(
         drawn.left * _dpr,
@@ -336,38 +252,41 @@ final class CornerRead {
   // pixels.
   Size get _copySize {
     final at = _at;
-    final pixels = _copy._grid._pixels;
+    final band = _geometry.band;
+    final pixels = _geometry.lattice.pixels;
     return Size(
-      min(
-        _ceilPixels(max(at.dx, 0) + _copy._band.width * pixels),
-        _device.width,
-      ),
-      min(
-        _ceilPixels(max(at.dy, 0) + _copy._band.height * pixels),
-        _device.height,
-      ),
+      min(ceilPixels(max(at.dx, 0) + band.width * pixels), _device.width),
+      min(ceilPixels(max(at.dy, 0) + band.height * pixels), _device.height),
     );
   }
 
-  /// How `backdrop_frost.frag` frosts the copy where it lies in the layer, at
-  /// its own pixels, for Impeller's blur by [frost], or null when the copy is
-  /// too large for that to pay: glass then frosts it fragment by fragment.
-  FrostSampling? inPlaceFrostSampling(double frost) {
-    if (frost <= 0 || !_copy.read.bakesFrost) return null;
+  /// What frosts the copy where it lies in the layer, at its own pixels, by
+  /// the frost its geometry holds, which glass then reads as it is; null
+  /// where the glass frosts it fragment by fragment.
+  ///
+  /// Null too where the layer is drawn into a coarser copy, which draws the
+  /// frost's filter at its pixels as well, and the frost's taps take them for
+  /// device pixels; and before the frost's program is loaded.
+  ui.ImageFilter? inPlaceFilter() {
+    final frost = _geometry.bakedFrost;
+    if (frost <= 0 || _scale > 1) return null;
     final at = _at;
     final size = _copySize;
-    final pixels = _copy._grid._pixels;
-    return FrostSampling._(
-      size: size,
-      bounds: Rect.fromLTRB(
-        max(at.dx, 0) + 0.5,
-        max(at.dy, 0) + 0.5,
-        min(at.dx + _copy._band.width * pixels, size.width) - 0.5,
-        min(at.dy + _copy._band.height * pixels, size.height) - 0.5,
+    final band = _geometry.band;
+    final pixels = _geometry.lattice.pixels;
+    return frostFilterOf(
+      FrostSampling._(
+        size: size,
+        bounds: Rect.fromLTRB(
+          max(at.dx, 0) + 0.5,
+          max(at.dy, 0) + 0.5,
+          min(at.dx + band.width * pixels, size.width) - 0.5,
+          min(at.dy + band.height * pixels, size.height) - 0.5,
+        ),
+        frost: _residual(frost) / _share,
+        scale: 1,
+        shown: Offset.zero & size,
       ),
-      frost: _copy._grid._frost(_copy._frostOver(frost)) / _share,
-      scale: 1,
-      shown: Offset.zero & size,
     );
   }
 

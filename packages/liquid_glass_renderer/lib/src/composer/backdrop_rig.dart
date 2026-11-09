@@ -152,20 +152,6 @@ ui.ImageFilter frostFilter(
 
 ui.FragmentShader? _inPlaceFrost;
 
-/// The filter that frosts [read]'s copy in place for Impeller's blur by
-/// [frost], which glass then reads as it is, or null where glass frosts it.
-///
-/// NEAR: the glass takes one read for its 12 taps per fragment, over a copy
-/// of a quarter of the screen's pixels along each side where the frost spans
-/// at least one of them, and the copy's pixels show no more than through the
-/// taps. On a Pixel 6a, in-launch pairs: main pass -0.50 ms a frame over
-/// photos, for one more pass and +0.4 ms on the raster thread.
-@internal
-ui.ImageFilter? inPlaceFrostFilter(CornerRead read, double frost) {
-  final sampling = read.inPlaceFrostSampling(frost);
-  return sampling == null ? null : frostFilterOf(sampling);
-}
-
 /// The filter that frosts a layer as [sampling] says, or null before its
 /// shader is loaded.
 @internal

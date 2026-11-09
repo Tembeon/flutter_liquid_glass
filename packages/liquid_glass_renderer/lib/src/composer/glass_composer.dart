@@ -326,7 +326,7 @@ final class _Composition {
         _planExplained = explain;
       }
       final planned = clock.elapsed;
-      if (!stands) _emit.emit(_plan!, form, dpr);
+      if (!stands) _emit.emit(_plan!, form);
       for (final node in form.siteNodes) {
         node.site.endFrame();
       }

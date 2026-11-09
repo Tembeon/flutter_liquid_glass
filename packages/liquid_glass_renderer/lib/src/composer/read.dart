@@ -35,15 +35,8 @@ abstract interface class PlanSite {
   /// draws no read of its own takes its place here.
   void beginFate(Fate fate);
 
-  /// Draws [read], which this site leads, as a layer of [copy], which replays
-  /// when the scene is added.
-  void showScene(Read read, ReadCopy copy);
-
-  /// Draws [read], which this site leads, from [page].
-  void showPage(Read read, PageCopy page);
-
-  /// Reads the live backdrop.
-  void showLive(BackdropKey? group);
+  /// Draws [read], which this site leads, from [pixels].
+  void show(Read read, ReadPixels pixels);
 
   /// Adds the read this site leads to [out], inside a copy of what lies under
   /// glass over it.
@@ -64,13 +57,46 @@ abstract interface class PlanSite {
   void endFrame();
 }
 
+/// Where the pixels of a read its lead draws lie this frame.
+@internal
+sealed class ReadPixels {
+  const ReadPixels();
+}
+
+/// The read's copy, laid out over its layer in the frame's scene: a layer
+/// that replays what lies under the lead when the scene is added.
+@internal
+final class InScene extends ReadPixels {
+  /// Creates the pixels.
+  const InScene(this.corner);
+
+  /// The copy's layer.
+  final CornerRead corner;
+}
+
+/// An image of the read's copy.
+@internal
+final class OnPage extends ReadPixels {
+  /// Creates the pixels.
+  const OnPage(this.page);
+
+  /// Where the read's copy lies in its image.
+  final PageCopy page;
+}
+
+/// The live backdrop.
+@internal
+final class LiveBackdrop extends ReadPixels {
+  /// Creates the pixels.
+  const LiveBackdrop(this.group);
+
+  /// The key the read shares one copy of the backdrop under, if it does.
+  final BackdropKey? group;
+}
+
 /// Glass that draws other sites of its read in its own filter.
 @internal
 abstract interface class ReadPainter {
-  /// What frosts [corner]'s copy where it lies for [read], or null where the
-  /// glass frosts it fragment by fragment.
-  ui.ImageFilter? readInPlace(Read read, CornerRead corner);
-
   /// The filter that draws [read] over [corner].
   ui.ImageFilter readFilter(
     Read read,
@@ -145,74 +171,11 @@ abstract final class GlassCopies {
   /// A/B run: false walks every layer of every read each frame.
   @internal
   static bool debugKeepsLayers = true;
-
-  /// Whether Impeller draws a layer of [layer] whole inside a clip of
-  /// [clip] (both in the same space): it cuts the layer to the clip, and
-  /// starts fragment coordinates at the cut, only once the part it cuts off
-  /// either axis is 30 % or more of what is left (ComputeSaveLayerCoverage,
-  /// impeller/entity/save_layer_utils.cc).
-  static bool keepsWhole(Rect layer, Rect clip) {
-    final cut = layer.intersect(clip);
-    if (cut.isEmpty) return false;
-    return (layer.width - cut.width) / cut.width < 0.3 &&
-        (layer.height - cut.height) / cut.height < 0.3;
-  }
 }
-
-Rect _snapOutAt(Rect rect, double dpr) => Rect.fromLTRB(
-  _floorPixels(rect.left * dpr) / dpr,
-  _floorPixels(rect.top * dpr) / dpr,
-  _ceilPixels(rect.right * dpr) / dpr,
-  _ceilPixels(rect.bottom * dpr) / dpr,
-);
-
-// The whole pixels below and above [pixels]. A rect snapped once and scaled
-// back lands a hair off its pixels (837 / 2.625 * 2.625 is 836.999...); it
-// stays on them, or a second snap grows its layer by a pixel.
-double _floorPixels(double pixels) => (pixels + 1e-6).floorToDouble();
-double _ceilPixels(double pixels) => (pixels - 1e-6).ceilToDouble();
 
 // Content clipped away reaches no band, even where its empty rect lies across
 // one.
 bool _meets(Rect bounds, Rect band) => !bounds.isEmpty && bounds.overlaps(band);
-
-// The layer that holds [band] inside [clip] (both in the screen's logical
-// pixels), on [grid]. Impeller cuts a layer its clip cuts
-// by 30 % or more of what is left (see [GlassCopies.keepsWhole]), and fragment
-// coordinates start at the cut; the glass reads what lies past the clip.
-// The layer grows into the clip, empty, until the part cut off is less
-// than that; where the clip leaves no room, it is cut to the clip. NEAR:
-// there, glass reads the copy mirrored at the clip, up to 163 levels off
-// over the 30 px of glass the host test leaves above such a clip.
-Rect _layerIn(Rect band, Rect clip, CopyGrid grid) {
-  if (grid._keepsWhole(band, clip)) return band;
-  // Along one axis: the span from [lo] to [hi] grown inside [from, to].
-  (double, double)? grow(double lo, double hi, double from, double to) {
-    final cut = max(from - lo, 0) + max(hi - to, 0);
-    final inside = min(hi, to) - max(lo, from);
-    if (inside <= 0) return null;
-    // A margin below 30 % keeps rounding off the threshold.
-    final wanted = cut / 0.28;
-    if (inside >= wanted) return (lo, hi);
-    if (lo < from && hi > to) return null;
-    if (lo < from) {
-      final end = max(lo, from) + wanted;
-      return end <= to ? (lo, end) : null;
-    }
-    final start = min(hi, to) - wanted;
-    return start >= from ? (start, hi) : null;
-  }
-
-  final x = grow(band.left, band.right, clip.left, clip.right);
-  final y = grow(band.top, band.bottom, clip.top, clip.bottom);
-  if (x == null || y == null) {
-    return grid._snapOut(band.intersect(clip));
-  }
-  final grown = grid._snapOut(Rect.fromLTRB(x.$1, y.$1, x.$2, y.$2));
-  return grid._keepsWhole(grown, clip)
-      ? grown
-      : grid._snapOut(band.intersect(clip));
-}
 
 /// What lies under one read of a frame, drawn again from the frame's own
 /// layers: the layer tree before the read's lead, in a band of the screen.
@@ -226,100 +189,41 @@ Rect _layerIn(Rect band, Rect clip, CopyGrid grid) {
 /// image drawn between frames empties.
 @internal
 final class ReadCopy {
-  ReadCopy._(
-    this.read,
-    this._plan,
-    this._form,
-    this._band,
-    this.layer,
-    this._grid,
-  );
-
-  /// The copy of [read] in [plan], of [form]'s frame.
-  factory ReadCopy.of(
-    Read read,
-    Plan plan,
-    Form form,
-    double devicePixelRatio,
-  ) {
-    final asked = CopyGrid._(devicePixelRatio, read.downscale);
-    final grid = read.holds.isEmpty || read.holdsAtOwnGrid
-        ? asked
-        : asked._screen;
-    final band = asked._snapOut(read.band).intersect(form.screen);
-    final clip = read.lead.clip?.intersect(form.screen);
-    final layer = switch (clip) {
-      null => band,
-      // A smaller copy lies in its layer's corner, which a layer grown past
-      // the clip leaves outside it, and Impeller draws none of the copy there
-      // (host test): the layer starts inside the clip. NEAR: glass reads what
-      // lies past the clip mirrored at it, as where a clip leaves no room to
-      // grow.
-      _ when grid._share > 1 => grid._snapOut(band.intersect(clip)),
-      _ => _layerIn(band, clip, grid),
-    };
-    return ReadCopy._(read, plan, form, band, layer, grid);
-  }
+  /// The copy of [read], replayed from the layers of the frame a form
+  /// lowered, under the frame's plan.
+  ReadCopy(this.read, this._plan, this._form);
 
   /// The read this copy is for.
   final Read read;
 
-  /// How many device pixels along each side one pixel of the copy holds.
-  int get share => _grid._share;
-
   final Plan _plan;
   final Form _form;
-  final CopyGrid _grid;
 
-  // The screen rect the copy holds, in logical pixels, on its grid.
-  final Rect _band;
-
-  /// The rect of the layer the copy is drawn in, in the screen's logical
-  /// pixels: the copy's band, grown where a clip would cut the layer, or the
-  /// part of the band inside a clip that leaves no room to grow or that cuts
-  /// a copy smaller than the screen.
-  final Rect layer;
-
-  /// The screen rect the copy holds, in logical pixels.
-  Rect get band => _band;
-
-  // The frost, in logical pixels, that stands for [frost] over what the copy
-  // left out.
-  double _frostOver(double frost) => frost > 0 && read.frostLeftOut > 0
-      ? sqrt(frost * frost + read.frostLeftOut * read.frostLeftOut)
-      : frost;
-
-  /// The part of the copy's layer inside [region] (screen logical pixels),
-  /// or null where none of it is, drawn into a target whose pixels each
-  /// stand for [scale] device pixels along each side.
-  CornerRead? readIn(Rect region, {int scale = 1}) {
-    final cut = region.intersect(layer);
-    return cut.isEmpty ? null : CornerRead._(this, cut, scale);
-  }
-
-  /// The region of this copy's layer to read inside [outer], where the layer of
-  /// the read holding this one is cut by [clip], the clip around this one's
-  /// lead on the screen.
-  ///
-  /// A smaller copy starts inside that layer, as [layer] does inside a clip:
-  /// it lies in its layer's corner, which the cut would leave outside, and
-  /// on Metal the glass over it then reads black (iPhone 16 Pro, a sheet
-  /// moving over glass; Vulkan does not show it). NEAR: glass reads what lies
-  /// past the cut mirrored at it, under the frost of the read holding it.
-  Rect regionIn(ReadCopy outer, Rect? clip) {
-    final held = clip == null ? outer.band : outer.band.intersect(clip);
-    return _grid._share == 1 && _grid._keepsWhole(layer, held) ? layer : held;
+  /// Where the copy of [held], whose glass this copy holds, lies inside this
+  /// one, or null where none of it does.
+  CornerRead? cornerOf(Read held) {
+    final geometry = held.geometry;
+    final cut = geometry.heldIn(read.geometry).intersect(geometry.layer);
+    return cut.isEmpty
+        ? null
+        : CornerRead._(
+            held.output! as ReadCopy,
+            cut,
+            read.geometry.lattice.share,
+          );
   }
 
   void _addTo(ui.SceneBuilder builder, Offset origin, Rect within) {
-    final pixels = _grid._pixels;
+    final geometry = read.geometry;
+    final band = geometry.band;
+    final pixels = geometry.lattice.pixels;
     builder.pushClipRect(
-      (origin & Size(_band.width * pixels, _band.height * pixels)).intersect(
+      (origin & Size(band.width * pixels, band.height * pixels)).intersect(
         within,
       ),
       clipBehavior: Clip.hardEdge,
     );
-    _replay(builder, _grid, _band, origin);
+    _replay(builder, geometry.lattice, band, origin);
     builder.pop();
   }
 
@@ -333,8 +237,13 @@ final class ReadCopy {
     }
   }
 
-  void _replay(ui.SceneBuilder builder, CopyGrid grid, Rect rect, Offset at) {
-    final out = SceneOut(builder, grid._copyMatrix(rect, at));
+  void _replay(
+    ui.SceneBuilder builder,
+    Lattice lattice,
+    Rect rect,
+    Offset at,
+  ) {
+    final out = SceneOut(builder, lattice.deviceToCopy(rect, at));
     final top = _form.top;
     if (top is OpenNode) _Replay(out, this, rect).from(top);
     out.finish();
@@ -361,7 +270,7 @@ final class _Replay {
   // False once the replay reached the lead.
   bool children(OpenNode node) {
     final read = copy.read;
-    final parts = read.members.length > 1 && read.imageRect == null
+    final parts = read.members.length > 1 && read.geometry.room == null
         ? read.members
         : null;
     for (var child = node.first; child != null; child = child.next) {
@@ -484,55 +393,44 @@ const _heldLayers = 3;
 /// [readOf] gives.
 @internal
 final class PageCopy {
-  PageCopy._(
-    this.image,
-    this.rect,
-    this._offset,
-    this._grid,
-    this._heldFrost,
-    this._frostLeftOut,
-  );
+  PageCopy._(this.image, this.geometry, this._offset, this._heldFrost);
 
   /// The image, shared with other pages of its frame.
   final ui.Image image;
 
-  /// The screen rect the page holds, in logical pixels.
-  final Rect rect;
+  /// Where the read's pixels lay when the page was drawn.
+  final ReadGeometry geometry;
 
   final Offset _offset;
-  final CopyGrid _grid;
 
   final double _heldFrost;
 
-  // The widest frost left out of the page under glass that frosts as wide.
-  final double _frostLeftOut;
+  /// The screen rect the page holds, in logical pixels.
+  Rect get rect => geometry.imageRect!;
 
   /// Where the page lies in [image].
   @visibleForTesting
   Offset get debugOffset => _offset;
 
   /// Equal while the page lies at the same place on the same grid.
-  Object get placement => (_offset, _grid);
+  Object get placement => (_offset, geometry.lattice);
 
   /// What [glassSampling] stands for by the frost [sigma] of a band.
-  double frostOf(double sigma) => _grid._frost(sigma);
+  double frostOf(double sigma) => geometry.lattice.residual(sigma);
 
   /// How the final shader reads the page, painted in the screen's device
   /// pixels, to frost it for Impeller's blur by [frost] (see
   /// [GlassSampling.frost]).
-  // The frost, in logical pixels, that stands for [frost] over what the page
-  // left out.
-  double _frostOver(double frost) => frost > 0 && _frostLeftOut > 0
-      ? sqrt(frost * frost + _frostLeftOut * _frostLeftOut)
-      : frost;
-
   GlassSampling glassSampling(double frost) {
-    final share = _grid._share;
+    final lattice = geometry.lattice;
+    final share = lattice.share;
     return GlassSampling._(
       origin:
-          rect.topLeft * _grid._devicePixelRatio - _offset * share.toDouble(),
+          rect.topLeft * lattice.devicePixelRatio - _offset * share.toDouble(),
       reduced: share > 1 ? 1 : 0,
-      frost: frost == _heldFrost ? 0 : _grid._frost(_frostOver(frost)),
+      frost: frost == _heldFrost
+          ? 0
+          : lattice.residual(geometry.frostFor(frost)),
       image: image,
       size: Size(
         image.width * share.toDouble(),
@@ -547,7 +445,7 @@ final class PageCopy {
   /// The rect [drawn] (screen logical pixels) covers in the fragments
   /// [glassSampling] gives.
   Rect fragmentsOf(Rect drawn) {
-    final dpr = _grid._devicePixelRatio;
+    final dpr = geometry.lattice.devicePixelRatio;
     final cut = drawn.intersect(rect);
     return Rect.fromLTRB(
       cut.left * dpr,
@@ -562,16 +460,20 @@ final class PageCopy {
 
 // One read's page in a frame's images.
 final class _Tile {
-  _Tile(this.copy, this.page, this.rect, this.grid)
-    : width = (rect.width * grid._pixels).round(),
-      height = (rect.height * grid._pixels).round();
+  _Tile(this.copy, this.page, this.geometry)
+    : lattice = geometry.lattice,
+      rect = geometry.imageRect!,
+      _pixels = geometry.lattice.pixelsOf(geometry.imageRect!);
 
   final ReadCopy copy;
   final PageFilter page;
+  final ReadGeometry geometry;
+  final Lattice lattice;
   final Rect rect;
-  final CopyGrid grid;
-  final int width;
-  final int height;
+  final (int, int) _pixels;
+
+  int get width => _pixels.$1;
+  int get height => _pixels.$2;
 
   // Where the page lies in the image, in its pixels.
   Offset offset = Offset.zero;
@@ -583,16 +485,14 @@ final class _Tile {
   // Whether the page is filtered in the image's layer of pages rather than as
   // a backdrop of its own.
   bool get layered => switch (page.blur) {
-    (final x, final y) => max(x, y) * grid._pixels <= _Pages._maxImageBlurSigma,
+    (final x, final y) =>
+      max(x, y) * lattice.pixels <= _Pages._maxImageBlurSigma,
     null => false,
   };
 
-  // The frost to hold in the page, in logical pixels: frosted once, at the
-  // page's own pixels, so glass over it takes one read per fragment (see
-  // inPlaceFrostFilter). A page holding glass holds it at the screen's pixels,
-  // where the frost would cost more than the taps.
-  double get bakedFrost =>
-      copy.read.bakesFrost && !filtered ? copy.read.frost : 0;
+  // The frost to hold in the page: frosted once, at the page's own pixels,
+  // so glass over it takes one read per fragment.
+  double get bakedFrost => copy.read.lead.look.isBand ? 0 : geometry.bakedFrost;
 
   // What the drawn page holds: nothing before the frost's shader is loaded.
   double holdsFrost = 0;
@@ -603,7 +503,7 @@ final class _Tile {
     return FrostSampling._(
       size: size,
       bounds: Rect.fromLTRB(0.5, 0.5, size.width - 0.5, size.height - 0.5),
-      frost: grid._frost(frost) / grid._share,
+      frost: lattice.residual(frost) / lattice.share,
       scale: 1,
       shown: Offset.zero & size,
     );
@@ -654,7 +554,7 @@ final class _Pages {
     for (final tile in tiles) {
       runs
           .putIfAbsent(
-            !tile.filtered ? null : (tile.page.key, tile.grid, tile.layered),
+            !tile.filtered ? null : (tile.page.key, tile.lattice, tile.layered),
             () => [],
           )
           .add(tile);
@@ -698,7 +598,7 @@ final class _Pages {
 
   // From the screen's logical pixels to [tile]'s place in the image.
   static Matrix4 _toAtlas(_Tile tile) {
-    final pixels = tile.grid._pixels;
+    final pixels = tile.lattice.pixels;
     final toAtlas = Matrix4.translationValues(
       tile.offset.dx - tile.rect.left * pixels,
       tile.offset.dy - tile.rect.top * pixels,
@@ -714,7 +614,7 @@ final class _Pages {
     final b = ui.SceneBuilder();
     void add(_Tile tile, Rect within) {
       b.pushClipRect(within, clipBehavior: Clip.hardEdge);
-      tile.copy._replay(b, tile.grid, tile.rect, tile.offset);
+      tile.copy._replay(b, tile.lattice, tile.rect, tile.offset);
       b.pop();
     }
 
@@ -722,12 +622,12 @@ final class _Pages {
     // Pages under one blur share one filtered layer: the filter reads the
     // pages alone, so no backdrop is copied for it, and the layer is
     // clipped to the rows of the pages' run, which hold no other page.
-    final layered = <(Object?, CopyGrid), List<_Tile>>{};
+    final layered = <(Object?, Lattice), List<_Tile>>{};
     for (final tile in tiles) {
       if (!tile.filtered) {
         final frost = tile.bakedFrost;
         final filter = frost > 0
-            ? frostFilterOf(tile.frostSampling(tile.copy._frostOver(frost)))
+            ? frostFilterOf(tile.frostSampling(tile.geometry.frostFor(frost)))
             : null;
         if (filter == null) {
           add(tile, tile.bounds);
@@ -739,13 +639,13 @@ final class _Pages {
           // Impeller sizes a layer by what is drawn in it.
           b.addPicture(Offset.zero, CornerRead._corners(size));
           b.pushClipRect(Offset.zero & size, clipBehavior: Clip.hardEdge);
-          tile.copy._replay(b, tile.grid, tile.rect, Offset.zero);
+          tile.copy._replay(b, tile.lattice, tile.rect, Offset.zero);
           b.pop();
           b.pop();
           b.pop();
         }
       } else if (tile.layered) {
-        layered.putIfAbsent((tile.page.key, tile.grid), () => []).add(tile);
+        layered.putIfAbsent((tile.page.key, tile.lattice), () => []).add(tile);
       } else {
         isolated.add(tile);
       }
@@ -762,8 +662,8 @@ final class _Pages {
       // into, whatever the canvas scale: here the pages' own.
       b.pushImageFilter(
         _blur(
-          first.page.blur!.$1 * first.grid._pixels,
-          first.page.blur!.$2 * first.grid._pixels,
+          first.page.blur!.$1 * first.lattice.pixels,
+          first.page.blur!.$2 * first.lattice.pixels,
         ),
       );
       for (final tile in group) {
@@ -799,11 +699,9 @@ final class _Pages {
       _held[id]?._dispose();
       _held[id] = PageCopy._(
         image.clone(),
-        tile.rect,
+        tile.geometry,
         tile.offset,
-        tile.grid,
         tile.holdsFrost,
-        tile.copy.read.frostLeftOut,
       );
     }
     image.dispose();
@@ -841,14 +739,12 @@ final class GlassEmit {
 
   /// Tells each site of [form] its fate and draws what the reads need before
   /// the scene is built, deepest last, so what a page holds is drawn by then.
-  void emit(Plan plan, Form form, double devicePixelRatio) {
+  void emit(Plan plan, Form form) {
     final reads = plan.reads;
     var deepest = 0;
     final keep = Set<Object>.identity();
     for (final read in reads) {
-      if (read.source is! LiveRead) {
-        read.output = ReadCopy.of(read, plan, form, devicePixelRatio);
-      }
+      if (read.source is! LiveRead) read.output = ReadCopy(read, plan, form);
       if (read.source is ImageRead) keep.add(read.lead.id);
       deepest = max(deepest, read.level);
     }
@@ -863,34 +759,27 @@ final class GlassEmit {
       for (final read in reads) {
         if (read.level != level) continue;
         if (read.source case ImageRead(:final held)) {
-          final page = _pages.held(read);
-          final copy = read.output! as ReadCopy;
-          if (held && page != null && page._grid == copy._grid) continue;
-          tiles.add(_tileOf(read, form));
+          if (held && _pages.held(read) != null) continue;
+          tiles.add(
+            _Tile(
+              read.output! as ReadCopy,
+              read.lead.look.page ?? PageFilter.none,
+              read.geometry,
+            ),
+          );
         }
       }
       if (tiles.isNotEmpty) _pages.draw(tiles);
       for (final read in reads) {
         if (read.level != level) continue;
         final lead = form.siteNodes[read.lead.index].site;
-        switch (read.source) {
-          case SceneRead():
-            lead.showScene(read, read.output! as ReadCopy);
-          case ImageRead():
-            lead.showPage(read, _pages.held(read)!);
-          case LiveRead():
-            lead.showLive(_liveKeyOf(read));
-        }
+        lead.show(read, switch (read.source) {
+          SceneRead() => InScene(CornerRead.inFrame(read.output! as ReadCopy)),
+          ImageRead() => OnPage(_pages.held(read)!),
+          LiveRead() => LiveBackdrop(_liveKeyOf(read)),
+        });
       }
     }
-  }
-
-  _Tile _tileOf(Read read, Form form) {
-    final copy = read.output! as ReadCopy;
-    final grid = copy._grid;
-    final room = read.imageRect ?? read.band;
-    final rect = grid._snapOut(room).intersect(form.screen);
-    return _Tile(copy, read.lead.look.page ?? PageFilter.none, rect, grid);
   }
 
   /// Lets go of what the frame's reads hold.

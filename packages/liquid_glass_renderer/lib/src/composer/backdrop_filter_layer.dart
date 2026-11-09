@@ -256,7 +256,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
 
   _Scene? _sceneOf(Read read, CornerRead corner) {
     if (_painterOf(_fate) case final painter?) {
-      final inPlace = painter.readInPlace(read, corner);
+      final inPlace = corner.inPlaceFilter();
       return (
         corner: corner,
         filter: painter.readFilter(read, corner, inPlace),
@@ -270,9 +270,19 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   }
 
   @override
-  void showScene(Read read, ReadCopy copy) {
-    final corner = copy.readIn(copy.layer);
-    final scene = corner == null ? null : _sceneOf(read, corner);
+  void show(Read read, ReadPixels pixels) {
+    switch (pixels) {
+      case InScene(:final corner):
+        _showScene(read, corner);
+      case OnPage(:final page):
+        _showPage(read, page);
+      case LiveBackdrop():
+        _showNothing();
+    }
+  }
+
+  void _showScene(Read read, CornerRead corner) {
+    final scene = _sceneOf(read, corner);
     if (scene == null) {
       _showNothing();
       return;
@@ -281,7 +291,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     _page?.dispose();
     _page = null;
     _pageKey = null;
-    final key = (scene.filter, scene.inPlace, copy.layer, _origin);
+    final key = (scene.filter, scene.inPlace, read.geometry.layer, _origin);
     if (read.changed || key != _sceneKey || _scene == null) {
       markNeedsAddToScene();
     }
@@ -289,8 +299,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     _sceneKey = key;
   }
 
-  @override
-  void showPage(Read read, PageCopy page) {
+  void _showPage(Read read, PageCopy page) {
     debugPage = page;
     final painter = _painterOf(_fate);
     final origin = screenOrigin;
@@ -329,9 +338,6 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   }
 
   @override
-  void showLive(BackdropKey? group) => _showNothing();
-
-  @override
   void addOutput(SceneOut out, ReadCopy outer) {
     final fate = _fate;
     if (fate is! Leads) return;
@@ -340,8 +346,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
       if (_page case final page?) out.picture(page);
       return;
     }
-    final copy = read.output! as ReadCopy;
-    final corner = copy.readIn(copy.regionIn(outer, read.lead.clip));
+    final corner = outer.cornerOf(read);
     final scene = corner == null ? null : _sceneOf(read, corner);
     if (scene == null) return;
     out.settle();

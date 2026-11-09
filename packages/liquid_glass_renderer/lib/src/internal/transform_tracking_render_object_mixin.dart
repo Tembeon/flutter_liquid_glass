@@ -85,14 +85,8 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
   /// drawn (see [PlanSite.beginFate]).
   void beginFate(Fate fate) {}
 
-  /// See [PlanSite.showScene].
-  void showScene(Read read, ReadCopy copy) {}
-
-  /// See [PlanSite.showPage].
-  void showPage(Read read, PageCopy page) {}
-
-  /// See [PlanSite.showLive].
-  void showLive(BackdropKey? group) {}
+  /// See [PlanSite.show].
+  void show(Read read, ReadPixels pixels) {}
 
   /// See [PlanSite.addOutput].
   void addOutput(SceneOut out, ReadCopy outer) {}
@@ -190,18 +184,8 @@ class GeometryTransformTrackingLayer extends OffsetLayer
   }
 
   @override
-  void showScene(Read read, ReadCopy copy) {
-    if (_live) _site!.showScene(read, copy);
-  }
-
-  @override
-  void showPage(Read read, PageCopy page) {
-    if (_live) _site!.showPage(read, page);
-  }
-
-  @override
-  void showLive(BackdropKey? group) {
-    if (_live) _site!.showLive(group);
+  void show(Read read, ReadPixels pixels) {
+    if (_live) _site!.show(read, pixels);
   }
 
   @override

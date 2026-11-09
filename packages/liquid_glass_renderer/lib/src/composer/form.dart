@@ -61,6 +61,9 @@ final class Form implements Scenery {
   Rect get screen => _screen;
   Rect _screen = Rect.zero;
 
+  @override
+  double get devicePixelRatio => _dpr;
+
   Layer? _root;
   double _dpr = 0;
   OpenNode? _top;

@@ -359,7 +359,7 @@ void main() {
       final image = await drawn(inFrame: false);
       final inFrame = await drawn(inFrame: true);
       final holding = plan!.reads.singleWhere((read) => read.holds.isNotEmpty);
-      expect((holding.output! as ReadCopy).share, downscale);
+      expect(holding.geometry.lattice.share, downscale);
       // The image draws the held glass as a picture at the screen's pixels.
       // Each fragment of the glass held in the frame stands for a block of
       // them; under this frost and tint that rounds by a few levels, and
@@ -429,7 +429,7 @@ void main() {
       // At the image's own pixels the upper glass lands twice as far from
       // its layer's corner, over 70 levels off. Its bevel, drawn at the
       // copy's pixels in the frame and at the screen's in the image, is 12
-      // to 13 levels apart (Read.holdsAtOwnGrid).
+      // to 13 levels apart (plan.dart, _holdsAtOwnGrid).
       expect(_difference(image, inFrame), lessThanOrEqualTo(14));
     }, skip: skipProperGlassTests);
   }

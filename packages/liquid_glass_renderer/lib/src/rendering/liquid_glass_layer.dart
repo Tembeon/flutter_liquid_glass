@@ -1083,7 +1083,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _rig.filterLayer != null && !drawableEmpty && hasReusableGeometry;
 
   // Whether the frame shows the live filter. Glass over a copy reads through
-  // a filter of its own, so moving it builds no live one: [showLive] brings
+  // a filter of its own, so moving it builds no live one: [show] brings
   // the filter up to date when the plan turns to it.
   // Glass with no slot shows its live filter whatever its fate says: no plan
   // draws it.
@@ -2022,15 +2022,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
   }
 
-  // A band adds to the frost what it still lacks, so it can't take less of it.
-  @override
-  ImageFilter? readInPlace(Read read, CornerRead corner) {
-    final frost = _frame!.frost;
-    final band = _bandOf(read);
-    if (band != null && band.frost!.sigma < frost) return null;
-    return inPlaceFrostFilter(corner, frost);
-  }
-
   // From the screen's device pixels into the matte [read] is drawn over, and
   // what its shader samples of the backdrop there.
   (Matrix4, Rect?) _readMapping(Read read) {
@@ -2245,8 +2236,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // time over twelve buttons on the Pixel 6a.
   //
   // A pixel at two corners keeps the edge's bounds at the layer's: Impeller
-  // cuts a layer a clip cuts by 30 % or more, and the fragment coordinates the
-  // glass reads start at the cut (see [GlassCopies.keepsWhole]).
+  // would cut the layer, and the fragment coordinates the glass reads start
+  // at the cut (see [ImpellerLayers]).
   ui.Path? _clipIn(Read read, Rect layer) {
     if (read.members.length < 2 || _bandOf(read) != null) return null;
     double area(Rect rect) => rect.width * rect.height;
@@ -2268,13 +2259,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     for (final member in read.members) {
       add(member.drawn.inflate(2 / dpr));
     }
-    add(layer.topLeft & Size.square(1 / dpr));
-    add(
-      Rect.fromPoints(
-        layer.bottomRight - Offset(1 / dpr, 1 / dpr),
-        layer.bottomRight,
-      ),
-    );
+    final (topLeft, bottomRight) = ImpellerLayers.pinsOf(layer, dpr);
+    add(topLeft);
+    add(bottomRight);
     return path;
   }
 
@@ -2338,32 +2325,37 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   Object? _shownKey;
 
   @override
-  void showScene(Read read, ReadCopy copy) {
-    final corner = copy.readIn(copy.layer);
-    if (corner == null) {
-      _rig.hide();
-      _placeShadows(under: false);
-      debugDrewOverCopy = false;
-      return;
+  void show(Read read, ReadPixels pixels) {
+    switch (pixels) {
+      case InScene(:final corner):
+        _showScene(read, corner);
+      case OnPage(:final page):
+        _showPage(read, page);
+      case LiveBackdrop(:final group):
+        _showLive(group);
     }
-    final inPlace = readInPlace(read, corner);
+  }
+
+  void _showScene(Read read, CornerRead corner) {
+    final inPlace = corner.inPlaceFilter();
     final filter = readFilter(read, corner, inPlace);
     final toCanvas = _screenToCanvas();
     final under = _shadowsOfOthers(read);
-    final clip = _clipIn(read, copy.layer);
+    final layer = read.geometry.layer;
+    final clip = _clipIn(read, layer);
     final key = [
       filter,
       inPlace,
       toCanvas,
-      copy.layer,
+      layer,
       if (clip != null) ...[for (final member in read.members) member.drawn],
       for (final (picture, offset) in under) ...[picture, offset],
     ];
-    final layer = _rig.readLayer;
+    final readLayer = _rig.readLayer;
     final held = _shownKey;
     final changed =
         read.changed ||
-        layer.parent == null ||
+        readLayer.parent == null ||
         held is! List<Object?> ||
         !listEquals(held, key);
     _shownCorner = corner;
@@ -2374,8 +2366,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _shownUnder = under;
     _shownKey = key;
     // Shadows added beside the engine layer are not in what it retains.
-    layer.show(_addRead, changed: changed || under.isNotEmpty);
-    _rig.show(layer, under: glassShadowsFade ? null : glassShadowPicture);
+    readLayer.show(_addRead, changed: changed || under.isNotEmpty);
+    _rig.show(readLayer, under: glassShadowsFade ? null : glassShadowPicture);
   }
 
   ui.TransformEngineLayer? _addRead(ui.SceneBuilder builder) {
@@ -2391,8 +2383,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
   }
 
-  @override
-  void showPage(Read read, PageCopy page) {
+  void _showPage(Read read, PageCopy page) {
     debugPage = page;
     final toCanvas = _screenToCanvas();
     final under = _shadowsOfOthers(read);
@@ -2438,8 +2429,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
   }
 
-  @override
-  void showLive(BackdropKey? group) {
+  void _showLive(BackdropKey? group) {
     compositionSeedSuppressed = false;
     debugDrewOverCopy = false;
     _placeShadows(under: false);
@@ -2462,12 +2452,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       if (_rig.pageShown case final page?) out.picture(page);
       return;
     }
-    final copy = read.output! as ReadCopy;
-    final scale = outer.share;
-    final corner = copy.readIn(
-      copy.regionIn(outer, read.lead.clip),
-      scale: scale,
-    );
+    final corner = outer.cornerOf(read);
     if (corner == null) return;
     for (final (picture, offset) in _shadowsOfOthers(read)) {
       out.mark();
@@ -2475,9 +2460,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       out.picture(picture);
       out.leave();
     }
-    // A coarser copy draws the frost's own filter at its pixels too, which
-    // the frost's taps take for device pixels: the glass frosts instead.
-    final inPlace = scale == 1 ? readInPlace(read, corner) : null;
+    final inPlace = corner.inPlaceFilter();
     final filter = readFilter(read, corner, inPlace);
     out.settle();
     corner.addToScene(

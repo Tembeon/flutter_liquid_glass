@@ -16,6 +16,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
+import 'package:liquid_glass_renderer/src/composer/geometry.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
@@ -85,16 +86,16 @@ void main() {
 
     final [glass, sheet] = plan!.reads;
     expect(glass.source, isA<SceneRead>());
-    expect(glass.downscale, 2);
-    expect(glass.bakesFrost, isTrue);
+    expect(glass.share, 2);
+    expect(glass.geometry.bakedFrost, greaterThan(0));
     expect(sheet.source, isA<ImageRead>());
     expect(sheet.holds, contains(glass));
 
-    final copy = glass.output! as ReadCopy;
-    final image = sheet.output! as ReadCopy;
+    final copy = glass.geometry;
+    final image = sheet.geometry;
     expect(copy.layer.top, lessThan(image.band.top));
-    expect(GlassCopies.keepsWhole(copy.layer, image.band), isTrue);
-    expect(copy.regionIn(image, null).top, image.band.top);
+    expect(ImpellerLayers.keepsWhole(copy.layer, image.band), isTrue);
+    expect(copy.heldIn(image).top, image.band.top);
   });
 
   testWidgets('glass held by a copy over it keeps its filters while it holds '
@@ -134,7 +135,7 @@ void main() {
     final [glass, sheet] = plan!.reads;
     expect(glass.source, isA<SceneRead>());
     expect(sheet.source, isA<SceneRead>());
-    expect(sheet.downscale, greaterThan(1));
+    expect(sheet.share, greaterThan(1));
     expect(sheet.holds, contains(glass));
 
     GlassWork.filters = 0;

@@ -17,6 +17,9 @@ abstract interface class Scenery {
   /// The screen in logical pixels, the most room an image can take.
   Rect get screen;
 
+  /// The screen's device pixels per logical pixel.
+  double get devicePixelRatio;
+
   /// What the content under [site] allows a read over it to be.
   ReadLimit limitUnder(SiteFacts site);
 
@@ -314,7 +317,7 @@ final class Read {
   Read(this.lead)
     : band = lead.reads,
       quad = lead.drawn,
-      downscale = lead.look.need.share,
+      share = lead.look.need.share,
       shapes = lead.look.isBand ? 0 : lead.look.shapes {
     members.add(lead);
   }
@@ -334,8 +337,9 @@ final class Read {
   /// What its filter draws over.
   Rect quad;
 
-  /// The coarsest grid every member can stand.
-  int downscale;
+  /// The most device pixels along each side one pixel of its copy can stand
+  /// for, for every member.
+  int share;
 
   /// Where the backdrop comes from.
   ReadSource source = const SceneRead();
@@ -350,32 +354,10 @@ final class Read {
   /// Zero over pictures alone, else one more than the highest read it holds.
   int level = 0;
 
-  /// The widest frost left out of it under glass that frosts as wide, which
-  /// the glass adds to its own, in logical pixels.
-  double frostLeftOut = 0;
+  /// Where its backdrop's pixels lie, for a read that does not read live.
+  late ReadGeometry geometry;
 
-  /// The room of an image bought or held this frame, on the screen.
-  Rect? imageRect;
-
-  /// Whether its copy holds the frost, frosted once at the copy's own pixels,
-  /// so glass takes one read per fragment in place of its taps.
-  bool bakesFrost = false;
-
-  /// Whether its copy holds the glass under it at the copy's own pixels,
-  /// the glass's shader drawing a fragment for each of them, rather than at
-  /// the screen's.
-  ///
-  /// NEAR, judged by eye on the iPhone 16 Pro over the gallery's controls
-  /// and cards under the tab bar: the held glass's bevel squeezes what it
-  /// refracts past what one fragment per copy pixel resolves, and the copy's
-  /// frost hides it. Against the glass held at the screen's pixels under
-  /// Impeller's blur (host, dpr 2 and 3, clear glass held): 5 to 13 levels
-  /// off under a frost of 12 and 20 logical pixels, 40 to 51 under 6; drawn
-  /// at the screen's pixels and as a picture, 4 to 35. It saves 12 % of the
-  /// fragment work of a scroll with glass under the tab bar on the Pixel 6a.
-  bool holdsAtOwnGrid = false;
-
-  /// The frost of the glass that reads it, in logical pixels.
+  /// The frost of the glass it leads, in logical pixels: 0 under a band.
   double get frost => lead.look.isBand ? 0 : lead.look.frost;
 
   /// What the frame's emit keeps of the read.
@@ -482,18 +464,14 @@ final class ReadMemo {
   /// The frame its image was drawn, if it has one.
   int? boughtAt;
 
-  /// What its image holds.
-  Rect? imageRect;
+  /// Where its backdrop's pixels lay: its image's, if it has one.
+  ReadGeometry? geometry;
 
   /// The frame this memo was last used, to forget leads that left.
   int seenAt = 0;
 
-  /// The leads of the reads its image holds, and its grid.
+  /// The leads of the reads it holds.
   List<Object> holds = const [];
-  int downscale = 1;
-
-  /// What the read's image would hold of its own glass: its filter and frost.
-  Object? baked;
 
   /// Where its band was a frame ago, to see how fast it moves.
   Rect? lastBand;
@@ -551,18 +529,18 @@ final class Prices {
   double _mpx(double logicalArea) =>
       logicalArea * pixelsPerLogical * pixelsPerLogical / 1e6;
 
-  /// What one pass over [band] at [downscale] costs a frame.
-  double passCost(Rect band, int downscale) =>
+  /// What one pass over [band] at [share] costs a frame.
+  double passCost(Rect band, int share) =>
       passGpu +
       rasterWeight * passRaster +
-      copyGpuPerMpx * _mpx(band.width * band.height) / (downscale * downscale);
+      copyGpuPerMpx * _mpx(band.width * band.height) / (share * share);
 
   /// What one image costs, once.
   double get imageCost => imageGpu + rasterWeight * imageRaster;
 
   /// How many frames a read over [band] must hold still to pay for its image.
-  int rent(Rect band, int downscale) =>
-      math.max(1, (imageCost / passCost(band, downscale)).ceil());
+  int rent(Rect band, int share) =>
+      math.max(1, (imageCost / passCost(band, share)).ceil());
 }
 
 /// Decisions a person made once.
@@ -618,15 +596,15 @@ final class LedgerEdits {
 /// The magnitudes disagree, so this is a join rule, not a prediction.
 @internal
 double mergeDelta(Read read, SiteFacts site, Prices prices) {
-  final downscale = math.min(read.downscale, site.look.need.share);
+  final share = math.min(read.share, site.look.need.share);
   final band = read.band.expandToInclude(site.reads);
   final quad = read.quad.expandToInclude(site.drawn);
   double area(Rect rect) => rect.width * rect.height;
   double copy(Rect rect, int scale) =>
       prices.copyGpuPerMpx * prices._mpx(area(rect)) / (scale * scale);
-  final together = copy(band, downscale);
+  final together = copy(band, share);
   final apart =
-      copy(read.band, read.downscale) + copy(site.reads, site.look.need.share);
+      copy(read.band, read.share) + copy(site.reads, site.look.need.share);
   final dead =
       prices.deadGpuPerMpx *
       prices._mpx(math.max(0, area(quad) - area(read.quad) - area(site.drawn)));
@@ -712,7 +690,8 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
     site.index = at;
     if (site.hidden ||
         !site.drawn.overlaps(screen) ||
-        (site.clip != null && !site.clip!.overlaps(site.drawn))) {
+        (site.clip != null &&
+            !site.clip!.overlaps(site.drawn.intersect(screen)))) {
       fates.add(const Hidden());
       continue;
     }
@@ -764,7 +743,7 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
       joined.shapes += site.look.shapes;
       joined.band = joined.band.expandToInclude(site.reads);
       joined.quad = joined.quad.expandToInclude(site.drawn);
-      joined.downscale = math.min(joined.downscale, site.look.need.share);
+      joined.share = math.min(joined.share, site.look.need.share);
       fates.add(Follows(joined));
       continue;
     }
@@ -781,6 +760,7 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
   for (var i = 0; i < reads.length; i++) {
     final read = reads[i];
     if (read.source is LiveRead) continue;
+    var frostLeftOut = 0.0;
     for (var j = 0; j < i; j++) {
       final below = reads[j];
       if (below.source is LiveRead || !_under(below, read)) continue;
@@ -789,19 +769,31 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
           below.members.length == 1 &&
           read.frost > 0 &&
           below.lead.look.frost <= read.frost) {
-        read.frostLeftOut = math.max(read.frostLeftOut, below.lead.look.frost);
+        frostLeftOut = math.max(frostLeftOut, below.lead.look.frost);
         continue;
       }
       read.holds.add(below);
       read.level = math.max(read.level, below.level + 1);
     }
-    // Glass holding more glass in turn takes its fragments for device pixels.
-    read.holdsAtOwnGrid = read.holds.every(
-      (held) => held.holds.isEmpty && held.members.every((m) => m.look.anyGrid),
+    final lead = read.lead.look;
+    final page = lead.page;
+    read.geometry = ReadGeometry.resolve(
+      asked: Lattice(scene.devicePixelRatio, read.share),
+      atScreen: !_holdsAtOwnGrid(read),
+      reads: read.band,
+      screen: screen,
+      clip: read.lead.clip,
+      bakedFrost: bakedFrost(
+        share: read.share,
+        holdsGlass: read.holds.isNotEmpty,
+        glassFrost: lead.isBand
+            ? (read.members.length > 1 ? read.members[1].look.frost : 0)
+            : lead.frost,
+        bandFrost: lead.isBand ? lead.frost : null,
+      ),
+      frostLeftOut: frostLeftOut,
+      filter: page == null ? null : (page.key, page.blendMode),
     );
-    // A copy holding glass lies at the screen's pixels, where a frost costs
-    // more than the taps it saves.
-    read.bakesFrost = read.downscale >= 2 && read.holds.isEmpty;
   }
 
   final edits = LedgerEdits();
@@ -816,56 +808,50 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
     final next = ReadMemo();
     next.seenAt = frame;
     next.lastBand = read.band;
-    next.downscale = read.downscale;
     final holds = [for (final held in read.holds) held.lead.id];
     next.holds = holds;
-    var imageRect = memo?.imageRect;
-    final watched = imageRect ?? read.band;
-    final page = read.lead.look.page;
-    final baked = (
-      page?.key,
-      page?.blendMode,
-      read.bakesFrost ? read.frost : 0.0,
-      read.frostLeftOut,
-    );
-    next.baked = baked;
+    final geometry = read.geometry;
+    final last = memo?.geometry;
+    var room = last?.room;
+    final watched = room ?? read.band;
     final changed =
         scene.dirty.meets(read.lead.order, watched) ||
         read.holds.any((held) => held.changed) ||
-        (memo != null && memo.baked != baked);
+        (last != null && !last.drawsLike(geometry));
     read.changed = changed;
     next.changedAt = changed
         ? frame
         : memo?.changedAt ?? scene.lastChangedUnder(read.lead.order, read.band);
     next.misses = memo?.misses ?? 0;
-    final rent = prices.rent(read.band, read.downscale);
+    final rent = prices.rent(read.band, read.share);
     var boughtAt = memo?.boughtAt;
-    if (imageRect != null &&
+    if (room != null &&
         (changed ||
-            !_contains(imageRect, read.band.intersect(screen)) ||
-            memo!.downscale != read.downscale ||
-            !_sameIds(memo.holds, holds))) {
+            !last!.servesAsImage(geometry) ||
+            !_sameIds(memo!.holds, holds))) {
       // A hold that ended before it paid makes the next wait longer.
       final held = frame - boughtAt!;
       next.misses = held < rent ? math.min(next.misses + 1, 6) : 0;
-      imageRect = null;
+      room = null;
       boughtAt = null;
     }
     final pageOnly = read.lead.look.page != null;
     final need = rent << next.misses;
     final allowed = read.limit == ReadLimit.none;
-    if (imageRect != null) {
+    if (room != null) {
       read.source = const ImageRead(held: true);
     } else if (allowed &&
         (pageOnly || (!changed && frame - next.changedAt >= need))) {
       read.source = const ImageRead(held: false);
-      imageRect = _withRoom(read, memo, rent, screen);
+      room = _withRoom(read, memo, rent, screen);
       boughtAt = frame;
     } else if (allowed) {
       dueAt = math.min(dueAt, next.changedAt + need);
     }
-    read.imageRect = imageRect;
-    next.imageRect = imageRect;
+    if (room != null) {
+      read.geometry = geometry.withRoom(room, screen);
+    }
+    next.geometry = read.geometry;
     next.boughtAt = boughtAt;
     edits.writes[id] = next;
   }
@@ -882,8 +868,8 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
       if (issued <= policy.maxTargets) break;
       if (read.source is! SceneRead || read.limit != ReadLimit.none) continue;
       read.source = const ImageRead(held: false);
-      read.imageRect = read.band;
-      edits.writes[read.lead.id]?.imageRect = read.band;
+      read.geometry = read.geometry.withRoom(read.band, screen);
+      edits.writes[read.lead.id]?.geometry = read.geometry;
       edits.writes[read.lead.id]?.boughtAt = frame;
       issued = targets();
       if (explain) notes.add('${read.lead.id}: over budget, reads an image');
@@ -977,6 +963,23 @@ bool _under(Read below, Read read) {
   return false;
 }
 
+/// Whether [read]'s copy holds the glass under it at the copy's own pixels,
+/// the glass's shader drawing a fragment for each of them, rather than at
+/// the screen's: glass holding more glass in turn takes its fragments for
+/// device pixels.
+///
+/// NEAR, judged by eye on the iPhone 16 Pro over the gallery's controls and
+/// cards under the tab bar: the held glass's bevel squeezes what it refracts
+/// past what one fragment per copy pixel resolves, and the copy's frost
+/// hides it. Against the glass held at the screen's pixels under Impeller's
+/// blur (host, dpr 2 and 3, clear glass held): 5 to 13 levels off under a
+/// frost of 12 and 20 logical pixels, 40 to 51 under 6; drawn at the
+/// screen's pixels and as a picture, 4 to 35. It saves 12 % of the fragment
+/// work of a scroll with glass under the tab bar on the Pixel 6a.
+bool _holdsAtOwnGrid(Read read) => read.holds.every(
+  (held) => held.holds.isEmpty && held.members.every((m) => m.look.anyGrid),
+);
+
 bool _sameIds(List<Object> a, List<Object> b) {
   if (a.length != b.length) return false;
   for (var i = 0; i < a.length; i++) {
@@ -999,7 +1002,7 @@ Rect _withRoom(Read read, ReadMemo? memo, int rent, Rect screen) {
     );
     room = moved * rent;
   }
-  if (memo?.imageRect case final previous?) {
+  if (memo?.geometry?.room case final previous?) {
     room = math.max(room, 2 * (previous.width - read.band.width).abs());
   }
   return read.band.inflate(room).intersect(screen);
