@@ -1,6 +1,3 @@
-// Painting reads as one statement per call, without cascades.
-// ignore_for_file: cascade_invocations
-
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -51,16 +48,14 @@ class _RenderBand extends RenderBox {
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    final layer = layerHandle.layer ??= LiquidGlassBackdropFilterLayer(
+    final layer = (layerHandle.layer ??= LiquidGlassBackdropFilterLayer(
       filter: _filter,
       clip: offset & size,
       reach: 12,
       devicePixelRatio: 1,
-    );
-    layer.clip = offset & size;
+    ))..clip = offset & size;
     context.pushLayer(layer, (context, offset) {
-      final paint = Paint();
-      paint.color = const Color(0x33FFFFFF);
+      final paint = Paint()..color = const Color(0x33FFFFFF);
       context.canvas.drawRect(offset & size, paint);
     }, offset);
   }

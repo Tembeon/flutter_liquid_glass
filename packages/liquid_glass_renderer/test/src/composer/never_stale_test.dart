@@ -78,8 +78,7 @@ int? _orderOf(Form form, Layer layer) {
 PictureLayer _picture(Rect rect) {
   final recorder = ui.PictureRecorder();
   Canvas(recorder).drawRect(rect, Paint());
-  final layer = PictureLayer(rect);
-  layer.picture = recorder.endRecording();
+  final layer = PictureLayer(rect)..picture = recorder.endRecording();
   return layer;
 }
 
@@ -257,10 +256,10 @@ void main() {
     final root = ContainerLayer();
     final gone = _picture(rect);
     final lead = _picture(rect);
-    root.append(gone);
-    root.append(lead);
-    final form = Form();
-    form.lower(root, _dpr, GeneratedLayers.screen);
+    root
+      ..append(gone)
+      ..append(lead);
+    final form = Form()..lower(root, _dpr, GeneratedLayers.screen);
     gone.remove();
     form.lower(root, _dpr, GeneratedLayers.screen);
     expect(form.dirty.meets(_orderOf(form, lead)!, rect), isTrue);
@@ -270,8 +269,7 @@ void main() {
     for (var seed = 0; seed < 300; seed++) {
       final scene = GeneratedLayers(seed);
       final random = Random(seed);
-      final form = Form();
-      form.lower(scene.root, _dpr, GeneratedLayers.screen);
+      final form = Form()..lower(scene.root, _dpr, GeneratedLayers.screen);
       if (form.length == 0) continue;
 
       Layer pickLead() {

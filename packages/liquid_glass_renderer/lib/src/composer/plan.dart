@@ -1,6 +1,3 @@
-// Plan values are filled one statement per field, without cascades.
-// ignore_for_file: cascade_invocations
-
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -865,8 +862,7 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
       fates.add(Follows(joined));
       continue;
     }
-    final read = Read(site);
-    read.limit = limit;
+    final read = Read(site)..limit = limit;
     // A filter of a page has no scene read to fall back on.
     if (limit == ReadLimit.liveOnly || (pageOnly && limit != ReadLimit.none)) {
       read.source = const LiveRead();
@@ -925,9 +921,9 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
     }
     final id = read.lead.id;
     final memo = ledger.reads[id];
-    final next = ReadMemo();
-    next.seenAt = frame;
-    next.lastBand = read.band;
+    final next = ReadMemo()
+      ..seenAt = frame
+      ..lastBand = read.band;
     final holds = [for (final held in read.holds) held.lead.id];
     next.holds = holds;
     final geometry = read.geometry;
@@ -939,11 +935,13 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
         read.holds.any((held) => held.changed) ||
         (last != null && !last.drawsLike(geometry));
     read.changed = changed;
-    next.changedAt = changed
-        ? frame
-        : memo?.changedAt ?? scene.lastChangedUnder(read.lead.order, read.band);
-    next.misses = memo?.misses ?? 0;
-    next.forBudget = memo?.forBudget ?? false;
+    next
+      ..changedAt = changed
+          ? frame
+          : memo?.changedAt ??
+                scene.lastChangedUnder(read.lead.order, read.band)
+      ..misses = memo?.misses ?? 0
+      ..forBudget = memo?.forBudget ?? false;
     final rent = prices.rent(read.band, read.share);
     var boughtAt = memo?.boughtAt;
     if (room != null &&
@@ -978,8 +976,9 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
     if (room != null) {
       read.geometry = geometry.withRoom(room, screen);
     }
-    next.geometry = read.geometry;
-    next.boughtAt = boughtAt;
+    next
+      ..geometry = read.geometry
+      ..boughtAt = boughtAt;
     edits.writes[id] = next;
   }
 
@@ -988,8 +987,8 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
   if (issued > policy.maxTargets) {
     // The deepest read another holds first: doubling becomes linear. Then the
     // last in paint order, so the same frame always moves the same reads.
-    final deepest = reads.where((read) => read.level > 0).toList();
-    deepest.sort((a, b) => b.level.compareTo(a.level));
+    final deepest = reads.where((read) => read.level > 0).toList()
+      ..sort((a, b) => b.level.compareTo(a.level));
     final order = [...deepest, ...reads.reversed];
     for (final read in order) {
       if (issued <= policy.maxTargets) break;
@@ -1001,10 +1000,10 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
         _withRoom(read, ledger.reads[id], rent, screen),
         screen,
       );
-      final next = edits.writes[id]!;
-      next.geometry = read.geometry;
-      next.boughtAt = frame;
-      next.forBudget = true;
+      final next = edits.writes[id]!
+        ..geometry = read.geometry
+        ..boughtAt = frame
+        ..forBudget = true;
       issued = targets();
       if (explain) notes.add('${read.lead.id}: over budget, reads an image');
     }

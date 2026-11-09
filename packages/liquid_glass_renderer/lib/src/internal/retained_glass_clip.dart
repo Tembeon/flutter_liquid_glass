@@ -323,9 +323,7 @@ class _ClipEntry {
 }
 
 Path _ovalPath(Rect rect) {
-  final path = Path();
-  // ignore: cascade_invocations
-  path.addOval(rect);
+  final path = Path()..addOval(rect);
   return path;
 }
 

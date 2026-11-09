@@ -1,4 +1,4 @@
-// ignore_for_file: require_trailing_commas, cascade_invocations
+// ignore_for_file: require_trailing_commas
 
 import 'dart:ui' as ui;
 
@@ -400,9 +400,10 @@ class RenderFakeGlass extends RenderProxyBox with LivePaintSize {
     } else {
       layer.filter = parts.full;
     }
-    layer.clip = clip;
-    layer.reach = reach;
-    layer.devicePixelRatio = devicePixelRatio;
+    layer
+      ..clip = clip
+      ..reach = reach
+      ..devicePixelRatio = devicePixelRatio;
 
     if (_role == FakeGlassRole.inFakeLayer) {
       final localBounds = Offset.zero & paintSize;

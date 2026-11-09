@@ -230,8 +230,7 @@ final class GlassComposer extends PipelineOwner {
       }
       return;
     }
-    final composition = _alone[root] ??= _Composition();
-    composition.run(root);
+    final composition = (_alone[root] ??= _Composition())..run(root);
     final ranAt = scheduler.currentFrameTimeStamp;
     composition.ranAt = ranAt;
     // Dropped when the next frame's scene does not ask for it.
@@ -291,13 +290,13 @@ final class _Composition {
     FlutterGpuGeometryRenderer.flushPendingSubmissions();
     FrameAncestors.current = FrameAncestors();
     try {
-      final form = _form;
-      form.lower(root, dpr, flutterView.physicalSize);
+      final form = _form..lower(root, dpr, flutterView.physicalSize);
       for (final node in form.siteNodes) {
         form.noteAsk(node.facts, node.site.ask());
       }
-      form.noteSitesGone();
-      form.settleFloors();
+      form
+        ..noteSitesGone()
+        ..settleFloors();
       final walk = clock.elapsed;
       final policy = GlassCopies.enabled
           ? GlassComposer.debugPolicy

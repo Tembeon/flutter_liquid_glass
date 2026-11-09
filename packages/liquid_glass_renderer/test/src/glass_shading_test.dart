@@ -1,6 +1,3 @@
-// Canvas setup reads as one statement per call, without cascades.
-// ignore_for_file: cascade_invocations
-
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -49,12 +46,11 @@ Widget _scene() => Directionality(
 Future<Uint8List> _through(WidgetTester tester, ui.ImageFilter filter) async {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
-  final layer = Paint();
-  layer.imageFilter = filter;
-  canvas.saveLayer(Offset.zero & _view, layer);
-  canvas.drawColor(Colors.white, BlendMode.src);
-  final stripe = Paint();
-  stripe.color = Colors.black;
+  final layer = Paint()..imageFilter = filter;
+  canvas
+    ..saveLayer(Offset.zero & _view, layer)
+    ..drawColor(Colors.white, BlendMode.src);
+  final stripe = Paint()..color = Colors.black;
   for (var x = 0.0; x < _view.width; x += 16) {
     canvas.drawRect(Rect.fromLTWH(x, 0, 8, _view.height), stripe);
   }

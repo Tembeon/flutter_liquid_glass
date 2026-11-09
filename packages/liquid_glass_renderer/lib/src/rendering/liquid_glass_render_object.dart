@@ -1,6 +1,3 @@
-// The project writes no cascades.
-// ignore_for_file: cascade_invocations
-
 import 'dart:collection';
 import 'dart:math';
 import 'dart:ui' as ui;
@@ -846,8 +843,9 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
         shape.shadows.every(
           (shadow) => shadow.offset == Offset.zero && shadow.spreadRadius >= 0,
         );
-    canvas.save();
-    canvas.translate(offset.dx, offset.dy);
+    canvas
+      ..save()
+      ..translate(offset.dx, offset.dy);
     if (useNativeOuterBlur) {
       _paintShadows(canvas, (_) => true, outer: true);
     } else if (_anyShapeFading) {
@@ -885,8 +883,9 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
           shape.renderObject,
           compositorTranslation,
           () {
-            canvas.save();
-            canvas.transform(geometryToLayer.storage);
+            canvas
+              ..save()
+              ..transform(geometryToLayer.storage);
             if (shape.shapeToGeometry case final transform?) {
               canvas.transform(transform.storage);
             }
@@ -937,8 +936,9 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
       for (final shape in geometry.shapes) {
         final visibility = shape.appearance.visibility.clamp(0.0, 1.0);
         if (visibility <= 0) continue;
-        canvas.save();
-        canvas.transform(shapeTransformToLayer(shape, geometryToLayer).storage);
+        canvas
+          ..save()
+          ..transform(shapeTransformToLayer(shape, geometryToLayer).storage);
         drawGlassShape(
           canvas,
           shape.shape,
@@ -1091,8 +1091,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
       clearGlassShadows();
       return null;
     }
-    final slot = _originalShadows.layer ??= ContainerLayer();
-    slot.removeAllChildren();
+    final slot = (_originalShadows.layer ??= ContainerLayer())
+      ..removeAllChildren();
     _shadowPicture.layer = null;
     if (!hasDrawableGlass(shapesWithGeometry)) return slot;
     if (!kReleaseMode) GlassWork.pictures++;

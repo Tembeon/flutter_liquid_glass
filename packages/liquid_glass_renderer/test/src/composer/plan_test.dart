@@ -52,10 +52,10 @@ Look _look(int look, {bool frost = true}) => Look(
 );
 
 SiteFacts _site(int order, Rect drawn, {int look = 0, int floor = -1}) {
-  final site = SiteFacts(Object());
-  site.order = order;
-  site.ask = SiteAsk(drawn: drawn, reads: drawn.inflate(8), look: _look(look));
-  site.floor = floor;
+  final site = SiteFacts(Object())
+    ..order = order
+    ..ask = SiteAsk(drawn: drawn, reads: drawn.inflate(8), look: _look(look))
+    ..floor = floor;
   return site;
 }
 
@@ -338,8 +338,7 @@ void main() {
         look: look(0, page: const PageFilter(blur: (4, 4))),
       );
       final over = _site(4, const Rect.fromLTWH(20, 200, 200, 90));
-      final scene = _Scene([page, over]);
-      scene.texturesBefore = 1;
+      final scene = _Scene([page, over])..texturesBefore = 1;
       final plan = _plan(scene, frame: 1);
       expect(plan.reads.first.source, isA<LiveRead>());
       expect(plan.reads.last.source, isA<LiveRead>());
@@ -449,8 +448,7 @@ void main() {
   group('live groups', () {
     // Different looks keep the reads apart, so each one is a read of its own.
     _Scene live(List<SiteFacts> sites) {
-      final scene = _Scene(sites);
-      scene.platformBefore = 0;
+      final scene = _Scene(sites)..platformBefore = 0;
       return scene;
     }
 

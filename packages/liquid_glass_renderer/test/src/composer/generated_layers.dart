@@ -38,8 +38,7 @@ final class GeneratedLayers {
       20 + _coord(400),
       20 + _coord(200),
     );
-    final layer = PictureLayer(bounds);
-    layer.picture = _picture();
+    final layer = PictureLayer(bounds)..picture = _picture();
     return layer;
   }
 

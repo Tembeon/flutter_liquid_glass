@@ -1,6 +1,3 @@
-// Canvas setup reads as one statement per call, without cascades.
-// ignore_for_file: cascade_invocations
-
 part of 'read.dart';
 
 /// How the final glass shader reads a copy: the one place that says where
@@ -117,9 +114,10 @@ final class PagePart {
   /// that [source] drawn there lands on [shown].
   void toImage(Canvas canvas) {
     final source = this.source;
-    canvas.translate(shown.left, shown.top);
-    canvas.scale(1 / _copy.geometry.lattice.pixels);
-    canvas.translate(-source.left, -source.top);
+    canvas
+      ..translate(shown.left, shown.top)
+      ..scale(1 / _copy.geometry.lattice.pixels)
+      ..translate(-source.left, -source.top);
   }
 
   /// How `backdrop_frost.frag` reads [source] drawn under [toImage] to frost
@@ -296,11 +294,13 @@ final class CornerRead {
     final at = _at;
     final engine = builder.pushTransform(deviceToLocal.storage);
     if (clip != null) builder.pushClipPath(clip, clipBehavior: Clip.hardEdge);
-    builder.pushImageFilter(filter);
-    builder.addPicture(_device.topLeft, _corners(_device.size));
+    builder
+      ..pushImageFilter(filter)
+      ..addPicture(_device.topLeft, _corners(_device.size));
     if (inPlace != null) {
-      builder.pushImageFilter(inPlace);
-      builder.addPicture(_device.topLeft, _corners(_copySize));
+      builder
+        ..pushImageFilter(inPlace)
+        ..addPicture(_device.topLeft, _corners(_copySize));
     }
     _copy._addTo(
       builder,
@@ -328,15 +328,14 @@ final class CornerRead {
       }
       _cornersOf.clear();
     }
-    final clear = Paint();
-    clear.blendMode = BlendMode.clear;
+    final clear = Paint()..blendMode = BlendMode.clear;
     final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    canvas.drawRect(const Rect.fromLTWH(0, 0, 1, 1), clear);
-    canvas.drawRect(
-      Rect.fromLTRB(size.width - 1, size.height - 1, size.width, size.height),
-      clear,
-    );
+    final canvas = Canvas(recorder)
+      ..drawRect(const Rect.fromLTWH(0, 0, 1, 1), clear)
+      ..drawRect(
+        Rect.fromLTRB(size.width - 1, size.height - 1, size.width, size.height),
+        clear,
+      );
     return _cornersOf[size] = recorder.endRecording();
   }
 }

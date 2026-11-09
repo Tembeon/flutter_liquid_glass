@@ -1,6 +1,3 @@
-// Uniform writes read as one statement per value, without cascades.
-// ignore_for_file: cascade_invocations
-
 import 'dart:math';
 import 'dart:ui' as ui;
 
@@ -529,8 +526,9 @@ final class AnalyticShapes {
   factory AnalyticShapes.of(ShapeSet set, {required double contourExtent}) {
     final floats = <double>[];
     void fill(List<double> values, int length) {
-      floats.addAll(values);
-      floats.addAll(List<double>.filled(length - values.length, 0));
+      floats
+        ..addAll(values)
+        ..addAll(List<double>.filled(length - values.length, 0));
     }
 
     fill([
@@ -672,9 +670,9 @@ final class GlassShading {
   /// Draws [rect] with [draw] on [canvas]. Its edge is hard, as a filter's
   /// clip cuts.
   void paintRect(ui.Canvas canvas, Rect rect, GlassDraw draw) {
-    final paint = ui.Paint();
-    paint.shader = _write(draw);
-    paint.isAntiAlias = false;
+    final paint = ui.Paint()
+      ..shader = _write(draw)
+      ..isAntiAlias = false;
     canvas.drawRect(rect, paint);
   }
 

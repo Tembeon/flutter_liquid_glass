@@ -1,5 +1,3 @@
-// ignore_for_file: cascade_invocations
-
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
@@ -49,9 +47,9 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
   @override
   void paint(PaintingContext context, ui.Offset offset) {
     GlassComposer.sitePainted(owner!);
-    final tracking = layer ??= GeometryTransformTrackingLayer();
-    tracking._site = this;
-    tracking._paintOffset = offset;
+    final tracking = (layer ??= GeometryTransformTrackingLayer())
+      .._site = this
+      .._paintOffset = offset;
     context.pushLayer(tracking, (context, offset) {}, offset);
     super.paint(context, offset);
   }

@@ -777,8 +777,7 @@ class FlutterGpuGeometryRenderer {
       for (var a = 0; a < clusters.length; a++) {
         for (var b = a + 1; b < clusters.length; b++) {
           if (!clusters[a].rect.meets(clusters[b].rect)) continue;
-          final shapes = [...clusters[a].shapes, ...clusters[b].shapes];
-          shapes.sort();
+          final shapes = [...clusters[a].shapes, ...clusters[b].shapes]..sort();
           clusters[a] = _Cluster(shapes, texels(shapes));
           clusters.removeAt(b);
           merged = true;

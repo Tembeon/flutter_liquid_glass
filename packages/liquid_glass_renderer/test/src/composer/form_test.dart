@@ -28,8 +28,7 @@ Map<Layer, _Seen> _leaves(Form form) {
 }
 
 void _expectSameAsFresh(Form form, ContainerLayer root, String why) {
-  final fresh = Form();
-  fresh.lower(root, _dpr, GeneratedLayers.screen);
+  final fresh = Form()..lower(root, _dpr, GeneratedLayers.screen);
   expect(form.length, fresh.length, reason: why);
   for (var i = 0; i < form.length; i++) {
     final a = form.nodeAt(i);
@@ -57,8 +56,7 @@ void main() {
     test('an unchanged tree logs nothing but its volatile content', () {
       for (var seed = 0; seed < 200; seed++) {
         final scene = GeneratedLayers(seed);
-        final form = Form();
-        form.lower(scene.root, _dpr, GeneratedLayers.screen);
+        final form = Form()..lower(scene.root, _dpr, GeneratedLayers.screen);
         final stamps = [
           for (var i = 0; i < form.length; i++) form.nodeAt(i).changedAt,
         ];
@@ -84,8 +82,7 @@ void main() {
     test('equals a fresh form after every change', () {
       for (var seed = 0; seed < 300; seed++) {
         final scene = GeneratedLayers(seed);
-        final form = Form();
-        form.lower(scene.root, _dpr, GeneratedLayers.screen);
+        final form = Form()..lower(scene.root, _dpr, GeneratedLayers.screen);
         for (var step = 0; step < 30; step++) {
           scene.mutate();
           form.lower(scene.root, _dpr, GeneratedLayers.screen);
@@ -97,8 +94,7 @@ void main() {
     test('logs every leaf that changed, left or arrived', () {
       for (var seed = 0; seed < 300; seed++) {
         final scene = GeneratedLayers(seed);
-        final form = Form();
-        form.lower(scene.root, _dpr, GeneratedLayers.screen);
+        final form = Form()..lower(scene.root, _dpr, GeneratedLayers.screen);
         for (var step = 0; step < 30; step++) {
           final before = _leaves(form);
           scene.mutate();
@@ -141,10 +137,8 @@ void main() {
         cell.append(picture);
         list.append(cell);
       }
-      final root = ContainerLayer();
-      root.append(list);
-      final form = Form();
-      form.lower(root, _dpr, GeneratedLayers.screen);
+      final root = ContainerLayer()..append(list);
+      final form = Form()..lower(root, _dpr, GeneratedLayers.screen);
       list.offset = const Offset(0, -10);
       form.lower(root, _dpr, GeneratedLayers.screen);
       expect(form.dirty.length, 2);
@@ -157,11 +151,10 @@ void main() {
       Canvas(recorder).drawPaint(Paint());
       picture.picture = recorder.endRecording();
       fade.append(picture);
-      final root = ContainerLayer();
-      root.append(fade);
-      final form = Form();
-      form.lower(root, _dpr, GeneratedLayers.screen);
-      form.lower(root, _dpr, GeneratedLayers.screen);
+      final root = ContainerLayer()..append(fade);
+      final form = Form()
+        ..lower(root, _dpr, GeneratedLayers.screen)
+        ..lower(root, _dpr, GeneratedLayers.screen);
       expect(form.dirty.isEmpty, isTrue);
       fade.alpha = 100;
       form.lower(root, _dpr, GeneratedLayers.screen);
@@ -185,27 +178,32 @@ void main() {
         noJoin: noJoin,
         paints: paints,
       );
-      form.lower(root, _dpr, GeneratedLayers.screen);
-      form.noteAsk(site, ask());
+      form
+        ..lower(root, _dpr, GeneratedLayers.screen)
+        ..noteAsk(site, ask());
       final first = site.ask;
 
-      form.lower(root, _dpr, GeneratedLayers.screen);
-      form.noteAsk(site, ask());
+      form
+        ..lower(root, _dpr, GeneratedLayers.screen)
+        ..noteAsk(site, ask());
       expect(identical(site.ask, first), isTrue);
       expect(form.asksChanged, isFalse);
       expect(form.dirty.isEmpty, isTrue);
 
-      form.lower(root, _dpr, GeneratedLayers.screen);
-      form.noteAsk(site, ask(noJoin: NoJoin.field));
+      form
+        ..lower(root, _dpr, GeneratedLayers.screen)
+        ..noteAsk(site, ask(noJoin: NoJoin.field));
       expect(form.asksChanged, isTrue);
       expect(form.dirty.isEmpty, isTrue, reason: 'it draws the same');
 
-      form.lower(root, _dpr, GeneratedLayers.screen);
-      form.noteAsk(site, ask(noJoin: NoJoin.field, paints: 1));
+      form
+        ..lower(root, _dpr, GeneratedLayers.screen)
+        ..noteAsk(site, ask(noJoin: NoJoin.field, paints: 1));
       expect(form.dirty.meets(1, rect), isTrue);
 
-      form.lower(root, _dpr, GeneratedLayers.screen);
-      form.noteAsk(site, SiteAsk.none);
+      form
+        ..lower(root, _dpr, GeneratedLayers.screen)
+        ..noteAsk(site, SiteAsk.none);
       expect(form.dirty.meets(1, rect), isTrue, reason: 'what it drew left');
     });
   });

@@ -1,6 +1,3 @@
-// Scene building reads as one statement per push and pop, without cascades.
-// ignore_for_file: cascade_invocations
-
 import 'dart:math';
 import 'dart:ui' as ui;
 
@@ -718,8 +715,7 @@ final class _Pages {
       tile.offset.dx - tile.rect.left * pixels,
       tile.offset.dy - tile.rect.top * pixels,
       0,
-    );
-    toAtlas.scaleByDouble(pixels, pixels, 1, 1);
+    )..scaleByDouble(pixels, pixels, 1, 1);
     return toAtlas;
   }
 
@@ -749,15 +745,17 @@ final class _Pages {
         } else {
           tile.holdsFrost = frost;
           final size = tile.bounds.size;
-          b.pushOffset(tile.offset.dx, tile.offset.dy);
-          b.pushImageFilter(filter);
-          // Impeller sizes a layer by what is drawn in it.
-          b.addPicture(Offset.zero, CornerRead._corners(size));
-          b.pushClipRect(Offset.zero & size, clipBehavior: Clip.hardEdge);
+          b
+            ..pushOffset(tile.offset.dx, tile.offset.dy)
+            ..pushImageFilter(filter)
+            // Impeller sizes a layer by what is drawn in it.
+            ..addPicture(Offset.zero, CornerRead._corners(size))
+            ..pushClipRect(Offset.zero & size, clipBehavior: Clip.hardEdge);
           tile.copy._replay(b, tile.lattice, tile.rect, Offset.zero);
-          b.pop();
-          b.pop();
-          b.pop();
+          b
+            ..pop()
+            ..pop()
+            ..pop();
         }
       } else if (tile.layered) {
         layered.putIfAbsent((tile.page.key, tile.lattice), () => []).add(tile);
@@ -772,20 +770,22 @@ final class _Pages {
       for (final tile in group.skip(1)) {
         bounds = bounds.expandToInclude(tile.bounds);
       }
-      b.pushClipRect(bounds, clipBehavior: Clip.hardEdge);
-      // Impeller takes an image filter's sigmas in the pixels it draws
-      // into, whatever the canvas scale: here the pages' own.
-      b.pushImageFilter(
-        _blur(
-          first.page.blur!.$1 * first.lattice.pixels,
-          first.page.blur!.$2 * first.lattice.pixels,
-        ),
-      );
+      b
+        ..pushClipRect(bounds, clipBehavior: Clip.hardEdge)
+        // Impeller takes an image filter's sigmas in the pixels it draws
+        // into, whatever the canvas scale: here the pages' own.
+        ..pushImageFilter(
+          _blur(
+            first.page.blur!.$1 * first.lattice.pixels,
+            first.page.blur!.$2 * first.lattice.pixels,
+          ),
+        );
       for (final tile in group) {
         add(tile, tile.bounds);
       }
-      b.pop();
-      b.pop();
+      b
+        ..pop()
+        ..pop();
     }
     // A page's own filter stands under the view's scale, as the backdrop
     // filter it replaces does. In a layer around its page it reads that layer
@@ -795,16 +795,17 @@ final class _Pages {
       final filter = page.filter ?? _blur(page.blur!.$1, page.blur!.$2);
       b.pushClipRect(tile.bounds, clipBehavior: Clip.antiAliasWithSaveLayer);
       add(tile, tile.bounds);
-      b.pushTransform(_toAtlas(tile).storage);
-      b.pushClipRect(
-        page.clip?.intersect(tile.rect) ?? tile.rect,
-        clipBehavior: Clip.hardEdge,
-      );
-      b.pushBackdropFilter(filter, blendMode: page.blendMode);
-      b.pop();
-      b.pop();
-      b.pop();
-      b.pop();
+      b
+        ..pushTransform(_toAtlas(tile).storage)
+        ..pushClipRect(
+          page.clip?.intersect(tile.rect) ?? tile.rect,
+          clipBehavior: Clip.hardEdge,
+        )
+        ..pushBackdropFilter(filter, blendMode: page.blendMode)
+        ..pop()
+        ..pop()
+        ..pop()
+        ..pop();
     }
     final scene = b.build();
     final image = scene.toImageSync(width, height);
@@ -888,8 +889,7 @@ final class GlassEmit {
       if (tiles.isNotEmpty) _pages.draw(tiles);
       for (final read in reads) {
         if (read.level != level) continue;
-        final lead = form.siteNodes[read.lead.index].site;
-        lead.show(read, switch (read.source) {
+        form.siteNodes[read.lead.index].site.show(read, switch (read.source) {
           SceneRead() => InScene(
             CornerRead.inFrame(ReadCopy(read, plan, form)),
           ),

@@ -32,9 +32,9 @@ final class SceneOut {
       at += shift;
       return;
     }
-    final next = (matrix ?? Matrix4.identity()).clone();
-    next.translateByDouble(at.dx, at.dy, 0, 1);
-    next.multiply(by);
+    final next = (matrix ?? Matrix4.identity()).clone()
+      ..translateByDouble(at.dx, at.dy, 0, 1)
+      ..multiply(by);
     matrix = next;
     at = Offset.zero;
   }
@@ -44,8 +44,7 @@ final class SceneOut {
     final held = matrix;
     if (held == null) return;
     if (at != Offset.zero) {
-      final next = held.clone();
-      next.translateByDouble(at.dx, at.dy, 0, 1);
+      final next = held.clone()..translateByDouble(at.dx, at.dy, 0, 1);
       builder.pushTransform(next.storage);
     } else {
       builder.pushTransform(held.storage);

@@ -1,6 +1,3 @@
-// Layer setup reads as one statement per property, without cascades.
-// ignore_for_file: cascade_invocations
-
 import 'dart:async';
 import 'dart:ui' as ui;
 
@@ -81,9 +78,9 @@ ui.Picture recordFilteredCopy(
   final canvas = Canvas(recorder);
   if (outline != null) canvas.clipPath(outline);
   canvas.translate(-origin.dx, -origin.dy);
-  final paint = Paint();
-  paint.blendMode = BlendMode.src;
-  paint.filterQuality = FilterQuality.none;
+  final paint = Paint()
+    ..blendMode = BlendMode.src
+    ..filterQuality = FilterQuality.none;
   canvas.drawImageRect(copy.image, copy.readOf(shown).source, shown, paint);
   return recorder.endRecording();
 }
@@ -121,10 +118,10 @@ ui.Picture recordFrostedCopy(
   canvas.translate(-origin.dx, -origin.dy);
   read.toImage(canvas);
   final source = read.source;
-  final paint = Paint();
-  paint.shader = shader;
-  paint.blendMode = blendMode;
-  paint.isAntiAlias = false;
+  final paint = Paint()
+    ..shader = shader
+    ..blendMode = blendMode
+    ..isAntiAlias = false;
   canvas.drawRect(source, paint);
   return recorder.endRecording();
 }
@@ -133,8 +130,8 @@ ui.Picture recordFrostedCopy(
 /// [origin] of the screen.
 @internal
 Matrix4 frostToLocal(Offset origin, double devicePixelRatio) {
-  final toLocal = Matrix4.translationValues(-origin.dx, -origin.dy, 0);
-  toLocal.scaleByDouble(1 / devicePixelRatio, 1 / devicePixelRatio, 1, 1);
+  final toLocal = Matrix4.translationValues(-origin.dx, -origin.dy, 0)
+    ..scaleByDouble(1 / devicePixelRatio, 1 / devicePixelRatio, 1, 1);
   return toLocal;
 }
 
@@ -268,8 +265,7 @@ class BackdropRig {
     required PaintingContextCallback live,
   }) {
     if (site != null) {
-      final slot = _slot.layer ??= GlassSlotLayer();
-      slot.site = site;
+      final slot = (_slot.layer ??= GlassSlotLayer())..site = site;
       context.pushLayer(slot, live, offset);
       return;
     }
@@ -288,8 +284,7 @@ class BackdropRig {
   ) {
     final previous = _page.layer;
     if (previous != null && _pageKey == key) return previous;
-    final picture = PictureLayer(bounds);
-    picture.picture = record();
+    final picture = PictureLayer(bounds)..picture = record();
     _page.layer = picture;
     _pageKey = key;
     return picture;
@@ -352,9 +347,9 @@ class BackdropRig {
 
   /// Hands [filter] to the filter layer.
   void bindFilter(ui.ImageFilter filter) {
-    final backdrop = _filter.layer ??= _newFilterLayer();
-    backdrop.filter = filter;
-    backdrop.backdropKey ??= key;
+    (_filter.layer ??= _newFilterLayer())
+      ..filter = filter
+      ..backdropKey ??= key;
   }
 
   // A filter made after the clip was painted goes into the clip: a retained

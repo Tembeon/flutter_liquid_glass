@@ -1,5 +1,3 @@
-// ignore_for_file: cascade_invocations
-
 import 'dart:math';
 import 'dart:ui';
 import 'dart:ui' as ui;
@@ -1801,26 +1799,25 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final (draw, device) = _pageDraw(read, page);
     if (!kReleaseMode) GlassWork.pictures++;
     final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder);
-    canvas.transform(screenToCanvas.storage);
+    final canvas = Canvas(recorder)..transform(screenToCanvas.storage);
     _shading.paintRect(canvas, device, draw);
     return recorder.endRecording();
   }
 
   // From the screen's device pixels to the canvas the glass paints in.
   Matrix4 _screenToCanvas() {
-    final canvasToScreen = _frame!.screen.clone();
-    canvasToScreen.multiply(
-      Matrix4.translationValues(
-        -_filterPaintOffset.dx,
-        -_filterPaintOffset.dy,
-        0,
-      ),
-    );
-    final screenToCanvas = Matrix4.tryInvert(canvasToScreen)!;
-    screenToCanvas.multiply(
-      Matrix4.diagonal3Values(1 / devicePixelRatio, 1 / devicePixelRatio, 1),
-    );
+    final canvasToScreen = _frame!.screen.clone()
+      ..multiply(
+        Matrix4.translationValues(
+          -_filterPaintOffset.dx,
+          -_filterPaintOffset.dy,
+          0,
+        ),
+      );
+    final screenToCanvas = Matrix4.tryInvert(canvasToScreen)!
+      ..multiply(
+        Matrix4.diagonal3Values(1 / devicePixelRatio, 1 / devicePixelRatio, 1),
+      );
     return screenToCanvas;
   }
 
@@ -2024,10 +2021,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         final recorder = ui.PictureRecorder();
         final canvas = Canvas(recorder);
         for (final (shadow, offset) in under) {
-          canvas.save();
-          canvas.translate(offset.dx, offset.dy);
-          canvas.drawPicture(shadow);
-          canvas.restore();
+          canvas
+            ..save()
+            ..translate(offset.dx, offset.dy)
+            ..drawPicture(shadow)
+            ..restore();
         }
         canvas.drawPicture(body);
         body.dispose();
@@ -2060,10 +2058,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final corner = outer.cornerOf(read);
     if (corner == null) return;
     for (final (picture, offset) in _shadowsOfOthers(read)) {
-      out.mark();
-      out.at += offset;
-      out.picture(picture);
-      out.leave();
+      out
+        ..mark()
+        ..at += offset
+        ..picture(picture)
+        ..leave();
     }
     final inPlace = corner.inPlaceFilter();
     final filter = readFilter(read, corner, inPlace);

@@ -123,16 +123,16 @@ final class Form implements Scenery {
     }
     _sitesHeld = held;
     if (held) return;
-    final kept = Set<SiteFacts>.identity();
-    kept.addAll(_sites);
+    final kept = Set<SiteFacts>.identity()..addAll(_sites);
     for (final site in last) {
       if (!kept.contains(site)) dirty.add(-1, site.ask.drawn);
     }
   }
 
   void _enter(FormNode node) {
-    node.order = _next++;
-    node.owner = _owner;
+    node
+      ..order = _next++
+      ..owner = _owner;
     if (_count == _flat.length) {
       _flat.add(node);
     } else {
@@ -658,8 +658,7 @@ abstract class OpenNode extends FormNode {
           node = found;
           old = found.next;
         } else {
-          node = _nodeOf(child);
-          node.parent = this;
+          node = _nodeOf(child)..parent = this;
           if (node is! OutputNode) changed = true;
           edited = true;
         }
@@ -844,8 +843,8 @@ final class SiteNode extends ShiftNode {
     if (held != null && _screenStamp == world.stamp && _screenAt == at) {
       return held;
     }
-    final next = world.base.clone();
-    next.translateByDouble(world.dx + at.dx, world.dy + at.dy, 0, 1);
+    final next = world.base.clone()
+      ..translateByDouble(world.dx + at.dx, world.dy + at.dy, 0, 1);
     _screen = next;
     _screenAt = at;
     _screenStamp = world.stamp;
@@ -951,9 +950,9 @@ mixin _Matrix on OpenNode {
       _ownedBase = outside.base;
       _ownedDx = outside.dx;
       _ownedDy = outside.dy;
-      final at = outside.base.clone();
-      at.translateByDouble(outside.dx, outside.dy, 0, 1);
-      at.multiply(own);
+      final at = outside.base.clone()
+        ..translateByDouble(outside.dx, outside.dy, 0, 1)
+        ..multiply(own);
       _combined = at;
     }
     return _combined;

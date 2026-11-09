@@ -1,6 +1,3 @@
-// Scene building reads as one statement per push and pop, without cascades.
-// ignore_for_file: cascade_invocations
-
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -404,11 +401,13 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
       if (!drawsGroup) addChildrenToScene(builder);
       return;
     }
-    builder.pushClipRect(_clip, clipBehavior: Clip.hardEdge);
-    builder.pushBackdropFilter(_filter, blendMode: _blendMode);
+    builder
+      ..pushClipRect(_clip, clipBehavior: Clip.hardEdge)
+      ..pushBackdropFilter(_filter, blendMode: _blendMode);
     addChildrenToScene(builder);
-    builder.pop();
-    builder.pop();
+    builder
+      ..pop()
+      ..pop();
   }
 
   @override
