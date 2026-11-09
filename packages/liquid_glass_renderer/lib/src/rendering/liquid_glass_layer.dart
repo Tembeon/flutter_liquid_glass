@@ -2113,7 +2113,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         sampling.origin.dy,
         page.fragmentsOf(band.shown),
         page.frostOf(band.frost!.sigma),
-        0,
+        page.heldFrost,
       );
     }
     final dpr = devicePixelRatio;

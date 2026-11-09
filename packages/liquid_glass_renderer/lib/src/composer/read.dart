@@ -418,6 +418,11 @@ final class PageCopy {
   /// What [glassSampling] stands for by the frost [sigma] of a band.
   double frostOf(double sigma) => geometry.lattice.residual(sigma);
 
+  /// What [glassSampling] stands for by the frost drawn into the page: 0
+  /// where it holds none.
+  double get heldFrost =>
+      geometry.lattice.residual(geometry.frostFor(_heldFrost));
+
   /// How the final shader reads the page, painted in the screen's device
   /// pixels, to frost it for Impeller's blur by [frost] (see
   /// [GlassSampling.frost]).
@@ -489,10 +494,6 @@ final class _Tile {
       max(x, y) * lattice.pixels <= _Pages._maxImageBlurSigma,
     null => false,
   };
-
-  // The frost to hold in the page: frosted once, at the page's own pixels,
-  // so glass over it takes one read per fragment.
-  double get bakedFrost => copy.read.lead.look.isBand ? 0 : geometry.bakedFrost;
 
   // What the drawn page holds: nothing before the frost's shader is loaded.
   double holdsFrost = 0;
@@ -625,7 +626,7 @@ final class _Pages {
     final layered = <(Object?, Lattice), List<_Tile>>{};
     for (final tile in tiles) {
       if (!tile.filtered) {
-        final frost = tile.bakedFrost;
+        final frost = tile.geometry.bakedFrost;
         final filter = frost > 0
             ? frostFilterOf(tile.frostSampling(tile.geometry.frostFor(frost)))
             : null;
