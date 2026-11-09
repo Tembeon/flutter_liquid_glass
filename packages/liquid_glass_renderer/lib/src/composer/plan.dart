@@ -378,8 +378,18 @@ final class Read {
   /// so glass takes one read per fragment in place of its taps.
   bool bakesFrost = false;
 
-  /// Whether its copy holds the glass under it at the copy's own pixels
-  /// rather than at the screen's.
+  /// Whether its copy holds the glass under it at the copy's own pixels,
+  /// the glass's shader drawing a fragment for each of them, rather than at
+  /// the screen's.
+  ///
+  /// NEAR, judged by eye on the iPhone 16 Pro over the gallery's controls
+  /// and cards under the tab bar: the held glass's bevel squeezes what it
+  /// refracts past what one fragment per copy pixel resolves, and the copy's
+  /// frost hides it. Against the glass held at the screen's pixels under
+  /// Impeller's blur (host, dpr 2 and 3, clear glass held): 5 to 13 levels
+  /// off under a frost of 12 and 20 logical pixels, 40 to 51 under 6; drawn
+  /// at the screen's pixels and as a picture, 4 to 35. It saves 12 % of the
+  /// fragment work of a scroll with glass under the tab bar on the Pixel 6a.
   bool holdsAtOwnGrid = false;
 
   /// The frost of the glass that reads it, in logical pixels.
@@ -584,22 +594,7 @@ final class Policy {
     this.dropsFrost = true,
     this.bakesFrost = true,
     this.coarseHolds = true,
-    this.ownGridHolds = true,
   });
-
-  /// Whether a copy smaller than the screen holds the glass under it at its
-  /// own pixels, the glass's shader drawing a fragment for each of them,
-  /// rather than at the screen's.
-  ///
-  /// NEAR, judged by eye on the iPhone 16 Pro over the gallery's controls
-  /// and cards under the tab bar: the held glass's bevel squeezes what it
-  /// refracts past what one fragment per copy pixel resolves, and the copy's
-  /// frost hides it. Against the glass held at the screen's pixels under
-  /// Impeller's blur (host, dpr 2 and 3, clear glass held): 5 to 13 levels
-  /// off under a frost of 12 and 20 logical pixels, 40 to 51 under 6; drawn
-  /// at the screen's pixels and as a picture, 4 to 35. It saves 12 % of the
-  /// fragment work of a scroll with glass under the tab bar on the Pixel 6a.
-  final bool ownGridHolds;
 
   /// Whether a copy of a quarter of the screen's pixels or fewer holds the
   /// glass under it. Without, that glass is left out of it: its colour
@@ -830,12 +825,9 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
       read.level = math.max(read.level, below.level + 1);
     }
     // Glass holding more glass in turn takes its fragments for device pixels.
-    read.holdsAtOwnGrid =
-        policy.ownGridHolds &&
-        read.holds.every(
-          (held) =>
-              held.holds.isEmpty && held.members.every((m) => m.look.anyGrid),
-        );
+    read.holdsAtOwnGrid = read.holds.every(
+      (held) => held.holds.isEmpty && held.members.every((m) => m.look.anyGrid),
+    );
     // A copy holding glass lies at the screen's pixels, where a frost costs
     // more than the taps it saves.
     read.bakesFrost =

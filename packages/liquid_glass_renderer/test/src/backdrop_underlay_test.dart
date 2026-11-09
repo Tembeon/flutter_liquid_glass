@@ -1,7 +1,6 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
@@ -105,7 +104,7 @@ Widget _following(bool follows, Widget child) => follows
 Widget _scene({
   double shift = 0,
   double dot = 0,
-  bool texture = false,
+  bool platformView = false,
   bool follower = false,
   double leader = 20,
   bool glassFollows = false,
@@ -207,13 +206,17 @@ Widget _scene({
             ),
           ),
         ],
-        if (texture)
-          const Positioned(
+        if (platformView)
+          Positioned(
             left: 40,
             top: 50,
             width: 20,
             height: 20,
-            child: Texture(textureId: 1),
+            child: PlatformViewSurface(
+              controller: _PlatformView(),
+              hitTestBehavior: PlatformViewHitTestBehavior.transparent,
+              gestureRecognizers: const {},
+            ),
           ),
         Positioned.fill(
           child: Opacity(
@@ -351,8 +354,7 @@ void main() {
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    _textureReadLive();
-    await tester.pumpWidget(_scene(texture: true));
+    await tester.pumpWidget(_scene(platformView: true));
     expect(_glass(tester).debugDrewOverCopy, isFalse);
     expect(_liveFilters(tester), isNotEmpty);
   }, skip: skipProperGlassTests);
@@ -436,8 +438,7 @@ void main() {
     expect(_glass(tester).debugDrewOverCopy, isTrue);
     expect(_liveFilters(tester), isEmpty);
 
-    _textureReadLive();
-    await tester.pumpWidget(_scene(opacity: 0.6, texture: true));
+    await tester.pumpWidget(_scene(opacity: 0.6, platformView: true));
     expect(_glass(tester).debugDrewOverCopy, isFalse);
     expect(
       tester.layers.whereType<OpacitySeedLayer>().single.seeded,
@@ -933,9 +934,16 @@ void main() {
   }, skip: skipProperGlassTests);
 }
 
-// A texture stands in for the layers a copy cannot draw, such as a platform
-// view, which a host test cannot make.
-void _textureReadLive() {
-  GlassCopies.debugTextureInScene = false;
-  addTearDown(() => GlassCopies.debugTextureInScene = true);
+class _PlatformView extends PlatformViewController {
+  @override
+  int get viewId => 1;
+
+  @override
+  Future<void> dispatchPointerEvent(PointerEvent event) async {}
+
+  @override
+  Future<void> clearFocus() async {}
+
+  @override
+  Future<void> dispose() async {}
 }

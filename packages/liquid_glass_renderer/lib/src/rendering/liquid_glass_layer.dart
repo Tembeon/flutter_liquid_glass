@@ -1865,14 +1865,17 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // Frost the final shader can draw is drawn there, over an unblurred
     // copy: the copy's blur passes become its taps. The shader frosts round,
     // so glass stretched past 5 % keeps the copy's blur, which follows each
-    // axis.
+    // axis. Its copy is no coarser than Impeller's blur would take: weak
+    // frosts (1.5 to 2.7 logical pixels) then come out half as far from
+    // Impeller's blur (host, dpr 2 and 3), where a copy of four device
+    // pixels a side left its pixels showing on the iPhone.
     final round = sigma * sqrt(scaleX * scaleY);
     final frosted =
         sigma > 0 && _frostsCopies && (scaleX / scaleY - 1).abs() <= 0.05
         ? shaderFrostDownscale(
             round * dpr,
             minTexels: debugFrostMinTexels,
-            atBlurScale: debugFrostAtBlurScale,
+            atBlurScale: true,
           )
         : null;
     var downscale = frosted ?? 1;
@@ -2539,16 +2542,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// A copy is halved while the frost still spans this many of its pixels:
   /// the fewer the pixels, the less it costs to draw and to frost.
   static double debugFrostMinTexels = 1;
-
-  /// Whether a copy the glass frosts is never coarser than Impeller's blur
-  /// by the same sigma would take it.
-  ///
-  /// A weak frost over a copy of four device pixels a side leaves its
-  /// pixels showing (the owner on the iPhone). Kept to Impeller's scale, at
-  /// 2 and 3 dpr, weak frosts (1.5 to 2.7 logical pixels) come out half as
-  /// far from Impeller's blur on average (host), and a frost of 8 over white
-  /// bars 22 levels off at most instead of 36.
-  static bool debugFrostAtBlurScale = true;
 
   /// Encodes the geometry again, after a bench changed what it draws.
   void debugUpdateGeometry() {

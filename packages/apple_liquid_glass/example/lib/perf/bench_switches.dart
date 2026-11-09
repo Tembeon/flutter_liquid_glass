@@ -44,10 +44,6 @@ final benchSwitches = <String, void Function({required bool on})>{
   // B draws every second vsync while nothing fast moves; A every vsync.
   'cadence': ({required on}) => FrameCadence.enabled = on,
   'wide_frost': ({required on}) => debugShaderFrostMaxDownscale = on ? 8 : 4,
-  // B: a frosted copy is never coarser than Impeller's blur by its sigma
-  // would take it; A halves it while the frost spans a pixel of it.
-  'blur_scale': ({required on}) =>
-      RenderLiquidGlassLayer.debugFrostAtBlurScale = on,
   // B frosts a small copy once, A in every fragment of the glass over it.
   'in_place': ({required on}) =>
       GlassComposer.debugPolicy = Policy(bakesFrost: on),
@@ -66,9 +62,6 @@ final benchSwitches = <String, void Function({required bool on})>{
   // B: a frame past its targets moves reads to images, A stays over.
   'overflow': ({required on}) =>
       GlassComposer.debugPolicy = Policy(maxTargets: on ? 8 : 1024),
-  // B adds a texture to a read's scene again, A reads the backdrop live over
-  // it. B only shows true where the texture shows the same frame in both.
-  'texture_in_scene': ({required on}) => GlassCopies.debugTextureInScene = on,
   // B: scroll edges only fade, without blur.
   'edge_fade': ({required on}) => debugSetEdgeBlurs(on: !on),
   // B leaves a backdrop frost out of a copy for wider frosted glass.
@@ -78,10 +71,6 @@ final benchSwitches = <String, void Function({required bool on})>{
   // at the screen's pixels; A leaves that glass out.
   'coarse_holds': ({required on}) =>
       GlassComposer.debugPolicy = Policy(coarseHolds: on),
-  // B: a copy smaller than the screen holds the glass under it at its own
-  // pixels, A at the screen's.
-  'own_grid_holds': ({required on}) =>
-      GlassComposer.debugPolicy = Policy(ownGridHolds: on),
   'downscale4': ({required on}) =>
       RenderLiquidGlassLayer.debugMaxCopyDownscale = on ? 4 : 2,
   // B draws the copies asked for without a filter in the frame, A into

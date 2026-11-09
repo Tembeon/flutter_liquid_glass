@@ -690,13 +690,12 @@ FormNode _nodeOf(Layer layer) {
       return OutputNode(layer);
     case PictureLayer():
       return PictureNode(layer);
+    // The scene holds the frame the texture shows under the glass: a video
+    // whose bars move every frame stays whole across the glass's edge on the
+    // iPhone 16 Pro, and a list of videos under glass takes 17 passes on the
+    // Pixel 6a where reading it live took 50.
     case TextureLayer():
-      return VolatileNode(
-        layer,
-        GlassCopies.debugTextureInScene
-            ? ReadLimit.sceneOnly
-            : ReadLimit.liveOnly,
-      );
+      return VolatileNode(layer, ReadLimit.sceneOnly);
     case PlatformViewLayer():
       return VolatileNode(layer, ReadLimit.liveOnly);
     case OpacitySeedLayer():
