@@ -5,6 +5,7 @@ import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/renderer/scroll_edge.dart';
 import 'package:apple_liquid_glass_example/app.dart';
 import 'package:apple_liquid_glass_example/perf/device_check.dart';
+import 'package:apple_liquid_glass_example/renderer_flags.dart';
 import 'package:apple_liquid_glass_example/settings.dart';
 import 'package:apple_liquid_glass_example/widgets.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
@@ -199,6 +200,40 @@ class _SettingsSheet extends StatelessWidget {
               ),
             ),
           ],
+        ),
+        for (final flag in rendererFlags) _FlagSection(flag: flag),
+      ],
+    );
+  }
+}
+
+/// A renderer flag with what it trades and where to look, flipped at once
+/// for every glass on screen and kept until the app restarts.
+class _FlagSection extends StatefulWidget {
+  const _FlagSection({required this.flag});
+
+  final RendererFlag flag;
+
+  @override
+  State<_FlagSection> createState() => _FlagSectionState();
+}
+
+class _FlagSectionState extends State<_FlagSection> {
+  @override
+  Widget build(BuildContext context) {
+    final flag = widget.flag;
+    void flip({required bool on}) => setState(() => flag.value = on);
+    return GlassListSection(
+      header: const Text('Renderer flag'),
+      footer: Text('${flag.what}\n\nWhere: ${flag.where}'),
+      children: [
+        GlassListRow(
+          title: Text(flag.title),
+          trailing: GlassSwitch(
+            value: flag.value,
+            onChanged: (on) => flip(on: on),
+          ),
+          onPressed: () => flip(on: !flag.value),
         ),
       ],
     );
