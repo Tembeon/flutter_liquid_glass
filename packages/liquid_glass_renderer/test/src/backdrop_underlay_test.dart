@@ -351,6 +351,7 @@ void main() {
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
+    _textureReadLive();
     await tester.pumpWidget(_scene(texture: true));
     expect(_glass(tester).debugDrewOverCopy, isFalse);
     expect(_liveFilters(tester), isNotEmpty);
@@ -435,6 +436,7 @@ void main() {
     expect(_glass(tester).debugDrewOverCopy, isTrue);
     expect(_liveFilters(tester), isEmpty);
 
+    _textureReadLive();
     await tester.pumpWidget(_scene(opacity: 0.6, texture: true));
     expect(_glass(tester).debugDrewOverCopy, isFalse);
     expect(
@@ -929,4 +931,11 @@ void main() {
     await tester.pumpWidget(_pairScene(top: 160, shadowed: true));
     expect(GlassCopies.debugImagesDrawn, drawn + 1);
   }, skip: skipProperGlassTests);
+}
+
+// A texture stands in for the layers a copy cannot draw, such as a platform
+// view, which a host test cannot make.
+void _textureReadLive() {
+  GlassCopies.debugTextureInScene = false;
+  addTearDown(() => GlassCopies.debugTextureInScene = true);
 }

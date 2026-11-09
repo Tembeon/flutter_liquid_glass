@@ -203,14 +203,12 @@ void main() {
     }, skip: skipProperGlassTests);
   });
 
-  testWidgets('a texture under glass stays in a scene read when asked', (
+  testWidgets('a texture under glass stays in a scene read', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(400, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    GlassCopies.debugTextureInScene = true;
-    addTearDown(() => GlassCopies.debugTextureInScene = false);
     await tester.pumpWidget(
       Directionality(
         textDirection: TextDirection.ltr,

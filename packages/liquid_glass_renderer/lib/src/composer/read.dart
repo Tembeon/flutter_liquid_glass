@@ -147,10 +147,15 @@ abstract final class GlassCopies {
   @visibleForTesting
   static int debugBlurLayers = 0;
 
-  /// Whether a read over a texture adds the texture again in the scene, for an
-  /// A/B run: until a run says it holds, what lies over one reads live.
+  /// Whether a read over a texture adds the texture again in the scene,
+  /// rather than reading what lies over it live; false for an A/B run.
+  ///
+  /// The scene holds the frame the texture shows under the glass: a video
+  /// whose bars move every frame stays whole across the glass's edge on the
+  /// iPhone 16 Pro. On the Pixel 6a it takes a list of videos under glass
+  /// from 50 passes to 17.
   @internal
-  static bool debugTextureInScene = false;
+  static bool debugTextureInScene = true;
 
   /// A/B run: false walks every layer of every read each frame.
   @internal

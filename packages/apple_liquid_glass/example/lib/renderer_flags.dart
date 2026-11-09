@@ -9,8 +9,8 @@ import 'package:liquid_glass_renderer/src/composer/plan.dart' show Policy;
 import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
-/// A renderer switch that waits for a look on a phone before it gets a
-/// default: what it trades and where in the gallery that shows.
+/// A renderer switch for an A/B look on a phone: what it trades and where in
+/// the gallery that shows.
 class RendererFlag {
   const RendererFlag({
     required this.title,
@@ -58,11 +58,11 @@ final rendererFlags = [
     title: 'Coarse glass under glass',
     what:
         "Frosted glass reads a copy of the backdrop at half the screen's "
-        'resolution, and other glass under it is drawn into that copy. Off '
-        "(default): that glass is drawn at the screen's pixels. On: at the "
-        "copy's own pixels, which is cheaper (Pixel, Motion tab scroll: "
-        '12 % less fragment work) but can soften or alias the edge and '
-        'bevel of the glass seen through the frosted glass.',
+        'resolution, and other glass under it is drawn into that copy. On '
+        "(default): that glass is drawn at the copy's own pixels, which is "
+        'cheaper (Pixel, Motion tab scroll: 12 % less fragment work). Off: '
+        "at the screen's pixels, a little sharper at the edge and bevel of "
+        'the glass seen through the frosted glass.',
     where:
         'glass that passes under the tab bar. Scroll the Controls tab so the '
         'slider, the segmented controls, the stepper or the buttons go '
@@ -96,13 +96,12 @@ final rendererFlags = [
   RendererFlag(
     title: 'Video in the copy',
     what:
-        'Off (default): glass over a video or any other texture reads the '
-        'live backdrop, which takes its own passes. On: the current video '
-        "frame goes into the glass's copy with the rest of the backdrop "
-        '(Pixel, a list of videos under glass: 50 to 17 passes, about 770 '
-        'mW less). The risk is a copy that holds another frame than the '
-        'one around the glass: the moving bars of the clip then break at '
-        "the glass's edge or lag inside it.",
+        "On (default): the current video frame goes into the glass's copy "
+        'with the rest of the backdrop. Off: glass over a video or any '
+        'other texture reads the live backdrop, which takes its own passes '
+        '(Pixel, a list of videos under glass: 17 passes on, 50 off, about '
+        '770 mW apart). A copy that held another frame than the one around '
+        "the glass would break the clip's moving bars at the glass's edge.",
     where:
         'Present, Pages, Video. Watch the white and black bars where they '
         'cross the play, Live and fullscreen buttons, the navigation bar '

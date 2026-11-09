@@ -356,7 +356,7 @@ void main() {
         pixelRatio: 2,
         secondFrost: 20,
         tint: const Color(0xCCFF3B30),
-        policy: Policy(maxTargets: inFrame ? 64 : 0, ownGridHolds: true),
+        policy: Policy(maxTargets: inFrame ? 64 : 0),
       );
       final image = await drawn(inFrame: false);
       final inFrame = await drawn(inFrame: true);
@@ -419,6 +419,7 @@ void main() {
         inFrame: false,
         pixelRatio: pixelRatio,
         secondFrost: 12,
+        policy: const Policy(maxTargets: 0, ownGridHolds: false),
       );
       final images = GlassCopies.debugImagesDrawn;
       final inFrame = await _drawn(
@@ -426,10 +427,12 @@ void main() {
         inFrame: true,
         pixelRatio: pixelRatio,
         secondFrost: 12,
+        policy: const Policy(maxTargets: 64, ownGridHolds: false),
       );
       expect(GlassCopies.debugImagesDrawn, greaterThan(images));
       // At the image's own pixels the upper glass lands twice as far from
-      // its layer's corner, over 70 levels off.
+      // its layer's corner, over 70 levels off. Both paths hold it at the
+      // screen's pixels: at the copy's own the bevel is a NEAR of its own.
       expect(_difference(image, inFrame), lessThanOrEqualTo(5));
     }, skip: skipProperGlassTests);
   }

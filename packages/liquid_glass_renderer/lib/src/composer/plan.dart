@@ -584,19 +584,21 @@ final class Policy {
     this.dropsFrost = true,
     this.bakesFrost = true,
     this.coarseHolds = true,
-    this.ownGridHolds = false,
+    this.ownGridHolds = true,
   });
 
   /// Whether a copy smaller than the screen holds the glass under it at its
   /// own pixels, the glass's shader drawing a fragment for each of them,
   /// rather than at the screen's.
   ///
-  /// NEAR, not yet judged by eye: the held glass's bevel squeezes what it
+  /// NEAR, judged by eye on the iPhone 16 Pro over the gallery's controls
+  /// and cards under the tab bar: the held glass's bevel squeezes what it
   /// refracts past what one fragment per copy pixel resolves, and the copy's
-  /// frost leaves that showing. Against the glass held at the screen's
-  /// pixels under Impeller's blur (host, dpr 2 and 3, clear glass held): 5
-  /// to 13 levels off under a frost of 12 and 20 logical pixels, 40 to 51
-  /// under 6; drawn at the screen's pixels and as a picture, 4 to 35.
+  /// frost hides it. Against the glass held at the screen's pixels under
+  /// Impeller's blur (host, dpr 2 and 3, clear glass held): 5 to 13 levels
+  /// off under a frost of 12 and 20 logical pixels, 40 to 51 under 6; drawn
+  /// at the screen's pixels and as a picture, 4 to 35. It saves 12 % of the
+  /// fragment work of a scroll with glass under the tab bar on the Pixel 6a.
   final bool ownGridHolds;
 
   /// Whether a copy of a quarter of the screen's pixels or fewer holds the
