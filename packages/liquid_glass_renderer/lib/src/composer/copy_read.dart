@@ -330,7 +330,7 @@ final class CornerRead {
     }
     final clear = Paint()..blendMode = BlendMode.clear;
     final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder)
+    Canvas(recorder)
       ..drawRect(const Rect.fromLTWH(0, 0, 1, 1), clear)
       ..drawRect(
         Rect.fromLTRB(size.width - 1, size.height - 1, size.width, size.height),

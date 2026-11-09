@@ -1000,7 +1000,7 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
         _withRoom(read, ledger.reads[id], rent, screen),
         screen,
       );
-      final next = edits.writes[id]!
+      edits.writes[id]!
         ..geometry = read.geometry
         ..boughtAt = frame
         ..forBudget = true;
