@@ -279,10 +279,6 @@ abstract final class GlassCopies {
   /// How many filtered layers the pages were drawn in.
   @visibleForTesting
   static int debugBlurLayers = 0;
-
-  /// A/B run: false walks every layer of every read each frame.
-  @internal
-  static bool debugKeepsLayers = true;
 }
 
 // Content clipped away reaches no band, even where its empty rect lies across
@@ -451,7 +447,6 @@ final class _Replay {
   // glass and nothing in it changed: a scroll moves rows, not what lies in
   // them. False where it has to be walked.
   bool _addHeld(OpenNode open, List<SiteFacts>? parts) {
-    if (!GlassCopies.debugKeepsLayers) return false;
     final frame = copy._form.frame;
     if (open.holdsComposed ||
         open.contentAt == frame ||

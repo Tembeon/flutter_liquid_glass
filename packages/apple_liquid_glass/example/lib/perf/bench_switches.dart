@@ -12,8 +12,6 @@ import 'package:liquid_glass_renderer/src/composer/read.dart';
 /// `none` flips nothing: an A/A run that shows the noise floor.
 final benchSwitches = <String, void Function({required bool on})>{
   'none': ({required on}) {},
-  // B: a read keeps what did not change between frames, A walks all of it.
-  'keeps_layers': ({required on}) => GlassCopies.debugKeepsLayers = on,
   // B draws every second vsync while nothing fast moves; A every vsync.
   'cadence': ({required on}) => FrameCadence.enabled = on,
   // B draws the copies asked for without a filter in the frame, A into
