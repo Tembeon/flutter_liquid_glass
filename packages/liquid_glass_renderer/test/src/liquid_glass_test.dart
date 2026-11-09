@@ -1255,7 +1255,11 @@ void main() {
 
           settings.value = settings.value.copyWith(refractionHeight: 24);
           await tester.pump();
-          expect(renderer.debugRenderCount, initialRenderCount + 1);
+          expect(
+            renderObject.debugAnalytic,
+            isTrue,
+            reason: 'one changed shape is shaded analytically',
+          );
         },
         skip: skipProperGlassTests,
       );
@@ -1316,7 +1320,11 @@ void main() {
 
           visibility.value = 0;
           await tester.pump();
-          expect(renderer.debugRenderCount, initialRenderCount + 2);
+          expect(
+            (renderer.debugRenderCount, renderObject.debugAnalytic),
+            (initialRenderCount + 1, true),
+            reason: 'the shape left is shaded analytically while it changes',
+          );
         },
         skip: skipProperGlassTests,
       );
@@ -1327,7 +1335,9 @@ void main() {
 Future<void> _pumpAtDpr2(WidgetTester tester) async {
   tester.view.devicePixelRatio = 2;
   addTearDown(tester.view.resetDevicePixelRatio);
-  await pumpOnce(tester);
+  // The new ratio changes the shapes, which are shaded analytically until
+  // they rest on a matte.
+  await pumpNTimes(RenderLiquidGlassLayer.analyticRestFrames + 2)(tester);
 }
 
 /// A 120x80 continuous-corner rect blended with [second], [gap] logical

@@ -117,7 +117,7 @@ Future<void> warmLiquidGlassPipelines(
       // declares.
       final shader = program.fragmentShader()
         ..setImageSampler(0, matte, filterQuality: FilterQuality.low);
-      if (variants[index].kind != FinalShaderKind.analytic) {
+      if (!variants[index].kind.perFragment) {
         shader.setImageSampler(1, matte, filterQuality: FilterQuality.low);
         switch (variants[index].kind) {
           case FinalShaderKind.material:
@@ -126,7 +126,9 @@ Future<void> warmLiquidGlassPipelines(
               ..setImageSampler(3, material, filterQuality: FilterQuality.low);
           case FinalShaderKind.tint:
             shader.setImageSampler(2, tint, filterQuality: FilterQuality.low);
-          case FinalShaderKind.single || FinalShaderKind.analytic:
+          case FinalShaderKind.single ||
+              FinalShaderKind.shape ||
+              FinalShaderKind.analytic:
             break;
         }
       }

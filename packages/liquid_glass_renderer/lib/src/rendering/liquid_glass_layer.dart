@@ -169,17 +169,19 @@ class LiquidGlassLayer extends StatefulWidget {
   final LiquidGlassGlow? glow;
 
   /// Whether the final pass works out this layer's shapes itself while they
-  /// change, instead of drawing them into the matte first.
+  /// change, instead of drawing them into the matte first, when the layer
+  /// holds more than one shape.
   ///
   /// A frame shaded this way records and submits no geometry pass, which
   /// cuts UI-thread time while a shape moves or resizes. The GPU pays
   /// instead: the final shader works out the shapes at every pixel rather
-  /// than once per matte texel. For one small shape that costs next to
-  /// nothing; for several blended shapes or large glass it costs much more
-  /// GPU time and energy than the matte. Turn it on for small glass that
-  /// moves often on a busy UI thread, such as a slider thumb or a segmented
-  /// control's lens; leave it off for sheets and blend groups. Once the
-  /// shapes stop, the layer draws the matte and shades from it again.
+  /// than once per matte texel. A layer of one shape that draws apart from
+  /// other glass does this whatever this says: its shader costs about what
+  /// the matte's does. For several shapes it costs much more GPU time and
+  /// energy than the matte; turn it on for small groups that move often on
+  /// a busy UI thread, such as a segmented control's lens, and leave it off
+  /// for blend groups. Once the shapes stop, the layer draws the matte and
+  /// shades from it again.
   ///
   /// A layer with shapes that differ in appearance, a field (its own or a
   /// live frame's), more than eight shapes or mostly empty space keeps the
@@ -580,7 +582,15 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// names why a frame encoded a matte anyway. [analyticRestFrames] frames
   /// after the geometry last changed, the layer encodes one matte and rests
   /// on it, which is cheaper to shade.
+  ///
+  /// A layer of one shape that draws through a read of its own does this
+  /// without it, from the frame its matte would change.
   bool analyticGeometry = false;
+
+  /// Whether a layer of one shape shades it analytically while it changes
+  /// without [analyticGeometry]. Off, it encodes a matte each such frame.
+  @visibleForTesting
+  static bool debugAnalyticShape = true;
 
   /// How many frames after its latest analytic frame the layer encodes a
   /// matte to rest on.
@@ -661,7 +671,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _usesShapeAppearances || groupTints,
       _usesTintOnlyAppearance || groupTints,
     )) {
-      (true, _, _) => FinalShaderKind.analytic,
+      (true, _, _) => _analyticShapes!.kind,
       (false, false, _) => FinalShaderKind.single,
       (false, true, true) => FinalShaderKind.tint,
       (false, true, false) => FinalShaderKind.material,
@@ -1069,6 +1079,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // Set again where the frame paints its material.
     _rig.releaseSlot();
     if (geometryBounds == null) {
+      _drewShapes = false;
       _clearGeometryImage();
       _releaseCompositorFilter();
       releaseRetainedEffectLayer();
@@ -1077,6 +1088,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final materialPaintBounds = _prepareGeometryAppearance(geometryBounds);
     switch (frameState) {
       case GlassFrameState.empty:
+        _drewShapes = false;
         _clearGeometryImage();
         _releaseCompositorFilter();
         needsGeometryUpdate = false;
@@ -2248,6 +2260,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // The shapes of the latest analytic frame.
   AnalyticShapes? _analyticShapes;
 
+  // Whether the layer drew shapes since it last drew none: its next geometry
+  // frame changes them rather than shows new ones.
+  bool _drewShapes = false;
+
   /// Asks for one matte frame [analyticRestFrames] frames after the latest
   /// analytic frame, unless another one comes first.
   void _scheduleAnalyticRest() {
@@ -2307,6 +2323,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
 
     _encodedShift = Offset.zero;
+    final changes = _drewShapes;
+    _drewShapes = true;
     var shapes = _shapes = ShapeSet.encode(
       geometries,
       devicePixelRatio: devicePixelRatio,
@@ -2328,8 +2346,21 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
     final rest = _restRequested;
     _restRequested = false;
+    // One shape in a read of its own evaluates in 32 Mali-G78 registers,
+    // like the matte variant. In a shared read, the read's other glass would
+    // lose the filter this layer draws them through. New shapes get a matte:
+    // they may never change.
+    final oneShape =
+        numShapes == 1 &&
+        debugAnalyticShape &&
+        changes &&
+        switch (_fate) {
+          Leads(:final read) => read.members.length == 1,
+          Hidden() => true,
+          Follows() => false,
+        };
     _analyticIneligibility = switch (()) {
-      _ when !analyticGeometry => 'off',
+      _ when !analyticGeometry && !oneShape => 'off',
       _ when !writeMatte => 'material update',
       _ when rest => 'rest',
       _ when _field != null => 'field',

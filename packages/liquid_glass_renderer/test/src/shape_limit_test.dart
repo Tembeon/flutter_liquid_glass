@@ -53,4 +53,11 @@ void main() {
       4 + most * (12 + 12 + 12 + 4 + 1),
     );
   });
+
+  test('a one-shape variant holds one shape', () {
+    expect(
+      _define('liquid_glass_final_render_shape.frag', 'ANALYTIC_MAX_SHAPES'),
+      1,
+    );
+  });
 }

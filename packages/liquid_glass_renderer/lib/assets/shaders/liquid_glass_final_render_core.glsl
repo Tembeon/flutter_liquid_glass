@@ -7,12 +7,9 @@
 // Refraction is evaluated in global filter coordinates: the affine mapping and
 // everything that holds a position stay highp, as mediump turns the coordinate
 // subtraction into visible shimmer on large layers. The rest is mediump, which
-// fits the shader in the 32 registers a Mali GPU runs at full occupancy.
-#if defined(ANALYTIC_GEOMETRY) && ANALYTIC_GEOMETRY
-precision highp float;
-#else
+// fits the shader in the 32 registers a Mali GPU runs at full occupancy. The
+// analytic shapes are highp in their own file.
 precision mediump float;
-#endif
 
 // The color models a variant shades: every model, the direct model alone,
 // or one iOS 27 model in slot 0 alone. A variant that shades one family fits

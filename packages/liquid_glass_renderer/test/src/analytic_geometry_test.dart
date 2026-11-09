@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/internal/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
 import 'shared.dart';
@@ -177,6 +178,44 @@ Widget _capsule(double radius) => Directionality(
   ),
 );
 
+Widget _one(
+  LiquidShape shape, {
+  bool analyticGeometry = false,
+  double width = 180,
+  Matrix4? transform,
+}) => Directionality(
+  textDirection: TextDirection.ltr,
+  child: Center(
+    child: RepaintBoundary(
+      key: _key,
+      child: SizedBox.fromSize(
+        size: _view,
+        child: ColoredBox(
+          color: _gray,
+          child: _transformed(
+            transform,
+            LiquidGlassLayer(
+              analyticGeometry: analyticGeometry,
+              settings: LiquidGlassSettings.ios27RegularLight(),
+              backdrop: const LiquidGlassBackdrop.solid(_gray),
+              child: Center(
+                child: SizedBox(
+                  width: width,
+                  height: 120,
+                  child: LiquidGlass(
+                    shape: shape,
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  ),
+);
+
 void main() {
   testWidgets('a capsule with an oversized radius draws what one of half '
       'its height draws', (tester) async {
@@ -333,6 +372,71 @@ void main() {
       expect(share, lessThan(0.0005));
     }, skip: skipProperGlassTests);
   }
+
+  for (final (name, shape) in [
+    ('rounded superellipse', const LiquidRoundedSuperellipse(borderRadius: 30)),
+    (
+      'pair',
+      const LiquidRoundedSuperellipse(borderRadius: 16, bottomRadius: 44),
+    ),
+    ('rounded rectangle', const LiquidRoundedRectangle(borderRadius: 24)),
+    ('oval', const LiquidOval()),
+  ]) {
+    for (final (scale, ratio, transform) in [
+      ('1x', 1.0, null),
+      (
+        '3x, scaled and turned',
+        2.625,
+        Matrix4.rotationZ(0.2)..scaleByDouble(0.9, 0.7, 1, 1),
+      ),
+    ]) {
+      testWidgets('one $name draws what its matte draws ($scale)', (
+        tester,
+      ) async {
+        final (mean, share) = await _analyticAgainstRest(
+          tester,
+          _one(shape, analyticGeometry: true, transform: transform),
+          ratio,
+        );
+        expect(_layer(tester).debugLiveDraw, isNotNull);
+        expect(mean, lessThan(0.05));
+        expect(share, lessThan(0.0005));
+      }, skip: skipProperGlassTests);
+    }
+  }
+
+  testWidgets('one shape is shaded analytically while it changes', (
+    tester,
+  ) async {
+    const shape = LiquidRoundedSuperellipse(borderRadius: 30);
+    await tester.pumpWidget(_one(shape));
+    final layer = _layer(tester);
+    expect(layer.debugAnalytic, isFalse, reason: 'a new shape has a matte');
+    expect(layer.debugAnalyticIneligibility, 'off');
+
+    await tester.pumpWidget(_one(shape, width: 200));
+    expect(layer.debugAnalyticIneligibility, isNull);
+    expect(layer.debugAnalytic, isTrue);
+    expect(
+      layer.debugLiveShader,
+      same(
+        layer.finalShaders[FinalShaderVariant.indexOf(
+          FinalShaderKind.shape,
+          FinalShaderModels.ios27,
+        )],
+      ),
+    );
+    for (var i = 0; i < RenderLiquidGlassLayer.analyticRestFrames + 2; i++) {
+      await tester.pump();
+    }
+    expect(layer.debugAnalytic, isFalse, reason: 'rests on a matte');
+
+    RenderLiquidGlassLayer.debugAnalyticShape = false;
+    addTearDown(() => RenderLiquidGlassLayer.debugAnalyticShape = true);
+    await tester.pumpWidget(_one(shape, width: 220));
+    expect(layer.debugAnalytic, isFalse);
+    expect(layer.debugAnalyticIneligibility, 'off');
+  }, skip: skipProperGlassTests);
 
   testWidgets('a sparse layer keeps the matte', (tester) async {
     final maxEmptyTests = RenderLiquidGlassLayer.analyticMaxEmptyTests;

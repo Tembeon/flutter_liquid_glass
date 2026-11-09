@@ -1,5 +1,5 @@
 // Analytic geometry for the final pass: up to ANALYTIC_MAX_SHAPES shapes
-// evaluated where the fragment is, with the geometry pass's own scene
+// (8, or 1 for the one-shape variants) evaluated where the fragment is, with the geometry pass's own scene
 // (gpu/sdf.glsl), instead of read from a Flutter GPU matte. It yields the
 // matte's texel at the fragment itself - the distance, the normal times its
 // strength and half the shorter side - so the rest of the final pass reads
@@ -14,23 +14,37 @@
 // impellerc gives every uniform declaration its own Metal buffer slot and
 // Metal has 31; these four fit because the core packs its optional effects
 // into uEffects.
+//
+// The shapes are highp, as the matte pass shades them; the core's mediump
+// returns after them. A whole highp shader holds 64 work registers on a
+// Mali-G78, half its occupancy; one shape scoped this way holds 32.
+precision highp float;
 
+#ifndef ANALYTIC_MAX_SHAPES
 #define ANALYTIC_MAX_SHAPES 8
+#endif
 #define MAX_SHAPES ANALYTIC_MAX_SHAPES
 
+#if MAX_SHAPES > 1
 // x: the number of shapes, y: how far past the shapes' outlines a fragment
 // can still matter (the contour extent), device px, z: 1 when a group blends
 // two or more shapes.
 uniform vec4 uAnalyticHeader;
+#endif
 uniform vec4 uShapeData[MAX_SHAPES * 3];
 // Each shape's three rounded superellipse rows, then from MAX_SHAPES * 3
 // each pair's bottom-half rows, as gpu/sdf.glsl reads them.
 uniform vec4 uRseData[MAX_SHAPES * 6];
 // MAX_SHAPES shape bounds (what gpu/sdf.glsl reads), then each shape's cull
 // factor, four to a row: its basis's smallest stretch over its largest. A
-// shape's distance is at least its box's distance times that.
+// shape's distance is at least its box's distance times that. One shape
+// reads neither.
+#if MAX_SHAPES > 1
 uniform vec4 uShapeBounds[MAX_SHAPES + MAX_SHAPES / 4];
 #define shapeCull(i) uShapeBounds[MAX_SHAPES + (i) / 4][(i) - ((i) / 4) * 4]
+#else
+vec4 uShapeBounds[1];
+#endif
 
 #include "gpu/sdf.glsl"
 
@@ -82,6 +96,33 @@ float shapeDepthBound(int index, vec2 p) {
     return max(depth - 0.01 * radius, 0.0) * placement.z;
 }
 
+// The texel of [scene]: as geometry_fragment.glsl encodes it.
+vec4 sceneTexel(SceneSample scene) {
+    float gradientLength = length(scene.opticalNormal);
+    vec2 normal = gradientLength > 0.0001
+        ? scene.opticalNormal / gradientLength
+        : vec2(0.0);
+    return vec4(
+        clamp(-scene.distance, -16000.0, 16000.0),
+        normal * sqrt(clamp(gradientLength, 0.0, 1.0)),
+        scene.halfMinor
+    );
+}
+
+#if MAX_SHAPES == 1
+// The geometry pass's texel at p (geometry_fragment.glsl); deeper inside than
+// [readDepth], where the final pass only checks that the distance is past
+// it, some depth past it with no normal. The glass is drawn over the shape's
+// own box, so few pixels lie far outside it; a test for them would double
+// the registers (64 on a Mali-G78).
+vec4 analyticTexel(vec2 p, float readDepth) {
+    float depth = shapeDepthBound(0, p);
+    if (depth > readDepth) {
+        return vec4(depth, 0.0, 0.0, 0.0);
+    }
+    return sceneTexel(getShapeSampleFromArray(0, p, false));
+}
+#else
 // The nearest of shapes that never blend, in sceneSample's order and tie
 // rule (each its own group: a later equal shape wins, except the last,
 // which must be strictly nearer). A shape whose box is farther than the
@@ -130,16 +171,10 @@ vec4 analyticTexel(vec2 p, float readDepth) {
             return vec4(depth, 0.0, 0.0, 0.0);
         }
     }
-    SceneSample scene = uAnalyticHeader.z > 0.5
-        ? sceneSample(p, count)
-        : nearestShape(p, count);
-    float gradientLength = length(scene.opticalNormal);
-    vec2 normal = gradientLength > 0.0001
-        ? scene.opticalNormal / gradientLength
-        : vec2(0.0);
-    return vec4(
-        clamp(-scene.distance, -16000.0, 16000.0),
-        normal * sqrt(clamp(gradientLength, 0.0, 1.0)),
-        scene.halfMinor
+    return sceneTexel(
+        uAnalyticHeader.z > 0.5 ? sceneSample(p, count) : nearestShape(p, count)
     );
 }
+#endif
+
+precision mediump float;
