@@ -451,7 +451,7 @@ final class ReadGeometry {
     required Object? filter,
   }) {
     final lattice = atScreen ? asked.atScreen : asked;
-    final band = asked.snapOut(reads).intersect(screen);
+    final band = lattice.snapOut(reads).intersect(screen);
     final cut = clip?.intersect(screen);
     final layer = switch (cut) {
       null => band,
