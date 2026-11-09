@@ -18,16 +18,26 @@ const double _shaderFrostTexels = 3.5;
 @visibleForTesting
 int debugShaderFrostMaxDownscale = 4;
 
+// How many device pixels along each side one pixel holds where Impeller's
+// blur by [sigma] device pixels downsamples (GaussianBlurFilterContents::
+// CalculateScale: none up to 4, else 2^round(log2(sigma / 4))).
+int _blurDownscale(double sigma) =>
+    sigma <= 4 ? 1 : 1 << max(0, (log(sigma / 4) / ln2).round());
+
 /// How many device pixels along each side one pixel of a copy holds that
 /// the shader frosts for Impeller's blur by [sigma] device pixels, or null
 /// when the frost is too wide for it.
 ///
 /// The copy is the largest whose pixels the frost spans by at most 3.5,
-/// then halved while the frost still spans [minTexels] of its pixels.
+/// then halved while the frost still spans [minTexels] of its pixels and,
+/// with [atBlurScale], while Impeller's own blur would downsample as far.
+/// Past that a weak frost leaves the copy's pixels showing: its taps then
+/// span about one of them, where Impeller's passes span two.
 @internal
 int? shaderFrostDownscale(
   double sigma, {
   double minTexels = double.infinity,
+  bool atBlurScale = false,
 }) {
   final delivered = sigma * _deliveredFrost;
   var downscale = 1;
@@ -38,7 +48,11 @@ int? shaderFrostDownscale(
   if (delivered <= 0 || delivered / downscale > _shaderFrostTexels) {
     return null;
   }
+  final floor = atBlurScale
+      ? _blurDownscale(sigma)
+      : debugShaderFrostMaxDownscale;
   while (downscale < debugShaderFrostMaxDownscale &&
+      downscale * 2 <= floor &&
       delivered / (downscale * 2) >= minTexels) {
     downscale *= 2;
   }

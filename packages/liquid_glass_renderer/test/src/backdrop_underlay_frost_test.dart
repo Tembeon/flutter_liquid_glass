@@ -34,8 +34,8 @@ void main() {
   // frost meets: the frost's taps differ from Impeller's blur most there, and
   // the copy's size adds to it as it does for a blurred copy.
   for (final (frost, size, near) in [
-    (3.0, (130, 100), 22),
-    (8.0, (65, 50), 36),
+    (3.0, (260, 200), 22),
+    (8.0, (130, 100), 22),
     (12.0, (65, 50), 27),
   ]) {
     testWidgets('glass frosted by $frost over an unblurred copy draws near '

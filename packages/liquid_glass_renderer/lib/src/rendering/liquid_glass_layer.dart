@@ -1869,7 +1869,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final round = sigma * sqrt(scaleX * scaleY);
     final frosted =
         sigma > 0 && _frostsCopies && (scaleX / scaleY - 1).abs() <= 0.05
-        ? shaderFrostDownscale(round * dpr, minTexels: debugFrostMinTexels)
+        ? shaderFrostDownscale(
+            round * dpr,
+            minTexels: debugFrostMinTexels,
+            atBlurScale: debugFrostAtBlurScale,
+          )
         : null;
     var downscale = frosted ?? 1;
     final frost = frosted == null ? 0.0 : round;
@@ -2535,6 +2539,16 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// A copy is halved while the frost still spans this many of its pixels:
   /// the fewer the pixels, the less it costs to draw and to frost.
   static double debugFrostMinTexels = 1;
+
+  /// Whether a copy the glass frosts is never coarser than Impeller's blur
+  /// by the same sigma would take it.
+  ///
+  /// A weak frost over a copy of four device pixels a side leaves its
+  /// pixels showing (the owner on the iPhone). Kept to Impeller's scale, at
+  /// 2 and 3 dpr, weak frosts (1.5 to 2.7 logical pixels) come out half as
+  /// far from Impeller's blur on average (host), and a frost of 8 over white
+  /// bars 22 levels off at most instead of 36.
+  static bool debugFrostAtBlurScale = true;
 
   /// Encodes the geometry again, after a bench changed what it draws.
   void debugUpdateGeometry() {

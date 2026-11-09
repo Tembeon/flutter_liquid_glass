@@ -44,6 +44,10 @@ final benchSwitches = <String, void Function({required bool on})>{
   // B draws every second vsync while nothing fast moves; A every vsync.
   'cadence': ({required on}) => FrameCadence.enabled = on,
   'wide_frost': ({required on}) => debugShaderFrostMaxDownscale = on ? 8 : 4,
+  // B: a frosted copy is never coarser than Impeller's blur by its sigma
+  // would take it; A halves it while the frost spans a pixel of it.
+  'blur_scale': ({required on}) =>
+      RenderLiquidGlassLayer.debugFrostAtBlurScale = on,
   // B frosts a small copy once, A in every fragment of the glass over it.
   'in_place': ({required on}) =>
       GlassComposer.debugPolicy = Policy(bakesFrost: on),
