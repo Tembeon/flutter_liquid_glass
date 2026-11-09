@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/rounded_superellipse_parameters.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
@@ -191,23 +192,20 @@ void main() {
         .toSet()
         .single;
     final image = layer.debugGeometryImage!;
-    final field = (await tester.runAsync(() => readGeometryField(image)))!;
-    final bounds = layer.debugGeometryMatteBounds;
-    final x = bounds.width ~/ 2;
-    double depth(int y) => fieldInwardAt(
-      field,
-      image.width,
-      x,
-      y,
-      scale: layer.matteScale,
-    );
+    final atlas = (await tester.runAsync(() => AtlasTexels.read(image)))!;
+    final size = layer.debugGeometryMatteBounds.size * layer.devicePixelRatio;
+    final x = size.width ~/ 2;
+    double depth(int y) => atlas.inwardAt(x, y);
+    bool ring(int y) => depth(y) > 0 && depth(y) < kDeepInward;
     var steepest = 0.0;
-    for (var y = 0; y + 1 < bounds.height; y++) {
-      if (depth(y) <= 0 || depth(y + 1) <= 0) continue;
+    var checked = 0;
+    for (var y = 0; y + 1 < size.height.round(); y++) {
+      if (!ring(y) || !ring(y + 1)) continue;
       steepest = max(steepest, (depth(y + 1) - depth(y)).abs());
+      checked++;
     }
-    // The depth moves at most one matte pixel per matte pixel, plus the
-    // matte's interpolation.
-    expect(steepest, lessThan(2));
+    expect(checked, greaterThan(20));
+    // The depth moves at most one pixel per pixel.
+    expect(steepest, lessThan(1.01));
   }, skip: skipProperGlassTests);
 }

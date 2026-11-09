@@ -66,7 +66,7 @@ void main() {
   test('every kind but the material map has a variant per model family', () {
     final names = {for (final v in FinalShaderVariant.all) v.name};
     expect(names, hasLength(FinalShaderVariant.all.length));
-    expect(FinalShaderVariant.all, hasLength(14));
+    expect(FinalShaderVariant.all, hasLength(11));
     final material =
         FinalShaderVariant.all[FinalShaderVariant.indexOf(
           FinalShaderKind.material,

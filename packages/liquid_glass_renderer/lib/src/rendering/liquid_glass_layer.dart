@@ -27,9 +27,9 @@ import 'package:liquid_glass_renderer/src/internal/transform_tracking_render_obj
 import 'package:liquid_glass_renderer/src/liquid_glass_backdrop.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_render_scope.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_settings.dart';
-import 'package:liquid_glass_renderer/src/matte_scale_flag.dart';
 import 'package:liquid_glass_renderer/src/rendering/consolidated_fake_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/appearance.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/group_matte.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/shading.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/shape_set.dart';
@@ -351,9 +351,6 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
     final gpuRenderer = _gpuGeometryRenderer;
     final useFake =
         widget.fake || !shaderFiltersSupported || gpuRenderer == null;
-    final matteScale = resolveMatteScale(
-      devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
-    );
     if (useFake) {
       if (!widget.fake && !shaderFiltersSupported && kDebugMode) {
         _logDebugFallback(
@@ -388,7 +385,6 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
                 defaultAppearance: defaultAppearance,
                 link: _link,
                 gpuGeometryRenderer: gpuRenderer,
-                matteScale: matteScale,
                 child: child!,
               );
             },
@@ -446,7 +442,6 @@ class _RawShapes extends SingleChildRenderObjectWidget {
     required this.defaultAppearance,
     required Widget super.child,
     required this.link,
-    required this.matteScale,
     this.gpuGeometryRenderer,
     super.key,
   });
@@ -461,10 +456,6 @@ class _RawShapes extends SingleChildRenderObjectWidget {
   final GeometryRenderLink link;
   final FlutterGpuGeometryRenderer? gpuGeometryRenderer;
 
-  /// How many matte pixels one low-res matte texel covers in each direction
-  /// (see `liquidGlassMatteScale`).
-  final int matteScale;
-
   @override
   RenderObject createRenderObject(BuildContext context) {
     return RenderLiquidGlassLayer(
@@ -474,7 +465,6 @@ class _RawShapes extends SingleChildRenderObjectWidget {
         defaultAppearance: defaultAppearance,
         link: link,
         gpuGeometryRenderer: gpuGeometryRenderer,
-        matteScale: matteScale,
       )
       ..field = field
       ..solidBackdrop = solidBackdrop
@@ -492,7 +482,6 @@ class _RawShapes extends SingleChildRenderObjectWidget {
       ..settings = settings
       ..defaultAppearance = defaultAppearance
       ..gpuGeometryRenderer = gpuGeometryRenderer
-      ..matteScale = matteScale
       ..field = field
       ..solidBackdrop = solidBackdrop
       ..glow = glow;
@@ -531,7 +520,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     required super.settings,
     required super.defaultAppearance,
     required super.link,
-    required this._matteScale,
     this._gpuGeometryRenderer,
   });
 
@@ -546,57 +534,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   static bool debugShaderVariants = true;
 
-  /// Whether a layer of one shape shades it analytically while it changes:
-  /// the final shader evaluates the shape where each fragment is, so the
-  /// frame encodes no matte and submits no Flutter GPU pass, from the frame
-  /// its matte would change while the layer draws through a read of its own.
-  /// [debugAnalyticIneligibility] names why a frame encoded a matte anyway.
-  /// [analyticRestFrames] frames after the shape last changed, the layer
-  /// encodes one matte and rests on it, which is cheaper to shade. Off, it
-  /// encodes a matte each such frame.
-  @visibleForTesting
-  static bool debugAnalyticShape = true;
-
-  /// How many frames after its latest analytic frame the layer encodes a
-  /// matte to rest on.
-  static const int analyticRestFrames = 2;
-
-  bool _analytic = false;
-
-  /// Whether the latest geometry frame is shaded analytically.
-  @visibleForTesting
-  bool get debugAnalytic => _analytic;
-
-  /// Why the latest geometry frame encoded a matte, or null when it was
-  /// analytic.
-  @visibleForTesting
-  String? get debugAnalyticIneligibility => _analyticIneligibility;
-  String? _analyticIneligibility;
-
-  // Whether the layer asked for a matte frame to rest on, and which analytic
-  // frame's quiet frames are being counted.
-  bool _restRequested = false;
-  int _analyticGeneration = 0;
-
-  // Sampler 0 takes its filtering from the image bound to it; an analytic
-  // frame has no matte to bind, so it binds this.
+  // Sampler 0 takes its filtering from the image bound to it; a layer with
+  // no atlas binds this.
   static final ui.Image _placeholder = () {
     final recorder = ui.PictureRecorder();
     Canvas(recorder);
     return recorder.endRecording().toImageSync(1, 1);
   }();
-
-  /// How many matte pixels one low-res matte texel covers in each direction:
-  /// 2 or 4 (see `liquidGlassMatteScale`). The final shaders work for both,
-  /// because the scale is passed in as a uniform.
-  int _matteScale;
-  int get matteScale => _matteScale;
-  set matteScale(int value) {
-    if (_matteScale == value) return;
-    _matteScale = value;
-    needsGeometryUpdate = true;
-    markNeedsPaint();
-  }
 
   bool _debugWarnedShapeLimit = false;
 
@@ -620,14 +564,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // since the read began has no band variant.
   int _variant({bool band = false, bool groupTints = false}) {
     final kind = switch ((
-      _analytic,
       _usesShapeAppearances || groupTints,
       _usesTintOnlyAppearance || groupTints,
     )) {
-      (true, _, _) => FinalShaderKind.shape,
-      (false, false, _) => FinalShaderKind.single,
-      (false, true, true) => FinalShaderKind.tint,
-      (false, true, false) => FinalShaderKind.material,
+      (false, _) => FinalShaderKind.single,
+      (true, true) => FinalShaderKind.tint,
+      (true, false) => FinalShaderKind.material,
     };
     final models = _colorModelFamily;
     return FinalShaderVariant.indexOf(
@@ -878,13 +820,16 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   @override
   void onSettingsChanged(LiquidGlassSettings old) {
-    final geometryInputsChanged =
-        old.effectiveRefractionHeight != settings.effectiveRefractionHeight ||
-        old.effectiveRefractionAmount != settings.effectiveRefractionAmount ||
-        old.refractionFitsShape != settings.refractionFitsShape ||
-        old.contourWidth != settings.contourWidth;
+    GlassReach reachOf(LiquidGlassSettings settings) => glassReach(
+      settings,
+      devicePixelRatio: devicePixelRatio,
+      contourExtent: 0,
+    );
     _shadingChanged();
-    if (geometryInputsChanged) needsGeometryUpdate = true;
+    if (old.contourWidth != settings.contourWidth ||
+        !reachOf(old).covers(reachOf(settings))) {
+      needsGeometryUpdate = true;
+    }
   }
 
   @override
@@ -968,7 +913,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   bool _reusesMatte(Rect bounds) =>
       !needsGeometryUpdate &&
-      !_analytic &&
       _geometryImage != null &&
       _reuseUniformlyTranslatedGeometry(bounds);
 
@@ -1032,7 +976,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // Set again where the frame paints its material.
     _rig.releaseSlot();
     if (geometryBounds == null) {
-      _drewShapes = false;
       _clearGeometryImage();
       _releaseCompositorFilter();
       releaseRetainedEffectLayer();
@@ -1041,7 +984,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final materialPaintBounds = _prepareGeometryAppearance(geometryBounds);
     switch (frameState) {
       case GlassFrameState.empty:
-        _drewShapes = false;
         _clearGeometryImage();
         _releaseCompositorFilter();
         needsGeometryUpdate = false;
@@ -1155,7 +1097,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       origin: bounds.topLeft * dpr,
       size: bounds.size * dpr,
       textureSize: textureSize,
-      matteScale: _matteScale,
       halfMinor: _halfMinor,
       refractionHeight: settings.effectiveRefractionHeight * dpr,
       fitsShape: settings.refractionFitsShape,
@@ -1274,7 +1215,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     glow: _glowNow,
     matte: _ownMatte,
     mapping: _liveMapping,
-    analytic: _analytic ? _analyticShapes : null,
   );
 
   // The live filter, with the draw and the blur it was made for.
@@ -1432,11 +1372,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @override
   void onResting() {}
 
-  // A pass that changes size counts the frames it holds still in the poll, and
-  // glass drawn analytically counts its way back to a matte there. A shape
-  // under the glass's own repaint boundary changes nothing around it.
+  // A pass that changes size counts the frames it holds still in the poll. A
+  // shape under the glass's own repaint boundary changes nothing around it.
   @override
-  bool get mayRest => !_analytic && !link.isDirty && !needsGeometryUpdate;
+  bool get mayRest => !link.isDirty && !needsGeometryUpdate;
 
   // This frame's place on the screen: the glass's transform to the screen, the
   // logical rect the shader draws, the material it paints there and the sigma
@@ -1450,9 +1389,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @override
   SiteAsk ask() {
     _frame = null;
-    var noJoin = _analytic
-        ? NoJoin.analytic
-        : _field != null || _usesShapeAppearances
+    var noJoin = _field != null || _usesShapeAppearances
         ? NoJoin.field
         : _glow != null
         ? NoJoin.glow
@@ -1541,7 +1478,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           appearance.colorModel,
           appearance.visibility,
           dpr,
-          _matteScale,
           need.frost,
           need.share,
           _colorModelFamily,
@@ -1629,7 +1565,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       (
         settings: first.settings,
         devicePixelRatio: first.devicePixelRatio,
-        matteScale: first._matteScale,
         contourOutset: first._contourOutset,
         fallback: first.defaultAppearance,
       ),
@@ -1695,7 +1630,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
               held: band.held,
             )
           : null,
-      analytic: _analytic ? _analyticShapes : null,
     );
   }
 
@@ -2136,22 +2070,17 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (motion.needsRepaint) GlassComposer.repaint(this);
   }
 
+  // The atlas texel for texel at the geometry buffer's corner.
   void _debugPaintGeometry(PaintingContext context, Offset offset) {
-    if (_geometryImage case final geometryImage?) {
-      final bounds = _geometryMatteBounds;
+    if (_geometryImage case final atlas?) {
       context.canvas
         ..save()
         ..translate(
-          bounds.left,
-          bounds.top,
+          offset.dx + _geometryMatteBounds.left,
+          offset.dy + _geometryMatteBounds.top,
         )
         ..scale(1 / devicePixelRatio)
-        ..drawImageRect(
-          geometryImage,
-          Offset.zero & bounds.size * devicePixelRatio / _matteScale.toDouble(),
-          (offset * devicePixelRatio) & bounds.size * devicePixelRatio,
-          Paint()..blendMode = BlendMode.src,
-        )
+        ..drawImage(atlas, Offset.zero, Paint()..blendMode = BlendMode.src)
         ..restore();
     }
   }
@@ -2192,7 +2121,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// face. A copy of the backdrop must contain this reach or the filter
   /// samples its own edge.
   double backdropSamplingReach(Rect material) {
-    // The final shader's edge shift (lowResDisplacementMagnitude): no wider
+    // The final shader's edge shift (displacementMagnitude): no wider
     // than half a shape's shorter side when refraction fits the shape, and
     // shrunk with the bevel otherwise. No shape inside the material has a
     // shorter side longer than the material's.
@@ -2210,34 +2139,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return blur + displacement + revealed;
   }
 
-  // The shapes of the latest analytic frame.
-  AnalyticShapes? _analyticShapes;
-
-  // Whether the layer drew shapes since it last drew none: its next geometry
-  // frame changes them rather than shows new ones.
-  bool _drewShapes = false;
-
-  /// Asks for one matte frame [analyticRestFrames] frames after the latest
-  /// analytic frame, unless another one comes first.
-  void _scheduleAnalyticRest() {
-    final generation = ++_analyticGeneration;
-    var frames = 0;
-    void check(Duration _) {
-      if (!attached || !_analytic || generation != _analyticGeneration) return;
-      if (++frames < analyticRestFrames) {
-        SchedulerBinding.instance
-          ..addPostFrameCallback(check)
-          ..scheduleFrame();
-        return;
-      }
-      _restRequested = true;
-      needsGeometryUpdate = true;
-      markNeedsPaint();
-    }
-
-    SchedulerBinding.instance.addPostFrameCallback(check);
-  }
-
   _GpuGeometryFrame _buildGpuGeometryImage(
     List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
     Rect bounds, {
@@ -2251,130 +2152,100 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       );
     }
 
-    final aaPadding = matteRoom(devicePixelRatio, _contourOutset);
-    // The matte is in this layer's local coordinates. Ancestor transforms
-    // are applied once by the compositor; baking them in would apply scale
-    // and rotation twice.
-    // Reused mattes may have moved by a fractional physical pixel. Keep
-    // their raster phase and bucket-sized extent: snapping again would
-    // register the new material map against an origin its matte never used.
+    final dpr = devicePixelRatio;
+    final aaPadding = matteRoom(dpr, _contourOutset);
+    // The geometry buffer is in this layer's local coordinates. Ancestor
+    // transforms are applied once by the compositor; baking them in would
+    // apply scale and rotation twice.
+    // A reused atlas may have moved by a fractional physical pixel. Keep its
+    // raster phase and extent: snapping again would register the new
+    // material map against an origin its atlas never used.
     final boundsInMatteSpace = writeMatte
-        ? bounds.inflate(aaPadding).snapToPixels(devicePixelRatio)
+        ? bounds.inflate(aaPadding).snapToPixels(dpr)
         : _geometryMatteBounds;
     final materialCenter = writeMatte ? bounds.center : _materialCenterInMatte;
 
-    final physicalSize = boundsInMatteSpace.size * devicePixelRatio;
-    final textureWidth = writeMatte
+    final physicalSize = boundsInMatteSpace.size * dpr;
+    final width = writeMatte
         ? physicalSize.width.ceil()
         : physicalSize.width.round();
-    final textureHeight = writeMatte
+    final height = writeMatte
         ? physicalSize.height.ceil()
         : physicalSize.height.round();
 
-    if (textureWidth <= 0 || textureHeight <= 0) {
+    if (width <= 0 || height <= 0) {
       throw StateError('Cannot render empty liquid-glass geometry.');
     }
 
     _encodedShift = Offset.zero;
-    final changes = _drewShapes;
-    _drewShapes = true;
-    var shapes = _shapes = ShapeSet.encode(
-      geometries,
-      devicePixelRatio: devicePixelRatio,
-    );
+    var shapes = ShapeSet.encode(geometries, devicePixelRatio: dpr);
     if (shapes.count == 0) {
       throw StateError('No invertible liquid-glass shapes to render.');
     }
     var kind = classifyAppearances(shapes.appearances, defaultAppearance);
-    // A field and a per-shape material map are drawn in one pass, which
-    // evaluates only so many shapes.
-    const most = geometryMaxShapesPerDraw;
-    if (shapes.count > most && (_field != null || kind.mixed)) {
+    // A per-shape material map is drawn in one pass, which evaluates only so
+    // many shapes.
+    if (kind.mixed && shapes.count > geometryMaxShapesPerDraw) {
       _debugWarnShapeLimitExceeded();
-      shapes = _shapes = shapes.take(most);
+      shapes = shapes.take(geometryMaxShapesPerDraw);
       kind = classifyAppearances(shapes.appearances, defaultAppearance);
     }
-    final numShapes = shapes.count;
-    final appearances = shapes.appearances;
+    _shapes = shapes;
+    final origin = boundsInMatteSpace.topLeft * dpr;
+    final inBuffer = ShapeSet.join([(shapes, -origin)]);
 
-    final rest = _restRequested;
-    _restRequested = false;
-    // One shape evaluates in 32 Mali-G78 registers, like the matte variant;
-    // more cost much more GPU time than their matte. In a shared read, the
-    // read's other glass would lose the filter this layer draws them
-    // through. New shapes get a matte: they may never change.
-    _analyticIneligibility = switch (()) {
-      _ when !debugAnalyticShape => 'off',
-      _ when numShapes > 1 => 'more than one shape',
-      _ when !changes => 'new shapes',
-      _ when !writeMatte => 'material update',
-      _ when rest => 'rest',
-      _ when _field != null => 'field',
-      _
-          when switch (_fate) {
-            Leads(:final read) => read.members.length > 1,
-            Hidden() => false,
-            Follows() => true,
-          } =>
-        'shared read',
-      _ => null,
-    };
-    _analytic = _analyticIneligibility == null;
-    if (_analytic) {
-      _analyticShapes = AnalyticShapes.of(shapes);
-      _scheduleAnalyticRest();
-      _needsMaterialUpdate = false;
-      return (
-        image: _placeholder,
-        materialImage: null,
-        materialCenter: materialCenter,
-        textureSize: const Size(1, 1),
-        materialTextureSize: const Size(1, 1),
-        matteBounds: Rect.fromLTWH(
-          boundsInMatteSpace.left,
-          boundsInMatteSpace.top,
-          textureWidth / devicePixelRatio,
-          textureHeight / devicePixelRatio,
+    var image = renderer.atlasImage;
+    var textureSize = _geometryTextureSize;
+    if (writeMatte) {
+      final reach = glassReach(
+        settings,
+        devicePixelRatio: dpr,
+        contourExtent: aaPadding * dpr,
+      );
+      final atlas = renderer.renderAtlas(switch (_field) {
+        final field? => Tiling.field(
+          BufferField(
+            field,
+            layerToBuffer: (dpr, 0, 0, dpr, -origin.dx, -origin.dy),
+          ),
+          width: width,
+          height: height,
+          reach: reach,
         ),
+        null => Tiling.shapes(
+          inBuffer,
+          width: width,
+          height: height,
+          reach: reach,
+        ),
+      });
+      if (renderer.droppedShapes > 0) _debugWarnShapeLimitExceeded();
+      image = atlas.image;
+      textureSize = Size(
+        atlas.textureWidth.toDouble(),
+        atlas.textureHeight.toDouble(),
       );
     }
-
-    final result = renderer.render(
-      writeMatte: writeMatte,
-      width: textureWidth,
-      height: textureHeight,
-      shapeData: shapes.shapes,
-      rseData: shapes.superellipses,
-      rseLowerData: shapes.superellipsesLower,
-      boundsData: shapes.boxes,
-      numShapes: numShapes,
-      refractionHeight: settings.effectiveRefractionHeight * devicePixelRatio,
-      refractionAmount: settings.effectiveRefractionAmount * devicePixelRatio,
-      edgeDistanceRange: settings.effectiveEdgeDistanceRange * devicePixelRatio,
-      refractionFitsShape: settings.refractionFitsShape,
-      contourExtent: aaPadding * devicePixelRatio,
-      writeMaterials: kind.mixed,
-      writeTintOnly: kind.tintOnly,
-      appearanceData: kind.mixed
-          ? appearanceLookupData(appearances, defaultAppearance)
-          : const <double>[],
-      offsetX: boundsInMatteSpace.left * devicePixelRatio,
-      offsetY: boundsInMatteSpace.top * devicePixelRatio,
-      matteScale: _matteScale,
-      field: _field,
-      fieldScale: devicePixelRatio,
-    );
-    if (renderer.droppedShapes > 0) _debugWarnShapeLimitExceeded();
+    final materialImage = kind.mixed
+        ? renderer.renderMaterials(
+            inBuffer,
+            width: width,
+            height: height,
+            appearanceData: appearanceLookupData(
+              shapes.appearances,
+              defaultAppearance,
+            ),
+            tintOnly: kind.tintOnly,
+          )
+        : null;
+    if (materialImage == null) renderer.releaseMaterials();
     _needsMaterialUpdate = false;
     return (
-      image: result.image,
-      materialImage: renderer.materialImage,
+      image: image!,
+      materialImage: materialImage,
       materialCenter: materialCenter,
-      textureSize: Size(
-        result.textureWidth.toDouble(),
-        result.textureHeight.toDouble(),
-      ),
-      materialTextureSize: switch (renderer.materialImage) {
+      textureSize: textureSize,
+      materialTextureSize: switch (materialImage) {
         final image? => Size(image.width.toDouble(), image.height.toDouble()),
         null => const Size(1, 1),
       },
@@ -2382,8 +2253,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           ? Rect.fromLTWH(
               boundsInMatteSpace.left,
               boundsInMatteSpace.top,
-              result.width / devicePixelRatio,
-              result.height / devicePixelRatio,
+              width / dpr,
+              height / dpr,
             )
           : _geometryMatteBounds,
     );

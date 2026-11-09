@@ -119,7 +119,6 @@ void main() {
       glow: live.glow,
       matte: live.matte,
       mapping: const MatteMapping((1, 0, 0, 1, 0, 0), Rect.largest),
-      analytic: live.analytic,
     );
     final clear = tinted(const Color(0x00FFFFFF));
     final red = tinted(const Color(0xCCFF0000));

@@ -25,7 +25,6 @@ layout(std140) uniform GeometryUniforms {
     vec4 uShapeBounds[MAX_SHAPES];
 } geometryUniforms;
 
-#define uOffset geometryUniforms.uOffset
 #define uNumShapes (geometryUniforms.uOpticalProps.w)
 #define uShapeData geometryUniforms.uShapeData
 #define uRseData geometryUniforms.uRseData
@@ -74,7 +73,7 @@ void main() {
     // A low-resolution texel represents the center of one full-resolution
     // block. Linear sampling in the final pass turns these coarse samples into
     // the intentionally simple gradient used during transient unions.
-    vec2 fragCoord = gl_FragCoord.xy * uMaterialRasterScale + uOffset;
+    vec2 fragCoord = gl_FragCoord.xy * uMaterialRasterScale;
     MaterialSceneSample scene = materialSceneSample(
         fragCoord,
         int(uNumShapes)

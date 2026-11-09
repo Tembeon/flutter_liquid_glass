@@ -1256,9 +1256,9 @@ void main() {
           settings.value = settings.value.copyWith(refractionHeight: 24);
           await tester.pump();
           expect(
-            renderObject.debugAnalytic,
-            isTrue,
-            reason: 'one changed shape is shaded analytically',
+            renderer.debugRenderCount,
+            greaterThan(initialRenderCount),
+            reason: 'a deeper refraction widens the atlas reach',
           );
         },
         skip: skipProperGlassTests,
@@ -1321,9 +1321,9 @@ void main() {
           visibility.value = 0;
           await tester.pump();
           expect(
-            (renderer.debugRenderCount, renderObject.debugAnalytic),
-            (initialRenderCount + 1, true),
-            reason: 'the shape left is shaded analytically while it changes',
+            renderer.debugRenderCount,
+            initialRenderCount + 2,
+            reason: 'the atlas drops the hidden shape; one shape needs no map',
           );
         },
         skip: skipProperGlassTests,
@@ -1335,9 +1335,7 @@ void main() {
 Future<void> _pumpAtDpr2(WidgetTester tester) async {
   tester.view.devicePixelRatio = 2;
   addTearDown(tester.view.resetDevicePixelRatio);
-  // The new ratio changes the shapes, which are shaded analytically until
-  // they rest on a matte.
-  await pumpNTimes(RenderLiquidGlassLayer.analyticRestFrames + 2)(tester);
+  await pumpNTimes(2)(tester);
 }
 
 /// A 120x80 continuous-corner rect blended with [second], [gap] logical

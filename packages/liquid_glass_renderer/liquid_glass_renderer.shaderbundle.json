@@ -3,10 +3,6 @@
         "type": "vertex",
         "file": "lib/assets/shaders/gpu/geometry_vertex.glsl"
     },
-    "GeometryFragment": {
-        "type": "fragment",
-        "file": "lib/assets/shaders/gpu/geometry_fragment.glsl"
-    },
     "MaterialGradientFragment": {
         "type": "fragment",
         "file": "lib/assets/shaders/gpu/material_gradient_fragment.glsl"
@@ -14,10 +10,6 @@
     "MaterialTintGradientFragment": {
         "type": "fragment",
         "file": "lib/assets/shaders/gpu/material_tint_gradient_fragment.glsl"
-    },
-    "GeometryFieldFragment": {
-        "type": "fragment",
-        "file": "lib/assets/shaders/gpu/geometry_field_fragment.glsl"
     },
     "TileVertex": {
         "type": "vertex",

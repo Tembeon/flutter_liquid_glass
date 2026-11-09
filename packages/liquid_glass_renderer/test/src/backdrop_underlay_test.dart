@@ -25,6 +25,7 @@ Widget _pairScene({
   bool shadowed = false,
   bool second = true,
   bool between = false,
+  bool apart = false,
 }) => Directionality(
   textDirection: TextDirection.ltr,
   child: RepaintBoundary(
@@ -61,8 +62,11 @@ Widget _pairScene({
             child: RepaintBoundary(
               key: key,
               child: LiquidGlassLayer(
+                // Glass of one look joins one filter; [apart] gives the
+                // second glass a look of its own, so each reads its copy.
                 settings: LiquidGlassSettings.ios27RegularLight().copyWith(
                   frost: frost,
+                  refractionHeight: apart && key == null ? 12 : null,
                 ),
                 child: Stack(
                   children: [
@@ -735,7 +739,7 @@ void main() {
 
     Future<Uint8List> draw() async {
       await tester.pumpWidget(const SizedBox());
-      await tester.pumpWidget(_pairScene(top: 160));
+      await tester.pumpWidget(_pairScene(top: 160, apart: true));
       return _pixels(tester);
     }
 
@@ -873,7 +877,7 @@ void main() {
         .toSet()
         .toList();
     final watch = PlanWatch();
-    await tester.pumpWidget(_pairScene(top: 160));
+    await tester.pumpWidget(_pairScene(top: 160, apart: true));
     final captures = [for (final g in glass()) watch.changes(g)];
     final drawn = GlassCopies.debugImagesDrawn;
 
@@ -882,7 +886,7 @@ void main() {
     expect([for (final g in glass()) watch.changes(g)], captures);
     expect(GlassCopies.debugImagesDrawn, drawn);
 
-    await tester.pumpWidget(_pairScene(top: 160, shift: 0.3));
+    await tester.pumpWidget(_pairScene(top: 160, shift: 0.3, apart: true));
     expect(
       [for (final g in glass()) watch.changes(g)],
       [for (final c in captures) c + 1],

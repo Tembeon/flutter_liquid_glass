@@ -11,19 +11,12 @@ enum FinalShaderKind {
   tint('_tint'),
 
   /// A matte and a material map: any appearances.
-  material('_material'),
-
-  /// One shape evaluated per fragment, one appearance.
-  shape('_shape');
+  material('_material');
 
   const FinalShaderKind(this.suffix);
 
   /// The file name part of the kind.
   final String suffix;
-
-  /// Whether the variant works out its shape per fragment instead of
-  /// reading a matte, so it binds no matte sampler.
-  bool get perFragment => this == shape;
 }
 
 /// The color models a final shader variant shades.
@@ -49,8 +42,8 @@ enum FinalShaderModels {
 /// A variant that shades one color model family drops the other family's
 /// arithmetic and the slot loop's uniform reads. On a Mali-G78 that halves
 /// the registers of the one-appearance shader, which doubles its fragments
-/// in flight; the tint and analytic variants keep their occupancy and spill
-/// less. The general variants serve mixed models and the material map.
+/// in flight; the tint variants keep their occupancy and spill less. The
+/// general variants serve mixed models and the material map.
 ///
 /// Every variant can frost an unblurred copy of the backdrop itself, except
 /// the ones that fit in 32 registers only without that: a frosted twin of

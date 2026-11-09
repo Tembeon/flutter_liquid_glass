@@ -3,9 +3,9 @@ import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// The vertices of the octagon analytic_geometry.glsl's shapeDepthBound
-/// measures depth in: [cut] cut off every corner of a box of [size], every
-/// edge moved [margin] inward.
+/// The vertices of the octagon the geometry tiler's depth bound measures
+/// depth in (geometry_tiling.dart): [cut] cut off every corner of a box of
+/// [size], every edge moved [margin] inward.
 List<Offset> _octagon(Size size, Offset cut, double margin) {
   final hx = size.width / 2;
   final hy = size.height / 2;

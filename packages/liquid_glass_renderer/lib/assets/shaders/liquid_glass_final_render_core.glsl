@@ -1,14 +1,13 @@
 // Copyright 2025, Tim Lehmann for whynotmake.it
 //
 // Final rendering pass for liquid glass with pre-computed geometry
-// This shader reads the low-res matte (edge distance, surface direction, half
-// the shorter side) and applies the liquid glass effect efficiently
+// This shader reads the geometry buffer (edge distance, surface direction,
+// half the shorter side) and applies the liquid glass effect efficiently
 
 // Refraction is evaluated in global filter coordinates: the affine mapping and
 // everything that holds a position stay highp, as mediump turns the coordinate
 // subtraction into visible shimmer on large layers. The rest is mediump, which
-// fits the shader in the 32 registers a Mali GPU runs at full occupancy. The
-// analytic shapes are highp in their own file.
+// fits the shader in the 32 registers a Mali GPU runs at full occupancy.
 precision mediump float;
 
 // The color models a variant shades: every model, the direct model alone,
@@ -46,11 +45,11 @@ precision mediump float;
 #include "frost.glsl"
 #endif
 
-// The geometry texture is the low-res matte: one RGBA16F texel for every
-// uLowResMatte.x x uLowResMatte.x block of matte pixels (see
-// gpu/geometry_fragment.glsl). The renderer binds it with linear filtering, so
-// one read blends the four nearest texels. The edge, surface direction and
-// refraction are computed from that for each pixel.
+// The geometry buffer holds one RGBA16F texel for every matte pixel near an
+// edge, in a sparse atlas (geometry_tiling.dart, gpu/tile_*.glsl): a table of
+// one texel per 16 x 16 tile points each tile at its ring strip or at a
+// constant block for tiles wholly outside or deep inside. The strips are read
+// with linear filtering, the table texel by texel.
 
 uniform highp vec2 uSize;
 
@@ -106,18 +105,17 @@ uniform highp vec3 uMappingEnd;
 //   +5: toneGammaLuminance, glintLuminance, glintFaceGain, glintVibrancy
 uniform vec4 uColorModelParams[18];
 
-//   uLowResMatte:  how many matte pixels one low-res matte texel covers in
-//                  each direction, the texture's size in texels, and half
-//                  the short side of the surface, which sizes the bevel: glass
-//                  over a matte of a group has its own, not the matte's.
-//   uLowResOptics: refraction height in px, and whether refraction fits the
-//                  shape. These two set the bevel.
-uniform highp vec4 uLowResMatte;
-uniform vec2 uLowResOptics;
+//   uGeometryAtlas: the texel of the table's first entry, and the atlas
+//                   texture's size in texels.
+//   uBevel:         refraction height in px, whether refraction fits the
+//                   shape, and half the short side of the surface, which
+//                   sizes the bevel: glass over a matte of a group has its
+//                   own, not the matte's.
+uniform highp vec4 uGeometryAtlas;
+uniform vec3 uBevel;
 // The inputs of the optional effects, in one declaration: a Metal stage has
 // 31 buffer slots, and a shader past them fails to compile on Metal alone
-// (Vulkan and GLES accept it). The analytic variant declares its shapes after
-// these.
+// (Vulkan and GLES accept it).
 // [0] uSolidBackdrop: the opaque color the glass is shaded over when it is
 //     drawn as a paint instead of a backdrop filter; every backdrop read
 //     returns it. Alpha 0 reads the backdrop.
@@ -143,13 +141,6 @@ uniform highp vec4 uEffects[6];
 #define uBackdropReduced uEffects[4].z
 #define uBackdropFrost uEffects[4].w
 #define uBackdropOverlay uEffects[5]
-
-#ifndef ANALYTIC_GEOMETRY
-#define ANALYTIC_GEOMETRY 0
-#endif
-#if ANALYTIC_GEOMETRY
-#include "analytic_geometry.glsl"
-#endif
 
 vec4 colorModelSlot(int slot, int field) {
     return uColorModelParams[slot * 6 + field];
@@ -226,9 +217,8 @@ const float kContourCoverageFeather = 1.0;
 #endif
 
 uniform sampler2D uBackgroundTexture;
-#if !ANALYTIC_GEOMETRY
 uniform sampler2D uGeometryTexture;
-#endif
+uniform sampler2D uGeometryTable;
 #if SHAPE_APPEARANCE || SHAPE_TINT
 uniform sampler2D uMaterialTexture;
 #endif
@@ -570,7 +560,7 @@ vec3 applySpecularHighlights(
     if (uBevelShadowStrength >= 0.001) {
         float configuredBevelDepth = max(uBevelShadowDepth, 0.001);
         float sizeAwareBevelDepth = configuredBevelDepth;
-        float surfaceHalfMinor = uLowResMatte.w;
+        float surfaceHalfMinor = uBevel.z;
         float sizeProgress = smoothstep(
             configuredBevelDepth * 3.5,
             configuredBevelDepth * 5.0,
@@ -662,35 +652,32 @@ vec3 applySpecularHighlights(
 }
 
 
-// A blended surface direction shorter than this comes from texels on both
-// sides of a thin shape's center line, which point in opposite directions.
-// Stored directions are almost always about 1 long.
-const float kMinBlendedNormalLength = 0.5;
+// The geometry texel at matte pixel position [pixel], from the geometry
+// buffer's corner: the table names the atlas texel of the tile's first pixel.
+// A tile's strip carries a texel of apron on each side, so the filtered read
+// never blends in another tile's texels.
+vec4 geometryAt(highp vec2 pixel) {
+    highp vec2 tile = min(
+        floor(pixel / 16.0),
+        ceil(uGeometrySize / 16.0) - 1.0
+    );
+    highp vec2 entry = texture(
+        uGeometryTable,
+        (uGeometryAtlas.xy + tile + 0.5) / uGeometryAtlas.zw
+    ).xy;
+    return texture(
+        uGeometryTexture,
+        (entry + pixel - tile * 16.0) / uGeometryAtlas.zw
+    );
+}
 
-// The surface direction (xy) and refraction strength (z) at this pixel. The
-// texture stores the direction with its length set to the strength, so after
-// blending, the direction of the vector is the surface direction and its
-// length the strength. Near a sharp corner the length comes out a little
-// short, because the blended directions differ.
-// On the center line of a thin shape the texels on either side point in
-// opposite directions and cancel out, so the blended direction means nothing.
-// There, read the nearest texel instead. That extra read only happens on a
-// line one or two pixels wide.
-vec3 lowResNormalFiltered(vec4 lowResTexel, highp vec2 texelCoord) {
-    vec2 sum = lowResTexel.yz;
-    float sumLength = length(sum);
-    // An analytic texel is the fragment's own, never a blend.
-    #if !ANALYTIC_GEOMETRY
-    if (sumLength < kMinBlendedNormalLength) {
-        highp vec2 nearestUV =
-            (floor(texelCoord + 0.5) + 0.5) / uLowResMatte.yz;
-        sum = texture(uGeometryTexture, nearestUV).yz;
-        sumLength = length(sum);
-    }
-    #endif
+// The surface direction (xy) and refraction strength (z) of a geometry
+// texel, which stores the direction with its length set to the strength.
+vec3 surfaceOf(vec4 geometry) {
+    float strength = length(geometry.yz);
     return vec3(
-        sumLength > 0.0001 ? sum / sumLength : vec2(0.0),
-        sumLength
+        strength > 0.0001 ? geometry.yz / strength : vec2(0.0),
+        strength
     );
 }
 
@@ -708,23 +695,23 @@ float plainInteriorDepth() {
         uGlowShape.y <= 0.0 &&
         uSolidBackdrop.a <= 0.5 &&
         uBackdropOverlay.a <= 0.0;
-    return plain ? max(uLowResOptics.x, rimReach()) + 1.0 : 32000.0;
+    return plain ? max(uBevel.x, rimReach()) + 1.0 : 32000.0;
 }
 #endif
 
 // How far the backdrop is shifted at this pixel, in px, toward the inside of
 // the shape. The glass is flat in the middle with a rounded (quarter-circle)
 // bevel at the edge, and the bevel gets narrower on smaller shapes.
-float lowResDisplacementMagnitude(
+float displacementMagnitude(
     float inward,
     float halfMinor,
     float shortening
 ) {
-    float refractionHeight = uLowResOptics.x;
+    float refractionHeight = uBevel.x;
     float refractionAmount = max(uDisplacementScale, 0.001);
     float bevel;
     float amount;
-    if (uLowResOptics.y > 0.5) {
+    if (uBevel.y > 0.5) {
         // iOS 27 regular glass: the bevel is at most a quarter of the
         // shorter side, and the edge never shifts the backdrop past the
         // shape's center line.
@@ -767,28 +754,9 @@ void main() {
         return;
     }
 
-    // This pixel's position in low-res matte texels. Texel (i, j) was
-    // computed at the center of matte pixel (i * scale, j * scale)
-    // (kPixelCenter in geometry_fragment.glsl).
-    highp vec2 lowResTexelCoord =
-        (matteCoord - uGeometryOffset - 0.5) / uLowResMatte.x;
-    #if ANALYTIC_GEOMETRY
-    // Deeper than the bevel and the rim, only coverage reads the distance.
-    vec4 lowResTexel = analyticTexel(
-        matteCoord,
-        max(uLowResOptics.x, rimReach()) + 1.0
-    );
-    #else
-    // One read, which blends the four nearest texels. Reads past the edge of
-    // the texture repeat its last texel, and the texture has one extra texel
-    // past the last matte pixel.
-    vec4 lowResTexel = texture(
-        uGeometryTexture,
-        (lowResTexelCoord + 0.5) / uLowResMatte.yz
-    );
-    #endif
+    vec4 geometryTexel = geometryAt(matteCoord - uGeometryOffset);
     #if PLAIN_INTERIOR
-    if (lowResTexel.x > plainInteriorDepth()) {
+    if (geometryTexel.x > plainInteriorDepth()) {
         vec3 backdrop;
         #ifndef IMPELLER_TARGET_OPENGLES
         if (uBackdropReduced == 0.0) {
@@ -952,8 +920,8 @@ void main() {
 
     float maxDisplacement = max(uDisplacementScale, 0.001);
     // Positive inside. It is a smooth value rather than a rounded byte, so
-    // the antialiased edge below stays one pixel wide at any matte scale.
-    float signedEdgeDistance = lowResTexel.x;
+    // the antialiased edge below stays one pixel wide.
+    float signedEdgeDistance = geometryTexel.x;
     // Box-filtered coverage of one physical pixel, as Core Animation
     // rasterizes the silhouette: a pixel-aligned edge stays hard, so the
     // glint's first row is not diluted by a wider feather.
@@ -972,19 +940,15 @@ void main() {
     vec2 displacement = vec2(0.0);
     // The bevel is never wider than the refraction height, so deeper pixels
     // have no refraction and skip this.
-    if (signedEdgeDistance < uLowResOptics.x) {
-        float lowResHalfMinor = lowResTexel.w;
-        vec3 lowResSurface = lowResNormalFiltered(
-            lowResTexel,
-            lowResTexelCoord
-        );
-        float magnitude = lowResDisplacementMagnitude(
+    if (signedEdgeDistance < uBevel.x) {
+        vec3 surface = surfaceOf(geometryTexel);
+        float magnitude = displacementMagnitude(
             signedEdgeDistance,
-            lowResHalfMinor,
-            lowResSurface.z
+            geometryTexel.w,
+            surface.z
         );
         if (magnitude > 0.0) {
-            surfaceNormal = lowResSurface.xy;
+            surfaceNormal = surface.xy;
             hasSurfaceNormal = true;
             displacement = surfaceNormal * (-magnitude) * appearanceVisibility;
         }
@@ -1273,10 +1237,7 @@ void main() {
     float externalContourAlpha = 0.0;
     if (signedEdgeDistance < rimReach()) {
         if (!hasSurfaceNormal) {
-            surfaceNormal = lowResNormalFiltered(
-                lowResTexel,
-                lowResTexelCoord
-            ).xy;
+            surfaceNormal = surfaceOf(geometryTexel).xy;
         }
         litColor = applySpecularHighlights(
             baseColor,

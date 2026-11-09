@@ -131,9 +131,6 @@ final class StateChain {
 /// Why a site can never share a filter.
 @internal
 enum NoJoin {
-  /// Shaded from its shapes, with no matte a group could add it to.
-  analytic,
-
   /// Part of a fused field, or its shapes have appearances of their own.
   field,
 

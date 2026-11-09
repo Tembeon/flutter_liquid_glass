@@ -7,7 +7,8 @@ precision highp float;
 
 #define MAX_SHAPES 16
 
-// The prefix of geometry_fragment.glsl's block, so one buffer serves both.
+// The prefix of material_gradient_fragment.glsl's block, so one buffer
+// serves both.
 layout(std140) uniform GeometryUniforms {
     vec2 uOffset;
     vec2 uTextureSize;

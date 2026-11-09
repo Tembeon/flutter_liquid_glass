@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
 import 'gpu_test_helpers.dart';
@@ -44,16 +45,32 @@ Widget _scene(double width, {Key? key}) {
 RenderLiquidGlassLayer _layer(WidgetTester tester) =>
     tester.allRenderObjects.whereType<RenderLiquidGlassLayer>().last;
 
-/// The top-left [width] x [height] texels of a low-res matte [image].
-Future<Float32List> _fieldRegion(
+/// What the final shader reads of the [width] x [height] geometry buffer
+/// in the atlas [image], pixel by pixel.
+Future<List<(double, double, double, double)>> _geometry(
   WidgetTester tester,
   ui.Image image,
   int width,
   int height,
 ) async {
-  final field = (await tester.runAsync(() => readGeometryField(image)))!;
-  return fieldRegion(field, image.width, width, height);
+  final atlas = (await tester.runAsync(() => AtlasTexels.read(image)))!;
+  return [
+    for (var y = 0; y < height; y++)
+      for (var x = 0; x < width; x++) atlas.pixel(x, y),
+  ];
 }
+
+/// Draws [testRectangle]'s material map at [centerX].
+void _renderMaterials(
+  FlutterGpuGeometryRenderer renderer, {
+  double centerX = 16,
+}) => renderer.renderMaterials(
+  testRectangle(centerX: centerX),
+  width: 64,
+  height: 64,
+  appearanceData: List<double>.filled(128, 0),
+  tintOnly: false,
+);
 
 /// The top-left [width] x [height] texels of [image], as RGBA bytes.
 Future<Uint8List> _subRect(
@@ -99,10 +116,10 @@ void runGeometryTextureReuseTests() {
   }
 
   testWidgets(
-    'a changing matte ping-pongs between two textures',
+    'a changing atlas ping-pongs between two textures',
     (tester) async {
       useDpr3(tester);
-      // 0.05 logical px per frame keeps the 64 px bucket, like a stretch.
+      // 0.05 logical px per frame keeps the atlas's size, like a stretch.
       await tester.pumpWidget(_scene(130));
       final renderer = _layer(tester).gpuGeometryRenderer!;
       final textures = <Object?>[renderer.debugMatteTexture];
@@ -133,7 +150,7 @@ void runGeometryTextureReuseTests() {
     'a resize sweep stops allocating once the texture has grown',
     (tester) async {
       useDpr3(tester);
-      // 4 logical px per frame at DPR 3 crosses a 64 px bucket every few
+      // 4 logical px per frame at DPR 3 changes the atlas's size every few
       // frames, in both directions.
       double width(int frame) {
         final phase = frame % 100;
@@ -158,21 +175,20 @@ void runGeometryTextureReuseTests() {
       expect(
         _reused - reusedBefore,
         2 * measured,
-        reason: 'every matte and material map comes from the ring',
+        reason: 'every atlas and material map comes from the ring',
       );
       final (textureWidth, _) = renderer.debugMatteTextureSize!;
-      expect(textureWidth, lessThanOrEqualTo(2432), reason: 'capped at view');
+      expect(textureWidth, lessThanOrEqualTo(AtlasLayout.maxSize));
       expect(renderer.debugMatteTextureCount, 2);
     },
     skip: skipProperGlassTests,
   );
 
   testWidgets(
-    'a matte in a sub-rect of a larger texture is byte-identical to a fresh '
-    'one',
+    'an atlas in a larger texture reads as a fresh one',
     (tester) async {
       useDpr3(tester);
-      // Grow the texture, then come back to a much smaller matte.
+      // Grow the texture, then come back to a much smaller atlas.
       for (var frame = 0; frame < 20; frame++) {
         await tester.pumpWidget(_scene(130 + frame * 12.0));
       }
@@ -184,42 +200,41 @@ void runGeometryTextureReuseTests() {
       expect(
         _reused - reusedBefore,
         2,
-        reason: 'the compared matte and material map must be reused textures',
+        reason: 'the compared atlas and material map must be reused textures',
       );
       final layer = _layer(tester);
-      final matteSize = layer.debugGeometryMatteBounds.size * 3;
-      // The low-res matte has one texel per matte scale pixels, plus one
-      // extra row and column for the far edge.
-      final scale = layer.matteScale;
-      final width = matteSize.width.round() ~/ scale + 1;
-      final height = matteSize.height.round() ~/ scale + 1;
-      final (textureWidth, textureHeight) =
-          layer.gpuGeometryRenderer!.debugMatteTextureSize!;
-      expect(textureWidth * textureHeight, greaterThan(width * height));
+      final bufferSize = layer.debugGeometryMatteBounds.size * 3;
+      final width = bufferSize.width.round();
+      final height = bufferSize.height.round();
       final reusedImage = layer.debugGeometryImage!.clone();
       final reusedMaterialImage = layer.debugMaterialImage!.clone();
       addTearDown(reusedImage.dispose);
       addTearDown(reusedMaterialImage.dispose);
 
       // A new layer owns a new renderer, whose first textures are
-      // exact-size, so its images are the reference sub-rects.
+      // exact-size.
       await tester.pumpWidget(_scene(131.5, key: UniqueKey()));
       final fresh = _layer(tester);
-      expect(fresh.debugGeometryImage!.width, width);
+      expect(
+        reusedImage.width * reusedImage.height,
+        greaterThan(
+          fresh.debugGeometryImage!.width * fresh.debugGeometryImage!.height,
+        ),
+      );
       final materialWidth = fresh.debugMaterialImage!.width;
       final materialHeight = fresh.debugMaterialImage!.height;
       expect(
         reusedMaterialImage.width * reusedMaterialImage.height,
         greaterThan(materialWidth * materialHeight),
       );
-      final reused = await _fieldRegion(tester, reusedImage, width, height);
+      final reused = await _geometry(tester, reusedImage, width, height);
       final reusedMaterial = await _subRect(
         tester,
         reusedMaterialImage,
         materialWidth,
         materialHeight,
       );
-      final freshMatte = await _fieldRegion(
+      final freshGeometry = await _geometry(
         tester,
         fresh.debugGeometryImage!,
         width,
@@ -232,7 +247,7 @@ void runGeometryTextureReuseTests() {
         materialHeight,
       );
 
-      expect(reused, freshMatte);
+      expect(reused, freshGeometry);
       expect(reusedMaterial, freshMaterial);
     },
     skip: skipProperGlassTests,
@@ -286,22 +301,22 @@ void runGeometryTextureReuseTests() {
       await tester.runAsync(() async {
         final renderer = await createGeometryRenderer();
         final reusedBefore = _reused;
-        final mattes = <Object?>[];
+        final atlases = <Object?>[];
         for (var index = 0; index < 3; index++) {
           renderTestRectangle(renderer, centerX: 16.0 + index * 3);
-          mattes.add(renderer.debugMatteTexture);
+          atlases.add(renderer.debugMatteTexture);
           expect(
             renderer.debugMatteTextureCount,
             lessThanOrEqualTo(3),
-            reason: 'at most three matte textures are retained',
+            reason: 'at most three atlas textures are retained',
           );
         }
-        for (var index = 1; index < mattes.length; index++) {
+        for (var index = 1; index < atlases.length; index++) {
           for (var earlier = 0; earlier < index; earlier++) {
             expect(
-              identical(mattes[index], mattes[earlier]),
+              identical(atlases[index], atlases[earlier]),
               isFalse,
-              reason: 'render $index must not rewrite an earlier matte',
+              reason: 'render $index must not rewrite an earlier atlas',
             );
           }
         }
@@ -322,11 +337,12 @@ void runGeometryTextureReuseTests() {
         final renderer = await createGeometryRenderer();
         final reusedBefore = _reused;
         void render({required bool writeMaterials, int index = 0}) {
-          renderTestRectangle(
-            renderer,
-            centerX: 16.0 + index,
-            writeMaterials: writeMaterials,
-          );
+          renderTestRectangle(renderer, centerX: 16.0 + index);
+          if (writeMaterials) {
+            _renderMaterials(renderer, centerX: 16.0 + index);
+          } else {
+            renderer.releaseMaterials();
+          }
         }
 
         render(writeMaterials: true);
@@ -350,39 +366,29 @@ void runGeometryTextureReuseTests() {
   );
 
   testWidgets(
-    'material-only updates retain the matte and respect same-frame retirement',
+    'material maps leave the atlas and respect same-frame retirement',
     (tester) async {
       await tester.runAsync(() async {
         final renderer = await createGeometryRenderer();
         final reusedBefore = _reused;
-        final matte = renderTestRectangle(renderer, writeMaterials: true);
+        final atlas = renderTestRectangle(renderer);
         final texture = renderer.debugMatteTexture;
+        _renderMaterials(renderer);
         final firstMaterial = renderer.materialImage!.clone();
         addTearDown(firstMaterial.dispose);
         final before = (await firstMaterial.toByteData())!.buffer.asUint8List();
 
-        renderTestRectangle(
-          renderer,
-          writeMatte: false,
-          writeMaterials: true,
-        );
+        _renderMaterials(renderer);
         final secondMaterial = renderer.materialImage!.clone();
         addTearDown(secondMaterial.dispose);
         expect(secondMaterial.isCloneOf(firstMaterial), isFalse);
-        renderTestRectangle(renderer, writeMatte: false);
+        renderer.releaseMaterials();
         expect(renderer.materialImage, isNull);
-        renderTestRectangle(
-          renderer,
-          writeMatte: false,
-          writeMaterials: true,
-        );
+        _renderMaterials(renderer);
         expect(renderer.materialImage!.isCloneOf(firstMaterial), isFalse);
         expect(renderer.materialImage!.isCloneOf(secondMaterial), isFalse);
         expect(renderer.debugMatteTexture, same(texture));
-        expect(
-          renderTestRectangle(renderer, writeMatte: false),
-          same(matte),
-        );
+        expect(renderer.atlasImage, same(atlas));
         expect(renderer.debugMatteDrawCount, 1);
         expect(renderer.debugMaterialDrawCount, 3);
         expect(_reused - reusedBefore, 0);
@@ -406,8 +412,14 @@ void runGeometryTextureReuseTests() {
       Future<void> pumpTwoRenders() async {
         // Submit a frame before recording its two geometry updates.
         await tester.pumpWidget(const SizedBox());
-        renderTestRectangle(renderer, writeMaterials: frame.isEven);
-        renderTestRectangle(renderer, centerX: 19, writeMaterials: true);
+        renderTestRectangle(renderer);
+        if (frame.isEven) {
+          _renderMaterials(renderer);
+        } else {
+          renderer.releaseMaterials();
+        }
+        renderTestRectangle(renderer, centerX: 19);
+        _renderMaterials(renderer, centerX: 19);
         frame++;
       }
 

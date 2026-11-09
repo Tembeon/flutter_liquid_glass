@@ -1,15 +1,13 @@
-// The low-res matte's texel, written the same way by the shape pass
-// (geometry_fragment.glsl) and the field pass (geometry_field_fragment.glsl).
+// A geometry texel, written the same way by the shape strips
+// (tile_geometry_fragment.glsl) and the field strips
+// (tile_field_fragment.glsl).
 
-// The distance from a pixel's corner to its center, in matte pixels. Keep in
-// sync with the final shader.
-const float kPixelCenter = 0.5;
 // Distances are capped here, well within 16-bit float range. A hidden shape
 // reports a distance of 1e9, which would otherwise become infinity and break
 // the blending between texels.
 const float kInwardLimit = 16000.0;
 // The value of texels far outside every shape: far outside, and still within
-// a 16-bit float. Keep in sync with kLowResFarInward in the renderer.
+// a 16-bit float. Keep in sync with kFarInward in the renderer.
 const float kFarInward = -4096.0;
 
 // R: the distance to the edge, positive inside. GB: the direction the surface

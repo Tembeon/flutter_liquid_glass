@@ -14,51 +14,17 @@ import 'gpu_test_helpers.dart';
 /// Every tile within reach, so every texel is evaluated.
 const _everything = GlassReach(inward: 100000, outward: 100000);
 
-/// An atlas read back: four floats a texel.
-final class _Atlas {
-  _Atlas(this.texels, this.width, this.layout);
+/// The atlas of [tiling] read back.
+Future<AtlasTexels> _draw(
+  FlutterGpuGeometryRenderer renderer,
+  Tiling tiling,
+) => AtlasTexels.read(renderer.renderAtlas(tiling).image);
 
-  final Float32List texels;
-  final int width;
-  final AtlasLayout layout;
-
-  /// The texel at atlas ([x], [y]). The engine reads a texel back as if w
-  /// were alpha, dividing the rest by it; texels with w = 0 (the constants
-  /// and far outside) come back as w = 0 only.
-  (double, double, double, double) at(int x, int y) {
-    final i = (y * width + x) * 4;
-    final w = texels[i + 3];
-    if (w <= 0) return (double.nan, 0, 0, 0);
-    return (texels[i] * w, texels[i + 1] * w, texels[i + 2] * w, w);
-  }
-
-  /// The table entry of tile [column], [row].
-  (int, int) entry(int column, int row) {
-    final (tableX, tableY) = layout.tableOrigin;
-    final (x, y, _, w) = at(tableX + column, tableY + row);
-    expect(w, 1, reason: 'table texel of $column, $row');
-    return (x.round(), y.round());
-  }
-
-  /// Buffer pixel ([x], [y]) through the table.
-  (double, double, double, double) pixel(int x, int y) {
-    final (ex, ey) = entry(x ~/ Tiling.size, y ~/ Tiling.size);
-    return at(ex + x % Tiling.size, ey + y % Tiling.size);
-  }
-}
-
-Future<_Atlas> _draw(FlutterGpuGeometryRenderer renderer, Tiling tiling) async {
-  final result = renderer.renderAtlas(tiling);
-  final data = await result.image.toByteData(
-    format: ui.ImageByteFormat.rawExtendedRgba128,
-  );
-  return _Atlas(
-    Float32List.fromList(
-      data!.buffer.asFloat32List(data.offsetInBytes, data.lengthInBytes ~/ 4),
-    ),
-    result.textureWidth,
-    result.layout,
-  );
+/// Buffer pixel ([x], [y]) as its strip holds it: NaN where the strip skips
+/// it.
+(double, double, double, double) _strip(AtlasTexels atlas, int x, int y) {
+  final (ex, ey) = atlas.entry(x ~/ Tiling.size, y ~/ Tiling.size);
+  return atlas.at(ex + x % Tiling.size, ey + y % Tiling.size);
 }
 
 /// One shape of each kind the geometry pass draws, placed at random.
@@ -150,11 +116,12 @@ void main() {
     );
     expect(tiling.runs, isNotEmpty);
     final atlas = await _draw(renderer, tiling);
+    final layout = AtlasLayout.of(tiling);
     final expected = <(int, int), (int, int)>{};
     for (var i = 0; i < tiling.runs.length; i++) {
       final run = tiling.runs[i];
       for (var t = 0; t < run.length; t++) {
-        expected[(run.column + t, run.row)] = atlas.layout.entryOf(i, t);
+        expected[(run.column + t, run.row)] = layout.entryOf(i, t);
       }
     }
     for (var row = 0; row < tiling.rows; row++) {
@@ -188,9 +155,9 @@ void main() {
       ),
     );
     // R is the distance inside, the left edge at x = 78.
-    expect(atlas.pixel(82, 96).$1, closeTo(4.5, 0.01));
-    expect(atlas.pixel(76, 96).$1, closeTo(-1.5, 0.01));
-    expect(atlas.pixel(128, 70).$1, closeTo(4.5, 0.01));
+    expect(atlas.inwardAt(82, 96), closeTo(4.5, 0.01));
+    expect(atlas.inwardAt(76, 96), closeTo(-1.5, 0.01));
+    expect(atlas.inwardAt(128, 70), closeTo(4.5, 0.01));
   });
 
   test('ring strips hold what a pass over every texel writes', () async {
@@ -222,13 +189,13 @@ void main() {
         for (var y = 0; y < height; y++) {
           for (var x = 0; x < width; x++) {
             final kind = tiling.kindAt(x ~/ Tiling.size, y ~/ Tiling.size);
-            final exact = every.pixel(x, y);
+            final exact = _strip(every, x, y);
             final reason = 'scene $scene, $reach, pixel $x, $y: $exact';
             switch (kind) {
               case TileKind.ring:
                 // A strip skips texels past the reach, which a pass over
                 // every texel evaluates.
-                final read = sparse.pixel(x, y);
+                final read = _strip(sparse, x, y);
                 if (read.$4 > 0) {
                   expect(read, exact, reason: reason);
                 } else if (exact.$4 > 0) {
@@ -307,11 +274,11 @@ void main() {
     );
     for (var y = 0; y < height; y++) {
       for (var x = 0; x < width; x++) {
-        final exact = every.pixel(x, y);
+        final exact = _strip(every, x, y);
         final reason = 'pixel $x, $y: $exact';
         switch (tiling.kindAt(x ~/ Tiling.size, y ~/ Tiling.size)) {
           case TileKind.ring:
-            expect(sparse.pixel(x, y), exact, reason: reason);
+            expect(_strip(sparse, x, y), exact, reason: reason);
           case TileKind.outside:
             expect(exact.$1, lessThanOrEqualTo(-reach.outward), reason: reason);
           case TileKind.deep:
@@ -326,7 +293,7 @@ void main() {
     // The circle of radius 40 logical pixels sits at buffer (20, 10) +
     // 2 * ((-10, -5) + (80, 60)) = (160, 120), 80 pixels in radius; the
     // grid's bilinear cone rounds its tip.
-    expect(every.pixel(160, 120).$1, closeTo(80, 2));
-    expect(every.pixel(160 + 70, 120).$1, closeTo(10, 1));
+    expect(every.inwardAt(160, 120), closeTo(80, 2));
+    expect(every.inwardAt(160 + 70, 120), closeTo(10, 1));
   });
 }

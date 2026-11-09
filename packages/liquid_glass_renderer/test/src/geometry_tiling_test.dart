@@ -463,7 +463,7 @@ void main() {
         final atlas = AtlasLayout.of(tiling);
         expect(atlas.width, lessThanOrEqualTo(AtlasLayout.maxSize));
         expect(atlas.height, lessThanOrEqualTo(AtlasLayout.maxSize));
-        final (tableX, tableY) = atlas.tableOrigin;
+        final (tableX, tableY) = AtlasLayout.tableOrigin;
         final rects = <(int, int, int, int)>[
           (0, 0, 18, 18),
           (18, 0, 18, 18),
@@ -507,6 +507,36 @@ void main() {
       }
     },
   );
+
+  test('a ring past one atlas is tiled again with a shallower inward '
+      'reach', () {
+    final shapes = _encode([
+      for (var i = 0; i < 8; i++)
+        _Shape(
+          type: _rectangle,
+          width: 1400,
+          height: 1400,
+          radius: 0,
+          centerX: 800.0 + i % 4 * 1600,
+          centerY: 800.0 + i ~/ 4 * 1600,
+        ),
+    ]);
+    Tiling tile(double inward) => Tiling.shapes(
+      shapes,
+      width: 6400,
+      height: 3200,
+      reach: GlassReach(inward: inward, outward: 4),
+    );
+    final tiling = tile(400);
+    expect(tiling.reach.inward, lessThan(400));
+    expect(tiling.reach.outward, 4);
+    expect(
+      AtlasLayout.of(tiling).height,
+      lessThanOrEqualTo(AtlasLayout.maxSize),
+    );
+    final twice = tiling.reach.inward * 2;
+    expect(tile(twice).reach.inward, lessThan(twice));
+  });
 
   test('a wider reach covers a narrower one', () {
     const wide = GlassReach(inward: 30, outward: 4);

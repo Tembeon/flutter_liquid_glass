@@ -11,7 +11,7 @@ import 'package:liquid_glass_renderer/src/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/appearance.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass/shape_set.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass/geometry_tiling.dart';
 
 /// One draw of the final glass shader: every uniform and sampler it reads,
 /// in sections that each own their uniforms.
@@ -30,7 +30,6 @@ final class GlassDraw {
     required this.mapping,
     this.reading = LiveReading.backdrop,
     this.band,
-    this.analytic,
   });
 
   /// The index in [FinalShaderVariant.all] of the shader it draws with.
@@ -55,9 +54,6 @@ final class GlassDraw {
   /// without one lays nothing over what it reads.
   final BandOverlay? band;
 
-  /// The shapes an analytic variant evaluates.
-  final AnalyticShapes? analytic;
-
   /// This draw with the parts given changed.
   GlassDraw copyWith({MatteMapping? mapping, GlassReading? reading}) =>
       GlassDraw(
@@ -68,7 +64,6 @@ final class GlassDraw {
         mapping: mapping ?? this.mapping,
         reading: reading ?? this.reading,
         band: band,
-        analytic: analytic,
       );
 
   @override
@@ -80,8 +75,7 @@ final class GlassDraw {
       other.matte == matte &&
       other.mapping == mapping &&
       other.reading == reading &&
-      other.band == band &&
-      other.analytic == analytic;
+      other.band == band;
 
   @override
   int get hashCode => Object.hash(variant, matte, mapping, reading);
@@ -211,9 +205,43 @@ final class GlassFace {
   int get hashCode => Object.hash(wrap, gamma, blurFade, face[0], face[4]);
 }
 
-/// Where the final shader reads its shapes: a low-res matte, or the
-/// placeholder an analytic frame binds, and the material map where the
-/// shapes' appearances differ.
+/// How deep into glass drawn with [settings] and how far out of it the final
+/// shader reads the geometry, in device pixels: the bevel and the rim
+/// lighting inward (rimReach() in liquid_glass_final_render_core.glsl), the
+/// contour's [contourExtent] outward, each a pixel more. A geometry atlas
+/// holds constants past them.
+@internal
+GlassReach glassReach(
+  LiquidGlassSettings settings, {
+  required double devicePixelRatio,
+  required double contourExtent,
+}) {
+  final dpr = devicePixelRatio;
+  // kGlintBleedReach: the glint's bleed is gone this many widths in.
+  const glintBleedReach = 4.0;
+  var rim = 0.0;
+  if (settings.highlight > 0) {
+    rim = max(rim, GlassRim.highlightWidth * dpr * glintBleedReach);
+  }
+  if (settings.contourStrength > 0 && settings.contourWidth > 0) {
+    rim = max(rim, 0.5);
+  }
+  if (settings.bevelShadowStrength >= 0.001) {
+    rim = max(
+      rim,
+      (GlassRim.bevelShadowDepth + GlassRim.bevelShadowOffset) * dpr * 1.001 +
+          0.01,
+    );
+  }
+  return GlassReach(
+    inward: max(settings.effectiveRefractionHeight * dpr, rim) + 1,
+    outward: contourExtent + 1,
+  );
+}
+
+/// Where the final shader reads its shapes: a geometry atlas
+/// (geometry_tiling.dart), and the material map where the shapes'
+/// appearances differ.
 @internal
 @immutable
 final class MatteBinding {
@@ -223,7 +251,6 @@ final class MatteBinding {
     required this.origin,
     required this.size,
     required this.textureSize,
-    required this.matteScale,
     required this.halfMinor,
     required this.refractionHeight,
     required this.fitsShape,
@@ -233,29 +260,27 @@ final class MatteBinding {
     this.material,
   });
 
-  /// The matte, sampled bilinearly. Sampler 0 takes its filtering from the
-  /// image bound to it, so a filter binds this there too.
+  /// The atlas: its strips sampled bilinearly, its table texel by texel.
+  /// Sampler 0 takes its filtering from the image bound to it, so a filter
+  /// binds this there too.
   final ui.Image image;
 
-  /// uGeometryBounds.xy: where the matte's top-left lies.
+  /// uGeometryBounds.xy: where the geometry buffer's top-left lies.
   final Offset origin;
 
-  /// uGeometryBounds.zw: the matte's size.
+  /// uGeometryBounds.zw: the geometry buffer's size, one texel a pixel.
   final Size size;
 
-  /// The matte's texture, which it fills the top-left of.
+  /// uGeometryAtlas.zw: the atlas texture's size.
   final Size textureSize;
 
-  /// Matte pixels per texel.
-  final int matteScale;
-
-  /// Half the short side of the glass, which sizes the bevel.
+  /// uBevel.z: half the short side of the glass, which sizes the bevel.
   final double halfMinor;
 
-  /// uLowResOptics.x: how far in the refraction reaches.
+  /// uBevel.x: how far in the refraction reaches.
   final double refractionHeight;
 
-  /// uLowResOptics.y: whether refraction fits the shape.
+  /// uBevel.y: whether refraction fits the shape.
   final bool fitsShape;
 
   /// uMaterialCenter, in the matte.
@@ -278,7 +303,6 @@ final class MatteBinding {
       other.origin == origin &&
       other.size == size &&
       other.textureSize == textureSize &&
-      other.matteScale == matteScale &&
       other.halfMinor == halfMinor &&
       other.refractionHeight == refractionHeight &&
       other.fitsShape == fitsShape &&
@@ -293,7 +317,6 @@ final class MatteBinding {
     origin,
     size,
     textureSize,
-    matteScale,
     halfMinor,
     materialCenter,
     shrinkAxis,
@@ -514,38 +537,6 @@ final class BandOverlay {
   int get hashCode => Object.hashAll(overlay);
 }
 
-/// The one shape a [FinalShaderKind.shape] variant evaluates, laid out from
-/// uShapeData as analytic_geometry.glsl declares it.
-@internal
-@immutable
-final class AnalyticShapes {
-  const AnalyticShapes._(this.floats);
-
-  /// The shape of [set], which holds one: its shape row and its two
-  /// superellipse halves.
-  factory AnalyticShapes.of(ShapeSet set) {
-    assert(set.count == 1, 'An analytic frame evaluates one shape.');
-    return AnalyticShapes._(
-      List.unmodifiable([
-        ...set.shapes,
-        ...set.superellipses,
-        ...set.superellipsesLower,
-      ]),
-    );
-  }
-
-  /// The floats, from uShapeData.
-  final List<double> floats;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is AnalyticShapes && listEquals(other.floats, floats);
-
-  @override
-  int get hashCode => Object.hash(floats.length, floats[0]);
-}
-
 /// Where a final shader variant takes each uniform the glass writes: floats
 /// read from its program by name, samplers in the order they are declared.
 ///
@@ -565,17 +556,15 @@ final class FinalLayout {
       mapping = _float(shader, 'uMapping'),
       mappingEnd = _float(shader, 'uMappingEnd'),
       colorModels = _float(shader, 'uColorModelParams'),
-      lowResMatte = _float(shader, 'uLowResMatte'),
-      lowResOptics = _float(shader, 'uLowResOptics'),
+      geometryAtlas = _float(shader, 'uGeometryAtlas'),
+      bevel = _float(shader, 'uBevel'),
       effects = _float(shader, 'uEffects'),
       band = variant.band ? _float(shader, 'uBand') : null,
-      analytic = variant.kind.perFragment ? _float(shader, 'uShapeData') : null,
-      geometry = variant.kind.perFragment ? null : 1,
       materialMap = switch (variant.kind) {
-        FinalShaderKind.tint || FinalShaderKind.material => 2,
-        _ => null,
+        FinalShaderKind.tint || FinalShaderKind.material => 3,
+        FinalShaderKind.single => null,
       },
-      materialLinear = variant.kind == FinalShaderKind.material ? 3 : null;
+      materialLinear = variant.kind == FinalShaderKind.material ? 4 : null;
 
   static int _float(ui.FragmentShader shader, String name) =>
       shader.getUniformFloat(name).shaderIndex;
@@ -604,11 +593,11 @@ final class FinalLayout {
   /// The float index of uColorModelParams.
   final int colorModels;
 
-  /// The float index of uLowResMatte.
-  final int lowResMatte;
+  /// The float index of uGeometryAtlas.
+  final int geometryAtlas;
 
-  /// The float index of uLowResOptics.
-  final int lowResOptics;
+  /// The float index of uBevel.
+  final int bevel;
 
   /// The float index of uEffects.
   final int effects;
@@ -616,14 +605,14 @@ final class FinalLayout {
   /// uBand, in the band variant.
   final int? band;
 
-  /// uShapeData, in the per-fragment variants.
-  final int? analytic;
-
   /// uBackgroundTexture's sampler: what the glass reads.
   final int backdrop = 0;
 
-  /// uGeometryTexture's sampler, where the variant reads a matte.
-  final int? geometry;
+  /// uGeometryTexture's sampler: the atlas, filtered.
+  final int geometry = 1;
+
+  /// uGeometryTable's sampler: the atlas, texel by texel.
+  final int table = 2;
 
   /// uMaterialTexture's sampler, where the variant reads a material map.
   final int? materialMap;
@@ -746,15 +735,17 @@ final class GlassShading {
       matte.materialTextureSize.height,
     ]);
     put(layout.colorModels, face.colorModels);
-    put(layout.lowResMatte, [
-      matte.matteScale.toDouble(),
+    final (tableX, tableY) = AtlasLayout.tableOrigin;
+    put(layout.geometryAtlas, [
+      tableX.toDouble(),
+      tableY.toDouble(),
       matte.textureSize.width,
       matte.textureSize.height,
-      matte.halfMinor,
     ]);
-    put(layout.lowResOptics, [
+    put(layout.bevel, [
       matte.refractionHeight,
       if (matte.fitsShape) 1 else 0,
+      matte.halfMinor,
     ]);
     put(layout.effects, solid);
     put(layout.effects + 4, draw.glow);
@@ -767,17 +758,21 @@ final class GlassShading {
     ]);
     put(layout.effects + 20, draw.band?.overlay ?? _clear);
     if (layout.band case final at?) put(at, draw.band!.band);
-    if (layout.analytic case final at?) put(at, draw.analytic!.floats);
     // The engine binds a filter's input to sampler 0 but keeps the sampling
-    // of the image bound here: bilinear.
-    shader.setImageSampler(
-      layout.backdrop,
-      image ?? matte.image,
-      filterQuality: FilterQuality.low,
-    );
-    if (layout.geometry case final at?) {
-      shader.setImageSampler(at, matte.image, filterQuality: FilterQuality.low);
-    }
+    // of the image bound here: bilinear. The atlas's strips are read
+    // filtered, its table texel by texel.
+    shader
+      ..setImageSampler(
+        layout.backdrop,
+        image ?? matte.image,
+        filterQuality: FilterQuality.low,
+      )
+      ..setImageSampler(
+        layout.geometry,
+        matte.image,
+        filterQuality: FilterQuality.low,
+      )
+      ..setImageSampler(layout.table, matte.image);
     if (matte.material case final map?) {
       if (layout.materialMap case final at?) {
         // The tint map is read filtered, the material map texel by texel

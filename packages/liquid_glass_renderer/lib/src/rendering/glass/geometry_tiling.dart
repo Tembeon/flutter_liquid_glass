@@ -26,6 +26,9 @@ final class GlassReach {
   bool covers(GlassReach other) =>
       inward >= other.inward && outward >= other.outward;
 
+  GlassReach get _shallower =>
+      GlassReach(inward: inward > 2 ? inward / 2 : 1, outward: outward);
+
   @override
   bool operator ==(Object other) =>
       other is GlassReach && other.inward == inward && other.outward == outward;
@@ -146,6 +149,11 @@ final class Tiling {
 
   /// Classifies a buffer of [width] x [height] pixels holding [shapes],
   /// encoded in buffer pixels.
+  ///
+  /// A ring that outgrows one atlas is tiled again with half the inward
+  /// reach until it fits. Past the reach a read takes the deep value, so a
+  /// layer with that much edge (several screens of glass outline) loses the
+  /// inner part of its refraction falloff.
   factory Tiling.shapes(
     ShapeSet shapes, {
     required int width,
@@ -162,7 +170,7 @@ final class Tiling {
       reach,
       kinds,
     );
-    return Tiling._runsOf(
+    final tiling = Tiling._runsOf(
       (reach, shapes, null),
       columns,
       rows,
@@ -171,10 +179,17 @@ final class Tiling {
       tileSets,
       dropped,
     );
+    if (tiling._fits || reach.inward <= 1) return tiling;
+    return Tiling.shapes(
+      shapes,
+      width: width,
+      height: height,
+      reach: reach._shallower,
+    );
   }
 
   /// Classifies a buffer of [width] x [height] pixels holding the body of
-  /// [field].
+  /// [field], fitted to one atlas as [Tiling.shapes] is.
   factory Tiling.field(
     BufferField field, {
     required int width,
@@ -183,7 +198,7 @@ final class Tiling {
   }) {
     final columns = _tilesOver(width);
     final rows = _tilesOver(height);
-    return Tiling._runsOf(
+    final tiling = Tiling._runsOf(
       (reach, ShapeSet.empty, field),
       columns,
       rows,
@@ -191,6 +206,13 @@ final class Tiling {
       const [<int>[]],
       Int32List(columns * rows),
       0,
+    );
+    if (tiling._fits || reach.inward <= 1) return tiling;
+    return Tiling.field(
+      field,
+      width: width,
+      height: height,
+      reach: reach._shallower,
     );
   }
 
@@ -237,6 +259,8 @@ final class Tiling {
     );
   }
 
+  bool get _fits => AtlasLayout._pack(this).height <= AtlasLayout.maxSize;
+
   static int _tilesOver(int pixels) => max(1, (pixels + size - 1) ~/ size);
 
   /// How far from the silhouette texels are exact.
@@ -251,8 +275,8 @@ final class Tiling {
   /// Tile edge in buffer pixels.
   static const int size = 16;
 
-  /// The longest run, so a strip stays far below the atlas width.
-  static const int maxRunTiles = 32;
+  /// The longest run: short strips fill an atlas row with little left over.
+  static const int maxRunTiles = 8;
 
   /// Tiles along x.
   final int columns;
@@ -563,10 +587,30 @@ final class _ShapeBounds {
       lx1 = max(lx1, lx);
       ly1 = max(ly1, ly);
     }
-    final double gx = max(0, max(lx0 - halfWidth, -halfWidth - lx1));
-    final double gy = max(0, max(ly0 - halfHeight, -halfHeight - ly1));
-    if (gx == 0 && gy == 0) return double.negativeInfinity;
-    return sqrt(gx * gx + gy * gy) * scale;
+    // The shapes are convex and mirror-symmetric in both local axes, so
+    // their distance grows with |x| and with |y| outside: the box's point
+    // nearest the axes is its nearest point.
+    final double qx = max(0, max(lx0, -lx1));
+    final double qy = max(0, max(ly0, -ly1));
+    final double gx = max(0, qx - halfWidth);
+    final double gy = max(0, qy - halfHeight);
+    final boxDistance = sqrt(gx * gx + gy * gy);
+    if (type != _ellipse || halfWidth <= 0 || halfHeight <= 0) {
+      return boxDistance == 0 ? double.negativeInfinity : boxDistance * scale;
+    }
+    final a2 = halfWidth * halfWidth;
+    final b2 = halfHeight * halfHeight;
+    final nx = qx / a2;
+    final ny = qy / b2;
+    if (nx * qx + ny * qy <= 1) return double.negativeInfinity;
+    // Any support line bounds the distance to a convex shape from below;
+    // the one whose normal is the ellipse's at q's radial projection is
+    // close to the nearest.
+    final length = sqrt(nx * nx + ny * ny);
+    final ux = nx / length;
+    final uy = ny / length;
+    final support = ux * qx + uy * qy - sqrt(a2 * ux * ux + b2 * uy * uy);
+    return max(boxDistance, support) * scale;
   }
 
   /// A lower bound of the depth inside the shape over the rect, or 0.
@@ -575,8 +619,10 @@ final class _ShapeBounds {
   /// depth; it is a minimum of affine functions, so over the rect's preimage
   /// (a parallelogram) it is least at a corner. Rounded boxes hold the
   /// octagon cut at twice the radius from each corner, shrunk by a
-  /// hundredth of the radius (analytic_depth_bound_test); an ellipse holds
-  /// the rhombus through its vertices.
+  /// hundredth of the radius (shape_depth_bound_test). An ellipse holds its
+  /// copy scaled by rho about the center (the copy through the point) grown
+  /// by (1 - rho) times its minor semi-axis; rho is convex, so that bound
+  /// too is least at a corner.
   double depthLowerBound(double x0, double y0, double x1, double y1) {
     var depth = double.infinity;
     for (final (x, y) in [(x0, y0), (x1, y0), (x0, y1), (x1, y1)]) {
@@ -592,10 +638,9 @@ final class _ShapeBounds {
     final ay = ly.abs();
     if (type == _ellipse) {
       if (halfWidth <= 0 || halfHeight <= 0) return 0;
-      final norm = sqrt(
-        1 / (halfWidth * halfWidth) + 1 / (halfHeight * halfHeight),
-      );
-      return (1 - ax / halfWidth - ay / halfHeight) / norm;
+      final rx = ax / halfWidth;
+      final ry = ay / halfHeight;
+      return (1 - sqrt(rx * rx + ry * ry)) * min(halfWidth, halfHeight);
     }
     final shorter = min(halfWidth, halfHeight);
     if (type == _pair ? 2 * radius > shorter : radius > shorter) return 0;
@@ -630,12 +675,24 @@ final class AtlasLayout {
   const AtlasLayout._({
     required this.width,
     required this.height,
-    required this.tableOrigin,
     required this.strips,
   });
 
   /// Lays out [tiling]'s table and strips.
   factory AtlasLayout.of(Tiling tiling) {
+    final packed = AtlasLayout._pack(tiling);
+    assert(
+      packed.height <= maxSize,
+      'A geometry atlas outgrew $maxSize rows at an inward reach of 1.',
+    );
+    return AtlasLayout._(
+      width: packed.width,
+      height: (packed.height + _align - 1) ~/ _align * _align,
+      strips: packed.strips,
+    );
+  }
+
+  factory AtlasLayout._pack(Tiling tiling) {
     final widths = [
       for (final run in tiling.runs) run.length * Tiling.size + 2,
     ];
@@ -647,9 +704,8 @@ final class AtlasLayout {
     );
     width = max(width, sqrt(area).ceil());
     width = min(maxSize, (width + _align - 1) ~/ _align * _align);
-    const tableTop = _strip;
     var x = 0;
-    var y = tableTop + tiling.rows;
+    var y = tableOrigin.$2 + tiling.rows;
     final strips = Int32List(widths.length * 2);
     for (var i = 0; i < widths.length; i++) {
       if (x + widths[i] > width) {
@@ -660,12 +716,9 @@ final class AtlasLayout {
       strips[i * 2 + 1] = y;
       x += widths[i];
     }
-    final height = y + (widths.isEmpty ? 0 : _strip);
-    assert(height <= maxSize, 'A geometry atlas outgrew $maxSize rows.');
     return AtlasLayout._(
       width: width,
-      height: (height + _align - 1) ~/ _align * _align,
-      tableOrigin: (0, tableTop),
+      height: y + (widths.isEmpty ? 0 : _strip),
       strips: strips,
     );
   }
@@ -683,8 +736,8 @@ final class AtlasLayout {
   /// The atlas size in texels.
   final int height;
 
-  /// Texel of table entry (0, 0).
-  final (int, int) tableOrigin;
+  /// Texel of table entry (0, 0), below the constant tiles.
+  static const (int, int) tableOrigin = (0, _strip);
 
   /// Each run's strip corner (its apron's top-left texel), x then y.
   final Int32List strips;

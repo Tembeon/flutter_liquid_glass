@@ -29,12 +29,15 @@ void runGpuImageOwnershipTests() {
             appearances[64 + shape * 4 + 1] = 0.25;
             appearances[64 + shape * 4 + 3] = 0.2;
           }
-          return renderTestRectangle(
-            renderer,
-            centerX: 16.0 + index * 3,
-            writeMaterials: true,
+          final centerX = 16.0 + index * 3;
+          renderer.renderMaterials(
+            testRectangle(centerX: centerX),
+            width: 64,
+            height: 64,
             appearanceData: appearances,
+            tintOnly: false,
           );
+          return renderTestRectangle(renderer, centerX: centerX);
         }
 
         Future<Uint8List> pixels(ui.Image image) async {
@@ -90,7 +93,7 @@ void runGpuImageOwnershipTests() {
         expect(await pixels(material), orderedEquals(originalMaterialPixels));
         expect(
           FlutterGpuGeometryRenderer.debugTotalRenderCount - initialCount,
-          9,
+          18,
         );
       });
     },

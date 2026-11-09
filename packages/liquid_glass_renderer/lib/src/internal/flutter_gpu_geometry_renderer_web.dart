@@ -1,9 +1,9 @@
 import 'dart:ui' as ui;
 
 import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_field.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_support.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/geometry_tiling.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass/shape_set.dart';
 import 'package:meta/meta.dart';
 
 /// Web stand-in for the Flutter GPU geometry renderer: the web has no
@@ -46,7 +46,7 @@ class FlutterGpuGeometryRenderer {
   Object? get debugMatteTexture => null;
   (int, int)? get debugMatteTextureSize => null;
 
-  /// Material map texels per matte pixel along each side.
+  /// Geometry buffer pixels per material map texel along each side.
   static const int materialRasterScale = geometryMaterialRasterScale;
 
   /// Nothing is drawn on the web, so nothing is left out.
@@ -60,37 +60,17 @@ class FlutterGpuGeometryRenderer {
   Object? get debugHostBufferIdentity => null;
   bool get debugDisposed => true;
   ui.Image? get materialImage => null;
+  ui.Image? get atlasImage => null;
 
-  ({
-    ui.Image image,
-    int width,
-    int height,
-    int textureWidth,
-    int textureHeight,
-  })
-  render({
+  ui.Image renderMaterials(
+    ShapeSet shapes, {
     required int width,
     required int height,
-    required List<double> shapeData,
-    required int numShapes,
-    required double refractionHeight,
-    required double refractionAmount,
-    required double offsetX,
-    required double offsetY,
-    double? edgeDistanceRange,
-    bool refractionFitsShape = true,
-    double contourExtent = 0.5,
-    bool writeMatte = true,
-    bool writeMaterials = false,
-    bool writeTintOnly = false,
-    List<double> appearanceData = const <double>[],
-    List<double> rseData = const <double>[],
-    List<double> rseLowerData = const <double>[],
-    List<double> boundsData = const <double>[],
-    required int matteScale,
-    LiquidGlassField? field,
-    double fieldScale = 1,
+    required List<double> appearanceData,
+    required bool tintOnly,
   }) => throw UnsupportedError('Flutter GPU is not available on the web.');
+
+  void releaseMaterials() {}
 
   ({ui.Image image, AtlasLayout layout, int textureWidth, int textureHeight})
   renderAtlas(Tiling tiling) =>

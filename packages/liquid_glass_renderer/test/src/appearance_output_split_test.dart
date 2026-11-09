@@ -114,18 +114,18 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
         return bytes;
       }
 
-      // The low-res matte: one texel per matte scale pixels, plus one extra
-      // row and column for the far edge.
+      // What the final shader reads of the geometry buffer.
       Future<Uint8List> matteBytes() async {
         final image = layer.debugGeometryImage!;
-        final field = (await tester.runAsync(() => readGeometryField(image)))!;
-        final scale = layer.matteScale;
-        return fieldRegion(
-          field,
-          image.width,
-          layer.debugGeometryMatteBounds.width.round() ~/ scale + 1,
-          layer.debugGeometryMatteBounds.height.round() ~/ scale + 1,
-        ).buffer.asUint8List();
+        final atlas = (await tester.runAsync(() => AtlasTexels.read(image)))!;
+        final bounds = layer.debugGeometryMatteBounds;
+        return Float32List.fromList([
+          for (var y = 0; y < bounds.height.round(); y++)
+            for (var x = 0; x < bounds.width.round(); x++)
+              ...switch (atlas.pixel(x, y)) {
+                (final a, final b, final c, final d) => [a, b, c, d],
+              },
+        ]).buffer.asUint8List();
       }
 
       Future<Uint8List?> materialBytes() async {
@@ -371,7 +371,7 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
           final meanError = totalError / samples;
           final largeFraction = largeErrors / samples;
           // Unlike integral translations, a full build samples a newly snapped
-          // analytic matte. Allow mean error <= 1/255, with >16/255 differences
+          // atlas. Allow mean error <= 1/255, with >16/255 differences
           // in at most 1% of RGB samples.
           expect(meanError, lessThanOrEqualTo(1));
           expect(largeFraction, lessThanOrEqualTo(0.01));

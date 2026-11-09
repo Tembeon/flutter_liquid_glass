@@ -173,7 +173,7 @@ final class ShapeSet {
         );
         final center = centerInMatte * dpr;
         // Every shader clamps a corner to half the short side already;
-        // a clamped radius also lets the analytic depth bound hold for a
+        // a clamped radius also lets the tiler's depth bound hold for a
         // capsule written with an oversized radius. A pair is fitted on
         // its own.
         final cornerRadius = pair
@@ -266,7 +266,6 @@ final class ShapeSet {
 
   /// Shapes already in the shaders' layout, each with the default
   /// appearance.
-  @visibleForTesting
   factory ShapeSet.rows({
     required List<double> shapes,
     required List<double> boxes,

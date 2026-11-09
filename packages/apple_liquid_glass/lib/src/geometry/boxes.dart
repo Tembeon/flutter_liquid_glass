@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
 /// How much larger a corner radius the glass's optical normals turn on
-/// than the shape's own: the factor the renderer's analytic shapes use
+/// than the shape's own: the factor the renderer's shapes use
 /// (`kOpticalCornerRadiusScale` in its sdf.glsl, fitted to iOS 27 card
 /// corners), so a body drawn from a field turns its light at a corner
 /// where the same shape drawn alone does.

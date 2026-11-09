@@ -17,11 +17,11 @@ int _define(String path, String name) {
 }
 
 void main() {
-  test('every matte draw holds as many shapes as its shaders', () {
+  test('every geometry draw holds as many shapes as its shaders', () {
     const most = geometryMaxShapesPerDraw;
     for (final path in [
       'gpu/sdf.glsl',
-      'gpu/geometry_fragment.glsl',
+      'gpu/tile_geometry_fragment.glsl',
       'gpu/material_gradient_fragment.glsl',
     ]) {
       expect(_define(path, 'MAX_SHAPES'), most, reason: path);
@@ -39,9 +39,5 @@ void main() {
       ).length,
       most * 2 * 4,
     );
-  });
-
-  test('an analytic frame holds one shape', () {
-    expect(_define('analytic_geometry.glsl', 'MAX_SHAPES'), 1);
   });
 }
