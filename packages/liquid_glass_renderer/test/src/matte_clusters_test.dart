@@ -11,8 +11,11 @@ const _key = ValueKey('screen');
 
 const _shapes = 20;
 
+// Rows 80 pixels apart put the second layer's buffer 160 pixels below the
+// first, on the same tile grid, so its glass keeps full density where one
+// layer's would: a tile's density depends on where it falls.
 Rect _rect(int i) =>
-    Rect.fromLTWH(20 + (i % 5) * 70.0, 20 + (i ~/ 5) * 70.0, 30, 30);
+    Rect.fromLTWH(20 + (i % 5) * 70.0, 20 + (i ~/ 5) * 80.0, 30, 30);
 
 // [layers] lists, for each glass layer, the shapes it holds.
 Widget _scene(List<List<int>> layers) => Directionality(

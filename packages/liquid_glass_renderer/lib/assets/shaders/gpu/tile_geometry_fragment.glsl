@@ -1,8 +1,8 @@
-// Evaluates the shapes for the texels of a geometry atlas's ring strips, one
-// texel per buffer pixel, in the format of matte_encoding.glsl, and with
-// LOOKS their look beside it (look_targets.glsl). The quad carries the
-// buffer pixel of its first texel minus that texel's coordinate, so a
-// texel's pixel center is gl_FragCoord plus that offset.
+// Evaluates the shapes for the texels of a geometry atlas's ring strips, in
+// the format of matte_encoding.glsl, and with LOOKS their look beside it
+// (look_targets.glsl). A texel spans vValue.z buffer pixels a side; the
+// quad's xy carries where gl_FragCoord (0, 0) would sit, so a texel's center
+// is the buffer point gl_FragCoord * vValue.z + vValue.xy.
 
 precision highp float;
 
@@ -22,12 +22,12 @@ layout(location = 0) out vec4 fragColor;
 #endif
 
 void main() {
-    vec2 position = gl_FragCoord.xy + vValue.xy;
+    vec2 position = gl_FragCoord.xy * vValue.z + vValue.xy;
 
     // A texel farther from every shape's box than the reach, the blend
-    // budget and two pixels is past anything a read blends in.
+    // budget and two texels is past anything a read blends in.
     vec2 outsideBounds = sceneBoundsOutsideSquared(position, int(uNumShapes));
-    float reach = uReachOutward + 2.0 + outsideBounds.y;
+    float reach = uReachOutward + 2.0 * vValue.z + outsideBounds.y;
     if (outsideBounds.x > reach * reach) {
         fragColor = vec4(kFarInward, 0.0, 0.0, 0.0);
 #if LOOKS

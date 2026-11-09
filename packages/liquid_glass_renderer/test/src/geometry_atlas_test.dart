@@ -23,7 +23,7 @@ Future<AtlasTexels> _draw(
 /// Buffer pixel ([x], [y]) as its strip holds it: NaN where the strip skips
 /// it.
 (double, double, double, double) _strip(AtlasTexels atlas, int x, int y) {
-  final (ex, ey) = atlas.entry(x ~/ Tiling.size, y ~/ Tiling.size);
+  final (ex, ey, _) = atlas.entry(x ~/ Tiling.size, y ~/ Tiling.size);
   return atlas.at(ex + x % Tiling.size, ey + y % Tiling.size);
 }
 
@@ -116,7 +116,7 @@ void main() {
     );
     expect(tiling.runs, isNotEmpty);
     final atlas = await _draw(renderer, tiling);
-    final layout = AtlasLayout.of(tiling);
+    final layout = tiling.layout;
     final expected = <(int, int), (int, int)>{};
     for (var i = 0; i < tiling.runs.length; i++) {
       final run = tiling.runs[i];
@@ -126,13 +126,19 @@ void main() {
     }
     for (var row = 0; row < tiling.rows; row++) {
       for (var column = 0; column < tiling.columns; column++) {
+        final (x, y, scale) = atlas.entry(column, row);
         expect(
-          atlas.entry(column, row),
+          (x, y),
           switch (tiling.kindAt(column, row)) {
             TileKind.outside => AtlasLayout.outsideEntry,
             TileKind.deep => AtlasLayout.deepEntryOf(0),
             TileKind.ring => expected[(column, row)],
           },
+          reason: 'tile $column, $row',
+        );
+        expect(
+          scale,
+          tiling.kindAt(column, row) == TileKind.ring ? 1 : 0,
           reason: 'tile $column, $row',
         );
       }
@@ -225,6 +231,62 @@ void main() {
         }
       }
     }
+  });
+
+  test('a coarse tile reads within NEAR of the exact geometry', () async {
+    final renderer = await createGeometryRenderer();
+    final dense = await createGeometryRenderer();
+    final random = Random(17);
+    const reach = GlassReach(inward: 24, outward: 3, coarseTexel: 4);
+    var coarseTiles = 0;
+    var worstDistance = 0.0;
+    var worstEdgeNormal = 0.0;
+    var worstNormal = 0.0;
+    for (var scene = 0; scene < 12; scene++) {
+      final shapes = _scene(random, 1 + random.nextInt(8), width, height);
+      final tiling = Tiling.shapes(
+        shapes,
+        width: width,
+        height: height,
+        reach: reach,
+      );
+      final read = await _draw(renderer, tiling);
+      final every = await _draw(
+        dense,
+        Tiling.shapes(shapes, width: width, height: height, reach: _everything),
+      );
+      for (final run in tiling.runs) {
+        if (run.texel == 1) continue;
+        coarseTiles += run.length;
+        for (
+          var x = run.column * Tiling.size;
+          x < min(width, (run.column + run.length) * Tiling.size);
+          x++
+        ) {
+          for (
+            var y = run.row * Tiling.size;
+            y < min(height, (run.row + 1) * Tiling.size);
+            y++
+          ) {
+            final exact = _strip(every, x, y);
+            if (exact.$1 <= -reach.outward || exact.$1 >= reach.inward) {
+              continue;
+            }
+            final (inward, nx, ny, _) = read.pixel(x, y);
+            final normal =
+                sqrt(pow(nx - exact.$2, 2) + pow(ny - exact.$3, 2)) /
+                sqrt(pow(exact.$2, 2) + pow(exact.$3, 2));
+            worstDistance = max(worstDistance, (inward - exact.$1).abs());
+            worstNormal = max(worstNormal, normal);
+            if (exact.$1 < 4) worstEdgeNormal = max(worstEdgeNormal, normal);
+          }
+        }
+      }
+    }
+    expect(coarseTiles, greaterThan(50));
+    expect(worstDistance, lessThan(0.25));
+    expect(worstEdgeNormal, lessThan(0.1));
+    expect(worstNormal, lessThan(0.2));
   });
 
   test('a field atlas holds what a pass over every texel writes', () async {

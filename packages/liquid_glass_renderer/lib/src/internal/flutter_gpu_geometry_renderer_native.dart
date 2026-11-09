@@ -11,6 +11,7 @@ import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart
 import 'package:liquid_glass_renderer/src/liquid_glass_field.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_support.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/geometry_tiling.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass/shape_set.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 /// The edge distance of a geometry atlas's outside tile and of its texels
@@ -275,9 +276,10 @@ class FlutterGpuGeometryRenderer {
   late final int _uniformSize;
   late final _GeometryUniformOffsets _offsets;
   late final ByteData _uniformData;
+  late final Float32List _uniformFloats = _uniformData.buffer.asFloat32List();
   int _writtenShapeFloats = 0;
-  int _writtenRseFloats = 0;
-  int _writtenRseLowerFloats = 0;
+
+  static final _AtlasQuads _quads = _AtlasQuads();
 
   /// The latest geometry atlas.
   ui.Image? get atlasImage => _atlasImage;
@@ -296,7 +298,8 @@ class FlutterGpuGeometryRenderer {
   /// [Tiling.looks] the pass writes each texel's look into [lookImages]
   /// beside it, textures of the atlas's size.
   ///
-  /// Table texels hold their tile's entry in x and y and 1 in w. The returned
+  /// Table texels hold their tile's entry in x and y, the strip's texels a
+  /// pixel in z (0 for a constant tile) and 1 in w. The returned
   /// images belong to the renderer: do not dispose them. Their textures are
   /// written again [reuseAfterFrames] frames after a later atlas replaces
   /// them.
@@ -313,7 +316,12 @@ class FlutterGpuGeometryRenderer {
       return true;
     }(), 'Track geometry submissions in debug builds.');
     _ensureFrameCounter();
-    final layout = AtlasLayout.of(tiling);
+    final layout = tiling.layout;
+    assert(
+      layout.height <= AtlasLayout.maxSize,
+      'A geometry atlas outgrew ${AtlasLayout.maxSize} rows at an inward '
+      'reach of 1.',
+    );
     final looks = tiling.looks;
     final lookTargets = _LookTargets.of(looks);
     _releaseAtlasHandles();
@@ -334,15 +342,19 @@ class FlutterGpuGeometryRenderer {
     }(), 'Track live geometry textures in debug builds.');
 
     const strip = Tiling.size + 2;
-    final quads = _AtlasQuads(texture.width, texture.height)
-      ..add(0, 0, strip, strip, value: (kFarInward, 0, 0, 0));
+    final quads = _quads
+      ..reset(texture.width, texture.height)
+      ..add(0, 0, strip, strip, kFarInward, 0, 0, 0);
     for (var look = 0; look < (looks?.count ?? 1); look++) {
       quads.add(
         (look + 1) * strip,
         0,
         strip,
         strip,
-        value: (kDeepInward, 0, 0, 0),
+        kDeepInward,
+        0,
+        0,
+        0,
         look: look,
       );
     }
@@ -367,7 +379,10 @@ class FlutterGpuGeometryRenderer {
           tableY + row,
           end - column,
           1,
-          value: (deepX.toDouble(), deepY.toDouble(), 0, 1),
+          deepX.toDouble(),
+          deepY.toDouble(),
+          0,
+          1,
         );
         column = end;
       }
@@ -381,8 +396,12 @@ class FlutterGpuGeometryRenderer {
         tableY + run.row,
         run.length,
         1,
-        value: (entryX.toDouble(), entryY.toDouble(), 0, 1),
-        ramp: ((tableX + run.column).toDouble(), Tiling.size.toDouble()),
+        entryX.toDouble(),
+        entryY.toDouble(),
+        1 / run.texel,
+        1,
+        rampFrom: (tableX + run.column).toDouble(),
+        rampStep: (Tiling.size ~/ run.texel).toDouble(),
       );
     }
     final fills = quads.count;
@@ -394,17 +413,16 @@ class FlutterGpuGeometryRenderer {
         if (run.shapes != set) continue;
         final x = layout.strips[i * 2];
         final y = layout.strips[i * 2 + 1];
+        final texel = run.texel;
         quads.add(
           x,
           y,
-          run.length * Tiling.size + 2,
-          strip,
-          value: (
-            (run.column * Tiling.size - x - 1).toDouble(),
-            (run.row * Tiling.size - y - 1).toDouble(),
-            0,
-            0,
-          ),
+          run.length * Tiling.size ~/ texel + 2,
+          Tiling.size ~/ texel + 2,
+          (run.column * Tiling.size - (x + 1) * texel).toDouble(),
+          (run.row * Tiling.size - (y + 1) * texel).toDouble(),
+          texel.toDouble(),
+          0,
         );
       }
       if (quads.count > start) sets.add((set, start, quads.count - start));
@@ -432,7 +450,7 @@ class FlutterGpuGeometryRenderer {
       ..setPrimitiveType(gpu.PrimitiveType.triangle)
       ..bindPipeline(pipelines.fill);
     if (looks != null) {
-      _packLooks(looks, [for (var look = 0; look < looks.count; look++) look]);
+      _packLooks(looks);
       pass.bindUniform(
         pipelines.fillShapes!,
         hostBuffer.emplace(_uniformData),
@@ -444,22 +462,9 @@ class FlutterGpuGeometryRenderer {
       ..bindVertexBuffer(range(0, fills))
       ..draw(fills * 6)
       ..clearBindings();
-    final shapes = tiling.shapes;
     gpu.BufferView shapeUniforms(List<int> members) {
-      List<double> pick(List<double> data, int stride) => [
-        for (final i in members) ...data.getRange(i * stride, (i + 1) * stride),
-      ];
-      _packShapes(
-        reachOutward: tiling.reach.outward,
-        numShapes: members.length.toDouble(),
-        shapeData: pick(shapes.shapes, 12),
-        rseData: pick(shapes.superellipses, 12),
-        rseLowerData: pick(shapes.superellipsesLower, 12),
-        boundsData: pick(shapes.boxes, 4),
-      );
-      if (looks != null) {
-        _packLooks(looks, [for (final i in members) looks.lookOf[i]]);
-      }
+      _packShapes(tiling.shapes, members, reachOutward: tiling.reach.outward);
+      if (looks != null) _packLooks(looks, members: members);
       return hostBuffer.emplace(_uniformData);
     }
 
@@ -707,74 +712,59 @@ class FlutterGpuGeometryRenderer {
     }(), 'Count dropped geometry textures in debug builds.');
   }
 
-  void _packLooks(ShapeLooks looks, List<int> entries) {
-    final floatData = _uniformData.buffer.asFloat32List();
+  // Writes look row by row: each look in turn, or the look of each of
+  // [members].
+  void _packLooks(ShapeLooks looks, {List<int>? members}) {
+    final floats = _uniformFloats;
     final tints = _offsets.lookTints ~/ 4;
     final responses = _offsets.lookResponses ~/ 4;
-    for (var row = 0; row < entries.length; row++) {
-      final at = entries[row] * 8;
+    final rows = members?.length ?? looks.count;
+    for (var row = 0; row < rows; row++) {
+      final at = (members == null ? row : looks.lookOf[members[row]]) * 8;
       for (var i = 0; i < 4; i++) {
-        floatData[tints + row * 4 + i] = looks.looks[at + i];
-        floatData[responses + row * 4 + i] = looks.looks[at + 4 + i];
+        floats[tints + row * 4 + i] = looks.looks[at + i];
+        floats[responses + row * 4 + i] = looks.looks[at + 4 + i];
       }
     }
   }
 
-  // Writes the shapes' uniforms, which every draw replaces.
-  void _packShapes({
+  // Writes the uniforms of [members] of [shapes], at most
+  // geometryMaxShapesPerDraw, which every draw replaces. Rows past them are
+  // zero, and their bounds never cull.
+  void _packShapes(
+    ShapeSet shapes,
+    List<int> members, {
     required double reachOutward,
-    required double numShapes,
-    required List<double> shapeData,
-    required List<double> rseData,
-    required List<double> rseLowerData,
-    required List<double> boundsData,
   }) {
-    final floatData = _uniformData.buffer.asFloat32List();
-    floatData[_offsets.props ~/ 4] = reachOutward;
-    floatData[_offsets.props ~/ 4 + 1] = numShapes;
-
-    final shapeDataStartIndex = _offsets.shapeData ~/ 4;
+    final floats = _uniformFloats;
+    final count = math.min(members.length, geometryMaxShapesPerDraw);
+    floats[_offsets.props ~/ 4] = reachOutward;
+    floats[_offsets.props ~/ 4 + 1] = count.toDouble();
     const rows = geometryMaxShapesPerDraw * 12;
-    final shapeFloats = math.min(shapeData.length, rows);
-    for (var i = 0; i < shapeFloats; i++) {
-      floatData[shapeDataStartIndex + i] = shapeData[i];
-    }
-    for (var i = shapeFloats; i < _writtenShapeFloats; i++) {
-      floatData[shapeDataStartIndex + i] = 0;
-    }
-    _writtenShapeFloats = shapeFloats;
-
-    final rseDataStartIndex = _offsets.rseData ~/ 4;
-    final rseFloats = math.min(rseData.length, rows);
-    for (var i = 0; i < rseFloats; i++) {
-      floatData[rseDataStartIndex + i] = rseData[i];
-    }
-    for (var i = rseFloats; i < _writtenRseFloats; i++) {
-      floatData[rseDataStartIndex + i] = 0;
-    }
-    _writtenRseFloats = rseFloats;
-
+    final shapeAt = _offsets.shapeData ~/ 4;
+    final rseAt = _offsets.rseData ~/ 4;
     // A pair's bottom half sits in the second half of uRseData.
-    final lowerStartIndex = rseDataStartIndex + rows;
-    final lowerFloats = math.min(rseLowerData.length, rows);
-    for (var i = 0; i < lowerFloats; i++) {
-      floatData[lowerStartIndex + i] = rseLowerData[i];
+    final lowerAt = rseAt + rows;
+    final boundsAt = _offsets.shapeBounds ~/ 4;
+    for (var row = 0; row < count; row++) {
+      final from = members[row] * 12;
+      for (var i = 0; i < 12; i++) {
+        floats[shapeAt + row * 12 + i] = shapes.shapes[from + i];
+        floats[rseAt + row * 12 + i] = shapes.superellipses[from + i];
+        floats[lowerAt + row * 12 + i] = shapes.superellipsesLower[from + i];
+      }
+      for (var i = 0; i < 4; i++) {
+        floats[boundsAt + row * 4 + i] = shapes.boxes[members[row] * 4 + i];
+      }
     }
-    for (var i = lowerFloats; i < _writtenRseLowerFloats; i++) {
-      floatData[lowerStartIndex + i] = 0;
+    for (var i = count * 12; i < _writtenShapeFloats; i++) {
+      floats[shapeAt + i] = 0;
+      floats[rseAt + i] = 0;
+      floats[lowerAt + i] = 0;
     }
-    _writtenRseLowerFloats = lowerFloats;
-
-    // Shapes without bounds are never culled.
-    final boundsStartIndex = _offsets.shapeBounds ~/ 4;
-    final boundsFloats = math.min(
-      boundsData.length,
-      geometryMaxShapesPerDraw * 4,
-    );
-    for (var i = 0; i < geometryMaxShapesPerDraw * 4; i++) {
-      floatData[boundsStartIndex + i] = i < boundsFloats
-          ? boundsData[i]
-          : (i % 4 < 2 ? -1e9 : 1e9);
+    _writtenShapeFloats = count * 12;
+    for (var i = count * 4; i < geometryMaxShapesPerDraw * 4; i++) {
+      floats[boundsAt + i] = i % 4 < 2 ? -1e9 : 1e9;
     }
   }
 
@@ -802,47 +792,70 @@ class FlutterGpuGeometryRenderer {
 
 /// The quads of one atlas pass as tile_vertex.glsl reads them: two
 /// triangles each, corners in clip space for a target of [_width] x
-/// [_height] texels, top row first.
+/// [_height] texels, top row first. One list serves every pass in turn.
 final class _AtlasQuads {
-  _AtlasQuads(this._width, this._height);
+  static const int _quadFloats = 6 * _tileVertexFloats;
 
-  static const int bytesPerQuad = 6 * _tileVertexFloats * 4;
+  // The six corners of a quad's two triangles, 1 for its far side.
+  static const List<int> _corners = [0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1];
 
-  final int _width;
-  final int _height;
-  final List<double> _floats = [];
+  static const int bytesPerQuad = _quadFloats * 4;
 
-  int get count => _floats.length ~/ (6 * _tileVertexFloats);
+  int _width = 1;
+  int _height = 1;
+  Float32List _floats = Float32List(256 * _quadFloats);
+  int count = 0;
 
-  ByteData get bytes => ByteData.sublistView(Float32List.fromList(_floats));
+  /// Starts the quads of a pass into [width] x [height] texels.
+  void reset(int width, int height) {
+    _width = width;
+    _height = height;
+    count = 0;
+  }
 
-  /// The texels [x], [y] to [x] + [w], [y] + [h]; a fill pass with looks
-  /// writes [look] beside a constant tile, none where it is negative.
+  /// The quads written since [reset].
+  ByteData get bytes => ByteData.sublistView(_floats, 0, count * _quadFloats);
+
+  /// The texels [x], [y] to [x] + [w], [y] + [h], every vertex carrying the
+  /// value ([v0], [v1], [v2], [v3]) and the ramp ([rampFrom], [rampStep]); a
+  /// fill pass with looks writes [look] beside a constant tile, none where
+  /// it is negative.
   void add(
     int x,
     int y,
     int w,
-    int h, {
-    required (double, double, double, double) value,
-    (double, double) ramp = (0, 0),
+    int h,
+    double v0,
+    double v1,
+    double v2,
+    double v3, {
+    double rampFrom = 0,
+    double rampStep = 0,
     int look = -1,
   }) {
+    if ((count + 1) * _quadFloats > _floats.length) {
+      _floats = Float32List(_floats.length * 2)..setAll(0, _floats);
+    }
     final x0 = 2 * x / _width - 1;
     final x1 = 2 * (x + w) / _width - 1;
     final y0 = 1 - 2 * y / _height;
     final y1 = 1 - 2 * (y + h) / _height;
-    final (v0, v1, v2, v3) = value;
-    final (r0, r1) = ramp;
-    for (final (px, py) in [
-      (x0, y0),
-      (x1, y0),
-      (x0, y1),
-      (x1, y0),
-      (x1, y1),
-      (x0, y1),
-    ]) {
-      _floats.addAll([px, py, v0, v1, v2, v3, r0, r1, look.toDouble(), 0]);
+    final floats = _floats;
+    var at = count * _quadFloats;
+    for (var corner = 0; corner < _corners.length; corner += 2) {
+      floats[at] = _corners[corner] == 0 ? x0 : x1;
+      floats[at + 1] = _corners[corner + 1] == 0 ? y0 : y1;
+      floats[at + 2] = v0;
+      floats[at + 3] = v1;
+      floats[at + 4] = v2;
+      floats[at + 5] = v3;
+      floats[at + 6] = rampFrom;
+      floats[at + 7] = rampStep;
+      floats[at + 8] = look.toDouble();
+      floats[at + 9] = 0;
+      at += _tileVertexFloats;
     }
+    count++;
   }
 }
 
@@ -932,22 +945,28 @@ final class _RingTexture {
   /// Frame count when this texture was last replaced or released.
   int retiredFrame = 0;
 
-  bool covers(int width, int height) =>
-      texture.width >= width && texture.height >= height;
+  bool sized(int width, int height) =>
+      texture.width == width && texture.height == height;
 }
 
 /// The current atlas and up to three retired spares, RGBA16F.
 ///
-/// Capacity grows in 1.5x steps up to [AtlasLayout.maxSize]. The spares
-/// cover a frame that renders twice, alternating between atlases with and
-/// without looks, without allocating.
+/// A pass clears and stores its whole target on a tiled GPU, so the ring
+/// sizes its textures to the atlases it draws: an eighth over the atlas,
+/// rounded up to 64 texels. Its capacity grows as soon as an atlas needs
+/// more, and shrinks to the latest atlas once [_shrinkAfter] atlases in a
+/// row would have fit in half of it; every texture it keeps is of its
+/// capacity. The spares cover a frame that renders twice, alternating
+/// between atlases with and without looks, without allocating.
 final class _TextureRing {
   static const int _maxSpares = 3;
+  static const int _shrinkAfter = 30;
 
   _RingTexture? _current;
   final List<_RingTexture> _spares = [];
   int _width = 0;
   int _height = 0;
+  int _slack = 0;
 
   int get spareCount => _spares.length;
   int get textureCount => _spares.length + (_current == null ? 0 : 1);
@@ -960,19 +979,30 @@ final class _TextureRing {
     required int height,
     required int lookCount,
   }) {
+    final fitWidth = _fit(width);
+    final fitHeight = _fit(height);
     if (width > _width || height > _height) {
-      _width = _grow(_width, width);
-      _height = _grow(_height, height);
-      _spares.removeWhere((entry) {
-        if (entry.covers(_width, _height)) return false;
-        FlutterGpuGeometryRenderer._countDropped(entry);
-        return true;
-      });
+      _width = math.max(_width, fitWidth);
+      _height = math.max(_height, fitHeight);
+      _slack = 0;
+    } else if (fitWidth * fitHeight * 2 <= _width * _height) {
+      if (++_slack >= _shrinkAfter) {
+        _width = fitWidth;
+        _height = fitHeight;
+        _slack = 0;
+      }
+    } else {
+      _slack = 0;
     }
+    _spares.removeWhere((entry) {
+      if (entry.sized(_width, _height)) return false;
+      FlutterGpuGeometryRenderer._countDropped(entry);
+      return true;
+    });
     final previous = _current;
     _current = null;
     if (previous != null) {
-      if (previous.covers(_width, _height)) {
+      if (previous.sized(_width, _height)) {
         previous.retiredFrame = frame;
         _spares.add(previous);
       } else {
@@ -998,6 +1028,9 @@ final class _TextureRing {
     return _current = _RingTexture(_create(_width, _height), lookCount);
   }
 
+  static int _fit(int needed) =>
+      math.min(AtlasLayout.maxSize, (needed + (needed >> 3) + 63) & ~63);
+
   /// Drops every texture and resets the ring's capacity.
   void release() {
     for (final entry in [?_current, ..._spares]) {
@@ -1007,13 +1040,7 @@ final class _TextureRing {
     _spares.clear();
     _width = 0;
     _height = 0;
-  }
-
-  static int _grow(int capacity, int needed) {
-    if (needed <= capacity) return capacity;
-    if (capacity == 0) return needed;
-    final stepped = (capacity * 3 + 1) >> 1;
-    return math.max(needed, math.min(stepped, AtlasLayout.maxSize));
+    _slack = 0;
   }
 
   static gpu.Texture _create(int width, int height) {

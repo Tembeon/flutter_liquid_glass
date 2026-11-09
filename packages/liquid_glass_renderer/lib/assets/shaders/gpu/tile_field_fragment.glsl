@@ -66,7 +66,7 @@ vec4 fieldAt(vec2 p) {
 }
 
 void main() {
-    vec2 position = gl_FragCoord.xy + vValue.xy;
+    vec2 position = gl_FragCoord.xy * vValue.z + vValue.xy;
     vec4 field = fieldAt(position);
     fragColor = encodeMatte(
         field.r * uGridShift.z,

@@ -264,6 +264,7 @@ void main() {
     GlassReach(inward: 24, outward: 2),
     GlassReach(inward: 6, outward: 0.5),
     GlassReach(inward: 60, outward: 12),
+    GlassReach(inward: 24, outward: 2, coarseTexel: 4),
   ];
 
   test('constant tiles hold only pixels past the reach', () {
@@ -541,7 +542,7 @@ void main() {
           height: 900,
           reach: const GlassReach(inward: 40, outward: 4),
         );
-        final atlas = AtlasLayout.of(tiling);
+        final atlas = tiling.layout;
         expect(atlas.width, lessThanOrEqualTo(AtlasLayout.maxSize));
         expect(atlas.height, lessThanOrEqualTo(AtlasLayout.maxSize));
         final (tableX, tableY) = AtlasLayout.tableOrigin;
@@ -612,11 +613,38 @@ void main() {
     expect(tiling.reach.inward, lessThan(400));
     expect(tiling.reach.outward, 4);
     expect(
-      AtlasLayout.of(tiling).height,
+      tiling.layout.height,
       lessThanOrEqualTo(AtlasLayout.maxSize),
     );
     final twice = tiling.reach.inward * 2;
     expect(tile(twice).reach.inward, lessThan(twice));
+  });
+
+  test('members out of reach of one another tile as if each were alone', () {
+    List<_Shape> pair({required double blend}) => [
+      for (final (x, y) in [(90.0, 80.0), (380.0, 270.0)])
+        _Shape(
+          type: _rectangle,
+          width: 60,
+          height: 40,
+          radius: 12,
+          centerX: x,
+          centerY: y,
+          blend: blend,
+          startsGroup: x == 90 || blend == 0,
+        ),
+    ];
+    const reach = GlassReach(inward: 24, outward: 2, coarseTexel: 4);
+    Tiling tile(List<_Shape> shapes) => Tiling.shapes(
+      _encode(shapes),
+      width: width,
+      height: height,
+      reach: reach,
+    );
+    final fused = tile(pair(blend: 40));
+    final alone = tile(pair(blend: 0));
+    expect(fused.kinds, alone.kinds);
+    expect(fused.runs.map((run) => run.texel), alone.runs.map((r) => r.texel));
   });
 
   test('a wider reach covers a narrower one', () {
@@ -624,5 +652,8 @@ void main() {
     expect(wide.covers(const GlassReach(inward: 20, outward: 4)), isTrue);
     expect(wide.covers(const GlassReach(inward: 31, outward: 1)), isFalse);
     expect(wide.covers(const GlassReach(inward: 10, outward: 5)), isFalse);
+    const coarse = GlassReach(inward: 20, outward: 4, coarseTexel: 4);
+    expect(wide.covers(coarse), isTrue);
+    expect(coarse.covers(const GlassReach(inward: 20, outward: 4)), isFalse);
   });
 }

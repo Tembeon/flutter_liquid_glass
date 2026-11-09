@@ -635,19 +635,20 @@ vec3 applySpecularHighlights(
 
 
 // Where the atlas holds matte pixel position [pixel], from the geometry
-// buffer's corner: the table names the atlas texel of the tile's first pixel.
-// A tile's strip carries a texel of apron on each side, so the filtered read
-// never blends in another tile's texels.
+// buffer's corner: the table names the atlas texel of the tile's first pixel
+// and how many texels a pixel spans (1, a fraction where the tile is coarse,
+// 0 for a constant tile). A tile's strip carries a texel of apron on each
+// side, so the filtered read never blends in another tile's texels.
 highp vec2 atlasPoint(highp vec2 pixel) {
     highp vec2 tile = min(
         floor(pixel / 16.0),
         ceil(uGeometrySize / 16.0) - 1.0
     );
-    highp vec2 entry = texture(
+    highp vec3 entry = texture(
         uGeometryTable,
         (uGeometryAtlas.xy + tile + 0.5) / uGeometryAtlas.zw
-    ).xy;
-    return (entry + pixel - tile * 16.0) / uGeometryAtlas.zw;
+    ).xyz;
+    return (entry.xy + (pixel - tile * 16.0) * entry.z) / uGeometryAtlas.zw;
 }
 
 // The surface direction (xy) and refraction strength (z) of a geometry

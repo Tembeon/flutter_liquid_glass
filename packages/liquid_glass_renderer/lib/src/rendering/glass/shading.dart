@@ -206,7 +206,9 @@ final class GlassFace {
 /// shader reads the geometry, in device pixels: the bevel and the rim
 /// lighting inward (rimReach() in liquid_glass_final_render_core.glsl), the
 /// contour's [contourExtent] outward, each a pixel more. A geometry atlas
-/// holds constants past them.
+/// holds constants past them, and where the geometry is smooth one texel
+/// for 4 x 4 device pixels at a [devicePixelRatio] of 2 or more, else for
+/// 2 x 2: the density of the low-res matte the atlas replaced.
 @internal
 GlassReach glassReach(
   LiquidGlassSettings settings, {
@@ -233,6 +235,7 @@ GlassReach glassReach(
   return GlassReach(
     inward: max(settings.effectiveRefractionHeight * dpr, rim) + 1,
     outward: contourExtent + 1,
+    coarseTexel: dpr >= 2 ? 4 : 2,
   );
 }
 

@@ -137,6 +137,29 @@ void runGeometryTextureReuseTests() {
   );
 
   testWidgets(
+    'a texture its atlases leave half empty for 30 renders shrinks to fit',
+    (tester) async {
+      useDpr3(tester);
+      await tester.pumpWidget(_scene(700));
+      await tester.pumpWidget(_scene(700.05));
+      final renderer = _layer(tester).gpuGeometryRenderer!;
+      final (wideWidth, wideHeight) = renderer.debugMatteTextureSize!;
+      for (var frame = 1; frame <= 40; frame++) {
+        await tester.pumpWidget(_scene(60 + frame * 0.05));
+      }
+      final (width, height) = renderer.debugMatteTextureSize!;
+      expect(width * height * 2, lessThanOrEqualTo(wideWidth * wideHeight));
+      final allocatedBefore = _allocated;
+      for (var frame = 41; frame <= 60; frame++) {
+        await tester.pumpWidget(_scene(60 + frame * 0.05));
+      }
+      expect(_allocated - allocatedBefore, 0);
+      expect(renderer.debugMatteTextureCount, 2);
+    },
+    skip: skipProperGlassTests,
+  );
+
+  testWidgets(
     'a resize sweep stops allocating once the texture has grown',
     (tester) async {
       useDpr3(tester);
@@ -180,7 +203,7 @@ void runGeometryTextureReuseTests() {
       useDpr3(tester);
       // Grow the texture, then come back to a much smaller atlas.
       for (var frame = 0; frame < 20; frame++) {
-        await tester.pumpWidget(_scene(130 + frame * 12.0));
+        await tester.pumpWidget(_scene(130 + frame * 30.0));
       }
       for (var frame = 0; frame < 4; frame++) {
         await tester.pumpWidget(_scene(131.5 + frame * 0.01));

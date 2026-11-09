@@ -82,35 +82,82 @@ final class AtlasTexels {
     return (texels[i] * w, texels[i + 1] * w, texels[i + 2] * w, w);
   }
 
-  /// The table entry of tile [column], [row].
-  (int, int) entry(int column, int row) {
+  /// The table entry of tile [column], [row]: the corner of the texel of its
+  /// pixel (0, 0), and texels a pixel (0 for a constant tile).
+  (int, int, double) entry(int column, int row) {
     final (tableX, tableY) = AtlasLayout.tableOrigin;
-    final (x, y, _, w) = at(tableX + column, tableY + row);
+    final (x, y, z, w) = at(tableX + column, tableY + row);
     expect(w, 1, reason: 'table texel of $column, $row');
-    return (x.round(), y.round());
+    return (x.round(), y.round(), z);
   }
 
-  /// Buffer pixel ([x], [y]) through the table. The constant tiles and the
-  /// texels a strip skips come back as the constants they hold.
+  /// Buffer pixel ([x], [y]) through the table, read linearly at the
+  /// pixel's center as the final shader reads it. The constant tiles and
+  /// the texels a strip skips come back as the constants they hold.
   (double, double, double, double) pixel(int x, int y) {
-    final entry = this.entry(x ~/ Tiling.size, y ~/ Tiling.size);
-    if (entry == AtlasLayout.deepEntryOf(0)) return (kDeepInward, 0, 0, 0);
-    if (entry == AtlasLayout.outsideEntry) return (kFarInward, 0, 0, 0);
-    final texel = at(entry.$1 + x % Tiling.size, entry.$2 + y % Tiling.size);
-    return texel.$1.isNaN ? (kFarInward, 0, 0, 0) : texel;
+    final (entryX, entryY, scale) = entry(x ~/ Tiling.size, y ~/ Tiling.size);
+    if (scale == 0) {
+      return (entryX, entryY) == AtlasLayout.outsideEntry
+          ? (kFarInward, 0, 0, 0)
+          : (kDeepInward, 0, 0, 0);
+    }
+    (double, double, double, double) texel(int tx, int ty) {
+      final value = at(tx, ty);
+      return value.$1.isNaN ? (kFarInward, 0, 0, 0) : value;
+    }
+
+    return _linear(
+      entryX + (x % Tiling.size + 0.5) * scale - 0.5,
+      entryY + (y % Tiling.size + 0.5) * scale - 0.5,
+      texel,
+    );
   }
 
   /// The distance to the edge at buffer pixel ([x], [y]), positive inside.
   double inwardAt(int x, int y) => pixel(x, y).$1;
 
   /// The texel of [look], a texture beside this atlas, that buffer pixel
-  /// ([x], [y]) reads, as read back.
+  /// ([x], [y]) reads, as read back, read linearly as [pixel] reads.
   (double, double, double, double) lookAt(AtlasTexels look, int x, int y) {
-    final (entryX, entryY) = entry(x ~/ Tiling.size, y ~/ Tiling.size);
-    final i =
-        ((entryY + y % Tiling.size) * look.width + entryX + x % Tiling.size) *
-        4;
+    final (entryX, entryY, scale) = entry(x ~/ Tiling.size, y ~/ Tiling.size);
     final texels = look.texels;
-    return (texels[i], texels[i + 1], texels[i + 2], texels[i + 3]);
+    return _linear(
+      entryX + (x % Tiling.size + 0.5) * scale - 0.5,
+      entryY + (y % Tiling.size + 0.5) * scale - 0.5,
+      (tx, ty) {
+        final i = (ty * look.width + tx) * 4;
+        return (texels[i], texels[i + 1], texels[i + 2], texels[i + 3]);
+      },
+    );
+  }
+
+  // Texel space with texel (i, j) at (i, j): a bilinear blend of the four
+  // texels around ([tx], [ty]), exact on a texel.
+  static (double, double, double, double) _linear(
+    double tx,
+    double ty,
+    (double, double, double, double) Function(int, int) texel,
+  ) {
+    final x0 = tx.floor();
+    final y0 = ty.floor();
+    final fx = tx - x0;
+    final fy = ty - y0;
+    var sum = (0.0, 0.0, 0.0, 0.0);
+    for (final (dx, dy, weight) in [
+      (0, 0, (1 - fx) * (1 - fy)),
+      (1, 0, fx * (1 - fy)),
+      (0, 1, (1 - fx) * fy),
+      (1, 1, fx * fy),
+    ]) {
+      if (weight == 0) continue;
+      final (r, g, b, a) = texel(x0 + dx, y0 + dy);
+      sum = (
+        sum.$1 + r * weight,
+        sum.$2 + g * weight,
+        sum.$3 + b * weight,
+        sum.$4 + a * weight,
+      );
+    }
+    return sum;
   }
 }
