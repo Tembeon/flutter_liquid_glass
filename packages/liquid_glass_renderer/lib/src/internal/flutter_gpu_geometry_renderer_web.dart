@@ -48,9 +48,6 @@ class FlutterGpuGeometryRenderer {
   /// Material map texels per matte pixel along each side.
   static const int materialRasterScale = geometryMaterialRasterScale;
 
-  /// The most shapes one draw of the matte evaluates.
-  static const int maxShapesPerDraw = geometryMaxShapesPerDraw;
-
   /// Nothing is drawn on the web, so nothing is left out.
   int get droppedShapes => 0;
 

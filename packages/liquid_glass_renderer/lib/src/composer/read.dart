@@ -399,7 +399,7 @@ final class _Replay {
           // Glass moved its shadows into its slot this frame.
           if (!identical(layer.parent, node.layer)) continue;
           if (layer.picture == null || !_meets(screen, band)) continue;
-          if (parts != null && !parts.any((m) => _meets(screen, m.reads))) {
+          if (parts != null && !parts.any((m) => _meets(screen, m.ask.reads))) {
             continue;
           }
           if (!kReleaseMode) GlassWork.replayed++;
@@ -459,7 +459,7 @@ final class _Replay {
         open.end - open.order < _heldLayers) {
       return false;
     }
-    if (parts != null && !parts.any((m) => _meets(open.bounds, m.reads))) {
+    if (parts != null && !parts.any((m) => _meets(open.bounds, m.ask.reads))) {
       return true;
     }
     open.heldFrame = frame;
@@ -583,17 +583,18 @@ final class PageCopy {
 
 // One read's page in a frame's images.
 final class _Tile {
-  _Tile(this.copy, this.page, this.geometry)
-    : lattice = geometry.lattice,
-      rect = geometry.imageRect!,
-      _pixels = geometry.lattice.pixelsOf(geometry.imageRect!);
+  _Tile(this.copy, this.page)
+    : _pixels = copy.read.geometry.lattice.pixelsOf(
+        copy.read.geometry.imageRect!,
+      );
 
   final ReadCopy copy;
   final PageFilter page;
-  final ReadGeometry geometry;
-  final Lattice lattice;
-  final Rect rect;
   final (int, int) _pixels;
+
+  ReadGeometry get geometry => copy.read.geometry;
+  Lattice get lattice => geometry.lattice;
+  Rect get rect => geometry.imageRect!;
 
   int get width => _pixels.$1;
   int get height => _pixels.$2;
@@ -861,7 +862,7 @@ final class GlassEmit {
   ///
   /// [again] shows a plan an earlier frame emitted: the images it bought are
   /// drawn already.
-  void emit(Plan plan, Form form, {bool again = false}) {
+  void emit(Plan plan, Form form, {required bool again}) {
     final reads = plan.reads;
     var deepest = 0;
     final keep = Set<Object>.identity();
@@ -884,8 +885,7 @@ final class GlassEmit {
           tiles.add(
             _Tile(
               ReadCopy(read, plan, form),
-              read.lead.look.page ?? PageFilter.none,
-              read.geometry,
+              read.lead.ask.look.page ?? PageFilter.none,
             ),
           );
         }

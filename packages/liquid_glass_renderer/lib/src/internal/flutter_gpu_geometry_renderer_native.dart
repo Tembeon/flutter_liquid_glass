@@ -309,13 +309,10 @@ class FlutterGpuGeometryRenderer {
   @visibleForTesting
   int debugMaterialDrawCount = 0;
 
-  /// The most shapes one draw of the matte evaluates (MAX_SHAPES in the
-  /// geometry shaders).
-  static const int maxShapesPerDraw = geometryMaxShapesPerDraw;
-
-  /// How many shapes the latest render left out: past [maxShapesPerDraw]
-  /// in one cluster of shapes that blend or lie within reach of each other,
-  /// or past it at all with a field or a per-shape material map.
+  /// How many shapes the latest render left out: past
+  /// [geometryMaxShapesPerDraw] in one cluster of shapes that blend or lie
+  /// within reach of each other, or past it at all with a field or a
+  /// per-shape material map.
   int droppedShapes = 0;
 
   /// Renders a new low-res matte and returns it as a [ui.Image].
@@ -418,7 +415,7 @@ class FlutterGpuGeometryRenderer {
     );
     final materialWidth = writeTintOnly
         ? materialMapWidth
-        : math.max(maxShapesPerDraw, materialMapWidth);
+        : math.max(geometryMaxShapesPerDraw, materialMapWidth);
     final materialHeight = writeTintOnly
         ? materialMapHeight
         : materialMapHeight + 2;
@@ -438,7 +435,7 @@ class FlutterGpuGeometryRenderer {
         width: materialWidth,
         height: materialHeight,
         maxWidth: math.max(
-          maxShapesPerDraw,
+          geometryMaxShapesPerDraw,
           (viewWidth + materialRasterScale - 1) ~/ materialRasterScale,
         ),
         maxHeight:
@@ -468,7 +465,7 @@ class FlutterGpuGeometryRenderer {
       materialScale: writeMaterials ? materialRasterScale.toDouble() : 1.0,
       materialMapWidth: writeMaterials ? materialMapWidth.toDouble() : 1.0,
       materialMapHeight: writeMaterials ? materialMapHeight.toDouble() : 1.0,
-      numShapes: math.min(numShapes, maxShapesPerDraw).toDouble(),
+      numShapes: math.min(numShapes, geometryMaxShapesPerDraw).toDouble(),
       shapeData: shapeData,
       rseData: rseData,
       rseLowerData: rseLowerData,
@@ -486,7 +483,7 @@ class FlutterGpuGeometryRenderer {
         writeMatte &&
             field == null &&
             !writeMaterials &&
-            numShapes > maxShapesPerDraw
+            numShapes > geometryMaxShapesPerDraw
         ? _clusters(
             shapeData: shapeData,
             boundsData: boundsData,
@@ -500,11 +497,12 @@ class FlutterGpuGeometryRenderer {
           )
         : null;
     droppedShapes = clusters == null
-        ? math.max(0, numShapes - maxShapesPerDraw)
+        ? math.max(0, numShapes - geometryMaxShapesPerDraw)
         : clusters.fold(
             0,
             (dropped, cluster) =>
-                dropped + math.max(0, cluster.shapes.length - maxShapesPerDraw),
+                dropped +
+                math.max(0, cluster.shapes.length - geometryMaxShapesPerDraw),
           );
 
     if (writeMatte) {
@@ -574,7 +572,7 @@ class FlutterGpuGeometryRenderer {
         geometryPass.draw(4);
       } else {
         for (final cluster in clusters) {
-          final shapes = cluster.shapes.take(maxShapesPerDraw).toList();
+          final shapes = cluster.shapes.take(geometryMaxShapesPerDraw).toList();
           List<double> pick(List<double> data, int stride) => [
             for (final i in shapes)
               if (data.length >= (i + 1) * stride)
@@ -660,7 +658,7 @@ class FlutterGpuGeometryRenderer {
     required int height,
     required int scale,
   }) {
-    final count = math.min(numShapes, maxShapesPerDraw);
+    final count = math.min(numShapes, geometryMaxShapesPerDraw);
     if (count <= 0 ||
         boundsData.length < count * 4 ||
         shapeData.length < count * 12) {
@@ -1073,20 +1071,21 @@ class FlutterGpuGeometryRenderer {
     );
 
     if (appearanceData.isNotEmpty &&
-        appearanceData.length != maxShapesPerDraw * 2 * 4) {
+        appearanceData.length != geometryMaxShapesPerDraw * 2 * 4) {
       throw ArgumentError.value(
         appearanceData.length,
         'appearanceData.length',
-        'must contain two vec4 rows for each of $maxShapesPerDraw shapes',
+        'must contain two vec4 rows for each of '
+            '$geometryMaxShapesPerDraw shapes',
       );
     }
     if (appearanceData.isNotEmpty) {
       final shapeTintsStartIndex = _offsetShapeTints ~/ 4;
       final shapeResponsesStartIndex = _offsetShapeResponses ~/ 4;
-      for (var i = 0; i < maxShapesPerDraw * 4; i++) {
+      for (var i = 0; i < geometryMaxShapesPerDraw * 4; i++) {
         floatData[shapeTintsStartIndex + i] = appearanceData[i];
         floatData[shapeResponsesStartIndex + i] =
-            appearanceData[maxShapesPerDraw * 4 + i];
+            appearanceData[geometryMaxShapesPerDraw * 4 + i];
       }
     }
   }
@@ -1103,7 +1102,7 @@ class FlutterGpuGeometryRenderer {
     floatData[_offsetOpticalProps ~/ 4 + 3] = numShapes;
 
     final shapeDataStartIndex = _offsetShapeData ~/ 4;
-    const rows = maxShapesPerDraw * 12;
+    const rows = geometryMaxShapesPerDraw * 12;
     final shapeFloats = math.min(shapeData.length, rows);
     for (var i = 0; i < shapeFloats; i++) {
       floatData[shapeDataStartIndex + i] = shapeData[i];
@@ -1136,8 +1135,11 @@ class FlutterGpuGeometryRenderer {
 
     // Shapes without bounds are never culled.
     final boundsStartIndex = _offsetShapeBounds ~/ 4;
-    final boundsFloats = math.min(boundsData.length, maxShapesPerDraw * 4);
-    for (var i = 0; i < maxShapesPerDraw * 4; i++) {
+    final boundsFloats = math.min(
+      boundsData.length,
+      geometryMaxShapesPerDraw * 4,
+    );
+    for (var i = 0; i < geometryMaxShapesPerDraw * 4; i++) {
       floatData[boundsStartIndex + i] = i < boundsFloats
           ? boundsData[i]
           : (i % 4 < 2 ? -1e9 : 1e9);

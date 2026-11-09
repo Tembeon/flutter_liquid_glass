@@ -63,11 +63,11 @@ uniform highp vec2 uSize;
 // straddles two vec4s is put back together here. Positions and whatever maps
 // them stay highp; values a highp vec4 holds with them are read into mediump
 // globals below, or they would turn the arithmetic around them highp.
-uniform highp vec4 uGeometryBounds; // Float index 2.
+uniform highp vec4 uGeometryBounds;
 #define uGeometryOffset uGeometryBounds.xy
 #define uGeometrySize uGeometryBounds.zw
 
-uniform vec4 uFace[7]; // Float index 6.
+uniform vec4 uFace[7];
 #define uTint uFace[0]
 #define uOpticalProps uFace[1].xyz
 #define uLightDirection uFace[2].zw
@@ -76,14 +76,14 @@ uniform vec4 uFace[7]; // Float index 6.
 #define uLightingShapeConfig uFace[5]
 #define uContourConfig uFace[6].xyz
 
-// uMaterialCenter, uSpecularWrap, uTransmissionGamma. Float index 34.
+// uMaterialCenter, uSpecularWrap, uTransmissionGamma.
 uniform highp vec4 uProfile;
 
-uniform vec4 uMaterial[2]; // Float index 38.
+uniform vec4 uMaterial[2];
 #define uAppearanceConfig uMaterial[1].yzw
 
-uniform highp vec4 uMapping[3]; // Float index 46.
-uniform highp vec3 uMappingEnd; // Float index 58.
+uniform highp vec4 uMapping[3];
+uniform highp vec3 uMappingEnd;
 #define uFilterToMatteBasis uMapping[0]
 #define uFilterToMatteOffset uMapping[1].xy
 // Matte-space rect (LTRB, device px) the filter captured backdrop for.
@@ -109,7 +109,6 @@ uniform highp vec3 uMappingEnd; // Float index 58.
 //   +5: toneGammaLuminance, glintLuminance, glintFaceGain, glintVibrancy
 uniform vec4 uColorModelParams[18];
 
-// Float index 133.
 //   uLowResMatte:  how many matte pixels one low-res matte texel covers in
 //                  each direction, the texture's size in texels, and half
 //                  the short side of the surface, which sizes the bevel: glass
@@ -121,8 +120,7 @@ uniform vec2 uLowResOptics;
 // The inputs of the optional effects, in one declaration: a Metal stage has
 // 31 buffer slots, and a shader past them fails to compile on Metal alone
 // (Vulkan and GLES accept it). The analytic variant declares its shapes after
-// these. From float
-// index 139:
+// these.
 // [0] uSolidBackdrop: the opaque color the glass is shaded over when it is
 //     drawn as a paint instead of a backdrop filter; every backdrop read
 //     returns it. Alpha 0 reads the backdrop.
@@ -244,7 +242,6 @@ uniform sampler2D uMaterialLinearTexture;
 layout(location = 0) out vec4 fragColor;
 
 #if FROST_BAND
-// From float index 163.
 // [0] the band's rect in fragment coordinates
 // [1] x the frost in device pixels; y, z the fragment rows where the fade is
 //     whole and where it is gone; w the color's brightness

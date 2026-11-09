@@ -10,8 +10,7 @@
 // read: the shapes deeper inside than the pass reads, and the separate
 // shapes that cannot be the nearest.
 //
-// Included by liquid_glass_final_render_core.glsl after its float uniforms,
-// so these start at _FinalUniforms.analytic (liquid_glass_layer.dart).
+// Included by liquid_glass_final_render_core.glsl after its float uniforms.
 // impellerc gives every uniform declaration its own Metal buffer slot and
 // Metal has 31; these four fit because the core packs its optional effects
 // into uEffects.

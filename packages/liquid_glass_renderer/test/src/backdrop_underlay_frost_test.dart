@@ -9,14 +9,14 @@ import 'underlay_scene.dart';
 
 void main() {
   tearDown(() {
-    RenderLiquidGlassLayer.debugMaxCopyDownscale = 2;
+    RenderLiquidGlassLayer.debugMaxCopyShare = 2;
     RenderLiquidGlassLayer.debugShaderFrost = true;
   });
 
   testWidgets('frosted glass over its blurred copy draws what reading the '
       'backdrop draws', (tester) async {
     RenderLiquidGlassLayer.debugShaderFrost = false;
-    RenderLiquidGlassLayer.debugMaxCopyDownscale = 1;
+    RenderLiquidGlassLayer.debugMaxCopyShare = 1;
     expect(await underlayParity(tester, frost: 8), lessThanOrEqualTo(2));
   }, skip: skipProperGlassTests);
 

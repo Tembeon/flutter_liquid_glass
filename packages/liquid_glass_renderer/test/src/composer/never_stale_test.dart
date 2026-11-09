@@ -248,7 +248,7 @@ void main() {
     final watch = PlanWatch();
     width.value = 200;
     await tester.pump(const Duration(milliseconds: 16));
-    final drawn = watch.last!.reads.single.lead.drawn;
+    final drawn = watch.last!.reads.single.lead.ask.drawn;
     expect(drawn.width, greaterThan(150));
   }, skip: skipProperGlassTests);
 

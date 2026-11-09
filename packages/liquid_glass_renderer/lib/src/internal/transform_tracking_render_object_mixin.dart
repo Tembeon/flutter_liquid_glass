@@ -109,6 +109,7 @@ class GeometryTransformTrackingLayer extends OffsetLayer
   SiteNode? formNode;
 
   /// The render object whose transform the layer tracks.
+  @visibleForTesting
   TransformTrackingRenderObjectMixin? get trackedSite => _site;
 
   bool get _live {

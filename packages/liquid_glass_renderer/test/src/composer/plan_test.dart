@@ -47,7 +47,7 @@ final class _Scene implements Scenery {
 
 Look _look(int look, {bool frost = true}) => Look(
   key: look,
-  need: frost ? const CopyNeed(1, share: 2, frost: 8) : const CopyNeed.exact(1),
+  need: frost ? const CopyNeed(1, share: 2, frost: 8) : const CopyNeed(1),
   drawsBand: frost,
 );
 
@@ -63,12 +63,12 @@ SiteFacts _site(int order, Rect drawn, {int look = 0, int floor = -1}) {
 extension on SiteFacts {
   SiteAsk _with({Look? look, SiteRole? role, NoJoin? noJoin, bool? turned}) =>
       SiteAsk(
-        drawn: drawn,
-        reads: reads,
-        look: look ?? this.look,
+        drawn: ask.drawn,
+        reads: ask.reads,
+        look: look ?? ask.look,
         role: role ?? ask.role,
-        noJoin: noJoin ?? this.noJoin,
-        turned: turned ?? this.turned,
+        noJoin: noJoin ?? ask.noJoin,
+        turned: turned ?? ask.turned,
       );
 }
 
@@ -120,10 +120,12 @@ _Scene _generated(int seed) {
     final floor = cards == 0 ? -1 : order - 1 - (i % 3 == 0 ? 0 : 3);
     sites.add(_site(order, rect, look: random.nextInt(looks), floor: floor));
     order += 2 + card % 2;
-    if (random.nextInt(9) == 0)
+    if (random.nextInt(9) == 0) {
       sites.last.ask = sites.last._with(noJoin: NoJoin.field);
-    if (random.nextInt(40) == 0)
+    }
+    if (random.nextInt(40) == 0) {
       sites.last.ask = sites.last._with(turned: true);
+    }
     if (random.nextInt(30) == 0) sites.last.ask = SiteAsk.none;
   }
   for (var i = 0; i < random.nextInt(3); i++) {
@@ -205,8 +207,8 @@ void main() {
     test('a band joins the glass over it that can draw it', () {
       final band = _site(0, const Rect.fromLTWH(0, 0, 411, 100));
       band.ask = SiteAsk(
-        drawn: band.drawn,
-        reads: band.reads,
+        drawn: band.ask.drawn,
+        reads: band.ask.reads,
         look: const Look(key: 'band', need: CopyNeed(1, share: 2, frost: 2)),
         role: const BandRole(_bandLook),
       );
@@ -219,7 +221,7 @@ void main() {
         ),
       );
       final beside = _site(4, const Rect.fromLTWH(8, 110, 44, 44));
-      beside.ask = beside._with(look: glass.look);
+      beside.ask = beside._with(look: glass.ask.look);
       expect(_plan(_Scene([band, glass])).reads, hasLength(1));
       expect(_plan(_Scene([band, beside])).reads, hasLength(2));
     });
@@ -228,10 +230,10 @@ void main() {
       final low = _site(0, const Rect.fromLTWH(0, 0, 100, 100));
       final other = _site(2, const Rect.fromLTWH(200, 0, 100, 100));
       other.ask = other._with(
-        look: const Look(key: 'other', need: CopyNeed.exact(1)),
+        look: const Look(key: 'other', need: CopyNeed(1)),
       );
       final top = _site(4, const Rect.fromLTWH(250, 50, 20, 20));
-      top.ask = top._with(look: low.look);
+      top.ask = top._with(look: low.ask.look);
       top.floor = -1;
       expect(_plan(_Scene([low, other, top])).reads, hasLength(3));
     });

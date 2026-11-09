@@ -75,7 +75,6 @@ GlassFace _face(Color tint) {
     settings: LiquidGlassSettings.ios27RegularLight(),
     appearance: appearance.copyWith(tint: tint),
     colorModels: [appearance.colorModel.parameters!],
-    modelCode: 1,
     devicePixelRatio: 1,
     blurs: true,
   );
@@ -92,11 +91,9 @@ void main() {
       final shader = MultiShaderBuilder.cached(
         variant.assetKey,
       )!.fragmentShader();
-      final layout = FinalLayout(shader, variant);
-      expect(layout.band != null, variant.band, reason: variant.name);
       expect(
-        layout.analytic != null,
-        variant.kind == FinalShaderKind.analytic,
+        () => FinalLayout(shader, variant),
+        returnsNormally,
         reason: variant.name,
       );
       shader.dispose();

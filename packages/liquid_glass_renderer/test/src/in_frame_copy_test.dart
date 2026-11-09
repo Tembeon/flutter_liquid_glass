@@ -343,12 +343,12 @@ void main() {
     tester.view.physicalSize = const Size(260, 360) * 2;
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    addTearDown(() => RenderLiquidGlassLayer.debugMaxCopyDownscale = 2);
+    addTearDown(() => RenderLiquidGlassLayer.debugMaxCopyShare = 2);
     Plan? plan;
     GlassComposer.debugOnPlan = (_, next) => plan = next;
     addTearDown(() => GlassComposer.debugOnPlan = null);
     for (final downscale in [2, 4]) {
-      RenderLiquidGlassLayer.debugMaxCopyDownscale = downscale;
+      RenderLiquidGlassLayer.debugMaxCopyShare = downscale;
       Future<Uint8List> drawn({required bool inFrame}) => _drawn(
         tester,
         inFrame: inFrame,
@@ -370,21 +370,20 @@ void main() {
 
   // The upper glass frosts its own copy in its shader, and that copy is
   // held in the lower glass's coarser one. Drawn at both shares at once, its
-  // pixels held 16 device pixels each and the glass was 16 levels off the
-  // same scene copied at the screen's pixels, under the lower glass's frost.
+  // pixels would hold 16 device pixels each.
   testWidgets('glass held in a coarse copy is drawn at the coarser grid', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(260, 360) * 2;
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    addTearDown(() => RenderLiquidGlassLayer.debugMaxCopyDownscale = 2);
+    addTearDown(() => RenderLiquidGlassLayer.debugMaxCopyShare = 2);
     Plan? plan;
     GlassComposer.debugOnPlan = (_, next) => plan = next;
     addTearDown(() => GlassComposer.debugOnPlan = null);
     for (final frost in [3.0, 6.0]) {
       Future<Uint8List> drawn(int downscale) {
-        RenderLiquidGlassLayer.debugMaxCopyDownscale = downscale;
+        RenderLiquidGlassLayer.debugMaxCopyShare = downscale;
         return _drawn(
           tester,
           inFrame: true,

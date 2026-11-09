@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -36,15 +35,11 @@ typedef GroupLead = ({
 /// only moves the mapping.
 @internal
 final class GroupMatte {
-  GroupMatte._(this._renderer);
-
-  /// A group matte, or null without Flutter GPU.
-  static GroupMatte? tryCreate() {
-    final renderer = FlutterGpuGeometryRenderer.tryCreateCached(
-      ShaderKeys.gpuGeometryShaderBundle,
-    );
-    return renderer == null ? null : GroupMatte._(renderer);
-  }
+  /// A group matte, drawn with Flutter GPU, which glass with a group has.
+  GroupMatte()
+    : _renderer = FlutterGpuGeometryRenderer.tryCreateCached(
+        ShaderKeys.gpuGeometryShaderBundle,
+      )!;
 
   /// How many times a group's matte was drawn.
   @visibleForTesting
@@ -94,31 +89,18 @@ final class GroupMatte {
     if (image != null && listEquals(signature, _signature)) return;
     _signature = signature;
     debugRenders++;
-    final shapes = <double>[];
-    final rse = <double>[];
-    final rseLower = <double>[];
-    final boxes = <double>[];
+    final shapes = ShapeSet.join([
+      for (final member in glass)
+        (
+          member.shapes,
+          Offset(
+            fixed(member.onScreen.dx - base.dx),
+            fixed(member.onScreen.dy - base.dy),
+          ),
+        ),
+    ]);
     Rect? rect;
     for (final member in glass) {
-      final at = member.onScreen - base;
-      final dx = fixed(at.dx);
-      final dy = fixed(at.dy);
-      final from = shapes.length;
-      shapes.addAll(member.shapes.shapes);
-      for (var i = from + 8; i < shapes.length; i += 12) {
-        shapes[i] += dx;
-        shapes[i + 1] += dy;
-      }
-      final box = boxes.length;
-      boxes.addAll(member.shapes.boxes);
-      for (var i = box; i < boxes.length; i += 4) {
-        boxes[i] += dx;
-        boxes[i + 1] += dy;
-        boxes[i + 2] += dx;
-        boxes[i + 3] += dy;
-      }
-      rse.addAll(member.shapes.superellipses);
-      rseLower.addAll(member.shapes.superellipsesLower);
       final shown = member.drawn;
       final drawn = Rect.fromLTRB(
         shown.left * dpr - base.dx,
@@ -129,7 +111,7 @@ final class GroupMatte {
       rect = rect?.expandToInclude(drawn) ?? drawn;
     }
     final all = rect!;
-    final contour = max(0.5 / dpr, lead.contourOutset) * dpr;
+    final contour = matteRoom(dpr, lead.contourOutset) * dpr;
     final room = contour.ceilToDouble() + 2;
     final left = (all.left - room).floorToDouble();
     final top = (all.top - room).floorToDouble();
@@ -147,11 +129,11 @@ final class GroupMatte {
           : const <double>[],
       width: (all.right + room - left).ceil(),
       height: (all.bottom + room - top).ceil(),
-      shapeData: shapes,
-      rseData: rse,
-      rseLowerData: rseLower,
-      boundsData: boxes,
-      numShapes: shapes.length ~/ 12,
+      shapeData: shapes.shapes,
+      rseData: shapes.superellipses,
+      rseLowerData: shapes.superellipsesLower,
+      boundsData: shapes.boxes,
+      numShapes: shapes.count,
       refractionHeight: settings.effectiveRefractionHeight * dpr,
       refractionAmount: settings.effectiveRefractionAmount * dpr,
       edgeDistanceRange: settings.effectiveEdgeDistanceRange * dpr,

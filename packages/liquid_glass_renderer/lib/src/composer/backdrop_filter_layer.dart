@@ -195,7 +195,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
         reads: shifted.inflate(_reach),
         look: Look(
           key: null,
-          need: CopyNeed.exact(dpr),
+          need: CopyNeed(dpr),
           page: PageFilter(
             filter: _filter,
             clip: shifted,
@@ -344,7 +344,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
         page,
         frostToLocal(origin, _devicePixelRatio),
       ),
-      null when read.lead.look.page?.key == null => recordFrostedCopy(
+      null when read.lead.ask.look.page?.key == null => recordFrostedCopy(
         page,
         region,
         origin,

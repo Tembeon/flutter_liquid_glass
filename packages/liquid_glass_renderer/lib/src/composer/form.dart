@@ -126,7 +126,7 @@ final class Form implements Scenery {
     final kept = Set<SiteFacts>.identity();
     kept.addAll(_sites);
     for (final site in last) {
-      if (!kept.contains(site)) dirty.add(-1, site.drawn);
+      if (!kept.contains(site)) dirty.add(-1, site.ask.drawn);
     }
   }
 
@@ -165,8 +165,10 @@ final class Form implements Scenery {
     }
     final (state, clip, hidden) = site.noted;
     final around =
-        site.state.same(state) && site.clip == clip && site.hidden == hidden;
-    site.noted = (site.state, site.clip, site.hidden);
+        site.state.same(state) &&
+        site.clip == clip &&
+        site.ask.hidden == hidden;
+    site.noted = (site.state, site.clip, site.ask.hidden);
     if (around && last.drawn == ask.drawn && last.paints == ask.paints) return;
     dirty.add(site.order, _union(last.drawn, ask.drawn));
   }
@@ -174,7 +176,7 @@ final class Form implements Scenery {
   /// Finds where each site may share a filter, once its rects are known.
   void settleFloors() {
     for (final site in _sites) {
-      site.floor = site.hidden ? -1 : floorOf(site);
+      site.floor = site.ask.hidden ? -1 : floorOf(site);
     }
   }
 
@@ -188,8 +190,8 @@ final class Form implements Scenery {
   /// for a picture that shares one, so labels beside glass in one boundary
   /// count as under it.
   int floorOf(SiteFacts site) {
-    final drawn = site.drawn;
-    final reads = site.reads;
+    final drawn = site.ask.drawn;
+    final reads = site.ask.reads;
     var i = site.order - 1;
     while (i >= 0) {
       final node = _flat[i];
@@ -226,7 +228,7 @@ final class Form implements Scenery {
     var limit = ReadLimit.none;
     for (var i = 0; i < _volatileCount; i++) {
       final node = _volatile[i];
-      if (node.order >= site.order || !node.screen.overlaps(site.reads))
+      if (node.order >= site.order || !node.screen.overlaps(site.ask.reads))
         continue;
       if (node.limit == ReadLimit.liveOnly) return ReadLimit.liveOnly;
       limit = ReadLimit.sceneOnly;
@@ -238,7 +240,7 @@ final class Form implements Scenery {
   String? whyLimited(SiteFacts site) {
     for (var i = 0; i < _volatileCount; i++) {
       final node = _volatile[i];
-      if (node.order >= site.order || !node.screen.overlaps(site.reads)) {
+      if (node.order >= site.order || !node.screen.overlaps(site.ask.reads)) {
         continue;
       }
       final layer = node.layer;

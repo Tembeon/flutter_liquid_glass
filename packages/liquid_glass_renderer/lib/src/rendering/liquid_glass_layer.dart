@@ -21,6 +21,7 @@ import 'package:liquid_glass_renderer/src/internal/ancestor_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/filter_pass_transform.dart';
 import 'package:liquid_glass_renderer/src/internal/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
+import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
 import 'package:liquid_glass_renderer/src/internal/multi_shader_builder.dart';
 import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
@@ -689,8 +690,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   GlassDraw get debugLiveDraw => _liveDraw;
 
   // Whether the shader may frost the copy it draws over, which picks a
-  // variant that can. Settings pick it, as they pick the color models, so
-  // a change rewrites the uniforms.
+  // variant that can. Settings pick it, as they pick the color models.
   bool get _frostsCopies =>
       debugShaderFrost && settings.frost > 0 && settings.dispersion == 0;
 
@@ -751,7 +751,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       settings: settings,
       appearance: appearance,
       colorModels: slots,
-      modelCode: colorModelCode(appearance.colorModel, slots),
       devicePixelRatio: devicePixelRatio,
       blurs: blurPassSigma > 0,
     );
@@ -1026,7 +1025,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _materialTextureSize = result.materialTextureSize;
     _materialCenterInMatte = result.materialCenter;
     _materialSize = bounds.size;
-    _setShapeAppearances(result.appearances);
+    _setShapeAppearances(_shapes.appearances);
     _rememberEncodedGeometry(bounds);
   }
 
@@ -1163,7 +1162,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return boundingBox.inflate(materialOutset);
   }
 
-  // Where the glass's own draws read its shapes.
   MatteBinding get _ownMatte => _matteBinding(
     image: _geometryImage ?? _placeholder,
     bounds: _geometryMatteBounds,
@@ -1307,7 +1305,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         .shift(-translation);
   }
 
-  // What the live filter draws.
   GlassDraw get _liveDraw => GlassDraw(
     variant: _variant(),
     face: _glassFace,
@@ -1567,7 +1564,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         CopyNeed.blurred(
           min(frostX, frostY),
           devicePixelRatio: dpr,
-          maxShare: debugMaxCopyDownscale,
+          maxShare: debugMaxCopyShare,
         );
     final frost = need.frost;
     final appearance = _uniformAppearance ?? defaultAppearance;
@@ -1656,7 +1653,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final glass = _glassIn(read);
     if (glass.length <= 1) return;
     final first = glass.first;
-    (_groupMatte ??= GroupMatte.tryCreate()!).gather(
+    (_groupMatte ??= GroupMatte()).gather(
       [
         for (final layer in glass)
           (
@@ -1857,7 +1854,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     double area(Rect rect) => rect.width * rect.height;
     var sum = 0.0;
     for (final member in read.members) {
-      sum += area(member.drawn);
+      sum += area(member.ask.drawn);
     }
     if (area(read.quad) <= sum * 1.3) return null;
     final dpr = devicePixelRatio;
@@ -1871,7 +1868,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       ),
     );
     for (final member in read.members) {
-      add(member.drawn.inflate(2 / dpr));
+      add(member.ask.drawn.inflate(2 / dpr));
     }
     final (topLeft, bottomRight) = ImpellerLayers.pinsOf(layer, dpr);
     add(topLeft);
@@ -1957,7 +1954,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       inPlace,
       toCanvas,
       layer,
-      if (clip != null) ...[for (final member in read.members) member.drawn],
+      if (clip != null) ...[
+        for (final member in read.members) member.ask.drawn,
+      ],
       for (final (picture, offset) in under) ...[picture, offset],
     ];
     final readLayer = _rig.readLayer;
@@ -2100,7 +2099,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// under the crowd. A quarter size differs by 15 on the Liquid tab and
   /// saves no more.
   @visibleForTesting
-  static int debugMaxCopyDownscale = 2;
+  static int debugMaxCopyShare = 2;
 
   /// Whether the final shader frosts an unblurred copy instead of the copy
   /// being blurred.
@@ -2284,11 +2283,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       );
     }
 
-    // Centered SDF antialiasing needs half a physical pixel outside the
-    // mathematical shape. Keep that margin in the persistent geometry
-    // texture so the positive side of the fade is not clipped at the matte
-    // edge.
-    final aaPadding = max(0.5 / devicePixelRatio, _contourOutset);
+    final aaPadding = matteRoom(devicePixelRatio, _contourOutset);
     // The matte is in this layer's local coordinates. Ancestor transforms
     // are applied once by the compositor; baking them in would apply scale
     // and rotation twice.
@@ -2323,7 +2318,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     var kind = classifyAppearances(shapes.appearances, defaultAppearance);
     // A field and a per-shape material map are drawn in one pass, which
     // evaluates only so many shapes.
-    const most = FlutterGpuGeometryRenderer.maxShapesPerDraw;
+    const most = geometryMaxShapesPerDraw;
     if (shapes.count > most && (_field != null || kind.mixed)) {
       _debugWarnShapeLimitExceeded();
       shapes = _shapes = shapes.take(most);
@@ -2362,7 +2357,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         materialCenter: materialCenter,
         textureSize: const Size(1, 1),
         materialTextureSize: const Size(1, 1),
-        appearances: appearances,
         matteBounds: Rect.fromLTWH(
           boundsInMatteSpace.left,
           boundsInMatteSpace.top,
@@ -2411,7 +2405,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         final image? => Size(image.width.toDouble(), image.height.toDouble()),
         null => const Size(1, 1),
       },
-      appearances: appearances,
       matteBounds: writeMatte
           ? Rect.fromLTWH(
               boundsInMatteSpace.left,
@@ -2433,7 +2426,6 @@ typedef _GpuGeometryFrame = ({
   ui.Image? materialImage,
   Rect matteBounds,
   Offset materialCenter,
-  List<LiquidGlassAppearance> appearances,
 });
 
 // A band beside glass in a read: [shown] of it in the draw's fragments,

@@ -159,6 +159,7 @@ enum NoJoin {
 /// What a read that can only come from an image does to it, past the plain
 /// copy glass frosts by itself.
 @internal
+@immutable
 final class PageFilter {
   /// Creates the filter of a page.
   const PageFilter({
@@ -201,6 +202,7 @@ final class PageFilter {
 
 /// What one filter's uniforms must share.
 @internal
+@immutable
 final class Look {
   /// Creates a look.
   const Look({
@@ -214,16 +216,13 @@ final class Look {
   });
 
   /// No look: a site that draws nothing through a filter.
-  static const Look none = Look(key: null, need: CopyNeed.exact(1));
+  static const Look none = Look(key: null, need: CopyNeed(1));
 
   /// Equal for glass one shader's uniforms can draw, its tint aside.
   final Object? key;
 
   /// What its read's copy has to be.
   final CopyNeed need;
-
-  /// The frost a shader draws over its copy, in logical pixels.
-  double get frost => need.frost;
 
   /// Whether this glass's shader can draw a scroll edge beside it.
   final bool drawsBand;
@@ -383,7 +382,7 @@ final class SiteFacts {
   /// Inherited alpha, filters and clips.
   StateChain state = StateChain.root;
 
-  /// The [state], [clip] and [hidden] the dirty log last knew: glass draws no
+  /// The [state], [clip] and hiding the dirty log last knew: glass draws no
   /// picture, so a fade or a clip around it reaches the log only through this.
   (StateChain, Rect?, bool) noted = (StateChain.root, null, false);
 
@@ -395,24 +394,6 @@ final class SiteFacts {
 
   /// What its site asks this frame.
   SiteAsk ask = SiteAsk.none;
-
-  /// What it paints.
-  Rect get drawn => ask.drawn;
-
-  /// What it reads.
-  Rect get reads => ask.reads;
-
-  /// What its filter must share.
-  Look get look => ask.look;
-
-  /// What keeps it out of every group, if anything does.
-  NoJoin? get noJoin => ask.noJoin;
-
-  /// Whether it draws nothing this frame.
-  bool get hidden => ask.hidden;
-
-  /// Whether a read of it must stay live.
-  bool get turned => ask.turned;
 
   /// Whether it is a scroll edge glass over it can draw.
   bool get isBand => ask.role is BandRole;
@@ -453,10 +434,10 @@ final class LiveRead extends ReadSource {
 final class Read {
   /// Opens a read at [lead].
   Read(this.lead)
-    : band = lead.reads,
-      quad = lead.drawn,
-      share = lead.look.need.share,
-      shapes = lead.isBand ? 0 : lead.look.shapes {
+    : band = lead.ask.reads,
+      quad = lead.ask.drawn,
+      share = lead.ask.look.need.share,
+      shapes = lead.isBand ? 0 : lead.ask.look.shapes {
     members.add(lead);
   }
 
@@ -496,7 +477,7 @@ final class Read {
   late ReadGeometry geometry;
 
   /// The frost of the glass it leads, in logical pixels: 0 under a band.
-  double get frost => lead.isBand ? 0 : lead.look.frost;
+  double get frost => lead.isBand ? 0 : lead.ask.look.need.frost;
 
   /// Whether what it holds differs from the last frame.
   bool changed = false;
@@ -735,30 +716,27 @@ final class LedgerEdits {
 /// The magnitudes disagree, so this is a join rule, not a prediction.
 @internal
 double mergeDelta(Read read, SiteFacts site, Prices prices) {
-  final share = math.min(read.share, site.look.need.share);
-  final band = read.band.expandToInclude(site.reads);
-  final quad = read.quad.expandToInclude(site.drawn);
+  final share = math.min(read.share, site.ask.look.need.share);
+  final band = read.band.expandToInclude(site.ask.reads);
+  final quad = read.quad.expandToInclude(site.ask.drawn);
   double area(Rect rect) => rect.width * rect.height;
   double copy(Rect rect, int scale) =>
       prices.copyGpuPerMpx * prices._mpx(area(rect)) / (scale * scale);
   final together = copy(band, share);
   final apart =
-      copy(read.band, read.share) + copy(site.reads, site.look.need.share);
+      copy(read.band, read.share) +
+      copy(site.ask.reads, site.ask.look.need.share);
   final dead =
       prices.deadGpuPerMpx *
-      prices._mpx(math.max(0, area(quad) - area(read.quad) - area(site.drawn)));
+      prices._mpx(
+        math.max(0, area(quad) - area(read.quad) - area(site.ask.drawn)),
+      );
   return together -
       apart +
       dead -
       prices.passGpu -
       prices.rasterWeight * prices.passRaster;
 }
-
-bool _contains(Rect outer, Rect inner) =>
-    outer.left <= inner.left &&
-    outer.top <= inner.top &&
-    outer.right >= inner.right &&
-    outer.bottom >= inner.bottom;
 
 // A filter draws under its lead's clips, so the glass it draws must lie inside
 // them, and inside its own, which the filter does not apply. Under the same
@@ -767,37 +745,39 @@ bool _insideClips(Read read, SiteFacts site) {
   final lead = read.lead.clip;
   final own = site.clip;
   if (lead == own) return true;
-  return (lead == null || _contains(lead, site.drawn)) &&
-      (own == null || _contains(own, site.drawn));
+  return (lead == null || encloses(lead, site.ask.drawn)) &&
+      (own == null || encloses(own, site.ask.drawn));
 }
 
 bool _lookFits(Read read, SiteFacts site) {
-  final lead = read.lead.look;
-  final look = site.look;
+  final lead = read.lead.ask.look;
+  final look = site.ask.look;
   if (site.isBand) return false;
   if (read.lead.isBand) {
     return look.drawsBand &&
-        site.drawn.overlaps(read.lead.drawn) &&
+        site.ask.drawn.overlaps(read.lead.ask.drawn) &&
         lead.need.bandFits(look.need) &&
         (read.members.length == 1 ||
-            read.members[1].look.key == look.key &&
-                read.members[1].look.tint == look.tint);
+            read.members[1].ask.look.key == look.key &&
+                read.members[1].ask.look.tint == look.tint);
   }
   return lead.key == look.key;
 }
 
 String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
-  if (read.lead.noJoin case final reason?) {
+  if (read.lead.ask.noJoin case final reason?) {
     return 'its lead never joins: ${reason.name}';
   }
   if (read.lead.isBand && !policy.bands) return 'bands stay apart';
-  if (read.lead.look.page != null) return 'its lead reads a page';
+  if (read.lead.ask.look.page != null) return 'its lead reads a page';
   if (read.source is LiveRead) return 'its lead reads live';
   if (read.lead.order < site.floor) return 'painted over after its lead';
   if (!site.state.same(read.lead.state)) return 'other clip, alpha or filter';
   if (!_insideClips(read, site)) return 'a clip would cut it';
   if (!_lookFits(read, site)) return 'other look';
-  if (read.shapes + site.look.shapes > policy.maxShapes) return 'matte is full';
+  if (read.shapes + site.ask.look.shapes > policy.maxShapes) {
+    return 'matte is full';
+  }
   return 'costs more together: '
       '${mergeDelta(read, site, prices).toStringAsFixed(2)}';
 }
@@ -826,21 +806,21 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
   final sites = scene.sites;
   for (var at = 0; at < sites.length; at++) {
     final site = sites[at];
-    if (site.hidden ||
-        !site.drawn.overlaps(screen) ||
+    if (site.ask.hidden ||
+        !site.ask.drawn.overlaps(screen) ||
         (site.clip != null &&
-            !site.clip!.overlaps(site.drawn.intersect(screen)))) {
+            !site.clip!.overlaps(site.ask.drawn.intersect(screen)))) {
       fates.add(const Hidden());
       continue;
     }
     final limit = _limitOf(site, reads, scene, policy);
-    final pageOnly = site.look.page != null;
+    final pageOnly = site.ask.look.page != null;
     Read? joined;
-    if (site.noJoin != null || pageOnly || limit == ReadLimit.liveOnly) {
+    if (site.ask.noJoin != null || pageOnly || limit == ReadLimit.liveOnly) {
       if (explain) {
         final why =
-            site.noJoin?.name ??
-            (site.turned
+            site.ask.noJoin?.name ??
+            (site.ask.turned
                 ? 'turned'
                 : scene.whyLimited(site) ?? 'over glass that reads live');
         notes.add('${site.id}: never joins: $why');
@@ -851,20 +831,20 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
         final band = read.lead.isBand;
         final overGlass = read.members
             .skip(band ? 1 : 0)
-            .any((m) => m.drawn.overlaps(site.drawn));
+            .any((m) => m.ask.drawn.overlaps(site.ask.drawn));
         if (overGlass) {
           if (explain) notes.add('${site.id}: overlaps');
           break;
         }
-        if (read.lead.noJoin == null &&
+        if (read.lead.ask.noJoin == null &&
             (policy.bands || !band) &&
             read.source is! LiveRead &&
-            read.lead.look.page == null &&
+            read.lead.ask.look.page == null &&
             read.lead.order >= site.floor &&
             site.state.same(read.lead.state) &&
             _insideClips(read, site) &&
             _lookFits(read, site) &&
-            read.shapes + site.look.shapes <= policy.maxShapes &&
+            read.shapes + site.ask.look.shapes <= policy.maxShapes &&
             (band || mergeDelta(read, site, prices) < 0)) {
           joined = read;
           break;
@@ -873,15 +853,15 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
           notes.add('${site.id}: ${_whyApart(read, site, prices, policy)}');
         }
         // Joining a read further down would draw this glass under the band.
-        if (band && read.lead.drawn.overlaps(site.drawn)) break;
+        if (band && read.lead.ask.drawn.overlaps(site.ask.drawn)) break;
       }
     }
     if (joined != null) {
       joined.members.add(site);
-      joined.shapes += site.look.shapes;
-      joined.band = joined.band.expandToInclude(site.reads);
-      joined.quad = joined.quad.expandToInclude(site.drawn);
-      joined.share = math.min(joined.share, site.look.need.share);
+      joined.shapes += site.ask.look.shapes;
+      joined.band = joined.band.expandToInclude(site.ask.reads);
+      joined.quad = joined.quad.expandToInclude(site.ask.drawn);
+      joined.share = math.min(joined.share, site.ask.look.need.share);
       fates.add(Follows(joined));
       continue;
     }
@@ -906,14 +886,14 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
           below.lead.isBand &&
           below.members.length == 1 &&
           read.frost > 0 &&
-          below.lead.look.frost <= read.frost) {
-        frostLeftOut = math.max(frostLeftOut, below.lead.look.frost);
+          below.lead.ask.look.need.frost <= read.frost) {
+        frostLeftOut = math.max(frostLeftOut, below.lead.ask.look.need.frost);
         continue;
       }
       read.holds.add(below);
       read.level = math.max(read.level, below.level + 1);
     }
-    final lead = read.lead.look;
+    final lead = read.lead.ask.look;
     final page = lead.page;
     read.geometry = ReadGeometry.resolve(
       asked: Lattice(scene.devicePixelRatio, read.share),
@@ -925,9 +905,11 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
         share: read.share,
         holdsGlass: read.holds.isNotEmpty,
         glassFrost: read.lead.isBand
-            ? (read.members.length > 1 ? read.members[1].look.frost : 0)
-            : lead.frost,
-        bandFrost: read.lead.isBand ? lead.frost : null,
+            ? (read.members.length > 1
+                  ? read.members[1].ask.look.need.frost
+                  : 0)
+            : lead.need.frost,
+        bandFrost: read.lead.isBand ? lead.need.frost : null,
       ),
       frostLeftOut: frostLeftOut,
       filter: page == null ? null : (page.key, page.blendMode),
@@ -980,7 +962,7 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
       room = null;
       boughtAt = null;
     }
-    final pageOnly = read.lead.look.page != null;
+    final pageOnly = read.lead.ask.look.page != null;
     final need = rent << next.misses;
     final allowed = read.limit == ReadLimit.none;
     if (room != null) {
@@ -1048,9 +1030,9 @@ const _never = 1 << 52;
 
 // Live reads with nothing painted under the later ones since the first share
 // its copy of the backdrop: Impeller flips to a new target once, not per read
-// (BackdropKey). A read over another's glass has to see that glass, so it starts
-// a group of its own. Scroll edges and fake glass filter through a layer of
-// their own, with no key to take.
+// (BackdropKey). A read over another's glass has to see that glass, so it
+// starts a group of its own. Scroll edges and fake glass filter through a
+// layer of their own, with no key to take.
 void _groupLiveReads(List<Read> reads) {
   var groups = 0;
   final open = <Read>[];
@@ -1068,7 +1050,7 @@ void _groupLiveReads(List<Read> reads) {
     final lead = read.lead;
     if (read.source is! LiveRead ||
         lead.isBand ||
-        lead.noJoin == NoJoin.noMatte) {
+        lead.ask.noJoin == NoJoin.noMatte) {
       continue;
     }
     if (open.isNotEmpty) {
@@ -1076,7 +1058,7 @@ void _groupLiveReads(List<Read> reads) {
       final apart =
           first.lead.order >= lead.floor &&
           lead.state.same(first.lead.state) &&
-          !open.any((other) => other.lead.drawn.overlaps(lead.reads));
+          !open.any((other) => other.lead.ask.drawn.overlaps(lead.ask.reads));
       if (!apart) close();
     }
     open.add(read);
@@ -1093,11 +1075,11 @@ ReadLimit _limitOf(
   Scenery scene,
   Policy policy,
 ) {
-  if (site.turned || !policy.copies) return ReadLimit.liveOnly;
+  if (site.ask.turned || !policy.copies) return ReadLimit.liveOnly;
   for (final read in reads) {
     if (read.source is! LiveRead) continue;
     for (final member in read.members) {
-      if (member.drawn.overlaps(site.reads)) return ReadLimit.liveOnly;
+      if (member.ask.drawn.overlaps(site.ask.reads)) return ReadLimit.liveOnly;
     }
   }
   return scene.limitUnder(site);
@@ -1109,7 +1091,7 @@ ReadLimit _limitOf(
 bool _under(Read below, Read read) {
   for (final held in below.members) {
     for (final member in read.members) {
-      if (held.drawn.overlaps(member.drawn)) return true;
+      if (held.ask.drawn.overlaps(member.ask.drawn)) return true;
     }
   }
   return false;
@@ -1131,7 +1113,7 @@ bool _under(Read below, Read read) {
 /// frosts its own copy keeps it at the coarser of the two grids
 /// ([Lattice.inside]).
 bool _holdsAtOwnGrid(Read read) => read.holds.every(
-  (held) => held.holds.isEmpty && held.members.every((m) => m.look.anyGrid),
+  (held) => held.holds.isEmpty && held.members.every((m) => m.ask.look.anyGrid),
 );
 
 bool _sameIds(List<Object> a, List<Object> b) {
@@ -1148,7 +1130,7 @@ bool _sameIds(List<Object> a, List<Object> b) {
 Rect _withRoom(Read read, ReadMemo? memo, int rent, Rect screen) {
   final last = memo?.lastBand;
   var room = 0.0;
-  if (read.changed || read.lead.look.page?.clip != null) return read.band;
+  if (read.changed || read.lead.ask.look.page?.clip != null) return read.band;
   if (last != null) {
     final moved = math.max(
       (last.left - read.band.left).abs(),

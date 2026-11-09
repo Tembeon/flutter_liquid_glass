@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
-import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/shading.dart';
@@ -33,7 +32,6 @@ void main() {
       _define('liquid_glass_final_render_core.glsl', 'MATTE_MAX_SHAPES'),
       most,
     );
-    expect(FlutterGpuGeometryRenderer.maxShapesPerDraw, most);
     expect(LiquidGlassBlendGroup.maxShapesPerCluster, most);
     expect(const Policy().maxShapes, most);
     expect(

@@ -9,10 +9,10 @@ void main() {
     'scaled frosted glass over its blurred copy draws what reading the '
     'backdrop draws',
     (tester) async {
-      RenderLiquidGlassLayer.debugMaxCopyDownscale = 1;
+      RenderLiquidGlassLayer.debugMaxCopyShare = 1;
       RenderLiquidGlassLayer.debugShaderFrost = false;
       addTearDown(() {
-        RenderLiquidGlassLayer.debugMaxCopyDownscale = 2;
+        RenderLiquidGlassLayer.debugMaxCopyShare = 2;
         RenderLiquidGlassLayer.debugShaderFrost = true;
       });
       expect(

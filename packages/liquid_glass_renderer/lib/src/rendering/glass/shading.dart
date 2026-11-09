@@ -13,6 +13,7 @@ import 'package:liquid_glass_renderer/src/internal/shader_filter.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_settings.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/shape_set.dart';
 
 /// One draw of the final glass shader: every uniform and sampler it reads,
@@ -61,28 +62,24 @@ final class GlassDraw {
   final AnalyticShapes? analytic;
 
   /// This draw with the parts given changed.
-  GlassDraw copyWith({
-    int? variant,
-    MatteBinding? matte,
-    MatteMapping? mapping,
-    GlassReading? reading,
-  }) => GlassDraw(
-    variant: variant ?? this.variant,
-    face: face,
-    glow: glow,
-    matte: matte ?? this.matte,
-    mapping: mapping ?? this.mapping,
-    reading: reading ?? this.reading,
-    band: band,
-    analytic: analytic,
-  );
+  GlassDraw copyWith({MatteMapping? mapping, GlassReading? reading}) =>
+      GlassDraw(
+        variant: variant,
+        face: face,
+        glow: glow,
+        matte: matte,
+        mapping: mapping ?? this.mapping,
+        reading: reading ?? this.reading,
+        band: band,
+        analytic: analytic,
+      );
 
   @override
   bool operator ==(Object other) =>
       other is GlassDraw &&
       other.variant == variant &&
       other.face == face &&
-      _sameFloats(other.glow, glow) &&
+      listEquals(other.glow, glow) &&
       other.matte == matte &&
       other.mapping == mapping &&
       other.reading == reading &&
@@ -106,19 +103,18 @@ final class GlassFace {
     required this.colorModels,
   });
 
-  /// The material of [appearance] under [settings], its color model in slot
-  /// [modelCode] of [colorModels].
+  /// The material of [appearance] under [settings], its color model in one
+  /// of the slots [colorModels] fill.
   ///
-  /// Colors go in at 8 bits a channel, as the material has always been
-  /// written. The shader fades the whole material with visibility, so the
-  /// color factors go in at full strength. Frosted glass cross-fades its
-  /// blur away ([blurs]), unfrosted glass stays alpha 1 and cross-fades its
-  /// material in the shader, so both match the backdrop at visibility 0.
+  /// Colors go in at 8 bits a channel. The shader fades the whole material
+  /// with visibility, so the color factors go in at full strength. Frosted
+  /// glass cross-fades its blur away ([blurs]), unfrosted glass stays alpha 1
+  /// and cross-fades its material in the shader, so both match the backdrop
+  /// at visibility 0.
   factory GlassFace.of({
     required LiquidGlassSettings settings,
     required LiquidGlassAppearance appearance,
     required List<GlassColorParameters> colorModels,
-    required double modelCode,
     required double devicePixelRatio,
     required bool blurs,
   }) {
@@ -164,7 +160,7 @@ final class GlassFace {
         settings.bevelShadowStrength,
         GlassRim.bevelShadowDepth * dpr,
         GlassRim.bevelShadowOffset * dpr,
-        modelCode,
+        colorModelCode(appearance.colorModel, colorModels),
         appearance.visibility,
         FlutterGpuGeometryRenderer.materialRasterScale.toDouble(),
       ]),
@@ -818,6 +814,3 @@ final class GlassShading {
     return shader;
   }
 }
-
-bool _sameFloats(List<double> a, List<double> b) =>
-    identical(a, b) || listEquals(a, b);

@@ -27,6 +27,14 @@ import 'package:liquid_glass_renderer/src/liquid_glass_appearance.dart';
   return (axisX: axisX, axisY: axisY, determinant: determinant);
 }
 
+/// The room a matte keeps around its shapes, in logical pixels: centered SDF
+/// antialiasing needs half a device pixel outside the shape, or the outer
+/// side of the fade is clipped at the matte's edge, and a contour reaches
+/// [contourOutset].
+@internal
+double matteRoom(double devicePixelRatio, double contourOutset) =>
+    max(0.5 / devicePixelRatio, contourOutset);
+
 /// Half-extents along the matte axes of a shape with local half-size
 /// [halfSize] mapped by the affine basis ([axisX], [axisY]). The geometry
 /// shader culls with these boxes instead of mapping every pixel into each
@@ -212,6 +220,46 @@ final class ShapeSet {
         appearances.add(shape.appearance);
         firstInGroup = false;
       }
+    }
+    return ShapeSet._(
+      shapes: List.unmodifiable(shapes),
+      superellipses: List.unmodifiable(superellipses),
+      superellipsesLower: List.unmodifiable(superellipsesLower),
+      boxes: List.unmodifiable(boxes),
+      cull: List.unmodifiable(cull),
+      appearances: List.unmodifiable(appearances),
+      blended: blended,
+    );
+  }
+
+  /// The shapes of [sets] in one, each moved by its offset in device pixels
+  /// of the matte.
+  factory ShapeSet.join(List<(ShapeSet, Offset)> sets) {
+    final shapes = <double>[];
+    final superellipses = <double>[];
+    final superellipsesLower = <double>[];
+    final boxes = <double>[];
+    final cull = <double>[];
+    final appearances = <LiquidGlassAppearance>[];
+    var blended = false;
+    for (final (set, by) in sets) {
+      final from = shapes.length;
+      shapes.addAll(set.shapes);
+      for (var i = from + 8; i < shapes.length; i += 12) {
+        shapes[i] += by.dx;
+        shapes[i + 1] += by.dy;
+      }
+      final box = boxes.length;
+      boxes.addAll(set.boxes);
+      for (var i = box; i < boxes.length; i += 2) {
+        boxes[i] += by.dx;
+        boxes[i + 1] += by.dy;
+      }
+      superellipses.addAll(set.superellipses);
+      superellipsesLower.addAll(set.superellipsesLower);
+      cull.addAll(set.cull);
+      appearances.addAll(set.appearances);
+      blended = blended || set.blended;
     }
     return ShapeSet._(
       shapes: List.unmodifiable(shapes),

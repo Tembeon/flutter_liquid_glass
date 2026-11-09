@@ -493,7 +493,7 @@ class BackdropRig {
       reads: region,
       look: Look(
         key: null,
-        need: CopyNeed.exact(dpr),
+        need: CopyNeed(dpr),
         page: PageFilter(filter: asked.filter, clip: region),
       ),
       noJoin: NoJoin.noMatte,

@@ -76,14 +76,15 @@ double _frostResidual(double sigma, {required int share}) {
 /// A rect snapped once and scaled back lands a hair off its pixels (837 /
 /// 2.625 * 2.625 is 836.999...); it stays on them, or a second snap grows
 /// its layer by a pixel.
-@internal
-double floorPixels(double pixels) => (pixels + 1e-6).floorToDouble();
+double _floorPixels(double pixels) => (pixels + 1e-6).floorToDouble();
 
-/// The whole pixels above [pixels], as [floorPixels] rounds.
+/// The whole pixels above [pixels], as [_floorPixels] rounds.
 @internal
 double ceilPixels(double pixels) => (pixels - 1e-6).ceilToDouble();
 
-bool _contains(Rect outer, Rect inner) =>
+/// Whether [outer] holds all of [inner].
+@internal
+bool encloses(Rect outer, Rect inner) =>
     outer.left <= inner.left &&
     outer.top <= inner.top &&
     outer.right >= inner.right &&
@@ -98,11 +99,9 @@ bool _contains(Rect outer, Rect inner) =>
 @internal
 @immutable
 final class CopyNeed {
-  /// A need of [share] device pixels a copy pixel, frosted by [frost].
+  /// A need of [share] device pixels a copy pixel, frosted by [frost]; by
+  /// default a copy at the screen's pixels with nothing frosted over it.
   const CopyNeed(this.devicePixelRatio, {this.share = 1, this.frost = 0});
-
-  /// A copy at the screen's pixels with nothing frosted over it.
-  const CopyNeed.exact(this.devicePixelRatio) : share = 1, frost = 0;
 
   /// The need of a copy Impeller blurs by at least [sigma] logical pixels
   /// along each axis: halved while the blur spans 2.5 of its pixels, to at
@@ -223,8 +222,8 @@ final class Lattice {
   /// [target] device pixels each: the coarser of the two. Drawn finer, its
   /// pixels would hold the product of both shares, more than either asked:
   /// glass frosting itself by 6 logical pixels, held at share 4 under a frost
-  /// of 20, was 16 levels off the scene copied at the screen's pixels, and is
-  /// 8 at most (host test, dpr 2).
+  /// of 20, lies 16 levels off the scene copied at the screen's pixels drawn
+  /// that way, and 8 at most drawn this way (host test, dpr 2).
   Lattice inside(int target) =>
       target <= share ? this : Lattice(devicePixelRatio, target);
 
@@ -232,8 +231,8 @@ final class Lattice {
   Rect snapOut(Rect rect) {
     final pixels = this.pixels;
     return Rect.fromLTRB(
-      floorPixels(rect.left * pixels) / pixels,
-      floorPixels(rect.top * pixels) / pixels,
+      _floorPixels(rect.left * pixels) / pixels,
+      _floorPixels(rect.top * pixels) / pixels,
       ceilPixels(rect.right * pixels) / pixels,
       ceilPixels(rect.bottom * pixels) / pixels,
     );
@@ -244,8 +243,8 @@ final class Lattice {
   Rect toDevice(Rect rect) {
     final pixels = this.pixels;
     return Rect.fromLTRB(
-      floorPixels(rect.left * pixels) * share,
-      floorPixels(rect.top * pixels) * share,
+      _floorPixels(rect.left * pixels) * share,
+      _floorPixels(rect.top * pixels) * share,
       ceilPixels(rect.right * pixels) * share,
       ceilPixels(rect.bottom * pixels) * share,
     );
@@ -341,7 +340,7 @@ abstract final class ImpellerLayers {
   /// where the clip leaves no room, it is cut to the clip. NEAR: there,
   /// glass reads the copy mirrored at the clip, up to 163 levels off over
   /// the 30 px of glass the host test leaves above such a clip.
-  static Rect layerIn(Rect band, Rect clip, Lattice lattice) {
+  static Rect _layerIn(Rect band, Rect clip, Lattice lattice) {
     if (_keepsWholeOn(lattice, band, clip)) return band;
     // Along one axis: the span from [lo] to [hi] grown inside [from, to].
     (double, double)? grow(double lo, double hi, double from, double to) {
@@ -388,7 +387,7 @@ abstract final class ImpellerLayers {
 
 /// The frost, in logical pixels, a read's copy holds, frosted once at its own
 /// pixels so the glass over it takes one read per fragment in place of its
-/// taps, or 0 where the glass frosts it: the one rule.
+/// taps, or 0 where the glass frosts it.
 ///
 /// A copy at the screen's pixels holds none, nor does one holding glass,
 /// which lies at the screen's pixels: there the frost costs more than the
@@ -461,7 +460,7 @@ final class ReadGeometry {
       // lies past the clip mirrored at it, as where a clip leaves no room to
       // grow.
       _ when lattice.share > 1 => lattice.snapOut(band.intersect(cut)),
-      _ => ImpellerLayers.layerIn(band, cut, lattice),
+      _ => ImpellerLayers._layerIn(band, cut, lattice),
     };
     return ReadGeometry._(
       lattice: lattice,
@@ -564,6 +563,6 @@ final class ReadGeometry {
     return room != null &&
         lattice == next.lattice &&
         drawsLike(next) &&
-        _contains(room, next.reads);
+        encloses(room, next.reads);
   }
 }
