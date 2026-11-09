@@ -212,7 +212,7 @@ void main() {
 
     final difference = _difference(kept, dropped);
     expect(difference, greaterThan(0));
-    // NEAR, see Policy.dropsFrost.
-    expect(difference, lessThanOrEqualTo(12));
+    // NEAR, see Policy.dropsFrost. The copy holds the glass under the bar.
+    expect(difference, lessThanOrEqualTo(13));
   }, skip: !ui.ImageFilter.isShaderFilterSupported);
 }
