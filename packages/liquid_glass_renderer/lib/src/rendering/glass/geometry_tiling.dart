@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
@@ -68,6 +69,76 @@ final class TileRun {
 
   /// Index into [Tiling.shapeSets].
   final int shapes;
+}
+
+/// What the shapes of a buffer whose glass differs in tint or material look
+/// like. The atlas pass writes each texel's look beside its geometry, blended
+/// where shapes fuse by the smooth union's weight over its full radius
+/// (looks.glsl), so the final shader reads it at the geometry's texel.
+@internal
+@immutable
+final class ShapeLooks {
+  /// The looks of shapes given by [entries], eight floats a shape: a tint
+  /// (r, g, b, a) and a response (saturation, transmission gamma, vibrancy,
+  /// visibility plus twice the color model's code). With [tintOnly] the
+  /// atlas carries the tint alone. Shapes that look the same share a look;
+  /// past [maxLooks] looks the rest take the last.
+  factory ShapeLooks(List<double> entries, {required bool tintOnly}) {
+    final compared = tintOnly ? 4 : _floats;
+    final count = entries.length ~/ _floats;
+    final lookOf = Uint8List(count);
+    final looks = <double>[];
+    for (var shape = 0; shape < count; shape++) {
+      final at = shape * _floats;
+      var look = 0;
+      final known = looks.length ~/ _floats;
+      while (look < known) {
+        var same = true;
+        for (var i = 0; i < compared && same; i++) {
+          same = looks[look * _floats + i] == entries[at + i];
+        }
+        if (same) break;
+        look++;
+      }
+      if (look == known) {
+        if (known < maxLooks) {
+          looks.addAll(entries.getRange(at, at + _floats));
+        } else {
+          look = maxLooks - 1;
+        }
+      }
+      lookOf[shape] = look;
+    }
+    return ShapeLooks._(
+      tintOnly: tintOnly,
+      lookOf: lookOf,
+      looks: List.unmodifiable(looks),
+    );
+  }
+
+  const ShapeLooks._({
+    required this.tintOnly,
+    required this.lookOf,
+    required this.looks,
+  });
+
+  static const int _floats = 8;
+
+  /// The most looks one atlas holds: an atlas pass reads them from one
+  /// uniform array.
+  static const int maxLooks = geometryMaxShapesPerDraw;
+
+  /// Whether the atlas carries the tint alone.
+  final bool tintOnly;
+
+  /// Each shape's look.
+  final Uint8List lookOf;
+
+  /// Eight floats a look, as the entries came.
+  final List<double> looks;
+
+  /// How many looks there are.
+  int get count => looks.length ~/ _floats;
 }
 
 /// A fused body (`LiquidGlassLayer.field`) placed in a geometry buffer.
@@ -145,10 +216,12 @@ final class Tiling {
     required this.runs,
     required this.shapeSets,
     required this.droppedShapes,
+    required this.looks,
+    required this.deepLooks,
   });
 
   /// Classifies a buffer of [width] x [height] pixels holding [shapes],
-  /// encoded in buffer pixels.
+  /// encoded in buffer pixels, which wear [looks] where they differ.
   ///
   /// A ring that outgrows one atlas is tiled again with half the inward
   /// reach until it fits. Past the reach a read takes the deep value, so a
@@ -159,19 +232,24 @@ final class Tiling {
     required int width,
     required int height,
     required GlassReach reach,
+    ShapeLooks? looks,
   }) {
     final columns = _tilesOver(width);
     final rows = _tilesOver(height);
     final kinds = _shapeKinds(shapes, columns, rows, reach);
+    final deepLooks = looks == null
+        ? null
+        : _lookKinds(shapes, looks, columns, rows, kinds);
     final (sets, tileSets, dropped) = _shapeSets(
       shapes,
       columns,
       rows,
       reach,
       kinds,
+      looks: looks != null,
     );
     final tiling = Tiling._runsOf(
-      (reach, shapes, null),
+      (reach, shapes, null, looks, deepLooks),
       columns,
       rows,
       kinds,
@@ -185,25 +263,49 @@ final class Tiling {
       width: width,
       height: height,
       reach: reach._shallower,
+      looks: looks,
     );
   }
 
   /// Classifies a buffer of [width] x [height] pixels holding the body of
-  /// [field], fitted to one atlas as [Tiling.shapes] is.
+  /// [field], fitted to one atlas as [Tiling.shapes] is. Where [looks]
+  /// differ, the body takes its look from the [shapes] it grew from, at
+  /// most [geometryMaxShapesPerDraw] of them.
   factory Tiling.field(
     BufferField field, {
     required int width,
     required int height,
     required GlassReach reach,
+    ShapeSet shapes = ShapeSet.empty,
+    ShapeLooks? looks,
   }) {
+    assert(
+      looks == null || shapes.count <= geometryMaxShapesPerDraw,
+      'A field takes its looks from one draw of shapes.',
+    );
     final columns = _tilesOver(width);
     final rows = _tilesOver(height);
+    final kinds = _fieldKinds(field, columns, rows, reach);
+    final deepLooks = looks == null
+        ? null
+        : _lookKinds(shapes, looks, columns, rows, kinds);
     final tiling = Tiling._runsOf(
-      (reach, ShapeSet.empty, field),
+      (
+        reach,
+        looks == null ? ShapeSet.empty : shapes,
+        field,
+        looks,
+        deepLooks,
+      ),
       columns,
       rows,
-      _fieldKinds(field, columns, rows, reach),
-      const [<int>[]],
+      kinds,
+      [
+        if (looks == null)
+          const <int>[]
+        else
+          List<int>.generate(shapes.count, (i) => i, growable: false),
+      ],
       Int32List(columns * rows),
       0,
     );
@@ -213,11 +315,13 @@ final class Tiling {
       width: width,
       height: height,
       reach: reach._shallower,
+      shapes: shapes,
+      looks: looks,
     );
   }
 
   factory Tiling._runsOf(
-    (GlassReach, ShapeSet, BufferField?) source,
+    (GlassReach, ShapeSet, BufferField?, ShapeLooks?, Uint8List?) source,
     int columns,
     int rows,
     Uint8List kinds,
@@ -256,6 +360,8 @@ final class Tiling {
       runs: List.unmodifiable(runs),
       shapeSets: List.unmodifiable(sets),
       droppedShapes: dropped,
+      looks: source.$4,
+      deepLooks: source.$5,
     );
   }
 
@@ -266,7 +372,8 @@ final class Tiling {
   /// How far from the silhouette texels are exact.
   final GlassReach reach;
 
-  /// The shapes tiled, in buffer pixels; empty for a [field].
+  /// The shapes tiled, in buffer pixels; for a [field], the shapes its looks
+  /// come from, else empty.
   final ShapeSet shapes;
 
   /// The fused body tiled, if any.
@@ -298,9 +405,20 @@ final class Tiling {
   /// [geometryMaxShapesPerDraw] within reach of one tile.
   final int droppedShapes;
 
+  /// The looks the atlas carries beside the geometry, where the shapes' looks
+  /// differ.
+  final ShapeLooks? looks;
+
+  /// The look of every deep tile, row-major, with [looks].
+  final Uint8List? deepLooks;
+
   /// The kind of the tile at [column], [row].
   TileKind kindAt(int column, int row) =>
       TileKind.values[kinds[row * columns + column]];
+
+  /// The look of the deep tile at [column], [row].
+  int deepLookAt(int column, int row) =>
+      deepLooks?[row * columns + column] ?? 0;
 
   static Uint8List _shapeKinds(
     ShapeSet shapes,
@@ -339,6 +457,58 @@ final class Tiling {
       if (deep[tile] != 0) kinds[tile] = TileKind.deep.index;
     }
     return kinds;
+  }
+
+  // A deep tile reads one look only where one look's shapes alone weigh in:
+  // a shape's weight in a smooth union is gone once its distance exceeds the
+  // deepest member's by the blend, and a group's own fold lowers it by at
+  // most its smoothing, so a shape weighs in only within 1.25 times its
+  // group's blends. Other deep tiles turn ring and are evaluated; so does a
+  // deep tile of a field no shape reaches. Returns each deep tile's look.
+  static Uint8List _lookKinds(
+    ShapeSet shapes,
+    ShapeLooks looks,
+    int columns,
+    int rows,
+    Uint8List kinds,
+  ) {
+    const none = -1;
+    const mixed = -2;
+    final owners = Int8List(columns * rows)..fillRange(0, columns * rows, none);
+    final groups = _ShapeGroups.of(shapes);
+    for (var i = 0; i < shapes.count; i++) {
+      final bounds = _ShapeBounds.of(shapes, i);
+      final reach = groups.lookReach(i);
+      final look = looks.lookOf[i];
+      final (c0, r0, c1, r1) = bounds.tileSpan(reach, columns, rows);
+      for (var row = r0; row <= r1; row++) {
+        for (var column = c0; column <= c1; column++) {
+          final tile = row * columns + column;
+          final owner = owners[tile];
+          if (kinds[tile] != TileKind.deep.index ||
+              owner == mixed ||
+              owner == look) {
+            continue;
+          }
+          final x0 = (column * size).toDouble();
+          final y0 = (row * size).toDouble();
+          if (bounds.distanceLowerBound(x0, y0, x0 + size, y0 + size) < reach) {
+            owners[tile] = owner == none ? look : mixed;
+          }
+        }
+      }
+    }
+    final deepLooks = Uint8List(columns * rows);
+    for (var tile = 0; tile < kinds.length; tile++) {
+      if (kinds[tile] != TileKind.deep.index) continue;
+      final owner = owners[tile];
+      if (owner < 0) {
+        kinds[tile] = TileKind.ring.index;
+      } else {
+        deepLooks[tile] = owner;
+      }
+    }
+    return deepLooks;
   }
 
   static Uint8List _fieldKinds(
@@ -398,8 +568,9 @@ final class Tiling {
     int columns,
     int rows,
     GlassReach reach,
-    Uint8List kinds,
-  ) {
+    Uint8List kinds, {
+    required bool looks,
+  }) {
     final count = shapes.count;
     final tileSets = Int32List(columns * rows);
     if (count <= geometryMaxShapesPerDraw) {
@@ -410,8 +581,8 @@ final class Tiling {
       );
     }
     // A group reaches a pixel only where its smoothed union can come within
-    // the outward reach, so a ring tile evaluates every group that can;
-    // whole groups keep the chain's order exact.
+    // the outward reach, or its look can weigh in, so a ring tile evaluates
+    // every group that can; whole groups keep the chain's order exact.
     final groups = _ShapeGroups.of(shapes);
     final reached = List<Set<int>>.generate(
       columns * rows,
@@ -421,7 +592,10 @@ final class Tiling {
     for (var i = 0; i < count; i++) {
       final bounds = _ShapeBounds.of(shapes, i);
       final group = groups.groupOf[i];
-      final reachOut = reach.outward + groups.smoothing(i);
+      final reachOut = max(
+        reach.outward + groups.smoothing(i),
+        looks ? groups.lookReach(i) : 0.0,
+      );
       final (c0, r0, c1, r1) = bounds.tileSpan(reachOut, columns, rows);
       for (var row = r0; row <= r1; row++) {
         for (var column = c0; column <= c1; column++) {
@@ -493,6 +667,10 @@ final class _ShapeGroups {
 
   /// How far below its nearest member a shape's group can reach.
   double smoothing(int shape) => _smoothing[groupOf[shape]];
+
+  /// How far outside a shape its look can weigh in: 1.25 times its group's
+  /// blends, and a pixel.
+  double lookReach(int shape) => smoothing(shape) * 5 + 1;
 }
 
 /// Closed-form bounds of one encoded shape's distance over a buffer rect,
@@ -664,11 +842,12 @@ final class _ShapeBounds {
 /// texture.
 ///
 /// The 18 x 18 block at texel (0, 0) holds the outside value and the next
-/// block the deep value. The atlas is cleared to the outside tile's table
-/// entry, so only deep and ring tiles write theirs. The table follows, one
-/// texel per tile, then the strips, each `16 n + 2` x 18 texels: a run of n
-/// tiles with a one-texel apron evaluated like the rest, so a linear read
-/// between texels stays on exact values.
+/// blocks the deep value, one block a look ([Tiling.looks]). The atlas is
+/// cleared to the outside tile's table entry, so only deep and ring tiles
+/// write theirs. The table follows, one texel per tile, then the strips,
+/// each `16 n + 2` x 18 texels: a run of n tiles with a one-texel apron
+/// evaluated like the rest, so a linear read between texels stays on exact
+/// values.
 @internal
 @immutable
 final class AtlasLayout {
@@ -696,10 +875,11 @@ final class AtlasLayout {
     final widths = [
       for (final run in tiling.runs) run.length * Tiling.size + 2,
     ];
+    final blocks = 1 + max<int>(1, tiling.looks?.count ?? 0);
     final area =
-        widths.fold(0, (sum, w) => sum + w * _strip) + 2 * _strip * _strip;
+        widths.fold(0, (sum, w) => sum + w * _strip) + blocks * _strip * _strip;
     var width = max(
-      max(2 * _strip, tiling.columns),
+      max(blocks * _strip, tiling.columns),
       widths.fold(0, max),
     );
     width = max(width, sqrt(area).ceil());
@@ -745,8 +925,8 @@ final class AtlasLayout {
   /// The table entry of the outside tile: the texel of its pixel (0, 0).
   static const (int, int) outsideEntry = (1, 1);
 
-  /// The table entry of the deep tile.
-  static const (int, int) deepEntry = (_strip + 1, 1);
+  /// The table entry of the deep tiles of [look].
+  static (int, int) deepEntryOf(int look) => ((look + 1) * _strip + 1, 1);
 
   /// The table entry of tile [index] of [run]: the texel of that tile's
   /// pixel (0, 0) in the run's strip.

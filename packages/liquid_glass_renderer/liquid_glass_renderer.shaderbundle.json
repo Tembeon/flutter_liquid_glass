@@ -1,16 +1,4 @@
 {
-    "GeometryVertex": {
-        "type": "vertex",
-        "file": "lib/assets/shaders/gpu/geometry_vertex.glsl"
-    },
-    "MaterialGradientFragment": {
-        "type": "fragment",
-        "file": "lib/assets/shaders/gpu/material_gradient_fragment.glsl"
-    },
-    "MaterialTintGradientFragment": {
-        "type": "fragment",
-        "file": "lib/assets/shaders/gpu/material_tint_gradient_fragment.glsl"
-    },
     "TileVertex": {
         "type": "vertex",
         "file": "lib/assets/shaders/gpu/tile_vertex.glsl"
@@ -19,12 +7,36 @@
         "type": "fragment",
         "file": "lib/assets/shaders/gpu/tile_fill_fragment.glsl"
     },
+    "TileFillTintFragment": {
+        "type": "fragment",
+        "file": "lib/assets/shaders/gpu/tile_fill_tint_fragment.glsl"
+    },
+    "TileFillLooksFragment": {
+        "type": "fragment",
+        "file": "lib/assets/shaders/gpu/tile_fill_looks_fragment.glsl"
+    },
     "TileGeometryFragment": {
         "type": "fragment",
         "file": "lib/assets/shaders/gpu/tile_geometry_fragment.glsl"
     },
+    "TileGeometryTintFragment": {
+        "type": "fragment",
+        "file": "lib/assets/shaders/gpu/tile_geometry_tint_fragment.glsl"
+    },
+    "TileGeometryLooksFragment": {
+        "type": "fragment",
+        "file": "lib/assets/shaders/gpu/tile_geometry_looks_fragment.glsl"
+    },
     "TileFieldFragment": {
         "type": "fragment",
         "file": "lib/assets/shaders/gpu/tile_field_fragment.glsl"
+    },
+    "TileFieldTintFragment": {
+        "type": "fragment",
+        "file": "lib/assets/shaders/gpu/tile_field_tint_fragment.glsl"
+    },
+    "TileFieldLooksFragment": {
+        "type": "fragment",
+        "file": "lib/assets/shaders/gpu/tile_field_looks_fragment.glsl"
     }
 }

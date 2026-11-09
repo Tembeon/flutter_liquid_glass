@@ -58,13 +58,8 @@ final class GroupMatte {
   /// The size of the atlas texture.
   Size textureSize = Size.zero;
 
-  /// The tint of each shape, where they differ; a low-resolution map, so
-  /// glass reads it as the color of the nearest shape. NEAR: 8 bits a
-  /// channel where a uniform holds the tint exactly.
+  /// The tint beside the atlas, where the glass's tints differ.
   ui.Image? tints;
-
-  /// The size of the texture [tints] fills the top-left of.
-  Size tintsSize = const Size(1, 1);
 
   /// Where the geometry buffer's origin lies on the screen, in logical
   /// pixels.
@@ -109,6 +104,8 @@ final class GroupMatte {
     final top = (all.top - room).floorToDouble();
     final width = (all.right + room - left).ceil();
     final height = (all.bottom + room - top).ceil();
+    final firstTint = glass.first.appearance.tint;
+    final mixed = glass.any((member) => member.appearance.tint != firstTint);
     final shapes = ShapeSet.join([
       for (final member in glass)
         (
@@ -129,6 +126,17 @@ final class GroupMatte {
           devicePixelRatio: dpr,
           contourExtent: contour,
         ),
+        looks: mixed
+            ? shapeLooks(
+                [
+                  for (final member in glass)
+                    for (var i = 0; i < member.shapes.count; i++)
+                      member.appearance,
+                ],
+                colorModels: const [],
+                tintOnly: true,
+              )
+            : null,
       ),
     );
     image = atlas.image;
@@ -137,25 +145,7 @@ final class GroupMatte {
       atlas.textureWidth.toDouble(),
       atlas.textureHeight.toDouble(),
     );
-    final firstTint = glass.first.appearance.tint;
-    final mixed = glass.any((member) => member.appearance.tint != firstTint);
-    final map = mixed
-        ? _renderer.renderMaterials(
-            shapes,
-            width: width,
-            height: height,
-            appearanceData: appearanceLookupData([
-              for (final member in glass)
-                for (var i = 0; i < member.shapes.count; i++) member.appearance,
-            ], lead.fallback),
-            tintOnly: true,
-          )
-        : null;
-    if (map == null) _renderer.releaseMaterials();
-    tints = map;
-    tintsSize = map == null
-        ? const Size(1, 1)
-        : Size(map.width.toDouble(), map.height.toDouble());
+    tints = mixed ? atlas.looks.first : null;
   }
 
   /// Releases the renderer.

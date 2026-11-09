@@ -30,11 +30,12 @@ ShapeSet testRectangle({double centerX = 16}) => ShapeSet.rows(
   boxes: [centerX - 10, 17, centerX + 10, 47],
 );
 
-/// Draws [testRectangle] into the atlas of a 64 x 64 geometry buffer and
-/// returns the atlas.
+/// Draws [testRectangle] into the atlas of a 64 x 64 geometry buffer, with
+/// [looks] beside it, and returns the atlas.
 ui.Image renderTestRectangle(
   FlutterGpuGeometryRenderer renderer, {
   double centerX = 16,
+  ShapeLooks? looks,
 }) => renderer
     .renderAtlas(
       Tiling.shapes(
@@ -42,6 +43,7 @@ ui.Image renderTestRectangle(
         width: 64,
         height: 64,
         reach: testReach,
+        looks: looks,
       ),
     )
     .image;
@@ -92,7 +94,7 @@ final class AtlasTexels {
   /// texels a strip skips come back as the constants they hold.
   (double, double, double, double) pixel(int x, int y) {
     final entry = this.entry(x ~/ Tiling.size, y ~/ Tiling.size);
-    if (entry == AtlasLayout.deepEntry) return (kDeepInward, 0, 0, 0);
+    if (entry == AtlasLayout.deepEntryOf(0)) return (kDeepInward, 0, 0, 0);
     if (entry == AtlasLayout.outsideEntry) return (kFarInward, 0, 0, 0);
     final texel = at(entry.$1 + x % Tiling.size, entry.$2 + y % Tiling.size);
     return texel.$1.isNaN ? (kFarInward, 0, 0, 0) : texel;
@@ -100,4 +102,15 @@ final class AtlasTexels {
 
   /// The distance to the edge at buffer pixel ([x], [y]), positive inside.
   double inwardAt(int x, int y) => pixel(x, y).$1;
+
+  /// The texel of [look], a texture beside this atlas, that buffer pixel
+  /// ([x], [y]) reads, as read back.
+  (double, double, double, double) lookAt(AtlasTexels look, int x, int y) {
+    final (entryX, entryY) = entry(x ~/ Tiling.size, y ~/ Tiling.size);
+    final i =
+        ((entryY + y % Tiling.size) * look.width + entryX + x % Tiling.size) *
+        4;
+    final texels = look.texels;
+    return (texels[i], texels[i + 1], texels[i + 2], texels[i + 3]);
+  }
 }

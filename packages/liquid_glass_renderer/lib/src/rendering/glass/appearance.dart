@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:liquid_glass_renderer/src/internal/final_shader_variant.dart';
-import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_color_model.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass/geometry_tiling.dart';
 
 /// How the appearances of a layer's shapes differ: not at all (`uniform` is
 /// the one), by tint alone (`tintOnly`, `uniform` the first), or otherwise
@@ -90,32 +90,26 @@ FinalShaderModels colorModelFamily(List<LiquidGlassAppearance> shaded) {
   return first == null ? FinalShaderModels.direct : FinalShaderModels.ios27;
 }
 
-/// The rows of tints and material factors the matte's material map is
-/// drawn from, one per shape of [appearances], [fallback] past them.
-///
-/// Only mixed frames draw it, so rows past the shapes take the fallback,
-/// never a uniform appearance of another frame.
+/// The looks of a buffer's shapes, one appearance a shape, their color
+/// models in the slots [colorModels] holds (colorModelSlots); [tintOnly]
+/// where only their tints differ.
 @internal
-List<double> appearanceLookupData(
-  List<LiquidGlassAppearance> appearances,
-  LiquidGlassAppearance fallback,
-) {
-  final colorModels = colorModelSlots(appearances, fallback);
-  LiquidGlassAppearance at(int index) =>
-      index < appearances.length ? appearances[index] : fallback;
-  return <double>[
-    for (var i = 0; i < geometryMaxShapesPerDraw; i++) ...<double>[
-      at(i).tint.r,
-      at(i).tint.g,
-      at(i).tint.b,
-      at(i).tint.a,
+ShapeLooks shapeLooks(
+  List<LiquidGlassAppearance> appearances, {
+  required List<GlassColorParameters> colorModels,
+  required bool tintOnly,
+}) {
+  return ShapeLooks([
+    for (final appearance in appearances) ...<double>[
+      appearance.tint.r,
+      appearance.tint.g,
+      appearance.tint.b,
+      appearance.tint.a,
+      appearance.colorModel.saturation,
+      appearance.colorModel.transmissionGamma,
+      appearance.colorModel.vibrancy,
+      appearance.visibility +
+          colorModelCode(appearance.colorModel, colorModels) * 2,
     ],
-    for (var i = 0; i < geometryMaxShapesPerDraw; i++) ...<double>[
-      at(i).colorModel.saturation / 4,
-      at(i).colorModel.transmissionGamma / 4,
-      at(i).colorModel.vibrancy / 4,
-      (at(i).visibility + colorModelCode(at(i).colorModel, colorModels) * 2) /
-          7,
-    ],
-  ];
+  ], tintOnly: tintOnly);
 }

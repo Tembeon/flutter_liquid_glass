@@ -4,13 +4,13 @@ import 'package:meta/meta.dart';
 /// What a final shader variant reads its geometry and appearance from.
 @internal
 enum FinalShaderKind {
-  /// A matte, one appearance.
+  /// The geometry atlas, one appearance.
   single(''),
 
-  /// A matte and a tint map: appearances that differ only by tint.
+  /// The atlas and the tint beside it: appearances that differ only by tint.
   tint('_tint'),
 
-  /// A matte and a material map: any appearances.
+  /// The atlas and every look beside it: any appearances.
   material('_material');
 
   const FinalShaderKind(this.suffix);
@@ -43,7 +43,7 @@ enum FinalShaderModels {
 /// arithmetic and the slot loop's uniform reads. On a Mali-G78 that halves
 /// the registers of the one-appearance shader, which doubles its fragments
 /// in flight; the tint variants keep their occupancy and spill less. The
-/// general variants serve mixed models and the material map.
+/// general variants serve mixed models and [FinalShaderKind.material].
 ///
 /// Every variant can frost an unblurred copy of the backdrop itself, except
 /// the ones that fit in 32 registers only without that: a frosted twin of

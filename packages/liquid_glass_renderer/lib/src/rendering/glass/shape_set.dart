@@ -6,13 +6,17 @@ import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.
 import 'package:liquid_glass_renderer/src/internal/rounded_superellipse_parameters.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_appearance.dart';
 
-/// The affine basis that maps a shape's local axes into its layer's matte;
-/// null when that transform is singular.
+/// The affine basis that maps [shape]'s local axes into its layer's matte;
+/// null when the shape draws nothing there: at visibility 0, or through a
+/// singular transform. Every count of a layer's shapes goes by this, so a
+/// hidden shape gives the layer no look of its own to write.
 @internal
 ({Offset axisX, Offset axisY, double determinant})? matteShapeBasis(
+  ShapeGeometry shape,
   Matrix4 geometryToLayer,
-  Matrix4? shapeToGeometry,
 ) {
+  if (shape.appearance.visibility <= 0) return null;
+  final shapeToGeometry = shape.shapeToGeometry;
   Offset toMatte(Offset point) => MatrixUtils.transformPoint(
     geometryToLayer,
     shapeToGeometry == null
@@ -103,12 +107,9 @@ final class ShapeSet {
     for (final (_, geometry, geometryToLayer) in geometries) {
       var firstInGroup = true;
       for (final shape in geometry.shapes) {
-        // A shape at visibility 0 draws nothing. Left in, it would count as
-        // an appearance of its own and take the layer to the material map.
-        if (shape.appearance.visibility <= 0) continue;
-        final shapeToGeometry = shape.shapeToGeometry;
-        final basis = matteShapeBasis(geometryToLayer, shapeToGeometry);
+        final basis = matteShapeBasis(shape, geometryToLayer);
         if (basis == null) continue;
+        final shapeToGeometry = shape.shapeToGeometry;
         final (:axisX, :axisY, :determinant) = basis;
 
         // Inverse 2D affine basis maps matte-space physical pixels back to

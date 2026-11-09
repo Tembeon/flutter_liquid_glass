@@ -8,7 +8,6 @@ import 'package:liquid_glass_renderer/src/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/internal/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/internal/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
-import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
 import 'package:liquid_glass_renderer/src/internal/paint_fake_glass_surface.dart';
 import 'package:liquid_glass_renderer/src/internal/shader_filter.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_appearance.dart';
@@ -38,11 +37,12 @@ const double _cell = 24;
 const List<double> _frostSigmas = [1, 2, 8, 14];
 
 /// Draws once with each Flutter GPU pipeline of the geometry (atlas tiles of
-/// shapes and of a field, material map, tint map), then rasterizes an
-/// offscreen scene over a backdrop with glass shadows: each final shader as
-/// a backdrop filter, alone and over each frost sigma, and painted as a
-/// layer over a solid backdrop paints it; the fake glass filters, plain and
-/// source-atop in a shape; and a fake glass surface.
+/// shapes and of a field, without looks, with the tint and with the whole
+/// look), then rasterizes an offscreen scene over a backdrop with glass
+/// shadows: each final shader as a backdrop filter, alone and over each
+/// frost sigma, and painted as a layer over a solid backdrop paints it; the
+/// fake glass filters, plain and source-atop in a shape; and a fake glass
+/// surface.
 /// The glow and every other effect of a final shader is a uniform, which
 /// picks no pipeline.
 ///
@@ -57,51 +57,58 @@ Future<void> warmLiquidGlassPipelines(
 ) async {
   final images = <ui.Image>[];
   try {
-    final appearance = List<double>.filled(
-      geometryMaxShapesPerDraw * 2 * 4,
-      0,
-    );
     // One rounded rectangle, whose ring takes the tile pipelines.
     final shape = ShapeSet.rows(
       shapes: const [3, 8, 8, 2, 1, 0, 0, 1, 8, 8, 1, -1],
       boxes: const [4, 4, 12, 12],
     );
     const reach = GlassReach(inward: 4, outward: 1);
-    final matte = geometry
-        .renderAtlas(
-          Tiling.shapes(shape, width: 16, height: 16, reach: reach),
-        )
-        .image
-        .clone();
-    images.add(matte);
-    ui.Image materials({required bool tintOnly}) => geometry.renderMaterials(
-      shape,
-      width: 16,
-      height: 16,
-      appearanceData: appearance,
-      tintOnly: tintOnly,
-    );
-    final material = materials(tintOnly: false).clone();
-    images.add(material);
-    final tint = materials(tintOnly: true).clone();
-    images.add(tint);
-    geometry.renderAtlas(
-      Tiling.field(
-        BufferField(
-          LiquidGlassField(
-            samples: Float32List(2 * 2 * 4),
-            cols: 2,
-            rows: 2,
-            origin: Offset.zero,
-            step: 1,
-          ),
-          layerToBuffer: (1, 0, 0, 1, 0, 0),
-        ),
-        width: 16,
-        height: 16,
-        reach: reach,
+    final field = BufferField(
+      LiquidGlassField(
+        samples: Float32List(2 * 2 * 4),
+        cols: 2,
+        rows: 2,
+        origin: Offset.zero,
+        step: 1,
       ),
+      layerToBuffer: (1, 0, 0, 1, 0, 0),
     );
+    ui.Image? matte;
+    ui.Image? tint;
+    ui.Image? material;
+    for (final looks in <ShapeLooks?>[
+      null,
+      ShapeLooks(List.filled(8, 0), tintOnly: true),
+      ShapeLooks(List.filled(8, 0), tintOnly: false),
+    ]) {
+      final atlas = geometry.renderAtlas(
+        Tiling.shapes(
+          shape,
+          width: 16,
+          height: 16,
+          reach: reach,
+          looks: looks,
+        ),
+      );
+      switch (looks) {
+        case null:
+          images.add(matte = atlas.image.clone());
+        case ShapeLooks(tintOnly: true):
+          images.add(tint = atlas.looks.first.clone());
+        case _:
+          images.add(material = atlas.looks.first.clone());
+      }
+      geometry.renderAtlas(
+        Tiling.field(
+          field,
+          width: 16,
+          height: 16,
+          reach: reach,
+          shapes: shape,
+          looks: looks,
+        ),
+      );
+    }
     FlutterGpuGeometryRenderer.flushPendingSubmissions();
 
     final variants = FinalShaderVariant.all;
@@ -118,18 +125,16 @@ Future<void> warmLiquidGlassPipelines(
       // Bound as a layer binds them: a draw needs every sampler its variant
       // declares.
       final shader = program.fragmentShader()
-        ..setImageSampler(0, matte, filterQuality: FilterQuality.low)
+        ..setImageSampler(0, matte!, filterQuality: FilterQuality.low)
         ..setImageSampler(1, matte, filterQuality: FilterQuality.low)
         ..setImageSampler(2, matte);
-      switch (variants[index].kind) {
-        case FinalShaderKind.material:
-          shader
-            ..setImageSampler(3, material)
-            ..setImageSampler(4, material, filterQuality: FilterQuality.low);
-        case FinalShaderKind.tint:
-          shader.setImageSampler(3, tint, filterQuality: FilterQuality.low);
-        case FinalShaderKind.single:
-          break;
+      final looks = switch (variants[index].kind) {
+        FinalShaderKind.single => const <ui.Image>[],
+        FinalShaderKind.tint => [tint!],
+        FinalShaderKind.material => [material!, material, material],
+      };
+      for (final (at, look) in looks.indexed) {
+        shader.setImageSampler(3 + at, look, filterQuality: FilterQuality.low);
       }
       final filter = bilinearShaderFilter(shader);
       filters.add(filter);

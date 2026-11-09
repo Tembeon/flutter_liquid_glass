@@ -130,7 +130,7 @@ void main() {
           atlas.entry(column, row),
           switch (tiling.kindAt(column, row)) {
             TileKind.outside => AtlasLayout.outsideEntry,
-            TileKind.deep => AtlasLayout.deepEntry,
+            TileKind.deep => AtlasLayout.deepEntryOf(0),
             TileKind.ring => expected[(column, row)],
           },
           reason: 'tile $column, $row',

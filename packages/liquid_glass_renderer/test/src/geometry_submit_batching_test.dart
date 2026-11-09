@@ -11,9 +11,10 @@ void main() {
   runGeometrySubmitBatchingTests();
 }
 
-/// Three layers rebuilding every frame; the middle one mixes appearances, so
-/// it records a matte and a material pass. This multi-pass frame crashed
-/// Vulkan and Metal when its passes shared one command buffer.
+/// Three layers rebuilding every frame, each recording an atlas pass; the
+/// middle one mixes appearances, so its pass also writes looks. Passes
+/// sharing one command buffer crash Vulkan and Metal (Flutter GPU nests
+/// them).
 Widget _scene(double t) {
   Widget layer(double width, {bool tinted = false}) => LiquidGlassLayer(
     settings: const LiquidGlassSettings(contourStrength: 0.3),
@@ -85,8 +86,8 @@ void runGeometrySubmitBatchingTests() {
         final frameSubmits =
             FlutterGpuGeometryRenderer.debugBatchedSubmitCount - submits;
         if (!kDebugMode) continue;
-        expect(framePasses, 4, reason: 'three mattes and one material map');
-        expect(frameSubmits, 4, reason: 'one command buffer per pass');
+        expect(framePasses, 3, reason: 'one atlas per layer');
+        expect(frameSubmits, 3, reason: 'one command buffer per pass');
       }
       if (kDebugMode) {
         expect(

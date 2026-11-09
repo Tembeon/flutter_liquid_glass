@@ -1,9 +1,7 @@
 import 'dart:ui' as ui;
 
-import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_support.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/geometry_tiling.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass/shape_set.dart';
 import 'package:meta/meta.dart';
 
 /// Web stand-in for the Flutter GPU geometry renderer: the web has no
@@ -28,7 +26,6 @@ class FlutterGpuGeometryRenderer {
   static int get debugTotalRenderCount => 0;
   static int get debugActiveRendererCount => 0;
   static int get debugActiveGeometryTextureCount => 0;
-  static int get debugActiveMaterialTextureCount => 0;
 
   /// Matches the native renderer's reuse horizon; nothing is reused here.
   static const int reuseAfterFrames = 1;
@@ -46,33 +43,25 @@ class FlutterGpuGeometryRenderer {
   Object? get debugMatteTexture => null;
   (int, int)? get debugMatteTextureSize => null;
 
-  /// Geometry buffer pixels per material map texel along each side.
-  static const int materialRasterScale = geometryMaterialRasterScale;
-
   /// Nothing is drawn on the web, so nothing is left out.
   int get droppedShapes => 0;
 
   int debugRenderCount = 0;
   int debugMatteDrawCount = 0;
-  int debugMaterialDrawCount = 0;
   Object get debugPipelineIdentity => this;
   int get debugHostBufferBlockLength => 0;
   Object? get debugHostBufferIdentity => null;
   bool get debugDisposed => true;
-  ui.Image? get materialImage => null;
   ui.Image? get atlasImage => null;
+  List<ui.Image> get lookImages => const [];
 
-  ui.Image renderMaterials(
-    ShapeSet shapes, {
-    required int width,
-    required int height,
-    required List<double> appearanceData,
-    required bool tintOnly,
-  }) => throw UnsupportedError('Flutter GPU is not available on the web.');
-
-  void releaseMaterials() {}
-
-  ({ui.Image image, AtlasLayout layout, int textureWidth, int textureHeight})
+  ({
+    ui.Image image,
+    List<ui.Image> looks,
+    AtlasLayout layout,
+    int textureWidth,
+    int textureHeight,
+  })
   renderAtlas(Tiling tiling) =>
       throw UnsupportedError('Flutter GPU is not available on the web.');
 

@@ -37,7 +37,7 @@ void main() {
       final library = (await gpu.ShaderLibrary.fromAsset(
         ShaderKeys.gpuGeometryShaderBundle,
       ))!;
-      final size = library['MaterialGradientFragment']!
+      final size = library['TileGeometryLooksFragment']!
           .getUniformSlot('GeometryUniforms')
           .sizeInBytes!;
       final alignment = gpu.gpuContext.minimumUniformByteAlignment;

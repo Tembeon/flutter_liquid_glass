@@ -63,7 +63,7 @@ RenderLiquidGlassLayer _layer(WidgetTester tester) =>
     tester.allRenderObjects.whereType<RenderLiquidGlassLayer>().toSet().single;
 
 void main() {
-  test('every kind but the material map has a variant per model family', () {
+  test('every kind but material has a variant per model family', () {
     final names = {for (final v in FinalShaderVariant.all) v.name};
     expect(names, hasLength(FinalShaderVariant.all.length));
     expect(FinalShaderVariant.all, hasLength(11));

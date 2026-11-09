@@ -5,9 +5,16 @@
 // half minor extent of the part the node belongs to; R and A are in logical
 // pixels. RGBA32F is not filterable on every GPU, so the texture is sampled
 // nearest and the shader interpolates the four nodes around a pixel
-// bilinearly, which keeps the distance and the normal continuous.
+// bilinearly, which keeps the distance and the normal continuous. With
+// LOOKS the shapes the body grew from give each texel its look, as
+// tile_geometry_fragment.glsl does.
 
 precision highp float;
+
+#ifndef LOOKS
+#define LOOKS 0
+#endif
+#define SCENE_LOOKS LOOKS
 
 layout(std140) uniform TileFieldUniforms {
     // Buffer pixels to grid coordinates: grid = mat2(xx, yx, xy, yy) * p +
@@ -27,11 +34,18 @@ uniform sampler2D uField;
 #define uGridShift fieldUniforms.uGridShift
 #define uFieldSize fieldUniforms.uFieldSize
 
+#if LOOKS
+#include "geometry_uniforms.glsl"
+#include "sdf.glsl"
+#endif
 #include "matte_encoding.glsl"
 
 flat in vec4 vValue;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
+#if LOOKS
+#include "look_targets.glsl"
+#endif
 
 vec4 fieldAt(vec2 p) {
     vec2 grid = clamp(
@@ -53,10 +67,14 @@ vec4 fieldAt(vec2 p) {
 }
 
 void main() {
-    vec4 field = fieldAt(gl_FragCoord.xy + vValue.xy);
+    vec2 position = gl_FragCoord.xy + vValue.xy;
+    vec4 field = fieldAt(position);
     fragColor = encodeMatte(
         field.r * uGridShift.z,
         field.gb,
         field.a * uGridShift.z
     );
+#if LOOKS
+    writeLook(sceneSample(position, int(uNumShapes)).look);
+#endif
 }

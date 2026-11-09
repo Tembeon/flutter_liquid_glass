@@ -553,8 +553,8 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
   set appearance(LiquidGlassAppearance value) {
     if (_appearance == value) return;
     _appearance = value;
-    // Refresh material metadata without invalidating an unchanged shape. The
-    // owning layer decides whether its material texture also needs updating.
+    // The owning layer draws its atlas again only when its shapes' looks
+    // differ.
     markGeometryNeedsUpdate();
     _blendGroupLink?.notifyShapeLayoutChanged(this);
     markNeedsPaint();

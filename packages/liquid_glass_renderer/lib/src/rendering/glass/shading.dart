@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/internal/final_shader_variant.dart';
-import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/shader_filter.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_color_model.dart';
@@ -153,7 +152,6 @@ final class GlassFace {
         GlassRim.bevelShadowOffset * dpr,
         colorModelCode(appearance.colorModel, colorModels),
         appearance.visibility,
-        FlutterGpuGeometryRenderer.materialRasterScale.toDouble(),
       ]),
       blurFade: blurs ? 1 : 0,
       colorModels: List.unmodifiable(<double>[
@@ -177,8 +175,7 @@ final class GlassFace {
   /// uProfile.w, the transmission gamma.
   final double gamma;
 
-  /// uMaterial: vibrancy, tint amount, bevel, model code, visibility, raster
-  /// scale.
+  /// uMaterial: vibrancy, tint amount, bevel, model code, visibility.
   final List<double> material;
 
   /// uBlurFade: 1 where the frost fades out with visibility.
@@ -240,7 +237,7 @@ GlassReach glassReach(
 }
 
 /// Where the final shader reads its shapes: a geometry atlas
-/// (geometry_tiling.dart), and the material map where the shapes'
+/// (geometry_tiling.dart), and the looks beside it where the shapes'
 /// appearances differ.
 @internal
 @immutable
@@ -256,8 +253,7 @@ final class MatteBinding {
     required this.fitsShape,
     required this.materialCenter,
     required this.shrinkAxis,
-    required this.materialTextureSize,
-    this.material,
+    this.looks = const [],
   });
 
   /// The atlas: its strips sampled bilinearly, its table texel by texel.
@@ -289,17 +285,15 @@ final class MatteBinding {
   /// uBackdropShrinkAxis.
   final Offset shrinkAxis;
 
-  /// uMaterialTextureSize.
-  final Size materialTextureSize;
-
-  /// The tint or material map, for the variants that read one.
-  final ui.Image? material;
+  /// The looks beside the atlas, in its layout, for the variants that read
+  /// them: the tint, or tint, response and color model shares.
+  final List<ui.Image> looks;
 
   @override
   bool operator ==(Object other) =>
       other is MatteBinding &&
       identical(other.image, image) &&
-      identical(other.material, material) &&
+      _sameImages(other.looks, looks) &&
       other.origin == origin &&
       other.size == size &&
       other.textureSize == textureSize &&
@@ -307,20 +301,26 @@ final class MatteBinding {
       other.refractionHeight == refractionHeight &&
       other.fitsShape == fitsShape &&
       other.materialCenter == materialCenter &&
-      other.shrinkAxis == shrinkAxis &&
-      other.materialTextureSize == materialTextureSize;
+      other.shrinkAxis == shrinkAxis;
+
+  static bool _sameImages(List<ui.Image> a, List<ui.Image> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!identical(a[i], b[i])) return false;
+    }
+    return true;
+  }
 
   @override
   int get hashCode => Object.hash(
     identityHashCode(image),
-    identityHashCode(material),
+    Object.hashAll(looks.map(identityHashCode)),
     origin,
     size,
     textureSize,
     halfMinor,
     materialCenter,
     shrinkAxis,
-    materialTextureSize,
   );
 }
 
@@ -542,8 +542,8 @@ final class BandOverlay {
 ///
 /// `FragmentShader.getImageSampler` counts samplers in the order the
 /// program's reflection lists them, which is not the order
-/// `setImageSampler` binds them in (Flutter 3.47): in the material variant
-/// it puts the backdrop third.
+/// `setImageSampler` binds them in (Flutter 3.47): in a variant with looks
+/// it can put the backdrop third.
 @internal
 final class FinalLayout {
   /// The layout of [shader], a shader of [variant].
@@ -560,11 +560,11 @@ final class FinalLayout {
       bevel = _float(shader, 'uBevel'),
       effects = _float(shader, 'uEffects'),
       band = variant.band ? _float(shader, 'uBand') : null,
-      materialMap = switch (variant.kind) {
-        FinalShaderKind.tint || FinalShaderKind.material => 3,
-        FinalShaderKind.single => null,
-      },
-      materialLinear = variant.kind == FinalShaderKind.material ? 4 : null;
+      looks = switch (variant.kind) {
+        FinalShaderKind.single => 0,
+        FinalShaderKind.tint => 1,
+        FinalShaderKind.material => 3,
+      };
 
   static int _float(ui.FragmentShader shader, String name) =>
       shader.getUniformFloat(name).shaderIndex;
@@ -614,11 +614,11 @@ final class FinalLayout {
   /// uGeometryTable's sampler: the atlas, texel by texel.
   final int table = 2;
 
-  /// uMaterialTexture's sampler, where the variant reads a material map.
-  final int? materialMap;
+  /// The first look sampler: uLookTint, then uLookResponse and uLookShares.
+  final int firstLook = 3;
 
-  /// uMaterialLinearTexture's sampler, in the material variant.
-  final int? materialLinear;
+  /// How many looks the variant reads.
+  final int looks;
 }
 
 /// The glass's final shaders and the only code that writes them.
@@ -729,11 +729,7 @@ final class GlassShading {
       bounds.bottom,
       origin.dx,
     ]);
-    put(layout.mappingEnd, [
-      origin.dy,
-      matte.materialTextureSize.width,
-      matte.materialTextureSize.height,
-    ]);
+    shader.setFloat(layout.mappingEnd, origin.dy);
     put(layout.colorModels, face.colorModels);
     final (tableX, tableY) = AtlasLayout.tableOrigin;
     put(layout.geometryAtlas, [
@@ -773,21 +769,13 @@ final class GlassShading {
         filterQuality: FilterQuality.low,
       )
       ..setImageSampler(layout.table, matte.image);
-    if (matte.material case final map?) {
-      if (layout.materialMap case final at?) {
-        // The tint map is read filtered, the material map texel by texel
-        // beside its filtered twin.
-        shader.setImageSampler(
-          at,
-          map,
-          filterQuality: layout.materialLinear == null
-              ? FilterQuality.low
-              : FilterQuality.none,
-        );
-      }
-      if (layout.materialLinear case final at?) {
-        shader.setImageSampler(at, map, filterQuality: FilterQuality.low);
-      }
+    // Looks are read filtered, as the geometry beside them is.
+    for (var i = 0; i < min(layout.looks, matte.looks.length); i++) {
+      shader.setImageSampler(
+        layout.firstLook + i,
+        matte.looks[i],
+        filterQuality: FilterQuality.low,
+      );
     }
     return shader;
   }

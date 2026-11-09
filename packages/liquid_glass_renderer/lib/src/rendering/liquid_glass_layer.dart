@@ -622,19 +622,20 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   List<LiquidGlassAppearance> _shapeAppearances = const [];
   bool _usesShapeAppearances = false;
   bool _usesTintOnlyAppearance = false;
-  bool _needsMaterialUpdate = false;
 
-  /// Whether the latest geometry pass writes per-shape contributor data.
+  /// Whether the shapes' appearances differ, so the atlas carries their
+  /// looks.
   @visibleForTesting
   bool get debugUsesShapeAppearances => _usesShapeAppearances;
 
-  /// Whether only tint differs, allowing one filtered appearance lookup.
+  /// Whether only the shapes' tints differ, so the atlas carries the tint
+  /// alone.
   @visibleForTesting
   bool get debugUsesTintOnlyAppearance => _usesTintOnlyAppearance;
 
-  /// The optional contributor texture sampled by the final material pass.
+  /// The looks beside the atlas, where the shapes' appearances differ.
   @visibleForTesting
-  ui.Image? get debugMaterialImage => _materialImage;
+  List<ui.Image> get debugLookImages => _lookImages;
 
   // The material and glow the glass draws with, made again after their
   // inputs change.
@@ -806,9 +807,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
   ) => geometries.any(
     (entry) => entry.$2.shapes.any(
-      (shape) =>
-          shape.appearance.visibility > 0 &&
-          matteShapeBasis(entry.$3, shape.shapeToGeometry) != null,
+      (shape) => matteShapeBasis(shape, entry.$3) != null,
     ),
   );
 
@@ -844,7 +843,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // MARK: Retained matte
 
   ui.Image? _geometryImage;
-  ui.Image? _materialImage;
+  List<ui.Image> _lookImages = const [];
   bool _ownsGeometryImages = false;
 
   /// Layer-local bounds of the matte, in logical pixels. Ancestor transforms
@@ -852,9 +851,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   Rect _geometryMatteBounds = Rect.zero;
   Offset _materialCenterInMatte = Offset.zero;
   Size _materialSize = Size.zero;
-  // The matte and material map fill the top-left of textures that only grow.
+  // The atlas fills the top-left of a texture that only grows.
   Size _geometryTextureSize = Size.zero;
-  Size _materialTextureSize = const Size(1, 1);
 
   @visibleForTesting
   ui.Image? get debugGeometryImage => _geometryImage;
@@ -882,23 +880,25 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // A drawable-empty refresh encodes nothing; the committed list alone
     // is the compositor-translation poll's baseline.
     if (hasDrawableGlass(shapesWithGeometry)) {
-      final reuseMatte = _reusesMatte(bounds);
-      if (!reuseMatte || _needsMaterialUpdate) {
+      if (!_reusesMatte(bounds)) {
         // Keep old borrowed handles valid until the replacement is installed.
         if (!_ownsGeometryImages && _geometryImage != null) {
-          final geometry = _geometryImage!.clone();
-          ui.Image? material;
+          final clones = <ui.Image>[];
           try {
-            material = _materialImage?.clone();
+            for (final image in [_geometryImage!, ..._lookImages]) {
+              clones.add(image.clone());
+            }
           } catch (_) {
-            geometry.dispose();
+            for (final clone in clones) {
+              clone.dispose();
+            }
             rethrow;
           }
-          _geometryImage = geometry;
-          _materialImage = material;
+          _geometryImage = clones.first;
+          _lookImages = List.unmodifiable(clones.skip(1));
           _ownsGeometryImages = true;
         }
-        _encodeGeometry(bounds, writeMatte: !reuseMatte);
+        _encodeGeometry(bounds);
       }
     }
     needsGeometryUpdate = false;
@@ -916,21 +916,15 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _geometryImage != null &&
       _reuseUniformlyTranslatedGeometry(bounds);
 
-  void _encodeGeometry(Rect bounds, {required bool writeMatte}) {
-    final result = _buildGpuGeometryImage(
-      shapesWithGeometry,
-      bounds,
-      writeMatte: writeMatte,
-    );
+  void _encodeGeometry(Rect bounds) {
+    final result = _buildGpuGeometryImage(shapesWithGeometry, bounds);
     _releaseGeometryImageHandles();
     _geometryImage = result.image;
-    _materialImage = result.materialImage;
+    _lookImages = result.looks;
     _geometryMatteBounds = result.matteBounds;
     _geometryTextureSize = result.textureSize;
-    _materialTextureSize = result.materialTextureSize;
-    _materialCenterInMatte = result.materialCenter;
+    _materialCenterInMatte = bounds.center;
     _materialSize = bounds.size;
-    _setShapeAppearances(_shapes.appearances);
     _rememberEncodedGeometry(bounds);
   }
 
@@ -943,11 +937,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   void _releaseGeometryImageHandles() {
     if (_ownsGeometryImages) {
       _geometryImage?.dispose();
-      _materialImage?.dispose();
+      for (final look in _lookImages) {
+        look.dispose();
+      }
       _ownsGeometryImages = false;
     }
     _geometryImage = null;
-    _materialImage = null;
+    _lookImages = const [];
   }
 
   void _rememberEncodedGeometry(Rect bounds) {
@@ -1007,19 +1003,16 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         _releaseCompositorFilter();
         paintRetainedEffect(context, offset, (effectContext, effectOffset) {});
       case GlassFrameState.active:
-        if (needsGeometryUpdate ||
-            _geometryImage == null ||
-            link.isDirty ||
-            _needsMaterialUpdate) {
+        if (needsGeometryUpdate || _geometryImage == null || link.isDirty) {
           link
             ..updateAllGeometries()
             ..markClean();
 
           final reuseMatte = _reusesMatte(geometryBounds);
           needsGeometryUpdate = false;
-          if (!reuseMatte || _needsMaterialUpdate) {
-            if (!reuseMatte) _clearGeometryImage();
-            _encodeGeometry(geometryBounds, writeMatte: !reuseMatte);
+          if (!reuseMatte) {
+            _clearGeometryImage();
+            _encodeGeometry(geometryBounds);
           }
         }
 
@@ -1048,20 +1041,21 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final usedShapeAppearances = _usesShapeAppearances;
     final usedTintOnlyAppearance = _usesTintOnlyAppearance;
     final appearances = [
-      for (final (_, geometry, _) in shapesWithGeometry)
-        for (final shape in geometry.shapes) shape.appearance,
+      for (final (_, geometry, geometryToLayer) in shapesWithGeometry)
+        for (final shape in geometry.shapes)
+          if (matteShapeBasis(shape, geometryToLayer) != null) shape.appearance,
     ];
     final appearanceValuesChanged = !listEquals(
       _shapeAppearances,
       appearances,
     );
     _setShapeAppearances(appearances);
-    if (usedShapeAppearances != _usesShapeAppearances ||
-        usedTintOnlyAppearance != _usesTintOnlyAppearance ||
-        (_usesShapeAppearances && appearanceValuesChanged)) {
-      // Appearance maps have their own output. Matte validity is decided by
-      // the encoded geometry snapshot, including visibility zero crossings.
-      _needsMaterialUpdate = true;
+    if (_usesShapeAppearances &&
+        (!usedShapeAppearances ||
+            usedTintOnlyAppearance != _usesTintOnlyAppearance ||
+            appearanceValuesChanged)) {
+      // The atlas pass writes the looks beside the geometry.
+      needsGeometryUpdate = true;
     }
     effectPaintBounds = expandEffectBounds(boundingBox);
     return boundingBox.inflate(materialOutset);
@@ -1071,8 +1065,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     image: _geometryImage ?? _placeholder,
     bounds: _geometryMatteBounds,
     textureSize: _geometryTextureSize,
-    materialTextureSize: _materialTextureSize,
-    material: _usesShapeAppearances ? _materialImage : null,
+    looks: _usesShapeAppearances ? _lookImages : const [],
   );
 
   // A matte this glass's draws read, its own or its group's: the bevel, the
@@ -1081,8 +1074,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     required ui.Image image,
     required Rect bounds,
     required Size textureSize,
-    required Size materialTextureSize,
-    ui.Image? material,
+    List<ui.Image> looks = const [],
   }) {
     final dpr = devicePixelRatio;
     // Along the glass's long side.
@@ -1102,8 +1094,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       fitsShape: settings.refractionFitsShape,
       materialCenter: _materialCenterInMatte * dpr,
       shrinkAxis: alongX ? Offset(half, 0) : Offset(0, half),
-      materialTextureSize: materialTextureSize,
-      material: material,
+      looks: looks,
     );
   }
 
@@ -1605,10 +1596,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
               image: group.image!,
               bounds: group.bounds,
               textureSize: group.textureSize,
-              materialTextureSize: tints == null
-                  ? _materialTextureSize
-                  : group.tintsSize,
-              material: tints,
+              looks: [?tints],
             ),
       mapping: MatteMapping.of(
         globalToMatte,
@@ -2141,9 +2129,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   _GpuGeometryFrame _buildGpuGeometryImage(
     List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
-    Rect bounds, {
-    required bool writeMatte,
-  }) {
+    Rect bounds,
+  ) {
     final renderer = _gpuGeometryRenderer;
     if (renderer == null) {
       throw StateError(
@@ -2157,21 +2144,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // The geometry buffer is in this layer's local coordinates. Ancestor
     // transforms are applied once by the compositor; baking them in would
     // apply scale and rotation twice.
-    // A reused atlas may have moved by a fractional physical pixel. Keep its
-    // raster phase and extent: snapping again would register the new
-    // material map against an origin its atlas never used.
-    final boundsInMatteSpace = writeMatte
-        ? bounds.inflate(aaPadding).snapToPixels(dpr)
-        : _geometryMatteBounds;
-    final materialCenter = writeMatte ? bounds.center : _materialCenterInMatte;
-
+    final boundsInMatteSpace = bounds.inflate(aaPadding).snapToPixels(dpr);
     final physicalSize = boundsInMatteSpace.size * dpr;
-    final width = writeMatte
-        ? physicalSize.width.ceil()
-        : physicalSize.width.round();
-    final height = writeMatte
-        ? physicalSize.height.ceil()
-        : physicalSize.height.round();
+    final width = physicalSize.width.ceil();
+    final height = physicalSize.height.ceil();
 
     if (width <= 0 || height <= 0) {
       throw StateError('Cannot render empty liquid-glass geometry.');
@@ -2182,94 +2158,73 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (shapes.count == 0) {
       throw StateError('No invertible liquid-glass shapes to render.');
     }
-    var kind = classifyAppearances(shapes.appearances, defaultAppearance);
-    // A per-shape material map is drawn in one pass, which evaluates only so
-    // many shapes.
-    if (kind.mixed && shapes.count > geometryMaxShapesPerDraw) {
+    // A field takes its looks from one draw of shapes.
+    if (_usesShapeAppearances &&
+        _field != null &&
+        shapes.count > geometryMaxShapesPerDraw) {
       _debugWarnShapeLimitExceeded();
       shapes = shapes.take(geometryMaxShapesPerDraw);
-      kind = classifyAppearances(shapes.appearances, defaultAppearance);
     }
     _shapes = shapes;
     final origin = boundsInMatteSpace.topLeft * dpr;
     final inBuffer = ShapeSet.join([(shapes, -origin)]);
-
-    var image = renderer.atlasImage;
-    var textureSize = _geometryTextureSize;
-    if (writeMatte) {
-      final reach = glassReach(
-        settings,
-        devicePixelRatio: dpr,
-        contourExtent: aaPadding * dpr,
-      );
-      final atlas = renderer.renderAtlas(switch (_field) {
-        final field? => Tiling.field(
-          BufferField(
-            field,
-            layerToBuffer: (dpr, 0, 0, dpr, -origin.dx, -origin.dy),
-          ),
-          width: width,
-          height: height,
-          reach: reach,
-        ),
-        null => Tiling.shapes(
-          inBuffer,
-          width: width,
-          height: height,
-          reach: reach,
-        ),
-      });
-      if (renderer.droppedShapes > 0) _debugWarnShapeLimitExceeded();
-      image = atlas.image;
-      textureSize = Size(
-        atlas.textureWidth.toDouble(),
-        atlas.textureHeight.toDouble(),
-      );
-    }
-    final materialImage = kind.mixed
-        ? renderer.renderMaterials(
-            inBuffer,
-            width: width,
-            height: height,
-            appearanceData: appearanceLookupData(
-              shapes.appearances,
-              defaultAppearance,
-            ),
-            tintOnly: kind.tintOnly,
+    final looks = _usesShapeAppearances
+        ? shapeLooks(
+            shapes.appearances,
+            colorModels: colorModelSlots(_shapeAppearances, defaultAppearance),
+            tintOnly: _usesTintOnlyAppearance,
           )
         : null;
-    if (materialImage == null) renderer.releaseMaterials();
-    _needsMaterialUpdate = false;
+    final reach = glassReach(
+      settings,
+      devicePixelRatio: dpr,
+      contourExtent: aaPadding * dpr,
+    );
+    final atlas = renderer.renderAtlas(switch (_field) {
+      final field? => Tiling.field(
+        BufferField(
+          field,
+          layerToBuffer: (dpr, 0, 0, dpr, -origin.dx, -origin.dy),
+        ),
+        width: width,
+        height: height,
+        reach: reach,
+        shapes: inBuffer,
+        looks: looks,
+      ),
+      null => Tiling.shapes(
+        inBuffer,
+        width: width,
+        height: height,
+        reach: reach,
+        looks: looks,
+      ),
+    });
+    if (renderer.droppedShapes > 0) _debugWarnShapeLimitExceeded();
     return (
-      image: image!,
-      materialImage: materialImage,
-      materialCenter: materialCenter,
-      textureSize: textureSize,
-      materialTextureSize: switch (materialImage) {
-        final image? => Size(image.width.toDouble(), image.height.toDouble()),
-        null => const Size(1, 1),
-      },
-      matteBounds: writeMatte
-          ? Rect.fromLTWH(
-              boundsInMatteSpace.left,
-              boundsInMatteSpace.top,
-              width / dpr,
-              height / dpr,
-            )
-          : _geometryMatteBounds,
+      image: atlas.image,
+      looks: atlas.looks,
+      textureSize: Size(
+        atlas.textureWidth.toDouble(),
+        atlas.textureHeight.toDouble(),
+      ),
+      matteBounds: Rect.fromLTWH(
+        boundsInMatteSpace.left,
+        boundsInMatteSpace.top,
+        width / dpr,
+        height / dpr,
+      ),
     );
   }
 }
 
 // Images here borrow the renderer's handles. A retained temporary frame must
-// clone both images before another render can dispose those borrowed handles.
+// clone them before another render can dispose those borrowed handles.
 typedef _GpuGeometryFrame = ({
   Size textureSize,
-  Size materialTextureSize,
   ui.Image image,
-  ui.Image? materialImage,
+  List<ui.Image> looks,
   Rect matteBounds,
-  Offset materialCenter,
 });
 
 // A band beside glass in a read: [shown] of it in the draw's fragments,

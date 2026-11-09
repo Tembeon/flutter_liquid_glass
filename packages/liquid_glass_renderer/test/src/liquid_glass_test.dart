@@ -298,12 +298,10 @@ void main() {
     );
 
     testWidgets(
-      'uses a low-resolution contributor map only for differing appearances',
+      'writes looks beside the atlas only for differing appearances',
       (tester) async {
         final appearanceMode = ValueNotifier(0);
         addTearDown(appearanceMode.dispose);
-        final initialMaterialTextures =
-            FlutterGpuGeometryRenderer.debugActiveMaterialTextureCount;
 
         Widget app() => MaterialApp(
           home: AnimatedBuilder(
@@ -354,11 +352,7 @@ void main() {
 
         expect(renderObject().debugUsesShapeAppearances, isFalse);
         expect(renderObject().debugUsesTintOnlyAppearance, isFalse);
-        expect(renderObject().debugMaterialImage, isNull);
-        expect(
-          FlutterGpuGeometryRenderer.debugActiveMaterialTextureCount,
-          initialMaterialTextures,
-        );
+        expect(renderObject().debugLookImages, isEmpty);
 
         appearanceMode.value = 1;
         await tester.pump();
@@ -366,21 +360,10 @@ void main() {
 
         expect(renderObject().debugUsesShapeAppearances, isTrue);
         expect(renderObject().debugUsesTintOnlyAppearance, isTrue);
-        final materialImage = renderObject().debugMaterialImage;
-        expect(materialImage, isNotNull);
-        expect(
-          materialImage!.width,
-          lessThanOrEqualTo(
-            (renderObject().debugGeometryMatteBounds.width *
-                    tester.view.devicePixelRatio /
-                    FlutterGpuGeometryRenderer.materialRasterScale)
-                .ceil(),
-          ),
-        );
-        expect(
-          FlutterGpuGeometryRenderer.debugActiveMaterialTextureCount,
-          initialMaterialTextures + 1,
-        );
+        final tint = renderObject().debugLookImages.single;
+        final atlas = renderObject().debugGeometryImage!;
+        expect((tint.width, tint.height), (atlas.width, atlas.height));
+        expect(renderObject().debugLiveDraw.matte.looks.single, same(tint));
 
         appearanceMode.value = 2;
         await tester.pump();
@@ -388,24 +371,16 @@ void main() {
 
         expect(renderObject().debugUsesShapeAppearances, isTrue);
         expect(renderObject().debugUsesTintOnlyAppearance, isFalse);
+        expect(renderObject().debugLookImages, hasLength(3));
+        expect(renderObject().debugLiveDraw.matte.looks, hasLength(3));
 
         appearanceMode.value = 0;
         await tester.pump();
         await tester.pump();
 
+        // The atlas stays; glass that looks alike reads none of its looks.
         expect(renderObject().debugUsesShapeAppearances, isFalse);
-        expect(renderObject().debugMaterialImage, isNull);
-        expect(
-          FlutterGpuGeometryRenderer.debugActiveMaterialTextureCount,
-          initialMaterialTextures,
-        );
-
-        await tester.pumpWidget(const SizedBox());
-        await tester.pump();
-        expect(
-          FlutterGpuGeometryRenderer.debugActiveMaterialTextureCount,
-          initialMaterialTextures,
-        );
+        expect(renderObject().debugLiveDraw.matte.looks, isEmpty);
       },
       skip: skipProperGlassTests,
     );

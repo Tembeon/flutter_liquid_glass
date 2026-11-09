@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass/geometry_tiling.dart';
 
 import 'gpu_test_helpers.dart';
 
@@ -14,31 +15,26 @@ void main() {
 /// Also runs directly on the device, without a second scene traversal.
 void runGpuImageOwnershipTests() {
   testWidgets(
-    'cloned geometry and material survive replacement and disposal',
+    'cloned atlases and looks survive replacement and disposal',
     (tester) async {
       await tester.runAsync(() async {
         final renderer = await createGeometryRenderer();
         final initialCount = FlutterGpuGeometryRenderer.debugTotalRenderCount;
 
-        ui.Image render(int index) {
-          final appearances = List<double>.filled(128, 0);
-          for (var shape = 0; shape < 16; shape++) {
-            appearances[shape * 4 + (index.isEven ? 0 : 1)] = 1;
-            appearances[shape * 4 + 3] = 1;
-            appearances[64 + shape * 4] = 0.25;
-            appearances[64 + shape * 4 + 1] = 0.25;
-            appearances[64 + shape * 4 + 3] = 0.2;
-          }
-          final centerX = 16.0 + index * 3;
-          renderer.renderMaterials(
-            testRectangle(centerX: centerX),
-            width: 64,
-            height: 64,
-            appearanceData: appearances,
-            tintOnly: false,
-          );
-          return renderTestRectangle(renderer, centerX: centerX);
-        }
+        ui.Image render(int index) => renderTestRectangle(
+          renderer,
+          centerX: 16.0 + index * 3,
+          looks: ShapeLooks([
+            if (index.isEven) 1 else 0,
+            if (index.isEven) 0 else 1,
+            0,
+            1,
+            1,
+            1,
+            0,
+            1,
+          ], tintOnly: false),
+        );
 
         Future<Uint8List> pixels(ui.Image image) async {
           final bytes = await image.toByteData();
@@ -52,7 +48,7 @@ void runGpuImageOwnershipTests() {
         }
 
         final first = render(0);
-        final originalMaterial = renderer.materialImage!;
+        final originalMaterial = renderer.lookImages.first;
         final geometry = first.clone();
         final material = originalMaterial.clone();
         addTearDown(geometry.dispose);
@@ -74,7 +70,7 @@ void runGpuImageOwnershipTests() {
           isNot(orderedEquals(originalGeometryPixels)),
         );
         expect(
-          await pixels(renderer.materialImage!),
+          await pixels(renderer.lookImages.first),
           isNot(orderedEquals(originalMaterialPixels)),
         );
         renderer.releaseOutput();
@@ -93,7 +89,7 @@ void runGpuImageOwnershipTests() {
         expect(await pixels(material), orderedEquals(originalMaterialPixels));
         expect(
           FlutterGpuGeometryRenderer.debugTotalRenderCount - initialCount,
-          18,
+          9,
         );
       });
     },

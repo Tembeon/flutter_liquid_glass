@@ -365,6 +365,87 @@ void main() {
     }
   });
 
+  test('a deep tile reads one look only where no other look weighs in', () {
+    final random = Random(13);
+    const reach = GlassReach(inward: 24, outward: 2);
+    var deep = 0;
+    var evaluated = 0;
+    for (var scene = 0; scene < 8; scene++) {
+      final shapes = _randomScene(
+        random,
+        count: 2 + random.nextInt(geometryMaxShapesPerDraw - 1),
+        width: width.toDouble(),
+        height: height.toDouble(),
+      );
+      final looks = ShapeLooks([
+        for (final _ in shapes) ...[random.nextInt(3) / 2, 0, 0, 1, 1, 1, 0, 1],
+      ], tintOnly: true);
+      // 1.25 times the blends of each shape's group, and a pixel.
+      final lookReach = List<double>.filled(shapes.length, 0);
+      for (var i = 0, start = 0; i <= shapes.length; i++) {
+        if (i < shapes.length && !shapes[i].startsGroup) continue;
+        var blends = 0.0;
+        for (var j = start + 1; j < i; j++) {
+          blends += shapes[j].blend;
+        }
+        lookReach.fillRange(start, i, blends * 1.25 + 1);
+        start = i;
+      }
+      final plain = Tiling.shapes(
+        _encode(shapes),
+        width: width,
+        height: height,
+        reach: reach,
+      );
+      final tiling = Tiling.shapes(
+        _encode(shapes),
+        width: width,
+        height: height,
+        reach: reach,
+        looks: looks,
+      );
+      _expectRunsPartitionRing(tiling);
+      for (var row = 0; row < tiling.rows; row++) {
+        for (var column = 0; column < tiling.columns; column++) {
+          final kind = tiling.kindAt(column, row);
+          if (plain.kindAt(column, row) != TileKind.deep) {
+            expect(kind, plain.kindAt(column, row));
+            continue;
+          }
+          if (kind == TileKind.ring) {
+            evaluated++;
+            continue;
+          }
+          deep++;
+          final look = tiling.deepLookAt(column, row);
+          final center = _pixels(column, row, width, height).first;
+          expect(
+            [
+              for (var i = 0; i < shapes.length; i++)
+                if (looks.lookOf[i] == look &&
+                    shapes[i].distanceAt(center.$1, center.$2) < lookReach[i])
+                  i,
+            ],
+            isNotEmpty,
+            reason: 'scene $scene, tile $column, $row reads a look it has',
+          );
+          for (final (x, y) in _pixels(column, row, width, height)) {
+            for (var i = 0; i < shapes.length; i++) {
+              if (looks.lookOf[i] == look) continue;
+              expect(
+                shapes[i].distanceAt(x, y),
+                greaterThanOrEqualTo(lookReach[i]),
+                reason: 'scene $scene, shape $i at $x, $y',
+              );
+            }
+          }
+        }
+      }
+    }
+    expect(deep, greaterThan(50));
+    expect(evaluated, greaterThan(10));
+  });
+
   test('a field tiles by the nodes over each tile', () {
     const step = 6.0;
     const pixelsPerUnit = 2.0;

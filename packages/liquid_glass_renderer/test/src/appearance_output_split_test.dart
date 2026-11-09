@@ -22,7 +22,7 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
     ..captureWidth = 240
     ..captureHeight = 180;
   for (final retained in [false, true]) {
-    testWidgets('appearance outputs split (retained=$retained)', (
+    testWidgets('a look change draws the atlas again (retained=$retained)', (
       tester,
     ) async {
       tester.view
@@ -128,20 +128,24 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
         ]).buffer.asUint8List();
       }
 
-      Future<Uint8List?> materialBytes() async {
-        final image = layer.debugMaterialImage;
-        if (image == null) return null;
-        final width = (layer.debugGeometryMatteBounds.width / 8).ceil();
-        final height = (layer.debugGeometryMatteBounds.height / 8).ceil();
-        return read(
-          image,
-          layer.debugUsesTintOnlyAppearance
-              ? width
-              : width < 16
-              ? 16
-              : width,
-          height + (layer.debugUsesTintOnlyAppearance ? 0 : 2),
-        );
+      // What the final shader reads of the looks beside the atlas.
+      Future<Uint8List?> lookBytes() async {
+        if (!layer.debugUsesShapeAppearances) return null;
+        final atlas = (await tester.runAsync(
+          () => AtlasTexels.read(layer.debugGeometryImage!),
+        ))!;
+        final bounds = layer.debugGeometryMatteBounds;
+        final values = <double>[];
+        for (final image in layer.debugLookImages) {
+          final look = (await tester.runAsync(() => AtlasTexels.read(image)))!;
+          for (var y = 0; y < bounds.height.round(); y++) {
+            for (var x = 0; x < bounds.width.round(); x++) {
+              final (r, g, b, a) = atlas.lookAt(look, x, y);
+              values.addAll([r, g, b, a]);
+            }
+          }
+        }
+        return Float32List.fromList(values).buffer.asUint8List();
       }
 
       Future<void> check(
@@ -163,42 +167,44 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
         final scene = await capture();
         final count =
             FlutterGpuGeometryRenderer.debugDeferredPassCount - passes;
-        final expectedMaterial =
-            !uniform && (geometryChanged || appearanceChanged);
-        expect(
-          count,
-          (geometryChanged ? 1 : 0) + (expectedMaterial ? 1 : 0),
-          reason: name,
-        );
+        // The atlas pass writes the looks beside the geometry.
+        final redrawn = geometryChanged || (!uniform && appearanceChanged);
+        expect(count, redrawn ? 1 : 0, reason: name);
         if (retained && !geometryChanged) {
           expect(layer.debugPaintCount, paints, reason: '$name retained path');
         }
         if (!geometryChanged) {
           expect(revisions(), oldRevisions, reason: '$name CPU matte revision');
-          expect(renderer.debugMatteTexture, same(oldMatte), reason: name);
-          expect(layer.debugGeometryImage, same(oldImage), reason: name);
-          expect(await matteBytes(), before, reason: '$name unchanged matte');
-        } else {
+        }
+        if (redrawn) {
           expect(
             renderer.debugMatteTexture,
             isNot(same(oldMatte)),
             reason: name,
           );
+        } else {
+          expect(renderer.debugMatteTexture, same(oldMatte), reason: name);
+          expect(layer.debugGeometryImage, same(oldImage), reason: name);
+          expect(await matteBytes(), before, reason: '$name unchanged matte');
         }
         final matte = await matteBytes();
-        final material = await materialBytes();
-        // Force the exact same inputs through the old full-encode path.
+        final looks = await lookBytes();
+        // Force the exact same inputs through a full encode.
         layer
           // ignore: invalid_use_of_protected_member
           ..needsGeometryUpdate = true
           ..markNeedsPaint();
         final reference = await capture();
-        expect(await matteBytes(), matte, reason: '$name full matte reference');
-        expect(
-          await materialBytes(),
-          material,
-          reason: '$name material reference',
-        );
+        // An atlas kept for glass that now looks alike still holds the ring
+        // tiles its looks needed, where a full encode reads deep constants.
+        if (redrawn) {
+          expect(
+            await matteBytes(),
+            matte,
+            reason: '$name full matte reference',
+          );
+          expect(await lookBytes(), looks, reason: '$name look reference');
+        }
         expect(scene, reference, reason: '$name submitted filter snapshot');
       }
 
@@ -308,8 +314,6 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
             ..markNeedsPaint();
           await capture();
           final bounds = layer.debugGeometryMatteBounds;
-          final texture = renderer.debugMatteTexture;
-          final matte = await matteBytes();
           final cpuRevisions = revisions();
           final paints = layer.debugPaintCount;
           const delta = Offset(0.25, 0); // DPR 1: a quarter physical pixel.
@@ -346,35 +350,19 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
           );
           expect(revisions(), cpuRevisions);
           if (retained) expect(layer.debugPaintCount, paints);
-          expect(renderer.debugMatteTexture, same(texture));
-          expect(await matteBytes(), matte);
-          expect(
-            layer.debugGeometryMatteBounds,
-            bounds.shift(delta),
-            reason: 'material-only encoding must retain the matte raster phase',
-          );
 
           layer
             // ignore: invalid_use_of_protected_member
             ..needsGeometryUpdate = true
             ..markNeedsPaint();
           final reference = await capture();
-          var totalError = 0;
-          var largeErrors = 0;
-          for (var i = 0; i < scene.length; i++) {
-            if (i % 4 == 3) continue; // Compare RGB, not opaque alpha.
-            final error = (scene[i] - reference[i]).abs();
-            totalError += error;
-            if (error > 16) largeErrors++;
-          }
-          final samples = scene.length * 3 ~/ 4;
-          final meanError = totalError / samples;
-          final largeFraction = largeErrors / samples;
-          // Unlike integral translations, a full build samples a newly snapped
-          // atlas. Allow mean error <= 1/255, with >16/255 differences
-          // in at most 1% of RGB samples.
-          expect(meanError, lessThanOrEqualTo(1));
-          expect(largeFraction, lessThanOrEqualTo(0.01));
+          expect(
+            scene,
+            reference,
+            reason:
+                'a look change after a fractional move draws the atlas a '
+                'full build draws',
+          );
         }
       }
     }, skip: skipProperGlassTests);

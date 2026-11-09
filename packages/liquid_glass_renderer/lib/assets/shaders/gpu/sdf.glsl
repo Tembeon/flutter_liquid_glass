@@ -22,16 +22,18 @@
 // MAX_SHAPES * 3 + index * 3 the bottom half, each a symmetric rounded
 // superellipse centered on the split line; the bottom rows' half width slot
 // carries the bottom radius.
-//
-// IMPORTANT: Every shader that includes this file must declare a
-// `uniform vec4 uShapeData[MAX_SHAPES * 3];`,
-// `uniform vec4 uRseData[MAX_SHAPES * 6];` and
-// `uniform vec4 uShapeBounds[N];`, N at least MAX_SHAPES, *before* the
-// include. The SDF
-// helpers below read these uniforms directly rather than taking them as
+
+// The helpers read the shapes from the uniforms rather than taking them as
 // parameters, so no shape array is ever passed, and copied, by value.
-#ifndef MAX_SHAPES
-#define MAX_SHAPES 16
+#include "geometry_uniforms.glsl"
+
+// Whether a scene sample carries its shapes' look (looks.glsl), blended by
+// the smooth union's weight over its full radius, as halfMinor is.
+#ifndef SCENE_LOOKS
+#define SCENE_LOOKS 0
+#endif
+#if SCENE_LOOKS
+#include "looks.glsl"
 #endif
 
 float sdfRRect( in vec2 p, in vec2 b, in float r ) {
@@ -174,7 +176,6 @@ float getShapeSDF(
     return 1e9; // none
 }
 
-// Reads the globally declared `uShapeData` uniform directly (see note above).
 struct SceneSample {
     float distance;
     float halfMinor;
@@ -185,6 +186,9 @@ struct SceneSample {
     // refraction, lighting and antialiasing.
     vec2 normal;
     vec2 opticalNormal;
+#if SCENE_LOOKS
+    Look look;
+#endif
 };
 
 // Apple's glass turns its optical normal before a corner starts, as if the
@@ -461,6 +465,9 @@ SceneSample getShapeSampleFromArray(int index, vec2 p, bool blended) {
     }
     resultSample.normal = gradients.xy;
     resultSample.opticalNormal = gradients.zw;
+#if SCENE_LOOKS
+    resultSample.look = lookAt(index);
+#endif
     return resultSample;
 }
 
@@ -472,8 +479,8 @@ SceneSample smoothUnionSample(SceneSample a, SceneSample b, float k) {
     float e = max(blend - abs(a.distance - b.distance), 0.0);
     float distance = min(a.distance, b.distance) -
         e * e * 0.25 / max(blend, 1e-4);
-    // Follow the same bounded smooth-min blend used for the distance field so
-    // the shape-relative profile remains continuous at a smooth group seam.
+    // Weighted over the union's full radius, so the shape-relative profile
+    // and the look stay continuous across a smooth group seam.
     float weightA = smoothMinWeight(a.distance, b.distance, k);
     SceneSample result;
     result.distance = distance;
@@ -493,6 +500,9 @@ SceneSample smoothUnionSample(SceneSample a, SceneSample b, float k) {
         a.opticalNormal,
         gradientWeightA
     );
+#if SCENE_LOOKS
+    result.look = mixLooks(a.look, b.look, weightA);
+#endif
     return result;
 }
 
@@ -503,6 +513,9 @@ SceneSample sceneSample(vec2 p, int numShapes) {
     empty.curvatureFactor = 0.0;
     empty.normal = vec2(0.0);
     empty.opticalNormal = vec2(0.0);
+#if SCENE_LOOKS
+    empty.look = Look(vec4(0.0), vec4(0.0), vec4(0.0));
+#endif
     if (numShapes <= 0) {
         return empty;
     }

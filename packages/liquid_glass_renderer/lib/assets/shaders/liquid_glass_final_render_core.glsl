@@ -34,10 +34,6 @@ precision mediump float;
 #define FROST_BAND 0
 #endif
 
-// The shapes one matte draw holds (MAX_SHAPES of the geometry shaders): the
-// material map stores a shape's index as (index + 0.5) / MATTE_MAX_SHAPES.
-#define MATTE_MAX_SHAPES 16
-
 #include <flutter/runtime_effect.glsl>
 #include "render.glsl"
 #include "glass_glow.glsl"
@@ -49,7 +45,10 @@ precision mediump float;
 // edge, in a sparse atlas (geometry_tiling.dart, gpu/tile_*.glsl): a table of
 // one texel per 16 x 16 tile points each tile at its ring strip or at a
 // constant block for tiles wholly outside or deep inside. The strips are read
-// with linear filtering, the table texel by texel.
+// with linear filtering, the table texel by texel. Where the shapes differ
+// in look, textures of the atlas's layout hold each texel's look beside it
+// (gpu/looks.glsl): the tint premultiplied, the response, and the color
+// models' shares.
 
 uniform highp vec2 uSize;
 
@@ -75,11 +74,11 @@ uniform vec4 uFace[7];
 // uMaterialCenter, uSpecularWrap, uTransmissionGamma.
 uniform highp vec4 uProfile;
 
+// [1].yz: the color model's code and the visibility.
 uniform vec4 uMaterial[2];
-#define uAppearanceConfig uMaterial[1].yzw
 
 uniform highp vec4 uMapping[3];
-uniform highp vec3 uMappingEnd;
+uniform highp float uMappingEnd;
 #define uFilterToMatteBasis uMapping[0]
 #define uFilterToMatteOffset uMapping[1].xy
 // Matte-space rect (LTRB, device px) the filter captured backdrop for.
@@ -88,9 +87,7 @@ uniform highp vec3 uMappingEnd;
 #define uBackdropBounds vec4(uMapping[1].w, uMapping[2].xyz)
 // Where fragment coordinates start, in device px: zero for a filter, whose
 // coordinates are its input's; the origin of the copy a paint samples.
-#define uBackdropOrigin vec2(uMapping[2].w, uMappingEnd.x)
-// Texel size of the material map's texture; the map fills its top-left.
-#define uMaterialTextureSize uMappingEnd.yz
+#define uBackdropOrigin vec2(uMapping[2].w, uMappingEnd)
 
 // Per-model parameter blocks for the three adaptive color-model slots the
 // layer assigned this frame: slot code 1..3 selects
@@ -220,10 +217,11 @@ uniform sampler2D uBackgroundTexture;
 uniform sampler2D uGeometryTexture;
 uniform sampler2D uGeometryTable;
 #if SHAPE_APPEARANCE || SHAPE_TINT
-uniform sampler2D uMaterialTexture;
+uniform sampler2D uLookTint;
 #endif
 #if SHAPE_APPEARANCE
-uniform sampler2D uMaterialLinearTexture;
+uniform sampler2D uLookResponse;
+uniform sampler2D uLookShares;
 #endif
 
 layout(location = 0) out vec4 fragColor;
@@ -281,22 +279,6 @@ vec4 bandRim(highp vec2 fragment) {
 #define EMPTY_FRAGMENT bandColor(FlutterFragCoord().xy - uBackdropOrigin)
 #else
 #define EMPTY_FRAGMENT vec4(0.0)
-#endif
-
-#if SHAPE_APPEARANCE
-vec4 shapeLookup(
-    int index,
-    highp vec2 materialTextureSize,
-    highp float rowCenter
-) {
-    return texture(
-        uMaterialTexture,
-        vec2(
-            (float(index) + 0.5) / materialTextureSize.x,
-            rowCenter / materialTextureSize.y
-        )
-    );
-}
 #endif
 
 // Transmittance of one model's face, blended linearly between the Clear and
@@ -652,11 +634,11 @@ vec3 applySpecularHighlights(
 }
 
 
-// The geometry texel at matte pixel position [pixel], from the geometry
+// Where the atlas holds matte pixel position [pixel], from the geometry
 // buffer's corner: the table names the atlas texel of the tile's first pixel.
 // A tile's strip carries a texel of apron on each side, so the filtered read
 // never blends in another tile's texels.
-vec4 geometryAt(highp vec2 pixel) {
+highp vec2 atlasPoint(highp vec2 pixel) {
     highp vec2 tile = min(
         floor(pixel / 16.0),
         ceil(uGeometrySize / 16.0) - 1.0
@@ -665,10 +647,7 @@ vec4 geometryAt(highp vec2 pixel) {
         uGeometryTable,
         (uGeometryAtlas.xy + tile + 0.5) / uGeometryAtlas.zw
     ).xy;
-    return texture(
-        uGeometryTexture,
-        (entry + pixel - tile * 16.0) / uGeometryAtlas.zw
-    );
+    return (entry + pixel - tile * 16.0) / uGeometryAtlas.zw;
 }
 
 // The surface direction (xy) and refraction strength (z) of a geometry
@@ -688,7 +667,7 @@ float plainInteriorDepth() {
     bool plain = abs(uBackdropScale - 1.0) <= 0.0001 &&
         uBackdropFrost <= 0.0 &&
         uTint.a < 0.001 &&
-        uAppearanceConfig.y >= 1.0 &&
+        uMaterial[1].z >= 1.0 &&
         uTransmissionGamma == 1.0 &&
         uVibrancy <= 0.0 &&
         uGlowSpot.w <= 0.0 &&
@@ -754,7 +733,8 @@ void main() {
         return;
     }
 
-    vec4 geometryTexel = geometryAt(matteCoord - uGeometryOffset);
+    highp vec2 atlasUV = atlasPoint(matteCoord - uGeometryOffset);
+    vec4 geometryTexel = texture(uGeometryTexture, atlasUV);
     #if PLAIN_INTERIOR
     if (geometryTexel.x > plainInteriorDepth()) {
         vec3 backdrop;
@@ -794,129 +774,32 @@ void main() {
     }
     #endif
     vec4 materialTint = uTint;
-    float appearanceVisibility = clamp(uAppearanceConfig.y, 0.0, 1.0);
+    float appearanceVisibility = clamp(uMaterial[1].z, 0.0, 1.0);
+    vec4 colorModelShares = colorModelSharesOf(uMaterial[1].y);
+    #if SHAPE_TINT || SHAPE_APPEARANCE
+    {
+        vec4 tint = texture(uLookTint, atlasUV);
+        materialTint = vec4(
+            tint.a > 0.0001 ? tint.rgb / tint.a : vec3(0.0),
+            tint.a
+        );
+    }
+    #endif
+    #if SHAPE_APPEARANCE
+    {
+        vec4 response = texture(uLookResponse, atlasUV);
+        uSaturation = response.x;
+        uTransmissionGamma = response.y;
+        uVibrancy = response.z;
+        appearanceVisibility = clamp(response.w, 0.0, 1.0);
+        colorModelShares = texture(uLookShares, atlasUV);
+    }
+    #endif
     // Weight of the material over the refracted backdrop. Frosted glass
     // renders the material in full and its alpha fades it with the frost;
     // opaque unfrosted glass fades it here. Either way it fades linearly,
     // never twice.
     float materialVisibility = mix(appearanceVisibility, 1.0, uBlurFade);
-    vec4 colorModelShares = colorModelSharesOf(uAppearanceConfig.x);
-    #if SHAPE_TINT
-    {
-        highp float materialRasterScale = max(uAppearanceConfig.z, 1.0);
-        highp vec2 materialSize = max(
-            ceil(uGeometrySize / materialRasterScale),
-            vec2(1.0)
-        );
-        highp vec2 materialTextureSize = uMaterialTextureSize;
-        highp vec2 materialLinearUV =
-            (geometryUV * (materialSize - vec2(1.0)) + vec2(0.5)) /
-            materialTextureSize;
-        materialTint = texture(uMaterialTexture, materialLinearUV);
-    }
-    #elif SHAPE_APPEARANCE
-    {
-        highp float materialRasterScale = max(uAppearanceConfig.z, 1.0);
-        highp vec2 materialSize = max(
-            ceil(uGeometrySize / materialRasterScale),
-            vec2(1.0)
-        );
-        highp vec2 materialTextureSize = uMaterialTextureSize;
-        highp vec2 materialNearestUV =
-            (floor(geometryUV * materialSize) + vec2(0.5)) /
-            materialTextureSize;
-        highp vec2 materialLinearUV =
-            (geometryUV * (materialSize - vec2(1.0)) + vec2(0.5)) /
-            materialTextureSize;
-        // Keep contributor IDs discrete, while bilinearly upsampling only the
-        // transition weight. Pair changes are allowed to be approximate: this
-        // map is a transient tint gradient, never the geometry matte.
-        vec4 contributors = texture(uMaterialTexture, materialNearestUV);
-        vec4 filtered = texture(uMaterialLinearTexture, materialLinearUV);
-        float primaryWeight = clamp(filtered.b, 0.0, 1.0);
-        // Where the nearest shape swaps, the filtered footprint holds one
-        // pair in both orders: the IDs differ but their sum does not. The
-        // nearest-shape weight never reaches 0.5 there, so use the weight
-        // stored for the pair's lower-indexed shape instead.
-        const float kIdTolerance = 0.5 / 255.0;
-        if (
-            abs(filtered.r - contributors.r) > kIdTolerance &&
-            abs(
-                filtered.r + filtered.g - contributors.r - contributors.g
-            ) < kIdTolerance
-        ) {
-            float lowerWeight = clamp(filtered.a, 0.0, 1.0);
-            primaryWeight = contributors.r <= contributors.g
-                ? lowerWeight
-                : 1.0 - lowerWeight;
-        }
-        int primary = int(clamp(
-            floor(contributors.r * float(MATTE_MAX_SHAPES)),
-            0.0,
-            float(MATTE_MAX_SHAPES - 1)
-        ));
-        int secondary = int(clamp(
-            floor(contributors.g * float(MATTE_MAX_SHAPES)),
-            0.0,
-            float(MATTE_MAX_SHAPES - 1)
-        ));
-        float secondaryWeight = 1.0 - primaryWeight;
-        vec4 primaryTint = shapeLookup(
-            primary,
-            materialTextureSize,
-            materialSize.y + 0.5
-        );
-        vec4 secondaryTint = shapeLookup(
-            secondary,
-            materialTextureSize,
-            materialSize.y + 0.5
-        );
-        vec4 primaryResponse = shapeLookup(
-            primary,
-            materialTextureSize,
-            materialSize.y + 1.5
-        );
-        vec4 secondaryResponse = shapeLookup(
-            secondary,
-            materialTextureSize,
-            materialSize.y + 1.5
-        );
-        primaryResponse.xyz *= 4.0;
-        secondaryResponse.xyz *= 4.0;
-        float primaryPackedResponse = primaryResponse.w * 7.0;
-        float secondaryPackedResponse = secondaryResponse.w * 7.0;
-        float primaryColorModel = floor(primaryPackedResponse * 0.5);
-        float secondaryColorModel = floor(secondaryPackedResponse * 0.5);
-        primaryResponse.w = primaryPackedResponse - primaryColorModel * 2.0;
-        secondaryResponse.w =
-            secondaryPackedResponse - secondaryColorModel * 2.0;
-        float blendedTintAlpha =
-            secondaryTint.a * secondaryWeight +
-            primaryTint.a * primaryWeight;
-        vec3 blendedTintPremultiplied =
-            secondaryTint.rgb * secondaryTint.a * secondaryWeight +
-            primaryTint.rgb * primaryTint.a * primaryWeight;
-        vec3 blendedTintColor = blendedTintAlpha > 0.0001
-            ? blendedTintPremultiplied / blendedTintAlpha
-            : mix(secondaryTint.rgb, primaryTint.rgb, primaryWeight);
-        materialTint = vec4(blendedTintColor, blendedTintAlpha);
-        vec4 appearance = mix(
-            secondaryResponse,
-            primaryResponse,
-            primaryWeight
-        );
-        appearanceVisibility = clamp(appearance.w, 0.0, 1.0);
-        colorModelShares = mix(
-            colorModelSharesOf(secondaryColorModel),
-            colorModelSharesOf(primaryColorModel),
-            primaryWeight
-        );
-        materialVisibility = mix(appearanceVisibility, 1.0, uBlurFade);
-        uSaturation = appearance.x;
-        uTransmissionGamma = appearance.y;
-        uVibrancy = appearance.z;
-    }
-    #endif
 
     float maxDisplacement = max(uDisplacementScale, 0.001);
     // Positive inside. It is a smooth value rather than a rounded byte, so

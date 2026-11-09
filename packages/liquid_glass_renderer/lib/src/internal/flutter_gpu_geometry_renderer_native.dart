@@ -6,13 +6,11 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter/widgets.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_field.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_support.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/geometry_tiling.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass/shape_set.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 /// The edge distance of a geometry atlas's outside tile and of its texels
@@ -27,6 +25,28 @@ const double kDeepInward = 4096;
 
 /// Floats per vertex of tile_vertex.glsl: position, value and ramp.
 const int _tileVertexFloats = 10;
+
+/// What an atlas pass writes beside the atlas, by [Tiling.looks]: no look,
+/// the tint, or the whole look (look_targets.glsl).
+enum _LookTargets {
+  none(0, ''),
+  tint(1, 'Tint'),
+  all(3, 'Looks');
+
+  const _LookTargets(this.count, this.shaderSuffix);
+
+  factory _LookTargets.of(ShapeLooks? looks) => switch (looks) {
+    null => none,
+    ShapeLooks(tintOnly: true) => tint,
+    _ => all,
+  };
+
+  /// The look textures written.
+  final int count;
+
+  /// What the atlas shaders' names end in, before `Fragment`.
+  final String shaderSuffix;
+}
 
 const _tileVertexLayout = gpu.VertexLayout(
   buffers: [
@@ -52,11 +72,11 @@ const _tileVertexLayout = gpu.VertexLayout(
   ],
 );
 
-/// Renders the liquid glass geometry atlas (geometry_tiling.dart) and
-/// material maps using flutter_gpu.
+/// Renders the liquid glass geometry atlas (geometry_tiling.dart) and the
+/// looks beside it using flutter_gpu.
 ///
-/// Each output keeps its current texture and up to two retired spares, so a
-/// frame that renders twice still reuses one; scenes and GC can keep dropped
+/// The atlas keeps a few retired textures, so a frame that renders twice
+/// still reuses one; scenes and GC can keep dropped
 /// textures alive longer. Textures grow as needed; rendering uses only the
 /// top-left area, with shader UVs adjusted to match.
 ///
@@ -83,26 +103,11 @@ class FlutterGpuGeometryRenderer {
   }
 
   FlutterGpuGeometryRenderer._fromShared(_SharedGeometryResources resources) {
-    _materialGradientPipeline = resources.materialGradientPipeline;
-    _materialTintGradientPipeline = resources.materialTintGradientPipeline;
-    _tileFillPipeline = resources.tileFillPipeline;
-    _tileGeometryPipeline = resources.tileGeometryPipeline;
-    _tileGeometryUniformSlot = resources.tileGeometryUniformSlot;
-    _tileFieldPipeline = resources.tileFieldPipeline;
-    _tileFieldUniformSlot = resources.tileFieldUniformSlot;
-    _tileFieldTextureSlot = resources.tileFieldTextureSlot;
+    _pipelines = resources.pipelines;
     _tileFieldOffsets = resources.tileFieldOffsets;
     _tileFieldUniformData = ByteData(resources.tileFieldUniformSize);
-    _uniformSlot = resources.uniformSlot;
     _uniformSize = resources.uniformSize;
-    _offsetOpticalProps = resources.offsetOpticalProps;
-    _offsetContourProps = resources.offsetContourProps;
-    _offsetShapeData = resources.offsetShapeData;
-    _offsetRseData = resources.offsetRseData;
-    _offsetShapeTints = resources.offsetShapeTints;
-    _offsetShapeResponses = resources.offsetShapeResponses;
-    _offsetShapeBounds = resources.offsetShapeBounds;
-    _vertexBufferView = resources.vertexBufferView;
+    _offsets = resources.offsets;
     _uniformData = ByteData(_uniformSize);
     assert(() {
       _debugActiveRendererCount++;
@@ -139,36 +144,13 @@ class FlutterGpuGeometryRenderer {
     }
     final resourcesFuture = _assetResources[assetKey] ??= () async {
       final library = await gpu.ShaderLibrary.fromAsset(assetKey);
-      final vertexShader = library?['GeometryVertex'];
-      final materialGradientFragmentShader =
-          library?['MaterialGradientFragment'];
-      final materialTintGradientFragmentShader =
-          library?['MaterialTintGradientFragment'];
-      final tileVertexShader = library?['TileVertex'];
-      final tileFillFragmentShader = library?['TileFillFragment'];
-      final tileGeometryFragmentShader = library?['TileGeometryFragment'];
-      final tileFieldFragmentShader = library?['TileFieldFragment'];
-      if (vertexShader == null ||
-          materialGradientFragmentShader == null ||
-          materialTintGradientFragmentShader == null ||
-          tileVertexShader == null ||
-          tileFillFragmentShader == null ||
-          tileGeometryFragmentShader == null ||
-          tileFieldFragmentShader == null) {
-        throw StateError(
-          'LiquidGlass requires Flutter GPU. Run with Flutter 3.47 or newer '
-          'and enable Flutter GPU for the target platform.',
-        );
-      }
-      return _SharedGeometryResources(
-        vertexShader: vertexShader,
-        materialGradientFragmentShader: materialGradientFragmentShader,
-        materialTintGradientFragmentShader: materialTintGradientFragmentShader,
-        tileVertexShader: tileVertexShader,
-        tileFillFragmentShader: tileFillFragmentShader,
-        tileGeometryFragmentShader: tileGeometryFragmentShader,
-        tileFieldFragmentShader: tileFieldFragmentShader,
-      );
+      gpu.Shader shader(String name) =>
+          library?[name] ??
+          (throw StateError(
+            'LiquidGlass requires Flutter GPU. Run with Flutter 3.47 or newer '
+            'and enable Flutter GPU for the target platform.',
+          ));
+      return _SharedGeometryResources(shader);
     }();
     try {
       final resources = await resourcesFuture;
@@ -224,7 +206,6 @@ class FlutterGpuGeometryRenderer {
   // references retained by submitted scenes; they are not GPU memory metrics.
   static int _debugActiveRendererCount = 0;
   static int _debugActiveGeometryTextureCount = 0;
-  static int _debugActiveMaterialTextureCount = 0;
   static int _debugTotalRenderCount = 0;
 
   /// Counts SDF submissions across all owners, including temporary renderers.
@@ -237,10 +218,6 @@ class FlutterGpuGeometryRenderer {
   @visibleForTesting
   static int get debugActiveGeometryTextureCount =>
       _debugActiveGeometryTextureCount;
-
-  @visibleForTesting
-  static int get debugActiveMaterialTextureCount =>
-      _debugActiveMaterialTextureCount;
 
   static gpu.HostBuffer _hostBufferForUniformSize(int uniformSize) {
     final alignment = gpu.gpuContext.minimumUniformByteAlignment;
@@ -264,35 +241,21 @@ class FlutterGpuGeometryRenderer {
     return _sharedHostBuffer!;
   }
 
-  late final gpu.RenderPipeline _materialGradientPipeline;
-  late final gpu.RenderPipeline _materialTintGradientPipeline;
   final _FieldTextures _fieldTextures = _FieldTextures();
-  late final gpu.RenderPipeline _tileFillPipeline;
-  late final gpu.RenderPipeline _tileGeometryPipeline;
-  late final gpu.UniformSlot _tileGeometryUniformSlot;
-  late final gpu.RenderPipeline _tileFieldPipeline;
-  late final gpu.UniformSlot _tileFieldUniformSlot;
-  late final gpu.UniformSlot _tileFieldTextureSlot;
+  late final List<_TilePipelines> _pipelines;
   late final _TileFieldUniformOffsets _tileFieldOffsets;
   late final ByteData _tileFieldUniformData;
 
-  // Latest geometry atlas. Older scenes retain their own native references.
+  // Latest geometry atlas and its looks. Older scenes retain their own
+  // native references.
   gpu.Texture? _atlasTexture;
   ui.Image? _atlasImage;
+  List<ui.Image> _lookImages = const [];
 
-  // Cleared to the outside tile's table entry (geometry_tiling.dart).
-  final _TextureRing _atlases = _TextureRing(
-    format: gpu.PixelFormat.r16g16b16a16Float,
-    clearValue: vm.Vector4(
-      AtlasLayout.outsideEntry.$1.toDouble(),
-      AtlasLayout.outsideEntry.$2.toDouble(),
-      0,
-      1,
-    ),
-  );
+  final _TextureRing _atlases = _TextureRing();
 
   @visibleForTesting
-  Object get debugPipelineIdentity => _tileGeometryPipeline;
+  Object get debugPipelineIdentity => _pipelines.first.geometry;
 
   @visibleForTesting
   int get debugHostBufferBlockLength => _sharedHostBufferBlockLength;
@@ -300,7 +263,7 @@ class FlutterGpuGeometryRenderer {
   @visibleForTesting
   Object? get debugHostBufferIdentity => _sharedHostBuffer;
 
-  /// Number of output-update calls, including material-only updates.
+  /// Number of atlases rendered.
   @visibleForTesting
   int debugRenderCount = 0;
 
@@ -309,156 +272,45 @@ class FlutterGpuGeometryRenderer {
 
   bool _disposed = false;
 
-  late final gpu.UniformSlot _uniformSlot;
   late final int _uniformSize;
-  late final int _offsetOpticalProps;
-  late final int _offsetContourProps;
-  late final int _offsetShapeData;
-  late final int _offsetRseData;
-  late final int _offsetShapeTints;
-  late final int _offsetShapeResponses;
-  late final int _offsetShapeBounds;
+  late final _GeometryUniformOffsets _offsets;
   late final ByteData _uniformData;
   int _writtenShapeFloats = 0;
   int _writtenRseFloats = 0;
   int _writtenRseLowerFloats = 0;
 
-  // Latest material map. Older scenes retain their own native references.
-  gpu.Texture? _materialTexture;
-  ui.Image? _materialImage;
-
-  /// Appearance blending is decorative and only visible while shapes merge.
-  /// One sample per 8x8 full-resolution block makes its SDF work 64x smaller.
-  static const int materialRasterScale = geometryMaterialRasterScale;
-
-  late final gpu.BufferView _vertexBufferView;
-
-  /// Low-resolution contributor map from the latest appearance render.
-  ///
-  /// The map fills the top-left sub-rect of the image; its size follows from
-  /// the geometry buffer's size, as in the final shader.
-  ui.Image? get materialImage => _materialImage;
-
   /// The latest geometry atlas.
   ui.Image? get atlasImage => _atlasImage;
 
-  final _TextureRing _materials = _TextureRing();
+  /// The looks beside the latest atlas: none, the tint, or tint, response
+  /// and color model shares.
+  List<ui.Image> get lookImages => _lookImages;
 
-  /// Actual output draws, separate from calls that only retire a material map.
+  /// Atlas draws.
   @visibleForTesting
   int debugMatteDrawCount = 0;
-
-  @visibleForTesting
-  int debugMaterialDrawCount = 0;
 
   /// How many shapes the latest atlas left out: past
   /// [geometryMaxShapesPerDraw] reaching one tile (Tiling.droppedShapes).
   int droppedShapes = 0;
 
-  /// Draws the material map of [shapes] (the first
-  /// [geometryMaxShapesPerDraw] of them) over a geometry buffer of [width] x
-  /// [height] pixels whose pixel (0, 0) lies at the shapes' origin, one texel
-  /// for every [materialRasterScale] x [materialRasterScale] block, and
-  /// returns it. Below the map lie two rows of the shapes' tints and
-  /// responses, [appearanceData] as appearanceLookupData lays it out;
-  /// [tintOnly] writes the blended tint alone.
-  ///
-  /// The returned image belongs to the renderer, as [renderAtlas]'s does.
-  ui.Image renderMaterials(
-    ShapeSet shapes, {
-    required int width,
-    required int height,
-    required List<double> appearanceData,
-    required bool tintOnly,
-  }) {
-    assert(() {
-      debugRenderCount++;
-      _debugTotalRenderCount++;
-      debugMaterialDrawCount++;
-      return true;
-    }(), 'Track material draws in debug builds.');
-    _ensureFrameCounter();
-    final mapWidth = math.max(
-      1,
-      (width + materialRasterScale - 1) ~/ materialRasterScale,
-    );
-    final mapHeight = math.max(
-      1,
-      (height + materialRasterScale - 1) ~/ materialRasterScale,
-    );
-    final textureWidth = tintOnly
-        ? mapWidth
-        : math.max(geometryMaxShapesPerDraw, mapWidth);
-    final textureHeight = tintOnly ? mapHeight : mapHeight + 2;
-    _releaseMaterialHandle();
-    final (viewWidth, viewHeight) = _viewCapacity();
-    final material = _materials.next(
-      _completedFrames,
-      width: textureWidth,
-      height: textureHeight,
-      maxWidth: math.max(
-        geometryMaxShapesPerDraw,
-        (viewWidth + materialRasterScale - 1) ~/ materialRasterScale,
-      ),
-      maxHeight:
-          (viewHeight + materialRasterScale - 1) ~/ materialRasterScale + 2,
-    );
-    final texture = _materialTexture = material.texture;
-    final image = _materialImage = texture.asImage();
-    assert(() {
-      _debugActiveMaterialTextureCount++;
-      return true;
-    }(), 'Track live material textures in debug builds.');
-
-    _packMaterialUniforms(
-      shapes,
-      mapWidth: mapWidth,
-      mapHeight: mapHeight,
-      appearanceData: appearanceData,
-    );
-    final commands = gpu.gpuContext.createCommandBuffer();
-    final pass = commands.createRenderPass(material.renderTarget)
-      ..bindPipeline(
-        tintOnly ? _materialTintGradientPipeline : _materialGradientPipeline,
-      )
-      ..setPrimitiveType(gpu.PrimitiveType.triangleStrip)
-      ..bindUniform(
-        _uniformSlot,
-        _hostBufferForUniformSize(_uniformSize).emplace(_uniformData),
-      )
-      ..bindVertexBuffer(_vertexBufferView);
-    _restrictTo(pass, texture, textureWidth, textureHeight);
-    pass.draw(4);
-    _submitOrDefer(commands);
-    return image;
-  }
-
-  /// Retires the material map, for glass whose shapes share an appearance.
-  void releaseMaterials() {
-    _releaseMaterialHandle();
-    _materials.releaseCurrent(_completedFrames);
-  }
-
-  // Releases our handle; earlier submitted scenes hold their own.
-  void _releaseMaterialHandle() {
-    if (_materialTexture == null) return;
-    _materialImage?.dispose();
-    _materialImage = null;
-    _materialTexture = null;
-    assert(() {
-      _debugActiveMaterialTextureCount--;
-      return true;
-    }(), 'Track replaced material textures in debug builds.');
-  }
-
   /// Draws the geometry atlas of [tiling] (geometry_tiling.dart) in one
   /// pass: the constant tiles, the table and every ring strip, the strips
-  /// evaluating the tiling's shapes set by set, or its field.
+  /// evaluating the tiling's shapes set by set, or its field. With
+  /// [Tiling.looks] the pass writes each texel's look into [lookImages]
+  /// beside it, textures of the atlas's size.
   ///
   /// Table texels hold their tile's entry in x and y and 1 in w. The returned
-  /// image belongs to the renderer: do not dispose it. Its texture is
-  /// written again [reuseAfterFrames] frames after a later atlas replaces it.
-  ({ui.Image image, AtlasLayout layout, int textureWidth, int textureHeight})
+  /// images belong to the renderer: do not dispose them. Their textures are
+  /// written again [reuseAfterFrames] frames after a later atlas replaces
+  /// them.
+  ({
+    ui.Image image,
+    List<ui.Image> looks,
+    AtlasLayout layout,
+    int textureWidth,
+    int textureHeight,
+  })
   renderAtlas(Tiling tiling) {
     assert(() {
       debugRenderCount++;
@@ -468,24 +320,20 @@ class FlutterGpuGeometryRenderer {
     }(), 'Track geometry submissions in debug builds.');
     _ensureFrameCounter();
     final layout = AtlasLayout.of(tiling);
-    if (_atlasTexture != null) {
-      _atlasImage?.dispose();
-      _atlasImage = null;
-      _atlasTexture = null;
-      assert(() {
-        _debugActiveGeometryTextureCount--;
-        return true;
-      }(), 'Track replaced geometry textures in debug builds.');
-    }
+    final looks = tiling.looks;
+    final lookTargets = _LookTargets.of(looks);
+    _releaseAtlasHandles();
     final atlas = _atlases.next(
       _completedFrames,
       width: layout.width,
       height: layout.height,
-      maxWidth: AtlasLayout.maxSize,
-      maxHeight: AtlasLayout.maxSize,
+      lookCount: lookTargets.count,
     );
     final texture = _atlasTexture = atlas.texture;
     final image = _atlasImage = texture.asImage();
+    _lookImages = List.unmodifiable([
+      for (final look in atlas.looks) look.asImage(),
+    ]);
     assert(() {
       _debugActiveGeometryTextureCount++;
       return true;
@@ -493,10 +341,18 @@ class FlutterGpuGeometryRenderer {
 
     const strip = Tiling.size + 2;
     final quads = _AtlasQuads(texture.width, texture.height)
-      ..add(0, 0, strip, strip, value: (kFarInward, 0, 0, 0))
-      ..add(strip, 0, strip, strip, value: (kDeepInward, 0, 0, 0));
+      ..add(0, 0, strip, strip, value: (kFarInward, 0, 0, 0));
+    for (var look = 0; look < (looks?.count ?? 1); look++) {
+      quads.add(
+        (look + 1) * strip,
+        0,
+        strip,
+        strip,
+        value: (kDeepInward, 0, 0, 0),
+        look: look,
+      );
+    }
     final (tableX, tableY) = AtlasLayout.tableOrigin;
-    final (deepX, deepY) = AtlasLayout.deepEntry;
     for (var row = 0; row < tiling.rows; row++) {
       var column = 0;
       while (column < tiling.columns) {
@@ -504,11 +360,14 @@ class FlutterGpuGeometryRenderer {
           column++;
           continue;
         }
+        final look = tiling.deepLookAt(column, row);
         var end = column + 1;
         while (end < tiling.columns &&
-            tiling.kindAt(end, row) == TileKind.deep) {
+            tiling.kindAt(end, row) == TileKind.deep &&
+            tiling.deepLookAt(end, row) == look) {
           end++;
         }
+        final (deepX, deepY) = AtlasLayout.deepEntryOf(look);
         quads.add(
           tableX + column,
           tableY + row,
@@ -574,50 +433,70 @@ class FlutterGpuGeometryRenderer {
       commands.submit();
       rethrow;
     }
+    final pipelines = _pipelines[lookTargets.index];
     final pass = commands.createRenderPass(atlas.renderTarget)
       ..setPrimitiveType(gpu.PrimitiveType.triangle)
-      ..bindPipeline(_tileFillPipeline)
+      ..bindPipeline(pipelines.fill);
+    if (looks != null) {
+      _packLooks(looks, [for (var look = 0; look < looks.count; look++) look]);
+      pass.bindUniform(
+        pipelines.fillShapes!,
+        hostBuffer.emplace(_uniformData),
+      );
+    }
+    // A binding outlives its draw: the fill's looks would bind over the
+    // shapes of the passes after it.
+    pass
       ..bindVertexBuffer(range(0, fills))
-      ..draw(fills * 6);
+      ..draw(fills * 6)
+      ..clearBindings();
+    final shapes = tiling.shapes;
+    gpu.BufferView shapeUniforms(List<int> members) {
+      List<double> pick(List<double> data, int stride) => [
+        for (final i in members) ...data.getRange(i * stride, (i + 1) * stride),
+      ];
+      _packShapes(
+        reachOutward: tiling.reach.outward,
+        numShapes: members.length.toDouble(),
+        shapeData: pick(shapes.shapes, 12),
+        rseData: pick(shapes.superellipses, 12),
+        rseLowerData: pick(shapes.superellipsesLower, 12),
+        boundsData: pick(shapes.boxes, 4),
+      );
+      if (looks != null) {
+        _packLooks(looks, [for (final i in members) looks.lookOf[i]]);
+      }
+      return hostBuffer.emplace(_uniformData);
+    }
+
     if (field != null) {
       final strips = quads.count - fills;
       if (strips > 0) {
         _packTileFieldUniformData(field, fieldTexture!);
         pass
-          ..bindPipeline(_tileFieldPipeline)
+          ..bindPipeline(pipelines.field)
           ..bindUniform(
-            _tileFieldUniformSlot,
+            pipelines.fieldUniforms,
             hostBuffer.emplace(_tileFieldUniformData),
           )
-          ..bindTexture(_tileFieldTextureSlot, fieldTexture)
+          ..bindTexture(pipelines.fieldTexture, fieldTexture);
+        if (looks != null) {
+          pass.bindUniform(
+            pipelines.fieldShapes!,
+            shapeUniforms(tiling.shapeSets.first),
+          );
+        }
+        pass
           ..bindVertexBuffer(range(fills, strips))
           ..draw(strips * 6);
       }
     } else if (sets.isNotEmpty) {
-      final shapes = tiling.shapes;
-      pass.bindPipeline(_tileGeometryPipeline);
+      pass.bindPipeline(pipelines.geometry);
       for (final (set, first, count) in sets) {
-        final members = tiling.shapeSets[set];
-        List<double> pick(List<double> data, int stride) => [
-          for (final i in members)
-            ...data.getRange(i * stride, (i + 1) * stride),
-        ];
-        _packShapes(
-          numShapes: members.length.toDouble(),
-          shapeData: pick(shapes.shapes, 12),
-          rseData: pick(shapes.superellipses, 12),
-          rseLowerData: pick(shapes.superellipsesLower, 12),
-          boundsData: pick(shapes.boxes, 4),
-        );
-        _uniformData.setFloat32(
-          _offsetContourProps,
-          tiling.reach.outward,
-          Endian.host,
-        );
         pass
           ..bindUniform(
-            _tileGeometryUniformSlot,
-            hostBuffer.emplace(_uniformData),
+            pipelines.geometryShapes,
+            shapeUniforms(tiling.shapeSets[set]),
           )
           ..bindVertexBuffer(range(first, count))
           ..draw(count * 6);
@@ -627,10 +506,27 @@ class FlutterGpuGeometryRenderer {
     droppedShapes = tiling.droppedShapes;
     return (
       image: image,
+      looks: _lookImages,
       layout: layout,
       textureWidth: texture.width,
       textureHeight: texture.height,
     );
+  }
+
+  // Releases our handles; earlier submitted scenes hold their own.
+  void _releaseAtlasHandles() {
+    for (final look in _lookImages) {
+      look.dispose();
+    }
+    _lookImages = const [];
+    if (_atlasTexture == null) return;
+    _atlasImage?.dispose();
+    _atlasImage = null;
+    _atlasTexture = null;
+    assert(() {
+      _debugActiveGeometryTextureCount--;
+      return true;
+    }(), 'Track replaced geometry textures in debug builds.');
   }
 
   void _packTileFieldUniformData(BufferField field, gpu.Texture texture) {
@@ -683,35 +579,6 @@ class FlutterGpuGeometryRenderer {
   // submitted first.
   static final bool _uploadsShareCommandBuffer =
       !(Platform.isIOS || Platform.isMacOS);
-
-  /// Limits [pass] to the top-left [width] x [height] of [texture].
-  ///
-  /// `gl_FragCoord` stays framebuffer-relative, so the shaders need no
-  /// offset for a sub-rect at the origin.
-  static void _restrictTo(
-    gpu.RenderPass pass,
-    gpu.Texture texture,
-    int width,
-    int height,
-  ) {
-    if (texture.width == width && texture.height == height) return;
-    pass
-      ..setViewport(gpu.Viewport(width: width, height: height))
-      ..setScissor(gpu.Scissor(width: width, height: height));
-  }
-
-  /// Largest view in physical pixels, the cap for texture growth.
-  static (int, int) _viewCapacity() {
-    var width = 0;
-    var height = 0;
-    for (final view in WidgetsBinding.instance.platformDispatcher.views) {
-      width = math.max(width, view.physicalSize.width.ceil());
-      height = math.max(height, view.physicalSize.height.ceil());
-    }
-    return (_bucketDimension(width), _bucketDimension(height));
-  }
-
-  static int _bucketDimension(int value) => (value + 63) & ~63;
 
   // Every pass gets its own command buffer: Flutter GPU (3.47.1) begins the
   // backend pass in `createRenderPass` and ends it only in `submit`, so a
@@ -809,8 +676,7 @@ class FlutterGpuGeometryRenderer {
 
   /// Textures this renderer holds that are not in use.
   @visibleForTesting
-  int get debugRetiredTextureCount =>
-      _atlases.spareCount + _materials.spareCount;
+  int get debugRetiredTextureCount => _atlases.spareCount;
 
   /// Atlas textures this renderer holds, including the one in use.
   @visibleForTesting
@@ -841,52 +707,29 @@ class FlutterGpuGeometryRenderer {
   @visibleForTesting
   static int debugDroppedTextureCount = 0;
 
-  static void _countDropped() {
+  static void _countDropped(_RingTexture entry) {
     assert(() {
-      debugDroppedTextureCount++;
+      debugDroppedTextureCount += entry.textureCount;
       return true;
     }(), 'Count dropped geometry textures in debug builds.');
   }
 
-  void _packMaterialUniforms(
-    ShapeSet shapes, {
-    required int mapWidth,
-    required int mapHeight,
-    required List<double> appearanceData,
-  }) {
+  void _packLooks(ShapeLooks looks, List<int> entries) {
     final floatData = _uniformData.buffer.asFloat32List();
-    final contourPropsIndex = _offsetContourProps ~/ 4;
-    floatData[contourPropsIndex + 1] = materialRasterScale.toDouble();
-    floatData[contourPropsIndex + 2] = mapWidth.toDouble();
-    floatData[contourPropsIndex + 3] = mapHeight.toDouble();
-
-    _packShapes(
-      numShapes: math.min(shapes.count, geometryMaxShapesPerDraw).toDouble(),
-      shapeData: shapes.shapes,
-      rseData: shapes.superellipses,
-      rseLowerData: shapes.superellipsesLower,
-      boundsData: shapes.boxes,
-    );
-
-    if (appearanceData.length != geometryMaxShapesPerDraw * 2 * 4) {
-      throw ArgumentError.value(
-        appearanceData.length,
-        'appearanceData.length',
-        'must contain two vec4 rows for each of '
-            '$geometryMaxShapesPerDraw shapes',
-      );
-    }
-    final shapeTintsStartIndex = _offsetShapeTints ~/ 4;
-    final shapeResponsesStartIndex = _offsetShapeResponses ~/ 4;
-    for (var i = 0; i < geometryMaxShapesPerDraw * 4; i++) {
-      floatData[shapeTintsStartIndex + i] = appearanceData[i];
-      floatData[shapeResponsesStartIndex + i] =
-          appearanceData[geometryMaxShapesPerDraw * 4 + i];
+    final tints = _offsets.lookTints ~/ 4;
+    final responses = _offsets.lookResponses ~/ 4;
+    for (var row = 0; row < entries.length; row++) {
+      final at = entries[row] * 8;
+      for (var i = 0; i < 4; i++) {
+        floatData[tints + row * 4 + i] = looks.looks[at + i];
+        floatData[responses + row * 4 + i] = looks.looks[at + 4 + i];
+      }
     }
   }
 
   // Writes the shapes' uniforms, which every draw replaces.
   void _packShapes({
+    required double reachOutward,
     required double numShapes,
     required List<double> shapeData,
     required List<double> rseData,
@@ -894,9 +737,10 @@ class FlutterGpuGeometryRenderer {
     required List<double> boundsData,
   }) {
     final floatData = _uniformData.buffer.asFloat32List();
-    floatData[_offsetOpticalProps ~/ 4 + 3] = numShapes;
+    floatData[_offsets.props ~/ 4] = reachOutward;
+    floatData[_offsets.props ~/ 4 + 1] = numShapes;
 
-    final shapeDataStartIndex = _offsetShapeData ~/ 4;
+    final shapeDataStartIndex = _offsets.shapeData ~/ 4;
     const rows = geometryMaxShapesPerDraw * 12;
     final shapeFloats = math.min(shapeData.length, rows);
     for (var i = 0; i < shapeFloats; i++) {
@@ -907,7 +751,7 @@ class FlutterGpuGeometryRenderer {
     }
     _writtenShapeFloats = shapeFloats;
 
-    final rseDataStartIndex = _offsetRseData ~/ 4;
+    final rseDataStartIndex = _offsets.rseData ~/ 4;
     final rseFloats = math.min(rseData.length, rows);
     for (var i = 0; i < rseFloats; i++) {
       floatData[rseDataStartIndex + i] = rseData[i];
@@ -929,7 +773,7 @@ class FlutterGpuGeometryRenderer {
     _writtenRseLowerFloats = lowerFloats;
 
     // Shapes without bounds are never culled.
-    final boundsStartIndex = _offsetShapeBounds ~/ 4;
+    final boundsStartIndex = _offsets.shapeBounds ~/ 4;
     final boundsFloats = math.min(
       boundsData.length,
       geometryMaxShapesPerDraw * 4,
@@ -947,26 +791,8 @@ class FlutterGpuGeometryRenderer {
   /// Independent clones and submitted native scenes remain valid.
   void releaseOutput() {
     _atlases.release();
-    if (_atlasTexture != null) {
-      assert(() {
-        _debugActiveGeometryTextureCount--;
-        return true;
-      }(), 'Track disposed geometry textures in debug builds.');
-    }
-    _atlasTexture = null;
-    _atlasImage?.dispose();
-    _atlasImage = null;
-    _materials.release();
+    _releaseAtlasHandles();
     _fieldTextures.release();
-    _materialImage?.dispose();
-    _materialImage = null;
-    if (_materialTexture != null) {
-      assert(() {
-        _debugActiveMaterialTextureCount--;
-        return true;
-      }(), 'Track disposed material textures in debug builds.');
-    }
-    _materialTexture = null;
   }
 
   /// Releases the current output and retires this renderer.
@@ -997,7 +823,8 @@ final class _AtlasQuads {
 
   ByteData get bytes => ByteData.sublistView(Float32List.fromList(_floats));
 
-  /// The texels [x], [y] to [x] + [w], [y] + [h].
+  /// The texels [x], [y] to [x] + [w], [y] + [h]; a fill pass with looks
+  /// writes [look] beside a constant tile, none where it is negative.
   void add(
     int x,
     int y,
@@ -1005,6 +832,7 @@ final class _AtlasQuads {
     int h, {
     required (double, double, double, double) value,
     (double, double) ramp = (0, 0),
+    int look = -1,
   }) {
     final x0 = 2 * x / _width - 1;
     final x1 = 2 * (x + w) / _width - 1;
@@ -1020,7 +848,7 @@ final class _AtlasQuads {
       (x1, y1),
       (x0, y1),
     ]) {
-      _floats.addAll([px, py, v0, v1, v2, v3, r0, r1, 0, 0]);
+      _floats.addAll([px, py, v0, v1, v2, v3, r0, r1, look.toDouble(), 0]);
     }
   }
 }
@@ -1067,20 +895,46 @@ final class _VertexScratch {
   }
 }
 
-/// A texture and its render target.
+/// An atlas texture and the look textures beside it.
+///
+/// The set is fixed: Impeller's Vulkan backend keeps the framebuffer of a
+/// pass on the texture of its first attachment and hands it to the next pass
+/// that draws into that texture, whatever else that pass draws into, so the
+/// atlas texture always draws with the same looks.
 final class _RingTexture {
-  _RingTexture(this.texture, {vm.Vector4? clearValue})
-    : renderTarget = gpu.RenderTarget.singleColor(
-        gpu.ColorAttachment(texture: texture, clearValue: clearValue),
-      );
+  _RingTexture(this.texture, int lookCount)
+    : looks = List.unmodifiable([
+        for (var i = 0; i < lookCount; i++)
+          _TextureRing._create(texture.width, texture.height),
+      ]) {
+    renderTarget = gpu.RenderTarget(
+      colorAttachments: [
+        gpu.ColorAttachment(texture: texture, clearValue: _outsideEntry),
+        for (final look in looks) gpu.ColorAttachment(texture: look),
+      ],
+    );
+  }
 
   final gpu.Texture texture;
 
-  /// Clears the whole texture to the ring's `clearValue`, or transparent black
-  /// when there is none. A pass that didn't clear left what a GPU has in that
-  /// memory where glass reads it: old mattes on the host, black or white
-  /// streaks across glass on phones.
-  final gpu.RenderTarget renderTarget;
+  /// Look textures of [texture]'s size.
+  final List<gpu.Texture> looks;
+
+  /// Clears the atlas to the outside tile's table entry and the looks to
+  /// zero. Without a clear, texels no quad writes hold whatever the memory
+  /// held: old mattes on the host, black or white streaks across glass on
+  /// phones.
+  late final gpu.RenderTarget renderTarget;
+
+  static final vm.Vector4 _outsideEntry = vm.Vector4(
+    AtlasLayout.outsideEntry.$1.toDouble(),
+    AtlasLayout.outsideEntry.$2.toDouble(),
+    0,
+    1,
+  );
+
+  /// The textures this entry holds.
+  int get textureCount => 1 + looks.length;
 
   /// Frame count when this texture was last replaced or released.
   int retiredFrame = 0;
@@ -1089,23 +943,13 @@ final class _RingTexture {
       texture.width >= width && texture.height >= height;
 }
 
-/// A current texture and up to two retired spares for one output.
+/// The current atlas and up to three retired spares, RGBA16F.
 ///
-/// Capacity grows in 1.5x steps, capped at the view unless a render needs more.
-/// A second spare avoids allocations when a frame renders twice.
+/// Capacity grows in 1.5x steps up to [AtlasLayout.maxSize]. The spares
+/// cover a frame that renders twice, alternating between atlases with and
+/// without looks, without allocating.
 final class _TextureRing {
-  _TextureRing({
-    this.format = gpu.PixelFormat.r8g8b8a8UNormInt,
-    this.clearValue,
-  });
-
-  /// Pixel format of the textures; the appearance maps are RGBA8.
-  final gpu.PixelFormat format;
-
-  /// What a clearing render target clears to; transparent black when null.
-  final vm.Vector4? clearValue;
-
-  static const int _maxSpares = 2;
+  static const int _maxSpares = 3;
 
   _RingTexture? _current;
   final List<_RingTexture> _spares = [];
@@ -1115,20 +959,20 @@ final class _TextureRing {
   int get spareCount => _spares.length;
   int get textureCount => _spares.length + (_current == null ? 0 : 1);
 
-  /// Replaces the texture in use with one that holds [width] x [height].
+  /// Replaces the atlas in use with one that holds [width] x [height] and
+  /// [lookCount] looks beside it.
   _RingTexture next(
     int frame, {
     required int width,
     required int height,
-    required int maxWidth,
-    required int maxHeight,
+    required int lookCount,
   }) {
     if (width > _width || height > _height) {
-      _width = _grow(_width, width, maxWidth);
-      _height = _grow(_height, height, maxHeight);
-      _spares.removeWhere((texture) {
-        if (texture.covers(_width, _height)) return false;
-        FlutterGpuGeometryRenderer._countDropped();
+      _width = _grow(_width, width);
+      _height = _grow(_height, height);
+      _spares.removeWhere((entry) {
+        if (entry.covers(_width, _height)) return false;
+        FlutterGpuGeometryRenderer._countDropped(entry);
         return true;
       });
     }
@@ -1139,41 +983,32 @@ final class _TextureRing {
         previous.retiredFrame = frame;
         _spares.add(previous);
       } else {
-        FlutterGpuGeometryRenderer._countDropped();
+        FlutterGpuGeometryRenderer._countDropped(previous);
       }
     }
-    if (_spares.isNotEmpty &&
-        frame - _spares.first.retiredFrame >=
-            FlutterGpuGeometryRenderer.reuseAfterFrames) {
+    final reusable = _spares.indexWhere(
+      (entry) =>
+          entry.looks.length == lookCount &&
+          frame - entry.retiredFrame >=
+              FlutterGpuGeometryRenderer.reuseAfterFrames,
+    );
+    if (reusable >= 0) {
       assert(() {
         FlutterGpuGeometryRenderer.debugReusedTextureCount++;
         return true;
       }(), 'Count reused geometry textures in debug builds.');
-      return _current = _spares.removeAt(0);
+      return _current = _spares.removeAt(reusable);
     }
     while (_spares.length > _maxSpares) {
-      _spares.removeAt(0);
-      FlutterGpuGeometryRenderer._countDropped();
+      FlutterGpuGeometryRenderer._countDropped(_spares.removeAt(0));
     }
-    return _current = _allocate(_width, _height);
-  }
-
-  /// Retires the texture in use without replacing it.
-  void releaseCurrent(int frame) {
-    final previous = _current;
-    if (previous == null) return;
-    _current = null;
-    previous.retiredFrame = frame;
-    _spares.add(previous);
+    return _current = _RingTexture(_create(_width, _height), lookCount);
   }
 
   /// Drops every texture and resets the ring's capacity.
   void release() {
-    if (_current != null) {
-      FlutterGpuGeometryRenderer._countDropped();
-    }
-    for (final _ in _spares) {
-      FlutterGpuGeometryRenderer._countDropped();
+    for (final entry in [?_current, ..._spares]) {
+      FlutterGpuGeometryRenderer._countDropped(entry);
     }
     _current = null;
     _spares.clear();
@@ -1181,125 +1016,109 @@ final class _TextureRing {
     _height = 0;
   }
 
-  static int _grow(int capacity, int needed, int limit) {
+  static int _grow(int capacity, int needed) {
     if (needed <= capacity) return capacity;
     if (capacity == 0) return needed;
     final stepped = (capacity * 3 + 1) >> 1;
-    return math.max(needed, math.min(stepped, limit));
+    return math.max(needed, math.min(stepped, AtlasLayout.maxSize));
   }
 
-  _RingTexture _allocate(int width, int height) {
+  static gpu.Texture _create(int width, int height) {
     assert(() {
       FlutterGpuGeometryRenderer.debugAllocatedTextureCount++;
       return true;
     }(), 'Count allocated geometry textures in debug builds.');
-    return _RingTexture(
-      gpu.gpuContext.createTexture(
-        gpu.StorageMode.devicePrivate,
-        width,
-        height,
-        format: format,
-      ),
-      clearValue: clearValue,
+    return gpu.gpuContext.createTexture(
+      gpu.StorageMode.devicePrivate,
+      width,
+      height,
+      format: gpu.PixelFormat.r16g16b16a16Float,
     );
   }
 }
 
+/// The pipelines of an atlas pass that writes one set of looks, with their
+/// uniform slots. Without looks the fill and field passes read no shapes,
+/// so they have no shape slots.
+typedef _TilePipelines = ({
+  gpu.RenderPipeline fill,
+  gpu.UniformSlot? fillShapes,
+  gpu.RenderPipeline geometry,
+  gpu.UniformSlot geometryShapes,
+  gpu.RenderPipeline field,
+  gpu.UniformSlot fieldUniforms,
+  gpu.UniformSlot fieldTexture,
+  gpu.UniformSlot? fieldShapes,
+});
+
+/// Byte offsets of GeometryUniforms' members (geometry_uniforms.glsl).
+typedef _GeometryUniformOffsets = ({
+  int props,
+  int shapeData,
+  int rseData,
+  int shapeBounds,
+  int lookTints,
+  int lookResponses,
+});
+
 class _SharedGeometryResources {
-  _SharedGeometryResources({
-    required gpu.Shader vertexShader,
-    required gpu.Shader materialGradientFragmentShader,
-    required gpu.Shader materialTintGradientFragmentShader,
-    required gpu.Shader tileVertexShader,
-    required gpu.Shader tileFillFragmentShader,
-    required gpu.Shader tileGeometryFragmentShader,
-    required gpu.Shader tileFieldFragmentShader,
-  }) {
-    gpu.RenderPipeline tilePipeline(gpu.Shader fragment) =>
+  _SharedGeometryResources(gpu.Shader Function(String name) shader) {
+    final vertex = shader('TileVertex');
+    gpu.RenderPipeline pipeline(gpu.Shader fragment) =>
         gpu.gpuContext.createRenderPipeline(
-          tileVertexShader,
+          vertex,
           fragment,
           vertexLayout: _tileVertexLayout,
         );
-    tileFillPipeline = tilePipeline(tileFillFragmentShader);
-    tileGeometryPipeline = tilePipeline(tileGeometryFragmentShader);
-    tileGeometryUniformSlot = tileGeometryFragmentShader.getUniformSlot(
-      'GeometryUniforms',
-    );
-    tileFieldPipeline = tilePipeline(tileFieldFragmentShader);
-    tileFieldUniformSlot = tileFieldFragmentShader.getUniformSlot(
-      'TileFieldUniforms',
-    );
-    tileFieldTextureSlot = tileFieldFragmentShader.getUniformSlot('uField');
-    tileFieldUniformSize = tileFieldUniformSlot.sizeInBytes ?? 0;
-    int tileField(String name) =>
-        tileFieldUniformSlot.getMemberOffsetInBytes(name) ?? 0;
+    pipelines = List.unmodifiable([
+      for (final targets in _LookTargets.values)
+        () {
+          final looks = targets.shaderSuffix;
+          final fill = shader('TileFill${looks}Fragment');
+          final geometry = shader('TileGeometry${looks}Fragment');
+          final field = shader('TileField${looks}Fragment');
+          final shapes = targets != _LookTargets.none;
+          return (
+            fill: pipeline(fill),
+            fillShapes: shapes ? fill.getUniformSlot('GeometryUniforms') : null,
+            geometry: pipeline(geometry),
+            geometryShapes: geometry.getUniformSlot('GeometryUniforms'),
+            field: pipeline(field),
+            fieldUniforms: field.getUniformSlot('TileFieldUniforms'),
+            fieldTexture: field.getUniformSlot('uField'),
+            fieldShapes: shapes
+                ? field.getUniformSlot('GeometryUniforms')
+                : null,
+          );
+        }(),
+    ]);
+    final fieldSlot = pipelines.first.fieldUniforms;
+    tileFieldUniformSize = fieldSlot.sizeInBytes ?? 0;
+    int tileField(String name) => fieldSlot.getMemberOffsetInBytes(name) ?? 0;
     tileFieldOffsets = (
       bufferToGrid: tileField('uBufferToGrid'),
       gridShift: tileField('uGridShift'),
       fieldSize: tileField('uFieldSize'),
     );
-    materialGradientPipeline = gpu.gpuContext.createRenderPipeline(
-      vertexShader,
-      materialGradientFragmentShader,
-    );
-    materialTintGradientPipeline = gpu.gpuContext.createRenderPipeline(
-      vertexShader,
-      materialTintGradientFragmentShader,
-    );
-    // The tile pass's uniforms are a prefix of the material passes', so
-    // one buffer layout serves them all.
-    uniformSlot = materialGradientFragmentShader.getUniformSlot(
-      'GeometryUniforms',
-    );
-    uniformSize = uniformSlot.sizeInBytes ?? 0;
-    offsetOpticalProps =
-        uniformSlot.getMemberOffsetInBytes('uOpticalProps') ?? 0;
-    offsetContourProps =
-        uniformSlot.getMemberOffsetInBytes('uContourProps') ?? 0;
-    offsetShapeData = uniformSlot.getMemberOffsetInBytes('uShapeData') ?? 0;
-    offsetRseData = uniformSlot.getMemberOffsetInBytes('uRseData') ?? 0;
-    offsetShapeTints = uniformSlot.getMemberOffsetInBytes('uShapeTints') ?? 0;
-    offsetShapeResponses =
-        uniformSlot.getMemberOffsetInBytes('uShapeResponses') ?? 0;
-    offsetShapeBounds = uniformSlot.getMemberOffsetInBytes('uShapeBounds') ?? 0;
-    final vertices = Float32List.fromList([
-      -1.0, -1.0, 0.0, 0.0, //
-      1.0, -1.0, 1.0, 0.0, //
-      -1.0, 1.0, 0.0, 1.0, //
-      1.0, 1.0, 1.0, 1.0, //
-    ]);
-    vertexBuffer = gpu.gpuContext.createDeviceBufferWithCopy(
-      ByteData.sublistView(vertices),
-    );
-    vertexBufferView = gpu.BufferView(
-      vertexBuffer,
-      offsetInBytes: 0,
-      lengthInBytes: vertexBuffer.sizeInBytes,
+    // The pass with looks reads every member.
+    final slot = pipelines[_LookTargets.all.index].geometryShapes;
+    uniformSize = slot.sizeInBytes ?? 0;
+    int member(String name) => slot.getMemberOffsetInBytes(name) ?? 0;
+    offsets = (
+      props: member('uProps'),
+      shapeData: member('uShapeData'),
+      rseData: member('uRseData'),
+      shapeBounds: member('uShapeBounds'),
+      lookTints: member('uLookTints'),
+      lookResponses: member('uLookResponses'),
     );
   }
 
-  late final gpu.RenderPipeline materialGradientPipeline;
-  late final gpu.RenderPipeline materialTintGradientPipeline;
-  late final gpu.RenderPipeline tileFillPipeline;
-  late final gpu.RenderPipeline tileGeometryPipeline;
-  late final gpu.UniformSlot tileGeometryUniformSlot;
-  late final gpu.RenderPipeline tileFieldPipeline;
-  late final gpu.UniformSlot tileFieldUniformSlot;
-  late final gpu.UniformSlot tileFieldTextureSlot;
+  late final List<_TilePipelines> pipelines;
   late final int tileFieldUniformSize;
   late final _TileFieldUniformOffsets tileFieldOffsets;
-  late final gpu.UniformSlot uniformSlot;
   late final int uniformSize;
-  late final int offsetOpticalProps;
-  late final int offsetContourProps;
-  late final int offsetShapeData;
-  late final int offsetRseData;
-  late final int offsetShapeTints;
-  late final int offsetShapeResponses;
-  late final int offsetShapeBounds;
-  late final gpu.DeviceBuffer vertexBuffer;
-  late final gpu.BufferView vertexBufferView;
+  late final _GeometryUniformOffsets offsets;
 }
 
 /// Byte offsets of the tile field pass's uniform members.
