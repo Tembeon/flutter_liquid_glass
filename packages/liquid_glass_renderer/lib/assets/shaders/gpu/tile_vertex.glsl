@@ -1,8 +1,9 @@
 // One quad of a geometry atlas (geometry_tiling.dart), drawn once per
 // instance: the vertices carry a corner of the unit square, and an instance
 // its rectangle in clip space (left, top, right, bottom) with the value and
-// the ramp every fragment of the quad gets: what the fill pass writes, or
-// where the geometry and field passes find the buffer pixel under a texel.
+// the ramp every fragment of the quad gets: what a fill quad writes
+// (tile_fill.glsl), or where a strip finds the buffer pixel under a texel
+// and the shapes it evaluates there.
 
 in vec2 corner;
 in vec4 rect;

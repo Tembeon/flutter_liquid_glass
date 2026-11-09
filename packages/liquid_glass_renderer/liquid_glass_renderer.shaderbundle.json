@@ -3,18 +3,6 @@
         "type": "vertex",
         "file": "lib/assets/shaders/gpu/tile_vertex.glsl"
     },
-    "TileFillFragment": {
-        "type": "fragment",
-        "file": "lib/assets/shaders/gpu/tile_fill_fragment.glsl"
-    },
-    "TileFillTintFragment": {
-        "type": "fragment",
-        "file": "lib/assets/shaders/gpu/tile_fill_tint_fragment.glsl"
-    },
-    "TileFillLooksFragment": {
-        "type": "fragment",
-        "file": "lib/assets/shaders/gpu/tile_fill_looks_fragment.glsl"
-    },
     "TileGeometryFragment": {
         "type": "fragment",
         "file": "lib/assets/shaders/gpu/tile_geometry_fragment.glsl"

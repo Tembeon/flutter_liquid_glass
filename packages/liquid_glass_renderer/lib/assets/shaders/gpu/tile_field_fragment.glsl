@@ -1,13 +1,14 @@
-// Evaluates a fused body (LiquidGlassLayer.field) for the texels of a
-// geometry atlas's ring strips, like tile_geometry_fragment.glsl does for
-// shapes. The field is a float texture of nodes on a grid, one RGBA texel per
-// node: R = signed distance (negative inside), G and B = its gradient, A = the
-// half minor extent of the part the node belongs to; R and A are in logical
+// Draws a geometry atlas of a fused body (LiquidGlassLayer.field): its
+// constant tiles and its table (tile_fill.glsl), and its ring strips, whose
+// texels evaluate the field as tile_geometry_fragment.glsl evaluates shapes.
+// The field is a float texture of nodes on a grid, one RGBA texel per node:
+// R = signed distance (negative inside), G and B = its gradient, A = the half
+// minor extent of the part the node belongs to; R and A are in logical
 // pixels. RGBA32F is not filterable on every GPU, so the texture is sampled
 // nearest and the shader interpolates the four nodes around a pixel
 // bilinearly, which keeps the distance and the normal continuous. With
-// LOOKS the shapes the body grew from give each texel its look, as
-// tile_geometry_fragment.glsl does.
+// LOOKS the shapes the body grew from give each texel its look: a strip's
+// ramp names their rows, x - 64 the first and y how many.
 
 precision highp float;
 
@@ -40,11 +41,13 @@ uniform sampler2D uField;
 #include "matte_encoding.glsl"
 
 flat in vec4 vValue;
+flat in vec4 vRamp;
 
 layout(location = 0) out vec4 fragColor;
 #if LOOKS
 #include "look_targets.glsl"
 #endif
+#include "tile_fill.glsl"
 
 vec4 fieldAt(vec2 p) {
     vec2 grid = clamp(
@@ -66,6 +69,10 @@ vec4 fieldAt(vec2 p) {
 }
 
 void main() {
+    if (isFill()) {
+        writeFill();
+        return;
+    }
     vec2 position = gl_FragCoord.xy * vValue.z + vValue.xy;
     vec4 field = fieldAt(position);
     fragColor = encodeMatte(
@@ -74,6 +81,8 @@ void main() {
         field.a * uGridShift.z
     );
 #if LOOKS
-    writeLook(sceneSample(position, int(uNumShapes)).look);
+    writeLook(
+        sceneSample(position, int(vRamp.x) & 15, int(vRamp.y)).look
+    );
 #endif
 }

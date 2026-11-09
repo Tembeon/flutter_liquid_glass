@@ -350,9 +350,9 @@ class FlutterGpuGeometryRenderer {
     const strip = Tiling.size + 2;
     final quads = _quads
       ..reset(texture.width, texture.height)
-      ..add(0, 0, strip, strip, kFarInward, 0, 0, 0);
+      ..fill(0, 0, strip, strip, kFarInward, 0, 0, 0);
     for (var look = 0; look < (looks?.count ?? 1); look++) {
-      quads.add(
+      quads.fill(
         (look + 1) * strip,
         0,
         strip,
@@ -380,7 +380,7 @@ class FlutterGpuGeometryRenderer {
           end++;
         }
         final (deepX, deepY) = AtlasLayout.deepEntryOf(look);
-        quads.add(
+        quads.fill(
           tableX + column,
           tableY + row,
           end - column,
@@ -397,7 +397,7 @@ class FlutterGpuGeometryRenderer {
     for (var i = 0; i < runs.length; i++) {
       final run = runs[i];
       final (entryX, entryY) = layout.entryOf(i, 0);
-      quads.add(
+      quads.fill(
         tableX + run.column,
         tableY + run.row,
         run.length,
@@ -406,13 +406,15 @@ class FlutterGpuGeometryRenderer {
         entryY.toDouble(),
         1 / run.texel,
         1,
-        rampFrom: (tableX + run.column).toDouble(),
-        rampStep: (Tiling.size ~/ run.texel).toDouble(),
+        rampFrom: tableX + run.column,
       );
     }
     final fills = quads.count;
     final sets = <(int, int, int)>[];
     for (var set = 0; set < tiling.shapeSets.length; set++) {
+      final members = tiling.shapeSets[set];
+      final shapeCount = math.min(members.length, geometryMaxShapesPerDraw);
+      final reach = tiling.reach.outward + _smoothing(tiling.shapes, members);
       final start = quads.count;
       for (var i = 0; i < runs.length; i++) {
         final run = runs[i];
@@ -420,15 +422,16 @@ class FlutterGpuGeometryRenderer {
         final x = layout.strips[i * 2];
         final y = layout.strips[i * 2 + 1];
         final texel = run.texel;
-        quads.add(
+        quads.strip(
           x,
           y,
           run.length * Tiling.size ~/ texel + 2,
           Tiling.size ~/ texel + 2,
-          (run.column * Tiling.size - (x + 1) * texel).toDouble(),
-          (run.row * Tiling.size - (y + 1) * texel).toDouble(),
-          texel.toDouble(),
-          0,
+          bufferX: (run.column * Tiling.size - (x + 1) * texel).toDouble(),
+          bufferY: (run.row * Tiling.size - (y + 1) * texel).toDouble(),
+          texel: texel,
+          reach: reach,
+          shapeCount: shapeCount,
           members: run.members,
         );
       }
@@ -464,61 +467,56 @@ class FlutterGpuGeometryRenderer {
     final pipelines = _pipelines[lookTargets.index];
     final pass = commands.createRenderPass(atlas.renderTarget)
       ..setPrimitiveType(gpu.PrimitiveType.triangle)
-      ..bindPipeline(pipelines.fill);
-    if (looks != null) {
-      _packLooks(looks);
-      pass.bindUniform(
-        pipelines.fillShapes!,
-        hostBuffer.emplace(_uniformData),
-      );
+      ..bindVertexBuffer(corners);
+    final gpu.UniformSlot? shapesSlot;
+    if (field == null) {
+      pass.bindPipeline(pipelines.geometry);
+      shapesSlot = pipelines.geometryShapes;
+    } else {
+      _packTileFieldUniformData(field, fieldTexture!);
+      pass
+        ..bindPipeline(pipelines.field)
+        ..bindUniform(
+          pipelines.fieldUniforms,
+          hostBuffer.emplace(_tileFieldUniformData),
+        )
+        ..bindTexture(pipelines.fieldTexture, fieldTexture);
+      shapesSlot = pipelines.fieldShapes;
     }
-    // A binding outlives its draw: the fill's looks would bind over the
-    // shapes of the passes after it.
-    pass
-      ..bindVertexBuffer(corners)
-      ..bindVertexBuffer(range(0, fills), slot: 1)
-      ..draw(6, instanceCount: fills)
-      ..clearBindings();
-    gpu.BufferView shapeUniforms(List<int> members) {
-      _packShapes(tiling.shapes, members, reachOutward: tiling.reach.outward);
-      if (looks != null) _packLooks(looks, members: members);
-      return hostBuffer.emplace(_uniformData);
+    var drawn = 0;
+    void drawTo(int end) {
+      if (end == drawn) return;
+      pass
+        ..bindVertexBuffer(range(drawn, end - drawn), slot: 1)
+        ..draw(6, instanceCount: end - drawn);
+      drawn = end;
     }
 
-    if (field != null) {
-      final strips = quads.count - fills;
-      if (strips > 0) {
-        _packTileFieldUniformData(field, fieldTexture!);
-        pass
-          ..bindPipeline(pipelines.field)
-          ..bindUniform(
-            pipelines.fieldUniforms,
-            hostBuffer.emplace(_tileFieldUniformData),
-          )
-          ..bindTexture(pipelines.fieldTexture, fieldTexture);
-        if (looks != null) {
-          pass.bindUniform(
-            pipelines.fieldShapes!,
-            shapeUniforms(tiling.shapeSets.first),
-          );
-        }
-        pass
-          ..bindVertexBuffer(corners)
-          ..bindVertexBuffer(range(fills, strips), slot: 1)
-          ..draw(6, instanceCount: strips);
+    if (shapesSlot == null) {
+      drawTo(quads.count);
+    } else {
+      // The fill quads read their looks by look where the strips read them
+      // by shape, so with looks they get a draw of their own. Without, they
+      // go with the first strips.
+      if (looks != null) {
+        _packLooks(looks);
+        pass.bindUniform(shapesSlot, hostBuffer.emplace(_uniformData));
+        drawTo(fills);
       }
-    } else if (sets.isNotEmpty) {
-      pass
-        ..bindPipeline(pipelines.geometry)
-        ..bindVertexBuffer(corners);
-      for (final (set, first, count) in sets) {
-        pass
-          ..bindUniform(
-            pipelines.geometryShapes,
-            shapeUniforms(tiling.shapeSets[set]),
-          )
-          ..bindVertexBuffer(range(first, count), slot: 1)
-          ..draw(6, instanceCount: count);
+      // A field takes its looks from its first set.
+      final draws = field == null ? sets : [(0, fills, quads.count - fills)];
+      for (final (set, first, count) in draws) {
+        if (count == 0) continue;
+        final members = tiling.shapeSets[set];
+        _packShapes(tiling.shapes, members);
+        if (looks != null) _packLooks(looks, members: members);
+        pass.bindUniform(shapesSlot, hostBuffer.emplace(_uniformData));
+        drawTo(first + count);
+      }
+      if (drawn < fills) {
+        // No ring tiles: the pipeline still wants its block bound.
+        pass.bindUniform(shapesSlot, hostBuffer.emplace(_uniformData));
+        drawTo(fills);
       }
     }
     _submitOrDefer(commands);
@@ -751,21 +749,9 @@ class FlutterGpuGeometryRenderer {
   // Writes the uniforms of [members] of [shapes], at most
   // geometryMaxShapesPerDraw, which every draw replaces. Rows past them are
   // zero, and their bounds never cull.
-  void _packShapes(
-    ShapeSet shapes,
-    List<int> members, {
-    required double reachOutward,
-  }) {
+  void _packShapes(ShapeSet shapes, List<int> members) {
     final floats = _uniformFloats;
     final count = math.min(members.length, geometryMaxShapesPerDraw);
-    var smoothing = 0.0;
-    for (var row = 0; row < count; row++) {
-      final marker = shapes.shapes[members[row] * 12 + 11];
-      if (marker > 0) smoothing += marker * 0.25;
-    }
-    floats[_offsets.props ~/ 4] = reachOutward;
-    floats[_offsets.props ~/ 4 + 1] = count.toDouble();
-    floats[_offsets.props ~/ 4 + 2] = smoothing;
     const rows = geometryMaxShapesPerDraw * 12;
     final shapeAt = _offsets.shapeData ~/ 4;
     final rseAt = _offsets.rseData ~/ 4;
@@ -792,6 +778,18 @@ class FlutterGpuGeometryRenderer {
     for (var i = count * 4; i < geometryMaxShapesPerDraw * 4; i++) {
       floats[boundsAt + i] = i % 4 < 2 ? -1e9 : 1e9;
     }
+  }
+
+  // How far past the reach the blends of [members] can still pull a texel's
+  // distance in: a quarter of each blend.
+  static double _smoothing(ShapeSet shapes, List<int> members) {
+    final count = math.min(members.length, geometryMaxShapesPerDraw);
+    var smoothing = 0.0;
+    for (var row = 0; row < count; row++) {
+      final marker = shapes.shapes[members[row] * 12 + 11];
+      if (marker > 0) smoothing += marker * 0.25;
+    }
+    return smoothing;
   }
 
   /// Releases borrowed output handles, keeping reusable rendering resources.
@@ -837,14 +835,12 @@ final class _AtlasQuads {
   /// The quads written since [reset].
   ByteData get bytes => ByteData.sublistView(_floats, 0, count * _quadFloats);
 
-  /// The texels [x], [y] to [x] + [w], [y] + [h], every fragment getting the
-  /// value ([v0], [v1], [v2], [v3]) and the ramp: for a fill quad
-  /// [rampFrom], [rampStep] and the [look] a fill pass with looks writes
-  /// beside a constant tile, none where it is negative; for a strip the
-  /// shapes its texels evaluate ([TileRun.members]), each a row of the
-  /// draw's shapes plus 32 where it starts its group, and -1 past the last
-  /// or throughout where they evaluate every shape.
-  void add(
+  /// A fill quad over the texels [x], [y] to [x] + [w], [y] + [h]: every
+  /// fragment gets ([v0], [v1], [v2], [v3]), x stepping by a tile's texels
+  /// (16 x [v2]) a texel from texel [rampFrom], and with looks the [look] a
+  /// constant tile writes beside it, none where it is negative
+  /// (tile_fill.glsl).
+  void fill(
     int x,
     int y,
     int w,
@@ -853,11 +849,65 @@ final class _AtlasQuads {
     double v1,
     double v2,
     double v3, {
-    double rampFrom = 0,
-    double rampStep = 0,
+    int rampFrom = 0,
     int look = -1,
-    int? members,
   }) {
+    final floats = _rect(x, y, w, h);
+    final at = count * _quadFloats;
+    floats[at + 4] = v0;
+    floats[at + 5] = v1;
+    floats[at + 6] = v2;
+    floats[at + 7] = v3;
+    floats[at + 8] = 128;
+    floats[at + 9] = rampFrom.toDouble();
+    floats[at + 10] = look.toDouble();
+    floats[at + 11] = 0;
+    count++;
+  }
+
+  /// A strip over the texels [x], [y] to [x] + [w], [y] + [h], each [texel]
+  /// buffer pixels a side with texel (0, 0) of the target at the buffer
+  /// point ([bufferX], [bufferY]). A texel farther than [reach] from every
+  /// shape's box is outside. The texels evaluate [members]
+  /// ([TileRun.members]): each a row of the draw's shapes plus 16 where it
+  /// starts its group, 32 past the last; or, where it lists none, the first
+  /// [shapeCount] rows.
+  void strip(
+    int x,
+    int y,
+    int w,
+    int h, {
+    required double bufferX,
+    required double bufferY,
+    required int texel,
+    required double reach,
+    required int shapeCount,
+    required int members,
+  }) {
+    final floats = _rect(x, y, w, h);
+    final at = count * _quadFloats;
+    floats[at + 4] = bufferX;
+    floats[at + 5] = bufferY;
+    floats[at + 6] = texel.toDouble();
+    floats[at + 7] = reach;
+    if (members == 0) {
+      floats[at + 8] = 64;
+      floats[at + 9] = shapeCount.toDouble();
+      floats[at + 10] = 0;
+      floats[at + 11] = 0;
+    } else {
+      for (var slot = 0; slot < 4; slot++) {
+        final byte = (members >> (8 * slot)) & 0xff;
+        floats[at + 8 + slot] = byte == 0
+            ? 32
+            : (byte & 0x7f) - 1 + (byte & 0x80 != 0 ? 16 : 0);
+      }
+    }
+    count++;
+  }
+
+  // Makes room for one more quad and writes its rectangle.
+  Float32List _rect(int x, int y, int w, int h) {
     if ((count + 1) * _quadFloats > _floats.length) {
       _floats = Float32List(_floats.length * 2)..setAll(0, _floats);
     }
@@ -867,24 +917,7 @@ final class _AtlasQuads {
     floats[at + 1] = 1 - 2 * y / _height;
     floats[at + 2] = 2 * (x + w) / _width - 1;
     floats[at + 3] = 1 - 2 * (y + h) / _height;
-    floats[at + 4] = v0;
-    floats[at + 5] = v1;
-    floats[at + 6] = v2;
-    floats[at + 7] = v3;
-    if (members == null) {
-      floats[at + 8] = rampFrom;
-      floats[at + 9] = rampStep;
-      floats[at + 10] = look.toDouble();
-      floats[at + 11] = 0;
-    } else {
-      for (var slot = 0; slot < 4; slot++) {
-        final byte = (members >> (8 * slot)) & 0xff;
-        floats[at + 8 + slot] = byte == 0
-            ? -1
-            : (byte & 0x7f) - 1 + (byte & 0x80 != 0 ? 32 : 0);
-      }
-    }
-    count++;
+    return floats;
   }
 }
 
@@ -1098,11 +1131,9 @@ final class _TextureRing {
 }
 
 /// The pipelines of an atlas pass that writes one set of looks, with their
-/// uniform slots. Without looks the fill and field passes read no shapes,
-/// so they have no shape slots.
+/// uniform slots: one for shapes, one for a field. Without looks a field
+/// pass reads no shapes, so it has no shape slot.
 typedef _TilePipelines = ({
-  gpu.RenderPipeline fill,
-  gpu.UniformSlot? fillShapes,
   gpu.RenderPipeline geometry,
   gpu.UniformSlot geometryShapes,
   gpu.RenderPipeline field,
@@ -1113,7 +1144,6 @@ typedef _TilePipelines = ({
 
 /// Byte offsets of GeometryUniforms' members (geometry_uniforms.glsl).
 typedef _GeometryUniformOffsets = ({
-  int props,
   int shapeData,
   int rseData,
   int shapeBounds,
@@ -1134,13 +1164,10 @@ class _SharedGeometryResources {
       for (final targets in _LookTargets.values)
         () {
           final looks = targets.shaderSuffix;
-          final fill = shader('TileFill${looks}Fragment');
           final geometry = shader('TileGeometry${looks}Fragment');
           final field = shader('TileField${looks}Fragment');
           final shapes = targets != _LookTargets.none;
           return (
-            fill: pipeline(fill),
-            fillShapes: shapes ? fill.getUniformSlot('GeometryUniforms') : null,
             geometry: pipeline(geometry),
             geometryShapes: geometry.getUniformSlot('GeometryUniforms'),
             field: pipeline(field),
@@ -1165,7 +1192,6 @@ class _SharedGeometryResources {
     uniformSize = slot.sizeInBytes ?? 0;
     int member(String name) => slot.getMemberOffsetInBytes(name) ?? 0;
     offsets = (
-      props: member('uProps'),
       shapeData: member('uShapeData'),
       rseData: member('uRseData'),
       shapeBounds: member('uShapeBounds'),

@@ -255,7 +255,7 @@ vec4 getShapeGradients(
 float angularBlendRadius(float k, vec2 na, vec2 nb) {
     // Divided by the lengths so only the angle counts: gradients of stretched
     // shapes and of blended groups can be shorter than 1. The empty-pixel
-    // budget (uSmoothingBudget) assumes a radius of k at most.
+    // reach a strip's quad carries assumes a radius of k at most.
     float cosine = dot(na, nb) / max(length(na) * length(nb), 1e-8);
     return k * clamp(0.5 * (1.0 - cosine), 0.0, 1.0);
 }
@@ -354,16 +354,20 @@ bool cannotAffectGroup(vec4 bounds, vec2 p, float reach) {
         : outsideSquared >= reach * reach;
 }
 
-// Squared distance from p to the nearest shape's box. Comparing squared
-// values avoids one square root per shape in the empty-pixel fast path.
-float sceneBoundsOutsideSquared(vec2 p, int numShapes) {
+// Squared distance from p to the nearest box of the count shapes from row
+// first. Comparing squared values avoids one square root per shape in the
+// empty-pixel fast path.
+//
+// Rows are masked to the block here and below: a software GPU runs both
+// sides of a branch, the side not taken on whatever its inputs decode to.
+float sceneBoundsOutsideSquared(vec2 p, int first, int count) {
     float lowerBoundSquared = 1e18;
-    int shapeCount = numShapes < MAX_SHAPES ? numShapes : MAX_SHAPES;
+    int shapeCount = count < MAX_SHAPES ? count : MAX_SHAPES;
     for (int i = 0; i < MAX_SHAPES; i++) {
         if (i >= shapeCount) break;
         lowerBoundSquared = min(
             lowerBoundSquared,
-            shapeBoundsDistanceSquared(uShapeBounds[i], p)
+            shapeBoundsDistanceSquared(uShapeBounds[(first + i) & 15], p)
         );
     }
     return lowerBoundSquared;
@@ -374,8 +378,8 @@ float listedBoundsOutsideSquared(vec2 p, vec4 members) {
     float lowerBoundSquared = 1e18;
     for (int slot = 0; slot < 4; slot++) {
         float member = members[slot];
-        if (member < 0.0) break;
-        int i = int(member) - (member >= 32.0 ? 32 : 0);
+        if (member >= 32.0) break;
+        int i = int(member) & 15;
         lowerBoundSquared = min(
             lowerBoundSquared,
             shapeBoundsDistanceSquared(uShapeBounds[i], p)
@@ -468,7 +472,8 @@ SceneSample smoothUnionSample(SceneSample a, SceneSample b, float k) {
     return result;
 }
 
-SceneSample sceneSample(vec2 p, int numShapes) {
+// The scene of the count shapes from row first, in chain order.
+SceneSample sceneSample(vec2 p, int first, int count) {
     SceneSample empty;
     empty.distance = 1e9;
     empty.halfMinor = 0.0;
@@ -477,18 +482,19 @@ SceneSample sceneSample(vec2 p, int numShapes) {
 #if SCENE_LOOKS
     empty.look = Look(vec4(0.0), vec4(0.0), vec4(0.0));
 #endif
-    if (numShapes <= 0) {
+    if (count <= 0) {
         return empty;
     }
-    if (numShapes == 1) {
-        return getShapeSampleFromArray(0, p, false);
+    if (count == 1) {
+        return getShapeSampleFromArray(first & 15, p, false);
     }
-    
+
     SceneSample result = empty;
     SceneSample groupResult = empty;
-    int shapeCount = numShapes < MAX_SHAPES ? numShapes : MAX_SHAPES;
-    for (int i = 0; i < MAX_SHAPES; i++) {
-        if (i >= shapeCount) break;
+    int shapeCount = count < MAX_SHAPES ? count : MAX_SHAPES;
+    for (int n = 0; n < MAX_SHAPES; n++) {
+        if (n >= shapeCount) break;
+        int i = (first + n) & 15;
         float marker = uShapeData[i * 3 + 2].w;
         bool startsGroup = marker < 0.0;
         float groupBlend = startsGroup ? -marker - 1.0 : marker;
@@ -522,13 +528,13 @@ SceneSample sceneSample(vec2 p, int numShapes) {
 }
 
 // The scene of the up to four shapes a strip lists, in chain order: each
-// member a shape's row, plus 32 where the shape is the first of its group
-// among them, and negative past the last. The tiler lists every shape that
+// member a shape's row, plus 16 where the shape is the first of its group
+// among them, and 32 past the last. The tiler lists every shape that
 // changes the scene anywhere on the strip (geometry_tiling.dart), so this
 // is sceneSample without the shapes that leave it as it is.
 SceneSample listedSceneSample(vec2 p, vec4 members) {
-    if (members.y < 0.0) {
-        return getShapeSampleFromArray(int(members.x) - 32, p, false);
+    if (members.y >= 32.0) {
+        return getShapeSampleFromArray(int(members.x) & 15, p, false);
     }
     SceneSample empty;
     empty.distance = 1e9;
@@ -542,9 +548,9 @@ SceneSample listedSceneSample(vec2 p, vec4 members) {
     SceneSample groupResult = empty;
     for (int slot = 0; slot < 4; slot++) {
         float member = members[slot];
-        if (member < 0.0) break;
-        bool startsGroup = member >= 32.0;
-        int i = int(member) - (startsGroup ? 32 : 0);
+        if (member >= 32.0) break;
+        bool startsGroup = member >= 16.0;
+        int i = int(member) & 15;
         float marker = uShapeData[i * 3 + 2].w;
         float groupBlend = marker < 0.0 ? -marker - 1.0 : marker;
         if (
