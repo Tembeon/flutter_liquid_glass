@@ -8,11 +8,11 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_frost.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/composer/form.dart';
+import 'package:liquid_glass_renderer/src/composer/geometry.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/composer/scene_out.dart';
-import 'package:liquid_glass_renderer/src/internal/shader_frost.dart';
 
 /// A backdrop filter over [clip] that, wherever it can, filters a copy of
 /// what is painted under it instead of reading the backdrop, so a frame
@@ -183,15 +183,15 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     final shifted = _clip.shift(origin);
     facts.drawn = shifted;
     final dpr = _devicePixelRatio;
-    final frost = _frost;
-    final downscale = frost == null ? null : frostDownscale(frost.sigma * dpr);
-    if (frost == null || downscale == null) {
+    final need = switch (_frost) {
+      final frost? => frostNeed(frost.sigma, devicePixelRatio: dpr),
+      null => null,
+    };
+    if (need == null) {
       facts.reads = shifted.inflate(_reach);
       facts.look = Look(
         key: null,
-        frost: 0,
-        downscale: 1,
-        devicePixelRatio: dpr,
+        need: CopyNeed.exact(dpr),
         page: PageFilter(
           filter: _filter,
           clip: shifted,
@@ -200,22 +200,14 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
       );
       return;
     }
-    facts.reads = shifted.inflate(
-      shaderFrostReach(
-        frost.sigma * dpr,
-        share: downscale,
-        devicePixelRatio: dpr,
-      ),
-    );
+    facts.reads = shifted.inflate(need.reach);
     final over = _blendMode == BlendMode.srcOver;
     final band = over && bandPaint != null;
     if (band) facts.noJoin = null;
     facts.look = Look(
       key: 'band',
-      frost: frost.sigma,
-      downscale: downscale,
+      need: need,
       isBand: band,
-      devicePixelRatio: dpr,
       page: over ? null : PageFilter.none,
     );
   }

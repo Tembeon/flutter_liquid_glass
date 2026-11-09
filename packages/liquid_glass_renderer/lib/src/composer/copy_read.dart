@@ -86,12 +86,11 @@ final class CopyGrid {
   // pixels already blur by what they hold, which a band holding glass that
   // a filter draws, at the screen's pixels whatever was asked, holds less
   // of. NEAR there: the taps lie up to 14 of its pixels apart, past the 3.5
-  // [shaderFrostDownscale] keeps to; under the scroll edge over glass the
+  // a shader-frosted copy keeps to; under the scroll edge over glass the
   // frost is 0.55 levels off the live read on average at 2.625 dpr and 0.41
   // at 3 (host test).
-  double _frost(double sigma) => sigma > 0
-      ? shaderFrostResidual(sigma * _devicePixelRatio, share: _share)
-      : 0;
+  double _frost(double sigma) =>
+      sigma > 0 ? frostResidual(sigma * _devicePixelRatio, share: _share) : 0;
 
   @override
   bool operator ==(Object other) =>

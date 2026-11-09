@@ -8,12 +8,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_frost.dart';
 import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
+import 'package:liquid_glass_renderer/src/composer/geometry.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/internal/multi_shader_builder.dart';
 import 'package:liquid_glass_renderer/src/internal/shader_filter.dart';
-import 'package:liquid_glass_renderer/src/internal/shader_frost.dart';
 import 'package:liquid_glass_renderer/src/shaders.dart';
 
 /// The shift from [anchor]'s coordinates to the screen's, in logical pixels,
@@ -46,12 +46,12 @@ Matrix4 _toScreen(Layer anchor, double devicePixelRatio) {
   return toScreen;
 }
 
-/// The downscale of a copy the shader frosts for Impeller's blur by [sigma]
-/// device pixels, or null where it cannot: shader frost is off, the renderer is
-/// not Impeller (its program is built for Impeller alone), the frost is too
-/// wide for it, or the program is not loaded yet.
+/// The need of a copy `backdrop_frost.frag` frosts by [sigma] logical
+/// pixels, or null where it cannot: shader frost is off, the renderer is not
+/// Impeller (its program is built for Impeller alone), the frost is too wide
+/// for it, or the program is not loaded yet.
 @internal
-int? frostDownscale(double sigma) {
+CopyNeed? frostNeed(double sigma, {required double devicePixelRatio}) {
   if (!LiquidGlassBackdropFrost.debugShaderFrost ||
       !ui.ImageFilter.isShaderFilterSupported) {
     return null;
@@ -60,9 +60,7 @@ int? frostDownscale(double sigma) {
     unawaited(MultiShaderBuilder.precacheShader(ShaderKeys.backdropFrost));
     return null;
   }
-  // A copy whose pixels the frost spans by less than 1.5 is not halved
-  // again: drawn smaller, its edges show through the frost.
-  return shaderFrostDownscale(sigma, minTexels: 1.5);
+  return CopyNeed.edgeFrost(sigma, devicePixelRatio: devicePixelRatio);
 }
 
 /// A filtered [copy] drawn into coordinates that [origin] shifts to the
@@ -491,27 +489,12 @@ class BackdropRig {
     }
     final shifted = asked.clip.shift(origin);
     facts.drawn = shifted;
+    final dpr = asked.devicePixelRatio;
     if (asked.frost case final frost?) {
-      final sigma = frost.sigma * asked.devicePixelRatio;
-      if (frostDownscale(sigma) case final downscale?) {
-        // A copy drawn at the screen's pixels in place of the ones asked
-        // reaches less: its taps lie at most a sigma wider and its pixel is
-        // smaller.
-        facts.reads = shifted.inflate(
-          shaderFrostReach(
-            sigma,
-            share: downscale,
-            devicePixelRatio: asked.devicePixelRatio,
-          ),
-        );
+      if (frostNeed(frost.sigma, devicePixelRatio: dpr) case final need?) {
+        facts.reads = shifted.inflate(need.reach);
         _frosts = true;
-        facts.look = Look(
-          key: null,
-          frost: frost.sigma,
-          downscale: downscale,
-          devicePixelRatio: asked.devicePixelRatio,
-          page: PageFilter.none,
-        );
+        facts.look = Look(key: null, need: need, page: PageFilter.none);
         return;
       }
     }
@@ -519,9 +502,7 @@ class BackdropRig {
     facts.reads = region;
     facts.look = Look(
       key: null,
-      frost: 0,
-      downscale: 1,
-      devicePixelRatio: asked.devicePixelRatio,
+      need: CopyNeed.exact(dpr),
       page: PageFilter(filter: asked.filter, clip: region),
     );
   }

@@ -15,6 +15,7 @@ import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/internal/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/composer/geometry.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/composer/scene_out.dart';
@@ -26,7 +27,6 @@ import 'package:liquid_glass_renderer/src/internal/multi_shader_builder.dart';
 import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/internal/rounded_superellipse_parameters.dart';
 import 'package:liquid_glass_renderer/src/internal/shader_filter.dart';
-import 'package:liquid_glass_renderer/src/internal/shader_frost.dart';
 import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_render_object_mixin.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_backdrop.dart';
@@ -1865,31 +1865,22 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // Frost the final shader can draw is drawn there, over an unblurred
     // copy: the copy's blur passes become its taps. The shader frosts round,
     // so glass stretched past 5 % keeps the copy's blur, which follows each
-    // axis. Its copy is no coarser than Impeller's blur would take: weak
-    // frosts (1.5 to 2.7 logical pixels) then come out half as far from
-    // Impeller's blur (host, dpr 2 and 3), where a copy of four device
-    // pixels a side left its pixels showing on the iPhone.
-    final round = sigma * sqrt(scaleX * scaleY);
+    // axis.
     final frosted =
         sigma > 0 && _frostsCopies && (scaleX / scaleY - 1).abs() <= 0.05
-        ? shaderFrostDownscale(
-            round * dpr,
-            minTexels: 1,
-            atBlurScale: true,
+        ? CopyNeed.glassFrost(
+            sigma * sqrt(scaleX * scaleY),
+            devicePixelRatio: dpr,
           )
         : null;
-    var downscale = frosted ?? 1;
-    final frost = frosted == null ? 0.0 : round;
-    if (frosted == null) {
-      // A copy blurred by at least [_copySigma] of its own pixels is drawn
-      // as the blur leaves it at a fraction of the screen's pixels: sampled
-      // back up, it adds a tent of its pixel's width to a blur many times
-      // wider.
-      while (downscale * 2 <= debugMaxCopyDownscale &&
-          min(frostX, frostY) * dpr / (downscale * 2) >= _copySigma) {
-        downscale *= 2;
-      }
-    }
+    final need =
+        frosted ??
+        CopyNeed.blurred(
+          min(frostX, frostY),
+          devicePixelRatio: dpr,
+          maxShare: debugMaxCopyDownscale,
+        );
+    final frost = need.frost;
     final appearance = _uniformAppearance ?? defaultAppearance;
     _frame = (screen: screen, logical: logical, drawn: drawn, frost: frost);
     facts.stamp = _shaderInputsRevision;
@@ -1900,8 +1891,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         appearance.visibility,
         dpr,
         _matteScale,
-        frost,
-        downscale,
+        need.frost,
+        need.share,
         _colorModelFamily,
         // The shader's bevel asks how large a surface is only between these
         // sizes.
@@ -1912,15 +1903,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
                 64)
             .round(),
       ),
-      frost: frost,
-      downscale: downscale,
+      need: need,
       drawsBand:
           frost > 0 &&
           _frostsCopies &&
           _colorModelFamily == FinalShaderModels.ios27,
       tint: appearance.tint,
       shapes: _shapeData.length ~/ 12,
-      devicePixelRatio: dpr,
       page: sigma > 0 && frosted == null
           ? PageFilter(blur: (frostX, frostY))
           : null,
@@ -2523,9 +2512,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// saves no more.
   @visibleForTesting
   static int debugMaxCopyDownscale = 2;
-
-  // The blur, in the copy's own pixels, that hides its size.
-  static const double _copySigma = 2.5;
 
   /// Whether the final shader frosts an unblurred copy instead of the copy
   /// being blurred.

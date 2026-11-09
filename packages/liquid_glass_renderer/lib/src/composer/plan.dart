@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:liquid_glass_renderer/src/internal/shader_frost.dart';
+import 'package:liquid_glass_renderer/src/composer/geometry.dart';
 import 'package:meta/meta.dart';
 
 /// All [compile] needs of a frame. A form answers from a layer tree; a test
@@ -185,11 +185,9 @@ final class Look {
   /// Creates a look.
   const Look({
     required this.key,
-    required this.frost,
-    required this.downscale,
+    required this.need,
     this.drawsBand = false,
     this.isBand = false,
-    this.devicePixelRatio = 1,
     this.tint,
     this.shapes = 1,
     this.page,
@@ -197,25 +195,22 @@ final class Look {
   });
 
   /// No look: a site that draws nothing through a filter.
-  static const Look none = Look(key: null, frost: 0, downscale: 1);
+  static const Look none = Look(key: null, need: CopyNeed.exact(1));
 
   /// Equal for glass one shader's uniforms can draw, its tint aside.
   final Object? key;
 
-  /// The frost, in logical pixels.
-  final double frost;
+  /// What its read's copy has to be.
+  final CopyNeed need;
 
-  /// Device pixels along each side one pixel of its copy can stand for.
-  final int downscale;
+  /// The frost a shader draws over its copy, in logical pixels.
+  double get frost => need.frost;
 
   /// Whether this glass's shader can draw a scroll edge beside it.
   final bool drawsBand;
 
   /// Whether this site is a scroll edge rather than glass.
   final bool isBand;
-
-  /// The screen's device pixels per logical pixel.
-  final double devicePixelRatio;
 
   /// The tint, which one filter can draw per shape, but not beside a band.
   final Object? tint;
@@ -230,18 +225,6 @@ final class Look {
   /// Whether its shader draws it at the pixels of a coarser copy holding it,
   /// taking each fragment for as many device pixels.
   final bool anyGrid;
-
-  /// Whether a shader's written-out taps stay smooth drawing this band for
-  /// [glass] over one copy: past 2.8 of the copy's pixels they speckle, by the
-  /// Mali model, which counts them in parallel unlike a loop of twelve.
-  bool bandFits(Look glass) {
-    final share = math.min(downscale, glass.downscale);
-    final residual = shaderFrostResidual(
-      frost * devicePixelRatio,
-      share: share,
-    );
-    return residual / share <= 2.8;
-  }
 }
 
 /// One site's facts for a frame, in the screen's logical pixels.
@@ -331,7 +314,7 @@ final class Read {
   Read(this.lead)
     : band = lead.reads,
       quad = lead.drawn,
-      downscale = lead.look.downscale,
+      downscale = lead.look.need.share,
       shapes = lead.look.isBand ? 0 : lead.look.shapes {
     members.add(lead);
   }
@@ -635,7 +618,7 @@ final class LedgerEdits {
 /// The magnitudes disagree, so this is a join rule, not a prediction.
 @internal
 double mergeDelta(Read read, SiteFacts site, Prices prices) {
-  final downscale = math.min(read.downscale, site.look.downscale);
+  final downscale = math.min(read.downscale, site.look.need.share);
   final band = read.band.expandToInclude(site.reads);
   final quad = read.quad.expandToInclude(site.drawn);
   double area(Rect rect) => rect.width * rect.height;
@@ -643,7 +626,7 @@ double mergeDelta(Read read, SiteFacts site, Prices prices) {
       prices.copyGpuPerMpx * prices._mpx(area(rect)) / (scale * scale);
   final together = copy(band, downscale);
   final apart =
-      copy(read.band, read.downscale) + copy(site.reads, site.look.downscale);
+      copy(read.band, read.downscale) + copy(site.reads, site.look.need.share);
   final dead =
       prices.deadGpuPerMpx *
       prices._mpx(math.max(0, area(quad) - area(read.quad) - area(site.drawn)));
@@ -678,7 +661,7 @@ bool _lookFits(Read read, SiteFacts site) {
   if (lead.isBand) {
     return look.drawsBand &&
         site.drawn.overlaps(read.lead.drawn) &&
-        lead.bandFits(look) &&
+        lead.need.bandFits(look.need) &&
         (read.members.length == 1 ||
             read.members[1].look.key == look.key &&
                 read.members[1].look.tint == look.tint);
@@ -781,7 +764,7 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
       joined.shapes += site.look.shapes;
       joined.band = joined.band.expandToInclude(site.reads);
       joined.quad = joined.quad.expandToInclude(site.drawn);
-      joined.downscale = math.min(joined.downscale, site.look.downscale);
+      joined.downscale = math.min(joined.downscale, site.look.need.share);
       fates.add(Follows(joined));
       continue;
     }

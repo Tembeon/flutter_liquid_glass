@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/src/composer/geometry.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 
 const _screen = Rect.fromLTWH(0, 0, 411, 914);
@@ -42,8 +43,7 @@ final class _Scene implements Scenery {
 
 Look _look(int look, {bool frost = true}) => Look(
   key: look,
-  frost: frost ? 8 : 0,
-  downscale: frost ? 2 : 1,
+  need: frost ? const CopyNeed(1, share: 2, frost: 8) : const CopyNeed.exact(1),
   drawsBand: frost,
 );
 
@@ -169,12 +169,15 @@ void main() {
 
     test('a band joins the glass over it that can draw it', () {
       final band = _site(0, const Rect.fromLTWH(0, 0, 411, 100));
-      band.look = const Look(key: 'band', frost: 2, downscale: 2, isBand: true);
+      band.look = const Look(
+        key: 'band',
+        need: CopyNeed(1, share: 2, frost: 2),
+        isBand: true,
+      );
       final glass = _site(2, const Rect.fromLTWH(8, 50, 44, 44));
       glass.look = const Look(
         key: 'a',
-        frost: 2,
-        downscale: 2,
+        need: CopyNeed(1, share: 2, frost: 2),
         drawsBand: true,
       );
       final beside = _site(4, const Rect.fromLTWH(8, 110, 44, 44));
@@ -186,7 +189,7 @@ void main() {
     test('glass stays over the glass it overlaps', () {
       final low = _site(0, const Rect.fromLTWH(0, 0, 100, 100));
       final other = _site(2, const Rect.fromLTWH(200, 0, 100, 100));
-      other.look = const Look(key: 'other', frost: 0, downscale: 1);
+      other.look = const Look(key: 'other', need: CopyNeed.exact(1));
       final top = _site(4, const Rect.fromLTWH(250, 50, 20, 20));
       top.look = low.look;
       top.floor = -1;
@@ -196,7 +199,10 @@ void main() {
     test('a copy of few pixels still holds the glass under it', () {
       final low = _site(0, const Rect.fromLTWH(0, 0, 100, 100));
       final top = _site(2, const Rect.fromLTWH(20, 20, 300, 60));
-      top.look = const Look(key: 'thick', frost: 20, downscale: 4);
+      top.look = const Look(
+        key: 'thick',
+        need: CopyNeed(1, share: 4, frost: 20),
+      );
       top.floor = -1;
       final plan = _plan(_Scene([low, top]));
       expect(plan.reads, hasLength(2));
@@ -234,9 +240,7 @@ void main() {
 
     Look look(double frost, {PageFilter? page}) => Look(
       key: 'glass',
-      frost: frost,
-      downscale: 2,
-      devicePixelRatio: 2.625,
+      need: CopyNeed(2.625, share: 2, frost: frost),
       page: page,
     );
 
