@@ -13,7 +13,6 @@ import 'dart:ui' as ui;
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
 
 const _viewSize = Size(402, 400);

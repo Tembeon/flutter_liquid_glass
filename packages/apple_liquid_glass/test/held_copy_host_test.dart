@@ -8,14 +8,12 @@ library;
 // shows what a fresh mount at the same place shows.
 // ignore_for_file: invalid_use_of_internal_member
 
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
 
 const _viewSize = Size(300, 600);
