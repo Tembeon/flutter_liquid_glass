@@ -253,7 +253,9 @@ final class ReadCopy {
     double devicePixelRatio,
   ) {
     final asked = CopyGrid._(devicePixelRatio, read.downscale);
-    final grid = read.holds.isEmpty ? asked : asked._screen;
+    final grid = read.holds.isEmpty || read.holdsAtOwnGrid
+        ? asked
+        : asked._screen;
     final band = asked._snapOut(read.band).intersect(form.screen);
     final clip = read.lead.clip?.intersect(form.screen);
     final layer = switch (clip) {
@@ -271,6 +273,9 @@ final class ReadCopy {
 
   /// The read this copy is for.
   final Read read;
+
+  /// How many device pixels along each side one pixel of the copy holds.
+  int get share => _grid._share;
 
   final Plan _plan;
   final Form _form;
@@ -295,10 +300,11 @@ final class ReadCopy {
       : frost;
 
   /// The part of the copy's layer inside [region] (screen logical pixels),
-  /// or null where none of it is.
-  CornerRead? readIn(Rect region) {
+  /// or null where none of it is, drawn into a target whose pixels each
+  /// stand for [scale] device pixels along each side.
+  CornerRead? readIn(Rect region, {int scale = 1}) {
     final cut = region.intersect(layer);
-    return cut.isEmpty ? null : CornerRead._(this, cut);
+    return cut.isEmpty ? null : CornerRead._(this, cut, scale);
   }
 
   /// The region of this copy's layer to read inside [outer], where the layer of

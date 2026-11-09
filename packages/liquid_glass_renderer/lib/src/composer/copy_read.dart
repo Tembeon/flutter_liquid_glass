@@ -107,7 +107,8 @@ final class CopyGrid {
 /// its fragments lie and what its texture holds, written to the shader by
 /// the glass alone.
 ///
-/// The shader takes its fragments for the screen's device pixels. A copy
+/// The shader takes its fragments for the screen's device pixels, or for
+/// [scale] of them where the glass is drawn inside a coarser copy. A copy
 /// whose pixels are larger stands for a texture as many times larger
 /// ([size]), or lies in the top-left share of a layer of the screen's pixels
 /// ([reduced]).
@@ -121,11 +122,17 @@ final class GlassSampling {
     this.image,
     this.size,
     this.holds,
+    this.scale = 1,
   });
 
   /// Where the shader's fragment coordinate zero lies on the screen, in
   /// device pixels.
   final Offset origin;
+
+  /// How many device pixels along each side one fragment stands for: 1, or
+  /// the share of the copy the glass is drawn in, whose pixels its layer is
+  /// drawn at.
+  final int scale;
 
   /// uBackdropReduced: 0 where every fragment reads its own texel of the
   /// copy; 1 for an image copy at fewer pixels than the screen, which [size]
@@ -249,13 +256,31 @@ final class PagePart {
 /// edge.
 @internal
 final class CornerRead {
-  CornerRead._(this._copy, this._cut) : _device = _copy._grid._device(_cut);
+  CornerRead._(this._copy, this._cut, this._scale)
+    : _device = _onGrain(
+        _copy._grid._device(_cut),
+        max(_scale, _copy._grid._share),
+      );
 
   final ReadCopy _copy;
   // The part of the copy's layer read, in the screen's logical pixels.
   final Rect _cut;
-  // The layer, in the screen's device pixels, on the copy's grid.
+  // How many device pixels one pixel of the target the layer is drawn into
+  // stands for.
+  final int _scale;
+  // The layer, in the screen's device pixels, on the copy's grid and on the
+  // target's: a layer off the target's pixels starts its fragments at the
+  // pixel it is rounded out to.
   final Rect _device;
+
+  static Rect _onGrain(Rect device, int grain) => grain == 1
+      ? device
+      : Rect.fromLTRB(
+          (device.left / grain).floorToDouble() * grain,
+          (device.top / grain).floorToDouble() * grain,
+          (device.right / grain).ceilToDouble() * grain,
+          (device.bottom / grain).ceilToDouble() * grain,
+        );
 
   double get _dpr => _copy._grid._devicePixelRatio;
   int get _share => _copy._grid._share;
@@ -272,6 +297,7 @@ final class CornerRead {
     origin: _device.topLeft,
     reduced: _share > 1 ? _share.toDouble() : 0,
     frost: _copy._grid._frost(_copy._frostOver(frost)),
+    scale: _scale,
     holds: Rect.fromLTRB(
       _device.left / _dpr,
       _device.top / _dpr,

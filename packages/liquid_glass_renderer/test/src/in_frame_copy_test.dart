@@ -28,23 +28,31 @@ Widget _scene({
   bool second = true,
   double secondFrost = 0,
   Rect? clip,
+  Color? tint,
 }) {
-  Widget glass(Rect rect, {double frost = 0}) => LiquidGlassLayer(
+  Widget glass(Rect rect, {double frost = 0, Color? tint}) => LiquidGlassLayer(
     settings: LiquidGlassSettings.ios27RegularLight().copyWith(frost: frost),
     child: Stack(
       children: [
         Positioned.fromRect(
           rect: rect,
-          child: const LiquidGlass(
-            shape: LiquidRoundedSuperellipse(borderRadius: 28),
-            child: SizedBox.expand(),
+          child: LiquidGlass(
+            shape: const LiquidRoundedSuperellipse(borderRadius: 28),
+            appearance: tint == null
+                ? null
+                : LiquidGlassAppearance.ios27RegularLight(tint: tint),
+            child: const SizedBox.expand(),
           ),
         ),
       ],
     ),
   );
 
-  final first = glass(Rect.fromLTWH(30, top, 200, 90), frost: frost);
+  final first = glass(
+    Rect.fromLTWH(30, top, 200, 90),
+    frost: frost,
+    tint: tint,
+  );
   return Directionality(
     textDirection: TextDirection.ltr,
     child: RepaintBoundary(
@@ -138,8 +146,10 @@ Future<Uint8List> _drawn(
   double secondFrost = 0,
   Rect? clip,
   double top = 200,
+  Color? tint,
+  Policy? policy,
 }) async {
-  GlassComposer.debugPolicy = Policy(maxTargets: inFrame ? 64 : 0);
+  GlassComposer.debugPolicy = policy ?? Policy(maxTargets: inFrame ? 64 : 0);
   await tester.pumpWidget(const SizedBox());
   await tester.pumpWidget(
     _scene(
@@ -149,6 +159,7 @@ Future<Uint8List> _drawn(
       second: second,
       secondFrost: secondFrost,
       clip: clip,
+      tint: tint,
     ),
   );
   final drawn = GlassCopies.debugImagesDrawn;
@@ -159,6 +170,7 @@ Future<Uint8List> _drawn(
       second: second,
       secondFrost: secondFrost,
       clip: clip,
+      tint: tint,
     ),
   );
   final glass = tester.allRenderObjects
@@ -321,6 +333,41 @@ void main() {
     // The frost's dither lies on the layer's cell, which a clip shifts from
     // the image's: 14 levels over the test's hard bars.
     expect(_difference(image, inFrame), lessThanOrEqualTo(14));
+  }, skip: skipProperGlassTests);
+
+  // The lower glass's copy holds a quarter of the screen's pixels, and the
+  // upper glass in it is drawn at those pixels, its shader taking each
+  // fragment for 4 x 4 device pixels.
+  testWidgets('a coarse copy holds the glass under it at its own pixels', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(260, 360) * 2;
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    addTearDown(() => RenderLiquidGlassLayer.debugMaxCopyDownscale = 2);
+    Plan? plan;
+    GlassComposer.debugOnPlan = (_, next) => plan = next;
+    addTearDown(() => GlassComposer.debugOnPlan = null);
+    for (final downscale in [2, 4]) {
+      RenderLiquidGlassLayer.debugMaxCopyDownscale = downscale;
+      Future<Uint8List> drawn({required bool inFrame}) => _drawn(
+        tester,
+        inFrame: inFrame,
+        pixelRatio: 2,
+        secondFrost: 20,
+        tint: const Color(0xCCFF3B30),
+        policy: Policy(maxTargets: inFrame ? 64 : 0, ownGridHolds: true),
+      );
+      final image = await drawn(inFrame: false);
+      final inFrame = await drawn(inFrame: true);
+      final holding = plan!.reads.singleWhere((read) => read.holds.isNotEmpty);
+      expect((holding.output! as ReadCopy).share, downscale);
+      // The image draws the held glass as a picture at the screen's pixels.
+      // Each fragment of the glass held in the frame stands for a block of
+      // them; under this frost and tint that rounds by a few levels, and
+      // left out of the copy it is 73 off.
+      expect(_difference(image, inFrame), lessThanOrEqualTo(3));
+    }
   }, skip: skipProperGlassTests);
 
   // Impeller weighs the cut on the layer's device pixels. Glass at 203.8

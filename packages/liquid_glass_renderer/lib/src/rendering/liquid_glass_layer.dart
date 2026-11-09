@@ -1917,6 +1917,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       page: sigma > 0 && frosted == null
           ? PageFilter(blur: (frostX, frostY))
           : null,
+      anyGrid: true,
     );
   }
 
@@ -2065,6 +2066,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       sampling.reduced,
       sampling.frost,
       sampling.holds,
+      sampling.scale,
       globalToMatte,
       backdropBounds,
       shown,
@@ -2461,7 +2463,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       return;
     }
     final copy = read.output! as ReadCopy;
-    final corner = copy.readIn(copy.regionIn(outer, read.lead.clip));
+    final scale = outer.share;
+    final corner = copy.readIn(
+      copy.regionIn(outer, read.lead.clip),
+      scale: scale,
+    );
     if (corner == null) return;
     for (final (picture, offset) in _shadowsOfOthers(read)) {
       out.mark();
@@ -2469,7 +2475,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       out.picture(picture);
       out.leave();
     }
-    final inPlace = readInPlace(read, corner);
+    // A coarser copy draws the frost's own filter at its pixels too, which
+    // the frost's taps take for device pixels: the glass frosts instead.
+    final inPlace = scale == 1 ? readInPlace(read, corner) : null;
     final filter = readFilter(read, corner, inPlace);
     out.settle();
     corner.addToScene(
@@ -2563,13 +2571,25 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final within = holds == null
         ? null
         : MatrixUtils.transformRect(globalToMatte, holds);
+    final scale = sampling.scale.toDouble();
+    final (ax, ay, bx, by, ox, oy) = _matteMapping(
+      globalToMatte,
+      devicePixelRatio,
+      sampling.origin,
+    );
     _writeCoordinateMapping(
       shader,
-      _matteMapping(globalToMatte, devicePixelRatio, sampling.origin),
+      (ax * scale, ay * scale, bx * scale, by * scale, ox, oy),
       within == null
           ? backdropBounds
           : backdropBounds?.intersect(within) ?? within,
     );
+    // The bevel shifts what it reads by device pixels, and the frost's taps
+    // lie device pixels apart: a fragment spans [scale] of them.
+    final displacement = settings.effectiveDisplacementScale * devicePixelRatio;
+    if (scale != 1) {
+      shader.setFloat(_FinalUniforms.displacementScale, displacement / scale);
+    }
     if (sampling.size case final size?) {
       shader.setFloat(0, size.width);
       shader.setFloat(1, size.height);
@@ -2580,7 +2600,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       shader.setFloat(_FinalUniforms.backdropOrigin + 1, sampling.origin.dy);
     }
     shader.setFloat(_FinalUniforms.reducedBackdrop, sampling.reduced);
-    shader.setFloat(_FinalUniforms.backdropFrost, sampling.frost);
+    shader.setFloat(_FinalUniforms.backdropFrost, sampling.frost / scale);
     if (sampling.image case final image?) {
       shader.setImageSampler(0, image, filterQuality: FilterQuality.low);
     }
@@ -2589,6 +2609,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     } finally {
       shader.setFloat(_FinalUniforms.reducedBackdrop, 0);
       shader.setFloat(_FinalUniforms.backdropFrost, 0);
+      if (scale != 1) {
+        shader.setFloat(_FinalUniforms.displacementScale, displacement);
+      }
       _restoreLiveMapping(shader);
       if (paints) {
         shader.setFloat(_FinalUniforms.backdropOrigin, 0);
@@ -3328,6 +3351,9 @@ abstract final class _FinalUniforms {
 
   /// uTint, then the material's settings.
   static const int tint = 6;
+
+  /// uDisplacementScale, the first of the material's settings.
+  static const int displacementScale = 10;
 
   /// uMaterialCenter, two floats inside uProfileConfig.
   static const int materialCenter = 34;

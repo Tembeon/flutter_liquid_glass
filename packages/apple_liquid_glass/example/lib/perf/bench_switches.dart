@@ -74,6 +74,10 @@ final benchSwitches = <String, void Function({required bool on})>{
   // at the screen's pixels; A leaves that glass out.
   'coarse_holds': ({required on}) =>
       GlassComposer.debugPolicy = Policy(coarseHolds: on),
+  // B: a copy smaller than the screen holds the glass under it at its own
+  // pixels, A at the screen's.
+  'own_grid_holds': ({required on}) =>
+      GlassComposer.debugPolicy = Policy(ownGridHolds: on),
   'downscale4': ({required on}) =>
       RenderLiquidGlassLayer.debugMaxCopyDownscale = on ? 4 : 2,
   // B draws the copies asked for without a filter in the frame, A into
