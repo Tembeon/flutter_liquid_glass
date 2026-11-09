@@ -264,6 +264,29 @@ final class ShapeSet {
     );
   }
 
+  /// Shapes already in the shaders' layout, each with the default
+  /// appearance.
+  @visibleForTesting
+  factory ShapeSet.rows({
+    required List<double> shapes,
+    required List<double> boxes,
+    List<double>? superellipsesLower,
+  }) {
+    final count = shapes.length ~/ 12;
+    return ShapeSet._(
+      shapes: List.unmodifiable(shapes),
+      superellipses: List.filled(count * 12, 0),
+      superellipsesLower: List.unmodifiable(
+        superellipsesLower ?? List<double>.filled(count * 12, 0),
+      ),
+      boxes: List.unmodifiable(boxes),
+      appearances: List.filled(count, const LiquidGlassAppearance()),
+      blended: [
+        for (var i = 0; i < count; i++) shapes[i * 12 + 11],
+      ].any((marker) => marker >= 0),
+    );
+  }
+
   /// No shapes.
   static const empty = ShapeSet._(
     shapes: [],
