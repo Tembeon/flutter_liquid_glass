@@ -377,4 +377,97 @@ void main() {
     expect(every.inwardAt(160, 120), closeTo(80, 2));
     expect(every.inwardAt(160 + 70, 120), closeTo(10, 1));
   });
+
+  test('a coarse field tile reads within NEAR of the field', () async {
+    final renderer = await createGeometryRenderer();
+    final dense = await createGeometryRenderer();
+    // Two circles fused by a smooth union, as a menu fused with its button:
+    // a neck, and a ridge between the two where the gradient turns round.
+    const cols = 44;
+    const rows = 30;
+    const step = 4.0;
+    const blend = 24.0;
+    (double, double, double) circle(double x, double y, double radius) {
+      final r = sqrt(x * x + y * y);
+      return (r - radius, r > 0 ? x / r : 0, r > 0 ? y / r : 0);
+    }
+
+    final samples = Float32List(cols * rows * 4);
+    for (var j = 0; j < rows; j++) {
+      for (var i = 0; i < cols; i++) {
+        final x = i * step;
+        final y = j * step;
+        final (da, ax, ay) = circle(x - 60, y - 58, 36);
+        final (db, bx, by) = circle(x - 124, y - 58, 22);
+        final weight = (0.5 + (db - da) / (2 * blend)).clamp(0.0, 1.0);
+        final bite = max(blend - (da - db).abs(), 0);
+        final o = (j * cols + i) * 4;
+        samples[o] = min(da, db) - bite * bite * 0.25 / blend;
+        samples[o + 1] = bx + (ax - bx) * weight;
+        samples[o + 2] = by + (ay - by) * weight;
+        samples[o + 3] = 22 + (36 - 22) * weight;
+      }
+    }
+    final field = BufferField(
+      LiquidGlassField(
+        samples: samples,
+        cols: cols,
+        rows: rows,
+        origin: ui.Offset.zero,
+        step: step,
+      ),
+      layerToBuffer: (1.5, 0, 0, 1.5, 0, 0),
+    );
+    const reach = GlassReach(inward: 24, outward: 3, coarseTexel: 4);
+    final tiling = Tiling.field(
+      field,
+      width: width,
+      height: height,
+      reach: reach,
+    );
+    final read = await _draw(renderer, tiling);
+    final every = await _draw(
+      dense,
+      Tiling.field(field, width: width, height: height, reach: _everything),
+    );
+    var coarseTiles = 0;
+    var fineTiles = 0;
+    var worstDistance = 0.0;
+    var worstEdgeNormal = 0.0;
+    var worstNormal = 0.0;
+    for (final run in tiling.runs) {
+      if (run.texel == 1) {
+        fineTiles += run.length;
+        continue;
+      }
+      coarseTiles += run.length;
+      for (
+        var x = run.column * Tiling.size;
+        x < min(width, (run.column + run.length) * Tiling.size);
+        x++
+      ) {
+        for (
+          var y = run.row * Tiling.size;
+          y < min(height, (run.row + 1) * Tiling.size);
+          y++
+        ) {
+          final exact = _strip(every, x, y);
+          if (exact.$1 <= -reach.outward || exact.$1 >= reach.inward) continue;
+          final (inward, nx, ny, _) = read.pixel(x, y);
+          final normal = sqrt(pow(nx - exact.$2, 2) + pow(ny - exact.$3, 2));
+          worstDistance = max(worstDistance, (inward - exact.$1).abs());
+          worstNormal = max(worstNormal, normal);
+          if (exact.$1 < 4) worstEdgeNormal = max(worstEdgeNormal, normal);
+        }
+      }
+    }
+    expect(coarseTiles, greaterThan(50));
+    expect(fineTiles, greaterThan(0));
+    // The body creases along its grid's lines, six pixels apart here, and
+    // a coarse texel that straddles a crease rounds it: by 0.42 of a pixel
+    // in the neck, where the gradient turns a quarter radian a node.
+    expect(worstDistance, lessThan(0.5));
+    expect(worstEdgeNormal, lessThan(0.05));
+    expect(worstNormal, lessThan(0.1));
+  });
 }

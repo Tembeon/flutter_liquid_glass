@@ -360,7 +360,9 @@ final class Tiling {
   }
 
   /// Classifies a buffer of [width] x [height] pixels holding the body of
-  /// [field], fitted to one atlas as [Tiling.shapes] is. Where [looks]
+  /// [field], fitted to one atlas as [Tiling.shapes] is. Its ring tiles
+  /// take coarse texels where the field's nodes lie at least a texel apart
+  /// and their gradients agree. Where [looks]
   /// differ, the body takes its look from the [shapes] it grew from, at
   /// most [geometryMaxShapesPerDraw] of them.
   factory Tiling.field(
@@ -377,10 +379,7 @@ final class Tiling {
     );
     final columns = _tilesOver(width);
     final rows = _tilesOver(height);
-    final kinds = _fieldKinds(field, columns, rows, reach);
-    // A field's body is bilinear between its nodes, so its folds sit
-    // anywhere: every ring tile keeps one texel a pixel.
-    final fine = Uint8List(columns * rows)..fillRange(0, columns * rows, 1);
+    final (kinds, fine) = _fieldKinds(field, columns, rows, reach);
     final deepLooks = looks == null
         ? null
         : _lookKinds(
@@ -405,7 +404,7 @@ final class Tiling {
         kinds,
         Int32List(columns * rows),
         fine,
-        1,
+        reach.coarseTexel,
         Uint32List(columns * rows),
       ),
       shapeSets: List.unmodifiable([
@@ -471,8 +470,18 @@ final class Tiling {
 
   bool get _fits => layout.height <= AtlasLayout.maxSize;
 
-  /// Where the atlas holds this tiling's table and strips.
+  /// Where the atlas holds this tiling's table and strips: about as wide as
+  /// it is tall.
   late final AtlasLayout layout = AtlasLayout._of(this);
+
+  /// [layout] packed into an atlas [width] texels wide instead, or null
+  /// where no strip or table fits that width or the atlas grows too tall.
+  AtlasLayout? layoutIn(int width) {
+    if (width == layout.width) return layout;
+    if (width < AtlasLayout._leastWidth(this)) return null;
+    final packed = AtlasLayout._of(this, width: width);
+    return packed.height <= AtlasLayout.maxSize ? packed : null;
+  }
 
   static int _tilesOver(int pixels) => max(1, (pixels + size - 1) ~/ size);
 
@@ -585,57 +594,88 @@ final class Tiling {
     return deepLooks;
   }
 
-  static Uint8List _fieldKinds(
+  // Each tile's kind, and whether it keeps one texel a pixel.
+  //
+  // A field's body is bilinear between its nodes, which a linear read of
+  // coarse texels follows where the nodes lie at least a texel apart and
+  // their gradients agree. Where the gradients over a tile turn against
+  // one another, a ridge of the body or a corner the grid barely resolves,
+  // the tile keeps one texel a pixel. NEAR, within what the grid resolves:
+  // the body creases along the grid's lines, and a coarse texel across a
+  // crease rounds it by up to the texel's side times the gradient's turn
+  // there over four, the same order as the grid's own sag between nodes:
+  // a sixth of a pixel on a corner six nodes in radius, half a pixel in
+  // the tightest neck a grid holds.
+  static (Uint8List, Uint8List) _fieldKinds(
     BufferField field,
     int columns,
     int rows,
     GlassReach reach,
   ) {
     final kinds = Uint8List(columns * rows);
+    final fine = Uint8List(columns * rows);
     final (xx, xy, yx, yy, dx, dy) = field.bufferToGrid;
-    final LiquidGlassField(:samples, :cols, rows: nodeRows) = field.field;
+    final LiquidGlassField(:samples, :cols, rows: nodeRows, :step) =
+        field.field;
+    final coarse =
+        reach.coarseTexel > 1 &&
+        step * field.distanceScale >= reach.coarseTexel;
+    // A tile's nodes are those over it and over its strip's apron.
+    final apron = reach.coarseTexel / 2;
+    final spanX = (xx.abs() + xy.abs()) * (size / 2 + apron);
+    final spanY = (yx.abs() + yy.abs()) * (size / 2 + apron);
     for (var row = 0; row < rows; row++) {
       for (var column = 0; column < columns; column++) {
-        var gx0 = double.infinity;
-        var gy0 = double.infinity;
-        var gx1 = double.negativeInfinity;
-        var gy1 = double.negativeInfinity;
-        for (final (cx, cy) in [(0, 0), (1, 0), (0, 1), (1, 1)]) {
-          final x = ((column + cx) * size).toDouble();
-          final y = ((row + cy) * size).toDouble();
-          final gx = xx * x + xy * y + dx;
-          final gy = yx * x + yy * y + dy;
-          gx0 = min(gx0, gx);
-          gy0 = min(gy0, gy);
-          gx1 = max(gx1, gx);
-          gy1 = max(gy1, gy);
-        }
+        final x = (column + 0.5) * size;
+        final y = (row + 0.5) * size;
+        final gx = xx * x + xy * y + dx;
+        final gy = yx * x + yy * y + dy;
         // Bilinear values stay within their nodes, and the field pass
         // clamps to the grid, so the nodes over the tile bound it.
-        final i0 = gx0.floor().clamp(0, cols - 1);
-        final i1 = gx1.ceil().clamp(0, cols - 1);
-        final j0 = gy0.floor().clamp(0, nodeRows - 1);
-        final j1 = gy1.ceil().clamp(0, nodeRows - 1);
+        final i0 = (gx - spanX).floor().clamp(0, cols - 1);
+        final i1 = (gx + spanX).ceil().clamp(0, cols - 1);
+        final j0 = (gy - spanY).floor().clamp(0, nodeRows - 1);
+        final j1 = (gy + spanY).ceil().clamp(0, nodeRows - 1);
         var lowest = double.infinity;
         var highest = double.negativeInfinity;
+        var sumX = 0.0;
+        var sumY = 0.0;
+        var lengths = 0.0;
         for (var j = j0; j <= j1; j++) {
           for (var i = i0; i <= i1; i++) {
-            final d = samples[(j * cols + i) * 4];
-            lowest = min(lowest, d);
-            highest = max(highest, d);
+            final at = (j * cols + i) * 4;
+            final d = samples[at];
+            if (d < lowest) lowest = d;
+            if (d > highest) highest = d;
+            final nx = samples[at + 1];
+            final ny = samples[at + 2];
+            sumX += nx;
+            sumY += ny;
+            lengths += sqrt(nx * nx + ny * ny);
           }
         }
         lowest *= field.distanceScale;
         highest *= field.distanceScale;
-        kinds[row * columns + column] = lowest >= reach.outward
+        final tile = row * columns + column;
+        kinds[tile] = lowest >= reach.outward
             ? TileKind.outside.index
             : highest <= -reach.inward
             ? TileKind.deep.index
             : TileKind.ring.index;
+        if (!coarse ||
+            sumX * sumX + sumY * sumY <
+                _fieldAgreement * _fieldAgreement * lengths * lengths) {
+          fine[tile] = 1;
+        }
       }
     }
-    return kinds;
+    return (kinds, fine);
   }
+
+  // How much of their summed length the gradients of a tile's nodes keep
+  // when added as vectors, at least, for the tile to take coarse texels:
+  // 0.8 is a corner turning through about 130 degrees over the tile.
+  static const double _fieldAgreement = 0.8;
 
   static (List<List<int>>, Int32List, int) _shapeSets(
     List<_ShapeBounds> bounds,
@@ -1428,10 +1468,11 @@ final class _ShapeBounds {
 /// The 18 x 18 block at texel (0, 0) holds the outside value and the next
 /// blocks the deep value, one block a look ([Tiling.looks]). The atlas is
 /// cleared to the outside tile's table entry, so only deep and ring tiles
-/// write theirs. The table follows, one texel per tile, then the strips: a
-/// run of n tiles of texels t pixels a side ([TileRun.texel]) is
-/// `16 n / t + 2` x `16 / t + 2` texels, with a one-texel apron evaluated
-/// like the rest, so a linear read between texels stays on exact values.
+/// write theirs. The table lies below them, one texel per tile, and the
+/// strips beside and below both: a run of n tiles of texels t pixels a
+/// side ([TileRun.texel]) is `16 n / t + 2` x `16 / t + 2` texels, with a
+/// one-texel apron evaluated like the rest, so a linear read between
+/// texels stays on exact values.
 @internal
 @immutable
 final class AtlasLayout {
@@ -1443,24 +1484,29 @@ final class AtlasLayout {
   });
 
   // Shelves of strips: the full-density strips first, then the coarse ones,
-  // each density on shelves of its own height. A layout taller than
+  // each density on shelves of its own height, the shelves beside the
+  // constants and the table starting past them. A layout taller than
   // [maxSize] does not fit; Tiling tiles such a ring again.
-  factory AtlasLayout._of(Tiling tiling) {
+  factory AtlasLayout._of(Tiling tiling, {int? width}) {
     final runs = tiling.runs;
-    final blocks = 1 + max<int>(1, tiling.looks?.count ?? 0);
-    var area = blocks * _strip * _strip;
-    var widest = 0;
-    for (final run in runs) {
-      final width = _stripWidth(run);
-      area += width * (Tiling.size ~/ run.texel + 2);
-      widest = max(widest, width);
+    final headWidth = _headWidth(tiling);
+    final headHeight = tableOrigin.$2 + tiling.rows;
+    var atlasWidth = width ?? 0;
+    if (width == null) {
+      var area = headWidth * headHeight;
+      for (final run in runs) {
+        area += _stripWidth(run) * (Tiling.size ~/ run.texel + 2);
+      }
+      // An eighth over the area for what the shelves leave empty.
+      atlasWidth = max(_leastWidth(tiling), sqrt(area * 1.125).ceil());
+      atlasWidth = min(
+        maxSize,
+        (atlasWidth + _alignWidth - 1) ~/ _alignWidth * _alignWidth,
+      );
     }
-    var width = max(max(blocks * _strip, tiling.columns), widest);
-    width = max(width, sqrt(area).ceil());
-    width = min(maxSize, (width + _align - 1) ~/ _align * _align);
     final strips = Int32List(runs.length * 2);
-    var x = 0;
-    var y = tableOrigin.$2 + tiling.rows;
+    var x = headWidth;
+    var y = 0;
     var shelf = 0;
     for (final fine in [true, false]) {
       for (var i = 0; i < runs.length; i++) {
@@ -1468,29 +1514,54 @@ final class AtlasLayout {
         if ((run.texel == 1) != fine) continue;
         final stripWidth = _stripWidth(run);
         final stripHeight = Tiling.size ~/ run.texel + 2;
-        if (x + stripWidth > width || stripHeight != shelf) {
+        if (x + stripWidth > atlasWidth || stripHeight != shelf) {
           y += shelf;
-          x = 0;
           shelf = stripHeight;
+          x = y < headHeight ? headWidth : 0;
+          if (x + stripWidth > atlasWidth) {
+            y = headHeight;
+            x = 0;
+          }
         }
         strips[i * 2] = x;
         strips[i * 2 + 1] = y;
         x += stripWidth;
       }
     }
+    final used = max(headHeight, y + shelf);
     return AtlasLayout._(
-      width: width,
-      height: (y + shelf + _align - 1) ~/ _align * _align,
+      width: atlasWidth,
+      height: (used + _alignHeight - 1) ~/ _alignHeight * _alignHeight,
       strips: strips,
       runs: runs,
     );
+  }
+
+  // The width of the constant tiles above the table, and of the table.
+  static int _headWidth(Tiling tiling) => max(
+    (1 + max<int>(1, tiling.looks?.count ?? 0)) * _strip,
+    tiling.columns,
+  );
+
+  // The narrowest atlas that holds the constants, the table and every
+  // strip of [tiling].
+  static int _leastWidth(Tiling tiling) {
+    var widest = _headWidth(tiling);
+    for (final run in tiling.runs) {
+      widest = max(widest, _stripWidth(run));
+    }
+    return widest;
   }
 
   static int _stripWidth(TileRun run) =>
       run.length * Tiling.size ~/ run.texel + 2;
 
   static const int _strip = Tiling.size + 2;
-  static const int _align = 64;
+
+  // A tiled GPU stores a target in tiles of 16 texels. Widths step by two,
+  // so an atlas that grows a little keeps its width and its texture.
+  static const int _alignWidth = 32;
+  static const int _alignHeight = 16;
 
   /// The largest atlas side: table entries are atlas texel coordinates in a
   /// 16-bit float, exact up to 2048.

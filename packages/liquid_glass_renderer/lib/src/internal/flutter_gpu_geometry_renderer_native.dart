@@ -316,19 +316,17 @@ class FlutterGpuGeometryRenderer {
       return true;
     }(), 'Track geometry submissions in debug builds.');
     _ensureFrameCounter();
-    final layout = tiling.layout;
     assert(
-      layout.height <= AtlasLayout.maxSize,
+      tiling.layout.height <= AtlasLayout.maxSize,
       'A geometry atlas outgrew ${AtlasLayout.maxSize} rows at an inward '
       'reach of 1.',
     );
+    final layout = _atlases.fit(tiling);
     final looks = tiling.looks;
     final lookTargets = _LookTargets.of(looks);
     _releaseAtlasHandles();
     final atlas = _atlases.next(
       _completedFrames,
-      width: layout.width,
-      height: layout.height,
       lookCount: lookTargets.count,
     );
     final texture = _atlasTexture = atlas.texture;
@@ -978,12 +976,14 @@ final class _RingTexture {
 /// The current atlas and up to three retired spares, RGBA16F.
 ///
 /// A pass clears and stores its whole target on a tiled GPU, so the ring
-/// sizes its textures to the atlases it draws: an eighth over the atlas,
-/// rounded up to 64 texels. Its capacity grows as soon as an atlas needs
-/// more, and shrinks to the latest atlas once [_shrinkAfter] atlases in a
-/// row would have fit in half of it; every texture it keeps is of its
-/// capacity. The spares cover a frame that renders twice, alternating
-/// between atlases with and without looks, without allocating.
+/// sizes its textures to the atlases it draws: as wide as the first that
+/// needs them, and an eighth taller than the tallest, in rows of 16. Later
+/// atlases are packed into that width ([fit]), so the textures change only
+/// when an atlas outgrows them, which they do at once, or once
+/// [_shrinkAfter] atlases in a row would have fit in half of them; every
+/// texture the ring keeps is of its capacity. The spares cover a frame
+/// that renders twice, alternating between atlases with and without looks,
+/// without allocating.
 final class _TextureRing {
   static const int _maxSpares = 3;
   static const int _shrinkAfter = 30;
@@ -997,29 +997,38 @@ final class _TextureRing {
   int get spareCount => _spares.length;
   int get textureCount => _spares.length + (_current == null ? 0 : 1);
 
-  /// Replaces the atlas in use with one that holds [width] x [height] and
-  /// [lookCount] looks beside it.
-  _RingTexture next(
-    int frame, {
-    required int width,
-    required int height,
-    required int lookCount,
-  }) {
-    final fitWidth = _fit(width);
-    final fitHeight = _fit(height);
-    if (width > _width || height > _height) {
-      _width = math.max(_width, fitWidth);
-      _height = math.max(_height, fitHeight);
-      _slack = 0;
-    } else if (fitWidth * fitHeight * 2 <= _width * _height) {
+  /// The layout of [tiling]'s atlas in the ring's textures, which grow to
+  /// hold it.
+  AtlasLayout fit(Tiling tiling) {
+    final own = tiling.layout;
+    if (own.width * _roomFor(own.height) * 2 <= _width * _height) {
       if (++_slack >= _shrinkAfter) {
-        _width = fitWidth;
-        _height = fitHeight;
+        _width = 0;
+        _height = 0;
         _slack = 0;
       }
     } else {
       _slack = 0;
     }
+    var layout = own;
+    if (_width != 0) {
+      // Up to twice as tall as wide the textures keep their width, so they
+      // are replaced less often.
+      final packed = tiling.layoutIn(_width);
+      if (packed != null && packed.height <= math.max(_height, 2 * _width)) {
+        layout = packed;
+      }
+    }
+    if (layout.width > _width || layout.height > _height) {
+      _width = math.max(_width, layout.width);
+      _height = math.max(_height, _roomFor(layout.height));
+    }
+    return layout;
+  }
+
+  /// Replaces the atlas in use with one of the ring's capacity and
+  /// [lookCount] looks beside it.
+  _RingTexture next(int frame, {required int lookCount}) {
     _spares.removeWhere((entry) {
       if (entry.sized(_width, _height)) return false;
       FlutterGpuGeometryRenderer._countDropped(entry);
@@ -1054,8 +1063,8 @@ final class _TextureRing {
     return _current = _RingTexture(_create(_width, _height), lookCount);
   }
 
-  static int _fit(int needed) =>
-      math.min(AtlasLayout.maxSize, (needed + (needed >> 3) + 63) & ~63);
+  static int _roomFor(int rows) =>
+      math.min(AtlasLayout.maxSize, (rows + (rows >> 3) + 15) & ~15);
 
   /// Drops every texture and resets the ring's capacity.
   void release() {

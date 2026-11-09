@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -62,25 +61,21 @@ Future<List<(double, double, double, double)>> _geometry(
 /// A tint beside [testRectangle].
 final _tint = ShapeLooks(const [1, 0, 0, 1, 1, 1, 0, 1], tintOnly: true);
 
-/// The top-left [width] x [height] texels of [image], as RGBA bytes.
-Future<Uint8List> _subRect(
+/// What the final shader reads of [look], a texture beside the atlas
+/// [image] of a [width] x [height] geometry buffer, pixel by pixel.
+Future<List<(double, double, double, double)>> _looks(
   WidgetTester tester,
   ui.Image image,
+  ui.Image look,
   int width,
   int height,
 ) async {
-  final data = await tester.runAsync(image.toByteData);
-  final bytes = data!.buffer.asUint8List();
-  final out = Uint8List(width * height * 4);
-  for (var y = 0; y < height; y++) {
-    out.setRange(
-      y * width * 4,
-      (y + 1) * width * 4,
-      bytes,
-      y * image.width * 4,
-    );
-  }
-  return out;
+  final atlas = (await tester.runAsync(() => AtlasTexels.read(image)))!;
+  final texels = (await tester.runAsync(() => AtlasTexels.read(look)))!;
+  return [
+    for (var y = 0; y < height; y++)
+      for (var x = 0; x < width; x++) atlas.lookAt(texels, x, y),
+  ];
 }
 
 int get _allocated => FlutterGpuGeometryRenderer.debugAllocatedTextureCount;
@@ -239,8 +234,8 @@ void runGeometryTextureReuseTests() {
           fresh.debugGeometryImage!.width * fresh.debugGeometryImage!.height,
         ),
       );
-      // Both atlases lay the buffer out alike; a fresh texture holds just
-      // that layout.
+      // The larger texture is laid out to its own width, so both are read
+      // as the final shader reads them: through their tables.
       final reused = await _geometry(tester, reusedImage, width, height);
       final freshGeometry = await _geometry(
         tester,
@@ -252,13 +247,14 @@ void runGeometryTextureReuseTests() {
       expect(fresh.debugLookImages, hasLength(reusedLookImages.length));
       for (final (i, freshLook) in fresh.debugLookImages.indexed) {
         expect(
-          await _subRect(
+          await _looks(tester, reusedImage, reusedLookImages[i], width, height),
+          await _looks(
             tester,
-            reusedLookImages[i],
-            freshLook.width,
-            freshLook.height,
+            fresh.debugGeometryImage!,
+            freshLook,
+            width,
+            height,
           ),
-          await _subRect(tester, freshLook, freshLook.width, freshLook.height),
           reason: 'look $i',
         );
       }
