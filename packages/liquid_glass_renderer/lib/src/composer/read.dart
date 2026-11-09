@@ -28,8 +28,9 @@ abstract interface class PlanSite {
   /// Where this frame's walk of the layers found the site.
   SiteNode? formNode;
 
-  /// Writes what the frame's plan reads of this site.
-  void fillPlanFacts(SiteFacts facts);
+  /// What the site asks of this frame: a new value each frame, which the
+  /// form keeps only where it differs from the last.
+  SiteAsk ask();
 
   /// This frame's [fate], before any read of the frame is drawn. A site that
   /// draws no read of its own takes its place here.
@@ -49,9 +50,6 @@ abstract interface class PlanSite {
   /// Whether a replay meets the site's output where it meets the site, rather
   /// than at a [GlassSlotLayer] further on.
   bool get outputsInPlace;
-
-  /// What draws a read this site joins, if it can draw one.
-  ReadPainter? get readPainter;
 
   /// The frame's plan is drawn: what held for the frame lets go.
   void endFrame();
@@ -110,6 +108,120 @@ abstract interface class ReadPainter {
   /// Records [read] over [page], in the coordinates [screenToCanvas] takes the
   /// screen's device pixels to.
   ui.Picture recordPage(Read read, PageCopy page, Matrix4 screenToCanvas);
+}
+
+/// How a scroll edge looks where it lies this frame, which glass over it
+/// draws in its own filter.
+@internal
+@immutable
+final class BandLook {
+  /// Creates the look.
+  const BandLook({
+    required this.sigma,
+    required this.paint,
+    required this.origin,
+    required this.shown,
+    required this.devicePixelRatio,
+  });
+
+  /// Its frost, in logical pixels.
+  final double sigma;
+
+  /// What it paints over its frost.
+  final FrostBandPaint paint;
+
+  /// Where its layer's coordinates begin on the screen.
+  final Offset origin;
+
+  /// What it covers on the screen.
+  final Rect shown;
+
+  /// The device pixels of its view per logical pixel.
+  final double devicePixelRatio;
+
+  @override
+  bool operator ==(Object other) =>
+      other is BandLook &&
+      other.sigma == sigma &&
+      other.paint == paint &&
+      other.origin == origin &&
+      other.shown == shown &&
+      other.devicePixelRatio == devicePixelRatio;
+
+  @override
+  int get hashCode =>
+      Object.hash(sigma, paint, origin, shown, devicePixelRatio);
+}
+
+/// What a scroll edge paints over its frost, in its layer's coordinates, and
+/// how its frost changes the color.
+@immutable
+final class FrostBandPaint {
+  /// Creates the paint.
+  const FrostBandPaint({
+    required this.fade,
+    required this.whole,
+    required this.gone,
+    required this.lineStart,
+    required this.lineEnd,
+    required this.lineGray,
+    required this.presence,
+    required this.saturation,
+    required this.brightness,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is FrostBandPaint &&
+      other.fade == fade &&
+      other.whole == whole &&
+      other.gone == gone &&
+      other.lineStart == lineStart &&
+      other.lineEnd == lineEnd &&
+      other.lineGray == lineGray &&
+      other.presence == presence &&
+      other.saturation == saturation &&
+      other.brightness == brightness;
+
+  @override
+  int get hashCode => Object.hash(
+    fade,
+    whole,
+    gone,
+    lineStart,
+    lineEnd,
+    lineGray,
+    presence,
+    saturation,
+    brightness,
+  );
+
+  /// The fade, straight.
+  final Color fade;
+
+  /// The row where the fade is whole.
+  final double whole;
+
+  /// The row where the fade is gone.
+  final double gone;
+
+  /// Where the hairline starts.
+  final double lineStart;
+
+  /// Where the hairline ends.
+  final double lineEnd;
+
+  /// The hairline's gray.
+  final double lineGray;
+
+  /// How much of the band shows.
+  final double presence;
+
+  /// The saturation of what lies under the band.
+  final double saturation;
+
+  /// The brightness added.
+  final double brightness;
 }
 
 /// Where a site's fate shows in the layer tree: the walk does not go in, and
@@ -207,7 +319,7 @@ final class ReadCopy {
     return cut.isEmpty
         ? null
         : CornerRead._(
-            held.output! as ReadCopy,
+            ReadCopy(held, _plan, _form),
             cut,
             read.geometry.lattice.share,
           );
@@ -745,7 +857,6 @@ final class GlassEmit {
     var deepest = 0;
     final keep = Set<Object>.identity();
     for (final read in reads) {
-      if (read.source is! LiveRead) read.output = ReadCopy(read, plan, form);
       if (read.source is ImageRead) keep.add(read.lead.id);
       deepest = max(deepest, read.level);
     }
@@ -763,7 +874,7 @@ final class GlassEmit {
           if (held && _pages.held(read) != null) continue;
           tiles.add(
             _Tile(
-              read.output! as ReadCopy,
+              ReadCopy(read, plan, form),
               read.lead.look.page ?? PageFilter.none,
               read.geometry,
             ),
@@ -775,7 +886,9 @@ final class GlassEmit {
         if (read.level != level) continue;
         final lead = form.siteNodes[read.lead.index].site;
         lead.show(read, switch (read.source) {
-          SceneRead() => InScene(CornerRead.inFrame(read.output! as ReadCopy)),
+          SceneRead() => InScene(
+            CornerRead.inFrame(ReadCopy(read, plan, form)),
+          ),
           ImageRead() => OnPage(_pages.held(read)!),
           LiveRead() => LiveBackdrop(_liveKeyOf(read)),
         });

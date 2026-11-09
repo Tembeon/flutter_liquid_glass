@@ -449,51 +449,58 @@ class BackdropRig {
     );
   }
 
-  /// Writes what the frame's plan reads of the filter this rig last painted,
-  /// which reads an image whenever it reads a copy: the live filter reads the
-  /// whole backdrop, not the backdrop cut at the clip, so a filtered copy is
+  /// What the frame's plan reads of the filter this rig last painted, which
+  /// reads an image whenever it reads a copy: the live filter reads the whole
+  /// backdrop, not the backdrop cut at the clip, so a filtered copy is
   /// filtered over all it holds.
-  void fillPlanFacts(SiteFacts facts) {
+  SiteAsk ask() {
     final asked = _asked;
     final anchor = _slot.layer;
     _frosts = false;
     if (anchor == null || asked == null || _outline == null) {
-      facts.hidden = true;
-      return;
+      return SiteAsk.none;
     }
-    facts.noJoin = NoJoin.noMatte;
     final origin = screenOffsetOf(anchor, asked.devicePixelRatio);
     _origin = origin;
     if (origin == null) {
-      facts.turned = true;
-      facts.drawn = MatrixUtils.transformRect(
+      final drawn = MatrixUtils.transformRect(
         _toScreen(anchor, asked.devicePixelRatio),
         asked.clip,
       );
-      facts.reads = facts.drawn.inflate(asked.reach);
-      return;
+      return SiteAsk(
+        drawn: drawn,
+        reads: drawn.inflate(asked.reach),
+        noJoin: NoJoin.noMatte,
+        turned: true,
+      );
     }
     final shifted = asked.clip.shift(origin);
-    facts.drawn = shifted;
     final dpr = asked.devicePixelRatio;
     if (asked.frost case final frost?) {
       if (frostNeed(frost.sigma, devicePixelRatio: dpr) case final need?) {
-        facts.reads = shifted.inflate(need.reach);
         _frosts = true;
-        facts.look = Look(key: null, need: need, page: PageFilter.none);
-        return;
+        return SiteAsk(
+          drawn: shifted,
+          reads: shifted.inflate(need.reach),
+          look: Look(key: null, need: need, page: PageFilter.none),
+          noJoin: NoJoin.noMatte,
+        );
       }
     }
     final region = shifted.inflate(asked.reach);
-    facts.reads = region;
-    facts.look = Look(
-      key: null,
-      need: CopyNeed.exact(dpr),
-      page: PageFilter(filter: asked.filter, clip: region),
+    return SiteAsk(
+      drawn: shifted,
+      reads: region,
+      look: Look(
+        key: null,
+        need: CopyNeed.exact(dpr),
+        page: PageFilter(filter: asked.filter, clip: region),
+      ),
+      noJoin: NoJoin.noMatte,
     );
   }
 
-  // Where the last [fillPlanFacts] found the clip's coordinates on the screen,
+  // Where the last [ask] found the clip's coordinates on the screen,
   // and whether a shader frosts the copy there.
   Offset? _origin;
   bool _frosts = false;

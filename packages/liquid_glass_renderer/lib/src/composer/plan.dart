@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:liquid_glass_renderer/src/composer/geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart'
+    show BandLook, ReadPainter;
 import 'package:meta/meta.dart';
 
 /// All [compile] needs of a frame. A form answers from a layer tree; a test
@@ -180,6 +182,17 @@ final class PageFilter {
 
   /// What pages under one filter share.
   Object? get key => blur ?? filter;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PageFilter &&
+      other.filter == filter &&
+      other.blur == blur &&
+      other.clip == clip &&
+      other.blendMode == blendMode;
+
+  @override
+  int get hashCode => Object.hash(filter, blur, clip, blendMode);
 }
 
 /// What one filter's uniforms must share.
@@ -190,7 +203,6 @@ final class Look {
     required this.key,
     required this.need,
     this.drawsBand = false,
-    this.isBand = false,
     this.tint,
     this.shapes = 1,
     this.page,
@@ -212,9 +224,6 @@ final class Look {
   /// Whether this glass's shader can draw a scroll edge beside it.
   final bool drawsBand;
 
-  /// Whether this site is a scroll edge rather than glass.
-  final bool isBand;
-
   /// The tint, which one filter can draw per shape, but not beside a band.
   final Object? tint;
 
@@ -228,9 +237,131 @@ final class Look {
   /// Whether its shader draws it at the pixels of a coarser copy holding it,
   /// taking each fragment for as many device pixels.
   final bool anyGrid;
+
+  @override
+  bool operator ==(Object other) =>
+      other is Look &&
+      other.key == key &&
+      other.need == need &&
+      other.drawsBand == drawsBand &&
+      other.tint == tint &&
+      other.shapes == shapes &&
+      other.page == page &&
+      other.anyGrid == anyGrid;
+
+  @override
+  int get hashCode =>
+      Object.hash(key, need, drawsBand, tint, shapes, page, anyGrid);
 }
 
-/// One site's facts for a frame, in the screen's logical pixels.
+/// What a site asks of a frame, in the screen's logical pixels.
+///
+/// A site makes one each frame and the form keeps the last while they are
+/// equal, so the plan's inputs from a site changed exactly when its ask did.
+@internal
+@immutable
+final class SiteAsk {
+  /// Creates the ask of a site that draws this frame.
+  const SiteAsk({
+    required this.drawn,
+    required this.reads,
+    this.look = Look.none,
+    this.role,
+    this.noJoin,
+    this.turned = false,
+    this.paints,
+  }) : hidden = false;
+
+  const SiteAsk._none()
+    : drawn = Rect.zero,
+      reads = Rect.zero,
+      look = Look.none,
+      role = null,
+      noJoin = null,
+      turned = false,
+      paints = null,
+      hidden = true;
+
+  /// A site that draws nothing this frame.
+  static const SiteAsk none = SiteAsk._none();
+
+  /// What it paints.
+  final Rect drawn;
+
+  /// What it reads.
+  final Rect reads;
+
+  /// What its filter must share.
+  final Look look;
+
+  /// What the other sites of its read use of it, if they can use any.
+  final SiteRole? role;
+
+  /// What keeps it out of every group, if anything does.
+  final NoJoin? noJoin;
+
+  /// Whether a read of it must stay live: it is turned or skewed.
+  final bool turned;
+
+  /// Equal while what it paints is the same in place: what a read over it
+  /// holds of it.
+  final Object? paints;
+
+  /// Whether it draws nothing this frame.
+  final bool hidden;
+
+  @override
+  bool operator ==(Object other) =>
+      other is SiteAsk &&
+      other.drawn == drawn &&
+      other.reads == reads &&
+      other.look == look &&
+      other.role == role &&
+      other.noJoin == noJoin &&
+      other.turned == turned &&
+      other.paints == paints &&
+      other.hidden == hidden;
+
+  @override
+  int get hashCode =>
+      Object.hash(drawn, reads, look, role, noJoin, turned, paints, hidden);
+}
+
+/// What the other sites of a read use of one of them.
+@internal
+@immutable
+sealed class SiteRole {
+  const SiteRole();
+}
+
+/// Glass, which draws the read it is the first glass of, with every site the
+/// read holds.
+@internal
+final class GlassRole extends SiteRole {
+  /// Creates the role of [painter].
+  const GlassRole(this.painter);
+
+  /// What draws the read.
+  final ReadPainter painter;
+}
+
+/// A scroll edge that the glass over it can draw in its own filter.
+@internal
+final class BandRole extends SiteRole {
+  /// Creates the role of a band that looks like [look].
+  const BandRole(this.look);
+
+  /// How it looks where it lies this frame.
+  final BandLook look;
+
+  @override
+  bool operator ==(Object other) => other is BandRole && other.look == look;
+
+  @override
+  int get hashCode => look.hashCode;
+}
+
+/// One site of the frame: where the form found it and what it asks.
 @internal
 final class SiteFacts {
   /// Creates the facts of the site known as [id].
@@ -242,17 +373,8 @@ final class SiteFacts {
   /// Its place in paint order.
   int order = 0;
 
-  /// What it paints.
-  Rect drawn = Rect.zero;
-
-  /// What it reads.
-  Rect reads = Rect.zero;
-
   /// The order of the last thing painted under its body.
   int floor = -1;
-
-  /// What its filter must share.
-  Look look = Look.none;
 
   /// Inherited alpha, filters and clips.
   StateChain state = StateChain.root;
@@ -264,20 +386,32 @@ final class SiteFacts {
   /// The clip around it on the screen, if any.
   Rect? clip;
 
-  /// What keeps it out of every group, if anything does.
-  NoJoin? noJoin;
-
-  /// Whether it draws nothing this frame.
-  bool hidden = false;
-
-  /// Whether a read of it must stay live: it is turned or skewed.
-  bool turned = false;
-
-  /// Changes when what it paints changes in place.
-  Object? stamp;
-
   /// Its index in the frame's sites and in [Plan.fates].
   int index = 0;
+
+  /// What its site asks this frame.
+  SiteAsk ask = SiteAsk.none;
+
+  /// What it paints.
+  Rect get drawn => ask.drawn;
+
+  /// What it reads.
+  Rect get reads => ask.reads;
+
+  /// What its filter must share.
+  Look get look => ask.look;
+
+  /// What keeps it out of every group, if anything does.
+  NoJoin? get noJoin => ask.noJoin;
+
+  /// Whether it draws nothing this frame.
+  bool get hidden => ask.hidden;
+
+  /// Whether a read of it must stay live.
+  bool get turned => ask.turned;
+
+  /// Whether it is a scroll edge glass over it can draw.
+  bool get isBand => ask.role is BandRole;
 }
 
 /// Where a read's backdrop comes from.
@@ -318,7 +452,7 @@ final class Read {
     : band = lead.reads,
       quad = lead.drawn,
       share = lead.look.need.share,
-      shapes = lead.look.isBand ? 0 : lead.look.shapes {
+      shapes = lead.isBand ? 0 : lead.look.shapes {
     members.add(lead);
   }
 
@@ -358,10 +492,7 @@ final class Read {
   late ReadGeometry geometry;
 
   /// The frost of the glass it leads, in logical pixels: 0 under a band.
-  double get frost => lead.look.isBand ? 0 : lead.look.frost;
-
-  /// What the frame's emit keeps of the read.
-  Object? output;
+  double get frost => lead.isBand ? 0 : lead.look.frost;
 
   /// Whether what it holds differs from the last frame.
   bool changed = false;
@@ -635,8 +766,8 @@ bool _insideClips(Read read, SiteFacts site) {
 bool _lookFits(Read read, SiteFacts site) {
   final lead = read.lead.look;
   final look = site.look;
-  if (look.isBand) return false;
-  if (lead.isBand) {
+  if (site.isBand) return false;
+  if (read.lead.isBand) {
     return look.drawsBand &&
         site.drawn.overlaps(read.lead.drawn) &&
         lead.need.bandFits(look.need) &&
@@ -651,7 +782,7 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
   if (read.lead.noJoin case final reason?) {
     return 'its lead never joins: ${reason.name}';
   }
-  if (read.lead.look.isBand && !policy.bands) return 'bands stay apart';
+  if (read.lead.isBand && !policy.bands) return 'bands stay apart';
   if (read.lead.look.page != null) return 'its lead reads a page';
   if (read.source is LiveRead) return 'its lead reads live';
   if (read.lead.order < site.floor) return 'painted over after its lead';
@@ -687,7 +818,6 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
   final sites = scene.sites;
   for (var at = 0; at < sites.length; at++) {
     final site = sites[at];
-    site.index = at;
     if (site.hidden ||
         !site.drawn.overlaps(screen) ||
         (site.clip != null &&
@@ -710,7 +840,7 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
     } else {
       for (var i = reads.length - 1; i >= 0; i--) {
         final read = reads[i];
-        final band = read.lead.look.isBand;
+        final band = read.lead.isBand;
         final overGlass = read.members
             .skip(band ? 1 : 0)
             .any((m) => m.drawn.overlaps(site.drawn));
@@ -765,7 +895,7 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
       final below = reads[j];
       if (below.source is LiveRead || !_under(below, read)) continue;
       if (policy.dropsFrost &&
-          below.lead.look.isBand &&
+          below.lead.isBand &&
           below.members.length == 1 &&
           read.frost > 0 &&
           below.lead.look.frost <= read.frost) {
@@ -786,10 +916,10 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
       bakedFrost: bakedFrost(
         share: read.share,
         holdsGlass: read.holds.isNotEmpty,
-        glassFrost: lead.isBand
+        glassFrost: read.lead.isBand
             ? (read.members.length > 1 ? read.members[1].look.frost : 0)
             : lead.frost,
-        bandFrost: lead.isBand ? lead.frost : null,
+        bandFrost: read.lead.isBand ? lead.frost : null,
       ),
       frostLeftOut: frostLeftOut,
       filter: page == null ? null : (page.key, page.blendMode),
@@ -915,7 +1045,7 @@ void _groupLiveReads(List<Read> reads) {
   for (final read in reads) {
     final lead = read.lead;
     if (read.source is! LiveRead ||
-        lead.look.isBand ||
+        lead.isBand ||
         lead.noJoin == NoJoin.noMatte) {
       continue;
     }

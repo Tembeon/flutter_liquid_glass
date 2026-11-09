@@ -4,7 +4,7 @@ library liquid_glass_renderer;
 import 'package:flutter/foundation.dart' show kDebugMode;
 
 export 'src/composer/backdrop_filter_layer.dart'
-    show LiquidGlassBackdropFilterLayer, FrostBandPaint;
+    show LiquidGlassBackdropFilterLayer;
 export 'src/composer/backdrop_frost.dart' show LiquidGlassBackdropFrost;
 export 'src/composer/frame_report.dart'
     show
@@ -13,6 +13,7 @@ export 'src/composer/frame_report.dart'
         GlassReadReport,
         GlassReadSource,
         debugDumpGlassPlan;
+export 'src/composer/read.dart' show FrostBandPaint;
 export 'src/fake_glass.dart' show FakeGlass;
 export 'src/glass_glow.dart' show GlassGlow, GlassGlowLayer;
 export 'src/internal/glass_drag_builder.dart' show GestureMode;

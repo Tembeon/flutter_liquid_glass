@@ -10,7 +10,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/internal/glass_blur.dart';
@@ -1798,13 +1797,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // for, 0 where the copy is blurred or the glass unfrosted.
   ({Matrix4 screen, Rect logical, Rect drawn, double frost})? _frame;
 
+  // What the other glass of a read it is the first glass of draws through.
+  late final GlassRole _role = GlassRole(this);
+
   @override
-  void fillPlanFacts(SiteFacts facts) {
+  SiteAsk ask() {
     _frame = null;
-    facts.hidden = false;
-    facts.turned = false;
-    facts.look = Look.none;
-    facts.noJoin = _analytic
+    var noJoin = _analytic
         ? NoJoin.analytic
         : _field != null || _usesShapeAppearances
         ? NoJoin.field
@@ -1818,10 +1817,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         ? NoJoin.noMatte
         : null;
     final bounds = _filterMaterialBounds;
-    if (!_rig.hasSlot || bounds == null || drawableEmpty) {
-      facts.hidden = true;
-      return;
-    }
+    if (!_rig.hasSlot || bounds == null || drawableEmpty) return SiteAsk.none;
     final dpr = devicePixelRatio;
     final screen = filterPassTransform(
       this,
@@ -1841,19 +1837,25 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final scaleY = storage[5];
     // What the shader paints: the material, not the rect it is drawn in.
     final drawn = MatrixUtils.transformRect(screen, bounds);
-    facts.drawn = drawn;
-    facts.reads = drawn.inflate(
+    final reads = drawn.inflate(
       (backdropSamplingReach(bounds) + 1) * max(scaleX.abs(), scaleY.abs()),
     );
+    final paints = _shaderInputsRevision;
     if (scaleX <= 0 ||
         scaleY <= 0 ||
         storage[1].abs() > 1e-6 ||
         storage[4].abs() > 1e-6) {
-      facts.turned = true;
-      return;
+      return SiteAsk(
+        drawn: drawn,
+        reads: reads,
+        role: _role,
+        noJoin: noJoin,
+        turned: true,
+        paints: paints,
+      );
     }
     if ((scaleX - 1).abs() > 1e-6 || (scaleY - 1).abs() > 1e-6) {
-      facts.noJoin ??= NoJoin.scaled;
+      noJoin ??= NoJoin.scaled;
     }
     final logical = MatrixUtils.transformRect(
       screen,
@@ -1883,37 +1885,43 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final frost = need.frost;
     final appearance = _uniformAppearance ?? defaultAppearance;
     _frame = (screen: screen, logical: logical, drawn: drawn, frost: frost);
-    facts.stamp = _shaderInputsRevision;
-    facts.look = Look(
-      key: (
-        settings,
-        appearance.colorModel,
-        appearance.visibility,
-        dpr,
-        _matteScale,
-        need.frost,
-        need.share,
-        _colorModelFamily,
-        // The shader's bevel asks how large a surface is only between these
-        // sizes.
-        (_halfMinor.clamp(
-                  GlassRim.bevelShadowDepth * dpr * 3.5,
-                  GlassRim.bevelShadowDepth * dpr * 5,
-                ) *
-                64)
-            .round(),
+    return SiteAsk(
+      drawn: drawn,
+      reads: reads,
+      look: Look(
+        key: (
+          settings,
+          appearance.colorModel,
+          appearance.visibility,
+          dpr,
+          _matteScale,
+          need.frost,
+          need.share,
+          _colorModelFamily,
+          // The shader's bevel asks how large a surface is only between these
+          // sizes.
+          (_halfMinor.clamp(
+                    GlassRim.bevelShadowDepth * dpr * 3.5,
+                    GlassRim.bevelShadowDepth * dpr * 5,
+                  ) *
+                  64)
+              .round(),
+        ),
+        need: need,
+        drawsBand:
+            frost > 0 &&
+            _frostsCopies &&
+            _colorModelFamily == FinalShaderModels.ios27,
+        tint: appearance.tint,
+        shapes: _shapeData.length ~/ 12,
+        page: sigma > 0 && frosted == null
+            ? PageFilter(blur: (frostX, frostY))
+            : null,
+        anyGrid: true,
       ),
-      need: need,
-      drawsBand:
-          frost > 0 &&
-          _frostsCopies &&
-          _colorModelFamily == FinalShaderModels.ios27,
-      tint: appearance.tint,
-      shapes: _shapeData.length ~/ 12,
-      page: sigma > 0 && frosted == null
-          ? PageFilter(blur: (frostX, frostY))
-          : null,
-      anyGrid: true,
+      role: _role,
+      noJoin: noJoin,
+      paints: paints,
     );
   }
 
@@ -1953,20 +1961,19 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         devicePixelRatio;
   }
 
-  static RenderLiquidGlassLayer _glassOf(SiteFacts facts) =>
-      (facts.id as GeometryTransformTrackingLayer).trackedSite!
-          as RenderLiquidGlassLayer;
-
   // The glass of [read], its band left out.
   static List<RenderLiquidGlassLayer> _glassIn(Read read) => [
     for (final member in read.members)
-      if (!member.look.isBand) _glassOf(member),
+      if (member.ask.role case GlassRole(
+        :final RenderLiquidGlassLayer painter,
+      ))
+        painter,
   ];
 
-  static LiquidGlassBackdropFilterLayer? _bandOf(Read read) =>
-      read.lead.look.isBand
-      ? read.lead.id as LiquidGlassBackdropFilterLayer
-      : null;
+  static BandLook? _bandOf(Read read) => switch (read.lead.ask.role) {
+    BandRole(:final look) => look,
+    _ => null,
+  };
 
   // Sets the shader up to draw [read], over a matte of all its glass unless it
   // has only this.
@@ -2043,8 +2050,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final band = _bandOf(read);
     final shown = band == null
         ? null
-        : corner.frostSampling(band.shown, band.frost!.sigma)?.shown ??
-              Rect.zero;
+        : corner.frostSampling(band.shown, band.sigma)?.shown ?? Rect.zero;
     final shader = renderShader;
     final key = (
       shader,
@@ -2057,8 +2063,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       globalToMatte,
       backdropBounds,
       shown,
-      band?.bandPaint,
-      band?.screenOrigin,
+      band,
     );
     for (final (shownKey, filter) in _inSceneFilters) {
       if (shownKey == key) return filter;
@@ -2069,7 +2074,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         band,
         sampling.origin.dy,
         shown!,
-        corner.glassSampling(band.frost!.sigma).frost,
+        corner.glassSampling(band.sigma).frost,
         inPlace == null ? 0 : corner.glassSampling(frost).frost,
       );
     }
@@ -2091,8 +2096,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @override
   Object readRevision(Read read) => (
     _shaderInputsRevision,
-    _bandOf(read)?.bandPaint,
-    _bandOf(read)?.screenOrigin,
+    _bandOf(read),
     _frame!.frost,
     read.quad,
     read.band,
@@ -2112,7 +2116,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         band,
         sampling.origin.dy,
         page.fragmentsOf(band.shown),
-        page.frostOf(band.frost!.sigma),
+        page.frostOf(band.sigma),
         page.heldFrost,
       );
     }
@@ -2156,15 +2160,15 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // under the glass over the band: its fade, laid over what it reads.
   void _writeBand(
     FragmentShader shader,
-    LiquidGlassBackdropFilterLayer band,
+    BandLook band,
     double top,
     Rect shown,
     double whole,
     double frosted,
   ) {
-    final paint = band.bandPaint!;
+    final paint = band.paint;
     final dpr = band.devicePixelRatio;
-    final origin = band.screenOrigin;
+    final origin = band.origin;
     double row(double y) => (y + origin.dy) * dpr - top;
     var i = _FinalUniforms.band;
     void put(double value) => shader.setFloat(i++, value);
@@ -2436,9 +2440,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (_canRebindFilter) _bindFilter();
     _rig.showLive(group);
   }
-
-  @override
-  ReadPainter get readPainter => this;
 
   @override
   void addOutput(SceneOut out, ReadCopy outer) {

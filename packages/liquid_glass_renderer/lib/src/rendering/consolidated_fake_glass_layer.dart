@@ -490,12 +490,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   }
 
   @override
-  void fillPlanFacts(SiteFacts facts) {
-    facts.hidden = false;
-    facts.turned = false;
-    facts.look = Look.none;
-    _sharedRig.fillPlanFacts(facts);
-  }
+  SiteAsk ask() => _sharedRig.ask();
 
   @override
   void beginFate(Fate fate) {

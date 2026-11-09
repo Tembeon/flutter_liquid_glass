@@ -172,4 +172,41 @@ void main() {
       );
     });
   });
+
+  group('asks', () {
+    test('an equal ask is kept; another replans and logs what it draws', () {
+      final form = Form();
+      final root = ContainerLayer();
+      final site = SiteFacts(Object());
+      const rect = Rect.fromLTWH(10, 10, 44, 44);
+      SiteAsk ask({NoJoin? noJoin, Object? paints}) => SiteAsk(
+        drawn: rect,
+        reads: rect.inflate(8),
+        noJoin: noJoin,
+        paints: paints,
+      );
+      form.lower(root, _dpr, GeneratedLayers.screen);
+      form.noteAsk(site, ask());
+      final first = site.ask;
+
+      form.lower(root, _dpr, GeneratedLayers.screen);
+      form.noteAsk(site, ask());
+      expect(identical(site.ask, first), isTrue);
+      expect(form.asksChanged, isFalse);
+      expect(form.dirty.isEmpty, isTrue);
+
+      form.lower(root, _dpr, GeneratedLayers.screen);
+      form.noteAsk(site, ask(noJoin: NoJoin.field));
+      expect(form.asksChanged, isTrue);
+      expect(form.dirty.isEmpty, isTrue, reason: 'it draws the same');
+
+      form.lower(root, _dpr, GeneratedLayers.screen);
+      form.noteAsk(site, ask(noJoin: NoJoin.field, paints: 1));
+      expect(form.dirty.meets(1, rect), isTrue);
+
+      form.lower(root, _dpr, GeneratedLayers.screen);
+      form.noteAsk(site, SiteAsk.none);
+      expect(form.dirty.meets(1, rect), isTrue, reason: 'what it drew left');
+    });
+  });
 }

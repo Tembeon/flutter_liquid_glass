@@ -52,6 +52,10 @@ final class Form implements Scenery {
   bool get sitesHeld => _sitesHeld;
   bool _sitesHeld = false;
 
+  /// Whether a site asks this frame what it did not ask the last.
+  bool get asksChanged => _asksChanged;
+  bool _asksChanged = false;
+
   final List<SiteNode> _siteNodes = [];
 
   /// The site nodes, parallel to [sites].
@@ -82,6 +86,7 @@ final class Form implements Scenery {
   void lower(ContainerLayer root, double devicePixelRatio, Size physicalSize) {
     frame++;
     dirty.clear();
+    _asksChanged = false;
     _next = 0;
     _count = 0;
     _volatileCount = 0;
@@ -150,14 +155,20 @@ final class Form implements Scenery {
   /// The node at [order] in paint order.
   FormNode nodeAt(int order) => _flat[order];
 
-  /// Notes that [site]'s glass moved or changed, which what lies over it reads.
-  void noteSiteDrawn(SiteFacts site, Rect before, Object? stampBefore) {
+  /// Takes what [site] asks this frame, and logs where its glass moved or
+  /// changed, which what lies over it reads.
+  void noteAsk(SiteFacts site, SiteAsk ask) {
+    final last = site.ask;
+    if (ask != last) {
+      site.ask = ask;
+      _asksChanged = true;
+    }
     final (state, clip, hidden) = site.noted;
     final around =
         site.state.same(state) && site.clip == clip && site.hidden == hidden;
     site.noted = (site.state, site.clip, site.hidden);
-    if (around && before == site.drawn && stampBefore == site.stamp) return;
-    dirty.add(site.order, _union(before, site.drawn));
+    if (around && last.drawn == ask.drawn && last.paints == ask.paints) return;
+    dirty.add(site.order, _union(last.drawn, ask.drawn));
   }
 
   /// Finds where each site may share a filter, once its rects are known.
@@ -863,6 +874,7 @@ final class SiteNode extends ShiftNode {
     facts.order = form._next;
     facts.state = outside.state;
     facts.clip = outside.clip;
+    facts.index = form._sites.length;
     form._sites.add(facts);
     form._siteNodes.add(this);
     site.formNode = this;

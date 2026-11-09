@@ -61,8 +61,8 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
   /// while the layer composites (see [GlassComposer.repaint]).
   void onTransformChanged();
 
-  /// Writes what the frame's plan reads of this site.
-  void fillPlanFacts(SiteFacts facts) => facts.hidden = true;
+  /// What this site asks of the frame (see [PlanSite.ask]).
+  SiteAsk ask() => SiteAsk.none;
 
   /// Whether [onTransformChanged] would repaint, so that it must run before
   /// paint for the repaint to land in the same frame.
@@ -90,9 +90,6 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
 
   /// See [PlanSite.addOutput].
   void addOutput(SceneOut out, ReadCopy outer) {}
-
-  /// See [PlanSite.readPainter].
-  ReadPainter? get readPainter => null;
 }
 
 @internal
@@ -120,12 +117,9 @@ class GeometryTransformTrackingLayer extends OffsetLayer
   }
 
   @override
-  void fillPlanFacts(SiteFacts facts) {
+  SiteAsk ask() {
     final site = _site;
-    if (site == null || !site.attached) {
-      facts.hidden = true;
-      return;
-    }
+    if (site == null || !site.attached) return SiteAsk.none;
     final last = _lastTransform;
     final node = formNode;
     if (last != null && site.mayRest && (node?.rests ?? false)) {
@@ -152,7 +146,7 @@ class GeometryTransformTrackingLayer extends OffsetLayer
       }
       site.onPreparing();
     }
-    site.fillPlanFacts(facts);
+    return site.ask();
   }
 
   static bool _near(Matrix4 a, Matrix4 b) {
@@ -200,9 +194,6 @@ class GeometryTransformTrackingLayer extends OffsetLayer
 
   @override
   bool get outputsInPlace => false;
-
-  @override
-  ReadPainter? get readPainter => _live ? _site!.readPainter : null;
 
   @override
   void endFrame() => _composited = null;

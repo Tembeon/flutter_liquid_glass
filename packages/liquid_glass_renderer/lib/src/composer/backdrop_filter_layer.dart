@@ -156,59 +156,79 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   /// The glass that draws this layer's frost in its filter, if any.
   static ReadPainter? _painterOf(Fate fate) => switch (fate) {
     Leads(:final read) when read.members.length > 1 =>
-      (read.members[1].id as PlanSite).readPainter,
+      switch (read.members[1].ask.role) {
+        GlassRole(:final painter) => painter,
+        _ => null,
+      },
     _ => null,
   };
 
   @override
-  void fillPlanFacts(SiteFacts facts) {
-    facts.hidden = false;
-    facts.turned = false;
-    facts.noJoin = NoJoin.noMatte;
-    facts.look = Look.none;
-    facts.stamp = (_filter, _frost, bandPaint, _blendMode);
+  SiteAsk ask() {
+    final paints = (_filter, _frost, bandPaint, _blendMode);
     final screen = formNode?.screenTransform(Offset.zero);
     final origin = screen == null
         ? screenOffsetOf(this, _devicePixelRatio)
         : MatrixUtils.getAsTranslation(screen);
     _origin = origin;
     if (origin == null) {
-      facts.turned = true;
-      facts.drawn = screen == null
+      final drawn = screen == null
           ? _clip
           : MatrixUtils.transformRect(screen, _clip);
-      facts.reads = facts.drawn.inflate(_reach);
-      return;
+      return SiteAsk(
+        drawn: drawn,
+        reads: drawn.inflate(_reach),
+        noJoin: NoJoin.noMatte,
+        turned: true,
+        paints: paints,
+      );
     }
     final shifted = _clip.shift(origin);
-    facts.drawn = shifted;
     final dpr = _devicePixelRatio;
-    final need = switch (_frost) {
-      final frost? => frostNeed(frost.sigma, devicePixelRatio: dpr),
-      null => null,
-    };
-    if (need == null) {
-      facts.reads = shifted.inflate(_reach);
-      facts.look = Look(
-        key: null,
-        need: CopyNeed.exact(dpr),
-        page: PageFilter(
-          filter: _filter,
-          clip: shifted,
-          blendMode: _blendMode,
+    final frost = _frost;
+    final need = frost == null
+        ? null
+        : frostNeed(frost.sigma, devicePixelRatio: dpr);
+    if (frost == null || need == null) {
+      return SiteAsk(
+        drawn: shifted,
+        reads: shifted.inflate(_reach),
+        look: Look(
+          key: null,
+          need: CopyNeed.exact(dpr),
+          page: PageFilter(
+            filter: _filter,
+            clip: shifted,
+            blendMode: _blendMode,
+          ),
         ),
+        noJoin: NoJoin.noMatte,
+        paints: paints,
       );
-      return;
     }
-    facts.reads = shifted.inflate(need.reach);
     final over = _blendMode == BlendMode.srcOver;
-    final band = over && bandPaint != null;
-    if (band) facts.noJoin = null;
-    facts.look = Look(
-      key: 'band',
-      need: need,
-      isBand: band,
-      page: over ? null : PageFilter.none,
+    final paint = over ? bandPaint : null;
+    return SiteAsk(
+      drawn: shifted,
+      reads: shifted.inflate(need.reach),
+      look: Look(
+        key: 'band',
+        need: need,
+        page: over ? null : PageFilter.none,
+      ),
+      role: paint == null
+          ? null
+          : BandRole(
+              BandLook(
+                sigma: frost.sigma,
+                paint: paint,
+                origin: origin,
+                shown: shifted,
+                devicePixelRatio: dpr,
+              ),
+            ),
+      noJoin: paint == null ? NoJoin.noMatte : null,
+      paints: paints,
     );
   }
 
@@ -365,9 +385,6 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   bool get outputsInPlace => true;
 
   @override
-  ReadPainter? get readPainter => null;
-
-  @override
   void endFrame() {}
 
   @override
@@ -403,77 +420,6 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     _scene = null;
     super.dispose();
   }
-}
-
-/// What a scroll edge paints over its frost, in its layer's coordinates, and
-/// how its frost changes the color.
-@immutable
-final class FrostBandPaint {
-  /// Creates the paint.
-  const FrostBandPaint({
-    required this.fade,
-    required this.whole,
-    required this.gone,
-    required this.lineStart,
-    required this.lineEnd,
-    required this.lineGray,
-    required this.presence,
-    required this.saturation,
-    required this.brightness,
-  });
-
-  @override
-  bool operator ==(Object other) =>
-      other is FrostBandPaint &&
-      other.fade == fade &&
-      other.whole == whole &&
-      other.gone == gone &&
-      other.lineStart == lineStart &&
-      other.lineEnd == lineEnd &&
-      other.lineGray == lineGray &&
-      other.presence == presence &&
-      other.saturation == saturation &&
-      other.brightness == brightness;
-
-  @override
-  int get hashCode => Object.hash(
-    fade,
-    whole,
-    gone,
-    lineStart,
-    lineEnd,
-    lineGray,
-    presence,
-    saturation,
-    brightness,
-  );
-
-  /// The fade, straight.
-  final Color fade;
-
-  /// The row where the fade is whole.
-  final double whole;
-
-  /// The row where the fade is gone.
-  final double gone;
-
-  /// Where the hairline starts.
-  final double lineStart;
-
-  /// Where the hairline ends.
-  final double lineEnd;
-
-  /// The hairline's gray.
-  final double lineGray;
-
-  /// How much of the band shows.
-  final double presence;
-
-  /// The saturation of what lies under the band.
-  final double saturation;
-
-  /// The brightness added.
-  final double brightness;
 }
 
 // A frost or a group's glass drawn over a layer of the scene.

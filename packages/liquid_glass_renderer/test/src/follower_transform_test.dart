@@ -132,8 +132,8 @@ class _RenderProbe extends RenderProxyBox
   void onTransformChanged() {}
 
   @override
-  void fillPlanFacts(SiteFacts facts) {
+  SiteAsk ask() {
     composed.add(MatrixUtils.transformPoint(transformToScreen(), Offset.zero));
-    super.fillPlanFacts(facts);
+    return super.ask();
   }
 }
