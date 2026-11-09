@@ -2080,8 +2080,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       band?.bandPaint,
       band?.screenOrigin,
     );
-    if (key == _inSceneFilterKey) return _inSceneFilter!;
-    _inSceneFilterKey = key;
+    for (final (shownKey, filter) in _inSceneFilters) {
+      if (shownKey == key) return filter;
+    }
     if (band != null) {
       _writeBand(
         shader,
@@ -2093,12 +2094,15 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       );
     }
     try {
-      return _inSceneFilter = _readingCopy<ImageFilter>(
+      final filter = _readingCopy<ImageFilter>(
         sampling,
         globalToMatte: globalToMatte,
         backdropBounds: backdropBounds,
         draw: shaderFilterNow,
       );
+      if (_inSceneFilters.length == 2) _inSceneFilters.removeAt(0);
+      _inSceneFilters.add((key, filter));
+      return filter;
     } finally {
       if (band != null) shader.setFloat(_FinalUniforms.overlay + 3, 0);
     }
@@ -2546,8 +2550,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     markNeedsPaint();
   }
 
-  ImageFilter? _inSceneFilter;
-  Object? _inSceneFilterKey;
+  // Two: glass that leads a read and is held by a read over it draws over
+  // both copies each frame.
+  final List<(Object, ImageFilter)> _inSceneFilters = [];
 
   // Draws the glass with [draw] over a copy read as [sampling], with the
   // shader's uniforms set for it, and sets

@@ -15,23 +15,25 @@ import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
 
-Widget _glass(Rect rect, double highlight) => Positioned.fromRect(
-  rect: rect,
-  child: LiquidGlassLayer(
-    // A frost that a copy at half the screen's pixels bakes in place.
-    settings: LiquidGlassSettings.ios27RegularLight(
-      frost: 1.5,
-    ).copyWith(highlight: highlight),
-    child: const LiquidGlass(
-      shape: LiquidRoundedSuperellipse(borderRadius: 30),
-      child: SizedBox.expand(),
-    ),
-  ),
-);
+Widget _glass(Rect rect, double highlight, {double frost = 1.5}) =>
+    Positioned.fromRect(
+      rect: rect,
+      child: LiquidGlassLayer(
+        // A frost that a copy at half the screen's pixels bakes in place.
+        settings: LiquidGlassSettings.ios27RegularLight(
+          frost: frost,
+        ).copyWith(highlight: highlight),
+        child: const LiquidGlass(
+          shape: LiquidRoundedSuperellipse(borderRadius: 30),
+          child: SizedBox.expand(),
+        ),
+      ),
+    );
 
 void main() {
   setUp(() => GlassCopies.debugEnabledOverride = true);
@@ -93,5 +95,52 @@ void main() {
     expect(copy.layer.top, lessThan(image.band.top));
     expect(GlassCopies.keepsWhole(copy.layer, image.band), isTrue);
     expect(copy.regionIn(image, null).top, image.band.top);
+  });
+
+  testWidgets('glass held by a copy over it keeps its filters while it holds '
+      'still', (tester) async {
+    if (!ui.ImageFilter.isShaderFilterSupported) return;
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    Plan? plan;
+    GlassComposer.debugOnPlan = (_, next) => plan = next;
+
+    Widget frame(double spot) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: Stack(
+        children: [
+          const Positioned.fill(child: ColoredBox(color: Color(0xFF00E000))),
+          // Changes under the glass every frame, so that each frame plans.
+          Positioned(
+            left: spot,
+            top: 100,
+            width: 20,
+            height: 20,
+            child: const ColoredBox(color: Color(0xFF00D000)),
+          ),
+          _glass(const Rect.fromLTWH(40, 80, 80, 80), 0.3),
+          _glass(const Rect.fromLTWH(20, 60, 300, 200), 0.4, frost: 4),
+        ],
+      ),
+    );
+    await tester.pumpWidget(frame(60));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 200)),
+    );
+    for (var i = 0; i < 4; i++) {
+      await tester.pumpWidget(frame(60.0 + i));
+    }
+    final [glass, sheet] = plan!.reads;
+    expect(glass.source, isA<SceneRead>());
+    expect(sheet.source, isA<SceneRead>());
+    expect(sheet.downscale, greaterThan(1));
+    expect(sheet.holds, contains(glass));
+
+    GlassWork.filters = 0;
+    for (var i = 0; i < 8; i++) {
+      await tester.pumpWidget(frame(64.0 + i));
+    }
+    expect(GlassWork.filters, 0);
   });
 }

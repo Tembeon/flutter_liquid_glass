@@ -48,6 +48,7 @@ Widget _page(
   _CapturingView view,
   ScrollController controller, {
   required bool hard,
+  bool tints = false,
 }) => View(
   view: view,
   child: Directionality(
@@ -83,14 +84,37 @@ Widget _page(
           Positioned(
             right: 16,
             top: 10,
-            width: 44,
+            width: tints ? 100 : 44,
             height: 44,
             child: LiquidGlassLayer(
               settings: LiquidGlassSettings.ios27RegularLight(),
-              child: const LiquidGlass(
-                shape: LiquidRoundedSuperellipse(borderRadius: 22),
-                child: SizedBox.expand(),
-              ),
+              child: tints
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        for (final tint in [
+                          const Color(0x40FF3B30),
+                          const Color(0x40007AFF),
+                        ])
+                          SizedBox.square(
+                            dimension: 44,
+                            child: LiquidGlass(
+                              shape: const LiquidRoundedSuperellipse(
+                                borderRadius: 22,
+                              ),
+                              appearance:
+                                  LiquidGlassAppearance.ios27RegularLight(
+                                    tint: tint,
+                                  ),
+                              child: const SizedBox.expand(),
+                            ),
+                          ),
+                      ],
+                    )
+                  : const LiquidGlass(
+                      shape: LiquidRoundedSuperellipse(borderRadius: 22),
+                      child: SizedBox.expand(),
+                    ),
             ),
           ),
         ],
@@ -105,6 +129,7 @@ Future<(Uint8List, bool)> _draw(
   required bool hard,
   required bool groups,
   bool held = false,
+  bool tints = false,
 }) async {
   GlassComposer.debugPolicy = Policy(bands: groups);
   final controller = ScrollController();
@@ -114,7 +139,7 @@ Future<(Uint8List, bool)> _draw(
     wrapWithView: false,
   );
   await tester.pumpWidget(
-    _page(view, controller, hard: hard),
+    _page(view, controller, hard: hard, tints: tints),
     wrapWithView: false,
   );
   await tester.runAsync(
@@ -201,5 +226,34 @@ void main() {
     }
     final mean = sum / (alone.length * 3 / 4);
     expect(mean, lessThan(2));
+  });
+
+  // Glass tinted shape by shape draws with a variant that has no band, so it
+  // stays apart from the edge.
+  testWidgets('glass tinted per shape over an edge draws as alone', (
+    tester,
+  ) async {
+    if (!ui.ImageFilter.isShaderFilterSupported) return;
+    final view = _CapturingView(tester);
+    final (alone, _) = await _draw(
+      tester,
+      view,
+      hard: false,
+      groups: false,
+      tints: true,
+    );
+    final (merged, mergedOn) = await _draw(
+      tester,
+      view,
+      hard: false,
+      groups: true,
+      tints: true,
+    );
+    expect(mergedOn, isFalse);
+    var sum = 0;
+    for (var i = 0; i < alone.length; i++) {
+      if (i % 4 != 3) sum += (alone[i] - merged[i]).abs();
+    }
+    expect(sum / (alone.length * 3 / 4), lessThan(0.5));
   });
 }
