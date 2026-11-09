@@ -1,3 +1,6 @@
+// Plan values are filled one statement per field, without cascades.
+// ignore_for_file: cascade_invocations
+
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -596,6 +599,10 @@ final class ReadMemo {
   /// The frame its image was drawn, if it has one.
   int? boughtAt;
 
+  /// Whether the target budget bought its image, before the read held still
+  /// long enough to pay for it: losing that image is no miss.
+  bool forBudget = false;
+
   /// Where its backdrop's pixels lay: its image's, if it has one.
   ReadGeometry? geometry;
 
@@ -954,15 +961,22 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
         ? frame
         : memo?.changedAt ?? scene.lastChangedUnder(read.lead.order, read.band);
     next.misses = memo?.misses ?? 0;
+    next.forBudget = memo?.forBudget ?? false;
     final rent = prices.rent(read.band, read.share);
     var boughtAt = memo?.boughtAt;
     if (room != null &&
         (changed ||
             !last!.servesAsImage(geometry) ||
             !_sameIds(memo!.holds, holds))) {
-      // A hold that ended before it paid makes the next wait longer.
+      // A hold that ended before it paid makes the next wait longer, unless
+      // the budget bought the image.
       final held = frame - boughtAt!;
-      next.misses = held < rent ? math.min(next.misses + 1, 6) : 0;
+      if (held >= rent) {
+        next.misses = 0;
+      } else if (!next.forBudget) {
+        next.misses = math.min(next.misses + 1, 6);
+      }
+      next.forBudget = false;
       room = null;
       boughtAt = null;
     }
@@ -998,10 +1012,17 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
     for (final read in order) {
       if (issued <= policy.maxTargets) break;
       if (read.source is! SceneRead || read.limit != ReadLimit.none) continue;
+      final id = read.lead.id;
+      final rent = prices.rent(read.band, read.share);
       read.source = const ImageRead(held: false);
-      read.geometry = read.geometry.withRoom(read.band, screen);
-      edits.writes[read.lead.id]?.geometry = read.geometry;
-      edits.writes[read.lead.id]?.boughtAt = frame;
+      read.geometry = read.geometry.withRoom(
+        _withRoom(read, ledger.reads[id], rent, screen),
+        screen,
+      );
+      final next = edits.writes[id]!;
+      next.geometry = read.geometry;
+      next.boughtAt = frame;
+      next.forBudget = true;
       issued = targets();
       if (explain) notes.add('${read.lead.id}: over budget, reads an image');
     }

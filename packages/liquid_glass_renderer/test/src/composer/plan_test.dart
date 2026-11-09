@@ -402,6 +402,34 @@ void main() {
       expect(waitForImage(), greaterThan(firstNeed!));
     });
 
+    test('an image the budget buys has room and losing it is no miss', () {
+      final site = _site(0, Rect.zero);
+      final ledger = Ledger();
+      const policy = Policy(maxTargets: 0);
+      Read frame(int frame, double left) {
+        final drawn = Rect.fromLTWH(left, 200, 120, 60);
+        site.ask = SiteAsk(
+          drawn: drawn,
+          reads: drawn.inflate(8),
+          look: _look(0),
+        );
+        return _plan(
+          _Scene([site]),
+          ledger: ledger,
+          policy: policy,
+          frame: frame,
+        ).reads.single;
+      }
+
+      frame(1, 40);
+      // Moving out of a room as wide as its band, the image goes.
+      expect(frame(2, 44).source, const ImageRead(held: false));
+      expect(ledger.reads.values.single.misses, 0);
+      // The image bought then takes room for the glass that moves.
+      expect(frame(3, 48).source, const ImageRead(held: true));
+      expect(ledger.reads.values.single.misses, 0);
+    });
+
     test('over content that changes by itself nothing holds', () {
       final scene = _Scene(_row(1));
       scene.sites.first.order = 5;
