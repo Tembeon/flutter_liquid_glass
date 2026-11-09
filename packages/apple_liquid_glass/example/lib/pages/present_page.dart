@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_example/backdrop.dart';
 import 'package:apple_liquid_glass_example/pages/music_page.dart';
+import 'package:apple_liquid_glass_example/pages/video_page.dart';
 import 'package:apple_liquid_glass_example/widgets.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/widgets.dart';
@@ -429,7 +430,7 @@ class _PresentPageState extends State<PresentPage> {
             header: const Text('Pages'),
             footer: const Text(
               'A page with a tab bar of its own that tucks away on scroll and '
-              'carries a mini player.',
+              'carries a mini player, and a video playing under glass.',
             ),
             children: [
               _row(
@@ -439,6 +440,16 @@ class _PresentPageState extends State<PresentPage> {
                 () => Navigator.of(context).push(
                   GlassPageRoute<void>(
                     builder: (context) => const MusicPage(),
+                  ),
+                ),
+              ),
+              _row(
+                CupertinoIcons.play_rectangle_fill,
+                GlassColors.systemBlue,
+                'Video',
+                () => Navigator.of(context).push(
+                  GlassPageRoute<void>(
+                    builder: (context) => const VideoPage(),
                   ),
                 ),
               ),
