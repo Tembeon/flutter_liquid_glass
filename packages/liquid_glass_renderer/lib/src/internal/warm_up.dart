@@ -8,6 +8,7 @@ import 'package:liquid_glass_renderer/src/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/internal/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/internal/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
+import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
 import 'package:liquid_glass_renderer/src/internal/paint_fake_glass_surface.dart';
 import 'package:liquid_glass_renderer/src/internal/shader_filter.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_appearance.dart';
@@ -54,7 +55,10 @@ Future<void> warmLiquidGlassPipelines(
 ) async {
   final images = <ui.Image>[];
   try {
-    final appearance = List<double>.filled(16 * 2 * 4, 0);
+    final appearance = List<double>.filled(
+      geometryMaxShapesPerDraw * 2 * 4,
+      0,
+    );
     // The matte scale is a uniform: any one draws with the same pipelines.
     ui.Image render({
       bool writeMatte = true,

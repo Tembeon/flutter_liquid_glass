@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
+import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
 import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_render_scope.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
@@ -37,7 +38,7 @@ class LiquidGlassBlendGroup extends StatefulWidget {
   ///
   /// Shapes beyond it are not drawn; debug builds print a warning when that
   /// happens. Split the glass across several layers if you need more.
-  static const int maxShapesPerCluster = 16;
+  static const int maxShapesPerCluster = geometryMaxShapesPerDraw;
 
   /// Retrieves the [GlassGroupLink] from the nearest ancestor
   /// [LiquidGlassBlendGroup], or null if none is found.

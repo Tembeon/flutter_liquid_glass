@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:liquid_glass_renderer/src/composer/geometry.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart'
     show BandLook, ReadPainter;
+import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
 import 'package:meta/meta.dart';
 
 /// All [compile] needs of a frame. A form answers from a layer tree; a test
@@ -680,7 +681,7 @@ final class Policy {
   /// Creates a policy.
   const Policy({
     this.maxTargets = 8,
-    this.maxShapes = 16,
+    this.maxShapes = geometryMaxShapesPerDraw,
     this.bands = true,
     this.copies = true,
     this.dropsFrost = true,

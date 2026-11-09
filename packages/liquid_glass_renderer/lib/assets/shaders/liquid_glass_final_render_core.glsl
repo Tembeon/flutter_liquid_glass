@@ -38,6 +38,10 @@ precision mediump float;
 #define FROST_BAND 0
 #endif
 
+// The shapes one matte draw holds (MAX_SHAPES of the geometry shaders): the
+// material map stores a shape's index as (index + 0.5) / MATTE_MAX_SHAPES.
+#define MATTE_MAX_SHAPES 16
+
 #include <flutter/runtime_effect.glsl>
 #include "render.glsl"
 #include "glass_glow.glsl"
@@ -885,14 +889,14 @@ void main() {
                 : 1.0 - lowerWeight;
         }
         int primary = int(clamp(
-            floor(contributors.r * 16.0),
+            floor(contributors.r * float(MATTE_MAX_SHAPES)),
             0.0,
-            15.0
+            float(MATTE_MAX_SHAPES - 1)
         ));
         int secondary = int(clamp(
-            floor(contributors.g * 16.0),
+            floor(contributors.g * float(MATTE_MAX_SHAPES)),
             0.0,
-            15.0
+            float(MATTE_MAX_SHAPES - 1)
         ));
         float secondaryWeight = 1.0 - primaryWeight;
         vec4 primaryTint = shapeLookup(

@@ -418,7 +418,7 @@ class FlutterGpuGeometryRenderer {
     );
     final materialWidth = writeTintOnly
         ? materialMapWidth
-        : math.max(16, materialMapWidth);
+        : math.max(maxShapesPerDraw, materialMapWidth);
     final materialHeight = writeTintOnly
         ? materialMapHeight
         : materialMapHeight + 2;
@@ -438,7 +438,7 @@ class FlutterGpuGeometryRenderer {
         width: materialWidth,
         height: materialHeight,
         maxWidth: math.max(
-          16,
+          maxShapesPerDraw,
           (viewWidth + materialRasterScale - 1) ~/ materialRasterScale,
         ),
         maxHeight:
@@ -1072,19 +1072,21 @@ class FlutterGpuGeometryRenderer {
       boundsData: boundsData,
     );
 
-    if (appearanceData.isNotEmpty && appearanceData.length != 16 * 2 * 4) {
+    if (appearanceData.isNotEmpty &&
+        appearanceData.length != maxShapesPerDraw * 2 * 4) {
       throw ArgumentError.value(
         appearanceData.length,
         'appearanceData.length',
-        'must contain two vec4 rows for each of 16 shapes',
+        'must contain two vec4 rows for each of $maxShapesPerDraw shapes',
       );
     }
     if (appearanceData.isNotEmpty) {
       final shapeTintsStartIndex = _offsetShapeTints ~/ 4;
       final shapeResponsesStartIndex = _offsetShapeResponses ~/ 4;
-      for (var i = 0; i < 16 * 4; i++) {
+      for (var i = 0; i < maxShapesPerDraw * 4; i++) {
         floatData[shapeTintsStartIndex + i] = appearanceData[i];
-        floatData[shapeResponsesStartIndex + i] = appearanceData[16 * 4 + i];
+        floatData[shapeResponsesStartIndex + i] =
+            appearanceData[maxShapesPerDraw * 4 + i];
       }
     }
   }
@@ -1101,7 +1103,8 @@ class FlutterGpuGeometryRenderer {
     floatData[_offsetOpticalProps ~/ 4 + 3] = numShapes;
 
     final shapeDataStartIndex = _offsetShapeData ~/ 4;
-    final shapeFloats = shapeData.length < 192 ? shapeData.length : 192;
+    const rows = maxShapesPerDraw * 12;
+    final shapeFloats = math.min(shapeData.length, rows);
     for (var i = 0; i < shapeFloats; i++) {
       floatData[shapeDataStartIndex + i] = shapeData[i];
     }
@@ -1111,7 +1114,7 @@ class FlutterGpuGeometryRenderer {
     _writtenShapeFloats = shapeFloats;
 
     final rseDataStartIndex = _offsetRseData ~/ 4;
-    final rseFloats = rseData.length < 192 ? rseData.length : 192;
+    final rseFloats = math.min(rseData.length, rows);
     for (var i = 0; i < rseFloats; i++) {
       floatData[rseDataStartIndex + i] = rseData[i];
     }
@@ -1121,8 +1124,8 @@ class FlutterGpuGeometryRenderer {
     _writtenRseFloats = rseFloats;
 
     // A pair's bottom half sits in the second half of uRseData.
-    final lowerStartIndex = rseDataStartIndex + 192;
-    final lowerFloats = rseLowerData.length < 192 ? rseLowerData.length : 192;
+    final lowerStartIndex = rseDataStartIndex + rows;
+    final lowerFloats = math.min(rseLowerData.length, rows);
     for (var i = 0; i < lowerFloats; i++) {
       floatData[lowerStartIndex + i] = rseLowerData[i];
     }
@@ -1133,8 +1136,8 @@ class FlutterGpuGeometryRenderer {
 
     // Shapes without bounds are never culled.
     final boundsStartIndex = _offsetShapeBounds ~/ 4;
-    final boundsFloats = math.min(boundsData.length, 16 * 4);
-    for (var i = 0; i < 16 * 4; i++) {
+    final boundsFloats = math.min(boundsData.length, maxShapesPerDraw * 4);
+    for (var i = 0; i < maxShapesPerDraw * 4; i++) {
       floatData[boundsStartIndex + i] = i < boundsFloats
           ? boundsData[i]
           : (i % 4 < 2 ? -1e9 : 1e9);

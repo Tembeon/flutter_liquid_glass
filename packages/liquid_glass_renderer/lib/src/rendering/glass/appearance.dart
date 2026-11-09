@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:liquid_glass_renderer/src/internal/final_shader_variant.dart';
+import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_color_model.dart';
 
@@ -89,7 +90,7 @@ FinalShaderModels colorModelFamily(List<LiquidGlassAppearance> shaded) {
   return first == null ? FinalShaderModels.direct : FinalShaderModels.ios27;
 }
 
-/// The 16 rows of tints and material factors the matte's material map is
+/// The rows of tints and material factors the matte's material map is
 /// drawn from, one per shape of [appearances], [fallback] past them.
 ///
 /// Only mixed frames draw it, so rows past the shapes take the fallback,
@@ -103,13 +104,13 @@ List<double> appearanceLookupData(
   LiquidGlassAppearance at(int index) =>
       index < appearances.length ? appearances[index] : fallback;
   return <double>[
-    for (var i = 0; i < 16; i++) ...<double>[
+    for (var i = 0; i < geometryMaxShapesPerDraw; i++) ...<double>[
       at(i).tint.r,
       at(i).tint.g,
       at(i).tint.b,
       at(i).tint.a,
     ],
-    for (var i = 0; i < 16; i++) ...<double>[
+    for (var i = 0; i < geometryMaxShapesPerDraw; i++) ...<double>[
       at(i).colorModel.saturation / 4,
       at(i).colorModel.transmissionGamma / 4,
       at(i).colorModel.vibrancy / 4,

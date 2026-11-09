@@ -583,9 +583,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// on it, which is cheaper to shade.
   bool analyticGeometry = false;
 
-  /// The most shapes an analytic frame evaluates (ANALYTIC_MAX_SHAPES).
-  static const int analyticMaxShapes = AnalyticShapes.maxShapes;
-
   /// How many frames after its latest analytic frame the layer encodes a
   /// matte to rest on.
   static const int analyticRestFrames = 2;
@@ -2343,7 +2340,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _ when rest => 'rest',
       _ when _field != null => 'field',
       _ when kind.mixed => 'shape appearances',
-      _ when numShapes > analyticMaxShapes => 'more than $analyticMaxShapes',
+      _ when numShapes > AnalyticShapes.maxShapes =>
+        'more than ${AnalyticShapes.maxShapes}',
       _
           when shapes.emptyTests(textureWidth * textureHeight) >
               analyticMaxEmptyTests =>
