@@ -7,7 +7,9 @@
 #define MAX_SHAPES 16
 
 layout(std140) uniform GeometryUniforms {
-    // x: how far outside the shapes the atlas holds exact texels.
+    // x: how far outside the shapes the atlas holds exact texels. y: how
+    // many shapes follow. z: how far below its nearest shape their smooth
+    // unions can reach, a quarter of every blend radius.
     vec4 uProps;
     vec4 uShapeData[MAX_SHAPES * 3];
     vec4 uRseData[MAX_SHAPES * 6];
@@ -20,6 +22,7 @@ layout(std140) uniform GeometryUniforms {
 
 #define uReachOutward (geometryUniforms.uProps.x)
 #define uNumShapes (geometryUniforms.uProps.y)
+#define uSmoothingBudget (geometryUniforms.uProps.z)
 #define uShapeData geometryUniforms.uShapeData
 #define uRseData geometryUniforms.uRseData
 #define uShapeBounds geometryUniforms.uShapeBounds

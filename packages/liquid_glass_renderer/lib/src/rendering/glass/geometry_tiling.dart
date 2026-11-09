@@ -81,7 +81,14 @@ enum TileKind {
 @immutable
 final class TileRun {
   /// Creates the run.
-  const TileRun(this.row, this.column, this.length, this.shapes, this.texel);
+  const TileRun(
+    this.row,
+    this.column,
+    this.length,
+    this.shapes,
+    this.texel, [
+    this.members = 0,
+  ]);
 
   /// The table row.
   final int row;
@@ -97,6 +104,19 @@ final class TileRun {
 
   /// The side of a texel in buffer pixels: 1, or [GlassReach.coarseTexel].
   final int texel;
+
+  /// The shapes of the set the run's texels evaluate, where every other
+  /// shape provably leaves them as they are: up to [Tiling.maxListed] of
+  /// them in chain order, a byte each from the lowest, holding the shape's
+  /// place in the set plus one, and 0x80 where it is the first of its group
+  /// among them. 0 when the texels evaluate the whole set.
+  final int members;
+
+  /// [members] as the places in the set and whether each starts its group.
+  List<(int, bool)> get listed => [
+    for (var word = members; word != 0; word >>= 8)
+      ((word & 0x7f) - 1, word & 0x80 != 0),
+  ];
 }
 
 /// What the shapes of a buffer whose glass differs in tint or material look
@@ -266,12 +286,36 @@ final class Tiling {
     final rows = _tilesOver(height);
     // A read blends texels up to a texel away; past two the field's
     // curvature is gentle enough for a linear read.
-    final bounds = [
+    List<_ShapeBounds> over(int cell) => [
       for (var i = 0; i < shapes.count; i++)
-        _ShapeBounds.of(shapes, i, foldMargin: 2.0 * reach.coarseTexel),
+        _ShapeBounds.of(
+          shapes,
+          i,
+          cell: cell,
+          foldMargin: 2.0 * reach.coarseTexel,
+          apron: reach.coarseTexel / 2,
+        )..prepare((width + cell - 1) ~/ cell, (height + cell - 1) ~/ cell),
     ];
+    final bounds = over(size);
     final groups = _ShapeGroups.of(shapes);
-    final (kinds, fine) = _shapeKinds(bounds, groups, columns, rows, reach);
+    final classifier = _Classifier(
+      columns: columns,
+      rows: rows,
+      reach: reach,
+      listable: shapes.count <= geometryMaxShapesPerDraw,
+    );
+    final blocks = over(size * _Classifier.blockTiles);
+    for (var group = 0; group < groups.members.length; group++) {
+      classifier.add(
+        group,
+        groups.members[group],
+        tiles: bounds,
+        blocks: blocks,
+        smoothing: groups.smoothingOf(group),
+        sharp: groups.blendOf(group) < 8.0 * reach.coarseTexel,
+      );
+    }
+    final (kinds, fine, lists) = classifier.finish();
     final deepLooks = looks == null
         ? null
         : _lookKinds(bounds, groups, looks, columns, rows, kinds, fine);
@@ -291,7 +335,15 @@ final class Tiling {
       columns: columns,
       rows: rows,
       kinds: kinds,
-      runs: _runs(columns, rows, kinds, tileSets, fine, reach.coarseTexel),
+      runs: _runs(
+        columns,
+        rows,
+        kinds,
+        tileSets,
+        fine,
+        reach.coarseTexel,
+        lists,
+      ),
       shapeSets: List.unmodifiable(sets),
       droppedShapes: dropped,
       looks: looks,
@@ -347,7 +399,15 @@ final class Tiling {
       columns: columns,
       rows: rows,
       kinds: kinds,
-      runs: _runs(columns, rows, kinds, Int32List(columns * rows), fine, 1),
+      runs: _runs(
+        columns,
+        rows,
+        kinds,
+        Int32List(columns * rows),
+        fine,
+        1,
+        Uint32List(columns * rows),
+      ),
       shapeSets: List.unmodifiable([
         if (looks == null)
           const <int>[]
@@ -369,8 +429,8 @@ final class Tiling {
     );
   }
 
-  // The ring tiles as runs along each row, a run sharing one set of shapes
-  // and one density.
+  // The ring tiles as runs along each row, a run sharing one set of shapes,
+  // one list of them and one density.
   static List<TileRun> _runs(
     int columns,
     int rows,
@@ -378,6 +438,7 @@ final class Tiling {
     Int32List tileSets,
     Uint8List fine,
     int coarseTexel,
+    Uint32List lists,
   ) {
     final runs = <TileRun>[];
     for (var row = 0; row < rows; row++) {
@@ -389,17 +450,19 @@ final class Tiling {
           continue;
         }
         final set = tileSets[tile];
+        final members = lists[tile];
         final density = coarseTexel == 1 ? 1 : fine[tile];
         var end = column + 1;
         while (end < columns &&
             end - column < maxRunTiles &&
             kinds[tile + end - column] == TileKind.ring.index &&
             tileSets[tile + end - column] == set &&
+            lists[tile + end - column] == members &&
             (coarseTexel == 1 || fine[tile + end - column] == density)) {
           end++;
         }
         final texel = density != 0 ? 1 : coarseTexel;
-        runs.add(TileRun(row, column, end - column, set, texel));
+        runs.add(TileRun(row, column, end - column, set, texel, members));
         column = end;
       }
     }
@@ -428,6 +491,10 @@ final class Tiling {
 
   /// The longest run: short strips fill an atlas row with little left over.
   static const int maxRunTiles = 8;
+
+  /// The most shapes a run lists ([TileRun.members]): what one vertex
+  /// carries to the geometry pass.
+  static const int maxListed = 4;
 
   /// Tiles along x.
   final int columns;
@@ -464,101 +531,6 @@ final class Tiling {
   int deepLookAt(int column, int row) =>
       deepLooks?[row * columns + column] ?? 0;
 
-  // A shape's tiles are ring within the outward reach of it, and within its
-  // group's smoothing past that only where another member comes near
-  // enough for the smooth union to bite: within the reach, the smoothing
-  // and the blend. A smooth or hard union is at least as deep as its
-  // deepest member. A ring tile keeps one texel a pixel where two groups
-  // meet, where two members of a group with a narrow blend meet, or where a
-  // shape's distance or normal folds. A wide blend folds the union nowhere:
-  // the blend narrows as the members' normals agree, so the turn of the
-  // normal across a seam stays within a texel's worth.
-  static (Uint8List, Uint8List) _shapeKinds(
-    List<_ShapeBounds> bounds,
-    _ShapeGroups groups,
-    int columns,
-    int rows,
-    GlassReach reach,
-  ) {
-    final tiles = columns * rows;
-    final kinds = Uint8List(tiles);
-    final fine = Uint8List(tiles);
-    if (bounds.isEmpty) return (kinds, fine);
-    final deep = Uint8List(tiles);
-    final seamGroup = Int32List(tiles)..fillRange(0, tiles, -1);
-    final near = Uint8List(tiles);
-    final nearest = Float64List(tiles);
-    final coarse = reach.coarseTexel > 1;
-    // A linear read blends texels up to a texel's diagonal away. Where that
-    // footprint crosses a hard seam, both groups come within the reach plus
-    // two diagonals of the pixel read.
-    final seamReach = reach.outward + (coarse ? 3.0 * reach.coarseTexel : 0);
-    for (var group = 0; group < groups.members.length; group++) {
-      final smoothing = groups.smoothingOf(group);
-      final blend = groups.blendOf(group);
-      final union = max(reach.outward + smoothing + blend, seamReach);
-      final sharpSeams = blend < 8.0 * reach.coarseTexel;
-      var groupC0 = columns;
-      var groupR0 = rows;
-      var groupC1 = -1;
-      var groupR1 = -1;
-      for (final i in groups.members[group]) {
-        final shape = bounds[i];
-        final (c0, r0, c1, r1) = shape.tileSpan(union, columns, rows);
-        groupC0 = min(groupC0, c0);
-        groupR0 = min(groupR0, r0);
-        groupC1 = max(groupC1, c1);
-        groupR1 = max(groupR1, r1);
-        for (var row = r0; row <= r1; row++) {
-          for (var column = c0; column <= c1; column++) {
-            final tile = row * columns + column;
-            final distance = shape.distanceOverTile(column, row);
-            if (distance >= union) continue;
-            if (near[tile] == 0 || distance < nearest[tile]) {
-              nearest[tile] = distance;
-            }
-            if (near[tile] < 2) near[tile]++;
-            if (distance == double.negativeInfinity &&
-                deep[tile] == 0 &&
-                shape.depthOverTile(column, row) >= reach.inward) {
-              deep[tile] = 1;
-            }
-            if (coarse && fine[tile] == 0 && shape.foldsOverTile(column, row)) {
-              fine[tile] = 1;
-            }
-          }
-        }
-      }
-      for (var row = groupR0; row <= groupR1; row++) {
-        for (var column = groupC0; column <= groupC1; column++) {
-          final tile = row * columns + column;
-          final count = near[tile];
-          if (count == 0) continue;
-          near[tile] = 0;
-          final distance = nearest[tile];
-          if (distance < seamReach) {
-            final other = seamGroup[tile];
-            if (other < 0) {
-              seamGroup[tile] = group;
-            } else if (other != group) {
-              fine[tile] = 1;
-            }
-          }
-          if (distance >= reach.outward &&
-              (count < 2 || distance >= reach.outward + smoothing)) {
-            continue;
-          }
-          kinds[tile] = TileKind.ring.index;
-          if (count > 1 && sharpSeams) fine[tile] = 1;
-        }
-      }
-    }
-    for (var tile = 0; tile < tiles; tile++) {
-      if (deep[tile] != 0) kinds[tile] = TileKind.deep.index;
-    }
-    return (kinds, fine);
-  }
-
   // A deep tile reads one look only where one look's shapes alone weigh in:
   // a shape's weight in a smooth union is gone once its distance exceeds the
   // deepest member's by the blend, and a group's own fold lowers it by at
@@ -591,7 +563,7 @@ final class Tiling {
               owner == look) {
             continue;
           }
-          if (shape.distanceOverTile(column, row) < reach) {
+          if (shape.lowerOverTile(column, row) < reach) {
             owners[tile] = owner == none ? look : mixed;
           }
         }
@@ -704,7 +676,7 @@ final class Tiling {
         for (var column = c0; column <= c1; column++) {
           final tile = row * columns + column;
           if (kinds[tile] != TileKind.ring.index) continue;
-          if (shape.distanceOverTile(column, row) < reachOut) {
+          if (shape.lowerOverTile(column, row) < reachOut) {
             reached[tile].add(group);
           }
         }
@@ -785,16 +757,318 @@ final class _ShapeGroups {
   double lookReach(int shape) => smoothing(shape) * 5 + 1;
 }
 
+/// Classifies the tiles of a buffer group by group.
+///
+/// A tile is outside or deep where the bounds of its groups' unions prove
+/// every pixel is, and ring elsewhere. A ring tile keeps one texel a pixel
+/// where two groups meet, where two members of a group with a narrow blend
+/// meet, or where a shape's distance or normal folds. A wide blend folds
+/// the union nowhere: the blend narrows as the members' normals agree, so
+/// the turn of the normal across a seam stays within a texel's worth.
+///
+/// Each tile also gets its list of shapes ([TileRun.members]), for a
+/// buffer whose shapes fit one draw: the members of each group that change
+/// the group's union somewhere over the tile ([_chain]).
+///
+/// A group is bounded over blocks of [blockTiles] x [blockTiles] tiles
+/// first: what holds over a block holds for each of its tiles, so a block
+/// past every reach is skipped, a deep block is deep throughout, and the
+/// tiles of any other bound only the members that change the block.
+final class _Classifier {
+  _Classifier({
+    required this.columns,
+    required this.rows,
+    required GlassReach reach,
+    required this.listable,
+  }) : _kinds = Uint8List(columns * rows),
+       _fine = Uint8List(columns * rows),
+       _lists = Uint32List(columns * rows),
+       _deep = Uint8List(columns * rows),
+       _listed = Uint8List(columns * rows),
+       _seamGroup = Int32List(columns * rows)..fillRange(0, columns * rows, -1),
+       _coarse = reach.coarseTexel > 1,
+       _outward = reach.outward,
+       _inward = reach.inward,
+       // A linear read blends texels up to a texel's diagonal away. Where
+       // that footprint crosses a hard seam, both groups come within the
+       // reach plus two diagonals of the pixel read.
+       _seamReach =
+           reach.outward +
+           (reach.coarseTexel > 1 ? 3.0 * reach.coarseTexel : 0),
+       // So the texels of every pixel a read shows are exact where a tile
+       // lists every group that comes this near.
+       _blended = reach.outward + 1.5 * reach.coarseTexel;
+
+  static const int blockTiles = 4;
+
+  final int columns;
+  final int rows;
+  final bool listable;
+  final Uint8List _kinds;
+  final Uint8List _fine;
+  final Uint32List _lists;
+  final Uint8List _deep;
+  final Uint8List _listed;
+  final Int32List _seamGroup;
+  final bool _coarse;
+  final double _outward;
+  final double _inward;
+  final double _seamReach;
+  final double _blended;
+
+  // What [_chain] found last: the places of the members it kept, and the
+  // union's bounds.
+  Int32List _kept = Int32List(0);
+  double _lower = 0;
+  double _upper = 0;
+
+  final List<_ShapeBounds> _near = [];
+  final List<int> _nearIndices = [];
+
+  /// Each tile's kind, whether it keeps one texel a pixel, and its list.
+  (Uint8List, Uint8List, Uint32List) finish() {
+    for (var tile = 0; tile < _kinds.length; tile++) {
+      if (_deep[tile] != 0) _kinds[tile] = TileKind.deep.index;
+      if (!listable || _listed[tile] > Tiling.maxListed) _lists[tile] = 0;
+    }
+    return (_kinds, _fine, _lists);
+  }
+
+  /// Classifies the tiles [group] reaches: its [members] in chain order,
+  /// bounded over tiles by [tiles] and over blocks by [blocks]. Their union
+  /// lies at most [smoothing] below its nearest member, and folds where two
+  /// of them meet if their blend is [sharp].
+  void add(
+    int group,
+    List<int> members, {
+    required List<_ShapeBounds> tiles,
+    required List<_ShapeBounds> blocks,
+    required double smoothing,
+    required bool sharp,
+  }) {
+    final count = members.length;
+    if (_kept.length < count) _kept = Int32List(count);
+    final reach = max(_blended, _seamReach);
+    final blockColumns = (columns + blockTiles - 1) ~/ blockTiles;
+    final blockRows = (rows + blockTiles - 1) ~/ blockTiles;
+    var c0 = blockColumns;
+    var r0 = blockRows;
+    var c1 = -1;
+    var r1 = -1;
+    final shapes = <_ShapeBounds>[];
+    for (final i in members) {
+      final (left, top, right, bottom) = blocks[i].tileSpan(
+        reach + smoothing,
+        blockColumns,
+        blockRows,
+      );
+      c0 = min(c0, left);
+      r0 = min(r0, top);
+      c1 = max(c1, right);
+      r1 = max(r1, bottom);
+      shapes.add(blocks[i]);
+    }
+    for (var row = r0; row <= r1; row++) {
+      for (var column = c0; column <= c1; column++) {
+        final kept = _chain(shapes, count, column, row);
+        if (_lower >= reach) continue;
+        final left = column * blockTiles;
+        final top = row * blockTiles;
+        final right = min(columns, left + blockTiles) - 1;
+        final bottom = min(rows, top + blockTiles) - 1;
+        if (_upper <= -_inward) {
+          for (var y = top; y <= bottom; y++) {
+            for (var x = left; x <= right; x++) {
+              final tile = y * columns + x;
+              _meet(tile, group);
+              for (var k = 0; k < kept; k++) {
+                _list(tile, members[_kept[k]], starts: k == 0);
+              }
+              _deep[tile] = 1;
+            }
+          }
+          continue;
+        }
+        if (kept == 1) {
+          final i = members[_kept[0]];
+          _alone(group, tiles[i], i, left, top, right, bottom);
+          continue;
+        }
+        _near.clear();
+        _nearIndices.clear();
+        for (var k = 0; k < kept; k++) {
+          final i = members[_kept[k]];
+          _near.add(tiles[i]);
+          _nearIndices.add(i);
+        }
+        _several(group, left, top, right, bottom, sharp: sharp);
+      }
+    }
+  }
+
+  void _meet(int tile, int group) {
+    final other = _seamGroup[tile];
+    if (other < 0) {
+      _seamGroup[tile] = group;
+    } else if (other != group) {
+      _fine[tile] = 1;
+    }
+  }
+
+  void _list(int tile, int shape, {required bool starts}) {
+    final count = _listed[tile];
+    if (count < Tiling.maxListed) {
+      _lists[tile] |= ((shape + 1) | (starts ? 0x80 : 0)) << (8 * count);
+    }
+    if (count < 255) _listed[tile] = count + 1;
+  }
+
+  // The tiles [left], [top] to [right], [bottom] where [shape], shape
+  // [index] of the buffer, is the one member of [group] that changes its
+  // union.
+  void _alone(
+    int group,
+    _ShapeBounds shape,
+    int index,
+    int left,
+    int top,
+    int right,
+    int bottom,
+  ) {
+    for (var row = top; row <= bottom; row++) {
+      for (var column = left; column <= right; column++) {
+        final lower = shape.lowerOverTile(column, row);
+        if (lower >= _blended && lower >= _seamReach) continue;
+        final tile = row * columns + column;
+        if (lower < _seamReach) _meet(tile, group);
+        if (lower >= _blended) continue;
+        _list(tile, index, starts: true);
+        if (lower >= _outward) continue;
+        if (lower <= -_inward && shape.upperOverTile(column, row) <= -_inward) {
+          _deep[tile] = 1;
+          continue;
+        }
+        _kinds[tile] = TileKind.ring.index;
+        if (_coarse && _fine[tile] == 0 && shape.foldsOverTile(column, row)) {
+          _fine[tile] = 1;
+        }
+      }
+    }
+  }
+
+  // The tiles [left], [top] to [right], [bottom] of [group] whose union
+  // only the members in [_near] change.
+  void _several(
+    int group,
+    int left,
+    int top,
+    int right,
+    int bottom, {
+    required bool sharp,
+  }) {
+    final shapes = _near;
+    final indices = _nearIndices;
+    final count = shapes.length;
+    for (var row = top; row <= bottom; row++) {
+      for (var column = left; column <= right; column++) {
+        final kept = _chain(shapes, count, column, row);
+        final lower = _lower;
+        if (lower >= _blended && lower >= _seamReach) continue;
+        final tile = row * columns + column;
+        if (lower < _seamReach) _meet(tile, group);
+        if (lower >= _blended) continue;
+        for (var k = 0; k < kept; k++) {
+          _list(tile, indices[_kept[k]], starts: k == 0);
+        }
+        if (lower >= _outward) continue;
+        if (_upper <= -_inward) {
+          _deep[tile] = 1;
+          continue;
+        }
+        _kinds[tile] = TileKind.ring.index;
+        if (!_coarse || _fine[tile] != 0) continue;
+        if (kept > 1 && sharp) {
+          _fine[tile] = 1;
+          continue;
+        }
+        for (var k = 0; k < kept; k++) {
+          if (shapes[_kept[k]].foldsOverTile(column, row)) {
+            _fine[tile] = 1;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // Folds the first [count] of [shapes], one group in chain order, over
+  // cell [column], [row] as the geometry pass folds them at a pixel, on
+  // bounds: [_lower] and [_upper] bound the union over the cell, and
+  // [_kept] holds the places of the members that change it there; returns
+  // how many.
+  //
+  // A smooth union of radius k is the nearer operand wherever the other
+  // lies k or more past it, its distance, its normal and its look alike.
+  // So a member that far past the union so far over the whole cell changes
+  // nothing, and one that far inside it replaces everything before it.
+  // Elsewhere the union is at most the nearer of the two, and below it by
+  // at most what a blend takes at the narrowest gap between them.
+  int _chain(List<_ShapeBounds> shapes, int count, int column, int row) {
+    final first = shapes[0];
+    var lower = first.lowerOverTile(column, row);
+    var upper = first.upperOverTile(column, row);
+    var kept = 1;
+    _kept[0] = 0;
+    for (var k = 1; k < count; k++) {
+      final shape = shapes[k];
+      final blend = shape.blend;
+      final shapeLower = shape.lowerOverTile(column, row);
+      if (shapeLower >= upper + blend) continue;
+      final shapeUpper = shape.upperOverTile(column, row);
+      if (lower >= shapeUpper + blend) {
+        _kept[0] = k;
+        kept = 1;
+        lower = shapeLower;
+        upper = shapeUpper;
+        continue;
+      }
+      _kept[kept++] = k;
+      if (blend > 0) {
+        final gap = max(0, max(shapeLower - upper, lower - shapeUpper));
+        final bite = blend - gap;
+        lower = min(lower, shapeLower) - bite * bite * 0.25 / blend;
+      } else {
+        lower = min(lower, shapeLower);
+      }
+      upper = min(upper, shapeUpper);
+    }
+    _lower = lower;
+    _upper = upper;
+    return kept;
+  }
+}
+
 /// Closed-form bounds of one encoded shape's distance over the tiles of a
 /// buffer, in the units the geometry pass writes (local distance times the
-/// shape's distance scale). A tile's preimage is a parallelogram; the
-/// bounds read the box around it, which is the same size for every tile.
+/// shape's distance scale). A tile's preimage is a parallelogram, the same
+/// size for every tile, grown by the apron of the tile's strip.
+///
+/// A box shape lies between two rounded rectangles: it holds one inset by a
+/// fiftieth of its radius, and the rounded rectangle of its box and radius
+/// holds it within a 500th of the radius; a pair holds the one of its
+/// greater radius, where that fits its box, and lies in its box
+/// (shape_bounds_test). A rounded rectangle's distance is convex and grows
+/// with |x| and with |y|, so it is least over a box at the box's point
+/// nearest the axes and greatest over a parallelogram at a corner.
 final class _ShapeBounds {
   _ShapeBounds._({
     required this.type,
     required this.halfWidth,
     required this.halfHeight,
-    required this.radius,
+    required this.outerRadius,
+    required this.outset,
+    required this.inset,
+    required this.innerRadius,
     required this.foldInset,
     required this.a,
     required this.b,
@@ -803,22 +1077,43 @@ final class _ShapeBounds {
     required this.centerX,
     required this.centerY,
     required this.scale,
+    required this.blend,
     required this.foldMargin,
-  });
+    required this.apron,
+    required this.cell,
+  }) : _half = cell / 2 + apron,
+       _extentX = (a.abs() + b.abs()) * (cell / 2 + apron),
+       _extentY = (c.abs() + d.abs()) * (cell / 2 + apron),
+       _ellipse = type == RawShapeType.ellipse.shaderIndex,
+       _slack = type == RawShapeType.roundedRectangle.shaderIndex
+           ? 0
+           : _solveSlack;
 
-  /// Shape [i] of [shapes]; [foldsOverTile] looks [foldMargin] buffer pixels
-  /// around a tile.
-  factory _ShapeBounds.of(ShapeSet shapes, int i, {double foldMargin = 0}) {
+  /// Shape [i] of [shapes] over tiles of [cell] buffer pixels a side;
+  /// [foldsOverTile] looks [foldMargin] pixels around a tile, and every
+  /// bound [apron] pixels around it.
+  factory _ShapeBounds.of(
+    ShapeSet shapes,
+    int i, {
+    int cell = Tiling.size,
+    double foldMargin = 0,
+    double apron = 0.5,
+  }) {
     final row = shapes.shapes;
     final o = i * 12;
     final type = row[o];
     final halfWidth = row[o + 1] / 2;
     final halfHeight = row[o + 2] / 2;
+    final shorter = min(halfWidth, halfHeight);
     var radius = row[o + 3];
+    var least = radius;
     if (type == RawShapeType.squirclePair.shaderIndex) {
+      // The row holds the top radius as it was asked for, which a pair that
+      // does not fit scales down: only the pair's box is known to hold it.
+      least = 0;
       radius = max(radius, shapes.superellipsesLower[i * 12 + 8]);
     }
-    final corner = min(radius, min(halfWidth, halfHeight));
+    final corner = min(radius, shorter);
     var foldInset = corner;
     if (type == RawShapeType.squircle.shaderIndex) {
       // The corner's two octants are arcs of circles centered on the
@@ -832,11 +1127,20 @@ final class _ShapeBounds {
           ? min(corner, (1 - sqrt1_2) * corner + cap * sqrt1_2)
           : double.negativeInfinity;
     }
+    final exact = type == RawShapeType.roundedRectangle.shaderIndex;
+    final inset = exact ? 0.0 : min(0.02 * corner + 0.01, shorter / 2);
+    final around = min(least, shorter);
+    // A pair's corner can be as tall as its box, which no rounded rectangle
+    // inside it follows.
+    final hollow = radius > shorter;
     return _ShapeBounds._(
       type: type,
       halfWidth: halfWidth,
       halfHeight: halfHeight,
-      radius: radius,
+      outerRadius: around,
+      outset: exact ? 0.0 : 0.002 * around,
+      inset: inset,
+      innerRadius: hollow ? double.infinity : min(corner, shorter - inset),
       foldInset: foldInset,
       a: row[o + 4],
       b: row[o + 5],
@@ -845,14 +1149,27 @@ final class _ShapeBounds {
       centerX: row[o + 8],
       centerY: row[o + 9],
       scale: row[o + 10],
+      blend: max(0, row[o + 11]),
       foldMargin: foldMargin,
+      apron: apron,
+      cell: cell,
     );
   }
 
   final double type;
   final double halfWidth;
   final double halfHeight;
-  final double radius;
+
+  // The rounded rectangle around a box shape: of its box, with corners of
+  // [outerRadius], which the shape passes by at most [outset].
+  final double outerRadius;
+  final double outset;
+
+  // The rounded rectangle inside a box shape: its box [inset] from the
+  // shape's, with corners of [innerRadius], infinite where the shape is
+  // known to hold none.
+  final double inset;
+  final double innerRadius;
 
   // Where a box shape's corner diagonal stops folding, in from the box's
   // corner along both axes: the center of the arc of a rounded rectangle
@@ -868,28 +1185,41 @@ final class _ShapeBounds {
   final double centerX;
   final double centerY;
   final double scale;
+
+  // The radius of the shape's smooth union with those before it in its
+  // group; 0 for the first.
+  final double blend;
   final double foldMargin;
+  final double apron;
+  final int cell;
 
-  static const double _half = Tiling.size / 2;
+  // What the geometry pass's continuous corners, a bisection and a chord,
+  // can lie off the shape dart:ui draws.
+  static const double _solveSlack = 0.25;
 
-  late final double _extentX = (a.abs() + b.abs()) * _half;
-  late final double _extentY = (c.abs() + d.abs()) * _half;
-  late final double _foldExtentX = (a.abs() + b.abs()) * (_half + foldMargin);
-  late final double _foldExtentY = (c.abs() + d.abs()) * (_half + foldMargin);
+  final double _half;
+  final double _extentX;
+  final double _extentY;
+  late final double _foldExtentX =
+      (a.abs() + b.abs()) * (cell / 2 + foldMargin);
+  late final double _foldExtentY =
+      (c.abs() + d.abs()) * (cell / 2 + foldMargin);
+  final bool _ellipse;
+  final double _slack;
 
-  /// The tiles that can hold a pixel closer than [reach]: the shape's box
+  /// The tiles [lowerOverTile] can bound below [reach]: the shape's box
   /// grown by the reach in its own units, mapped into the buffer. The
   /// geometry pass measures distance in the shape's units times [scale], the
   /// basis's least stretch, so a box in buffer pixels grown by [reach] can
   /// miss pixels beside a stretched shape.
   (int, int, int, int) tileSpan(double reach, int columns, int rows) {
     final determinant = a * d - b * c;
-    final grownX = halfWidth + reach / scale;
-    final grownY = halfHeight + reach / scale;
+    final room = (reach + 2 * apron + _slack) / scale;
+    final grownX = halfWidth + room;
+    final grownY = halfHeight + room;
     final extentX = (d.abs() * grownX + b.abs() * grownY) / determinant.abs();
     final extentY = (c.abs() * grownX + a.abs() * grownY) / determinant.abs();
-    int tile(double at, int tiles) =>
-        (at / Tiling.size).floor().clamp(0, tiles - 1);
+    int tile(double at, int tiles) => (at / cell).floor().clamp(0, tiles - 1);
     return (
       tile(centerX - extentX, columns),
       tile(centerY - extentY, rows),
@@ -899,29 +1229,69 @@ final class _ShapeBounds {
   }
 
   double _localX(int column, int row) =>
-      a * ((column + 0.5) * Tiling.size - centerX) +
-      b * ((row + 0.5) * Tiling.size - centerY);
+      a * ((column + 0.5) * cell - centerX) +
+      b * ((row + 0.5) * cell - centerY);
 
   double _localY(int column, int row) =>
-      c * ((column + 0.5) * Tiling.size - centerX) +
-      d * ((row + 0.5) * Tiling.size - centerY);
+      c * ((column + 0.5) * cell - centerX) +
+      d * ((row + 0.5) * cell - centerY);
+
+  // A box shape whose axes are the buffer's bounds a tile from its column
+  // and its row alone: per column the |x| of the preimage's point nearest
+  // the center, then of its farthest, and per row the same of |y|.
+  bool _separable = false;
+  Float64List _columnsX = _none;
+  Float64List _rowsY = _none;
+  static final Float64List _none = Float64List(0);
+
+  /// Readies the bounds for a buffer of [columns] x [rows] tiles.
+  void prepare(int columns, int rows) {
+    if (_ellipse || b != 0 || c != 0) return;
+    Float64List table(int count, double inverse, double center, double extent) {
+      final table = Float64List(count * 2);
+      for (var i = 0; i < count; i++) {
+        final at = (inverse * ((i + 0.5) * cell - center)).abs();
+        table[i * 2] = _positive(at - extent);
+        table[i * 2 + 1] = at + extent;
+      }
+      return table;
+    }
+
+    _separable = true;
+    _columnsX = table(columns, a, centerX, _extentX);
+    _rowsY = table(rows, d, centerY, _extentY);
+  }
 
   /// A lower bound of the distance (negative inside) over tile [column],
-  /// [row]: the distance from the shape's box to the box around the tile's
-  /// preimage.
-  double distanceOverTile(int column, int row) {
+  /// [row]: the least distance of the shape around this one over the box
+  /// around the tile's preimage.
+  double lowerOverTile(int column, int row) {
     // The shapes are convex and mirror-symmetric in both local axes, so
-    // their distance grows with |x| and with |y| outside: the box's point
-    // nearest the axes is its nearest point.
-    final qx = _positive(_localX(column, row).abs() - _extentX);
-    final qy = _positive(_localY(column, row).abs() - _extentY);
-    final gx = _positive(qx - halfWidth);
-    final gy = _positive(qy - halfHeight);
-    final boxDistance = sqrt(gx * gx + gy * gy);
-    if (type != RawShapeType.ellipse.shaderIndex ||
-        halfWidth <= 0 ||
-        halfHeight <= 0) {
-      return boxDistance == 0 ? double.negativeInfinity : boxDistance * scale;
+    // their distance grows with |x| and with |y|: the box's point nearest
+    // the axes is its nearest point.
+    final double qx;
+    final double qy;
+    if (_separable) {
+      qx = _columnsX[column * 2];
+      qy = _rowsY[row * 2];
+    } else {
+      qx = _positive(_localX(column, row).abs() - _extentX);
+      qy = _positive(_localY(column, row).abs() - _extentY);
+    }
+    if (!_ellipse) {
+      // The geometry pass measures a sharp box by its farther side.
+      if (outerRadius <= 1e-4) {
+        return max(qx - halfWidth, qy - halfHeight) * scale - _slack;
+      }
+      return (_roundedBox(qx, qy, halfWidth, halfHeight, outerRadius) -
+                  outset) *
+              scale -
+          _slack;
+    }
+    if (halfWidth <= 0 || halfHeight <= 0) {
+      final gx = _positive(qx - halfWidth);
+      final gy = _positive(qy - halfHeight);
+      return sqrt(gx * gx + gy * gy) * scale - _slack;
     }
     final a2 = halfWidth * halfWidth;
     final b2 = halfHeight * halfHeight;
@@ -935,32 +1305,83 @@ final class _ShapeBounds {
     final ux = nx / length;
     final uy = ny / length;
     final support = ux * qx + uy * qy - sqrt(a2 * ux * ux + b2 * uy * uy);
-    return max(boxDistance, support) * scale;
+    final gx = _positive(qx - halfWidth);
+    final gy = _positive(qy - halfHeight);
+    return max(sqrt(gx * gx + gy * gy), support) * scale - _slack;
   }
 
-  /// A lower bound of the depth inside the shape over tile [column], [row],
-  /// or 0.
-  ///
-  /// The depth in a convex polygon the shape contains bounds the shape's
-  /// depth; it is a minimum of affine functions, so over the tile's preimage
-  /// (a parallelogram) it is least at a corner. Rounded boxes hold the
-  /// octagon cut at twice the radius from each corner, shrunk by a
-  /// hundredth of the radius (shape_depth_bound_test). An ellipse holds its
-  /// copy scaled by rho about the center (the copy through the point) grown
-  /// by (1 - rho) times its minor semi-axis; rho is convex, so that bound
-  /// too is least at a corner.
-  double depthOverTile(int column, int row) {
+  /// An upper bound of the distance over tile [column], [row]: the greatest
+  /// distance of the shape inside this one over the tile's preimage, which
+  /// a convex distance takes at a corner.
+  double upperOverTile(int column, int row) {
+    if (innerRadius == double.infinity) return double.infinity;
+    if (_separable) {
+      return _roundedBox(
+                _columnsX[column * 2 + 1],
+                _rowsY[row * 2 + 1],
+                halfWidth - inset,
+                halfHeight - inset,
+                innerRadius,
+              ) *
+              scale +
+          _slack;
+    }
     final x = _localX(column, row);
     final y = _localY(column, row);
     final ux = (a + b) * _half;
     final uy = (c + d) * _half;
     final vx = (a - b) * _half;
     final vy = (c - d) * _half;
-    final depth = min(
-      min(_depthAt(x + ux, y + uy), _depthAt(x - ux, y - uy)),
-      min(_depthAt(x + vx, y + vy), _depthAt(x - vx, y - vy)),
-    );
-    return depth <= 0 ? 0 : depth * scale;
+    if (!_ellipse) {
+      final hw = halfWidth - inset;
+      final hh = halfHeight - inset;
+      final r = innerRadius;
+      final distance = max(
+        max(
+          _roundedBox((x + ux).abs(), (y + uy).abs(), hw, hh, r),
+          _roundedBox((x - ux).abs(), (y - uy).abs(), hw, hh, r),
+        ),
+        max(
+          _roundedBox((x + vx).abs(), (y + vy).abs(), hw, hh, r),
+          _roundedBox((x - vx).abs(), (y - vy).abs(), hw, hh, r),
+        ),
+      );
+      return distance * scale + _slack;
+    }
+    if (halfWidth <= 0 || halfHeight <= 0) return double.infinity;
+    // An ellipse holds its copy scaled by rho about the center (the copy
+    // through the point) grown by (1 - rho) times its minor semi-axis, and
+    // the circle of its minor semi-axis. Both bounds are convex.
+    final minor = min(halfWidth, halfHeight);
+    var rho = 0.0;
+    var radius = 0.0;
+    for (final (px, py) in [
+      (x + ux, y + uy),
+      (x - ux, y - uy),
+      (x + vx, y + vy),
+      (x - vx, y - vy),
+    ]) {
+      final rx = px / halfWidth;
+      final ry = py / halfHeight;
+      rho = max(rho, sqrt(rx * rx + ry * ry));
+      radius = max(radius, sqrt(px * px + py * py));
+    }
+    return (rho <= 1 ? (rho - 1) * minor : radius - minor) * scale + _slack;
+  }
+
+  // The signed distance from (x, y), both positive, to the box of half size
+  // (hw, hh) with corners of radius r.
+  static double _roundedBox(
+    double x,
+    double y,
+    double hw,
+    double hh,
+    double r,
+  ) {
+    final gx = x - hw + r;
+    final gy = y - hh + r;
+    if (gx <= 0 || gy <= 0) return max(gx, gy) - r;
+    return sqrt(gx * gx + gy * gy) - r;
   }
 
   /// Whether the shape's distance or its normal can fold within
@@ -985,7 +1406,7 @@ final class _ShapeBounds {
       (nearX, nearY) = (nearY, nearX);
       (farX, farY) = (farY, farX);
     }
-    if (type == RawShapeType.ellipse.shaderIndex) {
+    if (_ellipse) {
       // The medial axis runs along the major axis to the center of
       // curvature of its vertex.
       return nearY <= 0 && nearX <= long - short * short / max(long, 1e-9);
@@ -999,33 +1420,6 @@ final class _ShapeBounds {
   }
 
   static double _positive(double value) => value > 0 ? value : 0.0;
-
-  double _depthAt(double localX, double localY) {
-    final ax = localX.abs();
-    final ay = localY.abs();
-    if (type == RawShapeType.ellipse.shaderIndex) {
-      if (halfWidth <= 0 || halfHeight <= 0) return 0;
-      final rx = ax / halfWidth;
-      final ry = ay / halfHeight;
-      return (1 - sqrt(rx * rx + ry * ry)) * min(halfWidth, halfHeight);
-    }
-    final shorter = min(halfWidth, halfHeight);
-    final pair = type == RawShapeType.squirclePair.shaderIndex;
-    if ((pair ? 2 * radius : radius) > shorter) return 0;
-    final insideX = halfWidth - ax;
-    final insideY = halfHeight - ay;
-    var depth = min(insideX, insideY);
-    if (radius > 0) {
-      final cutX = min(2 * radius, halfWidth);
-      final cutY = min(2 * radius, halfHeight);
-      depth = min(
-        depth,
-        (insideX * cutY + insideY * cutX - cutX * cutY) /
-            sqrt(cutX * cutX + cutY * cutY),
-      );
-    }
-    return depth - 0.01 * radius;
-  }
 }
 
 /// Where one buffer's table, constant tiles and ring strips sit in its atlas

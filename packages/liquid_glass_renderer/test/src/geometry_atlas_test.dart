@@ -27,8 +27,17 @@ Future<AtlasTexels> _draw(
   return atlas.at(ex + x % Tiling.size, ey + y % Tiling.size);
 }
 
-/// One shape of each kind the geometry pass draws, placed at random.
-ShapeSet _scene(Random random, int count, int width, int height) {
+/// One shape of each kind the geometry pass draws, placed at random. With
+/// [roundCorners] no side is many corner radii long: the host's software
+/// GPU takes pow(0, y) for pow(FLT_MIN, y), which bends the distance of
+/// such a side of a continuous corner around its middle.
+ShapeSet _scene(
+  Random random,
+  int count,
+  int width,
+  int height, {
+  bool roundCorners = false,
+}) {
   final shapes = <double>[];
   final superellipses = <double>[];
   final lower = <double>[];
@@ -47,8 +56,11 @@ ShapeSet _scene(Random random, int count, int width, int height) {
     final w = 8 + random.nextDouble() * 120;
     final h = 8 + random.nextDouble() * 120;
     final shorter = min(w, h) / 2;
-    final top = random.nextDouble() * shorter;
-    final bottom = random.nextDouble() * shorter * 0.5;
+    final least = roundCorners ? min(shorter, max(w, h) / 8) : 0.0;
+    final top = least + random.nextDouble() * (shorter - least);
+    final bottom = roundCorners
+        ? top * (0.5 + random.nextDouble() * 0.5)
+        : random.nextDouble() * shorter * 0.5;
     final radius = type == 2 ? 0.0 : top;
     final angle = random.nextDouble() < 0.4 ? random.nextDouble() * pi : 0.0;
     final stretch = random.nextDouble() < 0.4;
@@ -199,15 +211,16 @@ void main() {
             final reason = 'scene $scene, $reach, pixel $x, $y: $exact';
             switch (kind) {
               case TileKind.ring:
-                // A strip skips texels past the reach, which a pass over
-                // every texel evaluates.
+                // A strip is exact as far out as a read blends texels; past
+                // that it skips texels and the shapes that only reach those.
                 final read = _strip(sparse, x, y);
-                if (read.$4 > 0) {
+                final blended = reach.outward + 1.5 * reach.coarseTexel;
+                if (exact.$4 > 0 && exact.$1 > -blended) {
                   expect(read, exact, reason: reason);
-                } else if (exact.$4 > 0) {
+                } else if (read.$4 > 0) {
                   expect(
-                    exact.$1,
-                    lessThanOrEqualTo(-reach.outward),
+                    read.$1,
+                    lessThanOrEqualTo(-blended),
                     reason: reason,
                   );
                 }
@@ -243,7 +256,13 @@ void main() {
     var worstEdgeNormal = 0.0;
     var worstNormal = 0.0;
     for (var scene = 0; scene < 12; scene++) {
-      final shapes = _scene(random, 1 + random.nextInt(8), width, height);
+      final shapes = _scene(
+        random,
+        1 + random.nextInt(8),
+        width,
+        height,
+        roundCorners: true,
+      );
       final tiling = Tiling.shapes(
         shapes,
         width: width,

@@ -423,6 +423,7 @@ class FlutterGpuGeometryRenderer {
           (run.row * Tiling.size - (y + 1) * texel).toDouble(),
           texel.toDouble(),
           0,
+          members: run.members,
         );
       }
       if (quads.count > start) sets.add((set, start, quads.count - start));
@@ -738,8 +739,14 @@ class FlutterGpuGeometryRenderer {
   }) {
     final floats = _uniformFloats;
     final count = math.min(members.length, geometryMaxShapesPerDraw);
+    var smoothing = 0.0;
+    for (var row = 0; row < count; row++) {
+      final marker = shapes.shapes[members[row] * 12 + 11];
+      if (marker > 0) smoothing += marker * 0.25;
+    }
     floats[_offsets.props ~/ 4] = reachOutward;
     floats[_offsets.props ~/ 4 + 1] = count.toDouble();
+    floats[_offsets.props ~/ 4 + 2] = smoothing;
     const rows = geometryMaxShapesPerDraw * 12;
     final shapeAt = _offsets.shapeData ~/ 4;
     final rseAt = _offsets.rseData ~/ 4;
@@ -817,9 +824,12 @@ final class _AtlasQuads {
   ByteData get bytes => ByteData.sublistView(_floats, 0, count * _quadFloats);
 
   /// The texels [x], [y] to [x] + [w], [y] + [h], every vertex carrying the
-  /// value ([v0], [v1], [v2], [v3]) and the ramp ([rampFrom], [rampStep]); a
-  /// fill pass with looks writes [look] beside a constant tile, none where
-  /// it is negative.
+  /// value ([v0], [v1], [v2], [v3]) and the ramp: for a fill quad
+  /// [rampFrom], [rampStep] and the [look] a fill pass with looks writes
+  /// beside a constant tile, none where it is negative; for a strip the
+  /// shapes its texels evaluate ([TileRun.members]), each a row of the
+  /// draw's shapes plus 32 where it starts its group, and -1 past the last
+  /// or throughout where they evaluate every shape.
   void add(
     int x,
     int y,
@@ -832,6 +842,7 @@ final class _AtlasQuads {
     double rampFrom = 0,
     double rampStep = 0,
     int look = -1,
+    int? members,
   }) {
     if ((count + 1) * _quadFloats > _floats.length) {
       _floats = Float32List(_floats.length * 2)..setAll(0, _floats);
@@ -840,6 +851,21 @@ final class _AtlasQuads {
     final x1 = 2 * (x + w) / _width - 1;
     final y0 = 1 - 2 * y / _height;
     final y1 = 1 - 2 * (y + h) / _height;
+    var r0 = rampFrom;
+    var r1 = rampStep;
+    var r2 = look.toDouble();
+    var r3 = 0.0;
+    if (members != null) {
+      double member(int slot) {
+        final byte = (members >> (8 * slot)) & 0xff;
+        return byte == 0 ? -1 : (byte & 0x7f) - 1 + (byte & 0x80 != 0 ? 32 : 0);
+      }
+
+      r0 = member(0);
+      r1 = member(1);
+      r2 = member(2);
+      r3 = member(3);
+    }
     final floats = _floats;
     var at = count * _quadFloats;
     for (var corner = 0; corner < _corners.length; corner += 2) {
@@ -849,10 +875,10 @@ final class _AtlasQuads {
       floats[at + 3] = v1;
       floats[at + 4] = v2;
       floats[at + 5] = v3;
-      floats[at + 6] = rampFrom;
-      floats[at + 7] = rampStep;
-      floats[at + 8] = look.toDouble();
-      floats[at + 9] = 0;
+      floats[at + 6] = r0;
+      floats[at + 7] = r1;
+      floats[at + 8] = r2;
+      floats[at + 9] = r3;
       at += _tileVertexFloats;
     }
     count++;

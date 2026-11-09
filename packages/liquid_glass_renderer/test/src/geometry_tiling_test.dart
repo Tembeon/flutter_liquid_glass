@@ -167,6 +167,33 @@ double _sceneDistance(
   return min(result, group);
 }
 
+/// [_sceneDistance] over the shapes a run lists ([TileRun.listed]), each
+/// starting its group where the list says so.
+double _listedDistance(
+  List<_Shape> shapes,
+  List<(int, bool)> listed,
+  double x,
+  double y, {
+  required bool smooth,
+}) {
+  var result = double.infinity;
+  var group = double.infinity;
+  for (final (i, starts) in listed) {
+    final shape = shapes[i];
+    final d = shape.distanceAt(x, y);
+    if (starts) {
+      result = min(result, group);
+      group = d;
+    } else if (!smooth || shape.blend <= 0) {
+      group = min(group, d);
+    } else {
+      final e = max(shape.blend - (group - d).abs(), 0);
+      group = min(group, d) - e * e * 0.25 / shape.blend;
+    }
+  }
+  return min(result, group);
+}
+
 ShapeSet _encode(List<_Shape> shapes) => ShapeSet.rows(
   shapes: [for (final shape in shapes) ...shape.row],
   boxes: [for (final shape in shapes) ...shape.box],
@@ -317,6 +344,71 @@ void main() {
     for (final kind in TileKind.values) {
       expect(seen[kind], greaterThan(100), reason: '$kind');
     }
+  });
+
+  test('a ring run lists every shape that changes a texel a read blends', () {
+    final random = Random(23);
+    var listed = 0;
+    var shorter = 0;
+    for (var scene = 0; scene < 24; scene++) {
+      final shapes = _randomScene(
+        random,
+        count: 1 + random.nextInt(geometryMaxShapesPerDraw),
+        width: width.toDouble(),
+        height: height.toDouble(),
+        largest: scene.isEven ? 240 : 90,
+      );
+      final all = List<int>.generate(shapes.length, (i) => i);
+      for (final reach in reaches) {
+        final tiling = Tiling.shapes(
+          _encode(shapes),
+          width: width,
+          height: height,
+          reach: reach,
+        );
+        final blended = reach.outward + 1.5 * reach.coarseTexel;
+        final apron = reach.coarseTexel / 2;
+        for (final run in tiling.runs) {
+          if (run.members == 0) continue;
+          final members = run.listed;
+          listed++;
+          if (members.length < shapes.length) shorter++;
+          expect(members.length, inInclusiveRange(1, Tiling.maxListed));
+          expect(members.first.$2, isTrue);
+          expect(
+            [for (final (i, _) in members) i],
+            orderedEquals([for (final (i, _) in members) i]..sort()),
+          );
+          // The run's texels and its apron's, a pixel apart.
+          final left = run.column * Tiling.size - apron;
+          final top = run.row * Tiling.size - apron;
+          final right = (run.column + run.length) * Tiling.size + apron;
+          final bottom = (run.row + 1) * Tiling.size + apron;
+          for (var y = top; y <= bottom; y += 1) {
+            for (var x = left; x <= right; x += 1) {
+              for (final smooth in [true, false]) {
+                final full = _sceneDistance(shapes, all, x, y, smooth: smooth);
+                final list = _listedDistance(
+                  shapes,
+                  members,
+                  x,
+                  y,
+                  smooth: smooth,
+                );
+                final reason = 'scene $scene, $members at $x, $y';
+                if (full < blended) {
+                  expect(list, full, reason: reason);
+                } else {
+                  expect(list, greaterThanOrEqualTo(blended), reason: reason);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    expect(listed, greaterThan(500));
+    expect(shorter, greaterThan(250));
   });
 
   test('a ring tile of a large scene evaluates every group that reaches it, '

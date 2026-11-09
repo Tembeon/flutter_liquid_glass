@@ -2,7 +2,9 @@
 // the format of matte_encoding.glsl, and with LOOKS their look beside it
 // (look_targets.glsl). A texel spans vValue.z buffer pixels a side; the
 // quad's xy carries where gl_FragCoord (0, 0) would sit, so a texel's center
-// is the buffer point gl_FragCoord * vValue.z + vValue.xy.
+// is the buffer point gl_FragCoord * vValue.z + vValue.xy. The quad's ramp
+// lists the shapes its texels evaluate (listedSceneSample), or is negative
+// where they evaluate every shape.
 
 precision highp float;
 
@@ -15,6 +17,7 @@ precision highp float;
 #include "matte_encoding.glsl"
 
 flat in vec4 vValue;
+flat in vec4 vRamp;
 
 layout(location = 0) out vec4 fragColor;
 #if LOOKS
@@ -24,11 +27,14 @@ layout(location = 0) out vec4 fragColor;
 void main() {
     vec2 position = gl_FragCoord.xy * vValue.z + vValue.xy;
 
+    bool listed = vRamp.x >= 0.0;
     // A texel farther from every shape's box than the reach, the blend
     // budget and two texels is past anything a read blends in.
-    vec2 outsideBounds = sceneBoundsOutsideSquared(position, int(uNumShapes));
-    float reach = uReachOutward + 2.0 * vValue.z + outsideBounds.y;
-    if (outsideBounds.x > reach * reach) {
+    float outsideSquared = listed
+        ? listedBoundsOutsideSquared(position, vRamp)
+        : sceneBoundsOutsideSquared(position, int(uNumShapes));
+    float reach = uReachOutward + 2.0 * vValue.z + uSmoothingBudget;
+    if (outsideSquared > reach * reach) {
         fragColor = vec4(kFarInward, 0.0, 0.0, 0.0);
 #if LOOKS
         writeLook(Look(vec4(0.0), vec4(0.0), vec4(0.0)));
@@ -36,7 +42,12 @@ void main() {
         return;
     }
 
-    SceneSample scene = sceneSample(position, int(uNumShapes));
+    SceneSample scene;
+    if (listed) {
+        scene = listedSceneSample(position, vRamp);
+    } else {
+        scene = sceneSample(position, int(uNumShapes));
+    }
     fragColor = encodeMatte(
         scene.distance,
         scene.opticalNormal,
