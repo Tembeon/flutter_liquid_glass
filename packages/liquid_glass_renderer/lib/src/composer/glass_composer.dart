@@ -286,8 +286,6 @@ final class _Composition {
     final listening = GlassFrameReport.listening;
     final clock = Stopwatch();
     if (listening) clock.start();
-    // What the sites read and the pages replay holds mattes paint wrote.
-    FlutterGpuGeometryRenderer.flushPendingSubmissions();
     FrameAncestors.current = FrameAncestors();
     try {
       final form = _form..lower(root, dpr, flutterView.physicalSize);
@@ -333,7 +331,8 @@ final class _Composition {
       }
     } finally {
       FrameAncestors.current = null;
-      FlutterGpuGeometryRenderer.flushPendingSubmissions();
+      // The atlases of a frame that emits nothing.
+      FlutterGpuGeometryRenderer.flush();
     }
   }
 

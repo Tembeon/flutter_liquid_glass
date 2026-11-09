@@ -110,7 +110,7 @@ Future<void> warmLiquidGlassPipelines(
         ),
       );
     }
-    FlutterGpuGeometryRenderer.flushPendingSubmissions();
+    FlutterGpuGeometryRenderer.flush();
 
     final variants = FinalShaderVariant.all;
     final programs = await Future.wait([

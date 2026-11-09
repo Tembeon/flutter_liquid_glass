@@ -250,7 +250,7 @@ final class MatteBinding {
     required this.image,
     required this.origin,
     required this.size,
-    required this.textureSize,
+    required this.atlas,
     required this.halfMinor,
     required this.refractionHeight,
     required this.fitsShape,
@@ -270,8 +270,9 @@ final class MatteBinding {
   /// uGeometryBounds.zw: the geometry buffer's size, one texel a pixel.
   final Size size;
 
-  /// uGeometryAtlas.zw: the atlas texture's size.
-  final Size textureSize;
+  /// uGeometryAtlas: where the atlas lies in [image], which it shares with
+  /// the other atlases of its frame.
+  final AtlasPlace atlas;
 
   /// uBevel.z: half the short side of the glass, which sizes the bevel.
   final double halfMinor;
@@ -299,7 +300,7 @@ final class MatteBinding {
       listEquals(other.looks, looks) &&
       other.origin == origin &&
       other.size == size &&
-      other.textureSize == textureSize &&
+      other.atlas == atlas &&
       other.halfMinor == halfMinor &&
       other.refractionHeight == refractionHeight &&
       other.fitsShape == fitsShape &&
@@ -312,7 +313,7 @@ final class MatteBinding {
     Object.hashAll(looks),
     origin,
     size,
-    textureSize,
+    atlas,
     halfMinor,
     materialCenter,
     shrinkAxis,
@@ -726,12 +727,12 @@ final class GlassShading {
     ]);
     shader.setFloat(layout.mappingEnd, origin.dy);
     put(layout.colorModels, face.colorModels);
-    final (tableX, tableY) = AtlasLayout.tableOrigin;
+    final atlas = matte.atlas;
     put(layout.geometryAtlas, [
-      tableX.toDouble(),
-      tableY.toDouble(),
-      matte.textureSize.width,
-      matte.textureSize.height,
+      atlas.tableX.toDouble(),
+      atlas.tableY.toDouble(),
+      atlas.width.toDouble(),
+      atlas.height.toDouble(),
     ]);
     put(layout.bevel, [
       matte.refractionHeight,

@@ -11,10 +11,9 @@ void main() {
   runGeometrySubmitBatchingTests();
 }
 
-/// Three layers rebuilding every frame, each recording an atlas pass; the
-/// middle one mixes appearances, so its pass also writes looks. Passes
-/// sharing one command buffer crash Vulkan and Metal (Flutter GPU nests
-/// them).
+/// Three layers rebuilding every frame, each placing an atlas; the middle
+/// one mixes appearances, so its atlas has looks beside it and goes to a
+/// page of its own.
 Widget _scene(double t) {
   Widget layer(double width, {bool tinted = false}) => LiquidGlassLayer(
     settings: const LiquidGlassSettings(contourStrength: 0.3),
@@ -67,7 +66,7 @@ Widget _scene(double t) {
 /// Also runs on devices from `example/integration_test`.
 void runGeometrySubmitBatchingTests() {
   testWidgets(
-    'passes recorded in a frame are submitted while its scene is built',
+    'the atlases of a frame are drawn page by page while its scene is built',
     (tester) async {
       tester.view
         ..physicalSize = const Size(900, 900)
@@ -87,7 +86,11 @@ void runGeometrySubmitBatchingTests() {
             FlutterGpuGeometryRenderer.debugBatchedSubmitCount - submits;
         if (!kDebugMode) continue;
         expect(framePasses, 3, reason: 'one atlas per layer');
-        expect(frameSubmits, 3, reason: 'one command buffer per pass');
+        expect(
+          frameSubmits,
+          2,
+          reason: 'one pass for the atlases without looks, one for the tinted',
+        );
       }
       if (kDebugMode) {
         expect(

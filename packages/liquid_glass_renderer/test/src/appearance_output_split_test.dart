@@ -132,7 +132,10 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
       Future<Uint8List?> lookBytes() async {
         if (!layer.debugUsesShapeAppearances) return null;
         final atlas = (await tester.runAsync(
-          () => AtlasTexels.read(layer.debugGeometryImage!),
+          () => AtlasTexels.read(
+            layer.debugGeometryImage!,
+            layer.debugGeometryPlace,
+          ),
         ))!;
         final bounds = layer.debugGeometryMatteBounds;
         final values = <double>[];

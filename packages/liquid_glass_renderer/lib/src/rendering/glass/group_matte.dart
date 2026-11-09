@@ -54,8 +54,8 @@ final class GroupMatte {
   /// Where the geometry buffer lies, in logical pixels from [origin].
   Rect bounds = Rect.zero;
 
-  /// The size of the atlas texture.
-  Size textureSize = Size.zero;
+  /// Where the atlas lies in [image].
+  AtlasPlace place = AtlasLayout.unplaced;
 
   /// The tint beside the atlas, where the glass's tints differ.
   ui.Image? tints;
@@ -140,10 +140,7 @@ final class GroupMatte {
     );
     image = atlas.image;
     bounds = Rect.fromLTWH(left / dpr, top / dpr, width / dpr, height / dpr);
-    textureSize = Size(
-      atlas.textureWidth.toDouble(),
-      atlas.textureHeight.toDouble(),
-    );
+    place = atlas.place;
     tints = mixed ? atlas.looks.first : null;
   }
 

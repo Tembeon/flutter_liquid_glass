@@ -842,17 +842,21 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // MARK: Retained matte
 
+  // The page's handles (FlutterGpuGeometryRenderer.renderAtlas), good until
+  // the renderer draws another atlas or releases this one.
   ui.Image? _geometryImage;
   List<ui.Image> _lookImages = const [];
-  bool _ownsGeometryImages = false;
 
   /// Layer-local bounds of the matte, in logical pixels. Ancestor transforms
   /// do not change them: the compositor applies those, not the shader.
   Rect _geometryMatteBounds = Rect.zero;
   Offset _materialCenterInMatte = Offset.zero;
   Size _materialSize = Size.zero;
-  // The atlas fills the top-left of a texture that only grows.
-  Size _geometryTextureSize = Size.zero;
+  AtlasPlace _geometryPlace = AtlasLayout.unplaced;
+
+  /// Where the atlas lies in [debugGeometryImage].
+  @visibleForTesting
+  AtlasPlace get debugGeometryPlace => _geometryPlace;
 
   @visibleForTesting
   ui.Image? get debugGeometryImage => _geometryImage;
@@ -880,26 +884,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // A drawable-empty refresh encodes nothing; the committed list alone
     // is the compositor-translation poll's baseline.
     if (hasDrawableGlass(shapesWithGeometry)) {
-      if (!_reusesMatte(bounds)) {
-        // Keep old borrowed handles valid until the replacement is installed.
-        if (!_ownsGeometryImages && _geometryImage != null) {
-          final clones = <ui.Image>[];
-          try {
-            for (final image in [_geometryImage!, ..._lookImages]) {
-              clones.add(image.clone());
-            }
-          } catch (_) {
-            for (final clone in clones) {
-              clone.dispose();
-            }
-            rethrow;
-          }
-          _geometryImage = clones.first;
-          _lookImages = List.unmodifiable(clones.skip(1));
-          _ownsGeometryImages = true;
-        }
-        _encodeGeometry(bounds);
-      }
+      if (!_reusesMatte(bounds)) _encodeGeometry(bounds);
     }
     needsGeometryUpdate = false;
     link
@@ -918,11 +903,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   void _encodeGeometry(Rect bounds) {
     final result = _buildGpuGeometryImage(shapesWithGeometry, bounds);
-    _releaseGeometryImageHandles();
     _geometryImage = result.image;
     _lookImages = result.looks;
     _geometryMatteBounds = result.matteBounds;
-    _geometryTextureSize = result.textureSize;
+    _geometryPlace = result.place;
     _materialCenterInMatte = bounds.center;
     _materialSize = bounds.size;
     _rememberEncodedGeometry(bounds);
@@ -930,20 +914,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   void _clearGeometryImage() {
     clearGlassShadows();
-    _releaseGeometryImageHandles();
-    clearFrameInputs();
-  }
-
-  void _releaseGeometryImageHandles() {
-    if (_ownsGeometryImages) {
-      _geometryImage?.dispose();
-      for (final look in _lookImages) {
-        look.dispose();
-      }
-      _ownsGeometryImages = false;
-    }
+    // A page is drawn over only once nothing holds an atlas in it.
+    _gpuGeometryRenderer?.releaseAtlas();
     _geometryImage = null;
     _lookImages = const [];
+    clearFrameInputs();
   }
 
   void _rememberEncodedGeometry(Rect bounds) {
@@ -1064,7 +1039,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   MatteBinding get _ownMatte => _matteBinding(
     image: _geometryImage ?? _placeholder,
     bounds: _geometryMatteBounds,
-    textureSize: _geometryTextureSize,
+    atlas: _geometryPlace,
     looks: _usesShapeAppearances ? _lookImages : const [],
   );
 
@@ -1073,7 +1048,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   MatteBinding _matteBinding({
     required ui.Image image,
     required Rect bounds,
-    required Size textureSize,
+    required AtlasPlace atlas,
     required List<ui.Image> looks,
   }) {
     final dpr = devicePixelRatio;
@@ -1088,7 +1063,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       image: image,
       origin: bounds.topLeft * dpr,
       size: bounds.size * dpr,
-      textureSize: textureSize,
+      atlas: atlas,
       halfMinor: _halfMinor,
       refractionHeight: settings.effectiveRefractionHeight * dpr,
       fitsShape: settings.refractionFitsShape,
@@ -1594,7 +1569,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           : _matteBinding(
               image: group.image!,
               bounds: group.bounds,
-              textureSize: group.textureSize,
+              atlas: group.place,
               looks: [?tints],
             ),
       mapping: MatteMapping.of(
@@ -2268,10 +2243,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return (
       image: atlas.image,
       looks: atlas.looks,
-      textureSize: Size(
-        atlas.textureWidth.toDouble(),
-        atlas.textureHeight.toDouble(),
-      ),
+      place: atlas.place,
       matteBounds: Rect.fromLTWH(
         boundsInMatteSpace.left,
         boundsInMatteSpace.top,
@@ -2282,10 +2254,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 }
 
-// Images here borrow the renderer's handles. A retained temporary frame must
-// clone them before another render can dispose those borrowed handles.
+// The images are the page's (FlutterGpuGeometryRenderer.renderAtlas).
 typedef _GpuGeometryFrame = ({
-  Size textureSize,
+  AtlasPlace place,
   ui.Image image,
   List<ui.Image> looks,
   Rect matteBounds,

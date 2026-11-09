@@ -33,13 +33,12 @@ class FlutterGpuGeometryRenderer {
   static int debugAllocatedTextureCount = 0;
   static int debugDroppedTextureCount = 0;
 
-  /// Nothing is ever deferred on the web.
-  static void flushPendingSubmissions() {}
+  /// Nothing is ever drawn on the web.
+  static void flush() {}
+  static void debugResetPages() {}
   static int debugBatchedSubmitCount = 0;
   static int debugDeferredPassCount = 0;
   static int debugPostFrameFlushCount = 0;
-  int get debugRetiredTextureCount => 0;
-  int get debugMatteTextureCount => 0;
   Object? get debugMatteTexture => null;
   (int, int)? get debugMatteTextureSize => null;
 
@@ -53,15 +52,13 @@ class FlutterGpuGeometryRenderer {
   bool get debugDisposed => true;
   ui.Image? get atlasImage => null;
   List<ui.Image> get lookImages => const [];
+  AtlasPlace? get atlasPlace => null;
 
-  ({
-    ui.Image image,
-    List<ui.Image> looks,
-    int textureWidth,
-    int textureHeight,
-  })
-  renderAtlas(Tiling tiling) =>
-      throw UnsupportedError('Flutter GPU is not available on the web.');
+  ({ui.Image image, List<ui.Image> looks, AtlasPlace place}) renderAtlas(
+    Tiling tiling,
+  ) => throw UnsupportedError('Flutter GPU is not available on the web.');
+
+  void releaseAtlas() {}
 
   void releaseOutput() {}
 

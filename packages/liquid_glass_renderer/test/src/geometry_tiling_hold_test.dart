@@ -89,14 +89,20 @@ void main() {
       final layer = _layer(tester);
       final held = layer.debugGeometryImage!.clone();
       addTearDown(held.dispose);
+      final heldPlace = layer.debugGeometryPlace;
       final heldBounds = layer.debugGeometryMatteBounds;
       await tester.pumpWidget(_scene(at(30), key: UniqueKey()));
       final fresh = _layer(tester);
       expect(fresh.debugTiling!.slack, 0);
       final freshBounds = fresh.debugGeometryMatteBounds;
-      final a = (await tester.runAsync(() => AtlasTexels.read(held)))!;
+      final a = (await tester.runAsync(
+        () => AtlasTexels.read(held, heldPlace),
+      ))!;
       final b = (await tester.runAsync(
-        () => AtlasTexels.read(fresh.debugGeometryImage!),
+        () => AtlasTexels.read(
+          fresh.debugGeometryImage!,
+          fresh.debugGeometryPlace,
+        ),
       ))!;
       final shift = (freshBounds.topLeft - heldBounds.topLeft) * 3;
       expect(shift.dx, closeTo(shift.dx.roundToDouble(), 1e-6));

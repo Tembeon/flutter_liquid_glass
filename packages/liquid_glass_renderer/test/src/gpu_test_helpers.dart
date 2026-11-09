@@ -51,20 +51,30 @@ ui.Image renderTestRectangle(
 /// A geometry atlas read back: four floats a texel, read through its table
 /// as the final shader reads it.
 final class AtlasTexels {
-  AtlasTexels._(this.texels, this.width);
+  AtlasTexels._(this.texels, this.width, this._tableX, this._tableY);
 
-  /// Reads [image], an atlas.
-  static Future<AtlasTexels> read(ui.Image image) async {
+  /// Reads the atlas at [place] in [image], the page it shares; without a
+  /// place, the first atlas of the page.
+  static Future<AtlasTexels> read(ui.Image image, [AtlasPlace? place]) async {
     final data = await image.toByteData(
       format: ui.ImageByteFormat.rawExtendedRgba128,
     );
+    final (tableX, tableY) = AtlasLayout.tableOrigin;
     return AtlasTexels._(
       Float32List.fromList(
         data!.buffer.asFloat32List(data.offsetInBytes, data.lengthInBytes ~/ 4),
       ),
       image.width,
+      place?.tableX ?? tableX,
+      place?.tableY ?? tableY,
     );
   }
+
+  final int _tableX;
+  final int _tableY;
+
+  // The first row of the atlas in its page.
+  int get _top => _tableY - AtlasLayout.tableOrigin.$2;
 
   /// The texels, four floats each.
   final Float32List texels;
@@ -85,8 +95,7 @@ final class AtlasTexels {
   /// The table entry of tile [column], [row]: the corner of the texel of its
   /// pixel (0, 0), and texels a pixel (0 for a constant tile).
   (int, int, double) entry(int column, int row) {
-    final (tableX, tableY) = AtlasLayout.tableOrigin;
-    final (x, y, z, w) = at(tableX + column, tableY + row);
+    final (x, y, z, w) = at(_tableX + column, _tableY + row);
     expect(w, 1, reason: 'table texel of $column, $row');
     return (x.round(), y.round(), z);
   }
@@ -97,7 +106,11 @@ final class AtlasTexels {
   (double, double, double, double) pixel(int x, int y) {
     final (entryX, entryY, scale) = entry(x ~/ Tiling.size, y ~/ Tiling.size);
     if (scale == 0) {
-      return (entryX, entryY) == AtlasLayout.outsideEntry
+      // A tile no quad wrote holds the page's outside entry, the first
+      // atlas's.
+      final (outsideX, outsideY) = AtlasLayout.outsideEntry;
+      return entryX == outsideX &&
+              (entryY == outsideY || entryY == _top + outsideY)
           ? (kFarInward, 0, 0, 0)
           : (kDeepInward, 0, 0, 0);
     }

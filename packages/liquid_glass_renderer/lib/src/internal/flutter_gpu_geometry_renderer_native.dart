@@ -77,18 +77,19 @@ const _tileVertexLayout = gpu.VertexLayout(
   ],
 );
 
-/// Renders the liquid glass geometry atlas (geometry_tiling.dart) and the
-/// looks beside it using flutter_gpu.
+/// Renders liquid glass geometry atlases (geometry_tiling.dart) and the
+/// looks beside them using flutter_gpu.
 ///
-/// The atlas keeps a few retired textures, so a frame that renders twice
-/// still reuses one; scenes and GC can keep dropped
-/// textures alive longer. Textures grow as needed; rendering uses only the
-/// top-left area, with shader UVs adjusted to match.
+/// The atlases placed between two flushes share a page: one texture, drawn
+/// in one pass and submitted once ([flush]). A renderer holds one atlas,
+/// its latest, and with it the page: nothing draws over a page while a
+/// renderer holds an atlas in it, nor for [reuseAfterFrames] frames after,
+/// while the scenes that read it may still be drawn.
 ///
-/// This renderer owns the image handles returned by [gpu.Texture.asImage].
-/// Replacing/disposal releases those handles; recorded scenes hold independent
-/// native references. A scene rasterized more than [reuseAfterFrames] frames
-/// after it was recorded may show a newer atlas.
+/// The image handles are the pages', disposed once every atlas of a page
+/// is released. Recorded scenes hold independent native references; a
+/// scene rasterized more than [reuseAfterFrames] frames after its atlas was
+/// released may show other atlases.
 @internal
 class FlutterGpuGeometryRenderer {
   factory FlutterGpuGeometryRenderer._fromResolved(
@@ -107,18 +108,11 @@ class FlutterGpuGeometryRenderer {
     }
   }
 
-  FlutterGpuGeometryRenderer._fromShared(_SharedGeometryResources resources) {
-    _pipelines = resources.pipelines;
-    _tileFieldOffsets = resources.tileFieldOffsets;
-    _tileFieldUniformData = ByteData(resources.tileFieldUniformSize);
-    _uniformSize = resources.uniformSize;
-    _offsets = resources.offsets;
-    _uniformData = ByteData(_uniformSize);
-    assert(() {
-      _debugActiveRendererCount++;
-      return true;
-    }(), 'Track live geometry renderers in debug builds.');
-  }
+  FlutterGpuGeometryRenderer._fromShared(this._resources)
+    : assert(() {
+        _debugActiveRendererCount++;
+        return true;
+      }(), 'Track live geometry renderers in debug builds.');
 
   /// The class of the GPU the Flutter GPU context runs on. Flutter GPU
   /// names no backend, so it is read from capabilities: rendering into a
@@ -194,11 +188,11 @@ class FlutterGpuGeometryRenderer {
   static final Map<String, _SharedGeometryResources> _resolvedAssetResources =
       {};
 
-  /// One bump allocator for every geometry pass in the current frame.
+  /// One bump allocator for every page drawn in the current frame.
   ///
   /// A HostBuffer retains four device-buffer blocks, so one per renderer
   /// would cost four blocks per layer. A single scratch sized for a frame of
-  /// layers keeps that off the native heap.
+  /// draws keeps that off the native heap.
   static gpu.HostBuffer? _sharedHostBuffer;
   static int _sharedHostBufferBlockLength = 0;
   static Duration? _sharedHostBufferFrame;
@@ -213,13 +207,14 @@ class FlutterGpuGeometryRenderer {
   static int _debugActiveGeometryTextureCount = 0;
   static int _debugTotalRenderCount = 0;
 
-  /// Counts SDF submissions across all owners, including temporary renderers.
+  /// Counts atlases drawn across all owners, including temporary renderers.
   @visibleForTesting
   static int get debugTotalRenderCount => _debugTotalRenderCount;
 
   @visibleForTesting
   static int get debugActiveRendererCount => _debugActiveRendererCount;
 
+  /// Renderers that hold an atlas.
   @visibleForTesting
   static int get debugActiveGeometryTextureCount =>
       _debugActiveGeometryTextureCount;
@@ -246,21 +241,17 @@ class FlutterGpuGeometryRenderer {
     return _sharedHostBuffer!;
   }
 
+  final _SharedGeometryResources _resources;
   final _FieldTextures _fieldTextures = _FieldTextures();
-  late final List<_TilePipelines> _pipelines;
-  late final _TileFieldUniformOffsets _tileFieldOffsets;
-  late final ByteData _tileFieldUniformData;
 
-  // Latest geometry atlas and its looks. Older scenes retain their own
-  // native references.
-  gpu.Texture? _atlasTexture;
+  // The page holding the latest atlas, which it keeps from being drawn over.
+  _Page? _page;
   ui.Image? _atlasImage;
   List<ui.Image> _lookImages = const [];
-
-  final _TextureRing _atlases = _TextureRing();
+  AtlasPlace? _atlasPlace;
 
   @visibleForTesting
-  Object get debugPipelineIdentity => _pipelines.first.geometry;
+  Object get debugPipelineIdentity => _resources.pipelines.first.geometry;
 
   @visibleForTesting
   int get debugHostBufferBlockLength => _sharedHostBufferBlockLength;
@@ -277,47 +268,43 @@ class FlutterGpuGeometryRenderer {
 
   bool _disposed = false;
 
-  late final int _uniformSize;
-  late final _GeometryUniformOffsets _offsets;
-  late final ByteData _uniformData;
-  late final Float32List _uniformFloats = _uniformData.buffer.asFloat32List();
-  int _writtenShapeFloats = 0;
-
-  static final _AtlasQuads _quads = _AtlasQuads();
-
   // The corners of the unit square as two triangles, which every quad of
   // every atlas is an instance of.
   static gpu.BufferView? _corners;
 
-  /// The latest geometry atlas.
+  /// The latest geometry atlas, in the page it shares.
   ui.Image? get atlasImage => _atlasImage;
 
   /// The looks beside the latest atlas: none, the tint, or tint, response
   /// and color model shares.
   List<ui.Image> get lookImages => _lookImages;
 
+  /// Where the latest atlas lies in [atlasImage].
+  AtlasPlace? get atlasPlace => _atlasPlace;
+
   /// How many shapes the latest atlas left out: past
   /// [geometryMaxShapesPerDraw] reaching one tile (Tiling.droppedShapes).
   int droppedShapes = 0;
 
-  /// Draws the geometry atlas of [tiling] (geometry_tiling.dart) in one
-  /// pass: the constant tiles, the table and every ring strip, the strips
-  /// evaluating the tiling's shapes set by set, or its field. With
-  /// [Tiling.looks] the pass writes each texel's look into [lookImages]
-  /// beside it, textures of the atlas's size.
+  /// Places the geometry atlas of [tiling] (geometry_tiling.dart) in the
+  /// page of this frame: the constant tiles, the table and every ring
+  /// strip, the strips evaluating the tiling's shapes, or its field. With
+  /// [Tiling.looks] the page holds each texel's look beside it, in textures
+  /// of its size.
   ///
   /// Table texels hold their tile's entry in x and y, the strip's texels a
-  /// pixel in z (0 for a constant tile) and 1 in w. The returned
-  /// images belong to the renderer: do not dispose them. Their textures are
-  /// written again [reuseAfterFrames] frames after a later atlas replaces
-  /// them.
-  ({
-    ui.Image image,
-    List<ui.Image> looks,
-    int textureWidth,
-    int textureHeight,
-  })
-  renderAtlas(Tiling tiling) {
+  /// pixel in z (0 for a constant tile) and 1 in w. The page is drawn by
+  /// [flush]: at once outside a frame, else once for every atlas of the
+  /// frame, before its scene is built.
+  ///
+  /// The images are the page's: do not dispose them. This renderer keeps
+  /// the page from being drawn over until it renders another atlas or
+  /// releases this one. The images are disposed once every atlas of the
+  /// page is released; a clone lives on, and [reuseAfterFrames] frames
+  /// later may show other atlases.
+  ({ui.Image image, List<ui.Image> looks, AtlasPlace place}) renderAtlas(
+    Tiling tiling,
+  ) {
     assert(() {
       debugRenderCount++;
       _debugTotalRenderCount++;
@@ -329,39 +316,318 @@ class FlutterGpuGeometryRenderer {
       'A geometry atlas outgrew ${AtlasLayout.maxSize} rows at an inward '
       'reach of 1.',
     );
-    final layout = _atlases.fit(tiling);
-    final looks = tiling.looks;
-    final lookTargets = _LookTargets.of(looks);
-    _releaseAtlasHandles();
-    final atlas = _atlases.next(
-      _completedFrames,
-      lookCount: lookTargets.count,
-    );
-    final texture = _atlasTexture = atlas.texture;
-    final image = _atlasImage = texture.asImage();
-    _lookImages = List.unmodifiable([
-      for (final look in atlas.looks) look.asImage(),
-    ]);
+    final pages = _resources.pages[_LookTargets.of(tiling.looks).index];
+    final (page, place) = pages.add(tiling, _fieldTextures);
+    page.leases++;
+    releaseAtlas();
+    _page = page;
     assert(() {
       _debugActiveGeometryTextureCount++;
       return true;
-    }(), 'Track live geometry textures in debug builds.');
+    }(), 'Track held geometry atlases in debug builds.');
+    droppedShapes = tiling.droppedShapes;
+    if (_deferring) {
+      assert(() {
+        debugDeferredPassCount++;
+        return true;
+      }(), 'Count deferred atlases in debug builds.');
+      _flushAfterFrame();
+    } else {
+      flush();
+    }
+    return (
+      image: _atlasImage = page.image,
+      looks: _lookImages = page.lookImages,
+      place: _atlasPlace = place,
+    );
+  }
 
-    const strip = Tiling.size + 2;
-    final quads = _quads
-      ..reset(texture.width, texture.height)
-      ..fill(0, 0, strip, strip, kFarInward, 0, 0, 0);
+  /// Lets go of the latest atlas: its page is drawn over once no renderer
+  /// holds an atlas in it. Its images are not to be drawn with after this.
+  void releaseAtlas() {
+    final page = _page;
+    if (page == null) return;
+    _page = null;
+    _atlasImage = null;
+    _lookImages = const [];
+    _atlasPlace = null;
+    page.owner.release(page);
+    assert(() {
+      _debugActiveGeometryTextureCount--;
+      return true;
+    }(), 'Track released geometry atlases in debug builds.');
+  }
+
+  // A copy recorded before a render pass on the same command buffer is
+  // encoded ahead of it on Vulkan and GLES. Metal opens a blit encoder when
+  // the copy is recorded and closes it only on submit, so the render pass's
+  // encoder would nest: there the copy gets its own command buffer,
+  // submitted first.
+  static final bool _uploadsShareCommandBuffer =
+      !(Platform.isIOS || Platform.isMacOS);
+
+  // The pages with atlases placed and not yet drawn.
+  static final List<_Pages> _openPages = [];
+  static bool _postFrameFlushScheduled = false;
+
+  /// Pages drawn and submitted by [flush].
+  @visibleForTesting
+  static int debugBatchedSubmitCount = 0;
+
+  /// Flushes left to the post-frame safety net because no glass layer of the
+  /// frame's scene flushed first.
+  @visibleForTesting
+  static int debugPostFrameFlushCount = 0;
+
+  /// Atlases placed in a page that a later [flush] drew.
+  @visibleForTesting
+  static int debugDeferredPassCount = 0;
+
+  // Only the paint and compositing phases are followed by a scene build that
+  // flushes before the scene reaches the raster thread.
+  static bool get _deferring =>
+      SchedulerBinding.instance.schedulerPhase ==
+      SchedulerPhase.persistentCallbacks;
+
+  // Covers atlases whose layer was painted but not composited.
+  static void _flushAfterFrame() {
+    if (_postFrameFlushScheduled) return;
+    _postFrameFlushScheduled = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _postFrameFlushScheduled = false;
+      if (_openPages.isEmpty) return;
+      assert(() {
+        debugPostFrameFlushCount++;
+        return true;
+      }(), 'Count safety-net flushes in debug builds.');
+      flush();
+    });
+  }
+
+  /// Draws the pages holding the atlases placed since the last flush, each
+  /// in one pass, and submits them.
+  ///
+  /// The composer calls this while the scene is built, which is before the
+  /// scene is handed to the raster thread, so every atlas a scene samples
+  /// has been submitted ahead of it on the GPU queue. A post-frame callback
+  /// flushes atlases of layers that were painted but not composited.
+  static void flush() {
+    if (_openPages.isEmpty) return;
+    final open = List.of(_openPages);
+    _openPages.clear();
+    for (final pages in open) {
+      pages.flush();
+    }
+  }
+
+  /// Forgets the size the pages grew to and drops the spares, as a new
+  /// process starts. Where an atlas lies in its page moves a pixel's last
+  /// bit, so a test that compares pixels starts from here, whatever ran
+  /// before it.
+  @visibleForTesting
+  static void debugResetPages() {
+    flush();
+    for (final resources in _resolvedAssetResources.values) {
+      for (final pages in resources.pages) {
+        pages.reset();
+      }
+    }
+  }
+
+  /// Frames to wait after a page's last atlas is released before drawing
+  /// into it again.
+  ///
+  /// A page released in frame E was last read by frame E - 1. The engine's
+  /// two-frame pipeline (`Animator.FramePipeline(2)`) submits that scene before
+  /// frame E + 1 paints. Flutter GPU uses the same queue, which orders the next
+  /// write after those reads (Metal/Vulkan hazards; GLES posting order).
+  static const int reuseAfterFrames = 1;
+
+  static int _completedFrames = 0;
+  static bool _countingFrames = false;
+
+  /// Counts scene-submitting frames for page reuse.
+  ///
+  /// Renders outside a frame, as in unit tests, do not advance the count,
+  /// so their pages are never reused.
+  static void _ensureFrameCounter() {
+    if (_countingFrames) return;
+    _countingFrames = true;
+    SchedulerBinding.instance.addPersistentFrameCallback((_) {
+      if (!RendererBinding.instance.sendFramesToEngine) return;
+      _completedFrames++;
+    });
+  }
+
+  /// The texture of the page holding the latest atlas, compared by identity
+  /// in tests.
+  @visibleForTesting
+  Object? get debugMatteTexture => _page?.texture;
+
+  /// Size of the page holding the latest atlas.
+  @visibleForTesting
+  (int, int)? get debugMatteTextureSize => switch (_page) {
+    final page? => (page.width, page.height),
+    null => null,
+  };
+
+  /// Pages drawn into a texture kept from an earlier one instead of a new
+  /// one.
+  @visibleForTesting
+  static int debugReusedTextureCount = 0;
+
+  /// Textures allocated, pages and their looks.
+  @visibleForTesting
+  static int debugAllocatedTextureCount = 0;
+
+  /// Textures dropped. Once a texture has lived a few young GCs its wrapper
+  /// is promoted, and dropping it pins its storage until an old-generation
+  /// GC.
+  @visibleForTesting
+  static int debugDroppedTextureCount = 0;
+
+  /// Releases the latest atlas and the field textures, keeping the
+  /// pipelines.
+  ///
+  /// Callers retaining an output must clone its images before calling this.
+  /// Independent clones and submitted native scenes remain valid.
+  void releaseOutput() {
+    releaseAtlas();
+    _fieldTextures.release();
+  }
+
+  /// Releases the current output and retires this renderer.
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    releaseOutput();
+    assert(() {
+      _debugActiveRendererCount--;
+      return true;
+    }(), 'Track disposed geometry renderers in debug builds.');
+  }
+}
+
+/// What a draw of a field atlas binds besides the shapes.
+final class _FieldDraw {
+  const _FieldDraw(this.uniforms, this.texture);
+
+  final gpu.BufferView uniforms;
+  final gpu.Texture texture;
+}
+
+/// A run of a page's quads: where the run starts and how many it has, the
+/// block its shapes are read from where the pipeline reads shapes, and what
+/// the field pipeline binds where the run is a field's.
+typedef _Draw = ({
+  int first,
+  int count,
+  gpu.BufferView? shapes,
+  _FieldDraw? field,
+});
+
+/// The pages of the atlases that write one set of looks: every atlas placed
+/// between two flushes shares one texture and is drawn in one pass, with one
+/// submission, since each pass and each submission costs the UI thread
+/// more than an atlas's quads do.
+///
+/// An atlas is placed when it is asked for: below the ones before it, laid
+/// out to the page's width ([Tiling.layoutIn]), its quads written for the
+/// page's size. So its image and its place are known at once, and [flush]
+/// only draws. Atlases that outgrow the page go to a second one, drawn in a
+/// pass of its own, and the pages grow to hold a flush like this one.
+///
+/// A pass clears and stores its whole target on a tiled GPU, and a texture
+/// dropped may stay allocated until an old-generation GC. So every page
+/// has one size, an eighth taller than the fullest flush needed, which
+/// changes only when a flush outgrows it, at once, or once [_shrinkAfter]
+/// flushes in a row would have fit in half of it. A page no renderer holds
+/// an atlas in is a spare for later flushes, up to [_maxSpares] of them: a
+/// page drawn every frame alternates between two.
+final class _Pages {
+  _Pages({
+    required this._pipelines,
+    required this._offsets,
+    required int uniformSize,
+    required this._fieldOffsets,
+    required int fieldUniformSize,
+    required this._lookCount,
+  }) : _uniformSize = uniformSize,
+       _uniformData = ByteData(uniformSize),
+       _fieldUniformData = ByteData(fieldUniformSize);
+
+  static const int _maxSpares = 3;
+  static const int _shrinkAfter = 30;
+
+  final _TilePipelines _pipelines;
+  final _GeometryUniformOffsets _offsets;
+  final _TileFieldUniformOffsets _fieldOffsets;
+  final int _uniformSize;
+  final int _lookCount;
+
+  // The block the quads written next read, in rows of one shape or look.
+  final ByteData _uniformData;
+  late final Float32List _uniformFloats = _uniformData.buffer.asFloat32List();
+  final ByteData _fieldUniformData;
+  int _blockRows = 0;
+
+  final _AtlasQuads _quads = _AtlasQuads();
+  final List<_Draw> _draws = [];
+  int _drawFrom = 0;
+  _FieldDraw? _field;
+
+  _Page? _open;
+  final List<_Page> _spares = [];
+
+  // The size of the pages.
+  int _width = 0;
+  int _height = 0;
+  // What this flush has placed: the texels of its atlases, each laid out
+  // on its own, and the widest of them; and how many of those texels are
+  // in pages it has drawn already.
+  int _texels = 0;
+  int _widest = 0;
+  int _drawnTexels = 0;
+  // How many flushes in a row have filled no more than half a page, and
+  // the most they placed.
+  int _slack = 0;
+  int _slackTexels = 0;
+  int _slackWidest = 0;
+  int _slackRows = 0;
+
+  gpu.HostBuffer get _hostBuffer =>
+      FlutterGpuGeometryRenderer._hostBufferForUniformSize(_uniformSize);
+
+  /// Places the atlas of [tiling] in the open page and writes its quads.
+  (_Page, AtlasPlace) add(Tiling tiling, _FieldTextures fieldTextures) {
+    final (page, layout, top) = _place(tiling);
+    final quads = _quads..top = top;
+    final looks = tiling.looks;
+    final field = tiling.field;
+    if (field != null) {
+      final texture = _fieldTexture(fieldTextures, field.field, page);
+      _packFieldUniforms(field, texture);
+      _drawWith(_FieldDraw(_hostBuffer.emplace(_fieldUniformData), texture));
+    }
+
+    const block = Tiling.size + 2;
+    quads.fill(0, 0, block, block, kFarInward, 0, 0, 0);
     for (var look = 0; look < (looks?.count ?? 1); look++) {
+      var row = -1;
+      if (looks != null) {
+        row = _takeRows(1);
+        _packLook(looks, look, row);
+      }
       quads.fill(
-        (look + 1) * strip,
+        (look + 1) * block,
         0,
-        strip,
-        strip,
+        block,
+        block,
         kDeepInward,
         0,
         0,
         0,
-        look: look,
+        look: row,
       );
     }
     final (tableX, tableY) = AtlasLayout.tableOrigin;
@@ -386,7 +652,7 @@ class FlutterGpuGeometryRenderer {
           end - column,
           1,
           deepX.toDouble(),
-          deepY.toDouble(),
+          (top + deepY).toDouble(),
           0,
           1,
         );
@@ -403,151 +669,406 @@ class FlutterGpuGeometryRenderer {
         run.length,
         1,
         entryX.toDouble(),
-        entryY.toDouble(),
+        (top + entryY).toDouble(),
         1 / run.texel,
         1,
         rampFrom: tableX + run.column,
       );
     }
-    final fills = quads.count;
-    final sets = <(int, int, int)>[];
-    for (var set = 0; set < tiling.shapeSets.length; set++) {
-      final members = tiling.shapeSets[set];
-      final shapeCount = math.min(members.length, geometryMaxShapesPerDraw);
-      final reach = tiling.reach.outward + _smoothing(tiling.shapes, members);
-      final start = quads.count;
+
+    void strip(int i, {required double reach, int base = 0, int count = 0}) {
+      final run = runs[i];
+      final x = layout.strips[i * 2];
+      final y = layout.strips[i * 2 + 1];
+      final texel = run.texel;
+      quads.strip(
+        x,
+        y,
+        run.length * Tiling.size ~/ texel + 2,
+        Tiling.size ~/ texel + 2,
+        bufferX: (run.column * Tiling.size - (x + 1) * texel).toDouble(),
+        bufferY: (run.row * Tiling.size - (top + y + 1) * texel).toDouble(),
+        texel: texel,
+        reach: reach,
+        base: base,
+        count: count,
+        members: field == null ? run.members : 0,
+      );
+    }
+
+    if (field != null) {
+      // A field takes its looks from its first set of shapes.
+      var base = 0;
+      var count = 0;
+      if (looks != null && runs.isNotEmpty) {
+        final members = tiling.shapeSets.first;
+        count = math.min(members.length, geometryMaxShapesPerDraw);
+        base = _takeRows(count);
+        _packShapes(tiling.shapes, members, base, looks);
+      }
       for (var i = 0; i < runs.length; i++) {
-        final run = runs[i];
-        if (run.shapes != set) continue;
-        final x = layout.strips[i * 2];
-        final y = layout.strips[i * 2 + 1];
-        final texel = run.texel;
-        quads.strip(
-          x,
-          y,
-          run.length * Tiling.size ~/ texel + 2,
-          Tiling.size ~/ texel + 2,
-          bufferX: (run.column * Tiling.size - (x + 1) * texel).toDouble(),
-          bufferY: (run.row * Tiling.size - (y + 1) * texel).toDouble(),
-          texel: texel,
-          reach: reach,
-          shapeCount: shapeCount,
-          members: run.members,
-        );
+        strip(i, reach: 0, base: base, count: count);
       }
-      if (quads.count > start) sets.add((set, start, quads.count - start));
-    }
-
-    final hostBuffer = _hostBufferForUniformSize(_uniformSize);
-    final instances = _vertexScratch.write(quads.bytes);
-    final corners = _corners ??= gpu.BufferView(
-      gpu.gpuContext.createDeviceBufferWithCopy(
-        ByteData.sublistView(
-          Float32List.fromList(const [0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1]),
-        ),
-      ),
-      offsetInBytes: 0,
-      lengthInBytes: 48,
-    );
-    gpu.BufferView range(int first, int count) => gpu.BufferView(
-      instances.buffer,
-      offsetInBytes: instances.offsetInBytes + first * _AtlasQuads.bytesPerQuad,
-      lengthInBytes: count * _AtlasQuads.bytesPerQuad,
-    );
-
-    final commands = gpu.gpuContext.createCommandBuffer();
-    final field = tiling.field;
-    gpu.Texture? fieldTexture;
-    try {
-      fieldTexture = field == null ? null : _uploadField(field.field, commands);
-    } on Object {
-      commands.submit();
-      rethrow;
-    }
-    final pipelines = _pipelines[lookTargets.index];
-    final pass = commands.createRenderPass(atlas.renderTarget)
-      ..setPrimitiveType(gpu.PrimitiveType.triangle)
-      ..bindVertexBuffer(corners);
-    final gpu.UniformSlot? shapesSlot;
-    if (field == null) {
-      pass.bindPipeline(pipelines.geometry);
-      shapesSlot = pipelines.geometryShapes;
+      _drawWith(null);
     } else {
-      _packTileFieldUniformData(field, fieldTexture!);
-      pass
-        ..bindPipeline(pipelines.field)
-        ..bindUniform(
-          pipelines.fieldUniforms,
-          hostBuffer.emplace(_tileFieldUniformData),
-        )
-        ..bindTexture(pipelines.fieldTexture, fieldTexture);
-      shapesSlot = pipelines.fieldShapes;
-    }
-    var drawn = 0;
-    void drawTo(int end) {
-      if (end == drawn) return;
-      pass
-        ..bindVertexBuffer(range(drawn, end - drawn), slot: 1)
-        ..draw(6, instanceCount: end - drawn);
-      drawn = end;
-    }
-
-    if (shapesSlot == null) {
-      drawTo(quads.count);
-    } else {
-      // The fill quads read their looks by look where the strips read them
-      // by shape, so with looks they get a draw of their own. Without, they
-      // go with the first strips.
-      if (looks != null) {
-        _packLooks(looks);
-        pass.bindUniform(shapesSlot, hostBuffer.emplace(_uniformData));
-        drawTo(fills);
-      }
-      // A field takes its looks from its first set.
-      final draws = field == null ? sets : [(0, fills, quads.count - fills)];
-      for (final (set, first, count) in draws) {
-        if (count == 0) continue;
+      for (var set = 0; set < tiling.shapeSets.length; set++) {
         final members = tiling.shapeSets[set];
-        _packShapes(tiling.shapes, members);
-        if (looks != null) _packLooks(looks, members: members);
-        pass.bindUniform(shapesSlot, hostBuffer.emplace(_uniformData));
-        drawTo(first + count);
-      }
-      if (drawn < fills) {
-        // No ring tiles: the pipeline still wants its block bound.
-        pass.bindUniform(shapesSlot, hostBuffer.emplace(_uniformData));
-        drawTo(fills);
+        final count = math.min(members.length, geometryMaxShapesPerDraw);
+        final reach = tiling.reach.outward + _smoothing(tiling.shapes, members);
+        var base = -1;
+        for (var i = 0; i < runs.length; i++) {
+          if (runs[i].shapes != set) continue;
+          if (base < 0) {
+            base = _takeRows(count);
+            _packShapes(tiling.shapes, members, base, looks);
+          }
+          strip(i, reach: reach, base: base, count: count);
+        }
       }
     }
-    _submitOrDefer(commands);
-    droppedShapes = tiling.droppedShapes;
     return (
-      image: image,
-      looks: _lookImages,
-      textureWidth: texture.width,
-      textureHeight: texture.height,
+      page,
+      (
+        tableX: tableX,
+        tableY: top + tableY,
+        width: page.width,
+        height: page.height,
+      ),
     );
   }
 
-  // Releases our handles; earlier submitted scenes hold their own.
-  void _releaseAtlasHandles() {
-    for (final look in _lookImages) {
-      look.dispose();
+  // The open page with room for [tiling], its layout there and its top row.
+  (_Page, AtlasLayout, int) _place(Tiling tiling) {
+    final own = tiling.layout;
+    _texels += own.width * own.height;
+    _widest = math.max(_widest, own.width);
+    var page = _open;
+    if (page != null) {
+      final layout = tiling.layoutIn(page.width);
+      if (layout != null && page.rows + layout.height <= page.height) {
+        final top = page.rows;
+        page.rows += layout.height;
+        return (page, layout, top);
+      }
+      // The flush outgrew its page: the atlases so far are drawn now, and
+      // the pages from here on have room for them and this one.
+      _drawnTexels = _texels - own.width * own.height;
+      _draw();
     }
-    _lookImages = const [];
-    if (_atlasTexture == null) return;
-    _atlasImage?.dispose();
-    _atlasImage = null;
-    _atlasTexture = null;
-    assert(() {
-      _debugActiveGeometryTextureCount--;
-      return true;
-    }(), 'Track replaced geometry textures in debug builds.');
+    final layout = _fit(tiling);
+    page = _open = _take();
+    if (!FlutterGpuGeometryRenderer._openPages.contains(this)) {
+      FlutterGpuGeometryRenderer._openPages.add(this);
+    }
+    _quads.reset(page.width, page.height);
+    page.rows = layout.height;
+    return (page, layout, 0);
   }
 
-  void _packTileFieldUniformData(BufferField field, gpu.Texture texture) {
-    final to = _tileFieldUniformData.buffer.asFloat32List();
-    final offsets = _tileFieldOffsets;
+  // The layout of [tiling] at the top of a new page, the pages growing to
+  // hold what this flush has placed so far.
+  AtlasLayout _fit(Tiling tiling) {
+    // Up to twice as tall as wide the pages keep their width, so their
+    // textures are replaced less often.
+    if (tiling.layoutIn(_width) == null || _texels > 2 * _width * _width) {
+      _width = math.min(AtlasLayout.maxSize, _squareWidth(_texels, _widest));
+    }
+    final layout = tiling.layoutIn(_width)!;
+    final rows = layout.height + (_drawnTexels / _width).ceil();
+    if (rows > _height) _height = _roomFor(rows);
+    return layout;
+  }
+
+  // The width of a square page of [texels], no narrower than [widest].
+  static int _squareWidth(int texels, int widest) =>
+      math.max(widest, (math.sqrt(texels).ceil() + 31) & ~31);
+
+  // A page of the capacity no scene still reads: a spare, or a new one.
+  _Page _take() {
+    final frame = FlutterGpuGeometryRenderer._completedFrames;
+    _spares.removeWhere((spare) {
+      if (spare.sized(_width, _height)) return false;
+      spare.drop();
+      return true;
+    });
+    final reusable = _spares.indexWhere(
+      (spare) =>
+          frame - spare.retiredFrame >=
+          FlutterGpuGeometryRenderer.reuseAfterFrames,
+    );
+    if (reusable < 0) {
+      return _Page(this, _width, _height, _lookCount)..begin();
+    }
+    assert(() {
+      FlutterGpuGeometryRenderer.debugReusedTextureCount++;
+      return true;
+    }(), 'Count reused geometry textures in debug builds.');
+    return _spares.removeAt(reusable)..begin();
+  }
+
+  // An eighth over [rows], in the 16 rows a tiled GPU stores at a time, so
+  // atlases that grow a little keep their page's size and its textures.
+  static int _roomFor(int rows) =>
+      math.min(AtlasLayout.maxSize, (rows + (rows >> 3) + 15) & ~15);
+
+  /// Lets go of one atlas in [page]: once none is held and the page is
+  /// drawn, it is a spare.
+  void release(_Page page) {
+    page.leases--;
+    if (page.leases == 0 && !page.open) _retire(page);
+  }
+
+  void _retire(_Page page) {
+    page
+      ..retiredFrame = FlutterGpuGeometryRenderer._completedFrames
+      ..disposeImages();
+    if (!page.sized(_width, _height)) {
+      page.drop();
+      return;
+    }
+    _spares.add(page);
+    while (_spares.length > _maxSpares) {
+      _spares.removeAt(0).drop();
+    }
+  }
+
+  /// Draws the open page. Once [_shrinkAfter] flushes in a row have filled
+  /// no more than half a page, the pages shrink to the fullest of them.
+  void flush() {
+    final page = _open;
+    if (page == null) return;
+    final texels = _texels;
+    final widest = _widest;
+    final rows = page.rows + (_drawnTexels / _width).ceil();
+    _texels = 0;
+    _widest = 0;
+    _drawnTexels = 0;
+    _draw();
+    if (_roomFor(rows) * 2 > _height) {
+      _slack = 0;
+      _slackTexels = 0;
+      _slackWidest = 0;
+      _slackRows = 0;
+      return;
+    }
+    _slackTexels = math.max(_slackTexels, texels);
+    _slackWidest = math.max(_slackWidest, widest);
+    _slackRows = math.max(_slackRows, rows);
+    if (++_slack < _shrinkAfter) return;
+    // Narrower too where the pages would be flatter than two to one.
+    if (_roomFor(_slackRows) * 2 < _width) {
+      _width = _squareWidth(_slackTexels, _slackWidest);
+      _height = _roomFor((_slackTexels / _width).ceil());
+    } else {
+      _height = _roomFor(_slackRows);
+    }
+    _slack = 0;
+    _slackTexels = 0;
+    _slackWidest = 0;
+    _slackRows = 0;
+  }
+
+  /// Drops the spares and forgets the pages' size.
+  void reset() {
+    for (final spare in _spares) {
+      spare.drop();
+    }
+    _spares.clear();
+    _width = 0;
+    _height = 0;
+    _slack = 0;
+    _slackTexels = 0;
+    _slackWidest = 0;
+    _slackRows = 0;
+  }
+
+  // Draws the open page's quads in one pass and submits it.
+  void _draw() {
+    final page = _open!;
+    _open = null;
+    _endDraw();
+    try {
+      final instances = FlutterGpuGeometryRenderer._vertexScratch.write(
+        _quads.bytes,
+      );
+      final corners = FlutterGpuGeometryRenderer._corners ??= gpu.BufferView(
+        gpu.gpuContext.createDeviceBufferWithCopy(
+          ByteData.sublistView(
+            Float32List.fromList(const [0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1]),
+          ),
+        ),
+        offsetInBytes: 0,
+        lengthInBytes: 48,
+      );
+      final commands = page.commands ?? gpu.gpuContext.createCommandBuffer();
+      page.commands = null;
+      final pass = commands.createRenderPass(page.renderTarget)
+        ..setPrimitiveType(gpu.PrimitiveType.triangle);
+      gpu.RenderPipeline? bound;
+      for (final draw in _draws) {
+        final field = draw.field;
+        final pipeline = field == null ? _pipelines.geometry : _pipelines.field;
+        if (!identical(pipeline, bound)) {
+          // A binding outlives its draw, and a field's would bind over the
+          // shapes of the draws after it.
+          pass
+            ..clearBindings()
+            ..bindPipeline(bound = pipeline)
+            ..bindVertexBuffer(corners);
+        }
+        if (field != null) {
+          pass
+            ..bindUniform(_pipelines.fieldUniforms, field.uniforms)
+            ..bindTexture(_pipelines.fieldTexture, field.texture);
+        }
+        final slot = field == null
+            ? _pipelines.geometryShapes
+            : _pipelines.fieldShapes;
+        if (slot != null) pass.bindUniform(slot, draw.shapes!);
+        pass
+          ..bindVertexBuffer(
+            gpu.BufferView(
+              instances.buffer,
+              offsetInBytes:
+                  instances.offsetInBytes +
+                  draw.first * _AtlasQuads.bytesPerQuad,
+              lengthInBytes: draw.count * _AtlasQuads.bytesPerQuad,
+            ),
+            slot: 1,
+          )
+          ..draw(6, instanceCount: draw.count);
+      }
+      commands.submit();
+      assert(() {
+        FlutterGpuGeometryRenderer.debugBatchedSubmitCount++;
+        return true;
+      }(), 'Count submitted pages in debug builds.');
+    } finally {
+      _draws.clear();
+      _drawFrom = 0;
+      page.open = false;
+      if (page.leases == 0) _retire(page);
+    }
+  }
+
+  // The quads written next are drawn with [field], or with the shapes'
+  // pipeline.
+  void _drawWith(_FieldDraw? field) {
+    if (identical(field, _field)) return;
+    _endDraw();
+    _field = field;
+  }
+
+  // Ends the draw of the quads written since the last, which read the
+  // block as it is; the quads after them read a new one.
+  void _endDraw() {
+    final count = _quads.count - _drawFrom;
+    if (count > 0) {
+      final field = _field;
+      _draws.add((
+        first: _drawFrom,
+        count: count,
+        shapes: field == null || _pipelines.fieldShapes != null
+            ? _hostBuffer.emplace(_uniformData)
+            : null,
+        field: field,
+      ));
+      _drawFrom = _quads.count;
+    }
+    _blockRows = 0;
+  }
+
+  // The first of [count] rows of the block for the quads written next.
+  int _takeRows(int count) {
+    if (_blockRows + count > geometryMaxShapesPerDraw) _endDraw();
+    final base = _blockRows;
+    _blockRows += count;
+    return base;
+  }
+
+  // Writes [look] of [looks] into [row] of the block.
+  void _packLook(ShapeLooks looks, int look, int row) {
+    final floats = _uniformFloats;
+    final tints = _offsets.lookTints ~/ 4 + row * 4;
+    final responses = _offsets.lookResponses ~/ 4 + row * 4;
+    for (var i = 0; i < 4; i++) {
+      floats[tints + i] = looks.looks[look * 8 + i];
+      floats[responses + i] = looks.looks[look * 8 + 4 + i];
+    }
+  }
+
+  // Writes [members] of [shapes], at most geometryMaxShapesPerDraw, into
+  // the block's rows from [base], with their [looks] if any. The strips
+  // name the rows they read, so the other rows hold whatever they held.
+  void _packShapes(
+    ShapeSet shapes,
+    List<int> members,
+    int base,
+    ShapeLooks? looks,
+  ) {
+    final floats = _uniformFloats;
+    final count = math.min(members.length, geometryMaxShapesPerDraw);
+    const rows = geometryMaxShapesPerDraw * 12;
+    final shapeAt = _offsets.shapeData ~/ 4 + base * 12;
+    final rseAt = _offsets.rseData ~/ 4 + base * 12;
+    // A pair's bottom half sits in the second half of uRseData.
+    final lowerAt = rseAt + rows;
+    final boundsAt = _offsets.shapeBounds ~/ 4 + base * 4;
+    for (var row = 0; row < count; row++) {
+      final member = members[row];
+      final from = member * 12;
+      for (var i = 0; i < 12; i++) {
+        floats[shapeAt + row * 12 + i] = shapes.shapes[from + i];
+        floats[rseAt + row * 12 + i] = shapes.superellipses[from + i];
+        floats[lowerAt + row * 12 + i] = shapes.superellipsesLower[from + i];
+      }
+      for (var i = 0; i < 4; i++) {
+        floats[boundsAt + row * 4 + i] = shapes.boxes[member * 4 + i];
+      }
+      if (looks != null) _packLook(looks, looks.lookOf[member], base + row);
+    }
+  }
+
+  // How far past the reach the blends of [members] can still pull a texel's
+  // distance in: a quarter of each blend.
+  static double _smoothing(ShapeSet shapes, List<int> members) {
+    final count = math.min(members.length, geometryMaxShapesPerDraw);
+    var smoothing = 0.0;
+    for (var row = 0; row < count; row++) {
+      final marker = shapes.shapes[members[row] * 12 + 11];
+      if (marker > 0) smoothing += marker * 0.25;
+    }
+    return smoothing;
+  }
+
+  // The texture holding [field], its samples copied in ahead of [page]'s
+  // pass.
+  gpu.Texture _fieldTexture(
+    _FieldTextures textures,
+    LiquidGlassField field,
+    _Page page,
+  ) {
+    final frame = FlutterGpuGeometryRenderer._completedFrames;
+    final held = textures.held(field, frame);
+    if (held != null) return held;
+    if (FlutterGpuGeometryRenderer._uploadsShareCommandBuffer) {
+      return textures.upload(
+        field,
+        frame,
+        page.commands ??= gpu.gpuContext.createCommandBuffer(),
+      );
+    }
+    final upload = gpu.gpuContext.createCommandBuffer();
+    try {
+      return textures.upload(field, frame, upload);
+    } finally {
+      upload.submit();
+    }
+  }
+
+  void _packFieldUniforms(BufferField field, gpu.Texture texture) {
+    final to = _fieldUniformData.buffer.asFloat32List();
+    final offsets = _fieldOffsets;
     final (xx, xy, yx, yy, dx, dy) = field.bufferToGrid;
     final toGrid = offsets.bufferToGrid ~/ 4;
     to[toGrid] = xx;
@@ -564,259 +1085,121 @@ class FlutterGpuGeometryRenderer {
     to[size + 2] = 1 / texture.width;
     to[size + 3] = 1 / texture.height;
   }
+}
 
-  /// The texture holding [field], its copy recorded on [geometry] where a
-  /// copy may precede the geometry pass on one command buffer, else on a
-  /// command buffer of its own submitted ahead of it.
-  gpu.Texture _uploadField(
-    LiquidGlassField field,
-    gpu.CommandBuffer geometry,
-  ) {
-    final held = _fieldTextures.held(field, _completedFrames);
-    if (held != null) return held;
-    if (_uploadsShareCommandBuffer) {
-      return _fieldTextures.upload(field, _completedFrames, geometry);
-    }
-    final upload = gpu.gpuContext.createCommandBuffer();
-    try {
-      final texture = _fieldTextures.upload(field, _completedFrames, upload);
-      _submitOrDefer(upload);
-      return texture;
-    } on Object {
-      upload.submit();
-      rethrow;
-    }
+/// One texture of atlases and the look textures beside it, with what one
+/// use of it holds: the rows placed, the atlases renderers still hold.
+///
+/// The set of textures is fixed: Impeller's Vulkan backend keeps the
+/// framebuffer of a pass on the texture of its first attachment and hands
+/// it to the next pass that draws into that texture, whatever else that
+/// pass draws into, so a page always draws with the same looks.
+final class _Page {
+  _Page(this.owner, int width, int height, int lookCount)
+    : texture = _create(width, height),
+      looks = List.unmodifiable([
+        for (var i = 0; i < lookCount; i++) _create(width, height),
+      ]) {
+    renderTarget = gpu.RenderTarget(
+      colorAttachments: [
+        gpu.ColorAttachment(texture: texture, clearValue: _outsideEntry),
+        for (final look in looks) gpu.ColorAttachment(texture: look),
+      ],
+    );
   }
 
-  // A copy recorded before a render pass on the same command buffer is
-  // encoded ahead of it on Vulkan and GLES. Metal opens a blit encoder when
-  // the copy is recorded and closes it only on submit, so the render pass's
-  // encoder would nest: there the copy gets its own command buffer,
-  // submitted first.
-  static final bool _uploadsShareCommandBuffer =
-      !(Platform.isIOS || Platform.isMacOS);
+  final _Pages owner;
+  final gpu.Texture texture;
 
-  // Every pass gets its own command buffer: Flutter GPU (3.47.1) begins the
-  // backend pass in `createRenderPass` and ends it only in `submit`, so a
-  // second pass on one command buffer nests inside the first. That segfaults
-  // in the PowerVR Vulkan driver and SwiftShader (CmdEndRenderPass2) and
-  // asserts on Metal ("A command encoder is already encoding"). Share one
-  // only once the engine ends a pass before the next begins.
-  static final List<gpu.CommandBuffer> _pendingCommandBuffers = [];
-  static bool _postFrameFlushScheduled = false;
+  /// Look textures of [texture]'s size.
+  final List<gpu.Texture> looks;
 
-  /// Command buffers submitted by [flushPendingSubmissions].
-  @visibleForTesting
-  static int debugBatchedSubmitCount = 0;
+  /// Clears the page to the outside tile's table entry, which the first
+  /// atlas placed holds at that texel, and the looks to zero. Without a
+  /// clear, texels no quad writes hold whatever the memory held: old
+  /// mattes on the host, black or white streaks across glass on phones.
+  late final gpu.RenderTarget renderTarget;
 
-  /// Flushes left to the post-frame safety net because no glass layer of the
-  /// frame's scene flushed first.
-  @visibleForTesting
-  static int debugPostFrameFlushCount = 0;
+  static final vm.Vector4 _outsideEntry = vm.Vector4(
+    AtlasLayout.outsideEntry.$1.toDouble(),
+    AtlasLayout.outsideEntry.$2.toDouble(),
+    0,
+    1,
+  );
 
-  /// Passes whose submission was deferred to [flushPendingSubmissions].
-  @visibleForTesting
-  static int debugDeferredPassCount = 0;
+  int get width => texture.width;
+  int get height => texture.height;
 
-  // Only the paint and compositing phases are followed by a scene build that
-  // flushes before the scene reaches the raster thread.
-  static bool get _deferring =>
-      SchedulerBinding.instance.schedulerPhase ==
-      SchedulerPhase.persistentCallbacks;
+  bool sized(int width, int height) =>
+      texture.width == width && texture.height == height;
 
-  static void _submitOrDefer(gpu.CommandBuffer commandBuffer) {
-    if (!_deferring) {
-      commandBuffer.submit();
-      return;
-    }
+  /// The handles of this use of the page, disposed with its last atlas:
+  /// new ones each use, so what compares images sees that the page holds
+  /// other atlases, and what draws with a released atlas fails.
+  late ui.Image image;
+  List<ui.Image> lookImages = const [];
+
+  /// Rows placed, the atlases renderers hold, and whether it is yet to be
+  /// drawn.
+  int rows = 0;
+  int leases = 0;
+  bool open = false;
+
+  /// Frame count when the last atlas held was released.
+  int retiredFrame = 0;
+
+  /// What copies fields in ahead of the pass, where one is recorded.
+  gpu.CommandBuffer? commands;
+
+  /// Starts a use of the page.
+  void begin() {
+    image = texture.asImage();
+    lookImages = List.unmodifiable([for (final look in looks) look.asImage()]);
+    _hasImages = true;
+    rows = 0;
+    open = true;
+  }
+
+  /// Gives the page up.
+  void drop() {
+    disposeImages();
     assert(() {
-      debugDeferredPassCount++;
-      return true;
-    }(), 'Count deferred geometry passes in debug builds.');
-    _pendingCommandBuffers.add(commandBuffer);
-    if (_postFrameFlushScheduled) return;
-    _postFrameFlushScheduled = true;
-    // Covers passes whose layer was painted but not composited.
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      _postFrameFlushScheduled = false;
-      if (_pendingCommandBuffers.isEmpty) return;
-      assert(() {
-        debugPostFrameFlushCount++;
-        return true;
-      }(), 'Count safety-net flushes in debug builds.');
-      flushPendingSubmissions();
-    });
-  }
-
-  /// Submits the passes recorded since the last flush, in recording order.
-  ///
-  /// Glass layers call this while the scene is built, which is before the
-  /// scene is handed to the raster thread, so every matte a scene samples has
-  /// been submitted ahead of it on the GPU queue. A post-frame callback
-  /// flushes passes of layers that were painted but not composited.
-  static void flushPendingSubmissions() {
-    if (_pendingCommandBuffers.isEmpty) return;
-    for (final commandBuffer in _pendingCommandBuffers) {
-      commandBuffer.submit();
-      assert(() {
-        debugBatchedSubmitCount++;
-        return true;
-      }(), 'Count batched submissions in debug builds.');
-    }
-    _pendingCommandBuffers.clear();
-  }
-
-  /// Frames to wait after retirement before reusing a texture.
-  ///
-  /// A texture retired in frame E was last read by frame E - 1. The engine's
-  /// two-frame pipeline (`Animator.FramePipeline(2)`) submits that scene before
-  /// frame E + 1 paints. Flutter GPU uses the same queue, which orders the next
-  /// write after those reads (Metal/Vulkan hazards; GLES posting order).
-  static const int reuseAfterFrames = 1;
-
-  static int _completedFrames = 0;
-  static bool _countingFrames = false;
-
-  /// Counts scene-submitting frames for texture reuse.
-  ///
-  /// Renders outside a frame, as in unit tests, do not advance the count,
-  /// so their textures are never reused.
-  static void _ensureFrameCounter() {
-    if (_countingFrames) return;
-    _countingFrames = true;
-    SchedulerBinding.instance.addPersistentFrameCallback((_) {
-      if (!RendererBinding.instance.sendFramesToEngine) return;
-      _completedFrames++;
-    });
-  }
-
-  /// Textures this renderer holds that are not in use.
-  @visibleForTesting
-  int get debugRetiredTextureCount => _atlases.spareCount;
-
-  /// Atlas textures this renderer holds, including the one in use.
-  @visibleForTesting
-  int get debugMatteTextureCount => _atlases.textureCount;
-
-  /// The latest atlas texture, compared by identity in tests.
-  @visibleForTesting
-  Object? get debugMatteTexture => _atlasTexture;
-
-  /// Size of the latest atlas texture.
-  @visibleForTesting
-  (int, int)? get debugMatteTextureSize => switch (_atlasTexture) {
-    final texture? => (texture.width, texture.height),
-    null => null,
-  };
-
-  /// Renders that wrote into a reused texture instead of allocating one.
-  @visibleForTesting
-  static int debugReusedTextureCount = 0;
-
-  /// Textures allocated, all renderers.
-  @visibleForTesting
-  static int debugAllocatedTextureCount = 0;
-
-  /// Textures dropped, all renderers. Once a texture has lived a few young
-  /// GCs its wrapper is promoted, and dropping it pins its storage until an
-  /// old-generation GC.
-  @visibleForTesting
-  static int debugDroppedTextureCount = 0;
-
-  static void _countDropped(_RingTexture entry) {
-    assert(() {
-      debugDroppedTextureCount += entry.textureCount;
+      FlutterGpuGeometryRenderer.debugDroppedTextureCount += 1 + looks.length;
       return true;
     }(), 'Count dropped geometry textures in debug builds.');
   }
 
-  // Writes look row by row: each look in turn, or the look of each of
-  // [members].
-  void _packLooks(ShapeLooks looks, {List<int>? members}) {
-    final floats = _uniformFloats;
-    final tints = _offsets.lookTints ~/ 4;
-    final responses = _offsets.lookResponses ~/ 4;
-    final rows = members?.length ?? looks.count;
-    for (var row = 0; row < rows; row++) {
-      final at = (members == null ? row : looks.lookOf[members[row]]) * 8;
-      for (var i = 0; i < 4; i++) {
-        floats[tints + row * 4 + i] = looks.looks[at + i];
-        floats[responses + row * 4 + i] = looks.looks[at + 4 + i];
-      }
+  bool _hasImages = false;
+
+  /// Disposes the handles of the use that ended.
+  void disposeImages() {
+    if (!_hasImages) return;
+    _hasImages = false;
+    image.dispose();
+    for (final look in lookImages) {
+      look.dispose();
     }
+    lookImages = const [];
   }
 
-  // Writes the uniforms of [members] of [shapes], at most
-  // geometryMaxShapesPerDraw, which every draw replaces. Rows past them are
-  // zero, and their bounds never cull.
-  void _packShapes(ShapeSet shapes, List<int> members) {
-    final floats = _uniformFloats;
-    final count = math.min(members.length, geometryMaxShapesPerDraw);
-    const rows = geometryMaxShapesPerDraw * 12;
-    final shapeAt = _offsets.shapeData ~/ 4;
-    final rseAt = _offsets.rseData ~/ 4;
-    // A pair's bottom half sits in the second half of uRseData.
-    final lowerAt = rseAt + rows;
-    final boundsAt = _offsets.shapeBounds ~/ 4;
-    for (var row = 0; row < count; row++) {
-      final from = members[row] * 12;
-      for (var i = 0; i < 12; i++) {
-        floats[shapeAt + row * 12 + i] = shapes.shapes[from + i];
-        floats[rseAt + row * 12 + i] = shapes.superellipses[from + i];
-        floats[lowerAt + row * 12 + i] = shapes.superellipsesLower[from + i];
-      }
-      for (var i = 0; i < 4; i++) {
-        floats[boundsAt + row * 4 + i] = shapes.boxes[members[row] * 4 + i];
-      }
-    }
-    for (var i = count * 12; i < _writtenShapeFloats; i++) {
-      floats[shapeAt + i] = 0;
-      floats[rseAt + i] = 0;
-      floats[lowerAt + i] = 0;
-    }
-    _writtenShapeFloats = count * 12;
-    for (var i = count * 4; i < geometryMaxShapesPerDraw * 4; i++) {
-      floats[boundsAt + i] = i % 4 < 2 ? -1e9 : 1e9;
-    }
-  }
-
-  // How far past the reach the blends of [members] can still pull a texel's
-  // distance in: a quarter of each blend.
-  static double _smoothing(ShapeSet shapes, List<int> members) {
-    final count = math.min(members.length, geometryMaxShapesPerDraw);
-    var smoothing = 0.0;
-    for (var row = 0; row < count; row++) {
-      final marker = shapes.shapes[members[row] * 12 + 11];
-      if (marker > 0) smoothing += marker * 0.25;
-    }
-    return smoothing;
-  }
-
-  /// Releases borrowed output handles, keeping reusable rendering resources.
-  ///
-  /// Callers retaining an output must clone its images before calling this.
-  /// Independent clones and submitted native scenes remain valid.
-  void releaseOutput() {
-    _atlases.release();
-    _releaseAtlasHandles();
-    _fieldTextures.release();
-  }
-
-  /// Releases the current output and retires this renderer.
-  void dispose() {
-    if (_disposed) return;
-    _disposed = true;
-    releaseOutput();
+  static gpu.Texture _create(int width, int height) {
     assert(() {
-      _debugActiveRendererCount--;
+      FlutterGpuGeometryRenderer.debugAllocatedTextureCount++;
       return true;
-    }(), 'Track disposed geometry renderers in debug builds.');
+    }(), 'Count allocated geometry textures in debug builds.');
+    return gpu.gpuContext.createTexture(
+      gpu.StorageMode.devicePrivate,
+      width,
+      height,
+      format: gpu.PixelFormat.r16g16b16a16Float,
+    );
   }
 }
 
-/// The quads of one atlas pass as tile_vertex.glsl reads its instances: a
+/// The quads of one page as tile_vertex.glsl reads its instances: a
 /// rectangle in clip space for a target of [_width] x [_height] texels, top
-/// row first, with a value and a ramp. One list serves every pass in turn.
+/// row first, with a value and a ramp. Rows count from [top], the first row
+/// of the atlas being written.
 final class _AtlasQuads {
   static const int bytesPerQuad = _quadFloats * 4;
 
@@ -825,11 +1208,15 @@ final class _AtlasQuads {
   Float32List _floats = Float32List(256 * _quadFloats);
   int count = 0;
 
-  /// Starts the quads of a pass into [width] x [height] texels.
+  /// The page row of the atlas's row 0.
+  int top = 0;
+
+  /// Starts the quads of a page of [width] x [height] texels.
   void reset(int width, int height) {
     _width = width;
     _height = height;
     count = 0;
+    top = 0;
   }
 
   /// The quads written since [reset].
@@ -837,8 +1224,8 @@ final class _AtlasQuads {
 
   /// A fill quad over the texels [x], [y] to [x] + [w], [y] + [h]: every
   /// fragment gets ([v0], [v1], [v2], [v3]), x stepping by a tile's texels
-  /// (16 x [v2]) a texel from texel [rampFrom], and with looks the [look] a
-  /// constant tile writes beside it, none where it is negative
+  /// (16 x [v2]) a texel from texel [rampFrom], and with looks the look in
+  /// row [look] of the draw's block beside it, none where it is negative
   /// (tile_fill.glsl).
   void fill(
     int x,
@@ -869,9 +1256,9 @@ final class _AtlasQuads {
   /// buffer pixels a side with texel (0, 0) of the target at the buffer
   /// point ([bufferX], [bufferY]). A texel farther than [reach] from every
   /// shape's box is outside. The texels evaluate [members]
-  /// ([TileRun.members]): each a row of the draw's shapes plus 16 where it
-  /// starts its group, 32 past the last; or, where it lists none, the first
-  /// [shapeCount] rows.
+  /// ([TileRun.members]), which count from row [base] of the draw's block:
+  /// each a row plus 16 where it starts its group, 32 past the last; or,
+  /// where it lists none, the [count] rows from [base].
   void strip(
     int x,
     int y,
@@ -881,18 +1268,19 @@ final class _AtlasQuads {
     required double bufferY,
     required int texel,
     required double reach,
-    required int shapeCount,
+    required int base,
+    required int count,
     required int members,
   }) {
     final floats = _rect(x, y, w, h);
-    final at = count * _quadFloats;
+    final at = this.count * _quadFloats;
     floats[at + 4] = bufferX;
     floats[at + 5] = bufferY;
     floats[at + 6] = texel.toDouble();
     floats[at + 7] = reach;
     if (members == 0) {
-      floats[at + 8] = 64;
-      floats[at + 9] = shapeCount.toDouble();
+      floats[at + 8] = 64.0 + base;
+      floats[at + 9] = count.toDouble();
       floats[at + 10] = 0;
       floats[at + 11] = 0;
     } else {
@@ -900,10 +1288,10 @@ final class _AtlasQuads {
         final byte = (members >> (8 * slot)) & 0xff;
         floats[at + 8 + slot] = byte == 0
             ? 32
-            : (byte & 0x7f) - 1 + (byte & 0x80 != 0 ? 16 : 0);
+            : base + (byte & 0x7f) - 1 + (byte & 0x80 != 0 ? 16 : 0);
       }
     }
-    count++;
+    this.count++;
   }
 
   // Makes room for one more quad and writes its rectangle.
@@ -913,10 +1301,11 @@ final class _AtlasQuads {
     }
     final floats = _floats;
     final at = count * _quadFloats;
+    final y0 = top + y;
     floats[at] = 2 * x / _width - 1;
-    floats[at + 1] = 1 - 2 * y / _height;
+    floats[at + 1] = 1 - 2 * y0 / _height;
     floats[at + 2] = 2 * (x + w) / _width - 1;
-    floats[at + 3] = 1 - 2 * (y + h) / _height;
+    floats[at + 3] = 1 - 2 * (y0 + h) / _height;
     return floats;
   }
 }
@@ -960,173 +1349,6 @@ final class _VertexScratch {
     }
     _cursor = (offset + length + alignment - 1) ~/ alignment * alignment;
     return gpu.BufferView(buffer, offsetInBytes: offset, lengthInBytes: length);
-  }
-}
-
-/// An atlas texture and the look textures beside it.
-///
-/// The set is fixed: Impeller's Vulkan backend keeps the framebuffer of a
-/// pass on the texture of its first attachment and hands it to the next pass
-/// that draws into that texture, whatever else that pass draws into, so the
-/// atlas texture always draws with the same looks.
-final class _RingTexture {
-  _RingTexture(this.texture, int lookCount)
-    : looks = List.unmodifiable([
-        for (var i = 0; i < lookCount; i++)
-          _TextureRing._create(texture.width, texture.height),
-      ]) {
-    renderTarget = gpu.RenderTarget(
-      colorAttachments: [
-        gpu.ColorAttachment(texture: texture, clearValue: _outsideEntry),
-        for (final look in looks) gpu.ColorAttachment(texture: look),
-      ],
-    );
-  }
-
-  final gpu.Texture texture;
-
-  /// Look textures of [texture]'s size.
-  final List<gpu.Texture> looks;
-
-  /// Clears the atlas to the outside tile's table entry and the looks to
-  /// zero. Without a clear, texels no quad writes hold whatever the memory
-  /// held: old mattes on the host, black or white streaks across glass on
-  /// phones.
-  late final gpu.RenderTarget renderTarget;
-
-  static final vm.Vector4 _outsideEntry = vm.Vector4(
-    AtlasLayout.outsideEntry.$1.toDouble(),
-    AtlasLayout.outsideEntry.$2.toDouble(),
-    0,
-    1,
-  );
-
-  /// The textures this entry holds.
-  int get textureCount => 1 + looks.length;
-
-  /// Frame count when this texture was last replaced or released.
-  int retiredFrame = 0;
-
-  bool sized(int width, int height) =>
-      texture.width == width && texture.height == height;
-}
-
-/// The current atlas and up to three retired spares, RGBA16F.
-///
-/// A pass clears and stores its whole target on a tiled GPU, so the ring
-/// sizes its textures to the atlases it draws: as wide as the first that
-/// needs them, and an eighth taller than the tallest, in rows of 16. Later
-/// atlases are packed into that width ([fit]), so the textures change only
-/// when an atlas outgrows them, which they do at once, or once
-/// [_shrinkAfter] atlases in a row would have fit in half of them; every
-/// texture the ring keeps is of its capacity. The spares cover a frame
-/// that renders twice, alternating between atlases with and without looks,
-/// without allocating.
-final class _TextureRing {
-  static const int _maxSpares = 3;
-  static const int _shrinkAfter = 30;
-
-  _RingTexture? _current;
-  final List<_RingTexture> _spares = [];
-  int _width = 0;
-  int _height = 0;
-  int _slack = 0;
-
-  int get spareCount => _spares.length;
-  int get textureCount => _spares.length + (_current == null ? 0 : 1);
-
-  /// The layout of [tiling]'s atlas in the ring's textures, which grow to
-  /// hold it.
-  AtlasLayout fit(Tiling tiling) {
-    final own = tiling.layout;
-    if (own.width * _roomFor(own.height) * 2 <= _width * _height) {
-      if (++_slack >= _shrinkAfter) {
-        _width = 0;
-        _height = 0;
-        _slack = 0;
-      }
-    } else {
-      _slack = 0;
-    }
-    var layout = own;
-    if (_width != 0) {
-      // Up to twice as tall as wide the textures keep their width, so they
-      // are replaced less often.
-      final packed = tiling.layoutIn(_width);
-      if (packed != null && packed.height <= math.max(_height, 2 * _width)) {
-        layout = packed;
-      }
-    }
-    if (layout.width > _width || layout.height > _height) {
-      _width = math.max(_width, layout.width);
-      _height = math.max(_height, _roomFor(layout.height));
-    }
-    return layout;
-  }
-
-  /// Replaces the atlas in use with one of the ring's capacity and
-  /// [lookCount] looks beside it.
-  _RingTexture next(int frame, {required int lookCount}) {
-    _spares.removeWhere((entry) {
-      if (entry.sized(_width, _height)) return false;
-      FlutterGpuGeometryRenderer._countDropped(entry);
-      return true;
-    });
-    final previous = _current;
-    _current = null;
-    if (previous != null) {
-      if (previous.sized(_width, _height)) {
-        previous.retiredFrame = frame;
-        _spares.add(previous);
-      } else {
-        FlutterGpuGeometryRenderer._countDropped(previous);
-      }
-    }
-    final reusable = _spares.indexWhere(
-      (entry) =>
-          entry.looks.length == lookCount &&
-          frame - entry.retiredFrame >=
-              FlutterGpuGeometryRenderer.reuseAfterFrames,
-    );
-    if (reusable >= 0) {
-      assert(() {
-        FlutterGpuGeometryRenderer.debugReusedTextureCount++;
-        return true;
-      }(), 'Count reused geometry textures in debug builds.');
-      return _current = _spares.removeAt(reusable);
-    }
-    while (_spares.length > _maxSpares) {
-      FlutterGpuGeometryRenderer._countDropped(_spares.removeAt(0));
-    }
-    return _current = _RingTexture(_create(_width, _height), lookCount);
-  }
-
-  static int _roomFor(int rows) =>
-      math.min(AtlasLayout.maxSize, (rows + (rows >> 3) + 15) & ~15);
-
-  /// Drops every texture and resets the ring's capacity.
-  void release() {
-    for (final entry in [?_current, ..._spares]) {
-      FlutterGpuGeometryRenderer._countDropped(entry);
-    }
-    _current = null;
-    _spares.clear();
-    _width = 0;
-    _height = 0;
-    _slack = 0;
-  }
-
-  static gpu.Texture _create(int width, int height) {
-    assert(() {
-      FlutterGpuGeometryRenderer.debugAllocatedTextureCount++;
-      return true;
-    }(), 'Count allocated geometry textures in debug builds.');
-    return gpu.gpuContext.createTexture(
-      gpu.StorageMode.devicePrivate,
-      width,
-      height,
-      format: gpu.PixelFormat.r16g16b16a16Float,
-    );
   }
 }
 
@@ -1205,6 +1427,20 @@ class _SharedGeometryResources {
   late final _TileFieldUniformOffsets tileFieldOffsets;
   late final int uniformSize;
   late final _GeometryUniformOffsets offsets;
+
+  /// The pages every renderer of these resources places its atlases in,
+  /// by the looks they write.
+  late final List<_Pages> pages = List.unmodifiable([
+    for (final targets in _LookTargets.values)
+      _Pages(
+        pipelines: pipelines[targets.index],
+        offsets: offsets,
+        uniformSize: uniformSize,
+        fieldOffsets: tileFieldOffsets,
+        fieldUniformSize: tileFieldUniformSize,
+        lookCount: targets.count,
+      ),
+  ]);
 }
 
 /// Byte offsets of the tile field pass's uniform members.

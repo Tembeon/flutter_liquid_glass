@@ -2,13 +2,17 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:alchemist/alchemist.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/shaders.dart';
 
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   isLocalTest = true;
 
   await LiquidGlass.precache();
+  // A golden is the same whichever tests ran before it.
+  setUp(FlutterGpuGeometryRenderer.debugResetPages);
 
   await AlchemistConfig.runWithConfig(
     config: AlchemistConfig(

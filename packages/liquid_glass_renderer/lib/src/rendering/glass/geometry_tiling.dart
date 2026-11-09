@@ -569,12 +569,22 @@ final class Tiling {
 
   /// [layout] packed into an atlas [width] texels wide instead, or null
   /// where no strip or table fits that width or the atlas grows too tall.
+  /// A page (FlutterGpuGeometryRenderer) asks the same width frame after
+  /// frame, so the last answer is kept.
   AtlasLayout? layoutIn(int width) {
+    final tiled = _tiled;
+    if (tiled != null) return tiled.layoutIn(width);
     if (width == layout.width) return layout;
+    if (_packed[this] case final packed? when packed.width == width) {
+      return packed;
+    }
     if (width < AtlasLayout._leastWidth(this)) return null;
     final packed = AtlasLayout._of(this, width: width);
-    return packed.height <= AtlasLayout.maxSize ? packed : null;
+    if (packed.height > AtlasLayout.maxSize) return null;
+    return _packed[this] = packed;
   }
+
+  static final Expando<AtlasLayout> _packed = Expando();
 
   static int _tilesOver(int pixels) => max(1, (pixels + size - 1) ~/ size);
 
@@ -1564,6 +1574,11 @@ final class _ShapeBounds {
   static double _positive(double value) => value > 0 ? value : 0.0;
 }
 
+/// Where a drawn atlas lies in the texture it shares with the other
+/// atlases of its frame: the texel of its table's first entry and the
+/// texture's size, as the final shader's uGeometryAtlas takes them.
+typedef AtlasPlace = ({int tableX, int tableY, int width, int height});
+
 /// Where one buffer's table, constant tiles and ring strips sit in its atlas
 /// texture.
 ///
@@ -1677,6 +1692,14 @@ final class AtlasLayout {
 
   /// Texel of table entry (0, 0), below the constant tiles.
   static const (int, int) tableOrigin = (0, _strip);
+
+  /// The place of an atlas that is not drawn.
+  static const AtlasPlace unplaced = (
+    tableX: 0,
+    tableY: _strip,
+    width: 0,
+    height: 0,
+  );
 
   /// Each run's strip corner (its apron's top-left texel), x then y.
   final Int32List strips;

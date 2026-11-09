@@ -870,8 +870,10 @@ final class GlassEmit {
     for (var i = 0; i < plan.fates.length; i++) {
       form.siteNodes[i].site.beginFate(plan.fates[i]);
     }
-    // What the pages hold reads the mattes paint and the fates wrote.
-    FlutterGpuGeometryRenderer.flushPendingSubmissions();
+    // What the pages hold reads the mattes paint and the fates wrote: all
+    // of them are placed by now, so one pass draws them, ahead of the
+    // images below and of the scene.
+    FlutterGpuGeometryRenderer.flush();
     for (var level = 0; level <= deepest; level++) {
       final tiles = <_Tile>[];
       for (final read in reads) {
