@@ -390,21 +390,41 @@ class _Ring extends CustomPainter {
       old.progress != progress || old.color != color;
 }
 
-/// The edge of a card that lies under the first of a closed stack.
+/// The edge of a card that lies under the first of a closed stack: what of
+/// it the card above leaves uncovered, so none of it shows through that
+/// card's glass.
 class _Peek extends StatelessWidget {
   const _Peek({required this.depth});
 
   final int depth;
 
   @override
-  Widget build(BuildContext context) => DecoratedBox(
-    decoration: ShapeDecoration(
-      color: _white.withValues(alpha: 0.26 / depth),
-      shape: RoundedSuperellipseBorder(
-        borderRadius: BorderRadius.circular(24),
-      ),
+  Widget build(BuildContext context) => ClipPath(
+    clipper: const _Uncovered(),
+    child: ColoredBox(color: _white.withValues(alpha: 0.3 / depth)),
+  );
+}
+
+// A card's outline less that of the card above it, which lies ten points
+// higher and reaches ten points farther to each side.
+class _Uncovered extends CustomClipper<Path> {
+  const _Uncovered();
+
+  static const _card = RoundedSuperellipseBorder(
+    borderRadius: BorderRadius.all(Radius.circular(24)),
+  );
+
+  @override
+  Path getClip(Size size) => Path.combine(
+    PathOperation.difference,
+    _card.getOuterPath(Offset.zero & size),
+    _card.getOuterPath(
+      const Offset(-10, -10) & Size(size.width + 20, size.height),
     ),
   );
+
+  @override
+  bool shouldReclip(_Uncovered old) => false;
 }
 
 class _Notification extends StatelessWidget {
