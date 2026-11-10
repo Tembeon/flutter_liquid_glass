@@ -555,15 +555,10 @@ class _RenderOutlineShadow extends RenderProxyBox {
         ),
       );
       var outside = _outside;
-      if (outside == null) {
-        final box = Path();
-        box.addRect(outline.bounds.inflate(reach));
-        outside = _outside = Path.combine(
-          PathOperation.difference,
-          box,
-          outline.path,
-        );
-      }
+      outside ??= _outside = pathOutside(
+        outline.path,
+        outline.bounds.inflate(reach),
+      );
       final canvas = context.canvas;
       canvas.save();
       canvas.translate(offset.dx, offset.dy);
