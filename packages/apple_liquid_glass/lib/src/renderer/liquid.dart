@@ -165,17 +165,18 @@ Color? _tintOf(GlassFrame frame, Color? own) {
 /// UIKit's lens configuration (read from UIKit, notes private) bends what
 /// is behind a resting knob or thumb by 50 and blurs it by 6, a lifted one
 /// bends it by 9 without blur, and a large lens rests clear. Engineering
-/// factors, not measured, double the bend, part the colors along the rim
-/// and brighten the highlight by half as the lens lifts.
+/// factors, not measured, part the colors along the rim and brighten the
+/// highlight by half as the lens lifts.
 ///
 /// A lifted lens also shows what lies under it smaller, about its center
-/// line, so the edges of the track or bar show inside it (iPhone 16 Pro
-/// references): a tab bar's lens shows the swollen bar's edges 0.890 of
-/// its height apart (shrink 0.16, three quarters of the center line), a
-/// segmented control's the track's edges 0.8125 apart and a switch's knob
-/// 0.755 apart (0.20 and 0.25, the whole line); a slider's thumb shows its
-/// track unchanged. The shrinks were fitted under Morph's bevel, NEAR
-/// under this one.
+/// line, so the edges of the track or bar show inside it with the page
+/// between them and the rim (iPhone 16 Pro references): a tab bar's lens
+/// shows the swollen bar's edges 0.890 of its height apart (shrink 0.16,
+/// three quarters of the center line; 0.897 here), a segmented control's
+/// the track's edges 0.8125 apart (0.20, the whole line; 0.814 here) and a
+/// switch's knob 0.755 apart (0.25; NEAR, 0.77 here); a slider's thumb
+/// shows its track unchanged. The bevel bends the other way, toward the
+/// middle, so a bend above UIKit's 9 hides those edges behind the rim.
 LiquidGlassSettings _lensSettings(
   LiquidGlassSettings base,
   double lift, {
@@ -187,7 +188,7 @@ LiquidGlassSettings _lensSettings(
   final (:shrink, :rim) = _shrinkOf(part);
   return base.copyWith(
     frost: small ? 6 * (1 - l) : 0,
-    refractionAmount: displacement * 2,
+    refractionAmount: displacement,
     dispersion: -0.25 * l,
     highlight: base.highlight * (1 + 0.5 * l),
     backdropShrink: shrink * l,
