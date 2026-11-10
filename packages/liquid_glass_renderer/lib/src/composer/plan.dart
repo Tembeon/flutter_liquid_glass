@@ -481,9 +481,16 @@ final class Read {
   /// Whether what it holds differs from the last frame.
   bool changed = false;
 
-  /// Whether every glass drawn from it frosts what it shows, so its copy
-  /// leaves out what that frost hides: a blur of what lies under it.
-  bool get flat => members.every((site) => site.ask.look.need.frost > 0);
+  /// Whether every glass drawn from it frosts what it shows by [flatFrost]
+  /// or more, so its copy leaves out what that frost hides: a blur of what
+  /// lies under it.
+  bool get flat =>
+      members.every((site) => site.ask.look.need.frost >= flatFrost);
+
+  /// The least frost, a sigma in logical pixels, that hides what a flat copy
+  /// leaves out: a little under the 2.2 of a bar of regular glass. Glass
+  /// turned toward clear shows what lies under it, and reads it whole.
+  static const double flatFrost = 2;
 
   /// The passes its copy takes for what it draws of the page (see
   /// [Scenery.savedUnder]).
