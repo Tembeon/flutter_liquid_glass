@@ -662,20 +662,17 @@ final class _Pages {
     final runs = tiling.runs;
     for (var i = 0; i < runs.length; i++) {
       final run = runs[i];
-      for (var down = 0; down < run.tall; down++) {
-        final (entryX, entryY) = layout.entryOf(i, 0, down);
-        quads.fill(
-          tableX + run.column,
-          tableY + run.row + down,
-          run.length,
-          1,
-          entryX.toDouble(),
-          (top + entryY).toDouble(),
-          1 / run.texel,
-          1,
-          rampFrom: tableX + run.column,
-        );
-      }
+      final (entryX, entryY) = layout.entryOf(i, 0);
+      quads.fill(
+        tableX + run.column,
+        tableY + run.row,
+        run.length,
+        run.tall,
+        entryX.toDouble(),
+        (top + entryY).toDouble(),
+        1 / run.texel,
+        1,
+      );
     }
 
     void strip(int i, {required double reach, int base = 0, int count = 0}) {
@@ -1224,11 +1221,11 @@ final class _AtlasQuads {
   /// The quads written since [reset].
   ByteData get bytes => ByteData.sublistView(_floats, 0, count * _quadFloats);
 
-  /// A fill quad over the texels [x], [y] to [x] + [w], [y] + [h]: every
-  /// fragment gets ([v0], [v1], [v2], [v3]), x stepping by a tile's texels
-  /// (16 x [v2]) a texel from texel [rampFrom], and with looks the look in
-  /// row [look] of the draw's block beside it, none where it is negative
-  /// (tile_fill.glsl).
+  /// A fill quad over the texels [x], [y] to [x] + [w], [y] + [h]: its
+  /// first texel gets ([v0], [v1], [v2], [v3]), and x and y step by a
+  /// tile's texels (16 x [v2]) a texel from there; with looks the look in
+  /// row [look] of the draw's block lies beside it, none where it is
+  /// negative (tile_fill.glsl).
   void fill(
     int x,
     int y,
@@ -1238,7 +1235,6 @@ final class _AtlasQuads {
     double v1,
     double v2,
     double v3, {
-    int rampFrom = 0,
     int look = -1,
   }) {
     final floats = _rect(x, y, w, h);
@@ -1248,9 +1244,9 @@ final class _AtlasQuads {
     floats[at + 6] = v2;
     floats[at + 7] = v3;
     floats[at + 8] = 128;
-    floats[at + 9] = rampFrom.toDouble();
+    floats[at + 9] = x.toDouble();
     floats[at + 10] = look.toDouble();
-    floats[at + 11] = 0;
+    floats[at + 11] = (top + y).toDouble();
     count++;
   }
 
