@@ -854,6 +854,7 @@ final class Tiling {
   // there over four, the same order as the grid's own sag between nodes:
   // a sixth of a pixel on a corner six nodes in radius, half a pixel in
   // the tightest neck a grid holds.
+  @pragma('vm:unsafe:no-bounds-checks')
   static (Uint8List, Uint8List) _fieldKinds(
     BufferField field,
     int columns,
@@ -865,46 +866,62 @@ final class Tiling {
     final (xx, xy, yx, yy, dx, dy) = field.bufferToGrid;
     final LiquidGlassField(:samples, :cols, rows: nodeRows, :step) =
         field.field;
-    final coarse =
-        reach.coarseTexel > 1 &&
-        step * field.distanceScale >= reach.coarseTexel;
+    final scale = field.distanceScale;
+    final coarse = reach.coarseTexel > 1 && step * scale >= reach.coarseTexel;
+    // In the field's own units, so a node's distance is compared as read.
+    final outward = reach.outward / scale;
+    final inward = -reach.inward / scale;
+    final agreement = _fieldAgreement * _fieldAgreement;
     // A tile's nodes are those over it and over its strip's apron.
     final apron = reach.coarseTexel / 2;
     final spanX = (xx.abs() + xy.abs()) * (size / 2 + apron);
     final spanY = (yx.abs() + yy.abs()) * (size / 2 + apron);
+    final lastColumn = cols - 1;
+    final lastRow = nodeRows - 1;
+    final outside = TileKind.outside.index;
+    final deep = TileKind.deep.index;
+    final ring = TileKind.ring.index;
+    var tile = 0;
     for (var row = 0; row < rows; row++) {
-      for (var column = 0; column < columns; column++) {
+      final y = (row + 0.5) * size;
+      for (var column = 0; column < columns; column++, tile++) {
         final x = (column + 0.5) * size;
-        final y = (row + 0.5) * size;
         final gx = xx * x + xy * y + dx;
         final gy = yx * x + yy * y + dy;
         // Bilinear values stay within their nodes, and the field pass
         // clamps to the grid, so the nodes over the tile bound it.
-        final i0 = (gx - spanX).floor().clamp(0, cols - 1);
-        final i1 = (gx + spanX).ceil().clamp(0, cols - 1);
-        final j0 = (gy - spanY).floor().clamp(0, nodeRows - 1);
-        final j1 = (gy + spanY).ceil().clamp(0, nodeRows - 1);
+        var i0 = (gx - spanX).floor();
+        var i1 = (gx + spanX).ceil();
+        var j0 = (gy - spanY).floor();
+        var j1 = (gy + spanY).ceil();
+        if (i0 < 0) i0 = 0;
+        if (i0 > lastColumn) i0 = lastColumn;
+        if (i1 < 0) i1 = 0;
+        if (i1 > lastColumn) i1 = lastColumn;
+        if (j0 < 0) j0 = 0;
+        if (j0 > lastRow) j0 = lastRow;
+        if (j1 < 0) j1 = 0;
+        if (j1 > lastRow) j1 = lastRow;
         var lowest = double.infinity;
         var highest = double.negativeInfinity;
         for (var j = j0; j <= j1; j++) {
-          for (var i = i0; i <= i1; i++) {
-            final d = samples[(j * cols + i) * 4];
+          final from = (j * cols + i0) * 4;
+          final to = (j * cols + i1) * 4;
+          for (var at = from; at <= to; at += 4) {
+            final d = samples[at];
             if (d < lowest) lowest = d;
             if (d > highest) highest = d;
           }
         }
-        lowest *= field.distanceScale;
-        highest *= field.distanceScale;
-        final tile = row * columns + column;
-        if (lowest >= reach.outward) {
-          kinds[tile] = TileKind.outside.index;
+        if (lowest >= outward) {
+          kinds[tile] = outside;
           continue;
         }
-        if (highest <= -reach.inward) {
-          kinds[tile] = TileKind.deep.index;
+        if (highest <= inward) {
+          kinds[tile] = deep;
           continue;
         }
-        kinds[tile] = TileKind.ring.index;
+        kinds[tile] = ring;
         if (!coarse) {
           fine[tile] = 1;
           continue;
@@ -915,8 +932,9 @@ final class Tiling {
         var sumY = 0.0;
         var lengths = 0.0;
         for (var j = j0; j <= j1; j++) {
-          for (var i = i0; i <= i1; i++) {
-            final at = (j * cols + i) * 4;
+          final from = (j * cols + i0) * 4;
+          final to = (j * cols + i1) * 4;
+          for (var at = from; at <= to; at += 4) {
             final nx = samples[at + 1];
             final ny = samples[at + 2];
             sumX += nx;
@@ -924,8 +942,7 @@ final class Tiling {
             lengths += sqrt(nx * nx + ny * ny);
           }
         }
-        if (sumX * sumX + sumY * sumY <
-            _fieldAgreement * _fieldAgreement * lengths * lengths) {
+        if (sumX * sumX + sumY * sumY < agreement * lengths * lengths) {
           fine[tile] = 1;
         }
       }
