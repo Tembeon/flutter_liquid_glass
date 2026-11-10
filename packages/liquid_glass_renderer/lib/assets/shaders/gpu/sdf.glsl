@@ -129,6 +129,25 @@ float sdfSquircle(
     if (degree < 2.0) {
         return max(abs(octant).x - axis, abs(octant).y - axis);
     }
+    // A superellipse of degree 2 is a circle, so a capsule's ends and a
+    // circle's outline need no solve, and come out exact where the solve
+    // walks 64 chords.
+    if (degree == 2.0) {
+        return length(octant) - axis;
+    }
+    // Along its side the curve is y = axis * (1 - u^n / n), u the share of
+    // the semi-axis from the side's middle, and its slope is u^(n - 1).
+    // While that slope is under 0.02 the distance is the gap to the curve
+    // straight across, shortened by the slope's cosine: within 0.004 px of
+    // the solve's answer 60 px to either side, which is the solve's own
+    // error. It covers most of the ring of a bar or a sheet.
+    float side = octant.x / max(axis, 1e-4);
+    float sideN = pow(side, degree);
+    float slope = sideN / max(side, 1e-3);
+    if (slope < 0.02) {
+        return (octant.y - axis + axis * sideN / degree) *
+            (1.0 - 0.5 * slope * slope);
+    }
     return rseSuperellipse(octant / max(axis, 1e-4), degree) * axis;
 }
 
@@ -137,6 +156,10 @@ float sdfEllipse(vec2 p, vec2 r) {
     // approximations divide by |p| near the center, which leaves a pinhole in
     // non-circular ovals.
     r = max(r, 1e-4);
+    // A circle needs no solve.
+    if (r.x == r.y) {
+        return length(p) - r.x;
+    }
     p = abs(p);
     vec2 q = r * (p - r);
     float angle = q.x < q.y ? 1.570796327 : 0.0;
