@@ -34,13 +34,12 @@ int _blurShare(double sigma) =>
 // shader frosts for Impeller's blur by [sigma] device pixels, or null when
 // the frost is too wide for it: the largest whose pixels the frost spans by at
 // most 3.5, then halved while the frost still spans [minTexels] of its pixels
-// and, with [atBlurScale], while Impeller's own blur would downsample as far.
-// Past that a weak frost leaves the copy's pixels showing: its taps then span
-// about one of them, where Impeller's passes span two.
+// and, with [nearBlurScale], to one step past where Impeller's own blur
+// would downsample.
 int? _shaderFrostShare(
   double sigma, {
   required double minTexels,
-  bool atBlurScale = false,
+  bool nearBlurScale = false,
 }) {
   final delivered = sigma * _deliveredFrost;
   var share = 1;
@@ -49,7 +48,7 @@ int? _shaderFrostShare(
     share *= 2;
   }
   if (delivered <= 0 || delivered / share > _shaderFrostTexels) return null;
-  final floor = atBlurScale ? _blurShare(sigma) : _shaderFrostMaxShare;
+  final floor = nearBlurScale ? 2 * _blurShare(sigma) : _shaderFrostMaxShare;
   while (share < _shaderFrostMaxShare &&
       share * 2 <= floor &&
       delivered / (share * 2) >= minTexels) {
@@ -121,17 +120,28 @@ final class CopyNeed {
 
   /// The need of glass whose final shader frosts an unblurred copy by
   /// [sigma] logical pixels, or null where the frost is too wide for its
-  /// taps. The copy is no coarser than Impeller's own blur would take: weak
-  /// frosts (1.5 to 2.7 logical pixels) then come out half as far from
-  /// Impeller's blur (host, dpr 2 and 3), where a copy of four device pixels
-  /// a side left its pixels showing on the iPhone.
+  /// taps.
+  ///
+  /// NEAR: the copy is one step coarser than Impeller's own blur would
+  /// take, so a weak frost spans 1 to 2 of its pixels and is drawn into it
+  /// in one pass of nine reads a pixel (frostLattice in frost.glsl), a
+  /// bar's 2.2 logical pixels over a sixteenth of the screen's pixels where
+  /// the finer copy took two passes over a quarter. Text and thin lines are
+  /// drawn into the copy at its scale and land up to half of its pixel from
+  /// where the page has them. Against what reading the backdrop draws, on
+  /// the test font's blocks (host, dpr 1): 18 levels at a frost of 3, where
+  /// the glass's own taps over a copy at the screen's pixels lay 22, and 21
+  /// at a frost of 8, where the finer copy lay 11. On a Pixel 6a a bar over
+  /// a list at rest differs by at most 10 levels in a few hundred pixels,
+  /// and a slow scroll under it flickers no more (a screen recording's
+  /// frames against their neighbours, 2.85 against 2.86 levels).
   static CopyNeed? glassFrost(
     double sigma, {
     required double devicePixelRatio,
   }) => switch (_shaderFrostShare(
     sigma * devicePixelRatio,
     minTexels: 1,
-    atBlurScale: true,
+    nearBlurScale: true,
   )) {
     final share? => CopyNeed(devicePixelRatio, share: share, frost: sigma),
     null => null,
