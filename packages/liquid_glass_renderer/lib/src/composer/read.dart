@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart'
-    show frostFilterOf;
+    show CopyFrost, frostFilterOf;
 import 'package:liquid_glass_renderer/src/composer/form.dart';
 import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/composer/geometry.dart';
@@ -96,7 +96,7 @@ abstract interface class ReadPainter {
   ui.ImageFilter readFilter(
     Read read,
     CornerRead corner,
-    ui.ImageFilter? inPlace,
+    CopyFrost? inPlace,
   );
 
   /// Equal while [recordPage] draws the same for [read] over [page].
@@ -745,17 +745,14 @@ final class _Pages {
         } else {
           tile.holdsFrost = frost;
           final size = tile.bounds.size;
-          b
-            ..pushOffset(tile.offset.dx, tile.offset.dy)
-            ..pushImageFilter(filter)
-            // Impeller sizes a layer by what is drawn in it.
-            ..addPicture(Offset.zero, CornerRead._corners(size))
-            ..pushClipRect(Offset.zero & size, clipBehavior: Clip.hardEdge);
+          b.pushOffset(tile.offset.dx, tile.offset.dy);
+          // Impeller sizes a layer by what is drawn in it.
+          filter.push(b, Offset.zero, CornerRead._corners(size));
+          b.pushClipRect(Offset.zero & size, clipBehavior: Clip.hardEdge);
           tile.copy._replay(b, tile.lattice, tile.rect, Offset.zero);
-          b
-            ..pop()
-            ..pop()
-            ..pop();
+          b.pop();
+          filter.pop(b);
+          b.pop();
         }
       } else if (tile.layered) {
         layered.putIfAbsent((tile.page.key, tile.lattice), () => []).add(tile);

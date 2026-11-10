@@ -23,6 +23,7 @@ Future<LiquidGlassSupport> precacheLiquidGlass({bool warmUp = false}) async {
       MultiShaderBuilder.precacheShaders([
         ...finalShaders,
         ShaderKeys.backdropFrost,
+        ShaderKeys.backdropFrostAxis,
       ]).then((_) => finalShaders.every(MultiShaderBuilder.isCached)),
       _guard(() async {
         renderer = await FlutterGpuGeometryRenderer.fromAsset(

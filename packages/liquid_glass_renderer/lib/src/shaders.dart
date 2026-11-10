@@ -22,6 +22,10 @@ abstract class ShaderKeys {
   static final String backdropFrost =
       '${_shadersRoot}build/shaderbundles/backdrop_frost.iplr';
 
+  /// The compiled shader that draws one axis of a frost into a copy.
+  static final String backdropFrostAxis =
+      '${_shadersRoot}build/shaderbundles/backdrop_frost_axis.iplr';
+
   static final fakeGlassSurface =
       '${_shadersRoot}lib/assets/shaders/fake_glass_surface.frag';
 

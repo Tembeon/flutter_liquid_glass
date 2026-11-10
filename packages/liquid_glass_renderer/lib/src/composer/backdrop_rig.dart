@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -149,10 +150,42 @@ ui.ImageFilter frostFilter(
 
 ui.FragmentShader? _inPlaceFrost;
 
-/// The filter that frosts a layer as [sampling] says, or null before its
-/// shader is loaded.
+/// The frost drawn into a copy at the copy's own pixels: the layers the
+/// copy is drawn in, one with the whole frost for its filter or one for
+/// each axis of it.
 @internal
-ui.ImageFilter? frostFilterOf(FrostSampling sampling) {
+final class CopyFrost {
+  const CopyFrost._(this._passes);
+
+  // The filters, outermost first.
+  final List<ui.ImageFilter> _passes;
+
+  /// Pushes the frost's layers, each held to the size of [corners] drawn
+  /// at [origin]; what is drawn until [pop] comes out frosted.
+  ///
+  /// A layer an axis, not one layer with both filters: each is then cut by
+  /// a clip above it as the copy is, where the second of two filters on one
+  /// layer takes what the first left for the whole of it.
+  void push(ui.SceneBuilder builder, Offset origin, ui.Picture corners) {
+    for (final pass in _passes) {
+      builder
+        ..pushImageFilter(pass)
+        ..addPicture(origin, corners);
+    }
+  }
+
+  /// Ends what [push] began.
+  void pop(ui.SceneBuilder builder) {
+    for (var i = 0; i < _passes.length; i++) {
+      builder.pop();
+    }
+  }
+}
+
+/// What frosts a layer as [sampling] says, or null before its shader is
+/// loaded.
+@internal
+CopyFrost? frostFilterOf(FrostSampling sampling) {
   final shader = _inPlaceFrost ??= MultiShaderBuilder.cached(
     ShaderKeys.backdropFrost,
   )?.fragmentShader();
@@ -165,14 +198,102 @@ ui.ImageFilter? frostFilterOf(FrostSampling sampling) {
   final key = (sampling.size, sampling.bounds, sampling.frost, sampling.shown);
   if (_inPlaceFilters[key] case final held?) return held;
   if (_inPlaceFilters.length >= 32) _inPlaceFilters.clear();
+  if (_axesOf(sampling) case final axes?) return _inPlaceFilters[key] = axes;
   _setFrost(shader, sampling, null);
   shader.setImageSampler(0, _bilinear, filterQuality: FilterQuality.low);
   // The one shader holds other uniforms by the time a scene takes this.
-  return _inPlaceFilters[key] = shaderFilterNow(shader);
+  return _inPlaceFilters[key] = CopyFrost._([shaderFilterNow(shader)]);
+}
+
+ui.FragmentShader? _axisFrost;
+
+/// The reads of one axis of frostLattice (frost.glsl) by [frost] of the
+/// copy's pixels, seen from the center of a pixel: where each lies, in
+/// pixels from it, and its weight; eight of each, the ones a narrower frost
+/// leaves out weighing nothing. The weights add up to one.
+///
+/// Each read stands for two pixels, read between them by their weights, and
+/// every weight is cut by the Gaussian's value at the edge of the pixels
+/// read, as the shader cuts it.
+@internal
+({List<double> offsets, List<double> weights}) latticeTaps(double frost) {
+  final wide = frost * frost + 1 / 6;
+  final asked = sqrt(wide) * 2.3077;
+  final pairs = asked <= 4
+      ? 4
+      : asked <= 6
+      ? 6
+      : 8;
+  final ratio = min(wide * 9 / (pairs * pairs), 1.69) / 1.7956;
+  final k = -0.5 * (1 - ratio * ratio * ratio * sqrt(ratio)) / wide;
+  final cut = exp(pairs * pairs * k);
+  double weightAt(int pixel) => max(exp(k * pixel * pixel) - cut, 0);
+  final offsets = List<double>.filled(8, 0);
+  final weights = List<double>.filled(8, 0);
+  var total = 0.0;
+  for (var i = 0; i < pairs; i++) {
+    final first = 2 * i - (pairs - 1);
+    final near = weightAt(first);
+    final far = weightAt(first + 1);
+    final both = near + far;
+    offsets[i] = first + far / max(both, 1e-6);
+    weights[i] = both;
+    total += both;
+  }
+  for (var i = 0; i < pairs; i++) {
+    weights[i] /= total;
+  }
+  return (offsets: offsets, weights: weights);
+}
+
+// The frost of [sampling] as a pass along x and one along y over what it
+// left, or null where one pass draws it: a frost up to three pairs of the
+// copy's pixels a side, one too wide for the lattice (frostFitsLattice in
+// frost.glsl), and before the axis program is loaded.
+//
+// The lattice's weights are a product of the axes', so the two passes draw
+// the same square: 12 reads a pixel of the copy for 36 under a bar's glass,
+// and none of the weighing, which is the same for every pixel of a copy
+// frosted at its own pixels.
+CopyFrost? _axesOf(FrostSampling sampling) {
+  final FrostSampling(:size, :bounds, :frost) = sampling;
+  final wide = frost * frost;
+  if (wide <= 1.5235 || wide > 11.87) return null;
+  final shader = _axisFrost ??= MultiShaderBuilder.cached(
+    ShaderKeys.backdropFrostAxis,
+  )?.fragmentShader();
+  if (shader == null) {
+    unawaited(
+      MultiShaderBuilder.precacheShader(ShaderKeys.backdropFrostAxis),
+    );
+    return null;
+  }
+  final taps = latticeTaps(frost);
+  ui.ImageFilter along(double x, double y) {
+    final uniforms = [
+      size.width,
+      size.height,
+      bounds.left,
+      bounds.top,
+      bounds.right,
+      bounds.bottom,
+      x,
+      y,
+      ...taps.offsets,
+      ...taps.weights,
+    ];
+    for (final (i, value) in uniforms.indexed) {
+      shader.setFloat(i, value);
+    }
+    shader.setImageSampler(0, _bilinear, filterQuality: FilterQuality.low);
+    return shaderFilterNow(shader);
+  }
+
+  return CopyFrost._([along(0, 1), along(1, 0)]);
 }
 
 // Chrome over a scroll keeps a copy's place, so its filter too.
-final _inPlaceFilters = <Object, ui.ImageFilter>{};
+final _inPlaceFilters = <Object, CopyFrost>{};
 
 // The uniforms of backdrop_frost.frag.
 void _setFrost(

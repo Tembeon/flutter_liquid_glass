@@ -1617,7 +1617,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   @override
-  ImageFilter readFilter(Read read, CornerRead corner, ImageFilter? inPlace) {
+  ImageFilter readFilter(Read read, CornerRead corner, CopyFrost? inPlace) {
     final frost = _frame!.frost;
     final look = _bandOf(read);
     final draw = _readDraw(
@@ -1803,7 +1803,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // Where this glass's read shows in the scene.
   CornerRead? _shownCorner;
   ImageFilter? _shownFilter;
-  ImageFilter? _shownInPlace;
+  CopyFrost? _shownInPlace;
   ui.Path? _shownClip;
   Matrix4? _shownToCanvas;
   List<(ui.Picture, Offset)> _shownUnder = const [];

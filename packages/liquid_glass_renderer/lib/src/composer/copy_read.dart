@@ -259,7 +259,7 @@ final class CornerRead {
   /// Null too where the layer is drawn into a coarser copy, which draws the
   /// frost's filter at its pixels as well, and the frost's taps take them for
   /// device pixels; and before the frost's program is loaded.
-  ui.ImageFilter? inPlaceFilter() {
+  CopyFrost? inPlaceFilter() {
     final frost = _geometry.bakedFrost;
     if (frost <= 0 || _scale > 1) return null;
     final at = _at;
@@ -290,7 +290,7 @@ final class CornerRead {
     ui.ImageFilter filter,
     Matrix4 deviceToLocal, {
     ui.Path? clip,
-    ui.ImageFilter? inPlace,
+    CopyFrost? inPlace,
   }) {
     final at = _at;
     final engine = builder.pushTransform(deviceToLocal.storage);
@@ -298,18 +298,14 @@ final class CornerRead {
     builder
       ..pushImageFilter(filter)
       ..addPicture(_device.topLeft, _corners(_device.size));
-    if (inPlace != null) {
-      builder
-        ..pushImageFilter(inPlace)
-        ..addPicture(_device.topLeft, _corners(_copySize));
-    }
+    inPlace?.push(builder, _device.topLeft, _corners(_copySize));
     _copy._addTo(
       builder,
       Lattice(_dpr, _share),
       Offset(_device.left + at.dx, _device.top + at.dy),
       inPlace == null ? _device : _device.topLeft & _copySize,
     );
-    if (inPlace != null) builder.pop();
+    inPlace?.pop(builder);
     builder.pop();
     if (clip != null) builder.pop();
     builder.pop();

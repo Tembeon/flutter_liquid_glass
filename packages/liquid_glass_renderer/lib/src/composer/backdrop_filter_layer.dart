@@ -427,5 +427,5 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
 typedef _Scene = ({
   CornerRead corner,
   ui.ImageFilter filter,
-  ui.ImageFilter? inPlace,
+  CopyFrost? inPlace,
 });
