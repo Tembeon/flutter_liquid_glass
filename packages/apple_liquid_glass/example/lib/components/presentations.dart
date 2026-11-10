@@ -2,461 +2,227 @@ import 'dart:async';
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_example/backdrop.dart';
-import 'package:apple_liquid_glass_example/components/components_page.dart';
-import 'package:apple_liquid_glass_example/stand/music_page.dart';
-import 'package:apple_liquid_glass_example/stand/video_page.dart';
+import 'package:apple_liquid_glass_example/components/component_page.dart';
+import 'package:apple_liquid_glass_example/components/controls.dart';
 import 'package:apple_liquid_glass_example/widgets.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/widgets.dart';
 
-GlassMenuItemState _on(bool on) =>
-    on ? GlassMenuItemState.on : GlassMenuItemState.off;
+enum _AlertKind { two, destructive, three, sheet }
 
-Widget _row(
-  IconData icon,
-  Color color,
-  String title,
-  VoidCallback onPressed, {
-  String? subtitle,
-}) => GlassListRow(
-  leading: SettingsIcon(icon: icon, color: color),
-  title: Text(title),
-  subtitle: subtitle == null ? null : Text(subtitle),
-  accessory: GlassListAccessory.disclosureIndicator,
-  onPressed: onPressed,
-);
-
-class MenusPage extends StatefulWidget {
-  const MenusPage({super.key});
+class AlertPage extends StatefulWidget {
+  const AlertPage({super.key});
 
   @override
-  State<MenusPage> createState() => _MenusPageState();
+  State<AlertPage> createState() => _AlertPageState();
 }
 
-class _MenusPageState extends State<MenusPage> {
-  var _favorite = false;
-  var _sort = 'Date';
-  var _ascending = true;
-  var _more = false;
+class _AlertPageState extends State<AlertPage> {
+  var _kind = _AlertKind.two;
+  var _message = true;
+  var _brand = Brand.system;
+  var _answer = 'Nothing answered yet';
 
-  List<GlassMenuEntry> _menu() => [
-    GlassMenuSection(
-      elementSize: GlassMenuElementSize.medium,
+  Future<void> _show() async {
+    final keep = GlassAlertAction(
+      isDefaultAction: true,
+      child: const Text('Keep'),
+      onPressed: () => setState(() => _answer = 'Kept'),
+    );
+    final compost = GlassAlertAction.destructive(
+      child: const Text('Compost'),
+      onPressed: () => setState(() => _answer = 'Composted'),
+    );
+    final give = GlassAlertAction(
+      child: const Text('Give away'),
+      onPressed: () => setState(() => _answer = 'Given away'),
+    );
+    final cancel = GlassAlertAction.cancel(
+      child: const Text('Cancel'),
+      onPressed: () => setState(() => _answer = 'Cancelled'),
+    );
+    const title = Text('The fern has dried out');
+    final message = _message
+        ? const Text('It has had no water for three weeks.')
+        : null;
+    if (_kind == _AlertKind.sheet) {
+      await showGlassActionSheet(
+        context,
+        title: title,
+        message: message,
+        actions: [keep, give, compost, cancel],
+      );
+      return;
+    }
+    await showGlassAlert(
+      context,
+      title: title,
+      message: message,
+      style: _brand.color == null
+          ? null
+          : GlassAlertStyle(
+              actionColor: _brand.color,
+              defaultActionFillColor: _brand.color,
+            ),
+      actions: switch (_kind) {
+        _AlertKind.two => [cancel, keep],
+        _AlertKind.destructive => [cancel, compost],
+        _ => [keep, give, compost],
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => ComponentPage(
+    name: 'showGlassAlert',
+    summary:
+        'A panel of glass in the middle of the screen that asks one '
+        'question; showGlassActionSheet raises the same actions from the '
+        'bottom edge.',
+    backdrop: Wallpaper.bloom,
+    stageHeight: 150,
+    stage: Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        GlassMenuItem(
-          title: 'Copy',
-          icon: const Icon(CupertinoIcons.doc_on_doc),
-          onPressed: () {},
+        GlassButton.prominent(
+          onPressed: () => unawaited(_show()),
+          child: const Text('Ask'),
         ),
-        GlassMenuItem(
-          title: 'Share',
-          icon: const Icon(CupertinoIcons.share),
-          onPressed: () {},
-        ),
-        GlassMenuItem(
-          title: _favorite ? 'Unfavorite' : 'Favorite',
-          icon: const Icon(CupertinoIcons.heart),
-          selectedIcon: const Icon(CupertinoIcons.heart_fill),
-          state: _on(_favorite),
-          onPressed: () => setState(() => _favorite = !_favorite),
-        ),
+        const SizedBox(height: 12),
+        PhotoText(_answer),
       ],
     ),
-    GlassMenuItem(
-      title: 'New Folder',
-      icon: const Icon(CupertinoIcons.folder_badge_plus),
-      onPressed: () {},
-    ),
-    if (_more)
-      GlassMenuItem(
-        title: 'Rename',
-        icon: const Icon(CupertinoIcons.pencil),
-        onPressed: () {},
+    knobs: [
+      ChoiceKnob<_AlertKind>(
+        'Kind',
+        value: _kind,
+        options: const {
+          _AlertKind.two: 'Two',
+          _AlertKind.destructive: 'Destructive',
+          _AlertKind.three: 'Three',
+          _AlertKind.sheet: 'Sheet',
+        },
+        onChanged: (kind) => setState(() => _kind = kind),
       ),
-    GlassMenuItem(
-      title: _more ? 'Show Less' : 'Show More',
-      icon: Icon(
-        _more ? CupertinoIcons.chevron_up : CupertinoIcons.chevron_down,
+      ToggleKnob(
+        'Message',
+        value: _message,
+        onChanged: (on) => setState(() => _message = on),
       ),
-      keepsMenuOpen: true,
-      onPressed: () => setState(() => _more = !_more),
-    ),
-    GlassSubmenu(
-      title: 'Sort By',
-      subtitle: _sort,
-      icon: const Icon(CupertinoIcons.arrow_up_arrow_down),
-      children: [
-        GlassMenuSection(
-          singleSelection: true,
-          children: [
-            for (final sort in const ['Date', 'Name', 'Size'])
-              GlassMenuItem(
-                title: sort,
-                state: _on(sort == _sort),
-                onPressed: () => setState(() => _sort = sort),
-              ),
-          ],
-        ),
-        GlassMenuSection(
-          singleSelection: true,
-          children: [
-            GlassMenuItem(
-              title: 'Ascending',
-              state: _on(_ascending),
-              onPressed: () => setState(() => _ascending = true),
-            ),
-            GlassMenuItem(
-              title: 'Descending',
-              state: _on(!_ascending),
-              onPressed: () => setState(() => _ascending = false),
-            ),
-          ],
-        ),
-      ],
-    ),
-  ];
-
-  @override
-  Widget build(BuildContext context) => ComponentPage(
-    title: 'Menus',
-    slivers: [
-      Demo(
-        'GlassMenuItem, GlassMenuSection, GlassSubmenu',
-        'A menu grows out of the glass of its button. A finger that '
-            'opened it can slide on to an item; a row can change the menu '
-            'while it stays open, and a submenu unfolds in place.',
-        child: PhotoPanel(
-          wallpaper: Wallpaper.city,
-          child: Row(
-            children: [
-              GlassButton(
-                menuChildren: _menu(),
-                onPressed: null,
-                child: const Text('Options'),
-              ),
-              const Spacer(),
-              GlassButton.prominent(
-                semanticLabel: 'Add',
-                menuChildren: [
-                  for (final (title, icon) in const [
-                    ('Photo', CupertinoIcons.photo),
-                    ('Note', CupertinoIcons.square_pencil),
-                    ('Reminder', CupertinoIcons.checkmark_circle),
-                  ])
-                    GlassMenuItem(
-                      title: title,
-                      icon: Icon(icon),
-                      onPressed: () {},
-                    ),
-                ],
-                onPressed: null,
-                child: const Icon(CupertinoIcons.plus),
-              ),
-            ],
-          ),
-        ),
-      ),
-      Demo(
-        'GlassContextMenu',
-        'Hold a photo: it lifts out of the page and its menu grows beside '
-            'it.',
-        child: Panel(
-          child: Row(
-            children: [
-              for (final wallpaper in const [
-                Wallpaper.bloom,
-                Wallpaper.dunes,
-                Wallpaper.alpine,
-              ]) ...[
-                Expanded(
-                  child: GlassContextMenu(
-                    menuChildren: [
-                      GlassMenuItem(
-                        title: 'Share ${wallpaper.title}',
-                        icon: const Icon(CupertinoIcons.share),
-                        onPressed: () {},
-                      ),
-                      GlassMenuItem(
-                        title: 'Favorite',
-                        icon: const Icon(CupertinoIcons.heart),
-                        onPressed: () {},
-                      ),
-                      GlassMenuItem(
-                        title: 'Delete',
-                        icon: const Icon(CupertinoIcons.trash),
-                        destructive: true,
-                        onPressed: () {},
-                      ),
-                    ],
-                    child: ClipRSuperellipse(
-                      borderRadius: BorderRadius.circular(16),
-                      child: AspectRatio(
-                        aspectRatio: 1,
-                        child: Image(image: wallpaper.image, fit: BoxFit.cover),
-                      ),
-                    ),
-                  ),
-                ),
-                if (wallpaper != Wallpaper.alpine) const SizedBox(width: 10),
-              ],
-            ],
-          ),
-        ),
+      ChoiceKnob<Brand>(
+        "The alert's colors",
+        value: _brand,
+        options: Brand.names,
+        onChanged: (brand) => setState(() => _brand = brand),
       ),
     ],
   );
 }
 
-class AlertsPage extends StatelessWidget {
-  const AlertsPage({super.key});
+enum _Detents { medium, both, fitted }
+
+class SheetPage extends StatefulWidget {
+  const SheetPage({super.key});
+
+  @override
+  State<SheetPage> createState() => _SheetPageState();
+}
+
+class _SheetPageState extends State<SheetPage> {
+  var _detents = _Detents.both;
+  var _handle = true;
+  var _undimmed = true;
+  var _dismissible = true;
+  var _tinted = false;
+
+  Future<void> _show() => showGlassSheet<void>(
+    context,
+    detents: switch (_detents) {
+      _Detents.medium => const [GlassSheetDetent.medium],
+      _Detents.both => const [GlassSheetDetent.medium, GlassSheetDetent.large],
+      _Detents.fitted => const [GlassSheetDetent.fitted],
+    },
+    largestUndimmedDetent: _undimmed && _detents != _Detents.fitted
+        ? GlassSheetDetent.medium
+        : null,
+    showDragHandle: _handle,
+    isDismissible: _dismissible,
+    style: _tinted
+        ? const GlassSheetStyle(
+            backgroundColor: GlassDynamicColor.withBrightness(
+              color: Color(0xFFE8F6EF),
+              darkColor: Color(0xFF12342A),
+            ),
+            dragHandleColor: Color(0xFF1FB58F),
+          )
+        : null,
+    builder: (context) =>
+        _detents == _Detents.fitted ? const _Note() : const _Plants(),
+  );
 
   @override
   Widget build(BuildContext context) => ComponentPage(
-    title: 'Alerts and action sheets',
-    slivers: [
-      Demo(
-        'showGlassAlert',
-        'A panel of glass in the middle of the screen, with a default, a '
-            'cancel or a destructive action, in the system look or yours.',
-        flush: true,
-        child: GlassListSection(
-          children: [
-            _row(
-              CupertinoIcons.bell_fill,
-              GlassColors.systemBlue,
-              'Two actions',
-              () => unawaited(
-                showGlassAlert(
-                  context,
-                  title: const Text('Allow notifications?'),
-                  message: const Text(
-                    'Alerts, sounds and badges about your library.',
-                  ),
-                  actions: const [
-                    GlassAlertAction(child: Text("Don't Allow")),
-                    GlassAlertAction(
-                      isDefaultAction: true,
-                      child: Text('Allow'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            _row(
-              CupertinoIcons.trash_fill,
-              GlassColors.systemRed,
-              'Destructive',
-              () => unawaited(
-                showGlassAlert(
-                  context,
-                  title: const Text('Delete 24 photos?'),
-                  message: const Text(
-                    'They move to Recently Deleted and stay there for 30 '
-                    'days.',
-                  ),
-                  actions: const [
-                    GlassAlertAction.cancel(child: Text('Cancel')),
-                    GlassAlertAction.destructive(child: Text('Delete')),
-                  ],
-                ),
-              ),
-            ),
-            _row(
-              CupertinoIcons.paintbrush_fill,
-              GlassColors.systemOrange,
-              'Styled',
-              () => unawaited(
-                showGlassAlert(
-                  context,
-                  title: const Text('Join the beta?'),
-                  message: const Text(
-                    'New features arrive a few weeks early.',
-                  ),
-                  style: const GlassAlertStyle(
-                    titleTextStyle: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    actionColor: Color(0xFFFF9500),
-                    defaultActionFillColor: Color(0xFFFF9500),
-                  ),
-                  actions: const [
-                    GlassAlertAction(child: Text('Not Now')),
-                    GlassAlertAction(
-                      isDefaultAction: true,
-                      child: Text('Join'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+    name: 'showGlassSheet',
+    summary:
+        'A sheet that rests at detents, follows the finger between them, '
+        'and hands a scroll over to its list once it stands at the top '
+        'one.',
+    backdrop: Wallpaper.coast,
+    stageHeight: 130,
+    stage: GlassButton.prominent(
+      onPressed: () => unawaited(_show()),
+      child: const Text('Open the sheet'),
+    ),
+    knobs: [
+      ChoiceKnob<_Detents>(
+        'Detents',
+        value: _detents,
+        options: const {
+          _Detents.medium: 'Medium',
+          _Detents.both: 'Medium, large',
+          _Detents.fitted: 'Fitted',
+        },
+        onChanged: (detents) => setState(() => _detents = detents),
       ),
-      Demo(
-        'showGlassActionSheet',
-        'Choices that rise from the bottom edge, the cancel apart from '
-            'the rest.',
-        flush: true,
-        child: GlassListSection(
-          children: [
-            _row(
-              CupertinoIcons.square_arrow_up_fill,
-              GlassColors.systemGreen,
-              'Action sheet',
-              () => unawaited(
-                showGlassActionSheet(
-                  context,
-                  title: const Text('Save the edited photo?'),
-                  actions: const [
-                    GlassAlertAction(child: Text('Save as New')),
-                    GlassAlertAction(child: Text('Replace Original')),
-                    GlassAlertAction.destructive(
-                      child: Text('Discard Changes'),
-                    ),
-                    GlassAlertAction.cancel(child: Text('Cancel')),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+      ToggleKnob(
+        'Drag handle',
+        value: _handle,
+        onChanged: (on) => setState(() => _handle = on),
+      ),
+      ToggleKnob(
+        'Page stays live at medium',
+        value: _undimmed,
+        onChanged: (on) => setState(() => _undimmed = on),
+      ),
+      ToggleKnob(
+        'A swipe down dismisses it',
+        value: _dismissible,
+        onChanged: (on) => setState(() => _dismissible = on),
+      ),
+      ToggleKnob(
+        'Its own colors',
+        value: _tinted,
+        onChanged: (on) => setState(() => _tinted = on),
       ),
     ],
   );
 }
 
-class SheetsPage extends StatelessWidget {
-  const SheetsPage({super.key});
+class _Plants extends StatelessWidget {
+  const _Plants();
 
-  @override
-  Widget build(BuildContext context) => ComponentPage(
-    title: 'Sheets and popovers',
-    slivers: [
-      Demo(
-        'showGlassSheet',
-        'A sheet that rests at detents, follows the finger between them '
-            'and hands a scroll over to its list at the top one.',
-        flush: true,
-        child: GlassListSection(
-          children: [
-            _row(
-              CupertinoIcons.map_fill,
-              GlassColors.systemBlue,
-              'Sheet with detents',
-              subtitle: 'Medium and large; the page stays live at medium',
-              () => unawaited(
-                showGlassSheet<void>(
-                  context,
-                  detents: const [
-                    GlassSheetDetent.medium,
-                    GlassSheetDetent.large,
-                  ],
-                  largestUndimmedDetent: GlassSheetDetent.medium,
-                  showDragHandle: true,
-                  builder: (context) => const _Places(),
-                ),
-              ),
-            ),
-            _row(
-              CupertinoIcons.paintbrush_fill,
-              GlassColors.systemOrange,
-              'Fitted and styled',
-              subtitle: 'As tall as what it holds, in its own colors',
-              () => unawaited(
-                showGlassSheet<void>(
-                  context,
-                  detents: const [GlassSheetDetent.fitted],
-                  showDragHandle: true,
-                  style: const GlassSheetStyle(
-                    backgroundColor: GlassDynamicColor.withBrightness(
-                      color: Color(0xFFFFF4E5),
-                      darkColor: Color(0xFF3A2A12),
-                    ),
-                    dragHandleColor: Color(0xFFFF9500),
-                  ),
-                  builder: (context) => const _Recipe(),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-      Demo(
-        'showGlassPopover',
-        'A bubble that points at what it came from and fits its arrow to '
-            'the room it has.',
-        child: PhotoPanel(
-          wallpaper: Wallpaper.bloom,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              for (final name in const ['Here', 'Or here'])
-                Builder(
-                  builder: (anchor) => GlassButton(
-                    onPressed: () => unawaited(
-                      showGlassPopover<void>(
-                        context,
-                        anchor: anchor,
-                        adaptsToSheet: false,
-                        builder: (context) => Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: SizedBox(
-                            width: 230,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const GlassDefaultTextStyle(
-                                  role: GlassTextRole.headline,
-                                  child: Text('Popover'),
-                                ),
-                                const SizedBox(height: 6),
-                                const Text(
-                                  'It grew out of the button and goes back '
-                                  'into it.',
-                                ),
-                                const SizedBox(height: 14),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: GlassButton.prominent(
-                                    onPressed: () =>
-                                        Navigator.of(context).pop(),
-                                    child: const Text('Done'),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    child: Text(name),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    ],
-  );
-}
-
-class _Places extends StatelessWidget {
-  const _Places();
-
-  static const _places = [
-    ('Golden Gate Park', 'Park', CupertinoIcons.tree),
-    ('Ferry Building', 'Market', CupertinoIcons.cart_fill),
-    ('Coit Tower', 'Landmark', CupertinoIcons.building_2_fill),
-    ('Lands End', 'Trail', CupertinoIcons.map),
-    ('Ocean Beach', 'Beach', CupertinoIcons.sun_max_fill),
-    ('Twin Peaks', 'Viewpoint', CupertinoIcons.eye_fill),
-    ('Palace of Fine Arts', 'Landmark', CupertinoIcons.building_2_fill),
-    ('Baker Beach', 'Beach', CupertinoIcons.sun_max_fill),
-    ('Presidio', 'Park', CupertinoIcons.tree),
-    ('Chinatown', 'Neighborhood', CupertinoIcons.house_fill),
-    ('Alcatraz', 'Island', CupertinoIcons.location_solid),
+  static const _plants = [
+    ('Monstera', 'Living room', CupertinoIcons.tree),
+    ('Jade plant', 'Study', CupertinoIcons.circle_fill),
+    ('Peace lily', 'Bedroom', CupertinoIcons.drop_fill),
+    ('Boston fern', 'Bathroom', CupertinoIcons.cloud_fog_fill),
+    ('Pothos', 'Kitchen', CupertinoIcons.tree),
+    ('Snake plant', 'Hall', CupertinoIcons.arrow_up),
+    ('Calathea', 'Living room', CupertinoIcons.tree),
+    ('Fiddle-leaf fig', 'Study', CupertinoIcons.tree),
+    ('String of pearls', 'Kitchen', CupertinoIcons.circle_grid_3x3_fill),
+    ('Aloe', 'Balcony', CupertinoIcons.sun_max_fill),
+    ('Rubber plant', 'Hall', CupertinoIcons.tree),
   ];
 
   @override
@@ -468,27 +234,35 @@ class _Places extends StatelessWidget {
         padding: EdgeInsets.symmetric(horizontal: 20),
         child: GlassDefaultTextStyle(
           role: GlassTextRole.title2,
-          child: Text('Places', style: TextStyle(fontWeight: FontWeight.w700)),
+          child: Text('Plants', style: TextStyle(fontWeight: FontWeight.w700)),
         ),
       ),
       GlassListSection(
         children: [
-          for (final (name, kind, icon) in _places)
+          for (final (name, room, icon) in _plants)
             GlassListRow(
-              leading: SettingsIcon(icon: icon, color: GlassColors.systemBlue),
+              leading: SettingsIcon(icon: icon, color: GlassColors.systemGreen),
               title: Text(name),
-              subtitle: Text(kind),
+              subtitle: Text(room),
               accessory: GlassListAccessory.disclosureIndicator,
               onPressed: () {},
             ),
         ],
       ),
+      if (Navigator.of(context).canPop())
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: GlassButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ),
     ],
   );
 }
 
-class _Recipe extends StatelessWidget {
-  const _Recipe();
+class _Note extends StatelessWidget {
+  const _Note();
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -500,179 +274,114 @@ class _Recipe extends StatelessWidget {
         const GlassDefaultTextStyle(
           role: GlassTextRole.title2,
           child: Text(
-            'Lemon cake',
+            'Watering day',
             style: TextStyle(fontWeight: FontWeight.w700),
           ),
         ),
         const SizedBox(height: 8),
         const Text(
-          'Three lemons, two eggs, a cup of sugar and forty minutes. The '
-          'sheet is as tall as these lines and no taller.',
+          'Four plants are thirsty today. The sheet is as tall as these '
+          'lines and no taller.',
         ),
         const SizedBox(height: 18),
         GlassButton.prominent(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Got it'),
+          child: const Text('Done'),
         ),
       ],
     ),
   );
 }
 
-class BarsPage extends StatelessWidget {
-  const BarsPage({super.key});
+class PopoverPage extends StatefulWidget {
+  const PopoverPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    void open(Widget page) => unawaited(
-      Navigator.of(
-        context,
-        rootNavigator: true,
-      ).push(GlassPageRoute<void>(builder: (context) => page)),
-    );
-    return ComponentPage(
-      title: 'Bars and pages',
-      slivers: [
-        Demo(
-          'GlassNavigationBar, GlassToolbar',
-          'A large title that folds into the bar as the page scrolls, bar '
-              'items of glass, a toolbar at the bottom and the frost where '
-              'content passes under either.',
-          flush: true,
-          child: GlassListSection(
-            children: [
-              _row(
-                CupertinoIcons.tray_full_fill,
-                GlassColors.systemBlue,
-                'A mailbox',
-                subtitle: 'Large title, bar items, toolbar',
-                () => open(const _Mailbox()),
-              ),
-            ],
-          ),
-        ),
-        Demo(
-          'GlassTabBar, GlassTabScaffold',
-          'The bar at the bottom of this app: a lens that slides between '
-              'tabs, a search button beside it. In an app of its own it '
-              'tucks away on scroll and carries an accessory.',
-          flush: true,
-          child: GlassListSection(
-            children: [
-              _row(
-                CupertinoIcons.music_note_2,
-                GlassColors.systemRed,
-                'A music app',
-                subtitle: 'A tab bar that minimizes, with a mini player',
-                () => open(const MusicPage()),
-              ),
-              _row(
-                CupertinoIcons.play_rectangle_fill,
-                GlassColors.systemGray,
-                'A video player',
-                subtitle: 'Bars and buttons over a playing video',
-                () => open(const VideoPage()),
-              ),
-            ],
-          ),
-        ),
-        const Demo(
-          'GlassBadge',
-          'A count, a word or a dot, on a tab or anywhere.',
-          child: Panel(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                GlassBadge.count(3),
-                GlassBadge.count(128),
-                GlassBadge.text('New'),
-                GlassBadge.indicator(),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  State<PopoverPage> createState() => _PopoverPageState();
 }
 
-/// A page with every bar: a large title, items and a toolbar.
-class _Mailbox extends StatelessWidget {
-  const _Mailbox();
+class _PopoverPageState extends State<PopoverPage> {
+  var _adapts = false;
 
-  static const _senders = [
-    'Tim',
-    'Design review',
-    'Flutter',
-    'Weather',
-    'The bank',
-    'Nora',
-    'Receipts',
-    'Photos',
-    'Calendar',
-    'Travel',
-    'Newsletter',
-    'Support',
-    'Billing',
-    'Sam',
-  ];
-
-  @override
-  Widget build(BuildContext context) => GlassPageScaffold(
-    backgroundColor: GlassColors.systemBackground,
-    navigationBar: GlassNavigationBar(
-      largeTitle: const Text('Inbox'),
-      previousPageTitle: 'Bars',
-      trailing: [
-        GlassBarItem(
-          icon: const Icon(CupertinoIcons.line_horizontal_3_decrease),
-          semanticLabel: 'Filter',
-          onPressed: () {},
-        ),
-        GlassBarItem(label: const Text('Edit'), onPressed: () {}),
-      ],
-    ),
-    toolbar: GlassToolbar(
-      items: [
-        GlassBarItem(
-          icon: const Icon(CupertinoIcons.archivebox),
-          semanticLabel: 'Archive',
-          onPressed: () {},
-        ),
-        const GlassBarSpacer.flexible(),
-        const GlassBarItem.custom(
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'Updated just now',
-              style: TextStyle(fontWeight: FontWeight.w600),
+  Future<void> _show(BuildContext anchor) => showGlassPopover<void>(
+    context,
+    anchor: anchor,
+    adaptsToSheet: _adapts,
+    builder: (context) => Padding(
+      padding: const EdgeInsets.all(20),
+      child: SizedBox(
+        width: 230,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const GlassDefaultTextStyle(
+              role: GlassTextRole.headline,
+              child: Text('Light'),
             ),
-          ),
-        ),
-        const GlassBarSpacer.flexible(),
-        GlassBarItem(
-          icon: const Icon(CupertinoIcons.square_pencil),
-          semanticLabel: 'Compose',
-          onPressed: () {},
-        ),
-      ],
-    ),
-    child: GlassContentScroll(
-      child: ListView(
-        children: [
-          for (final (index, sender) in _senders.indexed)
-            GlassListRow(
-              title: Text(sender),
-              subtitle: Text(
-                index.isEven
-                    ? 'The pages are in: one pass a frame.'
-                    : 'See you at ten, in the glass room.',
+            const SizedBox(height: 6),
+            const Text(
+              'Bright, but out of the noon sun. It grew out of the button '
+              'and goes back into it.',
+            ),
+            const SizedBox(height: 14),
+            Align(
+              alignment: Alignment.centerRight,
+              child: GlassButton.prominent(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Done'),
               ),
-              detail: Text('${9 + index % 3}:${10 + index * 3}'),
-              onPressed: () {},
             ),
-        ],
+          ],
+        ),
       ),
     ),
+  );
+
+  @override
+  Widget build(BuildContext context) => ComponentPage(
+    name: 'showGlassPopover',
+    summary:
+        'A bubble of glass that grows out of what it is about, points at '
+        'it and fits its arrow to the room there is.',
+    backdrop: Wallpaper.alpine,
+    stageHeight: 170,
+    stage: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            for (final name in const ['From here', 'Or here'])
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Builder(
+                    builder: (anchor) => GlassButton(
+                      onPressed: () => unawaited(_show(anchor)),
+                      child: Text(name),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 22),
+        Builder(
+          builder: (anchor) => GlassButton(
+            onPressed: () => unawaited(_show(anchor)),
+            semanticLabel: 'From the middle',
+            child: const Icon(CupertinoIcons.info),
+          ),
+        ),
+      ],
+    ),
+    knobs: [
+      ToggleKnob(
+        'Becomes a sheet on a phone',
+        value: _adapts,
+        onChanged: (on) => setState(() => _adapts = on),
+      ),
+    ],
   );
 }

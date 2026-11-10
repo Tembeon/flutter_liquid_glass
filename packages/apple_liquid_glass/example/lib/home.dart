@@ -3,26 +3,23 @@ import 'package:apple_liquid_glass_example/components/components_page.dart';
 import 'package:apple_liquid_glass_example/glass/glass_page.dart';
 import 'package:apple_liquid_glass_example/motion/motion_page.dart';
 import 'package:apple_liquid_glass_example/search_page.dart';
-import 'package:apple_liquid_glass_example/showcase/showcase_page.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/widgets.dart';
 
-/// The gallery's tabs, each an answer to one question about the package.
+/// The gallery's tabs.
 enum GalleryTab {
-  /// What can it do: whole screens, playing.
-  showcase,
-
-  /// What is it made of: the material, a property at a time.
-  glass,
-
-  /// What is in it: every widget, with its name.
+  /// Every component, live, with its parameters to try.
   components,
 
-  /// How does it move: springs, layouts and morphs.
+  /// The material, a property at a time.
+  glass,
+
+  /// Springs, layouts that animate and morphs.
   motion,
 }
 
-/// The gallery: four tabs and a search over all of it.
+/// The gallery: a catalog of components first, the material and the motion
+/// beside it, and a search over all of it.
 class GalleryHome extends StatefulWidget {
   const GalleryHome({super.key});
 
@@ -31,7 +28,7 @@ class GalleryHome extends StatefulWidget {
 }
 
 class _GalleryHomeState extends State<GalleryHome> {
-  var _tab = GalleryTab.showcase;
+  var _tab = GalleryTab.components;
   final _search = GlassSearchController();
 
   @override
@@ -50,18 +47,14 @@ class _GalleryHomeState extends State<GalleryHome> {
     tabBar: GlassTabBar(
       destinations: const [
         GlassTabDestination(
-          icon: Icon(CupertinoIcons.sparkles),
-          label: Text('Showcase'),
+          icon: Icon(CupertinoIcons.square_grid_2x2),
+          selectedIcon: Icon(CupertinoIcons.square_grid_2x2_fill),
+          label: Text('Components'),
         ),
         GlassTabDestination(
           icon: Icon(CupertinoIcons.drop),
           selectedIcon: Icon(CupertinoIcons.drop_fill),
           label: Text('Glass'),
-        ),
-        GlassTabDestination(
-          icon: Icon(CupertinoIcons.square_grid_2x2),
-          selectedIcon: Icon(CupertinoIcons.square_grid_2x2_fill),
-          label: Text('Components'),
         ),
         GlassTabDestination(
           icon: Icon(CupertinoIcons.wind),
@@ -74,9 +67,8 @@ class _GalleryHomeState extends State<GalleryHome> {
       searchController: _search,
     ),
     tabBuilder: (context, index) => switch (GalleryTab.values[index]) {
-      GalleryTab.showcase => const ShowcasePage(),
-      GalleryTab.glass => const GlassPage(),
       GalleryTab.components => const ComponentsPage(),
+      GalleryTab.glass => const GlassPage(),
       GalleryTab.motion => const MotionPage(),
     },
     searchBuilder: (context) =>

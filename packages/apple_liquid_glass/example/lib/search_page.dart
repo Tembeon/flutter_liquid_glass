@@ -1,13 +1,14 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_example/components/components_page.dart';
+import 'package:apple_liquid_glass_example/components/surfaces.dart';
 import 'package:apple_liquid_glass_example/home.dart';
-import 'package:apple_liquid_glass_example/scenes/scene.dart';
 import 'package:apple_liquid_glass_example/widgets.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/widgets.dart';
 
-/// Everything in the gallery, found by name: the scenes, the families of
-/// widgets with the class names in them, and the two tabs that explain.
+/// Everything in the gallery, found by a component's name or a class
+/// name: the components, the toys built from surfaces, and the two tabs
+/// that explain.
 class GallerySearchPage extends StatelessWidget {
   const GallerySearchPage({
     required this.controller,
@@ -27,16 +28,10 @@ class GallerySearchPage extends StatelessWidget {
       rootNavigator: true,
     ).push(GlassPageRoute<void>(builder: (context) => page));
     final entries = <(IconData, Color, String, String, VoidCallback)>[
-      for (final scene in GalleryScene.all)
-        (
-          CupertinoIcons.sparkles,
-          const Color(0xFF5E5CE6),
-          scene.title,
-          scene.shows,
-          () => push(scene.build(false)),
-        ),
-      for (final (icon, color, title, widgets, page) in ComponentsPage.families)
-        (icon, color, title, widgets, () => push(page())),
+      for (final (icon, color, title, classes, page) in ComponentsPage.all)
+        (icon, color, title, classes, () => push(page())),
+      for (final (icon, color, title, note, page) in SurfacePage.toys)
+        (icon, color, title, note, () => push(page())),
       (
         CupertinoIcons.drop_fill,
         GlassColors.systemBlue,

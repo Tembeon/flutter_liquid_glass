@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/motion.dart';
+import 'package:apple_liquid_glass_example/gallery_bar.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -27,11 +28,7 @@ enum _Palette {
 /// reads its frame from the lamp's motion, a loop of sixty steps a second,
 /// and one group fuses them and reads the lamp's light behind them once.
 class LavaPage extends StatefulWidget {
-  const LavaPage({this.preview = false, super.key});
-
-  /// Whether the scene plays itself, with no bars and no controls: what the
-  /// showcase shows of it.
-  final bool preview;
+  const LavaPage({super.key});
 
   @override
   State<LavaPage> createState() => _LavaPageState();
@@ -58,12 +55,12 @@ class _LavaPageState extends State<LavaPage> {
       data: const GlassThemeData(brightness: Brightness.dark),
       child: GlassPageScaffold(
         backgroundColor: const Color(0xFF000000),
-        navigationBar: widget.preview
-            ? null
-            : const GlassNavigationBar(
-                title: Text('Lava'),
-                previousPageTitle: 'Showcase',
-              ),
+        navigationBar: GlassNavigationBar(
+          title: const Text('Lava'),
+          previousPageTitle: 'Surface',
+          backButtonDisplayMode: GlassBackButtonDisplayMode.minimal,
+          trailing: galleryItems(context),
+        ),
         child: Builder(
           builder: (context) {
             final padding = MediaQuery.paddingOf(context);
@@ -78,17 +75,16 @@ class _LavaPageState extends State<LavaPage> {
                 Padding(
                   padding: EdgeInsets.only(
                     top: padding.top + 8,
-                    bottom: padding.bottom + (widget.preview ? 0 : 76),
+                    bottom: padding.bottom + 76,
                   ),
                   child: _jarOf(),
                 ),
-                if (!widget.preview)
-                  Positioned(
-                    left: 16,
-                    right: 16,
-                    bottom: padding.bottom + 12,
-                    child: _controls(),
-                  ),
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: padding.bottom + 12,
+                  child: _controls(),
+                ),
               ],
             );
           },

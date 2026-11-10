@@ -1,11 +1,11 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:apple_liquid_glass_example/gallery_bar.dart';
 import 'package:apple_liquid_glass_example/motion/chips.dart';
 import 'package:apple_liquid_glass_example/motion/grid_list.dart';
 import 'package:apple_liquid_glass_example/motion/notes.dart';
 import 'package:apple_liquid_glass_example/motion/own_control.dart';
 import 'package:apple_liquid_glass_example/motion/peek.dart';
 import 'package:apple_liquid_glass_example/motion/two_lines.dart';
-import 'package:apple_liquid_glass_example/widgets.dart';
 import 'package:flutter/widgets.dart';
 
 /// What kinesis gives an app: layouts that animate, presentations and a
@@ -36,7 +36,7 @@ class _MotionPageState extends State<MotionPage> {
       backgroundColor: GlassColors.systemGroupedBackground,
       navigationBar: GlassNavigationBar(
         largeTitle: const Text('Motion'),
-        trailing: [settingsItem(context)],
+        trailing: galleryItems(context),
       ),
       child: GlassContentScroll(
         child: CustomScrollView(

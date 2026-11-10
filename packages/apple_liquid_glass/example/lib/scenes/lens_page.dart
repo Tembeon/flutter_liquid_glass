@@ -1,10 +1,7 @@
-import 'dart:async';
-import 'dart:math' as math;
-
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_example/backdrop.dart';
+import 'package:apple_liquid_glass_example/gallery_bar.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 enum _Outline { circle, capsule, squircle }
@@ -14,18 +11,13 @@ enum _Outline { circle, capsule, squircle }
 /// a tint. The bar below changes its outline, size and glass, and adds a
 /// second lens, which fuses with the first where they come close.
 class LensPage extends StatefulWidget {
-  const LensPage({this.preview = false, super.key});
-
-  /// Whether the scene plays itself, with no bars and no controls: what the
-  /// showcase shows of it.
-  final bool preview;
+  const LensPage({super.key});
 
   @override
   State<LensPage> createState() => _LensPageState();
 }
 
-class _LensPageState extends State<LensPage>
-    with SingleTickerProviderStateMixin {
+class _LensPageState extends State<LensPage> {
   static const _tints = <Color?>[
     null,
     Color(0x660A84FF),
@@ -43,31 +35,10 @@ class _LensPageState extends State<LensPage>
   var _size = 150.0;
   var _tint = 0;
   var _clear = true;
-  late var _two = widget.preview;
-  Ticker? _drift;
-
-  @override
-  void initState() {
-    super.initState();
-    if (!widget.preview) return;
-    // Left to itself, two lenses wander over the page and meet.
-    _drift = createTicker((elapsed) {
-      final t = elapsed.inMicroseconds / 1e6;
-      _centers[0].value = Alignment(
-        0.5 * math.sin(t * 0.5),
-        -0.25 + 0.45 * math.sin(t * 0.37 + 1),
-      );
-      _centers[1].value = Alignment(
-        0.5 * math.sin(t * 0.41 + 2.2),
-        -0.2 + 0.5 * math.cos(t * 0.31),
-      );
-    });
-    unawaited(_drift!.start());
-  }
+  var _two = false;
 
   @override
   void dispose() {
-    _drift?.dispose();
     for (final center in _centers) {
       center.dispose();
     }
@@ -88,12 +59,12 @@ class _LensPageState extends State<LensPage>
   @override
   Widget build(BuildContext context) => GlassPageScaffold(
     backgroundColor: GlassColors.systemBackground,
-    navigationBar: widget.preview
-        ? null
-        : const GlassNavigationBar(
-            title: Text('Lens'),
-            previousPageTitle: 'Showcase',
-          ),
+    navigationBar: GlassNavigationBar(
+      title: const Text('Lens'),
+      previousPageTitle: 'Surface',
+      backButtonDisplayMode: GlassBackButtonDisplayMode.minimal,
+      trailing: galleryItems(context),
+    ),
     child: Builder(
       builder: (context) {
         final padding = MediaQuery.paddingOf(context);
@@ -132,7 +103,7 @@ class _LensPageState extends State<LensPage>
                   ),
                 ),
               ),
-              if (!widget.preview) _bar(),
+              _bar(),
             ],
           ),
         );

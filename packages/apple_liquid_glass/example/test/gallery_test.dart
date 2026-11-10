@@ -2,14 +2,13 @@ import 'dart:ui' show FrameTiming;
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_example/app.dart';
+import 'package:apple_liquid_glass_example/components/component_page.dart';
 import 'package:apple_liquid_glass_example/components/components_page.dart';
+import 'package:apple_liquid_glass_example/components/controls.dart';
 import 'package:apple_liquid_glass_example/glass/glass_page.dart';
 import 'package:apple_liquid_glass_example/motion/motion_page.dart';
 import 'package:apple_liquid_glass_example/scenes/lava_page.dart';
-import 'package:apple_liquid_glass_example/scenes/scene.dart';
 import 'package:apple_liquid_glass_example/settings.dart';
-import 'package:apple_liquid_glass_example/showcase/cover.dart';
-import 'package:apple_liquid_glass_example/showcase/showcase_page.dart';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -37,18 +36,34 @@ Future<ValueNotifier<GallerySettings>> _launch(
   return settings;
 }
 
-// Scrolls [scroll] until [target] stands clear of the bars.
+// Scrolls [scroll] until [target] stands clear of the bars: down the page
+// while the target is not built, then from the top again.
 Future<void> _bring(WidgetTester tester, Finder target, Finder scroll) async {
-  for (var i = 0; i < 40; i++) {
+  for (var i = 0; i < 80; i++) {
     final y = target.evaluate().isEmpty ? null : tester.getCenter(target).dy;
     if (y != null && y > 220 && y < 640) break;
-    await tester.drag(scroll, Offset(0, y != null && y <= 220 ? 140 : -140));
+    final up = y == null ? i >= 30 && i < 60 : y <= 220;
+    await tester.drag(scroll, Offset(0, up ? 300 : -140));
     await _frames(tester, 20);
   }
   await _frames(tester, 30);
 }
 
-// Leaves the catalog page on top.
+Finder _scrollOf(Type page) =>
+    find.descendant(of: find.byType(page), matching: find.byType(Scrollable));
+
+// Opens the component the catalog lists as [title].
+Future<void> _open(WidgetTester tester, String title) async {
+  final row = find.descendant(
+    of: find.byType(ComponentsPage),
+    matching: find.text(title),
+  );
+  await _bring(tester, row, _scrollOf(ComponentsPage).first);
+  await tester.tap(row);
+  await _frames(tester, 90);
+}
+
+// Leaves the catalog on top.
 Future<void> _back(WidgetTester tester) async {
   Navigator.of(tester.element(find.byType(ComponentPage))).pop();
   await _frames(tester, 90);
@@ -56,62 +71,64 @@ Future<void> _back(WidgetTester tester) async {
 
 // Real glass with `--enable-impeller --enable-flutter-gpu`, fake without.
 void main() {
-  testWidgets('the gallery opens on the showcase and has a tab for each '
-      'question', (tester) async {
+  testWidgets('the gallery opens on the catalog of components, with the '
+      'material and the motion in tabs beside it', (tester) async {
     await _launch(tester, renderer: GalleryRenderer.liquid);
-    expect(find.byType(ShowcasePage), findsOneWidget);
-    expect(find.byType(Cover), findsOneWidget);
+    expect(find.byType(ComponentsPage), findsOneWidget);
     for (final (tab, page) in const [
       ('Glass', GlassPage),
-      ('Components', ComponentsPage),
       ('Motion', MotionPage),
+      ('Components', ComponentsPage),
     ]) {
       await tester.tap(find.text(tab).last);
       await _frames(tester);
       expect(find.byType(page), findsOneWidget);
       expect(tester.takeException(), isNull);
     }
-    await tester.tap(find.text('Showcase').last);
-    await _frames(tester);
-    expect(find.byType(Cover), findsOneWidget);
   });
 
-  testWidgets('the showcase turns through every scene, each under its name, '
-      'and opens the one shown', (tester) async {
-    await _launch(tester, renderer: GalleryRenderer.liquid);
-    for (final scene in GalleryScene.all) {
-      await tester.drag(find.byType(PageView), const Offset(-300, 0));
+  testWidgets('every page has the same two items in the same place of its '
+      'bar', (tester) async {
+    await _launch(tester);
+    Offset at(String label) =>
+        tester.getCenter(find.bySemanticsLabel(label).hitTestable().last);
+    final renderer = at('Draw in glass');
+    final settings = at('Settings');
+    for (final tab in const ['Glass', 'Motion', 'Components']) {
+      await tester.tap(find.text(tab).last);
       await _frames(tester);
-      expect(find.text(scene.title), findsOneWidget);
-      expect(find.text(scene.shows), findsOneWidget);
-      expect(tester.takeException(), isNull);
+      expect(at('Draw in glass'), renderer, reason: tab);
+      expect(at('Settings'), settings, reason: tab);
     }
-
-    // Back to Lava, the second scene, by its dot.
-    for (var i = 0; i < GalleryScene.all.length - 2; i++) {
-      await tester.drag(find.byType(PageView), const Offset(300, 0));
-      await _frames(tester, 40);
+    for (final component in const ['Button', 'Sheet', 'Surface']) {
+      await _open(tester, component);
+      expect(at('Draw in glass'), renderer, reason: component);
+      expect(at('Settings'), settings, reason: component);
+      if (component == 'Surface') {
+        await _bring(
+          tester,
+          find.text('Lava'),
+          _scrollOf(ComponentPage).first,
+        );
+        await tester.tap(find.text('Lava'));
+        await _frames(tester, 90);
+        expect(at('Draw in glass'), renderer, reason: 'Lava');
+        expect(at('Settings'), settings, reason: 'Lava');
+        Navigator.of(tester.element(find.byType(LavaPage))).pop();
+        await _frames(tester, 90);
+      }
+      await _back(tester);
     }
-    expect(find.text('Lava'), findsOneWidget);
-    // The preview has no bar; the scene opened to play with has one.
-    expect(find.byType(GlassNavigationBar), findsNothing);
-    await tester.tap(find.text('Open'));
-    await _frames(tester, 90);
-    expect(
-      tester.widgetList<LavaPage>(find.byType(LavaPage)).any((p) => !p.preview),
-      isTrue,
-    );
-    expect(find.bySemanticsLabel('Add a drop'), findsOneWidget);
   });
 
-  testWidgets('the switch on the showcase draws the app flat or in glass', (
+  testWidgets('the drop in the bar draws the app flat or in glass', (
     tester,
   ) async {
     final settings = await _launch(tester, renderer: GalleryRenderer.liquid);
-    await tester.tap(find.text('Flat'));
+    await tester.tap(find.bySemanticsLabel('Draw flat'));
     await _frames(tester);
     expect(settings.value.renderer, GalleryRenderer.flat);
-    await tester.tap(find.text('Glass').first);
+    await tester.tap(find.bySemanticsLabel('Draw in glass'));
     await _frames(tester);
     expect(settings.value.renderer, GalleryRenderer.liquid);
   });
@@ -122,12 +139,7 @@ void main() {
     await _launch(tester, renderer: GalleryRenderer.liquid);
     await tester.tap(find.text('Glass').last);
     await _frames(tester);
-    final scroll = find
-        .descendant(
-          of: find.byType(GlassPage),
-          matching: find.byType(Scrollable),
-        )
-        .first;
+    final scroll = _scrollOf(GlassPage).first;
     for (final title in const [
       'It bends light',
       'Clear, regular, tinted',
@@ -148,84 +160,107 @@ void main() {
     }
   });
 
-  testWidgets('every family of the catalog opens a page of its widgets', (
-    tester,
-  ) async {
+  testWidgets('every component of the catalog opens its page: the '
+      'component, its knobs and what to make of it', (tester) async {
     await _launch(tester, renderer: GalleryRenderer.liquid);
-    await tester.tap(find.text('Components').last);
-    await _frames(tester);
-    final catalog = find
-        .descendant(
-          of: find.byType(ComponentsPage),
-          matching: find.byType(Scrollable),
-        )
-        .first;
-    for (final (_, _, title, _, _) in ComponentsPage.families) {
-      await _bring(tester, find.text(title), catalog);
-      await tester.tap(find.text(title));
-      await _frames(tester, 90);
+    for (final (_, _, title, _, _) in ComponentsPage.all) {
+      await _open(tester, title);
       final page = find.byType(ComponentPage);
       expect(page, findsOneWidget, reason: title);
+      expect(find.text('Try it'), findsOneWidget, reason: title);
       // To the end of the page and back out.
       final scroll = find
           .descendant(of: page, matching: find.byType(Scrollable))
           .first;
-      await tester.drag(scroll, const Offset(0, -600));
-      await _frames(tester, 40);
-      expect(tester.takeException(), isNull, reason: title);
+      for (var i = 0; i < 4; i++) {
+        await tester.drag(scroll, const Offset(0, -500));
+        await _frames(tester, 30);
+        expect(tester.takeException(), isNull, reason: title);
+      }
       await _back(tester);
       expect(find.byType(ComponentPage), findsNothing, reason: title);
     }
   });
 
-  testWidgets("the catalog's widgets work: a switch, a menu, an alert and "
-      'a sheet', (tester) async {
+  testWidgets('a knob changes the component on its stage', (tester) async {
     await _launch(tester);
-    await tester.tap(find.text('Components').last);
+    await _open(tester, 'Button');
+    final stage = find.descendant(
+      of: find.byType(Stage).first,
+      matching: find.byType(GlassButton),
+    );
+    expect(tester.widget<GlassButton>(stage).onPressed, isNotNull);
+    final enabled = find.descendant(
+      of: find.widgetWithText(GlassListRow, 'Enabled'),
+      matching: find.byType(GlassSwitch),
+    );
+    await _bring(tester, enabled, _scrollOf(ButtonPage).first);
+    await tester.tap(enabled);
     await _frames(tester);
+    expect(tester.widget<GlassButton>(stage).onPressed, isNull);
+  });
 
-    final catalog = find
-        .descendant(
-          of: find.byType(ComponentsPage),
-          matching: find.byType(Scrollable),
-        )
-        .first;
-    Future<void> open(String family) async {
-      await _bring(tester, find.text(family), catalog);
-      await tester.tap(find.text(family));
-      await _frames(tester, 90);
-    }
+  testWidgets('the components work: a menu, an alert, a sheet, and bars '
+      'whose items change', (tester) async {
+    await _launch(tester);
 
-    await open('Switches, sliders, steppers');
-    final airplane = find.byType(GlassSwitch).first;
-    expect(tester.widget<GlassSwitch>(airplane).value, isFalse);
-    await tester.tap(airplane);
+    await _open(tester, 'Menu');
+    await tester.tap(find.text('Open the menu'));
+    await _frames(tester, 90);
+    expect(find.text('Water'), findsOneWidget);
+    await tester.tap(find.text('Water'));
+    await _frames(tester, 90);
+    expect(find.text('Water'), findsNothing);
+    await _back(tester);
+
+    await _open(tester, 'Alert');
+    await tester.tap(find.text('Ask'));
+    await _frames(tester, 90);
+    expect(find.text('The fern has dried out'), findsOneWidget);
+    await tester.tap(find.text('Keep'));
+    await _frames(tester, 90);
+    expect(find.text('The fern has dried out'), findsNothing);
+    expect(find.text('Kept'), findsOneWidget);
+    await _back(tester);
+
+    await _open(tester, 'Sheet');
+    await tester.tap(find.text('Open the sheet'));
+    await _frames(tester, 90);
+    expect(find.text('Plants'), findsOneWidget);
+    Navigator.of(tester.element(find.text('Plants'))).pop();
+    await _frames(tester, 90);
+    expect(find.text('Plants'), findsNothing);
+    await _back(tester);
+
+    await _open(tester, 'Navigation bar and toolbar');
+    await tester.tap(find.text('Open the journal'));
+    await _frames(tester, 90);
+    expect(find.text('14 entries'), findsOneWidget);
+    await tester.tap(find.bySemanticsLabel('Select'));
+    await _frames(tester, 90);
+    expect(find.text('0 picked'), findsOneWidget);
+    await tester.tap(find.text('Moved the fern'));
+    await _frames(tester, 30);
+    expect(find.text('1 picked'), findsOneWidget);
+    await tester.tap(find.text('Done'));
+    await _frames(tester, 90);
+    expect(find.text('14 entries'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('the tab bar page opens an app under the bar its knobs chose', (
+    tester,
+  ) async {
+    await _launch(tester);
+    await _open(tester, 'Tab bar');
+    await tester.tap(find.text('Open the greenhouse'));
+    await _frames(tester, 90);
+    expect(find.text('Wishes'), findsOneWidget);
+    expect(find.text('Shop'), findsNothing);
+    await tester.tap(find.text('Rooms').last);
     await _frames(tester);
-    expect(tester.widget<GlassSwitch>(airplane).value, isTrue);
-    await _back(tester);
-
-    await open('Menus');
-    await tester.tap(find.text('Options'));
-    await _frames(tester, 90);
-    expect(find.text('New Folder'), findsOneWidget);
-    await tester.tap(find.text('New Folder'));
-    await _frames(tester, 90);
-    expect(find.text('New Folder'), findsNothing);
-    await _back(tester);
-
-    await open('Alerts and action sheets');
-    await tester.tap(find.text('Destructive'));
-    await _frames(tester, 90);
-    expect(find.text('Delete 24 photos?'), findsOneWidget);
-    await tester.tap(find.text('Cancel'));
-    await _frames(tester, 90);
-    expect(find.text('Delete 24 photos?'), findsNothing);
-    await _back(tester);
-
-    await open('Sheets and popovers');
-    await tester.tap(find.text('Sheet with detents'));
-    await _frames(tester, 90);
-    expect(find.text('Places'), findsOneWidget);
+    expect(find.text('Rooms'), findsWidgets);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('the frame meter reads frames a second and the time of a '
@@ -253,16 +288,17 @@ void main() {
     expect(find.textContaining('fps'), findsNothing);
   });
 
-  testWidgets('search finds a scene by what it shows and opens it', (
-    tester,
-  ) async {
+  testWidgets('search finds a component by its class and a toy by its name, '
+      'and opens them', (tester) async {
     await _launch(tester);
     await tester.tap(find.bySemanticsLabel('Search'));
     await _frames(tester, 90);
-    await tester.enterText(find.byType(EditableText), 'fuses');
+    await tester.enterText(find.byType(EditableText), 'glassstepper');
     await _frames(tester, 30);
-    expect(find.text('Lava'), findsOneWidget);
-    expect(find.text('Island'), findsNothing);
+    expect(find.text('Stepper'), findsOneWidget);
+    expect(find.text('Switch'), findsNothing);
+    await tester.enterText(find.byType(EditableText), 'lava');
+    await _frames(tester, 30);
     await tester.tap(find.text('Lava'));
     await _frames(tester, 90);
     expect(find.byType(LavaPage), findsOneWidget);
