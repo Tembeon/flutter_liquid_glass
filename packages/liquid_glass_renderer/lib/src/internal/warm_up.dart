@@ -127,18 +127,20 @@ Future<void> warmLiquidGlassPipelines(
       // declares.
       final shader = program.fragmentShader();
       final layout = FinalLayout(shader, variants[index]);
-      shader
-        ..setImageSampler(
-          layout.backdrop,
-          matte!,
-          filterQuality: FilterQuality.low,
-        )
-        ..setImageSampler(
-          layout.geometry,
-          matte,
-          filterQuality: FilterQuality.low,
-        )
-        ..setImageSampler(layout.table, matte);
+      shader.setImageSampler(
+        layout.backdrop,
+        matte!,
+        filterQuality: FilterQuality.low,
+      );
+      if (!variants[index].shape) {
+        shader
+          ..setImageSampler(
+            layout.geometry,
+            matte,
+            filterQuality: FilterQuality.low,
+          )
+          ..setImageSampler(layout.table, matte);
+      }
       final look = layout.looks == 1 ? tint : material;
       for (var at = 0; at < layout.looks; at++) {
         shader.setImageSampler(

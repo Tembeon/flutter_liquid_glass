@@ -24,8 +24,12 @@
 // carries the bottom radius.
 
 // The helpers read the shapes from the uniforms rather than taking them as
-// parameters, so no shape array is ever passed, and copied, by value.
+// parameters, so no shape array is ever passed, and copied, by value. A
+// shader that declares uShapeData, uRseData and uShapeBounds itself
+// (shape_geometry.glsl) defines GEOMETRY_UNIFORMS_GLSL first.
+#ifndef GEOMETRY_UNIFORMS_GLSL
 #include "geometry_uniforms.glsl"
+#endif
 
 // Whether a scene sample carries its shapes' look (looks.glsl), blended by
 // the smooth union's weight over its full radius, as halfMinor is.

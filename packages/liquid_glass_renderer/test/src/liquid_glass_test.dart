@@ -5,6 +5,7 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_render_scope.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass/shading.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
 import 'shared.dart';
@@ -207,11 +208,23 @@ void main() {
         Widget app() => MaterialApp(
           home: AnimatedBuilder(
             animation: Listenable.merge([fake, revision]),
+            // Two shapes, so the layer's geometry is an atlas: one shape
+            // holds no texture.
             builder: (_, __) => LiquidGlassLayer(
               fake: fake.value,
-              child: const LiquidGlass(
-                shape: LiquidOval(),
-                child: SizedBox.square(dimension: 100),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LiquidGlass(
+                    shape: LiquidOval(),
+                    child: SizedBox.square(dimension: 100),
+                  ),
+                  SizedBox(width: 16),
+                  LiquidGlass(
+                    shape: LiquidOval(),
+                    child: SizedBox.square(dimension: 100),
+                  ),
+                ],
               ),
             ),
           ),
@@ -349,6 +362,11 @@ void main() {
 
         RenderLiquidGlassLayer renderObject() =>
             tester.allRenderObjects.whereType<RenderLiquidGlassLayer>().last;
+        // The looks the live draw reads.
+        Object read() => switch (renderObject().debugLiveDraw.matte.geometry) {
+          AtlasGeometry(:final looks) => looks,
+          ComputedGeometry() => const <Object>[],
+        };
 
         expect(renderObject().debugUsesShapeAppearances, isFalse);
         expect(renderObject().debugUsesTintOnlyAppearance, isFalse);
@@ -363,7 +381,7 @@ void main() {
         final tint = renderObject().debugLookImages.single;
         final atlas = renderObject().debugGeometryImage!;
         expect((tint.width, tint.height), (atlas.width, atlas.height));
-        expect(renderObject().debugLiveDraw.matte.looks.single, same(tint));
+        expect(read(), [same(tint)]);
 
         appearanceMode.value = 2;
         await tester.pump();
@@ -372,7 +390,7 @@ void main() {
         expect(renderObject().debugUsesShapeAppearances, isTrue);
         expect(renderObject().debugUsesTintOnlyAppearance, isFalse);
         expect(renderObject().debugLookImages, hasLength(3));
-        expect(renderObject().debugLiveDraw.matte.looks, hasLength(3));
+        expect(read(), hasLength(3));
 
         appearanceMode.value = 0;
         await tester.pump();
@@ -380,7 +398,7 @@ void main() {
 
         // The atlas stays; glass that looks alike reads none of its looks.
         expect(renderObject().debugUsesShapeAppearances, isFalse);
-        expect(renderObject().debugLiveDraw.matte.looks, isEmpty);
+        expect(read(), isEmpty);
       },
       skip: skipProperGlassTests,
     );
@@ -1213,17 +1231,16 @@ void main() {
               .whereType<RenderLiquidGlassLayer>()
               .where((renderObject) => renderObject.gpuGeometryRenderer != null)
               .last;
-          final renderer = renderObject.gpuGeometryRenderer!;
-          final initialRenderCount = renderer.debugRenderCount;
+          final initialRenderCount = renderObject.debugEncodeCount;
 
           appearance.value = appearance.value.copyWith(tint: Colors.cyan);
           await tester.pump();
-          expect(renderer.debugRenderCount, initialRenderCount);
+          expect(renderObject.debugEncodeCount, initialRenderCount);
 
           settings.value = settings.value.copyWith(backdropShrink: .2);
           await tester.pump();
           expect(
-            renderer.debugRenderCount,
+            renderObject.debugEncodeCount,
             initialRenderCount,
             reason: 'backdrop scaling belongs to the final material pass',
           );
@@ -1231,9 +1248,9 @@ void main() {
           settings.value = settings.value.copyWith(refractionHeight: 24);
           await tester.pump();
           expect(
-            renderer.debugRenderCount,
+            renderObject.debugEncodeCount,
             greaterThan(initialRenderCount),
-            reason: 'a deeper refraction widens the atlas reach',
+            reason: 'a deeper refraction asks for geometry farther in',
           );
         },
         skip: skipProperGlassTests,
@@ -1282,13 +1299,12 @@ void main() {
               .whereType<RenderLiquidGlassLayer>()
               .where((renderObject) => renderObject.gpuGeometryRenderer != null)
               .last;
-          final renderer = renderObject.gpuGeometryRenderer!;
-          final initialRenderCount = renderer.debugRenderCount;
+          final initialRenderCount = renderObject.debugEncodeCount;
 
           visibility.value = .5;
           await tester.pump();
           expect(
-            renderer.debugRenderCount,
+            renderObject.debugEncodeCount,
             initialRenderCount + 1,
             reason: 'the first response difference selects the full map',
           );
@@ -1296,9 +1312,9 @@ void main() {
           visibility.value = 0;
           await tester.pump();
           expect(
-            renderer.debugRenderCount,
+            renderObject.debugEncodeCount,
             initialRenderCount + 2,
-            reason: 'the atlas drops the hidden shape; one shape needs no map',
+            reason: 'the hidden shape leaves; one shape needs no map',
           );
         },
         skip: skipProperGlassTests,

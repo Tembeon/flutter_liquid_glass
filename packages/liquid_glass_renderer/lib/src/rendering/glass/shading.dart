@@ -11,6 +11,7 @@ import 'package:liquid_glass_renderer/src/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/geometry_tiling.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass/shape_set.dart';
 
 /// One draw of the final glass shader: every uniform and sampler it reads,
 /// in sections that each own their uniforms.
@@ -239,40 +240,124 @@ GlassReach glassReach(
   );
 }
 
-/// Where the final shader reads its shapes: a geometry atlas
-/// (geometry_tiling.dart), and the looks beside it where the shapes'
-/// appearances differ.
+/// Where the final shader takes the glass's geometry from: the distance to
+/// its edge, its normal and half its thickness at a pixel of the geometry
+/// buffer. The geometry is one function of the shapes and the pixel
+/// (gpu/sdf.glsl), and the two cases are the two ways to have its value:
+/// worked out at the fragment, or read from the atlas that holds it.
+///
+/// What the glass is decides which, never whether it moves: glass that is
+/// one shape is [ComputedGeometry] at rest and in motion, and anything else
+/// (several shapes, a fused body, the glass of a group) is
+/// [AtlasGeometry]. The shader variant follows from the case
+/// ([FinalShaderVariant.shape]).
+@internal
+@immutable
+sealed class GlassGeometry {
+  const GlassGeometry();
+}
+
+/// The geometry in an atlas (geometry_tiling.dart), and the looks beside it
+/// where the shapes' appearances differ.
+@internal
+final class AtlasGeometry extends GlassGeometry {
+  /// The atlas at [place] in [image], with [looks] beside it.
+  const AtlasGeometry({
+    required this.image,
+    required this.place,
+    this.looks = const [],
+  });
+
+  /// The atlas of glass that has no geometry yet.
+  static final AtlasGeometry none = AtlasGeometry(
+    image: GlassShading.blank,
+    place: AtlasLayout.unplaced,
+  );
+
+  /// The page the atlas shares with the others of its frame: its strips
+  /// sampled bilinearly, its table texel by texel.
+  final ui.Image image;
+
+  /// uGeometryAtlas: where the atlas lies in [image].
+  final AtlasPlace place;
+
+  /// The looks beside the atlas, in its layout, for the variants that read
+  /// them: the tint, or tint, response and color model shares.
+  final List<ui.Image> looks;
+
+  @override
+  bool operator ==(Object other) =>
+      other is AtlasGeometry &&
+      identical(other.image, image) &&
+      other.place == place &&
+      listEquals(other.looks, looks);
+
+  @override
+  int get hashCode =>
+      Object.hash(identityHashCode(image), place, Object.hashAll(looks));
+}
+
+/// The geometry of glass that is one shape, which the shader works out at
+/// each fragment (shape_geometry.glsl): nothing is tiled, drawn into a page
+/// or submitted for it.
+@internal
+final class ComputedGeometry extends GlassGeometry {
+  /// The geometry of [shape], one shape in the geometry buffer's pixels.
+  ComputedGeometry(ShapeSet shape)
+    : assert(shape.count == 1, 'The shader works out one shape.'),
+      floats = Float32List(40) {
+    floats
+      ..setRange(0, 12, shape.shapes)
+      ..setRange(12, 24, shape.superellipses)
+      ..setRange(24, 36, shape.superellipsesLower);
+    if (Tiling.innerBoxOf(shape, 0) case (
+      final width,
+      final height,
+      final radius,
+    )) {
+      floats[36] = width;
+      floats[37] = height;
+      floats[38] = radius;
+      floats[39] = shape.shapes[10];
+    }
+  }
+
+  /// uShapeData, uRseData and uShapeInner, in that order.
+  final Float32List floats;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ComputedGeometry && listEquals(other.floats, floats);
+
+  @override
+  int get hashCode => Object.hashAll(floats);
+}
+
+/// What the final shader shades: the glass's geometry and where its buffer
+/// lies, with what the glass's own size and settings give the bevel.
 @internal
 @immutable
 final class MatteBinding {
   /// Creates the binding. Rects, points and sizes are in device pixels.
   const MatteBinding({
-    required this.image,
+    required this.geometry,
     required this.origin,
     required this.size,
-    required this.atlas,
     required this.halfMinor,
     required this.refractionHeight,
     required this.fitsShape,
     required this.materialCenter,
     required this.shrinkAxis,
-    required this.looks,
   });
 
-  /// The atlas: its strips sampled bilinearly, its table texel by texel.
-  /// Sampler 0 takes its filtering from the image bound to it, so a filter
-  /// binds this there too.
-  final ui.Image image;
+  /// Where the shader takes the geometry from.
+  final GlassGeometry geometry;
 
   /// uGeometryBounds.xy: where the geometry buffer's top-left lies.
   final Offset origin;
 
   /// uGeometryBounds.zw: the geometry buffer's size, one texel a pixel.
   final Size size;
-
-  /// uGeometryAtlas: where the atlas lies in [image], which it shares with
-  /// the other atlases of its frame.
-  final AtlasPlace atlas;
 
   /// uBevel.z: half the short side of the glass, which sizes the bevel.
   final double halfMinor;
@@ -289,18 +374,12 @@ final class MatteBinding {
   /// uBackdropShrinkAxis.
   final Offset shrinkAxis;
 
-  /// The looks beside the atlas, in its layout, for the variants that read
-  /// them: the tint, or tint, response and color model shares.
-  final List<ui.Image> looks;
-
   @override
   bool operator ==(Object other) =>
       other is MatteBinding &&
-      identical(other.image, image) &&
-      listEquals(other.looks, looks) &&
+      other.geometry == geometry &&
       other.origin == origin &&
       other.size == size &&
-      other.atlas == atlas &&
       other.halfMinor == halfMinor &&
       other.refractionHeight == refractionHeight &&
       other.fitsShape == fitsShape &&
@@ -309,11 +388,9 @@ final class MatteBinding {
 
   @override
   int get hashCode => Object.hash(
-    identityHashCode(image),
-    Object.hashAll(looks),
+    geometry,
     origin,
     size,
-    atlas,
     halfMinor,
     materialCenter,
     shrinkAxis,
@@ -552,7 +629,8 @@ final class FinalLayout {
       mapping = _float(shader, 'uMapping'),
       mappingEnd = _float(shader, 'uMappingEnd'),
       colorModels = _float(shader, 'uColorModelParams'),
-      geometryAtlas = _float(shader, 'uGeometryAtlas'),
+      geometryAtlas = variant.shape ? null : _float(shader, 'uGeometryAtlas'),
+      shape = variant.shape ? _float(shader, 'uShapeData') : null,
       bevel = _float(shader, 'uBevel'),
       effects = _float(shader, 'uEffects'),
       band = variant.band ? _float(shader, 'uBand') : null,
@@ -589,8 +667,12 @@ final class FinalLayout {
   /// The float index of uColorModelParams.
   final int colorModels;
 
-  /// The float index of uGeometryAtlas.
-  final int geometryAtlas;
+  /// The float index of uGeometryAtlas, in the variants that read an atlas.
+  final int? geometryAtlas;
+
+  /// The float index of uShapeData, which uRseData and uShapeInner follow,
+  /// in the variants that work one shape out.
+  final int? shape;
 
   /// The float index of uBevel.
   final int bevel;
@@ -604,7 +686,8 @@ final class FinalLayout {
   /// uBackgroundTexture's sampler: what the glass reads.
   final int backdrop = 0;
 
-  /// uGeometryTexture's sampler: the atlas, filtered.
+  /// uGeometryTexture's sampler: the atlas, filtered. A variant that works
+  /// one shape out has none of the samplers from here on.
   final int geometry = 1;
 
   /// uGeometryTable's sampler: the atlas, texel by texel.
@@ -648,11 +731,23 @@ final class GlassShading {
 
   static const _clear = <double>[0, 0, 0, 0];
 
+  /// One transparent pixel: what sampler 0 is bound to where a draw has no
+  /// image of its own for it, and the atlas of glass without geometry.
+  static final ui.Image blank = () {
+    final recorder = ui.PictureRecorder();
+    ui.Canvas(recorder);
+    return recorder.endRecording().toImageSync(1, 1);
+  }();
+
   ui.FragmentShader _write(GlassDraw draw) {
     final shader = shaders[draw.variant];
     final layout = _layouts[draw.variant] ??= FinalLayout(
       shader,
       FinalShaderVariant.all[draw.variant],
+    );
+    assert(
+      (layout.shape != null) == (draw.matte.geometry is ComputedGeometry),
+      'A draw takes the variant of its geometry.',
     );
     void put(int at, List<double> values) {
       for (var i = 0; i < values.length; i++) {
@@ -727,13 +822,6 @@ final class GlassShading {
     ]);
     shader.setFloat(layout.mappingEnd, origin.dy);
     put(layout.colorModels, face.colorModels);
-    final atlas = matte.atlas;
-    put(layout.geometryAtlas, [
-      atlas.tableX.toDouble(),
-      atlas.tableY.toDouble(),
-      atlas.width.toDouble(),
-      atlas.height.toDouble(),
-    ]);
     put(layout.bevel, [
       matte.refractionHeight,
       if (matte.fitsShape) 1 else 0,
@@ -751,27 +839,46 @@ final class GlassShading {
     put(layout.effects + 20, draw.band?.overlay ?? _clear);
     if (layout.band case final at?) put(at, draw.band!.band);
     // The engine binds a filter's input to sampler 0 but keeps the sampling
-    // of the image bound here: bilinear. The atlas's strips are read
-    // filtered, its table texel by texel.
-    shader
-      ..setImageSampler(
-        layout.backdrop,
-        image ?? matte.image,
-        filterQuality: FilterQuality.low,
-      )
-      ..setImageSampler(
-        layout.geometry,
-        matte.image,
-        filterQuality: FilterQuality.low,
-      )
-      ..setImageSampler(layout.table, matte.image);
-    // Looks are read filtered, as the geometry beside them is.
-    for (var i = 0; i < min(layout.looks, matte.looks.length); i++) {
-      shader.setImageSampler(
-        layout.firstLook + i,
-        matte.looks[i],
-        filterQuality: FilterQuality.low,
-      );
+    // of the image bound here: bilinear.
+    switch (matte.geometry) {
+      case ComputedGeometry(:final floats):
+        final at = layout.shape!;
+        for (var i = 0; i < floats.length; i++) {
+          shader.setFloat(at + i, floats[i]);
+        }
+        shader.setImageSampler(
+          layout.backdrop,
+          image ?? blank,
+          filterQuality: FilterQuality.low,
+        );
+      case AtlasGeometry(image: final atlas, :final place, :final looks):
+        put(layout.geometryAtlas!, [
+          place.tableX.toDouble(),
+          place.tableY.toDouble(),
+          place.width.toDouble(),
+          place.height.toDouble(),
+        ]);
+        // The atlas's strips are read filtered, its table texel by texel,
+        // and the looks as the geometry beside them.
+        shader
+          ..setImageSampler(
+            layout.backdrop,
+            image ?? atlas,
+            filterQuality: FilterQuality.low,
+          )
+          ..setImageSampler(
+            layout.geometry,
+            atlas,
+            filterQuality: FilterQuality.low,
+          )
+          ..setImageSampler(layout.table, atlas);
+        for (var i = 0; i < min(layout.looks, looks.length); i++) {
+          shader.setImageSampler(
+            layout.firstLook + i,
+            looks[i],
+            filterQuality: FilterQuality.low,
+          );
+        }
     }
     return shader;
   }

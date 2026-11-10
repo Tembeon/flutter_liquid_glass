@@ -34,6 +34,12 @@ precision mediump float;
 #define FROST_BAND 0
 #endif
 
+// Whether the variant works its geometry out per fragment, for glass of one
+// shape (shape_geometry.glsl), instead of reading an atlas.
+#ifndef SHAPE_GEOMETRY
+#define SHAPE_GEOMETRY 0
+#endif
+
 #include <flutter/runtime_effect.glsl>
 #include "render.glsl"
 #include "glass_glow.glsl"
@@ -108,7 +114,9 @@ uniform vec4 uColorModelParams[18];
 //                   shape, and half the short side of the surface, which
 //                   sizes the bevel: glass over a matte of a group has its
 //                   own, not the matte's.
+#if !SHAPE_GEOMETRY
 uniform highp vec4 uGeometryAtlas;
+#endif
 uniform vec3 uBevel;
 // The inputs of the optional effects, in one declaration: a Metal stage has
 // 31 buffer slots, and a shader past them fails to compile on Metal alone
@@ -138,6 +146,10 @@ uniform highp vec4 uEffects[6];
 #define uBackdropReduced uEffects[4].z
 #define uBackdropFrost uEffects[4].w
 #define uBackdropOverlay uEffects[5]
+
+#if SHAPE_GEOMETRY
+#include "shape_geometry.glsl"
+#endif
 
 vec4 colorModelSlot(int slot, int field) {
     return uColorModelParams[slot * 6 + field];
@@ -214,8 +226,10 @@ const float kContourCoverageFeather = 1.0;
 #endif
 
 uniform sampler2D uBackgroundTexture;
+#if !SHAPE_GEOMETRY
 uniform sampler2D uGeometryTexture;
 uniform sampler2D uGeometryTable;
+#endif
 #if SHAPE_APPEARANCE || SHAPE_TINT
 uniform sampler2D uLookTint;
 #endif
@@ -634,6 +648,7 @@ vec3 applySpecularHighlights(
 }
 
 
+#if !SHAPE_GEOMETRY
 // Where the atlas holds matte pixel position [pixel], from the geometry
 // buffer's corner: the table names the atlas texel of the tile's first pixel
 // and how many texels a pixel spans (1, a fraction where the tile is coarse,
@@ -650,6 +665,7 @@ highp vec2 atlasPoint(highp vec2 pixel) {
     ).xyz;
     return (entry.xy + (pixel - tile * 16.0) * entry.z) / uGeometryAtlas.zw;
 }
+#endif
 
 // The surface direction (xy) and refraction strength (z) of a geometry
 // texel, which stores the direction with its length set to the strength.
@@ -734,8 +750,16 @@ void main() {
         return;
     }
 
+    #if SHAPE_GEOMETRY
+    // Deeper than the bevel and the rim, only coverage reads the distance.
+    vec4 geometryTexel = shapeTexel(
+        matteCoord - uGeometryOffset,
+        max(uBevel.x, rimReach()) + 1.0
+    );
+    #else
     highp vec2 atlasUV = atlasPoint(matteCoord - uGeometryOffset);
     vec4 geometryTexel = texture(uGeometryTexture, atlasUV);
+    #endif
     #if PLAIN_INTERIOR
     if (geometryTexel.x > plainInteriorDepth()) {
         vec3 backdrop;

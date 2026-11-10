@@ -56,6 +56,7 @@ final class FinalShaderVariant {
     this.models, {
     this.frost = false,
     this.band = false,
+    this.shape = false,
   });
 
   /// Where the variant reads its geometry and appearance from.
@@ -70,10 +71,14 @@ final class FinalShaderVariant {
   /// Whether the variant also draws a scroll edge beside the glass.
   final bool band;
 
+  /// Whether the variant works the geometry of glass that is one shape out
+  /// at each fragment, where the others read an atlas (ComputedGeometry).
+  final bool shape;
+
   /// The shader's file name without its extension.
   String get name =>
-      'liquid_glass_final_render${kind.suffix}${models.suffix}'
-      '${frost ? '_frost' : ''}${band ? '_band' : ''}';
+      'liquid_glass_final_render${shape ? '_shape' : ''}${kind.suffix}'
+      '${models.suffix}${frost ? '_frost' : ''}${band ? '_band' : ''}';
 
   /// The asset key of the compiled shader.
   String get assetKey => ShaderKeys.finalRender(name);
@@ -91,30 +96,51 @@ final class FinalShaderVariant {
     (FinalShaderKind.tint, FinalShaderModels.direct),
   };
 
-  /// Every variant, in the order a layer holds their shaders.
+  /// Every variant, in the order a layer holds their shaders: the ones
+  /// that read an atlas, then their twins for one shape, which has one
+  /// appearance.
   static final List<FinalShaderVariant> all = [
-    for (final kind in FinalShaderKind.values)
-      if (kind == FinalShaderKind.material)
-        FinalShaderVariant._(kind, FinalShaderModels.all)
-      else
-        for (final models in FinalShaderModels.values) ...[
-          FinalShaderVariant._(kind, models),
-          if (_frostTwins.contains((kind, models)))
-            FinalShaderVariant._(kind, models, frost: true),
-          if (kind == FinalShaderKind.single &&
-              models == FinalShaderModels.ios27)
-            FinalShaderVariant._(kind, models, frost: true, band: true),
-        ],
+    for (final kind in FinalShaderKind.values) ..._of(kind, shape: false),
+    ..._of(FinalShaderKind.single, shape: true),
+  ];
+
+  static List<FinalShaderVariant> _of(
+    FinalShaderKind kind, {
+    required bool shape,
+  }) => [
+    if (kind == FinalShaderKind.material)
+      FinalShaderVariant._(kind, FinalShaderModels.all)
+    else
+      for (final models in FinalShaderModels.values) ...[
+        FinalShaderVariant._(kind, models, shape: shape),
+        if (_frostTwins.contains((kind, models)))
+          FinalShaderVariant._(kind, models, frost: true, shape: shape),
+        if (kind == FinalShaderKind.single && models == FinalShaderModels.ios27)
+          FinalShaderVariant._(
+            kind,
+            models,
+            frost: true,
+            band: true,
+            shape: shape,
+          ),
+      ],
   ];
 
   /// The index in [all] of the cheapest variant that draws [kind] with
-  /// [models], and frosts an unblurred copy when [frost].
+  /// [models], and frosts an unblurred copy when [frost]; with [shape] the
+  /// one that works one shape out itself, which is of
+  /// [FinalShaderKind.single].
   static int indexOf(
     FinalShaderKind kind,
     FinalShaderModels models, {
     bool frost = false,
     bool band = false,
+    bool shape = false,
   }) {
+    assert(
+      !shape || kind == FinalShaderKind.single,
+      'One shape has one appearance.',
+    );
     final general = kind == FinalShaderKind.material;
     final shaded = general ? FinalShaderModels.all : models;
     final index = all.indexWhere(
@@ -122,7 +148,8 @@ final class FinalShaderVariant {
           variant.kind == kind &&
           variant.models == shaded &&
           variant.frost == (frost && _frostTwins.contains((kind, shaded))) &&
-          variant.band == band,
+          variant.band == band &&
+          variant.shape == shape,
     );
     assert(index >= 0, 'No final shader for $kind $models.');
     return index;

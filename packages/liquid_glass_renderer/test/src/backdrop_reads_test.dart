@@ -14,13 +14,13 @@ final _read = RegExp(
 );
 
 // The only reads outside the composer, per file. The shader warm-up draws
-// its own detached layer tree, never part of a frame; the glass layer's one
-// image is the empty 1x1 placeholder bound to the matte sampler. Every other
-// surface reads its backdrop through the view's composer.
+// its own detached layer tree, never part of a frame; the shading's one
+// image is the empty 1x1 pixel bound where a draw has no image of its own.
+// Every other surface reads its backdrop through the view's composer.
 const _outsideComposer = {
   'lib/src/internal/warm_up.dart': 3,
   'lib/src/rendering/consolidated_fake_glass_layer.dart': 1,
-  'lib/src/rendering/liquid_glass_layer.dart': 1,
+  'lib/src/rendering/glass/shading.dart': 1,
 };
 
 void main() {

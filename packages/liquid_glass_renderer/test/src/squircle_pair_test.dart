@@ -171,16 +171,30 @@ void main() {
         child: Center(
           child: LiquidGlassLayer(
             settings: LiquidGlassSettings.ios27RegularLight(),
-            child: const SizedBox(
-              width: 240,
-              height: 60,
-              child: LiquidGlass(
-                shape: LiquidRoundedSuperellipse(
-                  borderRadius: 16,
-                  bottomRadius: 40,
+            // A second shape, so the layer's geometry is an atlas to read.
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 240,
+                  height: 60,
+                  child: LiquidGlass(
+                    shape: LiquidRoundedSuperellipse(
+                      borderRadius: 16,
+                      bottomRadius: 40,
+                    ),
+                    child: SizedBox.expand(),
+                  ),
                 ),
-                child: SizedBox.expand(),
-              ),
+                SizedBox(width: 40),
+                SizedBox.square(
+                  dimension: 20,
+                  child: LiquidGlass(
+                    shape: LiquidOval(),
+                    child: SizedBox.expand(),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -192,9 +206,12 @@ void main() {
         .toSet()
         .single;
     final image = layer.debugGeometryImage!;
-    final atlas = (await tester.runAsync(() => AtlasTexels.read(image)))!;
+    final atlas = (await tester.runAsync(
+      () => AtlasTexels.read(image, layer.debugGeometryPlace),
+    ))!;
     final size = layer.debugGeometryMatteBounds.size * layer.devicePixelRatio;
-    final x = size.width ~/ 2;
+    // The middle of the pair, 120 from the left of the 300 the row spans.
+    final x = (size.width / 2 - 30 * layer.devicePixelRatio).round();
     double depth(int y) => atlas.inwardAt(x, y);
     bool ring(int y) => depth(y) > 0 && depth(y) < kDeepInward;
     var steepest = 0.0;

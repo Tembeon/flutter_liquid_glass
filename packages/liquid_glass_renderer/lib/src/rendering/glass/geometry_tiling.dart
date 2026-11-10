@@ -634,6 +634,24 @@ final class Tiling {
 
   static int _tilesOver(int pixels) => max(1, (pixels + size - 1) ~/ size);
 
+  /// A rounded box that shape [i] of [shapes] holds, in the shape's own
+  /// axes about its center: half its width, half its height and its corner
+  /// radius; null where none is known to lie inside it. The bound a tile is
+  /// called deep by, for a shader that works the shape out itself.
+  static (double, double, double)? innerBoxOf(ShapeSet shapes, int i) {
+    final bounds = _ShapeBounds.of(shapes, i);
+    if (bounds._ellipse) {
+      final minor = min(bounds.halfWidth, bounds.halfHeight);
+      return minor > 0 ? (minor, minor, minor) : null;
+    }
+    if (bounds.innerRadius == double.infinity) return null;
+    return (
+      bounds.halfWidth - bounds.inset,
+      bounds.halfHeight - bounds.inset,
+      bounds.innerRadius,
+    );
+  }
+
   /// How far from the silhouette texels are exact.
   final GlassReach reach;
 

@@ -534,14 +534,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   static bool debugShaderVariants = true;
 
-  // Sampler 0 takes its filtering from the image bound to it; a layer with
-  // no atlas binds this.
-  static final ui.Image _placeholder = () {
-    final recorder = ui.PictureRecorder();
-    Canvas(recorder);
-    return recorder.endRecording().toImageSync(1, 1);
-  }();
-
   bool _debugWarnedShapeLimit = false;
 
   void _debugWarnShapeLimitExceeded() {
@@ -562,7 +554,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // appearances, in a group whose matte holds its tints when [groupTints],
   // beside the band that leads its read when [band]. A look that changed
   // since the read began has no band variant.
-  int _variant({bool band = false, bool groupTints = false}) {
+  // The variant that draws [geometry] for this glass: [groupTints] where it
+  // is a group's atlas with a tint beside it.
+  int _variant(
+    GlassGeometry geometry, {
+    bool band = false,
+    bool groupTints = false,
+  }) {
     final kind = switch ((
       _usesShapeAppearances || groupTints,
       _usesTintOnlyAppearance || groupTints,
@@ -581,6 +579,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           kind == FinalShaderKind.single &&
           _frostsCopies &&
           models == FinalShaderModels.ios27,
+      shape: geometry is ComputedGeometry,
     );
   }
 
@@ -635,7 +634,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   /// The looks beside the atlas, where the shapes' appearances differ.
   @visibleForTesting
-  List<ui.Image> get debugLookImages => _lookImages;
+  List<ui.Image> get debugLookImages => switch (_geometry) {
+    AtlasGeometry(:final looks) => looks,
+    _ => const [],
+  };
 
   // The material and glow the glass draws with, made again after their
   // inputs change.
@@ -783,7 +785,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// True once geometry has been encoded, so ancestor motion can stay on the
   /// compositor without crossing this layer's repaint boundary.
   @protected
-  bool get hasReusableGeometry => _geometryImage != null;
+  bool get hasReusableGeometry => _geometry != null;
 
   // Whether the retained filter layer can take new uniforms without a paint.
   bool get _canRebindFilter =>
@@ -842,24 +844,39 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // MARK: Retained matte
 
-  // The page's handles (FlutterGpuGeometryRenderer.renderAtlas), good until
-  // the renderer draws another atlas or releases this one.
-  ui.Image? _geometryImage;
-  List<ui.Image> _lookImages = const [];
+  // The glass's geometry, once encoded. An atlas's images are its page's
+  // (FlutterGpuGeometryRenderer.renderAtlas), good until the renderer draws
+  // another atlas or releases this one.
+  GlassGeometry? _geometry;
+
+  /// Where the shader takes the glass's geometry from.
+  @visibleForTesting
+  GlassGeometry? get debugGeometry => _geometry;
+
+  /// How many times the glass's geometry was encoded, as an atlas or as one
+  /// shape for the shader.
+  @visibleForTesting
+  int debugEncodeCount = 0;
 
   /// Layer-local bounds of the matte, in logical pixels. Ancestor transforms
   /// do not change them: the compositor applies those, not the shader.
   Rect _geometryMatteBounds = Rect.zero;
   Offset _materialCenterInMatte = Offset.zero;
   Size _materialSize = Size.zero;
-  AtlasPlace _geometryPlace = AtlasLayout.unplaced;
 
   /// Where the atlas lies in [debugGeometryImage].
   @visibleForTesting
-  AtlasPlace get debugGeometryPlace => _geometryPlace;
+  AtlasPlace get debugGeometryPlace => switch (_geometry) {
+    AtlasGeometry(:final place) => place,
+    _ => AtlasLayout.unplaced,
+  };
 
+  /// The page holding the glass's atlas, where its geometry is one.
   @visibleForTesting
-  ui.Image? get debugGeometryImage => _geometryImage;
+  ui.Image? get debugGeometryImage => switch (_geometry) {
+    AtlasGeometry(:final image) => image,
+    _ => null,
+  };
 
   @visibleForTesting
   Rect get debugGeometryMatteBounds => _geometryMatteBounds;
@@ -867,7 +884,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// Re-encodes the committed shapes before the layer tree is built, without
   /// painting children; false when the frame needs a normal paint.
   bool _refreshRetainedGeometry() {
-    if ((_geometryImage == null && !drawableEmpty) ||
+    if ((_geometry == null && !drawableEmpty) ||
         frameState == GlassFrameState.idle ||
         debugPaintLiquidGlassGeometry) {
       return false;
@@ -898,15 +915,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   bool _reusesMatte(Rect bounds) =>
       !needsGeometryUpdate &&
-      _geometryImage != null &&
+      _geometry != null &&
       _reuseUniformlyTranslatedGeometry(bounds);
 
   void _encodeGeometry(Rect bounds) {
-    final result = _buildGpuGeometryImage(shapesWithGeometry, bounds);
-    _geometryImage = result.image;
-    _lookImages = result.looks;
+    final result = _buildGeometry(shapesWithGeometry, bounds);
+    debugEncodeCount++;
+    _geometry = result.geometry;
     _geometryMatteBounds = result.matteBounds;
-    _geometryPlace = result.place;
     _materialCenterInMatte = bounds.center;
     _materialSize = bounds.size;
     _rememberEncodedGeometry(bounds);
@@ -916,8 +932,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     clearGlassShadows();
     // A page is drawn over only once nothing holds an atlas in it.
     _gpuGeometryRenderer?.releaseAtlas();
-    _geometryImage = null;
-    _lookImages = const [];
+    _geometry = null;
     clearFrameInputs();
   }
 
@@ -978,7 +993,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         _releaseCompositorFilter();
         paintRetainedEffect(context, offset, (effectContext, effectOffset) {});
       case GlassFrameState.active:
-        if (needsGeometryUpdate || _geometryImage == null || link.isDirty) {
+        if (needsGeometryUpdate || _geometry == null || link.isDirty) {
           link
             ..updateAllGeometries()
             ..markClean();
@@ -994,7 +1009,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         paintRetainedEffect(context, offset, (effectContext, effectOffset) {
           if (debugPaintLiquidGlassGeometry) {
             _debugPaintGeometry(effectContext, effectOffset);
-          } else if (_geometryImage != null) {
+          } else if (_geometry != null) {
             _paintMaterialFilter(
               effectContext,
               effectOffset,
@@ -1037,20 +1052,21 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   MatteBinding get _ownMatte => _matteBinding(
-    image: _geometryImage ?? _placeholder,
+    switch (_geometry) {
+      null => AtlasGeometry.none,
+      // Glass that came to look alike keeps its atlas and reads none of the
+      // looks beside it.
+      AtlasGeometry(:final image, :final place, looks: [_, ...])
+          when !_usesShapeAppearances =>
+        AtlasGeometry(image: image, place: place),
+      final geometry => geometry,
+    },
     bounds: _geometryMatteBounds,
-    atlas: _geometryPlace,
-    looks: _usesShapeAppearances ? _lookImages : const [],
   );
 
   // A matte this glass's draws read, its own or its group's: the bevel, the
   // material's center and the shrink's axis stay the glass's own.
-  MatteBinding _matteBinding({
-    required ui.Image image,
-    required Rect bounds,
-    required AtlasPlace atlas,
-    required List<ui.Image> looks,
-  }) {
+  MatteBinding _matteBinding(GlassGeometry geometry, {required Rect bounds}) {
     final dpr = devicePixelRatio;
     // Along the glass's long side.
     final half =
@@ -1060,16 +1076,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         dpr;
     final alongX = _materialSize.width >= _materialSize.height;
     return MatteBinding(
-      image: image,
+      geometry: geometry,
       origin: bounds.topLeft * dpr,
       size: bounds.size * dpr,
-      atlas: atlas,
       halfMinor: _halfMinor,
       refractionHeight: settings.effectiveRefractionHeight * dpr,
       fitsShape: settings.refractionFitsShape,
       materialCenter: _materialCenterInMatte * dpr,
       shrinkAxis: alongX ? Offset(half, 0) : Offset(0, half),
-      looks: looks,
     );
   }
 
@@ -1176,7 +1190,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   GlassDraw get _liveDraw => GlassDraw(
-    variant: _variant(),
+    variant: _variant(_geometry ?? AtlasGeometry.none),
     face: _glassFace,
     glow: _glowNow,
     matte: _ownMatte,
@@ -1363,7 +1377,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         ? NoJoin.shrink
         : glassShadowsFade
         ? NoJoin.fadingShadows
-        : _shapes.count == 0 || _geometryImage == null
+        : _shapes.count == 0 || _geometry == null
         ? NoJoin.noMatte
         : null;
     final bounds = _filterMaterialBounds;
@@ -1554,7 +1568,21 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   GlassDraw _readDraw(Read read, GlassSampling sampling, {_BandAt? band}) {
     final group = _glassIn(read).length > 1 ? _groupMatte! : null;
     final tints = group?.tints;
-    final variant = _variant(band: band != null, groupTints: tints != null);
+    final matte = group == null
+        ? _ownMatte
+        : _matteBinding(
+            AtlasGeometry(
+              image: group.image!,
+              place: group.place,
+              looks: [?tints],
+            ),
+            bounds: group.bounds,
+          );
+    final variant = _variant(
+      matte.geometry,
+      band: band != null,
+      groupTints: tints != null,
+    );
     final (globalToMatte, backdropBounds) = _readMapping(read);
     final holds = sampling.holds;
     final within = holds == null
@@ -1564,14 +1592,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       variant: variant,
       face: _glassFace,
       glow: _glowNow,
-      matte: group == null
-          ? _ownMatte
-          : _matteBinding(
-              image: group.image!,
-              bounds: group.bounds,
-              atlas: group.place,
-              looks: [?tints],
-            ),
+      matte: matte,
       mapping: MatteMapping.of(
         globalToMatte,
         devicePixelRatio: devicePixelRatio,
@@ -2034,7 +2055,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // The atlas texel for texel at the geometry buffer's corner.
   void _debugPaintGeometry(PaintingContext context, Offset offset) {
-    if (_geometryImage case final atlas?) {
+    if (debugGeometryImage case final atlas?) {
       context.canvas
         ..save()
         ..translate(
@@ -2118,7 +2139,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return blur + displacement + revealed;
   }
 
-  _GpuGeometryFrame _buildGpuGeometryImage(
+  // The geometry of [geometries]: worked out by the shader where they are
+  // one shape of one look, else drawn into the frame's page.
+  ({GlassGeometry geometry, Rect matteBounds}) _buildGeometry(
     List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
     Rect bounds,
   ) {
@@ -2160,6 +2183,22 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
             tintOnly: _usesTintOnlyAppearance,
           )
         : null;
+    if (shapes.count == 1 && _field == null && looks == null) {
+      renderer.releaseAtlas();
+      _tiling = null;
+      _driftingEncodes = 0;
+      return (
+        geometry: ComputedGeometry(
+          ShapeSet.join([(shapes, -boundsInMatteSpace.topLeft * dpr)]),
+        ),
+        matteBounds: Rect.fromLTWH(
+          boundsInMatteSpace.left,
+          boundsInMatteSpace.top,
+          (boundsInMatteSpace.width * dpr).ceil() / dpr,
+          (boundsInMatteSpace.height * dpr).ceil() / dpr,
+        ),
+      );
+    }
     final reach = glassReach(
       settings,
       devicePixelRatio: dpr,
@@ -2241,9 +2280,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final atlas = renderer.renderAtlas(tiling);
     if (renderer.droppedShapes > 0) _debugWarnShapeLimitExceeded();
     return (
-      image: atlas.image,
-      looks: atlas.looks,
-      place: atlas.place,
+      geometry: AtlasGeometry(
+        image: atlas.image,
+        place: atlas.place,
+        looks: atlas.looks,
+      ),
       matteBounds: Rect.fromLTWH(
         boundsInMatteSpace.left,
         boundsInMatteSpace.top,
@@ -2253,14 +2294,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
   }
 }
-
-// The images are the page's (FlutterGpuGeometryRenderer.renderAtlas).
-typedef _GpuGeometryFrame = ({
-  AtlasPlace place,
-  ui.Image image,
-  List<ui.Image> looks,
-  Rect matteBounds,
-});
 
 // A band beside glass in a read: [shown] of it in the draw's fragments,
 // frosted by [whole] device pixels, of which [held] is in what it reads.
