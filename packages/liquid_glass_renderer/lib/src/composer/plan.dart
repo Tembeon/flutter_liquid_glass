@@ -240,6 +240,13 @@ final class Look {
   /// taking each fragment for as many device pixels.
   final bool anyGrid;
 
+  /// The sigma, in logical pixels, it frosts what it shows by, whichever way:
+  /// its copy's frost or its page's blur, the lesser axis of one.
+  double get frosts => switch (page?.blur) {
+    (final x, final y) => math.max(need.frost, math.min(x, y)),
+    null => need.frost,
+  };
+
   @override
   bool operator ==(Object other) =>
       other is Look &&
@@ -484,8 +491,7 @@ final class Read {
   /// Whether every glass drawn from it frosts what it shows by [flatFrost]
   /// or more, so its copy leaves out what that frost hides: a blur of what
   /// lies under it.
-  bool get flat =>
-      members.every((site) => site.ask.look.need.frost >= flatFrost);
+  bool get flat => members.every((site) => site.ask.look.frosts >= flatFrost);
 
   /// The least frost, a sigma in logical pixels, that hides what a flat copy
   /// leaves out: a little under the 2.2 of a bar of regular glass. Glass
