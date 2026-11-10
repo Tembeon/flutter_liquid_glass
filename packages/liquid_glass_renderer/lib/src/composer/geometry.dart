@@ -393,7 +393,10 @@ abstract final class ImpellerLayers {
 /// which lies at the screen's pixels: there the frost costs more than the
 /// taps it saves. Nor does a copy whose glass a band leads with less frost
 /// ([bandFrost]): the band adds to the frost what it still lacks, so the copy
-/// can't hold more. [glassFrost] is that of the glass reading the copy.
+/// can't hold more. [glassFrost] is that of the glass reading the copy, 0
+/// where a band reads it alone: the copy then holds the band's frost, and
+/// the band, drawn at the screen's pixels, takes one read of it per
+/// fragment where frosting it there took a frost's reads for each.
 ///
 /// Where the frost's program is not loaded yet the copy is drawn unfrosted
 /// and the glass frosts it.
@@ -414,9 +417,9 @@ double bakedFrost({
   required double glassFrost,
   required double? bandFrost,
 }) {
-  if (share < 2 || holdsGlass || glassFrost <= 0) return 0;
+  if (share < 2 || holdsGlass) return 0;
   if (bandFrost != null && bandFrost < glassFrost) return 0;
-  return glassFrost;
+  return glassFrost > 0 ? glassFrost : bandFrost ?? 0;
 }
 
 /// Where one read's backdrop pixels lie: on which lattice, at which rects

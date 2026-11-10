@@ -48,7 +48,10 @@ void main() {
     // Every texel the frost reaches, where a copy picked for it is read; a
     // few sparse taps where the copy is finer than the frost asked.
     vec4 color;
-    if (frostFitsLattice(uFrost)) {
+    if (uFrost <= 0.0) {
+        // A copy that holds its frost already.
+        color = texture(uCopy, clamp(uv, lo, hi));
+    } else if (frostFitsLattice(uFrost)) {
         color = frostLattice(uCopy, uv, uFrost, invSize, lo, hi);
     } else {
         color = frostSixteen(

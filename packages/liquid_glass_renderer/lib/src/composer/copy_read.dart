@@ -214,7 +214,8 @@ final class CornerRead {
   /// How `backdrop_frost.frag` reads the layer to cover [shown] (screen
   /// logical pixels) pixel by pixel, frosted for Impeller's blur by [frost]
   /// (see [GlassSampling.frost]), or null where none of [shown] lies in it.
-  FrostSampling? frostSampling(Rect shown, double frost) {
+  /// With [held] the copy already holds the frost and is only read.
+  FrostSampling? frostSampling(Rect shown, double frost, {bool held = false}) {
     final drawn = shown.intersect(_cut);
     if (drawn.isEmpty) return null;
     final at = _at;
@@ -228,7 +229,7 @@ final class CornerRead {
         min(at.dx + band.width * pixels, _device.width / _share) - 0.5,
         min(at.dy + band.height * pixels, _device.height / _share) - 0.5,
       ),
-      frost: _residual(frost) / _share,
+      frost: held ? 0 : _residual(frost) / _share,
       scale: 1 / _share,
       shown: Rect.fromLTRB(
         drawn.left * _dpr,

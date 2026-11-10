@@ -248,9 +248,9 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
 
   // The frost of the part [corner] holds, as a filter: a band over a scroll
   // keeps its place, so its filter too.
-  ui.ImageFilter? _frostOf(CornerRead corner) {
+  ui.ImageFilter? _frostOf(CornerRead corner, {required bool held}) {
     final frosting = _frost!;
-    final sampling = corner.frostSampling(shown, frosting.sigma);
+    final sampling = corner.frostSampling(shown, frosting.sigma, held: held);
     if (sampling == null) return null;
     final key = (
       sampling.size,
@@ -280,10 +280,12 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
         inPlace: inPlace,
       );
     }
-    final filter = _frostOf(corner);
+    // A band alone has its frost drawn into the copy, at the copy's pixels.
+    final inPlace = corner.inPlaceFilter();
+    final filter = _frostOf(corner, held: inPlace != null);
     return filter == null
         ? null
-        : (corner: corner, filter: filter, inPlace: null);
+        : (corner: corner, filter: filter, inPlace: inPlace);
   }
 
   @override
