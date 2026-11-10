@@ -273,6 +273,16 @@ final class Lattice {
   /// moving under glass would step a pixel of the copy, up to four of the
   /// screen's, at a time. Under a skew too small to see it lies where it is
   /// drawn, read from its atlas bilinearly.
+  ///
+  /// NEAR: under such a transform Impeller draws a glyph at its place from
+  /// the atlas entry of its quarter of a pixel, which holds the glyph that
+  /// quarter along already. Text in a copy lies right of where the page has
+  /// it by the quarter of the copy's pixel it falls on, three quarters at
+  /// most: 0, 1, 2 and 3 device pixels in a copy of four a side (host, dpr
+  /// 3). Shapes and images lie within 0.2 device pixels. Text scrolled up or
+  /// down keeps its quarter and moves evenly; text carried sideways under
+  /// frosted glass steps back three quarters of a copy's pixel each pixel of
+  /// the copy it travels.
   Matrix4 deviceToCopy(Rect rect, Offset origin) {
     final scale = 1 / share;
     final skew = share > 1 ? 1e-6 : 0.0;
