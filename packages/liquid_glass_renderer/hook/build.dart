@@ -62,6 +62,16 @@ Future<void> _buildRuntimeEffects(
   ]..sort();
   // A shader added or removed changes the listing.
   output.dependencies.add(shadersDirectory);
+  // A file the shaders include: impellerc names the ones a shader read only
+  // where it writes a depfile, and the bundle's shaders name none. An edit
+  // to one compiles everything again.
+  for (final file in Directory.fromUri(
+    shadersDirectory,
+  ).listSync(recursive: true)) {
+    if (file is File && file.path.endsWith('.glsl')) {
+      output.dependencies.add(file.uri);
+    }
+  }
   for (final name in names) {
     final source = shadersDirectory.resolve('$name.frag');
     final outFile = outputDirectory.uri.resolve('$name.iplr');
