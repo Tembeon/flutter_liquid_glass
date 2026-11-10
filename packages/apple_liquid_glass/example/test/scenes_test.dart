@@ -1,13 +1,13 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_example/app.dart';
-import 'package:apple_liquid_glass_example/pages/present_page.dart';
-import 'package:apple_liquid_glass_example/pages/scenes/control_center_page.dart';
-import 'package:apple_liquid_glass_example/pages/scenes/island_page.dart';
-import 'package:apple_liquid_glass_example/pages/scenes/lava_page.dart';
-import 'package:apple_liquid_glass_example/pages/scenes/lens_page.dart';
-import 'package:apple_liquid_glass_example/pages/scenes/lock_screen_page.dart';
-import 'package:apple_liquid_glass_example/pages/scenes/pads_page.dart';
-import 'package:apple_liquid_glass_example/pages/scenes/weather_page.dart';
+import 'package:apple_liquid_glass_example/scenes/control_center_page.dart';
+import 'package:apple_liquid_glass_example/scenes/island_page.dart';
+import 'package:apple_liquid_glass_example/scenes/lava_page.dart';
+import 'package:apple_liquid_glass_example/scenes/lens_page.dart';
+import 'package:apple_liquid_glass_example/scenes/lock_screen_page.dart';
+import 'package:apple_liquid_glass_example/scenes/pads_page.dart';
+import 'package:apple_liquid_glass_example/scenes/scene.dart';
+import 'package:apple_liquid_glass_example/scenes/weather_page.dart';
 import 'package:apple_liquid_glass_example/settings.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,10 +20,10 @@ Future<void> _frames(WidgetTester tester, [int count = 60]) async {
   }
 }
 
-// Opens the scene [row] names from the Present page.
+// Opens [scene] as the gallery does: pushed over a page.
 Future<void> _open(
   WidgetTester tester,
-  String row, {
+  Widget scene, {
   GalleryRenderer renderer = GalleryRenderer.flat,
 }) async {
   tester.view.physicalSize = const Size(402, 874) * 3;
@@ -31,53 +31,58 @@ Future<void> _open(
   tester.view.padding = const FakeViewPadding(top: 62 * 3, bottom: 34 * 3);
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
-    GalleryApp(settings: GallerySettings(renderer: renderer)),
+    GalleryApp(
+      settings: GallerySettings(renderer: renderer),
+      home: _Launcher(scene),
+    ),
   );
-  await _frames(tester);
-  await tester.tap(find.text('Present'));
-  await _frames(tester);
-  final scroll = find
-      .descendant(
-        of: find.byType(PresentPage),
-        matching: find.byType(Scrollable),
-      )
-      .first;
-  // Until the row stands clear of the bars.
-  for (var i = 0; i < 40; i++) {
-    final found = find.text(row).evaluate().isNotEmpty;
-    final y = found ? tester.getCenter(find.text(row)).dy : null;
-    if (y != null && y > 250 && y < 600) break;
-    await tester.drag(scroll, Offset(0, y != null && y <= 250 ? 150 : -150));
-    await _frames(tester, 20);
-  }
-  await _frames(tester, 30);
-  await tester.tap(find.text(row));
+  await _frames(tester, 10);
+  await tester.tap(find.text('Open scene'));
   await _frames(tester, 90);
+}
+
+class _Launcher extends StatelessWidget {
+  const _Launcher(this.scene);
+
+  final Widget scene;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: GestureDetector(
+      onTap: () => Navigator.of(
+        context,
+      ).push(GlassPageRoute<void>(builder: (context) => scene)),
+      child: const Text('Open scene'),
+    ),
+  );
 }
 
 void main() {
   // Real glass with `--enable-impeller --enable-flutter-gpu`, fake without.
-  for (final (row, page) in const [
-    ('Island', IslandPage),
-    ('Lava', LavaPage),
-    ('Weather', WeatherPage),
-    ('Pads', PadsPage),
-    ('Control Center', ControlCenterPage),
-    ('Lock Screen', LockScreenPage),
-    ('Lens', LensPage),
-  ]) {
-    testWidgets('$row draws with liquid glass', (tester) async {
-      await _open(tester, row, renderer: GalleryRenderer.liquid);
-      expect(find.byType(page), findsOneWidget);
+  for (final scene in GalleryScene.all) {
+    testWidgets('${scene.title} draws with liquid glass', (tester) async {
+      await _open(tester, scene.build(false), renderer: GalleryRenderer.liquid);
       expect(find.byType(GlassSurface), findsWidgets);
       await _frames(tester, 30);
       expect(tester.takeException(), isNull);
+    });
+
+    // A preview takes no touch and plays for as long as it is shown.
+    testWidgets('${scene.title} plays itself as a preview', (tester) async {
+      tester.view.physicalSize = const Size(402, 874) * 3;
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(GalleryApp(home: scene.build(true)));
+      await _frames(tester, 400);
+      expect(find.byType(GlassNavigationBar), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
     });
   }
 
   testWidgets('Island: an activity stretches it, a second splits a bubble '
       'off, and a tap opens it', (tester) async {
-    await _open(tester, 'Island');
+    await _open(tester, const IslandPage());
     final timer = find.textContaining(RegExp(r'^[45]:\d\d$'));
     expect(timer, findsNothing);
     await tester.tap(find.bySemanticsLabel('Timer'));
@@ -108,7 +113,7 @@ void main() {
 
   testWidgets('Lava: the drops move by themselves, and the buttons add and '
       'take them', (tester) async {
-    await _open(tester, 'Lava');
+    await _open(tester, const LavaPage());
     Iterable<GlassSurface> drops() => tester
         .widgetList<GlassSurface>(
           find.descendant(
@@ -137,7 +142,7 @@ void main() {
 
   testWidgets('Weather: the slider turns the day and the bar item makes '
       'it rain', (tester) async {
-    await _open(tester, 'Weather');
+    await _open(tester, const WeatherPage());
     expect(find.text('Sunny'), findsOneWidget);
     // From the knob, at half past four, into the night.
     final track = tester.getRect(find.byType(GlassSlider));
@@ -158,7 +163,7 @@ void main() {
 
   testWidgets('Pads: a pressed pad fills with its color, and two fingers '
       'play two pads', (tester) async {
-    await _open(tester, 'Pads');
+    await _open(tester, const PadsPage());
     List<GlassSurface> pads() => [
       ...tester
           .widgetList<GlassSurface>(
@@ -205,7 +210,7 @@ void main() {
 
   testWidgets('Control Center: a module fills with its state and a tall '
       'slider follows the finger', (tester) async {
-    await _open(tester, 'Control Center');
+    await _open(tester, const ControlCenterPage());
     expect(find.byType(ControlCenterPage), findsOneWidget);
     expect(find.text('Off'), findsOneWidget);
     await tester.tap(find.text('Focus'));
@@ -237,7 +242,7 @@ void main() {
 
   testWidgets('Lock Screen: the notifications fan out, and a swipe up '
       'unlocks', (tester) async {
-    await _open(tester, 'Lock Screen');
+    await _open(tester, const LockScreenPage());
     expect(find.byType(LockScreenPage), findsOneWidget);
     double top(String title) => tester.getTopLeft(find.text(title)).dy;
     // Stacked, only the first card is a notification; open, they stand a
@@ -257,12 +262,12 @@ void main() {
     );
     await _frames(tester, 90);
     expect(find.byType(LockScreenPage), findsNothing);
-    expect(find.byType(PresentPage), findsOneWidget);
+    expect(find.text('Open scene'), findsOneWidget);
   });
 
   testWidgets('Lens: the lens follows the finger, and a second one joins '
       'it', (tester) async {
-    await _open(tester, 'Lens');
+    await _open(tester, const LensPage());
     final page = find.byType(LensPage);
     Finder lenses() => find.descendant(
       of: find.descendant(of: page, matching: find.byType(GlassGroup)),

@@ -65,6 +65,7 @@ class GallerySettings {
     this.showBorders = false,
     this.crossFade = false,
     this.glassTint,
+    this.frameMeter = false,
   });
 
   final GalleryRenderer renderer;
@@ -79,6 +80,9 @@ class GallerySettings {
   /// The Liquid Glass slider's position, or null to follow the system's.
   final double? glassTint;
 
+  /// Whether the frames a second and the time of a frame show over the app.
+  final bool frameMeter;
+
   GallerySettings copyWith({
     GalleryRenderer? renderer,
     Brightness? Function()? brightness,
@@ -87,6 +91,7 @@ class GallerySettings {
     bool? showBorders,
     bool? crossFade,
     double? Function()? glassTint,
+    bool? frameMeter,
   }) => GallerySettings(
     renderer: renderer ?? this.renderer,
     brightness: brightness == null ? this.brightness : brightness(),
@@ -95,6 +100,7 @@ class GallerySettings {
     showBorders: showBorders ?? this.showBorders,
     crossFade: crossFade ?? this.crossFade,
     glassTint: glassTint == null ? this.glassTint : glassTint(),
+    frameMeter: frameMeter ?? this.frameMeter,
   );
 }
 

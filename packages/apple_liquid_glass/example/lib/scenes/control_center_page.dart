@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_example/backdrop.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
@@ -14,7 +16,11 @@ const _well = Color(0x24FFFFFF);
 /// their ends, and a row of round buttons. The modules rise into place one
 /// after another when the page opens.
 class ControlCenterPage extends StatefulWidget {
-  const ControlCenterPage({super.key});
+  const ControlCenterPage({this.preview = false, super.key});
+
+  /// Whether the scene plays itself, with no bars and no controls: what the
+  /// showcase shows of it.
+  final bool preview;
 
   @override
   State<ControlCenterPage> createState() => _ControlCenterPageState();
@@ -39,10 +45,22 @@ class _ControlCenterPageState extends State<ControlCenterPage>
   void initState() {
     super.initState();
     _rise.forward();
+    if (widget.preview) {
+      // Left to itself, a module turns on or off now and then.
+      var step = 0;
+      const names = ['Focus', 'Flashlight', 'Cellular', 'Timer', 'Low Power'];
+      _script = Timer.periodic(
+        const Duration(milliseconds: 1400),
+        (_) => _toggle(names[step++ % names.length]),
+      );
+    }
   }
+
+  Timer? _script;
 
   @override
   void dispose() {
+    _script?.cancel();
     _rise.dispose();
     super.dispose();
   }
@@ -58,10 +76,12 @@ class _ControlCenterPageState extends State<ControlCenterPage>
       data: const GlassThemeData(brightness: Brightness.dark),
       child: GlassPageScaffold(
         backgroundColor: const Color(0xFF000000),
-        navigationBar: const GlassNavigationBar(
-          title: Text('Control Center'),
-          previousPageTitle: 'Present',
-        ),
+        navigationBar: widget.preview
+            ? null
+            : const GlassNavigationBar(
+                title: Text('Control Center'),
+                previousPageTitle: 'Showcase',
+              ),
         child: Stack(
           fit: StackFit.expand,
           children: [

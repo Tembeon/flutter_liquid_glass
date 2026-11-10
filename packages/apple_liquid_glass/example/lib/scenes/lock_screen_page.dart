@@ -16,7 +16,11 @@ const _dim = Color(0xB3FFFFFF);
 /// and the two round buttons at the bottom. A swipe up from the bottom
 /// unlocks it, back to the gallery.
 class LockScreenPage extends StatefulWidget {
-  const LockScreenPage({super.key});
+  const LockScreenPage({this.preview = false, super.key});
+
+  /// Whether the scene plays itself, with no bars and no controls: what the
+  /// showcase shows of it.
+  final bool preview;
 
   @override
   State<LockScreenPage> createState() => _LockScreenPageState();
@@ -86,11 +90,24 @@ class _LockScreenPageState extends State<LockScreenPage> {
       final now = DateTime.now();
       if (now.minute != _now.minute) setState(() => _now = now);
     });
+    if (widget.preview) {
+      // Left to itself, the stack fans out and closes again.
+      _script = Timer.periodic(
+        const Duration(milliseconds: 2600),
+        (_) => setState(() {
+          _open = !_open;
+          if (_open) _stacked = false;
+        }),
+      );
+    }
   }
+
+  Timer? _script;
 
   @override
   void dispose() {
     _tick?.cancel();
+    _script?.cancel();
     super.dispose();
   }
 
@@ -145,8 +162,10 @@ class _LockScreenPageState extends State<LockScreenPage> {
                       _notifications(media.size.width - 32),
                       const SizedBox(height: 18),
                       _buttons(),
-                      const SizedBox(height: 10),
-                      _handle(),
+                      if (!widget.preview) ...[
+                        const SizedBox(height: 10),
+                        _handle(),
+                      ],
                     ],
                   ),
                 ),

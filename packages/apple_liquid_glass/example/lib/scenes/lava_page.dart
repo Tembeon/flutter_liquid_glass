@@ -27,7 +27,11 @@ enum _Palette {
 /// reads its frame from the lamp's motion, a loop of sixty steps a second,
 /// and one group fuses them and reads the lamp's light behind them once.
 class LavaPage extends StatefulWidget {
-  const LavaPage({super.key});
+  const LavaPage({this.preview = false, super.key});
+
+  /// Whether the scene plays itself, with no bars and no controls: what the
+  /// showcase shows of it.
+  final bool preview;
 
   @override
   State<LavaPage> createState() => _LavaPageState();
@@ -54,10 +58,12 @@ class _LavaPageState extends State<LavaPage> {
       data: const GlassThemeData(brightness: Brightness.dark),
       child: GlassPageScaffold(
         backgroundColor: const Color(0xFF000000),
-        navigationBar: const GlassNavigationBar(
-          title: Text('Lava'),
-          previousPageTitle: 'Present',
-        ),
+        navigationBar: widget.preview
+            ? null
+            : const GlassNavigationBar(
+                title: Text('Lava'),
+                previousPageTitle: 'Showcase',
+              ),
         child: Builder(
           builder: (context) {
             final padding = MediaQuery.paddingOf(context);
@@ -72,16 +78,17 @@ class _LavaPageState extends State<LavaPage> {
                 Padding(
                   padding: EdgeInsets.only(
                     top: padding.top + 8,
-                    bottom: padding.bottom + 76,
+                    bottom: padding.bottom + (widget.preview ? 0 : 76),
                   ),
                   child: _jarOf(),
                 ),
-                Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: padding.bottom + 12,
-                  child: _controls(),
-                ),
+                if (!widget.preview)
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: padding.bottom + 12,
+                    child: _controls(),
+                  ),
               ],
             );
           },

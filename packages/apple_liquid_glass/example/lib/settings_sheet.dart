@@ -173,10 +173,18 @@ class _SettingsSheet extends StatelessWidget {
         GlassListSection(
           header: const Text('Performance'),
           footer: const Text(
-            'Device check measures how this phone draws glass and makes a '
-            'report to send.',
+            'The frame meter shows frames a second and the time a frame '
+            'takes on each thread, over everything. Device check measures '
+            'how this phone draws glass and makes a report to send.',
           ),
           children: [
+            _Toggle(
+              icon: CupertinoIcons.speedometer,
+              color: GlassColors.systemGreen,
+              title: 'Frame meter',
+              value: settings.frameMeter,
+              onChanged: (on) => update((s) => s.copyWith(frameMeter: on)),
+            ),
             GlassListRow(
               title: const Text('Device check'),
               onPressed: () => runDeviceCheck(

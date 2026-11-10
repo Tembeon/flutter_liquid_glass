@@ -12,6 +12,7 @@ import 'dart:ui' as ui;
 import 'package:apple_liquid_glass/testing.dart';
 import 'package:apple_liquid_glass_example/app.dart';
 import 'package:apple_liquid_glass_example/settings.dart';
+import 'package:apple_liquid_glass_example/stand/stand_home.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
@@ -42,6 +43,7 @@ Future<String> _measure(WidgetTester tester, String tab, double scroll) async {
   await tester.pumpWidget(
     const GalleryApp(
       settings: GallerySettings(renderer: GalleryRenderer.liquid),
+      home: StandHome(),
     ),
   );
   for (var i = 0; i < 40; i++) {

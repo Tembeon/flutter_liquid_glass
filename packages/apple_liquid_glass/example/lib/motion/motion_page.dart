@@ -1,10 +1,10 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass_example/pages/motion/chips.dart';
-import 'package:apple_liquid_glass_example/pages/motion/grid_list.dart';
-import 'package:apple_liquid_glass_example/pages/motion/notes.dart';
-import 'package:apple_liquid_glass_example/pages/motion/own_control.dart';
-import 'package:apple_liquid_glass_example/pages/motion/peek.dart';
-import 'package:apple_liquid_glass_example/pages/motion/two_lines.dart';
+import 'package:apple_liquid_glass_example/motion/chips.dart';
+import 'package:apple_liquid_glass_example/motion/grid_list.dart';
+import 'package:apple_liquid_glass_example/motion/notes.dart';
+import 'package:apple_liquid_glass_example/motion/own_control.dart';
+import 'package:apple_liquid_glass_example/motion/peek.dart';
+import 'package:apple_liquid_glass_example/motion/two_lines.dart';
 import 'package:apple_liquid_glass_example/widgets.dart';
 import 'package:flutter/widgets.dart';
 

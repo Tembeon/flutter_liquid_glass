@@ -1,7 +1,8 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_example/app.dart';
-import 'package:apple_liquid_glass_example/pages/motion_page.dart';
+import 'package:apple_liquid_glass_example/motion/motion_page.dart';
 import 'package:apple_liquid_glass_example/settings.dart';
+import 'package:apple_liquid_glass_example/stand/stand_home.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,7 +21,10 @@ Future<void> _open(WidgetTester tester) async {
   tester.view.padding = const FakeViewPadding(top: 62 * 3, bottom: 34 * 3);
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
-    const GalleryApp(settings: GallerySettings(renderer: GalleryRenderer.flat)),
+    const GalleryApp(
+      settings: GallerySettings(renderer: GalleryRenderer.flat),
+      home: StandHome(),
+    ),
   );
   await _frames(tester);
   await tester.tap(find.text('Motion'));

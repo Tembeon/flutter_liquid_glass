@@ -34,7 +34,11 @@ enum _Activity {
 /// of one motion, so a tap in the middle of a change turns it around from
 /// where it is, at the speed it has.
 class IslandPage extends StatefulWidget {
-  const IslandPage({super.key});
+  const IslandPage({this.preview = false, super.key});
+
+  /// Whether the scene plays itself, with no bars and no controls: what the
+  /// showcase shows of it.
+  final bool preview;
 
   @override
   State<IslandPage> createState() => _IslandPageState();
@@ -50,6 +54,7 @@ class _IslandPageState extends State<IslandPage>
     duration: const Duration(seconds: 2),
   );
   Timer? _second;
+  Timer? _script;
   _Activity? _main;
   _Activity? _aside;
   var _open = false;
@@ -62,6 +67,26 @@ class _IslandPageState extends State<IslandPage>
   void initState() {
     super.initState();
     _beat.repeat();
+    if (widget.preview) {
+      // Left to itself, the island goes through what it can do.
+      var step = 0;
+      final script = <VoidCallback>[
+        () => _toggle(_Activity.timer),
+        () => _toggle(_Activity.music),
+        _tapped,
+        _close,
+        () => _toggle(_Activity.call),
+        _tapped,
+        _close,
+        () => _toggle(_Activity.call),
+        () => _toggle(_Activity.music),
+        () => _toggle(_Activity.timer),
+      ];
+      _script = Timer.periodic(
+        const Duration(milliseconds: 1500),
+        (_) => script[step++ % script.length](),
+      );
+    }
     _second = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!_runs(_Activity.timer) && !_runs(_Activity.call)) return;
       setState(() {
@@ -74,6 +99,7 @@ class _IslandPageState extends State<IslandPage>
   @override
   void dispose() {
     _second?.cancel();
+    _script?.cancel();
     _beat.dispose();
     super.dispose();
   }
@@ -97,7 +123,7 @@ class _IslandPageState extends State<IslandPage>
   );
 
   void _toggle(_Activity activity) {
-    unawaited(HapticFeedback.selectionClick());
+    if (!widget.preview) unawaited(HapticFeedback.selectionClick());
     setState(() {
       _open = false;
       if (_main == activity) {
@@ -116,7 +142,7 @@ class _IslandPageState extends State<IslandPage>
 
   void _tapped() {
     if (_main == null) return;
-    unawaited(HapticFeedback.selectionClick());
+    if (!widget.preview) unawaited(HapticFeedback.selectionClick());
     setState(() => _open = !_open);
     _settle(opening: _open);
   }
@@ -162,12 +188,13 @@ class _IslandPageState extends State<IslandPage>
                     },
                   ),
                 ),
-                Positioned(
-                  left: 20,
-                  right: 20,
-                  bottom: media.padding.bottom + 16,
-                  child: _launcher(context),
-                ),
+                if (!widget.preview)
+                  Positioned(
+                    left: 20,
+                    right: 20,
+                    bottom: media.padding.bottom + 16,
+                    child: _launcher(context),
+                  ),
               ],
             ),
           ),

@@ -20,7 +20,11 @@ enum _Pattern { pulse, wave, rain }
 /// finger lies, and its surface reads its frame from them without a
 /// rebuild.
 class PadsPage extends StatefulWidget {
-  const PadsPage({super.key});
+  const PadsPage({this.preview = false, super.key});
+
+  /// Whether the scene plays itself, with no bars and no controls: what the
+  /// showcase shows of it.
+  final bool preview;
 
   @override
   State<PadsPage> createState() => _PadsPageState();
@@ -121,20 +125,31 @@ class _PadsPageState extends State<PadsPage>
     if (pad != null) _pads[pad].release(MotionClock.instance.now);
   }
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.preview) _player = _start();
+  }
+
+  Timer _start() => Timer.periodic(const Duration(milliseconds: 140), (_) {
+    if (_grid.isEmpty) return;
+    // Left to itself, the page plays each pattern in turn.
+    if (widget.preview && _step > 0 && _step % 40 == 0) {
+      _pattern = _Pattern.values[(_pattern.index + 1) % _Pattern.values.length];
+    }
+    for (final pad in _struck(_step++)) {
+      _pads[pad].strike(MotionClock.instance.now, _cell);
+      _ring(pad);
+    }
+  });
+
   void _play() {
     if (_player != null) {
       _player!.cancel();
       setState(() => _player = null);
       return;
     }
-    setState(() {
-      _player = Timer.periodic(const Duration(milliseconds: 140), (_) {
-        for (final pad in _struck(_step++)) {
-          _pads[pad].strike(MotionClock.instance.now, _cell);
-          _ring(pad);
-        }
-      });
-    });
+    setState(() => _player = _start());
   }
 
   // The pads the pattern strikes at [step].
@@ -160,10 +175,12 @@ class _PadsPageState extends State<PadsPage>
       data: const GlassThemeData(brightness: Brightness.dark),
       child: GlassPageScaffold(
         backgroundColor: const Color(0xFF000000),
-        navigationBar: const GlassNavigationBar(
-          title: Text('Pads'),
-          previousPageTitle: 'Present',
-        ),
+        navigationBar: widget.preview
+            ? null
+            : const GlassNavigationBar(
+                title: Text('Pads'),
+                previousPageTitle: 'Showcase',
+              ),
         child: Builder(
           builder: (context) {
             final padding = MediaQuery.paddingOf(context);
@@ -177,8 +194,10 @@ class _PadsPageState extends State<PadsPage>
               child: Column(
                 children: [
                   Expanded(child: Center(child: _padGrid())),
-                  const SizedBox(height: 16),
-                  _controls(),
+                  if (!widget.preview) ...[
+                    const SizedBox(height: 16),
+                    _controls(),
+                  ],
                 ],
               ),
             );

@@ -15,7 +15,11 @@ const _card = Glass.clear(tint: Color(0x2E0A1830));
 /// and rain falls. The cards are glass, so the whole day passes through
 /// their rims, and the slider at the bottom scrubs it by hand.
 class WeatherPage extends StatefulWidget {
-  const WeatherPage({super.key});
+  const WeatherPage({this.preview = false, super.key});
+
+  /// Whether the scene plays itself, with no bars and no controls: what the
+  /// showcase shows of it.
+  final bool preview;
 
   @override
   State<WeatherPage> createState() => _WeatherPageState();
@@ -31,18 +35,32 @@ class _WeatherPageState extends State<WeatherPage>
     duration: const Duration(minutes: 10),
   );
   final _hour = ValueNotifier<double>(16.5);
+
+  // The hour the cards show: a quarter at a time, so a sky that turns
+  // every frame builds them four times an hour.
+  final _shown = ValueNotifier<double>(16.5);
   var _rain = false;
 
   @override
   void initState() {
     super.initState();
     _drift.repeat();
+    _hour.addListener(
+      () => _shown.value = (_hour.value * 4).floorToDouble() / 4,
+    );
+    // Left to itself, the day passes: an hour every two seconds.
+    if (widget.preview) {
+      _drift.addListener(
+        () => _hour.value = (16.5 + _drift.value * 300) % 24,
+      );
+    }
   }
 
   @override
   void dispose() {
     _drift.dispose();
     _hour.dispose();
+    _shown.dispose();
     super.dispose();
   }
 
@@ -67,19 +85,23 @@ class _WeatherPageState extends State<WeatherPage>
       data: const GlassThemeData(brightness: Brightness.dark),
       child: GlassPageScaffold(
         backgroundColor: const Color(0xFF000000),
-        navigationBar: GlassNavigationBar(
-          title: const Text('Weather'),
-          previousPageTitle: 'Present',
-          trailing: [
-            GlassBarItem(
-              icon: Icon(
-                _rain ? CupertinoIcons.cloud_rain_fill : CupertinoIcons.cloud,
+        navigationBar: widget.preview
+            ? null
+            : GlassNavigationBar(
+                title: const Text('Weather'),
+                previousPageTitle: 'Showcase',
+                trailing: [
+                  GlassBarItem(
+                    icon: Icon(
+                      _rain
+                          ? CupertinoIcons.cloud_rain_fill
+                          : CupertinoIcons.cloud,
+                    ),
+                    semanticLabel: _rain ? 'Stop the rain' : 'Let it rain',
+                    onPressed: () => setState(() => _rain = !_rain),
+                  ),
+                ],
               ),
-              semanticLabel: _rain ? 'Stop the rain' : 'Let it rain',
-              onPressed: () => setState(() => _rain = !_rain),
-            ),
-          ],
-        ),
         child: Builder(
           builder: (context) {
             final padding = MediaQuery.paddingOf(context);
@@ -92,33 +114,37 @@ class _WeatherPageState extends State<WeatherPage>
                   ),
                 ),
                 ValueListenableBuilder(
-                  valueListenable: _hour,
+                  valueListenable: _shown,
                   builder: (context, hour, _) => GlassContentScroll(
                     child: ListView(
                       padding: EdgeInsets.fromLTRB(
                         16,
                         padding.top + 4,
                         16,
-                        padding.bottom + 92,
+                        padding.bottom + (widget.preview ? 0 : 92),
                       ),
                       children: [
                         _now(hour),
                         const SizedBox(height: 18),
                         _hourly(hour),
-                        const SizedBox(height: 12),
-                        _week(),
+                        // A preview has room for the day, not the week.
+                        if (!widget.preview) ...[
+                          const SizedBox(height: 12),
+                          _week(),
+                        ],
                         const SizedBox(height: 12),
                         _details(hour),
                       ],
                     ),
                   ),
                 ),
-                Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: padding.bottom + 12,
-                  child: _scrubber(),
-                ),
+                if (!widget.preview)
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: padding.bottom + 12,
+                    child: _scrubber(),
+                  ),
               ],
             );
           },

@@ -1,21 +1,20 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_accessibility/apple_liquid_glass_accessibility.dart';
-import 'package:apple_liquid_glass_example/pages/controls_page.dart';
-import 'package:apple_liquid_glass_example/pages/liquid_page.dart';
-import 'package:apple_liquid_glass_example/pages/motion_page.dart';
-import 'package:apple_liquid_glass_example/pages/photos_page.dart';
-import 'package:apple_liquid_glass_example/pages/present_page.dart';
-import 'package:apple_liquid_glass_example/pages/search_page.dart';
+import 'package:apple_liquid_glass_example/frame_meter.dart';
+import 'package:apple_liquid_glass_example/home.dart';
 import 'package:apple_liquid_glass_example/settings.dart';
-import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/widgets.dart';
 
 class GalleryApp extends StatefulWidget {
   const GalleryApp({
     this.settings = const GallerySettings(),
     this.notifier,
+    this.home = const GalleryHome(),
     super.key,
   });
+
+  /// The page the app opens on.
+  final Widget home;
 
   final GallerySettings settings;
 
@@ -58,13 +57,16 @@ class _GalleryAppState extends State<GalleryApp> {
               showBorders: settings.showBorders ? true : null,
               prefersCrossFade: settings.crossFade ? true : null,
               glassTintAmount: settings.glassTint,
-              child: const bool.fromEnvironment('GLASS_PLAN_OVERLAY')
-                  ? GlassPlanOverlay(child: _Ambient(child: child!))
-                  : _Ambient(child: child!),
+              child: FrameMeter(
+                shown: settings.frameMeter,
+                child: const bool.fromEnvironment('GLASS_PLAN_OVERLAY')
+                    ? GlassPlanOverlay(child: _Ambient(child: child!))
+                    : _Ambient(child: child!),
+              ),
             ),
           ),
         ),
-        home: const GalleryHome(),
+        home: widget.home,
       ),
     ),
   );
@@ -91,74 +93,5 @@ class _Ambient extends StatelessWidget {
         child: child,
       ),
     ),
-  );
-}
-
-enum GalleryTab { liquid, controls, present, motion, photos }
-
-class GalleryHome extends StatefulWidget {
-  const GalleryHome({super.key});
-
-  @override
-  State<GalleryHome> createState() => _GalleryHomeState();
-}
-
-class _GalleryHomeState extends State<GalleryHome> {
-  var _tab = GalleryTab.liquid;
-  final _search = GlassSearchController();
-
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
-  }
-
-  void _open(GalleryTab tab) {
-    _search.closeView();
-    setState(() => _tab = tab);
-  }
-
-  @override
-  Widget build(BuildContext context) => GlassTabScaffold(
-    tabBar: GlassTabBar(
-      destinations: const [
-        GlassTabDestination(
-          icon: Icon(CupertinoIcons.drop),
-          selectedIcon: Icon(CupertinoIcons.drop_fill),
-          label: Text('Liquid'),
-        ),
-        GlassTabDestination(
-          icon: Icon(CupertinoIcons.slider_horizontal_3),
-          label: Text('Controls'),
-        ),
-        GlassTabDestination(
-          icon: Icon(CupertinoIcons.square_stack_3d_up),
-          selectedIcon: Icon(CupertinoIcons.square_stack_3d_up_fill),
-          label: Text('Present'),
-        ),
-        GlassTabDestination(
-          icon: Icon(CupertinoIcons.wind),
-          label: Text('Motion'),
-        ),
-        GlassTabDestination(
-          icon: Icon(CupertinoIcons.photo_on_rectangle),
-          selectedIcon: Icon(CupertinoIcons.photo_fill_on_rectangle_fill),
-          label: Text('Photos'),
-          badge: GlassBadge.count(6),
-        ),
-      ],
-      selectedIndex: _tab.index,
-      onDestinationSelected: (index) =>
-          setState(() => _tab = GalleryTab.values[index]),
-      searchController: _search,
-    ),
-    tabBuilder: (context, index) => switch (GalleryTab.values[index]) {
-      GalleryTab.liquid => const LiquidPage(),
-      GalleryTab.controls => const ControlsPage(),
-      GalleryTab.present => const PresentPage(),
-      GalleryTab.motion => const MotionPage(),
-      GalleryTab.photos => const PhotosPage(),
-    },
-    searchBuilder: (context) => SearchPage(controller: _search, onOpen: _open),
   );
 }
