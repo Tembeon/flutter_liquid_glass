@@ -422,6 +422,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     shapesWithGeometry
       ..clear()
       ..addAll(candidate);
+    _fading = null;
     _retainedStructure = geometryStructure(candidate);
     _ancestorClips.update(this, shapeRenderObjects);
   }
@@ -914,12 +915,16 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     }
   }
 
-  bool get _anyShapeFading => shapesWithGeometry.any(
+  // Asked several times a frame; the committed shapes change in
+  // [commitFrameGeometry] alone.
+  bool get _anyShapeFading => _fading ??= shapesWithGeometry.any(
     (entry) => entry.$2.shapes.any(
       (shape) =>
           shape.appearance.visibility > 0 && shape.appearance.visibility < 1,
     ),
   );
+
+  bool? _fading;
 
   // A clip cuts a silhouette whole, but a fading glass lets as much of the
   // shadow under it show as it has yet to fade in. Only an offscreen layer
