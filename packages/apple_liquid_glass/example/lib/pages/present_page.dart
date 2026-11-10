@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_example/backdrop.dart';
 import 'package:apple_liquid_glass_example/pages/music_page.dart';
+import 'package:apple_liquid_glass_example/pages/scenes/control_center_page.dart';
+import 'package:apple_liquid_glass_example/pages/scenes/lens_page.dart';
+import 'package:apple_liquid_glass_example/pages/scenes/lock_screen_page.dart';
 import 'package:apple_liquid_glass_example/pages/video_page.dart';
 import 'package:apple_liquid_glass_example/widgets.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
@@ -423,6 +426,46 @@ class _PresentPageState extends State<PresentPage> {
                 GlassColors.systemOrange,
                 'Styled alert',
                 _styledAlert,
+              ),
+            ],
+          ),
+          GlassListSection(
+            header: const Text('Scenes'),
+            footer: const Text(
+              'Whole screens built from the surfaces alone: modules that '
+              'fill with their color and sliders that stretch, a stack of '
+              'notifications that fans out, and a lens to drag over a page.',
+            ),
+            children: [
+              _row(
+                CupertinoIcons.slider_horizontal_3,
+                GlassColors.systemGray,
+                'Control Center',
+                () => Navigator.of(context).push(
+                  GlassPageRoute<void>(
+                    builder: (context) => const ControlCenterPage(),
+                  ),
+                ),
+              ),
+              _row(
+                CupertinoIcons.lock_fill,
+                GlassColors.systemBlue,
+                'Lock Screen',
+                () => Navigator.of(context).push(
+                  GlassPageRoute<void>(
+                    builder: (context) => const LockScreenPage(),
+                  ),
+                ),
+              ),
+              _row(
+                CupertinoIcons.search,
+                GlassColors.systemOrange,
+                'Lens',
+                () => Navigator.of(context).push(
+                  GlassPageRoute<void>(
+                    builder: (context) => const LensPage(),
+                  ),
+                ),
               ),
             ],
           ),

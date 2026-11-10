@@ -139,6 +139,24 @@ class SearchPage extends StatelessWidget {
       GalleryTab.present,
       CupertinoIcons.square_grid_2x2_fill,
     ),
+    (
+      'Control Center',
+      'Modules, toggles and tall sliders',
+      GalleryTab.present,
+      CupertinoIcons.slider_horizontal_3,
+    ),
+    (
+      'Lock Screen',
+      'Widgets and a stack of notifications',
+      GalleryTab.present,
+      CupertinoIcons.lock_fill,
+    ),
+    (
+      'Lens',
+      'Drag glass over text and a photo',
+      GalleryTab.present,
+      CupertinoIcons.search,
+    ),
   ];
 
   @override
