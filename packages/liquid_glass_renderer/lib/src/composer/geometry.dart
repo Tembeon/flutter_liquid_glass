@@ -443,6 +443,27 @@ double bakedFrost({
   return glassFrost > 0 ? glassFrost : bandFrost ?? 0;
 }
 
+/// The widest frost, in a copy's pixels squared, eight pairs of them hold:
+/// what a copy picked for its frost spans ([CopyNeed]). A copy finer than was
+/// asked, such as one that holds glass, leaves a wider frost to sparse taps.
+@internal
+const double frostLatticeWidest = 11.87;
+
+/// The widest frost, in a copy's pixels squared, three pairs hold: one pass
+/// of nine reads draws it. A wider one is a pass an axis.
+@internal
+const double frostSquareWidest = 1.5235;
+
+/// How many filtered layers frost a copy in place by a sigma of
+/// [inCopyPixels] of its pixels, each a pass of the frame: none for no frost,
+/// two for one an axis at a time, else one.
+@internal
+int frostLayersOf(double inCopyPixels) {
+  if (inCopyPixels <= 0) return 0;
+  final wide = inCopyPixels * inCopyPixels;
+  return wide > frostSquareWidest && wide <= frostLatticeWidest ? 2 : 1;
+}
+
 /// Where one read's backdrop pixels lie: on which lattice, at which rects
 /// and with which frost. Compile resolves it, the ledger compares it, emit
 /// lays it out and sites read it; nothing decides any of it again.
@@ -551,6 +572,11 @@ final class ReadGeometry {
     room: room,
     imageRect: lattice.snapOut(room).intersect(screen),
   );
+
+  /// The layers that frost the copy in place (see [frostLayersOf]).
+  int get frostLayers => bakedFrost > 0
+      ? frostLayersOf(lattice.residual(frostFor(bakedFrost)) / lattice.share)
+      : 0;
 
   /// The frost, in logical pixels, that stands for [sigma] over what the
   /// copy left out.

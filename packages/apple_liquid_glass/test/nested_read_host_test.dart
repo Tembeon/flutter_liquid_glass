@@ -52,8 +52,9 @@ void main() {
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
     // Over budget the sheet reads an image and the glass under it stays live,
-    // as on a screen of glass.
-    GlassComposer.debugPolicy = const Policy(maxTargets: 1);
+    // as on a screen of glass: the budget is the glass's own three targets,
+    // its filter and the two axes of its frost.
+    GlassComposer.debugPolicy = const Policy(maxTargets: 3);
     Plan? plan;
     GlassComposer.debugOnPlan = (_, next) => plan = next;
 

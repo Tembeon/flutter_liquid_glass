@@ -207,7 +207,8 @@ CopyFrost? frostFilterOf(FrostSampling sampling) {
   // Sparse taps that stand in until the lattice's program loads are not
   // kept.
   final standsIn =
-      sampling.frost > 0 && sampling.frost * sampling.frost <= _latticeWidest;
+      sampling.frost > 0 &&
+      sampling.frost * sampling.frost <= frostLatticeWidest;
   return standsIn ? sparse : _inPlaceFilters[key] = sparse;
 }
 
@@ -307,16 +308,6 @@ final _tapsOf = <double, ({List<double> offsets, List<double> weights})>{};
   return (offsets: offsets, weights: weights);
 }
 
-// The widest frost, in the copy's pixels squared, eight pairs of them hold:
-// what a copy picked for its frost spans (CopyNeed, geometry.dart). A copy
-// finer than was asked, such as one that holds glass, leaves a wider frost
-// to the sparse taps.
-const _latticeWidest = 11.87;
-
-// The widest frost, in the copy's pixels squared, three pairs hold: one
-// pass of nine reads draws it. A wider one is a pass an axis.
-const _squareWidest = 1.5235;
-
 // The frost of [sampling] over every pixel of the copy it reaches, or null
 // where the sparse taps draw it: a frost too wide for eight pairs of the
 // copy's pixels, and before the program is loaded.
@@ -329,8 +320,8 @@ const _squareWidest = 1.5235;
 CopyFrost? _latticeOf(FrostSampling sampling) {
   final FrostSampling(:size, :bounds, :frost) = sampling;
   final wide = frost * frost;
-  if (wide > _latticeWidest) return null;
-  final square = wide <= _squareWidest;
+  if (wide > frostLatticeWidest) return null;
+  final square = wide <= frostSquareWidest;
   final key = square
       ? ShaderKeys.backdropFrostSquare
       : ShaderKeys.backdropFrostAxis;

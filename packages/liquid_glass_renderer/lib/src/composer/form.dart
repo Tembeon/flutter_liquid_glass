@@ -79,6 +79,9 @@ final class Form implements Scenery {
   final List<VolatileNode> _volatile = [];
   int _volatileCount = 0;
 
+  // The containers a copy draws as a layer apart, each after what it holds.
+  final List<OpenNode> _saving = [];
+
   int _suppress = 0;
   int _next = 0;
   OpenNode? _owner;
@@ -91,6 +94,7 @@ final class Form implements Scenery {
     _next = 0;
     _count = 0;
     _volatileCount = 0;
+    _saving.clear();
     final recycled = _lastSites;
     _lastSites = _sites;
     _sites = recycled;
@@ -255,6 +259,22 @@ final class Form implements Scenery {
       };
     }
     return null;
+  }
+
+  // Counts what a read's replay enters: a container before the lead that
+  // meets the band, holds the lead or holds what the frame composes.
+  @override
+  int savedUnder(int order, Rect band, {required bool flat}) {
+    var total = 0;
+    for (final node in _saving) {
+      if (node.order >= order) continue;
+      if (node.end > order ||
+          node.holdsComposed ||
+          node.bounds.overlaps(band)) {
+        total += node.saves(flat: flat);
+      }
+    }
+    return total;
   }
 
   @override
@@ -551,6 +571,16 @@ abstract class OpenNode extends FormNode {
   @override
   bool get holdsComposed => _holdsComposed;
 
+  /// Whether a flat copy draws it or what it holds otherwise than another
+  /// does, so that no layer kept of it serves both.
+  bool get drawnByKind => _drawnByKind;
+  bool _drawnByKind = false;
+
+  /// The pictures it holds, at any depth. The engine fades one picture by
+  /// itself and draws more than one into a layer first, which is a pass.
+  @protected
+  int leaves = 0;
+
   /// Whether its children show at all.
   bool get shows => true;
 
@@ -561,6 +591,14 @@ abstract class OpenNode extends FormNode {
   /// Adds to [out] what the layer applies to what it holds, around a read of
   /// [band].
   void enter(SceneOut out, Rect band) {}
+
+  /// The passes [enter] costs a copy: one for each layer it pushes that is
+  /// drawn apart, and what a blur takes beside. A [flat] copy
+  /// ([SceneOut.flat]) leaves some of them out.
+  int saves({required bool flat}) => 0;
+
+  /// Whether [saves] differs for a flat copy.
+  bool get savesByKind => false;
 
   /// Set while reading the layer when what [enter] adds or what it holds
   /// changed.
@@ -611,6 +649,7 @@ abstract class OpenNode extends FormNode {
     if (moved) {
       form._suppress--;
     }
+    if (saves(flat: false) > 0) form._saving.add(this);
     end = form._next;
     if (changed) {
       _recomputeBounds();
@@ -642,6 +681,8 @@ abstract class OpenNode extends FormNode {
     final layer = this.layer as ContainerLayer;
     var changed = false;
     var composed = composes;
+    var byKind = savesByKind;
+    var pictures = 0;
     var old = first;
     FormNode? last;
     for (
@@ -674,6 +715,15 @@ abstract class OpenNode extends FormNode {
       if (node.refreshIn(form, world)) changed = true;
       if (node.contentAt == form.frame) edited = true;
       if (node.holdsComposed) composed = true;
+      switch (node) {
+        case PictureNode(picture: _?):
+          pictures++;
+        case OpenNode():
+          pictures += node.leaves;
+          if (node._drawnByKind) byKind = true;
+        default:
+          break;
+      }
       if (last == null) {
         first = node;
       } else {
@@ -692,6 +742,8 @@ abstract class OpenNode extends FormNode {
       last.next = null;
     }
     _holdsComposed = composed;
+    _drawnByKind = byKind;
+    leaves = pictures;
     return changed;
   }
 
@@ -1042,6 +1094,10 @@ final class AlphaNode extends OpenNode {
   bool get shows => (layer as OpacityLayer).alpha != 0;
 
   @override
+  int saves({required bool flat}) =>
+      leaves > 1 && ((layer as OpacityLayer).alpha ?? 255) != 255 ? 1 : 0;
+
+  @override
   void enter(SceneOut out, Rect band) {
     final layer = this.layer as OpacityLayer;
     final alpha = layer.alpha ?? 255;
@@ -1094,6 +1150,12 @@ final class FilterNode extends OpenNode {
   ui.ImageFilter? _read;
   Offset _placed = Offset.zero;
 
+  // What the filter takes beside its layer is not known: the engine tells
+  // nothing of a filter.
+  @override
+  int saves({required bool flat}) =>
+      (layer as ImageFilterLayer).imageFilter == null ? 0 : 1;
+
   @override
   void enter(SceneOut out, Rect band) {
     final layer = this.layer as ImageFilterLayer;
@@ -1145,6 +1207,10 @@ final class ColorNode extends OpenNode {
   ui.ColorFilter? _read;
 
   @override
+  int saves({required bool flat}) =>
+      (layer as ColorFilterLayer).colorFilter == null ? 0 : 1;
+
+  @override
   void enter(SceneOut out, Rect band) {
     final filter = (layer as ColorFilterLayer).colorFilter;
     if (filter == null) return;
@@ -1193,6 +1259,16 @@ final class MaskNode extends OpenNode {
 
   @override
   Rect get extra => _extra;
+
+  @override
+  int saves({required bool flat}) {
+    final layer = this.layer as ShaderMaskLayer;
+    return layer.shader == null ||
+            layer.maskRect == null ||
+            layer.blendMode == null
+        ? 0
+        : 1;
+  }
 
   @override
   void enter(SceneOut out, Rect band) {
@@ -1299,6 +1375,10 @@ final class ClipNode extends OpenNode {
   };
 
   @override
+  int saves({required bool flat}) =>
+      _geometry != null && _behavior == Clip.antiAliasWithSaveLayer ? 1 : 0;
+
+  @override
   void enter(SceneOut out, Rect band) {
     final (geometry, behavior) = _read();
     if (geometry == null || behavior == Clip.none) return;
@@ -1388,6 +1468,23 @@ final class EffectsNode extends OpenNode with _Matrix {
   @override
   bool get shows => !_hidden;
 
+  // A blur is its layer and two passes of its own; an opacity over it is
+  // the same layer's.
+  @override
+  int saves({required bool flat}) {
+    if (_token case (_, final int? alpha, final double blur)) {
+      if (blur > 0 && !flat) return 3;
+      return leaves > 1 && alpha != null && alpha != 255 ? 1 : 0;
+    }
+    return 0;
+  }
+
+  @override
+  bool get savesByKind => switch (_token) {
+    (_, _, final double blur) => blur > 0,
+    _ => false,
+  };
+
   @override
   void enter(SceneOut out, Rect band) {
     final effects = LiquidGlassUnderlay.effectsOf(layer)!;
@@ -1404,7 +1501,10 @@ final class EffectsNode extends OpenNode with _Matrix {
       out.at = Offset.zero;
       out.pushes++;
     }
-    if (effects.blur > 0) {
+    // Under glass that frosts all it shows the blur is left out. NEAR: what
+    // blurs in under frosted glass is drawn there as sharp as the frost
+    // leaves it, in a copy of a sixteenth of its pixels.
+    if (effects.blur > 0 && !out.flat) {
       if (!kReleaseMode) GlassWork.filters++;
       out.settleMatrix();
       builder.pushImageFilter(

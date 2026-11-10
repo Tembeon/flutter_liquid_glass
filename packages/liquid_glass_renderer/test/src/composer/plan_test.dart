@@ -43,6 +43,11 @@ final class _Scene implements Scenery {
 
   @override
   int lastChangedUnder(int order, Rect band) => changedAt;
+
+  int saved = 0;
+
+  @override
+  int savedUnder(int order, Rect band, {required bool flat}) => saved;
 }
 
 Look _look(int look, {bool frost = true}) => Look(

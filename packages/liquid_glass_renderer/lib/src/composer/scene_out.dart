@@ -10,7 +10,11 @@ import 'package:meta/meta.dart';
 @internal
 final class SceneOut {
   /// Adds to [builder], the coordinates there taken by [matrix] if any.
-  SceneOut(this.builder, this.matrix);
+  SceneOut(this.builder, this.matrix, {this.flat = false});
+
+  /// Whether this is the copy of a read whose glass frosts all it shows
+  /// (Read.flat): what that frost hides is not drawn.
+  final bool flat;
 
   /// The scene.
   final ui.SceneBuilder builder;

@@ -32,6 +32,11 @@ abstract interface class Scenery {
   /// The frame something meeting [band] before [order] last changed, or the
   /// frame the scenery began.
   int lastChangedUnder(int order, Rect band);
+
+  /// The passes a copy of [band] takes for what lies in it before [order],
+  /// beyond its own: each opacity, filter or mask there is a layer drawn
+  /// apart. A [flat] copy leaves out what its glass's frost hides.
+  int savedUnder(int order, Rect band, {required bool flat});
 }
 
 /// What a kind of layer lets a read over it be.
@@ -476,17 +481,36 @@ final class Read {
   /// Whether what it holds differs from the last frame.
   bool changed = false;
 
+  /// Whether every glass drawn from it frosts what it shows, so its copy
+  /// leaves out what that frost hides: a blur of what lies under it.
+  bool get flat => members.every((site) => site.ask.look.need.frost > 0);
+
+  /// The passes its copy takes for what it draws of the page (see
+  /// [Scenery.savedUnder]).
+  int inside = 0;
+
   /// The group of live reads that share one copy of the backdrop, taken at the
   /// first of them, or null for a read on its own.
   int? liveGroup;
 
-  /// The targets this read issues, what it holds drawn again counted. A frost
-  /// baked in place is left out: it adds a pass of a copy's few pixels.
-  int get targets {
-    if (source is ImageRead) return 0;
-    var total = 1;
+  /// The targets this read issues, each a pass of the frame: none for an
+  /// image, else [sceneTargets].
+  int get targets => source is ImageRead ? 0 : sceneTargets;
+
+  /// The targets it issues drawn in the scene: its filter's layer, the layers
+  /// that frost its copy, what its copy draws apart of the page, and all of
+  /// that again for each read it holds that is no image. A pass costs the
+  /// raster thread the same whatever its pixels (0.3 ms in a trace of a Pixel
+  /// 6a), so the frost's count though they are a sixteenth of the band's.
+  int get sceneTargets => source is LiveRead ? 1 : _drawnIn(1);
+
+  // Drawn in a layer whose pixels stand for [scale] device pixels a side: a
+  // copy inside a coarser one is frosted by its glass, not in place.
+  int _drawnIn(int scale) {
+    var total = 1 + inside + (scale > 1 ? 0 : geometry.frostLayers);
     for (final held in holds) {
-      total += held.targets;
+      if (held.source is ImageRead) continue;
+      total += held._drawnIn(geometry.lattice.share);
     }
     return total;
   }
@@ -652,9 +676,15 @@ final class Prices {
   /// What one image costs, once.
   double get imageCost => imageGpu + rasterWeight * imageRaster;
 
-  /// How many frames a read over [band] must hold still to pay for its image.
-  int rent(Rect band, int share) =>
-      math.max(1, (imageCost / passCost(band, share)).ceil());
+  /// How many frames a read over [band] must hold still to pay for its image,
+  /// which spares the frame its [targets].
+  int rent(Rect band, int share, {int targets = 1}) => math.max(
+    1,
+    (imageCost /
+            (passCost(band, share) +
+                (targets - 1) * (passGpu + rasterWeight * passRaster)))
+        .ceil(),
+  );
 }
 
 /// Decisions a person made once.
@@ -662,7 +692,7 @@ final class Prices {
 final class Policy {
   /// Creates a policy.
   const Policy({
-    this.maxTargets = 8,
+    this.maxTargets = 24,
     this.maxShapes = geometryMaxShapesPerDraw,
     this.bands = true,
     this.copies = true,
@@ -682,7 +712,9 @@ final class Policy {
   /// Shapes one shared matte can hold.
   final int maxShapes;
 
-  /// Targets a frame may issue before reads move to images.
+  /// Targets a frame may issue before reads move to images. Counted as
+  /// [Read.targets] counts them, a frosted read is two or three: 24 is where
+  /// 8 stood while a read counted as one.
   final int maxTargets;
 }
 
@@ -939,7 +971,16 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
                 scene.lastChangedUnder(read.lead.order, read.band)
       ..misses = memo?.misses ?? 0
       ..forBudget = memo?.forBudget ?? false;
-    final rent = prices.rent(read.band, read.share);
+    read.inside = scene.savedUnder(
+      read.lead.order,
+      read.band,
+      flat: read.flat,
+    );
+    final rent = prices.rent(
+      read.band,
+      read.share,
+      targets: read.sceneTargets,
+    );
     var boughtAt = memo?.boughtAt;
     if (room != null &&
         (changed ||
@@ -991,7 +1032,11 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
       if (issued <= policy.maxTargets) break;
       if (read.source is! SceneRead || read.limit != ReadLimit.none) continue;
       final id = read.lead.id;
-      final rent = prices.rent(read.band, read.share);
+      final rent = prices.rent(
+        read.band,
+        read.share,
+        targets: read.sceneTargets,
+      );
       read.source = const ImageRead(held: false);
       read.geometry = read.geometry.withRoom(
         _withRoom(read, ledger.reads[id], rent, screen),

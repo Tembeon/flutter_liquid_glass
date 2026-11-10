@@ -14,6 +14,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
 
 const _viewSize = Size(300, 600);
@@ -162,8 +164,16 @@ Future<void> _expectSameAsFresh(
 }
 
 void main() {
-  setUp(() => GlassCopies.debugEnabledOverride = true);
-  tearDown(() => GlassCopies.debugEnabledOverride = null);
+  setUp(() {
+    GlassCopies.debugEnabledOverride = true;
+    // Every read stays in the scene while the test counts what it adds: the
+    // rows under each are layers drawn apart, six targets a read.
+    GlassComposer.debugPolicy = const Policy(maxTargets: 64);
+  });
+  tearDown(() {
+    GlassCopies.debugEnabledOverride = null;
+    GlassComposer.debugPolicy = const Policy();
+  });
 
   testWidgets('a scrolled read adds fewer layers once they hold', (
     tester,

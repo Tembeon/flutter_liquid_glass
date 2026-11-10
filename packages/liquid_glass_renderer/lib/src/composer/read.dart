@@ -354,7 +354,11 @@ final class ReadCopy {
     Rect rect,
     Offset at,
   ) {
-    final out = SceneOut(builder, lattice.deviceToCopy(rect, at));
+    final out = SceneOut(
+      builder,
+      lattice.deviceToCopy(rect, at),
+      flat: read.flat,
+    );
     final top = _form.top;
     if (top is OpenNode) _Replay(out, this, rect).from(top);
     out.finish();
@@ -446,6 +450,7 @@ final class _Replay {
   bool _addHeld(OpenNode open, List<SiteFacts>? parts) {
     final frame = copy._form.frame;
     if (open.holdsComposed ||
+        open.drawnByKind ||
         open.contentAt == frame ||
         open.heldFrame == frame ||
         open.end - open.order < _heldLayers) {
