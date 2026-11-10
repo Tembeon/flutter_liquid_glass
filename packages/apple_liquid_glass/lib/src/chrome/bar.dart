@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:apple_liquid_glass/src/chrome/bar_entry.dart';
 import 'package:apple_liquid_glass/src/chrome/navigation_bar.dart';
@@ -1737,55 +1736,49 @@ class _RenderBarItems extends RenderBox
       }
       final box = child;
       final origin = offset + frame.center - box.size.center(Offset.zero);
-      final transform = Matrix4.identity();
+      // The lift and the scale, in the coordinates of the item's origin.
+      Matrix4? transform;
       if (bar.liftOf(id) case final lift?) {
-        transform.translateByDouble(offset.dx, offset.dy, 0, 1);
+        transform = Matrix4.translationValues(
+          offset.dx - origin.dx,
+          offset.dy - origin.dy,
+          0,
+        );
         transform.multiply(lift);
-        transform.translateByDouble(-offset.dx, -offset.dy, 0, 1);
+        transform.translateByDouble(
+          origin.dx - offset.dx,
+          origin.dy - offset.dy,
+          0,
+          1,
+        );
       }
       if (frame.scale != 1) {
-        final c = frame.center + offset;
+        final c = box.size.center(Offset.zero);
+        transform ??= Matrix4.identity();
         transform.translateByDouble(c.dx, c.dy, 0, 1);
         transform.scaleByDouble(frame.scale, frame.scale, 1, 1);
         transform.translateByDouble(-c.dx, -c.dy, 0, 1);
       }
-      handle.layer = context.pushTransform(
-        needsCompositing,
+      final alpha = (frame.presence * 255).round();
+      // One layer whose blur the glass over the bar knows the reach of: an
+      // item that blurs in then lies in the copies of the glass it is under,
+      // not in every copy of the frame.
+      final held = handle.layer;
+      final layer = held is MotionTransitionLayer
+          ? held
+          : MotionTransitionLayer();
+      layer.offset = origin;
+      layer.update(
+        transform: transform,
+        clip: null,
+        alpha: alpha >= 255 ? null : alpha,
+        blur: frame.blur <= 0.05 ? 0 : frame.blur / 2,
+      );
+      handle.layer = layer;
+      context.pushLayer(
+        layer,
+        (context, _) => context.paintChild(box, Offset.zero),
         Offset.zero,
-        transform,
-        (context, _) {
-          void draw(PaintingContext context, Offset at) =>
-              context.paintChild(box, at);
-          void blurred(PaintingContext context, Offset at) {
-            if (frame.blur <= 0.05) {
-              draw(context, at);
-              return;
-            }
-            context.pushLayer(
-              ImageFilterLayer(
-                imageFilter: ui.ImageFilter.blur(
-                  sigmaX: frame.blur / 2,
-                  sigmaY: frame.blur / 2,
-                ),
-              ),
-              draw,
-              at,
-            );
-          }
-
-          if (frame.presence >= 1) {
-            blurred(context, origin);
-          } else {
-            context.pushOpacity(
-              origin,
-              (frame.presence * 255).round(),
-              blurred,
-            );
-          }
-        },
-        oldLayer: handle.layer is TransformLayer
-            ? handle.layer! as TransformLayer
-            : null,
       );
       child = childAfter(child);
     }
