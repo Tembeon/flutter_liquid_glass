@@ -64,6 +64,41 @@ vec2 frostLatticeRead(float f, float first, float k, float cut) {
     return vec2(first + weights.y / max(both, 1e-6), both);
 }
 
+// The body of [frostLattice] for a square of N pairs of texels a side, N a
+// constant, so the reads are written out and run side by side: read in a
+// loop whose length the frost sets, each waits for the last, and the same
+// 36 took 2.1 ms more of GPU time per frame from a Pixel 6a's tab bar. The
+// weights and the places are found once an axis, 2 N of them for N * N
+// reads.
+#define FROST_LATTICE(N) { \
+    float ratio2 = min(wide2 * 9.0 / float(N * N), 1.69) / 1.7956; \
+    float k = -0.5 * (1.0 - ratio2 * ratio2 * ratio2 * sqrt(ratio2)) / wide2; \
+    float cut = exp(float(N * N) * k); \
+    highp float xs[N]; \
+    highp float ys[N]; \
+    float xw[N]; \
+    float yw[N]; \
+    vec2 total = vec2(0.0); \
+    for (int i = 0; i < N; i++) { \
+        float first = float(2 * i - (N - 1)); \
+        vec2 x = frostLatticeRead(f.x, first, k, cut); \
+        vec2 y = frostLatticeRead(f.y, first, k, cut); \
+        xs[i] = clamp(origin.x + x.x * invSize.x, lo.x, hi.x); \
+        ys[i] = clamp(origin.y + y.x * invSize.y, lo.y, hi.y); \
+        xw[i] = x.y; \
+        yw[i] = y.y; \
+        total += vec2(x.y, y.y); \
+    } \
+    for (int i = 0; i < N; i++) { \
+        vec4 row = vec4(0.0); \
+        for (int j = 0; j < N; j++) { \
+            row += yw[j] * texture(copy, vec2(xs[i], ys[j])); \
+        } \
+        frost += xw[i] * row; \
+    } \
+    frost /= total.x * total.y; \
+}
+
 // A Gaussian frost of [copy] around [uv] by [sigma] texels, at most what
 // [frostFitsLattice] allows, each read clamped to [lo, hi] in uv. [invSize]
 // is one texel in uv.
@@ -72,10 +107,10 @@ vec2 frostLatticeRead(float f, float first, float k, float cut) {
 // under it comes out as that many points, a thin line as three and an edge
 // as steps: on the iPhone stars under clear glass were small flowers and a
 // crescent had stairs. Here every texel the Gaussian reaches is weighted,
-// two to a bilinear read: three to eight reads an axis, by the frost's
-// width, over a square of six to sixteen texels. The copy is a fraction of
-// the screen's pixels, so the reads are few against the screen's: nine a
-// copy pixel for a frost up to 1.3 texels wide, 64 for the widest, over a
+// two to a bilinear read: 3, 4, 6 or 8 reads an axis, by the frost's
+// width, over a square of 6 to 16 texels. The copy is a fraction of the
+// screen's pixels, so the reads are few against the screen's: nine a copy
+// pixel for a frost up to 1.3 texels wide, 64 for the widest, over a
 // sixteenth of the pixels the glass covers.
 //
 // Each weight is cut by the Gaussian's value at the square's edge, where a
@@ -98,32 +133,17 @@ vec4 frostLattice(
 ) {
     float wide2 = sigma * sigma + 0.16667;
     // A square of n pairs a side holds a Gaussian up to 1.3 / 3 of n wide.
-    float pairs = clamp(ceil(sqrt(wide2) * 2.3077), 3.0, 8.0);
-    float ratio2 = min(wide2 * 9.0 / (pairs * pairs), 1.69) / 1.7956;
-    float k = -0.5 * (1.0 - ratio2 * ratio2 * ratio2 * sqrt(ratio2)) / wide2;
-    float cut = exp(pairs * pairs * k);
+    float pairs = sqrt(wide2) * 2.3077;
     highp vec2 at = uv / invSize - 0.5;
     highp vec2 base = floor(at);
     vec2 f = at - base;
     highp vec2 origin = (base + 0.5) * invSize;
     vec4 frost = vec4(0.0);
-    float total = 0.0;
-    int side = int(pairs);
-    for (int i = 0; i < side; i++) {
-        vec2 x = frostLatticeRead(
-            f.x, float(2 * i) - (pairs - 1.0), k, cut);
-        for (int j = 0; j < side; j++) {
-            vec2 y = frostLatticeRead(
-                f.y, float(2 * j) - (pairs - 1.0), k, cut);
-            float weight = x.y * y.y;
-            total += weight;
-            frost += weight * texture(
-                copy,
-                clamp(origin + vec2(x.x, y.x) * invSize, lo, hi)
-            );
-        }
-    }
-    return frost / total;
+    if (pairs <= 3.0) FROST_LATTICE(3)
+    else if (pairs <= 4.0) FROST_LATTICE(4)
+    else if (pairs <= 6.0) FROST_LATTICE(6)
+    else FROST_LATTICE(8)
+    return frost;
 }
 
 // A sparse frost for a shader with registers to spare, its offsets written
