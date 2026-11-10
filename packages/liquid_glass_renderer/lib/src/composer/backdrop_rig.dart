@@ -198,43 +198,94 @@ CopyFrost? frostFilterOf(FrostSampling sampling) {
   final key = (sampling.size, sampling.bounds, sampling.frost, sampling.shown);
   if (_inPlaceFilters[key] case final held?) return held;
   if (_inPlaceFilters.length >= 32) _inPlaceFilters.clear();
-  if (_axesOf(sampling) case final axes?) return _inPlaceFilters[key] = axes;
+  final lattice = sampling.frost > 0 ? _latticeOf(sampling) : null;
+  if (lattice != null) return _inPlaceFilters[key] = lattice;
   _setFrost(shader, sampling, null);
   shader.setImageSampler(0, _bilinear, filterQuality: FilterQuality.low);
   // The one shader holds other uniforms by the time a scene takes this.
-  return _inPlaceFilters[key] = CopyFrost._([shaderFilterNow(shader)]);
+  final sparse = CopyFrost._([shaderFilterNow(shader)]);
+  // Sparse taps that stand in until the lattice's program loads are not
+  // kept.
+  final standsIn =
+      sampling.frost > 0 && sampling.frost * sampling.frost <= _latticeWidest;
+  return standsIn ? sparse : _inPlaceFilters[key] = sparse;
 }
 
 ui.FragmentShader? _axisFrost;
+ui.FragmentShader? _squareFrost;
 
-/// The reads of one axis of frostLattice (frost.glsl) by [frost] of the
+/// The reads of one axis of the frost drawn into a copy by [frost] of the
 /// copy's pixels, seen from the center of a pixel: where each lies, in
 /// pixels from it, and its weight; eight of each, the ones a narrower frost
 /// leaves out weighing nothing. The weights add up to one.
 ///
-/// Each read stands for two pixels, read between them by their weights, and
-/// every weight is cut by the Gaussian's value at the edge of the pixels
-/// read, as the shader cuts it.
+/// The one place the frost's shape is worked out. It is a Gaussian over the
+/// copy's own pixels, every one it reaches weighed: three, four, six or
+/// eight reads, by the frost's width, each standing for two pixels and read
+/// between them by their weights. A sparse frost reads a few points of a
+/// wide Gaussian, so a bright point under it comes out as that many points
+/// and an edge as steps: on the iPhone stars under clear glass were small
+/// flowers and a crescent had stairs.
+///
+/// Every weight is cut by the Gaussian's value at the edge of the pixels
+/// read, so nothing steps where a pixel enters or leaves them. The cut
+/// narrows the Gaussian, so the one weighed is as much wider as makes what
+/// is left the width asked; the widest the pixels read can hold is what the
+/// cut leaves of a flat one, and a frost that asks for more gets that.
+/// [frost] is what a bilinear read of the copy leaves for the taps; a sixth
+/// of a pixel squared more is the Gaussian over the pixels themselves.
 @internal
 ({List<double> offsets, List<double> weights}) latticeTaps(double frost) {
   final wide = frost * frost + 1 / 6;
+  // n pairs hold a Gaussian up to 1.3 / 3 of n wide.
   final asked = sqrt(wide) * 2.3077;
-  final pairs = asked <= 4
+  final pairs = asked <= 3
+      ? 3
+      : asked <= 4
       ? 4
       : asked <= 6
       ? 6
       : 8;
-  final ratio = min(wide * 9 / (pairs * pairs), 1.69) / 1.7956;
-  final k = -0.5 * (1 - ratio * ratio * ratio * sqrt(ratio)) / wide;
-  final cut = exp(pairs * pairs * k);
-  double weightAt(int pixel) => max(exp(k * pixel * pixel) - cut, 0);
+  final edge = pairs * pairs;
+  // The weight of the pixel [pixel] from the center under exp(k x^2) cut at
+  // the edge; as k goes to nothing, the parabola the cut leaves of a flat
+  // Gaussian.
+  double weightAt(int pixel, double k) => k == 0
+      ? (edge - pixel * pixel).toDouble()
+      : max(exp(k * pixel * pixel) - exp(k * edge), 0);
+  double widthOf(double k) {
+    var total = 0.0;
+    var spread = 0.0;
+    for (var pixel = 1 - pairs; pixel < pairs; pixel++) {
+      final weight = weightAt(pixel, k);
+      total += weight;
+      spread += weight * pixel * pixel;
+    }
+    return spread / total;
+  }
+
+  // The flatter the Gaussian, the wider what the cut leaves of it.
+  var k = 0.0;
+  if (widthOf(0) > wide) {
+    var narrow = -64.0;
+    var flat = 0.0;
+    for (var i = 0; i < 48; i++) {
+      final middle = (narrow + flat) / 2;
+      if (widthOf(middle) < wide) {
+        narrow = middle;
+      } else {
+        flat = middle;
+      }
+    }
+    k = (narrow + flat) / 2;
+  }
   final offsets = List<double>.filled(8, 0);
   final weights = List<double>.filled(8, 0);
   var total = 0.0;
   for (var i = 0; i < pairs; i++) {
     final first = 2 * i - (pairs - 1);
-    final near = weightAt(first);
-    final far = weightAt(first + 1);
+    final near = weightAt(first, k);
+    final far = weightAt(first + 1, k);
     final both = near + far;
     offsets[i] = first + far / max(both, 1e-6);
     weights[i] = both;
@@ -246,30 +297,46 @@ ui.FragmentShader? _axisFrost;
   return (offsets: offsets, weights: weights);
 }
 
-// The frost of [sampling] as a pass along x and one along y over what it
-// left, or null where one pass draws it: a frost up to three pairs of the
-// copy's pixels a side, one too wide for the lattice (frostFitsLattice in
-// frost.glsl), and before the axis program is loaded.
+// The widest frost, in the copy's pixels squared, eight pairs of them hold:
+// what a copy picked for its frost spans (CopyNeed, geometry.dart). A copy
+// finer than was asked, such as one that holds glass, leaves a wider frost
+// to the sparse taps.
+const _latticeWidest = 11.87;
+
+// The widest frost, in the copy's pixels squared, three pairs hold: one
+// pass of nine reads draws it. A wider one is a pass an axis.
+const _squareWidest = 1.5235;
+
+// The frost of [sampling] over every pixel of the copy it reaches, or null
+// where the sparse taps draw it: a frost too wide for eight pairs of the
+// copy's pixels, and before the program is loaded.
 //
-// The lattice's weights are a product of the axes', so the two passes draw
-// the same square: 12 reads a pixel of the copy for 36 under a bar's glass,
-// and none of the weighing, which is the same for every pixel of a copy
-// frosted at its own pixels.
-CopyFrost? _axesOf(FrostSampling sampling) {
+// A frost of three pairs is one pass of nine reads. A wider one is a pass
+// along x and one along y over what it left: its weights are a product of
+// the axes', so they draw the same square with 2 n reads for n * n, 12 a
+// pixel of the copy for 36 at six pairs. Every pixel of a copy frosted at
+// its own pixels takes the same weights, so the programs are their reads.
+CopyFrost? _latticeOf(FrostSampling sampling) {
   final FrostSampling(:size, :bounds, :frost) = sampling;
   final wide = frost * frost;
-  if (wide <= 1.5235 || wide > 11.87) return null;
-  final shader = _axisFrost ??= MultiShaderBuilder.cached(
-    ShaderKeys.backdropFrostAxis,
-  )?.fragmentShader();
+  if (wide > _latticeWidest) return null;
+  final square = wide <= _squareWidest;
+  final key = square
+      ? ShaderKeys.backdropFrostSquare
+      : ShaderKeys.backdropFrostAxis;
+  final held = square ? _squareFrost : _axisFrost;
+  final shader = held ?? MultiShaderBuilder.cached(key)?.fragmentShader();
   if (shader == null) {
-    unawaited(
-      MultiShaderBuilder.precacheShader(ShaderKeys.backdropFrostAxis),
-    );
+    unawaited(MultiShaderBuilder.precacheShader(key));
     return null;
   }
+  if (square) {
+    _squareFrost = shader;
+  } else {
+    _axisFrost = shader;
+  }
   final taps = latticeTaps(frost);
-  ui.ImageFilter along(double x, double y) {
+  ui.ImageFilter pass(List<double> rest) {
     final uniforms = [
       size.width,
       size.height,
@@ -277,19 +344,25 @@ CopyFrost? _axesOf(FrostSampling sampling) {
       bounds.top,
       bounds.right,
       bounds.bottom,
-      x,
-      y,
-      ...taps.offsets,
-      ...taps.weights,
+      ...rest,
     ];
     for (final (i, value) in uniforms.indexed) {
       shader.setFloat(i, value);
     }
     shader.setImageSampler(0, _bilinear, filterQuality: FilterQuality.low);
+    // The one shader holds other uniforms by the time a scene takes this.
     return shaderFilterNow(shader);
   }
 
-  return CopyFrost._([along(0, 1), along(1, 0)]);
+  if (square) {
+    return CopyFrost._([
+      pass([...taps.offsets.take(3), ...taps.weights.take(3)]),
+    ]);
+  }
+  return CopyFrost._([
+    pass([0, 1, ...taps.offsets, ...taps.weights]),
+    pass([1, 0, ...taps.offsets, ...taps.weights]),
+  ]);
 }
 
 // Chrome over a scroll keeps a copy's place, so its filter too.

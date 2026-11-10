@@ -124,7 +124,7 @@ final class CopyNeed {
   ///
   /// NEAR: the copy is one step coarser than Impeller's own blur would
   /// take, so a weak frost spans 1 to 2 of its pixels and is drawn into it
-  /// in one pass of nine reads a pixel (frostLattice in frost.glsl), a
+  /// in one pass of nine reads a pixel (latticeTaps in backdrop_rig.dart), a
   /// bar's 2.2 logical pixels over a sixteenth of the screen's pixels where
   /// the finer copy took two passes over a quarter. Text and thin lines are
   /// drawn into the copy at its scale and land up to half of its pixel from
@@ -424,7 +424,7 @@ abstract final class ImpellerLayers {
 /// NEAR: the glass takes one read for its 12 taps per fragment, over a copy
 /// of a quarter of the screen's pixels along each side where the frost spans
 /// at least one of them. The frost drawn into the copy weighs every pixel of
-/// the copy it reaches (frostLattice in frost.glsl), where the glass's own
+/// the copy it reaches (latticeTaps in backdrop_rig.dart), where the glass's own
 /// taps are sparse: a point under the glass stays one point, and white bars
 /// lie 8 to 13 levels from what reading the backdrop draws at a frost of 5
 /// to 12, against 17 to 27 through the taps (host test, dpr 1). On a Pixel

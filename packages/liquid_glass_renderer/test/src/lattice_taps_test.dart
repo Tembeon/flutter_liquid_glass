@@ -19,7 +19,7 @@ void main() {
     return pixels;
   }
 
-  for (final frost in [1.3, 1.7, 2.4, 3.0, 3.4]) {
+  for (final frost in [0.6, 0.9, 1.2, 1.3, 1.7, 2.4, 3.0, 3.4]) {
     test('an axis of a frost by $frost pixels is a Gaussian of that '
         'width around the pixel', () {
       final pixels = pixelsOf(frost);
@@ -35,8 +35,14 @@ void main() {
       expect(total, closeTo(1, 1e-9));
       expect(mean, closeTo(0, 1e-9));
       // The copy's pixels are a sixth of a pixel squared wider than the
-      // frost left for a bilinear read of them.
-      expect(sqrt(variance), closeTo(sqrt(frost * frost + 1 / 6), 0.03));
+      // frost left for a bilinear read of them. Three pairs hold a width of
+      // 1.265 at most and four 1.732: a frost at the top of their ranges
+      // gets that.
+      final asked = sqrt(frost * frost + 1 / 6);
+      expect(
+        sqrt(variance),
+        closeTo(asked, asked > 1.26 && asked < 1.27 ? 0.01 : 0.002),
+      );
     });
   }
 }

@@ -45,17 +45,20 @@ void main() {
     vec2 uv = fragment * uScale * invSize;
     vec2 lo = uBounds.xy * invSize;
     vec2 hi = uBounds.zw * invSize;
-    // Every texel the frost reaches, where a copy picked for it is read; a
-    // few sparse taps where the copy is finer than the frost asked.
+    // A copy that holds its frost is read once. One that does not, at the
+    // screen's pixels or finer than its frost asked, takes sparse taps: a
+    // frost that weighs every pixel is drawn into a copy at the copy's own
+    // pixels (backdrop_frost_square.frag, backdrop_frost_axis.frag).
     vec4 color;
     if (uFrost <= 0.0) {
-        // A copy that holds its frost already.
         color = texture(uCopy, clamp(uv, lo, hi));
-    } else if (frostFitsLattice(uFrost)) {
-        color = frostLattice(uCopy, uv, uFrost, invSize, lo, hi);
     } else {
-        color = frostSixteen(
-            uCopy, uv, uFrost, invSize * frostMirror(fragment), lo, hi);
+        highp vec2 mirrored = invSize * frostMirror(fragment);
+        if (uFrost > 2.8) {
+            color = frostSixteen(uCopy, uv, uFrost, mirrored, lo, hi);
+        } else {
+            color = frostEight(uCopy, uv, uFrost, mirrored, lo, hi);
+        }
     }
     vec3 rgb = color.a > 0.0 ? color.rgb / color.a : vec3(0.0);
     vec4 filtered = clamp(uMatrix * vec4(rgb, color.a) + uOffset, 0.0, 1.0);

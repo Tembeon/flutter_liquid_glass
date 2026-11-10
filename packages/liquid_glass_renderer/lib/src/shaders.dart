@@ -22,6 +22,10 @@ abstract class ShaderKeys {
   static final String backdropFrost =
       '${_shadersRoot}build/shaderbundles/backdrop_frost.iplr';
 
+  /// The compiled shader that draws a narrow frost into a copy in one pass.
+  static final String backdropFrostSquare =
+      '${_shadersRoot}build/shaderbundles/backdrop_frost_square.iplr';
+
   /// The compiled shader that draws one axis of a frost into a copy.
   static final String backdropFrostAxis =
       '${_shadersRoot}build/shaderbundles/backdrop_frost_axis.iplr';
