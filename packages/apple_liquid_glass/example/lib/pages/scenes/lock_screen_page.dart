@@ -73,6 +73,9 @@ class _LockScreenPageState extends State<LockScreenPage> {
   late DateTime _now = DateTime.now();
   Timer? _tick;
   var _open = false;
+  // Whether the cards under the first lie stacked: set once they have slid
+  // back, so they stay glass on the way.
+  var _stacked = true;
   var _torch = false;
   var _pull = 0.0;
 
@@ -175,7 +178,6 @@ class _LockScreenPageState extends State<LockScreenPage> {
           child: SizedBox(
             height: 64,
             child: GlassSurface(
-              glass: Glass.clear(),
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 18),
                 child: Row(
@@ -218,7 +220,9 @@ class _LockScreenPageState extends State<LockScreenPage> {
 
   // Closed, the cards lie on one another, each a little smaller and lower
   // than the one above; open, they stand in a list. One group draws them,
-  // so the stack reads what lies behind it once.
+  // so the list reads what lies behind it once. A card that lies under the
+  // first is a plain edge peeking out: glass there would fuse with the
+  // first card into one body with steps at its corners.
   Widget _notifications(double width) {
     const height = 74.0;
     const gap = 8.0;
@@ -226,7 +230,10 @@ class _LockScreenPageState extends State<LockScreenPage> {
     final total = _open ? count * height + (count - 1) * gap : height + 20;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => setState(() => _open = !_open),
+      onTap: () => setState(() {
+        _open = !_open;
+        if (_open) _stacked = false;
+      }),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 420),
         curve: Curves.easeOutCubic,
@@ -244,10 +251,15 @@ class _LockScreenPageState extends State<LockScreenPage> {
                   right: _open ? 0 : i * 10.0,
                   top: _open ? i * (height + gap) : i * 10.0,
                   height: height,
-                  child: _Notification(
-                    note: _notes[i],
-                    showsText: _open || i == 0,
-                  ),
+                  onEnd: i == count - 1
+                      ? () => setState(() => _stacked = !_open)
+                      : null,
+                  child: i > 0 && _stacked
+                      ? _Peek(depth: i)
+                      : _Notification(
+                          note: _notes[i],
+                          showsText: _open || i == 0,
+                        ),
                 ),
             ],
           ),
@@ -333,9 +345,9 @@ class _Gauge extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox.square(
     dimension: 64,
+    // Regular glass: clear glass this small bends a photo into noise.
     child: GlassSurface(
       shape: const GlassShape.oval(),
-      glass: const Glass.clear(),
       child: CustomPaint(
         painter: _Ring(progress, color),
         child: Center(child: child),
@@ -376,6 +388,23 @@ class _Ring extends CustomPainter {
   @override
   bool shouldRepaint(_Ring old) =>
       old.progress != progress || old.color != color;
+}
+
+/// The edge of a card that lies under the first of a closed stack.
+class _Peek extends StatelessWidget {
+  const _Peek({required this.depth});
+
+  final int depth;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: ShapeDecoration(
+      color: _white.withValues(alpha: 0.26 / depth),
+      shape: RoundedSuperellipseBorder(
+        borderRadius: BorderRadius.circular(24),
+      ),
+    ),
+  );
 }
 
 class _Notification extends StatelessWidget {

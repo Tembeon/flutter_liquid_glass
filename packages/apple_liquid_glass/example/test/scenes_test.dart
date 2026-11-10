@@ -104,11 +104,15 @@ void main() {
     await _open(tester, 'Lock Screen');
     expect(find.byType(LockScreenPage), findsOneWidget);
     double top(String title) => tester.getTopLeft(find.text(title)).dy;
-    // Stacked, the cards lie ten points apart; open, a card apart.
-    expect(top('Weather') - top('Tim'), closeTo(20, 1));
+    // Stacked, only the first card is a notification; open, they stand a
+    // card apart; closed again, the others are edges under the first.
+    expect(find.text('Weather'), findsNothing);
     await tester.tap(find.text('Tim'));
     await _frames(tester);
     expect(top('Weather') - top('Tim'), closeTo(164, 1));
+    await tester.tap(find.text('Tim'));
+    await _frames(tester);
+    expect(find.text('Weather'), findsNothing);
 
     await tester.fling(
       find.text('Swipe up to open'),
