@@ -76,7 +76,7 @@ enum TileKind {
 }
 
 /// Consecutive ring tiles of one table row that evaluate the same shapes at
-/// the same density.
+/// the same density, or a block of such rows ([tall]).
 @internal
 @immutable
 final class TileRun {
@@ -88,9 +88,10 @@ final class TileRun {
     this.shapes,
     this.texel, [
     this.members = 0,
+    this.tall = 1,
   ]);
 
-  /// The table row.
+  /// The table row, the first of [tall].
   final int row;
 
   /// The first tile's column.
@@ -111,6 +112,10 @@ final class TileRun {
   /// place in the set plus one, and 0x80 where it is the first of its group
   /// among them. 0 when the texels evaluate the whole set.
   final int members;
+
+  /// How many table rows the run spans: 1, or up to [Tiling.blockTiles]
+  /// for a block of coarse tiles, whose strip is one piece.
+  final int tall;
 
   /// [members] as the places in the set and whether each starts its group.
   List<(int, bool)> get listed => [
@@ -537,6 +542,24 @@ final class Tiling {
         final set = tileSets[tile];
         final members = lists[tile];
         final density = coarseTexel == 1 ? 1 : fine[tile];
+        if (density == _inBlock) {
+          // A block's tiles are one run, met at its first tile.
+          if (row % blockTiles == 0 && column % blockTiles == 0) {
+            runs.add(
+              TileRun(
+                row,
+                column,
+                min(blockTiles, columns - column),
+                set,
+                coarseTexel,
+                members,
+                min(blockTiles, rows - row),
+              ),
+            );
+          }
+          column += blockTiles - column % blockTiles;
+          continue;
+        }
         var end = column + 1;
         while (end < columns &&
             end - column < maxRunTiles &&
@@ -603,6 +626,13 @@ final class Tiling {
 
   /// The longest run: short strips fill an atlas row with little left over.
   static const int maxRunTiles = 8;
+
+  /// The side of a block in tiles: smooth coarse content is tiled in
+  /// blocks, each one run ([TileRun.tall]).
+  static const int blockTiles = 4;
+
+  // What a tile's density says where the tile is part of a block.
+  static const int _inBlock = 2;
 
   /// The most shapes a run lists ([TileRun.members]): what one vertex
   /// carries to the geometry pass.
@@ -917,6 +947,13 @@ final class _ShapeGroups {
 /// first: what holds over a block holds for each of its tiles, so a block
 /// past every reach is skipped, a deep block is deep throughout, and the
 /// tiles of any other bound only the members that change the block.
+///
+/// A block only one group reaches is not bounded tile by tile where it is
+/// one thing as a whole: deep, past the ring, or crossed by the ring
+/// without a fold. The last is one piece of coarse texels, which hold
+/// what its outside and deep tiles would have held as constants. That is
+/// most of a large smooth outline, for a few more coarse texels where the
+/// ring only clips a block.
 final class _Classifier {
   _Classifier({
     required this.columns,
@@ -929,6 +966,11 @@ final class _Classifier {
        _deep = Uint8List(columns * rows),
        _listed = Uint8List(columns * rows),
        _seamGroup = Int32List(columns * rows)..fillRange(0, columns * rows, -1),
+       _claims = Int32List(
+         _blocksOver(columns) * _blocksOver(rows),
+       )..fillRange(0, _blocksOver(columns) * _blocksOver(rows), _free),
+       _claimKinds = Uint8List(_blocksOver(columns) * _blocksOver(rows)),
+       _claimLists = Uint32List(_blocksOver(columns) * _blocksOver(rows)),
        _coarse = reach.coarseTexel > 1,
        _outward = reach.outward,
        _inward = reach.inward,
@@ -942,11 +984,36 @@ final class _Classifier {
        // lists every group that comes this near.
        _blended = reach.outward + 1.5 * reach.coarseTexel;
 
-  static const int blockTiles = 4;
+  static const int blockTiles = Tiling.blockTiles;
+
+  static int _blocksOver(int tiles) => (tiles + blockTiles - 1) ~/ blockTiles;
+
+  // A block no group has reached, and one bounded tile by tile.
+  static const int _free = -1;
+  static const int _byTile = -2;
 
   final int columns;
   final int rows;
   final bool listable;
+
+  // Each block's claim: the one group that reaches it, or [_free] or
+  // [_byTile]; what a claimed block is as a whole ([_whole]); and the list
+  // of a smooth one.
+  final Int32List _claims;
+  final Uint8List _claimKinds;
+  final Uint32List _claimLists;
+
+  static const int _none = 0;
+  static const int _smooth = 1;
+  static const int _margin = 2;
+  static const int _deepBlock = 3;
+
+  // What each group was added with, for a block it claimed that another
+  // group reaches after all.
+  final List<List<int>> _members = [];
+  final List<List<_ShapeBounds>> _blockBounds = [];
+  final List<bool> _sharp = [];
+  List<_ShapeBounds> _tileBounds = const [];
   final Uint8List _kinds;
   final Uint8List _fine;
   final Uint32List _lists;
@@ -968,11 +1035,33 @@ final class _Classifier {
   final List<_ShapeBounds> _near = [];
   final List<int> _nearIndices = [];
 
-  /// Each tile's kind, whether it keeps one texel a pixel, and its list.
+  /// Each tile's kind, its density (whether it keeps one texel a pixel, or
+  /// is part of a block), and its list.
   (Uint8List, Uint8List, Uint32List) finish() {
     for (var tile = 0; tile < _kinds.length; tile++) {
       if (_deep[tile] != 0) _kinds[tile] = TileKind.deep.index;
       if (!listable || _listed[tile] > Tiling.maxListed) _lists[tile] = 0;
+    }
+    final blockColumns = _blocksOver(columns);
+    for (var block = 0; block < _claims.length; block++) {
+      if (_claims[block] < 0 || _claimKinds[block] == _margin) continue;
+      final deep = _claimKinds[block] == _deepBlock;
+      final left = block % blockColumns * blockTiles;
+      final top = block ~/ blockColumns * blockTiles;
+      final right = min(columns, left + blockTiles);
+      final bottom = min(rows, top + blockTiles);
+      for (var y = top; y < bottom; y++) {
+        for (var x = left; x < right; x++) {
+          final tile = y * columns + x;
+          if (deep) {
+            _kinds[tile] = TileKind.deep.index;
+          } else {
+            _kinds[tile] = TileKind.ring.index;
+            _fine[tile] = Tiling._inBlock;
+            _lists[tile] = _claimLists[block];
+          }
+        }
+      }
     }
     return (_kinds, _fine, _lists);
   }
@@ -992,8 +1081,8 @@ final class _Classifier {
     final count = members.length;
     if (_kept.length < count) _kept = Int32List(count);
     final reach = max(_blended, _seamReach);
-    final blockColumns = (columns + blockTiles - 1) ~/ blockTiles;
-    final blockRows = (rows + blockTiles - 1) ~/ blockTiles;
+    final blockColumns = _blocksOver(columns);
+    final blockRows = _blocksOver(rows);
     var c0 = blockColumns;
     var r0 = blockRows;
     var c1 = -1;
@@ -1011,42 +1100,111 @@ final class _Classifier {
       r1 = max(r1, bottom);
       shapes.add(blocks[i]);
     }
+    while (_members.length <= group) {
+      _members.add(const []);
+      _blockBounds.add(const []);
+      _sharp.add(false);
+    }
+    _members[group] = members;
+    _blockBounds[group] = shapes;
+    _sharp[group] = sharp;
+    _tileBounds = tiles;
     for (var row = r0; row <= r1; row++) {
       for (var column = c0; column <= c1; column++) {
-        final kept = _chain(shapes, count, column, row);
+        var kept = _chain(shapes, count, column, row);
         if (_lower >= reach) continue;
-        final left = column * blockTiles;
-        final top = row * blockTiles;
-        final right = min(columns, left + blockTiles) - 1;
-        final bottom = min(rows, top + blockTiles) - 1;
-        if (_upper <= -_inward) {
-          for (var y = top; y <= bottom; y++) {
-            for (var x = left; x <= right; x++) {
-              final tile = y * columns + x;
-              _meet(tile, group);
+        final block = row * blockColumns + column;
+        final claim = _claims[block];
+        if (claim == _free) {
+          final whole = _whole(shapes, kept, column, row, sharp);
+          if (whole != _none) {
+            _claims[block] = group;
+            _claimKinds[block] = whole;
+            var list = 0;
+            if (whole == _smooth && kept <= Tiling.maxListed) {
               for (var k = 0; k < kept; k++) {
-                _list(tile, members[_kept[k]], starts: k == 0);
+                list |=
+                    ((members[_kept[k]] + 1) | (k == 0 ? 0x80 : 0)) << (8 * k);
               }
-              _deep[tile] = 1;
             }
+            _claimLists[block] = list;
+            continue;
           }
-          continue;
         }
-        if (kept == 1) {
-          final i = members[_kept[0]];
-          _alone(group, tiles[i], i, left, top, right, bottom);
-          continue;
+        _claims[block] = _byTile;
+        if (claim >= 0) {
+          // Two groups meet here after all: the first is bounded tile by
+          // tile like this one.
+          _boundTiles(
+            claim,
+            _chain(_blockBounds[claim], _members[claim].length, column, row),
+            column,
+            row,
+          );
+          kept = _chain(shapes, count, column, row);
         }
-        _near.clear();
-        _nearIndices.clear();
-        for (var k = 0; k < kept; k++) {
-          final i = members[_kept[k]];
-          _near.add(tiles[i]);
-          _nearIndices.add(i);
-        }
-        _several(group, left, top, right, bottom, sharp: sharp);
+        _boundTiles(group, kept, column, row);
       }
     }
+  }
+
+  // What block [column], [row] is as a whole for the group whose [kept]
+  // members [_chain] just found over it, while no other group reaches it:
+  // deep throughout; past the ring, where the group only counts beside
+  // another's; or [_smooth], one piece of coarse texels, where its ring
+  // crosses the block and neither a member nor a narrow blend folds there.
+  // Else [_none].
+  int _whole(
+    List<_ShapeBounds> shapes,
+    int kept,
+    int column,
+    int row,
+    bool sharp,
+  ) {
+    if (_upper <= -_inward) return _deepBlock;
+    if (_lower >= _outward) return _margin;
+    if (!_coarse || !listable) return _none;
+    if (kept > 1 && sharp) return _none;
+    for (var k = 0; k < kept; k++) {
+      if (shapes[_kept[k]].foldsOverTile(column, row)) return _none;
+    }
+    return _smooth;
+  }
+
+  // Bounds the tiles of block [column], [row] for [group], whose [kept]
+  // members [_chain] just found over the block.
+  void _boundTiles(int group, int kept, int column, int row) {
+    final members = _members[group];
+    final left = column * blockTiles;
+    final top = row * blockTiles;
+    final right = min(columns, left + blockTiles) - 1;
+    final bottom = min(rows, top + blockTiles) - 1;
+    if (_upper <= -_inward) {
+      for (var y = top; y <= bottom; y++) {
+        for (var x = left; x <= right; x++) {
+          final tile = y * columns + x;
+          _meet(tile, group);
+          for (var k = 0; k < kept; k++) {
+            _list(tile, members[_kept[k]], starts: k == 0);
+          }
+          _deep[tile] = 1;
+        }
+      }
+      return;
+    }
+    if (kept == 1) {
+      final i = members[_kept[0]];
+      _alone(group, _tileBounds[i], i, left, top, right, bottom);
+      return;
+    }
+    _near.clear();
+    _nearIndices.clear();
+    for (var k = 0; k < kept; k++) {
+      final i = members[_kept[k]];
+      _near.add(_tileBounds[i]);
+      _nearIndices.add(i);
+    }
+    _several(group, left, top, right, bottom, sharp: _sharp[group]);
   }
 
   void _meet(int tile, int group) {
@@ -1587,9 +1745,9 @@ typedef AtlasPlace = ({int tableX, int tableY, int width, int height});
 /// cleared to the outside tile's table entry, so only deep and ring tiles
 /// write theirs. The table lies below them, one texel per tile, and the
 /// strips beside and below both: a run of n tiles of texels t pixels a
-/// side ([TileRun.texel]) is `16 n / t + 2` x `16 / t + 2` texels, with a
-/// one-texel apron evaluated like the rest, so a linear read between
-/// texels stays on exact values.
+/// side ([TileRun.texel]), m rows tall ([TileRun.tall]), is `16 n / t + 2`
+/// x `16 m / t + 2` texels, with a one-texel apron evaluated like the
+/// rest, so a linear read between texels stays on exact values.
 @internal
 @immutable
 final class AtlasLayout {
@@ -1600,20 +1758,25 @@ final class AtlasLayout {
     required this._runs,
   });
 
-  // Shelves of strips: the full-density strips first, then the coarse ones,
-  // each density on shelves of its own height, the shelves beside the
-  // constants and the table starting past them. A layout taller than
-  // [maxSize] does not fit; Tiling tiles such a ring again.
+  // Shelves of strips, the tallest strips first (the full-density strips
+  // and the blocks, then the coarse runs), each height on shelves of its
+  // own, the shelves beside the constants and the table starting past
+  // them. A layout taller than [maxSize] does not fit; Tiling tiles such a
+  // ring again.
   factory AtlasLayout._of(Tiling tiling, {int? width}) {
     final runs = tiling.runs;
     final headWidth = _headWidth(tiling);
     final headHeight = tableOrigin.$2 + tiling.rows;
     var atlasWidth = width ?? 0;
+    final heights = <int>[];
+    var area = headWidth * headHeight;
+    for (final run in runs) {
+      final height = _stripHeight(run);
+      area += _stripWidth(run) * height;
+      if (!heights.contains(height)) heights.add(height);
+    }
+    heights.sort((a, b) => b - a);
     if (width == null) {
-      var area = headWidth * headHeight;
-      for (final run in runs) {
-        area += _stripWidth(run) * (Tiling.size ~/ run.texel + 2);
-      }
       // An eighth over the area for what the shelves leave empty.
       atlasWidth = max(_leastWidth(tiling), sqrt(area * 1.125).ceil());
       atlasWidth = min(
@@ -1625,15 +1788,14 @@ final class AtlasLayout {
     var x = headWidth;
     var y = 0;
     var shelf = 0;
-    for (final fine in [true, false]) {
+    for (final height in heights) {
       for (var i = 0; i < runs.length; i++) {
         final run = runs[i];
-        if ((run.texel == 1) != fine) continue;
+        if (_stripHeight(run) != height) continue;
         final stripWidth = _stripWidth(run);
-        final stripHeight = Tiling.size ~/ run.texel + 2;
-        if (x + stripWidth > atlasWidth || stripHeight != shelf) {
+        if (x + stripWidth > atlasWidth || height != shelf) {
           y += shelf;
-          shelf = stripHeight;
+          shelf = height;
           x = y < headHeight ? headWidth : 0;
           if (x + stripWidth > atlasWidth) {
             y = headHeight;
@@ -1672,6 +1834,9 @@ final class AtlasLayout {
 
   static int _stripWidth(TileRun run) =>
       run.length * Tiling.size ~/ run.texel + 2;
+
+  static int _stripHeight(TileRun run) =>
+      run.tall * Tiling.size ~/ run.texel + 2;
 
   static const int _strip = Tiling.size + 2;
 
@@ -1712,10 +1877,11 @@ final class AtlasLayout {
   /// The table entry of the deep tiles of [look].
   static (int, int) deepEntryOf(int look) => ((look + 1) * _strip + 1, 1);
 
-  /// The table entry of tile [index] of [run]: the corner of the texel of
-  /// that tile's pixel (0, 0) in the run's strip.
-  (int, int) entryOf(int run, int index) => (
+  /// The table entry of tile [index] of [run], [down] rows below its
+  /// first: the corner of the texel of that tile's pixel (0, 0) in the
+  /// run's strip.
+  (int, int) entryOf(int run, int index, [int down = 0]) => (
     strips[run * 2] + 1 + index * Tiling.size ~/ _runs[run].texel,
-    strips[run * 2 + 1] + 1,
+    strips[run * 2 + 1] + 1 + down * Tiling.size ~/ _runs[run].texel,
   );
 }

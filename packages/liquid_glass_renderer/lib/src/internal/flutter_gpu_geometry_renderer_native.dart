@@ -662,18 +662,20 @@ final class _Pages {
     final runs = tiling.runs;
     for (var i = 0; i < runs.length; i++) {
       final run = runs[i];
-      final (entryX, entryY) = layout.entryOf(i, 0);
-      quads.fill(
-        tableX + run.column,
-        tableY + run.row,
-        run.length,
-        1,
-        entryX.toDouble(),
-        (top + entryY).toDouble(),
-        1 / run.texel,
-        1,
-        rampFrom: tableX + run.column,
-      );
+      for (var down = 0; down < run.tall; down++) {
+        final (entryX, entryY) = layout.entryOf(i, 0, down);
+        quads.fill(
+          tableX + run.column,
+          tableY + run.row + down,
+          run.length,
+          1,
+          entryX.toDouble(),
+          (top + entryY).toDouble(),
+          1 / run.texel,
+          1,
+          rampFrom: tableX + run.column,
+        );
+      }
     }
 
     void strip(int i, {required double reach, int base = 0, int count = 0}) {
@@ -685,7 +687,7 @@ final class _Pages {
         x,
         y,
         run.length * Tiling.size ~/ texel + 2,
-        Tiling.size ~/ texel + 2,
+        run.tall * Tiling.size ~/ texel + 2,
         bufferX: (run.column * Tiling.size - (x + 1) * texel).toDouble(),
         bufferY: (run.row * Tiling.size - (top + y + 1) * texel).toDouble(),
         texel: texel,

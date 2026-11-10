@@ -267,10 +267,13 @@ void _expectRunsPartitionRing(Tiling tiling) {
   final covered = Uint8List(tiling.columns * tiling.rows);
   for (final run in tiling.runs) {
     expect(run.length, inInclusiveRange(1, Tiling.maxRunTiles));
-    for (var i = 0; i < run.length; i++) {
-      final tile = run.row * tiling.columns + run.column + i;
-      expect(tiling.kindAt(run.column + i, run.row), TileKind.ring);
-      covered[tile]++;
+    expect(run.tall, inInclusiveRange(1, Tiling.blockTiles));
+    for (var down = 0; down < run.tall; down++) {
+      for (var i = 0; i < run.length; i++) {
+        final tile = (run.row + down) * tiling.columns + run.column + i;
+        expect(tiling.kindAt(run.column + i, run.row + down), TileKind.ring);
+        covered[tile]++;
+      }
     }
   }
   for (var row = 0; row < tiling.rows; row++) {
@@ -383,7 +386,7 @@ void main() {
           final left = run.column * Tiling.size - apron;
           final top = run.row * Tiling.size - apron;
           final right = (run.column + run.length) * Tiling.size + apron;
-          final bottom = (run.row + 1) * Tiling.size + apron;
+          final bottom = (run.row + run.tall) * Tiling.size + apron;
           for (var y = top; y <= bottom; y += 1) {
             for (var x = left; x <= right; x += 1) {
               for (final smooth in [true, false]) {
@@ -486,7 +489,7 @@ void main() {
           final members = run.listed;
           for (
             var y = run.row * Tiling.size - 2.0;
-            y <= (run.row + 1) * Tiling.size + 2;
+            y <= (run.row + run.tall) * Tiling.size + 2;
             y += 2
           ) {
             for (
@@ -778,12 +781,25 @@ void main() {
           height: 900,
           largest: 500,
         );
+        // Every other scene with coarse texels, whose smooth blocks are
+        // strips as tall as the fine ones.
         final tiling = Tiling.shapes(
           _encode(shapes),
           width: 1200,
           height: 900,
-          reach: const GlassReach(inward: 40, outward: 4),
+          reach: GlassReach(
+            inward: 40,
+            outward: 4,
+            coarseTexel: scene.isEven ? 1 : 4,
+          ),
         );
+        if (scene.isOdd) {
+          expect(tiling.runs.where((run) => run.tall > 1), isNotEmpty);
+          expect(
+            tiling.runs.where((run) => run.tall == 1 && run.texel > 1),
+            isNotEmpty,
+          );
+        }
         final atlas = tiling.layout;
         expect(atlas.width, lessThanOrEqualTo(AtlasLayout.maxSize));
         expect(atlas.height, lessThanOrEqualTo(AtlasLayout.maxSize));
@@ -796,8 +812,8 @@ void main() {
             (
               atlas.strips[i * 2],
               atlas.strips[i * 2 + 1],
-              tiling.runs[i].length * Tiling.size + 2,
-              Tiling.size + 2,
+              tiling.runs[i].length * Tiling.size ~/ tiling.runs[i].texel + 2,
+              tiling.runs[i].tall * Tiling.size ~/ tiling.runs[i].texel + 2,
             ),
         ];
         for (final (x, y, w, h) in rects) {
@@ -823,9 +839,10 @@ void main() {
           }
         }
         for (var i = 0; i < tiling.runs.length; i++) {
-          expect(atlas.entryOf(i, 2), (
-            atlas.strips[i * 2] + 1 + 2 * Tiling.size,
-            atlas.strips[i * 2 + 1] + 1,
+          final texels = Tiling.size ~/ tiling.runs[i].texel;
+          expect(atlas.entryOf(i, 2, 1), (
+            atlas.strips[i * 2] + 1 + 2 * texels,
+            atlas.strips[i * 2 + 1] + 1 + texels,
           ));
         }
       }

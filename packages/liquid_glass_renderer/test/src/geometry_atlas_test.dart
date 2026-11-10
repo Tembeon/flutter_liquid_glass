@@ -132,8 +132,14 @@ void main() {
     final expected = <(int, int), (int, int)>{};
     for (var i = 0; i < tiling.runs.length; i++) {
       final run = tiling.runs[i];
-      for (var t = 0; t < run.length; t++) {
-        expected[(run.column + t, run.row)] = layout.entryOf(i, t);
+      for (var down = 0; down < run.tall; down++) {
+        for (var t = 0; t < run.length; t++) {
+          expected[(run.column + t, run.row + down)] = layout.entryOf(
+            i,
+            t,
+            down,
+          );
+        }
       }
     }
     for (var row = 0; row < tiling.rows; row++) {
@@ -276,7 +282,7 @@ void main() {
       );
       for (final run in tiling.runs) {
         if (run.texel == 1) continue;
-        coarseTiles += run.length;
+        coarseTiles += run.length * run.tall;
         for (
           var x = run.column * Tiling.size;
           x < min(width, (run.column + run.length) * Tiling.size);
@@ -284,7 +290,7 @@ void main() {
         ) {
           for (
             var y = run.row * Tiling.size;
-            y < min(height, (run.row + 1) * Tiling.size);
+            y < min(height, (run.row + run.tall) * Tiling.size);
             y++
           ) {
             final exact = _strip(every, x, y);
@@ -440,7 +446,7 @@ void main() {
         fineTiles += run.length;
         continue;
       }
-      coarseTiles += run.length;
+      coarseTiles += run.length * run.tall;
       for (
         var x = run.column * Tiling.size;
         x < min(width, (run.column + run.length) * Tiling.size);
@@ -448,7 +454,7 @@ void main() {
       ) {
         for (
           var y = run.row * Tiling.size;
-          y < min(height, (run.row + 1) * Tiling.size);
+          y < min(height, (run.row + run.tall) * Tiling.size);
           y++
         ) {
           final exact = _strip(every, x, y);

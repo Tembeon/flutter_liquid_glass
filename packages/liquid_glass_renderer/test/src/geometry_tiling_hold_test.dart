@@ -107,6 +107,7 @@ void main() {
       final shift = (freshBounds.topLeft - heldBounds.topLeft) * 3;
       expect(shift.dx, closeTo(shift.dx.roundToDouble(), 1e-6));
       expect(shift.dy, closeTo(shift.dy.roundToDouble(), 1e-6));
+      final reach = fresh.debugTiling!.reach;
       var compared = 0;
       var worst = 0.0;
       for (var y = 0; y < (freshBounds.height * 3).round(); y++) {
@@ -115,7 +116,11 @@ void main() {
           final there = a.pixel(x + shift.dx.round(), y + shift.dy.round());
           if (here.$4 == 0 || there.$4 == 0) continue;
           compared++;
-          worst = max(worst, (here.$1 - there.$1).abs());
+          // What a read can tell apart: past the reach it is outside, or
+          // deep, whatever the texels there hold.
+          double told(double inward) =>
+              inward.clamp(-reach.outward, reach.inward);
+          worst = max(worst, (told(here.$1) - told(there.$1)).abs());
         }
       }
       expect(compared, greaterThan(20000));
