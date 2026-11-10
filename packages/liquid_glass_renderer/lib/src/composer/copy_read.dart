@@ -293,7 +293,10 @@ final class CornerRead {
     CopyFrost? inPlace,
   }) {
     final at = _at;
-    final engine = builder.pushTransform(deviceToLocal.storage);
+    final engine = builder.pushTransform(
+      (deviceToLocal.clone()..translateByDouble(-_below, -_below, 0, 1))
+          .storage,
+    );
     if (clip != null) builder.pushClipPath(clip, clipBehavior: Clip.hardEdge);
     builder
       ..pushImageFilter(filter)
@@ -311,6 +314,24 @@ final class CornerRead {
     builder.pop();
     return engine;
   }
+
+  // How far above and left of its pixels a read's layers are added, in
+  // device pixels.
+  //
+  // Impeller places a layer drawn inside another, such as the one a
+  // paragraph that fades at its edge is painted through, by the floor of its
+  // origin less the origin of the layer around it. Where the copy's edge
+  // cuts such a layer the two origins are the same number, less what 32-bit
+  // floats lose on the way: the copy's passes through the place of the glass
+  // on the screen, a fraction that moves with it. A hair above a whole pixel
+  // the floor is one pixel short, and the layer's content, all of the text,
+  // stood one pixel of the copy aside, up to four of the screen's, for the
+  // frames the glass spent there (a lens sweeping over faded text on a
+  // Pixel 6a: 46 to 58 frames in 12 s, none without the fade). Drawn a
+  // little below whole pixels the floor always falls the same way. The
+  // read's own layers are placed by rounding, so nothing on the screen
+  // moves.
+  static const double _below = 1 / 32;
 
   // A pixel cleared at each corner of a layer of [size], which holds Impeller
   // to the layer where the copy is transparent. Chrome keeps its few sizes
