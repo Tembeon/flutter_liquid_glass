@@ -141,9 +141,45 @@ final class FinalShaderVariant {
       !shape || kind == FinalShaderKind.single,
       'One shape has one appearance.',
     );
+    final index =
+        _indices[_code(kind, models, frost: frost, band: band, shape: shape)];
+    assert(index >= 0, 'No final shader for $kind $models.');
+    return index;
+  }
+
+  // Every answer of [indexOf], worked out once: glass asks for its variant
+  // several times a frame.
+  static final List<int> _indices = [
+    for (final kind in FinalShaderKind.values)
+      for (final models in FinalShaderModels.values)
+        for (final frost in const [false, true])
+          for (final band in const [false, true])
+            for (final shape in const [false, true])
+              _find(kind, models, frost: frost, band: band, shape: shape),
+  ];
+
+  static int _code(
+    FinalShaderKind kind,
+    FinalShaderModels models, {
+    required bool frost,
+    required bool band,
+    required bool shape,
+  }) =>
+      (kind.index * FinalShaderModels.values.length + models.index) * 8 +
+      (frost ? 4 : 0) +
+      (band ? 2 : 0) +
+      (shape ? 1 : 0);
+
+  static int _find(
+    FinalShaderKind kind,
+    FinalShaderModels models, {
+    required bool frost,
+    required bool band,
+    required bool shape,
+  }) {
     final general = kind == FinalShaderKind.material;
     final shaded = general ? FinalShaderModels.all : models;
-    final index = all.indexWhere(
+    return all.indexWhere(
       (variant) =>
           variant.kind == kind &&
           variant.models == shaded &&
@@ -151,7 +187,5 @@ final class FinalShaderVariant {
           variant.band == band &&
           variant.shape == shape,
     );
-    assert(index >= 0, 'No final shader for $kind $models.');
-    return index;
   }
 }
