@@ -1354,8 +1354,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // A pass that changes size counts the frames it holds still in the poll. A
   // shape under the glass's own repaint boundary changes nothing around it.
+  // Hidden glass paints nothing that clears either mark, and has nothing a
+  // poll could move.
   @override
-  bool get mayRest => !link.isDirty && !needsGeometryUpdate;
+  bool get mayRest =>
+      frameState == GlassFrameState.idle ||
+      !link.isDirty && !needsGeometryUpdate;
 
   // This frame's place on the screen: the glass's transform to the screen, the
   // logical rect the shader draws, the material it paints there and the sigma
