@@ -139,22 +139,7 @@ bool isRectilinearTransform(Matrix4 transform) {
 ///
 /// Each clip is mapped to the screen as [RenderObject.getTransformTo] with a
 /// null target maps its owner, in one walk from the root down.
-Rect? screenClipAbove(RenderObject node) =>
-    _screenClipAbove(node, clipOfAncestor);
-
-/// Intersection of every clip that is actually painted above [node], in screen
-/// coordinates, or `null` when nothing above it clips.
-///
-/// Like [screenClipAbove], but a viewport only counts while its content
-/// overflows ([paintClipOfAncestor]), matching the clip layers the framework
-/// pushes, which is what Impeller derives a pass's coverage from.
-Rect? screenPaintClipAbove(RenderObject node) =>
-    _screenClipAbove(node, paintClipOfAncestor);
-
-Rect? _screenClipAbove(
-  RenderObject node,
-  Rect? Function(RenderObject ancestor, RenderObject child) clipOf,
-) {
+Rect? screenClipAbove(RenderObject node) {
   final path = <RenderObject>[node];
   for (
     var ancestor = node.parent;
@@ -168,7 +153,7 @@ Rect? _screenClipAbove(
   for (var i = path.length - 1; i > 0; i--) {
     final ancestor = path[i];
     final child = path[i - 1];
-    final clip = clipOf(ancestor, child);
+    final clip = clipOfAncestor(ancestor, child);
     if (clip != null) {
       final screenClip = MatrixUtils.transformRect(toScreen, clip);
       result = result?.intersect(screenClip) ?? screenClip;
