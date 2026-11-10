@@ -424,12 +424,13 @@ abstract final class ImpellerLayers {
 /// NEAR: the glass takes one read for its 12 taps per fragment, over a copy
 /// of a quarter of the screen's pixels along each side where the frost spans
 /// at least one of them. The frost drawn into the copy weighs every pixel of
-/// the copy it reaches (latticeTaps in backdrop_rig.dart), where the glass's own
-/// taps are sparse: a point under the glass stays one point, and white bars
-/// lie 8 to 13 levels from what reading the backdrop draws at a frost of 5
-/// to 12, against 17 to 27 through the taps (host test, dpr 1). On a Pixel
-/// 6a, in-launch pairs: main pass -0.50 ms a frame over photos, for one more
-/// pass and +0.4 ms on the raster thread.
+/// the copy it reaches (latticeTaps in backdrop_rig.dart), where the glass's
+/// own taps are sparse: a point under the glass stays one point
+/// (frost_point_test), and white bars lie 13 to 21 levels from what reading
+/// the backdrop draws at a frost of 3 to 12 (backdrop_underlay_frost_test,
+/// host, dpr 1). On a Pixel 6a it costs what the sparse taps it replaced
+/// did: 107 against 106 ms of GPU a second over flat under a tab bar, 52
+/// against 58 over a page of photos (in-launch pairs).
 @internal
 double bakedFrost({
   required int share,
