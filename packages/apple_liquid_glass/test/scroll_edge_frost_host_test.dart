@@ -129,10 +129,10 @@ void main() {
   });
 
   for (final (dpr, hard, near) in [
-    (2.625, true, 27),
-    (2.625, false, 20),
-    (3.0, true, 22),
-    (3.0, false, 22),
+    (2.625, true, 13),
+    (2.625, false, 11),
+    (3.0, true, 8),
+    (3.0, false, 8),
   ]) {
     testWidgets('the ${hard ? 'hard' : 'soft'} band at $dpr frosts a copy '
         'at half size near the copy it filters', (tester) async {
@@ -158,9 +158,8 @@ void main() {
   // frost drawn in the frame covers in part: a screen ends on a pixel. On
   // the row the band's edge splits, the frost drawn in the frame covers
   // each pixel by its share inside the band (NEAR, see
-  // recordFrostedInFrame). The two mirror their taps from different corners,
-  // so a hard edge dithers differently.
-  for (final (dpr, near) in [(2.625, 33), (3.0, 32)]) {
+  // recordFrostedInFrame).
+  for (final (dpr, near) in [(2.625, 31), (3.0, 3)]) {
     testWidgets('the band at $dpr frosts a copy drawn in the frame as it '
         'frosts its image', (tester) async {
       tester.view.physicalSize = Size(300 * dpr, 400 * dpr);

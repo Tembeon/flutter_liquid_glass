@@ -400,9 +400,13 @@ abstract final class ImpellerLayers {
 ///
 /// NEAR: the glass takes one read for its 12 taps per fragment, over a copy
 /// of a quarter of the screen's pixels along each side where the frost spans
-/// at least one of them, and the copy's pixels show no more than through the
-/// taps. On a Pixel 6a, in-launch pairs: main pass -0.50 ms a frame over
-/// photos, for one more pass and +0.4 ms on the raster thread.
+/// at least one of them. The frost drawn into the copy weighs every pixel of
+/// the copy it reaches (frostLattice in frost.glsl), where the glass's own
+/// taps are sparse: a point under the glass stays one point, and white bars
+/// lie 8 to 13 levels from what reading the backdrop draws at a frost of 5
+/// to 12, against 17 to 27 through the taps (host test, dpr 1). On a Pixel
+/// 6a, in-launch pairs: main pass -0.50 ms a frame over photos, for one more
+/// pass and +0.4 ms on the raster thread.
 @internal
 double bakedFrost({
   required int share,

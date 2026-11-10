@@ -156,7 +156,12 @@ ui.ImageFilter? frostFilterOf(FrostSampling sampling) {
   final shader = _inPlaceFrost ??= MultiShaderBuilder.cached(
     ShaderKeys.backdropFrost,
   )?.fragmentShader();
-  if (shader == null) return null;
+  if (shader == null) {
+    // An app that warms nothing up still gets its copies frosted: until
+    // the program loads the glass frosts them itself, with sparse taps.
+    unawaited(MultiShaderBuilder.precacheShader(ShaderKeys.backdropFrost));
+    return null;
+  }
   final key = (sampling.size, sampling.bounds, sampling.frost, sampling.shown);
   if (_inPlaceFilters[key] case final held?) return held;
   if (_inPlaceFilters.length >= 32) _inPlaceFilters.clear();
