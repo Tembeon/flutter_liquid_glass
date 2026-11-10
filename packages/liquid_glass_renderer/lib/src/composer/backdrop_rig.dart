@@ -236,6 +236,16 @@ ui.FragmentShader? _squareFrost;
 /// of a pixel squared more is the Gaussian over the pixels themselves.
 @internal
 ({List<double> offsets, List<double> weights}) latticeTaps(double frost) {
+  // A page's glass asks for a few widths, and a copy that changes size asks
+  // again every frame.
+  if (_tapsOf[frost] case final held?) return held;
+  if (_tapsOf.length >= 32) _tapsOf.clear();
+  return _tapsOf[frost] = _latticeTaps(frost);
+}
+
+final _tapsOf = <double, ({List<double> offsets, List<double> weights})>{};
+
+({List<double> offsets, List<double> weights}) _latticeTaps(double frost) {
   final wide = frost * frost + 1 / 6;
   // n pairs hold a Gaussian up to 1.3 / 3 of n wide.
   final asked = sqrt(wide) * 2.3077;
