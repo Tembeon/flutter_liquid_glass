@@ -4,10 +4,17 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/src/composer/form.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_underlay.dart';
 
 import 'generated_layers.dart';
 
 const _dpr = 2.625;
+
+class _Blurred extends OffsetLayer {
+  _Blurred(this.sigma);
+
+  final double sigma;
+}
 
 typedef _Seen = ({ui.Picture? picture, Rect screen, int order});
 
@@ -163,6 +170,49 @@ void main() {
         form.lastChangedUnder(100, const Rect.fromLTWH(0, 0, 10, 10)),
         form.frame,
       );
+    });
+
+    test('a blur of a known width spreads what it holds only so far', () {
+      LiquidGlassUnderlay.registerLayer<_Blurred>(
+        (layer) => (
+          transform: Matrix4.translationValues(
+            layer.offset.dx,
+            layer.offset.dy,
+            0,
+          ),
+          clip: null,
+          alpha: null,
+          blur: layer.sigma,
+        ),
+      );
+      PictureLayer leaf() {
+        final recorder = ui.PictureRecorder();
+        Canvas(recorder).drawPaint(Paint());
+        return PictureLayer(const Rect.fromLTWH(0, 0, 105, 42))
+          ..picture = recorder.endRecording();
+      }
+
+      final known = leaf();
+      final unknown = leaf();
+      final root = ContainerLayer()
+        ..append(
+          _Blurred(5.25)
+            ..offset = const Offset(210, 525)
+            ..append(known),
+        )
+        ..append(
+          ImageFilterLayer(
+            imageFilter: ui.ImageFilter.blur(sigmaX: 5.25, sigmaY: 5.25),
+          )..append(unknown),
+        );
+      final form = Form()..lower(root, _dpr, GeneratedLayers.screen);
+      final leaves = _leaves(form);
+      // Four sigmas of two logical pixels around the picture.
+      expect(
+        leaves[known]!.screen,
+        const Rect.fromLTWH(80, 200, 40, 16).inflate(8),
+      );
+      expect(leaves[unknown]!.screen, Rect.largest);
     });
   });
 

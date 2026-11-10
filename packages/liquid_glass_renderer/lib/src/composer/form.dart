@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -299,8 +300,14 @@ final class FormWorld {
   /// Inherited alpha, filters and clips.
   StateChain state = StateChain.root;
 
+  /// How far, in the units [reaching] answers in, a filter above may spread
+  /// what is drawn here: the reach of a blur, or infinity for a filter that
+  /// may move it anywhere. Under one, [clip] holds only the clips inside it,
+  /// which it spreads as well.
+  double spread = 0;
+
   /// Whether a filter above may move what is drawn anywhere.
-  bool filtered = false;
+  bool get filtered => spread == double.infinity;
 
   /// Bumped when anything above changed.
   int stamp = 1;
@@ -311,7 +318,8 @@ final class FormWorld {
     final shifted = local.shift(Offset(dx, dy));
     final bounds = MatrixUtils.transformRect(base, shifted);
     final held = clip;
-    return held == null ? bounds : held.intersect(bounds);
+    final cut = held == null ? bounds : held.intersect(bounds);
+    return spread == 0 || cut.isEmpty ? cut : cut.inflate(spread);
   }
 
   /// Takes the values of [outside]; true when any differs.
@@ -321,7 +329,7 @@ final class FormWorld {
     outside.dy,
     outside.clip,
     outside.state,
-    filtered: outside.filtered,
+    spread: outside.spread,
   );
 
   /// Writes the values; true when any differs.
@@ -331,14 +339,14 @@ final class FormWorld {
     double dy,
     Rect? clip,
     StateChain state, {
-    required bool filtered,
+    required double spread,
   }) {
     if (identical(this.base, base) &&
         this.dx == dx &&
         this.dy == dy &&
         (identical(this.clip, clip) || this.clip == clip) &&
         identical(this.state, state) &&
-        this.filtered == filtered) {
+        this.spread == spread) {
       return false;
     }
     this.base = base;
@@ -346,7 +354,7 @@ final class FormWorld {
     this.dy = dy;
     this.clip = clip;
     this.state = state;
-    this.filtered = filtered;
+    this.spread = spread;
     stamp++;
     return true;
   }
@@ -493,7 +501,7 @@ final class VolatileNode extends FormNode {
     if (local != null) {
       next = world.reaching(local);
     } else if (layer is BackdropFilterLayer) {
-      next = world.filtered ? _everywhere : world.clip ?? _everywhere;
+      next = world.spread > 0 ? _everywhere : world.clip ?? _everywhere;
     } else {
       next = _everywhere;
     }
@@ -813,7 +821,7 @@ class ShiftNode extends OpenNode {
       outside.dy + offset.dy,
       outside.clip,
       outside.state,
-      filtered: outside.filtered,
+      spread: outside.spread,
     );
   }
 }
@@ -838,7 +846,7 @@ final class SiteNode extends ShiftNode {
   /// logical pixels, and whether what lies above can say it: a filter above
   /// moves things in ways no matrix tells. Allocates only when it changed.
   Matrix4? screenTransform(Offset at) {
-    if (world.filtered) return null;
+    if (world.spread > 0) return null;
     final held = _screen;
     if (held != null && _screenStamp == world.stamp && _screenAt == at) {
       return held;
@@ -916,7 +924,7 @@ mixin _Matrix on OpenNode {
     Matrix4 own,
     Rect? clip,
     StateChain state, {
-    required bool filtered,
+    required double spread,
   }) {
     if (MatrixUtils.getAsTranslation(own) case final shift?) {
       _noteOwn(own);
@@ -927,7 +935,7 @@ mixin _Matrix on OpenNode {
         outside.dy + shift.dy,
         clip,
         state,
-        filtered: filtered,
+        spread: spread,
       );
     }
     return world.set(
@@ -936,7 +944,7 @@ mixin _Matrix on OpenNode {
       0,
       clip,
       state,
-      filtered: filtered,
+      spread: spread,
     );
   }
 
@@ -991,7 +999,7 @@ final class TransformNode extends OpenNode with _Matrix {
       own,
       outside.clip,
       outside.state,
-      filtered: outside.filtered,
+      spread: outside.spread,
     );
   }
 }
@@ -1015,7 +1023,7 @@ final class FollowerNode extends OpenNode with _Matrix {
     followerTransformNow(layer as FollowerLayer),
     outside.clip,
     outside.state,
-    filtered: outside.filtered,
+    spread: outside.spread,
   );
 }
 
@@ -1069,7 +1077,7 @@ final class AlphaNode extends OpenNode {
       outside.dy + offset.dy,
       outside.clip,
       _chain!,
-      filtered: outside.filtered,
+      spread: outside.spread,
     );
   }
 }
@@ -1121,7 +1129,7 @@ final class FilterNode extends OpenNode {
       outside.dy + offset.dy,
       null,
       _chain!,
-      filtered: true,
+      spread: double.infinity,
     );
   }
 }
@@ -1164,7 +1172,7 @@ final class ColorNode extends OpenNode {
       outside.dy,
       outside.clip,
       _chain!,
-      filtered: outside.filtered,
+      spread: outside.spread,
     );
   }
 }
@@ -1238,7 +1246,7 @@ final class MaskNode extends OpenNode {
       outside.dy,
       outside.clip,
       _chain!,
-      filtered: outside.filtered,
+      spread: outside.spread,
     );
   }
 }
@@ -1297,7 +1305,7 @@ final class ClipNode extends OpenNode {
     // A rect that cuts nothing of the read costs a layer for nothing.
     if (geometry is Rect &&
         behavior != Clip.antiAliasWithSaveLayer &&
-        !world.filtered &&
+        world.spread == 0 &&
         _clip != null &&
         _clip!.left <= band.left &&
         _clip!.top <= band.top &&
@@ -1351,7 +1359,7 @@ final class ClipNode extends OpenNode {
       outside.dy,
       _clip,
       _chain!,
-      filtered: outside.filtered,
+      spread: outside.spread,
     );
   }
 }
@@ -1361,6 +1369,16 @@ final class ClipNode extends OpenNode {
 final class EffectsNode extends OpenNode with _Matrix {
   /// Creates the node.
   EffectsNode(super.layer);
+
+  // How many sigmas a Gaussian blur spreads what it blurs: Impeller's kernel
+  // ends at three, and a downsampled blur reads a little past it.
+  static const double _blurReach = 4;
+
+  // The most [matrix] stretches a length in the plane.
+  static double _stretch(Matrix4 matrix) {
+    final m = matrix.storage;
+    return sqrt(max(m[0] * m[0] + m[1] * m[1], m[4] * m[4] + m[5] * m[5]));
+  }
 
   StateChain? _chain;
   StateChain? _chainParent;
@@ -1428,7 +1446,13 @@ final class EffectsNode extends OpenNode with _Matrix {
       own,
       blurred ? null : clip,
       _chain!,
-      filtered: outside.filtered || blurred,
+      spread: blurred
+          ? outside.spread +
+                _blurReach *
+                    effects.blur *
+                    _stretch(outside.base) *
+                    _stretch(own)
+          : outside.spread,
     );
   }
 }
