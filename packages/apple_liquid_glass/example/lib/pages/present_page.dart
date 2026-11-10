@@ -4,8 +4,12 @@ import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_example/backdrop.dart';
 import 'package:apple_liquid_glass_example/pages/music_page.dart';
 import 'package:apple_liquid_glass_example/pages/scenes/control_center_page.dart';
+import 'package:apple_liquid_glass_example/pages/scenes/island_page.dart';
+import 'package:apple_liquid_glass_example/pages/scenes/lava_page.dart';
 import 'package:apple_liquid_glass_example/pages/scenes/lens_page.dart';
 import 'package:apple_liquid_glass_example/pages/scenes/lock_screen_page.dart';
+import 'package:apple_liquid_glass_example/pages/scenes/pads_page.dart';
+import 'package:apple_liquid_glass_example/pages/scenes/weather_page.dart';
 import 'package:apple_liquid_glass_example/pages/video_page.dart';
 import 'package:apple_liquid_glass_example/widgets.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
@@ -432,11 +436,49 @@ class _PresentPageState extends State<PresentPage> {
           GlassListSection(
             header: const Text('Scenes'),
             footer: const Text(
-              'Whole screens built from the surfaces alone: modules that '
-              'fill with their color and sliders that stretch, a stack of '
-              'notifications that fans out, and a lens to drag over a page.',
+              'Whole screens built from the surfaces alone. An island that '
+              'stretches, splits and opens on springs; a lava lamp of drops '
+              'that fuse; a day of weather passing under glass cards; pads '
+              'for every finger at once; and Control Center, a Lock Screen '
+              'and a lens to drag over a page.',
             ),
             children: [
+              _row(
+                CupertinoIcons.capsule_fill,
+                const Color(0xFF5E5CE6),
+                'Island',
+                () => Navigator.of(context).push(
+                  GlassPageRoute<void>(
+                    builder: (context) => const IslandPage(),
+                  ),
+                ),
+              ),
+              _row(
+                CupertinoIcons.drop_fill,
+                const Color(0xFFFF375F),
+                'Lava',
+                () => Navigator.of(context).push(
+                  GlassPageRoute<void>(builder: (context) => const LavaPage()),
+                ),
+              ),
+              _row(
+                CupertinoIcons.cloud_sun_fill,
+                const Color(0xFF40C8E0),
+                'Weather',
+                () => Navigator.of(context).push(
+                  GlassPageRoute<void>(
+                    builder: (context) => const WeatherPage(),
+                  ),
+                ),
+              ),
+              _row(
+                CupertinoIcons.square_grid_2x2_fill,
+                const Color(0xFFBF5AF2),
+                'Pads',
+                () => Navigator.of(context).push(
+                  GlassPageRoute<void>(builder: (context) => const PadsPage()),
+                ),
+              ),
               _row(
                 CupertinoIcons.slider_horizontal_3,
                 GlassColors.systemGray,
@@ -462,9 +504,7 @@ class _PresentPageState extends State<PresentPage> {
                 GlassColors.systemOrange,
                 'Lens',
                 () => Navigator.of(context).push(
-                  GlassPageRoute<void>(
-                    builder: (context) => const LensPage(),
-                  ),
+                  GlassPageRoute<void>(builder: (context) => const LensPage()),
                 ),
               ),
             ],
