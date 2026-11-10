@@ -886,15 +886,37 @@ final class Tiling {
         final j1 = (gy + spanY).ceil().clamp(0, nodeRows - 1);
         var lowest = double.infinity;
         var highest = double.negativeInfinity;
+        for (var j = j0; j <= j1; j++) {
+          for (var i = i0; i <= i1; i++) {
+            final d = samples[(j * cols + i) * 4];
+            if (d < lowest) lowest = d;
+            if (d > highest) highest = d;
+          }
+        }
+        lowest *= field.distanceScale;
+        highest *= field.distanceScale;
+        final tile = row * columns + column;
+        if (lowest >= reach.outward) {
+          kinds[tile] = TileKind.outside.index;
+          continue;
+        }
+        if (highest <= -reach.inward) {
+          kinds[tile] = TileKind.deep.index;
+          continue;
+        }
+        kinds[tile] = TileKind.ring.index;
+        if (!coarse) {
+          fine[tile] = 1;
+          continue;
+        }
+        // Only a ring tile has texels to keep fine or coarse, and most of a
+        // body's tiles are deep or outside: their gradients are not read.
         var sumX = 0.0;
         var sumY = 0.0;
         var lengths = 0.0;
         for (var j = j0; j <= j1; j++) {
           for (var i = i0; i <= i1; i++) {
             final at = (j * cols + i) * 4;
-            final d = samples[at];
-            if (d < lowest) lowest = d;
-            if (d > highest) highest = d;
             final nx = samples[at + 1];
             final ny = samples[at + 2];
             sumX += nx;
@@ -902,17 +924,8 @@ final class Tiling {
             lengths += sqrt(nx * nx + ny * ny);
           }
         }
-        lowest *= field.distanceScale;
-        highest *= field.distanceScale;
-        final tile = row * columns + column;
-        kinds[tile] = lowest >= reach.outward
-            ? TileKind.outside.index
-            : highest <= -reach.inward
-            ? TileKind.deep.index
-            : TileKind.ring.index;
-        if (!coarse ||
-            sumX * sumX + sumY * sumY <
-                _fieldAgreement * _fieldAgreement * lengths * lengths) {
+        if (sumX * sumX + sumY * sumY <
+            _fieldAgreement * _fieldAgreement * lengths * lengths) {
           fine[tile] = 1;
         }
       }
