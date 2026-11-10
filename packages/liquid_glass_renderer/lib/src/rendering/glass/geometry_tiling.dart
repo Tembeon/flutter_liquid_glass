@@ -267,6 +267,7 @@ final class Tiling {
     required this.rows,
     required this.kinds,
     required this.runs,
+    required this.deeps,
     required this.shapeSets,
     required this.droppedShapes,
     required this.looks,
@@ -326,10 +327,17 @@ final class Tiling {
         sharp: groups.blendOf(group) < 8.0 * reach.coarseTexel,
       );
     }
-    final (kinds, fine, lists) = classifier.finish();
+    final (kinds, fine, lists, wholes) = classifier.finish();
     final deepLooks = looks == null
         ? null
         : _lookKinds(bounds, groups, looks, columns, rows, kinds, fine);
+    // A deep tile of two looks turns ring, so with looks a deep block is
+    // read tile by tile.
+    if (looks != null) {
+      for (var block = 0; block < wholes.length; block++) {
+        if (wholes[block] == _deepBlock) wholes[block] = _byTile;
+      }
+    }
     final (sets, tileSets, dropped) = _shapeSets(
       bounds,
       groups,
@@ -354,7 +362,9 @@ final class Tiling {
         fine,
         reach.coarseTexel,
         lists,
+        wholes,
       ),
+      deeps: _deeps(columns, rows, kinds, deepLooks, wholes),
       shapeSets: List.unmodifiable(sets),
       droppedShapes: dropped,
       looks: looks,
@@ -419,7 +429,9 @@ final class Tiling {
         fine,
         reach.coarseTexel,
         Uint32List(columns * rows),
+        null,
       ),
+      deeps: _deeps(columns, rows, kinds, deepLooks, null),
       shapeSets: List.unmodifiable([
         if (looks == null)
           const <int>[]
@@ -473,6 +485,7 @@ final class Tiling {
       rows: rows,
       kinds: kinds,
       runs: runs,
+      deeps: deeps,
       shapeSets: shapeSets,
       droppedShapes: droppedShapes,
       looks: looks,
@@ -529,11 +542,21 @@ final class Tiling {
     Uint8List fine,
     int coarseTexel,
     Uint32List lists,
+    Uint8List? wholes,
   ) {
     final runs = <TileRun>[];
+    final blockColumns = (columns + blockTiles - 1) ~/ blockTiles;
     for (var row = 0; row < rows; row++) {
       var column = 0;
       while (column < columns) {
+        if (wholes != null && column % blockTiles == 0) {
+          final whole =
+              wholes[row ~/ blockTiles * blockColumns + column ~/ blockTiles];
+          if (whole == _outsideBlock || whole == _deepBlock) {
+            column += blockTiles;
+            continue;
+          }
+        }
         final tile = row * columns + column;
         if (kinds[tile] != TileKind.ring.index) {
           column++;
@@ -634,6 +657,76 @@ final class Tiling {
   // What a tile's density says where the tile is part of a block.
   static const int _inBlock = 2;
 
+  // What a block is as a whole ([_Classifier.finish]): told tile by tile,
+  // outside throughout, one piece of coarse texels, or deep throughout.
+  static const int _byTile = 0;
+  static const int _outsideBlock = 1;
+  static const int _ringBlock = 2;
+  static const int _deepBlock = 3;
+
+  // The deep tiles as rectangles ([deeps]): a deep block, with the deep
+  // blocks beside it, is one; elsewhere a row's deep tiles of one look.
+  static Int32List _deeps(
+    int columns,
+    int rows,
+    Uint8List kinds,
+    Uint8List? deepLooks,
+    Uint8List? wholes,
+  ) {
+    final deeps = <int>[];
+    final blockColumns = (columns + blockTiles - 1) ~/ blockTiles;
+    for (var row = 0; row < rows; row++) {
+      var column = 0;
+      while (column < columns) {
+        if (wholes != null && column % blockTiles == 0) {
+          final block = row ~/ blockTiles * blockColumns + column ~/ blockTiles;
+          final whole = wholes[block];
+          if (whole == _deepBlock) {
+            var end = block + 1;
+            while (end % blockColumns != 0 && wholes[end] == _deepBlock) {
+              end++;
+            }
+            if (row % blockTiles == 0) {
+              deeps
+                ..add(column)
+                ..add(row)
+                ..add(min(columns - column, (end - block) * blockTiles))
+                ..add(min(rows - row, blockTiles))
+                ..add(0);
+            }
+            column += (end - block) * blockTiles;
+            continue;
+          }
+          if (whole != _byTile) {
+            column += blockTiles;
+            continue;
+          }
+        }
+        final tile = row * columns + column;
+        if (kinds[tile] != TileKind.deep.index) {
+          column++;
+          continue;
+        }
+        final look = deepLooks?[tile] ?? 0;
+        var end = column + 1;
+        while (end < columns &&
+            (wholes == null || end % blockTiles != 0) &&
+            kinds[tile + end - column] == TileKind.deep.index &&
+            (deepLooks?[tile + end - column] ?? 0) == look) {
+          end++;
+        }
+        deeps
+          ..add(column)
+          ..add(row)
+          ..add(end - column)
+          ..add(1)
+          ..add(look);
+        column = end;
+      }
+    }
+    return Int32List.fromList(deeps);
+  }
+
   /// The most shapes a run lists ([TileRun.members]): what one vertex
   /// carries to the geometry pass.
   static const int maxListed = 4;
@@ -649,6 +742,10 @@ final class Tiling {
 
   /// The ring tiles, row by row.
   final List<TileRun> runs;
+
+  /// The deep tiles as rectangles of one look, five numbers each: column,
+  /// row, width and height in tiles, and the look.
+  final Int32List deeps;
 
   /// The shapes each run evaluates, in chain order. A buffer of at most
   /// [geometryMaxShapesPerDraw] shapes has one set: all of them.
@@ -1036,20 +1133,36 @@ final class _Classifier {
   final List<int> _nearIndices = [];
 
   /// Each tile's kind, its density (whether it keeps one texel a pixel, or
-  /// is part of a block), and its list.
-  (Uint8List, Uint8List, Uint32List) finish() {
-    for (var tile = 0; tile < _kinds.length; tile++) {
-      if (_deep[tile] != 0) _kinds[tile] = TileKind.deep.index;
-      if (!listable || _listed[tile] > Tiling.maxListed) _lists[tile] = 0;
-    }
+  /// is part of a block), and its list; and what each block is as a whole
+  /// ([Tiling._outsideBlock] and the constants beside it). Only the blocks
+  /// bounded tile by tile are visited tile by tile.
+  (Uint8List, Uint8List, Uint32List, Uint8List) finish() {
+    final wholes = Uint8List(_claims.length);
     final blockColumns = _blocksOver(columns);
     for (var block = 0; block < _claims.length; block++) {
-      if (_claims[block] < 0 || _claimKinds[block] == _margin) continue;
-      final deep = _claimKinds[block] == _deepBlock;
+      final claim = _claims[block];
+      if (claim == _free || (claim >= 0 && _claimKinds[block] == _margin)) {
+        wholes[block] = Tiling._outsideBlock;
+        continue;
+      }
       final left = block % blockColumns * blockTiles;
       final top = block ~/ blockColumns * blockTiles;
       final right = min(columns, left + blockTiles);
       final bottom = min(rows, top + blockTiles);
+      if (claim == _byTile) {
+        for (var y = top; y < bottom; y++) {
+          for (var x = left; x < right; x++) {
+            final tile = y * columns + x;
+            if (_deep[tile] != 0) _kinds[tile] = TileKind.deep.index;
+            if (!listable || _listed[tile] > Tiling.maxListed) {
+              _lists[tile] = 0;
+            }
+          }
+        }
+        continue;
+      }
+      final deep = _claimKinds[block] == _deepBlock;
+      wholes[block] = deep ? Tiling._deepBlock : Tiling._ringBlock;
       for (var y = top; y < bottom; y++) {
         for (var x = left; x < right; x++) {
           final tile = y * columns + x;
@@ -1063,7 +1176,7 @@ final class _Classifier {
         }
       }
     }
-    return (_kinds, _fine, _lists);
+    return (_kinds, _fine, _lists, wholes);
   }
 
   /// Classifies the tiles [group] reaches: its [members] in chain order,

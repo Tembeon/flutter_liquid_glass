@@ -631,33 +631,19 @@ final class _Pages {
       );
     }
     final (tableX, tableY) = AtlasLayout.tableOrigin;
-    for (var row = 0; row < tiling.rows; row++) {
-      var column = 0;
-      while (column < tiling.columns) {
-        if (tiling.kindAt(column, row) != TileKind.deep) {
-          column++;
-          continue;
-        }
-        final look = tiling.deepLookAt(column, row);
-        var end = column + 1;
-        while (end < tiling.columns &&
-            tiling.kindAt(end, row) == TileKind.deep &&
-            tiling.deepLookAt(end, row) == look) {
-          end++;
-        }
-        final (deepX, deepY) = AtlasLayout.deepEntryOf(look);
-        quads.fill(
-          tableX + column,
-          tableY + row,
-          end - column,
-          1,
-          deepX.toDouble(),
-          (top + deepY).toDouble(),
-          0,
-          1,
-        );
-        column = end;
-      }
+    final deeps = tiling.deeps;
+    for (var i = 0; i < deeps.length; i += 5) {
+      final (deepX, deepY) = AtlasLayout.deepEntryOf(deeps[i + 4]);
+      quads.fill(
+        tableX + deeps[i],
+        tableY + deeps[i + 1],
+        deeps[i + 2],
+        deeps[i + 3],
+        deepX.toDouble(),
+        (top + deepY).toDouble(),
+        0,
+        1,
+      );
     }
     final runs = tiling.runs;
     for (var i = 0; i < runs.length; i++) {

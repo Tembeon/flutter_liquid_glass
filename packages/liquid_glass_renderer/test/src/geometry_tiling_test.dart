@@ -276,13 +276,25 @@ void _expectRunsPartitionRing(Tiling tiling) {
       }
     }
   }
+  // The deep rectangles hold every deep tile once, with its look.
+  final deep = Uint8List(tiling.columns * tiling.rows);
+  final deeps = tiling.deeps;
+  for (var i = 0; i < deeps.length; i += 5) {
+    for (var row = deeps[i + 1]; row < deeps[i + 1] + deeps[i + 3]; row++) {
+      for (var column = deeps[i]; column < deeps[i] + deeps[i + 2]; column++) {
+        expect(tiling.kindAt(column, row), TileKind.deep);
+        expect(tiling.deepLookAt(column, row), deeps[i + 4]);
+        deep[row * tiling.columns + column]++;
+      }
+    }
+  }
   for (var row = 0; row < tiling.rows; row++) {
     for (var column = 0; column < tiling.columns; column++) {
-      expect(
-        covered[row * tiling.columns + column],
-        tiling.kindAt(column, row) == TileKind.ring ? 1 : 0,
-        reason: 'tile $column, $row',
-      );
+      final kind = tiling.kindAt(column, row);
+      final reason = 'tile $column, $row';
+      final tile = row * tiling.columns + column;
+      expect(covered[tile], kind == TileKind.ring ? 1 : 0, reason: reason);
+      expect(deep[tile], kind == TileKind.deep ? 1 : 0, reason: reason);
     }
   }
 }
