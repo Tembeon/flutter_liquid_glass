@@ -17,6 +17,8 @@ dependencies:
   meta: ^1.16.0
 
 dev_dependencies:
+  api_listing:
+    path: ../api_listing
   flutter_test:
     sdk: flutter
   lintervention: ^0.3.1

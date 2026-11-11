@@ -1,0 +1,2179 @@
+# package:apple_liquid_glass/apple_liquid_glass.dart
+class AnimatedGlassTheme extends StatefulWidget
+  const AnimatedGlassTheme({
+    required GlassThemeData data,
+    required Widget child,
+    Spring spring = ...,
+    Key? key,
+  })
+  final Widget child
+  final GlassThemeData data
+  final Spring spring
+  overrides: createState
+final class Glass
+  const Glass.clear({Color? tint})
+  const Glass.regular({Color? tint})
+  final bool isClear
+  final Color? tint
+  overrides: ==, hashCode
+class GlassAlertAction
+  const GlassAlertAction.cancel({
+    required Widget child,
+    void Function()? onPressed,
+    bool isDefaultAction = ...,
+    bool enabled = ...,
+  })
+  const GlassAlertAction.destructive({
+    required Widget child,
+    void Function()? onPressed,
+    bool isDefaultAction = ...,
+    bool enabled = ...,
+  })
+  const GlassAlertAction({
+    required Widget child,
+    void Function()? onPressed,
+    bool isDefaultAction = ...,
+    bool enabled = ...,
+  })
+  final Widget child
+  final bool enabled
+  bool get isCancel
+  final bool isDefaultAction
+  bool get isDestructive
+  final void Function()? onPressed
+class GlassAlertStyle
+  const GlassAlertStyle({
+    TextStyle? titleTextStyle,
+    TextStyle? messageTextStyle,
+    TextStyle? actionTextStyle,
+    Color? actionColor,
+    Color? destructiveActionColor,
+    Color? defaultActionColor,
+    Color? actionFillColor,
+    Color? defaultActionFillColor,
+  })
+  final Color? actionColor
+  final Color? actionFillColor
+  final TextStyle? actionTextStyle
+  final Color? defaultActionColor
+  final Color? defaultActionFillColor
+  final Color? destructiveActionColor
+  static GlassAlertStyle? lerp(GlassAlertStyle? a, GlassAlertStyle? b, double t)
+  GlassAlertStyle merge(GlassAlertStyle? other)
+  final TextStyle? messageTextStyle
+  final TextStyle? titleTextStyle
+  overrides: ==, hashCode
+enum GlassBackButtonDisplayMode
+  title,
+  generic,
+  minimal,
+class GlassBadge extends StatelessWidget
+  const GlassBadge.count(int count, {GlassBadgeStyle? style, Key? key})
+  const GlassBadge.indicator({GlassBadgeStyle? style, Key? key})
+  const GlassBadge.text(String text, {GlassBadgeStyle? style, Key? key})
+  final int? count
+  static const double dotSize
+  static const double fontSize
+  static const double horizontalPadding
+  static const double maxWidth
+  final GlassBadgeStyle? style
+  final String? text
+  static const double verticalPadding
+  overrides: build
+class GlassBadgeStyle
+  const GlassBadgeStyle({
+    Color? backgroundColor,
+    Color? foregroundColor,
+    TextStyle? textStyle,
+  })
+  final Color? backgroundColor
+  final Color? foregroundColor
+  static GlassBadgeStyle? lerp(GlassBadgeStyle? a, GlassBadgeStyle? b, double t)
+  GlassBadgeStyle merge(GlassBadgeStyle? other)
+  final TextStyle? textStyle
+  overrides: ==, hashCode
+sealed class GlassBarEntry
+  const GlassBarEntry()
+final class GlassBarItem extends GlassBarEntry
+  const GlassBarItem.custom({
+    required Widget child,
+    LocalKey? key,
+    String? semanticLabel,
+  })
+  const GlassBarItem({
+    LocalKey? key,
+    Widget? icon,
+    Widget? label,
+    void Function()? onPressed,
+    String? semanticLabel,
+    List<GlassMenuEntry>? menuChildren,
+  })
+  const GlassBarItem.prominent({
+    LocalKey? key,
+    Widget? icon,
+    Widget? label,
+    void Function()? onPressed,
+    String? semanticLabel,
+  })
+  final Widget? child
+  final Widget? icon
+  final LocalKey? key
+  final Widget? label
+  final List<GlassMenuEntry>? menuChildren
+  final void Function()? onPressed
+  final bool prominent
+  final String? semanticLabel
+class GlassBarItemStyle
+  const GlassBarItemStyle({
+    WidgetStateProperty<Color?>? foregroundColor,
+    Color? prominentColor,
+    Color? prominentForegroundColor,
+    TextStyle? textStyle,
+  })
+  final WidgetStateProperty<Color?>? foregroundColor
+  static GlassBarItemStyle? lerp(
+    GlassBarItemStyle? a,
+    GlassBarItemStyle? b,
+    double t,
+  )
+  GlassBarItemStyle merge(GlassBarItemStyle? other)
+  final Color? prominentColor
+  final Color? prominentForegroundColor
+  final TextStyle? textStyle
+  overrides: ==, hashCode
+final class GlassBarSpacer extends GlassBarEntry
+  const GlassBarSpacer.flexible()
+  const GlassBarSpacer()
+  final bool flexible
+class GlassButton extends StatelessWidget
+  const GlassButton.clear({
+    required void Function()? onPressed,
+    required Widget child,
+    GlassButtonStyle? style,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    String? semanticLabel,
+    List<GlassMenuEntry>? menuChildren,
+    GlassMenuController? menuController,
+    Key? key,
+  })
+  const GlassButton({
+    required void Function()? onPressed,
+    required Widget child,
+    GlassButtonStyle? style,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    String? semanticLabel,
+    List<GlassMenuEntry>? menuChildren,
+    GlassMenuController? menuController,
+    Key? key,
+  })
+  const GlassButton.prominent({
+    required void Function()? onPressed,
+    required Widget child,
+    GlassButtonStyle? style,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    String? semanticLabel,
+    List<GlassMenuEntry>? menuChildren,
+    GlassMenuController? menuController,
+    Key? key,
+  })
+  const GlassButton.prominentClear({
+    required void Function()? onPressed,
+    required Widget child,
+    GlassButtonStyle? style,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    String? semanticLabel,
+    List<GlassMenuEntry>? menuChildren,
+    GlassMenuController? menuController,
+    Key? key,
+  })
+  final bool autofocus
+  final Widget child
+  @internal GlassButtonStyle defaultStyleOf(BuildContext context)
+  final FocusNode? focusNode
+  final List<GlassMenuEntry>? menuChildren
+  final GlassMenuController? menuController
+  final void Function()? onPressed
+  final String? semanticLabel
+  final WidgetStatesController? statesController
+  final GlassButtonStyle? style
+  static GlassButtonStyle styleFrom({
+    Color? backgroundColor,
+    Color? disabledBackgroundColor,
+    Color? foregroundColor,
+    Color? disabledForegroundColor,
+    Color? iconColor,
+    Color? disabledIconColor,
+    TextStyle? textStyle,
+    EdgeInsetsGeometry? padding,
+    Size? minimumSize,
+    double? iconSize,
+  })
+  overrides: build
+typedef GlassButtonBuilder = Widget Function(BuildContext, GlassButtonDetails)
+final class GlassButtonDetails
+  const GlassButtonDetails({
+    required MotionSelection<GlassFrame> body,
+    required Set<WidgetState> states,
+    required Widget label,
+  })
+  final MotionSelection<GlassFrame> body
+  final Widget label
+  final Set<WidgetState> states
+class GlassButtonStyle
+  const GlassButtonStyle({
+    WidgetStateProperty<Color?>? backgroundColor,
+    WidgetStateProperty<Color?>? foregroundColor,
+    WidgetStateProperty<Color?>? iconColor,
+    WidgetStateProperty<TextStyle?>? textStyle,
+    WidgetStateProperty<EdgeInsetsGeometry?>? padding,
+    WidgetStateProperty<Size?>? minimumSize,
+    WidgetStateProperty<double?>? iconSize,
+    Widget Function(BuildContext, GlassButtonDetails)? builder,
+  })
+  final WidgetStateProperty<Color?>? backgroundColor
+  final Widget Function(BuildContext, GlassButtonDetails)? builder
+  GlassButtonStyle copyWith({
+    WidgetStateProperty<Color?>? backgroundColor,
+    WidgetStateProperty<Color?>? foregroundColor,
+    WidgetStateProperty<Color?>? iconColor,
+    WidgetStateProperty<TextStyle?>? textStyle,
+    WidgetStateProperty<EdgeInsetsGeometry?>? padding,
+    WidgetStateProperty<Size?>? minimumSize,
+    WidgetStateProperty<double?>? iconSize,
+    Widget Function(BuildContext, GlassButtonDetails)? builder,
+  })
+  final WidgetStateProperty<Color?>? foregroundColor
+  final WidgetStateProperty<Color?>? iconColor
+  final WidgetStateProperty<double?>? iconSize
+  static GlassButtonStyle? lerp(
+    GlassButtonStyle? a,
+    GlassButtonStyle? b,
+    double t,
+  )
+  GlassButtonStyle merge(GlassButtonStyle? other)
+  final WidgetStateProperty<Size?>? minimumSize
+  final WidgetStateProperty<EdgeInsetsGeometry?>? padding
+  final WidgetStateProperty<TextStyle?>? textStyle
+  overrides: ==, hashCode
+class GlassClip extends StatelessWidget
+  const GlassClip.live({
+    required MotionSelection<GlassFrame> frame,
+    Key? key,
+    Widget? child,
+  })
+  const GlassClip({required GlassShape shape, Key? key, Widget? child})
+  final Widget? child
+  final MotionSelection<GlassFrame>? frame
+  final GlassShape? shape
+  overrides: build
+final class GlassColorScheme
+  const GlassColorScheme({
+    Map<GlassRole, Color> surfaces = ...,
+    Color? label,
+    Color? tertiaryLabel,
+  })
+  final Color? label
+  static GlassColorScheme? lerp(
+    GlassColorScheme? a,
+    GlassColorScheme? b,
+    double t,
+  )
+  GlassColorScheme merge(GlassColorScheme? other)
+  final Map<GlassRole, Color> surfaces
+  final Color? tertiaryLabel
+  overrides: ==, hashCode
+abstract final class GlassColors
+  GlassColors()
+  static const GlassDynamicColor label
+  static const GlassDynamicColor opaqueSeparator
+  static const GlassDynamicColor quaternaryLabel
+  static const GlassDynamicColor quaternarySystemFill
+  static const GlassDynamicColor secondaryLabel
+  static const GlassDynamicColor secondarySystemBackground
+  static const GlassDynamicColor secondarySystemFill
+  static const GlassDynamicColor secondarySystemGroupedBackground
+  static const GlassDynamicColor separator
+  static const GlassDynamicColor systemBackground
+  static const GlassDynamicColor systemBlue
+  static const GlassDynamicColor systemFill
+  static const GlassDynamicColor systemGray
+  static const GlassDynamicColor systemGray4
+  static const GlassDynamicColor systemGreen
+  static const GlassDynamicColor systemGroupedBackground
+  static const GlassDynamicColor systemOrange
+  static const GlassDynamicColor systemRed
+  static const GlassDynamicColor tertiaryLabel
+  static const GlassDynamicColor tertiarySystemFill
+class GlassContentScroll extends StatefulWidget
+  const GlassContentScroll({
+    required Widget child,
+    GlassScrollEdgeEffects edgeEffects = ...,
+    bool Function(ScrollNotification) notificationPredicate = ...,
+    Key? key,
+  })
+  final Widget child
+  final GlassScrollEdgeEffects edgeEffects
+  static const Spring edgeSpring
+  final bool Function(ScrollNotification) notificationPredicate
+  overrides: createState
+class GlassContextMenu extends StatefulWidget
+  const GlassContextMenu({
+    required List<GlassMenuEntry> menuChildren,
+    required Widget child,
+    Widget Function(BuildContext)? previewBuilder,
+    GlassMenuController? controller,
+    bool enabled = ...,
+    String? semanticLabel,
+    GlassMenuOrder order = ...,
+    GlassMenuStyle? style,
+    Key? key,
+  })
+  final Widget child
+  final GlassMenuController? controller
+  final bool enabled
+  final List<GlassMenuEntry> menuChildren
+  final GlassMenuOrder order
+  final Widget Function(BuildContext)? previewBuilder
+  @internal static double previewScale(Size size)
+  final String? semanticLabel
+  final GlassMenuStyle? style
+  overrides: createState
+class GlassDatePicker extends StatefulWidget
+  const GlassDatePicker({
+    required DateTime value,
+    required void Function(DateTime)? onChanged,
+    GlassDatePickerMode mode = ...,
+    GlassDatePickerVariant variant = ...,
+    GlassDatePickerStyle? style,
+    int minuteInterval = ...,
+    DateTime? minimumDate,
+    DateTime? maximumDate,
+    bool? use24HourFormat,
+    int firstDayOfWeek = ...,
+    DateTime? today,
+    String? semanticLabel,
+    GlassDatePickerLocalizations localizations = ...,
+    Key? key,
+  })
+  final int firstDayOfWeek
+  final GlassDatePickerLocalizations localizations
+  final DateTime? maximumDate
+  final DateTime? minimumDate
+  final int minuteInterval
+  final GlassDatePickerMode mode
+  final void Function(DateTime)? onChanged
+  final String? semanticLabel
+  final GlassDatePickerStyle? style
+  final DateTime? today
+  final bool? use24HourFormat
+  final DateTime value
+  final GlassDatePickerVariant variant
+  overrides: createState
+class GlassDatePickerLocalizations
+  const GlassDatePickerLocalizations({
+    String Function(DateTime)? dateFormatter,
+    String Function(DateTime)? timeFormatter,
+    String Function(String)? localize,
+    String Function(DateTime)? calendarTitleFormatter,
+    String Function(DateTime)? daySemanticFormatter,
+    String Function(int)? numberFormatter,
+  })
+  final String Function(DateTime)? calendarTitleFormatter
+  final String Function(DateTime)? dateFormatter
+  final String Function(DateTime)? daySemanticFormatter
+  final String Function(String)? localize
+  final String Function(int)? numberFormatter
+  final String Function(DateTime)? timeFormatter
+  overrides: ==, hashCode
+enum GlassDatePickerMode
+  date,
+  time,
+  dateAndTime,
+class GlassDatePickerStyle
+  const GlassDatePickerStyle({
+    Color? accentColor,
+    Color? labelColor,
+    Color? labelFillColor,
+    Color? weekdayColor,
+    Color? todayFillColor,
+    Color? selectedDayTextColor,
+    Color? wheelBandColor,
+  })
+  final Color? accentColor
+  final Color? labelColor
+  final Color? labelFillColor
+  static GlassDatePickerStyle? lerp(
+    GlassDatePickerStyle? a,
+    GlassDatePickerStyle? b,
+    double t,
+  )
+  GlassDatePickerStyle merge(GlassDatePickerStyle? other)
+  final Color? selectedDayTextColor
+  final Color? todayFillColor
+  final Color? weekdayColor
+  final Color? wheelBandColor
+  overrides: ==, hashCode
+enum GlassDatePickerVariant
+  compact,
+  inline,
+  wheels,
+class GlassDefaultTextStyle extends StatelessWidget
+  const GlassDefaultTextStyle({
+    required GlassTextRole role,
+    required Widget child,
+    Key? key,
+  })
+  final Widget child
+  final GlassTextRole role
+  overrides: build
+final class GlassDynamicColor implements Color
+  const GlassDynamicColor({
+    required Color color,
+    required Color darkColor,
+    required Color highContrastColor,
+    required Color darkHighContrastColor,
+    required Color elevatedColor,
+    required Color darkElevatedColor,
+    required Color highContrastElevatedColor,
+    required Color darkHighContrastElevatedColor,
+  })
+  const GlassDynamicColor.withBrightness({
+    required Color color,
+    required Color darkColor,
+  })
+  const GlassDynamicColor.withBrightnessAndContrast({
+    required Color color,
+    required Color darkColor,
+    required Color highContrastColor,
+    required Color darkHighContrastColor,
+  })
+  final Color color
+  final Color darkColor
+  final Color darkElevatedColor
+  final Color darkHighContrastColor
+  final Color darkHighContrastElevatedColor
+  final Color elevatedColor
+  final Color highContrastColor
+  final Color highContrastElevatedColor
+  static Color? lerp(Color? a, Color? b, double t)
+  static Color? maybeResolve(Color? color, BuildContext context)
+  static Color resolve(Color color, BuildContext context)
+  GlassDynamicColor resolveFrom(BuildContext context)
+  GlassDynamicColor resolvedWith(GlassTraits traits)
+  overrides: ==, a, alpha, b, blue, colorSpace, computeLuminance, g, green, hashCode, opacity, r, red, toARGB32, toString, value, withAlpha, withBlue, withGreen, withOpacity, withRed, withValues
+final class GlassFrame
+  const GlassFrame({
+    GlassShape shape = ...,
+    Rect? rect,
+    double scaleX = ...,
+    double scaleY = ...,
+    Color? tint,
+    double tintAmount = ...,
+    double lift = ...,
+    GlassTouchGlow? glow,
+    double opacity = ...,
+    GlassOutline? outline,
+  })
+  Matrix4? contentTransformIn(Size size)
+  GlassFrame copyWith({
+    GlassShape? shape,
+    Rect? rect,
+    double? scaleX,
+    double? scaleY,
+    Color? tint,
+    double? tintAmount,
+    double? lift,
+    GlassTouchGlow? glow,
+    double? opacity,
+    GlassOutline? outline,
+  })
+  Rect drawnIn(Size size)
+  final GlassTouchGlow? glow
+  final double lift
+  final double opacity
+  final GlassOutline? outline
+  final Rect? rect
+  final double scaleX
+  final double scaleY
+  final GlassShape shape
+  final Color? tint
+  final double tintAmount
+  overrides: ==, hashCode
+class GlassGroup extends StatefulWidget
+  const GlassGroup({required Widget child, GlassMerge merge = ..., Key? key})
+  final Widget child
+  final GlassMerge merge
+  overrides: createState
+enum GlassInterfaceLevel
+  base,
+  elevated,
+enum GlassListAccessory
+  disclosureIndicator,
+  checkmark,
+  detailButton,
+  detailDisclosureButton,
+class GlassListBackground extends StatelessWidget
+  const GlassListBackground({Color color = ..., Widget? child, Key? key})
+  final Widget? child
+  final Color color
+  overrides: build
+class GlassListRow extends StatefulWidget
+  const GlassListRow({
+    Widget? title,
+    Widget? subtitle,
+    Widget? detail,
+    Widget? leading,
+    Widget? trailing,
+    GlassListAccessory? accessory,
+    void Function()? onAccessoryPressed,
+    Widget? child,
+    void Function()? onPressed,
+    bool enabled = ...,
+    GlassListStyle? style,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    String? accessorySemanticLabel,
+    Key? key,
+  })
+  final GlassListAccessory? accessory
+  final String? accessorySemanticLabel
+  final bool autofocus
+  final Widget? child
+  final Widget? detail
+  final bool enabled
+  final FocusNode? focusNode
+  final Widget? leading
+  final void Function()? onAccessoryPressed
+  final void Function()? onPressed
+  final WidgetStatesController? statesController
+  final GlassListStyle? style
+  final Widget? subtitle
+  final Widget? title
+  final Widget? trailing
+  overrides: createState
+class GlassListSection extends StatelessWidget
+  const GlassListSection({
+    required List<Widget> children,
+    Widget? header,
+    Widget? footer,
+    GlassListStyle? style,
+    Key? key,
+  })
+  final List<Widget> children
+  final Widget? footer
+  final Widget? header
+  static const GlassDynamicColor separator
+  final GlassListStyle? style
+  overrides: build
+class GlassListStyle
+  const GlassListStyle({
+    WidgetStateProperty<Color?>? backgroundColor,
+    WidgetStateProperty<Color?>? overlayColor,
+    WidgetStateProperty<Color?>? separatorColor,
+    WidgetStateProperty<Color?>? foregroundColor,
+    WidgetStateProperty<Color?>? secondaryColor,
+    WidgetStateProperty<Color?>? iconColor,
+    WidgetStateProperty<Color?>? disclosureColor,
+  })
+  final WidgetStateProperty<Color?>? backgroundColor
+  final WidgetStateProperty<Color?>? disclosureColor
+  final WidgetStateProperty<Color?>? foregroundColor
+  final WidgetStateProperty<Color?>? iconColor
+  static GlassListStyle? lerp(GlassListStyle? a, GlassListStyle? b, double t)
+  GlassListStyle merge(GlassListStyle? other)
+  final WidgetStateProperty<Color?>? overlayColor
+  final WidgetStateProperty<Color?>? secondaryColor
+  final WidgetStateProperty<Color?>? separatorColor
+  overrides: ==, hashCode
+class GlassMenuController
+  GlassMenuController()
+  void close()
+  bool get isOpen
+  void open()
+class GlassMenuDeferred extends GlassMenuEntry
+  const GlassMenuDeferred(
+    Future<List<GlassMenuEntry>> Function() load, {
+    bool cache = ...,
+    Object? id,
+    String loadingTitle = ...,
+  })
+  final bool cache
+  Object get cacheKey
+  final Object? id
+  final Future<List<GlassMenuEntry>> Function() load
+  final String loadingTitle
+class GlassMenuDivider extends GlassMenuEntry
+  const GlassMenuDivider()
+enum GlassMenuElementSize
+  small,
+  medium,
+  large,
+  automatic,
+sealed class GlassMenuEntry
+  const GlassMenuEntry()
+enum GlassMenuIconVisibility
+  automatic,
+  visible,
+  hidden,
+class GlassMenuItem extends GlassMenuEntry
+  const GlassMenuItem({
+    required String title,
+    String? subtitle,
+    Widget? icon,
+    Widget? selectedIcon,
+    Color? iconColor,
+    GlassMenuIconVisibility iconVisibility = ...,
+    bool enabled = ...,
+    bool destructive = ...,
+    bool hidden = ...,
+    bool keepsMenuOpen = ...,
+    GlassMenuItemState state = ...,
+    void Function()? onPressed,
+    void Function(bool)? onHighlightChanged,
+  })
+  final bool destructive
+  final bool enabled
+  final bool hidden
+  final Widget? icon
+  final Color? iconColor
+  final GlassMenuIconVisibility iconVisibility
+  final bool keepsMenuOpen
+  final void Function(bool)? onHighlightChanged
+  final void Function()? onPressed
+  final Widget? selectedIcon
+  final GlassMenuItemState state
+  final String? subtitle
+  final String title
+enum GlassMenuItemState
+  off,
+  on,
+  mixed,
+enum GlassMenuOrder
+  automatic,
+  priority,
+  fixed,
+class GlassMenuSection extends GlassMenuEntry
+  const GlassMenuSection({
+    required List<GlassMenuEntry> children,
+    String? title,
+    bool singleSelection = ...,
+    GlassMenuElementSize elementSize = ...,
+    bool palette = ...,
+    int? maxTitleLines,
+  })
+  final List<GlassMenuEntry> children
+  final GlassMenuElementSize elementSize
+  final int? maxTitleLines
+  final bool palette
+  final bool singleSelection
+  final String? title
+class GlassMenuStyle
+  const GlassMenuStyle({
+    TextStyle? textStyle,
+    Color? destructiveColor,
+    Color? highlightColor,
+    Color? secondaryColor,
+    Color? disabledColor,
+    Color? separatorColor,
+    Color? paletteSelectionColor,
+  })
+  final Color? destructiveColor
+  final Color? disabledColor
+  final Color? highlightColor
+  static GlassMenuStyle? lerp(GlassMenuStyle? a, GlassMenuStyle? b, double t)
+  GlassMenuStyle merge(GlassMenuStyle? other)
+  final Color? paletteSelectionColor
+  final Color? secondaryColor
+  final Color? separatorColor
+  final TextStyle? textStyle
+  overrides: ==, hashCode
+class GlassMenuWidget extends GlassMenuEntry
+  const GlassMenuWidget({
+    required Widget Function(BuildContext) builder,
+    double? height,
+    Object? id,
+  })
+  final Widget Function(BuildContext) builder
+  final double? height
+  final Object? id
+final class GlassMerge
+  const GlassMerge.none()
+  const GlassMerge.spacing(double spacing)
+  final double? spacing
+  overrides: ==, hashCode
+class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget
+  const GlassNavigationBar({
+    List<GlassBarEntry> leading = ...,
+    Widget? title,
+    Widget? largeTitle,
+    List<GlassBarEntry> trailing = ...,
+    bool automaticallyImplyLeading = ...,
+    String? previousPageTitle,
+    GlassBackButtonDisplayMode backButtonDisplayMode = ...,
+    Widget? searchField,
+    GlassNavigationBarStyle? style,
+    Key? key,
+  })
+  final bool automaticallyImplyLeading
+  final GlassBackButtonDisplayMode backButtonDisplayMode
+  static const double height
+  final Widget? largeTitle
+  static const double largeTitleHeight
+  final List<GlassBarEntry> leading
+  final String? previousPageTitle
+  @internal double get scrolledUnderAfter
+  final Widget? searchField
+  static const double searchFieldHeight
+  final GlassNavigationBarStyle? style
+  final Widget? title
+  final List<GlassBarEntry> trailing
+  overrides: createState, preferredSize
+class GlassNavigationBarStyle
+  const GlassNavigationBarStyle({
+    Color? backgroundColor,
+    Color? foregroundColor,
+    TextStyle? titleTextStyle,
+    TextStyle? largeTitleTextStyle,
+    GlassBarItemStyle? itemStyle,
+  })
+  final Color? backgroundColor
+  final Color? foregroundColor
+  final GlassBarItemStyle? itemStyle
+  final TextStyle? largeTitleTextStyle
+  static GlassNavigationBarStyle? lerp(
+    GlassNavigationBarStyle? a,
+    GlassNavigationBarStyle? b,
+    double t,
+  )
+  GlassNavigationBarStyle merge(GlassNavigationBarStyle? other)
+  final TextStyle? titleTextStyle
+  overrides: ==, hashCode
+final class GlassOutline
+  GlassOutline(Path path, {@internal LiquidGlassField? Function()? field})
+  Rect get bounds
+  @internal late final LiquidGlassField? field
+  @internal bool get hasField
+  final Path path
+class GlassPageControl extends StatelessWidget
+  const GlassPageControl({
+    required int count,
+    required int page,
+    required void Function(int)? onChanged,
+    double? progress,
+    GlassPageControlBackground backgroundStyle = ...,
+    GlassPageControlStyle? style,
+    String? semanticLabel,
+    String Function(int, int)? semanticValueFormatter,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    Key? key,
+  })
+  final bool autofocus
+  final GlassPageControlBackground backgroundStyle
+  final int count
+  final FocusNode? focusNode
+  final void Function(int)? onChanged
+  final int page
+  final double? progress
+  final String? semanticLabel
+  final String Function(int, int)? semanticValueFormatter
+  final GlassPageControlStyle? style
+  static GlassPageControlStyle styleFrom({
+    Color? pageIndicatorColor,
+    Color? currentPageIndicatorColor,
+    Color? platterColor,
+    Color? platterIndicatorColor,
+  })
+  overrides: build
+enum GlassPageControlBackground
+  automatic,
+  prominent,
+  minimal,
+typedef GlassPageControlBuilder = Widget Function(BuildContext, GlassPageControlDetails)
+final class GlassPageControlDetails
+  const GlassPageControlDetails({
+    required MotionSelection<GlassPageControlPose> pose,
+    required double? progress,
+    required Set<WidgetState> states,
+  })
+  final MotionSelection<GlassPageControlPose> pose
+  final double? progress
+  final Set<WidgetState> states
+final class GlassPageControlPose
+  const GlassPageControlPose({
+    required List<Rect> indicators,
+    required List<double> fills,
+    required double platter,
+    required int page,
+  })
+  final List<double> fills
+  final List<Rect> indicators
+  final int page
+  final double platter
+  overrides: ==, hashCode
+class GlassPageControlStyle
+  const GlassPageControlStyle({
+    WidgetStateProperty<Color?>? pageIndicatorColor,
+    WidgetStateProperty<Color?>? currentPageIndicatorColor,
+    WidgetStateProperty<Color?>? platterColor,
+    WidgetStateProperty<Color?>? platterIndicatorColor,
+    Widget Function(BuildContext, GlassPageControlDetails)? builder,
+  })
+  final Widget Function(BuildContext, GlassPageControlDetails)? builder
+  final WidgetStateProperty<Color?>? currentPageIndicatorColor
+  static GlassPageControlStyle? lerp(
+    GlassPageControlStyle? a,
+    GlassPageControlStyle? b,
+    double t,
+  )
+  GlassPageControlStyle merge(GlassPageControlStyle? other)
+  final WidgetStateProperty<Color?>? pageIndicatorColor
+  final WidgetStateProperty<Color?>? platterColor
+  final WidgetStateProperty<Color?>? platterIndicatorColor
+  overrides: ==, hashCode
+class GlassPageRoute<T> extends PresentationPageRoute<T>
+  GlassPageRoute({
+    required Widget Function(BuildContext) builder,
+    MotionSource? source,
+    RouteSettings? settings,
+  })
+  final Widget Function(BuildContext) builder
+  final MotionSource? source
+  overrides: beginInteraction, buildContent, delegatedTransition, didChangeNext, didChangePrevious, didFinish, didPopNext, didPresent, dispose, endInteraction, install, leave, opaque, presentation
+class GlassPageScaffold extends StatefulWidget
+  const GlassPageScaffold({
+    required Widget child,
+    PreferredSizeWidget? navigationBar,
+    PreferredSizeWidget? toolbar,
+    Color? backgroundColor,
+    Key? key,
+  })
+  final Color? backgroundColor
+  final Widget child
+  final PreferredSizeWidget? navigationBar
+  final PreferredSizeWidget? toolbar
+  overrides: createState
+class GlassPopoverStyle
+  const GlassPopoverStyle({TextStyle? textStyle})
+  static GlassPopoverStyle? lerp(
+    GlassPopoverStyle? a,
+    GlassPopoverStyle? b,
+    double t,
+  )
+  GlassPopoverStyle merge(GlassPopoverStyle? other)
+  final TextStyle? textStyle
+  overrides: ==, hashCode
+class GlassPressable extends StatefulWidget
+  const GlassPressable({
+    required void Function()? onPressed,
+    required Widget Function(BuildContext, GlassButtonDetails) builder,
+    required Widget child,
+    GlassShape shape = ...,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    String? semanticLabel,
+    Key? key,
+  })
+  final bool autofocus
+  final Widget Function(BuildContext, GlassButtonDetails) builder
+  final Widget child
+  final FocusNode? focusNode
+  final void Function()? onPressed
+  final String? semanticLabel
+  final GlassShape shape
+  final WidgetStatesController? statesController
+  overrides: createState
+abstract class GlassRenderer
+  const factory GlassRenderer.adaptive({
+    required GlassRenderer capable,
+    required GlassRenderer fallback,
+  })
+  const factory GlassRenderer.fake()
+  const factory GlassRenderer.flat()
+  const factory GlassRenderer.liquid()
+  const GlassRenderer()
+  Widget buildGroup(BuildContext context, GlassGroupDetails details)
+  Widget buildScrollEdge(BuildContext context, GlassScrollEdgeDetails details)
+  abstract Widget buildSurface(
+    BuildContext context,
+    GlassSurfaceDetails details,
+  )
+  static Future<void> precache({bool warmUp = ...})
+enum GlassRole
+  bar,
+  control,
+  panel,
+  lens,
+  track,
+enum GlassScrollEdgeEffect
+  automatic,
+  soft,
+  hard,
+  hidden,
+final class GlassScrollEdgeEffects
+  const GlassScrollEdgeEffects({
+    GlassScrollEdgeEffect top = ...,
+    GlassScrollEdgeEffect bottom = ...,
+  })
+  final GlassScrollEdgeEffect bottom
+  final GlassScrollEdgeEffect top
+  overrides: ==, hashCode
+class GlassSearchController extends TextEditingController
+  GlassSearchController({String? text})
+  void closeView()
+  bool get isOpen
+  void openView()
+class GlassSearchField extends StatelessWidget
+  const GlassSearchField({
+    TextEditingController? controller,
+    FocusNode? focusNode,
+    Widget? placeholder,
+    void Function(String)? onChanged,
+    void Function(String)? onSubmitted,
+    bool enabled = ...,
+    bool autofocus = ...,
+    GlassSearchFieldStyle? style,
+    String? semanticLabel,
+    String? clearSemanticLabel,
+    Key? key,
+  })
+  final bool autofocus
+  final String? clearSemanticLabel
+  final TextEditingController? controller
+  static const GlassDynamicColor cursor
+  static const GlassDynamicColor disabledFill
+  final bool enabled
+  final FocusNode? focusNode
+  static const double height
+  static const double maxTextScale
+  final void Function(String)? onChanged
+  final void Function(String)? onSubmitted
+  final Widget? placeholder
+  static final WidgetStateProperty<Color?> placeholderColors
+  static const double pressDelay
+  final String? semanticLabel
+  final GlassSearchFieldStyle? style
+  overrides: build
+typedef GlassSearchFieldBuilder = Widget Function(BuildContext, GlassSearchFieldDetails)
+final class GlassSearchFieldDetails
+  final void Function()? clear
+  final TextEditingController controller
+  final MotionSelection<GlassFrame> frame
+  final Set<WidgetState> states
+  Widget text({
+    required TextStyle style,
+    required Color cursorColor,
+    required Color backgroundCursorColor,
+  })
+class GlassSearchFieldStyle
+  const GlassSearchFieldStyle({
+    WidgetStateProperty<Color?>? backgroundColor,
+    WidgetStateProperty<Color?>? foregroundColor,
+    WidgetStateProperty<Color?>? placeholderColor,
+    WidgetStateProperty<Color?>? iconColor,
+    WidgetStateProperty<Color?>? cursorColor,
+    WidgetStateProperty<TextStyle?>? textStyle,
+    Widget Function(BuildContext, GlassSearchFieldDetails)? builder,
+  })
+  final WidgetStateProperty<Color?>? backgroundColor
+  final Widget Function(BuildContext, GlassSearchFieldDetails)? builder
+  final WidgetStateProperty<Color?>? cursorColor
+  final WidgetStateProperty<Color?>? foregroundColor
+  final WidgetStateProperty<Color?>? iconColor
+  static GlassSearchFieldStyle? lerp(
+    GlassSearchFieldStyle? a,
+    GlassSearchFieldStyle? b,
+    double t,
+  )
+  GlassSearchFieldStyle merge(GlassSearchFieldStyle? other)
+  final WidgetStateProperty<Color?>? placeholderColor
+  final WidgetStateProperty<TextStyle?>? textStyle
+  overrides: ==, hashCode
+final class GlassSegment<T>
+  const GlassSegment({
+    required T value,
+    required Widget label,
+    bool enabled = ...,
+    double? width,
+    String? semanticLabel,
+  })
+  final bool enabled
+  final Widget label
+  final String? semanticLabel
+  final T value
+  final double? width
+class GlassSegmentedControl<T> extends StatelessWidget
+  const GlassSegmentedControl({
+    required List<GlassSegment<T>> segments,
+    required T? groupValue,
+    required void Function(T)? onChanged,
+    void Function(T)? onReselected,
+    bool proportionalWidth = ...,
+    GlassSegmentedStyle? style,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    String? semanticLabel,
+    Key? key,
+  })
+  final bool autofocus
+  final FocusNode? focusNode
+  final T? groupValue
+  static const double maxTextScale
+  final void Function(T)? onChanged
+  final void Function(T)? onReselected
+  final bool proportionalWidth
+  final List<GlassSegment<T>> segments
+  final String? semanticLabel
+  final WidgetStatesController? statesController
+  final GlassSegmentedStyle? style
+  static GlassSegmentedStyle styleFrom({
+    Color? backgroundColor,
+    Color? thumbColor,
+    Color? foregroundColor,
+    TextStyle? textStyle,
+    TextStyle? selectedTextStyle,
+  })
+  static const GlassDynamicColor thumb
+  overrides: build
+class GlassSegmentedStyle
+  const GlassSegmentedStyle({
+    WidgetStateProperty<Color?>? backgroundColor,
+    WidgetStateProperty<Color?>? thumbColor,
+    WidgetStateProperty<Color?>? foregroundColor,
+    WidgetStateProperty<TextStyle?>? textStyle,
+    Widget Function(BuildContext, GlassSelectorDetails)? builder,
+  })
+  final WidgetStateProperty<Color?>? backgroundColor
+  final Widget Function(BuildContext, GlassSelectorDetails)? builder
+  final WidgetStateProperty<Color?>? foregroundColor
+  static GlassSegmentedStyle? lerp(
+    GlassSegmentedStyle? a,
+    GlassSegmentedStyle? b,
+    double t,
+  )
+  GlassSegmentedStyle merge(GlassSegmentedStyle? other)
+  final WidgetStateProperty<TextStyle?>? textStyle
+  final WidgetStateProperty<Color?>? thumbColor
+  overrides: ==, hashCode
+typedef GlassSelectorBuilder = Widget Function(BuildContext, GlassSelectorDetails)
+final class GlassSelectorDetails
+  const GlassSelectorDetails({
+    required MotionSelection<GlassFrame> body,
+    required MotionSelection<GlassFrame> lens,
+    required Widget Function(Widget?) items,
+    required int? selectedIndex,
+    required Set<WidgetState> states,
+  })
+  final MotionSelection<GlassFrame> body
+  Widget items({Widget? lens})
+  final MotionSelection<GlassFrame> lens
+  final int? selectedIndex
+  final Set<WidgetState> states
+typedef GlassSelectorItemBuilder = Widget Function(BuildContext, int, Set<WidgetState>)
+enum GlassSelectorMotion
+  segmented,
+  tabBar,
+sealed class GlassShape
+  const factory GlassShape.oval()
+  const factory GlassShape.roundedRect(double radius)
+  const factory GlassShape.superellipse(double radius)
+  static const GlassShape capsule
+  @internal abstract Widget clip(Widget? child)
+  @internal LiquidShape get liquid
+  @internal Path pathIn(Rect box)
+  @internal abstract double radiusIn(Rect box)
+abstract interface class GlassSheet
+  GlassSheet()
+  abstract void animateTo(GlassSheetDetent detent)
+  GlassSheetDetent get detent
+  List<GlassSheetDetent> get detents
+  static GlassSheet? maybeOf(BuildContext context)
+  static GlassSheet of(BuildContext context)
+  static ScrollController scrollControllerOf(BuildContext context)
+class GlassSheetDetent
+  const GlassSheetDetent.custom(
+    double Function(double) resolver, {
+    Object? identifier,
+  })
+  const GlassSheetDetent.fraction(double fraction)
+  const GlassSheetDetent.height(double value)
+  static const GlassSheetDetent fitted
+  bool get isFitted
+  bool get isLarge
+  static const GlassSheetDetent large
+  static const GlassSheetDetent medium
+  double resolve(double maximum, {double? fittedHeight})
+  overrides: ==, hashCode, toString
+class GlassSheetStyle
+  const GlassSheetStyle({
+    Color? backgroundColor,
+    Color? dragHandleColor,
+    TextStyle? textStyle,
+  })
+  final Color? backgroundColor
+  final Color? dragHandleColor
+  static GlassSheetStyle? lerp(GlassSheetStyle? a, GlassSheetStyle? b, double t)
+  GlassSheetStyle merge(GlassSheetStyle? other)
+  final TextStyle? textStyle
+  overrides: ==, hashCode
+class GlassSlider extends StatefulWidget
+  const GlassSlider({
+    required double value,
+    required void Function(double)? onChanged,
+    void Function(double)? onChangeStart,
+    void Function(double)? onChangeEnd,
+    double min = ...,
+    double max = ...,
+    int ticks = ...,
+    bool animated = ...,
+    GlassSliderStyle? style,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    String? semanticLabel,
+    Key? key,
+  })
+  final bool animated
+  final bool autofocus
+  final FocusNode? focusNode
+  static const GlassDynamicColor inactiveTrack
+  final double max
+  final double min
+  final void Function(double)? onChangeEnd
+  final void Function(double)? onChangeStart
+  final void Function(double)? onChanged
+  final String? semanticLabel
+  final WidgetStatesController? statesController
+  final GlassSliderStyle? style
+  static GlassSliderStyle styleFrom({
+    Color? thumbColor,
+    Color? activeTrackColor,
+    Color? inactiveTrackColor,
+    Color? tickColor,
+  })
+  final int ticks
+  final double value
+  overrides: createState
+typedef GlassSliderBuilder = Widget Function(BuildContext, GlassSliderDetails)
+final class GlassSliderDetails
+  const GlassSliderDetails({
+    required MotionSelection<GlassFrame> track,
+    required MotionSelection<GlassFrame> fill,
+    required MotionSelection<GlassFrame> thumb,
+    required List<Offset> ticks,
+    required Set<WidgetState> states,
+  })
+  final MotionSelection<GlassFrame> fill
+  final Set<WidgetState> states
+  final MotionSelection<GlassFrame> thumb
+  final List<Offset> ticks
+  final MotionSelection<GlassFrame> track
+class GlassSliderStyle
+  const GlassSliderStyle({
+    WidgetStateProperty<Color?>? thumbColor,
+    WidgetStateProperty<Color?>? activeTrackColor,
+    WidgetStateProperty<Color?>? inactiveTrackColor,
+    WidgetStateProperty<Color?>? tickColor,
+    Widget Function(BuildContext, GlassSliderDetails)? builder,
+  })
+  final WidgetStateProperty<Color?>? activeTrackColor
+  final Widget Function(BuildContext, GlassSliderDetails)? builder
+  final WidgetStateProperty<Color?>? inactiveTrackColor
+  static GlassSliderStyle? lerp(
+    GlassSliderStyle? a,
+    GlassSliderStyle? b,
+    double t,
+  )
+  GlassSliderStyle merge(GlassSliderStyle? other)
+  final WidgetStateProperty<Color?>? thumbColor
+  final WidgetStateProperty<Color?>? tickColor
+  overrides: ==, hashCode
+class GlassSliverListSection extends StatelessWidget
+  const GlassSliverListSection({
+    required Widget Function(BuildContext, int) itemBuilder,
+    required int itemCount,
+    List<Object>? ids,
+    Widget? header,
+    Widget? footer,
+    GlassListStyle? style,
+    Key? key,
+  })
+  final Widget? footer
+  final Widget? header
+  final List<Object>? ids
+  final Widget Function(BuildContext, int) itemBuilder
+  final int itemCount
+  final GlassListStyle? style
+  overrides: build
+class GlassSolidBackdrop extends InheritedWidget
+  const GlassSolidBackdrop({
+    required Color? color,
+    required Widget child,
+    Key? key,
+  })
+  final Color? color
+  static Color? colorOf(BuildContext context)
+  overrides: updateShouldNotify
+class GlassStepper extends StatelessWidget
+  const GlassStepper({
+    required double value,
+    required void Function(double)? onChanged,
+    double min = ...,
+    double max = ...,
+    double step = ...,
+    GlassStepperStyle? style,
+    String decrementLabel = ...,
+    String incrementLabel = ...,
+    String Function(double)? semanticFormatterCallback,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    Key? key,
+  })
+  final bool autofocus
+  static const GlassDynamicColor background
+  final String decrementLabel
+  final FocusNode? focusNode
+  final String incrementLabel
+  final double max
+  final double min
+  final void Function(double)? onChanged
+  final String Function(double)? semanticFormatterCallback
+  final WidgetStatesController? statesController
+  final double step
+  final GlassStepperStyle? style
+  static GlassStepperStyle styleFrom({
+    Color? backgroundColor,
+    Color? foregroundColor,
+  })
+  final double value
+  overrides: build
+typedef GlassStepperBuilder = Widget Function(BuildContext, GlassStepperDetails)
+final class GlassStepperDetails
+  const GlassStepperDetails({
+    required GlassStepperHalf? pressed,
+    required bool canDecrement,
+    required bool canIncrement,
+    required Set<WidgetState> states,
+  })
+  final bool canDecrement
+  final bool canIncrement
+  final GlassStepperHalf? pressed
+  final Set<WidgetState> states
+enum GlassStepperHalf
+  decrement,
+  increment,
+class GlassStepperStyle
+  const GlassStepperStyle({
+    WidgetStateProperty<Color?>? backgroundColor,
+    WidgetStateProperty<Color?>? foregroundColor,
+    Widget Function(BuildContext, GlassStepperDetails)? builder,
+  })
+  final WidgetStateProperty<Color?>? backgroundColor
+  final Widget Function(BuildContext, GlassStepperDetails)? builder
+  final WidgetStateProperty<Color?>? foregroundColor
+  static GlassStepperStyle? lerp(
+    GlassStepperStyle? a,
+    GlassStepperStyle? b,
+    double t,
+  )
+  GlassStepperStyle merge(GlassStepperStyle? other)
+  overrides: ==, hashCode
+class GlassSubmenu extends GlassMenuEntry
+  const GlassSubmenu({
+    required String title,
+    required List<GlassMenuEntry> children,
+    String? subtitle,
+    Widget? icon,
+    bool destructive = ...,
+    bool enabled = ...,
+    bool hidden = ...,
+    bool singleSelection = ...,
+    GlassMenuElementSize elementSize = ...,
+  })
+  final List<GlassMenuEntry> children
+  final bool destructive
+  final GlassMenuElementSize elementSize
+  final bool enabled
+  final bool hidden
+  final Widget? icon
+  final bool singleSelection
+  final String? subtitle
+  final String title
+class GlassSurface extends StatefulWidget
+  const GlassSurface.live({
+    required MotionSelection<GlassFrame> frame,
+    required Widget child,
+    GlassRole role = ...,
+    Glass glass = ...,
+    @internal GlassPart? part,
+    Key? key,
+  })
+  const GlassSurface({
+    required Widget child,
+    GlassShape shape = ...,
+    GlassRole role = ...,
+    Glass glass = ...,
+    @internal GlassPart? part,
+    Key? key,
+  })
+  @internal const GlassSurface.written({
+    required ValueListenable<GlassFrame> frame,
+    required Widget child,
+    Key? key,
+  })
+  final Widget child
+  final ValueListenable<GlassFrame>? frame
+  final Glass glass
+  @internal final GlassPart? part
+  final GlassRole role
+  overrides: createState
+final class GlassSwipeAction
+  const GlassSwipeAction({
+    required String title,
+    required void Function() onPressed,
+    Widget? icon,
+    bool destructive = ...,
+    Color? backgroundColor,
+    Color? foregroundColor,
+  })
+  final Color? backgroundColor
+  final bool destructive
+  final Color? foregroundColor
+  final Widget? icon
+  final void Function() onPressed
+  final String title
+class GlassSwipeActions extends StatefulWidget
+  const GlassSwipeActions({
+    required List<GlassSwipeAction> trailing,
+    required Widget child,
+    bool fullSwipe = ...,
+    Key? key,
+  })
+  static const double actionPadding
+  static const TextStyle actionTextStyle
+  final Widget child
+  final bool fullSwipe
+  static const double fullSwipeShare
+  static const double minActionWidth
+  static const Spring spring
+  final List<GlassSwipeAction> trailing
+  overrides: createState
+class GlassSwitch extends StatelessWidget
+  const GlassSwitch({
+    required bool value,
+    required void Function(bool)? onChanged,
+    GlassSwitchStyle? style,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    String? semanticLabel,
+    Key? key,
+  })
+  final bool autofocus
+  final FocusNode? focusNode
+  static const GlassDynamicColor inactiveTrack
+  final void Function(bool)? onChanged
+  final String? semanticLabel
+  final WidgetStatesController? statesController
+  final GlassSwitchStyle? style
+  static GlassSwitchStyle styleFrom({
+    Color? thumbColor,
+    Color? activeTrackColor,
+    Color? inactiveTrackColor,
+  })
+  final bool value
+  overrides: build
+typedef GlassSwitchBuilder = Widget Function(BuildContext, GlassSwitchDetails)
+final class GlassSwitchDetails
+  const GlassSwitchDetails({
+    required MotionSelection<GlassFrame> thumb,
+    required MotionSelection<double> progress,
+    required Set<WidgetState> states,
+  })
+  final MotionSelection<double> progress
+  final Set<WidgetState> states
+  final MotionSelection<GlassFrame> thumb
+class GlassSwitchStyle
+  const GlassSwitchStyle({
+    WidgetStateProperty<Color?>? thumbColor,
+    WidgetStateProperty<Color?>? activeTrackColor,
+    WidgetStateProperty<Color?>? inactiveTrackColor,
+    Widget Function(BuildContext, GlassSwitchDetails)? builder,
+  })
+  final WidgetStateProperty<Color?>? activeTrackColor
+  final Widget Function(BuildContext, GlassSwitchDetails)? builder
+  final WidgetStateProperty<Color?>? inactiveTrackColor
+  static GlassSwitchStyle? lerp(
+    GlassSwitchStyle? a,
+    GlassSwitchStyle? b,
+    double t,
+  )
+  GlassSwitchStyle merge(GlassSwitchStyle? other)
+  final WidgetStateProperty<Color?>? thumbColor
+  overrides: ==, hashCode
+enum GlassTabAccessoryPlacement
+  expanded,
+  inline,
+class GlassTabBar extends StatelessWidget
+  const GlassTabBar({
+    required List<GlassTabDestination> destinations,
+    required int selectedIndex,
+    required void Function(int)? onDestinationSelected,
+    GlassTabBarStyle? style,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    String? semanticLabel,
+    GlassTabBarMinimizeBehavior minimizeBehavior = ...,
+    Widget? bottomAccessory,
+    GlassSearchController? searchController,
+    Key? key,
+  })
+  static GlassTabAccessoryPlacement accessoryPlacementOf(BuildContext context)
+  final bool autofocus
+  final Widget? bottomAccessory
+  final List<GlassTabDestination> destinations
+  final FocusNode? focusNode
+  static double groupHeight({required bool accessory})
+  static const double height
+  static const double iconSize
+  static const double labelGap
+  static const double maxTextScale
+  final GlassTabBarMinimizeBehavior minimizeBehavior
+  final void Function(int)? onDestinationSelected
+  final GlassSearchController? searchController
+  static const GlassDynamicColor selected
+  final int selectedIndex
+  final String? semanticLabel
+  final WidgetStatesController? statesController
+  final GlassTabBarStyle? style
+  static GlassTabBarStyle styleFrom({
+    Color? backgroundColor,
+    Color? thumbColor,
+    Color? foregroundColor,
+    Color? selectedForegroundColor,
+    TextStyle? textStyle,
+    TextStyle? selectedTextStyle,
+  })
+  static const GlassDynamicColor thumb
+  static const GlassDynamicColor unselected
+  overrides: build
+enum GlassTabBarMinimizeBehavior
+  automatic,
+  never,
+  onScrollDown,
+  onScrollUp,
+  bool get minimizes
+class GlassTabBarStyle
+  const GlassTabBarStyle({
+    WidgetStateProperty<Color?>? backgroundColor,
+    WidgetStateProperty<Color?>? thumbColor,
+    WidgetStateProperty<Color?>? foregroundColor,
+    WidgetStateProperty<TextStyle?>? textStyle,
+    Widget Function(BuildContext, GlassSelectorDetails)? builder,
+  })
+  final WidgetStateProperty<Color?>? backgroundColor
+  final Widget Function(BuildContext, GlassSelectorDetails)? builder
+  final WidgetStateProperty<Color?>? foregroundColor
+  static GlassTabBarStyle? lerp(
+    GlassTabBarStyle? a,
+    GlassTabBarStyle? b,
+    double t,
+  )
+  GlassTabBarStyle merge(GlassTabBarStyle? other)
+  final WidgetStateProperty<TextStyle?>? textStyle
+  final WidgetStateProperty<Color?>? thumbColor
+  overrides: ==, hashCode
+final class GlassTabDestination
+  const GlassTabDestination({
+    required Widget icon,
+    required Widget label,
+    Widget? selectedIcon,
+    Widget? badge,
+    bool enabled = ...,
+    String? semanticLabel,
+    Object? id,
+  })
+  final Widget? badge
+  final bool enabled
+  final Widget icon
+  final Object? id
+  final Widget label
+  final Widget? selectedIcon
+  final String? semanticLabel
+class GlassTabScaffold extends StatefulWidget
+  const GlassTabScaffold({
+    required GlassTabBar tabBar,
+    required Widget Function(BuildContext, int) tabBuilder,
+    Widget Function(BuildContext)? searchBuilder,
+    Color? backgroundColor,
+    Key? key,
+  })
+  final Color? backgroundColor
+  static const double inset
+  final Widget Function(BuildContext)? searchBuilder
+  final GlassTabBar tabBar
+  final Widget Function(BuildContext, int) tabBuilder
+  overrides: createState
+enum GlassTextRole
+  largeTitle,
+  title1,
+  title2,
+  title3,
+  headline,
+  body,
+  callout,
+  subheadline,
+  footnote,
+  caption1,
+  caption2,
+  double get size
+  double sizeFor(TextScaler scaler)
+  final List<double> sizes
+  TextStyle get style
+  final FontWeight weight
+class GlassTheme extends StatelessWidget
+  const GlassTheme({
+    required GlassThemeData data,
+    required Widget child,
+    Key? key,
+  })
+  static Brightness? brightnessOf(BuildContext context)
+  final Widget child
+  static GlassColorScheme? colorSchemeOf(BuildContext context)
+  final GlassThemeData data
+  static GlassThemeData? maybeOf(BuildContext context)
+  static GlassThemeData of(BuildContext context)
+  static GlassRenderer rendererOf(BuildContext context)
+  overrides: build
+class GlassThemeData
+  factory GlassThemeData.lerp(GlassThemeData a, GlassThemeData b, double t)
+  const GlassThemeData({
+    Brightness? brightness,
+    Color? primaryColor,
+    String? fontFamily,
+    GlassRenderer? renderer,
+    GlassColorScheme? colorScheme,
+    GlassButtonStyle? buttonStyle,
+    GlassButtonStyle? prominentButtonStyle,
+    GlassSwitchStyle? switchStyle,
+    GlassSliderStyle? sliderStyle,
+    GlassStepperStyle? stepperStyle,
+    GlassPageControlStyle? pageControlStyle,
+    GlassSegmentedStyle? segmentedStyle,
+    GlassTabBarStyle? tabBarStyle,
+    GlassSearchFieldStyle? searchFieldStyle,
+    GlassListStyle? listStyle,
+    GlassNavigationBarStyle? navigationBarStyle,
+    GlassBadgeStyle? badgeStyle,
+    GlassDatePickerStyle? datePickerStyle,
+    GlassMenuStyle? menuStyle,
+    GlassAlertStyle? alertStyle,
+    GlassSheetStyle? sheetStyle,
+    GlassPopoverStyle? popoverStyle,
+    GlassToolbarStyle? toolbarStyle,
+  })
+  final GlassAlertStyle? alertStyle
+  final GlassBadgeStyle? badgeStyle
+  final Brightness? brightness
+  final GlassButtonStyle? buttonStyle
+  final GlassColorScheme? colorScheme
+  final GlassDatePickerStyle? datePickerStyle
+  final String? fontFamily
+  @internal Color get labelColor
+  final GlassListStyle? listStyle
+  final GlassMenuStyle? menuStyle
+  GlassThemeData merge(GlassThemeData? other)
+  final GlassNavigationBarStyle? navigationBarStyle
+  final GlassPageControlStyle? pageControlStyle
+  final GlassPopoverStyle? popoverStyle
+  final Color? primaryColor
+  final GlassButtonStyle? prominentButtonStyle
+  final GlassRenderer? renderer
+  final GlassSearchFieldStyle? searchFieldStyle
+  final GlassSegmentedStyle? segmentedStyle
+  final GlassSheetStyle? sheetStyle
+  final GlassSliderStyle? sliderStyle
+  final GlassStepperStyle? stepperStyle
+  final GlassSwitchStyle? switchStyle
+  final GlassTabBarStyle? tabBarStyle
+  @internal Color get tertiaryLabelColor
+  final GlassToolbarStyle? toolbarStyle
+  overrides: ==, hashCode
+class GlassToolbar extends StatefulWidget implements PreferredSizeWidget
+  const GlassToolbar({
+    required List<GlassBarEntry> items,
+    String? closeSemanticLabel,
+    Key? key,
+  })
+  static const double bottomInset
+  final String? closeSemanticLabel
+  static const double fusion
+  static const double height
+  final List<GlassBarEntry> items
+  static const double keyboardInset
+  static const double sideInset
+  overrides: createState, preferredSize
+class GlassToolbarStyle
+  const GlassToolbarStyle({GlassBarItemStyle? itemStyle})
+  final GlassBarItemStyle? itemStyle
+  static GlassToolbarStyle? lerp(
+    GlassToolbarStyle? a,
+    GlassToolbarStyle? b,
+    double t,
+  )
+  GlassToolbarStyle merge(GlassToolbarStyle? other)
+  overrides: ==, hashCode
+class GlassTouchGlow
+  const GlassTouchGlow({
+    required double wash,
+    required Offset center,
+    required double radius,
+    required double spot,
+  })
+  final Offset center
+  double gainOn(Glass glass, Brightness brightness)
+  final double radius
+  final double spot
+  final double wash
+  overrides: ==, hashCode
+final class GlassTraits
+  const GlassTraits({
+    Brightness brightness = ...,
+    GlassInterfaceLevel interfaceLevel = ...,
+    bool highContrast = ...,
+    bool boldText = ...,
+    bool reduceMotion = ...,
+    bool reduceTransparency = ...,
+    bool prefersCrossFade = ...,
+    bool showBorders = ...,
+    double glassTintAmount = ...,
+  })
+  factory GlassTraits.of(BuildContext context)
+  final bool boldText
+  final Brightness brightness
+  final double glassTintAmount
+  final bool highContrast
+  final GlassInterfaceLevel interfaceLevel
+  final bool prefersCrossFade
+  final bool reduceMotion
+  final bool reduceTransparency
+  final bool showBorders
+  overrides: ==, hashCode
+class GlassTraitsOverride extends StatelessWidget
+  const GlassTraitsOverride({
+    required Widget child,
+    GlassInterfaceLevel? interfaceLevel,
+    bool? reduceTransparency,
+    bool? prefersCrossFade,
+    bool? showBorders,
+    double? glassTintAmount,
+    Key? key,
+  })
+  final Widget child
+  final double? glassTintAmount
+  final GlassInterfaceLevel? interfaceLevel
+  final bool? prefersCrossFade
+  final bool? reduceTransparency
+  final bool? showBorders
+  overrides: build
+class GlassZoomSource extends StatelessWidget
+  const GlassZoomSource({
+    required MotionSource source,
+    required Widget child,
+    double borderRadius = ...,
+    Key? key,
+  })
+  final double borderRadius
+  final Widget child
+  final MotionSource source
+  overrides: build
+class RawGlassList extends StatefulWidget
+  const RawGlassList({
+    required List<Object> ids,
+    required Widget Function(BuildContext, Object) itemBuilder,
+    LayoutPlanner planner = ...,
+    Key? key,
+  })
+  final List<Object> ids
+  final Widget Function(BuildContext, Object) itemBuilder
+  final LayoutPlanner planner
+  overrides: createState
+class RawGlassMenu extends StatefulWidget
+  const RawGlassMenu({
+    required List<GlassMenuEntry> entries,
+    required Widget child,
+    required Widget label,
+    Color? tint,
+    double? radius,
+    void Function()? onPressed,
+    bool enabled = ...,
+    GlassMenuController? controller,
+    String? semanticLabel,
+    GlassMenuOrder order = ...,
+    GlassMenuStyle? style,
+    @internal MenuTuning tuning = ...,
+    @internal MenuSource? Function(RenderBox)? sourceOf,
+    @internal void Function(bool)? onShowing,
+    @internal bool scalesOnPress = ...,
+    Key? key,
+  })
+  final Widget child
+  final GlassMenuController? controller
+  final bool enabled
+  final List<GlassMenuEntry> entries
+  final Widget label
+  final void Function()? onPressed
+  @internal final void Function(bool)? onShowing
+  final GlassMenuOrder order
+  final double? radius
+  @internal final bool scalesOnPress
+  final String? semanticLabel
+  @internal final MenuSource? Function(RenderBox)? sourceOf
+  final GlassMenuStyle? style
+  final Color? tint
+  @internal final MenuTuning tuning
+  overrides: createState
+class RawGlassPageControl extends StatefulWidget
+  const RawGlassPageControl({
+    required int count,
+    required int page,
+    required void Function(int)? onChanged,
+    required Widget Function(BuildContext, GlassPageControlDetails) builder,
+    double? progress,
+    GlassPageControlBackground backgroundStyle = ...,
+    String? semanticLabel,
+    String Function(int, int)? semanticValueFormatter,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    Key? key,
+  })
+  final bool autofocus
+  final GlassPageControlBackground backgroundStyle
+  final Widget Function(BuildContext, GlassPageControlDetails) builder
+  final int count
+  final FocusNode? focusNode
+  final void Function(int)? onChanged
+  final int page
+  final double? progress
+  final String? semanticLabel
+  final String Function(int, int)? semanticValueFormatter
+  overrides: createState
+class RawGlassSearchField extends StatefulWidget
+  const RawGlassSearchField({
+    required Widget Function(BuildContext, GlassSearchFieldDetails) builder,
+    TextEditingController? controller,
+    FocusNode? focusNode,
+    void Function(String)? onChanged,
+    void Function(String)? onSubmitted,
+    bool enabled = ...,
+    bool autofocus = ...,
+    String? semanticLabel,
+    Key? key,
+  })
+  final bool autofocus
+  final Widget Function(BuildContext, GlassSearchFieldDetails) builder
+  final TextEditingController? controller
+  final bool enabled
+  final FocusNode? focusNode
+  final void Function(String)? onChanged
+  final void Function(String)? onSubmitted
+  final String? semanticLabel
+  overrides: createState
+class RawGlassSelector extends StatefulWidget
+  const RawGlassSelector({
+    required int itemCount,
+    required int? selectedIndex,
+    required void Function(int)? onChanged,
+    required Widget Function(BuildContext, int, Set<WidgetState>) itemBuilder,
+    required Widget Function(BuildContext, GlassSelectorDetails) builder,
+    GlassSelectorMotion motion = ...,
+    void Function(int)? onReselected,
+    Set<int> disabledItems = ...,
+    List<Object>? itemKeys,
+    List<double?>? itemWidths,
+    bool proportionalWidth = ...,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    String? semanticLabel,
+    Key? key,
+  })
+  final bool autofocus
+  final Widget Function(BuildContext, GlassSelectorDetails) builder
+  final Set<int> disabledItems
+  final FocusNode? focusNode
+  final Widget Function(BuildContext, int, Set<WidgetState>) itemBuilder
+  final int itemCount
+  final List<Object>? itemKeys
+  final List<double?>? itemWidths
+  final GlassSelectorMotion motion
+  final void Function(int)? onChanged
+  final void Function(int)? onReselected
+  final bool proportionalWidth
+  static const double segmentedReleaseSlop
+  final int? selectedIndex
+  final String? semanticLabel
+  final WidgetStatesController? statesController
+  overrides: createState
+class RawGlassSlider extends StatefulWidget
+  const RawGlassSlider({
+    required double value,
+    required void Function(double)? onChanged,
+    required Widget Function(BuildContext, GlassSliderDetails) builder,
+    void Function(double)? onChangeStart,
+    void Function(double)? onChangeEnd,
+    double min = ...,
+    double max = ...,
+    int ticks = ...,
+    bool animated = ...,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    String? semanticLabel,
+    Key? key,
+  })
+  final bool animated
+  final bool autofocus
+  final Widget Function(BuildContext, GlassSliderDetails) builder
+  final FocusNode? focusNode
+  static const double height
+  static const double keyboardStep
+  final double max
+  final double min
+  final void Function(double)? onChangeEnd
+  final void Function(double)? onChangeStart
+  final void Function(double)? onChanged
+  final String? semanticLabel
+  final WidgetStatesController? statesController
+  static const double tickSize
+  final int ticks
+  final double value
+  overrides: createState
+class RawGlassStepper extends StatefulWidget
+  const RawGlassStepper({
+    required double value,
+    required void Function(double)? onChanged,
+    required Widget Function(BuildContext, GlassStepperDetails) builder,
+    double min = ...,
+    double max = ...,
+    double step = ...,
+    String decrementLabel = ...,
+    String incrementLabel = ...,
+    String Function(double)? semanticFormatterCallback,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    Key? key,
+  })
+  final bool autofocus
+  final Widget Function(BuildContext, GlassStepperDetails) builder
+  final String decrementLabel
+  final FocusNode? focusNode
+  final String incrementLabel
+  final double max
+  final double min
+  final void Function(double)? onChanged
+  static const Duration repeatInterval
+  final String Function(double)? semanticFormatterCallback
+  static const Size size
+  final WidgetStatesController? statesController
+  final double step
+  final double value
+  overrides: createState
+class RawGlassSwitch extends StatefulWidget
+  const RawGlassSwitch({
+    required bool value,
+    required void Function(bool)? onChanged,
+    required Widget Function(BuildContext, GlassSwitchDetails) builder,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    String? semanticLabel,
+    Key? key,
+  })
+  final bool autofocus
+  final Widget Function(BuildContext, GlassSwitchDetails) builder
+  final FocusNode? focusNode
+  final void Function(bool)? onChanged
+  final String? semanticLabel
+  static const Size size
+  final WidgetStatesController? statesController
+  final bool value
+  overrides: createState
+Future<GlassAlertAction?> showGlassActionSheet(
+  BuildContext context, {
+  Widget? title,
+  Widget? message,
+  List<GlassAlertAction> actions = ...,
+  BuildContext? anchor,
+  Rect? anchorRect,
+  GlassAlertStyle? style,
+  PresentationLevel level = ...,
+})
+Future<GlassAlertAction?> showGlassAlert(
+  BuildContext context, {
+  Widget? title,
+  Widget? message,
+  List<GlassAlertAction> actions = ...,
+  GlassAlertStyle? style,
+  PresentationLevel level = ...,
+})
+Future<T?> showGlassPopover<T>(
+  BuildContext context, {
+  required Widget Function(BuildContext) builder,
+  BuildContext? anchor,
+  Rect? anchorRect,
+  bool adaptsToSheet = ...,
+  GlassPopoverStyle? style,
+  String? semanticLabel,
+  PresentationLevel level = ...,
+})
+Future<T?> showGlassSheet<T>(
+  BuildContext context, {
+  required Widget Function(BuildContext) builder,
+  List<GlassSheetDetent> detents = ...,
+  GlassSheetDetent? initialDetent,
+  GlassSheetDetent? largestUndimmedDetent,
+  bool showDragHandle = ...,
+  bool isDismissible = ...,
+  bool scrollingExpandsSheet = ...,
+  GlassSheetStyle? style,
+  String? semanticLabel,
+  void Function(GlassSheetDetent)? onDetentChanged,
+  void Function()? onDismissAttempt,
+  PresentationLevel level = ...,
+})
+re-exported from package:kinesis:
+  ActivateInput
+  ActivationEvent
+  ActivationSource
+  DismissPolicy
+  DismissTrigger
+  DragInteraction
+  DragInteractionDetails
+  FollowInteraction
+  FrameCadence
+  InputPort
+  InputRegion
+  Interaction
+  InteractionEvent
+  InteractionInput
+  InteractionRole
+  InteractionSession
+  InteractionUpdate
+  LayoutAccent
+  LayoutChange
+  LayoutEntry
+  LayoutItem
+  LayoutPhase
+  LayoutPlan
+  LayoutPlanner
+  LongPressInteraction
+  LongPressStartEvent
+  ManualMotionClock
+  MotionClock
+  MotionConverter
+  MotionDriven
+  MotionEffect
+  MotionHaptic
+  MotionHapticPlay
+  MotionLayout
+  MotionLayoutBuilder
+  MotionMeasure
+  MotionResolveHost
+  MotionScope
+  MotionScroll
+  MotionScrollPhase
+  MotionSelection
+  MotionSource
+  MotionSourceBox
+  MotionTraits
+  MotionTraitsOverride
+  MotionTransition
+  MotionTransitionLayer
+  MotionValue
+  PointerCancelInput
+  PointerCancelReason
+  PointerDownInput
+  PointerFollower
+  PointerHoverInput
+  PointerMoveInput
+  PointerUpInput
+  Presentation
+  PresentationContext
+  PresentationEnvironment
+  PresentationHandle
+  PresentationLevel
+  PresentationPageRoute
+  PresentationPortal
+  PresentationPortalController
+  PresentationRoute
+  PressInteraction
+  ScrubChangeEvent
+  ScrubInteraction
+  SessionOutput
+  SliverMotionList
+  SourceGeometry
+  Spring
+  TapInteraction
+  showPresentation
+  withSpring
+  withoutAnimation
+re-exported from package:liquid_glass_renderer:
+  GlassFrameReport
+  GlassPlanOverlay
+  GlassReadReport
+  GlassReadSource
+  debugDumpGlassPlan
+
+# package:apple_liquid_glass/glass_renderer.dart
+final class GlassGroupDetails
+  const GlassGroupDetails({required GlassMerge merge, required Widget child})
+  final Widget child
+  final GlassMerge merge
+class GlassRenderer (see package:apple_liquid_glass/apple_liquid_glass.dart)
+final class GlassScrollEdgeDetails
+  const GlassScrollEdgeDetails({
+    required AxisDirection edge,
+    required bool hard,
+    required double extent,
+    required ValueListenable<double> presence,
+    required Color background,
+  })
+  final Color background
+  final AxisDirection edge
+  final double extent
+  final bool hard
+  final ValueListenable<double> presence
+  overrides: ==, hashCode
+final class GlassSurfaceDetails
+  const GlassSurfaceDetails({
+    required GlassRole role,
+    required Glass glass,
+    required ValueListenable<GlassFrame> frame,
+    required Widget child,
+    @internal GlassPart? part,
+  })
+  final Widget child
+  final ValueListenable<GlassFrame> frame
+  final Glass glass
+  @internal final GlassPart? part
+  final GlassRole role
+
+# package:apple_liquid_glass/motion.dart
+re-exported from package:kinesis:
+  ActivateInput
+  ActivationEvent
+  ActivationSource
+  Band
+  DismissPolicy
+  DismissTrigger
+  DragInteraction
+  DragInteractionDetails
+  FollowInteraction
+  FrameCadence
+  InputPort
+  InputRegion
+  Interaction
+  InteractionEvent
+  InteractionInput
+  InteractionRole
+  InteractionSession
+  InteractionUpdate
+  LayoutAccent
+  LayoutChange
+  LayoutEntry
+  LayoutItem
+  LayoutMotion
+  LayoutPhase
+  LayoutPlan
+  LayoutPlanner
+  LongPressInteraction
+  LongPressStartEvent
+  ManualMotionClock
+  Motion
+  MotionCancel
+  MotionClock
+  MotionConverter
+  MotionDriven
+  MotionEffect
+  MotionHaptic
+  MotionHapticPlay
+  MotionLayout
+  MotionLayoutBuilder
+  MotionLoop
+  MotionMeasure
+  MotionPart
+  MotionRect
+  MotionResolveHost
+  MotionRest
+  MotionScope
+  MotionScroll
+  MotionScrollPhase
+  MotionSelect
+  MotionSelection
+  MotionSignal
+  MotionSource
+  MotionSourceBox
+  MotionTraits
+  MotionTraitsOverride
+  MotionTransition
+  MotionTransitionLayer
+  MotionValue
+  MotionValueCommands
+  PointerCancelInput
+  PointerCancelReason
+  PointerDownInput
+  PointerFollower
+  PointerHoverInput
+  PointerMoveInput
+  PointerUpInput
+  Presence
+  PresenceStatus
+  Presentation
+  PresentationContext
+  PresentationEnvironment
+  PresentationHandle
+  PresentationLevel
+  PresentationPageRoute
+  PresentationPortal
+  PresentationPortalController
+  PresentationRoute
+  Presented
+  PressInteraction
+  Projection
+  ProjectionChoice
+  ProjectionExit
+  ProjectionExited
+  ProjectionStop
+  Ramp
+  RectSprings
+  ScrubChangeEvent
+  ScrubInteraction
+  SessionOutput
+  SliverMotionList
+  SourceGeometry
+  Sourced
+  Spring
+  TapInteraction
+  TimedValue
+  showPresentation
+  withSpring
+  withoutAnimation
+
+# package:apple_liquid_glass/testing.dart
+re-exported from package:liquid_glass_renderer:
+  expectGlassBudget
