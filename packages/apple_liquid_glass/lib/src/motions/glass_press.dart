@@ -53,7 +53,12 @@ final class FlexLaw {
 /// shifts it toward the finger: a quarter as much per pixel inside the
 /// surface as beyond its edge, over the spec's stretch threshold. With
 /// [FlexLaw.glows] a glow fades in under the finger and fades out on
-/// release while the little glow at the touch point grows.
+/// release while the little glow at the touch point grows. That glow is a
+/// glass button's and is not measured (glass-button passport); the glow
+/// measured on a tab bar and an open menu is [TouchGlowMotion], a law of
+/// its own with another rise, lags, spot size and a dragging state. The
+/// press paints its glow with that law's [TouchGlowMotion.washOffset],
+/// [TouchGlowMotion.spotCore] and [TouchGlowMotion.spotSpread].
 ///
 /// The flex takes up every touch [FlexLaw.touchDelay] after the touch's
 /// own stamp, as UIKit's button does; whether the surface is pressed and

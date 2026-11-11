@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/motions/flex_spec.dart' show FlexSpec;
+import 'package:apple_liquid_glass/src/motions/glass_press.dart'
+    show GlassPress;
 import 'package:flutter/painting.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
@@ -40,6 +42,14 @@ abstract final class TouchGlowTuning {
 /// once both glows read zero ([hideBelow]) and the fall is within
 /// [MotionRest.opacity]. A finger held still counts: the glow rests lit
 /// until the finger moves or lifts.
+///
+/// A glass button glows by another law, the one [GlassPress] carries: not
+/// measured (glass-button passport), it rises on an exponential instead
+/// of a spring, rises and falls when the flex takes up the touch and the
+/// release instead of after [riseLag] and [releaseLag], moves its spot
+/// after the finger on a tracking spring, never turns dragging, and has a
+/// smaller spot. The two share the fall spring and how a glow is painted:
+/// [washOffset], [spotCore] and [spotSpread].
 final class TouchGlowMotion extends Motion {
   /// Creates a resting glow with the peaks of a surface's flex spec.
   TouchGlowMotion({
