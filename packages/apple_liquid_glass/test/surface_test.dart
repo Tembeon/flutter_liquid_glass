@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/rendering.dart';
 
 Widget _app(GlassRenderer renderer, Widget child) => Directionality(
   textDirection: TextDirection.ltr,

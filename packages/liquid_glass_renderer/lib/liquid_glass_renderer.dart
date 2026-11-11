@@ -1,14 +1,15 @@
-/// Liquid glass for Flutter: the five libraries of the package in one
-/// import.
+/// Liquid glass for Flutter: what an app needs to put glass on screen, in
+/// one import.
 ///
-/// `painting` describes glass as values, `composer` plans each frame of it,
-/// `rendering` carries the plan out, `widgets` puts glass in the tree and
-/// `effects` makes it react to touch. Import a single library to depend on
-/// less.
+/// `painting` describes glass as values (shapes, settings, appearance) and
+/// `widgets` puts it in the tree (`LiquidGlass`, `LiquidGlassLayer`,
+/// `LiquidGlassBlendGroup`, `FakeGlass`).
+///
+/// The other libraries are for those who build on the renderer and are
+/// imported by name: `composer` for the plan of a frame and its report,
+/// `rendering` for the render objects and layers that carry the plan out,
+/// `effects` for glass that reacts to touch (`GlassGlow`, `LiquidStretch`).
 library;
 
-export 'composer.dart';
-export 'effects.dart';
 export 'painting.dart';
-export 'rendering.dart';
 export 'widgets.dart';

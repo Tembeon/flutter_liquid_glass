@@ -180,16 +180,10 @@ class FakeGlass extends StatelessWidget
   final List<BoxShadow> shadows
   final LiquidShape shape
   overrides: build
-class FrostBandPaint (see package:liquid_glass_renderer/composer.dart)
-enum GestureMode (see package:liquid_glass_renderer/effects.dart)
-class GlassFrameReport (see package:liquid_glass_renderer/composer.dart)
-class GlassGlow (see package:liquid_glass_renderer/effects.dart)
 class GlassPlanOverlay extends StatefulWidget
   const GlassPlanOverlay({required Widget child, Key? key})
   final Widget child
   overrides: createState
-class GlassReadReport (see package:liquid_glass_renderer/composer.dart)
-enum GlassReadSource (see package:liquid_glass_renderer/composer.dart)
 class LiquidGlass extends StatefulWidget
   const LiquidGlass.auto({
     required Widget child,
@@ -279,40 +273,6 @@ final class LiquidGlassAppearance
 sealed class LiquidGlassBackdrop
   const factory LiquidGlassBackdrop.read()
   const factory LiquidGlassBackdrop.solid(Color color)
-class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer implements PlanSite
-  LiquidGlassBackdropFilterLayer.frosted({
-    required LiquidGlassBackdropFrost frost,
-    required Rect clip,
-    required double reach,
-    required double devicePixelRatio,
-    BlendMode blendMode = ...,
-  })
-  LiquidGlassBackdropFilterLayer({
-    required ImageFilter filter,
-    required Rect clip,
-    required double reach,
-    required double devicePixelRatio,
-    BlendMode blendMode = ...,
-  })
-  FrostBandPaint? bandPaint
-  BlendMode get blendMode
-  Rect get clip
-  set clip(Rect value)
-  @visibleForTesting PageCopy? debugPage
-  double get devicePixelRatio
-  set devicePixelRatio(double value)
-  @internal bool get drawsGroup
-  ImageFilter get filter
-  set filter(ImageFilter value)
-  LiquidGlassBackdropFrost? get frost
-  set frost(LiquidGlassBackdropFrost value)
-  double get reach
-  set reach(double value)
-  @internal Offset get screenOrigin
-  @internal bool get serves
-  @internal Rect get shown
-  overrides: addOutput, addToScene, ask, beginFate, dispose, drawsOwnChildren, endFrame, formNode, outputsInPlace, show
-class LiquidGlassBackdropFrost (see package:liquid_glass_renderer/composer.dart)
 class LiquidGlassBlendGroup extends StatefulWidget
   const LiquidGlassBlendGroup({
     required Widget child,
@@ -428,16 +388,6 @@ class LiquidGlassLayer extends StatefulWidget
   final LiquidGlassSettings settings
   static LiquidGlassSettings settingsOf(BuildContext context)
   overrides: createState
-typedef LiquidGlassLayerEffects = ({int? alpha, double blur, RRect? clip, Matrix4 transform})
-class LiquidGlassLayerFrame
-  const LiquidGlassLayerFrame({
-    LiquidGlassSettings settings = ...,
-    LiquidGlassField? field,
-    LiquidGlassGlow? glow,
-  })
-  final LiquidGlassField? field
-  final LiquidGlassGlow? glow
-  final LiquidGlassSettings settings
 final class LiquidGlassSettings
   factory LiquidGlassSettings.fromJson(Map<String, Object?> json)
   factory LiquidGlassSettings.ios27Clear({
@@ -535,14 +485,6 @@ final class LiquidGlassSupport
   final LiquidGlassDeviceClass deviceClass
   final String? unavailableReason
   overrides: ==, hashCode, toString
-abstract final class LiquidGlassUnderlay
-  LiquidGlassUnderlay()
-  @internal static ({int? alpha, double blur, RRect? clip, Matrix4 transform})? effectsOf(
-    Layer layer,
-  )
-  static void registerLayer<T extends ContainerLayer>(
-    ({int? alpha, double blur, RRect? clip, Matrix4 transform}) Function(T) effects,
-  )
 class LiquidGlassVisibility extends StatelessWidget
   const LiquidGlassVisibility({
     required double visibility,
@@ -579,20 +521,6 @@ sealed class LiquidShape extends OutlinedBorder
   const LiquidShape({BorderSide side = ...})
   @internal double get cornerRadius
   overrides: ==, getInnerPath, getOuterPath, hashCode, paint
-class LiquidStretch (see package:liquid_glass_renderer/effects.dart)
-extension OffsetResistanceExtension (see package:liquid_glass_renderer/effects.dart)
-class RawLiquidStretch (see package:liquid_glass_renderer/effects.dart)
-class RenderLiquidGlassContent extends RenderOpacity
-  RenderLiquidGlassContent({double opacity = ..., RenderBox? child})
-  Color get glowColor
-  set glowColor(Color value)
-  Offset get glowOffset
-  set glowOffset(Offset value)
-  double get glowRadius
-  set glowRadius(double value)
-  overrides: debugFillProperties, paint
-function debugDumpGlassPlan (see package:liquid_glass_renderer/composer.dart)
-bool debugPaintLiquidGlassGeometry
 
 # package:liquid_glass_renderer/painting.dart
 class LiquidGlassAppearance (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
@@ -610,12 +538,67 @@ class LiquidRoundedSuperellipse (see package:liquid_glass_renderer/liquid_glass_
 class LiquidShape (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 
 # package:liquid_glass_renderer/rendering.dart
-class LiquidGlassBackdropFilterLayer (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
-typedef LiquidGlassLayerEffects (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
-class LiquidGlassLayerFrame (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
-class LiquidGlassUnderlay (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
-class RenderLiquidGlassContent (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
-variable debugPaintLiquidGlassGeometry (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer implements PlanSite
+  LiquidGlassBackdropFilterLayer.frosted({
+    required LiquidGlassBackdropFrost frost,
+    required Rect clip,
+    required double reach,
+    required double devicePixelRatio,
+    BlendMode blendMode = ...,
+  })
+  LiquidGlassBackdropFilterLayer({
+    required ImageFilter filter,
+    required Rect clip,
+    required double reach,
+    required double devicePixelRatio,
+    BlendMode blendMode = ...,
+  })
+  FrostBandPaint? bandPaint
+  BlendMode get blendMode
+  Rect get clip
+  set clip(Rect value)
+  @visibleForTesting PageCopy? debugPage
+  double get devicePixelRatio
+  set devicePixelRatio(double value)
+  @internal bool get drawsGroup
+  ImageFilter get filter
+  set filter(ImageFilter value)
+  LiquidGlassBackdropFrost? get frost
+  set frost(LiquidGlassBackdropFrost value)
+  double get reach
+  set reach(double value)
+  @internal Offset get screenOrigin
+  @internal bool get serves
+  @internal Rect get shown
+  overrides: addOutput, addToScene, ask, beginFate, dispose, drawsOwnChildren, endFrame, formNode, outputsInPlace, show
+typedef LiquidGlassLayerEffects = ({int? alpha, double blur, RRect? clip, Matrix4 transform})
+class LiquidGlassLayerFrame
+  const LiquidGlassLayerFrame({
+    LiquidGlassSettings settings = ...,
+    LiquidGlassField? field,
+    LiquidGlassGlow? glow,
+  })
+  final LiquidGlassField? field
+  final LiquidGlassGlow? glow
+  final LiquidGlassSettings settings
+abstract final class LiquidGlassUnderlay
+  LiquidGlassUnderlay()
+  @internal static ({int? alpha, double blur, RRect? clip, Matrix4 transform})? effectsOf(
+    Layer layer,
+  )
+  static void registerLayer<T extends ContainerLayer>(
+    ({int? alpha, double blur, RRect? clip, Matrix4 transform}) Function(T) effects,
+  )
+class RenderLiquidGlassContent extends RenderOpacity
+  RenderLiquidGlassContent({double opacity = ..., RenderBox? child})
+  Color get glowColor
+  set glowColor(Color value)
+  Offset get glowOffset
+  set glowOffset(Offset value)
+  double get glowRadius
+  set glowRadius(double value)
+  overrides: debugFillProperties, paint
+bool debugPaintLiquidGlassGeometry
 
 # package:liquid_glass_renderer/widgets.dart
 class FakeGlass (see package:liquid_glass_renderer/liquid_glass_renderer.dart)

@@ -155,7 +155,11 @@ LiquidGlass(
 ```
 
 `GlassGlow` adds a touch glow inside the glass, and `LiquidStretch` gives it
-the squash and stretch of iOS controls while it is dragged.
+the squash and stretch of iOS controls while it is dragged. Both come from
+`package:liquid_glass_renderer/effects.dart`: the main import holds what every
+app needs (the values in `painting.dart` and the widgets in `widgets.dart`),
+and the frame plan (`composer.dart`), the render objects (`rendering.dart`)
+and the effects are imported by name.
 
 ## Blending shapes
 
