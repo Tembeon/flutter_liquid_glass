@@ -34,7 +34,8 @@ export 'src/widgets/input_zones.dart'
 export 'src/widgets/layout.dart' show MotionLayout, MotionLayoutBuilder;
 export 'src/widgets/measure.dart' show MotionMeasure;
 export 'src/widgets/resolve.dart' show MotionResolveHost;
-export 'src/widgets/scope.dart' show MotionScope, MotionTraitsOverride;
+export 'src/widgets/scope.dart'
+    show MotionClockScope, MotionScope, MotionTraitsOverride;
 export 'src/widgets/scroll.dart' show MotionScroll, MotionScrollPhase;
 export 'src/widgets/sliver_layout.dart' show SliverMotionList;
 export 'src/widgets/source.dart' show MotionSource, MotionSourceBox;

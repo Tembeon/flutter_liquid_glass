@@ -40,6 +40,7 @@ ManualMotionClock
 Motion
 MotionCancel
 MotionClock
+MotionClockScope
 MotionConverter
 MotionDriven
 MotionEffect

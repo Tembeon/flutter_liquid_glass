@@ -225,7 +225,8 @@ class _SearchBar extends StatefulWidget {
 }
 
 class _SearchBarState extends State<_SearchBar> {
-  final _motion = SearchMotion();
+  late final MotionClock _clock;
+  late final _motion = SearchMotion(clock: _clock);
   final _ends = SearchEndSignal();
   late final _progress = _motion.select((m) => m.progress);
   late final _swell = _motion.select(
@@ -245,11 +246,12 @@ class _SearchBarState extends State<_SearchBar> {
   // the field returns, so nothing follows the keyboard down.
   double? _frozen;
 
-  double get _now => MotionClock.instance.now;
+  double get _now => _clock.now;
 
   @override
   void initState() {
     super.initState();
+    _clock = MotionClockScope.of(context);
     _progress.addListener(_returned);
   }
 

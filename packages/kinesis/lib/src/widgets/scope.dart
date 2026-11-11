@@ -91,3 +91,36 @@ class MotionTraitsOverride extends InheritedWidget {
   bool updateShouldNotify(MotionTraitsOverride oldWidget) =>
       traits != oldWidget.traits;
 }
+
+/// Gives the widgets under it the clock their motions run on.
+///
+/// A widget that makes motions or values reads the clock here once, when
+/// it makes them, passes it to them (`Motion(clock: ...)`,
+/// `MotionValue(..., clock: ...)`) and takes the time of its commands from
+/// it (`clock.now`), also before it owns a motion. Without a scope the
+/// clock is [MotionClock.instance]. A test or a replay drives a subtree on
+/// a clock of its own, such as a `ManualMotionClock`, by putting it here.
+/// Motions already made keep their clock when the scope's clock changes.
+class MotionClockScope extends InheritedWidget {
+  /// Gives [clock] to the widgets in [child].
+  const MotionClockScope({
+    required this.clock,
+    required super.child,
+    super.key,
+  });
+
+  /// The clock the motions below run on.
+  final MotionClock clock;
+
+  /// The clock at [context]: the nearest scope's, else
+  /// [MotionClock.instance].
+  ///
+  /// It makes no dependency, so a state may read it in `initState` and in
+  /// its listeners.
+  static MotionClock of(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<MotionClockScope>()?.clock ??
+      MotionClock.instance;
+
+  @override
+  bool updateShouldNotify(MotionClockScope oldWidget) => false;
+}

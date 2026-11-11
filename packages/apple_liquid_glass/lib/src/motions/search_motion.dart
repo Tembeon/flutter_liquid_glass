@@ -299,9 +299,9 @@ Rect lerpRect(Rect a, Rect b, double t) {
 /// Times are seconds on the motion's timeline.
 @internal
 final class SearchMotion extends Motion {
-  /// Creates the motion of a resting field; the focus transition rides
-  /// [spring].
-  SearchMotion({Spring spring = SearchTuning.transitionSpring})
+  /// Creates the motion of a resting field, stepped by [clock] on screen;
+  /// the focus transition rides [spring].
+  SearchMotion({Spring spring = SearchTuning.transitionSpring, super.clock})
     : _progress = MotionValue<double>(0, spring: spring) {
     own(_progress, rest: _rest);
   }

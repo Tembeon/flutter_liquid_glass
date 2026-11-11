@@ -209,19 +209,23 @@ class GlassContentScroll extends StatefulWidget {
 }
 
 class _GlassContentScrollState extends State<GlassContentScroll> {
+  late final MotionClock _clock;
   late MotionScroll _scroll = MotionScroll(
     predicate: widget.notificationPredicate,
+    clock: _clock,
   );
   late MotionSelection<ScrollMetrics?> _metrics;
-  final _top = MotionValue<double>(
+  late final _top = MotionValue<double>(
     0,
     spring: GlassContentScroll.edgeSpring,
     restDistance: MotionRest.opacity,
+    clock: _clock,
   );
-  final _bottom = MotionValue<double>(
+  late final _bottom = MotionValue<double>(
     0,
     spring: GlassContentScroll.edgeSpring,
     restDistance: MotionRest.opacity,
+    clock: _clock,
   );
   GlassChrome? _chrome;
   bool _reduceMotion = false;
@@ -236,6 +240,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
   @override
   void initState() {
     super.initState();
+    _clock = MotionClockScope.of(context);
     _metrics = _follow(_scroll);
   }
 
@@ -256,7 +261,10 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
     if (oldWidget.notificationPredicate != widget.notificationPredicate) {
       _release();
       _metrics.removeRenderListener(_scrolled);
-      _scroll = MotionScroll(predicate: widget.notificationPredicate);
+      _scroll = MotionScroll(
+        predicate: widget.notificationPredicate,
+        clock: _clock,
+      );
       _metrics = _follow(_scroll);
       _claim();
     }
@@ -314,7 +322,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
   void _show(MotionValue<double> presence, bool shown, bool appears) {
     final target = shown ? 1.0 : 0.0;
     if (presence.target == target) return;
-    final now = MotionClock.instance.now;
+    final now = _clock.now;
     final moving = _scroll.position?.isScrollingNotifier.value ?? false;
     if (_reduceMotion || appears || !moving) {
       presence.snap(now, target);

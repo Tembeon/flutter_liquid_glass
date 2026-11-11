@@ -2128,6 +2128,7 @@ re-exported from package:kinesis:
   Motion
   MotionCancel
   MotionClock
+  MotionClockScope
   MotionConverter
   MotionDriven
   MotionEffect

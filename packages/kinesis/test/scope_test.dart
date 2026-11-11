@@ -157,4 +157,43 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     });
   });
+
+  group('MotionClockScope', () {
+    testWidgets('gives its clock to the states below, from initState on, '
+        'and the binding clock without a scope', (tester) async {
+      final clock = ManualMotionClock(start: 3);
+      final read = <MotionClock>[];
+      await tester.pumpWidget(
+        MotionClockScope(
+          clock: clock,
+          child: _ClockReader(read.add),
+        ),
+      );
+      expect(read, [clock]);
+      expect(read.single.now, 3);
+      read.clear();
+      await tester.pumpWidget(_ClockReader(read.add));
+      expect(read, [MotionClock.instance]);
+    });
+  });
+}
+
+class _ClockReader extends StatefulWidget {
+  const _ClockReader(this.onClock);
+
+  final ValueChanged<MotionClock> onClock;
+
+  @override
+  State<_ClockReader> createState() => _ClockReaderState();
+}
+
+class _ClockReaderState extends State<_ClockReader> {
+  @override
+  void initState() {
+    super.initState();
+    widget.onClock(MotionClockScope.of(context));
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox();
 }

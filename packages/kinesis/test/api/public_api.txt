@@ -667,6 +667,15 @@ abstract class MotionClock
   @internal void unfollow(MotionFollowed value)
   abstract void wake()
   @protected double? get wakeTime
+class MotionClockScope extends InheritedWidget
+  const MotionClockScope({
+    required MotionClock clock,
+    required Widget child,
+    Key? key,
+  })
+  final MotionClock clock
+  static MotionClock of(BuildContext context)
+  overrides: updateShouldNotify
 abstract class MotionConverter<T>
   const MotionConverter()
   static const MotionConverter<Color> color
@@ -1345,6 +1354,7 @@ class InputZoneFrame (see package:kinesis/kinesis.dart)
 enum InputZoneStops (see package:kinesis/kinesis.dart)
 class InputZones (see package:kinesis/kinesis.dart)
 class InputZonesController (see package:kinesis/kinesis.dart)
+class MotionClockScope (see package:kinesis/kinesis.dart)
 class MotionDriven (see package:kinesis/kinesis.dart)
 extension MotionHapticPlay (see package:kinesis/kinesis.dart)
 class MotionHapticScope (see package:kinesis/kinesis.dart)

@@ -229,23 +229,30 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
 }
 
 class _GlassNavigationBarState extends State<GlassNavigationBar> {
+  late final MotionClock _clock;
   late final _title = MotionValue<double>(
     widget.largeTitle == null ? 1 : 0,
     spring: _Metrics.showSpring,
     restDistance: MotionRest.opacity,
+    clock: _clock,
   );
-  late final _opacity = MotionSelection(() => _title.value.clamp(0.0, 1.0));
+  late final _opacity = MotionSelection(
+    () => _title.value.clamp(0.0, 1.0),
+    clock: _clock,
+  );
   late final _rise = MotionSelection(
     () => _reduceMotion ? 0.0 : _Metrics.hiddenOffset * (1 - _opacity.value),
+    clock: _clock,
   );
   late final _blur = MotionSelection(
     () => _reduceMotion ? 0.0 : _Metrics.hiddenBlur * (1 - _opacity.value),
+    clock: _clock,
   );
   ValueNotifier<MotionScroll?>? _active;
   MotionScroll? _scroll;
   MotionSelection<ScrollMetrics?>? _metrics;
   MotionSelection<double>? _scrolledBy;
-  final _followed = _Followed();
+  late final _followed = _Followed(clock: _clock);
   late final MotionSelection<double> _offset = _followed.select(
     (m) => m.offset.value,
   );
@@ -255,9 +262,19 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
   bool _laidOut = false;
   GlassPageBarLink? _link;
   GlassBarHost? _standalone;
-  final _fade = MotionValue<double>(1, restDistance: MotionRest.opacity);
+  late final _fade = MotionValue<double>(
+    1,
+    restDistance: MotionRest.opacity,
+    clock: _clock,
+  );
 
   GlassPageBarLink get _barLink => _link ?? _standalone!.standaloneLink;
+
+  @override
+  void initState() {
+    super.initState();
+    _clock = MotionClockScope.of(context);
+  }
 
   @override
   void didChangeDependencies() {
@@ -326,10 +343,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     _scrolled();
   }
 
-  void _moved() => _followed.offset.write(
-    MotionClock.instance.now,
-    _scrolledBy?.value ?? 0,
-  );
+  void _moved() => _followed.offset.write(_clock.now, _scrolledBy?.value ?? 0);
 
   // The large title moves with the content once a stacked search field
   // has folded away.
@@ -355,7 +369,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     final appears = !_laidOut;
     _laidOut = laidOut;
     if (_title.target == target) return;
-    final now = MotionClock.instance.now;
+    final now = _clock.now;
     // A jump of the content switches the title at once, as UIKit does.
     final moving = _scroll?.position?.isScrollingNotifier.value ?? false;
     if (appears || _reduceMotion || !moving) {
@@ -617,6 +631,8 @@ class _TitleLayout extends SingleChildLayoutDelegate {
 
 // The content offset of whichever scroll view the bar follows.
 final class _Followed extends Motion {
+  _Followed({super.clock});
+
   late final MotionSignal<double> offset = own(MotionSignal(0));
 }
 
@@ -678,16 +694,26 @@ class _StackedSearch extends StatefulWidget {
 }
 
 class _StackedSearchState extends State<_StackedSearch> {
-  final _shown = MotionValue<double>(0, spring: SearchTuning.stackedSpring);
-  final _glass = MotionValue<double>(0, spring: _StackedMetrics.glassSpring);
+  late final MotionClock _clock;
+  late final _shown = MotionValue<double>(
+    0,
+    spring: SearchTuning.stackedSpring,
+    clock: _clock,
+  );
+  late final _glass = MotionValue<double>(
+    0,
+    spring: _StackedMetrics.glassSpring,
+    clock: _clock,
+  );
   final _ends = SearchEndSignal();
   final _closing = ValueNotifier<bool>(false);
 
-  double get _now => MotionClock.instance.now;
+  double get _now => _clock.now;
 
   @override
   void initState() {
     super.initState();
+    _clock = MotionClockScope.of(context);
     _shown.addListener(_lifted);
   }
 
