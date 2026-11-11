@@ -57,6 +57,7 @@ MotionSource
 MotionSourceBox
 MotionTraits
 MotionTraitsOverride
+MotionTransaction
 MotionTransition
 MotionTransitionLayer
 MotionValue
@@ -69,6 +70,7 @@ PointerHoverInput
 PointerMoveInput
 PointerScrollInput
 PointerUpInput
+PortEvent
 Presence
 PresenceStatus
 Presentation
@@ -100,6 +102,8 @@ Spring
 TapInteraction
 TimedValue
 ValueCommand
+listenForRender
 showPresentation
+unlistenForRender
 withSpring
 withoutAnimation

@@ -1,8 +1,6 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:kinesis/motion.dart';
-import 'package:kinesis/src/motion/clock.dart';
-import 'package:kinesis/src/motion/transaction.dart';
 
 /// A render object that places its presentation from this frame's layout,
 /// in the frame's resolve phase: after the whole view is laid out, before
@@ -118,12 +116,9 @@ final class _ResolveOwner extends PipelineOwner {
     final hosts = List<MotionResolveHost>.of(_scheduled);
     _scheduled.clear();
     hosts.sort((a, b) => a.depth - b.depth);
-    MotionClock.instance.resolve(() {
-      for (final host in hosts) {
-        if (host.attached && identical(host.owner, _view)) {
-          guardMotion(host.resolve, 'while resolving a layout motion');
-        }
-      }
-    });
+    MotionClock.instance.resolve([
+      for (final host in hosts)
+        if (host.attached && identical(host.owner, _view)) host.resolve,
+    ], 'while resolving a layout motion');
   }
 }

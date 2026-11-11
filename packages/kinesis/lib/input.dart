@@ -48,4 +48,4 @@ export 'src/input/interaction.dart'
         SessionOutput,
         TapInteraction,
         ValueCommand;
-export 'src/input/port.dart' show InputPort;
+export 'src/input/port.dart' show InputPort, PortEvent;

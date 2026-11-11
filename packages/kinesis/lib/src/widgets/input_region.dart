@@ -5,9 +5,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
-import 'package:kinesis/src/input/interaction.dart';
-import 'package:kinesis/src/input/port.dart';
 
 /// Turns pointer, keyboard, hover and accessibility input into the input
 /// of its [interactions].
@@ -150,9 +149,6 @@ class _InputRegionState extends State<InputRegion> {
 
   MotionClock get _clock => MotionClock.instance;
 
-  Iterable<Interaction> get _all =>
-      widget.interactions.expand(flattenInteraction);
-
   _RenderRegion? _box;
 
   WidgetStatesController get _states =>
@@ -164,7 +160,7 @@ class _InputRegionState extends State<InputRegion> {
     _states.update(WidgetState.disabled, !widget.enabled);
     _states.addListener(_statesChanged);
     FocusManager.instance.addHighlightModeListener(_highlightModeChanged);
-    _bindForwards();
+    _bindRegions();
     _attachPort(widget.port);
   }
 
@@ -183,7 +179,7 @@ class _InputRegionState extends State<InputRegion> {
     if (!listEquals(oldWidget.interactions, widget.interactions)) {
       _cancelAll(PointerCancelReason.platform);
       _session = InteractionSession(widget.interactions);
-      _bindForwards();
+      _bindRegions();
     }
     if (oldWidget.enabled && !widget.enabled) {
       _cancelAll(PointerCancelReason.disabled);
@@ -253,9 +249,9 @@ class _InputRegionState extends State<InputRegion> {
     }
   }
 
-  void _bindForwards() {
-    for (final forward in _all.whereType<PortForward>()) {
-      forward.toGlobal = _toGlobal;
+  void _bindRegions() {
+    for (final interaction in widget.interactions) {
+      interaction.bindRegion(_toGlobal);
     }
   }
 
@@ -277,7 +273,7 @@ class _InputRegionState extends State<InputRegion> {
       box.globalToLocal,
       size: box.size,
       hitArea: box.hitArea,
-      scrollAxes: event.phase == PortPhase.down ? _scrollAxes() : const {},
+      scrollAxes: event.handOff ? _scrollAxes() : const {},
     );
     _clock.input(input.time, () => _answer(_session.handle(input)));
   }
@@ -497,7 +493,7 @@ class _InputRegionState extends State<InputRegion> {
     final states = _states;
     var pressed = false;
     var dragged = false;
-    for (final interaction in _all) {
+    for (final interaction in widget.interactions) {
       pressed = pressed || interaction.pressed;
       dragged = dragged || interaction.dragged;
     }

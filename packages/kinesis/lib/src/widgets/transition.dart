@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
-import 'package:kinesis/src/motion/listen.dart';
 
 /// Moves, scales, rotates, fades, blurs, clips and sizes its child from
 /// listenable values without building, laying out or repainting the child.

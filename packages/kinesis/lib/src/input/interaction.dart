@@ -390,6 +390,13 @@ abstract class Interaction {
   /// the region has focus, and the accessibility increase and decrease.
   bool get adjusts => false;
 
+  /// Tells the interaction how its region's coordinates map to global ones.
+  ///
+  /// An input host calls it for each interaction it hosts before the first
+  /// input; `InputPort.forward` hands positions on in global coordinates
+  /// with it, and relations pass it to their parts. The default ignores it.
+  void bindRegion(Offset Function(Offset local) toGlobal) {}
+
   /// Answers [input].
   InteractionUpdate handle(InteractionInput input);
 
@@ -1053,6 +1060,18 @@ final class _Simultaneous extends Interaction {
   bool get takesWheel => a.takesWheel || b.takesWheel;
 
   @override
+  bool get pressed => a.pressed || b.pressed;
+
+  @override
+  bool get dragged => a.dragged || b.dragged;
+
+  @override
+  void bindRegion(Offset Function(Offset local) toGlobal) {
+    a.bindRegion(toGlobal);
+    b.bindRegion(toGlobal);
+  }
+
+  @override
   bool accepts(PointerDownInput down) => a.accepts(down) || b.accepts(down);
 
   InteractionUpdate _both(InteractionUpdate fromA, InteractionUpdate fromB) {
@@ -1103,6 +1122,18 @@ final class _Exclusive extends Interaction {
 
   @override
   bool get takesWheel => a.takesWheel || b.takesWheel;
+
+  @override
+  bool get pressed => a.pressed || b.pressed;
+
+  @override
+  bool get dragged => a.dragged || b.dragged;
+
+  @override
+  void bindRegion(Offset Function(Offset local) toGlobal) {
+    a.bindRegion(toGlobal);
+    b.bindRegion(toGlobal);
+  }
 
   @override
   bool accepts(PointerDownInput down) => a.accepts(down) || b.accepts(down);
@@ -1177,6 +1208,18 @@ final class _Sequenced extends Interaction {
   bool get takesWheel => a.takesWheel;
 
   @override
+  bool get pressed => a.pressed || b.pressed;
+
+  @override
+  bool get dragged => a.dragged || b.dragged;
+
+  @override
+  void bindRegion(Offset Function(Offset local) toGlobal) {
+    a.bindRegion(toGlobal);
+    b.bindRegion(toGlobal);
+  }
+
+  @override
   bool accepts(PointerDownInput down) => a.accepts(down);
 
   InteractionUpdate _fromA(InteractionUpdate update, double time) {
@@ -1248,20 +1291,6 @@ final class _Sequenced extends Interaction {
     final dueB = b.nextDue;
     if (dueB == null || dueB > time) return fromA;
     return _then(fromA, b.advance(time));
-  }
-}
-
-/// [interaction] and the interactions its relations hold.
-@internal
-Iterable<Interaction> flattenInteraction(Interaction interaction) sync* {
-  switch (interaction) {
-    case _Simultaneous(:final a, :final b) ||
-        _Exclusive(:final a, :final b) ||
-        _Sequenced(:final a, :final b):
-      yield* flattenInteraction(a);
-      yield* flattenInteraction(b);
-    default:
-      yield interaction;
   }
 }
 

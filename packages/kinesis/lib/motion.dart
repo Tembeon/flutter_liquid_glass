@@ -34,6 +34,7 @@ export 'src/motion/layout.dart'
         LayoutPhase,
         LayoutPlan,
         LayoutPlanner;
+export 'src/motion/listen.dart' show listenForRender, unlistenForRender;
 export 'src/motion/loop.dart' show MotionLoop;
 export 'src/motion/motion.dart' show Motion, MotionCancel, MotionSelect;
 export 'src/motion/part.dart' show MotionPart;
@@ -56,5 +57,5 @@ export 'src/motion/source_geometry.dart' show SourceGeometry, Sourced;
 export 'src/motion/spring.dart' show Spring;
 export 'src/motion/timed.dart' show TimedValue;
 export 'src/motion/transaction.dart'
-    show MotionTraits, withSpring, withoutAnimation;
+    show MotionTraits, MotionTransaction, withSpring, withoutAnimation;
 export 'src/motion/value.dart' show MotionValue, MotionValueCommands;

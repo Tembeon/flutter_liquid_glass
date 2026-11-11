@@ -3,11 +3,6 @@
 # that lists more than the code has. After fixing one, rewrite this file
 # with UPDATE_DEBT=1 (it never grows an entry).
 
-2:through-library       lib/src/widgets/input_region.dart   2
-2:through-library       lib/src/widgets/layout.dart         1
-2:through-library       lib/src/widgets/resolve.dart        2
-2:through-library       lib/src/widgets/sliver_layout.dart  1
-2:through-library       lib/src/widgets/transition.dart     1
 5:addPostFrameCallback  lib/src/motion/frame_cadence.dart   1
 5:addPostFrameCallback  lib/src/presentation/portal.dart    1
 5:addPostFrameCallback  lib/src/presentation/route.dart     1

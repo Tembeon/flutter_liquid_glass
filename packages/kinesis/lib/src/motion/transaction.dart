@@ -48,6 +48,12 @@ class MotionTraits {
 
 /// How the changes made inside one `withSpring` or `withoutAnimation` body
 /// move.
+///
+/// SwiftUI: `Transaction`.
+///
+/// A layout host reads [layout], the transaction of the frame's layout
+/// changes, to slide what it lays out on the app's spring; a render object
+/// built on `MotionResolveHost` reads its spring as `layoutSpring`.
 @immutable
 class MotionTransaction {
   const MotionTransaction._({
@@ -80,7 +86,9 @@ class MotionTransaction {
   /// `withSpring` or `withoutAnimation` that closed after the previous frame
   /// drew, or null. A tracking transaction never sets it, so a finger moving
   /// one value does not slide unrelated layout.
-  @internal
+  ///
+  /// It is kept only while a `MotionResolveHost` is attached, and forgotten
+  /// once the frame it belongs to has drawn.
   static MotionTransaction? get layout => _layout;
 
   /// Forgets [layout] once the frame it belongs to has drawn.

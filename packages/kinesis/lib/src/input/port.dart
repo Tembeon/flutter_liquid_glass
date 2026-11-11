@@ -27,7 +27,7 @@ final class InputPort {
 
   /// The interaction a source hands a touch on to:
   /// `hold.sequenced(port.forward)`. One source forwards at a time.
-  late final Interaction forward = PortForward(this);
+  late final Interaction forward = _PortForward(this);
 
   /// Delivers forwarded touches to [receiver] without widgets, mapped by
   /// [transform] from the source's coordinates into the receiver's, in a
@@ -50,8 +50,11 @@ final class InputPort {
   /// Drops the receiver; later inputs wait for the next one.
   void unbind() => _receiver = null;
 
-  /// Makes [receiver] the receiver and delivers what waited.
-  @internal
+  /// Makes [receiver] the receiver and delivers what waited: how an input
+  /// host receives the touches handed to it (`InputRegion(port:)` does).
+  ///
+  /// The host maps each event into its own coordinates with
+  /// [PortEvent.input] as it arrives, and hands the result to its session.
   void attach(void Function(PortEvent event) receiver) {
     _receiver = receiver;
     final waiting = List<PortEvent>.of(_waiting);
@@ -60,13 +63,12 @@ final class InputPort {
   }
 
   /// Drops [receiver] if it is the receiver.
-  @internal
   void detach(void Function(PortEvent event) receiver) {
     if (identical(_receiver, receiver)) _receiver = null;
   }
 
   void _send(PortEvent event) {
-    if (event.phase == PortPhase.down) _waiting.clear();
+    if (event.handOff) _waiting.clear();
     final receiver = _receiver;
     if (receiver == null) {
       _waiting.add(event);
@@ -76,9 +78,7 @@ final class InputPort {
   }
 }
 
-/// The phase of a forwarded pointer.
-@internal
-enum PortPhase {
+enum _PortPhase {
   /// The hand-off.
   down,
 
@@ -92,24 +92,26 @@ enum PortPhase {
   cancel,
 }
 
-/// One forwarded pointer input, in global coordinates.
-@internal
+/// One pointer input an [InputPort] hands on, in global coordinates, as its
+/// receiver hears it ([InputPort.attach]).
 @immutable
 final class PortEvent {
-  /// Creates a forwarded input.
-  const PortEvent({
-    required this.phase,
+  const PortEvent._({
+    required this._phase,
     required this.time,
     required this.pointer,
     this.position = Offset.zero,
-    this.velocity = Offset.zero,
-    this.kind = PointerDeviceKind.touch,
-    this.buttons = kPrimaryButton,
-    this.reason = PointerCancelReason.platform,
+    this._velocity = Offset.zero,
+    this._kind = PointerDeviceKind.touch,
+    this._buttons = kPrimaryButton,
+    this._reason = PointerCancelReason.platform,
   });
 
-  /// What happened.
-  final PortPhase phase;
+  final _PortPhase _phase;
+  final Offset _velocity;
+  final PointerDeviceKind _kind;
+  final int _buttons;
+  final PointerCancelReason _reason;
 
   /// The input's stamp.
   final double time;
@@ -117,20 +119,13 @@ final class PortEvent {
   /// The pointer.
   final int pointer;
 
-  /// Where it is, in global coordinates.
+  /// Where it is, in global coordinates; zero for a cancel.
   final Offset position;
 
-  /// Its velocity at a release, in global coordinates.
-  final Offset velocity;
-
-  /// What touched.
-  final PointerDeviceKind kind;
-
-  /// The buttons it pressed.
-  final int buttons;
-
-  /// Why a cancelled touch ended.
-  final PointerCancelReason reason;
+  /// Whether this is the hand-off: the down that starts the touch in the
+  /// receiver. A receiver works out what only a down needs, such as the
+  /// scroll views around it, for this one alone.
+  bool get handOff => _phase == _PortPhase.down;
 
   /// The input in a receiver's coordinates, [toLocal] mapping global ones;
   /// a hand-off is a down in a region of [size], taking pointers in
@@ -141,59 +136,58 @@ final class PortEvent {
     required Size size,
     Rect? hitArea,
     Set<Axis> scrollAxes = const {},
-  }) => switch (phase) {
-    PortPhase.down => PointerDownInput(
+  }) => switch (_phase) {
+    _PortPhase.down => PointerDownInput(
       time: time,
       pointer: pointer,
       position: toLocal(position),
       regionSize: size,
       hitArea: hitArea,
-      kind: kind,
-      buttons: buttons,
+      kind: _kind,
+      buttons: _buttons,
       scrollAxes: scrollAxes,
     ),
-    PortPhase.move => PointerMoveInput(
+    _PortPhase.move => PointerMoveInput(
       time: time,
       pointer: pointer,
       position: toLocal(position),
     ),
-    PortPhase.up => PointerUpInput(
+    _PortPhase.up => PointerUpInput(
       time: time,
       pointer: pointer,
       position: toLocal(position),
-      velocity: toLocal(position + velocity) - toLocal(position),
+      velocity: toLocal(position + _velocity) - toLocal(position),
     ),
-    PortPhase.cancel => PointerCancelInput(
+    _PortPhase.cancel => PointerCancelInput(
       time: time,
       pointer: pointer,
-      reason: reason,
+      reason: _reason,
     ),
   };
 }
 
-/// Forwards what it hears to its port, mapped to global coordinates by
-/// [toGlobal], which the source region sets.
-@internal
-final class PortForward extends Interaction {
-  /// Creates a forwarder to [port].
-  PortForward(this.port) : super(role: InteractionRole.gesture);
+/// Forwards what it hears to its port, mapped to global coordinates by the
+/// mapping its region binds; as they are while none is bound.
+final class _PortForward extends Interaction {
+  _PortForward(this.port) : super(role: InteractionRole.gesture);
 
-  /// Where it forwards.
   final InputPort port;
 
-  /// Maps the source region's coordinates to global ones; identity when
-  /// null.
-  Offset Function(Offset local)? toGlobal;
+  Offset Function(Offset local)? _toGlobal;
 
-  Offset _global(Offset p) => toGlobal?.call(p) ?? p;
+  @override
+  void bindRegion(Offset Function(Offset local) toGlobal) =>
+      _toGlobal = toGlobal;
+
+  Offset _global(Offset p) => _toGlobal?.call(p) ?? p;
 
   @override
   InteractionUpdate handle(InteractionInput input) {
     switch (input) {
       case PointerDownInput():
         port._send(
-          PortEvent(
-            phase: PortPhase.down,
+          PortEvent._(
+            phase: _PortPhase.down,
             time: input.time,
             pointer: input.pointer,
             position: _global(input.position),
@@ -203,8 +197,8 @@ final class PortForward extends Interaction {
         );
       case PointerMoveInput():
         port._send(
-          PortEvent(
-            phase: PortPhase.move,
+          PortEvent._(
+            phase: _PortPhase.move,
             time: input.time,
             pointer: input.pointer,
             position: _global(input.position),
@@ -213,8 +207,8 @@ final class PortForward extends Interaction {
       case PointerUpInput():
         final at = _global(input.position);
         port._send(
-          PortEvent(
-            phase: PortPhase.up,
+          PortEvent._(
+            phase: _PortPhase.up,
             time: input.time,
             pointer: input.pointer,
             position: at,
@@ -223,8 +217,8 @@ final class PortForward extends Interaction {
         );
       case PointerCancelInput():
         port._send(
-          PortEvent(
-            phase: PortPhase.cancel,
+          PortEvent._(
+            phase: _PortPhase.cancel,
             time: input.time,
             pointer: input.pointer,
             reason: input.reason,

@@ -67,9 +67,9 @@ final class FollowInteraction extends Interaction
   overrides: handle
 final class InputPort
   InputPort()
-  @internal void attach(void Function(PortEvent) receiver)
+  void attach(void Function(PortEvent) receiver)
   void bind(InteractionSession receiver, {Matrix4? transform, Size size = ...})
-  @internal void detach(void Function(PortEvent) receiver)
+  void detach(void Function(PortEvent) receiver)
   late final Interaction forward
   void unbind()
 abstract class Interaction
@@ -78,6 +78,7 @@ abstract class Interaction
   bool get activates
   bool get adjusts
   InteractionUpdate advance(double time)
+  void bindRegion(Offset Function(Offset) toGlobal)
   bool get dragged
   Interaction exclusively(Interaction other)
   abstract InteractionUpdate handle(InteractionInput input)
@@ -216,6 +217,17 @@ final class PointerUpInput extends InteractionInput
   final int pointer
   final Offset position
   final Offset velocity
+final class PortEvent
+  bool get handOff
+  InteractionInput input(
+    Offset Function(Offset) toLocal, {
+    required Size size,
+    Rect? hitArea,
+    Set<Axis> scrollAxes = ...,
+  })
+  final int pointer
+  final Offset position
+  final double time
 class PressInteraction extends Interaction
   PressInteraction({
     InteractionRole role = ...,
@@ -528,9 +540,9 @@ abstract class MotionClock
   @internal void markDirty(MotionDerived derived)
   @protected bool get needsFrame
   double get now
-  @internal void resolve(void Function() body)
+  @internal void resolve(Iterable<void Function()> steps, String context)
   @protected void runFrame(double time)
-  @internal void Function() schedule(double time, void Function(double) action)
+  void Function() schedule(double time, void Function(double) action)
   void Function() schedulePublish(void Function() callback)
   abstract double stamp(Duration timeStamp)
   @internal void unfollow(MotionFollowed value)
@@ -745,6 +757,14 @@ class MotionTraitsOverride extends InheritedWidget
   static MotionTraits of(BuildContext context)
   final MotionTraits traits
   overrides: updateShouldNotify
+class MotionTransaction
+  @internal static void clearLayout()
+  @internal static MotionTransaction? get current
+  final double delay
+  static MotionTransaction? get layout
+  @internal static void Function()? onLayoutTransaction
+  final Spring spring
+  final bool tracking
 class MotionTransition extends SingleChildRenderObjectWidget
   const MotionTransition({
     Key? key,
@@ -840,6 +860,7 @@ class PointerHoverInput (see package:kinesis/input.dart)
 class PointerMoveInput (see package:kinesis/input.dart)
 class PointerScrollInput (see package:kinesis/input.dart)
 class PointerUpInput (see package:kinesis/input.dart)
+class PortEvent (see package:kinesis/input.dart)
 final class Presence extends Motion
   Presence({required Spring openSpring, Spring? closeSpring, double rest = ...})
   final Spring closeSpring
@@ -1094,11 +1115,13 @@ final class TimedValue extends MotionPart
   double valueAt(double t)
   overrides: nextDue, restFrom, restTime, restsAt
 enum ValueCommand (see package:kinesis/input.dart)
+void listenForRender(Listenable listenable, void Function() listener)
 Future<T?> showPresentation<T>(
   BuildContext context,
   PresentationRoute<T> route, {
   PresentationLevel level = ...,
 })
+void unlistenForRender(Listenable listenable, void Function() listener)
 void withSpring(
   Spring spring,
   void Function() changes, {
@@ -1133,6 +1156,7 @@ extension MotionSelect (see package:kinesis/kinesis.dart)
 class MotionSelection (see package:kinesis/kinesis.dart)
 class MotionSignal (see package:kinesis/kinesis.dart)
 class MotionTraits (see package:kinesis/kinesis.dart)
+class MotionTransaction (see package:kinesis/kinesis.dart)
 class MotionValue (see package:kinesis/kinesis.dart)
 extension MotionValueCommands (see package:kinesis/kinesis.dart)
 class Presence (see package:kinesis/kinesis.dart)
@@ -1149,6 +1173,8 @@ class SourceGeometry (see package:kinesis/kinesis.dart)
 mixin Sourced (see package:kinesis/kinesis.dart)
 class Spring (see package:kinesis/kinesis.dart)
 class TimedValue (see package:kinesis/kinesis.dart)
+function listenForRender (see package:kinesis/kinesis.dart)
+function unlistenForRender (see package:kinesis/kinesis.dart)
 function withSpring (see package:kinesis/kinesis.dart)
 function withoutAnimation (see package:kinesis/kinesis.dart)
 
