@@ -20,6 +20,14 @@ final class AdjustInput extends InteractionInput
   })
   final ValueCommand command
   final ActivationSource source
+final class AdjustRange
+  const AdjustRange({bool canIncrease = ..., bool canDecrease = ...})
+  const AdjustRange.of(double value, {required double min, required double max})
+  bool allows(ValueCommand command)
+  final bool canDecrease
+  final bool canIncrease
+  static const AdjustRange open
+  overrides: ==, hashCode, toString
 class DragInteraction extends Interaction
   DragInteraction({
     InteractionRole role = ...,
@@ -302,6 +310,7 @@ class ActivateInput (see package:kinesis/input.dart)
 class ActivationEvent (see package:kinesis/input.dart)
 enum ActivationSource (see package:kinesis/input.dart)
 class AdjustInput (see package:kinesis/input.dart)
+class AdjustRange (see package:kinesis/input.dart)
 class AdjustValueIntent extends Intent
   const AdjustValueIntent(ValueCommand command)
   final ValueCommand command
@@ -370,8 +379,10 @@ class InputRegion extends StatefulWidget
     String? semanticLabel,
     InputPort? port,
     Size? minimumHitSize,
+    ValueListenable<AdjustRange>? adjustRange,
     Key? key,
   })
+  final ValueListenable<AdjustRange>? adjustRange
   final bool autofocus
   final Widget child
   final bool enabled
@@ -400,7 +411,9 @@ class InputZone<T extends Object>
     bool? toggled,
     SemanticsRole? semanticsRole,
     void Function(SemanticsConfiguration)? describeSemantics,
+    ValueListenable<AdjustRange>? adjustRange,
   })
+  final ValueListenable<AdjustRange>? adjustRange
   final bool autofocus
   final bool button
   final bool? checked

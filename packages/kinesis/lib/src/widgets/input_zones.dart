@@ -87,6 +87,7 @@ class InputZone<T extends Object> {
     this.toggled,
     this.semanticsRole,
     this.describeSemantics,
+    this.adjustRange,
   });
 
   /// What the zone stands for; unique among the host's zones. The host
@@ -151,6 +152,11 @@ class InputZone<T extends Object> {
   /// Adds what the fields above do not say to the zone's semantics, after
   /// the host wrote them; null for nothing.
   final void Function(SemanticsConfiguration config)? describeSemantics;
+
+  /// Which ways the value of a zone that adjusts can move now, or null when
+  /// it always can; as `InputRegion.adjustRange`, followed without a
+  /// rebuild.
+  final ValueListenable<AdjustRange>? adjustRange;
 }
 
 /// The states of an [InputZones] host's zones, and its focus.
@@ -974,6 +980,10 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
 
   bool get _adjusts => zone.interactions.any((i) => i.adjusts);
 
+  AdjustRange get _range => zone.adjustRange?.value ?? AdjustRange.open;
+
+  void _rangeChanged() => _anchor?.markNeedsSemanticsUpdate();
+
   MouseCursor get cursor => resolveCursor(
     zone.mouseCursor,
     clickable: _activates || _adjusts,
@@ -988,6 +998,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
     _bind();
     _writeAll();
     _syncNode();
+    zone.adjustRange?.addListener(_rangeChanged);
   }
 
   @override
@@ -1002,6 +1013,10 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
     if (old.enabled && !zone.enabled) {
       host._cancelTouches(this, PointerCancelReason.disabled);
     }
+    if (old.adjustRange != zone.adjustRange) {
+      old.adjustRange?.removeListener(_rangeChanged);
+      zone.adjustRange?.addListener(_rangeChanged);
+    }
     _writeAll();
     _syncNode();
     _anchor?.markNeedsSemanticsUpdate();
@@ -1009,6 +1024,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
 
   @override
   void dispose() {
+    zone.adjustRange?.removeListener(_rangeChanged);
     host._cancelTouches(this, PointerCancelReason.platform);
     if (identical(host._zones[id], this)) host._zones.remove(id);
     _controller._forget(id);
@@ -1196,10 +1212,15 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
       config.onTap = () => _activate(ActivationSource.accessibility);
     }
     if (zone.enabled && _adjusts) {
-      config.onIncrease = () =>
-          _adjust(ValueCommand.increase, ActivationSource.accessibility);
-      config.onDecrease = () =>
-          _adjust(ValueCommand.decrease, ActivationSource.accessibility);
+      final range = _range;
+      if (range.canIncrease) {
+        config.onIncrease = () =>
+            _adjust(ValueCommand.increase, ActivationSource.accessibility);
+      }
+      if (range.canDecrease) {
+        config.onDecrease = () =>
+            _adjust(ValueCommand.decrease, ActivationSource.accessibility);
+      }
     }
     zone.describeSemantics?.call(config);
   }
@@ -1303,7 +1324,7 @@ class _ZoneAdjust<T extends Object> extends Action<AdjustValueIntent> {
 
   @override
   bool isEnabled(AdjustValueIntent intent) =>
-      zone.zone.enabled && zone._adjusts;
+      zone.zone.enabled && zone._adjusts && zone._range.allows(intent.command);
 
   @override
   Object? invoke(AdjustValueIntent intent) {

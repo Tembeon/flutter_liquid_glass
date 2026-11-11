@@ -23,6 +23,7 @@ export 'src/input/interaction.dart'
         ActivationEvent,
         ActivationSource,
         AdjustInput,
+        AdjustRange,
         DragInteraction,
         DragInteractionDetails,
         Interaction,

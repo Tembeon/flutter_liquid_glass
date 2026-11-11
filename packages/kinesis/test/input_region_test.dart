@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -486,6 +487,7 @@ void main() {
       TextDirection direction = TextDirection.ltr,
       bool enabled = true,
       MotionHaptic? haptic,
+      ValueListenable<AdjustRange>? range,
     }) => WidgetsApp(
       color: const Color(0xFF000000),
       builder: (context, _) => Directionality(
@@ -497,6 +499,7 @@ void main() {
             semanticLabel: 'level',
             autofocus: true,
             feedback: (_) => haptic,
+            adjustRange: range,
             child: const SizedBox(width: 120, height: 30),
           ),
         ),
@@ -568,6 +571,45 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.end);
       expect(heard.heard, isEmpty);
       expect(overridden, [ValueCommand.toMaximum]);
+    });
+
+    testWidgets('at an end the region offers neither the action nor the '
+        'keys toward it, and follows the range without a rebuild', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      final range = ValueNotifier(const AdjustRange(canIncrease: false));
+      addTearDown(range.dispose);
+      final interaction = _Value();
+      await tester.pumpWidget(value(interaction, range: range));
+      await tester.pump();
+      SemanticsData data() =>
+          tester.getSemantics(find.byType(InputRegion)).getSemanticsData();
+      expect(data().hasAction(SemanticsAction.increase), isFalse);
+      expect(data().hasAction(SemanticsAction.decrease), isTrue);
+      for (final key in [
+        LogicalKeyboardKey.arrowRight,
+        LogicalKeyboardKey.end,
+        LogicalKeyboardKey.pageUp,
+        LogicalKeyboardKey.arrowLeft,
+      ]) {
+        await tester.sendKeyEvent(key);
+      }
+      expect(interaction.heard, [
+        (ValueCommand.decrease, ActivationSource.keyboard),
+      ]);
+      range.value = const AdjustRange.of(0, min: 0, max: 1);
+      await tester.pump();
+      expect(data().hasAction(SemanticsAction.increase), isTrue);
+      expect(data().hasAction(SemanticsAction.decrease), isFalse);
+      await tester.sendKeyEvent(LogicalKeyboardKey.home);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      expect(interaction.heard.last, (
+        ValueCommand.increase,
+        ActivationSource.keyboard,
+      ));
+      expect(interaction.heard, hasLength(2));
+      semantics.dispose();
     });
 
     testWidgets('accessibility increases and decreases with exact '

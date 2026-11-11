@@ -1989,6 +1989,7 @@ re-exported from package:kinesis:
   ActivationEvent
   ActivationSource
   AdjustInput
+  AdjustRange
   AdjustValueIntent
   Band
   ControlStates

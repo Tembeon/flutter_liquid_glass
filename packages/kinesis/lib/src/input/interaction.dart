@@ -82,6 +82,60 @@ enum ValueCommand {
   toMaximum,
 }
 
+/// Which ways an adjustable value can move now: a value at its maximum
+/// cannot increase, one at its minimum cannot decrease.
+///
+/// UIKit: none; a control leaves `accessibilityIncrement` without effect
+/// at its end. Flutter: `SemanticsProperties.onIncrease` left null at the
+/// maximum, as `Slider` does.
+///
+/// An input host offers only the value commands it [allows]: the
+/// accessibility increase and decrease, and the keys of
+/// `AdjustValueIntent`; a key it does not take reaches what lies around
+/// the host, as when nothing adjusts.
+@immutable
+final class AdjustRange {
+  /// A value that can [canIncrease] and [canDecrease].
+  const AdjustRange({this.canIncrease = true, this.canDecrease = true});
+
+  /// The room of [value] between [min] and [max].
+  const AdjustRange.of(
+    double value, {
+    required double min,
+    required double max,
+  }) : canIncrease = value < max,
+       canDecrease = value > min;
+
+  /// A value with room both ways: what a host assumes when it is given no
+  /// range.
+  static const AdjustRange open = AdjustRange();
+
+  /// Whether the value can go up.
+  final bool canIncrease;
+
+  /// Whether the value can go down.
+  final bool canDecrease;
+
+  /// Whether [command] can move the value now.
+  bool allows(ValueCommand command) => switch (command) {
+    .increase || .increaseLarge || .toMaximum => canIncrease,
+    .decrease || .decreaseLarge || .toMinimum => canDecrease,
+  };
+
+  @override
+  bool operator ==(Object other) =>
+      other is AdjustRange &&
+      other.canIncrease == canIncrease &&
+      other.canDecrease == canDecrease;
+
+  @override
+  int get hashCode => Object.hash(canIncrease, canDecrease);
+
+  @override
+  String toString() =>
+      'AdjustRange(canIncrease: $canIncrease, canDecrease: $canDecrease)';
+}
+
 /// Why a touch ended without a release.
 enum PointerCancelReason {
   /// The platform cancelled it.

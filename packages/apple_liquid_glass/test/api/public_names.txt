@@ -3,6 +3,7 @@ ActivationEvent
 ActivationSource
 AdaptiveGlassRenderer
 AdjustInput
+AdjustRange
 AdjustValueIntent
 Band
 ControlStates

@@ -510,6 +510,46 @@ void main() {
         ValueCommand.toMaximum,
       ]);
     });
+    testWidgets('a zone at an end offers neither the action nor the keys '
+        'toward it', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final range = ValueNotifier(const AdjustRange(canDecrease: false));
+      addTearDown(range.dispose);
+      final values = _Values();
+      await tester.pumpWidget(
+        _app(
+          InputZones<String>(
+            zones: [
+              InputZone(
+                id: 'a',
+                interactions: [values],
+                semanticLabel: 'level',
+                adjustRange: range,
+              ),
+            ],
+            frameOf: (zone) =>
+                const InputZoneFrame(Rect.fromLTWH(0, 0, 40, 40)),
+            frames: motion,
+            controller: zones,
+            child: const SizedBox(width: 100, height: 100),
+          ),
+        ),
+      );
+      zones.requestFocus('a');
+      await tester.pump();
+      SemanticsData data() => tester
+          .getSemantics(find.bySemanticsLabel('level'))
+          .getSemanticsData();
+      expect(data().hasAction(SemanticsAction.increase), isTrue);
+      expect(data().hasAction(SemanticsAction.decrease), isFalse);
+      await tester.sendKeyEvent(LogicalKeyboardKey.home);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      expect(values.heard, [ValueCommand.increase]);
+      range.value = AdjustRange.open;
+      await tester.pump();
+      expect(data().hasAction(SemanticsAction.decrease), isTrue);
+      semantics.dispose();
+    });
   });
 
   group('semantics', () {

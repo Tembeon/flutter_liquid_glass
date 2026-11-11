@@ -32,7 +32,8 @@ import 'package:kinesis/src/widgets/input_shared.dart';
 /// `Action.overridable`. When an interaction [Interaction.adjusts] (a
 /// slider, a stepper), the region binds the keys of
 /// [AdjustValueIntent.defaultShortcuts] around its focus and gives
-/// accessibility increase and decrease; both arrive as [AdjustInput]s.
+/// accessibility increase and decrease; both arrive as [AdjustInput]s, and
+/// only those its [adjustRange] allows are offered.
 ///
 /// Presses of the secondary button reach the interactions that accept them
 /// (`SecondaryClickInteraction`); the scroll wheel reaches them as
@@ -60,6 +61,7 @@ class InputRegion extends StatefulWidget {
     this.semanticLabel,
     this.port,
     this.minimumHitSize,
+    this.adjustRange,
     super.key,
   });
 
@@ -135,6 +137,16 @@ class InputRegion extends StatefulWidget {
   /// tap target padding.
   final Size? minimumHitSize;
 
+  /// Which ways the value of a region that adjusts can move now, or null
+  /// when it always can.
+  ///
+  /// At the maximum the region offers no accessibility increase and takes
+  /// none of the keys that raise the value (they reach what lies around
+  /// the region), at the minimum the same for lowering it. The region
+  /// follows the listenable without a rebuild, so a value that reaches its
+  /// end by a drag or a glide updates its semantics in the same frame.
+  final ValueListenable<AdjustRange>? adjustRange;
+
   @override
   State<InputRegion> createState() => _InputRegionState();
 }
@@ -168,6 +180,7 @@ class _InputRegionState extends State<InputRegion> {
     FocusManager.instance.addHighlightModeListener(_highlightModeChanged);
     _bindRegions();
     _attachPort(widget.port);
+    widget.adjustRange?.addListener(_rangeChanged);
   }
 
   @override
@@ -194,6 +207,11 @@ class _InputRegionState extends State<InputRegion> {
       oldWidget.port?.detach(_receive);
       _attachPort(widget.port);
     }
+    if (oldWidget.adjustRange != widget.adjustRange) {
+      oldWidget.adjustRange?.removeListener(_rangeChanged);
+      widget.adjustRange?.addListener(_rangeChanged);
+      _rangeChanged();
+    }
     if (oldWidget.statesController != widget.statesController) {
       (oldWidget.statesController ?? _ownStates)?.removeListener(
         _statesChanged,
@@ -211,6 +229,7 @@ class _InputRegionState extends State<InputRegion> {
   @override
   void dispose() {
     widget.port?.detach(_receive);
+    widget.adjustRange?.removeListener(_rangeChanged);
     _cancelAll(PointerCancelReason.platform);
     _cancelDue?.call();
     _states.removeListener(_statesChanged);
@@ -483,6 +502,10 @@ class _InputRegionState extends State<InputRegion> {
 
   bool get _adjusts => widget.interactions.any((i) => i.adjusts);
 
+  AdjustRange get _range => widget.adjustRange?.value ?? AdjustRange.open;
+
+  void _rangeChanged() => _box?.markNeedsSemanticsUpdate();
+
   NavigationMode? _navigation;
 
   @override
@@ -588,7 +611,9 @@ class _Adjust extends Action<AdjustValueIntent> {
 
   @override
   bool isEnabled(AdjustValueIntent intent) =>
-      state.widget.enabled && state._adjusts;
+      state.widget.enabled &&
+      state._adjusts &&
+      state._range.allows(intent.command);
 
   @override
   Object? invoke(AdjustValueIntent intent) {
@@ -796,10 +821,19 @@ class _RenderRegion extends RenderProxyBox {
     config.isEnabled = described.enabled;
     if (described.tappable) config.onTap = state._semanticTap;
     if (described.adjustable) {
-      config.onIncrease = () =>
-          state._adjust(ValueCommand.increase, ActivationSource.accessibility);
-      config.onDecrease = () =>
-          state._adjust(ValueCommand.decrease, ActivationSource.accessibility);
+      final range = state._range;
+      if (range.canIncrease) {
+        config.onIncrease = () => state._adjust(
+          ValueCommand.increase,
+          ActivationSource.accessibility,
+        );
+      }
+      if (range.canDecrease) {
+        config.onDecrease = () => state._adjust(
+          ValueCommand.decrease,
+          ActivationSource.accessibility,
+        );
+      }
     }
   }
 }

@@ -2,6 +2,7 @@ ActivateInput
 ActivationEvent
 ActivationSource
 AdjustInput
+AdjustRange
 AdjustValueIntent
 Band
 ControlStates
