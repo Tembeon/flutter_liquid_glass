@@ -1,12 +1,9 @@
-import 'dart:math' as math;
-
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/widgets/layout_item.dart';
 import 'package:kinesis/src/widgets/resolve.dart';
 import 'package:kinesis/src/widgets/scope.dart';
-import 'package:kinesis/src/widgets/transition.dart';
 
 /// A lazy list that animates whatever a change of its data did to its
 /// rows: the sliver counterpart of `MotionLayout`.
@@ -68,81 +65,26 @@ class SliverMotionList extends StatefulWidget {
   State<SliverMotionList> createState() => _SliverMotionListState();
 }
 
-class _SliverMotionListState extends State<SliverMotionList> {
-  LayoutMotion? _kept;
-  final Map<Object, LayoutItemEntry> _entries = {};
+class _SliverMotionListState extends State<SliverMotionList>
+    with LayoutMotionOwner<SliverMotionList> {
+  @override
+  final Map<Object, LayoutItemEntry> entries = {};
   List<Object> _ids = const [];
   List<Object> _order = const [];
-  final Set<Object> _ghosts = {};
   Set<Object> _fresh = const {};
   final Map<Key, int> _indexOf = {};
-  late MotionSelection<int> _drawn;
-  bool _muted = false;
-  bool _leftPending = false;
-
-  LayoutMotion get motion =>
-      widget.motion ?? (_kept ??= LayoutMotion(planner: widget.planner));
 
   @override
-  void initState() {
-    super.initState();
-    _bind();
-  }
+  LayoutMotion? get givenMotion => widget.motion;
+
+  @override
+  LayoutPlanner get givenPlanner => widget.planner;
 
   @override
   void didUpdateWidget(SliverMotionList oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final kept = _kept;
-    if (widget.motion == null && kept != null) kept.planner = widget.planner;
-    if (identical(oldWidget.motion, widget.motion)) return;
-    _unbind();
-    _entries.clear();
-    _ghosts.clear();
-    _bind();
+    motionUpdated(oldWidget.motion);
   }
-
-  @override
-  void dispose() {
-    _unbind();
-    super.dispose();
-  }
-
-  void _bind() {
-    _drawn = motion.select((m) => m.ids.length);
-    _drawn.addRenderListener(_dropped);
-  }
-
-  void _unbind() => _drawn.removeRenderListener(_dropped);
-
-  // Heard in the resolve phase too, where nothing may rebuild: the rebuild
-  // that lets the ghosts go waits for the clock's coming publish phase.
-  void _dropped() {
-    if (_leftPending || _ghosts.every(motion.contains)) return;
-    _leftPending = true;
-    motion.clock.schedulePublish(() {
-      _leftPending = false;
-      _left();
-    });
-  }
-
-  void _left() {
-    if (!mounted) return;
-    final gone = _ghosts.where((id) => !motion.contains(id)).toList();
-    if (gone.isEmpty) return;
-    setState(() {
-      _ghosts.removeAll(gone);
-      gone.forEach(_entries.remove);
-    });
-  }
-
-  bool get _jumps {
-    final layout = MotionTransaction.layout;
-    return _muted || (layout != null && layout.spring.isImmediate);
-  }
-
-  bool get _animates =>
-      !_jumps &&
-      (motion.planner.spring != null || MotionTransaction.layout != null);
 
   // A ghost keeps its place after the row that preceded it in the last
   // order, or the order's start.
@@ -150,7 +92,7 @@ class _SliverMotionListState extends State<SliverMotionList> {
     final order = List<Object>.of(ids);
     for (var i = 0; i < _order.length; i++) {
       final id = _order[i];
-      if (!_ghosts.contains(id) || order.contains(id)) continue;
+      if (!ghosts.contains(id) || order.contains(id)) continue;
       var at = 0;
       for (var j = i - 1; j >= 0; j--) {
         final before = order.indexOf(_order[j]);
@@ -166,20 +108,20 @@ class _SliverMotionListState extends State<SliverMotionList> {
 
   @override
   Widget build(BuildContext context) {
-    _muted = !TickerMode.valuesOf(context).enabled;
+    muted = !TickerMode.valuesOf(context).enabled;
     final ids = widget.ids;
     final present = ids.toSet();
     final before = _ids.toSet();
     for (final id in _ids) {
-      if (present.contains(id) || _ghosts.contains(id)) continue;
-      final entry = _entries[id];
-      if (_animates && entry?.probe != null && motion.hostLaidOut(id) != null) {
-        _ghosts.add(id);
+      if (present.contains(id) || ghosts.contains(id)) continue;
+      final entry = entries[id];
+      if (animates && entry?.probe != null && motion.hostLaidOut(id) != null) {
+        ghosts.add(id);
       } else {
-        _entries.remove(id);
+        entries.remove(id);
       }
     }
-    _ghosts.removeAll(present);
+    ghosts.removeAll(present);
     _fresh = present.difference(before);
     _ids = ids;
     final order = _order = _merge(ids);
@@ -188,9 +130,9 @@ class _SliverMotionListState extends State<SliverMotionList> {
     final semantics = <int?>[];
     for (var i = 0; i < order.length; i++) {
       final id = order[i];
-      final entry = _entries[id] ??= LayoutItemEntry(motion, id);
+      final entry = entries[id] ??= LayoutItemEntry(motion, id);
       _indexOf[entry.key] = i;
-      semantics.add(_ghosts.contains(id) ? null : semantic++);
+      semantics.add(ghosts.contains(id) ? null : semantic++);
     }
     return MotionScope(
       motion: motion,
@@ -211,8 +153,8 @@ class _SliverMotionListState extends State<SliverMotionList> {
   }
 
   Widget _probe(BuildContext context, Object id) {
-    final entry = _entries[id]!;
-    final ghost = _ghosts.contains(id);
+    final entry = entries[id]!;
+    final ghost = ghosts.contains(id);
     final child = ghost
         ? entry.last ?? const SizedBox.shrink()
         : entry.last = widget.itemBuilder(context, id);
@@ -239,7 +181,7 @@ class _SliverMotionListState extends State<SliverMotionList> {
       if (!rects.containsKey(id) && !ghosts.contains(id)) motion.forget(id);
     }
     final layout = MotionTransaction.layout;
-    final jump = _jumps;
+    final jump = jumps;
     final planner = motion.planner;
     motion.planner = _ListPlanner(planner, _fresh);
     final LayoutChange? change;
@@ -361,45 +303,11 @@ class _Probe extends SingleChildRenderObjectWidget {
   }
 }
 
-class _RenderProbe extends RenderProxyBox {
-  _RenderProbe(this.motion, this._entry, {required this.ghost});
-
-  LayoutMotion motion;
-
-  bool ghost;
-
-  LayoutItemEntry _entry;
-  LayoutItemEntry get entry => _entry;
-  set entry(LayoutItemEntry value) {
-    if (identical(value, _entry)) return;
-    _unfollow();
-    _entry = value;
-    _follow();
-    markNeedsCompositedLayerUpdate();
-  }
-
-  Object get id => _entry.id;
-
-  bool get _drawsItem => !_entry.adopted;
+class _RenderProbe extends LayoutProbeBox {
+  _RenderProbe(super.motion, super.entry, {required super.ghost});
 
   _RenderSliverHost? _host;
   BoxConstraints? _lastConstraints;
-
-  void _follow() {
-    if (!attached) return;
-    _entry.item.addRenderListener(_itemChanged);
-    _entry.probe = this;
-  }
-
-  void _unfollow() {
-    _entry.item.removeRenderListener(_itemChanged);
-    if (identical(_entry.probe, this)) _entry.probe = null;
-  }
-
-  void _itemChanged() {
-    if (_drawsItem) markNeedsCompositedLayerUpdate();
-    if (motion.itemRests(id)) markNeedsSemanticsUpdate();
-  }
 
   @override
   void attach(PipelineOwner owner) {
@@ -410,19 +318,16 @@ class _RenderProbe extends RenderProxyBox {
     }
     _host = ancestor as _RenderSliverHost?;
     _host?._probes.add(this);
-    _follow();
+    follow();
   }
 
   @override
   void detach() {
-    _unfollow();
+    unfollow();
     _host?._probes.remove(this);
     _host = null;
     super.detach();
   }
-
-  @override
-  bool get isRepaintBoundary => true;
 
   bool get _vertical => _host?.constraints.axis != Axis.horizontal;
 
@@ -471,49 +376,20 @@ class _RenderProbe extends RenderProxyBox {
     return origin & _drawnSize;
   }
 
-  Matrix4? get _transform {
-    if (!_drawsItem || !hasSize) return null;
-    final item = _entry.item.value;
+  @override
+  Matrix4? get itemTransform {
+    if (!drawsItem || !hasSize) return null;
+    final item = entry.item.value;
     if (motion.hostLaidOut(id) == null) return null;
     final here = listFrame();
     final shift = item.rect.center - here.center;
     final scale = item.scale;
     if (shift == Offset.zero && scale == 1) return null;
-    final center = _drawnSize.center(Offset.zero);
-    final transform = Matrix4.translationValues(
-      shift.dx + center.dx,
-      shift.dy + center.dy,
-      0,
+    return LayoutProbeBox.shiftAndScale(
+      shift,
+      scale,
+      _drawnSize.center(Offset.zero),
     );
-    transform.scaleByDouble(scale, scale, 1, 1);
-    transform.translateByDouble(-center.dx, -center.dy, 0, 1);
-    return transform;
-  }
-
-  @override
-  OffsetLayer updateCompositedLayer({
-    required covariant MotionTransitionLayer? oldLayer,
-  }) {
-    final layer = oldLayer ?? MotionTransitionLayer();
-    if (!_drawsItem) {
-      layer.update(transform: null, clip: null, alpha: null, blur: 0);
-      return layer;
-    }
-    final item = _entry.item.value;
-    final alpha = (item.opacity.clamp(0.0, 1.0) * 255).round();
-    layer.update(
-      transform: _transform,
-      clip: null,
-      alpha: alpha == 255 ? null : alpha,
-      blur: math.max(0, item.blur),
-    );
-    return layer;
-  }
-
-  @override
-  void applyPaintTransform(RenderBox child, Matrix4 transform) {
-    super.applyPaintTransform(child, transform);
-    if (_transform case final move?) transform.multiply(move);
   }
 
   @override

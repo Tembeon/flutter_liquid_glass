@@ -79,9 +79,6 @@ final class _HostTarget<T extends Object> extends InputTarget {
   @override
   bool get enabled => true;
 
-  @override
-  Offset toGlobal(Offset local) => host._box?.localToGlobal(local) ?? local;
-
   // The host's box has no states of its own.
   @override
   void write(WidgetState state, {required bool on}) {}
@@ -89,27 +86,12 @@ final class _HostTarget<T extends Object> extends InputTarget {
   @override
   MotionHaptic? feedback(InteractionEvent event) =>
       host.widget.hostFeedback?.call(event);
-
-  @override
-  Offset get centre => switch (host._box) {
-    final box? when box.hasSize => box.size.center(Offset.zero),
-    _ => Offset.zero,
-  };
 }
 
 final class _ZonesLine<T extends Object> extends PointerLine {
   _ZonesLine(this.host);
 
   final _InputZonesState<T> host;
-
-  @override
-  BuildContext get context => host.context;
-
-  @override
-  bool get mounted => host.mounted;
-
-  @override
-  MotionClock get clock => host._clock;
 
   @override
   RenderBox? get box => host._box;

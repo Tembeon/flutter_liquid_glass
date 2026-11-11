@@ -84,18 +84,13 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     final presentation = this.presentation;
     final navigator = this.navigator;
     if (presentation == null || navigator == null || _motion != null) return;
-    final t = MotionClock.instance.now;
-    final motion = _motion = presentation.create(
-      PresentationEnvironment.of(navigator.context, t),
+    final environment = PresentationEnvironment.of(
+      navigator.context,
+      MotionClock.instance.now,
     );
-    final source = presentation.source;
-    if (source != null) {
-      _lease = source.lease();
-      if (motion is Sourced) {
-        (motion as Sourced).sourceMoved(t, source.geometry);
-      }
-    }
-    motion.open(t);
+    final (motion, lease) = commitPresentation(presentation, environment);
+    _motion = motion;
+    _lease = lease;
   }
 
   /// Whether the route is modal now: its barrier absorbs taps and hides

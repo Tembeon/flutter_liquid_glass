@@ -367,9 +367,6 @@ final class _RegionTarget extends InputTarget {
   bool get enabled => state.widget.enabled;
 
   @override
-  Offset toGlobal(Offset local) => state._box?.localToGlobal(local) ?? local;
-
-  @override
   void write(WidgetState state, {required bool on}) =>
       this.state._states.update(state, on);
 
@@ -379,12 +376,6 @@ final class _RegionTarget extends InputTarget {
 
   @override
   AdjustRange get range => state.widget.adjustRange?.value ?? AdjustRange.open;
-
-  @override
-  Offset get centre => switch (state._box) {
-    final box? when box.hasSize => box.size.center(Offset.zero),
-    _ => Offset.zero,
-  };
 
   @override
   FocusNode get focusNode => state._focus;
@@ -400,15 +391,6 @@ final class _RegionLine extends PointerLine {
   _RegionLine(this.state);
 
   final _InputRegionState state;
-
-  @override
-  BuildContext get context => state.context;
-
-  @override
-  bool get mounted => state.mounted;
-
-  @override
-  MotionClock get clock => state._clock;
 
   @override
   RenderBox? get box => state._box;

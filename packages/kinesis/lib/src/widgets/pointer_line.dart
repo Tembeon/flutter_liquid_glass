@@ -72,15 +72,6 @@ abstract class PointerLine {
   final _PointerSpeed _speed = _PointerSpeed();
   InputPort? _port;
 
-  /// The element of the box.
-  BuildContext get context;
-
-  /// Whether [context] is still in the tree.
-  bool get mounted;
-
-  /// The clock that stamps the events.
-  MotionClock get clock;
-
   /// The box whose events these are.
   RenderBox? get box;
 
@@ -89,6 +80,15 @@ abstract class PointerLine {
 
   /// The target that hears every touch on the box.
   InputTarget get base;
+
+  /// The element of the box.
+  BuildContext get context => base.context;
+
+  /// Whether [context] is still in the tree.
+  bool get mounted => base.mounted;
+
+  /// The clock that stamps the events.
+  MotionClock get clock => base.clock;
 
   /// The part that takes input at [position], or null.
   InputTarget? partAt(Offset position) => null;
@@ -296,7 +296,7 @@ abstract class PointerLine {
     if (touch.base != null || touch.part != null || slides) {
       _touches[pointer] = touch;
       if (arena && (touch.contended || slides)) {
-        final member = _ArenaMember(_lost, onAccepted: _accepted);
+        final member = _ArenaMember(_lost, _accepted);
         touch.member = member;
         member.entry = GestureBinding.instance.gestureArena.add(
           pointer,
@@ -533,19 +533,19 @@ abstract class PointerLine {
 final class _ArenaMember extends GestureArenaMember {
   /// Creates a member that calls [onRejected] when it loses its pointer and
   /// [onAccepted] when it wins it.
-  _ArenaMember(this.onRejected, {this.onAccepted});
+  _ArenaMember(this.onRejected, this.onAccepted);
 
   /// Called with the pointer another gesture took.
   final void Function(int pointer) onRejected;
 
   /// Called with the pointer the arena gave the host.
-  final void Function(int pointer)? onAccepted;
+  final void Function(int pointer) onAccepted;
 
   /// The arena entry, once the member joined.
   GestureArenaEntry? entry;
 
   @override
-  void acceptGesture(int pointer) => onAccepted?.call(pointer);
+  void acceptGesture(int pointer) => onAccepted(pointer);
 
   @override
   void rejectGesture(int pointer) => onRejected(pointer);

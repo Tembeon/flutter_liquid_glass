@@ -214,6 +214,25 @@ final class Presentation<T, M extends Presented> {
   }
 }
 
+/// Commits [presentation]: makes its motion for [environment], leases the
+/// source and tells a [Sourced] motion where it is, then opens the motion
+/// at the environment's time. The shell calls the lease's callback when it
+/// lets the source go.
+@internal
+(Presented, VoidCallback?) commitPresentation(
+  Presentation<Object?, Presented> presentation,
+  PresentationEnvironment environment,
+) {
+  final motion = presentation.create(environment);
+  final source = presentation.source;
+  final lease = source?.lease();
+  if (source != null && motion is Sourced) {
+    (motion as Sourced).sourceMoved(environment.time, source.geometry);
+  }
+  motion.open(environment.time);
+  return (motion, lease);
+}
+
 /// The content's hold on its shell.
 abstract interface class PresentationHandle {
   /// The handle of the presentation around [context].

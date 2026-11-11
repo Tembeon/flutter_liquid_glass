@@ -41,8 +41,9 @@ abstract class InputTarget {
   /// Whether the target takes input now.
   bool get enabled;
 
-  /// A position of the target's own coordinates in global ones.
-  Offset toGlobal(Offset local);
+  /// A position of the target's own coordinates in global ones; by default
+  /// the [line]'s box coordinates.
+  Offset toGlobal(Offset local) => line.box?.localToGlobal(local) ?? local;
 
   /// [input], given in the coordinates of the [line]'s box, in the
   /// target's own.
@@ -58,8 +59,11 @@ abstract class InputTarget {
   AdjustRange get range => AdjustRange.open;
 
   /// The target's centre in the coordinates of the [line]'s box: where a
-  /// context menu asked for by a key opens.
-  Offset get centre;
+  /// context menu asked for by a key opens; by default the box's centre.
+  Offset get centre => switch (line.box) {
+    final box? when box.hasSize => box.size.center(Offset.zero),
+    _ => Offset.zero,
+  };
 
   /// The target's focus node, or null when it takes no focus.
   FocusNode? get focusNode => null;

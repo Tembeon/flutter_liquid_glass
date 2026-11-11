@@ -152,17 +152,12 @@ class _PresentationPortalState extends State<PresentationPortal>
       return;
     }
     final presentation = widget.presentation;
-    final motion = _motion = presentation.create(
+    final (motion, lease) = commitPresentation(
+      presentation,
       PresentationEnvironment.of(context, t),
     );
-    final source = presentation.source;
-    if (source != null) {
-      _lease = source.lease();
-      if (motion is Sourced) {
-        (motion as Sourced).sourceMoved(t, source.geometry);
-      }
-    }
-    motion.open(t);
+    _motion = motion;
+    _lease = lease;
     _setLeaving(false);
     _restore = FocusManager.instance.primaryFocus;
     _canPop.value = false;

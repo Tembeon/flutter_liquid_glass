@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -7,7 +5,6 @@ import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/widgets/layout_item.dart';
 import 'package:kinesis/src/widgets/resolve.dart';
 import 'package:kinesis/src/widgets/scope.dart';
-import 'package:kinesis/src/widgets/transition.dart';
 
 /// Builds a [MotionLayout]'s layout around its [children], which are the
 /// layout's children wrapped for motion.
@@ -93,59 +90,22 @@ class MotionLayout extends StatefulWidget {
   State<MotionLayout> createState() => _MotionLayoutState();
 }
 
-class _MotionLayoutState extends State<MotionLayout> {
-  LayoutMotion? _kept;
-  final Map<Object, LayoutItemEntry> _children = {};
+class _MotionLayoutState extends State<MotionLayout>
+    with LayoutMotionOwner<MotionLayout> {
+  @override
+  final Map<Object, LayoutItemEntry> entries = {};
   List<Object> _ids = const [];
-  final Set<Object> _ghosts = {};
-  late MotionSelection<int> _drawn;
-  bool _muted = false;
-
-  LayoutMotion get motion =>
-      widget.motion ?? (_kept ??= LayoutMotion(planner: widget.planner));
 
   @override
-  void initState() {
-    super.initState();
-    _bind();
-  }
+  LayoutMotion? get givenMotion => widget.motion;
+
+  @override
+  LayoutPlanner get givenPlanner => widget.planner;
 
   @override
   void didUpdateWidget(MotionLayout oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final kept = _kept;
-    if (widget.motion == null && kept != null) kept.planner = widget.planner;
-    if (identical(oldWidget.motion, widget.motion)) return;
-    _unbind();
-    _children.clear();
-    _ghosts.clear();
-    _bind();
-  }
-
-  @override
-  void dispose() {
-    _unbind();
-    super.dispose();
-  }
-
-  void _bind() {
-    _drawn = motion.select((m) => m.ids.length);
-    _drawn.addRenderListener(_dropped);
-  }
-
-  void _unbind() => _drawn.removeRenderListener(_dropped);
-
-  bool _leftPending = false;
-
-  // Heard in the resolve phase too, where nothing may rebuild: the rebuild
-  // that lets the ghosts go waits for the clock's coming publish phase.
-  void _dropped() {
-    if (_leftPending || _ghosts.every(motion.contains)) return;
-    _leftPending = true;
-    motion.clock.schedulePublish(() {
-      _leftPending = false;
-      _left();
-    });
+    motionUpdated(oldWidget.motion);
   }
 
   static List<Object> _idsOf(List<Widget> children) {
@@ -160,46 +120,27 @@ class _MotionLayoutState extends State<MotionLayout> {
     ];
   }
 
-  bool get _jumps {
-    final layout = MotionTransaction.layout;
-    return _muted || (layout != null && layout.spring.isImmediate);
-  }
-
-  bool get _animates =>
-      !_jumps &&
-      (motion.planner.spring != null || MotionTransaction.layout != null);
-
-  void _left() {
-    if (!mounted) return;
-    final gone = _ghosts.where((id) => !motion.contains(id)).toList();
-    if (gone.isEmpty) return;
-    setState(() {
-      _ghosts.removeAll(gone);
-      gone.forEach(_children.remove);
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    _muted = !TickerMode.valuesOf(context).enabled;
+    muted = !TickerMode.valuesOf(context).enabled;
     final ids = _idsOf(widget.children);
     final present = ids.toSet();
     for (final id in _ids) {
-      if (present.contains(id) || _ghosts.contains(id)) continue;
-      if (_animates && motion.hostLaidOut(id) != null) {
-        _ghosts.add(id);
+      if (present.contains(id) || ghosts.contains(id)) continue;
+      if (animates && motion.hostLaidOut(id) != null) {
+        ghosts.add(id);
       } else {
-        _children.remove(id);
+        entries.remove(id);
       }
     }
-    _ghosts.removeAll(present);
+    ghosts.removeAll(present);
     _ids = ids;
     final children = <Widget>[
       for (var i = 0; i < ids.length; i++)
         _probe(ids[i], widget.children[i], ghost: false),
     ];
-    final ghosts = <Widget>[
-      for (final id in _ghosts) _probe(id, _children[id]!.last!, ghost: true),
+    final leaving = <Widget>[
+      for (final id in ghosts) _probe(id, entries[id]!.last!, ghost: true),
     ];
     return MotionScope(
       motion: motion,
@@ -209,14 +150,14 @@ class _MotionLayoutState extends State<MotionLayout> {
           Builder(
             builder: (context) => widget.layoutBuilder(context, children),
           ),
-          ...ghosts,
+          ...leaving,
         ],
       ),
     );
   }
 
   Widget _probe(Object id, Widget child, {required bool ghost}) {
-    final entry = _children[id] ??= LayoutItemEntry(motion, id);
+    final entry = entries[id] ??= LayoutItemEntry(motion, id);
     if (!ghost) entry.last = child;
     return _Probe(
       key: entry.key,
@@ -233,7 +174,7 @@ class _MotionLayoutState extends State<MotionLayout> {
         if (!probe.ghost) probe.id: probe.layoutFrame(host),
     };
     final layout = MotionTransaction.layout;
-    final jump = _jumps;
+    final jump = jumps;
     final change = motion.layout(
       MotionClock.instance.now,
       rects,
@@ -383,44 +324,11 @@ class _Probe extends SingleChildRenderObjectWidget {
   }
 }
 
-class _RenderProbe extends RenderProxyBox {
-  _RenderProbe(this.motion, this._entry, {required this.ghost});
-
-  LayoutMotion motion;
-  bool ghost;
-
-  LayoutItemEntry _entry;
-  LayoutItemEntry get entry => _entry;
-  set entry(LayoutItemEntry value) {
-    if (identical(value, _entry)) return;
-    _unfollow();
-    _entry = value;
-    _follow();
-    markNeedsCompositedLayerUpdate();
-  }
-
-  bool get _drawsItem => !_entry.adopted;
-
-  Object get id => _entry.id;
+class _RenderProbe extends LayoutProbeBox {
+  _RenderProbe(super.motion, super.entry, {required super.ghost});
 
   _RenderHost? _host;
   BoxConstraints? lastConstraints;
-
-  void _follow() {
-    if (!attached) return;
-    _entry.item.addRenderListener(_itemChanged);
-    _entry.probe = this;
-  }
-
-  void _unfollow() {
-    _entry.item.removeRenderListener(_itemChanged);
-    if (identical(_entry.probe, this)) _entry.probe = null;
-  }
-
-  void _itemChanged() {
-    if (_drawsItem) markNeedsCompositedLayerUpdate();
-    if (motion.itemRests(id)) markNeedsSemanticsUpdate();
-  }
 
   @override
   void attach(PipelineOwner owner) {
@@ -433,19 +341,16 @@ class _RenderProbe extends RenderProxyBox {
     _host?._probes.add(this);
     final theirs = child?.parentData;
     if (theirs != null) _copy(theirs, parentData);
-    _follow();
+    follow();
   }
 
   @override
   void detach() {
-    _unfollow();
+    unfollow();
     _host?._probes.remove(this);
     _host = null;
     super.detach();
   }
-
-  @override
-  bool get isRepaintBoundary => true;
 
   @override
   void layout(Constraints constraints, {bool parentUsesSize = false}) {
@@ -541,47 +446,14 @@ class _RenderProbe extends RenderProxyBox {
     super.performLayout();
   }
 
-  Matrix4? get _transform {
-    if (!_drawsItem) return null;
+  @override
+  Matrix4? get itemTransform {
+    if (!drawsItem) return null;
     final model = motion.hostLaidOut(id);
-    final item = _entry.item.value;
+    final item = entry.item.value;
     final shift = model == null ? Offset.zero : item.rect.center - model.center;
     final scale = item.scale;
     if (shift == Offset.zero && scale == 1) return null;
-    final center = size.center(Offset.zero);
-    final transform = Matrix4.translationValues(
-      shift.dx + center.dx,
-      shift.dy + center.dy,
-      0,
-    );
-    transform.scaleByDouble(scale, scale, 1, 1);
-    transform.translateByDouble(-center.dx, -center.dy, 0, 1);
-    return transform;
-  }
-
-  @override
-  OffsetLayer updateCompositedLayer({
-    required covariant MotionTransitionLayer? oldLayer,
-  }) {
-    final layer = oldLayer ?? MotionTransitionLayer();
-    if (!_drawsItem) {
-      layer.update(transform: null, clip: null, alpha: null, blur: 0);
-      return layer;
-    }
-    final item = _entry.item.value;
-    final alpha = (item.opacity.clamp(0.0, 1.0) * 255).round();
-    layer.update(
-      transform: _transform,
-      clip: null,
-      alpha: alpha == 255 ? null : alpha,
-      blur: math.max(0, item.blur),
-    );
-    return layer;
-  }
-
-  @override
-  void applyPaintTransform(RenderBox child, Matrix4 transform) {
-    super.applyPaintTransform(child, transform);
-    if (_transform case final move?) transform.multiply(move);
+    return LayoutProbeBox.shiftAndScale(shift, scale, size.center(Offset.zero));
   }
 }
