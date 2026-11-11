@@ -82,6 +82,7 @@ class RawGlassStepper extends StatefulWidget {
     this.decrementLabel = 'Decrement',
     this.incrementLabel = 'Increment',
     this.semanticFormatterCallback,
+    this.semanticLabel,
     this.statesController,
     this.focusNode,
     this.autofocus = false,
@@ -116,6 +117,9 @@ class RawGlassStepper extends StatefulWidget {
   /// Formats the value each half announces; null uses up to twelve
   /// significant digits without binary floating-point tails.
   final String Function(double value)? semanticFormatterCallback;
+
+  /// What accessibility reads for the stepper.
+  final String? semanticLabel;
 
   /// Where the stepper writes its states, or null for its own.
   final WidgetStatesController? statesController;
@@ -232,6 +236,7 @@ class _RawGlassStepperState extends State<RawGlassStepper>
         statesController: widgetStates,
         focusNode: widget.focusNode,
         autofocus: widget.autofocus,
+        semanticLabel: widget.semanticLabel,
         minimumHitSize: const Size(44, 44),
         child: Semantics(
           value: value,

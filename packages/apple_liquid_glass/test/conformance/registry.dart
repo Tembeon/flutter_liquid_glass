@@ -220,6 +220,7 @@ final List<Entry> registry = [
       builder: (context, value, set) => GlassStepper(
         value: value,
         max: 10,
+        semanticLabel: 'Quantity',
         onChanged: enabled ? set : null,
       ),
     ),
@@ -236,6 +237,7 @@ final List<Entry> registry = [
       builder: (context, value, set) => RawGlassStepper(
         value: value,
         max: 10,
+        semanticLabel: 'Quantity',
         onChanged: enabled ? set : null,
         builder: (context, details) {
           probe.states = details.states;

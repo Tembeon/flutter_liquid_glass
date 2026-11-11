@@ -10,9 +10,7 @@ GlassCompactDatePicker zero-size: A RenderFlex overflowed by 210 pixels on the r
 GlassDatePicker key-arrows-edge: Arrow Down past the last row takes the focus off the items
 GlassDatePicker tap-target: "3, Saturday, October 3, 2026, Today": expected tap target size of at least Size(44.0, 44.0), but found Siz...
 GlassMenuAnchor barrier-hides-behind: assistive technology reads it before its anchor
-GlassStepper semantics-label: an adjustable node valued "5" has no semantic label
 GlassTabBar contrast-light: "Library": expected contrast ratio of at least 4.5 but found 2.27 for a font size of 10.0
 GlassTabBar.search contrast-light: "Library": expected contrast ratio of at least 4.5 but found 2.27 for a font size of 10.0
 RawGlassDatePicker key-arrows-edge: Arrow Down past the last row takes the focus off the items
 RawGlassDatePicker tap-target: "3, Saturday, October 3, 2026, Today": expected tap target size of at least Size(44.0, 44.0), but found Siz...
-RawGlassStepper semantics-label: an adjustable node valued "5" has no semantic label

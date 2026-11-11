@@ -267,6 +267,27 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('the adjustable node carries the semantic label and the value', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _app(
+        RawGlassStepper(
+          value: 5,
+          semanticLabel: 'Quantity',
+          onChanged: (_) {},
+          builder: _Probe().build,
+        ),
+      ),
+    );
+    await tester.pump();
+    final node = tester.getSemantics(find.byType(RawGlassStepper));
+    expect(node.label, 'Quantity');
+    expect(node.value, '5');
+    semantics.dispose();
+  });
+
   testWidgets('one adjustable node with the value over its 44 point target '
       'holds the two buttons', (tester) async {
     final semantics = tester.ensureSemantics();
