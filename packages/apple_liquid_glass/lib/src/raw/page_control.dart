@@ -2,8 +2,6 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motions/page_control_motion.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
@@ -47,8 +45,8 @@ final class GlassPageControlDetails {
   /// dots.
   final double? progress;
 
-  /// The states the control is in; [WidgetState.disabled] while it ignores
-  /// input.
+  /// The states the control is in: [WidgetState.disabled] while it ignores
+  /// input, and what its input region writes (pressed, hovered, focused).
   final Set<WidgetState> states;
 }
 
@@ -141,13 +139,18 @@ final class GlassPageControlPose {
 /// half moves to the next page and one on the leading half to the
 /// previous page, on the lift, as UIKit's does; a finger that moves more
 /// than 10 points scrubs to the nearest indicator and plays a selection
-/// haptic each time it changes the page (read from UIKit, notes private).
+/// haptic each time it changes the page (read from UIKit, notes private);
+/// a `MotionHapticScope` turns that off. A finger takes it within a 44 point
+/// tall area around its 25.67 point box, where its parent leaves that room.
 /// With [progress] the current indicator widens into a capsule
 /// (`UIPageControlProgress`), and a page change grows and shrinks the
 /// capsules on the measured springs. The platter shows per
-/// [backgroundStyle], fading in after a touch rests 0.193 s. The arrow keys
-/// and the accessibility increase and decrease step through the pages; in a
-/// right-to-left context the pages run from the right.
+/// [backgroundStyle], fading in after a touch rests 0.193 s. The value
+/// commands of the arrow keys (mirrored in right-to-left), Home and End,
+/// and the accessibility increase and decrease step through the pages or
+/// go to the first and last; it has no larger step, so Page Up and Page
+/// Down do nothing, and neither do Space and Enter, as on Flutter's
+/// `Slider`. In a right-to-left context the pages run from the right.
 class RawGlassPageControl extends StatefulWidget {
   /// Creates a page control of [count] pages showing [page].
   const RawGlassPageControl({
@@ -159,6 +162,7 @@ class RawGlassPageControl extends StatefulWidget {
     this.backgroundStyle = GlassPageControlBackground.automatic,
     this.semanticLabel,
     this.semanticValueFormatter,
+    this.statesController,
     this.focusNode,
     this.autofocus = false,
     super.key,
@@ -191,6 +195,9 @@ class RawGlassPageControl extends StatefulWidget {
   /// null reads "page n of count". An empty control has no value.
   final String Function(int page, int count)? semanticValueFormatter;
 
+  /// Where the control writes its states, or null for its own.
+  final WidgetStatesController? statesController;
+
   /// The control's focus node, or null for its own.
   final FocusNode? focusNode;
 
@@ -201,11 +208,13 @@ class RawGlassPageControl extends StatefulWidget {
   State<RawGlassPageControl> createState() => _RawGlassPageControlState();
 }
 
-class _RawGlassPageControlState extends State<RawGlassPageControl> {
+class _RawGlassPageControlState extends State<RawGlassPageControl>
+    with ControlStates<RawGlassPageControl> {
   late PageControlMotion _motion = _create();
   late MotionSelection<GlassPageControlPose> _pose = _poseOf();
   late final _PageControlInput _input = _PageControlInput(this);
   late final List<Interaction> _interactions = [_input];
+  bool _returning = false;
 
   int get _count => math.max(0, widget.count);
 
@@ -229,6 +238,15 @@ class _RawGlassPageControlState extends State<RawGlassPageControl> {
   }
 
   @override
+  WidgetStatesController? get givenStates => widget.statesController;
+
+  @override
+  void writeStates() {
+    widgetStates.update(WidgetState.disabled, !_enabled);
+    if (!_enabled) widgetStates.update(WidgetState.pressed, false);
+  }
+
+  @override
   void didUpdateWidget(RawGlassPageControl oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.count != oldWidget.count ||
@@ -243,23 +261,32 @@ class _RawGlassPageControlState extends State<RawGlassPageControl> {
 
   void _setPage(int page) {
     if (page == _motion.page) return;
-    _motion.setPage(MotionClock.instance.now, page);
+    _motion.setPage(_motion.clock.now, page);
   }
 
   void _deliver(PageControlEvent event) {
     switch (event) {
       case PageControlPicked(:final page, :final scrubbed):
         if (page != _page) widget.onChanged?.call(page);
-        if (scrubbed) MotionHaptic.selection.play();
-        SchedulerBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _setPage(_page);
-        });
+        if (scrubbed) _input.feel(page);
+        // The build that follows shows the page the app passes by then, so
+        // a control whose app does not follow returns to its page.
+        setState(() => _returning = true);
     }
   }
 
-  void _step(int delta) {
+  static MotionHaptic? _feedback(InteractionEvent event) =>
+      event is ScrubChangeEvent ? MotionHaptic.selection : null;
+
+  void _command(ValueCommand command) {
     if (!_enabled) return;
-    final next = (_page + delta).clamp(0, _count - 1);
+    final next = switch (command) {
+      ValueCommand.increase => _page + 1,
+      ValueCommand.decrease => _page - 1,
+      ValueCommand.toMinimum => 0,
+      ValueCommand.toMaximum => _count - 1,
+      ValueCommand.increaseLarge || ValueCommand.decreaseLarge => _page,
+    }.clamp(0, _count - 1);
     if (next != _page) widget.onChanged?.call(next);
   }
 
@@ -270,6 +297,10 @@ class _RawGlassPageControlState extends State<RawGlassPageControl> {
 
   @override
   Widget build(BuildContext context) {
+    if (_returning) {
+      _returning = false;
+      _setPage(_page);
+    }
     final rtl = Directionality.maybeOf(context) == TextDirection.rtl;
     if (rtl != _input.rtl) {
       _input.rtl = rtl;
@@ -280,40 +311,29 @@ class _RawGlassPageControlState extends State<RawGlassPageControl> {
     String value(int page) =>
         widget.semanticValueFormatter?.call(page, count) ??
         'page $page of $count';
-    final back = rtl ? 1 : -1;
     return MotionScope(
       motion: _motion,
-      child: CallbackShortcuts(
-        bindings: {
-          const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
-              _step(back),
-          const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
-              _step(-back),
-          const SingleActivator(LogicalKeyboardKey.arrowUp): () => _step(1),
-          const SingleActivator(LogicalKeyboardKey.arrowDown): () => _step(-1),
-        },
+      child: InputRegion(
+        interactions: _interactions,
+        enabled: _enabled,
+        statesController: widgetStates,
+        feedback: _feedback,
+        focusNode: widget.focusNode,
+        autofocus: widget.autofocus,
+        semanticLabel: widget.semanticLabel,
+        minimumHitSize: const Size(44, 44),
         child: Semantics(
-          container: true,
-          label: widget.semanticLabel,
           value: count == 0 ? null : value(page + 1),
-          increasedValue: page + 1 < count ? value(page + 2) : null,
-          decreasedValue: page > 0 ? value(page) : null,
-          onIncrease: _enabled && page + 1 < count ? () => _step(1) : null,
-          onDecrease: _enabled && page > 0 ? () => _step(-1) : null,
-          child: InputRegion(
-            interactions: _interactions,
-            enabled: _enabled,
-            focusNode: widget.focusNode,
-            autofocus: widget.autofocus,
-            child: SizedBox.fromSize(
-              size: _size,
-              child: widget.builder(
-                context,
-                GlassPageControlDetails(
-                  pose: _pose,
-                  progress: widget.progress,
-                  states: {if (!_enabled) WidgetState.disabled},
-                ),
+          increasedValue: count == 0 ? null : value(math.min(page + 2, count)),
+          decreasedValue: count == 0 ? null : value(math.max(page, 1)),
+          child: SizedBox.fromSize(
+            size: _size,
+            child: widget.builder(
+              context,
+              GlassPageControlDetails(
+                pose: _pose,
+                progress: widget.progress,
+                states: {...widgetStates.value},
               ),
             ),
           ),
@@ -324,16 +344,26 @@ class _RawGlassPageControlState extends State<RawGlassPageControl> {
 }
 
 /// A page control's touch: taps and scrubs anywhere on it, held against a
-/// scroll.
+/// scroll. It adjusts: the region's value commands reach the control
+/// through it. A scrub onto another page reaches the region as a
+/// [ScrubChangeEvent], for its haptic.
 final class _PageControlInput extends Interaction {
   _PageControlInput(this.state) : super(role: InteractionRole.control);
 
   final _RawGlassPageControlState state;
   bool rtl = false;
   int? _pointer;
+  final List<InteractionEvent> _felt = [];
 
   @override
   bool get pressed => _pointer != null;
+
+  @override
+  bool get adjusts => true;
+
+  void feel(int page) => _felt.add(
+    ScrubChangeEvent(time: state._motion.now, selected: page),
+  );
 
   double _x(Offset position) {
     final width = state._size.width;
@@ -343,8 +373,23 @@ final class _PageControlInput extends Interaction {
 
   @override
   InteractionUpdate handle(InteractionInput input) {
+    final update = _handle(input);
+    if (_felt.isEmpty) return update;
+    final events = [...update.events, ..._felt];
+    _felt.clear();
+    return InteractionUpdate(
+      claims: update.claims,
+      recognizes: update.recognizes,
+      fails: update.fails,
+      events: events,
+    );
+  }
+
+  InteractionUpdate _handle(InteractionInput input) {
     final motion = state._motion;
     switch (input) {
+      case AdjustInput(:final command):
+        state._command(command);
       case PointerDownInput() when _pointer == null && accepts(input):
         _pointer = input.pointer;
         motion.pointerDown(input.time, _x(input.position));

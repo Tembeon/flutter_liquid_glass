@@ -797,6 +797,7 @@ class GlassPageControl extends StatelessWidget
     GlassPageControlStyle? style,
     String? semanticLabel,
     String Function(int, int)? semanticValueFormatter,
+    WidgetStatesController? statesController,
     FocusNode? focusNode,
     bool autofocus = ...,
     Key? key,
@@ -810,6 +811,7 @@ class GlassPageControl extends StatelessWidget
   final double? progress
   final String? semanticLabel
   final String Function(int, int)? semanticValueFormatter
+  final WidgetStatesController? statesController
   final GlassPageControlStyle? style
   static GlassPageControlStyle styleFrom({
     Color? pageIndicatorColor,
@@ -1771,6 +1773,7 @@ class RawGlassPageControl extends StatefulWidget
     GlassPageControlBackground backgroundStyle = ...,
     String? semanticLabel,
     String Function(int, int)? semanticValueFormatter,
+    WidgetStatesController? statesController,
     FocusNode? focusNode,
     bool autofocus = ...,
     Key? key,
@@ -1785,6 +1788,7 @@ class RawGlassPageControl extends StatefulWidget
   final double? progress
   final String? semanticLabel
   final String Function(int, int)? semanticValueFormatter
+  final WidgetStatesController? statesController
   overrides: createState
 class RawGlassSearchField extends StatefulWidget
   const RawGlassSearchField({

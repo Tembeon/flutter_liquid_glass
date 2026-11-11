@@ -139,6 +139,7 @@ class GlassPageControl extends StatelessWidget {
     this.style,
     this.semanticLabel,
     this.semanticValueFormatter,
+    this.statesController,
     this.focusNode,
     this.autofocus = false,
     super.key,
@@ -170,6 +171,9 @@ class GlassPageControl extends StatelessWidget {
   /// Formats the adjustable value from a one-based page and the page count;
   /// null reads "page n of count". An empty control has no value.
   final String Function(int page, int count)? semanticValueFormatter;
+
+  /// See [RawGlassPageControl.statesController].
+  final WidgetStatesController? statesController;
 
   /// The control's focus node, or null for its own.
   final FocusNode? focusNode;
@@ -221,6 +225,7 @@ class GlassPageControl extends StatelessWidget {
       backgroundStyle: backgroundStyle,
       semanticLabel: semanticLabel,
       semanticValueFormatter: semanticValueFormatter,
+      statesController: statesController,
       focusNode: focusNode,
       autofocus: autofocus,
       builder:

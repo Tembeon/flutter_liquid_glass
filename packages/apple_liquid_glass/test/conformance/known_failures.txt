@@ -60,15 +60,9 @@ GlassNavigationBar semantics-label: expected tappable node to have semantic labe
 GlassNavigationBar semantics-role: "Edit" offers a tap but is not a button
 GlassNavigationBar tab-stops: Tab stops at 0 parts, expected 2
 GlassNavigationBar tap-target: "Edit": expected tap target size of at least Size(44.0, 44.0), but found Size(68.0, 20.0)
-GlassPageControl focus-enabled: Tab reaches no part of it
-GlassPageControl focus-indicator: Tab reaches no part of it
-GlassPageControl key-arrows: Tab reaches no part of it
-GlassPageControl key-arrows-rtl: Tab reaches no part of it
-GlassPageControl key-home-end: Tab reaches no part of it
+GlassPageControl focus-indicator: keyboard focus draws nothing
 GlassPageControl mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 GlassPageControl mouse-hover: hover draws nothing
-GlassPageControl tab-stops: Tab stops at 0 parts, expected 1
-GlassPageControl tap-target: "Page": expected an adjustable target of at least Size(44.0, 44.0), but found Size(108.4, 25.7)
 GlassPageRoute no-leaks: leaks ValueNotifier<GlassFrame>, ValueNotifier<GlassPageBarLink?>, ValueNotifier<bool>, ValueNotifier<double>
 GlassPageRoute semantics-role: the overlay is not announced as a named route
 GlassPageRoute tap-target: "Home": expected tap target size of at least Size(44.0, 44.0), but found Size(143.2, 27.6)
@@ -147,15 +141,7 @@ RawGlassMenu focus-indicator: keyboard focus draws nothing
 RawGlassMenu mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 RawGlassMenu mouse-hover: hover draws nothing
 RawGlassMenu tap-target: "First item": expected tap target size of at least Size(44.0, 44.0), but found Size(250.0, 42.0)
-RawGlassPageControl focus-enabled: Tab reaches no part of it
-RawGlassPageControl focus-indicator: Tab reaches no part of it
-RawGlassPageControl key-arrows: Tab reaches no part of it
-RawGlassPageControl key-arrows-rtl: Tab reaches no part of it
-RawGlassPageControl key-home-end: Tab reaches no part of it
 RawGlassPageControl mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
-RawGlassPageControl mouse-hover: hover does not reach the builder as hovered
-RawGlassPageControl tab-stops: Tab stops at 0 parts, expected 1
-RawGlassPageControl tap-target: "Page": expected an adjustable target of at least Size(44.0, 44.0), but found Size(108.4, 25.7)
 RawGlassSelector focus-enabled: Tab reaches no part of it
 RawGlassSelector focus-indicator: Tab reaches no part of it
 RawGlassSelector key-arrows: Tab reaches no part of it
