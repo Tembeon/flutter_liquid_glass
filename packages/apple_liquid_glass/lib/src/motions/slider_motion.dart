@@ -312,10 +312,18 @@ final class SliderMotion extends Motion {
   }
 
   /// The tick centers along the unstretched track, empty when continuous.
-  List<double> get tickCenters => [
-    if (_stepped)
+  List<double> get tickCenters => tickCentersFor(width, ticks);
+
+  /// The tick centers along the unstretched track of a slider [width] wide
+  /// with [ticks] stops, empty with fewer than two: what [tickCenters]
+  /// answers once the motion has that width.
+  static List<double> tickCentersFor(double width, int ticks) {
+    if (ticks < 2) return const [];
+    final travel = math.max<double>(0, width - thumbSize.width);
+    return [
       for (var i = 0; i < ticks; i++) tickInset + i * travel / (ticks - 1),
-  ];
+    ];
+  }
 
   /// The track ends, stretch included.
   ({double left, double right}) get trackEnds {

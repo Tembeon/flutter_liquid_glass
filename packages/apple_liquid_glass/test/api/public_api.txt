@@ -3564,6 +3564,7 @@ final class SliderMotion extends Motion
   static const Size thumbSize
   static const double thumbSlop
   List<double> get tickCenters
+  static List<double> tickCentersFor(double width, int ticks)
   static const double tickExponent
   static const double tickInset
   static const double tickOffset

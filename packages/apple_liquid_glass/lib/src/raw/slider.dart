@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/raw/mirror.dart';
@@ -421,15 +419,10 @@ final class _SliderFrames {
 
   /// The tick centers of a slider [width] wide with [ticks] stops, from
   /// the width layout gives before the motion hears it.
-  List<Offset> tickCenters(double width, int ticks) {
-    if (ticks < 2) return const [];
-    final travel = math.max<double>(0, width - SliderMotion.thumbSize.width);
-    return [
-      for (var i = 0; i < ticks; i++)
-        if (SliderMotion.tickInset + i * travel / (ticks - 1) case final x)
-          Offset(mirrored ? width - x : x, _y + SliderMotion.tickOffset),
-    ];
-  }
+  List<Offset> tickCenters(double width, int ticks) => [
+    for (final x in SliderMotion.tickCentersFor(width, ticks))
+      Offset(mirrored ? width - x : x, _y + SliderMotion.tickOffset),
+  ];
 
   static double _trackHeight(SliderMotion motion) =>
       motion.currentTrackHeight.clamp(0.0, double.infinity);
