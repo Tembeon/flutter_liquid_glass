@@ -12,6 +12,7 @@ import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_filter.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
+import 'package:liquid_glass_renderer/src/rendering/snap_rect_to_pixels.dart';
 
 /// One draw of the final glass shader: every uniform and sampler it reads,
 /// in sections that each own their uniforms.
@@ -270,7 +271,7 @@ final class AtlasGeometry extends GlassGeometry {
 
   /// The atlas of glass that has no geometry yet.
   static final AtlasGeometry none = AtlasGeometry(
-    image: GlassShading.blank,
+    image: transparentPixel,
     place: AtlasLayout.unplaced,
   );
 
@@ -431,12 +432,7 @@ final class MatteMapping {
         o.dx * dpr + (ax.dx - o.dx) * origin.dx + (ay.dx - o.dx) * origin.dy,
         o.dy * dpr + (ax.dy - o.dy) * origin.dx + (ay.dy - o.dy) * origin.dy,
       ),
-      Rect.fromLTRB(
-        bounds.left * dpr,
-        bounds.top * dpr,
-        bounds.right * dpr,
-        bounds.bottom * dpr,
-      ),
+      bounds.scaled(dpr),
     );
   }
 
@@ -731,14 +727,6 @@ final class GlassShading {
 
   static const _clear = <double>[0, 0, 0, 0];
 
-  /// One transparent pixel: what sampler 0 is bound to where a draw has no
-  /// image of its own for it, and the atlas of glass without geometry.
-  static final ui.Image blank = () {
-    final recorder = ui.PictureRecorder();
-    ui.Canvas(recorder);
-    return recorder.endRecording().toImageSync(1, 1);
-  }();
-
   ui.FragmentShader _write(GlassDraw draw) {
     final shader = shaders[draw.variant];
     final layout = _layouts[draw.variant] ??= FinalLayout(
@@ -848,7 +836,7 @@ final class GlassShading {
         }
         shader.setImageSampler(
           layout.backdrop,
-          image ?? blank,
+          image ?? transparentPixel,
           filterQuality: FilterQuality.low,
         );
       case AtlasGeometry(image: final atlas, :final place, :final looks):

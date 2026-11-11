@@ -872,6 +872,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @override
   SiteAsk ask() {
     _frame = null;
+    final bounds = _filterMaterialBounds;
+    if (!_rig.hasSlot || bounds == null || drawableEmpty) return SiteAsk.none;
     var noJoin = _field != null || _usesShapeAppearances
         ? NoJoin.field
         : _glow != null
@@ -883,8 +885,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         : _shapes.count == 0 || _geometry == null
         ? NoJoin.noMatte
         : null;
-    final bounds = _filterMaterialBounds;
-    if (!_rig.hasSlot || bounds == null || drawableEmpty) return SiteAsk.none;
     final dpr = devicePixelRatio;
     final screen = filterPassTransform(
       this,
@@ -1182,12 +1182,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         : read.quad.expandToPixelBuckets(dpr);
     return (
       draw,
-      Rect.fromLTRB(
-        logical.left * dpr,
-        logical.top * dpr,
-        logical.right * dpr,
-        logical.bottom * dpr,
-      ),
+      logical.scaled(dpr),
     );
   }
 
@@ -1257,12 +1252,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final dpr = devicePixelRatio;
     final path = ui.Path();
     void add(Rect rect) => path.addRect(
-      Rect.fromLTRB(
-        rect.left * dpr,
-        rect.top * dpr,
-        rect.right * dpr,
-        rect.bottom * dpr,
-      ),
+      rect.scaled(dpr),
     );
     for (final member in read.members) {
       add(member.ask.drawn.inflate(2 / dpr));
@@ -1393,12 +1383,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final quad = read.quad;
     final bounds = MatrixUtils.transformRect(
       toCanvas,
-      Rect.fromLTRB(
-        quad.left * dpr,
-        quad.top * dpr,
-        quad.right * dpr,
-        quad.bottom * dpr,
-      ),
+      quad.scaled(dpr),
     ).inflate(1);
     final key = (
       page.image,

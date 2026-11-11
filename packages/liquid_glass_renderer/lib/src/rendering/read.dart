@@ -12,6 +12,7 @@ import 'package:liquid_glass_renderer/src/rendering/form.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/rendering/running_under_flutter_test.dart';
 import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
+import 'package:liquid_glass_renderer/src/rendering/snap_rect_to_pixels.dart';
 
 /// A layer the frame's plan decides for.
 ///
@@ -470,12 +471,7 @@ final class PageCopy {
   Rect fragmentsOf(Rect drawn) {
     final dpr = geometry.lattice.devicePixelRatio;
     final cut = drawn.intersect(rect);
-    return Rect.fromLTRB(
-      cut.left * dpr,
-      cut.top * dpr,
-      cut.right * dpr,
-      cut.bottom * dpr,
-    ).shift(-_origin);
+    return cut.scaled(dpr).shift(-_origin);
   }
 
   void _dispose() => image.dispose();
