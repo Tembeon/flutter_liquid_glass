@@ -88,7 +88,6 @@ Widget _day(
   GlassDatePickerDay details, {
   required GlassDatePickerStyle look,
   required TextStyle style,
-  required bool reduceMotion,
 }) {
   final selected = details.selected;
   final today = details.today;
@@ -115,7 +114,6 @@ Widget _day(
       highContrast: false,
     ),
     hoverColor: look.hoverColor ?? GlassHighlights.hoverColor,
-    reduceMotion: reduceMotion,
     child: Text(
       '${details.date.day}',
       textScaler: TextScaler.noScaling,
@@ -140,7 +138,6 @@ class _DayCell extends SingleChildRenderObjectWidget {
     required this.states,
     required this.focusColor,
     required this.hoverColor,
-    required this.reduceMotion,
     required super.child,
   });
 
@@ -150,14 +147,16 @@ class _DayCell extends SingleChildRenderObjectWidget {
   final ValueListenable<Set<WidgetState>> states;
   final Color focusColor;
   final Color hoverColor;
-  final bool reduceMotion;
 
   @override
   _RenderDayCell createRenderObject(BuildContext context) => _RenderDayCell(
     width: width,
     disc: disc,
     fill: fill,
-    highlight: GlassHighlight(states: states, reduceMotion: reduceMotion),
+    highlight: GlassHighlight(
+      states: states,
+      reduceMotion: GlassTraits.of(context).reduceMotion,
+    ),
     focusColor: focusColor,
     hoverColor: hoverColor,
   );
@@ -178,7 +177,9 @@ class _DayCell extends SingleChildRenderObjectWidget {
       renderObject.markNeedsPaint();
     }
     renderObject.highlight.states = states;
-    renderObject.highlight.reduceMotion = reduceMotion;
+    renderObject.highlight.reduceMotion = GlassTraits.of(
+      context,
+    ).reduceMotion;
   }
 
   @override

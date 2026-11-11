@@ -129,7 +129,6 @@ class GlassDatePicker extends StatelessWidget {
     final weekday = look.weekdayTextStyle!;
     final day = look.dayTextStyle!;
     final selectedDay = look.selectedDayTextStyle!;
-    final reduceMotion = GlassTraits.of(context).reduceMotion;
     return MediaQuery.withClampedTextScaling(
       maxScaleFactor: maxTextScale,
       child: DefaultTextStyle(
@@ -151,7 +150,6 @@ class GlassDatePicker extends StatelessWidget {
             details,
             look: look,
             style: details.selected ? selectedDay : day,
-            reduceMotion: reduceMotion,
           ),
           titleBuilder: (context, details) => _highlight(
             context,
