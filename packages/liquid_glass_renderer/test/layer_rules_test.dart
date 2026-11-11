@@ -3,8 +3,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:layer_rules/layer_rules.dart';
 
-const _motor = 'package:motor/';
-
 /// painting < composer < rendering < widgets < effects. The values and the
 /// plan stay pure, so a frame is planned and checked without a GPU; the
 /// renderer depends on nothing but the Flutter SDK at run time, and the
@@ -26,7 +24,6 @@ const _rules = LayerRules(
     'vector_math',
     'meta',
     'flutter_shaders',
-    'motor',
   },
   forbidden: {
     everyLibrary: [
@@ -34,10 +31,6 @@ const _rules = LayerRules(
       'package:flutter/cupertino.dart',
       'package:logging/',
     ],
-    'painting': [_motor],
-    'composer': [_motor],
-    'rendering': [_motor],
-    'widgets': [_motor],
   },
   bans: [
     Ban('ignore', r'//\s*ignore:', code: false),

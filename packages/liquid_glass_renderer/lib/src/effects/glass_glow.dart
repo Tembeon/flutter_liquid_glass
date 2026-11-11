@@ -1,8 +1,8 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/src/effects/effect_springs.dart';
 import 'package:liquid_glass_renderer/src/effects/glass_drag_builder.dart';
 import 'package:meta/meta.dart';
-import 'package:motor/motor.dart';
 
 /// {@template glass_glow}
 /// If placed as a descendant of a [GlassGlowLayer], this widget will
@@ -121,26 +121,12 @@ class GlassGlowLayer extends StatefulWidget {
 @internal
 class GlassGlowLayerState extends State<GlassGlowLayer>
     with TickerProviderStateMixin {
-  late final _offsetController = MotionController<Offset>(
-    vsync: this,
-    converter: const OffsetMotionConverter(),
-    initialValue: Offset.zero,
-    motion: const Motion.smoothSpring(
-      duration: Duration(seconds: 1),
-      snapToEnd: true,
-    ),
-  );
+  late final _x = AnimationController.unbounded(vsync: this);
+  late final _y = AnimationController.unbounded(vsync: this);
+  late final _alpha = AnimationController.unbounded(vsync: this);
+  late final _radius = AnimationController.unbounded(value: 10, vsync: this);
 
-  late final _alphaController = BoundedSingleMotionController(
-    vsync: this,
-    motion: const Motion.smoothSpring(snapToEnd: true),
-  );
-
-  late final _radiusController = SingleMotionController(
-    vsync: this,
-    motion: const Motion.smoothSpring(snapToEnd: true),
-    initialValue: 10,
-  );
+  static final _offsetSpring = smoothSpring(const Duration(seconds: 1));
 
   bool _dragging = false;
   double _baseRadius = 0;
@@ -148,9 +134,10 @@ class GlassGlowLayerState extends State<GlassGlowLayer>
 
   @override
   void dispose() {
-    _offsetController.dispose();
-    _alphaController.dispose();
-    _radiusController.dispose();
+    _x.dispose();
+    _y.dispose();
+    _alpha.dispose();
+    _radius.dispose();
     super.dispose();
   }
 
@@ -166,40 +153,34 @@ class GlassGlowLayerState extends State<GlassGlowLayer>
 
     if (!_dragging) {
       _dragging = true;
-      _radiusController.motion = _alphaController.motion =
-          const Motion.interactiveSpring(snapToEnd: true);
-      _radiusController.animateTo(1, from: 0);
-      _alphaController.animateTo(1, from: 0);
+      springTo(_radius, interactiveSpring, 1, from: 0);
+      springTo(_alpha, interactiveSpring, 1, from: 0);
     }
 
-    _offsetController.value = offset;
+    _x.value = offset.dx;
+    _y.value = offset.dy;
   }
 
   void removeTouch() {
     if (!_dragging) return;
-    _radiusController.motion = _alphaController.motion =
-        const Motion.smoothSpring(snapToEnd: true);
     _dragging = false;
-    _offsetController.animateTo(Offset.zero);
-    _radiusController.animateTo(10);
-    _alphaController.animateTo(0);
+    springTo(_x, _offsetSpring, 0);
+    springTo(_y, _offsetSpring, 0);
+    springTo(_radius, smoothSpring(), 10);
+    springTo(_alpha, smoothSpring(), 0);
   }
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([
-        _offsetController,
-        _alphaController,
-        _radiusController,
-      ]),
+      listenable: Listenable.merge([_x, _y, _alpha, _radius]),
       builder: (context, child) {
         return _RenderGlassGlowLayerWidget(
-          glowRadius: _baseRadius * _radiusController.value,
+          glowRadius: _baseRadius * _radius.value,
           glowColor: _baseColor.withValues(
-            alpha: _baseColor.a * _alphaController.value,
+            alpha: _baseColor.a * _alpha.value,
           ),
-          glowOffset: _offsetController.value,
+          glowOffset: Offset(_x.value, _y.value),
           child: child,
         );
       },

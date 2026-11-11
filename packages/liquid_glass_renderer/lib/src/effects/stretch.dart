@@ -2,9 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/src/effects/effect_springs.dart';
 import 'package:liquid_glass_renderer/src/effects/glass_drag_builder.dart';
 import 'package:meta/meta.dart';
-import 'package:motor/motor.dart';
 
 /// A widget that provides a squash and stretch effect to its child based on
 /// user interaction.
@@ -75,33 +75,98 @@ class LiquidStretch extends StatelessWidget {
     return GlassDragBuilder(
       behavior: hitTestBehavior,
       gestureMode: gestureMode,
-      builder: (context, value, child) {
-        final scale = value == null ? 1.0 : interactionScale;
-        return SingleMotionBuilder(
-          value: scale,
-          motion: const Motion.smoothSpring(
-            duration: Duration(milliseconds: 300),
-            snapToEnd: true,
-          ),
-          builder: (context, value, child) => Transform.scale(
-            scale: value,
-            child: child,
-          ),
-          child: MotionBuilder(
-            value: value?.withResistance(resistance) ?? Offset.zero,
-            motion: value == null
-                ? const Motion.bouncySpring(snapToEnd: true)
-                : const Motion.interactiveSpring(snapToEnd: true),
-            converter: const OffsetMotionConverter(),
-            builder: (context, value, child) => RawLiquidStretch(
-              stretchPixels: value * stretch,
-              child: child,
-            ),
-            child: child,
-          ),
-        );
-      },
+      builder: (context, drag, child) => _StretchMotion(
+        scale: drag == null ? 1.0 : interactionScale,
+        offset: drag?.withResistance(resistance) ?? Offset.zero,
+        dragging: drag != null,
+        stretch: stretch,
+        child: child,
+      ),
       child: child,
+    );
+  }
+}
+
+/// Springs the scale and the stretch of a [LiquidStretch] toward the drag's
+/// targets: the stretch follows a finger on the interactive spring and
+/// springs back on the bouncy one, the scale settles on a smooth one.
+class _StretchMotion extends StatefulWidget {
+  const _StretchMotion({
+    required this.scale,
+    required this.offset,
+    required this.dragging,
+    required this.stretch,
+    required this.child,
+  });
+
+  final double scale;
+  final Offset offset;
+  final bool dragging;
+  final double stretch;
+  final Widget? child;
+
+  @override
+  State<_StretchMotion> createState() => _StretchMotionState();
+}
+
+class _StretchMotionState extends State<_StretchMotion>
+    with TickerProviderStateMixin {
+  static final _scaleSpring = smoothSpring(const Duration(milliseconds: 300));
+
+  late final _scale = AnimationController.unbounded(
+    value: widget.scale,
+    vsync: this,
+  );
+  late final _x = AnimationController.unbounded(
+    value: widget.offset.dx,
+    vsync: this,
+  );
+  late final _y = AnimationController.unbounded(
+    value: widget.offset.dy,
+    vsync: this,
+  );
+  late final _motion = Listenable.merge([_scale, _x, _y]);
+
+  SpringDescription get _offsetSpring =>
+      widget.dragging ? interactiveSpring : bouncySpring;
+
+  @override
+  void didUpdateWidget(_StretchMotion oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.scale != oldWidget.scale) {
+      springTo(_scale, _scaleSpring, widget.scale);
+    }
+    if (widget.dragging != oldWidget.dragging) {
+      // A stretch in flight keeps going to the same place on the new spring.
+      if (_x.isAnimating) springTo(_x, _offsetSpring, oldWidget.offset.dx);
+      if (_y.isAnimating) springTo(_y, _offsetSpring, oldWidget.offset.dy);
+    }
+    if (widget.offset != oldWidget.offset) {
+      springTo(_x, _offsetSpring, widget.offset.dx);
+      springTo(_y, _offsetSpring, widget.offset.dy);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scale.dispose();
+    _x.dispose();
+    _y.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: _motion,
+      builder: (context, child) => Transform.scale(
+        scale: _scale.value,
+        child: RawLiquidStretch(
+          stretchPixels: Offset(_x.value, _y.value) * widget.stretch,
+          child: child,
+        ),
+      ),
+      child: widget.child,
     );
   }
 }

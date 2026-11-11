@@ -38,7 +38,6 @@ dependencies:
     sdk: flutter
   hooks: ^2.0.2
   meta: ^1.16.0
-  motor: ^1.0.1
   vector_math: ^2.1.4
 
 dev_dependencies:

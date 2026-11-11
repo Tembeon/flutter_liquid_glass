@@ -18,7 +18,11 @@ import 'package:liquid_glass_renderer/src/effects/stretch.dart';
 ///
 /// A channel matches when every frame lies within 1e-3 of the channel's
 /// range over the script: a thousandth of a glow's travel or of a stretch's
-/// reach is far below a device pixel, so the feel is the same.
+/// reach is far below a device pixel, so the feel is the same. The glow
+/// replays exactly. The stretch differs by under 1e-4 of its range: one
+/// axis that settles while the other still moves now rests on its target,
+/// where `motor`'s shared clock kept it wandering within the spring's
+/// tolerance (under 5e-4 px).
 const _fixture = 'test/src/effect_motion.json';
 const _tolerance = 1e-3;
 const _frame = Duration(microseconds: 16667);
