@@ -781,6 +781,8 @@ class GlassDefaultTextStyle extends StatelessWidget
   final Widget child
   final GlassTextRole role
   overrides: build
+extension GlassDirection on BuildContext
+  bool get isRightToLeft
 final class GlassDynamicColor implements Color
   const GlassDynamicColor({
     required Color color,
@@ -4131,6 +4133,7 @@ class Glass (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassColorScheme (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassColors (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassDefaultTextStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+extension GlassDirection (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassDynamicColor (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassField (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassFrame (see package:apple_liquid_glass/apple_liquid_glass.dart)

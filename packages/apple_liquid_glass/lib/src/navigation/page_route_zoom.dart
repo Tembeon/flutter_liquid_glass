@@ -75,7 +75,7 @@ class _ZoomState extends State<_Zoom> {
 
   @override
   Widget build(BuildContext context) {
-    _input.rtl = Directionality.of(context) == TextDirection.rtl;
+    _input.rtl = context.isRightToLeft;
     final size = MediaQuery.sizeOf(context);
     final tuning = motion.tuning;
     final source = route.source;

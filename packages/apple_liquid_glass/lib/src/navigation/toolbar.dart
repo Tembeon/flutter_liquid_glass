@@ -256,7 +256,7 @@ class _SearchBarState extends State<_SearchBar> with SearchLaw {
 
   @override
   Widget build(BuildContext context) {
-    final rtl = Directionality.of(context) == TextDirection.rtl;
+    final rtl = context.isRightToLeft;
     final itemStyle = GlassToolbarStyle.maybeOf(context)?.itemStyle;
     Widget item(_Slot slot, Widget child) => LayoutId(
       id: slot,

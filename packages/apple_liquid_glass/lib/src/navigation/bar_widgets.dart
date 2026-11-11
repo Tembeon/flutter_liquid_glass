@@ -400,7 +400,7 @@ class _BarItem extends StatelessWidget {
     );
     if (button.back case final back?) {
       const metrics = GlassBarMetrics.navigation;
-      final rtl = Directionality.of(context) == TextDirection.rtl;
+      final rtl = context.isRightToLeft;
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [

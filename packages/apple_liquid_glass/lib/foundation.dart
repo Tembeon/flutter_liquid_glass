@@ -25,6 +25,7 @@
 library;
 
 export 'src/foundation/colors.dart' show GlassColors, GlassDynamicColor;
+export 'src/foundation/direction.dart' show GlassDirection;
 export 'src/foundation/frame.dart' show GlassFrame;
 export 'src/foundation/glass.dart'
     show Glass, GlassLens, GlassLensShrink, GlassRole;

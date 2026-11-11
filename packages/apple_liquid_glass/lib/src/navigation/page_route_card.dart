@@ -21,7 +21,7 @@ class _Card extends SingleChildRenderObjectWidget {
     presence: presence,
     fades: fades,
     radius: _cardRadius(context),
-    rtl: Directionality.of(context) == TextDirection.rtl,
+    rtl: context.isRightToLeft,
     top: top,
   );
 
@@ -30,7 +30,7 @@ class _Card extends SingleChildRenderObjectWidget {
     renderObject.presence = presence;
     renderObject.fades = fades;
     renderObject.radius = _cardRadius(context);
-    renderObject.rtl = Directionality.of(context) == TextDirection.rtl;
+    renderObject.rtl = context.isRightToLeft;
   }
 }
 
@@ -225,14 +225,14 @@ class _Covered extends SingleChildRenderObjectWidget {
   _RenderCovered createRenderObject(BuildContext context) => _RenderCovered(
     cover: cover,
     radius: _cardRadius(context),
-    rtl: Directionality.of(context) == TextDirection.rtl,
+    rtl: context.isRightToLeft,
   );
 
   @override
   void updateRenderObject(BuildContext context, _RenderCovered renderObject) {
     renderObject.cover = cover;
     renderObject.radius = _cardRadius(context);
-    renderObject.rtl = Directionality.of(context) == TextDirection.rtl;
+    renderObject.rtl = context.isRightToLeft;
   }
 }
 

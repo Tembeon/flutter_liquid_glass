@@ -140,7 +140,7 @@ class _StackedLayout extends MultiChildRenderObjectWidget {
         glass: glass,
         offset: offset,
         fill: fill,
-        rtl: Directionality.of(context) == TextDirection.rtl,
+        rtl: context.isRightToLeft,
       );
 
   @override
@@ -149,7 +149,7 @@ class _StackedLayout extends MultiChildRenderObjectWidget {
     _RenderStackedLayout renderObject,
   ) {
     renderObject.fill = fill;
-    renderObject.rtl = Directionality.of(context) == TextDirection.rtl;
+    renderObject.rtl = context.isRightToLeft;
   }
 }
 

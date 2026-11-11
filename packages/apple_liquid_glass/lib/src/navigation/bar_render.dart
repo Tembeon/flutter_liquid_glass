@@ -27,14 +27,14 @@ class _BarItems extends MultiChildRenderObjectWidget {
   @override
   _RenderBarItems createRenderObject(BuildContext context) => _RenderBarItems(
     bar,
-    rtl: Directionality.of(context) == TextDirection.rtl,
+    rtl: context.isRightToLeft,
     highlights: _highlightsOf(context),
   );
 
   // The bar rebuilds only for a change, which its layout applies.
   @override
   void updateRenderObject(BuildContext context, _RenderBarItems renderObject) {
-    renderObject.rtl = Directionality.of(context) == TextDirection.rtl;
+    renderObject.rtl = context.isRightToLeft;
     renderObject.highlights = _highlightsOf(context);
     renderObject.markNeedsLayout();
   }

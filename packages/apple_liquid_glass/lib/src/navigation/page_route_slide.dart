@@ -76,7 +76,7 @@ class _SlideState extends State<_Slide> {
   Widget build(BuildContext context) {
     motion.width = MediaQuery.sizeOf(context).width;
     motion.crossFades = GlassTraits.of(context).prefersCrossFade;
-    _input.rtl = Directionality.of(context) == TextDirection.rtl;
+    _input.rtl = context.isRightToLeft;
     return InputRegion(
       interactions: _interactions,
       child: _Card(

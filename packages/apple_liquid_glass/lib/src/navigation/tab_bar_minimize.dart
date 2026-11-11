@@ -206,7 +206,7 @@ class _MinimizingBarState extends State<_MinimizingBar> {
         final width = constraints.maxWidth;
         _body.motion.extent = width;
         final accessory = widget.accessory;
-        final rtl = Directionality.of(context) == TextDirection.rtl;
+        final rtl = context.isRightToLeft;
         _body.rtl = rtl;
         final bar = SizedBox(
           width: width,

@@ -72,6 +72,7 @@ GlassDatePickerStyle
 GlassDatePickerTitle
 GlassDatePickerTitleBuilder
 GlassDefaultTextStyle
+GlassDirection
 GlassDynamicColor
 GlassField
 GlassFrame

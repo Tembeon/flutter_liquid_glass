@@ -154,7 +154,7 @@ class _SearchTabBarState extends State<_SearchTabBar> with SearchLaw {
 
   @override
   Widget build(BuildContext context) {
-    final rtl = Directionality.of(context) == TextDirection.rtl;
+    final rtl = context.isRightToLeft;
     _collapse.rtl = rtl;
     final glyph = GlassDynamicColor.resolve(
       GlassTheme.labelColorOf(context),
