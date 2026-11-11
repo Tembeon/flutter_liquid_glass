@@ -156,11 +156,14 @@ void main() {
     final changes = <bool>[];
     await tester.pumpWidget(
       _app(
-        GlassSwitch(
-          value: false,
-          onChanged: changes.add,
-          focusNode: focus,
-          semanticLabel: 'Wi-Fi',
+        Shortcuts(
+          shortcuts: WidgetsApp.defaultShortcuts,
+          child: GlassSwitch(
+            value: false,
+            onChanged: changes.add,
+            focusNode: focus,
+            semanticLabel: 'Wi-Fi',
+          ),
         ),
       ),
     );

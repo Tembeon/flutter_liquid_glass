@@ -274,12 +274,15 @@ void main() {
     await tester.pumpWidget(
       _app(
         const FlatGlassRenderer(),
-        GlassPressable(
-          onPressed: () => presses++,
-          builder: _Probe().build,
-          focusNode: focus,
-          semanticLabel: 'Done',
-          child: const SizedBox(width: 100, height: 44),
+        Shortcuts(
+          shortcuts: WidgetsApp.defaultShortcuts,
+          child: GlassPressable(
+            onPressed: () => presses++,
+            builder: _Probe().build,
+            focusNode: focus,
+            semanticLabel: 'Done',
+            child: const SizedBox(width: 100, height: 44),
+          ),
         ),
       ),
     );
