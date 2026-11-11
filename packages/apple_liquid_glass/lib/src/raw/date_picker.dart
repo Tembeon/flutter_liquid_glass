@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/raw/date_picker_values.dart';
+import 'package:apple_liquid_glass/src/raw/still.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -393,7 +394,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
                           selected: _sameDay(at(day), value),
                           today: _sameDay(at(day), today),
                           enabled: _enabled && _inRange(at(day)),
-                          states: live ? _statesOf(at(day)) : const _NoStates(),
+                          states: live ? _statesOf(at(day)) : still,
                         ),
                       )
                     else
@@ -451,7 +452,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
           ),
       ],
       frameOf: _dayFrame,
-      frames: const _Still(),
+      frames: still,
       controller: _zones,
       axis: null,
       stops: InputZoneStops.one,

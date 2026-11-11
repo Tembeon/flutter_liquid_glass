@@ -63,15 +63,3 @@ abstract final class _Metrics {
 
 /// The smallest target of a part, the size Apple's guidelines ask for.
 const Size _target = Size(44, 44);
-
-/// A [Listenable] that never notifies: the days' frames, which move only
-/// with the grid around them.
-final class _Still implements Listenable {
-  const _Still();
-
-  @override
-  void addListener(VoidCallback listener) {}
-
-  @override
-  void removeListener(VoidCallback listener) {}
-}

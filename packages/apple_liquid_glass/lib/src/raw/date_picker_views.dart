@@ -29,20 +29,6 @@ final class _DayStates extends ChangeNotifier
   }
 }
 
-/// The states of a day that takes no input: the month a page turn leaves.
-final class _NoStates implements ValueListenable<Set<WidgetState>> {
-  const _NoStates();
-
-  @override
-  Set<WidgetState> get value => const {};
-
-  @override
-  void addListener(VoidCallback listener) {}
-
-  @override
-  void removeListener(VoidCallback listener) {}
-}
-
 /// A repaint boundary that is also a build scope of its own, as a
 /// [LayoutBuilder] is: a rebuild of its subtree lays out and repaints
 /// from here down, where the overlay's [LayoutBuilder] above would lay

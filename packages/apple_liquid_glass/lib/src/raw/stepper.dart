@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/src/raw/still.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -266,7 +267,7 @@ class _RawGlassStepperState extends State<RawGlassStepper>
               ),
             ],
             frameOf: _frameOf,
-            frames: _still,
+            frames: still,
             child: Directionality(
               textDirection: direction,
               child: Builder(
@@ -287,8 +288,6 @@ class _RawGlassStepperState extends State<RawGlassStepper>
       ),
     );
   }
-
-  static final Listenable _still = Listenable.merge(const []);
 
   static InputZoneFrame _frameOf(GlassStepperHalf half) {
     final halfSize = Size(
