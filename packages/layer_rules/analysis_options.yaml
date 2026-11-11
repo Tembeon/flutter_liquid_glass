@@ -1,0 +1,11 @@
+include: package:lintervention/analysis_options.yaml
+
+analyzer:
+  exclude:
+    - test/fixtures/**
+
+linter:
+  rules:
+    # Cascades read as a second statement glued onto the first; this package
+    # writes one statement per line instead.
+    cascade_invocations: false
