@@ -28,6 +28,14 @@ final class AdjustRange
   final bool canIncrease
   static const AdjustRange open
   overrides: ==, hashCode, toString
+final class ContextMenuInput extends InteractionInput
+  const ContextMenuInput({
+    required double time,
+    required Offset position,
+    ActivationSource source = ...,
+  })
+  final Offset position
+  final ActivationSource source
 class DragInteraction extends Interaction
   DragInteraction({
     InteractionRole role = ...,
@@ -101,6 +109,7 @@ abstract class Interaction
   abstract InteractionUpdate handle(InteractionInput input)
   double? get nextDue
   double get onset
+  bool get opensContextMenu
   bool get pressed
   final InteractionRole role
   Interaction sequenced(Interaction next)
@@ -282,7 +291,7 @@ class SecondaryClickInteraction extends Interaction
     void Function(double, Offset)? onClick,
   })
   void Function(double, Offset)? onClick
-  overrides: accepts, handle
+  overrides: accepts, handle, opensContextMenu
 final class SessionOutput
   const SessionOutput({
     bool claim = ...,
@@ -342,6 +351,10 @@ final class Band
   double stretch(double raw)
   double unshow(double shown)
   overrides: ==, hashCode
+class ContextMenuInput (see package:kinesis/input.dart)
+class ContextMenuIntent extends Intent
+  const ContextMenuIntent()
+  static const Map<ShortcutActivator, Intent> defaultShortcuts
 mixin ControlStates<T extends StatefulWidget> on State<T>
   WidgetStatesController? get givenStates
   WidgetStatesController get widgetStates
@@ -1361,6 +1374,7 @@ class ManualMotionClock extends MotionClock
 
 # package:kinesis/widgets.dart
 class AdjustValueIntent (see package:kinesis/kinesis.dart)
+class ContextMenuIntent (see package:kinesis/kinesis.dart)
 mixin ControlStates (see package:kinesis/kinesis.dart)
 class InputRegion (see package:kinesis/kinesis.dart)
 class InputZone (see package:kinesis/kinesis.dart)

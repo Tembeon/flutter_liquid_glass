@@ -326,6 +326,28 @@ final class AdjustInput extends InteractionInput {
   final ActivationSource source;
 }
 
+/// The region was asked for its context menu without a pointer: the
+/// context menu key, Shift+F10, or an app's own key for it.
+///
+/// UIKit: the context menu a hardware keyboard opens on the focused view.
+/// Flutter: none; `ContextMenuIntent` in `package:kinesis/widgets.dart`
+/// is the intent an input host turns into this input.
+final class ContextMenuInput extends InteractionInput {
+  /// Creates a request at [position].
+  const ContextMenuInput({
+    required super.time,
+    required this.position,
+    this.source = ActivationSource.keyboard,
+  });
+
+  /// Where a menu opened for it anchors, in the region's coordinates: the
+  /// centre of the region an input host was asked through.
+  final Offset position;
+
+  /// Where it came from.
+  final ActivationSource source;
+}
+
 /// Something an interaction did at a modelled time, which a control may
 /// answer with a haptic.
 @immutable
@@ -438,6 +460,11 @@ abstract class Interaction {
   /// Whether the keyboard (Space, Enter) and the accessibility tap
   /// activate the region through this interaction ([ActivateInput]).
   bool get activates => false;
+
+  /// Whether a request for the region's context menu that comes without a
+  /// pointer reaches this interaction as a [ContextMenuInput]: the context
+  /// menu key and Shift+F10 when the region has focus.
+  bool get opensContextMenu => false;
 
   /// Whether the region's value commands reach this interaction as
   /// [AdjustInput]s: the arrows, Home and End, Page Up and Page Down when
@@ -1037,16 +1064,21 @@ class TapInteraction extends Interaction {
 /// It reports the press as it happens, where a context menu opens on
 /// iPadOS and macOS, and holds the touch until the button lifts. Other
 /// interactions take primary presses only, so a region adds this one beside
-/// its press without either hearing the other's button.
+/// its press without either hearing the other's button. It also
+/// [opensContextMenu]: the context menu key and Shift+F10 on the focused
+/// region report a click at the region's centre.
 class SecondaryClickInteraction extends Interaction {
   /// Creates a secondary click that calls [onClick].
   SecondaryClickInteraction({super.role, this.onClick});
 
-  /// Called with the time of the press and where it is, in the region's
-  /// coordinates.
+  /// Called with the time of the press, or of the key, and where it is, in
+  /// the region's coordinates.
   void Function(double t, Offset position)? onClick;
 
   int? _pointer;
+
+  @override
+  bool get opensContextMenu => true;
 
   @override
   bool accepts(PointerDownInput down) =>
@@ -1060,6 +1092,9 @@ class SecondaryClickInteraction extends Interaction {
         _pointer = input.pointer;
         onClick?.call(input.time, input.position);
         return const InteractionUpdate(claims: true, recognizes: true);
+      case ContextMenuInput():
+        onClick?.call(input.time, input.position);
+        return InteractionUpdate.none;
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
         return InteractionUpdate.none;
@@ -1170,6 +1205,9 @@ final class _Simultaneous extends Interaction {
   bool get adjusts => a.adjusts || b.adjusts;
 
   @override
+  bool get opensContextMenu => a.opensContextMenu || b.opensContextMenu;
+
+  @override
   bool get takesWheel => a.takesWheel || b.takesWheel;
 
   @override
@@ -1232,6 +1270,9 @@ final class _Exclusive extends Interaction {
 
   @override
   bool get adjusts => a.adjusts || b.adjusts;
+
+  @override
+  bool get opensContextMenu => a.opensContextMenu || b.opensContextMenu;
 
   @override
   bool get takesWheel => a.takesWheel || b.takesWheel;
@@ -1318,6 +1359,9 @@ final class _Sequenced extends Interaction {
   bool get adjusts => a.adjusts;
 
   @override
+  bool get opensContextMenu => a.opensContextMenu;
+
+  @override
   bool get takesWheel => a.takesWheel;
 
   @override
@@ -1372,14 +1416,16 @@ final class _Sequenced extends Interaction {
           PointerHoverInput() ||
           PointerScrollInput() ||
           ActivateInput() ||
-          AdjustInput():
+          AdjustInput() ||
+          ContextMenuInput():
     }
     final fromA = _fromA(a.handle(input), input.time);
     if (!_handedOn ||
         input is PointerHoverInput ||
         input is PointerScrollInput ||
         input is ActivateInput ||
-        input is AdjustInput) {
+        input is AdjustInput ||
+        input is ContextMenuInput) {
       return fromA;
     }
     final handed = _then(fromA, b.handle(input));
@@ -1506,8 +1552,8 @@ class InteractionSession {
       };
 
   /// Answers a stamped pointer, keyboard, hover or accessibility input.
-  /// Hover, scrolls, activations and value commands reach every
-  /// interaction.
+  /// Hover, scrolls, activations, value commands and context menu requests
+  /// reach every interaction.
   SessionOutput handle(InteractionInput input) {
     _time = input.time;
     switch (input) {
@@ -1582,7 +1628,8 @@ class InteractionSession {
       case PointerHoverInput() ||
           PointerScrollInput() ||
           ActivateInput() ||
-          AdjustInput():
+          AdjustInput() ||
+          ContextMenuInput():
         var output = SessionOutput.none;
         for (final interaction in interactions) {
           output = _apply(output, interaction, interaction.handle(input));

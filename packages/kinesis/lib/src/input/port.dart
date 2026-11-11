@@ -227,7 +227,8 @@ final class _PortForward extends Interaction {
       case PointerHoverInput() ||
           PointerScrollInput() ||
           ActivateInput() ||
-          AdjustInput():
+          AdjustInput() ||
+          ContextMenuInput():
     }
     return InteractionUpdate.none;
   }

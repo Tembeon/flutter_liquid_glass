@@ -44,7 +44,12 @@ import 'package:kinesis/src/widgets/input_shared.dart';
 /// items) leaves Space, Enter and the value keys to the focus below it.
 ///
 /// Presses of the secondary button reach the interactions that accept them
-/// (`SecondaryClickInteraction`); the scroll wheel reaches them as
+/// (`SecondaryClickInteraction`). When an interaction
+/// [Interaction.opensContextMenu], the region binds
+/// [ContextMenuIntent.defaultShortcuts] (the context menu key, Shift+F10)
+/// around its focus and turns the intent into a [ContextMenuInput] at its
+/// centre, under the same focus rule as activation. The scroll wheel
+/// reaches them as
 /// [PointerScrollInput]s when one [Interaction.takesWheel], and the region
 /// then keeps it from the scroll views around it.
 ///
@@ -512,6 +517,8 @@ class _InputRegionState extends State<InputRegion> {
 
   bool get _adjusts => widget.interactions.any((i) => i.adjusts);
 
+  bool get _opensMenu => widget.interactions.any((i) => i.opensContextMenu);
+
   AdjustRange get _range => widget.adjustRange?.value ?? AdjustRange.open;
 
   void _rangeChanged() => _box?.markNeedsSemanticsUpdate();
@@ -536,13 +543,23 @@ class _InputRegionState extends State<InputRegion> {
         context: context,
       );
 
-  ({bool activates, bool adjusts})? _actionsFor;
+  late final Action<ContextMenuIntent> _menuAction =
+      Action<ContextMenuIntent>.overridable(
+        defaultAction: _ContextMenu(this),
+        context: context,
+      );
+
+  ({bool activates, bool adjusts, bool opensMenu})? _actionsFor;
 
   // A registered action, even a disabled one, answers its intent for the
   // focus below the region and overrides the overridable actions there: a
   // plain region around a row of focusable parts would take their keys.
   Map<Type, Action<Intent>> _actionsNow() {
-    final takes = (activates: _activates, adjusts: _adjusts);
+    final takes = (
+      activates: _activates,
+      adjusts: _adjusts,
+      opensMenu: _opensMenu,
+    );
     if (takes == _actionsFor) return _actions;
     _actionsFor = takes;
     return _actions = {
@@ -551,7 +568,19 @@ class _InputRegionState extends State<InputRegion> {
         ButtonActivateIntent: _buttonAction,
       },
       if (takes.adjusts) AdjustValueIntent: _adjustAction,
+      if (takes.opensMenu) ContextMenuIntent: _menuAction,
     };
+  }
+
+  Map<ShortcutActivator, Intent> _shortcuts() {
+    final adjusts = _adjusts
+        ? AdjustValueIntent.defaultShortcuts(
+            Directionality.maybeOf(context) ?? TextDirection.ltr,
+            _navigation ?? NavigationMode.traditional,
+          )
+        : const <ShortcutActivator, Intent>{};
+    if (!_opensMenu) return adjusts;
+    return {...ContextMenuIntent.defaultShortcuts, ...adjusts};
   }
 
   @override
@@ -570,12 +599,7 @@ class _InputRegionState extends State<InputRegion> {
       child: Actions(
         actions: _actionsNow(),
         child: Shortcuts(
-          shortcuts: _adjusts
-              ? AdjustValueIntent.defaultShortcuts(
-                  Directionality.maybeOf(context) ?? TextDirection.ltr,
-                  _navigation ?? NavigationMode.traditional,
-                )
-              : const {},
+          shortcuts: _shortcuts(),
           child: Focus(
             focusNode: _focus,
             autofocus: widget.autofocus,
@@ -607,6 +631,14 @@ class _InputRegionState extends State<InputRegion> {
   void _adjust(ValueCommand command, ActivationSource source) => _input(
     AdjustInput(time: _clock.now, command: command, source: source),
   );
+
+  void _openMenu() {
+    final box = _box;
+    final centre = box != null && box.hasSize
+        ? box.size.center(Offset.zero)
+        : Offset.zero;
+    _input(ContextMenuInput(time: _clock.now, position: centre));
+  }
 
   // A disabled region hears no more hover, so what waits on the pointer
   // resting (a dwell) hears it leave.
@@ -678,6 +710,50 @@ class _Adjust extends HostAction<AdjustValueIntent> {
   @override
   void run(AdjustValueIntent intent) =>
       state._adjust(intent.command, ActivationSource.keyboard);
+}
+
+/// Opens the region's context menu for a [ContextMenuIntent], as long as
+/// the region is enabled, an interaction opens one, and the region has the
+/// focus or a region inside it handed the intent on.
+class _ContextMenu extends HostAction<ContextMenuIntent> {
+  _ContextMenu(this.state);
+
+  final _InputRegionState state;
+
+  @override
+  bool takes(ContextMenuIntent intent) =>
+      state.widget.enabled && state._opensMenu;
+
+  @override
+  bool get focused => state._focus.hasPrimaryFocus;
+
+  @override
+  void run(ContextMenuIntent intent) => state._openMenu();
+}
+
+/// Asks the focused control for its context menu: the context menu key and
+/// Shift+F10.
+///
+/// UIKit: the context menu a hardware keyboard opens on the focused view.
+/// Flutter: none; the keys reach no widget by default.
+///
+/// An [InputRegion] or an `InputZones` zone whose interaction
+/// [Interaction.opensContextMenu] (a `SecondaryClickInteraction`) binds
+/// [defaultShortcuts] around its focus and turns the intent into a
+/// [ContextMenuInput] at its centre, where a menu anchors. As with
+/// activation, the focused, innermost host handles it, and an app replaces
+/// what it does with an `Actions` above the host or binds more keys to it
+/// with a `Shortcuts` above the host.
+class ContextMenuIntent extends Intent {
+  /// Asks for the context menu.
+  const ContextMenuIntent();
+
+  /// The keys a host binds: the context menu key and Shift+F10, as on
+  /// Windows and Linux desktops.
+  static const Map<ShortcutActivator, Intent> defaultShortcuts = {
+    SingleActivator(LogicalKeyboardKey.contextMenu): ContextMenuIntent(),
+    SingleActivator(LogicalKeyboardKey.f10, shift: true): ContextMenuIntent(),
+  };
 }
 
 /// Asks the focused region to step its value: the intent of the arrows,

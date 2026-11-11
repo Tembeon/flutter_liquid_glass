@@ -9,7 +9,8 @@
 ///
 /// It promises one way to stamp an event with its time, and that keyboard
 /// and accessibility commands (`ActivateInput`, the value commands of
-/// `AdjustInput`), the secondary button and the scroll wheel
+/// `AdjustInput`, the keyboard's request for a context menu,
+/// `ContextMenuInput`), the secondary button and the scroll wheel
 /// (`PointerScrollInput`) arrive on the same path as touches.
 ///
 /// It never knows about widgets, focus or semantics, and imports neither
@@ -24,6 +25,7 @@ export 'src/input/interaction.dart'
         ActivationSource,
         AdjustInput,
         AdjustRange,
+        ContextMenuInput,
         DragInteraction,
         DragInteractionDetails,
         HoverDwellInteraction,

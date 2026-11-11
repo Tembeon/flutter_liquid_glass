@@ -401,7 +401,10 @@ enum InputZoneStops {
 /// focus does, which may leave the host. A zone whose interaction adjusts keeps
 /// the arrows, Home and End for its value
 /// (`AdjustValueIntent.defaultShortcuts`). Space and Enter activate the focused
-/// zone through `ActivateIntent`, which an app overrides with `Actions` above
+/// zone through `ActivateIntent`, and the context menu key and Shift+F10
+/// open the context menu of a focused zone that has a secondary click
+/// (`ContextMenuIntent`, at the zone's centre), which an app overrides with
+/// `Actions` above
 /// the host, as for `InputRegion`; a region around the host does not take
 /// them from a focused zone.
 ///
@@ -832,7 +835,8 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
       case PointerHoverInput() ||
           PointerScrollInput() ||
           ActivateInput() ||
-          AdjustInput():
+          AdjustInput() ||
+          ContextMenuInput():
         break;
     }
   }
@@ -1210,6 +1214,8 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
 
   bool get _adjusts => zone.interactions.any((i) => i.adjusts);
 
+  bool get _opensMenu => zone.interactions.any((i) => i.opensContextMenu);
+
   AdjustRange get _range => zone.adjustRange?.value ?? AdjustRange.open;
 
   void _rangeChanged() => _anchor?.markNeedsSemanticsUpdate();
@@ -1388,6 +1394,11 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
         scrollDelta: input.scrollDelta,
         kind: input.kind,
       ),
+      ContextMenuInput() => ContextMenuInput(
+        time: input.time,
+        position: input.position - origin,
+        source: input.source,
+      ),
       PointerCancelInput() || ActivateInput() || AdjustInput() => input,
     };
   }
@@ -1434,6 +1445,10 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
 
   void _adjust(ValueCommand command, ActivationSource source) => _input(
     AdjustInput(time: host._clock.now, command: command, source: source),
+  );
+
+  void _openMenu() => _input(
+    ContextMenuInput(time: host._clock.now, position: bounds.center),
   );
 
   void describe(SemanticsConfiguration config) {
@@ -1517,12 +1532,22 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
         context: context,
       );
 
-  ({bool activates, bool adjusts})? _actionsFor;
+  late final Action<ContextMenuIntent> _menuAction =
+      Action<ContextMenuIntent>.overridable(
+        defaultAction: _ZoneMenu<T>(this),
+        context: context,
+      );
+
+  ({bool activates, bool adjusts, bool opensMenu})? _actionsFor;
 
   // As an InputRegion: an action only for what the zone takes, so a key it
   // does not take reaches the actions around the host.
   Map<Type, Action<Intent>> _actionsNow() {
-    final takes = (activates: _activates, adjusts: _adjusts);
+    final takes = (
+      activates: _activates,
+      adjusts: _adjusts,
+      opensMenu: _opensMenu,
+    );
     if (takes == _actionsFor) return _actions;
     _actionsFor = takes;
     return _actions = {
@@ -1531,6 +1556,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
         ButtonActivateIntent: _buttonAction,
       },
       if (takes.adjusts) AdjustValueIntent: _adjustAction,
+      if (takes.opensMenu) ContextMenuIntent: _menuAction,
       DirectionalFocusIntent: _ZoneMove<T>(this),
       _ZoneEndIntent: _ZoneEnd<T>(this),
     };
@@ -1543,13 +1569,15 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
       actions: _actionsNow(),
       child: Shortcuts(
         includeSemantics: false,
-        shortcuts: _adjusts
+        shortcuts: _adjusts || _opensMenu
             ? {
                 ..._moves,
-                ...AdjustValueIntent.defaultShortcuts(
-                  Directionality.maybeOf(context) ?? TextDirection.ltr,
-                  host._navigation ?? NavigationMode.traditional,
-                ),
+                if (_opensMenu) ...ContextMenuIntent.defaultShortcuts,
+                if (_adjusts)
+                  ...AdjustValueIntent.defaultShortcuts(
+                    Directionality.maybeOf(context) ?? TextDirection.ltr,
+                    host._navigation ?? NavigationMode.traditional,
+                  ),
               }
             : _moves,
         child: FocusTraversalOrder(
@@ -1604,6 +1632,21 @@ class _ZoneAdjust<T extends Object> extends HostAction<AdjustValueIntent> {
   @override
   void run(AdjustValueIntent intent) =>
       zone._adjust(intent.command, ActivationSource.keyboard);
+}
+
+class _ZoneMenu<T extends Object> extends HostAction<ContextMenuIntent> {
+  _ZoneMenu(this.zone);
+
+  final _ZoneState<T> zone;
+
+  @override
+  bool takes(ContextMenuIntent intent) => zone.zone.enabled && zone._opensMenu;
+
+  @override
+  bool get focused => zone.node.hasPrimaryFocus;
+
+  @override
+  void run(ContextMenuIntent intent) => zone._openMenu();
 }
 
 class _ZoneMove<T extends Object> extends Action<DirectionalFocusIntent> {

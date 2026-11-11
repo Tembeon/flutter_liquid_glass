@@ -2221,6 +2221,8 @@ re-exported from package:kinesis:
   AdjustRange
   AdjustValueIntent
   Band
+  ContextMenuInput
+  ContextMenuIntent
   ControlStates
   DismissPolicy
   DismissTrigger

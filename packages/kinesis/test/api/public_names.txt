@@ -5,6 +5,8 @@ AdjustInput
 AdjustRange
 AdjustValueIntent
 Band
+ContextMenuInput
+ContextMenuIntent
 ControlStates
 DismissPolicy
 DismissTrigger
