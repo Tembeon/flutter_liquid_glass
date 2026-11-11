@@ -7,7 +7,6 @@ import 'package:apple_liquid_glass/src/navigation/toolbar.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
@@ -286,16 +285,12 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
         _followedBySameBars(a.outer, b.outer);
   }
 
-  // The bars rebuild when the scroll view they follow changes, so the
-  // claim waits for the end of the frame that built this one.
+  // The bars follow the claimed scroll view by swapping their render
+  // listeners, without building, so the claim takes effect at once.
   void _claim() {
-    if (_chrome == null) return;
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      for (var scope = _chrome; scope != null; scope = scope.outer) {
-        scope.active.value = _scroll;
-      }
-    });
+    for (var scope = _chrome; scope != null; scope = scope.outer) {
+      scope.active.value = _scroll;
+    }
   }
 
   void _release() {
