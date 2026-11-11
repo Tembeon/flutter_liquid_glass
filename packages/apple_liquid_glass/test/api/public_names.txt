@@ -145,6 +145,10 @@ GlassTraitsOverride
 GlassZoomSource
 InputPort
 InputRegion
+InputZone
+InputZoneFrame
+InputZones
+InputZonesController
 Interaction
 InteractionEvent
 InteractionInput

@@ -1988,6 +1988,10 @@ re-exported from package:kinesis:
   FrameCadence
   InputPort
   InputRegion
+  InputZone
+  InputZoneFrame
+  InputZones
+  InputZonesController
   Interaction
   InteractionEvent
   InteractionInput
