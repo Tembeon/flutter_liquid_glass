@@ -1,10 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/foundation/colors.dart';
-import 'package:apple_liquid_glass/src/foundation/glass.dart';
-import 'package:apple_liquid_glass/src/foundation/shape.dart';
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/theme.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/sheet_motion.dart';
 import 'package:apple_liquid_glass/src/surfaces/surface.dart';
@@ -100,7 +97,17 @@ class GlassSheetStyle extends GlassStyle<GlassSheetStyle> {
 /// `scrollingExpandsSheet`. Back and `Navigator.pop` close it; a drag
 /// down, a tap on the dimming, Escape and a screen reader's dismiss close
 /// it when `isDismissible` and no `PopScope` in it vetoes, and otherwise
-/// call `onDismissAttempt`.
+/// call `onDismissAttempt`. Android's predictive back drags the sheet
+/// down with the gesture and dismisses it on commit.
+///
+/// The band at the sheet's top, where a tap cycles the detents, is also
+/// the sheet's detent control for the keyboard and screen readers: a
+/// target of 44 points named [GlassLocalizations.sheetGrabberLabel] around
+/// the drag handle (or where it would be), a focus stop whose arrows, Page
+/// Up and Page Down, Home and End step between the detents, read as its
+/// value with increase and decrease actions. Screen readers hear the sheet
+/// as a dialog named by [semanticLabel], and find the dimming as
+/// [GlassLocalizations.sheetDismissLabel] when a tap on it dismisses.
 ///
 /// The liquid renderer draws the floating glass with the top corners'
 /// radius all round, clipped at the bottom to the display's corners: its
@@ -148,6 +155,10 @@ Future<T?> showGlassSheet<T>(
         modal: (motion) => (motion.sheet?.dimming ?? 1) > 0,
         onVeto: onDismissAttempt == null ? null : (_) => onDismissAttempt(),
         semanticsLabel: semanticLabel,
+        semanticsRole: SemanticsRole.dialog,
+        barrierLabel: isDismissible
+            ? GlassLocalizations.of(context).sheetDismissLabel
+            : null,
       ),
     ),
     level: level,
@@ -187,10 +198,13 @@ class _SheetSpec {
 
 /// A sheet's presentation: its [SheetMotion] comes with the first layout,
 /// whose detents it needs, and presents then.
-final class _SheetPresented extends Motion with Presented {
+final class _SheetPresented extends Motion with Presented, PredictiveBack {
   SheetMotion? _sheet;
   bool _opened = false;
   bool _left = false;
+  // The velocity, down in pixels per second, of a back gesture that
+  // committed: the leave that follows continues from it.
+  double? _backVelocity;
 
   // UIKit asks at least 80 Hz of this (read from UIKit, notes private).
   @override
@@ -222,9 +236,32 @@ final class _SheetPresented extends Motion with Presented {
     _left = true;
     final sheet = _sheet;
     if (sheet == null) return false;
+    final back = _backVelocity;
+    _backVelocity = null;
+    if (back != null) {
+      sheet.dismiss(t, velocity: back);
+      return true;
+    }
     if (sheet.isDragging) sheet.dragCancel(t);
     if (!sheet.isDismissing) sheet.dismiss(t);
     return true;
+  }
+
+  @override
+  void backStarted(double t) => _sheet?.backStart(t);
+
+  @override
+  void backMoved(double t, double progress) => _sheet?.backMove(t, progress);
+
+  @override
+  void backEnded(double t, {required bool commits, required double velocity}) {
+    final sheet = _sheet;
+    if (sheet == null) return;
+    if (commits) {
+      _backVelocity = sheet.backVelocity(velocity);
+    } else {
+      sheet.backCancel(t);
+    }
   }
 }
 
@@ -251,19 +288,13 @@ abstract interface class GlassSheet {
 
   /// The sheet around [context], or null outside one.
   static GlassSheet? maybeOf(BuildContext context) =>
-      InheritedModel.inheritFrom<_SheetScope>(
-        context,
-        aspect: _SheetAspect.sheet,
-      )?.state;
+      context.dependOnInheritedWidgetOfExactType<_DetentScope>()?.state;
 
   /// A scroll controller for the sheet's main scrollable that hands its
   /// drags to the sheet as UIKit does; [context] does not rebuild when the
   /// detent changes.
   static ScrollController scrollControllerOf(BuildContext context) {
-    final scope = InheritedModel.inheritFrom<_SheetScope>(
-      context,
-      aspect: _SheetAspect.controller,
-    );
+    final scope = context.getInheritedWidgetOfExactType<_SheetScope>();
     if (scope == null) {
       throw FlutterError(
         'GlassSheet.scrollControllerOf called outside a glass sheet.',
@@ -273,26 +304,25 @@ abstract interface class GlassSheet {
   }
 }
 
-enum _SheetAspect { sheet, controller }
-
-class _SheetScope extends InheritedModel<_SheetAspect> {
-  const _SheetScope({
-    required this.state,
-    required this.detent,
-    required super.child,
-  });
+class _SheetScope extends InheritedWidget {
+  const _SheetScope({required this.state, required super.child});
 
   final _SheetViewState state;
-  final GlassSheetDetent detent;
 
   @override
-  bool updateShouldNotify(_SheetScope oldWidget) => oldWidget.detent != detent;
+  bool updateShouldNotify(_SheetScope oldWidget) => false;
+}
 
-  @override
-  bool updateShouldNotifyDependent(
-    _SheetScope oldWidget,
-    Set<_SheetAspect> dependencies,
-  ) => oldWidget.detent != detent && dependencies.contains(_SheetAspect.sheet);
+/// Rebuilds what read the sheet with [GlassSheet.of] when its detent
+/// changes, and nothing else.
+class _DetentScope extends InheritedNotifier<ValueNotifier<int>> {
+  const _DetentScope({
+    required this.state,
+    required ValueNotifier<int> detent,
+    required super.child,
+  }) : super(notifier: detent);
+
+  final _SheetViewState state;
 }
 
 /// What the sheet's tree is built from; it rebuilds only when this changes.
@@ -362,7 +392,10 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     filling: false,
   ));
   List<int> _order = const [];
-  int _index = 0;
+  // The detent the sheet rests at or heads to, as an index of its detents.
+  final _detent = ValueNotifier<int>(0);
+  late final _range = _DetentRange(this);
+  late final List<Interaction> _detentInput = [_DetentStep(_step)];
   Size _size = Size.zero;
   EdgeInsets _padding = EdgeInsets.zero;
   double _keyboard = 0;
@@ -394,18 +427,21 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
 
   bool get _leaving => widget.motion.left;
 
-  double get _now => MotionClock.instance.now;
+  double get _now => widget.motion.clock.now;
 
   @override
   List<GlassSheetDetent> get detents => _spec.detents;
 
   @override
-  GlassSheetDetent get detent => detents[_index];
+  GlassSheetDetent get detent => detents[_detent.value];
 
   @override
   void initState() {
     super.initState();
-    _index = math.max(0, detents.indexOf(_spec.initialDetent ?? detents[0]));
+    _detent.value = math.max(
+      0,
+      detents.indexOf(_spec.initialDetent ?? detents[0]),
+    );
     _frames.addListener(_stepped);
   }
 
@@ -416,6 +452,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     _frame.dispose();
     _fill.dispose();
     _structure.dispose();
+    _detent.dispose();
     super.dispose();
   }
 
@@ -440,7 +477,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
       if (!mounted) return;
       switch (event) {
         case SheetDetentChanged(:final index, :final byUser):
-          setState(() => _index = _order[index]);
+          _detent.value = _order[index];
           // UIKit reports a detent the user picks, not one set from code.
           if (byUser) _spec.onDetentChanged?.call(detent);
         case SheetDismissed() || SheetDismissRefused():
@@ -505,7 +542,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     final undimmedAt = undimmed == null
         ? -1
         : order.indexWhere((i) => detents[i] == undimmed);
-    final index = raised ? order.length - 1 : order.indexOf(_index);
+    final index = raised ? order.length - 1 : order.indexOf(_detent.value);
     final motion = _motion;
     if (motion == null) {
       final created = SheetMotion(
@@ -562,7 +599,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
 
   void _stampEvent(PointerEvent event) {
     _unstampedMove = null;
-    _stamp = MotionClock.instance.stamp(event.timeStamp);
+    _stamp = widget.motion.clock.stamp(event.timeStamp);
   }
 
   void _stampMove() {
@@ -724,7 +761,6 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   // only what reads the sheet through GlassSheet.of rebuilds.
   Widget? _content;
   TextStyle? _style;
-  _SheetScope? _scope;
 
   Widget _contentFor(BuildContext context) {
     final text = TextStyle(
@@ -738,7 +774,6 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     var content = _content;
     if (content == null || style != _style) {
       _style = style;
-      _scope = null;
       content = _content = DefaultTextStyle(
         style: style,
         child: detents.any((d) => d.isFitted)
@@ -752,9 +787,84 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
             : Builder(builder: _spec.builder),
       );
     }
-    final scope = _scope;
-    if (scope != null && scope.detent == detent) return scope;
-    return _scope = _SheetScope(state: this, detent: detent, child: content);
+    return content;
+  }
+
+  // A step of the keyboard or a screen reader, along the detents by
+  // height.
+  void _step(double t, ValueCommand command) {
+    final motion = _motion;
+    if (motion == null || _leaving) return;
+    final at = _order.indexOf(_detent.value);
+    final last = _order.length - 1;
+    final to = switch (command) {
+      .increase || .increaseLarge => at + 1,
+      .decrease || .decreaseLarge => at - 1,
+      .toMinimum => 0,
+      .toMaximum => last,
+    }.clamp(0, last);
+    if (to == at) return;
+    motion.pick(t, to);
+    _deliver();
+  }
+
+  String _detentName(GlassLocalizations strings, int index) {
+    final detent = detents[index];
+    if (detent.isLarge) return strings.sheetLargeDetentValue;
+    if (detent == GlassSheetDetent.medium) {
+      return strings.sheetMediumDetentValue;
+    }
+    return strings.sheetDetentValue(_order.indexOf(index) + 1, _order.length);
+  }
+
+  // The scale of the sheet floating on a screen of this width: the target
+  // keeps its 44 points on screen at the smallest scale the sheet rests at.
+  double _floatingScale(BuildContext context) =>
+      1 - 2 * SheetTuning.floatingInset / MediaQuery.sizeOf(context).width;
+
+  // The band at the top where a tap cycles the detents, as a target the
+  // keyboard and screen readers step the detents with.
+  Widget _grabber(BuildContext context, Color color) {
+    final strings = GlassLocalizations.of(context);
+    final handle = SizedBox.fromSize(size: SheetTuning.grabberSize);
+    final top = SheetTuning.grabberOffset - SheetTuning.grabberSize.height / 2;
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Padding(
+        padding: EdgeInsets.only(top: top),
+        child: _DetentSemantics(
+          detent: _detent,
+          top: top,
+          side: _target / _floatingScale(context),
+          describe: (config) {
+            final at = _order.indexOf(_detent.value);
+            if (at < 0) return;
+            config.value = _detentName(strings, _detent.value);
+            if (at + 1 < _order.length) {
+              config.increasedValue = _detentName(strings, _order[at + 1]);
+            }
+            if (at > 0) {
+              config.decreasedValue = _detentName(strings, _order[at - 1]);
+            }
+            config.textDirection = Directionality.of(context);
+          },
+          child: InputRegion(
+            interactions: _detentInput,
+            semanticLabel: strings.sheetGrabberLabel,
+            adjustRange: _range,
+            child: _spec.showDragHandle
+                ? DecoratedBox(
+                    decoration: ShapeDecoration(
+                      color: color,
+                      shape: const StadiumBorder(),
+                    ),
+                    child: handle,
+                  )
+                : handle,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -774,16 +884,23 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
       look.dragHandleColor ?? _Colors.grabber,
       context,
     );
-    final inner = MediaQuery(
-      data: media.copyWith(
-        padding: media.padding.copyWith(
-          top: 0,
-          bottom: math.max(media.padding.bottom, media.viewInsets.bottom),
+    final inner = _SheetScope(
+      state: this,
+      child: _DetentScope(
+        state: this,
+        detent: _detent,
+        child: MediaQuery(
+          data: media.copyWith(
+            padding: media.padding.copyWith(
+              top: 0,
+              bottom: math.max(media.padding.bottom, media.viewInsets.bottom),
+            ),
+            viewPadding: media.viewPadding.copyWith(top: 0),
+            viewInsets: EdgeInsets.zero,
+          ),
+          child: content,
         ),
-        viewPadding: media.viewPadding.copyWith(top: 0),
-        viewInsets: EdgeInsets.zero,
       ),
-      child: content,
     );
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -858,26 +975,8 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
                                 child: ColoredBox(color: docked),
                               ),
                             child!,
-                            if (_spec.showDragHandle)
-                              Align(
-                                alignment: Alignment.topCenter,
-                                child: Padding(
-                                  padding: EdgeInsets.only(
-                                    top:
-                                        SheetTuning.grabberOffset -
-                                        SheetTuning.grabberSize.height / 2,
-                                  ),
-                                  child: DecoratedBox(
-                                    decoration: ShapeDecoration(
-                                      color: grabber,
-                                      shape: const StadiumBorder(),
-                                    ),
-                                    child: SizedBox.fromSize(
-                                      size: SheetTuning.grabberSize,
-                                    ),
-                                  ),
-                                ),
-                              ),
+                            if (_spec.showDragHandle || detents.length > 1)
+                              _grabber(context, grabber),
                           ],
                         ),
                       ),
@@ -1067,5 +1166,151 @@ class _SheetScrollPosition extends ScrollPositionWithSingleContext {
   void dispose() {
     if (_owns) sheet._release(0);
     super.dispose();
+  }
+}
+
+/// Which ways the detents can step from the one the sheet rests at.
+final class _DetentRange implements ValueListenable<AdjustRange> {
+  _DetentRange(this.sheet);
+
+  final _SheetViewState sheet;
+
+  @override
+  AdjustRange get value {
+    final at = sheet._order.indexOf(sheet._detent.value);
+    return AdjustRange(
+      canIncrease: at >= 0 && at + 1 < sheet._order.length,
+      canDecrease: at > 0,
+    );
+  }
+
+  @override
+  void addListener(VoidCallback listener) =>
+      sheet._detent.addListener(listener);
+
+  @override
+  void removeListener(VoidCallback listener) =>
+      sheet._detent.removeListener(listener);
+}
+
+/// The value commands of the keyboard and screen readers on the grabber;
+/// a finger on it is the sheet's drag and tap.
+final class _DetentStep extends Interaction {
+  _DetentStep(this.step);
+
+  final void Function(double t, ValueCommand command) step;
+
+  @override
+  bool get adjusts => true;
+
+  @override
+  bool accepts(PointerDownInput down) => false;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    if (input is AdjustInput) step(input.time, input.command);
+    return InteractionUpdate.none;
+  }
+}
+
+// The side of the grabber's target on screen, the smallest UIKit's
+// guidelines allow.
+const double _target = 44;
+
+/// The grabber's own node for screen readers, over a square target of at
+/// least [side] points from the sheet's top edge, which the grabber sits
+/// [top] below: tells them the detent the sheet rests at, and the
+/// ones a step up and down reach, as its value; follows the detent without
+/// a rebuild. It takes no pointer: a finger on the grabber is the sheet's
+/// drag and tap.
+class _DetentSemantics extends SingleChildRenderObjectWidget {
+  const _DetentSemantics({
+    required this.detent,
+    required this.top,
+    required this.side,
+    required this.describe,
+    super.child,
+  });
+
+  final ValueListenable<int> detent;
+  final double top;
+  final double side;
+  final void Function(SemanticsConfiguration config) describe;
+
+  @override
+  _RenderDetentSemantics createRenderObject(BuildContext context) =>
+      _RenderDetentSemantics(detent, top, side, describe);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderDetentSemantics renderObject,
+  ) {
+    renderObject.top = top;
+    renderObject.side = side;
+    renderObject.describe = describe;
+  }
+}
+
+class _RenderDetentSemantics extends RenderProxyBox {
+  _RenderDetentSemantics(this._detent, this._top, this._side, this._describe);
+
+  // The view's own notifier, which lives as long as the view.
+  final ValueListenable<int> _detent;
+
+  double _top;
+  double get top => _top;
+  set top(double value) {
+    if (value == _top) return;
+    _top = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  double _side;
+  double get side => _side;
+  set side(double value) {
+    if (value == _side) return;
+    _side = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  void Function(SemanticsConfiguration config) _describe;
+  void Function(SemanticsConfiguration config) get describe => _describe;
+  set describe(void Function(SemanticsConfiguration config) value) {
+    _describe = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _detent.addListener(markNeedsSemanticsUpdate);
+  }
+
+  @override
+  void detach() {
+    _detent.removeListener(markNeedsSemanticsUpdate);
+    super.detach();
+  }
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) => false;
+
+  @override
+  Rect get semanticBounds {
+    final width = math.max(size.width, _side);
+    return Rect.fromLTWH(
+      (size.width - width) / 2,
+      -_top,
+      width,
+      math.max(size.height + _top, _side),
+    );
+  }
+
+  @override
+  void describeSemanticsConfiguration(SemanticsConfiguration config) {
+    super.describeSemanticsConfiguration(config);
+    config.isSemanticBoundary = true;
+    _describe(config);
   }
 }

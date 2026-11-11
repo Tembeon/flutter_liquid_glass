@@ -137,4 +137,3 @@ reference.bad.slider semantics-disabled: nothing is announced as disabled
 reference.bad.slider semantics-label: expected tappable node to have semantic label, but none was found
 reference.bad.slider semantics-role: no node has a value with increase and decrease
 reference.bad.slider tap-target: expected tap target size of at least Size(44.0, 44.0), but found Size(300.0, 20.0)
-showGlassSheet barrier-label: no barrier is offered to assistive technology

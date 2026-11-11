@@ -698,19 +698,56 @@ class SheetMotion extends Motion {
     _offset.retarget(t, 0, spring: SheetTuning.spring);
   }
 
-  /// Slides the sheet out below the screen.
-  void dismiss(double t) {
+  /// Slides the sheet out below the screen, moving down at [velocity]
+  /// pixels per second from where it is.
+  void dismiss(double t, {double velocity = 0}) {
     advance(t);
     _dragFrom = null;
     _dismissing = true;
     _releaseStretch(t);
+    if (velocity != 0) _offset.setVelocity(t, velocity);
     _offset.retarget(t, hiddenOffset, spring: SheetTuning.spring);
   }
+
+  // How far down the back gesture's full progress takes the sheet: from
+  // where it rests to below the screen.
+  double _backRange = 0;
+
+  /// Android's predictive back gesture starts at [t]: it drags the sheet
+  /// down from where it rests, as a finger dragging it to its dismissal
+  /// does, without the swell of a touch.
+  void backStart(double t) {
+    advance(t);
+    dismissible = true;
+    _backRange = math.max(1, _top - _heights.first + hiddenOffset);
+    dragStart(t, 0);
+  }
+
+  /// The back gesture stands at [progress], 0 where it started and 1 with
+  /// the sheet below the screen.
+  void backMove(double t, double progress) =>
+      dragUpdate(t, progress.clamp(0.0, 1.0) * _backRange);
+
+  /// The pixels per second down of a back gesture moving at [velocity],
+  /// its progress per second.
+  double backVelocity(double velocity) => velocity * _backRange;
+
+  /// A back gesture that does not dismiss the sheet ends at [t]: the sheet
+  /// returns to its detent.
+  void backCancel(double t) => dragCancel(t);
 
   /// Animates to detent [index], as UIKit's animateChanges does.
   void animateTo(double t, int index) {
     advance(t);
     _transition(t, index.clamp(0, _heights.length - 1), byUser: false);
+  }
+
+  /// Moves to detent [index] the user picked without a drag, from the
+  /// keyboard or a screen reader: reported as a tap on the grabber's is.
+  void pick(double t, int index) {
+    advance(t);
+    if (_dismissing || _dragFrom != null) return;
+    _transition(t, index.clamp(0, _heights.length - 1));
   }
 
   void _transition(
