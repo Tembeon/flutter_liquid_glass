@@ -1,10 +1,8 @@
-import 'package:apple_liquid_glass/src/foundation/colors.dart';
-import 'package:apple_liquid_glass/src/foundation/frame.dart';
-import 'package:apple_liquid_glass/src/foundation/glass.dart';
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/theme.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/raw/selector.dart';
+import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
 import 'package:apple_liquid_glass/src/surfaces/lens_shrink.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/widgets.dart';
@@ -61,6 +59,8 @@ class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle> {
     this.thumbColor,
     this.foregroundColor,
     this.textStyle,
+    this.focusColor,
+    this.hoverColor,
     this.builder,
   });
 
@@ -84,6 +84,16 @@ class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle> {
   /// when selected, by default (segmented control passport).
   final WidgetStateProperty<TextStyle?>? textStyle;
 
+  /// The ring inside a segment focused from the keyboard; null derives it
+  /// from systemBlue as Flutter's Cupertino controls do, and a transparent
+  /// color draws none.
+  final Color? focusColor;
+
+  /// What a mouse over a segment adds to its colors; null for the wash of
+  /// a glass body at half a press's strength, and a transparent color
+  /// shows none.
+  final Color? hoverColor;
+
   /// Builds the control's look in place of the default one; the control
   /// then ignores [backgroundColor] and [thumbColor]. Null leaves it to the
   /// theme's builder, then the default look.
@@ -98,6 +108,8 @@ class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle> {
       thumbColor: fallThrough(thumbColor, other.thumbColor),
       foregroundColor: fallThrough(foregroundColor, other.foregroundColor),
       textStyle: fallThrough(textStyle, other.textStyle),
+      focusColor: focusColor ?? other.focusColor,
+      hoverColor: hoverColor ?? other.hoverColor,
       builder: builder ?? other.builder,
     );
   }
@@ -126,6 +138,8 @@ class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle> {
         t,
         snapNull(TextStyle.lerp),
       ),
+      focusColor: GlassDynamicColor.lerp(focusColor, other.focusColor, t),
+      hoverColor: GlassDynamicColor.lerp(hoverColor, other.hoverColor, t),
       builder: t < 0.5 ? builder : other.builder,
     );
   }
@@ -137,6 +151,8 @@ class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle> {
       other.thumbColor == thumbColor &&
       other.foregroundColor == foregroundColor &&
       other.textStyle == textStyle &&
+      other.focusColor == focusColor &&
+      other.hoverColor == hoverColor &&
       other.builder == builder;
 
   @override
@@ -145,6 +161,8 @@ class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle> {
     thumbColor,
     foregroundColor,
     textStyle,
+    focusColor,
+    hoverColor,
     builder,
   );
 }
@@ -167,6 +185,11 @@ class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle> {
 /// segments that stay, fades new ones in and old ones out, and the lens
 /// moves with its segment ([RawGlassSelector.itemKeys]). Not measured:
 /// UIKit's animated insertSegment was not captured.
+///
+/// Focused from the keyboard, a segment draws Flutter's Cupertino focus
+/// ring inside its cell, and a mouse over a segment washes its cell as a
+/// glass body's hover does (the rule of the glass controls; an
+/// approximation, not measured).
 class GlassSegmentedControl<T> extends StatelessWidget {
   /// Creates a segmented control showing [groupValue] selected.
   const GlassSegmentedControl({
@@ -421,6 +444,18 @@ class _SegmentLabel extends StatelessWidget {
         ),
       ),
     );
-    return segment.enabled ? label : Opacity(opacity: 0.5, child: label);
+    return GlassHighlightPaint.of(
+      context,
+      states: GlassItemStates(states),
+      focusColor: look.focusColor,
+      hoverColor: look.hoverColor,
+      inside: true,
+      wash: true,
+      child: SizedBox.expand(
+        child: Center(
+          child: segment.enabled ? label : Opacity(opacity: 0.5, child: label),
+        ),
+      ),
+    );
   }
 }

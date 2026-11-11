@@ -1157,11 +1157,15 @@ class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle>
     WidgetStateProperty<Color?>? thumbColor,
     WidgetStateProperty<Color?>? foregroundColor,
     WidgetStateProperty<TextStyle?>? textStyle,
+    Color? focusColor,
+    Color? hoverColor,
     Widget Function(BuildContext, GlassSelectorDetails)? builder,
   })
   final WidgetStateProperty<Color?>? backgroundColor
   final Widget Function(BuildContext, GlassSelectorDetails)? builder
+  final Color? focusColor
   final WidgetStateProperty<Color?>? foregroundColor
+  final Color? hoverColor
   static GlassSegmentedStyle? maybeOf(BuildContext context)
   final WidgetStateProperty<TextStyle?>? textStyle
   final WidgetStateProperty<Color?>? thumbColor
@@ -1366,11 +1370,13 @@ final class GlassStepperDetails
     required bool canDecrement,
     required bool canIncrement,
     required Set<WidgetState> states,
+    ValueListenable<Set<WidgetState>>? statesListenable,
   })
   final bool canDecrement
   final bool canIncrement
   final GlassStepperHalf? pressed
   final Set<WidgetState> states
+  final ValueListenable<Set<WidgetState>>? statesListenable
 enum GlassStepperHalf
   decrement,
   increment,
@@ -1378,11 +1384,15 @@ class GlassStepperStyle extends GlassStyle<GlassStepperStyle>
   const GlassStepperStyle({
     WidgetStateProperty<Color?>? backgroundColor,
     WidgetStateProperty<Color?>? foregroundColor,
+    Color? focusColor,
+    Color? hoverColor,
     Widget Function(BuildContext, GlassStepperDetails)? builder,
   })
   final WidgetStateProperty<Color?>? backgroundColor
   final Widget Function(BuildContext, GlassStepperDetails)? builder
+  final Color? focusColor
   final WidgetStateProperty<Color?>? foregroundColor
+  final Color? hoverColor
   static GlassStepperStyle? maybeOf(BuildContext context)
   overrides: ==, hashCode, lerp, merge
 abstract class GlassStyle<T extends Object>
@@ -1615,11 +1625,15 @@ class GlassTabBarStyle extends GlassStyle<GlassTabBarStyle>
     WidgetStateProperty<Color?>? thumbColor,
     WidgetStateProperty<Color?>? foregroundColor,
     WidgetStateProperty<TextStyle?>? textStyle,
+    Color? focusColor,
+    Color? hoverColor,
     Widget Function(BuildContext, GlassSelectorDetails)? builder,
   })
   final WidgetStateProperty<Color?>? backgroundColor
   final Widget Function(BuildContext, GlassSelectorDetails)? builder
+  final Color? focusColor
   final WidgetStateProperty<Color?>? foregroundColor
+  final Color? hoverColor
   static GlassTabBarStyle? maybeOf(BuildContext context)
   final WidgetStateProperty<TextStyle?>? textStyle
   final WidgetStateProperty<Color?>? thumbColor

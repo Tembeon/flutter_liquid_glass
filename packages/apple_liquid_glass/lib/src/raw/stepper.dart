@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/widgets.dart';
@@ -27,6 +28,7 @@ final class GlassStepperDetails {
     required this.canDecrement,
     required this.canIncrement,
     required this.states,
+    this.statesListenable,
   });
 
   /// The half a finger holds, or null.
@@ -40,6 +42,11 @@ final class GlassStepperDetails {
 
   /// The states the stepper is in.
   final Set<WidgetState> states;
+
+  /// The stepper's states as they change, or null for a look that shows
+  /// neither focus nor hover: the default look draws its focus ring and
+  /// hover response from it.
+  final ValueListenable<Set<WidgetState>>? statesListenable;
 }
 
 /// A stepper with the behavior of iOS 27's `UIStepper` and no look of its own:
@@ -250,6 +257,7 @@ class _RawGlassStepperState extends State<RawGlassStepper>
                       canDecrement: _canStep(GlassStepperHalf.decrement),
                       canIncrement: _canStep(GlassStepperHalf.increment),
                       states: {...widgetStates.value},
+                      statesListenable: widgetStates,
                     ),
                   ),
                 ),

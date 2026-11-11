@@ -1,8 +1,7 @@
-import 'package:apple_liquid_glass/src/foundation/colors.dart';
+import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/theme.dart';
-import 'package:apple_liquid_glass/src/foundation/traits.dart';
-import 'package:apple_liquid_glass/src/raw/stepper.dart';
+import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
 import 'package:flutter/widgets.dart';
 
 /// The look of a [GlassStepper], like Flutter's `ButtonStyle`.
@@ -16,6 +15,8 @@ class GlassStepperStyle extends GlassStyle<GlassStepperStyle> {
   const GlassStepperStyle({
     this.backgroundColor,
     this.foregroundColor,
+    this.focusColor,
+    this.hoverColor,
     this.builder,
   });
 
@@ -32,6 +33,15 @@ class GlassStepperStyle extends GlassStyle<GlassStepperStyle> {
   /// further draws its glyph in tertiaryLabel.
   final WidgetStateProperty<Color?>? foregroundColor;
 
+  /// The ring around a stepper focused from the keyboard; null derives it
+  /// from systemBlue as Flutter's Cupertino controls do, and a transparent
+  /// color draws none.
+  final Color? focusColor;
+
+  /// What a mouse over the stepper fills under its halves; null for half
+  /// the darkening of a held half, and a transparent color shows none.
+  final Color? hoverColor;
+
   /// Builds the stepper's look in place of the default one; the stepper
   /// then ignores the other fields. Null leaves it to the theme's builder,
   /// then the default look.
@@ -44,6 +54,8 @@ class GlassStepperStyle extends GlassStyle<GlassStepperStyle> {
     return GlassStepperStyle(
       backgroundColor: fallThrough(backgroundColor, other.backgroundColor),
       foregroundColor: fallThrough(foregroundColor, other.foregroundColor),
+      focusColor: focusColor ?? other.focusColor,
+      hoverColor: hoverColor ?? other.hoverColor,
       builder: builder ?? other.builder,
     );
   }
@@ -65,6 +77,8 @@ class GlassStepperStyle extends GlassStyle<GlassStepperStyle> {
     return GlassStepperStyle(
       backgroundColor: color(backgroundColor, other.backgroundColor),
       foregroundColor: color(foregroundColor, other.foregroundColor),
+      focusColor: GlassDynamicColor.lerp(focusColor, other.focusColor, t),
+      hoverColor: GlassDynamicColor.lerp(hoverColor, other.hoverColor, t),
       builder: t < 0.5 ? builder : other.builder,
     );
   }
@@ -74,10 +88,18 @@ class GlassStepperStyle extends GlassStyle<GlassStepperStyle> {
       other is GlassStepperStyle &&
       other.backgroundColor == backgroundColor &&
       other.foregroundColor == foregroundColor &&
+      other.focusColor == focusColor &&
+      other.hoverColor == hoverColor &&
       other.builder == builder;
 
   @override
-  int get hashCode => Object.hash(backgroundColor, foregroundColor, builder);
+  int get hashCode => Object.hash(
+    backgroundColor,
+    foregroundColor,
+    focusColor,
+    hoverColor,
+    builder,
+  );
 }
 
 /// An iOS 27 stepper.
@@ -87,6 +109,11 @@ class GlassStepperStyle extends GlassStyle<GlassStepperStyle> {
 /// A plain capsule, not glass, on every renderer, as iOS draws it; its
 /// behavior is [RawGlassStepper]'s. A disabled stepper looks like an
 /// enabled one, as UIKit's does.
+///
+/// Focused from the keyboard it draws Flutter's Cupertino focus ring
+/// around its capsule, and a mouse over it darkens the capsule by half a
+/// held half's overlay (the rule of the glass controls; an approximation,
+/// not measured).
 class GlassStepper extends StatelessWidget {
   /// Creates a stepper showing [value] between [min] and [max].
   const GlassStepper({
@@ -197,7 +224,7 @@ class _StepperLook extends StatelessWidget {
         );
     final scheme = GlassTheme.colorSchemeOf(context);
     final dark = GlassTraits.of(context).brightness == Brightness.dark;
-    return CustomPaint(
+    final painted = CustomPaint(
       painter: _StepperPainter(
         pressed: details.pressed,
         background: resolve(look.backgroundColor, GlassStepper.background),
@@ -214,6 +241,18 @@ class _StepperLook extends StatelessWidget {
         canDecrement: details.canDecrement,
         canIncrement: details.canIncrement,
       ),
+    );
+    final listenable = details.statesListenable;
+    if (listenable == null) return painted;
+    const overlay = _StepperPainter._overlay;
+    return GlassHighlightPaint.of(
+      context,
+      states: listenable,
+      focusColor: look.focusColor,
+      hoverColor:
+          look.hoverColor ??
+          overlay.withValues(alpha: overlay.a * GlassHighlights.hoverGain),
+      child: painted,
     );
   }
 }

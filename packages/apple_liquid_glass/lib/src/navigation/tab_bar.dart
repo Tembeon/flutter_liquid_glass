@@ -1,14 +1,11 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/controls/badge.dart';
 import 'package:apple_liquid_glass/src/controls/button.dart';
 import 'package:apple_liquid_glass/src/controls/search_field.dart';
 import 'package:apple_liquid_glass/src/controls/search_glyphs.dart';
-import 'package:apple_liquid_glass/src/foundation/colors.dart';
-import 'package:apple_liquid_glass/src/foundation/frame.dart';
-import 'package:apple_liquid_glass/src/foundation/glass.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/theme.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/search_motion.dart';
 import 'package:apple_liquid_glass/src/motions/tab_bar_layout.dart';
@@ -17,6 +14,7 @@ import 'package:apple_liquid_glass/src/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/raw/button.dart';
 import 'package:apple_liquid_glass/src/raw/search_controller.dart';
 import 'package:apple_liquid_glass/src/raw/selector.dart';
+import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
 import 'package:apple_liquid_glass/src/surfaces/lens_shrink.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
@@ -90,6 +88,8 @@ class GlassTabBarStyle extends GlassStyle<GlassTabBarStyle> {
     this.thumbColor,
     this.foregroundColor,
     this.textStyle,
+    this.focusColor,
+    this.hoverColor,
     this.builder,
   });
 
@@ -114,6 +114,16 @@ class GlassTabBarStyle extends GlassStyle<GlassTabBarStyle> {
   /// inside the lens, by default (tab bar passport).
   final WidgetStateProperty<TextStyle?>? textStyle;
 
+  /// The ring inside a tab focused from the keyboard; null derives it from
+  /// systemBlue as Flutter's Cupertino controls do, and a transparent color
+  /// draws none.
+  final Color? focusColor;
+
+  /// What a mouse over a tab adds to its colors; null for the wash of a
+  /// glass body at half a press's strength, and a transparent color shows
+  /// none.
+  final Color? hoverColor;
+
   /// Builds the bar's look in place of the default one; the bar then
   /// ignores [thumbColor], and [backgroundColor] still tints the minimized
   /// circle and the bottom accessory. Null leaves it to the
@@ -129,6 +139,8 @@ class GlassTabBarStyle extends GlassStyle<GlassTabBarStyle> {
       thumbColor: fallThrough(thumbColor, other.thumbColor),
       foregroundColor: fallThrough(foregroundColor, other.foregroundColor),
       textStyle: fallThrough(textStyle, other.textStyle),
+      focusColor: focusColor ?? other.focusColor,
+      hoverColor: hoverColor ?? other.hoverColor,
       builder: builder ?? other.builder,
     );
   }
@@ -157,6 +169,8 @@ class GlassTabBarStyle extends GlassStyle<GlassTabBarStyle> {
         t,
         snapNull(TextStyle.lerp),
       ),
+      focusColor: GlassDynamicColor.lerp(focusColor, other.focusColor, t),
+      hoverColor: GlassDynamicColor.lerp(hoverColor, other.hoverColor, t),
       builder: t < 0.5 ? builder : other.builder,
     );
   }
@@ -168,6 +182,8 @@ class GlassTabBarStyle extends GlassStyle<GlassTabBarStyle> {
       other.thumbColor == thumbColor &&
       other.foregroundColor == foregroundColor &&
       other.textStyle == textStyle &&
+      other.focusColor == focusColor &&
+      other.hoverColor == hoverColor &&
       other.builder == builder;
 
   @override
@@ -176,6 +192,8 @@ class GlassTabBarStyle extends GlassStyle<GlassTabBarStyle> {
     thumbColor,
     foregroundColor,
     textStyle,
+    focusColor,
+    hoverColor,
     builder,
   );
 }
@@ -236,6 +254,12 @@ enum GlassTabAccessoryPlacement {
 /// along after, the second axis 0.05 s late. [accessoryPlacementOf] tells
 /// its content which place it heads for, flipping as the transition
 /// starts (read from UIKit, notes private).
+///
+/// Focused from the keyboard, a tab draws Flutter's Cupertino focus ring
+/// inside its slot, and a mouse over a tab washes its slot as a glass
+/// body's hover does; the search circle shows both on its glass, as a glass
+/// button does (the rule of the glass controls; an approximation, not
+/// measured).
 class GlassTabBar extends StatelessWidget {
   /// Creates a tab bar showing [selectedIndex] selected.
   const GlassTabBar({
@@ -566,9 +590,21 @@ class _TabContent extends StatelessWidget {
         ),
       ),
     );
-    return destination.enabled
-        ? content
-        : Opacity(opacity: 0.5, child: content);
+    return GlassHighlightPaint.of(
+      context,
+      states: GlassItemStates(states),
+      focusColor: look.focusColor,
+      hoverColor: look.hoverColor,
+      inside: true,
+      wash: true,
+      child: SizedBox.expand(
+        child: Center(
+          child: destination.enabled
+              ? content
+              : Opacity(opacity: 0.5, child: content),
+        ),
+      ),
+    );
   }
 }
 
@@ -1607,8 +1643,11 @@ class _SearchCircle extends StatelessWidget {
     excludeSemantics: true,
     child: GlassPressable(
       onPressed: onTap,
-      builder: (context, details) =>
-          GlassSurface.live(frame: details.body, child: details.label),
+      builder: (context, details) => GlassSurface.live(
+        frame: details.body,
+        states: details.statesListenable,
+        child: details.label,
+      ),
       child: CustomMultiChildLayout(
         delegate: _CircleLayout(q: q, rtl: rtl),
         children: [
