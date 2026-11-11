@@ -335,7 +335,11 @@ Presentation<GlassAlertAction, Presented> _alert({
     result: (result) => result ?? cancel,
     onDismissed: (action) => action?.onPressed?.call(),
     semanticsLabel: _text(title) ?? _text(message) ?? strings.alertLabel,
-    semanticsRole: SemanticsRole.alertDialog,
+    // As Flutter's CupertinoActionSheet: a sheet of choices is a dialog,
+    // only an alert interrupts.
+    semanticsRole: actionSheet
+        ? SemanticsRole.dialog
+        : SemanticsRole.alertDialog,
     barrierLabel: actionSheet ? strings.actionSheetDismissLabel : null,
   );
 }

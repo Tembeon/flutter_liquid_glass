@@ -176,11 +176,11 @@ void main() {
     expect(alert.results, [_cancel]);
   });
 
-  testWidgets('an action sheet labels its dimming, which screen readers '
-      'dismiss it by', (tester) async {
+  testWidgets('an action sheet is a dialog, not an alert, and labels its '
+      'dimming, which screen readers dismiss it by', (tester) async {
     final semantics = tester.ensureSemantics();
     final sheet = await open(tester, sheet: true);
-    routeNode(tester, SemanticsRole.alertDialog);
+    routeNode(tester, SemanticsRole.dialog);
     final barrier = tester.getSemantics(
       find.bySemanticsLabel('Dismiss action sheet'),
     );
