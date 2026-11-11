@@ -21,6 +21,25 @@ final List<Entry> registry = [
     'GlassButton.prominent',
     covers: const [],
     kind: Kind.pressable,
+    exempt: const {
+      'contrast-light': Exemption(
+        '"Save": expected contrast ratio of at least 4.5 but found 3.52 for '
+        'a font size of 17.0',
+        because:
+            'iOS 27 colours: a prominent button is a white label on '
+            'systemBlue, measured as #0088FF (GlassColors.systemBlue, states '
+            'passport), which is 3.52:1 on iOS too; with Increase Contrast '
+            'systemBlue is #1E6EF4, 4.58:1',
+      ),
+      'contrast-dark': Exemption(
+        '"Save": expected contrast ratio of at least 4.5 but found 3.23 for '
+        'a font size of 17.0',
+        because:
+            'iOS 27 colours: a white label on dark systemBlue, measured as '
+            '#0091FF (GlassColors.systemBlue, states passport), is 3.23:1 on '
+            'iOS too',
+      ),
+    },
     build: (probe, {required enabled}) => GlassButton.prominent(
       onPressed: enabled ? () => probe.add('pressed') : null,
       child: const Text('Save'),
@@ -332,6 +351,7 @@ final List<Entry> registry = [
     kind: Kind.selection,
     canDisable: false,
     focusStops: 2,
+    part: find.text('Library'),
     build: (probe, {required enabled}) => SizedBox(
       width: 402,
       child: _Owned<GlassSearchController>(
@@ -475,6 +495,52 @@ final List<Entry> registry = [
     ),
   ),
   Entry(
+    'GlassSwipeActions.row',
+    covers: const [],
+    kind: Kind.pressable,
+    part: find.text('Message'),
+    build: (probe, {required enabled}) => SizedBox(
+      width: 402,
+      child: GlassSwipeActions(
+        trailing: [
+          GlassSwipeAction(
+            title: 'Delete',
+            onPressed: () => probe.add('Delete'),
+          ),
+        ],
+        child: GlassListRow(
+          title: const Text('Message'),
+          enabled: enabled,
+          onPressed: () => probe.add('pressed'),
+        ),
+      ),
+    ),
+  ),
+  Entry(
+    'GlassListRow.switch',
+    covers: const [],
+    kind: Kind.toggle,
+    focusStops: 2,
+    part: find.byType(GlassSwitch),
+    build: (probe, {required enabled}) => SizedBox(
+      width: 402,
+      child: Held<bool>(
+        probe: probe,
+        initial: false,
+        builder: (context, value, set) => GlassListRow(
+          title: const Text('Wi-Fi'),
+          enabled: enabled,
+          onPressed: () {},
+          trailing: GlassSwitch(
+            value: value,
+            semanticLabel: 'Wi-Fi',
+            onChanged: enabled ? set : null,
+          ),
+        ),
+      ),
+    ),
+  ),
+  Entry(
     'GlassCompactDatePicker',
     covers: const ['GlassCompactDatePicker', 'GlassDatePickerMode'],
     kind: Kind.opener,
@@ -494,7 +560,8 @@ final List<Entry> registry = [
   Entry(
     'GlassDatePicker',
     covers: const ['GlassDatePicker', 'GlassDatePickerStyle'],
-    kind: Kind.selection,
+    kind: Kind.grid,
+    pages: true,
     focusStops: 4,
     build: (probe, {required enabled}) => Held<DateTime>(
       probe: probe,
@@ -516,7 +583,8 @@ final List<Entry> registry = [
       'GlassDatePickerMonthYear',
     ],
     look: Look.builder,
-    kind: Kind.selection,
+    kind: Kind.grid,
+    pages: true,
     focusStops: 4,
     part: find.text('October 2026'),
     build: (probe, {required enabled}) => Held<DateTime>(

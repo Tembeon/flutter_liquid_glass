@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'checks.dart';
+import 'harness.dart';
 import 'known.dart';
 import 'registry.dart';
 
@@ -140,29 +141,64 @@ void main() {
     expect(keys, sorted);
   });
 
+  test('every exemption and every failure a reference declares names a '
+      'check that applies', () {
+    final stray = [
+      for (final entry in registry)
+        for (final check in {...entry.exempt.keys, ...entry.fails.keys})
+          if (!_applies(check, entry)) pairKey(entry.id, check),
+    ];
+    expect(stray, isEmpty);
+  });
+
+  test('only a bad reference declares failures, only a control is exempt, '
+      'and every exemption says why', () {
+    for (final entry in registry) {
+      final bad = entry.id.startsWith('reference.bad.');
+      final reference = entry.id.startsWith('reference.');
+      expect(entry.fails.isNotEmpty, bad, reason: entry.id);
+      if (reference) expect(entry.exempt, isEmpty, reason: entry.id);
+      for (final MapEntry(:key, :value) in entry.exempt.entries) {
+        expect(
+          value.because.trim(),
+          isNotEmpty,
+          reason: pairKey(entry.id, key),
+        );
+      }
+    }
+  });
+
+  test('the defects name no reference and nothing an entry declares', () {
+    final declared = {
+      for (final entry in registry)
+        for (final check in {...entry.exempt.keys, ...entry.fails.keys})
+          pairKey(entry.id, check),
+    };
+    final keys = readKnown().keys;
+    expect(keys.where((key) => key.startsWith('reference.')), isEmpty);
+    expect(keys.where(declared.contains), isEmpty);
+  });
+
   test('the reference controls calibrate every check: a good one passes, '
-      'a bad one fails', () {
-    final known = readKnown();
+      'a bad one declares it fails', () {
     final unseen = <String>[];
     for (final check in [...checks.map((c) => c.name), leakCheck]) {
-      bool applies(String id) =>
-          check == leakCheck ||
-          checks
-              .firstWhere((c) => c.name == check)
-              .applies(registry.firstWhere((e) => e.id == id));
-      final ids = [for (final entry in registry) entry.id].where(applies);
-      final failing = ids.where((id) => known.containsKey(pairKey(id, check)));
-      final passing = ids.where(
-        (id) => !known.containsKey(pairKey(id, check)),
+      final failing = registry.where(
+        (entry) =>
+            entry.id.startsWith('reference.bad.') &&
+            entry.fails.containsKey(check),
       );
-      if (failing.isEmpty) unseen.add('$check never fails');
-      if (passing.isEmpty) unseen.add('$check never passes');
+      final passing = registry.where(
+        (entry) =>
+            entry.id.startsWith('reference.good.') && _applies(check, entry),
+      );
+      if (failing.isEmpty) unseen.add('$check: no bad reference fails it');
+      if (passing.isEmpty) unseen.add('$check: no good reference meets it');
     }
     expect(unseen, isEmpty);
-    expect(
-      known.keys.where((key) => key.startsWith('reference.good.')),
-      isEmpty,
-      reason: 'a good reference control meets every check',
-    );
   });
 }
+
+bool _applies(String check, Entry entry) =>
+    check == leakCheck ||
+    checks.any((c) => c.name == check && c.applies(entry));

@@ -1,5 +1,6 @@
 import 'dart:ui' show Tristate;
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -32,15 +33,15 @@ const List<Check> checks = [
   Check('semantics-disabled', _disables, _disabled),
   Check('semantics-actions', _acts, _actions),
   Check('tap-target', _all, _tapTarget),
-  Check('focus-enabled', _inline, _focusEnabled),
   Check('focus-disabled', _disables, _focusDisabled),
   Check('tab-stops', _inline, _tabStops),
   Check('focus-indicator', _inline, _focusIndicator),
   Check('key-activate', _keyActivates, _keyActivate),
-  Check('key-remap', _keyActivates, _keyRemap),
+  Check('key-remap', _keyRemaps, _keyRemap),
   Check('key-arrows', _steps, _keyArrows),
   Check('key-arrows-rtl', _steps, _keyArrowsRtl),
   Check('key-home-end', _steps, _keyHomeEnd),
+  Check('key-arrows-edge', _pages, _keyArrowsEdge),
   Check('key-escape', _presents, _keyEscape),
   Check('key-remap-dismiss', _presents, _keyRemapDismiss),
   Check('key-context-menu', _contextMenu, _keyContextMenu),
@@ -72,9 +73,15 @@ bool _disables(Entry e) => e.canDisable && e.kind != Kind.overlay;
 
 bool _acts(Entry e) => e.kind != Kind.overlay && e.kind != Kind.textInput;
 
-bool _keyActivates(Entry e) => e.activates && !e.contextMenu;
+bool _keyActivates(Entry e) =>
+    (e.activates || e.kind == Kind.value) && !e.contextMenu;
 
-bool _steps(Entry e) => e.kind == Kind.value || e.kind == Kind.selection;
+bool _keyRemaps(Entry e) => e.activates && !e.contextMenu;
+
+bool _steps(Entry e) =>
+    e.kind == Kind.value || e.kind == Kind.selection || e.kind == Kind.grid;
+
+bool _pages(Entry e) => e.kind == Kind.grid && e.pages;
 
 bool _values(Entry e) => e.kind == Kind.value;
 
@@ -219,6 +226,16 @@ Future<void> _label(WidgetTester tester, Entry entry) async {
   final probe = await pumpEntry(tester, entry);
   if (entry.presents) await present(tester, entry, probe);
   await _guideline(tester, labeledTapTargetGuideline);
+  for (final node in subjectNodes(tester)) {
+    final data = node.getSemanticsData();
+    if ((data.hasAction(SemanticsAction.increase) ||
+            data.hasAction(SemanticsAction.decrease)) &&
+        data.label.isEmpty) {
+      throw TestFailure(
+        'an adjustable node valued "${data.value}" has no semantic label',
+      );
+    }
+  }
 }
 
 Future<void> _tapTarget(WidgetTester tester, Entry entry) async {
@@ -362,6 +379,26 @@ Future<void> _role(WidgetTester tester, Entry entry) async {
           );
         }
       }
+    case Kind.grid:
+      final items = _items(tester);
+      if (items.length < 2) {
+        throw TestFailure('fewer than two items announce a selected state');
+      }
+      for (final node in items) {
+        final d = node.getSemanticsData();
+        if (d.label.isEmpty) throw TestFailure('an item has no label');
+        if (!d.flagsCollection.isButton) {
+          throw TestFailure('"${d.label}" is not announced as a button');
+        }
+      }
+      final selected = items.where(
+        (node) =>
+            node.getSemanticsData().flagsCollection.isSelected ==
+            Tristate.isTrue,
+      );
+      if (selected.length != 1) {
+        throw TestFailure('not exactly one item is announced as selected');
+      }
     case Kind.textInput:
       if (!data.any((d) => d.flagsCollection.isTextField)) {
         throw TestFailure('nothing is announced as a text field');
@@ -459,7 +496,7 @@ Future<void> _actions(WidgetTester tester, Entry entry) async {
           );
         }
       }
-    case Kind.selection:
+    case Kind.selection || Kind.grid:
       final byGesture = await _fresh(tester, entry);
       final items = _items(tester);
       final index = items.indexWhere(
@@ -512,12 +549,6 @@ Future<void> _actions(WidgetTester tester, Entry entry) async {
   }
 }
 
-Future<void> _focusEnabled(WidgetTester tester, Entry entry) async {
-  await pumpEntry(tester, entry);
-  final stops = await tabStops(tester);
-  if (stops.isEmpty) throw TestFailure('Tab reaches no part of it');
-}
-
 Future<void> _focusDisabled(WidgetTester tester, Entry entry) async {
   await pumpEntry(tester, entry, enabled: false);
   final stops = await tabStops(tester);
@@ -529,6 +560,7 @@ Future<void> _focusDisabled(WidgetTester tester, Entry entry) async {
 Future<void> _tabStops(WidgetTester tester, Entry entry) async {
   await pumpEntry(tester, entry);
   final stops = await tabStops(tester);
+  if (stops.isEmpty) throw TestFailure('Tab reaches no part of it');
   if (stops.length != entry.focusStops) {
     throw TestFailure(
       'Tab stops at ${stops.length} parts, expected ${entry.focusStops}',
@@ -582,12 +614,49 @@ Future<Uint8List> _look(WidgetTester tester, Entry entry, Probe probe) async {
 Future<void> _keyActivate(WidgetTester tester, Entry entry) async {
   for (final key in [LogicalKeyboardKey.space, LogicalKeyboardKey.enter]) {
     final probe = await _fresh(tester, entry);
+    if (entry.kind == Kind.grid) {
+      await _gridActivate(tester, probe, key);
+      continue;
+    }
     await _focusOrFail(tester, entry);
+    final before = probe.value;
     await tester.sendKeyEvent(key);
     await settle(tester);
+    if (entry.kind == Kind.value) {
+      if (probe.value != before || probe.events.isNotEmpty) {
+        throw TestFailure(
+          '${key.debugName} changes it; a value control takes no Space or '
+          'Enter',
+        );
+      }
+      continue;
+    }
     if (!_activated(entry, probe)) {
       throw TestFailure('${key.debugName} does not activate it');
     }
+  }
+}
+
+Future<void> _gridActivate(
+  WidgetTester tester,
+  Probe probe,
+  LogicalKeyboardKey key,
+) async {
+  await _enterGrid(tester);
+  await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+  await settle(tester, 30);
+  final focused = _focusedItem(tester);
+  if (focused == null) throw TestFailure('no item is focused');
+  final label = focused.label;
+  final before = probe.value;
+  await tester.sendKeyEvent(key);
+  await settle(tester, 30);
+  final picked = _items(tester).where((node) => node.label == label);
+  if (probe.value == before ||
+      picked.isEmpty ||
+      picked.first.getSemanticsData().flagsCollection.isSelected !=
+          Tristate.isTrue) {
+    throw TestFailure('${key.debugName} does not pick the focused item');
   }
 }
 
@@ -600,7 +669,11 @@ Future<void> _keyRemap(WidgetTester tester, Entry entry) async {
       const SingleActivator(LogicalKeyboardKey.keyA): const ActivateIntent(),
     },
   );
-  await _focusOrFail(tester, entry);
+  if (entry.kind == Kind.grid) {
+    await _enterGrid(tester);
+  } else {
+    await _focusOrFail(tester, entry);
+  }
   await tester.sendKeyEvent(LogicalKeyboardKey.keyA);
   await settle(tester);
   if (!_activated(entry, probe)) {
@@ -613,6 +686,7 @@ Future<void> _arrows(
   Entry entry,
   TextDirection direction,
 ) async {
+  if (entry.kind == Kind.grid) return _gridArrows(tester, entry, direction);
   final probe = await _fresh(tester, entry, direction: direction);
   await _focusOrFail(tester, entry);
   final ltr = direction == TextDirection.ltr || !entry.mirrors;
@@ -642,6 +716,7 @@ Future<void> _keyArrowsRtl(WidgetTester tester, Entry entry) =>
     _arrows(tester, entry, TextDirection.rtl);
 
 Future<void> _keyHomeEnd(WidgetTester tester, Entry entry) async {
+  if (entry.kind == Kind.grid) return _gridHomeEnd(tester, entry);
   final probe = await _fresh(tester, entry);
   await _focusOrFail(tester, entry);
   final before = probe.value;
@@ -660,6 +735,192 @@ Future<void> _keyHomeEnd(WidgetTester tester, Entry entry) async {
   await settle(tester, 30);
   if (_compare(probe.value, end) != 0) {
     throw TestFailure('End does not stop at the end');
+  }
+}
+
+/// The items of a grid in reading order: rows from the top, each row in
+/// the reading direction.
+List<SemanticsNode> _gridItems(WidgetTester tester, TextDirection direction) {
+  final items = [
+    for (final node in _items(tester)) (node, globalRect(tester, node).center),
+  ];
+  items.sort((a, b) {
+    final dy = a.$2.dy - b.$2.dy;
+    if (dy.abs() > 1) return dy.sign.toInt();
+    final dx = (a.$2.dx - b.$2.dx).sign.toInt();
+    return direction == TextDirection.ltr ? dx : -dx;
+  });
+  return [for (final (node, _) in items) node];
+}
+
+SemanticsNode? _focusedItem(WidgetTester tester) => _items(tester)
+    .where(
+      (node) =>
+          node.getSemanticsData().flagsCollection.isFocused == Tristate.isTrue,
+    )
+    .firstOrNull;
+
+/// Tabs into a grid and checks that the focus lands on the picked item.
+Future<String> _enterGrid(WidgetTester tester) async {
+  final selected = _items(tester).where(
+    (node) =>
+        node.getSemanticsData().flagsCollection.isSelected == Tristate.isTrue,
+  );
+  if (selected.isEmpty) throw TestFailure('no item is announced as selected');
+  final picked = selected.first.label;
+  final at = globalRect(tester, selected.first).center;
+  final stops = await tabStops(tester);
+  final under = stops.where((node) => _boxOf(node).contains(at));
+  if (under.isEmpty) throw TestFailure('Tab does not reach the picked item');
+  under
+      .reduce(
+        (a, b) =>
+            _boxOf(a).size.longestSide <= _boxOf(b).size.longestSide ? a : b,
+      )
+      .requestFocus();
+  await settle(tester, 10);
+  final focused = _focusedItem(tester)?.label;
+  if (focused != picked) {
+    throw TestFailure(
+      'Tab enters the items at ${focused == null ? 'none' : '"$focused"'}, '
+      'not at the picked "$picked"',
+    );
+  }
+  return picked;
+}
+
+Future<String?> _press(WidgetTester tester, LogicalKeyboardKey key) async {
+  await tester.sendKeyEvent(key);
+  await settle(tester, 30);
+  return _focusedItem(tester)?.label;
+}
+
+/// The label of the item a row below [label], in the same column.
+String? _below(WidgetTester tester, String label) {
+  final items = _items(tester);
+  final from = items.where((node) => node.label == label).firstOrNull;
+  if (from == null) return null;
+  final at = globalRect(tester, from).center;
+  SemanticsNode? best;
+  var bestY = double.infinity;
+  for (final node in items) {
+    final center = globalRect(tester, node).center;
+    if ((center.dx - at.dx).abs() > 1 || center.dy <= at.dy + 1) continue;
+    if (center.dy < bestY) {
+      best = node;
+      bestY = center.dy;
+    }
+  }
+  return best?.label;
+}
+
+// The arrows of a grid follow Flutter's CalendarDatePicker: they move the
+// focus, a day along the reading order and a week down or up, and leave
+// the pick alone; in right-to-left the items are mirrored and so are the
+// horizontal arrows.
+Future<void> _gridArrows(
+  WidgetTester tester,
+  Entry entry,
+  TextDirection direction,
+) async {
+  final rtl = direction == TextDirection.rtl;
+  List<String>? ltrOrder;
+  if (rtl) {
+    await _fresh(tester, entry);
+    ltrOrder = [
+      for (final node in _gridItems(tester, TextDirection.ltr)) node.label,
+    ];
+  }
+  final probe = await _fresh(tester, entry, direction: direction);
+  final order = [for (final node in _gridItems(tester, direction)) node.label];
+  if (ltrOrder != null && !listEquals(order, ltrOrder)) {
+    throw TestFailure('the items keep their order on screen in right-to-left');
+  }
+  final start = await _enterGrid(tester);
+  final before = probe.value;
+  final index = order.indexOf(start);
+  if (index < 0 || index + 1 >= order.length) {
+    throw TestFailure('the picked item has no item after it');
+  }
+  final forward = rtl
+      ? LogicalKeyboardKey.arrowLeft
+      : LogicalKeyboardKey.arrowRight;
+  final back = rtl
+      ? LogicalKeyboardKey.arrowRight
+      : LogicalKeyboardKey.arrowLeft;
+  final next = await _press(tester, forward);
+  if (next != order[index + 1]) {
+    throw TestFailure(
+      '${forward.debugName} moves the focus to ${next ?? 'nothing'}, not to '
+      'the next item "${order[index + 1]}"',
+    );
+  }
+  if (probe.value != before) {
+    throw TestFailure(
+      '${forward.debugName} changes the pick; it only moves the focus',
+    );
+  }
+  if (await _press(tester, back) != start) {
+    throw TestFailure('${back.debugName} does not move the focus back');
+  }
+  final below = _below(tester, start);
+  if (below == null) throw TestFailure('the picked item has no row below');
+  final down = await _press(tester, LogicalKeyboardKey.arrowDown);
+  if (down != below) {
+    throw TestFailure(
+      'Arrow Down moves the focus to ${down ?? 'nothing'}, not to the item '
+      'below, "$below"',
+    );
+  }
+  if (await _press(tester, LogicalKeyboardKey.arrowUp) != start) {
+    throw TestFailure('Arrow Up does not move the focus back');
+  }
+  if (probe.value != before) {
+    throw TestFailure('the arrows change the pick; they only move the focus');
+  }
+}
+
+Future<void> _gridHomeEnd(WidgetTester tester, Entry entry) async {
+  final probe = await _fresh(tester, entry);
+  final order = [
+    for (final node in _gridItems(tester, TextDirection.ltr)) node.label,
+  ];
+  await _enterGrid(tester);
+  final before = probe.value;
+  if (await _press(tester, LogicalKeyboardKey.home) != order.first) {
+    throw TestFailure('Home does not move the focus to the first item');
+  }
+  if (await _press(tester, LogicalKeyboardKey.end) != order.last) {
+    throw TestFailure('End does not move the focus to the last item');
+  }
+  if (probe.value != before) {
+    throw TestFailure('Home and End change the pick; they only move the focus');
+  }
+}
+
+// A calendar's arrows cross into the neighbouring month: six weeks down
+// from any day leave every month, so the focus must keep moving to a new
+// item all the way.
+Future<void> _keyArrowsEdge(WidgetTester tester, Entry entry) async {
+  final probe = await _fresh(tester, entry);
+  final seen = {await _enterGrid(tester)};
+  final before = probe.value;
+  for (var i = 0; i < 6; i++) {
+    final at = await _press(tester, LogicalKeyboardKey.arrowDown);
+    if (at == null) {
+      throw TestFailure(
+        'Arrow Down past the last row takes the focus off the items',
+      );
+    }
+    if (!seen.add(at)) {
+      throw TestFailure(
+        'Arrow Down past the last row stops at "$at" instead of turning '
+        'the page',
+      );
+    }
+  }
+  if (probe.value != before) {
+    throw TestFailure('turning the page changes the pick');
   }
 }
 
@@ -819,7 +1080,7 @@ Future<void> _hapticsGestureOnly(WidgetTester tester, Entry entry) async {
   try {
     final probe = await _fresh(tester, entry);
     var aim = _aim(tester, entry);
-    if (entry.kind == Kind.selection) {
+    if (entry.kind == Kind.selection || entry.kind == Kind.grid) {
       final items = _items(tester);
       final unselected = items.where(
         (node) =>
@@ -838,9 +1099,8 @@ Future<void> _hapticsGestureOnly(WidgetTester tester, Entry entry) async {
       await tester.tapAt(aim);
     }
     await settle(tester);
-    if (log.count == 0 || (probe.events.isEmpty && entry.kind != Kind.opener)) {
-      return;
-    }
+    if (probe.events.isEmpty && entry.kind != Kind.opener) return;
+    final gesture = log.count > 0;
     await _fresh(tester, entry);
     log.count = 0;
     if (await _focus(tester, entry)) {
@@ -851,7 +1111,11 @@ Future<void> _hapticsGestureOnly(WidgetTester tester, Entry entry) async {
       await tester.sendKeyEvent(key);
       await settle(tester);
       if (log.count > 0) {
-        throw TestFailure('the keyboard plays the feedback the gesture plays');
+        throw TestFailure(
+          gesture
+              ? 'the keyboard plays the feedback the gesture plays'
+              : 'the keyboard plays feedback',
+        );
       }
     }
     await _fresh(tester, entry);
@@ -871,7 +1135,11 @@ Future<void> _hapticsGestureOnly(WidgetTester tester, Entry entry) async {
     }
     await settle(tester);
     if (log.count > 0) {
-      throw TestFailure('assistive activation plays the gesture feedback');
+      throw TestFailure(
+        gesture
+            ? 'assistive activation plays the gesture feedback'
+            : 'assistive activation plays feedback',
+      );
     }
   } finally {
     log.dispose();

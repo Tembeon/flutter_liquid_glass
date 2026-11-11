@@ -27,6 +27,13 @@ enum Kind {
   /// Selects one of several items: a segmented control, a tab bar.
   selection,
 
+  /// Picks one of many items laid out in rows, as Flutter's
+  /// `CalendarDatePicker` picks a day: the arrows move the focus an item
+  /// along the reading order and a row up or down, mirrored in
+  /// right-to-left, without picking; Space and Enter pick the focused
+  /// item; the items are one Tab stop, entered at the picked one.
+  grid,
+
   /// Takes text.
   textInput,
 
@@ -77,6 +84,9 @@ final class Entry {
     this.mirrors = true,
     this.look = Look.own,
     this.glassRoutes = false,
+    this.pages = false,
+    this.exempt = const {},
+    this.fails = const {},
   });
 
   /// The stable name used in `known_failures.txt`.
@@ -135,12 +145,43 @@ final class Entry {
   /// page needs one below it to show a back button.
   final bool glassRoutes;
 
+  /// Whether an arrow past a grid's edge turns to the neighbouring page of
+  /// items and moves the focus there, as a calendar turns its month.
+  final bool pages;
+
+  /// The checks this control fails on purpose, each with the reviewed
+  /// reason: a deviation that matches a measured iOS value, or a rule that
+  /// does not fit the control.
+  final Map<String, Exemption> exempt;
+
+  /// For a `reference.bad.*` control: the checks it breaks on purpose,
+  /// each with the reason the check must give, so every check is seen to
+  /// catch what it is for.
+  final Map<String, String> fails;
+
   /// Whether the subject presents an overlay.
   bool get presents => kind == Kind.overlay || kind == Kind.opener;
 
   /// Whether the subject runs a callback when activated.
   bool get activates =>
-      kind == Kind.pressable || kind == Kind.toggle || kind == Kind.opener;
+      kind == Kind.pressable ||
+      kind == Kind.toggle ||
+      kind == Kind.opener ||
+      kind == Kind.grid;
+}
+
+/// A reviewed deviation: a check an entry fails, and why that is right.
+final class Exemption {
+  /// The check reports [observed]; [because] says why the control is right.
+  const Exemption(this.observed, {required this.because});
+
+  /// What the check reports, as the suite records a failure.
+  final String observed;
+
+  /// Why the deviation is right, with its source, in words a reviewer can
+  /// check: a measurement on iOS, a system colour, a rule that does not
+  /// apply.
+  final String because;
 }
 
 /// Who draws a subject.

@@ -1,70 +1,20 @@
-# The (entry, check) pairs of the conformance suite that fail today, with
-# what the check observed. Reviewed by hand: a new failure fails the suite,
-# and so does a line whose pair now passes. The list only shrinks:
-# UPDATE_CONFORMANCE=1 drops the lines that pass and never adds one.
+# The defects: the (entry, check) pairs of the conformance suite that fail
+# today and should not, with what the check observed. Reviewed by hand: a
+# new failure fails the suite, and so does a line whose pair now passes.
+# The list only shrinks: UPDATE_CONFORMANCE=1 drops the lines that pass and
+# never adds one. The failures that are right live elsewhere: a reference
+# control's in its `fails`, a reviewed deviation in its entry's `exempt`.
 # Format: <entry> <check>: <reason>
-GlassButton.prominent contrast-dark: "Save": expected contrast ratio of at least 4.5 but found 3.23 for a font size of 17.0
-GlassButton.prominent contrast-light: "Save": expected contrast ratio of at least 4.5 but found 3.52 for a font size of 17.0
 GlassCompactDatePicker tap-target: "3, Saturday, October 3, 2026, Today": expected tap target size of at least Size(44.0, 44.0), but found Siz...
 GlassCompactDatePicker zero-size: A RenderFlex overflowed by 210 pixels on the right.
-GlassDatePicker key-arrows: Arrow Right does not step it forward
-GlassDatePicker key-arrows-rtl: Arrow Left does not step it forward
-GlassDatePicker key-home-end: Home does not reach the start
-GlassDatePicker semantics-role: "1, Thursday, October 1, 2026" is not in a mutually exclusive group
+GlassDatePicker key-arrows-edge: Arrow Down past the last row takes the focus off the items
 GlassDatePicker tap-target: "3, Saturday, October 3, 2026, Today": expected tap target size of at least Size(44.0, 44.0), but found Siz...
 GlassMenuAnchor barrier-hides-behind: assistive technology reads it before its anchor
 GlassMenuAnchor.text barrier-hides-behind: assistive technology reads it before its anchor
 GlassPageRoute semantics-role: the overlay is not announced as a named route
+GlassStepper semantics-label: an adjustable node valued "5" has no semantic label
 GlassTabBar contrast-light: "Library": expected contrast ratio of at least 4.5 but found 2.27 for a font size of 10.0
 GlassTabBar.search contrast-light: "Library": expected contrast ratio of at least 4.5 but found 2.27 for a font size of 10.0
-GlassTabBar.search mouse-cursor: it declares no cursor; the cursor over it is SystemMouseCursor(basic)
-GlassTabBar.search mouse-hover: hover draws nothing
-RawGlassDatePicker key-arrows: Arrow Right does not step it forward
-RawGlassDatePicker key-arrows-rtl: Arrow Left does not step it forward
-RawGlassDatePicker key-home-end: Home does not reach the start
-RawGlassDatePicker semantics-role: "1, Thursday, October 1, 2026" is not in a mutually exclusive group
+RawGlassDatePicker key-arrows-edge: Arrow Down past the last row takes the focus off the items
 RawGlassDatePicker tap-target: "3, Saturday, October 3, 2026, Today": expected tap target size of at least Size(44.0, 44.0), but found Siz...
-reference.bad.button focus-disabled: Tab reaches 1 parts while disabled
-reference.bad.button focus-indicator: keyboard focus draws nothing
-reference.bad.button haptics-gesture-only: assistive activation plays the gesture feedback
-reference.bad.button key-activate: Space does not activate it
-reference.bad.button key-remap: a key the app maps to ActivateIntent does nothing
-reference.bad.button mouse-cursor: it declares no cursor; the cursor over it is SystemMouseCursor(basic)
-reference.bad.button mouse-hover: hover draws nothing
-reference.bad.button rtl-text-scale-2: A RenderFlex overflowed by 278 pixels on the right.
-reference.bad.button semantics-disabled: nothing is announced as disabled
-reference.bad.button semantics-label: expected tappable node to have semantic label, but none was found
-reference.bad.button semantics-role: "" offers a tap but is not a button
-reference.bad.button tap-target: expected tap target size of at least Size(44.0, 44.0), but found Size(300.0, 20.0)
-reference.bad.button zero-size: A RenderFlex overflowed by 288 pixels on the right.
-reference.bad.contextMenu focus-enabled: Tab reaches no part of it
-reference.bad.contextMenu focus-indicator: Tab reaches no part of it
-reference.bad.contextMenu key-context-menu: Tab reaches no part of it
-reference.bad.contextMenu mouse-cursor: it declares no cursor; the cursor over it is SystemMouseCursor(basic)
-reference.bad.contextMenu mouse-hover: hover draws nothing
-reference.bad.contextMenu mouse-secondary-click: a secondary click does not open its context menu
-reference.bad.contextMenu semantics-disabled: nothing is announced as disabled
-reference.bad.contextMenu tab-stops: Tab stops at 0 parts, expected 1
-reference.bad.overlay barrier-hides-behind: assistive technology still reaches what is behind it
-reference.bad.overlay barrier-label: no barrier is offered to assistive technology
-reference.bad.overlay contrast-light: "Overlay content": expected contrast ratio of at least 4.5 but found 1.36 for a font size of 17.0
-reference.bad.overlay key-escape: Escape leaves it open
-reference.bad.overlay key-remap-dismiss: a key the app maps to DismissIntent leaves it open
-reference.bad.overlay no-leaks: leaks FocusNode
-reference.bad.overlay overlay-focus-in: opening leaves focus outside
-reference.bad.overlay overlay-focus-return: it could not be closed
-reference.bad.overlay overlay-inert-closing: Escape does not close it, so closing is not checked
-reference.bad.overlay semantics-role: the overlay is not announced as a named route
-reference.bad.slider focus-disabled: Tab reaches 1 parts while disabled
-reference.bad.slider focus-indicator: keyboard focus draws nothing
-reference.bad.slider key-arrows: Arrow Right does not step it forward
-reference.bad.slider key-arrows-rtl: Arrow Left does not step it forward
-reference.bad.slider key-home-end: Home does not reach the start
-reference.bad.slider mouse-cursor: it declares no cursor; the cursor over it is SystemMouseCursor(basic)
-reference.bad.slider mouse-hover: hover draws nothing
-reference.bad.slider mouse-wheel: the wheel steps it, but it does not declare that
-reference.bad.slider semantics-actions: nothing offers increase
-reference.bad.slider semantics-disabled: nothing is announced as disabled
-reference.bad.slider semantics-label: expected tappable node to have semantic label, but none was found
-reference.bad.slider semantics-role: no node has a value with increase and decrease
-reference.bad.slider tap-target: expected tap target size of at least Size(44.0, 44.0), but found Size(300.0, 20.0)
+RawGlassStepper semantics-label: an adjustable node valued "5" has no semantic label

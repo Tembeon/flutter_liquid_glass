@@ -19,7 +19,7 @@ void main() {
       testWidgets(key, (tester) async {
         final reason = await _guarded(tester, () => check.run(tester, entry));
         observed[key] = reason;
-        judge(key, reason);
+        judge(entry, check.name, reason);
       }, experimentalLeakTesting: LeakTesting.settings.withIgnoredAll());
     }
     testWidgets(pairKey(leakCheck, entry.id), (tester) async {
