@@ -3661,7 +3661,6 @@ final class TouchGlowMotion extends Motion
   static const double dragDistance
   static const double dragGrowth
   static const double dragStrength
-  static const Spring fallSpring
   GlassTouchGlow? get glow
   static const double hideBelow
   bool get isDown
@@ -3672,7 +3671,6 @@ final class TouchGlowMotion extends Motion
   static const double releaseGrowth
   static const double releaseLag
   final double riseLag
-  static const Spring riseSpring
   static const double spotCore
   double spotOpacity(double t)
   final double spotPeak

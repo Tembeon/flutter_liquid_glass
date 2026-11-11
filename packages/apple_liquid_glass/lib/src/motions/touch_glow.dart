@@ -4,17 +4,29 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/motions/flex_spec.dart' show FlexSpec;
 import 'package:flutter/painting.dart';
 import 'package:kinesis/motion.dart';
+import 'package:meta/meta.dart';
+
+/// The springs of the touch glow of a pressed glass surface.
+@internal
+abstract final class TouchGlowTuning {
+  /// The spring the glows rise on.
+  static const riseSpring = Spring.response(0.1);
+
+  /// The spring the glows fall, grow and turn dragging on.
+  static const fallSpring = Spring.response(0.5);
+}
 
 /// The touch glow of a pressed glass surface as a function of time:
 /// UIKit's flex interaction glows, measured on an iPhone on iOS 27's tab
 /// bar and open menu, which share the law and differ in [diameter],
 /// [riseLag] and their peaks.
 ///
-/// A touch raises both glows on a critically damped [riseSpring] after
-/// [riseLag]; they hold while the finger stays down. A finger that moves
-/// [dragDistance] from where it landed turns the spot into its dragging
-/// state: twice as wide at half the strength, on [fallSpring]. Lifting
-/// the finger lets both glows fall on [fallSpring] after [releaseLag]
+/// A touch raises both glows on a critically damped
+/// [TouchGlowTuning.riseSpring] after [riseLag]; they hold while the
+/// finger stays down. A finger that moves [dragDistance] from where it
+/// landed turns the spot into its dragging state: twice as wide at half
+/// the strength, on [TouchGlowTuning.fallSpring]. Lifting the finger lets
+/// both glows fall on [TouchGlowTuning.fallSpring] after [releaseLag]
 /// while the spot spreads to [releaseGrowth] times its size. The spot
 /// follows the finger.
 ///
@@ -56,12 +68,6 @@ final class TouchGlowMotion extends Motion {
 
   /// The opacity the spot rises to.
   final double spotPeak;
-
-  /// The spring the glows rise on.
-  static const riseSpring = Spring.response(0.1);
-
-  /// The spring the glows fall, grow and turn dragging on.
-  static const fallSpring = Spring.response(0.5);
 
   /// How long after the touch the glows start to rise, in seconds.
   final double riseLag;
@@ -126,15 +132,15 @@ final class TouchGlowMotion extends Motion {
       _down == null ? double.infinity : MotionRest.opacity;
 
   late final _progress = own(
-    MotionValue<double>(0, spring: riseSpring),
+    MotionValue<double>(0, spring: TouchGlowTuning.riseSpring),
     rest: _progressRest,
   );
   late final _scale = own(
-    MotionValue<double>(1, spring: fallSpring),
+    MotionValue<double>(1, spring: TouchGlowTuning.fallSpring),
     rest: _scaleRest,
   );
   late final _strength = own(
-    MotionValue<double>(1, spring: fallSpring),
+    MotionValue<double>(1, spring: TouchGlowTuning.fallSpring),
     rest: _strengthRest,
   );
   Offset _center = Offset.zero;
@@ -161,7 +167,8 @@ final class TouchGlowMotion extends Motion {
     at(_riseAt, _rise, slot: _riseSlot);
   }
 
-  void _rise(double at) => _progress.retarget(at, 1, spring: riseSpring);
+  void _rise(double at) =>
+      _progress.retarget(at, 1, spring: TouchGlowTuning.riseSpring);
 
   /// The finger moved to [position] at time [t].
   void pointerMove(double t, Offset position) {
@@ -172,8 +179,8 @@ final class TouchGlowMotion extends Motion {
     if (_dragging || (position - down).distance < dragDistance) return;
     _dragging = true;
     at(t + riseLag, (at) {
-      _scale.retarget(at, dragGrowth, spring: fallSpring);
-      _strength.retarget(at, dragStrength, spring: fallSpring);
+      _scale.retarget(at, dragGrowth, spring: TouchGlowTuning.fallSpring);
+      _strength.retarget(at, dragStrength, spring: TouchGlowTuning.fallSpring);
     }, slot: _dragSlot);
   }
 
@@ -187,8 +194,8 @@ final class TouchGlowMotion extends Motion {
     if (minimumLit > 0 && _riseAt > t) at(_riseAt, _rise, slot: _riseSlot);
     final start = math.max(t + releaseLag, _riseAt + minimumLit);
     at(start, (at) {
-      _progress.retarget(at, 0, spring: fallSpring);
-      _scale.retarget(at, releaseGrowth, spring: fallSpring);
+      _progress.retarget(at, 0, spring: TouchGlowTuning.fallSpring);
+      _scale.retarget(at, releaseGrowth, spring: TouchGlowTuning.fallSpring);
     }, slot: _fallSlot);
   }
 
