@@ -6,6 +6,107 @@ import 'package:flutter/painting.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
+/// How a flex moves a frame: the shift of its center and the growth of its
+/// width and height.
+@internal
+typedef MenuFlexShape = ({Offset shift, double width, double height});
+
+/// A frame without the flex (`from`) and with it (`to`): what shows at a
+/// point of `from` shows at the point the one affine map from `from` onto
+/// `to` takes it to.
+@internal
+typedef MenuStretch = ({Rect from, Rect to});
+
+/// The flex that moves nothing.
+@internal
+const MenuFlexShape noMenuFlex = (shift: Offset.zero, width: 0, height: 0);
+
+/// The flex of [frame] under the scales and drifts [values] of a menu on
+/// [side] (+1 below its button, -1 above it): the width scales about the
+/// center, the height about the edge facing the button, which the vertical
+/// drift moves; [noMenuFlex] at rest.
+@internal
+MenuFlexShape menuFlexOf(FlexValues values, Rect frame, double side) {
+  final d = values;
+  if (d.scaleX == 1 && d.scaleY == 1 && d.driftX == 0 && d.driftY == 0) {
+    return noMenuFlex;
+  }
+  final grow = frame.height * (d.scaleY - 1);
+  return (
+    shift: Offset(d.driftX, d.driftY + side * grow / 2),
+    width: frame.width * (d.scaleX - 1),
+    height: grow,
+  );
+}
+
+/// [frame] moved by [flex].
+@internal
+Rect flexedRect(Rect frame, MenuFlexShape flex) => Rect.fromCenter(
+  center: frame.center + flex.shift,
+  width: frame.width + flex.width,
+  height: frame.height + flex.height,
+);
+
+/// The stretch of [frame] by [flex], or null for [noMenuFlex].
+@internal
+MenuStretch? flexStretch(Rect frame, MenuFlexShape flex) {
+  if (identical(flex, noMenuFlex)) return null;
+  return (from: frame, to: flexedRect(frame, flex));
+}
+
+/// [position] taken by the affine map from [from] onto [to].
+@internal
+Offset mapPoint(Offset position, Rect from, Rect to) => Offset(
+  to.left + (position.dx - from.left) * to.width / from.width,
+  to.top + (position.dy - from.top) * to.height / from.height,
+);
+
+/// [rect] taken by the affine map of [stretch].
+@internal
+Rect stretchRect(Rect rect, MenuStretch stretch) {
+  final from = stretch.from;
+  final to = stretch.to;
+  final sx = to.width / from.width;
+  final sy = to.height / from.height;
+  return Rect.fromLTWH(
+    to.left + (rect.left - from.left) * sx,
+    to.top + (rect.top - from.top) * sy,
+    rect.width * sx,
+    rect.height * sy,
+  );
+}
+
+/// How much [stretch] scales along each axis; (1, 1) for none.
+@internal
+Offset stretchScale(MenuStretch? stretch) {
+  if (stretch == null) return const Offset(1, 1);
+  return Offset(
+    stretch.to.width / stretch.from.width,
+    stretch.to.height / stretch.from.height,
+  );
+}
+
+/// Where a menu stretched by [menu] with a card on it stretched by [card]
+/// has, unflexed, what it shows at [position].
+@internal
+Offset unflexPoint(Offset position, MenuStretch? menu, MenuStretch? card) {
+  final inMenu = menu == null
+      ? position
+      : mapPoint(position, menu.to, menu.from);
+  return card == null ? inMenu : mapPoint(inMenu, card.to, card.from);
+}
+
+/// Where a menu stretched by [menu] with a card on it stretched by [card]
+/// shows what it has, unflexed, at [position]; the inverse of
+/// [unflexPoint].
+@internal
+Offset flexPoint(Offset position, MenuStretch? menu, MenuStretch? card) {
+  final shown = card == null
+      ? position
+      : mapPoint(position, card.from, card.to);
+  return menu == null ? shown : mapPoint(shown, menu.from, menu.to);
+}
+
 /// The stretch of the open menu under a finger: four channels, the scale of
 /// its width and height and the drifts of its center across and of its
 /// edge facing the button, that chase the targets of the finger

@@ -709,9 +709,10 @@ class MenuMotion extends Motion with Presented {
   /// The flex of card [index] under a finger: the shift of its center and
   /// the growth of its width and height. Its content rides it 1:1.
   ({Offset shift, double width, double height}) cardFlex(int index) {
-    if (index == 0 || index > _cards.length) return _noFlex;
+    if (index == 0 || index > _cards.length) return noMenuFlex;
     final card = _cards[index - 1];
-    return _flexIn(card.flex, _cardFrame(card), _now);
+    final frame = _cardFrame(card);
+    return menuFlexOf(card.flex.valuesAt(_now), frame, _side);
   }
 
   final List<MenuEvent> _events = [];
@@ -796,16 +797,7 @@ class MenuMotion extends Motion with Presented {
     final rect = _contentRectUnflexed;
     final stretch = _stretch;
     if (stretch == null) return rect;
-    final from = stretch.from;
-    final to = stretch.to;
-    final sx = to.width / from.width;
-    final sy = to.height / from.height;
-    return Rect.fromLTWH(
-      to.left + (rect.left - from.left) * sx,
-      to.top + (rect.top - from.top) * sy,
-      rect.width * sx,
-      rect.height * sy,
-    );
+    return stretchRect(rect, stretch);
   }
 
   Rect get _contentRectUnflexed {
@@ -1019,7 +1011,7 @@ class MenuMotion extends Motion with Presented {
     final localHeight = w + (h - w) * p;
     final from = _source.origin;
     final to = frame.center;
-    final flex = flexed ? _flexAt(_now) : _noFlex;
+    final flex = flexed ? _flexAt(_now) : noMenuFlex;
     final center = Offset(
       from.dx + (to.dx - from.dx) * p + flex.shift.dx,
       from.dy + (to.dy - from.dy) * p + _side * menuKick + flex.shift.dy,
@@ -1046,8 +1038,8 @@ class MenuMotion extends Motion with Presented {
   }) {
     final p = progress;
     final from = _blob;
-    final flex = flexed ? _flexAt(_now) : _noFlex;
-    final to = _flexedRect(frame, flex);
+    final flex = flexed ? _flexAt(_now) : noMenuFlex;
+    final to = flexedRect(frame, flex);
     final rect = Rect.lerp(from, to, p)!;
     final width = from.width + (frame.width - from.width) * p;
     final height = from.height + (frame.height - from.height) * p;
@@ -1067,16 +1059,10 @@ class MenuMotion extends Motion with Presented {
     );
   }
 
-  static const ({Offset shift, double width, double height}) _noFlex = (
-    shift: Offset.zero,
-    width: 0,
-    height: 0,
-  );
-
   /// The menu shape without the flex (`from`) and with it (`to`), or null
   /// while nothing flexes it. The content and the hit testing follow the
   /// one affine map that takes `from` onto `to`.
-  ({Rect from, Rect to})? get _stretch {
+  MenuStretch? get _stretch {
     final flex = _flexAt(_now);
     if (flex.shift == Offset.zero && flex.width == 0 && flex.height == 0) {
       return null;
@@ -1097,50 +1083,20 @@ class MenuMotion extends Motion with Presented {
   /// The flex keeps the shape a rectangle, so the map is exact for its
   /// frame; the corners keep their radius while the content in them
   /// stretches by at most a few percent (NEAR).
-  Offset get contentStretch {
-    final stretch = _stretch;
-    if (stretch == null) return const Offset(1, 1);
-    return Offset(
-      stretch.to.width / stretch.from.width,
-      stretch.to.height / stretch.from.height,
-    );
-  }
+  Offset get contentStretch => stretchScale(_stretch);
 
   /// [position] mapped back through the flex: where the unflexed menu has
   /// what the flexed one shows at [position].
-  Offset _unflexed(Offset position) {
-    final stretch = _stretch;
-    final inMenu = stretch == null
-        ? position
-        : _mapped(position, stretch.to, stretch.from);
-    final card = _cardStretch;
-    return card == null ? inMenu : _mapped(inMenu, card.to, card.from);
-  }
-
-  static Rect _flexedRect(
-    Rect frame,
-    ({Offset shift, double width, double height}) flex,
-  ) => Rect.fromCenter(
-    center: frame.center + flex.shift,
-    width: frame.width + flex.width,
-    height: frame.height + flex.height,
-  );
+  Offset _unflexed(Offset position) =>
+      unflexPoint(position, _stretch, _cardStretch);
 
   /// The top submenu card without the flex (`from`) and with it (`to`), or
   /// null while no card is on top or nothing flexes it.
-  ({Rect from, Rect to})? get _cardStretch {
+  MenuStretch? get _cardStretch {
     final top = _topCard;
     if (top == 0) return null;
-    final flex = cardFlex(top);
-    if (identical(flex, _noFlex)) return null;
-    final from = _cardFrame(_cards[top - 1]);
-    return (from: from, to: _flexedRect(from, flex));
+    return flexStretch(_cardFrame(_cards[top - 1]), cardFlex(top));
   }
-
-  static Offset _mapped(Offset position, Rect from, Rect to) => Offset(
-    to.left + (position.dx - from.left) * to.width / from.width,
-    to.top + (position.dy - from.top) * to.height / from.height,
-  );
 
   /// What the flex's pulse channel ([MenuTuning.flexPulseSpring])
   /// last published: its value and its velocity per second of its own
@@ -1152,7 +1108,7 @@ class MenuMotion extends Motion with Presented {
   /// the button: the frame UIKit's `_UIContextMenuListView` takes.
   @visibleForTesting
   Rect get flexedMenuRect {
-    return _flexedRect(menuRect, _flexAt(_now));
+    return flexedRect(menuRect, _flexAt(_now));
   }
 
   /// The flex of the open menu under a finger at time [t]: the shift of
@@ -1161,25 +1117,8 @@ class MenuMotion extends Motion with Presented {
   /// The menu takes the scales and drifts of [MenuFlex.valuesAt]: its width
   /// and height scale about the center across and about the edge facing
   /// the button along the vertical, which the vertical drift moves.
-  ({Offset shift, double width, double height}) _flexAt(double t) =>
-      _flexIn(_flex, menuRect, t);
-
-  ({Offset shift, double width, double height}) _flexIn(
-    MenuFlex list,
-    Rect frame,
-    double t,
-  ) {
-    final d = list.valuesAt(t);
-    if (d.scaleX == 1 && d.scaleY == 1 && d.driftX == 0 && d.driftY == 0) {
-      return _noFlex;
-    }
-    final grow = frame.height * (d.scaleY - 1);
-    return (
-      shift: Offset(d.driftX, d.driftY + _side * grow / 2),
-      width: frame.width * (d.scaleX - 1),
-      height: grow,
-    );
-  }
+  MenuFlexShape _flexAt(double t) =>
+      menuFlexOf(_flex.valuesAt(t), menuRect, _side);
 
   /// The root list's glass shape, scaled about its top center by
   /// [MenuTuning.parentScale] per open card, independently of the vessel
@@ -1296,14 +1235,8 @@ class MenuMotion extends Motion with Presented {
 
   /// [position] in the unflexed menu mapped through the flex: where the
   /// flexed menu shows it; the inverse of [_unflexed].
-  Offset _flexed(Offset position) {
-    final card = _cardStretch;
-    final shown = card == null
-        ? position
-        : _mapped(position, card.from, card.to);
-    final stretch = _stretch;
-    return stretch == null ? shown : _mapped(shown, stretch.from, stretch.to);
-  }
+  Offset _flexed(Offset position) =>
+      flexPoint(position, _stretch, _cardStretch);
 
   MenuFlex get _topFlex {
     final top = _topCard;
