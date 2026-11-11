@@ -75,7 +75,7 @@ final class _Bar {
 
   final GlassBarHost host;
   final GlassBarKind kind;
-  late final GlassBarMotion motion = GlassBarMotion(spec: navigationSpec);
+  late final GlassBarMotion motion = GlassBarMotion(spec: pushSpec);
 
   // Only the navigation bar fades for a stacked search.
   ValueListenable<double>? get fade =>
@@ -323,9 +323,9 @@ final class _Bar {
       _navigation ? navigationSideInset : GlassToolbar.sideInset;
 
   /// The tuning of a change on a push or a pop: a navigation bar's own
-  /// timing; for a toolbar, its item replacement timing (an approximation:
-  /// a toolbar's push is filmed on the simulator only).
-  GlassBarTransitionSpec get navigationSpec => _navigation
+  /// timing; for a toolbar, the standard timing of an item replacement (an
+  /// approximation: a toolbar's push is filmed on the simulator only).
+  GlassBarTransitionSpec get pushSpec => _navigation
       ? GlassBarTransitionSpec.navigation
       : GlassBarTransitionSpec.standard;
 

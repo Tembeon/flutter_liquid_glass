@@ -310,7 +310,7 @@ final class GlassBarHost {
         _Change(
           link,
           time,
-          animated ? bar.navigationSpec : null,
+          animated ? bar.pushSpec : null,
           fromEmpty: empty,
         ),
       );
@@ -353,7 +353,7 @@ final class GlassBarHost {
     _show(below);
     _unswipe();
     for (final bar in _bars.values) {
-      bar.enqueue(_Change(below, time, bar.navigationSpec));
+      bar.enqueue(_Change(below, time, bar.pushSpec));
     }
   }
 
