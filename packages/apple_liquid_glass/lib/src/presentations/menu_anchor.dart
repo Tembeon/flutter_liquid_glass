@@ -18,7 +18,6 @@ import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
 import 'package:apple_liquid_glass/src/surfaces/surface.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
@@ -214,13 +213,6 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     final motion = _motion;
     if (motion == null || !(motion.isPresented || motion.isArming)) return;
     final animated = animate && motion.isPresented;
-    // The menu's chains hear a command given while the frame builds or
-    // lays out in its resolve phase, too late to lay out again.
-    if (SchedulerBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      motion.updateLayoutNextStep(animate: animated);
-      return;
-    }
     _command((motion, t) => motion.updateLayout(t, animate: animated));
   }
 
