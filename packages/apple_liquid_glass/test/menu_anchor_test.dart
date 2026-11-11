@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'paint_probe.dart';
+
 Widget _app(Widget anchor) => WidgetsApp(
   color: const Color(0xFF000000),
   pageRouteBuilder: <T>(settings, builder) =>
@@ -31,19 +33,6 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
-// Counts its paints.
-class _PaintProbe extends CustomPainter {
-  _PaintProbe(this.onPaint);
-
-  final VoidCallback onPaint;
-
-  @override
-  void paint(Canvas canvas, Size size) => onPaint();
-
-  @override
-  bool shouldRepaint(_PaintProbe oldDelegate) => true;
-}
-
 void main() {
   setUp(MotionClock.debugReset);
 
@@ -61,7 +50,7 @@ void main() {
         child: Builder(
           builder: (context) => CustomPaint(
             key: const Key('probe'),
-            painter: _PaintProbe(() {
+            painter: PaintProbe(() {
               if (!button ||
                   context.findAncestorWidgetOfExactType<GlassButton>() !=
                       null) {
@@ -84,12 +73,7 @@ void main() {
       );
       Future<bool> painted() async {
         paints = 0;
-        for (final probe in tester.renderObjectList(
-          find.byKey(const Key('probe')),
-        )) {
-          probe.markNeedsPaint();
-        }
-        await tester.pump();
+        await repaint(tester, find.byKey(const Key('probe')));
         return paints > 0;
       }
 
