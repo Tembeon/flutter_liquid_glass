@@ -1311,6 +1311,9 @@ class _RenderDetentSemantics extends RenderProxyBox {
   void describeSemanticsConfiguration(SemanticsConfiguration config) {
     super.describeSemanticsConfiguration(config);
     config.isSemanticBoundary = true;
+    // The grabber's region below is a node of its own: this one takes its
+    // label and actions over the larger target.
+    config.isMergingSemanticsOfDescendants = true;
     _describe(config);
   }
 }

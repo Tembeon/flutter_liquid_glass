@@ -625,6 +625,7 @@ class _InputRegionState extends State<InputRegion> {
         label: widget.semanticLabel,
         textDirection: Directionality.maybeOf(context),
         enabled: enabled,
+        acts: _activates || _adjusts,
         tappable: enabled && _activates,
         adjustable: enabled && _adjusts,
       ),
@@ -885,6 +886,7 @@ typedef _Described = ({
   String? label,
   TextDirection? textDirection,
   bool enabled,
+  bool acts,
   bool tappable,
   bool adjustable,
 });
@@ -988,6 +990,9 @@ class _RenderRegion extends RenderProxyBox {
       config.textDirection = described.textDirection;
     }
     config.isEnabled = described.enabled;
+    // A region that acts is one node of its own, as a button is, disabled
+    // too: without this its label and actions merge into what is around it.
+    config.isSemanticBoundary = described.acts;
     // From the region's widget, not its node: the Focus below sets the
     // node only after this box was described for the frame.
     final focus = state._focus;
