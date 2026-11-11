@@ -727,10 +727,9 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       ),
     );
     if (_segmented) return zones;
-    return Semantics(
-      container: true,
-      explicitChildNodes: true,
-      role: SemanticsRole.tabBar,
+    return _TabBarNode(
+      frames: _zoneFrames,
+      hasTabs: () => _keys.any((key) => _zoneFrame(key)?.live ?? false),
       child: zones,
     );
   }
@@ -783,6 +782,68 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       );
     }
     return MotionScope(motion: _motion, child: child);
+  }
+}
+
+/// The tab bar's semantics node, holding its tabs: without a tab that
+/// shows (a bar given no room), it is no tab bar.
+class _TabBarNode extends SingleChildRenderObjectWidget {
+  const _TabBarNode({
+    required this.frames,
+    required this.hasTabs,
+    required super.child,
+  });
+
+  final Listenable frames;
+  final bool Function() hasTabs;
+
+  @override
+  _RenderTabBarNode createRenderObject(BuildContext context) =>
+      _RenderTabBarNode(frames, hasTabs);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderTabBarNode renderObject,
+  ) {
+    renderObject.frames = frames;
+    renderObject.hasTabs = hasTabs;
+  }
+}
+
+class _RenderTabBarNode extends RenderProxyBox {
+  _RenderTabBarNode(this._frames, this.hasTabs);
+
+  bool Function() hasTabs;
+
+  Listenable _frames;
+  Listenable get frames => _frames;
+  set frames(Listenable value) {
+    if (identical(value, _frames)) return;
+    if (attached) _frames.removeListener(markNeedsSemanticsUpdate);
+    _frames = value;
+    if (attached) _frames.addListener(markNeedsSemanticsUpdate);
+    markNeedsSemanticsUpdate();
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _frames.addListener(markNeedsSemanticsUpdate);
+  }
+
+  @override
+  void detach() {
+    _frames.removeListener(markNeedsSemanticsUpdate);
+    super.detach();
+  }
+
+  @override
+  void describeSemanticsConfiguration(SemanticsConfiguration config) {
+    super.describeSemanticsConfiguration(config);
+    config.isSemanticBoundary = true;
+    config.explicitChildNodes = true;
+    if (hasTabs()) config.role = SemanticsRole.tabBar;
   }
 }
 
@@ -1779,8 +1840,10 @@ class _RenderSelectorRow extends RenderBox
         final ghost = _motion.items.laidOut(_ghosts[i - _keys.length]);
         slot = Offset.zero & (ghost?.size ?? Size.zero);
       }
+      // A bar given no room lays its tabs out narrower than nothing.
+      final room = Size(math.max(0, slot.width), math.max(0, slot.height));
       for (final child in [regular, under, over]) {
-        child.layout(BoxConstraints.tight(slot.size));
+        child.layout(BoxConstraints.tight(room));
         (child.parentData! as _RowParentData).offset = slot.topLeft;
       }
       i++;

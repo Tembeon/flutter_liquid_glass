@@ -26,7 +26,7 @@
 2:through-library         lib/src/navigation/chrome.dart              2
 2:through-library         lib/src/navigation/navigation_bar.dart      9
 2:through-library         lib/src/navigation/page_route.dart          3
-2:through-library         lib/src/navigation/tab_bar.dart             18
+2:through-library         lib/src/navigation/tab_bar.dart             17
 2:through-library         lib/src/navigation/tab_scaffold.dart        1
 2:through-library         lib/src/navigation/toolbar.dart             6
 2:through-library         lib/src/presentations/alert.dart            13
@@ -51,7 +51,6 @@
 3:not-allowed             lib/src/raw/search_field.dart               2
 4:forbidden               lib/src/controls/date_picker.dart           1
 5:AnimationController     lib/src/presentations/menu_rows.dart        2
-5:CallbackShortcuts       lib/src/navigation/tab_bar.dart             1
 5:CallbackShortcuts       lib/src/presentations/alert.dart            1
 5:GestureDetector         lib/src/controls/date_picker.dart           2
 5:GestureDetector         lib/src/controls/search_field.dart          1
@@ -69,7 +68,6 @@
 5:MotionClock.instance    lib/src/navigation/chrome.dart              1
 5:MotionClock.instance    lib/src/navigation/navigation_bar.dart      3
 5:MotionClock.instance    lib/src/navigation/page_route.dart          7
-5:MotionClock.instance    lib/src/navigation/tab_bar.dart             2
 5:MotionClock.instance    lib/src/navigation/toolbar.dart             1
 5:MotionClock.instance    lib/src/presentations/alert.dart            1
 5:MotionClock.instance    lib/src/presentations/menu_anchor.dart      3
@@ -91,7 +89,6 @@
 5:addPostFrameCallback    lib/src/navigation/bar.dart                 3
 5:addPostFrameCallback    lib/src/navigation/chrome.dart              1
 5:addPostFrameCallback    lib/src/navigation/page_route.dart          2
-5:addPostFrameCallback    lib/src/navigation/tab_bar.dart             1
 5:addPostFrameCallback    lib/src/presentations/popover.dart          1
 5:dynamic                 lib/src/foundation/colors.dart              2
 5:engine-layer            lib/src/presentations/menu_anchor.dart      2
@@ -106,9 +103,7 @@
 5:reducedMotion           lib/src/motions/glass_press.dart            2
 5:reducedMotion           lib/src/motions/lens_motion.dart            1
 5:reducedMotion           lib/src/motions/popover_motion.dart         2
-5:reducedMotion           lib/src/motions/tab_minimize.dart           3
 5:reducedMotion           lib/src/navigation/bar.dart                 3
-5:reducedMotion           lib/src/navigation/tab_bar.dart             1
 5:reducedMotion           lib/src/presentations/alert.dart            3
 5:reducedMotion           lib/src/presentations/popover.dart          1
 5:reducedMotion           lib/src/raw/button.dart                     1

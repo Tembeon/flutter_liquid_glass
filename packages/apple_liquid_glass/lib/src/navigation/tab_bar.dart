@@ -9,7 +9,6 @@ import 'package:apple_liquid_glass/src/foundation/frame.dart';
 import 'package:apple_liquid_glass/src/foundation/glass.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
 import 'package:apple_liquid_glass/src/foundation/theme.dart';
-import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/search_motion.dart';
 import 'package:apple_liquid_glass/src/motions/tab_bar_layout.dart';
@@ -22,8 +21,6 @@ import 'package:apple_liquid_glass/src/surfaces/lens_shrink.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
@@ -827,7 +824,7 @@ class _MinimizingBarState extends State<_MinimizingBar> {
     TabBarMinimizeMotion(behavior: widget.behavior),
   );
 
-  double get _now => MotionClock.instance.now;
+  double get _now => _body.motion.clock.now;
   ValueNotifier<MotionScroll?>? _active;
   MotionScroll? _scroll;
   MotionSelection<Object?>? _scrolling;
@@ -836,7 +833,6 @@ class _MinimizingBarState extends State<_MinimizingBar> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _body.motion.reducedMotion = GlassTraits.of(context).reduceMotion;
     final active = GlassChrome.maybeOf(context)?.active;
     if (identical(active, _active)) return;
     _active?.removeListener(_follow);
@@ -1242,6 +1238,11 @@ final class _SearchTabMotion extends Motion {
   /// Whether the search is open or heading there.
   bool get isOpen => _open;
 
+  /// Runs [action] in the first frame after time [t], on the motion's
+  /// timeline.
+  void afterFrame(double t, VoidCallback action) =>
+      at(t + 1e-6, (_) => action(), slot: #afterFrame);
+
   /// The morph: 0 a tab bar, 1 a search field.
   double get morph => _morph.valueAt(now);
 
@@ -1342,7 +1343,7 @@ class _SearchTabBarState extends State<_SearchTabBar> {
   double? _frozenKeyboard;
   double _keyboard = 0;
 
-  double get _now => MotionClock.instance.now;
+  double get _now => _motion.clock.now;
 
   @override
   void initState() {
@@ -1390,7 +1391,7 @@ class _SearchTabBarState extends State<_SearchTabBar> {
       _focus.unfocus();
       // The query clears after the frame that closed the search, as the
       // field turns back.
-      SchedulerBinding.instance.addPostFrameCallback((_) {
+      _motion.afterFrame(_now, () {
         if (mounted && !_motion.isOpen) widget.controller.clear();
       });
     }
@@ -1425,8 +1426,10 @@ class _SearchTabBarState extends State<_SearchTabBar> {
     final glyph = GlassDynamicColor.resolve(label, context);
     return MotionScope(
       motion: _motion,
-      child: CallbackShortcuts(
-        bindings: {const SingleActivator(LogicalKeyboardKey.escape): _end},
+      child: Actions(
+        actions: {
+          DismissIntent: CallbackAction<DismissIntent>(onInvoke: (_) => _end()),
+        },
         child: ValueListenableBuilder<_SearchState>(
           valueListenable: _state,
           builder: (context, state, _) => CustomMultiChildLayout(

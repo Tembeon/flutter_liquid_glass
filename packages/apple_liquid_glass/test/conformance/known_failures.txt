@@ -108,7 +108,6 @@ GlassTabBar mouse-cursor: the cursor over it is SystemMouseCursor(basic), expect
 GlassTabBar mouse-hover: hover draws nothing
 GlassTabBar no-leaks: leaks SemanticsOwner, _ResolveOwner
 GlassTabBar tab-stops: Tab stops at 3 parts, expected 1
-GlassTabBar zero-size: BoxConstraints has a negative minimum width.
 GlassTabBar.search contrast-light: "Home": expected contrast ratio of at least 4.5 but found 2.27 for a font size of 10.0
 GlassTabBar.search focus-indicator: keyboard focus draws nothing
 GlassTabBar.search key-arrows: Arrow Right does not step it forward

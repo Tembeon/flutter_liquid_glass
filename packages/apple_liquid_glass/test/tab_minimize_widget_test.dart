@@ -19,6 +19,7 @@ Widget _app({
   Widget? accessory,
   ValueChanged<int>? onSelected,
   TextDirection direction = TextDirection.ltr,
+  bool reduceMotion = false,
 }) => MediaQuery(
   data: const MediaQueryData(
     size: Size(402, 874),
@@ -29,35 +30,38 @@ Widget _app({
     textDirection: direction,
     child: GlassScope(
       renderer: const FlatGlassRenderer(),
-      child: GlassTabScaffold(
-        tabBar: GlassTabBar(
-          minimizeBehavior: behavior,
-          bottomAccessory: accessory,
-          destinations: const [
-            GlassTabDestination(
-              icon: SizedBox.square(key: Key('glyph 0'), dimension: 24),
-              label: Text('One'),
-            ),
-            GlassTabDestination(
-              icon: SizedBox.square(dimension: 24),
-              label: Text('Two'),
-            ),
-            GlassTabDestination(
-              icon: SizedBox.square(dimension: 24),
-              label: Text('Three'),
-            ),
-          ],
-          selectedIndex: 0,
-          onDestinationSelected: onSelected ?? (_) {},
-        ),
-        tabBuilder: (context, i) => GlassPageScaffold(
-          child: GlassContentScroll(
-            child: ListView(
-              controller: controller,
-              children: [
-                for (var r = 0; r < rows; r++)
-                  SizedBox(key: ValueKey(r), height: 50),
-              ],
+      child: MotionTraitsOverride(
+        traits: MotionTraits(reduceMotion: reduceMotion),
+        child: GlassTabScaffold(
+          tabBar: GlassTabBar(
+            minimizeBehavior: behavior,
+            bottomAccessory: accessory,
+            destinations: const [
+              GlassTabDestination(
+                icon: SizedBox.square(key: Key('glyph 0'), dimension: 24),
+                label: Text('One'),
+              ),
+              GlassTabDestination(
+                icon: SizedBox.square(dimension: 24),
+                label: Text('Two'),
+              ),
+              GlassTabDestination(
+                icon: SizedBox.square(dimension: 24),
+                label: Text('Three'),
+              ),
+            ],
+            selectedIndex: 0,
+            onDestinationSelected: onSelected ?? (_) {},
+          ),
+          tabBuilder: (context, i) => GlassPageScaffold(
+            child: GlassContentScroll(
+              child: ListView(
+                controller: controller,
+                children: [
+                  for (var r = 0; r < rows; r++)
+                    SizedBox(key: ValueKey(r), height: 50),
+                ],
+              ),
             ),
           ),
         ),
@@ -223,12 +227,17 @@ void main() {
   });
 
   group('a finger on the circle', () {
-    Future<Rect> minimized(WidgetTester tester, {List<int>? selected}) async {
+    Future<Rect> minimized(
+      WidgetTester tester, {
+      List<int>? selected,
+      bool reduceMotion = false,
+    }) async {
       await _phone(tester);
       await tester.pumpWidget(
         _app(
           behavior: GlassTabBarMinimizeBehavior.onScrollDown,
           onSelected: selected?.add,
+          reduceMotion: reduceMotion,
         ),
       );
       await tester.pump();
@@ -249,6 +258,17 @@ void main() {
       await _settle(tester);
       expect(_expanded(tester), isTrue);
       expect(selected, isEmpty);
+    });
+
+    testWidgets('under Reduce Motion lifts nothing and still expands the '
+        'bar', (tester) async {
+      final circle = await minimized(tester, reduceMotion: true);
+      final gesture = await tester.startGesture(circle.center);
+      await _settle(tester);
+      expect(_body(tester).width, closeTo(circle.width, 0.5));
+      await gesture.up();
+      await _settle(tester);
+      expect(_expanded(tester), isTrue);
     });
 
     testWidgets('a quick tap expands the bar and selects nothing', (

@@ -423,8 +423,9 @@ final class TabBarMinimizeMotion extends Motion {
     if (!value.minimizes) _setMinimized(t, minimized: false);
   }
 
-  /// Whether the morph runs on its Reduce Motion spring.
-  bool reducedMotion = false;
+  // Under Reduce Motion (the motion's traits) the morph runs on its own
+  // spring and a finger lifts nothing.
+  bool get _reduced => traits.reduceMotion;
 
   /// Whether the bar is minimized or heading there.
   bool get minimized => _minimized;
@@ -470,7 +471,7 @@ final class TabBarMinimizeMotion extends Motion {
     _morph.retarget(
       t,
       target,
-      spring: reducedMotion
+      spring: _reduced
           ? TabBarMinimizeTuning.reducedMotionMorphSpring
           : TabBarMinimizeTuning.morphSpring,
     );
@@ -509,7 +510,7 @@ final class TabBarMinimizeMotion extends Motion {
     advance(t);
     if (!_minimized) return;
     _pressX = x;
-    if (reducedMotion) return;
+    if (_reduced) return;
     at(
       t + TabBarMinimizeTuning.pressLag,
       (s) => _press.retarget(s, 1, spring: TabBarMinimizeTuning.pressSpring),

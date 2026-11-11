@@ -208,16 +208,6 @@ void main() {
       expect(motion.seenAt(6).press, 0);
     });
 
-    test('Reduce Motion lifts nothing and still expands', () {
-      final motion = minimized();
-      motion.reducedMotion = true;
-      motion.pressDown(3, 50);
-      motion.advance(3.2);
-      expect(motion.seenAt(3.2).press, 0);
-      motion.pressUp(3.2);
-      expect(motion.minimized, isFalse);
-    });
-
     test('a press on an expanded bar does nothing', () {
       final motion = TabBarMinimizeMotion();
       motion.pressDown(0, 50);
