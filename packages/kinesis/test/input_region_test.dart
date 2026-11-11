@@ -8,6 +8,11 @@ import 'package:kinesis/kinesis.dart';
 Widget _app(Widget child) =>
     Directionality(textDirection: TextDirection.ltr, child: child);
 
+Widget _widgetsApp(Widget child) => WidgetsApp(
+  color: const Color(0xFF000000),
+  builder: (context, _) => Center(child: child),
+);
+
 Widget _list(Widget item) => _app(
   ListView(
     children: [
@@ -216,29 +221,97 @@ void main() {
     expect(states.value, contains(WidgetState.disabled));
   });
 
-  testWidgets('Space activates a focused press', (tester) async {
-    var presses = 0;
-    final focus = FocusNode();
-    addTearDown(focus.dispose);
-    await tester.pumpWidget(
-      _app(
-        Center(
-          child: Focus(
-            focusNode: focus,
+  group('activation by intent', () {
+    Future<void> focusRegion(WidgetTester tester) async {
+      Focus.of(tester.element(find.byType(SizedBox))).requestFocus();
+      await tester.pump();
+    }
+
+    testWidgets('Space and Enter activate a focused press with no haptic', (
+      tester,
+    ) async {
+      var presses = 0;
+      await tester.pumpWidget(
+        _widgetsApp(
+          _Pressable(
+            onPressed: () => presses++,
+            haptic: MotionHaptic.lightImpact,
+            child: const SizedBox(width: 80, height: 40),
+          ),
+        ),
+      );
+      await focusRegion(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      expect(presses, 2);
+      expect(haptics, isEmpty);
+    });
+
+    testWidgets('an app remaps the keys with Shortcuts', (tester) async {
+      var presses = 0;
+      await tester.pumpWidget(
+        _widgetsApp(
+          Shortcuts(
+            shortcuts: const {
+              SingleActivator(LogicalKeyboardKey.space):
+                  DoNothingAndStopPropagationIntent(),
+              SingleActivator(LogicalKeyboardKey.keyX): ActivateIntent(),
+            },
             child: _Pressable(
               onPressed: () => presses++,
               child: const SizedBox(width: 80, height: 40),
             ),
           ),
         ),
-      ),
-    );
-    final inner = Focus.of(tester.element(find.byType(SizedBox)));
-    inner.requestFocus();
-    await tester.pump();
-    await tester.sendKeyEvent(LogicalKeyboardKey.space);
-    expect(presses, 1);
-    expect(haptics, isEmpty);
+      );
+      await focusRegion(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      expect(presses, 0);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyX);
+      expect(presses, 1);
+    });
+
+    testWidgets('an app overrides activation with Actions', (tester) async {
+      var presses = 0;
+      var overridden = 0;
+      await tester.pumpWidget(
+        _widgetsApp(
+          Actions(
+            actions: {
+              ActivateIntent: CallbackAction<ActivateIntent>(
+                onInvoke: (_) => overridden++,
+              ),
+            },
+            child: _Pressable(
+              onPressed: () => presses++,
+              child: const SizedBox(width: 80, height: 40),
+            ),
+          ),
+        ),
+      );
+      await focusRegion(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      expect((presses, overridden), (0, 1));
+    });
+
+    testWidgets('a region that does not activate leaves the key unhandled', (
+      tester,
+    ) async {
+      final focus = FocusNode();
+      addTearDown(focus.dispose);
+      await tester.pumpWidget(
+        _widgetsApp(
+          InputRegion(
+            interactions: [DragInteraction()],
+            focusNode: focus,
+            child: const SizedBox(width: 80, height: 40),
+          ),
+        ),
+      );
+      focus.requestFocus();
+      await tester.pump();
+      expect(await tester.sendKeyEvent(LogicalKeyboardKey.space), isFalse);
+    });
   });
 
   testWidgets('an interaction of its own reports pressed and dragged', (

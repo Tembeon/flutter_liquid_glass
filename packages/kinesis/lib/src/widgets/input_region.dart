@@ -24,7 +24,12 @@ import 'package:kinesis/src/input/port.dart';
 /// takes nothing never blocks a scroll, and it holds or gives up a touch as
 /// its [InteractionSession] decides, including the scroll delay of a
 /// control inside a scroll view. When an interaction [Interaction.activates]
-/// (a press, a tap), Space, Enter and the accessibility tap activate it.
+/// (a press, a tap), the accessibility tap and the `ActivateIntent` and
+/// `ButtonActivateIntent` of the app's shortcuts activate it: Space and
+/// Enter under a `WidgetsApp`, as for Flutter's own buttons. An app remaps
+/// the keys with `Shortcuts` and replaces what activation does with an
+/// `Actions` above the region, since the region's actions are
+/// `Action.overridable`.
 /// With a [port] it also hears the touches another region hands on to it
 /// (`InputPort.forward`), mapped into its own coordinates. It writes pressed,
 /// hovered, focused, dragged and disabled into [statesController], and plays
@@ -115,6 +120,7 @@ class _InputRegionState extends State<InputRegion> {
   FocusNode? _ownFocus;
   WidgetStatesController? _ownStates;
   MouseCursor? _builtCursor;
+  Map<Type, Action<Intent>>? _actions;
   double? _scheduled;
   VoidCallback? _cancelDue;
   final Map<int, VelocityTracker> _trackers = {};
@@ -419,21 +425,21 @@ class _InputRegionState extends State<InputRegion> {
     states.update(WidgetState.dragged, dragged);
   }
 
-  KeyEventResult _key(FocusNode node, KeyEvent event) {
-    final key = event.logicalKey;
-    if (!_activates ||
-        (key != LogicalKeyboardKey.space && key != LogicalKeyboardKey.enter)) {
-      return KeyEventResult.ignored;
-    }
-    if (event is KeyDownEvent) _input(ActivateInput(time: _clock.now));
-    return KeyEventResult.handled;
-  }
-
   bool get _activates => widget.interactions.any((i) => i.activates);
 
   @override
   Widget build(BuildContext context) {
     final enabled = widget.enabled;
+    _actions ??= {
+      ActivateIntent: Action<ActivateIntent>.overridable(
+        defaultAction: _Activate<ActivateIntent>(this),
+        context: context,
+      ),
+      ButtonActivateIntent: Action<ButtonActivateIntent>.overridable(
+        defaultAction: _Activate<ButtonActivateIntent>(this),
+        context: context,
+      ),
+    };
     return _Region(
       state: this,
       described: (
@@ -443,19 +449,21 @@ class _InputRegionState extends State<InputRegion> {
         enabled: enabled,
         tappable: enabled && _activates,
       ),
-      child: Focus(
-        focusNode: _focus,
-        autofocus: widget.autofocus,
-        canRequestFocus: enabled,
-        onKeyEvent: _key,
-        onFocusChange: (focused) =>
-            _states.update(WidgetState.focused, focused),
-        child: MouseRegion(
-          cursor: _builtCursor = _cursor,
-          onEnter: (event) => _hover(event, inside: true),
-          onHover: (event) => _hover(event, inside: true),
-          onExit: (event) => _hover(event, inside: false),
-          child: widget.child,
+      child: Actions(
+        actions: _actions!,
+        child: Focus(
+          focusNode: _focus,
+          autofocus: widget.autofocus,
+          canRequestFocus: enabled,
+          onFocusChange: (focused) =>
+              _states.update(WidgetState.focused, focused),
+          child: MouseRegion(
+            cursor: _builtCursor = _cursor,
+            onEnter: (event) => _hover(event, inside: true),
+            onHover: (event) => _hover(event, inside: true),
+            onExit: (event) => _hover(event, inside: false),
+            child: widget.child,
+          ),
         ),
       ),
     );
@@ -474,6 +482,23 @@ class _InputRegionState extends State<InputRegion> {
         inside: inside,
       ),
     );
+  }
+}
+
+/// Activates the region for an intent the app's shortcuts send, as long as
+/// the region is enabled and an interaction activates.
+class _Activate<T extends Intent> extends Action<T> {
+  _Activate(this.state);
+
+  final _InputRegionState state;
+
+  @override
+  bool isEnabled(T intent) => state.widget.enabled && state._activates;
+
+  @override
+  Object? invoke(T intent) {
+    state._input(ActivateInput(time: state._clock.now));
+    return null;
   }
 }
 
