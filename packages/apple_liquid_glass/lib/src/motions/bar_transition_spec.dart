@@ -15,6 +15,7 @@ import 'package:meta/meta.dart';
 @immutable
 class GlassBarTransitionSpec {
   /// Creates a spec from explicit values.
+  @internal
   const GlassBarTransitionSpec({
     this.frameSpring = const Spring.response(0.416, dampingRatio: 0.75),
     this.frameDelay = 0.05,
@@ -40,6 +41,7 @@ class GlassBarTransitionSpec {
 
   /// The spring a capsule's frame moves on: `transition.springDuration`
   /// 0.416 s, bounce 0.25.
+  @internal
   final Spring frameSpring;
 
   /// The time from the change to the start of the frame motion, in
@@ -56,6 +58,7 @@ class GlassBarTransitionSpec {
 
   /// The spring items appear, leave and travel on (fitted 0.40 / 0.80 on
   /// the recordings, the transition spring within that spread).
+  @internal
   final Spring contentSpring;
 
   /// The time from the change to the start of the item motion, in
@@ -77,6 +80,7 @@ class GlassBarTransitionSpec {
 
   /// The spring a changed capsule swells on: `scalePulse.scaleUp` 0.292 s,
   /// bounce 0.5.
+  @internal
   final Spring pulseUpSpring;
 
   /// The largest relative swell: `scalePulse.maxScaleWidth/Height`.
@@ -90,6 +94,7 @@ class GlassBarTransitionSpec {
   final double pulseHeightDownDelay;
 
   /// The spring the height returns on: 0.416 s, bounce 0.416.
+  @internal
   final Spring pulseHeightDownSpring;
 
   /// The time from the start of the swell to the return of the width:
@@ -97,6 +102,7 @@ class GlassBarTransitionSpec {
   final double pulseWidthDownDelay;
 
   /// The spring the width returns on: 0.416 s, bounce 0.5.
+  @internal
   final Spring pulseWidthDownSpring;
 
   /// The time from the change to the start of a group that appears or

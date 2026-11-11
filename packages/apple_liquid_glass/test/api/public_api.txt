@@ -375,7 +375,7 @@ final class GlassBarSpacer extends GlassBarEntry
   const GlassBarSpacer()
   final bool flexible
 class GlassBarTransitionSpec
-  const GlassBarTransitionSpec({
+  @internal const GlassBarTransitionSpec({
     Spring frameSpring = ...,
     double frameDelay = ...,
     double birthStaggerDelay = ...,
@@ -398,20 +398,20 @@ class GlassBarTransitionSpec
   final double appearScale
   final double birthStaggerDelay
   final double contentDelay
-  final Spring contentSpring
+  @internal final Spring contentSpring
   final double frameDelay
-  final Spring frameSpring
+  @internal final Spring frameSpring
   static const GlassBarTransitionSpec navigation
   final bool oversizedInPlace
   final double pulseDelay
   final double pulseHeightDownDelay
-  final Spring pulseHeightDownSpring
+  @internal final Spring pulseHeightDownSpring
   final double pulseMaxPoints
   final double pulseMaxScale
   double pulseScaleFor(double length)
-  final Spring pulseUpSpring
+  @internal final Spring pulseUpSpring
   final double pulseWidthDownDelay
-  final Spring pulseWidthDownSpring
+  @internal final Spring pulseWidthDownSpring
   final double segmentDelay
   static const GlassBarTransitionSpec standard
 class GlassButton extends StatelessWidget
