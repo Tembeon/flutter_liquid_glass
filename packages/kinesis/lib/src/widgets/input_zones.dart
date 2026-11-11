@@ -533,6 +533,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     widget.frames.addListener(_framesChanged);
     FocusManager.instance.addHighlightModeListener(_highlightModeChanged);
     _attachPort(widget.port);
+    _scheduleResize();
   }
 
   @override
@@ -549,6 +550,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
   @override
   void didUpdateWidget(InputZones<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _scheduleResize();
     if (oldWidget.frames != widget.frames) {
       oldWidget.frames.removeListener(_framesChanged);
       widget.frames.addListener(_framesChanged);
@@ -590,13 +592,19 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
   }
 
   void _framesChanged() {
-    var resized = false;
+    // The frames may change inside a layout (a bar measures its items in
+    // its own), where a control's frames cannot be read: they are compared
+    // at the start of the next frame instead.
+    final laying =
+        SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks;
+    var resized = laying;
     for (final zone in _zones.values) {
       zone._syncNode();
       final anchor = zone._anchor;
       if (anchor == null) continue;
       anchor.markNeedsSemanticsUpdate();
-      resized = resized || (anchor.hasSize && anchor.size != zone.bounds.size);
+      resized = resized || anchor.wanted != zone.bounds.size;
     }
     _box?.markNeedsSemanticsUpdate();
     if (resized) _scheduleResize();
@@ -604,21 +612,21 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
 
   int? _resize;
 
-  // The zones may move in the layout of the frame, or after it, where
-  // nothing can be laid out; the anchors take their new sizes at the start
-  // of the next frame, and the host's transform scales them until then.
+  // An anchor is laid out to the size its zone had when the frame began: a
+  // control reads its frames from its own boxes, which nothing may read
+  // while the frame lays out. The host's transform scales an anchor to its
+  // zone until then.
   void _scheduleResize() {
     _resize ??= SchedulerBinding.instance.scheduleFrameCallback((_) {
       _resize = null;
       if (!mounted) return;
       for (final zone in _zones.values) {
         final anchor = zone._anchor;
-        if (anchor != null &&
-            anchor.attached &&
-            anchor.hasSize &&
-            anchor.size != zone.bounds.size) {
-          anchor.markNeedsLayout();
-        }
+        if (anchor == null || !anchor.attached) continue;
+        final wanted = zone.bounds.size;
+        if (anchor.wanted == wanted) continue;
+        anchor.wanted = wanted;
+        anchor.markNeedsLayout();
       }
     });
   }
@@ -1799,12 +1807,15 @@ class _RenderZoneAnchor<T extends Object> extends RenderBox
 
   _ZoneState<T> zone;
 
-  @override
-  Size computeDryLayout(BoxConstraints constraints) =>
-      constraints.constrain(zone.bounds.size);
+  /// The size to lay out to: its zone's when the frame began.
+  Size wanted = Size.zero;
 
   @override
-  void performLayout() => size = constraints.constrain(zone.bounds.size);
+  Size computeDryLayout(BoxConstraints constraints) =>
+      constraints.constrain(wanted);
+
+  @override
+  void performLayout() => size = constraints.constrain(wanted);
 
   // A zone that appears after its anchor was laid out empty (its first
   // frame comes after the layout that places it) has no size to scale: its

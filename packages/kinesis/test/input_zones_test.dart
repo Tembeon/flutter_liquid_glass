@@ -219,6 +219,8 @@ void main() {
         'layout as it moves', (tester) async {
       final counts = ToyCounts();
       await tester.pumpWidget(_app(toolbar(counts: counts)));
+      // An anchor takes its zone's size at the start of the next frame.
+      await tester.pump();
       final builds = counts.builds;
       final layouts = counts.layouts;
       final before = _at(motion, 'a');
@@ -247,6 +249,8 @@ void main() {
     ) async {
       final handle = tester.ensureSemantics();
       await tester.pumpWidget(_app(toolbar()));
+      // An anchor takes its zone's size at the start of the next frame.
+      await tester.pump();
       final item = find.bySemanticsLabel('Item b');
       Rect hit() => Rect.fromCenter(
         center: motion.rectOf('b').center,
@@ -921,6 +925,8 @@ void main() {
         'its hit rectangle, which follows the motion', (tester) async {
       final handle = tester.ensureSemantics();
       await tester.pumpWidget(_app(toolbar(disabled: {'c'})));
+      // An anchor takes its zone's size at the start of the next frame.
+      await tester.pump();
       expect(
         tester.getSemantics(find.bySemanticsLabel('Item b')),
         matchesSemantics(
