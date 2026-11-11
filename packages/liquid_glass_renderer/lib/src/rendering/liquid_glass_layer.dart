@@ -547,7 +547,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _debugWarnedShapeLimit = true;
     const message =
         'a LiquidGlassLayer has more than '
-        '${LiquidGlassBlendGroup.maxShapesPerCluster} glass shapes that '
+        '$geometryMaxShapesPerDraw glass shapes that '
         'blend, lie within reach of each other, or carry their own '
         'appearances; the extra shapes are not drawn. Split the glass across '
         'several layers.';
