@@ -40,7 +40,6 @@ class _GlowResolve extends SingleChildRenderObjectWidget {
 class _RenderGlowResolve extends RenderProxyBox with MotionResolveHost {
   _RenderGlowResolve(this.request, this.onResolve);
 
-  // The surface keeps one request for its whole life.
   final _GlowRequest request;
   ValueSetter<RenderBox> onResolve;
 
