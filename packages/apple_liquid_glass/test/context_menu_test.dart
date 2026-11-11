@@ -1,5 +1,4 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass/src/surfaces/surface.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -227,10 +226,13 @@ void main() {
 
 // The menu's glass now, or null while no menu shows.
 GlassFrame? _menuGlass(WidgetTester tester) {
-  // ignore: invalid_use_of_internal_member
-  final surfaces = tester.widgetList<LiveGlassSurface>(
-    // ignore: invalid_use_of_internal_member
-    find.byType(LiveGlassSurface),
+  final surfaces = tester.widgetList<GlassSurface>(
+    find.byWidgetPredicate(
+      (widget) =>
+          widget is GlassSurface &&
+          widget.role == GlassRole.panel &&
+          widget.frame != null,
+    ),
   );
-  return surfaces.isEmpty ? null : surfaces.first.frameOf();
+  return surfaces.isEmpty ? null : surfaces.first.frame!.value;
 }

@@ -213,32 +213,3 @@ class _Border extends CustomPainter {
   bool shouldRepaint(_Border oldDelegate) =>
       oldDelegate.frame != frame || oldDelegate.color != color;
 }
-
-/// A menu's [GlassSurface.live] over its whole box, whose frame is
-/// [frameOf], read again on every step [live] publishes and on every
-/// rebuild.
-@internal
-class LiveGlassSurface extends StatelessWidget {
-  /// Creates the surface.
-  const LiveGlassSurface({
-    required this.live,
-    required this.frameOf,
-    super.key,
-  });
-
-  /// Publishes when [frameOf] has a new frame.
-  final MotionSelection<Object?> live;
-
-  /// The surface's frame now.
-  final GlassFrame Function() frameOf;
-
-  @override
-  Widget build(BuildContext context) => GlassSurface.live(
-    role: GlassRole.panel,
-    frame: MotionSelection(() {
-      live.value;
-      return frameOf();
-    }),
-    child: const SizedBox.expand(),
-  );
-}

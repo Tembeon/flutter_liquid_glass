@@ -3,7 +3,6 @@
 # that lists more than the code has. After fixing one, rewrite this file
 # with UPDATE_DEBT=1 (it never grows an entry).
 
-2:through-library       lib/src/presentations/menu_anchor.dart  1
-5:addPostFrameCallback  lib/src/liquid/liquid.dart              1
-5:dynamic               lib/src/foundation/colors.dart          2
-5:engine-layer          lib/src/raw/selector.dart               1
+5:addPostFrameCallback  lib/src/liquid/liquid.dart      1
+5:dynamic               lib/src/foundation/colors.dart  2
+5:engine-layer          lib/src/raw/selector.dart       1

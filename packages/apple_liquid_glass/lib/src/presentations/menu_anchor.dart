@@ -9,7 +9,6 @@ import 'package:apple_liquid_glass/src/presentations/menu_appearance.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_content.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_entries.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_rows.dart';
-import 'package:apple_liquid_glass/src/surfaces/surface.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -1500,7 +1499,7 @@ class _MenuLayerState extends State<_MenuLayer> {
         clipBehavior: Clip.none,
         children: [
           IgnorePointer(
-            child: LiveGlassSurface(
+            child: _LiveGlassSurface(
               live: _frames,
               frameOf: () => GlassFrame(
                 shape: GlassShape.roundedRect(radius()),
@@ -1681,7 +1680,7 @@ class _MenuLayerState extends State<_MenuLayer> {
         children: [
           ..._host._backdrop(this),
           IgnorePointer(
-            child: LiveGlassSurface(
+            child: _LiveGlassSurface(
               live: _frames,
               frameOf: () => _menuFrame(
                 motion,
@@ -2316,4 +2315,24 @@ final class _ObservedTouch extends Interaction {
         ? InteractionUpdate.none
         : InteractionUpdate(events: events);
   }
+}
+
+// A menu's GlassSurface.live over its whole box, whose frame is frameOf,
+// read again on every step live publishes and on every rebuild.
+class _LiveGlassSurface extends StatelessWidget {
+  const _LiveGlassSurface({required this.live, required this.frameOf});
+
+  final MotionSelection<Object?> live;
+
+  final GlassFrame Function() frameOf;
+
+  @override
+  Widget build(BuildContext context) => GlassSurface.live(
+    role: GlassRole.panel,
+    frame: MotionSelection(() {
+      live.value;
+      return frameOf();
+    }),
+    child: const SizedBox.expand(),
+  );
 }
