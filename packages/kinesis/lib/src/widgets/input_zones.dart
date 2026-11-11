@@ -603,9 +603,13 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     for (final zone in _zones.values) {
       zone._syncNode();
       final anchor = zone._anchor;
-      if (anchor == null) continue;
-      anchor.markNeedsSemanticsUpdate();
+      if (anchor == null || !anchor.attached) continue;
       resized = resized || anchor.wanted != zone.bounds.size;
+      // An absent zone is out of the semantics tree; the host's update
+      // drops a zone that leaves, and one that appears is described anew.
+      final present = zone.present;
+      if (present || zone._described) anchor.markNeedsSemanticsUpdate();
+      zone._described = present;
     }
     _box?.markNeedsSemanticsUpdate();
     if (resized) _scheduleResize();
@@ -1182,6 +1186,9 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   Size _size = Size.zero;
   bool _hasFocus = false;
   bool _hovering = false;
+
+  // Whether the zone was present when the frames last changed.
+  bool _described = false;
 
   InputZone<T> get zone => widget.zone;
 
