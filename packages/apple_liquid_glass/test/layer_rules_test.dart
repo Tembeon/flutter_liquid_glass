@@ -122,6 +122,13 @@ const _rules = LayerRules(
       r'\bSpring(?:\.\w+|\()',
       allowedIn: {'lib/src/motions/', 'lib/src/app/'},
     ),
+    // A law lives in motions, where it replays a recording without a
+    // screen; a host tells it what happened and reads its values.
+    Ban(
+      'law-outside-motions',
+      r'\bextends\s+Motion(?:Loop)?\b',
+      allowedIn: {'lib/src/motions/'},
+    ),
     Ban('SingleChildScrollView', r'\bSingleChildScrollView\b'),
   ],
 );
