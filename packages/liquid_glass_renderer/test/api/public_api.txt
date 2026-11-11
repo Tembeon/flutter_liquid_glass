@@ -984,6 +984,8 @@ class GeometryRenderLink
   void markDirty()
   void Function()? onMembershipChanged
   void registerGeometry(RenderLiquidGlassGeometry renderObject)
+  LiquidGlassSettings get settings
+  set settings(LiquidGlassSettings value)
   late final UnmodifiableListView<RenderLiquidGlassGeometry> shapes
   void unregisterGeometry(RenderLiquidGlassGeometry renderObject)
   void updateAllGeometries()
@@ -996,6 +998,8 @@ class GlassGroupLink with ChangeNotifier
     LiquidGlassShapeRenderObject renderObject,
     LiquidShape shape,
   )
+  LiquidGlassSettings get settings
+  set settings(LiquidGlassSettings value)
   List<MapEntry<LiquidGlassShapeRenderObject, LiquidShape>> get shapeEntries
   void unregisterShape(LiquidGlassShapeRenderObject renderObject)
   void updateShape(LiquidGlassShapeRenderObject renderObject, LiquidShape shape)
@@ -1114,6 +1118,8 @@ mixin LiquidGlassShapeRenderObject on RenderBox
   LiquidGlassAppearance get appearance
   List<BoxShadow> get layerShadows
   Size get paintSize
+  LiquidGlassSettings get settings
+  set settings(LiquidGlassSettings value)
 abstract final class LiquidGlassUnderlay
   LiquidGlassUnderlay()
   static void registerLayer<T extends ContainerLayer>(
@@ -1187,7 +1193,6 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry with LiquidGlassShapeR
   RenderLiquidGlass({
     required LiquidShape shape,
     required List<BoxShadow> layerShadows,
-    required LiquidGlassSettings settings,
     required LiquidGlassAppearance appearance,
     required double devicePixelRatio,
     GlassGroupLink? blendGroupLink,
@@ -1206,7 +1211,6 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry
   RenderLiquidGlassBlendGroup({
     required GeometryRenderLink? renderLink,
     required double devicePixelRatio,
-    required LiquidGlassSettings settings,
     required GlassGroupLink link,
     required double blend,
   })
@@ -1214,7 +1218,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry
   set blend(double value)
   GlassGroupLink get link
   set link(GlassGroupLink value)
-  overrides: gatherShapeData, geometryBlend, pollChildShapeTransforms, updatePaintOrder
+  overrides: gatherShapeData, geometryBlend, pollChildShapeTransforms, settings, updatePaintOrder
 class RenderLiquidGlassContent extends RenderOpacity
   RenderLiquidGlassContent({double opacity = ..., RenderBox? child})
   Color get glowColor
@@ -1226,8 +1230,8 @@ class RenderLiquidGlassContent extends RenderOpacity
   overrides: debugFillProperties, paint
 abstract class RenderLiquidGlassGeometry extends RenderProxyBox
   RenderLiquidGlassGeometry({
-    required LiquidGlassSettings settings,
     required double devicePixelRatio,
+    LiquidGlassSettings settings = ...,
     GeometryRenderLink? renderLink,
   })
   void acceptCompositorTranslation()

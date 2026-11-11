@@ -14,12 +14,13 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
   RenderLiquidGlass({
     required this._shape,
     required this._layerShadows,
-    required super.settings,
     required this._appearance,
     required super.devicePixelRatio,
     this._blendGroupLink,
     super.renderLink,
-  });
+  }) : super(
+         settings: _blendGroupLink?.settings ?? const LiquidGlassSettings(),
+       );
 
   LiquidGlassAppearance _appearance;
   @override

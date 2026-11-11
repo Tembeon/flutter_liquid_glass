@@ -1,11 +1,9 @@
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/composer.dart';
-import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:liquid_glass_renderer/src/widgets/inherited_geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_layer.dart';
-import 'package:liquid_glass_renderer/src/widgets/liquid_glass_render_scope.dart';
 import 'package:meta/meta.dart';
 
 /// A widget that groups multiple liquid glass shapes for blending.
@@ -64,8 +62,12 @@ class _LiquidGlassBlendGroupState extends State<LiquidGlassBlendGroup> {
 
   @override
   Widget build(BuildContext context) {
-    final scope = LiquidGlassRenderScope.of(context);
     final renderLink = InheritedGeometryRenderLink.of(context);
+    assert(
+      renderLink != null,
+      'No liquid glass renderer found in context. '
+      'Make sure to wrap your liquid glass widgets in a LiquidGlassLayer.',
+    );
     return _InheritedLiquidGlassBlendGroup(
       link: _geometryLink,
       renderLink: renderLink,
@@ -73,7 +75,6 @@ class _LiquidGlassBlendGroupState extends State<LiquidGlassBlendGroup> {
         blend: widget.blend,
         link: _geometryLink,
         renderLink: renderLink!,
-        settings: scope.settings,
         child: widget.child,
       ),
     );
@@ -113,21 +114,18 @@ class _RawLiquidGlassBlendGroup extends SingleChildRenderObjectWidget {
     required this.blend,
     required this.renderLink,
     required this.link,
-    required this.settings,
     super.child,
   });
 
   final double blend;
   final GeometryRenderLink renderLink;
   final GlassGroupLink link;
-  final LiquidGlassSettings settings;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
     return RenderLiquidGlassBlendGroup(
       renderLink: renderLink,
       devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
-      settings: settings,
       link: link,
       blend: blend,
     );
@@ -141,7 +139,6 @@ class _RawLiquidGlassBlendGroup extends SingleChildRenderObjectWidget {
     renderObject
       ..blend = blend
       ..devicePixelRatio = MediaQuery.devicePixelRatioOf(context)
-      ..settings = settings
       ..link = link;
   }
 }

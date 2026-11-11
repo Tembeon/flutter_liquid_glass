@@ -395,7 +395,6 @@ class _LiquidGlassState extends State<LiquidGlass> {
       renderLink: blendGroupLink == null
           ? InheritedGeometryRenderLink.of(context)
           : null,
-      settings: scope.settings,
       appearance: appearance,
       devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
       shape: widget.shape,
@@ -438,7 +437,6 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
     required this.layerShadows,
     required this.blendGroupLink,
     required this.renderLink,
-    required this.settings,
     required this.appearance,
     required this.devicePixelRatio,
     required this.live,
@@ -455,8 +453,6 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
 
   final GeometryRenderLink? renderLink;
 
-  final LiquidGlassSettings settings;
-
   final LiquidGlassAppearance appearance;
 
   final double devicePixelRatio;
@@ -468,7 +464,6 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
       layerShadows: layerShadows,
       blendGroupLink: blendGroupLink,
       renderLink: renderLink,
-      settings: settings,
       appearance: appearance,
       devicePixelRatio: devicePixelRatio,
     )..live = live;
@@ -482,7 +477,6 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
     renderObject
       ..shape = shape
       ..layerShadows = layerShadows
-      ..settings = settings
       ..appearance = appearance
       ..devicePixelRatio = devicePixelRatio
       ..live = live

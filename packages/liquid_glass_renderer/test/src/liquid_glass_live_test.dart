@@ -236,6 +236,88 @@ void main() {
     expect(fake.settings, dark);
   });
 
+  for (final fake in [true, false]) {
+    final kind = fake ? 'fake' : 'real';
+    testWidgets('a $kind live layer hands settings that arrive during layout '
+        'to every shape in the same frame', (tester) async {
+      final light = LiquidGlassSettings.ios27RegularLight();
+      final dark = LiquidGlassSettings.ios27RegularDark();
+      final layer = ValueNotifier(LiquidGlassLayerFrame(settings: light));
+      addTearDown(layer.dispose);
+      var next = light;
+      late StateSetter setInner;
+      await tester.pumpWidget(
+        _scene(
+          layer: LiquidGlassLayer.live(
+            frame: layer,
+            fake: fake,
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                setInner = setState;
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    layer.value = LiquidGlassLayerFrame(settings: next);
+                    return Stack(
+                      children: [
+                        Positioned.fromRect(
+                          rect: const Rect.fromLTWH(20, 30, 100, 60),
+                          child: LiquidGlass(
+                            shape: _first.shape,
+                            child: const SizedBox.expand(),
+                          ),
+                        ),
+                        Positioned.fromRect(
+                          rect: const Rect.fromLTWH(20, 100, 220, 60),
+                          child: const LiquidGlassBlendGroup(
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: LiquidGlass.grouped(
+                                    shape: LiquidOval(),
+                                    child: SizedBox.expand(),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: LiquidGlass.grouped(
+                                    shape: LiquidOval(),
+                                    child: SizedBox.expand(),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      setInner(() => next = dark);
+      await tester.pump();
+      final layers = tester.allRenderObjects
+          .whereType<LiquidGlassRenderObject>()
+          .toSet();
+      expect(
+        layers.single,
+        fake
+            ? isA<RenderConsolidatedFakeGlassLayer>()
+            : isA<RenderLiquidGlassLayer>(),
+      );
+      expect(layers.single.settings, dark);
+      final members = tester.allRenderObjects
+          .whereType<RenderLiquidGlassGeometry>()
+          .toSet();
+      expect(members, hasLength(4));
+      expect(members.map((member) => member.settings).toSet(), {dark});
+    }, skip: !fake && skipProperGlassTests);
+  }
+
   testWidgets('a live shape rebuilds when its kind of shape changes', (
     tester,
   ) async {

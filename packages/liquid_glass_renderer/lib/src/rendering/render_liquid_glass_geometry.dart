@@ -82,6 +82,10 @@ mixin LiquidGlassShapeRenderObject on RenderBox {
   /// The size the shape is drawn at, which a live frame sets apart from the
   /// layout size.
   Size get paintSize;
+
+  /// The settings it draws with, which the blend group it joins writes.
+  LiquidGlassSettings get settings;
+  set settings(LiquidGlassSettings value);
 }
 
 /// A base class for any render object that represents liquid glass geometry.
@@ -89,19 +93,21 @@ mixin LiquidGlassShapeRenderObject on RenderBox {
 /// Standalone shapes and blend groups both register with a
 /// [GeometryRenderLink] so the parent layer can pack them into one sample.
 abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
-  /// Creates a geometry that registers on [renderLink].
+  /// Creates a geometry that registers on [renderLink] and draws with
+  /// [settings], or with the link's settings when it registers on one.
   RenderLiquidGlassGeometry({
-    required this._settings,
     required this._devicePixelRatio,
+    LiquidGlassSettings settings = const LiquidGlassSettings(),
     this._renderLink,
-  });
+  }) : _settings = _renderLink?.settings ?? settings;
 
   LiquidGlassSettings _settings;
 
   /// The settings used for liquid glass rendering.
   ///
-  /// If these settings change in a way that affects geometry, the geometry
-  /// will be marked as needing an update.
+  /// The [renderLink] it registers on, or the blend group it joins, writes
+  /// them. If they change in a way that affects geometry, the geometry will
+  /// be marked as needing an update.
   LiquidGlassSettings get settings => _settings;
   set settings(LiquidGlassSettings value) {
     if (_settings == value) return;

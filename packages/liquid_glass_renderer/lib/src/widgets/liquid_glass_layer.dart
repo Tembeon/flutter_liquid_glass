@@ -216,8 +216,9 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
     }
     if (_rebuildPending) return;
     _rebuildPending = true;
-    // After the frame: the layer drew the new settings already; this brings
-    // the widgets that read them from the tree up to date.
+    // After the frame: the layer and its shapes drew the new settings
+    // already; this brings only the widgets that read them from the tree up
+    // to date.
     SchedulerBinding.instance.addPostFrameCallback((_) {
       _rebuildPending = false;
       if (mounted) setState(() {});

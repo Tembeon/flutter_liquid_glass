@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
 
 /// Where the glass shapes and blend groups of one glass layer register, in
@@ -12,6 +13,21 @@ class GeometryRenderLink {
   /// The registered geometries in paint order.
   late final UnmodifiableListView<RenderLiquidGlassGeometry> shapes =
       UnmodifiableListView(_shapeGeometries);
+
+  LiquidGlassSettings _settings = const LiquidGlassSettings();
+
+  /// The settings of the layer, which every registered geometry holds.
+  ///
+  /// The layer writes them; each geometry takes them in the same call, and a
+  /// geometry that registers later takes them as it registers.
+  LiquidGlassSettings get settings => _settings;
+  set settings(LiquidGlassSettings value) {
+    if (_settings == value) return;
+    _settings = value;
+    for (final geometry in _shapeGeometries) {
+      geometry.settings = value;
+    }
+  }
 
   bool _dirty = false;
 
@@ -47,6 +63,7 @@ class GeometryRenderLink {
     RenderLiquidGlassGeometry renderObject,
   ) {
     if (_shapeGeometries.contains(renderObject)) return;
+    renderObject.settings = _settings;
     _dirty = true;
     _shapeGeometries.add(renderObject);
     onMembershipChanged?.call();
