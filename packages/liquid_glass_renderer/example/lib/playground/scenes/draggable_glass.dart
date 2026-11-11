@@ -16,9 +16,7 @@ class GlowContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassGlowLayer(
-      child: GlassGlow(glowColor: const Color(0x29FFFFFF), child: child),
-    );
+    return GlassGlow(glowColor: const Color(0x29FFFFFF), child: child);
   }
 }
 

@@ -3,7 +3,6 @@ FrostBandPaint
 GestureMode
 GlassFrameReport
 GlassGlow
-GlassGlowLayer
 GlassPlanOverlay
 GlassReadReport
 GlassReadSource
@@ -32,6 +31,7 @@ LiquidShape
 LiquidStretch
 OffsetResistanceExtension
 RawLiquidStretch
+RenderLiquidGlassContent
 debugDumpGlassPlan
 debugPaintLiquidGlassGeometry
 expectGlassBudget

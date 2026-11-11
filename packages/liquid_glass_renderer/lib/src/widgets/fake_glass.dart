@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_frost.dart';
-import 'package:liquid_glass_renderer/src/effects/glass_glow.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
@@ -18,6 +17,7 @@ import 'package:liquid_glass_renderer/src/rendering/multi_shader_builder.dart';
 import 'package:liquid_glass_renderer/src/rendering/optimized_clip.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
+import 'package:liquid_glass_renderer/src/widgets/glass_content.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_blend_group.dart';
@@ -157,10 +157,10 @@ class FakeGlass extends StatelessWidget {
           )
         : baseAppearance;
 
-    final glow = Opacity(
+    final content = GlassContent(
       key: fadeKey,
       opacity: appearance.visibility.clamp(0.0, 1.0),
-      child: GlassGlowLayer(child: child),
+      child: child,
     );
     final role = switch ((_handledByLayer, renderScope?.fake ?? false)) {
       (true, _) => FakeGlassRole.layerPaints,
@@ -175,7 +175,7 @@ class FakeGlass extends StatelessWidget {
       role: role,
       surfaceShader: surfaceShader,
       live: live,
-      child: glow,
+      child: content,
     );
     final fake = role != FakeGlassRole.layerPaints
         ? MultiShaderBuilder(

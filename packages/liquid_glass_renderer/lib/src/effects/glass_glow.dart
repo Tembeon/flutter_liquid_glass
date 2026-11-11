@@ -1,14 +1,18 @@
-import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:liquid_glass_renderer/src/effects/effect_springs.dart';
 import 'package:liquid_glass_renderer/src/effects/glass_drag_builder.dart';
-import 'package:meta/meta.dart';
 
 /// {@template glass_glow}
-/// If placed as a descendant of a [GlassGlowLayer], this widget will
-/// send touch updates to that layer to create a glow effect.
+/// Lights the glass this widget sits in under a finger: a soft light
+/// follows the touch while it lasts and fades when it ends.
+///
+/// Place it inside the child of a `LiquidGlass` or a `FakeGlass`; it drives
+/// the light of the nearest one above it (see [RenderLiquidGlassContent]),
+/// and does nothing outside glass. Glass without a [GlassGlow] pays nothing
+/// for the light: its motion lives here.
 /// {@endtemplate}
-class GlassGlow extends StatelessWidget {
+class GlassGlow extends StatefulWidget {
   /// {@macro glass_glow}
   const GlassGlow({
     required this.child,
@@ -19,10 +23,10 @@ class GlassGlow extends StatelessWidget {
     super.key,
   });
 
-  /// The radius of the glow effect relative to the layer's shortest side.
+  /// The radius of the glow effect relative to the glass's shortest side.
   ///
   /// A value of 0.8 means the glow radius will be 80% of the shortest
-  /// dimension (width or height) of the [GlassGlowLayer].
+  /// dimension (width or height) of the glass.
   ///
   /// Defaults to 1.
   final double glowRadius;
@@ -47,94 +51,41 @@ class GlassGlow extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    switch (gestureMode) {
-      case GestureMode.listener:
-        return Listener(
-          behavior: hitTestBehavior,
-          onPointerDown: (event) =>
-              _handlePointer(context, event.localPosition),
-          onPointerMove: (event) =>
-              _handlePointer(context, event.localPosition),
-          onPointerUp: (event) => _removeTouch(context),
-          onPointerCancel: (event) => _removeTouch(context),
-          child: child,
-        );
-      case GestureMode.gestureDetector:
-        return GestureDetector(
-          behavior: hitTestBehavior,
-          onPanStart: (details) =>
-              _handlePointer(context, details.localPosition),
-          onPanUpdate: (details) =>
-              _handlePointer(context, details.localPosition),
-          onPanEnd: (details) => _removeTouch(context),
-          onPanCancel: () => _removeTouch(context),
-          child: child,
-        );
-    }
-  }
-
-  void _handlePointer(BuildContext context, Offset position) {
-    final layerState = GlassGlowLayer.maybeOf(context);
-
-    layerState?.updateTouch(
-      position,
-      radius: glowRadius,
-      color: glowColor,
-    );
-  }
-
-  void _removeTouch(BuildContext context) {
-    GlassGlowLayer.maybeOf(context)?.removeTouch();
-  }
+  State<GlassGlow> createState() => _GlassGlowState();
 }
 
-/// {@template glass_glow_layer}
-/// Represents a layer that can paint a glowing effect below its child.
-///
-/// Any child [GlassGlow] will send touch updates to this layer to
-/// update the glow effect.
-///
-/// This is similar to how an `InkWell` works with a `Material` widget.
-/// {@endtemplate}
-class GlassGlowLayer extends StatefulWidget {
-  /// {@macro glass_glow_layer}
-  const GlassGlowLayer({
-    required this.child,
-    super.key,
-  });
+/// The glow that last took each glass's light, so two glows in one glass
+/// never write it in the same frame.
+final _owners = Expando<_GlassGlowState>('GlassGlow owner');
 
-  /// The child that will be painted above the glow effect.
-  final Widget child;
-
-  @override
-  State<GlassGlowLayer> createState() => GlassGlowLayerState();
-
-  /// The nearest glow layer above [context], or null when there is none or
-  /// [context] is no longer mounted.
-  @internal
-  static GlassGlowLayerState? maybeOf(BuildContext context) {
-    if (!context.mounted) return null;
-    return context.findAncestorStateOfType<GlassGlowLayerState>();
-  }
-}
-
-@internal
-class GlassGlowLayerState extends State<GlassGlowLayer>
-    with TickerProviderStateMixin {
+class _GlassGlowState extends State<GlassGlow> with TickerProviderStateMixin {
   late final _x = AnimationController.unbounded(vsync: this);
   late final _y = AnimationController.unbounded(vsync: this);
   late final _alpha = AnimationController.unbounded(vsync: this);
   late final _radius = AnimationController.unbounded(value: 10, vsync: this);
+  late final _motion = Listenable.merge([_x, _y, _alpha, _radius]);
 
   static final _offsetSpring = smoothSpring(const Duration(seconds: 1));
 
+  RenderLiquidGlassContent? _glass;
   bool _dragging = false;
   double _baseRadius = 0;
   Color _baseColor = const Color.fromARGB(0, 0, 0, 0);
 
   @override
+  void initState() {
+    super.initState();
+    _motion.addListener(_write);
+  }
+
+  @override
   void dispose() {
+    _motion.removeListener(_write);
+    // The light would otherwise stay where the last frame left it.
+    if (_glass case final glass? when identical(_owners[glass], this)) {
+      _owners[glass] = null;
+      if (glass.attached) glass.glowColor = const Color(0x00000000);
+    }
     _x.dispose();
     _y.dispose();
     _alpha.dispose();
@@ -142,15 +93,24 @@ class GlassGlowLayerState extends State<GlassGlowLayer>
     super.dispose();
   }
 
-  void updateTouch(
-    Offset offset, {
-    required double radius,
-    required Color color,
-  }) {
-    setState(() {
-      _baseRadius = radius;
-      _baseColor = color;
-    });
+  void _write() {
+    final glass = _glass;
+    if (glass == null || !identical(_owners[glass], this)) return;
+    glass
+      ..glowRadius = _baseRadius * _radius.value
+      ..glowColor = _baseColor.withValues(alpha: _baseColor.a * _alpha.value)
+      ..glowOffset = Offset(_x.value, _y.value);
+  }
+
+  void _updateTouch(Offset offset) {
+    if (!mounted) return;
+    final glass = context
+        .findAncestorRenderObjectOfType<RenderLiquidGlassContent>();
+    if (glass == null) return;
+    _glass = glass;
+    _owners[glass] = this;
+    _baseRadius = widget.glowRadius;
+    _baseColor = widget.glowColor;
 
     if (!_dragging) {
       _dragging = true;
@@ -160,9 +120,10 @@ class GlassGlowLayerState extends State<GlassGlowLayer>
 
     _x.value = offset.dx;
     _y.value = offset.dy;
+    _write();
   }
 
-  void removeTouch() {
+  void _removeTouch() {
     if (!_dragging) return;
     _dragging = false;
     springTo(_x, _offsetSpring, 0);
@@ -173,115 +134,25 @@ class GlassGlowLayerState extends State<GlassGlowLayer>
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: Listenable.merge([_x, _y, _alpha, _radius]),
-      builder: (context, child) {
-        return _RenderGlassGlowLayerWidget(
-          glowRadius: _baseRadius * _radius.value,
-          glowColor: _baseColor.withValues(
-            alpha: _baseColor.a * _alpha.value,
-          ),
-          glowOffset: Offset(_x.value, _y.value),
-          child: child,
+    switch (widget.gestureMode) {
+      case GestureMode.listener:
+        return Listener(
+          behavior: widget.hitTestBehavior,
+          onPointerDown: (event) => _updateTouch(event.localPosition),
+          onPointerMove: (event) => _updateTouch(event.localPosition),
+          onPointerUp: (event) => _removeTouch(),
+          onPointerCancel: (event) => _removeTouch(),
+          child: widget.child,
         );
-      },
-      child: widget.child,
-    );
-  }
-}
-
-class _RenderGlassGlowLayerWidget extends SingleChildRenderObjectWidget {
-  const _RenderGlassGlowLayerWidget({
-    required this.glowRadius,
-    required this.glowColor,
-    required this.glowOffset,
-    required super.child,
-  });
-
-  final double glowRadius;
-  final Color glowColor;
-  final Offset glowOffset;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) {
-    return RenderGlassGlowLayer(
-      glowRadius: glowRadius,
-      glowColor: glowColor,
-      glowOffset: glowOffset,
-    );
-  }
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    RenderGlassGlowLayer renderObject,
-  ) {
-    renderObject
-      ..glowRadius = glowRadius
-      ..glowColor = glowColor
-      ..glowOffset = glowOffset;
-  }
-}
-
-@internal
-class RenderGlassGlowLayer extends RenderProxyBox {
-  RenderGlassGlowLayer({
-    required this._glowRadius,
-    required this._glowColor,
-    required this._glowOffset,
-  });
-
-  double _glowRadius;
-  double get glowRadius => _glowRadius;
-  set glowRadius(double value) {
-    if (_glowRadius == value) return;
-    _glowRadius = value;
-    markNeedsPaint();
-  }
-
-  Color _glowColor;
-  Color get glowColor => _glowColor;
-  set glowColor(Color value) {
-    if (_glowColor == value) return;
-    _glowColor = value;
-    markNeedsPaint();
-  }
-
-  Offset _glowOffset;
-  Offset get glowOffset => _glowOffset;
-  set glowOffset(Offset value) {
-    if (_glowOffset == value) return;
-    _glowOffset = value;
-    markNeedsPaint();
-  }
-
-  @override
-  void paint(PaintingContext context, Offset offset) {
-    if (_glowColor.a == 0 || _glowRadius <= 0) {
-      super.paint(context, offset);
-      return;
+      case GestureMode.gestureDetector:
+        return GestureDetector(
+          behavior: widget.hitTestBehavior,
+          onPanStart: (details) => _updateTouch(details.localPosition),
+          onPanUpdate: (details) => _updateTouch(details.localPosition),
+          onPanEnd: (details) => _removeTouch(),
+          onPanCancel: _removeTouch,
+          child: widget.child,
+        );
     }
-
-    final canvas = context.canvas;
-
-    final glowPosition = offset + _glowOffset;
-
-    final gradient = RadialGradient(
-      colors: [
-        _glowColor,
-        _glowColor.withValues(alpha: 0),
-      ],
-    );
-
-    final radius = _glowRadius * size.shortestSide;
-
-    final paint = Paint()
-      ..shader = gradient.createShader(
-        Rect.fromCircle(center: glowPosition, radius: radius),
-      )
-      ..blendMode = BlendMode.plus;
-
-    canvas.drawCircle(glowPosition, radius, paint);
-    super.paint(context, offset);
   }
 }

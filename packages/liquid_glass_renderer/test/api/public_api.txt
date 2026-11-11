@@ -101,7 +101,7 @@ void debugDumpGlassPlan()
 enum GestureMode
   listener,
   gestureDetector,
-class GlassGlow extends StatelessWidget
+class GlassGlow extends StatefulWidget
   const GlassGlow({
     required Widget child,
     Color glowColor = ...,
@@ -115,11 +115,6 @@ class GlassGlow extends StatelessWidget
   final Color glowColor
   final double glowRadius
   final HitTestBehavior hitTestBehavior
-  overrides: build
-class GlassGlowLayer extends StatefulWidget
-  const GlassGlowLayer({required Widget child, Key? key})
-  final Widget child
-  @internal static GlassGlowLayerState? maybeOf(BuildContext context)
   overrides: createState
 class LiquidStretch extends StatelessWidget
   const LiquidStretch({
@@ -189,7 +184,6 @@ class FrostBandPaint (see package:liquid_glass_renderer/composer.dart)
 enum GestureMode (see package:liquid_glass_renderer/effects.dart)
 class GlassFrameReport (see package:liquid_glass_renderer/composer.dart)
 class GlassGlow (see package:liquid_glass_renderer/effects.dart)
-class GlassGlowLayer (see package:liquid_glass_renderer/effects.dart)
 class GlassPlanOverlay extends StatefulWidget
   const GlassPlanOverlay({required Widget child, Key? key})
   final Widget child
@@ -588,6 +582,15 @@ sealed class LiquidShape extends OutlinedBorder
 class LiquidStretch (see package:liquid_glass_renderer/effects.dart)
 extension OffsetResistanceExtension (see package:liquid_glass_renderer/effects.dart)
 class RawLiquidStretch (see package:liquid_glass_renderer/effects.dart)
+class RenderLiquidGlassContent extends RenderOpacity
+  RenderLiquidGlassContent({double opacity = ..., RenderBox? child})
+  Color get glowColor
+  set glowColor(Color value)
+  Offset get glowOffset
+  set glowOffset(Offset value)
+  double get glowRadius
+  set glowRadius(double value)
+  overrides: debugFillProperties, paint
 function debugDumpGlassPlan (see package:liquid_glass_renderer/composer.dart)
 bool debugPaintLiquidGlassGeometry
 
@@ -611,6 +614,7 @@ class LiquidGlassBackdropFilterLayer (see package:liquid_glass_renderer/liquid_g
 typedef LiquidGlassLayerEffects (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassLayerFrame (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassUnderlay (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class RenderLiquidGlassContent (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 variable debugPaintLiquidGlassGeometry (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 
 # package:liquid_glass_renderer/testing.dart

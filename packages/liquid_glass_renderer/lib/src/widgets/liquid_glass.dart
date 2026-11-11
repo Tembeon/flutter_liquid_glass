@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/src/effects/glass_glow.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_shape_frame.dart';
@@ -12,6 +11,7 @@ import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
 import 'package:liquid_glass_renderer/src/rendering/optimized_clip.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
+import 'package:liquid_glass_renderer/src/widgets/glass_content.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_render_scope.dart';
@@ -420,10 +420,10 @@ class _LiquidGlassState extends State<LiquidGlass> {
               shape: widget.shape,
               clipBehavior: widget.clipBehavior,
               live: widget.frame,
-              child: Opacity(
+              child: GlassContent(
                 key: _fadeKey,
                 opacity: appearance.visibility.clamp(0.0, 1.0),
-                child: GlassGlowLayer(child: _keyedChild),
+                child: _keyedChild,
               ),
             ),
     );
