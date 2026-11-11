@@ -2597,16 +2597,16 @@ class MenuLayout
   })
   const MenuLayout({
     required double height,
-    double width = ...,
+    required double width,
     List<MenuTarget> targets = ...,
     List<MenuPlaced> elements = ...,
     bool loading = ...,
   })
   factory MenuLayout.uniform(
     int rows, {
-    double width = ...,
-    double rowHeight = ...,
-    double inset = ...,
+    double? width,
+    double? rowHeight,
+    double? inset,
     bool reversed = ...,
   })
   final List<MenuPlaced> elements

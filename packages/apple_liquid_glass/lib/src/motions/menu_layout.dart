@@ -11,7 +11,7 @@ class MenuLayout {
   /// Creates a layout.
   const MenuLayout({
     required this.height,
-    this.width = 250,
+    required this.width,
     this.targets = const [],
     this.elements = const [],
     this.loading = false,
@@ -19,24 +19,32 @@ class MenuLayout {
 
   /// [rows] rows of [rowHeight] between [inset]s, reversed when
   /// [reversed]: target `i` is row `i`.
+  ///
+  /// [width], [rowHeight] and [inset] default to [MenuMetrics.width],
+  /// [MenuMetrics.rowHeight] and [MenuMetrics.topInset] of
+  /// [MenuMetrics.standard].
   factory MenuLayout.uniform(
     int rows, {
-    double width = 250,
-    double rowHeight = 42,
-    double inset = 10,
+    double? width,
+    double? rowHeight,
+    double? inset,
     bool reversed = false,
   }) {
+    const m = MenuMetrics.standard;
+    final w = width ?? m.width;
+    final row = rowHeight ?? m.rowHeight;
+    final pad = inset ?? m.topInset;
     return MenuLayout(
-      height: 2 * inset + rowHeight * rows,
-      width: width,
+      height: 2 * pad + row * rows,
+      width: w,
       targets: [
         for (var i = 0; i < rows; i++)
           MenuTarget(
             rect: Rect.fromLTWH(
               0,
-              inset + rowHeight * (reversed ? rows - 1 - i : i),
-              width,
-              rowHeight,
+              pad + row * (reversed ? rows - 1 - i : i),
+              w,
+              row,
             ),
           ),
       ],

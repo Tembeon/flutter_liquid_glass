@@ -22,9 +22,9 @@ class MenuTuning {
   const MenuTuning({
     this.morph = MenuMorphSpec.standard,
     this.dim,
-    this.menuWidth = defaultMenuWidth,
-    this.rowHeight = 42,
-    this.verticalPadding = 10,
+    this._menuWidth,
+    this._rowHeight,
+    this._verticalPadding,
     this.cornerRadius = 32,
     this.openingRadius = 195.4,
     this.radiusDelay = 0.098,
@@ -114,9 +114,6 @@ class MenuTuning {
     this.shrinkSpring = const Spring.response(0.4),
     this.shrinkDelay = 0.03,
   });
-
-  /// The menu width from the iOS 27 view tree, in points.
-  static const double defaultMenuWidth = 250;
 
   /// The horizontal placement margin from the device menu traces.
   static const double defaultEdgeMargin = 8;
@@ -331,14 +328,20 @@ class MenuTuning {
   /// speed.
   Spring get closeSpring => morph.atSpeed(morph.absorb);
 
-  /// The width of the open menu.
-  final double menuWidth;
+  /// The width of the open menu: [MenuMetrics.width] of [metrics] unless
+  /// given.
+  double get menuWidth => _menuWidth ?? metrics.width;
+  final double? _menuWidth;
 
-  /// The height of one row.
-  final double rowHeight;
+  /// The height of one row: [MenuMetrics.rowHeight] of [metrics] unless
+  /// given.
+  double get rowHeight => _rowHeight ?? metrics.rowHeight;
+  final double? _rowHeight;
 
-  /// The padding above the first and below the last row.
-  final double verticalPadding;
+  /// The padding above the first and below the last row:
+  /// [MenuMetrics.topInset] of [metrics] unless given.
+  double get verticalPadding => _verticalPadding ?? metrics.topInset;
+  final double? _verticalPadding;
 
   /// The corner radius of the open menu.
   final double cornerRadius;
