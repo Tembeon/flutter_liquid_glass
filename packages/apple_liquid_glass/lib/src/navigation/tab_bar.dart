@@ -342,7 +342,8 @@ class GlassTabBar extends StatelessWidget {
   ) =>
       context
           .dependOnInheritedWidgetOfExactType<_AccessoryScope>()
-          ?.placement ??
+          ?.notifier
+          ?.value ??
       GlassTabAccessoryPlacement.expanded;
 
   /// The height of the bar group: the bar and, with [accessory], the
@@ -998,14 +999,39 @@ class _MinimizingBarState extends State<_MinimizingBar> {
   );
 }
 
-class _AccessoryScope extends InheritedWidget {
-  const _AccessoryScope({required this.placement, required super.child});
+class _AccessoryScope
+    extends InheritedNotifier<ValueNotifier<GlassTabAccessoryPlacement>> {
+  const _AccessoryScope({required super.notifier, required super.child});
+}
 
-  final GlassTabAccessoryPlacement placement;
+/// Lays the accessory's content out in the rect of its placement, laid out
+/// again when the placement changes, without a rebuild.
+class _AccessoryLayout extends SingleChildLayoutDelegate {
+  _AccessoryLayout({
+    required this.placement,
+    required this.inline,
+    required this.expanded,
+  }) : super(relayout: placement);
+
+  final ValueListenable<GlassTabAccessoryPlacement> placement;
+  final Rect inline;
+  final Rect expanded;
+
+  Rect get _rect =>
+      placement.value == GlassTabAccessoryPlacement.inline ? inline : expanded;
 
   @override
-  bool updateShouldNotify(_AccessoryScope oldWidget) =>
-      placement != oldWidget.placement;
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
+      BoxConstraints.tight(_rect.size);
+
+  @override
+  Offset getPositionForChild(Size size, Size childSize) => _rect.topLeft;
+
+  @override
+  bool shouldRelayout(_AccessoryLayout oldDelegate) =>
+      !identical(oldDelegate.placement, placement) ||
+      oldDelegate.inline != inline ||
+      oldDelegate.expanded != expanded;
 }
 
 /// The bottom accessory: its glass goes from above the bar to beside the
@@ -1150,28 +1176,22 @@ class _AccessoryState extends State<_Accessory> {
         Positioned.fill(
           child: GlassClip.live(
             frame: _frame,
-            child: ValueListenableBuilder<GlassTabAccessoryPlacement>(
-              valueListenable: _placement,
-              builder: (context, placement, child) => Stack(
-                children: [
-                  Positioned.fromRect(
-                    rect: placement == GlassTabAccessoryPlacement.inline
-                        ? _inline
-                        : _expanded,
-                    child: MotionTransition(
-                      offset: _carried,
-                      child: _AccessoryScope(
-                        placement: placement,
-                        child: Padding(
-                          padding: _accessoryPadding,
-                          child: child,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+            child: CustomSingleChildLayout(
+              delegate: _AccessoryLayout(
+                placement: _placement,
+                inline: _inline,
+                expanded: _expanded,
               ),
-              child: widget.child,
+              child: MotionTransition(
+                offset: _carried,
+                child: _AccessoryScope(
+                  notifier: _placement,
+                  child: Padding(
+                    padding: _accessoryPadding,
+                    child: widget.child,
+                  ),
+                ),
+              ),
             ),
           ),
         ),

@@ -780,10 +780,10 @@ class _StackedSearchState extends State<_StackedSearch> {
               ),
             ),
           ),
-          ValueListenableBuilder<bool>(
-            valueListenable: _closing,
-            builder: (context, closing, child) =>
-                IgnorePointer(ignoring: !closing, child: child),
+          MotionVisibility(
+            visible: _closing,
+            maintainPaint: true,
+            maintainSemantics: true,
             child: GlassButton(
               onPressed: _end,
               semanticLabel: GlassLocalizations.of(context).closeButtonLabel,

@@ -41,3 +41,4 @@ export 'src/widgets/sliver_layout.dart' show SliverMotionList;
 export 'src/widgets/source.dart' show MotionSource, MotionSourceBox;
 export 'src/widgets/transition.dart'
     show MotionTransition, MotionTransitionLayer;
+export 'src/widgets/visibility.dart' show MotionVisibility;

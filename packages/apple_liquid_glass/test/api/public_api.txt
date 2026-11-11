@@ -2158,6 +2158,7 @@ re-exported from package:kinesis:
   MotionTransitionLayer
   MotionValue
   MotionValueCommands
+  MotionVisibility
   PointerCancelInput
   PointerCancelReason
   PointerDownInput

@@ -981,6 +981,20 @@ extension MotionValueCommands<T> on MotionValue<T>
   void snap(double t, T value)
   T valueAt(double t)
   T velocityAt(double t)
+class MotionVisibility extends SingleChildRenderObjectWidget
+  const MotionVisibility({
+    required ValueListenable<bool> visible,
+    bool maintainPaint = ...,
+    bool maintainInteractivity = ...,
+    bool maintainSemantics = ...,
+    Widget? child,
+    Key? key,
+  })
+  final bool maintainInteractivity
+  final bool maintainPaint
+  final bool maintainSemantics
+  final ValueListenable<bool> visible
+  overrides: createRenderObject, updateRenderObject
 class PointerCancelInput (see package:kinesis/input.dart)
 enum PointerCancelReason (see package:kinesis/input.dart)
 class PointerDownInput (see package:kinesis/input.dart)
@@ -1370,4 +1384,5 @@ class MotionSourceBox (see package:kinesis/kinesis.dart)
 class MotionTraitsOverride (see package:kinesis/kinesis.dart)
 class MotionTransition (see package:kinesis/kinesis.dart)
 class MotionTransitionLayer (see package:kinesis/kinesis.dart)
+class MotionVisibility (see package:kinesis/kinesis.dart)
 class SliverMotionList (see package:kinesis/kinesis.dart)
