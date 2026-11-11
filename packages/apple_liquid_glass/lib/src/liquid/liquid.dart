@@ -182,11 +182,15 @@ Color? _tintOf(GlassFrame frame, Color? own) {
 /// UIKit's lens configuration (read from UIKit, notes private) bends what
 /// is behind a resting small lens (a knob or thumb) by 50 and blurs it by
 /// 6, a lifted one bends it by 9 without blur, and a large lens rests
-/// clear. Engineering factors, not measured, part the colors along the rim
-/// and brighten the highlight by half as the lens lifts. The lens's shrink
-/// grows with the lift; the bevel bends the other way, toward the middle,
-/// so a bend above UIKit's 9 hides the edges the shrink shows behind the
-/// rim.
+/// clear. A lifted lens parts the colors along its rim by a factor fitted
+/// to one screenshot of the iOS 27 tab bar (iPhone 16 Pro, lens lifted
+/// between two items): red and blue stand 0.38 px apart at its bottom edge
+/// and 0.78 px at its top, and 0.10 gives 0.57 px at both, one factor
+/// having no way to tell the edges apart. An engineering factor, not
+/// measured, brightens the highlight by half as the lens lifts. The lens's
+/// shrink grows with the lift; the bevel bends the other way, toward the
+/// middle, so a bend above UIKit's 9 hides the edges the shrink shows
+/// behind the rim.
 LiquidGlassSettings _lensSettings(
   LiquidGlassSettings base,
   double lift, {
@@ -198,7 +202,7 @@ LiquidGlassSettings _lensSettings(
   return base.copyWith(
     frost: small ? 6 * (1 - l) : 0,
     refractionAmount: displacement,
-    dispersion: -0.25 * l,
+    dispersion: -0.10 * l,
     highlight: base.highlight * (1 + 0.5 * l),
     backdropShrink: lens.shrink * l,
     backdropShrinkRim: lens.shrinkRim,
