@@ -368,6 +368,15 @@ mixin ControlStates<T extends StatefulWidget> on State<T>
   WidgetStatesController get widgetStates
   abstract void writeStates()
   overrides: didUpdateWidget, dispose, initState
+mixin ControlledValue<T extends StatefulWidget> on State<T>
+  @protected abstract Widget buildControl(BuildContext context)
+  @protected abstract void followWidget()
+  @protected void outsideBuild(void Function() callback)
+  @protected void returnUnlessFollowed()
+  @protected void tellApp(void Function() tell)
+  @protected bool get userLeads
+  @protected MotionClock get valueClock
+  overrides: build
 final class DismissPolicy
   const DismissPolicy([Set<DismissTrigger> triggers = ...])
   static const Set<DismissTrigger> all
@@ -1392,6 +1401,7 @@ class ManualMotionClock extends MotionClock
 class AdjustValueIntent (see package:kinesis/kinesis.dart)
 class ContextMenuIntent (see package:kinesis/kinesis.dart)
 mixin ControlStates (see package:kinesis/kinesis.dart)
+mixin ControlledValue (see package:kinesis/kinesis.dart)
 class InputRegion (see package:kinesis/kinesis.dart)
 class InputZone (see package:kinesis/kinesis.dart)
 class InputZoneFrame (see package:kinesis/kinesis.dart)

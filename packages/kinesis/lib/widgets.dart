@@ -21,6 +21,7 @@
 library;
 
 export 'src/widgets/control_states.dart' show ControlStates;
+export 'src/widgets/controlled_value.dart' show ControlledValue;
 export 'src/widgets/driven.dart' show MotionDriven;
 export 'src/widgets/haptics.dart' show MotionHapticPlay, MotionHapticScope;
 export 'src/widgets/input_intents.dart'
