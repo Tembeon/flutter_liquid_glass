@@ -130,30 +130,18 @@ class GlassToolbar extends StatefulWidget implements PreferredSizeWidget {
 }
 
 class _GlassToolbarState extends State<GlassToolbar> {
-  GlassPageBarLink? _link;
-  GlassBarHost? _standalone;
+  late final _bar = GlassBarClient(this);
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _link = GlassPageBarLink.maybeOf(context);
-    if (_link == null) {
-      _standalone ??= GlassBarHost.standalone();
-    } else if (_standalone case final host?) {
-      host.detach(host.standaloneLink);
-      _standalone = null;
-    }
+    _bar.resolve(context);
   }
 
   @override
   void dispose() {
-    if (_standalone case final host?) host.detach(host.standaloneLink);
-    _withdrawLater();
+    _bar.dispose();
     super.dispose();
-  }
-
-  void _withdrawLater() {
-    if (_link case final link?) link.host.withdraw(link, this);
   }
 
   static Widget _button(GlassBarItem item) =>
@@ -163,12 +151,12 @@ class _GlassToolbarState extends State<GlassToolbar> {
   @override
   Widget build(BuildContext context) {
     final items = widget.items;
-    final link = _link ?? _standalone!.standaloneLink;
+    final link = _bar.target;
     final search = items.indexWhere(
       (entry) => entry is GlassBarItem && entry.child is GlassSearchField,
     );
     final shown = GlassTabShown.of(context);
-    if (!shown) _withdrawLater();
+    if (!shown) _bar.withdraw();
     if (search >= 0) {
       if (shown) link.host.declareToolbar(link, null, by: this);
       return _SearchBar(
@@ -187,7 +175,7 @@ class _GlassToolbarState extends State<GlassToolbar> {
       );
     }
     if (shown) link.host.declareToolbar(link, items, by: this);
-    final standalone = _standalone;
+    final standalone = _bar.standalone;
     if (standalone == null) {
       return SizedBox(height: widget.preferredSize.height);
     }

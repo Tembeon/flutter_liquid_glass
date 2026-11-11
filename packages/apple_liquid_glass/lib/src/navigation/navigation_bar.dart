@@ -256,15 +256,12 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
   double? _awayDelay;
   bool _reduceMotion = false;
   bool _laidOut = false;
-  GlassPageBarLink? _link;
-  GlassBarHost? _standalone;
+  late final _bar = GlassBarClient(this);
   late final _fade = MotionValue<double>(
     1,
     restDistance: MotionRest.opacity,
     clock: _clock,
   );
-
-  GlassPageBarLink get _barLink => _link ?? _standalone!.standaloneLink;
 
   @override
   void initState() {
@@ -275,13 +272,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _link = GlassPageBarLink.maybeOf(context);
-    if (_link == null) {
-      _standalone ??= GlassBarHost.standalone();
-    } else if (_standalone case final host?) {
-      host.detach(host.standaloneLink);
-      _standalone = null;
-    }
+    _bar.resolve(context);
     _reduceMotion = GlassTraits.of(context).reduceMotion;
     final active = GlassChrome.maybeOf(context)?.active;
     if (identical(active, _active)) return;
@@ -302,19 +293,12 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
 
   @override
   void dispose() {
-    if (_standalone case final host?) host.detach(host.standaloneLink);
-    if (_link case final link?) link.host.dropFade(link, _fade);
-    _withdrawLater();
+    if (_bar.link case final link?) link.host.dropFade(link, _fade);
+    _bar.dispose(fade: _fade);
     _active?.removeListener(_follow);
     _metrics?.removeRenderListener(_scrolled);
     _scrolledBy?.removeRenderListener(_moved);
     super.dispose();
-  }
-
-  void _withdrawLater() {
-    if (_link case final link?) {
-      link.host.withdraw(link, this, fade: _fade);
-    }
   }
 
   static double _offsetIn(ScrollMetrics? metrics) {
@@ -384,7 +368,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     final title = widget.title ?? widget.largeTitle;
     final largeTitle = widget.largeTitle;
     final background = look.backgroundColor;
-    final link = _barLink;
+    final link = _bar.target;
     if (GlassTabShown.of(context)) {
       link.host.declare(
         link,
@@ -403,9 +387,9 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
       );
       link.host.fadedBy(link, _fade);
     } else {
-      _withdrawLater();
+      _bar.withdraw(fade: _fade);
     }
-    final standalone = _standalone;
+    final standalone = _bar.standalone;
     final row = SizedBox(
       height: GlassNavigationBar.height,
       child: Stack(

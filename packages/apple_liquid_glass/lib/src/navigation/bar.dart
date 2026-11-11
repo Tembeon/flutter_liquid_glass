@@ -131,6 +131,57 @@ final class GlassPageBarLink {
       context.getInheritedWidgetOfExactType<_LinkScope>()?.link;
 }
 
+/// How one bar widget's State declares to the page's [GlassBarHost].
+///
+/// Inside a glass page route the declaration goes to the page's link; a bar
+/// outside any route gets a host of its own. The State calls [resolve] from
+/// `didChangeDependencies`, [withdraw] when its tab no longer shows it, and
+/// [dispose] from its own.
+@internal
+final class GlassBarClient {
+  /// A client that declares and withdraws as [declarer].
+  GlassBarClient(this.declarer);
+
+  /// The State that declares.
+  final Object declarer;
+
+  GlassPageBarLink? _link;
+  GlassBarHost? _standalone;
+
+  /// The page's link, or null outside a glass page route.
+  GlassPageBarLink? get link => _link;
+
+  /// The host of a bar outside any route, or null inside one.
+  GlassBarHost? get standalone => _standalone;
+
+  /// The link to declare to: the page's, or the own host's.
+  GlassPageBarLink get target => _link ?? _standalone!.standaloneLink;
+
+  /// Finds the page's link, and the own host when there is none.
+  void resolve(BuildContext context) {
+    _link = GlassPageBarLink.maybeOf(context);
+    if (_link == null) {
+      _standalone ??= GlassBarHost.standalone();
+    } else if (_standalone case final host?) {
+      host.detach(host.standaloneLink);
+      _standalone = null;
+    }
+  }
+
+  /// Takes the declaration back once the host has laid out what is on screen.
+  void withdraw({ValueListenable<double>? fade}) {
+    if (_link case final link?) {
+      link.host.withdraw(link, declarer, fade: fade);
+    }
+  }
+
+  /// Releases the own host and the declaration.
+  void dispose({ValueListenable<double>? fade}) {
+    if (_standalone case final host?) host.detach(host.standaloneLink);
+    withdraw(fade: fade);
+  }
+}
+
 /// Which bar of a page.
 @internal
 enum GlassBarKind {
