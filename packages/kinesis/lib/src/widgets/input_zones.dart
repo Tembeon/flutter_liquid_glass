@@ -396,19 +396,10 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
   InputZonesController<T> get controller =>
       widget.controller ?? (_ownController ??= InputZonesController<T>());
 
-  void _attach() {
-    assert(
-      controller._host == null || controller._host == this,
-      'An InputZonesController has one InputZones at a time: this one is '
-      'already attached to another.',
-    );
-    controller._host = this;
-  }
-
   @override
   void initState() {
     super.initState();
-    _attach();
+    controller._host = this;
     widget.frames.addListener(_framesChanged);
     FocusManager.instance.addHighlightModeListener(_highlightModeChanged);
     _line.port = widget.port;
@@ -442,7 +433,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
         _ownController?.dispose();
         _ownController = null;
       }
-      _attach();
+      controller._host = this;
       for (final zone in _zones.values) {
         zone._writeAll();
       }
