@@ -1012,6 +1012,12 @@ abstract final class LiquidGlassUnderlay
   static void registerLayer<T extends ContainerLayer>(
     ({int? alpha, double blur, RRect? clip, Matrix4 transform}) Function(T) effects,
   )
+mixin LivePaintSize on RenderBox
+  ValueListenable<LiquidGlassShapeFrame>? get live
+  set live(ValueListenable<LiquidGlassShapeFrame>? value)
+  @protected void livePaintSizeChanged()
+  Size get paintSize
+  overrides: attach, detach
 class RenderLiquidGlassContent extends RenderOpacity
   RenderLiquidGlassContent({double opacity = ..., RenderBox? child})
   Color get glowColor
@@ -1022,6 +1028,7 @@ class RenderLiquidGlassContent extends RenderOpacity
   set glowRadius(double value)
   overrides: debugFillProperties, paint
 bool debugPaintLiquidGlassGeometry
+Future<LiquidGlassSupport> precacheLiquidGlass({bool warmUp = ...})
 
 # package:liquid_glass_renderer/widgets.dart
 class FakeGlass (see package:liquid_glass_renderer/liquid_glass_renderer.dart)

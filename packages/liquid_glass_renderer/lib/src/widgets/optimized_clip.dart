@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
-import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
+import 'package:liquid_glass_renderer/rendering.dart';
 
 /// Clips its child to [shape] with Impeller's specialized clip layers for
 /// ovals, rounded rects and superellipses, or not at all while

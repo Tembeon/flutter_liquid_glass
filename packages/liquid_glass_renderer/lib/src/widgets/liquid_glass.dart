@@ -2,9 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
-import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
-import 'package:liquid_glass_renderer/src/rendering/optimized_clip.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_content.dart';
@@ -12,7 +11,7 @@ import 'package:liquid_glass_renderer/src/widgets/liquid_glass_blend_group.dart'
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_render_scope.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_visibility.dart';
-import 'package:liquid_glass_renderer/src/widgets/precache.dart';
+import 'package:liquid_glass_renderer/src/widgets/optimized_clip.dart';
 
 /// A liquid glass shape.
 ///

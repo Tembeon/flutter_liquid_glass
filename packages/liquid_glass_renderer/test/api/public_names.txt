@@ -51,6 +51,7 @@ LiquidRoundedRectangle
 LiquidRoundedSuperellipse
 LiquidShape
 LiquidStretch
+LivePaintSize
 LiveRead
 Look
 NoJoin
@@ -82,3 +83,4 @@ frostLatticeWidest
 frostSquareWidest
 geometryKindOf
 geometryMaxShapesPerDraw
+precacheLiquidGlass

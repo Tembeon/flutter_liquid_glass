@@ -23,3 +23,5 @@ export 'src/rendering/glass_content.dart' show RenderLiquidGlassContent;
 export 'src/rendering/liquid_glass_layer.dart' show LiquidGlassLayerFrame;
 export 'src/rendering/liquid_glass_underlay.dart'
     show LiquidGlassLayerEffects, LiquidGlassUnderlay;
+export 'src/rendering/live_paint_size.dart' show LivePaintSize;
+export 'src/rendering/precache.dart' show precacheLiquidGlass;

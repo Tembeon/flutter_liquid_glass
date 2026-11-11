@@ -4,7 +4,6 @@ import 'package:liquid_glass_renderer/painting.dart';
 
 /// A glass render object that paints at the size of a live shape frame's
 /// rect, which the frame changes without a layout.
-@internal
 mixin LivePaintSize on RenderBox {
   ValueListenable<LiquidGlassShapeFrame>? _live;
   Size? _liveSize;

@@ -7,10 +7,15 @@ import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_rendere
 import 'package:liquid_glass_renderer/src/rendering/multi_shader_builder.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:liquid_glass_renderer/src/rendering/warm_up.dart';
-import 'package:liquid_glass_renderer/src/widgets/liquid_glass.dart';
 
-/// Implementation of [LiquidGlass.precache]. The warm-up runs only when
-/// every full-glass program and the geometry bundle loaded.
+/// Loads every glass program and the Flutter GPU geometry bundle, and with
+/// [warmUp] draws each pipeline once offscreen; `LiquidGlass.precache` calls
+/// it.
+///
+/// The warm-up runs only when every full-glass program and the geometry
+/// bundle loaded. Failures are reported through `FlutterError` and never
+/// thrown. The returned [LiquidGlassSupport] says whether full glass draws on
+/// this device.
 Future<LiquidGlassSupport> precacheLiquidGlass({bool warmUp = false}) async {
   final fullGlass = !kIsWeb && ui.ImageFilter.isShaderFilterSupported;
   final finalShaders = FinalShaderVariant.assetKeys;
