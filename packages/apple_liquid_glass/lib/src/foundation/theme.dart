@@ -18,7 +18,6 @@ import 'package:apple_liquid_glass/src/presentations/alert.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_appearance.dart';
 import 'package:apple_liquid_glass/src/presentations/popover.dart';
 import 'package:apple_liquid_glass/src/presentations/sheet.dart';
-import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
@@ -109,7 +108,6 @@ class GlassThemeData {
     this.brightness,
     this.primaryColor,
     this.fontFamily,
-    this.renderer,
     this.colorScheme,
     this.buttonStyle,
     this.prominentButtonStyle,
@@ -132,7 +130,7 @@ class GlassThemeData {
   });
 
   /// The theme between [a] and [b] at [t]: colors and styles interpolate;
-  /// brightness, font and renderer take [b]'s at once.
+  /// brightness and font take [b]'s at once.
   factory GlassThemeData.lerp(
     GlassThemeData a,
     GlassThemeData b,
@@ -144,7 +142,6 @@ class GlassThemeData {
       brightness: b.brightness,
       primaryColor: GlassDynamicColor.lerp(a.primaryColor, b.primaryColor, t),
       fontFamily: b.fontFamily,
-      renderer: b.renderer,
       colorScheme: GlassColorScheme.lerp(a.colorScheme, b.colorScheme, t),
       buttonStyle: GlassButtonStyle.lerp(a.buttonStyle, b.buttonStyle, t),
       prominentButtonStyle: GlassButtonStyle.lerp(
@@ -199,9 +196,6 @@ class GlassThemeData {
 
   /// The font of every label, or null for the system font.
   final String? fontFamily;
-
-  /// How every glass surface is drawn; liquid glass when null.
-  final GlassRenderer? renderer;
 
   /// The app's semantic colors.
   final GlassColorScheme? colorScheme;
@@ -277,7 +271,6 @@ class GlassThemeData {
       brightness: other.brightness ?? brightness,
       primaryColor: other.primaryColor ?? primaryColor,
       fontFamily: other.fontFamily ?? fontFamily,
-      renderer: other.renderer ?? renderer,
       colorScheme: colorScheme?.merge(other.colorScheme) ?? other.colorScheme,
       buttonStyle: other.buttonStyle?.merge(buttonStyle) ?? buttonStyle,
       prominentButtonStyle:
@@ -314,7 +307,6 @@ class GlassThemeData {
       other.brightness == brightness &&
       other.primaryColor == primaryColor &&
       other.fontFamily == fontFamily &&
-      other.renderer == renderer &&
       other.colorScheme == colorScheme &&
       other.buttonStyle == buttonStyle &&
       other.prominentButtonStyle == prominentButtonStyle &&
@@ -340,7 +332,6 @@ class GlassThemeData {
     brightness,
     primaryColor,
     fontFamily,
-    renderer,
     colorScheme,
     buttonStyle,
     prominentButtonStyle,
@@ -368,7 +359,7 @@ class GlassThemeData {
 /// Flutter: `CupertinoTheme`, except that a nested theme merges into the
 /// enclosing one instead of replacing it.
 ///
-/// A widget that reads one part of the theme ([rendererOf], [brightnessOf],
+/// A widget that reads one part of the theme ([brightnessOf],
 /// [colorSchemeOf]) rebuilds only when that part changes.
 ///
 /// The outermost theme starts `FrameCadence`, which on a fast display draws
@@ -398,11 +389,6 @@ class GlassTheme extends StatelessWidget {
         context,
         aspect: aspect,
       )?.data;
-
-  /// The renderer at [context]; liquid glass without one.
-  static GlassRenderer rendererOf(BuildContext context) =>
-      _of(context, _GlassThemeAspect.renderer)?.renderer ??
-      const GlassRenderer.liquid();
 
   /// The theme's brightness at [context], or null to follow the platform.
   static Brightness? brightnessOf(BuildContext context) =>
@@ -436,7 +422,7 @@ class GlassTheme extends StatelessWidget {
   }
 }
 
-enum _GlassThemeAspect { renderer, brightness, colorScheme }
+enum _GlassThemeAspect { brightness, colorScheme }
 
 class _GlassThemeScope extends InheritedModel<_GlassThemeAspect> {
   const _GlassThemeScope({required this.data, required super.child});
@@ -452,7 +438,6 @@ class _GlassThemeScope extends InheritedModel<_GlassThemeAspect> {
     Set<_GlassThemeAspect> dependencies,
   ) => dependencies.any(
     (aspect) => switch (aspect) {
-      _GlassThemeAspect.renderer => data.renderer != oldWidget.data.renderer,
       _GlassThemeAspect.brightness =>
         data.brightness != oldWidget.data.brightness,
       _GlassThemeAspect.colorScheme =>

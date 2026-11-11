@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
+import 'package:apple_liquid_glass/src/surfaces/renderer_scope.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
@@ -10,9 +11,10 @@ import 'package:kinesis/motion.dart';
 /// `.glassEffect(_:in:)`.
 ///
 /// The child is drawn over the body and clipped to it. The same surface is
-/// real glass, fake glass or flat depending on the renderer in
-/// `GlassTheme`, so an app's own panels follow its user's choice too; the
-/// child keeps its state when the renderer changes.
+/// real glass, fake glass or flat depending on the renderer of the
+/// enclosing [GlassRendererScope] (flat without one), so an app's own
+/// panels follow its user's choice too; the child keeps its state when the
+/// renderer changes.
 class GlassSurface extends StatefulWidget {
   /// Creates a still body whose outline is `shape`, a capsule by default.
   const GlassSurface({
@@ -92,7 +94,7 @@ class _GlassSurfaceState extends State<GlassSurface> {
   Widget build(BuildContext context) {
     final frame =
         widget.frame ?? StillGlassFrame(GlassFrame(shape: widget._shape!));
-    final body = GlassTheme.rendererOf(context).buildSurface(
+    final body = GlassRendererScope.of(context).buildSurface(
       context,
       GlassSurfaceDetails(
         role: widget.role,

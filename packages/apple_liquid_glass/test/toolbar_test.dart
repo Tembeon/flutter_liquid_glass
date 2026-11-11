@@ -12,9 +12,12 @@ Widget _app(Widget child, {double keyboard = 0}) => MediaQuery(
   ),
   child: Directionality(
     textDirection: TextDirection.ltr,
-    child: GlassTheme(
-      data: const GlassThemeData(renderer: GlassRenderer.flat()),
-      child: child,
+    child: GlassRendererScope(
+      renderer: const GlassRenderer.flat(),
+      child: GlassTheme(
+        data: const GlassThemeData(),
+        child: child,
+      ),
     ),
   ),
 );
@@ -231,25 +234,27 @@ void main() {
         ),
         child: Directionality(
           textDirection: TextDirection.ltr,
-          child: GlassTheme(
-            data: const GlassThemeData(
-              renderer: GlassRenderer.flat(),
-              toolbarStyle: style,
-            ),
-            child: GlassPageScaffold(
-              toolbar: GlassToolbar(
-                items: [
-                  GlassBarItem(label: const Text('Edit'), onPressed: () {}),
-                  const GlassBarSpacer.flexible(),
-                  const GlassBarItem(label: Text('Off')),
-                  const GlassBarSpacer.flexible(),
-                  GlassBarItem.prominent(
-                    label: const Text('Go'),
-                    onPressed: () {},
-                  ),
-                ],
+          child: GlassRendererScope(
+            renderer: const GlassRenderer.flat(),
+            child: GlassTheme(
+              data: const GlassThemeData(
+                toolbarStyle: style,
               ),
-              child: const SizedBox.expand(),
+              child: GlassPageScaffold(
+                toolbar: GlassToolbar(
+                  items: [
+                    GlassBarItem(label: const Text('Edit'), onPressed: () {}),
+                    const GlassBarSpacer.flexible(),
+                    const GlassBarItem(label: Text('Off')),
+                    const GlassBarSpacer.flexible(),
+                    GlassBarItem.prominent(
+                      label: const Text('Go'),
+                      onPressed: () {},
+                    ),
+                  ],
+                ),
+                child: const SizedBox.expand(),
+              ),
             ),
           ),
         ),

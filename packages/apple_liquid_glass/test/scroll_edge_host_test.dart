@@ -15,40 +15,43 @@ Widget _page(GlassRenderer renderer, ScrollController controller) => MediaQuery(
   data: const MediaQueryData(size: Size(200, 400)),
   child: Directionality(
     textDirection: TextDirection.ltr,
-    child: GlassTheme(
-      data: GlassThemeData(renderer: renderer),
-      child: Align(
-        alignment: Alignment.topLeft,
-        child: SizedBox(
-          width: 200,
-          height: 400,
-          child: RepaintBoundary(
-            key: _key,
-            child: GlassPageScaffold(
-              backgroundColor: const Color(0xFFFFFFFF),
-              navigationBar: const PreferredSize(
-                preferredSize: Size.fromHeight(60),
-                child: SizedBox(height: 60),
-              ),
-              child: GlassContentScroll(
-                edgeEffects: const GlassScrollEdgeEffects(
-                  top: GlassScrollEdgeEffect.hard,
+    child: GlassRendererScope(
+      renderer: renderer,
+      child: GlassTheme(
+        data: const GlassThemeData(),
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: 200,
+            height: 400,
+            child: RepaintBoundary(
+              key: _key,
+              child: GlassPageScaffold(
+                backgroundColor: const Color(0xFFFFFFFF),
+                navigationBar: const PreferredSize(
+                  preferredSize: Size.fromHeight(60),
+                  child: SizedBox(height: 60),
                 ),
-                child: ListView(
-                  controller: controller,
-                  children: [
-                    Container(
-                      height: 1000,
-                      color: const Color(0xFFFF0000),
-                      alignment: Alignment.topLeft,
-                      padding: const EdgeInsets.only(left: 100),
-                      child: const SizedBox(
-                        width: 2,
+                child: GlassContentScroll(
+                  edgeEffects: const GlassScrollEdgeEffects(
+                    top: GlassScrollEdgeEffect.hard,
+                  ),
+                  child: ListView(
+                    controller: controller,
+                    children: [
+                      Container(
                         height: 1000,
-                        child: ColoredBox(color: Color(0xFFFFFFFF)),
+                        color: const Color(0xFFFF0000),
+                        alignment: Alignment.topLeft,
+                        padding: const EdgeInsets.only(left: 100),
+                        child: const SizedBox(
+                          width: 2,
+                          height: 1000,
+                          child: ColoredBox(color: Color(0xFFFFFFFF)),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

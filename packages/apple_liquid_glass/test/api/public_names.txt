@@ -78,6 +78,7 @@ GlassPressable
 GlassReadReport
 GlassReadSource
 GlassRenderer
+GlassRendererScope
 GlassRole
 GlassRoundedRect
 GlassScrollEdgeDetails

@@ -534,34 +534,37 @@ class _RenderersState extends State<_Renderers> {
               ('Flat', GlassRenderer.flat()),
             ])
               Expanded(
-                child: GlassTheme(
-                  data: GlassThemeData(
-                    renderer: renderer,
-                    brightness: Brightness.dark,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        PhotoText(name, size: 17, weight: FontWeight.w600),
-                        GlassButton(
-                          onPressed: () {},
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8),
-                            child: Text('Button'),
+                child: GlassRendererScope(
+                  renderer: renderer,
+                  child: GlassTheme(
+                    data: const GlassThemeData(
+                      brightness: Brightness.dark,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          PhotoText(name, size: 17, weight: FontWeight.w600),
+                          GlassButton(
+                            onPressed: () {},
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 8),
+                              child: Text('Button'),
+                            ),
                           ),
-                        ),
-                        GlassSwitch(
-                          value: _on,
-                          onChanged: (on) => setState(() => _on = on),
-                        ),
-                        GlassSlider(
-                          value: _level,
-                          semanticLabel: '$name level',
-                          onChanged: (value) => setState(() => _level = value),
-                        ),
-                      ],
+                          GlassSwitch(
+                            value: _on,
+                            onChanged: (on) => setState(() => _on = on),
+                          ),
+                          GlassSlider(
+                            value: _level,
+                            semanticLabel: '$name level',
+                            onChanged: (value) =>
+                                setState(() => _level = value),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

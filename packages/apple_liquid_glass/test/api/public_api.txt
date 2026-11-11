@@ -928,6 +928,16 @@ abstract class GlassRenderer
     GlassSurfaceDetails details,
   )
   static Future<void> precache({bool warmUp = ...})
+class GlassRendererScope extends InheritedWidget
+  const GlassRendererScope({
+    required GlassRenderer renderer,
+    required Widget child,
+    Key? key,
+  })
+  static GlassRenderer? maybeOf(BuildContext context)
+  static GlassRenderer of(BuildContext context)
+  final GlassRenderer renderer
+  overrides: updateShouldNotify
 enum GlassRole
   bar,
   control,
@@ -1608,7 +1618,6 @@ class GlassTheme extends StatelessWidget
   final GlassThemeData data
   static GlassThemeData? maybeOf(BuildContext context)
   static GlassThemeData of(BuildContext context)
-  static GlassRenderer rendererOf(BuildContext context)
   overrides: build
 class GlassThemeData
   factory GlassThemeData.lerp(GlassThemeData a, GlassThemeData b, double t)
@@ -1616,7 +1625,6 @@ class GlassThemeData
     Brightness? brightness,
     Color? primaryColor,
     String? fontFamily,
-    GlassRenderer? renderer,
     GlassColorScheme? colorScheme,
     GlassButtonStyle? buttonStyle,
     GlassButtonStyle? prominentButtonStyle,
@@ -1653,7 +1661,6 @@ class GlassThemeData
   final GlassPopoverStyle? popoverStyle
   final Color? primaryColor
   final GlassButtonStyle? prominentButtonStyle
-  final GlassRenderer? renderer
   final GlassSearchFieldStyle? searchFieldStyle
   final GlassSegmentedStyle? segmentedStyle
   final GlassSheetStyle? sheetStyle
@@ -2265,6 +2272,7 @@ class GlassGroup (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassGroupDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassMerge (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassRenderer (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassRendererScope (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassScrollEdgeDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSolidBackdrop (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSurface (see package:apple_liquid_glass/apple_liquid_glass.dart)

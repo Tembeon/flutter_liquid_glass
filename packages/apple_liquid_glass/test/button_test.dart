@@ -15,9 +15,12 @@ Widget _app(
   data: MediaQueryData(disableAnimations: disableAnimations),
   child: Directionality(
     textDirection: TextDirection.ltr,
-    child: GlassTheme(
-      data: GlassThemeData(renderer: renderer),
-      child: Center(child: child),
+    child: GlassRendererScope(
+      renderer: renderer,
+      child: GlassTheme(
+        data: const GlassThemeData(),
+        child: Center(child: child),
+      ),
     ),
   ),
 );

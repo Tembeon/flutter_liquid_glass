@@ -130,14 +130,17 @@ class GridApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       pageRouteBuilder: <T>(settings, builder) =>
           GlassPageRoute<T>(builder: builder, settings: settings),
-      builder: (context, child) => GlassTheme(
-        data: GlassThemeData(renderer: renderer),
-        child: Builder(
-          builder: (context) => DefaultTextStyle(
-            style: TextStyle(
-              color: GlassDynamicColor.resolve(GlassColors.label, context),
+      builder: (context, child) => GlassRendererScope(
+        renderer: renderer,
+        child: GlassTheme(
+          data: const GlassThemeData(),
+          child: Builder(
+            builder: (context) => DefaultTextStyle(
+              style: TextStyle(
+                color: GlassDynamicColor.resolve(GlassColors.label, context),
+              ),
+              child: child!,
             ),
-            child: child!,
           ),
         ),
       ),

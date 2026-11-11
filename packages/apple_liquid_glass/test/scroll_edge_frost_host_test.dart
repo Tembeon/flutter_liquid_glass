@@ -28,47 +28,50 @@ Widget _page(
   data: MediaQueryData(size: const Size(300, 400), devicePixelRatio: dpr),
   child: Directionality(
     textDirection: TextDirection.ltr,
-    child: GlassTheme(
-      data: const GlassThemeData(renderer: GlassRenderer.liquid()),
-      child: Align(
-        alignment: Alignment.topLeft,
-        child: SizedBox(
-          width: 300,
-          height: 400,
-          child: RepaintBoundary(
-            key: _key,
-            child: GlassPageScaffold(
-              backgroundColor: const Color(0xFFFFFFFF),
-              navigationBar: PreferredSize(
-                preferredSize: const Size.fromHeight(60),
-                child: bar,
-              ),
-              child: GlassContentScroll(
-                edgeEffects: GlassScrollEdgeEffects(
-                  top: hard
-                      ? GlassScrollEdgeEffect.hard
-                      : GlassScrollEdgeEffect.soft,
+    child: GlassRendererScope(
+      renderer: const GlassRenderer.liquid(),
+      child: GlassTheme(
+        data: const GlassThemeData(),
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: 300,
+            height: 400,
+            child: RepaintBoundary(
+              key: _key,
+              child: GlassPageScaffold(
+                backgroundColor: const Color(0xFFFFFFFF),
+                navigationBar: PreferredSize(
+                  preferredSize: const Size.fromHeight(60),
+                  child: bar,
                 ),
-                child: ListView(
-                  controller: controller,
-                  children: [
-                    // Hard edges every few pixels, where the frost's
-                    // taps part most from Impeller's blur.
-                    for (var i = 0; i < 40; i++)
-                      Container(
-                        height: 30,
-                        color: Color(
-                          0xFF000000 | (i * 2654435761) & 0xFFFFFF,
-                        ),
-                        alignment: Alignment.centerLeft,
-                        padding: EdgeInsets.only(left: 10.0 + i * 5),
-                        child: const SizedBox(
-                          width: 3,
+                child: GlassContentScroll(
+                  edgeEffects: GlassScrollEdgeEffects(
+                    top: hard
+                        ? GlassScrollEdgeEffect.hard
+                        : GlassScrollEdgeEffect.soft,
+                  ),
+                  child: ListView(
+                    controller: controller,
+                    children: [
+                      // Hard edges every few pixels, where the frost's
+                      // taps part most from Impeller's blur.
+                      for (var i = 0; i < 40; i++)
+                        Container(
                           height: 30,
-                          child: ColoredBox(color: Color(0xFFFFFFFF)),
+                          color: Color(
+                            0xFF000000 | (i * 2654435761) & 0xFFFFFF,
+                          ),
+                          alignment: Alignment.centerLeft,
+                          padding: EdgeInsets.only(left: 10.0 + i * 5),
+                          child: const SizedBox(
+                            width: 3,
+                            height: 30,
+                            child: ColoredBox(color: Color(0xFFFFFFFF)),
+                          ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

@@ -1,5 +1,5 @@
-import 'package:apple_liquid_glass/src/foundation/theme.dart';
 import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
+import 'package:apple_liquid_glass/src/surfaces/renderer_scope.dart';
 import 'package:flutter/widgets.dart';
 
 /// How the surfaces of a [GlassGroup] fuse.
@@ -55,7 +55,7 @@ class _GlassGroupState extends State<GlassGroup> {
 
   @override
   Widget build(BuildContext context) =>
-      GlassTheme.rendererOf(context).buildGroup(
+      GlassRendererScope.of(context).buildGroup(
         context,
         GlassGroupDetails(
           merge: widget.merge,

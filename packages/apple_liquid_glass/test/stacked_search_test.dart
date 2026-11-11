@@ -18,30 +18,33 @@ Widget _app(
   ),
   child: Directionality(
     textDirection: TextDirection.ltr,
-    child: GlassTheme(
-      data: const GlassThemeData(renderer: GlassRenderer.flat()),
-      child: GlassPageScaffold(
-        navigationBar: GlassNavigationBar(
-          largeTitle: const Text('Notes'),
-          trailing: [
-            if (onItem != null)
-              GlassBarItem(
-                onPressed: onItem,
-                icon: const SizedBox.square(key: Key('item'), dimension: 24),
-              ),
-          ],
-          searchField: GlassSearchField(
-            key: const Key('field'),
-            controller: search,
-          ),
-        ),
-        child: GlassContentScroll(
-          child: ListView(
-            controller: scroll,
-            children: [
-              for (var i = 0; i < 40; i++)
-                SizedBox(height: 50, child: Text('Row $i')),
+    child: GlassRendererScope(
+      renderer: const GlassRenderer.flat(),
+      child: GlassTheme(
+        data: const GlassThemeData(),
+        child: GlassPageScaffold(
+          navigationBar: GlassNavigationBar(
+            largeTitle: const Text('Notes'),
+            trailing: [
+              if (onItem != null)
+                GlassBarItem(
+                  onPressed: onItem,
+                  icon: const SizedBox.square(key: Key('item'), dimension: 24),
+                ),
             ],
+            searchField: GlassSearchField(
+              key: const Key('field'),
+              controller: search,
+            ),
+          ),
+          child: GlassContentScroll(
+            child: ListView(
+              controller: scroll,
+              children: [
+                for (var i = 0; i < 40; i++)
+                  SizedBox(height: 50, child: Text('Row $i')),
+              ],
+            ),
           ),
         ),
       ),
@@ -277,19 +280,22 @@ void main() {
             ),
             child: Directionality(
               textDirection: TextDirection.ltr,
-              child: GlassTheme(
-                data: const GlassThemeData(renderer: GlassRenderer.flat()),
-                child: GlassPageScaffold(
-                  navigationBar: GlassNavigationBar(
-                    largeTitle: const Text('Notes'),
-                    searchField: searching
-                        ? GlassSearchField(
-                            key: const Key('field'),
-                            controller: search,
-                          )
-                        : null,
+              child: GlassRendererScope(
+                renderer: const GlassRenderer.flat(),
+                child: GlassTheme(
+                  data: const GlassThemeData(),
+                  child: GlassPageScaffold(
+                    navigationBar: GlassNavigationBar(
+                      largeTitle: const Text('Notes'),
+                      searchField: searching
+                          ? GlassSearchField(
+                              key: const Key('field'),
+                              controller: search,
+                            )
+                          : null,
+                    ),
+                    child: const SizedBox.expand(),
                   ),
-                  child: const SizedBox.expand(),
                 ),
               ),
             ),

@@ -18,11 +18,14 @@ Widget _app(
   ),
   child: Directionality(
     textDirection: TextDirection.ltr,
-    child: GlassTheme(
-      data: GlassThemeData(renderer: renderer),
-      child: GlassTraitsOverride(
-        reduceTransparency: reduceTransparency,
-        child: child,
+    child: GlassRendererScope(
+      renderer: renderer,
+      child: GlassTheme(
+        data: const GlassThemeData(),
+        child: GlassTraitsOverride(
+          reduceTransparency: reduceTransparency,
+          child: child,
+        ),
       ),
     ),
   ),

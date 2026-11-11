@@ -45,23 +45,25 @@ class _GalleryAppState extends State<GalleryApp> {
         debugShowCheckedModeBanner: false,
         pageRouteBuilder: <T>(routeSettings, builder) =>
             GlassPageRoute<T>(builder: builder, settings: routeSettings),
-        builder: (context, child) => AnimatedGlassTheme(
-          data: GlassThemeData(
-            renderer: settings.renderer.renderer,
-            brightness: settings.brightness,
-            primaryColor: settings.accent.color,
-          ),
-          child: GlassPlatformTraits(
-            child: GlassTraitsOverride(
-              reduceTransparency: settings.reduceTransparency ? true : null,
-              showBorders: settings.showBorders ? true : null,
-              prefersCrossFade: settings.crossFade ? true : null,
-              glassTintAmount: settings.glassTint,
-              child: FrameMeter(
-                shown: settings.frameMeter,
-                child: const bool.fromEnvironment('GLASS_PLAN_OVERLAY')
-                    ? GlassPlanOverlay(child: _Ambient(child: child!))
-                    : _Ambient(child: child!),
+        builder: (context, child) => GlassRendererScope(
+          renderer: settings.renderer.renderer,
+          child: AnimatedGlassTheme(
+            data: GlassThemeData(
+              brightness: settings.brightness,
+              primaryColor: settings.accent.color,
+            ),
+            child: GlassPlatformTraits(
+              child: GlassTraitsOverride(
+                reduceTransparency: settings.reduceTransparency ? true : null,
+                showBorders: settings.showBorders ? true : null,
+                prefersCrossFade: settings.crossFade ? true : null,
+                glassTintAmount: settings.glassTint,
+                child: FrameMeter(
+                  shown: settings.frameMeter,
+                  child: const bool.fromEnvironment('GLASS_PLAN_OVERLAY')
+                      ? GlassPlanOverlay(child: _Ambient(child: child!))
+                      : _Ambient(child: child!),
+                ),
               ),
             ),
           ),

@@ -15,9 +15,12 @@ Widget _app(Widget child, {TextDirection direction = TextDirection.ltr}) =>
       ),
       child: Directionality(
         textDirection: direction,
-        child: GlassTheme(
-          data: const GlassThemeData(renderer: GlassRenderer.flat()),
-          child: child,
+        child: GlassRendererScope(
+          renderer: const GlassRenderer.flat(),
+          child: GlassTheme(
+            data: const GlassThemeData(),
+            child: child,
+          ),
         ),
       ),
     );

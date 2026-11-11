@@ -10,13 +10,16 @@ Widget _app(Widget child, {GlassThemeData theme = const GlassThemeData()}) =>
       data: const MediaQueryData(devicePixelRatio: 3),
       child: Directionality(
         textDirection: TextDirection.ltr,
-        child: GlassTheme(
-          data: theme.merge(
-            const GlassThemeData(renderer: GlassRenderer.flat()),
-          ),
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: SizedBox(width: 402, child: child),
+        child: GlassRendererScope(
+          renderer: const GlassRenderer.flat(),
+          child: GlassTheme(
+            data: theme.merge(
+              const GlassThemeData(),
+            ),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: SizedBox(width: 402, child: child),
+            ),
           ),
         ),
       ),

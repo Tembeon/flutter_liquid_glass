@@ -31,15 +31,18 @@ Widget _page(GlassRenderer renderer, List<GlassBarEntry> items) => MediaQuery(
   data: const MediaQueryData(size: Size(402, 120)),
   child: Directionality(
     textDirection: TextDirection.ltr,
-    child: GlassTheme(
-      data: GlassThemeData(renderer: renderer),
-      child: RepaintBoundary(
-        key: _key,
-        child: ColoredBox(
-          color: _red,
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: GlassToolbar(items: items),
+    child: GlassRendererScope(
+      renderer: renderer,
+      child: GlassTheme(
+        data: const GlassThemeData(),
+        child: RepaintBoundary(
+          key: _key,
+          child: ColoredBox(
+            color: _red,
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: GlassToolbar(items: items),
+            ),
           ),
         ),
       ),

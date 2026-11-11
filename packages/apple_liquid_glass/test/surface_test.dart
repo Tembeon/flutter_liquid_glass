@@ -12,9 +12,12 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 Widget _app(GlassRenderer renderer, Widget child) => Directionality(
   textDirection: TextDirection.ltr,
-  child: GlassTheme(
-    data: GlassThemeData(renderer: renderer),
-    child: Center(child: child),
+  child: GlassRendererScope(
+    renderer: renderer,
+    child: GlassTheme(
+      data: const GlassThemeData(),
+      child: Center(child: child),
+    ),
   ),
 );
 
@@ -723,34 +726,52 @@ void main() {
       expect(builds.toSet(), {0});
     });
 
-    testWidgets('the renderer aspect ignores a theme that keeps it', (
-      tester,
-    ) async {
+    testWidgets('a renderer reader rebuilds only when the renderer '
+        'changes', (tester) async {
       var reads = 0;
       final reader = Builder(
         builder: (context) {
-          GlassTheme.rendererOf(context);
+          GlassRendererScope.of(context);
           reads++;
           return const SizedBox();
         },
       );
+      Widget scoped(GlassRenderer renderer, GlassThemeData theme) =>
+          GlassRendererScope(
+            renderer: renderer,
+            child: GlassTheme(data: theme, child: reader),
+          );
       await tester.pumpWidget(
-        GlassTheme(data: const GlassThemeData(), child: reader),
+        scoped(const GlassRenderer.liquid(), const GlassThemeData()),
       );
       await tester.pumpWidget(
-        GlassTheme(
-          data: const GlassThemeData(),
-          child: reader,
+        scoped(
+          const GlassRenderer.liquid(),
+          const GlassThemeData(primaryColor: Color(0xFF123456)),
         ),
       );
       expect(reads, 1);
       await tester.pumpWidget(
-        GlassTheme(
-          data: const GlassThemeData(renderer: GlassRenderer.flat()),
-          child: reader,
-        ),
+        scoped(const GlassRenderer.flat(), const GlassThemeData()),
       );
       expect(reads, 2);
+    });
+
+    testWidgets('without a scope above, glass draws flat', (tester) async {
+      late GlassRenderer renderer;
+      await tester.pumpWidget(
+        Builder(
+          builder: (context) {
+            renderer = GlassRendererScope.of(context);
+            return const SizedBox();
+          },
+        ),
+      );
+      expect(renderer, const GlassRenderer.flat());
+      expect(
+        GlassRendererScope.maybeOf(tester.element(find.byType(SizedBox))),
+        isNull,
+      );
     });
 
     testWidgets('adaptive draws the capable renderer until precache answers, '

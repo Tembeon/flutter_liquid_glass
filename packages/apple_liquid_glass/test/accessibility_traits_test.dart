@@ -13,16 +13,19 @@ Widget _probe({
   data: MediaQueryData(disableAnimations: reduceMotion),
   child: Directionality(
     textDirection: TextDirection.ltr,
-    child: GlassTheme(
-      data: const GlassThemeData(renderer: GlassRenderer.flat()),
-      child: GlassTraitsOverride(
-        prefersCrossFade: prefersCrossFade,
-        showBorders: showBorders,
-        child: Builder(
-          builder: (context) {
-            _seen = GlassTraits.of(context);
-            return child ?? const SizedBox();
-          },
+    child: GlassRendererScope(
+      renderer: const GlassRenderer.flat(),
+      child: GlassTheme(
+        data: const GlassThemeData(),
+        child: GlassTraitsOverride(
+          prefersCrossFade: prefersCrossFade,
+          showBorders: showBorders,
+          child: Builder(
+            builder: (context) {
+              _seen = GlassTraits.of(context);
+              return child ?? const SizedBox();
+            },
+          ),
         ),
       ),
     ),

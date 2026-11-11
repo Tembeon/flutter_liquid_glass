@@ -1,11 +1,10 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/foundation/colors.dart';
-import 'package:apple_liquid_glass/src/foundation/theme.dart';
 import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:apple_liquid_glass/src/navigation/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/navigation/toolbar.dart';
-import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
+import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -336,7 +335,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
 
   @override
   Widget build(BuildContext context) {
-    final renderer = GlassTheme.rendererOf(context);
+    final renderer = GlassRendererScope.of(context);
     final edges = _chrome?.edges;
     final top = _hard(
       widget.edgeEffects.top,

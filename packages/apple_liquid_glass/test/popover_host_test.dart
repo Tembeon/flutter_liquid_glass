@@ -22,34 +22,37 @@ final _shape = PopoverShape(
 
 Widget _page(GlassRenderer renderer, GlassFrame frame) => Directionality(
   textDirection: TextDirection.ltr,
-  child: GlassTheme(
-    data: GlassThemeData(renderer: renderer),
-    child: Align(
-      alignment: Alignment.topLeft,
-      child: RepaintBoundary(
-        key: _key,
-        child: SizedBox(
-          width: 300,
-          height: 200,
-          child: DecoratedBox(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFFFFFFFF), Color(0xFFFF0000)],
-                stops: [0.75, 0.75],
+  child: GlassRendererScope(
+    renderer: renderer,
+    child: GlassTheme(
+      data: const GlassThemeData(),
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: RepaintBoundary(
+          key: _key,
+          child: SizedBox(
+            width: 300,
+            height: 200,
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFFFFFFFF), Color(0xFFFF0000)],
+                  stops: [0.75, 0.75],
+                ),
               ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(30),
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: SizedBox.fromSize(
-                  size: _shape.bounds.size,
-                  child: GlassSurface.live(
-                    role: GlassRole.panel,
-                    frame: MotionSelection(() => frame),
-                    child: const SizedBox.expand(),
+              child: Padding(
+                padding: const EdgeInsets.all(30),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: SizedBox.fromSize(
+                    size: _shape.bounds.size,
+                    child: GlassSurface.live(
+                      role: GlassRole.panel,
+                      frame: MotionSelection(() => frame),
+                      child: const SizedBox.expand(),
+                    ),
                   ),
                 ),
               ),

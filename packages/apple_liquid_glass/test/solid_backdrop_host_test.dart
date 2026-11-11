@@ -76,19 +76,24 @@ Widget _page(_CapturingView view, Widget content, {required int key}) {
       textDirection: TextDirection.ltr,
       child: MediaQuery(
         data: const MediaQueryData(size: _viewSize, devicePixelRatio: _dpr),
-        child: GlassTheme(
-          data: const GlassThemeData(renderer: GlassRenderer.liquid()),
-          child: ColoredBox(
-            color: const Color(0xFFD02020),
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 60),
-                child: GlassListSection(
-                  style: const GlassListStyle(
-                    backgroundColor: WidgetStatePropertyAll(Color(0xFF2C2C2E)),
+        child: GlassRendererScope(
+          renderer: const GlassRenderer.liquid(),
+          child: GlassTheme(
+            data: const GlassThemeData(),
+            child: ColoredBox(
+              color: const Color(0xFFD02020),
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 60),
+                  child: GlassListSection(
+                    style: const GlassListStyle(
+                      backgroundColor: WidgetStatePropertyAll(
+                        Color(0xFF2C2C2E),
+                      ),
+                    ),
+                    children: [content],
                   ),
-                  children: [content],
                 ),
               ),
             ),

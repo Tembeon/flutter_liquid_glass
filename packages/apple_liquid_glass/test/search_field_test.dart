@@ -10,11 +10,14 @@ Widget _app(Widget child, {GlassThemeData theme = const GlassThemeData()}) =>
       data: const MediaQueryData(),
       child: Directionality(
         textDirection: TextDirection.ltr,
-        child: GlassTheme(
-          data: theme.merge(
-            const GlassThemeData(renderer: GlassRenderer.flat()),
+        child: GlassRendererScope(
+          renderer: const GlassRenderer.flat(),
+          child: GlassTheme(
+            data: theme.merge(
+              const GlassThemeData(),
+            ),
+            child: Center(child: SizedBox(width: 340, child: child)),
           ),
-          child: Center(child: SizedBox(width: 340, child: child)),
         ),
       ),
     );

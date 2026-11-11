@@ -60,16 +60,19 @@ class _NotesState extends State<_Notes> {
     data: const MediaQueryData(),
     child: Directionality(
       textDirection: TextDirection.ltr,
-      child: GlassTheme(
-        data: const GlassThemeData(renderer: GlassRenderer.flat()),
-        child: CustomScrollView(
-          slivers: [
-            GlassSliverListSection(
-              ids: notes,
-              itemCount: notes.length,
-              itemBuilder: (context, i) => _row(notes[i]),
-            ),
-          ],
+      child: GlassRendererScope(
+        renderer: const GlassRenderer.flat(),
+        child: GlassTheme(
+          data: const GlassThemeData(),
+          child: CustomScrollView(
+            slivers: [
+              GlassSliverListSection(
+                ids: notes,
+                itemCount: notes.length,
+                itemBuilder: (context, i) => _row(notes[i]),
+              ),
+            ],
+          ),
         ),
       ),
     ),

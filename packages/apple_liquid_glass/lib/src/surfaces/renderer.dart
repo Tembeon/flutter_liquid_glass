@@ -9,8 +9,8 @@ import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// How every glass surface is drawn: real glass, fake glass, one flat look
-/// or an app's own, chosen by the app or its user in `GlassTheme` and
-/// switchable at any time.
+/// or an app's own, chosen by the app or its user in a `GlassRendererScope`
+/// and switchable at any time.
 ///
 /// A renderer builds a surface when the surface's widget rebuilds; frames
 /// reach what it built through [GlassSurfaceDetails.frame], followed below

@@ -24,12 +24,14 @@ class _App extends StatelessWidget {
     color: const Color(0xFF000000),
     pageRouteBuilder: <T>(settings, builder) =>
         GlassPageRoute<T>(builder: builder, settings: settings),
-    builder: (context, child) => GlassTheme(
-      data: GlassThemeData(
-        renderer: const GlassRenderer.flat(),
-        brightness: brightness,
+    builder: (context, child) => GlassRendererScope(
+      renderer: const GlassRenderer.flat(),
+      child: GlassTheme(
+        data: GlassThemeData(
+          brightness: brightness,
+        ),
+        child: builder?.call(context, child) ?? child!,
       ),
-      child: builder?.call(context, child) ?? child!,
     ),
     home: home,
   );

@@ -132,32 +132,33 @@ void main() {
     ) async {
       late GlassThemeData data;
       await tester.pumpWidget(
-        GlassTheme(
-          data: GlassThemeData(
-            renderer: const GlassRenderer.flat(),
-            fontFamily: 'Outer',
-            buttonStyle: GlassButton.styleFrom(
-              foregroundColor: const Color(0xFF00FF00),
-            ),
-          ),
+        GlassRendererScope(
+          renderer: const GlassRenderer.flat(),
           child: GlassTheme(
             data: GlassThemeData(
-              fontFamily: 'Inner',
-              colorScheme: const GlassColorScheme(label: Color(0xFF111111)),
+              fontFamily: 'Outer',
               buttonStyle: GlassButton.styleFrom(
-                disabledForegroundColor: const Color(0xFFFF0000),
+                foregroundColor: const Color(0xFF00FF00),
               ),
             ),
-            child: Builder(
-              builder: (context) {
-                data = GlassTheme.of(context);
-                return const SizedBox();
-              },
+            child: GlassTheme(
+              data: GlassThemeData(
+                fontFamily: 'Inner',
+                colorScheme: const GlassColorScheme(label: Color(0xFF111111)),
+                buttonStyle: GlassButton.styleFrom(
+                  disabledForegroundColor: const Color(0xFFFF0000),
+                ),
+              ),
+              child: Builder(
+                builder: (context) {
+                  data = GlassTheme.of(context);
+                  return const SizedBox();
+                },
+              ),
             ),
           ),
         ),
       );
-      expect(data.renderer, const GlassRenderer.flat());
       expect(data.fontFamily, 'Inner');
       expect(data.colorScheme!.label, const Color(0xFF111111));
       final foreground = data.buttonStyle!.foregroundColor!;
@@ -199,7 +200,7 @@ void main() {
     });
 
     testWidgets('an animated theme moves colors on its spring, switches '
-        'the renderer at once and rests on its data', (tester) async {
+        'and rests on its data', (tester) async {
       final seen = <GlassThemeData>[];
       final reader = Builder(
         builder: (context) {
@@ -209,12 +210,10 @@ void main() {
       );
       final from = GlassThemeData(
         primaryColor: const Color(0xFF000000),
-        renderer: const GlassRenderer.liquid(),
         buttonStyle: GlassButton.styleFrom(padding: const EdgeInsets.all(30)),
       );
       final to = GlassThemeData(
         primaryColor: const Color(0xFFFFFFFF),
-        renderer: const GlassRenderer.flat(),
         buttonStyle: GlassButton.styleFrom(
           foregroundColor: const Color(0xFFFF0000),
         ),
@@ -227,9 +226,6 @@ void main() {
       for (var i = 0; i < 60; i++) {
         await tester.pump(const Duration(milliseconds: 16));
       }
-      expect(seen.map((e) => e.renderer).toSet(), {
-        const GlassRenderer.flat(),
-      });
       final reds = [for (final data in seen) data.primaryColor!.r];
       for (var i = 1; i < reds.length; i++) {
         expect(reds[i], greaterThanOrEqualTo(reds[i - 1]));
