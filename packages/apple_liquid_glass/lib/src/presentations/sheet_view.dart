@@ -45,13 +45,17 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   });
   // The detent the sheet rests at or heads to, as an index of its detents.
   final _detent = ValueNotifier<int>(0);
+  // The layout the law last took, which orders the detents the grabber
+  // steps through.
+  final _laidOut = ValueNotifier<SheetLayout?>(null);
   late final _range = _DetentRange(this);
   late final List<Interaction> _detentInput = [_DetentStep(_step)];
   late final _SheetTouch _touchInput = _SheetTouch(this);
   List<Interaction> _input = const [];
   double? _contendedSlop;
+  EdgeInsets _padding = EdgeInsets.zero;
+  double _keyboard = 0;
   double? _fitted;
-  double? _displayRadius;
   double _dragY = 0;
   // The stamp of the latest event of a touch on the sheet, which a drag
   // the content's scrollable hands on happens at.
@@ -92,8 +96,31 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final padding = MediaQuery.paddingOf(context);
+    _padding = EdgeInsets.only(top: padding.top, bottom: padding.bottom);
+    _keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    widget.motion.displayRadius = MediaQuery.maybeDisplayCornerRadiiOf(
+      context,
+    )?.bottomLeft.x;
+    _relayout(_now);
+  }
+
+  @override
+  void didUpdateWidget(_SheetView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    assert(
+      identical(oldWidget.motion, widget.motion),
+      'a sheet keeps its law',
+    );
+    if (oldWidget.spec != widget.spec) _relayout(_now);
+  }
+
+  @override
   void dispose() {
     _frames.removeListener(_stepped);
+    _laidOut.dispose();
     _scroll.dispose();
     _frame.dispose();
     _fill.dispose();
@@ -138,12 +165,42 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   bool get _dismissAllowed =>
       PresentationHandle.of(context).canDismiss(DismissTrigger.interaction);
 
+  // The container's size reaches the law in the frame's resolve phase, so
+  // the sheet's first frame draws it where it starts.
+  void _sized(double t, Size size) {
+    if (!mounted) return;
+    _layout(t, size);
+    _publish();
+  }
+
+  // Unlike the container's, the content's size moves the sheet a frame
+  // later, as its spring publishes.
   void _fittedHeight(double t, Size size) {
     if (!mounted || _fitted == size.height) return;
     _fitted = size.height;
-    final last = widget.motion.lastLayout;
-    if (last == null) return;
-    widget.motion.layout(t, last.copyWith(fittedHeight: () => _fitted));
+    _layout(t, widget.motion.lastLayout?.size);
+  }
+
+  void _relayout(double t) {
+    if (_layout(t, widget.motion.lastLayout?.size)) _publish();
+  }
+
+  bool _layout(double t, Size? size) {
+    if (size == null) return false;
+    widget.motion.layout(
+      t,
+      SheetLayout(
+        size: size,
+        padding: _padding,
+        keyboard: _keyboard,
+        fittedHeight: _fitted,
+        detents: detents,
+        selected: detent,
+        largestUndimmed: _spec.largestUndimmedDetent,
+      ),
+    );
+    _laidOut.value = widget.motion.lastLayout;
+    return true;
   }
 
   void _publish() {
@@ -393,9 +450,6 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final input = _inputFor(media.gestureSettings.touchSlop ?? kTouchSlop);
-    _displayRadius = MediaQuery.maybeDisplayCornerRadiiOf(
-      context,
-    )?.bottomLeft.x;
     final content = _contentFor(context);
     final look = _spec.lookOf(context);
     final docked = GlassDynamicColor.resolve(
@@ -420,25 +474,11 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
         state: this,
         detent: _detent,
         child: LayoutBuilder(
-          builder: (context, constraints) {
-            widget.motion.displayRadius = _displayRadius;
-            widget.motion.layout(
-              _now,
-              SheetLayout(
-                size: constraints.biggest,
-                padding: EdgeInsets.only(
-                  top: media.padding.top,
-                  bottom: media.padding.bottom,
-                ),
-                keyboard: media.viewInsets.bottom,
-                fittedHeight: _fitted,
-                detents: detents,
-                selected: detent,
-                largestUndimmed: _spec.largestUndimmedDetent,
-              ),
-            );
-            _publish();
-            return Stack(
+          // It only builds: fitted content lays out in the container's
+          // height less the safe area, which only layout knows.
+          builder: (context, constraints) => MotionMeasure(
+            onSize: _sized,
+            child: Stack(
               children: [
                 Positioned.fill(
                   key: const ValueKey('sheet'),
@@ -499,8 +539,8 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
                   ),
                 ),
               ],
-            );
-          },
+            ),
+          ),
         ),
       ),
     );

@@ -87,12 +87,16 @@ final class _DetentRange implements ValueListenable<AdjustRange> {
   }
 
   @override
-  void addListener(VoidCallback listener) =>
-      sheet._detent.addListener(listener);
+  void addListener(VoidCallback listener) {
+    sheet._detent.addListener(listener);
+    sheet._laidOut.addListener(listener);
+  }
 
   @override
-  void removeListener(VoidCallback listener) =>
-      sheet._detent.removeListener(listener);
+  void removeListener(VoidCallback listener) {
+    sheet._detent.removeListener(listener);
+    sheet._laidOut.removeListener(listener);
+  }
 }
 
 /// The value commands of the keyboard and screen readers on the grabber;
@@ -120,30 +124,79 @@ final class _DetentStep extends Interaction {
 const double _target = 44;
 
 /// Tells screen readers the detent the sheet rests at, and the ones a step
-/// up and down reach, as the grabber's value; rebuilds when the detent
-/// changes.
-class _DetentValue extends StatelessWidget {
-  const _DetentValue({required this.state, required this.child});
+/// up and down reach, as the grabber's value. It reads them when semantics
+/// are gathered, so the frame whose resolve phase lays the sheet out
+/// already tells them.
+class _DetentValue extends SingleChildRenderObjectWidget {
+  const _DetentValue({required this.state, required super.child});
 
   final _SheetViewState state;
-  final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    context.dependOnInheritedWidgetOfExactType<_DetentScope>();
-    final strings = GlassLocalizations.of(context);
-    final motion = state.widget.motion;
-    final detent = state._detent.value;
-    final at = motion.indexOfDetent(detent);
-    String? name(int i) => state._detentName(strings, motion.detentAt(i));
-    return Semantics(
-      value: at < 0 ? null : state._detentName(strings, detent),
-      increasedValue: at >= 0 && at + 1 < motion.heights.length
-          ? name(at + 1)
-          : null,
-      decreasedValue: at > 0 ? name(at - 1) : null,
-      textDirection: Directionality.of(context),
-      child: child,
+  _RenderDetentValue createRenderObject(BuildContext context) =>
+      _RenderDetentValue(
+        state,
+        GlassLocalizations.of(context),
+        Directionality.of(context),
+      );
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderDetentValue renderObject,
+  ) {
+    renderObject.update(
+      GlassLocalizations.of(context),
+      Directionality.of(context),
     );
+  }
+}
+
+class _RenderDetentValue extends RenderProxyBox {
+  _RenderDetentValue(this._state, this._strings, this._textDirection);
+
+  // The view's own notifiers, which live as long as the view.
+  final _SheetViewState _state;
+  late final Listenable _changes = Listenable.merge([
+    _state._detent,
+    _state._laidOut,
+  ]);
+
+  GlassLocalizations _strings;
+  TextDirection _textDirection;
+
+  void update(GlassLocalizations strings, TextDirection textDirection) {
+    if (identical(strings, _strings) && textDirection == _textDirection) {
+      return;
+    }
+    _strings = strings;
+    _textDirection = textDirection;
+    markNeedsSemanticsUpdate();
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _changes.addListener(markNeedsSemanticsUpdate);
+  }
+
+  @override
+  void detach() {
+    _changes.removeListener(markNeedsSemanticsUpdate);
+    super.detach();
+  }
+
+  @override
+  void describeSemanticsConfiguration(SemanticsConfiguration config) {
+    super.describeSemanticsConfiguration(config);
+    config.textDirection = _textDirection;
+    final motion = _state.widget.motion;
+    final detent = _state._detent.value;
+    final at = motion.indexOfDetent(detent);
+    if (at < 0) return;
+    String name(int i) => _state._detentName(_strings, motion.detentAt(i));
+    config.value = _state._detentName(_strings, detent);
+    if (at + 1 < motion.heights.length) config.increasedValue = name(at + 1);
+    if (at > 0) config.decreasedValue = name(at - 1);
   }
 }
