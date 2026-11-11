@@ -72,7 +72,7 @@ void main() {
     await _frames(tester);
     expect(find.text('2 Photos Selected'), findsOneWidget);
 
-    await tester.tap(find.bySemanticsLabel('Delete Selected'));
+    await tester.tap(find.byIcon(CupertinoIcons.trash));
     await _frames(tester);
     expect(find.byType(GlassToolbar), findsNothing);
     expect(find.text('Select'), findsOneWidget);

@@ -4,6 +4,8 @@ import 'package:apple_liquid_glass/src/surfaces/scroll_edge.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'conformance/harness.dart' show globalRect;
+
 const _frame = Duration(milliseconds: 16);
 
 Widget _app(Widget child, {TextDirection direction = TextDirection.ltr}) =>
@@ -119,7 +121,10 @@ void main() {
         .fold(1, (a, b) => a > b ? a : b);
     expect(widest(), 1);
     final gesture = await tester.startGesture(
-      tester.getCenter(find.bySemanticsLabel('Edit')),
+      globalRect(
+        tester,
+        tester.getSemantics(find.bySemanticsLabel('Edit')),
+      ).center,
     );
     for (var i = 0; i < 5; i++) {
       await tester.pump(_frame);

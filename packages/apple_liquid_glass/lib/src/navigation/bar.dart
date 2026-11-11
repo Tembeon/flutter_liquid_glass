@@ -1,10 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/foundation/colors.dart';
-import 'package:apple_liquid_glass/src/foundation/frame.dart';
-import 'package:apple_liquid_glass/src/foundation/theme.dart';
-import 'package:apple_liquid_glass/src/foundation/touch_glow.dart';
-import 'package:apple_liquid_glass/src/foundation/traits.dart';
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/bar_layout.dart';
 import 'package:apple_liquid_glass/src/motions/bar_motion.dart';
@@ -16,8 +12,8 @@ import 'package:apple_liquid_glass/src/navigation/bar_entry.dart';
 import 'package:apple_liquid_glass/src/navigation/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/navigation/toolbar.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_anchor.dart';
-import 'package:apple_liquid_glass/src/surfaces/group.dart';
-import 'package:apple_liquid_glass/src/surfaces/surface.dart';
+import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
+import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -146,10 +142,25 @@ final class _Button {
 }
 
 final class _Back {
-  _Back({required this.label, required this.onPressed});
+  _Back({required this.title, required this.mode, required this.onPressed});
 
-  final String? label;
+  // The page below's name, or null to say "Back".
+  final String? title;
+  final GlassBackButtonDisplayMode mode;
   final VoidCallback onPressed;
+
+  // What the button shows beside its chevron: nothing when minimal.
+  String? shownIn(BuildContext context) => switch (mode) {
+    GlassBackButtonDisplayMode.minimal => null,
+    GlassBackButtonDisplayMode.generic => _back(context),
+    GlassBackButtonDisplayMode.title => title ?? _back(context),
+  };
+
+  // What assistive technology reads: the name it shows, or "Back".
+  String labelIn(BuildContext context) => shownIn(context) ?? _back(context);
+
+  static String _back(BuildContext context) =>
+      GlassLocalizations.of(context).backButtonLabel;
 }
 
 // The back button keeps one identity across pages: it stays when both
@@ -231,7 +242,6 @@ final class GlassBarHost {
   GlassPageBarLink? _shown;
   // The shown page's fade, which the navigation bar's capsules follow.
   final _fade = ValueNotifier<double>(1);
-  final _fadedOut = ValueNotifier<bool>(false);
   ValueListenable<double>? _following;
 
   void _show(GlassPageBarLink? link) {
@@ -252,13 +262,9 @@ final class GlassBarHost {
     final fade = _following?.value ?? 1;
     if (fade == _fade.value) return;
     _fade.value = fade;
-    _fadedOut.value = fade < _hitAlpha;
     final bar = _bars[GlassBarKind.navigation]!;
     if (bar.items != null) bar.publish();
   }
-
-  // UIKit takes no touch on a view below this alpha.
-  static const _hitAlpha = 0.01;
 
   /// Tells which opacity [link]'s page's navigation bar fades by while its
   /// stacked search shows.
@@ -675,26 +681,109 @@ final class _Bar {
       _menuCapsules.isNotEmpty &&
       _menuCapsules.containsValue(_capsuleOf(item)?.id);
 
-  /// What a menu of [item] grows out of, in [ancestor]'s coordinates.
-  MenuSource? menuSource(Object item, RenderBox ancestor) {
+  /// Whether the menu of [item] shows.
+  bool menuShows(Object item) => _menuCapsules.containsKey(item);
+
+  /// What a menu of [item] grows out of, in [overlay]'s coordinates: the
+  /// item's zone where the bar paints it, and the capsule around it.
+  MenuSource? menuSource(Object item, RenderBox overlay) {
     final capsule = _capsuleOf(item);
-    final frame = itemFrames[item];
-    final box = items;
-    if (capsule == null || frame == null || box == null) return null;
-    final transform = box.getTransformTo(ancestor);
-    return MenuCapsuleSource(
-      capsule: MatrixUtils.transformRect(transform, capsule.rect),
-      item: MatrixUtils.transformRect(
-        transform,
-        Rect.fromCenter(
-          center: frame.center,
-          width: frame.size.width,
-          height: capsule.rect.height,
-        ),
+    final zone = zoneRectOf(item);
+    final global = zones?.sourceOf(item).geometry?.rect;
+    if (capsule == null || zone == null || global == null || zone.isEmpty) {
+      return null;
+    }
+    final sx = global.width / zone.width;
+    final sy = global.height / zone.height;
+    Rect place(Rect rect) => Rect.fromPoints(
+      overlay.globalToLocal(
+        global.topLeft +
+            Offset((rect.left - zone.left) * sx, (rect.top - zone.top) * sy),
       ),
+      overlay.globalToLocal(
+        global.topLeft +
+            Offset(
+              (rect.right - zone.left) * sx,
+              (rect.bottom - zone.top) * sy,
+            ),
+      ),
+    );
+    return MenuCapsuleSource(
+      capsule: place(capsule.rect),
+      item: place(zone),
       height: metrics.buttonHeight,
       alone: capsuleItems(item).length < 2,
     );
+  }
+
+  /// The smallest box a bar item takes touches in (Apple's 44 point
+  /// target); its look does not grow.
+  static const double minimumTarget = 44;
+
+  /// The box [item] takes input in: its slot across the capsule's height,
+  /// where the motion paints it now, without its scale.
+  Rect? zoneRectOf(Object item) {
+    final frame = itemFrames[item];
+    if (frame == null) return null;
+    return Rect.fromCenter(
+      center: frame.center,
+      width: math.max(frame.size.width, widths[item] ?? 0),
+      height: metrics.capsuleHeight,
+    );
+  }
+
+  /// Where [item] lies for input and accessibility now: it takes none
+  /// while it leaves, and fades with the item and the bar.
+  InputZoneFrame? zoneFrameOf(Object item) {
+    final frame = itemFrames[item];
+    final rect = zoneRectOf(item);
+    if (frame == null || rect == null) return null;
+    return InputZoneFrame(
+      rect,
+      opacity: frame.presence * (fade?.value ?? 1),
+      takesInput: !frame.leaving,
+      radius: BorderRadius.circular(metrics.capsuleHeight / 2),
+    );
+  }
+
+  /// The zones of the items: their states, focus and the source a menu
+  /// grows out of. The band that shows the bar owns it.
+  InputZonesController<Object>? zones;
+
+  /// Notifies when the items' frames move.
+  final frames = _Frames();
+
+  final Map<Object, _ItemInput> _inputs = {};
+
+  /// The input of [item], kept across builds by its identity.
+  _ItemInput inputOf(Object item) =>
+      _inputs.putIfAbsent(item, () => _ItemInput(this, item));
+
+  /// Grows the pools of capsule frames to [count] each.
+  void grow(int count) {
+    for (final pool in [container, apart]) {
+      while (pool.length < count) {
+        pool.add(ValueNotifier(const GlassFrame(rect: Rect.zero, opacity: 0)));
+      }
+    }
+  }
+
+  /// The band that owned [zones] goes: the bar's zones and capsule frames
+  /// go with it.
+  void letGo(InputZonesController<Object> zones) {
+    if (!identical(this.zones, zones)) return;
+    this.zones = null;
+    for (final frame in [...container, ...apart]) {
+      frame.dispose();
+    }
+    container.clear();
+    apart.clear();
+  }
+
+  /// Forgets the input of items the bar no longer builds.
+  void keepInputs(Iterable<Object> items) {
+    final kept = items.toSet();
+    _inputs.removeWhere((id, _) => !kept.contains(id));
   }
 
   /// The items of [item]'s capsule, [item] included, with their frames in it.
@@ -718,30 +807,28 @@ final class _Bar {
   /// The size of [item]'s capsule.
   Size? capsuleSize(Object item) => _capsuleOf(item)?.rect.size;
 
-  void pressDown(Object item, Duration stamp, Offset position, Size box) {
-    final frame = itemFrames[item];
+  /// Lifts [item]'s capsule under a finger that touches the item's zone at
+  /// [position], in the zone's coordinates, at time [t].
+  void pressDown(Object item, double t, Offset position) {
+    final zone = zoneRectOf(item);
     final capsule = _capsuleOf(item);
-    if (frame == null || capsule == null) return;
+    if (zone == null || capsule == null) return;
     final lift = pressed == capsule.id ? motion.press : null;
     final press = lift ?? GlassPress(size: capsule.rect.size);
     press.size = capsule.rect.size;
     press.reducedMotion = motion.reducedMotion;
     pressed = capsule.id;
-    _pressOrigin =
-        frame.center - box.center(Offset.zero) - capsule.rect.topLeft;
-    motion.pressDown(press, _stamp(stamp), _pressOrigin + position);
+    _pressOrigin = zone.topLeft - capsule.rect.topLeft;
+    motion.pressDown(press, t, _pressOrigin + position);
   }
 
-  void pressMove(Duration stamp, Offset position) =>
-      motion.press?.pointerMove(_stamp(stamp), _pressOrigin + position);
+  void pressMove(double t, Offset position) =>
+      motion.press?.pointerMove(t, _pressOrigin + position);
 
-  void pressUp(Duration stamp, Offset position) =>
-      motion.press?.pointerUp(_stamp(stamp), _pressOrigin + position);
+  void pressUp(double t, Offset position) =>
+      motion.press?.pointerUp(t, _pressOrigin + position);
 
-  void pressCancel(Duration stamp) =>
-      motion.press?.pointerCancel(_stamp(stamp));
-
-  static double _stamp(Duration stamp) => MotionClock.instance.stamp(stamp);
+  void pressCancel(double t) => motion.press?.pointerCancel(t);
 
   /// How the pressed capsule moves [item] with it, in the bar's
   /// coordinates, or null when [item] is not in it.
@@ -838,19 +925,14 @@ final class _Bar {
       return const [];
     }
     final route = page.route;
-    final label = switch (declaration.backButtonDisplayMode) {
-      GlassBackButtonDisplayMode.minimal => null,
-      GlassBackButtonDisplayMode.generic => 'Back',
-      GlassBackButtonDisplayMode.title =>
-        declaration.previousPageTitle ?? below._declaration?.title ?? 'Back',
-    };
     return [
       [
         (
           _backId,
           _Button.back(
             _Back(
-              label: label,
+              title: declaration.previousPageTitle ?? below._declaration?.title,
+              mode: declaration.backButtonDisplayMode,
               onPressed: () => route?.navigator?.maybePop<Object?>(),
             ),
           ),
@@ -1028,7 +1110,7 @@ final class _Bar {
 
   static double _backLabelWidth(double built, _Back back) {
     const metrics = GlassBarMetrics.navigation;
-    if (back.label == null) return 0;
+    if (back.mode == GlassBackButtonDisplayMode.minimal) return 0;
     return math.max(
       0,
       built -
@@ -1105,7 +1187,8 @@ final class _Bar {
     for (final frame in motion.items) {
       itemFrames[frame.id] = frame;
     }
-    items?.markNeedsPaint();
+    items?.moved();
+    frames.notify();
     final ids = {for (final f in motion.items) f.id};
     // A new item joins the roster; one that has left drops from it.
     if (joined.length > container.length ||
@@ -1114,6 +1197,90 @@ final class _Bar {
         built.difference(ids).difference(measuredIds).isNotEmpty) {
       rebuild();
     }
+  }
+}
+
+/// Tells the bar's zones that its items moved.
+final class _Frames implements Listenable {
+  final List<VoidCallback> _listeners = [];
+
+  @override
+  void addListener(VoidCallback listener) => _listeners.add(listener);
+
+  @override
+  void removeListener(VoidCallback listener) => _listeners.remove(listener);
+
+  void notify() {
+    for (final listener in List.of(_listeners)) {
+      listener();
+    }
+  }
+}
+
+/// One item's input: a press that lifts its capsule under the finger and
+/// calls the item, or, for an item with a menu, the lift alone (the menu's
+/// source takes the touch) and the keys that open the menu.
+final class _ItemInput extends PointerFollower {
+  _ItemInput(this.bar, this.id);
+
+  final _Bar bar;
+  final Object id;
+
+  /// What a tap, Space or Enter calls; for an item with a menu, null opens
+  /// the menu.
+  VoidCallback? onPressed;
+
+  /// Opens the item's menu from the keyboard and assistive technology.
+  final menu = GlassMenuController();
+
+  late final List<Interaction> press = [
+    PressInteraction(
+      releaseSlop: const EdgeInsets.all(GlassPress.highlightSlop),
+      onTap: (_) => onPressed?.call(),
+    ).simultaneously(FollowInteraction(this)),
+  ];
+
+  late final List<Interaction> menuSource = [
+    _Activate(() => (onPressed ?? menu.open)()).simultaneously(
+      FollowInteraction(this),
+    ),
+  ];
+
+  @override
+  void down(PointerDownInput input) =>
+      bar.pressDown(id, input.time, input.position);
+
+  @override
+  void move(PointerMoveInput input) =>
+      bar.pressMove(input.time, input.position);
+
+  @override
+  void up(PointerUpInput input) => bar.pressUp(input.time, input.position);
+
+  @override
+  void cancel(PointerCancelInput input) => bar.pressCancel(input.time);
+}
+
+/// Space, Enter and assistive technology's tap, with no touch: the menu's
+/// source under the zone takes the touches.
+final class _Activate extends Interaction {
+  _Activate(this.onActivate);
+
+  final VoidCallback onActivate;
+
+  @override
+  bool get activates => true;
+
+  @override
+  bool accepts(PointerDownInput down) => false;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    if (input is! ActivateInput) return InteractionUpdate.none;
+    onActivate();
+    return InteractionUpdate(
+      events: [ActivationEvent(time: input.time, source: input.source)],
+    );
   }
 }
 
@@ -1267,40 +1434,111 @@ class BelowTop extends CustomClipper<Rect> {
   bool shouldReclip(BelowTop oldClipper) => false;
 }
 
-// One bar's row: its glass and its buttons, rebuilt during its layout.
-class _Band extends StatelessWidget {
+// One bar's row: its glass and its buttons, rebuilt during its layout. It
+// owns the zones of the bar's items while it shows them.
+class _Band extends StatefulWidget {
   const _Band({required this.bar});
 
   final _Bar bar;
+
+  @override
+  State<_Band> createState() => _BandState();
+}
+
+class _BandState extends State<_Band> {
+  final _zones = InputZonesController<Object>();
+
+  _Bar get bar => widget.bar;
+
+  @override
+  void initState() {
+    super.initState();
+    bar.zones = _zones;
+  }
+
+  @override
+  void didUpdateWidget(_Band oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (identical(oldWidget.bar, bar)) return;
+    oldWidget.bar.letGo(_zones);
+    bar.zones = _zones;
+  }
+
+  @override
+  void dispose() {
+    bar.letGo(_zones);
+    _zones.dispose();
+    super.dispose();
+  }
+
+  InputZone<Object> _zoneOf(BuildContext context, Object id, _Button button) {
+    final input = bar.inputOf(id);
+    final item = button.item;
+    final menu = item?.menuChildren != null;
+    input.onPressed = button.back?.onPressed ?? item?.onPressed;
+    final hold = menu && item!.onPressed != null;
+    return InputZone<Object>(
+      id: id,
+      interactions: menu ? input.menuSource : input.press,
+      enabled: menu || input.onPressed != null,
+      minimumHitSize: const Size.square(_Bar.minimumTarget),
+      semanticLabel: switch (button.back) {
+        final back? => back.labelIn(context),
+        null => _labelOf(item!),
+      },
+      button: true,
+      describeSemantics: menu
+          ? (config) {
+              config.isExpanded = bar.menuShows(id);
+              if (hold) config.onLongPress = input.menu.open;
+            }
+          : null,
+    );
+  }
+
+  static String? _labelOf(GlassBarItem item) =>
+      item.semanticLabel ??
+      switch (item.icon ?? item.label) {
+        Text(:final data?) => data,
+        Icon(:final semanticLabel?) => semanticLabel,
+        _ => null,
+      };
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       bar.view = context as Element;
       final roster = bar.roster();
-      while (bar.container.length < roster.length + 2) {
-        bar.container.add(
-          ValueNotifier(const GlassFrame(rect: Rect.zero, opacity: 0)),
-        );
-      }
-      while (bar.apart.length < roster.length + 2) {
-        bar.apart.add(
-          ValueNotifier(const GlassFrame(rect: Rect.zero, opacity: 0)),
-        );
-      }
-      final items = _BarItems(
-        bar: bar,
-        children: [
+      bar.keepInputs(roster.keys);
+      bar.grow(roster.length + 2);
+      final items = InputZones<Object>(
+        // An item no page declares any more is leaving: it gets no zone,
+        // which also keeps a hidden zone's stale semantics out of a bar
+        // that moves to another route's overlay.
+        zones: [
           for (final MapEntry(key: id, value: button) in roster.entries)
-            _BarItem(
-              key: ValueKey(id),
-              bar: bar,
-              id: id,
-              button: button,
-            ),
+            if (button.item?.child == null && bar.measuredIds.contains(id))
+              _zoneOf(context, id, button),
         ],
+        frameOf: bar.zoneFrameOf,
+        frames: bar.frames,
+        controller: _zones,
+        excludeChildSemantics: false,
+        child: _BarItems(
+          bar: bar,
+          zones: _zones,
+          children: [
+            for (final MapEntry(key: id, value: button) in roster.entries)
+              _BarItem(
+                key: ValueKey(id),
+                bar: bar,
+                id: id,
+                button: button,
+              ),
+          ],
+        ),
       );
-      final band = MotionScope(
+      return MotionScope(
         motion: bar.motion,
         child: RepaintBoundary(
           child: Stack(
@@ -1319,15 +1557,6 @@ class _Band extends StatelessWidget {
             ],
           ),
         ),
-      );
-      if (bar.fade == null) return band;
-      return ValueListenableBuilder<bool>(
-        valueListenable: bar.host._fadedOut,
-        builder: (context, fadedOut, child) => IgnorePointer(
-          ignoring: fadedOut,
-          child: ExcludeSemantics(excluding: fadedOut, child: child),
-        ),
-        child: band,
       );
     },
   );
@@ -1370,44 +1599,31 @@ class _BarItem extends StatelessWidget {
   final Object id;
   final _Button button;
 
+  // The item's zone in the bar's InputZones takes its input and speaks for
+  // it, so its glyph is not read on its own.
   @override
   Widget build(BuildContext context) {
     if (button.item?.child case final child?) {
       return _ItemBox(id: id, child: child);
     }
-    final back = button.back;
     final item = button.item;
+    final content = ExcludeSemantics(child: _glyphOf(context, button));
     final menu = item?.menuChildren;
-    final String? semantics;
-    final VoidCallback? onTap;
-    final content = _glyphOf(context, button);
-    if (back != null) {
-      semantics = back.label ?? 'Back';
-      onTap = back.onPressed;
-    } else {
-      final it = item!;
-      semantics = it.semanticLabel;
-      onTap = it.onPressed;
-    }
-    if (menu != null) {
-      return _ItemBox(
+    if (menu == null) return _ItemBox(id: id, child: content);
+    // The menu's source takes the touches; its keys and focus are the
+    // zone's, so it is no stop of its own. Its open menu lies in its
+    // semantics, so they are read while it shows.
+    return _ItemBox(
+      id: id,
+      child: _OpenMenuSemantics(
+        bar: bar,
         id: id,
-        child: Listener(
-          onPointerDown: (event) => bar.pressDown(
-            id,
-            event.timeStamp,
-            event.localPosition,
-            context.size ?? Size.zero,
-          ),
-          onPointerMove: (event) =>
-              bar.pressMove(event.timeStamp, event.localPosition),
-          onPointerUp: (event) =>
-              bar.pressUp(event.timeStamp, event.localPosition),
-          onPointerCancel: (event) => bar.pressCancel(event.timeStamp),
+        child: ExcludeFocusTraversal(
           child: RawGlassMenu(
             entries: menu,
-            onPressed: onTap,
-            semanticLabel: semantics,
+            onPressed: item!.onPressed,
+            semanticLabel: _BandState._labelOf(item),
+            controller: bar.inputOf(id).menu,
             label: _CapsuleLook(
               bar: bar,
               item: id,
@@ -1420,37 +1636,6 @@ class _BarItem extends StatelessWidget {
             scalesOnPress: false,
             sourceOf: (overlay) => bar.menuSource(id, overlay),
             onShowing: (showing) => bar.menuShowing(id, showing: showing),
-            child: content,
-          ),
-        ),
-      );
-    }
-    return _ItemBox(
-      id: id,
-      child: Semantics(
-        container: true,
-        button: true,
-        enabled: onTap != null,
-        label: semantics,
-        excludeSemantics: back != null,
-        onTap: onTap,
-        child: Listener(
-          onPointerDown: onTap == null
-              ? null
-              : (event) => bar.pressDown(
-                  id,
-                  event.timeStamp,
-                  event.localPosition,
-                  context.size ?? Size.zero,
-                ),
-          onPointerMove: (event) =>
-              bar.pressMove(event.timeStamp, event.localPosition),
-          onPointerUp: (event) =>
-              bar.pressUp(event.timeStamp, event.localPosition),
-          onPointerCancel: (event) => bar.pressCancel(event.timeStamp),
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: onTap,
             child: content,
           ),
         ),
@@ -1499,7 +1684,7 @@ class _BarItem extends StatelessWidget {
               painter: _ChevronPainter(color: color, mirrored: rtl),
             ),
           ),
-          if (back.label case final title?) ...[
+          if (back.shownIn(context) case final title?) ...[
             SizedBox(width: metrics.backChevronGap),
             Text(title, style: text, maxLines: 1),
             SizedBox(width: metrics.backTrailingPadding),
@@ -1592,36 +1777,99 @@ class _ChevronPainter extends CustomPainter {
 }
 
 class _BarItems extends MultiChildRenderObjectWidget {
-  const _BarItems({required this.bar, required super.children});
+  const _BarItems({
+    required this.bar,
+    required this.zones,
+    required super.children,
+  });
 
   final _Bar bar;
+  final InputZonesController<Object> zones;
+
+  _Highlights _highlightsOf(BuildContext context) {
+    final traits = GlassTraits.of(context);
+    Color resolved(Color color) =>
+        color is GlassDynamicColor ? color.resolvedWith(traits) : color;
+    return _Highlights(
+      zones: zones,
+      ring: GlassHighlights.ringColor(
+        null,
+        resolved(GlassColors.systemBlue),
+        highContrast: traits.highContrast,
+      ),
+      hover: GlassHighlights.hoverColor,
+      reduceMotion: traits.reduceMotion,
+    );
+  }
 
   @override
   _RenderBarItems createRenderObject(BuildContext context) => _RenderBarItems(
     bar,
     rtl: Directionality.of(context) == TextDirection.rtl,
+    highlights: _highlightsOf(context),
   );
 
   // The bar rebuilds only for a change, which its layout applies.
   @override
   void updateRenderObject(BuildContext context, _RenderBarItems renderObject) {
     renderObject.rtl = Directionality.of(context) == TextDirection.rtl;
+    renderObject.highlights = _highlightsOf(context);
     renderObject.markNeedsLayout();
   }
+}
+
+/// How the items show the keyboard focus and the pointer over them.
+@immutable
+final class _Highlights {
+  const _Highlights({
+    required this.zones,
+    required this.ring,
+    required this.hover,
+    required this.reduceMotion,
+  });
+
+  final InputZonesController<Object> zones;
+  final Color ring;
+  final Color hover;
+  final bool reduceMotion;
+}
+
+/// One item's states, read from the zones of all of them.
+final class _ZoneStates implements ValueListenable<Set<WidgetState>> {
+  _ZoneStates(this.zones, this.id);
+
+  final InputZonesController<Object> zones;
+  final Object id;
+
+  @override
+  Set<WidgetState> get value => zones.statesOf(id);
+
+  @override
+  void addListener(VoidCallback listener) => zones.addListener(listener);
+
+  @override
+  void removeListener(VoidCallback listener) => zones.removeListener(listener);
 }
 
 class _ItemData extends ContainerBoxParentData<RenderBox> {}
 
 /// Lays the bar's buttons out to measure them, hands the widths to the
 /// host, and paints each where the host's motion puts it: moved, scaled,
-/// faded and blurred, without a layout per frame. Buttons that are not
-/// leaving and are more than half present take touches anywhere in their
-/// slot, across the capsule's height.
+/// faded and blurred, without a layout per frame, with the keyboard focus
+/// ring and the hover response of its zone by the rule of
+/// [GlassHighlights]: the ring outside the button's capsule, the hover a
+/// glass body's wash over it (approximations, not measured). The zones
+/// take the buttons' input; a custom item's own widget is hit, and read
+/// by assistive technology, while its zone frame is live.
 class _RenderBarItems extends RenderBox
     with
         ContainerRenderObjectMixin<RenderBox, _ItemData>,
         RenderBoxContainerDefaultsMixin<RenderBox, _ItemData> {
-  _RenderBarItems(this.bar, {required this._rtl});
+  _RenderBarItems(
+    this.bar, {
+    required this._rtl,
+    required this._highlights,
+  });
 
   final _Bar bar;
 
@@ -1633,7 +1881,33 @@ class _RenderBarItems extends RenderBox
     markNeedsLayout();
   }
 
+  _Highlights _highlights;
+  _Highlights get highlights => _highlights;
+  set highlights(_Highlights value) {
+    final old = _highlights;
+    _highlights = value;
+    if (!identical(old.zones, value.zones)) {
+      for (final MapEntry(key: id, value: highlight) in _shown.entries) {
+        highlight.states = _ZoneStates(value.zones, id);
+      }
+    }
+    for (final highlight in _shown.values) {
+      highlight.reduceMotion = value.reduceMotion;
+    }
+    if (old.ring != value.ring || old.hover != value.hover) markNeedsPaint();
+  }
+
   final Map<RenderBox, LayerHandle<ContainerLayer>> _layers = {};
+  final Map<Object, GlassHighlight> _shown = {};
+
+  GlassHighlight _highlightOf(Object id) => _shown.putIfAbsent(id, () {
+    final highlight = GlassHighlight(
+      states: _ZoneStates(_highlights.zones, id),
+      reduceMotion: _highlights.reduceMotion,
+    );
+    if (attached) highlight.addListener(markNeedsPaint);
+    return highlight;
+  });
 
   @override
   void setupParentData(RenderBox child) {
@@ -1644,11 +1918,17 @@ class _RenderBarItems extends RenderBox
   void attach(PipelineOwner owner) {
     super.attach(owner);
     bar.items = this;
+    for (final highlight in _shown.values) {
+      highlight.addListener(markNeedsPaint);
+    }
   }
 
   @override
   void detach() {
     if (identical(bar.items, this)) bar.items = null;
+    for (final highlight in _shown.values) {
+      highlight.removeListener(markNeedsPaint);
+    }
     super.detach();
   }
 
@@ -1672,8 +1952,15 @@ class _RenderBarItems extends RenderBox
         BoxConstraints(maxHeight: size.height),
         parentUsesSize: true,
       );
-      widths[_idOf(child)] = child.size.width;
+      final id = _idOf(child);
+      widths[id] = child.size.width;
+      if (bar.buttons[id]?.item?.child == null) _highlightOf(id);
       child = childAfter(child);
+    }
+    for (final id in _shown.keys.toList()) {
+      if (widths.containsKey(id)) continue;
+      if (attached) _shown[id]!.removeListener(markNeedsPaint);
+      _shown.remove(id);
     }
     bar.measured(widths, size.width, rtl: _rtl);
   }
@@ -1693,15 +1980,16 @@ class _RenderBarItems extends RenderBox
   bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
     var child = lastChild;
     while (child != null) {
-      final frame = bar.itemFrames[_idOf(child)];
-      if (frame != null && !frame.leaving && frame.presence > 0.5) {
+      final frame = bar.zoneFrameOf(_idOf(child));
+      if (frame != null && frame.live) {
+        final rect = frame.rect;
         final box = Rect.fromCenter(
-          center: frame.center,
-          width: math.max(frame.size.width, child.size.width),
-          height: bar.metrics.capsuleHeight,
+          center: rect.center,
+          width: math.max(rect.width, _Bar.minimumTarget),
+          height: math.max(rect.height, _Bar.minimumTarget),
         );
         if (box.contains(position)) {
-          final origin = frame.center - child.size.center(Offset.zero);
+          final origin = rect.center - child.size.center(Offset.zero);
           final local = position - origin;
           final inside = Offset(
             local.dx.clamp(0, math.max(0, child.size.width - 0.01)),
@@ -1719,6 +2007,34 @@ class _RenderBarItems extends RenderBox
       child = childBefore(child);
     }
     return false;
+  }
+
+  // The items assistive technology reads: those whose zone frame is live.
+  Set<Object> _read = const {};
+
+  /// The motion moved the items: they paint again, and assistive
+  /// technology hears of an item that came or went.
+  void moved() {
+    markNeedsPaint();
+    final read = <Object>{};
+    var child = firstChild;
+    while (child != null) {
+      final id = _idOf(child);
+      if (bar.zoneFrameOf(id)?.live ?? false) read.add(id);
+      child = childAfter(child);
+    }
+    if (setEquals(read, _read)) return;
+    _read = read;
+    markNeedsSemanticsUpdate();
+  }
+
+  @override
+  void visitChildrenForSemantics(RenderObjectVisitor visitor) {
+    var child = firstChild;
+    while (child != null) {
+      if (_read.contains(_idOf(child))) visitor(child);
+      child = childAfter(child);
+    }
   }
 
   @override
@@ -1762,6 +2078,13 @@ class _RenderBarItems extends RenderBox
         transform.translateByDouble(-c.dx, -c.dy, 0, 1);
       }
       final alpha = (frame.presence * 255).round();
+      // The item's capsule, in the layer's coordinates.
+      final body = Rect.fromCenter(
+        center: box.size.center(Offset.zero),
+        width: frame.size.width,
+        height: bar.metrics.buttonHeight,
+      );
+      final highlight = _shown[id];
       // One layer whose blur the glass over the bar knows the reach of: an
       // item that blurs in then lies in the copies of the glass it is under,
       // not in every copy of the frame.
@@ -1777,17 +2100,89 @@ class _RenderBarItems extends RenderBox
         blur: frame.blur <= 0.05 ? 0 : frame.blur / 2,
       );
       handle.layer = layer;
-      context.pushLayer(
-        layer,
-        (context, _) => context.paintChild(box, Offset.zero),
-        Offset.zero,
-      );
+      context.pushLayer(layer, (context, _) {
+        context.paintChild(box, Offset.zero);
+        if (highlight != null) _paintHighlight(context.canvas, highlight, body);
+      }, Offset.zero);
       child = childAfter(child);
+    }
+  }
+
+  void _paintHighlight(Canvas canvas, GlassHighlight highlight, Rect body) {
+    final hovered = highlight.hovered;
+    if (hovered > 0) {
+      GlassHighlights.paintHover(
+        canvas,
+        GlassShape.capsule.pathIn(body),
+        _highlights.hover,
+        hovered,
+      );
+    }
+    if (highlight.focused) {
+      GlassHighlights.paintRing(
+        canvas,
+        _highlights.ring,
+        shape: GlassShape.capsule,
+        body: body,
+      );
     }
   }
 
   @override
   bool get alwaysNeedsCompositing => true;
+}
+
+/// Reads its child, a menu and its source, to assistive technology only
+/// while the menu shows: the item's zone speaks for the source otherwise.
+class _OpenMenuSemantics extends SingleChildRenderObjectWidget {
+  const _OpenMenuSemantics({
+    required this.bar,
+    required this.id,
+    required super.child,
+  });
+
+  final _Bar bar;
+  final Object id;
+
+  @override
+  _RenderOpenMenuSemantics createRenderObject(BuildContext context) =>
+      _RenderOpenMenuSemantics(bar, id);
+}
+
+class _RenderOpenMenuSemantics extends RenderProxyBox {
+  _RenderOpenMenuSemantics(this.bar, this.id);
+
+  final _Bar bar;
+
+  // The item's element is keyed by its id, so the id never changes.
+  final Object id;
+
+  bool _open = false;
+
+  void _check() {
+    final open = bar.menuShows(id);
+    if (open == _open) return;
+    _open = open;
+    markNeedsSemanticsUpdate();
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _open = bar.menuShows(id);
+    bar.frames.addListener(_check);
+  }
+
+  @override
+  void detach() {
+    bar.frames.removeListener(_check);
+    super.detach();
+  }
+
+  @override
+  void visitChildrenForSemantics(RenderObjectVisitor visitor) {
+    if (_open) super.visitChildrenForSemantics(visitor);
+  }
 }
 
 class _ItemBox extends SingleChildRenderObjectWidget {

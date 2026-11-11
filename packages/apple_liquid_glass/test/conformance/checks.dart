@@ -116,7 +116,8 @@ bool _activated(Entry entry, Probe probe) => entry.kind == Kind.opener
 Rect _boxOf(FocusNode node) {
   final box = node.context?.findRenderObject();
   if (box is! RenderBox || !box.hasSize) return Rect.zero;
-  return box.localToGlobal(Offset.zero) & box.size;
+  // A zone's stop is an empty box whose paint bounds are the zone's rect.
+  return node.rect;
 }
 
 /// Focuses the Tab stop under the entry's part, or its first Tab stop.
@@ -906,7 +907,11 @@ Future<void> _barrierHides(WidgetTester tester, Entry entry) async {
 }
 
 void _readAfterAnchor(WidgetTester tester, Entry entry) {
-  final anchor = tester.getSemantics((entry.part ?? subject).first);
+  // A part drawn under a sibling node (a zone of an input host) is named by
+  // the node at its centre, not by its own render object's ancestors.
+  final anchor =
+      _nodeAt(tester, _aim(tester, entry)) ??
+      tester.getSemantics((entry.part ?? subject).first);
   final item = tester.getSemantics(entry.marker!.first);
   final anchorLine = <SemanticsNode>{};
   for (SemanticsNode? node = anchor; node != null; node = node.parent) {

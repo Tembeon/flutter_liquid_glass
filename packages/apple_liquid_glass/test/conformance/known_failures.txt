@@ -4,9 +4,7 @@
 # UPDATE_CONFORMANCE=1 drops the lines that pass and never adds one.
 # Format: <entry> <check>: <reason>
 GlassBarItem.menu barrier-label: no barrier is offered to assistive technology
-GlassBarItem.menu focus-indicator: keyboard focus draws nothing
-GlassBarItem.menu mouse-hover: hover draws nothing
-GlassBarItem.menu no-leaks: leaks ValueNotifier<GlassFrame>, ValueNotifier<GlassPageBarLink?>, ValueNotifier<bool>, ValueNotifier<double>
+GlassBarItem.menu no-leaks: leaks ValueNotifier<GlassPageBarLink?>, ValueNotifier<double>
 GlassBarItem.menu tap-target: "Sort": expected tap target size of at least Size(44.0, 44.0), but found Size(68.0, 20.0)
 GlassButton.menu barrier-label: no barrier is offered to assistive technology
 GlassButton.menu focus-indicator: keyboard focus draws nothing
@@ -34,20 +32,9 @@ GlassListRow contrast-light: "Settings": expected contrast ratio of at least 4.5
 GlassListRow.detail focus-disabled: Tab reaches 1 parts while disabled
 GlassListRow.detail semantics-disabled: nothing is announced as disabled
 GlassListRow.detail tap-target: "More info": expected tap target size of at least Size(44.0, 44.0), but found Size(22.0, 22.0)
-GlassNavigationBar focus-enabled: Tab reaches no part of it
-GlassNavigationBar focus-indicator: Tab does not reach the part
-GlassNavigationBar key-activate: Tab does not reach the part
-GlassNavigationBar key-remap: Tab does not reach the part
-GlassNavigationBar mouse-cursor: it declares no cursor; the cursor over it is SystemMouseCursor(basic)
-GlassNavigationBar mouse-hover: hover draws nothing
-GlassNavigationBar no-leaks: leaks ValueNotifier<GlassFrame>, ValueNotifier<GlassPageBarLink?>, ValueNotifier<bool>, ValueNotifier<double>
-GlassNavigationBar semantics-label: expected tappable node to have semantic label, but none was found
-GlassNavigationBar semantics-role: "Edit" offers a tap but is not a button
-GlassNavigationBar tab-stops: Tab stops at 0 parts, expected 2
-GlassNavigationBar tap-target: "Edit": expected tap target size of at least Size(44.0, 44.0), but found Size(68.0, 20.0)
-GlassPageRoute no-leaks: leaks ValueNotifier<GlassFrame>, ValueNotifier<GlassPageBarLink?>, ValueNotifier<bool>, ValueNotifier<double>
+GlassNavigationBar no-leaks: leaks ValueNotifier<GlassPageBarLink?>, ValueNotifier<double>
+GlassPageRoute no-leaks: leaks ValueNotifier<GlassPageBarLink?>, ValueNotifier<double>
 GlassPageRoute semantics-role: the overlay is not announced as a named route
-GlassPageRoute tap-target: "Home": expected tap target size of at least Size(44.0, 44.0), but found Size(143.2, 27.6)
 GlassPressable tap-target: "Press": expected tap target size of at least Size(44.0, 44.0), but found Size(117.0, 41.0)
 GlassSearchField.clear key-activate: Space does not activate it
 GlassSearchField.clear key-remap: a key the app maps to ActivateIntent does nothing
@@ -81,17 +68,7 @@ GlassTabBar.search mouse-hover: hover draws nothing
 GlassTabBar.search tab-stops: Tab stops at 4 parts, expected 2
 GlassToolbar contrast-dark: "Done": expected contrast ratio of at least 4.5 but found 3.52 for a font size of 17.0
 GlassToolbar contrast-light: "Done": expected contrast ratio of at least 4.5 but found 3.52 for a font size of 17.0
-GlassToolbar focus-enabled: Tab reaches no part of it
-GlassToolbar focus-indicator: Tab does not reach the part
-GlassToolbar key-activate: Tab does not reach the part
-GlassToolbar key-remap: Tab does not reach the part
-GlassToolbar mouse-cursor: it declares no cursor; the cursor over it is SystemMouseCursor(basic)
-GlassToolbar mouse-hover: hover draws nothing
-GlassToolbar no-leaks: leaks ValueNotifier<GlassFrame>, ValueNotifier<GlassPageBarLink?>, ValueNotifier<bool>, ValueNotifier<double>
-GlassToolbar semantics-label: expected tappable node to have semantic label, but none was found
-GlassToolbar semantics-role: "Edit" offers a tap but is not a button
-GlassToolbar tab-stops: Tab stops at 0 parts, expected 2
-GlassToolbar tap-target: "Edit": expected tap target size of at least Size(44.0, 44.0), but found Size(68.0, 20.0)
+GlassToolbar no-leaks: leaks ValueNotifier<GlassPageBarLink?>, ValueNotifier<double>
 RawGlassMenu barrier-label: no barrier is offered to assistive technology
 RawGlassMenu focus-indicator: keyboard focus draws nothing
 RawGlassMenu mouse-hover: hover draws nothing

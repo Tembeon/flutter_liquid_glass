@@ -3,6 +3,7 @@ import 'package:apple_liquid_glass_example/app.dart';
 import 'package:apple_liquid_glass_example/settings.dart';
 import 'package:apple_liquid_glass_example/stand/present_page.dart';
 import 'package:apple_liquid_glass_example/stand/stand_home.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -10,6 +11,19 @@ Future<void> _frames(WidgetTester tester, [int count = 60]) async {
   for (var i = 0; i < count; i++) {
     await tester.pump(const Duration(milliseconds: 16));
   }
+}
+
+// A bar item is read from its zone, whose node stands where the item is
+// drawn: the centre of its rectangle on the screen.
+Offset _centerOf(WidgetTester tester, Finder finder) {
+  final node = tester.getSemantics(finder);
+  var rect = node.rect;
+  for (SemanticsNode? at = node; at != null; at = at.parent) {
+    if (at.transform case final transform?) {
+      rect = MatrixUtils.transformRect(transform, rect);
+    }
+  }
+  return rect.center / tester.view.devicePixelRatio;
 }
 
 void main() {
@@ -74,7 +88,9 @@ void main() {
     expect(find.text('Liquid Dreams'), findsWidgets);
     await tester.drag(find.text('Refraction').first, const Offset(0, -400));
     await _frames(tester);
-    await tester.tap(find.bySemanticsLabel('Present').last);
+    await tester.tapAt(
+      _centerOf(tester, find.bySemanticsLabel('Present').last),
+    );
     await _frames(tester, 90);
     expect(find.text('Music app'), findsOneWidget);
     await tester.tap(find.text('Sheet with detents'));
@@ -89,14 +105,16 @@ void main() {
     await tester.tap(find.byType(GlassZoomSource).first);
     await _frames(tester, 90);
     expect(find.byType(GlassToolbar), findsOneWidget);
-    await tester.tap(find.bySemanticsLabel('Delete'));
+    await tester.tapAt(_centerOf(tester, find.bySemanticsLabel('Delete')));
     await _frames(tester, 90);
     expect(find.byType(GlassToolbar), findsNothing);
 
     await tester.tap(find.text('Liquid'));
     await _frames(tester);
     expect(find.text('Select'), findsNothing);
-    await tester.tap(find.bySemanticsLabel('Settings').first);
+    await tester.tapAt(
+      _centerOf(tester, find.bySemanticsLabel('Settings').first),
+    );
     await _frames(tester);
     expect(find.text('Renderer'), findsOneWidget);
     await tester.tap(find.text('Dark'));

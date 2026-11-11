@@ -10,6 +10,7 @@ import 'package:apple_liquid_glass_example/motion/motion_page.dart';
 import 'package:apple_liquid_glass_example/scenes/lava_page.dart';
 import 'package:apple_liquid_glass_example/settings.dart';
 
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -19,6 +20,19 @@ Future<void> _frames(WidgetTester tester, [int count = 60]) async {
   for (var i = 0; i < count; i++) {
     await tester.pump(_frame);
   }
+}
+
+// A bar item is read from its zone, whose node stands where the item is
+// drawn: the centre of its rectangle on the screen.
+Offset _centerOf(WidgetTester tester, Finder finder) {
+  final node = tester.getSemantics(finder);
+  var rect = node.rect;
+  for (SemanticsNode? at = node; at != null; at = at.parent) {
+    if (at.transform case final transform?) {
+      rect = MatrixUtils.transformRect(transform, rect);
+    }
+  }
+  return rect.center / tester.view.devicePixelRatio;
 }
 
 Future<ValueNotifier<GallerySettings>> _launch(
@@ -91,7 +105,7 @@ void main() {
       'bar', (tester) async {
     await _launch(tester);
     Offset at(String label) =>
-        tester.getCenter(find.bySemanticsLabel(label).hitTestable().last);
+        _centerOf(tester, find.bySemanticsLabel(label).last);
     final renderer = at('Draw in glass');
     final settings = at('Settings');
     for (final tab in const ['Glass', 'Motion', 'Components']) {
@@ -125,10 +139,12 @@ void main() {
     tester,
   ) async {
     final settings = await _launch(tester, renderer: GalleryRenderer.liquid);
-    await tester.tap(find.bySemanticsLabel('Draw flat'));
+    await tester.tapAt(_centerOf(tester, find.bySemanticsLabel('Draw flat')));
     await _frames(tester);
     expect(settings.value.renderer, GalleryRenderer.flat);
-    await tester.tap(find.bySemanticsLabel('Draw in glass'));
+    await tester.tapAt(
+      _centerOf(tester, find.bySemanticsLabel('Draw in glass')),
+    );
     await _frames(tester);
     expect(settings.value.renderer, GalleryRenderer.liquid);
   });
@@ -236,7 +252,7 @@ void main() {
     await tester.tap(find.text('Open the journal'));
     await _frames(tester, 90);
     expect(find.text('14 entries'), findsOneWidget);
-    await tester.tap(find.bySemanticsLabel('Select'));
+    await tester.tapAt(_centerOf(tester, find.bySemanticsLabel('Select')));
     await _frames(tester, 90);
     expect(find.text('0 picked'), findsOneWidget);
     await tester.tap(find.text('Moved the fern'));

@@ -6,6 +6,8 @@ import 'package:apple_liquid_glass/src/navigation/bar.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'conformance/harness.dart' show globalRect;
+
 const _frame = Duration(milliseconds: 16);
 
 Widget _app(GlobalKey<NavigatorState> navigator, Widget home) => WidgetsApp(
@@ -87,9 +89,10 @@ void main() {
     expect(find.byKey(const Key('plus')), findsNothing);
     final back = find.bySemanticsLabel('Home');
     expect(back, findsOneWidget);
-    expect(tester.getRect(back).left, closeTo(16, 0.01));
+    final backRect = globalRect(tester, tester.getSemantics(back));
+    expect(backRect.left, closeTo(16, 0.01));
 
-    await tester.tap(back);
+    await tester.tapAt(backRect.center);
     await _settle(tester);
     expect(find.text('Next'), findsNothing);
     expect(tester.getCenter(find.byKey(const Key('plus'))).dx, 364);
