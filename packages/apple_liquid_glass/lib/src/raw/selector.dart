@@ -163,6 +163,14 @@ class RawGlassSelector extends StatefulWidget {
   /// glass button's measured edges.
   static const double segmentedReleaseSlop = GlassPress.highlightSlop;
 
+  // The app's selection among the items; what the selector shows is its
+  // motion's.
+  int? get _selected {
+    final index = selectedIndex;
+    if (index == null || itemCount == 0) return null;
+    return index.clamp(0, itemCount - 1);
+  }
+
   @override
   State<RawGlassSelector> createState() => _RawGlassSelectorState();
 }
@@ -206,7 +214,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
 
   @override
   void followWidget() {
-    final selected = _selected;
+    final selected = widget._selected;
     if (selected != null && _motion.selected != selected) {
       _motion.choose(_now, selected, notify: false);
     }
@@ -215,12 +223,6 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   bool get _enabled => widget.onChanged != null || widget.onReselected != null;
 
   bool get _segmented => widget.motion == GlassSelectorMotion.segmented;
-
-  int? get _selected {
-    final index = widget.selectedIndex;
-    if (index == null || widget.itemCount == 0) return null;
-    return index.clamp(0, widget.itemCount - 1);
-  }
 
   bool _selectable(int index) =>
       _enabled &&
@@ -280,9 +282,9 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       );
       _presses.removeWhere((key, _) => !present.contains(key));
       _keys = keys;
-      final selected = _selected;
+      final selected = widget._selected;
       if (selected != null && !wasNone) {
-        _motion.remap(selected);
+        _motion.selected = selected;
       } else {
         _sync(wasNone);
       }
@@ -344,7 +346,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   void _sync(bool wasNone) {
-    final selected = _selected;
+    final selected = widget._selected;
     if (selected == null) return;
     if (wasNone) {
       _motion.place(_now, selected);
@@ -366,7 +368,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
 
   void _select(int index) {
     if (!_selectable(index)) return;
-    final selected = _selected;
+    final selected = widget._selected;
     if (selected == null) {
       _motion.place(_now, index);
       _chosen(index);
@@ -396,7 +398,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     }
     final x = _x(input.position);
     final slot = _motion.slotAt(x);
-    final selected = _selected;
+    final selected = widget._selected;
     if (_segmented && _selectable(slot) && slot != selected) {
       _motion.highlight.press(input.time, slot);
     }
@@ -476,7 +478,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
 
   void _focusSelected(bool focused) {
     if (!focused || !(widget.focusNode?.hasPrimaryFocus ?? false)) return;
-    final selected = _selected;
+    final selected = widget._selected;
     final index = selected != null && _selectable(selected)
         ? selected
         : Iterable<int>.generate(widget.itemCount)
@@ -490,7 +492,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   InputZoneFrame? _zoneFrame(Object key) {
     final collapse = widget.collapse;
     if (collapse != null && collapse.takesFinger) {
-      final selected = _selected;
+      final selected = widget._selected;
       if (selected == null || _keys[selected] != key) return null;
       return InputZoneFrame(collapse.circleIn(_motion.size));
     }
@@ -501,7 +503,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   List<InputZone<Object>> _zoneList() {
-    final selected = _selected;
+    final selected = widget._selected;
     return [
       for (final (i, key) in _keys.indexed)
         InputZone<Object>(
@@ -554,7 +556,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   Widget _items(BuildContext context, Widget? lens) {
-    final selected = _selected;
+    final selected = widget._selected;
     final zones = InputZones<Object>(
       zones: _zoneList(),
       frameOf: _zoneFrame,
@@ -611,7 +613,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
         body: _frames.body,
         lens: _frames.lens,
         items: (lens) => _items(context, lens),
-        selectedIndex: _selected,
+        selectedIndex: widget._selected,
         states: {...widgetStates.value},
         lensShrink: _lensShrink,
       ),

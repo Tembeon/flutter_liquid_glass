@@ -185,10 +185,10 @@ final class _Geometry {
 final class _SelectorMotion extends Motion {
   _SelectorMotion({
     required this.kind,
-    required this._selected,
+    required int selected,
     required this.isSelectable,
     required this.onEvent,
-  });
+  }) : _pending = selected;
 
   final GlassSelectorMotion kind;
   final bool Function(int index) isSelectable;
@@ -203,8 +203,11 @@ final class _SelectorMotion extends Motion {
   static final Object _bounds = Object();
   Offset _anchor = Offset.zero;
   LensMotion? _lens;
-  int _selected;
-  int? _remapped;
+
+  // The selection the next layout gives the lens: the one it is made at,
+  // or the selected item's index among items that changed. Null once the
+  // lens holds it.
+  int? _pending;
   List<LensSlot> _lenses = const [];
 
   /// The size of the control at its last layout.
@@ -217,7 +220,12 @@ final class _SelectorMotion extends Motion {
 
   LensMotion? get lens => _lens;
 
-  int get selected => _remapped ?? _lens?.selected ?? _selected;
+  /// The item the selector shows selected.
+  int get selected => _pending ?? _lens!.selected;
+
+  /// Selects an item of those laid out next, without travel: where the
+  /// selected item went in a change of the items.
+  set selected(int index) => _pending = index;
 
   bool get isDragging => _lens?.isDragging ?? false;
 
@@ -236,13 +244,6 @@ final class _SelectorMotion extends Motion {
   Rect? get movingBounds => items.contains(_bounds) && !items.itemRests(_bounds)
       ? items.itemAt(_bounds).rect.shift(-_anchor)
       : null;
-
-  /// Selects [index] of the items laid out next, without travel: the
-  /// selected item moved to it in a change of the items.
-  void remap(int index) {
-    _selected = index;
-    _remapped = index;
-  }
 
   /// Lays the items out at [rects] in the selector's box at time [t], on
   /// [spring] when it is not null; [shift] is how far the box moved in
@@ -276,14 +277,14 @@ final class _SelectorMotion extends Motion {
     size = geometry.size;
     bar = geometry.bar;
     _lenses = geometry.lenses;
-    final remapped = _remapped;
-    _remapped = null;
+    final pending = _pending;
+    _pending = null;
     final lens = _lens;
     if (lens == null) {
       final created = switch (kind) {
         GlassSelectorMotion.segmented => LensMotion.segmented(
           slots: geometry.lenses,
-          selected: _selected,
+          selected: pending!,
           height: _Geometry.lensHeight(kind),
           frameRate: clock.frameRate,
           chromeSize: geometry.bar.size,
@@ -291,7 +292,7 @@ final class _SelectorMotion extends Motion {
         ),
         GlassSelectorMotion.tabBar => LensMotion.tabBar(
           slots: geometry.lenses,
-          selected: _selected,
+          selected: pending!,
           height: _Geometry.lensHeight(kind),
           frameRate: clock.frameRate,
           chromeSize: geometry.bar.size,
@@ -300,11 +301,11 @@ final class _SelectorMotion extends Motion {
       };
       created.isSelectable = isSelectable;
       _lens = own(created);
-    } else if (changed || remapped != null) {
+    } else if (changed || pending != null) {
       lens.reslot(
         t,
         geometry.lenses,
-        remapped ?? lens.selected,
+        pending ?? lens.selected,
         spring: moves,
         shift: mirrored
             ? shift.dx + geometry.size.width - before.width
@@ -315,15 +316,23 @@ final class _SelectorMotion extends Motion {
   }
 
   void choose(double t, int index, {bool notify = true}) {
-    _selected = index;
-    _remapped = null;
-    _lens?.select(t, index, notify: notify);
+    final lens = _lens;
+    if (lens == null) {
+      _pending = index;
+      return;
+    }
+    _pending = null;
+    lens.select(t, index, notify: notify);
   }
 
   void place(double t, int index) {
-    _selected = index;
-    _remapped = null;
-    _lens?.place(t, index);
+    final lens = _lens;
+    if (lens == null) {
+      _pending = index;
+      return;
+    }
+    _pending = null;
+    lens.place(t, index);
   }
 
   void down(double t, double x, Offset position, {required bool glows}) {
