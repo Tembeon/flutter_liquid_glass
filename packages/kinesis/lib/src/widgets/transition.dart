@@ -29,8 +29,10 @@ import 'package:kinesis/motion.dart';
 ///
 /// Hit testing follows what is drawn, inside the clip. The transform,
 /// opacity and blur reach accessibility when the values among them that
-/// move come to rest. Under a muted `TickerMode` it stops following its
-/// values.
+/// move come to rest. As with `FadeTransition`'s render object, a child
+/// whose presented opacity rounds to 0 is left out: it contributes no
+/// semantics and takes no hits, without a build. Under a muted
+/// `TickerMode` it stops following its values.
 class MotionTransition extends SingleChildRenderObjectWidget {
   /// Creates a transition of [child] driven by the given values.
   const MotionTransition({
@@ -228,6 +230,7 @@ class RenderMotionTransition extends RenderProxyBox {
     _follow();
     markNeedsLayout();
     markNeedsCompositedLayerUpdate();
+    _syncTransparency();
   }
 
   BorderRadius? _borderRadius;
@@ -253,6 +256,7 @@ class RenderMotionTransition extends RenderProxyBox {
     if (value) {
       markNeedsLayout();
       markNeedsCompositedLayerUpdate();
+      _syncTransparency();
     }
   }
 
@@ -280,9 +284,25 @@ class RenderMotionTransition extends RenderProxyBox {
     }
   }
 
+  bool _wasTransparent = false;
+
+  bool get _transparent => _alpha == 0;
+
+  int get _alpha =>
+      ((_inputs.opacity?.value ?? 1).clamp(0.0, 1.0) * 255).round();
+
+  void _syncTransparency() {
+    _wasTransparent = _transparent;
+    markNeedsSemanticsUpdate();
+  }
+
   void _lookChanged() {
     markNeedsCompositedLayerUpdate();
-    if (_inputs.resting) markNeedsSemanticsUpdate();
+    final transparent = _transparent;
+    if (transparent != _wasTransparent || _inputs.resting) {
+      _wasTransparent = transparent;
+      markNeedsSemanticsUpdate();
+    }
   }
 
   void _sizeChanged() {
@@ -297,6 +317,7 @@ class RenderMotionTransition extends RenderProxyBox {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
+    _wasTransparent = _transparent;
     _follow();
   }
 
@@ -308,6 +329,11 @@ class RenderMotionTransition extends RenderProxyBox {
 
   @override
   bool get isRepaintBoundary => true;
+
+  @override
+  void visitChildrenForSemantics(RenderObjectVisitor visitor) {
+    if (!_transparent) super.visitChildrenForSemantics(visitor);
+  }
 
   static double? _model(ValueListenable<double>? listenable) =>
       switch (listenable) {
@@ -379,8 +405,7 @@ class RenderMotionTransition extends RenderProxyBox {
     required covariant MotionTransitionLayer? oldLayer,
   }) {
     final layer = oldLayer ?? MotionTransitionLayer();
-    final opacity = (_inputs.opacity?.value ?? 1).clamp(0.0, 1.0);
-    final alpha = (opacity * 255).round();
+    final alpha = _alpha;
     layer.update(
       transform: _transform,
       clip: _clip,
@@ -400,6 +425,7 @@ class RenderMotionTransition extends RenderProxyBox {
   // within this box's own untransformed size.
   @override
   bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    if (_transparent) return false;
     if (_transform == null) return super.hitTest(result, position: position);
     return hitTestChildren(result, position: position);
   }

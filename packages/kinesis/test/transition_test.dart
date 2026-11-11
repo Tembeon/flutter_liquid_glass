@@ -1,3 +1,4 @@
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
@@ -31,6 +32,20 @@ Widget _app(Widget child) =>
 MotionTransitionLayer _layer(WidgetTester tester) =>
     tester.renderObject(find.byType(MotionTransition)).debugLayer!
         as MotionTransitionLayer;
+
+List<String> _labels(WidgetTester tester) {
+  final labels = <String>[];
+  bool visit(SemanticsNode node) {
+    labels.add(node.label);
+    node.visitChildren(visit);
+    return true;
+  }
+
+  final owner = tester.renderObject(find.byType(MotionTransition)).owner;
+  final root = owner?.semanticsOwner?.rootSemanticsNode;
+  if (root != null) visit(root);
+  return labels;
+}
 
 void main() {
   setUp(MotionClock.debugReset);
@@ -191,5 +206,58 @@ void main() {
       _app(MotionTransition(offset: offset, child: const _Counted())),
     );
     expect(_layer(tester).addsTransform, isTrue);
+  });
+
+  testWidgets('at opacity 0 the child has no semantics and takes no hits, '
+      'with no build', (tester) async {
+    final opacity = MotionValue<double>(1);
+    var taps = 0;
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _app(
+        Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox.square(
+            dimension: 50,
+            child: MotionTransition(
+              opacity: opacity,
+              child: Semantics(
+                label: 'faded',
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => taps++,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(_labels(tester), contains('faded'));
+    await tester.tapAt(const Offset(25, 25));
+    expect(taps, 1);
+
+    final rebuilt = <Widget>[];
+    debugOnRebuildDirtyWidget = (element, _) => rebuilt.add(element.widget);
+    addTearDown(() => debugOnRebuildDirtyWidget = null);
+    withSpring(const Spring.response(0.3), () => opacity.target = 0);
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(opacity.value, greaterThan(0));
+    expect(_labels(tester), contains('faded'));
+    await tester.pumpAndSettle();
+    expect(_labels(tester), isNot(contains('faded')));
+    await tester.tapAt(const Offset(25, 25));
+    expect(taps, 1);
+
+    withSpring(const Spring.response(0.3), () => opacity.target = 1);
+    await tester.pump(const Duration(milliseconds: 16));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(opacity.value, lessThan(1));
+    expect(_labels(tester), contains('faded'));
+    await tester.tapAt(const Offset(25, 25));
+    expect(taps, 2);
+    debugOnRebuildDirtyWidget = null;
+    expect(rebuilt, isEmpty);
+    semantics.dispose();
   });
 }

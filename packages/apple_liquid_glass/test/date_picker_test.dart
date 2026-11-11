@@ -913,6 +913,9 @@ void main() {
     ) async {
       final changes = await open(tester);
       await tester.tap(find.text('October 2026'));
+      // The wheels fade in after UIKit's delay, which the clock waits
+      // out on a timer that pumpAndSettle alone does not reach.
+      await tester.pump();
       await tester.pumpAndSettle(
         const Duration(milliseconds: 100),
         EnginePhase.sendSemanticsUpdate,
@@ -954,6 +957,9 @@ void main() {
     testWidgets('the 31st turned to November is the 30th', (tester) async {
       final changes = await open(tester, start: DateTime(2026, 10, 31, 8, 41));
       await tester.tap(find.text('October 2026'));
+      // The wheels fade in after UIKit's delay, which the clock waits
+      // out on a timer that pumpAndSettle alone does not reach.
+      await tester.pump();
       await tester.pumpAndSettle(
         const Duration(milliseconds: 100),
         EnginePhase.sendSemanticsUpdate,
@@ -992,6 +998,9 @@ void main() {
         const Duration(seconds: 10),
       );
       await tester.tap(find.text('November 2026'));
+      // The wheels fade in after UIKit's delay, which the clock waits
+      // out on a timer that pumpAndSettle alone does not reach.
+      await tester.pump();
       await tester.pumpAndSettle(
         const Duration(milliseconds: 100),
         EnginePhase.sendSemanticsUpdate,
@@ -1034,6 +1043,9 @@ void main() {
       final semantics = tester.ensureSemantics();
       final changes = await open(tester);
       await tester.tap(find.text('October 2026'));
+      // The wheels fade in after UIKit's delay, which the clock waits
+      // out on a timer that pumpAndSettle alone does not reach.
+      await tester.pump();
       await tester.pumpAndSettle(
         const Duration(milliseconds: 100),
         EnginePhase.sendSemanticsUpdate,
