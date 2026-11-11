@@ -3,6 +3,8 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/input.dart';
 
+import 'scrub_interaction.dart';
+
 const _size = Size(100, 40);
 
 PointerDownInput _down(double time, {Set<Axis> scroll = const {}}) =>
@@ -445,73 +447,6 @@ void main() {
       session.handle(_down(0.15));
       session.handle(_up(0.2, const Offset(50, 20)));
       expect(heard, ['two']);
-    });
-  });
-
-  group('ScrubInteraction', () {
-    test('selects the region under the finger and commits on release', () {
-      final changes = <Object?>[];
-      Object? committed;
-      final scrub = ScrubInteraction(
-        hit: (p) => p.dy < 20 ? 'a' : 'b',
-        onChanged: (selected, t) => changes.add(selected),
-        onCommit: (key, t) => committed = key,
-      );
-      final session = InteractionSession([scrub]);
-      session.handle(
-        const PointerDownInput(
-          time: 0,
-          pointer: 1,
-          position: Offset(10, 10),
-          regionSize: _size,
-        ),
-      );
-      session.handle(_move(0.1, const Offset(10, 30)));
-      session.handle(_up(0.2, const Offset(10, 30)));
-      expect(changes, ['a', 'b']);
-      expect(committed, 'b');
-    });
-
-    test('a release over nothing clears the selection', () {
-      final changes = <Object?>[];
-      final session = InteractionSession([
-        ScrubInteraction(
-          hit: (p) => p.dy < 20 ? 'a' : null,
-          onChanged: (selected, t) => changes.add(selected),
-        ),
-      ]);
-      session.handle(
-        const PointerDownInput(
-          time: 0,
-          pointer: 1,
-          position: Offset(10, 10),
-          regionSize: _size,
-        ),
-      );
-      session.handle(_up(0.2, const Offset(10, 30)));
-      expect(changes, ['a', null]);
-    });
-
-    test('marks the change that came with the touch-down', () {
-      final session = InteractionSession([
-        ScrubInteraction(hit: (p) => p.dy < 20 ? 'a' : 'b'),
-      ]);
-      final down = session.handle(
-        const PointerDownInput(
-          time: 0,
-          pointer: 1,
-          position: Offset(10, 10),
-          regionSize: _size,
-        ),
-      );
-      final moved = session.handle(_move(0.1, const Offset(10, 30)));
-      final atDown = [
-        for (final output in [down, moved])
-          for (final event in output.events)
-            if (event case ScrubChangeEvent(:final selected, :final atDown))
-              (selected, atDown),
-      ];
-      expect(atDown, [('a', true), ('b', false)]);
     });
   });
 

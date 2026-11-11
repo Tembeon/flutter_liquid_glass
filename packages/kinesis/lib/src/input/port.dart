@@ -16,7 +16,7 @@ import 'package:meta/meta.dart';
 /// ```dart
 /// final port = InputPort();
 /// LongPressInteraction(onStart: open).sequenced(port.forward);
-/// // in the menu: InputRegion(port: port, interactions: [scrub], ...)
+/// // in the menu: InputZones(port: port, slides: true, zones: rows, ...)
 /// ```
 final class InputPort {
   /// Creates a port with no receiver.

@@ -48,7 +48,6 @@ export 'src/input/interaction.dart'
         PointerUpInput,
         PressInteraction,
         ScrubChangeEvent,
-        ScrubInteraction,
         SecondaryClickInteraction,
         SessionOutput,
         TapInteraction,

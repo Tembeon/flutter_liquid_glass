@@ -105,7 +105,6 @@ ProjectionStop
 Ramp
 RectSprings
 ScrubChangeEvent
-ScrubInteraction
 SecondaryClickInteraction
 SessionOutput
 SliverMotionList

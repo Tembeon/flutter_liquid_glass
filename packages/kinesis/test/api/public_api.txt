@@ -299,17 +299,6 @@ final class ScrubChangeEvent extends InteractionEvent
   })
   final bool atDown
   final Object? selected
-class ScrubInteraction extends Interaction
-  ScrubInteraction({
-    required Object? Function(Offset) hit,
-    InteractionRole role = ...,
-    void Function(Object?, double)? onChanged,
-    void Function(Object, double)? onCommit,
-  })
-  Object? Function(Offset) hit
-  void Function(Object?, double)? onChanged
-  void Function(Object, double)? onCommit
-  overrides: handle
 class SecondaryClickInteraction extends Interaction
   SecondaryClickInteraction({
     InteractionRole role = ...,
@@ -1233,7 +1222,6 @@ final class RectSprings
   Spring get width
   overrides: ==, hashCode
 class ScrubChangeEvent (see package:kinesis/input.dart)
-class ScrubInteraction (see package:kinesis/input.dart)
 class SecondaryClickInteraction (see package:kinesis/input.dart)
 class SessionOutput (see package:kinesis/input.dart)
 class SliverMotionList extends StatefulWidget

@@ -2,6 +2,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
 
+import 'scrub_interaction.dart';
+
 const _size = Size(100, 40);
 
 PointerDownInput _down(double t, Offset p) =>
