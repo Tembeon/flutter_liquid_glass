@@ -9,6 +9,7 @@ PopoverShape _down(double width, double height, double center) => PopoverShape(
   content: Rect.fromLTWH(0, 0, width, height),
   direction: PopoverArrowDirection.down,
   arrowCenter: center,
+  cornerRadius: 34,
 );
 
 double _sample(GlassField field, Offset p) {
@@ -89,6 +90,7 @@ void main() {
         content: content,
         direction: direction,
         arrowCenter: vertical ? 140 : 150,
+        cornerRadius: 34,
       );
       expect(
         shape.path.contains(tip + inside * 0.5),
@@ -119,6 +121,7 @@ void main() {
         content: const Rect.fromLTWH(13, 0, 240, h),
         direction: PopoverArrowDirection.left,
         arrowCenter: 132.17,
+        cornerRadius: 34,
       ),
     ]) {
       final field = shape.outline.field!;

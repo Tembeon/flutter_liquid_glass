@@ -16,6 +16,7 @@ final _shape = PopoverShape(
   content: const Rect.fromLTWH(0, 0, 240, 120),
   direction: PopoverArrowDirection.down,
   arrowCenter: 120,
+  cornerRadius: 34,
 );
 
 Widget _page(GlassRenderer renderer, GlassFrame frame) => Directionality(

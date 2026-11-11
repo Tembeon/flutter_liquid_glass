@@ -16,7 +16,7 @@ import 'package:flutter/painting.dart';
 /// [PopoverTuning.arrowFilletReach] outside the base, runs straight
 /// to within 2 of the axis and 1 of the tip, and the tip is one cubic
 /// whose controls both sit on the tip. The corners are continuous, Apple's
-/// three-cubic corner; their radius is [PopoverTuning.cornerRadius],
+/// three-cubic corner; their radius is [cornerRadius],
 /// less on a popover too small to hold it, and a corner next to the arrow
 /// ends at least [PopoverTuning.arrowCornerGap] short of the arrow's
 /// center.
@@ -37,6 +37,7 @@ class PopoverShape {
     required this.content,
     required this.direction,
     required this.arrowCenter,
+    required this.cornerRadius,
   });
 
   /// The content box, without the arrow.
@@ -47,6 +48,10 @@ class PopoverShape {
 
   /// The arrow's center along its edge.
   final double arrowCenter;
+
+  /// The radius of the content's corners, where the popover is large
+  /// enough to hold it.
+  final double cornerRadius;
 
   /// The distance between the nodes of the shape's distance field, in
   /// logical pixels.
@@ -90,7 +95,8 @@ class PopoverShape {
   bool _sameAs(PopoverShape other) =>
       other.content == content &&
       other.direction == direction &&
-      other.arrowCenter == arrowCenter;
+      other.arrowCenter == arrowCenter &&
+      other.cornerRadius == cornerRadius;
 }
 
 // Apple's continuous corner, in multiples of its radius: how far along each
@@ -119,7 +125,14 @@ const double _arrowDepth = 32;
 /// edge of a `w` x `h` box at `c`: the exact path mapped onto the shape's
 /// own edge, and the edge flattened for its distance field.
 class _Trace {
-  _Trace._(this._direction, this._content, this._w, this._h, this._c);
+  _Trace._(
+    this._direction,
+    this._content,
+    this._w,
+    this._h,
+    this._c,
+    this._cornerRadius,
+  );
 
   factory _Trace.of(PopoverShape shape) {
     final content = shape.content;
@@ -134,6 +147,7 @@ class _Trace {
       vertical
           ? shape.arrowCenter - content.left
           : shape.arrowCenter - content.top,
+      shape.cornerRadius,
     );
     trace._draw();
     return trace;
@@ -144,6 +158,7 @@ class _Trace {
   final double _w;
   final double _h;
   final double _c;
+  final double _cornerRadius;
 
   final Path path = Path();
 
@@ -188,7 +203,7 @@ class _Trace {
     // A popover too small for the radius takes the corner that fits half
     // the shorter side of its box with the arrow.
     radius = math.min(
-      PopoverTuning.cornerRadius,
+      _cornerRadius,
       math.min(w, h + length) / 2 / _cornerExtent,
     );
     _full = radius * _cornerExtent;

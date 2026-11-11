@@ -116,12 +116,6 @@ abstract final class PopoverTuning {
   /// closer is drawn smaller, as UIKit draws it.
   static const double arrowCornerGap = arrowBase / 2 + 3;
 
-  /// The corner radius of a popover's content.
-  static const double cornerRadius = 34;
-
-  /// The space a popover keeps from the screen's sides.
-  static const double margin = 10;
-
   /// The nearest the arrow's center comes to a corner of the content. A
   /// placement that would push the arrow closer is not taken.
   ///
@@ -164,6 +158,11 @@ class PopoverMotion extends Motion with Presented, PredictiveBack {
 
   /// The scale of the hidden popover.
   final double hiddenScale;
+
+  /// The space a popover keeps from the screen's sides, which
+  /// [placePopover] keeps and a host leaves out of the width it offers the
+  /// content.
+  static const double margin = 10;
 
   /// The progress rests within 1e-3 (NEAR): that lands the far edge of a
   /// 300 pt popover by up to 0.3 pt, looser than [MotionRest.length];
@@ -248,7 +247,7 @@ class PopoverMotion extends Motion with Presented, PredictiveBack {
 /// Each side of the source is a candidate in the order above, below, then
 /// the trailing and the leading side: the popover centers on the source
 /// along that side, then slides as little as it must to stay
-/// [PopoverTuning.margin] from the screen's sides and inside
+/// [PopoverMotion.margin] from the screen's sides and inside
 /// [padding] (the safe area, keyboard included). Toward the source it may
 /// slide by up to the arrow's length, so the arrow tip overlaps the
 /// source a little rather than the popover changing sides. A side where
@@ -268,7 +267,7 @@ PopoverPlacement placePopover({
   TextDirection textDirection = TextDirection.ltr,
 }) {
   const arrow = PopoverTuning.arrowLength;
-  const margin = PopoverTuning.margin;
+  const margin = PopoverMotion.margin;
   const clearance = PopoverTuning.arrowCornerClearance;
   final left = margin + padding.left;
   final right = screen.width - margin - padding.right;

@@ -2,13 +2,16 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
-import 'package:apple_liquid_glass/src/motions/popover_motion.dart';
 import 'package:apple_liquid_glass/src/presentations/sheet.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
+
+/// The corner radius of a popover's content, measured on an action sheet
+/// presented from a source view on iOS 27.
+const double _cornerRadius = 34;
 
 /// The look of popovers; a null field leaves it to the theme's style,
 /// then the default. A popover that adapts to a sheet draws in the
@@ -195,7 +198,7 @@ class _PopoverViewState extends State<_PopoverView> {
       source: widget.source,
       scale: _scale,
       opacity: _opacity,
-      maxWidth: media.size.width - 2 * PopoverTuning.margin,
+      maxWidth: media.size.width - 2 * PopoverMotion.margin,
       padding: media.padding.copyWith(
         bottom: math.max(media.padding.bottom, media.viewInsets.bottom),
       ),
@@ -203,7 +206,7 @@ class _PopoverViewState extends State<_PopoverView> {
       card: MotionTransition(
         opacity: _opacity,
         child: ClipRSuperellipse(
-          borderRadius: BorderRadius.circular(PopoverTuning.cornerRadius),
+          borderRadius: BorderRadius.circular(_cornerRadius),
           child: DefaultTextStyle(
             style: resolveGlassText(_textStyle(label, context), context),
             child: Builder(builder: widget.builder),
@@ -310,7 +313,7 @@ class _PopoverGlassState extends State<_PopoverGlass> {
     final outline = widget.shape.outline;
     return MotionSelection(
       () => GlassFrame(
-        shape: const GlassShape.superellipse(PopoverTuning.cornerRadius),
+        shape: const GlassShape.superellipse(_cornerRadius),
         opacity: opacity.value,
         outline: outline,
       ),
@@ -461,6 +464,7 @@ class _RenderPopover extends RenderBox
           direction: placement.arrowDirection,
           arrowCenter:
               placement.arrowCenter - (vertical ? bounds.left : bounds.top),
+          cornerRadius: _cornerRadius,
         ),
       ),
     );

@@ -2949,6 +2949,7 @@ class PopoverMotion extends Motion with Presented, PredictiveBack
   final double hiddenScale
   bool get isDismissed
   bool get isLeaving
+  static const double margin
   double get opacity
   void present(double t)
   final Spring presentSpring
@@ -2972,10 +2973,12 @@ class PopoverShape
     required Rect content,
     required PopoverArrowDirection direction,
     required double arrowCenter,
+    required double cornerRadius,
   })
   final double arrowCenter
   Rect get bounds
   final Rect content
+  final double cornerRadius
   final PopoverArrowDirection direction
   static const double fieldStep
   late final GlassOutline outline
