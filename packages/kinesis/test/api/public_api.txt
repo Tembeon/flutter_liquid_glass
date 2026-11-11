@@ -670,7 +670,7 @@ final class MotionEffect
   overrides: ==, hashCode
 enum MotionHaptic (see package:kinesis/input.dart)
 extension MotionHapticPlay on MotionHaptic
-  void play()
+  void play(BuildContext context)
 class MotionHapticScope extends StatelessWidget
   const MotionHapticScope({
     required bool enabled,

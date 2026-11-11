@@ -45,7 +45,7 @@ import 'package:kinesis/src/widgets/input_shared.dart';
 /// (focused only while the focus should show: when the keyboard was used
 /// last, as `InkWell` does, so a tap that focuses lights no ring), and
 /// plays the haptic [feedback] picks for each event as it happens;
-/// keyboard and accessibility activations play none.
+/// keyboard and accessibility inputs play none.
 class InputRegion extends StatefulWidget {
   /// Creates a region whose [interactions] answer input on [child].
   const InputRegion({
@@ -75,9 +75,11 @@ class InputRegion extends StatefulWidget {
 
   /// The haptic for an event, or null for none.
   ///
-  /// This is the one way a control plays a haptic: the region plays it as
-  /// the event happens, never for a keyboard or accessibility activation,
-  /// and plays none under a [MotionHapticScope] that turns haptics off.
+  /// The region plays it as the event happens, never for a keyboard or
+  /// accessibility input, and plays none under a [MotionHapticScope] that
+  /// turns haptics off. A haptic for something that is not an event of the
+  /// interactions goes through [MotionHapticPlay.play], under the same
+  /// rules.
   final MotionHaptic? Function(InteractionEvent event)? feedback;
 
   /// Whether the region takes input; disabling it ends a touch.
@@ -417,7 +419,10 @@ class _InputRegionState extends State<InputRegion> {
 
   void _input(InteractionInput input) {
     if (!widget.enabled) return;
-    _clock.input(input.time, () => _answer(_session.handle(input)));
+    dispatchInput(
+      input,
+      () => _clock.input(input.time, () => _answer(_session.handle(input))),
+    );
   }
 
   void _answer(SessionOutput output, {int? pointer}) {
@@ -437,8 +442,8 @@ class _InputRegionState extends State<InputRegion> {
     if (event is ActivationEvent && event.source != ActivationSource.pointer) {
       return;
     }
-    if (!hapticsOnAt(context)) return;
-    widget.feedback?.call(event)?.play();
+    final haptic = widget.feedback?.call(event);
+    if (haptic != null) playHaptic(context, haptic);
   }
 
   void _scheduleDue() {
@@ -805,10 +810,9 @@ class _RenderRegion extends RenderProxyBox {
 /// UIKit: the System Haptics setting. Flutter: none; `TickerMode` is the
 /// same shape for tickers.
 ///
-/// An [InputRegion] below a scope with [enabled] false plays no
-/// [InputRegion.feedback]. A scope cannot turn haptics back on below one
-/// that turned them off. Code that calls [MotionHapticPlay.play] itself is
-/// not silenced.
+/// An [InputRegion] or `InputZones` below a scope with [enabled] false
+/// plays no feedback, and [MotionHapticPlay.play] plays nothing there. A
+/// scope cannot turn haptics back on below one that turned them off.
 class MotionHapticScope extends StatelessWidget {
   /// Turns the haptics of [child] on or off.
   const MotionHapticScope({
@@ -836,11 +840,27 @@ class MotionHapticScope extends StatelessWidget {
   );
 }
 
-/// Whether the haptics of an input host at [context] play, without making
-/// [context] depend on the scope.
+/// Plays [haptic] for the control at [context], unless a scope there turns
+/// haptics off or an input host is handling a keyboard or accessibility
+/// input; [context] does not come to depend on the scope.
 @internal
-bool hapticsOnAt(BuildContext context) =>
-    context.getInheritedWidgetOfExactType<_HapticScope>()?.enabled ?? true;
+void playHaptic(BuildContext context, MotionHaptic haptic) {
+  if (!context.mounted || !gestureInput) return;
+  if (!(context.getInheritedWidgetOfExactType<_HapticScope>()?.enabled ??
+      true)) {
+    return;
+  }
+  switch (haptic) {
+    case .selection:
+      HapticFeedback.selectionClick().ignore();
+    case .lightImpact:
+      HapticFeedback.lightImpact().ignore();
+    case .mediumImpact:
+      HapticFeedback.mediumImpact().ignore();
+    case .heavyImpact:
+      HapticFeedback.heavyImpact().ignore();
+  }
+}
 
 /// Attaches [receiver] to [port] after the current frame, while [stillWanted]
 /// holds.
@@ -872,17 +892,24 @@ class _HapticScope extends InheritedWidget {
       enabled != oldWidget.enabled;
 }
 
-/// Plays a [MotionHaptic] on the platform at once.
+/// Plays a [MotionHaptic] for a control.
 ///
-/// It plays even below a [MotionHapticScope] that turns haptics off: a
-/// control plays its haptics through [InputRegion.feedback], which the
-/// scope silences, and calls this only where no region event fits.
+/// UIKit: `UIFeedbackGenerator`. SwiftUI: `sensoryFeedback`. Flutter:
+/// `HapticFeedback`.
 extension MotionHapticPlay on MotionHaptic {
-  /// Plays the haptic, whatever any scope says.
-  void play() => switch (this) {
-    .selection => HapticFeedback.selectionClick(),
-    .lightImpact => HapticFeedback.lightImpact(),
-    .mediumImpact => HapticFeedback.mediumImpact(),
-    .heavyImpact => HapticFeedback.heavyImpact(),
-  }.ignore();
+  /// Plays the haptic for the control at [context], at once.
+  ///
+  /// This is how a control plays a haptic for something that is not an
+  /// event of its interactions: a switch whose shown state flips under the
+  /// finger, a slider that reaches its end stop, a wheel that turns to
+  /// the next row. The haptics of the interactions' own events go through
+  /// `InputRegion.feedback` and `InputZones.feedback`, which play the same
+  /// way.
+  ///
+  /// It plays nothing below a [MotionHapticScope] that turns haptics off,
+  /// and nothing while an input region or a zone handles a keyboard or
+  /// accessibility input (an `ActivateInput` or `AdjustInput` whose source
+  /// is not the pointer): a control that answers a key or an assistive
+  /// action by calling it stays silent, as UIKit's controls are.
+  void play(BuildContext context) => playHaptic(context, this);
 }

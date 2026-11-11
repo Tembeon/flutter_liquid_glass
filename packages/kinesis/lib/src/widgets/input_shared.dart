@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
@@ -65,6 +66,31 @@ MouseCursor resolveCursor(
           : MouseCursor.defer),
   states,
 );
+
+ActivationSource? _dispatching;
+
+/// Whether no input host is handling a keyboard or accessibility input
+/// now: haptics play only outside one.
+@internal
+bool get gestureInput =>
+    _dispatching == null || _dispatching == ActivationSource.pointer;
+
+/// Runs [body], which hands [input] to an input host's interactions, with
+/// the input's source known to [gestureInput].
+@internal
+void dispatchInput(InteractionInput input, VoidCallback body) {
+  final source = switch (input) {
+    ActivateInput(:final source) || AdjustInput(:final source) => source,
+    _ => ActivationSource.pointer,
+  };
+  final outer = _dispatching;
+  _dispatching = source;
+  try {
+    body();
+  } finally {
+    _dispatching = outer;
+  }
+}
 
 /// Tells the frame cadence how fast a followed pointer moves.
 @internal

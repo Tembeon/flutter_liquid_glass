@@ -2325,7 +2325,7 @@ Widget _wheelView({
       ),
     ),
     onSelectedItemChanged: (int index) {
-      MotionHaptic.selection.play();
+      if (context != null) MotionHaptic.selection.play(context);
       onSelected(index);
     },
     childDelegate: ListWheelChildBuilderDelegate(

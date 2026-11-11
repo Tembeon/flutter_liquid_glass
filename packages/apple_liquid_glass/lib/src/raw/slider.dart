@@ -220,15 +220,11 @@ class _RawGlassSliderState extends State<RawGlassSlider>
           _returnUnlessFollowed();
         });
       case SliderFelt(:final detent):
-        _input.feel(detent ? _Felt.detent : _Felt.end);
+        (detent ? MotionHaptic.selection : MotionHaptic.lightImpact).play(
+          context,
+        );
     }
   }
-
-  static MotionHaptic? _feedback(InteractionEvent event) => switch (event) {
-    ScrubChangeEvent(selected: _Felt.detent) => MotionHaptic.selection,
-    ScrubChangeEvent(selected: _Felt.end) => MotionHaptic.lightImpact,
-    _ => null,
-  };
 
   // An event raised while the framework builds or lays out, such as a drag
   // the region cancels in its update or a width set in layout, reaches the
@@ -345,7 +341,6 @@ class _RawGlassSliderState extends State<RawGlassSlider>
         interactions: _interactions,
         enabled: widget.onChanged != null,
         statesController: widgetStates,
-        feedback: _feedback,
         focusNode: widget.focusNode,
         autofocus: widget.autofocus,
         semanticLabel: widget.semanticLabel,
@@ -442,13 +437,9 @@ final class _SliderFrames {
       : rect;
 }
 
-/// What a dragging finger felt: the value reached an end or an inner stop.
-enum _Felt { end, detent }
-
 /// A slider's touch: it takes a touch only on the thumb and holds it
 /// against a scroll. It adjusts: the region's value commands reach the
-/// slider through it. A finger reaching an end or a stop reaches the
-/// region as a [ScrubChangeEvent], for its haptic.
+/// slider through it.
 final class _SliderInput extends Interaction {
   _SliderInput({
     required this.motion,
@@ -463,13 +454,9 @@ final class _SliderInput extends Interaction {
   final ValueChanged<ValueCommand> command;
   bool mirrored = false;
   int? _pointer;
-  final List<InteractionEvent> _felt = [];
 
   @override
   bool get adjusts => true;
-
-  void feel(_Felt felt) =>
-      _felt.add(ScrubChangeEvent(time: motion.now, selected: felt));
 
   @override
   bool get pressed => _pointer != null;
@@ -488,19 +475,6 @@ final class _SliderInput extends Interaction {
 
   @override
   InteractionUpdate handle(InteractionInput input) {
-    final update = _handle(input);
-    if (_felt.isEmpty) return update;
-    final events = [...update.events, ..._felt];
-    _felt.clear();
-    return InteractionUpdate(
-      claims: update.claims,
-      recognizes: update.recognizes,
-      fails: update.fails,
-      events: events,
-    );
-  }
-
-  InteractionUpdate _handle(InteractionInput input) {
     switch (input) {
       case AdjustInput(command: final asked):
         command(asked);

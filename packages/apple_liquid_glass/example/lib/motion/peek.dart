@@ -60,6 +60,7 @@ class _PeekSectionState extends State<PeekSection> {
     motion: (environment) => _reactionsMotion = _ReactionsMotion(
       _anchor(),
       bounds: environment.bounds,
+      onHovered: () => MotionHaptic.selection.play(context),
     ),
     modal: (motion) => motion.presence != PresenceStatus.leaving,
     builder: (context, motion) => _ReactionsBar(motion: motion),
@@ -323,8 +324,11 @@ class _PeekPanelState extends State<_PeekPanel> {
 }
 
 final class _ReactionsMotion extends Motion with Presented {
-  _ReactionsMotion(this.anchor, {required Size bounds})
-    : bar = _place(anchor, bounds);
+  _ReactionsMotion(
+    this.anchor, {
+    required Size bounds,
+    required this.onHovered,
+  }) : bar = _place(anchor, bounds);
 
   static const icons = [
     CupertinoIcons.heart_fill,
@@ -345,6 +349,9 @@ final class _ReactionsMotion extends Motion with Presented {
 
   /// The button the bar grows out of, in the overlay.
   final Rect anchor;
+
+  /// Called when the finger comes onto an icon.
+  final VoidCallback onHovered;
 
   /// Where the open bar stands, in the overlay.
   final Rect bar;
@@ -403,7 +410,7 @@ final class _ReactionsMotion extends Motion with Presented {
     for (final (i, scale) in _scales.indexed) {
       scale.retarget(t, i == index ? 1.4 : 1, spring: Spring.snappy);
     }
-    if (index != null) MotionHaptic.selection.play();
+    if (index != null) onHovered();
   }
 
   double scaleOf(int index) => _scales[index].valueAt(now);

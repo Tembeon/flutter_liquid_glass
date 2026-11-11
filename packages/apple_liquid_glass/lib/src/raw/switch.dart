@@ -161,13 +161,10 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
         // The build that follows shows the value the app passes by then,
         // so a switch whose app does not follow returns to its value.
         setState(() => _returning = true);
-      case SwitchShown(:final on):
-        _input.feel(on: on);
+      case SwitchShown():
+        MotionHaptic.lightImpact.play(context);
     }
   }
-
-  static MotionHaptic? _feedback(InteractionEvent event) =>
-      event is ScrubChangeEvent ? MotionHaptic.lightImpact : null;
 
   @override
   Widget build(BuildContext context) {
@@ -187,7 +184,6 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
           interactions: _interactions,
           enabled: widget.onChanged != null,
           statesController: widgetStates,
-          feedback: _feedback,
           focusNode: widget.focusNode,
           autofocus: widget.autofocus,
           semanticLabel: widget.semanticLabel,
@@ -235,8 +231,7 @@ class _RenderCentered extends RenderPositionedBox {
 
 /// A switch's touch: the press tracks the highlight and holds the touch
 /// against a scroll, the motion follows the finger, and an activation
-/// toggles. A change of the shown state under the finger reaches the
-/// region as a [ScrubChangeEvent], for its haptic.
+/// toggles.
 final class _SwitchInput extends PressInteraction {
   _SwitchInput({required this.motion, required this.toggle});
 
@@ -244,13 +239,9 @@ final class _SwitchInput extends PressInteraction {
   final VoidCallback toggle;
   bool mirrored = false;
   int? _pointer;
-  final List<InteractionEvent> _felt = [];
 
   double _x(Offset position) =>
       mirrored ? RawGlassSwitch.size.width - position.dx : position.dx;
-
-  void feel({required bool on}) =>
-      _felt.add(ScrubChangeEvent(time: motion.now, selected: on));
 
   @override
   InteractionUpdate handle(InteractionInput input) {
@@ -273,15 +264,6 @@ final class _SwitchInput extends PressInteraction {
         motion.pointerCancel(input.time);
       default:
     }
-    final update = super.handle(input);
-    if (_felt.isEmpty) return update;
-    final events = [...update.events, ..._felt];
-    _felt.clear();
-    return InteractionUpdate(
-      claims: update.claims,
-      recognizes: update.recognizes,
-      fails: update.fails,
-      events: events,
-    );
+    return super.handle(input);
   }
 }

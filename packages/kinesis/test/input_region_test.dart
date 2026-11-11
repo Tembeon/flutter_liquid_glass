@@ -769,6 +769,58 @@ void main() {
     }
     expect(haptics, ['HapticFeedbackType.mediumImpact']);
   });
+
+  testWidgets('a control plays its own haptic for a touch, not for a key, '
+      'an assistive action or below a scope that turns haptics off', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    late BuildContext context;
+    var taps = 0;
+    Widget region({bool haptics = true}) => _widgetsApp(
+      MotionHapticScope(
+        enabled: haptics,
+        child: Builder(
+          builder: (inner) {
+            context = inner;
+            return InputRegion(
+              interactions: [
+                PressInteraction(
+                  onTap: (t) {
+                    taps++;
+                    MotionHaptic.heavyImpact.play(context);
+                  },
+                ),
+              ],
+              semanticLabel: 'press',
+              child: const SizedBox(width: 80, height: 40),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pumpWidget(region());
+    await tester.tap(find.byType(InputRegion));
+    await tester.pump();
+    expect(haptics, ['HapticFeedbackType.heavyImpact']);
+    Focus.of(
+      tester.element(find.byType(SizedBox).last),
+    ).requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    tester.semantics.tap(find.semantics.byLabel('press'));
+    await tester.pump();
+    expect(taps, 3);
+    expect(haptics, hasLength(1));
+    MotionHaptic.selection.play(context);
+    expect(haptics, hasLength(2));
+    await tester.pumpWidget(region(haptics: false));
+    await tester.tap(find.byType(InputRegion));
+    MotionHaptic.selection.play(context);
+    await tester.pump();
+    expect(haptics, hasLength(2));
+    handle.dispose();
+  });
 }
 
 final class _WheelHeard extends Interaction {

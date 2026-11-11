@@ -795,8 +795,9 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     if (event is ActivationEvent && event.source != ActivationSource.pointer) {
       return;
     }
-    if (!mounted || !hapticsOnAt(context)) return;
-    widget.feedback?.call(zone, event)?.play();
+    if (!mounted) return;
+    final haptic = widget.feedback?.call(zone, event);
+    if (haptic != null) playHaptic(context, haptic);
   }
 
   void _scheduleDue() {
@@ -1128,9 +1129,12 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   /// Hands [input], in the host's coordinates, to the zone's session.
   void _input(InteractionInput input) {
     if (!zone.enabled) return;
-    host._clock.input(
-      input.time,
-      () => host._answer(this, session.handle(_local(input))),
+    dispatchInput(
+      input,
+      () => host._clock.input(
+        input.time,
+        () => host._answer(this, session.handle(_local(input))),
+      ),
     );
   }
 

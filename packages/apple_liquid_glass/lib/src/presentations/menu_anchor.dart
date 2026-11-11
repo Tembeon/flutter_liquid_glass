@@ -289,7 +289,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     switch (event) {
       case MenuHighlightChanged(:final from, :final to, :final tracked):
         _content.highlight(from, to);
-        if (tracked) MotionHaptic.selection.play();
+        if (tracked) MotionHaptic.selection.play(context);
       case MenuActivated(:final target):
         _content.activate(target);
       case MenuTapped():
@@ -1550,7 +1550,7 @@ class GlassContextMenu extends StatefulWidget {
 
 class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   late final _hold = ContextHold(
-    onCommit: MotionHaptic.heavyImpact.play,
+    onCommit: () => MotionHaptic.heavyImpact.play(context),
     onOpen: _openUnder,
   );
   late final _growth = _hold.select((hold) => hold.growth);
