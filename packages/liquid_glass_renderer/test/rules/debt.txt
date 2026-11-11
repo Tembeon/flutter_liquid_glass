@@ -49,8 +49,4 @@
 5:addPostFrameCallback  lib/src/rendering/glass_composer.dart                          3
 5:addPostFrameCallback  lib/src/rendering/transform_tracking_render_object_mixin.dart  1
 5:addPostFrameCallback  lib/src/widgets/liquid_glass_layer.dart                        3
-5:ignore                lib/src/effects/glass_glow.dart                                1
 5:ignore                lib/src/rendering/ancestor_clip.dart                           1
-5:ignore_for_file       lib/src/rendering/shaders.dart                                 1
-5:ignore_for_file       lib/src/widgets/fake_glass.dart                                1
-5:ignore_for_file       lib/src/widgets/liquid_glass.dart                              1

@@ -1,5 +1,3 @@
-// ignore_for_file: require_trailing_commas
-
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';

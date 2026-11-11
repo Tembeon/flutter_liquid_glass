@@ -1,5 +1,3 @@
-// ignore_for_file: avoid_setters_without_getters
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -683,6 +681,8 @@ class _LiveGlassFrame extends SingleChildRenderObjectWidget {
 class RenderLiveGlassFrame extends RenderProxyBox {
   RenderLiveGlassFrame({required this._frame});
 
+  /// The frame this glass is moved and scaled to.
+  ValueListenable<LiquidGlassShapeFrame> get frame => _frame;
   ValueListenable<LiquidGlassShapeFrame> _frame;
   set frame(ValueListenable<LiquidGlassShapeFrame> value) {
     if (identical(_frame, value)) return;

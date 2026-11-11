@@ -1,8 +1,8 @@
-// ignore_for_file: public_member_api_docs
-
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:meta/meta.dart';
 
+/// Whether shaders load from the package's own folder, as in its tests,
+/// rather than from the assets of an app that depends on it.
 @visibleForTesting
 bool isLocalTest = false;
 

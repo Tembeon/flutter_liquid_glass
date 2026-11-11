@@ -110,8 +110,9 @@ class GlassGlowLayer extends StatefulWidget {
   @override
   State<GlassGlowLayer> createState() => GlassGlowLayerState();
 
+  /// The nearest glow layer above [context], or null when there is none or
+  /// [context] is no longer mounted.
   @internal
-  // ignore: public_member_api_docs
   static GlassGlowLayerState? maybeOf(BuildContext context) {
     if (!context.mounted) return null;
     return context.findAncestorStateOfType<GlassGlowLayerState>();
