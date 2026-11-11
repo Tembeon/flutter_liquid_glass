@@ -18,7 +18,7 @@ Widget _wheel({
   required int selected,
   required ValueChanged<int> onSelected,
   required String label,
-  BuildContext? context,
+  required BuildContext context,
   bool enabled = true,
   bool looping = true,
   AlignmentGeometry alignment = Alignment.center,
@@ -63,9 +63,7 @@ Widget _wheel({
               count,
               looping,
               look,
-              context == null
-                  ? null
-                  : resolveGlassText(const TextStyle(), context).fontFamily,
+              resolveGlassText(const TextStyle(), context).fontFamily,
             ), view),
     ),
   );
@@ -229,7 +227,7 @@ Widget _wheelView({
   required bool looping,
   required AlignmentGeometry alignment,
   required EdgeInsetsGeometry padding,
-  BuildContext? context,
+  required BuildContext context,
 }) {
   final row = look.wheelTextStyle!;
   return ListWheelScrollView.useDelegate(
@@ -247,7 +245,7 @@ Widget _wheelView({
       ),
     ),
     onSelectedItemChanged: (int index) {
-      if (context != null) MotionHaptic.selection.play(context);
+      MotionHaptic.selection.play(context);
       onSelected(index);
     },
     childDelegate: ListWheelChildBuilderDelegate(
@@ -430,7 +428,6 @@ abstract final class _WheelMetrics {
 /// platter's leading edge in the band (57.95 outside it), the years
 /// centered 230 points in.
 abstract final class _MonthYearMetrics {
-  static const double width = 288;
   static const double height = 216;
   static const double band = 34;
 

@@ -489,7 +489,16 @@ class GlassButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final button = _raw(context);
+    final button = RawGlassButton(
+      onPressed: onPressed,
+      statesController: statesController,
+      focusNode: focusNode,
+      autofocus: autofocus,
+      semanticLabel: semanticLabel,
+      builder:
+          style?.builder ?? _themeStyleOf(context)?.builder ?? _defaultBody,
+      child: child,
+    );
     if (!GlassSource.isSourceAt(context)) return button;
     final states = {if (onPressed == null) WidgetState.disabled};
     return GlassSource(
@@ -505,19 +514,6 @@ class GlassButton extends StatelessWidget {
     );
   }
 
-  Widget _raw(BuildContext context) {
-    return RawGlassButton(
-      onPressed: onPressed,
-      statesController: statesController,
-      focusNode: focusNode,
-      autofocus: autofocus,
-      semanticLabel: semanticLabel,
-      builder:
-          style?.builder ?? _themeStyleOf(context)?.builder ?? _defaultBody,
-      child: child,
-    );
-  }
-
   GlassButtonStyle _lookOf(BuildContext context) =>
       (style ?? const GlassButtonStyle())
           .merge(_themeStyleOf(context))
@@ -525,8 +521,8 @@ class GlassButton extends StatelessWidget {
 
   Widget _defaultBody(BuildContext context, GlassButtonDetails details) {
     final states = details.states;
-    final tint = _lookOf(context).backgroundColor?.resolve(states);
     final look = _lookOf(context);
+    final tint = look.backgroundColor?.resolve(states);
     return GlassSurface.live(
       frame: details.body,
       glass: _clear ? Glass.clear(tint: tint) : Glass.regular(tint: tint),

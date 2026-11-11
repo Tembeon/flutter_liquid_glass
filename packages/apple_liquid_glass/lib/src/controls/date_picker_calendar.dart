@@ -224,9 +224,7 @@ class _RenderDayCell extends RenderProxyBox {
 
   @override
   void performLayout() {
-    size = BoxConstraints.tightFor(
-      width: width,
-    ).enforce(constraints).constrain(Size.infinite);
+    size = computeDryLayout(constraints);
     final discBox = BoxConstraints.tight(
       Size(disc, disc),
     ).enforce(BoxConstraints.loose(size));

@@ -30,8 +30,6 @@ const double _wheelFadedOpacity = 0.4;
 // device).
 const double _unavailableDayOpacity = 0.35;
 
-// The focus ring and hover response of a part of [shape] around [child],
-// from [states].
 Widget _highlight(
   BuildContext context,
   GlassDatePickerStyle look, {

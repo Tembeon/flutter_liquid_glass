@@ -339,8 +339,7 @@ class GlassSegmentedControl<T> extends StatelessWidget {
       itemBuilder: (context, index, states) =>
           _SegmentLabel(segment: segments[index], look: look, states: states),
       builder:
-          style?.builder ??
-          themed?.builder ??
+          look.builder ??
           (context, details) => _SegmentedLook(details: details, look: look),
     );
   }
