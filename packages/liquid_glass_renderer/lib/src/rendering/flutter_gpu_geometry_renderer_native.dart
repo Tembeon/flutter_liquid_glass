@@ -194,18 +194,9 @@ class FlutterGpuGeometryRenderer implements GeometryRendererMembers {
   static final Map<String, _SharedGeometryResources> _resolvedAssetResources =
       {};
 
-  /// One bump allocator for every page drawn in the current frame.
-  ///
-  /// A HostBuffer retains four device-buffer blocks, so one per renderer
-  /// would cost four blocks per layer. A single scratch sized for a frame of
-  /// draws keeps that off the native heap.
-  static gpu.HostBuffer? _sharedHostBuffer;
-  static int _sharedHostBufferBlockLength = 0;
-  static Duration? _sharedHostBufferFrame;
-
-  static const int _hostBufferSlotsPerFrame = 32;
-
-  static final _VertexScratch _vertexScratch = _VertexScratch();
+  /// One scratch for the quads and uniform blocks of every page, so a
+  /// layer adds no buffers of its own.
+  static final _GpuScratch _scratch = _GpuScratch();
 
   // These ownership counters exclude clones held by callers and native
   // references retained by submitted scenes; they are not GPU memory metrics.
@@ -226,28 +217,6 @@ class FlutterGpuGeometryRenderer implements GeometryRendererMembers {
   static int get debugActiveGeometryTextureCount =>
       _debugActiveGeometryTextureCount;
 
-  static gpu.HostBuffer _hostBufferForUniformSize(int uniformSize) {
-    final alignment = gpu.gpuContext.minimumUniformByteAlignment;
-    final alignedSize =
-        ((uniformSize + alignment - 1) ~/ alignment) * alignment;
-    final blockLength = alignedSize * _hostBufferSlotsPerFrame;
-    if (_sharedHostBuffer == null ||
-        _sharedHostBufferBlockLength < blockLength) {
-      _sharedHostBuffer = gpu.gpuContext.createHostBuffer(
-        blockLengthInBytes: blockLength,
-      );
-      _sharedHostBufferBlockLength = blockLength;
-    }
-    // Unlike currentFrameTimeStamp this is defined outside a frame, where
-    // tests call the renderer directly, and changes once per engine frame.
-    final timestamp = SchedulerBinding.instance.currentSystemFrameTimeStamp;
-    if (_sharedHostBufferFrame != timestamp) {
-      _sharedHostBuffer!.reset();
-      _sharedHostBufferFrame = timestamp;
-    }
-    return _sharedHostBuffer!;
-  }
-
   final _SharedGeometryResources _resources;
   final _FieldTextures _fieldTextures = _FieldTextures();
 
@@ -262,15 +231,11 @@ class FlutterGpuGeometryRenderer implements GeometryRendererMembers {
   @override
   Object get debugPipelineIdentity => _resources.pipelines.first.geometry;
 
-  /// The block length of the host buffer every renderer shares.
+  /// How many host-visible buffers the scratch every renderer shares
+  /// holds for quads and uniform blocks.
   @visibleForTesting
   @override
-  int get debugHostBufferBlockLength => _sharedHostBufferBlockLength;
-
-  /// The host buffer every renderer shares.
-  @visibleForTesting
-  @override
-  Object? get debugHostBufferIdentity => _sharedHostBuffer;
+  int get debugScratchBuffers => _scratch.debugBuffers;
 
   /// Number of atlases rendered.
   @visibleForTesting

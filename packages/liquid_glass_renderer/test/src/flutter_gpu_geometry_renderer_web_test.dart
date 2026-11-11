@@ -19,8 +19,7 @@ void main() {
     expect(renderer.droppedShapes, 0);
     expect(renderer.debugRenderCount, 0);
     expect(renderer.debugPipelineIdentity, same(renderer));
-    expect(renderer.debugHostBufferBlockLength, 0);
-    expect(renderer.debugHostBufferIdentity, isNull);
+    expect(renderer.debugScratchBuffers, 0);
     expect(renderer.debugDisposed, isTrue);
     expect(renderer.atlasImage, isNull);
     expect(renderer.lookImages, isEmpty);

@@ -113,44 +113,115 @@ final class _AtlasQuads {
   }
 }
 
-/// The quads of a frame's atlas passes, written at a cursor into one of
-/// four host-visible buffers, so a buffer is written again only once the
-/// frames that read it are done, as [gpu.HostBuffer] cycles its blocks.
+/// The bytes a pass reads from the host, a page's quads and uniform blocks
+/// and a field's staged texels, written at a cursor into host-visible
+/// buffers.
 ///
-/// [gpu.HostBuffer] itself fails an emplacement that starts inside a block
+/// The GPU reads a buffer when it runs the pass, not when the pass is
+/// submitted, so bytes are written over only once every pass that reads
+/// their buffer has run: a buffer counts its readers from the write to the
+/// pass's completion ([_PassReads]). Counting frames instead, as
+/// [gpu.HostBuffer] does, draws another frame's bytes whenever the GPU
+/// falls further behind than the count, and an atlas drawn so is kept.
+///
+/// [gpu.HostBuffer] also fails an emplacement that starts inside a block
 /// and runs past its end, which a variable number of quads does.
-final class _VertexScratch {
-  static const int _frames = 4;
+final class _GpuScratch {
+  static const int _blockBytes = 1 << 17;
+  static const int _texelBytes = 16;
 
-  final List<gpu.DeviceBuffer?> _buffers = List.filled(_frames, null);
-  int _frame = 0;
-  int _cursor = 0;
-  Duration? _stamp;
+  final List<_ScratchBuffer> _buffers = [];
+  _ScratchBuffer? _current;
 
-  gpu.BufferView write(ByteData bytes) {
-    final stamp = SchedulerBinding.instance.currentSystemFrameTimeStamp;
-    if (_stamp != stamp) {
-      _stamp = stamp;
-      _frame = (_frame + 1) % _frames;
-      _cursor = 0;
-    }
-    final alignment = gpu.gpuContext.minimumUniformByteAlignment;
+  /// How many buffers it holds.
+  int get debugBuffers => _buffers.length;
+
+  /// Writes [bytes] for a pass that counts the buffer among its [reads].
+  gpu.BufferView write(ByteData bytes, _PassReads reads) {
+    // A uniform block starts at the context's alignment, a field's staged
+    // texels at a whole texel.
+    final alignment = math.max(
+      gpu.gpuContext.minimumUniformByteAlignment,
+      _texelBytes,
+    );
     final length = bytes.lengthInBytes;
-    var buffer = _buffers[_frame];
-    if (buffer == null || _cursor + length > buffer.sizeInBytes) {
-      // Views into the buffer this replaces keep it alive for the passes
-      // that read them.
-      buffer = _buffers[_frame] = gpu.gpuContext.createDeviceBuffer(
+    var buffer = _current;
+    if (buffer == null || buffer.cursor + length > buffer.bytes.sizeInBytes) {
+      buffer = _current = _unread(length) ?? _grow(length);
+    }
+    final offset = buffer.cursor;
+    if (!buffer.bytes.overwrite(bytes, destinationOffsetInBytes: offset)) {
+      throw StateError('Could not write $length bytes for an atlas pass.');
+    }
+    buffer.cursor = (offset + length + alignment - 1) ~/ alignment * alignment;
+    reads.add(buffer);
+    return gpu.BufferView(
+      buffer.bytes,
+      offsetInBytes: offset,
+      lengthInBytes: length,
+    );
+  }
+
+  // A buffer of [length] bytes or more that no pass still to run reads,
+  // ready to be written from its start.
+  _ScratchBuffer? _unread(int length) {
+    for (final buffer in _buffers) {
+      if (buffer.readers == 0 && buffer.bytes.sizeInBytes >= length) {
+        buffer.cursor = 0;
+        return buffer;
+      }
+    }
+    return null;
+  }
+
+  _ScratchBuffer _grow(int length) {
+    final buffer = _ScratchBuffer(
+      gpu.gpuContext.createDeviceBuffer(
         gpu.StorageMode.hostVisible,
-        math.max(length, math.max(16384, (buffer?.sizeInBytes ?? 0) * 2)),
-      );
-      _cursor = 0;
+        math.max(length, _blockBytes),
+      ),
+    );
+    _buffers.add(buffer);
+    return buffer;
+  }
+}
+
+final class _ScratchBuffer {
+  _ScratchBuffer(this.bytes);
+
+  final gpu.DeviceBuffer bytes;
+  int cursor = 0;
+
+  /// The writes into it that a pass still to run reads.
+  int readers = 0;
+}
+
+/// The scratch buffers the pass being assembled reads.
+final class _PassReads {
+  final List<_ScratchBuffer> _buffers = [];
+
+  void add(_ScratchBuffer buffer) {
+    buffer.readers++;
+    _buffers.add(buffer);
+  }
+
+  /// Hands the reads to the pass being submitted: the callback releases
+  /// them once the GPU has run it.
+  gpu.CompletionCallback<void> submitted() {
+    final read = List.of(_buffers);
+    _buffers.clear();
+    return (_) => _release(read);
+  }
+
+  /// Releases the reads of a pass that was never submitted.
+  void drop() {
+    _release(_buffers);
+    _buffers.clear();
+  }
+
+  static void _release(List<_ScratchBuffer> buffers) {
+    for (final buffer in buffers) {
+      buffer.readers--;
     }
-    final offset = _cursor;
-    if (!buffer.overwrite(bytes, destinationOffsetInBytes: offset)) {
-      throw StateError('Could not write $length bytes of atlas quads.');
-    }
-    _cursor = (offset + length + alignment - 1) ~/ alignment * alignment;
-    return gpu.BufferView(buffer, offsetInBytes: offset, lengthInBytes: length);
   }
 }

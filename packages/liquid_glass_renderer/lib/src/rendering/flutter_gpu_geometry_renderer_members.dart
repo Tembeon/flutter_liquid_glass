@@ -35,13 +35,10 @@ abstract interface class GeometryRendererMembers {
   @visibleForTesting
   Object get debugPipelineIdentity;
 
-  /// The block length of the host buffer every renderer shares.
+  /// How many host-visible buffers the scratch every renderer shares
+  /// holds for quads and uniform blocks.
   @visibleForTesting
-  int get debugHostBufferBlockLength;
-
-  /// The host buffer every renderer shares.
-  @visibleForTesting
-  Object? get debugHostBufferIdentity;
+  int get debugScratchBuffers;
 
   /// Whether [dispose] ran.
   @visibleForTesting

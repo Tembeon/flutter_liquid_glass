@@ -987,7 +987,7 @@ class FlutterGpuGeometryRenderer implements GeometryRendererMembers
   static Future<FlutterGpuGeometryRenderer> fromAsset(String assetKey)
   static const int reuseAfterFrames
   static FlutterGpuGeometryRenderer? tryCreateCached(String assetKey)
-  overrides: atlasImage, debugDisposed, debugHostBufferBlockLength, debugHostBufferIdentity, debugMatteTexture, debugMatteTextureSize, debugPipelineIdentity, debugRenderCount, deviceClass, dispose, droppedShapes, lookImages, releaseAtlas, releaseOutput
+  overrides: atlasImage, debugDisposed, debugMatteTexture, debugMatteTextureSize, debugPipelineIdentity, debugRenderCount, debugScratchBuffers, deviceClass, dispose, droppedShapes, lookImages, releaseAtlas, releaseOutput
 class GeometryRenderLink
   GeometryRenderLink()
   void dispose()

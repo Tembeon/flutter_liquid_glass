@@ -1,11 +1,9 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
-import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 
 import 'gpu_test_helpers.dart';
@@ -26,26 +24,39 @@ void main() {
       );
 
       renderTestRectangle(first);
+      renderTestRectangle(second);
+      expect(first.debugScratchBuffers, greaterThan(0));
+      expect(first.debugScratchBuffers, second.debugScratchBuffers);
+    },
+    skip: expectFallback,
+  );
 
-      expect(
-        identical(
-          first.debugHostBufferIdentity,
-          second.debugHostBufferIdentity,
-        ),
-        isTrue,
-      );
-      expect(first.debugHostBufferBlockLength, greaterThan(0));
-      final library = (await gpu.ShaderLibrary.fromAsset(
-        ShaderKeys.gpuGeometryShaderBundle,
-      ))!;
-      final size = library['TileGeometryLooksFragment']!
-          .getUniformSlot('GeometryUniforms')
-          .sizeInBytes!;
-      final alignment = gpu.gpuContext.minimumUniformByteAlignment;
-      expect(
-        first.debugHostBufferBlockLength,
-        ((size + alignment - 1) ~/ alignment) * alignment * 32,
-      );
+  test(
+    'bytes a pass reads are written over only once the GPU has run the pass',
+    () async {
+      final renderer = await createGeometryRenderer();
+      // Passes the GPU has not run yet hold their bytes: the scratch grows
+      // instead of writing over them.
+      final before = renderer.debugScratchBuffers;
+      var renders = 0;
+      while (renderer.debugScratchBuffers < before + 2) {
+        renderTestRectangle(renderer, centerX: 16.0 + renders % 7);
+        renders++;
+        expect(renders, lessThan(4000));
+      }
+      // Once the GPU has run them, the same amount of drawing fits in the
+      // buffers there are. The first passes wait for their pipelines, so
+      // how long that takes is not known.
+      var reused = false;
+      for (var round = 0; round < 100 && !reused; round++) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        final held = renderer.debugScratchBuffers;
+        for (var index = 0; index < renders; index++) {
+          renderTestRectangle(renderer, centerX: 16.0 + index % 7);
+        }
+        reused = renderer.debugScratchBuffers == held;
+      }
+      expect(reused, isTrue);
     },
     skip: expectFallback,
   );

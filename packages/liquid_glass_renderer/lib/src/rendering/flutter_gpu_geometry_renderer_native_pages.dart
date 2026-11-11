@@ -26,8 +26,7 @@ final class _Pages {
     required this._fieldOffsets,
     required int fieldUniformSize,
     required this._lookCount,
-  }) : _uniformSize = uniformSize,
-       _uniformData = ByteData(uniformSize),
+  }) : _uniformData = ByteData(uniformSize),
        _fieldUniformData = ByteData(fieldUniformSize);
 
   static const int _maxSpares = 3;
@@ -36,7 +35,6 @@ final class _Pages {
   final _TilePipelines _pipelines;
   final _GeometryUniformOffsets _offsets;
   final _TileFieldUniformOffsets _fieldOffsets;
-  final int _uniformSize;
   final int _lookCount;
 
   // The block the quads written next read, in rows of one shape or look.
@@ -69,8 +67,11 @@ final class _Pages {
   int _slackWidest = 0;
   int _slackRows = 0;
 
-  gpu.HostBuffer get _hostBuffer =>
-      FlutterGpuGeometryRenderer._hostBufferForUniformSize(_uniformSize);
+  // The scratch buffers the open page's pass reads.
+  final _PassReads _reads = _PassReads();
+
+  gpu.BufferView _scratch(ByteData bytes) =>
+      FlutterGpuGeometryRenderer._scratch.write(bytes, _reads);
 
   /// Places the atlas of [tiling] in the open page and writes its quads.
   (_Page, AtlasPlace) add(Tiling tiling, _FieldTextures fieldTextures) {
@@ -81,7 +82,7 @@ final class _Pages {
     if (field != null) {
       final texture = _fieldTexture(fieldTextures, field.field, page);
       _packFieldUniforms(field, texture);
-      _drawWith(_FieldDraw(_hostBuffer.emplace(_fieldUniformData), texture));
+      _drawWith(_FieldDraw(_scratch(_fieldUniformData), texture));
     }
 
     const block = Tiling.size + 2;
@@ -347,9 +348,7 @@ final class _Pages {
     _open = null;
     _endDraw();
     try {
-      final instances = FlutterGpuGeometryRenderer._vertexScratch.write(
-        _quads.bytes,
-      );
+      final instances = _scratch(_quads.bytes);
       final corners = FlutterGpuGeometryRenderer._corners ??= gpu.BufferView(
         gpu.gpuContext.createDeviceBufferWithCopy(
           ByteData.sublistView(
@@ -397,12 +396,13 @@ final class _Pages {
           )
           ..draw(6, instanceCount: draw.count);
       }
-      commands.submit();
+      commands.submit(completionCallback: _reads.submitted());
       assert(() {
         FlutterGpuGeometryRenderer.debugBatchedSubmitCount++;
         return true;
       }(), 'Count submitted pages in debug builds.');
     } finally {
+      _reads.drop();
       _draws.clear();
       _drawFrom = 0;
       page.open = false;
@@ -428,7 +428,7 @@ final class _Pages {
         first: _drawFrom,
         count: count,
         shapes: field == null || _pipelines.fieldShapes != null
-            ? _hostBuffer.emplace(_uniformData)
+            ? _scratch(_uniformData)
             : null,
         field: field,
       ));
@@ -515,13 +515,20 @@ final class _Pages {
         field,
         frame,
         page.commands ??= gpu.gpuContext.createCommandBuffer(),
+        _scratch,
       );
     }
     final upload = gpu.gpuContext.createCommandBuffer();
+    final reads = _PassReads();
     try {
-      return textures.upload(field, frame, upload);
+      return textures.upload(
+        field,
+        frame,
+        upload,
+        (bytes) => FlutterGpuGeometryRenderer._scratch.write(bytes, reads),
+      );
     } finally {
-      upload.submit();
+      upload.submit(completionCallback: reads.submitted());
     }
   }
 

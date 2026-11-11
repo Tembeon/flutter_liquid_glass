@@ -102,19 +102,18 @@ typedef _TileFieldUniformOffsets = ({
 /// whose field changes every frame - a menu opening - reuses its textures
 /// instead of creating one per frame. A field fills the top-left of its
 /// texture; the field pass reads only that region. The samples are copied
-/// in by a command recorded on the caller's command buffer. At most four
-/// textures survive; command buffers in flight retain theirs.
+/// in by a command recorded on the caller's command buffer, from bytes
+/// staged in the caller's scratch, which holds them until the GPU has run
+/// that copy. At most four textures survive; command buffers in flight
+/// retain theirs.
 ///
-/// A slot is rewritten only three frames after its last use: the CPU
-/// overwrites its staging buffer at once, which nothing orders behind a copy
-/// from it the GPU may not have run yet, and Impeller keeps up to two frames
-/// in flight besides the one being built (its Vulkan swapchain's
-/// kMaxFramesInFlight).
+/// A slot is copied into again from the frame after its last use: a pass
+/// of the frame being built may still bind it, and the GPU's queue orders
+/// a later copy behind the passes submitted before it.
 final class _FieldTextures {
-  static const int _reuseAfterFrames = 3;
+  static const int _reuseAfterFrames = 1;
   static const int _maxTextures = 4;
   static const int _bucket = 16;
-  static const int _bytesPerNode = 16;
 
   final List<_FieldTexture> _textures = [];
 
@@ -134,12 +133,14 @@ final class _FieldTextures {
     return null;
   }
 
-  /// A texture holding [field], its samples copied into it by a command
-  /// recorded on [commands]; called when no texture [held] it.
+  /// A texture holding [field], its samples staged by [stage] and copied
+  /// into it by a command recorded on [commands]; called when no texture
+  /// [held] it.
   gpu.Texture upload(
     LiquidGlassField field,
     int frame,
     gpu.CommandBuffer commands,
+    gpu.BufferView Function(ByteData bytes) stage,
   ) {
     _FieldTexture? slot;
     for (final entry in _textures) {
@@ -161,10 +162,6 @@ final class _FieldTextures {
           format: gpu.PixelFormat.r32g32b32a32Float,
           enableRenderTargetUsage: false,
         ),
-        gpu.gpuContext.createDeviceBuffer(
-          gpu.StorageMode.hostVisible,
-          width * height * _bytesPerNode,
-        ),
       );
       if (_textures.length >= _maxTextures) {
         // The one used longest ago: a field held every frame keeps its own.
@@ -179,13 +176,8 @@ final class _FieldTextures {
       0,
       field.cols * field.rows * 4,
     );
-    slot.buffer.overwrite(bytes);
     commands.copyBufferToTexture(
-      gpu.BufferView(
-        slot.buffer,
-        offsetInBytes: 0,
-        lengthInBytes: bytes.lengthInBytes,
-      ),
+      stage(bytes),
       gpu.TextureRegion(slot.texture, width: field.cols, height: field.rows),
     );
     slot
@@ -200,10 +192,9 @@ final class _FieldTextures {
 }
 
 final class _FieldTexture {
-  _FieldTexture(this.texture, this.buffer);
+  _FieldTexture(this.texture);
 
   final gpu.Texture texture;
-  final gpu.DeviceBuffer buffer;
   Float32List? samples;
   int cols = 0;
   int rows = 0;

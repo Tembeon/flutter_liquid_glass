@@ -83,11 +83,7 @@ class FlutterGpuGeometryRenderer implements GeometryRendererMembers {
 
   /// Always 0 on the web.
   @override
-  int get debugHostBufferBlockLength => 0;
-
-  /// Always null on the web.
-  @override
-  Object? get debugHostBufferIdentity => null;
+  int get debugScratchBuffers => 0;
 
   /// Always true: a web renderer holds nothing.
   @override
