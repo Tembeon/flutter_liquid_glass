@@ -41,6 +41,8 @@ class DragInteraction extends Interaction
     InteractionRole role = ...,
     Axis? axis,
     double slop = ...,
+    double? contendedSlop,
+    bool global = ...,
     double edgeZone = ...,
     double? edgeSlop,
     bool Function(Offset)? mayBegin,
@@ -51,9 +53,11 @@ class DragInteraction extends Interaction
     void Function(double)? onCancel,
   })
   Axis? axis
+  final double? contendedSlop
   double? edgeSlop
   double edgeZone
   bool get fromEdge
+  bool global
   bool Function(Offset)? mayBegin
   bool mirrored
   void Function(double)? onCancel
@@ -62,7 +66,7 @@ class DragInteraction extends Interaction
   void Function(DragInteractionDetails)? onUpdate
   double slop
   bool get started
-  overrides: dragged, handle
+  overrides: contendsWithControls, dragged, handle
 final class DragInteractionDetails
   const DragInteractionDetails({
     required double time,
@@ -104,6 +108,7 @@ abstract class Interaction
   bool get adjusts
   InteractionUpdate advance(double time)
   void bindRegion(Offset Function(Offset) toGlobal)
+  bool get contendsWithControls
   bool get dragged
   Interaction exclusively(Interaction other)
   abstract InteractionUpdate handle(InteractionInput input)
@@ -171,6 +176,9 @@ enum MotionHaptic
   lightImpact,
   mediumImpact,
   heavyImpact,
+final class PointerAcceptedInput extends InteractionInput
+  const PointerAcceptedInput({required double time, required int pointer})
+  final int pointer
 final class PointerCancelInput extends InteractionInput
   const PointerCancelInput({
     required double time,
@@ -191,12 +199,16 @@ final class PointerDownInput extends InteractionInput
     required Size regionSize,
     double? contactTime,
     Rect? hitArea,
+    Offset? globalPosition,
     PointerDeviceKind kind = ...,
     int buttons = ...,
     Set<Axis> scrollAxes = ...,
+    bool contested = ...,
   })
   final int buttons
   final double contactTime
+  final bool contested
+  Offset get globalPosition
   Rect get hitArea
   final PointerDeviceKind kind
   final int pointer
@@ -223,7 +235,9 @@ final class PointerMoveInput extends InteractionInput
     required double time,
     required int pointer,
     required Offset position,
+    Offset? globalPosition,
   })
+  Offset get globalPosition
   final int pointer
   final Offset position
 final class PointerScrollInput extends InteractionInput
@@ -242,7 +256,11 @@ final class PointerUpInput extends InteractionInput
     required int pointer,
     required Offset position,
     Offset velocity = ...,
+    Offset? globalPosition,
+    Offset? globalVelocity,
   })
+  Offset get globalPosition
+  Offset get globalVelocity
   final int pointer
   final Offset position
   final Offset velocity
@@ -253,6 +271,7 @@ final class PortEvent
     required Size size,
     Rect? hitArea,
     Set<Axis> scrollAxes = ...,
+    bool contested = ...,
   })
   final int pointer
   final Offset position
@@ -1014,6 +1033,7 @@ class MotionVisibility extends SingleChildRenderObjectWidget
   final bool maintainSemantics
   final ValueListenable<bool> visible
   overrides: createRenderObject, updateRenderObject
+class PointerAcceptedInput (see package:kinesis/input.dart)
 class PointerCancelInput (see package:kinesis/input.dart)
 enum PointerCancelReason (see package:kinesis/input.dart)
 class PointerDownInput (see package:kinesis/input.dart)

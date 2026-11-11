@@ -73,6 +73,7 @@ MotionTransitionLayer
 MotionValue
 MotionValueCommands
 MotionVisibility
+PointerAcceptedInput
 PointerCancelInput
 PointerCancelReason
 PointerDownInput

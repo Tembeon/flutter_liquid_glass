@@ -3,17 +3,17 @@
 # and so does a line whose pair now passes. The list only shrinks:
 # UPDATE_CONFORMANCE=1 drops the lines that pass and never adds one.
 # Format: <entry> <check>: <reason>
-GlassBarItem.menu tap-target: "Sort": expected tap target size of at least Size(44.0, 44.0), but found Size(68.0, 20.0)
 GlassButton.prominent contrast-dark: "Save": expected contrast ratio of at least 4.5 but found 3.23 for a font size of 17.0
 GlassButton.prominent contrast-light: "Save": expected contrast ratio of at least 4.5 but found 3.52 for a font size of 17.0
 GlassCompactDatePicker tap-target: "3, Saturday, October 3, 2026, Today": expected tap target size of at least Size(44.0, 44.0), but found Siz...
 GlassCompactDatePicker zero-size: A RenderFlex overflowed by 210 pixels on the right.
-GlassContextMenu key-context-menu: the context menu key does not open it
 GlassDatePicker key-arrows: Arrow Right does not step it forward
 GlassDatePicker key-arrows-rtl: Arrow Left does not step it forward
 GlassDatePicker key-home-end: Home does not reach the start
 GlassDatePicker semantics-role: "1, Thursday, October 1, 2026" is not in a mutually exclusive group
 GlassDatePicker tap-target: "3, Saturday, October 3, 2026, Today": expected tap target size of at least Size(44.0, 44.0), but found Siz...
+GlassMenuAnchor barrier-hides-behind: assistive technology reads it before its anchor
+GlassMenuAnchor.text barrier-hides-behind: assistive technology reads it before its anchor
 GlassPageRoute semantics-role: the overlay is not announced as a named route
 GlassTabBar contrast-light: "Library": expected contrast ratio of at least 4.5 but found 2.27 for a font size of 10.0
 GlassTabBar.search contrast-light: "Library": expected contrast ratio of at least 4.5 but found 2.27 for a font size of 10.0
