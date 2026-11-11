@@ -1219,4 +1219,50 @@ void main() {
       handle.dispose();
     });
   });
+
+  group('GlassCompactDatePicker in a narrow box', () {
+    Future<Rect> labels(WidgetTester tester, double? width) async {
+      await tester.pumpWidget(
+        _App(
+          home: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: width,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: GlassCompactDatePicker(
+                  value: DateTime(2026, 10, 3, 9, 41),
+                  mode: GlassDatePickerMode.dateAndTime,
+                  today: DateTime(2026, 10, 3),
+                  onChanged: (_) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return tester.getRect(
+        find
+            .descendant(
+              of: find.byType(GlassCompactDatePicker),
+              matching: find.byType(Row),
+            )
+            .first,
+      );
+    }
+
+    testWidgets('scales its labels down instead of overflowing', (
+      tester,
+    ) async {
+      final natural = await labels(tester, null);
+      expect(await labels(tester, natural.right), natural);
+      final narrow = await labels(tester, 60);
+      expect(tester.takeException(), isNull);
+      expect(narrow.right, lessThanOrEqualTo(60));
+      expect(narrow.width / natural.width, closeTo(60 / natural.right, 0.01));
+      await labels(tester, 0);
+      expect(tester.takeException(), isNull);
+    });
+  });
 }

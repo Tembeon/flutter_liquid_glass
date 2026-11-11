@@ -202,7 +202,10 @@ class _GlassCompactDatePickerState extends State<GlassCompactDatePicker> {
     if (!_enabled || _open != null) return;
     final box = anchor.findRenderObject();
     if (box is! RenderBox || !box.hasSize) return;
-    final rect = box.localToGlobal(Offset.zero) & box.size;
+    final rect = MatrixUtils.transformRect(
+      box.getTransformTo(null),
+      Offset.zero & box.size,
+    );
     setState(() => _open = part);
     final reopening = _overlay?.presence == PresenceStatus.leaving;
     final days = FocusNode(debugLabel: 'GlassCompactDatePicker days');
@@ -252,25 +255,31 @@ class _GlassCompactDatePickerState extends State<GlassCompactDatePicker> {
       ],
     };
     final look = DatePickerLook.of(context, widget.style);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < parts.length; i++) ...[
-          if (i > 0) const SizedBox(width: DatePickerTuning.labelGap),
-          _CompactLabel(
-            key: _labels[parts[i].$1],
-            text: parts[i].$2,
-            height: parts[i].$1 == _Part.date
-                ? DatePickerTuning.dateLabelHeight
-                : DatePickerTuning.timeLabelHeight,
-            open: _open == parts[i].$1,
-            enabled: _enabled,
-            look: look,
-            semanticLabel: widget.semanticLabel,
-            onOpen: (BuildContext anchor) => _show(parts[i].$1, anchor),
-          ),
+    // The labels keep their measured sizes; a box narrower than they are
+    // scales them down instead of overflowing.
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: AlignmentDirectional.centerStart,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < parts.length; i++) ...[
+            if (i > 0) const SizedBox(width: DatePickerTuning.labelGap),
+            _CompactLabel(
+              key: _labels[parts[i].$1],
+              text: parts[i].$2,
+              height: parts[i].$1 == _Part.date
+                  ? DatePickerTuning.dateLabelHeight
+                  : DatePickerTuning.timeLabelHeight,
+              open: _open == parts[i].$1,
+              enabled: _enabled,
+              look: look,
+              semanticLabel: widget.semanticLabel,
+              onOpen: (BuildContext anchor) => _show(parts[i].$1, anchor),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
