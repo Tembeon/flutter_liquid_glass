@@ -93,6 +93,9 @@ final class _ResolveOwner extends PipelineOwner {
 
   static bool _clearing = false;
 
+  // The transaction belongs to the layout of every view in the frame, and
+  // each view resolves on its own after its layout: only the end of the
+  // frame comes after the last of them.
   static void _clearAfterFrame() {
     if (_clearing) return;
     _clearing = true;

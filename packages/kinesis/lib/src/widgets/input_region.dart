@@ -257,8 +257,11 @@ class _InputRegionState extends State<InputRegion> {
 
   Offset _toGlobal(Offset local) => _box?.localToGlobal(local) ?? local;
 
-  // The receiver maps positions with its render box, which is laid out
-  // only after the frame that built it.
+  // The receiver maps positions with its render box, laid out in the frame
+  // that builds it, and the touches that waited run interactions that may
+  // rebuild or lay out, which that frame's layout and resolve phases do not
+  // allow. The clock's coming phases can run before that layout when the
+  // region is built outside a frame, so the port attaches after the frame.
   void _attachPort(InputPort? port) {
     if (port == null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {

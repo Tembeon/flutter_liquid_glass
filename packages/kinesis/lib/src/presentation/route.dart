@@ -107,16 +107,16 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   }
 
   /// Applies a change of [modal] to the barrier; one reported while the
-  /// frame builds applies in the next frame.
+  /// frame builds, lays out or paints applies in the motion clock's coming
+  /// publish phase, before the next frame builds.
   void modalityChanged() {
     final barrier = _barrierModal;
     if (barrier == null || modal == barrier.value) return;
-    final scheduler = SchedulerBinding.instance;
-    if (scheduler.schedulerPhase == SchedulerPhase.persistentCallbacks) {
-      scheduler.addPostFrameCallback((_) {
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      MotionClock.instance.schedulePublish(() {
         if (isActive) modalityChanged();
       });
-      scheduler.ensureVisualUpdate();
       return;
     }
     barrier.value = modal;

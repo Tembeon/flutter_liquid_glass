@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/widgets/layout_item.dart';
@@ -139,11 +138,11 @@ class _MotionLayoutState extends State<MotionLayout> {
   bool _leftPending = false;
 
   // Heard in the resolve phase too, where nothing may rebuild: the rebuild
-  // that lets the ghosts go waits for the end of the frame.
+  // that lets the ghosts go waits for the clock's coming publish phase.
   void _dropped() {
     if (_leftPending || _ghosts.every(motion.contains)) return;
     _leftPending = true;
-    SchedulerBinding.instance.addPostFrameCallback((_) {
+    motion.clock.schedulePublish(() {
       _leftPending = false;
       _left();
     });
