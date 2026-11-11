@@ -195,6 +195,8 @@ GlassToolbarStyle
 GlassTouchGlow
 GlassTraits
 GlassTraitsOverride
+GlassWheelRowBuilder
+GlassWheelSelectionBuilder
 GlassZoomSource
 HoverDwellInteraction
 InputCapture
@@ -337,6 +339,7 @@ RawGlassSlider
 RawGlassStepper
 RawGlassSwipeActions
 RawGlassSwitch
+RawGlassWheel
 RectSprings
 RenderListening
 RenderScrollEdge

@@ -2374,6 +2374,8 @@ class GlassTraitsOverride extends StatelessWidget
   final bool? reduceTransparency
   final bool? showBorders
   overrides: build
+typedef GlassWheelRowBuilder = Widget Function(BuildContext, int)
+typedef GlassWheelSelectionBuilder = Widget Function(BuildContext, ValueListenable<Set<WidgetState>>)
 class GlassZoomSource extends StatelessWidget
   const GlassZoomSource({
     required MotionSource source,
@@ -3346,6 +3348,51 @@ class RawGlassSwitch extends StatefulWidget
   final WidgetStatesController? statesController
   final bool value
   overrides: createState
+class RawGlassWheel extends StatefulWidget
+  const RawGlassWheel({
+    required int count,
+    required int value,
+    required void Function(int)? onChanged,
+    required Widget Function(BuildContext, int) rowBuilder,
+    required double itemExtent,
+    bool looping = ...,
+    void Function(int)? onWrapped,
+    double diameterRatio = ...,
+    double perspective = ...,
+    double squeeze = ...,
+    double magnification = ...,
+    double overAndUnderCenterOpacity = ...,
+    Object? rowsKey,
+    bool animatesValue = ...,
+    Widget Function(BuildContext, ValueListenable<Set<WidgetState>>)? selectionBuilder,
+    String? semanticLabel,
+    String Function(int)? rowLabel,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    Key? key,
+  })
+  final bool animatesValue
+  final bool autofocus
+  final int count
+  final double diameterRatio
+  final FocusNode? focusNode
+  final double itemExtent
+  final bool looping
+  final double magnification
+  final void Function(int)? onChanged
+  final void Function(int)? onWrapped
+  final double overAndUnderCenterOpacity
+  final double perspective
+  final Widget Function(BuildContext, int) rowBuilder
+  final String Function(int)? rowLabel
+  final Object? rowsKey
+  final Widget Function(BuildContext, ValueListenable<Set<WidgetState>>)? selectionBuilder
+  final String? semanticLabel
+  final double squeeze
+  final WidgetStatesController? statesController
+  final int value
+  overrides: createState
 class RenderScrollEdge extends RenderBox
   RenderScrollEdge({
     required GlassScrollEdgeDetails details,
@@ -4307,6 +4354,8 @@ typedef GlassSwipeActionBuilder (see package:apple_liquid_glass/apple_liquid_gla
 class GlassSwipeActionDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassSwitchBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSwitchDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef GlassWheelRowBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef GlassWheelSelectionBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassButton (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassDatePicker (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassList (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -4318,6 +4367,7 @@ class RawGlassSlider (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassStepper (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassSwipeActions (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassSwitch (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class RawGlassWheel (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SwipeGroup (see package:apple_liquid_glass/apple_liquid_glass.dart)
 
 # package:apple_liquid_glass/surfaces.dart

@@ -674,6 +674,37 @@ final List<Entry> registry = [
     ),
   ),
   Entry(
+    'RawGlassWheel',
+    covers: const ['RawGlassWheel'],
+    look: Look.builder,
+    kind: Kind.value,
+    wheel: true,
+    build: (probe, {required enabled}) => SizedBox(
+      width: 100,
+      height: 200,
+      child: Held<int>(
+        probe: probe,
+        initial: 4,
+        builder: (context, value, set) => RawGlassWheel(
+          count: 12,
+          value: value,
+          itemExtent: 32,
+          semanticLabel: 'Hour',
+          rowLabel: (row) => '$row',
+          onChanged: enabled ? set : null,
+          rowBuilder: (context, row) => Center(child: Text('$row')),
+          selectionBuilder: (context, states) => ListenableBuilder(
+            listenable: states,
+            builder: (context, _) {
+              probe.states = states.value;
+              return const SizedBox.expand();
+            },
+          ),
+        ),
+      ),
+    ),
+  ),
+  Entry(
     'RawGlassDatePicker',
     covers: const [
       'RawGlassDatePicker',

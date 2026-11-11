@@ -10,12 +10,7 @@ DateTime _clampDate(DateTime value, DateTime? first, DateTime? last) {
 }
 
 class _TimeWheelsState extends State<GlassTimePicker> {
-  static const int _loops = _WheelGeometry.loops;
   int get _hourCount => _twentyFour ? 24 : 12;
-  late int _hourIndex = _hourCount * (_loops ~/ 2) + _hour % _hourCount;
-  late final FixedExtentScrollController _hours = FixedExtentScrollController(
-    initialItem: _hourIndex,
-  );
   int get _step => widget.minuteInterval;
   bool get _twentyFour =>
       widget.use24HourFormat ??
@@ -23,11 +18,6 @@ class _TimeWheelsState extends State<GlassTimePicker> {
       false;
   bool get _enabled => widget.onChanged != null;
   int get _minuteCount => 60 ~/ _step;
-  late final FixedExtentScrollController _minutes = FixedExtentScrollController(
-    initialItem: _minuteCount * (_loops ~/ 2) + _minute ~/ _step,
-  );
-  late final FixedExtentScrollController _meridiem =
-      FixedExtentScrollController(initialItem: _hour < 12 ? 0 : 1);
   late int _hour = _bounded(widget.value).hour;
   late int _minute = _rounded(_bounded(widget.value).minute);
 
@@ -35,28 +25,19 @@ class _TimeWheelsState extends State<GlassTimePicker> {
 
   bool get _pm => _hour >= 12;
   bool? _twentyFourShown;
-  bool _syncing = false;
-  final _WheelViews _views = _WheelViews();
-
-  @override
-  void dispose() {
-    _hours.dispose();
-    _minutes.dispose();
-    _meridiem.dispose();
-    super.dispose();
-  }
+  int _hourLaps = 0;
 
   @override
   void didUpdateWidget(GlassTimePicker oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final value = _bounded(widget.value);
-    _sync(value, formatChanged: _formatChanged());
+    _formatChanged();
+    _sync(_bounded(widget.value));
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_formatChanged()) _sync(_bounded(widget.value), formatChanged: true);
+    if (_formatChanged()) _sync(_bounded(widget.value));
   }
 
   bool _formatChanged() {
@@ -72,24 +53,9 @@ class _TimeWheelsState extends State<GlassTimePicker> {
     return holds ? _clampDate(value, first, last) : value;
   }
 
-  void _sync(DateTime value, {bool formatChanged = false}) {
-    _syncing = true;
-    final hourChanged = _hour != value.hour || formatChanged;
-    final minute = _rounded(value.minute);
-    final minuteChanged = _minute != minute;
+  void _sync(DateTime value) {
     _hour = value.hour;
-    _minute = minute;
-    if (hourChanged && _hours.hasClients) {
-      _hourIndex = _hourCount * (_loops ~/ 2) + _hour % _hourCount;
-      _hours.jumpToItem(_hourIndex);
-    }
-    if (minuteChanged && _minutes.hasClients) {
-      _minutes.jumpToItem(_minuteCount * (_loops ~/ 2) + _minute ~/ _step);
-    }
-    if (_meridiem.hasClients && _meridiem.selectedItem != (_pm ? 1 : 0)) {
-      _meridiem.jumpToItem(_pm ? 1 : 0);
-    }
-    _syncing = false;
+    _minute = _rounded(value.minute);
   }
 
   void _emit() {
@@ -104,42 +70,21 @@ class _TimeWheelsState extends State<GlassTimePicker> {
     return '${h == 0 ? 12 : h}';
   }
 
-  void _hourChanged(int index) {
-    if (_syncing) return;
-    if (_twentyFour) {
-      if (index % 24 == _hour) return;
-      setState(() => _hour = index % 24);
-      _emit();
-      return;
-    }
-    if (index == _hourIndex) return;
-    final crossed = index ~/ 12 - _hourIndex ~/ 12;
-    _hourIndex = index;
-    var pm = _pm;
-    if (crossed.isOdd) {
-      pm = !pm;
-      if (_meridiem.hasClients) {
-        _meridiem.animateToItem(
-          pm ? 1 : 0,
-          duration: _wheelStep,
-          curve: _wheelStepCurve,
-        );
-      }
-    }
-    setState(() => _hour = index % 12 + (pm ? 12 : 0));
+  void _hourChanged(int row) {
+    final laps = _hourLaps;
+    _hourLaps = 0;
+    final pm = laps.isOdd != _pm;
+    setState(() => _hour = _twentyFour ? row : row + (pm ? 12 : 0));
     _emit();
   }
 
-  void _minuteChanged(int m) {
-    final minute = (m % _minuteCount) * _step;
-    if (_syncing || minute == _minute) return;
-    setState(() => _minute = minute);
+  void _minuteChanged(int row) {
+    setState(() => _minute = row * _step);
     _emit();
   }
 
-  void _meridiemChanged(int index) {
-    if (_syncing) return;
-    final pm = index == 1;
+  void _meridiemChanged(int row) {
+    final pm = row == 1;
     if (pm == _pm) return;
     setState(() => _hour = _hour % 12 + (pm ? 12 : 0));
     _emit();
@@ -186,10 +131,9 @@ class _TimeWheelsState extends State<GlassTimePicker> {
                     _wheel(
                       geometry: geometry,
                       look: look,
-                      controller: _hours,
                       count: _hourCount,
                       text: _hourText,
-                      selected: _hour % _hourCount,
+                      value: _hour % _hourCount,
                       label: loc.hourLabel,
                       alignment: twelve
                           ? Alignment.centerRight
@@ -197,11 +141,10 @@ class _TimeWheelsState extends State<GlassTimePicker> {
                       padding: EdgeInsets.only(
                         right: twelve ? _WheelMetrics.hour12End : 0,
                       ),
-                      onSelected: _hourChanged,
-                      views: _views,
-                      viewKey: _twentyFour,
+                      onChanged: _enabled ? _hourChanged : null,
+                      onWrapped: (laps) => _hourLaps = laps,
+                      rowsKey: _twentyFour,
                       context: context,
-                      enabled: _enabled,
                     ),
                   ),
                   _column(
@@ -209,16 +152,13 @@ class _TimeWheelsState extends State<GlassTimePicker> {
                     _wheel(
                       geometry: geometry,
                       look: look,
-                      controller: _minutes,
                       count: _minuteCount,
                       text: (int i) => _two(i * _step),
-                      selected: _minute ~/ _step,
+                      value: _minute ~/ _step,
                       label: loc.minuteLabel,
-                      onSelected: _minuteChanged,
-                      views: _views,
-                      viewKey: _step,
+                      onChanged: _enabled ? _minuteChanged : null,
+                      rowsKey: _step,
                       context: context,
-                      enabled: _enabled,
                     ),
                   ),
                   if (twelve)
@@ -227,23 +167,21 @@ class _TimeWheelsState extends State<GlassTimePicker> {
                       _wheel(
                         geometry: geometry,
                         look: look,
-                        controller: _meridiem,
                         count: 2,
                         looping: false,
+                        animatesValue: true,
                         text: (int i) => i == 0
                             ? loc.anteMeridiemAbbreviation
                             : loc.postMeridiemAbbreviation,
-                        selected: _pm ? 1 : 0,
+                        value: _pm ? 1 : 0,
                         label: loc.dayPeriodLabel,
                         alignment: Alignment.centerLeft,
                         padding: const EdgeInsets.only(
                           left: _WheelMetrics.meridiemStart,
                         ),
-                        onSelected: _meridiemChanged,
-                        views: _views,
-                        viewKey: loc,
+                        onChanged: _enabled ? _meridiemChanged : null,
+                        rowsKey: loc,
                         context: context,
-                        enabled: _enabled,
                       ),
                     ),
                 ],
@@ -283,30 +221,17 @@ class _MonthYearWheels extends StatefulWidget {
 }
 
 class _MonthYearWheelsState extends State<_MonthYearWheels> {
-  static const int _loops = _WheelGeometry.loops;
   GlassDatePickerMonthYear get _details => widget.details;
   int get _firstYear => _details.firstDate?.year ?? 1;
   int get _lastYear => math.max(_firstYear, _details.lastDate?.year ?? 9999);
   late int _month = _details.month.month;
   late int _year = _details.month.year.clamp(_firstYear, _lastYear);
-  late final FixedExtentScrollController _monthWheel =
-      FixedExtentScrollController(initialItem: 12 * (_loops ~/ 2) + _month - 1);
-  late final FixedExtentScrollController _yearWheel =
-      FixedExtentScrollController(initialItem: _year - _firstYear);
   late (int, int) _emitted;
-  bool _syncing = false;
 
   @override
   void initState() {
     super.initState();
     _emitted = (_year, _month);
-  }
-
-  @override
-  void dispose() {
-    _monthWheel.dispose();
-    _yearWheel.dispose();
-    super.dispose();
   }
 
   @override
@@ -321,22 +246,12 @@ class _MonthYearWheelsState extends State<_MonthYearWheels> {
   }
 
   void _sync() {
-    _syncing = true;
     _month = _details.month.month;
     _year = _details.month.year.clamp(_firstYear, _lastYear);
     _emitted = (_year, _month);
-    if (_monthWheel.hasClients && _monthWheel.selectedItem % 12 != _month - 1) {
-      _monthWheel.jumpToItem(12 * (_loops ~/ 2) + _month - 1);
-    }
-    if (_yearWheel.hasClients &&
-        _yearWheel.selectedItem != _year - _firstYear) {
-      _yearWheel.jumpToItem(_year - _firstYear);
-    }
-    _syncing = false;
   }
 
   bool _settled(ScrollEndNotification notification) {
-    if (_syncing) return false;
     if (_emitted != (_year, _month)) {
       _emitted = (_year, _month);
       _details.onChanged(_year, _month);
@@ -376,18 +291,15 @@ class _MonthYearWheelsState extends State<_MonthYearWheels> {
                     child: _wheel(
                       geometry: geometry,
                       look: look,
-                      controller: _monthWheel,
                       count: 12,
                       text: (int i) => loc.monthName(i + 1),
-                      selected: _month - 1,
+                      value: _month - 1,
                       label: loc.monthLabel,
                       alignment: AlignmentDirectional.centerStart,
                       padding: const EdgeInsetsDirectional.only(
                         start: _MonthYearMetrics.monthStart,
                       ),
-                      onSelected: (int i) {
-                        if (!_syncing) setState(() => _month = i % 12 + 1);
-                      },
+                      onChanged: (int row) => setState(() => _month = row + 1),
                       context: context,
                     ),
                   ),
@@ -399,15 +311,13 @@ class _MonthYearWheelsState extends State<_MonthYearWheels> {
                     child: _wheel(
                       geometry: geometry,
                       look: look,
-                      controller: _yearWheel,
                       count: _lastYear - _firstYear + 1,
                       looping: false,
                       text: (int i) => '${_firstYear + i}',
-                      selected: _year - _firstYear,
+                      value: _year - _firstYear,
                       label: loc.yearLabel,
-                      onSelected: (int i) {
-                        if (!_syncing) setState(() => _year = _firstYear + i);
-                      },
+                      onChanged: (int row) =>
+                          setState(() => _year = _firstYear + row),
                       context: context,
                     ),
                   ),

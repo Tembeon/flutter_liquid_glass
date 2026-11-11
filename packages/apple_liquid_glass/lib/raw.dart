@@ -73,3 +73,5 @@ export 'src/raw/swipe_actions.dart'
         SwipeGroup;
 export 'src/raw/switch.dart'
     show GlassSwitchBuilder, GlassSwitchDetails, RawGlassSwitch;
+export 'src/raw/wheel.dart'
+    show GlassWheelRowBuilder, GlassWheelSelectionBuilder, RawGlassWheel;

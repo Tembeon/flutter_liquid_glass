@@ -1,264 +1,69 @@
 part of 'date_picker.dart';
 
-const Duration _wheelStep = Duration(milliseconds: 200);
-const Curve _wheelStepCurve = Cubic(0.25, 0.1, 0.25, 1);
-
 String _two(int v) => v.toString().padLeft(2, '0');
 
 /// One of UIKit's picker wheels: a column of rows on a cylinder behind a
 /// band that shows the selected row larger and in full, every other row
 /// smaller, at [_wheelFadedOpacity] and darkened toward the
-/// cylinder's edges.
+/// cylinder's edges. Focused from the keyboard or under a mouse, its
+/// selected row draws the focus ring and the hover wash.
+///
+/// With a [rowsKey] the rows are built again only when it, the look or the
+/// font changes: a value the parent sets back while a wheel turns rebuilds
+/// no row.
 Widget _wheel({
   required _WheelGeometry geometry,
   required GlassDatePickerStyle look,
-  required FixedExtentScrollController controller,
   required int count,
   required String Function(int) text,
-  required int selected,
-  required ValueChanged<int> onSelected,
+  required int value,
+  required ValueChanged<int>? onChanged,
   required String label,
   required BuildContext context,
-  bool enabled = true,
+  ValueChanged<int>? onWrapped,
   bool looping = true,
+  bool animatesValue = false,
   AlignmentGeometry alignment = Alignment.center,
   EdgeInsetsGeometry padding = EdgeInsets.zero,
-  _WheelViews? views,
-  Object? viewKey,
+  Object? rowsKey,
 }) {
-  Widget view() => _wheelView(
-    geometry: geometry,
-    look: look,
-    controller: controller,
+  final style = look.wheelTextStyle!;
+  return RawGlassWheel(
     count: count,
-    text: text,
-    onSelected: onSelected,
+    value: value,
+    onChanged: onChanged,
+    onWrapped: onWrapped,
     looping: looping,
-    alignment: alignment,
-    padding: padding,
-    context: context,
-  );
-  final up = looping || selected + 1 < count;
-  final down = looping || selected > 0;
-  return _WheelRegion(
-    controller: controller,
-    count: count,
-    looping: looping,
-    row: geometry.row,
-    look: look,
-    enabled: enabled,
-    canIncrease: up,
-    canDecrease: down,
-    semantics: SemanticsProperties(
-      label: label,
-      value: text(selected),
-      increasedValue: up ? text((selected + 1) % count) : null,
-      decreasedValue: down ? text((selected - 1) % count) : null,
-    ),
-    child: ExcludeSemantics(
-      child: views == null
-          ? view()
-          : views.keep(controller, (
-              viewKey,
-              count,
-              looping,
-              look,
-              resolveGlassText(const TextStyle(), context).fontFamily,
-            ), view),
-    ),
-  );
-}
-
-/// One wheel as a keyboard and accessibility target: a Tab stop that steps
-/// the wheel with the arrows, Page Up and Page Down, Home and End, and
-/// that draws the focus ring and the hover wash around its selected row.
-/// Touches stay with the wheel's own scrolling.
-class _WheelRegion extends StatefulWidget {
-  const _WheelRegion({
-    required this.controller,
-    required this.count,
-    required this.looping,
-    required this.row,
-    required this.look,
-    required this.enabled,
-    required this.canIncrease,
-    required this.canDecrease,
-    required this.semantics,
-    required this.child,
-  });
-
-  final FixedExtentScrollController controller;
-  final int count;
-  final bool looping;
-  final double row;
-  final GlassDatePickerStyle look;
-  final bool enabled;
-  final bool canIncrease;
-  final bool canDecrease;
-  final SemanticsProperties semantics;
-  final Widget child;
-
-  @override
-  State<_WheelRegion> createState() => _WheelRegionState();
-}
-
-class _WheelRegionState extends State<_WheelRegion> {
-  final _states = WidgetStatesController();
-  late final _range = ValueNotifier(_rangeOf(widget));
-  late final List<Interaction> _interactions = [_WheelInput(_command)];
-
-  static AdjustRange _rangeOf(_WheelRegion widget) => AdjustRange(
-    canIncrease: widget.canIncrease,
-    canDecrease: widget.canDecrease,
-  );
-
-  @override
-  void didUpdateWidget(_WheelRegion oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _range.value = _rangeOf(widget);
-  }
-
-  @override
-  void dispose() {
-    _states.dispose();
-    _range.dispose();
-    super.dispose();
-  }
-
-  void _command(ValueCommand command) {
-    final controller = widget.controller;
-    if (!controller.hasClients) return;
-    final item = controller.selectedItem;
-    final count = widget.count;
-    final first = widget.looping ? item - item % count : 0;
-    final large = math.max(2, count ~/ 4);
-    final target = switch (command) {
-      ValueCommand.increase => item + 1,
-      ValueCommand.decrease => item - 1,
-      ValueCommand.increaseLarge => item + large,
-      ValueCommand.decreaseLarge => item - large,
-      ValueCommand.toMinimum => first,
-      ValueCommand.toMaximum => first + count - 1,
-    };
-    final last = widget.looping ? count * _WheelGeometry.loops - 1 : count - 1;
-    final to = target.clamp(0, last);
-    if (to == item) return;
-    controller.animateToItem(
-      to,
-      duration: _wheelStep,
-      curve: _wheelStepCurve,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final look = widget.look;
-    return InputRegion(
-      interactions: _interactions,
-      statesController: _states,
-      enabled: widget.enabled,
-      adjustRange: _range,
-      semantics: widget.semantics,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          widget.child,
-          Center(
-            child: SizedBox(
-              height: widget.row,
-              child: IgnorePointer(
-                child: _highlight(
-                  context,
-                  look,
-                  states: _states,
-                  child: const SizedBox.expand(),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A wheel's value commands, for the keyboard and accessibility; touches
-/// are the wheel's own scrolling.
-final class _WheelInput extends Interaction {
-  _WheelInput(this.onCommand) : super(role: InteractionRole.control);
-
-  final ValueChanged<ValueCommand> onCommand;
-
-  @override
-  bool get adjusts => true;
-
-  @override
-  bool accepts(PointerDownInput down) => false;
-
-  @override
-  InteractionUpdate handle(InteractionInput input) {
-    if (input is AdjustInput) onCommand(input.command);
-    return InteractionUpdate.none;
-  }
-}
-
-/// The wheel views a picker built before, handed back while what they
-/// draw is unchanged: a value the parent sets back while a wheel turns
-/// rebuilds no row.
-class _WheelViews {
-  final Map<Object, (Object?, Widget)> _kept = {};
-
-  Widget keep(Object slot, Object? key, Widget Function() build) {
-    final kept = _kept[slot];
-    if (kept != null && kept.$1 == key) return kept.$2;
-    final view = build();
-    _kept[slot] = (key, view);
-    return view;
-  }
-}
-
-Widget _wheelView({
-  required _WheelGeometry geometry,
-  required GlassDatePickerStyle look,
-  required FixedExtentScrollController controller,
-  required int count,
-  required String Function(int) text,
-  required ValueChanged<int> onSelected,
-  required bool looping,
-  required AlignmentGeometry alignment,
-  required EdgeInsetsGeometry padding,
-  required BuildContext context,
-}) {
-  final row = look.wheelTextStyle!;
-  return ListWheelScrollView.useDelegate(
-    controller: controller,
+    animatesValue: animatesValue,
     itemExtent: geometry.row,
     diameterRatio: geometry.diameterRatio,
     perspective: _WheelGeometry.perspective,
     squeeze: geometry.squeeze,
-    useMagnifier: true,
     magnification: _WheelGeometry.magnification,
     overAndUnderCenterOpacity: _wheelFadedOpacity,
-    physics: const FixedExtentScrollPhysics(
-      parent: BouncingScrollPhysics(
-        decelerationRate: ScrollDecelerationRate.fast,
-      ),
-    ),
-    onSelectedItemChanged: (int index) {
-      MotionHaptic.selection.play(context);
-      onSelected(index);
-    },
-    childDelegate: ListWheelChildBuilderDelegate(
-      childCount: looping ? count * _WheelGeometry.loops : count,
-      builder: (BuildContext context, int i) => Padding(
-        padding: padding,
-        child: Align(
-          alignment: alignment,
-          child: Text(
-            text(i % count),
-            textScaler: TextScaler.noScaling,
-            style: row,
+    rowsKey: rowsKey == null
+        ? null
+        : (
+            rowsKey,
+            look,
+            resolveGlassText(const TextStyle(), context).fontFamily,
           ),
+    semanticLabel: label,
+    rowLabel: text,
+    selectionBuilder: (context, states) => _highlight(
+      context,
+      look,
+      states: states,
+      child: const SizedBox.expand(),
+    ),
+    rowBuilder: (context, row) => Padding(
+      padding: padding,
+      child: Align(
+        alignment: alignment,
+        child: Text(
+          text(row),
+          textScaler: TextScaler.noScaling,
+          style: style,
         ),
       ),
     ),
@@ -301,7 +106,6 @@ class _WheelGeometry {
   /// of the wheels' faded opacity.
   final List<(double, double)> fade;
 
-  static const int loops = 100;
   static const double perspective = 0.0001;
   static const double fontSize = 21;
   static const double magnification = 23.5 / 21;
