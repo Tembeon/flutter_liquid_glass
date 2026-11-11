@@ -100,19 +100,6 @@ abstract final class DatePickerTuning {
   static double marginFor(double width) =>
       width >= wideScreenWidth ? margin : compactMargin;
 
-  /// The corner radius of the overlay.
-  static const double cornerRadius = 28;
-
-  /// The size of the date overlay: a month calendar, five weeks or six
-  /// (see [sixWeekRowHeight]), or the month and year wheels in its place.
-  static const Size calendarSize = Size(320, 332);
-
-  /// The height of a calendar row in a month of six weeks: UIKit keeps the
-  /// calendar [calendarSize] and packs the six rows into the five rows'
-  /// space (an iPhone 16 Pro, August 2026: cells 42.67 x 38, the chosen
-  /// day's disc 38 across).
-  static const double sixWeekRowHeight = 38;
-
   /// The duration of the change between the calendar's day grid and its
   /// month and year wheels, in seconds: a tap on the month title fades the
   /// grid, the weekday initials and the month chevrons out and the wheels
@@ -143,9 +130,6 @@ abstract final class DatePickerTuning {
   /// [yearPickerHideDelay]).
   static const double yearPickerHideDelayWhileShowing = 0.013;
 
-  /// The size of the time overlay: the hour and minute wheels.
-  static const Size timeSize = Size(232, 204);
-
   /// The duration of the label's highlight fading in and out, in seconds:
   /// a CABasicAnimation of its opacity with the timing curve
   /// [highlightCurve].
@@ -162,18 +146,6 @@ abstract final class DatePickerTuning {
   /// page on a sine ease in and out, fitted within 2 px rms; UIScrollView's
   /// own curve differs (approximation, date-picker passport).
   static const double pageDuration = 0.3;
-
-  /// The height of the compact date label.
-  static const double dateLabelHeight = 34.33;
-
-  /// The height of the compact time label.
-  static const double timeLabelHeight = 36;
-
-  /// The horizontal space inside a compact label.
-  static const double labelPadding = 12;
-
-  /// The space between the date label and the time label.
-  static const double labelGap = 4;
 }
 
 /// Where the overlay of a compact date picker sits.
@@ -302,6 +274,9 @@ final class DatePickerMotion extends Motion with Presented {
   /// [DatePickerTuning.reopenDelay] after the tap instead of
   /// [DatePickerTuning.openDelay].
   final bool reopening;
+
+  /// The size of the time overlay: the hour and minute wheels.
+  static const Size timeSize = Size(232, 204);
 
   /// The swing of the overlay's progress, and of a switch between the
   /// pickers, at which they rest. NEAR: the calendar's edge lands by up to
@@ -494,6 +469,16 @@ final class DatePickerMotion extends Motion with Presented {
 ///
 /// Times are seconds on the motion's timeline.
 final class DatePickerCalendarMotion extends Motion {
+  /// The size of the date overlay: a month calendar, five weeks or six
+  /// (see [sixWeekRowHeight]), or the month and year wheels in its place.
+  static const Size calendarSize = Size(320, 332);
+
+  /// The height of a calendar row in a month of six weeks: UIKit keeps the
+  /// calendar [calendarSize] and packs the six rows into the five rows'
+  /// space (an iPhone 16 Pro, August 2026: cells 42.67 x 38, the chosen
+  /// day's disc 38 across).
+  static const double sixWeekRowHeight = 38;
+
   late final _page = own(TimedValue(1));
   late final _years = own(TimedValue(0));
   late final _turns = own(TimedValue(0, additive: true));

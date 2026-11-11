@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/motions/date_picker_motion.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -161,7 +161,7 @@ typedef GlassDatePickerMonthYearBuilder = Widget Function(
 /// its chevron, the two month arrows, the weekday initials and the days of
 /// the shown month in weeks starting at [firstDayOfWeek]; a month of six
 /// weeks packs its rows into the five rows' height. An arrow turns the
-/// month with a slide ([DatePickerTuning.pageDuration]); a tap on the
+/// month with a slide (0.3 s on a sine ease); a tap on the
 /// title fades the grid out and [monthYearBuilder]'s wheels in, and a
 /// wheel at rest moves the picked day to its month and year, keeping its
 /// day of the month where the month has it (the 31st turned to November is
@@ -245,7 +245,7 @@ class RawGlassDatePicker extends StatefulWidget {
   final bool defersDays;
 
   /// The size of UIKit's calendar.
-  static const Size size = DatePickerTuning.calendarSize;
+  static const Size size = DatePickerCalendarMotion.calendarSize;
 
   @override
   State<RawGlassDatePicker> createState() => _RawGlassDatePickerState();
@@ -552,8 +552,9 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
     return ((lead + _daysIn(month)) / 7).ceil();
   }
 
-  double _rowOf(DateTime month) =>
-      _weeksOf(month) > 5 ? DatePickerTuning.sixWeekRowHeight : _Metrics.row;
+  double _rowOf(DateTime month) => _weeksOf(month) > 5
+      ? DatePickerCalendarMotion.sixWeekRowHeight
+      : _Metrics.row;
 
   InputZoneFrame? _dayFrame(DateTime day) {
     if (day.year != _month.year || day.month != _month.month) return null;

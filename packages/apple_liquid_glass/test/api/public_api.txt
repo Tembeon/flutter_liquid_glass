@@ -57,11 +57,13 @@ final class ContextHold extends Motion
   overrides: holds
 final class DatePickerCalendarMotion extends Motion
   DatePickerCalendarMotion()
+  static const Size calendarSize
   bool Function(int)? onTurn
   double get page
   int get pageDirection
   void showYearPicker(double t, {required bool show})
   bool get showsYearPicker
+  static const double sixWeekRowHeight
   void turnPage(double t, int direction)
   double get yearPicker
   double get yearPickerTurn
@@ -84,6 +86,7 @@ final class DatePickerMotion extends Motion with Presented
   double get swap
   void switchPicker(double t, {required bool back})
   bool get switching
+  static const Size timeSize
   overrides: didAdvance, leave, open, presence
 class DatePickerPlacement
   const DatePickerPlacement({required Rect rect, required Offset anchor})

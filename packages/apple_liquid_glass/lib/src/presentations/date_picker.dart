@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/controls/date_picker.dart';
-import 'package:apple_liquid_glass/src/motions/date_picker_motion.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -57,7 +57,7 @@ DateTime _floorToMinuteInterval(DateTime value, int interval) {
 /// label's center on a spring while it fades in and reveals its content
 /// from the label's side, hangs below the label (above it when there is no
 /// room), and extends toward the leading side, on springs fitted to
-/// UIKit's frames ([DatePickerTuning]; replayed on an iPhone 16 Pro).
+/// UIKit's frames (replayed on an iPhone 16 Pro).
 /// While it is open the label's text takes the accent color. Choosing a day
 /// or turning a time wheel calls [onChanged] at once and the overlay stays
 /// open; a tap outside or Escape closes it, turning an overlay that still
@@ -264,13 +264,13 @@ class _GlassCompactDatePickerState extends State<GlassCompactDatePicker> {
         mainAxisSize: MainAxisSize.min,
         children: [
           for (var i = 0; i < parts.length; i++) ...[
-            if (i > 0) const SizedBox(width: DatePickerTuning.labelGap),
+            if (i > 0) const SizedBox(width: _DatePickerLook.labelGap),
             _CompactLabel(
               key: _labels[parts[i].$1],
               text: parts[i].$2,
               height: parts[i].$1 == _Part.date
-                  ? DatePickerTuning.dateLabelHeight
-                  : DatePickerTuning.timeLabelHeight,
+                  ? _DatePickerLook.dateLabelHeight
+                  : _DatePickerLook.timeLabelHeight,
               open: _open == parts[i].$1,
               enabled: _enabled,
               look: look,
@@ -354,7 +354,7 @@ class _CompactLabelState extends State<_CompactLabel> {
             child: Container(
               constraints: BoxConstraints(minHeight: widget.height),
               padding: const EdgeInsets.symmetric(
-                horizontal: DatePickerTuning.labelPadding,
+                horizontal: _DatePickerLook.labelPadding,
               ),
               decoration: widget.enabled
                   ? ShapeDecoration(
@@ -538,7 +538,7 @@ class _OverlayViewState extends State<_OverlayView> {
   late final _opacity = _motion.select((m) => m.opacity);
   late final _glass = _motion.select(
     (m) => GlassFrame(
-      shape: const GlassShape.superellipse(DatePickerTuning.cornerRadius),
+      shape: const GlassShape.superellipse(_DatePickerLook.cornerRadius),
       opacity: m.opacity,
     ),
   );
@@ -659,8 +659,8 @@ class _OverlayViewState extends State<_OverlayView> {
       a.today == b.today;
 
   Size _sizeFor(_Part part) => part == _Part.time
-      ? DatePickerTuning.timeSize
-      : DatePickerTuning.calendarSize;
+      ? DatePickerMotion.timeSize
+      : DatePickerCalendarMotion.calendarSize;
 
   Widget _content(_Part part, DatePickerLook look) => part == _Part.time
       ? DatePickerTimeWheels(
@@ -824,7 +824,7 @@ class _OverlayViewState extends State<_OverlayView> {
             ),
             GlassClip(
               shape: const GlassShape.superellipse(
-                DatePickerTuning.cornerRadius,
+                _DatePickerLook.cornerRadius,
               ),
               child: OverflowBox(
                 alignment: below
@@ -940,4 +940,21 @@ class _Crossfade extends StatelessWidget {
       MotionTransition(opacity: fadeIn, child: to),
     ],
   );
+}
+
+abstract final class _DatePickerLook {
+  /// The corner radius of the overlay.
+  static const double cornerRadius = 28;
+
+  /// The height of the compact date label.
+  static const double dateLabelHeight = 34.33;
+
+  /// The height of the compact time label.
+  static const double timeLabelHeight = 36;
+
+  /// The horizontal space inside a compact label.
+  static const double labelPadding = 12;
+
+  /// The space between the date label and the time label.
+  static const double labelGap = 4;
 }

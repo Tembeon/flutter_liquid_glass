@@ -364,7 +364,7 @@ void main() {
       final lifts = ups(rows);
       final up = lifts[1];
       const from = Size(320, 332);
-      const to = DatePickerTuning.timeSize;
+      const to = DatePickerMotion.timeSize;
       expect(DatePickerTuning.switchSpring.dampingRatio, 1);
       double p(double t) {
         final dt = t - up - DatePickerTuning.switchDelay;
