@@ -103,6 +103,46 @@ void main() {
     );
   });
 
+  testWidgets("a route's title names its page to assistive technology and "
+      'names the back button of the page above when its bar shows no text '
+      'title', (tester) async {
+    await _phone(tester);
+    final semantics = tester.ensureSemantics();
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_app(navigator, _page('Home')));
+    await tester.pump();
+    unawaited(
+      navigator.currentState!.push(
+        GlassPageRoute<void>(
+          title: 'Library',
+          builder: (_) => const GlassPageScaffold(
+            navigationBar: GlassNavigationBar(title: Icon(IconData(0xe000))),
+            child: ColoredBox(color: Color(0xFFFFFFFF)),
+          ),
+        ),
+      ),
+    );
+    await _settle(tester);
+    final route = tester.getSemantics(
+      find.bySemanticsLabel('Library').first,
+    );
+    expect(route.flagsCollection.scopesRoute, isTrue);
+    expect(route.flagsCollection.namesRoute, isTrue);
+
+    unawaited(
+      navigator.currentState!.push(
+        GlassPageRoute<void>(builder: (_) => _page('Book')),
+      ),
+    );
+    await _settle(tester);
+    expect(find.bySemanticsLabel('Library'), findsWidgets);
+    final back = tester
+        .getSemantics(find.bySemanticsLabel('Library').last)
+        .getSemanticsData();
+    expect(back.flagsCollection.isButton, isTrue);
+    semantics.dispose();
+  });
+
   testWidgets('a dialog pushed over a page covers its bar', (tester) async {
     await _phone(tester);
     final navigator = GlobalKey<NavigatorState>();

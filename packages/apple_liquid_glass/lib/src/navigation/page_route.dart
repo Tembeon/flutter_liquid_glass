@@ -55,12 +55,26 @@ import 'package:kinesis/kinesis.dart';
 /// release past 132.5 points or at 1050 points a second pops it into the
 /// source; short of that it returns. The source hides while the page shows.
 /// Without an attached source the page slides.
+///
+/// To assistive technology the page is a route of its own, as a
+/// `CupertinoPageRoute`'s page is, named by [title], which screen readers
+/// announce as it opens.
 class GlassPageRoute<T> extends PresentationPageRoute<T> {
   /// Creates a page [builder] builds, zooming out of [source] when given.
-  GlassPageRoute({required this.builder, this.source, super.settings});
+  GlassPageRoute({
+    required this.builder,
+    this.title,
+    this.source,
+    super.settings,
+  }) : super(semanticsLabel: title);
 
   /// Builds the page.
   final WidgetBuilder builder;
+
+  /// The page's name: what screen readers announce as it opens, and what
+  /// the back button of a page above shows when this page's navigation bar
+  /// has no text title (Flutter: `CupertinoPageRoute.title`).
+  final String? title;
 
   /// The source the page zooms out of and back into, shown by a
   /// [GlassZoomSource], or null for a page that slides in.
@@ -120,7 +134,9 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
 
   @override
   void install() {
-    _bar = GlassBarHost.of(navigator!).attach(this, presence: _progress);
+    _bar = GlassBarHost.of(
+      navigator!,
+    ).attach(this, presence: _progress, title: title);
     super.install();
   }
 

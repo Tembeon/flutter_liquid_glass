@@ -88,7 +88,7 @@ class GlassTabShown extends InheritedWidget {
 /// build.
 @internal
 final class GlassPageBarLink {
-  GlassPageBarLink._(this.host, this.route, this._presence);
+  GlassPageBarLink._(this.host, this.route, this._presence, this._title);
 
   /// The bar this page belongs to.
   final GlassBarHost host;
@@ -97,6 +97,9 @@ final class GlassPageBarLink {
   final ModalRoute<Object?>? route;
 
   final ValueListenable<double>? _presence;
+
+  // The route's own name for the page.
+  final String? _title;
 
   GlassPageBarLink? _below;
   GlassBarDeclaration? _declaration;
@@ -214,7 +217,7 @@ final class GlassBarHost {
   /// A host for one page outside any glass page route, which draws its
   /// bar itself.
   GlassBarHost.standalone() : _navigator = null {
-    final link = _standalone = GlassPageBarLink._(this, null, null);
+    final link = _standalone = GlassPageBarLink._(this, null, null, null);
     _pages.add(link);
     _show(link);
     _painter.value = link;
@@ -292,12 +295,14 @@ final class GlassBarHost {
 
   // --- the route's events -------------------------------------------------
 
-  /// Registers [route]'s page, which moves by [presence].
+  /// Registers [route]'s page, which moves by [presence] and is named
+  /// [title] where its bar names it with no text.
   GlassPageBarLink attach(
     ModalRoute<Object?> route, {
     required ValueListenable<double> presence,
+    String? title,
   }) {
-    final link = GlassPageBarLink._(this, route, presence);
+    final link = GlassPageBarLink._(this, route, presence, title);
     _pages.add(link);
     return link;
   }
@@ -985,7 +990,10 @@ final class _Bar {
           _backId,
           _Button.back(
             _Back(
-              title: declaration.previousPageTitle ?? below._declaration?.title,
+              title:
+                  declaration.previousPageTitle ??
+                  below._declaration?.title ??
+                  below._title,
               mode: declaration.backButtonDisplayMode,
               onPressed: () => route?.navigator?.maybePop<Object?>(),
             ),

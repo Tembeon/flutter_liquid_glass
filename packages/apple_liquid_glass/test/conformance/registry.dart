@@ -718,6 +718,7 @@ final List<Entry> registry = [
     build: (probe, {required enabled}) => Opener(
       show: (context) => Navigator.of(context).push(
         GlassPageRoute<void>(
+          title: overlayText,
           builder: (context) => const GlassPageScaffold(
             navigationBar: GlassNavigationBar(
               title: Text(overlayText),

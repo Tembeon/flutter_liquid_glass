@@ -1009,11 +1009,13 @@ class GlassPageControlStyle extends GlassStyle<GlassPageControlStyle>
 class GlassPageRoute<T> extends PresentationPageRoute<T>
   GlassPageRoute({
     required Widget Function(BuildContext) builder,
+    String? title,
     MotionSource? source,
     RouteSettings? settings,
   })
   final Widget Function(BuildContext) builder
   final MotionSource? source
+  final String? title
   overrides: beginInteraction, buildContent, delegatedTransition, didChangeNext, didChangePrevious, didFinish, didPopNext, didPresent, dispose, endInteraction, install, leave, opaque, presentation
 class GlassPageScaffold extends StatefulWidget
   const GlassPageScaffold({
