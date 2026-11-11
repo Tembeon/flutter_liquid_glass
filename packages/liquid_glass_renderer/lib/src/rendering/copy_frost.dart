@@ -191,9 +191,7 @@ CopyFrost? _frostFilterOf(FrostSampling sampling) {
   final sparse = CopyFrost._([shaderFilterNow(shader)]);
   // Sparse taps that stand in until the lattice's program loads are not
   // kept.
-  final standsIn =
-      sampling.frost > 0 &&
-      sampling.frost * sampling.frost <= frostLatticeWidest;
+  final standsIn = frostLatticeOf(sampling.frost) != null;
   return standsIn ? sparse : _inPlaceFilters[key] = sparse;
 }
 
@@ -304,9 +302,9 @@ final _tapsOf = <double, ({List<double> offsets, List<double> weights})>{};
 // its own pixels takes the same weights, so the programs are their reads.
 CopyFrost? _latticeOf(FrostSampling sampling) {
   final FrostSampling(:size, :bounds, :frost) = sampling;
-  final wide = frost * frost;
-  if (wide > frostLatticeWidest) return null;
-  final square = wide <= frostSquareWidest;
+  final lattice = frostLatticeOf(frost);
+  if (lattice == null) return null;
+  final square = lattice == FrostLattice.square;
   final key = square
       ? ShaderKeys.backdropFrostSquare
       : ShaderKeys.backdropFrostAxis;

@@ -37,12 +37,12 @@ export 'src/composer/frame_report.dart'
 export 'src/composer/geometry.dart'
     show
         CopyNeed,
+        FrostLattice,
         ImpellerLayers,
         Lattice,
         ReadGeometry,
         ceilPixels,
-        frostLatticeWidest,
-        frostSquareWidest;
+        frostLatticeOf;
 export 'src/composer/geometry_renderer_limits.dart'
     show geometryMaxShapesPerDraw;
 export 'src/composer/plan.dart' show PlanPolicy, PlanPrices, compilePlan;

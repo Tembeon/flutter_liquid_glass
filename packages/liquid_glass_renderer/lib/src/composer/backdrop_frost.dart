@@ -27,7 +27,7 @@ final class LiquidGlassBackdropFrost {
   /// without, its copy is filtered as [filter] filters the backdrop.
   ///
   /// NEAR: the shader weighs every pixel of the copy the frost reaches
-  /// (latticeTaps in backdrop_rig.dart), so a point under the frost stays one
+  /// (latticeTaps in copy_frost.dart), so a point under the frost stays one
   /// point. Over the colored rows and white lines of apple_liquid_glass's
   /// scroll edge frost host test, the bands differ from the copy filtered as
   /// the backdrop by at most 11 channel levels at a device pixel ratio of

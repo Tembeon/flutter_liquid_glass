@@ -88,6 +88,9 @@ final class FrostBandPaint
   final double saturation
   final double whole
   overrides: ==, hashCode
+enum FrostLattice
+  square,
+  axes,
 sealed class GeometryKind
   const GeometryKind()
 final class GlassBody
@@ -435,8 +438,7 @@ double ceilPixels(double pixels)
   bool explain = ...,
 })
 void debugDumpGlassPlan()
-const double frostLatticeWidest
-const double frostSquareWidest
+FrostLattice? frostLatticeOf(double inCopyPixels)
 GeometryKind geometryKindOf(List<GlassBody> glass)
 const int geometryMaxShapesPerDraw
 

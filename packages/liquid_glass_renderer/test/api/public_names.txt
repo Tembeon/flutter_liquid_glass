@@ -9,6 +9,7 @@ FilterLook
 FlutterGpuGeometryRenderer
 FollowFate
 FrostBandPaint
+FrostLattice
 GeometryKind
 GeometryRenderLink
 GestureMode
@@ -97,8 +98,7 @@ compilePlan
 debugDumpGlassPlan
 debugPaintLiquidGlassGeometry
 fakeGlassSurfaceOutset
-frostLatticeWidest
-frostSquareWidest
+frostLatticeOf
 geometryKindOf
 geometryMaxShapesPerDraw
 precacheLiquidGlass

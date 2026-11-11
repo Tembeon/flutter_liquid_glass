@@ -123,7 +123,7 @@ final class CopyNeed {
   ///
   /// NEAR: the copy is one step coarser than Impeller's own blur would
   /// take, so a weak frost spans 1 to 2 of its pixels and is drawn into it
-  /// in one pass of nine reads a pixel (latticeTaps in backdrop_rig.dart), a
+  /// in one pass of nine reads a pixel (latticeTaps in copy_frost.dart), a
   /// bar's 2.2 logical pixels over a sixteenth of the screen's pixels where
   /// the finer copy took two passes over a quarter. Text and thin lines are
   /// drawn into the copy at its scale and land up to half of its pixel from
@@ -427,7 +427,7 @@ abstract final class ImpellerLayers {
 /// NEAR: the glass takes one read for its 12 taps per fragment, over a copy
 /// of a quarter of the screen's pixels along each side where the frost spans
 /// at least one of them. The frost drawn into the copy weighs every pixel of
-/// the copy it reaches (latticeTaps in backdrop_rig.dart), where the glass's
+/// the copy it reaches (latticeTaps in copy_frost.dart), where the glass's
 /// own taps are sparse: a point under the glass stays one point
 /// (frost_point_test), and white bars lie 13 to 21 levels from what reading
 /// the backdrop draws at a frost of 3 to 12 (backdrop_underlay_frost_test,
@@ -445,14 +445,38 @@ double _bakedFrost({
   return glassFrost > 0 ? glassFrost : bandFrost ?? 0;
 }
 
-/// The widest frost, in a copy's pixels squared, eight pairs of them hold:
-/// what a copy picked for its frost spans ([CopyNeed]). A copy finer than was
-/// asked, such as one that holds glass, leaves a wider frost to sparse taps.
-const double frostLatticeWidest = 11.87;
+// The widest frost, in a copy's pixels squared, eight pairs of them hold:
+// what a copy picked for its frost spans ([CopyNeed]). A copy finer than was
+// asked, such as one that holds glass, leaves a wider frost to sparse taps.
+const double _frostLatticeWidest = 11.87;
 
-/// The widest frost, in a copy's pixels squared, three pairs hold: one pass
-/// of nine reads draws it. A wider one is a pass an axis.
-const double frostSquareWidest = 1.5235;
+// The widest frost, in a copy's pixels squared, three pairs hold: one pass
+// of nine reads draws it. A wider one is a pass an axis.
+const double _frostSquareWidest = 1.5235;
+
+/// How a frost is drawn over every pixel of a copy it reaches, at the copy's
+/// own pixels (see [frostLatticeOf]).
+enum FrostLattice {
+  /// One pass of nine reads: three pairs of pixels along each axis.
+  square,
+
+  /// One pass along x and one along y over what it left.
+  axes,
+}
+
+/// How a frost by a sigma of [inCopyPixels] of a copy's pixels is drawn over
+/// every pixel of the copy it reaches, or null where it is not: no frost, or
+/// one too wide for eight pairs of the copy's pixels, which sparse taps
+/// draw.
+///
+/// The one rule both the plan, which counts the passes a copy's frost
+/// takes ([frostLayersOf]), and the filters that draw it follow.
+FrostLattice? frostLatticeOf(double inCopyPixels) {
+  if (inCopyPixels <= 0) return null;
+  final wide = inCopyPixels * inCopyPixels;
+  if (wide > _frostLatticeWidest) return null;
+  return wide <= _frostSquareWidest ? FrostLattice.square : FrostLattice.axes;
+}
 
 /// How many filtered layers frost a copy in place by a sigma of
 /// [inCopyPixels] of its pixels, each a pass of the frame: none for no frost,
@@ -460,8 +484,7 @@ const double frostSquareWidest = 1.5235;
 @internal
 int frostLayersOf(double inCopyPixels) {
   if (inCopyPixels <= 0) return 0;
-  final wide = inCopyPixels * inCopyPixels;
-  return wide > frostSquareWidest && wide <= frostLatticeWidest ? 2 : 1;
+  return frostLatticeOf(inCopyPixels) == FrostLattice.axes ? 2 : 1;
 }
 
 /// Where one read's backdrop pixels lie: on which lattice, at which rects
