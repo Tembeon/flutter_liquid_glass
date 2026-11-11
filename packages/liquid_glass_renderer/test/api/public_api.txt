@@ -180,10 +180,96 @@ class FakeGlass extends StatelessWidget
   final List<BoxShadow> shadows
   final LiquidShape shape
   overrides: build
+class GlassColorCurve
+  const GlassColorCurve.constant(double value)
+  const GlassColorCurve(double clear, double tinted)
+  final double clear
+  double evaluate(double tintAmount)
+  final double tinted
+  overrides: ==, hashCode, toString
+class GlassColorParameters
+  factory GlassColorParameters.fromJson(Map<String, Object?> json)
+  const GlassColorParameters({
+    required Color emissionColor,
+    required GlassColorCurve emissionAlpha,
+    required GlassColorCurve transmittance,
+    required GlassColorCurve luminanceLift,
+    required GlassColorCurve chromaGain,
+    GlassToneRamp toneLow = ...,
+    GlassToneRamp toneHigh = ...,
+    double toneGammaLuminance = ...,
+    double glintLuminance = ...,
+    double glintFaceGain = ...,
+    double glintVibrancy = ...,
+    double contourResponse = ...,
+    double fakeGlintLuminance = ...,
+  })
+  final GlassColorCurve chromaGain
+  final double contourResponse
+  double contourScale(double tintAmount)
+  GlassColorParameters copyWith({
+    Color? emissionColor,
+    GlassColorCurve? emissionAlpha,
+    GlassColorCurve? transmittance,
+    GlassColorCurve? luminanceLift,
+    GlassColorCurve? chromaGain,
+    GlassToneRamp? toneLow,
+    GlassToneRamp? toneHigh,
+    double? toneGammaLuminance,
+    double? glintLuminance,
+    double? glintFaceGain,
+    double? glintVibrancy,
+    double? contourResponse,
+    double? fakeGlintLuminance,
+  })
+  final GlassColorCurve emissionAlpha
+  final Color emissionColor
+  ({double chromaGain, Color emission, double lift, double transmittance}) faceTransfer({
+    double tintAmount = ...,
+  })
+  final double fakeGlintLuminance
+  final double glintFaceGain
+  final double glintLuminance
+  final double glintVibrancy
+  static const GlassColorParameters ios27Clear
+  static const GlassColorParameters ios27Dark
+  static const GlassColorParameters ios27Light
+  final GlassColorCurve luminanceLift
+  Color tintTone(Color tint, double luminance)
+  Map<String, Object?> toJson()
+  @internal List<double> toShaderParameters()
+  final double toneGammaLuminance
+  final GlassToneRamp toneHigh
+  final GlassToneRamp toneLow
+  final GlassColorCurve transmittance
+  overrides: ==, hashCode, toString
 class GlassPlanOverlay extends StatefulWidget
   const GlassPlanOverlay({required Widget child, Key? key})
   final Widget child
   overrides: createState
+abstract final class GlassRim
+  GlassRim()
+  static const double bevelShadowDepth
+  static const double bevelShadowDirectionality
+  static const double bevelShadowOffset
+  static const double contourWidth
+  static const double highlightOppositeStrength
+  static const double highlightWidth
+  static const double highlightWrap
+class GlassToneRamp
+  const GlassToneRamp.constant(double base)
+  const GlassToneRamp({
+    required double base,
+    required double amplitude,
+    required double pivot,
+    required double exponent,
+  })
+  final double amplitude
+  final double base
+  double evaluate(double luminance)
+  final double exponent
+  final double pivot
+  overrides: ==, hashCode, toString
 class LiquidGlass extends StatefulWidget
   const LiquidGlass.auto({
     required Widget child,
@@ -273,6 +359,7 @@ final class LiquidGlassAppearance
 sealed class LiquidGlassBackdrop
   const factory LiquidGlassBackdrop.read()
   const factory LiquidGlassBackdrop.solid(Color color)
+  Color? get solidColor
 class LiquidGlassBlendGroup extends StatefulWidget
   const LiquidGlassBlendGroup({
     required Widget child,
@@ -523,6 +610,10 @@ sealed class LiquidShape extends OutlinedBorder
   overrides: ==, getInnerPath, getOuterPath, hashCode, paint
 
 # package:liquid_glass_renderer/painting.dart
+class GlassColorCurve (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class GlassColorParameters (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class GlassRim (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class GlassToneRamp (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassAppearance (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassBackdrop (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassColorModel (see package:liquid_glass_renderer/liquid_glass_renderer.dart)

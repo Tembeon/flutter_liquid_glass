@@ -3,7 +3,6 @@ import 'dart:ui';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 
 // Values built at run time, so that const canonicalisation cannot make two
 // of them identical.

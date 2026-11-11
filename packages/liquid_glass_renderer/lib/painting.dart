@@ -19,10 +19,16 @@ library;
 
 export 'src/painting/liquid_glass_appearance.dart' show LiquidGlassAppearance;
 export 'src/painting/liquid_glass_backdrop.dart' show LiquidGlassBackdrop;
-export 'src/painting/liquid_glass_color_model.dart' show LiquidGlassColorModel;
+export 'src/painting/liquid_glass_color_model.dart'
+    show
+        GlassColorCurve,
+        GlassColorParameters,
+        GlassToneRamp,
+        LiquidGlassColorModel;
 export 'src/painting/liquid_glass_field.dart' show LiquidGlassField;
 export 'src/painting/liquid_glass_glow.dart' show LiquidGlassGlow;
-export 'src/painting/liquid_glass_settings.dart' show LiquidGlassSettings;
+export 'src/painting/liquid_glass_settings.dart'
+    show GlassRim, LiquidGlassSettings;
 export 'src/painting/liquid_glass_shape_frame.dart' show LiquidGlassShapeFrame;
 export 'src/painting/liquid_glass_support.dart'
     show LiquidGlassDeviceClass, LiquidGlassSupport;

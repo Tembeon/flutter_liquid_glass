@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:meta/meta.dart';
+import 'package:meta/meta.dart' show immutable;
 
 /// Where the glass of a `LiquidGlassLayer` takes what it shows through.
 ///
@@ -22,6 +22,13 @@ sealed class LiquidGlassBackdrop {
   /// translucent [color] reads the backdrop instead. Anything painted between
   /// the color and the glass is not seen through it.
   const factory LiquidGlassBackdrop.solid(Color color) = _SolidBackdrop;
+
+  /// The color of a [LiquidGlassBackdrop.solid], or null when the layer
+  /// reads what is painted behind it.
+  Color? get solidColor => switch (this) {
+    _SolidBackdrop(:final color) => color,
+    _ReadBackdrop() => null,
+  };
 }
 
 final class _ReadBackdrop extends LiquidGlassBackdrop {
@@ -40,10 +47,3 @@ final class _SolidBackdrop extends LiquidGlassBackdrop {
   @override
   int get hashCode => color.hashCode;
 }
-
-/// The color of a [LiquidGlassBackdrop.solid], or null for any other backdrop.
-@internal
-Color? solidColorOf(LiquidGlassBackdrop backdrop) => switch (backdrop) {
-  _SolidBackdrop(:final color) => color,
-  _ReadBackdrop() => null,
-};

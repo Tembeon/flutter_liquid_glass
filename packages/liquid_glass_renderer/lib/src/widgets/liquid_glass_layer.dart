@@ -3,11 +3,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_field.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_glow.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/consolidated_fake_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
@@ -370,7 +366,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
                 key: _shapesKey,
                 finalShaders: shaders,
                 field: _field,
-                solidBackdrop: solidColorOf(widget.backdrop),
+                solidBackdrop: widget.backdrop.solidColor,
                 glow: _glow,
                 settings: _settings,
                 defaultAppearance: defaultAppearance,

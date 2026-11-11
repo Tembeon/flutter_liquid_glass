@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_shape_frame.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_shape.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_shadow.dart';
 
 /// Paints [BoxShadow]s for a [LiquidShape] using canvas primitives

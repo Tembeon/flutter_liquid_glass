@@ -1,11 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_shape_frame.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_support.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_shape.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
 import 'package:liquid_glass_renderer/src/rendering/optimized_clip.dart';

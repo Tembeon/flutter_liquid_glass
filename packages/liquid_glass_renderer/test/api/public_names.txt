@@ -1,11 +1,15 @@
 FakeGlass
 FrostBandPaint
 GestureMode
+GlassColorCurve
+GlassColorParameters
 GlassFrameReport
 GlassGlow
 GlassPlanOverlay
 GlassReadReport
 GlassReadSource
+GlassRim
+GlassToneRamp
 LiquidGlass
 LiquidGlassAppearance
 LiquidGlassBackdrop

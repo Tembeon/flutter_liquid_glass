@@ -1,6 +1,6 @@
 import 'dart:ui' as ui;
 
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_support.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:meta/meta.dart';
 

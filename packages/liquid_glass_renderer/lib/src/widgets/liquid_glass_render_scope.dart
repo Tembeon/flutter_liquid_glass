@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 import 'package:meta/meta.dart';
 
 @internal

@@ -566,8 +566,9 @@ final class LiquidGlassSettings {
       '$bevelShadowStrength, $tintAmount, $_frostIsFloorEligible)';
 }
 
-/// The fitted iOS 27 rim geometry every preset shares.
-@internal
+/// The rim every glass draws, fitted to iOS 27 and shared by every preset:
+/// the glint inside the silhouette, the dark contour outside it and the
+/// inner bevel shadow, in logical pixels.
 abstract final class GlassRim {
   /// Width of the glint line inward from the silhouette, in logical pixels.
   static const double highlightWidth = 1.2;
