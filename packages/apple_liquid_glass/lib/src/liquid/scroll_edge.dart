@@ -129,7 +129,8 @@ class _RenderEdge extends RenderScrollEdge {
   @override
   void dropBand() => _blur.layer = null;
 
-  double get _sigma => _halfResolutionSigma(blurSigma, devicePixelRatio);
+  double get _sigma =>
+      _halfResolutionSigma(bandTuning.blurSigma, devicePixelRatio);
 
   // Presence rides in the matrix's alpha row: a fade changes only the
   // frost's matrix, which keeps the copy, and a filtered copy takes one
@@ -137,7 +138,7 @@ class _RenderEdge extends RenderScrollEdge {
   LiquidGlassBackdropFrost _frost(double presence) => LiquidGlassBackdropFrost(
     sigma: _sigma,
     colorMatrix: details.hard
-        ? hardMatrix(presence)
+        ? bandTuning.hardMatrix(presence)
         : presence == 1
         ? null
         : <double>[
@@ -176,12 +177,12 @@ class _RenderEdge extends RenderScrollEdge {
     final top = details.edge == AxisDirection.up;
     final hairline = 1 / devicePixelRatio;
     return FrostBandPaint(
-      fade: fadeColor,
+      fade: bandTuning.fadeColor,
       whole: details.hard
           ? -1e5 + 1
           : top
-          ? box.top + box.height * softFadeStart
-          : box.bottom - box.height * softFadeStart,
+          ? box.top + box.height * bandTuning.softFadeStart
+          : box.bottom - box.height * bandTuning.softFadeStart,
       gone: details.hard
           ? -1e5
           : top
@@ -199,8 +200,8 @@ class _RenderEdge extends RenderScrollEdge {
           : box.top + hairline,
       lineGray: brightness == Brightness.dark ? 1 : 0,
       presence: presence,
-      saturation: saturation,
-      brightness: brightnessShift,
+      saturation: bandTuning.saturation,
+      brightness: bandTuning.brightnessShift,
     );
   }
 }

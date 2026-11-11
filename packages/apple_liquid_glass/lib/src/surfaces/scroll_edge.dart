@@ -185,43 +185,39 @@ class RenderScrollEdge extends RenderBox {
   /// How present the effect is now, 0 to 1.
   double get presence => _details.presence.value.clamp(0.0, 1.0);
 
-  /// The blur sigma of the content under the band: UIKit's hard or soft
-  /// blur radius, taken as a Gaussian sigma.
-  @protected
-  double get blurSigma =>
-      _details.hard ? ScrollEdgeTuning.hardBlur : ScrollEdgeTuning.softBlur;
+  /// The numbers the liquid renderer's band follows: the blur sigma of the
+  /// content under the band (UIKit's hard or soft radius, as a Gaussian
+  /// sigma), its saturation and added brightness (some under the hard
+  /// band, none under the soft one), the color matrix of the hard band for
+  /// a presence, the color the content fades toward (the background at
+  /// UIKit's fade for the brightness) and where along the soft band, as a
+  /// share of it, the fade starts to dissolve.
+  @internal
+  ({
+    double blurSigma,
+    double saturation,
+    double brightnessShift,
+    List<double> Function(double presence) hardMatrix,
+    Color fadeColor,
+    double softFadeStart,
+  })
+  get bandTuning => (
+    blurSigma: _details.hard
+        ? ScrollEdgeTuning.hardBlur
+        : ScrollEdgeTuning.softBlur,
+    saturation: _details.hard ? ScrollEdgeTuning.hardSaturation : 1,
+    brightnessShift: _details.hard ? ScrollEdgeTuning.hardBrightness : 0,
+    hardMatrix: ScrollEdgeTuning.hardMatrix,
+    fadeColor: _fadeColor,
+    softFadeStart: ScrollEdgeTuning.softFadeStart,
+  );
 
-  /// How much the content under the band is saturated: raised under the
-  /// hard band, 1 under the soft one.
-  @protected
-  double get saturation => _details.hard ? ScrollEdgeTuning.hardSaturation : 1;
-
-  /// The brightness added to the content under the band, as a share of
-  /// full intensity: some under the hard band, none under the soft one.
-  @protected
-  double get brightnessShift =>
-      _details.hard ? ScrollEdgeTuning.hardBrightness : 0;
-
-  /// The color matrix of the hard band: UIKit's saturation (Rec. 709
-  /// luminance) plus the [brightnessShift], with [presence] as the alpha.
-  @protected
-  List<double> hardMatrix(double presence) =>
-      ScrollEdgeTuning.hardMatrix(presence);
-
-  /// The color the content fades toward: the background at UIKit's fade
-  /// for [brightness].
-  @protected
-  Color get fadeColor {
+  Color get _fadeColor {
     final background = _details.background;
     return background.withValues(
       alpha: background.a * ScrollEdgeTuning.fade(_brightness),
     );
   }
-
-  /// Where along the soft band, from the screen's edge, the fade starts to
-  /// dissolve, as a share of the band.
-  @protected
-  double get softFadeStart => ScrollEdgeTuning.softFadeStart;
 
   // A presence change between two visible values updates the layers it
   // already has, without painting; appearing or vanishing paints.
@@ -329,7 +325,7 @@ class RenderScrollEdge extends RenderBox {
   }
 
   void _paintFade(Canvas canvas, Rect box) {
-    final fade = fadeColor;
+    final fade = _fadeColor;
     final top = _details.edge == AxisDirection.up;
     final paint = Paint();
     if (!_details.hard) {
