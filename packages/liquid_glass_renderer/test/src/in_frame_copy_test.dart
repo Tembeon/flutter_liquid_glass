@@ -8,9 +8,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/plan.dart';
-import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
@@ -344,12 +343,12 @@ void main() {
     tester.view.physicalSize = const Size(260, 360) * 2;
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    addTearDown(() => RenderLiquidGlassLayer.debugMaxCopyShare = 2);
+    addTearDown(GlassCopyTuning.debugOverride);
     GlassPlan? plan;
     GlassComposer.debugOnPlan = (_, next) => plan = next;
     addTearDown(() => GlassComposer.debugOnPlan = null);
     for (final downscale in [2, 4]) {
-      RenderLiquidGlassLayer.debugMaxCopyShare = downscale;
+      GlassCopyTuning.debugOverride(maxCopyShare: downscale);
       Future<Uint8List> drawn({required bool inFrame}) => _drawn(
         tester,
         inFrame: inFrame,
@@ -378,13 +377,13 @@ void main() {
     tester.view.physicalSize = const Size(260, 360) * 2;
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    addTearDown(() => RenderLiquidGlassLayer.debugMaxCopyShare = 2);
+    addTearDown(GlassCopyTuning.debugOverride);
     GlassPlan? plan;
     GlassComposer.debugOnPlan = (_, next) => plan = next;
     addTearDown(() => GlassComposer.debugOnPlan = null);
     for (final frost in [3.0, 6.0]) {
       Future<Uint8List> drawn(int downscale) {
-        RenderLiquidGlassLayer.debugMaxCopyShare = downscale;
+        GlassCopyTuning.debugOverride(maxCopyShare: downscale);
         return _drawn(
           tester,
           inFrame: true,

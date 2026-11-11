@@ -118,7 +118,7 @@ void main() {
   setUp(MotionClock.debugReset);
   tearDown(() {
     GlassCopies.debugEnabledOverride = null;
-    LiquidGlassBackdropFrost.debugShaderFrost = true;
+    GlassCopyTuning.debugOverride();
   });
 
   // The copy bounds the blur's layer by the transition's content; bounded
@@ -129,7 +129,7 @@ void main() {
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
     // Exact parity needs the band's filtered copy; the shader frost is NEAR.
-    LiquidGlassBackdropFrost.debugShaderFrost = false;
+    GlassCopyTuning.debugOverride(shaderFrost: false);
 
     GlassCopies.debugEnabledOverride = false;
     final live = await _scrolled(tester);

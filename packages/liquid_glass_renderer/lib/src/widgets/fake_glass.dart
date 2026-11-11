@@ -25,7 +25,7 @@ import 'package:liquid_glass_renderer/src/widgets/optimized_clip.dart';
 /// from reading the backdrop by up to 10 channel levels in the host test at
 /// a device pixel ratio of 1, and inside the rim by at most 2; a copy the
 /// shader frosts differs more (see
-/// [LiquidGlassBackdropFrost.debugShaderFrost]). Fake shapes inside a
+/// [GlassCopyTuning.shaderFrost]). Fake shapes inside a
 /// [LiquidGlassBlendGroup] remain visually independent; this fallback does
 /// not compute smooth-union geometry.
 class FakeGlass extends StatelessWidget {

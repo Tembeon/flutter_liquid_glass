@@ -91,7 +91,7 @@ int _difference(Uint8List a, Uint8List b) {
 void main() {
   tearDown(() {
     GlassCopies.debugEnabledOverride = null;
-    LiquidGlassBackdropFrost.debugShaderFrost = true;
+    GlassCopyTuning.debugOverride();
   });
 
   testWidgets('grouped fake glass over a copy draws what reading the '
@@ -110,7 +110,7 @@ void main() {
     expect(_glass(tester).debugDrewOverCopy, isFalse);
 
     GlassCopies.debugEnabledOverride = true;
-    LiquidGlassBackdropFrost.debugShaderFrost = false;
+    GlassCopyTuning.debugOverride(shaderFrost: false);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(shift: 0.3));
     await tester.pumpWidget(_scene());

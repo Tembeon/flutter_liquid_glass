@@ -126,7 +126,7 @@ void main() {
   tearDown(() {
     GlassCopies.debugEnabledOverride = null;
     GlassComposer.debugPolicy = const PlanPolicy();
-    LiquidGlassBackdropFrost.debugShaderFrost = true;
+    GlassCopyTuning.debugOverride();
   });
 
   for (final (dpr, hard, near) in [
@@ -142,15 +142,15 @@ void main() {
       addTearDown(tester.view.reset);
       GlassComposer.debugPolicy = const PlanPolicy(maxTargets: 0);
 
-      LiquidGlassBackdropFrost.debugShaderFrost = false;
+      GlassCopyTuning.debugOverride(shaderFrost: false);
       final filtered = await _scrolled(tester, dpr, hard: hard);
       final full = _band(tester).debugPage!.image.width;
 
-      LiquidGlassBackdropFrost.debugShaderFrost = true;
+      GlassCopyTuning.debugOverride();
       final frosted = await _scrolled(tester, dpr, hard: hard);
       // The copy spans the screen's width, at half size.
       expect(_band(tester).debugPage!.image.width, (full / 2).round());
-      // NEAR, see LiquidGlassBackdropFrost.debugShaderFrost.
+      // NEAR, see GlassCopyTuning.shaderFrost.
       expect(_difference(filtered, frosted), lessThanOrEqualTo(near));
     }, skip: !ui.ImageFilter.isShaderFilterSupported);
   }

@@ -27,6 +27,7 @@ library;
 
 export 'src/composer/backdrop_frost.dart' show LiquidGlassBackdropFrost;
 export 'src/composer/band_look.dart' show BandLook, FrostBandPaint;
+export 'src/composer/copy_tuning.dart' show GlassCopyTuning;
 export 'src/composer/frame_report.dart'
     show
         GlassFrameReport,

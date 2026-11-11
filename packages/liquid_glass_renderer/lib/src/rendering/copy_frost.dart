@@ -17,8 +17,7 @@ import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 /// for it, or the program is not loaded yet.
 @internal
 CopyNeed? frostNeed(double sigma, {required double devicePixelRatio}) {
-  if (!LiquidGlassBackdropFrost.debugShaderFrost ||
-      !ui.ImageFilter.isShaderFilterSupported) {
+  if (!GlassCopyTuning.shaderFrost || !ui.ImageFilter.isShaderFilterSupported) {
     return null;
   }
   if (!GlassShaderPrograms.isCached(ShaderKeys.backdropFrost)) {

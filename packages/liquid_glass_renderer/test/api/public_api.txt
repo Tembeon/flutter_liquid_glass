@@ -101,6 +101,14 @@ final class GlassBody
   static const GlassBody one
   final int shapes
   overrides: ==, hashCode
+abstract final class GlassCopyTuning
+  GlassCopyTuning()
+  @visibleForTesting static void debugOverride({
+    bool shaderFrost = ...,
+    int maxCopyShare = ...,
+  })
+  static int get maxCopyShare
+  static bool get shaderFrost
 final class GlassFrameReport
   const GlassFrameReport({
     required int frame,
@@ -244,7 +252,6 @@ final class LiquidGlassBackdropFrost
     TileMode? tileMode,
   })
   final List<double>? colorMatrix
-  static bool debugShaderFrost
   late final ImageFilter filter
   final double sigma
   final TileMode? tileMode
@@ -1274,8 +1281,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject with TransformTrack
   @visibleForTesting Rect get debugGeometryMatteBounds
   @visibleForTesting FragmentShader get debugLiveShader
   @visibleForTesting List<Image> get debugLookImages
-  @visibleForTesting static int debugMaxCopyShare
-  @visibleForTesting static bool debugShaderFrost
   @visibleForTesting static bool debugShaderVariants
   @visibleForTesting bool get debugUsesShapeAppearances
   @visibleForTesting bool get debugUsesTintOnlyAppearance

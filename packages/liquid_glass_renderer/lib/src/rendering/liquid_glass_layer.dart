@@ -114,7 +114,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // Whether the shader may frost the copy it draws over, which picks a
   // variant that can. Settings pick it, as they pick the color models.
   bool get _frostsCopies =>
-      debugShaderFrost && settings.frost > 0 && settings.dispersion == 0;
+      GlassCopyTuning.shaderFrost &&
+      settings.frost > 0 &&
+      settings.dispersion == 0;
 
   /// The color models the layer shades: the direct model alone, one iOS
   /// 27 model in the first slot, or any.
@@ -976,7 +978,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         CopyNeed.blurred(
           min(frostX, frostY),
           devicePixelRatio: dpr,
-          maxShare: debugMaxCopyShare,
+          maxShare: GlassCopyTuning.maxCopyShare,
         );
     final frost = need.frost;
     final appearance = _uniformAppearance ?? defaultAppearance;
@@ -1528,34 +1530,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     shadowsUnderGlass = under;
     if (glassShadowPicture != null) recordGlassShadows(retainedPaintOffset);
   }
-
-  /// How many device pixels along each side one pixel of a copy that
-  /// Impeller blurs stands for at most; a copy the shader frosts takes its
-  /// size from the frost.
-  ///
-  /// NEAR: a copy drawn at half size differs from the full one by at most 10
-  /// channel levels on the Pixel 6a (5 in the scroll scene, 10 under the
-  /// crowd of buttons), and by 4 in the host test of white text under 8 px
-  /// of frost at dpr 1. In return the
-  /// Pixel's rails spend 7 % less on a dot or the Liquid tab and 32 % less
-  /// under the crowd. A quarter size differs by 15 on the Liquid tab and
-  /// saves no more.
-  @visibleForTesting
-  static int debugMaxCopyShare = 2;
-
-  /// Whether the final shader frosts an unblurred copy instead of the copy
-  /// being blurred.
-  ///
-  /// NEAR: the shader's 12 taps, turned over a 2 x 2 cell of pixels except in
-  /// the tinted variants, are not Impeller's blur, and a thin hard edge under
-  /// the frost shows a faint dither. Over the white bars of the host test they
-  /// differ from the live filter by at most 22 channel levels over a half-size
-  /// copy and 36 over a quarter-size one, where the blurred half-size copy
-  /// differs by 4, and by 30 for glass scaled 1.2 over a quarter-size copy.
-  /// In return a frosted copy takes no blur passes. Each draw picks its
-  /// shader by it.
-  @visibleForTesting
-  static bool debugShaderFrost = true;
 
   // Two: glass that leads a read and is held by a read over it draws over
   // both copies each frame.

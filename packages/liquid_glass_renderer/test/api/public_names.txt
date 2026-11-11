@@ -16,6 +16,7 @@ GestureMode
 GlassBody
 GlassColorCurve
 GlassColorParameters
+GlassCopyTuning
 GlassFrameReport
 GlassGlow
 GlassGroupLink

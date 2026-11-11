@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:liquid_glass_renderer/src/composer/copy_tuning.dart';
 import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 
 /// A Gaussian blur followed by a color matrix: a backdrop filter that the
@@ -10,7 +11,7 @@ import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 /// filtered.
 ///
 /// NEAR: the shader's taps over a smaller copy are not Impeller's blur (see
-/// [debugShaderFrost]).
+/// [GlassCopyTuning.shaderFrost]).
 @immutable
 final class LiquidGlassBackdropFrost {
   /// Creates the filter: a blur by [sigma] logical pixels along both axes,
@@ -22,23 +23,6 @@ final class LiquidGlassBackdropFrost {
     this.tileMode,
   }) : assert(sigma > 0, 'A frost blurs.'),
        assert(colorMatrix == null || colorMatrix.length == 20, '5 x 4 values.');
-
-  /// Whether a frost is drawn from an unblurred copy through a shader;
-  /// without, its copy is filtered as [filter] filters the backdrop.
-  ///
-  /// NEAR: the shader weighs every pixel of the copy the frost reaches
-  /// (latticeTaps in copy_frost.dart), so a point under the frost stays one
-  /// point. Over the colored rows and white lines of apple_liquid_glass's
-  /// scroll edge frost host test, the bands differ from the copy filtered as
-  /// the backdrop by at most 11 channel levels at a device pixel ratio of
-  /// 2.625 and 6 at 3. Fake glass with 6 px of frost over the test font's
-  /// white blocks, the hardest edges a frost meets, differs by at most 20 at
-  /// 2.625 (13 for the filtered copy); at 3 the frost is too wide for the
-  /// shader and the copy stays filtered. In return the copy takes no blur
-  /// passes and, once the frost spans 3.6 device px, holds a quarter of the
-  /// pixels or fewer; a change of the color matrix alone, as a band or a
-  /// glass fades in, keeps it.
-  static bool debugShaderFrost = true;
 
   /// The blur's sigma, in logical pixels.
   final double sigma;

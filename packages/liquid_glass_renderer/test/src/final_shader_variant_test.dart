@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
@@ -179,8 +180,8 @@ void main() {
       );
       final variant = await _capture(tester);
 
-      RenderLiquidGlassLayer.debugShaderFrost = false;
-      addTearDown(() => RenderLiquidGlassLayer.debugShaderFrost = true);
+      GlassCopyTuning.debugOverride(shaderFrost: false);
+      addTearDown(GlassCopyTuning.debugOverride);
       expect(
         identical(
           layer.debugLiveShader,

@@ -92,7 +92,7 @@ int _difference(Uint8List a, Uint8List b) {
 void main() {
   tearDown(() {
     GlassCopies.debugEnabledOverride = null;
-    LiquidGlassBackdropFrost.debugShaderFrost = true;
+    GlassCopyTuning.debugOverride();
   });
 
   testWidgets('fake glass over a copy draws what reading the backdrop '
@@ -111,7 +111,7 @@ void main() {
     expect(_glass(tester).debugBackdropFilterLayer!.serves, isFalse);
 
     GlassCopies.debugEnabledOverride = true;
-    LiquidGlassBackdropFrost.debugShaderFrost = false;
+    GlassCopyTuning.debugOverride(shaderFrost: false);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(shift: 0.3));
     await tester.pumpWidget(_scene());
@@ -147,7 +147,7 @@ void main() {
     expect(layer.serves, isTrue);
     expect(layer.frost, isNotNull);
     final copied = await _pixels(tester, dpr: dpr);
-    // NEAR, see LiquidGlassBackdropFrost.debugShaderFrost: the test font's
+    // NEAR, see GlassCopyTuning.shaderFrost: the test font's
     // white blocks are the hardest edges a frost meets.
     expect(_difference(reading, copied), lessThanOrEqualTo(22));
   }, skip: skipProperGlassTests);
