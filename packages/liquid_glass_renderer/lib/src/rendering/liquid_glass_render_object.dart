@@ -1,7 +1,9 @@
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
@@ -11,7 +13,6 @@ import 'package:liquid_glass_renderer/src/rendering/glass_shape_helpers.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/rendering/retained_glass_clip.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
-import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
 
 part 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object_frame.dart';
 
@@ -691,4 +692,46 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// before the frame's state is decided.
   @protected
   void onFrameGeometryCommitted() {}
+}
+
+/// An [OffsetLayer] that holds no layer of the scene while it does not shift:
+/// glass over a scroll adds its layers again every frame, and each one the
+/// scene holds costs both threads.
+@internal
+class ThinOffsetLayer extends OffsetLayer {
+  @override
+  void addToScene(ui.SceneBuilder builder) {
+    if (offset != Offset.zero) {
+      super.addToScene(builder);
+      return;
+    }
+    engineLayer = null;
+    addChildrenToScene(builder);
+  }
+}
+
+/// Remembers whether a glass layer polled its shapes' transforms while the
+/// current frame painted, so its compositing hook can skip a second poll.
+///
+/// Nothing between paint and compositing in one frame moves a render object,
+/// so that poll would only find the transforms paint just recorded.
+@internal
+class FramePollMarker {
+  bool _polled = false;
+
+  /// Whether this frame's paint already polled.
+  bool get polledThisFrame => _polled;
+
+  /// Records a poll made during the current frame's paint. Polls outside a
+  /// frame, such as `toImage` captures, are not recorded.
+  void markPolled() {
+    if (_polled ||
+        SchedulerBinding.instance.schedulerPhase !=
+            SchedulerPhase.persistentCallbacks) {
+      return;
+    }
+    _polled = true;
+    // After the frame: the flag holds for one frame's paint and scene.
+    SchedulerBinding.instance.addPostFrameCallback((_) => _polled = false);
+  }
 }

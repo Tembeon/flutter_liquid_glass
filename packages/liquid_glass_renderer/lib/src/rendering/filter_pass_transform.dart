@@ -1,4 +1,5 @@
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
 import 'package:meta/meta.dart';
@@ -35,3 +36,12 @@ Matrix4 filterPassTransform(
   }
   return transform;
 }
+
+/// [node]'s transform to the screen, taken once a frame while a tracked
+/// object composites (see
+/// [TransformTrackingRenderObjectMixin.transformToScreen]).
+@internal
+Matrix4 screenTransformOf(RenderObject node) =>
+    node is TransformTrackingRenderObjectMixin
+    ? node.transformToScreen()
+    : transformToNow(node);

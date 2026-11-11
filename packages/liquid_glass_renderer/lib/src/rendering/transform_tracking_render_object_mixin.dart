@@ -1,7 +1,6 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
@@ -218,54 +217,3 @@ class GeometryTransformTrackingLayer extends OffsetLayer
     if (firstChild != null) super.addToScene(builder);
   }
 }
-
-/// An [OffsetLayer] that holds no layer of the scene while it does not shift:
-/// glass over a scroll adds its layers again every frame, and each one the
-/// scene holds costs both threads.
-@internal
-class ThinOffsetLayer extends OffsetLayer {
-  @override
-  void addToScene(ui.SceneBuilder builder) {
-    if (offset != Offset.zero) {
-      super.addToScene(builder);
-      return;
-    }
-    engineLayer = null;
-    addChildrenToScene(builder);
-  }
-}
-
-/// Remembers whether a glass layer polled its shapes' transforms while the
-/// current frame painted, so its compositing hook can skip a second poll.
-///
-/// Nothing between paint and compositing in one frame moves a render object,
-/// so that poll would only find the transforms paint just recorded.
-@internal
-class FramePollMarker {
-  bool _polled = false;
-
-  /// Whether this frame's paint already polled.
-  bool get polledThisFrame => _polled;
-
-  /// Records a poll made during the current frame's paint. Polls outside a
-  /// frame, such as `toImage` captures, are not recorded.
-  void markPolled() {
-    if (_polled ||
-        SchedulerBinding.instance.schedulerPhase !=
-            SchedulerPhase.persistentCallbacks) {
-      return;
-    }
-    _polled = true;
-    // After the frame: the flag holds for one frame's paint and scene.
-    SchedulerBinding.instance.addPostFrameCallback((_) => _polled = false);
-  }
-}
-
-/// [node]'s transform to the screen, taken once a frame while a tracked
-/// object composites (see
-/// [TransformTrackingRenderObjectMixin.transformToScreen]).
-@internal
-Matrix4 screenTransformOf(RenderObject node) =>
-    node is TransformTrackingRenderObjectMixin
-    ? node.transformToScreen()
-    : transformToNow(node);
