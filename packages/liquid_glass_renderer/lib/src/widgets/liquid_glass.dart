@@ -55,9 +55,8 @@ class LiquidGlass extends StatefulWidget {
     this._shadows = const [],
     this._appearance,
     super.key,
-  }) : _grouped = false,
-       _ownLayerConfig = null,
-       _auto = false,
+  }) : _placement = _Placement.onLayer,
+       _ownLayer = null,
        frame = null;
 
   /// Creates a new [LiquidGlass] that automatically renders on a parent
@@ -83,12 +82,8 @@ class LiquidGlass extends StatefulWidget {
     this.clipBehavior = Clip.hardEdge,
     this._shadows = const [],
     this._appearance,
-  }) : _grouped = true,
-       _ownLayerConfig = (
-         settings: settings,
-         fake: fake,
-       ),
-       _auto = true,
+  }) : _placement = _Placement.auto,
+       _ownLayer = (settings: settings, fake: fake),
        frame = null;
 
   /// Creates a new [LiquidGlass] that is part of a [LiquidGlassBlendGroup].
@@ -103,9 +98,8 @@ class LiquidGlass extends StatefulWidget {
     this.clipBehavior = Clip.hardEdge,
     this._shadows = const [],
     this._appearance,
-  }) : _ownLayerConfig = null,
-       _grouped = true,
-       _auto = false,
+  }) : _placement = _Placement.grouped,
+       _ownLayer = null,
        frame = null;
 
   /// Creates a [LiquidGlass] with its own [LiquidGlassLayer].
@@ -122,12 +116,8 @@ class LiquidGlass extends StatefulWidget {
     this.clipBehavior = Clip.hardEdge,
     this._shadows = const [],
     this._appearance,
-  }) : _ownLayerConfig = (
-         settings: settings,
-         fake: fake,
-       ),
-       _grouped = false,
-       _auto = false,
+  }) : _placement = _Placement.ownLayer,
+       _ownLayer = (settings: settings, fake: fake),
        frame = null;
 
   /// Creates a shape whose geometry, material and shadows follow [frame].
@@ -147,13 +137,13 @@ class LiquidGlass extends StatefulWidget {
     required ValueListenable<LiquidGlassShapeFrame> this.frame,
     required this.child,
     this.clipBehavior = Clip.hardEdge,
-    this._grouped = false,
+    bool grouped = false,
     super.key,
   }) : _shape = null,
        _shadows = const [],
        _appearance = null,
-       _ownLayerConfig = null,
-       _auto = false;
+       _placement = grouped ? _Placement.grouped : _Placement.onLayer,
+       _ownLayer = null;
 
   /// The child of this widget.
   ///
@@ -174,11 +164,11 @@ class LiquidGlass extends StatefulWidget {
   /// Defaults to [Clip.hardEdge], so [child] is clipped to the glass shape.
   final Clip clipBehavior;
 
-  /// Whether this glass joins the nearest [LiquidGlassBlendGroup].
-  final bool _grouped;
+  final _Placement _placement;
 
-  /// The settings for this glass if it is supposed to create its own layer.
-  final _OwnLayerConfig? _ownLayerConfig;
+  /// The layer this glass makes for itself: set for [_Placement.auto] and
+  /// [_Placement.ownLayer] only.
+  final _OwnLayerConfig? _ownLayer;
 
   /// The list of shadows to paint.
   ///
@@ -196,9 +186,6 @@ class LiquidGlass extends StatefulWidget {
   LiquidGlassAppearance? get appearance =>
       frame?.value.appearance ?? _appearance;
   final LiquidGlassAppearance? _appearance;
-
-  /// Whether this glass should automatically detect a parent layer.
-  final bool _auto;
 
   /// Loads and compiles every shader the renderer can use on this platform.
   ///
@@ -314,44 +301,45 @@ class _LiquidGlassState extends State<LiquidGlass> {
     return frame == null ? glass : _LiveGlassFrame(frame: frame, child: glass);
   }
 
-  Widget _buildShape(BuildContext context) {
-    // Join an existing sample whenever one is already in the tree. Creating a
-    // layer is the fallback, not the default for a row of siblings. A glass
-    // ancestor blocks reuse of the layer above it because nested shapes cannot
-    // render correctly into the same sample.
-    if (widget._auto &&
-        _nearestLiquidGlassBoundary(context) ==
-            _LiquidGlassAncestorBoundary.layer) {
-      return _buildGlass(context);
-    }
+  // Join an existing sample whenever one is already in the tree. Creating a
+  // layer is the fallback, not the default for a row of siblings. A glass
+  // ancestor blocks reuse of the layer above it because nested shapes cannot
+  // render correctly into the same sample.
+  Widget _buildShape(BuildContext context) => switch (widget._placement) {
+    _Placement.auto
+        when _nearestLiquidGlassBoundary(context) ==
+            _LiquidGlassAncestorBoundary.layer =>
+      _buildGlass(context),
+    _Placement.auto || _Placement.ownLayer => _buildOwnLayer(
+      widget._ownLayer!,
+    ),
+    _Placement.onLayer
+        when _nearestLiquidGlassBoundary(context) ==
+            _LiquidGlassAncestorBoundary.glass =>
+      _buildNestedLayer(context),
+    _Placement.onLayer || _Placement.grouped => _buildGlass(context),
+  };
 
-    if (widget._ownLayerConfig case final config?) {
-      return LiquidGlassLayer(
-        settings: config.settings,
-        defaultAppearance: widget.appearance,
-        fake: config.fake,
-        child: Builder(builder: _buildGlass),
-      );
-    }
+  Widget _buildOwnLayer(_OwnLayerConfig config) => LiquidGlassLayer(
+    settings: config.settings,
+    defaultAppearance: widget.appearance,
+    fake: config.fake,
+    child: Builder(builder: _buildGlass),
+  );
 
-    if (!widget._grouped &&
-        _nearestLiquidGlassBoundary(context) ==
-            _LiquidGlassAncestorBoundary.glass) {
-      final scope = LiquidGlassRenderScope.of(context);
-      // Nested materials need separate backdrop passes. Combining their SDFs
-      // makes the inner shape disappear into the outer shape's interior. Keep
-      // this pass in the child's real paint ancestry so it inherits the outer
-      // shape's clipping and moves with it. Never reuse the outer backdrop key:
-      // these materials overlap and the inner must sample the painted outer.
-      return LiquidGlassLayer(
-        settings: scope.settings,
-        defaultAppearance: scope.defaultAppearance,
-        fake: scope.fake,
-        child: Builder(builder: _buildGlass),
-      );
-    }
-
-    return _buildGlass(context);
+  // Nested materials need separate backdrop passes. Combining their SDFs
+  // makes the inner shape disappear into the outer shape's interior. Keep
+  // this pass in the child's real paint ancestry so it inherits the outer
+  // shape's clipping and moves with it. Never reuse the outer backdrop key:
+  // these materials overlap and the inner must sample the painted outer.
+  Widget _buildNestedLayer(BuildContext context) {
+    final scope = LiquidGlassRenderScope.of(context);
+    return LiquidGlassLayer(
+      settings: scope.settings,
+      defaultAppearance: scope.defaultAppearance,
+      fake: scope.fake,
+      child: Builder(builder: _buildGlass),
+    );
   }
 
   _LiquidGlassAncestorBoundary _nearestLiquidGlassBoundary(
@@ -386,9 +374,12 @@ class _LiquidGlassState extends State<LiquidGlass> {
     _defaultAppearance = scope.defaultAppearance;
     _visibility = LiquidGlassVisibility.of(context);
     final appearance = _visibleAppearance(widget.appearance);
-    final blendGroupLink = widget._grouped
-        ? LiquidGlassBlendGroup.maybeOf(context)
-        : null;
+    final blendGroupLink = switch (widget._placement) {
+      _Placement.grouped || _Placement.auto => LiquidGlassBlendGroup.maybeOf(
+        context,
+      ),
+      _Placement.onLayer || _Placement.ownLayer => null,
+    };
     return _RawLiquidGlass(
       key: _rawKey,
       blendGroupLink: blendGroupLink,
@@ -424,6 +415,27 @@ class _LiquidGlassState extends State<LiquidGlass> {
 }
 
 enum _LiquidGlassAncestorBoundary { none, glass, layer }
+
+/// Where a shape draws, which its constructor decides. A live shape
+/// ([LiquidGlass.frame]) draws where a fixed one does: only its values come
+/// from elsewhere.
+enum _Placement {
+  /// On the nearest layer beside its siblings; under another glass, in a
+  /// layer of its own with the outer glass's settings.
+  onLayer,
+
+  /// In the nearest [LiquidGlassBlendGroup], or on the nearest layer when
+  /// there is none.
+  grouped,
+
+  /// As [grouped] when a layer is nearer than any glass above; otherwise in
+  /// a layer of its own made with [LiquidGlass._ownLayer], still joining a
+  /// blend group found above it.
+  auto,
+
+  /// Always in a layer of its own made with [LiquidGlass._ownLayer].
+  ownLayer,
+}
 
 typedef _OwnLayerConfig = ({
   LiquidGlassSettings settings,
