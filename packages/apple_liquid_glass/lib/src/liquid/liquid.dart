@@ -46,6 +46,11 @@ import 'package:liquid_glass_renderer/widgets.dart';
 /// Under Reduce Transparency the surfaces draw flat, an unmeasured
 /// stand-in for iOS's frosted glass.
 ///
+/// A body whose control is focused from the keyboard draws Flutter's
+/// Cupertino focus ring outside its shape, and a hovered one a pressed
+/// body's wash at half strength over it ([GlassSurfaceDetails.states]),
+/// both plain painting over the glass that costs it no pass.
+///
 /// On a device without shader filters the layers draw fake glass, as
 /// [FakeGlassRenderer] does.
 base class LiquidGlassRenderer extends GlassRenderer {
@@ -57,7 +62,10 @@ base class LiquidGlassRenderer extends GlassRenderer {
   bool get fake => false;
 
   @override
-  Widget buildSurface(BuildContext context, GlassSurfaceDetails details) {
+  Widget buildSurface(BuildContext context, GlassSurfaceDetails details) =>
+      buildHighlights(context, details, _body(context, details));
+
+  Widget _body(BuildContext context, GlassSurfaceDetails details) {
     if (GlassTraits.of(context).reduceTransparency ||
         details.role == GlassRole.track) {
       return FlatGlassRenderer.flatSurface(context, details);

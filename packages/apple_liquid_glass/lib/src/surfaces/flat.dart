@@ -21,6 +21,10 @@ import 'package:flutter/widgets.dart';
 /// and 3 device pixels per point, and no offscreen passes. A body with an
 /// outline blurs its path offscreen.
 ///
+/// A body whose control is focused from the keyboard draws Flutter's
+/// Cupertino focus ring outside its shape, and a hovered one a pressed
+/// body's wash at half strength over it ([GlassSurfaceDetails.states]).
+///
 /// It is the renderer of glass with no `GlassRendererScope` above, and it
 /// draws without the glass package: no shader, no backdrop read.
 final class FlatGlassRenderer extends GlassRenderer {
@@ -29,7 +33,7 @@ final class FlatGlassRenderer extends GlassRenderer {
 
   @override
   Widget buildSurface(BuildContext context, GlassSurfaceDetails details) =>
-      flatSurface(context, details);
+      buildHighlights(context, details, flatSurface(context, details));
 
   /// The flat body of [details]; [underGlass] for a lens or knob whose
   /// liquid glass covers it while it is lifted.

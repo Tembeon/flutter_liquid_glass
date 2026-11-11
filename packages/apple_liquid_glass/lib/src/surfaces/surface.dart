@@ -23,6 +23,9 @@ class GlassSurface extends StatefulWidget {
     this.role = GlassRole.control,
     this.glass = const Glass.regular(),
     this.lens = const GlassLens(),
+    this.states,
+    this.focusColor,
+    this.hoverColor,
     super.key,
   }) : frame = null;
 
@@ -38,6 +41,9 @@ class GlassSurface extends StatefulWidget {
     this.role = GlassRole.control,
     this.glass = const Glass.regular(),
     this.lens = const GlassLens(),
+    this.states,
+    this.focusColor,
+    this.hoverColor,
     super.key,
   }) : _shape = null;
 
@@ -53,7 +59,10 @@ class GlassSurface extends StatefulWidget {
   }) : _shape = null,
        role = GlassRole.control,
        glass = const Glass.regular(),
-       lens = const GlassLens();
+       lens = const GlassLens(),
+       states = null,
+       focusColor = null,
+       hoverColor = null;
 
   final GlassShape? _shape;
 
@@ -72,6 +81,25 @@ class GlassSurface extends StatefulWidget {
 
   /// The content drawn over the body.
   final Widget child;
+
+  /// The states of the control the body belongs to, or null for a body
+  /// that shows neither the keyboard focus nor the pointer over it.
+  ///
+  /// The renderer follows them without rebuilding the surface: with
+  /// [WidgetState.focused] it draws a focus ring around the body's shape,
+  /// outside it and following its frame, and with [WidgetState.hovered] a
+  /// hover response over the body. Pass the controller a control's
+  /// `InputRegion` writes, which reports focus only while the keyboard
+  /// focus should show and hover only from a mouse.
+  final ValueListenable<Set<WidgetState>>? states;
+
+  /// The color of the focus ring, or null for the renderer's; a
+  /// transparent one draws none.
+  final Color? focusColor;
+
+  /// The color the hover response adds to the body, or null for the
+  /// renderer's; a transparent one shows none.
+  final Color? hoverColor;
 
   @override
   State<GlassSurface> createState() => _GlassSurfaceState();
@@ -101,6 +129,9 @@ class _GlassSurfaceState extends State<GlassSurface> {
         lens: widget.lens,
         glass: _resolved(context),
         frame: frame,
+        states: widget.states,
+        focusColor: GlassDynamicColor.maybeResolve(widget.focusColor, context),
+        hoverColor: GlassDynamicColor.maybeResolve(widget.hoverColor, context),
         child: KeyedSubtree(key: _child, child: widget.child),
       ),
     );

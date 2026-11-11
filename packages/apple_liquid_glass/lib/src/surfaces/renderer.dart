@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/surfaces/group.dart';
+import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
 import 'package:apple_liquid_glass/src/surfaces/scroll_edge.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -30,6 +31,24 @@ abstract class GlassRenderer {
   /// Builds the surface [details] describes.
   Widget buildSurface(BuildContext context, GlassSurfaceDetails details);
 
+  /// Draws the focus ring and hover response of the surface [details]
+  /// describes over its [body], the widget [buildSurface] built for it.
+  ///
+  /// By default a body whose [GlassSurfaceDetails.states] hold
+  /// [WidgetState.focused] gets Flutter's Cupertino focus ring outside its
+  /// shape, following its frame as it moves, lifts and stretches, and one
+  /// that holds [WidgetState.hovered] a pressed glass's wash at half
+  /// strength, eased in and out on a spring and switched without motion
+  /// under Reduce Motion. Both are plain painting over the body, so they
+  /// cost the glass no pass, and both are approximations of the platform
+  /// pending a measurement. The package's renderers call it from
+  /// [buildSurface]; a renderer of its own calls it too, or draws its own.
+  Widget buildHighlights(
+    BuildContext context,
+    GlassSurfaceDetails details,
+    Widget body,
+  ) => GlassHighlightBox.around(context, details, body);
+
   /// Builds a group of surfaces that belong together; by default the
   /// surfaces are drawn on their own.
   Widget buildGroup(BuildContext context, GlassGroupDetails details) =>
@@ -54,6 +73,9 @@ final class GlassSurfaceDetails {
     required this.frame,
     required this.child,
     this.lens = const GlassLens(),
+    this.states,
+    this.focusColor,
+    this.hoverColor,
   });
 
   /// The glass family of the surface.
@@ -72,6 +94,27 @@ final class GlassSurfaceDetails {
 
   /// The content drawn over the body, clipped to it.
   final Widget child;
+
+  /// The states of the control the body belongs to, or null for a body
+  /// that shows neither focus nor hover; a renderer follows them below
+  /// build.
+  ///
+  /// [WidgetState.focused] is in them only while the keyboard focus should
+  /// show, so a tap that focuses the control lights nothing, and
+  /// [WidgetState.hovered] only while a mouse is over it. A renderer draws
+  /// a focus ring outside the body's shape, where the frame draws it, and
+  /// a hover response over the body; the package's renderers draw
+  /// Flutter's Cupertino ring and a pressed body's wash at half strength.
+  final ValueListenable<Set<WidgetState>>? states;
+
+  /// The color of the focus ring, resolved, or null for the renderer's:
+  /// the package's derive it from the glass's tint, as Cupertino does. A
+  /// transparent color draws no ring.
+  final Color? focusColor;
+
+  /// The color the hover response adds to the body, resolved, or null for
+  /// the renderer's. A transparent color shows no hover response.
+  final Color? hoverColor;
 }
 
 /// What a renderer needs to build a group of surfaces.

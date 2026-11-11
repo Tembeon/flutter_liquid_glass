@@ -926,6 +926,11 @@ class GlassProminentButtonStyle extends GlassButtonStyle
 abstract class GlassRenderer
   const GlassRenderer()
   Widget buildGroup(BuildContext context, GlassGroupDetails details)
+  Widget buildHighlights(
+    BuildContext context,
+    GlassSurfaceDetails details,
+    Widget body,
+  )
   Widget buildScrollEdge(BuildContext context, GlassScrollEdgeDetails details)
   abstract Widget buildSurface(
     BuildContext context,
@@ -1357,6 +1362,9 @@ class GlassSurface extends StatefulWidget
     GlassRole role = ...,
     Glass glass = ...,
     GlassLens lens = ...,
+    ValueListenable<Set<WidgetState>>? states,
+    Color? focusColor,
+    Color? hoverColor,
     Key? key,
   })
   const GlassSurface({
@@ -1365,6 +1373,9 @@ class GlassSurface extends StatefulWidget
     GlassRole role = ...,
     Glass glass = ...,
     GlassLens lens = ...,
+    ValueListenable<Set<WidgetState>>? states,
+    Color? focusColor,
+    Color? hoverColor,
     Key? key,
   })
   @internal const GlassSurface.written({
@@ -1373,10 +1384,13 @@ class GlassSurface extends StatefulWidget
     Key? key,
   })
   final Widget child
+  final Color? focusColor
   final ValueListenable<GlassFrame>? frame
   final Glass glass
+  final Color? hoverColor
   final GlassLens lens
   final GlassRole role
+  final ValueListenable<Set<WidgetState>>? states
   overrides: createState
 final class GlassSurfaceDetails
   const GlassSurfaceDetails({
@@ -1385,12 +1399,18 @@ final class GlassSurfaceDetails
     required ValueListenable<GlassFrame> frame,
     required Widget child,
     GlassLens lens = ...,
+    ValueListenable<Set<WidgetState>>? states,
+    Color? focusColor,
+    Color? hoverColor,
   })
   final Widget child
+  final Color? focusColor
   final ValueListenable<GlassFrame> frame
   final Glass glass
+  final Color? hoverColor
   final GlassLens lens
   final GlassRole role
+  final ValueListenable<Set<WidgetState>>? states
 final class GlassSwipeAction
   const GlassSwipeAction({
     required String title,
