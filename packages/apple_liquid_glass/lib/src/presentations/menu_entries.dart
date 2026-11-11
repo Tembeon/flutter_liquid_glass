@@ -251,7 +251,7 @@ class GlassMenuDeferred extends GlassMenuEntry {
   final Object? id;
 
   /// The title of the loading row; null reads
-  /// [GlassLocalizations.loadingLabel].
+  /// `GlassLocalizations.loadingLabel`.
   final String? loadingTitle;
 
   /// The key the answer is cached under.
