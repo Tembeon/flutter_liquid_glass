@@ -618,7 +618,7 @@ void main() {
   testWidgets('the track tint selection survives a rebuild of the body', (
     tester,
   ) async {
-    await tester.pumpWidget(_app(_Controlled()));
+    await tester.pumpWidget(_app(const _Controlled()));
     Object? track() =>
         tester.widgetList<GlassSurface>(find.byType(GlassSurface)).first.frame;
     final before = track();
