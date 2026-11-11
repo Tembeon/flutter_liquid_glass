@@ -1,0 +1,218 @@
+# The (entry, check) pairs of the conformance suite that fail today, with
+# what the check observed. Reviewed by hand: a new failure fails the suite,
+# and so does a line whose pair now passes. The list only shrinks:
+# UPDATE_CONFORMANCE=1 drops the lines that pass and never adds one.
+# Format: <entry> <check>: <reason>
+GlassBarItem.menu barrier-label: no barrier is offered to assistive technology
+GlassBarItem.menu focus-indicator: keyboard focus draws nothing
+GlassBarItem.menu key-remap: a key the app maps to ActivateIntent does nothing
+GlassBarItem.menu mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassBarItem.menu mouse-hover: hover draws nothing
+GlassBarItem.menu no-leaks: leaks ValueNotifier<GlassFrame>, ValueNotifier<GlassPageBarLink?>, ValueNotifier<bool>, ValueNotifier<double>
+GlassBarItem.menu overlay-inert-closing: its content stays in the semantics tree while it closes
+GlassBarItem.menu tap-target: "Loaded": expected tap target size of at least Size(44.0, 44.0), but found Size(250.0, 42.0)
+GlassButton focus-indicator: keyboard focus draws nothing
+GlassButton key-remap: a key the app maps to ActivateIntent does nothing
+GlassButton mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassButton mouse-hover: hover draws nothing
+GlassButton.menu barrier-label: no barrier is offered to assistive technology
+GlassButton.menu focus-indicator: keyboard focus draws nothing
+GlassButton.menu key-remap: a key the app maps to ActivateIntent does nothing
+GlassButton.menu mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassButton.menu mouse-hover: hover draws nothing
+GlassButton.menu overlay-inert-closing: its content stays in the semantics tree while it closes
+GlassButton.menu tap-target: "First item": expected tap target size of at least Size(44.0, 44.0), but found Size(250.0, 42.0)
+GlassButton.prominent contrast-dark: "Save": expected contrast ratio of at least 4.5 but found 3.23 for a font size of 17.0
+GlassButton.prominent contrast-light: "Save": expected contrast ratio of at least 4.5 but found 3.52 for a font size of 17.0
+GlassButton.prominent focus-indicator: keyboard focus draws nothing
+GlassButton.prominent key-remap: a key the app maps to ActivateIntent does nothing
+GlassButton.prominent mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassButton.prominent mouse-hover: hover draws nothing
+GlassContextMenu barrier-label: no barrier is offered to assistive technology
+GlassContextMenu focus-enabled: Tab reaches no part of it
+GlassContextMenu focus-indicator: Tab reaches no part of it
+GlassContextMenu key-context-menu: Tab reaches no part of it
+GlassContextMenu mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassContextMenu mouse-hover: hover draws nothing
+GlassContextMenu mouse-secondary-click: a secondary click does not open its context menu
+GlassContextMenu overlay-inert-closing: its content stays in the semantics tree while it closes
+GlassContextMenu tab-stops: Tab stops at 0 parts, expected 1
+GlassContextMenu tap-target: "First item": expected tap target size of at least Size(44.0, 44.0), but found Size(250.0, 42.0)
+GlassDatePicker.compact barrier-label: no barrier is offered to assistive technology
+GlassDatePicker.compact mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassDatePicker.compact mouse-hover: hover draws nothing
+GlassDatePicker.compact overlay-inert-closing: its content stays in the semantics tree while it closes
+GlassDatePicker.compact tap-target: "Show year picker": expected tap target size of at least Size(44.0, 44.0), but found Size(215.3, 37.7)
+GlassDatePicker.compact zero-size: A RenderFlex overflowed by 210 pixels on the right.
+GlassListRow contrast-light: "Settings": expected contrast ratio of at least 4.5 but found 3.44 for a font size of 17.0
+GlassListRow focus-indicator: focus after a touch draws the keyboard indication
+GlassListRow key-remap: a key the app maps to ActivateIntent does nothing
+GlassListRow mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassListRow mouse-hover: hover draws nothing
+GlassListRow.detail focus-disabled: Tab reaches 1 parts while disabled
+GlassListRow.detail focus-indicator: keyboard focus draws nothing
+GlassListRow.detail key-remap: a key the app maps to ActivateIntent does nothing
+GlassListRow.detail mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassListRow.detail mouse-hover: hover draws nothing
+GlassListRow.detail semantics-disabled: nothing is announced as disabled
+GlassListRow.detail tap-target: "More info": expected tap target size of at least Size(44.0, 44.0), but found Size(22.0, 22.0)
+GlassNavigationBar focus-enabled: Tab reaches no part of it
+GlassNavigationBar focus-indicator: Tab does not reach the part
+GlassNavigationBar key-activate: Tab does not reach the part
+GlassNavigationBar key-remap: Tab does not reach the part
+GlassNavigationBar mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassNavigationBar mouse-hover: hover draws nothing
+GlassNavigationBar no-leaks: leaks ValueNotifier<GlassFrame>, ValueNotifier<GlassPageBarLink?>, ValueNotifier<bool>, ValueNotifier<double>
+GlassNavigationBar semantics-label: expected tappable node to have semantic label, but none was found
+GlassNavigationBar semantics-role: "Edit" offers a tap but is not a button
+GlassNavigationBar tab-stops: Tab stops at 0 parts, expected 2
+GlassNavigationBar tap-target: "Edit": expected tap target size of at least Size(44.0, 44.0), but found Size(68.0, 20.0)
+GlassPageControl focus-indicator: keyboard focus draws nothing
+GlassPageControl key-home-end: Home does not reach the start
+GlassPageControl mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassPageControl mouse-hover: hover draws nothing
+GlassPageControl tap-target: "Page": expected an adjustable target of at least Size(44.0, 44.0), but found Size(108.4, 25.7)
+GlassPageRoute no-leaks: leaks ValueNotifier<GlassFrame>, ValueNotifier<GlassPageBarLink?>, ValueNotifier<bool>, ValueNotifier<double>
+GlassPageRoute overlay-inert-closing: its content stays in the semantics tree while it closes
+GlassPageRoute semantics-role: the overlay is not announced as a named route
+GlassPageRoute tap-target: "Home": expected tap target size of at least Size(44.0, 44.0), but found Size(143.2, 27.6)
+GlassPressable focus-indicator: focus after a touch reaches the builder as focused
+GlassPressable key-remap: a key the app maps to ActivateIntent does nothing
+GlassPressable mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassPressable tap-target: "Press": expected tap target size of at least Size(44.0, 44.0), but found Size(117.0, 41.0)
+GlassSearchField mouse-hover: hover draws nothing
+GlassSearchField.clear focus-indicator: Tab does not reach the part
+GlassSearchField.clear key-activate: Tab does not reach the part
+GlassSearchField.clear key-remap: Tab does not reach the part
+GlassSearchField.clear mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassSearchField.clear mouse-hover: hover draws nothing
+GlassSearchField.clear semantics-label: expected tappable node to have semantic label, but none was found
+GlassSearchField.clear semantics-role: "" offers a tap but is not a button
+GlassSearchField.clear tab-stops: Tab stops at 1 parts, expected 2
+GlassSearchField.clear tap-target: expected tap target size of at least Size(44.0, 44.0), but found Size(20.0, 20.0)
+GlassSegmentedControl focus-indicator: keyboard focus draws nothing
+GlassSegmentedControl key-home-end: Home does not reach the start
+GlassSegmentedControl mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassSegmentedControl mouse-hover: hover draws nothing
+GlassSegmentedControl no-leaks: leaks SemanticsOwner, _ResolveOwner
+GlassSegmentedControl tap-target: "Day": expected tap target size of at least Size(44.0, 44.0), but found Size(100.0, 32.0)
+GlassSlider focus-indicator: keyboard focus draws nothing
+GlassSlider key-home-end: Home does not reach the start
+GlassSlider mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassSlider mouse-hover: hover draws nothing
+GlassSlider tap-target: "Volume": expected an adjustable target of at least Size(44.0, 44.0), but found Size(300.0, 34.0)
+GlassStepper focus-indicator: keyboard focus draws nothing
+GlassStepper key-home-end: Home does not reach the start
+GlassStepper mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassStepper mouse-hover: hover draws nothing
+GlassStepper semantics-actions: nothing offers increase
+GlassStepper semantics-role: no node has a value with increase and decrease
+GlassStepper tap-target: "Decrement": expected tap target size of at least Size(44.0, 44.0), but found Size(47.0, 32.0)
+GlassSwipeActions focus-indicator: keyboard focus draws nothing
+GlassSwipeActions mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassSwipeActions mouse-hover: hover draws nothing
+GlassSwipeActions tab-stops: Tab stops at 3 parts, expected 2
+GlassSwitch focus-indicator: keyboard focus draws nothing
+GlassSwitch key-remap: a key the app maps to ActivateIntent does nothing
+GlassSwitch mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassSwitch mouse-hover: hover draws nothing
+GlassSwitch tap-target: "Wi-Fi": expected tap target size of at least Size(44.0, 44.0), but found Size(63.0, 28.0)
+GlassTabBar contrast-light: "Home": expected contrast ratio of at least 4.5 but found 2.27 for a font size of 10.0
+GlassTabBar focus-indicator: keyboard focus draws nothing
+GlassTabBar key-home-end: Home does not reach the start
+GlassTabBar mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassTabBar mouse-hover: hover draws nothing
+GlassTabBar no-leaks: leaks SemanticsOwner, _ResolveOwner
+GlassTabBar zero-size: BoxConstraints has a negative minimum width.
+GlassTabBar.search contrast-light: "Home": expected contrast ratio of at least 4.5 but found 2.27 for a font size of 10.0
+GlassTabBar.search focus-indicator: keyboard focus draws nothing
+GlassTabBar.search key-home-end: Home does not reach the start
+GlassTabBar.search mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassTabBar.search mouse-hover: hover draws nothing
+GlassTabBar.search no-leaks: leaks SemanticsOwner, _ResolveOwner
+GlassToolbar contrast-dark: "Done": expected contrast ratio of at least 4.5 but found 3.52 for a font size of 17.0
+GlassToolbar contrast-light: "Done": expected contrast ratio of at least 4.5 but found 3.52 for a font size of 17.0
+GlassToolbar focus-enabled: Tab reaches no part of it
+GlassToolbar focus-indicator: Tab does not reach the part
+GlassToolbar key-activate: Tab does not reach the part
+GlassToolbar key-remap: Tab does not reach the part
+GlassToolbar mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassToolbar mouse-hover: hover draws nothing
+GlassToolbar no-leaks: leaks ValueNotifier<GlassFrame>, ValueNotifier<GlassPageBarLink?>, ValueNotifier<bool>, ValueNotifier<double>
+GlassToolbar semantics-label: expected tappable node to have semantic label, but none was found
+GlassToolbar semantics-role: "Edit" offers a tap but is not a button
+GlassToolbar tab-stops: Tab stops at 0 parts, expected 2
+GlassToolbar tap-target: "Edit": expected tap target size of at least Size(44.0, 44.0), but found Size(68.0, 20.0)
+RawGlassMenu barrier-label: no barrier is offered to assistive technology
+RawGlassMenu focus-indicator: keyboard focus draws nothing
+RawGlassMenu key-remap: a key the app maps to ActivateIntent does nothing
+RawGlassMenu mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+RawGlassMenu mouse-hover: hover draws nothing
+RawGlassMenu overlay-inert-closing: its content stays in the semantics tree while it closes
+RawGlassMenu tap-target: "First item": expected tap target size of at least Size(44.0, 44.0), but found Size(250.0, 42.0)
+RawGlassPageControl focus-indicator: keyboard focus does not reach the builder as focused
+RawGlassPageControl key-home-end: Home does not reach the start
+RawGlassPageControl mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+RawGlassPageControl mouse-hover: hover does not reach the builder as hovered
+RawGlassPageControl tap-target: "Page": expected an adjustable target of at least Size(44.0, 44.0), but found Size(108.4, 25.7)
+RawGlassSelector focus-indicator: focus after a touch reaches the builder as focused
+RawGlassSelector key-home-end: Home does not reach the start
+RawGlassSelector mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+RawGlassSelector no-leaks: leaks SemanticsOwner, _ResolveOwner
+RawGlassSelector tap-target: "Day": expected tap target size of at least Size(44.0, 44.0), but found Size(100.0, 36.0)
+RawGlassSlider focus-indicator: focus after a touch reaches the builder as focused
+RawGlassSlider key-home-end: Home does not reach the start
+RawGlassSlider mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+RawGlassSlider tap-target: "Volume": expected an adjustable target of at least Size(44.0, 44.0), but found Size(300.0, 34.0)
+RawGlassStepper focus-indicator: focus after a touch reaches the builder as focused
+RawGlassStepper key-home-end: Home does not reach the start
+RawGlassStepper mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+RawGlassStepper semantics-actions: nothing offers increase
+RawGlassStepper semantics-role: no node has a value with increase and decrease
+RawGlassStepper tap-target: "Decrement": expected tap target size of at least Size(44.0, 44.0), but found Size(47.0, 32.0)
+RawGlassSwitch focus-indicator: focus after a touch reaches the builder as focused
+RawGlassSwitch key-remap: a key the app maps to ActivateIntent does nothing
+RawGlassSwitch mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+RawGlassSwitch tap-target: "Wi-Fi": expected tap target size of at least Size(44.0, 44.0), but found Size(63.0, 28.0)
+reference.bad.button focus-disabled: Tab reaches 1 parts while disabled
+reference.bad.button focus-indicator: keyboard focus draws nothing
+reference.bad.button haptics-gesture-only: assistive activation plays the gesture feedback
+reference.bad.button key-activate: Space does not activate it
+reference.bad.button key-remap: a key the app maps to ActivateIntent does nothing
+reference.bad.button mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+reference.bad.button mouse-hover: hover draws nothing
+reference.bad.button rtl-text-scale-2: A RenderFlex overflowed by 278 pixels on the right.
+reference.bad.button semantics-disabled: nothing is announced as disabled
+reference.bad.button semantics-label: expected tappable node to have semantic label, but none was found
+reference.bad.button semantics-role: "" offers a tap but is not a button
+reference.bad.button tap-target: expected tap target size of at least Size(44.0, 44.0), but found Size(300.0, 20.0)
+reference.bad.button zero-size: A RenderFlex overflowed by 288 pixels on the right.
+reference.bad.overlay barrier-hides-behind: assistive technology still reaches what is behind it
+reference.bad.overlay barrier-label: no barrier is offered to assistive technology
+reference.bad.overlay contrast-light: "Overlay content": expected contrast ratio of at least 4.5 but found 1.36 for a font size of 17.0
+reference.bad.overlay key-escape: Escape leaves it open
+reference.bad.overlay key-remap-dismiss: a key the app maps to DismissIntent leaves it open
+reference.bad.overlay no-leaks: leaks FocusNode
+reference.bad.overlay overlay-focus-in: opening leaves focus outside
+reference.bad.overlay overlay-focus-return: it could not be closed
+reference.bad.overlay overlay-inert-closing: Escape does not close it, so closing is not checked
+reference.bad.overlay semantics-role: the overlay is not announced as a named route
+reference.bad.slider focus-disabled: Tab reaches 1 parts while disabled
+reference.bad.slider focus-indicator: keyboard focus draws nothing
+reference.bad.slider key-arrows: Arrow Right does not step it forward
+reference.bad.slider key-arrows-rtl: Arrow Left does not step it forward
+reference.bad.slider key-home-end: Home does not reach the start
+reference.bad.slider mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+reference.bad.slider mouse-hover: hover draws nothing
+reference.bad.slider mouse-wheel: the wheel steps it, but it does not declare that
+reference.bad.slider semantics-actions: nothing offers increase
+reference.bad.slider semantics-disabled: nothing is announced as disabled
+reference.bad.slider semantics-label: expected tappable node to have semantic label, but none was found
+reference.bad.slider semantics-role: no node has a value with increase and decrease
+reference.bad.slider tap-target: expected tap target size of at least Size(44.0, 44.0), but found Size(300.0, 20.0)
+showGlassActionSheet barrier-label: no barrier is offered to assistive technology
+showGlassActionSheet overlay-inert-closing: its content stays in the semantics tree while it closes
+showGlassAlert overlay-inert-closing: its content stays in the semantics tree while it closes
+showGlassPopover overlay-inert-closing: its content stays in the semantics tree while it closes
+showGlassSheet barrier-label: no barrier is offered to assistive technology
+showGlassSheet overlay-inert-closing: its content stays in the semantics tree while it closes
