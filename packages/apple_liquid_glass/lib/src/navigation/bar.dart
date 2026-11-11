@@ -1584,12 +1584,7 @@ class _BandState extends State<_Band> {
   }
 
   static String? _labelOf(GlassBarItem item) =>
-      item.semanticLabel ??
-      switch (item.icon ?? item.label) {
-        Text(:final data?) => data,
-        Icon(:final semanticLabel?) => semanticLabel,
-        _ => null,
-      };
+      item.semanticLabel ?? glassLabelTextOf(item.icon ?? item.label);
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(

@@ -59,25 +59,6 @@ abstract interface class GlassSelectorCollapse {
   void activate();
 }
 
-/// The text a screen reader reads for an item [label]: the data of a
-/// `Text` or `RichText`, an `Icon`'s semantic label, or the first of these
-/// among the children of a single-child or `Flex` wrapper; null when there
-/// is none.
-@internal
-String? glassSelectorLabelOf(Widget? label) => switch (label) {
-  Text(:final String data) => data,
-  Text(:final InlineSpan textSpan) => textSpan.toPlainText(),
-  RichText(:final text) => text.toPlainText(),
-  Icon(:final semanticLabel) => semanticLabel,
-  Semantics(:final properties) when properties.label != null =>
-    properties.label,
-  SingleChildRenderObjectWidget(:final child) => glassSelectorLabelOf(child),
-  ProxyWidget(:final child) => glassSelectorLabelOf(child),
-  MultiChildRenderObjectWidget(:final children) =>
-    children.map(glassSelectorLabelOf).nonNulls.firstOrNull,
-  _ => null,
-};
-
 /// Builds the item at [index] of a [RawGlassSelector] for [states]: the
 /// item's own states, which include [WidgetState.selected] for the selected
 /// item, [WidgetState.disabled] for an item that cannot be selected, and

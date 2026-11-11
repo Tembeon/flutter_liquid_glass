@@ -3,12 +3,8 @@
 # that lists more than the code has. After fixing one, rewrite this file
 # with UPDATE_DEBT=1 (it never grows an entry).
 
-2:through-library       lib/src/controls/segmented_control.dart     1
 2:through-library       lib/src/motions/menu_fusion.dart            1
 2:through-library       lib/src/motions/menu_outline_math.dart      1
-2:through-library       lib/src/navigation/navigation_bar.dart      1
-2:through-library       lib/src/navigation/tab_bar.dart             1
-2:through-library       lib/src/navigation/toolbar.dart             1
 2:through-library       lib/src/presentations/alert.dart            2
 2:through-library       lib/src/presentations/date_picker.dart      2
 2:through-library       lib/src/presentations/menu_anchor.dart      5

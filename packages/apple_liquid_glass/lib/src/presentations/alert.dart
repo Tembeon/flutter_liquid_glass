@@ -331,7 +331,10 @@ Presentation<GlassAlertAction, Presented> _alert({
         : null,
     result: (result) => result ?? cancel,
     onDismissed: (action) => action?.onPressed?.call(),
-    semanticsLabel: _text(title) ?? _text(message) ?? strings.alertLabel,
+    semanticsLabel:
+        glassLabelTextOf(title) ??
+        glassLabelTextOf(message) ??
+        strings.alertLabel,
     // As Flutter's CupertinoActionSheet: a sheet of choices is a dialog,
     // only an alert interrupts.
     semanticsRole: actionSheet
@@ -340,11 +343,6 @@ Presentation<GlassAlertAction, Presented> _alert({
     barrierLabel: actionSheet ? strings.actionSheetDismissLabel : null,
   );
 }
-
-String? _text(Widget? widget) => switch (widget) {
-  Text(:final data?) => data,
-  _ => null,
-};
 
 // A disabled cancel action answers nothing, as its button does nothing.
 GlassAlertAction? _cancelOf(List<GlassAlertAction> actions) {
@@ -807,7 +805,7 @@ class _AlertViewState extends State<_AlertView> {
               minimumHitSize: const Size.square(44),
               autofocus: action.isDefaultAction && action.enabled,
               semantics: SemanticsProperties(
-                label: _text(action.child),
+                label: glassLabelTextOf(action.child),
                 button: true,
               ),
             ),
@@ -923,7 +921,7 @@ class _AlertButton extends StatelessWidget {
           ),
           child: Center(
             child: ExcludeSemantics(
-              excluding: _text(action.child) != null,
+              excluding: glassLabelTextOf(action.child) != null,
               child: DefaultTextStyle(
                 style: label,
                 maxLines: 1,

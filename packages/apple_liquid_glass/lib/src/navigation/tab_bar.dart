@@ -6,7 +6,6 @@ import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/navigation/toolbar.dart';
-import 'package:apple_liquid_glass/src/raw/selector.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -456,8 +455,7 @@ class GlassTabBar extends StatelessWidget {
           semanticLabel: semanticLabel,
           itemLabels: [
             for (final destination in destinations)
-              destination.semanticLabel ??
-                  glassSelectorLabelOf(destination.label),
+              destination.semanticLabel ?? glassLabelTextOf(destination.label),
           ],
           itemBuilder: (context, index, states) => _TabContent(
             destination: destinations[index],

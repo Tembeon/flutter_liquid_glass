@@ -1,5 +1,5 @@
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/raw/selector.dart';
+import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
@@ -334,7 +334,7 @@ class GlassSegmentedControl<T> extends StatelessWidget {
       semanticLabel: semanticLabel,
       itemLabels: [
         for (final segment in segments)
-          segment.semanticLabel ?? glassSelectorLabelOf(segment.label),
+          segment.semanticLabel ?? glassLabelTextOf(segment.label),
       ],
       itemBuilder: (context, index, states) =>
           _SegmentLabel(segment: segments[index], look: look, states: states),

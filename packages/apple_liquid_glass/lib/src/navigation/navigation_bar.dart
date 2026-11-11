@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/controls.dart';
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
-import 'package:apple_liquid_glass/src/motions/search_motion.dart';
 import 'package:apple_liquid_glass/src/navigation/bar.dart';
 import 'package:apple_liquid_glass/src/navigation/bar_entry.dart';
 import 'package:apple_liquid_glass/src/navigation/chrome.dart';
