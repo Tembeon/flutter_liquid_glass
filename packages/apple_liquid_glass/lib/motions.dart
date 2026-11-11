@@ -3,10 +3,9 @@
 /// kinesis's `Motion`, and the bar and menu layouts as plain math.
 ///
 /// For the controls of this package, and for the tests that replay
-/// recordings from an iPhone against the same laws. Its public names
-/// today are the values a control's parameters take: `GlassSheetDetent`
-/// and `GlassTabBarMinimizeBehavior`; the laws themselves are the
-/// package's own.
+/// recordings from an iPhone against the same laws. A host tells a law
+/// what happened and reads its values; the springs and tuning classes
+/// stay inside.
 ///
 /// It promises that a number in a law carries its source, a measurement on
 /// the device or UIKit's tuning, in its dartdoc.
