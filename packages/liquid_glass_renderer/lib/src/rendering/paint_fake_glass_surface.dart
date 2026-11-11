@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
-import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_shape.dart';
@@ -21,6 +20,13 @@ double fakeGlassSurfaceOutset(LiquidGlassSettings settings) {
 }
 
 const _noSuperellipse = <double>[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+/// The channels of [color] as the shader's vec4 takes them, each rounded to
+/// 8 bits as the surface was tuned with.
+List<double> _color8(Color color) => [
+  for (final channel in [color.r, color.g, color.b, color.a])
+    (channel * 255).round().clamp(0, 255) / 255,
+];
 
 /// Expands [localQuad] outward to whole device pixels under [transform]
 /// (the draw's `canvas.getTransform()`); a transform that is not an
@@ -120,55 +126,52 @@ void paintFakeGlassSurface(
           pairShape.effectiveBottomRadius,
         )..[12 + 8] = size.width / 2);
   final opticalThickness = settings.effectiveEdgeDistanceRange;
-  shader.setFloatUniforms((uniforms) {
-    uniforms
-      ..setSize(size)
-      ..setFloats([shapeType, cornerRadius])
-      ..setColor(tint)
-      ..setFloats([
-        settings.highlight * appearanceVisibility,
-        GlassRim.highlightWidth,
-        opticalThickness,
-        GlassRim.highlightWrap,
-        GlassRim.highlightOppositeStrength * appearanceVisibility,
-        settings.contourStrength *
-            appearance.colorModel.contourScale(
-              settings.effectiveTintAmount,
-            ) *
-            appearanceVisibility,
-        settings.contourWidth,
-        0, // contour transmittance
-        0, // contour offset
-        settings.contourDirectionality,
-        settings.bevelShadowStrength * appearanceVisibility,
-        GlassRim.bevelShadowDepth,
-        GlassRim.bevelShadowOffset,
-        GlassRim.bevelShadowDirectionality,
-        0, // bevel shadow size response
-      ])
-      ..setOffset(const Offset(0, 1))
-      ..setFloat(1 / math.max(devicePixelRatio, 0.01))
-      ..setFloat(exteriorOnly ? 1 : 0)
-      ..setFloat(appearance.colorModel.fakeGlintLuminance)
-      ..setFloats([
-        faceEmission.r * appearanceVisibility,
-        faceEmission.g * appearanceVisibility,
-        faceEmission.b * appearanceVisibility,
-      ])
-      ..setFloats(
-        pair ??
-            [
-              ...shape is LiquidRoundedSuperellipse
-                  ? roundedSuperellipseParameters(size, cornerRadius)
-                  : _noSuperellipse,
-              ..._noSuperellipse,
-            ],
-      )
-      ..setFloat(appearance.colorModel.fakeGlintFaceGain)
-      ..setFloat(appearance.colorModel.fakeGlintVibrancy)
-      ..setFloat(highlightOnly ? 1 : 0)
-      ..setFloat(bottomRadius ?? -1);
-  });
+  final uniforms = <double>[
+    size.width,
+    size.height,
+    shapeType,
+    cornerRadius,
+    ..._color8(tint),
+    settings.highlight * appearanceVisibility,
+    GlassRim.highlightWidth,
+    opticalThickness,
+    GlassRim.highlightWrap,
+    GlassRim.highlightOppositeStrength * appearanceVisibility,
+    settings.contourStrength *
+        appearance.colorModel.contourScale(settings.effectiveTintAmount) *
+        appearanceVisibility,
+    settings.contourWidth,
+    0, // contour transmittance
+    0, // contour offset
+    settings.contourDirectionality,
+    settings.bevelShadowStrength * appearanceVisibility,
+    GlassRim.bevelShadowDepth,
+    GlassRim.bevelShadowOffset,
+    GlassRim.bevelShadowDirectionality,
+    0, // bevel shadow size response
+    0,
+    1,
+    1 / math.max(devicePixelRatio, 0.01),
+    if (exteriorOnly) 1 else 0,
+    appearance.colorModel.fakeGlintLuminance,
+    faceEmission.r * appearanceVisibility,
+    faceEmission.g * appearanceVisibility,
+    faceEmission.b * appearanceVisibility,
+    ...?pair,
+    if (pair == null) ...[
+      ...shape is LiquidRoundedSuperellipse
+          ? roundedSuperellipseParameters(size, cornerRadius)
+          : _noSuperellipse,
+      ..._noSuperellipse,
+    ],
+    appearance.colorModel.fakeGlintFaceGain,
+    appearance.colorModel.fakeGlintVibrancy,
+    if (highlightOnly) 1 else 0,
+    bottomRadius ?? -1,
+  ];
+  for (var i = 0; i < uniforms.length; i++) {
+    shader.setFloat(i, uniforms[i]);
+  }
   final contourOutset = fakeGlassSurfaceOutset(settings);
   final paint = Paint()..shader = shader;
   if (highlightOnly) {

@@ -22,7 +22,6 @@ const _rules = LayerRules(
     'flutter_gpu',
     'vector_math',
     'meta',
-    'flutter_shaders',
   },
   forbidden: {
     everyLibrary: [
@@ -47,12 +46,6 @@ const _rules = LayerRules(
     ),
     Ban('dynamic', r'\bdynamic\b'),
     Ban('SingleChildScrollView', r'\bSingleChildScrollView\b'),
-    Ban(
-      'flutter_shaders',
-      'package:flutter_shaders/',
-      code: false,
-      allowedIn: {'lib/src/rendering/paint_fake_glass_surface.dart'},
-    ),
     // Glass reads its backdrop, or takes a copy of the screen, only through
     // the frame's composer, which plans every read. The warm-up draws its
     // own detached layer tree that is never part of a frame, the shading's
