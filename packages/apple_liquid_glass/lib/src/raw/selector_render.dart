@@ -158,16 +158,14 @@ class _RenderSelectorRow extends RenderBox
   }
 
   void _listenCollapse() {
-    _collapse?.morph.addListener(_collapsed);
+    _collapse?.morph.addListener(markNeedsPaint);
     _collapse?.press?.addListener(markNeedsPaint);
   }
 
   void _unlistenCollapse() {
-    _collapse?.morph.removeListener(_collapsed);
+    _collapse?.morph.removeListener(markNeedsPaint);
     _collapse?.press?.removeListener(markNeedsPaint);
   }
-
-  void _collapsed() => markNeedsPaint();
 
   @override
   void attach(PipelineOwner owner) {

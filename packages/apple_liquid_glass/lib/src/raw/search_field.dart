@@ -46,13 +46,17 @@ final class GlassSearchFieldDetails {
   /// Clears the text and reports it, or null while the field is disabled.
   final VoidCallback? clear;
 
-  final Widget Function(TextStyle style, Color cursor, Color placeholder) _text;
+  final Widget Function(
+    TextStyle style,
+    Color cursor,
+    Color backgroundCursor,
+  )
+  _text;
 
   /// The editable text with its gestures and semantics, drawn in [style]
   /// with a [cursorColor] cursor; [backgroundCursorColor] colors the
   /// cursor's resting ghost while a force press moves it
-  /// (`EditableText.backgroundCursorColor`). The default look passes the
-  /// placeholder color.
+  /// (`EditableText.backgroundCursorColor`).
   Widget text({
     required TextStyle style,
     required Color cursorColor,
@@ -288,7 +292,7 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
     widget.onChanged?.call('');
   }
 
-  Widget _text(TextStyle style, Color cursor, Color placeholder) {
+  Widget _text(TextStyle style, Color cursor, Color backgroundCursor) {
     final editable = EditableText(
       key: _editable,
       controller: _controller,
@@ -300,7 +304,7 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
         context,
       ).clamp(maxScaleFactor: RawGlassSearchField.maxTextScale),
       cursorColor: cursor,
-      backgroundCursorColor: placeholder,
+      backgroundCursorColor: backgroundCursor,
       selectionColor: cursor.withValues(alpha: 0.25),
       textInputAction: TextInputAction.search,
       keyboardAppearance: GlassTraits.of(context).brightness,

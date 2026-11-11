@@ -193,7 +193,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   // the last children each item built, which a fading item keeps.
   final List<Object> _ghosts = [];
   final Map<Object, List<Widget>> _built = {};
-  int? _noneDown;
+  bool _noneDown = false;
   int? _downSlot;
   int? _downSelected;
 
@@ -300,7 +300,6 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     widgetStates.update(WidgetState.dragged, _input.dragged);
   }
 
-  // The selector is hovered and focused when one of its items is.
   void _zonesChanged() {
     var hovered = false;
     var focused = false;
@@ -400,7 +399,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       _motion.highlight.press(input.time, slot);
     }
     if (selected == null) {
-      _noneDown = slot;
+      _noneDown = true;
       return;
     }
     _downSlot = slot;
@@ -414,7 +413,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       _fingerOnCircle = false;
       _motion.drag(input.time, _x(input.position), input.position);
     }
-    if (_noneDown != null) return;
+    if (_noneDown) return;
     _motion.move(input.time, _x(input.position), input.position);
   }
 
@@ -430,8 +429,8 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     final down = _downSlot;
     _downSlot = null;
     _downSelected = null;
-    if (_noneDown != null) {
-      _noneDown = null;
+    if (_noneDown) {
+      _noneDown = false;
       _motion.cancel(input.time);
       if (_within(input.position)) _select(slot);
       return;
@@ -455,7 +454,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       widget.collapse!.pressCancel(time);
       return;
     }
-    _noneDown = null;
+    _noneDown = false;
     _downSlot = null;
     _downSelected = null;
     _motion.cancel(time);

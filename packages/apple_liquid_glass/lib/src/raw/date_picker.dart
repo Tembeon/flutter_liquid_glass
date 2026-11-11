@@ -127,10 +127,16 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
     PressInteraction(role: InteractionRole.content, onTap: _toggleYearPicker),
   ];
   late final List<Interaction> _previousPress = [
-    PressInteraction(role: InteractionRole.content, onTap: (t) => _turn(t, -1)),
+    PressInteraction(
+      role: InteractionRole.content,
+      onTap: (t) => _motion.turnPage(t, -1),
+    ),
   ];
   late final List<Interaction> _nextPress = [
-    PressInteraction(role: InteractionRole.content, onTap: (t) => _turn(t, 1)),
+    PressInteraction(
+      role: InteractionRole.content,
+      onTap: (t) => _motion.turnPage(t, 1),
+    ),
   ];
   late final MotionSelection<bool> _pageTurning = _motion.select(
     (m) => m.page < 1,
@@ -216,8 +222,6 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
 
   bool _canTurn(int direction) =>
       _canTurnMonth(_month, direction, widget._minimum, widget._maximum);
-
-  void _turn(double t, int direction) => _motion.turnPage(t, direction);
 
   bool _turned(int direction) {
     if (!mounted || !_canTurn(direction)) return false;
@@ -333,11 +337,11 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
     });
   }
 
-  int _weeksOf(DateTime month) {
-    final lead =
-        (DateTime(month.year, month.month).weekday - widget.firstDayOfWeek) % 7;
-    return ((lead + _daysIn(month)) / 7).ceil();
-  }
+  int _leadOf(DateTime month) =>
+      (DateTime(month.year, month.month).weekday - widget.firstDayOfWeek) % 7;
+
+  int _weeksOf(DateTime month) =>
+      ((_leadOf(month) + _daysIn(month)) / 7).ceil();
 
   double _rowOf(DateTime month) => _weeksOf(month) > 5
       ? DatePickerCalendarMotion.sixWeekRowHeight
@@ -345,9 +349,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
 
   InputZoneFrame? _dayFrame(DateTime day) {
     if (day.year != _month.year || day.month != _month.month) return null;
-    final lead =
-        (DateTime(day.year, day.month).weekday - widget.firstDayOfWeek) % 7;
-    final index = lead + day.day - 1;
+    final index = _leadOf(day) + day.day - 1;
     final column = index % 7;
     final row = _rowOf(day);
     final left = _rtl
@@ -363,13 +365,13 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
     DateTime month, {
     required bool live,
   }) {
-    final first = DateTime(month.year, month.month);
-    final lead = (first.weekday - widget.firstDayOfWeek) % 7;
+    final lead = _leadOf(month);
     final days = _daysIn(month);
     final weeks = _weeksOf(month);
     final row = _rowOf(month);
     final value = _shown;
     final today = _today;
+    DateTime at(int day) => DateTime(month.year, month.month, day);
     // Its own layer: a page turn moves the recorded grid instead of
     // painting every day again on each frame.
     return RepaintBoundary(
@@ -386,24 +388,12 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
                       widget.dayBuilder(
                         context,
                         GlassDatePickerDay(
-                          date: DateTime(month.year, month.month, day),
+                          date: at(day),
                           size: Size(_Metrics.cell, row),
-                          selected: _sameDay(
-                            DateTime(month.year, month.month, day),
-                            value,
-                          ),
-                          today: _sameDay(
-                            DateTime(month.year, month.month, day),
-                            today,
-                          ),
-                          enabled:
-                              _enabled &&
-                              _inRange(DateTime(month.year, month.month, day)),
-                          states: live
-                              ? _statesOf(
-                                  DateTime(month.year, month.month, day),
-                                )
-                              : const _NoStates(),
+                          selected: _sameDay(at(day), value),
+                          today: _sameDay(at(day), today),
+                          enabled: _enabled && _inRange(at(day)),
+                          states: live ? _statesOf(at(day)) : const _NoStates(),
                         ),
                       )
                     else
