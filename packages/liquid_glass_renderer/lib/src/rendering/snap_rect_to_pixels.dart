@@ -7,15 +7,6 @@ const _pixelBucket = 64;
 
 @internal
 extension SnapRectToPixels on Rect {
-  /// This rect with every edge multiplied by [factor], for a logical rect in
-  /// device pixels.
-  Rect scaled(double factor) => Rect.fromLTRB(
-    left * factor,
-    top * factor,
-    right * factor,
-    bottom * factor,
-  );
-
   Rect snapToPixels(double devicePixelRatio) {
     return Rect.fromLTRB(
       left.snapToPixel(devicePixelRatio: devicePixelRatio),

@@ -76,6 +76,7 @@ ReadGeometry
 ReadLimit
 ReadMemo
 ReadSource
+RectScaling
 RenderConsolidatedFakeGlassLayer
 RenderFakeGlass
 RenderGlassShadow

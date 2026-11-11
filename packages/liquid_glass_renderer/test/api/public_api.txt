@@ -965,6 +965,8 @@ class LiquidOval (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidRoundedRectangle (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidRoundedSuperellipse (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidShape (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+extension RectScaling on Rect
+  Rect scaled(double factor)
 
 # package:liquid_glass_renderer/rendering.dart
 enum FakeGlassRole

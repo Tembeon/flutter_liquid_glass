@@ -87,12 +87,7 @@ final class GroupMatte {
     Rect? rect;
     for (final member in glass) {
       final shown = member.drawn;
-      final drawn = Rect.fromLTRB(
-        shown.left * dpr - base.dx,
-        shown.top * dpr - base.dy,
-        shown.right * dpr - base.dx,
-        shown.bottom * dpr - base.dy,
-      );
+      final drawn = shown.scaled(dpr).shift(-base);
       rect = rect?.expandToInclude(drawn) ?? drawn;
     }
     final all = rect!;

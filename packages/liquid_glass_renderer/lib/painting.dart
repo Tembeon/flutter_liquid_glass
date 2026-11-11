@@ -39,3 +39,4 @@ export 'src/painting/liquid_shape.dart'
         LiquidRoundedRectangle,
         LiquidRoundedSuperellipse,
         LiquidShape;
+export 'src/painting/rect_scaling.dart' show RectScaling;

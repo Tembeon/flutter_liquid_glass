@@ -14,7 +14,6 @@ import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_filter.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
-import 'package:liquid_glass_renderer/src/rendering/snap_rect_to_pixels.dart';
 
 /// One draw of the final glass shader: every uniform and sampler it reads,
 /// in sections that each own their uniforms.
@@ -828,8 +827,8 @@ final class GlassShading {
     ]);
     put(layout.effects + 20, draw.band?.overlay ?? _clear);
     if (layout.band case final at?) put(at, draw.band!.band);
-    // The engine binds a filter's input to sampler 0 but keeps the sampling
-    // of the image bound here: bilinear.
+    // Bound bilinear: up to Flutter 3.47 a filter's input samples as the image
+    // here says (see bilinearShaderFilter).
     switch (matte.geometry) {
       case ComputedGeometry(:final floats):
         final at = layout.shape!;
