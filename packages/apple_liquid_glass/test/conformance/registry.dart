@@ -366,7 +366,9 @@ final List<Entry> registry = [
     kind: Kind.pressable,
     canDisable: false,
     focusStops: 2,
-    part: semanticsWidget('Clear text'),
+    part: find.byWidgetPredicate(
+      (widget) => widget is InputRegion && widget.semanticLabel == 'Clear text',
+    ),
     build: (probe, {required enabled}) => SizedBox(
       width: 340,
       child: _Owned<TextEditingController>(

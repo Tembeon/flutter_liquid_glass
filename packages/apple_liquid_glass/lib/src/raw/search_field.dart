@@ -1,6 +1,5 @@
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/controls/search_field.dart';
-import 'package:apple_liquid_glass/src/foundation/frame.dart';
-import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:apple_liquid_glass/src/motions/glass_press.dart';
 import 'package:apple_liquid_glass/src/motions/search_motion.dart';
 import 'package:apple_liquid_glass/src/navigation/search_stacking.dart';
@@ -88,6 +87,7 @@ class RawGlassSearchField extends StatefulWidget {
     this.enabled = true,
     this.autofocus = false,
     this.semanticLabel,
+    this.statesController,
     super.key,
   });
 
@@ -112,14 +112,20 @@ class RawGlassSearchField extends StatefulWidget {
   /// Whether the field takes focus when it first appears.
   final bool autofocus;
 
-  /// What accessibility reads for the field; `Search` when null.
+  /// What accessibility reads for the field; the localized "Search" when
+  /// null.
   final String? semanticLabel;
+
+  /// The field's states, or null for its own: the field writes focused,
+  /// pressed, hovered and disabled to it.
+  final WidgetStatesController? statesController;
 
   @override
   State<RawGlassSearchField> createState() => _RawGlassSearchFieldState();
 }
 
 class _RawGlassSearchFieldState extends State<RawGlassSearchField>
+    with ControlStates<RawGlassSearchField>
     implements TextSelectionGestureDetectorBuilderDelegate {
   final GlassPress _press = GlassPress(
     size: const Size(346, SearchTuning.height),
@@ -133,7 +139,6 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
   late final _LiftInput _input = _LiftInput(this);
   late final List<Interaction> _interactions = [_input];
   final _regionFocus = FocusNode(skipTraversal: true);
-  final _states = WidgetStatesController();
   late final TextSelectionGestureDetectorBuilder _gestures =
       TextSelectionGestureDetectorBuilder(delegate: this);
   final _editable = GlobalKey<EditableTextState>();
@@ -157,10 +162,21 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
   bool get selectionEnabled => widget.enabled && _focus.hasFocus;
 
   @override
+  WidgetStatesController? get givenStates => widget.statesController;
+
+  @override
+  void writeStates() {
+    widgetStates.update(WidgetState.disabled, !widget.enabled);
+    if (!widget.enabled) {
+      widgetStates.update(WidgetState.pressed, false);
+      widgetStates.update(WidgetState.hovered, false);
+    }
+    widgetStates.update(WidgetState.focused, widget.enabled && _focus.hasFocus);
+  }
+
+  @override
   void initState() {
     super.initState();
-    _states.update(WidgetState.disabled, !widget.enabled);
-    _states.addListener(_statesChanged);
     _focus.addListener(_focusChanged);
   }
 
@@ -171,19 +187,15 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
     if (!identical(focus, _focus)) {
       focus?.removeListener(_focusChanged);
       _focus.addListener(_focusChanged);
+      writeStates();
     }
-    _states.update(WidgetState.disabled, !widget.enabled);
-    if (!widget.enabled) {
-      _states.update(WidgetState.pressed, false);
-      if (_focus.hasFocus) _focus.unfocus();
-    }
+    if (!widget.enabled && _focus.hasFocus) _focus.unfocus();
   }
 
   @override
   void dispose() {
     _ends?.removeListener(_ended);
     _focus.removeListener(_focusChanged);
-    _states.dispose();
     _regionFocus.dispose();
     _ownController?.dispose();
     _ownFocus?.dispose();
@@ -220,11 +232,9 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
     _focus.unfocus();
   }
 
-  void _statesChanged() => setState(() {});
-
   void _focusChanged() {
-    _states.update(WidgetState.focused, _focus.hasFocus);
-    if (_focus.hasFocus) _press.pointerCancel(MotionClock.instance.now);
+    widgetStates.update(WidgetState.focused, _focus.hasFocus);
+    if (_focus.hasFocus) _press.pointerCancel(_press.clock.now);
   }
 
   void _clear() {
@@ -262,7 +272,7 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
       onSubmitted: widget.onSubmitted,
     );
     return Semantics(
-      label: widget.semanticLabel ?? 'Search',
+      label: widget.semanticLabel ?? GlassLocalizations.of(context).searchLabel,
       child: widget.enabled
           ? _gestures.buildGestureDetector(
               behavior: HitTestBehavior.translucent,
@@ -279,8 +289,11 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
     return InputRegion(
       interactions: _interactions,
       enabled: widget.enabled,
-      statesController: _states,
+      statesController: widgetStates,
       focusNode: _regionFocus,
+      mouseCursor: widget.enabled
+          ? SystemMouseCursors.text
+          : SystemMouseCursors.basic,
       child: SizedBox(
         height: stacking?.height ?? SearchTuning.height,
         child: widget.builder(
@@ -288,8 +301,8 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
           GlassSearchFieldDetails._(
             _text,
             frame: stacking == null ? _lift : _fadedBy(stacking.glass),
-            states: {..._states.value},
-            statesListenable: _states,
+            states: {...widgetStates.value},
+            statesListenable: widgetStates,
             controller: _controller,
             clear: widget.enabled ? _clear : null,
           ),

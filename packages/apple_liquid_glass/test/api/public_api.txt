@@ -1048,6 +1048,7 @@ class GlassSearchField extends StatelessWidget
     GlassSearchFieldStyle? style,
     String? semanticLabel,
     String? clearSemanticLabel,
+    WidgetStatesController? statesController,
     Key? key,
   })
   final bool autofocus
@@ -1065,6 +1066,7 @@ class GlassSearchField extends StatelessWidget
   static final WidgetStateProperty<Color?> placeholderColors
   static const double pressDelay
   final String? semanticLabel
+  final WidgetStatesController? statesController
   final GlassSearchFieldStyle? style
   overrides: build
 typedef GlassSearchFieldBuilder = Widget Function(BuildContext, GlassSearchFieldDetails)
@@ -1886,6 +1888,7 @@ class RawGlassSearchField extends StatefulWidget
     bool enabled = ...,
     bool autofocus = ...,
     String? semanticLabel,
+    WidgetStatesController? statesController,
     Key? key,
   })
   final bool autofocus
@@ -1896,6 +1899,7 @@ class RawGlassSearchField extends StatefulWidget
   final void Function(String)? onChanged
   final void Function(String)? onSubmitted
   final String? semanticLabel
+  final WidgetStatesController? statesController
   overrides: createState
 class RawGlassSelector extends StatefulWidget
   const RawGlassSelector({

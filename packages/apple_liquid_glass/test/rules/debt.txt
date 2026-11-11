@@ -39,7 +39,7 @@
 2:through-library         lib/src/presentations/sheet.dart            4
 2:through-library         lib/src/raw/button.dart                     5
 2:through-library         lib/src/raw/page_control.dart               1
-2:through-library         lib/src/raw/search_field.dart               6
+2:through-library         lib/src/raw/search_field.dart               4
 2:through-library         lib/src/raw/selector.dart                   9
 2:through-library         lib/src/raw/slider.dart                     2
 2:through-library         lib/src/raw/switch.dart                     2
@@ -64,7 +64,6 @@
 5:MotionClock.instance    lib/src/navigation/navigation_bar.dart      3
 5:MotionClock.instance    lib/src/navigation/toolbar.dart             1
 5:MotionClock.instance    lib/src/presentations/menu_anchor.dart      3
-5:MotionClock.instance    lib/src/raw/search_field.dart               1
 5:ValueListenableBuilder  lib/src/controls/date_picker.dart           3
 5:ValueListenableBuilder  lib/src/navigation/navigation_bar.dart      1
 5:ValueListenableBuilder  lib/src/navigation/tab_bar.dart             2

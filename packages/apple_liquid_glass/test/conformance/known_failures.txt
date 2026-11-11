@@ -35,7 +35,6 @@ GlassPageRoute semantics-role: the overlay is not announced as a named route
 GlassPressable tap-target: "Press": expected tap target size of at least Size(44.0, 44.0), but found Size(117.0, 41.0)
 GlassSearchField.clear key-activate: Space does not activate it
 GlassSearchField.clear key-remap: a key the app maps to ActivateIntent does nothing
-GlassSearchField.clear tap-target: "Clear text": expected tap target size of at least Size(44.0, 44.0), but found Size(20.0, 20.0)
 GlassSegmentedControl focus-indicator: keyboard focus draws nothing
 GlassSegmentedControl key-arrows: Arrow Right does not step it forward
 GlassSegmentedControl key-arrows-rtl: Arrow Left does not step it forward

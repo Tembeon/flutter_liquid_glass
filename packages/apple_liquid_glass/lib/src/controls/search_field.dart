@@ -179,6 +179,7 @@ class GlassSearchField extends StatelessWidget {
     this.style,
     this.semanticLabel,
     this.clearSemanticLabel,
+    this.statesController,
     super.key,
   });
 
@@ -188,7 +189,7 @@ class GlassSearchField extends StatelessWidget {
   /// The field's focus node, or null for its own.
   final FocusNode? focusNode;
 
-  /// What the empty field shows; `Search` when null.
+  /// What the empty field shows; the localized "Search" when null.
   final Widget? placeholder;
 
   /// Called with the text as the user edits it or clears it.
@@ -206,12 +207,17 @@ class GlassSearchField extends StatelessWidget {
   /// The look, over the theme's and the field's defaults.
   final GlassSearchFieldStyle? style;
 
-  /// What accessibility reads for the field; `Search` when null.
+  /// What accessibility reads for the field; the localized "Search" when
+  /// null.
   final String? semanticLabel;
 
-  /// What accessibility reads for the clear button; `Clear text` when
-  /// null.
+  /// What accessibility reads for the clear button; the localized "Clear
+  /// text" when null.
   final String? clearSemanticLabel;
+
+  /// The field's states, or null for its own: the field writes focused,
+  /// pressed, hovered and disabled to it.
+  final WidgetStatesController? statesController;
 
   /// The height of the field (search passport).
   static const double height = SearchTuning.height;
@@ -272,6 +278,7 @@ class GlassSearchField extends StatelessWidget {
       enabled: enabled,
       autofocus: autofocus,
       semanticLabel: semanticLabel,
+      statesController: statesController,
       builder:
           look.builder ??
           (context, details) => _SearchFieldLook(
@@ -315,6 +322,10 @@ class _SearchFieldLook extends StatefulWidget {
 
 class _SearchFieldLookState extends State<_SearchFieldLook> {
   static const _noRing = Color(0x00000000);
+
+  // Apple's 44 point target around the 20 point glyph; the look does not
+  // grow.
+  static const double _clearTarget = 44;
 
   late final List<Interaction> _clearInteractions = [
     PressInteraction(onTap: (t) => widget.details.clear?.call()),
@@ -366,7 +377,9 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
                 softWrap: false,
                 child: MediaQuery.withClampedTextScaling(
                   maxScaleFactor: GlassSearchField.maxTextScale,
-                  child: widget.placeholder ?? const Text('Search'),
+                  child:
+                      widget.placeholder ??
+                      Text(GlassLocalizations.of(context).searchLabel),
                 ),
               ),
             )
@@ -377,39 +390,46 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
         start: 8,
         end: SearchTuning.clearInset,
       ),
-      child: Semantics(
-        container: true,
-        button: true,
-        label: widget.clearSemanticLabel ?? 'Clear text',
-        onTap: details.clear,
-        child: ExcludeSemantics(
+      // The target reaches past the glyph only inside its parents' boxes.
+      child: SizedBox(
+        height: _clearTarget,
+        child: Center(
           child: InputRegion(
             interactions: _clearInteractions,
             enabled: details.clear != null,
             statesController: _clearStates,
-            child: SizedBox.square(
-              dimension: SearchTuning.clearSize,
-              child: Padding(
-                padding: const EdgeInsets.all(
-                  (SearchTuning.clearSize - SearchTuning.clearInk) / 2,
-                ),
-                child: GlassHighlightPaint.of(
-                  context,
-                  states: _clearStates,
-                  focusColor: look.focusColor,
-                  hoverColor: look.hoverColor,
-                  shape: const GlassShape.oval(),
-                  wash: true,
-                  child: CustomPaint(
-                    size: Size.infinite,
-                    painter: _ClearPainter(
-                      fill: icon,
-                      cross: GlassDynamicColor.resolve(
-                        const GlassDynamicColor.withBrightness(
-                          color: Color(0xFFFFFFFF),
-                          darkColor: Color(0xFF000000),
+            minimumHitSize: const Size.square(_clearTarget),
+            semanticLabel:
+                widget.clearSemanticLabel ??
+                GlassLocalizations.of(context).clearTextLabel,
+            child: Semantics(
+              button: true,
+              child: ExcludeSemantics(
+                child: SizedBox.square(
+                  dimension: SearchTuning.clearSize,
+                  child: Padding(
+                    padding: const EdgeInsets.all(
+                      (SearchTuning.clearSize - SearchTuning.clearInk) / 2,
+                    ),
+                    child: GlassHighlightPaint.of(
+                      context,
+                      states: _clearStates,
+                      focusColor: look.focusColor,
+                      hoverColor: look.hoverColor,
+                      shape: const GlassShape.oval(),
+                      wash: true,
+                      child: CustomPaint(
+                        size: Size.infinite,
+                        painter: _ClearPainter(
+                          fill: icon,
+                          cross: GlassDynamicColor.resolve(
+                            const GlassDynamicColor.withBrightness(
+                              color: Color(0xFFFFFFFF),
+                              darkColor: Color(0xFF000000),
+                            ),
+                            context,
+                          ),
                         ),
-                        context,
                       ),
                     ),
                   ),
