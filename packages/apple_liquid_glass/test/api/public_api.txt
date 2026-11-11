@@ -26,7 +26,7 @@ final class AdaptiveGlassRenderer extends GlassRenderer
 class DefaultGlassLocalizations extends GlassLocalizations
   const DefaultGlassLocalizations()
   static const LocalizationsDelegate<GlassLocalizations> delegate
-  overrides: actionSheetDismissLabel, alertLabel, backButtonLabel, clearTextLabel, closeButtonLabel, decrementLabel, incrementLabel, menuDismissLabel, menuLabel, moreInfoLabel, pageValue, percentValue, popoverDismissLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue
+  overrides: actionSheetDismissLabel, alertLabel, anteMeridiemAbbreviation, backButtonLabel, clearTextLabel, closeButtonLabel, compactDate, compactDatePickerHint, compactTime, datePickerDismissLabel, dayLabel, dayPeriodLabel, decrementLabel, hideYearPickerLabel, hourLabel, incrementLabel, menuDismissLabel, menuLabel, minuteLabel, monthLabel, monthName, monthYear, moreInfoLabel, nextMonthLabel, pageValue, percentValue, popoverDismissLabel, postMeridiemAbbreviation, previousMonthLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue, showYearPickerLabel, weekdayAbbreviation, yearLabel
 final class FakeGlassRenderer extends LiquidGlassRenderer
   const FakeGlassRenderer()
   overrides: fake
@@ -333,6 +333,33 @@ abstract final class GlassColors
   static const GlassDynamicColor systemRed
   static const GlassDynamicColor tertiaryLabel
   static const GlassDynamicColor tertiarySystemFill
+class GlassCompactDatePicker extends StatefulWidget
+  const GlassCompactDatePicker({
+    required DateTime value,
+    required void Function(DateTime)? onChanged,
+    GlassDatePickerMode mode = ...,
+    GlassDatePickerStyle? style,
+    int minuteInterval = ...,
+    DateTime? minimumDate,
+    DateTime? maximumDate,
+    bool? use24HourFormat,
+    int firstDayOfWeek = ...,
+    DateTime? today,
+    String? semanticLabel,
+    Key? key,
+  })
+  final int firstDayOfWeek
+  final DateTime? maximumDate
+  final DateTime? minimumDate
+  final int minuteInterval
+  final GlassDatePickerMode mode
+  final void Function(DateTime)? onChanged
+  final String? semanticLabel
+  final GlassDatePickerStyle? style
+  final DateTime? today
+  final bool? use24HourFormat
+  final DateTime value
+  overrides: createState
 class GlassContentScroll extends StatefulWidget
   const GlassContentScroll({
     required Widget child,
@@ -367,57 +394,76 @@ class GlassContextMenu extends StatefulWidget
   final String? semanticLabel
   final GlassMenuStyle? style
   overrides: createState
-class GlassDatePicker extends StatefulWidget
+class GlassDatePicker extends StatelessWidget
   const GlassDatePicker({
     required DateTime value,
     required void Function(DateTime)? onChanged,
-    GlassDatePickerMode mode = ...,
-    GlassDatePickerVariant variant = ...,
-    GlassDatePickerStyle? style,
-    int minuteInterval = ...,
     DateTime? minimumDate,
     DateTime? maximumDate,
-    bool? use24HourFormat,
     int firstDayOfWeek = ...,
     DateTime? today,
-    String? semanticLabel,
-    GlassDatePickerLocalizations localizations = ...,
+    GlassDatePickerStyle? style,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    @internal bool defersDays = ...,
     Key? key,
   })
+  final bool autofocus
+  @internal final bool defersDays
   final int firstDayOfWeek
-  final GlassDatePickerLocalizations localizations
+  final FocusNode? focusNode
+  static const double maxTextScale
   final DateTime? maximumDate
   final DateTime? minimumDate
-  final int minuteInterval
-  final GlassDatePickerMode mode
   final void Function(DateTime)? onChanged
-  final String? semanticLabel
   final GlassDatePickerStyle? style
   final DateTime? today
-  final bool? use24HourFormat
   final DateTime value
-  final GlassDatePickerVariant variant
-  overrides: createState
-class GlassDatePickerLocalizations
-  const GlassDatePickerLocalizations({
-    String Function(DateTime)? dateFormatter,
-    String Function(DateTime)? timeFormatter,
-    String Function(String)? localize,
-    String Function(DateTime)? calendarTitleFormatter,
-    String Function(DateTime)? daySemanticFormatter,
-    String Function(int)? numberFormatter,
+  overrides: build
+final class GlassDatePickerArrow
+  const GlassDatePickerArrow({
+    required bool next,
+    required bool pointsRight,
+    required bool enabled,
+    required ValueListenable<Set<WidgetState>> states,
   })
-  final String Function(DateTime)? calendarTitleFormatter
-  final String Function(DateTime)? dateFormatter
-  final String Function(DateTime)? daySemanticFormatter
-  final String Function(String)? localize
-  final String Function(int)? numberFormatter
-  final String Function(DateTime)? timeFormatter
-  overrides: ==, hashCode
+  final bool enabled
+  final bool next
+  final bool pointsRight
+  final ValueListenable<Set<WidgetState>> states
+typedef GlassDatePickerArrowBuilder = Widget Function(BuildContext, GlassDatePickerArrow)
+final class GlassDatePickerDay
+  const GlassDatePickerDay({
+    required DateTime date,
+    required Size size,
+    required bool selected,
+    required bool today,
+    required bool enabled,
+    required ValueListenable<Set<WidgetState>> states,
+  })
+  final DateTime date
+  final bool enabled
+  final bool selected
+  final Size size
+  final ValueListenable<Set<WidgetState>> states
+  final bool today
+typedef GlassDatePickerDayBuilder = Widget Function(BuildContext, GlassDatePickerDay)
 enum GlassDatePickerMode
   date,
   time,
   dateAndTime,
+final class GlassDatePickerMonthYear
+  const GlassDatePickerMonthYear({
+    required DateTime month,
+    required DateTime? firstDate,
+    required DateTime? lastDate,
+    required void Function(int, int) onChanged,
+  })
+  final DateTime? firstDate
+  final DateTime? lastDate
+  final DateTime month
+  final void Function(int, int) onChanged
+typedef GlassDatePickerMonthYearBuilder = Widget Function(BuildContext, GlassDatePickerMonthYear)
 class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle>
   const GlassDatePickerStyle({
     Color? accentColor,
@@ -427,8 +473,12 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle>
     Color? todayFillColor,
     Color? selectedDayTextColor,
     Color? wheelBandColor,
+    Color? focusColor,
+    Color? hoverColor,
   })
   final Color? accentColor
+  final Color? focusColor
+  final Color? hoverColor
   final Color? labelColor
   final Color? labelFillColor
   static GlassDatePickerStyle? maybeOf(BuildContext context)
@@ -437,10 +487,18 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle>
   final Color? weekdayColor
   final Color? wheelBandColor
   overrides: ==, hashCode, lerp, merge
-enum GlassDatePickerVariant
-  compact,
-  inline,
-  wheels,
+final class GlassDatePickerTitle
+  const GlassDatePickerTitle({
+    required String text,
+    required bool showsYearPicker,
+    required MotionSelection<double> chevronAngle,
+    required ValueListenable<Set<WidgetState>> states,
+  })
+  final MotionSelection<double> chevronAngle
+  final bool showsYearPicker
+  final ValueListenable<Set<WidgetState>> states
+  final String text
+typedef GlassDatePickerTitleBuilder = Widget Function(BuildContext, GlassDatePickerTitle)
 class GlassDefaultTextStyle extends StatelessWidget
   const GlassDefaultTextStyle({
     required GlassTextRole role,
@@ -633,24 +691,43 @@ abstract class GlassLocalizations
   const GlassLocalizations()
   String get actionSheetDismissLabel
   String get alertLabel
+  String get anteMeridiemAbbreviation
   String get backButtonLabel
   String get clearTextLabel
   String get closeButtonLabel
+  abstract String compactDate(DateTime date)
+  String get compactDatePickerHint
+  abstract String compactTime(DateTime time, {required bool use24HourFormat})
+  String get datePickerDismissLabel
+  abstract String dayLabel(DateTime date, {required bool today})
+  String get dayPeriodLabel
   String get decrementLabel
+  String get hideYearPickerLabel
+  String get hourLabel
   String get incrementLabel
   String get menuDismissLabel
   String get menuLabel
+  String get minuteLabel
+  String get monthLabel
+  abstract String monthName(int month)
+  abstract String monthYear(DateTime month)
   String get moreInfoLabel
+  String get nextMonthLabel
   static GlassLocalizations of(BuildContext context)
   abstract String pageValue(int page, int count)
   abstract String percentValue(double fraction)
   String get popoverDismissLabel
+  String get postMeridiemAbbreviation
+  String get previousMonthLabel
   String get searchLabel
   abstract String sheetDetentValue(int position, int count)
   String get sheetDismissLabel
   String get sheetGrabberLabel
   String get sheetLargeDetentValue
   String get sheetMediumDetentValue
+  String get showYearPickerLabel
+  abstract String weekdayAbbreviation(int weekday)
+  String get yearLabel
 class GlassMenuAnchor extends StatefulWidget
   const GlassMenuAnchor({
     required List<GlassMenuEntry> menuChildren,
@@ -1870,6 +1947,40 @@ class RawGlassButton extends StatefulWidget
   final GlassShape shape
   final WidgetStatesController? statesController
   overrides: createState
+class RawGlassDatePicker extends StatefulWidget
+  const RawGlassDatePicker({
+    required DateTime value,
+    required void Function(DateTime)? onChanged,
+    required Widget Function(BuildContext, GlassDatePickerDay) dayBuilder,
+    required Widget Function(BuildContext, GlassDatePickerTitle) titleBuilder,
+    required Widget Function(BuildContext, GlassDatePickerArrow) arrowBuilder,
+    required Widget Function(BuildContext, String) weekdayBuilder,
+    required Widget Function(BuildContext, GlassDatePickerMonthYear) monthYearBuilder,
+    DateTime? minimumDate,
+    DateTime? maximumDate,
+    int firstDayOfWeek = ...,
+    DateTime? today,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    @internal bool defersDays = ...,
+    Key? key,
+  })
+  final Widget Function(BuildContext, GlassDatePickerArrow) arrowBuilder
+  final bool autofocus
+  final Widget Function(BuildContext, GlassDatePickerDay) dayBuilder
+  @internal final bool defersDays
+  final int firstDayOfWeek
+  final FocusNode? focusNode
+  final DateTime? maximumDate
+  final DateTime? minimumDate
+  final Widget Function(BuildContext, GlassDatePickerMonthYear) monthYearBuilder
+  final void Function(DateTime)? onChanged
+  static const Size size
+  final Widget Function(BuildContext, GlassDatePickerTitle) titleBuilder
+  final DateTime? today
+  final DateTime value
+  final Widget Function(BuildContext, String) weekdayBuilder
+  overrides: createState
 class RawGlassList extends StatefulWidget
   const RawGlassList({
     required List<Object> ids,
@@ -2234,10 +2345,7 @@ class GlassBadgeStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassButton (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassButtonStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassDatePicker (see package:apple_liquid_glass/apple_liquid_glass.dart)
-class GlassDatePickerLocalizations (see package:apple_liquid_glass/apple_liquid_glass.dart)
-enum GlassDatePickerMode (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassDatePickerStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
-enum GlassDatePickerVariant (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassListAccessory (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassListBackground (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassListRow (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -2327,7 +2435,9 @@ class GlassZoomSource (see package:apple_liquid_glass/apple_liquid_glass.dart)
 # package:apple_liquid_glass/presentations.dart
 class GlassAlertAction (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassAlertStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassCompactDatePicker (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassContextMenu (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassDatePickerMode (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassMenuAnchor (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassMenuAnchorChildBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassMenuController (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -2354,6 +2464,14 @@ function showGlassSheet (see package:apple_liquid_glass/apple_liquid_glass.dart)
 # package:apple_liquid_glass/raw.dart
 typedef GlassButtonBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassButtonDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassDatePickerArrow (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef GlassDatePickerArrowBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassDatePickerDay (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef GlassDatePickerDayBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassDatePickerMonthYear (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef GlassDatePickerMonthYearBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassDatePickerTitle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef GlassDatePickerTitleBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassPageControlBackground (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassPageControlBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPageControlDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -2375,6 +2493,7 @@ enum GlassStepperHalf (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassSwitchBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSwitchDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassButton (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class RawGlassDatePicker (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassList (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassPageControl (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassSearchField (see package:apple_liquid_glass/apple_liquid_glass.dart)

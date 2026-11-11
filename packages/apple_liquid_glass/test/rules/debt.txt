@@ -5,7 +5,7 @@
 
 2:through-library         lib/src/controls/badge.dart                 2
 2:through-library         lib/src/controls/button.dart                2
-2:through-library         lib/src/controls/date_picker.dart           11
+2:through-library         lib/src/controls/date_picker.dart           3
 2:through-library         lib/src/controls/list.dart                  5
 2:through-library         lib/src/controls/page_control.dart          3
 2:through-library         lib/src/controls/search_field.dart          6
@@ -29,6 +29,7 @@
 2:through-library         lib/src/navigation/tab_scaffold.dart        1
 2:through-library         lib/src/navigation/toolbar.dart             4
 2:through-library         lib/src/presentations/alert.dart            7
+2:through-library         lib/src/presentations/date_picker.dart      2
 2:through-library         lib/src/presentations/menu_anchor.dart      9
 2:through-library         lib/src/presentations/menu_appearance.dart  5
 2:through-library         lib/src/presentations/menu_content.dart     1
@@ -37,6 +38,7 @@
 2:through-library         lib/src/presentations/popover_shape.dart    3
 2:through-library         lib/src/presentations/sheet.dart            4
 2:through-library         lib/src/raw/button.dart                     1
+2:through-library         lib/src/raw/date_picker.dart                1
 2:through-library         lib/src/raw/page_control.dart               1
 2:through-library         lib/src/raw/search_field.dart               4
 2:through-library         lib/src/raw/selector.dart                   8
@@ -45,23 +47,15 @@
 2:through-library         lib/src/surfaces/follow_frame.dart          1
 3:not-allowed             lib/src/controls/search_field.dart          1
 3:not-allowed             lib/src/raw/search_field.dart               2
-4:forbidden               lib/src/controls/date_picker.dart           1
-5:GestureDetector         lib/src/controls/date_picker.dart           2
 5:GestureDetector         lib/src/presentations/menu_anchor.dart      1
 5:GestureDetector         lib/src/presentations/sheet.dart            1
-5:Listener                lib/src/controls/date_picker.dart           2
 5:Listener                lib/src/presentations/menu_anchor.dart      1
 5:Listener                lib/src/presentations/sheet.dart            1
-5:MotionClock.instance    lib/src/controls/date_picker.dart           4
-5:ValueListenableBuilder  lib/src/controls/date_picker.dart           3
 5:ValueListenableBuilder  lib/src/navigation/tab_bar.dart             1
 5:ValueListenableBuilder  lib/src/presentations/sheet.dart            1
-5:addPostFrameCallback    lib/src/controls/date_picker.dart           5
 5:addPostFrameCallback    lib/src/foundation/style.dart               1
 5:addPostFrameCallback    lib/src/liquid/liquid.dart                  1
 5:addPostFrameCallback    lib/src/navigation/bar.dart                 2
 5:addPostFrameCallback    lib/src/navigation/chrome.dart              1
 5:dynamic                 lib/src/foundation/colors.dart              2
 5:engine-layer            lib/src/raw/selector.dart                   1
-5:reducedMotion           lib/src/controls/date_picker.dart           2
-5:reducedMotion           lib/src/motions/date_picker_motion.dart     10
