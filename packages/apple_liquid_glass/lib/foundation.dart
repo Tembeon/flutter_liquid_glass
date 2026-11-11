@@ -22,7 +22,7 @@ library;
 
 export 'src/foundation/colors.dart' show GlassColors, GlassDynamicColor;
 export 'src/foundation/frame.dart' show GlassFrame;
-export 'src/foundation/glass.dart' show Glass, GlassRole;
+export 'src/foundation/glass.dart' show Glass, GlassLens, GlassRole;
 export 'src/foundation/outline.dart' show GlassOutline;
 export 'src/foundation/shape.dart'
     show GlassOval, GlassRoundedRect, GlassShape, GlassSuperellipse;

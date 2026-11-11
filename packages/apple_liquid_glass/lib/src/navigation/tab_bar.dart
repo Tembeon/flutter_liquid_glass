@@ -448,6 +448,11 @@ class GlassTabBar extends StatelessWidget {
   }
 }
 
+/// The lifted lens shows the swollen bar's edges 0.890 of its height apart
+/// (iPhone 16 Pro references): a shrink of 0.16 toward three quarters of
+/// the center line, 0.897 on the liquid renderer.
+const _lens = GlassLens(shrink: 0.16, shrinkRim: 0.75);
+
 class _TabBarLook extends StatelessWidget {
   const _TabBarLook({required this.details, required this.look});
 
@@ -466,10 +471,10 @@ class _TabBarLook extends StatelessWidget {
       GlassRole role,
       MotionSelection<GlassFrame> frame,
       Color? tint, {
-      GlassPart? part,
+      GlassLens lens = const GlassLens(),
     }) => GlassSurface.live(
       role: role,
-      part: part,
+      lens: lens,
       glass: Glass.regular(tint: tint),
       frame: frame,
       child: const SizedBox.expand(),
@@ -488,7 +493,7 @@ class _TabBarLook extends StatelessWidget {
             GlassRole.lens,
             details.lens,
             resolve(look.thumbColor),
-            part: GlassPart.tabBarLens,
+            lens: _lens,
           ),
         ),
       ],

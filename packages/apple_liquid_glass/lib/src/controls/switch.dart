@@ -92,6 +92,11 @@ class GlassSwitchStyle {
       Object.hash(thumbColor, activeTrackColor, inactiveTrackColor, builder);
 }
 
+/// A small lens that shows the track's edges 0.755 of its height apart
+/// (iPhone 16 Pro references): a shrink of 0.25 toward the whole center
+/// line; NEAR, 0.77 on the liquid renderer.
+const _knobLens = GlassLens(shrink: 0.25, shrinkRim: 1, small: true);
+
 /// An iOS 27 switch.
 ///
 /// UIKit: `UISwitch`. SwiftUI: `Toggle` with the switch style. Flutter:
@@ -211,7 +216,7 @@ class GlassSwitch extends StatelessWidget {
         Positioned.fill(
           child: GlassSurface.live(
             role: GlassRole.lens,
-            part: GlassPart.knob,
+            lens: _knobLens,
             glass: Glass.regular(
               tint: resolve(look.thumbColor, const Color(0xFFFFFFFF)),
             ),

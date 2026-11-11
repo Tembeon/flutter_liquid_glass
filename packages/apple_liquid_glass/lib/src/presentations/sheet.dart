@@ -846,7 +846,6 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
                                   SheetTuning.topRadius,
                                 ),
                                 role: GlassRole.panel,
-                                part: GlassPart.sheet,
                                 child: SizedBox.expand(),
                               ),
                             if (structure.opaque)

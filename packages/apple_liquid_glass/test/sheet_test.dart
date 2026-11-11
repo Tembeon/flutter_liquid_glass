@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass/src/foundation/glass.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -580,7 +579,7 @@ void main() {
     expect(_docked(tester, const Color(0xFFFFFFFF)), isTrue);
     expect(
       find.byWidgetPredicate(
-        (w) => w is GlassSurface && w.part == GlassPart.sheet,
+        (w) => w is GlassSurface && w.role == GlassRole.panel,
       ),
       findsNothing,
     );

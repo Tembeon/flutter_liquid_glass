@@ -238,6 +238,10 @@ class _GlassSliderState extends State<GlassSlider> {
   }
 }
 
+/// A small lens that shows its track unchanged under it (iPhone 16 Pro
+/// references).
+const _thumbLens = GlassLens(small: true);
+
 class _SliderLook extends StatelessWidget {
   const _SliderLook({required this.details, required this.look});
 
@@ -260,11 +264,11 @@ class _SliderLook extends StatelessWidget {
       GlassRole role,
       MotionSelection<GlassFrame> frame,
       Color tint, {
-      GlassPart? part,
+      GlassLens lens = const GlassLens(),
     }) => Positioned.fill(
       child: GlassSurface.live(
         role: role,
-        part: part,
+        lens: lens,
         glass: Glass.regular(tint: tint),
         frame: frame,
         child: const SizedBox.expand(),
@@ -293,7 +297,7 @@ class _SliderLook extends StatelessWidget {
             GlassRole.lens,
             details.thumb,
             resolve(look.thumbColor, const Color(0xFFFFFFFF)),
-            part: GlassPart.thumb,
+            lens: _thumbLens,
           ),
         ],
       ),

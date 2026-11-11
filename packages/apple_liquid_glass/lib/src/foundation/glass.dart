@@ -1,5 +1,4 @@
 import 'package:flutter/widgets.dart';
-import 'package:meta/meta.dart';
 
 /// The glass a surface is made of: regular or clear, and an optional tint.
 ///
@@ -52,19 +51,39 @@ enum GlassRole {
   track,
 }
 
-/// The package's own surface a [GlassRole] is drawn as, where its
-/// renderers draw it apart from the rest of the role.
-@internal
-enum GlassPart {
-  /// The lens a tab bar's selection slides as, over the bar.
-  tabBarLens,
+/// What a lens body ([GlassRole.lens]) asks of the glass it lifts into,
+/// beyond its frames: how its glass shows what lies under it, as the
+/// control that owns the lens measured it.
+///
+/// A lifted lens shows what lies under it smaller, toward its center line,
+/// so the edges of the track or bar under it show inside it with the page
+/// between them and the rim. A renderer that draws no shrinking glass
+/// ignores it.
+@immutable
+final class GlassLens {
+  /// Describes a lens; the defaults shrink nothing and lift a large lens.
+  const GlassLens({this.shrink = 0, this.shrinkRim = 0, this.small = false});
 
-  /// The knob of a switch.
-  knob,
+  /// How much the glass of a fully lifted lens shrinks what lies under it,
+  /// 0 not at all: 0.2 shows it at four fifths of its size.
+  final double shrink;
 
-  /// The thumb of a slider.
-  thumb,
+  /// How much of the lens's long side, less its short side, the center
+  /// line it shrinks toward spans, 0 a point to 1 the whole line.
+  final double shrinkRim;
 
-  /// A sheet's card.
-  sheet,
+  /// Whether the lens is a small one, a knob or a thumb, whose glass bends
+  /// and frosts what lies under it strongly at rest and lifts clear; a
+  /// large lens, a selection, rests clear.
+  final bool small;
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlassLens &&
+      other.shrink == shrink &&
+      other.shrinkRim == shrinkRim &&
+      other.small == small;
+
+  @override
+  int get hashCode => Object.hash(shrink, shrinkRim, small);
 }

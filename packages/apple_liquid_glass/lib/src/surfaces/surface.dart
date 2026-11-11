@@ -1,5 +1,4 @@
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/foundation/glass.dart' show GlassPart;
 import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -21,7 +20,7 @@ class GlassSurface extends StatefulWidget {
     GlassShape this._shape = GlassShape.capsule,
     this.role = GlassRole.control,
     this.glass = const Glass.regular(),
-    @internal this.part,
+    this.lens = const GlassLens(),
     super.key,
   }) : frame = null;
 
@@ -36,7 +35,7 @@ class GlassSurface extends StatefulWidget {
     required this.child,
     this.role = GlassRole.control,
     this.glass = const Glass.regular(),
-    @internal this.part,
+    this.lens = const GlassLens(),
     super.key,
   }) : _shape = null;
 
@@ -52,7 +51,7 @@ class GlassSurface extends StatefulWidget {
   }) : _shape = null,
        role = GlassRole.control,
        glass = const Glass.regular(),
-       part = null;
+       lens = const GlassLens();
 
   final GlassShape? _shape;
 
@@ -62,9 +61,9 @@ class GlassSurface extends StatefulWidget {
   /// The glass family of the surface.
   final GlassRole role;
 
-  /// The package's own surface of [role] this is, for its renderers.
-  @internal
-  final GlassPart? part;
+  /// What a [GlassRole.lens] body asks of its glass; other roles ignore
+  /// it.
+  final GlassLens lens;
 
   /// The glass it is made of.
   final Glass glass;
@@ -97,7 +96,7 @@ class _GlassSurfaceState extends State<GlassSurface> {
       context,
       GlassSurfaceDetails(
         role: widget.role,
-        part: widget.part,
+        lens: widget.lens,
         glass: _resolved(context),
         frame: frame,
         child: KeyedSubtree(key: _child, child: widget.child),

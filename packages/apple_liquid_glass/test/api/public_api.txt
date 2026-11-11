@@ -521,6 +521,16 @@ final class GlassGroupDetails
 enum GlassInterfaceLevel
   base,
   elevated,
+final class GlassLens
+  const GlassLens({
+    double shrink = ...,
+    double shrinkRim = ...,
+    bool small = ...,
+  })
+  final double shrink
+  final double shrinkRim
+  final bool small
+  overrides: ==, hashCode
 enum GlassListAccessory
   disclosureIndicator,
   checkmark,
@@ -1346,7 +1356,7 @@ class GlassSurface extends StatefulWidget
     required Widget child,
     GlassRole role = ...,
     Glass glass = ...,
-    @internal GlassPart? part,
+    GlassLens lens = ...,
     Key? key,
   })
   const GlassSurface({
@@ -1354,7 +1364,7 @@ class GlassSurface extends StatefulWidget
     GlassShape shape = ...,
     GlassRole role = ...,
     Glass glass = ...,
-    @internal GlassPart? part,
+    GlassLens lens = ...,
     Key? key,
   })
   @internal const GlassSurface.written({
@@ -1365,7 +1375,7 @@ class GlassSurface extends StatefulWidget
   final Widget child
   final ValueListenable<GlassFrame>? frame
   final Glass glass
-  @internal final GlassPart? part
+  final GlassLens lens
   final GlassRole role
   overrides: createState
 final class GlassSurfaceDetails
@@ -1374,12 +1384,12 @@ final class GlassSurfaceDetails
     required Glass glass,
     required ValueListenable<GlassFrame> frame,
     required Widget child,
-    @internal GlassPart? part,
+    GlassLens lens = ...,
   })
   final Widget child
   final ValueListenable<GlassFrame> frame
   final Glass glass
-  @internal final GlassPart? part
+  final GlassLens lens
   final GlassRole role
 final class GlassSwipeAction
   const GlassSwipeAction({
@@ -2145,6 +2155,7 @@ class GlassDefaultTextStyle (see package:apple_liquid_glass/apple_liquid_glass.d
 class GlassDynamicColor (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassFrame (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassInterfaceLevel (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassLens (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassOutline (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassOval (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassRole (see package:apple_liquid_glass/apple_liquid_glass.dart)

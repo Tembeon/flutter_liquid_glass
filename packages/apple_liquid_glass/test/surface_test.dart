@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass/src/foundation/glass.dart';
 import 'package:apple_liquid_glass/src/foundation/outline.dart';
 import 'package:apple_liquid_glass/src/foundation/touch_glow.dart';
 import 'package:apple_liquid_glass/src/liquid/adaptive.dart';
@@ -238,20 +237,20 @@ void main() {
       }
     });
 
-    testWidgets('a lifted lens shows what is under it smaller, by the '
-        'measured amount of its control', (tester) async {
-      for (final (part, shrink, rim) in [
-        (GlassPart.tabBarLens, 0.16, 0.75),
-        (null, 0.20, 1.0),
-        (GlassPart.knob, 0.25, 1.0),
-        (GlassPart.thumb, 0.0, 0.0),
+    testWidgets('a lifted lens shows what is under it smaller, as its '
+        'description asks', (tester) async {
+      for (final (lens, shrink, rim) in [
+        (const GlassLens(shrink: 0.16, shrinkRim: 0.75), 0.16, 0.75),
+        (const GlassLens(shrink: 0.20, shrinkRim: 1), 0.20, 1.0),
+        (const GlassLens(shrink: 0.25, shrinkRim: 1, small: true), 0.25, 1.0),
+        (const GlassLens(small: true), 0.0, 0.0),
       ]) {
         await tester.pumpWidget(
           _app(
             const GlassRenderer.liquid(),
             GlassSurface.live(
               role: GlassRole.lens,
-              part: part,
+              lens: lens,
               frame: MotionSelection(() => const GlassFrame(lift: 1)),
               child: const SizedBox(width: 60, height: 30),
             ),
@@ -265,9 +264,60 @@ void main() {
         expect(
           settings.backdropShrink,
           moreOrLessEquals(shrink),
-          reason: '$part',
+          reason: '$lens',
         );
-        expect(settings.backdropShrinkRim, rim, reason: '$part');
+        expect(settings.backdropShrinkRim, rim, reason: '$lens');
+      }
+    });
+
+    testWidgets('each control describes its lens by its own measurement', (
+      tester,
+    ) async {
+      for (final (control, lens) in <(Widget, GlassLens)>[
+        (
+          GlassTabBar(
+            destinations: const [
+              GlassTabDestination(
+                icon: SizedBox.square(dimension: 24),
+                label: Text('Tab'),
+              ),
+              GlassTabDestination(
+                icon: SizedBox.square(dimension: 24),
+                label: Text('Tab'),
+              ),
+            ],
+            selectedIndex: 0,
+            onDestinationSelected: (_) {},
+          ),
+          const GlassLens(shrink: 0.16, shrinkRim: 0.75),
+        ),
+        (
+          GlassSegmentedControl<int>(
+            segments: const [
+              GlassSegment(value: 0, label: Text('One')),
+              GlassSegment(value: 1, label: Text('Two')),
+            ],
+            groupValue: 0,
+            onChanged: (_) {},
+          ),
+          const GlassLens(shrink: 0.20, shrinkRim: 1),
+        ),
+        (
+          GlassSwitch(value: true, onChanged: (_) {}),
+          const GlassLens(shrink: 0.25, shrinkRim: 1, small: true),
+        ),
+        (
+          GlassSlider(value: 0.5, onChanged: (_) {}),
+          const GlassLens(small: true),
+        ),
+      ]) {
+        await tester.pumpWidget(_app(const GlassRenderer.flat(), control));
+        final surface = tester.widget<GlassSurface>(
+          find.byWidgetPredicate(
+            (w) => w is GlassSurface && w.role == GlassRole.lens,
+          ),
+        );
+        expect(surface.lens, lens, reason: '${control.runtimeType}');
       }
     });
 

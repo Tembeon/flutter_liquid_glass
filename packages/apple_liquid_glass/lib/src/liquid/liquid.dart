@@ -160,49 +160,33 @@ Color? _tintOf(GlassFrame frame, Color? own) {
   return Color.lerp(own ?? tint.withValues(alpha: 0), tint, amount);
 }
 
-/// The settings of a lens lifted by [lift]: a knob's or thumb's for those
-/// [part]s, a plain one's for none.
+/// The settings of [lens] lifted by [lift].
 ///
 /// UIKit's lens configuration (read from UIKit, notes private) bends what
-/// is behind a resting knob or thumb by 50 and blurs it by 6, a lifted one
-/// bends it by 9 without blur, and a large lens rests clear. Engineering
-/// factors, not measured, part the colors along the rim and brighten the
-/// highlight by half as the lens lifts.
-///
-/// A lifted lens also shows what lies under it smaller, about its center
-/// line, so the edges of the track or bar show inside it with the page
-/// between them and the rim (iPhone 16 Pro references): a tab bar's lens
-/// shows the swollen bar's edges 0.890 of its height apart (shrink 0.16,
-/// three quarters of the center line; 0.897 here), a segmented control's
-/// the track's edges 0.8125 apart (0.20, the whole line; 0.814 here) and a
-/// switch's knob 0.755 apart (0.25; NEAR, 0.77 here); a slider's thumb
-/// shows its track unchanged. The bevel bends the other way, toward the
-/// middle, so a bend above UIKit's 9 hides those edges behind the rim.
+/// is behind a resting small lens (a knob or thumb) by 50 and blurs it by
+/// 6, a lifted one bends it by 9 without blur, and a large lens rests
+/// clear. Engineering factors, not measured, part the colors along the rim
+/// and brighten the highlight by half as the lens lifts. The lens's shrink
+/// grows with the lift; the bevel bends the other way, toward the middle,
+/// so a bend above UIKit's 9 hides the edges the shrink shows behind the
+/// rim.
 LiquidGlassSettings _lensSettings(
   LiquidGlassSettings base,
   double lift, {
-  required GlassPart? part,
+  required GlassLens lens,
 }) {
   final l = lift.clamp(0.0, 1.0);
-  final small = part == GlassPart.knob || part == GlassPart.thumb;
+  final small = lens.small;
   final displacement = small ? 50 + (9 - 50) * l : 9 * l;
-  final (:shrink, :rim) = _shrinkOf(part);
   return base.copyWith(
     frost: small ? 6 * (1 - l) : 0,
     refractionAmount: displacement,
     dispersion: -0.25 * l,
     highlight: base.highlight * (1 + 0.5 * l),
-    backdropShrink: shrink * l,
-    backdropShrinkRim: rim,
+    backdropShrink: lens.shrink * l,
+    backdropShrinkRim: lens.shrinkRim,
   );
 }
-
-GlassLensShrinkage _shrinkOf(GlassPart? part) => switch (part) {
-  GlassPart.tabBarLens => (shrink: 0.16, rim: 0.75),
-  null => (shrink: 0.20, rim: 1.0),
-  GlassPart.knob => (shrink: 0.25, rim: 1.0),
-  _ => (shrink: 0.0, rim: 0.0),
-};
 
 // The group is an ancestor: it cannot be marked to build while the framework
 // builds, lays out or paints, or from a descendant's dispose, and a glow
@@ -644,7 +628,7 @@ class _LiquidGroupState extends State<_LiquidGroup> with _RebuildOutsideFrame {
     return _lensSettings(
       _base,
       _drawsFake(widget.fake) ? 1 : lens.frame.value.lift,
-      part: lens.part,
+      lens: lens.lens,
     );
   }
 
@@ -833,7 +817,7 @@ class _LiquidLensState extends State<_LiquidLens> with _RebuildOutsideFrame {
     if (report != null) {
       report.value = _drawsFake(widget.fake)
           ? GlassLensShrink.none
-          : _shrinkOf(details.part);
+          : (shrink: details.lens.shrink, rim: details.lens.shrinkRim);
     }
     return Stack(
       fit: StackFit.passthrough,
@@ -849,7 +833,7 @@ class _LiquidLensState extends State<_LiquidLens> with _RebuildOutsideFrame {
                 glows: !widget.fake,
                 details: GlassSurfaceDetails(
                   role: details.role,
-                  part: details.part,
+                  lens: details.lens,
                   glass: details.glass,
                   frame: details.frame,
                   child: const SizedBox.expand(),

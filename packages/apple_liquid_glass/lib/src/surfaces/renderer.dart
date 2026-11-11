@@ -1,5 +1,4 @@
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/foundation/glass.dart' show GlassPart;
 import 'package:apple_liquid_glass/src/liquid/adaptive.dart';
 import 'package:apple_liquid_glass/src/liquid/liquid.dart';
 import 'package:apple_liquid_glass/src/liquid/scroll_edge.dart';
@@ -79,15 +78,15 @@ final class GlassSurfaceDetails {
     required this.glass,
     required this.frame,
     required this.child,
-    @internal this.part,
+    this.lens = const GlassLens(),
   });
 
   /// The glass family of the surface.
   final GlassRole role;
 
-  /// The package's own surface of [role] this is, for its renderers.
-  @internal
-  final GlassPart? part;
+  /// What a [GlassRole.lens] body asks of its glass; other roles ignore
+  /// it.
+  final GlassLens lens;
 
   /// The glass it is made of.
   final Glass glass;

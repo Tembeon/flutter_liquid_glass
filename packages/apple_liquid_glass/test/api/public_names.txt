@@ -41,6 +41,7 @@ GlassFrameReport
 GlassGroup
 GlassGroupDetails
 GlassInterfaceLevel
+GlassLens
 GlassListAccessory
 GlassListBackground
 GlassListRow
