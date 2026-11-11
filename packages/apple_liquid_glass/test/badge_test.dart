@@ -1,20 +1,27 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-Widget _app(Widget child, {Brightness brightness = Brightness.light}) =>
-    MediaQuery(
-      data: const MediaQueryData(textScaler: TextScaler.linear(2)),
-      child: Directionality(
-        textDirection: TextDirection.ltr,
-        child: GlassTheme(
-          data: GlassThemeData(brightness: brightness),
-          child: Center(child: child),
-        ),
-      ),
-    );
+Widget _app(
+  Widget child, {
+  Brightness brightness = Brightness.light,
+  TextDirection direction = TextDirection.ltr,
+}) => MediaQuery(
+  data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+  child: Directionality(
+    textDirection: direction,
+    child: GlassTheme(
+      data: GlassThemeData(brightness: brightness),
+      child: Center(child: child),
+    ),
+  ),
+);
+
+// Arabic for new.
+const _arabic = '\u062C\u062F\u064A\u062F';
 
 void main() {
   testWidgets('a count is a red capsule with white text that ignores the '
@@ -95,5 +102,18 @@ void main() {
     );
     expect(fill(), const Color(0xFF0000AA));
     expect(tester.getSize(find.byType(GlassBadge)).height, greaterThan(small));
+  });
+
+  testWidgets('right to left, a text badge runs in that direction and fits '
+      'its text', (tester) async {
+    await tester.pumpWidget(
+      _app(const GlassBadge.text(_arabic), direction: TextDirection.rtl),
+    );
+    final size = tester.getSize(find.byType(GlassBadge));
+    final text = tester.getSize(find.text(_arabic));
+    expect(size.width, math.max(size.height, text.width + 8));
+    final paragraph = tester.renderObject<RenderParagraph>(find.text(_arabic));
+    expect(paragraph.textDirection, TextDirection.rtl);
+    expect(paragraph.didExceedMaxLines, isFalse);
   });
 }

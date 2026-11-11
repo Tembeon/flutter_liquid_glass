@@ -1,8 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/foundation/colors.dart';
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/theme.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:flutter/widgets.dart';
 
@@ -82,7 +81,10 @@ class GlassBadgeStyle extends GlassStyle<GlassBadgeStyle> {
 /// the theme's says otherwise: a capsule of [fontSize] medium text with
 /// [verticalPadding] and [horizontalPadding], at least as wide as it is tall
 /// and at most [maxWidth]; the dot is [dotSize] across. Its text does not
-/// follow the text size setting. These metrics are read from UIKit (notes
+/// follow the text size setting, as the bar items it sits on do not: UIKit
+/// shows them through the large content viewer instead
+/// (`UILargeContentViewerInteraction`). Its text runs in the ambient
+/// direction. These metrics are read from UIKit (notes
 /// private); how a badge appears, changes and leaves (UIKit fades it with the
 /// bar's update animation) is not reproduced.
 class GlassBadge extends StatelessWidget {
@@ -170,7 +172,7 @@ class GlassBadge extends StatelessWidget {
           );
           final painter = TextPainter(
             text: TextSpan(text: label, style: style),
-            textDirection: TextDirection.ltr,
+            textDirection: Directionality.of(context),
             maxLines: 1,
           );
           painter.layout();
