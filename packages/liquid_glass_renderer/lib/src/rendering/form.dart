@@ -118,6 +118,10 @@ final class Form implements PlanScenery {
     _top!.refreshIn(this, _outside);
     _flat.length = _count;
     _volatile.length = _volatileCount;
+    assert(
+      _sites.length == _siteNodes.length,
+      'Every site has exactly one site node.',
+    );
   }
 
   /// Logs what glass that left drew. A layer holding it may cover nothing of
