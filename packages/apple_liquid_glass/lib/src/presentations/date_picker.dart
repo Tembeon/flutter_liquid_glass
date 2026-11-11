@@ -176,10 +176,13 @@ extension on GlassCompactDatePicker {
 
 enum _Part { date, time }
 
+// What the open overlay shows of its picker; null once the picker is gone.
+typedef _PickerConfig = ({GlassCompactDatePicker picker, bool twentyFour});
+
 class _GlassCompactDatePickerState extends State<GlassCompactDatePicker> {
   _Part? _open;
   DatePickerMotion? _overlay;
-  _OverlayViewState? _routeView;
+  final _config = ValueNotifier<_PickerConfig?>(null);
   final Map<_Part, GlobalKey> _labels = {
     _Part.date: GlobalKey(debugLabel: 'date'),
     _Part.time: GlobalKey(debugLabel: 'time'),
@@ -202,6 +205,9 @@ class _GlassCompactDatePickerState extends State<GlassCompactDatePicker> {
       MediaQuery.maybeAlwaysUse24HourFormatOf(context) ??
       false;
 
+  void _configure() =>
+      _config.value = (picker: widget, twentyFour: _twentyFour);
+
   Future<void> _show(_Part part, BuildContext anchor) async {
     if (!_enabled || _open != null) return;
     final box = anchor.findRenderObject();
@@ -223,7 +229,10 @@ class _GlassCompactDatePickerState extends State<GlassCompactDatePicker> {
           barrierLabel: loc.datePickerDismissLabel,
           initialFocus: part == _Part.date ? days : null,
           builder: (context, motion) => _OverlayView(
-            picker: this,
+            config: _config,
+            labelRect: _labelRect,
+            onSwitched: _switched,
+            onChanged: _changed,
             motion: motion,
             part: part,
             label: rect,
@@ -239,9 +248,22 @@ class _GlassCompactDatePickerState extends State<GlassCompactDatePicker> {
   void _changed(DateTime value) => widget.onChanged?.call(value);
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _configure();
+  }
+
+  @override
   void didUpdateWidget(GlassCompactDatePicker oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _routeView?._hostChanged();
+    _configure();
+  }
+
+  @override
+  void dispose() {
+    _config.value = null;
+    _config.dispose();
+    super.dispose();
   }
 
   @override

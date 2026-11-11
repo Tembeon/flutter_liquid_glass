@@ -5,14 +5,20 @@ const double _overlayMaxTextScale = 1.2;
 
 class _OverlayView extends StatefulWidget {
   const _OverlayView({
-    required this.picker,
+    required this.config,
+    required this.labelRect,
+    required this.onSwitched,
+    required this.onChanged,
     required this.motion,
     required this.part,
     required this.label,
     required this.days,
   });
 
-  final _GlassCompactDatePickerState picker;
+  final ValueListenable<_PickerConfig?> config;
+  final Rect? Function(_Part part) labelRect;
+  final ValueChanged<_Part> onSwitched;
+  final ValueChanged<DateTime> onChanged;
   final DatePickerMotion motion;
   final _Part part;
   final Rect label;
@@ -57,6 +63,8 @@ final class _OutsideTap extends Interaction {
 }
 
 class _OverlayViewState extends State<_OverlayView> {
+  // The picker as the overlay opened, kept once the picker is gone.
+  late _PickerConfig _config = widget.config.value!;
   late DateTime _value = _bounded(_picker.value);
   late _Part _part = widget.part;
   late Rect _label = widget.label;
@@ -87,16 +95,20 @@ class _OverlayViewState extends State<_OverlayView> {
 
   DatePickerMotion get _motion => widget.motion;
 
-  _GlassCompactDatePickerState get _host => widget.picker;
+  GlassCompactDatePicker get _picker => _config.picker;
 
-  GlassCompactDatePicker get _picker => _host.widget;
+  bool get _twentyFour => _config.twentyFour;
+
+  bool get _hostGone => widget.config.value == null;
+
+  bool get _enabled => !_hostGone && _picker.onChanged != null;
 
   double get _now => _motion.clock.now;
 
   @override
   void initState() {
     super.initState();
-    _host._routeView = this;
+    widget.config.addListener(_hostChanged);
     _cancelReady = _motion.clock.schedulePublish(() {
       _cancelReady = null;
       if (mounted) setState(() => _contentReady = true);
@@ -107,7 +119,7 @@ class _OverlayViewState extends State<_OverlayView> {
   void dispose() {
     _cancelReady?.call();
     _cancelReconcile?.call();
-    if (_host._routeView == this) _host._routeView = null;
+    widget.config.removeListener(_hostChanged);
     super.dispose();
   }
 
@@ -123,7 +135,7 @@ class _OverlayViewState extends State<_OverlayView> {
   _Part? _otherLabelAt(Offset position) {
     for (final part in _Part.values) {
       if (part == _part) continue;
-      final rect = _host._labelRect(part);
+      final rect = widget.labelRect(part);
       if (rect != null && rect.contains(position)) return part;
     }
     return null;
@@ -139,7 +151,7 @@ class _OverlayViewState extends State<_OverlayView> {
   }
 
   void _switchTo(_Part part) {
-    final label = _host._labelRect(part);
+    final label = widget.labelRect(part);
     if (label == null || !_motion.isOpen) return;
     _motion.switchPicker(_now, back: _switching.value && part == _fromPart);
     setState(() {
@@ -148,7 +160,7 @@ class _OverlayViewState extends State<_OverlayView> {
       _part = part;
       _label = label;
     });
-    _host._switched(part);
+    widget.onSwitched(part);
   }
 
   void _close(DismissTrigger trigger) {
@@ -160,22 +172,24 @@ class _OverlayViewState extends State<_OverlayView> {
       _clamp(value, _picker._minimum, _picker._maximum);
 
   void _pick(DateTime value) {
-    if (!_host.mounted || !_host._enabled) return;
+    if (!_enabled) return;
     final next = _bounded(value);
     setState(() => _value = next);
-    _host._changed(next);
+    widget.onChanged(next);
   }
 
   void _reconcile() {
-    if (!mounted || !_host.mounted) return;
-    if (!_host._enabled) {
+    final config = widget.config.value;
+    if (!mounted || config == null) return;
+    _config = config;
+    if (!_enabled) {
       _close(DismissTrigger.programmatic);
       return;
     }
     final value = _bounded(_picker.value);
     final shown = _shown;
     if (_value == value &&
-        _host._twentyFour == _shownTwentyFour &&
+        _twentyFour == _shownTwentyFour &&
         shown != null &&
         _showsAlike(shown, _picker)) {
       return;
@@ -202,7 +216,7 @@ class _OverlayViewState extends State<_OverlayView> {
           minimumDate: _picker._minimum,
           maximumDate: _picker._maximum,
           minuteInterval: _picker.minuteInterval,
-          use24HourFormat: _host._twentyFour,
+          use24HourFormat: _twentyFour,
           style: _picker.style,
           onChanged: _pick,
         )
@@ -221,7 +235,7 @@ class _OverlayViewState extends State<_OverlayView> {
   @override
   Widget build(BuildContext context) {
     _shown = _picker;
-    _shownTwentyFour = _host._twentyFour;
+    _shownTwentyFour = _twentyFour;
     final look = GlassDatePickerStyle.resolve(context, _picker.style);
     final media = MediaQuery.of(context);
     final direction = Directionality.maybeOf(context) ?? TextDirection.ltr;
