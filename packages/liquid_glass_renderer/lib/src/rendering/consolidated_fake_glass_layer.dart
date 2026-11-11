@@ -3,17 +3,18 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
-import 'package:liquid_glass_renderer/src/internal/glass_blur.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/composer/scene_out.dart';
-import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/internal/fake_glass_color.dart';
+import 'package:liquid_glass_renderer/src/internal/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/internal/paint_fake_glass_surface.dart';
 import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_render_object_mixin.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_appearance.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 
 enum _FakeGlassPaintStage {

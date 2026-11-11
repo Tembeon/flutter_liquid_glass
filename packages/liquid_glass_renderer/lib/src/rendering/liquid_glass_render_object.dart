@@ -5,7 +5,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/glass_shadow.dart';
@@ -13,6 +12,9 @@ import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.
 import 'package:liquid_glass_renderer/src/internal/retained_glass_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_render_object_mixin.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_appearance.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_settings.dart';
+import 'package:liquid_glass_renderer/src/liquid_shape.dart';
 
 /// The transform from [shape]'s own coordinates into its layer's, given its
 /// geometry's [geometryToLayer].

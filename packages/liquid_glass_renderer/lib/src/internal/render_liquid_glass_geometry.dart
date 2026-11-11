@@ -1,8 +1,10 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_appearance.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_settings.dart';
+import 'package:liquid_glass_renderer/src/liquid_shape.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 import 'package:meta/meta.dart';
 

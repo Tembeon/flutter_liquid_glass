@@ -1,8 +1,6 @@
 /// Liquid Glass Effect for Flutter
 library liquid_glass_renderer;
 
-import 'package:flutter/foundation.dart' show kDebugMode;
-
 export 'src/composer/backdrop_filter_layer.dart'
     show LiquidGlassBackdropFilterLayer;
 export 'src/composer/backdrop_frost.dart' show LiquidGlassBackdropFrost;
@@ -36,16 +34,8 @@ export 'src/liquid_shape.dart'
         LiquidRoundedRectangle,
         LiquidRoundedSuperellipse,
         LiquidShape;
+export 'src/rendering/debug.dart' show debugPaintLiquidGlassGeometry;
 export 'src/rendering/liquid_glass_layer.dart'
     show LiquidGlassLayer, LiquidGlassLayerFrame;
 export 'src/stretch.dart'
     show LiquidStretch, OffsetResistanceExtension, RawLiquidStretch;
-
-/// Whether to paint the liquid glass geometry texture for debugging purposes.
-///
-/// When enabled, geometry textures will be drawn directly instead of the
-/// liquid glass effect.
-///
-/// Always `false` outside debug builds.
-@pragma('vm:platform-const-if', !kDebugMode)
-bool debugPaintLiquidGlassGeometry = false;

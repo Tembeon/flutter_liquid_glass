@@ -5,7 +5,9 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_filter_layer.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_frost.dart';
+import 'package:liquid_glass_renderer/src/glass_glow.dart';
 import 'package:liquid_glass_renderer/src/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/internal/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/internal/glass_blur.dart';
@@ -13,7 +15,15 @@ import 'package:liquid_glass_renderer/src/internal/live_paint_size.dart';
 import 'package:liquid_glass_renderer/src/internal/multi_shader_builder.dart';
 import 'package:liquid_glass_renderer/src/internal/optimized_clip.dart';
 import 'package:liquid_glass_renderer/src/internal/paint_fake_glass_surface.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_appearance.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_blend_group.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_render_scope.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_settings.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass_visibility.dart';
+import 'package:liquid_glass_renderer/src/liquid_shape.dart';
+import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/shaders.dart';
 
 /// A lower-cost approximation of [LiquidGlass] without refraction geometry.

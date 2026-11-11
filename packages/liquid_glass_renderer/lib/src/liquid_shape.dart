@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter/painting.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/liquid_glass.dart';
 import 'package:meta/meta.dart';
 
 /// Represents a shape that can be used by a [LiquidGlass] widget.
