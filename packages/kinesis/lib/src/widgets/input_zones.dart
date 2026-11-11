@@ -486,8 +486,12 @@ class InputZones<T extends Object> extends StatefulWidget {
   /// null for one of its own.
   final InputZonesController<T>? controller;
 
-  /// The axis the arrows move along in the order of [zones], or null to
-  /// move to the nearest zone on screen in the arrow's direction (a grid).
+  /// The axis the arrows move along in the order of [zones], or null for a
+  /// grid: an arrow then moves to the nearest zone it points at in the same
+  /// row or column, one that overlaps the focused zone across the arrow by
+  /// more than half. With none there (the blank cells before the first day
+  /// of a month) the arrow asks [onEdge], which is where a grid carries on
+  /// in reading order.
   final Axis? axis;
 
   /// Whether every zone that takes a key is a Tab stop, or the host is one.
@@ -786,16 +790,34 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     return null;
   }
 
+  // The nearest zone the arrow points at in the row or the column of
+  // [from]: one that overlaps it across the arrow by more than half of the
+  // smaller of the two. A zone further along in another row is not the next
+  // one in reading order, so the arrow finds nothing there and the host is
+  // asked ([InputZones.onEdge]).
   _ZoneState<T>? _nearest(_ZoneState<T> from, TraversalDirection direction) {
-    final origin = from.frame?.rect.center;
+    final origin = from.frame?.rect;
     if (origin == null) return null;
+    final horizontal =
+        direction == TraversalDirection.left ||
+        direction == TraversalDirection.right;
     _ZoneState<T>? best;
-    var bestScore = double.infinity;
+    var bestAlong = double.infinity;
+    var bestAcross = double.infinity;
     for (final zone in _zones.values) {
       if (identical(zone, from) || !_traversable(zone)) continue;
       final rect = zone.frame?.rect;
       if (rect == null) continue;
-      final d = rect.center - origin;
+      final shared = horizontal
+          ? math.min(rect.bottom, origin.bottom) -
+                math.max(rect.top, origin.top)
+          : math.min(rect.right, origin.right) -
+                math.max(rect.left, origin.left);
+      final smaller = horizontal
+          ? math.min(rect.height, origin.height)
+          : math.min(rect.width, origin.width);
+      if (shared <= smaller / 2) continue;
+      final d = rect.center - origin.center;
       final (along, across) = switch (direction) {
         TraversalDirection.up => (-d.dy, d.dx.abs()),
         TraversalDirection.down => (d.dy, d.dx.abs()),
@@ -803,10 +825,10 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
         TraversalDirection.right => (d.dx, d.dy.abs()),
       };
       if (along <= precisionErrorTolerance) continue;
-      final score = along + 2 * across;
-      if (score < bestScore) {
+      if (along < bestAlong || (along == bestAlong && across < bestAcross)) {
         best = zone;
-        bestScore = score;
+        bestAlong = along;
+        bestAcross = across;
       }
     }
     return best;
