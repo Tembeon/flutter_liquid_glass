@@ -285,13 +285,33 @@ class _PresentationPortalState extends State<PresentationPortal>
   }
 
   @override
-  Widget build(BuildContext context) => OverlayPortal(
-    controller: _overlay,
-    overlayLocation: OverlayChildLocation.rootOverlay,
-    overlayChildBuilder: _content,
-    child: widget.presentation.dismissesOnOutsideTap
-        ? TapRegion(groupId: this, child: widget.child)
-        : widget.child,
+  // Screen readers find an overlay portal's child under the node of the
+  // portal's own child, among that node's children in an order they read by
+  // geometry, where a full-screen presentation comes first. A node of its own
+  // after the source, with nothing else under it, carries the presentation.
+  Widget build(BuildContext context) => Semantics(
+    container: true,
+    explicitChildNodes: true,
+    child: Stack(
+      fit: StackFit.passthrough,
+      children: [
+        Semantics(
+          container: true,
+          sortKey: const OrdinalSortKey(0),
+          child: widget.presentation.dismissesOnOutsideTap
+              ? TapRegion(groupId: this, child: widget.child)
+              : widget.child,
+        ),
+        Positioned.fill(
+          child: OverlayPortal(
+            controller: _overlay,
+            overlayLocation: OverlayChildLocation.rootOverlay,
+            overlayChildBuilder: _content,
+            child: Semantics(sortKey: const OrdinalSortKey(1)),
+          ),
+        ),
+      ],
+    ),
   );
 
   Widget _content(BuildContext context) {

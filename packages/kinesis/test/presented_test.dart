@@ -1332,6 +1332,35 @@ void main() {
       outside.dispose();
     });
 
+    testWidgets('a screen reader reaches it right after a source whose name '
+        'sits in a node of its own', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final shell = _PortalShell();
+      final made = <_Card>[];
+      await shell.pump(
+        tester,
+        Align(
+          alignment: Alignment.bottomRight,
+          child: Semantics(
+            onLongPress: () {},
+            child: Semantics(
+              container: true,
+              label: 'Source',
+              child: const SizedBox(width: 80, height: 40),
+            ),
+          ),
+        ),
+      );
+      await shell.present(
+        tester,
+        _presentation(made, barrierLabel: 'Dismiss panel'),
+      );
+      await tester.pump();
+      await _settle(tester);
+      expect(_readingOrder(tester), ['Source', 'Panel', 'Dismiss panel']);
+      semantics.dispose();
+    });
+
     testWidgets('takes the focus and gives it back', (tester) async {
       final shell = _PortalShell();
       final made = <_Card>[];

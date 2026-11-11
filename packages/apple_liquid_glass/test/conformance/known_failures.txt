@@ -5,4 +5,4 @@
 # never adds one. The failures that are right live elsewhere: a reference
 # control's in its `fails`, a reviewed deviation in its entry's `exempt`.
 # Format: <entry> <check>: <reason>
-GlassMenuAnchor barrier-hides-behind: assistive technology reads it before its anchor
+
