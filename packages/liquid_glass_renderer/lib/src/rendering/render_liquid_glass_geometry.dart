@@ -249,15 +249,16 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     }
     return false;
   }
-}
 
-/// The geometry a [RenderLiquidGlassGeometry] gives the layer it registers
-/// on, which only the rendering library reads.
-extension RenderLiquidGlassGeometryCache on RenderLiquidGlassGeometry {
+  // What the layer it registers on reads of its geometry: the layer's
+  // collect, poll and encode call these, and nothing else may.
+
   /// The current state of the geometry.
+  @internal
   LiquidGlassGeometryState get geometryState => _geometryState;
 
   /// The geometry last built, if any.
+  @internal
   GeometryCache? get geometry => _geometry;
 
   /// Detects motion of this geometry relative to [layer].
@@ -274,6 +275,7 @@ extension RenderLiquidGlassGeometryCache on RenderLiquidGlassGeometry {
   /// With [record] false it changes nothing: the transforms stay the next
   /// poll's baseline and the geometry is not marked, so it can be asked
   /// before paint, as often as needed.
+  @internal
   LiquidGlassTransformPoll pollRelativeTransforms(
     RenderObject layer, {
     bool record = true,
@@ -300,12 +302,14 @@ extension RenderLiquidGlassGeometryCache on RenderLiquidGlassGeometry {
   }
 
   /// Whether [candidate] was current before polling compositor motion.
+  @internal
   bool hasCurrentGeometryCache(GeometryCache candidate) =>
       identical(_geometry, candidate) &&
       _geometryState == LiquidGlassGeometryState.updated;
 
   /// Refreshes CPU geometry during owner paint or pre-submission preparation.
   /// This advances cache state but does not paint children or encode a matte.
+  @internal
   GeometryCache? maybeRebuildGeometry() {
     if (_geometryState == LiquidGlassGeometryState.updated &&
         _geometry != null) {
@@ -403,8 +407,10 @@ enum RawShapeType {
 
   static RawShapeType fromLiquidGlassShape(LiquidShape shape) =>
       switch (shape) {
-        LiquidRoundedSuperellipse(:final isUniform) =>
-          isUniform ? RawShapeType.squircle : RawShapeType.squirclePair,
+        LiquidRoundedSuperellipse() =>
+          shape.pairBottomRadius == null
+              ? RawShapeType.squircle
+              : RawShapeType.squirclePair,
         LiquidOval() => RawShapeType.ellipse,
         LiquidRoundedRectangle() => RawShapeType.roundedRectangle,
       };
@@ -425,11 +431,7 @@ class ShapeGeometry {
     this.shadows = const [],
     this.shapeToGeometry,
   }) : _rawCornerRadius = shape.cornerRadius,
-       _rawBottomRadius = switch (shape) {
-         LiquidRoundedSuperellipse(:final effectiveBottomRadius) =>
-           effectiveBottomRadius,
-         _ => shape.cornerRadius,
-       },
+       _rawBottomRadius = shape.pairBottomRadius ?? shape.cornerRadius,
        _rawShapeType = RawShapeType.fromLiquidGlassShape(shape);
 
   /// The render object of the shape.
@@ -477,22 +479,24 @@ class ShapeGeometry {
     shapeToGeometry,
   );
 
+  // What the shape set encodes for the geometry shaders, which only it
+  // reads.
+
+  /// The kind of the shape, as the geometry shaders tell it.
+  @internal
+  RawShapeType get encodedShapeType => _rawShapeType;
+
+  /// The corner radius the geometry shaders draw the shape with.
+  @internal
+  double get encodedCornerRadius => _rawCornerRadius;
+
+  /// The radius of the two bottom corners: [encodedCornerRadius] except for a
+  /// [RawShapeType.squirclePair].
+  @internal
+  double get encodedBottomRadius => _rawBottomRadius;
+
   @override
   String toString() =>
       'ShapeGeometry($renderObject, $shape, $appearance, $shapeBounds, '
       '$shadows, $shapeToGeometry)';
-}
-
-/// A [ShapeGeometry] as the geometry shaders take it, which only the
-/// rendering library encodes.
-extension ShapeGeometryEncoding on ShapeGeometry {
-  /// The kind of the shape, as the geometry shaders tell it.
-  RawShapeType get rawShapeType => _rawShapeType;
-
-  /// The corner radius the geometry shaders draw the shape with.
-  double get rawCornerRadius => _rawCornerRadius;
-
-  /// The radius of the two bottom corners: [rawCornerRadius] except for a
-  /// [RawShapeType.squirclePair].
-  double get rawBottomRadius => _rawBottomRadius;
 }

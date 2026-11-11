@@ -48,6 +48,15 @@ extension DrawnShape on LiquidShape {
     LiquidRoundedRectangle(:final borderRadius) => borderRadius,
     LiquidOval() => 0,
   };
+
+  /// The radius of the two bottom corners where they differ from the top
+  /// ones' ([cornerRadius]), else null: the one rule that tells a
+  /// [LiquidRoundedSuperellipse] drawn as two halves from one drawn whole.
+  double? get pairBottomRadius => switch (this) {
+    final LiquidRoundedSuperellipse shape when !shape.isUniform =>
+      shape.effectiveBottomRadius,
+    _ => null,
+  };
 }
 
 /// A [LiquidRoundedSuperellipse] as the shaders take it.

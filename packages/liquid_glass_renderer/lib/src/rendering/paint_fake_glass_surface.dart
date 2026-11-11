@@ -135,28 +135,20 @@ void paintFakeGlassSurface(
     LiquidRoundedRectangle() => 1.0,
     LiquidRoundedSuperellipse() => 2.0,
   };
-  final pairShape = shape is LiquidRoundedSuperellipse && !shape.isUniform
-      ? shape
-      : null;
-  final fit = pairShape == null
+  final pairBottom = shape.pairBottomRadius;
+  final fit = pairBottom == null
       ? 1.0
-      : roundedSuperellipsePairFit(
-          size,
-          pairShape.borderRadius,
-          pairShape.effectiveBottomRadius,
-        );
+      : roundedSuperellipsePairFit(size, shape.cornerRadius, pairBottom);
   final cornerRadius = shape.cornerRadius * fit;
-  final bottomRadius = pairShape == null
-      ? null
-      : pairShape.effectiveBottomRadius * fit;
+  final bottomRadius = pairBottom == null ? null : pairBottom * fit;
   // A pair's halves, the bottom one with its half width back in the slot its
   // radius takes for real glass.
-  final pair = pairShape == null
+  final pair = pairBottom == null
       ? null
       : (roundedSuperellipsePairParameters(
           size,
-          pairShape.borderRadius,
-          pairShape.effectiveBottomRadius,
+          shape.cornerRadius,
+          pairBottom,
         )..[12 + 8] = size.width / 2);
   final opticalThickness = settings.effectiveEdgeDistanceRange;
   final uniforms = <double>[

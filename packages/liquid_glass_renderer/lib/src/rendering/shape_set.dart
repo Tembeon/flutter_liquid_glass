@@ -146,17 +146,17 @@ final class ShapeSet {
         // AABB here would apply scale a second time (and turn rotations into
         // oversized primitives), which is especially visible for stretched
         // shapes in a blend group.
-        final pair = shape.rawShapeType == RawShapeType.squirclePair;
+        final pair = shape.encodedShapeType == RawShapeType.squirclePair;
         final rseParameters = pair
             ? roundedSuperellipsePairParameters(
                 size,
-                shape.rawCornerRadius,
-                shape.rawBottomRadius,
+                shape.encodedCornerRadius,
+                shape.encodedBottomRadius,
                 scale: dpr,
               )
             : roundedSuperellipseParameters(
                 size,
-                shape.rawCornerRadius,
+                shape.encodedCornerRadius,
                 scale: dpr,
               );
         // The geometry shader tests each cap's angular span as
@@ -175,10 +175,10 @@ final class ShapeSet {
         // capsule written with an oversized radius. A pair is fitted on
         // its own.
         final cornerRadius = pair
-            ? shape.rawCornerRadius
-            : min(shape.rawCornerRadius, size.shortestSide / 2);
+            ? shape.encodedCornerRadius
+            : min(shape.encodedCornerRadius, size.shortestSide / 2);
         final halfExtents = _matteHalfExtents(
-          shape.rawShapeType,
+          shape.encodedShapeType,
           size * dpr / 2,
           cornerRadius * dpr,
           axisX,
@@ -196,7 +196,7 @@ final class ShapeSet {
 
         shapes.addAll([
           // vec4 0: primitive parameters.
-          shape.rawShapeType.shaderIndex,
+          shape.encodedShapeType.shaderIndex,
           size.width * dpr,
           size.height * dpr,
           cornerRadius * dpr,

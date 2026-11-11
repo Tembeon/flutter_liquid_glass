@@ -1248,10 +1248,18 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
   set devicePixelRatio(double value)
   abstract (Rect, List<ShapeGeometry>, bool) gatherShapeData()
   Iterable<LiquidGlassShapeRenderObject> get gatheredShapes
+  @internal GeometryCache? get geometry
   double get geometryBlend
+  @internal LiquidGlassGeometryState get geometryState
+  @internal bool hasCurrentGeometryCache(GeometryCache candidate)
   bool hasCurrentMatteRevision(int revision)
   @protected void markGeometryNeedsUpdate({bool force = ...})
+  @internal GeometryCache? maybeRebuildGeometry()
   @protected bool pollChildShapeTransforms({bool record = ...})
+  @internal ({bool childChanged, bool selfChanged, Matrix4? transform}) pollRelativeTransforms(
+    RenderObject layer, {
+    bool record = ...,
+  })
   GeometryRenderLink? get renderLink
   set renderLink(GeometryRenderLink? value)
   LiquidGlassSettings get settings
@@ -1322,6 +1330,9 @@ class ShapeGeometry
     Matrix4? shapeToGeometry,
   })
   final LiquidGlassAppearance appearance
+  @internal double get encodedBottomRadius
+  @internal double get encodedCornerRadius
+  @internal RawShapeType get encodedShapeType
   final LiquidGlassShapeRenderObject renderObject
   final List<BoxShadow> shadows
   final LiquidShape shape
