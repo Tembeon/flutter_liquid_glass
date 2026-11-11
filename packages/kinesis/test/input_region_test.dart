@@ -313,6 +313,26 @@ void main() {
       await tester.pump();
       expect(await tester.sendKeyEvent(LogicalKeyboardKey.space), isFalse);
     });
+
+    testWidgets('a region that neither activates nor adjusts leaves the keys '
+        'to the region below it', (tester) async {
+      var presses = 0;
+      await tester.pumpWidget(
+        _widgetsApp(
+          InputRegion(
+            interactions: [DragInteraction()],
+            child: _Pressable(
+              onPressed: () => presses++,
+              child: const SizedBox(width: 80, height: 40),
+            ),
+          ),
+        ),
+      );
+      await focusRegion(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      expect(presses, 2);
+    });
   });
 
   testWidgets('an interaction of its own reports pressed and dragged', (

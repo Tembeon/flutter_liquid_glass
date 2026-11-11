@@ -33,7 +33,10 @@ import 'package:kinesis/src/widgets/input_shared.dart';
 /// slider, a stepper), the region binds the keys of
 /// [AdjustValueIntent.defaultShortcuts] around its focus and gives
 /// accessibility increase and decrease; both arrive as [AdjustInput]s, and
-/// only those its [adjustRange] allows are offered.
+/// only those its [adjustRange] allows are offered. A region registers an
+/// action only for what one of its interactions takes, so a region that
+/// neither activates nor adjusts (a drag region around a row of focusable
+/// items) leaves Space, Enter and the value keys to the focus below it.
 ///
 /// Presses of the secondary button reach the interactions that accept them
 /// (`SecondaryClickInteraction`); the scroll wheel reaches them as
@@ -156,7 +159,7 @@ class _InputRegionState extends State<InputRegion> {
   FocusNode? _ownFocus;
   WidgetStatesController? _ownStates;
   MouseCursor? _builtCursor;
-  Map<Type, Action<Intent>>? _actions;
+  late Map<Type, Action<Intent>> _actions;
   double? _scheduled;
   VoidCallback? _cancelDue;
   final Map<int, VelocityTracker> _trackers = {};
@@ -509,23 +512,45 @@ class _InputRegionState extends State<InputRegion> {
 
   NavigationMode? _navigation;
 
+  late final Action<ActivateIntent> _activateAction =
+      Action<ActivateIntent>.overridable(
+        defaultAction: _Activate<ActivateIntent>(this),
+        context: context,
+      );
+
+  late final Action<ButtonActivateIntent> _buttonAction =
+      Action<ButtonActivateIntent>.overridable(
+        defaultAction: _Activate<ButtonActivateIntent>(this),
+        context: context,
+      );
+
+  late final Action<AdjustValueIntent> _adjustAction =
+      Action<AdjustValueIntent>.overridable(
+        defaultAction: _Adjust(this),
+        context: context,
+      );
+
+  ({bool activates, bool adjusts})? _actionsFor;
+
+  // A registered action, even a disabled one, answers its intent for the
+  // focus below the region and overrides the overridable actions there: a
+  // plain region around a row of focusable parts would take their keys.
+  Map<Type, Action<Intent>> _actionsNow() {
+    final takes = (activates: _activates, adjusts: _adjusts);
+    if (takes == _actionsFor) return _actions;
+    _actionsFor = takes;
+    return _actions = {
+      if (takes.activates) ...{
+        ActivateIntent: _activateAction,
+        ButtonActivateIntent: _buttonAction,
+      },
+      if (takes.adjusts) AdjustValueIntent: _adjustAction,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final enabled = widget.enabled;
-    _actions ??= {
-      ActivateIntent: Action<ActivateIntent>.overridable(
-        defaultAction: _Activate<ActivateIntent>(this),
-        context: context,
-      ),
-      ButtonActivateIntent: Action<ButtonActivateIntent>.overridable(
-        defaultAction: _Activate<ButtonActivateIntent>(this),
-        context: context,
-      ),
-      AdjustValueIntent: Action<AdjustValueIntent>.overridable(
-        defaultAction: _Adjust(this),
-        context: context,
-      ),
-    };
     return _Region(
       state: this,
       described: (
@@ -537,7 +562,7 @@ class _InputRegionState extends State<InputRegion> {
         adjustable: enabled && _adjusts,
       ),
       child: Actions(
-        actions: _actions!,
+        actions: _actionsNow(),
         child: Shortcuts(
           shortcuts: _adjusts
               ? AdjustValueIntent.defaultShortcuts(

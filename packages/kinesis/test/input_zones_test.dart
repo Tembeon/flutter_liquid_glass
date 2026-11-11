@@ -530,6 +530,18 @@ void main() {
       expect(haptics, isEmpty);
     });
 
+    testWidgets('a drag region around the host leaves Space and Enter to '
+        'the focused zone', (tester) async {
+      await tester.pumpWidget(
+        _app(InputRegion(interactions: [DragInteraction()], child: toolbar())),
+      );
+      zones.requestFocus('b');
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      expect(pressed, ['b', 'b']);
+    });
+
     testWidgets('a zone that adjusts keeps the arrows, Home and End for its '
         'value', (tester) async {
       final values = _Values();

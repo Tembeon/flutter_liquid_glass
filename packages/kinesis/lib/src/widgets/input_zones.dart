@@ -1029,7 +1029,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   final FocusNode node = FocusNode();
   late final _ZoneTarget<T> target = _ZoneTarget<T>(this);
   _RenderZoneAnchor<T>? _anchor;
-  Map<Type, Action<Intent>>? _actions;
+  late Map<Type, Action<Intent>> _actions;
   Offset _origin = Offset.zero;
   Size _size = Size.zero;
   bool _hasFocus = false;
@@ -1340,26 +1340,47 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
     SingleActivator(LogicalKeyboardKey.end): _ZoneEndIntent(last: true),
   };
 
-  @override
-  Widget build(BuildContext context) {
-    _actions ??= {
-      ActivateIntent: Action<ActivateIntent>.overridable(
+  late final Action<ActivateIntent> _activateAction =
+      Action<ActivateIntent>.overridable(
         defaultAction: _ZoneActivate<ActivateIntent, T>(this),
         context: context,
-      ),
-      ButtonActivateIntent: Action<ButtonActivateIntent>.overridable(
+      );
+
+  late final Action<ButtonActivateIntent> _buttonAction =
+      Action<ButtonActivateIntent>.overridable(
         defaultAction: _ZoneActivate<ButtonActivateIntent, T>(this),
         context: context,
-      ),
-      AdjustValueIntent: Action<AdjustValueIntent>.overridable(
+      );
+
+  late final Action<AdjustValueIntent> _adjustAction =
+      Action<AdjustValueIntent>.overridable(
         defaultAction: _ZoneAdjust<T>(this),
         context: context,
-      ),
+      );
+
+  ({bool activates, bool adjusts})? _actionsFor;
+
+  // As an InputRegion: an action only for what the zone takes, so a key it
+  // does not take reaches the actions around the host.
+  Map<Type, Action<Intent>> _actionsNow() {
+    final takes = (activates: _activates, adjusts: _adjusts);
+    if (takes == _actionsFor) return _actions;
+    _actionsFor = takes;
+    return _actions = {
+      if (takes.activates) ...{
+        ActivateIntent: _activateAction,
+        ButtonActivateIntent: _buttonAction,
+      },
+      if (takes.adjusts) AdjustValueIntent: _adjustAction,
       DirectionalFocusIntent: _ZoneMove<T>(this),
       _ZoneEndIntent: _ZoneEnd<T>(this),
     };
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Actions(
-      actions: _actions!,
+      actions: _actionsNow(),
       child: Shortcuts(
         includeSemantics: false,
         shortcuts: _adjusts
