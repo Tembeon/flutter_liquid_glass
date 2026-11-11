@@ -303,6 +303,15 @@ List<String> _readingOrder(WidgetTester tester) {
 }
 
 void main() {
+  test('policies that allow the same triggers are equal', () {
+    expect(
+      const DismissPolicy({DismissTrigger.back}),
+      const DismissPolicy({DismissTrigger.back, DismissTrigger.programmatic}),
+    );
+    expect(DismissPolicy.modal.allows(DismissTrigger.programmatic), isTrue);
+    expect(DismissPolicy.modal, isNot(const DismissPolicy()));
+  });
+
   setUp(MotionClock.debugReset);
 
   for (final make in _shells) {

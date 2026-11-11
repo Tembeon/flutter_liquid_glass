@@ -85,7 +85,7 @@ final class DismissPolicy {
   /// Lets every trigger in [triggers] through.
   const DismissPolicy([this.triggers = all]);
 
-  /// Every trigger: a menu, a popover, a sheet.
+  /// Every user trigger: a menu, a popover, a sheet.
   static const Set<DismissTrigger> all = {
     DismissTrigger.outsideTap,
     DismissTrigger.scroll,
@@ -93,7 +93,6 @@ final class DismissPolicy {
     DismissTrigger.back,
     DismissTrigger.accessibility,
     DismissTrigger.interaction,
-    DismissTrigger.programmatic,
   };
 
   /// Everything but a tap outside and a scroll below: an alert.
@@ -102,7 +101,6 @@ final class DismissPolicy {
     DismissTrigger.back,
     DismissTrigger.accessibility,
     DismissTrigger.interaction,
-    DismissTrigger.programmatic,
   });
 
   /// The triggers let through.
@@ -114,8 +112,11 @@ final class DismissPolicy {
 
   @override
   bool operator ==(Object other) =>
-      other is DismissPolicy && setEquals(other.triggers, triggers);
+      other is DismissPolicy && setEquals(other._user, _user);
 
   @override
-  int get hashCode => Object.hashAllUnordered(triggers);
+  int get hashCode => Object.hashAllUnordered(_user);
+
+  Set<DismissTrigger> get _user =>
+      triggers.where((t) => t != DismissTrigger.programmatic).toSet();
 }
