@@ -1,5 +1,7 @@
 import 'package:flutter/painting.dart';
 import 'package:kinesis/src/input/interaction.dart';
+import 'package:kinesis/src/input/interaction_event.dart';
+import 'package:kinesis/src/input/interaction_input.dart';
 
 /// What follows one touch as it goes: a press body, a lens, a slider's
 /// knob, a menu's card. It decides nothing about the touch; the region's

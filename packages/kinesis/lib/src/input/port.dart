@@ -1,6 +1,9 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/painting.dart';
 import 'package:kinesis/src/input/interaction.dart';
+import 'package:kinesis/src/input/interaction_event.dart';
+import 'package:kinesis/src/input/interaction_input.dart';
+import 'package:kinesis/src/input/interaction_values.dart';
 import 'package:meta/meta.dart';
 
 /// Where the rest of a touch goes after a hand-off: a receiving region in

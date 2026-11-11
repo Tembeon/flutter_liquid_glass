@@ -17,39 +17,43 @@
 /// widgets nor rendering.
 library;
 
+export 'src/input/drag_interaction.dart'
+    show DragInteraction, DragInteractionDetails;
 export 'src/input/follow.dart' show FollowInteraction, PointerFollower;
+export 'src/input/hover_dwell_interaction.dart' show HoverDwellInteraction;
 export 'src/input/interaction.dart'
+    show Interaction, InteractionSession, SessionOutput;
+export 'src/input/interaction_event.dart'
+    show
+        ActivationEvent,
+        InteractionEvent,
+        InteractionUpdate,
+        LongPressStartEvent,
+        ScrubChangeEvent;
+export 'src/input/interaction_input.dart'
     show
         ActivateInput,
-        ActivationEvent,
-        ActivationSource,
         AdjustInput,
-        AdjustRange,
         ContextMenuInput,
-        DragInteraction,
-        DragInteractionDetails,
-        HoverDwellInteraction,
-        Interaction,
-        InteractionEvent,
         InteractionInput,
-        InteractionRole,
-        InteractionSession,
-        InteractionUpdate,
-        LongPressInteraction,
-        LongPressStartEvent,
-        MotionHaptic,
         PointerAcceptedInput,
         PointerCancelInput,
-        PointerCancelReason,
         PointerDownInput,
         PointerHoverInput,
         PointerMoveInput,
         PointerScrollInput,
-        PointerUpInput,
-        PressInteraction,
-        ScrubChangeEvent,
-        SecondaryClickInteraction,
-        SessionOutput,
-        TapInteraction,
+        PointerUpInput;
+export 'src/input/interaction_values.dart'
+    show
+        ActivationSource,
+        AdjustRange,
+        InteractionRole,
+        MotionHaptic,
+        PointerCancelReason,
         ValueCommand;
+export 'src/input/long_press_interaction.dart' show LongPressInteraction;
 export 'src/input/port.dart' show InputPort, PortEvent;
+export 'src/input/press_interaction.dart' show PressInteraction;
+export 'src/input/secondary_click_interaction.dart'
+    show SecondaryClickInteraction;
+export 'src/input/tap_interaction.dart' show TapInteraction;
