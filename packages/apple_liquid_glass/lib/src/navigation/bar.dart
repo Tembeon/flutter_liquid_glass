@@ -256,11 +256,8 @@ final class GlassBarHost {
     for (final page in _pages) {
       if (identical(page._below, link)) page._below = null;
     }
-    if (identical(_shown, link)) _show(null);
+    _settle();
     if (identical(_swiped, link)) _unswipe();
-    if (identical(_painter.value, link)) {
-      _painter.value = _pages.isEmpty ? null : _pages.last;
-    }
     link.titleRoom.dispose();
     if (_pages.isEmpty) _dispose();
   }
@@ -297,7 +294,7 @@ final class GlassBarHost {
       final under = below == null ? -1 : _pages.indexOf(below);
       _pages.insert(under < 0 ? _pages.length : under + 1, link);
     }
-    _painter.value = _pages.last;
+    _settle();
     if (!current) {
       _refreshShown(time);
       return;
@@ -361,7 +358,14 @@ final class GlassBarHost {
   /// left takes the bar view.
   void finished(GlassPageBarLink link) {
     _pages.remove(link);
+    _settle();
+  }
+
+  // What follows from the live pages: the topmost one paints the bars, and
+  // a shown page that left them is no longer shown.
+  void _settle() {
     _painter.value = _pages.isEmpty ? null : _pages.last;
+    if (_shown case final shown? when !_pages.contains(shown)) _show(null);
   }
 
   /// Reports that a finger began to drag [link]'s page toward a pop: until
