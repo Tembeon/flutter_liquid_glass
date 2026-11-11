@@ -14,25 +14,11 @@ InteractionUpdate _then(InteractionUpdate a, InteractionUpdate b) {
 double? _earliest(double? a, double? b) =>
     a == null ? b : (b == null ? a : math.min(a, b));
 
-final class _Simultaneous extends Interaction {
-  _Simultaneous(this.a, this.b) : super(role: _stronger(a.role, b.role));
+abstract final class _Pair extends Interaction {
+  _Pair(this.a, this.b, {required super.role});
 
   final Interaction a;
   final Interaction b;
-  bool _aFailed = false;
-  bool _bFailed = false;
-
-  static InteractionRole _stronger(InteractionRole a, InteractionRole b) =>
-      a == InteractionRole.observer && b == InteractionRole.observer
-      ? InteractionRole.observer
-      : a == InteractionRole.gesture || b == InteractionRole.gesture
-      ? InteractionRole.gesture
-      : a == InteractionRole.control || b == InteractionRole.control
-      ? InteractionRole.control
-      : InteractionRole.content;
-
-  @override
-  double get onset => math.min(a.onset, b.onset);
 
   @override
   bool get activates => a.activates || b.activates;
@@ -67,6 +53,25 @@ final class _Simultaneous extends Interaction {
 
   @override
   bool accepts(PointerDownInput down) => a.accepts(down) || b.accepts(down);
+}
+
+final class _Simultaneous extends _Pair {
+  _Simultaneous(super.a, super.b) : super(role: _stronger(a.role, b.role));
+
+  bool _aFailed = false;
+  bool _bFailed = false;
+
+  static InteractionRole _stronger(InteractionRole a, InteractionRole b) =>
+      a == InteractionRole.observer && b == InteractionRole.observer
+      ? InteractionRole.observer
+      : a == InteractionRole.gesture || b == InteractionRole.gesture
+      ? InteractionRole.gesture
+      : a == InteractionRole.control || b == InteractionRole.control
+      ? InteractionRole.control
+      : InteractionRole.content;
+
+  @override
+  double get onset => math.min(a.onset, b.onset);
 
   InteractionUpdate _both(InteractionUpdate fromA, InteractionUpdate fromB) {
     _aFailed = _aFailed || fromA.fails;
@@ -96,51 +101,15 @@ final class _Simultaneous extends Interaction {
       _both(a.advance(time), b.advance(time));
 }
 
-final class _Exclusive extends Interaction {
-  _Exclusive(this.a, this.b) : super(role: a.role);
+final class _Exclusive extends _Pair {
+  _Exclusive(super.a, super.b) : super(role: a.role);
 
-  final Interaction a;
-  final Interaction b;
   final List<InteractionInput> _waiting = [];
   bool _recognized = false;
   bool _aFailed = false;
 
   @override
   double get onset => a.onset;
-
-  @override
-  bool get activates => a.activates || b.activates;
-
-  @override
-  bool get adjusts => a.adjusts || b.adjusts;
-
-  @override
-  bool get opensContextMenu => a.opensContextMenu || b.opensContextMenu;
-
-  @override
-  bool get contendsWithControls =>
-      a.contendsWithControls || b.contendsWithControls;
-
-  @override
-  bool get takesWheel => a.takesWheel || b.takesWheel;
-
-  @override
-  bool get pressed => a.pressed || b.pressed;
-
-  @override
-  bool get dragged => a.dragged || b.dragged;
-
-  @override
-  void bindRegion(Offset Function(Offset local) toGlobal) {
-    a.bindRegion(toGlobal);
-    b.bindRegion(toGlobal);
-  }
-
-  @override
-  bool get takesPointers => a.takesPointers || b.takesPointers;
-
-  @override
-  bool accepts(PointerDownInput down) => a.accepts(down) || b.accepts(down);
 
   bool get _decided => _recognized || _aFailed;
 

@@ -380,7 +380,6 @@ class ManualMotionClock extends MotionClock {
   double stamp(Duration timeStamp) => _now;
 
   @override
-  @override
   void wake() {}
 
   /// Moves the clock to [t] and runs a frame there; time never runs
@@ -543,7 +542,6 @@ class _BindingClock extends MotionClock {
     return _time;
   }
 
-  @override
   @override
   void wake() {
     _doze?.cancel();
