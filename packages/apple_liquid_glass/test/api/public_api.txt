@@ -203,6 +203,20 @@ class GlassBadgeStyle extends GlassStyle<GlassBadgeStyle>
   static GlassBadgeStyle? maybeOf(BuildContext context)
   final TextStyle? textStyle
   overrides: ==, hashCode, lerp, merge
+final class GlassBarButton extends GlassBarItem
+  const GlassBarButton({
+    LocalKey? key,
+    Widget? icon,
+    Widget? label,
+    void Function()? onPressed,
+    String? semanticLabel,
+    List<GlassMenuEntry>? menuChildren,
+  })
+  final Widget? icon
+  final Widget? label
+  final List<GlassMenuEntry>? menuChildren
+  final void Function()? onPressed
+  final String? semanticLabel
 enum GlassBarButtonKind
   icon,
   label,
@@ -248,15 +262,14 @@ class GlassBarCapsuleLayout
 class GlassBarCapsuleSpec
   const GlassBarCapsuleSpec(List<GlassBarButtonSpec> buttons)
   final List<GlassBarButtonSpec> buttons
+final class GlassBarCustomItem extends GlassBarItem
+  const GlassBarCustomItem({required Widget child, LocalKey? key})
+  final Widget child
 sealed class GlassBarEntry
   const GlassBarEntry()
-final class GlassBarItem extends GlassBarEntry
-  const GlassBarItem.custom({
-    required Widget child,
-    LocalKey? key,
-    String? semanticLabel,
-  })
-  const GlassBarItem({
+sealed class GlassBarItem extends GlassBarEntry
+  const factory GlassBarItem.custom({required Widget child, LocalKey? key})
+  const factory GlassBarItem({
     LocalKey? key,
     Widget? icon,
     Widget? label,
@@ -264,21 +277,14 @@ final class GlassBarItem extends GlassBarEntry
     String? semanticLabel,
     List<GlassMenuEntry>? menuChildren,
   })
-  const GlassBarItem.prominent({
+  const factory GlassBarItem.prominent({
     LocalKey? key,
     Widget? icon,
     Widget? label,
     void Function()? onPressed,
     String? semanticLabel,
   })
-  final Widget? child
-  final Widget? icon
   final LocalKey? key
-  final Widget? label
-  final List<GlassMenuEntry>? menuChildren
-  final void Function()? onPressed
-  final bool prominent
-  final String? semanticLabel
 class GlassBarItemFrame
   const GlassBarItemFrame(
     Object id, {
@@ -369,6 +375,18 @@ final class GlassBarMotion extends Motion
   })
   GlassBarTransitionSpec spec
   overrides: didAdvance
+final class GlassBarProminentButton extends GlassBarItem
+  const GlassBarProminentButton({
+    LocalKey? key,
+    Widget? icon,
+    Widget? label,
+    void Function()? onPressed,
+    String? semanticLabel,
+  })
+  final Widget? icon
+  final Widget? label
+  final void Function()? onPressed
+  final String? semanticLabel
 enum GlassBarSegment
   leading,
   center,
@@ -4251,9 +4269,12 @@ function searchTabLayout (see package:apple_liquid_glass/apple_liquid_glass.dart
 
 # package:apple_liquid_glass/navigation.dart
 enum GlassBackButtonDisplayMode (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassBarButton (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassBarCustomItem (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassBarEntry (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassBarItem (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassBarItemStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassBarProminentButton (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassBarSpacer (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassContentScroll (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassNavigationBar (see package:apple_liquid_glass/apple_liquid_glass.dart)

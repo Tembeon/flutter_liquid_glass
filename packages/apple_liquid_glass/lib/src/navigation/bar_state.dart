@@ -441,12 +441,17 @@ final class _Bar {
           final n = seen[derived] = (seen[derived] ?? -1) + 1;
           final base = entry.key ?? _PageId(page, derived);
           final id = n == 0 ? base : GlassBarItemId(base, n);
-          final kind = entry.child != null
-              ? GlassBarButtonKind.custom
-              : entry.icon != null
-              ? GlassBarButtonKind.icon
-              : GlassBarButtonKind.label;
-          if (entry.prominent) {
+          final (kind, prominent) = switch (entry) {
+            GlassBarCustomItem() => (GlassBarButtonKind.custom, false),
+            GlassBarButton(icon: _?) => (GlassBarButtonKind.icon, false),
+            GlassBarButton() => (GlassBarButtonKind.label, false),
+            GlassBarProminentButton(icon: _?) => (
+              GlassBarButtonKind.icon,
+              true,
+            ),
+            GlassBarProminentButton() => (GlassBarButtonKind.label, true),
+          };
+          if (prominent) {
             close();
             out.add([(id, _Button.item(entry, kind))]);
             continue;
@@ -522,7 +527,8 @@ final class _Bar {
       final tinted = {
         for (final run in runs)
           for (final capsule in run)
-            if (capsule.first.$2.item?.prominent ?? false) capsule.first.$1,
+            if (capsule.first.$2.item is GlassBarProminentButton)
+              capsule.first.$1,
       };
       for (final capsule in layout) {
         if (capsule.items.any((item) => tinted.contains(item.id))) {

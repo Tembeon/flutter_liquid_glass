@@ -745,7 +745,7 @@ final List<Entry> registry = [
   ),
   Entry(
     'GlassNavigationBar',
-    covers: const ['GlassNavigationBar', 'GlassBarItem'],
+    covers: const ['GlassNavigationBar', 'GlassBarItem', 'GlassBarButton'],
     kind: Kind.pressable,
     focusStops: 2,
     header: 'Inbox',
@@ -776,7 +776,11 @@ final List<Entry> registry = [
   ),
   Entry(
     'GlassToolbar',
-    covers: const ['GlassToolbar', 'GlassBarSpacer'],
+    covers: const [
+      'GlassToolbar',
+      'GlassBarSpacer',
+      'GlassBarProminentButton',
+    ],
     kind: Kind.pressable,
     focusStops: 2,
     part: find.text('Edit'),
@@ -935,6 +939,8 @@ final List<Entry> registry = [
 const Map<String, String> nonInteractive = {
   'ContextHold': 'the measured hold that opens a menu; no widget',
   'GlassBadge': 'a label drawn on another control; announces its text only',
+  'GlassBarCustomItem':
+      'a bar entry holding custom content, which takes its own input',
   'GlassBarEntry': 'the sealed base of GlassBarItem and GlassBarSpacer',
   'GlassClip': 'clips its child to a glass shape',
   'GlassContentScroll':

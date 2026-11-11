@@ -144,16 +144,22 @@ class _GlassToolbarState extends State<GlassToolbar> {
     super.dispose();
   }
 
-  static Widget _button(GlassBarItem item) =>
-      item.child ??
-      GlassButton(onPressed: item.onPressed, child: item.icon ?? item.label!);
+  static Widget _button(GlassBarItem item) => switch (item) {
+    GlassBarCustomItem(:final child) => child,
+    GlassBarButton(:final onPressed, :final icon, :final label) ||
+    GlassBarProminentButton(
+      :final onPressed,
+      :final icon,
+      :final label,
+    ) => GlassButton(onPressed: onPressed, child: icon ?? label!),
+  };
 
   @override
   Widget build(BuildContext context) {
     final items = widget.items;
     final link = _bar.target;
     final search = items.indexWhere(
-      (entry) => entry is GlassBarItem && entry.child is GlassSearchField,
+      (entry) => entry is GlassBarCustomItem && entry.child is GlassSearchField,
     );
     final shown = GlassTabShown.of(context);
     if (!shown) _bar.withdraw();
@@ -164,7 +170,7 @@ class _GlassToolbarState extends State<GlassToolbar> {
           for (final entry in items.take(search))
             if (entry is GlassBarItem) _button(entry),
         ],
-        field: (items[search] as GlassBarItem).child!,
+        field: (items[search] as GlassBarCustomItem).child,
         trailing: [
           for (final entry in items.skip(search + 1))
             if (entry is GlassBarItem) _button(entry),

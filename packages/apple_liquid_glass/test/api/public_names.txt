@@ -34,11 +34,13 @@ GlassAlertStyle
 GlassBackButtonDisplayMode
 GlassBadge
 GlassBadgeStyle
+GlassBarButton
 GlassBarButtonKind
 GlassBarButtonSpec
 GlassBarCapsuleFrame
 GlassBarCapsuleLayout
 GlassBarCapsuleSpec
+GlassBarCustomItem
 GlassBarEntry
 GlassBarItem
 GlassBarItemFrame
@@ -46,6 +48,7 @@ GlassBarItemId
 GlassBarItemStyle
 GlassBarMetrics
 GlassBarMotion
+GlassBarProminentButton
 GlassBarSegment
 GlassBarSpacer
 GlassBarTransitionSpec

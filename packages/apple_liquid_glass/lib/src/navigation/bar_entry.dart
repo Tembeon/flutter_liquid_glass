@@ -112,13 +112,14 @@ class GlassBarItemStyle {
 /// Entries describe what the bar shows; they are not widgets, and the bar
 /// builds them. Adjacent [GlassBarItem]s share one glass capsule, as UIKit
 /// groups adjacent bar items; a [GlassBarSpacer] or a
-/// [GlassBarItem.prominent] item starts a capsule of its own.
+/// [GlassBarProminentButton] starts a capsule of its own.
 @immutable
 sealed class GlassBarEntry {
   const GlassBarEntry();
 }
 
-/// A button of a bar: an icon or a label and an action.
+/// An item of a bar: a button ([GlassBarButton]), a prominent button
+/// ([GlassBarProminentButton]) or custom content ([GlassBarCustomItem]).
 ///
 /// UIKit: `UIBarButtonItem`. SwiftUI: `Button` in a `ToolbarItem`. Flutter:
 /// an `IconButton` in `AppBar.actions`.
@@ -126,50 +127,56 @@ sealed class GlassBarEntry {
 /// Its identity keeps it across changes of the bar, so it travels to its
 /// new place instead of leaving and arriving: [key] when given; else, as
 /// UIKit derives a semantic id from an item's image and then its title, the
-/// icon of an [icon] that is an [Icon], else the text of a [label] that is a
-/// [Text], else its place; items that repeat an identity are told apart by
-/// their order. Only a [key] crosses a push: other identities belong to
-/// their page.
-final class GlassBarItem extends GlassBarEntry {
+/// icon of a button's icon that is an [Icon], else the text of its label
+/// that is a [Text], else its place; items that repeat an identity are told
+/// apart by their order. Only a [key] crosses a push: other identities
+/// belong to their page.
+@immutable
+sealed class GlassBarItem extends GlassBarEntry {
   /// Creates a button showing [icon] or [label].
-  const GlassBarItem({
-    this.key,
+  const factory GlassBarItem({
+    LocalKey? key,
+    Widget? icon,
+    Widget? label,
+    VoidCallback? onPressed,
+    String? semanticLabel,
+    List<GlassMenuEntry>? menuChildren,
+  }) = GlassBarButton;
+
+  /// Creates a button in a capsule of its own, tinted with the theme's
+  /// primary color, its label semibold (UIKit `.prominent`).
+  const factory GlassBarItem.prominent({
+    LocalKey? key,
+    Widget? icon,
+    Widget? label,
+    VoidCallback? onPressed,
+    String? semanticLabel,
+  }) = GlassBarProminentButton;
+
+  /// Creates an item of custom content in the capsule, such as a segmented
+  /// control (UIKit `customView`); [child] handles its own input.
+  const factory GlassBarItem.custom({required Widget child, LocalKey? key}) =
+      GlassBarCustomItem;
+
+  const GlassBarItem._({this.key});
+
+  /// The identity of the item across changes of the bar and across pages.
+  final LocalKey? key;
+}
+
+/// A button of a bar: an icon or a label, an action and maybe a menu; it
+/// shares a glass capsule with the items beside it.
+final class GlassBarButton extends GlassBarItem {
+  /// Creates a button showing [icon] or [label].
+  const GlassBarButton({
+    super.key,
     this.icon,
     this.label,
     this.onPressed,
     this.semanticLabel,
     this.menuChildren,
   }) : assert(icon != null || label != null, 'an icon or a label'),
-       prominent = false,
-       child = null;
-
-  /// Creates a button in a capsule of its own, tinted with the theme's
-  /// primary color, its label semibold (UIKit `.prominent`).
-  const GlassBarItem.prominent({
-    this.key,
-    this.icon,
-    this.label,
-    this.onPressed,
-    this.semanticLabel,
-  }) : assert(icon != null || label != null, 'an icon or a label'),
-       prominent = true,
-       child = null,
-       menuChildren = null;
-
-  /// Creates an item of custom content in the capsule, such as a segmented
-  /// control (UIKit `customView`); [child] handles its own input.
-  const GlassBarItem.custom({
-    required Widget this.child,
-    this.key,
-    this.semanticLabel,
-  }) : icon = null,
-       label = null,
-       onPressed = null,
-       prominent = false,
-       menuChildren = null;
-
-  /// The identity of the item across changes of the bar and across pages.
-  final LocalKey? key;
+       super._();
 
   /// The icon, drawn at the bar's icon size and color.
   final Widget? icon;
@@ -184,12 +191,6 @@ final class GlassBarItem extends GlassBarEntry {
   /// What screen readers announce; the label's text by default.
   final String? semanticLabel;
 
-  /// Whether the button is a tinted capsule of its own.
-  final bool prominent;
-
-  /// The custom content of [GlassBarItem.custom].
-  final Widget? child;
-
   /// The menu of this button: a tap opens it, or a hold when [onPressed] takes
   /// the tap.
   ///
@@ -200,6 +201,44 @@ final class GlassBarItem extends GlassBarEntry {
   /// capture on an iPhone 16 Pro; the pressed glyph's dimming is left out and a
   /// custom view in the capsule hides without riding the shape (near).
   final List<GlassMenuEntry>? menuChildren;
+}
+
+/// A button in a capsule of its own, tinted with the theme's primary color,
+/// its label semibold (UIKit `.prominent`).
+final class GlassBarProminentButton extends GlassBarItem {
+  /// Creates a prominent button showing [icon] or [label].
+  const GlassBarProminentButton({
+    super.key,
+    this.icon,
+    this.label,
+    this.onPressed,
+    this.semanticLabel,
+  }) : assert(icon != null || label != null, 'an icon or a label'),
+       super._();
+
+  /// The icon, drawn at the bar's icon size in the prominent foreground
+  /// color.
+  final Widget? icon;
+
+  /// The label, drawn semibold in the bar's text style; shown when there is
+  /// no [icon].
+  final Widget? label;
+
+  /// Called on a tap; null disables the button.
+  final VoidCallback? onPressed;
+
+  /// What screen readers announce; the label's text by default.
+  final String? semanticLabel;
+}
+
+/// Custom content in a bar's capsule, such as a segmented control (UIKit
+/// `customView`); its child handles its own input and speaks for itself.
+final class GlassBarCustomItem extends GlassBarItem {
+  /// Creates an item showing [child]; [child] handles its own input.
+  const GlassBarCustomItem({required this.child, super.key}) : super._();
+
+  /// The content.
+  final Widget child;
 }
 
 /// A break between capsules.

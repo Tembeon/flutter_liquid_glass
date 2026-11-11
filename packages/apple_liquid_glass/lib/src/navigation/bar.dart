@@ -32,6 +32,26 @@ const double glassBarDrift = 0.5;
 int glassBarLayerHandles(RenderObject object) =>
     object is _RenderBarItems ? object._layers.length : -1;
 
+// What a button item does: its action and its menu. Custom content and the
+// back button (null) have neither of their own.
+(VoidCallback?, List<GlassMenuEntry>?) _actionOf(GlassBarItem? item) =>
+    switch (item) {
+      GlassBarButton(:final onPressed, :final menuChildren) => (
+        onPressed,
+        menuChildren,
+      ),
+      GlassBarProminentButton(:final onPressed) => (onPressed, null),
+      GlassBarCustomItem() || null => (null, null),
+    };
+
+// What a button item shows: its icon, else its label; custom content and
+// the back button (null) show none.
+Widget? _glyphOfItem(GlassBarItem? item) => switch (item) {
+  GlassBarButton(:final icon, :final label) ||
+  GlassBarProminentButton(:final icon, :final label) => icon ?? label,
+  GlassBarCustomItem() || null => null,
+};
+
 /// What a page declares to its navigator's bar.
 @internal
 @immutable
@@ -599,34 +619,38 @@ final class GlassBarHost {
   static bool _sameEntries(List<GlassBarEntry> x, List<GlassBarEntry> y) {
     if (x.length != y.length) return false;
     for (var i = 0; i < x.length; i++) {
-      final p = x[i];
-      final q = y[i];
-      if (p.runtimeType != q.runtimeType) return false;
-      if (p is GlassBarSpacer && q is GlassBarSpacer) {
-        if (p.flexible != q.flexible) return false;
-      }
-      if (p is GlassBarItem && q is GlassBarItem) {
-        if (_identity(p) != _identity(q) ||
-            p.prominent != q.prominent ||
-            (p.menuChildren == null) != (q.menuChildren == null) ||
-            (p.onPressed == null) != (q.onPressed == null) ||
-            p.child != q.child) {
-          return false;
-        }
-      }
+      final same = switch ((x[i], y[i])) {
+        (final GlassBarSpacer p, final GlassBarSpacer q) =>
+          p.flexible == q.flexible,
+        (final GlassBarButton p, final GlassBarButton q) =>
+          _identity(p) == _identity(q) &&
+              (p.menuChildren == null) == (q.menuChildren == null) &&
+              (p.onPressed == null) == (q.onPressed == null),
+        (final GlassBarProminentButton p, final GlassBarProminentButton q) =>
+          _identity(p) == _identity(q) &&
+              (p.onPressed == null) == (q.onPressed == null),
+        (final GlassBarCustomItem p, final GlassBarCustomItem q) =>
+          _identity(p) == _identity(q) && p.child == q.child,
+        _ => false,
+      };
+      if (!same) return false;
     }
     return true;
   }
 
-  static Object _identity(GlassBarItem item) {
-    final key = item.key;
-    if (key != null) return key;
-    final icon = item.icon;
-    if (icon is Icon && icon.icon != null) return icon.icon!;
-    final label = item.label;
-    if (label is Text && label.data != null) return label.data!;
-    return item.child?.runtimeType ?? GlassBarItem;
-  }
+  static Object _identity(GlassBarItem item) => switch (item) {
+    GlassBarItem(key: final key?) => key,
+    GlassBarButton(:final icon, :final label) ||
+    GlassBarProminentButton(:final icon, :final label) => switch ((
+      icon,
+      label,
+    )) {
+      (Icon(icon: final data?), _) => data,
+      (_, Text(data: final text?)) => text,
+      _ => GlassBarItem,
+    },
+    GlassBarCustomItem(:final child) => child.runtimeType,
+  };
 
   // The pages whose layout [bar] needs: the shown one, those its changes
   // head to, and, for the navigation bar, the page below a swiped one.

@@ -5,7 +5,8 @@
 ///
 /// For the app developer: `GlassNavigationBar`, `GlassToolbar`,
 /// `GlassTabBar`, `GlassTabScaffold`, `GlassPageScaffold`, `GlassPageRoute`
-/// and the bar items they hold (`GlassBarItem`, `GlassBarSpacer`).
+/// and the bar items they hold (`GlassBarItem`: `GlassBarButton`,
+/// `GlassBarProminentButton`, `GlassBarCustomItem`; `GlassBarSpacer`).
 ///
 /// It promises that a bar moves by the measured laws of `motions` and
 /// works with every renderer.
@@ -14,9 +15,12 @@ library;
 export 'src/navigation/bar_entry.dart'
     show
         GlassBackButtonDisplayMode,
+        GlassBarButton,
+        GlassBarCustomItem,
         GlassBarEntry,
         GlassBarItem,
         GlassBarItemStyle,
+        GlassBarProminentButton,
         GlassBarSpacer;
 export 'src/navigation/chrome.dart'
     show

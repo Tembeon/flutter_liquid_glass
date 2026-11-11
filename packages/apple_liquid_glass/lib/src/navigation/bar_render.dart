@@ -184,7 +184,7 @@ class _RenderBarItems extends RenderBox
       );
       final id = _idOf(child);
       widths[id] = child.size.width;
-      if (bar.buttons[id]?.item?.child == null) _highlightOf(id);
+      if (bar.buttons[id]?.item is! GlassBarCustomItem) _highlightOf(id);
       child = childAfter(child);
     }
     for (final id in _shown.keys.toList()) {

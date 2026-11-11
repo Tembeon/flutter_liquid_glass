@@ -205,9 +205,10 @@ class _BandState extends State<_Band> {
   InputZone<Object> _zoneOf(BuildContext context, Object id, _Button button) {
     final input = bar.inputOf(id);
     final item = button.item;
-    final menu = item?.menuChildren != null;
-    input.onPressed = button.back?.onPressed ?? item?.onPressed;
-    final hold = menu && item!.onPressed != null;
+    final (onPressed, menuChildren) = _actionOf(item);
+    final menu = menuChildren != null;
+    input.onPressed = button.back?.onPressed ?? onPressed;
+    final hold = menu && onPressed != null;
     return InputZone<Object>(
       id: id,
       interactions: menu ? input.menuSource : input.press,
@@ -225,8 +226,13 @@ class _BandState extends State<_Band> {
     );
   }
 
-  static String? _labelOf(GlassBarItem item) =>
-      item.semanticLabel ?? glassLabelTextOf(item.icon ?? item.label);
+  static String? _labelOf(GlassBarItem item) => switch (item) {
+    GlassBarButton(:final semanticLabel) ||
+    GlassBarProminentButton(
+      :final semanticLabel,
+    ) => semanticLabel ?? glassLabelTextOf(_glyphOfItem(item)),
+    GlassBarCustomItem() => null,
+  };
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -241,7 +247,8 @@ class _BandState extends State<_Band> {
         // that moves to another route's overlay.
         zones: [
           for (final MapEntry(key: id, value: button) in roster.entries)
-            if (button.item?.child == null && bar.measuredIds.contains(id))
+            if (button.item is! GlassBarCustomItem &&
+                bar.measuredIds.contains(id))
               _zoneOf(context, id, button),
         ],
         frameOf: bar.zoneFrameOf,
@@ -327,12 +334,12 @@ class _BarItem extends StatelessWidget {
   // it, so its glyph is not read on its own.
   @override
   Widget build(BuildContext context) {
-    if (button.item?.child case final child?) {
+    if (button.item case GlassBarCustomItem(:final child)) {
       return _ItemBox(id: id, child: child);
     }
     final item = button.item;
     final content = ExcludeSemantics(child: _glyphOf(context, button));
-    final menu = item?.menuChildren;
+    final (onPressed, menu) = _actionOf(item);
     if (menu == null) return _ItemBox(id: id, child: content);
     // The menu's source takes the touches; its keys and focus are the
     // zone's, so it is no stop of its own. Its open menu lies in its
@@ -352,7 +359,7 @@ class _BarItem extends StatelessWidget {
             onOpen: () => bar.menuShowing(id, showing: true),
             onClose: () => bar.menuShowing(id, showing: false),
             child: _ItemSource(
-              onPressed: item.onPressed ?? bar.inputOf(id).menu.open,
+              onPressed: onPressed ?? bar.inputOf(id).menu.open,
               semanticLabel: _BandState._labelOf(item),
               look: _CapsuleLook(
                 bar: bar,
@@ -360,7 +367,7 @@ class _BarItem extends StatelessWidget {
                 glyphs: {
                   for (final MapEntry(key: id, value: button)
                       in bar.buttons.entries)
-                    if (button.item?.child == null)
+                    if (button.item is! GlassBarCustomItem)
                       id: _glyphOf(context, button),
                 },
               ),
@@ -375,11 +382,9 @@ class _BarItem extends StatelessWidget {
   Widget _glyphOf(BuildContext context, _Button button) {
     final look = bar.itemStyleOf(context);
     final item = button.item;
-    final enabled =
-        button.back != null ||
-        item?.onPressed != null ||
-        item?.menuChildren != null;
-    final prominent = item?.prominent ?? false;
+    final (onPressed, menu) = _actionOf(item);
+    final enabled = button.back != null || onPressed != null || menu != null;
+    final prominent = item is GlassBarProminentButton;
     final color = GlassDynamicColor.resolve(
       prominent
           ? look?.prominentForegroundColor ?? const Color(0xFFFFFFFF)
@@ -426,7 +431,7 @@ class _BarItem extends StatelessWidget {
       child: DefaultTextStyle(
         style: text,
         maxLines: 1,
-        child: item!.icon ?? item.label!,
+        child: _glyphOfItem(item)!,
       ),
     );
   }
