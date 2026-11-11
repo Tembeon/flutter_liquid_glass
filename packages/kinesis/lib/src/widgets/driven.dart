@@ -1,6 +1,6 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/src/motion/selection.dart';
+import 'package:kinesis/motion.dart';
 
 /// Drives any chain of single-child render-object widgets from motion
 /// values without building.

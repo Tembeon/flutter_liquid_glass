@@ -1,14 +1,8 @@
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/src/motion/motion.dart';
-import 'package:kinesis/src/motion/presence.dart';
-import 'package:kinesis/src/motion/presented.dart';
-import 'package:kinesis/src/motion/selection.dart';
-import 'package:kinesis/src/motion/source_geometry.dart';
-import 'package:kinesis/src/motion/transaction.dart';
+import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/presentation/route.dart';
 import 'package:kinesis/src/presentation/source.dart';
-import 'package:kinesis/src/widgets/scope.dart';
-import 'package:kinesis/src/widgets/transition.dart';
+import 'package:kinesis/widgets.dart';
 import 'package:meta/meta.dart';
 
 /// Where and how big a presentation may be, read from the place it shows

@@ -1,8 +1,6 @@
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/src/motion/clock.dart';
-import 'package:kinesis/src/motion/presented.dart';
-import 'package:kinesis/src/motion/source_geometry.dart';
+import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/presentation/presentation.dart';
 import 'package:kinesis/src/presentation/source.dart';
 import 'package:meta/meta.dart';

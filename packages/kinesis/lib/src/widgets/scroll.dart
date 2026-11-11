@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/src/motion/motion.dart';
-import 'package:kinesis/src/motion/signal.dart';
+import 'package:kinesis/motion.dart';
 
 /// What a scroll view's content is doing.
 ///

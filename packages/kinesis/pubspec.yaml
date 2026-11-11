@@ -22,4 +22,6 @@ dev_dependencies:
     path: ../api_listing
   flutter_test:
     sdk: flutter
+  layer_rules:
+    path: ../layer_rules
   lintervention: ^0.3.1
