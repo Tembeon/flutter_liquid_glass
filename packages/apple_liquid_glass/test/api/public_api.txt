@@ -3335,11 +3335,14 @@ class SheetMotion extends Motion
   double get dockedRadius
   void dragCancel(double t)
   void dragEnd(double t, double velocity)
+  static const double dragSlop
   void dragStart(double t, double y)
   void dragUpdate(double t, double y)
   List<SheetEvent> drainEvents()
   double get fill
+  static const double floatingInset
   double get floatingRadius
+  static const double grabberHitHeight
   bool get hasEvents
   double get height
   List<double> get heights

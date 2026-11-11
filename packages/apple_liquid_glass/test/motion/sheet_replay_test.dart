@@ -8,6 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 const _sim = 'test/fixtures/ios27/sheet';
 const _device = 'test/fixtures/ios27-device/sheet';
 
+const double _dimmingOpacity = 0.2;
+
 /// The probe screen: an iPhone 16 Pro simulator, 402 x 874 points with a
 /// 62 point top and a 34 point bottom safe area.
 const double _w = 402;
@@ -184,7 +186,7 @@ double _max(GlassSheetDetent d) => d.resolve(_h - _top - _bottom) + _bottom;
         }
         m.advance(row.t);
         final bg = (row.raw['bg']! as List).cast<num>();
-        dims.add(m.atTime(row.t).dimming * SheetTuning.dimmingOpacity - bg[3]);
+        dims.add(m.atTime(row.t).dimming * _dimmingOpacity - bg[3]);
       }
     }
     return errors;

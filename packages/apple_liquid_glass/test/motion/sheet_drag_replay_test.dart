@@ -17,7 +17,7 @@ const double _maximum = _h - 62 - 34;
 
 /// The distance UIKit's sheet pan waits for before the sheet moves; the
 /// sheet does not catch up with the finger afterwards.
-const double _slop = SheetTuning.dragSlop;
+const double _slop = SheetMotion.dragSlop;
 
 /// One display frame of the 60 Hz simulator recordings: presentation
 /// layers are sampled for the frame being prepared.
@@ -129,7 +129,7 @@ _replay(String name, {String dir = _dir, double frame = _frame}) {
           motion.unpress(t);
           final top = motion.atTime(t).visibleRect(_h).top;
           if ((y - top) / motion.atTime(t).scale <
-              SheetTuning.grabberHitHeight) {
+              SheetMotion.grabberHitHeight) {
             motion.tapGrabber(t);
           }
         }

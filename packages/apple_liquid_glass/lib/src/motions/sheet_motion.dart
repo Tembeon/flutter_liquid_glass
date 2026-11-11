@@ -119,26 +119,10 @@ abstract final class SheetTuning {
   /// 402 x 874 screen, read from UIKit's resolution context).
   static const double mediumFraction = 0.56;
 
-  /// The gap around a sheet resting below the large detent, in points:
-  /// it floats 8 points from the sides and the bottom of the screen.
-  static const double floatingInset = 8;
-
-  /// The radius of the top corners, in the sheet's unscaled points.
-  static const double topRadius = 38;
-
   /// The display corner radius assumed for a floating sheet when the
   /// platform reports none: the iPhone 16 Pro's, where the floating
   /// sheet's bottom corners (62 - 8 = 54 unscaled points) were measured.
   static const double fallbackDisplayRadius = 62;
-
-  /// The opacity of the black dimming behind a dimmed detent.
-  static const double dimmingOpacity = 0.2;
-
-  /// The grabber's size in unscaled points.
-  static const Size grabberSize = Size(60, 4);
-
-  /// The distance from the sheet's top edge to the grabber's center.
-  static const double grabberOffset = 8;
 
   /// How far momentum carries a released drag, in seconds of the
   /// release velocity: the sheet settles on the detent nearest to its
@@ -218,16 +202,6 @@ abstract final class SheetTuning {
   /// releases, 0.003 - 0.047).
   static const double releaseDelay = 0.025;
 
-  /// How far, in points, a finger travels on the sheet before the sheet
-  /// follows it: the device drags start 12 points from the touch (7 on
-  /// the simulator); the drag replays use the device value.
-  static const double dragSlop = 12;
-
-  /// The band at the top of the sheet, in unscaled points, where a tap
-  /// cycles the detents as a tap on the grabber does; a tap 25 points
-  /// below the top edge cycled them, 40 is not measured.
-  static const double grabberHitHeight = 40;
-
   /// The limit, in unscaled points, that a sheet which cannot be dismissed
   /// approaches while it is pulled down: the drag below the smallest detent
   /// is rubber-banded (coefficient 0.55) with this dimension. A simulator
@@ -283,7 +257,7 @@ abstract final class SheetTuning {
 /// [SheetTuning.flickDismissSpring]) and carry velocity through every
 /// retarget. A sheet resting below the large detent floats: it is the
 /// full-width sheet scaled down so that it keeps
-/// [SheetTuning.floatingInset] from the sides and the bottom. UIKit
+/// [SheetMotion.floatingInset] from the sides and the bottom. UIKit
 /// docks it to the large detent as one transform interpolated by the
 /// docking progress, the fraction of the height travelled between where
 /// the transition started and the large detent (on the way back, between
@@ -338,7 +312,7 @@ class SheetMotion extends Motion {
     this.dockedIndex,
     this.undimmedIndex,
     this.dismissible = true,
-    this.inset = SheetTuning.floatingInset,
+    this.inset = SheetMotion.floatingInset,
     this.displayRadius,
   }) : _heights = List<double>.of(heights),
        _fullHeight = fullHeight ?? heights.last,
@@ -352,6 +326,20 @@ class SheetMotion extends Motion {
     _floating = _toDocked ? _floatingBelowDocked : heights[initial];
     _offset.snap(0, hiddenOffset);
   }
+
+  /// The gap around a sheet resting below the large detent, in points:
+  /// it floats 8 points from the sides and the bottom of the screen.
+  static const double floatingInset = 8;
+
+  /// How far, in points, a finger travels on the sheet before the sheet
+  /// follows it: the device drags start 12 points from the touch (7 on
+  /// the simulator); the drag replays use the device value.
+  static const double dragSlop = 12;
+
+  /// The band at the top of the sheet, in unscaled points, where a tap
+  /// cycles the detents as a tap on the grabber does; a tap 25 points
+  /// below the top edge cycled them, 40 is not measured.
+  static const double grabberHitHeight = 40;
 
   // UIKit asks at least 80 Hz of this (read from UIKit, notes private).
   @override
@@ -526,7 +514,7 @@ class SheetMotion extends Motion {
   double get dockedRadius => displayRadius ?? 0;
 
   /// The radius of the bottom corners now, in unscaled pixels; the top
-  /// corners keep [SheetTuning.topRadius].
+  /// corners keep their own radius.
   ///
   /// Device clip layer, every frame (test/fixtures/ios27-device/sheet):
   /// a programmatic docking turns it from [floatingRadius] to
@@ -643,7 +631,8 @@ class SheetMotion extends Motion {
   double _shiftAt(double t) => _shiftFor(_heightAt(t), _dockAt(t));
 
   /// How strongly the sheet dims what is behind it, 0 to 1;
-  /// multiply by [SheetTuning.dimmingOpacity].
+  /// multiply by the opacity of the black dimming behind a dimmed detent
+  /// (0.2).
   double get dimming => _dimmingAt(now);
 
   double _dimmingAt(double t) {

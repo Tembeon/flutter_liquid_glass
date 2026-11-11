@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/motions/sheet_motion.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -153,7 +153,7 @@ Future<T?> showGlassSheet<T>(
             ? const DismissPolicy()
             : const DismissPolicy({DismissTrigger.back}),
         dim: (motion) =>
-            SheetTuning.dimmingOpacity * (motion.sheet?.dimming ?? 0),
+            _SheetLook.dimmingOpacity * (motion.sheet?.dimming ?? 0),
         modal: (motion) => (motion.sheet?.dimming ?? 1) > 0,
         onVeto: onDismissAttempt == null ? null : (_) => onDismissAttempt(),
         semanticsLabel: semanticLabel,
@@ -576,7 +576,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     final transform = Matrix4.translationValues(drawn.left, drawn.top, 0);
     transform.multiply(Matrix4.diagonal3Values(k, ky, 1));
     final bottom = Radius.circular(motion.bottomRadius);
-    const top = Radius.circular(SheetTuning.topRadius);
+    const top = Radius.circular(_SheetLook.topRadius);
     _frame.value = _Frame(
       height: h,
       transform: transform,
@@ -608,7 +608,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
       // the touch. NEAR: 18 points there, against 12 on the device.
       DragInteraction(
         axis: Axis.vertical,
-        slop: SheetTuning.dragSlop,
+        slop: SheetMotion.dragSlop,
         contendedSlop: contendedSlop,
         global: true,
         onStart: _dragStart,
@@ -646,7 +646,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     if (!motion.isDragging) motion.unpress(_stamp);
     if (lifted &&
         !_touchDragged &&
-        _touchFrom.dy < SheetTuning.grabberHitHeight) {
+        _touchFrom.dy < SheetMotion.grabberHitHeight) {
       if (motion.isDragging) motion.dragCancel(_stamp);
       motion.tapGrabber(_stamp);
     }
@@ -759,7 +759,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   // The scale of the sheet floating on a screen of this width: the target
   // keeps its 44 points on screen at the smallest scale the sheet rests at.
   double _floatingScale(BuildContext context) =>
-      1 - 2 * SheetTuning.floatingInset / MediaQuery.sizeOf(context).width;
+      1 - 2 * SheetMotion.floatingInset / MediaQuery.sizeOf(context).width;
 
   // The band at the top where a tap cycles the detents, as a target the
   // keyboard and screen readers step the detents with: a box from the
@@ -767,8 +767,8 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   // stays inside the sheet's clip. No finger reaches it: a touch there is
   // the sheet's drag and tap, and reaches the content below.
   Widget _grabber(BuildContext context, Color color) {
-    final handle = SizedBox.fromSize(size: SheetTuning.grabberSize);
-    final top = SheetTuning.grabberOffset - SheetTuning.grabberSize.height / 2;
+    final handle = SizedBox.fromSize(size: _SheetLook.grabberSize);
+    final top = _SheetLook.grabberOffset - _SheetLook.grabberSize.height / 2;
     final side = _target / _floatingScale(context);
     return Align(
       alignment: Alignment.topCenter,
@@ -781,8 +781,8 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
         child: _DetentValue(
           state: this,
           child: SizedBox(
-            width: math.max(SheetTuning.grabberSize.width, side),
-            height: math.max(top + SheetTuning.grabberSize.height, side),
+            width: math.max(_SheetLook.grabberSize.width, side),
+            height: math.max(top + _SheetLook.grabberSize.height, side),
             child: Align(
               alignment: Alignment.topCenter,
               child: Padding(
@@ -866,7 +866,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
                               visible: _glass,
                               child: const GlassSurface(
                                 shape: GlassShape.superellipse(
-                                  SheetTuning.topRadius,
+                                  _SheetLook.topRadius,
                                 ),
                                 role: GlassRole.panel,
                                 child: SizedBox.expand(),
@@ -1194,4 +1194,18 @@ final class _SheetTouch extends Interaction {
     }
     return InteractionUpdate.none;
   }
+}
+
+abstract final class _SheetLook {
+  /// The radius of the top corners, in the sheet's unscaled points.
+  static const double topRadius = 38;
+
+  /// The opacity of the black dimming behind a dimmed detent.
+  static const double dimmingOpacity = 0.2;
+
+  /// The grabber's size in unscaled points.
+  static const Size grabberSize = Size(60, 4);
+
+  /// The distance from the sheet's top edge to the grabber's center.
+  static const double grabberOffset = 8;
 }
