@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_shape_frame.dart';
 
 /// A glass render object that paints at the size of a live shape frame's
 /// rect, which the frame changes without a layout.

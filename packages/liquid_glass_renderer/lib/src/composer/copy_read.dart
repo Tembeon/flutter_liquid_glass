@@ -1,4 +1,12 @@
-part of 'read.dart';
+import 'dart:math';
+import 'dart:ui' as ui;
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart';
+import 'package:liquid_glass_renderer/src/composer/geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
+import 'package:meta/meta.dart';
 
 /// How the final glass shader reads a copy: the one place that says where
 /// its fragments lie and what its texture holds, written to the shader by
@@ -12,7 +20,8 @@ part of 'read.dart';
 @internal
 @immutable
 final class GlassSampling {
-  const GlassSampling._({
+  /// Creates the sampling.
+  const GlassSampling({
     required this.origin,
     required this.reduced,
     this.frost = 0,
@@ -60,7 +69,8 @@ final class GlassSampling {
 @internal
 @immutable
 final class FrostSampling {
-  const FrostSampling._({
+  /// Creates the sampling.
+  const FrostSampling({
     required this.size,
     required this.bounds,
     required this.frost,
@@ -90,7 +100,8 @@ final class FrostSampling {
 /// from its image.
 @internal
 final class PagePart {
-  PagePart._(this._copy, this.shown);
+  /// The part [shown] of [copy].
+  PagePart(PageCopy copy, this.shown) : _copy = copy;
 
   final PageCopy _copy;
 
@@ -100,7 +111,7 @@ final class PagePart {
   /// [shown] in the image's pixels.
   Rect get source {
     final pixels = _copy.geometry.lattice.pixels;
-    final offset = _copy._offset;
+    final offset = _copy.offset;
     final rect = _copy.rect;
     return Rect.fromLTRB(
       (shown.left - rect.left) * pixels + offset.dx,
@@ -126,9 +137,9 @@ final class PagePart {
     final geometry = _copy.geometry;
     final lattice = geometry.lattice;
     final pixels = lattice.pixels;
-    final offset = _copy._offset;
+    final offset = _copy.offset;
     final image = _copy.image;
-    return FrostSampling._(
+    return FrostSampling(
       size: Size(image.width.toDouble(), image.height.toDouble()),
       bounds: Rect.fromLTRB(
         offset.dx + 0.5,
@@ -136,7 +147,7 @@ final class PagePart {
         offset.dx + _copy.rect.width * pixels - 0.5,
         offset.dy + _copy.rect.height * pixels - 0.5,
       ),
-      frost: frost == _copy._heldFrost
+      frost: frost == _copy.heldSigma
           ? 0
           : lattice.residual(geometry.frostFor(frost)) / lattice.share,
       scale: 1,
@@ -155,14 +166,16 @@ final class PagePart {
 /// edge.
 @internal
 final class CornerRead {
-  CornerRead._(this._copy, this._cut, this._scale)
+  /// A part of a copy's layer (screen logical pixels), drawn into a target
+  /// whose pixels each stand for a number of device pixels.
+  CornerRead(this._copy, this._cut, this._scale)
     : _grid = _copy.read.geometry.lattice.inside(_scale);
 
   /// The copy laid out over its whole layer in the frame's scene.
   factory CornerRead.inFrame(ReadCopy copy) {
     final layer = copy.read.geometry.layer;
     assert(!layer.isEmpty, 'A read that draws holds some of the screen.');
-    return CornerRead._(copy, layer, 1);
+    return CornerRead(copy, layer, 1);
   }
 
   final ReadCopy _copy;
@@ -198,7 +211,7 @@ final class CornerRead {
 
   /// How the final shader reads the layer to frost it for Impeller's blur
   /// by [frost] (see [GlassSampling.frost]).
-  GlassSampling glassSampling(double frost) => GlassSampling._(
+  GlassSampling glassSampling(double frost) => GlassSampling(
     origin: _device.topLeft,
     reduced: _share > 1 ? _share.toDouble() : 0,
     frost: _residual(frost),
@@ -221,7 +234,7 @@ final class CornerRead {
     final at = _at;
     final band = _geometry.band;
     final pixels = _pixels;
-    return FrostSampling._(
+    return FrostSampling(
       size: _device.size,
       bounds: Rect.fromLTRB(
         max(at.dx, 0) + 0.5,
@@ -267,7 +280,7 @@ final class CornerRead {
     final band = _geometry.band;
     final pixels = _pixels;
     return frostFilterOf(
-      FrostSampling._(
+      FrostSampling(
         size: size,
         bounds: Rect.fromLTRB(
           max(at.dx, 0) + 0.5,
@@ -300,9 +313,9 @@ final class CornerRead {
     if (clip != null) builder.pushClipPath(clip, clipBehavior: Clip.hardEdge);
     builder
       ..pushImageFilter(filter)
-      ..addPicture(_device.topLeft, _corners(_device.size));
-    inPlace?.push(builder, _device.topLeft, _corners(_copySize));
-    _copy._addTo(
+      ..addPicture(_device.topLeft, corners(_device.size));
+    inPlace?.push(builder, _device.topLeft, corners(_copySize));
+    _copy.addTo(
       builder,
       Lattice(_dpr, _share),
       Offset(_device.left + at.dx, _device.top + at.dy),
@@ -333,12 +346,12 @@ final class CornerRead {
   // moves.
   static const double _below = 1 / 32;
 
-  // A pixel cleared at each corner of a layer of [size], which holds Impeller
-  // to the layer where the copy is transparent. Chrome keeps its few sizes
-  // across frames.
   static final _cornersOf = <Size, ui.Picture>{};
 
-  static ui.Picture _corners(Size size) {
+  /// A pixel cleared at each corner of a layer of [size], which holds
+  /// Impeller to the layer where the copy is transparent. Chrome keeps its
+  /// few sizes across frames.
+  static ui.Picture corners(Size size) {
     if (_cornersOf[size] case final held?) return held;
     if (_cornersOf.length >= 32) {
       for (final picture in _cornersOf.values) {

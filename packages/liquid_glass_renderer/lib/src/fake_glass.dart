@@ -8,7 +8,6 @@ import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_frost.dart';
 import 'package:liquid_glass_renderer/src/glass_glow.dart';
-import 'package:liquid_glass_renderer/src/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/internal/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/internal/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/internal/live_paint_size.dart';
@@ -23,8 +22,10 @@ import 'package:liquid_glass_renderer/src/liquid_glass_render_scope.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_visibility.dart';
 import 'package:liquid_glass_renderer/src/liquid_shape.dart';
-import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_shape_frame.dart';
 import 'package:liquid_glass_renderer/src/shaders.dart';
+import 'package:liquid_glass_renderer/src/widgets/glass_shadow.dart';
+import 'package:liquid_glass_renderer/src/widgets/liquid_glass_layer.dart';
 
 /// A lower-cost approximation of [LiquidGlass] without refraction geometry.
 ///

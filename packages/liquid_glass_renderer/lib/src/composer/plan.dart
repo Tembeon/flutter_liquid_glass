@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:liquid_glass_renderer/src/composer/band_look.dart';
 import 'package:liquid_glass_renderer/src/composer/geometry.dart';
-import 'package:liquid_glass_renderer/src/composer/read.dart'
-    show BandLook, ReadPainter;
+import 'package:liquid_glass_renderer/src/composer/read.dart' show ReadPainter;
 import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
 import 'package:meta/meta.dart';
 

@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
+import 'package:liquid_glass_renderer/src/widgets/liquid_glass_layer.dart';
 import 'package:meta/meta.dart';
 
 /// Where the glass of a [LiquidGlassLayer] takes what it shows through.

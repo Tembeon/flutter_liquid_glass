@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/backdrop_rig.dart'
     show CopyFrost, frostFilterOf;
+import 'package:liquid_glass_renderer/src/composer/copy_read.dart';
 import 'package:liquid_glass_renderer/src/composer/form.dart';
 import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/composer/geometry.dart';
@@ -13,8 +14,6 @@ import 'package:liquid_glass_renderer/src/composer/scene_out.dart';
 import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/internal/running_under_flutter_test.dart';
-
-part 'copy_read.dart';
 
 /// A layer the frame's plan decides for.
 ///
@@ -107,120 +106,6 @@ abstract interface class ReadPainter {
   ui.Picture recordPage(Read read, PageCopy page, Matrix4 screenToCanvas);
 }
 
-/// How a scroll edge looks where it lies this frame, which glass over it
-/// draws in its own filter.
-@internal
-@immutable
-final class BandLook {
-  /// Creates the look.
-  const BandLook({
-    required this.sigma,
-    required this.paint,
-    required this.origin,
-    required this.shown,
-    required this.devicePixelRatio,
-  });
-
-  /// Its frost, in logical pixels.
-  final double sigma;
-
-  /// What it paints over its frost.
-  final FrostBandPaint paint;
-
-  /// Where its layer's coordinates begin on the screen.
-  final Offset origin;
-
-  /// What it covers on the screen.
-  final Rect shown;
-
-  /// The device pixels of its view per logical pixel.
-  final double devicePixelRatio;
-
-  @override
-  bool operator ==(Object other) =>
-      other is BandLook &&
-      other.sigma == sigma &&
-      other.paint == paint &&
-      other.origin == origin &&
-      other.shown == shown &&
-      other.devicePixelRatio == devicePixelRatio;
-
-  @override
-  int get hashCode =>
-      Object.hash(sigma, paint, origin, shown, devicePixelRatio);
-}
-
-/// What a scroll edge paints over its frost, in its layer's coordinates, and
-/// how its frost changes the color.
-@immutable
-final class FrostBandPaint {
-  /// Creates the paint.
-  const FrostBandPaint({
-    required this.fade,
-    required this.whole,
-    required this.gone,
-    required this.lineStart,
-    required this.lineEnd,
-    required this.lineGray,
-    required this.presence,
-    required this.saturation,
-    required this.brightness,
-  });
-
-  @override
-  bool operator ==(Object other) =>
-      other is FrostBandPaint &&
-      other.fade == fade &&
-      other.whole == whole &&
-      other.gone == gone &&
-      other.lineStart == lineStart &&
-      other.lineEnd == lineEnd &&
-      other.lineGray == lineGray &&
-      other.presence == presence &&
-      other.saturation == saturation &&
-      other.brightness == brightness;
-
-  @override
-  int get hashCode => Object.hash(
-    fade,
-    whole,
-    gone,
-    lineStart,
-    lineEnd,
-    lineGray,
-    presence,
-    saturation,
-    brightness,
-  );
-
-  /// The fade, straight.
-  final Color fade;
-
-  /// The row where the fade is whole.
-  final double whole;
-
-  /// The row where the fade is gone.
-  final double gone;
-
-  /// Where the hairline starts.
-  final double lineStart;
-
-  /// Where the hairline ends.
-  final double lineEnd;
-
-  /// The hairline's gray.
-  final double lineGray;
-
-  /// How much of the band shows.
-  final double presence;
-
-  /// The saturation of what lies under the band.
-  final double saturation;
-
-  /// The brightness added.
-  final double brightness;
-}
-
 /// Where a site's fate shows in the layer tree: the walk does not go in, and
 /// what is in here says nothing to the plan.
 @internal
@@ -311,16 +196,16 @@ final class ReadCopy {
     final cut = geometry.heldIn(read.geometry).intersect(geometry.layer);
     return cut.isEmpty
         ? null
-        : CornerRead._(
+        : CornerRead(
             ReadCopy(held, _plan, _form),
             cut,
             read.geometry.lattice.share,
           );
   }
 
-  // Adds the copy at [origin], its pixels holding [lattice]'s share of the
-  // device pixels of the layer it is drawn in.
-  void _addTo(
+  /// Adds the copy at [origin], its pixels holding [lattice]'s share of the
+  /// device pixels of the layer it is drawn in.
+  void addTo(
     ui.SceneBuilder builder,
     Lattice lattice,
     Offset origin,
@@ -508,7 +393,7 @@ const _heldLayers = 3;
 /// [readOf] gives.
 @internal
 final class PageCopy {
-  PageCopy._(this.image, this.geometry, this._offset, this._heldFrost);
+  PageCopy._(this.image, this.geometry, this.offset, this.heldSigma);
 
   /// The image, shared with other pages of its frame.
   final ui.Image image;
@@ -516,19 +401,21 @@ final class PageCopy {
   /// Where the read's pixels lay when the page was drawn.
   final ReadGeometry geometry;
 
-  final Offset _offset;
+  /// Where the page lies in [image], in its pixels.
+  final Offset offset;
 
-  final double _heldFrost;
+  /// The frost drawn into the page, in logical pixels: 0 where it holds none.
+  final double heldSigma;
 
   /// The screen rect the page holds, in logical pixels.
   Rect get rect => geometry.imageRect!;
 
   /// Where the page lies in [image].
   @visibleForTesting
-  Offset get debugOffset => _offset;
+  Offset get debugOffset => offset;
 
   /// Equal while the page lies at the same place on the same grid.
-  Object get placement => (_offset, geometry.lattice);
+  Object get placement => (offset, geometry.lattice);
 
   /// What [glassSampling] stands for by the frost [sigma] of a band.
   double frostOf(double sigma) => geometry.lattice.residual(sigma);
@@ -536,7 +423,7 @@ final class PageCopy {
   /// What [glassSampling] stands for by the frost drawn into the page: 0
   /// where it holds none.
   double get heldFrost =>
-      geometry.lattice.residual(geometry.frostFor(_heldFrost));
+      geometry.lattice.residual(geometry.frostFor(heldSigma));
 
   /// How the final shader reads the page, painted in the screen's device
   /// pixels, to frost it for Impeller's blur by [frost] (see
@@ -544,11 +431,11 @@ final class PageCopy {
   GlassSampling glassSampling(double frost) {
     final lattice = geometry.lattice;
     final share = lattice.share;
-    return GlassSampling._(
+    return GlassSampling(
       origin:
-          rect.topLeft * lattice.devicePixelRatio - _offset * share.toDouble(),
+          rect.topLeft * lattice.devicePixelRatio - offset * share.toDouble(),
       reduced: share > 1 ? 1 : 0,
-      frost: frost == _heldFrost
+      frost: frost == heldSigma
           ? 0
           : lattice.residual(geometry.frostFor(frost)),
       image: image,
@@ -560,7 +447,7 @@ final class PageCopy {
   }
 
   /// The part [shown] (screen logical pixels, inside [rect]) of the page.
-  PagePart readOf(Rect shown) => PagePart._(this, shown);
+  PagePart readOf(Rect shown) => PagePart(this, shown);
 
   /// The rect [drawn] (screen logical pixels) covers in the fragments
   /// [glassSampling] gives.
@@ -617,7 +504,7 @@ final class _Tile {
   // How `backdrop_frost.frag` frosts the page in a layer of its own.
   FrostSampling frostSampling(double frost) {
     final size = Size(width.toDouble(), height.toDouble());
-    return FrostSampling._(
+    return FrostSampling(
       size: size,
       bounds: Rect.fromLTRB(0.5, 0.5, size.width - 0.5, size.height - 0.5),
       frost: lattice.residual(frost) / lattice.share,
@@ -752,7 +639,7 @@ final class _Pages {
           final size = tile.bounds.size;
           b.pushOffset(tile.offset.dx, tile.offset.dy);
           // Impeller sizes a layer by what is drawn in it.
-          filter.push(b, Offset.zero, CornerRead._corners(size));
+          filter.push(b, Offset.zero, CornerRead.corners(size));
           b.pushClipRect(Offset.zero & size, clipBehavior: Clip.hardEdge);
           tile.copy._replay(b, tile.lattice, tile.rect, Offset.zero);
           b.pop();
