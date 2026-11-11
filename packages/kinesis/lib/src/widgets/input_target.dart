@@ -179,6 +179,9 @@ abstract class InputTarget {
 
   bool _hovering = false;
 
+  /// Whether the mouse is over the target.
+  bool get hovering => _hovering;
+
   /// The mouse is over the target at [position], or left it.
   void hover(Offset position, {required bool inside}) {
     _hovering = inside;
@@ -218,7 +221,7 @@ abstract class InputTarget {
   /// Writes the focused state: set while the focus should show.
   void showFocus() => write(
     WidgetState.focused,
-    on: focusShows(
+    on: _focusShows(
       hasFocus: _hasFocus,
       enabled: enabled,
       navigation: navigation,
@@ -351,7 +354,7 @@ abstract class InputTarget {
   }
 }
 
-class _Activate<I extends Intent> extends HostAction<I> {
+class _Activate<I extends Intent> extends _HostAction<I> {
   _Activate(this.target);
 
   final InputTarget target;
@@ -366,7 +369,7 @@ class _Activate<I extends Intent> extends HostAction<I> {
   void run(I intent) => target.activate(ActivationSource.keyboard);
 }
 
-class _Adjust extends HostAction<AdjustValueIntent> {
+class _Adjust extends _HostAction<AdjustValueIntent> {
   _Adjust(this.target);
 
   final InputTarget target;
@@ -383,7 +386,7 @@ class _Adjust extends HostAction<AdjustValueIntent> {
       target.adjust(intent.command, ActivationSource.keyboard);
 }
 
-class _ContextMenu extends HostAction<ContextMenuIntent> {
+class _ContextMenu extends _HostAction<ContextMenuIntent> {
   _ContextMenu(this.target);
 
   final InputTarget target;
@@ -409,7 +412,7 @@ final class _Touch {
   final VelocityTracker? tracker;
 
   // Null while only observers hear the touch, and for a touch handed on.
-  InputArenaMember? member;
+  _ArenaMember? member;
 
   // The input the pointer's route hands the targets for the event being
   // dispatched, made as the event reached the box.
@@ -461,7 +464,7 @@ final class _Touch {
 @internal
 abstract class PointerLine {
   final Map<int, _Touch> _touches = {};
-  final PointerSpeed _speed = PointerSpeed();
+  final _PointerSpeed _speed = _PointerSpeed();
   InputPort? _port;
 
   /// The element of the box.
@@ -492,18 +495,23 @@ abstract class PointerLine {
   /// A sliding finger came onto [part], at the down or in a move.
   void slidOnto(InputTarget part, double time, {required bool atDown}) {}
 
-  /// Where touches handed on from another region arrive, or null. It
-  /// attaches after the current frame ([attachPortAfterFrame]).
+  /// Where touches handed on from another region arrive, or null.
+  ///
+  /// The port attaches after the current frame. The line maps positions
+  /// with its box, laid out in the frame that builds it, and the touches
+  /// that waited run interactions that may rebuild or lay out, which that
+  /// frame's layout and resolve phases do not allow; the clock's coming
+  /// phases can run before that layout when the host is built outside a
+  /// frame.
   InputPort? get port => _port;
   set port(InputPort? value) {
     if (identical(value, _port)) return;
     _port?.detach(_receive);
     _port = value;
-    attachPortAfterFrame(
-      value,
-      _receive,
-      () => mounted && identical(_port, value),
-    );
+    if (value == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && identical(_port, value)) value.attach(_receive);
+    });
   }
 
   /// Lets go of the port.
@@ -519,7 +527,7 @@ abstract class PointerLine {
       box.globalToLocal,
       size: box.size,
       hitArea: hitArea,
-      scrollAxes: event.handOff ? scrollAxesAround(context) : const {},
+      scrollAxes: event.handOff ? _scrollAxesAround(context) : const {},
       contested: ContestScope.of(context, listen: false),
     );
     clock.input(input.time, () {
@@ -597,7 +605,7 @@ abstract class PointerLine {
           globalPosition: event.position,
           kind: event.kind,
           buttons: event.buttons,
-          scrollAxes: scrollAxesAround(context),
+          scrollAxes: _scrollAxesAround(context),
           contested: ContestScope.of(context, listen: false),
         ),
         arena: true,
@@ -629,7 +637,7 @@ abstract class PointerLine {
           position: event.localPosition,
           velocity: velocity,
           globalPosition: event.position,
-          globalVelocity: globalVector(
+          globalVelocity: _globalVector(
             event.transform,
             velocity,
             event.localPosition,
@@ -681,7 +689,7 @@ abstract class PointerLine {
     if (touch.base != null || touch.part != null || slides) {
       _touches[pointer] = touch;
       if (arena && (touch.contended || slides)) {
-        final member = InputArenaMember(_lost, onAccepted: _accepted);
+        final member = _ArenaMember(_lost, onAccepted: _accepted);
         touch.member = member;
         member.entry = GestureBinding.instance.gestureArena.add(
           pointer,
@@ -912,22 +920,126 @@ abstract class PointerLine {
   }
 }
 
-/// Attaches [receiver] to [port] after the current frame, while [stillWanted]
-/// holds.
-///
-/// The receiver maps positions with its render box, laid out in the frame
-/// that builds it, and the touches that waited run interactions that may
-/// rebuild or lay out, which that frame's layout and resolve phases do not
-/// allow. The clock's coming phases can run before that layout when the host
-/// is built outside a frame, so the port attaches after the frame.
-@internal
-void attachPortAfterFrame(
-  InputPort? port,
-  void Function(PortEvent event) receiver,
-  bool Function() stillWanted,
-) {
-  if (port == null) return;
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (stillWanted()) port.attach(receiver);
+/// An input host's place in the gesture arena for one pointer: it waits for
+/// the host to resolve it and tells the host when it won the pointer and
+/// when another gesture took it.
+final class _ArenaMember extends GestureArenaMember {
+  /// Creates a member that calls [onRejected] when it loses its pointer and
+  /// [onAccepted] when it wins it.
+  _ArenaMember(this.onRejected, {this.onAccepted});
+
+  /// Called with the pointer another gesture took.
+  final void Function(int pointer) onRejected;
+
+  /// Called with the pointer the arena gave the host.
+  final void Function(int pointer)? onAccepted;
+
+  /// The arena entry, once the member joined.
+  GestureArenaEntry? entry;
+
+  @override
+  void acceptGesture(int pointer) => onAccepted?.call(pointer);
+
+  @override
+  void rejectGesture(int pointer) => onRejected(pointer);
+}
+
+/// The vector [local] at [at] in an event's local coordinates, mapped to
+/// global ones through the inverse of the event's [transform].
+Offset _globalVector(Matrix4? transform, Offset local, Offset at) {
+  if (transform == null) return local;
+  final inverse = Matrix4.tryInvert(transform);
+  if (inverse == null) return local;
+  return MatrixUtils.transformPoint(inverse, at + local) -
+      MatrixUtils.transformPoint(inverse, at);
+}
+
+/// The axes of the scroll views around [context].
+Set<Axis> _scrollAxesAround(BuildContext context) {
+  final axes = <Axis>{};
+  context.visitAncestorElements((element) {
+    if (element is StatefulElement && element.state is ScrollableState) {
+      axes.add((element.state as ScrollableState).position.axis);
+    }
+    return true;
   });
+  return axes;
+}
+
+/// Whether focus shows: as `InkWell` does, only after the keyboard was used
+/// last, so a tap that focuses lights no ring; under directional navigation
+/// (a TV remote) a disabled host that holds focus shows it too.
+bool _focusShows({
+  required bool hasFocus,
+  required bool enabled,
+  required NavigationMode? navigation,
+}) =>
+    hasFocus &&
+    FocusManager.instance.highlightMode == FocusHighlightMode.traditional &&
+    (enabled || navigation == NavigationMode.directional);
+
+/// An input host's own action for an intent of the focused host: a
+/// region's or a zone's activation.
+///
+/// Hosts register their actions as `Action.overridable`, so the lookup of
+/// an inner host's override finds the action of the host around it. Such an
+/// action, reached as the override of another host's, hands the intent
+/// back to that host; reached first, it answers only while its own focus
+/// node has the primary focus. The focused, innermost host handles the
+/// intent, and a host around it handles it only when it is focused itself.
+abstract class _HostAction<I extends Intent> extends Action<I> {
+  /// Whether the host takes the intent now: it is enabled and one of its
+  /// interactions takes it.
+  bool takes(I intent);
+
+  /// Whether the host's own focus node has the primary focus.
+  bool get focused;
+
+  /// Runs the intent on the host.
+  void run(I intent);
+
+  _HostAction<I>? get _inner => switch (callingAction) {
+    final _HostAction<I> inner => inner,
+    _ => null,
+  };
+
+  @override
+  bool isEnabled(I intent) {
+    if (_inner case final inner?) return inner.isEnabled(intent);
+    return focused && takes(intent);
+  }
+
+  @override
+  Object? invoke(I intent) {
+    if (_inner case final inner?) return inner.invoke(intent);
+    run(intent);
+    return null;
+  }
+}
+
+/// Tells the frame cadence how fast a followed pointer moves.
+final class _PointerSpeed {
+  Duration? _movedAt;
+
+  /// A pointer touched at [stamp].
+  void touched(Duration stamp) {
+    _movedAt = stamp;
+    FrameCadence.instance.input(changed: true);
+  }
+
+  /// A followed pointer lifted.
+  void lifted() => FrameCadence.instance.input(changed: true);
+
+  /// A followed pointer moved; [devicePixelRatio] turns its travel into
+  /// device pixels.
+  void moved(PointerMoveEvent event, double devicePixelRatio) {
+    final last = _movedAt;
+    _movedAt = event.timeStamp;
+    if (last == null) return;
+    final seconds = (event.timeStamp - last).inMicroseconds / 1e6;
+    if (seconds <= 0) return;
+    FrameCadence.instance.input(
+      pixelsPerSecond: event.delta.distance * devicePixelRatio / seconds,
+    );
+  }
 }

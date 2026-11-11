@@ -2,17 +2,15 @@ import 'dart:collection';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
-import 'package:kinesis/src/widgets/haptics.dart';
-import 'package:kinesis/src/widgets/input_intents.dart';
 import 'package:kinesis/src/widgets/input_shared.dart';
 import 'package:kinesis/src/widgets/input_target.dart';
+import 'package:kinesis/src/widgets/scope.dart';
 import 'package:kinesis/src/widgets/source.dart';
 
 /// Where an [InputZone] lies in one frame, as its control reads it from the
@@ -384,8 +382,9 @@ enum InputZoneStops {
 /// Touch: a pointer that lands on a zone (its rect, or its extension to
 /// [InputZone.minimumHitSize]) goes to that zone's interactions, mapped
 /// into the zone's coordinates with the zone's rect at each event, so a
-/// finger that rests on a moving zone stays inside it. Touches join the
-/// gesture arena as an `InputRegion`'s do. With [slides], a finger that
+/// finger that rests on a moving zone stays inside it. Touches are
+/// stamped, heard and taken to the gesture arena exactly as an
+/// `InputRegion`'s are: one mechanism serves both. With [slides], a finger that
 /// moves onto another zone moves the touch there: the zone it leaves gets
 /// a cancel, the zone it enters a down at the finger, and [feedback] hears
 /// a `ScrubChangeEvent` with the new zone; the touch then ends where the
@@ -561,24 +560,18 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
   InputZonesController<T>? _ownController;
   final Map<T, _ZoneState<T>> _zones = {};
   _RenderZones<T>? _box;
-  final Map<int, PointerDownInput> _downs = {};
-  final Map<int, T> _owners = {};
-  final Map<int, VelocityTracker> _trackers = {};
-  final Map<int, InputArenaMember> _members = {};
-  final PointerSpeed _speed = PointerSpeed();
-  late InteractionSession _hostSession = InteractionSession(
-    widget.interactions,
-  );
+  late final _HostTarget<T> _base = _HostTarget<T>(this);
+  late final _ZonesLine<T> _line = _ZonesLine<T>(this);
   late final FocusTraversalPolicy _policy = _ZonesTraversal<T>(this);
-  double? _scheduled;
-  VoidCallback? _cancelDue;
   NavigationMode? _navigation;
   T? _lastFocused;
 
+  // The clock of the motions around the zones, so a touch's stamps and the
+  // motions it drives share one time.
+  late MotionClock _clock;
+
   InputZonesController<T> get controller =>
       widget.controller ?? (_ownController ??= InputZonesController<T>());
-
-  MotionClock get _clock => MotionClock.instance;
 
   @override
   void initState() {
@@ -586,40 +579,19 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     controller._host = this;
     widget.frames.addListener(_framesChanged);
     FocusManager.instance.addHighlightModeListener(_highlightModeChanged);
-    _attachPort(widget.port);
+    _line.port = widget.port;
     _scheduleResize();
-    _bindHost();
-  }
-
-  void _bindHost() {
-    for (final interaction in widget.interactions) {
-      interaction.bindRegion((local) => _box?.localToGlobal(local) ?? local);
-    }
-  }
-
-  /// Ends the touches the host's interactions follow, for [reason].
-  void _cancelHost(PointerCancelReason reason) {
-    for (final pointer in _downs.keys.toList()) {
-      _answerHost(
-        _hostSession.handle(
-          PointerCancelInput(
-            time: _clock.now,
-            pointer: pointer,
-            reason: reason,
-          ),
-        ),
-      );
-    }
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _clock = MotionClockScope.of(context);
     final navigation = MediaQuery.maybeNavigationModeOf(context);
     if (navigation == _navigation) return;
     _navigation = navigation;
     for (final zone in _zones.values) {
-      zone._showFocus(notify: false);
+      zone._showFocusQuietly();
     }
   }
 
@@ -643,15 +615,8 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
         zone._writeAll();
       }
     }
-    if (oldWidget.port != widget.port) {
-      oldWidget.port?.detach(_receive);
-      _attachPort(widget.port);
-    }
-    if (!listEquals(oldWidget.interactions, widget.interactions)) {
-      _cancelHost(PointerCancelReason.platform);
-      _hostSession = InteractionSession(widget.interactions);
-      _bindHost();
-    }
+    _line.port = widget.port;
+    _base.interactions = widget.interactions;
     assert(
       widget.zones.map((zone) => zone.id).toSet().length == widget.zones.length,
       'Every zone of an InputZones has its own id.',
@@ -660,11 +625,10 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
 
   @override
   void dispose() {
-    widget.port?.detach(_receive);
-    _cancelHost(PointerCancelReason.platform);
+    _line.dispose();
+    _base.dispose();
     widget.frames.removeListener(_framesChanged);
     FocusManager.instance.removeHighlightModeListener(_highlightModeChanged);
-    _cancelDue?.call();
     if (_resize case final id?) {
       SchedulerBinding.instance.cancelFrameCallbackWithId(id);
     }
@@ -734,7 +698,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
 
   void _highlightModeChanged(FocusHighlightMode mode) {
     for (final zone in _zones.values) {
-      zone._showFocus();
+      zone.target.showFocus();
     }
   }
 
@@ -764,454 +728,25 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
           height: math.max(rect.height, minimum.height),
         );
 
-  void _attachPort(InputPort? port) => attachPortAfterFrame(
-    port,
-    _receive,
-    () => mounted && widget.port == port,
-  );
-
-  void _receive(PortEvent event) {
-    final box = _box;
-    if (box == null || !box.hasSize) return;
-    final input = event.input(
-      box.globalToLocal,
-      size: box.size,
-      scrollAxes: event.handOff ? scrollAxesAround(context) : const {},
-      contested: ContestScope.of(context, listen: false),
-    );
-    _clock.input(input.time, () => _route(input, arena: false));
-  }
-
   void _pointer(PointerEvent event) {
-    switch (event) {
-      case PointerScrollEvent():
-        _wheel(event);
-      case PointerHoverEvent():
-        _hoverHost(event);
-        final zone = _zoneAt(event.localPosition);
-        if (zone != null && zone.takesInput) {
-          zone._input(
-            PointerHoverInput(
-              time: _clock.now,
-              position: event.localPosition,
-              inside: true,
-            ),
-          );
-        }
-      case PointerDownEvent():
-      case _ when _downs.containsKey(event.pointer):
-        final time = _clock.stamp(event.timeStamp);
-        _clock.input(time, () => _dispatch(event, time));
-      default:
-        break;
+    if (event is! PointerHoverEvent) return _line.pointer(event);
+    if (widget.interactions.isNotEmpty) {
+      _base.hover(event.localPosition, inside: true);
     }
-  }
-
-  void _hoverHost(PointerHoverEvent event) {
-    if (widget.interactions.isEmpty) return;
-    final time = _clock.now;
-    _clock.input(
-      time,
-      () => _answerHost(
-        _hostSession.handle(
-          PointerHoverInput(
-            time: time,
-            position: event.localPosition,
-            inside: true,
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _wheel(PointerScrollEvent event) {
     final zone = _zoneAt(event.localPosition);
-    if (zone == null ||
-        !zone.takesInput ||
-        !zone.zone.interactions.any((i) => i.takesWheel)) {
-      return;
+    if (zone != null && zone.takesInput) {
+      zone.target.hover(event.localPosition, inside: true);
     }
-    GestureBinding.instance.pointerSignalResolver.register(event, (event) {
-      if (!mounted || !zone.mounted || event is! PointerScrollEvent) return;
-      final time = _clock.stamp(event.timeStamp);
-      zone._input(
-        PointerScrollInput(
-          time: time,
-          position: event.localPosition,
-          scrollDelta: event.scrollDelta,
-          kind: event.kind,
-        ),
-      );
-    });
-  }
-
-  void _dispatch(PointerEvent event, double time) {
-    final box = _box;
-    if (box == null || !box.hasSize) return;
-    switch (event) {
-      case PointerDownEvent():
-        _speed.touched(event.timeStamp);
-        _route(
-          PointerDownInput(
-            time: time,
-            pointer: event.pointer,
-            position: event.localPosition,
-            regionSize: box.size,
-            globalPosition: event.position,
-            kind: event.kind,
-            buttons: event.buttons,
-            scrollAxes: scrollAxesAround(context),
-            contested: ContestScope.of(context, listen: false),
-          ),
-          arena: true,
-        );
-        if (_downs.containsKey(event.pointer)) {
-          final tracker = VelocityTracker.withKind(event.kind);
-          tracker.addPosition(event.timeStamp, event.localPosition);
-          _trackers[event.pointer] = tracker;
-        }
-      case PointerMoveEvent():
-        _trackers[event.pointer]?.addPosition(
-          event.timeStamp,
-          event.localPosition,
-        );
-        _speed.moved(event, View.of(context).devicePixelRatio);
-        _route(
-          PointerMoveInput(
-            time: time,
-            pointer: event.pointer,
-            position: event.localPosition,
-            globalPosition: event.position,
-          ),
-          arena: true,
-        );
-      case PointerUpEvent():
-        _speed.lifted();
-        final tracker = _trackers.remove(event.pointer);
-        tracker?.addPosition(event.timeStamp, event.localPosition);
-        final velocity = tracker?.getVelocity().pixelsPerSecond ?? Offset.zero;
-        _route(
-          PointerUpInput(
-            time: time,
-            pointer: event.pointer,
-            position: event.localPosition,
-            velocity: velocity,
-            globalPosition: event.position,
-            globalVelocity: globalVector(
-              event.transform,
-              velocity,
-              event.localPosition,
-            ),
-          ),
-          arena: true,
-        );
-        _members.remove(event.pointer);
-      case PointerCancelEvent():
-        _trackers.remove(event.pointer);
-        _route(
-          PointerCancelInput(
-            time: time,
-            pointer: event.pointer,
-            reason: PointerCancelReason.platform,
-          ),
-          arena: true,
-        );
-        _members.remove(event.pointer);
-      default:
-        break;
-    }
-  }
-
-  /// Routes a pointer input in the host's coordinates to the zone that
-  /// owns its touch.
-  void _route(InteractionInput input, {required bool arena}) {
-    switch (input) {
-      case PointerDownInput():
-        _down(input, arena: arena);
-      case PointerMoveInput():
-        _move(input);
-      case PointerUpInput(:final pointer) || PointerCancelInput(:final pointer):
-        if (_downs.remove(pointer) == null) return;
-        _answerHost(_hostSession.handle(input), pointer: pointer);
-        final zone = _zones[_owners.remove(pointer)];
-        if (zone == null) return;
-        _answer(
-          zone,
-          zone.session.handle(zone._local(input)),
-          pointer: pointer,
-        );
-      case PointerAcceptedInput() ||
-          PointerHoverInput() ||
-          PointerScrollInput() ||
-          ActivateInput() ||
-          AdjustInput() ||
-          ContextMenuInput():
-        break;
-    }
-  }
-
-  void _down(PointerDownInput down, {required bool arena}) {
-    final pointer = down.pointer;
-    if (_downs.containsKey(pointer)) return;
-    final host = _hostSession.handle(down);
-    final hostTakes = _hostSession.follows(pointer);
-    final zone = _zoneAt(down.position);
-    final output = zone != null && zone.takesInput
-        ? zone.session.handle(zone._local(down))
-        : null;
-    final accepted = output != null && !output.reject;
-    if (!accepted &&
-        !widget.slides &&
-        !hostTakes &&
-        !_hostSession.observes(pointer)) {
-      if (zone != null && output != null) _answer(zone, output);
-      _answerHost(host);
-      return;
-    }
-    _downs[pointer] = down;
-    if (arena && (accepted || widget.slides || hostTakes)) {
-      final member = InputArenaMember(_lost, onAccepted: _accepted);
-      _members[pointer] = member;
-      member.entry = GestureBinding.instance.gestureArena.add(pointer, member);
-    }
-    if (zone != null && output != null) {
-      if (accepted) {
-        _owners[pointer] = zone.id;
-        _answer(
-          zone,
-          output,
-          pointer: pointer,
-          extra: [
-            if (widget.slides)
-              ScrubChangeEvent(
-                time: down.time,
-                selected: zone.id,
-                atDown: true,
-              ),
-          ],
-        );
-      } else {
-        _answer(zone, output);
-      }
-    }
-    // After the zone took its part, so a host that takes nothing leaves
-    // the touch to the zone.
-    _answerHost(host, pointer: pointer);
-  }
-
-  void _move(PointerMoveInput move) {
-    final down = _downs[move.pointer];
-    if (down == null) return;
-    _answerHost(_hostSession.handle(move), pointer: move.pointer);
-    final zone = _zones[_owners[move.pointer]];
-    if (widget.slides) {
-      final under = _zoneAt(move.position);
-      if (under != null && under != zone && under.takesInput) {
-        _handOver(move, down, from: zone, to: under);
-        return;
-      }
-    }
-    if (zone == null) return;
-    _answer(
-      zone,
-      zone.session.handle(zone._local(move)),
-      pointer: move.pointer,
-    );
-  }
-
-  void _handOver(
-    PointerMoveInput move,
-    PointerDownInput down, {
-    required _ZoneState<T>? from,
-    required _ZoneState<T> to,
-  }) {
-    final pointer = move.pointer;
-    _owners.remove(pointer);
-    if (from != null) {
-      _answer(
-        from,
-        from.session.handle(
-          PointerCancelInput(
-            time: move.time,
-            pointer: pointer,
-            reason: PointerCancelReason.taken,
-          ),
-        ),
-      );
-    }
-    final output = to.session.handle(
-      to._local(
-        PointerDownInput(
-          time: move.time,
-          pointer: pointer,
-          position: move.position,
-          regionSize: down.regionSize,
-          contactTime: down.contactTime,
-          globalPosition: move.globalPosition,
-          kind: down.kind,
-          buttons: down.buttons,
-          scrollAxes: down.scrollAxes,
-          contested: down.contested,
-        ),
-      ),
-    );
-    if (output.reject) {
-      _answer(to, output);
-      return;
-    }
-    _owners[pointer] = to.id;
-    _answer(
-      to,
-      output,
-      pointer: pointer,
-      extra: [ScrubChangeEvent(time: move.time, selected: to.id)],
-    );
-  }
-
-  void _accepted(int pointer) {
-    if (!_members.containsKey(pointer)) return;
-    final time = _clock.now;
-    _clock.input(time, () {
-      final input = PointerAcceptedInput(time: time, pointer: pointer);
-      _answerHost(_hostSession.handle(input), pointer: pointer);
-      final zone = _zones[_owners[pointer]];
-      if (zone == null) return;
-      _answer(zone, zone.session.handle(input), pointer: pointer);
-    });
-  }
-
-  void _lost(int pointer) {
-    if (_members.remove(pointer) == null) return;
-    if (!_hostSession.observes(pointer)) {
-      _trackers.remove(pointer);
-      _downs.remove(pointer);
-    }
-    _answerHost(_hostSession.lost(pointer, _clock.now));
-    final zone = _zones[_owners.remove(pointer)];
-    if (zone == null) return;
-    _answer(zone, zone.session.lost(pointer, _clock.now));
-  }
-
-  /// Ends the touches [zone] owns, for [reason].
-  void _cancelTouches(_ZoneState<T> zone, PointerCancelReason reason) {
-    for (final MapEntry(key: pointer, value: id) in _owners.entries.toList()) {
-      if (id != zone.id) continue;
-      _owners.remove(pointer);
-      _answer(
-        zone,
-        zone.session.handle(
-          PointerCancelInput(
-            time: _clock.now,
-            pointer: pointer,
-            reason: reason,
-          ),
-        ),
-      );
-      if (!widget.slides) {
-        _downs.remove(pointer);
-        _trackers.remove(pointer);
-        _members.remove(pointer)?.entry?.resolve(GestureDisposition.rejected);
-      }
-    }
-  }
-
-  void _answer(
-    _ZoneState<T> zone,
-    SessionOutput output, {
-    int? pointer,
-    List<InteractionEvent> extra = const [],
-  }) {
-    if (pointer != null) {
-      final entry = _members[pointer]?.entry;
-      if (output.claim) entry?.resolve(GestureDisposition.accepted);
-      if (output.reject && !widget.slides && !_hostSession.follows(pointer)) {
-        entry?.resolve(GestureDisposition.rejected);
-      }
-    }
-    for (final event in [...extra, ...output.events]) {
-      _play(zone.id, event);
-    }
-    if (zone.mounted) zone._writeStates();
-    _scheduleDue();
-  }
-
-  /// Resolves the arena for what the host's interactions made of a touch,
-  /// and plays their haptics.
-  void _answerHost(SessionOutput output, {int? pointer}) {
-    if (pointer != null) {
-      final entry = _members[pointer]?.entry;
-      if (output.claim) entry?.resolve(GestureDisposition.accepted);
-      if (output.reject && !widget.slides && !_owners.containsKey(pointer)) {
-        entry?.resolve(GestureDisposition.rejected);
-      }
-    }
-    for (final event in output.events) {
-      _playHost(event);
-    }
-    _scheduleDue();
-  }
-
-  void _playHost(InteractionEvent event) {
-    if (event is ActivationEvent && event.source != ActivationSource.pointer) {
-      return;
-    }
-    if (!mounted) return;
-    final haptic = widget.hostFeedback?.call(event);
-    if (haptic != null) playHaptic(context, haptic);
-  }
-
-  void _play(T zone, InteractionEvent event) {
-    if (event is ActivationEvent && event.source != ActivationSource.pointer) {
-      return;
-    }
-    if (!mounted) return;
-    final haptic = widget.feedback?.call(zone, event);
-    if (haptic != null) playHaptic(context, haptic);
-  }
-
-  void _scheduleDue() {
-    var due = _hostSession.nextDue;
-    for (final zone in _zones.values) {
-      final at = zone.session.nextDue;
-      if (at != null && (due == null || at < due)) due = at;
-    }
-    if (due == _scheduled) return;
-    _cancelDue?.call();
-    _cancelDue = null;
-    _scheduled = due;
-    if (due == null) return;
-    _cancelDue = _clock.schedule(due, (time) {
-      _scheduled = null;
-      _cancelDue = null;
-      if (!mounted) return;
-      _clock.input(time, () {
-        final hostDue = _hostSession.nextDue;
-        if (hostDue != null && hostDue <= time) {
-          _answerHost(
-            _hostSession.advance(time),
-            pointer: _downs.keys.where(_hostSession.follows).firstOrNull,
-          );
-        }
-        for (final zone in _zones.values.toList()) {
-          final at = zone.session.nextDue;
-          if (at == null || at > time) continue;
-          final owned = _owners.entries
-              .where((entry) => entry.value == zone.id)
-              .firstOrNull;
-          _answer(zone, zone.session.advance(time), pointer: owned?.key);
-        }
-      });
-    });
   }
 
   // What can take focus for the keys, whether or not Tab visits it.
   bool _traversable(_ZoneState<T> zone) =>
-      zone.node.canRequestFocus && zone._takesKeys;
+      zone.node.canRequestFocus && zone.target.acts;
 
   void _moveTo(_ZoneState<T> zone) {
     zone.node.requestFocus();
-    if (widget.activatesOnMove && zone._activates) {
-      zone._activate(ActivationSource.keyboard);
+    if (widget.activatesOnMove && zone.target.activates) {
+      zone.target.activate(ActivationSource.keyboard);
     }
   }
 
@@ -1288,7 +823,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
 
   @override
   Widget build(BuildContext context) {
-    final contends = widget.interactions.any((i) => i.contendsWithControls);
+    final contends = _base.contendsWithControls;
     return FocusTraversalGroup(
       policy: _policy,
       child: _ZonesHost<T>(
@@ -1357,14 +892,15 @@ class _Zone<T extends Object> extends StatefulWidget {
 
 /// One zone's session, focus node, hit target and semantics anchor.
 class _ZoneState<T extends Object> extends State<_Zone<T>> {
-  late InteractionSession session = InteractionSession(zone.interactions);
+  late final _ZoneTarget<T> target = _ZoneTarget<T>(this);
   final FocusNode node = FocusNode();
   _RenderZoneAnchor<T>? _anchor;
-  late Map<Type, Action<Intent>> _actions;
   Offset _origin = Offset.zero;
   Size _size = Size.zero;
-  bool _hasFocus = false;
-  bool _hovering = false;
+
+  // While the zone writes what its widget says, in a build: the
+  // controller's listeners hear nothing then.
+  bool _quiet = false;
 
   // Whether the zone was present when the frames last changed.
   bool _described = false;
@@ -1385,19 +921,11 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   /// Whether the zone takes input now.
   bool get takesInput => zone.enabled && present;
 
-  bool get _activates => zone.interactions.any((i) => i.activates);
-
-  bool get _adjusts => zone.interactions.any((i) => i.adjusts);
-
-  bool get _opensMenu => zone.interactions.any((i) => i.opensContextMenu);
-
-  AdjustRange get _range => zone.adjustRange?.value ?? AdjustRange.open;
-
   void _rangeChanged() => _anchor?.markNeedsSemanticsUpdate();
 
   MouseCursor get cursor => resolveCursor(
     zone.mouseCursor,
-    clickable: _activates || _adjusts,
+    clickable: target.acts,
     states: _controller.statesOf(id),
   );
 
@@ -1406,7 +934,6 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
     super.initState();
     node.debugLabel = 'InputZone $id';
     host._zones[id] = this;
-    _bind();
     _writeAll();
     _syncNode();
     zone.adjustRange?.addListener(_rangeChanged);
@@ -1416,30 +943,8 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   void didUpdateWidget(_Zone<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
     final old = oldWidget.zone;
-    if (!listEquals(old.interactions, zone.interactions)) {
-      host._cancelTouches(this, PointerCancelReason.platform);
-      session = InteractionSession(zone.interactions);
-      _bind();
-    }
-    if (old.enabled && !zone.enabled) {
-      host._cancelTouches(this, PointerCancelReason.disabled);
-      if (_hovering) {
-        final now = host._clock.now;
-        host._clock.input(
-          now,
-          () => host._answer(
-            this,
-            session.handle(
-              PointerHoverInput(
-                time: now,
-                position: Offset.zero,
-                inside: false,
-              ),
-            ),
-          ),
-        );
-      }
-    }
+    target.interactions = zone.interactions;
+    if (old.enabled && !zone.enabled) target.disable();
     if (old.adjustRange != zone.adjustRange) {
       old.adjustRange?.removeListener(_rangeChanged);
       zone.adjustRange?.addListener(_rangeChanged);
@@ -1452,23 +957,16 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   @override
   void dispose() {
     zone.adjustRange?.removeListener(_rangeChanged);
-    host._cancelTouches(this, PointerCancelReason.platform);
+    target.dispose();
     if (identical(host._zones[id], this)) host._zones.remove(id);
     _controller._forget(id);
-    if (_hasFocus) _controller._focus(id, focused: false);
+    if (target.hasFocus) _controller._focus(id, focused: false);
     node.dispose();
     super.dispose();
   }
 
-  void _bind() {
-    for (final interaction in zone.interactions) {
-      interaction.bindRegion(
-        (local) => host._box?.localToGlobal(local + _origin) ?? local,
-      );
-    }
-  }
-
-  /// Writes what the zone's widget says: disabled, without notifying.
+  /// Writes what the zone's widget says: disabled and whether the focus
+  /// shows, without notifying.
   void _writeAll() {
     _controller._set(
       id,
@@ -1476,52 +974,38 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
       add: !zone.enabled,
       notify: false,
     );
-    _showFocus(notify: false);
+    _showFocusQuietly();
   }
 
-  /// Whether the zone takes a key: an interaction activates or adjusts.
-  bool get _takesKeys => _activates || _adjusts;
+  void _showFocusQuietly() {
+    _quiet = true;
+    target.showFocus();
+    _quiet = false;
+  }
+
+  // Whether the zone may take focus, as of the last time its frame could
+  // be read: the semantics are described inside a layout, where it cannot.
+  bool _focusable = false;
 
   void _syncNode() {
-    node.canRequestFocus = zone.focusable && takesInput;
-    node.skipTraversal = !_takesKeys;
+    _focusable = zone.focusable && takesInput;
+    node.canRequestFocus = _focusable;
+    node.skipTraversal = !target.acts;
   }
 
-  void _set(WidgetState state, {required bool add, bool notify = true}) {
-    final before = _hovering ? cursor : null;
-    _controller._set(id, state, add: add, notify: notify);
-    if (_hovering && cursor != before) {
+  void _set(WidgetState state, {required bool add}) {
+    final before = target.hovering ? cursor : null;
+    _controller._set(id, state, add: add, notify: !_quiet);
+    if (target.hovering && cursor != before) {
       WidgetsBinding.instance.ensureVisualUpdate();
     }
   }
 
-  void _showFocus({bool notify = true}) => _set(
-    WidgetState.focused,
-    add: focusShows(
-      hasFocus: _hasFocus,
-      enabled: zone.enabled,
-      navigation: host._navigation,
-    ),
-    notify: notify,
-  );
-
   void _focusChanged(bool focused) {
-    _hasFocus = focused;
-    _showFocus();
+    target.hasFocus = focused;
     _controller._focus(id, focused: focused);
     if (focused) host._lastFocused = id;
     _anchor?.markNeedsSemanticsUpdate();
-  }
-
-  void _writeStates() {
-    var pressed = false;
-    var dragged = false;
-    for (final interaction in zone.interactions) {
-      pressed = pressed || interaction.pressed;
-      dragged = dragged || interaction.dragged;
-    }
-    _set(WidgetState.pressed, add: pressed);
-    _set(WidgetState.dragged, add: dragged);
   }
 
   /// [input], given in the host's coordinates, in the zone's: its rect's
@@ -1586,54 +1070,6 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
     };
   }
 
-  /// Hands [input], in the host's coordinates, to the zone's session.
-  void _input(InteractionInput input) {
-    if (!zone.enabled) return;
-    dispatchInput(
-      input,
-      () => host._clock.input(
-        input.time,
-        () => host._answer(this, session.handle(_local(input))),
-      ),
-    );
-  }
-
-  void _entered(PointerEnterEvent event) {
-    _hovering = true;
-    _set(WidgetState.hovered, add: true);
-    _input(
-      PointerHoverInput(
-        time: host._clock.now,
-        position: event.localPosition,
-        inside: true,
-      ),
-    );
-  }
-
-  void _exited(PointerExitEvent event) {
-    _hovering = false;
-    if (!mounted) return;
-    _set(WidgetState.hovered, add: false);
-    _input(
-      PointerHoverInput(
-        time: host._clock.now,
-        position: event.localPosition,
-        inside: false,
-      ),
-    );
-  }
-
-  void _activate(ActivationSource source) =>
-      _input(ActivateInput(time: host._clock.now, source: source));
-
-  void _adjust(ValueCommand command, ActivationSource source) => _input(
-    AdjustInput(time: host._clock.now, command: command, source: source),
-  );
-
-  void _openMenu() => _input(
-    ContextMenuInput(time: host._clock.now, position: bounds.center),
-  );
-
   void describe(SemanticsConfiguration config) {
     config.isSemanticBoundary = true;
     final zone = this.zone;
@@ -1646,30 +1082,12 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
       config.value = value;
       config.textDirection = direction;
     }
-    config.isEnabled = zone.enabled;
     if (zone.button) config.isButton = true;
     if (zone.selected case final selected?) config.isSelected = selected;
     if (zone.checked case final checked?) config.isChecked = checked;
     if (zone.toggled case final toggled?) config.isToggled = toggled;
     if (zone.semanticsRole case final role?) config.role = role;
-    if (node.canRequestFocus) {
-      config.isFocused = node.hasPrimaryFocus;
-      config.onFocus = node.requestFocus;
-    }
-    if (zone.enabled && _activates) {
-      config.onTap = () => _activate(ActivationSource.accessibility);
-    }
-    if (zone.enabled && _adjusts) {
-      final range = _range;
-      if (range.canIncrease) {
-        config.onIncrease = () =>
-            _adjust(ValueCommand.increase, ActivationSource.accessibility);
-      }
-      if (range.canDecrease) {
-        config.onDecrease = () =>
-            _adjust(ValueCommand.decrease, ActivationSource.accessibility);
-      }
-    }
+    target.describe(config);
     zone.describeSemantics?.call(config);
   }
 
@@ -1697,72 +1115,18 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
     SingleActivator(LogicalKeyboardKey.end): _ZoneEndIntent(last: true),
   };
 
-  late final Action<ActivateIntent> _activateAction =
-      Action<ActivateIntent>.overridable(
-        defaultAction: _ZoneActivate<ActivateIntent, T>(this),
-        context: context,
-      );
-
-  late final Action<ButtonActivateIntent> _buttonAction =
-      Action<ButtonActivateIntent>.overridable(
-        defaultAction: _ZoneActivate<ButtonActivateIntent, T>(this),
-        context: context,
-      );
-
-  late final Action<AdjustValueIntent> _adjustAction =
-      Action<AdjustValueIntent>.overridable(
-        defaultAction: _ZoneAdjust<T>(this),
-        context: context,
-      );
-
-  late final Action<ContextMenuIntent> _menuAction =
-      Action<ContextMenuIntent>.overridable(
-        defaultAction: _ZoneMenu<T>(this),
-        context: context,
-      );
-
-  ({bool activates, bool adjusts, bool opensMenu})? _actionsFor;
-
-  // As an InputRegion: an action only for what the zone takes, so a key it
-  // does not take reaches the actions around the host.
-  Map<Type, Action<Intent>> _actionsNow() {
-    final takes = (
-      activates: _activates,
-      adjusts: _adjusts,
-      opensMenu: _opensMenu,
-    );
-    if (takes == _actionsFor) return _actions;
-    _actionsFor = takes;
-    return _actions = {
-      if (takes.activates) ...{
-        ActivateIntent: _activateAction,
-        ButtonActivateIntent: _buttonAction,
-      },
-      if (takes.adjusts) AdjustValueIntent: _adjustAction,
-      if (takes.opensMenu) ContextMenuIntent: _menuAction,
-      DirectionalFocusIntent: _ZoneMove<T>(this),
-      _ZoneEndIntent: _ZoneEnd<T>(this),
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
     if (!zone.focusable) return _ZoneAnchor<T>(state: this);
+    final own = target.shortcuts(
+      Directionality.maybeOf(context) ?? TextDirection.ltr,
+    );
     return Actions(
-      actions: _actionsNow(),
+      actions: target.actions,
       child: Shortcuts(
         includeSemantics: false,
-        shortcuts: _adjusts || _opensMenu
-            ? {
-                ..._moves,
-                if (_opensMenu) ...ContextMenuIntent.defaultShortcuts,
-                if (_adjusts)
-                  ...AdjustValueIntent.defaultShortcuts(
-                    Directionality.maybeOf(context) ?? TextDirection.ltr,
-                    host._navigation ?? NavigationMode.traditional,
-                  ),
-              }
-            : _moves,
+        // The zone's own keys win over the arrows that move between zones.
+        shortcuts: own.isEmpty ? _moves : {..._moves, ...own},
         child: FocusTraversalOrder(
           order: NumericFocusOrder(widget.order.toDouble()),
           child: Focus(
@@ -1778,58 +1142,146 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   }
 }
 
+final class _ZoneTarget<T extends Object> extends InputTarget {
+  _ZoneTarget(this.zone) : super(zone.zone.interactions);
+
+  final _ZoneState<T> zone;
+
+  @override
+  BuildContext get context => zone.context;
+
+  @override
+  bool get mounted => zone.mounted;
+
+  @override
+  MotionClock get clock => zone.host._clock;
+
+  @override
+  PointerLine get line => zone.host._line;
+
+  @override
+  bool get enabled => zone.zone.enabled;
+
+  @override
+  Offset toGlobal(Offset local) =>
+      zone.host._box?.localToGlobal(local + zone._origin) ?? local;
+
+  @override
+  InteractionInput local(InteractionInput input) => zone._local(input);
+
+  @override
+  void write(WidgetState state, {required bool on}) =>
+      zone._set(state, add: on);
+
+  @override
+  MotionHaptic? feedback(InteractionEvent event) =>
+      zone.host.widget.feedback?.call(zone.id, event);
+
+  @override
+  AdjustRange get range => zone.zone.adjustRange?.value ?? AdjustRange.open;
+
+  @override
+  Offset get centre => zone.bounds.center;
+
+  @override
+  FocusNode get focusNode => zone.node;
+
+  @override
+  bool get focusable => zone._focusable;
+
+  @override
+  NavigationMode? get navigation => zone.host._navigation;
+
+  @override
+  Map<Type, Action<Intent>> get moreActions => {
+    DirectionalFocusIntent: _ZoneMove<T>(zone),
+    _ZoneEndIntent: _ZoneEnd<T>(zone),
+  };
+}
+
+// The host's own interactions: its box as one more target, which hears
+// every touch on it.
+final class _HostTarget<T extends Object> extends InputTarget {
+  _HostTarget(this.host) : super(host.widget.interactions);
+
+  final _InputZonesState<T> host;
+
+  @override
+  BuildContext get context => host.context;
+
+  @override
+  bool get mounted => host.mounted;
+
+  @override
+  MotionClock get clock => host._clock;
+
+  @override
+  PointerLine get line => host._line;
+
+  @override
+  bool get enabled => true;
+
+  @override
+  Offset toGlobal(Offset local) => host._box?.localToGlobal(local) ?? local;
+
+  // The host's box has no states of its own.
+  @override
+  void write(WidgetState state, {required bool on}) {}
+
+  @override
+  MotionHaptic? feedback(InteractionEvent event) =>
+      host.widget.hostFeedback?.call(event);
+
+  @override
+  Offset get centre => switch (host._box) {
+    final box? when box.hasSize => box.size.center(Offset.zero),
+    _ => Offset.zero,
+  };
+}
+
+final class _ZonesLine<T extends Object> extends PointerLine {
+  _ZonesLine(this.host);
+
+  final _InputZonesState<T> host;
+
+  @override
+  BuildContext get context => host.context;
+
+  @override
+  bool get mounted => host.mounted;
+
+  @override
+  MotionClock get clock => host._clock;
+
+  @override
+  RenderBox? get box => host._box;
+
+  @override
+  InputTarget get base => host._base;
+
+  @override
+  InputTarget? partAt(Offset position) {
+    final zone = host._zoneAt(position);
+    return zone != null && zone.takesInput ? zone.target : null;
+  }
+
+  @override
+  bool get slides => host.widget.slides;
+
+  @override
+  void slidOnto(InputTarget part, double time, {required bool atDown}) {
+    if (part is! _ZoneTarget<T>) return;
+    part.play(
+      ScrubChangeEvent(time: time, selected: part.zone.id, atDown: atDown),
+    );
+  }
+}
+
 /// Moves focus to the first or the last zone: Home and End.
 class _ZoneEndIntent extends Intent {
   const _ZoneEndIntent({required this.last});
 
   final bool last;
-}
-
-class _ZoneActivate<I extends Intent, T extends Object> extends HostAction<I> {
-  _ZoneActivate(this.zone);
-
-  final _ZoneState<T> zone;
-
-  @override
-  bool takes(I intent) => zone.zone.enabled && zone._activates;
-
-  @override
-  bool get focused => zone.node.hasPrimaryFocus;
-
-  @override
-  void run(I intent) => zone._activate(ActivationSource.keyboard);
-}
-
-class _ZoneAdjust<T extends Object> extends HostAction<AdjustValueIntent> {
-  _ZoneAdjust(this.zone);
-
-  final _ZoneState<T> zone;
-
-  @override
-  bool takes(AdjustValueIntent intent) =>
-      zone.zone.enabled && zone._adjusts && zone._range.allows(intent.command);
-
-  @override
-  bool get focused => true;
-
-  @override
-  void run(AdjustValueIntent intent) =>
-      zone._adjust(intent.command, ActivationSource.keyboard);
-}
-
-class _ZoneMenu<T extends Object> extends HostAction<ContextMenuIntent> {
-  _ZoneMenu(this.zone);
-
-  final _ZoneState<T> zone;
-
-  @override
-  bool takes(ContextMenuIntent intent) => zone.zone.enabled && zone._opensMenu;
-
-  @override
-  bool get focused => zone.node.hasPrimaryFocus;
-
-  @override
-  void run(ContextMenuIntent intent) => zone._openMenu();
 }
 
 class _ZoneMove<T extends Object> extends Action<DirectionalFocusIntent> {
@@ -2085,10 +1537,12 @@ class _RenderZoneAnchor<T extends Object> extends RenderBox
   MouseCursor get cursor => zone.mounted ? zone.cursor : MouseCursor.defer;
 
   @override
-  PointerEnterEventListener? get onEnter => zone._entered;
+  PointerEnterEventListener? get onEnter =>
+      (event) => zone.target.hover(event.localPosition, inside: true);
 
   @override
-  PointerExitEventListener? get onExit => zone._exited;
+  PointerExitEventListener? get onExit =>
+      (event) => zone.target.hover(event.localPosition, inside: false);
 
   @override
   bool get validForMouseTracker => attached && zone.mounted;
