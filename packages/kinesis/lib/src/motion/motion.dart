@@ -70,6 +70,11 @@ abstract class Motion extends MotionPart {
 
   /// The clock that steps the root on screen; the ambient forms of its
   /// values read it too. Explicit-time commands never do.
+  ///
+  /// A widget that owns the motion takes the time of its commands from
+  /// here (`clock.now`), not from [MotionClock.instance], so a motion made
+  /// with a clock of its own is commanded on that clock; a `MotionLoop`
+  /// without a rate of its own steps at this clock's frame rate.
   MotionClock get clock => _root._clock ?? MotionClock.instance;
 
   /// The motion preferences of the root: those of the `MotionScope` that

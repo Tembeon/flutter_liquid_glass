@@ -1,9 +1,12 @@
 import 'package:flutter/foundation.dart';
+import 'package:kinesis/src/motion/clock.dart';
+import 'package:kinesis/src/motion/motion.dart';
 import 'package:kinesis/src/motion/part.dart';
 
 /// A per-frame filter on frames of its own: UIKit's display-link loops,
-/// measured at a fixed [rate] (the lens's stretch at 120 Hz), stepped at
-/// the same times whatever the host renders.
+/// measured at a fixed [rate] (the lens's stretch at 120 Hz) or at the
+/// rate of the display, stepped at the same times whatever the host
+/// renders.
 ///
 /// Frames are numbered from zero at `k / rate` seconds. The owning motion
 /// runs the loop as it advances, every frame at its own time between its
@@ -22,14 +25,24 @@ import 'package:kinesis/src/motion/part.dart';
 /// }
 /// ```
 abstract class MotionLoop extends MotionPart {
-  /// Creates a loop that steps [rate] times per second of motion time and
-  /// at most [maxFrames] frames per advance.
-  MotionLoop({required this.rate, this.maxFrames = 600})
-    : assert(rate > 0, 'a loop ticks forward'),
+  /// Creates a loop that steps [rate] times per second of motion time, or
+  /// at the frame rate of the clock that steps its motion when [rate] is
+  /// null, and at most [maxFrames] frames per advance.
+  MotionLoop({double? rate, this.maxFrames = 600})
+    : _fixedRate = rate,
+      assert(rate == null || rate > 0, 'a loop ticks forward'),
       assert(maxFrames > 0, 'a loop steps');
 
-  /// The frames per second of motion time.
-  final double rate;
+  final double? _fixedRate;
+  double? _wokenRate;
+
+  /// The frames per second of motion time: the rate given, or else the
+  /// frame rate of the clock that steps the owning motion
+  /// ([Motion.clock]), read when the loop wakes and kept until it wakes
+  /// again, so the frames of one run keep their spacing.
+  double get rate => _fixedRate ?? _wokenRate ?? _clockRate;
+
+  double get _clockRate => (owner?.clock ?? MotionClock.instance).frameRate;
 
   /// The length of one frame, in seconds.
   double get frame => 1 / rate;
@@ -53,6 +66,7 @@ abstract class MotionLoop extends MotionPart {
   /// Steps the loop from the first frame after [t] on, if it slept.
   void wake(double t) {
     if (_moving) return;
+    if (_fixedRate == null) _wokenRate = _clockRate;
     _last = _index(t);
     _moving = true;
     changed();

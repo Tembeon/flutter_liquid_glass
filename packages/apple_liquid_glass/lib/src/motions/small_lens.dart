@@ -40,7 +40,9 @@ import 'package:meta/meta.dart';
 @internal
 final class SmallLens extends Motion {
   /// Creates a lens that rests at [restSize] and lifts to [liftedSize],
-  /// filtering its motion at [frameRate] frames per second, at [position].
+  /// filtering its motion at [frameRate] frames per second, or at the
+  /// frame rate of the clock that steps it when [frameRate] is null, at
+  /// [position].
   SmallLens({
     required this.restSize,
     required this.liftedSize,
@@ -59,8 +61,9 @@ final class SmallLens extends Motion {
   final Size liftedSize;
 
   /// The frames per second of motion time the stretch filter steps at:
-  /// 120 for a ProMotion display, 60 for a 60 Hz one.
-  final double frameRate;
+  /// 120 for a ProMotion display, 60 for a 60 Hz one; null for the rate of
+  /// the clock that steps the lens.
+  final double? frameRate;
 
   /// The spring that lifts the lens: UIKit's small lens lift tuning, which
   /// with [liftVelocity] fits the device knob and thumb recordings (peak

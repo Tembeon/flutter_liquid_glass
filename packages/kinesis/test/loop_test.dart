@@ -2,9 +2,10 @@ import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/testing.dart';
 
 final class _Filter extends MotionLoop {
-  _Filter(this.input) : super(rate: 120);
+  _Filter(this.input, {super.rate = 120});
 
   final MotionValue<double> input;
   double value = 0;
@@ -26,8 +27,11 @@ final class _Filter extends MotionLoop {
 }
 
 class _Lens extends Motion {
+  _Lens({super.clock, this.rate = 120});
+
+  final double? rate;
   late final knob = own(MotionValue<double>(0, spring: Spring.snappy));
-  late final filter = own(_Filter(knob));
+  late final filter = own(_Filter(knob, rate: rate));
   final List<(double, double)> seen = [];
 
   void move(double t, double to) {
@@ -103,5 +107,15 @@ void main() {
       moreOrLessEquals(841 / 120, epsilon: 1e-12),
     );
     expect(lens.filter.lastFrame, lens.filter.frames.last);
+  });
+
+  test('a loop with no rate steps at the rate of the clock that steps its '
+      'motion, read when it wakes', () {
+    final clock = ManualMotionClock(frameRate: 60);
+    final lens = _Lens(clock: clock, rate: null);
+    expect(lens.filter.rate, 60);
+    lens.move(0, 10);
+    lens.advance(0.1);
+    expect(lens.filter.frames.take(3), [1 / 60, 2 / 60, 3 / 60]);
   });
 }

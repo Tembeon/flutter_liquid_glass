@@ -713,12 +713,12 @@ class MotionLayout extends StatefulWidget
   overrides: createState
 typedef MotionLayoutBuilder = Widget Function(BuildContext, List<Widget>)
 abstract class MotionLoop extends MotionPart
-  MotionLoop({required double rate, int maxFrames = ...})
+  MotionLoop({double? rate, int maxFrames = ...})
   double get frame
   bool get isMoving
   double get lastFrame
   final int maxFrames
-  final double rate
+  double get rate
   @internal void run(double t, {bool before = ...})
   @protected abstract bool step(double t)
   void wake(double t)

@@ -35,9 +35,8 @@ final class SwitchMotion extends Motion {
   /// Creates a switch resting at [value] whose knob lens filters its
   /// motion at [frameRate] frames per second of motion time, or at the
   /// frame rate of the clock that steps it when [frameRate] is null.
-  SwitchMotion({required bool value, double? frameRate = 120, this.onEvent})
+  SwitchMotion({required bool value, this.frameRate = 120, this.onEvent})
     : _value = value {
-    this.frameRate = frameRate ?? clock.frameRate;
     _knob = own(
       MotionValue<double>(value ? travel : 0, spring: knobSpring),
       rest: _length,
@@ -50,7 +49,7 @@ final class SwitchMotion extends Motion {
       SmallLens(
         restSize: knobSize,
         liftedSize: liftedKnobSize,
-        frameRate: this.frameRate,
+        frameRate: frameRate,
         position: _knob.valueAt,
       ),
     );
@@ -63,8 +62,9 @@ final class SwitchMotion extends Motion {
   final void Function(SwitchEvent event)? onEvent;
 
   /// The frames per second of motion time the knob lens filters at: 120
-  /// for a ProMotion display, 60 for a 60 Hz one.
-  late final double frameRate;
+  /// for a ProMotion display, 60 for a 60 Hz one; null for the rate of the
+  /// clock that steps the switch.
+  final double? frameRate;
 
   /// The 63 x 28 track measured from the UISwitch view tree.
   static const Size trackSize = Size(63, 28);
