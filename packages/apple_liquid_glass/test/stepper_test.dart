@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,6 +32,15 @@ Offset _half(WidgetTester tester, GlassStepperHalf half) {
       ? box.centerLeft + Offset(box.width / 4, 0)
       : box.centerRight - Offset(box.width / 4, 0);
 }
+
+Widget _keyApp(Widget child, {TextDirection direction = TextDirection.ltr}) =>
+    WidgetsApp(
+      color: const Color(0xFF000000),
+      builder: (context, _) => Directionality(
+        textDirection: direction,
+        child: Center(child: child),
+      ),
+    );
 
 void main() {
   setUp(MotionClock.debugReset);
@@ -142,11 +152,10 @@ void main() {
     focus.requestFocus();
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
-    await tester.sendKeyEvent(LogicalKeyboardKey.space);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
     tester.semantics.tap(find.semantics.byLabel('Increment'));
     // The value stays at the minimum, where the left arrow does nothing.
-    expect(values, [1, 1, 1, 1]);
+    expect(values, [1, 1, 1]);
     semantics.dispose();
   });
 
@@ -178,5 +187,165 @@ void main() {
     );
     expect(find.byType(CustomPaint), findsWidgets);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('under a WidgetsApp the arrows step it as the halves lie in '
+      'either direction, Home and End end it, and Page Up, Page Down, Space '
+      'and Enter do nothing', (tester) async {
+    for (final direction in TextDirection.values) {
+      final values = <double>[];
+      await tester.pumpWidget(
+        _keyApp(
+          RawGlassStepper(
+            key: ValueKey(direction),
+            value: 5,
+            max: 10,
+            onChanged: values.add,
+            autofocus: true,
+            builder: _Probe().build,
+          ),
+          direction: direction,
+        ),
+      );
+      await tester.pump();
+      for (final key in [
+        LogicalKeyboardKey.arrowRight,
+        LogicalKeyboardKey.arrowLeft,
+        LogicalKeyboardKey.arrowUp,
+        LogicalKeyboardKey.arrowDown,
+        LogicalKeyboardKey.home,
+        LogicalKeyboardKey.end,
+        LogicalKeyboardKey.pageUp,
+        LogicalKeyboardKey.pageDown,
+        LogicalKeyboardKey.space,
+        LogicalKeyboardKey.enter,
+      ]) {
+        await tester.sendKeyEvent(key);
+      }
+      expect(values, [6, 4, 6, 4, 0, 10], reason: '$direction');
+    }
+  });
+
+  testWidgets('an app adds keys with Shortcuts and replaces a command with '
+      'Actions, for the keys and the buttons alike', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final values = <double>[];
+    final overridden = <ValueCommand>[];
+    Widget stepper({bool override = false}) => _keyApp(
+      Actions(
+        actions: {
+          if (override)
+            AdjustValueIntent: CallbackAction<AdjustValueIntent>(
+              onInvoke: (intent) => overridden.add(intent.command),
+            ),
+        },
+        child: Shortcuts(
+          shortcuts: const {
+            SingleActivator(LogicalKeyboardKey.equal): AdjustValueIntent(
+              ValueCommand.increase,
+            ),
+          },
+          child: RawGlassStepper(
+            value: 5,
+            onChanged: values.add,
+            autofocus: true,
+            builder: _Probe().build,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpWidget(stepper());
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.equal);
+    tester.semantics.tap(find.semantics.byLabel('Decrement'));
+    expect(values, [6, 4]);
+    await tester.pumpWidget(stepper(override: true));
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    tester.semantics.tap(find.semantics.byLabel('Increment'));
+    expect(values, [6, 4]);
+    expect(overridden, [ValueCommand.increase, ValueCommand.increase]);
+    semantics.dispose();
+  });
+
+  testWidgets('one adjustable node over its 44 point target holds the two '
+      'buttons', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final values = <double>[];
+    await tester.pumpWidget(
+      _app(
+        RawGlassStepper(
+          value: 5,
+          onChanged: values.add,
+          builder: _Probe().build,
+        ),
+      ),
+    );
+    final node = tester.getSemantics(find.byType(RawGlassStepper));
+    expect(
+      node,
+      matchesSemantics(
+        rect: const Rect.fromLTWH(0, -6, 94, 44),
+        hasIncreaseAction: true,
+        hasDecreaseAction: true,
+        hasFocusAction: true,
+        hasEnabledState: true,
+        isEnabled: true,
+        isFocusable: true,
+        children: [
+          matchesSemantics(
+            label: 'Decrement',
+            value: '5',
+            rect: const Rect.fromLTWH(0, 0, 47, 32),
+            isButton: true,
+            hasTapAction: true,
+            hasEnabledState: true,
+            isEnabled: true,
+          ),
+          matchesSemantics(
+            label: 'Increment',
+            value: '5',
+            rect: const Rect.fromLTWH(0, 0, 47, 32),
+            isButton: true,
+            hasTapAction: true,
+            hasEnabledState: true,
+            isEnabled: true,
+          ),
+        ],
+      ),
+    );
+    tester.semantics.increase(
+      find.semantics.byAction(SemanticsAction.increase),
+    );
+    tester.semantics.decrease(
+      find.semantics.byAction(SemanticsAction.decrease),
+    );
+    expect(values, [6, 4]);
+    semantics.dispose();
+  });
+
+  testWidgets('a tap in the 44 point extension steps the half above or '
+      'below it; one beyond does not', (tester) async {
+    final values = <double>[];
+    await tester.pumpWidget(
+      _app(
+        RawGlassStepper(
+          value: 5,
+          onChanged: values.add,
+          builder: _Probe().build,
+        ),
+      ),
+    );
+    expect(tester.getSize(find.byType(RawGlassStepper)), RawGlassStepper.size);
+    await tester.tapAt(
+      _half(tester, GlassStepperHalf.increment) + const Offset(0, -21),
+    );
+    await tester.tapAt(
+      _half(tester, GlassStepperHalf.decrement) + const Offset(0, 21),
+    );
+    await tester.tapAt(
+      _half(tester, GlassStepperHalf.increment) + const Offset(0, 23),
+    );
+    await tester.pump();
+    expect(values, [6, 4]);
   });
 }

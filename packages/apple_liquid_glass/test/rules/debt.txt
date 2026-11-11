@@ -56,7 +56,6 @@
 5:CallbackShortcuts       lib/src/presentations/alert.dart            1
 5:CallbackShortcuts       lib/src/raw/page_control.dart               1
 5:CallbackShortcuts       lib/src/raw/selector.dart                   1
-5:CallbackShortcuts       lib/src/raw/stepper.dart                    1
 5:GestureDetector         lib/src/controls/date_picker.dart           2
 5:GestureDetector         lib/src/controls/search_field.dart          1
 5:GestureDetector         lib/src/navigation/bar.dart                 1
