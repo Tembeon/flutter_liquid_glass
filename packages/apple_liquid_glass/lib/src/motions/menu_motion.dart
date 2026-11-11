@@ -1573,6 +1573,16 @@ class MenuMotion extends Motion with Presented {
     _place(_press.scaleAt(_now));
   }
 
+  /// Lays the content out again as [updateLayout] does, at the motion's
+  /// next step: a change found while a frame lays out, such as a row that
+  /// has measured itself, cannot resize what that frame has laid out, so
+  /// it shows from the next frame on.
+  void updateLayoutNextStep({bool animate = true}) => at(
+    now + 1e-6,
+    (t) => updateLayout(t, animate: animate),
+    slot: #updateLayout,
+  );
+
   /// Lays the content out again at time [t], as after a change of the
   /// entries while the menu is open.
   ///

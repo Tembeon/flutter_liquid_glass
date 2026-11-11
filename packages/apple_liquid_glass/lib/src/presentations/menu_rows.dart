@@ -4,13 +4,12 @@ import 'dart:ui' as ui;
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/menu_layout.dart';
 import 'package:apple_liquid_glass/src/motions/menu_motion.dart';
-import 'package:apple_liquid_glass/src/presentations/live.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_appearance.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_content.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_entries.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/widgets.dart';
+import 'package:kinesis/kinesis.dart';
 
 class _RowKey extends LocalKey {
   const _RowKey(this.index);
@@ -22,6 +21,54 @@ class _RowKey extends LocalKey {
 
   @override
   int get hashCode => index.hashCode;
+}
+
+/// A chain of render-object widgets that follows the frames of a menu's
+/// motion: [template] makes the chain again from each frame, which updates
+/// the render objects and builds nothing.
+@internal
+MotionDriven menuDriven<T>(
+  ValueListenable<T> frames,
+  SingleChildRenderObjectWidget Function(T frame) template, {
+  Widget? child,
+  Key? key,
+}) => MotionDriven(
+  key: key,
+  template: () => template(frames.value),
+  child: child,
+);
+
+/// Lays its child out at [rect]'s size and draws it at [rect]'s corner,
+/// taking all the room it is given: a move repaints, a resize lays out.
+/// [inner] continues the chain inside it.
+@internal
+SingleChildRenderObjectWidget menuPlacement(
+  Rect rect, [
+  SingleChildRenderObjectWidget? inner,
+]) => OverflowBox(
+  alignment: Alignment.topLeft,
+  minWidth: rect.width,
+  maxWidth: rect.width,
+  minHeight: rect.height,
+  maxHeight: rect.height,
+  child: Transform.translate(offset: rect.topLeft, child: inner),
+);
+
+/// A clip to [rrect] in the clipped box's coordinates; touches outside it
+/// pass through.
+@internal
+class MenuClip extends CustomClipper<RRect> {
+  /// Creates a clip to [rrect].
+  const MenuClip(this.rrect);
+
+  /// The clip.
+  final RRect rrect;
+
+  @override
+  RRect getClip(Size size) => rrect;
+
+  @override
+  bool shouldReclip(MenuClip oldClipper) => oldClipper.rrect != rrect;
 }
 
 /// The elements of one card, each at its frame in the card's content.
@@ -44,7 +91,7 @@ class MenuRows extends StatefulWidget {
   final MenuLayout layout;
 
   /// The target of the submenu row a card grows out of, or null.
-  final ValueListenable<int?> hidden;
+  final int? hidden;
 
   /// The colors.
   final MenuAppearance style;
@@ -57,71 +104,60 @@ class MenuRows extends StatefulWidget {
 }
 
 class _MenuRowsState extends State<MenuRows> {
-  final ValueNotifier<int?> _hidden = ValueNotifier<int?>(null);
   List<Widget>? _children;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.hidden.addListener(_hiddenChanged);
-    _hidden.value = widget.hidden.value;
-  }
 
   @override
   void didUpdateWidget(MenuRows oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.hidden, widget.hidden)) {
-      oldWidget.hidden.removeListener(_hiddenChanged);
-      widget.hidden.addListener(_hiddenChanged);
-      _hidden.value = widget.hidden.value;
-    }
     if (!identical(oldWidget.layout, widget.layout) ||
         !identical(oldWidget.style, widget.style) ||
         !identical(oldWidget.content, widget.content)) {
       _children = null;
+    } else if (oldWidget.hidden != widget.hidden) {
+      _rehide(oldWidget.hidden, widget.hidden);
     }
   }
 
-  @override
-  void dispose() {
-    widget.hidden.removeListener(_hiddenChanged);
-    _hidden.dispose();
-    super.dispose();
-  }
-
-  void _hiddenChanged() => _hidden.value = widget.hidden.value;
-
-  List<Widget> _build() {
-    final layout = widget.layout;
-    final children = <Widget>[];
-    for (var i = 0; i < layout.elements.length; i++) {
-      final element = layout.elements[i];
+  // Only the rows that hide or show again are made anew; the others keep
+  // their widgets, so they do not build.
+  void _rehide(int? from, int? to) {
+    final children = _children;
+    if (children == null) return;
+    final elements = widget.layout.elements;
+    var slot = 0;
+    for (var i = 0; i < elements.length; i++) {
+      final element = elements[i];
       if (element.kind == MenuPlacedKind.cardHeader) continue;
-      children.add(
-        element.entry is GlassSubmenu && element.kind == MenuPlacedKind.row
-            ? ValueListenableBuilder<int?>(
-                key: _RowKey(i),
-                valueListenable: _hidden,
-                builder: (BuildContext context, int? hidden, Widget? _) =>
-                    _MenuElement(
-                      element: element,
-                      style: widget.style,
-                      width: layout.width,
-                      content: widget.content,
-                      hidden: hidden == element.target,
-                    ),
-              )
-            : _MenuElement(
-                key: _RowKey(i),
-                element: element,
-                style: widget.style,
-                width: layout.width,
-                content: widget.content,
-              ),
-      );
+      if (element.target >= 0 &&
+          (element.target == from || element.target == to)) {
+        children[slot] = _element(i);
+      }
+      slot++;
     }
-    return children;
+    _children = List.of(children);
   }
+
+  Widget _element(int i) {
+    final layout = widget.layout;
+    final element = layout.elements[i];
+    return _MenuElement(
+      key: _RowKey(i),
+      element: element,
+      style: widget.style,
+      width: layout.width,
+      content: widget.content,
+      hidden:
+          element.kind == MenuPlacedKind.row &&
+          element.entry is GlassSubmenu &&
+          widget.hidden == element.target,
+    );
+  }
+
+  List<Widget> _build() => [
+    for (var i = 0; i < widget.layout.elements.length; i++)
+      if (widget.layout.elements[i].kind != MenuPlacedKind.cardHeader)
+        _element(i),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -606,43 +642,61 @@ class _Spinner extends StatefulWidget {
   State<_Spinner> createState() => _SpinnerState();
 }
 
-class _SpinnerState extends State<_Spinner>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _turn = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 1),
-  );
+class _SpinnerState extends State<_Spinner> {
+  final _spin = _Spin();
+  late final _head = _spin.select((spin) => spin.head);
 
   @override
   void initState() {
     super.initState();
-    _turn.repeat();
-  }
-
-  @override
-  void dispose() {
-    _turn.dispose();
-    super.dispose();
+    _spin.start(_spin.clock.now);
   }
 
   @override
   Widget build(BuildContext context) => CustomPaint(
     size: const Size.square(20),
-    painter: _SpinnerPainter(turn: _turn, color: widget.color),
+    painter: _SpinnerPainter(head: _head, color: widget.color),
   );
 }
 
-class _SpinnerPainter extends CustomPainter {
-  _SpinnerPainter({required this.turn, required this.color})
-    : super(repaint: turn);
+/// The spokes of an activity indicator, stepping round from [start].
+final class _Spin extends Motion {
+  late final _loop = own(_SpinLoop());
 
-  final Animation<double> turn;
+  /// The brightest spoke now.
+  int get head => _loop.head;
+
+  /// Starts the turn at [t].
+  void start(double t) {
+    _loop.start = t;
+    _loop.wake(t);
+  }
+}
+
+final class _SpinLoop extends MotionLoop {
+  static const spokes = 8;
+
+  double start = 0;
+  int head = 0;
+
+  @override
+  bool step(double t) {
+    head = ((t - start) * spokes).floor() % spokes;
+    return true;
+  }
+}
+
+class _SpinnerPainter extends CustomPainter {
+  _SpinnerPainter({required this.head, required this.color})
+    : super(repaint: head);
+
+  final ValueListenable<int> head;
   final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
-    const spokes = 8;
-    final head = (turn.value * spokes).floor();
+    const spokes = _SpinLoop.spokes;
+    final head = this.head.value;
     final center = size.center(Offset.zero);
     final radius = size.shortestSide / 2;
     final paint = Paint();
@@ -672,12 +726,12 @@ typedef MenuHeaderValues = ({double bold, double turn, double separator});
 
 /// The header of a submenu card: the row it grew out of, its title
 /// turning bold and its chevron turning down as the card opens, each read
-/// again on every notification of [live].
+/// again on every frame of [frames].
 @internal
 class MenuCardHeader extends StatelessWidget {
   /// Creates the header [header] of a card.
   const MenuCardHeader({
-    required this.live,
+    required this.frames,
     required this.header,
     required this.placed,
     required this.values,
@@ -687,8 +741,8 @@ class MenuCardHeader extends StatelessWidget {
     super.key,
   });
 
-  /// What tells the header to read [placed] and [values] again.
-  final Listenable live;
+  /// The frames on which the header reads [placed] and [values] again.
+  final ValueListenable<Object?> frames;
 
   /// The header as the card's layout places it.
   final MenuPlaced header;
@@ -738,13 +792,15 @@ class MenuCardHeader extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             if (header.imageCenter != null && icon != null)
-              LivePlacement(
-                live: live,
-                rectOf: () => _span(
-                  placed().imageCenter! - MenuTuning.imageSlot / 2,
-                  MenuTuning.imageSlot,
-                  height,
-                  rtl,
+              menuDriven(
+                frames,
+                (_) => menuPlacement(
+                  _span(
+                    placed().imageCenter! - MenuTuning.imageSlot / 2,
+                    MenuTuning.imageSlot,
+                    height,
+                    rtl,
+                  ),
                 ),
                 child: Center(
                   child: IconTheme.merge(
@@ -753,28 +809,30 @@ class MenuCardHeader extends StatelessWidget {
                   ),
                 ),
               ),
-            LivePlacement(
-              live: live,
-              rectOf: () {
+            menuDriven(
+              frames,
+              (_) {
                 final now = placed();
-                return _span(
-                  now.titleStart,
-                  now.titleEnd - now.titleStart,
-                  height,
-                  rtl,
+                return menuPlacement(
+                  _span(
+                    now.titleStart,
+                    now.titleEnd - now.titleStart,
+                    height,
+                    rtl,
+                  ),
                 );
               },
               child: Stack(
                 alignment: AlignmentDirectional.centerStart,
                 children: [
-                  LiveFade(
-                    live: live,
-                    opacityOf: () => 1 - values().bold,
+                  menuDriven(
+                    frames,
+                    (_) => Opacity(opacity: 1 - values().bold),
                     child: _text(context, style.textStyle),
                   ),
-                  LiveFade(
-                    live: live,
-                    opacityOf: () => values().bold,
+                  menuDriven(
+                    frames,
+                    (_) => Opacity(opacity: values().bold),
                     child: _text(context, style.textStyle.merge(_bold)),
                   ),
                 ],
@@ -788,10 +846,11 @@ class MenuCardHeader extends StatelessWidget {
               child: Center(
                 child: Transform.flip(
                   flipX: rtl,
-                  child: LiveTransform(
-                    live: live,
-                    matrixOf: () =>
-                        Matrix4.rotationZ(values().turn * math.pi / 2),
+                  child: menuDriven(
+                    frames,
+                    (_) => Transform.rotate(
+                      angle: values().turn * math.pi / 2,
+                    ),
                     child: CustomPaint(
                       size: MenuTuning.chevronSize,
                       painter: _ChevronPainter(color: _title),
@@ -805,9 +864,9 @@ class MenuCardHeader extends StatelessWidget {
               right: metrics.separatorInset,
               bottom: 0,
               height: 1,
-              child: LiveFade(
-                live: live,
-                opacityOf: () => values().separator,
+              child: menuDriven(
+                frames,
+                (_) => Opacity(opacity: values().separator),
                 child: ColoredBox(color: style.separatorColor),
               ),
             ),

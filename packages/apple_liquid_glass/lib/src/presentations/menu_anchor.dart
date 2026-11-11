@@ -11,7 +11,6 @@ import 'package:apple_liquid_glass/src/motions/menu_fusion.dart';
 import 'package:apple_liquid_glass/src/motions/menu_layout.dart';
 import 'package:apple_liquid_glass/src/motions/menu_motion.dart';
 import 'package:apple_liquid_glass/src/motions/menu_outline_math.dart';
-import 'package:apple_liquid_glass/src/presentations/live.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_appearance.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_content.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_entries.dart';
@@ -19,7 +18,7 @@ import 'package:apple_liquid_glass/src/presentations/menu_rows.dart';
 import 'package:apple_liquid_glass/src/surfaces/surface.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
@@ -140,11 +139,9 @@ class RawGlassMenu extends StatefulWidget {
 /// The state of a widget whose menu shows on the overlay: the motion, the
 /// commands and events, the touches of the open menu.
 abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
-  static final Listenable _still = Listenable.merge(const []);
-
   final _portal = PresentationPortalController();
   late final _content = MenuContent(onChanged: _contentChanged);
-  final _showing = ValueNotifier<bool>(false);
+  bool _showing = false;
   final _source = MotionSource();
 
   // The node the open menu holds while no row has the focus, so Escape
@@ -159,13 +156,10 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   bool _routing = false;
   bool _delivering = false;
 
-  double get _now => MotionClock.instance.now;
+  // Only read while there is a motion, whose clock it is.
+  double get _now => _motion!.clock.now;
 
   bool get _isOpen => _motion?.isOpen ?? false;
-
-  /// What the menu's live widgets follow: every frame that moved the
-  /// motion and every command to it.
-  Listenable get _frames => _steps ?? _still;
 
   List<GlassMenuEntry> get _entries;
   GlassMenuOrder get _order;
@@ -235,7 +229,6 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     _unroute();
     _steps?.removeListener(_stepped);
     _content.dispose();
-    _showing.dispose();
     _menuFocus.dispose();
     super.dispose();
   }
@@ -305,6 +298,13 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     final motion = _motion;
     if (motion == null || !(motion.isPresented || motion.isArming)) return;
     final animated = animate && motion.isPresented;
+    // The menu's chains hear a command given while the frame builds or
+    // lays out in its resolve phase, too late to lay out again.
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      motion.updateLayoutNextStep(animate: animated);
+      return;
+    }
     _command((motion, t) => motion.updateLayout(t, animate: animated));
   }
 
@@ -341,7 +341,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     } else {
       motion = _createMotion(source, overlayBox.size, padding);
       motion.submenuLayout = _content.submenu;
-      motion.advance(at ?? _now);
+      motion.advance(at ?? motion.clock.now);
       _adopt(motion);
       setState(() {});
     }
@@ -349,10 +349,20 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     return motion;
   }
 
+  // Showing is a change of structure: the source says it is expanded.
+  void _shown(bool showing) {
+    if (showing == _showing || !mounted) return;
+    setState(() => _showing = showing);
+    _reportShowing(showing);
+  }
+
+  /// Tells the app the menu now shows or no longer does.
+  void _reportShowing(bool showing) {}
+
   void _show() {
     if (!mounted) return;
     _portal.present();
-    _showing.value = true;
+    _shown(true);
   }
 
   void _openFromCode() {
@@ -426,9 +436,11 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   // No region lies under such a touch yet: the menu shows only once it
   // opens.
   void _earlyEvent(PointerEvent event) {
-    final t = MotionClock.instance.stamp(event.timeStamp);
+    final motion = _motion;
+    if (motion == null) return;
+    final t = motion.clock.stamp(event.timeStamp);
     if (event is PointerDownEvent) {
-      if (!(_motion?.isOpenPending ?? false) ||
+      if (!motion.isOpenPending ||
           _pointer != null ||
           event.buttons != kPrimaryButton) {
         return;
@@ -464,7 +476,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
       semanticsLabel: _semanticLabel,
       semanticsRole: ui.SemanticsRole.menu,
       initialFocus: _menuFocus,
-      onDismissed: (_) => _showing.value = false,
+      onDismissed: (_) => _shown(false),
     ),
     child: child,
   );
@@ -500,18 +512,13 @@ class _RawGlassMenuState extends _MenuHost<RawGlassMenu> {
       widget.sourceOf?.call(overlay) ?? MenuSource(box, radius: widget.radius);
 
   @override
-  void initState() {
-    super.initState();
-    _showing.addListener(_reportShowing);
-  }
-
-  @override
   void dispose() {
-    if (_showing.value) widget.onShowing?.call(false);
+    if (_showing) widget.onShowing?.call(false);
     super.dispose();
   }
 
-  void _reportShowing() => widget.onShowing?.call(_showing.value);
+  @override
+  void _reportShowing(bool showing) => widget.onShowing?.call(showing);
 
   @override
   MenuMotion _createMotion(
@@ -576,8 +583,10 @@ class _RawGlassMenuState extends _MenuHost<RawGlassMenu> {
     }
   }
 
+  // Read through the steps, so the press follows the motion's frames once
+  // there is one.
   Matrix4 _pressTransform() {
-    final motion = _motion;
+    final motion = _steps?.value;
     if (motion == null || !widget.scalesOnPress) return Matrix4.identity();
     final s = motion.isPresented ? 1.0 : motion.pressScale;
     return Matrix4.diagonal3Values(s, s, 1);
@@ -593,22 +602,20 @@ class _RawGlassMenuState extends _MenuHost<RawGlassMenu> {
         interactions: [_input],
         enabled: enabled,
         semanticLabel: widget.semanticLabel,
-        child: ValueListenableBuilder<bool>(
-          valueListenable: _showing,
+        child: Semantics(
+          button: true,
+          expanded: _showing,
+          excludeSemantics: widget.semanticLabel != null,
+          onLongPress: enabled && hold ? _openFromCode : null,
           child: MotionSourceBox(
             source: _source,
-            child: LiveTransform(
-              live: _frames,
-              matrixOf: _pressTransform,
+            child: MotionDriven(
+              template: () => Transform(
+                transform: _pressTransform(),
+                alignment: Alignment.center,
+              ),
               child: widget.child,
             ),
-          ),
-          builder: (context, showing, face) => Semantics(
-            button: true,
-            expanded: showing,
-            excludeSemantics: widget.semanticLabel != null,
-            onLongPress: enabled && hold ? _openFromCode : null,
-            child: face,
           ),
         ),
       ),
@@ -693,12 +700,16 @@ final class _MenuInput extends Interaction {
 class _Structure {
   const _Structure({
     required this.layouts,
+    required this.hidden,
     required this.open,
     required this.scrolls,
     required this.top,
   });
 
   final List<MenuLayout> layouts;
+
+  /// The row each card hides under the submenu card grown out of it.
+  final List<int?> hidden;
   final bool open;
   final bool scrolls;
 
@@ -715,7 +726,10 @@ class _Structure {
       return false;
     }
     for (var i = 0; i < layouts.length; i++) {
-      if (!identical(other.layouts[i], layouts[i])) return false;
+      if (!identical(other.layouts[i], layouts[i]) ||
+          other.hidden[i] != hidden[i]) {
+        return false;
+      }
     }
     return true;
   }
@@ -745,8 +759,7 @@ class _MenuLayer extends StatefulWidget {
 
 class _MenuLayerState extends State<_MenuLayer> {
   final _scroll = ScrollController();
-  final Map<MenuLayout, ValueNotifier<int?>> _hidden = Map.identity();
-  final Map<MenuLayout, Widget> _rows = Map.identity();
+  final Map<MenuLayout, (int?, Widget)> _rows = Map.identity();
   final _zones = InputZonesController<int>();
   final Map<int, List<Interaction>> _rowInputs = {};
   MenuAppearance? _rowsStyle;
@@ -805,23 +818,16 @@ class _MenuLayerState extends State<_MenuLayer> {
     _zones.dispose();
     _regionFocus.dispose();
     _scroll.dispose();
-    for (final hidden in _hidden.values) {
-      hidden.dispose();
-    }
     super.dispose();
   }
 
   _Structure _structure() {
     final motion = _motion;
     final cards = motion.cards;
-    for (var i = 0; i < cards.length; i++) {
-      _hiddenOf(cards[i].layout).value = i + 1 < cards.length
-          ? cards[i + 1].source
-          : null;
-    }
     final root = cards[0].layout;
     return _Structure(
       layouts: [for (final card in cards) card.layout],
+      hidden: [for (final card in cards.skip(1)) card.source, null],
       open: motion.isOpen,
       scrolls: root.height > motion.visibleRootHeight + 0.5,
       top: motion.topCard,
@@ -866,9 +872,6 @@ class _MenuLayerState extends State<_MenuLayer> {
     _swapId = focused;
     _swapTarget = target;
   }
-
-  ValueNotifier<int?> _hiddenOf(MenuLayout layout) =>
-      _hidden.putIfAbsent(layout, () => ValueNotifier<int?>(null));
 
   void _scrolled() {
     if (_scroll.hasClients) _motion.scrollOffset = _scroll.offset;
@@ -1094,22 +1097,27 @@ class _MenuLayerState extends State<_MenuLayer> {
     };
   }
 
-  Widget _rowsOf(MenuLayout layout, MenuAppearance style) {
+  Widget _rowsOf(int card, MenuLayout layout, MenuAppearance style) {
     if (style != _rowsStyle) {
       _rows.clear();
       _rowsStyle = style;
     }
-    return _rows[layout] ??= RepaintBoundary(
+    final hidden = _built.hidden[card];
+    final cached = _rows[layout];
+    if (cached != null && cached.$1 == hidden) return cached.$2;
+    final rows = RepaintBoundary(
       child: DefaultTextStyle(
         style: resolveGlassText(style.textStyle, context),
         child: MenuRows(
           layout: layout,
           style: style,
-          hidden: _hiddenOf(layout),
+          hidden: hidden,
           content: _host._content,
         ),
       ),
     );
+    _rows[layout] = (hidden, rows);
+    return rows;
   }
 
   /// The highlight of [card], painted from the motion and the focus as they
@@ -1225,7 +1233,10 @@ class _MenuLayerState extends State<_MenuLayer> {
       height: layout.height,
       child: Stack(
         clipBehavior: Clip.none,
-        children: [_highlight(layout, style, 0), _rowsOf(layout, style)],
+        children: [
+          _highlight(layout, style, 0),
+          _rowsOf(0, layout, style),
+        ],
       ),
     );
     final body = _built.scrolls
@@ -1271,36 +1282,26 @@ class _MenuLayerState extends State<_MenuLayer> {
         (_scroll.position as ScrollPositionWithSingleContext).goIdle();
       }
       _parentLocked = locked;
-      return LivePlacement(
+      return _driven(
         key: const ValueKey<int>(0),
-        live: _frames,
-        rectOf: () {
-          final motion = _motion;
-          final s = motion.cards[0].scale;
-          return Rect.fromLTWH(
-            width / 2 * (1 - s),
-            0,
-            width,
-            motion.visibleRootHeight,
+        (motion) {
+          final root = motion.cards[0];
+          final s = root.scale;
+          return menuPlacement(
+            Rect.fromLTWH(
+              width / 2 * (1 - s),
+              0,
+              width,
+              motion.visibleRootHeight,
+            ),
+            Transform(
+              alignment: Alignment.topLeft,
+              transform: Matrix4.diagonal3Values(s, s, 1),
+              child: Opacity(opacity: root.rowOpacity.clamp(0.0, 1.0)),
+            ),
           );
         },
-        child: LiveTransform(
-          live: _frames,
-          alignment: Alignment.topLeft,
-          matrixOf: () {
-            final cards = _motion.cards;
-            final s = cards[0].scale;
-            return Matrix4.diagonal3Values(s, s, 1);
-          },
-          child: LiveFade(
-            live: _frames,
-            opacityOf: () {
-              final cards = _motion.cards;
-              return cards[0].rowOpacity;
-            },
-            child: _root(layout, style, locked: locked),
-          ),
-        ),
+        child: _root(layout, style, locked: locked),
       );
     }
     // A card that has just gone keeps its last frame until the layer
@@ -1319,11 +1320,9 @@ class _MenuLayerState extends State<_MenuLayer> {
     }
     double radius() =>
         math.min(_motion.tuning.cornerRadius, card().rect.height / 2);
-    return LivePlacement(
+    return _driven(
       key: ValueKey<int>(index),
-      live: _frames,
-      rectOf: () {
-        final motion = _motion;
+      (motion) {
         if (index < motion.cards.length) {
           lastShown = _shown(
             motion.cards,
@@ -1334,123 +1333,146 @@ class _MenuLayerState extends State<_MenuLayer> {
         }
         final flex = motion.cardFlex(index);
         final center = lastShown.center + flex.shift;
-        return Offset(
-              center.dx - (lastShown.width + flex.width) / 2,
-              center.dy - (lastShown.height + flex.height) / 2,
-            ) &
-            card().rect.size;
+        final now = card();
+        final size = now.rect.size;
+        final s = now.scale;
+        return menuPlacement(
+          Offset(
+                center.dx - (lastShown.width + flex.width) / 2,
+                center.dy - (lastShown.height + flex.height) / 2,
+              ) &
+              size,
+          Transform(
+            alignment: Alignment.topLeft,
+            transform: Matrix4.diagonal3Values(
+              s + flex.width / size.width,
+              s + flex.height / size.height,
+              1,
+            ),
+          ),
+        );
       },
-      child: LiveTransform(
-        live: _frames,
-        alignment: Alignment.topLeft,
-        matrixOf: () {
-          final s = card().scale;
-          final size = card().rect.size;
-          final flex = _motion.cardFlex(index);
-          return Matrix4.diagonal3Values(
-            s + flex.width / size.width,
-            s + flex.height / size.height,
-            1,
-          );
-        },
-        child: Stack(
-          fit: StackFit.expand,
-          clipBehavior: Clip.none,
-          children: [
-            IgnorePointer(
-              child: LiveGlassSurface(
-                live: _frames,
-                frameOf: () => GlassFrame(
-                  shape: GlassShape.roundedRect(radius()),
-                  glow: _motion.cardGlow(index),
-                  opacity: card().platterOpacity * _motion.cardMaterialOpacity,
+      child: Stack(
+        fit: StackFit.expand,
+        clipBehavior: Clip.none,
+        children: [
+          IgnorePointer(
+            child: LiveGlassSurface(
+              live: _frames,
+              frameOf: () => GlassFrame(
+                shape: GlassShape.roundedRect(radius()),
+                glow: _motion.cardGlow(index),
+                opacity: card().platterOpacity * _motion.cardMaterialOpacity,
+              ),
+            ),
+          ),
+          _driven(
+            (_) => ClipRRect(
+              clipper: MenuClip(
+                RRect.fromRectAndRadius(
+                  Offset.zero & card().rect.size,
+                  Radius.circular(radius()),
                 ),
               ),
             ),
-            LiveClipRRect(
-              live: _frames,
-              rrectOf: () => RRect.fromRectAndRadius(
-                Offset.zero & card().rect.size,
-                Radius.circular(radius()),
-              ),
-              child: OverflowBox(
-                alignment: Alignment.topLeft,
-                minWidth: width,
-                maxWidth: width,
-                minHeight: layout.height,
-                maxHeight: layout.height,
-                child: LiveShift(
-                  live: _frames,
-                  offsetOf: () => Offset(-card().rect.left, card().contentTop),
-                  child: SizedBox(
-                    width: width,
-                    height: layout.height,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        _highlight(layout, style, index),
-                        LiveFade(
-                          live: _frames,
-                          opacityOf: () {
+            child: OverflowBox(
+              alignment: Alignment.topLeft,
+              minWidth: width,
+              maxWidth: width,
+              minHeight: layout.height,
+              maxHeight: layout.height,
+              child: _driven(
+                (_) => Transform.translate(
+                  offset: Offset(-card().rect.left, card().contentTop),
+                ),
+                child: SizedBox(
+                  width: width,
+                  height: layout.height,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      _highlight(layout, style, index),
+                      _driven((_) {
+                        final now = card();
+                        return Opacity(
+                          opacity:
+                              (now.rowsOpacity *
+                                      now.rowOpacity *
+                                      now.closeOpacity)
+                                  .clamp(0.0, 1.0),
+                        );
+                      }, child: _rowsOf(index, layout, style)),
+                      if (header != null)
+                        _driven(
+                          (_) {
                             final now = card();
-                            return now.rowsOpacity *
-                                now.rowOpacity *
-                                now.closeOpacity;
+                            return Opacity(
+                              opacity: (now.rowOpacity * now.closeOpacity)
+                                  .clamp(0.0, 1.0),
+                            );
                           },
-                          child: _rowsOf(layout, style),
-                        ),
-                        if (header != null)
-                          LiveFade(
-                            live: _frames,
-                            opacityOf: () {
-                              final now = card();
-                              return now.rowOpacity * now.closeOpacity;
-                            },
-                            child: DefaultTextStyle(
-                              style: resolveGlassText(style.textStyle, context),
-                              child: Stack(
-                                clipBehavior: Clip.none,
-                                children: [
-                                  MenuCardHeader(
-                                    live: _frames,
-                                    header: header,
-                                    placed: () => index < _motion.cards.length
-                                        ? _headerAt(
-                                            _motion.cards,
-                                            index,
-                                            header!,
-                                          )
-                                        : header!,
-                                    values: () {
-                                      final now = card();
-                                      return (
-                                        bold: now.headerBold.clamp(0.0, 1.0),
-                                        turn: now.chevronTurn.clamp(0.0, 1.0),
-                                        separator: now.platterOpacity.clamp(
-                                          0.0,
-                                          1.0,
-                                        ),
-                                      );
-                                    },
-                                    style: style,
-                                    width: layout.width,
-                                    content: _host._content,
-                                  ),
-                                ],
-                              ),
+                          child: DefaultTextStyle(
+                            style: resolveGlassText(style.textStyle, context),
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                MenuCardHeader(
+                                  frames: _frames,
+                                  header: header,
+                                  placed: () => index < _motion.cards.length
+                                      ? _headerAt(
+                                          _motion.cards,
+                                          index,
+                                          header!,
+                                        )
+                                      : header!,
+                                  values: () {
+                                    final now = card();
+                                    return (
+                                      bold: now.headerBold.clamp(0.0, 1.0),
+                                      turn: now.chevronTurn.clamp(0.0, 1.0),
+                                      separator: now.platterOpacity.clamp(
+                                        0.0,
+                                        1.0,
+                                      ),
+                                    );
+                                  },
+                                  style: style,
+                                  width: layout.width,
+                                  content: _host._content,
+                                ),
+                              ],
                             ),
                           ),
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
+
+  MotionDriven _driven(
+    SingleChildRenderObjectWidget Function(MenuMotion motion) template, {
+    Widget? child,
+    Key? key,
+  }) => menuDriven(_frames, template, child: child, key: key);
+
+  // A blur too small to see costs a layer and shows nothing.
+  static double _visible(double sigma) => sigma > 0.01 ? sigma : 0;
+
+  late final _contentBlur = MotionSelection<double>(() {
+    final motion = _frames.value;
+    return _visible(motion.contentBlur / motion.contentScale);
+  });
+
+  late final _lookBlur = MotionSelection<double>(
+    () => _visible(_frames.value.buttonLookBlur),
+  );
 
   Matrix4 _contentTransform() {
     final motion = _motion;
@@ -1479,13 +1501,16 @@ class _MenuLayerState extends State<_MenuLayer> {
     final content = Stack(
       clipBehavior: Clip.none,
       children: [
-        LiveFade(
-          live: _frames,
-          opacityOf: () =>
-              _motion.cardGlassTransferred ? 0 : _motion.contentOpacity,
-          child: _LiveBlur(
-            live: _frames,
-            sigmaOf: () => _motion.contentBlur / _motion.contentScale,
+        // A fade in a chain drops what it hides from screen readers, as
+        // a transition's would not.
+        _driven(
+          (motion) => Opacity(
+            opacity: motion.cardGlassTransferred
+                ? 0
+                : motion.contentOpacity.clamp(0.0, 1.0),
+          ),
+          child: MotionTransition(
+            blur: _contentBlur,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
@@ -1525,43 +1550,39 @@ class _MenuLayerState extends State<_MenuLayer> {
             ),
             if (motion.drawsSource)
               IgnorePointer(
-                child: LivePlacement(
-                  live: _frames,
-                  rectOf: () => _motion.buttonBlob.localRect,
-                  child: LiveTransform(
-                    live: _frames,
-                    matrixOf: _lookTransform,
-                    child: LiveFade(
-                      live: _frames,
-                      opacityOf: () => _motion.buttonLookOpacity,
-                      child: _LiveBlur(
-                        live: _frames,
-                        sigmaOf: () => _motion.buttonLookBlur,
-                        child: Center(child: _host._look),
+                child: _driven(
+                  (motion) => menuPlacement(
+                    motion.buttonBlob.localRect,
+                    Transform(
+                      alignment: Alignment.center,
+                      transform: _lookTransform(),
+                      child: Opacity(
+                        opacity: motion.buttonLookOpacity.clamp(0.0, 1.0),
                       ),
                     ),
                   ),
-                ),
-              ),
-            LiveClipRRect(
-              live: _frames,
-              rrectOf: () => _motion.cards.length < 2
-                  ? _motion.menuBlob.rrect
-                  : RRect.fromRectAndRadius(Rect.largest, Radius.zero),
-              child: LivePlacement(
-                live: _frames,
-                rectOf: () =>
-                    _motion.contentRect.topLeft & _motion.menuRect.size,
-                child: LiveTransform(
-                  live: _frames,
-                  alignment: Alignment.topLeft,
-                  matrixOf: _contentTransform,
-                  child: IgnorePointer(
-                    ignoring: !structure.open,
-                    child: content,
+                  child: MotionTransition(
+                    blur: _lookBlur,
+                    child: Center(child: _host._look),
                   ),
                 ),
               ),
+            _driven(
+              (motion) => ClipRRect(
+                clipper: MenuClip(
+                  motion.cards.length < 2
+                      ? motion.menuBlob.rrect
+                      : RRect.fromRectAndRadius(Rect.largest, Radius.zero),
+                ),
+                child: menuPlacement(
+                  motion.contentRect.topLeft & motion.menuRect.size,
+                  Transform(
+                    alignment: Alignment.topLeft,
+                    transform: _contentTransform(),
+                  ),
+                ),
+              ),
+              child: IgnorePointer(ignoring: !structure.open, child: content),
             ),
           ],
         ),
@@ -1715,79 +1736,6 @@ GlassFrame _menuFrame(
     glow: glow,
     opacity: opacity,
   );
-}
-
-/// Blurs its child by [sigmaOf], read again on every notification of
-/// [live]; no layer while the blur is too small to see.
-class _LiveBlur extends SingleChildRenderObjectWidget {
-  const _LiveBlur({required this.live, required this.sigmaOf, super.child});
-
-  final Listenable live;
-  final double Function() sigmaOf;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) =>
-      _RenderLiveBlur(live, sigmaOf);
-
-  @override
-  void updateRenderObject(BuildContext context, RenderObject renderObject) {
-    (renderObject as _RenderLiveBlur).sigmaOf = sigmaOf;
-  }
-}
-
-class _RenderLiveBlur extends RenderProxyBox {
-  _RenderLiveBlur(this._live, this.sigmaOf);
-
-  // The host's frame ticks, which live as long as the layer.
-  final Listenable _live;
-  double Function() sigmaOf;
-  double _sigma = 0;
-  final _layer = LayerHandle<ImageFilterLayer>();
-
-  void _changed() {
-    final sigma = sigmaOf();
-    if (sigma == _sigma) return;
-    _sigma = sigma;
-    markNeedsPaint();
-  }
-
-  @override
-  bool get alwaysNeedsCompositing => child != null && _sigma > 0.01;
-
-  @override
-  void attach(PipelineOwner owner) {
-    super.attach(owner);
-    _live.addListener(_changed);
-    _sigma = sigmaOf();
-  }
-
-  @override
-  void detach() {
-    _live.removeListener(_changed);
-    super.detach();
-  }
-
-  @override
-  void dispose() {
-    _layer.layer = null;
-    super.dispose();
-  }
-
-  @override
-  void paint(PaintingContext context, Offset offset) {
-    if (_sigma <= 0.01) {
-      _layer.layer = null;
-      super.paint(context, offset);
-      return;
-    }
-    final layer = _layer.layer ??= ImageFilterLayer();
-    layer.imageFilter = ui.ImageFilter.blur(
-      sigmaX: _sigma,
-      sigmaY: _sigma,
-      tileMode: TileMode.decal,
-    );
-    context.pushLayer(layer, super.paint, offset);
-  }
 }
 
 /// Shows a menu beside a lifted preview of [child] when it is held, as an
@@ -2016,8 +1964,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     _hold.release(t);
   }
 
-  static double _stamp(PointerEvent event) =>
-      MotionClock.instance.stamp(event.timeStamp);
+  double _stamp(PointerEvent event) => _hold.clock.stamp(event.timeStamp);
 
   void _down(PointerDownEvent event) {
     if (!_enabled ||
@@ -2096,23 +2043,21 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   List<Widget> _backdrop(_MenuLayerState layer) {
     final natural = _heldRect.size;
     final builder = widget.previewBuilder;
-    Widget carried(Size size, Widget child) => LivePlacement(
-      live: _frames,
-      rectOf: () => _previewNow().topLeft & size,
-      child: LiveTransform(
-        live: _frames,
-        alignment: Alignment.topLeft,
-        matrixOf: () {
-          final rect = _previewNow();
-          return Matrix4.diagonal3Values(
+    final frames = layer._frames;
+    Widget carried(Size size, Widget child) => menuDriven(frames, (_) {
+      final rect = _previewNow();
+      return menuPlacement(
+        rect.topLeft & size,
+        Transform(
+          alignment: Alignment.topLeft,
+          transform: Matrix4.diagonal3Values(
             size.width <= 0 ? 1 : rect.width / size.width,
             size.height <= 0 ? 1 : rect.height / size.height,
             1,
-          );
-        },
-        child: child,
-      ),
-    );
+          ),
+        ),
+      );
+    }, child: child);
     double shown() => ((_motion?.progress ?? 0) * 2).clamp(0.0, 1.0);
     return [
       IgnorePointer(
@@ -2122,18 +2067,18 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
               natural,
               builder == null
                   ? widget.child
-                  : LiveFade(
-                      live: _frames,
-                      opacityOf: () => 1 - shown(),
+                  : menuDriven(
+                      frames,
+                      (_) => Opacity(opacity: 1 - shown()),
                       child: widget.child,
                     ),
             ),
             if (builder != null)
               carried(
                 _previewRect.size,
-                LiveFade(
-                  live: _frames,
-                  opacityOf: shown,
+                menuDriven(
+                  frames,
+                  (_) => Opacity(opacity: shown()),
                   child: Builder(builder: builder),
                 ),
               ),
@@ -2167,9 +2112,12 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
             onPointerCancel: _cancel,
             child: MotionSourceBox(
               source: _source,
-              child: LiveTransform(
-                live: _growth,
-                matrixOf: _growthTransform,
+              child: menuDriven(
+                _growth,
+                (_) => Transform(
+                  alignment: Alignment.center,
+                  transform: _growthTransform(),
+                ),
                 child: widget.child,
               ),
             ),
