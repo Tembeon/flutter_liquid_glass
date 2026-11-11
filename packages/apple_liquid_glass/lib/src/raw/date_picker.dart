@@ -493,15 +493,14 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
     interactions: interactions,
     enabled: enabled,
     statesController: states,
-    semantics: SemanticsProperties(label: label),
-    minimumHitSize: _target,
-    child: Semantics(
+    semantics: SemanticsProperties(
+      label: label,
       button: true,
       value: value,
       liveRegion: liveRegion,
-      excludeSemantics: true,
-      child: child,
     ),
+    minimumHitSize: _target,
+    child: ExcludeSemantics(child: child),
   );
 
   Widget _faded(MotionSelection<double> opacity, Widget child) =>

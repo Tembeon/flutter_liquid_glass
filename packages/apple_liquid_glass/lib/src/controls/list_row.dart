@@ -304,21 +304,24 @@ class _GlassListRowState extends State<GlassListRow>
             ),
           )
         : null;
-    final described = Semantics(
-      button: widget.onPressed != null,
-      selected: check ? true : null,
-      child: surface,
-    );
     final rowNode = Semantics(
       container: true,
       child: widget.onPressed == null
-          ? described
+          ? Semantics(
+              button: false,
+              selected: check ? true : null,
+              child: surface,
+            )
           : InputRegion(
               interactions: _interactions,
               enabled: _active,
               statesController: widgetStates,
               focusNode: widget.focusNode,
               autofocus: widget.autofocus,
+              semantics: SemanticsProperties(
+                button: true,
+                selected: check ? true : null,
+              ),
               child: GlassHighlightPaint.of(
                 context,
                 states: widgetStates,
@@ -326,7 +329,7 @@ class _GlassListRowState extends State<GlassListRow>
                 hoverColor: hover,
                 shape: const GlassShape.roundedRect(0),
                 inside: true,
-                child: described,
+                child: surface,
               ),
             ),
     );
@@ -373,9 +376,9 @@ class _InfoButton extends StatelessWidget {
         interactions: interactions,
         enabled: enabled,
         statesController: states,
-        semantics: SemanticsProperties(label: label),
+        semantics: SemanticsProperties(label: label, button: true),
         minimumHitSize: const Size.square(_target),
-        child: Semantics(button: true, child: child),
+        child: child,
       ),
     ),
   );

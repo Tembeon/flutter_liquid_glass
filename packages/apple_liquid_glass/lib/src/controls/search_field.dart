@@ -420,34 +420,32 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
               label:
                   widget.clearSemanticLabel ??
                   GlassLocalizations.of(context).clearTextLabel,
-            ),
-            child: Semantics(
               button: true,
-              child: ExcludeSemantics(
-                child: SizedBox.square(
-                  dimension: _clearSize,
-                  child: Padding(
-                    padding: const EdgeInsets.all(
-                      (_clearSize - _clearInk) / 2,
-                    ),
-                    child: GlassHighlightPaint.of(
-                      context,
-                      states: _clearStates,
-                      focusColor: look.focusColor,
-                      hoverColor: look.hoverColor,
-                      shape: const GlassShape.oval(),
-                      wash: true,
-                      child: CustomPaint(
-                        size: Size.infinite,
-                        painter: _ClearPainter(
-                          fill: icon,
-                          cross: GlassDynamicColor.resolve(
-                            const GlassDynamicColor.withBrightness(
-                              color: Color(0xFFFFFFFF),
-                              darkColor: Color(0xFF000000),
-                            ),
-                            context,
+            ),
+            child: ExcludeSemantics(
+              child: SizedBox.square(
+                dimension: _clearSize,
+                child: Padding(
+                  padding: const EdgeInsets.all(
+                    (_clearSize - _clearInk) / 2,
+                  ),
+                  child: GlassHighlightPaint.of(
+                    context,
+                    states: _clearStates,
+                    focusColor: look.focusColor,
+                    hoverColor: look.hoverColor,
+                    shape: const GlassShape.oval(),
+                    wash: true,
+                    child: CustomPaint(
+                      size: Size.infinite,
+                      painter: _ClearPainter(
+                        fill: icon,
+                        cross: GlassDynamicColor.resolve(
+                          const GlassDynamicColor.withBrightness(
+                            color: Color(0xFFFFFFFF),
+                            darkColor: Color(0xFF000000),
                           ),
+                          context,
                         ),
                       ),
                     ),

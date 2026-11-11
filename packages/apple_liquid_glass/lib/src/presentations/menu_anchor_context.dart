@@ -380,23 +380,23 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
         mouseCursor: WidgetStateMouseCursor.adaptiveClickable,
         enabled: enabled,
         focusNode: _claimFocus,
-        child: Semantics(
+        semantics: SemanticsProperties(
           onLongPress: enabled ? _openFromCode : null,
-          child: MotionSourceBox(
-            source: _source,
-            child: menuDriven(
-              _growth,
-              (_) => Transform(
-                alignment: Alignment.center,
-                transform: _growthTransform(),
-              ),
-              child: GlassHighlightPaint.of(
-                context,
-                states: _states,
-                shape: const GlassShape.roundedRect(0),
-                wash: true,
-                child: widget.child,
-              ),
+        ),
+        child: MotionSourceBox(
+          source: _source,
+          child: menuDriven(
+            _growth,
+            (_) => Transform(
+              alignment: Alignment.center,
+              transform: _growthTransform(),
+            ),
+            child: GlassHighlightPaint.of(
+              context,
+              states: _states,
+              shape: const GlassShape.roundedRect(0),
+              wash: true,
+              child: widget.child,
             ),
           ),
         ),

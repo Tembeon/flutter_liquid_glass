@@ -352,26 +352,26 @@ class _RawGlassSliderState extends State<RawGlassSlider>
         statesController: widgetStates,
         focusNode: widget.focusNode,
         autofocus: widget.autofocus,
-        semantics: SemanticsProperties(label: widget.semanticLabel),
-        minimumHitSize: const Size(44, 44),
-        child: Semantics(
+        semantics: SemanticsProperties(
+          label: widget.semanticLabel,
           slider: true,
           value: percent(value),
           increasedValue: percent(_stepFrom(value, 1)),
           decreasedValue: percent(_stepFrom(value, -1)),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final width = constraints.hasBoundedWidth
-                  ? constraints.maxWidth
-                  : 200.0;
-              _motion.width = width;
-              return SizedBox(
-                width: width,
-                height: RawGlassSlider.height,
-                child: _visualFor(context, width),
-              );
-            },
-          ),
+        ),
+        minimumHitSize: const Size(44, 44),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.hasBoundedWidth
+                ? constraints.maxWidth
+                : 200.0;
+            _motion.width = width;
+            return SizedBox(
+              width: width,
+              height: RawGlassSlider.height,
+              child: _visualFor(context, width),
+            );
+          },
         ),
       ),
     );

@@ -305,22 +305,22 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
         feedback: _feedback,
         focusNode: widget.focusNode,
         autofocus: widget.autofocus,
-        semantics: SemanticsProperties(label: widget.semanticLabel),
-        minimumHitSize: const Size(44, 44),
-        child: Semantics(
+        semantics: SemanticsProperties(
+          label: widget.semanticLabel,
           value: count == 0 ? null : value(page + 1),
           increasedValue: count == 0 ? null : value(math.min(page + 2, count)),
           decreasedValue: count == 0 ? null : value(math.max(page, 1)),
-          child: SizedBox.fromSize(
-            size: _size,
-            child: widget.builder(
-              context,
-              GlassPageControlDetails(
-                pose: _pose,
-                progress: widget.progress,
-                states: {...widgetStates.value},
-                statesListenable: widgetStates,
-              ),
+        ),
+        minimumHitSize: const Size(44, 44),
+        child: SizedBox.fromSize(
+          size: _size,
+          child: widget.builder(
+            context,
+            GlassPageControlDetails(
+              pose: _pose,
+              progress: widget.progress,
+              states: {...widgetStates.value},
+              statesListenable: widgetStates,
             ),
           ),
         ),

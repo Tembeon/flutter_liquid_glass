@@ -167,11 +167,13 @@ class _RawGlassButtonState extends State<RawGlassButton>
         statesController: widgetStates,
         focusNode: widget.focusNode,
         autofocus: widget.autofocus,
-        semantics: SemanticsProperties(label: widget.semanticLabel),
-        minimumHitSize: const Size(44, 44),
-        child: Semantics(
+        semantics: SemanticsProperties(
+          label: widget.semanticLabel,
           button: true,
-          excludeSemantics: widget.semanticLabel != null,
+        ),
+        minimumHitSize: const Size(44, 44),
+        child: ExcludeSemantics(
+          excluding: widget.semanticLabel != null,
           child: _described(
             source,
             widget.builder(

@@ -194,20 +194,20 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
           statesController: widgetStates,
           focusNode: widget.focusNode,
           autofocus: widget.autofocus,
-          semantics: SemanticsProperties(label: widget.semanticLabel),
-          minimumHitSize: const Size(44, 44),
-          child: Semantics(
+          semantics: SemanticsProperties(
+            label: widget.semanticLabel,
             toggled: widget.value,
-            child: SizedBox.fromSize(
-              size: RawGlassSwitch.size,
-              child: widget.builder(
-                context,
-                GlassSwitchDetails(
-                  thumb: _thumb,
-                  progress: _progress,
-                  states: {...widgetStates.value},
-                  statesListenable: widgetStates,
-                ),
+          ),
+          minimumHitSize: const Size(44, 44),
+          child: SizedBox.fromSize(
+            size: RawGlassSwitch.size,
+            child: widget.builder(
+              context,
+              GlassSwitchDetails(
+                thumb: _thumb,
+                progress: _progress,
+                states: {...widgetStates.value},
+                statesListenable: widgetStates,
               ),
             ),
           ),

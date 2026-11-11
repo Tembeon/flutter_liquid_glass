@@ -239,34 +239,34 @@ class _RawGlassStepperState extends State<RawGlassStepper>
         statesController: widgetStates,
         focusNode: widget.focusNode,
         autofocus: widget.autofocus,
-        semantics: SemanticsProperties(label: widget.semanticLabel),
-        minimumHitSize: const Size(44, 44),
-        child: Semantics(
+        semantics: SemanticsProperties(
+          label: widget.semanticLabel,
           value: value,
           increasedValue: format(_after(GlassStepperHalf.increment)),
           decreasedValue: format(_after(GlassStepperHalf.decrement)),
-          child: SizedBox.fromSize(
-            size: RawGlassStepper.size,
-            child: InputZones<GlassStepperHalf>(
-              key: _halves,
-              zones: [
-                half(GlassStepperHalf.decrement, widget.decrementLabel),
-                half(GlassStepperHalf.increment, widget.incrementLabel),
-              ],
-              frameOf: _frameOf,
-              frames: _still,
-              child: Directionality(
-                textDirection: direction,
-                child: Builder(
-                  builder: (context) => widget.builder(
-                    context,
-                    GlassStepperDetails(
-                      pressed: _pressed,
-                      canDecrement: _canStep(GlassStepperHalf.decrement),
-                      canIncrement: _canStep(GlassStepperHalf.increment),
-                      states: {...widgetStates.value},
-                      statesListenable: widgetStates,
-                    ),
+        ),
+        minimumHitSize: const Size(44, 44),
+        child: SizedBox.fromSize(
+          size: RawGlassStepper.size,
+          child: InputZones<GlassStepperHalf>(
+            key: _halves,
+            zones: [
+              half(GlassStepperHalf.decrement, widget.decrementLabel),
+              half(GlassStepperHalf.increment, widget.incrementLabel),
+            ],
+            frameOf: _frameOf,
+            frames: _still,
+            child: Directionality(
+              textDirection: direction,
+              child: Builder(
+                builder: (context) => widget.builder(
+                  context,
+                  GlassStepperDetails(
+                    pressed: _pressed,
+                    canDecrement: _canStep(GlassStepperHalf.decrement),
+                    canIncrement: _canStep(GlassStepperHalf.increment),
+                    states: {...widgetStates.value},
+                    statesListenable: widgetStates,
                   ),
                 ),
               ),

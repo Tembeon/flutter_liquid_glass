@@ -58,12 +58,11 @@ class _CompactLabelState extends State<_CompactLabel> {
         statesController: _states,
         semantics: SemanticsProperties(
           label: label == null ? widget.text : '$label, ${widget.text}',
-        ),
-        child: Semantics(
           button: true,
           expanded: widget.open,
           hint: loc.compactDatePickerHint,
-          excludeSemantics: true,
+        ),
+        child: ExcludeSemantics(
           child: _highlight(
             context,
             look,
