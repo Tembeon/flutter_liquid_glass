@@ -15,7 +15,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/motion.dart';
+import 'package:kinesis/kinesis.dart';
 
 /// The look of a [GlassSearchField], like Flutter's `ButtonStyle`.
 ///

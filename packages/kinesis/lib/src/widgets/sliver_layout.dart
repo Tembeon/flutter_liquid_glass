@@ -3,16 +3,16 @@ import 'dart:math' as math;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/src/clock.dart';
+import 'package:kinesis/src/motion/clock.dart';
 import 'package:kinesis/src/motion/layout.dart';
 import 'package:kinesis/src/motion/motion.dart';
-import 'package:kinesis/src/screen/layout_item.dart';
-import 'package:kinesis/src/screen/resolve.dart';
-import 'package:kinesis/src/screen/scope.dart';
-import 'package:kinesis/src/screen/transition.dart';
-import 'package:kinesis/src/selection.dart';
-import 'package:kinesis/src/spring.dart';
-import 'package:kinesis/src/transaction.dart';
+import 'package:kinesis/src/motion/selection.dart';
+import 'package:kinesis/src/motion/spring.dart';
+import 'package:kinesis/src/motion/transaction.dart';
+import 'package:kinesis/src/widgets/layout_item.dart';
+import 'package:kinesis/src/widgets/resolve.dart';
+import 'package:kinesis/src/widgets/scope.dart';
+import 'package:kinesis/src/widgets/transition.dart';
 
 /// A lazy list that animates whatever a change of its data did to its
 /// rows: the sliver counterpart of `MotionLayout`.

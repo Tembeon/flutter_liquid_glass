@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
 /// What turns a tab bar into a circle and back: the same bar throughout,

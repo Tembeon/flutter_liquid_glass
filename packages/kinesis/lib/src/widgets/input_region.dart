@@ -3,10 +3,10 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/src/clock.dart';
-import 'package:kinesis/src/frame_cadence.dart';
 import 'package:kinesis/src/input/interaction.dart';
 import 'package:kinesis/src/input/port.dart';
+import 'package:kinesis/src/motion/clock.dart';
+import 'package:kinesis/src/motion/frame_cadence.dart';
 
 /// Turns pointer, keyboard, hover and accessibility input into the input
 /// of its [interactions].

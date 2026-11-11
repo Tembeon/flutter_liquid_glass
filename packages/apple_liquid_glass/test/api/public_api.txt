@@ -1960,6 +1960,7 @@ re-exported from package:kinesis:
   ActivateInput
   ActivationEvent
   ActivationSource
+  Band
   DismissPolicy
   DismissTrigger
   DragInteraction
@@ -1978,12 +1979,14 @@ re-exported from package:kinesis:
   LayoutChange
   LayoutEntry
   LayoutItem
+  LayoutMotion
   LayoutPhase
   LayoutPlan
   LayoutPlanner
   LongPressInteraction
   LongPressStartEvent
-  ManualMotionClock
+  Motion
+  MotionCancel
   MotionClock
   MotionConverter
   MotionDriven
@@ -1992,12 +1995,18 @@ re-exported from package:kinesis:
   MotionHapticPlay
   MotionLayout
   MotionLayoutBuilder
+  MotionLoop
   MotionMeasure
+  MotionPart
+  MotionRect
   MotionResolveHost
+  MotionRest
   MotionScope
   MotionScroll
   MotionScrollPhase
+  MotionSelect
   MotionSelection
+  MotionSignal
   MotionSource
   MotionSourceBox
   MotionTraits
@@ -2005,6 +2014,7 @@ re-exported from package:kinesis:
   MotionTransition
   MotionTransitionLayer
   MotionValue
+  MotionValueCommands
   PointerCancelInput
   PointerCancelReason
   PointerDownInput
@@ -2012,6 +2022,8 @@ re-exported from package:kinesis:
   PointerHoverInput
   PointerMoveInput
   PointerUpInput
+  Presence
+  PresenceStatus
   Presentation
   PresentationContext
   PresentationEnvironment
@@ -2021,14 +2033,24 @@ re-exported from package:kinesis:
   PresentationPortal
   PresentationPortalController
   PresentationRoute
+  Presented
   PressInteraction
+  Projection
+  ProjectionChoice
+  ProjectionExit
+  ProjectionExited
+  ProjectionStop
+  Ramp
+  RectSprings
   ScrubChangeEvent
   ScrubInteraction
   SessionOutput
   SliverMotionList
   SourceGeometry
+  Sourced
   Spring
   TapInteraction
+  TimedValue
   showPresentation
   withSpring
   withoutAnimation
@@ -2103,7 +2125,6 @@ re-exported from package:kinesis:
   LayoutPlanner
   LongPressInteraction
   LongPressStartEvent
-  ManualMotionClock
   Motion
   MotionCancel
   MotionClock
@@ -2175,5 +2196,7 @@ re-exported from package:kinesis:
   withoutAnimation
 
 # package:apple_liquid_glass/testing.dart
+re-exported from package:kinesis:
+  ManualMotionClock
 re-exported from package:liquid_glass_renderer:
   expectGlassBudget

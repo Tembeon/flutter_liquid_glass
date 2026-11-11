@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/testing.dart';
 
 void main() {
   const spring = Spring.response(0.3);

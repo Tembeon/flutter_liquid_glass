@@ -1,6 +1,6 @@
 import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:flutter/foundation.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 /// Listens to [frame] as a renderer does: a selection is heard also in the
 /// frame's resolve phase, so a body moves in the frame whose layout moved what

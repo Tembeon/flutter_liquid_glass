@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/src/frame_grid.dart';
+import 'package:kinesis/src/motion/frame_grid.dart';
 
 void main() {
   test('the frame grid snaps within its reach and restarts outside it', () {

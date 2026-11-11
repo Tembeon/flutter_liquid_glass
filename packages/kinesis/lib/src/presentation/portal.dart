@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/src/clock.dart';
+import 'package:kinesis/src/motion/clock.dart';
 import 'package:kinesis/src/presentation/presentation.dart';
 import 'package:kinesis/src/presentation/presented.dart';
 import 'package:kinesis/src/presentation/route.dart';

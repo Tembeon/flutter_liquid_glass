@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:kinesis/src/spring.dart';
+import 'package:kinesis/src/motion/spring.dart';
 
 /// The motion preferences a motion honors.
 ///

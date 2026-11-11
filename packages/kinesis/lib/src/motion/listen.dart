@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:kinesis/src/selection.dart';
-import 'package:kinesis/src/value.dart';
+import 'package:kinesis/src/motion/selection.dart';
+import 'package:kinesis/src/motion/value.dart';
 
 /// Listens to [listenable] as a render object does: a motion value or a
 /// derived value is heard also in the resolve phase, any other listenable

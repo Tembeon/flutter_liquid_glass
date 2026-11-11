@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/src/motion/sheet_motion.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
-import 'package:kinesis/motion.dart';
+import 'package:kinesis/kinesis.dart';
 
 /// The tuning of a page sliding onto and off a navigation stack.
 ///

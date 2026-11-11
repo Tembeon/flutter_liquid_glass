@@ -1,7 +1,7 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/src/motion/motion.dart';
-import 'package:kinesis/src/screen/resolve.dart';
+import 'package:kinesis/src/widgets/resolve.dart';
 import 'package:meta/meta.dart';
 
 /// Where a presentation grows from, in global coordinates.

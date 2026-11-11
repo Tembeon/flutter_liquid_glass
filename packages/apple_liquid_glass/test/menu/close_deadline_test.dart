@@ -1,7 +1,7 @@
 import 'package:apple_liquid_glass/src/menu/motion.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 const _button = Rect.fromLTWH(24, 80, 44, 44);
 const _outside = Offset(350, 500);

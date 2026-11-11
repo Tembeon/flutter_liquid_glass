@@ -1,8 +1,8 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:kinesis/src/clock.dart';
-import 'package:kinesis/src/spring.dart';
-import 'package:kinesis/src/transaction.dart';
+import 'package:kinesis/src/motion/clock.dart';
+import 'package:kinesis/src/motion/spring.dart';
+import 'package:kinesis/src/motion/transaction.dart';
 
 /// A render object that places its presentation from this frame's layout,
 /// in the frame's resolve phase: after the whole view is laid out, before

@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass/motion.dart';
 import 'package:apple_liquid_glass/src/motion/touch_glow.dart';
 import 'package:apple_liquid_glass/src/renderer/adaptive.dart';
 import 'package:apple_liquid_glass/src/renderer/flat.dart';

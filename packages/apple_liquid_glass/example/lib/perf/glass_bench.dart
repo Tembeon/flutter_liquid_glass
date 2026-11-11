@@ -16,7 +16,6 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass/motion.dart';
 import 'package:apple_liquid_glass_example/backdrop.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/rendering.dart';

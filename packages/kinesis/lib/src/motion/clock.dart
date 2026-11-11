@@ -3,11 +3,11 @@ import 'dart:developer' show Timeline;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:kinesis/src/frame_grid.dart';
-import 'package:kinesis/src/pointer_clock_stub.dart'
-    if (dart.library.ffi) 'package:kinesis/src/pointer_clock_io.dart';
-import 'package:kinesis/src/timeline.dart';
-import 'package:kinesis/src/transaction.dart';
+import 'package:kinesis/src/motion/frame_grid.dart';
+import 'package:kinesis/src/motion/pointer_clock_stub.dart'
+    if (dart.library.ffi) 'package:kinesis/src/motion/pointer_clock_io.dart';
+import 'package:kinesis/src/motion/timeline.dart';
+import 'package:kinesis/src/motion/transaction.dart';
 
 /// A value the clock steps and publishes while it moves and something
 /// follows it.

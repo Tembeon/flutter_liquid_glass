@@ -11,7 +11,7 @@ import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/motion.dart';
+import 'package:kinesis/kinesis.dart';
 
 /// The look of toolbars, set on the theme.
 @immutable

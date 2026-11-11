@@ -2,7 +2,7 @@ import 'package:apple_liquid_glass/src/surface/frame.dart';
 import 'package:apple_liquid_glass/src/surface/shape.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 /// Clips its child to a glass body, so content laid over the glass ends
 /// where the renderer draws the glass's edge.

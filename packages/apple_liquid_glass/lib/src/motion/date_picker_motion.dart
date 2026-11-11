@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
-import 'package:kinesis/motion.dart';
+import 'package:kinesis/kinesis.dart';
 import 'package:meta/meta.dart';
 
 /// The measured tuning and geometry of the iOS 27 compact date picker

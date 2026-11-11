@@ -1,12 +1,12 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:kinesis/src/clock.dart';
-import 'package:kinesis/src/frame_cadence.dart';
+import 'package:kinesis/src/motion/clock.dart';
+import 'package:kinesis/src/motion/frame_cadence.dart';
 import 'package:kinesis/src/motion/loop.dart';
 import 'package:kinesis/src/motion/part.dart';
-import 'package:kinesis/src/selection.dart';
-import 'package:kinesis/src/transaction.dart';
+import 'package:kinesis/src/motion/selection.dart';
+import 'package:kinesis/src/motion/transaction.dart';
 
 /// Drops a reaction scheduled with [Motion.at] before it runs.
 typedef MotionCancel = void Function();

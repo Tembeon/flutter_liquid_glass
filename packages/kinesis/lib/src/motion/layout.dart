@@ -1,12 +1,12 @@
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
-import 'package:kinesis/src/effect.dart';
+import 'package:kinesis/src/motion/effect.dart';
 import 'package:kinesis/src/motion/motion.dart';
 import 'package:kinesis/src/motion/rect.dart';
 import 'package:kinesis/src/motion/rest.dart';
-import 'package:kinesis/src/spring.dart';
-import 'package:kinesis/src/value.dart';
+import 'package:kinesis/src/motion/spring.dart';
+import 'package:kinesis/src/motion/value.dart';
 
 /// The motion of a keyed layout, pure: feed it layouts at explicit times
 /// and read where each item is drawn.

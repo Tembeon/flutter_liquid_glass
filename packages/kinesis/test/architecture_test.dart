@@ -19,7 +19,7 @@ const _allowed = {
   'package:meta/meta.dart',
 };
 
-// The screen bindings (lib/src/screen) and the presentations
+// The screen bindings (lib/src/widgets) and the presentations
 // (lib/src/presentation) sit on rendering, widgets, gestures and services;
 // the pure input model (lib/src/input) needs pointer and geometry types
 // only. The core below them imports neither.
@@ -51,14 +51,14 @@ void main() {
         final uri = directive.firstMatch(line.trim())?.group(1);
         if (uri == null) continue;
         final screen =
-            file.path.startsWith('lib/src/screen/') ||
+            file.path.startsWith('lib/src/widgets/') ||
             file.path.startsWith('lib/src/presentation/');
         final input = file.path.startsWith('lib/src/input/');
         if (!screen && !input && uri.startsWith('package:kinesis/src/input/')) {
           offenders.add('${file.path}: $uri');
         }
         if (!screen &&
-            (uri.startsWith('package:kinesis/src/screen/') ||
+            (uri.startsWith('package:kinesis/src/widgets/') ||
                 uri.startsWith('package:kinesis/src/presentation/'))) {
           offenders.add('${file.path}: $uri');
         }

@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/painting.dart';
-import 'package:kinesis/motion.dart';
+import 'package:kinesis/kinesis.dart';
 import 'package:meta/meta.dart';
 
 /// The edge of a popover that points at its source.

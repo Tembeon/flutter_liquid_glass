@@ -1,7 +1,7 @@
 import 'package:kinesis/src/motion/motion.dart';
 import 'package:kinesis/src/motion/rest.dart';
-import 'package:kinesis/src/spring.dart';
-import 'package:kinesis/src/value.dart';
+import 'package:kinesis/src/motion/spring.dart';
+import 'package:kinesis/src/motion/value.dart';
 
 /// Where a [Presence] stands.
 enum PresenceStatus {

@@ -10,7 +10,7 @@ import 'package:apple_liquid_glass/src/motion/live.dart';
 import 'package:apple_liquid_glass/src/theme/typography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/motion.dart';
+import 'package:kinesis/widgets.dart';
 
 class _RowKey extends LocalKey {
   const _RowKey(this.index);

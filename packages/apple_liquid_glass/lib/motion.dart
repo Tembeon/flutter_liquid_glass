@@ -5,4 +5,4 @@
 /// `package:apple_liquid_glass/apple_liquid_glass.dart`.
 library;
 
-export 'package:kinesis/motion.dart';
+export 'package:kinesis/kinesis.dart';

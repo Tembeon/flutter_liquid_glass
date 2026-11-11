@@ -3,8 +3,8 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/src/motion/part.dart';
-import 'package:kinesis/src/spring.dart';
-import 'package:kinesis/src/value.dart';
+import 'package:kinesis/src/motion/spring.dart';
+import 'package:kinesis/src/motion/value.dart';
 
 /// The springs of a rect, per axis: the center on one, the width and the
 /// height on their own (a bar's capsule pulse, a zoomed page's measured

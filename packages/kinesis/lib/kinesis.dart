@@ -1,77 +1,15 @@
-/// UIKit-grade motion for any Flutter app.
+/// UIKit-grade motion, input and overlays for any Flutter app, in one
+/// import.
 ///
-/// `MotionValue`s move on `Spring`s and carry their position and velocity
-/// into every retarget; `withSpring` and `withoutAnimation` say how the
-/// changes made inside them move, starting at the clock's time, which is
-/// an input's own stamp while it is dispatched. A control or a
-/// presentation of your own is a `Motion`, written with
-/// `package:kinesis/motion.dart`.
+/// Exports the four libraries of kinesis, each of which can also be
+/// imported alone: `package:kinesis/motion.dart` (springs, values, clocks
+/// and motions as pure classes), `package:kinesis/input.dart` (gestures as
+/// pure logic), `package:kinesis/widgets.dart` (motion and input bound to
+/// the widget tree) and `package:kinesis/presentation.dart` (overlays).
+/// Test helpers are in `package:kinesis/testing.dart`.
 library;
 
-export 'src/clock.dart' show ManualMotionClock, MotionClock;
-export 'src/converter.dart' show MotionConverter;
-export 'src/effect.dart' show MotionEffect;
-export 'src/frame_cadence.dart' show FrameCadence;
-export 'src/input/follow.dart' show FollowInteraction, PointerFollower;
-export 'src/input/interaction.dart'
-    show
-        ActivateInput,
-        ActivationEvent,
-        ActivationSource,
-        DragInteraction,
-        DragInteractionDetails,
-        Interaction,
-        InteractionEvent,
-        InteractionInput,
-        InteractionRole,
-        InteractionSession,
-        InteractionUpdate,
-        LongPressInteraction,
-        LongPressStartEvent,
-        MotionHaptic,
-        PointerCancelInput,
-        PointerCancelReason,
-        PointerDownInput,
-        PointerHoverInput,
-        PointerMoveInput,
-        PointerUpInput,
-        PressInteraction,
-        ScrubChangeEvent,
-        ScrubInteraction,
-        SessionOutput,
-        TapInteraction;
-export 'src/input/port.dart' show InputPort;
-export 'src/motion/layout.dart'
-    show
-        LayoutAccent,
-        LayoutChange,
-        LayoutEntry,
-        LayoutItem,
-        LayoutPhase,
-        LayoutPlan,
-        LayoutPlanner;
-export 'src/presentation/level.dart'
-    show PresentationContext, PresentationLevel, showPresentation;
-export 'src/presentation/portal.dart'
-    show PresentationPortal, PresentationPortalController;
-export 'src/presentation/presentation.dart'
-    show Presentation, PresentationEnvironment, PresentationHandle;
-export 'src/presentation/presented.dart' show DismissPolicy;
-export 'src/presentation/route.dart'
-    show DismissTrigger, PresentationPageRoute, PresentationRoute;
-export 'src/presentation/source.dart'
-    show MotionSource, MotionSourceBox, SourceGeometry;
-export 'src/screen/driven.dart' show MotionDriven;
-export 'src/screen/input_region.dart' show InputRegion, MotionHapticPlay;
-export 'src/screen/layout.dart' show MotionLayout, MotionLayoutBuilder;
-export 'src/screen/measure.dart' show MotionMeasure;
-export 'src/screen/resolve.dart' show MotionResolveHost;
-export 'src/screen/scope.dart' show MotionScope, MotionTraitsOverride;
-export 'src/screen/scroll.dart' show MotionScroll, MotionScrollPhase;
-export 'src/screen/sliver_layout.dart' show SliverMotionList;
-export 'src/screen/transition.dart'
-    show MotionTransition, MotionTransitionLayer;
-export 'src/selection.dart' show MotionSelection;
-export 'src/spring.dart' show Spring;
-export 'src/transaction.dart' show MotionTraits, withSpring, withoutAnimation;
-export 'src/value.dart' show MotionValue;
+export 'input.dart';
+export 'motion.dart';
+export 'presentation.dart';
+export 'widgets.dart';

@@ -22,7 +22,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/motion.dart';
+import 'package:kinesis/kinesis.dart';
 
 /// Opens and closes the menu of a [RawGlassMenu], a `GlassButton` or a
 /// [GlassContextMenu] from code.

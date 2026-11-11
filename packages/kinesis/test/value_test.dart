@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/testing.dart';
 
 void main() {
   const spring = Spring.response(0.4, dampingRatio: 0.375);

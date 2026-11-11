@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/src/motion/layout.dart';
 import 'package:kinesis/src/motion/motion.dart';
-import 'package:kinesis/src/selection.dart';
+import 'package:kinesis/src/motion/selection.dart';
 
 /// One item of a layout host: where it is drawn, and which descendants
 /// draw it themselves.

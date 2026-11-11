@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
-import 'package:kinesis/src/clock.dart';
-import 'package:kinesis/src/listen.dart';
-import 'package:kinesis/src/tracker.dart';
+import 'package:kinesis/src/motion/clock.dart';
+import 'package:kinesis/src/motion/listen.dart';
+import 'package:kinesis/src/motion/tracker.dart';
 
 /// A value derived from motions, such as a card's shadow from its lift and
 /// scale: what a renderer, a transition or a widget reads.

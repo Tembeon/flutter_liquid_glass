@@ -2,12 +2,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
-import 'package:kinesis/src/clock.dart';
-import 'package:kinesis/src/converter.dart';
+import 'package:kinesis/src/motion/clock.dart';
+import 'package:kinesis/src/motion/converter.dart';
 import 'package:kinesis/src/motion/part.dart';
-import 'package:kinesis/src/spring.dart';
-import 'package:kinesis/src/tracker.dart';
-import 'package:kinesis/src/transaction.dart';
+import 'package:kinesis/src/motion/spring.dart';
+import 'package:kinesis/src/motion/tracker.dart';
+import 'package:kinesis/src/motion/transaction.dart';
 
 /// A value that moves to its target on a spring: what is on screen, where
 /// it is heading and how fast it goes.

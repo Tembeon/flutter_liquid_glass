@@ -1,8 +1,8 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/motion.dart';
-import 'package:kinesis/src/transaction.dart';
+import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/src/motion/transaction.dart';
 
 final List<String> _log = [];
 

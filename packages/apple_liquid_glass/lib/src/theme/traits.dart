@@ -1,6 +1,6 @@
 import 'package:apple_liquid_glass/src/theme/theme.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/widgets.dart';
 
 /// How far forward an interface sits; wrap presented content in a
 /// `GlassTraitsOverride` to raise it (the package's presentations do not).

@@ -5,7 +5,7 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/src/motion/zoom_page_motion.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/motion.dart';
+import 'package:kinesis/kinesis.dart';
 
 extension on ZoomPageMotion {
   ZoomPageMotion seenAt(double t) {

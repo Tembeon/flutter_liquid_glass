@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/src/frame_cadence.dart';
+import 'package:kinesis/src/motion/frame_cadence.dart';
 
 const _vsync120 = 8333;
 

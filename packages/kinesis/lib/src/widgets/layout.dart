@@ -4,15 +4,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/src/clock.dart';
+import 'package:kinesis/src/motion/clock.dart';
 import 'package:kinesis/src/motion/layout.dart';
 import 'package:kinesis/src/motion/motion.dart';
-import 'package:kinesis/src/screen/layout_item.dart';
-import 'package:kinesis/src/screen/resolve.dart';
-import 'package:kinesis/src/screen/scope.dart';
-import 'package:kinesis/src/screen/transition.dart';
-import 'package:kinesis/src/selection.dart';
-import 'package:kinesis/src/transaction.dart';
+import 'package:kinesis/src/motion/selection.dart';
+import 'package:kinesis/src/motion/transaction.dart';
+import 'package:kinesis/src/widgets/layout_item.dart';
+import 'package:kinesis/src/widgets/resolve.dart';
+import 'package:kinesis/src/widgets/scope.dart';
+import 'package:kinesis/src/widgets/transition.dart';
 
 /// Builds a [MotionLayout]'s layout around its [children], which are the
 /// layout's children wrapped for motion.

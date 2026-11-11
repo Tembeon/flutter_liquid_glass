@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
-import 'package:kinesis/src/clock.dart';
+import 'package:kinesis/src/motion/clock.dart';
 
 class _Stepped implements MotionFollowed {
   final List<double> steps = [];

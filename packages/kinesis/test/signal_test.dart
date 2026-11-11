@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/testing.dart';
 
 class _Bar extends Motion {
   _Bar({super.clock});

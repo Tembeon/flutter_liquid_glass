@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:kinesis/src/spring.dart';
+import 'package:kinesis/src/motion/spring.dart';
 
 /// Where a release lands and what it picks: the position plus the velocity
 /// times [rate], the nearest of a set of stops, or an exit it passes (a

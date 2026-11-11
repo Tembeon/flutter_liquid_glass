@@ -9,7 +9,7 @@ import 'package:apple_liquid_glass/src/menu/motion.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/testing.dart';
 
 const _fixture = 'test/fixtures/ios27-device/menu/fusion.json';
 const _tuning = MenuTuning.standard;

@@ -1,7 +1,7 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/src/clock.dart';
-import 'package:kinesis/src/screen/resolve.dart';
+import 'package:kinesis/src/motion/clock.dart';
+import 'package:kinesis/src/widgets/resolve.dart';
 
 /// Tells [onSize] the size layout gave [child], in the frame that laid it
 /// out, before paint: a motion that sizes itself from its content, such as
