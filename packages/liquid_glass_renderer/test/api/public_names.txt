@@ -61,7 +61,6 @@ LiquidStretch
 LivePaintSize
 LiveRead
 NoJoin
-OffsetResistanceExtension
 OwnAtlas
 PageFilter
 PlanLedger

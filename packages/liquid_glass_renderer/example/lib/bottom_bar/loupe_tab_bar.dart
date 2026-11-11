@@ -333,7 +333,7 @@ class _LoupeTabBarState extends State<LoupeTabBar>
     _springTo(
       _stretch,
       _follow,
-      Offset(past, 0).withResistance(_stretchResistance),
+      Offset(past / (1 + past.abs() * _stretchResistance), 0),
     );
   }
 

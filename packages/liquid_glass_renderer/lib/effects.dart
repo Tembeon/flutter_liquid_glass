@@ -12,5 +12,4 @@ library;
 
 export 'src/effects/glass_drag_builder.dart' show GestureMode;
 export 'src/effects/glass_glow.dart' show GlassGlow;
-export 'src/effects/stretch.dart'
-    show LiquidStretch, OffsetResistanceExtension, RawLiquidStretch;
+export 'src/effects/stretch.dart' show LiquidStretch, RawLiquidStretch;

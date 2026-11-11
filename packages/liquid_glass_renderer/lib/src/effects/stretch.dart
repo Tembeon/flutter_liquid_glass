@@ -46,9 +46,9 @@ class LiquidStretch extends StatelessWidget {
 
   /// The resistance factor to apply to the drag offset.
   ///
-  /// The higher the resistance, the more sticky the drag will feel.
-  /// See [OffsetResistanceExtension.withResistance] for details on how this
-  /// works.
+  /// The higher the resistance, the more sticky the drag will feel: a drag
+  /// of `d` pixels stretches as `d / (1 + |d| * resistance)` would, keeping
+  /// its direction, so larger drags are held back more.
   ///
   /// Defaults to 0.08.
   final double resistance;
@@ -327,7 +327,7 @@ class RenderRawLiquidStretch extends RenderProxyBox {
   }
 }
 
-/// Provides [withResistance] method to apply drag resistance to an [Offset].
+/// Drag resistance on an [Offset], which [LiquidStretch] applies.
 extension OffsetResistanceExtension on Offset {
   /// Returns a new [Offset] with a given [resistance] applied, which will
   /// hold it back the further it deviates from [Offset.zero].

@@ -30,8 +30,7 @@ export 'src/rendering/liquid_glass.dart'
     show RenderLiquidGlass, RenderLiveGlassFrame;
 export 'src/rendering/liquid_glass_blend_group.dart'
     show GlassGroupLink, RenderLiquidGlassBlendGroup;
-export 'src/rendering/liquid_glass_layer.dart'
-    show LiquidGlassLayerFrame, RenderLiquidGlassLayer;
+export 'src/rendering/liquid_glass_layer.dart' show RenderLiquidGlassLayer;
 export 'src/rendering/liquid_glass_render_object.dart'
     show GeometryRenderLink, LiquidGlassRenderObject;
 export 'src/rendering/liquid_glass_underlay.dart'

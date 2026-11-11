@@ -19,7 +19,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
-import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:liquid_glass_renderer/widgets.dart';
 
 /// The liquid renderer: every surface is liquid glass, and the members of

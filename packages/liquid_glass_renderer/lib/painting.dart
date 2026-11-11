@@ -27,6 +27,7 @@ export 'src/painting/liquid_glass_color_model.dart'
         LiquidGlassColorModel;
 export 'src/painting/liquid_glass_field.dart' show LiquidGlassField;
 export 'src/painting/liquid_glass_glow.dart' show LiquidGlassGlow;
+export 'src/painting/liquid_glass_layer_frame.dart' show LiquidGlassLayerFrame;
 export 'src/painting/liquid_glass_settings.dart'
     show GlassRim, LiquidGlassSettings;
 export 'src/painting/liquid_glass_shape_frame.dart' show LiquidGlassShapeFrame;

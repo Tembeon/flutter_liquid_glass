@@ -465,8 +465,6 @@ class LiquidStretch extends StatelessWidget
   final double resistance
   final double stretch
   overrides: build
-extension OffsetResistanceExtension on Offset
-  Offset withResistance(double resistance)
 class RawLiquidStretch extends SingleChildRenderObjectWidget
   const RawLiquidStretch({
     required Offset stretchPixels,
@@ -793,6 +791,15 @@ class LiquidGlassLayer extends StatefulWidget
   final LiquidGlassSettings settings
   static LiquidGlassSettings settingsOf(BuildContext context)
   overrides: createState
+class LiquidGlassLayerFrame
+  const LiquidGlassLayerFrame({
+    LiquidGlassSettings settings = ...,
+    LiquidGlassField? field,
+    LiquidGlassGlow? glow,
+  })
+  final LiquidGlassField? field
+  final LiquidGlassGlow? glow
+  final LiquidGlassSettings settings
 final class LiquidGlassSettings
   factory LiquidGlassSettings.fromJson(Map<String, Object?> json)
   factory LiquidGlassSettings.ios27Clear({
@@ -926,6 +933,7 @@ class LiquidGlassColorModel (see package:liquid_glass_renderer/liquid_glass_rend
 enum LiquidGlassDeviceClass (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassField (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassGlow (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassLayerFrame (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassSettings (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassShapeFrame (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassSupport (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
@@ -1031,15 +1039,6 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer i
   @internal Rect get shown
   overrides: addOutput, addToScene, ask, beginFate, dispose, drawsOwnChildren, endFrame, formNode, outputsInPlace, show
 typedef LiquidGlassLayerEffects = ({int? alpha, double blur, RRect? clip, Matrix4 transform})
-class LiquidGlassLayerFrame
-  const LiquidGlassLayerFrame({
-    LiquidGlassSettings settings = ...,
-    LiquidGlassField? field,
-    LiquidGlassGlow? glow,
-  })
-  final LiquidGlassField? field
-  final LiquidGlassGlow? glow
-  final LiquidGlassSettings settings
 abstract class LiquidGlassRenderObject extends RenderProxyBox
   LiquidGlassRenderObject({
     required GeometryRenderLink link,
