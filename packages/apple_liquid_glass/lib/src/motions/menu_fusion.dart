@@ -7,7 +7,7 @@ import 'package:apple_liquid_glass/src/motions/menu_outline_math.dart';
 import 'package:apple_liquid_glass/src/motions/outline_boxes.dart';
 import 'package:flutter/foundation.dart';
 
-part 'menu_fusion_blur.dart';
+part 'package:apple_liquid_glass/src/motions/menu_fusion_blur.dart';
 
 /// The silhouette of a menu morph: its two shapes fused the way UIKit's
 /// morph container fuses them.

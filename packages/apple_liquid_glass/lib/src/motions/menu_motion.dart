@@ -17,7 +17,7 @@ import 'package:flutter/painting.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
-part 'menu_motion_state.dart';
+part 'package:apple_liquid_glass/src/motions/menu_motion_state.dart';
 
 /// The motion of a glass button turning into its menu and back: a pure
 /// function of the touches it is fed and the time it is advanced to.
