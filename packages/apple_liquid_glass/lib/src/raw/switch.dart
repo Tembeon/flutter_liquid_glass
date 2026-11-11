@@ -102,7 +102,7 @@ class RawGlassSwitch extends StatefulWidget {
 }
 
 class _RawGlassSwitchState extends State<RawGlassSwitch>
-    with ControlStates<RawGlassSwitch> {
+    with ControlStates<RawGlassSwitch>, ControlledValue<RawGlassSwitch> {
   late final SwitchMotion _motion = SwitchMotion(
     value: widget.value,
     frameRate: null,
@@ -117,7 +117,6 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
   late final MotionSelection<double> _progress = _motion.select(
     (motion) => motion.color,
   );
-  bool _returning = false;
 
   MotionSelection<GlassFrame> _thumbOf({required bool mirrored}) =>
       _motion.select((motion) {
@@ -144,9 +143,15 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
   WidgetStatesController? get givenStates => widget.statesController;
 
   @override
+  MotionClock get valueClock => _motion.clock;
+
+  @override
+  void followWidget() => _setValue(widget.value);
+
+  @override
   void didUpdateWidget(RawGlassSwitch oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _setValue(widget.value);
+    followWidget();
   }
 
   @override
@@ -165,21 +170,16 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
   void _deliver(SwitchEvent event) {
     switch (event) {
       case SwitchChanged(:final on):
-        if (on != widget.value) widget.onChanged?.call(on);
-        // The build that follows shows the value the app passes by then,
-        // so a switch whose app does not follow returns to its value.
-        setState(() => _returning = true);
+        tellApp(() {
+          if (on != widget.value) widget.onChanged?.call(on);
+        });
       case SwitchShown():
         MotionHaptic.lightImpact.play(context);
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    if (_returning) {
-      _returning = false;
-      _setValue(widget.value);
-    }
+  Widget buildControl(BuildContext context) {
     final mirrored = Directionality.maybeOf(context) == TextDirection.rtl;
     if (mirrored != _input.mirrored) {
       _input.mirrored = mirrored;

@@ -615,6 +615,56 @@ void main() {
     expect(probe.thumb!.value.rect!.center.dx, greaterThan(31.5));
   });
 
+  testWidgets('a change raised while the framework builds does not throw '
+      'and reaches the app in the next frame', (tester) async {
+    final probe = _Probe();
+    var value = false;
+    var raise = false;
+    late StateSetter rebuild;
+    late SwitchMotion motion;
+    await tester.pumpWidget(
+      _app(
+        StatefulBuilder(
+          builder: (context, setState) {
+            rebuild = setState;
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                if (raise) {
+                  raise = false;
+                  motion.pointerUp(motion.clock.now, 10);
+                }
+                return RawGlassSwitch(
+                  value: value,
+                  onChanged: (next) => setState(() => value = next),
+                  builder: probe.build,
+                );
+              },
+            );
+          },
+        ),
+      ),
+    );
+    motion =
+        tester
+                .widget<MotionScope>(
+                  find.descendant(
+                    of: find.byType(RawGlassSwitch),
+                    matching: find.byType(MotionScope),
+                  ),
+                )
+                .motion
+            as SwitchMotion;
+    motion.pointerDown(motion.clock.now, 10);
+    rebuild(() => raise = true);
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(value, isFalse);
+    await tester.pump(_frame);
+    expect(value, isTrue);
+    await _settle(tester);
+    expect(probe.progress!.value, 1);
+  });
+
   testWidgets('the track tint selection survives a rebuild of the body', (
     tester,
   ) async {
