@@ -77,7 +77,9 @@ class LiquidStretch extends StatelessWidget {
       gestureMode: gestureMode,
       builder: (context, drag, child) => _StretchMotion(
         scale: drag == null ? 1.0 : interactionScale,
-        offset: drag?.withResistance(resistance) ?? Offset.zero,
+        offset: drag == null
+            ? Offset.zero
+            : drag / (1 + drag.distance * resistance),
         dragging: drag != null,
         stretch: stretch,
         child: child,
@@ -325,18 +327,4 @@ class RenderRawLiquidStretch extends RenderProxyBox {
     final correction = math.sqrt(areaGrowth / (baseScaleX * baseScaleY));
     return Offset(baseScaleX * correction, baseScaleY * correction);
   }
-}
-
-/// Drag resistance on an [Offset], which [LiquidStretch] applies.
-extension OffsetResistanceExtension on Offset {
-  /// Returns a new [Offset] with a given [resistance] applied, which will
-  /// hold it back the further it deviates from [Offset.zero].
-  ///
-  /// Applies a non-linear damping effect that reduces the offset's magnitude
-  /// while preserving its direction. Higher resistance values create stronger
-  /// damping.
-  /// Larger offsets are reduced more aggressively than smaller ones,
-  /// creating a natural "stretch resistance" effect commonly used in scrolling.
-  Offset withResistance(double resistance) =>
-      this / (1 + distance * resistance);
 }

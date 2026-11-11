@@ -342,7 +342,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
     final useFake =
         widget.fake || !shaderFiltersSupported || gpuRenderer == null;
     if (useFake) {
-      if (!widget.fake && !shaderFiltersSupported && kDebugMode) {
+      if (!widget.fake && !shaderFiltersSupported) {
         _logDebugFallback(
           'Impeller shader filters are unavailable; LiquidGlassLayer is using '
           'FakeGlass. Enable Impeller and Flutter GPU for the full effect.',
