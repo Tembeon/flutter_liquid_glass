@@ -38,8 +38,8 @@ class GlassSliderStyle extends GlassStyle<GlassSliderStyle> {
   /// primary color by default, else [GlassColors.systemBlue].
   final WidgetStateProperty<Color?>? activeTrackColor;
 
-  /// The track above the value (UIKit `maximumTrackTintColor`);
-  /// [GlassSlider.inactiveTrack] by default.
+  /// The track above the value (UIKit `maximumTrackTintColor`); by default
+  /// black or white at 10 percent (slider passport).
   final WidgetStateProperty<Color?>? inactiveTrackColor;
 
   /// The tick marks of a stepped slider; [GlassColors.opaqueSeparator] by
@@ -207,9 +207,7 @@ class GlassSlider extends StatefulWidget {
     tickColor: GlassStyle.allOrNull(tickColor),
   );
 
-  /// UISlider's track above the value: black or white at 10 percent (slider
-  /// passport).
-  static const inactiveTrack = GlassDynamicColor.withBrightness(
+  static const _inactiveTrack = GlassDynamicColor.withBrightness(
     color: Color(0x1A000000),
     darkColor: Color(0x1AFFFFFF),
   );
@@ -305,7 +303,7 @@ class _SliderLook extends StatelessWidget {
           surface(
             GlassRole.track,
             details.track,
-            resolve(look.inactiveTrackColor, GlassSlider.inactiveTrack),
+            resolve(look.inactiveTrackColor, GlassSlider._inactiveTrack),
           ),
           surface(GlassRole.track, details.fill, active),
           if (details.ticks.isNotEmpty)

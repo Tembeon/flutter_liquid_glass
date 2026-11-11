@@ -282,13 +282,12 @@ GlassDynamicColor _asDynamic(Color color) => switch (color) {
 ///
 /// Light and dark of systemBlue, systemRed and tertiarySystemFill are
 /// measured on iOS 27 (states, lists and menu passports); their Increase
-/// Contrast values and every value of systemGreen, systemFill and
-/// secondarySystemFill are read from iOS 27's UIKit color tables (states
-/// passport). tertiaryLabel and systemGray4 are the catalogue values,
-/// matched by the iOS 27 measurements. Every other value, including the
-/// Increase Contrast values of the labels and grays and every elevated
-/// value, is UIKit's catalogue as Flutter's `CupertinoColors` carries it,
-/// not measured on iOS 27.
+/// Contrast values and every value of systemGreen and systemFill are read
+/// from iOS 27's UIKit color tables (states passport). tertiaryLabel and
+/// systemGray4 are the catalogue values, matched by the iOS 27
+/// measurements. Every other value, including the Increase Contrast values
+/// of the labels and grays and every elevated value, is UIKit's catalogue
+/// as Flutter's `CupertinoColors` carries it, not measured on iOS 27.
 abstract final class GlassColors {
   /// The primary text.
   static const label = GlassDynamicColor.withBrightness(
@@ -312,14 +311,6 @@ abstract final class GlassColors {
     darkHighContrastColor: Color(0x60EBEBF5),
   );
 
-  /// Quaternary text.
-  static const quaternaryLabel = GlassDynamicColor.withBrightnessAndContrast(
-    color: Color(0x2D3C3C43),
-    darkColor: Color(0x28EBEBF5),
-    highContrastColor: Color(0x423C3C43),
-    darkHighContrastColor: Color(0x3DEBEBF5),
-  );
-
   /// The fill of thin and small shapes.
   static const systemFill = GlassDynamicColor.withBrightnessAndContrast(
     color: Color(0x33787880),
@@ -327,15 +318,6 @@ abstract final class GlassColors {
     highContrastColor: Color(0x47787880),
     darkHighContrastColor: Color(0x70787880),
   );
-
-  /// The fill of medium shapes.
-  static const secondarySystemFill =
-      GlassDynamicColor.withBrightnessAndContrast(
-        color: Color(0x29787880),
-        darkColor: Color(0x52787880),
-        highContrastColor: Color(0x3D787880),
-        darkHighContrastColor: Color(0x66787880),
-      );
 
   /// The fill of large shapes, such as an alert's action buttons and the
   /// compact date picker's capsules.
@@ -345,15 +327,6 @@ abstract final class GlassColors {
     highContrastColor: Color(0x33767680),
     darkHighContrastColor: Color(0x52767680),
   );
-
-  /// The fill of large areas with complex content.
-  static const quaternarySystemFill =
-      GlassDynamicColor.withBrightnessAndContrast(
-        color: Color(0x14747480),
-        darkColor: Color(0x2D767680),
-        highContrastColor: Color(0x28747480),
-        darkHighContrastColor: Color(0x42767680),
-      );
 
   /// The background of a plain page.
   static const systemBackground = GlassDynamicColor(
@@ -365,18 +338,6 @@ abstract final class GlassColors {
     darkElevatedColor: Color(0xFF1C1C1E),
     highContrastElevatedColor: Color(0xFFFFFFFF),
     darkHighContrastElevatedColor: Color(0xFF242426),
-  );
-
-  /// The background of content over [systemBackground].
-  static const secondarySystemBackground = GlassDynamicColor(
-    color: Color(0xFFF2F2F7),
-    darkColor: Color(0xFF1C1C1E),
-    highContrastColor: Color(0xFFEBEBF0),
-    darkHighContrastColor: Color(0xFF242426),
-    elevatedColor: Color(0xFFF2F2F7),
-    darkElevatedColor: Color(0xFF2C2C2E),
-    highContrastElevatedColor: Color(0xFFEBEBF0),
-    darkHighContrastElevatedColor: Color(0xFF363638),
   );
 
   /// The background of a grouped list.
@@ -401,18 +362,6 @@ abstract final class GlassColors {
     darkElevatedColor: Color(0xFF2C2C2E),
     highContrastElevatedColor: Color(0xFFFFFFFF),
     darkHighContrastElevatedColor: Color(0xFF363638),
-  );
-
-  /// A thin line that lets what is behind it show through.
-  static const separator = GlassDynamicColor(
-    color: Color(0x493C3C43),
-    darkColor: Color(0x99545458),
-    highContrastColor: Color(0x5E3C3C43),
-    darkHighContrastColor: Color(0xAD545458),
-    elevatedColor: Color(0x493C3C43),
-    darkElevatedColor: Color(0x99D2D2D2),
-    highContrastElevatedColor: Color(0x5E3C3C43),
-    darkHighContrastElevatedColor: Color(0xAD545458),
   );
 
   /// A thin line that hides what is behind it.

@@ -365,9 +365,6 @@ class GlassTabBar extends StatelessWidget {
   /// The size of a tab's glyph (tab bar passport).
   static const double iconSize = 24;
 
-  /// The gap between a tab's glyph and title.
-  static const double labelGap = 2;
-
   /// UITabBar's resting lens: what UIKit's color matrices make of the
   /// measured bar under the selection, over a plain page.
   static const thumb = GlassDynamicColor.withBrightness(

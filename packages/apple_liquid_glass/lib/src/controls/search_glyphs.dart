@@ -54,16 +54,16 @@ class GlassSearchIcon extends StatelessWidget {
 class GlassCloseIcon extends StatelessWidget {
   /// Creates the cross, [size] points across, in [color] or the icon
   /// theme's.
-  const GlassCloseIcon({this.size = defaultSize, this.color, super.key});
+  const GlassCloseIcon({this.size = _defaultSize, this.color, super.key});
 
   /// The side of the square the cross's ink fills.
   @internal
   static const double ink = 16.67;
 
-  /// The size of the cross's box in a search's close button.
-  static const Size defaultSize = Size(22.67, 21.33);
+  static const Size _defaultSize = Size(22.67, 21.33);
 
-  /// The box the cross is centered in.
+  /// The box the cross is centered in; by default 22.67 x 21.33, the box of
+  /// a search's close button.
   final Size size;
 
   /// The color of the strokes, or null for the icon theme's color (the

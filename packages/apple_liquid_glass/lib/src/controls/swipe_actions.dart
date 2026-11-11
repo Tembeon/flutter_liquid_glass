@@ -67,8 +67,11 @@ final class GlassSwipeAction {
 ///
 /// Its behavior is [RawGlassSwipeActions]'s; this draws the actions.
 ///
-/// Not measured: the springs, the widths and the full-swipe threshold are
-/// chosen by eye, as UIKit's swipe actions were not captured on iOS 27.
+/// An action's label is 15 points, medium, with 15 points on each side.
+///
+/// Not measured: the springs, the widths, the label and the full-swipe
+/// threshold are chosen by eye, as UIKit's swipe actions were not captured
+/// on iOS 27.
 class GlassSwipeActions extends StatelessWidget {
   /// Creates a row that shows [trailing] when swiped.
   const GlassSwipeActions({
@@ -91,14 +94,12 @@ class GlassSwipeActions extends StatelessWidget {
   /// first action: [SwipeActionsMotion.fullSwipeShare], not measured.
   static const double fullSwipeShare = SwipeActionsMotion.fullSwipeShare;
 
-  /// The padding on each side of an action's label; not measured.
-  static const double actionPadding = 15;
+  static const double _actionPadding = 15;
 
   /// The narrowest an action is; not measured.
   static const double minActionWidth = 74;
 
-  /// The label of an action: 15 points, medium; not measured.
-  static const TextStyle actionTextStyle = TextStyle(
+  static const TextStyle _actionTextStyle = TextStyle(
     fontSize: 15,
     fontWeight: FontWeight.w500,
   );
@@ -155,7 +156,7 @@ class _ActionButton extends StatelessWidget {
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: GlassSwipeActions.actionPadding,
+              horizontal: GlassSwipeActions._actionPadding,
             ),
             child: Center(
               widthFactor: 1,
@@ -167,7 +168,7 @@ class _ActionButton extends StatelessWidget {
                       action.title,
                       maxLines: 1,
                       style: resolveGlassText(
-                        GlassSwipeActions.actionTextStyle.copyWith(
+                        GlassSwipeActions._actionTextStyle.copyWith(
                           color: foreground,
                         ),
                         context,

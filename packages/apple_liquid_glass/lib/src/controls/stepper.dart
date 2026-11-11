@@ -24,8 +24,8 @@ class GlassStepperStyle extends GlassStyle<GlassStepperStyle> {
   static GlassStepperStyle? maybeOf(BuildContext context) =>
       GlassTheme.styleOf<GlassStepperStyle>(context);
 
-  /// The fill of each half; the device's measured fill by default
-  /// ([GlassStepper.background]).
+  /// The fill of each half; by default UIStepper's, measured on the device
+  /// (stepper passport).
   final WidgetStateProperty<Color?>? backgroundColor;
 
   /// The minus and plus glyphs; label by default. A half that cannot step
@@ -179,8 +179,7 @@ class GlassStepper extends StatelessWidget {
     foregroundColor: GlassStyle.allOrNull(foregroundColor),
   );
 
-  /// UIStepper's fill of each half (stepper passport, device).
-  static const background = GlassDynamicColor.withBrightness(
+  static const _background = GlassDynamicColor.withBrightness(
     color: Color(0x163C3C43),
     darkColor: Color(0x14EBEBF5),
   );
@@ -229,7 +228,7 @@ class _StepperLook extends StatelessWidget {
     final painted = CustomPaint(
       painter: _StepperPainter(
         pressed: details.pressed,
-        background: resolve(look.backgroundColor, GlassStepper.background),
+        background: resolve(look.backgroundColor, GlassStepper._background),
         foreground: resolve(
           look.foregroundColor,
           scheme?.label ?? GlassColors.label,

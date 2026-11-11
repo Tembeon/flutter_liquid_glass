@@ -189,13 +189,8 @@ class GlassBadge extends StatelessWidget
   const GlassBadge.indicator({GlassBadgeStyle? style, Key? key})
   const GlassBadge.text(String text, {GlassBadgeStyle? style, Key? key})
   final int? count
-  static const double dotSize
-  static const double fontSize
-  static const double horizontalPadding
-  static const double maxWidth
   final GlassBadgeStyle? style
   final String? text
-  static const double verticalPadding
   overrides: build
 class GlassBadgeStyle extends GlassStyle<GlassBadgeStyle>
   const GlassBadgeStyle({
@@ -549,7 +544,6 @@ class GlassClip extends StatelessWidget
 class GlassCloseIcon extends StatelessWidget
   const GlassCloseIcon({Size size = ..., Color? color, Key? key})
   final Color? color
-  static const Size defaultSize
   @internal static const double ink
   final Size size
   overrides: build
@@ -573,13 +567,8 @@ abstract final class GlassColors
   GlassColors()
   static const GlassDynamicColor label
   static const GlassDynamicColor opaqueSeparator
-  static const GlassDynamicColor quaternaryLabel
-  static const GlassDynamicColor quaternarySystemFill
   static const GlassDynamicColor secondaryLabel
-  static const GlassDynamicColor secondarySystemBackground
-  static const GlassDynamicColor secondarySystemFill
   static const GlassDynamicColor secondarySystemGroupedBackground
-  static const GlassDynamicColor separator
   static const GlassDynamicColor systemBackground
   static const GlassDynamicColor systemBlue
   static const GlassDynamicColor systemFill
@@ -1533,7 +1522,6 @@ class GlassSearchField extends StatelessWidget
   final bool autofocus
   final String? clearSemanticLabel
   final TextEditingController? controller
-  static const GlassDynamicColor cursor
   static const GlassDynamicColor disabledFill
   final bool enabled
   final FocusNode? focusNode
@@ -1631,7 +1619,6 @@ class GlassSegmentedControl<T> extends StatelessWidget
   final bool autofocus
   final FocusNode? focusNode
   final T? groupValue
-  static const double maxTextScale
   final void Function(T)? onChanged
   final void Function(T)? onReselected
   final bool proportionalWidth
@@ -1646,7 +1633,6 @@ class GlassSegmentedControl<T> extends StatelessWidget
     TextStyle? textStyle,
     TextStyle? selectedTextStyle,
   })
-  static const GlassDynamicColor thumb
   overrides: build
 class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle>
   const GlassSegmentedStyle({
@@ -1758,7 +1744,6 @@ class GlassSlider extends StatefulWidget
   final bool animated
   final bool autofocus
   final FocusNode? focusNode
-  static const GlassDynamicColor inactiveTrack
   final double max
   final double min
   final void Function(double)? onChangeEnd
@@ -1884,7 +1869,6 @@ class GlassStepper extends StatelessWidget
     Key? key,
   })
   final bool autofocus
-  static const GlassDynamicColor background
   final String? decrementLabel
   final FocusNode? focusNode
   final String? incrementLabel
@@ -2065,8 +2049,6 @@ class GlassSwipeActions extends StatelessWidget
     bool fullSwipe = ...,
     Key? key,
   })
-  static const double actionPadding
-  static const TextStyle actionTextStyle
   final Widget child
   final bool fullSwipe
   static const double fullSwipeShare
@@ -2086,7 +2068,6 @@ class GlassSwitch extends StatelessWidget
   })
   final bool autofocus
   final FocusNode? focusNode
-  static const GlassDynamicColor inactiveTrack
   final void Function(bool)? onChanged
   final String? semanticLabel
   final WidgetStatesController? statesController
@@ -2153,7 +2134,6 @@ class GlassTabBar extends StatelessWidget
   static double groupHeight({required bool accessory})
   static const double height
   static const double iconSize
-  static const double labelGap
   static const double maxTextScale
   final GlassTabBarMinimizeBehavior minimizeBehavior
   final void Function(int)? onDestinationSelected
@@ -3104,7 +3084,6 @@ class RawGlassDatePicker extends StatefulWidget
   final DateTime? minimumDate
   final Widget Function(BuildContext, GlassDatePickerMonthYear) monthYearBuilder
   final void Function(DateTime)? onChanged
-  static const Size size
   final WidgetStatesController? statesController
   final Widget Function(BuildContext, GlassDatePickerTitle) titleBuilder
   final DateTime? today
@@ -3265,7 +3244,6 @@ class RawGlassSlider extends StatefulWidget
   final Widget Function(BuildContext, GlassSliderDetails) builder
   final FocusNode? focusNode
   static const double height
-  static const double keyboardStep
   final double max
   final double min
   final void Function(double)? onChangeEnd
@@ -3302,7 +3280,6 @@ class RawGlassStepper extends StatefulWidget
   final double max
   final double min
   final void Function(double)? onChanged
-  static const Duration repeatInterval
   final String Function(double)? semanticFormatterCallback
   final String? semanticLabel
   static const Size size

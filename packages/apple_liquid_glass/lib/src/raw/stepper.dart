@@ -59,8 +59,9 @@ final class GlassStepperDetails {
 /// UIKit: `UIStepper`. SwiftUI: `Stepper`. Flutter: none.
 ///
 /// There is no motion: a held half highlights at once and clears on release. A
-/// tap commits on release; a held half repeats every [repeatInterval], first
-/// after that long, without acceleration. Sliding to the other half moves the
+/// tap commits on release; a held half repeats every half second, first
+/// after that long, without acceleration (stepper passport, device: 0.520,
+/// 1.021, 1.522 s after the touch). Sliding to the other half moves the
 /// highlight and the repeat with it without a step, and leaving the control's
 /// 44 point tall target, which reaches above and below its 32 point box where
 /// its parent leaves that room, cancels the touch. Minus stays on the left in a
@@ -139,9 +140,7 @@ class RawGlassStepper extends StatefulWidget {
   /// The size of the stepper (stepper passport, device).
   static const Size size = Size(94, 32);
 
-  /// The delay before the first repeat and between repeats (stepper
-  /// passport, device: 0.520, 1.021, 1.522 s after the touch).
-  static const Duration repeatInterval = Duration(milliseconds: 500);
+  static const Duration _repeatInterval = Duration(milliseconds: 500);
 
   @override
   State<RawGlassStepper> createState() => _RawGlassStepperState();
@@ -358,7 +357,7 @@ final class _StepperInput extends Interaction {
   final ValueChanged<GlassStepperHalf> onStep;
   final ValueChanged<ValueCommand> onCommand;
   static final double _interval =
-      RawGlassStepper.repeatInterval.inMicroseconds / 1e6;
+      RawGlassStepper._repeatInterval.inMicroseconds / 1e6;
 
   int? _pointer;
   Rect _area = Offset.zero & RawGlassStepper.size;

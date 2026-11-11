@@ -59,7 +59,8 @@ class GlassSearchFieldStyle extends GlassStyle<GlassSearchFieldStyle> {
   /// [GlassColors.label] by default.
   final WidgetStateProperty<Color?>? iconColor;
 
-  /// The color of the text cursor; [GlassSearchField.cursor] by default.
+  /// The color of the text cursor; by default bluer than the accent (an
+  /// iPhone 16 Pro's screen: 66, 106, 243 light and 64, 107, 248 dark).
   final WidgetStateProperty<Color?>? cursorColor;
 
   /// The text style of the text and the placeholder: 17 points, medium,
@@ -254,9 +255,7 @@ class GlassSearchField extends StatelessWidget {
               ),
       );
 
-  /// The text cursor, bluer than the accent (an iPhone 16 Pro's screen:
-  /// 66, 106, 243 light and 64, 107, 248 dark).
-  static const cursor = GlassDynamicColor.withBrightness(
+  static const _cursor = GlassDynamicColor.withBrightness(
     color: Color(0xFF426AF3),
     darkColor: Color(0xFF406BF8),
   );
@@ -302,7 +301,7 @@ class GlassSearchField extends StatelessWidget {
       foregroundColor: WidgetStatePropertyAll(label),
       placeholderColor: GlassSearchField.placeholderColors,
       iconColor: WidgetStatePropertyAll(label),
-      cursorColor: const WidgetStatePropertyAll(GlassSearchField.cursor),
+      cursorColor: const WidgetStatePropertyAll(GlassSearchField._cursor),
       textStyle: const WidgetStatePropertyAll(GlassSearchField._text),
     );
   }

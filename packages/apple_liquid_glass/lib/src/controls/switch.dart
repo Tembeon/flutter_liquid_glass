@@ -35,7 +35,10 @@ class GlassSwitchStyle extends GlassStyle<GlassSwitchStyle> {
   /// The track when on (UIKit `onTintColor`).
   final WidgetStateProperty<Color?>? activeTrackColor;
 
-  /// The track when off.
+  /// The track when off; by default UIKit's secondarySystemFill, and
+  /// under Increase Contrast its own color, 78 percent of 0x787880 in light
+  /// and 90 in dark (read from UIKit's color tables, notes private; not
+  /// rendered on a device).
   final WidgetStateProperty<Color?>? inactiveTrackColor;
 
   /// The ring around a switch focused from the keyboard; null derives it
@@ -174,10 +177,7 @@ class GlassSwitch extends StatelessWidget {
     inactiveTrackColor: GlassStyle.allOrNull(inactiveTrackColor),
   );
 
-  /// UISwitch's off track: secondarySystemFill, and under Increase Contrast
-  /// its own color, 78 percent of 0x787880 in light and 90 in dark (read
-  /// from UIKit's color tables, notes private; not rendered on a device).
-  static const inactiveTrack = GlassDynamicColor.withBrightnessAndContrast(
+  static const _inactiveTrack = GlassDynamicColor.withBrightnessAndContrast(
     color: Color(0x29787880),
     darkColor: Color(0x52787880),
     highContrastColor: Color(0xC7787880),
@@ -215,7 +215,7 @@ class GlassSwitch extends StatelessWidget {
           property?.resolve(states) ?? fallback,
           context,
         );
-    final off = resolve(look.inactiveTrackColor, inactiveTrack);
+    final off = resolve(look.inactiveTrackColor, _inactiveTrack);
     final on = resolve(look.activeTrackColor, GlassColors.systemGreen);
     final body = Stack(
       children: [

@@ -114,9 +114,6 @@ class RawGlassDatePicker extends StatefulWidget {
   @internal
   final bool defersDays;
 
-  /// The size of UIKit's calendar.
-  static const Size size = DatePickerCalendarMotion.calendarSize;
-
   @override
   State<RawGlassDatePicker> createState() => _RawGlassDatePickerState();
 }
@@ -695,7 +692,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
     return MotionScope(
       motion: _motion,
       child: SizedBox.fromSize(
-        size: RawGlassDatePicker.size,
+        size: DatePickerCalendarMotion.calendarSize,
         child: Stack(
           children: [
             Positioned.fill(child: calendar),

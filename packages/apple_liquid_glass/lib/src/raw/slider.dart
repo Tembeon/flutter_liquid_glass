@@ -68,7 +68,9 @@ final class GlassSliderDetails {
 /// within a 44 point tall area around the 34 point slider, where the
 /// slider's parent leaves that room. The value commands of the arrow keys
 /// (mirrored in right-to-left), Home and End, and the accessibility
-/// increase and decrease step it, or take it to [min] and [max]; it has no
+/// increase and decrease step it, a continuous slider by a tenth of the
+/// range (not measured) and a stepped one to the next stop on that side,
+/// or take it to [min] and [max]; it has no
 /// larger step, so Page Up and Page Down do nothing, and neither do Space
 /// and Enter, as on Flutter's `Slider`. Under Reduce Motion the
 /// thumb never lifts, as UIKit's does (read from UIKit, notes private), and
@@ -152,10 +154,7 @@ class RawGlassSlider extends StatefulWidget {
   /// The diameter of a tick mark (slider passport).
   static const double tickSize = SliderMotion.tickSize;
 
-  /// The share of the range an arrow key or an accessibility step moves a
-  /// continuous slider by, not measured; a stepped slider moves to the next
-  /// stop on that side instead.
-  static const double keyboardStep = 0.1;
+  static const double _keyboardStep = 0.1;
 
   @override
   State<RawGlassSlider> createState() => _RawGlassSliderState();
@@ -266,7 +265,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   double _stepFrom(double from, int delta) {
     final ticks = widget.ticks;
     if (ticks < 2) {
-      return (from + delta * RawGlassSlider.keyboardStep).clamp(0.0, 1.0);
+      return (from + delta * RawGlassSlider._keyboardStep).clamp(0.0, 1.0);
     }
     final steps = ticks - 1;
     final at = from * steps;

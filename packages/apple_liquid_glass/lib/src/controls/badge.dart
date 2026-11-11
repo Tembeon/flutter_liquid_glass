@@ -25,7 +25,7 @@ class GlassBadgeStyle extends GlassStyle<GlassBadgeStyle> {
   /// The color of the text; white by default.
   final Color? foregroundColor;
 
-  /// The text: [GlassBadge.fontSize] points, medium, by default. The
+  /// The text: 12 points, medium, by default. The
   /// badge sizes its capsule to it.
   final TextStyle? textStyle;
 
@@ -80,9 +80,9 @@ class GlassBadgeStyle extends GlassStyle<GlassBadgeStyle> {
 /// `badge(_:)`. Flutter: `Badge`.
 ///
 /// It draws in [GlassColors.systemRed] with white text unless its [style] or
-/// the theme's says otherwise: a capsule of [fontSize] medium text with
-/// [verticalPadding] and [horizontalPadding], at least as wide as it is tall
-/// and at most [maxWidth]; the dot is [dotSize] across. Its text does not
+/// the theme's says otherwise: a capsule of 12 point medium text with 2
+/// points above and below and 4 before and after, at least as wide as it is
+/// tall and at most 64 points; the dot is 18 points across. Its text does not
 /// follow the text size setting, as the bar items it sits on do not: UIKit
 /// shows them through the large content viewer instead
 /// (`UILargeContentViewerInteraction`). Its text runs in the ambient
@@ -111,23 +111,14 @@ class GlassBadge extends StatelessWidget {
   /// The look, over the theme's and the badge's defaults.
   final GlassBadgeStyle? style;
 
-  /// The size of the text.
-  static const double fontSize = 12;
-
-  /// The space above and below the text.
-  static const double verticalPadding = 2;
-
-  /// The space before and after the text.
-  static const double horizontalPadding = 4;
-
-  /// The widest a badge gets.
-  static const double maxWidth = 64;
-
-  /// The size of a badge without text.
-  static const double dotSize = 18;
+  static const double _fontSize = 12;
+  static const double _verticalPadding = 2;
+  static const double _horizontalPadding = 4;
+  static const double _maxWidth = 64;
+  static const double _dotSize = 18;
 
   static const _text = TextStyle(
-    fontSize: fontSize,
+    fontSize: _fontSize,
     fontWeight: FontWeight.w500,
   );
 
@@ -153,8 +144,8 @@ class GlassBadge extends StatelessWidget {
         builder: (context) {
           if (label == null) {
             return Container(
-              width: dotSize,
-              height: dotSize,
+              width: _dotSize,
+              height: _dotSize,
               decoration: ShapeDecoration(
                 color: fill,
                 shape: const StadiumBorder(),
@@ -180,10 +171,10 @@ class GlassBadge extends StatelessWidget {
           painter.layout();
           final line = painter.size;
           painter.dispose();
-          final height = line.height + 2 * verticalPadding;
+          final height = line.height + 2 * _verticalPadding;
           final width = math.max(
             height,
-            math.min(line.width + 2 * horizontalPadding, maxWidth),
+            math.min(line.width + 2 * _horizontalPadding, _maxWidth),
           );
           return Semantics(
             label: label,
@@ -192,7 +183,7 @@ class GlassBadge extends StatelessWidget {
               height: height,
               alignment: Alignment.center,
               padding: const EdgeInsets.symmetric(
-                horizontal: horizontalPadding,
+                horizontal: _horizontalPadding,
               ),
               decoration: ShapeDecoration(
                 color: fill,
