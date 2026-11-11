@@ -31,6 +31,7 @@ export 'src/foundation/glass.dart'
 export 'src/foundation/label_text.dart' show glassLabelTextOf;
 export 'src/foundation/localizations.dart'
     show DefaultGlassLocalizations, GlassLocalizations;
+export 'src/foundation/media.dart' show GlassMediaQueryData;
 export 'src/foundation/outline.dart' show GlassField, GlassOutline;
 export 'src/foundation/shape.dart'
     show GlassOval, GlassRoundedRect, GlassShape, GlassSuperellipse;

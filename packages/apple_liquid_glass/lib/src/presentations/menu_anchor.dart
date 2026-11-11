@@ -234,9 +234,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
       box.localToGlobal(Offset.zero, ancestor: overlayBox) & box.size,
     );
     final media = MediaQuery.of(context);
-    final padding = media.padding.copyWith(
-      bottom: math.max(media.padding.bottom, media.viewInsets.bottom),
-    );
+    final padding = media.paddingAboveKeyboard;
     _content.rtl = Directionality.maybeOf(context) == TextDirection.rtl;
     _content.loadingLabel = GlassLocalizations.of(context).loadingLabel;
     _content.titleStyle = resolveGlassText(_style.textStyle, context);

@@ -87,6 +87,7 @@ GlassListRow
 GlassListSection
 GlassListStyle
 GlassLocalizations
+GlassMediaQueryData
 GlassMenuAnchor
 GlassMenuAnchorChildBuilder
 GlassMenuController

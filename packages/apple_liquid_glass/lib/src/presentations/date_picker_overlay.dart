@@ -228,7 +228,7 @@ class _OverlayViewState extends State<_OverlayView> {
     final origin = _origin(context);
     final padding = EdgeInsets.only(
       top: media.padding.top,
-      bottom: math.max(media.padding.bottom, media.viewInsets.bottom),
+      bottom: media.bottomAboveKeyboard,
     );
     final part = _part;
     final size = _sizeFor(part);

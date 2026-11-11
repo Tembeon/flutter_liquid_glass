@@ -249,9 +249,7 @@ class _AlertViewState extends State<_AlertView> {
         scale: _scale,
         opacity: _opacity,
         maxWidth: _AlertLook.popoverWidth,
-        padding: media.padding.copyWith(
-          bottom: math.max(media.padding.bottom, media.viewInsets.bottom),
-        ),
+        padding: media.paddingAboveKeyboard,
         direction: Directionality.of(context),
         card: card,
       );

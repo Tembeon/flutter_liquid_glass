@@ -1075,6 +1075,9 @@ abstract class GlassLocalizations
   String get showYearPickerLabel
   abstract String weekdayAbbreviation(int weekday)
   String get yearLabel
+extension GlassMediaQueryData on MediaQueryData
+  double get bottomAboveKeyboard
+  EdgeInsets get paddingAboveKeyboard
 class GlassMenuAnchor extends StatefulWidget
   const GlassMenuAnchor({
     required List<GlassMenuEntry> menuChildren,
@@ -3977,6 +3980,7 @@ enum GlassInterfaceLevel (see package:apple_liquid_glass/apple_liquid_glass.dart
 class GlassLens (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassLensShrink (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassLocalizations (see package:apple_liquid_glass/apple_liquid_glass.dart)
+extension GlassMediaQueryData (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassOutline (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassOval (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassRole (see package:apple_liquid_glass/apple_liquid_glass.dart)

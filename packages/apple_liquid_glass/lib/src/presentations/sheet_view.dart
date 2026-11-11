@@ -470,10 +470,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     );
     final inner = MediaQuery(
       data: media.copyWith(
-        padding: media.padding.copyWith(
-          top: 0,
-          bottom: math.max(media.padding.bottom, media.viewInsets.bottom),
-        ),
+        padding: media.paddingAboveKeyboard.copyWith(top: 0),
         viewPadding: media.viewPadding.copyWith(top: 0),
         viewInsets: EdgeInsets.zero,
       ),
