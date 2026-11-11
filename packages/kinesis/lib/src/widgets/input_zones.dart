@@ -90,6 +90,7 @@ class InputZone<T extends Object> {
     this.mouseCursor,
     this.minimumHitSize,
     this.autofocus = false,
+    this.focusable = true,
     this.semanticLabel,
     this.semanticValue,
     this.button = false,
@@ -135,6 +136,16 @@ class InputZone<T extends Object> {
 
   /// Whether the zone takes focus when it first appears.
   final bool autofocus;
+
+  /// Whether the zone is a focus target of its own.
+  ///
+  /// A zone that is not takes touch, mouse and accessibility as any other
+  /// (its semantics node, its tap, its hit area) but no focus and no key:
+  /// the halves of a stepper, whose control is one value control with one
+  /// stop and its value commands, and whose halves are just targets with a
+  /// 44 point area and a semantic button each. The focus and the keys then
+  /// belong to a region around the host.
+  final bool focusable;
 
   /// What accessibility reads for the zone.
   final String? semanticLabel;
@@ -373,23 +384,24 @@ enum InputZoneStops {
 /// scroll wheel reach a zone's interactions that take them.
 ///
 /// Focus: each zone has a focus node, made and disposed with the zone. A zone
-/// can take focus while it takes input now, and is a focus target for the keys
-/// while an interaction also activates or adjusts. With [stops] at
-/// [InputZoneStops.each], Tab visits the targets in the order of [zones] (other
-/// focusable widgets inside [child] come after them); at [InputZoneStops.one]
-/// the host is a single stop that Tab enters at [current] or at the zone
-/// focused last. Assistive technology reaches every zone that can take focus
-/// either way. The arrows move between targets: along [axis] in the order of
-/// [zones], mirrored in right-to-left for a horizontal axis, or to the nearest
-/// zone on screen when [axis] is null; Home and End reach the first and the
-/// last target. With [activatesOnMove], the zone an arrow, Home or End moves to
-/// is also activated, as a keyboard activation: a selection that follows focus.
-/// An arrow with no zone in its direction (past the last one, or across [axis])
-/// asks [onEdge], then moves focus as Flutter's directional focus does, which
-/// may leave the host. A zone whose interaction adjusts keeps the arrows, Home
-/// and End for its value (`AdjustValueIntent.defaultShortcuts`). Space and
-/// Enter activate the focused zone through `ActivateIntent`, which an app
-/// overrides with `Actions` above the host, as for `InputRegion`.
+/// can take focus while it is [InputZone.focusable] and takes input now, and is
+/// a focus target for the keys while an interaction also activates or adjusts.
+/// With [stops] at [InputZoneStops.each], Tab visits the targets in the order
+/// of [zones] (other focusable widgets inside [child] come after them); at
+/// [InputZoneStops.one] the host is a single stop that Tab enters at [current]
+/// or at the zone focused last. Assistive technology reaches every zone that
+/// can take focus either way. The arrows move between targets: along [axis] in
+/// the order of [zones], mirrored in right-to-left for a horizontal axis, or to
+/// the nearest zone on screen when [axis] is null; Home and End reach the first
+/// and the last target. With [activatesOnMove], the zone an arrow, Home or End
+/// moves to is also activated, as a keyboard activation: a selection that
+/// follows focus. An arrow with no zone in its direction (past the last one, or
+/// across [axis]) asks [onEdge], then moves focus as Flutter's directional
+/// focus does, which may leave the host. A zone whose interaction adjusts keeps
+/// the arrows, Home and End for its value
+/// (`AdjustValueIntent.defaultShortcuts`). Space and Enter activate the focused
+/// zone through `ActivateIntent`, which an app overrides with `Actions` above
+/// the host, as for `InputRegion`.
 ///
 /// Semantics: each zone that is [InputZoneFrame.live] is one semantics
 /// node over its hit rectangle, which follows [frameOf], with its label,
@@ -1233,7 +1245,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   bool get _takesKeys => _activates || _adjusts;
 
   void _syncNode() {
-    node.canRequestFocus = takesInput;
+    node.canRequestFocus = zone.focusable && takesInput;
     node.skipTraversal = !_takesKeys;
   }
 
@@ -1469,6 +1481,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
 
   @override
   Widget build(BuildContext context) {
+    if (!zone.focusable) return _ZoneAnchor<T>(state: this);
     return Actions(
       actions: _actionsNow(),
       child: Shortcuts(

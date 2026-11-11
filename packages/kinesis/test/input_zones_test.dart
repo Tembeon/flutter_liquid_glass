@@ -49,6 +49,26 @@ class _Values extends Interaction {
   }
 }
 
+/// Activates on a key or an assistive tap and takes no touch, as a
+/// stepper half does.
+class _Activated extends Interaction {
+  _Activated(this.onActivate);
+
+  final VoidCallback onActivate;
+
+  @override
+  bool get activates => true;
+
+  @override
+  bool accepts(PointerDownInput down) => false;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    if (input is ActivateInput) onActivate();
+    return InteractionUpdate.none;
+  }
+}
+
 /// A card that records where its source is.
 final class _Card extends Motion with Presented, Sourced {
   late final Presence _show = own(Presence(openSpring: Spring.snappy));
@@ -657,6 +677,68 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.sendKeyEvent(LogicalKeyboardKey.space);
       expect(pressed, ['b', 'b']);
+    });
+
+    testWidgets('zones that are not focusable are targets with their own '
+        'buttons inside the one stop of a region around them', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      final values = _Values();
+      final halves = <String>[];
+      final focus = FocusNode();
+      addTearDown(focus.dispose);
+      InputZone<String> half(String id) => InputZone(
+        id: id,
+        interactions: [_Activated(() => halves.add(id))],
+        focusable: false,
+        minimumHitSize: const Size.square(44),
+        semanticLabel: id,
+        button: true,
+      );
+      await tester.pumpWidget(
+        _app(
+          InputRegion(
+            interactions: [values],
+            focusNode: focus,
+            child: InputZones<String>(
+              zones: [half('minus'), half('plus')],
+              frameOf: (id) => InputZoneFrame(
+                id == 'minus'
+                    ? const Rect.fromLTWH(0, 0, 47, 32)
+                    : const Rect.fromLTWH(47, 0, 47, 32),
+              ),
+              frames: motion,
+              controller: zones,
+              child: const SizedBox(width: 94, height: 32),
+            ),
+          ),
+        ),
+      );
+      for (var i = 0; i < 3; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+        expect(focus.hasPrimaryFocus, isTrue);
+        expect(zones.focusedZone, isNull);
+      }
+      expect(zones.requestFocus('plus'), isFalse);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      expect(values.heard, [ValueCommand.increase, 'activate']);
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('plus')),
+        matchesSemantics(
+          label: 'plus',
+          isButton: true,
+          hasEnabledState: true,
+          isEnabled: true,
+          hasTapAction: true,
+        ),
+      );
+      tester.semantics.tap(find.semantics.byLabel('plus'));
+      tester.semantics.tap(find.semantics.byLabel('minus'));
+      expect(halves, ['plus', 'minus']);
+      handle.dispose();
     });
 
     testWidgets('a zone that adjusts keeps the arrows, Home and End for its '

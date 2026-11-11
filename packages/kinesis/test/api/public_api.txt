@@ -413,6 +413,7 @@ class InputZone<T extends Object>
     MouseCursor? mouseCursor,
     Size? minimumHitSize,
     bool autofocus = ...,
+    bool focusable = ...,
     String? semanticLabel,
     String? semanticValue,
     bool button = ...,
@@ -429,6 +430,7 @@ class InputZone<T extends Object>
   final bool? checked
   final void Function(SemanticsConfiguration)? describeSemantics
   final bool enabled
+  final bool focusable
   final T id
   final List<Interaction> interactions
   final Size? minimumHitSize
