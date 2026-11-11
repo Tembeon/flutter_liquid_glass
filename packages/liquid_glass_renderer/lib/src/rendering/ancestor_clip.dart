@@ -61,11 +61,24 @@ Rect? paintClipOfAncestor(RenderObject ancestor, RenderObject child) =>
   final RenderViewportBase viewport => (
     Offset.zero & viewport.size,
     // As RenderViewportBase.paint does.
-    // ignore: invalid_use_of_protected_member
-    viewport.hasVisualOverflow ? viewport.clipBehavior : Clip.none,
+    _overflows(viewport) ? viewport.clipBehavior : Clip.none,
   ),
   _ => null,
 };
+
+/// Whether [viewport]'s content paints past its bounds, by the rule the
+/// viewport's own `hasVisualOverflow` follows: a sliver laid out with visual
+/// overflow, or a shrink-wrapping viewport scrolled before its start.
+bool _overflows(RenderViewportBase viewport) {
+  if (viewport is RenderShrinkWrappingViewport && viewport.offset.pixels < 0) {
+    return true;
+  }
+  for (var child = viewport.firstChild; child != null;) {
+    if (child.geometry?.hasVisualOverflow ?? false) return true;
+    child = viewport.childAfter(child);
+  }
+  return false;
+}
 
 /// The bounds of a geometry [clipGeometryOf] returns.
 Rect clipGeometryBounds(Object geometry) => switch (geometry) {
