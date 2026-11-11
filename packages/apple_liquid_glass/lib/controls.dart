@@ -1,7 +1,9 @@
 /// The styled iOS controls: `GlassButton`, `GlassSwitch`, `GlassSlider`,
 /// `GlassStepper`, `GlassSegmentedControl`, `GlassPageControl`,
-/// `GlassSearchField`, `GlassListRow` and its sections, `GlassSwipeActions`,
-/// `GlassDatePicker`, `GlassTimePicker` and `GlassBadge`.
+/// `GlassSearchField` with its glyphs `GlassSearchIcon` and `GlassCloseIcon`,
+/// `GlassListRow` and its sections and `GlassListBackground`,
+/// `GlassSwipeActions`, `GlassDatePicker`, `GlassTimePicker` and
+/// `GlassBadge`.
 ///
 /// For the app developer: put one in and it works. Each control has a
 /// `*Style` beside it, shaped like Flutter's `ButtonStyle`, and looks a
