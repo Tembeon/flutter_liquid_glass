@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
+import 'package:apple_liquid_glass/src/raw/date_picker_header.dart';
 import 'package:apple_liquid_glass/src/raw/date_picker_values.dart';
 import 'package:apple_liquid_glass/src/raw/still.dart';
 import 'package:flutter/foundation.dart';
@@ -486,28 +487,6 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
     return grid;
   }
 
-  Widget _part({
-    required WidgetStatesController states,
-    required List<Interaction> interactions,
-    required bool enabled,
-    required String label,
-    required Widget child,
-    String? value,
-    bool liveRegion = false,
-  }) => InputRegion(
-    interactions: interactions,
-    enabled: enabled,
-    statesController: states,
-    semantics: SemanticsProperties(
-      label: label,
-      button: true,
-      value: value,
-      liveRegion: liveRegion,
-    ),
-    minimumHitSize: _target,
-    child: ExcludeSemantics(child: child),
-  );
-
   Widget _faded(MotionSelection<double> opacity, Widget child) =>
       MotionTransition(opacity: opacity, child: child);
 
@@ -527,7 +506,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
     Widget arrow({required bool next}) {
       final enabled = next ? canNext : canPrevious;
       final states = next ? _header.next : _header.previous;
-      return _part(
+      return DatePickerHeaderPart(
         states: states,
         interactions: next ? _nextPress : _previousPress,
         enabled: enabled,
@@ -571,7 +550,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
                   child: Row(
                     children: [
                       Flexible(
-                        child: _part(
+                        child: DatePickerHeaderPart(
                           states: _header.title,
                           interactions: _titlePress,
                           enabled: _enabled,
