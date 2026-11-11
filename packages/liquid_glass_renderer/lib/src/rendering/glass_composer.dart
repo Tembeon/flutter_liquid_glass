@@ -97,6 +97,7 @@ final class GlassComposer extends PipelineOwner {
       node.markNeedsPaint();
       return;
     }
+    // After the frame: paint is over, so the mark is the next frame's.
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (node.attached) node.markNeedsPaint();
     });
@@ -231,8 +232,9 @@ final class GlassComposer extends PipelineOwner {
     final composition = (_alone[root] ??= _Composition())..run(root);
     final ranAt = scheduler.currentFrameTimeStamp;
     composition.ranAt = ranAt;
-    // Dropped when the next frame's scene does not ask for it.
+    // After the frame: kept through the next frame, whose scene may reuse it.
     scheduler.addPostFrameCallback((_) {
+      // After the frame: the next frame's scene has reused it or not.
       scheduler.addPostFrameCallback((_) {
         if (composition.ranAt != ranAt) return;
         if (scheduler.currentFrameTimeStamp == ranAt) return;

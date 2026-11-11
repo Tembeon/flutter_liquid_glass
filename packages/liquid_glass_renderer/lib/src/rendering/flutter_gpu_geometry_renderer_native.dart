@@ -398,6 +398,7 @@ class FlutterGpuGeometryRenderer {
   static void _flushAfterFrame() {
     if (_postFrameFlushScheduled) return;
     _postFrameFlushScheduled = true;
+    // After the frame: no scene flushed them this frame, nor shows them.
     SchedulerBinding.instance.addPostFrameCallback((_) {
       _postFrameFlushScheduled = false;
       if (_openPages.isEmpty) return;

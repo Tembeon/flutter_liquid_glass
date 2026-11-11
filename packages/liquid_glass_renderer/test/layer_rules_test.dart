@@ -34,7 +34,14 @@ const _rules = LayerRules(
   bans: [
     Ban('ignore', r'//\s*ignore:', code: false),
     Ban('ignore_for_file', r'//\s*ignore_for_file:', code: false),
-    Ban('addPostFrameCallback', r'\baddPostFrameCallback\b'),
+    // The end of a frame is for what a frame leaves behind: disposal, a
+    // report, a flag reset. Glass that shows a value a frame late is a
+    // defect, so each use says why it is not one on the line above it.
+    Ban(
+      'addPostFrameCallback',
+      r'\baddPostFrameCallback\b',
+      allowedWith: 'After the frame:',
+    ),
     Ban(
       'AnimationController',
       r'\bAnimationController\b',

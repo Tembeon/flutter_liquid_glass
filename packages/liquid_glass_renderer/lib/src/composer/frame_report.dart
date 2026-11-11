@@ -227,6 +227,7 @@ final class GlassFrameReport {
   static void deliver(GlassFrameReport Function() report) {
     _pending.add(report);
     if (_pending.length > 1) return;
+    // After the frame: a report counts the scene, which is built after paint.
     SchedulerBinding.instance.addPostFrameCallback((_) {
       final reports = [for (final build in _pending) build()];
       _pending.clear();

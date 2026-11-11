@@ -12,7 +12,8 @@ enum SameLibraryImports {
 
 /// A pattern that must not occur in `lib/`.
 final class Ban {
-  /// Bans [pattern], a regular expression, outside the files [allowedIn].
+  /// Bans [pattern], a regular expression, outside the files [allowedIn]
+  /// and the occurrences [allowedWith] allows.
   ///
   /// With [code] true the pattern is matched against the source with its
   /// comments and string literals blanked out; with [code] false against
@@ -22,6 +23,7 @@ final class Ban {
     this.pattern, {
     this.code = true,
     this.allowedIn = const {},
+    this.allowedWith,
   });
 
   /// The name the debt file and failures show.
@@ -37,6 +39,16 @@ final class Ban {
   /// the pattern may occur. A path that ends in `/`, such as `lib/src/a/`,
   /// allows every file under it.
   final Set<String> allowedIn;
+
+  /// The words that open the line comment right above an occurrence's line
+  /// to allow it, such as `After the frame:`, or null when no comment allows
+  /// one.
+  ///
+  /// The comment gives the reason after the words, as in
+  /// `// After the frame: the textures it sampled go now.`; the words alone
+  /// allow nothing. Each allowed use names its reason where it stands,
+  /// instead of a file or a debt line allowing every use in a file.
+  final String? allowedWith;
 }
 
 /// The library layout of one package, as plain data.

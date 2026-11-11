@@ -308,10 +308,25 @@ final class _Checker {
         continue;
       }
       final text = ban.code ? code : source;
-      final hits = RegExp(ban.pattern, multiLine: true).allMatches(text).length;
-      for (var i = 0; i < hits; i++) {
+      for (final hit in RegExp(ban.pattern, multiLine: true).allMatches(text)) {
+        if (_allowedWith(ban.allowedWith, source, hit.start)) continue;
         count(banned(ban.name), file);
       }
     }
+  }
+
+  // Whether the line comments right above the line of [offset] in [source]
+  // open with [words] and give a reason after them.
+  static bool _allowedWith(String? words, String source, int offset) {
+    if (words == null) return false;
+    final lines = source.substring(0, offset).split('\n');
+    String? opening;
+    for (var i = lines.length - 2; i >= 0; i--) {
+      final line = lines[i].trimLeft();
+      if (!line.startsWith('//')) break;
+      opening = line;
+    }
+    if (opening == null || !opening.startsWith('// $words')) return false;
+    return opening.substring('// $words'.length).trim().isNotEmpty;
   }
 }

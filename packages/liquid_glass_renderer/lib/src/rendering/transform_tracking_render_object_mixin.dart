@@ -241,6 +241,7 @@ class FramePollMarker {
       return;
     }
     _polled = true;
+    // After the frame: the flag holds for one frame's paint and scene.
     SchedulerBinding.instance.addPostFrameCallback((_) => _polled = false);
   }
 }

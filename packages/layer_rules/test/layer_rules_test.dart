@@ -118,6 +118,25 @@ void main() {
     );
   });
 
+  test('a comment above an occurrence allows it by its reason', () {
+    LayerRules withPrint(String? allowedWith) => LayerRules(
+      package: 'sample',
+      libraries: const {
+        'base': {},
+        'top': {'base'},
+      },
+      bans: [Ban('print', r'\bprint\(', allowedWith: allowedWith)],
+    );
+    expect(
+      checkLayers(fixture, withPrint(null)).violations.map((v) => '$v'),
+      contains('5:print lib/src/top/t.dart 3'),
+    );
+    expect(
+      checkLayers(fixture, withPrint('Must show:')).violations.map((v) => '$v'),
+      contains('5:print lib/src/top/t.dart 2'),
+    );
+  });
+
   test('a cycle in the table fails', () {
     const cyclic = LayerRules(
       package: 'sample',
