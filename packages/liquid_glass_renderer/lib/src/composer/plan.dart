@@ -289,9 +289,12 @@ void _resolveGeometry(
       if (policy.dropsFrost &&
           below.lead.isBand &&
           below.members.length == 1 &&
-          read.frost > 0 &&
-          below.lead.ask.look.need.frost <= read.frost) {
-        frostLeftOut = math.max(frostLeftOut, below.lead.ask.look.need.frost);
+          read.leadShaderFrost > 0 &&
+          below.lead.ask.look.need.shaderFrost <= read.leadShaderFrost) {
+        frostLeftOut = math.max(
+          frostLeftOut,
+          below.lead.ask.look.need.shaderFrost,
+        );
         continue;
       }
       read.holds.add(below);
@@ -308,9 +311,11 @@ void _resolveGeometry(
       clip: read.lead.clip,
       holdsGlass: read.holds.isNotEmpty,
       glassFrost: read.lead.isBand
-          ? (read.members.length > 1 ? read.members[1].ask.look.need.frost : 0)
-          : lead.need.frost,
-      bandFrost: read.lead.isBand ? lead.need.frost : null,
+          ? (read.members.length > 1
+                ? read.members[1].ask.look.need.shaderFrost
+                : 0)
+          : lead.need.shaderFrost,
+      bandFrost: read.lead.isBand ? lead.need.shaderFrost : null,
       frostLeftOut: frostLeftOut,
       filter: page == null ? null : (page.key, page.blendMode),
     );

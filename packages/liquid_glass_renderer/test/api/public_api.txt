@@ -25,13 +25,17 @@ final class CopyNeed
     required double devicePixelRatio,
     required int maxShare,
   })
-  const CopyNeed(double devicePixelRatio, {int share = ..., double frost = ...})
+  const CopyNeed(
+    double devicePixelRatio, {
+    int share = ...,
+    double shaderFrost = ...,
+  })
   bool bandFits(CopyNeed glass)
   final double devicePixelRatio
   static CopyNeed? edgeFrost(double sigma, {required double devicePixelRatio})
-  final double frost
   static CopyNeed? glassFrost(double sigma, {required double devicePixelRatio})
   double get reach
+  final double shaderFrost
   final int share
   overrides: ==, hashCode
 final class DirtyLog
@@ -55,7 +59,7 @@ final class FilterLook
   final bool anyGrid
   final GlassBody body
   final bool drawsBand
-  double get frosts
+  double get frostSigma
   final Object? key
   final CopyNeed need
   static const FilterLook none
@@ -169,13 +173,13 @@ final class GlassRead
   bool changed
   bool get flat
   static const double flatFrost
-  double get frost
   late ReadGeometry geometry
   GeometryKind geometryKind
   List<GlassBody> get glass
   final List<GlassRead> holds
   int inside
   final SiteFacts lead
+  double get leadShaderFrost
   int level
   ReadLimit limit
   int? liveGroup

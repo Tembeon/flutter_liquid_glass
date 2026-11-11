@@ -97,9 +97,9 @@ bool encloses(Rect outer, Rect inner) =>
 /// copy's grid.
 @immutable
 final class CopyNeed {
-  /// A need of [share] device pixels a copy pixel, frosted by [frost]; by
+  /// A need of [share] device pixels a copy pixel, frosted by [shaderFrost]; by
   /// default a copy at the screen's pixels with nothing frosted over it.
-  const CopyNeed(this.devicePixelRatio, {this.share = 1, this.frost = 0});
+  const CopyNeed(this.devicePixelRatio, {this.share = 1, this.shaderFrost = 0});
 
   /// The need of a copy Impeller blurs by at least [sigma] logical pixels
   /// along each axis: halved while the blur spans 2.5 of its pixels, to at
@@ -142,7 +142,11 @@ final class CopyNeed {
     minTexels: 1,
     nearBlurScale: true,
   )) {
-    final share? => CopyNeed(devicePixelRatio, share: share, frost: sigma),
+    final share? => CopyNeed(
+      devicePixelRatio,
+      share: share,
+      shaderFrost: sigma,
+    ),
     null => null,
   };
 
@@ -154,7 +158,11 @@ final class CopyNeed {
     double sigma, {
     required double devicePixelRatio,
   }) => switch (_shaderFrostShare(sigma * devicePixelRatio, minTexels: 1.5)) {
-    final share? => CopyNeed(devicePixelRatio, share: share, frost: sigma),
+    final share? => CopyNeed(
+      devicePixelRatio,
+      share: share,
+      shaderFrost: sigma,
+    ),
     null => null,
   };
 
@@ -166,15 +174,16 @@ final class CopyNeed {
 
   /// The frost a shader draws over the copy, in logical pixels: 0 where the
   /// copy is blurred instead or nothing frosts it.
-  final double frost;
+  final double shaderFrost;
 
   /// The logical pixels a shader frosting the copy reads around a region:
   /// its taps reach 2.8 frosts, one copy pixel more sampled bilinearly.
   ///
   /// A copy drawn at the screen's pixels in place of the ones asked reaches
   /// less: its taps lie at most a sigma wider and its pixel is smaller.
-  double get reach => frost > 0
-      ? (2.8 * _frostResidual(frost * devicePixelRatio, share: share) + share) /
+  double get reach => shaderFrost > 0
+      ? (2.8 * _frostResidual(shaderFrost * devicePixelRatio, share: share) +
+                share) /
             devicePixelRatio
       : 0;
 
@@ -184,7 +193,10 @@ final class CopyNeed {
   /// unlike a loop of twelve.
   bool bandFits(CopyNeed glass) {
     final share = min(this.share, glass.share);
-    final residual = _frostResidual(frost * devicePixelRatio, share: share);
+    final residual = _frostResidual(
+      shaderFrost * devicePixelRatio,
+      share: share,
+    );
     return residual / share <= 2.8;
   }
 
@@ -193,10 +205,10 @@ final class CopyNeed {
       other is CopyNeed &&
       other.devicePixelRatio == devicePixelRatio &&
       other.share == share &&
-      other.frost == frost;
+      other.shaderFrost == shaderFrost;
 
   @override
-  int get hashCode => Object.hash(devicePixelRatio, share, frost);
+  int get hashCode => Object.hash(devicePixelRatio, share, shaderFrost);
 }
 
 /// The pixel grid a copy is drawn on: [share] device pixels of the screen

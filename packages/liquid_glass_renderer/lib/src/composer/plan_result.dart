@@ -85,8 +85,10 @@ final class GlassRead {
       if (member.ask.role is GlassSiteRole) member.ask.look.body,
   ];
 
-  /// The frost of the glass it leads, in logical pixels: 0 under a band.
-  double get frost => lead.isBand ? 0 : lead.ask.look.need.frost;
+  /// The frost the shader of the glass it leads draws over the copy, in
+  /// logical pixels: 0 under a band.
+  double get leadShaderFrost =>
+      lead.isBand ? 0 : lead.ask.look.need.shaderFrost;
 
   /// Whether what it holds differs from the last frame.
   bool changed = false;
@@ -94,7 +96,8 @@ final class GlassRead {
   /// Whether every glass drawn from it frosts what it shows by [flatFrost]
   /// or more, so its copy leaves out what that frost hides: a blur of what
   /// lies under it.
-  bool get flat => members.every((site) => site.ask.look.frosts >= flatFrost);
+  bool get flat =>
+      members.every((site) => site.ask.look.frostSigma >= flatFrost);
 
   /// The least frost, a sigma in logical pixels, that hides what a flat copy
   /// leaves out: a little under the 2.2 of a bar of regular glass. Glass

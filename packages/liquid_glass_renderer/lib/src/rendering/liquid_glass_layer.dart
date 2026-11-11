@@ -980,7 +980,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           devicePixelRatio: dpr,
           maxShare: GlassCopyTuning.maxCopyShare,
         );
-    final frost = need.frost;
+    final frost = need.shaderFrost;
     final appearance = _uniformAppearance ?? defaultAppearance;
     _frame = (screen: screen, logical: logical, frost: frost);
     return SiteAsk(
@@ -992,7 +992,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           appearance.colorModel,
           appearance.visibility,
           dpr,
-          need.frost,
+          need.shaderFrost,
           need.share,
           _colorModelFamily,
           // The shader's bevel asks how large a surface is only between these

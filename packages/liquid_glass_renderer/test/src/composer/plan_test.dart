@@ -56,7 +56,7 @@ final class _Scene implements PlanScenery {
 
 FilterLook _look(int look, {bool frost = true}) => FilterLook(
   key: look,
-  need: frost ? const CopyNeed(1, share: 2, frost: 8) : const CopyNeed(1),
+  need: frost ? const CopyNeed(1, share: 2, shaderFrost: 8) : const CopyNeed(1),
   drawsBand: frost,
 );
 
@@ -301,7 +301,7 @@ void main() {
           reads: band.ask.reads,
           look: const FilterLook(
             key: 'band',
-            need: CopyNeed(1, share: 2, frost: 2),
+            need: CopyNeed(1, share: 2, shaderFrost: 2),
           ),
           role: const BandSiteRole(_bandLook),
         ),
@@ -311,7 +311,7 @@ void main() {
         glass._with(
           look: const FilterLook(
             key: 'a',
-            need: CopyNeed(1, share: 2, frost: 2),
+            need: CopyNeed(1, share: 2, shaderFrost: 2),
             drawsBand: true,
           ),
         ),
@@ -343,7 +343,7 @@ void main() {
         top._with(
           look: const FilterLook(
             key: 'thick',
-            need: CopyNeed(1, share: 4, frost: 20),
+            need: CopyNeed(1, share: 4, shaderFrost: 20),
           ),
         ),
       );
@@ -384,7 +384,7 @@ void main() {
 
     FilterLook look(double frost, {PageFilter? page}) => FilterLook(
       key: 'glass',
-      need: CopyNeed(2.625, share: 2, frost: frost),
+      need: CopyNeed(2.625, share: 2, shaderFrost: frost),
       page: page,
     );
 

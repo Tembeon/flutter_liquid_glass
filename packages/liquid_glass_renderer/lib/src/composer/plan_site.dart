@@ -130,9 +130,9 @@ final class FilterLook {
 
   /// The sigma, in logical pixels, it frosts what it shows by, whichever way:
   /// its copy's frost or its page's blur, the lesser axis of one.
-  double get frosts => switch (page?.blur) {
-    (final x, final y) => math.max(need.frost, math.min(x, y)),
-    null => need.frost,
+  double get frostSigma => switch (page?.blur) {
+    (final x, final y) => math.max(need.shaderFrost, math.min(x, y)),
+    null => need.shaderFrost,
   };
 
   @override
