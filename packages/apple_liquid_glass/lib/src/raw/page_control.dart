@@ -198,12 +198,13 @@ class RawGlassPageControl extends StatefulWidget {
 }
 
 class _RawGlassPageControlState extends State<RawGlassPageControl>
-    with ControlStates<RawGlassPageControl> {
+    with
+        ControlStates<RawGlassPageControl>,
+        ControlledValue<RawGlassPageControl> {
   late PageControlMotion _motion = _create();
   late MotionSelection<GlassPageControlPose> _pose = _poseOf();
   late final _PageControlInput _input = _PageControlInput(this);
   late final List<Interaction> _interactions = [_input];
-  bool _returning = false;
 
   int get _count => math.max(0, widget.count);
 
@@ -230,6 +231,12 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
   WidgetStatesController? get givenStates => widget.statesController;
 
   @override
+  MotionClock get valueClock => _motion.clock;
+
+  @override
+  void followWidget() => _setPage(_page);
+
+  @override
   void writeStates() {
     widgetStates.update(WidgetState.disabled, !_enabled);
     if (!_enabled) widgetStates.update(WidgetState.pressed, false);
@@ -245,7 +252,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
       return;
     }
     if (widget.backgroundStyle != oldWidget.backgroundStyle) _pose = _poseOf();
-    _setPage(_page);
+    followWidget();
   }
 
   void _setPage(int page) {
@@ -256,11 +263,10 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
   void _deliver(PageControlEvent event) {
     switch (event) {
       case PageControlPicked(:final page, :final scrubbed):
-        if (page != _page) widget.onChanged?.call(page);
         if (scrubbed) _input.feel(page);
-        // The build that follows shows the page the app passes by then, so
-        // a control whose app does not follow returns to its page.
-        setState(() => _returning = true);
+        tellApp(() {
+          if (page != _page) widget.onChanged?.call(page);
+        });
     }
   }
 
@@ -282,11 +288,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
   Size get _size => _motion.size;
 
   @override
-  Widget build(BuildContext context) {
-    if (_returning) {
-      _returning = false;
-      _setPage(_page);
-    }
+  Widget buildControl(BuildContext context) {
     final rtl = Directionality.maybeOf(context) == TextDirection.rtl;
     if (rtl != _input.rtl) {
       _input.rtl = rtl;

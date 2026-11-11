@@ -444,4 +444,53 @@ void main() {
     }
     expect(pose!.page, 3);
   });
+
+  testWidgets('a change raised while the framework builds does not throw '
+      'and reaches the app in the next frame', (tester) async {
+    var page = 2;
+    var raise = false;
+    late StateSetter rebuild;
+    late PageControlMotion motion;
+    await tester.pumpWidget(
+      _app(
+        StatefulBuilder(
+          builder: (context, setState) {
+            rebuild = setState;
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                if (raise) {
+                  raise = false;
+                  motion.pointerUp(motion.clock.now, 1000, width: 10);
+                }
+                return RawGlassPageControl(
+                  count: 5,
+                  page: page,
+                  onChanged: (next) => setState(() => page = next),
+                  builder: (context, details) => const SizedBox.expand(),
+                );
+              },
+            );
+          },
+        ),
+      ),
+    );
+    motion =
+        tester
+                .widget<MotionScope>(
+                  find.descendant(
+                    of: find.byType(RawGlassPageControl),
+                    matching: find.byType(MotionScope),
+                  ),
+                )
+                .motion
+            as PageControlMotion;
+    motion.pointerDown(motion.clock.now, 1000);
+    rebuild(() => raise = true);
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(page, 2);
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(page, 3);
+    expect(motion.page, 3);
+  });
 }
