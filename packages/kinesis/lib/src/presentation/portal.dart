@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/presentation/presentation.dart';
+import 'package:kinesis/src/presentation/session.dart';
 import 'package:kinesis/widgets.dart';
 
 /// Presents and dismisses the presentation of a [PresentationPortal].
@@ -14,7 +14,7 @@ final class PresentationPortalController {
   _PresentationPortalState? _portal;
 
   /// Whether the presentation shows, leaving included.
-  bool get isPresented => _portal?._motion != null;
+  bool get isPresented => _portal?._session.motion != null;
 
   /// Presents at the clock's time: inside an input, the input's stamp. A
   /// presentation on its way out comes back: its motion opens again from
@@ -70,23 +70,22 @@ class _PresentationPortalState extends State<PresentationPortal>
     implements PresentationShell, PopEntry<Object?> {
   final OverlayPortalController _overlay = OverlayPortalController();
   final ValueNotifier<bool> _canPop = ValueNotifier<bool>(true);
-  final ValueNotifier<bool> _modal = ValueNotifier<bool>(true);
-  final ValueNotifier<bool> _inert = ValueNotifier<bool>(false);
   final FocusScopeNode _scope = FocusScopeNode(
     debugLabel: 'PresentationPortal',
   );
-  Presented? _motion;
-  VoidCallback? _lease;
+  late final PresentationSession _session;
   ModalRoute<Object?>? _route;
-  ScrollPosition? _scroll;
   FocusNode? _restore;
-  Object? _result;
-  bool _leaving = false;
 
   @override
   void initState() {
     super.initState();
-    _scopeClock = MotionClockScope.of(context);
+    final clock = MotionClockScope.of(context);
+    _session = PresentationSession(
+      presentation: () => widget.presentation,
+      scopeClock: () => clock,
+    );
+    _session.modal.addListener(_trap);
     widget.controller._portal = this;
   }
 
@@ -102,12 +101,7 @@ class _PresentationPortalState extends State<PresentationPortal>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final scroll = Scrollable.maybeOf(context)?.position;
-    if (!identical(scroll, _scroll)) {
-      _scroll?.isScrollingNotifier.removeListener(_scrolled);
-      _scroll = scroll;
-      scroll?.isScrollingNotifier.addListener(_scrolled);
-    }
+    _session.followScroll(Scrollable.maybeOf(context)?.position, _scrolled);
     final route = ModalRoute.of(context);
     if (identical(route, _route)) return;
     _route?.unregisterPopEntry(this);
@@ -116,14 +110,11 @@ class _PresentationPortalState extends State<PresentationPortal>
   }
 
   void _scrolled() {
-    if (!widget.presentation.dismissesOnScroll) return;
-    if (_scroll?.isScrollingNotifier.value ?? false) {
-      dismiss(DismissTrigger.scroll);
-    }
+    if (widget.presentation.dismissesOnScroll) dismiss(DismissTrigger.scroll);
   }
 
   void _tappedOutside() {
-    if (!_modal.value) dismiss(DismissTrigger.outsideTap);
+    if (!_session.modal.value) dismiss(DismissTrigger.outsideTap);
   }
 
   @override
@@ -132,93 +123,51 @@ class _PresentationPortalState extends State<PresentationPortal>
       widget.controller._portal = null;
     }
     _route?.unregisterPopEntry(this);
-    _scroll?.isScrollingNotifier.removeListener(_scrolled);
+    _session.modal.removeListener(_trap);
     _end();
+    _session.dispose();
     _canPop.dispose();
-    _modal.dispose();
-    _inert.dispose();
     _scope.dispose();
     super.dispose();
   }
 
-  // The motion's clock, or before there is one the clock of the place the
-  // portal sits in.
-  late final MotionClock _scopeClock;
-  MotionClock get _clock => _motion?.clock ?? _scopeClock;
-
   void _present() {
-    final t = _clock.now;
-    final shown = _motion;
-    if (shown != null) {
-      if (!_leaving) return;
-      _setLeaving(false);
-      _result = null;
+    if (_session.motion != null) {
+      if (!_session.isLeaving) return;
+      _session.reopen();
       _canPop.value = false;
-      shown.open(t);
       _scope.requestFocus();
       return;
     }
-    final presentation = widget.presentation;
-    final (motion, lease) = commitPresentation(
-      presentation,
-      PresentationEnvironment.of(context),
-    );
-    _motion = motion;
-    _lease = lease;
-    _setLeaving(false);
+    _session.commit(PresentationEnvironment.of(context));
+    final motion = _session.motion;
     _restore = FocusManager.instance.primaryFocus;
     _canPop.value = false;
-    _modal.value = presentation.modalOf(motion);
     _trap();
     _overlay.show();
     // After the frame: the scope's node joins the focus tree only in the
     // build that shows the overlay, and a scope node asked before that drops
     // the request; the clock's publish phase may come before that build.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (identical(_motion, motion) && !_leaving) _scope.requestFocus();
+      if (identical(_session.motion, motion) && !_session.isLeaving) {
+        _scope.requestFocus();
+      }
     });
   }
 
   void _end() {
-    if (_motion == null) return;
-    _lease?.call();
-    _lease = null;
-    _motion = null;
-    _setLeaving(false);
+    if (_session.motion == null) return;
+    _session.end();
     _canPop.value = true;
-    final result = _result;
-    _result = null;
-    widget.presentation.dismissed(result);
   }
 
   @override
   void dismiss(DismissTrigger trigger, [Object? result]) {
-    final motion = _motion;
-    if (motion == null || _leaving) return;
-    final presentation = widget.presentation;
-    if (!presentation.dismiss.allows(trigger)) {
-      presentation.onVeto?.call(trigger);
-      return;
-    }
-    _setLeaving(true);
+    if (_session.motion == null || _session.isLeaving) return;
+    if (!_session.admits(trigger)) return;
+    final resolved = _session.resultOf(result);
     _restoreFocus();
-    _result = presentation.resultOf(result);
-    if (!motion.leave(motion.clock.now, trigger)) didLeave();
-  }
-
-  void _setLeaving(bool leaving) {
-    _leaving = leaving;
-    if (_inert.value == leaving) return;
-    if (SchedulerBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      // A leave the content reports while it builds applies before the
-      // next build: the touch gate already holds.
-      _clock.schedulePublish(() {
-        if (mounted) _inert.value = _leaving;
-      });
-      return;
-    }
-    _inert.value = leaving;
+    if (!_session.leave(trigger, resolved)) didLeave();
   }
 
   // An opener that is gone hands the focus to the scope around the portal,
@@ -237,8 +186,8 @@ class _PresentationPortalState extends State<PresentationPortal>
 
   @override
   bool canDismiss(DismissTrigger trigger) =>
-      _motion != null &&
-      !_leaving &&
+      _session.motion != null &&
+      !_session.isLeaving &&
       widget.presentation.dismiss.allows(trigger);
 
   @override
@@ -246,7 +195,7 @@ class _PresentationPortalState extends State<PresentationPortal>
 
   @override
   void didLeave() {
-    if (_motion == null) return;
+    if (_session.motion == null) return;
     _end();
     _restoreFocus();
     _restore = null;
@@ -254,20 +203,15 @@ class _PresentationPortalState extends State<PresentationPortal>
   }
 
   @override
-  void modalityChanged() {
-    final motion = _motion;
-    if (motion == null) return;
-    _modal.value = widget.presentation.modalOf(motion);
-    _trap();
-  }
+  void modalityChanged() => _session.modalityChanged();
 
   // Tab stays inside a modal presentation, as in a dialog.
-  void _trap() => _scope.traversalEdgeBehavior = _modal.value
+  void _trap() => _scope.traversalEdgeBehavior = _session.modal.value
       ? TraversalEdgeBehavior.closedLoop
       : TraversalEdgeBehavior.parentScope;
 
   @override
-  bool get isLeaving => _leaving;
+  bool get isLeaving => _session.isLeaving;
 
   @override
   void beginInteraction() {}
@@ -317,14 +261,14 @@ class _PresentationPortalState extends State<PresentationPortal>
   );
 
   Widget _content(BuildContext context) {
-    final motion = _motion;
+    final motion = _session.motion;
     if (motion == null) return const SizedBox.shrink();
     final presentation = widget.presentation;
     final content = Stack(
       fit: StackFit.expand,
       children: [
         ValueListenableBuilder<bool>(
-          valueListenable: _modal,
+          valueListenable: _session.modal,
           builder: (context, modal, _) => modal
               ? presentationBarrier(
                   dismissible: presentation.dismiss.allows(
@@ -340,7 +284,7 @@ class _PresentationPortalState extends State<PresentationPortal>
           child: FocusScope(
             node: _scope,
             child: PresentationRoot(
-              isLeaving: () => _leaving,
+              isLeaving: () => _session.isLeaving,
               allows: presentation.dismiss.allows,
               dismiss: dismiss,
               label: presentation.semanticsLabel,
@@ -365,8 +309,8 @@ class _PresentationPortalState extends State<PresentationPortal>
     // screen, the presentation and its anchor included; in a container of
     // its own it blocks nothing, and what is below stays readable.
     return PresentationInert(
-      isLeaving: () => _leaving,
-      leaving: _inert,
+      isLeaving: () => _session.isLeaving,
+      leaving: _session.inert,
       child: Semantics(
         container: true,
         explicitChildNodes: true,

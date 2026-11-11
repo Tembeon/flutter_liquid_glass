@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/presentation/presentation.dart';
+import 'package:kinesis/src/presentation/session.dart';
 import 'package:kinesis/widgets.dart';
 import 'package:meta/meta.dart';
 
@@ -15,29 +16,20 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   /// The name screen readers announce for the presented content.
   String? get semanticsLabel;
 
-  Presented? _motion;
-  VoidCallback? _lease;
-
-  // The motion's clock, or before there is one the clock of the place the
-  // route shows in.
-  MotionClock? _scopeClock;
-  MotionClock get _clock =>
-      _motion?.clock ??
-      (_scopeClock ??= MotionClockScope.of(navigator!.context));
+  late final PresentationSession _session = PresentationSession(
+    presentation: () => presentation,
+    scopeClock: () => MotionClockScope.of(navigator!.context),
+    leave: leave,
+    modal: () => modal,
+    ended: (result) => didFinish(result as T?),
+  );
   late final _RouteShell<T> _shell = _RouteShell(this);
 
   late final _StatusProjection _projection = _StatusProjection();
   Ticker? _settle;
   DismissTrigger _trigger = DismissTrigger.programmatic;
-  bool _finished = false;
   bool _removeAtEnd = false;
   bool _popped = false;
-  ValueNotifier<bool>? _barrierModal;
-  ValueNotifier<bool> get _modalNow =>
-      _barrierModal ??= ValueNotifier<bool>(modal);
-  final ValueNotifier<bool> _closing = ValueNotifier<bool>(false);
-  bool _disposed = false;
-  T? _result;
   CapturedThemes? _themes;
 
   /// Builds the content, which runs the [presentation]'s motion and reports
@@ -45,7 +37,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   @protected
   Widget buildContent(BuildContext context) => PresentedContent(
     presentation: presentation,
-    motion: _motion!,
+    motion: _session.motion!,
     shell: _shell,
   );
 
@@ -53,11 +45,11 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   /// there is nothing to close, which ends the route at once.
   @protected
   bool leave(DismissTrigger trigger) =>
-      _motion?.leave(_clock.now, trigger) ?? false;
+      _session.motion?.leave(_session.clock.now, trigger) ?? false;
 
   bool _allows(DismissTrigger trigger) => presentation.dismiss.allows(trigger);
 
-  T? _resultFor(T? result) => presentation.resultOf(result) as T?;
+  T? _resultFor(T? result) => _session.resultOf(result) as T?;
 
   /// Called when the route is presented, by a push or without one, before
   /// its content builds: the [presentation]'s motion is made and opened at
@@ -66,11 +58,8 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   @mustCallSuper
   void didPresent() {
     final navigator = this.navigator;
-    if (navigator == null || _motion != null) return;
-    final environment = PresentationEnvironment.of(navigator.context);
-    final (motion, lease) = commitPresentation(presentation, environment);
-    _motion = motion;
-    _lease = lease;
+    if (navigator == null || _session.motion != null) return;
+    _session.commit(PresentationEnvironment.of(navigator.context));
   }
 
   /// Whether the route is modal now: its barrier absorbs taps and hides
@@ -78,25 +67,14 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   /// does not dim is not; call [modalityChanged] when the answer changes.
   @protected
   bool get modal {
-    final motion = _motion;
+    final motion = _session.motion;
     return motion == null || presentation.modalOf(motion);
   }
 
   /// Applies a change of [modal] to the barrier; one reported while the
   /// frame builds, lays out or paints applies in the motion clock's coming
   /// publish phase, before the next frame builds.
-  void modalityChanged() {
-    final barrier = _barrierModal;
-    if (barrier == null || modal == barrier.value) return;
-    if (SchedulerBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      _clock.schedulePublish(() {
-        if (isActive) modalityChanged();
-      });
-      return;
-    }
-    barrier.value = modal;
-  }
+  void modalityChanged() => _session.modalityChanged();
 
   /// Called once, when the route's close has finished or the route was
   /// disposed before that, with the result the route completed with.
@@ -104,7 +82,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   void didFinish(T? result) => presentation.dismissed(result);
 
   /// Whether the route was dismissed and its content closes.
-  bool get isLeaving => _projection.status == AnimationStatus.reverse;
+  bool get isLeaving => _session.isLeaving;
 
   bool _interacting = false;
 
@@ -129,7 +107,9 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     if (!_interacting) return;
     _interacting = false;
     navigator?.didStopUserGesture();
-    if (isLeaving) {
+    // The status, not isLeaving: once a popped route's close has ended the
+    // navigator holds it dismissed, and the gesture's end leaves it alone.
+    if (_projection.status == AnimationStatus.reverse) {
       if (_previous case final ModalRoute<Object?> revealed) {
         _focusRoute(revealed);
       }
@@ -175,7 +155,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   /// Reports that the content's close reached its end: the route goes.
   /// Later reports change nothing.
   void didLeave() {
-    if (_finished) return;
+    if (_session.ended) return;
     _completeSettle();
     if (_removeAtEnd) {
       // removeRoute disposes the route itself; a dismissed status would ask
@@ -210,10 +190,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     final nav = navigator;
     if (nav == null || !isActive || isLeaving) return;
     if (trigger != DismissTrigger.programmatic) {
-      if (!_allows(trigger)) {
-        presentation.onVeto?.call(trigger);
-        return;
-      }
+      if (!_session.admits(trigger)) return;
       if (super.popDisposition != RoutePopDisposition.pop) {
         super.onPopInvokedWithResult(false, result);
         presentation.onVeto?.call(trigger);
@@ -225,10 +202,10 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
       nav.pop<T>(result);
       return;
     }
-    _result = _resultFor(result);
+    final resolved = _resultFor(result);
     _completeSettle();
-    _close();
-    if (leave(trigger)) {
+    _projection.update(AnimationStatus.reverse);
+    if (_session.leave(trigger, resolved)) {
       _removeAtEnd = true;
     } else {
       _remove();
@@ -251,7 +228,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   @override
   bool get popGestureEnabled {
     final navigator = this.navigator;
-    return _motion is PredictiveBack &&
+    return _session.motion is PredictiveBack &&
         navigator != null &&
         !navigator.userGestureInProgress &&
         isCurrent &&
@@ -265,7 +242,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   /// gone, as `PredictiveBackRoute` counts it.
   @override
   void handleStartBackGesture({double progress = 0}) {
-    final motion = _motion;
+    final motion = _session.motion;
     if (motion is! PredictiveBack || _backing) return;
     _cancelReturn?.call();
     _cancelReturn = null;
@@ -282,7 +259,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   /// Moves the presentation with the gesture.
   @override
   void handleUpdateBackGestureProgress({required double progress}) {
-    final motion = _motion;
+    final motion = _session.motion;
     if (!_backing || motion is! PredictiveBack) return;
     final t = motion.clock.now;
     final p = 1 - progress;
@@ -304,7 +281,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   void handleCancelBackGesture() => _endBack(commits: false);
 
   void _endBack({required bool commits}) {
-    final motion = _motion;
+    final motion = _session.motion;
     if (!_backing || motion is! PredictiveBack) return;
     _backing = false;
     final t = motion.clock.now;
@@ -339,8 +316,6 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     );
   }
 
-  ScrollPosition? _scroll;
-
   /// Notes where the route is shown from: the content carries the themes
   /// around [from], as a presentation shown from a source carries the
   /// source's look, and a presentation that asks for it goes when the
@@ -349,21 +324,10 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   void presentFrom(BuildContext from, NavigatorState to) {
     _themes = InheritedTheme.capture(from: from, to: to.context);
     if (!presentation.dismissesOnScroll) return;
-    _unfollowScroll();
-    final scroll = _scroll = Scrollable.maybeOf(from)?.position;
-    scroll?.isScrollingNotifier.addListener(_scrolled);
+    _session.followScroll(Scrollable.maybeOf(from)?.position, _scrolled);
   }
 
-  void _scrolled() {
-    if (_scroll?.isScrollingNotifier.value ?? false) {
-      dismiss(DismissTrigger.scroll);
-    }
-  }
-
-  void _unfollowScroll() {
-    _scroll?.isScrollingNotifier.removeListener(_scrolled);
-    _scroll = null;
-  }
+  void _scrolled() => dismiss(DismissTrigger.scroll);
 
   bool get _trapsFocus => false;
 
@@ -460,14 +424,13 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     // A route already closing under its cover keeps its result and its
     // close; the pop only makes it leave as a popped route.
     final closing = _removeAtEnd;
-    final resolved = closing ? _result : _resultFor(result);
+    final resolved = closing ? _session.result as T? : _resultFor(result);
     if (!super.didPop(resolved)) return false;
     _popped = true;
     _removeAtEnd = false;
-    _result = resolved;
     _completeSettle();
-    _close();
-    if (!closing && !leave(trigger)) didLeave();
+    _projection.update(AnimationStatus.reverse);
+    if (!closing && !_session.leave(trigger, resolved)) didLeave();
     return true;
   }
 
@@ -475,9 +438,9 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   @nonVirtual
   Widget buildModalBarrier() => PresentationInert(
     isLeaving: () => isLeaving,
-    leaving: _closing,
+    leaving: _session.inert,
     child: ValueListenableBuilder<bool>(
-      valueListenable: _modalNow,
+      valueListenable: _session.modal,
       builder: (context, modal, _) => modal
           ? presentationBarrier(
               dismissible: _allows(DismissTrigger.outsideTap),
@@ -510,24 +473,11 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     return _themes?.wrap(content) ?? content;
   }
 
-  // A route never comes back once it leaves, so its content stays inert
-  // from here on.
-  void _close() {
-    _projection.update(AnimationStatus.reverse);
-    if (SchedulerBinding.instance.schedulerPhase ==
-        SchedulerPhase.persistentCallbacks) {
-      _clock.schedulePublish(() {
-        if (!_disposed) _closing.value = true;
-      });
-      return;
-    }
-    _closing.value = true;
-  }
-
   // A route removed from under others still tells its PopScopes it went.
   void _remove() {
-    super.onPopInvokedWithResult(true, _result);
-    navigator?.removeRoute(this, _result);
+    final result = _session.result as T?;
+    super.onPopInvokedWithResult(true, result);
+    navigator?.removeRoute(this, result);
   }
 
   void _completeSettle() {
@@ -536,12 +486,8 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   }
 
   void _finish() {
-    _unfollowScroll();
-    if (_finished) return;
-    _finished = true;
-    _lease?.call();
-    _lease = null;
-    didFinish(_result);
+    _session.followScroll(null, _scrolled);
+    _session.end();
   }
 
   @override
@@ -551,9 +497,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     _finish();
     super.dispose();
     _projection.dispose();
-    _barrierModal?.dispose();
-    _closing.dispose();
-    _disposed = true;
+    _session.dispose();
   }
 }
 
@@ -665,7 +609,7 @@ class _ContentRootState extends State<_ContentRoot>
   @override
   void initState() {
     super.initState();
-    widget.route._modalNow.addListener(_trap);
+    widget.route._session.modal.addListener(_trap);
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -716,7 +660,7 @@ class _ContentRootState extends State<_ContentRoot>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    widget.route._modalNow.removeListener(_trap);
+    widget.route._session.modal.removeListener(_trap);
     super.dispose();
   }
 
@@ -725,7 +669,7 @@ class _ContentRootState extends State<_ContentRoot>
     final route = widget.route;
     return PresentationInert(
       isLeaving: () => route.isLeaving,
-      leaving: route._closing,
+      leaving: route._session.inert,
       child: PresentationRoot(
         isLeaving: () => route.isLeaving,
         allows: (trigger) => route.isActive && route._allows(trigger),
