@@ -92,7 +92,7 @@ class MenuMotion extends Motion with Presented {
       MotionValue<double>(0, spring: tuning.openSpring),
       rest: () => _progressRest,
     );
-    _kicks = own(_KickLoop(this));
+    _kicks = own(_KickLoop(tuning));
     _root = _build(reversed: false);
     _rootHeight = own(
       MotionValue<double>(_visibleRoot(_root), spring: tuning.growSpring),
@@ -196,14 +196,6 @@ class MenuMotion extends Motion with Presented {
   static const _closeKickSlot = #closeKick;
 
   late final _KickLoop _kicks;
-  MotionValue<double>? _openReference;
-  MotionValue<double>? _closeReference;
-
-  // A kick sleeps only while its input, the reference's velocity, has
-  // died out.
-  static bool _referenceRests(MotionValue<double> spring, double t) =>
-      (spring.valueAt(t) - spring.target).abs() < MenuTuning.kickRestValue &&
-      spring.velocityAt(t).abs() < MenuTuning.kickRestVelocity;
   late final FusionTurns _fusions = FusionTurns(tuning);
   final MenuFusion _fusion = MenuFusion();
 
@@ -212,9 +204,6 @@ class MenuMotion extends Motion with Presented {
   double _left = 0;
   double _anchor = 0;
   bool _down = true;
-  double _amplitude = 1;
-  double _closeAmplitude = 1;
-  double _sourceAmplitude = 1;
   double _radiusFrom = 0;
   double _closeRadius = 0;
   double _closeProgress = 1;
@@ -1609,8 +1598,7 @@ class MenuMotion extends Motion with Presented {
     if (returned ||
         (_phase == _Phase.closing &&
             _progress.restsAt(t, _progressRest) &&
-            _kicks.menu.isAtRest &&
-            _kicks.button.isAtRest &&
+            _kicks.isAtRest &&
             _fusionAtRest(t))) {
       _phase = _Phase.idle;
       _highlighted = null;
@@ -1618,10 +1606,7 @@ class MenuMotion extends Motion with Presented {
       _dropCards(0);
       _cardContainerActive = false;
       scrollOffset = 0;
-      _kicks.menu.reset();
-      _kicks.button.reset();
-      _openReference = null;
-      _closeReference = null;
+      _kicks.rest();
     }
   }
 
@@ -1730,47 +1715,6 @@ class MenuMotion extends Motion with Presented {
   static double kickAmplitude(double height) =>
       _interpolate(_kickAmplitude, height);
 
-  static double _interpolate(List<(double, double)> table, double height) {
-    if (height <= table.first.$1) return table.first.$2;
-    for (var i = 1; i < table.length; i++) {
-      final (h1, a1) = table[i];
-      if (height <= h1) {
-        final (h0, a0) = table[i - 1];
-        return a0 + (a1 - a0) * (height - h0) / (h1 - h0);
-      }
-    }
-    return table.last.$2;
-  }
-
-  /// One frame of the kicks at time [t]; answers whether they need
-  /// another.
-  bool _stepKicks(double t, _DrivenKick menu, _DrivenKick button) {
-    if (_phase == _Phase.idle || !tuning.morph.kicks) return false;
-    const h = MenuTuning.kickIntegrationStep;
-    final mid = t - h / 2;
-    final opening = _phase == _Phase.opening;
-    final open = opening ? _openReference : null;
-    final close = _closeReference;
-    menu.integrate(
-      h,
-      opening ? tuning.openKickSpring : tuning.closeKickSpring,
-      open == null
-          ? 0
-          : tuning.openKickGain * _amplitude * open.velocityAt(mid),
-    );
-    button.integrate(
-      h,
-      tuning.sourceKickSpring,
-      close == null
-          ? 0
-          : tuning.sourceKickGain * _sourceAmplitude * close.velocityAt(mid),
-    );
-    return !(menu.isAtRest &&
-        button.isAtRest &&
-        (open == null || _referenceRests(open, t)) &&
-        (close == null || _referenceRests(close, t)));
-  }
-
   void _place(double sourceScale) {
     _sourceScale = sourceScale;
     final pressed = switch (_source) {
@@ -1826,9 +1770,7 @@ class MenuMotion extends Motion with Presented {
       _root = _build(reversed: reversed);
     }
     _rootHeight.snap(_now, height);
-    _amplitude = kickAmplitude(size.height);
-    _closeAmplitude = _interpolate(_closeKickAmplitude, size.height);
-    _sourceAmplitude = _interpolate(_sourceKickAmplitude, size.height);
+    _kicks.size(size.height);
   }
 
   void _open(double t, {double? sourceScale}) {
@@ -1858,10 +1800,7 @@ class MenuMotion extends Motion with Presented {
     if (tuning.morph.fuses && drawsSource) {
       _fusions.start(t, opening: true);
     }
-    final reference = MotionValue<double>(0, spring: tuning.openSpring);
-    reference.retarget(t, 1);
-    _openReference = reference;
-    _kicks.wake(t);
+    _kicks.open(t);
     final p = _cardFadeProgress(t);
     _cardFade = Ramp(from: fresh ? 1 : _cardFade.at(p), start: p);
     _progress.retarget(t, 1, spring: tuning.openSpring);
@@ -1917,10 +1856,7 @@ class MenuMotion extends Motion with Presented {
       _fusions.start(t, opening: false);
     }
     _relax(t);
-    final reference = MotionValue<double>(1, spring: tuning.closeSpring);
-    reference.retarget(t, 0);
-    _closeReference = reference;
-    _kicks.wake(t);
+    _kicks.close(t);
     final p = _cardFadeProgress(t);
     _cardFade = Ramp(
       from: _cardFade.at(p),
@@ -1943,13 +1879,7 @@ class MenuMotion extends Motion with Presented {
       );
     }
     if (!tuning.morph.kicks) return;
-    at(t + tuning.closeKickDelay, (double s) {
-      final kick = _kicks.menu;
-      final reach = tuning.closeKickReach * _closeAmplitude;
-      final room = (1 - kick.value / reach).clamp(0.0, 1.0);
-      kick.velocity += tuning.closeKickImpulse * _closeAmplitude * room;
-      _kicks.wake(s);
-    }, slot: _closeKickSlot);
+    at(t + tuning.closeKickDelay, _kicks.strike, slot: _closeKickSlot);
   }
 
   void _activate(double t, int card, int index) {

@@ -63,19 +63,110 @@ class _DrivenKick {
 /// the menu opens, closes or kicks. It steps up to three seconds of a
 /// longer gap, in which every kick rings out.
 final class _KickLoop extends MotionLoop {
-  _KickLoop(this._motion)
+  _KickLoop(this.tuning)
     : super(
         rate: 1 / MenuTuning.kickIntegrationStep,
         maxFrames: (3 / MenuTuning.kickIntegrationStep).round(),
       );
 
-  final MenuMotion _motion;
+  final MenuTuning tuning;
 
   final menu = _DrivenKick();
   final button = _DrivenKick();
 
+  // The menu's phase as the kicks see it: written where the menu's own
+  // phase is.
+  _Phase _phase = _Phase.idle;
+  MotionValue<double>? _openReference;
+  MotionValue<double>? _closeReference;
+  double _amplitude = 1;
+  double _closeAmplitude = 1;
+  double _sourceAmplitude = 1;
+
+  bool get isAtRest => menu.isAtRest && button.isAtRest;
+
+  /// Sizes the kicks for a menu [height] pixels tall.
+  void size(double height) {
+    _amplitude = _interpolate(_kickAmplitude, height);
+    _closeAmplitude = _interpolate(_closeKickAmplitude, height);
+    _sourceAmplitude = _interpolate(_sourceKickAmplitude, height);
+  }
+
+  /// The menu starts opening at [t]: the menu kick chases the velocity of
+  /// an opening spring played from [t].
+  void open(double t) {
+    _phase = _Phase.opening;
+    final reference = MotionValue<double>(0, spring: tuning.openSpring);
+    reference.retarget(t, 1);
+    _openReference = reference;
+    wake(t);
+  }
+
+  /// The menu starts closing at [t]: the button kick chases the velocity
+  /// of a closing spring played from [t].
+  void close(double t) {
+    _phase = _Phase.closing;
+    final reference = MotionValue<double>(1, spring: tuning.closeSpring);
+    reference.retarget(t, 0);
+    _closeReference = reference;
+    wake(t);
+  }
+
+  /// The close strikes the menu kick away from the button at [t], less
+  /// the nearer it already is to [MenuTuning.closeKickReach].
+  void strike(double t) {
+    final reach = tuning.closeKickReach * _closeAmplitude;
+    final room = (1 - menu.value / reach).clamp(0.0, 1.0);
+    menu.velocity += tuning.closeKickImpulse * _closeAmplitude * room;
+    wake(t);
+  }
+
+  /// The menu is gone: both kicks and their springs start from nothing.
+  void rest() {
+    _phase = _Phase.idle;
+    menu.reset();
+    button.reset();
+    _openReference = null;
+    _closeReference = null;
+  }
+
   @override
-  bool step(double t) => _motion._stepKicks(t, menu, button);
+  bool step(double t) => _step(t, menu, button);
+
+  /// One frame of [menuKick] and [buttonKick] at time [t]; answers whether
+  /// they need another.
+  bool _step(double t, _DrivenKick menuKick, _DrivenKick buttonKick) {
+    if (_phase == _Phase.idle || !tuning.morph.kicks) return false;
+    const h = MenuTuning.kickIntegrationStep;
+    final mid = t - h / 2;
+    final opening = _phase == _Phase.opening;
+    final open = opening ? _openReference : null;
+    final close = _closeReference;
+    menuKick.integrate(
+      h,
+      opening ? tuning.openKickSpring : tuning.closeKickSpring,
+      open == null
+          ? 0
+          : tuning.openKickGain * _amplitude * open.velocityAt(mid),
+    );
+    buttonKick.integrate(
+      h,
+      tuning.sourceKickSpring,
+      close == null
+          ? 0
+          : tuning.sourceKickGain * _sourceAmplitude * close.velocityAt(mid),
+    );
+    return !(menuKick.isAtRest &&
+        buttonKick.isAtRest &&
+        (open == null || _referenceRests(open, t)) &&
+        (close == null || _referenceRests(close, t)));
+  }
+
+  // A kick sleeps only while its input, the reference's velocity, has
+  // died out.
+  static bool _referenceRests(MotionValue<double> spring, double t) =>
+      (spring.valueAt(t) - spring.target).abs() < MenuTuning.kickRestValue &&
+      spring.velocityAt(t).abs() < MenuTuning.kickRestVelocity;
 
   /// Answers [read] with the kicks stepped on to time [t] as the loop will
   /// step them while nothing else changes, then puts them back.
@@ -90,7 +181,7 @@ final class _KickLoop extends MotionLoop {
     try {
       final end = (t * rate + 1e-6).floor();
       for (var k = (lastFrame * rate).round() + 1; k <= end; k++) {
-        if (!_motion._stepKicks(k / rate, menu, button)) break;
+        if (!_step(k / rate, menu, button)) break;
       }
       return read();
     } finally {
@@ -100,6 +191,18 @@ final class _KickLoop extends MotionLoop {
       button.velocity = bw;
     }
   }
+}
+
+double _interpolate(List<(double, double)> table, double height) {
+  if (height <= table.first.$1) return table.first.$2;
+  for (var i = 1; i < table.length; i++) {
+    final (h1, a1) = table[i];
+    if (height <= h1) {
+      final (h0, a0) = table[i - 1];
+      return a0 + (a1 - a0) * (height - h0) / (h1 - h0);
+    }
+  }
+  return table.last.$2;
 }
 
 /// A submenu card stacked over the menu.
