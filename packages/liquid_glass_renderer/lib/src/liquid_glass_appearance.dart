@@ -1,4 +1,3 @@
-import 'package:equatable/equatable.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_color_model.dart';
 import 'package:meta/meta.dart';
@@ -12,7 +11,8 @@ import 'package:meta/meta.dart';
 /// Colors and color transfers are display-referred. The defaults of the
 /// unnamed constructor may be retuned before 1.0; the version-named presets
 /// (`ios27*`) track Apple's appearance on that OS version.
-final class LiquidGlassAppearance with Equatable {
+@immutable
+final class LiquidGlassAppearance {
   /// Creates a per-shape glass appearance.
   ///
   /// The defaults may be retuned before 1.0.
@@ -111,5 +111,17 @@ final class LiquidGlassAppearance with Equatable {
   };
 
   @override
-  List<Object?> get props => [tint, visibility, colorModel];
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other.runtimeType == runtimeType &&
+          other is LiquidGlassAppearance &&
+          other.tint == tint &&
+          other.visibility == visibility &&
+          other.colorModel == colorModel;
+
+  @override
+  int get hashCode => Object.hash(tint, visibility, colorModel);
+
+  @override
+  String toString() => 'LiquidGlassAppearance($tint, $visibility, $colorModel)';
 }

@@ -968,8 +968,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
             (<ShapeGeometry>[shape], geometryToLayer),
           ],
         );
-        // By identity: ShapeGeometry is Equatable, so its hash would walk its
-        // appearance, shadows and transform on every lookup.
+        // By identity: ShapeGeometry compares by value, so its hash would walk
+        // its appearance, shadows and transform on every lookup.
         final members = Set<ShapeGeometry>.identity()..add(shape);
         // Joining a group can make it meet another: merge until none meets.
         for (var i = groups.length - 1; i >= 0; i--) {

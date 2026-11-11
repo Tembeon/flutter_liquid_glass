@@ -28,7 +28,6 @@ platforms:
   web:
 
 dependencies:
-  equatable: ^2.1.0
   flutter:
     sdk: flutter
   flutter_gpu:

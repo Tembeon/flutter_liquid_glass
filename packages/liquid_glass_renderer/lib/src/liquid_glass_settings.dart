@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:equatable/equatable.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_render_scope.dart';
@@ -17,7 +16,8 @@ import 'package:meta/meta.dart';
 /// Lighting strengths are display-referred. The defaults of the unnamed
 /// constructor may be retuned before 1.0; the version-named presets
 /// (`ios27*`) track Apple's appearance on that OS version.
-final class LiquidGlassSettings with Equatable {
+@immutable
+final class LiquidGlassSettings {
   /// Creates a material from optical and lighting controls.
   ///
   /// The defaults are the light iOS 27 regular glass
@@ -529,7 +529,26 @@ final class LiquidGlassSettings with Equatable {
   };
 
   @override
-  List<Object?> get props => [
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other.runtimeType == runtimeType &&
+          other is LiquidGlassSettings &&
+          other.refractionHeight == refractionHeight &&
+          other.refractionAmount == refractionAmount &&
+          other.refractionFitsShape == refractionFitsShape &&
+          other.backdropShrink == backdropShrink &&
+          other.backdropShrinkRim == backdropShrinkRim &&
+          other.frost == frost &&
+          other.dispersion == dispersion &&
+          other.highlight == highlight &&
+          other.contourStrength == contourStrength &&
+          other.contourDirectionality == contourDirectionality &&
+          other.bevelShadowStrength == bevelShadowStrength &&
+          other.tintAmount == tintAmount &&
+          other._frostIsFloorEligible == _frostIsFloorEligible;
+
+  @override
+  int get hashCode => Object.hash(
     refractionHeight,
     refractionAmount,
     refractionFitsShape,
@@ -543,7 +562,14 @@ final class LiquidGlassSettings with Equatable {
     bevelShadowStrength,
     tintAmount,
     _frostIsFloorEligible,
-  ];
+  );
+
+  @override
+  String toString() =>
+      'LiquidGlassSettings($refractionHeight, $refractionAmount, '
+      '$refractionFitsShape, $backdropShrink, $backdropShrinkRim, $frost, '
+      '$dispersion, $highlight, $contourStrength, $contourDirectionality, '
+      '$bevelShadowStrength, $tintAmount, $_frostIsFloorEligible)';
 }
 
 /// The fitted iOS 27 rim geometry every preset shares.

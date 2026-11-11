@@ -197,7 +197,7 @@ class LiquidGlass extends StatefulWidget
   List<BoxShadow> get shadows
   LiquidShape get shape
   overrides: createState
-final class LiquidGlassAppearance with Equatable
+final class LiquidGlassAppearance
   factory LiquidGlassAppearance.fromJson(Map<String, Object?> json)
   const LiquidGlassAppearance.ios27Clear({
     Color tint = ...,
@@ -230,7 +230,7 @@ final class LiquidGlassAppearance with Equatable
   final Color tint
   Map<String, Object> toJson()
   final double visibility
-  overrides: props
+  overrides: ==, hashCode, toString
 sealed class LiquidGlassBackdrop
   const factory LiquidGlassBackdrop.read()
   const factory LiquidGlassBackdrop.solid(Color color)
@@ -290,7 +290,7 @@ class LiquidGlassBlendGroup extends StatefulWidget
   static const int maxShapesPerCluster
   @internal static GlassGroupLink? maybeOf(BuildContext context)
   overrides: createState
-final class LiquidGlassColorModel with Equatable
+final class LiquidGlassColorModel
   const LiquidGlassColorModel.direct({
     double saturation = ...,
     double transmissionGamma = ...,
@@ -316,7 +316,7 @@ final class LiquidGlassColorModel with Equatable
   Object toJson()
   final double transmissionGamma
   final double vibrancy
-  overrides: props
+  overrides: ==, hashCode, toString
 enum LiquidGlassDeviceClass
   unknown,
   capable,
@@ -403,7 +403,7 @@ class LiquidGlassLayerFrame
   final LiquidGlassField? field
   final LiquidGlassGlow? glow
   final LiquidGlassSettings settings
-final class LiquidGlassSettings with Equatable
+final class LiquidGlassSettings
   factory LiquidGlassSettings.fromJson(Map<String, Object?> json)
   factory LiquidGlassSettings.ios27Clear({
     double tintAmount = ...,
@@ -476,7 +476,7 @@ final class LiquidGlassSettings with Equatable
   final double refractionHeight
   final double tintAmount
   Map<String, Object> toJson()
-  overrides: props
+  overrides: ==, hashCode, toString
 class LiquidGlassShapeFrame
   const LiquidGlassShapeFrame({
     required LiquidShape shape,
@@ -521,14 +521,14 @@ class LiquidGlassVisibility extends StatelessWidget
   overrides: build
 final class LiquidOval extends LiquidShape
   const LiquidOval({BorderSide side = ...})
-  overrides: copyWith, cornerRadius, scale
+  overrides: copyWith, cornerRadius, scale, toString
 final class LiquidRoundedRectangle extends LiquidShape
   const LiquidRoundedRectangle({
     required double borderRadius,
     BorderSide side = ...,
   })
   final double borderRadius
-  overrides: copyWith, cornerRadius, props, scale
+  overrides: ==, copyWith, cornerRadius, hashCode, scale, toString
 final class LiquidRoundedSuperellipse extends LiquidShape
   const LiquidRoundedSuperellipse({
     required double borderRadius,
@@ -540,11 +540,11 @@ final class LiquidRoundedSuperellipse extends LiquidShape
   @internal double get effectiveBottomRadius
   @internal bool get isUniform
   @internal BorderRadius get radii
-  overrides: copyWith, cornerRadius, props, scale
-sealed class LiquidShape extends OutlinedBorder with Equatable
+  overrides: ==, copyWith, cornerRadius, hashCode, scale, toString
+sealed class LiquidShape extends OutlinedBorder
   const LiquidShape({BorderSide side = ...})
   @internal double get cornerRadius
-  overrides: getInnerPath, getOuterPath, paint, props
+  overrides: ==, getInnerPath, getOuterPath, hashCode, paint
 class LiquidStretch extends StatelessWidget
   const LiquidStretch({
     required Widget child,

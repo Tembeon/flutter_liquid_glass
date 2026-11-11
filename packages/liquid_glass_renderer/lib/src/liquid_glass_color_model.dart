@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:meta/meta.dart' show experimental;
 
@@ -10,7 +9,7 @@ import 'package:meta/meta.dart' show experimental;
 /// The endpoints sit at Clear (`0`) and Tinted (`1`). This mirrors the
 /// endpoint interpolation in the final render shader.
 @immutable
-class GlassColorCurve with Equatable {
+class GlassColorCurve {
   /// A curve through [clear] and [tinted].
   const GlassColorCurve(this.clear, this.tinted);
 
@@ -28,7 +27,18 @@ class GlassColorCurve with Equatable {
       clear + (tinted - clear) * tintAmount.clamp(0.0, 1.0);
 
   @override
-  List<Object?> get props => [clear, tinted];
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other.runtimeType == runtimeType &&
+          other is GlassColorCurve &&
+          other.clear == clear &&
+          other.tinted == tinted;
+
+  @override
+  int get hashCode => Object.hash(clear, tinted);
+
+  @override
+  String toString() => 'GlassColorCurve($clear, $tinted)';
 }
 
 /// One boundary of the tint-tone ramp, `base + amplitude *
@@ -37,7 +47,7 @@ class GlassColorCurve with Equatable {
 /// `pivot` normalizes luminance into the ramp; setting it to `1` (with
 /// luminance already clamped to `0..1`) leaves the power curve unclamped.
 @immutable
-class GlassToneRamp with Equatable {
+class GlassToneRamp {
   /// A luminance response `base + amplitude * (min(1, Y / pivot))^exponent`.
   const GlassToneRamp({
     required this.base,
@@ -71,7 +81,20 @@ class GlassToneRamp with Equatable {
   }
 
   @override
-  List<Object?> get props => [base, amplitude, pivot, exponent];
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other.runtimeType == runtimeType &&
+          other is GlassToneRamp &&
+          other.base == base &&
+          other.amplitude == amplitude &&
+          other.pivot == pivot &&
+          other.exponent == exponent;
+
+  @override
+  int get hashCode => Object.hash(base, amplitude, pivot, exponent);
+
+  @override
+  String toString() => 'GlassToneRamp($base, $amplitude, $pivot, $exponent)';
 }
 
 /// Every numeric constant of the adaptive (backdrop-conditioned) color
@@ -90,7 +113,7 @@ class GlassToneRamp with Equatable {
 /// subclasses are not needed for custom materials; compose parameters
 /// instead.
 @immutable
-class GlassColorParameters with Equatable {
+class GlassColorParameters {
   /// Creates a fully specified adaptive color parameter set.
   const GlassColorParameters({
     required this.emissionColor,
@@ -425,7 +448,26 @@ class GlassColorParameters with Equatable {
   }
 
   @override
-  List<Object?> get props => [
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other.runtimeType == runtimeType &&
+          other is GlassColorParameters &&
+          other.emissionColor == emissionColor &&
+          other.emissionAlpha == emissionAlpha &&
+          other.transmittance == transmittance &&
+          other.luminanceLift == luminanceLift &&
+          other.chromaGain == chromaGain &&
+          other.toneLow == toneLow &&
+          other.toneHigh == toneHigh &&
+          other.toneGammaLuminance == toneGammaLuminance &&
+          other.glintLuminance == glintLuminance &&
+          other.glintFaceGain == glintFaceGain &&
+          other.glintVibrancy == glintVibrancy &&
+          other.contourResponse == contourResponse &&
+          other.fakeGlintLuminance == fakeGlintLuminance;
+
+  @override
+  int get hashCode => Object.hash(
     emissionColor,
     emissionAlpha,
     transmittance,
@@ -439,7 +481,14 @@ class GlassColorParameters with Equatable {
     glintVibrancy,
     contourResponse,
     fakeGlintLuminance,
-  ];
+  );
+
+  @override
+  String toString() =>
+      'GlassColorParameters($emissionColor, $emissionAlpha, $transmittance, '
+      '$luminanceLift, $chromaGain, $toneLow, $toneHigh, '
+      '$toneGammaLuminance, $glintLuminance, $glintFaceGain, $glintVibrancy, '
+      '$contourResponse, $fakeGlintLuminance)';
 }
 
 /// Defines how a glass tint is combined with transmitted backdrop content.
@@ -450,7 +499,8 @@ class GlassColorParameters with Equatable {
 /// presets: [LiquidGlassColorModel.ios27] and
 /// [LiquidGlassColorModel.ios27Clear]. The parameter sets themselves are
 /// internal; custom values enter through [LiquidGlassColorModel.fromJson].
-final class LiquidGlassColorModel with Equatable {
+@immutable
+final class LiquidGlassColorModel {
   /// A backdrop-adaptive model driven entirely by [parameters].
   ///
   /// The relative adjustments ([saturation], [transmissionGamma] and
@@ -624,10 +674,21 @@ final class LiquidGlassColorModel with Equatable {
   }
 
   @override
-  List<Object?> get props => [
-    parameters,
-    saturation,
-    transmissionGamma,
-    vibrancy,
-  ];
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other.runtimeType == runtimeType &&
+          other is LiquidGlassColorModel &&
+          other.parameters == parameters &&
+          other.saturation == saturation &&
+          other.transmissionGamma == transmissionGamma &&
+          other.vibrancy == vibrancy;
+
+  @override
+  int get hashCode =>
+      Object.hash(parameters, saturation, transmissionGamma, vibrancy);
+
+  @override
+  String toString() =>
+      'LiquidGlassColorModel($parameters, $saturation, $transmissionGamma, '
+      '$vibrancy)';
 }

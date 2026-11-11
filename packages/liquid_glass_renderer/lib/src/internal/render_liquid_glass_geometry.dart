@@ -1,4 +1,4 @@
-import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
@@ -6,7 +6,6 @@ import 'package:liquid_glass_renderer/src/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/liquid_shape.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
-import 'package:meta/meta.dart';
 
 /// Sorts [sources] into paint order under [owner], walking only their
 /// ancestry; returns whether the order changed.
@@ -390,8 +389,9 @@ enum RawShapeType {
 ///
 /// Can be part of multiple blended shapes in [RenderLiquidGlassGeometry], or on
 /// its own.
+@immutable
 @internal
-class ShapeGeometry extends Equatable {
+class ShapeGeometry {
   ShapeGeometry({
     required this.renderObject,
     required this.shape,
@@ -429,12 +429,29 @@ class ShapeGeometry extends Equatable {
   final Matrix4? shapeToGeometry;
 
   @override
-  List<Object?> get props => [
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other.runtimeType == runtimeType &&
+          other is ShapeGeometry &&
+          other.renderObject == renderObject &&
+          other.shape == shape &&
+          other.appearance == appearance &&
+          other.shapeBounds == shapeBounds &&
+          listEquals(other.shadows, shadows) &&
+          other.shapeToGeometry == shapeToGeometry;
+
+  @override
+  int get hashCode => Object.hash(
     renderObject,
     shape,
     appearance,
     shapeBounds,
-    shadows,
+    Object.hashAll(shadows),
     shapeToGeometry,
-  ];
+  );
+
+  @override
+  String toString() =>
+      'ShapeGeometry($renderObject, $shape, $appearance, $shapeBounds, '
+      '$shadows, $shapeToGeometry)';
 }

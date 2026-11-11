@@ -1,4 +1,3 @@
-import 'package:equatable/equatable.dart';
 import 'package:flutter/painting.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass.dart';
 import 'package:meta/meta.dart';
@@ -14,7 +13,7 @@ import 'package:meta/meta.dart';
 /// accepts a [ShapeBorder]. The glass renderer ignores [side]; it is only
 /// painted when the shape is used as a regular border, for example in a
 /// [ShapeDecoration].
-sealed class LiquidShape extends OutlinedBorder with Equatable {
+sealed class LiquidShape extends OutlinedBorder {
   const LiquidShape({super.side = BorderSide.none});
 
   /// Corner radius in logical pixels, the top corners' when a
@@ -47,7 +46,14 @@ sealed class LiquidShape extends OutlinedBorder with Equatable {
   }
 
   @override
-  List<Object?> get props => [side];
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other.runtimeType == runtimeType &&
+          other is LiquidShape &&
+          other.side == side;
+
+  @override
+  int get hashCode => side.hashCode;
 }
 
 /// Represents a squircle shape that can be used by a [LiquidGlass] widget.
@@ -121,7 +127,18 @@ final class LiquidRoundedSuperellipse extends LiquidShape {
   }
 
   @override
-  List<Object?> get props => [...super.props, borderRadius, bottomRadius];
+  bool operator ==(Object other) =>
+      super == other &&
+      other is LiquidRoundedSuperellipse &&
+      other.borderRadius == borderRadius &&
+      other.bottomRadius == bottomRadius;
+
+  @override
+  int get hashCode => Object.hash(side, borderRadius, bottomRadius);
+
+  @override
+  String toString() =>
+      'LiquidRoundedSuperellipse($side, $borderRadius, $bottomRadius)';
 }
 
 /// Represents an ellipse shape that can be used by a [LiquidGlass] widget.
@@ -153,6 +170,9 @@ final class LiquidOval extends LiquidShape {
       side: side.scale(t),
     );
   }
+
+  @override
+  String toString() => 'LiquidOval($side)';
 }
 
 /// Represents a rounded rectangle shape that can be used by a [LiquidGlass]
@@ -201,5 +221,14 @@ final class LiquidRoundedRectangle extends LiquidShape {
   }
 
   @override
-  List<Object?> get props => [...super.props, borderRadius];
+  bool operator ==(Object other) =>
+      super == other &&
+      other is LiquidRoundedRectangle &&
+      other.borderRadius == borderRadius;
+
+  @override
+  int get hashCode => Object.hash(side, borderRadius);
+
+  @override
+  String toString() => 'LiquidRoundedRectangle($side, $borderRadius)';
 }
