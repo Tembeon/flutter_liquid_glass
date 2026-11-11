@@ -10,6 +10,7 @@ import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/widgets/input_region.dart';
 import 'package:kinesis/src/widgets/input_shared.dart';
+import 'package:kinesis/src/widgets/source.dart';
 
 /// Where an [InputZone] lies in one frame, as its control reads it from the
 /// motion it paints with.
@@ -20,9 +21,14 @@ import 'package:kinesis/src/widgets/input_shared.dart';
 /// so a zone is hit where it is painted in the frame the finger lands in.
 @immutable
 final class InputZoneFrame {
-  /// Places a zone at [rect], painted at [opacity], taking input while
-  /// [takesInput] holds.
-  const InputZoneFrame(this.rect, {this.opacity = 1, this.takesInput = true});
+  /// Places a zone at [rect] with [radius] corners, painted at [opacity],
+  /// taking input while [takesInput] holds.
+  const InputZoneFrame(
+    this.rect, {
+    this.opacity = 1,
+    this.takesInput = true,
+    this.radius = BorderRadius.zero,
+  });
 
   /// UIKit's hit-testing rule: a view painted with an alpha below 0.01
   /// takes no touch (`UIView.hitTest(_:with:)`).
@@ -44,6 +50,10 @@ final class InputZoneFrame {
   /// for a zone that is leaving, covered or not yet shown.
   final bool takesInput;
 
+  /// The corners of the zone as painted: the shape a presentation that
+  /// grows out of the zone starts from.
+  final BorderRadius radius;
+
   /// Whether the zone is there for input and accessibility in this frame:
   /// it [takesInput], is painted at [minimumOpacity] or more, and has an
   /// area.
@@ -54,10 +64,11 @@ final class InputZoneFrame {
       other is InputZoneFrame &&
       other.rect == rect &&
       other.opacity == opacity &&
-      other.takesInput == takesInput;
+      other.takesInput == takesInput &&
+      other.radius == radius;
 
   @override
-  int get hashCode => Object.hash(rect, opacity, takesInput);
+  int get hashCode => Object.hash(rect, opacity, takesInput, radius);
 }
 
 /// One interactive part of a control that paints many parts in one render
@@ -175,6 +186,7 @@ class InputZonesController<T extends Object> extends ChangeNotifier {
   InputZonesController();
 
   final Map<T, Set<WidgetState>> _states = {};
+  final Map<T, MotionSource> _sources = {};
   _InputZonesState<T>? _host;
   T? _focused;
 
@@ -201,6 +213,38 @@ class InputZonesController<T extends Object> extends ChangeNotifier {
     return true;
   }
 
+  /// What a presentation grows out of when it grows out of [zone]: a menu
+  /// from a bar item, a popover from a segment. Pass it as the
+  /// presentation's `source`.
+  ///
+  /// The same source is answered for a zone every time. Its geometry is
+  /// the zone's frame where the host paints it now, in global coordinates
+  /// (`InputZones.frameOf`, read again in every frame the presentation
+  /// shows), and null while no host holds the controller or the zone is
+  /// not painted. While a presentation holds it, [MotionSource.isHidden]
+  /// is true and the controller notifies, so the control paints the zone
+  /// hidden, as a `MotionSourceBox` does.
+  MotionSource sourceOf(T zone) => _sources.putIfAbsent(zone, () {
+    final source = MotionSource(debugLabel: 'zone $zone');
+    source.showIn(_ZoneSource<T>(this, zone));
+    return source;
+  });
+
+  // A presentation may let go of a zone's source after the control that
+  // painted the zone disposed of its controller.
+  bool _disposed = false;
+
+  void _sourceHiddenChanged() {
+    if (!_disposed) notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _sources.clear();
+    super.dispose();
+  }
+
   bool _set(
     T zone,
     WidgetState state, {
@@ -221,6 +265,37 @@ class InputZonesController<T extends Object> extends ChangeNotifier {
     _focused = now;
     notifyListeners();
   }
+}
+
+/// Shows a zone's [MotionSource]: the zone's frame where its host paints
+/// it now.
+final class _ZoneSource<T extends Object> implements SourceView {
+  _ZoneSource(this.controller, this.zone);
+
+  final InputZonesController<T> controller;
+  final T zone;
+
+  @override
+  SourceGeometry? get sourceGeometry {
+    final host = controller._host;
+    final box = host?._box;
+    if (host == null || box == null || !box.attached || !box.hasSize) {
+      return null;
+    }
+    final frame = host.widget.frameOf(zone);
+    if (frame == null ||
+        frame.opacity < InputZoneFrame.minimumOpacity ||
+        frame.rect.isEmpty) {
+      return null;
+    }
+    return SourceGeometry(
+      rect: MatrixUtils.transformRect(box.getTransformTo(null), frame.rect),
+      radius: frame.radius,
+    );
+  }
+
+  @override
+  void sourceHiddenChanged() => controller._sourceHiddenChanged();
 }
 
 /// Gives each of the interactive [zones] a control paints inside [child]

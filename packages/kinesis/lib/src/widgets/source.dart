@@ -4,11 +4,13 @@ import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
 /// The identity of what a presentation grows out of, held like a
-/// `LayerLink`: a [MotionSourceBox] shows it, a presentation leases it.
+/// `LayerLink`: a [MotionSourceBox] or a zone of an `InputZones` host
+/// (`InputZonesController.sourceOf`) shows it, a presentation leases it.
 ///
 /// While a lease is held the box paints nothing, from the frame the
 /// presentation commits, and stays hit-testable, as UIKit hides a zoom
-/// transition's source view.
+/// transition's source view; a control that paints its zones itself paints
+/// a zone whose source [isHidden] the same way.
 final class MotionSource {
   /// Creates a source.
   MotionSource({this.debugLabel});
@@ -16,23 +18,24 @@ final class MotionSource {
   /// A name for debugging.
   final String? debugLabel;
 
-  RenderMotionSourceBox? _box;
+  SourceView? _view;
   int _leases = 0;
 
   /// Whether a presentation holds the source.
   bool get isHidden => _leases > 0;
 
-  /// Where the source is now, or null when no laid-out box shows it.
-  SourceGeometry? get geometry {
-    final box = _box;
-    if (box == null || !box.attached || !box.hasSize) return null;
-    return SourceGeometry(
-      rect: MatrixUtils.transformRect(
-        box.getTransformTo(null),
-        Offset.zero & box.size,
-      ),
-      radius: box.radius,
-    );
+  /// Where the source is now, or null when nothing laid out shows it.
+  SourceGeometry? get geometry => _view?.sourceGeometry;
+
+  /// Lets [view] show the source, in place of any other, or ends that for
+  /// [view] when [shown] is false, if it still shows the source.
+  @internal
+  void showIn(SourceView view, {bool shown = true}) {
+    if (shown) {
+      _view = view;
+    } else if (identical(_view, view)) {
+      _view = null;
+    }
   }
 
   /// Hides the source until the returned callback releases it; later
@@ -40,13 +43,13 @@ final class MotionSource {
   @internal
   VoidCallback lease() {
     _leases++;
-    _box?.markNeedsPaint();
+    _view?.sourceHiddenChanged();
     var held = true;
     return () {
       if (!held) return;
       held = false;
       _leases--;
-      _box?.markNeedsPaint();
+      _view?.sourceHiddenChanged();
     };
   }
 
@@ -85,9 +88,21 @@ class MotionSourceBox extends SingleChildRenderObjectWidget {
   }
 }
 
+/// What shows a [MotionSource]: where it is, and how it learns that a
+/// presentation hid or showed it.
+@internal
+abstract interface class SourceView {
+  /// Where the source is now, in global coordinates, or null when it is
+  /// not shown.
+  SourceGeometry? get sourceGeometry;
+
+  /// The source's [MotionSource.isHidden] may have changed.
+  void sourceHiddenChanged();
+}
+
 /// The render object of a [MotionSourceBox].
 @internal
-class RenderMotionSourceBox extends RenderProxyBox {
+class RenderMotionSourceBox extends RenderProxyBox implements SourceView {
   /// Creates the box of [source].
   RenderMotionSourceBox({
     required this._source,
@@ -103,25 +118,33 @@ class RenderMotionSourceBox extends RenderProxyBox {
   MotionSource get source => _source;
   set source(MotionSource value) {
     if (identical(value, _source)) return;
-    if (attached) _detachSource();
+    if (attached) _source.showIn(this, shown: false);
     _source = value;
-    if (attached) value._box = this;
+    if (attached) value.showIn(this);
     markNeedsPaint();
   }
 
-  void _detachSource() {
-    if (identical(_source._box, this)) _source._box = null;
+  @override
+  SourceGeometry? get sourceGeometry {
+    if (!attached || !hasSize) return null;
+    return SourceGeometry(
+      rect: MatrixUtils.transformRect(getTransformTo(null), Offset.zero & size),
+      radius: radius,
+    );
   }
+
+  @override
+  void sourceHiddenChanged() => markNeedsPaint();
 
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _source._box = this;
+    _source.showIn(this);
   }
 
   @override
   void detach() {
-    _detachSource();
+    _source.showIn(this, shown: false);
     super.detach();
   }
 

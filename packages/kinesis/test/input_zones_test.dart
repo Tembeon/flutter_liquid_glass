@@ -49,6 +49,27 @@ class _Values extends Interaction {
   }
 }
 
+/// A card that records where its source is.
+final class _Card extends Motion with Presented, Sourced {
+  late final Presence _show = own(Presence(openSpring: Spring.snappy));
+  final List<SourceGeometry?> sources = [];
+
+  @override
+  PresenceStatus get presence => _show.status;
+
+  @override
+  void open(double t) => _show.open(t);
+
+  @override
+  bool leave(double t, DismissTrigger trigger) {
+    _show.hide(t);
+    return true;
+  }
+
+  @override
+  void sourceMoved(double t, SourceGeometry? geometry) => sources.add(geometry);
+}
+
 void main() {
   final haptics = <String>[];
   late ToyMotion motion;
@@ -580,6 +601,66 @@ void main() {
       expect(data().hasAction(SemanticsAction.decrease), isTrue);
       semantics.dispose();
     });
+  });
+
+  testWidgets('a portal presentation grows out of a zone and follows it as '
+      'the zone moves', (tester) async {
+    final portal = PresentationPortalController();
+    final cards = <_Card>[];
+    var notified = 0;
+    zones.addListener(() => notified++);
+    final source = zones.sourceOf('b');
+    expect(zones.sourceOf('b'), same(source));
+    expect(source.geometry, isNull);
+    await tester.pumpWidget(
+      _app(
+        Overlay(
+          initialEntries: [
+            OverlayEntry(
+              builder: (context) => Align(
+                alignment: Alignment.topLeft,
+                child: PresentationPortal(
+                  controller: portal,
+                  presentation: Presentation<Object?, _Card>(
+                    motion: (_) {
+                      final card = _Card();
+                      cards.add(card);
+                      return card;
+                    },
+                    builder: (context, motion) => const SizedBox(width: 10),
+                    source: source,
+                  ),
+                  child: toolbar(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    portal.present();
+    await tester.pump();
+    await tester.pump();
+    expect(source.isHidden, isTrue);
+    expect(notified, greaterThan(0));
+    final card = cards.single;
+    expect(card.sources.first?.rect, motion.rectOf('b'));
+    motion.slide(30);
+    await tester.pump();
+    expect(card.sources.last?.rect, motion.rectOf('b'));
+    expect(
+      card.sources.last?.rect,
+      card.sources.first?.rect.shift(const Offset(30, 0)),
+    );
+    motion.opacity['b'] = 0;
+    motion.changed();
+    await tester.pump();
+    expect(card.sources.last, isNull);
+    portal.dismiss(DismissTrigger.programmatic);
+    for (var i = 0; i < 60; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(source.isHidden, isFalse);
   });
 
   group('semantics', () {

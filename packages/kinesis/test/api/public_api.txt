@@ -439,10 +439,16 @@ class InputZone<T extends Object>
   final SemanticsRole? semanticsRole
   final bool? toggled
 final class InputZoneFrame
-  const InputZoneFrame(Rect rect, {double opacity = ..., bool takesInput = ...})
+  const InputZoneFrame(
+    Rect rect, {
+    double opacity = ...,
+    bool takesInput = ...,
+    BorderRadius radius = ...,
+  })
   bool get live
   static const double minimumOpacity
   final double opacity
+  final BorderRadius radius
   final Rect rect
   final bool takesInput
   overrides: ==, hashCode
@@ -477,8 +483,10 @@ class InputZonesController<T extends Object> extends ChangeNotifier
   InputZonesController()
   T? get focusedZone
   bool requestFocus(T zone)
+  MotionSource sourceOf(T zone)
   Set<WidgetState> statesOf(T zone)
   void update(T zone, WidgetState state, {required bool add})
+  overrides: dispose
 class Interaction (see package:kinesis/input.dart)
 class InteractionEvent (see package:kinesis/input.dart)
 class InteractionInput (see package:kinesis/input.dart)
@@ -831,6 +839,7 @@ final class MotionSource
   SourceGeometry? get geometry
   bool get isHidden
   @internal void Function() lease()
+  @internal void showIn(SourceView view, {bool shown = ...})
   overrides: toString
 class MotionSourceBox extends SingleChildRenderObjectWidget
   const MotionSourceBox({
