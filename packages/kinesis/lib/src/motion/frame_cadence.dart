@@ -53,6 +53,7 @@ final class FrameCadence {
   void start() {
     if (_binding != null) return;
     final binding = SchedulerBinding.instance;
+    // After the frame: the binding's own frame callbacks are in place then.
     binding.addPostFrameCallback((_) => _attach(binding));
   }
 

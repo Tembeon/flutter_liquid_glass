@@ -32,7 +32,11 @@ const _rules = LayerRules(
     'input': [_widgets, _rendering, _services],
   },
   bans: [
-    Ban('addPostFrameCallback', r'\baddPostFrameCallback\b'),
+    Ban(
+      'addPostFrameCallback',
+      r'\baddPostFrameCallback\b',
+      allowedWith: 'After the frame:',
+    ),
     Ban('ignore', r'//\s*ignore:', code: false),
     Ban('ignore_for_file', r'//\s*ignore_for_file:', code: false),
     Ban('AnimationController', r'\bAnimationController\b'),

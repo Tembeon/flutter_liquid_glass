@@ -114,6 +114,8 @@ abstract class PointerLine {
     _port?.detach(_receive);
     _port = value;
     if (value == null) return;
+    // After the frame: a port delivers in the box's coordinates, which the
+    // frame's layout gives.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && identical(_port, value)) value.attach(_receive);
     });

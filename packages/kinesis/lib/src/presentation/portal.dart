@@ -169,9 +169,9 @@ class _PresentationPortalState extends State<PresentationPortal>
     _modal.value = presentation.modalOf(motion);
     _trap();
     _overlay.show();
-    // The scope's node joins the focus tree only in the build that shows
-    // the overlay, and a scope node asked before that drops the request; the
-    // clock's publish phase may come before that build.
+    // After the frame: the scope's node joins the focus tree only in the
+    // build that shows the overlay, and a scope node asked before that drops
+    // the request; the clock's publish phase may come before that build.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (identical(_motion, motion) && !_leaving) _scope.requestFocus();
     });

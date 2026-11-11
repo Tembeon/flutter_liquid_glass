@@ -2,9 +2,3 @@
 # The list only shrinks: a new break fails the test, and so does a line
 # that lists more than the code has. After fixing one, rewrite this file
 # with UPDATE_DEBT=1 (it never grows an entry).
-
-5:addPostFrameCallback  lib/src/motion/frame_cadence.dart  1
-5:addPostFrameCallback  lib/src/presentation/portal.dart   1
-5:addPostFrameCallback  lib/src/widgets/pointer_line.dart  1
-5:addPostFrameCallback  lib/src/widgets/resolve.dart       1
-5:ignore                lib/src/widgets/driven.dart        2

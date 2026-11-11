@@ -107,6 +107,7 @@ final class _ResolveOwner extends PipelineOwner {
     if (_clearing) return;
     _clearing = true;
     final scheduler = SchedulerBinding.instance;
+    // After the frame: only its end comes after the last view's layout.
     scheduler.addPostFrameCallback((_) {
       _clearing = false;
       MotionTransaction.clearLayout();
