@@ -24,18 +24,18 @@ final class LiquidGlassSettings {
   /// may be retuned before 1.0.
   /// Distances are logical pixels; strengths use the `0` to `1` range.
   const LiquidGlassSettings({
-    this.refractionHeight = 20.0,
-    this.refractionAmount = 60.0,
-    this.refractionFitsShape = true,
-    this.backdropShrink = 0.0,
-    this.backdropShrinkRim = 0.0,
+    this.refractionHeight = _defaultRefractionHeight,
+    this.refractionAmount = _defaultRefractionAmount,
+    this.refractionFitsShape = _defaultRefractionFitsShape,
+    this.backdropShrink = _defaultBackdropShrink,
+    this.backdropShrinkRim = _defaultBackdropShrinkRim,
     double? frost,
-    this.dispersion = 0.0,
-    this.highlight = 0.6,
-    this.contourStrength = 0.43,
-    this.contourDirectionality = 0.77,
-    this.bevelShadowStrength = 0.036,
-    this.tintAmount = 0.0,
+    this.dispersion = _defaultDispersion,
+    this.highlight = _defaultHighlight,
+    this.contourStrength = _defaultContourStrength,
+    this.contourDirectionality = _defaultContourDirectionality,
+    this.bevelShadowStrength = _defaultBevelShadowStrength,
+    this.tintAmount = _defaultTintAmount,
   }) : frost = frost ?? _defaultRegularFrost,
        _frostIsFloorEligible = frost == null;
 
@@ -48,17 +48,17 @@ final class LiquidGlassSettings {
   const LiquidGlassSettings._({
     required this.frost,
     required bool floorEligible,
-    this.refractionHeight = 20.0,
-    this.refractionAmount = 60.0,
-    this.refractionFitsShape = true,
-    this.backdropShrink = 0.0,
-    this.backdropShrinkRim = 0.0,
-    this.dispersion = 0.0,
-    this.highlight = 0.6,
-    this.contourStrength = 0.43,
-    this.contourDirectionality = 0.77,
-    this.bevelShadowStrength = 0.036,
-    this.tintAmount = 0.0,
+    this.refractionHeight = _defaultRefractionHeight,
+    this.refractionAmount = _defaultRefractionAmount,
+    this.refractionFitsShape = _defaultRefractionFitsShape,
+    this.backdropShrink = _defaultBackdropShrink,
+    this.backdropShrinkRim = _defaultBackdropShrinkRim,
+    this.dispersion = _defaultDispersion,
+    this.highlight = _defaultHighlight,
+    this.contourStrength = _defaultContourStrength,
+    this.contourDirectionality = _defaultContourDirectionality,
+    this.bevelShadowStrength = _defaultBevelShadowStrength,
+    this.tintAmount = _defaultTintAmount,
   }) : _frostIsFloorEligible = floorEligible;
 
   /// Restores a material vector produced by [toJson].
@@ -238,6 +238,17 @@ final class LiquidGlassSettings {
   /// position `0`, in logical pixels. Fitted to the pinned iOS 27 captures;
   /// [ios27RegularFrost] starts here and grows with the slider.
   static const double _defaultRegularFrost = 4.5;
+  static const double _defaultRefractionHeight = 20;
+  static const double _defaultRefractionAmount = 60;
+  static const bool _defaultRefractionFitsShape = true;
+  static const double _defaultBackdropShrink = 0;
+  static const double _defaultBackdropShrinkRim = 0;
+  static const double _defaultDispersion = 0;
+  static const double _defaultHighlight = 0.6;
+  static const double _defaultContourStrength = 0.43;
+  static const double _defaultContourDirectionality = 0.77;
+  static const double _defaultBevelShadowStrength = 0.036;
+  static const double _defaultTintAmount = 0;
 
   /// Device-space blur sigma at which Impeller first downsamples its Gaussian.
   ///
