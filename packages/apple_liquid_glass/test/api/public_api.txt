@@ -734,7 +734,6 @@ class GlassMenuAnchor extends StatefulWidget
     Widget Function(BuildContext, GlassMenuController, Widget?)? builder,
     Widget? child,
     GlassMenuController? controller,
-    FocusNode? childFocusNode,
     void Function()? onOpen,
     void Function()? onClose,
     bool enabled = ...,
@@ -748,7 +747,6 @@ class GlassMenuAnchor extends StatefulWidget
   })
   final Widget Function(BuildContext, GlassMenuController, Widget?)? builder
   final Widget? child
-  final FocusNode? childFocusNode
   final GlassMenuController? controller
   final bool enabled
   final List<GlassMenuEntry> menuChildren
@@ -1410,31 +1408,34 @@ class GlassSolidBackdrop extends InheritedWidget
   final Color? color
   static Color? colorOf(BuildContext context)
   overrides: updateShouldNotify
-final class GlassSourceLink
-  GlassSourceLink({required ValueListenable<Set<WidgetState>> states})
-  bool get isLent
-  void lend(
-    Object owner, {
-    required void Function()? onPressed,
-    GlassShape shape = ...,
-    String? semanticLabel,
-  })
-  Widget? look
-  static GlassSourceLink? maybeOf(BuildContext context)
-  void Function()? get onPressed
-  void release(Object owner)
-  String? get semanticLabel
-  GlassShape get shape
-  final MotionSource source
-  final ValueListenable<Set<WidgetState>> states
-  Color? tint
-class GlassSourceScope extends InheritedWidget
-  const GlassSourceScope({
-    required GlassSourceLink link,
+class GlassSource extends StatelessWidget
+  const GlassSource({
+    required GlassSourceDescription description,
     required Widget child,
     Key? key,
   })
-  final GlassSourceLink link
+  final Widget child
+  final GlassSourceDescription description
+  static bool isSourceAt(BuildContext context)
+  overrides: build
+final class GlassSourceDescription
+  const GlassSourceDescription({
+    GlassShape shape = ...,
+    Color? tint,
+    Widget? look,
+    String? semanticLabel,
+  })
+  final Widget? look
+  final String? semanticLabel
+  final GlassShape shape
+  final Color? tint
+class GlassSourceScope extends InheritedWidget
+  const GlassSourceScope({
+    required MotionSource source,
+    required Widget child,
+    Key? key,
+  })
+  final MotionSource source
   overrides: updateShouldNotify
 class GlassStepper extends StatelessWidget
   const GlassStepper({
@@ -2488,7 +2489,8 @@ typedef GlassSelectorItemBuilder (see package:apple_liquid_glass/apple_liquid_gl
 enum GlassSelectorMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassSliderBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSliderDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
-class GlassSourceLink (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSource (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSourceDescription (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSourceScope (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassStepperBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassStepperDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)

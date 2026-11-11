@@ -1672,6 +1672,7 @@ class _BarItem extends StatelessWidget {
             onClose: () => bar.menuShowing(id, showing: false),
             child: _ItemSource(
               onPressed: item.onPressed ?? bar.inputOf(id).menu.open,
+              semanticLabel: _BandState._labelOf(item),
               look: _CapsuleLook(
                 bar: bar,
                 item: id,
@@ -2184,18 +2185,18 @@ class _RenderBarItems extends RenderBox
   bool get alwaysNeedsCompositing => true;
 }
 
-/// Reads its child, a menu and its source, to assistive technology only
-/// while the menu shows: the item's zone speaks for the source otherwise.
-/// An item lending itself to its menu anchor: its tap, the capsule look the
-/// menu's glass carries, and its glyph, which hides while the menu shows.
+/// An item's source under its menu anchor: its own tap, and the capsule
+/// look the menu's glass carries as it grows out of the glyph.
 class _ItemSource extends StatefulWidget {
   const _ItemSource({
     required this.onPressed,
+    required this.semanticLabel,
     required this.look,
     required this.child,
   });
 
   final VoidCallback onPressed;
+  final String? semanticLabel;
   final Widget look;
   final Widget child;
 
@@ -2204,32 +2205,27 @@ class _ItemSource extends StatefulWidget {
 }
 
 class _ItemSourceState extends State<_ItemSource> {
-  GlassSourceLink? _link;
+  late final List<Interaction> _tap = [
+    PressInteraction(
+      releaseSlop: const EdgeInsets.all(GlassPress.highlightSlop),
+      onTap: (_) => widget.onPressed(),
+    ),
+  ];
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final link = GlassSourceLink.maybeOf(context);
-    if (identical(link, _link)) return;
-    _link?.release(this);
-    _link = link;
-  }
-
-  @override
-  void dispose() {
-    _link?.release(this);
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final link = _link!;
-    link.lend(this, onPressed: widget.onPressed);
-    link.look = widget.look;
-    return MotionSourceBox(source: link.source, child: widget.child);
-  }
+  Widget build(BuildContext context) => InputRegion(
+    interactions: _tap,
+    semanticLabel: widget.semanticLabel,
+    minimumHitSize: const Size.square(_Bar.minimumTarget),
+    child: GlassSource(
+      description: GlassSourceDescription(look: widget.look),
+      child: widget.child,
+    ),
+  );
 }
 
+/// Reads its child, a menu and its source, to assistive technology only
+/// while the menu shows: the item's zone speaks for the source otherwise.
 class _OpenMenuSemantics extends SingleChildRenderObjectWidget {
   const _OpenMenuSemantics({
     required this.bar,

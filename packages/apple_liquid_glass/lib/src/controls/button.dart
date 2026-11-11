@@ -310,9 +310,8 @@ enum _Variant { regular, prominent, clear, prominentClear }
 /// UIKit does (iPhone 16 Pro, iOS 27.0.1, light and dark).
 ///
 /// Its menu form, UIKit's `UIButton.menu`, is a `GlassMenuAnchor` around
-/// it: the button lends the anchor its glass ([GlassSourceLink]), which the
-/// menu grows out of, and its tint and label, which the menu's glass
-/// carries as it grows.
+/// it: the button describes its glass to the anchor ([GlassSource]), the
+/// menu grows out of it and carries its tint and label as it grows.
 class GlassButton extends StatelessWidget {
   /// Creates a regular glass button.
   const GlassButton({
@@ -466,14 +465,23 @@ class GlassButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (GlassSourceLink.maybeOf(context) case final link?) {
-      final states = {if (onPressed == null) WidgetState.disabled};
-      link.look = _label(context, states, child);
-      link.tint = GlassDynamicColor.maybeResolve(
-        _lookOf(context).backgroundColor?.resolve(states),
-        context,
-      );
-    }
+    final button = _raw(context);
+    if (!GlassSource.isSourceAt(context)) return button;
+    final states = {if (onPressed == null) WidgetState.disabled};
+    return GlassSource(
+      description: GlassSourceDescription(
+        tint: GlassDynamicColor.maybeResolve(
+          _lookOf(context).backgroundColor?.resolve(states),
+          context,
+        ),
+        look: _label(context, states, child),
+        semanticLabel: semanticLabel,
+      ),
+      child: button,
+    );
+  }
+
+  Widget _raw(BuildContext context) {
     return RawGlassButton(
       onPressed: onPressed,
       statesController: statesController,

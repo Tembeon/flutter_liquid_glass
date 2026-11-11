@@ -125,7 +125,8 @@ GlassSliderDetails
 GlassSliderStyle
 GlassSliverListSection
 GlassSolidBackdrop
-GlassSourceLink
+GlassSource
+GlassSourceDescription
 GlassSourceScope
 GlassStepper
 GlassStepperBuilder

@@ -39,6 +39,11 @@ void main() {
                       onPressed: () => setMenu(() => more = true),
                     ),
                 ],
+                builder: (context, controller, child) => RawGlassButton(
+                  onPressed: controller.open,
+                  builder: (context, details) => details.label,
+                  child: child!,
+                ),
                 child: const SizedBox(width: 120, height: 44),
               );
             },

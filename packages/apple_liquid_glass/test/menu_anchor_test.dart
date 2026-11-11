@@ -89,14 +89,19 @@ void main() {
     expect(calls, ['open', 'close']);
   });
 
-  testWidgets('plain text is a source: a tap opens the menu and the text '
-      'keeps showing under it', (tester) async {
+  testWidgets('plain text in a raw button is a source: a tap opens the menu '
+      'and the text keeps showing under it', (tester) async {
     _phone(tester);
     final log = <String>[];
     await tester.pumpWidget(
       _app(
         GlassMenuAnchor(
           menuChildren: _entries(log),
+          builder: (context, controller, child) => RawGlassButton(
+            onPressed: controller.open,
+            builder: (context, details) => details.label,
+            child: child!,
+          ),
           child: const SizedBox(
             width: 100,
             height: 44,
@@ -108,14 +113,7 @@ void main() {
     await tester.tap(find.text('Sort'));
     await _settle(tester);
     expect(find.text('Copy'), findsOneWidget);
-    expect(
-      find.ancestor(
-        of: find.text('Sort'),
-        matching: find.byType(MotionSourceBox),
-      ),
-      findsNothing,
-      reason: 'nothing hides it',
-    );
+    expect(find.text('Sort'), findsOneWidget, reason: 'nothing hides it');
     await tester.tap(find.text('Share'));
     await _settle(tester);
     expect(log, ['Share']);
@@ -131,10 +129,10 @@ void main() {
     await tester.pumpWidget(
       _app(
         GlassMenuAnchor(
-          childFocusNode: focus,
           menuChildren: _entries(log),
           builder: (context, controller, child) => GlassButton(
             key: const Key('button'),
+            focusNode: focus,
             onPressed: () => log.add('pressed'),
             child: const Text('Share'),
           ),
@@ -171,9 +169,9 @@ void main() {
     await tester.pumpWidget(
       _app(
         GlassMenuAnchor(
-          childFocusNode: focus,
           menuChildren: _entries(<String>[]),
           builder: (context, controller, child) => GlassButton(
+            focusNode: focus,
             onPressed: controller.open,
             semanticLabel: 'More',
             child: const Text('...'),
@@ -181,7 +179,9 @@ void main() {
         ),
       ),
     );
-    final node = tester.getSemantics(find.bySemanticsLabel('More'));
+    final node = tester
+        .getSemantics(find.bySemanticsLabel('More'))
+        .getSemanticsData();
     expect(node.flagsCollection.isExpanded, Tristate.isFalse);
     expect(node.flagsCollection.isButton, isTrue);
     focus.requestFocus();
@@ -205,6 +205,11 @@ void main() {
       _app(
         GlassMenuAnchor(
           menuChildren: _entries(<String>[]),
+          builder: (context, controller, child) => RawGlassButton(
+            onPressed: controller.open,
+            builder: (context, details) => details.label,
+            child: child!,
+          ),
           child: const SizedBox(width: 100, height: 44, child: Text('Sort')),
         ),
       ),

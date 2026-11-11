@@ -43,6 +43,12 @@ Widget _menu(List<String> log) => GlassMenuAnchor(
   key: const Key('source'),
   semanticLabel: 'More',
   menuChildren: _entries(log),
+  builder: (context, controller, child) => RawGlassButton(
+    onPressed: controller.open,
+    semanticLabel: 'More',
+    builder: (context, details) => details.label,
+    child: child!,
+  ),
   child: const SizedBox(width: 120, height: 44, child: Text('More')),
 );
 
@@ -124,6 +130,7 @@ void main() {
     expect(
       tester
           .getSemantics(find.bySemanticsLabel('More'))
+          .getSemanticsData()
           .flagsCollection
           .isFocused,
       Tristate.isTrue,

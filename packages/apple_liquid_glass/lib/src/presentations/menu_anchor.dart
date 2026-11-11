@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -18,6 +19,7 @@ import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
 import 'package:apple_liquid_glass/src/surfaces/surface.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
@@ -56,7 +58,8 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   int? _pointer;
   int? _early;
 
-  // The time of the tap whose action runs now, while it runs.
+  // The release of a tap on the source, until the source's own control has
+  // heard it in the same event.
   double? _tapAt;
 
   // What the menu made of the pointer command running now, for the haptics
@@ -75,13 +78,13 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   GlassMenuController? get _controller;
   bool get _enabled;
   String? get _semanticLabel;
-  VoidCallback? get _onTap;
 
   /// The source's look drawn on the glass while it grows into the menu,
   /// or null for a menu that does not grow out of its source's glass.
   Widget? get _look;
 
-  /// The color of the source's glass at rest (see [GlassSourceLink.tint]).
+  /// The color of the source's glass at rest (see
+  /// [GlassSourceDescription.tint]).
   Color? get _sourceTint => null;
 
   /// Where the menu grows out of in [overlay]'s coordinates, or null for
@@ -198,14 +201,11 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
         if (tracked) _heard.add(ScrubChangeEvent(time: _now, selected: to));
       case MenuActivated(:final target):
         _content.activate(target);
+      // The source's own control runs its action on its tap; an action
+      // that opens the menu opens it after UIKit's tap delay.
       case MenuTapped(:final time):
-        if (!_enabled) return;
         _tapAt = time;
-        try {
-          _onTap?.call();
-        } finally {
-          _tapAt = null;
-        }
+        scheduleMicrotask(() => _tapAt = null);
     }
   }
 
@@ -275,11 +275,18 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
 
   void _openFromCode() {
     if (!mounted || !_enabled || _isOpen) return;
-    // A tap that opens the menu from the source's own action opens it as
-    // the tap of a source whose tap is the menu's does.
-    if (_tapAt case final t?) {
-      _motion?.openAfterTap(t);
-      return;
+    // The action of a tap on the source opens the menu after UIKit's tap
+    // delay, as a source whose tap is the menu's does, whether the source's
+    // control hears the release before the menu or after it.
+    final motion = _motion;
+    if (motion != null && !motion.isPresented) {
+      final tap = _tapAt ?? (_pointer != null ? _now : null);
+      if (tap != null) {
+        motion.openAfterTap(tap);
+        _deliver(motion);
+        if (_pointer == null && motion.isOpenPending) _route();
+        return;
+      }
     }
     _prepare();
     _command((motion, t) => motion.open(t));
@@ -428,29 +435,26 @@ typedef GlassMenuAnchorChildBuilder = Widget Function(
 ///
 /// [builder] builds the control and opens the menu from its action with
 /// the controller it is given: `onPressed: controller.open` makes the tap
-/// open the menu, as UIKit's `showsMenuAsPrimaryAction`; another action
-/// keeps the tap and leaves the menu to a hold. Either way a hold opens it
-/// under the finger. The anchor takes the control's touches: the measured
-/// press shrinks it, a tap opens the menu on its release after UIKit's
-/// delay, and a finger that pressed it keeps sliding over the open menu and
-/// chooses the row it lifts from. The menu shows on the root overlay
-/// without a route; Escape, Back and a tap outside close it, and the tap
-/// outside reaches nothing under it. The menu grows out of the control on
-/// UIKit's liquid morph springs, the control's glass and the menu one body
-/// joined by a neck while they part (read from UIKit and replayed against
-/// iPhone 16 Pro recordings).
+/// open the menu after UIKit's delay, as `showsMenuAsPrimaryAction`;
+/// another action keeps the tap and leaves the menu to a hold. Either way a
+/// hold opens it under the finger. The control keeps its own touches, keys,
+/// focus, states and semantics; the anchor watches the same touch, presses
+/// the control by the menu's measured press, takes the touch once a hold
+/// opens the menu, and lets the finger keep sliding over the open menu to
+/// choose the row it lifts from. The control reads as expanded while the
+/// menu shows and a long press opens it; focus returns to the control when
+/// the menu closes. The menu shows on the root overlay without a route;
+/// Escape, Back and a tap outside close it, and the tap outside reaches
+/// nothing under it. The menu grows out of the control on UIKit's liquid
+/// morph springs, the control's glass and the menu one body joined by a
+/// neck while they part (read from UIKit and replayed against iPhone 16
+/// Pro recordings).
 ///
-/// A control that lends itself through a [GlassSourceLink] (a
-/// `GlassButton` or [RawGlassButton] does) hands the menu its glass: its
-/// body hides while the menu shows, the menu's glass grows out of its
-/// shape, takes its tint at both hand-offs and carries its label as it
-/// fades. Its Space, Enter and accessibility tap run its action, its focus
-/// and states are the anchor's, and it reads as a button that is expanded
-/// while the menu shows. Anything else, such as plain text, an icon or a
-/// list row, keeps showing under the menu, whose untinted glass grows out
-/// of the anchor's box as a capsule; a tap on it opens the menu, and the
-/// keyboard focus and the mouse show on it as a ring and a systemFill wash
-/// (an approximation, not measured).
+/// A control that describes its glass with a [GlassSource] (a
+/// `GlassButton` or [RawGlassButton] does) hands the menu its glass: the
+/// menu's glass grows out of its shape, takes its tint at both hand-offs
+/// and carries its look as it fades. Anything else keeps showing under the
+/// menu, whose untinted glass grows out of the anchor's box as a capsule.
 class GlassMenuAnchor extends StatefulWidget {
   /// Creates an anchor of [menuChildren] around what [builder] builds, or
   /// around [child] without one.
@@ -459,7 +463,6 @@ class GlassMenuAnchor extends StatefulWidget {
     this.builder,
     this.child,
     this.controller,
-    this.childFocusNode,
     this.onOpen,
     this.onClose,
     this.enabled = true,
@@ -486,21 +489,17 @@ class GlassMenuAnchor extends StatefulWidget {
   /// [builder] is given either way.
   final GlassMenuController? controller;
 
-  /// The focus node of the control, which takes the keyboard focus for it
-  /// and gets it back when the menu closes; null for the anchor's own.
-  final FocusNode? childFocusNode;
-
   /// Called when the menu starts to show.
   final VoidCallback? onOpen;
 
   /// Called when the menu has gone.
   final VoidCallback? onClose;
 
-  /// Whether the control takes touches and keys.
+  /// Whether a hold and the controller open the menu.
   final bool enabled;
 
-  /// What accessibility reads for the control and the menu; null lets the
-  /// control speak, and names the menu after it.
+  /// What accessibility calls the menu; null names it after the control's
+  /// [GlassSourceDescription.semanticLabel], or the menu's default name.
   final String? semanticLabel;
 
   /// How the rows order in a menu that opens upward.
@@ -529,9 +528,14 @@ class GlassMenuAnchor extends StatefulWidget {
 }
 
 class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
-  late final _link = GlassSourceLink(states: _states);
-  late final _unlent = _UnlentStates(_states, _link);
   final _ownController = GlassMenuController();
+
+  // The box of the control's described body; nothing leases it, the menu
+  // only reads where it is.
+  final _body = MotionSource(debugLabel: 'GlassMenuAnchor');
+
+  // What the control told of its glass, read when the menu prepares.
+  GlassSourceDescription? _described;
 
   @override
   List<GlassMenuEntry> get _entries => widget.menuChildren;
@@ -546,43 +550,61 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
   bool get _enabled => widget.enabled;
 
   @override
-  String? get _semanticLabel => widget.semanticLabel ?? _link.semanticLabel;
+  String? get _semanticLabel =>
+      widget.semanticLabel ?? _described?.semanticLabel;
 
   @override
-  VoidCallback? get _onTap => _link.isLent ? _link.onPressed : _openFromCode;
+  Widget? get _look => _described?.look;
 
   @override
-  Widget? get _look => _link.look;
+  Color? get _sourceTint => _described?.tint;
 
   @override
-  Color? get _sourceTint => _link.tint;
+  MenuMotion _prepare({double? at}) {
+    _described = _describe();
+    return super._prepare(at: at);
+  }
+
+  // The first GlassSource in the control, which the control built: read,
+  // never written, so the build stays the control's own.
+  GlassSourceDescription? _describe() {
+    GlassSourceDescription? found;
+    void visit(Element element) {
+      if (found != null) return;
+      final widget = element.widget;
+      if (widget is GlassSource) {
+        found = widget.description;
+        return;
+      }
+      element.visitChildElements(visit);
+    }
+
+    (context as Element).visitChildElements(visit);
+    return found;
+  }
 
   @override
   MenuSource _sourceIn(RenderBox overlay, Rect box) {
     final given = widget.sourceOf?.call(overlay);
     if (given != null) return given;
-    final shown = _link.source.geometry?.rect;
+    final described = _described;
+    final shown = described == null ? null : _body.geometry?.rect;
     final rect = shown == null
         ? box
         : Rect.fromPoints(
             overlay.globalToLocal(shown.topLeft),
             overlay.globalToLocal(shown.bottomRight),
           );
-    final shape = _link.shape;
+    final shape = described?.shape ?? GlassShape.capsule;
     return MenuSource(
       rect,
       radius: shape == GlassShape.capsule ? null : shape.radiusIn(rect),
     );
   }
 
-  // What the region reports of the keyboard focus and the mouse, which
-  // the source's ring and hover response follow.
-  final _states = WidgetStatesController();
-
   @override
   void dispose() {
     if (_showing) widget.onClose?.call();
-    _states.dispose();
     super.dispose();
   }
 
@@ -624,29 +646,31 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
     );
   }
 
-  late final _input = _MenuInput(
-    claimAfter: widget.tuning.holdDuration,
+  // Watches the control's touch at its stamps, however the arena decides.
+  late final _watch = _ObservedTouch(
     down: _sourceDown,
     move: _pointerMove,
     up: _pointerUp,
     cancel: _pointerCancel,
     heard: _takeHeard,
-    activate: _activate,
   );
 
-  bool _sourceDown(int pointer, double t, Offset global) {
-    if (!widget.enabled || _pointer != null || _isOpen) return false;
-    _prepare();
-    return _pointerDown(pointer, t, global);
-  }
+  // Takes the touch from the control once a hold opens the menu; until then
+  // the control's claims do not hold it, so its release still taps.
+  late final _hold = _MenuInput(
+    claimAfter: widget.tuning.holdDuration,
+    contends: true,
+    down: (pointer, t, global) => pointer == _pointer,
+    move: (pointer, t, global) {},
+    up: (pointer, t, global) {},
+    cancel: _pointerCancel,
+    heard: () => const [],
+  );
 
-  void _activate() {
-    if (!widget.enabled) return;
-    if (_link.isLent) {
-      _link.onPressed?.call();
-    } else {
-      _openFromCode();
-    }
+  void _sourceDown(int pointer, double t, Offset global) {
+    if (!widget.enabled || _pointer != null || _isOpen) return;
+    _prepare();
+    _pointerDown(pointer, t, global);
   }
 
   // Read through the steps, so the press follows the motion's frames once
@@ -658,13 +682,6 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
     return Matrix4.diagonal3Values(s, s, 1);
   }
 
-  // systemFill at the hover's share of a press, as a list row's: not
-  // measured, a plain source on iOS shows no hover.
-  static Color _hoverOf(BuildContext context) {
-    final fill = GlassDynamicColor.resolve(GlassColors.systemFill, context);
-    return fill.withValues(alpha: fill.a * GlassHighlights.hoverGain);
-  }
-
   @override
   Widget build(BuildContext context) {
     _style = MenuAppearance.of(context, widget.style);
@@ -674,29 +691,19 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
         widget.child!;
     return _host(
       InputRegion(
-        interactions: [_input],
+        interactions: [_watch, _hold],
         feedback: _MenuHost._feedback,
-        statesController: _states,
         enabled: enabled,
-        focusNode: widget.childFocusNode,
-        semanticLabel: widget.semanticLabel,
         minimumHitSize: const Size(44, 44),
-        child: Semantics(
-          button: true,
+        child: _ControlSemantics(
           expanded: _showing,
-          excludeSemantics: widget.semanticLabel != null,
           onLongPress: enabled ? _openFromCode : null,
           child: MotionDriven(
             template: () => Transform(
               transform: _pressTransform(),
               alignment: Alignment.center,
             ),
-            child: GlassHighlightPaint.of(
-              context,
-              states: _unlent,
-              hoverColor: _hoverOf(context),
-              child: GlassSourceScope(link: _link, child: control),
-            ),
+            child: GlassSourceScope(source: _body, child: control),
           ),
         ),
       ),
@@ -704,24 +711,77 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
   }
 }
 
-/// The states of an anchor's region while no control lent itself to it: a
-/// control that did draws its own focus ring and hover from the link.
-final class _UnlentStates implements ValueListenable<Set<WidgetState>> {
-  _UnlentStates(this._states, this._link);
+/// Merges the control into one node that is expanded while the menu shows
+/// and opens it on a long press, as large as the anchor's minimum target.
+class _ControlSemantics extends SingleChildRenderObjectWidget {
+  const _ControlSemantics({
+    required this.expanded,
+    required this.onLongPress,
+    required super.child,
+  });
 
-  final ValueListenable<Set<WidgetState>> _states;
-  final GlassSourceLink _link;
-
-  @override
-  Set<WidgetState> get value =>
-      _link.isLent ? const <WidgetState>{} : _states.value;
-
-  @override
-  void addListener(VoidCallback listener) => _states.addListener(listener);
+  final bool expanded;
+  final VoidCallback? onLongPress;
 
   @override
-  void removeListener(VoidCallback listener) =>
-      _states.removeListener(listener);
+  _RenderControlSemantics createRenderObject(BuildContext context) =>
+      _RenderControlSemantics(
+        expanded: expanded,
+        onLongPress: onLongPress,
+      );
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderControlSemantics renderObject,
+  ) {
+    renderObject.expanded = expanded;
+    renderObject.onLongPress = onLongPress;
+  }
+}
+
+class _RenderControlSemantics extends RenderProxyBox {
+  _RenderControlSemantics({
+    required this._expanded,
+    required this._onLongPress,
+  });
+
+  static const _minimum = 44.0;
+
+  bool get expanded => _expanded;
+  bool _expanded;
+  set expanded(bool value) {
+    if (value == _expanded) return;
+    _expanded = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  VoidCallback? get onLongPress => _onLongPress;
+  VoidCallback? _onLongPress;
+  set onLongPress(VoidCallback? value) {
+    if ((value == null) == (_onLongPress == null)) {
+      _onLongPress = value;
+      return;
+    }
+    _onLongPress = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  @override
+  Rect get semanticBounds => Rect.fromCenter(
+    center: size.center(Offset.zero),
+    width: math.max(size.width, _minimum),
+    height: math.max(size.height, _minimum),
+  );
+
+  @override
+  void describeSemanticsConfiguration(SemanticsConfiguration config) {
+    super.describeSemanticsConfiguration(config);
+    config.isSemanticBoundary = true;
+    config.isMergingSemanticsOfDescendants = true;
+    config.isExpanded = _expanded;
+    if (_onLongPress != null) config.onLongPress = () => _onLongPress?.call();
+  }
 }
 
 /// The touches of a region over a menu's source or its layer, handed to
@@ -739,8 +799,8 @@ final class _MenuInput extends Interaction {
     required this.up,
     required this.cancel,
     required this.heard,
-    this.activate,
     this.claimAfter,
+    this.contends = false,
   });
 
   final bool Function(int pointer, double t, Offset global) down;
@@ -748,14 +808,14 @@ final class _MenuInput extends Interaction {
   final void Function(int pointer, double t, Offset global) up;
   final void Function(int pointer, double t) cancel;
   final List<InteractionEvent> Function() heard;
-  final VoidCallback? activate;
   final double? claimAfter;
+  final bool contends;
 
   int? _pointer;
   double? _claimAt;
 
   @override
-  bool get activates => activate != null;
+  bool get contendsWithControls => contends;
 
   @override
   double? get nextDue => _claimAt;
@@ -793,8 +853,6 @@ final class _MenuInput extends Interaction {
         _pointer = null;
         _claimAt = null;
         cancel(input.pointer, input.time);
-      case ActivateInput():
-        activate?.call();
       default:
     }
     final events = heard();
@@ -1982,9 +2040,6 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
 
   @override
   String? get _semanticLabel => widget.semanticLabel;
-
-  @override
-  VoidCallback? get _onTap => null;
 
   @override
   Widget? get _look => null;

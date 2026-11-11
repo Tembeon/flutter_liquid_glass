@@ -84,7 +84,7 @@ final List<Entry> registry = [
       enabled: enabled,
       menuChildren: _menu(probe),
       builder: (context, controller, child) => GlassButton(
-        onPressed: controller.open,
+        onPressed: enabled ? controller.open : null,
         semanticLabel: 'More',
         child: const Text('More'),
       ),
@@ -99,6 +99,11 @@ final List<Entry> registry = [
     build: (probe, {required enabled}) => GlassMenuAnchor(
       enabled: enabled,
       menuChildren: _menu(probe),
+      builder: (context, controller, child) => RawGlassButton(
+        onPressed: enabled ? controller.open : null,
+        builder: (context, details) => details.label,
+        child: child!,
+      ),
       child: const SizedBox(
         width: 120,
         height: 44,
@@ -807,9 +812,10 @@ const Map<String, String> nonInteractive = {
   'GlassScope': 'the root widget: theme and renderer',
   'GlassSliverListSection': 'the sliver form of GlassListSection',
   'GlassSolidBackdrop': 'tells glass what is behind it',
+  'GlassSource': "describes a control's body to the presentation around it",
   'GlassSourceScope':
-      'hands its link to the control in it; the presentation that made '
-      'the link takes the input',
+      "hands a presentation's source to the GlassSource in it; the "
+      'control keeps its input',
   'GlassSurface': 'draws glass behind a child',
   'GlassTabScaffold': 'switches tab pages; its tab bar is an entry',
   'GlassTheme': 'provides the theme to its subtree',

@@ -60,11 +60,10 @@ final class GlassButtonDetails {
 /// motion traits) the body glows but never lifts or leans (an
 /// approximation, not measured).
 ///
-/// Under a [GlassSourceLink], such as inside a `GlassMenuAnchor`, the button
-/// lends itself: the presentation takes its touches, keys, focus and
-/// states and presses it as it measures, [onPressed] is what the
-/// presentation calls on a tap, and the body stays at rest. It then ignores
-/// [statesController], [focusNode] and [autofocus].
+/// Inside a `GlassMenuAnchor` (under a [GlassSourceScope]) the button keeps
+/// its touches, keys, focus, states and semantics, and its body stays at
+/// rest: the anchor presses the whole button by the menu's measured press
+/// as it watches the same touch.
 class RawGlassButton extends StatefulWidget {
   /// Creates a button labeled [child] whose look [builder] builds.
   const RawGlassButton({
@@ -110,12 +109,14 @@ class RawGlassButton extends StatefulWidget {
 class _RawGlassButtonState extends State<RawGlassButton>
     with ControlStates<RawGlassButton> {
   final GlassPress _press = GlassPress();
+  late final _tap = PressInteraction(
+    releaseSlop: const EdgeInsets.all(GlassPress.highlightSlop),
+    onTap: (t) => widget.onPressed?.call(),
+  );
   late final List<Interaction> _interactions = [
-    PressInteraction(
-      releaseSlop: const EdgeInsets.all(GlassPress.highlightSlop),
-      onTap: (t) => widget.onPressed?.call(),
-    ).simultaneously(FollowInteraction(_press)),
+    _tap.simultaneously(FollowInteraction(_press)),
   ];
+  late final List<Interaction> _sourceInteractions = [_tap];
   late MotionSelection<GlassFrame> _body = _bodyOf(widget.shape);
 
   MotionSelection<GlassFrame> _bodyOf(GlassShape shape) => _press.select(
@@ -135,25 +136,8 @@ class _RawGlassButtonState extends State<RawGlassButton>
   static MotionSelection<GlassFrame> _restingOf(GlassShape shape) =>
       MotionSelection(() => GlassFrame(shape: shape));
 
-  GlassSourceLink? _link;
-
   @override
   WidgetStatesController? get givenStates => widget.statesController;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final link = GlassSourceLink.maybeOf(context);
-    if (identical(link, _link)) return;
-    _link?.release(this);
-    _link = link;
-  }
-
-  @override
-  void dispose() {
-    _link?.release(this);
-    super.dispose();
-  }
 
   @override
   void didUpdateWidget(RawGlassButton oldWidget) {
@@ -173,58 +157,44 @@ class _RawGlassButtonState extends State<RawGlassButton>
 
   @override
   Widget build(BuildContext context) {
-    final link = _link;
-    if (link == null) return _button(context);
-    link.lend(
-      this,
-      onPressed: widget.onPressed,
-      shape: widget.shape,
-      semanticLabel: widget.semanticLabel,
-    );
-    final label = widget.semanticLabel;
-    return Semantics(
-      label: label,
-      excludeSemantics: label != null,
-      child: MotionSourceBox(
-        source: link.source,
-        child: widget.builder(
-          context,
-          GlassButtonDetails(
-            body: _resting,
-            states: {
-              ...link.states.value,
-              if (widget.onPressed == null) WidgetState.disabled,
-            },
-            statesListenable: link.states,
-            label: widget.child,
+    final source = GlassSource.isSourceAt(context);
+    return MotionScope(
+      motion: _press,
+      child: InputRegion(
+        interactions: source ? _sourceInteractions : _interactions,
+        enabled: widget.onPressed != null,
+        statesController: widgetStates,
+        focusNode: widget.focusNode,
+        autofocus: widget.autofocus,
+        semanticLabel: widget.semanticLabel,
+        minimumHitSize: const Size(44, 44),
+        child: Semantics(
+          button: true,
+          excludeSemantics: widget.semanticLabel != null,
+          child: _described(
+            source,
+            widget.builder(
+              context,
+              GlassButtonDetails(
+                body: source ? _resting : _body,
+                states: {...widgetStates.value},
+                statesListenable: widgetStates,
+                label: widget.child,
+              ),
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _button(BuildContext context) => MotionScope(
-    motion: _press,
-    child: InputRegion(
-      interactions: _interactions,
-      enabled: widget.onPressed != null,
-      statesController: widgetStates,
-      focusNode: widget.focusNode,
-      autofocus: widget.autofocus,
-      semanticLabel: widget.semanticLabel,
-      minimumHitSize: const Size(44, 44),
-      child: Semantics(
-        button: true,
-        child: widget.builder(
-          context,
-          GlassButtonDetails(
-            body: _body,
-            states: {...widgetStates.value},
-            statesListenable: widgetStates,
-            label: widget.child,
+  Widget _described(bool source, Widget body) => source
+      ? GlassSource(
+          description: GlassSourceDescription(
+            shape: widget.shape,
+            semanticLabel: widget.semanticLabel,
           ),
-        ),
-      ),
-    ),
-  );
+          child: body,
+        )
+      : body;
 }

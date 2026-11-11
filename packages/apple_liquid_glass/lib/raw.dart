@@ -2,8 +2,8 @@
 /// `RawGlassSwitch`, `RawGlassSlider`, `RawGlassStepper`,
 /// `RawGlassSelector`, `RawGlassPageControl`, `RawGlassSearchField`,
 /// `RawGlassList` and `RawGlassDatePicker`, with the details each gives its
-/// builder; and `GlassSourceLink`, through which a control lends itself to
-/// a presentation that grows out of it.
+/// builder; and `GlassSource`, through which a control describes its body
+/// to a presentation that grows out of it.
 ///
 /// For the author of a design system who wants iOS behaviour with a look
 /// of their own. A core runs the measured motion of its control and takes
@@ -50,7 +50,8 @@ export 'src/raw/selector.dart'
         RawGlassSelector;
 export 'src/raw/slider.dart'
     show GlassSliderBuilder, GlassSliderDetails, RawGlassSlider;
-export 'src/raw/source.dart' show GlassSourceLink, GlassSourceScope;
+export 'src/raw/source.dart'
+    show GlassSource, GlassSourceDescription, GlassSourceScope;
 export 'src/raw/stepper.dart'
     show
         GlassStepperBuilder,
