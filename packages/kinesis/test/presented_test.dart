@@ -110,7 +110,12 @@ abstract class _Shell {
   String? get result;
 }
 
+/// Keys an app maps to intents above every presentation, as an app remaps
+/// them.
+Map<ShortcutActivator, Intent> _appShortcuts = const {};
+
 Widget _app(Widget home, {GlobalKey<NavigatorState>? key}) => WidgetsApp(
+  shortcuts: {...WidgetsApp.defaultShortcuts, ..._appShortcuts},
   navigatorKey: key,
   color: const Color(0xFF000000),
   pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(
@@ -340,6 +345,56 @@ void main() {
         expect(handle.canDismiss(DismissTrigger.programmatic), isFalse);
         await _settle(tester);
         expect(shell.isPresented, isFalse);
+      });
+
+      testWidgets('Escape is a DismissIntent an app can remap or take over', (
+        tester,
+      ) async {
+        _appShortcuts = const {
+          SingleActivator(LogicalKeyboardKey.keyQ): DismissIntent(),
+        };
+        addTearDown(() => _appShortcuts = const {});
+        final shell = make();
+        final made = <_Card>[];
+        await shell.pump(tester, const SizedBox.expand());
+        await shell.present(tester, _presentation(made));
+        await tester.pump();
+        await _settle(tester);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyQ);
+        await tester.pump();
+        expect(made.single.left, [DismissTrigger.escape]);
+        await _settle(tester);
+
+        var overridden = 0;
+        final focus = FocusNode();
+        final taken = Presentation<String, _Card>(
+          motion: (_) {
+            final card = _Card();
+            made.add(card);
+            return card;
+          },
+          builder: (context, motion) => Actions(
+            actions: {
+              DismissIntent: CallbackAction<DismissIntent>(
+                onInvoke: (_) => overridden++,
+              ),
+            },
+            child: Focus(
+              focusNode: focus,
+              autofocus: true,
+              child: const SizedBox(),
+            ),
+          ),
+        );
+        await shell.present(tester, taken);
+        await tester.pump();
+        await _settle(tester);
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+        await tester.pump();
+        expect(overridden, 1);
+        expect(made.last.left, isEmpty);
+        await tester.pumpWidget(const SizedBox());
+        focus.dispose();
       });
 
       testWidgets('the screen reader dismisses it by its name', (
