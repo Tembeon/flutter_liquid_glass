@@ -218,6 +218,31 @@ final class PointerHoverInput extends InteractionInput {
   final bool inside;
 }
 
+/// A scroll wheel or a trackpad scrolled over the region.
+///
+/// It reaches a region's interactions only when one of them
+/// [Interaction.takesWheel]; the region then keeps the scroll from the
+/// scroll views around it.
+final class PointerScrollInput extends InteractionInput {
+  /// Creates a scroll input.
+  const PointerScrollInput({
+    required super.time,
+    required this.position,
+    required this.scrollDelta,
+    this.kind = PointerDeviceKind.mouse,
+  });
+
+  /// Where the pointer is, in the region's coordinates.
+  final Offset position;
+
+  /// How far the content would scroll, in logical pixels: positive `dy`
+  /// scrolls down, toward the end.
+  final Offset scrollDelta;
+
+  /// What scrolled.
+  final PointerDeviceKind kind;
+}
+
 /// The region was activated without a touch.
 final class ActivateInput extends InteractionInput {
   /// Creates an activation.
@@ -342,6 +367,11 @@ abstract class Interaction {
 
   /// Whether the interaction takes a touch that starts with [down].
   bool accepts(PointerDownInput down) => down.buttons == kPrimaryButton;
+
+  /// Whether the region's scroll wheel and trackpad scrolls reach this
+  /// interaction as [PointerScrollInput]s. While one does, the region keeps
+  /// them from the scroll views around it.
+  bool get takesWheel => false;
 
   /// Whether a touch presses the region through this interaction; the
   /// region is `WidgetState.pressed` while one does.
@@ -937,6 +967,50 @@ class TapInteraction extends Interaction {
   }
 }
 
+/// A press of the secondary button: a right click, or a two-finger click
+/// on a trackpad.
+///
+/// UIKit: `UIContextMenuInteraction` opened by a secondary click. SwiftUI:
+/// `contextMenu` on iPadOS and macOS. Flutter: `onSecondaryTapDown`.
+///
+/// It reports the press as it happens, where a context menu opens on
+/// iPadOS and macOS, and holds the touch until the button lifts. Other
+/// interactions take primary presses only, so a region adds this one beside
+/// its press without either hearing the other's button.
+class SecondaryClickInteraction extends Interaction {
+  /// Creates a secondary click that calls [onClick].
+  SecondaryClickInteraction({super.role, this.onClick});
+
+  /// Called with the time of the press and where it is, in the region's
+  /// coordinates.
+  void Function(double t, Offset position)? onClick;
+
+  int? _pointer;
+
+  @override
+  bool accepts(PointerDownInput down) =>
+      _pointer == null && down.buttons & kSecondaryButton != 0;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    switch (input) {
+      case PointerDownInput():
+        if (!accepts(input)) return InteractionUpdate.none;
+        _pointer = input.pointer;
+        onClick?.call(input.time, input.position);
+        return const InteractionUpdate(claims: true, recognizes: true);
+      case PointerUpInput() when input.pointer == _pointer:
+        _pointer = null;
+        return InteractionUpdate.none;
+      case PointerCancelInput() when input.pointer == _pointer:
+        _pointer = null;
+        return InteractionUpdate.none;
+      default:
+        return InteractionUpdate.none;
+    }
+  }
+}
+
 InteractionUpdate _then(InteractionUpdate a, InteractionUpdate b) {
   if (identical(b, InteractionUpdate.none)) return a;
   if (identical(a, InteractionUpdate.none)) return b;
@@ -974,6 +1048,9 @@ final class _Simultaneous extends Interaction {
 
   @override
   bool get adjusts => a.adjusts || b.adjusts;
+
+  @override
+  bool get takesWheel => a.takesWheel || b.takesWheel;
 
   @override
   bool accepts(PointerDownInput down) => a.accepts(down) || b.accepts(down);
@@ -1023,6 +1100,9 @@ final class _Exclusive extends Interaction {
 
   @override
   bool get adjusts => a.adjusts || b.adjusts;
+
+  @override
+  bool get takesWheel => a.takesWheel || b.takesWheel;
 
   @override
   bool accepts(PointerDownInput down) => a.accepts(down) || b.accepts(down);
@@ -1094,6 +1174,9 @@ final class _Sequenced extends Interaction {
   bool get adjusts => a.adjusts;
 
   @override
+  bool get takesWheel => a.takesWheel;
+
+  @override
   bool accepts(PointerDownInput down) => a.accepts(down);
 
   InteractionUpdate _fromA(InteractionUpdate update, double time) {
@@ -1131,12 +1214,14 @@ final class _Sequenced extends Interaction {
         _latest = input.position;
       case PointerCancelInput() ||
           PointerHoverInput() ||
+          PointerScrollInput() ||
           ActivateInput() ||
           AdjustInput():
     }
     final fromA = _fromA(a.handle(input), input.time);
     if (!_handedOn ||
         input is PointerHoverInput ||
+        input is PointerScrollInput ||
         input is ActivateInput ||
         input is AdjustInput) {
       return fromA;
@@ -1278,7 +1363,8 @@ class InteractionSession {
       };
 
   /// Answers a stamped pointer, keyboard, hover or accessibility input.
-  /// Hover, activations and value commands reach every interaction.
+  /// Hover, scrolls, activations and value commands reach every
+  /// interaction.
   SessionOutput handle(InteractionInput input) {
     _time = input.time;
     switch (input) {
@@ -1350,7 +1436,10 @@ class InteractionSession {
         }
         _end();
         return output;
-      case PointerHoverInput() || ActivateInput() || AdjustInput():
+      case PointerHoverInput() ||
+          PointerScrollInput() ||
+          ActivateInput() ||
+          AdjustInput():
         var output = SessionOutput.none;
         for (final interaction in interactions) {
           output = _apply(output, interaction, interaction.handle(input));

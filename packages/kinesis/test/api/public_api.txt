@@ -87,6 +87,7 @@ abstract class Interaction
   final InteractionRole role
   Interaction sequenced(Interaction next)
   Interaction simultaneously(Interaction other)
+  bool get takesWheel
 sealed class InteractionEvent
   const InteractionEvent({required double time})
   final double time
@@ -195,6 +196,16 @@ final class PointerMoveInput extends InteractionInput
   })
   final int pointer
   final Offset position
+final class PointerScrollInput extends InteractionInput
+  const PointerScrollInput({
+    required double time,
+    required Offset position,
+    required Offset scrollDelta,
+    PointerDeviceKind kind = ...,
+  })
+  final PointerDeviceKind kind
+  final Offset position
+  final Offset scrollDelta
 final class PointerUpInput extends InteractionInput
   const PointerUpInput({
     required double time,
@@ -236,6 +247,13 @@ class ScrubInteraction extends Interaction
   void Function(Object?, double)? onChanged
   void Function(Object, double)? onCommit
   overrides: handle
+class SecondaryClickInteraction extends Interaction
+  SecondaryClickInteraction({
+    InteractionRole role = ...,
+    void Function(double, Offset)? onClick,
+  })
+  void Function(double, Offset)? onClick
+  overrides: accepts, handle
 final class SessionOutput
   const SessionOutput({
     bool claim = ...,
@@ -810,6 +828,7 @@ class PointerDownInput (see package:kinesis/input.dart)
 class PointerFollower (see package:kinesis/input.dart)
 class PointerHoverInput (see package:kinesis/input.dart)
 class PointerMoveInput (see package:kinesis/input.dart)
+class PointerScrollInput (see package:kinesis/input.dart)
 class PointerUpInput (see package:kinesis/input.dart)
 final class Presence extends Motion
   Presence({required Spring openSpring, Spring? closeSpring, double rest = ...})
@@ -979,6 +998,7 @@ final class RectSprings
   overrides: ==, hashCode
 class ScrubChangeEvent (see package:kinesis/input.dart)
 class ScrubInteraction (see package:kinesis/input.dart)
+class SecondaryClickInteraction (see package:kinesis/input.dart)
 class SessionOutput (see package:kinesis/input.dart)
 class SliverMotionList extends StatefulWidget
   const SliverMotionList({

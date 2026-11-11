@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/input.dart';
@@ -44,6 +45,14 @@ final class _Value extends Interaction {
   }
 }
 
+final class _Wheel extends Interaction {
+  @override
+  bool get takesWheel => true;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) => InteractionUpdate.none;
+}
+
 void main() {
   group('value commands', () {
     test('reach every interaction of a session with their source', () {
@@ -71,6 +80,46 @@ void main() {
       expect(PressInteraction().exclusively(_Value()).adjusts, isTrue);
       expect(_Value().sequenced(PressInteraction()).adjusts, isTrue);
       expect(PressInteraction().sequenced(_Value()).adjusts, isFalse);
+    });
+  });
+
+  group('SecondaryClickInteraction', () {
+    test('a secondary press clicks at once and the press does not hear '
+        'it', () {
+      final clicks = <(double, Offset)>[];
+      var taps = 0;
+      final press = PressInteraction(onTap: (t) => taps++);
+      final session = InteractionSession([
+        press,
+        SecondaryClickInteraction(
+          onClick: (t, position) => clicks.add((t, position)),
+        ),
+      ]);
+      final output = session.handle(
+        const PointerDownInput(
+          time: 1,
+          pointer: 1,
+          position: Offset(10, 5),
+          regionSize: _size,
+          kind: PointerDeviceKind.mouse,
+          buttons: kSecondaryMouseButton,
+        ),
+      );
+      expect(output.claim, isTrue);
+      expect(press.pressed, isFalse);
+      session.handle(_up(1.1, const Offset(10, 5)));
+      expect(clicks, [(1.0, const Offset(10, 5))]);
+      session.handle(_down(2));
+      session.handle(_up(2.1, const Offset(50, 20)));
+      expect(clicks, hasLength(1));
+      expect(taps, 1);
+    });
+
+    test('a relation takes the wheel when a part does', () {
+      expect(PressInteraction().takesWheel, isFalse);
+      expect(PressInteraction().simultaneously(_Wheel()).takesWheel, isTrue);
+      expect(PressInteraction().exclusively(_Wheel()).takesWheel, isTrue);
+      expect(_Wheel().sequenced(PressInteraction()).takesWheel, isTrue);
     });
   });
 

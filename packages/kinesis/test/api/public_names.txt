@@ -66,6 +66,7 @@ PointerDownInput
 PointerFollower
 PointerHoverInput
 PointerMoveInput
+PointerScrollInput
 PointerUpInput
 Presence
 PresenceStatus
@@ -89,6 +90,7 @@ Ramp
 RectSprings
 ScrubChangeEvent
 ScrubInteraction
+SecondaryClickInteraction
 SessionOutput
 SliverMotionList
 SourceGeometry

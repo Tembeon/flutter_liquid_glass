@@ -674,6 +674,79 @@ void main() {
       expect(states.value, isNot(contains(WidgetState.focused)));
     });
   });
+
+  group('mouse buttons and wheel', () {
+    testWidgets('a secondary click reaches the interaction that asks for it '
+        'and never presses', (tester) async {
+      final states = WidgetStatesController();
+      addTearDown(states.dispose);
+      final clicks = <Offset>[];
+      var taps = 0;
+      await tester.pumpWidget(
+        _app(
+          Center(
+            child: InputRegion(
+              interactions: [
+                PressInteraction(onTap: (t) => taps++),
+                SecondaryClickInteraction(
+                  onClick: (t, position) => clicks.add(position),
+                ),
+              ],
+              statesController: states,
+              child: const SizedBox(width: 80, height: 40),
+            ),
+          ),
+        ),
+      );
+      final topLeft = tester.getTopLeft(find.byType(InputRegion));
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        buttons: kSecondaryMouseButton,
+      );
+      await gesture.down(topLeft + const Offset(10, 5));
+      await tester.pump();
+      expect(clicks, [const Offset(10, 5)]);
+      expect(states.value, isNot(contains(WidgetState.pressed)));
+      await gesture.up();
+      await tester.pump();
+      expect(taps, 0);
+      await gesture.removePointer();
+    });
+
+    testWidgets('the wheel reaches an interaction that takes it, and scrolls '
+        'the list otherwise', (tester) async {
+      final wheel = _WheelHeard();
+      Widget list(List<Interaction> interactions) => _list(
+        InputRegion(interactions: interactions, child: const SizedBox.expand()),
+      );
+      await tester.pumpWidget(list([wheel]));
+      final center = tester.getCenter(find.byType(InputRegion));
+      final pointer = TestPointer(1, PointerDeviceKind.mouse);
+      await tester.sendEventToBinding(pointer.hover(center));
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, 30)));
+      await tester.pump();
+      final scroll = tester.state<ScrollableState>(find.byType(Scrollable));
+      expect(wheel.deltas, [const Offset(0, 30)]);
+      expect(scroll.position.pixels, 0);
+      await tester.pumpWidget(list([PressInteraction()]));
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0, 30)));
+      await tester.pump();
+      expect(scroll.position.pixels, 30);
+    });
+  });
+}
+
+final class _WheelHeard extends Interaction {
+  final List<Offset> deltas = [];
+
+  @override
+  bool get takesWheel => true;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    if (input is PointerScrollInput) deltas.add(input.scrollDelta);
+    return InteractionUpdate.none;
+  }
 }
 
 final class _Value extends Interaction {

@@ -34,6 +34,11 @@ import 'package:kinesis/src/input/port.dart';
 /// [AdjustValueIntent.defaultShortcuts] around its focus and gives
 /// accessibility increase and decrease; both arrive as [AdjustInput]s.
 ///
+/// Presses of the secondary button reach the interactions that accept them
+/// (`SecondaryClickInteraction`); the scroll wheel reaches them as
+/// [PointerScrollInput]s when one [Interaction.takesWheel], and the region
+/// then keeps it from the scroll views around it.
+///
 /// With a [port] it also hears the touches another region hands on to it
 /// (`InputPort.forward`), mapped into its own coordinates. It writes
 /// pressed, hovered, focused, dragged and disabled into [statesController]
@@ -286,11 +291,38 @@ class _InputRegionState extends State<InputRegion> {
 
   void _pointer(PointerEvent event, Size size) {
     if (!widget.enabled) return;
+    if (event is PointerScrollEvent) {
+      if (widget.interactions.any((i) => i.takesWheel)) {
+        GestureBinding.instance.pointerSignalResolver.register(
+          event,
+          _scrolled,
+        );
+      }
+      return;
+    }
     if (event is! PointerDownEvent && !_members.containsKey(event.pointer)) {
       return;
     }
     final time = _clock.stamp(event.timeStamp);
     _clock.input(time, () => _dispatch(event, size, time));
+  }
+
+  void _scrolled(PointerSignalEvent event) {
+    if (!mounted || !widget.enabled || event is! PointerScrollEvent) return;
+    final time = _clock.stamp(event.timeStamp);
+    _clock.input(
+      time,
+      () => _answer(
+        _session.handle(
+          PointerScrollInput(
+            time: time,
+            position: event.localPosition,
+            scrollDelta: event.scrollDelta,
+            kind: event.kind,
+          ),
+        ),
+      ),
+    );
   }
 
   Duration? _movedAt;
