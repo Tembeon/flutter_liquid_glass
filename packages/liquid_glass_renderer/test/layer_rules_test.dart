@@ -70,6 +70,7 @@ const _rules = LayerRules(
         'lib/src/rendering/backdrop_filter_layer.dart',
         'lib/src/rendering/backdrop_rig.dart',
         'lib/src/rendering/consolidated_fake_glass_layer.dart',
+        'lib/src/rendering/copy_frost.dart',
         'lib/src/rendering/copy_read.dart',
         'lib/src/rendering/form.dart',
         'lib/src/rendering/form_open.dart',
@@ -95,7 +96,7 @@ const _rules = LayerRules(
       'copy-frost',
       r'\bfrostInPlace\(',
       allowedIn: {
-        'lib/src/rendering/backdrop_rig.dart',
+        'lib/src/rendering/copy_frost.dart',
         'lib/src/rendering/copy_read.dart',
         'lib/src/rendering/read.dart',
       },

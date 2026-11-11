@@ -1,7 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
+import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart';
 
 void main() {
   // What an axis of the frost weighs each pixel by: a read's weight split
