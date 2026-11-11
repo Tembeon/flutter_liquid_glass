@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motions/lens_motion.dart';
+import 'package:apple_liquid_glass/src/motions/lens_tuning.dart';
+import 'package:apple_liquid_glass/src/motions/lens_values.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/onset.dart';

@@ -41,8 +41,8 @@ export 'src/motions/date_picker_motion.dart'
         placeDatePicker;
 export 'src/motions/flex_interaction.dart' show FlexValues;
 export 'src/motions/glass_press.dart' show FlexLaw, GlassPress;
-export 'src/motions/lens_motion.dart'
-    show LensEvent, LensMotion, LensSelected, LensSlot;
+export 'src/motions/lens_motion.dart' show LensMotion;
+export 'src/motions/lens_values.dart' show LensEvent, LensSelected, LensSlot;
 export 'src/motions/list_highlight.dart' show ListRowHighlight;
 export 'src/motions/menu_context_hold.dart' show ContextHold;
 export 'src/motions/menu_layout.dart'

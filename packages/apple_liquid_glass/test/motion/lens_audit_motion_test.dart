@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motions/lens_motion.dart';
+import 'package:apple_liquid_glass/src/motions/lens_tuning.dart';
 import 'package:apple_liquid_glass/src/motions/slider_motion.dart';
 import 'package:apple_liquid_glass/src/motions/small_lens.dart';
 import 'package:flutter_test/flutter_test.dart';
