@@ -103,7 +103,7 @@ class DatePickerPlacement
 class DefaultGlassLocalizations extends GlassLocalizations
   const DefaultGlassLocalizations()
   static const LocalizationsDelegate<GlassLocalizations> delegate
-  overrides: actionSheetDismissLabel, alertLabel, anteMeridiemAbbreviation, backButtonLabel, clearTextLabel, closeButtonLabel, compactDate, compactDatePickerHint, compactTime, datePickerDismissLabel, dayLabel, dayPeriodLabel, decrementLabel, hideYearPickerLabel, hourLabel, incrementLabel, loadingLabel, menuDismissLabel, menuLabel, minuteLabel, monthLabel, monthName, monthYear, moreInfoLabel, nextMonthLabel, pageValue, percentValue, popoverDismissLabel, postMeridiemAbbreviation, previousMonthLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue, showYearPickerLabel, weekdayAbbreviation, yearLabel
+  overrides: actionSheetDismissLabel, alertLabel, anteMeridiemAbbreviation, backButtonLabel, clearTextLabel, closeButtonLabel, compactDate, compactDatePickerHint, compactDatePickerLabel, compactTime, datePickerDismissLabel, dayLabel, dayPeriodLabel, decrementLabel, hideYearPickerLabel, hourLabel, incrementLabel, loadingLabel, menuDismissLabel, menuLabel, minuteLabel, monthLabel, monthName, monthYear, moreInfoLabel, nextMonthLabel, pageValue, percentValue, popoverDismissLabel, postMeridiemAbbreviation, previousMonthLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue, showYearPickerLabel, weekdayAbbreviation, yearLabel
 final class FakeGlassRenderer extends LiquidGlassRenderer
   const FakeGlassRenderer()
   overrides: fake
@@ -1068,6 +1068,7 @@ abstract class GlassLocalizations
   String get closeButtonLabel
   abstract String compactDate(DateTime date)
   String get compactDatePickerHint
+  abstract String compactDatePickerLabel(String label, String value)
   abstract String compactTime(DateTime time, {required bool use24HourFormat})
   String get datePickerDismissLabel
   abstract String dayLabel(DateTime date, {required bool today})

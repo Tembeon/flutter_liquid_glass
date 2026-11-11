@@ -113,6 +113,10 @@ abstract class GlassLocalizations {
   /// in 12 with the half of the day.
   String compactTime(DateTime time, {required bool use24HourFormat});
 
+  /// What a compact date picker's label reads: the app's [label] for the
+  /// picker, then the [value] it shows.
+  String compactDatePickerLabel(String label, String value);
+
   /// The label of a calendar's button that shows the previous month.
   String get previousMonthLabel;
 
@@ -282,6 +286,9 @@ class DefaultGlassLocalizations extends GlassLocalizations {
         : postMeridiemAbbreviation;
     return '$hour:${two(time.minute)} $period';
   }
+
+  @override
+  String compactDatePickerLabel(String label, String value) => '$label, $value';
 
   @override
   String get previousMonthLabel => 'Previous month';

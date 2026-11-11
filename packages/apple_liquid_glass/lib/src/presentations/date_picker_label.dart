@@ -57,7 +57,9 @@ class _CompactLabelState extends State<_CompactLabel> {
         enabled: widget.enabled,
         statesController: _states,
         semantics: SemanticsProperties(
-          label: label == null ? widget.text : '$label, ${widget.text}',
+          label: label == null
+              ? widget.text
+              : loc.compactDatePickerLabel(label, widget.text),
           button: true,
           expanded: widget.open,
           hint: loc.compactDatePickerHint,
