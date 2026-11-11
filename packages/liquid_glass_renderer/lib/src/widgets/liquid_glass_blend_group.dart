@@ -64,6 +64,7 @@ class _LiquidGlassBlendGroupState extends State<LiquidGlassBlendGroup> {
 
   @override
   Widget build(BuildContext context) {
+    final scope = LiquidGlassRenderScope.of(context);
     final renderLink = InheritedGeometryRenderLink.of(context);
     return _InheritedLiquidGlassBlendGroup(
       link: _geometryLink,
@@ -72,7 +73,7 @@ class _LiquidGlassBlendGroupState extends State<LiquidGlassBlendGroup> {
         blend: widget.blend,
         link: _geometryLink,
         renderLink: renderLink!,
-        settings: LiquidGlassRenderScope.of(context).settings,
+        settings: scope.settings,
         child: widget.child,
       ),
     );

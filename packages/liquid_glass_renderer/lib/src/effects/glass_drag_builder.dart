@@ -61,6 +61,7 @@ class _GlassDragBuilderState extends State<GlassDragBuilder> {
         onPointerDown: (_) => _begin(),
         onPointerMove: (event) => _move(event.delta),
         onPointerUp: (_) => _end(),
+        onPointerCancel: (_) => _end(),
         child: child,
       ),
       GestureMode.gestureDetector => GestureDetector(
