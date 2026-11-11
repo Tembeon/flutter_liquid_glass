@@ -1052,4 +1052,38 @@ void main() {
     expect(zones.requestFocus('b'), isFalse);
     expect(zones.requestFocus('c'), isTrue);
   });
+
+  testWidgets('a touch reads each zone where it lies once, and again after '
+      'the frames move', (tester) async {
+    final reads = <String, int>{};
+    final frames = ValueNotifier(0);
+    addTearDown(frames.dispose);
+    await tester.pumpWidget(
+      _app(
+        InputZones<String>(
+          zones: [
+            for (final id in const ['a', 'b', 'c'])
+              InputZone(id: id, interactions: [PressInteraction()]),
+          ],
+          frameOf: (id) {
+            reads[id] = (reads[id] ?? 0) + 1;
+            return motion.frameOf(id);
+          },
+          frames: frames,
+          slides: true,
+          child: const SizedBox(width: 200, height: 32),
+        ),
+      ),
+    );
+    reads.clear();
+    final gesture = await tester.startGesture(_at(motion, 'a'));
+    await gesture.moveTo(_at(motion, 'b'));
+    await gesture.moveTo(_at(motion, 'c'));
+    expect(reads, {'a': 1, 'b': 1, 'c': 1});
+    reads.clear();
+    frames.value++;
+    await gesture.moveTo(_at(motion, 'b'));
+    await gesture.up();
+    expect(reads.values, everyElement(1));
+  });
 }

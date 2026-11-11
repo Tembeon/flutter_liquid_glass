@@ -148,7 +148,7 @@ final class _ZoneSource<T extends Object> implements SourceView {
     if (host == null || box == null || !box.attached || !box.hasSize) {
       return null;
     }
-    final frame = host.widget.frameOf(zone);
+    final frame = host._frameOf(zone);
     if (frame == null ||
         frame.opacity < InputZoneFrame.minimumOpacity ||
         frame.rect.isEmpty) {
@@ -295,8 +295,13 @@ class InputZones<T extends Object> extends StatefulWidget {
   final List<InputZone<T>> zones;
 
   /// Where a zone lies now, in the host's coordinates, or null when it is
-  /// not shown. Read at hit testing, for every pointer event, and for the
-  /// focus and semantics rectangles.
+  /// not shown. Read at hit testing, for pointer events, and for the focus
+  /// and semantics rectangles.
+  ///
+  /// The host reads each zone's frame once and keeps it until [frames]
+  /// notifies or the host is built again, so a pointer event asks for a
+  /// zone's frame at most once; while a frame lays out, paints and builds
+  /// the semantics, it reads afresh at every use.
   final InputZoneFrame? Function(T zone) frameOf;
 
   /// Notifies when what [frameOf] answers changes: the motion the control
@@ -426,6 +431,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
   @override
   void didUpdateWidget(InputZones<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _frames.clear();
     _scheduleResize();
     if (oldWidget.frames != widget.frames) {
       oldWidget.frames.removeListener(_framesChanged);
@@ -466,6 +472,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
   }
 
   void _framesChanged() {
+    _frames.clear();
     // The frames may change inside a layout (a bar measures its items in
     // its own), where a control's frames cannot be read: they are compared
     // at the start of the next frame instead.
@@ -486,6 +493,22 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     }
     _box?.markNeedsSemanticsUpdate();
     if (resized) _scheduleResize();
+  }
+
+  // A pointer event asks for the frames many times over (its hit test, the
+  // zone under the finger, the zone's coordinates): a hundred calls for a
+  // calendar's 42 days. A frame's layout may still move what a control
+  // reads its frames from, so the phases of the frame are never served
+  // from what was kept.
+  final Map<T, InputZoneFrame?> _frames = {};
+
+  InputZoneFrame? _frameOf(T zone) {
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      return widget.frameOf(zone);
+    }
+    if (_frames.containsKey(zone)) return _frames[zone];
+    return _frames[zone] = widget.frameOf(zone);
   }
 
   int? _resize;
@@ -537,7 +560,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     _ZoneState<T>? extended;
     for (final zone in widget.zones.reversed) {
       final state = _zones[zone.id];
-      final frame = widget.frameOf(zone.id);
+      final frame = _frameOf(zone.id);
       if (state == null || frame == null || !frame.live) continue;
       if (frame.rect.contains(position)) return state;
       if (extended == null &&

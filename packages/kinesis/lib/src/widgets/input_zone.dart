@@ -8,9 +8,10 @@ import 'package:kinesis/src/widgets/input_zones.dart';
 /// motion it paints with.
 ///
 /// [InputZones.frameOf] answers one per zone whenever input or
-/// accessibility asks: at hit testing, at every pointer event of a touch,
-/// for the focus rectangle and the semantics rectangle. Nothing is cached,
-/// so a zone is hit where it is painted in the frame the finger lands in.
+/// accessibility asks: at hit testing, at the pointer events of a touch,
+/// for the focus rectangle and the semantics rectangle. The host keeps an
+/// answer only until `InputZones.frames` notifies, so a zone is hit where it
+/// is painted in the frame the finger lands in.
 @immutable
 final class InputZoneFrame {
   /// Places a zone at [rect] with [radius] corners, painted at [opacity],

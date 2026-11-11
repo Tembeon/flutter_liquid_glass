@@ -66,7 +66,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
 
   InputZonesController<T> get _controller => host.controller;
 
-  InputZoneFrame? get frame => host.widget.frameOf(id);
+  InputZoneFrame? get frame => host._frameOf(id);
 
   /// Whether the zone is there for input and accessibility now.
   bool get present => frame?.live ?? false;
