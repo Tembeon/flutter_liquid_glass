@@ -1230,9 +1230,11 @@ final class GlassSliderDetails
     required MotionSelection<GlassFrame> thumb,
     required List<Offset> ticks,
     required Set<WidgetState> states,
+    ValueListenable<Set<WidgetState>>? statesListenable,
   })
   final MotionSelection<GlassFrame> fill
   final Set<WidgetState> states
+  final ValueListenable<Set<WidgetState>>? statesListenable
   final MotionSelection<GlassFrame> thumb
   final List<Offset> ticks
   final MotionSelection<GlassFrame> track
@@ -1242,10 +1244,14 @@ class GlassSliderStyle extends GlassStyle<GlassSliderStyle>
     WidgetStateProperty<Color?>? activeTrackColor,
     WidgetStateProperty<Color?>? inactiveTrackColor,
     WidgetStateProperty<Color?>? tickColor,
+    Color? focusColor,
+    Color? hoverColor,
     Widget Function(BuildContext, GlassSliderDetails)? builder,
   })
   final WidgetStateProperty<Color?>? activeTrackColor
   final Widget Function(BuildContext, GlassSliderDetails)? builder
+  final Color? focusColor
+  final Color? hoverColor
   final WidgetStateProperty<Color?>? inactiveTrackColor
   static GlassSliderStyle? maybeOf(BuildContext context)
   final WidgetStateProperty<Color?>? thumbColor
@@ -1485,19 +1491,25 @@ final class GlassSwitchDetails
     required MotionSelection<GlassFrame> thumb,
     required MotionSelection<double> progress,
     required Set<WidgetState> states,
+    ValueListenable<Set<WidgetState>>? statesListenable,
   })
   final MotionSelection<double> progress
   final Set<WidgetState> states
+  final ValueListenable<Set<WidgetState>>? statesListenable
   final MotionSelection<GlassFrame> thumb
 class GlassSwitchStyle extends GlassStyle<GlassSwitchStyle>
   const GlassSwitchStyle({
     WidgetStateProperty<Color?>? thumbColor,
     WidgetStateProperty<Color?>? activeTrackColor,
     WidgetStateProperty<Color?>? inactiveTrackColor,
+    Color? focusColor,
+    Color? hoverColor,
     Widget Function(BuildContext, GlassSwitchDetails)? builder,
   })
   final WidgetStateProperty<Color?>? activeTrackColor
   final Widget Function(BuildContext, GlassSwitchDetails)? builder
+  final Color? focusColor
+  final Color? hoverColor
   final WidgetStateProperty<Color?>? inactiveTrackColor
   static GlassSwitchStyle? maybeOf(BuildContext context)
   final WidgetStateProperty<Color?>? thumbColor

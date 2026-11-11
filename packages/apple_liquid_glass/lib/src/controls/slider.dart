@@ -24,6 +24,8 @@ class GlassSliderStyle extends GlassStyle<GlassSliderStyle> {
     this.activeTrackColor,
     this.inactiveTrackColor,
     this.tickColor,
+    this.focusColor,
+    this.hoverColor,
     this.builder,
   });
 
@@ -48,6 +50,17 @@ class GlassSliderStyle extends GlassStyle<GlassSliderStyle> {
   /// default, the dot color the slider passport measured.
   final WidgetStateProperty<Color?>? tickColor;
 
+  /// The ring around the thumb of a slider focused from the keyboard; null
+  /// derives it from the thumb's color as Flutter's Cupertino controls do,
+  /// from systemBlue for a white or gray thumb, and a transparent color
+  /// draws none.
+  final Color? focusColor;
+
+  /// What a mouse over the slider adds to its track and thumb; null for a
+  /// pressed glass's wash at half strength, and a transparent color shows
+  /// none.
+  final Color? hoverColor;
+
   /// Builds the slider's look in place of the default one; the slider then
   /// ignores the other fields. Null leaves it to the theme's builder, then
   /// the default look.
@@ -65,6 +78,8 @@ class GlassSliderStyle extends GlassStyle<GlassSliderStyle> {
         other.inactiveTrackColor,
       ),
       tickColor: fallThrough(tickColor, other.tickColor),
+      focusColor: focusColor ?? other.focusColor,
+      hoverColor: hoverColor ?? other.hoverColor,
       builder: builder ?? other.builder,
     );
   }
@@ -88,6 +103,8 @@ class GlassSliderStyle extends GlassStyle<GlassSliderStyle> {
       activeTrackColor: color(activeTrackColor, other.activeTrackColor),
       inactiveTrackColor: color(inactiveTrackColor, other.inactiveTrackColor),
       tickColor: color(tickColor, other.tickColor),
+      focusColor: GlassDynamicColor.lerp(focusColor, other.focusColor, t),
+      hoverColor: GlassDynamicColor.lerp(hoverColor, other.hoverColor, t),
       builder: t < 0.5 ? builder : other.builder,
     );
   }
@@ -99,6 +116,8 @@ class GlassSliderStyle extends GlassStyle<GlassSliderStyle> {
       other.activeTrackColor == activeTrackColor &&
       other.inactiveTrackColor == inactiveTrackColor &&
       other.tickColor == tickColor &&
+      other.focusColor == focusColor &&
+      other.hoverColor == hoverColor &&
       other.builder == builder;
 
   @override
@@ -107,6 +126,8 @@ class GlassSliderStyle extends GlassStyle<GlassSliderStyle> {
     activeTrackColor,
     inactiveTrackColor,
     tickColor,
+    focusColor,
+    hoverColor,
     builder,
   );
 }
@@ -119,6 +140,10 @@ class GlassSliderStyle extends GlassStyle<GlassSliderStyle> {
 /// into glass under the finger, drawn by the ambient renderer; its motion
 /// is [RawGlassSlider]'s. A disabled slider draws at half opacity, as
 /// UIKit does (iPhone 16 Pro, light and dark).
+///
+/// Focused from the keyboard its thumb draws the renderer's focus ring, and
+/// under a mouse its track and thumb take the renderer's hover response:
+/// approximations of the platform, not measured.
 class GlassSlider extends StatefulWidget {
   /// Creates a slider showing [value] between [min] and [max].
   const GlassSlider({
@@ -244,6 +269,8 @@ class _GlassSliderState extends State<GlassSlider> {
 /// references).
 const _thumbLens = GlassLens(small: true);
 
+const _noRing = Color(0x00000000);
+
 class _SliderLook extends StatelessWidget {
   const _SliderLook({required this.details, required this.look});
 
@@ -262,17 +289,23 @@ class _SliderLook extends StatelessWidget {
       look.activeTrackColor,
       GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
     );
+    // The ring goes around the thumb alone; the hover shows on every part,
+    // as a white thumb takes the wash without a visible change.
     Widget surface(
       GlassRole role,
       MotionSelection<GlassFrame> frame,
       Color tint, {
       GlassLens lens = const GlassLens(),
+      bool ring = false,
     }) => Positioned.fill(
       child: GlassSurface.live(
         role: role,
         lens: lens,
         glass: Glass.regular(tint: tint),
         frame: frame,
+        states: details.statesListenable,
+        focusColor: ring ? look.focusColor : _noRing,
+        hoverColor: look.hoverColor,
         child: const SizedBox.expand(),
       ),
     );
@@ -300,6 +333,7 @@ class _SliderLook extends StatelessWidget {
             details.thumb,
             resolve(look.thumbColor, const Color(0xFFFFFFFF)),
             lens: _thumbLens,
+            ring: true,
           ),
         ],
       ),

@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/src/foundation/frame.dart';
 import 'package:apple_liquid_glass/src/motions/switch_motion.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
@@ -21,6 +22,7 @@ final class GlassSwitchDetails {
     required this.thumb,
     required this.progress,
     required this.states,
+    this.statesListenable,
   });
 
   /// The frames of the knob in the switch's 63 x 28 box: where it sits,
@@ -32,6 +34,12 @@ final class GlassSwitchDetails {
 
   /// The states the switch is in; [WidgetState.selected] when it is on.
   final Set<WidgetState> states;
+
+  /// The switch's states as they change, or null for a look that shows
+  /// neither focus nor hover: a builder hands it to the `GlassSurface` of
+  /// the track, whose renderer then draws the focus ring and the hover
+  /// response.
+  final ValueListenable<Set<WidgetState>>? statesListenable;
 }
 
 /// A switch with the measured motion of iOS 27's `UISwitch` and no look of
@@ -198,6 +206,7 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
                   thumb: _thumb,
                   progress: _progress,
                   states: {...widgetStates.value},
+                  statesListenable: widgetStates,
                 ),
               ),
             ),

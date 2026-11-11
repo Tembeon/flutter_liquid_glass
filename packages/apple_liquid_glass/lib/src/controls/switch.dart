@@ -22,6 +22,8 @@ class GlassSwitchStyle extends GlassStyle<GlassSwitchStyle> {
     this.thumbColor,
     this.activeTrackColor,
     this.inactiveTrackColor,
+    this.focusColor,
+    this.hoverColor,
     this.builder,
   });
 
@@ -39,6 +41,15 @@ class GlassSwitchStyle extends GlassStyle<GlassSwitchStyle> {
   /// The track when off.
   final WidgetStateProperty<Color?>? inactiveTrackColor;
 
+  /// The ring around a switch focused from the keyboard; null derives it
+  /// from systemBlue as Flutter's Cupertino controls do, and a transparent
+  /// color draws none.
+  final Color? focusColor;
+
+  /// What a mouse over the switch adds to its track; null for a pressed
+  /// glass's wash at half strength, and a transparent color shows none.
+  final Color? hoverColor;
+
   /// Builds the switch's look in place of the default one; the switch then
   /// ignores the other fields. Null leaves it to the theme's builder, then
   /// the default look.
@@ -55,6 +66,8 @@ class GlassSwitchStyle extends GlassStyle<GlassSwitchStyle> {
         inactiveTrackColor,
         other.inactiveTrackColor,
       ),
+      focusColor: focusColor ?? other.focusColor,
+      hoverColor: hoverColor ?? other.hoverColor,
       builder: builder ?? other.builder,
     );
   }
@@ -77,6 +90,8 @@ class GlassSwitchStyle extends GlassStyle<GlassSwitchStyle> {
       thumbColor: color(thumbColor, other.thumbColor),
       activeTrackColor: color(activeTrackColor, other.activeTrackColor),
       inactiveTrackColor: color(inactiveTrackColor, other.inactiveTrackColor),
+      focusColor: GlassDynamicColor.lerp(focusColor, other.focusColor, t),
+      hoverColor: GlassDynamicColor.lerp(hoverColor, other.hoverColor, t),
       builder: t < 0.5 ? builder : other.builder,
     );
   }
@@ -87,11 +102,19 @@ class GlassSwitchStyle extends GlassStyle<GlassSwitchStyle> {
       other.thumbColor == thumbColor &&
       other.activeTrackColor == activeTrackColor &&
       other.inactiveTrackColor == inactiveTrackColor &&
+      other.focusColor == focusColor &&
+      other.hoverColor == hoverColor &&
       other.builder == builder;
 
   @override
-  int get hashCode =>
-      Object.hash(thumbColor, activeTrackColor, inactiveTrackColor, builder);
+  int get hashCode => Object.hash(
+    thumbColor,
+    activeTrackColor,
+    inactiveTrackColor,
+    focusColor,
+    hoverColor,
+    builder,
+  );
 }
 
 /// A small lens that shows the track's edges 0.755 of its height apart
@@ -108,6 +131,10 @@ const _knobLens = GlassLens(shrink: 0.25, shrinkRim: 1, small: true);
 /// under the finger, drawn by the ambient renderer; its motion is
 /// [RawGlassSwitch]'s. A disabled switch draws at half opacity, as UIKit
 /// does (iPhone 16 Pro, light and dark, on and off).
+///
+/// Focused from the keyboard its track draws the renderer's focus ring, and
+/// under a mouse it takes the renderer's hover response: approximations of
+/// the platform, not measured.
 class GlassSwitch extends StatelessWidget {
   /// Creates a switch showing [value].
   const GlassSwitch({
@@ -203,6 +230,9 @@ class GlassSwitch extends StatelessWidget {
         Positioned.fill(
           child: GlassSurface.live(
             role: GlassRole.track,
+            states: details.statesListenable,
+            focusColor: look.focusColor,
+            hoverColor: look.hoverColor,
             frame: MotionSelection(
               () => GlassFrame(
                 tint: Color.lerp(

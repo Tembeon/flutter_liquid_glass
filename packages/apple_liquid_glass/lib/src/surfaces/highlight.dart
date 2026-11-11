@@ -90,16 +90,23 @@ abstract final class GlassHighlights {
   }
 
   /// The ring's color for a glass body of [glass] under [traits]: from its
-  /// tint, else from systemBlue.
+  /// tint, else from systemBlue. A tint without a hue (white, a gray) gives
+  /// systemBlue's ring too, where Cupertino's rule would turn it red.
   static Color ringColorOf(
     Color? given,
     Glass glass,
     GlassTraits traits,
   ) {
-    var base = glass.tint ?? GlassColors.systemBlue;
-    if (base is GlassDynamicColor) base = base.resolvedWith(traits);
+    Color resolved(Color color) =>
+        color is GlassDynamicColor ? color.resolvedWith(traits) : color;
+    var base = resolved(glass.tint ?? GlassColors.systemBlue);
+    if (HSLColor.fromColor(base).saturation < _hueless) {
+      base = resolved(GlassColors.systemBlue);
+    }
     return ringColor(given, base, highContrast: traits.highContrast);
   }
+
+  static const double _hueless = 0.05;
 
   /// Fills the ring of [width] around a body of [shape] drawn at [body],
   /// outside it, or inside it when [inside]; an [outline] gives the

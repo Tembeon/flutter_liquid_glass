@@ -26,6 +26,7 @@ final class GlassSliderDetails {
     required this.thumb,
     required this.ticks,
     required this.states,
+    this.statesListenable,
   });
 
   /// The frames of the track in the slider's box: it stretches toward a
@@ -45,6 +46,12 @@ final class GlassSliderDetails {
 
   /// The states the slider is in.
   final Set<WidgetState> states;
+
+  /// The slider's states as they change, or null for a look that shows
+  /// neither focus nor hover: a builder hands it to the `GlassSurface` of
+  /// the thumb, whose renderer then draws the focus ring and the hover
+  /// response.
+  final ValueListenable<Set<WidgetState>>? statesListenable;
 }
 
 /// A slider with the measured motion of iOS 27's `UISlider` and no look of
@@ -315,6 +322,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
         thumb: frames.thumb,
         ticks: frames.tickCenters,
         states: states,
+        statesListenable: widgetStates,
       ),
     );
   }

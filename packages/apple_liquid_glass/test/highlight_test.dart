@@ -379,4 +379,45 @@ void main() {
     await _settle(tester);
     expect(_box(tester).highlight.hovered, 0);
   });
+
+  for (final (name, control) in <(String, Widget)>[
+    ('switch', GlassSwitch(value: false, onChanged: (_) {})),
+    ('slider', GlassSlider(value: 0.5, onChanged: (_) {})),
+  ]) {
+    testWidgets('a $name rings itself from the keyboard, not from a tap, '
+        'and takes the hover', (tester) async {
+      await tester.pumpWidget(
+        _app(
+          const FlatGlassRenderer(),
+          SizedBox(width: 200, child: Center(child: control)),
+        ),
+      );
+      final subject = find.byWidget(control);
+      await tester.tap(subject);
+      await _settle(tester);
+      expect(_rings(tester, subject), isEmpty);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      Focus.of(
+        tester.element(
+          find
+              .descendant(of: subject, matching: find.byType(GlassSurface))
+              .first,
+        ),
+      ).requestFocus();
+      await _settle(tester, 2);
+      expect(_rings(tester, subject), hasLength(1));
+      await tester.tap(subject);
+      await _settle(tester);
+      expect(_rings(tester, subject), isEmpty);
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: tester.getCenter(subject));
+      await _settle(tester);
+      final boxes = tester.renderObjectList<RenderGlassHighlight>(
+        find.byType(GlassHighlightBox),
+      );
+      expect(boxes.map((box) => box.highlight.hovered), everyElement(1));
+      await mouse.removePointer();
+      await _settle(tester);
+    });
+  }
 }
