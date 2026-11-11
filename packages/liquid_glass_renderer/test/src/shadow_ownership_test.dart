@@ -26,7 +26,6 @@ const _sideShadow = BoxShadow(
 );
 
 const _negativeSpreadShadow = BoxShadow(
-  color: Color(0xFF000000),
   blurRadius: 16,
   spreadRadius: -8,
 );

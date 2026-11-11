@@ -53,7 +53,6 @@ void main() {
         home: Align(
           alignment: Alignment.topLeft,
           child: LiquidGlassLayer(
-            settings: const LiquidGlassSettings(),
             child: LiquidGlassBlendGroup(
               blend: 8,
               child: Row(

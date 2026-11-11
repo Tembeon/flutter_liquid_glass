@@ -14,10 +14,10 @@ const _view = Size(260, 180);
 const _glass = Rect.fromLTWH(30, 40, 200, 100);
 const _gray = Color(0xFF808080);
 
-final _glow = LiquidGlassGlow(
+const _glow = LiquidGlassGlow(
   bounds: _glass,
   cornerRadius: 20,
-  center: const Offset(80, 90),
+  center: Offset(80, 90),
   radius: 20,
   gain: 0.5,
   wash: 0.1,

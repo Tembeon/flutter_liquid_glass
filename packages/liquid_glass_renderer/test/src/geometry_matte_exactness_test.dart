@@ -29,7 +29,12 @@ class _Shape {
     this.basis = const [1, 0, 0, 1],
   });
   final double type;
-  final double w, h, r, cx, cy, scale;
+  final double w;
+  final double h;
+  final double r;
+  final double cx;
+  final double cy;
+  final double scale;
   final List<double> basis;
 }
 
@@ -48,11 +53,16 @@ class _Scene {
     this.offsetY = 0,
   });
   final String name;
-  final int width, height;
+  final int width;
+  final int height;
   final List<_Shape> shapes;
-  final double blend, refractionHeight, refractionAmount, contourExtent;
+  final double blend;
+  final double refractionHeight;
+  final double refractionAmount;
+  final double contourExtent;
   final bool fits;
-  final double offsetX, offsetY;
+  final double offsetX;
+  final double offsetY;
 }
 
 final _scenes = <_Scene>[
@@ -142,14 +152,14 @@ final _scenes = <_Scene>[
     _Shape(1, 380, 300, 50, 230, 190),
     _Shape(1, 300, 260, 60, 950, 980),
   ], contourExtent: 6),
-  _Scene(
+  const _Scene(
     'blend_overlap_sheets',
     800,
     700,
     [
-      const _Shape(1, 600, 420, 80, 330, 250),
-      const _Shape(1, 360, 240, 60, 480, 470),
-      const _Shape(2, 200, 200, 0, 140, 540),
+      _Shape(1, 600, 420, 80, 330, 250),
+      _Shape(1, 360, 240, 60, 480, 470),
+      _Shape(2, 200, 200, 0, 140, 540),
     ],
     blend: 60,
     refractionHeight: 60,
@@ -172,7 +182,7 @@ Future<AtlasTexels> _renderAtlas(
     shapeData.addAll([
       s.type, s.w, s.h, s.r, //
       ...s.basis,
-      cx, cy, s.scale, i == 0 ? -(scene.blend + 1) : scene.blend,
+      cx, cy, s.scale, if (i == 0) -(scene.blend + 1) else scene.blend,
     ]);
     final rse = s.type == 1
         ? roundedSuperellipseParameters(ui.Size(s.w, s.h), s.r)
@@ -182,7 +192,8 @@ Future<AtlasTexels> _renderAtlas(
       rse[half + 3] = 1 - math.cos(rse[half + 3]);
     }
     rseData.addAll(rse.take(12));
-    final hw = s.w * s.scale, hh = s.h * s.scale;
+    final hw = s.w * s.scale;
+    final hh = s.h * s.scale;
     bounds.addAll([cx - hw, cy - hh, cx + hw, cy + hh]);
   }
   final image = renderer

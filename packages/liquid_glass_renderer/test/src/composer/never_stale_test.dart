@@ -57,8 +57,9 @@ bool _same(List<_Seen> a, List<_Seen> b) {
   for (var i = 0; i < a.length; i++) {
     final (leafA, pictureA, rectA, stateA) = a[i];
     final (leafB, pictureB, rectB, stateB) = b[i];
-    if (!identical(leafA, leafB) || !identical(pictureA, pictureB))
+    if (!identical(leafA, leafB) || !identical(pictureA, pictureB)) {
       return false;
+    }
     if (rectA != rectB) return false;
     if (stateA.length != stateB.length) return false;
     for (var j = 0; j < stateA.length; j++) {

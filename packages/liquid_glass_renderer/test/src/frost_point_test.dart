@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -69,7 +67,7 @@ void main() {
         find.byKey(_key),
       );
       final image = (await tester.runAsync(boundary.toImage))!;
-      final Uint8List pixels = (await tester.runAsync(
+      final pixels = (await tester.runAsync(
         image.toByteData,
       ))!.buffer.asUint8List();
       final width = image.width;

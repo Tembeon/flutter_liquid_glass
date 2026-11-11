@@ -126,8 +126,9 @@ void main() {
         _nestedLayerPaintCount(tester),
         initialInnerPaints,
         reason:
-            'A nested layer moving with its retained ancestor must only refresh '
-            'its frame-owned coordinates, not repaint its render object.',
+            'A nested layer moving with its retained ancestor must only '
+            'refresh its frame-owned coordinates, not repaint its render '
+            'object.',
       );
 
       final moved = await _capture(captureKey);

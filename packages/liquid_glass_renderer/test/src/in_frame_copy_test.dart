@@ -482,7 +482,7 @@ void main() {
       bool second = true,
     }) async {
       // Pinned to the scene: an image would never pay.
-      GlassComposer.debugPrices = const Prices(imageGpu: 1e6);
+      GlassComposer.debugPrices = const Prices(imageGpu: 1000000);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(_scene(top: top, shift: shift, second: second));
       await tester.pumpWidget(_scene(top: top, shift: shift, second: second));

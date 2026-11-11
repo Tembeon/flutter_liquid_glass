@@ -21,10 +21,10 @@ final _second = LiquidGlassShapeFrame(
     tint: const Color(0x66FF3B30),
   ),
 );
-final _glow = LiquidGlassGlow(
+const _glow = LiquidGlassGlow(
   bounds: _box,
   cornerRadius: 44,
-  center: const Offset(90, 90),
+  center: Offset(90, 90),
   radius: 24,
   gain: 0.6,
   wash: 0.08,
