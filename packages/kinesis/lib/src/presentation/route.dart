@@ -9,9 +9,8 @@ import 'package:meta/meta.dart';
 // A mixin, not a base class: the two shells must be a PopupRoute and a
 // PageRoute, which the navigator, HeroController and RouteObserver check.
 mixin _PresentationEngine<T> on ModalRoute<T> {
-  /// The presentation the route shows, or null for a route that builds its
-  /// content and runs its motion itself through the hooks below.
-  Presentation<T, Presented>? get presentation;
+  /// The presentation the route shows.
+  Presentation<T, Presented> get presentation;
 
   /// The name screen readers announce for the presented content.
   String? get semanticsLabel;
@@ -41,22 +40,14 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   T? _result;
   CapturedThemes? _themes;
 
-  /// Builds the content, which runs the motion and reports [didOpen] and
-  /// [didLeave]; the [presentation]'s by default.
+  /// Builds the content, which runs the [presentation]'s motion and reports
+  /// [didOpen] and [didLeave]; a subclass wraps it.
   @protected
-  Widget buildContent(BuildContext context) {
-    final presentation = this.presentation;
-    final motion = _motion;
-    assert(
-      presentation != null && motion != null,
-      'A PresentationRoute without a presentation overrides buildContent.',
-    );
-    return PresentedContent(
-      presentation: presentation!,
-      motion: motion!,
-      shell: _shell,
-    );
-  }
+  Widget buildContent(BuildContext context) => PresentedContent(
+    presentation: presentation,
+    motion: _motion!,
+    shell: _shell,
+  );
 
   /// Starts the content's close after a dismissal by [trigger]; false when
   /// there is nothing to close, which ends the route at once.
@@ -64,24 +55,9 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   bool leave(DismissTrigger trigger) =>
       _motion?.leave(_clock.now, trigger) ?? false;
 
-  /// Whether [trigger] may dismiss the presentation, before its
-  /// `PopScope`s are asked; a programmatic dismissal does not ask.
-  @protected
-  bool allows(DismissTrigger trigger) =>
-      presentation?.dismiss.allows(trigger) ?? true;
+  bool _allows(DismissTrigger trigger) => presentation.dismiss.allows(trigger);
 
-  /// The result a pop with [result] completes with.
-  @protected
-  T? resultFor(T? result) {
-    final presentation = this.presentation;
-    return presentation == null ? result : presentation.resultOf(result) as T?;
-  }
-
-  /// Called when [allows] or a `PopScope` of the content vetoed a
-  /// dismissal by [trigger].
-  @protected
-  void didVetoDismiss(DismissTrigger trigger) =>
-      presentation?.onVeto?.call(trigger);
+  T? _resultFor(T? result) => presentation.resultOf(result) as T?;
 
   /// Called when the route is presented, by a push or without one, before
   /// its content builds: the [presentation]'s motion is made and opened at
@@ -89,9 +65,8 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   @protected
   @mustCallSuper
   void didPresent() {
-    final presentation = this.presentation;
     final navigator = this.navigator;
-    if (presentation == null || navigator == null || _motion != null) return;
+    if (navigator == null || _motion != null) return;
     final environment = PresentationEnvironment.of(navigator.context);
     final (motion, lease) = commitPresentation(presentation, environment);
     _motion = motion;
@@ -103,11 +78,8 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   /// does not dim is not; call [modalityChanged] when the answer changes.
   @protected
   bool get modal {
-    final presentation = this.presentation;
     final motion = _motion;
-    return presentation == null ||
-        motion == null ||
-        presentation.modalOf(motion);
+    return motion == null || presentation.modalOf(motion);
   }
 
   /// Applies a change of [modal] to the barrier; one reported while the
@@ -129,7 +101,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   /// Called once, when the route's close has finished or the route was
   /// disposed before that, with the result the route completed with.
   @protected
-  void didFinish(T? result) => presentation?.dismissed(result);
+  void didFinish(T? result) => presentation.dismissed(result);
 
   /// Whether the route was dismissed and its content closes.
   bool get isLeaving => _projection.status == AnimationStatus.reverse;
@@ -217,32 +189,34 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   }
 
   /// Whether a dismissal by [trigger] would close the presentation now:
-  /// [allows] lets it, no `PopScope` of the content vetoes it and no local
-  /// history entry takes it first. A programmatic one always goes while
-  /// the route is presented.
+  /// the [presentation]'s [Presentation.dismiss] lets it, no `PopScope` of
+  /// the content vetoes it and no local history entry takes it first. A
+  /// programmatic one always goes while the route is presented.
   bool canDismiss(DismissTrigger trigger) =>
       isActive &&
       !isLeaving &&
       (trigger == DismissTrigger.programmatic ||
-          (allows(trigger) &&
+          (_allows(trigger) &&
               !willHandlePopInternally &&
               super.popDisposition == RoutePopDisposition.pop));
 
   /// Dismisses the presentation for [trigger] with [result].
   ///
   /// A [DismissTrigger.programmatic] dismissal pops at once; any other
-  /// goes through [allows] and the content's `PopScope`s first.
+  /// goes through the [presentation]'s [Presentation.dismiss] and the
+  /// content's `PopScope`s first, and a refusal by either calls its
+  /// [Presentation.onVeto].
   void dismiss(DismissTrigger trigger, [T? result]) {
     final nav = navigator;
     if (nav == null || !isActive || isLeaving) return;
     if (trigger != DismissTrigger.programmatic) {
-      if (!allows(trigger)) {
-        didVetoDismiss(trigger);
+      if (!_allows(trigger)) {
+        presentation.onVeto?.call(trigger);
         return;
       }
       if (super.popDisposition != RoutePopDisposition.pop) {
         super.onPopInvokedWithResult(false, result);
-        didVetoDismiss(trigger);
+        presentation.onVeto?.call(trigger);
         return;
       }
     }
@@ -251,7 +225,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
       nav.pop<T>(result);
       return;
     }
-    _result = resultFor(result);
+    _result = _resultFor(result);
     _completeSettle();
     _close();
     if (leave(trigger)) {
@@ -272,8 +246,8 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   /// Whether Android's predictive back gesture may start on this route: its
   /// motion is [PredictiveBack], it rests open as the navigator's top route
   /// above another, no gesture runs already and nothing would refuse its
-  /// pop: [allows] lets Back through and no `PopScope` or local history
-  /// entry takes it.
+  /// pop: the [presentation]'s [Presentation.dismiss] lets Back through and
+  /// no `PopScope` or local history entry takes it.
   @override
   bool get popGestureEnabled {
     final navigator = this.navigator;
@@ -374,7 +348,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   @internal
   void presentFrom(BuildContext from, NavigatorState to) {
     _themes = InheritedTheme.capture(from: from, to: to.context);
-    if (!(presentation?.dismissesOnScroll ?? false)) return;
+    if (!presentation.dismissesOnScroll) return;
     _unfollowScroll();
     final scroll = _scroll = Scrollable.maybeOf(from)?.position;
     scroll?.isScrollingNotifier.addListener(_scrolled);
@@ -411,7 +385,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   /// What screen readers call the barrier: the [presentation]'s
   /// [Presentation.barrierLabel] by default.
   @override
-  String? get barrierLabel => presentation?.barrierLabel;
+  String? get barrierLabel => presentation.barrierLabel;
 
   @override
   @nonVirtual
@@ -486,7 +460,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     // A route already closing under its cover keeps its result and its
     // close; the pop only makes it leave as a popped route.
     final closing = _removeAtEnd;
-    final resolved = closing ? _result : resultFor(result);
+    final resolved = closing ? _result : _resultFor(result);
     if (!super.didPop(resolved)) return false;
     _popped = true;
     _removeAtEnd = false;
@@ -506,7 +480,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
       valueListenable: _modalNow,
       builder: (context, modal, _) => modal
           ? presentationBarrier(
-              dismissible: allows(DismissTrigger.outsideTap),
+              dismissible: _allows(DismissTrigger.outsideTap),
               label: barrierLabel,
               onTap: () => dismiss(DismissTrigger.outsideTap),
             )
@@ -601,18 +575,19 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
 /// leaves the navigator.
 ///
 /// Every user dismissal (an outside tap, Escape, Back, a screen reader's
-/// dismiss, a gesture of the content) goes through one gate: [allows] for
-/// the trigger, then the content's `PopScope`s. A `PopScope` veto tells the
-/// `PopScope`s with `didPop` false, as a blocked Back does, and calls
-/// [didVetoDismiss], as a trigger [allows] refuses does. On the first route
+/// dismiss, a gesture of the content) goes through one gate: the
+/// [Presentation.dismiss] policy for the trigger, then the content's
+/// `PopScope`s. A `PopScope` veto tells the `PopScope`s with `didPop` false,
+/// as a blocked Back does, and calls [Presentation.onVeto], as a trigger the
+/// policy refuses does. On the first route
 /// of its navigator Back goes on to whatever is outside the navigator. A
 /// dismissal always pops this route, never whatever is on top: one under
 /// another route closes under it and leaves the navigator when its close ends.
 /// `Navigator.pop` is programmatic and consults nothing.
 ///
 /// While [modal], the barrier absorbs taps and hides the routes below from
-/// screen readers; with a [barrierLabel] and an [allows] outside tap it is
-/// a labelled dismiss target, read after the content.
+/// screen readers; with a [barrierLabel] and a policy that lets an outside
+/// tap through it is a labelled dismiss target, read after the content.
 ///
 /// The focus moves into the content at the open (see
 /// [Presentation.initialFocus]), Tab stays inside while it is [modal]
@@ -621,7 +596,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
 class PresentationRoute<T> extends PopupRoute<T> with _PresentationEngine<T> {
   /// Creates a route that shows [presentation].
   PresentationRoute({
-    this.presentation,
+    required this.presentation,
     super.settings,
     super.requestFocus,
     super.traversalEdgeBehavior,
@@ -629,12 +604,12 @@ class PresentationRoute<T> extends PopupRoute<T> with _PresentationEngine<T> {
   });
 
   @override
-  final Presentation<T, Presented>? presentation;
+  final Presentation<T, Presented> presentation;
 
   final String? _semanticsLabel;
 
   @override
-  String? get semanticsLabel => _semanticsLabel ?? presentation?.semanticsLabel;
+  String? get semanticsLabel => _semanticsLabel ?? presentation.semanticsLabel;
 
   @override
   bool get _trapsFocus => true;
@@ -651,23 +626,23 @@ class PresentationRoute<T> extends PopupRoute<T> with _PresentationEngine<T> {
 /// to its neighbours. Its [animation]'s value stays 1: a neighbour's
 /// secondary transition jumps to its end (a page below that should stay
 /// put returns false from `canTransitionTo` for it), and no `Hero` flies.
-class PresentationPageRoute<T> extends PageRoute<T>
+///
+/// A subclass describes its [presentation], as a [PageRoute] describes its
+/// page in `buildPage`: a page's motion often needs the route itself.
+abstract class PresentationPageRoute<T> extends PageRoute<T>
     with _PresentationEngine<T> {
-  /// Creates a page route that shows [presentation].
+  /// Creates a page route; [semanticsLabel] names it to screen readers in
+  /// place of the [presentation]'s [Presentation.semanticsLabel].
   PresentationPageRoute({
-    this.presentation,
     super.settings,
     super.requestFocus,
     this._semanticsLabel,
   });
 
-  @override
-  final Presentation<T, Presented>? presentation;
-
   final String? _semanticsLabel;
 
   @override
-  String? get semanticsLabel => _semanticsLabel ?? presentation?.semanticsLabel;
+  String? get semanticsLabel => _semanticsLabel ?? presentation.semanticsLabel;
 
   @override
   bool get maintainState => true;
@@ -753,12 +728,12 @@ class _ContentRootState extends State<_ContentRoot>
       leaving: route._closing,
       child: PresentationRoot(
         isLeaving: () => route.isLeaving,
-        allows: (trigger) => route.isActive && route.allows(trigger),
+        allows: (trigger) => route.isActive && route._allows(trigger),
         dismiss: route.dismiss,
         label: route.semanticsLabel,
-        role: route.presentation?.semanticsRole,
-        initialFocus: route.presentation?.initialFocus,
-        onTapOutside: route.presentation?.dismissesOnOutsideTap ?? false
+        role: route.presentation.semanticsRole,
+        initialFocus: route.presentation.initialFocus,
+        onTapOutside: route.presentation.dismissesOnOutsideTap
             ? () {
                 if (!route.modal) route.dismiss(DismissTrigger.outsideTap);
               }

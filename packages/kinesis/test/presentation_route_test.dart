@@ -7,47 +7,99 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
 import 'package:kinesis/src/presentation/level.dart';
 
-class _Route extends PresentationRoute<String> {
-  _Route({this.allowsPop = true, this.outside = true})
-    : super(semanticsLabel: 'Panel');
+/// A presented motion that records its commands and reports its end only
+/// when the test tells it to.
+final class _Panel extends Motion with Presented {
+  _Panel({required this.leaves});
 
-  final bool allowsPop;
-  final bool outside;
+  final bool leaves;
   final List<DismissTrigger> left = [];
-  final List<DismissTrigger> attempts = [];
-  final List<bool> invoked = [];
-  final List<String?> finished = [];
+  PresenceStatus _presence = PresenceStatus.hidden;
 
   @override
-  String? get barrierLabel => 'Dismiss';
+  PresenceStatus get presence => _presence;
+
+  @override
+  void open(double t) {
+    _presence = PresenceStatus.opening;
+    changed();
+  }
+
+  @override
+  bool leave(double t, DismissTrigger trigger) {
+    left.add(trigger);
+    if (!leaves) return false;
+    _presence = PresenceStatus.leaving;
+    changed();
+    return true;
+  }
+
+  void end() {
+    _presence = PresenceStatus.hidden;
+    changed();
+  }
+}
+
+/// What a test presentation reports.
+final class _Log {
+  _Panel? motion;
+  final List<DismissTrigger> attempts = [];
+  final List<String?> finished = [];
+  bool modalNow = true;
+
+  List<DismissTrigger> get left => motion?.left ?? const [];
+}
+
+Presentation<T, _Panel> _presentation<T>(
+  _Log log, {
+  required Widget Function(BuildContext context) builder,
+  bool outside = true,
+  bool leaves = true,
+}) => Presentation<T, _Panel>(
+  motion: (_) => log.motion = _Panel(leaves: leaves),
+  builder: (context, _) => builder(context),
+  dismiss: outside
+      ? const DismissPolicy()
+      : DismissPolicy(
+          DismissPolicy.all.difference({DismissTrigger.outsideTap}),
+        ),
+  modal: (_) => log.modalNow,
+  onVeto: log.attempts.add,
+  onDismissed: (Object? result) => log.finished.add(result as String?),
+  barrierLabel: 'Dismiss',
+);
+
+class _Route extends PresentationRoute<String> {
+  _Route({bool allowsPop = true, bool outside = true})
+    : this._(_Log(), allowsPop: allowsPop, outside: outside);
+
+  _Route._(this.log, {required this.allowsPop, required bool outside})
+    : super(
+        presentation: _presentation(
+          log,
+          outside: outside,
+          builder: (_) =>
+              const Center(child: SizedBox(width: 100, height: 100)),
+        ),
+        semanticsLabel: 'Panel',
+      );
+
+  final _Log log;
+  final bool allowsPop;
+  final List<bool> invoked = [];
+
+  List<DismissTrigger> get left => log.left;
+  List<DismissTrigger> get attempts => log.attempts;
+  List<String?> get finished => log.finished;
+  bool get modalNow => log.modalNow;
+  set modalNow(bool value) => log.modalNow = value;
 
   @override
   Widget buildContent(BuildContext context) => PopScope<String>(
     canPop: allowsPop,
     onPopInvokedWithResult: (didPop, _) => invoked.add(didPop),
-    child: const Center(child: SizedBox(width: 100, height: 100)),
+    child: super.buildContent(context),
   );
-
-  @override
-  bool leave(DismissTrigger trigger) {
-    left.add(trigger);
-    return true;
-  }
-
-  @override
-  bool allows(DismissTrigger trigger) =>
-      trigger != DismissTrigger.outsideTap || outside;
-
-  bool modalNow = true;
-
-  @override
-  bool get modal => modalNow;
-
-  @override
-  void didVetoDismiss(DismissTrigger trigger) => attempts.add(trigger);
-
-  @override
-  void didFinish(String? result) => finished.add(result);
 }
 
 Widget _app({GlobalKey<NavigatorState>? key, Widget? home}) => WidgetsApp(
@@ -96,7 +148,7 @@ void main() {
     expect(route.left, [DismissTrigger.programmatic]);
     expect(route.isActive, isFalse);
     expect(find.byType(PopScope<String>), findsOneWidget);
-    route.didLeave();
+    route.log.motion!.end();
     await tester.pump();
     expect(find.byType(PopScope<String>), findsNothing);
     expect(route.finished, ['done']);
@@ -428,35 +480,42 @@ void main() {
 }
 
 class _Page extends PresentationPageRoute<String> {
-  final List<DismissTrigger> left = [];
-  final List<String?> finished = [];
+  @override
+  late final Presentation<String, Presented> presentation = _presentation(
+    log,
+    builder: (_) =>
+        const SizedBox.expand(child: Text('page', textDirection: .ltr)),
+  );
+
+  final _Log log = _Log();
+
+  List<DismissTrigger> get left => log.left;
+  List<String?> get finished => log.finished;
 
   @override
   bool get maintainState => true;
-
-  @override
-  Widget buildContent(BuildContext context) =>
-      const SizedBox.expand(child: Text('page', textDirection: .ltr));
-
-  @override
-  bool leave(DismissTrigger trigger) {
-    left.add(trigger);
-    return true;
-  }
-
-  @override
-  void didFinish(String? result) => finished.add(result);
 }
 
 class _ThemedRoute extends PresentationRoute<void> {
-  double? seen;
+  _ThemedRoute() : this._(_Seen());
 
-  @override
-  Widget buildContent(BuildContext context) {
-    seen = DefaultTextStyle.of(context).style.fontSize;
-    return const SizedBox();
-  }
+  _ThemedRoute._(this._seen)
+    : super(
+        presentation: _presentation(
+          _Log(),
+          leaves: false,
+          builder: (context) {
+            _seen.fontSize = DefaultTextStyle.of(context).style.fontSize;
+            return const SizedBox();
+          },
+        ),
+      );
 
-  @override
-  bool leave(DismissTrigger trigger) => false;
+  final _Seen _seen;
+
+  double? get seen => _seen.fontSize;
+}
+
+final class _Seen {
+  double? fontSize;
 }

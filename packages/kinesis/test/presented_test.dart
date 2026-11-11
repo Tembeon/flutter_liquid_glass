@@ -199,7 +199,7 @@ final class _RouteShell extends _Shell {
   ) async {
     final Future<String?> done;
     if (page) {
-      final route = _page = PresentationPageRoute(presentation: presentation);
+      final route = _page = _Page(presentation);
       done = _nav.currentState!.push(route);
     } else {
       final route = _route = PresentationRoute(presentation: presentation);
@@ -213,6 +213,13 @@ final class _RouteShell extends _Shell {
       (_page?.isCurrent ?? false) ||
       (_route?.isActive ?? false) ||
       (_page?.isActive ?? false);
+}
+
+final class _Page<T> extends PresentationPageRoute<T> {
+  _Page(this.presentation);
+
+  @override
+  final Presentation<T, Presented> presentation;
 }
 
 final class _PortalShell extends _Shell {

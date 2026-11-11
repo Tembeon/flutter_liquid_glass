@@ -1130,14 +1130,13 @@ abstract interface class PresentationHandle
 enum PresentationLevel
   window,
   page,
-class PresentationPageRoute<T> extends PageRoute<T> with _PresentationEngine<T>
+abstract class PresentationPageRoute<T> extends PageRoute<T> with _PresentationEngine<T>
   PresentationPageRoute({
-    Presentation<T, Presented>? presentation,
     RouteSettings? settings,
     bool? requestFocus,
     String? semanticsLabel,
   })
-  overrides: maintainState, presentation, semanticsLabel
+  overrides: maintainState, semanticsLabel
 class PresentationPortal extends StatefulWidget
   const PresentationPortal({
     required PresentationPortalController controller,
@@ -1156,7 +1155,7 @@ final class PresentationPortalController
   void present()
 class PresentationRoute<T> extends PopupRoute<T> with _PresentationEngine<T>
   PresentationRoute({
-    Presentation<T, Presented>? presentation,
+    required Presentation<T, Presented> presentation,
     RouteSettings? settings,
     bool? requestFocus,
     TraversalEdgeBehavior? traversalEdgeBehavior,
