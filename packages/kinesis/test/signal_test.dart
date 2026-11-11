@@ -33,9 +33,9 @@ void main() {
     final minimized = bar.select((m) => m.pixels.valueAt(m.now) > 50);
     final heard = <bool>[];
     minimized.addListener(() => heard.add(minimized.value));
-    clock.advanceBy(1 / 60);
+    clock.advanceTo(clock.frameTime + 1 / 60);
     clock.input(clock.now, () => bar.pixels.write(clock.now, 80));
-    clock.advanceBy(1 / 60);
+    clock.advanceTo(clock.frameTime + 1 / 60);
     expect(heard, [true]);
     expect(bar.isSettled, isTrue);
   });

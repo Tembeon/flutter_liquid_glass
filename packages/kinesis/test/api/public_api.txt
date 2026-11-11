@@ -56,7 +56,6 @@ class DragInteraction extends Interaction
   final double? contendedSlop
   double? edgeSlop
   double edgeZone
-  bool get fromEdge
   bool global
   bool Function(Offset)? mayBegin
   bool mirrored
@@ -97,10 +96,8 @@ class HoverDwellInteraction extends Interaction
 final class InputPort
   InputPort()
   void attach(void Function(PortEvent) receiver)
-  void bind(InteractionSession receiver, {Matrix4? transform, Size size = ...})
   void detach(void Function(PortEvent) receiver)
   late final Interaction forward
-  void unbind()
 abstract class Interaction
   Interaction({InteractionRole role = ...})
   bool accepts(PointerDownInput down)
@@ -135,7 +132,6 @@ enum InteractionRole
 class InteractionSession
   InteractionSession(List<Interaction> interactions)
   SessionOutput advance(double time)
-  bool follows(int pointer)
   SessionOutput handle(InteractionInput input)
   final List<Interaction> interactions
   bool get isActive
@@ -649,7 +645,6 @@ class LongPressStartEvent (see package:kinesis/input.dart)
 abstract class Motion extends MotionPart
   Motion({MotionClock? clock})
   void advance(double t)
-  bool advanceUntil(double t, bool Function()? stop)
   @protected void Function() at(
     double t,
     void Function(double) action, {
@@ -991,12 +986,6 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T>, MotionFol
   set velocity(T next)
   overrides: addListener, hasWidgetFollowers, nextDue, publish, removeListener, restFrom, restTime, restsAt, stepTo, toString, value, wakeTime
 extension MotionValueCommands<T> on MotionValue<T>
-  double? crossing(
-    double level, {
-    required double from,
-    int component = ...,
-    double horizon = ...,
-  })
   double reach(double t)
   void retarget(
     double t,
@@ -1401,7 +1390,6 @@ function showPresentation (see package:kinesis/kinesis.dart)
 # package:kinesis/testing.dart
 class ManualMotionClock extends MotionClock
   ManualMotionClock({double start = ..., double frameRate = ...})
-  void advanceBy(double seconds)
   void advanceTo(double t)
   overrides: framePeriod, frameRate, frameTime, stamp, wake
 

@@ -7,8 +7,8 @@ import 'package:kinesis/src/input/interaction_values.dart';
 import 'package:meta/meta.dart';
 
 /// Where the rest of a touch goes after a hand-off: a receiving region in
-/// another subtree or an overlay (`InputRegion(port:)`), or a session bound
-/// with [bind].
+/// another subtree or an overlay (`InputRegion(port:)`), or any receiver
+/// given to [attach], such as a session in a replay.
 ///
 /// The source keeps the touch, so nothing is cancelled when the receiver
 /// appears above the finger. Forwarded inputs keep their stamps and are
@@ -31,27 +31,6 @@ final class InputPort {
   /// The interaction a source hands a touch on to:
   /// `hold.sequenced(port.forward)`. One source forwards at a time.
   late final Interaction forward = _PortForward(this);
-
-  /// Delivers forwarded touches to [receiver] without widgets, mapped by
-  /// [transform] from the source's coordinates into the receiver's, in a
-  /// region of [size]; for replays.
-  void bind(
-    InteractionSession receiver, {
-    Matrix4? transform,
-    Size size = Size.zero,
-  }) => attach(
-    (event) => receiver.handle(
-      event.input(
-        transform == null
-            ? (p) => p
-            : (p) => MatrixUtils.transformPoint(transform, p),
-        size: size,
-      ),
-    ),
-  );
-
-  /// Drops the receiver; later inputs wait for the next one.
-  void unbind() => _receiver = null;
 
   /// Makes [receiver] the receiver and delivers what waited: how an input
   /// host receives the touches handed to it (`InputRegion(port:)` does).

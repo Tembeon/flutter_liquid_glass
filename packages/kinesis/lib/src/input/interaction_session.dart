@@ -84,10 +84,6 @@ class InteractionSession {
   /// Whether a touch is being followed.
   bool get isActive => _down != null;
 
-  /// Whether the session follows [pointer] for its interactions that take
-  /// part in the arena: they accepted its down and have not given it up.
-  bool follows(int pointer) => _down?.pointer == pointer;
-
   /// Whether an observer hears [pointer]: one accepted its down and it has
   /// not lifted or been cancelled.
   bool observes(int pointer) => _observing.containsKey(pointer);

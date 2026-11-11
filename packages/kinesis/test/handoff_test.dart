@@ -40,9 +40,11 @@ void main() {
         'mapped into the receiver', () {
       final port = InputPort();
       final menu = _Log();
-      port.bind(
-        InteractionSession([FollowInteraction(menu)]),
-        transform: Matrix4.translationValues(-10, 100, 0),
+      final receiver = InteractionSession([FollowInteraction(menu)]);
+      port.attach(
+        (event) => receiver.handle(
+          event.input((p) => p + const Offset(-10, 100), size: Size.zero),
+        ),
       );
       final source = InteractionSession([
         LongPressInteraction().sequenced(port.forward),
@@ -69,7 +71,10 @@ void main() {
       source.advance(0.5);
       source.handle(_move(0.52, const Offset(51, 25)));
       final menu = _Log();
-      port.bind(InteractionSession([FollowInteraction(menu)]));
+      final receiver = InteractionSession([FollowInteraction(menu)]);
+      port.attach(
+        (event) => receiver.handle(event.input((p) => p, size: Size.zero)),
+      );
       source.handle(_move(0.6, const Offset(52, 30)));
       expect(menu.log, [
         'down 0.5 Offset(50.0, 20.0)',

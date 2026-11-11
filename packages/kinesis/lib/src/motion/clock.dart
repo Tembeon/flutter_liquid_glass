@@ -418,9 +418,6 @@ class ManualMotionClock extends MotionClock {
     _now = t;
     runFrame(t);
   }
-
-  /// Moves the clock forward by [seconds] and runs a frame there.
-  void advanceBy(double seconds) => advanceTo(_now + seconds);
 }
 
 /// The binding's frame clock.

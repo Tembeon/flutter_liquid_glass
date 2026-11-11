@@ -35,11 +35,11 @@ final class DragInteractionDetails {
 /// Travel counts from past the slop. The drag holds the touch once it
 /// starts, unless a scroll view around the region scrolls along its
 /// [axis]. A touch that starts within [edgeZone] of the leading edge
-/// ([fromEdge]) starts past [edgeSlop], as an interactive pop does, and
-/// [mayBegin] can give a touch up while it has not started: a content
-/// swipe's funnel. Positions are mirrored when [mirrored], so the leading
-/// edge and the travel follow a right-to-left layout. Feed the travel to a
-/// `RubberBand` and a release to a `Projection`.
+/// starts past [edgeSlop], as an interactive pop does, and [mayBegin] can
+/// give a touch up while it has not started: a content swipe's funnel.
+/// Positions are mirrored when [mirrored], so the leading edge and the
+/// travel follow a right-to-left layout. Feed the travel to a `RubberBand`
+/// and a release to a `Projection`.
 ///
 /// A drag with a [contendedSlop] competes with the controls inside its
 /// region, as UIKit's sheet pan does: alone in the arena it starts past
@@ -88,10 +88,10 @@ class DragInteraction extends Interaction {
   bool global;
 
   /// The share of the region's extent along [axis] (its width for a free
-  /// drag) from the leading edge where a touch counts as [fromEdge].
+  /// drag) from the leading edge where a touch starts past [edgeSlop].
   double edgeZone;
 
-  /// The slop of a touch [fromEdge]; [slop] when null.
+  /// The slop of a touch that starts within [edgeZone]; [slop] when null.
   double? edgeSlop;
 
   /// Asked on every move before the drag starts, with the travel since
@@ -123,9 +123,6 @@ class DragInteraction extends Interaction {
 
   /// Whether a drag has started.
   bool get started => _started;
-
-  /// Whether the touch started within [edgeZone] of the leading edge.
-  bool get fromEdge => _fromEdge;
 
   @override
   bool get dragged => _started;

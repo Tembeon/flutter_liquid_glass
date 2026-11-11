@@ -226,19 +226,14 @@ abstract class Motion extends MotionPart {
   /// A command a reaction gives at the reaction's own time, which advances
   /// to that time first, runs nothing: the reactions due at the same time
   /// run after the one under way, in their order.
-  void advance(double t) => advanceUntil(t, null);
-
-  /// Advances toward [t] like [advance], stopping right after a reaction
-  /// for which [stop] answers true, with [now] at that reaction's time.
-  /// Returns whether [t] was reached.
-  bool advanceUntil(double t, bool Function()? stop) {
+  void advance(double t) {
     final root = _root;
     if (root._advancing) {
       assert(
         t <= root._now,
         'A reaction advances its motion no further than its own time.',
       );
-      return true;
+      return;
     }
     root._advancing = true;
     try {
@@ -249,15 +244,10 @@ abstract class Motion extends MotionPart {
           root._now = reaction.time;
         }
         reaction.action(reaction.time);
-        if (stop != null && stop()) {
-          root._didAdvance(root._now);
-          return false;
-        }
       }
       if (t > root._now) root._now = t;
       root._runLoops(root._now);
       root._didAdvance(root._now);
-      return true;
     } finally {
       root._advancing = false;
     }

@@ -52,15 +52,15 @@ void main() {
       final heard = <double>[];
       x.addListener(() => heard.add(x.value));
       card.show(0);
-      clock.advanceBy(1 / 120);
+      clock.advanceTo(clock.frameTime + 1 / 120);
       expect(heard.single, card.x.valueAt(1 / 120));
       for (var i = 0; i < 400; i++) {
-        clock.advanceBy(1 / 120);
+        clock.advanceTo(clock.frameTime + 1 / 120);
       }
       expect(card.isSettled, isTrue);
       expect(heard.last, 100);
       final frames = heard.length;
-      clock.advanceBy(1);
+      clock.advanceTo(clock.frameTime + 1);
       expect(heard.length, frames);
       expect(card.fade.valueAt(card.now), 1);
     });
@@ -73,7 +73,7 @@ void main() {
       moving.addListener(() => heard++);
       card.show(0);
       for (var i = 0; i < 200; i++) {
-        clock.advanceBy(1 / 120);
+        clock.advanceTo(clock.frameTime + 1 / 120);
       }
       expect(heard, 1);
       expect(moving.value, isTrue);
@@ -89,7 +89,7 @@ void main() {
       card.show(0);
       expect(x.value, 100);
       expect(heard, isEmpty);
-      clock.advanceBy(1 / 120);
+      clock.advanceTo(clock.frameTime + 1 / 120);
       expect(heard, [100]);
     });
 
@@ -103,7 +103,9 @@ void main() {
         selection.addListener(() {});
         card.show(0);
         while (clock.now < 2) {
-          clock.advanceBy(1 / rate * (0.5 + random.nextDouble()));
+          clock.advanceTo(
+            clock.frameTime + 1 / rate * (0.5 + random.nextDouble()),
+          );
         }
         reads.add([
           for (final t in [0.0, 0.05, 0.13, 0.4, 0.9, 1.5]) card.x.valueAt(t),

@@ -489,12 +489,6 @@ class MotionValue<T> extends MotionPart
     _v0[i],
   );
 
-  double _componentAt(int i, double t) {
-    final dt = t - _origin;
-    if (dt <= 0) return _y0[i];
-    return _simulation(i).x(dt);
-  }
-
   double _reach(double a, double v) {
     final motion = _motion;
     final w0 = motion.omega;
@@ -605,51 +599,5 @@ extension MotionValueCommands<T> on MotionValue<T> {
       reach = math.max(reach, _reach(_memoY[i] - _target[i], _memoV[i]));
     }
     return reach;
-  }
-
-  /// The first time from [from] on at which [component] crosses [level], or
-  /// null when it does not cross before a delayed change or within
-  /// [horizon] responses of the spring.
-  ///
-  /// The value is sampled every 1/64 of the spring's response and a
-  /// crossing found between samples is refined to within a nanosecond, so
-  /// a level the value only grazes between two samples can be missed.
-  double? crossing(
-    double level, {
-    required double from,
-    int component = 0,
-    double horizon = 10,
-  }) {
-    _state(from);
-    final start = math.max(from, _origin);
-    var end = start + horizon * _motion.response;
-    final due = _pendingDue;
-    if (due != null && due < end) end = due;
-    double offset(double t) => _componentAt(component, t) - level;
-    var a = start;
-    var fa = offset(a);
-    if (fa == 0) return a;
-    final step = _motion.response / 64;
-    while (a < end) {
-      final b = math.min(a + step, end);
-      final fb = offset(b);
-      if (fb == 0) return b;
-      if (fa.sign != fb.sign) {
-        var lo = a;
-        var hi = b;
-        while (hi - lo > 1e-9) {
-          final mid = (lo + hi) / 2;
-          if (offset(mid).sign == fa.sign) {
-            lo = mid;
-          } else {
-            hi = mid;
-          }
-        }
-        return hi;
-      }
-      a = b;
-      fa = fb;
-    }
-    return null;
   }
 }

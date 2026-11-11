@@ -131,16 +131,6 @@ void main() {
       expect(other.log, [('outer', 0.25)]);
     });
 
-    test('advanceUntil stops right after the reaction that answers', () {
-      final m = _Pair();
-      m.schedule(0.1, 'a');
-      m.schedule(0.2, 'b');
-      expect(m.advanceUntil(1, () => m.log.isNotEmpty), isFalse);
-      expect(m.now, 0.1);
-      expect(m.advanceUntil(1, () => false), isTrue);
-      expect(m.log.last, ('b', 0.2));
-    });
-
     test('a command a reaction gives at its time leaves the reactions due '
         'with it in their order', () {
       final m = _Pair();

@@ -174,15 +174,6 @@ void main() {
       expect(value.valueAt(10), 100);
     });
 
-    test('finds the first crossing of a level', () {
-      final value = MotionValue<double>(1);
-      value.retarget(0, 0, spring: spring);
-      final t = value.crossing(0, from: 0)!;
-      expect(value.valueAt(t), moreOrLessEquals(0, epsilon: 1e-6));
-      expect(value.valueAt(t - 1e-3), greaterThan(0));
-      expect(MotionValue<double>(1).crossing(0, from: 0), isNull);
-    });
-
     test('listeners hear every frame of the motion and its rest', () {
       final clock = ManualMotionClock();
       final value = MotionValue<double>(0, clock: clock);
@@ -320,7 +311,7 @@ void main() {
         value.retarget(0, 10, spring: spring);
         final rest = value.restTime()!;
         while (clock.now < rest + 0.1) {
-          clock.advanceBy(1 / rate);
+          clock.advanceTo(clock.frameTime + 1 / rate);
         }
         expect(value.value, 10);
         expect(value.restTime(), rest);
@@ -337,7 +328,7 @@ void main() {
       twin.retarget(0, 10, spring: spring);
       final rest = value.restTime()!;
       while (clock.now < rest + 0.05) {
-        clock.advanceBy(1 / 120);
+        clock.advanceTo(clock.frameTime + 1 / 120);
       }
       final stamp = rest - 0.02;
       value.retarget(stamp, -5, spring: knob);
