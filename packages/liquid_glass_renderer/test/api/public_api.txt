@@ -1,39 +1,4 @@
-# package:liquid_glass_renderer/liquid_glass_renderer.dart
-class FakeGlass extends StatelessWidget
-  const FakeGlass.inLayer({
-    required LiquidShape shape,
-    required Widget child,
-    LiquidGlassAppearance? appearance,
-    List<BoxShadow> shadows = ...,
-    Key? key,
-  })
-  @internal const FakeGlass.inLayerResolved({
-    required LiquidShape shape,
-    required Widget child,
-    required LiquidGlassAppearance? appearance,
-    ValueListenable<LiquidGlassShapeFrame>? live,
-    Key? fakeKey,
-    Key? fadeKey,
-    Key? key,
-  })
-  const FakeGlass({
-    required LiquidShape shape,
-    required Widget child,
-    LiquidGlassSettings settings = ...,
-    LiquidGlassAppearance? appearance,
-    List<BoxShadow> shadows = ...,
-    Key? key,
-  })
-  final LiquidGlassAppearance? appearance
-  final Widget child
-  @internal final Key? fadeKey
-  @internal final Key? fakeKey
-  @internal final bool inheritVisibility
-  @internal final ValueListenable<LiquidGlassShapeFrame>? live
-  final LiquidGlassSettings? settings
-  final List<BoxShadow> shadows
-  final LiquidShape shape
-  overrides: build
+# package:liquid_glass_renderer/composer.dart
 final class FrostBandPaint
   const FrostBandPaint({
     required Color fade,
@@ -56,9 +21,6 @@ final class FrostBandPaint
   final double saturation
   final double whole
   overrides: ==, hashCode
-enum GestureMode
-  listener,
-  gestureDetector,
 final class GlassFrameReport
   const GlassFrameReport({
     required int frame,
@@ -98,30 +60,6 @@ final class GlassFrameReport
   final int targetBudget
   final Duration walk
   overrides: toString
-class GlassGlow extends StatelessWidget
-  const GlassGlow({
-    required Widget child,
-    Color glowColor = ...,
-    double glowRadius = ...,
-    HitTestBehavior hitTestBehavior = ...,
-    GestureMode gestureMode = ...,
-    Key? key,
-  })
-  final Widget child
-  final GestureMode gestureMode
-  final Color glowColor
-  final double glowRadius
-  final HitTestBehavior hitTestBehavior
-  overrides: build
-class GlassGlowLayer extends StatefulWidget
-  const GlassGlowLayer({required Widget child, Key? key})
-  final Widget child
-  @internal static GlassGlowLayerState? maybeOf(BuildContext context)
-  overrides: createState
-class GlassPlanOverlay extends StatefulWidget
-  const GlassPlanOverlay({required Widget child, Key? key})
-  final Widget child
-  overrides: createState
 final class GlassReadReport
   const GlassReadReport({
     required GlassReadSource source,
@@ -145,6 +83,119 @@ enum GlassReadSource
   image,
   heldImage,
   live,
+final class LiquidGlassBackdropFrost
+  LiquidGlassBackdropFrost({
+    required double sigma,
+    List<double>? colorMatrix,
+    TileMode? tileMode,
+  })
+  final List<double>? colorMatrix
+  static bool debugShaderFrost
+  late final ImageFilter filter
+  final double sigma
+  final TileMode? tileMode
+  overrides: ==, hashCode
+void debugDumpGlassPlan()
+
+# package:liquid_glass_renderer/effects.dart
+enum GestureMode
+  listener,
+  gestureDetector,
+class GlassGlow extends StatelessWidget
+  const GlassGlow({
+    required Widget child,
+    Color glowColor = ...,
+    double glowRadius = ...,
+    HitTestBehavior hitTestBehavior = ...,
+    GestureMode gestureMode = ...,
+    Key? key,
+  })
+  final Widget child
+  final GestureMode gestureMode
+  final Color glowColor
+  final double glowRadius
+  final HitTestBehavior hitTestBehavior
+  overrides: build
+class GlassGlowLayer extends StatefulWidget
+  const GlassGlowLayer({required Widget child, Key? key})
+  final Widget child
+  @internal static GlassGlowLayerState? maybeOf(BuildContext context)
+  overrides: createState
+class LiquidStretch extends StatelessWidget
+  const LiquidStretch({
+    required Widget child,
+    double interactionScale = ...,
+    double stretch = ...,
+    double resistance = ...,
+    HitTestBehavior hitTestBehavior = ...,
+    GestureMode gestureMode = ...,
+    Key? key,
+  })
+  final Widget child
+  final GestureMode gestureMode
+  final HitTestBehavior hitTestBehavior
+  final double interactionScale
+  final double resistance
+  final double stretch
+  overrides: build
+extension OffsetResistanceExtension on Offset
+  Offset withResistance(double resistance)
+class RawLiquidStretch extends SingleChildRenderObjectWidget
+  const RawLiquidStretch({
+    required Offset stretchPixels,
+    required Widget? child,
+    Key? key,
+  })
+  final Offset stretchPixels
+  overrides: createRenderObject, updateRenderObject
+
+# package:liquid_glass_renderer/liquid_glass_renderer.dart
+class FakeGlass extends StatelessWidget
+  const FakeGlass.inLayer({
+    required LiquidShape shape,
+    required Widget child,
+    LiquidGlassAppearance? appearance,
+    List<BoxShadow> shadows = ...,
+    Key? key,
+  })
+  @internal const FakeGlass.inLayerResolved({
+    required LiquidShape shape,
+    required Widget child,
+    required LiquidGlassAppearance? appearance,
+    ValueListenable<LiquidGlassShapeFrame>? live,
+    Key? fakeKey,
+    Key? fadeKey,
+    Key? key,
+  })
+  const FakeGlass({
+    required LiquidShape shape,
+    required Widget child,
+    LiquidGlassSettings settings = ...,
+    LiquidGlassAppearance? appearance,
+    List<BoxShadow> shadows = ...,
+    Key? key,
+  })
+  final LiquidGlassAppearance? appearance
+  final Widget child
+  @internal final Key? fadeKey
+  @internal final Key? fakeKey
+  @internal final bool inheritVisibility
+  @internal final ValueListenable<LiquidGlassShapeFrame>? live
+  final LiquidGlassSettings? settings
+  final List<BoxShadow> shadows
+  final LiquidShape shape
+  overrides: build
+class FrostBandPaint (see package:liquid_glass_renderer/composer.dart)
+enum GestureMode (see package:liquid_glass_renderer/effects.dart)
+class GlassFrameReport (see package:liquid_glass_renderer/composer.dart)
+class GlassGlow (see package:liquid_glass_renderer/effects.dart)
+class GlassGlowLayer (see package:liquid_glass_renderer/effects.dart)
+class GlassPlanOverlay extends StatefulWidget
+  const GlassPlanOverlay({required Widget child, Key? key})
+  final Widget child
+  overrides: createState
+class GlassReadReport (see package:liquid_glass_renderer/composer.dart)
+enum GlassReadSource (see package:liquid_glass_renderer/composer.dart)
 class LiquidGlass extends StatefulWidget
   const LiquidGlass.auto({
     required Widget child,
@@ -267,18 +318,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer i
   @internal bool get serves
   @internal Rect get shown
   overrides: addOutput, addToScene, ask, beginFate, dispose, drawsOwnChildren, endFrame, formNode, outputsInPlace, show
-final class LiquidGlassBackdropFrost
-  LiquidGlassBackdropFrost({
-    required double sigma,
-    List<double>? colorMatrix,
-    TileMode? tileMode,
-  })
-  final List<double>? colorMatrix
-  static bool debugShaderFrost
-  late final ImageFilter filter
-  final double sigma
-  final TileMode? tileMode
-  overrides: ==, hashCode
+class LiquidGlassBackdropFrost (see package:liquid_glass_renderer/composer.dart)
 class LiquidGlassBlendGroup extends StatefulWidget
   const LiquidGlassBlendGroup({
     required Widget child,
@@ -545,35 +585,33 @@ sealed class LiquidShape extends OutlinedBorder
   const LiquidShape({BorderSide side = ...})
   @internal double get cornerRadius
   overrides: ==, getInnerPath, getOuterPath, hashCode, paint
-class LiquidStretch extends StatelessWidget
-  const LiquidStretch({
-    required Widget child,
-    double interactionScale = ...,
-    double stretch = ...,
-    double resistance = ...,
-    HitTestBehavior hitTestBehavior = ...,
-    GestureMode gestureMode = ...,
-    Key? key,
-  })
-  final Widget child
-  final GestureMode gestureMode
-  final HitTestBehavior hitTestBehavior
-  final double interactionScale
-  final double resistance
-  final double stretch
-  overrides: build
-extension OffsetResistanceExtension on Offset
-  Offset withResistance(double resistance)
-class RawLiquidStretch extends SingleChildRenderObjectWidget
-  const RawLiquidStretch({
-    required Offset stretchPixels,
-    required Widget? child,
-    Key? key,
-  })
-  final Offset stretchPixels
-  overrides: createRenderObject, updateRenderObject
-void debugDumpGlassPlan()
+class LiquidStretch (see package:liquid_glass_renderer/effects.dart)
+extension OffsetResistanceExtension (see package:liquid_glass_renderer/effects.dart)
+class RawLiquidStretch (see package:liquid_glass_renderer/effects.dart)
+function debugDumpGlassPlan (see package:liquid_glass_renderer/composer.dart)
 bool debugPaintLiquidGlassGeometry
+
+# package:liquid_glass_renderer/painting.dart
+class LiquidGlassAppearance (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassBackdrop (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassColorModel (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+enum LiquidGlassDeviceClass (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassField (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassGlow (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassSettings (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassShapeFrame (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassSupport (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidOval (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidRoundedRectangle (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidRoundedSuperellipse (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidShape (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+
+# package:liquid_glass_renderer/rendering.dart
+class LiquidGlassBackdropFilterLayer (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+typedef LiquidGlassLayerEffects (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassLayerFrame (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassUnderlay (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+variable debugPaintLiquidGlassGeometry (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 
 # package:liquid_glass_renderer/testing.dart
 Future<GlassFrameReport> expectGlassBudget(
@@ -585,3 +623,11 @@ Future<GlassFrameReport> expectGlassBudget(
   Object? picturesRecorded,
   Object? imagesDrawn,
 })
+
+# package:liquid_glass_renderer/widgets.dart
+class FakeGlass (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class GlassPlanOverlay (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlass (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassBlendGroup (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassLayer (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassVisibility (see package:liquid_glass_renderer/liquid_glass_renderer.dart)

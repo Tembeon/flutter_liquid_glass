@@ -5,7 +5,6 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_shape.dart';
 import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
 import 'package:liquid_glass_renderer/src/rendering/snap_rect_to_pixels.dart';
-import 'package:liquid_glass_renderer/src/widgets/glass_shadow.dart';
 
 /// Conservative pixel support of Flutter's Gaussian shadow mask.
 ///
@@ -29,10 +28,10 @@ Rect glassShadowRect(Rect shape, BoxShadow shadow, double visibility) => shape
       ),
     );
 
-/// Paints a [GlassShadow].
+/// Paints a `GlassShadow`.
 @internal
 class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
-  /// Creates the render object of a [GlassShadow].
+  /// Creates the render object of a `GlassShadow`.
   RenderGlassShadow({
     required this._shape,
     required this._shadows,
