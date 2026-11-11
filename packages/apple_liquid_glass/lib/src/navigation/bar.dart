@@ -459,6 +459,7 @@ final class GlassBarHost {
     GlassBarDeclaration declaration, {
     Object? by,
   }) {
+    _keep(link, by);
     final previous = link._declaration;
     link._declaration = declaration;
     link._declarer = by;
@@ -489,6 +490,7 @@ final class GlassBarHost {
     List<GlassBarEntry>? items, {
     Object? by,
   }) {
+    _keep(link, by);
     final previous = link._toolbar;
     link._toolbar = items;
     link._toolbarDeclarer = by;
@@ -506,16 +508,39 @@ final class GlassBarHost {
   /// Withdraws what [declarer] declared for [link]'s page, and [fade] as
   /// its fade, if they still stand: its tab was left or it went away, and
   /// the page's bar empties unless another bar declared since. It happens
-  /// after the frame, once a bar that shows now has declared.
+  /// in the bars' next layout, in this frame, once a bar that shows now
+  /// has declared; a declaration of [declarer] before then cancels it.
   void withdraw(
     GlassPageBarLink link,
     Object declarer, {
     ValueListenable<double>? fade,
   }) {
-    SchedulerBinding.instance.addPostFrameCallback((_) {
+    _withdrawals.add((link: link, declarer: declarer, fade: fade));
+    for (final bar in _bars.values) {
+      bar.rebuild();
+    }
+  }
+
+  final List<
+    ({GlassPageBarLink link, Object declarer, ValueListenable<double>? fade})
+  >
+  _withdrawals = [];
+
+  void _keep(GlassPageBarLink link, Object? declarer) {
+    if (declarer == null || _withdrawals.isEmpty) return;
+    _withdrawals.removeWhere(
+      (w) => identical(w.link, link) && identical(w.declarer, declarer),
+    );
+  }
+
+  void _drainWithdrawals() {
+    if (_withdrawals.isEmpty) return;
+    final pending = List.of(_withdrawals);
+    _withdrawals.clear();
+    for (final (:link, :declarer, :fade) in pending) {
       _withdraw(link, declarer);
       if (fade != null) dropFade(link, fade);
-    });
+    }
   }
 
   void _withdraw(GlassPageBarLink link, Object declarer) {
@@ -906,9 +931,11 @@ final class _Bar {
     view.markNeedsBuild();
   }
 
-  /// The items' resolve phase: the pages take their title rooms, and the
-  /// view builds again if a change asked for it during the frame.
+  /// The items' resolve phase: withdrawals still waiting apply, the pages
+  /// take their title rooms, and the view builds again if a change asked
+  /// for it during the frame.
   void resolve() {
+    host._drainWithdrawals();
     giveRooms();
     if (!_rebuildInResolve) return;
     _rebuildInResolve = false;
@@ -2004,6 +2031,7 @@ class _RenderBarItems extends RenderBox
 
   @override
   void performLayout() {
+    bar.host._drainWithdrawals();
     size = constraints.biggest;
     final widths = <Object, double>{};
     var child = firstChild;
