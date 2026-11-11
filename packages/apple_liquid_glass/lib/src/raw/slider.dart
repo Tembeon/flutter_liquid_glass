@@ -1,9 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/raw/mirror.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
@@ -163,7 +164,7 @@ class RawGlassSlider extends StatefulWidget {
 }
 
 class _RawGlassSliderState extends State<RawGlassSlider>
-    with ControlStates<RawGlassSlider> {
+    with ControlStates<RawGlassSlider>, ControlledValue<RawGlassSlider> {
   late final SliderMotion _motion = SliderMotion(
     width: 0,
     value: _unit(widget.value),
@@ -182,14 +183,24 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   Widget? _visual;
   Object? _visualKey;
   Set<WidgetState>? _visualStates;
-  bool _returning = false;
   double? _reported;
   bool _changing = false;
 
   @override
   WidgetStatesController? get givenStates => widget.statesController;
 
-  bool get _leading => _motion.isDragging || _motion.isGliding;
+  @override
+  MotionClock get valueClock => _motion.clock;
+
+  @override
+  bool get userLeads => _motion.isDragging || _motion.isGliding;
+
+  @override
+  void followWidget() {
+    if (_inSync) return;
+    _setValue(_unit(widget.value));
+    _reported = widget.value;
+  }
 
   @override
   void didUpdateWidget(RawGlassSlider oldWidget) {
@@ -198,7 +209,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
     if (oldWidget.min != widget.min || oldWidget.max != widget.max) {
       _reported = null;
     }
-    if (!_inSync && !_leading) {
+    if (!_inSync && !userLeads) {
       _setValue(_unit(widget.value), animated: widget.animated);
       _reported = widget.value;
     }
@@ -221,32 +232,18 @@ class _RawGlassSliderState extends State<RawGlassSlider>
 
   void _deliver(SliderEvent event) {
     switch (event) {
+      // A value during a drag or glide arms no return: the change ends
+      // with SliderChangeEnded, which does, and the slider does not
+      // rebuild on every value an app that does not follow ignores.
       case SliderChanged(:final value):
-        _outsideBuild(() => widget.onChanged?.call(_reported = _out(value)));
+        outsideBuild(() => widget.onChanged?.call(_reported = _out(value)));
       case SliderChangeEnded(:final value):
-        _outsideBuild(() {
-          _end(_out(value));
-          _returnUnlessFollowed();
-        });
+        tellApp(() => _end(_out(value)));
       case SliderFelt(:final detent):
         (detent ? MotionHaptic.selection : MotionHaptic.lightImpact).play(
           context,
         );
     }
-  }
-
-  // An event raised while the framework builds or lays out, such as a drag
-  // the region cancels in its update or a width set in layout, reaches the
-  // app in the motion clock's coming publish phase, where it may rebuild.
-  void _outsideBuild(VoidCallback callback) {
-    if (SchedulerBinding.instance.schedulerPhase !=
-        SchedulerPhase.persistentCallbacks) {
-      callback();
-      return;
-    }
-    _motion.clock.schedulePublish(() {
-      if (mounted) callback();
-    });
   }
 
   void _start() {
@@ -264,17 +261,9 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   // A touch that never dragged, or left nothing to glide, raises no
   // SliderChangeEnded; it still ends the change it started.
   void _endUnlessGliding() {
-    if (_leading) return;
-    _outsideBuild(() {
-      _end(widget.value);
-      _returnUnlessFollowed();
-    });
+    if (userLeads) return;
+    tellApp(() => _end(widget.value));
   }
-
-  // The build that follows shows the value the app passes by then, so a
-  // slider whose app does not follow returns to its value once no drag or
-  // glide leads it.
-  void _returnUnlessFollowed() => setState(() => _returning = true);
 
   double _stepFrom(double from, int delta) {
     final ticks = widget.ticks;
@@ -322,22 +311,17 @@ class _RawGlassSliderState extends State<RawGlassSlider>
         track: frames.track,
         fill: frames.fill,
         thumb: frames.thumb,
-        ticks: frames.tickCenters,
+        ticks: frames.tickCenters(width, widget.ticks),
         states: states,
         statesListenable: widgetStates,
       ),
     );
   }
 
+  void _measured(double t, Size size) => _motion.width = size.width;
+
   @override
-  Widget build(BuildContext context) {
-    if (_returning && !_leading) {
-      _returning = false;
-      if (!_inSync) {
-        _setValue(_unit(widget.value));
-        _reported = widget.value;
-      }
-    }
+  Widget buildControl(BuildContext context) {
     final rtl = Directionality.maybeOf(context) == TextDirection.rtl;
     if (rtl != _frames.mirrored) {
       _frames = _SliderFrames(_motion, mirrored: rtl);
@@ -361,16 +345,20 @@ class _RawGlassSliderState extends State<RawGlassSlider>
           decreasedValue: percent(_stepFrom(value, -1)),
         ),
         minimumHitSize: const Size(44, 44),
+        // The ticks of the first frame need the width at build; the motion
+        // hears it from MotionMeasure after layout, where it may change.
         child: LayoutBuilder(
           builder: (context, constraints) {
             final width = constraints.hasBoundedWidth
                 ? constraints.maxWidth
                 : 200.0;
-            _motion.width = width;
-            return SizedBox(
-              width: width,
-              height: RawGlassSlider.height,
-              child: _visualFor(context, width),
+            return MotionMeasure(
+              onSize: _measured,
+              child: SizedBox(
+                width: width,
+                height: RawGlassSlider.height,
+                child: _visualFor(context, width),
+              ),
             );
           },
         ),
@@ -426,13 +414,17 @@ final class _SliderFrames {
     );
   });
 
-  List<Offset> get tickCenters => [
-    for (final x in _motion.tickCenters)
-      Offset(
-        mirrored ? _motion.width - x : x,
-        _y + SliderMotion.tickOffset,
-      ),
-  ];
+  /// The tick centers of a slider [width] wide with [ticks] stops, from
+  /// the width layout gives before the motion hears it.
+  List<Offset> tickCenters(double width, int ticks) {
+    if (ticks < 2) return const [];
+    final travel = math.max<double>(0, width - SliderMotion.thumbSize.width);
+    return [
+      for (var i = 0; i < ticks; i++)
+        if (SliderMotion.tickInset + i * travel / (ticks - 1) case final x)
+          Offset(mirrored ? width - x : x, _y + SliderMotion.tickOffset),
+    ];
+  }
 
   static double _trackHeight(SliderMotion motion) =>
       motion.currentTrackHeight.clamp(0.0, double.infinity);

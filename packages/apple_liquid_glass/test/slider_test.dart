@@ -598,6 +598,81 @@ void main() {
     await _settle(tester);
     expect(probe.fill!.value.rect!.width, greaterThan(100));
   });
+
+  testWidgets('the ticks of the first frame span the track', (tester) async {
+    final probe = _Probe();
+    await tester.pumpWidget(
+      _app(
+        RawGlassSlider(
+          value: 0,
+          ticks: 3,
+          onChanged: (_) {},
+          builder: probe.build,
+        ),
+      ),
+    );
+    expect(probe.ticks.map((tick) => tick.dx), [18, 149.5, 281]);
+  });
+
+  testWidgets('a change raised while the framework builds does not throw '
+      'and reaches the app in the next frame', (tester) async {
+    var value = 0.0;
+    var raise = false;
+    late StateSetter rebuild;
+    late SliderMotion motion;
+    await tester.pumpWidget(
+      _app(
+        StatefulBuilder(
+          builder: (context, setState) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              StatefulBuilder(
+                builder: (context, setRaiser) {
+                  rebuild = setRaiser;
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      if (raise) {
+                        raise = false;
+                        final t = motion.clock.now;
+                        motion.pointerMove(t, 18.5 + 90);
+                        motion.pointerUp(t, 18.5 + 90, velocity: 0);
+                      }
+                      return const SizedBox();
+                    },
+                  );
+                },
+              ),
+              RawGlassSlider(
+                value: value,
+                onChanged: (next) => setState(() => value = next),
+                builder: (context, details) => const SizedBox.expand(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    motion =
+        tester
+                .widget<MotionScope>(
+                  find.descendant(
+                    of: find.byType(RawGlassSlider),
+                    matching: find.byType(MotionScope),
+                  ),
+                )
+                .motion
+            as SliderMotion;
+    motion.pointerDown(motion.clock.now, 18.5);
+    motion.pointerMove(motion.clock.now, 18.5, begin: true);
+    rebuild(() => raise = true);
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(value, 0);
+    await tester.pump(_frame);
+    expect(value, closeTo(0.3, 1e-9));
+    await _settle(tester);
+    expect(motion.reportedValue, closeTo(0.3, 1e-9));
+  });
 }
 
 class _Focused extends StatefulWidget {
