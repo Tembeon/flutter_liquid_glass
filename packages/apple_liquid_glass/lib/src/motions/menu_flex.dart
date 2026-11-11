@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motions/flex_interaction.dart';
-import 'package:apple_liquid_glass/src/motions/menu_motion.dart';
+import 'package:apple_liquid_glass/src/motions/menu_tuning.dart';
 import 'package:flutter/painting.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';

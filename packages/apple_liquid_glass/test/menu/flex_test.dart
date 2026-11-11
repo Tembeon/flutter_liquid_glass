@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
 import 'package:apple_liquid_glass/src/motions/menu_motion.dart';
+import 'package:apple_liquid_glass/src/motions/menu_tuning.dart';
+import 'package:apple_liquid_glass/src/motions/menu_values.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';

@@ -42,20 +42,11 @@ export 'src/motions/lens_motion.dart' show LensMotion;
 export 'src/motions/lens_values.dart' show LensEvent, LensSelected, LensSlot;
 export 'src/motions/list_highlight.dart' show ListRowHighlight;
 export 'src/motions/menu_context_hold.dart' show ContextHold;
+export 'src/motions/menu_event.dart'
+    show MenuActivated, MenuEvent, MenuHighlightChanged, MenuTapped;
 export 'src/motions/menu_layout.dart' show MenuLayout;
 export 'src/motions/menu_metrics.dart' show MenuMetrics;
-export 'src/motions/menu_motion.dart'
-    show
-        MenuActivated,
-        MenuAttachment,
-        MenuBlob,
-        MenuCapsuleSource,
-        MenuCard,
-        MenuEvent,
-        MenuHighlightChanged,
-        MenuMotion,
-        MenuSource,
-        MenuTapped;
+export 'src/motions/menu_motion.dart' show MenuMotion;
 export 'src/motions/menu_placed.dart'
     show MenuPlaced, MenuPlacedKind, MenuTarget, MenuTargetKind;
 export 'src/motions/menu_specs.dart'
@@ -67,6 +58,8 @@ export 'src/motions/menu_specs.dart'
         MenuSpec,
         MenuSpecSize,
         MenuWidgetSpec;
+export 'src/motions/menu_values.dart'
+    show MenuAttachment, MenuBlob, MenuCapsuleSource, MenuCard, MenuSource;
 export 'src/motions/navigation_motion.dart'
     show NavigationPopMotion, PageMotion, PageSlideMotion;
 export 'src/motions/page_control_motion.dart'
