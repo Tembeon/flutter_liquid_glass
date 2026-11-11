@@ -29,6 +29,7 @@ import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 import 'package:liquid_glass_renderer/src/rendering/shading.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 import 'package:liquid_glass_renderer/src/rendering/snap_rect_to_pixels.dart';
+import 'package:liquid_glass_renderer/src/rendering/tiling_drift.dart';
 import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
 
 /// The real glass layer: renders the shapes into a GPU matte and paints the
@@ -1043,8 +1044,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       ? GlassBody.none
       : GlassBody(
           shapes: _shapes.count,
-          field: _tiling?.field != null,
-          looks: _tiling?.looks != null,
+          field: _drift.tiling?.field != null,
+          looks: _drift.tiling?.looks != null,
         );
 
   // The glass of [read], its band left out, each with the role and the rect
@@ -1649,18 +1650,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // The shapes of the latest encode.
   ShapeSet _shapes = ShapeSet.empty;
 
-  // The tiling of the latest atlas, the layer-local bounds of its buffer
-  // and the pixel ratio it was tiled at.
-  Tiling? _tiling;
-  Rect _tilingBounds = Rect.zero;
-  double _tilingRatio = 0;
-
-  // How many encodes running found the shapes of the one before only moved.
-  int _driftingEncodes = 0;
-
-  // How far, in device pixels, a drifting shape may move at most before
-  // its layer is tiled again.
-  static const double _tilingSlack = 3;
+  final _drift = TilingDrift();
 
   @override
   double get materialOutset => _contourOutset;
@@ -1717,7 +1707,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // The geometry buffer is in this layer's local coordinates. Ancestor
     // transforms are applied once by the compositor; baking them in would
     // apply scale and rotation twice.
-    var boundsInMatteSpace = bounds.inflate(aaPadding).snapToPixels(dpr);
+    final boundsInMatteSpace = bounds.inflate(aaPadding).snapToPixels(dpr);
     if (boundsInMatteSpace.isEmpty) {
       throw StateError('Cannot render empty liquid-glass geometry.');
     }
@@ -1749,8 +1739,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
     if (geometryKindOf([body]) is ComputedShape) {
       renderer.releaseAtlas();
-      _tiling = null;
-      _driftingEncodes = 0;
+      _drift.reset();
       return (
         geometry: ComputedGeometry(
           ShapeSet.join([(shapes, -boundsInMatteSpace.topLeft * dpr)]),
@@ -1771,76 +1760,16 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
     // Shapes that drift keep the tiling of an earlier frame while each stays
     // within its slack, in that frame's buffer: only the pass runs again.
-    Tiling? tiling;
-    ShapeSet? inLast;
-    var slack = 0.0;
-    final last = _tiling;
-    if (last != null && _field == null && _tilingRatio == dpr) {
-      inLast = ShapeSet.join([(shapes, -_tilingBounds.topLeft * dpr)]);
-      final motion = last.motionTo(inLast);
-      if (motion == null) {
-        _driftingEncodes = 0;
-      } else {
-        if (_tilingBounds.left <= boundsInMatteSpace.left &&
-            _tilingBounds.top <= boundsInMatteSpace.top &&
-            _tilingBounds.right >= boundsInMatteSpace.right &&
-            _tilingBounds.bottom >= boundsInMatteSpace.bottom) {
-          tiling = last.held(inLast, reach: reach, looks: looks);
-        }
-        // Slack rings a few more tiles, so only shapes seen to move slowly
-        // twice running are tiled with it, and with no more than serves
-        // them for about six frames. Shapes encoded again where they were,
-        // for a new look, say nothing of how they move.
-        if (motion > 0) {
-          if (motion <= _tilingSlack / 2 && _driftingEncodes > 0) {
-            slack = (6 * motion).clamp(1, _tilingSlack);
-          }
-          _driftingEncodes++;
-        }
-      }
-    } else {
-      _driftingEncodes = 0;
-    }
-    if (tiling != null) {
-      boundsInMatteSpace = _tilingBounds;
-    } else if (slack > 0) {
-      boundsInMatteSpace = bounds
-          .inflate(aaPadding + slack / dpr)
-          .snapToPixels(dpr);
-    }
-    final physicalSize = boundsInMatteSpace.size * dpr;
-    final width = physicalSize.width.ceil();
-    final height = physicalSize.height.ceil();
-    final origin = boundsInMatteSpace.topLeft * dpr;
-    if (tiling == null) {
-      final inBuffer = inLast != null && boundsInMatteSpace == _tilingBounds
-          ? inLast
-          : ShapeSet.join([(shapes, -origin)]);
-      tiling = switch (_field) {
-        final field? => Tiling.field(
-          BufferField(
-            field,
-            layerToBuffer: (dpr, 0, 0, dpr, -origin.dx, -origin.dy),
-          ),
-          width: width,
-          height: height,
-          reach: reach,
-          shapes: inBuffer,
-          looks: looks,
-        ),
-        null => Tiling.shapes(
-          inBuffer,
-          width: width,
-          height: height,
-          reach: reach,
-          looks: looks,
-          slack: slack,
-        ),
-      };
-    }
-    _tiling = tiling;
-    _tilingBounds = boundsInMatteSpace;
-    _tilingRatio = dpr;
+    final tiling = _drift.advance(
+      shapes,
+      bounds: bounds,
+      padded: boundsInMatteSpace,
+      padding: aaPadding,
+      devicePixelRatio: dpr,
+      field: _field,
+      reach: reach,
+      looks: looks,
+    );
     final atlas = renderer.renderAtlas(tiling);
     if (renderer.droppedShapes > 0) _debugWarnShapeLimitExceeded();
     return (
@@ -1850,10 +1779,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         looks: atlas.looks,
       ),
       matteBounds: Rect.fromLTWH(
-        boundsInMatteSpace.left,
-        boundsInMatteSpace.top,
-        width / dpr,
-        height / dpr,
+        _drift.bounds.left,
+        _drift.bounds.top,
+        _drift.width / dpr,
+        _drift.height / dpr,
       ),
     );
   }
@@ -1880,7 +1809,7 @@ extension RenderLiquidGlassLayerDebug on RenderLiquidGlassLayer {
   };
 
   /// The tiling of the latest atlas.
-  Tiling? get debugTiling => _tiling;
+  Tiling? get debugTiling => _drift.tiling;
 }
 
 // A band beside glass in a read: [shown] of it in the draw's fragments,
