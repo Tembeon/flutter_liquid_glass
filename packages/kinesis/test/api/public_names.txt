@@ -4,7 +4,6 @@ ActivationSource
 AdjustInput
 AdjustRange
 AdjustValueIntent
-Band
 ContextMenuInput
 ContextMenuIntent
 ControlStates
@@ -104,6 +103,8 @@ ProjectionExited
 ProjectionStop
 Ramp
 RectSprings
+RenderListening
+RubberBand
 ScrubChangeEvent
 SecondaryClickInteraction
 SessionOutput
@@ -114,8 +115,6 @@ Spring
 TapInteraction
 TimedValue
 ValueCommand
-listenForRender
 showPresentation
-unlistenForRender
 withSpring
 withoutAnimation

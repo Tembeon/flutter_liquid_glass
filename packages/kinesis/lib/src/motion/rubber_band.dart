@@ -11,14 +11,14 @@ import 'package:flutter/foundation.dart';
 /// iOS coefficient. An infinite end never resists.
 ///
 /// ```dart
-/// final band = Band(0, travel, dimension: 12);
+/// final band = RubberBand(0, travel, dimension: 12);
 /// knob.retarget(t, band.show(grab + finger), tracking: true);
 /// ```
 @immutable
-final class Band {
+final class RubberBand {
   /// Creates a band from [min] to [max] that resists over [dimension]
   /// pixels past either end.
-  const Band(
+  const RubberBand(
     this.min,
     this.max, {
     required this.dimension,
@@ -73,7 +73,7 @@ final class Band {
 
   @override
   bool operator ==(Object other) =>
-      other is Band &&
+      other is RubberBand &&
       other.min == min &&
       other.max == max &&
       other.dimension == dimension &&

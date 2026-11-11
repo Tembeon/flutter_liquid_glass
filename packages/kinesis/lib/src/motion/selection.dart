@@ -83,7 +83,7 @@ class MotionSelection<T> implements ValueListenable<T>, MotionDerived {
       _dirty = false;
       if (_followed && _inputs.isEmpty) {
         _inputs.add(source);
-        listenForRender(source, _onInput);
+        source.addRenderListener(_onInput);
       }
       return;
     }
@@ -94,10 +94,10 @@ class MotionSelection<T> implements ValueListenable<T>, MotionDerived {
     reads.remove(this);
     if (!_followed) return;
     for (final input in _inputs.difference(reads)) {
-      unlistenForRender(input, _onInput);
+      input.removeRenderListener(_onInput);
     }
     for (final input in reads.difference(_inputs)) {
-      listenForRender(input, _onInput);
+      input.addRenderListener(_onInput);
     }
     _inputs.clear();
     _inputs.addAll(reads);
@@ -133,7 +133,7 @@ class MotionSelection<T> implements ValueListenable<T>, MotionDerived {
   void _stopIfAlone() {
     if (_followed) return;
     for (final input in _inputs) {
-      unlistenForRender(input, _onInput);
+      input.removeRenderListener(_onInput);
     }
     _inputs.clear();
     _dirty = true;

@@ -39,7 +39,7 @@ final class DragInteractionDetails {
 /// [mayBegin] can give a touch up while it has not started: a content
 /// swipe's funnel. Positions are mirrored when [mirrored], so the leading
 /// edge and the travel follow a right-to-left layout. Feed the travel to a
-/// `Band` and a release to a `Projection`.
+/// `RubberBand` and a release to a `Projection`.
 ///
 /// A drag with a [contendedSlop] competes with the controls inside its
 /// region, as UIKit's sheet pan does: alone in the arena it starts past

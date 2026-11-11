@@ -265,10 +265,10 @@ class RenderMotionTransition extends RenderProxyBox {
     if (!attached || !_following || _followed) return;
     _followed = true;
     for (final listenable in _inputs.look) {
-      listenForRender(listenable, _lookChanged);
+      listenable.addRenderListener(_lookChanged);
     }
     for (final listenable in _inputs.size) {
-      listenForRender(listenable, _sizeChanged);
+      listenable.addRenderListener(_sizeChanged);
     }
   }
 
@@ -276,10 +276,10 @@ class RenderMotionTransition extends RenderProxyBox {
     if (!_followed) return;
     _followed = false;
     for (final listenable in _inputs.look) {
-      unlistenForRender(listenable, _lookChanged);
+      listenable.removeRenderListener(_lookChanged);
     }
     for (final listenable in _inputs.size) {
-      unlistenForRender(listenable, _sizeChanged);
+      listenable.removeRenderListener(_sizeChanged);
     }
   }
 

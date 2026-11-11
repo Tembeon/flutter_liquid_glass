@@ -248,7 +248,7 @@ class _PeekPanelState extends State<_PeekPanel> {
   );
   late final List<Interaction> _interactions = [_drag];
 
-  Band get _band => Band(
+  RubberBand get _band => RubberBand(
     0,
     widget.motion.panel.height,
     dimension: widget.motion.panel.height,

@@ -350,21 +350,6 @@ class AdjustValueIntent extends Intent
     TextDirection direction,
     NavigationMode navigation,
   )
-final class Band
-  const Band(
-    double min,
-    double max, {
-    required double dimension,
-    double coefficient = ...,
-  })
-  final double coefficient
-  final double dimension
-  final double max
-  final double min
-  double show(double raw)
-  double stretch(double raw)
-  double unshow(double shown)
-  overrides: ==, hashCode
 class ContextMenuInput (see package:kinesis/input.dart)
 class ContextMenuIntent extends Intent
   const ContextMenuIntent()
@@ -1207,6 +1192,24 @@ final class RectSprings
   Spring get height
   Spring get width
   overrides: ==, hashCode
+extension RenderListening on Listenable
+  void addRenderListener(void Function() listener)
+  void removeRenderListener(void Function() listener)
+final class RubberBand
+  const RubberBand(
+    double min,
+    double max, {
+    required double dimension,
+    double coefficient = ...,
+  })
+  final double coefficient
+  final double dimension
+  final double max
+  final double min
+  double show(double raw)
+  double stretch(double raw)
+  double unshow(double shown)
+  overrides: ==, hashCode
 class ScrubChangeEvent (see package:kinesis/input.dart)
 class SecondaryClickInteraction (see package:kinesis/input.dart)
 class SessionOutput (see package:kinesis/input.dart)
@@ -1294,13 +1297,11 @@ final class TimedValue extends MotionPart
   double valueAt(double t)
   overrides: nextDue, restFrom, restTime, restsAt
 enum ValueCommand (see package:kinesis/input.dart)
-void listenForRender(Listenable listenable, void Function() listener)
 Future<T?> showPresentation<T>(
   BuildContext context,
   PresentationRoute<T> route, {
   PresentationLevel level = ...,
 })
-void unlistenForRender(Listenable listenable, void Function() listener)
 void withSpring(
   Spring spring,
   void Function() changes, {
@@ -1310,7 +1311,6 @@ void withSpring(
 void withoutAnimation(void Function() changes)
 
 # package:kinesis/motion.dart
-class Band (see package:kinesis/kinesis.dart)
 class DismissPolicy (see package:kinesis/kinesis.dart)
 enum DismissTrigger (see package:kinesis/kinesis.dart)
 class FrameCadence (see package:kinesis/kinesis.dart)
@@ -1349,12 +1349,12 @@ class ProjectionExited (see package:kinesis/kinesis.dart)
 class ProjectionStop (see package:kinesis/kinesis.dart)
 class Ramp (see package:kinesis/kinesis.dart)
 class RectSprings (see package:kinesis/kinesis.dart)
+extension RenderListening (see package:kinesis/kinesis.dart)
+class RubberBand (see package:kinesis/kinesis.dart)
 class SourceGeometry (see package:kinesis/kinesis.dart)
 mixin Sourced (see package:kinesis/kinesis.dart)
 class Spring (see package:kinesis/kinesis.dart)
 class TimedValue (see package:kinesis/kinesis.dart)
-function listenForRender (see package:kinesis/kinesis.dart)
-function unlistenForRender (see package:kinesis/kinesis.dart)
 function withSpring (see package:kinesis/kinesis.dart)
 function withoutAnimation (see package:kinesis/kinesis.dart)
 

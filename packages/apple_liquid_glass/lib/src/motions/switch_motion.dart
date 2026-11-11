@@ -245,7 +245,7 @@ final class SwitchMotion extends Motion {
 
   static double _band(double position) {
     final (limit, stiffness) = overdrag;
-    return Band(
+    return RubberBand(
       0,
       travel,
       dimension: limit,

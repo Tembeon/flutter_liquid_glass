@@ -110,7 +110,7 @@ class LensTuning {
 
   /// The rubber band past the first and last slots as (limit, stiffness): a
   /// lens dragged past an end slot travels at most limit pixels beyond it, in
-  /// the form of kinesis's `Band`. Inside the slots the lens follows the
+  /// the form of kinesis's `RubberBand`. Inside the slots the lens follows the
   /// finger's travel since the touch one to one, in the control's own
   /// coordinates; a flexing control ([chromeFlexes]) scales and shifts the lens
   /// with it on top of that.

@@ -214,11 +214,11 @@ final class _SameFrame implements ValueListenable<GlassFrame> {
   GlassFrame get value => source.value;
 
   @override
-  void addListener(VoidCallback listener) => listenForRender(source, listener);
+  void addListener(VoidCallback listener) => source.addRenderListener(listener);
 
   @override
   void removeListener(VoidCallback listener) =>
-      unlistenForRender(source, listener);
+      source.removeRenderListener(listener);
 
   @override
   bool operator ==(Object other) =>

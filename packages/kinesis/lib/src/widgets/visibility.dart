@@ -76,9 +76,9 @@ class _RenderVisibility extends RenderProxyBox {
   ValueListenable<bool> get visible => _visible;
   set visible(ValueListenable<bool> value) {
     if (identical(value, _visible)) return;
-    if (attached) unlistenForRender(_visible, _changed);
+    if (attached) _visible.removeRenderListener(_changed);
     _visible = value;
-    if (attached) listenForRender(_visible, _changed);
+    if (attached) _visible.addRenderListener(_changed);
     _changed();
   }
 
@@ -119,13 +119,13 @@ class _RenderVisibility extends RenderProxyBox {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    listenForRender(_visible, _changed);
+    _visible.addRenderListener(_changed);
     _shown = _visible.value;
   }
 
   @override
   void detach() {
-    unlistenForRender(_visible, _changed);
+    _visible.removeRenderListener(_changed);
     super.detach();
   }
 

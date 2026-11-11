@@ -175,7 +175,7 @@ class _GlassSwipeActionsState extends State<GlassSwipeActions> {
   _OpenRow? _group;
   ScrollPosition? _scroll;
 
-  Band get _band => Band(
+  RubberBand get _band => RubberBand(
     widget.fullSwipe ? -_motion.rowWidth : -_motion.actionsWidth,
     0,
     dimension: _motion.rowWidth,

@@ -592,7 +592,11 @@ class SheetMotion extends Motion {
     final largest = _heights.last;
     final room = _rubberRoom;
     _dragTop = room > 0
-        ? Band(double.negativeInfinity, largest, dimension: room).unshow(top)
+        ? RubberBand(
+            double.negativeInfinity,
+            largest,
+            dimension: room,
+          ).unshow(top)
         : top;
     _height.snap(t, _height.valueAt(t));
     _offset.snap(t, _offset.valueAt(t));
@@ -606,7 +610,7 @@ class SheetMotion extends Motion {
     if (_stretching) _track(t, (y - from).abs());
     final raw = _dragTop - (y - from);
     final largest = _heights.last;
-    final top = Band(
+    final top = RubberBand(
       double.negativeInfinity,
       largest,
       dimension: _rubberRoom,
@@ -626,7 +630,7 @@ class SheetMotion extends Motion {
         t,
         dismissible
             ? below
-            : -Band(
+            : -RubberBand(
                 lowest,
                 double.infinity,
                 dimension: SheetTuning.refusedPullExtent,

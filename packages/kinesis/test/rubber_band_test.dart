@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
 
 void main() {
-  const band = Band(0, 100, dimension: 12);
+  const band = RubberBand(0, 100, dimension: 12);
 
   test('shows a position inside the range as it is', () {
     expect(band.show(0), 0);
@@ -13,7 +13,7 @@ void main() {
 
   test('past an end it starts with the coefficient as its slope and '
       'approaches the dimension', () {
-    const steep = Band(0, 100, dimension: 12, coefficient: 0.54);
+    const steep = RubberBand(0, 100, dimension: 12, coefficient: 0.54);
     expect(
       (steep.show(100 + 1e-6) - 100) / 1e-6,
       moreOrLessEquals(0.54, epsilon: 1e-6),
@@ -40,7 +40,7 @@ void main() {
   });
 
   test('an infinite end never resists', () {
-    const open = Band(double.negativeInfinity, 10, dimension: 5);
+    const open = RubberBand(double.negativeInfinity, 10, dimension: 5);
     expect(open.show(-1000000), -1000000);
     expect(open.show(12), lessThan(12));
   });

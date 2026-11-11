@@ -3809,7 +3809,6 @@ re-exported from package:kinesis:
   AdjustInput
   AdjustRange
   AdjustValueIntent
-  Band
   ContextMenuInput
   ContextMenuIntent
   ControlStates
@@ -3908,6 +3907,8 @@ re-exported from package:kinesis:
   ProjectionStop
   Ramp
   RectSprings
+  RenderListening
+  RubberBand
   ScrubChangeEvent
   SecondaryClickInteraction
   SessionOutput
@@ -3918,9 +3919,7 @@ re-exported from package:kinesis:
   TapInteraction
   TimedValue
   ValueCommand
-  listenForRender
   showPresentation
-  unlistenForRender
   withSpring
   withoutAnimation
 re-exported from package:liquid_glass_renderer:

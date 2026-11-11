@@ -30,7 +30,7 @@ abstract final class NavigationTuning {
   /// UIKit does: at most half the page's width past an end, with the
   /// coefficient 0.55 (read from UIKit; the coefficient is UIKit's default
   /// for scrolling, assumed for touch).
-  static const Band band = Band(0, 1, dimension: 0.5);
+  static const RubberBand band = RubberBand(0, 1, dimension: 0.5);
 
   /// The seconds a push or pop without a finger cross-fades for under
   /// Prefer Cross-Fade Transitions (`GlassTraits.prefersCrossFade`), on

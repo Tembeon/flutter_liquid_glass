@@ -524,7 +524,7 @@ final class SliderMotion extends Motion {
 
   double _stretchFor(double raw) {
     final (limit, stiffness) = overdrag;
-    return Band(
+    return RubberBand(
       0,
       width,
       dimension: limit,

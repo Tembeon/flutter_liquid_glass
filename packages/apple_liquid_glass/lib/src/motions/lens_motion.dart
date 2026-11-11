@@ -604,7 +604,7 @@ final class LensMotion extends Motion {
     final last = _slots.last.center;
     final u = pointer.x + pointer.offset;
     final (limit, stiffness) = tuning.rubberBand;
-    final target = Band(
+    final target = RubberBand(
       first,
       last,
       dimension: limit,

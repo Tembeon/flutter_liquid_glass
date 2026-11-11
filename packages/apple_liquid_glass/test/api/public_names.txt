@@ -6,7 +6,6 @@ AdjustInput
 AdjustRange
 AdjustValueIntent
 AlertMotion
-Band
 ContextHold
 ContextMenuInput
 ContextMenuIntent
@@ -329,7 +328,9 @@ RawGlassSlider
 RawGlassStepper
 RawGlassSwitch
 RectSprings
+RenderListening
 RenderScrollEdge
+RubberBand
 ScrollAway
 ScrollEdgeBand
 ScrollEdgeMotion
@@ -372,7 +373,6 @@ ZoomPageMotion
 debugDumpGlassPlan
 glassLabelTextOf
 layoutGlassBar
-listenForRender
 placeDatePicker
 placePopover
 precacheGlass
@@ -384,6 +384,5 @@ showGlassAlert
 showGlassPopover
 showGlassSheet
 showPresentation
-unlistenForRender
 withSpring
 withoutAnimation

@@ -17,7 +17,7 @@ final class KnobMotion extends Motion implements PointerFollower {
   /// How far the knob travels before the band resists.
   static const reach = 44.0;
 
-  static const _band = Band(-reach, reach, dimension: 4 * reach);
+  static const _band = RubberBand(-reach, reach, dimension: 4 * reach);
 
   late final offset = own(MotionValue(Offset.zero));
   late final press = own(MotionValue<double>(0));
