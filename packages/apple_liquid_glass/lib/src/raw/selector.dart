@@ -59,11 +59,6 @@ abstract interface class GlassSelectorCollapse {
   void activate();
 }
 
-/// How much a fully lifted lens's glass shrinks what lies under it, and how
-/// much of the lens's long side, less its short side, the center line it
-/// shrinks toward spans: what the lens's renderer reports.
-typedef GlassSelectorLensShrink = ({double shrink, double rim});
-
 /// The text a screen reader reads for an item [label]: the data of a
 /// `Text` or `RichText`, an `Icon`'s semantic label, or the first of these
 /// among the children of a single-child or `Flex` wrapper; null when there
@@ -149,7 +144,7 @@ final class GlassSelectorDetails {
   /// shrinks what lies under it, so the selector grows its selected copies
   /// against it.
   @internal
-  final ValueNotifier<GlassSelectorLensShrink>? lensShrink;
+  final ValueNotifier<GlassLensShrink>? lensShrink;
 }
 
 /// A pick-one control with the measured selection lens of iOS 27 and no
@@ -319,7 +314,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   // the selected item if it did not.
   bool _returning = false;
   bool _rtl = false;
-  final _lensShrink = ValueNotifier<GlassSelectorLensShrink>((
+  final _lensShrink = ValueNotifier<GlassLensShrink>((
     shrink: 0,
     rim: 0,
   ));
@@ -1479,7 +1474,7 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
   final bool hasLens;
 
   /// How the lens's glass shrinks what lies under it, fully lifted.
-  final ValueListenable<GlassSelectorLensShrink> lensShrink;
+  final ValueListenable<GlassLensShrink> lensShrink;
 
   @override
   MultiChildRenderObjectElement createElement() => _SelectorRowElement(this);
@@ -1664,9 +1659,9 @@ class _RenderSelectorRow extends RenderBox
     markNeedsLayout();
   }
 
-  ValueListenable<GlassSelectorLensShrink> _lensShrink;
-  ValueListenable<GlassSelectorLensShrink> get lensShrink => _lensShrink;
-  set lensShrink(ValueListenable<GlassSelectorLensShrink> value) {
+  ValueListenable<GlassLensShrink> _lensShrink;
+  ValueListenable<GlassLensShrink> get lensShrink => _lensShrink;
+  set lensShrink(ValueListenable<GlassLensShrink> value) {
     if (identical(value, _lensShrink)) return;
     if (attached) _lensShrink.removeListener(markNeedsPaint);
     _lensShrink = value;

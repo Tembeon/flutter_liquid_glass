@@ -77,6 +77,7 @@ final class GlassSurfaceDetails {
     this.states,
     this.focusColor,
     this.hoverColor,
+    this.lensShrink,
   }) : frame = frame is _SameFrame ? frame : _SameFrame(frame);
 
   /// The glass family of the surface.
@@ -124,6 +125,16 @@ final class GlassSurfaceDetails {
   /// The color the hover response adds to the body, resolved, or null for
   /// the renderer's. A transparent color shows no hover response.
   final Color? hoverColor;
+
+  /// Where a renderer that draws a [GlassRole.lens] body writes how its
+  /// glass shrinks what lies under it, so the control grows the content it
+  /// draws under the lens against it, or null when the control does not
+  /// ask.
+  ///
+  /// A renderer that draws shrinking glass writes [lens]'s shrink and rim
+  /// while it draws the body, and no shrink when it stops; one that draws
+  /// none leaves it.
+  final ValueNotifier<GlassLensShrink>? lensShrink;
 }
 
 /// What a renderer needs to build a group of surfaces.

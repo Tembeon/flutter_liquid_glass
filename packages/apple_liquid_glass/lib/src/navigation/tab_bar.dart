@@ -9,7 +9,6 @@ import 'package:apple_liquid_glass/src/motions/search_motion.dart';
 import 'package:apple_liquid_glass/src/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/navigation/toolbar.dart';
 import 'package:apple_liquid_glass/src/raw/selector.dart';
-import 'package:apple_liquid_glass/src/surfaces/lens_shrink.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -513,9 +512,11 @@ class _TabBarLook extends StatelessWidget {
       MotionSelection<GlassFrame> frame,
       Color? tint, {
       GlassLens lens = const GlassLens(),
+      ValueNotifier<GlassLensShrink>? lensShrink,
     }) => GlassSurface.live(
       role: role,
       lens: lens,
+      lensShrink: lensShrink,
       glass: Glass.regular(tint: tint),
       frame: frame,
       child: const SizedBox.expand(),
@@ -530,14 +531,12 @@ class _TabBarLook extends StatelessWidget {
           ),
         ),
         details.items(
-          lens: GlassLensShrink(
-            shrink: details.lensShrink!,
-            child: surface(
-              GlassRole.lens,
-              details.lens,
-              resolve(look.thumbColor),
-              lens: _lens,
-            ),
+          lens: surface(
+            GlassRole.lens,
+            details.lens,
+            resolve(look.thumbColor),
+            lens: _lens,
+            lensShrink: details.lensShrink,
           ),
         ),
       ],

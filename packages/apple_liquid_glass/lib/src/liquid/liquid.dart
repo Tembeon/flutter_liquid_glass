@@ -6,7 +6,6 @@ import 'package:apple_liquid_glass/src/liquid/path_outside.dart';
 import 'package:apple_liquid_glass/src/liquid/scroll_edge.dart';
 import 'package:apple_liquid_glass/src/liquid/shapes.dart';
 import 'package:apple_liquid_glass/src/liquid/underlay_layers.dart';
-import 'package:apple_liquid_glass/src/surfaces/lens_shrink.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -868,21 +867,23 @@ class _LiquidLensState extends State<_LiquidLens> {
     }
   }
 
+  static const GlassLensShrink _none = (shrink: 0, rim: 0);
+
   @override
   void dispose() {
-    _report?.value = GlassLensShrink.none;
+    _report?.value = _none;
     super.dispose();
   }
 
-  ValueNotifier<GlassLensShrinkage>? _report;
+  ValueNotifier<GlassLensShrink>? _report;
 
   @override
   Widget build(BuildContext context) {
     final details = widget.details;
-    final report = _report = GlassLensShrink.maybeOf(context);
+    final report = _report = details.lensShrink;
     if (report != null) {
       report.value = _drawsFake(widget.fake)
-          ? GlassLensShrink.none
+          ? _none
           : (shrink: details.lens.shrink, rim: details.lens.shrinkRim);
     }
     return Stack(

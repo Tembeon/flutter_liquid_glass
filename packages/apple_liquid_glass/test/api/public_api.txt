@@ -925,6 +925,7 @@ final class GlassLens
   final double shrinkRim
   final bool small
   overrides: ==, hashCode
+typedef GlassLensShrink = ({double rim, double shrink})
 enum GlassListAccessory
   disclosureIndicator,
   checkmark,
@@ -1916,6 +1917,7 @@ class GlassSurface extends StatefulWidget
     ValueListenable<Set<WidgetState>>? states,
     Color? focusColor,
     Color? hoverColor,
+    ValueNotifier<({double rim, double shrink})>? lensShrink,
     Key? key,
   })
   const GlassSurface({
@@ -1940,6 +1942,7 @@ class GlassSurface extends StatefulWidget
   final Glass glass
   final Color? hoverColor
   final GlassLens lens
+  final ValueNotifier<({double rim, double shrink})>? lensShrink
   final GlassRole role
   final ValueListenable<Set<WidgetState>>? states
   overrides: createState
@@ -1953,6 +1956,7 @@ final class GlassSurfaceDetails
     ValueListenable<Set<WidgetState>>? states,
     Color? focusColor,
     Color? hoverColor,
+    ValueNotifier<({double rim, double shrink})>? lensShrink,
   })
   final Widget child
   final Color? focusColor
@@ -1960,6 +1964,7 @@ final class GlassSurfaceDetails
   final Glass glass
   final Color? hoverColor
   final GlassLens lens
+  final ValueNotifier<({double rim, double shrink})>? lensShrink
   final GlassRole role
   final ValueListenable<Set<WidgetState>>? states
 final class GlassSwipeAction
@@ -3784,6 +3789,7 @@ class GlassField (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassFrame (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassInterfaceLevel (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassLens (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef GlassLensShrink (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassLocalizations (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassOutline (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassOval (see package:apple_liquid_glass/apple_liquid_glass.dart)

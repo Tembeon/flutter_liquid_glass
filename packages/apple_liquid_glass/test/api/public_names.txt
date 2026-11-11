@@ -79,6 +79,7 @@ GlassHighlightPaint
 GlassHighlights
 GlassInterfaceLevel
 GlassLens
+GlassLensShrink
 GlassListAccessory
 GlassListBackground
 GlassListRow

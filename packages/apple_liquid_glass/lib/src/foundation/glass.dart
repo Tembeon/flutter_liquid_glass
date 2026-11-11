@@ -87,3 +87,10 @@ final class GlassLens {
   @override
   int get hashCode => Object.hash(shrink, shrinkRim, small);
 }
+
+/// How much a fully lifted lens's glass shrinks what lies under it, and how
+/// much of the lens's long side, less its short side, the center line it
+/// shrinks toward spans: what a lens's renderer reports it draws, the
+/// [GlassLens.shrink] and [GlassLens.shrinkRim] it asked for, or no shrink
+/// for glass that shrinks nothing.
+typedef GlassLensShrink = ({double shrink, double rim});

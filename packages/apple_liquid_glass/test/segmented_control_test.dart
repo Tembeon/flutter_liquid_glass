@@ -1,5 +1,4 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass/src/surfaces/lens_shrink.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -684,10 +683,7 @@ void main() {
           builder: (context, d) {
             details = d;
             return d.items(
-              lens: GlassLensShrink(
-                shrink: d.lensShrink!,
-                child: const _ShrinkingLens(),
-              ),
+              lens: _ShrinkingLens(d.lensShrink!),
             );
           },
         ),
@@ -769,13 +765,15 @@ void main() {
 }
 
 class _ShrinkingLens extends StatelessWidget {
-  const _ShrinkingLens();
+  const _ShrinkingLens(this.report);
 
   static const double shrink = 0.2;
 
+  final ValueNotifier<GlassLensShrink> report;
+
   @override
   Widget build(BuildContext context) {
-    GlassLensShrink.maybeOf(context)!.value = (shrink: shrink, rim: 1);
+    report.value = (shrink: shrink, rim: 1);
     return const SizedBox.expand();
   }
 }

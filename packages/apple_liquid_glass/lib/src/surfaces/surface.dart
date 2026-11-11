@@ -27,7 +27,8 @@ class GlassSurface extends StatefulWidget {
     this.focusColor,
     this.hoverColor,
     super.key,
-  }) : frame = null;
+  }) : frame = null,
+       lensShrink = null;
 
   /// Creates a body that follows [frame]: moved, scaled, lifted, tinted and
   /// lit frame by frame without a rebuild. Pass a selection of the motion
@@ -44,6 +45,7 @@ class GlassSurface extends StatefulWidget {
     this.states,
     this.focusColor,
     this.hoverColor,
+    this.lensShrink,
     super.key,
   }) : _shape = null;
 
@@ -62,7 +64,8 @@ class GlassSurface extends StatefulWidget {
        lens = const GlassLens(),
        states = null,
        focusColor = null,
-       hoverColor = null;
+       hoverColor = null,
+       lensShrink = null;
 
   final GlassShape? _shape;
 
@@ -101,6 +104,11 @@ class GlassSurface extends StatefulWidget {
   /// renderer's; a transparent one shows none.
   final Color? hoverColor;
 
+  /// Where the renderer of a [GlassRole.lens] body reports how its glass
+  /// shrinks what lies under it, or null; see
+  /// [GlassSurfaceDetails.lensShrink].
+  final ValueNotifier<GlassLensShrink>? lensShrink;
+
   @override
   State<GlassSurface> createState() => _GlassSurfaceState();
 }
@@ -132,6 +140,7 @@ class _GlassSurfaceState extends State<GlassSurface> {
         states: widget.states,
         focusColor: GlassDynamicColor.maybeResolve(widget.focusColor, context),
         hoverColor: GlassDynamicColor.maybeResolve(widget.hoverColor, context),
+        lensShrink: widget.lensShrink,
         child: KeyedSubtree(key: _child, child: widget.child),
       ),
     );

@@ -1,6 +1,5 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/raw/selector.dart';
-import 'package:apple_liquid_glass/src/surfaces/lens_shrink.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
@@ -368,9 +367,11 @@ class _SegmentedLook extends StatelessWidget {
       MotionSelection<GlassFrame> frame,
       Color tint, {
       GlassLens lens = const GlassLens(),
+      ValueNotifier<GlassLensShrink>? lensShrink,
     }) => GlassSurface.live(
       role: role,
       lens: lens,
+      lensShrink: lensShrink,
       glass: Glass.regular(tint: tint),
       frame: frame,
       child: const SizedBox.expand(),
@@ -389,14 +390,12 @@ class _SegmentedLook extends StatelessWidget {
           details.items(
             lens: details.selectedIndex == null
                 ? null
-                : GlassLensShrink(
-                    shrink: details.lensShrink!,
-                    child: surface(
-                      GlassRole.lens,
-                      details.lens,
-                      resolve(look.thumbColor),
-                      lens: _lens,
-                    ),
+                : surface(
+                    GlassRole.lens,
+                    details.lens,
+                    resolve(look.thumbColor),
+                    lens: _lens,
+                    lensShrink: details.lensShrink,
                   ),
           ),
         ],
