@@ -102,7 +102,7 @@ class _GlassGlowState extends State<GlassGlow> with TickerProviderStateMixin {
       ..glowOffset = Offset(_x.value, _y.value);
   }
 
-  void _updateTouch(Offset offset) {
+  void _beginTouch(Offset offset) {
     if (!mounted) return;
     final glass = context
         .findAncestorRenderObjectOfType<RenderLiquidGlassContent>();
@@ -118,6 +118,11 @@ class _GlassGlowState extends State<GlassGlow> with TickerProviderStateMixin {
       springTo(_alpha, interactiveSpring, 1, from: 0);
     }
 
+    _moveTouch(offset);
+  }
+
+  void _moveTouch(Offset offset) {
+    if (!mounted || _glass == null) return;
     _x.value = offset.dx;
     _y.value = offset.dy;
     _write();
@@ -138,8 +143,8 @@ class _GlassGlowState extends State<GlassGlow> with TickerProviderStateMixin {
       case GestureMode.listener:
         return Listener(
           behavior: widget.hitTestBehavior,
-          onPointerDown: (event) => _updateTouch(event.localPosition),
-          onPointerMove: (event) => _updateTouch(event.localPosition),
+          onPointerDown: (event) => _beginTouch(event.localPosition),
+          onPointerMove: (event) => _moveTouch(event.localPosition),
           onPointerUp: (event) => _removeTouch(),
           onPointerCancel: (event) => _removeTouch(),
           child: widget.child,
@@ -147,8 +152,8 @@ class _GlassGlowState extends State<GlassGlow> with TickerProviderStateMixin {
       case GestureMode.gestureDetector:
         return GestureDetector(
           behavior: widget.hitTestBehavior,
-          onPanStart: (details) => _updateTouch(details.localPosition),
-          onPanUpdate: (details) => _updateTouch(details.localPosition),
+          onPanStart: (details) => _beginTouch(details.localPosition),
+          onPanUpdate: (details) => _moveTouch(details.localPosition),
           onPanEnd: (details) => _removeTouch(),
           onPanCancel: _removeTouch,
           child: widget.child,
