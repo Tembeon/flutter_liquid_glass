@@ -15,7 +15,7 @@ final class SearchTabMotion extends Motion {
       MotionValue<double>(open ? 1 : 0, spring: SearchTuning.tabSpring),
       rest: _morphRest,
     );
-    focus = own(SearchMotion(spring: SearchTuning.tabFocusSpring));
+    focus = own(SearchMotion.tabFocus());
   }
 
   late final MotionValue<double> _morph;

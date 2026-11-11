@@ -501,9 +501,7 @@ void main() {
       last = _d(r, 'y');
     }
     final (fall, rms) = _fit(close, 0.12, (double start) {
-      final motion = SearchMotion(
-        spring: SearchTuning.tabFocusSpring,
-      );
+      final motion = SearchMotion.tabFocus();
       motion.snap(0, focused: true);
       motion.unfocus(start, delay: 0);
       return [
@@ -542,9 +540,7 @@ void main() {
     const restY = 822.0;
     final focusedY = _d(field.lastWhere((r) => _d(r, 't') < ups[1]), 'y');
     List<double> errors(double start, {required bool focus}) {
-      final motion = SearchMotion(
-        spring: SearchTuning.tabFocusSpring,
-      );
+      final motion = SearchMotion.tabFocus();
       if (focus) {
         motion.focus(start, delay: 0);
       } else {

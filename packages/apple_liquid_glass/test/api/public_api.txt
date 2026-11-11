@@ -3343,7 +3343,8 @@ class SearchBarGeometry
   static const double restInset
   final List<Rect> trailing
 final class SearchMotion extends Motion
-  SearchMotion({Spring spring = ..., MotionClock? clock})
+  SearchMotion({MotionClock? clock})
+  @internal SearchMotion.tabFocus({MotionClock? clock})
   static const double appearBlur
   static const double appearScale
   static double appearScaleFor(double presence)

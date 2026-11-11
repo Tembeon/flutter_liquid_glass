@@ -215,9 +215,17 @@ SearchTabGeometry searchTabLayout({
 ///
 /// Times are seconds on the motion's timeline.
 final class SearchMotion extends Motion {
-  /// Creates the motion of a resting field, stepped by [clock] on screen;
-  /// the focus transition rides [spring].
-  SearchMotion({Spring spring = SearchTuning.transitionSpring, super.clock})
+  /// Creates the motion of a resting field, stepped by [clock] on screen.
+  SearchMotion({MotionClock? clock})
+    : this._(SearchTuning.transitionSpring, clock: clock);
+
+  /// Creates the focus of a tab bar's search field, which rides
+  /// [SearchTuning.tabFocusSpring].
+  @internal
+  SearchMotion.tabFocus({MotionClock? clock})
+    : this._(SearchTuning.tabFocusSpring, clock: clock);
+
+  SearchMotion._(Spring spring, {super.clock})
     : _progress = MotionValue<double>(0, spring: spring) {
     own(_progress, rest: _rest);
   }
