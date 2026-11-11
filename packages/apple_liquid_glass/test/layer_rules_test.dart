@@ -81,6 +81,8 @@ const _rules = LayerRules(
     Ban('GestureDetector', r'\b(?:Raw)?GestureDetector\b'),
     Ban('Listener', r'\bListener\s*\('),
     Ban('CallbackShortcuts', r'\bCallbackShortcuts\b'),
+    // A touch with no region under it comes through kinesis's InputCapture.
+    Ban('pointer-route', r'\bGestureBinding\b|\bpointerRouter\b'),
     Ban(
       'key-handler',
       r'\bonKey(?:Event)?\s*:|\bHardwareKeyboard\b|\bKeyboardListener\b|'
