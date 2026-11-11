@@ -12,12 +12,12 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
-part 'tab_bar_accessory.dart';
-part 'tab_bar_circle.dart';
-part 'tab_bar_look.dart';
-part 'tab_bar_minimize.dart';
-part 'tab_bar_render.dart';
-part 'tab_bar_search.dart';
+part 'package:apple_liquid_glass/src/navigation/tab_bar_accessory.dart';
+part 'package:apple_liquid_glass/src/navigation/tab_bar_circle.dart';
+part 'package:apple_liquid_glass/src/navigation/tab_bar_look.dart';
+part 'package:apple_liquid_glass/src/navigation/tab_bar_minimize.dart';
+part 'package:apple_liquid_glass/src/navigation/tab_bar_render.dart';
+part 'package:apple_liquid_glass/src/navigation/tab_bar_search.dart';
 
 /// One tab of a [GlassTabBar].
 ///

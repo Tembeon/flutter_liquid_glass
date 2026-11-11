@@ -6,9 +6,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
-part 'page_route_card.dart';
-part 'page_route_slide.dart';
-part 'page_route_zoom.dart';
+part 'package:apple_liquid_glass/src/navigation/page_route_card.dart';
+part 'package:apple_liquid_glass/src/navigation/page_route_slide.dart';
+part 'package:apple_liquid_glass/src/navigation/page_route_zoom.dart';
 
 /// An iOS 27 page pushed onto a navigator: it slides in over the page
 /// below, which moves aside and dims under it.

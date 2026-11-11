@@ -14,10 +14,10 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
-part 'bar_inputs.dart';
-part 'bar_render.dart';
-part 'bar_state.dart';
-part 'bar_widgets.dart';
+part 'package:apple_liquid_glass/src/navigation/bar_inputs.dart';
+part 'package:apple_liquid_glass/src/navigation/bar_render.dart';
+part 'package:apple_liquid_glass/src/navigation/bar_state.dart';
+part 'package:apple_liquid_glass/src/navigation/bar_widgets.dart';
 
 /// The share of an interactive pop's progress the navigation bar's capsules
 /// lean toward their places on the page below while the finger drags the

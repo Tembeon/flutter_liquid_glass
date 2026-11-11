@@ -12,7 +12,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
-part 'navigation_bar_search.dart';
+part 'package:apple_liquid_glass/src/navigation/navigation_bar_search.dart';
 
 /// The look of a [GlassNavigationBar].
 @immutable
