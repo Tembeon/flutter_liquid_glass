@@ -39,4 +39,13 @@ void main() {
     expect(heard, [true]);
     expect(bar.isSettled, isTrue);
   });
+
+  test('a signal with no owner drops the writes it has passed', () {
+    final signal = MotionSignal<double>(0);
+    signal.write(1, 10);
+    signal.write(2, 20);
+    signal.write(3, 30);
+    expect(signal.valueAt(1.5), 20);
+    expect(signal.value, 30);
+  });
 }

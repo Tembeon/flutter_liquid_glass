@@ -16,15 +16,16 @@ final class MotionSignal<T> extends MotionPart {
 
   /// Sets the value to [value] from time [t], replacing every write stamped
   /// at or after [t].
+  ///
+  /// Writes the clock has passed are dropped but the one in force; a signal
+  /// with no owner has no clock, so [t] stands for it.
   void write(double t, T value) {
     while (_writes.length > 1 && _writes.last.$1 >= t) {
       _writes.removeLast();
     }
-    final now = owner?.now;
-    if (now != null) {
-      while (_writes.length > 1 && _writes[1].$1 <= now) {
-        _writes.removeAt(0);
-      }
+    final now = owner?.now ?? t;
+    while (_writes.length > 1 && _writes[1].$1 <= now) {
+      _writes.removeAt(0);
     }
     _writes.add((t, value));
     changed();
