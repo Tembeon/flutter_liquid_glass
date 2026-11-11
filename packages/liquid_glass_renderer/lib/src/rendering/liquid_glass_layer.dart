@@ -76,9 +76,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // reads its geometry and appearance, and the color model family of its
   // appearances, in a group whose matte holds its tints when [groupTints],
   // beside the band that leads its read when [band]. A look that changed
-  // since the read began has no band variant.
-  // The variant that draws [geometry] for this glass: [groupTints] where it
-  // is a group's atlas with a tint beside it.
+  // since the read began has no band variant. [geometry] is the one drawn.
   int _variant(
     GlassGeometry geometry, {
     bool band = false,
@@ -993,12 +991,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
   }
 
-  // This frame's fate.
   SiteFate _fate = const HiddenFate();
 
   GroupMatte? _groupMatte;
 
-  // Moves [_shapes] and the bounds took since they were encoded.
+  // How far [_shapes] and the matte bounds moved since they were encoded.
   Offset _encodedShift = Offset.zero;
 
   double get _halfMinor =>

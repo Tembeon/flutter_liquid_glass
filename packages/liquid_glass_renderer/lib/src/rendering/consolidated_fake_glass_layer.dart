@@ -490,7 +490,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     }
   }
 
-  // A glass without a blur, or that is nothing but a blur, needs no seed.
   @override
   void onCompositorTranslationMissed(
     ({bool needsRepaint, Offset? translation}) motion,
