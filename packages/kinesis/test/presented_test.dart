@@ -538,6 +538,65 @@ void main() {
         expect(navigator.userGestureInProgress, isFalse);
       });
 
+      for (final commits in [true, false]) {
+        testWidgets(
+          commits
+              ? 'focus returns to the page below after a committed '
+                    'predictive back, as after a pop'
+              : 'focus returns into the presentation after a cancelled '
+                    'predictive back',
+          (tester) async {
+            final shell = make();
+            if (shell is _PortalShell) return;
+            final below = FocusNode(debugLabel: 'below');
+            final inside = FocusNode(debugLabel: 'inside');
+            addTearDown(below.dispose);
+            addTearDown(inside.dispose);
+            final made = <_Card>[];
+            await shell.pump(
+              tester,
+              Center(
+                child: Focus(
+                  focusNode: below,
+                  autofocus: true,
+                  child: const SizedBox(width: 10, height: 10),
+                ),
+              ),
+            );
+            await tester.pump();
+            expect(below.hasPrimaryFocus, isTrue);
+            await shell.present(
+              tester,
+              _presentation(made, predictive: true, focus: inside),
+            );
+            await tester.pump();
+            await _settle(tester);
+            inside.requestFocus();
+            await tester.pump();
+            expect(inside.hasPrimaryFocus, isTrue);
+            await _backGesture(tester, 'startBackGesture');
+            await _backGesture(
+              tester,
+              'updateBackGestureProgress',
+              progress: 0.4,
+            );
+            await tester.pump(const Duration(milliseconds: 16));
+            await tester.pump(const Duration(milliseconds: 16));
+            await _backGesture(
+              tester,
+              commits ? 'commitBackGesture' : 'cancelBackGesture',
+            );
+            await _settle(tester);
+            expect(shell.isPresented, !commits);
+            if (commits) {
+              expect(below.hasPrimaryFocus, isTrue);
+            } else {
+              expect(inside.hasPrimaryFocus, isTrue);
+            }
+          },
+        );
+      }
+
       testWidgets('predictive back does not start where Back may be refused, '
           'for a motion that does not follow it, or from a button', (
         tester,

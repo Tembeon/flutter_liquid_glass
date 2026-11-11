@@ -149,11 +149,48 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   /// Ends what [beginInteraction] began; a route the gesture did not
   /// dismiss rests again. Call it once the content has come back, or after
   /// the dismissal the gesture made.
+  ///
+  /// The focus ends where it would without the gesture: in the content,
+  /// at what had it, when the gesture gave up, and in the route the
+  /// dismissal revealed, at what had it there, as after a pop.
   void endInteraction() {
     if (!_interacting) return;
     _interacting = false;
     navigator?.didStopUserGesture();
-    if (!isLeaving) _projection.update(AnimationStatus.completed);
+    if (isLeaving) {
+      if (_previous case final ModalRoute<Object?> revealed) {
+        _focusRoute(revealed);
+      }
+      return;
+    }
+    _projection.update(AnimationStatus.completed);
+    _focusRoute(this);
+  }
+
+  Route<Object?>? _previous;
+
+  @override
+  void didChangePrevious(Route<Object?>? previousRoute) {
+    _previous = previousRoute;
+    super.didChangePrevious(previousRoute);
+  }
+
+  // While a user gesture runs, the navigator makes every route's scope
+  // unfocusable and skips the focus a route takes when it becomes current;
+  // the scope turns focusable again only when the route rebuilds. This
+  // does now what the route would have done without the gesture.
+  static void _focusRoute(ModalRoute<Object?> route) {
+    final navigator = route.navigator;
+    final context = route.subtreeContext;
+    if (navigator == null ||
+        context == null ||
+        !route.isCurrent ||
+        !route.requestFocus) {
+      return;
+    }
+    final scope = FocusScope.of(context, createDependency: false);
+    scope.canRequestFocus = true;
+    navigator.focusNode.enclosingScope?.setFirstFocus(scope);
   }
 
   /// Reports that the content's open came to rest: the push completes.
