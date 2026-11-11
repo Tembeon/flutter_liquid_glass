@@ -1,7 +1,7 @@
 /// The styled iOS controls: `GlassButton`, `GlassSwitch`, `GlassSlider`,
 /// `GlassStepper`, `GlassSegmentedControl`, `GlassPageControl`,
 /// `GlassSearchField`, `GlassListRow` and its sections, `GlassSwipeActions`,
-/// `GlassDatePicker` and `GlassBadge`.
+/// `GlassDatePicker`, `GlassTimePicker` and `GlassBadge`.
 ///
 /// For the app developer: put one in and it works. Each control has a
 /// `*Style` beside it, shaped like Flutter's `ButtonStyle`, and looks a
@@ -17,7 +17,7 @@ export 'src/controls/badge.dart' show GlassBadge, GlassBadgeStyle;
 export 'src/controls/button.dart'
     show GlassButton, GlassButtonStyle, GlassProminentButtonStyle;
 export 'src/controls/date_picker.dart'
-    show GlassDatePicker, GlassDatePickerStyle;
+    show GlassDatePicker, GlassDatePickerStyle, GlassTimePicker;
 export 'src/controls/list.dart'
     show
         GlassListAccessory,

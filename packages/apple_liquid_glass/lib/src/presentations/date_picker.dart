@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/controls.dart';
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
-import 'package:apple_liquid_glass/src/controls/date_picker.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -38,7 +38,7 @@ DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 DateTime _floorToMinuteInterval(DateTime value, int interval) {
   if (interval < 2) return value;
   return value.copyWith(
-    minute: floorMinute(value.minute, interval),
+    minute: value.minute - value.minute % interval,
     second: 0,
     millisecond: 0,
     microsecond: 0,
@@ -254,7 +254,7 @@ class _GlassCompactDatePickerState extends State<GlassCompactDatePicker> {
         (_Part.time, time),
       ],
     };
-    final look = DatePickerLook.of(context, widget.style);
+    final look = GlassDatePickerStyle.resolve(context, widget.style);
     // The labels keep their measured sizes; a box narrower than they are
     // scales them down instead of overflowing.
     return FittedBox(
@@ -300,7 +300,7 @@ class _CompactLabel extends StatefulWidget {
   final double height;
   final bool open;
   final bool enabled;
-  final DatePickerLook look;
+  final GlassDatePickerStyle look;
   final String? semanticLabel;
   final void Function(BuildContext anchor) onOpen;
 
@@ -332,7 +332,7 @@ class _CompactLabelState extends State<_CompactLabel> {
     final loc = GlassLocalizations.of(context);
     final scaler = MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 2);
     final label = widget.semanticLabel;
-    final color = widget.open ? look.accentColor : look.labelColor;
+    final color = widget.open ? look.accentColor! : look.labelColor!;
     final dim = widget.enabled ? _motion.highlight.clamp(0.0, 1.0) : 1.0;
     return MotionScope(
       motion: _motion,
@@ -348,8 +348,9 @@ class _CompactLabelState extends State<_CompactLabel> {
           expanded: widget.open,
           hint: loc.compactDatePickerHint,
           excludeSemantics: true,
-          child: look.highlight(
+          child: _highlight(
             context,
+            look,
             states: _states,
             child: Container(
               constraints: BoxConstraints(minHeight: widget.height),
@@ -372,14 +373,10 @@ class _CompactLabelState extends State<_CompactLabel> {
                     widget.text,
                     maxLines: 1,
                     textScaler: scaler,
-                    style: DatePickerType.resolve(
-                      DatePickerType.compact.copyWith(
-                        height: 20.33 / 17,
-                        color: dim >= 1
-                            ? color
-                            : color.withValues(alpha: color.a * dim),
-                      ),
-                      context: context,
+                    style: look.labelTextStyle!.copyWith(
+                      color: dim >= 1
+                          ? color
+                          : color.withValues(alpha: color.a * dim),
                     ),
                   ),
                 ),
@@ -662,14 +659,14 @@ class _OverlayViewState extends State<_OverlayView> {
       ? DatePickerMotion.timeSize
       : DatePickerCalendarMotion.calendarSize;
 
-  Widget _content(_Part part, DatePickerLook look) => part == _Part.time
-      ? DatePickerTimeWheels(
+  Widget _content(_Part part) => part == _Part.time
+      ? GlassTimePicker(
           value: _value,
-          firstDate: _picker._minimum,
-          lastDate: _picker._maximum,
+          minimumDate: _picker._minimum,
+          maximumDate: _picker._maximum,
           minuteInterval: _picker.minuteInterval,
-          twentyFour: _host._twentyFour,
-          look: look,
+          use24HourFormat: _host._twentyFour,
+          style: _picker.style,
           onChanged: _pick,
         )
       : GlassDatePicker(
@@ -688,7 +685,7 @@ class _OverlayViewState extends State<_OverlayView> {
   Widget build(BuildContext context) {
     _shown = _picker;
     _shownTwentyFour = _host._twentyFour;
-    final look = DatePickerLook.of(context, _picker.style);
+    final look = GlassDatePickerStyle.resolve(context, _picker.style);
     final media = MediaQuery.of(context);
     final direction = Directionality.maybeOf(context) ?? TextDirection.ltr;
     final origin = _origin(context);
@@ -705,7 +702,7 @@ class _OverlayViewState extends State<_OverlayView> {
       size: size,
       child: part == _Part.time && !_contentReady
           ? const SizedBox.shrink()
-          : _content(part, look),
+          : _content(part),
     );
     Widget overlayFor({required bool below}) => MediaQuery(
       data: media.copyWith(
@@ -714,9 +711,9 @@ class _OverlayViewState extends State<_OverlayView> {
         ),
       ),
       child: DefaultTextStyle(
-        style: DatePickerType.resolve(
+        style: resolveGlassText(
           TextStyle(fontSize: 17, color: look.labelColor),
-          context: context,
+          context,
         ),
         child: ListenableBuilder(
           listenable: _switching,
@@ -732,7 +729,7 @@ class _OverlayViewState extends State<_OverlayView> {
                   from: ExcludeSemantics(
                     child: SizedBox.fromSize(
                       size: fromSize,
-                      child: _content(from, look),
+                      child: _content(from),
                     ),
                   ),
                   to: child!,
@@ -941,6 +938,22 @@ class _Crossfade extends StatelessWidget {
     ],
   );
 }
+
+Widget _highlight(
+  BuildContext context,
+  GlassDatePickerStyle look, {
+  required ValueListenable<Set<WidgetState>> states,
+  required Widget child,
+}) => GlassHighlightPaint.of(
+  context,
+  states: states,
+  focusColor: look.focusColor,
+  hoverColor: look.hoverColor,
+  base: look.accentColor,
+  inside: true,
+  wash: true,
+  child: child,
+);
 
 abstract final class _DatePickerLook {
   /// The corner radius of the overlay.

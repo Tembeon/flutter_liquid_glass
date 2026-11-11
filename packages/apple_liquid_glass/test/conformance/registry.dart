@@ -604,6 +604,21 @@ final List<Entry> registry = [
     ),
   ),
   Entry(
+    'GlassTimePicker',
+    covers: const ['GlassTimePicker'],
+    kind: Kind.value,
+    wheel: true,
+    focusStops: 3,
+    build: (probe, {required enabled}) => Held<DateTime>(
+      probe: probe,
+      initial: DateTime(2026, 10, 3, 9, 41),
+      builder: (context, value, set) => GlassTimePicker(
+        value: value,
+        onChanged: enabled ? set : null,
+      ),
+    ),
+  ),
+  Entry(
     'RawGlassDatePicker',
     covers: const [
       'RawGlassDatePicker',

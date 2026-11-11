@@ -182,6 +182,7 @@ GlassTabScaffold
 GlassTextRole
 GlassTheme
 GlassThemeData
+GlassTimePicker
 GlassToolbar
 GlassToolbarStyle
 GlassTouchGlow

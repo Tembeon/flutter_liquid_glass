@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
@@ -9,9 +10,9 @@ import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/widgets.dart';
 
-/// The colors of a [GlassDatePicker] and of the compact picker's labels and
-/// wheels; a null field leaves it to the theme's style, then the default,
-/// which follows the brightness and Increase Contrast.
+/// The look of a [GlassDatePicker], a [GlassTimePicker] and of the compact
+/// picker's labels and wheels; a null field leaves it to the theme's style,
+/// then the default, which follows the brightness and Increase Contrast.
 @immutable
 class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
   /// Creates a style.
@@ -25,7 +26,72 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
     this.wheelBandColor,
     this.focusColor,
     this.hoverColor,
+    this.titleTextStyle,
+    this.weekdayTextStyle,
+    this.dayTextStyle,
+    this.selectedDayTextStyle,
+    this.labelTextStyle,
+    this.wheelTextStyle,
   });
+
+  /// [style] over the theme's style over the measured defaults at
+  /// [context], with every color but [focusColor] and [hoverColor] and
+  /// every text style set.
+  ///
+  /// The defaults follow the ambient brightness and Increase Contrast; an
+  /// accent without a [todayFillColor] of its own lends the today fill its
+  /// color at the default's opacity. Dynamic colors resolve at [context],
+  /// and the text styles take the theme's font and the typography of
+  /// [resolveGlassText].
+  factory GlassDatePickerStyle.resolve(
+    BuildContext context,
+    GlassDatePickerStyle? style,
+  ) {
+    final traits = GlassTraits.of(context);
+    final night = traits.brightness == Brightness.dark;
+    final table = traits.highContrast
+        ? (night ? _darkHighContrast : _lightHighContrast)
+        : (night ? _dark : _light);
+    final look = (style ?? const GlassDatePickerStyle()).merge(
+      maybeOf(context),
+    );
+    Color? resolved(Color? color) =>
+        color == null ? null : GlassDynamicColor.resolve(color, context);
+    final accent = resolved(
+      look.accentColor ?? GlassTheme.primaryColorOf(context),
+    );
+    final labelColor = resolved(look.labelColor) ?? table.labelColor!;
+    final weekdayColor = resolved(look.weekdayColor) ?? table.weekdayColor!;
+    TextStyle text(TextStyle base, TextStyle? over) =>
+        resolveGlassText(base.merge(over), context);
+    return GlassDatePickerStyle(
+      labelFillColor: resolved(look.labelFillColor) ?? table.labelFillColor,
+      labelColor: labelColor,
+      accentColor: accent ?? table.accentColor,
+      weekdayColor: weekdayColor,
+      todayFillColor:
+          resolved(look.todayFillColor) ??
+          accent?.withValues(alpha: table.todayFillColor!.a) ??
+          table.todayFillColor,
+      selectedDayTextColor:
+          resolved(look.selectedDayTextColor) ?? table.selectedDayTextColor,
+      wheelBandColor: resolved(look.wheelBandColor) ?? table.wheelBandColor,
+      focusColor: resolved(look.focusColor),
+      hoverColor: resolved(look.hoverColor),
+      titleTextStyle: text(_title, look.titleTextStyle),
+      weekdayTextStyle: text(
+        _weekday.copyWith(color: weekdayColor),
+        look.weekdayTextStyle,
+      ),
+      dayTextStyle: text(_day, look.dayTextStyle),
+      selectedDayTextStyle: text(_daySelected, look.selectedDayTextStyle),
+      labelTextStyle: text(_compact, look.labelTextStyle),
+      wheelTextStyle: text(
+        TextStyle(fontSize: _WheelGeometry.fontSize, color: labelColor),
+        look.wheelTextStyle,
+      ),
+    );
+  }
 
   /// The theme's [GlassDatePickerStyle] at [context], or null without one: the
   /// look between a widget's own style and its defaults.
@@ -68,6 +134,27 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
   /// body.
   final Color? hoverColor;
 
+  /// The month title, over the default 17 points, semibold.
+  final TextStyle? titleTextStyle;
+
+  /// The weekday initials, over the default 13 points, semibold, in
+  /// [weekdayColor].
+  final TextStyle? weekdayTextStyle;
+
+  /// A day's number, over the default 20 points. The calendar draws it in
+  /// the color the day's state gives.
+  final TextStyle? dayTextStyle;
+
+  /// The chosen day's number, over the default 20 points, semibold.
+  final TextStyle? selectedDayTextStyle;
+
+  /// A compact label, over the default 17 points. The label draws it in
+  /// [labelColor], or the accent while it is open.
+  final TextStyle? labelTextStyle;
+
+  /// A row of a wheel, over the default 21 points in [labelColor].
+  final TextStyle? wheelTextStyle;
+
   /// This style over [other].
   @override
   GlassDatePickerStyle merge(GlassDatePickerStyle? other) {
@@ -82,6 +169,18 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
       wheelBandColor: wheelBandColor ?? other.wheelBandColor,
       focusColor: focusColor ?? other.focusColor,
       hoverColor: hoverColor ?? other.hoverColor,
+      titleTextStyle:
+          other.titleTextStyle?.merge(titleTextStyle) ?? titleTextStyle,
+      weekdayTextStyle:
+          other.weekdayTextStyle?.merge(weekdayTextStyle) ?? weekdayTextStyle,
+      dayTextStyle: other.dayTextStyle?.merge(dayTextStyle) ?? dayTextStyle,
+      selectedDayTextStyle:
+          other.selectedDayTextStyle?.merge(selectedDayTextStyle) ??
+          selectedDayTextStyle,
+      labelTextStyle:
+          other.labelTextStyle?.merge(labelTextStyle) ?? labelTextStyle,
+      wheelTextStyle:
+          other.wheelTextStyle?.merge(wheelTextStyle) ?? wheelTextStyle,
     );
   }
 
@@ -90,6 +189,7 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
   GlassDatePickerStyle lerp(GlassDatePickerStyle other, double t) {
     if (identical(this, other)) return this;
     final color = GlassStyle.lerpNullable(GlassDynamicColor.lerp);
+    final text = GlassStyle.lerpNullable(TextStyle.lerp);
     return GlassDatePickerStyle(
       accentColor: color(accentColor, other.accentColor, t),
       labelColor: color(labelColor, other.labelColor, t),
@@ -104,6 +204,16 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
       wheelBandColor: color(wheelBandColor, other.wheelBandColor, t),
       focusColor: color(focusColor, other.focusColor, t),
       hoverColor: color(hoverColor, other.hoverColor, t),
+      titleTextStyle: text(titleTextStyle, other.titleTextStyle, t),
+      weekdayTextStyle: text(weekdayTextStyle, other.weekdayTextStyle, t),
+      dayTextStyle: text(dayTextStyle, other.dayTextStyle, t),
+      selectedDayTextStyle: text(
+        selectedDayTextStyle,
+        other.selectedDayTextStyle,
+        t,
+      ),
+      labelTextStyle: text(labelTextStyle, other.labelTextStyle, t),
+      wheelTextStyle: text(wheelTextStyle, other.wheelTextStyle, t),
     );
   }
 
@@ -118,7 +228,13 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
       other.selectedDayTextColor == selectedDayTextColor &&
       other.wheelBandColor == wheelBandColor &&
       other.focusColor == focusColor &&
-      other.hoverColor == hoverColor;
+      other.hoverColor == hoverColor &&
+      other.titleTextStyle == titleTextStyle &&
+      other.weekdayTextStyle == weekdayTextStyle &&
+      other.dayTextStyle == dayTextStyle &&
+      other.selectedDayTextStyle == selectedDayTextStyle &&
+      other.labelTextStyle == labelTextStyle &&
+      other.wheelTextStyle == wheelTextStyle;
 
   @override
   int get hashCode => Object.hash(
@@ -131,114 +247,44 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
     wheelBandColor,
     focusColor,
     hoverColor,
+    titleTextStyle,
+    weekdayTextStyle,
+    dayTextStyle,
+    selectedDayTextStyle,
+    labelTextStyle,
+    wheelTextStyle,
   );
-}
 
-/// The resolved look of a date picker: the widget's style over the theme's
-/// over the measured tables.
-@internal
-@immutable
-class DatePickerLook {
-  /// Creates a look; the defaults are the iOS light appearance.
-  const DatePickerLook({
-    this.labelFillColor = const Color(0x1F767680),
-    this.labelColor = const Color(0xFF000000),
-    this.accentColor = const Color(0xFF0088FF),
-    this.weekdayColor = const Color(0x993C3C43),
-    this.todayFillColor = const Color(0x1F0088FF),
-    this.selectedDayTextColor = const Color(0xFFFFFFFF),
-    this.wheelBandColor = const Color(0x1F767680),
-    this.focusColor,
-    this.hoverColor,
-  });
+  // UIKit's fonts for the date picker.
+  static const _title = TextStyle(
+    fontSize: 17,
+    fontWeight: FontWeight.w600,
+    height: 1.2,
+  );
+  static const _weekday = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+    height: _weekdayHeight / 13,
+  );
+  static const _day = TextStyle(fontSize: 20, height: 1.2);
+  static const _daySelected = TextStyle(
+    fontSize: 20,
+    fontWeight: FontWeight.w600,
+    height: 1.2,
+  );
+  static const _compact = TextStyle(fontSize: 17, height: 20.33 / 17);
 
-  /// The table for the ambient brightness and contrast under [style] and
-  /// the theme's style; an accent without a today fill of its own lends
-  /// [todayFillColor] its color at the table's opacity.
-  factory DatePickerLook.of(BuildContext context, GlassDatePickerStyle? style) {
-    final traits = GlassTraits.of(context);
-    final night = traits.brightness == Brightness.dark;
-    final table = traits.highContrast
-        ? (night ? darkHighContrast : lightHighContrast)
-        : (night ? dark : light);
-    final look = (style ?? const GlassDatePickerStyle()).merge(
-      GlassDatePickerStyle.maybeOf(context),
-    );
-    Color? resolved(Color? color) =>
-        color == null ? null : GlassDynamicColor.resolve(color, context);
-    final accent = resolved(
-      look.accentColor ?? GlassTheme.primaryColorOf(context),
-    );
-    return DatePickerLook(
-      labelFillColor: resolved(look.labelFillColor) ?? table.labelFillColor,
-      labelColor: resolved(look.labelColor) ?? table.labelColor,
-      accentColor: accent ?? table.accentColor,
-      weekdayColor: resolved(look.weekdayColor) ?? table.weekdayColor,
-      todayFillColor:
-          resolved(look.todayFillColor) ??
-          accent?.withValues(alpha: table.todayFillColor.a) ??
-          table.todayFillColor,
-      selectedDayTextColor:
-          resolved(look.selectedDayTextColor) ?? table.selectedDayTextColor,
-      wheelBandColor: resolved(look.wheelBandColor) ?? table.wheelBandColor,
-      focusColor: resolved(look.focusColor),
-      hoverColor: resolved(look.hoverColor),
-    );
-  }
+  static const _light = GlassDatePickerStyle(
+    labelFillColor: Color(0x1F767680),
+    labelColor: Color(0xFF000000),
+    accentColor: Color(0xFF0088FF),
+    weekdayColor: Color(0x993C3C43),
+    todayFillColor: Color(0x1F0088FF),
+    selectedDayTextColor: Color(0xFFFFFFFF),
+    wheelBandColor: Color(0x1F767680),
+  );
 
-  /// The fill of a compact label: tertiarySystemFill. A disabled picker's
-  /// labels drop it and keep their text, as UIKit's do (iPhone 16 Pro, iOS
-  /// 27.0.1, light and dark).
-  final Color labelFillColor;
-
-  /// The color of label text: a compact label, the month title, a day, the
-  /// month chevrons, the wheels' rows and the disc behind the chosen day
-  /// when it is not today.
-  final Color labelColor;
-
-  /// The accent: the text of an open label, the month title's chevron,
-  /// today's number and, when today is the chosen day, its disc.
-  final Color accentColor;
-
-  /// The color of the weekday initials: secondaryLabel.
-  final Color weekdayColor;
-
-  /// The fill behind today when it is not selected.
-  final Color todayFillColor;
-
-  /// The color of the chosen day's number on its [labelColor] disc.
-  final Color selectedDayTextColor;
-
-  /// The band behind the wheels' selected row.
-  final Color wheelBandColor;
-
-  /// The focus ring the style gives, or null for the one derived from
-  /// [accentColor].
-  final Color? focusColor;
-
-  /// The hover color the style gives, or null for a glass body's wash.
-  final Color? hoverColor;
-
-  /// The color of the chosen day's number when the chosen day is today,
-  /// on an [accentColor] disc.
-  static const selectedDayColor = Color(0xFFFFFFFF);
-
-  /// The opacity of the wheels' rows outside the band, drawn in
-  /// [labelColor] at the smaller size (21 points against the band's 23.5),
-  /// before they darken toward the cylinder's edges. UIKit's labels report
-  /// 0.447; 0.4 matches the screen (the rows next to the band read 0.36 of
-  /// black on an iPhone 16 Pro).
-  static const double wheelFadedOpacity = 0.4;
-
-  /// The opacity of a day outside the picker's range (not measured on a
-  /// device).
-  static const double unavailableDayOpacity = 0.35;
-
-  /// The light appearance.
-  static const light = DatePickerLook();
-
-  /// The dark appearance.
-  static const dark = DatePickerLook(
+  static const _dark = GlassDatePickerStyle(
     labelFillColor: Color(0x3D767680),
     labelColor: Color(0xFFFFFFFF),
     accentColor: Color(0xFF0091FF),
@@ -248,23 +294,26 @@ class DatePickerLook {
     wheelBandColor: Color(0x3D767680),
   );
 
-  /// The light appearance under Increase Contrast: the label fill and the
-  /// wheel band (tertiarySystemFill) turn from 12 to 20 percent and the
-  /// accent takes systemBlue's increased-contrast variant, the today fill
-  /// following it at its own opacity (read from UIKit's color tables,
-  /// notes private; the weekday color keeps its standard secondaryLabel
-  /// value, not measured under Increase Contrast).
-  static const lightHighContrast = DatePickerLook(
+  // Increase Contrast: the label fill and the wheel band (tertiarySystemFill)
+  // turn from 12 to 20 percent and the accent takes systemBlue's
+  // increased-contrast variant, the today fill following it at its own
+  // opacity (read from UIKit's color tables, notes private; the weekday
+  // color keeps its standard secondaryLabel value, not measured under
+  // Increase Contrast).
+  static const _lightHighContrast = GlassDatePickerStyle(
     labelFillColor: Color(0x33767680),
+    labelColor: Color(0xFF000000),
     accentColor: Color(0xFF1E6EF4),
+    weekdayColor: Color(0x993C3C43),
     todayFillColor: Color(0x1F1E6EF4),
+    selectedDayTextColor: Color(0xFFFFFFFF),
     wheelBandColor: Color(0x33767680),
   );
 
-  /// The dark appearance under Increase Contrast: the fills turn from 24
-  /// to 32 percent and the accent takes its increased-contrast variant
-  /// (read from UIKit's color tables, notes private).
-  static const darkHighContrast = DatePickerLook(
+  // Increase Contrast, dark: the fills turn from 24 to 32 percent and the
+  // accent takes its increased-contrast variant (read from UIKit's color
+  // tables, notes private).
+  static const _darkHighContrast = GlassDatePickerStyle(
     labelFillColor: Color(0x52767680),
     labelColor: Color(0xFFFFFFFF),
     accentColor: Color(0xFF5CB8FF),
@@ -273,78 +322,42 @@ class DatePickerLook {
     selectedDayTextColor: Color(0xFF000000),
     wheelBandColor: Color(0x52767680),
   );
-
-  /// Draws the focus ring and hover response of a part of [shape] around
-  /// [child], from [states].
-  Widget highlight(
-    BuildContext context, {
-    required ValueListenable<Set<WidgetState>> states,
-    required Widget child,
-    GlassShape shape = GlassShape.capsule,
-  }) => GlassHighlightPaint.of(
-    context,
-    states: states,
-    focusColor: focusColor,
-    hoverColor: hoverColor,
-    base: accentColor,
-    shape: shape,
-    inside: true,
-    wash: true,
-    child: child,
-  );
-
-  @override
-  bool operator ==(Object other) =>
-      other is DatePickerLook &&
-      other.labelFillColor == labelFillColor &&
-      other.labelColor == labelColor &&
-      other.accentColor == accentColor &&
-      other.weekdayColor == weekdayColor &&
-      other.todayFillColor == todayFillColor &&
-      other.selectedDayTextColor == selectedDayTextColor &&
-      other.wheelBandColor == wheelBandColor &&
-      other.focusColor == focusColor &&
-      other.hoverColor == hoverColor;
-
-  @override
-  int get hashCode => Object.hash(
-    labelFillColor,
-    labelColor,
-    accentColor,
-    weekdayColor,
-    todayFillColor,
-    selectedDayTextColor,
-    wheelBandColor,
-    focusColor,
-    hoverColor,
-  );
 }
 
-/// The text styles of the date picker (UIKit's fonts for it).
-@internal
-abstract final class DatePickerType {
-  /// The month title.
-  static const title = TextStyle(fontSize: 17, fontWeight: FontWeight.w600);
+// The color of the chosen day's number when the chosen day is today, on an
+// accent disc.
+const _selectedDayColor = Color(0xFFFFFFFF);
 
-  /// The weekday initials.
-  static const weekday = TextStyle(fontSize: 13, fontWeight: FontWeight.w600);
+// The opacity of the wheels' rows outside the band, drawn in the label
+// color at the smaller size (21 points against the band's 23.5), before
+// they darken toward the cylinder's edges. UIKit's labels report 0.447; 0.4
+// matches the screen (the rows next to the band read 0.36 of black on an
+// iPhone 16 Pro).
+const double _wheelFadedOpacity = 0.4;
 
-  /// A day's number.
-  static const day = TextStyle(fontSize: 20);
+// The opacity of a day outside the picker's range (not measured on a
+// device).
+const double _unavailableDayOpacity = 0.35;
 
-  /// The picked day's number.
-  static const daySelected = TextStyle(
-    fontSize: 20,
-    fontWeight: FontWeight.w600,
-  );
-
-  /// A compact label.
-  static const compact = TextStyle(fontSize: 17);
-
-  /// [style] in the theme's font, when there is a [context].
-  static TextStyle resolve(TextStyle style, {BuildContext? context}) =>
-      context == null ? style : resolveGlassText(style, context);
-}
+// The focus ring and hover response of a part of [shape] around [child],
+// from [states].
+Widget _highlight(
+  BuildContext context,
+  GlassDatePickerStyle look, {
+  required ValueListenable<Set<WidgetState>> states,
+  required Widget child,
+  GlassShape shape = GlassShape.capsule,
+}) => GlassHighlightPaint.of(
+  context,
+  states: states,
+  focusColor: look.focusColor,
+  hoverColor: look.hoverColor,
+  base: look.accentColor,
+  shape: shape,
+  inside: true,
+  wash: true,
+  child: child,
+);
 
 /// The iOS 27 calendar date picker: a month calendar in place.
 ///
@@ -422,33 +435,18 @@ class GlassDatePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final look = DatePickerLook.of(context, style);
-    final title = DatePickerType.resolve(
-      DatePickerType.title.copyWith(height: 1.2),
-      context: context,
-    );
-    final weekday = DatePickerType.resolve(
-      DatePickerType.weekday.copyWith(
-        height: _weekdayHeight / 13,
-        color: look.weekdayColor,
-      ),
-      context: context,
-    );
-    final day = DatePickerType.resolve(
-      DatePickerType.day.copyWith(height: 1.2),
-      context: context,
-    );
-    final selectedDay = DatePickerType.resolve(
-      DatePickerType.daySelected.copyWith(height: 1.2),
-      context: context,
-    );
+    final look = GlassDatePickerStyle.resolve(context, style);
+    final title = look.titleTextStyle!;
+    final weekday = look.weekdayTextStyle!;
+    final day = look.dayTextStyle!;
+    final selectedDay = look.selectedDayTextStyle!;
     final reduceMotion = GlassTraits.of(context).reduceMotion;
     return MediaQuery.withClampedTextScaling(
       maxScaleFactor: maxTextScale,
       child: DefaultTextStyle(
-        style: DatePickerType.resolve(
+        style: resolveGlassText(
           TextStyle(fontSize: 17, color: look.labelColor),
-          context: context,
+          context,
         ),
         child: RawGlassDatePicker(
           value: value,
@@ -466,13 +464,15 @@ class GlassDatePicker extends StatelessWidget {
             style: details.selected ? selectedDay : day,
             reduceMotion: reduceMotion,
           ),
-          titleBuilder: (context, details) => look.highlight(
+          titleBuilder: (context, details) => _highlight(
             context,
+            look,
             states: details.states,
             child: _Title(details: details, look: look, style: title),
           ),
-          arrowBuilder: (context, details) => look.highlight(
+          arrowBuilder: (context, details) => _highlight(
             context,
+            look,
             states: details.states,
             shape: const GlassShape.oval(),
             child: _Arrow(details: details, look: look),
@@ -497,7 +497,7 @@ class _Title extends StatelessWidget {
   });
 
   final GlassDatePickerTitle details;
-  final DatePickerLook look;
+  final GlassDatePickerStyle look;
   final TextStyle style;
 
   static const double _chevronGap = 7.67;
@@ -517,8 +517,8 @@ class _Title extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: style.copyWith(
               color: details.showsYearPicker
-                  ? look.accentColor
-                  : look.labelColor,
+                  ? look.accentColor!
+                  : look.labelColor!,
             ),
           ),
         ),
@@ -528,7 +528,7 @@ class _Title extends StatelessWidget {
           child: CustomPaint(
             size: _chevron,
             painter: _ChevronPainter(
-              color: look.accentColor,
+              color: look.accentColor!,
               forward: !rtl,
               stroke: _chevronStroke,
             ),
@@ -543,7 +543,7 @@ class _Arrow extends StatelessWidget {
   const _Arrow({required this.details, required this.look});
 
   final GlassDatePickerArrow details;
-  final DatePickerLook look;
+  final GlassDatePickerStyle look;
 
   static const Size _chevron = Size(10, 17.33);
   static const double _stroke = 2.6;
@@ -555,11 +555,11 @@ class _Arrow extends StatelessWidget {
     child: Transform.translate(
       offset: Offset(details.pointsRight ? _shiftRight : _shiftLeft, 0),
       child: Opacity(
-        opacity: details.enabled ? 1 : DatePickerLook.unavailableDayOpacity,
+        opacity: details.enabled ? 1 : _unavailableDayOpacity,
         child: CustomPaint(
           size: _chevron,
           painter: _ChevronPainter(
-            color: look.labelColor,
+            color: look.labelColor!,
             forward: details.pointsRight,
             stroke: _stroke,
           ),
@@ -573,22 +573,22 @@ class _Arrow extends StatelessWidget {
 // month at once, and on a slow phone each element of it counts.
 Widget _day(
   GlassDatePickerDay details, {
-  required DatePickerLook look,
+  required GlassDatePickerStyle look,
   required TextStyle style,
   required bool reduceMotion,
 }) {
   final selected = details.selected;
   final today = details.today;
   final color = switch ((selected, today)) {
-    (true, true) => DatePickerLook.selectedDayColor,
-    (true, false) => look.selectedDayTextColor,
-    (false, true) => look.accentColor,
-    (false, false) => look.labelColor,
+    (true, true) => _selectedDayColor,
+    (true, false) => look.selectedDayTextColor!,
+    (false, true) => look.accentColor!,
+    (false, false) => look.labelColor!,
   };
   final fill = switch ((selected, today)) {
-    (true, true) => look.accentColor,
-    (true, false) => look.labelColor,
-    (false, true) => look.todayFillColor,
+    (true, true) => look.accentColor!,
+    (true, false) => look.labelColor!,
+    (false, true) => look.todayFillColor!,
     (false, false) => null,
   };
   final cell = _DayCell(
@@ -598,7 +598,7 @@ Widget _day(
     states: details.states,
     focusColor: GlassHighlights.ringColor(
       look.focusColor,
-      look.accentColor,
+      look.accentColor!,
       highContrast: false,
     ),
     hoverColor: look.hoverColor ?? GlassHighlights.hoverColor,
@@ -611,7 +611,7 @@ Widget _day(
   );
   return details.enabled
       ? cell
-      : Opacity(opacity: DatePickerLook.unavailableDayOpacity, child: cell);
+      : Opacity(opacity: _unavailableDayOpacity, child: cell);
 }
 
 /// One day of the grid: [width] wide and as tall as its row, a [disc]
@@ -833,11 +833,11 @@ String _two(int v) => v.toString().padLeft(2, '0');
 
 /// One of UIKit's picker wheels: a column of rows on a cylinder behind a
 /// band that shows the selected row larger and in full, every other row
-/// smaller, at [DatePickerLook.wheelFadedOpacity] and darkened toward the
+/// smaller, at [_wheelFadedOpacity] and darkened toward the
 /// cylinder's edges.
 Widget _wheel({
   required _WheelGeometry geometry,
-  required DatePickerLook look,
+  required GlassDatePickerStyle look,
   required FixedExtentScrollController controller,
   required int count,
   required String Function(int) text,
@@ -845,6 +845,7 @@ Widget _wheel({
   required ValueChanged<int> onSelected,
   required String label,
   BuildContext? context,
+  bool enabled = true,
   bool looping = true,
   AlignmentGeometry alignment = Alignment.center,
   EdgeInsetsGeometry padding = EdgeInsets.zero,
@@ -865,25 +866,21 @@ Widget _wheel({
   );
   final up = looping || selected + 1 < count;
   final down = looping || selected > 0;
-  return Semantics(
-    label: label,
-    value: text(selected),
-    increasedValue: up ? text((selected + 1) % count) : null,
-    decreasedValue: down ? text((selected - 1) % count) : null,
-    onIncrease: up
-        ? () => controller.animateToItem(
-            controller.selectedItem + 1,
-            duration: _wheelStep,
-            curve: _wheelStepCurve,
-          )
-        : null,
-    onDecrease: down
-        ? () => controller.animateToItem(
-            controller.selectedItem - 1,
-            duration: _wheelStep,
-            curve: _wheelStepCurve,
-          )
-        : null,
+  return _WheelRegion(
+    controller: controller,
+    count: count,
+    looping: looping,
+    row: geometry.row,
+    look: look,
+    enabled: enabled,
+    canIncrease: up,
+    canDecrease: down,
+    semantics: SemanticsProperties(
+      label: label,
+      value: text(selected),
+      increasedValue: up ? text((selected + 1) % count) : null,
+      decreasedValue: down ? text((selected - 1) % count) : null,
+    ),
     child: ExcludeSemantics(
       child: views == null
           ? view()
@@ -898,6 +895,139 @@ Widget _wheel({
             ), view),
     ),
   );
+}
+
+/// One wheel as a keyboard and accessibility target: a Tab stop that steps
+/// the wheel with the arrows, Page Up and Page Down, Home and End, and
+/// that draws the focus ring and the hover wash around its selected row.
+/// Touches stay with the wheel's own scrolling.
+class _WheelRegion extends StatefulWidget {
+  const _WheelRegion({
+    required this.controller,
+    required this.count,
+    required this.looping,
+    required this.row,
+    required this.look,
+    required this.enabled,
+    required this.canIncrease,
+    required this.canDecrease,
+    required this.semantics,
+    required this.child,
+  });
+
+  final FixedExtentScrollController controller;
+  final int count;
+  final bool looping;
+  final double row;
+  final GlassDatePickerStyle look;
+  final bool enabled;
+  final bool canIncrease;
+  final bool canDecrease;
+  final SemanticsProperties semantics;
+  final Widget child;
+
+  @override
+  State<_WheelRegion> createState() => _WheelRegionState();
+}
+
+class _WheelRegionState extends State<_WheelRegion> {
+  final _states = WidgetStatesController();
+  late final _range = ValueNotifier(_rangeOf(widget));
+  late final List<Interaction> _interactions = [_WheelInput(_command)];
+
+  static AdjustRange _rangeOf(_WheelRegion widget) => AdjustRange(
+    canIncrease: widget.canIncrease,
+    canDecrease: widget.canDecrease,
+  );
+
+  @override
+  void didUpdateWidget(_WheelRegion oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _range.value = _rangeOf(widget);
+  }
+
+  @override
+  void dispose() {
+    _states.dispose();
+    _range.dispose();
+    super.dispose();
+  }
+
+  void _command(ValueCommand command) {
+    final controller = widget.controller;
+    if (!controller.hasClients) return;
+    final item = controller.selectedItem;
+    final count = widget.count;
+    final first = widget.looping ? item - item % count : 0;
+    final large = math.max(2, count ~/ 4);
+    final target = switch (command) {
+      ValueCommand.increase => item + 1,
+      ValueCommand.decrease => item - 1,
+      ValueCommand.increaseLarge => item + large,
+      ValueCommand.decreaseLarge => item - large,
+      ValueCommand.toMinimum => first,
+      ValueCommand.toMaximum => first + count - 1,
+    };
+    final last = widget.looping ? count * _WheelGeometry.loops - 1 : count - 1;
+    final to = target.clamp(0, last);
+    if (to == item) return;
+    controller.animateToItem(
+      to,
+      duration: _wheelStep,
+      curve: _wheelStepCurve,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final look = widget.look;
+    return InputRegion(
+      interactions: _interactions,
+      statesController: _states,
+      enabled: widget.enabled,
+      adjustRange: _range,
+      semantics: widget.semantics,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          widget.child,
+          Center(
+            child: SizedBox(
+              height: widget.row,
+              child: IgnorePointer(
+                child: _highlight(
+                  context,
+                  look,
+                  states: _states,
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A wheel's value commands, for the keyboard and accessibility; touches
+/// are the wheel's own scrolling.
+final class _WheelInput extends Interaction {
+  _WheelInput(this.onCommand) : super(role: InteractionRole.control);
+
+  final ValueChanged<ValueCommand> onCommand;
+
+  @override
+  bool get adjusts => true;
+
+  @override
+  bool accepts(PointerDownInput down) => false;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    if (input is AdjustInput) onCommand(input.command);
+    return InteractionUpdate.none;
+  }
 }
 
 /// The wheel views a picker built before, handed back while what they
@@ -917,7 +1047,7 @@ class _WheelViews {
 
 Widget _wheelView({
   required _WheelGeometry geometry,
-  required DatePickerLook look,
+  required GlassDatePickerStyle look,
   required FixedExtentScrollController controller,
   required int count,
   required String Function(int) text,
@@ -927,10 +1057,7 @@ Widget _wheelView({
   required EdgeInsetsGeometry padding,
   BuildContext? context,
 }) {
-  final row = DatePickerType.resolve(
-    TextStyle(fontSize: _WheelGeometry.fontSize, color: look.labelColor),
-    context: context,
-  );
+  final row = look.wheelTextStyle!;
   return ListWheelScrollView.useDelegate(
     controller: controller,
     itemExtent: geometry.row,
@@ -939,7 +1066,7 @@ Widget _wheelView({
     squeeze: geometry.squeeze,
     useMagnifier: true,
     magnification: _WheelGeometry.magnification,
-    overAndUnderCenterOpacity: DatePickerLook.wheelFadedOpacity,
+    overAndUnderCenterOpacity: _wheelFadedOpacity,
     physics: const FixedExtentScrollPhysics(
       parent: BouncingScrollPhysics(
         decelerationRate: ScrollDecelerationRate.fast,
@@ -967,62 +1094,84 @@ Widget _wheelView({
 }
 
 /// The band behind a picker's selected row: a capsule across the wheels.
-Widget _wheelBand(DatePickerLook look) => DecoratedBox(
+Widget _wheelBand(GlassDatePickerStyle look) => DecoratedBox(
   decoration: ShapeDecoration(
     color: look.wheelBandColor,
     shape: const StadiumBorder(),
   ),
 );
 
-/// The hour and minute wheels of a compact date picker in its time mode,
-/// with the AM/PM wheel in 12-hour time.
+/// The iOS 27 time picker: the hour and minute wheels, with an AM/PM wheel
+/// in 12-hour time.
 ///
-/// In 12-hour time the hour wheel turning past 11 and 12 switches AM and
-/// PM, as UIKit's does. A wheel coming to a new row calls [onChanged] with
-/// the new time, bounded by [firstDate] and [lastDate]; a new [value]
-/// turns the wheels to it.
-@internal
-class DatePickerTimeWheels extends StatefulWidget {
-  /// Creates the wheels showing [value]'s time.
-  const DatePickerTimeWheels({
+/// UIKit: `UIDatePicker` with `.wheels` and `.time`. SwiftUI: `DatePicker`
+/// with `.wheel` and `.hourAndMinute`. Flutter: `CupertinoTimerPicker` or
+/// `CupertinoDatePicker` in time mode.
+///
+/// A wheel coming to a new row calls [onChanged] with [value]'s day at
+/// the new time, bounded by [minimumDate] and [maximumDate]; a new [value]
+/// turns the wheels to it. In 12-hour time the hour wheel turning past 11
+/// and 12 switches AM and PM, as UIKit's does. A time between two multiples
+/// of [minuteInterval] is shown, and reported, rounded down to the earlier
+/// one. It is 232 by 204 points and works with any renderer.
+///
+/// ```dart
+/// GlassTimePicker(
+///   value: time,
+///   minuteInterval: 5,
+///   onChanged: (picked) => setState(() => time = picked),
+/// )
+/// ```
+class GlassTimePicker extends StatefulWidget {
+  /// Creates wheels showing [value]'s time.
+  const GlassTimePicker({
     required this.value,
-    required this.twentyFour,
-    required this.firstDate,
-    required this.lastDate,
-    required this.look,
     required this.onChanged,
-    required this.minuteInterval,
+    this.minuteInterval = 1,
+    this.use24HourFormat,
+    this.minimumDate,
+    this.maximumDate,
+    this.style,
     super.key,
-  });
+  }) : assert(
+         minuteInterval >= 1 &&
+             minuteInterval <= 30 &&
+             60 % minuteInterval == 0,
+         'minuteInterval must divide 60 and lie in 1 to 30.',
+       );
 
-  /// The time shown.
+  /// The time shown; its day is kept when a wheel turns.
   final DateTime value;
 
-  /// Whether the hours run to 24.
-  final bool twentyFour;
+  /// Called with the new time when a wheel comes to a new row; null
+  /// disables the wheels.
+  final ValueChanged<DateTime>? onChanged;
 
-  /// The step of the minute wheel.
+  /// The step of the minute wheel in minutes, a divisor of 60 from 1 to 30
+  /// (UIKit `minuteInterval`).
   final int minuteInterval;
 
-  /// The earliest moment that can be picked.
-  final DateTime? firstDate;
+  /// Whether times use 24 hours; null follows the platform's
+  /// [MediaQueryData.alwaysUse24HourFormat] (the device's 24-Hour Time
+  /// setting on iOS), as UIKit follows the locale's.
+  final bool? use24HourFormat;
 
-  /// The latest moment that can be picked.
-  final DateTime? lastDate;
+  /// The earliest moment that can be picked; null for no limit. The wheels
+  /// honor its time on its day.
+  final DateTime? minimumDate;
 
-  /// The colors.
-  final DatePickerLook look;
+  /// The latest moment that can be picked; null for no limit. The wheels
+  /// honor its time on its day.
+  final DateTime? maximumDate;
 
-  /// Called with each new time.
-  final ValueChanged<DateTime> onChanged;
+  /// The look, over the theme's and the picker's defaults.
+  final GlassDatePickerStyle? style;
 
   @override
-  State<DatePickerTimeWheels> createState() => _TimeWheelsState();
+  State<GlassTimePicker> createState() => _TimeWheelsState();
 }
 
-/// [minute] rounded down to a multiple of [interval].
-@internal
-int floorMinute(int minute, int interval) =>
+int _floorMinute(int minute, int interval) =>
     interval < 2 ? minute : minute - minute % interval;
 
 DateTime _clampDate(DateTime value, DateTime? first, DateTime? last) {
@@ -1031,14 +1180,19 @@ DateTime _clampDate(DateTime value, DateTime? first, DateTime? last) {
   return value;
 }
 
-class _TimeWheelsState extends State<DatePickerTimeWheels> {
+class _TimeWheelsState extends State<GlassTimePicker> {
   static const int _loops = _WheelGeometry.loops;
-  int get _hourCount => widget.twentyFour ? 24 : 12;
+  int get _hourCount => _twentyFour ? 24 : 12;
   late int _hourIndex = _hourCount * (_loops ~/ 2) + _hour % _hourCount;
   late final FixedExtentScrollController _hours = FixedExtentScrollController(
     initialItem: _hourIndex,
   );
   int get _step => widget.minuteInterval;
+  bool get _twentyFour =>
+      widget.use24HourFormat ??
+      MediaQuery.maybeAlwaysUse24HourFormatOf(context) ??
+      false;
+  bool get _enabled => widget.onChanged != null;
   int get _minuteCount => 60 ~/ _step;
   late final FixedExtentScrollController _minutes = FixedExtentScrollController(
     initialItem: _minuteCount * (_loops ~/ 2) + _minute ~/ _step,
@@ -1048,9 +1202,10 @@ class _TimeWheelsState extends State<DatePickerTimeWheels> {
   late int _hour = _bounded(widget.value).hour;
   late int _minute = _rounded(_bounded(widget.value).minute);
 
-  int _rounded(int minute) => floorMinute(minute, widget.minuteInterval);
+  int _rounded(int minute) => _floorMinute(minute, widget.minuteInterval);
 
   bool get _pm => _hour >= 12;
+  bool? _twentyFourShown;
   bool _syncing = false;
   final _WheelViews _views = _WheelViews();
 
@@ -1063,14 +1218,30 @@ class _TimeWheelsState extends State<DatePickerTimeWheels> {
   }
 
   @override
-  void didUpdateWidget(DatePickerTimeWheels oldWidget) {
+  void didUpdateWidget(GlassTimePicker oldWidget) {
     super.didUpdateWidget(oldWidget);
     final value = _bounded(widget.value);
-    _sync(value, formatChanged: oldWidget.twentyFour != widget.twentyFour);
+    _sync(value, formatChanged: _formatChanged());
   }
 
-  DateTime _bounded(DateTime value) =>
-      _clampDate(value, widget.firstDate, widget.lastDate);
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_formatChanged()) _sync(_bounded(widget.value), formatChanged: true);
+  }
+
+  bool _formatChanged() {
+    final was = _twentyFourShown;
+    _twentyFourShown = _twentyFour;
+    return was != null && was != _twentyFourShown;
+  }
+
+  DateTime _bounded(DateTime value) {
+    final first = widget.minimumDate;
+    final last = widget.maximumDate;
+    final holds = first == null || last == null || !last.isBefore(first);
+    return holds ? _clampDate(value, first, last) : value;
+  }
 
   void _sync(DateTime value, {bool formatChanged = false}) {
     _syncing = true;
@@ -1094,19 +1265,19 @@ class _TimeWheelsState extends State<DatePickerTimeWheels> {
 
   void _emit() {
     final v = widget.value;
-    widget.onChanged(
+    widget.onChanged?.call(
       _bounded(DateTime(v.year, v.month, v.day, _hour, _minute)),
     );
   }
 
   String _hourText(int h) {
-    if (widget.twentyFour) return _two(h);
+    if (_twentyFour) return _two(h);
     return '${h == 0 ? 12 : h}';
   }
 
   void _hourChanged(int index) {
     if (_syncing) return;
-    if (widget.twentyFour) {
+    if (_twentyFour) {
       if (index % 24 == _hour) return;
       setState(() => _hour = index % 24);
       _emit();
@@ -1155,13 +1326,13 @@ class _TimeWheelsState extends State<DatePickerTimeWheels> {
 
   @override
   Widget build(BuildContext context) {
-    final look = widget.look;
+    final look = GlassDatePickerStyle.resolve(context, widget.style);
     final loc = GlassLocalizations.of(context);
-    final twelve = !widget.twentyFour;
+    final twelve = !_twentyFour;
     final hour = twelve ? _WheelMetrics.hour12 : _WheelMetrics.hour24;
     final minute = twelve ? _WheelMetrics.minute12 : _WheelMetrics.minute24;
     const geometry = _WheelMetrics.geometry;
-    return Padding(
+    final wheels = Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: _WheelMetrics.inset,
         vertical: _WheelMetrics.top,
@@ -1199,8 +1370,9 @@ class _TimeWheelsState extends State<DatePickerTimeWheels> {
                       ),
                       onSelected: _hourChanged,
                       views: _views,
-                      viewKey: widget.twentyFour,
+                      viewKey: _twentyFour,
                       context: context,
+                      enabled: _enabled,
                     ),
                   ),
                   _column(
@@ -1217,6 +1389,7 @@ class _TimeWheelsState extends State<DatePickerTimeWheels> {
                       views: _views,
                       viewKey: _step,
                       context: context,
+                      enabled: _enabled,
                     ),
                   ),
                   if (twelve)
@@ -1241,6 +1414,7 @@ class _TimeWheelsState extends State<DatePickerTimeWheels> {
                         views: _views,
                         viewKey: loc,
                         context: context,
+                        enabled: _enabled,
                       ),
                     ),
                 ],
@@ -1248,6 +1422,16 @@ class _TimeWheelsState extends State<DatePickerTimeWheels> {
             ),
           ),
         ],
+      ),
+    );
+    return DefaultTextStyle(
+      style: resolveGlassText(
+        TextStyle(fontSize: 17, color: look.labelColor),
+        context,
+      ),
+      child: SizedBox.fromSize(
+        size: DatePickerMotion.timeSize,
+        child: _enabled ? wheels : AbsorbPointer(child: wheels),
       ),
     );
   }
@@ -1263,7 +1447,7 @@ class _MonthYearWheels extends StatefulWidget {
   const _MonthYearWheels({required this.details, required this.look});
 
   final GlassDatePickerMonthYear details;
-  final DatePickerLook look;
+  final GlassDatePickerStyle look;
 
   @override
   State<_MonthYearWheels> createState() => _MonthYearWheelsState();

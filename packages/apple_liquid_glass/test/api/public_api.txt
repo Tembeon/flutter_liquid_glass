@@ -726,17 +726,33 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle>
     Color? wheelBandColor,
     Color? focusColor,
     Color? hoverColor,
+    TextStyle? titleTextStyle,
+    TextStyle? weekdayTextStyle,
+    TextStyle? dayTextStyle,
+    TextStyle? selectedDayTextStyle,
+    TextStyle? labelTextStyle,
+    TextStyle? wheelTextStyle,
   })
+  factory GlassDatePickerStyle.resolve(
+    BuildContext context,
+    GlassDatePickerStyle? style,
+  )
   final Color? accentColor
+  final TextStyle? dayTextStyle
   final Color? focusColor
   final Color? hoverColor
   final Color? labelColor
   final Color? labelFillColor
+  final TextStyle? labelTextStyle
   static GlassDatePickerStyle? maybeOf(BuildContext context)
   final Color? selectedDayTextColor
+  final TextStyle? selectedDayTextStyle
+  final TextStyle? titleTextStyle
   final Color? todayFillColor
   final Color? weekdayColor
+  final TextStyle? weekdayTextStyle
   final Color? wheelBandColor
+  final TextStyle? wheelTextStyle
   overrides: ==, hashCode, lerp, merge
 final class GlassDatePickerTitle
   const GlassDatePickerTitle({
@@ -2238,6 +2254,25 @@ class GlassThemeData
   T? style<T extends GlassStyle<Object>>([Object? type])
   final List<GlassStyle<Object>> styles
   overrides: ==, hashCode
+class GlassTimePicker extends StatefulWidget
+  const GlassTimePicker({
+    required DateTime value,
+    required void Function(DateTime)? onChanged,
+    int minuteInterval = ...,
+    bool? use24HourFormat,
+    DateTime? minimumDate,
+    DateTime? maximumDate,
+    GlassDatePickerStyle? style,
+    Key? key,
+  })
+  final DateTime? maximumDate
+  final DateTime? minimumDate
+  final int minuteInterval
+  final void Function(DateTime)? onChanged
+  final GlassDatePickerStyle? style
+  final bool? use24HourFormat
+  final DateTime value
+  overrides: createState
 class GlassToolbar extends StatefulWidget implements PreferredSizeWidget
   const GlassToolbar({
     required List<GlassBarEntry> items,
@@ -3847,6 +3882,7 @@ class GlassSwipeAction (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSwipeActions (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSwitch (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSwitchStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTimePicker (see package:apple_liquid_glass/apple_liquid_glass.dart)
 
 # package:apple_liquid_glass/foundation.dart
 class DefaultGlassLocalizations (see package:apple_liquid_glass/apple_liquid_glass.dart)
