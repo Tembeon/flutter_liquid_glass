@@ -1,3 +1,16 @@
+# package:apple_liquid_glass/app.dart
+class GlassScope extends StatelessWidget
+  const GlassScope({
+    required Widget child,
+    GlassThemeData data = ...,
+    GlassRenderer renderer = ...,
+    Key? key,
+  })
+  final Widget child
+  final GlassThemeData data
+  final GlassRenderer renderer
+  overrides: build
+
 # package:apple_liquid_glass/apple_liquid_glass.dart
 final class AdaptiveGlassRenderer extends GlassRenderer
   const AdaptiveGlassRenderer({
@@ -960,6 +973,7 @@ final class GlassRoundedRect extends GlassShape
   const GlassRoundedRect(double radius)
   final double radius
   overrides: ==, hashCode, pathIn, radiusIn
+class GlassScope (see package:apple_liquid_glass/app.dart)
 final class GlassScrollEdgeDetails
   const GlassScrollEdgeDetails({
     required AxisDirection edge,

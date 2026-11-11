@@ -5,10 +5,10 @@ import 'package:flutter/widgets.dart';
 /// Sets the [GlassRenderer] that draws every glass surface, group and
 /// scroll edge below it.
 ///
-/// An app usually gets one from the root widget of the umbrella library,
-/// `GlassScope`; this scope sets a renderer of its own, or another one for
-/// a subtree. Without a scope above, surfaces draw with the flat renderer:
-/// a fill per role, no backdrop reads.
+/// An app usually gets one from its root widget, `GlassScope` in the `app`
+/// library; this scope sets a renderer of its own, or another one for a
+/// subtree. Without a scope above, controls draw flat: the flat renderer
+/// fills each surface by its role and reads no backdrop.
 ///
 /// A surface depends on the renderer only: changing it rebuilds the
 /// surfaces, which keep their content and its state.

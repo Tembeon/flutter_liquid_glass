@@ -84,6 +84,7 @@ GlassRenderer
 GlassRendererScope
 GlassRole
 GlassRoundedRect
+GlassScope
 GlassScrollEdgeDetails
 GlassScrollEdgeEffect
 GlassScrollEdgeEffects

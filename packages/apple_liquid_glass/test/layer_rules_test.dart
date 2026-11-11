@@ -19,10 +19,11 @@ const _kinesisSrc = 'package:kinesis/src/';
 const _belowPresentation = [_kinesis, _kinesisPresentation];
 
 /// foundation < motions < surfaces < liquid < raw < controls <
-/// presentations < navigation, each importing only what its row names.
-/// The measured laws stay below widgets and rendering so they replay a
-/// recording without a screen; only liquid knows the glass renderer, and
-/// nothing but the umbrella imports liquid; a core knows no surface.
+/// presentations < navigation < app, each importing only what its row
+/// names. The measured laws stay below widgets and rendering so they replay
+/// a recording without a screen; only liquid knows the glass renderer, and
+/// nothing but app and the umbrella imports liquid; nothing but the
+/// umbrella imports app; a core knows no surface.
 const _rules = LayerRules(
   package: 'apple_liquid_glass',
   libraries: {
@@ -40,6 +41,16 @@ const _rules = LayerRules(
       'raw',
       'controls',
       'presentations',
+    },
+    'app': {
+      'foundation',
+      'motions',
+      'surfaces',
+      'liquid',
+      'raw',
+      'controls',
+      'presentations',
+      'navigation',
     },
   },
   umbrella: 'apple_liquid_glass',
@@ -63,6 +74,7 @@ const _rules = LayerRules(
     'controls': [..._belowPresentation, _kinesisTesting, _glass],
     'presentations': [_kinesisTesting, _glass],
     'navigation': [_kinesisTesting, _glass],
+    'app': [_kinesisTesting, _glass],
   },
   bans: [
     // Input goes through kinesis's InputRegion.
