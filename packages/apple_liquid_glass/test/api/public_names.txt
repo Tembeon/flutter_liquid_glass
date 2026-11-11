@@ -197,6 +197,7 @@ PointerDownInput
 PointerFollower
 PointerHoverInput
 PointerMoveInput
+PointerScrollInput
 PointerUpInput
 Presence
 PresenceStatus
@@ -228,6 +229,7 @@ RawGlassSwitch
 RectSprings
 ScrubChangeEvent
 ScrubInteraction
+SecondaryClickInteraction
 SessionOutput
 SliverMotionList
 SourceGeometry
