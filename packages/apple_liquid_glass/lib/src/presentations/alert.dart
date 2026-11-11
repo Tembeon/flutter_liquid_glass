@@ -9,8 +9,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
-part 'alert_look.dart';
-part 'alert_view.dart';
+part 'package:apple_liquid_glass/src/presentations/alert_look.dart';
+part 'package:apple_liquid_glass/src/presentations/alert_view.dart';
 
 enum _Role { normal, cancel, destructive }
 

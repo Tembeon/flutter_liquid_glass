@@ -9,9 +9,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
-part 'sheet_detents.dart';
-part 'sheet_render.dart';
-part 'sheet_view.dart';
+part 'package:apple_liquid_glass/src/presentations/sheet_detents.dart';
+part 'package:apple_liquid_glass/src/presentations/sheet_render.dart';
+part 'package:apple_liquid_glass/src/presentations/sheet_view.dart';
 
 /// The look of sheets, and of popovers that adapt to one; a null field
 /// leaves it to the theme's style, then the default.

@@ -10,8 +10,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
-part 'menu_rows_header.dart';
-part 'menu_rows_marks.dart';
+part 'package:apple_liquid_glass/src/presentations/menu_rows_header.dart';
+part 'package:apple_liquid_glass/src/presentations/menu_rows_marks.dart';
 
 class _RowKey extends LocalKey {
   const _RowKey(this.index);

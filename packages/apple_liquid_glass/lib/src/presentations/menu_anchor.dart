@@ -16,11 +16,11 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
-part 'menu_anchor_context.dart';
-part 'menu_anchor_inputs.dart';
-part 'menu_anchor_layer.dart';
-part 'menu_anchor_look.dart';
-part 'menu_anchor_semantics.dart';
+part 'package:apple_liquid_glass/src/presentations/menu_anchor_context.dart';
+part 'package:apple_liquid_glass/src/presentations/menu_anchor_inputs.dart';
+part 'package:apple_liquid_glass/src/presentations/menu_anchor_layer.dart';
+part 'package:apple_liquid_glass/src/presentations/menu_anchor_look.dart';
+part 'package:apple_liquid_glass/src/presentations/menu_anchor_semantics.dart';
 
 /// Opens and closes the menu of a [GlassMenuAnchor] or a
 /// [GlassContextMenu] from code.

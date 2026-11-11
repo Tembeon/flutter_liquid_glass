@@ -13,9 +13,9 @@ import 'package:kinesis/motion.dart';
 import 'package:kinesis/presentation.dart';
 import 'package:kinesis/widgets.dart';
 
-part 'date_picker_label.dart';
-part 'date_picker_look.dart';
-part 'date_picker_overlay.dart';
+part 'package:apple_liquid_glass/src/presentations/date_picker_label.dart';
+part 'package:apple_liquid_glass/src/presentations/date_picker_look.dart';
+part 'package:apple_liquid_glass/src/presentations/date_picker_overlay.dart';
 
 /// What a [GlassCompactDatePicker] picks.
 enum GlassDatePickerMode {
