@@ -19,7 +19,7 @@ class _Blurred extends OffsetLayer {
 
 typedef _Seen = ({ui.Picture? picture, Rect screen, int order});
 
-Map<Layer, _Seen> _leaves(Form form) {
+Map<Layer, _Seen> _leaves(GlassForm form) {
   final seen = Map<Layer, _Seen>.identity();
   for (var i = 0; i < form.length; i++) {
     final node = form.nodeAt(i);
@@ -35,8 +35,8 @@ Map<Layer, _Seen> _leaves(Form form) {
   return seen;
 }
 
-void _expectSameAsFresh(Form form, ContainerLayer root, String why) {
-  final fresh = Form()..lower(root, _dpr, GeneratedLayers.screen);
+void _expectSameAsFresh(GlassForm form, ContainerLayer root, String why) {
+  final fresh = GlassForm()..lower(root, _dpr, GeneratedLayers.screen);
   expect(form.length, fresh.length, reason: why);
   for (var i = 0; i < form.length; i++) {
     final a = form.nodeAt(i);
@@ -96,7 +96,8 @@ void main() {
     test('an unchanged tree logs nothing but its volatile content', () {
       for (var seed = 0; seed < 200; seed++) {
         final scene = GeneratedLayers(seed);
-        final form = Form()..lower(scene.root, _dpr, GeneratedLayers.screen);
+        final form = GlassForm()
+          ..lower(scene.root, _dpr, GeneratedLayers.screen);
         final stamps = [
           for (var i = 0; i < form.length; i++) form.nodeAt(i).changedAt,
         ];
@@ -122,7 +123,8 @@ void main() {
     test('equals a fresh form after every change', () {
       for (var seed = 0; seed < 300; seed++) {
         final scene = GeneratedLayers(seed);
-        final form = Form()..lower(scene.root, _dpr, GeneratedLayers.screen);
+        final form = GlassForm()
+          ..lower(scene.root, _dpr, GeneratedLayers.screen);
         for (var step = 0; step < 30; step++) {
           scene.mutate();
           form.lower(scene.root, _dpr, GeneratedLayers.screen);
@@ -134,7 +136,8 @@ void main() {
     test('logs every leaf that changed, left or arrived', () {
       for (var seed = 0; seed < 300; seed++) {
         final scene = GeneratedLayers(seed);
-        final form = Form()..lower(scene.root, _dpr, GeneratedLayers.screen);
+        final form = GlassForm()
+          ..lower(scene.root, _dpr, GeneratedLayers.screen);
         for (var step = 0; step < 30; step++) {
           final before = _leaves(form);
           scene.mutate();
@@ -178,7 +181,7 @@ void main() {
         list.append(cell);
       }
       final root = ContainerLayer()..append(list);
-      final form = Form()..lower(root, _dpr, GeneratedLayers.screen);
+      final form = GlassForm()..lower(root, _dpr, GeneratedLayers.screen);
       list.offset = const Offset(0, -10);
       form.lower(root, _dpr, GeneratedLayers.screen);
       expect(form.dirty.length, 2);
@@ -192,7 +195,7 @@ void main() {
       picture.picture = recorder.endRecording();
       fade.append(picture);
       final root = ContainerLayer()..append(fade);
-      final form = Form()
+      final form = GlassForm()
         ..lower(root, _dpr, GeneratedLayers.screen)
         ..lower(root, _dpr, GeneratedLayers.screen);
       expect(form.dirty.isEmpty, isTrue);
@@ -238,7 +241,7 @@ void main() {
             imageFilter: ui.ImageFilter.blur(sigmaX: 5.25, sigmaY: 5.25),
           )..append(unknown),
         );
-      final form = Form()..lower(root, _dpr, GeneratedLayers.screen);
+      final form = GlassForm()..lower(root, _dpr, GeneratedLayers.screen);
       final leaves = _leaves(form);
       // Four sigmas of two logical pixels around the picture.
       expect(
@@ -251,7 +254,7 @@ void main() {
 
   group('asks', () {
     test('an equal ask is kept; another replans and logs what it draws', () {
-      final form = Form();
+      final form = GlassForm();
       final root = ContainerLayer();
       final site = SiteFacts(Object());
       const rect = Rect.fromLTWH(10, 10, 44, 44);

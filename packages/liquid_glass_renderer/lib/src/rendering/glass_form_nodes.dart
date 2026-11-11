@@ -38,10 +38,10 @@ sealed class FormNode {
   bool get holdsComposed => false;
 
   /// Reads the layer; true when what it covers changed.
-  bool refreshIn(Form form, FormWorld world);
+  bool refreshIn(GlassForm form, FormWorld world);
 
   /// Notes that this node left the tree.
-  void removedFrom(Form form) => form._logGone(extent);
+  void removedFrom(GlassForm form) => form._logGone(extent);
 }
 
 /// A picture.
@@ -65,7 +65,7 @@ final class PictureNode extends FormNode {
   Rect get extent => screen;
 
   @override
-  bool refreshIn(Form form, FormWorld world) {
+  bool refreshIn(GlassForm form, FormWorld world) {
     form._enter(this);
     final layer = this.layer as PictureLayer;
     final drawn = layer.picture;
@@ -105,10 +105,10 @@ final class OutputNode extends FormNode {
   bool get holdsComposed => true;
 
   @override
-  void removedFrom(Form form) {}
+  void removedFrom(GlassForm form) {}
 
   @override
-  bool refreshIn(Form form, FormWorld world) {
+  bool refreshIn(GlassForm form, FormWorld world) {
     form._enter(this);
     return false;
   }
@@ -131,7 +131,7 @@ final class VolatileNode extends FormNode {
   Rect get extent => screen;
 
   @override
-  bool refreshIn(Form form, FormWorld world) {
+  bool refreshIn(GlassForm form, FormWorld world) {
     form._enter(this);
     final local = switch (layer) {
       TextureLayer(:final rect) || PlatformViewLayer(:final rect) => rect,

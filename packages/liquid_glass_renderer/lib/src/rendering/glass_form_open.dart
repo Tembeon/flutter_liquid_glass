@@ -80,13 +80,13 @@ abstract class OpenNode extends FormNode {
   }
 
   @override
-  void removedFrom(Form form) {
+  void removedFrom(GlassForm form) {
     form._logGone(bounds);
     _release();
   }
 
   @override
-  bool refreshIn(Form form, FormWorld outside) {
+  bool refreshIn(GlassForm form, FormWorld outside) {
     form._enter(this);
     final moved = updateWorld(outside);
     if (moved) {
@@ -137,7 +137,7 @@ abstract class OpenNode extends FormNode {
     bounds = union;
   }
 
-  bool _walkChildren(Form form) {
+  bool _walkChildren(GlassForm form) {
     final layer = this.layer as ContainerLayer;
     var changed = false;
     var composed = composes;
@@ -294,7 +294,7 @@ final class OwnNode extends PlainNode {
   OwnNode(super.layer);
 
   @override
-  bool refreshIn(Form form, FormWorld outside) {
+  bool refreshIn(GlassForm form, FormWorld outside) {
     final above = form._owner;
     form._owner = this;
     final changed = super.refreshIn(form, outside);
@@ -374,7 +374,7 @@ final class SiteNode extends ShiftNode {
   @override
   bool get composes => true;
 
-  Form? _form;
+  GlassForm? _form;
   int _seen = -1;
 
   /// Whether this frame's walk reached the site and found nothing changed
@@ -389,7 +389,7 @@ final class SiteNode extends ShiftNode {
   }
 
   @override
-  bool refreshIn(Form form, FormWorld outside) {
+  bool refreshIn(GlassForm form, FormWorld outside) {
     _form = form;
     _seen = form.frame;
     facts.placeInWalk(

@@ -1,7 +1,7 @@
 import 'dart:io' show Platform;
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart' hide Form;
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
@@ -83,7 +83,7 @@ final class PlanWatch {
   /// The last plan.
   GlassPlan? last;
 
-  void _note(Form form, GlassPlan plan) {
+  void _note(GlassForm form, GlassPlan plan) {
     last = plan;
     for (var i = 0; i < plan.fates.length; i++) {
       final read = switch (plan.fates[i]) {

@@ -32,10 +32,11 @@ Rect _union(Rect a, Rect b) {
 /// a layer without touching its children, so the walk visits every layer. An
 /// unchanged layer costs a few compares and allocates nothing.
 ///
-/// After [lower], everything here equals what a fresh [Form] of the same tree
-/// would hold. The soundness test asserts it after every generated mutation.
+/// After [lower], everything here equals what a fresh [GlassForm] of the same
+/// tree would hold. The soundness test asserts it after every generated
+/// mutation.
 @internal
-final class Form implements PlanScenery {
+final class GlassForm implements PlanScenery {
   @override
   final DirtyLog dirty = DirtyLog();
 

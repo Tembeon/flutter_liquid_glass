@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart' hide Form;
+import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
@@ -24,7 +24,7 @@ List<Object?> _tokens(StateChain? chain) => [
 // What a read at [lead] over [band] holds, worked out from the walk's result
 // alone: this keeps the old signature's idea of a frame, so it knows nothing
 // of the dirty log it checks.
-List<_Seen> _signature(Form form, Layer lead, Rect band) {
+List<_Seen> _signature(GlassForm form, Layer lead, Rect band) {
   final seen = <_Seen>[];
   final open = <OpenNode>[];
   for (var i = 0; i < form.length; i++) {
@@ -69,7 +69,7 @@ bool _same(List<_Seen> a, List<_Seen> b) {
   return true;
 }
 
-int? _orderOf(Form form, Layer layer) {
+int? _orderOf(GlassForm form, Layer layer) {
   for (var i = 0; i < form.length; i++) {
     if (identical(form.nodeAt(i).layer, layer)) return i;
   }
@@ -260,7 +260,7 @@ void main() {
     root
       ..append(gone)
       ..append(lead);
-    final form = Form()..lower(root, _dpr, GeneratedLayers.screen);
+    final form = GlassForm()..lower(root, _dpr, GeneratedLayers.screen);
     gone.remove();
     form.lower(root, _dpr, GeneratedLayers.screen);
     expect(form.dirty.meets(_orderOf(form, lead)!, rect), isTrue);
@@ -270,7 +270,7 @@ void main() {
     for (var seed = 0; seed < 300; seed++) {
       final scene = GeneratedLayers(seed);
       final random = Random(seed);
-      final form = Form()..lower(scene.root, _dpr, GeneratedLayers.screen);
+      final form = GlassForm()..lower(scene.root, _dpr, GeneratedLayers.screen);
       if (form.length == 0) continue;
 
       Layer pickLead() {

@@ -209,7 +209,7 @@ final class ReadCopy {
   final GlassRead read;
 
   final GlassPlan _plan;
-  final Form _form;
+  final GlassForm _form;
 
   /// Where the copy of [held], whose glass this copy holds, lies inside this
   /// one, or null where none of it does.
@@ -772,7 +772,7 @@ final class GlassEmit {
   ///
   /// [again] shows a plan an earlier frame emitted: the images it bought are
   /// drawn already.
-  void emit(GlassPlan plan, Form form, {required bool again}) {
+  void emit(GlassPlan plan, GlassForm form, {required bool again}) {
     final reads = plan.reads;
     var deepest = 0;
     final keep = Set<Object>.identity();

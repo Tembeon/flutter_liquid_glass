@@ -26,9 +26,9 @@ import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_ob
 /// and asks each site with a repaint boundary marked under it whether it
 /// would paint late ([TransformTrackingRenderObjectMixin.paintsLate]), and
 /// marks it to paint in this frame if so. After paint it lowers the view's
-/// layers into a [Form], asks every site for its facts, compiles the frame's
-/// [GlassPlan] and draws it, before any scene is built. Then it submits the
-/// frame's flutter_gpu passes.
+/// layers into a [GlassForm], asks every site for its facts, compiles the
+/// frame's [GlassPlan] and draws it, before any scene is built. Then it submits
+/// the frame's flutter_gpu passes.
 ///
 /// What cannot be known before paint stays a frame late: a shape under a
 /// [RenderFollowerLayer] whose leader moved this frame, as the leader's
@@ -247,7 +247,7 @@ final class GlassComposer extends PipelineOwner {
 
   /// Handed each frame's plan, with its reasons, while set.
   @visibleForTesting
-  static void Function(Form form, GlassPlan plan)? debugOnPlan;
+  static void Function(GlassForm form, GlassPlan plan)? debugOnPlan;
 
   /// Sites that rested since this was last cleared.
   @internal
@@ -334,7 +334,7 @@ final class GlassComposer extends PipelineOwner {
 // One view's frame: the form of its layers, what the plan keeps between frames
 // and what its reads hold.
 final class _Composition {
-  final _form = Form();
+  final _form = GlassForm();
   final _ledger = PlanLedger();
   final _emit = GlassEmit();
 
@@ -436,7 +436,7 @@ final class _Composition {
   }
 
   void _report(
-    Form form,
+    GlassForm form,
     GlassPlan plan,
     PlanPolicy policy,
     Duration walk,
