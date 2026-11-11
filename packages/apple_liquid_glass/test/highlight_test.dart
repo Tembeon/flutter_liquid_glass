@@ -2,7 +2,9 @@ import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/motions/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
 import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -336,5 +338,45 @@ void main() {
       ),
     );
     expect(find.byType(GlassHighlightBox), findsNothing);
+  });
+
+  testWidgets('a button focused from the keyboard draws the ring; a tap '
+      'and a touch hover light nothing', (tester) async {
+    await tester.pumpWidget(
+      _app(
+        const FlatGlassRenderer(),
+        GlassButton(onPressed: () {}, child: const Text('Go')),
+      ),
+    );
+    final button = find.byType(GlassButton);
+    await tester.tap(button);
+    await _settle(tester);
+    expect(_rings(tester, button), isEmpty);
+    expect(_box(tester).highlight.hovered, 0);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    Focus.of(tester.element(find.text('Go'))).requestFocus();
+    await _settle(tester, 2);
+    expect(_rings(tester, button), hasLength(1));
+    await tester.tap(button);
+    await _settle(tester);
+    expect(_rings(tester, button), isEmpty);
+  });
+
+  testWidgets('a mouse over a button eases its hover in', (tester) async {
+    await tester.pumpWidget(
+      _app(
+        const FlatGlassRenderer(),
+        GlassButton(onPressed: () {}, child: const Text('Go')),
+      ),
+    );
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(
+      location: tester.getCenter(find.byType(GlassButton)),
+    );
+    await _settle(tester);
+    expect(_box(tester).highlight.hovered, closeTo(1, 1e-3));
+    await mouse.removePointer();
+    await _settle(tester);
+    expect(_box(tester).highlight.hovered, 0);
   });
 }

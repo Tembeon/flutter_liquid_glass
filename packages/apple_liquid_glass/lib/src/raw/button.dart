@@ -3,6 +3,7 @@ import 'package:apple_liquid_glass/src/foundation/shape.dart';
 import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:apple_liquid_glass/src/motions/glass_press.dart';
 import 'package:apple_liquid_glass/src/surfaces/surface.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
@@ -23,6 +24,7 @@ final class GlassButtonDetails {
     required this.body,
     required this.states,
     required this.label,
+    this.statesListenable,
   });
 
   /// The frames of the button's body: the measured lift, lean and touch
@@ -32,6 +34,12 @@ final class GlassButtonDetails {
 
   /// The states the button is in.
   final Set<WidgetState> states;
+
+  /// The button's states as they change, or null for a body that shows
+  /// neither focus nor hover: a builder hands it to the [GlassSurface]
+  /// of its body, whose renderer then draws the focus ring and the hover
+  /// response.
+  final ValueListenable<Set<WidgetState>>? statesListenable;
 
   /// The button's label.
   final Widget label;
@@ -148,6 +156,7 @@ class _GlassPressableState extends State<GlassPressable>
           GlassButtonDetails(
             body: _body,
             states: {...widgetStates.value},
+            statesListenable: widgetStates,
             label: widget.child,
           ),
         ),

@@ -237,6 +237,8 @@ class GlassButton extends StatelessWidget
     EdgeInsetsGeometry? padding,
     Size? minimumSize,
     double? iconSize,
+    Color? focusColor,
+    Color? hoverColor,
   })
   overrides: build
 typedef GlassButtonBuilder = Widget Function(BuildContext, GlassButtonDetails)
@@ -245,10 +247,12 @@ final class GlassButtonDetails
     required MotionSelection<GlassFrame> body,
     required Set<WidgetState> states,
     required Widget label,
+    ValueListenable<Set<WidgetState>>? statesListenable,
   })
   final MotionSelection<GlassFrame> body
   final Widget label
   final Set<WidgetState> states
+  final ValueListenable<Set<WidgetState>>? statesListenable
 class GlassButtonStyle extends GlassStyle<GlassButtonStyle>
   const GlassButtonStyle({
     WidgetStateProperty<Color?>? backgroundColor,
@@ -258,6 +262,8 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle>
     WidgetStateProperty<EdgeInsetsGeometry?>? padding,
     WidgetStateProperty<Size?>? minimumSize,
     WidgetStateProperty<double?>? iconSize,
+    Color? focusColor,
+    Color? hoverColor,
     Widget Function(BuildContext, GlassButtonDetails)? builder,
   })
   final WidgetStateProperty<Color?>? backgroundColor
@@ -270,9 +276,13 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle>
     WidgetStateProperty<EdgeInsetsGeometry?>? padding,
     WidgetStateProperty<Size?>? minimumSize,
     WidgetStateProperty<double?>? iconSize,
+    Color? focusColor,
+    Color? hoverColor,
     Widget Function(BuildContext, GlassButtonDetails)? builder,
   })
+  final Color? focusColor
   final WidgetStateProperty<Color?>? foregroundColor
+  final Color? hoverColor
   final WidgetStateProperty<Color?>? iconColor
   final WidgetStateProperty<double?>? iconSize
   static GlassButtonStyle? maybeOf(BuildContext context)
@@ -919,6 +929,8 @@ class GlassProminentButtonStyle extends GlassButtonStyle
     WidgetStateProperty<EdgeInsetsGeometry?>? padding,
     WidgetStateProperty<Size?>? minimumSize,
     WidgetStateProperty<double?>? iconSize,
+    Color? focusColor,
+    Color? hoverColor,
     Widget Function(BuildContext, GlassButtonDetails)? builder,
   })
   static GlassButtonStyle? maybeOf(BuildContext context)

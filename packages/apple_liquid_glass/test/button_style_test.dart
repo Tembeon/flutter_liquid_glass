@@ -82,6 +82,8 @@ void main() {
         padding: const EdgeInsets.all(1),
         minimumSize: const Size(10, 10),
         iconSize: 12,
+        focusColor: const Color(0xFF040404),
+        hoverColor: const Color(0x05050505),
       );
       final b = GlassButton.styleFrom(
         backgroundColor: const Color(0xFF0A0A0A),
@@ -91,6 +93,8 @@ void main() {
         padding: const EdgeInsets.all(2),
         minimumSize: const Size(20, 20),
         iconSize: 22,
+        focusColor: const Color(0xFF0D0D0D),
+        hoverColor: const Color(0x0E0E0E0E),
       );
       expect(const GlassButtonStyle().merge(a), a);
       expect(a.merge(null), a);
@@ -104,6 +108,8 @@ void main() {
         style.padding!.resolve({}),
         style.minimumSize!.resolve({}),
         style.iconSize!.resolve({}),
+        style.focusColor,
+        style.hoverColor,
       ];
       expect(values(const GlassButtonStyle().merge(b)), values(b));
       expect(values(a.lerp(b, 0)), values(a));
@@ -263,6 +269,48 @@ void main() {
         ),
       );
       expect(_label(tester), isSameColorAs(const Color(0xFF555555)));
+    });
+
+    testWidgets('the focus and hover colors come from the widget, then the '
+        'theme, then the renderer', (tester) async {
+      GlassSurface surface() =>
+          tester.widget<GlassSurface>(find.byType(GlassSurface));
+      const theme = GlassThemeData(
+        styles: [
+          GlassButtonStyle(
+            focusColor: Color(0xFF00AA00),
+            hoverColor: Color(0x10000000),
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        _app(
+          GlassButton(onPressed: () {}, child: const Text('Go')),
+        ),
+      );
+      expect(surface().focusColor, isNull);
+      expect(surface().hoverColor, isNull);
+      expect(surface().states, isNotNull);
+      await tester.pumpWidget(
+        _app(
+          GlassButton(onPressed: () {}, child: const Text('Go')),
+          theme: theme,
+        ),
+      );
+      expect(surface().focusColor, const Color(0xFF00AA00));
+      expect(surface().hoverColor, const Color(0x10000000));
+      await tester.pumpWidget(
+        _app(
+          GlassButton(
+            onPressed: () {},
+            style: const GlassButtonStyle(focusColor: Color(0x00000000)),
+            child: const Text('Go'),
+          ),
+          theme: theme,
+        ),
+      );
+      expect(surface().focusColor, const Color(0x00000000));
+      expect(surface().hoverColor, const Color(0x10000000));
     });
   });
 }

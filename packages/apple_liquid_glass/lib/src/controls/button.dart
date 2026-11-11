@@ -32,6 +32,8 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
     this.padding,
     this.minimumSize,
     this.iconSize,
+    this.focusColor,
+    this.hoverColor,
     this.builder,
   });
 
@@ -61,6 +63,15 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
   /// The size of the label's icons.
   final WidgetStateProperty<double?>? iconSize;
 
+  /// The ring around a button focused from the keyboard; null derives it
+  /// from the glass's tint as Flutter's Cupertino button does, and a
+  /// transparent color draws none.
+  final Color? focusColor;
+
+  /// What a mouse over the button adds to its glass; null for a pressed
+  /// glass's wash at half strength, and a transparent color shows none.
+  final Color? hoverColor;
+
   /// Builds the button's look in place of the default one; the button then
   /// ignores the other fields. Null leaves it to the theme's builder, then
   /// the default look.
@@ -76,6 +87,8 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
     required WidgetStateProperty<EdgeInsetsGeometry?>? padding,
     required WidgetStateProperty<Size?>? minimumSize,
     required WidgetStateProperty<double?>? iconSize,
+    required Color? focusColor,
+    required Color? hoverColor,
     required GlassButtonBuilder? builder,
   }) => GlassButtonStyle(
     backgroundColor: backgroundColor,
@@ -85,6 +98,8 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
     padding: padding,
     minimumSize: minimumSize,
     iconSize: iconSize,
+    focusColor: focusColor,
+    hoverColor: hoverColor,
     builder: builder,
   );
 
@@ -100,6 +115,8 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
       padding: fallThrough(padding, other.padding),
       minimumSize: fallThrough(minimumSize, other.minimumSize),
       iconSize: fallThrough(iconSize, other.iconSize),
+      focusColor: focusColor ?? other.focusColor,
+      hoverColor: hoverColor ?? other.hoverColor,
       builder: builder ?? other.builder,
     );
   }
@@ -113,6 +130,8 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
     WidgetStateProperty<EdgeInsetsGeometry?>? padding,
     WidgetStateProperty<Size?>? minimumSize,
     WidgetStateProperty<double?>? iconSize,
+    Color? focusColor,
+    Color? hoverColor,
     GlassButtonBuilder? builder,
   }) => _with(
     backgroundColor: backgroundColor ?? this.backgroundColor,
@@ -122,6 +141,8 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
     padding: padding ?? this.padding,
     minimumSize: minimumSize ?? this.minimumSize,
     iconSize: iconSize ?? this.iconSize,
+    focusColor: focusColor ?? this.focusColor,
+    hoverColor: hoverColor ?? this.hoverColor,
     builder: builder ?? this.builder,
   );
 
@@ -173,6 +194,8 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
         t,
         snapNull(lerpDouble),
       ),
+      focusColor: GlassDynamicColor.lerp(focusColor, other.focusColor, t),
+      hoverColor: GlassDynamicColor.lerp(hoverColor, other.hoverColor, t),
       builder: t < 0.5 ? builder : other.builder,
     );
   }
@@ -188,6 +211,8 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
       other.padding == padding &&
       other.minimumSize == minimumSize &&
       other.iconSize == iconSize &&
+      other.focusColor == focusColor &&
+      other.hoverColor == hoverColor &&
       other.builder == builder;
 
   @override
@@ -199,6 +224,8 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
     padding,
     minimumSize,
     iconSize,
+    focusColor,
+    hoverColor,
     builder,
   );
 }
@@ -220,6 +247,8 @@ class GlassProminentButtonStyle extends GlassButtonStyle {
     super.padding,
     super.minimumSize,
     super.iconSize,
+    super.focusColor,
+    super.hoverColor,
     super.builder,
   });
 
@@ -234,6 +263,8 @@ class GlassProminentButtonStyle extends GlassButtonStyle {
         padding: style.padding,
         minimumSize: style.minimumSize,
         iconSize: style.iconSize,
+        focusColor: style.focusColor,
+        hoverColor: style.hoverColor,
         builder: style.builder,
       );
 
@@ -255,6 +286,8 @@ class GlassProminentButtonStyle extends GlassButtonStyle {
     required WidgetStateProperty<EdgeInsetsGeometry?>? padding,
     required WidgetStateProperty<Size?>? minimumSize,
     required WidgetStateProperty<double?>? iconSize,
+    required Color? focusColor,
+    required Color? hoverColor,
     required GlassButtonBuilder? builder,
   }) => GlassProminentButtonStyle(
     backgroundColor: backgroundColor,
@@ -264,6 +297,8 @@ class GlassProminentButtonStyle extends GlassButtonStyle {
     padding: padding,
     minimumSize: minimumSize,
     iconSize: iconSize,
+    focusColor: focusColor,
+    hoverColor: hoverColor,
     builder: builder,
   );
 }
@@ -411,6 +446,8 @@ class GlassButton extends StatelessWidget {
     EdgeInsetsGeometry? padding,
     Size? minimumSize,
     double? iconSize,
+    Color? focusColor,
+    Color? hoverColor,
   }) => GlassButtonStyle(
     backgroundColor: byState(backgroundColor, disabledBackgroundColor),
     foregroundColor: byState(foregroundColor, disabledForegroundColor),
@@ -419,6 +456,8 @@ class GlassButton extends StatelessWidget {
     padding: allStates(padding),
     minimumSize: allStates(minimumSize),
     iconSize: allStates(iconSize),
+    focusColor: focusColor,
+    hoverColor: hoverColor,
   );
 
   // UIKit's title style, 17 regular (typography passport). The glyph size,
@@ -506,9 +545,13 @@ class GlassButton extends StatelessWidget {
   Widget _defaultBody(BuildContext context, GlassButtonDetails details) {
     final states = details.states;
     final tint = _lookOf(context).backgroundColor?.resolve(states);
+    final look = _lookOf(context);
     return GlassSurface.live(
       frame: details.body,
       glass: _clear ? Glass.clear(tint: tint) : Glass.regular(tint: tint),
+      states: details.statesListenable,
+      focusColor: look.focusColor,
+      hoverColor: look.hoverColor,
       child: _label(context, states, details.label),
     );
   }
