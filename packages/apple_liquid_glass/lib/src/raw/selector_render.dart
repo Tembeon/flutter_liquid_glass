@@ -263,14 +263,8 @@ class _RenderSelectorRow extends RenderBox
   Size computeDryLayout(covariant BoxConstraints constraints) =>
       _geometry(constraints).size;
 
-  Rect _shown(Rect slot) => _direction == TextDirection.rtl
-      ? Rect.fromLTRB(
-          size.width - slot.right,
-          slot.top,
-          size.width - slot.left,
-          slot.bottom,
-        )
-      : slot;
+  Rect _shown(Rect slot) =>
+      _direction == TextDirection.rtl ? mirroredIn(slot, size.width) : slot;
 
   // The box's offset in its box ancestors, up to the first that is not a
   // box (a sliver under a scroll, which moves without a layout).

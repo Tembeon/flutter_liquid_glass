@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
+import 'package:apple_liquid_glass/src/raw/mirror.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -436,14 +437,7 @@ final class _SliderFrames {
   static double _trackHeight(SliderMotion motion) =>
       motion.currentTrackHeight.clamp(0.0, double.infinity);
 
-  Rect _shown(Rect rect) => mirrored
-      ? Rect.fromLTRB(
-          _motion.width - rect.right,
-          rect.top,
-          _motion.width - rect.left,
-          rect.bottom,
-        )
-      : rect;
+  Rect _shown(Rect rect) => mirrored ? mirroredIn(rect, _motion.width) : rect;
 }
 
 /// A slider's touch: it takes a touch only on the thumb and holds it

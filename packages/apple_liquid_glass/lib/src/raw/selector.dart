@@ -3,6 +3,7 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
+import 'package:apple_liquid_glass/src/raw/mirror.dart';
 import 'package:apple_liquid_glass/src/raw/selector_values.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
