@@ -9,6 +9,7 @@ import 'package:kinesis/src/widgets/haptics.dart';
 import 'package:kinesis/src/widgets/input_intents.dart';
 import 'package:kinesis/src/widgets/input_shared.dart';
 import 'package:kinesis/src/widgets/input_target.dart';
+import 'package:kinesis/src/widgets/pointer_line.dart';
 import 'package:kinesis/src/widgets/scope.dart';
 
 /// Turns pointer, keyboard, hover and accessibility input into the input

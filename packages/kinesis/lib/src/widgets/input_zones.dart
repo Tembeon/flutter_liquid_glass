@@ -10,6 +10,7 @@ import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/widgets/input_shared.dart';
 import 'package:kinesis/src/widgets/input_target.dart';
+import 'package:kinesis/src/widgets/pointer_line.dart';
 import 'package:kinesis/src/widgets/scope.dart';
 import 'package:kinesis/src/widgets/source.dart';
 
