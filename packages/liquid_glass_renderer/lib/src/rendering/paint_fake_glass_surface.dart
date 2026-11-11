@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/rounded_superellipse_parameters.dart';
 
 /// Extra logical pixels required for the portion of the contour that lies
@@ -91,9 +92,9 @@ void paintFakeGlassSurface(
     alpha: surfaceTint.a * appearanceVisibility,
   );
   final faceEmission =
-      appearance.colorModel
-          .faceTransfer(tintAmount: settings.effectiveTintAmount)
-          ?.emission ??
+      appearance.colorModel.parameters
+          ?.faceTransfer(tintAmount: settings.effectiveTintAmount)
+          .emission ??
       const Color(0x00000000);
   final shapeType = switch (shape) {
     LiquidOval() => 0.0,
@@ -136,7 +137,10 @@ void paintFakeGlassSurface(
     GlassRim.highlightWrap,
     GlassRim.highlightOppositeStrength * appearanceVisibility,
     settings.contourStrength *
-        appearance.colorModel.contourScale(settings.effectiveTintAmount) *
+        (appearance.colorModel.parameters?.contourScale(
+              settings.effectiveTintAmount,
+            ) ??
+            1) *
         appearanceVisibility,
     settings.contourWidth,
     0, // contour transmittance

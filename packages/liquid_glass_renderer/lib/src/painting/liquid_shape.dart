@@ -1,5 +1,4 @@
 import 'package:flutter/painting.dart';
-import 'package:meta/meta.dart';
 
 /// Represents a shape that can be used by a `LiquidGlass` widget.
 ///
@@ -14,12 +13,6 @@ import 'package:meta/meta.dart';
 /// [ShapeDecoration].
 sealed class LiquidShape extends OutlinedBorder {
   const LiquidShape({super.side = BorderSide.none});
-
-  /// Corner radius in logical pixels, the top corners' when a
-  /// [LiquidRoundedSuperellipse] has a bottom radius of its own; `0` for
-  /// shapes without corners.
-  @internal
-  double get cornerRadius;
 
   OutlinedBorder get _equivalentOutlinedBorder;
 
@@ -80,24 +73,12 @@ final class LiquidRoundedSuperellipse extends LiquidShape {
   /// The radius of the two bottom corners, or `null` for [borderRadius].
   final double? bottomRadius;
 
-  /// Whether every corner has the same radius.
-  @internal
-  bool get isUniform => effectiveBottomRadius == borderRadius;
-
-  /// The radius of the two bottom corners.
-  @internal
-  double get effectiveBottomRadius => bottomRadius ?? borderRadius;
-
-  /// The four corners, for Flutter's clips and paths of the same outline.
-  @internal
+  /// The four corners as a [BorderRadius], for Flutter's clips and paths of
+  /// the same outline.
   BorderRadius get radii => BorderRadius.vertical(
     top: Radius.circular(borderRadius),
-    bottom: Radius.circular(effectiveBottomRadius),
+    bottom: Radius.circular(bottomRadius ?? borderRadius),
   );
-
-  @internal
-  @override
-  double get cornerRadius => borderRadius;
 
   @override
   OutlinedBorder get _equivalentOutlinedBorder =>
@@ -149,10 +130,6 @@ final class LiquidOval extends LiquidShape {
   /// The glass ignores [side]; see [LiquidShape].
   const LiquidOval({super.side = BorderSide.none});
 
-  @internal
-  @override
-  double get cornerRadius => 0;
-
   @override
   OutlinedBorder get _equivalentOutlinedBorder => OvalBorder(side: side);
 
@@ -189,10 +166,6 @@ final class LiquidRoundedRectangle extends LiquidShape {
 
   /// The radius of the corners.
   final double borderRadius;
-
-  @internal
-  @override
-  double get cornerRadius => borderRadius;
 
   @override
   OutlinedBorder get _equivalentOutlinedBorder => RoundedRectangleBorder(

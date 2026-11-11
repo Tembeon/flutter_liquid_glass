@@ -50,48 +50,9 @@ class LiquidGlassGlow {
   /// How much every color channel rises inside [bounds], in `[0, 1]` units.
   final double wash;
 
-  /// How many floats [uniformsOf] writes: uGlowSpot, uGlowBox, uGlowShape.
-  @internal
-  static const int floatCount = 12;
-
-  /// The floats of uGlowSpot, uGlowBox and uGlowShape for [glow] in a
-  /// layer whose matte has [devicePixelRatio] device pixels per unit; all
-  /// zero, which draws no glow, for none.
-  ///
-  /// The spot's radius goes in as its falloff `log2(e) / (2 sigma^2)` per
-  /// squared device pixel, so the shader's Gaussian is one exp2 with no
-  /// divide.
-  @internal
-  static List<double> uniformsOf(
-    LiquidGlassGlow? glow,
-    double devicePixelRatio,
-  ) {
-    if (glow == null || (glow.wash <= 0 && glow.gain <= 0)) {
-      return List<double>.filled(floatCount, 0);
-    }
-    final scale = devicePixelRatio;
-    final bounds = glow.bounds;
-    final spot = glow.radius > 0 && glow.gain > 0;
-    final sigma = glow.radius * scale;
-    final corner = glow.cornerRadius.clamp(0, bounds.shortestSide / 2);
-    return [
-      glow.center.dx * scale,
-      glow.center.dy * scale,
-      if (spot) math.log2e / (2 * sigma * sigma) else 0,
-      if (spot) glow.gain else 0,
-      bounds.center.dx * scale,
-      bounds.center.dy * scale,
-      bounds.width / 2 * scale,
-      bounds.height / 2 * scale,
-      corner * scale,
-      if (glow.wash > 0) glow.wash else 0,
-      0,
-      0,
-    ];
-  }
-
   /// The color the final pass gives the glass color [rgb] at [point], in
-  /// matte device pixels, under the glow [uniforms] (from [uniformsOf]):
+  /// matte device pixels, under the glow [uniforms] (the renderer's
+  /// `glowUniforms`):
   /// the CPU reference of shaders/glass_glow.glsl and of the branch that
   /// skips it.
   @visibleForTesting

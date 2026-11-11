@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
 import 'shared.dart';
@@ -78,7 +79,7 @@ void main() {
   ) async {
     final plain = await _render(tester, null);
     final lit = await _render(tester, _glow);
-    final uniforms = LiquidGlassGlow.uniformsOf(_glow, 1);
+    final uniforms = glowUniforms(_glow, 1);
 
     (double, double, double) at(Uint8List rgba, Offset p) {
       final i = (p.dy.toInt() * _view.width.toInt() + p.dx.toInt()) * 4;
@@ -113,7 +114,7 @@ void main() {
   }, skip: skipProperGlassTests);
 
   test('no glow writes zero uniforms', () {
-    expect(LiquidGlassGlow.uniformsOf(null, 3), List<double>.filled(12, 0));
+    expect(glowUniforms(null, 3), List<double>.filled(12, 0));
   });
 
   testWidgets('a new glow reaches the retained pass without a repaint', (

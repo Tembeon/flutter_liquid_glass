@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:meta/meta.dart';
 
@@ -153,7 +154,7 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
     shapeShortSide: shapeShortSide,
   );
   final blurs = sigma != 0;
-  final faceTransfer = colorModel.faceTransfer(
+  final faceTransfer = colorModel.parameters?.faceTransfer(
     tintAmount: settings.effectiveTintAmount,
   );
   final List<double>? matrix;

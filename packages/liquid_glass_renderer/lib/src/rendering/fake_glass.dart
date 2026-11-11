@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
+import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
@@ -98,7 +99,7 @@ class RenderFakeGlass extends RenderProxyBox with LivePaintSize {
       appearance.visibility > 0 &&
       (appearance.colorModel.saturation != 1 ||
           appearance.colorModel.transmissionGamma != 1 ||
-          appearance.colorModel.faceTransfer() != null);
+          appearance.colorModel.parameters != null);
 
   bool get _hasBackdropEffect => _hasBlur || _hasColorTransfer;
 

@@ -1,5 +1,4 @@
 import 'package:flutter/rendering.dart';
-import 'package:meta/meta.dart';
 
 /// What a layer adds to the scene around its children, outermost first: a
 /// `transform` (its offset included), a rounded `clip` in the transformed
@@ -31,10 +30,9 @@ abstract final class LiquidGlassUnderlay {
   ) {
     _effects[T] = (layer) => effects(layer as T);
   }
-
-  /// What [layer] adds around its children, or null for a type nobody
-  /// registered.
-  @internal
-  static LiquidGlassLayerEffects? effectsOf(Layer layer) =>
-      _effects[layer.runtimeType]?.call(layer);
 }
+
+/// What [layer] adds around its children, as its type registered with
+/// [LiquidGlassUnderlay.registerLayer], or null for a type nobody registered.
+LiquidGlassLayerEffects? underlayEffectsOf(Layer layer) =>
+    LiquidGlassUnderlay._effects[layer.runtimeType]?.call(layer);

@@ -323,10 +323,6 @@ final class LiquidGlassSettings {
   /// line. Clamped to `0` to `1`.
   final double backdropShrinkRim;
 
-  /// [backdropShrinkRim] clamped to `0` to `1`.
-  @internal
-  double get effectiveBackdropShrinkRim => backdropShrinkRim.clamp(0.0, 1.0);
-
   /// Backdrop blur, as an approximate Gaussian-equivalent sigma in logical
   /// pixels.
   ///
@@ -388,45 +384,20 @@ final class LiquidGlassSettings {
   /// Impeller downsampling point. An explicitly passed [frost] clears it.
   final bool _frostIsFloorEligible;
 
-  /// Effective bevel width; never negative.
-  @internal
-  double get effectiveRefractionHeight => math.max(0, refractionHeight);
-
-  /// Effective edge displacement; never negative.
-  @internal
-  double get effectiveRefractionAmount => math.max(0, refractionAmount);
-
-  /// Effective backdrop shrink, clamped to `0` to `0.75`.
-  @internal
-  double get effectiveBackdropShrink => backdropShrink.clamp(0.0, 0.75);
-
-  /// Effective slider position, clamped to `0` to `1`.
-  @internal
-  double get effectiveTintAmount => tintAmount.clamp(0.0, 1.0);
-
-  /// Effective blur sigma; never negative.
-  @internal
-  double get effectiveFrost => math.max(0, frost);
-
-  /// Backdrop blur sigma to render at [deviceScale] device pixels per logical
-  /// pixel.
+  /// The blur sigma, in logical pixels, that this [frost] renders with on a
+  /// display of [deviceScale] device pixels per logical pixel, for glass
+  /// whose short side is [shapeShortSide] logical pixels.
   ///
-  /// Explicit [frost] is returned as-is. Frost chosen by the default
-  /// constructor or a preset is first scaled by the shape's short side: Apple
-  /// diffuses larger glass more and smaller glass less, and [frost] is fitted
-  /// at toolbar size (94 pt). The scale is capped at 1.78 and the result is
-  /// floored at [_minBlurPassSigma]. It is then raised to at least
-  /// [_frostFloorDevicePx] divided by [deviceScale], so Impeller downsamples
-  /// the blur pass on the actual display; `0` stays `0`. The raise is capped
-  /// at the 2x value: on a 1x display a full-resolution blur is cheap (a
-  /// quarter of 2x's pixels), so the floor is not worth the larger look change
-  /// there. Pass the smaller axis scale when [deviceScale] is not uniform.
-  ///
-  /// [shapeShortSide] is the glass layer's short side in logical pixels. When
-  /// omitted, the fitted toolbar value is used unscaled.
-  @internal
+  /// An explicitly passed [frost] renders as given (a negative one as `0`).
+  /// The frost of the default constructor or a preset grows with the short
+  /// side: larger glass is diffused more and smaller glass less, from the
+  /// value fitted at toolbar size (94 pt), by at most 1.78 times. It is then
+  /// raised so the blur pass is downsampled on the display, at most to what
+  /// a 2x display needs; `0` stays `0`. Without [shapeShortSide] the toolbar
+  /// value is used. Pass the smaller axis scale when [deviceScale] is not
+  /// uniform.
   double frostSigmaAt(double deviceScale, {double? shapeShortSide}) {
-    final sigma = effectiveFrost;
+    final sigma = math.max<double>(0, frost);
     if (!_frostIsFloorEligible || sigma <= 0) return sigma;
     var sizedSigma = sigma;
     if (shapeShortSide != null && shapeShortSide > 0) {
@@ -451,23 +422,6 @@ final class LiquidGlassSettings {
     final scale = deviceScale > 0 ? deviceScale : 1.0;
     return math.max(sizedSigma, _frostFloorDevicePx / math.max(scale, 2.0));
   }
-
-  /// Shared displacement codec scale for the geometry and final passes.
-  /// [refractionAmount] is the exact peak of the profile, so the RGBA8 code
-  /// range is spent only on reachable displacement.
-  @internal
-  double get effectiveDisplacementScale =>
-      math.max(1e-3, effectiveRefractionAmount);
-
-  /// Lighting depth of the rim in logical pixels.
-  ///
-  /// Passed to the geometry and final shaders, which do not read it.
-  @internal
-  double get effectiveEdgeDistanceRange => math.max(12, refractionHeight);
-
-  /// Width of the dark border in logical pixels; `0` without a border.
-  @internal
-  double get contourWidth => contourStrength > 0 ? GlassRim.contourWidth : 0;
 
   /// Returns a copy with the supplied material controls replaced.
   LiquidGlassSettings copyWith({

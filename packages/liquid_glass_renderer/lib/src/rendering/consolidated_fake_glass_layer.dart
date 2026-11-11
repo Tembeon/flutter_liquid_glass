@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
+import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
@@ -85,7 +86,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   bool get _hasColorTransfer =>
       defaultAppearance.colorModel.saturation != 1 ||
       defaultAppearance.colorModel.transmissionGamma != 1 ||
-      defaultAppearance.colorModel.faceTransfer() != null;
+      defaultAppearance.colorModel.parameters != null;
   bool get _hasBackdropEffect => _hasBlur || _hasColorTransfer;
 
   /// Whether [appearance] can use the layer's shared backdrop filter: it

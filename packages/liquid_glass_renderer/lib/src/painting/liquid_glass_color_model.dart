@@ -414,39 +414,6 @@ class GlassColorParameters {
     );
   }
 
-  /// Floats of one slot of `uColorModelParams` in the final render shader.
-  /// Six vec4 slots per model; keep the packing mirrored with
-  /// liquid_glass_final_render_core.glsl.
-  @internal
-  List<double> toShaderParameters() {
-    return [
-      emissionColor.r,
-      emissionColor.g,
-      emissionColor.b,
-      emissionAlpha.clear,
-      emissionAlpha.tinted,
-      transmittance.clear,
-      transmittance.tinted,
-      contourResponse,
-      luminanceLift.clear,
-      luminanceLift.tinted,
-      chromaGain.clear,
-      chromaGain.tinted,
-      toneLow.base,
-      toneLow.amplitude,
-      toneLow.pivot,
-      toneLow.exponent,
-      toneHigh.base,
-      toneHigh.amplitude,
-      toneHigh.pivot,
-      toneHigh.exponent,
-      toneGammaLuminance,
-      glintLuminance,
-      glintFaceGain,
-      glintVibrancy,
-    ];
-  }
-
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -497,8 +464,9 @@ class GlassColorParameters {
 /// the direct model, which applies tint, gamma, saturation and vibrancy per
 /// channel with no backdrop conditioning. The fitted iOS 27 models ship as
 /// presets: [LiquidGlassColorModel.ios27] and
-/// [LiquidGlassColorModel.ios27Clear]. The parameter sets themselves are
-/// internal; custom values enter through [LiquidGlassColorModel.fromJson].
+/// [LiquidGlassColorModel.ios27Clear]. A model of other constants takes a
+/// [GlassColorParameters] of its own, or reads one from
+/// [LiquidGlassColorModel.fromJson].
 @immutable
 final class LiquidGlassColorModel {
   /// A backdrop-adaptive model driven entirely by [parameters].
@@ -506,7 +474,6 @@ final class LiquidGlassColorModel {
   /// The relative adjustments ([saturation], [transmissionGamma] and
   /// [vibrancy]) are fixed identity: the fitted parameter set carries the
   /// whole transfer.
-  @internal
   const LiquidGlassColorModel(this.parameters)
     : saturation = 1,
       transmissionGamma = 1,
@@ -580,7 +547,6 @@ final class LiquidGlassColorModel {
       (value as num?)?.toDouble() ?? fallback;
 
   /// The model's constants, or `null` for [LiquidGlassColorModel.direct].
-  @internal
   final GlassColorParameters? parameters;
 
   /// Saturation applied to transmitted backdrop content.
@@ -626,52 +592,6 @@ final class LiquidGlassColorModel {
       : {
           name: {'transmissionGamma': transmissionGamma},
         };
-
-  /// The untinted face, or `null` when transmitted content is composited per
-  /// channel (the direct model).
-  ///
-  /// See [GlassColorParameters.faceTransfer].
-  @internal
-  ({Color emission, double transmittance, double lift, double chromaGain})?
-  faceTransfer({double tintAmount = 0}) =>
-      parameters?.faceTransfer(tintAmount: tintAmount);
-
-  /// Factor applied to the border strength at the Liquid Glass slider
-  /// position [tintAmount]. Mirrors the shader's contour response.
-  @internal
-  double contourScale(double tintAmount) =>
-      parameters?.contourScale(tintAmount) ?? 1;
-
-  /// Luminance of the neutral glint target FakeGlass composites, which
-  /// cannot scale with the face it does not sample.
-  @internal
-  double get fakeGlintLuminance =>
-      parameters?.fakeGlintLuminance ??
-      GlassColorParameters._defaultGlintLuminance;
-
-  /// How much the face contributes to the FakeGlass glint target.
-  /// FakeGlass approximates the face with its surface tint plus emission.
-  @internal
-  double get fakeGlintFaceGain =>
-      parameters?.glintFaceGain ?? GlassColorParameters._defaultGlintFaceGain;
-
-  /// How strongly the FakeGlass glint amplifies the face chroma proxy.
-  @internal
-  double get fakeGlintVibrancy =>
-      parameters?.glintVibrancy ?? GlassColorParameters._defaultGlintVibrancy;
-
-  /// Resolves the single-color surface tint painted by FakeGlass.
-  ///
-  /// FakeGlass cannot inspect backdrop luminance in its analytic surface
-  /// shader, so adaptive models evaluate their tonal ramp at a midtone. Their
-  /// neutral face is applied by the backdrop color filter instead, so it is
-  /// not part of this color.
-  @internal
-  Color approximateSurfaceTint(Color tint) {
-    if (parameters == null) return tint;
-    if (tint.a <= 0) return const Color(0x00000000);
-    return parameters!.tintTone(tint, 0.5).withValues(alpha: tint.a);
-  }
 
   @override
   bool operator ==(Object other) =>

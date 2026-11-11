@@ -13,6 +13,7 @@ import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
 import 'package:liquid_glass_renderer/src/rendering/debug.dart';
+import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/filter_pass_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
@@ -205,7 +206,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   List<double> get _glowNow =>
-      _glowUniforms ??= LiquidGlassGlow.uniformsOf(_glow, devicePixelRatio);
+      _glowUniforms ??= glowUniforms(_glow, devicePixelRatio);
 
   /// [smallestVisibleShortSide], measured when geometry is bound. Starts at
   /// [largestFittedShortSide] so a bounds query before the first paint

@@ -808,7 +808,7 @@ FormNode _nodeOf(Layer layer) {
       return PlainNode(layer as ContainerLayer);
     case ContainerLayer() when layer.runtimeType == ContainerLayer:
       return PlainNode(layer);
-    case ContainerLayer() when LiquidGlassUnderlay.effectsOf(layer) != null:
+    case ContainerLayer() when underlayEffectsOf(layer) != null:
       return EffectsNode(layer);
     case _:
       return VolatileNode(layer, ReadLimit.liveOnly);
@@ -1486,7 +1486,7 @@ final class EffectsNode extends OpenNode with _Matrix {
 
   @override
   void enter(SceneOut out, Rect band) {
-    final effects = LiquidGlassUnderlay.effectsOf(layer)!;
+    final effects = underlayEffectsOf(layer)!;
     out.transform(effects.transform);
     final builder = out.builder;
     if (effects.clip case final rounded?) {
@@ -1517,7 +1517,7 @@ final class EffectsNode extends OpenNode with _Matrix {
 
   @override
   bool updateWorld(FormWorld outside) {
-    final effects = LiquidGlassUnderlay.effectsOf(layer)!;
+    final effects = underlayEffectsOf(layer)!;
     _hidden = effects.alpha == 0;
     final token = (effects.clip, effects.alpha, effects.blur);
     if (_token != token) edited = true;

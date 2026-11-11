@@ -569,7 +569,6 @@ class GlassColorParameters
   final GlassColorCurve luminanceLift
   Color tintTone(Color tint, double luminance)
   Map<String, Object?> toJson()
-  @internal List<double> toShaderParameters()
   final double toneGammaLuminance
   final GlassToneRamp toneHigh
   final GlassToneRamp toneLow
@@ -715,16 +714,8 @@ final class LiquidGlassColorModel
     double transmissionGamma = ...,
   })
   const LiquidGlassColorModel.ios27Clear()
-  @internal const LiquidGlassColorModel(GlassColorParameters? parameters)
-  @internal Color approximateSurfaceTint(Color tint)
-  @internal double contourScale(double tintAmount)
-  @internal ({double chromaGain, Color emission, double lift, double transmittance})? faceTransfer({
-    double tintAmount = ...,
-  })
-  @internal double get fakeGlintFaceGain
-  @internal double get fakeGlintLuminance
-  @internal double get fakeGlintVibrancy
-  @internal final GlassColorParameters? parameters
+  const LiquidGlassColorModel(GlassColorParameters? parameters)
+  final GlassColorParameters? parameters
   final double saturation
   Object toJson()
   final double transmissionGamma
@@ -763,17 +754,12 @@ class LiquidGlassGlow
   final Rect bounds
   final Offset center
   final double cornerRadius
-  @internal static const int floatCount
   final double gain
   final double radius
   @visibleForTesting static (double, double, double) shade(
     List<double> uniforms,
     Offset point,
     (double, double, double) rgb,
-  )
-  @internal static List<double> uniformsOf(
-    LiquidGlassGlow? glow,
-    double devicePixelRatio,
   )
   final double wash
   overrides: ==, hashCode
@@ -845,7 +831,6 @@ final class LiquidGlassSettings
   final double bevelShadowStrength
   final double contourDirectionality
   final double contourStrength
-  @internal double get contourWidth
   LiquidGlassSettings copyWith({
     double? refractionHeight,
     double? refractionAmount,
@@ -861,16 +846,8 @@ final class LiquidGlassSettings
     double? tintAmount,
   })
   final double dispersion
-  @internal double get effectiveBackdropShrink
-  @internal double get effectiveBackdropShrinkRim
-  @internal double get effectiveDisplacementScale
-  @internal double get effectiveEdgeDistanceRange
-  @internal double get effectiveFrost
-  @internal double get effectiveRefractionAmount
-  @internal double get effectiveRefractionHeight
-  @internal double get effectiveTintAmount
   final double frost
-  @internal double frostSigmaAt(double deviceScale, {double? shapeShortSide})
+  double frostSigmaAt(double deviceScale, {double? shapeShortSide})
   final double highlight
   static double ios27ClearFrost(double tintAmount)
   static double ios27RegularFrost(double tintAmount)
@@ -916,14 +893,14 @@ class LiquidGlassVisibility extends StatelessWidget
   overrides: build
 final class LiquidOval extends LiquidShape
   const LiquidOval({BorderSide side = ...})
-  overrides: copyWith, cornerRadius, scale, toString
+  overrides: copyWith, scale, toString
 final class LiquidRoundedRectangle extends LiquidShape
   const LiquidRoundedRectangle({
     required double borderRadius,
     BorderSide side = ...,
   })
   final double borderRadius
-  overrides: ==, copyWith, cornerRadius, hashCode, scale, toString
+  overrides: ==, copyWith, hashCode, scale, toString
 final class LiquidRoundedSuperellipse extends LiquidShape
   const LiquidRoundedSuperellipse({
     required double borderRadius,
@@ -932,13 +909,10 @@ final class LiquidRoundedSuperellipse extends LiquidShape
   })
   final double borderRadius
   final double? bottomRadius
-  @internal double get effectiveBottomRadius
-  @internal bool get isUniform
-  @internal BorderRadius get radii
-  overrides: ==, copyWith, cornerRadius, hashCode, scale, toString
+  BorderRadius get radii
+  overrides: ==, copyWith, hashCode, scale, toString
 sealed class LiquidShape extends OutlinedBorder
   const LiquidShape({BorderSide side = ...})
-  @internal double get cornerRadius
   overrides: ==, getInnerPath, getOuterPath, hashCode, paint
 
 # package:liquid_glass_renderer/painting.dart
@@ -1143,9 +1117,6 @@ mixin LiquidGlassShapeRenderObject on RenderBox
   Size get paintSize
 abstract final class LiquidGlassUnderlay
   LiquidGlassUnderlay()
-  @internal static ({int? alpha, double blur, RRect? clip, Matrix4 transform})? effectsOf(
-    Layer layer,
-  )
   static void registerLayer<T extends ContainerLayer>(
     ({int? alpha, double blur, RRect? clip, Matrix4 transform}) Function(T) effects,
   )
