@@ -355,14 +355,11 @@ void main() {
     ).style.color;
     expect(color('Title'), const Color(0xFF00AA00));
     expect(color('Cancel'), const Color(0xFFAA0000));
-    final fills = tester
-        .widgetList<DecoratedBox>(
-          find.ancestor(
-            of: find.text('OK'),
-            matching: find.byType(DecoratedBox),
-          ),
-        )
-        .map((box) => (box.decoration as ShapeDecoration).color);
-    expect(fills, contains(const Color(0xFF0000AA)));
+    expect(
+      find
+          .ancestor(of: find.text('OK'), matching: find.byType(CustomPaint))
+          .first,
+      paints..rrect(color: const Color(0xFF0000AA)),
+    );
   });
 }

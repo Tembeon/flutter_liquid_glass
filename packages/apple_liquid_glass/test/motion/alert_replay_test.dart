@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motions/alert_motion.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/motion.dart';
 
 List<Map<String, Object?>> _rows(String dir, String file) => [
   for (final line in File('$dir/$file').readAsLinesSync())
@@ -136,9 +137,53 @@ void main() {
 
     test('under Reduce Motion it presents at its size', () {
       final motion = AlertMotion();
-      motion.reducedMotion = true;
+      MotionTraits.debugPlatformOverride = const MotionTraits(
+        reduceMotion: true,
+      );
+      addTearDown(() => MotionTraits.debugPlatformOverride = null);
       motion.present(0);
       expect(motion.scale, 1);
+    });
+  });
+
+  group('predictive back', () {
+    test('the gesture runs the dismissal by its progress', () {
+      final motion = AlertMotion();
+      motion.present(0);
+      _at(motion, 2);
+      final shownScale = motion.scale;
+      motion.backStarted(2);
+      motion.backMoved(2, 0);
+      expect(motion.opacity, 1);
+      motion.backMoved(2.1, 0.4);
+      expect(_at(motion, 2.1).opacity, closeTo(0.6, 1e-9));
+      expect(motion.scale, lessThanOrEqualTo(shownScale));
+      expect(motion.presence, isNot(PresenceStatus.leaving));
+    });
+
+    test('a commit leaves from the gesture with its velocity', () {
+      final motion = AlertMotion();
+      motion.present(0);
+      _at(motion, 2);
+      motion.backStarted(2);
+      motion.backMoved(2.1, 0.4);
+      motion.backEnded(2.1, commits: true, velocity: 3);
+      expect(motion.leave(2.1, DismissTrigger.back), isTrue);
+      final early = _at(motion, 2.12).opacity;
+      expect(early, lessThan(0.6 - 3 * 0.02 * 0.5));
+      expect(_at(motion, 4).presence, PresenceStatus.hidden);
+    });
+
+    test('a cancel springs back to shown', () {
+      final motion = AlertMotion();
+      motion.present(0);
+      _at(motion, 2);
+      motion.backStarted(2);
+      motion.backMoved(2.1, 0.5);
+      motion.backEnded(2.1, commits: false, velocity: -1);
+      expect(_at(motion, 2.15).opacity, greaterThan(0.5));
+      expect(_at(motion, 4).presence, PresenceStatus.shown);
+      expect(motion.opacity, closeTo(1, 1e-3));
     });
   });
 }

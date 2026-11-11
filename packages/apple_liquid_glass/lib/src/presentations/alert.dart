@@ -1,21 +1,16 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/foundation/colors.dart';
-import 'package:apple_liquid_glass/src/foundation/frame.dart';
-import 'package:apple_liquid_glass/src/foundation/glass.dart';
-import 'package:apple_liquid_glass/src/foundation/shape.dart';
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/theme.dart';
-import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/alert_motion.dart';
 import 'package:apple_liquid_glass/src/motions/glass_press.dart';
 import 'package:apple_liquid_glass/src/motions/popover_motion.dart';
 import 'package:apple_liquid_glass/src/presentations/popover.dart';
-import 'package:apple_liquid_glass/src/raw/slot_map.dart';
+import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
 import 'package:apple_liquid_glass/src/surfaces/surface.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
@@ -187,7 +182,8 @@ class GlassAlertAction {
   final VoidCallback? onPressed;
 
   /// Whether this is the preferred action: its button is filled with the
-  /// accent color, its label semibold, and Return chooses it.
+  /// accent color, its label semibold, and it takes the focus when the
+  /// alert opens, so Return chooses it.
   final bool isDefaultAction;
 
   /// Whether the button takes taps; a disabled one keeps its fill and draws
@@ -219,9 +215,14 @@ class GlassAlertAction {
 /// 16 Pro); under Reduce Motion it presents at its size. A finger slides
 /// between the buttons and chooses the one it lifts from, lifting the
 /// whole platter as a glass button lifts. The chosen action's handler runs
-/// once the alert has gone. Escape, Back and a screen reader's dismiss
-/// choose the cancel action; without one they do nothing, and neither
-/// does a tap outside.
+/// once the alert has gone. Each button is a focus stop: the default
+/// action has the focus when the alert opens, Tab and the arrows move
+/// between the buttons, and Return and Space choose the focused one.
+/// Escape, Back (Android's predictive back fading the alert with the
+/// gesture) and a screen reader's dismiss choose the cancel action;
+/// without one they do nothing, and neither does a tap outside. Screen
+/// readers hear an alert dialog named by the title, or the message
+/// without one, or [GlassLocalizations.alertLabel].
 Future<GlassAlertAction?> showGlassAlert(
   BuildContext context, {
   Widget? title,
@@ -238,6 +239,7 @@ Future<GlassAlertAction?> showGlassAlert(
       actions: actions,
       style: style,
       actionSheet: false,
+      strings: GlassLocalizations.of(context),
     ),
   ),
   level: level,
@@ -258,7 +260,9 @@ Future<GlassAlertAction?> showGlassAlert(
 /// leaves the cancel action out, which a tap outside chooses. Without a
 /// source an action sheet is an alert whose actions stand in a column with
 /// the cancel action last; a tap outside chooses the cancel action, or
-/// closes it without one.
+/// closes it without one, and screen readers find the dimming as
+/// [GlassLocalizations.actionSheetDismissLabel]. The keys and screen
+/// readers reach its buttons as an alert's.
 Future<GlassAlertAction?> showGlassActionSheet(
   BuildContext context, {
   Widget? title,
@@ -277,6 +281,7 @@ Future<GlassAlertAction?> showGlassActionSheet(
       actions: actions,
       style: style,
       actionSheet: true,
+      strings: GlassLocalizations.of(context),
       anchorRect: anchor == null && anchorRect == null
           ? null
           : popoverSource(
@@ -295,6 +300,7 @@ Presentation<GlassAlertAction, Presented> _alert({
   required List<GlassAlertAction> actions,
   required GlassAlertStyle? style,
   required bool actionSheet,
+  required GlassLocalizations strings,
   Rect? anchorRect,
 }) {
   final cancel = _cancelOf(actions);
@@ -328,7 +334,9 @@ Presentation<GlassAlertAction, Presented> _alert({
         : null,
     result: (result) => result ?? cancel,
     onDismissed: (action) => action?.onPressed?.call(),
-    semanticsLabel: _text(title) ?? _text(message),
+    semanticsLabel: _text(title) ?? _text(message) ?? strings.alertLabel,
+    semanticsRole: SemanticsRole.alertDialog,
+    barrierLabel: actionSheet ? strings.actionSheetDismissLabel : null,
   );
 }
 
@@ -413,39 +421,32 @@ class _AlertViewState extends State<_AlertView> {
   late final _lean = _press.select((p) => p.lean);
   late final _pressX = _press.select((p) => p.scaleX);
   late final _pressY = _press.select((p) => p.scaleY);
-  final _slots = SlotMap<GlassAlertAction>();
-  final _focus = FocusNode(skipTraversal: true);
-  late final List<Interaction> _interactions = [
-    if (_popover == null)
-      _scrub.simultaneously(
-        FollowInteraction(_press, role: InteractionRole.content),
-      )
-    else
-      _scrub,
+  // A scroll of the content takes the touch from the platter and from the
+  // actions, which cancels the lift and the press.
+  late final List<Interaction> _platter = [
+    FollowInteraction(_press, role: InteractionRole.content),
   ];
-  // A scroll of the content takes the touch from the region, which cancels
-  // the scrub and the press.
-  late final _scrub = ScrubInteraction(
-    hit: _actionAt,
-    role: InteractionRole.content,
-    onChanged: (action, t) {
-      if (!_leaving.value) _highlighted.value = action as GlassAlertAction?;
-    },
-    onCommit: (action, t) {
-      _highlighted.value = null;
-      _choose(action as GlassAlertAction);
-    },
-  );
-  final _highlighted = ValueNotifier<GlassAlertAction?>(null);
+  final _zones = InputZonesController<int>();
+  final _scroll = ScrollController();
+  // Bumped when the card's size settles, as the actions' frames read the
+  // layout.
+  final _layouts = ValueNotifier<int>(0);
+  late final _frames = Listenable.merge([_scroll, _layouts]);
+  final _card = GlobalKey(debugLabel: 'alert card');
+  final _block = GlobalKey(debugLabel: 'alert actions');
+  final List<List<Interaction>> _presses = [];
+  final List<GlassHighlight> _highlights = [];
   late final MotionSelection<double> _opacity;
   late final MotionSelection<double> _scale;
   late final MotionSelection<bool> _leaving;
   late final MotionSelection<GlassFrame> _frame;
-  static const _platter = GlassShape.superellipse(AlertTuning.cornerRadius);
+  static const _platterShape = GlassShape.superellipse(
+    AlertTuning.cornerRadius,
+  );
 
   List<GlassAlertAction> _shown = const [];
-
-  double get _now => MotionClock.instance.now;
+  bool _row = false;
+  bool _rtl = false;
 
   @override
   void initState() {
@@ -460,7 +461,7 @@ class _AlertViewState extends State<_AlertView> {
       _scale = alert.select((m) => m.scale);
       _leaving = alert.select((m) => m.isLeaving);
       _frame = alert.select(
-        (m) => GlassFrame(shape: _platter, opacity: m.opacity),
+        (m) => GlassFrame(shape: _platterShape, opacity: m.opacity),
       );
     }
     _leaving.addListener(_left);
@@ -469,16 +470,18 @@ class _AlertViewState extends State<_AlertView> {
   @override
   void dispose() {
     _leaving.removeListener(_left);
-    _highlighted.dispose();
-    _focus.dispose();
+    _zones.dispose();
+    _scroll.dispose();
+    _layouts.dispose();
     super.dispose();
   }
 
+  // The presentation is inert from its leave on; a finger already down
+  // stops lifting the platter.
   void _left() {
-    if (!_leaving.value) return;
-    if (_press.isPressed) _press.pointerCancel(_now);
-    _highlighted.value = null;
-    setState(() {});
+    if (_leaving.value && _press.isPressed) {
+      _press.pointerCancel(widget.motion.clock.now);
+    }
   }
 
   void _choose(GlassAlertAction action) {
@@ -488,24 +491,75 @@ class _AlertViewState extends State<_AlertView> {
     ).dismiss(DismissTrigger.programmatic, action);
   }
 
-  void _return() {
-    for (final action in _shown) {
-      if (action.isDefaultAction) {
-        _choose(action);
-        return;
-      }
+  List<Interaction> _pressOf(int index) {
+    while (_presses.length <= index) {
+      final i = _presses.length;
+      _presses.add([
+        PressInteraction(
+          role: InteractionRole.content,
+          onTap: (t) => _choose(_shown[i]),
+        ),
+      ]);
     }
+    return _presses[index];
   }
 
-  GlassAlertAction? _actionAt(Offset position) {
-    final action = _slots.at(position);
-    return action != null && action.enabled ? action : null;
+  GlassHighlight _highlightOf(int index) {
+    while (_highlights.length <= index) {
+      _highlights.add(
+        GlassHighlight(states: _ZoneStates(_zones, _highlights.length)),
+      );
+    }
+    return _highlights[index];
   }
 
-  static MotionHaptic? _feedback(InteractionEvent event) => switch (event) {
-    ScrubChangeEvent(atDown: false, selected: _?) => MotionHaptic.selection,
-    _ => null,
-  };
+  // Where action [index] lies in the card: its slot in the block of
+  // buttons, carried by the layout and the scroll to the card's box, and
+  // cut to what the card shows.
+  InputZoneFrame? _frameOf(int index) {
+    final card = _card.currentContext?.findRenderObject();
+    final block = _block.currentContext?.findRenderObject();
+    if (card is! RenderBox ||
+        block is! RenderBox ||
+        !card.hasSize ||
+        !block.hasSize ||
+        !block.attached ||
+        index >= _shown.length) {
+      return null;
+    }
+    final slot = _slot(index, block.size.width);
+    final rect = MatrixUtils.transformRect(block.getTransformTo(card), slot);
+    return InputZoneFrame(
+      rect.intersect(Offset.zero & card.size),
+      radius: BorderRadius.circular(AlertTuning.buttonHeight / 2),
+    );
+  }
+
+  Rect _slot(int index, double width) {
+    const height = AlertTuning.buttonHeight;
+    if (_row) {
+      final each = (width - AlertTuning.buttonGap) / 2;
+      final first = (index == 0) != _rtl;
+      return Rect.fromLTWH(
+        first ? 0 : each + AlertTuning.buttonGap,
+        0,
+        each,
+        height,
+      );
+    }
+    return Rect.fromLTWH(
+      0,
+      index * (height + AlertTuning.buttonGap),
+      width,
+      height,
+    );
+  }
+
+  static MotionHaptic? _feedback(int action, InteractionEvent event) =>
+      switch (event) {
+        ScrubChangeEvent(atDown: false) => MotionHaptic.selection,
+        _ => null,
+      };
 
   GlassAlertStyle _look = const GlassAlertStyle();
 
@@ -572,29 +626,24 @@ class _AlertViewState extends State<_AlertView> {
     _look = (widget.style ?? const GlassAlertStyle()).merge(
       GlassAlertStyle.maybeOf(context),
     );
-    final reduced = GlassTraits.of(context).reduceMotion;
-    _alert?.reducedMotion = reduced;
-    _popover?.reducedMotion = reduced;
-    _press.reducedMotion = reduced;
+    final traits = GlassTraits.of(context);
+    _press.reducedMotion = traits.reduceMotion;
+    _rtl = Directionality.of(context) == TextDirection.rtl;
     final popover = widget.anchorRect;
     final screen = MediaQuery.sizeOf(context);
     final width = math.min(
       popover == null ? AlertTuning.width : AlertTuning.popoverWidth,
       screen.width - 2 * AlertTuning.screenMargin,
     );
-    final row =
+    _row =
         !widget.actionSheet &&
         widget.actions.length == 2 &&
         _fitsInRow(width, context);
-    _shown = _ordered(widget.actions, row: row, popover: popover != null);
-    final card = _buildCard(width, row, context);
-    Widget interactive(Widget child) => CallbackShortcuts(
-      bindings: {const SingleActivator(LogicalKeyboardKey.enter): _return},
-      child: FocusScope(
-        autofocus: true,
-        child: IgnorePointer(ignoring: _leaving.value, child: child),
-      ),
-    );
+    _shown = _ordered(widget.actions, row: _row, popover: popover != null);
+    for (final highlight in _highlights) {
+      highlight.reduceMotion = traits.reduceMotion;
+    }
+    final card = _buildCard(width, context);
     if (popover != null) {
       final media = MediaQuery.of(context);
       return PopoverLayout(
@@ -606,7 +655,7 @@ class _AlertViewState extends State<_AlertView> {
           bottom: math.max(media.padding.bottom, media.viewInsets.bottom),
         ),
         direction: Directionality.of(context),
-        card: interactive(card),
+        card: card,
       );
     }
     final safe = MediaQuery.paddingOf(context);
@@ -619,22 +668,20 @@ class _AlertViewState extends State<_AlertView> {
         math.max(safe.bottom, keyboard),
       ),
       child: Center(
-        child: interactive(
-          MotionTransition(
-            scale: _scale,
-            child: MotionTransition(
-              offset: _lean,
-              scaleX: _pressX,
-              scaleY: _pressY,
-              child: card,
-            ),
+        child: MotionTransition(
+          scale: _scale,
+          child: MotionTransition(
+            offset: _lean,
+            scaleX: _pressX,
+            scaleY: _pressY,
+            child: card,
           ),
         ),
       ),
     );
   }
 
-  Widget _buildCard(double width, bool row, BuildContext context) {
+  Widget _buildCard(double width, BuildContext context) {
     final label = GlassTheme.labelColorOf(context);
     final title = widget.title;
     final message = widget.message;
@@ -678,21 +725,18 @@ class _AlertViewState extends State<_AlertView> {
         ),
     ];
     final buttons = [
-      for (final action in _shown)
-        SlotMapEntry(
-          map: _slots,
-          id: action,
-          child: _AlertButton(
-            action: action,
-            highlighted: _highlighted,
-            label: _labelStyle(action, context),
-            fill: _fillOf(action, context),
-            onChoose: _choose,
-          ),
+      for (final (i, action) in _shown.indexed)
+        _AlertButton(
+          action: action,
+          states: _ZoneStates(_zones, i),
+          highlight: _highlightOf(i),
+          label: _labelStyle(action, context),
+          fill: _fillOf(action, context),
         ),
     ];
-    final block = row
+    final block = _row
         ? Row(
+            key: _block,
             children: [
               Expanded(child: buttons[0]),
               const SizedBox(width: AlertTuning.buttonGap),
@@ -700,6 +744,7 @@ class _AlertViewState extends State<_AlertView> {
             ],
           )
         : Column(
+            key: _block,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               for (var i = 0; i < buttons.length; i++) ...[
@@ -745,91 +790,131 @@ class _AlertViewState extends State<_AlertView> {
     );
     return MediaQuery.withClampedTextScaling(
       maxScaleFactor: AlertTuning.maxTextScale,
-      child: InputRegion(
-        interactions: _interactions,
-        feedback: _feedback,
-        focusNode: _focus,
-        child: SlotMapOrigin(
-          map: _slots,
-          child: SizedBox(
-            width: width,
-            child: Stack(
-              children: [
-                if (_popover == null)
-                  Positioned.fill(
-                    child: GlassSurface.live(
-                      role: GlassRole.panel,
-                      frame: _frame,
-                      child: const SizedBox.expand(),
-                    ),
-                  ),
-                MotionTransition(
-                  opacity: _opacity,
-                  child: ClipRSuperellipse(
-                    borderRadius: BorderRadius.circular(
-                      _popover == null
-                          ? AlertTuning.cornerRadius
-                          : PopoverTuning.cornerRadius,
-                    ),
-                    child: ListView(
-                      shrinkWrap: true,
-                      padding: EdgeInsets.zero,
-                      physics: const ClampingScrollPhysics(),
-                      children: [content],
-                    ),
-                  ),
-                ),
-              ],
+      child: InputZones<int>(
+        zones: [
+          for (final (i, action) in _shown.indexed)
+            InputZone<int>(
+              id: i,
+              interactions: _pressOf(i),
+              enabled: action.enabled,
+              minimumHitSize: const Size.square(44),
+              autofocus: action.isDefaultAction && action.enabled,
+              semanticLabel: _text(action.child),
+              button: true,
             ),
-          ),
-        ),
+        ],
+        frameOf: _frameOf,
+        frames: _frames,
+        controller: _zones,
+        axis: _row ? Axis.horizontal : Axis.vertical,
+        slides: true,
+        feedback: _feedback,
+        excludeChildSemantics: false,
+        // The platter's lift sits below the zones: a region above them
+        // would answer their Space and Enter.
+        child: _popover != null
+            ? _measured(width, content)
+            : InputRegion(
+                interactions: _platter,
+                child: _measured(width, content),
+              ),
       ),
     );
   }
+
+  Widget _measured(double width, Widget content) => MotionMeasure(
+    onSize: (t, size) => _layouts.value++,
+    child: SizedBox(
+      key: _card,
+      width: width,
+      child: Stack(
+        children: [
+          if (_popover == null)
+            Positioned.fill(
+              child: GlassSurface.live(
+                role: GlassRole.panel,
+                frame: _frame,
+                child: const SizedBox.expand(),
+              ),
+            ),
+          MotionTransition(
+            opacity: _opacity,
+            child: ClipRSuperellipse(
+              borderRadius: BorderRadius.circular(
+                _popover == null
+                    ? AlertTuning.cornerRadius
+                    : PopoverTuning.cornerRadius,
+              ),
+              child: ListView(
+                controller: _scroll,
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                physics: const ClampingScrollPhysics(),
+                children: [content],
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
+/// One action's states, read from the zones of all of them.
+final class _ZoneStates implements ValueListenable<Set<WidgetState>> {
+  _ZoneStates(this.zones, this.id);
+
+  final InputZonesController<int> zones;
+  final int id;
+
+  @override
+  Set<WidgetState> get value => zones.statesOf(id);
+
+  @override
+  void addListener(VoidCallback listener) => zones.addListener(listener);
+
+  @override
+  void removeListener(VoidCallback listener) => zones.removeListener(listener);
+}
+
+/// An action's capsule and label. Its zone of the alert's [InputZones]
+/// takes its input and speaks for it to assistive technology, so a label
+/// that is plain text is not read twice.
 class _AlertButton extends StatelessWidget {
   const _AlertButton({
     required this.action,
-    required this.highlighted,
+    required this.states,
+    required this.highlight,
     required this.label,
     required this.fill,
-    required this.onChoose,
   });
 
   final GlassAlertAction action;
-  final ValueListenable<GlassAlertAction?> highlighted;
+  final ValueListenable<Set<WidgetState>> states;
+  final GlassHighlight highlight;
   final TextStyle label;
   final Color fill;
-  final ValueChanged<GlassAlertAction> onChoose;
 
   @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      container: true,
-      button: true,
-      enabled: action.enabled,
-      onTap: action.enabled ? () => onChoose(action) : null,
-      child: ValueListenableBuilder<GlassAlertAction?>(
-        valueListenable: highlighted,
-        builder: (context, over, child) => DecoratedBox(
-          decoration: ShapeDecoration(
-            color: identical(over, action)
-                ? fill.withValues(
-                    alpha: fill.a * AlertTuning.pressedFillOpacity,
-                  )
-                : fill,
-            shape: const StadiumBorder(),
+  Widget build(BuildContext context) => GlassHighlightPaint.of(
+    context,
+    states: states,
+    hoverColor: const Color(0x00000000),
+    child: CustomPaint(
+      painter: _CapsulePainter(
+        states: states,
+        highlight: highlight,
+        fill: fill,
+      ),
+      child: SizedBox(
+        height: AlertTuning.buttonHeight,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AlertTuning.buttonTextInset,
           ),
-          child: child,
-        ),
-        child: SizedBox(
-          height: AlertTuning.buttonHeight,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AlertTuning.buttonTextInset,
-            ),
-            child: Center(
+          child: Center(
+            child: ExcludeSemantics(
+              excluding: _text(action.child) != null,
               child: DefaultTextStyle(
                 style: label,
                 maxLines: 1,
@@ -841,6 +926,46 @@ class _AlertButton extends StatelessWidget {
           ),
         ),
       ),
+    ),
+  );
+}
+
+/// An action's capsule: its fill at [AlertTuning.pressedFillOpacity] of
+/// itself while pressed, and at [GlassHighlights.hoverGain] of that change
+/// under the pointer. The hover look is an approximation by the rule of
+/// [GlassHighlights], not measured on the platform.
+class _CapsulePainter extends CustomPainter {
+  _CapsulePainter({
+    required this.states,
+    required this.highlight,
+    required this.fill,
+  }) : super(repaint: Listenable.merge([states, highlight]));
+
+  final ValueListenable<Set<WidgetState>> states;
+  final GlassHighlight highlight;
+  final Color fill;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final press = states.value.contains(WidgetState.pressed)
+        ? 1.0
+        : GlassHighlights.hoverGain * highlight.hovered;
+    final paint = Paint();
+    paint.color = fill.withValues(
+      alpha: fill.a * (1 + (AlertTuning.pressedFillOpacity - 1) * press),
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Offset.zero & size,
+        Radius.circular(size.shortestSide / 2),
+      ),
+      paint,
     );
   }
+
+  @override
+  bool shouldRepaint(_CapsulePainter oldDelegate) =>
+      oldDelegate.fill != fill ||
+      oldDelegate.highlight != highlight ||
+      oldDelegate.states.value != states.value;
 }

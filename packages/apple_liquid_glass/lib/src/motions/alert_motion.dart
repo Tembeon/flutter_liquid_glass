@@ -115,8 +115,8 @@ abstract final class AlertTuning {
 /// and a dismissal in the middle of the presentation reverses from where
 /// the alert stands, velocity included.
 ///
-/// For Reduce Motion ([reducedMotion]) the alert does not shrink: it
-/// fades in at its size on the same spring. Read from UIKit, notes
+/// Under Reduce Motion (the motion's [Motion.traits]) the alert does not
+/// shrink: it fades in at its size on the same spring. Read from UIKit, notes
 /// private: UIAlertController starts the presentation at scale 1 instead
 /// of 1.2 under Reduce Motion and keeps the timing.
 ///
@@ -124,8 +124,14 @@ abstract final class AlertTuning {
 ///
 /// The fade and the dimming rest within [MotionRest.opacity], the scale
 /// within [MotionRest.scale] of the alert's width (NEAR, invisible).
+///
+/// Android's predictive back runs the dismissal under the finger: the
+/// alert and the dimming fade with the gesture's progress at the alert's
+/// size, a commit fades the rest on the spring from the gesture's
+/// velocity, and a cancel springs back to shown. Android has no alert of
+/// iOS's to measure, so this is the dismissal's own path, not a recording.
 @internal
-class AlertMotion extends Motion with Presented {
+class AlertMotion extends Motion with Presented, PredictiveBack {
   /// Creates the motion of an alert that is not shown yet.
   AlertMotion({
     this.spring = AlertTuning.spring,
@@ -151,9 +157,6 @@ class AlertMotion extends Motion with Presented {
     rest: () => MotionRest.scale(AlertTuning.width),
   );
   bool _dismissing = false;
-
-  /// Whether the alert presents for Reduce Motion, at its size.
-  bool reducedMotion = false;
 
   /// Whether the alert was dismissed and leaves.
   bool get isLeaving => _dismissing;
@@ -209,5 +212,21 @@ class AlertMotion extends Motion with Presented {
   double get dimming => progress.clamp(0.0, 1.0);
 
   /// The scale of the alert.
-  double get scale => reducedMotion ? 1 : _scale.valueAt(now);
+  double get scale => traits.reduceMotion ? 1 : _scale.valueAt(now);
+
+  @override
+  void backStarted(double t) => advance(t);
+
+  @override
+  void backMoved(double t, double progress) {
+    advance(t);
+    _progress.snap(t, 1 - progress.clamp(0.0, 1.0));
+  }
+
+  @override
+  void backEnded(double t, {required bool commits, required double velocity}) {
+    advance(t);
+    _progress.setVelocity(t, -velocity);
+    if (!commits) _progress.retarget(t, 1);
+  }
 }

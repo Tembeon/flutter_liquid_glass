@@ -6,7 +6,6 @@ import 'package:apple_liquid_glass/src/foundation/glass.dart';
 import 'package:apple_liquid_glass/src/foundation/shape.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
 import 'package:apple_liquid_glass/src/foundation/theme.dart';
-import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/popover_motion.dart';
 import 'package:apple_liquid_glass/src/presentations/popover_shape.dart';
@@ -189,7 +188,6 @@ class _PopoverViewState extends State<_PopoverView> {
 
   @override
   Widget build(BuildContext context) {
-    widget.motion.reducedMotion = GlassTraits.of(context).reduceMotion;
     final media = MediaQuery.of(context);
     final label = GlassTheme.labelColorOf(context);
     return PopoverLayout(

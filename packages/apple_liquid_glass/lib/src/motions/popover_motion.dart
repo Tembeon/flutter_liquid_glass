@@ -139,12 +139,19 @@ abstract final class PopoverTuning {
 /// in on [PopoverTuning.presentSpring], and shrinks and fades it back
 /// on [PopoverTuning.dismissSpring].
 ///
-/// For Reduce Motion ([reducedMotion]) the popover keeps its size and only
-/// fades, on the same springs. Read from UIKit, notes private: UIKit's
-/// popover animation uses the identity transform instead of its shrink
-/// under Reduce Motion.
+/// Under Reduce Motion (the motion's [Motion.traits]) the popover keeps its
+/// size and only fades, on the same springs. Read from UIKit, notes
+/// private: UIKit's popover animation uses the identity transform instead
+/// of its shrink under Reduce Motion.
+///
+/// Android's predictive back runs the dismissal under the finger: the
+/// popover shrinks into its arrow and fades with the gesture's progress,
+/// a commit finishes on [PopoverTuning.dismissSpring] from the gesture's
+/// velocity, and a cancel springs back on [PopoverTuning.presentSpring].
+/// Android has no popover of iOS's to measure, so this is the dismissal's
+/// own path, not a recording.
 @internal
-class PopoverMotion extends Motion with Presented {
+class PopoverMotion extends Motion with Presented, PredictiveBack {
   /// Creates the motion of a popover that is not shown yet.
   PopoverMotion({
     this.presentSpring = PopoverTuning.presentSpring,
@@ -171,9 +178,6 @@ class PopoverMotion extends Motion with Presented {
     rest: () => _rest,
   );
   bool _dismissing = false;
-
-  /// Whether the popover moves for Reduce Motion, at its size.
-  bool reducedMotion = false;
 
   /// Whether the popover was dismissed and leaves.
   bool get isLeaving => _dismissing;
@@ -217,12 +221,28 @@ class PopoverMotion extends Motion with Presented {
   double get progress => _progress.valueAt(now);
 
   /// The scale of the popover about its arrow tip.
-  double get scale => reducedMotion
+  double get scale => traits.reduceMotion
       ? 1
       : math.max(0, hiddenScale + (1 - hiddenScale) * progress);
 
   /// The opacity of the popover.
   double get opacity => progress.clamp(0.0, 1.0);
+
+  @override
+  void backStarted(double t) => advance(t);
+
+  @override
+  void backMoved(double t, double progress) {
+    advance(t);
+    _progress.snap(t, 1 - progress.clamp(0.0, 1.0));
+  }
+
+  @override
+  void backEnded(double t, {required bool commits, required double velocity}) {
+    advance(t);
+    _progress.setVelocity(t, -velocity);
+    if (!commits) _progress.retarget(t, 1, spring: presentSpring);
+  }
 }
 
 /// Places a popover of [size] next to [source] inside [screen], the way
