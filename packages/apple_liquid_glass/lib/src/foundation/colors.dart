@@ -103,6 +103,11 @@ final class GlassDynamicColor implements Color {
   static Color resolve(Color color, BuildContext context) =>
       color is GlassDynamicColor ? color.resolveFrom(context) : color;
 
+  /// [color] resolved for [traits] when it is a [GlassDynamicColor];
+  /// [color] itself otherwise.
+  static Color resolveWith(Color color, GlassTraits traits) =>
+      color is GlassDynamicColor ? color.resolvedWith(traits) : color;
+
   /// [resolve] for a color that may be null.
   static Color? maybeResolve(Color? color, BuildContext context) =>
       color == null ? null : resolve(color, context);

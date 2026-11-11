@@ -807,6 +807,7 @@ final class GlassDynamicColor implements Color
   static Color? maybeResolve(Color? color, BuildContext context)
   static Color resolve(Color color, BuildContext context)
   GlassDynamicColor resolveFrom(BuildContext context)
+  static Color resolveWith(Color color, GlassTraits traits)
   GlassDynamicColor resolvedWith(GlassTraits traits)
   overrides: ==, a, alpha, b, blue, colorSpace, computeLuminance, g, green, hashCode, opacity, r, red, toARGB32, toString, value, withAlpha, withBlue, withGreen, withOpacity, withRed, withValues
 final class GlassField

@@ -84,28 +84,39 @@ final class FlatGlassLook {
     GlassColorScheme? scheme,
     bool underGlass = false,
   }) {
-    Color resolve(Color color) =>
-        color is GlassDynamicColor ? color.resolvedWith(traits) : color;
     final tint = glass.tint;
     final surface = scheme?.surfaces[role];
     switch (role) {
       case GlassRole.lens:
         return FlatGlassLook(
-          fill: resolve(tint ?? surface ?? _platter),
+          fill: GlassDynamicColor.resolveWith(
+            tint ?? surface ?? _platter,
+            traits,
+          ),
           shadow: _liftShadow,
-          liftRim: resolve(_liftRim),
+          liftRim: GlassDynamicColor.resolveWith(_liftRim, traits),
           underGlass: underGlass,
         );
       case GlassRole.track:
         return FlatGlassLook(
-          fill: resolve(tint ?? surface ?? GlassColors.systemFill),
+          fill: GlassDynamicColor.resolveWith(
+            tint ?? surface ?? GlassColors.systemFill,
+            traits,
+          ),
         );
       case GlassRole.control || GlassRole.panel || GlassRole.bar:
         final floating = role != GlassRole.bar;
         return FlatGlassLook(
-          fill: resolve(tint ?? surface ?? (glass.isClear ? _clear : _fill)),
-          rim: tint != null ? _tintedRim : resolve(_rim),
-          shadow: floating ? resolve(_shadow) : null,
+          fill: GlassDynamicColor.resolveWith(
+            tint ?? surface ?? (glass.isClear ? _clear : _fill),
+            traits,
+          ),
+          rim: tint != null
+              ? _tintedRim
+              : GlassDynamicColor.resolveWith(_rim, traits),
+          shadow: floating
+              ? GlassDynamicColor.resolveWith(_shadow, traits)
+              : null,
         );
     }
   }

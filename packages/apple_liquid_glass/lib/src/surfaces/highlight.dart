@@ -87,11 +87,12 @@ abstract final class GlassHighlights {
     Glass glass,
     GlassTraits traits,
   ) {
-    Color resolved(Color color) =>
-        color is GlassDynamicColor ? color.resolvedWith(traits) : color;
-    var base = resolved(glass.tint ?? GlassColors.systemBlue);
+    var base = GlassDynamicColor.resolveWith(
+      glass.tint ?? GlassColors.systemBlue,
+      traits,
+    );
     if (HSLColor.fromColor(base).saturation < _hueless) {
-      base = resolved(GlassColors.systemBlue);
+      base = GlassDynamicColor.resolveWith(GlassColors.systemBlue, traits);
     }
     return ringColor(given, base, highContrast: traits.highContrast);
   }
@@ -480,17 +481,20 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget {
     bool wash = false,
   }) {
     final traits = GlassTraits.of(context);
-    Color resolved(Color color) =>
-        color is GlassDynamicColor ? color.resolvedWith(traits) : color;
     return GlassHighlightPaint(
       states: states,
       heldStates: heldStates,
       focusColor: GlassHighlights.ringColor(
-        focusColor == null ? null : resolved(focusColor),
-        resolved(base ?? GlassColors.systemBlue),
+        focusColor == null
+            ? null
+            : GlassDynamicColor.resolveWith(focusColor, traits),
+        GlassDynamicColor.resolveWith(base ?? GlassColors.systemBlue, traits),
         highContrast: traits.highContrast,
       ),
-      hoverColor: resolved(hoverColor ?? GlassHighlights.hoverColor),
+      hoverColor: GlassDynamicColor.resolveWith(
+        hoverColor ?? GlassHighlights.hoverColor,
+        traits,
+      ),
       reduceMotion: traits.reduceMotion,
       shape: shape,
       inside: inside,
