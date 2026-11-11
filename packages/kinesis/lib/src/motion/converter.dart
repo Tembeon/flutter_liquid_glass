@@ -63,14 +63,18 @@ abstract class MotionConverter<T> {
   T read(List<double> values);
 }
 
-class _SingleConverter extends MotionConverter<double> {
+abstract class _LengthConverter<T> extends MotionConverter<T> {
+  const _LengthConverter();
+
+  @override
+  double get restDistance => MotionRest.length;
+}
+
+class _SingleConverter extends _LengthConverter<double> {
   const _SingleConverter();
 
   @override
   int get dimensions => 1;
-
-  @override
-  double get restDistance => MotionRest.length;
 
   @override
   void write(double value, List<double> out) => out[0] = value;
@@ -79,14 +83,11 @@ class _SingleConverter extends MotionConverter<double> {
   double read(List<double> values) => values[0];
 }
 
-class _OffsetConverter extends MotionConverter<Offset> {
+class _OffsetConverter extends _LengthConverter<Offset> {
   const _OffsetConverter();
 
   @override
   int get dimensions => 2;
-
-  @override
-  double get restDistance => MotionRest.length;
 
   @override
   void write(Offset value, List<double> out) {
@@ -98,14 +99,11 @@ class _OffsetConverter extends MotionConverter<Offset> {
   Offset read(List<double> values) => Offset(values[0], values[1]);
 }
 
-class _SizeConverter extends MotionConverter<Size> {
+class _SizeConverter extends _LengthConverter<Size> {
   const _SizeConverter();
 
   @override
   int get dimensions => 2;
-
-  @override
-  double get restDistance => MotionRest.length;
 
   @override
   void write(Size value, List<double> out) {
@@ -117,14 +115,11 @@ class _SizeConverter extends MotionConverter<Size> {
   Size read(List<double> values) => Size(values[0], values[1]);
 }
 
-class _RectConverter extends MotionConverter<Rect> {
+class _RectConverter extends _LengthConverter<Rect> {
   const _RectConverter();
 
   @override
   int get dimensions => 4;
-
-  @override
-  double get restDistance => MotionRest.length;
 
   @override
   void write(Rect value, List<double> out) {
@@ -139,14 +134,11 @@ class _RectConverter extends MotionConverter<Rect> {
       Rect.fromLTRB(values[0], values[1], values[2], values[3]);
 }
 
-class _RadiusConverter extends MotionConverter<Radius> {
+class _RadiusConverter extends _LengthConverter<Radius> {
   const _RadiusConverter();
 
   @override
   int get dimensions => 2;
-
-  @override
-  double get restDistance => MotionRest.length;
 
   @override
   void write(Radius value, List<double> out) {
