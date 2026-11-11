@@ -5,7 +5,6 @@ import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
 /// The edge of a popover that points at its source.
-@internal
 enum PopoverArrowDirection {
   /// The popover sits above its source; the arrow points down.
   down,
@@ -22,7 +21,6 @@ enum PopoverArrowDirection {
 
 /// Where a popover sits relative to its source, as UIKit places an action
 /// sheet presented from a source view on iOS 27.
-@internal
 @immutable
 class PopoverPlacement {
   /// Creates a placement.
@@ -150,7 +148,6 @@ abstract final class PopoverTuning {
 /// velocity, and a cancel springs back on [PopoverTuning.presentSpring].
 /// Android has no popover of iOS's to measure, so this is the dismissal's
 /// own path, not a recording.
-@internal
 class PopoverMotion extends Motion with Presented, PredictiveBack {
   /// Creates the motion of a popover that is not shown yet.
   PopoverMotion({
@@ -263,7 +260,6 @@ class PopoverMotion extends Motion with Presented, PredictiveBack {
 /// room.
 ///
 /// Checked against 15 placements on the iOS 27 simulator.
-@internal
 PopoverPlacement placePopover({
   required Size size,
   required Rect source,

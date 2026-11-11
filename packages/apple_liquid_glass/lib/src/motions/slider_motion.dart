@@ -48,7 +48,6 @@ import 'package:meta/meta.dart';
 /// slider's place rests once its remaining swing, seen through the detent
 /// curve, moves the thumb less than [MotionRest.length]. Each event goes
 /// to [onEvent] as the command or the glide that raises it runs.
-@internal
 final class SliderMotion extends Motion {
   /// Creates a slider of track [width] resting at [value] whose thumb
   /// lens filters its motion at [frameRate] frames per second of motion
@@ -237,6 +236,7 @@ final class SliderMotion extends Motion {
   bool _detented = false;
 
   /// The thumb's lens; it follows the thumb.
+  @internal
   late final SmallLens lens;
 
   _Press? _press;

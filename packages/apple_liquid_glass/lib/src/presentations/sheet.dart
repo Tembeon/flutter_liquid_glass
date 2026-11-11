@@ -4,7 +4,7 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/sheet_motion.dart';
-import 'package:apple_liquid_glass/src/surfaces/surface.dart';
+import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';

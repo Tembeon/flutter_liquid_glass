@@ -15,7 +15,6 @@ import 'package:meta/meta.dart';
 /// terms, here as response / damping ratio = 1 - bounce) and placed in
 /// time by the frame-by-frame recordings of `setToolbarItems(_:animated:)`
 /// and of pushes.
-@internal
 @immutable
 class GlassBarTransitionSpec {
   /// Creates a spec from explicit values.
@@ -169,14 +168,13 @@ class GlassBarItemLayout {
 
 /// One glass capsule of a bar layout handed to [GlassBarMotion]: a group
 /// of items that share one piece of glass.
-@internal
 @immutable
 class GlassBarCapsuleLayout {
   /// Creates a capsule layout.
   const GlassBarCapsuleLayout(
     this.id,
     this.rect,
-    this.items, {
+    @internal this.items, {
     this.segment,
     this.anonymous = false,
   });
@@ -205,11 +203,11 @@ class GlassBarCapsuleLayout {
   final Rect rect;
 
   /// The items in the capsule.
+  @internal
   final List<GlassBarItemLayout> items;
 }
 
 /// A capsule of a bar in one frame.
-@internal
 @immutable
 class GlassBarCapsuleFrame {
   /// Creates a frame.
@@ -244,7 +242,6 @@ class GlassBarCapsuleFrame {
 }
 
 /// An item of a bar in one frame.
-@internal
 @immutable
 class GlassBarItemFrame {
   /// Creates a frame.
@@ -357,7 +354,6 @@ final class _Planner extends LayoutPlanner {
 /// them.
 ///
 /// Times are seconds, positions logical pixels in the bar's own space.
-@internal
 final class GlassBarMotion extends Motion {
   /// Creates the motion with [spec].
   GlassBarMotion({this.spec = GlassBarTransitionSpec.standard});

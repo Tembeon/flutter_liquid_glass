@@ -1,5 +1,5 @@
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/motions/glass_press.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/raw/source.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';

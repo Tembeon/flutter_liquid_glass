@@ -31,7 +31,6 @@ import 'package:kinesis/motion.dart';
 /// Both are approximations waiting for the owner's eye and for a
 /// measurement on macOS. Under Reduce Motion the response switches without
 /// motion. Only a mouse reports hover, so touch shows none.
-@internal
 abstract final class GlassHighlights {
   /// The width of the focus ring: `CupertinoButton`'s 3.5 point outside
   /// border (`cupertino_ui` 1.1.4, `lib/src/button.dart:541`).
@@ -183,7 +182,6 @@ abstract final class GlassHighlights {
 ///
 /// A listener hears every change of either, the hover strength also in the
 /// frame's resolve phase; while nobody listens it follows nothing.
-@internal
 final class GlassHighlight implements Listenable {
   /// Follows [states].
   GlassHighlight({this._states, this.reduceMotion = false});
@@ -446,7 +444,6 @@ class RenderGlassHighlight extends RenderProxyBox {
 /// strength, under the part, or added over it as a glass body's wash when
 /// [wash]; the ring follows the shape outside the part, or inside it when
 /// [inside].
-@internal
 class GlassHighlightPaint extends SingleChildRenderObjectWidget {
   /// Draws the highlights of the part [child].
   const GlassHighlightPaint({

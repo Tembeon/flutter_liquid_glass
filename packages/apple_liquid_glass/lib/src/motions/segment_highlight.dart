@@ -1,6 +1,5 @@
 import 'package:flutter/animation.dart';
 import 'package:kinesis/motion.dart';
-import 'package:meta/meta.dart';
 
 /// The dimming of a segmented control's label under the finger (UIKit
 /// `UISegmentedControl`'s `UISegmentLabel`).
@@ -13,7 +12,6 @@ import 'package:meta/meta.dart';
 /// selected segment and a finger sliding to another segment are not
 /// measured: the dimming stays on the segment the touch went down on. Times
 /// are seconds.
-@internal
 final class SegmentHighlight extends Motion {
   /// The opacity a pressed label dims to.
   static const double dimmedOpacity = 0.2;

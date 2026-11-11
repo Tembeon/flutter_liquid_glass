@@ -1,7 +1,5 @@
-import 'package:apple_liquid_glass/src/foundation/colors.dart';
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/theme.dart';
-import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:apple_liquid_glass/src/motions/menu_motion.dart';
 import 'package:flutter/widgets.dart';
 import 'package:meta/meta.dart';

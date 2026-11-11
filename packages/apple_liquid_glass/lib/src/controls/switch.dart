@@ -1,10 +1,7 @@
-import 'package:apple_liquid_glass/src/foundation/colors.dart';
-import 'package:apple_liquid_glass/src/foundation/frame.dart';
-import 'package:apple_liquid_glass/src/foundation/glass.dart';
+import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/theme.dart';
-import 'package:apple_liquid_glass/src/raw/switch.dart';
-import 'package:apple_liquid_glass/src/surfaces/surface.dart';
+import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 

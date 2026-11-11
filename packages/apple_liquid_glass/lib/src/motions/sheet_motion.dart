@@ -323,7 +323,6 @@ abstract final class SheetTuning {
 /// stretch within [MotionRest.scale] of the sheet's longer side, the
 /// sideways drift within [MotionRest.length] of the inset, the fill within
 /// [MotionRest.opacity]: invisible, NEAR.
-@internal
 class SheetMotion extends Motion {
   /// Creates a motion with the given detent [heights] (ascending), resting
   /// hidden below the screen until [present].
@@ -995,14 +994,12 @@ class SheetMotion extends Motion {
 }
 
 /// What a [SheetMotion] tells its host.
-@internal
 sealed class SheetEvent {
   const SheetEvent();
 }
 
 /// A settle picked detent [index]; [byUser] when a drag or a grabber tap
 /// picked it, not the app.
-@internal
 final class SheetDetentChanged extends SheetEvent {
   /// Creates the event.
   const SheetDetentChanged(this.index, {required this.byUser});
@@ -1015,7 +1012,6 @@ final class SheetDetentChanged extends SheetEvent {
 }
 
 /// A released drag dismisses the sheet.
-@internal
 final class SheetDismissed extends SheetEvent {
   /// Creates the event.
   const SheetDismissed();
@@ -1024,7 +1020,6 @@ final class SheetDismissed extends SheetEvent {
 /// A released drag pulled a sheet that is not dismissible further than
 /// [SheetTuning.dismissAttemptShare] of [SheetTuning.refusedPullExtent];
 /// the sheet returns to its smallest detent.
-@internal
 final class SheetDismissRefused extends SheetEvent {
   /// Creates the event.
   const SheetDismissRefused();

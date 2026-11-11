@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/foundation/touch_glow.dart';
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/motions/flex_spec.dart' show FlexSpec;
 import 'package:flutter/painting.dart';
 import 'package:kinesis/motion.dart';

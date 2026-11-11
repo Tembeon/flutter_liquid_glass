@@ -11,7 +11,6 @@ import 'package:meta/meta.dart';
 
 /// How a [GlassPress] takes a touch: whether it stretches after a dragging
 /// finger and glows, and how late it takes the touch up.
-@internal
 @immutable
 final class FlexLaw {
   /// Creates a law.
@@ -71,7 +70,6 @@ final class FlexLaw {
 /// channels rest within a tenth of a pixel over the long side and the glow
 /// within a visible opacity step; a finger held still counts, so a held
 /// surface stops asking for frames once its lift and glow are in place.
-@internal
 final class GlassPress extends Motion implements PointerFollower {
   /// Creates the press of a surface of [size] at rest, taking touches by
   /// [law].
@@ -157,6 +155,7 @@ final class GlassPress extends Motion implements PointerFollower {
   }
 
   /// The deformation tuning UIKit derives for [size].
+  @internal
   FlexSpec get spec => _spec;
 
   /// The scale of the fully lifted surface.
@@ -195,6 +194,7 @@ final class GlassPress extends Motion implements PointerFollower {
       Offset(_driftX.valueAt(now) * scaleX, _driftY.valueAt(now) * scaleY);
 
   /// The flex's four channels.
+  @internal
   FlexValues get values => (
     scaleX: scaleX,
     scaleY: scaleY,
@@ -376,6 +376,7 @@ final class GlassPress extends Motion implements PointerFollower {
   /// What the channels head to now: the dynamic targets of the finger
   /// while the flex is active ([FlexInteraction.dynamicTargets]), rest
   /// otherwise.
+  @internal
   FlexValues get targets {
     final down = _down;
     if (!_active || down == null || traits.reduceMotion) {

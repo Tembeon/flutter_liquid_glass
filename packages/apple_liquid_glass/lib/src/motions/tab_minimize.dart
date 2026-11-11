@@ -359,7 +359,6 @@ enum _State { accumulating, active, idle }
 /// points wide ([MotionRest.scale]).
 ///
 /// Times are seconds on the motion's timeline.
-@internal
 final class TabBarMinimizeMotion extends Motion {
   /// Creates the motion of a bar that minimizes as [behavior] says.
   TabBarMinimizeMotion({
@@ -373,6 +372,7 @@ final class TabBarMinimizeMotion extends Motion {
 
   /// The scroll-away interaction; feed it the content's scrolls after
   /// [advance] to their time.
+  @internal
   final ScrollAway scrollAway = ScrollAway();
 
   /// The width of the bar group, which sets how closely the springs rest.

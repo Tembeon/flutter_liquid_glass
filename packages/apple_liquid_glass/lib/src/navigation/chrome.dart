@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/foundation/colors.dart';
-import 'package:apple_liquid_glass/src/foundation/traits.dart';
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/navigation/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/navigation/toolbar.dart';
 import 'package:apple_liquid_glass/surfaces.dart';

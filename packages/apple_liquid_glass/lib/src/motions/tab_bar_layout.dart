@@ -13,7 +13,6 @@ import 'package:meta/meta.dart';
 ///
 /// At [phoneBelow] and wider UIKit changes to metrics this class does not
 /// know, so a bar there keeps the width of a bar on an iPhone 16 Pro.
-@internal
 @immutable
 final class TabBarLayout {
   const TabBarLayout._({required this.width, required this.buttons});

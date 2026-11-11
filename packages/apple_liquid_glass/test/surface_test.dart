@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass/src/foundation/outline.dart';
 import 'package:apple_liquid_glass/src/foundation/touch_glow.dart';
 import 'package:apple_liquid_glass/src/surfaces/flat.dart';
 import 'package:flutter/rendering.dart';

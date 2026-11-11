@@ -1,6 +1,6 @@
-import 'package:apple_liquid_glass/src/foundation/traits.dart';
+import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/motions/navigation_motion.dart';
-import 'package:apple_liquid_glass/src/motions/zoom_page_motion.dart';
 import 'package:apple_liquid_glass/src/navigation/bar.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';

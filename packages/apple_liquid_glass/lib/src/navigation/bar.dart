@@ -1,19 +1,15 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/presentations.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/bar_layout.dart';
-import 'package:apple_liquid_glass/src/motions/bar_motion.dart';
-import 'package:apple_liquid_glass/src/motions/glass_press.dart';
-import 'package:apple_liquid_glass/src/motions/menu_motion.dart'
-    show MenuCapsuleSource, MenuSource;
 import 'package:apple_liquid_glass/src/motions/navigation_motion.dart';
 import 'package:apple_liquid_glass/src/navigation/bar_entry.dart';
 import 'package:apple_liquid_glass/src/navigation/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/navigation/toolbar.dart';
-import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';

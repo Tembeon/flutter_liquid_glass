@@ -44,6 +44,7 @@ export 'src/raw/search_field.dart'
 export 'src/raw/selector.dart'
     show
         GlassSelectorBuilder,
+        GlassSelectorCollapse,
         GlassSelectorDetails,
         GlassSelectorItemBuilder,
         GlassSelectorMotion,

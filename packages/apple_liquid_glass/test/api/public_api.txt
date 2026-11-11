@@ -23,6 +23,73 @@ final class AdaptiveGlassRenderer extends GlassRenderer
   @visibleForTesting static void debugReset()
   final GlassRenderer fallback
   overrides: ==, buildGroup, buildScrollEdge, buildSurface, hashCode
+class AlertMotion extends Motion with Presented, PredictiveBack
+  AlertMotion({Spring spring = ..., double presentScale = ...})
+  double get dimming
+  void dismiss(double t)
+  bool get isDismissed
+  bool get isLeaving
+  double get opacity
+  void present(double t)
+  final double presentScale
+  double get progress
+  double get scale
+  final Spring spring
+  overrides: backEnded, backMoved, backStarted, leave, minFrameRate, open, presence
+final class ContextHold extends Motion
+  ContextHold({
+    required void Function() onCommit,
+    required void Function(double, double) onOpen,
+    MotionClock? clock,
+  })
+  static const double commitAfter
+  void down(double t)
+  double get growth
+  static double growthAfter(double held)
+  double growthAt(double t)
+  bool get isCommitted
+  bool get isHeld
+  final void Function() onCommit
+  final void Function(double, double) onOpen
+  static const double openAfter
+  double release(double t)
+  overrides: holds
+final class DatePickerCalendarMotion extends Motion
+  DatePickerCalendarMotion()
+  bool Function(int)? onTurn
+  double get page
+  int get pageDirection
+  void showYearPicker(double t, {required bool show})
+  bool get showsYearPicker
+  void turnPage(double t, int direction)
+  double get yearPicker
+  double get yearPickerTurn
+final class DatePickerLabelMotion extends Motion
+  DatePickerLabelMotion()
+  double get highlight
+  void press(double t)
+  void release(double t)
+final class DatePickerMotion extends Motion with Presented
+  DatePickerMotion({bool reopening = ...})
+  void close(double t, {double? delay})
+  double height(double full)
+  bool get isClosed
+  bool get isOpen
+  double get opacity
+  static const double overlayRest
+  double get progress
+  final bool reopening
+  double get scale
+  double get swap
+  void switchPicker(double t, {required bool back})
+  bool get switching
+  overrides: didAdvance, leave, open, presence
+class DatePickerPlacement
+  const DatePickerPlacement({required Rect rect, required Offset anchor})
+  final Offset anchor
+  bool get below
+  final Rect rect
+  overrides: ==, hashCode
 class DefaultGlassLocalizations extends GlassLocalizations
   const DefaultGlassLocalizations()
   static const LocalizationsDelegate<GlassLocalizations> delegate
@@ -38,6 +105,18 @@ final class FlatGlassRenderer extends GlassRenderer
     bool underGlass = ...,
   })
   overrides: ==, buildSurface, hashCode
+final class FlexLaw
+  const FlexLaw({
+    bool stretches = ...,
+    bool glows = ...,
+    double activationDelay = ...,
+    double touchDelay = ...,
+  })
+  final double activationDelay
+  static const FlexLaw button
+  final bool glows
+  final bool stretches
+  final double touchDelay
 final class Glass
   const Glass.clear({Color? tint})
   const Glass.regular({Color? tint})
@@ -118,6 +197,51 @@ class GlassBadgeStyle extends GlassStyle<GlassBadgeStyle>
   static GlassBadgeStyle? maybeOf(BuildContext context)
   final TextStyle? textStyle
   overrides: ==, hashCode, lerp, merge
+enum GlassBarButtonKind
+  icon,
+  label,
+  back,
+  custom,
+class GlassBarButtonSpec
+  const GlassBarButtonSpec(
+    Object id,
+    double contentWidth,
+    GlassBarButtonKind kind,
+  )
+  final double contentWidth
+  final Object id
+  final GlassBarButtonKind kind
+class GlassBarCapsuleFrame
+  const GlassBarCapsuleFrame(
+    Object id,
+    Rect rect, {
+    required bool leaving,
+    Object? segment,
+    double opacity = ...,
+    bool apart = ...,
+  })
+  final bool apart
+  final Object id
+  final bool leaving
+  final double opacity
+  final Rect rect
+  final Object? segment
+class GlassBarCapsuleLayout
+  const GlassBarCapsuleLayout(
+    Object id,
+    Rect rect,
+    @internal List<GlassBarItemLayout> items, {
+    Object? segment,
+    bool anonymous = ...,
+  })
+  final bool anonymous
+  final Object id
+  @internal final List<GlassBarItemLayout> items
+  final Rect rect
+  final Object? segment
+class GlassBarCapsuleSpec
+  const GlassBarCapsuleSpec(List<GlassBarButtonSpec> buttons)
+  final List<GlassBarButtonSpec> buttons
 sealed class GlassBarEntry
   const GlassBarEntry()
 final class GlassBarItem extends GlassBarEntry
@@ -149,6 +273,28 @@ final class GlassBarItem extends GlassBarEntry
   final void Function()? onPressed
   final bool prominent
   final String? semanticLabel
+class GlassBarItemFrame
+  const GlassBarItemFrame(
+    Object id, {
+    required Offset center,
+    required Size size,
+    required double scale,
+    required double presence,
+    required double blur,
+    required bool leaving,
+  })
+  final double blur
+  final Offset center
+  final Object id
+  final bool leaving
+  final double presence
+  final double scale
+  final Size size
+class GlassBarItemId
+  const GlassBarItemId(Object id, int index)
+  final Object id
+  final int index
+  overrides: ==, hashCode, toString
 class GlassBarItemStyle
   const GlassBarItemStyle({
     WidgetStateProperty<Color?>? foregroundColor,
@@ -167,10 +313,100 @@ class GlassBarItemStyle
   final Color? prominentForegroundColor
   final TextStyle? textStyle
   overrides: ==, hashCode
+class GlassBarMetrics
+  const GlassBarMetrics({
+    required double capsuleHeight,
+    required double buttonHeight,
+    required double capsulePadding,
+    required double buttonGap,
+    required double labelPadding,
+    required double iconPadding,
+    required double iconSize,
+    double groupGap = ...,
+    double backChevronInset = ...,
+    double backChevronWidth = ...,
+    double backChevronGap = ...,
+    double backTrailingPadding = ...,
+  })
+  final double backChevronGap
+  final double backChevronInset
+  final double backChevronWidth
+  final double backTrailingPadding
+  final double buttonGap
+  final double buttonHeight
+  final double capsuleHeight
+  final double capsulePadding
+  final double groupGap
+  final double iconPadding
+  final double iconSize
+  final double labelPadding
+  double get minButtonWidth
+  static const GlassBarMetrics navigation
+  static const GlassBarMetrics toolbar
+final class GlassBarMotion extends Motion
+  GlassBarMotion({GlassBarTransitionSpec spec = ...})
+  GlassBarCapsuleFrame? capsuleFrame(Object id)
+  GlassBarCapsuleFrame? capsuleOf(Object item)
+  List<GlassBarCapsuleFrame> get capsules
+  void endDrift(double t)
+  bool get isDrifting
+  GlassBarItemFrame? itemFrame(Object id)
+  List<GlassBarItemFrame> get items
+  GlassPress? get press
+  void pressDown(GlassPress press, double t, Offset position)
+  void setDrift(List<GlassBarCapsuleLayout>? toward, double amount)
+  void setLayout(
+    double t,
+    List<GlassBarCapsuleLayout> layout, {
+    bool animated = ...,
+    GlassBarTransitionSpec? transition,
+  })
+  GlassBarTransitionSpec spec
+  overrides: didAdvance
 final class GlassBarSpacer extends GlassBarEntry
   const GlassBarSpacer.flexible()
   const GlassBarSpacer()
   final bool flexible
+class GlassBarTransitionSpec
+  const GlassBarTransitionSpec({
+    Spring frameSpring = ...,
+    double frameDelay = ...,
+    double birthStaggerDelay = ...,
+    Spring contentSpring = ...,
+    double contentDelay = ...,
+    double appearScale = ...,
+    double appearBlur = ...,
+    double pulseDelay = ...,
+    Spring pulseUpSpring = ...,
+    double pulseMaxScale = ...,
+    double pulseMaxPoints = ...,
+    double pulseHeightDownDelay = ...,
+    Spring pulseHeightDownSpring = ...,
+    double pulseWidthDownDelay = ...,
+    Spring pulseWidthDownSpring = ...,
+    double segmentDelay = ...,
+    bool oversizedInPlace = ...,
+  })
+  final double appearBlur
+  final double appearScale
+  final double birthStaggerDelay
+  final double contentDelay
+  final Spring contentSpring
+  final double frameDelay
+  final Spring frameSpring
+  static const GlassBarTransitionSpec navigation
+  final bool oversizedInPlace
+  final double pulseDelay
+  final double pulseHeightDownDelay
+  final Spring pulseHeightDownSpring
+  final double pulseMaxPoints
+  final double pulseMaxScale
+  double pulseScaleFor(double length)
+  final Spring pulseUpSpring
+  final double pulseWidthDownDelay
+  final Spring pulseWidthDownSpring
+  final double segmentDelay
+  static const GlassBarTransitionSpec standard
 class GlassButton extends StatelessWidget
   const GlassButton.clear({
     required void Function()? onPressed,
@@ -543,6 +779,19 @@ final class GlassDynamicColor implements Color
   GlassDynamicColor resolveFrom(BuildContext context)
   GlassDynamicColor resolvedWith(GlassTraits traits)
   overrides: ==, a, alpha, b, blue, colorSpace, computeLuminance, g, green, hashCode, opacity, r, red, toARGB32, toString, value, withAlpha, withBlue, withGreen, withOpacity, withRed, withValues
+final class GlassField
+  const GlassField({
+    required Float32List samples,
+    required int cols,
+    required int rows,
+    required Offset origin,
+    required double step,
+  })
+  final int cols
+  final Offset origin
+  final int rows
+  final Float32List samples
+  final double step
 final class GlassFrame
   const GlassFrame({
     GlassShape shape = ...,
@@ -592,6 +841,70 @@ final class GlassGroupDetails
   const GlassGroupDetails({required GlassMerge merge, required Widget child})
   final Widget child
   final GlassMerge merge
+final class GlassHighlight implements Listenable
+  GlassHighlight({
+    ValueListenable<Set<WidgetState>>? states,
+    bool reduceMotion = ...,
+  })
+  bool get focused
+  double get hovered
+  bool reduceMotion
+  ValueListenable<Set<WidgetState>>? get states
+  set states(ValueListenable<Set<WidgetState>>? value)
+  overrides: addListener, removeListener
+class GlassHighlightPaint extends SingleChildRenderObjectWidget
+  const GlassHighlightPaint({
+    required ValueListenable<Set<WidgetState>> states,
+    required Color focusColor,
+    required Color hoverColor,
+    required bool reduceMotion,
+    GlassShape shape = ...,
+    bool inside = ...,
+    bool wash = ...,
+    Widget? child,
+    Key? key,
+  })
+  final Color focusColor
+  final Color hoverColor
+  final bool inside
+  static Widget of(
+    BuildContext context, {
+    required ValueListenable<Set<WidgetState>> states,
+    required Widget child,
+    Color? focusColor,
+    Color? hoverColor,
+    Color? base,
+    GlassShape shape = ...,
+    bool inside = ...,
+    bool wash = ...,
+  })
+  final bool reduceMotion
+  final GlassShape shape
+  final ValueListenable<Set<WidgetState>> states
+  final bool wash
+  overrides: createRenderObject, updateRenderObject
+abstract final class GlassHighlights
+  GlassHighlights()
+  static const Color hoverColor
+  static const double hoverGain
+  static const Spring hoverSpring
+  static void paintHover(Canvas canvas, Path body, Color color, double amount)
+  static void paintRing(
+    Canvas canvas,
+    Color color, {
+    required GlassShape shape,
+    required Rect body,
+    GlassOutline? outline,
+    double width = ...,
+    bool inside = ...,
+  })
+  static const double pressedWash
+  static Color ringColor(Color? given, Color base, {required bool highContrast})
+  static Color ringColorOf(Color? given, Glass glass, GlassTraits traits)
+  static const double ringLightness
+  static const double ringOpacity
+  static const double ringSaturation
+  static const double ringWidth
 enum GlassInterfaceLevel
   base,
   elevated,
@@ -918,9 +1231,9 @@ class GlassNavigationBarStyle extends GlassStyle<GlassNavigationBarStyle>
   final TextStyle? titleTextStyle
   overrides: ==, hashCode, lerp, merge
 final class GlassOutline
-  GlassOutline(Path path, {@internal GlassField? Function()? field})
+  GlassOutline(Path path, {GlassField? Function()? field})
   Rect get bounds
-  @internal late final GlassField? field
+  late final GlassField? field
   @internal bool get hasField
   final Path path
 final class GlassOval extends GlassShape
@@ -1035,6 +1348,37 @@ class GlassPopoverStyle extends GlassStyle<GlassPopoverStyle>
   static GlassPopoverStyle? maybeOf(BuildContext context)
   final TextStyle? textStyle
   overrides: ==, hashCode, lerp, merge
+final class GlassPress extends Motion implements PointerFollower
+  GlassPress({Size size = ..., FlexLaw law = ...})
+  double get bigGlowOpacity
+  double get glow
+  static const double highlightSlop
+  bool get isActive
+  bool get isAtRest
+  bool get isPressed
+  final FlexLaw law
+  Offset get lean
+  double get liftedScale
+  Offset get littleGlowCenter
+  double get littleGlowOpacity
+  double get littleGlowScale
+  void pointerCancel(double t)
+  void pointerDown(double t, Offset position)
+  void pointerMove(double t, Offset position)
+  bool pointerUp(double t, Offset position)
+  void release(double t)
+  double get scale
+  double scaleAt(double t)
+  double get scaleX
+  double get scaleY
+  Size get size
+  set size(Size value)
+  @internal FlexSpec get spec
+  @internal ({double driftX, double driftY, double scaleX, double scaleY}) get targets
+  static const double touchDelay
+  GlassTouchGlow? get touchGlow
+  @internal ({double driftX, double driftY, double scaleX, double scaleY}) get values
+  overrides: cancel, down, hover, move, up
 class GlassProminentButtonStyle extends GlassButtonStyle
   factory GlassProminentButtonStyle.from(GlassButtonStyle style)
   const GlassProminentButtonStyle({
@@ -1252,6 +1596,17 @@ class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle>
   final WidgetStateProperty<Color?>? thumbColor
   overrides: ==, hashCode, lerp, merge
 typedef GlassSelectorBuilder = Widget Function(BuildContext, GlassSelectorDetails)
+abstract interface class GlassSelectorCollapse
+  GlassSelectorCollapse()
+  abstract void activate()
+  abstract Rect circleIn(Size size)
+  MotionSelection<double> get morph
+  MotionSelection<double>? get press
+  abstract void pressCancel(double t)
+  abstract void pressDown(double t, double x)
+  abstract bool pressMove(double t, double x)
+  abstract void pressUp(double t)
+  bool get takesFinger
 final class GlassSelectorDetails
   const GlassSelectorDetails({
     required MotionSelection<GlassFrame> body,
@@ -1919,6 +2274,57 @@ class GlassZoomSource extends StatelessWidget
   final Widget child
   final MotionSource source
   overrides: build
+sealed class LensEvent
+  const LensEvent()
+final class LensMotion extends Motion
+  LensMotion({
+    @internal required LensTuning tuning,
+    required List<({double center, double width})> slots,
+    required int selected,
+    required double height,
+    double frameRate = ...,
+    Size chromeSize = ...,
+    double? startDelay,
+    void Function(LensEvent)? onEvent,
+  })
+  double get center
+  @internal ({double driftX, double driftY, double scaleX, double scaleY}) get chrome
+  Size get chromeSize
+  set chromeSize(Size value)
+  final double frameRate
+  final double height
+  bool get isDragging
+  bool Function(int)? isSelectable
+  double get lift
+  final void Function(LensEvent)? onEvent
+  void place(double t, int index)
+  void pointerCancel(double t)
+  void pointerDown(double t, double x, {double y = ...})
+  void pointerDrag(double t, double x, {double y = ...})
+  void pointerMove(double t, double x, {double y = ...})
+  void pointerUp(double t, double x, {double y = ...})
+  void reslot(
+    double t,
+    List<({double center, double width})> slots,
+    int selected, {
+    Spring? spring,
+    double shift = ...,
+  })
+  double get scaleX
+  double get scaleY
+  void select(double t, int index, {bool notify = ...})
+  int get selected
+  ({double height, double width}) get size
+  int slotAt(double x)
+  List<({double center, double width})> get slots
+  set slots(List<({double center, double width})> value)
+  final double startDelay
+  double get travelCenter
+  @internal final LensTuning tuning
+final class LensSelected extends LensEvent
+  const LensSelected(int index)
+  final int index
+typedef LensSlot = ({double center, double width})
 base class LiquidGlassRenderer extends GlassRenderer
   const LiquidGlassRenderer()
   @internal static LiquidGlassAppearance appearanceOf(
@@ -1931,6 +2337,523 @@ base class LiquidGlassRenderer extends GlassRenderer
     double lift = ...,
   })
   overrides: ==, buildGroup, buildScrollEdge, buildSurface, hashCode
+final class ListRowHighlight extends Motion implements PointerFollower
+  ListRowHighlight()
+  void clear(double t)
+  static const Curve fadeCurve
+  static const double fadeDuration
+  void fadeOut(double t)
+  double get opacity
+  void press(double t, {required double contact, double delay = ...})
+  static const double touchDelay
+  overrides: cancel, down, hover, move, up
+final class MenuActivated extends MenuEvent
+  const MenuActivated(
+    double time,
+    MenuTarget target, {
+    required int card,
+    required int index,
+  })
+  final int card
+  final int index
+  final MenuTarget target
+class MenuAttachment
+  const MenuAttachment({
+    required Rect held,
+    required Rect preview,
+    double accessory = ...,
+    double gap = ...,
+    double margin = ...,
+  })
+  final double accessory
+  static Size blobSize(Size held, double menuHeight)
+  static Size fitPreview({
+    required Size preferred,
+    required Size bounds,
+    EdgeInsets padding = ...,
+    double accessory = ...,
+    double margin = ...,
+  })
+  final double gap
+  final Rect held
+  final double margin
+  static const double measuredBlobScale
+  static const double measuredGap
+  final Rect preview
+  overrides: ==, hashCode
+final class MenuCapsuleSource extends MenuSource
+  MenuCapsuleSource({
+    required Rect capsule,
+    required Rect item,
+    required double height,
+    required bool alone,
+  })
+  final bool alone
+class MenuCard
+  const MenuCard({
+    required MenuLayout layout,
+    required Rect rect,
+    required double scale,
+    required double rowOpacity,
+    required double progress,
+    double contentTop = ...,
+    double rowsOpacity = ...,
+    double platterOpacity = ...,
+    double headerBold = ...,
+    double chevronTurn = ...,
+    double closeOpacity = ...,
+    bool backing = ...,
+    int? source,
+  })
+  final bool backing
+  final double chevronTurn
+  final double closeOpacity
+  final double contentTop
+  final double headerBold
+  final MenuLayout layout
+  final double platterOpacity
+  final double progress
+  final Rect rect
+  final double rowOpacity
+  final double rowsOpacity
+  final double scale
+  final int? source
+final class MenuDividerSpec extends MenuSpec
+  const MenuDividerSpec({Object? entry})
+sealed class MenuEvent
+  const MenuEvent(double time)
+  final double time
+final class MenuHighlightChanged extends MenuEvent
+  const MenuHighlightChanged(
+    double time,
+    MenuTarget? from,
+    MenuTarget? to, {
+    required bool tracked,
+  })
+  final MenuTarget? from
+  final MenuTarget? to
+  final bool tracked
+class MenuLayout
+  factory MenuLayout.build(
+    List<MenuSpec> specs, {
+    MenuMetrics metrics = ...,
+    bool reversed = ...,
+    bool rtl = ...,
+    bool singleSelection = ...,
+    MenuSpecSize size = ...,
+    MenuRowSpec? header,
+    double? Function(Object)? widgetHeight,
+    int Function(String, double, int)? titleLines,
+  })
+  const MenuLayout({
+    required double height,
+    double width = ...,
+    List<MenuTarget> targets = ...,
+    List<MenuPlaced> elements = ...,
+    bool loading = ...,
+  })
+  factory MenuLayout.uniform(
+    int rows, {
+    double width = ...,
+    double rowHeight = ...,
+    double inset = ...,
+    bool reversed = ...,
+  })
+  final List<MenuPlaced> elements
+  final double height
+  final bool loading
+  int? targetAt(Offset position)
+  final List<MenuTarget> targets
+  final double width
+final class MenuLoadingSpec extends MenuSpec
+  const MenuLoadingSpec(String title, {Object? entry})
+  final String title
+class MenuMetrics
+  const MenuMetrics({
+    double width = ...,
+    double topInset = ...,
+    double bottomInset = ...,
+    double rowHeight = ...,
+    double subtitleRowHeight = ...,
+    double extraLineHeight = ...,
+    double imageCenter = ...,
+    double titleStart = ...,
+    double selectionCheckCenter = ...,
+    double selectionImageCenter = ...,
+    double selectionTitleStart = ...,
+    double selectionOnlyTitleStart = ...,
+    double plainTitleStart = ...,
+    double titleEnd = ...,
+    double chevronCenter = ...,
+    double headerHeight = ...,
+    double headerLabelTop = ...,
+    double headerStart = ...,
+    double selectionHeaderStart = ...,
+    double rowsAfterHeader = ...,
+    double cellsAfterHeader = ...,
+    double groupGap = ...,
+    double cellGroupGap = ...,
+    double separatorInset = ...,
+    double paletteCellWidth = ...,
+    double paletteMaxCellWidth = ...,
+    double paletteCellHeight = ...,
+    double paletteImageSize = ...,
+    double palettePlatter = ...,
+    double palettePlatterRadius = ...,
+    double cellInset = ...,
+    double smallCellHeight = ...,
+    int smallPerRow = ...,
+    double mediumCellHeight = ...,
+    int mediumPerRow = ...,
+    double mediumLabelTop = ...,
+    double cardHeaderHeight = ...,
+    double widgetInset = ...,
+    double maxHeight = ...,
+  })
+  final double bottomInset
+  final double cardHeaderHeight
+  final double cellGroupGap
+  final double cellInset
+  final double cellsAfterHeader
+  final double chevronCenter
+  final double extraLineHeight
+  final double groupGap
+  final double headerHeight
+  final double headerLabelTop
+  final double headerStart
+  final double imageCenter
+  final double maxHeight
+  final double mediumCellHeight
+  final double mediumLabelTop
+  final int mediumPerRow
+  final double paletteCellHeight
+  final double paletteCellWidth
+  final double paletteImageSize
+  final double paletteMaxCellWidth
+  final double palettePlatter
+  final double palettePlatterRadius
+  final double plainTitleStart
+  final double rowHeight
+  final double rowsAfterHeader
+  final double selectionCheckCenter
+  final double selectionHeaderStart
+  final double selectionImageCenter
+  final double selectionOnlyTitleStart
+  final double selectionTitleStart
+  final double separatorInset
+  final double smallCellHeight
+  final int smallPerRow
+  static const MenuMetrics standard
+  final double subtitleRowHeight
+  final double titleEnd
+  final double titleStart
+  final double topInset
+  final double widgetInset
+  final double width
+class MenuMotion extends Motion with Presented
+  MenuMotion({
+    required MenuSource source,
+    required Size bounds,
+    int itemCount = ...,
+    MenuLayout Function({required bool reversed})? layout,
+    EdgeInsets padding = ...,
+    @internal MenuTuning tuning = ...,
+    MenuAttachment? attachment,
+    MotionClock? clock,
+  })
+  MenuAttachment? get attachment
+  bool back(double t)
+  @internal MenuBlob get buttonBlob
+  double get buttonKick
+  double get buttonLookBlur
+  double get buttonLookOpacity
+  double get buttonLookStretch
+  ({double height, Offset shift, double width}) cardFlex(int index)
+  bool get cardGlassTransferred
+  GlassTouchGlow? cardGlow(int index)
+  double get cardMaterialOpacity
+  List<MenuCard> get cards
+  void close(double t)
+  double get contentBlur
+  double get contentOpacity
+  Rect get contentRect
+  double get contentScale
+  Offset get contentStretch
+  double get dim
+  bool? dismissOnSelect
+  List<MenuEvent> drainEvents()
+  bool get drawsSource
+  @visibleForTesting ({double value, double velocity}) get flexPulse
+  @visibleForTesting Rect get flexedMenuRect
+  double get fusionRadius
+  double get glassOpacity
+  void highlight(double t, int? index)
+  int? get highlighted
+  int get highlightedCard
+  void holdOpen(double t, Offset position)
+  bool get isArming
+  bool isBesideCard(Offset position)
+  bool get isClosing
+  bool isOnCard(Offset position)
+  bool get isOpen
+  bool get isOpenPending
+  bool get isPresented
+  bool get isSliding
+  static double kickAmplitude(double height)
+  MenuLayout get layout
+  bool lightsGlow
+  @internal MenuBlob get menuBlob
+  double get menuKick
+  Rect get menuRect
+  void openAfterTap(double t)
+  bool get opensDown
+  bool opensOnTap
+  static ({bool down, Rect rect}) place({
+    required Rect button,
+    required Size size,
+    required Size bounds,
+    EdgeInsets padding = ...,
+    double edgeMargin = ...,
+  })
+  static ({bool down, Rect rect, Offset shift}) placeAttached({
+    required MenuAttachment attachment,
+    required Size size,
+    required Size bounds,
+    EdgeInsets padding = ...,
+    double edgeMargin = ...,
+  })
+  void pointerCancel(double t)
+  void pointerDown(double t, Offset position)
+  void pointerMove(double t, Offset position)
+  void pointerScrolled(double t)
+  void pointerUp(double t, Offset position)
+  double get pressScale
+  Offset get previewShift
+  double get progress
+  void relayout({
+    required MenuSource source,
+    required Size bounds,
+    EdgeInsets padding = ...,
+    MenuAttachment? attachment,
+  })
+  @internal MenuBlob get rootBlob
+  GlassTouchGlow? get rootGlow
+  int? rowAt(Offset position)
+  double scrollOffset
+  void select(double t, int index)
+  GlassOutline? get silhouette
+  MenuLayout? Function(MenuTarget)? submenuLayout
+  Rect? targetRect(int index)
+  double get time
+  @internal int get topCard
+  GlassTouchGlow? get touchGlow
+  @internal final MenuTuning tuning
+  void updateLayout(double t, {bool animate = ...})
+  double get visibleRootHeight
+  overrides: didAdvance, holds, leave, minFrameRate, open, presence, wakeTime
+class MenuPlaced
+  const MenuPlaced({
+    required MenuPlacedKind kind,
+    required Rect rect,
+    Object? entry,
+    String? title,
+    double? checkCenter,
+    double? imageCenter,
+    double titleStart = ...,
+    double titleEnd = ...,
+    int maxLines = ...,
+    int target = ...,
+    Object? key,
+  })
+  final double? checkCenter
+  final Object? entry
+  final double? imageCenter
+  final Object? key
+  final MenuPlacedKind kind
+  final int maxLines
+  final Rect rect
+  final int target
+  final String? title
+  final double titleEnd
+  final double titleStart
+enum MenuPlacedKind
+  row,
+  header,
+  separator,
+  palette,
+  small,
+  medium,
+  loading,
+  widget,
+  cardHeader,
+final class MenuRowSpec extends MenuSpec
+  const MenuRowSpec({
+    required String title,
+    String? subtitle,
+    bool hasIcon = ...,
+    bool enabled = ...,
+    bool keepsOpen = ...,
+    bool marked = ...,
+    bool submenu = ...,
+    Object? entry,
+  })
+  final bool enabled
+  final bool hasIcon
+  final bool keepsOpen
+  final bool marked
+  final bool submenu
+  final String? subtitle
+  final String title
+final class MenuSectionSpec extends MenuSpec
+  const MenuSectionSpec({
+    required List<MenuSpec> children,
+    String? title,
+    bool singleSelection = ...,
+    MenuSpecSize size = ...,
+    int? maxTitleLines,
+    Object? entry,
+  })
+  final List<MenuSpec> children
+  final int? maxTitleLines
+  final bool singleSelection
+  final MenuSpecSize size
+  final String? title
+class MenuSource
+  MenuSource(Rect rect, {double? height, double? radius})
+  final double height
+  final Offset origin
+  final double? radius
+  final Rect shape
+  final Rect touches
+sealed class MenuSpec
+  const MenuSpec({Object? entry})
+  final Object? entry
+enum MenuSpecSize
+  rows,
+  small,
+  medium,
+  palette,
+final class MenuTapped extends MenuEvent
+  const MenuTapped(double time)
+class MenuTarget
+  const MenuTarget({
+    required Rect rect,
+    MenuTargetKind kind = ...,
+    bool keepsOpen = ...,
+    Object? entry,
+    int element = ...,
+  })
+  final int element
+  final Object? entry
+  final bool keepsOpen
+  final MenuTargetKind kind
+  final Rect rect
+enum MenuTargetKind
+  action,
+  submenu,
+  back,
+final class MenuWidgetSpec extends MenuSpec
+  const MenuWidgetSpec({double? height, Object? key, Object? entry})
+  final double? height
+  final Object? key
+class NavigationPopMotion
+  NavigationPopMotion(double width)
+  void addPosition(double t, double x)
+  double get averageAcceleration
+  double get averageVelocity
+  void begin(double t, {double progress = ...})
+  static const double flickBoost
+  static const double flickThreshold
+  static const double predictionDistance
+  static const double predictionFraction
+  static const double predictionTime
+  int get sampleCount
+  double get settleVelocity
+  bool shouldPop(double progress)
+  void update(double t, double progress, {bool ending = ...})
+  double get velocity
+  final double width
+sealed class PageControlEvent
+  const PageControlEvent()
+final class PageControlMotion extends Motion
+  PageControlMotion({
+    required int count,
+    required int page,
+    bool showsProgress = ...,
+    void Function(PageControlEvent)? onEvent,
+  })
+  double center(int index)
+  double get contentWidth
+  int get count
+  double fillOpacity(int index)
+  final void Function(PageControlEvent)? onEvent
+  int get page
+  double get platter
+  void pointerCancel(double t)
+  void pointerDown(double t, double x)
+  void pointerMove(double t, double x)
+  void pointerUp(double t, double x, {required double width})
+  void setPage(double t, int page)
+  bool showsProgress
+  double width(int index)
+  overrides: minFrameRate
+final class PageControlPicked extends PageControlEvent
+  const PageControlPicked(int page, {required bool scrubbed})
+  final int page
+  final bool scrubbed
+abstract class PageMotion extends Motion with Presented
+  PageMotion()
+  bool get fades
+  bool get isShown
+  double get progress
+  abstract void showInPlace(double t)
+  abstract void start(double t)
+  overrides: minFrameRate
+final class PageSlideMotion extends PageMotion with PredictiveBack
+  PageSlideMotion()
+  bool crossFades
+  void drag(double t, double travel)
+  void hold(double t)
+  void Function()? onReturned
+  void release(double t, {required bool pops, required double velocity})
+  void stay(double t)
+  bool get takesSwipe
+  double width
+  overrides: backEnded, backMoved, backStarted, didAdvance, fades, holds, isShown, leave, open, presence, progress, showInPlace, start
+enum PopoverArrowDirection
+  down,
+  up,
+  left,
+  right,
+class PopoverMotion extends Motion with Presented, PredictiveBack
+  PopoverMotion({
+    Spring presentSpring = ...,
+    Spring dismissSpring = ...,
+    double hiddenScale = ...,
+  })
+  void dismiss(double t)
+  final Spring dismissSpring
+  final double hiddenScale
+  bool get isDismissed
+  bool get isLeaving
+  double get opacity
+  void present(double t)
+  final Spring presentSpring
+  double get progress
+  double get scale
+  overrides: backEnded, backMoved, backStarted, leave, open, presence
+class PopoverPlacement
+  const PopoverPlacement({
+    required Rect content,
+    required PopoverArrowDirection arrowDirection,
+    required double arrowCenter,
+  })
+  Offset get anchor
+  final double arrowCenter
+  final PopoverArrowDirection arrowDirection
+  Rect get bounds
+  final Rect content
+  overrides: ==, hashCode, toString
 class RawGlassButton extends StatefulWidget
   const RawGlassButton({
     required void Function()? onPressed,
@@ -2065,13 +2988,13 @@ class RawGlassSelector extends StatefulWidget
     bool autofocus = ...,
     String? semanticLabel,
     List<String?>? itemLabels,
-    @internal GlassSelectorCollapse? collapse,
+    GlassSelectorCollapse? collapse,
     @internal bool hosted = ...,
     Key? key,
   })
   final bool autofocus
   final Widget Function(BuildContext, GlassSelectorDetails) builder
-  @internal final GlassSelectorCollapse? collapse
+  final GlassSelectorCollapse? collapse
   final Set<int> disabledItems
   final FocusNode? focusNode
   @internal final bool hosted
@@ -2176,7 +3099,389 @@ class RawGlassSwitch extends StatefulWidget
   final WidgetStatesController? statesController
   final bool value
   overrides: createState
+class RenderScrollEdge extends RenderBox
+  RenderScrollEdge({
+    required GlassScrollEdgeDetails details,
+    required Brightness brightness,
+    required double devicePixelRatio,
+  })
+  Brightness get brightness
+  set brightness(Brightness value)
+  GlassScrollEdgeDetails get details
+  set details(GlassScrollEdgeDetails value)
+  double get devicePixelRatio
+  set devicePixelRatio(double value)
+  @protected void dropBand()
+  @protected void paintBand(
+    PaintingContext context,
+    Offset offset,
+    double presence,
+    void Function(PaintingContext, Offset) fade,
+  )
+  @protected void paintFade(PaintingContext context, Offset offset)
+  double get presence
+  @protected bool updateBand(double presence)
+  overrides: alwaysNeedsCompositing, attach, computeDryLayout, detach, dispose, hitTestSelf, isRepaintBoundary, paint, sizedByParent
+class ScrollEdgeBand extends StatelessWidget
+  const ScrollEdgeBand({
+    required GlassScrollEdgeDetails details,
+    required Widget paint,
+    Key? key,
+  })
+  final GlassScrollEdgeDetails details
+  final Widget paint
+  overrides: build
+class SearchBarGeometry
+  const SearchBarGeometry({
+    required Rect field,
+    required Rect close,
+    required List<Rect> leading,
+    required List<Rect> trailing,
+  })
+  final Rect close
+  final Rect field
+  final List<Rect> leading
+  final List<Rect> trailing
+final class SearchMotion extends Motion
+  SearchMotion({Spring spring = ..., MotionClock? clock})
+  static double appearScaleFor(double presence)
+  void focus(double t, {double delay = ...})
+  void focusAfterKeyboard(double t, {double limit = ...})
+  bool get isFocused
+  void keyboardRose(double t, {required double lag})
+  double get progress
+  void snap(double t, {required bool focused})
+  void unfocus(double t, {double delay = ...})
+  bool get waitsForKeyboard
+class SearchTabGeometry
+  const SearchTabGeometry({
+    required Rect bar,
+    required Rect search,
+    required Rect tab,
+    required Rect field,
+    required Rect focusedField,
+    required Rect close,
+  })
+  final Rect bar
+  final Rect close
+  final Rect field
+  final Rect focusedField
+  final Rect search
+  final Rect tab
+final class SegmentHighlight extends Motion
+  SegmentHighlight()
+  static const Curve curve
+  static const double dimDuration
+  static const double dimmedOpacity
+  int? get index
+  double opacity(int index)
+  void press(double t, int index)
+  void release(double t)
+  static const double restoreDuration
+  overrides: didAdvance
+final class SheetDetentChanged extends SheetEvent
+  const SheetDetentChanged(int index, {required bool byUser})
+  final bool byUser
+  final int index
+final class SheetDismissRefused extends SheetEvent
+  const SheetDismissRefused()
+final class SheetDismissed extends SheetEvent
+  const SheetDismissed()
+sealed class SheetEvent
+  const SheetEvent()
+class SheetMotion extends Motion
+  SheetMotion({
+    required List<double> heights,
+    required double width,
+    required int initial,
+    double? fullHeight,
+    int? dockedIndex,
+    int? undimmedIndex,
+    bool dismissible = ...,
+    double inset = ...,
+    double? displayRadius,
+  })
+  void animateTo(double t, int index)
+  void backCancel(double t)
+  void backMove(double t, double progress)
+  void backStart(double t)
+  double backVelocity(double velocity)
+  double get bottomRadius
+  double get dimming
+  void dismiss(double t, {double velocity = ...})
+  bool dismissible
+  double? displayRadius
+  double get dock
+  final int? dockedIndex
+  double get dockedRadius
+  void dragCancel(double t)
+  void dragEnd(double t, double velocity)
+  void dragStart(double t, double y)
+  void dragUpdate(double t, double y)
+  List<SheetEvent> drainEvents()
+  double get fill
+  double get floatingRadius
+  bool get hasEvents
+  double get height
+  List<double> get heights
+  double get hiddenOffset
+  int get index
+  final double inset
+  bool get isDismissed
+  bool get isDismissing
+  bool get isDragging
+  double get offset
+  void pick(double t, int index)
+  void present(double t)
+  void press(double t)
+  void relayout(
+    double t,
+    List<double> heights,
+    double width, {
+    double? fullHeight,
+    int? index,
+  })
+  double get scale
+  double get stretch
+  void tapGrabber(double t)
+  final int? undimmedIndex
+  void unpress(double t)
+  Rect visibleRect(double containerHeight)
+  double width
+  overrides: holds, minFrameRate
+final class SliderChangeEnded extends SliderEvent
+  const SliderChangeEnded(double value)
+  final double value
+final class SliderChanged extends SliderEvent
+  const SliderChanged(double value)
+  final double value
+sealed class SliderEvent
+  const SliderEvent()
+final class SliderFelt extends SliderEvent
+  const SliderFelt({required bool detent})
+  final bool detent
+final class SliderMotion extends Motion
+  SliderMotion({
+    required double width,
+    required double value,
+    double? frameRate = ...,
+    int ticks = ...,
+    void Function(SliderEvent)? onEvent,
+  })
+  double get currentTrackHeight
+  static const double farEdgeRatio
+  double get fillEnd
+  static const double fillRamp
+  final double? frameRate
+  static const double glideCoast
+  static const double glideDecay
+  bool hitsThumb(double x)
+  bool get isAnimatingValueChange
+  bool get isDragging
+  bool get isGliding
+  @internal late final SmallLens lens
+  static const Size liftedThumbSize
+  final void Function(SliderEvent)? onEvent
+  static const (double, double) overdrag
+  static const double panSlop
+  void pointerCancel(double t, {bool revert = ...})
+  void pointerDown(double t, double x)
+  void pointerMove(double t, double x, {bool begin = ...})
+  void pointerUp(double t, double x, {double? velocity})
+  double get position
+  static const Spring programmaticSpring
+  static const double releaseDelay
+  static const Spring releaseSpring
+  double get reportedValue
+  void setValue(double t, double value, {bool animated = ...})
+  static const double squish
+  double get stretch
+  double get thumbCenter
+  static const Size thumbSize
+  static const double thumbSlop
+  List<double> get tickCenters
+  static const double tickExponent
+  static const double tickInset
+  static const double tickOffset
+  static const double tickProjection
+  static const double tickProjectionThreshold
+  static const Spring tickReleaseSpring
+  static const double tickSize
+  int get ticks
+  set ticks(int value)
+  ({double left, double right}) get trackEnds
+  static const double trackHeight
+  double get travel
+  double get value
+  static const double velocityWindow
+  double get width
+  set width(double value)
+  overrides: didAdvance, holds, minFrameRate
+final class SwitchChanged extends SwitchEvent
+  const SwitchChanged({required bool on})
+  final bool on
+sealed class SwitchEvent
+  const SwitchEvent()
+final class SwitchMotion extends Motion
+  SwitchMotion({
+    required bool value,
+    double? frameRate = ...,
+    void Function(SwitchEvent)? onEvent,
+  })
+  double get color
+  static const double colorDelay
+  static const double deadZone
+  static const double deadZoneWindow
+  static const double flipDistance
+  final double? frameRate
+  static const double inset
+  double get knob
+  static const Size knobSize
+  static const Spring knobSpring
+  @internal late final SmallLens lens
+  static const Size liftedKnobSize
+  static const Spring offColorSpring
+  static const Spring onColorSpring
+  final void Function(SwitchEvent)? onEvent
+  static const (double, double) overdrag
+  void pointerCancel(double t)
+  void pointerDown(double t, double x)
+  void pointerMove(double t, double x)
+  void pointerUp(double t, double x)
+  void setValue(double t, {required bool value})
+  static const Size trackSize
+  static const double travel
+  bool get value
+final class SwitchShown extends SwitchEvent
+  const SwitchShown({required bool on})
+  final bool on
+final class TabBarLayout
+  factory TabBarLayout.of(
+    List<double> naturals, {
+    required double available,
+    bool hosted = ...,
+  })
+  static const double buttonInset
+  final List<({double center, double width})> buttons
+  static const double minimumItem
+  static const double phoneBelow
+  static const double sparseGap
+  static const double titleMargin
+  final double width
+final class TabBarMinimizeMotion extends Motion
+  TabBarMinimizeMotion({GlassTabBarMinimizeBehavior behavior = ...})
+  double get accessoryX
+  double get accessoryY
+  GlassTabBarMinimizeBehavior get behavior
+  double extent
+  double get hint
+  bool get minimized
+  double get morph
+  double get press
+  void pressCancel(double t)
+  void pressDown(double t, double x)
+  bool pressMove(double t, double x)
+  void pressUp(double t)
+  bool get pressed
+  @internal final ScrollAway scrollAway
+  void setBehavior(double t, GlassTabBarMinimizeBehavior value)
+  void setMinimized(double t, {required bool minimized})
+final class TouchGlowMotion extends Motion
+  TouchGlowMotion({
+    required double washPeak,
+    required double spotPeak,
+    required double diameter,
+    required double riseLag,
+    double minimumLit = ...,
+  })
+  final double diameter
+  static const double dragDistance
+  static const double dragGrowth
+  static const double dragStrength
+  static const Spring fallSpring
+  GlassTouchGlow? get glow
+  static const double hideBelow
+  bool get isDown
+  final double minimumLit
+  void pointerDown(double t, Offset position)
+  void pointerMove(double t, Offset position)
+  void pointerUp(double t)
+  static const double releaseGrowth
+  static const double releaseLag
+  final double riseLag
+  static const Spring riseSpring
+  static const double spotCore
+  double spotOpacity(double t)
+  final double spotPeak
+  double spotScale(double t)
+  static const double spotSpread
+  static const double tabBarDiameter
+  static const double tabBarRiseLag
+  static const double washOffset
+  double washOpacity(double t)
+  final double washPeak
+final class ZoomPageMotion extends PageMotion with Sourced
+  ZoomPageMotion({@internal ZoomPageTuning tuning = ..., Rect page = ...})
+  bool allowsDrag(Offset delta, {bool rtl = ...})
+  double get contentScale
+  double get dimming
+  double displayRadius
+  bool dragEnd(double t, Offset velocity)
+  Rect dragFrame(Rect page, Offset from, Offset delta)
+  void dragStart(double t, Offset position)
+  void dragUpdate(double t, Offset position)
+  double get fade
+  bool get isDragging
+  double get lookScale
+  double get radius
+  double get reach
+  Rect get rect
+  void resize(double t, Size size)
+  Rect get source
+  void stay(double t)
+  bool get takesDrag
+  @internal final ZoomPageTuning tuning
+  overrides: holds, isShown, leave, open, presence, progress, showInPlace, sourceMoved, start
+List<GlassBarCapsuleLayout> layoutGlassBar({
+  required List<GlassBarCapsuleSpec> leading,
+  required List<GlassBarCapsuleSpec> trailing,
+  required double width,
+  required double top,
+  required double leadingInset,
+  required double trailingInset,
+  required GlassBarMetrics metrics,
+  List<List<GlassBarCapsuleSpec>> center = ...,
+  bool rtl = ...,
+})
+DatePickerPlacement placeDatePicker({
+  required Size size,
+  required Rect label,
+  required Size screen,
+  EdgeInsets padding = ...,
+  TextDirection textDirection = ...,
+})
+PopoverPlacement placePopover({
+  required Size size,
+  required Rect source,
+  required Size screen,
+  EdgeInsets padding = ...,
+  TextDirection textDirection = ...,
+})
 Future<void> precacheGlass({bool warmUp = ...})
+SearchBarGeometry searchBarLayout({
+  required double width,
+  required double bottom,
+  required bool focused,
+  List<double> leading = ...,
+  List<double> trailing = ...,
+  bool rtl = ...,
+})
+SearchTabGeometry searchTabLayout({
+  required Size size,
+  required double barWidth,
+  double keyboard = ...,
+  bool rtl = ...,
+})
 Future<GlassAlertAction?> showGlassActionSheet(
   BuildContext context, {
   Widget? title,
@@ -2385,6 +3690,7 @@ class GlassColorScheme (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassColors (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassDefaultTextStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassDynamicColor (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassField (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassFrame (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassInterfaceLevel (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassLens (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -2416,8 +3722,89 @@ re-exported from package:liquid_glass_renderer:
   debugDumpGlassPlan
 
 # package:apple_liquid_glass/motions.dart
+class AlertMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class ContextHold (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class DatePickerCalendarMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class DatePickerLabelMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class DatePickerMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class DatePickerPlacement (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class FlexLaw (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassBarButtonKind (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassBarButtonSpec (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassBarCapsuleFrame (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassBarCapsuleLayout (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassBarCapsuleSpec (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassBarItemFrame (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassBarItemId (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassBarMetrics (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassBarMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassBarTransitionSpec (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassPress (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSheetDetent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassTabBarMinimizeBehavior (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class LensEvent (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class LensMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class LensSelected (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef LensSlot (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class ListRowHighlight (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class MenuActivated (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class MenuAttachment (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class MenuCapsuleSource (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class MenuCard (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class MenuDividerSpec (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class MenuEvent (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class MenuHighlightChanged (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class MenuLayout (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class MenuLoadingSpec (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class MenuMetrics (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class MenuMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class MenuPlaced (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum MenuPlacedKind (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class MenuRowSpec (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class MenuSectionSpec (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class MenuSource (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class MenuSpec (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum MenuSpecSize (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class MenuTapped (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class MenuTarget (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum MenuTargetKind (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class MenuWidgetSpec (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class NavigationPopMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class PageControlEvent (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class PageControlMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class PageControlPicked (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class PageMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class PageSlideMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum PopoverArrowDirection (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class PopoverMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class PopoverPlacement (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SearchBarGeometry (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SearchMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SearchTabGeometry (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SegmentHighlight (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SheetDetentChanged (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SheetDismissRefused (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SheetDismissed (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SheetEvent (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SheetMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SliderChangeEnded (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SliderChanged (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SliderEvent (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SliderFelt (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SliderMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SwitchChanged (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SwitchEvent (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SwitchMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SwitchShown (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class TabBarLayout (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class TabBarMinimizeMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class TouchGlowMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class ZoomPageMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+function layoutGlassBar (see package:apple_liquid_glass/apple_liquid_glass.dart)
+function placeDatePicker (see package:apple_liquid_glass/apple_liquid_glass.dart)
+function placePopover (see package:apple_liquid_glass/apple_liquid_glass.dart)
+function searchBarLayout (see package:apple_liquid_glass/apple_liquid_glass.dart)
+function searchTabLayout (see package:apple_liquid_glass/apple_liquid_glass.dart)
 
 # package:apple_liquid_glass/navigation.dart
 enum GlassBackButtonDisplayMode (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -2489,6 +3876,7 @@ class GlassSearchController (see package:apple_liquid_glass/apple_liquid_glass.d
 typedef GlassSearchFieldBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSearchFieldDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassSelectorBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSelectorCollapse (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSelectorDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassSelectorItemBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassSelectorMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -2517,6 +3905,9 @@ class FlatGlassRenderer (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassClip (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassGroup (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassGroupDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassHighlight (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassHighlightPaint (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassHighlights (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassMerge (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassRenderer (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassRendererScope (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -2524,3 +3915,5 @@ class GlassScrollEdgeDetails (see package:apple_liquid_glass/apple_liquid_glass.
 class GlassSolidBackdrop (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSurface (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSurfaceDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class RenderScrollEdge (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class ScrollEdgeBand (see package:apple_liquid_glass/apple_liquid_glass.dart)

@@ -175,16 +175,16 @@ class ZoomPageTuning {
 ///
 /// It rests within [MotionRest.length] for the frame and
 /// [MotionRest.opacity] for the crossfade and the dimming (NEAR).
-@internal
 final class ZoomPageMotion extends PageMotion with Sourced {
   /// Creates a motion for a page filling [page], in global coordinates.
   ZoomPageMotion({
-    this.tuning = ZoomPageTuning.standard,
+    @internal this.tuning = ZoomPageTuning.standard,
     Rect page = Rect.zero,
   }) : _origin = page.topLeft,
        _size = page.size;
 
   /// The measured behavior this motion reproduces.
+  @internal
   final ZoomPageTuning tuning;
 
   /// The radius of the display's corners, which the container's corners

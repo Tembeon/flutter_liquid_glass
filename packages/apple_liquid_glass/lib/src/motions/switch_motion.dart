@@ -30,7 +30,6 @@ import 'package:meta/meta.dart';
 ///
 /// Every part rests within [MotionRest]: invisible, NEAR. Each event goes
 /// to [onEvent] as the command that raises it runs.
-@internal
 final class SwitchMotion extends Motion {
   /// Creates a switch resting at [value] whose knob lens filters its
   /// motion at [frameRate] frames per second of motion time, or at the
@@ -129,6 +128,7 @@ final class SwitchMotion extends Motion {
   late final MotionValue<double> _color;
 
   /// The knob's lens; it follows the knob.
+  @internal
   late final SmallLens lens;
 
   static const _colorSlot = #color;

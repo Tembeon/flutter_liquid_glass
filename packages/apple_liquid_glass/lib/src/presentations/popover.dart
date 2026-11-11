@@ -6,7 +6,7 @@ import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/popover_motion.dart';
 import 'package:apple_liquid_glass/src/presentations/popover_shape.dart';
 import 'package:apple_liquid_glass/src/presentations/sheet.dart';
-import 'package:apple_liquid_glass/src/surfaces/surface.dart';
+import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';

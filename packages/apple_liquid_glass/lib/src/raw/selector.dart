@@ -2,14 +2,11 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/motions/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
-import 'package:apple_liquid_glass/src/motions/glass_press.dart';
 import 'package:apple_liquid_glass/src/motions/lens_motion.dart';
-import 'package:apple_liquid_glass/src/motions/segment_highlight.dart';
-import 'package:apple_liquid_glass/src/motions/tab_bar_layout.dart';
 import 'package:apple_liquid_glass/src/motions/tab_minimize.dart';
-import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -35,7 +32,6 @@ enum GlassSelectorMotion {
 /// What turns a tab bar selector into a circle and back: the same bar
 /// throughout, its glass and content following [morph], whatever asks for
 /// it (a scroll, a search).
-@internal
 abstract interface class GlassSelectorCollapse {
   /// The way from the bar (0) to the circle (1); a spring may overshoot both.
   MotionSelection<double> get morph;
@@ -204,7 +200,7 @@ class RawGlassSelector extends StatefulWidget {
     this.autofocus = false,
     this.semanticLabel,
     this.itemLabels,
-    @internal this.collapse,
+    this.collapse,
     @internal this.hosted = false,
     super.key,
   }) : assert(
@@ -287,7 +283,6 @@ class RawGlassSelector extends StatefulWidget {
   /// What collapses a tab bar into a circle, or null; a bar under one has a
   /// box as wide as it is given and draws its glass where the collapse
   /// says.
-  @internal
   final GlassSelectorCollapse? collapse;
 
   /// Whether a tab bar hosts an accessory or a search, which makes it span

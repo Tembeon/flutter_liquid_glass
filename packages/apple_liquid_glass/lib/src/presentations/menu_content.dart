@@ -1,4 +1,4 @@
-import 'package:apple_liquid_glass/src/motions/menu_layout.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_entries.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';

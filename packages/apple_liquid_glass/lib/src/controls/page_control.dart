@@ -1,7 +1,7 @@
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/raw/page_control.dart';
-import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
+import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 

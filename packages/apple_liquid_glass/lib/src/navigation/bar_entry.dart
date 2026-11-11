@@ -1,6 +1,6 @@
-import 'package:apple_liquid_glass/src/foundation/colors.dart';
+import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/presentations.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/presentations/menu_entries.dart';
 import 'package:flutter/widgets.dart';
 
 /// The look of a bar's items; a null field leaves it to the default.

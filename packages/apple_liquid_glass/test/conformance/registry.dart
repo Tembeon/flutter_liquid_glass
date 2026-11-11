@@ -832,6 +832,7 @@ final List<Entry> registry = [
 
 /// Public widgets that take no input, each with the reason.
 const Map<String, String> nonInteractive = {
+  'ContextHold': 'the measured hold that opens a menu; no widget',
   'GlassBadge': 'a label drawn on another control; announces its text only',
   'GlassBarEntry': 'the sealed base of GlassBarItem and GlassBarSpacer',
   'GlassClip': 'clips its child to a glass shape',
@@ -840,6 +841,8 @@ const Map<String, String> nonInteractive = {
       'inside it takes the input',
   'GlassDefaultTextStyle': 'provides a text style to its subtree',
   'GlassGroup': 'merges the glass of its children',
+  'GlassHighlightPaint':
+      'paints the focus ring and hover on a part of a control',
   'GlassListBackground': 'paints the grouped background behind sections',
   'GlassListSection': 'lays out rows and a header; its rows are entries',
   'GlassMenuEntry': 'the sealed base of the menu entries',
@@ -857,7 +860,13 @@ const Map<String, String> nonInteractive = {
   'GlassTheme': 'provides the theme to its subtree',
   'GlassTraitsOverride': 'overrides accessibility traits for its subtree',
   'GlassZoomSource': 'marks a child as the source of a zoom transition',
+  'LensMotion': 'the lens law; a control runs it, it takes no input',
+  'MenuRowSpec': 'describes a menu row to the layout law',
+  'PageControlMotion': 'the page control law; a control runs it',
   'RawGlassList': 'animates the layout of keyed children',
+  'ScrollEdgeBand': 'draws the scroll edge band of a renderer',
+  'SliderMotion': 'the slider law; a control runs it',
+  'SwitchMotion': 'the switch law; a control runs it',
 };
 
 const _tabs = [

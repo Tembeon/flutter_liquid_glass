@@ -290,7 +290,6 @@ typedef LensSlot = ({double center, double width});
 /// still. A finger held still counts: the lens rests lifted under it until
 /// the finger moves or lifts. Each selection goes to [onEvent] as the
 /// command that makes it runs.
-@internal
 final class LensMotion extends Motion {
   /// Creates a lens resting in [selected] among [slots].
   /// Empty slots have selection -1 and ignore input; other indices clamp
@@ -300,7 +299,7 @@ final class LensMotion extends Motion {
   /// and the start of the motion. [chromeSize] is the size of the whole
   /// control, which flexes when the tuning says so.
   LensMotion({
-    required this.tuning,
+    @internal required this.tuning,
     required List<LensSlot> slots,
     required int selected,
     required this.height,
@@ -350,6 +349,7 @@ final class LensMotion extends Motion {
   }
 
   /// The measured behavior this lens reproduces.
+  @internal
   final LensTuning tuning;
 
   /// The resting height of the lens.
@@ -548,6 +548,7 @@ final class LensMotion extends Motion {
   /// its drift along and across the track, [FlexInteraction.rest]
   /// exactly while it rests. The control shows the drift times the scale
   /// ([GlassPress.lean]).
+  @internal
   FlexValues get chrome => _chrome.values;
 
   /// Whether the finger currently drags the lens.

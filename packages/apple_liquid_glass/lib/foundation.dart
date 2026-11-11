@@ -29,7 +29,7 @@ export 'src/foundation/frame.dart' show GlassFrame;
 export 'src/foundation/glass.dart' show Glass, GlassLens, GlassRole;
 export 'src/foundation/localizations.dart'
     show DefaultGlassLocalizations, GlassLocalizations;
-export 'src/foundation/outline.dart' show GlassOutline;
+export 'src/foundation/outline.dart' show GlassField, GlassOutline;
 export 'src/foundation/shape.dart'
     show GlassOval, GlassRoundedRect, GlassShape, GlassSuperellipse;
 export 'src/foundation/theme.dart'

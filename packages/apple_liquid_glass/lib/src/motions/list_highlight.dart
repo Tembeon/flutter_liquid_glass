@@ -1,7 +1,6 @@
 import 'package:flutter/animation.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
-import 'package:meta/meta.dart';
 
 /// The highlight of a tappable list row (UIKit `UITableViewCell` in a
 /// table).
@@ -24,7 +23,6 @@ import 'package:meta/meta.dart';
 /// private), and the highlight showed 0.155 - 0.166 s after the touch (one
 /// frame later); the fade is the CABasicAnimation UIKit adds, read from
 /// the layer. Times are seconds.
-@internal
 final class ListRowHighlight extends Motion implements PointerFollower {
   /// The delay between a touch and the highlight inside a scroll view.
   static const double touchDelay = 0.15;

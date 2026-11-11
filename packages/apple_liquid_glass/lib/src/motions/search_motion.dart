@@ -172,7 +172,6 @@ abstract final class SearchTuning {
 }
 
 /// The geometry of a tab bar with a search tab, at rest and searching.
-@internal
 @immutable
 class SearchTabGeometry {
   /// Creates a geometry.
@@ -211,7 +210,6 @@ class SearchTabGeometry {
 /// the tab circle 28 from the side and bottom and the field 12 after it to 28
 /// from the side; focused, the field 8 from the side, the close button 8 after
 /// it, 8 above the keyboard). [rtl] mirrors it.
-@internal
 SearchTabGeometry searchTabLayout({
   required Size size,
   required double barWidth,
@@ -297,7 +295,6 @@ Rect lerpRect(Rect a, Rect b, double t) {
 /// ([SearchTuning.pressLaw]).
 ///
 /// Times are seconds on the motion's timeline.
-@internal
 final class SearchMotion extends Motion {
   /// Creates the motion of a resting field, stepped by [clock] on screen;
   /// the focus transition rides [spring].
@@ -386,7 +383,6 @@ final class SearchMotion extends Motion {
 
 /// The geometry of a bottom search bar in one configuration: the field,
 /// the close button and the toolbar items around the field.
-@internal
 @immutable
 class SearchBarGeometry {
   /// Creates a geometry.
@@ -417,7 +413,6 @@ class SearchBarGeometry {
 /// [SearchTuning.focusedSideInset] from the sides. Items absent from
 /// a configuration still get the slot they would take there, so they can
 /// arrive from it. [rtl] mirrors everything.
-@internal
 SearchBarGeometry searchBarLayout({
   required double width,
   required double bottom,

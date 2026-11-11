@@ -1,6 +1,6 @@
+import 'package:apple_liquid_glass/controls.dart';
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/controls/search_field.dart';
-import 'package:apple_liquid_glass/src/motions/glass_press.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/motions/search_motion.dart';
 import 'package:apple_liquid_glass/src/navigation/search_stacking.dart';
 import 'package:flutter/foundation.dart';

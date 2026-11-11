@@ -23,6 +23,8 @@ library;
 export 'src/surfaces/clip.dart' show GlassClip;
 export 'src/surfaces/flat.dart' show FlatGlassRenderer;
 export 'src/surfaces/group.dart' show GlassGroup, GlassMerge;
+export 'src/surfaces/highlight.dart'
+    show GlassHighlight, GlassHighlightPaint, GlassHighlights;
 export 'src/surfaces/renderer.dart'
     show
         GlassGroupDetails,
@@ -30,5 +32,6 @@ export 'src/surfaces/renderer.dart'
         GlassScrollEdgeDetails,
         GlassSurfaceDetails;
 export 'src/surfaces/renderer_scope.dart' show GlassRendererScope;
+export 'src/surfaces/scroll_edge.dart' show RenderScrollEdge, ScrollEdgeBand;
 export 'src/surfaces/solid_backdrop.dart' show GlassSolidBackdrop;
 export 'src/surfaces/surface.dart' show GlassSurface;

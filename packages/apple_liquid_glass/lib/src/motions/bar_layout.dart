@@ -7,7 +7,6 @@ import 'package:meta/meta.dart';
 /// The measured geometry of a bar's glass buttons, read from the view
 /// frames iOS 27 lays out (iPhone 16 Pro, 402 points; the simulator's
 /// iPhone 18 Pro Max at 440; bars passport).
-@internal
 @immutable
 class GlassBarMetrics {
   /// Creates metrics from explicit values.
@@ -91,7 +90,6 @@ class GlassBarMetrics {
 }
 
 /// What a bar button shows, which sets how its content is padded.
-@internal
 enum GlassBarButtonKind {
   /// An icon, padded by [GlassBarMetrics.iconPadding].
   icon,
@@ -108,7 +106,6 @@ enum GlassBarButtonKind {
 }
 
 /// One button to lay out.
-@internal
 @immutable
 class GlassBarButtonSpec {
   /// A button [id] whose content is [contentWidth] wide.
@@ -126,7 +123,6 @@ class GlassBarButtonSpec {
 }
 
 /// One capsule to lay out: adjacent buttons sharing one piece of glass.
-@internal
 @immutable
 class GlassBarCapsuleSpec {
   /// A capsule of [buttons].
@@ -139,7 +135,6 @@ class GlassBarCapsuleSpec {
 /// The identity of a button whose id another button of the same bar took
 /// before it: the [index]-th repeat of [id] in reading order (from 1), as
 /// UIKit's unique semantic id pairs a semantic id with an index.
-@internal
 @immutable
 class GlassBarItemId {
   /// Identifies the [index]-th repeat of [id].
@@ -178,7 +173,6 @@ const Object glassBarTrailing = 'trailing';
 /// are anonymous, keyed by their place from their run's edge, so a change
 /// pairs them by the nearest center within their segment, as UIKit's bars
 /// pair their groups. [rtl] mirrors the bar.
-@internal
 List<GlassBarCapsuleLayout> layoutGlassBar({
   required List<GlassBarCapsuleSpec> leading,
   required List<GlassBarCapsuleSpec> trailing,

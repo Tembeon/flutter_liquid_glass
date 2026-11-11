@@ -72,7 +72,6 @@ abstract final class PageControlTuning {
 /// widths within [MotionRest.length]: invisible, NEAR. A resting finger
 /// holds nothing: its moves and lift arrive as stamped commands. Each pick
 /// goes to [onEvent] as the command that makes it runs.
-@internal
 final class PageControlMotion extends Motion {
   /// Creates a motion of [count] pages showing [page].
   PageControlMotion({
@@ -268,14 +267,12 @@ final class PageControlMotion extends Motion {
 }
 
 /// What a [PageControlMotion] tells its host.
-@internal
 sealed class PageControlEvent {
   const PageControlEvent();
 }
 
 /// A touch picked [page]: a tap on either half, or a scrubbing finger
 /// ([scrubbed]) that moved the control to another page.
-@internal
 final class PageControlPicked extends PageControlEvent {
   /// Creates the event.
   const PageControlPicked(this.page, {required this.scrubbed});

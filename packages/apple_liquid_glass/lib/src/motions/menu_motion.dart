@@ -1208,7 +1208,6 @@ class MenuCard {
 }
 
 /// What a menu grows out of, in an overlay's coordinates.
-@internal
 class MenuSource {
   /// A button: [rect] morphs, takes the touches, and places the menu, which
   /// grows from its center.
@@ -1248,7 +1247,6 @@ class MenuSource {
 /// A capsule of a bar: all of it morphs and shrinks to a square, while the
 /// menu grows out of the tapped item and lands where the capsule says, not
 /// where the item does (menu passport).
-@internal
 final class MenuCapsuleSource extends MenuSource {
   /// The capsule's [capsule] rect with its tapped [item]'s slot in it.
   ///
@@ -1330,7 +1328,7 @@ class MenuMotion extends Motion with Presented {
     this._itemCount = 0,
     MenuLayout Function({required bool reversed})? layout,
     this._padding = EdgeInsets.zero,
-    this.tuning = MenuTuning.standard,
+    @internal this.tuning = MenuTuning.standard,
     this._attachment,
     super.clock,
   }) : _layoutFor = layout {
@@ -1358,6 +1356,7 @@ class MenuMotion extends Motion with Presented {
   double get minFrameRate => 120;
 
   /// The measured behavior this motion reproduces.
+  @internal
   final MenuTuning tuning;
 
   late final MotionValue<double> _progress = own(
@@ -2182,6 +2181,7 @@ class MenuMotion extends Motion with Presented {
   double get buttonKick => _kicks.button.value;
 
   /// The menu shape: grows out of the button into the menu.
+  @internal
   MenuBlob get menuBlob => _blobFor(menuRect);
 
   MenuBlob _blobFor(
@@ -2366,6 +2366,7 @@ class MenuMotion extends Motion with Presented {
   /// The root list's glass shape, scaled about its top center by
   /// [MenuTuning.parentScale] per open card, independently of the vessel
   /// that holds the whole stack; [menuBlob] while no card is open.
+  @internal
   MenuBlob get rootBlob {
     if (_cards.isEmpty) return menuBlob;
     final frame = menuRect;
@@ -2380,6 +2381,7 @@ class MenuMotion extends Motion with Presented {
   }
 
   /// The button shape: shrinks into the menu.
+  @internal
   MenuBlob get buttonBlob {
     final p = progress;
     final from = _sourceScaleAt(_now);

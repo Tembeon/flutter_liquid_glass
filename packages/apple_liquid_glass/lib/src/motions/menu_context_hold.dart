@@ -11,7 +11,6 @@ import 'package:kinesis/motion.dart';
 /// [commitAfter] the hold commits ([onCommit]): a release from then on
 /// opens the menu anyway. At [openAfter] the menu opens under the finger
 /// ([onOpen]), at that time exactly, with the growth the view had reached.
-@internal
 final class ContextHold extends Motion {
   /// Creates a hold no finger rests on.
   ContextHold({required this.onCommit, required this.onOpen, super.clock});

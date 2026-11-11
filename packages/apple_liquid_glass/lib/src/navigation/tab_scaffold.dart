@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/foundation/colors.dart';
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/navigation/bar.dart';
 import 'package:apple_liquid_glass/src/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/navigation/tab_bar.dart';

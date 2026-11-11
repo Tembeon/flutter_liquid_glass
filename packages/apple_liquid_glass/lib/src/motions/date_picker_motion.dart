@@ -177,7 +177,6 @@ abstract final class DatePickerTuning {
 }
 
 /// Where the overlay of a compact date picker sits.
-@internal
 @immutable
 class DatePickerPlacement {
   /// Creates a placement.
@@ -215,7 +214,6 @@ class DatePickerPlacement {
 /// [DatePickerTuning.marginFor] the screen's width from its sides.
 /// Checked against six placements on the iOS 27 simulator and one on an
 /// iPhone 16 Pro.
-@internal
 DatePickerPlacement placeDatePicker({
   required Size size,
   required Rect label,
@@ -258,7 +256,6 @@ DatePickerPlacement placeDatePicker({
 /// (approximation, not recorded on the device).
 ///
 /// Times are seconds on the motion's timeline.
-@internal
 final class DatePickerLabelMotion extends Motion {
   late final _highlight = own(TimedValue(1));
 
@@ -296,7 +293,6 @@ final class DatePickerLabelMotion extends Motion {
 /// notes private).
 ///
 /// Times are seconds on the motion's timeline.
-@internal
 final class DatePickerMotion extends Motion with Presented {
   /// Creates the motion of a closed overlay; a [reopening] one opens while
   /// an earlier overlay of the same picker still closes.
@@ -497,7 +493,6 @@ final class DatePickerMotion extends Motion with Presented {
 /// recorded on the device).
 ///
 /// Times are seconds on the motion's timeline.
-@internal
 final class DatePickerCalendarMotion extends Motion {
   late final _page = own(TimedValue(1));
   late final _years = own(TimedValue(0));

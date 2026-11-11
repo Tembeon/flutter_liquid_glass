@@ -20,8 +20,7 @@ import 'package:meta/meta.dart';
 final class GlassOutline {
   /// Creates the outline whose edge is [path] and whose field, if any,
   /// [field] computes when first read.
-  GlassOutline(this.path, {@internal GlassField? Function()? field})
-    : _fieldOf = field;
+  GlassOutline(this.path, {GlassField? Function()? field}) : _fieldOf = field;
 
   /// The edge of the body.
   final Path path;
@@ -33,7 +32,6 @@ final class GlassOutline {
   bool get hasField => _fieldOf != null;
 
   /// The body's signed distance field, or null.
-  @internal
   late final GlassField? field = _fieldOf?.call();
 
   /// The box the body occupies.
@@ -43,7 +41,6 @@ final class GlassOutline {
 /// The signed distance field of a body's edge, sampled on a grid: four
 /// values per node, row-major, the distance (negative inside), its
 /// gradient along x and y, and the half thickness of the body there.
-@internal
 @immutable
 final class GlassField {
   /// Creates a field from its samples.

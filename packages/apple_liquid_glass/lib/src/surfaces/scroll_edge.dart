@@ -61,7 +61,6 @@ abstract final class ScrollEdgeTuning {
 /// The band of a scroll edge effect as [details] describe it, laid out at
 /// its edge of the scroll view: the bar's extent, and for the soft effect
 /// [ScrollEdgeTuning.softOverhang] past it. [paint] draws the band.
-@internal
 class ScrollEdgeBand extends StatelessWidget {
   /// Lays [paint] out where the band of [details] lies.
   const ScrollEdgeBand({required this.details, required this.paint, super.key});
@@ -143,7 +142,6 @@ class _FlatEdgePaint extends LeafRenderObjectWidget {
 /// renderer that blurs the band extends it, drawing the fade inside its
 /// blur ([paintBand]) and updating its own layers in place
 /// ([updateBand]).
-@internal
 class RenderScrollEdge extends RenderBox {
   /// Creates the band.
   RenderScrollEdge({

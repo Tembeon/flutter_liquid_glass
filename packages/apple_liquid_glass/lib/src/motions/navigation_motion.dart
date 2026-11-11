@@ -126,7 +126,6 @@ double transitionOrigin({
 /// Times are monotonic seconds; positions increase toward the popping side.
 /// The equations reproduce the recorded inputs; platform event timing and
 /// gesture admission can differ (NEAR).
-@internal
 class NavigationPopMotion {
   /// Creates a predictor for a page [width] points wide.
   NavigationPopMotion(this.width) : assert(width > 0, 'a page has a width');
@@ -275,7 +274,6 @@ class NavigationPopMotion {
 
 /// The motion of a pushed page, which the navigator's shared bar and the
 /// page below follow through [progress].
-@internal
 abstract class PageMotion extends Motion with Presented {
   // UIKit asks at least 80 Hz of this (read from UIKit, notes private).
   @override
@@ -309,7 +307,6 @@ abstract class PageMotion extends Motion with Presented {
 /// Android's predictive back moves the page as the finger does, its
 /// progress the travel: a commit lets the page go toward the pop at the
 /// gesture's speed, a cancel sends it back as a refused pop does.
-@internal
 final class PageSlideMotion extends PageMotion with PredictiveBack {
   /// The page's width, which sets how close to its end the slide rests.
   double width = 400;
