@@ -1085,7 +1085,7 @@ class GlassMenuAnchor extends StatefulWidget
     String? semanticLabel,
     GlassMenuOrder order = ...,
     GlassMenuStyle? style,
-    @internal MenuSource? Function(RenderBox)? sourceOf,
+    MenuSource? Function(RenderBox)? sourceOf,
     @internal bool scalesOnPress = ...,
     Key? key,
   })
@@ -1099,7 +1099,7 @@ class GlassMenuAnchor extends StatefulWidget
   final GlassMenuOrder order
   @internal final bool scalesOnPress
   final String? semanticLabel
-  @internal final MenuSource? Function(RenderBox)? sourceOf
+  final MenuSource? Function(RenderBox)? sourceOf
   final GlassMenuStyle? style
   overrides: createState
 typedef GlassMenuAnchorChildBuilder = Widget Function(BuildContext, GlassMenuController, Widget?)
@@ -2480,6 +2480,19 @@ class MenuAttachment
   static const double measuredGap
   final Rect preview
   overrides: ==, hashCode
+class MenuBlob
+  const MenuBlob({
+    required Rect rect,
+    required double radius,
+    required double scale,
+    required Size localSize,
+  })
+  Rect get localRect
+  final Size localSize
+  final double radius
+  final Rect rect
+  RRect get rrect
+  final double scale
 final class MenuCapsuleSource extends MenuSource
   MenuCapsuleSource({
     required Rect capsule,
@@ -2670,7 +2683,7 @@ class MenuMotion extends Motion with Presented
   })
   MenuAttachment? get attachment
   bool back(double t)
-  @internal MenuBlob get buttonBlob
+  MenuBlob get buttonBlob
   double get buttonKick
   double get buttonLookBlur
   double get buttonLookOpacity
@@ -2712,7 +2725,7 @@ class MenuMotion extends Motion with Presented
   static double kickAmplitude(double height)
   MenuLayout get layout
   bool lightsGlow
-  @internal MenuBlob get menuBlob
+  MenuBlob get menuBlob
   double get menuKick
   Rect get menuRect
   double get menuWidth
@@ -2748,7 +2761,7 @@ class MenuMotion extends Motion with Presented
     EdgeInsets padding = ...,
     MenuAttachment? attachment,
   })
-  @internal MenuBlob get rootBlob
+  MenuBlob get rootBlob
   ({GlassOutline? outline, RRect shape}) get rootBody
   GlassTouchGlow? get rootGlow
   int? rowAt(Offset position)
@@ -3984,6 +3997,7 @@ typedef LensSlot (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ListRowHighlight (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class MenuActivated (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class MenuAttachment (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class MenuBlob (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class MenuCapsuleSource (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class MenuCard (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class MenuDividerSpec (see package:apple_liquid_glass/apple_liquid_glass.dart)

@@ -2202,7 +2202,6 @@ class MenuMotion extends Motion with Presented {
   double get buttonKick => _kicks.button.value;
 
   /// The menu shape: grows out of the button into the menu.
-  @internal
   MenuBlob get menuBlob => _blobFor(menuRect);
 
   MenuBlob _blobFor(
@@ -2387,7 +2386,6 @@ class MenuMotion extends Motion with Presented {
   /// The root list's glass shape, scaled about its top center by
   /// [MenuTuning.parentScale] per open card, independently of the vessel
   /// that holds the whole stack; [menuBlob] while no card is open.
-  @internal
   MenuBlob get rootBlob {
     if (_cards.isEmpty) return menuBlob;
     final frame = menuRect;
@@ -2402,7 +2400,6 @@ class MenuMotion extends Motion with Presented {
   }
 
   /// The button shape: shrinks into the menu.
-  @internal
   MenuBlob get buttonBlob {
     final p = progress;
     final from = _sourceScaleAt(_now);

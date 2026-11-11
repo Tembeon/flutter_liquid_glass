@@ -64,6 +64,7 @@ export 'src/motions/menu_motion.dart'
     show
         MenuActivated,
         MenuAttachment,
+        MenuBlob,
         MenuCapsuleSource,
         MenuCard,
         MenuEvent,

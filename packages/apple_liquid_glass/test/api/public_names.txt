@@ -221,6 +221,7 @@ LongPressInteraction
 LongPressStartEvent
 MenuActivated
 MenuAttachment
+MenuBlob
 MenuCapsuleSource
 MenuCard
 MenuDividerSpec

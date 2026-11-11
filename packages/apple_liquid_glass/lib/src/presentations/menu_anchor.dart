@@ -462,7 +462,7 @@ class GlassMenuAnchor extends StatefulWidget {
     this.semanticLabel,
     this.order = GlassMenuOrder.automatic,
     this.style,
-    @internal this.sourceOf,
+    this.sourceOf,
     @internal this.scalesOnPress = true,
     super.key,
   }) : assert(builder != null || child != null, 'Give a builder or a child.');
@@ -500,9 +500,13 @@ class GlassMenuAnchor extends StatefulWidget {
   /// The look of the menu's rows, over the theme's.
   final GlassMenuStyle? style;
 
-  /// Where the menu grows out of in the coordinates of the given overlay,
-  /// when that is not the control, or null to use the control.
-  @internal
+  /// What the menu grows out of, in the coordinates of the overlay it is
+  /// given, when that is not the control; null, or a call that returns
+  /// null, grows it out of the control.
+  ///
+  /// A bar hands the menu of one of its items a [MenuCapsuleSource]: the
+  /// whole capsule around the item morphs into the menu, which lands where
+  /// the capsule says.
   final MenuSource? Function(RenderBox overlay)? sourceOf;
 
   /// Whether the control scales under a finger; false when something
