@@ -87,14 +87,10 @@ export 'src/motions/search_motion.dart'
         searchBarLayout,
         searchTabLayout;
 export 'src/motions/segment_highlight.dart' show SegmentHighlight;
-export 'src/motions/sheet_motion.dart'
-    show
-        GlassSheetDetent,
-        SheetDetentChanged,
-        SheetDismissRefused,
-        SheetDismissed,
-        SheetEvent,
-        SheetMotion;
+export 'src/motions/sheet_detent.dart' show GlassSheetDetent;
+export 'src/motions/sheet_event.dart'
+    show SheetDetentChanged, SheetDismissRefused, SheetDismissed, SheetEvent;
+export 'src/motions/sheet_motion.dart' show SheetMotion;
 export 'src/motions/slider_motion.dart'
     show
         SliderChangeEnded,

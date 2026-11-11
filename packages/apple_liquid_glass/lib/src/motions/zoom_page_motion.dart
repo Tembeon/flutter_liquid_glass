@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motions/navigation_motion.dart';
-import 'package:apple_liquid_glass/src/motions/sheet_motion.dart';
+import 'package:apple_liquid_glass/src/motions/sheet_tuning.dart';
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
