@@ -169,6 +169,7 @@ MotionDriven
 MotionEffect
 MotionHaptic
 MotionHapticPlay
+MotionHapticScope
 MotionLayout
 MotionLayoutBuilder
 MotionLoop
