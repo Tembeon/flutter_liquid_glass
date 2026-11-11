@@ -42,6 +42,10 @@ abstract class GlassLocalizations {
   /// `CupertinoLocalizations.menuDismissLabel`.
   String get menuDismissLabel;
 
+  /// The name of a menu whose source gives it none, as
+  /// `MaterialLocalizations.popupMenuLabel` names one.
+  String get menuLabel;
+
   /// The label of a sheet's grabber, which steps the sheet between its
   /// detents.
   String get sheetGrabberLabel;
@@ -110,6 +114,9 @@ class DefaultGlassLocalizations extends GlassLocalizations {
 
   @override
   String get menuDismissLabel => 'Dismiss menu';
+
+  @override
+  String get menuLabel => 'Menu';
 
   @override
   String get sheetGrabberLabel => 'Sheet grabber';

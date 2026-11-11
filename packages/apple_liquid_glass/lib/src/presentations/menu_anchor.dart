@@ -391,7 +391,8 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
       builder: (context, motion) => _MenuLayer(host: this),
       source: _source,
       dim: _dim(context),
-      semanticsLabel: _semanticLabel,
+      semanticsLabel:
+          _semanticLabel ?? GlassLocalizations.of(context).menuLabel,
       barrierLabel: GlassLocalizations.of(context).menuDismissLabel,
       semanticsRole: ui.SemanticsRole.menu,
       initialFocus: _menuFocus,

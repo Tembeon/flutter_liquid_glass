@@ -26,7 +26,7 @@ final class AdaptiveGlassRenderer extends GlassRenderer
 class DefaultGlassLocalizations extends GlassLocalizations
   const DefaultGlassLocalizations()
   static const LocalizationsDelegate<GlassLocalizations> delegate
-  overrides: actionSheetDismissLabel, alertLabel, backButtonLabel, clearTextLabel, closeButtonLabel, decrementLabel, incrementLabel, menuDismissLabel, moreInfoLabel, pageValue, percentValue, popoverDismissLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue
+  overrides: actionSheetDismissLabel, alertLabel, backButtonLabel, clearTextLabel, closeButtonLabel, decrementLabel, incrementLabel, menuDismissLabel, menuLabel, moreInfoLabel, pageValue, percentValue, popoverDismissLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue
 final class FakeGlassRenderer extends LiquidGlassRenderer
   const FakeGlassRenderer()
   overrides: fake
@@ -639,6 +639,7 @@ abstract class GlassLocalizations
   String get decrementLabel
   String get incrementLabel
   String get menuDismissLabel
+  String get menuLabel
   String get moreInfoLabel
   static GlassLocalizations of(BuildContext context)
   abstract String pageValue(int page, int count)

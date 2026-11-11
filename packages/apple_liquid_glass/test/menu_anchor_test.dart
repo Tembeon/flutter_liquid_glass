@@ -196,4 +196,23 @@ void main() {
     expect(focus.hasFocus, isTrue);
     handle.dispose();
   });
+
+  testWidgets('a menu its source does not name reads "Menu" over a barrier '
+      'read as "Dismiss menu"', (tester) async {
+    _phone(tester);
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _app(
+        GlassMenuAnchor(
+          menuChildren: _entries(<String>[]),
+          child: const SizedBox(width: 100, height: 44, child: Text('Sort')),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Sort'));
+    await _settle(tester);
+    expect(find.bySemanticsLabel('Menu'), findsOneWidget);
+    expect(find.bySemanticsLabel('Dismiss menu'), findsOneWidget);
+    handle.dispose();
+  });
 }
