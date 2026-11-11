@@ -1,4 +1,4 @@
-import 'package:apple_liquid_glass/src/motion/slider_motion.dart';
+import 'package:apple_liquid_glass/src/motions/slider_motion.dart';
 
 import 'trace.dart';
 

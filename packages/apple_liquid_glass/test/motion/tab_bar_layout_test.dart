@@ -1,4 +1,4 @@
-import 'package:apple_liquid_glass/src/motion/tab_bar_layout.dart';
+import 'package:apple_liquid_glass/src/motions/tab_bar_layout.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // The bars of an iPhone 16 Pro (402 pt, 360 available): the title widths,

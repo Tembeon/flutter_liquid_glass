@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/motion/navigation_motion.dart';
+import 'package:apple_liquid_glass/src/motions/navigation_motion.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 

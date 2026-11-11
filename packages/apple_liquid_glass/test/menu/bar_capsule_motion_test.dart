@@ -1,7 +1,7 @@
-import 'package:apple_liquid_glass/motion.dart';
-import 'package:apple_liquid_glass/src/menu/motion.dart';
+import 'package:apple_liquid_glass/src/motions/menu_motion.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/kinesis.dart';
 
 const _shared = Rect.fromLTWH(232, 62, 154, 44);
 const _alone = Rect.fromLTWH(342, 62, 44, 44);

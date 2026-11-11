@@ -1,4 +1,4 @@
-import 'package:apple_liquid_glass/src/menu/motion.dart';
+import 'package:apple_liquid_glass/src/motions/menu_motion.dart';
 
 /// The rows of the root list whose actions [motion] ran since its events
 /// were last drained, in order; drains every event.

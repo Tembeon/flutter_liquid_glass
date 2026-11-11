@@ -1,5 +1,5 @@
-import 'package:apple_liquid_glass/src/motion/list_highlight.dart';
-import 'package:apple_liquid_glass/src/motion/segment_highlight.dart';
+import 'package:apple_liquid_glass/src/motions/list_highlight.dart';
+import 'package:apple_liquid_glass/src/motions/segment_highlight.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

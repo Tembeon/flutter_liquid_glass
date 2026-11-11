@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:apple_liquid_glass/src/motion/bar_motion.dart';
+import 'package:apple_liquid_glass/src/motions/bar_motion.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 List<Map<String, Object?>> _rows(String path) => [

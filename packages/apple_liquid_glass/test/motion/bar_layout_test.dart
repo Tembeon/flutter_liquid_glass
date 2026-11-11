@@ -1,5 +1,5 @@
-import 'package:apple_liquid_glass/src/motion/bar_layout.dart';
-import 'package:apple_liquid_glass/src/motion/bar_motion.dart';
+import 'package:apple_liquid_glass/src/motions/bar_layout.dart';
+import 'package:apple_liquid_glass/src/motions/bar_motion.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 GlassBarCapsuleSpec _icons(List<String> ids, [double glyph = 22]) =>

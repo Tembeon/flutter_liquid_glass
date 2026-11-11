@@ -1,5 +1,5 @@
-import 'package:apple_liquid_glass/src/motion/small_lens.dart';
-import 'package:apple_liquid_glass/src/motion/switch_motion.dart';
+import 'package:apple_liquid_glass/src/motions/small_lens.dart';
+import 'package:apple_liquid_glass/src/motions/switch_motion.dart';
 
 /// Seconds a switch knob's lens lift needs to reach [progress].
 double timeToLift(double progress) {

@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/theme/colors.dart';
-import 'package:apple_liquid_glass/src/theme/style.dart';
-import 'package:apple_liquid_glass/src/theme/theme.dart';
-import 'package:apple_liquid_glass/src/theme/typography.dart';
+import 'package:apple_liquid_glass/src/foundation/colors.dart';
+import 'package:apple_liquid_glass/src/foundation/style.dart';
+import 'package:apple_liquid_glass/src/foundation/theme.dart';
+import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:flutter/widgets.dart';
 
 /// The look of a [GlassBadge]; a null field leaves it to the theme's

@@ -3,9 +3,9 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:apple_liquid_glass/src/menu/fusion.dart';
-import 'package:apple_liquid_glass/src/menu/fusion_worker.dart';
-import 'package:apple_liquid_glass/src/menu/motion.dart';
+import 'package:apple_liquid_glass/src/motions/menu_fusion.dart';
+import 'package:apple_liquid_glass/src/motions/menu_fusion_worker.dart';
+import 'package:apple_liquid_glass/src/motions/menu_motion.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';

@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/motion/switch_motion.dart';
+import 'package:apple_liquid_glass/src/motions/switch_motion.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/onset.dart';

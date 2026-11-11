@@ -1,6 +1,5 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass/glass_renderer.dart';
-import 'package:apple_liquid_glass/src/renderer/scroll_edge.dart';
+import 'package:apple_liquid_glass/src/liquid/scroll_edge.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';

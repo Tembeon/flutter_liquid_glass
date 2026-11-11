@@ -1,4 +1,4 @@
-import 'package:apple_liquid_glass/src/motion/touch_glow.dart';
+import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

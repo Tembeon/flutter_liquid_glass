@@ -1,6 +1,6 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass/src/renderer/flat.dart';
-import 'package:apple_liquid_glass/src/renderer/lens_shrink.dart';
+import 'package:apple_liquid_glass/src/surfaces/flat.dart';
+import 'package:apple_liquid_glass/src/surfaces/lens_shrink.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';

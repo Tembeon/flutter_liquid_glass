@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
+import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

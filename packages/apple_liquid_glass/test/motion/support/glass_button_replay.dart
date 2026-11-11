@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:apple_liquid_glass/src/motion/glass_press.dart';
+import 'package:apple_liquid_glass/src/motions/glass_press.dart';
 
 import 'onset.dart';
 import 'trace.dart';

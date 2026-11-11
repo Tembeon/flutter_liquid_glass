@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/motion/alert_motion.dart';
+import 'package:apple_liquid_glass/src/motions/alert_motion.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 List<Map<String, Object?>> _rows(String dir, String file) => [

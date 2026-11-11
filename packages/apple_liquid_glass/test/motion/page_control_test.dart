@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/motion/page_control_motion.dart';
+import 'package:apple_liquid_glass/src/motions/page_control_motion.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _pages = 'test/fixtures/ios27/page_control';

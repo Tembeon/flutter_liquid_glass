@@ -119,6 +119,8 @@ void main() {
               uri == 'package:liquid_glass_renderer/testing.dart') {
             continue;
           }
+          final whole = !uri.startsWith('src/') && !uri.startsWith('package:');
+          if (whole) continue;
           if (uri.startsWith('package:') || match.group(2) == null) {
             offenders.add('${library.path}: $uri');
           }
@@ -147,18 +149,6 @@ void main() {
         }
       }
       expect(offenders, isEmpty);
-    });
-
-    test('the renderer seam is only in glass_renderer.dart', () {
-      final main = File('lib/apple_liquid_glass.dart').readAsStringSync();
-      for (final name in [
-        'package:liquid_glass_renderer',
-        'GlassSurfaceDetails',
-        'GlassGroupDetails',
-        'GlassScrollEdgeDetails',
-      ]) {
-        expect(main.contains(name), isFalse, reason: name);
-      }
     });
   });
 }

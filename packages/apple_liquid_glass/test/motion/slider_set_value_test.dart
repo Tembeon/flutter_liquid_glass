@@ -1,4 +1,4 @@
-import 'package:apple_liquid_glass/src/motion/slider_motion.dart';
+import 'package:apple_liquid_glass/src/motions/slider_motion.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // The fill end of a 300 pt glass UISlider after setValue(0.9, animated:

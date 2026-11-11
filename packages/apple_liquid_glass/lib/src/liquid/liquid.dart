@@ -1,0 +1,861 @@
+import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
+
+import 'package:apple_liquid_glass/src/foundation/frame.dart';
+import 'package:apple_liquid_glass/src/foundation/style.dart';
+import 'package:apple_liquid_glass/src/foundation/traits.dart';
+import 'package:apple_liquid_glass/src/liquid/scroll_edge.dart';
+import 'package:apple_liquid_glass/src/liquid/underlay_layers.dart';
+import 'package:apple_liquid_glass/src/surfaces/flat.dart';
+import 'package:apple_liquid_glass/src/surfaces/follow_frame.dart';
+import 'package:apple_liquid_glass/src/surfaces/glass.dart';
+import 'package:apple_liquid_glass/src/surfaces/lens_shrink.dart';
+import 'package:apple_liquid_glass/src/surfaces/outline.dart';
+import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
+import 'package:apple_liquid_glass/src/surfaces/solid_backdrop.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+
+/// The liquid renderer: every surface is liquid glass, and the members of
+/// a group share one glass layer.
+///
+/// A lone body whose [GlassFrame.outline] has a field is shaded from that
+/// field in a layer of its own, its shadow cast by the outline's path; an
+/// outlined body in a group, on fake glass or without a field draws flat.
+/// The renderer chooses from the frame the surface builds with, not per
+/// frame.
+///
+/// A surface outside a group draws as a group of one, and a track as a
+/// plain fill, as iOS draws one. A lens or knob is an opaque platter at
+/// rest and gets a glass layer of its own over the platter only while it
+/// is lifted; on fake glass the layer keeps the lifted optics for the whole
+/// lift and the glass's fade carries the change, a NEAR trade that keeps
+/// the fake layer from rebuilding every frame.
+///
+/// Layers use the fitted iOS 27 settings: clear for clear glass (a group
+/// only when all its members are clear), regular in the ambient brightness
+/// ([GlassTraits.brightness]) otherwise, both at the Liquid Glass slider's
+/// position ([GlassTraits.glassTintAmount]).
+///
+/// Under Reduce Transparency the surfaces draw flat, an unmeasured
+/// stand-in for iOS's frosted glass.
+@internal
+final class LiquidGlassRenderer extends GlassRenderer {
+  /// Creates the liquid renderer.
+  const LiquidGlassRenderer() : fake = false;
+
+  /// Creates the renderer that draws fake glass.
+  const LiquidGlassRenderer.fake() : fake = true;
+
+  /// Whether every layer draws fake glass, which shows no touch glow.
+  final bool fake;
+
+  @override
+  Widget buildSurface(BuildContext context, GlassSurfaceDetails details) {
+    if (GlassTraits.of(context).reduceTransparency ||
+        details.role == GlassRole.track) {
+      return FlatGlassRenderer.flatSurface(context, details);
+    }
+    if (details.role == GlassRole.lens) {
+      return _LiquidLens(details: details, fake: fake);
+    }
+    final grouped = _LiquidGroupScope.maybeOf(context) != null;
+    if (details.frame.value.outline case final outline?
+        when fake || grouped || !outline.hasField) {
+      return FlatGlassRenderer.flatSurface(context, details);
+    }
+    if (grouped) return _LiquidSurface(details: details, glows: !fake);
+    return _LiquidGroup(
+      fake: fake,
+      glass: details.glass,
+      body: details.frame,
+      child: _LiquidSurface(details: details, glows: !fake, outlined: true),
+    );
+  }
+
+  @override
+  Widget buildScrollEdge(
+    BuildContext context,
+    GlassScrollEdgeDetails details,
+  ) => ScrollEdge(
+    details: details,
+    blurs: !GlassTraits.of(context).reduceTransparency,
+  );
+
+  @override
+  Widget buildGroup(BuildContext context, GlassGroupDetails details) {
+    if (GlassTraits.of(context).reduceTransparency) return details.child;
+    return _LiquidGroup(
+      fake: fake,
+      blend: details.merge.spacing,
+      child: details.child,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is LiquidGlassRenderer && other.fake == fake;
+
+  @override
+  int get hashCode => Object.hash(LiquidGlassRenderer, fake);
+
+  /// The appearance of [glass] in [brightness].
+  static LiquidGlassAppearance appearanceOf(
+    Glass glass,
+    Brightness brightness,
+  ) {
+    final tint = glass.tint;
+    return switch ((glass.isClear, tint)) {
+      (true, null) => const LiquidGlassAppearance.ios27Clear(),
+      (true, final Color tint) => LiquidGlassAppearance.ios27Clear(tint: tint),
+      (false, null) => LiquidGlassAppearance.ios27Regular(
+        brightness: brightness,
+      ),
+      (false, final Color tint) => LiquidGlassAppearance.ios27Regular(
+        brightness: brightness,
+        tint: tint,
+      ),
+    };
+  }
+
+  /// The shadows of a body of [role] lifted by [lift].
+  ///
+  /// Engineering defaults, not measured: one soft body shadow for controls
+  /// and panels; a lens's drops from 1.5 to 3.5 and blurs from 3 to 9 as it
+  /// lifts.
+  static List<BoxShadow> shadowsOf(GlassRole role, {double lift = 0}) {
+    final l = lift.clamp(0.0, 1.0);
+    return switch (role) {
+      GlassRole.control || GlassRole.panel => const [
+        BoxShadow(
+          color: Color(0x14000000),
+          offset: Offset(0, 4),
+          blurRadius: 16,
+        ),
+      ],
+      GlassRole.lens => [
+        BoxShadow(
+          color: const Color(0x1A000000),
+          offset: Offset(0, 1.5 + 2 * l),
+          blurRadius: 3 + 6 * l,
+        ),
+      ],
+      GlassRole.bar || GlassRole.track => const [],
+    };
+  }
+}
+
+// The tint [frame] gives a body whose glass has [own], crossing from it
+// (or from none: an untinted iOS material is one with a transparent tint)
+// by the frame's amount, or null where the frame keeps the glass's look.
+Color? _tintOf(GlassFrame frame, Color? own) {
+  final tint = frame.tint;
+  final amount = frame.tintAmount.clamp(0.0, 1.0);
+  if (tint == null || amount == 0) return null;
+  if (amount == 1) return tint;
+  return Color.lerp(own ?? tint.withValues(alpha: 0), tint, amount);
+}
+
+/// The settings of a lens lifted by [lift]: a knob's or thumb's for those
+/// [part]s, a plain one's for none.
+///
+/// UIKit's lens configuration (read from UIKit, notes private) bends what
+/// is behind a resting knob or thumb by 50 and blurs it by 6, a lifted one
+/// bends it by 9 without blur, and a large lens rests clear. Engineering
+/// factors, not measured, part the colors along the rim and brighten the
+/// highlight by half as the lens lifts.
+///
+/// A lifted lens also shows what lies under it smaller, about its center
+/// line, so the edges of the track or bar show inside it with the page
+/// between them and the rim (iPhone 16 Pro references): a tab bar's lens
+/// shows the swollen bar's edges 0.890 of its height apart (shrink 0.16,
+/// three quarters of the center line; 0.897 here), a segmented control's
+/// the track's edges 0.8125 apart (0.20, the whole line; 0.814 here) and a
+/// switch's knob 0.755 apart (0.25; NEAR, 0.77 here); a slider's thumb
+/// shows its track unchanged. The bevel bends the other way, toward the
+/// middle, so a bend above UIKit's 9 hides those edges behind the rim.
+LiquidGlassSettings _lensSettings(
+  LiquidGlassSettings base,
+  double lift, {
+  required GlassPart? part,
+}) {
+  final l = lift.clamp(0.0, 1.0);
+  final small = part == GlassPart.knob || part == GlassPart.thumb;
+  final displacement = small ? 50 + (9 - 50) * l : 9 * l;
+  final (:shrink, :rim) = _shrinkOf(part);
+  return base.copyWith(
+    frost: small ? 6 * (1 - l) : 0,
+    refractionAmount: displacement,
+    dispersion: -0.25 * l,
+    highlight: base.highlight * (1 + 0.5 * l),
+    backdropShrink: shrink * l,
+    backdropShrinkRim: rim,
+  );
+}
+
+GlassLensShrinkage _shrinkOf(GlassPart? part) => switch (part) {
+  GlassPart.tabBarLens => (shrink: 0.16, rim: 0.75),
+  null => (shrink: 0.20, rim: 1.0),
+  GlassPart.knob => (shrink: 0.25, rim: 1.0),
+  _ => (shrink: 0.0, rim: 0.0),
+};
+
+// The group is an ancestor: it cannot be marked to build while the framework
+// builds, lays out or paints, or from a descendant's dispose, and a glow
+// reads layout; such work waits for the end of the frame.
+void _afterFrame(VoidCallback callback) =>
+    SchedulerBinding.instance.addPostFrameCallback((_) => callback());
+
+bool get _framing =>
+    SchedulerBinding.instance.schedulerPhase ==
+    SchedulerPhase.persistentCallbacks;
+
+bool _drawsFake(bool fake) => fake || !ImageFilter.isShaderFilterSupported;
+
+mixin _RebuildOutsideFrame<T extends StatefulWidget> on State<T> {
+  void _rebuild(VoidCallback fn) => runAfterBuild(this, () => setState(fn));
+}
+
+class _LiquidSurface extends StatefulWidget {
+  const _LiquidSurface({
+    required this.details,
+    required this.glows,
+    this.outlined = false,
+  });
+
+  final GlassSurfaceDetails details;
+  final bool glows;
+
+  /// Whether the body may take an outline, whose shadow it then casts by
+  /// the outline's path; a lone surface can.
+  final bool outlined;
+
+  @override
+  State<_LiquidSurface> createState() => _LiquidSurfaceState();
+}
+
+class _LiquidSurfaceState extends State<_LiquidSurface> {
+  late final _shape = ValueNotifier(_shapeFrame);
+  late LiquidGlassAppearance _appearance;
+  late Brightness _brightness;
+  _LiquidGroupState? _group;
+  LiquidGlassGlow? _glow;
+  bool _glowPending = false;
+
+  ValueListenable<GlassFrame> get _source => widget.details.frame;
+
+  LiquidGlassShapeFrame get _shapeFrame {
+    final frame = _source.value;
+    final role = widget.details.role;
+    final tint = _tintOf(frame, widget.details.glass.tint);
+    final appearance = role == GlassRole.lens
+        ? LiquidGlassAppearance(
+            visibility: FlatGlassLook.glassness(frame.lift),
+          )
+        : tint == null
+        ? _appearance
+        : LiquidGlassRenderer.appearanceOf(
+            widget.details.glass.isClear
+                ? Glass.clear(tint: tint)
+                : Glass.regular(tint: tint),
+            _brightness,
+          );
+    final outline = frame.outline;
+    return LiquidGlassShapeFrame(
+      shape: frame.shape.liquid,
+      appearance: frame.opacity >= 1
+          ? appearance
+          : appearance.copyWith(
+              visibility: appearance.visibility * frame.opacity.clamp(0.0, 1.0),
+            ),
+      shadows: outline == null
+          ? LiquidGlassRenderer.shadowsOf(role, lift: frame.lift)
+          : const [],
+      rect: outline?.bounds ?? frame.rect,
+      scaleX: frame.scaleX,
+      scaleY: frame.scaleY,
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    followFrame(_source, _onFrame);
+  }
+
+  @override
+  void didUpdateWidget(_LiquidSurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.details.frame != _source) {
+      oldWidget.details.frame.removeListener(_onFrame);
+      followFrame(_source, _onFrame);
+    }
+  }
+
+  @override
+  void dispose() {
+    unfollowFrame(_source, _onFrame);
+    _leave(_group);
+    _shape.dispose();
+    super.dispose();
+  }
+
+  void _leave(_LiquidGroupState? group) {
+    if (group == null) return;
+    _afterFrame(() => group.reportGlass(this, null));
+    if (_glow == null) return;
+    _glow = null;
+    _afterFrame(() => group.reportGlow(this, null));
+  }
+
+  void _onFrame() {
+    _shape.value = _shapeFrame;
+    if (_framing) {
+      _writeGlowLater();
+    } else {
+      _writeGlow();
+    }
+  }
+
+  void _writeGlow() {
+    if (!widget.glows) return;
+    final glow = _glowOf(_source.value);
+    if (glow == _glow) return;
+    _glow = glow;
+    _group!.reportGlow(this, glow);
+  }
+
+  void _writeGlowLater() {
+    if (!widget.glows || _glowPending) return;
+    _glowPending = true;
+    _afterFrame(() {
+      _glowPending = false;
+      if (mounted) _writeGlow();
+    });
+  }
+
+  LiquidGlassGlow? _glowOf(GlassFrame frame) {
+    final glow = frame.glow;
+    if (glow == null) return null;
+    final box = context.findRenderObject()! as RenderBox;
+    if (!box.hasSize) {
+      _writeGlowLater();
+      return null;
+    }
+    final size = box.size;
+    final body = frame.drawnIn(size);
+    final transform = frame.contentTransformIn(size);
+    return _group!.toLayer(
+      box,
+      LiquidGlassGlow(
+        bounds: body,
+        cornerRadius: frame.shape.radiusIn(body),
+        center: transform == null
+            ? glow.center
+            : MatrixUtils.transformPoint(transform, glow.center),
+        radius: glow.radius * (frame.scaleX + frame.scaleY) / 2,
+        gain: glow.gainOn(widget.details.glass, _brightness),
+        wash: glow.wash,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final group = _LiquidGroupScope.maybeOf(context)!;
+    if (!identical(group, _group)) {
+      _leave(_group);
+      _group = group;
+    }
+    group.reportGlass(this, widget.details.glass);
+    _brightness = GlassTraits.of(context).brightness;
+    _appearance = LiquidGlassRenderer.appearanceOf(
+      widget.details.glass,
+      _brightness,
+    );
+    _shape.value = _shapeFrame;
+    if (_source.value.glow != null || _glow != null) _writeGlowLater();
+    final glass = LiquidGlass.live(
+      frame: _shape,
+      grouped: group.blends,
+      child: _CenteredOnBody(frame: _shape, child: widget.details.child),
+    );
+    if (!widget.outlined) return glass;
+    return _OutlineShadow(
+      frame: _source,
+      shadows: LiquidGlassRenderer.shadowsOf(widget.details.role),
+      child: glass,
+    );
+  }
+}
+
+// LiquidGlass puts its child's top left at the rect's; a GlassFrame puts
+// the center of the box the content was laid out in at the body's center.
+class _CenteredOnBody extends SingleChildRenderObjectWidget {
+  const _CenteredOnBody({required this.frame, required super.child});
+
+  final ValueListenable<LiquidGlassShapeFrame> frame;
+
+  @override
+  _RenderCenteredOnBody createRenderObject(BuildContext context) =>
+      _RenderCenteredOnBody(frame);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderCenteredOnBody renderObject,
+  ) {
+    renderObject.frame = frame;
+  }
+}
+
+class _RenderCenteredOnBody extends RenderProxyBox {
+  _RenderCenteredOnBody(this._frame);
+
+  ValueListenable<LiquidGlassShapeFrame> _frame;
+  ValueListenable<LiquidGlassShapeFrame> get frame => _frame;
+  set frame(ValueListenable<LiquidGlassShapeFrame> value) {
+    if (identical(_frame, value)) return;
+    if (attached) {
+      _frame.removeListener(_onFrame);
+      value.addListener(_onFrame);
+    }
+    _frame = value;
+    _onFrame();
+  }
+
+  Size? _body;
+
+  void _onFrame() {
+    final body = _frame.value.rect?.size;
+    if (body == _body) return;
+    _body = body;
+    markNeedsPaint();
+  }
+
+  Offset get _shift {
+    final body = _body;
+    if (body == null || !hasSize) return Offset.zero;
+    return Offset(
+      (body.width - size.width) / 2,
+      (body.height - size.height) / 2,
+    );
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _frame.addListener(_onFrame);
+    _body = _frame.value.rect?.size;
+  }
+
+  @override
+  void detach() {
+    _frame.removeListener(_onFrame);
+    super.detach();
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) =>
+      super.paint(context, offset + _shift);
+
+  @override
+  void applyPaintTransform(RenderBox child, Matrix4 transform) {
+    final shift = _shift;
+    transform.translateByDouble(shift.dx, shift.dy, 0, 1);
+  }
+}
+
+/// Casts [shadows] by the outline of [frame]'s body, outside the body only
+/// so none shows through the glass, faded with the body.
+class _OutlineShadow extends SingleChildRenderObjectWidget {
+  const _OutlineShadow({
+    required this.frame,
+    required this.shadows,
+    required super.child,
+  });
+
+  final ValueListenable<GlassFrame> frame;
+  final List<BoxShadow> shadows;
+
+  @override
+  _RenderOutlineShadow createRenderObject(BuildContext context) =>
+      _RenderOutlineShadow(frame, shadows);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderOutlineShadow renderObject,
+  ) {
+    renderObject.frame = frame;
+    renderObject.shadows = shadows;
+  }
+}
+
+class _RenderOutlineShadow extends RenderProxyBox {
+  _RenderOutlineShadow(this._frame, this._shadows);
+
+  ValueListenable<GlassFrame> _frame;
+  ValueListenable<GlassFrame> get frame => _frame;
+  set frame(ValueListenable<GlassFrame> value) {
+    if (value == _frame) return;
+    if (attached) unfollowFrame(_frame, _changed);
+    _frame = value;
+    if (attached) followFrame(_frame, _changed);
+    markNeedsPaint();
+  }
+
+  List<BoxShadow> _shadows;
+  List<BoxShadow> get shadows => _shadows;
+  set shadows(List<BoxShadow> value) {
+    if (listEquals(value, _shadows)) return;
+    _shadows = value;
+    markNeedsPaint();
+  }
+
+  GlassOutline? _outline;
+  double _opacity = 1;
+  Path? _outside;
+
+  void _changed() {
+    final frame = _frame.value;
+    if (frame.outline == _outline && frame.opacity == _opacity) return;
+    markNeedsPaint();
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    followFrame(_frame, _changed);
+  }
+
+  @override
+  void detach() {
+    unfollowFrame(_frame, _changed);
+    super.detach();
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final frame = _frame.value;
+    final outline = frame.outline;
+    _opacity = frame.opacity;
+    if (outline != _outline) {
+      _outline = outline;
+      _outside = null;
+    }
+    if (outline != null && _shadows.isNotEmpty && _opacity > 0) {
+      final reach = _shadows.fold<double>(
+        0,
+        (r, s) => math.max(
+          r,
+          s.offset.distance + s.spreadRadius + 3 * s.blurSigma,
+        ),
+      );
+      var outside = _outside;
+      outside ??= _outside = pathOutside(
+        outline.path,
+        outline.bounds.inflate(reach),
+      );
+      final canvas = context.canvas;
+      canvas.save();
+      canvas.translate(offset.dx, offset.dy);
+      canvas.clipPath(outside);
+      for (final shadow in _shadows) {
+        final paint = Paint();
+        paint.color = shadow.color.withValues(
+          alpha: shadow.color.a * _opacity.clamp(0.0, 1.0),
+        );
+        paint.maskFilter = MaskFilter.blur(BlurStyle.normal, shadow.blurSigma);
+        canvas.drawPath(outline.path.shift(shadow.offset), paint);
+      }
+      canvas.restore();
+    }
+    super.paint(context, offset);
+  }
+}
+
+class _LiquidGroup extends StatefulWidget {
+  const _LiquidGroup({
+    required this.fake,
+    required this.child,
+    this.blend,
+    this.glass,
+    this.body,
+    this.lens,
+  });
+
+  final bool fake;
+  final double? blend;
+
+  /// The glass of a lone surface or lens, or null for a group.
+  final Glass? glass;
+
+  /// The frame of a lone surface, whose outline's field the layer shades,
+  /// or null.
+  final ValueListenable<GlassFrame>? body;
+
+  /// The lone lens or knob whose lift sets the layer's optics, or null.
+  final GlassSurfaceDetails? lens;
+
+  final Widget child;
+
+  @override
+  State<_LiquidGroup> createState() => _LiquidGroupState();
+}
+
+class _LiquidGroupState extends State<_LiquidGroup> with _RebuildOutsideFrame {
+  final _layer = ValueNotifier(const LiquidGlassLayerFrame());
+  Object? _lit;
+  final _clearMembers = <Object, bool>{};
+  LiquidGlassSettings _base = const LiquidGlassSettings();
+  late GlassTraits _traits;
+
+  ValueListenable<GlassFrame>? get _lens => widget.lens?.frame;
+
+  @override
+  void initState() {
+    super.initState();
+    teachLiquidUnderlay();
+    _lens?.addListener(_writeSettings);
+    widget.body?.addListener(_writeSettings);
+  }
+
+  @override
+  void didUpdateWidget(_LiquidGroup oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.lens?.frame != _lens) {
+      oldWidget.lens?.frame.removeListener(_writeSettings);
+      _lens?.addListener(_writeSettings);
+    }
+    if (oldWidget.body != widget.body) {
+      oldWidget.body?.removeListener(_writeSettings);
+      widget.body?.addListener(_writeSettings);
+    }
+  }
+
+  LiquidGlassSettings get _settings {
+    final lens = widget.lens;
+    if (lens == null) return _base;
+    return _lensSettings(
+      _base,
+      _drawsFake(widget.fake) ? 1 : lens.frame.value.lift,
+      part: lens.part,
+    );
+  }
+
+  void _writeSettings() {
+    final settings = _settings;
+    final field = widget.body?.value.outline?.field;
+    final frame = _layer.value;
+    if (settings == frame.settings && field == frame.field) return;
+    _layer.value = LiquidGlassLayerFrame(
+      settings: settings,
+      field: field,
+      glow: frame.glow,
+    );
+  }
+
+  bool get blends => widget.blend != null;
+
+  // UIKit shades each member with its own glass; one layer has one set of
+  // settings, so a group is clear glass only when all its members are.
+  bool get _clear {
+    final glass = widget.glass;
+    if (glass != null) return glass.isClear;
+    return _clearMembers.isNotEmpty && !_clearMembers.containsValue(false);
+  }
+
+  LiquidGlassSettings get _baseSettings => _clear
+      ? LiquidGlassSettings.ios27Clear(tintAmount: _traits.glassTintAmount)
+      : LiquidGlassSettings.ios27Regular(
+          brightness: _traits.brightness,
+          tintAmount: _traits.glassTintAmount,
+        );
+
+  /// Records the glass of [member], or that it left when [glass] is null.
+  ///
+  /// The layer takes new settings in the same frame, so a member that
+  /// joins while the framework builds paints with them; the scope its
+  /// blend group reads follows a frame later.
+  void reportGlass(Object member, Glass? glass) {
+    if (!mounted) return;
+    final wasClear = _clear;
+    if (glass == null) {
+      _clearMembers.remove(member);
+    } else {
+      _clearMembers[member] = glass.isClear;
+    }
+    if (_clear == wasClear) return;
+    _base = _baseSettings;
+    _writeSettings();
+    _rebuild(() {});
+  }
+
+  /// Sets the layer's glow to [glow] of [member], or clears it when [glow]
+  /// is null and [member] was the one lit.
+  void reportGlow(Object member, LiquidGlassGlow? glow) {
+    if (!mounted || (glow == null && !identical(member, _lit))) return;
+    _lit = glow == null ? null : member;
+    final frame = _layer.value;
+    if (glow == frame.glow) return;
+    _layer.value = LiquidGlassLayerFrame(
+      settings: frame.settings,
+      field: frame.field,
+      glow: glow,
+    );
+  }
+
+  /// [glow] of [member] in the layer's coordinates.
+  LiquidGlassGlow toLayer(RenderBox member, LiquidGlassGlow glow) {
+    final transform = member.getTransformTo(
+      context.findRenderObject()! as RenderBox,
+    );
+    return LiquidGlassGlow(
+      bounds: MatrixUtils.transformRect(transform, glow.bounds),
+      cornerRadius: glow.cornerRadius,
+      center: MatrixUtils.transformPoint(transform, glow.center),
+      radius: glow.radius,
+      gain: glow.gain,
+      wash: glow.wash,
+    );
+  }
+
+  @override
+  void dispose() {
+    _lens?.removeListener(_writeSettings);
+    widget.body?.removeListener(_writeSettings);
+    _layer.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _traits = GlassTraits.of(context);
+    _base = _baseSettings;
+    _writeSettings();
+    final blend = widget.blend;
+    final child = widget.child;
+    final solid = widget.lens == null && !_drawsFake(widget.fake)
+        ? GlassSolidBackdrop.colorOf(context)
+        : null;
+    return LiquidGlassLayer.live(
+      frame: _layer,
+      fake: widget.fake,
+      backdrop: solid == null
+          ? const LiquidGlassBackdrop.read()
+          : LiquidGlassBackdrop.solid(solid),
+      child: _LiquidGroupScope(
+        group: this,
+        blends: blends,
+        child: blend == null
+            ? child
+            : LiquidGlassBlendGroup(blend: blend, child: child),
+      ),
+    );
+  }
+}
+
+class _LiquidGroupScope extends InheritedWidget {
+  const _LiquidGroupScope({
+    required this.group,
+    required this.blends,
+    required super.child,
+  });
+
+  final _LiquidGroupState group;
+  final bool blends;
+
+  static _LiquidGroupState? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_LiquidGroupScope>()?.group;
+
+  @override
+  bool updateShouldNotify(_LiquidGroupScope oldWidget) =>
+      group != oldWidget.group || blends != oldWidget.blends;
+}
+
+class _LiquidLens extends StatefulWidget {
+  const _LiquidLens({required this.details, required this.fake});
+
+  final GlassSurfaceDetails details;
+  final bool fake;
+
+  @override
+  State<_LiquidLens> createState() => _LiquidLensState();
+}
+
+class _LiquidLensState extends State<_LiquidLens> with _RebuildOutsideFrame {
+  late bool _lifted = _isLifted;
+
+  ValueListenable<GlassFrame> get _source => widget.details.frame;
+
+  bool get _isLifted => _source.value.lift > FlatGlassLook.restingLift;
+
+  @override
+  void initState() {
+    super.initState();
+    _source.addListener(_onFrame);
+  }
+
+  @override
+  void didUpdateWidget(_LiquidLens oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.details.frame != _source) {
+      oldWidget.details.frame.removeListener(_onFrame);
+      _source.addListener(_onFrame);
+    }
+    _lifted = _isLifted;
+  }
+
+  @override
+  void dispose() {
+    _source.removeListener(_onFrame);
+    _report?.value = GlassLensShrink.none;
+    super.dispose();
+  }
+
+  ValueNotifier<GlassLensShrinkage>? _report;
+
+  void _onFrame() {
+    if (_isLifted == _lifted) return;
+    _rebuild(() => _lifted = _isLifted);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final details = widget.details;
+    final report = _report = GlassLensShrink.maybeOf(context);
+    if (report != null) {
+      report.value = _drawsFake(widget.fake)
+          ? GlassLensShrink.none
+          : _shrinkOf(details.part);
+    }
+    return Stack(
+      fit: StackFit.passthrough,
+      children: [
+        FlatGlassRenderer.flatSurface(context, details, underGlass: true),
+        if (_lifted)
+          Positioned.fill(
+            child: _LiquidGroup(
+              fake: widget.fake,
+              glass: details.glass,
+              lens: details,
+              child: _LiquidSurface(
+                glows: !widget.fake,
+                details: GlassSurfaceDetails(
+                  role: details.role,
+                  part: details.part,
+                  glass: details.glass,
+                  frame: details.frame,
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}

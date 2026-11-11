@@ -1,57 +1,112 @@
-import 'package:apple_liquid_glass/src/motion/switch_motion.dart';
-import 'package:apple_liquid_glass/src/surface/frame.dart';
-import 'package:apple_liquid_glass/src/theme/traits.dart';
-import 'package:flutter/scheduler.dart';
+import 'package:apple_liquid_glass/src/foundation/colors.dart';
+import 'package:apple_liquid_glass/src/foundation/frame.dart';
+import 'package:apple_liquid_glass/src/foundation/style.dart';
+import 'package:apple_liquid_glass/src/foundation/theme.dart';
+import 'package:apple_liquid_glass/src/raw/switch.dart';
+import 'package:apple_liquid_glass/src/surfaces/glass.dart';
+import 'package:apple_liquid_glass/src/surfaces/surface.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
-/// Builds a glass switch from [details]; it runs when the switch builds,
-/// such as when its states change, never on a frame of its motion.
-typedef GlassSwitchBuilder = Widget Function(
-  BuildContext context,
-  GlassSwitchDetails details,
-);
-
-/// What a [GlassSwitchBuilder] builds a switch from.
+/// The look of a [GlassSwitch], like Flutter's `ButtonStyle`.
+///
+/// Every field but [builder] is resolved against the switch's states. A
+/// switch looks a field up in its own style, then in the theme's, then in
+/// its defaults, state by state: a property that gives null for a state
+/// leaves that state to the next one. [merge] combines two styles the same
+/// way.
 @immutable
-final class GlassSwitchDetails {
-  /// Describes a switch.
-  const GlassSwitchDetails({
-    required this.thumb,
-    required this.progress,
-    required this.states,
+class GlassSwitchStyle {
+  /// Creates a style.
+  const GlassSwitchStyle({
+    this.thumbColor,
+    this.activeTrackColor,
+    this.inactiveTrackColor,
+    this.builder,
   });
 
-  /// The frames of the knob in the switch's 63 x 28 box: where it sits,
-  /// how it stretches, and how far a finger has lifted it into glass.
-  final MotionSelection<GlassFrame> thumb;
+  /// The fill of the resting knob (UIKit `thumbTintColor`).
+  final WidgetStateProperty<Color?>? thumbColor;
 
-  /// How far the track has turned on, 0 off and 1 on.
-  final MotionSelection<double> progress;
+  /// The track when on (UIKit `onTintColor`).
+  final WidgetStateProperty<Color?>? activeTrackColor;
 
-  /// The states the switch is in; [WidgetState.selected] when it is on.
-  final Set<WidgetState> states;
+  /// The track when off.
+  final WidgetStateProperty<Color?>? inactiveTrackColor;
+
+  /// Builds the switch's look in place of the default one; the switch then
+  /// ignores the other fields. Null leaves it to the theme's builder, then
+  /// the default look.
+  final GlassSwitchBuilder? builder;
+
+  /// This style over [other], state by state.
+  GlassSwitchStyle merge(GlassSwitchStyle? other) {
+    if (other == null) return this;
+    return GlassSwitchStyle(
+      thumbColor: fallThrough(thumbColor, other.thumbColor),
+      activeTrackColor: fallThrough(activeTrackColor, other.activeTrackColor),
+      inactiveTrackColor: fallThrough(
+        inactiveTrackColor,
+        other.inactiveTrackColor,
+      ),
+      builder: builder ?? other.builder,
+    );
+  }
+
+  /// The style between [a] and [b] at [t]; the builder switches at the
+  /// middle.
+  static GlassSwitchStyle? lerp(
+    GlassSwitchStyle? a,
+    GlassSwitchStyle? b,
+    double t,
+  ) {
+    if (identical(a, b)) return a;
+    if (a == null || b == null) return t < 0.5 ? a : b;
+    WidgetStateProperty<Color?>? color(
+      WidgetStateProperty<Color?>? from,
+      WidgetStateProperty<Color?>? to,
+    ) => WidgetStateProperty.lerp<Color?>(
+      from,
+      to,
+      t,
+      snapNull(GlassDynamicColor.lerp),
+    );
+    return GlassSwitchStyle(
+      thumbColor: color(a.thumbColor, b.thumbColor),
+      activeTrackColor: color(a.activeTrackColor, b.activeTrackColor),
+      inactiveTrackColor: color(a.inactiveTrackColor, b.inactiveTrackColor),
+      builder: t < 0.5 ? a.builder : b.builder,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlassSwitchStyle &&
+      other.thumbColor == thumbColor &&
+      other.activeTrackColor == activeTrackColor &&
+      other.inactiveTrackColor == inactiveTrackColor &&
+      other.builder == builder;
+
+  @override
+  int get hashCode =>
+      Object.hash(thumbColor, activeTrackColor, inactiveTrackColor, builder);
 }
 
-/// A switch with the measured motion of iOS 27's `UISwitch` and no look of
-/// its own: [builder] decides how it looks.
+/// An iOS 27 switch.
 ///
-/// UIKit: `UISwitch`. SwiftUI: `Toggle`. Flutter: `CupertinoSwitch`.
+/// UIKit: `UISwitch`. SwiftUI: `Toggle` with the switch style. Flutter:
+/// `CupertinoSwitch`.
 ///
-/// The knob lifts into a clear lens under the finger, a tap toggles on
-/// release, and a drag carries the knob with a rubber band past the ends
-/// and flips the shown state every 25 points toward the other one. In a
-/// right-to-left context on is to the left. Space, Enter and the
-/// accessibility tap toggle it. Under Reduce Motion the knob travels
-/// without lifting, growing or rubber-banding, as UIKit's does, and without
-/// stretching, an approximation. A touch that changes the shown state plays
-/// a light impact, as UIKit does (read from UIKit, notes private).
-class RawGlassSwitch extends StatefulWidget {
+/// Its track is a plain fill and its knob a platter that turns into glass
+/// under the finger, drawn by the ambient renderer; its motion is
+/// [RawGlassSwitch]'s. A disabled switch draws at half opacity, as UIKit
+/// does (iPhone 16 Pro, light and dark, on and off).
+class GlassSwitch extends StatelessWidget {
   /// Creates a switch showing [value].
-  const RawGlassSwitch({
+  const GlassSwitch({
     required this.value,
     required this.onChanged,
-    required this.builder,
+    this.style,
     this.statesController,
     this.focusNode,
     this.autofocus = false,
@@ -63,11 +118,11 @@ class RawGlassSwitch extends StatefulWidget {
   final bool value;
 
   /// Called with the new value when the user toggles the switch; null
-  /// disables it. A switch whose [value] does not follow returns to it.
+  /// disables it.
   final ValueChanged<bool>? onChanged;
 
-  /// Builds the switch's look.
-  final GlassSwitchBuilder builder;
+  /// The look, over the theme's and the switch's defaults.
+  final GlassSwitchStyle? style;
 
   /// Where the switch writes its states, or null for its own.
   final WidgetStatesController? statesController;
@@ -81,160 +136,94 @@ class RawGlassSwitch extends StatefulWidget {
   /// What accessibility reads for the switch.
   final String? semanticLabel;
 
-  /// The size of the switch: UISwitch's 63 x 28 track.
-  static const Size size = SwitchMotion.trackSize;
-
-  @override
-  State<RawGlassSwitch> createState() => _RawGlassSwitchState();
-}
-
-class _RawGlassSwitchState extends State<RawGlassSwitch>
-    with ControlStates<RawGlassSwitch> {
-  late final SwitchMotion _motion = SwitchMotion(
-    value: widget.value,
-    frameRate: MotionClock.instance.frameRate,
-    onEvent: _deliver,
-  );
-  late final _SwitchInput _input = _SwitchInput(
-    motion: _motion,
-    toggle: () => widget.onChanged?.call(!widget.value),
-  );
-  late final List<Interaction> _interactions = [_input];
-  late MotionSelection<GlassFrame> _thumb = _thumbOf(mirrored: false);
-  late final MotionSelection<double> _progress = _motion.select(
-    (motion) => motion.color,
+  /// A style from plain colors; a null color leaves the field to the
+  /// theme, then the default.
+  static GlassSwitchStyle styleFrom({
+    Color? thumbColor,
+    Color? activeTrackColor,
+    Color? inactiveTrackColor,
+  }) => GlassSwitchStyle(
+    thumbColor: allStates(thumbColor),
+    activeTrackColor: allStates(activeTrackColor),
+    inactiveTrackColor: allStates(inactiveTrackColor),
   );
 
-  MotionSelection<GlassFrame> _thumbOf({required bool mirrored}) =>
-      _motion.select((motion) {
-        final t = motion.now;
-        final lens = motion.lens;
-        final size = lens.size(t);
-        var x =
-            SwitchMotion.inset +
-            SwitchMotion.knobSize.width / 2 +
-            motion.knob +
-            lens.shift(t);
-        if (mirrored) x = SwitchMotion.trackSize.width - x;
-        return GlassFrame(
-          rect: Rect.fromCenter(
-            center: Offset(x, SwitchMotion.trackSize.height / 2),
-            width: size.width * lens.scaleX(t),
-            height: size.height * lens.scaleY(t),
-          ),
-          lift: lens.progress(t).clamp(0.0, 1.0),
-        );
-      });
+  /// UISwitch's off track: secondarySystemFill, and under Increase Contrast
+  /// its own color, 78 percent of 0x787880 in light and 90 in dark (read
+  /// from UIKit's color tables, notes private; not rendered on a device).
+  static const inactiveTrack = GlassDynamicColor.withBrightnessAndContrast(
+    color: Color(0x29787880),
+    darkColor: Color(0x52787880),
+    highContrastColor: Color(0xC7787880),
+    darkHighContrastColor: Color(0xE5787880),
+  );
 
-  @override
-  WidgetStatesController? get givenStates => widget.statesController;
-
-  @override
-  void didUpdateWidget(RawGlassSwitch oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _setValue(widget.value);
-  }
-
-  @override
-  void writeStates() {
-    final disabled = widget.onChanged == null;
-    widgetStates.update(WidgetState.disabled, disabled);
-    if (disabled) widgetStates.update(WidgetState.pressed, false);
-    widgetStates.update(WidgetState.selected, widget.value);
-  }
-
-  void _setValue(bool value) {
-    if (value == _motion.value) return;
-    _motion.setValue(MotionClock.instance.now, value: value);
-  }
-
-  void _deliver(SwitchEvent event) {
-    switch (event) {
-      case SwitchChanged(:final on):
-        if (on != widget.value) widget.onChanged?.call(on);
-        SchedulerBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _setValue(widget.value);
-        });
-      case SwitchShown():
-        MotionHaptic.lightImpact.play();
-    }
-  }
+  static const _disabledOpacity = 0.5;
 
   @override
   Widget build(BuildContext context) {
-    _motion.reducedMotion = GlassTraits.of(context).reduceMotion;
-    final mirrored = Directionality.maybeOf(context) == TextDirection.rtl;
-    if (mirrored != _input.mirrored) {
-      _input.mirrored = mirrored;
-      _thumb = _thumbOf(mirrored: mirrored);
-    }
-    return MotionScope(
-      motion: _motion,
-      child: Align(
-        widthFactor: 1,
-        heightFactor: 1,
-        child: Semantics(
-          toggled: widget.value,
-          child: InputRegion(
-            interactions: _interactions,
-            enabled: widget.onChanged != null,
-            statesController: widgetStates,
-            focusNode: widget.focusNode,
-            autofocus: widget.autofocus,
-            semanticLabel: widget.semanticLabel,
-            child: SizedBox.fromSize(
-              size: RawGlassSwitch.size,
-              child: widget.builder(
-                context,
-                GlassSwitchDetails(
-                  thumb: _thumb,
-                  progress: _progress,
-                  states: {...widgetStates.value},
+    final look = (style ?? const GlassSwitchStyle()).merge(
+      GlassTheme.of(context).switchStyle,
+    );
+    return RawGlassSwitch(
+      value: value,
+      onChanged: onChanged,
+      statesController: statesController,
+      focusNode: focusNode,
+      autofocus: autofocus,
+      semanticLabel: semanticLabel,
+      builder:
+          look.builder ??
+          (context, details) => _defaultBody(context, details, look),
+    );
+  }
+
+  Widget _defaultBody(
+    BuildContext context,
+    GlassSwitchDetails details,
+    GlassSwitchStyle look,
+  ) {
+    final states = details.states;
+    Color resolve(WidgetStateProperty<Color?>? property, Color fallback) =>
+        GlassDynamicColor.resolve(
+          property?.resolve(states) ?? fallback,
+          context,
+        );
+    final off = resolve(look.inactiveTrackColor, inactiveTrack);
+    final on = resolve(look.activeTrackColor, GlassColors.systemGreen);
+    final body = Stack(
+      children: [
+        Positioned.fill(
+          child: GlassSurface.live(
+            role: GlassRole.track,
+            frame: MotionSelection(
+              () => GlassFrame(
+                tint: Color.lerp(
+                  off,
+                  on,
+                  details.progress.value.clamp(0.0, 1.0),
                 ),
               ),
             ),
+            child: const SizedBox.expand(),
           ),
         ),
-      ),
+        Positioned.fill(
+          child: GlassSurface.live(
+            role: GlassRole.lens,
+            part: GlassPart.knob,
+            glass: Glass.regular(
+              tint: resolve(look.thumbColor, const Color(0xFFFFFFFF)),
+            ),
+            frame: details.thumb,
+            child: const SizedBox.expand(),
+          ),
+        ),
+      ],
     );
-  }
-}
-
-/// A switch's touch: the press tracks the highlight and holds the touch
-/// against a scroll, the motion follows the finger, and an activation
-/// toggles.
-final class _SwitchInput extends PressInteraction {
-  _SwitchInput({required this.motion, required this.toggle});
-
-  final SwitchMotion motion;
-  final VoidCallback toggle;
-  bool mirrored = false;
-  int? _pointer;
-
-  double _x(Offset position) =>
-      mirrored ? RawGlassSwitch.size.width - position.dx : position.dx;
-
-  @override
-  InteractionUpdate handle(InteractionInput input) {
-    switch (input) {
-      case ActivateInput():
-        toggle();
-        return InteractionUpdate(
-          events: [ActivationEvent(time: input.time, source: input.source)],
-        );
-      case PointerDownInput() when _pointer == null && accepts(input):
-        _pointer = input.pointer;
-        motion.pointerDown(input.time, _x(input.position));
-      case PointerMoveInput() when input.pointer == _pointer:
-        motion.pointerMove(input.time, _x(input.position));
-      case PointerUpInput() when input.pointer == _pointer:
-        _pointer = null;
-        motion.pointerUp(input.time, _x(input.position));
-      case PointerCancelInput() when input.pointer == _pointer:
-        _pointer = null;
-        motion.pointerCancel(input.time);
-      default:
-    }
-    return super.handle(input);
+    return Opacity(
+      opacity: states.contains(WidgetState.disabled) ? _disabledOpacity : 1,
+      child: body,
+    );
   }
 }

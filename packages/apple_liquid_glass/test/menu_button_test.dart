@@ -1,7 +1,7 @@
 import 'dart:ui' show Tristate;
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass/src/surface/surface.dart';
+import 'package:apple_liquid_glass/src/surfaces/surface.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';

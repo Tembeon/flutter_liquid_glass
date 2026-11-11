@@ -1,4 +1,4 @@
-import 'package:apple_liquid_glass/src/motion/sheet_motion.dart';
+import 'package:apple_liquid_glass/src/motions/sheet_motion.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The simulator screen of these captures: an iPhone 17 Pro, 402 x 874

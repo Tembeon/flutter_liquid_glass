@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/motion/glass_press.dart';
-import 'package:apple_liquid_glass/src/motion/slider_motion.dart';
-import 'package:apple_liquid_glass/src/motion/small_lens.dart';
+import 'package:apple_liquid_glass/src/motions/glass_press.dart';
+import 'package:apple_liquid_glass/src/motions/slider_motion.dart';
+import 'package:apple_liquid_glass/src/motions/small_lens.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';

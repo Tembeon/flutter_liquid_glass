@@ -3,9 +3,9 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:apple_liquid_glass/src/motion/flex_interaction.dart';
-import 'package:apple_liquid_glass/src/motion/flex_spec.dart';
-import 'package:apple_liquid_glass/src/motion/slider_motion.dart';
+import 'package:apple_liquid_glass/src/motions/flex_interaction.dart';
+import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
+import 'package:apple_liquid_glass/src/motions/slider_motion.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/slider_feed.dart';

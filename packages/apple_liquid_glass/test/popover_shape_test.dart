@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:apple_liquid_glass/src/motion/popover_motion.dart';
+import 'package:apple_liquid_glass/src/motions/popover_motion.dart';
 import 'package:apple_liquid_glass/src/presentations/popover_shape.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';

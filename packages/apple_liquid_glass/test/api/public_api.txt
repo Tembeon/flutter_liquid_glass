@@ -512,6 +512,10 @@ class GlassGroup extends StatefulWidget
   final Widget child
   final GlassMerge merge
   overrides: createState
+final class GlassGroupDetails
+  const GlassGroupDetails({required GlassMerge merge, required Widget child})
+  final Widget child
+  final GlassMerge merge
 enum GlassInterfaceLevel
   base,
   elevated,
@@ -915,6 +919,20 @@ enum GlassRole
   panel,
   lens,
   track,
+final class GlassScrollEdgeDetails
+  const GlassScrollEdgeDetails({
+    required AxisDirection edge,
+    required bool hard,
+    required double extent,
+    required ValueListenable<double> presence,
+    required Color background,
+  })
+  final Color background
+  final AxisDirection edge
+  final double extent
+  final bool hard
+  final ValueListenable<double> presence
+  overrides: ==, hashCode
 enum GlassScrollEdgeEffect
   automatic,
   soft,
@@ -1339,6 +1357,19 @@ class GlassSurface extends StatefulWidget
   @internal final GlassPart? part
   final GlassRole role
   overrides: createState
+final class GlassSurfaceDetails
+  const GlassSurfaceDetails({
+    required GlassRole role,
+    required Glass glass,
+    required ValueListenable<GlassFrame> frame,
+    required Widget child,
+    @internal GlassPart? part,
+  })
+  final Widget child
+  final ValueListenable<GlassFrame> frame
+  final Glass glass
+  @internal final GlassPart? part
+  final GlassRole role
 final class GlassSwipeAction
   const GlassSwipeAction({
     required String title,
@@ -2062,140 +2093,157 @@ re-exported from package:liquid_glass_renderer:
   GlassReadSource
   debugDumpGlassPlan
 
-# package:apple_liquid_glass/glass_renderer.dart
-final class GlassGroupDetails
-  const GlassGroupDetails({required GlassMerge merge, required Widget child})
-  final Widget child
-  final GlassMerge merge
-class GlassRenderer (see package:apple_liquid_glass/apple_liquid_glass.dart)
-final class GlassScrollEdgeDetails
-  const GlassScrollEdgeDetails({
-    required AxisDirection edge,
-    required bool hard,
-    required double extent,
-    required ValueListenable<double> presence,
-    required Color background,
-  })
-  final Color background
-  final AxisDirection edge
-  final double extent
-  final bool hard
-  final ValueListenable<double> presence
-  overrides: ==, hashCode
-final class GlassSurfaceDetails
-  const GlassSurfaceDetails({
-    required GlassRole role,
-    required Glass glass,
-    required ValueListenable<GlassFrame> frame,
-    required Widget child,
-    @internal GlassPart? part,
-  })
-  final Widget child
-  final ValueListenable<GlassFrame> frame
-  final Glass glass
-  @internal final GlassPart? part
-  final GlassRole role
+# package:apple_liquid_glass/controls.dart
+class GlassBadge (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassBadgeStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassButton (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassButtonStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassDatePicker (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassDatePickerLocalizations (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassDatePickerMode (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassDatePickerStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassDatePickerVariant (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassListAccessory (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassListBackground (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassListRow (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassListSection (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassListStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassPageControl (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassPageControlStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSearchField (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSearchFieldStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSegment (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSegmentedControl (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSegmentedStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSlider (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSliderStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSliverListSection (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassStepper (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassStepperStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSwipeAction (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSwipeActions (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSwitch (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSwitchStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 
-# package:apple_liquid_glass/motion.dart
-re-exported from package:kinesis:
-  ActivateInput
-  ActivationEvent
-  ActivationSource
-  Band
-  ControlStates
-  DismissPolicy
-  DismissTrigger
-  DragInteraction
-  DragInteractionDetails
-  FollowInteraction
-  FrameCadence
-  InputPort
-  InputRegion
-  Interaction
-  InteractionEvent
-  InteractionInput
-  InteractionRole
-  InteractionSession
-  InteractionUpdate
-  LayoutAccent
-  LayoutChange
-  LayoutEntry
-  LayoutItem
-  LayoutMotion
-  LayoutPhase
-  LayoutPlan
-  LayoutPlanner
-  LongPressInteraction
-  LongPressStartEvent
-  Motion
-  MotionCancel
-  MotionClock
-  MotionConverter
-  MotionDriven
-  MotionEffect
-  MotionHaptic
-  MotionHapticPlay
-  MotionLayout
-  MotionLayoutBuilder
-  MotionLoop
-  MotionMeasure
-  MotionPart
-  MotionRect
-  MotionResolveHost
-  MotionRest
-  MotionScope
-  MotionScroll
-  MotionScrollPhase
-  MotionSelect
-  MotionSelection
-  MotionSignal
-  MotionSource
-  MotionSourceBox
-  MotionTraits
-  MotionTraitsOverride
-  MotionTransition
-  MotionTransitionLayer
-  MotionValue
-  MotionValueCommands
-  PointerCancelInput
-  PointerCancelReason
-  PointerDownInput
-  PointerFollower
-  PointerHoverInput
-  PointerMoveInput
-  PointerUpInput
-  Presence
-  PresenceStatus
-  Presentation
-  PresentationContext
-  PresentationEnvironment
-  PresentationHandle
-  PresentationLevel
-  PresentationPageRoute
-  PresentationPortal
-  PresentationPortalController
-  PresentationRoute
-  Presented
-  PressInteraction
-  Projection
-  ProjectionChoice
-  ProjectionExit
-  ProjectionExited
-  ProjectionStop
-  Ramp
-  RectSprings
-  ScrubChangeEvent
-  ScrubInteraction
-  SessionOutput
-  SliverMotionList
-  SourceGeometry
-  Sourced
-  Spring
-  TapInteraction
-  TimedValue
-  showPresentation
-  withSpring
-  withoutAnimation
+# package:apple_liquid_glass/foundation.dart
+class AnimatedGlassTheme (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassColorScheme (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassColors (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassDefaultTextStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassDynamicColor (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassFrame (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassInterfaceLevel (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassTextRole (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTheme (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassThemeData (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTraits (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTraitsOverride (see package:apple_liquid_glass/apple_liquid_glass.dart)
+
+# package:apple_liquid_glass/liquid.dart
+re-exported from package:liquid_glass_renderer:
+  GlassFrameReport
+  GlassPlanOverlay
+  GlassReadReport
+  GlassReadSource
+  debugDumpGlassPlan
+
+# package:apple_liquid_glass/motions.dart
+class GlassSheetDetent (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassTabBarMinimizeBehavior (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTouchGlow (see package:apple_liquid_glass/apple_liquid_glass.dart)
+
+# package:apple_liquid_glass/navigation.dart
+enum GlassBackButtonDisplayMode (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassBarEntry (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassBarItem (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassBarItemStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassBarSpacer (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassContentScroll (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassNavigationBar (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassNavigationBarStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassPageRoute (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassPageScaffold (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassScrollEdgeEffect (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassScrollEdgeEffects (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassTabAccessoryPlacement (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTabBar (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTabBarStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTabDestination (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTabScaffold (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassToolbar (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassToolbarStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassZoomSource (see package:apple_liquid_glass/apple_liquid_glass.dart)
+
+# package:apple_liquid_glass/presentations.dart
+class GlassAlertAction (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassAlertStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassContextMenu (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassMenuController (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassMenuDeferred (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassMenuDivider (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassMenuElementSize (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassMenuEntry (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassMenuIconVisibility (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassMenuItem (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassMenuItemState (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassMenuOrder (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassMenuSection (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassMenuStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassMenuWidget (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassPopoverStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSheet (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSheetStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSubmenu (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class RawGlassMenu (see package:apple_liquid_glass/apple_liquid_glass.dart)
+function showGlassActionSheet (see package:apple_liquid_glass/apple_liquid_glass.dart)
+function showGlassAlert (see package:apple_liquid_glass/apple_liquid_glass.dart)
+function showGlassPopover (see package:apple_liquid_glass/apple_liquid_glass.dart)
+function showGlassSheet (see package:apple_liquid_glass/apple_liquid_glass.dart)
+
+# package:apple_liquid_glass/raw.dart
+typedef GlassButtonBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassButtonDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassPageControlBackground (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef GlassPageControlBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassPageControlDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassPageControlPose (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassPressable (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSearchController (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef GlassSearchFieldBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSearchFieldDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef GlassSelectorBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSelectorDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef GlassSelectorItemBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassSelectorMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef GlassSliderBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSliderDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef GlassStepperBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassStepperDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassStepperHalf (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef GlassSwitchBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSwitchDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class RawGlassList (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class RawGlassPageControl (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class RawGlassSearchField (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class RawGlassSelector (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class RawGlassSlider (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class RawGlassStepper (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class RawGlassSwitch (see package:apple_liquid_glass/apple_liquid_glass.dart)
+
+# package:apple_liquid_glass/surfaces.dart
+class Glass (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassClip (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassGroup (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassGroupDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassMerge (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassOutline (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassRenderer (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassRole (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassScrollEdgeDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassShape (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSolidBackdrop (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSurface (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSurfaceDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
 
 # package:apple_liquid_glass/testing.dart
 re-exported from package:kinesis:

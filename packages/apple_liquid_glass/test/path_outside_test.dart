@@ -1,7 +1,7 @@
 // ignore_for_file: invalid_use_of_internal_member
 import 'dart:ui' as ui;
 
-import 'package:apple_liquid_glass/src/surface/outline.dart';
+import 'package:apple_liquid_glass/src/surfaces/outline.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 

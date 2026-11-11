@@ -1,4 +1,4 @@
-import 'package:apple_liquid_glass/src/motion/tab_minimize.dart';
+import 'package:apple_liquid_glass/src/motions/tab_minimize.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Drags [away] over [steps] equal moves through the interaction, from 0.

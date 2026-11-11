@@ -1,12 +1,12 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/controls/raw_list.dart';
-import 'package:apple_liquid_glass/src/motion/list_highlight.dart';
-import 'package:apple_liquid_glass/src/surface/solid_backdrop.dart';
-import 'package:apple_liquid_glass/src/theme/colors.dart';
-import 'package:apple_liquid_glass/src/theme/style.dart';
-import 'package:apple_liquid_glass/src/theme/theme.dart';
-import 'package:apple_liquid_glass/src/theme/typography.dart';
+import 'package:apple_liquid_glass/src/foundation/colors.dart';
+import 'package:apple_liquid_glass/src/foundation/style.dart';
+import 'package:apple_liquid_glass/src/foundation/theme.dart';
+import 'package:apple_liquid_glass/src/foundation/typography.dart';
+import 'package:apple_liquid_glass/src/motions/list_highlight.dart';
+import 'package:apple_liquid_glass/src/raw/list.dart';
+import 'package:apple_liquid_glass/src/surfaces/solid_backdrop.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';

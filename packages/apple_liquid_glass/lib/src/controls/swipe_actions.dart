@@ -1,6 +1,6 @@
-import 'package:apple_liquid_glass/src/controls/raw_list.dart';
-import 'package:apple_liquid_glass/src/theme/colors.dart';
-import 'package:apple_liquid_glass/src/theme/typography.dart';
+import 'package:apple_liquid_glass/src/foundation/colors.dart';
+import 'package:apple_liquid_glass/src/foundation/typography.dart';
+import 'package:apple_liquid_glass/src/raw/list.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
