@@ -69,7 +69,7 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
     _shapesWithGeometry
       ..clear()
       ..addAll(candidate);
-    _fading = null;
+    _shadows.shapesCommitted();
     _retainedStructure = geometryStructure(candidate);
     _ancestorClips.update(this, shapeRenderObjects);
     onFrameGeometryCommitted();
@@ -169,25 +169,4 @@ final class _EncodedGeometryInput {
     cache = newCache;
     transform.setFrom(newTransform);
   }
-}
-
-/// A shape's outline at its size ([local]), its [transform] into the layer
-/// and its [bounds] there.
-class _Silhouette {
-  _Silhouette(
-    this.shape,
-    this.size,
-    this.local,
-    this.transform,
-    this.bounds,
-  );
-
-  final LiquidShape shape;
-  final Size size;
-  final Path local;
-  final Matrix4 transform;
-  final Rect bounds;
-
-  void addTo(Path path) =>
-      path.addPath(local, Offset.zero, matrix4: transform.storage);
 }

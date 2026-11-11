@@ -1,20 +1,16 @@
-import 'dart:collection';
 import 'dart:math';
-import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_shadow.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_shadow_recorder.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_shape_helpers.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/rendering/retained_glass_clip.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
-import 'package:liquid_glass_renderer/src/rendering/snap_rect_to_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
 
 part 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object_frame.dart';
@@ -165,9 +161,11 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   final _compositionProbe = GlassCompositionProbe();
   final _framePoll = FramePollMarker();
   final _effectLayer = LayerHandle<OffsetLayer>();
-  final _originalShadows = LayerHandle<ContainerLayer>();
-  final _shadowPicture = LayerHandle<PictureLayer>();
   final _ancestorClips = RetainedGlassClip();
+  late final _shadows = GlassShadowRecorder(
+    _shapesWithGeometry,
+    _ancestorClips,
+  );
   final _idleAncestorClips = RetainedGlassClip();
   List<Object> _retainedStructure = [];
 
@@ -536,7 +534,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
       setCompositorTranslation(translation);
       onCompositorTranslated(translation);
       if (_frameState == GlassFrameState.active &&
-          _originalShadows.layer != null &&
+          _shadows.slot != null &&
           _ancestorClips.hasIndividualClips &&
           !_framePoll.polledThisFrame) {
         recordGlassShadows(retainedPaintOffset);
@@ -633,11 +631,11 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// Whether a committed shape is partly visible, which makes the shadows
   /// show through it by the part it has yet to fade in.
   @protected
-  bool get glassShadowsFade => _anyShapeFading;
+  bool get glassShadowsFade => _shadows.fading;
 
   /// The picture [recordGlassShadows] last recorded, wherever it lies now.
   @protected
-  PictureLayer? get glassShadowPicture => _shadowPicture.layer;
+  PictureLayer? get glassShadowPicture => _shadows.picture;
 
   /// Draws every committed shape's exterior shadows into [canvas] at
   /// [offset], kept outside the silhouette of every shape above zero
@@ -645,299 +643,41 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// cover with [shadowsUnderGlass]. Shadow color, blur and the cut-out
   /// silhouette scale with shape visibility.
   @protected
-  void drawGlassShadows(Canvas canvas, Offset offset) {
-    final hasShadows = _shapesWithGeometry.any(
-      (entry) => entry.$2.shapes.any((shape) => shape.shadows.isNotEmpty),
-    );
-    if (!hasShadows) return;
-    final entry = _shapesWithGeometry.singleOrNull;
-    final shape = entry?.$2.shapes.singleOrNull;
-    final useNativeOuterBlur =
-        shape != null &&
-        identical(entry!.$1, shape.renderObject) &&
-        shape.shadows.every(
-          (shadow) => shadow.offset == Offset.zero && shadow.spreadRadius >= 0,
-        );
-    canvas
-      ..save()
-      ..translate(offset.dx, offset.dy);
-    if (useNativeOuterBlur) {
-      _paintShadows(canvas, (_) => true, outer: true);
-    } else if (_anyShapeFading) {
-      _paintShadowsCutOffscreen(canvas);
-    } else if (shadowsUnderGlass) {
-      _paintShadows(canvas, (_) => true, outer: false);
-    } else {
-      // A clip, not an offscreen layer. Shadows whose bounds meet are
-      // grouped, and each group is clipped to its own bounds less the
-      // silhouettes, so glass scattered over a large layer clips only around
-      // each group, not the whole layer.
-      final silhouettes = _currentSilhouettes();
-      for (final (:bounds, shapes: group) in _shadowGroups()) {
-        canvas.save();
-        _clipOutsideSilhouettes(canvas, bounds, silhouettes);
-        _paintShadows(canvas, group.contains, outer: false);
-        canvas.restore();
-      }
-    }
-    canvas.restore();
-  }
-
-  void _paintShadows(
-    Canvas canvas,
-    bool Function(ShapeGeometry shape) include, {
-    required bool outer,
-  }) {
-    for (final (_, geometry, geometryToLayer) in _shapesWithGeometry) {
-      for (final shape in geometry.shapes) {
-        final shapeVisibility = shape.appearance.visibility.clamp(0.0, 1.0);
-        if (shape.shadows.isEmpty || shapeVisibility <= 0) continue;
-        if (!include(shape)) continue;
-        _ancestorClips.paintWithIndividualClips(
-          canvas,
-          shape.renderObject,
-          compositorTranslation,
-          () {
-            canvas
-              ..save()
-              ..transform(geometryToLayer.storage);
-            if (shape.shapeToGeometry case final transform?) {
-              canvas.transform(transform.storage);
-            }
-            final rect = Offset.zero & shape.renderObject.paintSize;
-            for (final shadow in shape.shadows) {
-              final paint = shadow
-                  .copyWith(
-                    color: shadow.color.withValues(
-                      alpha: shadow.color.a * shapeVisibility,
-                    ),
-                    blurRadius: shadow.blurRadius * shapeVisibility,
-                    blurStyle: outer ? BlurStyle.outer : BlurStyle.normal,
-                  )
-                  .toPaint();
-              drawGlassShape(
-                canvas,
-                shape.shape,
-                rect.shift(shadow.offset).inflate(shadow.spreadRadius),
-                paint,
-              );
-            }
-            canvas.restore();
-          },
-        );
-      }
-    }
-  }
-
-  // Asked several times a frame; the committed shapes change in
-  // [commitFrameGeometry] alone.
-  bool get _anyShapeFading => _fading ??= _shapesWithGeometry.any(
-    (entry) => entry.$2.shapes.any(
-      (shape) =>
-          shape.appearance.visibility > 0 && shape.appearance.visibility < 1,
-    ),
+  void drawGlassShadows(Canvas canvas, Offset offset) => _shadows.draw(
+    canvas,
+    offset,
+    under: shadowsUnderGlass,
+    translation: compositorTranslation,
+    bounds: effectPaintBounds,
+    devicePixelRatio: devicePixelRatio,
   );
-
-  bool? _fading;
-
-  // A clip cuts a silhouette whole, but a fading glass lets as much of the
-  // shadow under it show as it has yet to fade in. Only an offscreen layer
-  // cuts by a fraction; fades are brief, so only they pay for one.
-  void _paintShadowsCutOffscreen(Canvas canvas) {
-    // Bounds only: growing them to pixel buckets changes no pixel, and an
-    // animated shape does not get a render target of a new size each frame.
-    canvas.saveLayer(
-      effectPaintBounds.expandToPixelBuckets(devicePixelRatio),
-      Paint(),
-    );
-    _paintShadows(canvas, (_) => true, outer: false);
-    for (final (_, geometry, geometryToLayer) in _shapesWithGeometry) {
-      for (final shape in geometry.shapes) {
-        final visibility = shape.appearance.visibility.clamp(0.0, 1.0);
-        if (visibility <= 0) continue;
-        canvas
-          ..save()
-          ..transform(shapeTransformToLayer(shape, geometryToLayer).storage);
-        drawGlassShape(
-          canvas,
-          shape.shape,
-          (Offset.zero & shape.renderObject.paintSize).deflate(.5),
-          Paint()
-            ..color = Color.fromRGBO(0, 0, 0, visibility)
-            ..blendMode = BlendMode.dstOut,
-        );
-        canvas.restore();
-      }
-    }
-    canvas.restore();
-  }
-
-  List<({Rect bounds, Set<ShapeGeometry> shapes})> _shadowGroups() {
-    final groups = <({Rect bounds, Set<ShapeGeometry> shapes})>[];
-    for (final (_, geometry, geometryToLayer) in _shapesWithGeometry) {
-      for (final shape in geometry.shapes) {
-        if (shape.shadows.isEmpty || shape.appearance.visibility <= 0) continue;
-        var bounds = expandForGlassShadows(
-          MatrixUtils.transformRect(
-            shapeTransformToLayer(shape, geometryToLayer),
-            Offset.zero & shape.renderObject.paintSize,
-          ),
-          [
-            (<ShapeGeometry>[shape], geometryToLayer),
-          ],
-        );
-        // By identity: ShapeGeometry compares by value, so its hash would walk
-        // its appearance, shadows and transform on every lookup.
-        final members = Set<ShapeGeometry>.identity()..add(shape);
-        // Joining a group can make it meet another: merge until none meets.
-        for (var i = groups.length - 1; i >= 0; i--) {
-          final (bounds: other, shapes: otherMembers) = groups[i];
-          if (!other.overlaps(bounds)) continue;
-          bounds = bounds.expandToInclude(other);
-          members.addAll(otherMembers);
-          groups.removeAt(i);
-          i = groups.length;
-        }
-        groups.add((bounds: bounds, shapes: members));
-      }
-    }
-    return groups;
-  }
-
-  // The last draw's silhouettes, matched to shapes by position: an entry is
-  // reused while its shape, size and transform stay the same, and only
-  // re-mapped when just the transform changed. A size within a hair of the
-  // last counts as the same: a moving shape's size, taken as the difference
-  // of its moved edges, changes in its last bits from frame to frame.
-  List<_Silhouette> _silhouettes = const [];
-
-  static const double _sameSize = 1e-6;
-
-  List<_Silhouette> _currentSilhouettes() {
-    final previous = _silhouettes;
-    final next = <_Silhouette>[];
-    for (final (_, geometry, geometryToLayer) in _shapesWithGeometry) {
-      for (final shape in geometry.shapes) {
-        if (shape.appearance.visibility <= 0) continue;
-        // A copy: the silhouette keeps it to compare with the next frame's.
-        final transform = Matrix4.copy(
-          shapeTransformToLayer(shape, geometryToLayer),
-        );
-        final size = shape.renderObject.paintSize;
-        final old = next.length < previous.length
-            ? previous[next.length]
-            : null;
-        final sameOutline =
-            old != null &&
-            old.shape == shape.shape &&
-            (old.size.width - size.width).abs() < _sameSize &&
-            (old.size.height - size.height).abs() < _sameSize;
-        if (sameOutline && MatrixUtils.matrixEquals(old.transform, transform)) {
-          next.add(old);
-          continue;
-        }
-        // Half a pixel inside the outline, so the shadow reaches into the
-        // glass's antialiased edge and no seam shows between them.
-        final outline = (Offset.zero & (sameOutline ? old.size : size)).deflate(
-          .5,
-        );
-        final local = sameOutline
-            ? old.local
-            : shape.shape.getOuterPath(outline);
-        next.add(
-          _Silhouette(
-            shape.shape,
-            sameOutline ? old.size : size,
-            local,
-            transform,
-            // The outline fills its rect up to each side: the rect's bounds
-            // are the path's, without asking the engine for them.
-            MatrixUtils.transformRect(transform, outline),
-          ),
-        );
-      }
-    }
-    return _silhouettes = next;
-  }
-
-  /// Clips [canvas] to [bounds] less each of [all] whose bounds meet it,
-  /// without a path operation. While no two of those silhouettes' bounds
-  /// meet, one even-odd path cuts them all as holes; otherwise even-odd would
-  /// add back where two overlap, so each clips the bounds less itself and the
-  /// clips intersect to the bounds less their union.
-  void _clipOutsideSilhouettes(
-    Canvas canvas,
-    Rect bounds,
-    List<_Silhouette> all,
-  ) {
-    final silhouettes = [
-      for (final silhouette in all)
-        if (silhouette.bounds.overlaps(bounds)) silhouette,
-    ];
-    var apart = true;
-    for (var i = 0; i < silhouettes.length && apart; i++) {
-      for (var j = i + 1; j < silhouettes.length; j++) {
-        if (silhouettes[i].bounds.overlaps(silhouettes[j].bounds)) {
-          apart = false;
-          break;
-        }
-      }
-    }
-    Path outside() => Path()
-      ..fillType = PathFillType.evenOdd
-      ..addRect(bounds);
-    if (apart) {
-      final path = outside();
-      for (final silhouette in silhouettes) {
-        silhouette.addTo(path);
-      }
-      canvas.clipPath(path);
-      return;
-    }
-    for (final silhouette in silhouettes) {
-      final path = outside();
-      silhouette.addTo(path);
-      canvas.clipPath(path);
-    }
-  }
 
   /// Records the shadows of its shapes at [offset] into a layer of their own,
   /// or returns null when no shape casts one.
   @protected
   ContainerLayer? recordGlassShadows(Offset offset) {
-    final hasShadows = _shapesWithGeometry.any(
-      (entry) => entry.$2.shapes.any((shape) => shape.shadows.isNotEmpty),
+    final slot = _shadows.begin();
+    if (slot == null || !hasDrawableGlass(_shapesWithGeometry)) return slot;
+    _shadows.record(
+      slot,
+      offset,
+      under: shadowsUnderGlass,
+      translation: compositorTranslation,
+      bounds: effectPaintBounds,
+      devicePixelRatio: devicePixelRatio,
     );
-    if (!hasShadows) {
-      clearGlassShadows();
-      return null;
-    }
-    final slot = (_originalShadows.layer ??= ContainerLayer())
-      ..removeAllChildren();
-    _shadowPicture.layer = null;
-    if (!hasDrawableGlass(_shapesWithGeometry)) return slot;
-    if (!kReleaseMode) GlassWork.pictures++;
-    final recorder = ui.PictureRecorder();
-    drawGlassShadows(Canvas(recorder), offset);
-    final picture = PictureLayer(effectPaintBounds.shift(offset))
-      ..picture = recorder.endRecording();
-    slot.append(picture);
-    _shadowPicture.layer = picture;
     return slot;
   }
 
   /// Drops the layer [recordGlassShadows] recorded.
   @protected
-  void clearGlassShadows() {
-    _originalShadows.layer = null;
-    _shadowPicture.layer = null;
-  }
+  void clearGlassShadows() => _shadows.clear();
 
   /// Forgets every registered geometry.
   @override
   @mustCallSuper
   void dispose() {
-    _silhouettes = const [];
+    _shadows.dispose();
     _compositionProbe.dispose();
     _ancestorClips.dispose();
     _idleAncestorClips.dispose();
