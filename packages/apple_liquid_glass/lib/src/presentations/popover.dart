@@ -1,11 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/foundation/colors.dart';
-import 'package:apple_liquid_glass/src/foundation/frame.dart';
-import 'package:apple_liquid_glass/src/foundation/glass.dart';
-import 'package:apple_liquid_glass/src/foundation/shape.dart';
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/theme.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/popover_motion.dart';
 import 'package:apple_liquid_glass/src/presentations/popover_shape.dart';
@@ -73,7 +69,10 @@ class GlassPopoverStyle extends GlassStyle<GlassPopoverStyle> {
 /// of the arrow's tip on UIKit's spring of response 0.345 and shrinks back
 /// into it on one of 0.373 (read from UIKit, replayed on the iPhone 16
 /// Pro); under Reduce Motion it only fades. A tap outside, Escape, Back
-/// and a screen reader's dismiss close it.
+/// (Android's predictive back shrinking it with the gesture) and a screen
+/// reader's dismiss close it, and so does a scroll of what it was shown
+/// from. Screen readers hear a dialog, named by [semanticLabel] when given,
+/// and find the dimming as [GlassLocalizations.popoverDismissLabel].
 ///
 /// On a phone (a screen whose shorter side is under 600 points, an
 /// engineering stand-in for UIKit's compact width) the popover presents as
@@ -118,6 +117,10 @@ Future<T?> showGlassPopover<T>(
           builder: builder,
         ),
         semanticsLabel: semanticLabel,
+        semanticsRole: SemanticsRole.dialog,
+        barrierLabel: GlassLocalizations.of(context).popoverDismissLabel,
+        dismissesOnScroll: true,
+        dismissesOnOutsideTap: true,
       ),
     ),
     level: level,
@@ -172,9 +175,6 @@ class _PopoverViewState extends State<_PopoverView> {
   late final MotionSelection<double> _opacity = widget.motion.select(
     (m) => m.opacity,
   );
-  late final MotionSelection<bool> _leaving = widget.motion.select(
-    (m) => m.isLeaving,
-  );
 
   TextStyle _textStyle(Color label, BuildContext context) {
     final look = (widget.style ?? const GlassPopoverStyle()).merge(
@@ -199,18 +199,13 @@ class _PopoverViewState extends State<_PopoverView> {
         bottom: math.max(media.padding.bottom, media.viewInsets.bottom),
       ),
       direction: Directionality.of(context),
-      card: ValueListenableBuilder<bool>(
-        valueListenable: _leaving,
-        builder: (context, leaving, child) =>
-            IgnorePointer(ignoring: leaving, child: child),
-        child: MotionTransition(
-          opacity: _opacity,
-          child: ClipRSuperellipse(
-            borderRadius: BorderRadius.circular(PopoverTuning.cornerRadius),
-            child: DefaultTextStyle(
-              style: resolveGlassText(_textStyle(label, context), context),
-              child: Builder(builder: widget.builder),
-            ),
+      card: MotionTransition(
+        opacity: _opacity,
+        child: ClipRSuperellipse(
+          borderRadius: BorderRadius.circular(PopoverTuning.cornerRadius),
+          child: DefaultTextStyle(
+            style: resolveGlassText(_textStyle(label, context), context),
+            child: Builder(builder: widget.builder),
           ),
         ),
       ),
