@@ -1,4 +1,11 @@
-/// Holding a screen to the glass work it was reviewed at, in widget tests.
+/// Widget-test helpers for glass: `expectGlassBudget` holds a screen to the
+/// glass work it was reviewed at (copies of the screen read, live reads,
+/// targets, filters, pictures and images a frame took).
+///
+/// For tests of apps and widget libraries that draw with
+/// `liquid_glass_renderer`. It is a dev dependency: it imports
+/// `flutter_test`, which an app does not ship, and reads the frame through
+/// the renderer's public `GlassFrameReport` only.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -6,6 +13,8 @@ import 'package:liquid_glass_renderer/composer.dart';
 
 /// Pumps a frame and checks what its glass took against matchers (an int or
 /// a [Matcher]); what is left out is not checked.
+///
+/// Fails the test when the frame drew no glass. Returns the frame's report.
 ///
 /// ```dart
 /// await expectGlassBudget(tester, reads: lessThanOrEqualTo(4), liveReads: 0);
