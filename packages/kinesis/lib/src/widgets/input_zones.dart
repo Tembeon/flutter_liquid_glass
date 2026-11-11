@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
@@ -409,6 +410,18 @@ enum InputZoneStops {
 /// semantics of [child] are dropped unless [excludeChildSemantics] is
 /// false, since the zones describe what the child paints.
 ///
+/// Each zone is a render box of its hit rectangle's size, placed on the
+/// zone by the host's paint transform: tests and tools find a zone where it
+/// is painted (`tester.tap(find.bySemanticsLabel('Edit'))` taps it), and
+/// its focus node reports its rectangle. A frame in which the zones only
+/// move rebuilds and lays out nothing: the host refreshes the zones'
+/// semantics and focus state, and the transform is read when a hit test,
+/// the semantics or the focus ask. A zone that appears or changes size
+/// lays out its own box alone (each is its own relayout boundary) at the
+/// start of the next frame; until then the transform scales the box to the
+/// zone, and a box still empty reports the zone's bounds to semantics and
+/// focus.
+///
 /// A zone that is disabled takes nothing; a zone whose frame is null or
 /// not [InputZoneFrame.live] is not hit, not focusable and not in the
 /// semantics tree.
@@ -568,17 +581,46 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     widget.frames.removeListener(_framesChanged);
     FocusManager.instance.removeHighlightModeListener(_highlightModeChanged);
     _cancelDue?.call();
+    if (_resize case final id?) {
+      SchedulerBinding.instance.cancelFrameCallbackWithId(id);
+    }
     if (controller._host == this) controller._host = null;
     _ownController?.dispose();
     super.dispose();
   }
 
   void _framesChanged() {
+    var resized = false;
     for (final zone in _zones.values) {
       zone._syncNode();
-      zone._anchor?.markNeedsSemanticsUpdate();
+      final anchor = zone._anchor;
+      if (anchor == null) continue;
+      anchor.markNeedsSemanticsUpdate();
+      resized = resized || (anchor.hasSize && anchor.size != zone.bounds.size);
     }
     _box?.markNeedsSemanticsUpdate();
+    if (resized) _scheduleResize();
+  }
+
+  int? _resize;
+
+  // The zones may move in the layout of the frame, or after it, where
+  // nothing can be laid out; the anchors take their new sizes at the start
+  // of the next frame, and the host's transform scales them until then.
+  void _scheduleResize() {
+    _resize ??= SchedulerBinding.instance.scheduleFrameCallback((_) {
+      _resize = null;
+      if (!mounted) return;
+      for (final zone in _zones.values) {
+        final anchor = zone._anchor;
+        if (anchor != null &&
+            anchor.attached &&
+            anchor.hasSize &&
+            anchor.size != zone.bounds.size) {
+          anchor.markNeedsLayout();
+        }
+      }
+    });
   }
 
   /// The node Tab enters a host of one stop at: the current zone's, else
@@ -1125,7 +1167,6 @@ class _Zone<T extends Object> extends StatefulWidget {
 class _ZoneState<T extends Object> extends State<_Zone<T>> {
   late InteractionSession session = InteractionSession(zone.interactions);
   final FocusNode node = FocusNode();
-  late final _ZoneTarget<T> target = _ZoneTarget<T>(this);
   _RenderZoneAnchor<T>? _anchor;
   late Map<Type, Action<Intent>> _actions;
   Offset _origin = Offset.zero;
@@ -1572,33 +1613,6 @@ class _ZoneEnd<T extends Object> extends Action<_ZoneEndIntent> {
   }
 }
 
-/// What a pointer hits on a zone: it routes the pointer's events to the
-/// host and is the zone's cursor and hover for the mouse tracker.
-final class _ZoneTarget<T extends Object>
-    with Diagnosticable
-    implements HitTestTarget, MouseTrackerAnnotation {
-  _ZoneTarget(this.zone);
-
-  final _ZoneState<T> zone;
-
-  @override
-  void handleEvent(PointerEvent event, HitTestEntry entry) {
-    if (zone.mounted) zone.host._pointer(event);
-  }
-
-  @override
-  MouseCursor get cursor => zone.mounted ? zone.cursor : MouseCursor.defer;
-
-  @override
-  PointerEnterEventListener? get onEnter => zone._entered;
-
-  @override
-  PointerExitEventListener? get onExit => zone._exited;
-
-  @override
-  bool get validForMouseTracker => zone.mounted;
-}
-
 class _ZonesHost<T extends Object> extends MultiChildRenderObjectWidget {
   const _ZonesHost({
     required this.state,
@@ -1629,7 +1643,8 @@ class _ZonesHost<T extends Object> extends MultiChildRenderObjectWidget {
 }
 
 /// The host's box: the size of its first child, which it paints; the
-/// zones' anchors after it take no room and paint nothing.
+/// zones' anchors after it paint nothing and lie where their zones are,
+/// placed by paint transform.
 class _RenderZones<T extends Object> extends RenderBox
     with
         ContainerRenderObjectMixin<RenderBox, _ZoneParentData>,
@@ -1686,10 +1701,30 @@ class _RenderZones<T extends Object> extends RenderBox
     }
     content.layout(constraints, parentUsesSize: true);
     size = content.size;
+    // Each anchor sizes itself and is its own relayout boundary.
     var anchor = childAfter(content);
     while (anchor != null) {
-      anchor.layout(const BoxConstraints.tightFor(width: 0, height: 0));
+      anchor.layout(const BoxConstraints());
       anchor = childAfter(anchor);
+    }
+  }
+
+  @override
+  void applyPaintTransform(RenderBox child, Matrix4 transform) {
+    if (child is! _RenderZoneAnchor<T>) {
+      return super.applyPaintTransform(child, transform);
+    }
+    final bounds = child.zone.bounds;
+    transform.translateByDouble(bounds.left, bounds.top, 0, 1);
+    final laid = child.size;
+    // Until it is laid out to a new size, the anchor is scaled to it.
+    if (laid != bounds.size && !laid.isEmpty) {
+      transform.scaleByDouble(
+        bounds.width / laid.width,
+        bounds.height / laid.height,
+        1,
+        1,
+      );
     }
   }
 
@@ -1707,7 +1742,10 @@ class _RenderZones<T extends Object> extends RenderBox
       return content.hitTest(result, position: position);
     }
     content?.hitTest(result, position: position);
-    result.add(HitTestEntry(zone.target));
+    // In the host's coordinates: the zone's events are read in them.
+    if (zone._anchor case final anchor? when anchor.attached) {
+      result.add(BoxHitTestEntry(anchor, position));
+    }
     return true;
   }
 
@@ -1745,32 +1783,60 @@ class _ZoneAnchor<T extends Object> extends LeafRenderObjectWidget {
   ) {
     renderObject.zone = state;
     state._anchor = renderObject;
+    renderObject.markNeedsLayout();
     renderObject.markNeedsSemanticsUpdate();
   }
 }
 
-/// A zone's place in the render tree: an empty box at the host's origin
-/// whose bounds are the zone's hit rectangle, read when focus or semantics
-/// ask, and which describes the zone to accessibility.
-class _RenderZoneAnchor<T extends Object> extends RenderBox {
+/// A zone's place in the render tree: a box of the zone's hit size,
+/// which the host places on the zone by paint transform, so a frame where
+/// the zone only moves lays nothing out. It is what a pointer on the zone
+/// hits (its cursor and hover for the mouse tracker), the box its focus
+/// node reports, and it describes the zone to accessibility.
+class _RenderZoneAnchor<T extends Object> extends RenderBox
+    implements MouseTrackerAnnotation {
   _RenderZoneAnchor(this.zone);
 
   _ZoneState<T> zone;
 
   @override
-  bool get sizedByParent => true;
+  Size computeDryLayout(BoxConstraints constraints) =>
+      constraints.constrain(zone.bounds.size);
 
   @override
-  Size computeDryLayout(BoxConstraints constraints) => constraints.smallest;
+  void performLayout() => size = constraints.constrain(zone.bounds.size);
+
+  // A zone that appears after its anchor was laid out empty (its first
+  // frame comes after the layout that places it) has no size to scale: its
+  // bounds stand for it until it is laid out.
+  Rect get _local => Offset.zero & (size.isEmpty ? zone.bounds.size : size);
 
   @override
-  Rect get paintBounds => zone.bounds;
+  Rect get paintBounds => _local;
 
   @override
-  Rect get semanticBounds => zone.bounds;
+  Rect get semanticBounds => _local;
 
   @override
   bool hitTest(BoxHitTestResult result, {required Offset position}) => false;
+
+  // The host adds the anchor to a hit at the host's coordinates.
+  @override
+  void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
+    if (zone.mounted) zone.host._pointer(event);
+  }
+
+  @override
+  MouseCursor get cursor => zone.mounted ? zone.cursor : MouseCursor.defer;
+
+  @override
+  PointerEnterEventListener? get onEnter => zone._entered;
+
+  @override
+  PointerExitEventListener? get onExit => zone._exited;
+
+  @override
+  bool get validForMouseTracker => attached && zone.mounted;
 
   @override
   void describeSemanticsConfiguration(SemanticsConfiguration config) {

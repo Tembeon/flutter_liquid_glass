@@ -283,8 +283,16 @@ void main() {
         isFocusable: true,
         hasFocusAction: true,
         textDirection: TextDirection.ltr,
-        rect: const Rect.fromLTRB(4, 0, 99, 62),
+        rect: const Rect.fromLTRB(0, 0, 95, 62),
       ),
+    );
+    // The zones take their box sizes in the frame after they appear.
+    await tester.pump();
+    expect(
+      tester
+          .getRect(find.bySemanticsLabel('Tab 0'))
+          .shift(-tester.getTopLeft(find.byType(GlassTabBar))),
+      const Rect.fromLTRB(4, 0, 99, 62),
     );
     expect(
       find.semantics.byLabel('Tab 1').evaluate().single,

@@ -371,8 +371,18 @@ void main() {
         isFocusable: true,
         hasFocusAction: true,
         textDirection: TextDirection.ltr,
-        rect: const Rect.fromLTRB(0, -6, 100, 38),
+        rect: const Rect.fromLTRB(0, 0, 100, 44),
       ),
+    );
+    // The zones take their box sizes in the frame after they appear.
+    await tester.pump();
+    expect(
+      tester
+          .getRect(find.bySemanticsLabel('One'))
+          .shift(
+            -tester.getTopLeft(find.byType(GlassSegmentedControl<String>)),
+          ),
+      const Rect.fromLTRB(0, -6, 100, 38),
     );
     expect(
       find.semantics.byLabel('Two').evaluate().single,
@@ -387,8 +397,16 @@ void main() {
         isFocusable: true,
         hasFocusAction: true,
         textDirection: TextDirection.ltr,
-        rect: const Rect.fromLTRB(100, -6, 200, 38),
+        rect: const Rect.fromLTRB(0, 0, 100, 44),
       ),
+    );
+    expect(
+      tester
+          .getRect(find.bySemanticsLabel('Two'))
+          .shift(
+            -tester.getTopLeft(find.byType(GlassSegmentedControl<String>)),
+          ),
+      const Rect.fromLTRB(100, -6, 200, 38),
     );
     tester.semantics.tap(find.semantics.byLabel('Two'));
     await _settle(tester);

@@ -27,6 +27,9 @@ class ToyMotion extends ChangeNotifier {
   /// The items that are leaving and take no input.
   final Set<String> leaving = {};
 
+  /// Each item's painted size; [itemSize] when absent.
+  final Map<String, Size> sizes = {};
+
   /// Slides the items to [to].
   void slide(double to) {
     shift = to;
@@ -39,8 +42,9 @@ class ToyMotion extends ChangeNotifier {
   /// Where [item] is painted now.
   Rect rectOf(String item) {
     final start = 10 + items.indexOf(item) * 60 + shift;
-    final left = rtl ? width - start - itemSize.width : start;
-    return Offset(left, 2) & itemSize;
+    final size = sizes[item] ?? itemSize;
+    final left = rtl ? width - start - size.width : start;
+    return Offset(left, 2) & size;
   }
 
   /// [item]'s frame for input.

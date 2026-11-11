@@ -222,16 +222,58 @@ void main() {
       final builds = counts.builds;
       final layouts = counts.layouts;
       final before = _at(motion, 'a');
+      final marks = <String>[];
+      final print = debugPrint;
+      debugPrint = (message, {wrapWidth}) => marks.add(message ?? '');
+      debugPrintMarkNeedsLayoutStacks = true;
       motion.slide(25);
       await tester.pump();
       motion.slide(40);
       await tester.pump();
+      debugPrintMarkNeedsLayoutStacks = false;
+      debugPrint = print;
+      expect(marks, isEmpty);
       expect(counts.builds, builds);
       expect(counts.layouts, layouts);
       await tester.tapAt(before);
       expect(pressed, isEmpty);
       await tester.tapAt(_at(motion, 'a'));
       expect(pressed, ['a']);
+    });
+
+    testWidgets('a zone is a box of its hit size where it is painted, which '
+        'tests find and tap and which takes a new size by itself', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(_app(toolbar()));
+      final item = find.bySemanticsLabel('Item b');
+      Rect hit() => Rect.fromCenter(
+        center: motion.rectOf('b').center,
+        width: 44,
+        height: 44,
+      );
+      expect(tester.getRect(item), hit());
+      motion.slide(30);
+      await tester.pump();
+      expect(tester.getRect(item), hit());
+      expect(
+        tester
+            .hitTestOnBinding(hit().center)
+            .path
+            .any((entry) => entry.target == tester.renderObject(item)),
+        isTrue,
+      );
+      await tester.tap(item);
+      expect(pressed, ['b']);
+      motion.sizes['b'] = const Size(60, 50);
+      motion.changed();
+      await tester.pump();
+      expect(tester.getRect(item), motion.rectOf('b'));
+      await tester.pump();
+      expect(tester.getSize(item), const Size(60, 50));
+      expect(tester.getRect(item), motion.rectOf('b'));
+      handle.dispose();
     });
 
     testWidgets('a finger resting on a moving zone stays inside it', (
@@ -902,11 +944,12 @@ void main() {
       expect(find.semantics.byLabel('paint'), findsNothing);
       final rect = tester.getSemantics(find.bySemanticsLabel('Item b')).rect;
       expect(rect.size, const Size(44, 44));
+      final before = tester.getRect(find.bySemanticsLabel('Item b'));
       motion.slide(20);
       await tester.pump();
       expect(
-        tester.getSemantics(find.bySemanticsLabel('Item b')).rect,
-        rect.shift(const Offset(20, 0)),
+        tester.getRect(find.bySemanticsLabel('Item b')),
+        before.shift(const Offset(20, 0)),
       );
       tester.semantics.tap(find.semantics.byLabel('Item b'));
       await tester.pump();
