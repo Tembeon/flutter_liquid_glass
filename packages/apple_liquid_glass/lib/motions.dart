@@ -28,8 +28,6 @@ export 'src/motions/bar_layout.dart'
         layoutGlassBar;
 export 'src/motions/bar_motion.dart' show GlassBarMotion;
 export 'src/motions/bar_transition_spec.dart' show GlassBarTransitionSpec;
-export 'src/motions/chrome_motion.dart'
-    show HoverMotion, InlineTitleMotion, LargeTitleSnap, ScrollEdgeMotion;
 export 'src/motions/date_picker_motion.dart'
     show
         DatePickerCalendarMotion,
@@ -68,6 +66,7 @@ export 'src/motions/page_control_motion.dart'
 export 'src/motions/popover_motion.dart'
     show PopoverArrowDirection, PopoverMotion, PopoverPlacement, placePopover;
 export 'src/motions/popover_shape.dart' show PopoverShape;
+export 'src/motions/presence_motion.dart' show LargeTitleSnap, PresenceMotion;
 export 'src/motions/search_motion.dart'
     show
         SearchBarGeometry,

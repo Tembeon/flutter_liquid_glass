@@ -228,7 +228,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
 
 class _GlassNavigationBarState extends State<GlassNavigationBar> {
   late final MotionClock _clock;
-  late final _title = InlineTitleMotion(
+  late final _title = PresenceMotion.inlineTitle(
     shown: widget.largeTitle == null,
     clock: _clock,
   );

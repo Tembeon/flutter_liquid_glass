@@ -2361,16 +2361,6 @@ class GlassZoomSource extends StatelessWidget
   final Widget child
   final MotionSource source
   overrides: build
-final class HoverMotion
-  HoverMotion()
-  bool get hovered
-  final MotionValue<double> presence
-  void snap({required bool hovered})
-  void turn({required bool hovered, required bool reduceMotion})
-final class InlineTitleMotion
-  InlineTitleMotion({required bool shown, MotionClock? clock})
-  final MotionValue<double> presence
-  void turn(double t, {required bool shown, bool animated = ...})
 abstract final class LargeTitleSnap
   LargeTitleSnap()
   static SpringDescription get spring
@@ -3029,6 +3019,19 @@ class PopoverShape
   static const double fieldStep
   late final GlassOutline outline
   Path get path
+final class PresenceMotion
+  PresenceMotion.hover({MotionClock? clock})
+  PresenceMotion.inlineTitle({required bool shown, MotionClock? clock})
+  PresenceMotion.scrollEdge({MotionClock? clock})
+  MotionClock get clock
+  ValueListenable<double> get presence
+  bool get shown
+  void turn(
+    double t, {
+    required bool shown,
+    bool animated = ...,
+    bool reduceMotion = ...,
+  })
 class RawGlassButton extends StatefulWidget
   const RawGlassButton({
     required void Function()? onPressed,
@@ -3326,10 +3329,6 @@ class ScrollEdgeBand extends StatelessWidget
   final GlassScrollEdgeDetails details
   final Widget paint
   overrides: build
-final class ScrollEdgeMotion
-  ScrollEdgeMotion({MotionClock? clock})
-  final MotionValue<double> presence
-  void turn(double t, {required bool shown, bool animated = ...})
 class SearchBarGeometry
   const SearchBarGeometry({
     required Rect field,
@@ -3818,6 +3817,7 @@ re-exported from package:kinesis:
   ContextMenuInput
   ContextMenuIntent
   ControlStates
+  ControlledValue
   DismissPolicy
   DismissTrigger
   DragInteraction
@@ -4033,8 +4033,6 @@ class GlassBarTransitionSpec (see package:apple_liquid_glass/apple_liquid_glass.
 class GlassPress (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSheetDetent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassTabBarMinimizeBehavior (see package:apple_liquid_glass/apple_liquid_glass.dart)
-class HoverMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
-class InlineTitleMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class LargeTitleSnap (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class LensEvent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class LensMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -4074,8 +4072,8 @@ enum PopoverArrowDirection (see package:apple_liquid_glass/apple_liquid_glass.da
 class PopoverMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class PopoverPlacement (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class PopoverShape (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class PresenceMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ScrollAway (see package:apple_liquid_glass/apple_liquid_glass.dart)
-class ScrollEdgeMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SearchBarGeometry (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SearchMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SearchTabGeometry (see package:apple_liquid_glass/apple_liquid_glass.dart)

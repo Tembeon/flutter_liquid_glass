@@ -4,6 +4,7 @@ import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/motion.dart';
 
 /// The one rule by which every interactive part shows the keyboard focus
 /// and the pointer over it: a glass body through its renderer, a part that
@@ -176,7 +177,7 @@ abstract final class GlassHighlights {
 
 /// Whether an interactive part shows the keyboard focus and how strongly it
 /// shows the pointer over it, from its states: the hover strength eases on
-/// [HoverMotion].
+/// [PresenceMotion.hover].
 ///
 /// A listener hears every change of either, the hover strength also in the
 /// frame's resolve phase; while nobody listens it follows nothing.
@@ -216,7 +217,7 @@ final class GlassHighlight implements Listenable {
   /// Whether the hover response switches without motion.
   bool reduceMotion;
 
-  final _hover = HoverMotion();
+  final _hover = PresenceMotion.hover();
   final _listeners = <VoidCallback>[];
   bool _focused = false;
 
@@ -233,7 +234,11 @@ final class GlassHighlight implements Listenable {
     if (_listeners.isEmpty) {
       _states?.addListener(_changed);
       _focused = _has(WidgetState.focused);
-      _hover.snap(hovered: _has(WidgetState.hovered));
+      _hover.turn(
+        _hover.clock.now,
+        shown: _has(WidgetState.hovered),
+        animated: false,
+      );
     }
     _listeners.add(listener);
     _hover.presence.addRenderListener(listener);
@@ -249,7 +254,8 @@ final class GlassHighlight implements Listenable {
   void _changed() {
     final focused = _has(WidgetState.focused);
     _hover.turn(
-      hovered: _has(WidgetState.hovered),
+      _hover.clock.now,
+      shown: _has(WidgetState.hovered),
       reduceMotion: reduceMotion,
     );
     if (focused == _focused) return;

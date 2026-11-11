@@ -10,6 +10,7 @@ ContextHold
 ContextMenuInput
 ContextMenuIntent
 ControlStates
+ControlledValue
 DatePickerCalendarMotion
 DatePickerLabelMotion
 DatePickerMotion
@@ -190,8 +191,6 @@ GlassTraits
 GlassTraitsOverride
 GlassZoomSource
 HoverDwellInteraction
-HoverMotion
-InlineTitleMotion
 InputPort
 InputRegion
 InputZone
@@ -301,6 +300,7 @@ PopoverShape
 PortEvent
 PredictiveBack
 Presence
+PresenceMotion
 PresenceStatus
 Presentation
 PresentationContext
@@ -334,7 +334,6 @@ RenderScrollEdge
 RubberBand
 ScrollAway
 ScrollEdgeBand
-ScrollEdgeMotion
 ScrubChangeEvent
 SearchBarGeometry
 SearchMotion

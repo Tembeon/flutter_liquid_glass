@@ -210,8 +210,8 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
     clock: _clock,
   );
   late MotionSelection<ScrollMetrics?> _metrics;
-  late final _top = ScrollEdgeMotion(clock: _clock);
-  late final _bottom = ScrollEdgeMotion(clock: _clock);
+  late final _top = PresenceMotion.scrollEdge(clock: _clock);
+  late final _bottom = PresenceMotion.scrollEdge(clock: _clock);
   GlassChrome? _chrome;
   bool _reduceMotion = false;
   bool _laidOut = false;
@@ -300,7 +300,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
     _show(_bottom, laidOut && metrics.extentAfter > 0.5, appears);
   }
 
-  void _show(ScrollEdgeMotion edge, bool shown, bool appears) {
+  void _show(PresenceMotion edge, bool shown, bool appears) {
     final moving = _scroll.position?.isScrollingNotifier.value ?? false;
     edge.turn(
       _clock.now,

@@ -1,6 +1,6 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass/src/motions/chrome_motion.dart';
 import 'package:apple_liquid_glass/src/motions/flex_interaction.dart';
+import 'package:apple_liquid_glass/src/motions/presence_motion.dart';
 import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
