@@ -18,10 +18,25 @@ final _read = RegExp(
 // image is the empty 1x1 pixel bound where a draw has no image of its own.
 // Every other surface reads its backdrop through the view's composer.
 const _outsideComposer = {
-  'lib/src/internal/warm_up.dart': 3,
+  'lib/src/rendering/warm_up.dart': 3,
   'lib/src/rendering/consolidated_fake_glass_layer.dart': 1,
-  'lib/src/rendering/glass/shading.dart': 1,
+  'lib/src/rendering/shading.dart': 1,
 };
+
+// The composer: the plan, and the code that lowers the layer tree, drives the
+// frame and draws the plan's reads.
+bool _inComposer(String path) =>
+    path.startsWith('lib/src/composer/') ||
+    const {
+      'lib/src/rendering/backdrop_filter_layer.dart',
+      'lib/src/rendering/backdrop_rig.dart',
+      'lib/src/rendering/copy_read.dart',
+      'lib/src/rendering/form.dart',
+      'lib/src/rendering/glass_composer.dart',
+      'lib/src/rendering/glass_composition_probe.dart',
+      'lib/src/rendering/read.dart',
+      'lib/src/rendering/scene_out.dart',
+    }.contains(path);
 
 void main() {
   test('surfaces read their backdrop only through the composer', () {
@@ -30,7 +45,7 @@ void main() {
         .listSync(recursive: true)
         .whereType<File>()
         .where((file) => file.path.endsWith('.dart'))
-        .where((file) => !file.path.startsWith('lib/src/composer/'));
+        .where((file) => !_inComposer(file.path));
     for (final file in files) {
       var count = 0;
       for (final line in file.readAsLinesSync()) {

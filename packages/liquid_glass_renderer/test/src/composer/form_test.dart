@@ -2,9 +2,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/src/composer/form.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_underlay.dart';
+import 'package:liquid_glass_renderer/src/rendering/form.dart';
+import 'package:liquid_glass_renderer/src/rendering/liquid_glass_underlay.dart';
 
 import 'generated_layers.dart';
 

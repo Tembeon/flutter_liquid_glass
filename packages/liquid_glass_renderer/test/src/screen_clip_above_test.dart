@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/src/internal/ancestor_clip.dart';
+import 'package:liquid_glass_renderer/src/rendering/ancestor_clip.dart';
 
 const _key = ValueKey('leaf');
 

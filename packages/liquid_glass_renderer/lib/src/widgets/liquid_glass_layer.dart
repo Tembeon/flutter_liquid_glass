@@ -3,22 +3,22 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/src/fake_glass.dart';
-import 'package:liquid_glass_renderer/src/internal/final_shader_variant.dart';
-import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
-import 'package:liquid_glass_renderer/src/internal/multi_shader_builder.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_appearance.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_backdrop.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_blend_group.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_field.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_glow.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_render_scope.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_settings.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_field.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_glow.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/rendering/consolidated_fake_glass_layer.dart';
+import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
+import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
-import 'package:liquid_glass_renderer/src/shaders.dart';
+import 'package:liquid_glass_renderer/src/rendering/multi_shader_builder.dart';
+import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
+import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
+import 'package:liquid_glass_renderer/src/widgets/liquid_glass.dart';
+import 'package:liquid_glass_renderer/src/widgets/liquid_glass_blend_group.dart';
+import 'package:liquid_glass_renderer/src/widgets/liquid_glass_render_scope.dart';
 
 /// Represents a layer of multiple [LiquidGlass] shapes or
 /// [LiquidGlassBlendGroup]s that have shared [LiquidGlassSettings] and will be

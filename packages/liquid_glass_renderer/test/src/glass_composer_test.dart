@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/internal/transform_tracking_render_object_mixin.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
 
 Widget _glass() => LiquidGlassLayer(
   settings: LiquidGlassSettings.ios27RegularLight(),

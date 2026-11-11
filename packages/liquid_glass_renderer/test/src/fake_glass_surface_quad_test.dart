@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/src/internal/paint_fake_glass_surface.dart';
+import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
 
 void main() {
   /// A local->device transform for `dpr` 2 with the shape origin at the

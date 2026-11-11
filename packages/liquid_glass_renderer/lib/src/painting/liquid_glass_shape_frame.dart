@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_appearance.dart';
-import 'package:liquid_glass_renderer/src/liquid_shape.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_shape.dart';
 
 /// One frame of a live `LiquidGlass`: its geometry, material and shadows.
 ///

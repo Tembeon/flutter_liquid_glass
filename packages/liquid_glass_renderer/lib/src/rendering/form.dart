@@ -1,0 +1,1557 @@
+import 'dart:math';
+import 'dart:ui' as ui;
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
+import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
+import 'package:liquid_glass_renderer/src/rendering/liquid_glass_underlay.dart';
+import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/retained_glass_clip.dart';
+import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
+import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
+
+const Rect _everywhere = Rect.largest;
+
+Rect _union(Rect a, Rect b) {
+  if (a.isEmpty) return b;
+  if (b.isEmpty) return a;
+  return a.expandToInclude(b);
+}
+
+/// The frame in paint order, retained and compared with the layer tree once a
+/// frame.
+///
+/// A layer keeps its dirty bit private and a composited property update changes
+/// a layer without touching its children, so the walk visits every layer. An
+/// unchanged layer costs a few compares and allocates nothing.
+///
+/// After [lower], everything here equals what a fresh [Form] of the same tree
+/// would hold. The soundness test asserts it after every generated mutation.
+@internal
+final class Form implements Scenery {
+  @override
+  final DirtyLog dirty = DirtyLog();
+
+  /// This frame's number.
+  int frame = 0;
+
+  /// Layers visited by the last [lower], for tests.
+  int get length => _count;
+
+  /// The sites of the last [lower], in paint order.
+  @override
+  List<SiteFacts> get sites => _sites;
+  List<SiteFacts> _sites = [];
+  List<SiteFacts> _lastSites = [];
+
+  /// Whether the sites are those of the last frame, in that order.
+  bool get sitesHeld => _sitesHeld;
+  bool _sitesHeld = false;
+
+  /// Whether a site asks this frame what it did not ask the last.
+  bool get asksChanged => _asksChanged;
+  bool _asksChanged = false;
+
+  final List<SiteNode> _siteNodes = [];
+
+  /// The site nodes, parallel to [sites].
+  List<SiteNode> get siteNodes => _siteNodes;
+
+  @override
+  Rect get screen => _screen;
+  Rect _screen = Rect.zero;
+
+  @override
+  double get devicePixelRatio => _dpr;
+
+  Layer? _root;
+  double _dpr = 0;
+  OpenNode? _top;
+  FormWorld? _outside;
+
+  final List<FormNode> _flat = [];
+  int _count = 0;
+  final List<VolatileNode> _volatile = [];
+  int _volatileCount = 0;
+
+  // The containers a copy draws as a layer apart, each after what it holds.
+  final List<OpenNode> _saving = [];
+
+  int _suppress = 0;
+  int _next = 0;
+  OpenNode? _owner;
+
+  /// Compares [root]'s tree with the last frame's.
+  void lower(ContainerLayer root, double devicePixelRatio, Size physicalSize) {
+    frame++;
+    dirty.clear();
+    _asksChanged = false;
+    _next = 0;
+    _count = 0;
+    _volatileCount = 0;
+    _saving.clear();
+    final recycled = _lastSites;
+    _lastSites = _sites;
+    _sites = recycled;
+    _sites.length = 0;
+    _siteNodes.length = 0;
+    _screen = Offset.zero & (physicalSize / devicePixelRatio);
+    if (!identical(root, _root) || devicePixelRatio != _dpr) {
+      _root = root;
+      _dpr = devicePixelRatio;
+      _outside = FormWorld(
+        Matrix4.diagonal3Values(1 / devicePixelRatio, 1 / devicePixelRatio, 1),
+      );
+      _top = switch (_nodeOf(root)) {
+        final OpenNode node => node,
+        _ => PlainNode(root),
+      };
+      dirty.add(0, _everywhere);
+    }
+    _top!.refreshIn(this, _outside!);
+    _flat.length = _count;
+    _volatile.length = _volatileCount;
+  }
+
+  /// Logs what glass that left drew. A layer holding it may cover nothing of
+  /// its own, and what reads over it holds its glass.
+  void noteSitesGone() {
+    final last = _lastSites;
+    var held = last.length == _sites.length;
+    for (var i = 0; held && i < last.length; i++) {
+      held = identical(last[i], _sites[i]);
+    }
+    _sitesHeld = held;
+    if (held) return;
+    final kept = Set<SiteFacts>.identity()..addAll(_sites);
+    for (final site in last) {
+      if (!kept.contains(site)) dirty.add(-1, site.ask.drawn);
+    }
+  }
+
+  void _enter(FormNode node) {
+    node
+      ..order = _next++
+      ..owner = _owner;
+    if (_count == _flat.length) {
+      _flat.add(node);
+    } else {
+      _flat[_count] = node;
+    }
+    _count++;
+  }
+
+  void _log(int order, Rect rect) {
+    if (_suppress == 0) dirty.add(order, rect);
+  }
+
+  // A node that left has no order this frame. Its place is where the walk
+  // stands: what comes next, the first that painted over it, gets [_next].
+  void _logGone(Rect rect) => _log(_next - 1, rect);
+
+  /// The root's node, once a [lower] found one.
+  FormNode? get top => _top;
+
+  /// The node at [order] in paint order.
+  FormNode nodeAt(int order) => _flat[order];
+
+  /// Takes what [site] asks this frame, and logs where its glass moved or
+  /// changed, which what lies over it reads.
+  void noteAsk(SiteFacts site, SiteAsk ask) {
+    final last = site.ask;
+    if (ask != last) {
+      site.ask = ask;
+      _asksChanged = true;
+    }
+    final (state, clip, hidden) = site.noted;
+    final around =
+        site.state.same(state) &&
+        site.clip == clip &&
+        site.ask.hidden == hidden;
+    site.noted = (site.state, site.clip, site.ask.hidden);
+    if (around && last.drawn == ask.drawn && last.paints == ask.paints) return;
+    dirty.add(site.order, _union(last.drawn, ask.drawn));
+  }
+
+  /// Finds where each site may share a filter, once its rects are known.
+  void settleFloors() {
+    for (final site in _sites) {
+      site.floor = site.ask.hidden ? -1 : floorOf(site);
+    }
+  }
+
+  /// The order of the last thing painted under [site]'s body: a leaf meeting
+  /// what it draws, or anything that can't be replayed meeting what it reads.
+  ///
+  /// Walks back from the site, skipping groups its rects miss, so it usually
+  /// stops at the card under the glass a few nodes back.
+  ///
+  /// A leaf's bounds are its layer's canvas bounds, the whole repaint boundary
+  /// for a picture that shares one, so labels beside glass in one boundary
+  /// count as under it.
+  int floorOf(SiteFacts site) {
+    final drawn = site.ask.drawn;
+    final reads = site.ask.reads;
+    var i = site.order - 1;
+    while (i >= 0) {
+      final node = _flat[i];
+      // What another site paints with its glass moves back with it or lies
+      // over it, as the plan decides from that site's own facts.
+      final other = node.owner;
+      if (other != null && other.end <= site.order) {
+        i = other.order - 1;
+        continue;
+      }
+      final parent = node.parent;
+      if (parent != null &&
+          parent.end <= site.order &&
+          !parent.bounds.overlaps(reads) &&
+          !parent.bounds.overlaps(drawn)) {
+        i = parent.order - 1;
+        continue;
+      }
+      switch (node) {
+        case PictureNode(:final screen):
+          if (screen.overlaps(drawn)) return i;
+        case VolatileNode(:final screen):
+          if (screen.overlaps(reads)) return i;
+        case OpenNode() || OutputNode():
+          break;
+      }
+      i--;
+    }
+    return -1;
+  }
+
+  @override
+  ReadLimit limitUnder(SiteFacts site) {
+    var limit = ReadLimit.none;
+    for (var i = 0; i < _volatileCount; i++) {
+      final node = _volatile[i];
+      if (node.order >= site.order || !node.screen.overlaps(site.ask.reads))
+        continue;
+      if (node.limit == ReadLimit.liveOnly) return ReadLimit.liveOnly;
+      limit = ReadLimit.sceneOnly;
+    }
+    return limit;
+  }
+
+  @override
+  String? whyLimited(SiteFacts site) {
+    for (var i = 0; i < _volatileCount; i++) {
+      final node = _volatile[i];
+      if (node.order >= site.order || !node.screen.overlaps(site.ask.reads)) {
+        continue;
+      }
+      final layer = node.layer;
+      return switch (layer) {
+        TextureLayer() => 'a texture lies under it',
+        PlatformViewLayer() => 'a platform view lies under it',
+        BackdropFilterLayer() => 'a backdrop filter lies under it',
+        _ =>
+          '${layer.runtimeType} (unregistered) reaches its band -> '
+              'LiquidGlassUnderlay.registerLayer',
+      };
+    }
+    return null;
+  }
+
+  // Counts what a read's replay enters: a container before the lead that
+  // meets the band, holds the lead or holds what the frame composes.
+  @override
+  int savedUnder(int order, Rect band, {required bool flat}) {
+    var total = 0;
+    for (final node in _saving) {
+      if (node.order >= order) continue;
+      if (node.end > order ||
+          node.holdsComposed ||
+          node.bounds.overlaps(band)) {
+        total += node.saves(flat: flat);
+      }
+    }
+    return total;
+  }
+
+  @override
+  int lastChangedUnder(int order, Rect band) {
+    var latest = 0;
+    var i = 0;
+    while (i < order && i < _count) {
+      final node = _flat[i];
+      if (node is OpenNode &&
+          node.end <= order &&
+          !node.bounds.overlaps(band)) {
+        i = node.end;
+        continue;
+      }
+      if (node.changedAt > latest && node.extent.overlaps(band)) {
+        latest = node.changedAt;
+      }
+      i++;
+    }
+    return latest;
+  }
+}
+
+/// What a container gives its children. Retained: an unchanged frame writes
+/// nothing and allocates nothing.
+@internal
+final class FormWorld {
+  /// Creates the world outside everything, under [base].
+  FormWorld(this.base);
+
+  /// The transform to the screen, without [dx] and [dy].
+  Matrix4 base;
+
+  /// The translation after [base].
+  double dx = 0;
+
+  /// The translation after [base].
+  double dy = 0;
+
+  /// The clip on the screen, if any.
+  Rect? clip;
+
+  /// Inherited alpha, filters and clips.
+  StateChain state = StateChain.root;
+
+  /// How far, in the units [reaching] answers in, a filter above may spread
+  /// what is drawn here: the reach of a blur, or infinity for a filter that
+  /// may move it anywhere. Under one, [clip] holds only the clips inside it,
+  /// which it spreads as well.
+  double spread = 0;
+
+  /// Whether a filter above may move what is drawn anywhere.
+  bool get filtered => spread == double.infinity;
+
+  /// Bumped when anything above changed.
+  int stamp = 1;
+
+  /// Where [local] lands on the screen.
+  Rect reaching(Rect local) {
+    if (filtered) return _everywhere;
+    final shifted = local.shift(Offset(dx, dy));
+    final bounds = MatrixUtils.transformRect(base, shifted);
+    final held = clip;
+    final cut = held == null ? bounds : held.intersect(bounds);
+    return spread == 0 || cut.isEmpty ? cut : cut.inflate(spread);
+  }
+
+  /// Takes the values of [outside]; true when any differs.
+  bool inherit(FormWorld outside) => set(
+    outside.base,
+    outside.dx,
+    outside.dy,
+    outside.clip,
+    outside.state,
+    spread: outside.spread,
+  );
+
+  /// Writes the values; true when any differs.
+  bool set(
+    Matrix4 base,
+    double dx,
+    double dy,
+    Rect? clip,
+    StateChain state, {
+    required double spread,
+  }) {
+    if (identical(this.base, base) &&
+        this.dx == dx &&
+        this.dy == dy &&
+        (identical(this.clip, clip) || this.clip == clip) &&
+        identical(this.state, state) &&
+        this.spread == spread) {
+      return false;
+    }
+    this.base = base;
+    this.dx = dx;
+    this.dy = dy;
+    this.clip = clip;
+    this.state = state;
+    this.spread = spread;
+    stamp++;
+    return true;
+  }
+}
+
+/// One layer as the composer knows it.
+@internal
+sealed class FormNode {
+  /// Creates the node of [layer].
+  FormNode(this.layer);
+
+  /// The layer.
+  final Layer layer;
+
+  /// Its place in paint order this frame.
+  int order = 0;
+
+  /// The container above.
+  OpenNode? parent;
+
+  /// The next sibling.
+  FormNode? next;
+
+  /// The frame it last changed.
+  int changedAt = 0;
+
+  /// The frame what a read adds for it last changed. A move of what holds it,
+  /// which [changedAt] counts, changes none of that, and neither does a
+  /// [ShiftNode]'s own offset, which counts for its parent.
+  int contentAt = -1;
+
+  /// The innermost container of what one site paints with its glass that
+  /// holds it, itself if it is one.
+  OpenNode? owner;
+
+  /// What it covers on the screen.
+  Rect get extent;
+
+  /// Whether the frame's composing may change what lies here after the walk
+  /// read it, so [extent] says nothing about it.
+  bool get holdsComposed => false;
+
+  /// Reads the layer; true when what it covers changed.
+  bool refreshIn(Form form, FormWorld world);
+
+  /// Notes that this node left the tree.
+  void removedFrom(Form form) => form._logGone(extent);
+}
+
+/// A picture.
+@internal
+final class PictureNode extends FormNode {
+  /// Creates the node.
+  PictureNode(PictureLayer super.layer);
+
+  /// What it drew last.
+  ui.Picture? picture;
+
+  /// Its canvas bounds.
+  Rect local = Rect.zero;
+
+  /// Where it lies on the screen.
+  Rect screen = Rect.zero;
+
+  int _seen = 0;
+
+  @override
+  Rect get extent => screen;
+
+  @override
+  bool refreshIn(Form form, FormWorld world) {
+    form._enter(this);
+    final layer = this.layer as PictureLayer;
+    final drawn = layer.picture;
+    final bounds = layer.canvasBounds;
+    if (identical(drawn, picture) &&
+        (identical(bounds, local) || bounds == local) &&
+        _seen == world.stamp) {
+      return false;
+    }
+    final before = screen;
+    if (!identical(drawn, picture)) contentAt = form.frame;
+    picture = drawn;
+    local = bounds;
+    _seen = world.stamp;
+    screen = drawn == null ? Rect.zero : world.reaching(bounds);
+    changedAt = form.frame;
+    form._log(order, _union(before, screen));
+    return true;
+  }
+}
+
+/// What the composer itself shows for a site, whose fate holds no layer of the
+/// walk. The plan accounts for it through the site's own facts, so it says
+/// nothing about what changed.
+@internal
+final class OutputNode extends FormNode {
+  /// Creates the node.
+  OutputNode(GlassSlotLayer super.layer);
+
+  /// The site the slot shows.
+  PlanSite? get site => (layer as GlassSlotLayer).site;
+
+  @override
+  Rect get extent => Rect.zero;
+
+  @override
+  bool get holdsComposed => true;
+
+  @override
+  void removedFrom(Form form) {}
+
+  @override
+  bool refreshIn(Form form, FormWorld world) {
+    form._enter(this);
+    return false;
+  }
+}
+
+/// Content the layer tree can't vouch for between frames: its pixels change
+/// with no layer changing. Logged every frame, so nothing holds over it.
+@internal
+final class VolatileNode extends FormNode {
+  /// Creates the node.
+  VolatileNode(super.layer, this.limit);
+
+  /// What it lets a read over it be.
+  final ReadLimit limit;
+
+  /// What it may reach on the screen.
+  Rect screen = Rect.zero;
+
+  @override
+  Rect get extent => screen;
+
+  @override
+  bool refreshIn(Form form, FormWorld world) {
+    form._enter(this);
+    final local = switch (layer) {
+      TextureLayer(:final rect) || PlatformViewLayer(:final rect) => rect,
+      _ => null,
+    };
+    final Rect next;
+    if (local != null) {
+      next = world.reaching(local);
+    } else if (layer is BackdropFilterLayer) {
+      next = world.spread > 0 ? _everywhere : world.clip ?? _everywhere;
+    } else {
+      next = _everywhere;
+    }
+    final changed = next != screen;
+    if (changed) screen = next;
+    changedAt = form.frame;
+    contentAt = form.frame;
+    if (form._volatileCount == form._volatile.length) {
+      form._volatile.add(this);
+    } else {
+      form._volatile[form._volatileCount] = this;
+    }
+    form._volatileCount++;
+    form.dirty.add(order, screen);
+    return changed;
+  }
+}
+
+/// A container: what it gives its children is its own [world].
+@internal
+abstract class OpenNode extends FormNode {
+  /// Creates the node.
+  OpenNode(ContainerLayer super.layer);
+
+  /// What its children inherit.
+  late final FormWorld world = FormWorld(_noTransform);
+
+  static final Matrix4 _noTransform = Matrix4.identity();
+
+  /// The first child.
+  FormNode? first;
+
+  /// The union of what its children cover.
+  Rect bounds = Rect.zero;
+
+  /// One past its last descendant in paint order.
+  int end = 0;
+
+  @override
+  Rect get extent => bounds;
+
+  /// Whether the frame's composing edits this layer's children.
+  bool get composes => false;
+
+  bool _holdsComposed = false;
+
+  @override
+  bool get holdsComposed => _holdsComposed;
+
+  /// Whether a flat copy draws it or what it holds otherwise than another
+  /// does, so that no layer kept of it serves both.
+  bool get drawnByKind => _drawnByKind;
+  bool _drawnByKind = false;
+
+  /// The pictures it holds, at any depth. The engine fades one picture by
+  /// itself and draws more than one into a layer first, which is a pass.
+  @protected
+  int leaves = 0;
+
+  /// Whether its children show at all.
+  bool get shows => true;
+
+  /// Writes [world] from [outside] and the layer's values; true when any
+  /// differs.
+  bool updateWorld(FormWorld outside);
+
+  /// Adds to [out] what the layer applies to what it holds, around a read of
+  /// [band].
+  void enter(SceneOut out, Rect band) {}
+
+  /// The passes [enter] costs a copy: one for each layer it pushes that is
+  /// drawn apart, and what a blur takes beside. A [flat] copy
+  /// ([SceneOut.flat]) leaves some of them out.
+  int saves({required bool flat}) => 0;
+
+  /// Whether [saves] differs for a flat copy.
+  bool get savesByKind => false;
+
+  /// Set while reading the layer when what [enter] adds or what it holds
+  /// changed.
+  @protected
+  bool edited = false;
+
+  /// What a read keeps of it between frames, while [contentAt] holds.
+  ui.OffsetEngineLayer? held;
+
+  /// The frame [held] last went into a scene, which takes it once.
+  int heldFrame = -1;
+
+  void _release() {
+    held?.dispose();
+    held = null;
+    for (var child = first; child != null; child = child.next) {
+      if (child is OpenNode) child._release();
+    }
+  }
+
+  @override
+  void removedFrom(Form form) {
+    form._logGone(bounds);
+    _release();
+  }
+
+  @override
+  bool refreshIn(Form form, FormWorld outside) {
+    form._enter(this);
+    final moved = updateWorld(outside);
+    if (moved) {
+      changedAt = form.frame;
+      form._log(order, bounds);
+      form._suppress++;
+    }
+    var changed = moved;
+    if (shows) {
+      if (_walkChildren(form)) changed = true;
+    } else {
+      _holdsComposed = composes;
+      if (first != null || !bounds.isEmpty) {
+        if (!moved) form._log(order, bounds);
+        first = null;
+        changed = true;
+        edited = true;
+      }
+    }
+    if (moved) {
+      form._suppress--;
+    }
+    if (saves(flat: false) > 0) form._saving.add(this);
+    end = form._next;
+    if (changed) {
+      _recomputeBounds();
+      changedAt = form.frame;
+      if (moved) form._log(order, bounds);
+    }
+    if (edited) {
+      edited = false;
+      contentAt = form.frame;
+      // A row that scrolled away keeps none of what it drew.
+      held?.dispose();
+      held = null;
+    }
+    return changed;
+  }
+
+  /// What the layer may draw beyond its children, in its parent's coordinates.
+  Rect get extra => Rect.zero;
+
+  void _recomputeBounds() {
+    var union = extra;
+    for (var child = first; child != null; child = child.next) {
+      union = _union(union, child.extent);
+    }
+    bounds = union;
+  }
+
+  bool _walkChildren(Form form) {
+    final layer = this.layer as ContainerLayer;
+    var changed = false;
+    var composed = composes;
+    var byKind = savesByKind;
+    var pictures = 0;
+    var old = first;
+    FormNode? last;
+    for (
+      var child = layer.firstChild;
+      child != null;
+      child = child.nextSibling
+    ) {
+      FormNode node;
+      if (old != null && identical(old.layer, child)) {
+        node = old;
+        old = old.next;
+      } else {
+        final found = _ahead(old, child);
+        if (found != null) {
+          var gone = old!;
+          while (!identical(gone, found)) {
+            gone.removedFrom(form);
+            changed = true;
+            edited = true;
+            gone = gone.next!;
+          }
+          node = found;
+          old = found.next;
+        } else {
+          node = _nodeOf(child)..parent = this;
+          if (node is! OutputNode) changed = true;
+          edited = true;
+        }
+      }
+      if (node.refreshIn(form, world)) changed = true;
+      if (node.contentAt == form.frame) edited = true;
+      if (node.holdsComposed) composed = true;
+      switch (node) {
+        case PictureNode(picture: _?):
+          pictures++;
+        case OpenNode():
+          pictures += node.leaves;
+          if (node._drawnByKind) byKind = true;
+        default:
+          break;
+      }
+      if (last == null) {
+        first = node;
+      } else {
+        last.next = node;
+      }
+      last = node;
+    }
+    for (var gone = old; gone != null; gone = gone.next) {
+      if (gone is! OutputNode) changed = true;
+      edited = true;
+      gone.removedFrom(form);
+    }
+    if (last == null) {
+      first = null;
+    } else {
+      last.next = null;
+    }
+    _holdsComposed = composed;
+    _drawnByKind = byKind;
+    leaves = pictures;
+    return changed;
+  }
+
+  // A list item that left: its next siblings are the same layers.
+  static FormNode? _ahead(FormNode? from, Layer child) {
+    var node = from?.next;
+    for (var i = 0; node != null && i < 8; i++) {
+      if (identical(node.layer, child)) return node;
+      node = node.next;
+    }
+    return null;
+  }
+}
+
+// Teaches the walk a layer type: this is the only place that switches on one.
+FormNode _nodeOf(Layer layer) {
+  switch (layer) {
+    case GlassSlotLayer():
+      return OutputNode(layer);
+    case PictureLayer():
+      return PictureNode(layer);
+    // The scene holds the frame the texture shows under the glass: a video
+    // whose bars move every frame stays whole across the glass's edge on the
+    // iPhone 16 Pro, and a list of videos under glass takes 17 passes on the
+    // Pixel 6a where reading it live took 50.
+    case TextureLayer():
+      return VolatileNode(layer, ReadLimit.sceneOnly);
+    case PlatformViewLayer():
+      return VolatileNode(layer, ReadLimit.liveOnly);
+    case OpacitySeedLayer():
+      return OwnNode(layer);
+    case BackdropFilterLayer():
+      return VolatileNode(layer, ReadLimit.liveOnly);
+    case LiquidGlassBackdropFilterLayer():
+      return SiteNode(layer);
+    case GeometryTransformTrackingLayer():
+      return SiteNode(layer);
+    case TransformLayer():
+      return TransformNode(layer);
+    case FollowerLayer():
+      return FollowerNode(layer);
+    case OpacityLayer():
+      return AlphaNode(layer);
+    case ImageFilterLayer():
+      return FilterNode(layer);
+    case ThinOffsetLayer():
+      return ShiftNode(layer);
+    case OffsetLayer() when layer.runtimeType == OffsetLayer:
+      return ShiftNode(layer);
+    case ColorFilterLayer():
+      return ColorNode(layer);
+    case ShaderMaskLayer():
+      return MaskNode(layer);
+    case ClipRectLayer() ||
+        ClipRRectLayer() ||
+        ClipRSuperellipseLayer() ||
+        ClipPathLayer() ||
+        NativeClipLayer():
+      return ClipNode(layer as ContainerLayer);
+    case LeaderLayer():
+      return ShiftNode(layer);
+    case AnnotatedRegionLayer():
+      return PlainNode(layer as ContainerLayer);
+    case ContainerLayer() when layer.runtimeType == ContainerLayer:
+      return PlainNode(layer);
+    case ContainerLayer() when LiquidGlassUnderlay.effectsOf(layer) != null:
+      return EffectsNode(layer);
+    case _:
+      return VolatileNode(layer, ReadLimit.liveOnly);
+  }
+}
+
+/// A container that adds nothing.
+@internal
+class PlainNode extends OpenNode {
+  /// Creates the node.
+  PlainNode(super.layer);
+
+  @override
+  bool updateWorld(FormWorld outside) => world.inherit(outside);
+}
+
+/// All one glass paints: what lies here moves back with its glass or lies over
+/// it, as the plan decides from the glass's own facts.
+@internal
+final class OwnNode extends PlainNode {
+  /// Creates the node.
+  OwnNode(super.layer);
+
+  @override
+  bool refreshIn(Form form, FormWorld outside) {
+    final above = form._owner;
+    form._owner = this;
+    final changed = super.refreshIn(form, outside);
+    form._owner = above;
+    return changed;
+  }
+}
+
+/// An offset: what most repaint boundaries are, and all a scroll changes.
+@internal
+class ShiftNode extends OpenNode {
+  /// Creates the node.
+  ShiftNode(super.layer);
+
+  Offset get _offset => switch (layer) {
+    OffsetLayer(:final offset) => offset,
+    LeaderLayer(:final offset) => offset,
+    _ => Offset.zero,
+  };
+
+  @override
+  void enter(SceneOut out, Rect band) => out.at += _offset;
+
+  Offset _placed = Offset.zero;
+
+  @override
+  bool updateWorld(FormWorld outside) {
+    final offset = _offset;
+    if (offset != _placed) {
+      _placed = offset;
+      parent?.edited = true;
+    }
+    return world.set(
+      outside.base,
+      outside.dx + offset.dx,
+      outside.dy + offset.dy,
+      outside.clip,
+      outside.state,
+      spread: outside.spread,
+    );
+  }
+}
+
+/// A site: where glass or a scroll edge draws. It has one [facts] for its life.
+@internal
+final class SiteNode extends ShiftNode {
+  /// Creates the node.
+  SiteNode(super.layer) : facts = SiteFacts(layer);
+
+  /// What the plan reads of it.
+  final SiteFacts facts;
+
+  /// The site's layer.
+  PlanSite get site => layer as PlanSite;
+
+  Matrix4? _screen;
+  Offset _screenAt = Offset.zero;
+  int _screenStamp = -1;
+
+  /// The transform from the coordinates [at] in this layer's to the screen's
+  /// logical pixels, and whether what lies above can say it: a filter above
+  /// moves things in ways no matrix tells. Allocates only when it changed.
+  Matrix4? screenTransform(Offset at) {
+    if (world.spread > 0) return null;
+    final held = _screen;
+    if (held != null && _screenStamp == world.stamp && _screenAt == at) {
+      return held;
+    }
+    final next = world.base.clone()
+      ..translateByDouble(world.dx + at.dx, world.dy + at.dy, 0, 1);
+    _screen = next;
+    _screenAt = at;
+    _screenStamp = world.stamp;
+    return next;
+  }
+
+  @override
+  bool get composes => true;
+
+  Form? _form;
+  int _seen = -1;
+
+  /// Whether this frame's walk reached the site and found nothing changed
+  /// around it: where it lies, and all that its parent holds, which is all
+  /// that paints with it.
+  bool get rests {
+    final frame = _form?.frame;
+    return frame == _seen &&
+        changedAt != frame &&
+        parent != null &&
+        parent!.changedAt != frame;
+  }
+
+  @override
+  bool refreshIn(Form form, FormWorld outside) {
+    _form = form;
+    _seen = form.frame;
+    facts.order = form._next;
+    facts.state = outside.state;
+    facts.clip = outside.clip;
+    facts.index = form._sites.length;
+    form._sites.add(facts);
+    form._siteNodes.add(this);
+    site.formNode = this;
+    final above = form._owner;
+    form._owner = this;
+    final changed = super.refreshIn(form, outside);
+    form._owner = above;
+    return changed;
+  }
+}
+
+mixin _Matrix on OpenNode {
+  Matrix4? _own;
+
+  @override
+  void enter(SceneOut out, Rect band) {
+    if (_own case final own?) out.transform(own);
+  }
+
+  Matrix4? _ownedBase;
+  double _ownedDx = 0;
+  double _ownedDy = 0;
+  late Matrix4 _combined;
+
+  bool _noteOwn(Matrix4 own) {
+    final last = _own;
+    final same = last != null && _storageEqual(last.storage, own.storage);
+    if (!same) edited = true;
+    _own = own;
+    return same;
+  }
+
+  // Writes [world] under [own]. A translation stays in the world's offset, with
+  // the base of what lies above: a scroll moves what lies under it, and a new
+  // base would make everything below compute its own matrix again.
+  bool _placeUnder(
+    FormWorld outside,
+    Matrix4 own,
+    Rect? clip,
+    StateChain state, {
+    required double spread,
+  }) {
+    if (MatrixUtils.getAsTranslation(own) case final shift?) {
+      _noteOwn(own);
+      _ownedBase = null;
+      return world.set(
+        outside.base,
+        outside.dx + shift.dx,
+        outside.dy + shift.dy,
+        clip,
+        state,
+        spread: spread,
+      );
+    }
+    return world.set(
+      _resolve(outside, own),
+      0,
+      0,
+      clip,
+      state,
+      spread: spread,
+    );
+  }
+
+  // The transform of what this layer holds. Allocates only when it changed.
+  Matrix4 _resolve(FormWorld outside, Matrix4 own) {
+    final same = _noteOwn(own);
+    if (!same ||
+        !identical(_ownedBase, outside.base) ||
+        _ownedDx != outside.dx ||
+        _ownedDy != outside.dy) {
+      _ownedBase = outside.base;
+      _ownedDx = outside.dx;
+      _ownedDy = outside.dy;
+      final at = outside.base.clone()
+        ..translateByDouble(outside.dx, outside.dy, 0, 1)
+        ..multiply(own);
+      _combined = at;
+    }
+    return _combined;
+  }
+
+  static bool _storageEqual(List<double> a, List<double> b) {
+    for (var i = 0; i < 16; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+}
+
+/// A transform.
+@internal
+final class TransformNode extends OpenNode with _Matrix {
+  /// Creates the node.
+  TransformNode(TransformLayer super.layer);
+
+  // Most transforms sit at a zero offset and keep their matrix, so the walk
+  // compares it without building the effective one.
+  @override
+  bool updateWorld(FormWorld outside) {
+    final layer = this.layer as TransformLayer;
+    final offset = layer.offset;
+    final matrix = layer.transform;
+    final Matrix4 own;
+    if (matrix != null && offset == Offset.zero) {
+      own = matrix;
+    } else {
+      own = Matrix4.translationValues(offset.dx, offset.dy, 0);
+      if (matrix != null) own.multiply(matrix);
+    }
+    return _placeUnder(
+      outside,
+      own,
+      outside.clip,
+      outside.state,
+      spread: outside.spread,
+    );
+  }
+}
+
+/// A follower: its transform comes from its leader, which moves with no change
+/// to this layer, so it is read every frame.
+@internal
+final class FollowerNode extends OpenNode with _Matrix {
+  /// Creates the node.
+  FollowerNode(FollowerLayer super.layer);
+
+  @override
+  bool get shows {
+    final layer = this.layer as FollowerLayer;
+    return layer.link.leader != null || (layer.showWhenUnlinked ?? false);
+  }
+
+  @override
+  bool updateWorld(FormWorld outside) => _placeUnder(
+    outside,
+    followerTransformNow(layer as FollowerLayer),
+    outside.clip,
+    outside.state,
+    spread: outside.spread,
+  );
+}
+
+/// An opacity.
+@internal
+final class AlphaNode extends OpenNode {
+  /// Creates the node.
+  AlphaNode(OpacityLayer super.layer);
+
+  StateChain? _chain;
+  StateChain? _chainParent;
+  int? _chainAlpha;
+  Offset _placed = Offset.zero;
+
+  @override
+  bool get shows => (layer as OpacityLayer).alpha != 0;
+
+  @override
+  int saves({required bool flat}) =>
+      leaves > 1 && ((layer as OpacityLayer).alpha ?? 255) != 255 ? 1 : 0;
+
+  @override
+  void enter(SceneOut out, Rect band) {
+    final layer = this.layer as OpacityLayer;
+    final alpha = layer.alpha ?? 255;
+    if (alpha == 255) {
+      out.at += layer.offset;
+      return;
+    }
+    out.settleMatrix();
+    out.builder.pushOpacity(alpha, offset: out.at + layer.offset);
+    out.at = Offset.zero;
+    out.pushes++;
+  }
+
+  @override
+  bool updateWorld(FormWorld outside) {
+    final layer = this.layer as OpacityLayer;
+    final alpha = layer.alpha ?? 255;
+    final offset = layer.offset;
+    if (_chainAlpha != alpha || offset != _placed) {
+      edited = true;
+      _placed = offset;
+    }
+    if (_chain == null ||
+        !identical(_chainParent, outside.state) ||
+        _chainAlpha != alpha) {
+      _chain = StateChain(outside.state, alpha);
+      _chainParent = outside.state;
+      _chainAlpha = alpha;
+    }
+    return world.set(
+      outside.base,
+      outside.dx + offset.dx,
+      outside.dy + offset.dy,
+      outside.clip,
+      _chain!,
+      spread: outside.spread,
+    );
+  }
+}
+
+/// An image filter: what lies under it may land anywhere.
+@internal
+final class FilterNode extends OpenNode {
+  /// Creates the node.
+  FilterNode(ImageFilterLayer super.layer);
+
+  StateChain? _chain;
+  StateChain? _chainParent;
+  ui.ImageFilter? _chainFilter;
+  ui.ImageFilter? _read;
+  Offset _placed = Offset.zero;
+
+  // What the filter takes beside its layer is not known: the engine tells
+  // nothing of a filter.
+  @override
+  int saves({required bool flat}) =>
+      (layer as ImageFilterLayer).imageFilter == null ? 0 : 1;
+
+  @override
+  void enter(SceneOut out, Rect band) {
+    final layer = this.layer as ImageFilterLayer;
+    final filter = layer.imageFilter;
+    if (filter == null) return;
+    out.settleMatrix();
+    out.builder.pushImageFilter(filter, offset: out.at + layer.offset);
+    out.at = Offset.zero;
+    out.pushes++;
+  }
+
+  @override
+  bool updateWorld(FormWorld outside) {
+    final layer = this.layer as ImageFilterLayer;
+    final filter = layer.imageFilter;
+    final offset = layer.offset;
+    if (!identical(_read, filter) || offset != _placed) {
+      edited = true;
+      _read = filter;
+      _placed = offset;
+    }
+    if (filter == null) return world.inherit(outside);
+    if (_chain == null ||
+        !identical(_chainParent, outside.state) ||
+        !identical(_chainFilter, filter)) {
+      _chain = StateChain(outside.state, filter);
+      _chainParent = outside.state;
+      _chainFilter = filter;
+    }
+    return world.set(
+      outside.base,
+      outside.dx + offset.dx,
+      outside.dy + offset.dy,
+      null,
+      _chain!,
+      spread: double.infinity,
+    );
+  }
+}
+
+/// A color filter.
+@internal
+final class ColorNode extends OpenNode {
+  /// Creates the node.
+  ColorNode(ColorFilterLayer super.layer);
+
+  StateChain? _chain;
+  StateChain? _chainParent;
+  ui.ColorFilter? _read;
+
+  @override
+  int saves({required bool flat}) =>
+      (layer as ColorFilterLayer).colorFilter == null ? 0 : 1;
+
+  @override
+  void enter(SceneOut out, Rect band) {
+    final filter = (layer as ColorFilterLayer).colorFilter;
+    if (filter == null) return;
+    out.settle();
+    out.builder.pushColorFilter(filter);
+    out.pushes++;
+  }
+
+  @override
+  bool updateWorld(FormWorld outside) {
+    final value = (layer as ColorFilterLayer).colorFilter;
+    if (value != _read) {
+      edited = true;
+      _read = value;
+    }
+    if (_chain == null ||
+        !identical(_chainParent, outside.state) ||
+        _chain!.token != value) {
+      _chain = value == null ? outside.state : StateChain(outside.state, value);
+      _chainParent = outside.state;
+    }
+    return world.set(
+      outside.base,
+      outside.dx,
+      outside.dy,
+      outside.clip,
+      _chain!,
+      spread: outside.spread,
+    );
+  }
+}
+
+/// A shader mask. A fragment shader keeps its identity while its uniforms
+/// change, so it counts as changed every frame.
+@internal
+final class MaskNode extends OpenNode {
+  /// Creates the node.
+  MaskNode(ShaderMaskLayer super.layer);
+
+  StateChain? _chain;
+  StateChain? _chainParent;
+  Object? _shader;
+  Rect? _rect;
+  BlendMode? _blend;
+  Rect _extra = Rect.zero;
+
+  @override
+  Rect get extra => _extra;
+
+  @override
+  int saves({required bool flat}) {
+    final layer = this.layer as ShaderMaskLayer;
+    return layer.shader == null ||
+            layer.maskRect == null ||
+            layer.blendMode == null
+        ? 0
+        : 1;
+  }
+
+  @override
+  void enter(SceneOut out, Rect band) {
+    final layer = this.layer as ShaderMaskLayer;
+    final shader = layer.shader;
+    final rect = layer.maskRect;
+    final blend = layer.blendMode;
+    if (shader == null || rect == null || blend == null) return;
+    out.settle();
+    out.builder.pushShaderMask(shader, rect, blend);
+    out.pushes++;
+  }
+
+  @override
+  bool updateWorld(FormWorld outside) {
+    final layer = this.layer as ShaderMaskLayer;
+    final shader = layer.shader;
+    final rect = layer.maskRect;
+    final blend = layer.blendMode;
+    if (shader is ui.FragmentShader ||
+        !identical(_shader, shader) ||
+        _rect != rect ||
+        _blend != blend) {
+      edited = true;
+    }
+    if (shader == null || rect == null || blend == null) {
+      _shader = shader;
+      _rect = rect;
+      _blend = blend;
+      return world.inherit(outside);
+    }
+    if (_chain == null ||
+        shader is ui.FragmentShader ||
+        !identical(_chainParent, outside.state) ||
+        !identical(_shader, shader) ||
+        _rect != rect ||
+        _blend != blend) {
+      _chain = StateChain(
+        StateChain(outside.state, rect),
+        shader is ui.FragmentShader ? Object() : shader,
+      );
+      _chainParent = outside.state;
+      _shader = shader;
+      _rect = rect;
+      _blend = blend;
+      _extra = outside.reaching(rect);
+    }
+    return world.set(
+      outside.base,
+      outside.dx,
+      outside.dy,
+      outside.clip,
+      _chain!,
+      spread: outside.spread,
+    );
+  }
+}
+
+/// A clip of any shape.
+@internal
+final class ClipNode extends OpenNode {
+  /// Creates the node.
+  ClipNode(super.layer);
+
+  Object? _geometry;
+  Clip? _behavior;
+  Rect? _clip;
+  StateChain? _chain;
+  StateChain? _chainParent;
+  int _seen = 0;
+
+  static final _pathBounds = Expando<Rect>();
+
+  (Object?, Clip) _read() => switch (layer) {
+    ClipRectLayer(:final clipRect, :final clipBehavior) => (
+      clipRect,
+      clipBehavior,
+    ),
+    ClipRRectLayer(:final clipRRect, :final clipBehavior) => (
+      clipRRect,
+      clipBehavior,
+    ),
+    ClipRSuperellipseLayer(:final clipRSuperellipse, :final clipBehavior) => (
+      clipRSuperellipse,
+      clipBehavior,
+    ),
+    ClipPathLayer(:final clipPath, :final clipBehavior) => (
+      clipPath,
+      clipBehavior,
+    ),
+    NativeClipLayer(:final enabled, :final geometry, :final clipBehavior) => (
+      enabled ? geometry : null,
+      clipBehavior,
+    ),
+    _ => (null, Clip.none),
+  };
+
+  static Rect _boundsOf(Object geometry) => switch (geometry) {
+    final Rect rect => rect,
+    final RRect rect => rect.outerRect,
+    final RSuperellipse rect => rect.outerRect,
+    final Path path => _pathBounds[path] ??= path.getBounds(),
+    _ => Rect.largest,
+  };
+
+  @override
+  int saves({required bool flat}) =>
+      _geometry != null && _behavior == Clip.antiAliasWithSaveLayer ? 1 : 0;
+
+  @override
+  void enter(SceneOut out, Rect band) {
+    final (geometry, behavior) = _read();
+    if (geometry == null || behavior == Clip.none) return;
+    // A rect that cuts nothing of the read costs a layer for nothing.
+    if (geometry is Rect &&
+        behavior != Clip.antiAliasWithSaveLayer &&
+        world.spread == 0 &&
+        _clip != null &&
+        _clip!.left <= band.left &&
+        _clip!.top <= band.top &&
+        _clip!.right >= band.right &&
+        _clip!.bottom >= band.bottom) {
+      return;
+    }
+    out.settle();
+    final builder = out.builder;
+    switch (geometry) {
+      case final Rect rect:
+        builder.pushClipRect(rect, clipBehavior: behavior);
+      case final RRect rect:
+        builder.pushClipRRect(rect, clipBehavior: behavior);
+      case final RSuperellipse rect:
+        builder.pushClipRSuperellipse(rect, clipBehavior: behavior);
+      case final Path path:
+        builder.pushClipPath(path, clipBehavior: behavior);
+      default:
+        return;
+    }
+    out.pushes++;
+  }
+
+  @override
+  bool updateWorld(FormWorld outside) {
+    final (geometry, behavior) = _read();
+    final same =
+        _behavior == behavior &&
+        (identical(_geometry, geometry) || _geometry == geometry);
+    if (!same) {
+      edited = true;
+      _geometry = geometry;
+      _behavior = behavior;
+    }
+    if (geometry == null || behavior == Clip.none) {
+      return world.inherit(outside);
+    }
+    if (_chain == null ||
+        !same ||
+        _seen != outside.stamp ||
+        !identical(_chainParent, outside.state)) {
+      _seen = outside.stamp;
+      _clip = outside.reaching(_boundsOf(geometry));
+      _chain = StateChain(StateChain(outside.state, geometry), behavior);
+      _chainParent = outside.state;
+    }
+    return world.set(
+      outside.base,
+      outside.dx,
+      outside.dy,
+      _clip,
+      _chain!,
+      spread: outside.spread,
+    );
+  }
+}
+
+/// A layer type registered with [LiquidGlassUnderlay].
+@internal
+final class EffectsNode extends OpenNode with _Matrix {
+  /// Creates the node.
+  EffectsNode(super.layer);
+
+  // How many sigmas a Gaussian blur spreads what it blurs: Impeller's kernel
+  // ends at three, and a downsampled blur reads a little past it.
+  static const double _blurReach = 4;
+
+  // The most [matrix] stretches a length in the plane.
+  static double _stretch(Matrix4 matrix) {
+    final m = matrix.storage;
+    return sqrt(max(m[0] * m[0] + m[1] * m[1], m[4] * m[4] + m[5] * m[5]));
+  }
+
+  StateChain? _chain;
+  StateChain? _chainParent;
+  Object? _token;
+  bool _hidden = false;
+
+  @override
+  bool get shows => !_hidden;
+
+  // A blur is its layer and two passes of its own; an opacity over it is
+  // the same layer's.
+  @override
+  int saves({required bool flat}) {
+    if (_token case (_, final int? alpha, final double blur)) {
+      if (blur > 0 && !flat) return 3;
+      return leaves > 1 && alpha != null && alpha != 255 ? 1 : 0;
+    }
+    return 0;
+  }
+
+  @override
+  bool get savesByKind => switch (_token) {
+    (_, _, final double blur) => blur > 0,
+    _ => false,
+  };
+
+  @override
+  void enter(SceneOut out, Rect band) {
+    final effects = LiquidGlassUnderlay.effectsOf(layer)!;
+    out.transform(effects.transform);
+    final builder = out.builder;
+    if (effects.clip case final rounded?) {
+      out.settle();
+      builder.pushClipRRect(rounded);
+      out.pushes++;
+    }
+    if (effects.alpha case final alpha? when alpha != 255) {
+      out.settleMatrix();
+      builder.pushOpacity(alpha, offset: out.at);
+      out.at = Offset.zero;
+      out.pushes++;
+    }
+    // Under glass that frosts all it shows the blur is left out. NEAR: what
+    // blurs in under frosted glass is drawn there as sharp as the frost
+    // leaves it, in a copy of a sixteenth of its pixels.
+    if (effects.blur > 0 && !out.flat) {
+      if (!kReleaseMode) GlassWork.filters++;
+      out.settleMatrix();
+      builder.pushImageFilter(
+        ui.ImageFilter.blur(sigmaX: effects.blur, sigmaY: effects.blur),
+        offset: out.at,
+      );
+      out.at = Offset.zero;
+      out.pushes++;
+    }
+  }
+
+  @override
+  bool updateWorld(FormWorld outside) {
+    final effects = LiquidGlassUnderlay.effectsOf(layer)!;
+    _hidden = effects.alpha == 0;
+    final token = (effects.clip, effects.alpha, effects.blur);
+    if (_token != token) edited = true;
+    if (_chain == null ||
+        !identical(_chainParent, outside.state) ||
+        _token != token) {
+      final adds =
+          effects.clip != null || effects.alpha != null || effects.blur > 0;
+      _chain = adds ? StateChain(outside.state, token) : outside.state;
+      _chainParent = outside.state;
+      _token = token;
+    }
+    final own = effects.transform;
+    var clip = outside.clip;
+    if (effects.clip case final rounded?) {
+      final bounds = MatrixUtils.transformRect(
+        _resolve(outside, own),
+        rounded.outerRect,
+      );
+      clip = clip == null ? bounds : clip.intersect(bounds);
+    }
+    final blurred = effects.blur > 0;
+    return _placeUnder(
+      outside,
+      own,
+      blurred ? null : clip,
+      _chain!,
+      spread: blurred
+          ? outside.spread +
+                _blurReach *
+                    effects.blur *
+                    _stretch(outside.base) *
+                    _stretch(own)
+          : outside.spread,
+    );
+  }
+}

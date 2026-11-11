@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/src/internal/flutter_gpu_geometry_renderer.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass/geometry_tiling.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass/shape_set.dart';
+import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
+import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
+import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 
 import 'gpu_test_helpers.dart';
 

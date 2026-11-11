@@ -3,7 +3,7 @@ import 'dart:ui';
 
 import 'package:liquid_glass_renderer/src/composer/band_look.dart';
 import 'package:liquid_glass_renderer/src/composer/geometry.dart';
-import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
+import 'package:liquid_glass_renderer/src/composer/geometry_renderer_limits.dart';
 import 'package:meta/meta.dart';
 
 /// All [compile] needs of a frame. A form answers from a layer tree; a test

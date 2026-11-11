@@ -2,10 +2,10 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_field.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass/geometry_tiling.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass/shape_set.dart';
+import 'package:liquid_glass_renderer/src/composer/geometry_renderer_limits.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_field.dart';
+import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
+import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 
 const _rectangle = 3.0;
 const _ellipse = 2.0;

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/internal/retained_glass_clip.dart';
+import 'package:liquid_glass_renderer/src/rendering/retained_glass_clip.dart';
 
 class _NotchClipper extends CustomClipper<Path> {
   _NotchClipper(this.inset) : super(reclip: inset);
