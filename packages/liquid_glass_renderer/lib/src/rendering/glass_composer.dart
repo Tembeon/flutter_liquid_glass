@@ -23,8 +23,8 @@ import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_ob
 /// Before paint it polls where each site is on the screen, so glass that
 /// moved past what its retained layers can follow repaints in this frame.
 /// After paint it lowers the view's layers into a [Form], asks every site for
-/// its facts, compiles the frame's [Plan] and draws it, before any scene is
-/// built. Then it submits the frame's flutter_gpu passes.
+/// its facts, compiles the frame's [GlassPlan] and draws it, before any scene
+/// is built. Then it submits the frame's flutter_gpu passes.
 ///
 /// One composer per view owner, adopted by the first glass that attaches
 /// there ([track]) and dropped and disposed when the last one detaches, so a
@@ -158,15 +158,15 @@ final class GlassComposer extends PipelineOwner {
 
   /// What the frame's plan pays for what it weighs.
   @internal
-  static Prices debugPrices = const Prices();
+  static PlanPrices debugPrices = const PlanPrices();
 
   /// The decisions the frame's plan keeps to; a bench swaps it for a window.
   @internal
-  static Policy debugPolicy = const Policy();
+  static PlanPolicy debugPolicy = const PlanPolicy();
 
   /// Handed each frame's plan, with its reasons, while set.
   @visibleForTesting
-  static void Function(Form form, Plan plan)? debugOnPlan;
+  static void Function(Form form, GlassPlan plan)? debugOnPlan;
 
   /// Sites that rested since this was last cleared.
   @internal
@@ -252,17 +252,23 @@ final class _Composition {
   Duration? ranAt;
 
   final _form = Form();
-  final _ledger = Ledger();
+  final _ledger = PlanLedger();
   final _emit = GlassEmit();
 
   // The last plan and what it was compiled under.
-  ({Plan plan, Policy policy, Prices prices, Rect screen, bool explained})?
+  ({
+    GlassPlan plan,
+    PlanPolicy policy,
+    PlanPrices prices,
+    Rect screen,
+    bool explained,
+  })?
   _last;
 
   // Whether the last plan stands: nothing asked anew or changed and no read is
   // due an image. A paint empties the slots it fills, so it is shown again;
   // nothing it decided changes.
-  bool _stands(Policy policy, Prices prices, bool explain) {
+  bool _stands(PlanPolicy policy, PlanPrices prices, bool explain) {
     final form = _form;
     return switch (_last) {
       final last? =>
@@ -298,14 +304,14 @@ final class _Composition {
       final walk = clock.elapsed;
       final policy = GlassCopies.enabled
           ? GlassComposer.debugPolicy
-          : const Policy(copies: false);
+          : const PlanPolicy(copies: false);
       final prices = GlassComposer.debugPrices;
       final explain = listening || GlassComposer.debugOnPlan != null;
       // Without a word of what painted, every frame plans.
       final stands = painted != null && _stands(policy, prices, explain);
       final shows = painted == null || !stands || painted();
       if (!stands) {
-        final (plan, edits) = compile(
+        final (plan, edits) = compilePlan(
           form,
           _ledger,
           prices,
@@ -348,8 +354,8 @@ final class _Composition {
 
   void _report(
     Form form,
-    Plan plan,
-    Policy policy,
+    GlassPlan plan,
+    PlanPolicy policy,
     Duration walk,
     Duration planned,
     Duration done,

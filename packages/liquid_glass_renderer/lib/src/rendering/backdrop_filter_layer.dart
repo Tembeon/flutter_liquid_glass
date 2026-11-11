@@ -118,7 +118,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
 
   // Where this layer's coordinates begin on the screen, while on it untouched.
   Offset? _origin;
-  Fate _fate = const Hidden();
+  SiteFate _fate = const HiddenFate();
 
   // How this frame's read draws.
   _Scene? _scene;
@@ -148,8 +148,8 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   Rect get shown => _clip.shift(screenOrigin);
 
   /// The glass that draws this layer's frost in its filter, if any.
-  static ReadPainter? _painterOf(Fate fate) => switch (fate) {
-    Leads(:final read) when read.members.length > 1 =>
+  static ReadPainter? _painterOf(SiteFate fate) => switch (fate) {
+    LeadFate(:final read) when read.members.length > 1 =>
       switch (read.members[1].ask.role) {
         PainterRole(:final painter) => painter,
         _ => null,
@@ -187,7 +187,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
       return SiteAsk(
         drawn: shifted,
         reads: shifted.inflate(_reach),
-        look: Look(
+        look: FilterLook(
           key: null,
           need: CopyNeed(dpr),
           page: PageFilter(
@@ -205,14 +205,14 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     return SiteAsk(
       drawn: shifted,
       reads: shifted.inflate(need.reach),
-      look: Look(
+      look: FilterLook(
         key: 'band',
         need: need,
         page: over ? null : PageFilter.none,
       ),
       role: paint == null
           ? null
-          : BandRole(
+          : BandSiteRole(
               BandLook(
                 sigma: frost.sigma,
                 paint: paint,
@@ -227,10 +227,10 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   }
 
   @override
-  void beginFate(Fate fate) {
+  void beginFate(SiteFate fate) {
     if (fate.runtimeType != _fate.runtimeType) markNeedsAddToScene();
     _fate = fate;
-    if (fate is Hidden) _showNothing();
+    if (fate is HiddenFate) _showNothing();
   }
 
   void _showNothing() {
@@ -268,7 +268,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     return _frostFilter;
   }
 
-  _Scene? _sceneOf(Read read, CornerRead corner) {
+  _Scene? _sceneOf(GlassRead read, CornerRead corner) {
     if (_painterOf(_fate) case final painter?) {
       return (corner: corner, filter: painter.readFilter(read, corner));
     }
@@ -278,7 +278,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   }
 
   @override
-  void show(Read read, ReadPixels pixels) {
+  void show(GlassRead read, ReadPixels pixels) {
     switch (pixels) {
       case InScene(:final corner):
         _showScene(read, corner);
@@ -289,7 +289,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     }
   }
 
-  void _showScene(Read read, CornerRead corner) {
+  void _showScene(GlassRead read, CornerRead corner) {
     final scene = _sceneOf(read, corner);
     if (scene == null) {
       _showNothing();
@@ -312,7 +312,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     _sceneKey = key;
   }
 
-  void _showPage(Read read, PageCopy page) {
+  void _showPage(GlassRead read, PageCopy page) {
     _debugPage = page;
     final painter = _painterOf(_fate);
     final origin = screenOrigin;
@@ -353,7 +353,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   @override
   void addOutput(SceneOut out, ReadCopy outer) {
     final fate = _fate;
-    if (fate is! Leads) return;
+    if (fate is! LeadFate) return;
     final read = fate.read;
     if (read.source is ImageRead) {
       if (_page case final page?) out.picture(page);

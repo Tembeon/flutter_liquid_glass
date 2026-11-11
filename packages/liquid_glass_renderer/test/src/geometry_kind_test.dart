@@ -61,8 +61,8 @@ void main() {
             .toSet()
             .single;
         final fate = layer.debugFate;
-        expect(fate, isA<Leads>(), reason: 'step $step');
-        final read = (fate! as Leads).read;
+        expect(fate, isA<LeadFate>(), reason: 'step $step');
+        final read = (fate! as LeadFate).read;
         if (read.source is LiveRead) continue;
         copies++;
         expect(

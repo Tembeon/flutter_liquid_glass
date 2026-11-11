@@ -693,7 +693,7 @@ class BackdropRig {
         return SiteAsk(
           drawn: shifted,
           reads: shifted.inflate(need.reach),
-          look: Look(key: null, need: need, page: PageFilter.none),
+          look: FilterLook(key: null, need: need, page: PageFilter.none),
           noJoin: NoJoin.noMatte,
         );
       }
@@ -702,7 +702,7 @@ class BackdropRig {
     return SiteAsk(
       drawn: shifted,
       reads: region,
-      look: Look(
+      look: FilterLook(
         key: null,
         need: CopyNeed(dpr),
         page: PageFilter(filter: asked.filter, clip: region),

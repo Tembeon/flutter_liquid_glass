@@ -168,11 +168,11 @@ void main() {
     GlassCopies.debugEnabledOverride = true;
     // Every read stays in the scene while the test counts what it adds: the
     // rows under each are layers drawn apart, six targets a read.
-    GlassComposer.debugPolicy = const Policy(maxTargets: 64);
+    GlassComposer.debugPolicy = const PlanPolicy(maxTargets: 64);
   });
   tearDown(() {
     GlassCopies.debugEnabledOverride = null;
-    GlassComposer.debugPolicy = const Policy();
+    GlassComposer.debugPolicy = const PlanPolicy();
   });
 
   testWidgets('a scrolled read adds fewer layers once they hold', (

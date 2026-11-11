@@ -104,7 +104,7 @@ void main() {
   setUp(() => GlassCopies.debugEnabledOverride = true);
   tearDown(() {
     GlassCopies.debugEnabledOverride = null;
-    GlassComposer.debugPolicy = const Policy();
+    GlassComposer.debugPolicy = const PlanPolicy();
   });
 
   testWidgets('glass scrolled over a copy builds no live filter', (
@@ -156,7 +156,7 @@ void main() {
       controller.jumpTo(offset);
       await _frame(tester);
     }
-    GlassComposer.debugPolicy = const Policy(copies: false);
+    GlassComposer.debugPolicy = const PlanPolicy(copies: false);
     await _frame(tester);
     await _frame(tester);
     final moved = await _pixels(tester, view);

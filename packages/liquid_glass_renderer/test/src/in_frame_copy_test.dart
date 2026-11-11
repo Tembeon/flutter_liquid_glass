@@ -148,7 +148,7 @@ Future<Uint8List> _drawn(
   double top = 200,
   Color? tint,
 }) async {
-  GlassComposer.debugPolicy = Policy(maxTargets: inFrame ? 64 : 0);
+  GlassComposer.debugPolicy = PlanPolicy(maxTargets: inFrame ? 64 : 0);
   await tester.pumpWidget(const SizedBox());
   await tester.pumpWidget(
     _scene(
@@ -188,7 +188,7 @@ void main() {
   });
   tearDown(() {
     GlassCopies.debugEnabledOverride = null;
-    GlassComposer.debugPolicy = const Policy();
+    GlassComposer.debugPolicy = const PlanPolicy();
   });
 
   for (final pixelRatio in [1.0, 2.0]) {
@@ -344,7 +344,7 @@ void main() {
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
     addTearDown(() => RenderLiquidGlassLayer.debugMaxCopyShare = 2);
-    Plan? plan;
+    GlassPlan? plan;
     GlassComposer.debugOnPlan = (_, next) => plan = next;
     addTearDown(() => GlassComposer.debugOnPlan = null);
     for (final downscale in [2, 4]) {
@@ -378,7 +378,7 @@ void main() {
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
     addTearDown(() => RenderLiquidGlassLayer.debugMaxCopyShare = 2);
-    Plan? plan;
+    GlassPlan? plan;
     GlassComposer.debugOnPlan = (_, next) => plan = next;
     addTearDown(() => GlassComposer.debugOnPlan = null);
     for (final frost in [3.0, 6.0]) {
@@ -482,12 +482,12 @@ void main() {
       bool second = true,
     }) async {
       // Pinned to the scene: an image would never pay.
-      GlassComposer.debugPrices = const Prices(imageGpu: 1000000);
+      GlassComposer.debugPrices = const PlanPrices(imageGpu: 1000000);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(_scene(top: top, shift: shift, second: second));
       await tester.pumpWidget(_scene(top: top, shift: shift, second: second));
       final pixels = await _pixels(tester, 2);
-      GlassComposer.debugPrices = const Prices();
+      GlassComposer.debugPrices = const PlanPrices();
       await tester.pumpWidget(const SizedBox());
       return pixels;
     }

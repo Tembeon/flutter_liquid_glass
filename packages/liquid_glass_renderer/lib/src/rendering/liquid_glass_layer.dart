@@ -253,7 +253,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   /// What the last plan has this glass do.
   @visibleForTesting
-  Fate? get debugFate => _fate;
+  SiteFate? get debugFate => _fate;
 
   /// See `LiquidGlassLayer.glow`.
   LiquidGlassGlow? get glow => _glow;
@@ -333,7 +333,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // Glass with no slot shows its live filter whatever its fate says: no plan
   // draws it.
   bool get _readsLive => switch (_fate) {
-    Leads(read: Read(source: LiveRead())) => true,
+    LeadFate(read: GlassRead(source: LiveRead())) => true,
     _ => !_rig.hasSlot,
   };
 
@@ -976,7 +976,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return SiteAsk(
       drawn: drawn,
       reads: reads,
-      look: Look(
+      look: FilterLook(
         key: (
           settings,
           appearance.colorModel,
@@ -1013,7 +1013,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   // This frame's fate.
-  Fate _fate = const Hidden();
+  SiteFate _fate = const HiddenFate();
 
   GroupMatte? _groupMatte;
 
@@ -1047,7 +1047,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         );
 
   // The glass of [read], its band left out.
-  static List<RenderLiquidGlassLayer> _glassIn(Read read) => [
+  static List<RenderLiquidGlassLayer> _glassIn(GlassRead read) => [
     for (final member in read.members)
       if (member.ask.role case PainterRole(
         :final RenderLiquidGlassLayer painter,
@@ -1055,13 +1055,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         painter,
   ];
 
-  static BandLook? _bandOf(Read read) => switch (read.lead.ask.role) {
-    BandRole(:final look) => look,
+  static BandLook? _bandOf(GlassRead read) => switch (read.lead.ask.role) {
+    BandSiteRole(:final look) => look,
     _ => null,
   };
 
   // Gathers the matte [read] is drawn over, where it has more glass than this.
-  void _beginRead(Read read) {
+  void _beginRead(GlassRead read) {
     if (read.geometryKind is! SharedAtlas) return;
     final glass = _glassIn(read);
     final first = glass.first;
@@ -1085,7 +1085,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // From the screen's device pixels into the matte [read] is drawn over, and
   // what its shader samples of the backdrop there.
-  (Matrix4, Rect?) _readMapping(Read read) {
+  (Matrix4, Rect?) _readMapping(GlassRead read) {
     final origin = switch (read.geometryKind) {
       SharedAtlas() => _groupMatte?.origin,
       ComputedShape() || OwnAtlas() => null,
@@ -1100,7 +1100,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // The draw of [read] over a copy read as [sampling], beside the band that
   // leads it, if one does and the variant draws it.
-  GlassDraw _readDraw(Read read, GlassSampling sampling, {_BandAt? band}) {
+  GlassDraw _readDraw(GlassRead read, GlassSampling sampling, {_BandAt? band}) {
     final kind = read.geometryKind;
     assert(
       kind is SharedAtlas ||
@@ -1160,7 +1160,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   @override
-  ImageFilter readFilter(Read read, CornerRead corner) {
+  ImageFilter readFilter(GlassRead read, CornerRead corner) {
     final look = _bandOf(read);
     final draw = _readDraw(
       read,
@@ -1184,7 +1184,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   // The draw of [read] over [page], and the device rect it covers.
-  (GlassDraw, Rect) _pageDraw(Read read, PageCopy page) {
+  (GlassDraw, Rect) _pageDraw(GlassRead read, PageCopy page) {
     final look = _bandOf(read);
     final draw = _readDraw(
       read,
@@ -1214,10 +1214,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   @override
-  Object pageKey(Read read, PageCopy page) => _pageDraw(read, page);
+  Object pageKey(GlassRead read, PageCopy page) => _pageDraw(read, page);
 
   @override
-  ui.Picture recordPage(Read read, PageCopy page, Matrix4 screenToCanvas) {
+  ui.Picture recordPage(GlassRead read, PageCopy page, Matrix4 screenToCanvas) {
     final (draw, device) = _pageDraw(read, page);
     if (!kReleaseMode) GlassWork.pictures++;
     final recorder = ui.PictureRecorder();
@@ -1245,7 +1245,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // The shadows of the other glass [read] draws, where they lie in this glass's
   // canvas: under its filter, which covers them inside their silhouettes.
-  List<(ui.Picture, Offset)> _shadowsOfOthers(Read read) {
+  List<(ui.Picture, Offset)> _shadowsOfOthers(GlassRead read) {
     if (_bandOf(read) != null) return const [];
     return [
       for (final glass in _glassIn(read))
@@ -1268,7 +1268,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // A pixel at two corners keeps the edge's bounds at the layer's: Impeller
   // would cut the layer, and the fragment coordinates the glass reads start
   // at the cut (see [ImpellerLayers]).
-  ui.Path? _clipIn(Read read, Rect layer) {
+  ui.Path? _clipIn(GlassRead read, Rect layer) {
     if (read.members.length < 2 || _bandOf(read) != null) return null;
     double area(Rect rect) => rect.width * rect.height;
     var sum = 0.0;
@@ -1296,7 +1296,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   @override
-  void beginFate(Fate fate) {
+  void beginFate(SiteFate fate) {
     _fate = fate;
     _debugPage = null;
     if (!_rig.hasSlot) {
@@ -1304,22 +1304,22 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       return;
     }
     switch (fate) {
-      case Hidden():
+      case HiddenFate():
         compositionSeedSuppressed = true;
         debugDrewOverCopy = false;
         _rig.hide();
         _placeShadows(under: false);
-      case Leads(:final read) when read.source is! LiveRead:
+      case LeadFate(:final read) when read.source is! LiveRead:
         // Glass over its copy reads no backdrop: an opacity pass around it
         // needs no seed.
         compositionSeedSuppressed = true;
         debugDrewOverCopy = true;
         _beginRead(read);
         _placeShadows(under: !glassShadowsFade);
-      case Leads():
+      case LeadFate():
         // The live read is set up as it shows.
         break;
-      case Follows(:final read):
+      case FollowFate(:final read):
         compositionSeedSuppressed = true;
         debugDrewOverCopy = true;
         // The glass over a band draws it, in the band's place.
@@ -1349,7 +1349,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   Object? _shownKey;
 
   @override
-  void show(Read read, ReadPixels pixels) {
+  void show(GlassRead read, ReadPixels pixels) {
     switch (pixels) {
       case InScene(:final corner):
         _showScene(read, corner);
@@ -1360,7 +1360,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
   }
 
-  void _showScene(Read read, CornerRead corner) {
+  void _showScene(GlassRead read, CornerRead corner) {
     final inPlace = corner.inPlace.filter;
     final filter = readFilter(read, corner);
     final toCanvas = _screenToCanvas();
@@ -1407,7 +1407,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
   }
 
-  void _showPage(Read read, PageCopy page) {
+  void _showPage(GlassRead read, PageCopy page) {
     _debugPage = page;
     final toCanvas = _screenToCanvas();
     final under = _shadowsOfOthers(read);
@@ -1465,7 +1465,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @override
   void addOutput(SceneOut out, ReadCopy outer) {
     final fate = _fate;
-    if (fate is! Leads) return;
+    if (fate is! LeadFate) return;
     final read = fate.read;
     if (glassShadowPicture?.picture case final shadow? when !glassShadowsFade) {
       out.picture(shadow);

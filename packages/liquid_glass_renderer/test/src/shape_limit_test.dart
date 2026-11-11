@@ -21,7 +21,7 @@ void main() {
     const most = geometryMaxShapesPerDraw;
     expect(_define('gpu/geometry_uniforms.glsl', 'MAX_SHAPES'), most);
     expect(LiquidGlassBlendGroup.maxShapesPerCluster, most);
-    expect(const Policy().maxShapes, most);
+    expect(const PlanPolicy().maxShapes, most);
     expect(ShapeLooks.maxLooks, most);
   });
 }

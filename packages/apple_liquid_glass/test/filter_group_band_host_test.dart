@@ -132,7 +132,7 @@ Future<(Uint8List, bool)> _draw(
   bool held = false,
   bool tints = false,
 }) async {
-  GlassComposer.debugPolicy = Policy(bands: groups);
+  GlassComposer.debugPolicy = PlanPolicy(bands: groups);
   final controller = ScrollController();
   addTearDown(controller.dispose);
   await tester.pumpWidget(
@@ -169,7 +169,7 @@ void main() {
   setUp(() => GlassCopies.debugEnabledOverride = true);
   tearDown(() {
     GlassCopies.debugEnabledOverride = null;
-    GlassComposer.debugPolicy = const Policy();
+    GlassComposer.debugPolicy = const PlanPolicy();
   });
 
   for (final hard in [true, false]) {

@@ -309,8 +309,8 @@ Future<void> _open(WidgetTester tester, String tab) async {
   GlassCopies.debugEnabledOverride = true;
   addTearDown(() => GlassCopies.debugEnabledOverride = null);
   // No read buys an image, so every frame shows what its reads issue.
-  GlassComposer.debugPrices = const Prices(imageRaster: 100000);
-  addTearDown(() => GlassComposer.debugPrices = const Prices());
+  GlassComposer.debugPrices = const PlanPrices(imageRaster: 100000);
+  addTearDown(() => GlassComposer.debugPrices = const PlanPrices());
   await tester.pumpWidget(
     const GalleryApp(home: StandHome()),
   );

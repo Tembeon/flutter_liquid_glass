@@ -96,8 +96,8 @@ Future<(Uint8List, int)> _draw(
   required bool groups,
 }) async {
   // Nothing shares when no site fits a matte with another.
-  GlassComposer.debugPolicy = Policy(maxShapes: groups ? 16 : 0);
-  addTearDown(() => GlassComposer.debugPolicy = const Policy());
+  GlassComposer.debugPolicy = PlanPolicy(maxShapes: groups ? 16 : 0);
+  addTearDown(() => GlassComposer.debugPolicy = const PlanPolicy());
   await tester.pumpWidget(
     View(view: view, child: const SizedBox()),
     wrapWithView: false,

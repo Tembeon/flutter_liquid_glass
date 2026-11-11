@@ -125,7 +125,7 @@ void main() {
   });
   tearDown(() {
     GlassCopies.debugEnabledOverride = null;
-    GlassComposer.debugPolicy = const Policy();
+    GlassComposer.debugPolicy = const PlanPolicy();
     LiquidGlassBackdropFrost.debugShaderFrost = true;
   });
 
@@ -140,7 +140,7 @@ void main() {
       tester.view.physicalSize = Size(300 * dpr, 400 * dpr);
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
-      GlassComposer.debugPolicy = const Policy(maxTargets: 0);
+      GlassComposer.debugPolicy = const PlanPolicy(maxTargets: 0);
 
       LiquidGlassBackdropFrost.debugShaderFrost = false;
       final filtered = await _scrolled(tester, dpr, hard: hard);
@@ -167,11 +167,11 @@ void main() {
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
 
-      GlassComposer.debugPolicy = const Policy(maxTargets: 0);
+      GlassComposer.debugPolicy = const PlanPolicy(maxTargets: 0);
       final image = await _scrolled(tester, dpr, hard: true);
       expect(_band(tester).debugPage, isNotNull);
 
-      GlassComposer.debugPolicy = const Policy();
+      GlassComposer.debugPolicy = const PlanPolicy();
       final drawn = GlassCopies.debugImagesDrawn;
       final inFrame = await _scrolled(tester, dpr, hard: true);
       expect(_band(tester).debugPage, isNull);
@@ -205,9 +205,12 @@ void main() {
       ),
     );
 
-    GlassComposer.debugPolicy = const Policy(bands: false, dropsFrost: false);
+    GlassComposer.debugPolicy = const PlanPolicy(
+      bands: false,
+      dropsFrost: false,
+    );
     final kept = await _scrolled(tester, dpr, hard: true, bar: bar);
-    GlassComposer.debugPolicy = const Policy(bands: false);
+    GlassComposer.debugPolicy = const PlanPolicy(bands: false);
     final dropped = await _scrolled(tester, dpr, hard: true, bar: bar);
 
     final difference = _difference(kept, dropped);

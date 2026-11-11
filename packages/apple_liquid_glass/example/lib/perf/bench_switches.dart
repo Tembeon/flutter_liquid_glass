@@ -5,7 +5,7 @@
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/composer/plan.dart' show Policy;
+import 'package:liquid_glass_renderer/src/composer/plan.dart' show PlanPolicy;
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
 
 /// The switches an A/B run can flip, by name, for questions still open.
@@ -17,7 +17,7 @@ final benchSwitches = <String, void Function({required bool on})>{
   // B draws the copies asked for without a filter in the frame, A into
   // images.
   'in_frame': ({required on}) =>
-      GlassComposer.debugPolicy = Policy(maxTargets: on ? 8 : 0),
+      GlassComposer.debugPolicy = PlanPolicy(maxTargets: on ? 8 : 0),
   // B reads the backdrop live instead of drawing copies.
   'live_reads': ({required on}) =>
       GlassCopies.debugEnabledOverride = on ? false : null,

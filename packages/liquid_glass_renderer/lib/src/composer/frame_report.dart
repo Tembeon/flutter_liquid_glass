@@ -242,7 +242,7 @@ final class GlassFrameReport {
 
   /// Describes a [read] of the frame's plan, or of the last one where that
   /// [stands].
-  static GlassReadReport readOf(Read read, {required bool stands}) =>
+  static GlassReadReport readOf(GlassRead read, {required bool stands}) =>
       GlassReadReport(
         source: switch (read.source) {
           SceneRead() => GlassReadSource.scene,

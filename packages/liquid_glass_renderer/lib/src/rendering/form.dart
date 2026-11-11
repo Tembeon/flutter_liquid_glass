@@ -31,7 +31,7 @@ Rect _union(Rect a, Rect b) {
 /// After [lower], everything here equals what a fresh [Form] of the same tree
 /// would hold. The soundness test asserts it after every generated mutation.
 @internal
-final class Form implements Scenery {
+final class Form implements PlanScenery {
   @override
   final DirtyLog dirty = DirtyLog();
 

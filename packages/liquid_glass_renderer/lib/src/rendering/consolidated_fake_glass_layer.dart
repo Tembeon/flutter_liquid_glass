@@ -448,9 +448,9 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   SiteAsk ask() => _sharedRig.ask();
 
   @override
-  void beginFate(Fate fate) {
+  void beginFate(SiteFate fate) {
     _fate = fate;
-    if (fate is! Hidden) return;
+    if (fate is! HiddenFate) return;
     if (_sharedRig.hasSlot) {
       compositionSeedSuppressed = true;
       debugDrewOverCopy = false;
@@ -461,10 +461,10 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     }
   }
 
-  Fate _fate = const Hidden();
+  SiteFate _fate = const HiddenFate();
 
   @override
-  void show(Read read, ReadPixels pixels) {
+  void show(GlassRead read, ReadPixels pixels) {
     switch (pixels) {
       case OnPage(:final page):
         // Glass over its copy reads no backdrop: an opacity pass around it
@@ -484,7 +484,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
 
   @override
   void addOutput(SceneOut out, ReadCopy outer) {
-    if (_fate case Leads(read: Read(source: ImageRead()))) {
+    if (_fate case LeadFate(read: GlassRead(source: ImageRead()))) {
       if (_sharedRig.pageShown case final page?) out.picture(page);
     }
   }

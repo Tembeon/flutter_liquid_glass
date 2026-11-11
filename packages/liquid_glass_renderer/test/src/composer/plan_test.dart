@@ -8,7 +8,7 @@ import 'package:liquid_glass_renderer/src/composer/plan.dart';
 
 const _screen = Rect.fromLTWH(0, 0, 411, 914);
 
-final class _Scene implements Scenery {
+final class _Scene implements PlanScenery {
   _Scene(this.sites);
 
   @override
@@ -50,7 +50,7 @@ final class _Scene implements Scenery {
   int savedUnder(int order, Rect band, {required bool flat}) => saved;
 }
 
-Look _look(int look, {bool frost = true}) => Look(
+FilterLook _look(int look, {bool frost = true}) => FilterLook(
   key: look,
   need: frost ? const CopyNeed(1, share: 2, frost: 8) : const CopyNeed(1),
   drawsBand: frost,
@@ -66,18 +66,22 @@ SiteFacts _site(int order, Rect drawn, {int look = 0, int floor = -1}) {
 
 // A site's ask with some of it replaced, as a test builds a scene.
 extension on SiteFacts {
-  SiteAsk _with({Look? look, SiteRole? role, NoJoin? noJoin, bool? turned}) =>
-      SiteAsk(
-        drawn: ask.drawn,
-        reads: ask.reads,
-        look: look ?? ask.look,
-        role: role ?? ask.role,
-        noJoin: noJoin ?? ask.noJoin,
-        turned: turned ?? ask.turned,
-      );
+  SiteAsk _with({
+    FilterLook? look,
+    SiteRole? role,
+    NoJoin? noJoin,
+    bool? turned,
+  }) => SiteAsk(
+    drawn: ask.drawn,
+    reads: ask.reads,
+    look: look ?? ask.look,
+    role: role ?? ask.role,
+    noJoin: noJoin ?? ask.noJoin,
+    turned: turned ?? ask.turned,
+  );
 }
 
-final class _Glass extends GlassRole {
+final class _Glass extends GlassSiteRole {
   const _Glass();
 }
 
@@ -99,7 +103,7 @@ const _bandLook = BandLook(
   devicePixelRatio: 1,
 );
 
-int _newImages(Plan plan) => plan.reads
+int _newImages(GlassPlan plan) => plan.reads
     .where((read) => read.source == const ImageRead(held: false))
     .length;
 
@@ -148,15 +152,15 @@ _Scene _generated(int seed) {
   return scene;
 }
 
-Plan _plan(
-  Scenery scene, {
-  Prices prices = const Prices(),
-  Policy policy = const Policy(),
-  Ledger? ledger,
+GlassPlan _plan(
+  PlanScenery scene, {
+  PlanPrices prices = const PlanPrices(),
+  PlanPolicy policy = const PlanPolicy(),
+  PlanLedger? ledger,
   int frame = 100,
 }) {
-  final used = ledger ?? Ledger();
-  final (plan, edits) = compile(scene, used, prices, policy, frame);
+  final used = ledger ?? PlanLedger();
+  final (plan, edits) = compilePlan(scene, used, prices, policy, frame);
   edits.applyTo(used, frame);
   return plan;
 }
@@ -167,19 +171,19 @@ void main() {
       final plan = _plan(_Scene(_row(6)));
       expect(plan.reads, hasLength(1));
       expect(plan.reads.single.members, hasLength(6));
-      expect(plan.fates.first, isA<Leads>());
-      expect(plan.fates.skip(1), everyElement(isA<Follows>()));
+      expect(plan.fates.first, isA<LeadFate>());
+      expect(plan.fates.skip(1), everyElement(isA<FollowFate>()));
     });
 
     test('says why glass stays apart when asked', () {
       final sites = _row(3);
       sites[1].floor = sites[0].order + 1;
       sites[2].ask = sites[2]._with(noJoin: NoJoin.field);
-      final (plan, _) = compile(
+      final (plan, _) = compilePlan(
         _Scene(sites),
-        Ledger(),
-        const Prices(),
-        const Policy(),
+        PlanLedger(),
+        const PlanPrices(),
+        const PlanPolicy(),
         100,
         explain: true,
       );
@@ -190,11 +194,11 @@ void main() {
 
     test('notes the reason the decision kept glass out by', () {
       List<String> notesOf(List<SiteFacts> sites, {int maxShapes = 32}) {
-        final (plan, _) = compile(
+        final (plan, _) = compilePlan(
           _Scene(sites),
-          Ledger(),
-          const Prices(),
-          Policy(maxShapes: maxShapes),
+          PlanLedger(),
+          const PlanPrices(),
+          PlanPolicy(maxShapes: maxShapes),
           100,
           explain: true,
         );
@@ -202,7 +206,7 @@ void main() {
       }
 
       const page = PageFilter(blur: (4, 4));
-      Look paged(int look) => Look(
+      FilterLook paged(int look) => FilterLook(
         key: look,
         need: const CopyNeed(1),
         page: page,
@@ -232,11 +236,11 @@ void main() {
     test('decides the same whether or not it says why', () {
       for (var seed = 0; seed < 500; seed++) {
         final quiet = _plan(_generated(seed));
-        final (told, _) = compile(
+        final (told, _) = compilePlan(
           _generated(seed),
-          Ledger(),
-          const Prices(),
-          const Policy(),
+          PlanLedger(),
+          const PlanPrices(),
+          const PlanPolicy(),
           100,
           explain: true,
         );
@@ -281,12 +285,15 @@ void main() {
       band.ask = SiteAsk(
         drawn: band.ask.drawn,
         reads: band.ask.reads,
-        look: const Look(key: 'band', need: CopyNeed(1, share: 2, frost: 2)),
-        role: const BandRole(_bandLook),
+        look: const FilterLook(
+          key: 'band',
+          need: CopyNeed(1, share: 2, frost: 2),
+        ),
+        role: const BandSiteRole(_bandLook),
       );
       final glass = _site(2, const Rect.fromLTWH(8, 50, 44, 44));
       glass.ask = glass._with(
-        look: const Look(
+        look: const FilterLook(
           key: 'a',
           need: CopyNeed(1, share: 2, frost: 2),
           drawsBand: true,
@@ -302,7 +309,7 @@ void main() {
       final low = _site(0, const Rect.fromLTWH(0, 0, 100, 100));
       final other = _site(2, const Rect.fromLTWH(200, 0, 100, 100));
       other.ask = other._with(
-        look: const Look(key: 'other', need: CopyNeed(1)),
+        look: const FilterLook(key: 'other', need: CopyNeed(1)),
       );
       final top = _site(4, const Rect.fromLTWH(250, 50, 20, 20));
       top.ask = top._with(look: low.ask.look);
@@ -314,7 +321,7 @@ void main() {
       final low = _site(0, const Rect.fromLTWH(0, 0, 100, 100));
       final top = _site(2, const Rect.fromLTWH(20, 20, 300, 60));
       top.ask = top._with(
-        look: const Look(
+        look: const FilterLook(
           key: 'thick',
           need: CopyNeed(1, share: 4, frost: 20),
         ),
@@ -333,8 +340,8 @@ void main() {
   });
 
   group('holding', () {
-    Ledger still(Scenery scene, int frames) {
-      final ledger = Ledger();
+    PlanLedger still(PlanScenery scene, int frames) {
+      final ledger = PlanLedger();
       for (var frame = 1; frame <= frames; frame++) {
         _plan(scene, ledger: ledger, frame: frame);
       }
@@ -343,7 +350,7 @@ void main() {
 
     test('glass over what holds still buys one image and keeps it', () {
       final scene = _Scene(_row(1));
-      final ledger = Ledger();
+      final ledger = PlanLedger();
       var images = 0;
       for (var frame = 1; frame <= 60; frame++) {
         images += _newImages(_plan(scene, ledger: ledger, frame: frame));
@@ -354,7 +361,7 @@ void main() {
       expect((read.source as ImageRead).held, isTrue);
     });
 
-    Look look(double frost, {PageFilter? page}) => Look(
+    FilterLook look(double frost, {PageFilter? page}) => FilterLook(
       key: 'glass',
       need: CopyNeed(2.625, share: 2, frost: frost),
       page: page,
@@ -362,7 +369,7 @@ void main() {
 
     test('glass whose read reaches past the screen keeps its image', () {
       final scene = _Scene([_site(0, const Rect.fromLTWH(-4, 200, 500, 90))]);
-      final ledger = Ledger();
+      final ledger = PlanLedger();
       for (var frame = 1; frame <= 60; frame++) {
         _plan(scene, ledger: ledger, frame: frame);
       }
@@ -374,7 +381,7 @@ void main() {
       final site = _site(0, const Rect.fromLTWH(20, 200, 200, 90));
       site.ask = site._with(look: look(4));
       final scene = _Scene([site]);
-      final ledger = Ledger();
+      final ledger = PlanLedger();
       for (var frame = 1; frame <= 60; frame++) {
         _plan(scene, ledger: ledger, frame: frame);
       }
@@ -392,7 +399,7 @@ void main() {
         look: look(0, page: const PageFilter(blur: (4, 4))),
       );
       final scene = _Scene([site]);
-      final ledger = Ledger();
+      final ledger = PlanLedger();
       _plan(scene, ledger: ledger, frame: 1);
       final held = _plan(scene, ledger: ledger, frame: 2).reads.single;
       expect(held.source, const ImageRead(held: true));
@@ -446,7 +453,7 @@ void main() {
     test('holds that do not pay make the next wait longer', () {
       final scene = _Scene(_row(1));
       scene.sites.first.order = 5;
-      final ledger = Ledger();
+      final ledger = PlanLedger();
       var frame = 0;
       int? firstNeed;
       int waitForImage() {
@@ -477,9 +484,9 @@ void main() {
 
     test('an image the budget buys has room and losing it is no miss', () {
       final site = _site(0, Rect.zero);
-      final ledger = Ledger();
-      const policy = Policy(maxTargets: 0);
-      Read frame(int frame, double left) {
+      final ledger = PlanLedger();
+      const policy = PlanPolicy(maxTargets: 0);
+      GlassRead frame(int frame, double left) {
         final drawn = Rect.fromLTWH(left, 200, 120, 60);
         site.ask = SiteAsk(
           drawn: drawn,
@@ -507,7 +514,7 @@ void main() {
       final scene = _Scene(_row(1));
       scene.sites.first.order = 5;
       scene.texturesBefore = 0;
-      final ledger = Ledger();
+      final ledger = PlanLedger();
       for (var frame = 1; frame <= 60; frame++) {
         scene.dirty.clear();
         scene.dirty.add(0, _screen);
@@ -587,7 +594,7 @@ void main() {
       for (var seed = 0; seed < seeds; seed++) {
         final scene = _generated(seed);
         final plan = _plan(scene);
-        if (plan.issuedTargets <= const Policy().maxTargets) continue;
+        if (plan.issuedTargets <= const PlanPolicy().maxTargets) continue;
         final stuck = plan.reads.where((read) => read.source is! ImageRead);
         for (final read in stuck) {
           expect(
@@ -613,7 +620,10 @@ void main() {
       ];
       final plan = _plan(_Scene(rows));
       expect(plan.reads, hasLength(12));
-      expect(plan.issuedTargets, lessThanOrEqualTo(const Policy().maxTargets));
+      expect(
+        plan.issuedTargets,
+        lessThanOrEqualTo(const PlanPolicy().maxTargets),
+      );
     });
 
     test('comes out the same twice', () {
@@ -647,7 +657,7 @@ void main() {
           final look = site.ask.look;
           site.ask = site._with(
             role: const _Glass(),
-            look: Look(
+            look: FilterLook(
               key: look.key,
               need: look.need,
               drawsBand: look.drawsBand,
@@ -676,20 +686,23 @@ void main() {
         final plan = _plan(scene);
         expect(plan.fates, hasLength(scene.sites.length));
         final inReads = plan.reads.fold(0, (n, r) => n + r.members.length);
-        final hidden = plan.fates.whereType<Hidden>().length;
+        final hidden = plan.fates.whereType<HiddenFate>().length;
         expect(inReads + hidden, scene.sites.length, reason: 'seed $seed');
       }
     });
 
     test('moves by at most two targets when a price is three times off', () {
-      const base = Prices();
-      final variants = <Prices>[
+      const base = PlanPrices();
+      final variants = <PlanPrices>[
         for (final f in [1 / 3, 3.0]) ...[
-          Prices(passGpu: base.passGpu * f, passRaster: base.passRaster * f),
-          Prices(copyGpuPerMpx: base.copyGpuPerMpx * f),
-          Prices(deadGpuPerMpx: base.deadGpuPerMpx * f),
-          Prices(rasterWeight: base.rasterWeight * f),
-          Prices(imageRaster: base.imageRaster * f),
+          PlanPrices(
+            passGpu: base.passGpu * f,
+            passRaster: base.passRaster * f,
+          ),
+          PlanPrices(copyGpuPerMpx: base.copyGpuPerMpx * f),
+          PlanPrices(deadGpuPerMpx: base.deadGpuPerMpx * f),
+          PlanPrices(rasterWeight: base.rasterWeight * f),
+          PlanPrices(imageRaster: base.imageRaster * f),
         ],
       ];
       final moved = <int>[];
@@ -720,7 +733,7 @@ void main() {
 
   group('prices', () {
     test('a large read pays for an image sooner than a small one', () {
-      const prices = Prices();
+      const prices = PlanPrices();
       final large = prices.rent(const Rect.fromLTWH(0, 0, 400, 800), 1);
       final small = prices.rent(const Rect.fromLTWH(0, 0, 44, 44), 2);
       expect(large, lessThan(small));

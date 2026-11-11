@@ -13,7 +13,7 @@ final class SceneOut {
   SceneOut(this.builder, this.matrix, {this.flat = false});
 
   /// Whether this is the copy of a read whose glass frosts all it shows
-  /// (Read.flat): what that frost hides is not drawn.
+  /// (GlassRead.flat): what that frost hides is not drawn.
   final bool flat;
 
   /// The scene.

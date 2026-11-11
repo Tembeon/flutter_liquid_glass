@@ -81,10 +81,10 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
 
   /// This frame's [fate], in paint order, before any read of the frame is
   /// drawn (see [PlanSite.beginFate]).
-  void beginFate(Fate fate) {}
+  void beginFate(SiteFate fate) {}
 
   /// See [PlanSite.show].
-  void show(Read read, ReadPixels pixels) {}
+  void show(GlassRead read, ReadPixels pixels) {}
 
   /// See [PlanSite.addOutput].
   void addOutput(SceneOut out, ReadCopy outer) {}
@@ -172,12 +172,12 @@ class GeometryTransformTrackingLayer extends OffsetLayer
   }
 
   @override
-  void beginFate(Fate fate) {
+  void beginFate(SiteFate fate) {
     if (_live) _site!.beginFate(fate);
   }
 
   @override
-  void show(Read read, ReadPixels pixels) {
+  void show(GlassRead read, ReadPixels pixels) {
     if (_live) _site!.show(read, pixels);
   }
 

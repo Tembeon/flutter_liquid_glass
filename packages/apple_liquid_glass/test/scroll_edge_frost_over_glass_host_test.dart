@@ -157,7 +157,7 @@ void main() {
   setUp(MotionClock.debugReset);
   tearDown(() {
     GlassCopies.debugEnabledOverride = null;
-    GlassComposer.debugPolicy = const Policy();
+    GlassComposer.debugPolicy = const PlanPolicy();
   });
 
   // Over the rows the frosted copy is 0.35 levels off the live read on
@@ -172,7 +172,7 @@ void main() {
       GlassCopies.debugEnabledOverride = false;
       final live = await _scrolled(tester, dpr, glass: true, serves: false);
       GlassCopies.debugEnabledOverride = true;
-      GlassComposer.debugPolicy = const Policy(maxTargets: 64);
+      GlassComposer.debugPolicy = const PlanPolicy(maxTargets: 64);
       final copied = await _scrolled(tester, dpr, glass: true, serves: true);
       expect(_band(tester).debugPage, isNull);
       expect(_meanInBand(live, copied, dpr), lessThan(0.6));

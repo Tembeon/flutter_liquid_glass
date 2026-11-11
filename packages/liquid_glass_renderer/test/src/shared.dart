@@ -65,8 +65,8 @@ Widget buildWithGridPaper(Widget child) {
 /// Draws every copy of the current test into an image, as copies asked for
 /// with a filter always are, for tests of how images are shared and held.
 void copyIntoImages() {
-  GlassComposer.debugPolicy = const Policy(maxTargets: 0);
-  addTearDown(() => GlassComposer.debugPolicy = const Policy());
+  GlassComposer.debugPolicy = const PlanPolicy(maxTargets: 0);
+  addTearDown(() => GlassComposer.debugPolicy = const PlanPolicy());
 }
 
 /// What the plans of the current test decided.
@@ -80,14 +80,14 @@ final class PlanWatch {
   final _changes = Map<Object, int>.identity();
 
   /// The last plan.
-  Plan? last;
+  GlassPlan? last;
 
-  void _note(Form form, Plan plan) {
+  void _note(Form form, GlassPlan plan) {
     last = plan;
     for (var i = 0; i < plan.fates.length; i++) {
       final read = switch (plan.fates[i]) {
-        Leads(:final read) || Follows(:final read) => read,
-        Hidden() => null,
+        LeadFate(:final read) || FollowFate(:final read) => read,
+        HiddenFate() => null,
       };
       if (read == null || !read.changed) continue;
       final id = form.sites[i].id;

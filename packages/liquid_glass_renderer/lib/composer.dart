@@ -10,12 +10,13 @@
 /// `LiquidGlassBackdropFrost` says how a backdrop filter is frosted and
 /// `FrostBandPaint` what a scroll edge paints over its frost.
 ///
-/// For a renderer, `compile` takes a `Scenery` (the frame's sites, each a
-/// `SiteFacts` holding the `SiteAsk` its glass made) with the `Ledger` kept
-/// between frames, the `Prices` and the `Policy`, and returns the `Plan`: a
-/// `Fate` for every site and the frame's `Read`s, each with the
-/// `ReadGeometry` of its copy on a `Lattice`. `GlassWork` counts what the
-/// renderer did beyond the plan for the frame's report.
+/// For a renderer, `compilePlan` takes a `PlanScenery` (the frame's sites,
+/// each a `SiteFacts` holding the `SiteAsk` its glass made) with the
+/// `PlanLedger` kept between frames, the `PlanPrices` and the `PlanPolicy`,
+/// and returns the `GlassPlan`: a `SiteFate` for every site and the frame's
+/// `GlassRead`s, each with the `ReadGeometry` of its copy on a `Lattice`.
+/// `GlassWork` counts what the renderer did beyond the plan for the frame's
+/// report.
 ///
 /// For those who develop the renderer, and for an app that holds its glass
 /// to a budget.
@@ -46,37 +47,37 @@ export 'src/composer/geometry_renderer_limits.dart'
     show geometryMaxShapesPerDraw;
 export 'src/composer/plan.dart'
     show
-        BandRole,
+        BandSiteRole,
         ComputedShape,
         DirtyLog,
-        Fate,
-        Follows,
+        FilterLook,
+        FollowFate,
         GeometryKind,
         GlassBody,
-        GlassRole,
-        Hidden,
+        GlassPlan,
+        GlassRead,
+        GlassSiteRole,
+        HiddenFate,
         ImageRead,
-        Leads,
-        Ledger,
-        LedgerEdits,
+        LeadFate,
         LiveRead,
-        Look,
         NoJoin,
         OwnAtlas,
         PageFilter,
-        Plan,
-        Policy,
-        Prices,
-        Read,
+        PlanLedger,
+        PlanLedgerEdits,
+        PlanPolicy,
+        PlanPrices,
+        PlanScenery,
         ReadLimit,
         ReadMemo,
         ReadSource,
         SceneRead,
-        Scenery,
         SharedAtlas,
         SiteAsk,
         SiteFacts,
+        SiteFate,
         SiteRole,
         StateChain,
-        compile,
+        compilePlan,
         geometryKindOf;

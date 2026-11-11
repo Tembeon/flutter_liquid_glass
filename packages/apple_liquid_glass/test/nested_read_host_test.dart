@@ -40,7 +40,7 @@ void main() {
   setUp(() => GlassCopies.debugEnabledOverride = true);
   tearDown(() {
     GlassCopies.debugEnabledOverride = null;
-    GlassComposer.debugPolicy = const Policy();
+    GlassComposer.debugPolicy = const PlanPolicy();
     GlassComposer.debugOnPlan = null;
   });
 
@@ -54,8 +54,8 @@ void main() {
     // Over budget the sheet reads an image and the glass under it stays live,
     // as on a screen of glass: the budget is the glass's own three targets,
     // its filter and the two axes of its frost.
-    GlassComposer.debugPolicy = const Policy(maxTargets: 3);
-    Plan? plan;
+    GlassComposer.debugPolicy = const PlanPolicy(maxTargets: 3);
+    GlassPlan? plan;
     GlassComposer.debugOnPlan = (_, next) => plan = next;
 
     // The sheet's image cuts less than 30 % off the layer of the glass under
@@ -105,7 +105,7 @@ void main() {
     tester.view.physicalSize = const Size(800, 1200);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    Plan? plan;
+    GlassPlan? plan;
     GlassComposer.debugOnPlan = (_, next) => plan = next;
 
     Widget frame(double spot) => Directionality(

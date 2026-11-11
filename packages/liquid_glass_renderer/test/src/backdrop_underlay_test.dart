@@ -553,7 +553,7 @@ void main() {
         ),
       ),
     );
-    expect(_glass(tester).debugFate, isA<Hidden>());
+    expect(_glass(tester).debugFate, isA<HiddenFate>());
     expect(_liveFilters(tester), isEmpty);
   }, skip: skipProperGlassTests);
 

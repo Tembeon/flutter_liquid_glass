@@ -6,9 +6,9 @@ import 'package:liquid_glass_renderer/src/composer/geometry.dart';
 import 'package:liquid_glass_renderer/src/composer/geometry_renderer_limits.dart';
 import 'package:meta/meta.dart';
 
-/// All [compile] needs of a frame. A form answers from a layer tree; a test
+/// All [compilePlan] needs of a frame. A form answers from a layer tree; a test
 /// answers from a generated scene, ten thousand scenes in seconds.
-abstract interface class Scenery {
+abstract interface class PlanScenery {
   /// The frame's sites in paint order.
   List<SiteFacts> get sites;
 
@@ -260,7 +260,7 @@ final class SharedAtlas extends GeometryKind {
 /// Where the geometry of one filter drawing [glass] comes from.
 ///
 /// Glass encodes its own geometry as `geometryKindOf([body])` when it paints,
-/// before the frame is planned; [compile] gives every read the kind of the
+/// before the frame is planned; [compilePlan] gives every read the kind of the
 /// glass it draws, so a read of one glass draws the geometry that glass
 /// encoded.
 GeometryKind geometryKindOf(List<GlassBody> glass) => switch (glass) {
@@ -271,9 +271,9 @@ GeometryKind geometryKindOf(List<GlassBody> glass) => switch (glass) {
 
 /// What one filter's uniforms must share.
 @immutable
-final class Look {
+final class FilterLook {
   /// Creates a look.
-  const Look({
+  const FilterLook({
     required this.key,
     required this.need,
     this.drawsBand = false,
@@ -284,7 +284,7 @@ final class Look {
   });
 
   /// No look: a site that draws nothing through a filter.
-  static const Look none = Look(key: null, need: CopyNeed(1));
+  static const FilterLook none = FilterLook(key: null, need: CopyNeed(1));
 
   /// Equal for glass one shader's uniforms can draw, its tint aside.
   final Object? key;
@@ -321,7 +321,7 @@ final class Look {
 
   @override
   bool operator ==(Object other) =>
-      other is Look &&
+      other is FilterLook &&
       other.key == key &&
       other.need == need &&
       other.drawsBand == drawsBand &&
@@ -345,7 +345,7 @@ final class SiteAsk {
   const SiteAsk({
     required this.drawn,
     required this.reads,
-    this.look = Look.none,
+    this.look = FilterLook.none,
     this.role,
     this.noJoin,
     this.turned = false,
@@ -355,7 +355,7 @@ final class SiteAsk {
   const SiteAsk._none()
     : drawn = Rect.zero,
       reads = Rect.zero,
-      look = Look.none,
+      look = FilterLook.none,
       role = null,
       noJoin = null,
       turned = false,
@@ -372,7 +372,7 @@ final class SiteAsk {
   final Rect reads;
 
   /// What its filter must share.
-  final Look look;
+  final FilterLook look;
 
   /// What the other sites of its read use of it, if they can use any.
   final SiteRole? role;
@@ -418,21 +418,21 @@ sealed class SiteRole {
 ///
 /// What draws the read is the renderer's, which extends this role: the plan
 /// tells one glass from another and nothing more.
-abstract base class GlassRole extends SiteRole {
+abstract base class GlassSiteRole extends SiteRole {
   /// Creates the role.
-  const GlassRole();
+  const GlassSiteRole();
 }
 
 /// A scroll edge that the glass over it can draw in its own filter.
-final class BandRole extends SiteRole {
+final class BandSiteRole extends SiteRole {
   /// Creates the role of a band that looks like [look].
-  const BandRole(this.look);
+  const BandSiteRole(this.look);
 
   /// How it looks where it lies this frame.
   final BandLook look;
 
   @override
-  bool operator ==(Object other) => other is BandRole && other.look == look;
+  bool operator ==(Object other) => other is BandSiteRole && other.look == look;
 
   @override
   int get hashCode => look.hashCode;
@@ -462,14 +462,14 @@ final class SiteFacts {
   /// The clip around it on the screen, if any.
   Rect? clip;
 
-  /// Its index in the frame's sites and in [Plan.fates].
+  /// Its index in the frame's sites and in [GlassPlan.fates].
   int index = 0;
 
   /// What its site asks this frame.
   SiteAsk ask = SiteAsk.none;
 
   /// Whether it is a scroll edge glass over it can draw.
-  bool get isBand => ask.role is BandRole;
+  bool get isBand => ask.role is BandSiteRole;
 }
 
 /// Where a read's backdrop comes from.
@@ -499,9 +499,9 @@ final class LiveRead extends ReadSource {
 }
 
 /// One backdrop and all the glass drawn from it.
-final class Read {
+final class GlassRead {
   /// Opens a read at [lead].
-  Read(this.lead)
+  GlassRead(this.lead)
     : band = lead.ask.reads,
       quad = lead.ask.drawn,
       share = lead.ask.look.need.share,
@@ -536,7 +536,7 @@ final class Read {
 
   /// Earlier reads whose glass lies in [band]: each is drawn again inside this
   /// read, so nesting doubles a read's targets.
-  final List<Read> holds = [];
+  final List<GlassRead> holds = [];
 
   /// Zero over pictures alone, else one more than the highest read it holds.
   int level = 0;
@@ -550,7 +550,7 @@ final class Read {
   /// What the glass it draws is, its band left out, in paint order.
   List<GlassBody> get glass => [
     for (final member in members)
-      if (member.ask.role is GlassRole) member.ask.look.body,
+      if (member.ask.role is GlassSiteRole) member.ask.look.body,
   ];
 
   /// The frost of the glass it leads, in logical pixels: 0 under a band.
@@ -570,7 +570,7 @@ final class Read {
   static const double flatFrost = 2;
 
   /// The passes its copy takes for what it draws of the page (see
-  /// [Scenery.savedUnder]).
+  /// [PlanScenery.savedUnder]).
   int inside = 0;
 
   /// The group of live reads that share one copy of the backdrop, taken at the
@@ -601,38 +601,38 @@ final class Read {
 }
 
 /// What a site does this frame.
-sealed class Fate {
-  const Fate();
+sealed class SiteFate {
+  const SiteFate();
 }
 
 /// Idle, off screen or outside its clips.
-final class Hidden extends Fate {
+final class HiddenFate extends SiteFate {
   /// Creates the fate.
-  const Hidden();
+  const HiddenFate();
 }
 
 /// Draws [read]'s filter at its own place.
-final class Leads extends Fate {
+final class LeadFate extends SiteFate {
   /// Creates the fate.
-  const Leads(this.read);
+  const LeadFate(this.read);
 
   /// The read it leads.
-  final Read read;
+  final GlassRead read;
 }
 
 /// Another site's filter draws this glass.
-final class Follows extends Fate {
+final class FollowFate extends SiteFate {
   /// Creates the fate.
-  const Follows(this.read);
+  const FollowFate(this.read);
 
   /// The read it follows.
-  final Read read;
+  final GlassRead read;
 }
 
 /// One frame's plan. Every route the frame takes is a value in here.
-final class Plan {
+final class GlassPlan {
   /// Creates a plan.
-  Plan(
+  GlassPlan(
     this.reads,
     this.fates, {
     required this.issuedTargets,
@@ -641,10 +641,10 @@ final class Plan {
   });
 
   /// The frame's reads in paint order.
-  final List<Read> reads;
+  final List<GlassRead> reads;
 
-  /// Parallel to [Scenery.sites].
-  final List<Fate> fates;
+  /// Parallel to [PlanScenery.sites].
+  final List<SiteFate> fates;
 
   /// Targets the frame issues, nested replays counted.
   final int issuedTargets;
@@ -657,9 +657,9 @@ final class Plan {
   final List<String> notes;
 }
 
-/// What is kept between frames for the decisions, with one writer: [compile]
-/// returns edits and the composer applies them.
-final class Ledger {
+/// What is kept between frames for the decisions, with one writer:
+/// [compilePlan] returns edits and the composer applies them.
+final class PlanLedger {
   /// Per read's lead.
   final Map<Object, ReadMemo> reads = Map.identity();
 }
@@ -699,9 +699,9 @@ final class ReadMemo {
 /// from the 2026-11-05 one-pass results. Some are inferred from those pairs;
 /// the sensitivity gate holds the plan to at most two targets more or less when
 /// any of them is three times off.
-final class Prices {
+final class PlanPrices {
   /// Creates a price table.
-  const Prices({
+  const PlanPrices({
     this.rasterWeight = 0.3,
     this.passGpu = 0.04,
     this.passRaster = 0.27,
@@ -764,9 +764,9 @@ final class Prices {
 }
 
 /// Decisions a person made once.
-final class Policy {
+final class PlanPolicy {
   /// Creates a policy.
-  const Policy({
+  const PlanPolicy({
     this.maxTargets = 24,
     this.maxShapes = geometryMaxShapesPerDraw,
     this.bands = true,
@@ -788,18 +788,18 @@ final class Policy {
   final int maxShapes;
 
   /// Targets a frame may issue before reads move to images. Counted as
-  /// [Read.targets] counts them, a frosted read is two or three: 24 is where
-  /// 8 stood while a read counted as one.
+  /// [GlassRead.targets] counts them, a frosted read is two or three: 24 is
+  /// where 8 stood while a read counted as one.
   final int maxTargets;
 }
 
-/// Edits to a [Ledger] that [compile] asks for.
-final class LedgerEdits {
+/// Edits to a [PlanLedger] that [compilePlan] asks for.
+final class PlanLedgerEdits {
   /// The memos to write, by lead.
   final Map<Object, ReadMemo> writes = Map.identity();
 
   /// Applies the edits, and forgets leads gone for a while.
-  void applyTo(Ledger ledger, int frame) {
+  void applyTo(PlanLedger ledger, int frame) {
     ledger.reads.addAll(writes);
     if (ledger.reads.length <= writes.length) return;
     ledger.reads.removeWhere((_, memo) => frame - memo.seenAt > 120);
@@ -815,7 +815,7 @@ final class LedgerEdits {
 /// any dead area in a menu at full resolution loses (+0.43 against about +1).
 /// The magnitudes disagree, so this is a join rule, not a prediction.
 @internal
-double mergeDelta(Read read, SiteFacts site, Prices prices) {
+double mergeDelta(GlassRead read, SiteFacts site, PlanPrices prices) {
   final share = math.min(read.share, site.ask.look.need.share);
   final band = read.band.expandToInclude(site.ask.reads);
   final quad = read.quad.expandToInclude(site.ask.drawn);
@@ -841,7 +841,7 @@ double mergeDelta(Read read, SiteFacts site, Prices prices) {
 // A filter draws under its lead's clips, so the glass it draws must lie inside
 // them, and inside its own, which the filter does not apply. Under the same
 // clip the filter cuts it as it would itself.
-bool _insideClips(Read read, SiteFacts site) {
+bool _insideClips(GlassRead read, SiteFacts site) {
   final lead = read.lead.clip;
   final own = site.clip;
   if (lead == own) return true;
@@ -849,7 +849,7 @@ bool _insideClips(Read read, SiteFacts site) {
       (own == null || encloses(own, site.ask.drawn));
 }
 
-bool _lookFits(Read read, SiteFacts site) {
+bool _lookFits(GlassRead read, SiteFacts site) {
   final lead = read.lead.ask.look;
   final look = site.ask.look;
   if (site.isBand) return false;
@@ -896,7 +896,12 @@ _Apart? _alone(SiteFacts site, ReadLimit limit) {
 }
 
 // Why [site] does not join [read], or null where it joins.
-_Apart? _apart(Read read, SiteFacts site, Prices prices, Policy policy) {
+_Apart? _apart(
+  GlassRead read,
+  SiteFacts site,
+  PlanPrices prices,
+  PlanPolicy policy,
+) {
   final band = read.lead.isBand;
   if (read.lead.ask.noJoin != null) return _Apart.leadNoJoin;
   if (band && !policy.bands) return _Apart.bandsApart;
@@ -918,9 +923,9 @@ _Apart? _apart(Read read, SiteFacts site, Prices prices, Policy policy) {
 String _note(
   _Apart why,
   SiteFacts site,
-  Read? read,
-  Scenery scene,
-  Prices prices,
+  GlassRead? read,
+  PlanScenery scene,
+  PlanPrices prices,
 ) {
   final text = switch (why) {
     _Apart.noJoin => 'never joins: ${site.ask.noJoin!.name}',
@@ -952,17 +957,17 @@ String _note(
 /// (closest_groups +31.7 %, dead_free +27 % on the menu).
 ///
 /// Same inputs, same plan and same edits.
-(Plan, LedgerEdits) compile(
-  Scenery scene,
-  Ledger ledger,
-  Prices prices,
-  Policy policy,
+(GlassPlan, PlanLedgerEdits) compilePlan(
+  PlanScenery scene,
+  PlanLedger ledger,
+  PlanPrices prices,
+  PlanPolicy policy,
   int frame, {
   bool explain = false,
 }) {
   final notes = <String>[];
-  final reads = <Read>[];
-  final fates = <Fate>[];
+  final reads = <GlassRead>[];
+  final fates = <SiteFate>[];
   final screen = scene.screen;
   final sites = scene.sites;
   for (var at = 0; at < sites.length; at++) {
@@ -971,12 +976,12 @@ String _note(
         !site.ask.drawn.overlaps(screen) ||
         (site.clip != null &&
             !site.clip!.overlaps(site.ask.drawn.intersect(screen)))) {
-      fates.add(const Hidden());
+      fates.add(const HiddenFate());
       continue;
     }
     final limit = _limitOf(site, reads, scene, policy);
     final pageOnly = site.ask.look.page != null;
-    Read? joined;
+    GlassRead? joined;
     if (_alone(site, limit) case final why?) {
       if (explain) notes.add(_note(why, site, null, scene, prices));
     } else {
@@ -1006,16 +1011,16 @@ String _note(
       joined.band = joined.band.expandToInclude(site.ask.reads);
       joined.quad = joined.quad.expandToInclude(site.ask.drawn);
       joined.share = math.min(joined.share, site.ask.look.need.share);
-      fates.add(Follows(joined));
+      fates.add(FollowFate(joined));
       continue;
     }
-    final read = Read(site)..limit = limit;
+    final read = GlassRead(site)..limit = limit;
     // A filter of a page has no scene read to fall back on.
     if (limit == ReadLimit.liveOnly || (pageOnly && limit != ReadLimit.none)) {
       read.source = const LiveRead();
     }
     reads.add(read);
-    fates.add(Leads(read));
+    fates.add(LeadFate(read));
   }
 
   for (final read in reads) {
@@ -1059,7 +1064,7 @@ String _note(
     );
   }
 
-  final edits = LedgerEdits();
+  final edits = PlanLedgerEdits();
   var dueAt = _never;
   for (final read in reads) {
     if (read.source is LiveRead) {
@@ -1173,7 +1178,7 @@ String _note(
   }
   _groupLiveReads(reads);
   return (
-    Plan(
+    GlassPlan(
       reads,
       fates,
       issuedTargets: issued,
@@ -1192,9 +1197,9 @@ const _never = 1 << 52;
 // (BackdropKey). A read over another's glass has to see that glass, so it
 // starts a group of its own. Scroll edges and fake glass filter through a
 // layer of their own, with no key to take.
-void _groupLiveReads(List<Read> reads) {
+void _groupLiveReads(List<GlassRead> reads) {
   var groups = 0;
-  final open = <Read>[];
+  final open = <GlassRead>[];
   void close() {
     if (open.length > 1) {
       for (final read in open) {
@@ -1230,9 +1235,9 @@ void _groupLiveReads(List<Read> reads) {
 // what that one drew.
 ReadLimit _limitOf(
   SiteFacts site,
-  List<Read> reads,
-  Scenery scene,
-  Policy policy,
+  List<GlassRead> reads,
+  PlanScenery scene,
+  PlanPolicy policy,
 ) {
   if (site.ask.turned || !policy.copies) return ReadLimit.liveOnly;
   for (final read in reads) {
@@ -1247,7 +1252,7 @@ ReadLimit _limitOf(
 // Whether [below]'s glass lies under [read]'s rather than beside it: glass
 // beside it stays out of what it reads, NEAR: it does not show a neighbour in
 // what it reads at its rim.
-bool _under(Read below, Read read) {
+bool _under(GlassRead below, GlassRead read) {
   for (final held in below.members) {
     for (final member in read.members) {
       if (held.ask.drawn.overlaps(member.ask.drawn)) return true;
@@ -1271,7 +1276,7 @@ bool _under(Read below, Read read) {
 /// work of a scroll with glass under the tab bar on the Pixel 6a. Glass that
 /// frosts its own copy keeps it at the coarser of the two grids
 /// ([Lattice.inside]).
-bool _holdsAtOwnGrid(Read read) => read.holds.every(
+bool _holdsAtOwnGrid(GlassRead read) => read.holds.every(
   (held) => held.holds.isEmpty && held.members.every((m) => m.ask.look.anyGrid),
 );
 
@@ -1286,7 +1291,7 @@ bool _sameIds(List<Object> a, List<Object> b) {
 // An image takes room for glass that moves in it: what the band moved in a
 // frame times the frames the image has to hold to pay, at least twice the
 // room that last ran out.
-Rect _withRoom(Read read, ReadMemo? memo, int rent, Rect screen) {
+Rect _withRoom(GlassRead read, ReadMemo? memo, int rent, Rect screen) {
   final last = memo?.lastBand;
   var room = 0.0;
   if (read.changed || read.lead.ask.look.page?.clip != null) return read.band;

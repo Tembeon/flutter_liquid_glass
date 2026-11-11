@@ -28,10 +28,10 @@ abstract interface class PlanSite {
 
   /// This frame's [fate], before any read of the frame is drawn. A site that
   /// draws no read of its own takes its place here.
-  void beginFate(Fate fate);
+  void beginFate(SiteFate fate);
 
   /// Draws [read], which this site leads, from [pixels].
-  void show(Read read, ReadPixels pixels);
+  void show(GlassRead read, ReadPixels pixels);
 
   /// Adds the read this site leads to [out], inside a copy of what lies under
   /// glass over it.
@@ -90,19 +90,19 @@ final class LiveBackdrop extends ReadPixels {
 @internal
 abstract interface class ReadPainter {
   /// The filter that draws [read] over [corner].
-  ui.ImageFilter readFilter(Read read, CornerRead corner);
+  ui.ImageFilter readFilter(GlassRead read, CornerRead corner);
 
   /// Equal while [recordPage] draws the same for [read] over [page].
-  Object pageKey(Read read, PageCopy page);
+  Object pageKey(GlassRead read, PageCopy page);
 
   /// Records [read] over [page], in the coordinates [screenToCanvas] takes the
   /// screen's device pixels to.
-  ui.Picture recordPage(Read read, PageCopy page, Matrix4 screenToCanvas);
+  ui.Picture recordPage(GlassRead read, PageCopy page, Matrix4 screenToCanvas);
 }
 
 /// The role of glass whose [painter] draws the read it is the first glass of.
 @internal
-final class PainterRole extends GlassRole {
+final class PainterRole extends GlassSiteRole {
   /// Creates the role of [painter].
   const PainterRole(this.painter);
 
@@ -188,14 +188,14 @@ final class ReadCopy {
   ReadCopy(this.read, this._plan, this._form);
 
   /// The read this copy is for.
-  final Read read;
+  final GlassRead read;
 
-  final Plan _plan;
+  final GlassPlan _plan;
   final Form _form;
 
   /// Where the copy of [held], whose glass this copy holds, lies inside this
   /// one, or null where none of it does.
-  CornerRead? cornerOf(Read held) {
+  CornerRead? cornerOf(GlassRead held) {
     final geometry = held.geometry;
     final cut = geometry.heldIn(read.geometry).intersect(geometry.layer);
     return cut.isEmpty
@@ -232,7 +232,7 @@ final class ReadCopy {
     final facts = site.formNode?.facts;
     if (facts == null || facts.index >= _plan.fates.length) return;
     final fate = _plan.fates[facts.index];
-    if (fate is Leads && read.holds.contains(fate.read)) {
+    if (fate is LeadFate && read.holds.contains(fate.read)) {
       site.addOutput(out, this);
     }
   }
@@ -565,7 +565,7 @@ final class _Pages {
 
   final _held = Map<Object, PageCopy>.identity();
 
-  PageCopy? held(Read read) => _held[read.lead.id];
+  PageCopy? held(GlassRead read) => _held[read.lead.id];
 
   // Draws [tiles], which hold no glass one of them reads from an image not yet
   // drawn.
@@ -736,7 +736,7 @@ final class _Pages {
   void dispose() => retain(const {});
 }
 
-/// Draws a frame's [Plan]: every route of the frame is a value in there.
+/// Draws a frame's [GlassPlan]: every route of the frame is a value in there.
 @internal
 final class GlassEmit {
   final _pages = _Pages();
@@ -745,7 +745,7 @@ final class GlassEmit {
   // holds adds nothing to the scene again.
   final _liveKeys = <BackdropKey>[];
 
-  BackdropKey? _liveKeyOf(Read read) {
+  BackdropKey? _liveKeyOf(GlassRead read) {
     final group = read.liveGroup;
     if (group == null) return null;
     while (_liveKeys.length <= group) {
@@ -759,7 +759,7 @@ final class GlassEmit {
   ///
   /// [again] shows a plan an earlier frame emitted: the images it bought are
   /// drawn already.
-  void emit(Plan plan, Form form, {required bool again}) {
+  void emit(GlassPlan plan, Form form, {required bool again}) {
     final reads = plan.reads;
     var deepest = 0;
     final keep = Set<Object>.identity();
