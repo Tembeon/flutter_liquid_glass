@@ -1,3 +1,4 @@
+import 'package:apple_liquid_glass/src/controls/raw_list.dart';
 import 'package:apple_liquid_glass/src/theme/colors.dart';
 import 'package:apple_liquid_glass/src/theme/typography.dart';
 import 'package:flutter/rendering.dart';
@@ -100,7 +101,8 @@ class GlassSwipeActions extends StatefulWidget {
   State<GlassSwipeActions> createState() => _GlassSwipeActionsState();
 }
 
-class _GlassSwipeActionsState extends State<GlassSwipeActions> {
+class _GlassSwipeActionsState extends State<GlassSwipeActions>
+    implements SwipeRow {
   final _motion = _SwipeMotion();
   late final _offset = _motion.select((m) => m.offset.valueAt(m.now));
   late final DragInteraction _drag = DragInteraction(
@@ -112,7 +114,7 @@ class _GlassSwipeActionsState extends State<GlassSwipeActions> {
   );
   late final List<Interaction> _interactions = [_drag];
   double _grab = 0;
-  _OpenRow? _group;
+  OpenSwipeRow? _group;
   ScrollPosition? _scroll;
 
   Band get _band => Band(
@@ -124,7 +126,7 @@ class _GlassSwipeActionsState extends State<GlassSwipeActions> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _group = _SwipeGroup.maybeOf(context);
+    _group = SwipeGroup.maybeOf(context);
     final scroll = Scrollable.maybeOf(context)?.position;
     if (!identical(scroll, _scroll)) {
       _scroll?.isScrollingNotifier.removeListener(_scrolled);
@@ -145,6 +147,7 @@ class _GlassSwipeActionsState extends State<GlassSwipeActions> {
   }
 
   /// Settles the row closed.
+  @override
   void close() {
     _group?.closed(this);
     _motion.moveTo(MotionClock.instance.now, 0);
@@ -543,81 +546,4 @@ class _RenderSwipe extends RenderBox
 
   @override
   void visitChildrenForSemantics(RenderObjectVisitor visitor) => visitor(_row);
-}
-
-/// The swiped rows of one [RawGlassList], of which one is open at a time.
-final class _SwipeGroup extends InheritedWidget {
-  const _SwipeGroup({required this.open, required super.child});
-
-  final _OpenRow open;
-
-  static _OpenRow? maybeOf(BuildContext context) =>
-      context.getInheritedWidgetOfExactType<_SwipeGroup>()?.open;
-
-  @override
-  bool updateShouldNotify(_SwipeGroup oldWidget) => false;
-}
-
-final class _OpenRow {
-  _GlassSwipeActionsState? _row;
-
-  void opened(_GlassSwipeActionsState row) {
-    final open = _row;
-    if (open != null && !identical(open, row)) open.close();
-    _row = row;
-  }
-
-  void closed(_GlassSwipeActionsState row) {
-    if (identical(_row, row)) _row = null;
-  }
-}
-
-/// The rows of a list by id in a sliver: a change of [ids] inside
-/// `withSpring` slides the rows that stay to their new places, fades new
-/// rows in and gone rows out where they were, and moves reordered rows;
-/// outside one it jumps.
-///
-/// UIKit: `UITableView` `performBatchUpdates` with `insertRows`,
-/// `deleteRows` and `moveRow`. SwiftUI: `ForEach` in a `List`. Flutter:
-/// `SliverAnimatedList`.
-///
-/// It has no look of its own: `GlassSliverListSection` gives rows its
-/// card. Rows are built lazily by id ([SliverMotionList]), and of the
-/// [GlassSwipeActions] in its rows one is open at a time. Not measured:
-/// UIKit's row animations were not captured; the rows move on the app's
-/// spring with [planner]'s effects.
-class RawGlassList extends StatefulWidget {
-  /// Creates a list of the rows [itemBuilder] builds for [ids].
-  const RawGlassList({
-    required this.ids,
-    required this.itemBuilder,
-    this.planner = const LayoutPlanner.flip(),
-    super.key,
-  });
-
-  /// What identifies each row, in order.
-  final List<Object> ids;
-
-  /// Builds the row of an id.
-  final Widget Function(BuildContext context, Object id) itemBuilder;
-
-  /// How a change of the rows animates.
-  final LayoutPlanner planner;
-
-  @override
-  State<RawGlassList> createState() => _RawGlassListState();
-}
-
-class _RawGlassListState extends State<RawGlassList> {
-  final _open = _OpenRow();
-
-  @override
-  Widget build(BuildContext context) => _SwipeGroup(
-    open: _open,
-    child: SliverMotionList(
-      ids: widget.ids,
-      planner: widget.planner,
-      itemBuilder: widget.itemBuilder,
-    ),
-  );
 }
