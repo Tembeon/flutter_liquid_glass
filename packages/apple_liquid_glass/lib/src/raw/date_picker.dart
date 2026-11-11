@@ -364,6 +364,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
   DateTime? _focusAfterTurn;
   late bool _daysReady = !widget.defersDays;
   VoidCallback? _cancelDays;
+  VoidCallback? _cancelFocus;
 
   DateTime get _shown => _bounded(widget.value);
 
@@ -395,6 +396,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
   @override
   void dispose() {
     _cancelDays?.call();
+    _cancelFocus?.call();
     _motion.onTurn = null;
     for (final states in _dayStates.values) {
       states.dispose();
@@ -635,6 +637,14 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
         focus.year == month.year &&
         focus.month == month.month) {
       _focusAfterTurn = null;
+      // The focus scope hands the focus back to its last holder when the
+      // old month's days leave, so autofocus on the new day would not
+      // apply; the new day takes it once its zone is mounted.
+      _cancelFocus?.call();
+      _cancelFocus = _motion.clock.schedulePublish(() {
+        _cancelFocus = null;
+        if (mounted) _zones.requestFocus(focus);
+      });
     }
     final days = [
       for (var d = 1; d <= _daysIn(month); d++)
@@ -655,7 +665,6 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
             interactions: _pressOf(day),
             enabled: _enabled && _inRange(day),
             minimumHitSize: _target,
-            autofocus: day == focus,
             semanticLabel: loc.dayLabel(day, today: _sameDay(day, today)),
             button: true,
             selected: _sameDay(day, value),

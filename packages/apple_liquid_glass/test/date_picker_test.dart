@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show Tristate;
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/foundation.dart';
@@ -1093,6 +1094,7 @@ void main() {
       WidgetTester tester, {
       TextDirection direction = TextDirection.ltr,
       DateTime? value,
+      FocusNode? focusNode,
     }) async {
       final picked = <DateTime>[];
       var current = value ?? DateTime(2026, 10, 3, 9, 41);
@@ -1105,6 +1107,7 @@ void main() {
               child: RawGlassDatePicker(
                 value: current,
                 today: DateTime(2026, 10, 3),
+                focusNode: focusNode,
                 onChanged: (DateTime v) {
                   picked.add(v);
                   setState(() => current = v);
@@ -1149,6 +1152,69 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(picked.last.day, int.parse(day));
+      }
+      handle.dispose();
+    });
+
+    String? focusedLabel(WidgetTester tester) {
+      String? found;
+      bool visit(SemanticsNode node) {
+        final data = node.getSemanticsData();
+        if (data.flagsCollection.isFocused == Tristate.isTrue) {
+          found = data.label;
+          return false;
+        }
+        node.visitChildren(visit);
+        return found == null;
+      }
+
+      final root = tester.binding.renderViews.first.owner!.semanticsOwner!;
+      visit(root.rootSemanticsNode!);
+      return found;
+    }
+
+    testWidgets('an arrow that turns the month takes the focus along', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      // Weeks from Sunday: October 2026 ends on a Saturday, November 2026
+      // starts on a Sunday.
+      for (final (direction, month, start, key, lands) in [
+        (TextDirection.ltr, 10, 31, LogicalKeyboardKey.arrowDown, 'November 7'),
+        (TextDirection.ltr, 10, 3, LogicalKeyboardKey.arrowUp, 'September 26'),
+        (
+          TextDirection.ltr,
+          10,
+          31,
+          LogicalKeyboardKey.arrowRight,
+          'November 1',
+        ),
+        (TextDirection.ltr, 11, 1, LogicalKeyboardKey.arrowLeft, 'October 31'),
+        (TextDirection.rtl, 10, 31, LogicalKeyboardKey.arrowLeft, 'November 1'),
+        (TextDirection.rtl, 11, 1, LogicalKeyboardKey.arrowRight, 'October 31'),
+        (TextDirection.rtl, 10, 31, LogicalKeyboardKey.arrowDown, 'November 7'),
+      ]) {
+        final node = FocusNode();
+        await tester.pumpWidget(const SizedBox());
+        final picked = await pump(
+          tester,
+          direction: direction,
+          value: DateTime(2026, month, start, 9, 41),
+          focusNode: node,
+        );
+        node.requestFocus();
+        await tester.pumpAndSettle();
+        expect(focusedLabel(tester), contains(' $start, 2026'));
+        await tester.sendKeyEvent(key);
+        await tester.pumpAndSettle();
+        expect(
+          focusedLabel(tester),
+          contains('$lands, 2026'),
+          reason: '$direction $key',
+        );
+        expect(picked, isEmpty);
+        await tester.pumpWidget(const SizedBox());
+        node.dispose();
       }
       handle.dispose();
     });
