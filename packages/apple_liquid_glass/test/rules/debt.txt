@@ -24,11 +24,11 @@
 2:through-library         lib/src/navigation/bar.dart                 8
 2:through-library         lib/src/navigation/bar_entry.dart           3
 2:through-library         lib/src/navigation/chrome.dart              2
-2:through-library         lib/src/navigation/navigation_bar.dart      9
+2:through-library         lib/src/navigation/navigation_bar.dart      6
 2:through-library         lib/src/navigation/page_route.dart          3
 2:through-library         lib/src/navigation/tab_bar.dart             17
 2:through-library         lib/src/navigation/tab_scaffold.dart        1
-2:through-library         lib/src/navigation/toolbar.dart             6
+2:through-library         lib/src/navigation/toolbar.dart             4
 2:through-library         lib/src/presentations/alert.dart            7
 2:through-library         lib/src/presentations/menu_anchor.dart      11
 2:through-library         lib/src/presentations/menu_appearance.dart  5

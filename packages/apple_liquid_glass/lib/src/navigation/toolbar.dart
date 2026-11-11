@@ -1,10 +1,9 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/controls/button.dart';
 import 'package:apple_liquid_glass/src/controls/search_field.dart';
 import 'package:apple_liquid_glass/src/controls/search_glyphs.dart';
-import 'package:apple_liquid_glass/src/foundation/colors.dart';
-import 'package:apple_liquid_glass/src/foundation/theme.dart';
 import 'package:apple_liquid_glass/src/motions/search_motion.dart';
 import 'package:apple_liquid_glass/src/navigation/bar.dart';
 import 'package:apple_liquid_glass/src/navigation/bar_entry.dart';
@@ -183,7 +182,9 @@ class _GlassToolbarState extends State<GlassToolbar> {
           for (final entry in items.skip(search + 1))
             if (entry is GlassBarItem) _button(entry),
         ],
-        closeSemanticLabel: widget.closeSemanticLabel ?? 'Close',
+        closeSemanticLabel:
+            widget.closeSemanticLabel ??
+            GlassLocalizations.of(context).closeButtonLabel,
       );
     }
     if (shown) link.host.declareToolbar(link, items, by: this);

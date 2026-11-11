@@ -1,12 +1,10 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/controls/button.dart';
 import 'package:apple_liquid_glass/src/controls/search_field.dart';
 import 'package:apple_liquid_glass/src/controls/search_glyphs.dart';
-import 'package:apple_liquid_glass/src/foundation/colors.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/theme.dart';
-import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/search_motion.dart';
 import 'package:apple_liquid_glass/src/navigation/bar.dart';
@@ -762,12 +760,10 @@ class _StackedSearchState extends State<_StackedSearch> {
                 IgnorePointer(ignoring: !closing, child: child),
             child: GlassButton(
               onPressed: _end,
-              child: Semantics(
-                label: 'Close',
-                child: SizedBox.fromSize(
-                  size: SearchTuning.closeGlyphSize,
-                  child: CustomPaint(painter: SearchCrossPainter(glyph)),
-                ),
+              semanticLabel: GlassLocalizations.of(context).closeButtonLabel,
+              child: SizedBox.fromSize(
+                size: SearchTuning.closeGlyphSize,
+                child: CustomPaint(painter: SearchCrossPainter(glyph)),
               ),
             ),
           ),
