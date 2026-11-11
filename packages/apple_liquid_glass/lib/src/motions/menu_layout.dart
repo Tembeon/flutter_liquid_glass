@@ -277,11 +277,7 @@ class MenuLayout {
                     maxLines: item.submenu ? 1 : group.maxLines,
                     target: target,
                   ),
-                  kind: !item.enabled
-                      ? null
-                      : item.submenu
-                      ? MenuTargetKind.submenu
-                      : MenuTargetKind.action,
+                  kind: _targetKind(item),
                   keepsOpen: item.keepsOpen,
                   entry: item.entry,
                   rect: rect,
@@ -392,6 +388,12 @@ class MenuLayout {
   }
 }
 
+MenuTargetKind? _targetKind(MenuRowSpec spec) => !spec.enabled
+    ? null
+    : spec.submenu
+    ? MenuTargetKind.submenu
+    : MenuTargetKind.action;
+
 void _placeCell(
   void Function(
     MenuPlaced Function(int target) element, {
@@ -413,11 +415,7 @@ void _placeCell(
       entry: spec.entry,
       target: target,
     ),
-    kind: !spec.enabled
-        ? null
-        : spec.submenu
-        ? MenuTargetKind.submenu
-        : MenuTargetKind.action,
+    kind: _targetKind(spec),
     keepsOpen: spec.keepsOpen,
     entry: spec.entry,
     rect: rect,
