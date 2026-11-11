@@ -1,4 +1,14 @@
-/// The controls library of apple_liquid_glass.
+/// The styled iOS controls: `GlassButton`, `GlassSwitch`, `GlassSlider`,
+/// `GlassStepper`, `GlassSegmentedControl`, `GlassPageControl`,
+/// `GlassSearchField`, `GlassListRow` and its sections, `GlassSwipeActions`,
+/// `GlassDatePicker` and `GlassBadge`.
+///
+/// For the app developer: put one in and it works. Each control has a
+/// `*Style` shaped like Flutter's `ButtonStyle`, and looks a field up in
+/// its own style, then in the theme's, then in its defaults.
+///
+/// It promises that a control works with every renderer: no control asks
+/// which renderer draws it.
 library;
 
 export 'src/controls/badge.dart' show GlassBadge, GlassBadgeStyle;

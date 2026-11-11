@@ -1,4 +1,12 @@
-/// The presentations library of apple_liquid_glass.
+/// Menus and the context menu, the alert and the action sheet, the sheet and
+/// the popover.
+///
+/// For the app developer: `GlassContextMenu`, `RawGlassMenu` with its
+/// entries, `showGlassAlert`, `showGlassActionSheet`, `showGlassSheet` and
+/// `showGlassPopover`, each with its style.
+///
+/// It promises that a presentation moves by the measured laws of
+/// `motions` on kinesis's presentations, and works with every renderer.
 library;
 
 export 'src/presentations/alert.dart'

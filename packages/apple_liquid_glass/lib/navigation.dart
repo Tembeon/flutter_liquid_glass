@@ -1,4 +1,14 @@
-/// The navigation library of apple_liquid_glass.
+/// The scaffolding of an app: the navigation bar, the toolbar, the tab bar
+/// with its tab scaffold, the page scaffold with what scrolls under the
+/// bars (large titles, scroll edge effects), the page route with its zoom
+/// transition, and search in the bars.
+///
+/// For the app developer: `GlassNavigationBar`, `GlassToolbar`,
+/// `GlassTabBar`, `GlassTabScaffold`, `GlassPageScaffold`, `GlassPageRoute`
+/// and the bar items they hold (`GlassBarItem`, `GlassBarSpacer`).
+///
+/// It promises that a bar moves by the measured laws of `motions` and
+/// works with every renderer.
 library;
 
 export 'src/navigation/bar_entry.dart'
