@@ -665,7 +665,6 @@ final List<Entry> registry = [
 
 /// Public widgets that take no input, each with the reason.
 const Map<String, String> nonInteractive = {
-  'AnimatedGlassTheme': 'provides the theme to its subtree',
   'GlassBadge': 'a label drawn on another control; announces its text only',
   'GlassBarEntry': 'the sealed base of GlassBarItem and GlassBarSpacer',
   'GlassClip': 'clips its child to a glass shape',
