@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
+import 'package:apple_liquid_glass/src/controls/swipe_actions.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -259,7 +260,7 @@ class GlassListSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final look = _sectionLook(context, style);
-    return RepaintBoundary(
+    final section = RepaintBoundary(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: _Metrics.sectionInset),
         child: Column(
@@ -290,6 +291,7 @@ class GlassListSection extends StatelessWidget {
         ),
       ),
     );
+    return SwipeGroup(child: section);
   }
 }
 
@@ -360,7 +362,7 @@ class GlassSliverListSection extends StatelessWidget {
     }
 
     final indexOf = {for (final (i, id) in (ids ?? const []).indexed) id: i};
-    return SliverPadding(
+    final section = SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: _Metrics.sectionInset),
       sliver: SliverMainAxisGroup(
         slivers: [
@@ -380,6 +382,7 @@ class GlassSliverListSection extends StatelessWidget {
         ],
       ),
     );
+    return SwipeGroup(child: section);
   }
 }
 

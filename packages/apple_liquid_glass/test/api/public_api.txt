@@ -2944,7 +2944,7 @@ class RawGlassDatePicker extends StatefulWidget
   final DateTime value
   final Widget Function(BuildContext, String) weekdayBuilder
   overrides: createState
-class RawGlassList extends StatefulWidget
+class RawGlassList extends StatelessWidget
   const RawGlassList({
     required List<Object> ids,
     required Widget Function(BuildContext, Object) itemBuilder,
@@ -2954,7 +2954,7 @@ class RawGlassList extends StatefulWidget
   final List<Object> ids
   final Widget Function(BuildContext, Object) itemBuilder
   final LayoutPlanner planner
-  overrides: createState
+  overrides: build
 class RawGlassPageControl extends StatefulWidget
   const RawGlassPageControl({
     required int count,

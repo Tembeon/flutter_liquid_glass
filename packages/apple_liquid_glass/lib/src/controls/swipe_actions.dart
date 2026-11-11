@@ -1,5 +1,4 @@
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/raw/list.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -59,13 +58,14 @@ final class GlassSwipeAction {
 /// row performs the first action, as UIKit's
 /// `performsFirstActionWithFullSwipe`. A tap on the open row closes it,
 /// and so does a scroll, or a swipe of another row of the same
-/// [RawGlassList]. Accessibility offers the actions as custom actions of
-/// the row, as UIKit does, which is also how iOS's Full Keyboard Access
-/// reaches them (its actions command, Tab-Z). A closed row's actions are
-/// no Tab stops; an open row's actions are, before the row, and Space and
-/// Enter press the focused one. A focused action draws Flutter's Cupertino
-/// focus ring inside its edge and a mouse over it washes it, by the rule
-/// of the glass controls (an approximation, not measured).
+/// `GlassListSection` or `GlassSliverListSection`. Accessibility offers
+/// the actions as custom actions of the row, as UIKit does, which is also
+/// how iOS's Full Keyboard Access reaches them (its actions command,
+/// Tab-Z). A closed row's actions are no Tab stops; an open row's actions
+/// are, before the row, and Space and Enter press the focused one. A
+/// focused action draws Flutter's Cupertino focus ring inside its edge
+/// and a mouse over it washes it, by the rule of the glass controls (an
+/// approximation, not measured).
 ///
 /// Not measured: the springs, the widths and the full-swipe threshold are
 /// chosen by eye, as UIKit's swipe actions were not captured on iOS 27.
@@ -110,8 +110,55 @@ class GlassSwipeActions extends StatefulWidget {
   State<GlassSwipeActions> createState() => _GlassSwipeActionsState();
 }
 
-class _GlassSwipeActionsState extends State<GlassSwipeActions>
-    implements SwipeRow {
+/// The swiped rows of one list section, of which one is open at a time: a
+/// row that starts to open closes the one open before it.
+@internal
+class SwipeGroup extends StatefulWidget {
+  /// Groups the swiped rows in [child].
+  const SwipeGroup({required this.child, super.key});
+
+  /// The subtree holding the rows.
+  final Widget child;
+
+  @override
+  State<SwipeGroup> createState() => _SwipeGroupState();
+}
+
+class _SwipeGroupState extends State<SwipeGroup> {
+  final _open = _OpenRow();
+
+  @override
+  Widget build(BuildContext context) =>
+      _OpenRowScope(open: _open, child: widget.child);
+}
+
+class _OpenRowScope extends InheritedWidget {
+  const _OpenRowScope({required this.open, required super.child});
+
+  final _OpenRow open;
+
+  static _OpenRow? maybeOf(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<_OpenRowScope>()?.open;
+
+  @override
+  bool updateShouldNotify(_OpenRowScope oldWidget) => false;
+}
+
+final class _OpenRow {
+  _GlassSwipeActionsState? _row;
+
+  void opened(_GlassSwipeActionsState row) {
+    final open = _row;
+    if (open != null && !identical(open, row)) open.close();
+    _row = row;
+  }
+
+  void closed(_GlassSwipeActionsState row) {
+    if (identical(_row, row)) _row = null;
+  }
+}
+
+class _GlassSwipeActionsState extends State<GlassSwipeActions> {
   final _motion = _SwipeMotion();
   late final _offset = _motion.select((m) => m.offset.valueAt(m.now));
   late final DragInteraction _drag = DragInteraction(
@@ -127,7 +174,7 @@ class _GlassSwipeActionsState extends State<GlassSwipeActions>
   final _swipeKey = GlobalKey(debugLabel: 'swipe');
   final _zones = InputZonesController<int>();
   double _grab = 0;
-  OpenSwipeRow? _group;
+  _OpenRow? _group;
   ScrollPosition? _scroll;
 
   Band get _band => Band(
@@ -139,7 +186,7 @@ class _GlassSwipeActionsState extends State<GlassSwipeActions>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _group = SwipeGroup.maybeOf(context);
+    _group = _OpenRowScope.maybeOf(context);
     final scroll = Scrollable.maybeOf(context)?.position;
     if (!identical(scroll, _scroll)) {
       _scroll?.isScrollingNotifier.removeListener(_scrolled);
@@ -161,7 +208,6 @@ class _GlassSwipeActionsState extends State<GlassSwipeActions>
   }
 
   /// Settles the row closed.
-  @override
   void close() {
     _group?.closed(this);
     _motion.moveTo(_motion.clock.now, 0);

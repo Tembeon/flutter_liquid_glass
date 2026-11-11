@@ -6,7 +6,6 @@
 2:through-library       lib/src/controls/search_field.dart          2
 2:through-library       lib/src/controls/search_glyphs.dart         1
 2:through-library       lib/src/controls/segmented_control.dart     1
-2:through-library       lib/src/controls/swipe_actions.dart         1
 2:through-library       lib/src/motions/menu_fusion.dart            1
 2:through-library       lib/src/motions/menu_outline_math.dart      1
 2:through-library       lib/src/navigation/bar.dart                 2
