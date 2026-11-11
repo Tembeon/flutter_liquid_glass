@@ -84,6 +84,36 @@ void main() {
     expect(reached, 'Clear text');
   });
 
+  testWidgets('Space and Enter on the focused clear button clear the field', (
+    tester,
+  ) async {
+    for (final key in [LogicalKeyboardKey.space, LogicalKeyboardKey.enter]) {
+      final controller = TextEditingController(text: 'glass');
+      addTearDown(controller.dispose);
+      final changes = <String>[];
+      await tester.pumpWidget(
+        _app(
+          GlassSearchField(
+            key: ValueKey(key),
+            controller: controller,
+            onChanged: changes.add,
+          ),
+        ),
+      );
+      String? reached;
+      for (var i = 0; i < 4 && reached != 'Clear text'; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+        reached = focusedLabel(tester);
+      }
+      expect(reached, 'Clear text');
+      await tester.sendKeyEvent(key);
+      await _settle(tester);
+      expect(controller.text, isEmpty, reason: '$key');
+      expect(changes, [''], reason: '$key');
+    }
+  });
+
   testWidgets('the app passes the states the field writes to', (
     tester,
   ) async {
