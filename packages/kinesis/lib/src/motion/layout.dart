@@ -21,8 +21,9 @@ import 'package:kinesis/src/motion/value.dart';
 /// [MotionRest.opacity] and an accent's swell within [MotionRest.scale] of
 /// its size.
 final class LayoutMotion extends Motion {
-  /// Creates a layout motion that plans its changes with [planner].
-  LayoutMotion({this.planner = const LayoutPlanner.flip()});
+  /// Creates a layout motion that plans its changes with [planner], on
+  /// [clock] (`MotionClock.instance` when null).
+  LayoutMotion({this.planner = const LayoutPlanner.flip(), super.clock});
 
   /// Plans each change of layout.
   LayoutPlanner planner;

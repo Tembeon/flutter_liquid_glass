@@ -12,17 +12,21 @@ import 'package:kinesis/widgets.dart';
 final class PresentationEnvironment {
   /// Describes the place a presentation commits into.
   const PresentationEnvironment({
+    required this.clock,
     required this.time,
     required this.bounds,
     required this.padding,
     required this.traits,
   });
 
-  /// The environment of [context] at [time].
-  factory PresentationEnvironment.of(BuildContext context, double time) {
+  /// The environment of [context] now: on the clock of the motions there
+  /// (`MotionClockScope`), at its time.
+  factory PresentationEnvironment.of(BuildContext context) {
     final media = MediaQuery.maybeOf(context);
+    final clock = MotionClockScope.of(context);
     return PresentationEnvironment(
-      time: time,
+      clock: clock,
+      time: clock.now,
       bounds: media?.size ?? Size.zero,
       padding:
           (media?.viewPadding ?? EdgeInsets.zero) +
@@ -30,6 +34,10 @@ final class PresentationEnvironment {
       traits: MotionTraitsOverride.of(context),
     );
   }
+
+  /// The clock the presentation's motion runs on: give it to the motion
+  /// (`Motion(clock: ...)`).
+  final MotionClock clock;
 
   /// The commit's time: the stamp of the input that presented it.
   final double time;

@@ -187,7 +187,7 @@ class _SliverMotionListState extends State<SliverMotionList>
     final LayoutChange? change;
     try {
       change = motion.layout(
-        MotionClock.instance.now,
+        motion.clock.now,
         rects,
         spring: jump ? null : layout?.spring,
         carry: layout == null,

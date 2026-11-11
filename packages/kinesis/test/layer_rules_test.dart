@@ -47,6 +47,14 @@ const _rules = LayerRules(
       r'\bTicker\b',
       allowedIn: {'lib/src/presentation/route.dart'},
     ),
+    // A widget or a shell runs on the clock of its place or of its motion
+    // (MotionClockScope.of, Motion.clock), so a subtree replays on a clock
+    // of its own.
+    Ban(
+      'MotionClock.instance',
+      r'\bMotionClock\.instance\b',
+      allowedIn: {'lib/src/motion/', 'lib/src/widgets/scope.dart'},
+    ),
     Ban('dynamic', r'\bdynamic\b'),
     Ban('SingleChildScrollView', r'\bSingleChildScrollView\b'),
   ],

@@ -4,6 +4,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/presentation/presentation.dart';
+import 'package:kinesis/widgets.dart';
 
 /// Presents and dismisses the presentation of a [PresentationPortal].
 final class PresentationPortalController {
@@ -85,6 +86,7 @@ class _PresentationPortalState extends State<PresentationPortal>
   @override
   void initState() {
     super.initState();
+    _scopeClock = MotionClockScope.of(context);
     widget.controller._portal = this;
   }
 
@@ -139,8 +141,13 @@ class _PresentationPortalState extends State<PresentationPortal>
     super.dispose();
   }
 
+  // The motion's clock, or before there is one the clock of the place the
+  // portal sits in.
+  late final MotionClock _scopeClock;
+  MotionClock get _clock => _motion?.clock ?? _scopeClock;
+
   void _present() {
-    final t = MotionClock.instance.now;
+    final t = _clock.now;
     final shown = _motion;
     if (shown != null) {
       if (!_leaving) return;
@@ -154,7 +161,7 @@ class _PresentationPortalState extends State<PresentationPortal>
     final presentation = widget.presentation;
     final (motion, lease) = commitPresentation(
       presentation,
-      PresentationEnvironment.of(context, t),
+      PresentationEnvironment.of(context),
     );
     _motion = motion;
     _lease = lease;
@@ -196,7 +203,7 @@ class _PresentationPortalState extends State<PresentationPortal>
     _setLeaving(true);
     _restoreFocus();
     _result = presentation.resultOf(result);
-    if (!motion.leave(MotionClock.instance.now, trigger)) didLeave();
+    if (!motion.leave(motion.clock.now, trigger)) didLeave();
   }
 
   void _setLeaving(bool leaving) {
@@ -206,7 +213,7 @@ class _PresentationPortalState extends State<PresentationPortal>
         SchedulerPhase.persistentCallbacks) {
       // A leave the content reports while it builds applies before the
       // next build: the touch gate already holds.
-      MotionClock.instance.schedulePublish(() {
+      _clock.schedulePublish(() {
         if (mounted) _inert.value = _leaving;
       });
       return;

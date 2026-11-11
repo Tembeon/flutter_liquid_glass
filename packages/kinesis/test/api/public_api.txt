@@ -567,7 +567,7 @@ final class LayoutItem
   final double scale
   overrides: ==, hashCode
 final class LayoutMotion extends Motion
-  LayoutMotion({LayoutPlanner planner = ...})
+  LayoutMotion({LayoutPlanner planner = ..., MotionClock? clock})
   Size accentAt(Object id)
   Rect get bounds
   bool contains(Object id)
@@ -1090,13 +1090,15 @@ class PresentationContext extends InheritedWidget
   overrides: updateShouldNotify
 final class PresentationEnvironment
   const PresentationEnvironment({
+    required MotionClock clock,
     required double time,
     required Size bounds,
     required EdgeInsets padding,
     required MotionTraits traits,
   })
-  factory PresentationEnvironment.of(BuildContext context, double time)
+  factory PresentationEnvironment.of(BuildContext context)
   final Size bounds
+  final MotionClock clock
   final EdgeInsets padding
   final double time
   final MotionTraits traits

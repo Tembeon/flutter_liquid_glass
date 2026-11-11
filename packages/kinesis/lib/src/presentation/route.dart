@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/presentation/presentation.dart';
+import 'package:kinesis/widgets.dart';
 import 'package:meta/meta.dart';
 
 // A mixin, not a base class: the two shells must be a PopupRoute and a
@@ -17,6 +18,13 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
 
   Presented? _motion;
   VoidCallback? _lease;
+
+  // The motion's clock, or before there is one the clock of the place the
+  // route shows in.
+  MotionClock? _scopeClock;
+  MotionClock get _clock =>
+      _motion?.clock ??
+      (_scopeClock ??= MotionClockScope.of(navigator!.context));
   late final _RouteShell<T> _shell = _RouteShell(this);
 
   late final _StatusProjection _projection = _StatusProjection();
@@ -54,7 +62,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   /// there is nothing to close, which ends the route at once.
   @protected
   bool leave(DismissTrigger trigger) =>
-      _motion?.leave(MotionClock.instance.now, trigger) ?? false;
+      _motion?.leave(_clock.now, trigger) ?? false;
 
   /// Whether [trigger] may dismiss the presentation, before its
   /// `PopScope`s are asked; a programmatic dismissal does not ask.
@@ -84,10 +92,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     final presentation = this.presentation;
     final navigator = this.navigator;
     if (presentation == null || navigator == null || _motion != null) return;
-    final environment = PresentationEnvironment.of(
-      navigator.context,
-      MotionClock.instance.now,
-    );
+    final environment = PresentationEnvironment.of(navigator.context);
     final (motion, lease) = commitPresentation(presentation, environment);
     _motion = motion;
     _lease = lease;
@@ -113,7 +118,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     if (barrier == null || modal == barrier.value) return;
     if (SchedulerBinding.instance.schedulerPhase ==
         SchedulerPhase.persistentCallbacks) {
-      MotionClock.instance.schedulePublish(() {
+      _clock.schedulePublish(() {
         if (isActive) modalityChanged();
       });
       return;
@@ -292,7 +297,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     _cancelReturn = null;
     _backing = true;
     beginInteraction();
-    final t = MotionClock.instance.now;
+    final t = motion.clock.now;
     _backTime = t;
     _backProgress = 1 - progress;
     _backVelocity = 0;
@@ -305,7 +310,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   void handleUpdateBackGestureProgress({required double progress}) {
     final motion = _motion;
     if (!_backing || motion is! PredictiveBack) return;
-    final t = MotionClock.instance.now;
+    final t = motion.clock.now;
     final p = 1 - progress;
     if (t > _backTime) {
       _backVelocity = (p - _backProgress) / (t - _backTime);
@@ -328,7 +333,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     final motion = _motion;
     if (!_backing || motion is! PredictiveBack) return;
     _backing = false;
-    final t = MotionClock.instance.now;
+    final t = motion.clock.now;
     final goes = commits && isCurrent && canDismiss(DismissTrigger.back);
     motion.backEnded(
       t,
@@ -350,7 +355,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
       endInteraction();
       return;
     }
-    final clock = MotionClock.instance;
+    final clock = motion.clock;
     _cancelReturn = clock.schedule(
       rest ?? t + (clock.framePeriod ?? 1 / 60),
       (time) {
@@ -537,7 +542,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     _projection.update(AnimationStatus.reverse);
     if (SchedulerBinding.instance.schedulerPhase ==
         SchedulerPhase.persistentCallbacks) {
-      MotionClock.instance.schedulePublish(() {
+      _clock.schedulePublish(() {
         if (!_disposed) _closing.value = true;
       });
       return;

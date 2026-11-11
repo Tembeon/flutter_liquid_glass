@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/widgets/scope.dart';
 import 'package:kinesis/src/widgets/transition.dart';
 
 /// One item of a layout host: where it is drawn, and which descendants
@@ -136,7 +137,11 @@ mixin LayoutMotionOwner<W extends StatefulWidget> on State<W> {
 
   /// The motion the widget drives.
   LayoutMotion get motion =>
-      givenMotion ?? (_kept ??= LayoutMotion(planner: givenPlanner));
+      givenMotion ??
+      (_kept ??= LayoutMotion(
+        planner: givenPlanner,
+        clock: MotionClockScope.of(context),
+      ));
 
   /// Whether the frame's layout jumps instead of moving.
   bool get jumps {
