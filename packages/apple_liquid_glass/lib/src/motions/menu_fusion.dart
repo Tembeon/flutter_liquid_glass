@@ -2,9 +2,9 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/foundation/boxes.dart';
 import 'package:apple_liquid_glass/src/motions/menu_fusion_worker.dart';
 import 'package:apple_liquid_glass/src/motions/menu_outline_math.dart';
+import 'package:apple_liquid_glass/src/motions/outline_boxes.dart';
 import 'package:flutter/foundation.dart';
 
 /// The silhouette of a menu morph: its two shapes fused the way UIKit's
