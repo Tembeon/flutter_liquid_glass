@@ -1,48 +1,5 @@
 part of 'menu_anchor.dart';
 
-/// What the layer's tree is built from; it builds only when this changes.
-@immutable
-class _Structure {
-  const _Structure({
-    required this.layouts,
-    required this.hidden,
-    required this.open,
-    required this.scrolls,
-    required this.top,
-  });
-
-  final List<MenuLayout> layouts;
-
-  /// The row each card hides under the submenu card grown out of it.
-  final List<int?> hidden;
-  final bool open;
-  final bool scrolls;
-
-  /// The card whose rows take the keys, the mouse and the highlight.
-  final int top;
-
-  @override
-  bool operator ==(Object other) {
-    if (other is! _Structure ||
-        other.open != open ||
-        other.scrolls != scrolls ||
-        other.top != top ||
-        other.layouts.length != layouts.length) {
-      return false;
-    }
-    for (var i = 0; i < layouts.length; i++) {
-      if (!identical(other.layouts[i], layouts[i]) ||
-          other.hidden[i] != hidden[i]) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  @override
-  int get hashCode => Object.hash(open, scrolls, top, layouts.length);
-}
-
 /// The open menu on the overlay: its glass, the source's look on it, its
 /// rows and the submenu cards over them, each following the motion's
 /// frames without a rebuild.
@@ -62,20 +19,14 @@ class _MenuLayer extends StatefulWidget {
   State<_MenuLayer> createState() => _MenuLayerState();
 }
 
-class _MenuLayerState extends State<_MenuLayer> {
-  final _scroll = ScrollController();
+class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
+  late final _scroll = MenuLayerScroll(this);
+  final _ids = MenuZoneIds();
   final Map<MenuLayout, (int?, Widget)> _rows = Map.identity();
   final _zones = InputZonesController<int>();
   final Map<int, List<Interaction>> _rowInputs = {};
   MenuAppearance? _rowsStyle;
-  late _Structure _built;
-  bool _parentLocked = false;
-
-  // A row's zone id is its target index on the top card, except that the
-  // focused zone carries over a card change: its id then names the row the
-  // keyboard moves to, swapped with that row's own index.
-  int? _swapId;
-  int? _swapTarget;
+  late MenuLayerStructure _built;
 
   // The row of the next top card the keyboard moves to: -1 for its first
   // row, else a target index; null when no key changed the card.
@@ -85,7 +36,8 @@ class _MenuLayerState extends State<_MenuLayer> {
 
   _MenuHost<StatefulWidget> get _host => widget.host;
 
-  late final MotionSelection<MenuMotion> _frames = _host._steps!;
+  @override
+  late final MotionSelection<MenuMotion> frames = _host._steps!;
 
   late final _input = _MenuInput(
     down: _host._pointerDown,
@@ -99,6 +51,19 @@ class _MenuLayerState extends State<_MenuLayer> {
 
   MenuMotion get _motion => _host._motion!;
 
+  @override
+  MenuMotion get motion => _motion;
+
+  @override
+  MenuLayerStructure get built => _built;
+
+  @override
+  MenuContent get content => _host._content;
+
+  @override
+  void command(void Function(MenuMotion motion, double t) command) =>
+      _host._command(command);
+
   double get _width => _motion.menuWidth;
 
   bool get _rtl => _host._content.rtl;
@@ -106,26 +71,25 @@ class _MenuLayerState extends State<_MenuLayer> {
   @override
   void initState() {
     super.initState();
-    _frames.addListener(_tick);
-    _scroll.addListener(_scrolled);
+    frames.addListener(_tick);
     _zones.addListener(_focusMoved);
     _built = _structure();
   }
 
   @override
   void dispose() {
-    _frames.removeListener(_tick);
+    frames.removeListener(_tick);
     _zones.removeListener(_focusMoved);
     _zones.dispose();
     _scroll.dispose();
     super.dispose();
   }
 
-  _Structure _structure() {
+  MenuLayerStructure _structure() {
     final motion = _motion;
     final cards = motion.cards;
     final root = cards[0].layout;
-    return _Structure(
+    return MenuLayerStructure(
       layouts: [for (final card in cards) card.layout],
       hidden: [for (final card in cards.skip(1)) card.source, null],
       open: motion.isOpen,
@@ -141,15 +105,6 @@ class _MenuLayerState extends State<_MenuLayer> {
     setState(() => _built = structure);
   }
 
-  int _idOf(int target) => target == _swapTarget
-      ? _swapId!
-      : target == _swapId
-      ? _swapTarget!
-      : target;
-
-  // The swap is its own inverse.
-  int _targetOf(int id) => _idOf(id);
-
   /// The top card is now [top]: the focus a key asked for moves onto its
   /// row, carried by the zone that has the focus.
   void _cardChanged(int top) {
@@ -157,8 +112,7 @@ class _MenuLayerState extends State<_MenuLayer> {
     _pending = null;
     _cardEntered = false;
     final focused = _zones.focusedZone;
-    _swapId = null;
-    _swapTarget = null;
+    _ids.clear();
     if (pending == null || focused == null) return;
     final targets = _motion.cards[top].layout.targets;
     var target = pending;
@@ -169,35 +123,19 @@ class _MenuLayerState extends State<_MenuLayer> {
       if (target < 0) target = 0;
     }
     if (target >= targets.length || target == focused) return;
-    _swapId = focused;
-    _swapTarget = target;
+    _ids.swap(focused, target);
   }
-
-  void _scrolled() {
-    if (_scroll.hasClients) _motion.scrollOffset = _scroll.offset;
-  }
-
-  bool _scrollStarted(ScrollNotification notification) {
-    if (notification is ScrollStartNotification &&
-        notification.dragDetails != null) {
-      _scrollGesture();
-    }
-    return false;
-  }
-
-  void _scrollGesture() =>
-      _host._command((motion, t) => motion.pointerScrolled(t));
 
   /// Whether the rows the zones stand for are the top card's now.
+  @override
+  bool get current => _current;
+
   bool get _current {
     final motion = _motion;
     return motion.isOpen && motion.topCard == _built.top;
   }
 
-  MenuTarget? _targetAt(int index) {
-    final targets = _built.layouts[_built.top].targets;
-    return index >= 0 && index < targets.length ? targets[index] : null;
-  }
+  MenuTarget? _targetAt(int index) => _built.targetAt(index);
 
   /// Chooses [index] of the top card; [pending] is where the focus moves
   /// when that changes the card, or null to leave it.
@@ -225,27 +163,11 @@ class _MenuLayerState extends State<_MenuLayer> {
     if (id == _lastFocused) return;
     _lastFocused = id;
     if (id == null || !_current) return;
-    final index = _targetOf(id);
+    final index = _ids.targetOf(id);
     if (_motion.highlighted != index || _motion.highlightedCard != _built.top) {
       _host._command((motion, t) => motion.highlight(t, index));
     }
-    _reveal(index);
-  }
-
-  // A row the keys move to below or above the visible root list scrolls
-  // into it.
-  void _reveal(int index) {
-    if (_built.top != 0 || !_scroll.hasClients) return;
-    final target = _targetAt(index);
-    if (target == null) return;
-    final visible = _motion.visibleRootHeight;
-    final offset = _scroll.offset;
-    final rect = target.rect;
-    if (rect.top < offset) {
-      _scroll.jumpTo(rect.top);
-    } else if (rect.bottom > offset + visible) {
-      _scroll.jumpTo(rect.bottom - visible);
-    }
+    _scroll.reveal(index);
   }
 
   void _menuFocused(bool focused) {
@@ -255,7 +177,7 @@ class _MenuLayerState extends State<_MenuLayer> {
     }
     final targets = _built.layouts[_built.top].targets;
     if (targets.isEmpty) return;
-    _zones.requestFocus(_idOf(0));
+    _zones.requestFocus(_ids.idOf(0));
   }
 
   // The arrow toward the trailing edge opens a submenu row's card, the one
@@ -264,7 +186,7 @@ class _MenuLayerState extends State<_MenuLayer> {
   bool _edge(int id, TraversalDirection direction) {
     final into = _rtl ? TraversalDirection.left : TraversalDirection.right;
     final out = _rtl ? TraversalDirection.right : TraversalDirection.left;
-    final index = _targetOf(id);
+    final index = _ids.targetOf(id);
     if (direction == into && _targetAt(index)?.kind == MenuTargetKind.submenu) {
       _choose(index, pending: -1);
     } else if (direction == out) {
@@ -277,7 +199,7 @@ class _MenuLayerState extends State<_MenuLayer> {
   // items do; a row scrolled out of the list takes nothing.
   void _rowEntered(int id) {
     if (!_current) return;
-    final rect = _motion.targetRect(_targetOf(id));
+    final rect = _motion.targetRect(_ids.targetOf(id));
     if (rect == null) return;
     final frame = _motion.menuRect;
     if (!frame.contains(rect.center)) return;
@@ -285,7 +207,7 @@ class _MenuLayerState extends State<_MenuLayer> {
   }
 
   void _dwelled(int id) {
-    final index = _targetOf(id);
+    final index = _ids.targetOf(id);
     if (_targetAt(index)?.kind != MenuTargetKind.submenu) return;
     _choose(index);
   }
@@ -311,7 +233,7 @@ class _MenuLayerState extends State<_MenuLayer> {
     id,
     () => [
       _RowInput(
-        onActivate: () => _choose(_targetOf(id), pending: -1),
+        onActivate: () => _choose(_ids.targetOf(id), pending: -1),
         onEnter: () => _rowEntered(id),
       ),
       HoverDwellInteraction(
@@ -323,7 +245,7 @@ class _MenuLayerState extends State<_MenuLayer> {
 
   InputZoneFrame? _frameOf(int id) {
     if (!_current) return null;
-    final rect = _motion.targetRect(_targetOf(id));
+    final rect = _motion.targetRect(_ids.targetOf(id));
     return rect == null ? null : InputZoneFrame(rect);
   }
 
@@ -334,7 +256,7 @@ class _MenuLayerState extends State<_MenuLayer> {
       final element = target.element < 0
           ? null
           : layout.elements[target.element];
-      final id = _idOf(i);
+      final id = _ids.idOf(i);
       final entry = target.entry;
       final (String label, String? value) = switch (entry) {
         GlassMenuItem(:final title, :final subtitle) ||
@@ -383,7 +305,7 @@ class _MenuLayerState extends State<_MenuLayer> {
         card == _built.top &&
         _current &&
         FocusManager.instance.highlightMode == FocusHighlightMode.traditional) {
-      return _targetOf(focused);
+      return _ids.targetOf(focused);
     }
     if (motion.highlightedCard != card) return null;
     final index = motion.highlighted;
@@ -484,22 +406,7 @@ class _MenuLayerState extends State<_MenuLayer> {
       ),
     );
     final body = _built.scrolls
-        ? NotificationListener<ScrollNotification>(
-            onNotification: _scrollStarted,
-            child: RawScrollbar(
-              controller: _scroll,
-              thumbColor: style.secondaryColor,
-              thickness: MenuAppearance.scrollThickness,
-              radius: const Radius.circular(MenuAppearance.scrollThickness / 2),
-              mainAxisMargin: _motion.cornerRadius / 2,
-              crossAxisMargin: MenuAppearance.scrollInset,
-              child: CustomScrollView(
-                controller: _scroll,
-                physics: locked ? const NeverScrollableScrollPhysics() : null,
-                slivers: [SliverToBoxAdapter(child: content)],
-              ),
-            ),
-          )
+        ? _scroll.body(content, style)
         : OverflowBox(
             alignment: Alignment.topLeft,
             minHeight: layout.height,
@@ -518,10 +425,7 @@ class _MenuLayerState extends State<_MenuLayer> {
     final width = _width;
     if (index == 0) {
       final locked = _built.layouts.length > 1;
-      if (locked && !_parentLocked && _scroll.hasClients) {
-        (_scroll.position as ScrollPositionWithSingleContext).goIdle();
-      }
-      _parentLocked = locked;
+      _scroll.lock(locked: locked);
       return _driven(
         key: const ValueKey<int>(0),
         (motion) {
@@ -597,7 +501,7 @@ class _MenuLayerState extends State<_MenuLayer> {
         children: [
           IgnorePointer(
             child: _LiveGlassSurface(
-              live: _frames,
+              live: frames,
               frameOf: () => GlassFrame(
                 shape: GlassShape.roundedRect(radius()),
                 glow: _motion.cardGlow(index),
@@ -656,7 +560,7 @@ class _MenuLayerState extends State<_MenuLayer> {
                               clipBehavior: Clip.none,
                               children: [
                                 MenuCardHeader(
-                                  frames: _frames,
+                                  frames: frames,
                                   header: header,
                                   placed: () => index < _motion.cards.length
                                       ? menuCardHeaderAt(
@@ -699,18 +603,18 @@ class _MenuLayerState extends State<_MenuLayer> {
     SingleChildRenderObjectWidget Function(MenuMotion motion) template, {
     Widget? child,
     Key? key,
-  }) => menuDriven(_frames, template, child: child, key: key);
+  }) => menuDriven(frames, template, child: child, key: key);
 
   // A blur too small to see costs a layer and shows nothing.
   static double _visible(double sigma) => sigma > 0.01 ? sigma : 0;
 
   late final _contentBlur = MotionSelection<double>(() {
-    final motion = _frames.value;
+    final motion = frames.value;
     return _visible(motion.contentBlur / motion.contentScale);
   });
 
   late final _lookBlur = MotionSelection<double>(
-    () => _visible(_frames.value.buttonLookBlur),
+    () => _visible(frames.value.buttonLookBlur),
   );
 
   Matrix4 _contentTransform() {
@@ -764,7 +668,7 @@ class _MenuLayerState extends State<_MenuLayer> {
     final layer = InputZones<int>(
       zones: structure.open ? _zonesOf(layouts[structure.top]) : const [],
       frameOf: _frameOf,
-      frames: _frames,
+      frames: frames,
       controller: _zones,
       axis: null,
       stops: InputZoneStops.one,
@@ -778,7 +682,7 @@ class _MenuLayerState extends State<_MenuLayer> {
           ..._host._backdrop(this),
           IgnorePointer(
             child: _LiveGlassSurface(
-              live: _frames,
+              live: frames,
               frameOf: () => _menuFrame(
                 motion,
                 sourceTint: _host._sourceTint,

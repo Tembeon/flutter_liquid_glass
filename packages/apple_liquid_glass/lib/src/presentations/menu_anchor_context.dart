@@ -317,7 +317,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   List<Widget> _backdrop(_MenuLayerState layer) {
     final natural = _heldRect.size;
     final builder = widget.previewBuilder;
-    final frames = layer._frames;
+    final frames = layer.frames;
     Widget carried(Size size, Widget child) => menuDriven(frames, (_) {
       final rect = _previewNow();
       return menuPlacement(

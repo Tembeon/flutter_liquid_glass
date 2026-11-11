@@ -7,7 +7,7 @@ class _HighlightPainter extends CustomPainter {
     required this.card,
     required this.layout,
     required this.color,
-  }) : super(repaint: Listenable.merge([layer._frames, layer._zones]));
+  }) : super(repaint: Listenable.merge([layer.frames, layer._zones]));
 
   final _MenuLayerState layer;
   final int card;
