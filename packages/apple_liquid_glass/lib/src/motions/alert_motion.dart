@@ -43,10 +43,7 @@ abstract final class AlertTuning {
 /// iOS's to measure, so this is the dismissal's own path, not a recording.
 class AlertMotion extends Motion with Presented, PredictiveBack {
   /// Creates the motion of an alert that is not shown yet.
-  AlertMotion({
-    this.spring = AlertTuning.spring,
-    this.presentScale = AlertTuning.presentScale,
-  });
+  AlertMotion();
 
   /// The width of an alert in points; the scale rests within a tolerance of
   /// it.
@@ -56,18 +53,15 @@ class AlertMotion extends Motion with Presented, PredictiveBack {
   @override
   double get minFrameRate => 80;
 
-  /// The spring of the progress and the scale.
-  final Spring spring;
-
-  /// The scale the alert presents from.
-  final double presentScale;
-
   late final _progress = own(
-    MotionValue<double>(0, spring: spring),
+    MotionValue<double>(0, spring: AlertTuning.spring),
     rest: () => MotionRest.opacity,
   );
   late final _scale = own(
-    MotionValue<double>(presentScale, spring: spring),
+    MotionValue<double>(
+      AlertTuning.presentScale,
+      spring: AlertTuning.spring,
+    ),
     rest: () => MotionRest.scale(AlertMotion.width),
   );
   bool _dismissing = false;
@@ -84,7 +78,7 @@ class AlertMotion extends Motion with Presented, PredictiveBack {
     advance(t);
     _dismissing = false;
     if (_progress.valueAt(t) <= 0 && _progress.velocityAt(t) == 0) {
-      _scale.snap(t, presentScale);
+      _scale.snap(t, AlertTuning.presentScale);
     }
     _progress.retarget(t, 1);
     _scale.retarget(t, 1);

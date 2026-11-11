@@ -24,17 +24,15 @@ final class AdaptiveGlassRenderer extends GlassRenderer
   final GlassRenderer fallback
   overrides: ==, buildGroup, buildScrollEdge, buildSurface, hashCode
 class AlertMotion extends Motion with Presented, PredictiveBack
-  AlertMotion({Spring spring = ..., double presentScale = ...})
+  AlertMotion()
   double get dimming
   void dismiss(double t)
   bool get isDismissed
   bool get isLeaving
   double get opacity
   void present(double t)
-  final double presentScale
   double get progress
   double get scale
-  final Spring spring
   static const double width
   overrides: backEnded, backMoved, backStarted, leave, minFrameRate, open, presence
 final class ContextHold extends Motion
