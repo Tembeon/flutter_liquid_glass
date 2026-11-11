@@ -157,6 +157,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
   );
   late MotionSelection<double> _chevronAngle = _angle(rtl: false);
   bool _rtl = false;
+  bool _showsYears = false;
   late DateTime _month = DateTime(_shown.year, _shown.month);
   DateTime? _previousMonth;
   DateTime? _focusAfterTurn;
@@ -181,6 +182,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
     if (!_daysReady) {
       _cancelDays = _motion.clock.schedulePublish(() {
         _cancelDays = null;
+        // The deferred days mount once, a frame after the rest.
         if (mounted) setState(() => _daysReady = true);
       });
     }
@@ -234,6 +236,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
 
   bool _turned(int direction) {
     if (!mounted || !_canTurn(direction)) return false;
+    // Once per turn, as it starts: the new month's days are built.
     setState(() {
       _previousMonth = _month;
       _month = DateTime(_month.year, _month.month + direction);
@@ -242,8 +245,10 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
   }
 
   void _toggleYearPicker(double t) {
-    setState(() {});
-    _motion.showYearPicker(t, show: !_motion.showsYearPicker);
+    // The title's label, its chevron's state and which half takes input
+    // and semantics follow the tap at once.
+    setState(() => _showsYears = !_showsYears);
+    _motion.showYearPicker(t, show: _showsYears);
   }
 
   void _pick(DateTime day) {
@@ -270,6 +275,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
     if (last != null && _dateOnly(next).isAfter(_dateOnly(last))) {
       next = DateTime(last.year, last.month, last.day, v.hour, v.minute);
     }
+    // A wheel at rest shows its month without a turn.
     setState(() {
       _previousMonth = null;
       _month = DateTime(next.year, next.month);
@@ -513,7 +519,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
       _chevronAngle = _angle(rtl: rtl);
     }
     final loc = GlassLocalizations.of(context);
-    final years = _motion.showsYearPicker;
+    final years = _showsYears;
     final month = _month;
     final titleText = loc.monthYear(month);
     final canPrevious = _enabled && _canTurn(-1);
