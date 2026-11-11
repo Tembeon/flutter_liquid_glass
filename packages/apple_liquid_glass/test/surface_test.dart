@@ -131,6 +131,54 @@ void main() {
       );
     });
 
+    testWidgets('a translucent lens shows what is under it, not its own '
+        'shadow, and casts the shadow outside', (tester) async {
+      const screen = Key('screen');
+      for (final (lift, inside) in [(0.0, 0xEC), (1.0, 0xFB)]) {
+        await tester.pumpWidget(
+          RepaintBoundary(
+            key: screen,
+            child: ColoredBox(
+              color: const Color(0xFFFFFFFF),
+              child: _app(
+                const FlatGlassRenderer(),
+                SizedBox(
+                  width: 120,
+                  height: 40,
+                  child: GlassSurface.live(
+                    role: GlassRole.lens,
+                    glass: const Glass.regular(tint: Color(0x13000000)),
+                    frame: MotionSelection(() => GlassFrame(lift: lift)),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        final origin = tester.getTopLeft(find.byType(GlassSurface));
+        final image = await tester.runAsync(() async {
+          final boundary = tester.renderObject<RenderRepaintBoundary>(
+            find.byKey(screen),
+          );
+          final image = await boundary.toImage();
+          final data = await image.toByteData();
+          final width = image.width;
+          image.dispose();
+          return (data!.buffer.asUint8List(), width);
+        });
+        final (bytes, width) = image!;
+        int red(Offset at) {
+          final point = origin + at;
+          return bytes[(point.dy.floor() * width + point.dx.floor()) * 4];
+        }
+
+        expect(red(const Offset(30, 20)), closeTo(inside, 2), reason: '$lift');
+        expect(red(const Offset(60, 20)), closeTo(inside, 2), reason: '$lift');
+        expect(red(const Offset(60, 42)), lessThan(0xFB), reason: '$lift');
+      }
+    });
+
     test('a track has a fill only; a tint, then the scheme, fills the '
         'body', () {
       const light = GlassTraits();

@@ -16,10 +16,11 @@ import 'package:flutter/widgets.dart';
 /// systemFill, a default no control measured. A color scheme's surfaces
 /// replace the fills per role.
 ///
-/// A shadow is Impeller's analytic blur of the body's shape. NEAR: at most
-/// 6 of 255 levels from a Gaussian blur of its path, 2 on average, at 2.625
-/// and 3 device pixels per point, and no offscreen passes. A body with an
-/// outline blurs its path offscreen.
+/// A shadow is Impeller's analytic blur of the body's shape, clipped to the
+/// outside of the body so a translucent body shows what is under it. NEAR:
+/// at most 6 of 255 levels from a Gaussian blur of its path, 2 on average,
+/// at 2.625 and 3 device pixels per point, and no offscreen passes. A body
+/// with an outline blurs its path offscreen.
 ///
 /// A body whose control is focused from the keyboard draws Flutter's
 /// Cupertino focus ring outside its shape, and a hovered one a pressed
@@ -315,9 +316,9 @@ class RenderFlatGlass extends RenderProxyBox {
         : Color.lerp(_look.fill, tint, frame.tintAmount.clamp(0.0, 1.0))!;
     final liftRim = _look.liftRim;
     if (liftRim != null) {
-      _paintLifting(canvas, frame, body, color, liftRim);
+      _paintLifting(canvas, frame, body, outline, color, liftRim);
     } else {
-      _paintBody(canvas, frame, body, color);
+      _paintBody(canvas, frame, body, outline, color);
     }
     canvas.restore();
     final child = this.child;
@@ -336,6 +337,7 @@ class RenderFlatGlass extends RenderProxyBox {
     Canvas canvas,
     GlassFrame frame,
     Rect body,
+    Path outline,
     Color color,
     Color liftRim,
   ) {
@@ -343,12 +345,15 @@ class RenderFlatGlass extends RenderProxyBox {
     final shown = _look.underGlass ? 1 - GlassFrame.glassnessAt(lift) : 1.0;
     if (shown <= 0) return;
     if (_look.shadow case final resting?) {
-      final shadow = Paint();
-      shadow.color = resting.withValues(
-        alpha: (resting.a + 0.1 * lift) * shown,
+      _drawShadow(
+        canvas,
+        frame,
+        body,
+        outline,
+        resting.withValues(alpha: (resting.a + 0.1 * lift) * shown),
+        sigma: 2 + 4 * lift,
+        shift: const Offset(0, 1.5),
       );
-      shadow.maskFilter = MaskFilter.blur(BlurStyle.normal, 2 + 4 * lift);
-      _drawBody(canvas, frame, body, shadow, shift: const Offset(0, 1.5));
     }
     final fill = Paint();
     fill.color = color.withValues(
@@ -367,13 +372,19 @@ class RenderFlatGlass extends RenderProxyBox {
     Canvas canvas,
     GlassFrame frame,
     Rect body,
+    Path outline,
     Color color,
   ) {
     if (_look.shadow case final shadow?) {
-      final paint = Paint();
-      paint.color = shadow;
-      paint.maskFilter = const MaskFilter.blur(BlurStyle.normal, shadowSigma);
-      _drawBody(canvas, frame, body, paint, shift: shadowOffset);
+      _drawShadow(
+        canvas,
+        frame,
+        body,
+        outline,
+        shadow,
+        sigma: shadowSigma,
+        shift: shadowOffset,
+      );
     }
     final fill = Paint();
     fill.color = color;
@@ -385,6 +396,30 @@ class RenderFlatGlass extends RenderProxyBox {
       stroke.color = rim;
       canvas.drawPath(_rimPath(frame, body, rimWidth / 2), stroke);
     }
+  }
+
+  // BlurStyle.outer would cut the shadow by its own shifted shape, leaving
+  // a band of it inside the body's top and a gap under the body's bottom.
+  static void _drawShadow(
+    Canvas canvas,
+    GlassFrame frame,
+    Rect body,
+    Path outline,
+    Color color, {
+    required double sigma,
+    required Offset shift,
+  }) {
+    final paint = Paint();
+    paint.color = color;
+    paint.maskFilter = MaskFilter.blur(BlurStyle.normal, sigma);
+    final outside = Path();
+    outside.fillType = PathFillType.evenOdd;
+    outside.addRect(outline.getBounds().inflate(shift.distance + 4 * sigma));
+    outside.addPath(outline, Offset.zero);
+    canvas.save();
+    canvas.clipPath(outside);
+    _drawBody(canvas, frame, body, paint, shift: shift);
+    canvas.restore();
   }
 
   // A capsule's path forms no shadow mesh Impeller takes: blurred as a path

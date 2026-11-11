@@ -79,7 +79,7 @@ final List<Entry> registry = [
     ],
     exempt: const {
       'contrast-light': Exemption(
-        '"Section": expected contrast ratio of at least 4.5 but found 3.41 '
+        '"Section": expected contrast ratio of at least 4.5 but found 3.44 '
         'for a font size of 13.0',
         because:
             'iOS 27 colours: a menu section header is secondaryLabel, '
@@ -105,7 +105,7 @@ final List<Entry> registry = [
     covers: const ['GlassContextMenu'],
     exempt: const {
       'contrast-light': Exemption(
-        '"Section": expected contrast ratio of at least 4.5 but found 3.30 '
+        '"Section": expected contrast ratio of at least 4.5 but found 3.34 '
         'for a font size of 13.0',
         because:
             'iOS 27 colours: a menu section header is secondaryLabel, '
@@ -681,7 +681,7 @@ final List<Entry> registry = [
     covers: const [],
     exempt: const {
       'contrast-light': Exemption(
-        '"Section": expected contrast ratio of at least 4.5 but found 3.41 '
+        '"Section": expected contrast ratio of at least 4.5 but found 3.44 '
         'for a font size of 13.0',
         because:
             'iOS 27 colours: a menu section header is secondaryLabel, '
