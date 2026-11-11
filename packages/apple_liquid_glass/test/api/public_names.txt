@@ -162,7 +162,6 @@ LayoutPlanner
 LiquidGlassRenderer
 LongPressInteraction
 LongPressStartEvent
-ManualMotionClock
 Motion
 MotionCancel
 MotionClock
@@ -245,7 +244,6 @@ TapInteraction
 TimedValue
 ValueCommand
 debugDumpGlassPlan
-expectGlassBudget
 listenForRender
 precacheGlass
 showGlassActionSheet
