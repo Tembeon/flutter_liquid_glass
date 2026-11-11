@@ -1,4 +1,4 @@
-part of 'form.dart';
+part of 'glass_form.dart';
 
 /// One layer as the composer knows it.
 @internal

@@ -8,7 +8,7 @@ import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
-import 'package:liquid_glass_renderer/src/rendering/form.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_form.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
 import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
 

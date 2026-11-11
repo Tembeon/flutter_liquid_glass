@@ -8,8 +8,8 @@ import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart'
     show InPlaceFrost, frostInPlace;
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
-import 'package:liquid_glass_renderer/src/rendering/form.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_form.dart';
 import 'package:liquid_glass_renderer/src/rendering/running_under_flutter_test.dart';
 import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 import 'package:liquid_glass_renderer/src/rendering/snap_rect_to_pixels.dart';

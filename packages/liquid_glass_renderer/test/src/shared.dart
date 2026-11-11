@@ -6,8 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
-import 'package:liquid_glass_renderer/src/rendering/form.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_form.dart';
 import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
 
 const expectFlutterGpuFallback = bool.fromEnvironment(
