@@ -280,6 +280,8 @@ void main() {
         ),
       ),
     );
+    // A zone's box takes its size at the start of the next frame.
+    await tester.pump();
     final node = tester.getSemantics(find.byType(RawGlassStepper));
     expect(
       node,
