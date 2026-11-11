@@ -315,7 +315,8 @@ void main() {
   });
 
   testWidgets('arrow keys move between the tabs from the right in a '
-      'right-to-left bar; Enter selects the focused tab, then reselects it', (
+      'right-to-left bar and select the tab they reach; Enter and Space '
+      'reselect it', (
     tester,
   ) async {
     final focus = FocusNode();
@@ -343,27 +344,26 @@ void main() {
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
     await _settle(tester);
-    expect(selected, isEmpty);
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-    await _settle(tester);
     expect(selected, [2]);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     expect(selected, [2, 2]);
     await tester.sendKeyEvent(LogicalKeyboardKey.home);
-    await tester.sendKeyEvent(LogicalKeyboardKey.space);
     await _settle(tester);
     expect(selected, [2, 2, 0]);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    expect(selected, [2, 2, 0, 0]);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await _settle(tester);
+    expect(selected, [2, 2, 0, 0]);
     expect(
       FocusManager.instance.primaryFocus?.debugLabel,
       isNot(contains('(2, null)')),
     );
     await tester.sendKeyEvent(LogicalKeyboardKey.end);
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await _settle(tester);
-    expect(selected, [2, 2, 0, 2]);
+    expect(selected, [2, 2, 0, 0, 2]);
   });
 
   testWidgets('without a callback a tap does nothing', (tester) async {

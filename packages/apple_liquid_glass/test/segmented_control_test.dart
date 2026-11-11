@@ -214,7 +214,7 @@ void main() {
   });
 
   testWidgets('a disabled segment takes no tap; the arrow keys skip it and '
-      'Enter and Space select the focused segment', (
+      'select the segment they reach, which Enter and Space select again', (
     tester,
   ) async {
     final focus = FocusNode();
@@ -247,18 +247,19 @@ void main() {
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await _settle(tester);
-    expect(values, isEmpty);
+    expect(values, ['c']);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await _settle(tester);
     expect(values, ['c']);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await _settle(tester);
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
     await _settle(tester);
     expect(values, ['c', 'a']);
   });
 
-  testWidgets('a key the app binds to ActivateIntent selects the focused '
-      'segment; Home and End reach the ends', (tester) async {
+  testWidgets('Home and End select the ends; a key the app binds to '
+      'ActivateIntent selects the focused segment again', (tester) async {
     final focus = FocusNode();
     addTearDown(focus.dispose);
     final values = <String>[];
@@ -278,6 +279,7 @@ void main() {
                 values.add(next);
                 setState(() => value = next);
               },
+              onReselected: (again) => values.add('again $again'),
             ),
           ),
         ),
@@ -286,13 +288,15 @@ void main() {
     focus.requestFocus();
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.end);
+    await _settle(tester);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
     await _settle(tester);
-    expect(values, ['c']);
+    expect(values, ['c', 'again c']);
     await tester.sendKeyEvent(LogicalKeyboardKey.home);
+    await _settle(tester);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
     await _settle(tester);
-    expect(values, ['c', 'a']);
+    expect(values, ['c', 'again c', 'a', 'again a']);
   });
 
   testWidgets('a finger that slides takes the touch from the item it went '
@@ -336,6 +340,30 @@ void main() {
     await gesture.up();
     await _settle(tester);
     expect(changed, [2]);
+  });
+
+  testWidgets("a tap in a segment's 44 point extension selects it; one "
+      'beyond does not', (tester) async {
+    final values = <String>[];
+    await tester.pumpWidget(
+      _app(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: _Controlled(onChanged: values.add),
+        ),
+      ),
+    );
+    final box = tester.getRect(find.byType(GlassSegmentedControl<String>));
+    expect(box.height, 32);
+    await tester.tapAt(Offset(_at(tester, 'Two').dx, box.bottom + 5));
+    await _settle(tester);
+    expect(values, ['b']);
+    await tester.tapAt(Offset(_at(tester, 'Three').dx, box.top - 5));
+    await _settle(tester);
+    expect(values, ['b', 'c']);
+    await tester.tapAt(Offset(_at(tester, 'One').dx, box.bottom + 7));
+    await _settle(tester);
+    expect(values, ['b', 'c']);
   });
 
   testWidgets('right to left, the first segment sits at the right', (

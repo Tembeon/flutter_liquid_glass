@@ -176,13 +176,15 @@ final class GlassSelectorDetails {
 ///
 /// Each item is a target of its own for the keyboard and assistive
 /// technology, 44 points tall at least: a button in a group of one choice
-/// on a segmented control, a tab on a tab bar, read by [itemLabels]. Tab
-/// stops at each item that can be selected; the arrow keys move focus
-/// between them, mirrored in a right-to-left context, skipping
-/// [disabledItems], and Home and End reach the ends; Space and Enter select
-/// the focused item, or on the selected one report [onReselected].
-/// [focusNode] stands for the selector: focusing it focuses the selected
-/// item. In a right-to-left context the items run from the right.
+/// on a segmented control, a tab on a tab bar, read by [itemLabels]. The
+/// group is one Tab stop, entered at the selected item; an arrow key moves
+/// focus to the neighbouring item and selects it, mirrored in a
+/// right-to-left context and skipping [disabledItems], and Home and End
+/// move to the first and last item and select it. Space and Enter on the
+/// focused item, which is the selected one, report [onReselected]. A tap
+/// in an item's 44 point extension above or below the look reaches that
+/// item. [focusNode] stands for the selector: focusing it focuses the
+/// selected item. In a right-to-left context the items run from the right.
 class RawGlassSelector extends StatefulWidget {
   /// Creates a selector of [itemCount] items.
   const RawGlassSelector({
@@ -694,36 +696,33 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   Widget _items(BuildContext context, Widget? lens) {
+    final selected = _selected;
     final zones = InputZones<Object>(
       zones: _zoneList(),
       frameOf: _zoneFrame,
       frames: _zoneFrames,
       controller: _zones,
-      // The lens drag sits below the zones: a region above them would
-      // answer their Space and Enter.
-      child: InputRegion(
-        interactions: _interactions,
-        enabled: _enabled && widget.itemCount > 0,
-        minimumHitSize: const Size.square(44),
-        child: _SelectorRow(
-          motion: _motion,
-          frames: _frames,
-          kind: widget.motion,
-          keys: _keys,
-          ghosts: List.of(_ghosts),
-          itemWidths: widget.itemWidths,
-          proportional: widget.proportionalWidth,
-          collapse: widget.collapse,
-          hosted: widget.hosted,
-          showsLens: _selected != null,
-          hasLens: lens != null,
-          lensShrink: _lensShrink,
-          children: [
-            for (var i = 0; i < _keys.length; i++) ..._build(context, i),
-            for (final key in _ghosts) ..._built[key]!,
-            ?lens,
-          ],
-        ),
+      stops: InputZoneStops.one,
+      current: selected == null ? null : _keys[selected],
+      activatesOnMove: true,
+      child: _SelectorRow(
+        motion: _motion,
+        frames: _frames,
+        kind: widget.motion,
+        keys: _keys,
+        ghosts: List.of(_ghosts),
+        itemWidths: widget.itemWidths,
+        proportional: widget.proportionalWidth,
+        collapse: widget.collapse,
+        hosted: widget.hosted,
+        showsLens: selected != null,
+        hasLens: lens != null,
+        lensShrink: _lensShrink,
+        children: [
+          for (var i = 0; i < _keys.length; i++) ..._build(context, i),
+          for (final key in _ghosts) ..._built[key]!,
+          ?lens,
+        ],
       ),
     );
     if (_segmented) return zones;
@@ -758,16 +757,25 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
         lensShrink: _lensShrink,
       ),
     );
+    // The lens drag lies above the look, so its 44 point target reaches
+    // past the look's box and hands an item the nearest point of it; it
+    // takes no key, so the focused item keeps Space and Enter.
+    final dragged = InputRegion(
+      interactions: _interactions,
+      enabled: _enabled && widget.itemCount > 0,
+      minimumHitSize: const Size.square(44),
+      child: look,
+    );
     Widget child = _SelectorBox(
       frame: widget.collapse == null ? null : _frames.body,
       label: widget.semanticLabel,
       child: _segmented
-          ? look
+          ? dragged
           : MotionTransition(
               offset: _frames.drift,
               scaleX: _frames.scaleX,
               scaleY: _frames.scaleY,
-              child: look,
+              child: dragged,
             ),
     );
     if (widget.focusNode case final node?) {

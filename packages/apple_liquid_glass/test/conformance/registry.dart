@@ -262,7 +262,7 @@ final List<Entry> registry = [
       width: 300,
       child: Held<int>(
         probe: probe,
-        initial: 0,
+        initial: 1,
         builder: (context, value, set) => GlassSegmentedControl<int>(
           groupValue: value,
           semanticLabel: 'View',
@@ -286,7 +286,7 @@ final List<Entry> registry = [
       height: 36,
       child: Held<int>(
         probe: probe,
-        initial: 0,
+        initial: 1,
         builder: (context, value, set) => RawGlassSelector(
           itemCount: 3,
           selectedIndex: value,
@@ -315,7 +315,7 @@ final List<Entry> registry = [
       width: 402,
       child: Held<int>(
         probe: probe,
-        initial: 0,
+        initial: 1,
         builder: (context, value, set) => GlassTabBar(
           selectedIndex: value,
           onDestinationSelected: enabled ? set : null,
@@ -337,7 +337,7 @@ final List<Entry> registry = [
         dispose: (controller) => controller.dispose(),
         builder: (context, controller) => Held<int>(
           probe: probe,
-          initial: 0,
+          initial: 1,
           builder: (context, value, set) => GlassTabBar(
             selectedIndex: value,
             searchController: controller,

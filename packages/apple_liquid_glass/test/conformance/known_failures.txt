@@ -36,42 +36,26 @@ GlassPressable tap-target: "Press": expected tap target size of at least Size(44
 GlassSearchField.clear key-activate: Space does not activate it
 GlassSearchField.clear key-remap: a key the app maps to ActivateIntent does nothing
 GlassSegmentedControl focus-indicator: keyboard focus draws nothing
-GlassSegmentedControl key-arrows: Arrow Right does not step it forward
-GlassSegmentedControl key-arrows-rtl: Arrow Left does not step it forward
-GlassSegmentedControl key-home-end: Home does not reach the start
 GlassSegmentedControl mouse-hover: hover draws nothing
-GlassSegmentedControl tab-stops: Tab stops at 3 parts, expected 1
 GlassStepper focus-indicator: keyboard focus draws nothing
 GlassStepper mouse-hover: hover draws nothing
 GlassStepper tap-target: "Decrement": expected tap target size of at least Size(44.0, 44.0), but found Size(47.0, 32.0)
 GlassSwipeActions focus-indicator: keyboard focus draws nothing
 GlassSwipeActions mouse-cursor: it declares no cursor; the cursor over it is SystemMouseCursor(basic)
 GlassSwipeActions mouse-hover: hover draws nothing
-GlassTabBar contrast-light: "Home": expected contrast ratio of at least 4.5 but found 2.27 for a font size of 10.0
+GlassTabBar contrast-light: "Library": expected contrast ratio of at least 4.5 but found 2.27 for a font size of 10.0
 GlassTabBar focus-indicator: keyboard focus draws nothing
-GlassTabBar key-arrows: Arrow Right does not step it forward
-GlassTabBar key-arrows-rtl: Arrow Left does not step it forward
-GlassTabBar key-home-end: Home does not reach the start
 GlassTabBar mouse-hover: hover draws nothing
-GlassTabBar tab-stops: Tab stops at 3 parts, expected 1
-GlassTabBar.search contrast-light: "Home": expected contrast ratio of at least 4.5 but found 2.27 for a font size of 10.0
+GlassTabBar.search contrast-light: "Library": expected contrast ratio of at least 4.5 but found 2.27 for a font size of 10.0
 GlassTabBar.search focus-indicator: keyboard focus draws nothing
-GlassTabBar.search key-arrows: Arrow Right does not step it forward
-GlassTabBar.search key-arrows-rtl: Arrow Left does not step it forward
-GlassTabBar.search key-home-end: Home does not reach the start
 GlassTabBar.search mouse-cursor: it declares no cursor; the cursor over it is SystemMouseCursor(basic)
 GlassTabBar.search mouse-hover: hover draws nothing
-GlassTabBar.search tab-stops: Tab stops at 4 parts, expected 2
 GlassToolbar contrast-dark: "Done": expected contrast ratio of at least 4.5 but found 3.52 for a font size of 17.0
 GlassToolbar contrast-light: "Done": expected contrast ratio of at least 4.5 but found 3.52 for a font size of 17.0
 RawGlassMenu barrier-label: no barrier is offered to assistive technology
 RawGlassMenu focus-indicator: keyboard focus draws nothing
 RawGlassMenu mouse-hover: hover draws nothing
 RawGlassMenu tap-target: "First item": expected tap target size of at least Size(44.0, 44.0), but found Size(250.0, 42.0)
-RawGlassSelector key-arrows: Arrow Right does not step it forward
-RawGlassSelector key-arrows-rtl: Arrow Left does not step it forward
-RawGlassSelector key-home-end: Home does not reach the start
-RawGlassSelector tab-stops: Tab stops at 3 parts, expected 1
 RawGlassStepper tap-target: "Decrement": expected tap target size of at least Size(44.0, 44.0), but found Size(47.0, 32.0)
 reference.bad.button focus-disabled: Tab reaches 1 parts while disabled
 reference.bad.button focus-indicator: keyboard focus draws nothing
