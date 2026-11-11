@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/surfaces/surface.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -180,6 +181,47 @@ void main() {
       expect(closing[i], lessThanOrEqualTo(closing[i - 1] + 1e-9));
     }
     expect(closing.last, lessThan(0.02));
+  });
+
+  for (final (name, press) in <(String, Future<void> Function(WidgetTester))>[
+    (
+      'the context menu key',
+      (tester) => tester.sendKeyEvent(LogicalKeyboardKey.contextMenu),
+    ),
+    (
+      'Shift+F10',
+      (tester) async {
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.f10);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      },
+    ),
+  ]) {
+    testWidgets('$name on the focused view opens the menu beside its lifted '
+        'preview', (tester) async {
+      _phone(tester);
+      await tester.pumpWidget(_app(log: <String>[]));
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      await press(tester);
+      await _frames(tester, 90);
+      expect(find.text('Copy'), findsOneWidget);
+      final held = tester.getRect(find.byKey(_held).first);
+      expect(tester.getRect(find.text('Copy')).top, greaterThan(held.top));
+    });
+  }
+
+  testWidgets('a secondary click opens the menu at once', (tester) async {
+    _phone(tester);
+    await tester.pumpWidget(_app(log: <String>[]));
+    final mouse = await tester.startGesture(
+      tester.getCenter(find.byKey(_held)),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryButton,
+    );
+    await mouse.up();
+    await _frames(tester, 90);
+    expect(find.text('Copy'), findsOneWidget);
   });
 }
 
