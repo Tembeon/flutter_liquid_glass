@@ -36,7 +36,7 @@ abstract class InputTarget {
   MotionClock get clock;
 
   /// The line that brings the target its pointers.
-  PointerLine get line;
+  PointerLine<InputTarget> get line;
 
   /// Whether the target takes input now.
   bool get enabled;

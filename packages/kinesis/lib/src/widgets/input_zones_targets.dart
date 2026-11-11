@@ -15,7 +15,7 @@ final class _ZoneTarget<T extends Object> extends InputTarget {
   MotionClock get clock => zone.host._clock;
 
   @override
-  PointerLine get line => zone.host._line;
+  PointerLine<InputTarget> get line => zone.host._line;
 
   @override
   bool get enabled => zone.zone.enabled;
@@ -74,7 +74,7 @@ final class _HostTarget<T extends Object> extends InputTarget {
   MotionClock get clock => host._clock;
 
   @override
-  PointerLine get line => host._line;
+  PointerLine<InputTarget> get line => host._line;
 
   @override
   bool get enabled => true;
@@ -88,7 +88,7 @@ final class _HostTarget<T extends Object> extends InputTarget {
       host.widget.hostFeedback?.call(event);
 }
 
-final class _ZonesLine<T extends Object> extends PointerLine {
+final class _ZonesLine<T extends Object> extends PointerLine<_ZoneTarget<T>> {
   _ZonesLine(this.host);
 
   final _InputZonesState<T> host;
@@ -100,7 +100,7 @@ final class _ZonesLine<T extends Object> extends PointerLine {
   InputTarget get base => host._base;
 
   @override
-  InputTarget? partAt(Offset position) {
+  _ZoneTarget<T>? partAt(Offset position) {
     final zone = host._zoneAt(position);
     return zone != null && zone.takesInput ? zone.target : null;
   }
@@ -109,10 +109,11 @@ final class _ZonesLine<T extends Object> extends PointerLine {
   bool get slides => host.widget.slides;
 
   @override
-  void slidOnto(InputTarget part, double time, {required bool atDown}) {
-    if (part is! _ZoneTarget<T>) return;
-    part.play(
-      ScrubChangeEvent(time: time, selected: part.zone.id, atDown: atDown),
-    );
-  }
+  void slidOnto(
+    _ZoneTarget<T> part,
+    double time, {
+    required bool atDown,
+  }) => part.play(
+    ScrubChangeEvent(time: time, selected: part.zone.id, atDown: atDown),
+  );
 }

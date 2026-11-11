@@ -6,7 +6,7 @@ import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/widgets/input_shared.dart';
 import 'package:kinesis/src/widgets/input_target.dart';
 
-final class _Touch {
+final class _Touch<P extends InputTarget> {
   _Touch(this.down, this.tracker);
 
   // In the coordinates of the line's box.
@@ -24,7 +24,7 @@ final class _Touch {
   InteractionInput? routed;
 
   InputTarget? base;
-  InputTarget? part;
+  P? part;
   bool baseContends = false;
   bool partContends = false;
 
@@ -55,9 +55,9 @@ final class _Touch {
 /// targets on the touch.
 ///
 /// A touch has up to two targets: the [base], which hears every touch on
-/// the box, and the part under the finger ([partAt]). `InputRegion` has
-/// only a base; in an `InputZones` the parts are the zones and the base is
-/// the host's own interactions.
+/// the box, and the part of type [P] under the finger ([partAt]).
+/// `InputRegion` has only a base; in an `InputZones` the parts are the
+/// zones and the base is the host's own interactions.
 ///
 /// An interaction of the observer role hears an event as it reaches the
 /// box, as a `Listener` does. The others hear it on the pointer's route,
@@ -67,8 +67,8 @@ final class _Touch {
 /// in the arena for a pointer while a target contends for it, and takes it
 /// when one claims.
 @internal
-abstract class PointerLine {
-  final Map<int, _Touch> _touches = {};
+abstract class PointerLine<P extends InputTarget> {
+  final Map<int, _Touch<P>> _touches = {};
   final _PointerSpeed _speed = _PointerSpeed();
   InputPort? _port;
 
@@ -91,14 +91,14 @@ abstract class PointerLine {
   MotionClock get clock => base.clock;
 
   /// The part that takes input at [position], or null.
-  InputTarget? partAt(Offset position) => null;
+  P? partAt(Offset position) => null;
 
   /// Whether a finger slides from part to part: the touch stays in the
   /// arena with no part under it, and moves on to the part it comes over.
   bool get slides => false;
 
   /// A sliding finger came onto [part], at the down or in a move.
-  void slidOnto(InputTarget part, double time, {required bool atDown}) {}
+  void slidOnto(P part, double time, {required bool atDown}) {}
 
   /// Where touches handed on from another region arrive, or null.
   ///
@@ -276,7 +276,7 @@ abstract class PointerLine {
     if (_touches.containsKey(pointer)) return;
     final base = this.base.enabled ? this.base : null;
     final part = partAt(down.position);
-    final touch = _Touch(down, tracker);
+    final touch = _Touch<P>(down, tracker);
     // Both hear the down before either is answered: a target that takes
     // nothing must not give up a touch the other takes.
     final baseAsked = base == null ? null : _ask(base, down);
@@ -329,7 +329,7 @@ abstract class PointerLine {
     );
   }
 
-  void _observe(_Touch touch, InteractionInput input) {
+  void _observe(_Touch<P> touch, InteractionInput input) {
     final pointer = touch.pointer;
     if (touch.base case final base? when base.session.observes(pointer)) {
       base.answer(base.session.observe(base.local(input)));
@@ -347,7 +347,7 @@ abstract class PointerLine {
     clock.input(input.time, () => _track(touch, input));
   }
 
-  void _track(_Touch touch, InteractionInput input) {
+  void _track(_Touch<P> touch, InteractionInput input) {
     switch (input) {
       case PointerMoveInput():
         if (touch.base case final base?) {
@@ -385,7 +385,7 @@ abstract class PointerLine {
     }
   }
 
-  void _handOver(_Touch touch, PointerMoveInput move, InputTarget to) {
+  void _handOver(_Touch<P> touch, PointerMoveInput move, P to) {
     final from = touch.part;
     touch.part = null;
     touch.partContends = false;
@@ -430,7 +430,7 @@ abstract class PointerLine {
   // Acts on what a target made of an input of the touch: a claim takes the
   // pointer in the arena, and the box leaves the arena when the last
   // target that contended gives the touch up.
-  void _settle(_Touch touch, InputTarget target, SessionOutput output) {
+  void _settle(_Touch<P> touch, InputTarget target, SessionOutput output) {
     if (output.claim) {
       touch.member?.entry?.resolve(GestureDisposition.accepted);
     }
@@ -441,7 +441,7 @@ abstract class PointerLine {
   }
 
   // The box is out of the gesture arena for the touch.
-  void _leave(_Touch touch) {
+  void _leave(_Touch<P> touch) {
     if (touch.member == null) return;
     touch.member = null;
     touch.routed = null;

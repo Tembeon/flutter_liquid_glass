@@ -361,7 +361,7 @@ final class _RegionTarget extends InputTarget {
   MotionClock get clock => state._clock;
 
   @override
-  PointerLine get line => state._line;
+  PointerLine<InputTarget> get line => state._line;
 
   @override
   bool get enabled => state.widget.enabled;
@@ -387,7 +387,7 @@ final class _RegionTarget extends InputTarget {
   NavigationMode? get navigation => state._navigation;
 }
 
-final class _RegionLine extends PointerLine {
+final class _RegionLine extends PointerLine<InputTarget> {
   _RegionLine(this.state);
 
   final _InputRegionState state;
