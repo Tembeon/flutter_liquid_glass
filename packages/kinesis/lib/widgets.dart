@@ -4,7 +4,8 @@
 /// rebuilding widgets (`MotionLayout`, `SliverMotionList`,
 /// `MotionTransition`, `MotionDriven`, `MotionMeasure`, `MotionScroll`),
 /// and for the author of a control, whose input goes through one widget,
-/// `InputRegion`. `MotionScope` gives a subtree its motion settings.
+/// `InputRegion`, and whose states live in one controller,
+/// `ControlStates`. `MotionScope` gives a subtree its motion settings.
 ///
 /// It promises that `InputRegion` gives an interactive widget touch, mouse,
 /// focus, keyboard activation and the semantics of a press in one place;
@@ -14,6 +15,7 @@
 /// It never knows a look or a control.
 library;
 
+export 'src/widgets/control_states.dart' show ControlStates;
 export 'src/widgets/driven.dart' show MotionDriven;
 export 'src/widgets/input_region.dart' show InputRegion, MotionHapticPlay;
 export 'src/widgets/layout.dart' show MotionLayout, MotionLayoutBuilder;

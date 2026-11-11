@@ -1961,6 +1961,7 @@ re-exported from package:kinesis:
   ActivationEvent
   ActivationSource
   Band
+  ControlStates
   DismissPolicy
   DismissTrigger
   DragInteraction
@@ -2101,6 +2102,7 @@ re-exported from package:kinesis:
   ActivationEvent
   ActivationSource
   Band
+  ControlStates
   DismissPolicy
   DismissTrigger
   DragInteraction

@@ -268,6 +268,11 @@ final class Band
   double stretch(double raw)
   double unshow(double shown)
   overrides: ==, hashCode
+mixin ControlStates<T extends StatefulWidget> on State<T>
+  WidgetStatesController? get givenStates
+  WidgetStatesController get widgetStates
+  abstract void writeStates()
+  overrides: didUpdateWidget, dispose, initState
 final class DismissPolicy
   const DismissPolicy([Set<DismissTrigger> triggers = ...])
   static const Set<DismissTrigger> all
@@ -1115,6 +1120,7 @@ class ManualMotionClock extends MotionClock
   overrides: framePeriod, frameRate, frameTime, stamp, wake
 
 # package:kinesis/widgets.dart
+mixin ControlStates (see package:kinesis/kinesis.dart)
 class InputRegion (see package:kinesis/kinesis.dart)
 class MotionDriven (see package:kinesis/kinesis.dart)
 extension MotionHapticPlay (see package:kinesis/kinesis.dart)
