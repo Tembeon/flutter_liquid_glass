@@ -291,6 +291,7 @@ final List<Entry> registry = [
           itemCount: 3,
           selectedIndex: value,
           semanticLabel: 'View',
+          itemLabels: const ['Day', 'Week', 'Month'],
           onChanged: enabled ? set : null,
           itemBuilder: (context, index, states) => Center(
             child: GlassDefaultTextStyle(

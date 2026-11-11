@@ -2,8 +2,6 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:apple_liquid_glass/src/foundation/frame.dart';
-import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:apple_liquid_glass/src/motions/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
 import 'package:apple_liquid_glass/src/motions/glass_press.dart';
@@ -12,12 +10,8 @@ import 'package:apple_liquid_glass/src/motions/segment_highlight.dart';
 import 'package:apple_liquid_glass/src/motions/tab_bar_layout.dart';
 import 'package:apple_liquid_glass/src/motions/tab_minimize.dart';
 import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
-import 'package:apple_liquid_glass/src/navigation/bar_collapse.dart';
-import 'package:apple_liquid_glass/src/surfaces/lens_shrink.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
@@ -38,10 +32,71 @@ enum GlassSelectorMotion {
   tabBar,
 }
 
+/// What turns a tab bar selector into a circle and back: the same bar
+/// throughout, its glass and content following [morph], whatever asks for
+/// it (a scroll, a search).
+@internal
+abstract interface class GlassSelectorCollapse {
+  /// The way from the bar (0) to the circle (1); a spring may overshoot both.
+  MotionSelection<double> get morph;
+
+  /// How far a finger has lifted the circle, 0 to 1, or null if it never
+  /// does.
+  MotionSelection<double>? get press;
+
+  /// The circle in the bar's box of [size].
+  Rect circleIn(Size size);
+
+  /// Whether a finger on the bar now means the circle, not a tab.
+  bool get takesFinger;
+
+  /// A finger went down on the circle at [x] along the bar, at time [t].
+  void pressDown(double t, double x);
+
+  /// The finger moved to [x]; true on the move that hands it to the bar's
+  /// selection drag.
+  bool pressMove(double t, double x);
+
+  /// The finger lifted without having moved along the bar.
+  void pressUp(double t);
+
+  /// The touch was taken away.
+  void pressCancel(double t);
+
+  /// A key or a screen reader activated the circle.
+  void activate();
+}
+
+/// How much a fully lifted lens's glass shrinks what lies under it, and how
+/// much of the lens's long side, less its short side, the center line it
+/// shrinks toward spans: what the lens's renderer reports.
+typedef GlassSelectorLensShrink = ({double shrink, double rim});
+
+/// The text a screen reader reads for an item [label]: the data of a
+/// `Text` or `RichText`, an `Icon`'s semantic label, or the first of these
+/// among the children of a single-child or `Flex` wrapper; null when there
+/// is none.
+@internal
+String? glassSelectorLabelOf(Widget? label) => switch (label) {
+  Text(:final String data) => data,
+  Text(:final InlineSpan textSpan) => textSpan.toPlainText(),
+  RichText(:final text) => text.toPlainText(),
+  Icon(:final semanticLabel) => semanticLabel,
+  Semantics(:final properties) when properties.label != null =>
+    properties.label,
+  SingleChildRenderObjectWidget(:final child) => glassSelectorLabelOf(child),
+  ProxyWidget(:final child) => glassSelectorLabelOf(child),
+  MultiChildRenderObjectWidget(:final children) =>
+    children.map(glassSelectorLabelOf).nonNulls.firstOrNull,
+  _ => null,
+};
+
 /// Builds the item at [index] of a [RawGlassSelector] for [states]: the
 /// item's own states, which include [WidgetState.selected] for the selected
-/// item, [WidgetState.pressed] for the item under a touch and
-/// [WidgetState.hovered] for the item under the mouse.
+/// item, [WidgetState.disabled] for an item that cannot be selected, and
+/// the pressed, hovered and focused states of the item's own target: a
+/// touch presses the item it lands on until the finger moves and the lens
+/// takes it.
 ///
 /// Every item is built three times: without [WidgetState.selected] for the
 /// row under the lens, and with it for the copies the lens shows wherever
@@ -71,6 +126,7 @@ final class GlassSelectorDetails {
     required this._items,
     required this.selectedIndex,
     required this.states,
+    @internal this.lensShrink,
   });
 
   /// The frames of the track or bar, which fills the selector: the glow a
@@ -96,6 +152,12 @@ final class GlassSelectorDetails {
 
   /// The states the selector is in.
   final Set<WidgetState> states;
+
+  /// Where the renderer of the lens given to [items] reports how its glass
+  /// shrinks what lies under it, so the selector grows its selected copies
+  /// against it.
+  @internal
+  final ValueNotifier<GlassSelectorLensShrink>? lensShrink;
 }
 
 /// A pick-one control with the measured selection lens of iOS 27 and no
@@ -109,11 +171,18 @@ final class GlassSelectorDetails {
 /// tap selects on release; a finger that drags lifts the lens into glass
 /// and carries it, and the release selects where it lands. Everything the
 /// lens does reaches the look through [GlassSelectorDetails.lens], so its
-/// motion rebuilds neither builder; [itemBuilder] runs again when the
-/// pressed or hovered item changes. The arrow keys move the selection,
-/// skipping [disabledItems]; Space and Enter, like a tap on the selected
-/// item, report [onReselected]. In a right-to-left context the items run
-/// from the right.
+/// motion rebuilds neither builder; [itemBuilder] runs again for an item
+/// whose own states change.
+///
+/// Each item is a target of its own for the keyboard and assistive
+/// technology, 44 points tall at least: a button in a group of one choice
+/// on a segmented control, a tab on a tab bar, read by [itemLabels]. Tab
+/// stops at each item that can be selected; the arrow keys move focus
+/// between them, mirrored in a right-to-left context, skipping
+/// [disabledItems], and Home and End reach the ends; Space and Enter select
+/// the focused item, or on the selected one report [onReselected].
+/// [focusNode] stands for the selector: focusing it focuses the selected
+/// item. In a right-to-left context the items run from the right.
 class RawGlassSelector extends StatefulWidget {
   /// Creates a selector of [itemCount] items.
   const RawGlassSelector({
@@ -132,10 +201,17 @@ class RawGlassSelector extends StatefulWidget {
     this.focusNode,
     this.autofocus = false,
     this.semanticLabel,
+    this.itemLabels,
+    @internal this.collapse,
+    @internal this.hosted = false,
     super.key,
   }) : assert(
          itemKeys == null || itemKeys.length == itemCount,
          'One key per item.',
+       ),
+       assert(
+         itemLabels == null || itemLabels.length == itemCount,
+         'One label per item.',
        );
 
   /// The number of items.
@@ -202,6 +278,21 @@ class RawGlassSelector extends StatefulWidget {
   /// What accessibility reads for the selector as a whole.
   final String? semanticLabel;
 
+  /// What accessibility reads for each item, or null for none; the items'
+  /// own semantics are not read.
+  final List<String?>? itemLabels;
+
+  /// What collapses a tab bar into a circle, or null; a bar under one has a
+  /// box as wide as it is given and draws its glass where the collapse
+  /// says.
+  @internal
+  final GlassSelectorCollapse? collapse;
+
+  /// Whether a tab bar hosts an accessory or a search, which makes it span
+  /// the width it is given whatever its tabs.
+  @internal
+  final bool hosted;
+
   /// How far outside a segmented control a finger may lift and still
   /// select: a release beyond it changes nothing, and the lens settles back
   /// as after a cancelled touch.
@@ -220,27 +311,30 @@ class RawGlassSelector extends StatefulWidget {
 class _RawGlassSelectorState extends State<RawGlassSelector>
     with ControlStates<RawGlassSelector> {
   late _SelectorMotion _motion = _create(widget.selectedIndex ?? 0);
-  late _SelectorFrames _frames = _SelectorFrames(_motion, mirrored: false);
-  BarCollapse? _collapse;
-  bool _hosted = false;
+  late _SelectorFrames _frames = _SelectorFrames(
+    _motion,
+    mirrored: false,
+    collapse: widget.collapse,
+  );
+  late Listenable _zoneFrames = _zoneFramesOf(_frames);
   bool _fingerOnCircle = false;
   late final _SelectorInput _input = _SelectorInput(this);
   late final List<Interaction> _interactions = [_input];
-  bool _reconcilePending = false;
+  final _zones = InputZonesController<Object>();
+  final Map<Object, List<Interaction>> _presses = {};
+  // A selection the app may not follow: the next build returns the lens to
+  // the selected item if it did not.
+  bool _returning = false;
   bool _rtl = false;
-  // The items under a touch and under the mouse: changing them builds the
-  // items, not the look.
-  final _pointing = ValueNotifier<({int? pressed, int? hovered})>((
-    pressed: null,
-    hovered: null,
+  final _lensShrink = ValueNotifier<GlassSelectorLensShrink>((
+    shrink: 0,
+    rim: 0,
   ));
-  final _lensShrink = ValueNotifier(GlassLensShrink.none);
   late List<Object> _keys = _keysOf(widget);
   // Items gone from the widget that still fade out where they were, and
   // the last children each item built, which a fading item keeps.
   final List<Object> _ghosts = [];
   final Map<Object, List<Widget>> _built = {};
-  bool _dropPending = false;
   int? _noneDown;
   int? _downSlot;
   int? _downSelected;
@@ -274,18 +368,26 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     onEvent: _deliver,
   );
 
-  double get _now => MotionClock.instance.now;
+  static Listenable _zoneFramesOf(_SelectorFrames frames) => Listenable.merge([
+    _HeardInResolve(frames.items),
+    ?frames.collapse?.morph,
+  ]);
+
+  double get _now => _motion.clock.now;
+
+  @override
+  void initState() {
+    super.initState();
+    _zones.addListener(_zonesChanged);
+    _frames.placed.addListener(_placedChanged);
+  }
 
   @override
   void didUpdateWidget(RawGlassSelector oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.motion != _motion.kind) {
       _motion = _create(_motion.selected);
-      _frames = _SelectorFrames(
-        _motion,
-        mirrored: _frames.mirrored,
-        collapse: _collapse,
-      );
+      _setFrames(_frames.mirrored);
     }
     final keys = _keysOf(widget);
     final wasNone = oldWidget.selectedIndex == null;
@@ -304,6 +406,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       _built.removeWhere(
         (key, _) => !present.contains(key) && !_ghosts.contains(key),
       );
+      _presses.removeWhere((key, _) => !present.contains(key));
       _keys = keys;
       final selected = _selected;
       if (selected != null && !wasNone) {
@@ -312,15 +415,13 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
         _sync(wasNone);
       }
     }
-    final pressed = _pointing.value.pressed;
-    if (pressed != null && !_selectable(pressed)) {
-      _pointing.value = (pressed: null, hovered: _pointing.value.hovered);
-    }
   }
 
   @override
   void dispose() {
-    _pointing.dispose();
+    _zones.removeListener(_zonesChanged);
+    _zones.dispose();
+    _frames.placed.removeListener(_placedChanged);
     _lensShrink.dispose();
     super.dispose();
   }
@@ -335,6 +436,42 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     }
   }
 
+  void _writeTouch() {
+    if (!_enabled) return;
+    widgetStates.update(WidgetState.pressed, _input.pressed);
+    widgetStates.update(WidgetState.dragged, _input.dragged);
+  }
+
+  // The selector is hovered and focused when one of its items is.
+  void _zonesChanged() {
+    var hovered = false;
+    var focused = false;
+    for (final key in _keys) {
+      final states = _zones.statesOf(key);
+      hovered = hovered || states.contains(WidgetState.hovered);
+      focused = focused || states.contains(WidgetState.focused);
+    }
+    widgetStates.update(WidgetState.hovered, hovered);
+    widgetStates.update(WidgetState.focused, focused);
+  }
+
+  // An item that faded out leaves the children it kept: once, when the
+  // motion lets it go, not each frame.
+  void _placedChanged() {
+    if (_ghosts.any((key) => !_motion.items.contains(key))) setState(() {});
+  }
+
+  void _setFrames(bool mirrored) {
+    _frames.placed.removeListener(_placedChanged);
+    _frames = _SelectorFrames(
+      _motion,
+      mirrored: mirrored,
+      collapse: widget.collapse,
+    );
+    _zoneFrames = _zoneFramesOf(_frames);
+    _frames.placed.addListener(_placedChanged);
+  }
+
   void _sync(bool wasNone) {
     final selected = _selected;
     if (selected == null) return;
@@ -345,54 +482,27 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     }
   }
 
-  // A ghost the layout motion dropped goes after the frame that drew it
-  // last.
-  void _dropGhostsLater() {
-    if (_dropPending) return;
-    _dropPending = true;
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      _dropPending = false;
-      if (!mounted) return;
-      final gone = [
-        for (final key in _ghosts)
-          if (!_motion.items.contains(key)) key,
-      ];
-      if (gone.isEmpty) return;
-      setState(() {
-        _ghosts.removeWhere(gone.contains);
-        gone.forEach(_built.remove);
-      });
-    });
+  // A selection the app does not follow returns in the next build, which
+  // the selection itself asks for: the app's own rebuild may never come.
+  void _return() {
+    if (!_returning || _input.active) return;
+    _returning = false;
+    final selected = _selected;
+    if (selected != null && _motion.selected != selected) {
+      _motion.choose(_now, selected, notify: false);
+    }
   }
 
-  void _deliver(LensEvent event) => runAfterBuild(this, () {
+  void _deliver(LensEvent event) {
     switch (event) {
       case LensSelected(:final index):
         _chosen(index);
     }
-  });
+  }
 
   void _chosen(int index) {
     if (index != widget.selectedIndex) widget.onChanged?.call(index);
-    _reconcileLater();
-  }
-
-  // One pending check, re-armed while a touch leads the lens.
-  void _reconcileLater() {
-    if (_reconcilePending) return;
-    _reconcilePending = true;
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      _reconcilePending = false;
-      if (!mounted) return;
-      if (_input.active) {
-        _reconcileLater();
-        return;
-      }
-      final selected = _selected;
-      if (selected != null && _motion.selected != selected) {
-        _motion.choose(_now, selected, notify: false);
-      }
-    });
+    if (mounted) setState(() => _returning = true);
   }
 
   void _select(int index) {
@@ -408,27 +518,6 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     }
   }
 
-  void _step(int delta) {
-    final count = widget.itemCount;
-    if (count == 0) return;
-    final direction = _rtl ? -delta : delta;
-    final selected = _selected;
-    var next = selected == null
-        ? (direction > 0 ? 0 : count - 1)
-        : selected + direction;
-    while (next >= 0 && next < count && !_selectable(next)) {
-      next += direction;
-    }
-    if (next >= 0 && next < count && next != selected) _select(next);
-  }
-
-  void _reselect() {
-    final selected = _selected;
-    if (selected != null && _selectable(selected)) {
-      widget.onReselected?.call(selected);
-    }
-  }
-
   double _x(Offset position) =>
       _rtl ? _motion.size.width - position.dx : position.dx;
 
@@ -439,37 +528,14 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
         .contains(position);
   }
 
-  void _setPreview(Offset? position) {
-    int? next;
-    if (position != null && _within(position)) {
-      final slot = _motion.slotAt(_x(position));
-      if (_selectable(slot)) next = slot;
-    }
-    if (next == _pointing.value.pressed) return;
-    runAfterBuild(
-      this,
-      () => _pointing.value = (pressed: next, hovered: _pointing.value.hovered),
-    );
-  }
-
-  void _hover(Offset? position) {
-    final next = position == null ? null : _motion.slotAt(_x(position));
-    if (next == _pointing.value.hovered) return;
-    runAfterBuild(
-      this,
-      () => _pointing.value = (pressed: _pointing.value.pressed, hovered: next),
-    );
-  }
-
   void _down(PointerDownInput input) {
-    final collapse = _collapse;
+    final collapse = widget.collapse;
     if (collapse != null && collapse.takesFinger) {
       _fingerOnCircle = true;
       collapse.pressDown(input.time, input.position.dx);
       return;
     }
     final x = _x(input.position);
-    _setPreview(input.position);
     final slot = _motion.slotAt(x);
     final selected = _selected;
     if (_segmented && _selectable(slot) && slot != selected) {
@@ -486,11 +552,10 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
 
   void _move(PointerMoveInput input) {
     if (_fingerOnCircle) {
-      if (!_collapse!.pressMove(input.time, input.position.dx)) return;
+      if (!widget.collapse!.pressMove(input.time, input.position.dx)) return;
       _fingerOnCircle = false;
       _motion.drag(input.time, _x(input.position), input.position);
     }
-    _setPreview(input.position);
     if (_noneDown != null) return;
     _motion.move(input.time, _x(input.position), input.position);
   }
@@ -498,10 +563,9 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   void _up(PointerUpInput input) {
     if (_fingerOnCircle) {
       _fingerOnCircle = false;
-      _collapse!.pressUp(input.time);
+      widget.collapse!.pressUp(input.time);
       return;
     }
-    _setPreview(null);
     final x = _x(input.position);
     final slot = _motion.slotAt(x);
     final before = _downSelected;
@@ -524,131 +588,166 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
         slot == before &&
         _motion.selected == before &&
         (_segmented || down == before);
-    if (reselected && _selectable(before)) {
-      runAfterBuild(this, () => widget.onReselected?.call(before));
-    }
+    if (reselected && _selectable(before)) widget.onReselected?.call(before);
   }
 
   void _cancel(double time) {
     if (_fingerOnCircle) {
       _fingerOnCircle = false;
-      _collapse!.pressCancel(time);
+      widget.collapse!.pressCancel(time);
       return;
     }
-    _setPreview(null);
     _noneDown = null;
     _downSlot = null;
     _downSelected = null;
     _motion.cancel(time);
   }
 
-  void _activate(int index) {
-    final collapse = _collapse;
+  void _activate(Object key) {
+    final collapse = widget.collapse;
     if (collapse != null && collapse.takesFinger) {
       collapse.activate();
-    } else {
-      _select(index);
+      return;
     }
+    final index = _keys.indexOf(key);
+    if (index >= 0) _select(index);
   }
 
-  Set<WidgetState> _itemStates(int index, {required bool selected}) => {
-    if (selected) WidgetState.selected,
-    if (!_selectable(index)) WidgetState.disabled,
-    if (_pointing.value.pressed == index) WidgetState.pressed,
-    if (_pointing.value.hovered == index) WidgetState.hovered,
-    if (selected && widgetStates.value.contains(WidgetState.focused))
-      WidgetState.focused,
-  };
+  void _focusSelected(bool focused) {
+    if (!focused || !(widget.focusNode?.hasPrimaryFocus ?? false)) return;
+    final selected = _selected;
+    final index = selected != null && _selectable(selected)
+        ? selected
+        : Iterable<int>.generate(widget.itemCount)
+              .where(_selectable)
+              .firstOrNull;
+    if (index != null) _zones.requestFocus(_keys[index]);
+  }
 
-  Widget _item(BuildContext context, int index) {
-    final selected = index == _selected;
-    final enabled = _selectable(index);
-    return Semantics(
-      container: true,
-      button: _segmented,
-      inMutuallyExclusiveGroup: _segmented,
-      role: _segmented ? null : SemanticsRole.tab,
-      selected: selected,
-      enabled: enabled,
-      onTap: enabled ? () => _activate(index) : null,
-      child: Center(
-        child: widget.itemBuilder(
-          context,
-          index,
-          _itemStates(index, selected: false),
+  // The selected item is the one the lens shows; when a collapse holds the
+  // finger, it is the circle and the only item there is.
+  InputZoneFrame? _zoneFrame(Object key) {
+    final collapse = widget.collapse;
+    if (collapse != null && collapse.takesFinger) {
+      final selected = _selected;
+      if (selected == null || _keys[selected] != key) return null;
+      return InputZoneFrame(collapse.circleIn(_motion.size));
+    }
+    final drawn = _motion.drawn(key);
+    if (drawn == null) return null;
+    final (rect, opacity) = drawn;
+    return InputZoneFrame(rect, opacity: opacity);
+  }
+
+  static void _exclusive(SemanticsConfiguration config) =>
+      config.isInMutuallyExclusiveGroup = true;
+
+  List<InputZone<Object>> _zoneList() {
+    final selected = _selected;
+    return [
+      for (final (i, key) in _keys.indexed)
+        InputZone<Object>(
+          id: key,
+          interactions: _presses[key] ??= [_ItemPress(() => _activate(key))],
+          enabled: _selectable(i),
+          minimumHitSize: const Size.square(44),
+          autofocus: widget.autofocus && i == (selected ?? 0),
+          semanticLabel: widget.itemLabels?[i],
+          button: _segmented,
+          selected: i == selected,
+          semanticsRole: _segmented ? null : SemanticsRole.tab,
+          describeSemantics: _segmented ? _exclusive : null,
         ),
-      ),
-    );
+    ];
   }
+
+  Widget _item(BuildContext context, int index, {required bool selected}) =>
+      _ItemStates(
+        zones: _zones,
+        id: _keys[index],
+        own: {
+          if (selected) WidgetState.selected,
+          if (!_selectable(index)) WidgetState.disabled,
+        },
+        builder: (context, states) =>
+            Center(child: widget.itemBuilder(context, index, states)),
+      );
 
   List<Widget> _build(BuildContext context, int index) {
     final key = _keys[index];
-    Widget selected() => widget.itemBuilder(
-      context,
-      index,
-      _itemStates(index, selected: true),
-    );
     return _built[key] = [
-      RepaintBoundary(key: ValueKey((0, key)), child: _item(context, index)),
+      RepaintBoundary(
+        key: ValueKey((0, key)),
+        child: _item(context, index, selected: false),
+      ),
       // The copy under the glass draws once per strip of the lens: a
       // boundary's layer could sit in only one.
-      ExcludeSemantics(
+      KeyedSubtree(
         key: ValueKey((1, key)),
-        child: Center(child: selected()),
+        child: _item(context, index, selected: true),
       ),
-      ExcludeSemantics(
+      RepaintBoundary(
         key: ValueKey((2, key)),
-        child: RepaintBoundary(child: Center(child: selected())),
+        child: _item(context, index, selected: true),
       ),
     ];
   }
 
   Widget _items(BuildContext context, Widget? lens) {
-    return ValueListenableBuilder(
-      valueListenable: _pointing,
-      builder: (context, _, _) {
-        final row = _SelectorRow(
+    final zones = InputZones<Object>(
+      zones: _zoneList(),
+      frameOf: _zoneFrame,
+      frames: _zoneFrames,
+      controller: _zones,
+      // The lens drag sits below the zones: a region above them would
+      // answer their Space and Enter.
+      child: InputRegion(
+        interactions: _interactions,
+        enabled: _enabled && widget.itemCount > 0,
+        minimumHitSize: const Size.square(44),
+        child: _SelectorRow(
           motion: _motion,
           frames: _frames,
           kind: widget.motion,
           keys: _keys,
           ghosts: List.of(_ghosts),
-          onGhostGone: _dropGhostsLater,
           itemWidths: widget.itemWidths,
           proportional: widget.proportionalWidth,
-          collapse: _collapse,
-          hosted: _hosted,
+          collapse: widget.collapse,
+          hosted: widget.hosted,
           showsLens: _selected != null,
           hasLens: lens != null,
           lensShrink: _lensShrink,
           children: [
             for (var i = 0; i < _keys.length; i++) ..._build(context, i),
             for (final key in _ghosts) ..._built[key]!,
-            if (lens != null) GlassLensShrink(shrink: _lensShrink, child: lens),
+            ?lens,
           ],
-        );
-        if (_segmented) return row;
-        return Semantics(
-          container: true,
-          explicitChildNodes: true,
-          role: SemanticsRole.tabBar,
-          child: row,
-        );
-      },
+        ),
+      ),
+    );
+    if (_segmented) return zones;
+    return Semantics(
+      container: true,
+      explicitChildNodes: true,
+      role: SemanticsRole.tabBar,
+      child: zones,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    _motion.reducedMotion = GlassTraits.of(context).reduceMotion;
+    _return();
     _rtl = Directionality.maybeOf(context) == TextDirection.rtl;
-    final scope = BarCollapseScope.maybeOf(context);
-    final collapse = scope?.collapse;
-    _hosted = scope?.hosted ?? false;
-    if (_rtl != _frames.mirrored || !identical(collapse, _collapse)) {
-      _collapse = collapse;
-      _frames = _SelectorFrames(_motion, mirrored: _rtl, collapse: collapse);
+    if (_rtl != _frames.mirrored ||
+        !identical(widget.collapse, _frames.collapse)) {
+      _setFrames(_rtl);
     }
+    _ghosts.removeWhere((key) {
+      if (_motion.items.contains(key)) return false;
+      _built.remove(key);
+      return true;
+    });
     final look = widget.builder(
       context,
       GlassSelectorDetails(
@@ -657,43 +756,122 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
         items: (lens) => _items(context, lens),
         selectedIndex: _selected,
         states: {...widgetStates.value},
+        lensShrink: _lensShrink,
       ),
     );
-    final body = _collapse == null ? null : _frames.body;
-    return MotionScope(
-      motion: _motion,
-      child: CallbackShortcuts(
-        bindings: {
-          const SingleActivator(LogicalKeyboardKey.arrowLeft): () => _step(-1),
-          const SingleActivator(LogicalKeyboardKey.arrowRight): () => _step(1),
-          const SingleActivator(LogicalKeyboardKey.enter): _reselect,
-          const SingleActivator(LogicalKeyboardKey.space): _reselect,
-        },
-        child: Semantics(
-          container: true,
-          explicitChildNodes: true,
-          child: _TouchesInside(
-            frame: body,
-            child: InputRegion(
-              interactions: _interactions,
-              enabled: _enabled && widget.itemCount > 0,
-              statesController: widgetStates,
-              focusNode: widget.focusNode,
-              autofocus: widget.autofocus,
-              semanticLabel: widget.semanticLabel,
-              child: _segmented
-                  ? look
-                  : MotionTransition(
-                      offset: _frames.drift,
-                      scaleX: _frames.scaleX,
-                      scaleY: _frames.scaleY,
-                      child: look,
-                    ),
+    Widget child = _SelectorBox(
+      frame: widget.collapse == null ? null : _frames.body,
+      label: widget.semanticLabel,
+      child: _segmented
+          ? look
+          : MotionTransition(
+              offset: _frames.drift,
+              scaleX: _frames.scaleX,
+              scaleY: _frames.scaleY,
+              child: look,
             ),
-          ),
-        ),
-      ),
     );
+    if (widget.focusNode case final node?) {
+      // The app's node stands for the selector: focusing it focuses the
+      // selected item.
+      child = Focus(
+        focusNode: node,
+        skipTraversal: true,
+        includeSemantics: false,
+        onFocusChange: _focusSelected,
+        child: child,
+      );
+    }
+    return MotionScope(motion: _motion, child: child);
+  }
+}
+
+/// [selection] heard in the frame it moves: the items move in the resolve
+/// phase, after the layout that places them, where only a render listener
+/// hears them.
+final class _HeardInResolve implements Listenable {
+  const _HeardInResolve(this.selection);
+
+  final MotionSelection<Object?> selection;
+
+  @override
+  void addListener(VoidCallback listener) =>
+      selection.addRenderListener(listener);
+
+  @override
+  void removeListener(VoidCallback listener) =>
+      selection.removeRenderListener(listener);
+}
+
+/// An item's look for its own states and those its zone has.
+class _ItemStates extends StatefulWidget {
+  const _ItemStates({
+    required this.zones,
+    required this.id,
+    required this.own,
+    required this.builder,
+  });
+
+  final InputZonesController<Object> zones;
+  final Object id;
+  final Set<WidgetState> own;
+  final Widget Function(BuildContext context, Set<WidgetState> states) builder;
+
+  @override
+  State<_ItemStates> createState() => _ItemStatesState();
+}
+
+class _ItemStatesState extends State<_ItemStates> {
+  late Set<WidgetState> _zone = _read();
+
+  Set<WidgetState> _read() => {
+    for (final state in widget.zones.statesOf(widget.id))
+      if (state != WidgetState.disabled) state,
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    widget.zones.addListener(_changed);
+  }
+
+  @override
+  void didUpdateWidget(_ItemStates oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.zones, widget.zones)) {
+      oldWidget.zones.removeListener(_changed);
+      widget.zones.addListener(_changed);
+    }
+    _zone = _read();
+  }
+
+  @override
+  void dispose() {
+    widget.zones.removeListener(_changed);
+    super.dispose();
+  }
+
+  void _changed() {
+    final next = _read();
+    if (!setEquals(next, _zone)) setState(() => _zone = next);
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      widget.builder(context, {...widget.own, ..._zone});
+}
+
+/// An item's press: it holds no touch, so the selector's lens drag takes a
+/// finger that moves, and a key or a screen reader activates the item.
+final class _ItemPress extends PressInteraction {
+  _ItemPress(this.onActivate) : super(role: InteractionRole.content);
+
+  final VoidCallback onActivate;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    if (input is ActivateInput) onActivate();
+    return super.handle(input);
   }
 }
 
@@ -773,8 +951,8 @@ final class _Geometry {
 
   final Size size;
 
-  /// Where a tab bar under a [BarCollapse] draws in its box, which spans the
-  /// whole group.
+  /// Where a tab bar under a [GlassSelectorCollapse] draws in its box,
+  /// which spans the whole group.
   final Rect? drawn;
 
   /// Where the control draws its track or bar in its box.
@@ -903,7 +1081,6 @@ final class _SelectorMotion extends Motion {
   int _selected;
   int? _remapped;
   List<LensSlot> _lenses = const [];
-  bool _reducedMotion = false;
 
   /// The size of the control at its last layout.
   Size size = Size.zero;
@@ -924,12 +1101,6 @@ final class _SelectorMotion extends Motion {
   }
 
   bool get tabBar => kind == GlassSelectorMotion.tabBar;
-
-  bool get reducedMotion => _reducedMotion;
-  set reducedMotion(bool value) {
-    _reducedMotion = value;
-    _lens?.reducedMotion = value;
-  }
 
   LensMotion? get lens => _lens;
 
@@ -1003,8 +1174,7 @@ final class _SelectorMotion extends Motion {
         slots: geometry.lenses,
         selected: _selected,
         height: _Geometry.lensHeight(kind),
-        frameRate: MotionClock.instance.frameRate,
-        reducedMotion: _reducedMotion,
+        frameRate: clock.frameRate,
         chromeSize: geometry.bar.size,
         onEvent: onEvent,
       );
@@ -1079,7 +1249,7 @@ final class _SelectorFrames {
   final bool mirrored;
 
   /// What collapses the bar, when something does.
-  final BarCollapse? collapse;
+  final GlassSelectorCollapse? collapse;
 
   late final MotionSelection<GlassFrame> lens = collapse == null
       ? _lens
@@ -1136,6 +1306,11 @@ final class _SelectorFrames {
     ),
   );
 
+  /// How many items the motion places, ghosts included.
+  late final MotionSelection<int> placed = _motion.select(
+    (motion) => motion.items.ids.length,
+  );
+
   /// Where every item is drawn, ghosts included.
   late final MotionSelection<List<(Rect, double)?>> items = _motion.select(
     (motion) => [for (final id in motion.items.ids) motion.drawn(id)],
@@ -1161,12 +1336,15 @@ final class _SelectorFrames {
   );
 }
 
-/// A selector's touch, which it holds against a scroll.
+/// A selector's touch: the lens follows it from its first event, and it
+/// takes the touch from the items once it moves, which holds it against a
+/// scroll.
 final class _SelectorInput extends Interaction {
   _SelectorInput(this._owner) : super(role: InteractionRole.control);
 
   final _RawGlassSelectorState _owner;
   int? _pointer;
+  bool _claimed = false;
 
   bool get active => _pointer != null;
 
@@ -1178,13 +1356,23 @@ final class _SelectorInput extends Interaction {
 
   @override
   InteractionUpdate handle(InteractionInput input) {
+    final update = _handle(input);
+    _owner._writeTouch();
+    return update;
+  }
+
+  InteractionUpdate _handle(InteractionInput input) {
     switch (input) {
       case PointerDownInput() when _pointer == null && accepts(input):
         _pointer = input.pointer;
+        _claimed = false;
         _owner._down(input);
-        return const InteractionUpdate(claims: true);
       case PointerMoveInput() when input.pointer == _pointer:
         _owner._move(input);
+        if (!_claimed) {
+          _claimed = true;
+          return const InteractionUpdate(claims: true);
+        }
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
         _owner._up(input);
@@ -1193,8 +1381,6 @@ final class _SelectorInput extends Interaction {
         _pointer = null;
         _owner._cancel(input.time);
         return const InteractionUpdate(fails: true);
-      case PointerHoverInput(:final position, :final inside):
-        _owner._hover(inside ? position : null);
       default:
     }
     return InteractionUpdate.none;
@@ -1214,7 +1400,6 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
     required this.kind,
     required this.keys,
     required this.ghosts,
-    required this.onGhostGone,
     required this.itemWidths,
     required this.proportional,
     required this.collapse,
@@ -1230,10 +1415,9 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
   final GlassSelectorMotion kind;
   final List<Object> keys;
   final List<Object> ghosts;
-  final VoidCallback onGhostGone;
   final List<double?>? itemWidths;
   final bool proportional;
-  final BarCollapse? collapse;
+  final GlassSelectorCollapse? collapse;
   final bool hosted;
   final bool showsLens;
 
@@ -1241,7 +1425,7 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
   final bool hasLens;
 
   /// How the lens's glass shrinks what lies under it, fully lifted.
-  final ValueListenable<GlassLensShrinkage> lensShrink;
+  final ValueListenable<GlassSelectorLensShrink> lensShrink;
 
   @override
   MultiChildRenderObjectElement createElement() => _SelectorRowElement(this);
@@ -1254,7 +1438,6 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
         kind: kind,
         keys: keys,
         ghosts: ghosts,
-        onGhostGone: onGhostGone,
         itemWidths: itemWidths,
         proportional: proportional,
         collapse: collapse,
@@ -1275,7 +1458,6 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
     renderObject.kind = kind;
     renderObject.keys = keys;
     renderObject.ghosts = ghosts;
-    renderObject.onGhostGone = onGhostGone;
     renderObject.itemWidths = itemWidths;
     renderObject.proportional = proportional;
     renderObject.collapse = collapse;
@@ -1324,7 +1506,6 @@ class _RenderSelectorRow extends RenderBox
     required this._kind,
     required this._keys,
     required this._ghosts,
-    required this.onGhostGone,
     required this._itemWidths,
     required this._proportional,
     required this._collapse,
@@ -1377,8 +1558,6 @@ class _RenderSelectorRow extends RenderBox
     markNeedsLayout();
   }
 
-  VoidCallback onGhostGone;
-
   List<double?>? _itemWidths;
   List<double?>? get itemWidths => _itemWidths;
   set itemWidths(List<double?>? value) {
@@ -1395,9 +1574,9 @@ class _RenderSelectorRow extends RenderBox
     markNeedsLayout();
   }
 
-  BarCollapse? _collapse;
-  BarCollapse? get collapse => _collapse;
-  set collapse(BarCollapse? value) {
+  GlassSelectorCollapse? _collapse;
+  GlassSelectorCollapse? get collapse => _collapse;
+  set collapse(GlassSelectorCollapse? value) {
     if (identical(value, _collapse)) return;
     if (attached) _unlistenCollapse();
     final spans = (value == null) != (_collapse == null);
@@ -1431,9 +1610,9 @@ class _RenderSelectorRow extends RenderBox
     markNeedsLayout();
   }
 
-  ValueListenable<GlassLensShrinkage> _lensShrink;
-  ValueListenable<GlassLensShrinkage> get lensShrink => _lensShrink;
-  set lensShrink(ValueListenable<GlassLensShrinkage> value) {
+  ValueListenable<GlassSelectorLensShrink> _lensShrink;
+  ValueListenable<GlassSelectorLensShrink> get lensShrink => _lensShrink;
+  set lensShrink(ValueListenable<GlassSelectorLensShrink> value) {
     if (identical(value, _lensShrink)) return;
     if (attached) _lensShrink.removeListener(markNeedsPaint);
     _lensShrink = value;
@@ -1474,10 +1653,7 @@ class _RenderSelectorRow extends RenderBox
     _collapse?.press?.removeListener(markNeedsPaint);
   }
 
-  void _collapsed() {
-    markNeedsPaint();
-    markNeedsSemanticsUpdate();
-  }
+  void _collapsed() => markNeedsPaint();
 
   @override
   void attach(PipelineOwner owner) {
@@ -1622,7 +1798,7 @@ class _RenderSelectorRow extends RenderBox
     if (laidOut == null) return;
     _laidOut = null;
     _motion.layout(
-      MotionClock.instance.now,
+      _motion.clock.now,
       laidOut.geometry,
       laidOut.rects,
       shift: _origin() - laidOut.origin,
@@ -1692,7 +1868,6 @@ class _RenderSelectorRow extends RenderBox
     final cutter = morph == 0 ? mask : null;
     final (dimmed, opacity) = _frames.dim.value;
     final slots = <Rect>[];
-    var gone = false;
     var i = 0;
     for (final (regular, _, _) in _items) {
       final live = i < _keys.length;
@@ -1707,7 +1882,6 @@ class _RenderSelectorRow extends RenderBox
       );
       if (live) slots.add(slot);
       if (!live && drawn == null) {
-        gone = true;
         i++;
         continue;
       }
@@ -1752,7 +1926,6 @@ class _RenderSelectorRow extends RenderBox
       }
       i++;
     }
-    if (gone) onGhostGone();
     if (morph != 0) _paintDissolving(context, offset, slots, morph);
     final copies = frame.opacity;
     final lift = frame.lift.clamp(0.0, 1.0);
@@ -2040,47 +2213,83 @@ class _RenderSelectorRow extends RenderBox
     transform.translateByDouble(-slot.dx, -slot.dy, 0, 1);
     return transform;
   }
-
-  @override
-  void visitChildrenForSemantics(RenderObjectVisitor visitor) {
-    final only = (_collapse?.takesFinger ?? false) ? _motion.selected : null;
-    var i = 0;
-    for (final (item, _, _) in _live) {
-      if (only == null || i == only) visitor(item);
-      i++;
-    }
-  }
 }
 
-/// Takes touches only inside [frame]'s body: a bar under a [BarCollapse]
-/// spans its group, and what is beside the bar or the circle stays free.
-class _TouchesInside extends SingleChildRenderObjectWidget {
-  const _TouchesInside({required this.frame, required super.child});
+/// The selector's box: its semantics node, and where it takes touches,
+/// inside [frame]'s body (a bar under a collapse spans its group, and what
+/// is beside the bar or the circle stays free) and, for the 44 point
+/// target the region below grows, past its own size.
+class _SelectorBox extends SingleChildRenderObjectWidget {
+  const _SelectorBox({
+    required this.frame,
+    required this.label,
+    required super.child,
+  });
 
   final ValueListenable<GlassFrame>? frame;
+  final String? label;
 
   @override
-  _RenderTouchesInside createRenderObject(BuildContext context) =>
-      _RenderTouchesInside(frame);
+  _RenderSelectorBox createRenderObject(BuildContext context) =>
+      _RenderSelectorBox(
+        frame: frame,
+        label: label,
+        direction: Directionality.maybeOf(context),
+      );
 
   @override
   void updateRenderObject(
     BuildContext context,
-    _RenderTouchesInside renderObject,
+    _RenderSelectorBox renderObject,
   ) {
     renderObject.frame = frame;
+    renderObject.label = label;
+    renderObject.direction = Directionality.maybeOf(context);
   }
 }
 
-class _RenderTouchesInside extends RenderProxyBox {
-  _RenderTouchesInside(this.frame);
+class _RenderSelectorBox extends RenderProxyBox {
+  _RenderSelectorBox({
+    required this.frame,
+    required this._label,
+    required this._direction,
+  });
 
   ValueListenable<GlassFrame>? frame;
+
+  String? _label;
+  String? get label => _label;
+  set label(String? value) {
+    if (value == _label) return;
+    _label = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  TextDirection? _direction;
+  TextDirection? get direction => _direction;
+  set direction(TextDirection? value) {
+    if (value == _direction) return;
+    _direction = value;
+    markNeedsSemanticsUpdate();
+  }
 
   @override
   bool hitTest(BoxHitTestResult result, {required Offset position}) {
     final rect = frame?.value.rect;
     if (rect != null && !rect.contains(position)) return false;
-    return super.hitTest(result, position: position);
+    if (!hitTestChildren(result, position: position)) return false;
+    result.add(BoxHitTestEntry(this, position));
+    return true;
+  }
+
+  @override
+  void describeSemanticsConfiguration(SemanticsConfiguration config) {
+    super.describeSemanticsConfiguration(config);
+    config.isSemanticBoundary = true;
+    config.explicitChildNodes = true;
+    if (_label case final label?) {
+      config.label = label;
+      config.textDirection = _direction;
+    }
   }
 }

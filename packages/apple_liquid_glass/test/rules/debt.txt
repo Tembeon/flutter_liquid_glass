@@ -26,7 +26,7 @@
 2:through-library         lib/src/navigation/chrome.dart              2
 2:through-library         lib/src/navigation/navigation_bar.dart      9
 2:through-library         lib/src/navigation/page_route.dart          3
-2:through-library         lib/src/navigation/tab_bar.dart             19
+2:through-library         lib/src/navigation/tab_bar.dart             18
 2:through-library         lib/src/navigation/tab_scaffold.dart        1
 2:through-library         lib/src/navigation/toolbar.dart             6
 2:through-library         lib/src/presentations/alert.dart            13
@@ -40,7 +40,7 @@
 2:through-library         lib/src/raw/button.dart                     5
 2:through-library         lib/src/raw/page_control.dart               1
 2:through-library         lib/src/raw/search_field.dart               6
-2:through-library         lib/src/raw/selector.dart                   13
+2:through-library         lib/src/raw/selector.dart                   9
 2:through-library         lib/src/raw/slider.dart                     2
 2:through-library         lib/src/raw/switch.dart                     2
 2:through-library         lib/src/surfaces/follow_frame.dart          1
@@ -49,12 +49,10 @@
 3:not-allowed             lib/src/motions/menu_layout.dart            1
 3:not-allowed             lib/src/raw/button.dart                     1
 3:not-allowed             lib/src/raw/search_field.dart               2
-3:not-allowed             lib/src/raw/selector.dart                   2
 4:forbidden               lib/src/controls/date_picker.dart           1
 5:AnimationController     lib/src/presentations/menu_rows.dart        2
 5:CallbackShortcuts       lib/src/navigation/tab_bar.dart             1
 5:CallbackShortcuts       lib/src/presentations/alert.dart            1
-5:CallbackShortcuts       lib/src/raw/selector.dart                   1
 5:GestureDetector         lib/src/controls/date_picker.dart           2
 5:GestureDetector         lib/src/controls/search_field.dart          1
 5:GestureDetector         lib/src/navigation/bar.dart                 1
@@ -71,13 +69,12 @@
 5:MotionClock.instance    lib/src/navigation/chrome.dart              1
 5:MotionClock.instance    lib/src/navigation/navigation_bar.dart      3
 5:MotionClock.instance    lib/src/navigation/page_route.dart          7
-5:MotionClock.instance    lib/src/navigation/tab_bar.dart             3
+5:MotionClock.instance    lib/src/navigation/tab_bar.dart             2
 5:MotionClock.instance    lib/src/navigation/toolbar.dart             1
 5:MotionClock.instance    lib/src/presentations/alert.dart            1
 5:MotionClock.instance    lib/src/presentations/menu_anchor.dart      3
 5:MotionClock.instance    lib/src/presentations/sheet.dart            2
 5:MotionClock.instance    lib/src/raw/search_field.dart               1
-5:MotionClock.instance    lib/src/raw/selector.dart                   3
 5:ValueListenableBuilder  lib/src/controls/date_picker.dart           3
 5:ValueListenableBuilder  lib/src/navigation/bar.dart                 2
 5:ValueListenableBuilder  lib/src/navigation/navigation_bar.dart      1
@@ -88,7 +85,6 @@
 5:ValueListenableBuilder  lib/src/presentations/menu_rows.dart        1
 5:ValueListenableBuilder  lib/src/presentations/popover.dart          1
 5:ValueListenableBuilder  lib/src/presentations/sheet.dart            1
-5:ValueListenableBuilder  lib/src/raw/selector.dart                   1
 5:addPostFrameCallback    lib/src/controls/date_picker.dart           5
 5:addPostFrameCallback    lib/src/foundation/style.dart               1
 5:addPostFrameCallback    lib/src/liquid/liquid.dart                  1
@@ -97,7 +93,6 @@
 5:addPostFrameCallback    lib/src/navigation/page_route.dart          2
 5:addPostFrameCallback    lib/src/navigation/tab_bar.dart             1
 5:addPostFrameCallback    lib/src/presentations/popover.dart          1
-5:addPostFrameCallback    lib/src/raw/selector.dart                   2
 5:dynamic                 lib/src/foundation/colors.dart              2
 5:engine-layer            lib/src/presentations/menu_anchor.dart      2
 5:engine-layer            lib/src/raw/selector.dart                   1
@@ -109,7 +104,7 @@
 5:reducedMotion           lib/src/motions/bar_motion.dart             2
 5:reducedMotion           lib/src/motions/date_picker_motion.dart     10
 5:reducedMotion           lib/src/motions/glass_press.dart            2
-5:reducedMotion           lib/src/motions/lens_motion.dart            11
+5:reducedMotion           lib/src/motions/lens_motion.dart            1
 5:reducedMotion           lib/src/motions/popover_motion.dart         2
 5:reducedMotion           lib/src/motions/tab_minimize.dart           3
 5:reducedMotion           lib/src/navigation/bar.dart                 3
@@ -118,4 +113,3 @@
 5:reducedMotion           lib/src/presentations/popover.dart          1
 5:reducedMotion           lib/src/raw/button.dart                     1
 5:reducedMotion           lib/src/raw/search_field.dart               1
-5:reducedMotion           lib/src/raw/selector.dart                   5

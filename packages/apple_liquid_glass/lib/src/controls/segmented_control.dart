@@ -5,7 +5,8 @@ import 'package:apple_liquid_glass/src/foundation/style.dart';
 import 'package:apple_liquid_glass/src/foundation/theme.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/raw/selector.dart';
-import 'package:apple_liquid_glass/src/surfaces/surface.dart';
+import 'package:apple_liquid_glass/src/surfaces/lens_shrink.dart';
+import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 
@@ -40,7 +41,8 @@ final class GlassSegment<T> {
   /// the other segments (UIKit `setWidth(_:forSegmentAt:)`).
   final double? width;
 
-  /// What accessibility reads for the segment; null lets its label speak.
+  /// What accessibility reads for the segment; null reads the text of its
+  /// label: a [Text]'s, or an `Icon`'s semantic label.
   final String? semanticLabel;
 }
 
@@ -299,6 +301,10 @@ class GlassSegmentedControl<T> extends StatelessWidget {
       focusNode: focusNode,
       autofocus: autofocus,
       semanticLabel: semanticLabel,
+      itemLabels: [
+        for (final segment in segments)
+          segment.semanticLabel ?? glassSelectorLabelOf(segment.label),
+      ],
       itemBuilder: (context, index, states) =>
           _SegmentLabel(segment: segments[index], look: look, states: states),
       builder:
@@ -351,11 +357,14 @@ class _SegmentedLook extends StatelessWidget {
           details.items(
             lens: details.selectedIndex == null
                 ? null
-                : surface(
-                    GlassRole.lens,
-                    details.lens,
-                    resolve(look.thumbColor),
-                    lens: _lens,
+                : GlassLensShrink(
+                    shrink: details.lensShrink!,
+                    child: surface(
+                      GlassRole.lens,
+                      details.lens,
+                      resolve(look.thumbColor),
+                      lens: _lens,
+                    ),
                   ),
           ),
         ],
@@ -412,13 +421,6 @@ class _SegmentLabel extends StatelessWidget {
         ),
       ),
     );
-    final semanticLabel = segment.semanticLabel;
-    final labelled = semanticLabel == null
-        ? label
-        : Semantics(
-            label: semanticLabel,
-            child: ExcludeSemantics(child: label),
-          );
-    return segment.enabled ? labelled : Opacity(opacity: 0.5, child: labelled);
+    return segment.enabled ? label : Opacity(opacity: 0.5, child: label);
   }
 }

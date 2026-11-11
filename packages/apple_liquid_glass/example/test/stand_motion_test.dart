@@ -127,7 +127,7 @@ void main() {
 
     await _show(tester, find.text('Rain'));
     final grid = tester.getCenter(find.text('Rain'));
-    await tester.tap(find.bySemanticsLabel('List'));
+    await tester.tap(find.byIcon(CupertinoIcons.list_bullet));
     await _frames(tester, 4);
     final flying = tester.getCenter(find.text('Rain'));
     await _frames(tester, 90);

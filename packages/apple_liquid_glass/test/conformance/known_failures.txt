@@ -78,16 +78,14 @@ GlassSearchField.clear semantics-label: expected tappable node to have semantic 
 GlassSearchField.clear semantics-role: "" offers a tap but is not a button
 GlassSearchField.clear tab-stops: Tab stops at 1 parts, expected 2
 GlassSearchField.clear tap-target: expected tap target size of at least Size(44.0, 44.0), but found Size(20.0, 20.0)
-GlassSegmentedControl focus-enabled: Tab reaches no part of it
-GlassSegmentedControl focus-indicator: Tab reaches no part of it
-GlassSegmentedControl key-arrows: Tab reaches no part of it
-GlassSegmentedControl key-arrows-rtl: Tab reaches no part of it
-GlassSegmentedControl key-home-end: Tab reaches no part of it
+GlassSegmentedControl focus-indicator: keyboard focus draws nothing
+GlassSegmentedControl key-arrows: Arrow Right does not step it forward
+GlassSegmentedControl key-arrows-rtl: Arrow Left does not step it forward
+GlassSegmentedControl key-home-end: Home does not reach the start
 GlassSegmentedControl mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 GlassSegmentedControl mouse-hover: hover draws nothing
 GlassSegmentedControl no-leaks: leaks SemanticsOwner, _ResolveOwner
-GlassSegmentedControl tab-stops: Tab stops at 0 parts, expected 1
-GlassSegmentedControl tap-target: "Day": expected tap target size of at least Size(44.0, 44.0), but found Size(100.0, 32.0)
+GlassSegmentedControl tab-stops: Tab stops at 3 parts, expected 1
 GlassSlider focus-indicator: keyboard focus draws nothing
 GlassSlider mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 GlassSlider mouse-hover: hover draws nothing
@@ -102,15 +100,14 @@ GlassSwitch focus-indicator: keyboard focus draws nothing
 GlassSwitch mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 GlassSwitch mouse-hover: hover draws nothing
 GlassTabBar contrast-light: "Home": expected contrast ratio of at least 4.5 but found 2.27 for a font size of 10.0
-GlassTabBar focus-enabled: Tab reaches no part of it
-GlassTabBar focus-indicator: Tab reaches no part of it
-GlassTabBar key-arrows: Tab reaches no part of it
-GlassTabBar key-arrows-rtl: Tab reaches no part of it
-GlassTabBar key-home-end: Tab reaches no part of it
+GlassTabBar focus-indicator: keyboard focus draws nothing
+GlassTabBar key-arrows: Arrow Right does not step it forward
+GlassTabBar key-arrows-rtl: Arrow Left does not step it forward
+GlassTabBar key-home-end: Home does not reach the start
 GlassTabBar mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 GlassTabBar mouse-hover: hover draws nothing
 GlassTabBar no-leaks: leaks SemanticsOwner, _ResolveOwner
-GlassTabBar tab-stops: Tab stops at 0 parts, expected 1
+GlassTabBar tab-stops: Tab stops at 3 parts, expected 1
 GlassTabBar zero-size: BoxConstraints has a negative minimum width.
 GlassTabBar.search contrast-light: "Home": expected contrast ratio of at least 4.5 but found 2.27 for a font size of 10.0
 GlassTabBar.search focus-indicator: keyboard focus draws nothing
@@ -120,7 +117,7 @@ GlassTabBar.search key-home-end: Home does not reach the start
 GlassTabBar.search mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 GlassTabBar.search mouse-hover: hover draws nothing
 GlassTabBar.search no-leaks: leaks SemanticsOwner, _ResolveOwner
-GlassTabBar.search tab-stops: Tab stops at 1 parts, expected 2
+GlassTabBar.search tab-stops: Tab stops at 4 parts, expected 2
 GlassToolbar contrast-dark: "Done": expected contrast ratio of at least 4.5 but found 3.52 for a font size of 17.0
 GlassToolbar contrast-light: "Done": expected contrast ratio of at least 4.5 but found 3.52 for a font size of 17.0
 GlassToolbar focus-enabled: Tab reaches no part of it
@@ -141,15 +138,12 @@ RawGlassMenu mouse-cursor: the cursor over it is SystemMouseCursor(basic), expec
 RawGlassMenu mouse-hover: hover draws nothing
 RawGlassMenu tap-target: "First item": expected tap target size of at least Size(44.0, 44.0), but found Size(250.0, 42.0)
 RawGlassPageControl mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
-RawGlassSelector focus-enabled: Tab reaches no part of it
-RawGlassSelector focus-indicator: Tab reaches no part of it
-RawGlassSelector key-arrows: Tab reaches no part of it
-RawGlassSelector key-arrows-rtl: Tab reaches no part of it
-RawGlassSelector key-home-end: Tab reaches no part of it
+RawGlassSelector key-arrows: Arrow Right does not step it forward
+RawGlassSelector key-arrows-rtl: Arrow Left does not step it forward
+RawGlassSelector key-home-end: Home does not reach the start
 RawGlassSelector mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 RawGlassSelector no-leaks: leaks SemanticsOwner, _ResolveOwner
-RawGlassSelector tab-stops: Tab stops at 0 parts, expected 1
-RawGlassSelector tap-target: "Day": expected tap target size of at least Size(44.0, 44.0), but found Size(100.0, 36.0)
+RawGlassSelector tab-stops: Tab stops at 3 parts, expected 1
 RawGlassSlider mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 RawGlassStepper mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 RawGlassStepper tap-target: "Decrement": expected tap target size of at least Size(44.0, 44.0), but found Size(47.0, 32.0)

@@ -29,6 +29,12 @@ Widget _app(
   ),
 );
 
+Widget _keys(Widget child, {TextDirection direction = TextDirection.ltr}) =>
+    WidgetsApp(
+      color: const Color(0xFF000000),
+      builder: (context, _) => _app(child, direction: direction),
+    );
+
 const _segments = [
   GlassSegment(value: 'a', label: Text('One')),
   GlassSegment(value: 'b', label: Text('Two')),
@@ -207,7 +213,8 @@ void main() {
     expect(changed, isEmpty);
   });
 
-  testWidgets('a disabled segment takes no tap and the arrow keys skip it', (
+  testWidgets('a disabled segment takes no tap; the arrow keys skip it and '
+      'Enter and Space select the focused segment', (
     tester,
   ) async {
     final focus = FocusNode();
@@ -216,7 +223,7 @@ void main() {
     var value = 'a';
     await tester.pumpWidget(
       StatefulBuilder(
-        builder: (context, setState) => _app(
+        builder: (context, setState) => _keys(
           GlassSegmentedControl<String>(
             segments: const [
               GlassSegment(value: 'a', label: Text('One')),
@@ -240,10 +247,95 @@ void main() {
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await _settle(tester);
+    expect(values, isEmpty);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await _settle(tester);
     expect(values, ['c']);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
     await _settle(tester);
     expect(values, ['c', 'a']);
+  });
+
+  testWidgets('a key the app binds to ActivateIntent selects the focused '
+      'segment; Home and End reach the ends', (tester) async {
+    final focus = FocusNode();
+    addTearDown(focus.dispose);
+    final values = <String>[];
+    var value = 'b';
+    await tester.pumpWidget(
+      StatefulBuilder(
+        builder: (context, setState) => _keys(
+          Shortcuts(
+            shortcuts: const {
+              SingleActivator(LogicalKeyboardKey.keyS): ActivateIntent(),
+            },
+            child: GlassSegmentedControl<String>(
+              segments: _segments,
+              groupValue: value,
+              focusNode: focus,
+              onChanged: (next) {
+                values.add(next);
+                setState(() => value = next);
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    focus.requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.end);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+    await _settle(tester);
+    expect(values, ['c']);
+    await tester.sendKeyEvent(LogicalKeyboardKey.home);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+    await _settle(tester);
+    expect(values, ['c', 'a']);
+  });
+
+  testWidgets('a finger that slides takes the touch from the item it went '
+      'down on and rebuilds no item while it carries the lens', (
+    tester,
+  ) async {
+    var builds = 0;
+    final states = <int, Set<WidgetState>>{};
+    final changed = <int>[];
+    await tester.pumpWidget(
+      _app(
+        RawGlassSelector(
+          itemCount: 3,
+          selectedIndex: 0,
+          onChanged: changed.add,
+          itemBuilder: (context, index, itemStates) {
+            builds++;
+            if (!itemStates.contains(WidgetState.selected)) {
+              states[index] = itemStates;
+            }
+            return Text('$index');
+          },
+          builder: (context, details) => details.items(),
+        ),
+      ),
+    );
+    final gesture = await tester.startGesture(_at(tester, '0'));
+    await tester.pump();
+    expect(states[0], {WidgetState.pressed});
+    for (var i = 0; i < 10; i++) {
+      await gesture.moveBy(const Offset(3, 0));
+      await tester.pump(_frame);
+    }
+    expect(states[0], isEmpty);
+    builds = 0;
+    for (var i = 0; i < 60; i++) {
+      await gesture.moveBy(const Offset(3, 0));
+      await tester.pump(_frame);
+    }
+    expect(builds, 0);
+    await gesture.up();
+    await _settle(tester);
+    expect(changed, [2]);
   });
 
   testWidgets('right to left, the first segment sits at the right', (
@@ -266,7 +358,7 @@ void main() {
     final values = <String>[];
     await tester.pumpWidget(_app(_Controlled(onChanged: values.add)));
     expect(
-      tester.getSemantics(find.text('One')),
+      find.semantics.byLabel('One').evaluate().single,
       matchesSemantics(
         label: 'One',
         isButton: true,
@@ -276,6 +368,26 @@ void main() {
         hasEnabledState: true,
         isEnabled: true,
         hasTapAction: true,
+        isFocusable: true,
+        hasFocusAction: true,
+        textDirection: TextDirection.ltr,
+        rect: const Rect.fromLTRB(0, -6, 100, 38),
+      ),
+    );
+    expect(
+      find.semantics.byLabel('Two').evaluate().single,
+      matchesSemantics(
+        label: 'Two',
+        isButton: true,
+        isInMutuallyExclusiveGroup: true,
+        hasSelectedState: true,
+        hasEnabledState: true,
+        isEnabled: true,
+        hasTapAction: true,
+        isFocusable: true,
+        hasFocusAction: true,
+        textDirection: TextDirection.ltr,
+        rect: const Rect.fromLTRB(100, -6, 200, 38),
       ),
     );
     tester.semantics.tap(find.semantics.byLabel('Two'));
@@ -523,7 +635,12 @@ void main() {
           itemBuilder: (context, index, states) => Text('Item $index'),
           builder: (context, d) {
             details = d;
-            return d.items(lens: const _ShrinkingLens());
+            return d.items(
+              lens: GlassLensShrink(
+                shrink: d.lensShrink!,
+                child: const _ShrinkingLens(),
+              ),
+            );
           },
         ),
       ),

@@ -305,7 +305,6 @@ final class LensMotion extends Motion {
     required int selected,
     required this.height,
     this.frameRate = 120,
-    bool reducedMotion = false,
     Size chromeSize = Size.zero,
     double? startDelay,
     this.onEvent,
@@ -348,7 +347,6 @@ final class LensMotion extends Motion {
     );
     _loop = own(_LensLoop(this, rate: frameRate));
     _previousVisible = slot.center;
-    this.reducedMotion = reducedMotion;
   }
 
   /// The measured behavior this lens reproduces.
@@ -367,24 +365,16 @@ final class LensMotion extends Motion {
   /// Hears each selection the lens makes.
   final void Function(LensEvent event)? onEvent;
 
-  /// Whether the lens moves for Reduce Motion: it never lifts, as UIKit's
-  /// lens does not (read from UIKit, notes private), and travels on the
-  /// tuning's [LensTuning.reducedMotionTravelSpring] or not at all.
-  /// Its deformation and the control's flex staying off are
-  /// approximations, not recorded yet.
-  bool get reducedMotion => _reducedMotion;
+  // Under Reduce Motion (the motion's traits) the lens never lifts, as
+  // UIKit's lens does not (read from UIKit, notes private), and travels on
+  // the tuning's reducedMotionTravelSpring or not at all. Its deformation
+  // and the control's flex staying off are approximations, not recorded
+  // yet.
+  bool get _reduced => traits.reduceMotion;
 
-  set reducedMotion(bool value) {
-    _reducedMotion = value;
-    _chrome.reducedMotion = value;
-  }
+  bool get _slides => !_reduced || tuning.reducedMotionTravelSpring != null;
 
-  bool _reducedMotion = false;
-
-  bool get _slides =>
-      !reducedMotion || tuning.reducedMotionTravelSpring != null;
-
-  Spring get _travelSpring => reducedMotion
+  Spring get _travelSpring => _reduced
       ? tuning.reducedMotionTravelSpring ?? tuning.travelSpring
       : tuning.travelSpring;
 
@@ -787,7 +777,7 @@ final class LensMotion extends Motion {
   }
 
   void _retargetFlex(double t) {
-    if (reducedMotion) {
+    if (_reduced) {
       _drift.retarget(t, 0);
       _scaleX.retarget(t, 1);
       _scaleY.retarget(t, 1);
@@ -828,7 +818,7 @@ final class LensMotion extends Motion {
     _travel.retarget(
       t,
       target,
-      spring: reducedMotion
+      spring: _reduced
           ? tuning.reducedMotionTravelSpring ?? tuning.followSpring
           : tuning.followSpring,
     );
@@ -871,6 +861,7 @@ final class LensMotion extends Motion {
 
   void _pressChrome(double t, _Pointer pointer, Offset at) {
     if (!tuning.chromeFlexes) return;
+    _chrome.reducedMotion = _reduced;
     _chromePointer = pointer;
     pointer.swellsAt = t + tuning.chromeLag;
     _chrome.pointerDown(t, at);
@@ -884,7 +875,7 @@ final class LensMotion extends Motion {
   }
 
   void _liftTo(double t, double target) {
-    _lift.retarget(t, reducedMotion ? 0 : target);
+    _lift.retarget(t, _reduced ? 0 : target);
   }
 
   void _setSelected(int index) {

@@ -23,6 +23,12 @@ Widget _app(
   ),
 );
 
+Widget _keys(Widget child, {TextDirection direction = TextDirection.ltr}) =>
+    WidgetsApp(
+      color: const Color(0xFF000000),
+      builder: (context, _) => _app(child, direction: direction),
+    );
+
 List<GlassTabDestination> _tabs(int count) => [
   for (var i = 0; i < count; i++)
     GlassTabDestination(
@@ -265,7 +271,7 @@ void main() {
     await tester.pumpWidget(_app(_Controlled(onSelected: selected.add)));
     expect(find.text('Tab 1'), findsOneWidget);
     expect(
-      tester.getSemantics(find.text('Tab 0')),
+      find.semantics.byLabel('Tab 0').evaluate().single,
       matchesSemantics(
         label: 'Tab 0',
         role: SemanticsRole.tab,
@@ -274,6 +280,24 @@ void main() {
         hasEnabledState: true,
         isEnabled: true,
         hasTapAction: true,
+        isFocusable: true,
+        hasFocusAction: true,
+        textDirection: TextDirection.ltr,
+        rect: const Rect.fromLTRB(4, 0, 99, 62),
+      ),
+    );
+    expect(
+      find.semantics.byLabel('Tab 1').evaluate().single,
+      matchesSemantics(
+        label: 'Tab 1',
+        role: SemanticsRole.tab,
+        hasSelectedState: true,
+        hasEnabledState: true,
+        isEnabled: true,
+        hasTapAction: true,
+        isFocusable: true,
+        hasFocusAction: true,
+        textDirection: TextDirection.ltr,
       ),
     );
     tester.semantics.tap(find.semantics.byLabel('Tab 3'));
@@ -282,7 +306,8 @@ void main() {
     semantics.dispose();
   });
 
-  testWidgets('arrow keys move the selection, Enter reselects', (
+  testWidgets('arrow keys move between the tabs from the right in a '
+      'right-to-left bar; Enter selects the focused tab, then reselects it', (
     tester,
   ) async {
     final focus = FocusNode();
@@ -291,7 +316,7 @@ void main() {
     var index = 1;
     await tester.pumpWidget(
       StatefulBuilder(
-        builder: (context, setState) => _app(
+        builder: (context, setState) => _keys(
           GlassTabBar(
             destinations: _tabs(3),
             selectedIndex: index,
@@ -310,9 +335,27 @@ void main() {
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
     await _settle(tester);
+    expect(selected, isEmpty);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await _settle(tester);
     expect(selected, [2]);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     expect(selected, [2, 2]);
+    await tester.sendKeyEvent(LogicalKeyboardKey.home);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await _settle(tester);
+    expect(selected, [2, 2, 0]);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    expect(
+      FocusManager.instance.primaryFocus?.debugLabel,
+      isNot(contains('(2, null)')),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.end);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await _settle(tester);
+    expect(selected, [2, 2, 0, 2]);
   });
 
   testWidgets('without a callback a tap does nothing', (tester) async {

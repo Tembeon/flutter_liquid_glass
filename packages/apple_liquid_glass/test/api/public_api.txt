@@ -1115,10 +1115,12 @@ final class GlassSelectorDetails
     required Widget Function(Widget?) items,
     required int? selectedIndex,
     required Set<WidgetState> states,
+    @internal ValueNotifier<({double rim, double shrink})>? lensShrink,
   })
   final MotionSelection<GlassFrame> body
   Widget items({Widget? lens})
   final MotionSelection<GlassFrame> lens
+  @internal final ValueNotifier<({double rim, double shrink})>? lensShrink
   final int? selectedIndex
   final Set<WidgetState> states
 typedef GlassSelectorItemBuilder = Widget Function(BuildContext, int, Set<WidgetState>)
@@ -1828,15 +1830,21 @@ class RawGlassSelector extends StatefulWidget
     FocusNode? focusNode,
     bool autofocus = ...,
     String? semanticLabel,
+    List<String?>? itemLabels,
+    @internal GlassSelectorCollapse? collapse,
+    @internal bool hosted = ...,
     Key? key,
   })
   final bool autofocus
   final Widget Function(BuildContext, GlassSelectorDetails) builder
+  @internal final GlassSelectorCollapse? collapse
   final Set<int> disabledItems
   final FocusNode? focusNode
+  @internal final bool hosted
   final Widget Function(BuildContext, int, Set<WidgetState>) itemBuilder
   final int itemCount
   final List<Object>? itemKeys
+  final List<String?>? itemLabels
   final List<double?>? itemWidths
   final GlassSelectorMotion motion
   final void Function(int)? onChanged

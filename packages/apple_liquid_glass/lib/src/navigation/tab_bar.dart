@@ -14,13 +14,12 @@ import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/search_motion.dart';
 import 'package:apple_liquid_glass/src/motions/tab_bar_layout.dart';
 import 'package:apple_liquid_glass/src/motions/tab_minimize.dart';
-import 'package:apple_liquid_glass/src/navigation/bar_collapse.dart';
 import 'package:apple_liquid_glass/src/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/raw/button.dart';
 import 'package:apple_liquid_glass/src/raw/search_controller.dart';
 import 'package:apple_liquid_glass/src/raw/selector.dart';
-import 'package:apple_liquid_glass/src/surfaces/clip.dart';
-import 'package:apple_liquid_glass/src/surfaces/surface.dart';
+import 'package:apple_liquid_glass/src/surfaces/lens_shrink.dart';
+import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -73,7 +72,8 @@ final class GlassTabDestination {
   /// (not measured).
   final bool enabled;
 
-  /// What accessibility reads for the tab; null lets its label speak.
+  /// What accessibility reads for the tab; null reads the text of its
+  /// label: a [Text]'s, or an `Icon`'s semantic label.
   final String? semanticLabel;
 }
 
@@ -408,39 +408,50 @@ class GlassTabBar extends StatelessWidget {
         .merge(themed)
         .merge(_defaults(context));
     final onSelected = onDestinationSelected;
-    final bar = RawGlassSelector(
-      motion: GlassSelectorMotion.tabBar,
-      itemCount: destinations.length,
-      itemKeys: [
-        for (final (i, destination) in destinations.indexed)
-          if (destination.id == null) (null, i) else (destination.id, null),
-      ],
-      selectedIndex: selectedIndex,
-      onChanged: onSelected,
-      onReselected: onSelected,
-      disabledItems: {
-        for (var i = 0; i < destinations.length; i++)
-          if (!destinations[i].enabled) i,
-      },
-      statesController: statesController,
-      focusNode: focusNode,
-      autofocus: autofocus,
-      semanticLabel: semanticLabel,
-      itemBuilder: (context, index, states) => _TabContent(
-        destination: destinations[index],
-        look: look,
-        states: states,
-      ),
-      builder:
-          style?.builder ??
-          themed?.builder ??
-          (context, details) => _TabBarLook(details: details, look: look),
-    );
+    Widget bar(GlassSelectorCollapse? collapse, {required bool hosted}) =>
+        RawGlassSelector(
+          motion: GlassSelectorMotion.tabBar,
+          collapse: collapse,
+          hosted: hosted,
+          itemCount: destinations.length,
+          itemKeys: [
+            for (final (i, destination) in destinations.indexed)
+              if (destination.id == null) (null, i) else (destination.id, null),
+          ],
+          selectedIndex: selectedIndex,
+          onChanged: onSelected,
+          onReselected: onSelected,
+          disabledItems: {
+            for (var i = 0; i < destinations.length; i++)
+              if (!destinations[i].enabled) i,
+          },
+          statesController: statesController,
+          focusNode: focusNode,
+          autofocus: autofocus,
+          semanticLabel: semanticLabel,
+          itemLabels: [
+            for (final destination in destinations)
+              destination.semanticLabel ??
+                  glassSelectorLabelOf(destination.label),
+          ],
+          itemBuilder: (context, index, states) => _TabContent(
+            destination: destinations[index],
+            look: look,
+            states: states,
+            morph: collapse?.morph,
+          ),
+          builder:
+              style?.builder ??
+              themed?.builder ??
+              (context, details) => _TabBarLook(details: details, look: look),
+        );
     if (searchController case final search?) {
       return _SearchTabBar(controller: search, bar: bar);
     }
     final accessory = bottomAccessory;
-    if (!minimizeBehavior.minimizes && accessory == null) return bar;
+    if (!minimizeBehavior.minimizes && accessory == null) {
+      return bar(null, hosted: false);
+    }
     return _MinimizingBar(
       behavior: minimizeBehavior,
       accessory: accessory,
@@ -491,11 +502,14 @@ class _TabBarLook extends StatelessWidget {
           ),
         ),
         details.items(
-          lens: surface(
-            GlassRole.lens,
-            details.lens,
-            resolve(look.thumbColor),
-            lens: _lens,
+          lens: GlassLensShrink(
+            shrink: details.lensShrink!,
+            child: surface(
+              GlassRole.lens,
+              details.lens,
+              resolve(look.thumbColor),
+              lens: _lens,
+            ),
           ),
         ),
       ],
@@ -508,11 +522,13 @@ class _TabContent extends StatelessWidget {
     required this.destination,
     required this.look,
     required this.states,
+    required this.morph,
   });
 
   final GlassTabDestination destination;
   final GlassTabBarStyle look;
   final Set<WidgetState> states;
+  final MotionSelection<double>? morph;
 
   @override
   Widget build(BuildContext context) {
@@ -533,7 +549,7 @@ class _TabContent extends StatelessWidget {
       maxScaleFactor: GlassTabBar.maxTextScale,
       child: Builder(
         builder: (context) => _TabItem(
-          morph: BarCollapse.maybeOf(context)?.morph,
+          morph: morph,
           titleGoneAt: selected
               ? TabBarMinimizeTuning.lensGoneAt
               : TabBarMinimizeTuning.titlesGoneAt,
@@ -553,16 +569,9 @@ class _TabContent extends StatelessWidget {
         ),
       ),
     );
-    final semanticLabel = destination.semanticLabel;
-    final labelled = semanticLabel == null
-        ? content
-        : Semantics(
-            label: semanticLabel,
-            child: ExcludeSemantics(child: content),
-          );
     return destination.enabled
-        ? labelled
-        : Opacity(opacity: 0.5, child: labelled);
+        ? content
+        : Opacity(opacity: 0.5, child: content);
   }
 }
 
@@ -743,7 +752,7 @@ class _Badged extends StatelessWidget {
 /// What a minimizing bar reads of its motion: the hint scale, the morph to
 /// the circle, the accessory's two axes and whether the bar is minimized;
 /// and the collapse it gives the bar below it.
-final class _MinimizeFrames implements BarCollapse {
+final class _MinimizeFrames implements GlassSelectorCollapse {
   _MinimizeFrames(this.motion);
 
   final TabBarMinimizeMotion motion;
@@ -779,8 +788,7 @@ final class _MinimizeFrames implements BarCollapse {
   void pressCancel(double t) => motion.pressCancel(t);
 
   @override
-  void activate() =>
-      motion.setMinimized(MotionClock.instance.now, minimized: false);
+  void activate() => motion.setMinimized(motion.clock.now, minimized: false);
 }
 
 /// The minimized circle in a bar's box of [size], 7 points inside its
@@ -808,7 +816,7 @@ class _MinimizingBar extends StatefulWidget {
   final GlassTabBarMinimizeBehavior behavior;
   final Widget? accessory;
   final GlassTabBarStyle look;
-  final Widget bar;
+  final _BarBuilder bar;
 
   @override
   State<_MinimizingBar> createState() => _MinimizingBarState();
@@ -931,11 +939,7 @@ class _MinimizingBarState extends State<_MinimizingBar> {
           height: GlassTabBar.height,
           child: MotionTransition(
             scale: _body.hint,
-            child: BarCollapseScope(
-              collapse: _body,
-              hosted: accessory != null,
-              child: widget.bar,
-            ),
+            child: widget.bar(_body, hosted: accessory != null),
           ),
         );
         if (accessory == null) return bar;
@@ -1189,12 +1193,19 @@ class _SearchState {
 
 enum _SearchSlot { bar, circle, field, close }
 
+/// Builds a tab bar's selector under [collapse]; [hosted] when it hosts an
+/// accessory or a search.
+typedef _BarBuilder = Widget Function(
+  GlassSelectorCollapse collapse, {
+  required bool hosted,
+});
+
 /// A tab bar and its search tab, laid out over the screen's bottom.
 class _SearchTabBar extends StatefulWidget {
   const _SearchTabBar({required this.controller, required this.bar});
 
   final GlassSearchController controller;
-  final Widget bar;
+  final _BarBuilder bar;
 
   @override
   State<_SearchTabBar> createState() => _SearchTabBarState();
@@ -1268,7 +1279,7 @@ final class _SearchTabMotion extends Motion {
 
 /// The collapse a search tab bar gives its bar: the bar turns into the tab
 /// circle while searching, and a tap on the circle closes the search.
-final class _SearchCollapse implements BarCollapse {
+final class _SearchCollapse implements GlassSelectorCollapse {
   _SearchCollapse(this.motion, this.morph, this.onClose);
 
   final _SearchTabMotion motion;
@@ -1432,11 +1443,7 @@ class _SearchTabBarState extends State<_SearchTabBar> {
                 id: _SearchSlot.bar,
                 child: MotionTransition(
                   opacity: _tabFade,
-                  child: BarCollapseScope(
-                    collapse: _collapse,
-                    hosted: true,
-                    child: widget.bar,
-                  ),
+                  child: widget.bar(_collapse, hosted: true),
                 ),
               ),
               if (!state.settled)
