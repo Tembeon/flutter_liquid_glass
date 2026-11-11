@@ -18,8 +18,9 @@ import 'package:meta/meta.dart';
 /// release keeps the shown state if the drag ever flipped it and toggles
 /// like a tap otherwise.
 ///
-/// For Reduce Motion ([reducedMotion]) the knob never lifts or grows and
-/// a drag holds it between the ends without the rubber band; its travel
+/// Under Reduce Motion (the motion's [Motion.traits]) the knob never
+/// lifts or grows and a drag holds it between the ends without the rubber
+/// band; its travel
 /// and the track color move as usual. Read from UIKit, notes private:
 /// UISwitch lifts its knob only while pressed without Reduce Motion,
 /// keeps the 37 x 24 knob size for a press under it, and clamps a dragged
@@ -32,9 +33,11 @@ import 'package:meta/meta.dart';
 @internal
 final class SwitchMotion extends Motion {
   /// Creates a switch resting at [value] whose knob lens filters its
-  /// motion at [frameRate] frames per second of motion time.
-  SwitchMotion({required bool value, this.frameRate = 120, this.onEvent})
+  /// motion at [frameRate] frames per second of motion time, or at the
+  /// frame rate of the clock that steps it when [frameRate] is null.
+  SwitchMotion({required bool value, double? frameRate = 120, this.onEvent})
     : _value = value {
+    this.frameRate = frameRate ?? clock.frameRate;
     _knob = own(
       MotionValue<double>(value ? travel : 0, spring: knobSpring),
       rest: _length,
@@ -47,7 +50,7 @@ final class SwitchMotion extends Motion {
       SmallLens(
         restSize: knobSize,
         liftedSize: liftedKnobSize,
-        frameRate: frameRate,
+        frameRate: this.frameRate,
         position: _knob.valueAt,
       ),
     );
@@ -61,7 +64,7 @@ final class SwitchMotion extends Motion {
 
   /// The frames per second of motion time the knob lens filters at: 120
   /// for a ProMotion display, 60 for a 60 Hz one.
-  final double frameRate;
+  late final double frameRate;
 
   /// The 63 x 28 track measured from the UISwitch view tree.
   static const Size trackSize = Size(63, 28);
@@ -137,12 +140,6 @@ final class SwitchMotion extends Motion {
   bool _committed = false;
   bool _everCommitted = false;
 
-  /// Whether the switch moves for Reduce Motion: no lift and no rubber
-  /// band (see the class documentation).
-  bool get reducedMotion => lens.reducedMotion;
-
-  set reducedMotion(bool value) => lens.reducedMotion = value;
-
   /// Whether the switch is on.
   bool get value => _value;
 
@@ -182,7 +179,10 @@ final class SwitchMotion extends Motion {
     final dx = x - downX;
     if (dx.abs() <= slop) return;
     final position = _downKnob + dx - slop * dx.sign;
-    _knobTo(t, reducedMotion ? position.clamp(0.0, travel) : _band(position));
+    _knobTo(
+      t,
+      traits.reduceMotion ? position.clamp(0.0, travel) : _band(position),
+    );
   }
 
   /// The finger left the switch at [x].

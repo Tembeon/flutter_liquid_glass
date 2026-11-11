@@ -1,5 +1,4 @@
 import 'package:apple_liquid_glass/src/foundation/frame.dart';
-import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:apple_liquid_glass/src/motions/switch_motion.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
@@ -164,7 +163,6 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
 
   @override
   Widget build(BuildContext context) {
-    _motion.reducedMotion = GlassTraits.of(context).reduceMotion;
     final mirrored = Directionality.maybeOf(context) == TextDirection.rtl;
     if (mirrored != _input.mirrored) {
       _input.mirrored = mirrored;

@@ -30,6 +30,10 @@ import 'package:meta/meta.dart';
 /// stretch reacts twice as fast at 120 Hz as at 60 Hz. The outputs can be
 /// read at any time.
 ///
+/// Under Reduce Motion (the motion's [Motion.traits]) the lens never lifts,
+/// as UIKit's does (read from UIKit, notes private), and never stretches,
+/// an approximation that is not measured.
+///
 /// The lift and size rest within a visible step; the deformation rests
 /// once its filter is still, and comes to rest undeformed with the filter
 /// primed at the position.
@@ -57,11 +61,6 @@ final class SmallLens extends Motion {
   /// The frames per second of motion time the stretch filter steps at:
   /// 120 for a ProMotion display, 60 for a 60 Hz one.
   final double frameRate;
-
-  /// Whether the lens moves for Reduce Motion: it never lifts, as UIKit's
-  /// lens does (read from UIKit, notes private), and never stretches, an
-  /// approximation that is not measured.
-  bool reducedMotion = false;
 
   /// The spring that lifts the lens: UIKit's small lens lift tuning, which
   /// with [liftVelocity] fits the device knob and thumb recordings (peak
@@ -144,7 +143,7 @@ final class SmallLens extends Motion {
   /// The measured initial velocity applies only to a spring at rest.
   void lift(double t) {
     unschedule(_landing);
-    if (isLifted || reducedMotion) return;
+    if (isLifted || traits.reduceMotion) return;
     _liftStart = t;
     follow(t);
     final progressResting =
@@ -185,7 +184,7 @@ final class SmallLens extends Motion {
   void _sample(double t, double position) {
     final previous = _previous ?? position;
     final af = _flex.step(previous, _loop.frame);
-    if (reducedMotion) {
+    if (traits.reduceMotion) {
       _scaleX.retarget(t, 1);
       _scaleY.retarget(t, 1);
       _drift.retarget(t, 0);

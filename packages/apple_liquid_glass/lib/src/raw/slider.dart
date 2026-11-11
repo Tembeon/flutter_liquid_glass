@@ -1,6 +1,5 @@
 import 'package:apple_liquid_glass/src/foundation/frame.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:apple_liquid_glass/src/motions/slider_motion.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
@@ -306,7 +305,6 @@ class _RawGlassSliderState extends State<RawGlassSlider>
 
   @override
   Widget build(BuildContext context) {
-    _motion.lens.reducedMotion = GlassTraits.of(context).reduceMotion;
     final rtl = Directionality.maybeOf(context) == TextDirection.rtl;
     if (rtl != _frames.mirrored) {
       _frames = _SliderFrames(_motion, mirrored: rtl);
