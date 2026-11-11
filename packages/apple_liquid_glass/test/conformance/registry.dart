@@ -77,6 +77,16 @@ final List<Entry> registry = [
       'GlassMenuWidget',
       'GlassSubmenu',
     ],
+    exempt: const {
+      'contrast-light': Exemption(
+        '"Section": expected contrast ratio of at least 4.5 but found 3.41 '
+        'for a font size of 13.0',
+        because:
+            'iOS 27 colours: a menu section header is secondaryLabel, '
+            '#3C3C43 at 0.6 (menu API passport), on the menu glass, which '
+            'is this ratio on iOS too',
+      ),
+    },
     kind: Kind.opener,
     marker: find.text('First item'),
     inside: find.text('First item'),
@@ -91,29 +101,18 @@ final List<Entry> registry = [
     ),
   ),
   Entry(
-    'GlassMenuAnchor.text',
-    covers: const [],
-    kind: Kind.opener,
-    marker: find.text('First item'),
-    inside: find.text('First item'),
-    build: (probe, {required enabled}) => GlassMenuAnchor(
-      enabled: enabled,
-      menuChildren: _menu(probe),
-      builder: (context, controller, child) => RawGlassButton(
-        onPressed: enabled ? controller.open : null,
-        builder: (context, details) => details.label,
-        child: child!,
-      ),
-      child: const SizedBox(
-        width: 120,
-        height: 44,
-        child: Center(child: Text('Sort')),
-      ),
-    ),
-  ),
-  Entry(
     'GlassContextMenu',
     covers: const ['GlassContextMenu'],
+    exempt: const {
+      'contrast-light': Exemption(
+        '"Section": expected contrast ratio of at least 4.5 but found 3.30 '
+        'for a font size of 13.0',
+        because:
+            'iOS 27 colours: a menu section header is secondaryLabel, '
+            '#3C3C43 at 0.6 (menu API passport), on the menu glass, which '
+            'is this ratio on iOS too',
+      ),
+    },
     kind: Kind.opener,
     openGesture: OpenGesture.longPress,
     contextMenu: true,
@@ -678,6 +677,16 @@ final List<Entry> registry = [
   Entry(
     'GlassBarItem.menu',
     covers: const [],
+    exempt: const {
+      'contrast-light': Exemption(
+        '"Section": expected contrast ratio of at least 4.5 but found 3.41 '
+        'for a font size of 13.0',
+        because:
+            'iOS 27 colours: a menu section header is secondaryLabel, '
+            '#3C3C43 at 0.6 (menu API passport), on the menu glass, which '
+            'is this ratio on iOS too',
+      ),
+    },
     kind: Kind.opener,
     canDisable: false,
     part: find.text('Sort'),

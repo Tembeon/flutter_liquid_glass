@@ -47,8 +47,6 @@
 2:through-library         lib/src/surfaces/follow_frame.dart          1
 3:not-allowed             lib/src/controls/search_field.dart          1
 3:not-allowed             lib/src/raw/search_field.dart               2
-5:GestureDetector         lib/src/presentations/menu_anchor.dart      1
-5:Listener                lib/src/presentations/menu_anchor.dart      1
 5:ValueListenableBuilder  lib/src/navigation/tab_bar.dart             1
 5:addPostFrameCallback    lib/src/foundation/style.dart               1
 5:addPostFrameCallback    lib/src/liquid/liquid.dart                  1
