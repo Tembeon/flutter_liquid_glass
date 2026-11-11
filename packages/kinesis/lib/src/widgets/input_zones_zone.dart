@@ -112,8 +112,12 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
     zone.adjustRange?.removeListener(_rangeChanged);
     target.dispose();
     if (identical(host._zones[id], this)) host._zones.remove(id);
-    _controller._forget(id);
-    if (target.hasFocus) _controller._focus(id, focused: false);
+    // A host that leaves after a newer one took its controller leaves the
+    // states and the focus to the newer host's zones of the same ids.
+    if (identical(_controller._host, host)) {
+      _controller._forget(id);
+      if (target.hasFocus) _controller._focus(id, focused: false);
+    }
     node.dispose();
     super.dispose();
   }

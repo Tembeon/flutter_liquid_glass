@@ -30,6 +30,11 @@ part 'package:kinesis/src/widgets/input_zones_render.dart';
 /// control that paints its zones listens to it and repaints. The host
 /// writes disabled without notifying while it builds: the control that
 /// gave the zone its `enabled` already knows it.
+///
+/// A controller serves one host at a time. While two hosts hold it, as when
+/// a date picker builds the next month's grid before the old one leaves,
+/// the newest host wins: it drives [zoneAt], [requestFocus] and [sourceOf],
+/// and the host that leaves afterwards changes nothing it wrote.
 class InputZonesController<T extends Object> extends ChangeNotifier {
   /// Creates a controller with no states.
   InputZonesController();
@@ -428,7 +433,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     }
     if (oldWidget.controller != widget.controller) {
       final old = oldWidget.controller ?? _ownController;
-      if (old?._host == this) old?._host = null;
+      if (old != null && identical(old._host, this)) old._host = null;
       if (widget.controller != null) {
         _ownController?.dispose();
         _ownController = null;
@@ -455,7 +460,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     if (_resize case final id?) {
       SchedulerBinding.instance.cancelFrameCallbackWithId(id);
     }
-    if (controller._host == this) controller._host = null;
+    if (identical(controller._host, this)) controller._host = null;
     _ownController?.dispose();
     super.dispose();
   }

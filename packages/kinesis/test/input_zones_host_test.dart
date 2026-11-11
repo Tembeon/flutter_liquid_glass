@@ -263,6 +263,42 @@ void main() {
     expect(zones.zoneAt(const Offset(10, 60)), isNull);
   });
 
+  testWidgets('a controller follows the newest host while the old one '
+      'leaves after it', (tester) async {
+    Widget grid(Key key, double left, {bool secondEnabled = true}) =>
+        Positioned(
+          key: key,
+          left: left,
+          top: 0,
+          child: InputZones<int>(
+            zones: [
+              const InputZone(id: 0),
+              InputZone(id: 1, enabled: secondEnabled),
+            ],
+            frameOf: (id) =>
+                InputZoneFrame(Rect.fromLTWH(id * 50.0, 0, 50, 40)),
+            frames: frames,
+            controller: zones,
+            child: const SizedBox(width: 100, height: 40),
+          ),
+        );
+    const old = ValueKey('old');
+    const next = ValueKey('next');
+    await tester.pumpWidget(_screen([grid(old, 0)]));
+    await tester.pumpWidget(
+      _screen([grid(old, 0), grid(next, 200, secondEnabled: false)]),
+    );
+    await tester.pumpWidget(
+      _screen([grid(next, 200, secondEnabled: false)]),
+    );
+    expect(zones.zoneAt(const Offset(10, 10)), 0);
+    expect(zones.zoneAt(const Offset(60, 10)), isNull);
+    expect(zones.statesOf(1), contains(WidgetState.disabled));
+    expect(zones.requestFocus(0), isTrue);
+    await tester.pump();
+    expect(zones.focusedZone, 0);
+  });
+
   testWidgets('the haptics of a host interaction play through hostFeedback '
       'as the finger slides onto another row', (tester) async {
     final haptics = <String>[];
