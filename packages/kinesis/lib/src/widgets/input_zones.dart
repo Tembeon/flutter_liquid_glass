@@ -92,14 +92,7 @@ class InputZone<T extends Object> {
     this.minimumHitSize,
     this.autofocus = false,
     this.focusable = true,
-    this.semanticLabel,
-    this.semanticValue,
-    this.button = false,
-    this.selected,
-    this.checked,
-    this.toggled,
-    this.semanticsRole,
-    this.describeSemantics,
+    this.semantics,
     this.adjustRange,
   });
 
@@ -148,33 +141,29 @@ class InputZone<T extends Object> {
   /// belong to a region around the host.
   final bool focusable;
 
-  /// What accessibility reads for the zone.
-  final String? semanticLabel;
-
-  /// The zone's value for accessibility, such as a day's date. A zone
-  /// that adjusts and has a value also says its increased and decreased
-  /// values, with [describeSemantics], as Flutter requires.
-  final String? semanticValue;
-
-  /// Whether accessibility announces the zone as a button.
-  final bool button;
-
-  /// Whether the zone is selected, or null when it has no selected state.
-  final bool? selected;
-
-  /// Whether the zone is checked, or null when it has no checked state.
-  final bool? checked;
-
-  /// Whether the zone is toggled on, or null when it has no toggled state.
-  final bool? toggled;
-
-  /// The zone's role for accessibility, such as `SemanticsRole.tab`, or
-  /// null for none.
-  final SemanticsRole? semanticsRole;
-
-  /// Adds what the fields above do not say to the zone's semantics, after
-  /// the host wrote them; null for nothing.
-  final void Function(SemanticsConfiguration config)? describeSemantics;
+  /// What accessibility reads for the zone, or null for a node with only
+  /// what the zone does: Flutter's description of a rectangle that has no
+  /// widget, as `CustomPainterSemantics.properties` and `Semantics`.
+  ///
+  /// ```dart
+  /// InputZone(
+  ///   id: day,
+  ///   interactions: [press],
+  ///   semantics: SemanticsProperties(
+  ///     label: 'Thursday, 1 October',
+  ///     button: true,
+  ///     selected: picked == day,
+  ///   ),
+  /// )
+  /// ```
+  ///
+  /// Every property means what it means on a `Semantics` widget. What the
+  /// zone does is its own and is written over what this says: whether it is
+  /// enabled and focused, the tap of a zone whose interaction
+  /// [Interaction.activates], increase and decrease of one that
+  /// [Interaction.adjusts]. A zone that adjusts and has a value also says
+  /// its increased and decreased values, as Flutter requires.
+  final SemanticsProperties? semantics;
 
   /// Which ways the value of a zone that adjusts can move now, or null when
   /// it always can; as `InputRegion.adjustRange`, followed without a
@@ -1092,27 +1081,6 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
     };
   }
 
-  void describe(SemanticsConfiguration config) {
-    config.isSemanticBoundary = true;
-    final zone = this.zone;
-    final direction = Directionality.maybeOf(context);
-    if (zone.semanticLabel case final label?) {
-      config.label = label;
-      config.textDirection = direction;
-    }
-    if (zone.semanticValue case final value?) {
-      config.value = value;
-      config.textDirection = direction;
-    }
-    if (zone.button) config.isButton = true;
-    if (zone.selected case final selected?) config.isSelected = selected;
-    if (zone.checked case final checked?) config.isChecked = checked;
-    if (zone.toggled case final toggled?) config.isToggled = toggled;
-    if (zone.semanticsRole case final role?) config.role = role;
-    target.describe(config);
-    zone.describeSemantics?.call(config);
-  }
-
   /// The zone's hit rectangle now, in the host's coordinates.
   Rect get bounds {
     final frame = this.frame;
@@ -1497,7 +1465,11 @@ class _ZoneAnchor<T extends Object> extends LeafRenderObjectWidget {
 
   @override
   _RenderZoneAnchor<T> createRenderObject(BuildContext context) {
-    final anchor = _RenderZoneAnchor<T>(state);
+    final anchor = _RenderZoneAnchor<T>(
+      state,
+      properties: state.zone.semantics ?? const SemanticsProperties(),
+      textDirection: Directionality.maybeOf(context),
+    );
     state._anchor = anchor;
     return anchor;
   }
@@ -1508,6 +1480,9 @@ class _ZoneAnchor<T extends Object> extends LeafRenderObjectWidget {
     _RenderZoneAnchor<T> renderObject,
   ) {
     renderObject.zone = state;
+    renderObject.properties =
+        state.zone.semantics ?? const SemanticsProperties();
+    renderObject.textDirection = Directionality.maybeOf(context);
     state._anchor = renderObject;
     renderObject.markNeedsLayout();
     renderObject.markNeedsSemanticsUpdate();
@@ -1520,8 +1495,23 @@ class _ZoneAnchor<T extends Object> extends LeafRenderObjectWidget {
 /// hits (its cursor and hover for the mouse tracker), the box its focus
 /// node reports, and it describes the zone to accessibility.
 class _RenderZoneAnchor<T extends Object> extends RenderBox
+    with SemanticsAnnotationsMixin
     implements MouseTrackerAnnotation {
-  _RenderZoneAnchor(this.zone);
+  _RenderZoneAnchor(
+    this.zone, {
+    required SemanticsProperties properties,
+    required TextDirection? textDirection,
+  }) {
+    initSemanticsAnnotations(
+      properties: properties,
+      container: true,
+      explicitChildNodes: false,
+      excludeSemantics: false,
+      blockUserActions: false,
+      localeForSubtree: null,
+      textDirection: textDirection,
+    );
+  }
 
   _ZoneState<T> zone;
 
@@ -1572,6 +1562,6 @@ class _RenderZoneAnchor<T extends Object> extends RenderBox
   @override
   void describeSemanticsConfiguration(SemanticsConfiguration config) {
     super.describeSemanticsConfiguration(config);
-    zone.describe(config);
+    zone.target.describe(config);
   }
 }

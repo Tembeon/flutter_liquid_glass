@@ -809,8 +809,10 @@ class _AlertViewState extends State<_AlertView> {
               enabled: action.enabled,
               minimumHitSize: const Size.square(44),
               autofocus: action.isDefaultAction && action.enabled,
-              semanticLabel: _text(action.child),
-              button: true,
+              semantics: SemanticsProperties(
+                label: _text(action.child),
+                button: true,
+              ),
             ),
         ],
         frameOf: _frameOf,

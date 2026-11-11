@@ -259,7 +259,6 @@ RawGlassStepper
 RawGlassSwitch
 RectSprings
 ScrubChangeEvent
-ScrubInteraction
 SecondaryClickInteraction
 SessionOutput
 SliverMotionList

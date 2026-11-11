@@ -739,8 +739,7 @@ void main() {
         interactions: [_Activated(() => halves.add(id))],
         focusable: false,
         minimumHitSize: const Size.square(44),
-        semanticLabel: id,
-        button: true,
+        semantics: SemanticsProperties(label: id, button: true),
       );
       await tester.pumpWidget(
         _app(
@@ -831,7 +830,7 @@ void main() {
               InputZone(
                 id: 'a',
                 interactions: [values],
-                semanticLabel: 'level',
+                semantics: const SemanticsProperties(label: 'level'),
                 adjustRange: range,
               ),
             ],
@@ -978,14 +977,14 @@ void main() {
               InputZone(
                 id: 'a',
                 interactions: [values],
-                semanticLabel: 'Day',
-                semanticValue: '12',
-                selected: true,
-                semanticsRole: SemanticsRole.tab,
-                describeSemantics: (config) {
-                  config.increasedValue = '13';
-                  config.decreasedValue = '11';
-                },
+                semantics: const SemanticsProperties(
+                  label: 'Day',
+                  value: '12',
+                  increasedValue: '13',
+                  decreasedValue: '11',
+                  selected: true,
+                  role: SemanticsRole.tab,
+                ),
               ),
             ],
             frameOf: motion.frameOf,

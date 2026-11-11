@@ -1209,25 +1209,25 @@ class _MenuLayerState extends State<_MenuLayer> {
           id: id,
           interactions: _inputsOf(id),
           minimumHitSize: const Size.square(44),
-          semanticLabel: label,
-          semanticValue: value,
-          button: true,
-          checked: checkable ? state == GlassMenuItemState.on : null,
-          semanticsRole: checkable
-              ? ui.SemanticsRole.menuItemCheckbox
-              : ui.SemanticsRole.menuItem,
-          describeSemantics: (config) {
-            switch (target.kind) {
-              case MenuTargetKind.submenu:
-                config.isExpanded = false;
-              case MenuTargetKind.back:
-                config.isExpanded = true;
-              case MenuTargetKind.action:
-                if (state == GlassMenuItemState.mixed) {
-                  config.isCheckStateMixed = true;
-                }
-            }
-          },
+          semantics: SemanticsProperties(
+            label: label,
+            value: value,
+            button: true,
+            checked: checkable ? state == GlassMenuItemState.on : null,
+            mixed:
+                target.kind == MenuTargetKind.action &&
+                    state == GlassMenuItemState.mixed
+                ? true
+                : null,
+            expanded: switch (target.kind) {
+              MenuTargetKind.submenu => false,
+              MenuTargetKind.back => true,
+              MenuTargetKind.action => null,
+            },
+            role: checkable
+                ? ui.SemanticsRole.menuItemCheckbox
+                : ui.SemanticsRole.menuItem,
+          ),
         ),
       );
     }

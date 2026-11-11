@@ -441,32 +441,18 @@ class InputZone<T extends Object>
     Size? minimumHitSize,
     bool autofocus = ...,
     bool focusable = ...,
-    String? semanticLabel,
-    String? semanticValue,
-    bool button = ...,
-    bool? selected,
-    bool? checked,
-    bool? toggled,
-    SemanticsRole? semanticsRole,
-    void Function(SemanticsConfiguration)? describeSemantics,
+    SemanticsProperties? semantics,
     ValueListenable<AdjustRange>? adjustRange,
   })
   final ValueListenable<AdjustRange>? adjustRange
   final bool autofocus
-  final bool button
-  final bool? checked
-  final void Function(SemanticsConfiguration)? describeSemantics
   final bool enabled
   final bool focusable
   final T id
   final List<Interaction> interactions
   final Size? minimumHitSize
   final MouseCursor? mouseCursor
-  final bool? selected
-  final String? semanticLabel
-  final String? semanticValue
-  final SemanticsRole? semanticsRole
-  final bool? toggled
+  final SemanticsProperties? semantics
 final class InputZoneFrame
   const InputZoneFrame(
     Rect rect, {

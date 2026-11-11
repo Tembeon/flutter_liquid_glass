@@ -158,8 +158,10 @@ class _ToyToolbarState extends State<ToyToolbar> {
             enabled: !widget.disabled.contains(item),
             mouseCursor: _cursor,
             minimumHitSize: const Size.square(44),
-            semanticLabel: 'Item $item',
-            button: true,
+            semantics: SemanticsProperties(
+              label: 'Item $item',
+              button: true,
+            ),
           ),
       ],
       frameOf: widget.motion.frameOf,

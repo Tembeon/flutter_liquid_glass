@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/widgets.dart';
@@ -222,9 +223,11 @@ class _RawGlassStepperState extends State<RawGlassStepper>
           enabled: enabled && _canStep(half),
           focusable: false,
           minimumHitSize: const Size.square(44),
-          semanticLabel: label,
-          semanticValue: value,
-          button: true,
+          semantics: SemanticsProperties(
+            label: label,
+            value: value,
+            button: true,
+          ),
         );
     final direction = Directionality.of(context);
     // The region lays its arrow keys out left to right, as the halves are.

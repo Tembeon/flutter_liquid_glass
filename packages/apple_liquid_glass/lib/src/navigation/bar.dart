@@ -1571,17 +1571,15 @@ class _BandState extends State<_Band> {
       interactions: menu ? input.menuSource : input.press,
       enabled: menu || input.onPressed != null,
       minimumHitSize: const Size.square(_Bar.minimumTarget),
-      semanticLabel: switch (button.back) {
-        final back? => back.labelIn(context),
-        null => _labelOf(item!),
-      },
-      button: true,
-      describeSemantics: menu
-          ? (config) {
-              config.isExpanded = bar.menuShows(id);
-              if (hold) config.onLongPress = input.menu.open;
-            }
-          : null,
+      semantics: SemanticsProperties(
+        label: switch (button.back) {
+          final back? => back.labelIn(context),
+          null => _labelOf(item!),
+        },
+        button: true,
+        expanded: menu ? bar.menuShows(id) : null,
+        onLongPress: hold ? input.menu.open : null,
+      ),
     );
   }
 

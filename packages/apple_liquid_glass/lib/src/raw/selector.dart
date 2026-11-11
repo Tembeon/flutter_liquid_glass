@@ -641,9 +641,6 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     return InputZoneFrame(rect, opacity: opacity);
   }
 
-  static void _exclusive(SemanticsConfiguration config) =>
-      config.isInMutuallyExclusiveGroup = true;
-
   List<InputZone<Object>> _zoneList() {
     final selected = _selected;
     return [
@@ -654,11 +651,13 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
           enabled: _selectable(i),
           minimumHitSize: const Size.square(44),
           autofocus: widget.autofocus && i == (selected ?? 0),
-          semanticLabel: widget.itemLabels?[i],
-          button: _segmented,
-          selected: i == selected,
-          semanticsRole: _segmented ? null : SemanticsRole.tab,
-          describeSemantics: _segmented ? _exclusive : null,
+          semantics: SemanticsProperties(
+            label: widget.itemLabels?[i],
+            button: _segmented ? true : null,
+            selected: i == selected,
+            inMutuallyExclusiveGroup: _segmented ? true : null,
+            role: _segmented ? null : SemanticsRole.tab,
+          ),
         ),
     ];
   }

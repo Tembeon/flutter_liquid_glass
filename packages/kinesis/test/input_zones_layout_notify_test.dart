@@ -1,3 +1,4 @@
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
@@ -60,8 +61,10 @@ void main() {
             InputZone(
               id: 'a',
               interactions: [PressInteraction(onTap: (_) {})],
-              semanticLabel: 'Item a',
-              button: true,
+              semantics: const SemanticsProperties(
+                label: 'Item a',
+                button: true,
+              ),
             ),
           ],
           frameOf: (_) => InputZoneFrame(Offset.zero & frames.size),

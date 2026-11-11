@@ -273,8 +273,10 @@ class _GlassSwipeActionsState extends State<GlassSwipeActions>
               InputZone<int>(
                 id: i,
                 interactions: _pressOf(i),
-                semanticLabel: action.title,
-                button: true,
+                semantics: SemanticsProperties(
+                  label: action.title,
+                  button: true,
+                ),
               ),
           ],
           frameOf: _frameOf,

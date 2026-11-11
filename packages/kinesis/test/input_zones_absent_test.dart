@@ -3,6 +3,20 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
 
+/// A label whose node tells when it is described: only describing a node
+/// reads whether it is checked.
+class _Counted extends SemanticsProperties {
+  const _Counted(String label, this.described) : super(label: label);
+
+  final VoidCallback described;
+
+  @override
+  bool? get checked {
+    described();
+    return null;
+  }
+}
+
 void main() {
   setUp(MotionClock.debugReset);
 
@@ -31,8 +45,7 @@ void main() {
     InputZone<String> zone(String id) => InputZone(
       id: id,
       interactions: [PressInteraction()],
-      semanticLabel: id,
-      describeSemantics: (config) => described[id] = described[id]! + 1,
+      semantics: _Counted(id, () => described[id] = described[id]! + 1),
     );
     await tester.pumpWidget(
       Directionality(

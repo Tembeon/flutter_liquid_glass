@@ -2327,7 +2327,6 @@ re-exported from package:kinesis:
   Ramp
   RectSprings
   ScrubChangeEvent
-  ScrubInteraction
   SecondaryClickInteraction
   SessionOutput
   SliverMotionList
