@@ -13,11 +13,9 @@ final _read = RegExp(
 // Code the stack replaced, with the files that still hold it. A listed file
 // that stops offending fails too, so the list only shrinks.
 final _bans = <String, (RegExp, Set<String>)>{
-  // The sheet reads the finger in screen coordinates while it moves under
-  // it, which a region inside the moving sheet cannot.
   'a release velocity comes from InputRegion': (
     RegExp(r'\bVelocityTracker\b'),
-    {'lib/src/presentations/sheet.dart'},
+    {},
   ),
   // A motion keeps its time on its Motion's cursor and asks its parts
   // whether they rest.

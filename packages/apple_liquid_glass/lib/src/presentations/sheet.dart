@@ -325,9 +325,6 @@ class _DetentScope extends InheritedNotifier<ValueNotifier<int>> {
   final _SheetViewState state;
 }
 
-/// What the sheet's tree is built from; it rebuilds only when this changes.
-typedef _Structure = ({bool opaque, bool filling});
-
 /// The sheet's geometry in one frame.
 @immutable
 class _Frame {
@@ -387,39 +384,36 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     ),
   );
   final _fill = ValueNotifier<double>(0);
-  final _structure = ValueNotifier<_Structure>((
-    opaque: false,
-    filling: false,
-  ));
+  late final MotionSelection<bool> _glass = widget.motion.select(
+    (m) => (m.sheet?.fill ?? 0) < 1,
+  );
+  late final MotionSelection<bool> _opaque = widget.motion.select(
+    (m) => (m.sheet?.fill ?? 0) >= 1,
+  );
+  late final MotionSelection<bool> _fading = widget.motion.select((m) {
+    final fill = m.sheet?.fill ?? 0;
+    return fill > 0 && fill < 1;
+  });
   List<int> _order = const [];
   // The detent the sheet rests at or heads to, as an index of its detents.
   final _detent = ValueNotifier<int>(0);
   late final _range = _DetentRange(this);
   late final List<Interaction> _detentInput = [_DetentStep(_step)];
+  late final _SheetTouch _touchInput = _SheetTouch(this);
+  List<Interaction> _input = const [];
+  double? _contendedSlop;
   Size _size = Size.zero;
   EdgeInsets _padding = EdgeInsets.zero;
   double _keyboard = 0;
   double? _fitted;
   double? _displayRadius;
   double _dragY = 0;
+  // The stamp of the latest event of a touch on the sheet, which a drag
+  // the content's scrollable hands on happens at.
   double _stamp = 0;
-  double? _slopFrom;
-  bool _awaitingSlop = false;
   int? _touch;
   Offset _touchFrom = Offset.zero;
   bool _touchDragged = false;
-
-  // A move is stamped only when a drag consumes it, so a finger moving
-  // over a resting sheet (a list scrolling inside it) costs no motion
-  // frames.
-  PointerMoveEvent? _unstampedMove;
-
-  // The release velocity is the tracker's raw estimate with the lift's own
-  // sample: DragEndDetails reads it without that sample, zeroes it below
-  // the fling threshold and clamps it, so a replay of the same stamps would
-  // end differently.
-  VelocityTracker? _tracker;
-  double? _releaseVelocity;
 
   _SheetSpec get _spec => widget.spec;
 
@@ -428,6 +422,10 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   bool get _leaving => widget.motion.left;
 
   double get _now => widget.motion.clock.now;
+
+  // The time a release or a cancel acts at: the frame's, not an earlier
+  // stamp's.
+  double get _frameTime => widget.motion.clock.frameTime;
 
   @override
   List<GlassSheetDetent> get detents => _spec.detents;
@@ -451,7 +449,6 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     _scroll.dispose();
     _frame.dispose();
     _fill.dispose();
-    _structure.dispose();
     _detent.dispose();
     super.dispose();
   }
@@ -592,63 +589,60 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
         bottomRight: bottom,
       ),
     );
-    final fill = motion.fill;
-    _fill.value = fill;
-    _structure.value = (opaque: fill >= 1, filling: fill > 0);
+    _fill.value = motion.fill;
   }
 
-  void _stampEvent(PointerEvent event) {
-    _unstampedMove = null;
-    _stamp = widget.motion.clock.stamp(event.timeStamp);
+  // The drag and its release follow DragInteraction's travel past the
+  // slop, which counts in screen points as the sheet moves and scales
+  // under the finger.
+  List<Interaction> _inputFor(double contendedSlop) {
+    if (contendedSlop == _contendedSlop) return _input;
+    _contendedSlop = contendedSlop;
+    return _input = [
+      _touchInput,
+      // Alone in the gesture arena the sheet starts past UIKit's slop.
+      // Over a control or a list that wants the touch too, it starts past
+      // the list's slop, and a list that passes it on the same move takes
+      // the touch. NEAR: 18 points there, against 12 on the device.
+      DragInteraction(
+        axis: Axis.vertical,
+        slop: SheetTuning.dragSlop,
+        contendedSlop: contendedSlop,
+        global: true,
+        onStart: _dragStart,
+        onUpdate: _dragUpdate,
+        onEnd: (details) => _release(details.time, details.velocity.dy),
+        onCancel: (t) => _motion?.dragCancel(_frameTime),
+      ),
+    ];
   }
 
-  void _stampMove() {
-    final move = _unstampedMove;
-    if (move != null) _stampEvent(move);
-  }
-
-  void _down(PointerDownEvent event) {
-    _stampEvent(event);
+  void _down(PointerDownInput input) {
+    _stamp = input.time;
     final motion = _motion;
-    if (motion == null ||
-        _leaving ||
-        _touch != null ||
-        event.buttons != kPrimaryButton) {
-      return;
-    }
-    _touch = event.pointer;
-    _touchFrom = event.localPosition;
-    _slopFrom = event.position.dy;
+    if (motion == null || _leaving || _touch != null) return;
+    _touch = input.pointer;
+    _touchFrom = input.position;
     _touchDragged = false;
-    final tracker = _tracker = VelocityTracker.withKind(event.kind);
-    tracker.addPosition(event.timeStamp, event.position);
-    _releaseVelocity = null;
     motion.press(_stamp);
   }
 
-  void _move(PointerMoveEvent event) {
-    _unstampedMove = event;
-    if (event.pointer != _touch) return;
-    _tracker?.addPosition(event.timeStamp, event.position);
-    if ((event.localPosition - _touchFrom).distance > kTouchSlop) {
+  void _move(PointerMoveInput input) {
+    _stamp = input.time;
+    if (input.pointer != _touch) return;
+    if ((input.position - _touchFrom).distance > kTouchSlop) {
       _touchDragged = true;
     }
   }
 
-  void _up(PointerEvent event) {
-    _stampEvent(event);
-    if (event.pointer != _touch) return;
+  void _up(int pointer, double t, {required bool lifted}) {
+    _stamp = t;
+    if (pointer != _touch) return;
     _touch = null;
-    final tracker = _tracker;
-    _tracker = null;
-    if (event is PointerUpEvent && tracker != null) {
-      tracker.addPosition(event.timeStamp, event.position);
-      _releaseVelocity = tracker.getVelocity().pixelsPerSecond.dy;
-    }
     final motion = _motion;
     if (motion == null) return;
     if (!motion.isDragging) motion.unpress(_stamp);
-    if (event is PointerUpEvent &&
+    if (lifted &&
         !_touchDragged &&
         _touchFrom.dy < SheetTuning.grabberHitHeight) {
       if (motion.isDragging) motion.dragCancel(_stamp);
@@ -657,87 +651,30 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     _deliver();
   }
 
-  double _contendedSlop = kTouchSlop;
-
-  void _configureDrag(VerticalDragGestureRecognizer drag) {
-    // A list in the sheet takes the touch at this slop, and asks first: at
-    // UIKit's 12 the sheet would take a finger before any list could. Where
-    // nothing else wants the touch it is accepted at once (see [_pastSlop]);
-    // only over a control that wants it too, a drag starts past this slop.
-    // NEAR: 18 points there, against 12 on the device.
-    drag.gestureSettings = DeviceGestureSettings(touchSlop: _contendedSlop);
-    drag.onStart = _dragStart;
-    drag.onUpdate = _dragUpdate;
-    drag.onEnd = _dragEnd;
-    drag.onCancel = _dragCancel;
-  }
-
-  void _dragCancel() {
-    if (_awaitingSlop) {
-      _awaitingSlop = false;
-      return;
-    }
-    _motion?.dragCancel(_now);
-  }
-
-  // Alone in the gesture arena the drag is accepted at the touch, so the
-  // sheet waits out UIKit's slop itself: it starts where the finger is
-  // SheetTuning.dragSlop from the touch, as the device does.
-  bool _pastSlop(double y) =>
-      (y - (_slopFrom ?? y)).abs() >= SheetTuning.dragSlop;
-
-  void _dragStart(DragStartDetails details) {
-    _stampMove();
-    _awaitingSlop = !_pastSlop(details.globalPosition.dy);
-    if (!_awaitingSlop) _beginDrag(details.globalPosition.dy);
-  }
-
-  void _beginDrag(double y) {
+  void _dragStart(DragInteractionDetails details) {
     final motion = _motion;
     if (motion == null || _leaving) return;
     motion.dismissible = _dismissAllowed;
-    _dragY = y;
-    motion.dragStart(_stamp, _dragY);
+    motion.dragStart(details.time, details.translation.dy);
   }
 
-  void _dragUpdate(DragUpdateDetails details) {
-    _stampMove();
-    final y = details.globalPosition.dy;
-    if (_awaitingSlop) {
-      if (!_pastSlop(y)) return;
-      _awaitingSlop = false;
-      _beginDrag(y);
-      return;
-    }
+  void _dragUpdate(DragInteractionDetails details) {
     final motion = _motion;
     if (motion == null || !motion.isDragging) return;
-    _dragY = y;
-    motion.dragUpdate(_stamp, _dragY);
+    motion.dragUpdate(details.time, details.translation.dy);
   }
 
-  void _dragEnd(DragEndDetails details) {
-    final velocity = _releaseVelocity;
-    _releaseVelocity = null;
-    _release(velocity ?? details.velocity.pixelsPerSecond.dy);
-  }
-
-  void _release(double velocity) {
-    _stampMove();
-    if (_awaitingSlop) {
-      _awaitingSlop = false;
-      return;
-    }
+  void _release(double t, double velocity) {
     final motion = _motion;
     if (motion == null || !motion.isDragging) return;
-    motion.dragEnd(math.max(_stamp, _now), velocity);
+    motion.dragEnd(math.max(t, _frameTime), velocity);
     _deliver();
   }
 
   void _scrollDragBy(double delta) {
-    _stampMove();
     final motion = _motion;
     if (motion == null || _leaving) return;
-    final t = math.max(_stamp, _now);
+    final t = math.max(_stamp, _frameTime);
     if (!motion.isDragging) {
       motion.dismissible = _dismissAllowed;
       _dragY = 0;
@@ -823,44 +760,40 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
       1 - 2 * SheetTuning.floatingInset / MediaQuery.sizeOf(context).width;
 
   // The band at the top where a tap cycles the detents, as a target the
-  // keyboard and screen readers step the detents with.
+  // keyboard and screen readers step the detents with: a box from the
+  // sheet's top edge at least 44 points square on screen, so the target
+  // stays inside the sheet's clip. No finger reaches it: a touch there is
+  // the sheet's drag and tap, and reaches the content below.
   Widget _grabber(BuildContext context, Color color) {
-    final strings = GlassLocalizations.of(context);
     final handle = SizedBox.fromSize(size: SheetTuning.grabberSize);
     final top = SheetTuning.grabberOffset - SheetTuning.grabberSize.height / 2;
+    final side = _target / _floatingScale(context);
     return Align(
       alignment: Alignment.topCenter,
-      child: Padding(
-        padding: EdgeInsets.only(top: top),
-        child: _DetentSemantics(
-          detent: _detent,
-          top: top,
-          side: _target / _floatingScale(context),
-          describe: (config) {
-            final at = _order.indexOf(_detent.value);
-            if (at < 0) return;
-            config.value = _detentName(strings, _detent.value);
-            if (at + 1 < _order.length) {
-              config.increasedValue = _detentName(strings, _order[at + 1]);
-            }
-            if (at > 0) {
-              config.decreasedValue = _detentName(strings, _order[at - 1]);
-            }
-            config.textDirection = Directionality.of(context);
-          },
-          child: InputRegion(
-            interactions: _detentInput,
-            semanticLabel: strings.sheetGrabberLabel,
-            adjustRange: _range,
-            child: _spec.showDragHandle
-                ? DecoratedBox(
-                    decoration: ShapeDecoration(
-                      color: color,
-                      shape: const StadiumBorder(),
-                    ),
-                    child: handle,
-                  )
-                : handle,
+      child: InputRegion(
+        interactions: _detentInput,
+        semanticLabel: GlassLocalizations.of(context).sheetGrabberLabel,
+        adjustRange: _range,
+        child: _DetentValue(
+          state: this,
+          child: SizedBox(
+            width: math.max(SheetTuning.grabberSize.width, side),
+            height: math.max(top + SheetTuning.grabberSize.height, side),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: EdgeInsets.only(top: top),
+                child: _spec.showDragHandle
+                    ? DecoratedBox(
+                        decoration: ShapeDecoration(
+                          color: color,
+                          shape: const StadiumBorder(),
+                        ),
+                        child: handle,
+                      )
+                    : handle,
+              ),
+            ),
           ),
         ),
       ),
@@ -870,7 +803,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    _contendedSlop = media.gestureSettings.touchSlop ?? kTouchSlop;
+    final input = _inputFor(media.gestureSettings.touchSlop ?? kTouchSlop);
     _displayRadius = MediaQuery.maybeDisplayCornerRadiiOf(
       context,
     )?.bottomLeft.x;
@@ -884,97 +817,86 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
       look.dragHandleColor ?? _Colors.grabber,
       context,
     );
-    final inner = _SheetScope(
+    final inner = MediaQuery(
+      data: media.copyWith(
+        padding: media.padding.copyWith(
+          top: 0,
+          bottom: math.max(media.padding.bottom, media.viewInsets.bottom),
+        ),
+        viewPadding: media.viewPadding.copyWith(top: 0),
+        viewInsets: EdgeInsets.zero,
+      ),
+      child: content,
+    );
+    return _SheetScope(
       state: this,
       child: _DetentScope(
         state: this,
         detent: _detent,
-        child: MediaQuery(
-          data: media.copyWith(
-            padding: media.padding.copyWith(
-              top: 0,
-              bottom: math.max(media.padding.bottom, media.viewInsets.bottom),
-            ),
-            viewPadding: media.viewPadding.copyWith(top: 0),
-            viewInsets: EdgeInsets.zero,
-          ),
-          child: content,
-        ),
-      ),
-    );
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        _layout(
-          constraints.biggest,
-          EdgeInsets.only(top: media.padding.top, bottom: media.padding.bottom),
-          media.viewInsets.bottom,
-        );
-        _motion!.displayRadius = _displayRadius;
-        _publish();
-        return ValueListenableBuilder<_Structure>(
-          valueListenable: _structure,
-          // Fitted content lays out up to the maximum, not the sheet's
-          // height, so content that grows is measured at its new height
-          // in the frame it grows, while the sheet follows a frame later.
-          child: detents.any((d) => d.isFitted)
-              ? OverflowBox(
-                  alignment: Alignment.topLeft,
-                  minHeight: 0,
-                  maxHeight: math.max(
-                    0,
-                    constraints.maxHeight -
-                        media.padding.top -
-                        media.padding.bottom,
-                  ),
-                  child: inner,
-                )
-              : inner,
-          builder: (context, structure, child) => Stack(
-            children: [
-              Positioned.fill(
-                key: const ValueKey('sheet'),
-                child: _SheetBox(
-                  frame: _frame,
-                  child: Semantics(
-                    explicitChildNodes: true,
-                    child: Listener(
-                      behavior: HitTestBehavior.translucent,
-                      onPointerDown: _down,
-                      onPointerMove: _move,
-                      onPointerUp: _up,
-                      onPointerCancel: _up,
-                      child: RawGestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        gestures: {
-                          VerticalDragGestureRecognizer:
-                              GestureRecognizerFactoryWithHandlers<
-                                VerticalDragGestureRecognizer
-                              >(
-                                () => VerticalDragGestureRecognizer(
-                                  debugOwner: this,
-                                ),
-                                _configureDrag,
-                              ),
-                        },
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            _layout(
+              constraints.biggest,
+              EdgeInsets.only(
+                top: media.padding.top,
+                bottom: media.padding.bottom,
+              ),
+              media.viewInsets.bottom,
+            );
+            _motion!.displayRadius = _displayRadius;
+            _publish();
+            return Stack(
+              children: [
+                Positioned.fill(
+                  key: const ValueKey('sheet'),
+                  child: _SheetBox(
+                    frame: _frame,
+                    child: Semantics(
+                      explicitChildNodes: true,
+                      child: InputRegion(
+                        interactions: input,
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
-                            if (!structure.opaque)
-                              const GlassSurface(
+                            MotionVisibility(
+                              visible: _glass,
+                              child: const GlassSurface(
                                 shape: GlassShape.superellipse(
                                   SheetTuning.topRadius,
                                 ),
                                 role: GlassRole.panel,
                                 child: SizedBox.expand(),
                               ),
-                            if (structure.opaque)
-                              ColoredBox(color: docked)
-                            else if (structure.filling)
-                              MotionTransition(
+                            ),
+                            MotionVisibility(
+                              visible: _opaque,
+                              child: ColoredBox(color: docked),
+                            ),
+                            MotionVisibility(
+                              visible: _fading,
+                              child: MotionTransition(
                                 opacity: _fill,
                                 child: ColoredBox(color: docked),
                               ),
-                            child!,
+                            ),
+                            // Fitted content lays out up to the maximum, not
+                            // the sheet's height, so content that grows is
+                            // measured at its new height in the frame it
+                            // grows, while the sheet follows a frame later.
+                            if (detents.any((d) => d.isFitted))
+                              OverflowBox(
+                                alignment: Alignment.topLeft,
+                                minHeight: 0,
+                                maxHeight: math.max(
+                                  0,
+                                  constraints.maxHeight -
+                                      media.padding.top -
+                                      media.padding.bottom,
+                                ),
+                                child: inner,
+                              )
+                            else
+                              inner,
                             if (_spec.showDragHandle || detents.length > 1)
                               _grabber(context, grabber),
                           ],
@@ -983,11 +905,11 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        );
-      },
+              ],
+            );
+          },
+        ),
+      ),
     );
   }
 }
@@ -1135,7 +1057,7 @@ class _SheetScrollPosition extends ScrollPositionWithSingleContext {
   void applyUserOffset(double delta) {
     if (_owns && delta < 0 && !sheet._canExpand) {
       _owns = false;
-      sheet._release(0);
+      sheet._release(sheet._stamp, 0);
       super.applyUserOffset(delta);
       return;
     }
@@ -1155,7 +1077,7 @@ class _SheetScrollPosition extends ScrollPositionWithSingleContext {
   void goBallistic(double velocity) {
     if (_owns) {
       _owns = false;
-      sheet._release(-velocity);
+      sheet._release(sheet._stamp, -velocity);
       super.goBallistic(0);
       return;
     }
@@ -1164,7 +1086,7 @@ class _SheetScrollPosition extends ScrollPositionWithSingleContext {
 
   @override
   void dispose() {
-    if (_owns) sheet._release(0);
+    if (_owns) sheet._release(sheet._stamp, 0);
     super.dispose();
   }
 }
@@ -1194,7 +1116,7 @@ final class _DetentRange implements ValueListenable<AdjustRange> {
 }
 
 /// The value commands of the keyboard and screen readers on the grabber;
-/// a finger on it is the sheet's drag and tap.
+/// no finger reaches it: a finger there is the sheet's drag and tap.
 final class _DetentStep extends Interaction {
   _DetentStep(this.step);
 
@@ -1204,7 +1126,7 @@ final class _DetentStep extends Interaction {
   bool get adjusts => true;
 
   @override
-  bool accepts(PointerDownInput down) => false;
+  bool get takesPointers => false;
 
   @override
   InteractionUpdate handle(InteractionInput input) {
@@ -1217,103 +1139,55 @@ final class _DetentStep extends Interaction {
 // guidelines allow.
 const double _target = 44;
 
-/// The grabber's own node for screen readers, over a square target of at
-/// least [side] points from the sheet's top edge, which the grabber sits
-/// [top] below: tells them the detent the sheet rests at, and the
-/// ones a step up and down reach, as its value; follows the detent without
-/// a rebuild. It takes no pointer: a finger on the grabber is the sheet's
-/// drag and tap.
-class _DetentSemantics extends SingleChildRenderObjectWidget {
-  const _DetentSemantics({
-    required this.detent,
-    required this.top,
-    required this.side,
-    required this.describe,
-    super.child,
-  });
+/// Tells screen readers the detent the sheet rests at, and the ones a step
+/// up and down reach, as the grabber's value; rebuilds when the detent
+/// changes.
+class _DetentValue extends StatelessWidget {
+  const _DetentValue({required this.state, required this.child});
 
-  final ValueListenable<int> detent;
-  final double top;
-  final double side;
-  final void Function(SemanticsConfiguration config) describe;
+  final _SheetViewState state;
+  final Widget child;
 
   @override
-  _RenderDetentSemantics createRenderObject(BuildContext context) =>
-      _RenderDetentSemantics(detent, top, side, describe);
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    _RenderDetentSemantics renderObject,
-  ) {
-    renderObject.top = top;
-    renderObject.side = side;
-    renderObject.describe = describe;
+  Widget build(BuildContext context) {
+    context.dependOnInheritedWidgetOfExactType<_DetentScope>();
+    final strings = GlassLocalizations.of(context);
+    final order = state._order;
+    final detent = state._detent.value;
+    final at = order.indexOf(detent);
+    String? name(int i) => state._detentName(strings, order[i]);
+    return Semantics(
+      value: at < 0 ? null : state._detentName(strings, detent),
+      increasedValue: at >= 0 && at + 1 < order.length ? name(at + 1) : null,
+      decreasedValue: at > 0 ? name(at - 1) : null,
+      textDirection: Directionality.of(context),
+      child: child,
+    );
   }
 }
 
-class _RenderDetentSemantics extends RenderProxyBox {
-  _RenderDetentSemantics(this._detent, this._top, this._side, this._describe);
+/// A touch on the sheet as it reaches the sheet, before any gesture in it:
+/// the press that swells the sheet, a tap on its top band, and the stamp a
+/// drag the content's scrollable hands on happens at.
+final class _SheetTouch extends Interaction {
+  _SheetTouch(this.sheet) : super(role: InteractionRole.observer);
 
-  // The view's own notifier, which lives as long as the view.
-  final ValueListenable<int> _detent;
-
-  double _top;
-  double get top => _top;
-  set top(double value) {
-    if (value == _top) return;
-    _top = value;
-    markNeedsSemanticsUpdate();
-  }
-
-  double _side;
-  double get side => _side;
-  set side(double value) {
-    if (value == _side) return;
-    _side = value;
-    markNeedsSemanticsUpdate();
-  }
-
-  void Function(SemanticsConfiguration config) _describe;
-  void Function(SemanticsConfiguration config) get describe => _describe;
-  set describe(void Function(SemanticsConfiguration config) value) {
-    _describe = value;
-    markNeedsSemanticsUpdate();
-  }
+  final _SheetViewState sheet;
 
   @override
-  void attach(PipelineOwner owner) {
-    super.attach(owner);
-    _detent.addListener(markNeedsSemanticsUpdate);
-  }
-
-  @override
-  void detach() {
-    _detent.removeListener(markNeedsSemanticsUpdate);
-    super.detach();
-  }
-
-  @override
-  bool hitTest(BoxHitTestResult result, {required Offset position}) => false;
-
-  @override
-  Rect get semanticBounds {
-    final width = math.max(size.width, _side);
-    return Rect.fromLTWH(
-      (size.width - width) / 2,
-      -_top,
-      width,
-      math.max(size.height + _top, _side),
-    );
-  }
-
-  @override
-  void describeSemanticsConfiguration(SemanticsConfiguration config) {
-    super.describeSemanticsConfiguration(config);
-    config.isSemanticBoundary = true;
-    // The grabber's region below is a node of its own: this one takes its
-    // label and actions over the larger target.
-    config.isMergingSemanticsOfDescendants = true;
-    _describe(config);
+  InteractionUpdate handle(InteractionInput input) {
+    switch (input) {
+      case PointerDownInput():
+        sheet._down(input);
+      case PointerMoveInput():
+        sheet._move(input);
+      case PointerUpInput(:final pointer, :final time):
+        sheet._up(pointer, time, lifted: true);
+      case PointerCancelInput(:final pointer, :final time):
+        sheet._up(pointer, time, lifted: false);
+      default:
+        break;
+    }
+    return InteractionUpdate.none;
   }
 }

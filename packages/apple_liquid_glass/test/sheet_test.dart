@@ -111,9 +111,24 @@ Future<void> _present(
   await _settle(tester);
 }
 
+// Whether [element] shows: no MotionVisibility above it hides it.
+bool _shown(Element element) {
+  var shown = true;
+  element.visitAncestorElements((ancestor) {
+    final widget = ancestor.widget;
+    if (widget is MotionVisibility && !widget.visible.value) shown = false;
+    return shown;
+  });
+  return shown;
+}
+
 bool _docked(WidgetTester tester, Color color) => tester
-    .widgetList<ColoredBox>(find.byType(ColoredBox))
-    .any((b) => b.color.toARGB32() == color.toARGB32());
+    .elementList(find.byType(ColoredBox))
+    .any(
+      (e) =>
+          _shown(e) &&
+          (e.widget as ColoredBox).color.toARGB32() == color.toARGB32(),
+    );
 
 void main() {
   setUp(MotionClock.debugReset);
@@ -578,10 +593,14 @@ void main() {
     await _settle(tester);
     expect(_docked(tester, const Color(0xFFFFFFFF)), isTrue);
     expect(
-      find.byWidgetPredicate(
-        (w) => w is GlassSurface && w.role == GlassRole.panel,
-      ),
-      findsNothing,
+      tester
+          .elementList(
+            find.byWidgetPredicate(
+              (w) => w is GlassSurface && w.role == GlassRole.panel,
+            ),
+          )
+          .where(_shown),
+      isEmpty,
     );
     await gesture.up();
     await _settle(tester);
