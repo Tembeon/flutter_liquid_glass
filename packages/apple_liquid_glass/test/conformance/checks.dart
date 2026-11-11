@@ -250,7 +250,45 @@ Future<void> _contrast(
 ) async {
   final probe = await pumpEntry(tester, entry, brightness: brightness);
   if (entry.presents) await present(tester, entry, probe);
-  await _guideline(tester, textContrastGuideline);
+  final result = await textContrastGuideline.evaluate(tester);
+  if (result.passed) return;
+  final failures = [
+    for (final failure in result.reason!.split(
+      RegExp(r'\n(?=SemanticsNode#)'),
+    ))
+      if (!_boldEnough(tester, failure)) failure,
+  ];
+  if (failures.isNotEmpty) {
+    throw TestFailure(_guidelineReason(failures.join('\n')));
+  }
+}
+
+// Apple's minimum text contrast (Human Interface Guidelines, Accessibility:
+// the WCAG AA values Accessibility Inspector applies) is 4.5 up to 17
+// points and 3 from 18 points and for bold text at any size. Flutter's
+// guideline grants 3 to bold text only at exactly FontWeight.bold from 14
+// points, while Apple's type styles carry their emphasis as semibold (the
+// Headline style, a grouped list's header): such text is held to 3 here.
+const double _boldContrast = 3;
+
+bool _boldEnough(WidgetTester tester, String failure) {
+  final label = RegExp('label: "([^"]*)"').firstMatch(failure)?.group(1);
+  final found = double.tryParse(
+    RegExp(r'but found ([\d.]+)').firstMatch(failure)?.group(1) ?? '',
+  );
+  if (label == null || found == null || found < _boldContrast) return false;
+  final texts = find.text(label).evaluate();
+  if (texts.isEmpty) return false;
+  for (final element in texts) {
+    final style = switch (element.widget) {
+      Text(:final style) when style != null && !style.inherit => style,
+      Text(:final style) => DefaultTextStyle.of(element).style.merge(style),
+      _ => null,
+    };
+    final weight = style?.fontWeight ?? FontWeight.normal;
+    if (weight.value < FontWeight.w600.value) return false;
+  }
+  return true;
 }
 
 Future<void> _contrastLight(WidgetTester tester, Entry entry) =>
