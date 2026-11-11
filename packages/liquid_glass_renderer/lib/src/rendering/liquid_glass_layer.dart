@@ -139,6 +139,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   GlassDraw get debugLiveDraw => _liveDraw;
 
+  /// What the glass last drew over a copy of a read.
+  @visibleForTesting
+  GlassDraw? debugReadDraw;
+
   // Whether the shader may frost the copy it draws over, which picks a
   // variant that can. Settings pick it, as they pick the color models.
   bool get _frostsCopies =>
@@ -1028,7 +1032,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
             _frostsCopies &&
             _colorModelFamily == FinalShaderModels.ios27,
         tint: appearance.tint,
-        shapes: _shapes.count,
+        body: _body,
         page: sigma > 0 && frosted == null
             ? PageFilter(blur: (frostX, frostY))
             : null,
@@ -1065,6 +1069,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         devicePixelRatio;
   }
 
+  // What the glass is, as its geometry was last encoded.
+  GlassBody get _body => _geometry == null ? GlassBody.none : _encodedBody;
+  GlassBody _encodedBody = GlassBody.none;
+
   // The glass of [read], its band left out.
   static List<RenderLiquidGlassLayer> _glassIn(Read read) => [
     for (final member in read.members)
@@ -1081,8 +1089,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // Gathers the matte [read] is drawn over, where it has more glass than this.
   void _beginRead(Read read) {
+    if (read.geometryKind is! SharedAtlas) return;
     final glass = _glassIn(read);
-    if (glass.length <= 1) return;
     final first = glass.first;
     (_groupMatte ??= GroupMatte()).gather(
       [
@@ -1105,8 +1113,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // From the screen's device pixels into the matte [read] is drawn over, and
   // what its shader samples of the backdrop there.
   (Matrix4, Rect?) _readMapping(Read read) {
-    final matte = _glassIn(read).length > 1 ? _groupMatte : null;
-    final origin = matte?.origin;
+    final origin = switch (read.geometryKind) {
+      SharedAtlas() => _groupMatte?.origin,
+      ComputedShape() || OwnAtlas() => null,
+    };
     return origin == null
         ? (Matrix4.inverted(_frame!.screen), _backdropBounds)
         : (
@@ -1118,7 +1128,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // The draw of [read] over a copy read as [sampling], beside the band that
   // leads it, if one does and the variant draws it.
   GlassDraw _readDraw(Read read, GlassSampling sampling, {_BandAt? band}) {
-    final group = _glassIn(read).length > 1 ? _groupMatte! : null;
+    final kind = read.geometryKind;
+    assert(
+      kind is SharedAtlas || kind == geometryKindOf([_body]),
+      'A read of one glass draws the geometry that glass encoded.',
+    );
+    final group = kind is SharedAtlas ? _groupMatte! : null;
     final tints = group?.tints;
     final matte = group == null
         ? _ownMatte
@@ -1140,7 +1155,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final within = holds == null
         ? null
         : MatrixUtils.transformRect(globalToMatte, holds);
-    return GlassDraw(
+    final draw = GlassDraw(
       variant: variant,
       face: _glassFace,
       glow: _glowNow,
@@ -1166,6 +1181,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
             )
           : null,
     );
+    if (!kReleaseMode) debugReadDraw = draw;
+    return draw;
   }
 
   @override
@@ -1735,7 +1752,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
             tintOnly: _usesTintOnlyAppearance,
           )
         : null;
-    if (shapes.count == 1 && _field == null && looks == null) {
+    _encodedBody = GlassBody(
+      shapes: shapes.count,
+      field: _field != null,
+      looks: looks != null,
+    );
+    if (geometryKindOf([_encodedBody]) is ComputedShape) {
       renderer.releaseAtlas();
       _tiling = null;
       _driftingEncodes = 0;

@@ -77,6 +77,10 @@ extension on SiteFacts {
       );
 }
 
+final class _Glass extends GlassRole {
+  const _Glass();
+}
+
 const _bandLook = BandLook(
   sigma: 2,
   paint: FrostBandPaint(
@@ -560,6 +564,43 @@ void main() {
           expect(
             b.reads[i].members.length,
             a.reads[i].members.length,
+            reason: 'seed $seed',
+          );
+        }
+      }
+    });
+
+    test('draws each read from the geometry of the glass it draws', () {
+      const bodies = [
+        GlassBody.one,
+        GlassBody(shapes: 3),
+        GlassBody(shapes: 1, field: true),
+        GlassBody(shapes: 2, looks: true),
+      ];
+      for (var seed = 0; seed < seeds; seed++) {
+        final scene = _generated(seed);
+        for (final (i, site) in scene.sites.indexed) {
+          if (site.ask.hidden) continue;
+          final look = site.ask.look;
+          site.ask = site._with(
+            role: const _Glass(),
+            look: Look(
+              key: look.key,
+              need: look.need,
+              drawsBand: look.drawsBand,
+              body: bodies[(seed + i) % bodies.length],
+            ),
+          );
+        }
+        for (final read in _plan(scene).reads) {
+          final glass = [
+            for (final member in read.members) member.ask.look.body,
+          ];
+          expect(
+            read.geometryKind,
+            glass.length == 1
+                ? geometryKindOf([glass.single])
+                : const SharedAtlas(),
             reason: 'seed $seed',
           );
         }

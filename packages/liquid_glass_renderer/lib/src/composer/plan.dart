@@ -198,6 +198,89 @@ final class PageFilter {
   int get hashCode => Object.hash(filter, blur, clip, blendMode);
 }
 
+/// What a glass is, as far as where the final shader takes its geometry from
+/// goes: how many shapes it draws, and whether they fuse into a field or
+/// carry looks of their own.
+@internal
+@immutable
+final class GlassBody {
+  /// Creates the body of glass of [shapes] shapes.
+  const GlassBody({
+    required this.shapes,
+    this.field = false,
+    this.looks = false,
+  });
+
+  /// Glass with no geometry yet.
+  static const GlassBody none = GlassBody(shapes: 0);
+
+  /// One plain shape.
+  static const GlassBody one = GlassBody(shapes: 1);
+
+  /// How many shapes it draws.
+  final int shapes;
+
+  /// Whether its shapes fuse into a field.
+  final bool field;
+
+  /// Whether its shapes carry looks of their own.
+  final bool looks;
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlassBody &&
+      other.shapes == shapes &&
+      other.field == field &&
+      other.looks == looks;
+
+  @override
+  int get hashCode => Object.hash(shapes, field, looks);
+}
+
+/// Where the final shader takes the geometry of a draw from.
+///
+/// What the glass a draw holds is decides it, never whether it moves:
+/// [geometryKindOf] is the one place that does.
+@internal
+sealed class GeometryKind {
+  const GeometryKind();
+}
+
+/// One shape of one look, which the final shader works out at each fragment.
+@internal
+final class ComputedShape extends GeometryKind {
+  /// Creates the kind.
+  const ComputedShape();
+}
+
+/// The atlas of one glass: several shapes, a fused field, or shapes with
+/// looks of their own.
+@internal
+final class OwnAtlas extends GeometryKind {
+  /// Creates the kind.
+  const OwnAtlas();
+}
+
+/// One atlas of all the glass one filter draws.
+@internal
+final class SharedAtlas extends GeometryKind {
+  /// Creates the kind.
+  const SharedAtlas();
+}
+
+/// Where the geometry of one filter drawing [glass] comes from.
+///
+/// Glass encodes its own geometry as `geometryKindOf([body])` when it paints,
+/// before the frame is planned; [compile] gives every read the kind of the
+/// glass it draws, so a read of one glass draws the geometry that glass
+/// encoded.
+@internal
+GeometryKind geometryKindOf(List<GlassBody> glass) => switch (glass) {
+  [GlassBody(shapes: 1, field: false, looks: false)] => const ComputedShape(),
+  [] || [_] => const OwnAtlas(),
+  _ => const SharedAtlas(),
+};
+
 /// What one filter's uniforms must share.
 @internal
 @immutable
@@ -208,7 +291,7 @@ final class Look {
     required this.need,
     this.drawsBand = false,
     this.tint,
-    this.shapes = 1,
+    this.body = GlassBody.one,
     this.page,
     this.anyGrid = false,
   });
@@ -228,8 +311,11 @@ final class Look {
   /// The tint, which one filter can draw per shape, but not beside a band.
   final Object? tint;
 
+  /// What its glass is, if it is glass.
+  final GlassBody body;
+
   /// How many shapes it adds to a shared matte.
-  final int shapes;
+  int get shapes => body.shapes;
 
   /// What a read of this site that can only come from an image does to it,
   /// or null for glass that frosts a copy by itself.
@@ -253,13 +339,13 @@ final class Look {
       other.need == need &&
       other.drawsBand == drawsBand &&
       other.tint == tint &&
-      other.shapes == shapes &&
+      other.body == body &&
       other.page == page &&
       other.anyGrid == anyGrid;
 
   @override
   int get hashCode =>
-      Object.hash(key, need, drawsBand, tint, shapes, page, anyGrid);
+      Object.hash(key, need, drawsBand, tint, body, page, anyGrid);
 }
 
 /// What a site asks of a frame, in the screen's logical pixels.
@@ -480,6 +566,15 @@ final class Read {
 
   /// Where its backdrop's pixels lie, for a read that does not read live.
   late ReadGeometry geometry;
+
+  /// Where its filter takes the geometry of the glass it draws from.
+  GeometryKind geometryKind = const OwnAtlas();
+
+  /// What the glass it draws is, its band left out, in paint order.
+  List<GlassBody> get glass => [
+    for (final member in members)
+      if (member.ask.role is GlassRole) member.ask.look.body,
+  ];
 
   /// The frost of the glass it leads, in logical pixels: 0 under a band.
   double get frost => lead.isBand ? 0 : lead.ask.look.need.frost;
@@ -910,6 +1005,10 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
     }
     reads.add(read);
     fates.add(Leads(read));
+  }
+
+  for (final read in reads) {
+    read.geometryKind = geometryKindOf(read.glass);
   }
 
   for (var i = 0; i < reads.length; i++) {
