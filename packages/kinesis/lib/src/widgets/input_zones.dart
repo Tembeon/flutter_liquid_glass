@@ -9,8 +9,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
-import 'package:kinesis/src/widgets/input_region.dart';
+import 'package:kinesis/src/widgets/haptics.dart';
+import 'package:kinesis/src/widgets/input_intents.dart';
 import 'package:kinesis/src/widgets/input_shared.dart';
+import 'package:kinesis/src/widgets/input_target.dart';
 import 'package:kinesis/src/widgets/source.dart';
 
 /// Where an [InputZone] lies in one frame, as its control reads it from the

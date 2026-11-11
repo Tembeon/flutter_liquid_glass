@@ -1,13 +1,14 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/widgets/haptics.dart';
+import 'package:kinesis/src/widgets/input_intents.dart';
 import 'package:kinesis/src/widgets/input_shared.dart';
+import 'package:kinesis/src/widgets/input_target.dart';
 import 'package:kinesis/src/widgets/scope.dart';
 
 /// Turns pointer, keyboard, hover and accessibility input into the input
@@ -182,28 +183,19 @@ class InputRegion extends StatefulWidget {
 }
 
 class _InputRegionState extends State<InputRegion> {
-  late InteractionSession _session = InteractionSession(widget.interactions);
   FocusNode? _ownFocus;
   WidgetStatesController? _ownStates;
   MouseCursor? _builtCursor;
-  late Map<Type, Action<Intent>> _actions;
-  double? _scheduled;
-  VoidCallback? _cancelDue;
-  final Map<int, VelocityTracker> _trackers = {};
-  final Map<int, InputArenaMember> _members = {};
-  // The input each arena pointer's route hands the session for the event
-  // being dispatched, made as the event reached the region.
-  final Map<int, InteractionInput> _routed = {};
-  final PointerSpeed _speed = PointerSpeed();
-  bool _contested = false;
+  NavigationMode? _navigation;
+  _RenderRegion? _box;
+  late final _RegionTarget _target = _RegionTarget(this);
+  late final _RegionLine _line = _RegionLine(this);
 
   FocusNode get _focus => widget.focusNode ?? (_ownFocus ??= FocusNode());
 
   // The clock of the motions around the region, so a touch's stamps and
   // the motions it drives share one time.
   late MotionClock _clock;
-
-  _RenderRegion? _box;
 
   WidgetStatesController get _states =>
       widget.statesController ?? (_ownStates ??= WidgetStatesController());
@@ -214,8 +206,7 @@ class _InputRegionState extends State<InputRegion> {
     _states.update(WidgetState.disabled, !widget.enabled);
     _states.addListener(_statesChanged);
     FocusManager.instance.addHighlightModeListener(_highlightModeChanged);
-    _bindRegions();
-    _attachPort(widget.port);
+    _line.port = widget.port;
     widget.adjustRange?.addListener(_rangeChanged);
   }
 
@@ -226,25 +217,15 @@ class _InputRegionState extends State<InputRegion> {
     final navigation = MediaQuery.maybeNavigationModeOf(context);
     if (navigation == _navigation) return;
     _navigation = navigation;
-    _showFocus();
+    _target.showFocus();
   }
 
   @override
   void didUpdateWidget(InputRegion oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!listEquals(oldWidget.interactions, widget.interactions)) {
-      _cancelAll(PointerCancelReason.platform);
-      _session = InteractionSession(widget.interactions);
-      _bindRegions();
-    }
-    if (oldWidget.enabled && !widget.enabled) {
-      _cancelAll(PointerCancelReason.disabled);
-      _leaveHover();
-    }
-    if (oldWidget.port != widget.port) {
-      oldWidget.port?.detach(_receive);
-      _attachPort(widget.port);
-    }
+    _target.interactions = widget.interactions;
+    if (oldWidget.enabled && !widget.enabled) _target.disable();
+    _line.port = widget.port;
     if (oldWidget.adjustRange != widget.adjustRange) {
       oldWidget.adjustRange?.removeListener(_rangeChanged);
       widget.adjustRange?.addListener(_rangeChanged);
@@ -261,15 +242,14 @@ class _InputRegionState extends State<InputRegion> {
       _states.addListener(_statesChanged);
     }
     _states.update(WidgetState.disabled, !widget.enabled);
-    if (oldWidget.enabled != widget.enabled) _showFocus();
+    if (oldWidget.enabled != widget.enabled) _target.showFocus();
   }
 
   @override
   void dispose() {
-    widget.port?.detach(_receive);
+    _line.dispose();
     widget.adjustRange?.removeListener(_rangeChanged);
-    _cancelAll(PointerCancelReason.platform);
-    _cancelDue?.call();
+    _target.dispose();
     _states.removeListener(_statesChanged);
     FocusManager.instance.removeHighlightModeListener(_highlightModeChanged);
     _ownStates?.dispose();
@@ -277,28 +257,16 @@ class _InputRegionState extends State<InputRegion> {
     super.dispose();
   }
 
-  bool _hasFocus = false;
-
   void _focusChanged(bool focused) {
-    _hasFocus = focused;
-    _showFocus();
+    _target.hasFocus = focused;
     _box?.markNeedsSemanticsUpdate();
   }
 
-  void _highlightModeChanged(FocusHighlightMode mode) => _showFocus();
-
-  void _showFocus() => _states.update(
-    WidgetState.focused,
-    focusShows(
-      hasFocus: _hasFocus,
-      enabled: widget.enabled,
-      navigation: _navigation,
-    ),
-  );
+  void _highlightModeChanged(FocusHighlightMode mode) => _target.showFocus();
 
   MouseCursor get _cursor => resolveCursor(
     widget.mouseCursor,
-    clickable: _activates || _adjusts,
+    clickable: _target.acts,
     states: _states.value,
   );
 
@@ -309,383 +277,48 @@ class _InputRegionState extends State<InputRegion> {
     }
   }
 
-  void _bindRegions() {
-    for (final interaction in widget.interactions) {
-      interaction.bindRegion(_toGlobal);
-    }
-  }
-
-  Offset _toGlobal(Offset local) => _box?.localToGlobal(local) ?? local;
-
-  void _attachPort(InputPort? port) => attachPortAfterFrame(
-    port,
-    _receive,
-    () => mounted && widget.port == port,
-  );
-
-  void _receive(PortEvent event) {
-    final box = _box;
-    if (!widget.enabled || box == null || !box.hasSize) return;
-    final input = event.input(
-      box.globalToLocal,
-      size: box.size,
-      hitArea: box.hitArea,
-      scrollAxes: event.handOff ? scrollAxesAround(context) : const {},
-      contested: _contested,
-    );
-    _clock.input(input.time, () => _answer(_session.handle(input)));
-  }
-
-  void _pointer(PointerEvent event, Size size) {
-    if (!widget.enabled) return;
-    if (event is PointerScrollEvent) {
-      if (widget.interactions.any((i) => i.takesWheel)) {
-        GestureBinding.instance.pointerSignalResolver.register(
-          event,
-          _scrolled,
-        );
-      }
-      return;
-    }
-    if (event is! PointerDownEvent && !_trackers.containsKey(event.pointer)) {
-      return;
-    }
-    final time = _clock.stamp(event.timeStamp);
-    _clock.input(time, () => _dispatch(event, size, time));
-  }
-
-  void _scrolled(PointerSignalEvent event) {
-    if (!mounted || !widget.enabled || event is! PointerScrollEvent) return;
-    final time = _clock.stamp(event.timeStamp);
-    _clock.input(
-      time,
-      () => _answer(
-        _session.handle(
-          PointerScrollInput(
-            time: time,
-            position: event.localPosition,
-            scrollDelta: event.scrollDelta,
-            kind: event.kind,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Observers hear an event as it reaches the region, as a Listener does;
-  // the interactions in the gesture arena hear it on the pointer's route,
-  // where Flutter's recognizers hear it, after the recognizers inside the
-  // region: a scroll view inside that passes its slop on the same event
-  // takes the touch first, as it would from a recognizer around it.
-  void _dispatch(PointerEvent event, Size size, double time) {
-    final InteractionInput input;
-    switch (event) {
-      case PointerDownEvent():
-        _speed.touched(event.timeStamp);
-        final tracker = VelocityTracker.withKind(event.kind);
-        tracker.addPosition(event.timeStamp, event.localPosition);
-        final down = PointerDownInput(
-          time: time,
-          pointer: event.pointer,
-          position: event.localPosition,
-          regionSize: size,
-          hitArea: _box?.hitArea,
-          globalPosition: event.position,
-          kind: event.kind,
-          buttons: event.buttons,
-          scrollAxes: scrollAxesAround(context),
-          contested: _contested,
-        );
-        final observed = _session.observe(down);
-        final output = _session.track(down);
-        if (output.reject) {
-          if (_session.observes(event.pointer)) {
-            _trackers[event.pointer] = tracker;
-          }
-          _answer(observed);
-          _answer(output);
-          return;
-        }
-        _trackers[event.pointer] = tracker;
-        final member = InputArenaMember(_lost, onAccepted: _accepted);
-        _members[event.pointer] = member;
-        member.entry = GestureBinding.instance.gestureArena.add(
-          event.pointer,
-          member,
-        );
-        GestureBinding.instance.pointerRouter.addRoute(event.pointer, _route);
-        _answer(observed);
-        _answer(output, pointer: event.pointer);
-        return;
-      case PointerMoveEvent():
-        _trackers[event.pointer]?.addPosition(
-          event.timeStamp,
-          event.localPosition,
-        );
-        if (mounted) {
-          _speed.moved(event, View.of(context).devicePixelRatio);
-        }
-        input = PointerMoveInput(
-          time: time,
-          pointer: event.pointer,
-          position: event.localPosition,
-          globalPosition: event.position,
-        );
-      case PointerUpEvent():
-        _speed.lifted();
-        final tracker = _trackers.remove(event.pointer);
-        tracker?.addPosition(event.timeStamp, event.localPosition);
-        final velocity = tracker?.getVelocity().pixelsPerSecond ?? Offset.zero;
-        input = PointerUpInput(
-          time: time,
-          pointer: event.pointer,
-          position: event.localPosition,
-          velocity: velocity,
-          globalPosition: event.position,
-          globalVelocity: globalVector(
-            event.transform,
-            velocity,
-            event.localPosition,
-          ),
-        );
-      case PointerCancelEvent():
-        _trackers.remove(event.pointer);
-        input = PointerCancelInput(
-          time: time,
-          pointer: event.pointer,
-          reason: PointerCancelReason.platform,
-        );
-      default:
-        return;
-    }
-    _answer(_session.observe(input));
-    if (_members.containsKey(event.pointer)) _routed[event.pointer] = input;
-  }
-
-  void _route(PointerEvent event) {
-    final input = _routed.remove(event.pointer);
-    if (input == null) return;
-    final ends = input is PointerUpInput || input is PointerCancelInput;
-    _clock.input(input.time, () {
-      _answer(_session.track(input), pointer: event.pointer);
-      if (ends) _leave(event.pointer);
-    });
-  }
-
-  // The region is out of the gesture arena for [pointer].
-  void _leave(int pointer) {
-    _routed.remove(pointer);
-    if (_members.remove(pointer) == null) return;
-    GestureBinding.instance.pointerRouter.removeRoute(pointer, _route);
-  }
-
-  void _accepted(int pointer) {
-    if (!_members.containsKey(pointer)) return;
-    final time = _clock.now;
-    _clock.input(
-      time,
-      () => _answer(
-        _session.handle(PointerAcceptedInput(time: time, pointer: pointer)),
-      ),
-    );
-  }
-
-  void _lost(int pointer) {
-    if (!_members.containsKey(pointer)) return;
-    _leave(pointer);
-    if (!_session.observes(pointer)) _trackers.remove(pointer);
-    _answer(_session.lost(pointer, _clock.now));
-  }
-
-  void _cancelAll(PointerCancelReason reason) {
-    for (final pointer in _trackers.keys.toList()) {
-      final entry = _members[pointer]?.entry;
-      _leave(pointer);
-      entry?.resolve(GestureDisposition.rejected);
-      _trackers.remove(pointer);
-      _answer(
-        _session.handle(
-          PointerCancelInput(
-            time: _clock.now,
-            pointer: pointer,
-            reason: reason,
-          ),
-        ),
-      );
-    }
-  }
-
-  void _input(InteractionInput input) {
-    if (!widget.enabled) return;
-    dispatchInput(
-      input,
-      () => _clock.input(input.time, () => _answer(_session.handle(input))),
-    );
-  }
-
-  void _answer(SessionOutput output, {int? pointer}) {
-    if (pointer != null) {
-      final entry = _members[pointer]?.entry;
-      if (output.claim) entry?.resolve(GestureDisposition.accepted);
-      if (output.reject) entry?.resolve(GestureDisposition.rejected);
-    }
-    for (final event in output.events) {
-      _play(event);
-    }
-    _writeStates();
-    _scheduleDue();
-  }
-
-  void _play(InteractionEvent event) {
-    if (event is ActivationEvent && event.source != ActivationSource.pointer) {
-      return;
-    }
-    final haptic = widget.feedback?.call(event);
-    if (haptic != null) playHaptic(context, haptic);
-  }
-
-  void _scheduleDue() {
-    final due = _session.nextDue;
-    if (due == _scheduled) return;
-    _cancelDue?.call();
-    _cancelDue = null;
-    _scheduled = due;
-    if (due == null) return;
-    _cancelDue = _clock.schedule(due, (time) {
-      _scheduled = null;
-      _cancelDue = null;
-      if (!mounted) return;
-      _clock.input(
-        time,
-        () => _answer(
-          _session.advance(time),
-          pointer: _members.keys.firstOrNull,
-        ),
-      );
-    });
-  }
-
-  void _writeStates() {
-    final states = _states;
-    var pressed = false;
-    var dragged = false;
-    for (final interaction in widget.interactions) {
-      pressed = pressed || interaction.pressed;
-      dragged = dragged || interaction.dragged;
-    }
-    states.update(WidgetState.pressed, pressed);
-    states.update(WidgetState.dragged, dragged);
-  }
-
-  bool get _activates => widget.interactions.any((i) => i.activates);
-
-  bool get _adjusts => widget.interactions.any((i) => i.adjusts);
-
-  bool get _opensMenu => widget.interactions.any((i) => i.opensContextMenu);
-
-  AdjustRange get _range => widget.adjustRange?.value ?? AdjustRange.open;
-
   void _rangeChanged() => _box?.markNeedsSemanticsUpdate();
-
-  NavigationMode? _navigation;
-
-  late final Action<ActivateIntent> _activateAction =
-      Action<ActivateIntent>.overridable(
-        defaultAction: _Activate<ActivateIntent>(this),
-        context: context,
-      );
-
-  late final Action<ButtonActivateIntent> _buttonAction =
-      Action<ButtonActivateIntent>.overridable(
-        defaultAction: _Activate<ButtonActivateIntent>(this),
-        context: context,
-      );
-
-  late final Action<AdjustValueIntent> _adjustAction =
-      Action<AdjustValueIntent>.overridable(
-        defaultAction: _Adjust(this),
-        context: context,
-      );
-
-  late final Action<ContextMenuIntent> _menuAction =
-      Action<ContextMenuIntent>.overridable(
-        defaultAction: _ContextMenu(this),
-        context: context,
-      );
-
-  ({bool activates, bool adjusts, bool opensMenu})? _actionsFor;
-
-  // A registered action, even a disabled one, answers its intent for the
-  // focus below the region and overrides the overridable actions there: a
-  // plain region around a row of focusable parts would take their keys.
-  Map<Type, Action<Intent>> _actionsNow() {
-    final takes = (
-      activates: _activates,
-      adjusts: _adjusts,
-      opensMenu: _opensMenu,
-    );
-    if (takes == _actionsFor) return _actions;
-    _actionsFor = takes;
-    return _actions = {
-      if (takes.activates) ...{
-        ActivateIntent: _activateAction,
-        ButtonActivateIntent: _buttonAction,
-      },
-      if (takes.adjusts) AdjustValueIntent: _adjustAction,
-      if (takes.opensMenu) ContextMenuIntent: _menuAction,
-    };
-  }
-
-  Map<ShortcutActivator, Intent> _shortcuts() {
-    final adjusts = _adjusts
-        ? AdjustValueIntent.defaultShortcuts(
-            Directionality.maybeOf(context) ?? TextDirection.ltr,
-            _navigation ?? NavigationMode.traditional,
-          )
-        : const <ShortcutActivator, Intent>{};
-    if (!_opensMenu) return adjusts;
-    return {...ContextMenuIntent.defaultShortcuts, ...adjusts};
-  }
 
   @override
   Widget build(BuildContext context) {
-    final enabled = widget.enabled;
-    _contested = ContestScope.of(context);
-    final contends = widget.interactions.any((i) => i.contendsWithControls);
+    final target = _target;
     return _Region(
       state: this,
       described: (
         minimumHitSize: widget.minimumHitSize,
-        takesPointers: widget.interactions.any((i) => i.takesPointers),
+        takesPointers: target.takesPointers,
         label: widget.semanticLabel,
         textDirection: Directionality.maybeOf(context),
-        enabled: enabled,
-        acts: _activates || _adjusts,
-        tappable: enabled && _activates,
-        adjustable: enabled && _adjusts,
+        enabled: widget.enabled,
+        activates: target.activates,
+        adjusts: target.adjusts,
       ),
       child: Actions(
-        actions: _actionsNow(),
+        actions: target.actions,
         child: Shortcuts(
-          shortcuts: _shortcuts(),
+          shortcuts: target.shortcuts(
+            Directionality.maybeOf(context) ?? TextDirection.ltr,
+          ),
           child: Focus(
             focusNode: _focus,
             autofocus: widget.autofocus,
-            canRequestFocus: enabled,
+            canRequestFocus: widget.enabled,
             // The region's box says whether it is focusable, in the frame
             // that disables it: Focus learns it a frame later.
             includeSemantics: false,
-            skipTraversal: widget.focusNode == null
-                ? !_activates && !_adjusts
-                : null,
+            skipTraversal: widget.focusNode == null ? !target.acts : null,
             onFocusChange: _focusChanged,
             child: MouseRegion(
               cursor: _builtCursor = _cursor,
-              onEnter: (event) => _hover(event, inside: true),
-              onHover: (event) => _hover(event, inside: true),
-              onExit: (event) => _hover(event, inside: false),
+              onEnter: (event) =>
+                  target.hover(event.localPosition, inside: true),
+              onHover: (event) =>
+                  target.hover(event.localPosition, inside: true),
+              onExit: (event) =>
+                  target.hover(event.localPosition, inside: false),
               child: ContestScope(
-                contested: _contested || contends,
+                contested:
+                    ContestScope.of(context) || target.contendsWithControls,
                 child: widget.child,
               ),
             ),
@@ -694,237 +327,90 @@ class _InputRegionState extends State<InputRegion> {
       ),
     );
   }
-
-  void _semanticTap() => _input(
-    ActivateInput(time: _clock.now, source: ActivationSource.accessibility),
-  );
-
-  void _adjust(ValueCommand command, ActivationSource source) => _input(
-    AdjustInput(time: _clock.now, command: command, source: source),
-  );
-
-  void _openMenu() {
-    final box = _box;
-    final centre = box != null && box.hasSize
-        ? box.size.center(Offset.zero)
-        : Offset.zero;
-    _input(ContextMenuInput(time: _clock.now, position: centre));
-  }
-
-  // A disabled region hears no more hover, so what waits on the pointer
-  // resting (a dwell) hears it leave.
-  void _leaveHover() {
-    if (!_states.value.contains(WidgetState.hovered)) return;
-    _clock.input(
-      _clock.now,
-      () => _answer(
-        _session.handle(
-          PointerHoverInput(
-            time: _clock.now,
-            position: Offset.zero,
-            inside: false,
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _hover(PointerEvent event, {required bool inside}) {
-    _states.update(WidgetState.hovered, inside);
-    _input(
-      PointerHoverInput(
-        time: _clock.now,
-        position: event.localPosition,
-        inside: inside,
-      ),
-    );
-  }
 }
 
-/// Activates the region for an intent the app's shortcuts send, as long as
-/// the region is enabled, an interaction activates, and the region has the
-/// focus or a region inside it handed the intent on.
-class _Activate<T extends Intent> extends HostAction<T> {
-  _Activate(this.state);
+final class _RegionTarget extends InputTarget {
+  _RegionTarget(this.state) : super(state.widget.interactions);
 
   final _InputRegionState state;
 
   @override
-  bool takes(T intent) => state.widget.enabled && state._activates;
+  BuildContext get context => state.context;
 
   @override
-  bool get focused => state._focus.hasPrimaryFocus;
+  bool get mounted => state.mounted;
 
   @override
-  void run(T intent) => state._input(ActivateInput(time: state._clock.now));
+  MotionClock get clock => state._clock;
+
+  @override
+  PointerLine get line => state._line;
+
+  @override
+  bool get enabled => state.widget.enabled;
+
+  @override
+  Offset toGlobal(Offset local) => state._box?.localToGlobal(local) ?? local;
+
+  @override
+  void write(WidgetState state, {required bool on}) =>
+      this.state._states.update(state, on);
+
+  @override
+  MotionHaptic? feedback(InteractionEvent event) =>
+      state.widget.feedback?.call(event);
+
+  @override
+  AdjustRange get range => state.widget.adjustRange?.value ?? AdjustRange.open;
+
+  @override
+  Offset get centre => switch (state._box) {
+    final box? when box.hasSize => box.size.center(Offset.zero),
+    _ => Offset.zero,
+  };
+
+  @override
+  FocusNode get focusNode => state._focus;
+
+  @override
+  bool get focusable => enabled;
+
+  @override
+  NavigationMode? get navigation => state._navigation;
 }
 
-/// Steps the region's value for an [AdjustValueIntent], as long as the
-/// region is enabled and an interaction adjusts.
-///
-/// A control may send the intent from below the region without its focus
-/// (a stepper's half), so the region takes it unfocused too.
-class _Adjust extends HostAction<AdjustValueIntent> {
-  _Adjust(this.state);
+final class _RegionLine extends PointerLine {
+  _RegionLine(this.state);
 
   final _InputRegionState state;
 
   @override
-  bool takes(AdjustValueIntent intent) =>
-      state.widget.enabled &&
-      state._adjusts &&
-      state._range.allows(intent.command);
+  BuildContext get context => state.context;
 
   @override
-  bool get focused => true;
+  bool get mounted => state.mounted;
 
   @override
-  void run(AdjustValueIntent intent) =>
-      state._adjust(intent.command, ActivationSource.keyboard);
+  MotionClock get clock => state._clock;
+
+  @override
+  RenderBox? get box => state._box;
+
+  @override
+  Rect? get hitArea => state._box?.hitArea;
+
+  @override
+  InputTarget get base => state._target;
 }
 
-/// Opens the region's context menu for a [ContextMenuIntent], as long as
-/// the region is enabled, an interaction opens one, and the region has the
-/// focus or a region inside it handed the intent on.
-class _ContextMenu extends HostAction<ContextMenuIntent> {
-  _ContextMenu(this.state);
-
-  final _InputRegionState state;
-
-  @override
-  bool takes(ContextMenuIntent intent) =>
-      state.widget.enabled && state._opensMenu;
-
-  @override
-  bool get focused => state._focus.hasPrimaryFocus;
-
-  @override
-  void run(ContextMenuIntent intent) => state._openMenu();
-}
-
-/// Asks the focused control for its context menu: the context menu key and
-/// Shift+F10.
-///
-/// UIKit: the context menu a hardware keyboard opens on the focused view.
-/// Flutter: none; the keys reach no widget by default.
-///
-/// An [InputRegion] or an `InputZones` zone whose interaction
-/// [Interaction.opensContextMenu] (a `SecondaryClickInteraction`) binds
-/// [defaultShortcuts] around its focus and turns the intent into a
-/// [ContextMenuInput] at its centre, where a menu anchors. As with
-/// activation, the focused, innermost host handles it, and an app replaces
-/// what it does with an `Actions` above the host or binds more keys to it
-/// with a `Shortcuts` above the host.
-class ContextMenuIntent extends Intent {
-  /// Asks for the context menu.
-  const ContextMenuIntent();
-
-  /// The keys a host binds: the context menu key and Shift+F10, as on
-  /// Windows and Linux desktops.
-  static const Map<ShortcutActivator, Intent> defaultShortcuts = {
-    SingleActivator(LogicalKeyboardKey.contextMenu): ContextMenuIntent(),
-    SingleActivator(LogicalKeyboardKey.f10, shift: true): ContextMenuIntent(),
-  };
-}
-
-/// Asks the focused region to step its value: the intent of the arrows,
-/// Home and End, Page Up and Page Down on a slider, a stepper or a page
-/// control.
-///
-/// Flutter: the private adjustment intent of `Slider`.
-///
-/// An [InputRegion] whose interaction [Interaction.adjusts] binds
-/// [defaultShortcuts] around its focus, as `Slider` does inside its own
-/// widget, and turns the intent into an [AdjustInput]. An app replaces
-/// what a command does with an `Actions` above the region (the region's
-/// action is `Action.overridable`), and binds more keys to the intent with
-/// a `Shortcuts` above the region; the keys the region binds itself come
-/// first, as `Slider`'s do.
-class AdjustValueIntent extends Intent {
-  /// Asks for [command].
-  const AdjustValueIntent(this.command);
-
-  /// The step asked for.
-  final ValueCommand command;
-
-  static const Map<ShortcutActivator, Intent> _vertical = {
-    SingleActivator(LogicalKeyboardKey.arrowUp): AdjustValueIntent(
-      ValueCommand.increase,
-    ),
-    SingleActivator(LogicalKeyboardKey.arrowDown): AdjustValueIntent(
-      ValueCommand.decrease,
-    ),
-    SingleActivator(LogicalKeyboardKey.home): AdjustValueIntent(
-      ValueCommand.toMinimum,
-    ),
-    SingleActivator(LogicalKeyboardKey.end): AdjustValueIntent(
-      ValueCommand.toMaximum,
-    ),
-    SingleActivator(LogicalKeyboardKey.pageUp): AdjustValueIntent(
-      ValueCommand.increaseLarge,
-    ),
-    SingleActivator(LogicalKeyboardKey.pageDown): AdjustValueIntent(
-      ValueCommand.decreaseLarge,
-    ),
-  };
-
-  static const Map<ShortcutActivator, Intent> _leftToRight = {
-    SingleActivator(LogicalKeyboardKey.arrowRight): AdjustValueIntent(
-      ValueCommand.increase,
-    ),
-    SingleActivator(LogicalKeyboardKey.arrowLeft): AdjustValueIntent(
-      ValueCommand.decrease,
-    ),
-  };
-
-  static const Map<ShortcutActivator, Intent> _rightToLeft = {
-    SingleActivator(LogicalKeyboardKey.arrowLeft): AdjustValueIntent(
-      ValueCommand.increase,
-    ),
-    SingleActivator(LogicalKeyboardKey.arrowRight): AdjustValueIntent(
-      ValueCommand.decrease,
-    ),
-  };
-
-  static final Map<ShortcutActivator, Intent> _traditionalLeftToRight = {
-    ..._leftToRight,
-    ..._vertical,
-  };
-
-  static final Map<ShortcutActivator, Intent> _traditionalRightToLeft = {
-    ..._rightToLeft,
-    ..._vertical,
-  };
-
-  /// The keys a value region binds in [direction] under [navigation]: the
-  /// arrow toward the end of the line increases (right in left-to-right,
-  /// left in right-to-left), the other decreases, and in traditional
-  /// navigation up increases, down decreases, Home and End go to the
-  /// minimum and maximum, Page Up and Page Down take a larger step. In
-  /// directional navigation (a TV remote) only the horizontal arrows are
-  /// bound, so up and down still move focus.
-  static Map<ShortcutActivator, Intent> defaultShortcuts(
-    TextDirection direction,
-    NavigationMode navigation,
-  ) => switch ((navigation, direction)) {
-    (NavigationMode.directional, TextDirection.ltr) => _leftToRight,
-    (NavigationMode.directional, TextDirection.rtl) => _rightToLeft,
-    (NavigationMode.traditional, TextDirection.ltr) => _traditionalLeftToRight,
-    (NavigationMode.traditional, TextDirection.rtl) => _traditionalRightToLeft,
-  };
-}
-
-/// What the region's box needs besides its state: its hit size and what
-/// it tells accessibility.
 typedef _Described = ({
   Size? minimumHitSize,
   bool takesPointers,
   String? label,
   TextDirection? textDirection,
   bool enabled,
-  bool acts,
-  bool tappable,
-  bool adjustable,
+  bool activates,
+  bool adjusts,
 });
 
 class _Region extends SingleChildRenderObjectWidget {
@@ -1014,7 +500,7 @@ class _RenderRegion extends RenderProxyBox {
 
   @override
   void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
-    state._pointer(event, size);
+    if (_described.enabled) state._line.pointer(event);
   }
 
   @override
@@ -1026,146 +512,9 @@ class _RenderRegion extends RenderProxyBox {
       config.label = label;
       config.textDirection = described.textDirection;
     }
-    config.isEnabled = described.enabled;
     // A region that acts is one node of its own, as a button is, disabled
     // too: without this its label and actions merge into what is around it.
-    config.isSemanticBoundary = described.acts;
-    // From the region's widget, not its node: the Focus below sets the
-    // node only after this box was described for the frame.
-    final focus = state._focus;
-    if (described.enabled &&
-        focus.ancestors.every((node) => node.descendantsAreFocusable)) {
-      config.isFocused = focus.hasPrimaryFocus;
-      // As Focus does: iOS takes no focus action (flutter/flutter#150030).
-      if (defaultTargetPlatform != TargetPlatform.iOS) {
-        config.onFocus = focus.requestFocus;
-      }
-    }
-    if (described.tappable) config.onTap = state._semanticTap;
-    if (described.adjustable) {
-      final range = state._range;
-      if (range.canIncrease) {
-        config.onIncrease = () => state._adjust(
-          ValueCommand.increase,
-          ActivationSource.accessibility,
-        );
-      }
-      if (range.canDecrease) {
-        config.onDecrease = () => state._adjust(
-          ValueCommand.decrease,
-          ActivationSource.accessibility,
-        );
-      }
-    }
+    config.isSemanticBoundary = described.activates || described.adjusts;
+    state._target.describe(config);
   }
-}
-
-/// Turns the haptics of the input regions below it on or off: an app's
-/// setting for haptics, or a part of a screen that stays quiet.
-///
-/// UIKit: the System Haptics setting. Flutter: none; `TickerMode` is the
-/// same shape for tickers.
-///
-/// An [InputRegion] or `InputZones` below a scope with [enabled] false
-/// plays no feedback, and [MotionHapticPlay.play] plays nothing there. A
-/// scope cannot turn haptics back on below one that turned them off.
-class MotionHapticScope extends StatelessWidget {
-  /// Turns the haptics of [child] on or off.
-  const MotionHapticScope({
-    required this.enabled,
-    required this.child,
-    super.key,
-  });
-
-  /// Whether the regions below play their haptics.
-  final bool enabled;
-
-  /// The subtree the scope governs.
-  final Widget child;
-
-  /// Whether haptics are on at [context]: false below any scope that turns
-  /// them off, true otherwise. Rebuilds [context] when that changes.
-  static bool enabledOf(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<_HapticScope>()?.enabled ??
-      true;
-
-  @override
-  Widget build(BuildContext context) => _HapticScope(
-    enabled: enabled && enabledOf(context),
-    child: child,
-  );
-}
-
-/// Plays [haptic] for the control at [context], unless a scope there turns
-/// haptics off or an input host is handling a keyboard or accessibility
-/// input; [context] does not come to depend on the scope.
-@internal
-void playHaptic(BuildContext context, MotionHaptic haptic) {
-  if (!context.mounted || !gestureInput) return;
-  if (!(context.getInheritedWidgetOfExactType<_HapticScope>()?.enabled ??
-      true)) {
-    return;
-  }
-  switch (haptic) {
-    case .selection:
-      HapticFeedback.selectionClick().ignore();
-    case .lightImpact:
-      HapticFeedback.lightImpact().ignore();
-    case .mediumImpact:
-      HapticFeedback.mediumImpact().ignore();
-    case .heavyImpact:
-      HapticFeedback.heavyImpact().ignore();
-  }
-}
-
-/// Attaches [receiver] to [port] after the current frame, while [stillWanted]
-/// holds.
-///
-/// The receiver maps positions with its render box, laid out in the frame
-/// that builds it, and the touches that waited run interactions that may
-/// rebuild or lay out, which that frame's layout and resolve phases do not
-/// allow. The clock's coming phases can run before that layout when the host
-/// is built outside a frame, so the port attaches after the frame.
-@internal
-void attachPortAfterFrame(
-  InputPort? port,
-  void Function(PortEvent event) receiver,
-  bool Function() stillWanted,
-) {
-  if (port == null) return;
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (stillWanted()) port.attach(receiver);
-  });
-}
-
-class _HapticScope extends InheritedWidget {
-  const _HapticScope({required this.enabled, required super.child});
-
-  final bool enabled;
-
-  @override
-  bool updateShouldNotify(_HapticScope oldWidget) =>
-      enabled != oldWidget.enabled;
-}
-
-/// Plays a [MotionHaptic] for a control.
-///
-/// UIKit: `UIFeedbackGenerator`. SwiftUI: `sensoryFeedback`. Flutter:
-/// `HapticFeedback`.
-extension MotionHapticPlay on MotionHaptic {
-  /// Plays the haptic for the control at [context], at once.
-  ///
-  /// This is how a control plays a haptic for something that is not an
-  /// event of its interactions: a switch whose shown state flips under the
-  /// finger, a slider that reaches its end stop, a wheel that turns to
-  /// the next row. The haptics of the interactions' own events go through
-  /// `InputRegion.feedback` and `InputZones.feedback`, which play the same
-  /// way.
-  ///
-  /// It plays nothing below a [MotionHapticScope] that turns haptics off,
-  /// and nothing while an input region or a zone handles a keyboard or
-  /// accessibility input (an `ActivateInput` or `AdjustInput` whose source
-  /// is not the pointer): a control that answers a key or an assistive
-  /// action by calling it stays silent, as UIKit's controls are.
-  void play(BuildContext context) => playHaptic(context, this);
 }

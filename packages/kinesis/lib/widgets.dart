@@ -22,13 +22,10 @@ library;
 
 export 'src/widgets/control_states.dart' show ControlStates;
 export 'src/widgets/driven.dart' show MotionDriven;
-export 'src/widgets/input_region.dart'
-    show
-        AdjustValueIntent,
-        ContextMenuIntent,
-        InputRegion,
-        MotionHapticPlay,
-        MotionHapticScope;
+export 'src/widgets/haptics.dart' show MotionHapticPlay, MotionHapticScope;
+export 'src/widgets/input_intents.dart'
+    show AdjustValueIntent, ContextMenuIntent;
+export 'src/widgets/input_region.dart' show InputRegion;
 export 'src/widgets/input_zones.dart'
     show
         InputZone,
