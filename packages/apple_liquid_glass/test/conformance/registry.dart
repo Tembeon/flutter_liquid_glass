@@ -337,6 +337,17 @@ final List<Entry> registry = [
   Entry(
     'GlassTabBar',
     covers: const ['GlassTabBar', 'GlassTabDestination'],
+    exempt: const {
+      'contrast-light': Exemption(
+        '"Library": expected contrast ratio of at least 4.5 but found 3.18 '
+        'for a font size of 10.0',
+        because:
+            'iOS 27 colours: the selected tab label is the tint as UIKit '
+            'draws it, measured as #0082FC (tab bar passport), on the lens, '
+            'which the flat renderer draws at its measured #ECECEC: 3.18:1 '
+            'for the 10 pt semibold label, as on iOS',
+      ),
+    },
     kind: Kind.selection,
     build: (probe, {required enabled}) => SizedBox(
       width: 402,
@@ -354,6 +365,17 @@ final List<Entry> registry = [
   Entry(
     'GlassTabBar.search',
     covers: const ['GlassSearchController'],
+    exempt: const {
+      'contrast-light': Exemption(
+        '"Library": expected contrast ratio of at least 4.5 but found 3.18 '
+        'for a font size of 10.0',
+        because:
+            'iOS 27 colours: the selected tab label is the tint as UIKit '
+            'draws it, measured as #0082FC (tab bar passport), on the lens, '
+            'which the flat renderer draws at its measured #ECECEC: 3.18:1 '
+            'for the 10 pt semibold label, as on iOS',
+      ),
+    },
     kind: Kind.selection,
     canDisable: false,
     focusStops: 2,
