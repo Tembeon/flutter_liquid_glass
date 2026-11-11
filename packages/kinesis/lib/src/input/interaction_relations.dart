@@ -214,17 +214,10 @@ final class _Sequenced extends Interaction {
     return _then(
       update,
       b.handle(
-        PointerDownInput(
+        down.copyWith(
           time: time,
-          pointer: down.pointer,
           position: _latest,
-          regionSize: down.regionSize,
-          hitArea: down.hitArea,
           globalPosition: _latestGlobal,
-          kind: down.kind,
-          buttons: down.buttons,
-          scrollAxes: down.scrollAxes,
-          contested: down.contested,
         ),
       ),
     );

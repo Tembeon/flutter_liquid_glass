@@ -481,14 +481,7 @@ class _RenderRegion extends RenderProxyBox with SemanticsAnnotationsMixin {
   bool get _acts => _described.activates || _described.adjusts;
 
   Rect get hitArea {
-    final box = Offset.zero & size;
-    final minimum = _described.minimumHitSize;
-    if (minimum == null) return box;
-    return Rect.fromCenter(
-      center: box.center,
-      width: math.max(size.width, minimum.width),
-      height: math.max(size.height, minimum.height),
-    );
+    return hitRectAround(Offset.zero & size, _described.minimumHitSize);
   }
 
   @override

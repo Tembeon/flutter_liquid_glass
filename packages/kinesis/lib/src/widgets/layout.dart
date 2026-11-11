@@ -162,9 +162,9 @@ class _MotionLayoutState extends State<MotionLayout>
     return _Probe(
       key: entry.key,
       motion: motion,
-      child: entry,
+      entry: entry,
       ghost: ghost,
-      content: LayoutItemScope(entry: entry, child: child),
+      child: LayoutItemScope(entry: entry, child: child),
     );
   }
 
@@ -301,12 +301,11 @@ class _RenderHost extends RenderBox
 class _Probe extends SingleChildRenderObjectWidget {
   const _Probe({
     required this.motion,
-    required LayoutItemEntry child,
+    required this.entry,
     required this.ghost,
-    required Widget content,
+    required Widget super.child,
     super.key,
-  }) : entry = child,
-       super(child: content);
+  });
 
   final LayoutMotion motion;
   final LayoutItemEntry entry;

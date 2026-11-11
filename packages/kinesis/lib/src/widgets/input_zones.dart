@@ -396,10 +396,19 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
   InputZonesController<T> get controller =>
       widget.controller ?? (_ownController ??= InputZonesController<T>());
 
+  void _attach() {
+    assert(
+      controller._host == null || controller._host == this,
+      'An InputZonesController has one InputZones at a time: this one is '
+      'already attached to another.',
+    );
+    controller._host = this;
+  }
+
   @override
   void initState() {
     super.initState();
-    controller._host = this;
+    _attach();
     widget.frames.addListener(_framesChanged);
     FocusManager.instance.addHighlightModeListener(_highlightModeChanged);
     _line.port = widget.port;
@@ -433,7 +442,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
         _ownController?.dispose();
         _ownController = null;
       }
-      controller._host = this;
+      _attach();
       for (final zone in _zones.values) {
         zone._writeAll();
       }
@@ -536,20 +545,12 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
       if (state == null || frame == null || !frame.live) continue;
       if (frame.rect.contains(position)) return state;
       if (extended == null &&
-          _hitRect(frame.rect, zone.minimumHitSize).contains(position)) {
+          hitRectAround(frame.rect, zone.minimumHitSize).contains(position)) {
         extended = state;
       }
     }
     return extended;
   }
-
-  static Rect _hitRect(Rect rect, Size? minimum) => minimum == null
-      ? rect
-      : Rect.fromCenter(
-          center: rect.center,
-          width: math.max(rect.width, minimum.width),
-          height: math.max(rect.height, minimum.height),
-        );
 
   void _pointer(PointerEvent event) {
     if (event is! PointerHoverEvent) return _line.pointer(event);

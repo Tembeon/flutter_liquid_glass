@@ -158,6 +158,31 @@ void main() {
     frames.dispose();
   });
 
+  testWidgets('one controller belongs to one InputZones at a time', (
+    tester,
+  ) async {
+    final finger = _Finger(zones);
+    await tester.pumpWidget(
+      _screen([_Menu(zones: zones, finger: finger, frames: frames)]),
+    );
+    final errors = <FlutterErrorDetails>[];
+    final handler = FlutterError.onError;
+    FlutterError.onError = errors.add;
+    addTearDown(() => FlutterError.onError = handler);
+    await tester.pumpWidget(
+      _screen([
+        _Menu(zones: zones, finger: finger, frames: frames),
+        Positioned(
+          left: 0,
+          top: 0,
+          child: _Menu(zones: zones, finger: finger, frames: frames),
+        ),
+      ]),
+    );
+    expect(errors.first.exception, isA<AssertionError>());
+    expect(errors.first.exception.toString(), contains('one InputZones'));
+  });
+
   testWidgets('a host interaction follows one finger from a row across two '
       'more, beyond the host and back, to its release', (tester) async {
     final finger = _Finger(zones);

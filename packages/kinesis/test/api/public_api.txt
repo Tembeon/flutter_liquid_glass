@@ -211,6 +211,13 @@ final class PointerDownInput extends InteractionInput
   final int buttons
   final double contactTime
   final bool contested
+  @internal PointerDownInput copyWith({
+    double? time,
+    Offset? position,
+    Size? regionSize,
+    Rect? hitArea,
+    Offset? globalPosition,
+  })
   Offset get globalPosition
   Rect get hitArea
   final PointerDeviceKind kind
@@ -240,6 +247,7 @@ final class PointerMoveInput extends InteractionInput
     required Offset position,
     Offset? globalPosition,
   })
+  @internal PointerMoveInput copyWith({double? time, Offset? position})
   Offset get globalPosition
   final int pointer
   final Offset position
@@ -262,6 +270,7 @@ final class PointerUpInput extends InteractionInput
     Offset? globalPosition,
     Offset? globalVelocity,
   })
+  @internal PointerUpInput copyWith({Offset? position, Offset? velocity})
   Offset get globalPosition
   Offset get globalVelocity
   final int pointer

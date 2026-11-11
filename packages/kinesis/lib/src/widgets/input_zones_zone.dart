@@ -170,36 +170,16 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
     }
     final origin = _origin;
     return switch (input) {
-      PointerDownInput() => PointerDownInput(
-        time: input.time,
-        pointer: input.pointer,
+      PointerDownInput() => input.copyWith(
         position: input.position - origin,
         regionSize: _size,
-        contactTime: input.contactTime,
-        hitArea: _InputZonesState._hitRect(
+        hitArea: hitRectAround(
           origin & _size,
           zone.minimumHitSize,
         ).shift(-origin),
-        globalPosition: input.globalPosition,
-        kind: input.kind,
-        buttons: input.buttons,
-        scrollAxes: input.scrollAxes,
-        contested: input.contested,
       ),
-      PointerMoveInput() => PointerMoveInput(
-        time: input.time,
-        pointer: input.pointer,
-        position: input.position - origin,
-        globalPosition: input.globalPosition,
-      ),
-      PointerUpInput() => PointerUpInput(
-        time: input.time,
-        pointer: input.pointer,
-        position: input.position - origin,
-        velocity: input.velocity,
-        globalPosition: input.globalPosition,
-        globalVelocity: input.globalVelocity,
-      ),
+      PointerMoveInput() => input.copyWith(position: input.position - origin),
+      PointerUpInput() => input.copyWith(position: input.position - origin),
       PointerHoverInput() => PointerHoverInput(
         time: input.time,
         position: input.position - origin,
@@ -227,7 +207,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   Rect get bounds {
     final frame = this.frame;
     if (frame == null) return Rect.zero;
-    return _InputZonesState._hitRect(frame.rect, zone.minimumHitSize);
+    return hitRectAround(frame.rect, zone.minimumHitSize);
   }
 
   static const Map<ShortcutActivator, Intent> _moves = {

@@ -72,6 +72,31 @@ final class PointerDownInput extends InteractionInput {
 
   /// The axes of the scroll views around the region.
   final Set<Axis> scrollAxes;
+
+  /// This input with the given fields replaced.
+  ///
+  /// [globalPosition] and [hitArea] stay as they read now, so moving
+  /// [position] into another region's coordinates keeps the global one.
+  @internal
+  PointerDownInput copyWith({
+    double? time,
+    Offset? position,
+    Size? regionSize,
+    Rect? hitArea,
+    Offset? globalPosition,
+  }) => PointerDownInput(
+    time: time ?? this.time,
+    pointer: pointer,
+    position: position ?? this.position,
+    regionSize: regionSize ?? this.regionSize,
+    contactTime: contactTime,
+    hitArea: hitArea ?? this.hitArea,
+    globalPosition: globalPosition ?? this.globalPosition,
+    kind: kind,
+    buttons: buttons,
+    scrollAxes: scrollAxes,
+    contested: contested,
+  );
 }
 
 /// A tracked pointer moved.
@@ -95,6 +120,17 @@ final class PointerMoveInput extends InteractionInput {
   /// Where it is, in global coordinates; [position] when the input did not
   /// say.
   Offset get globalPosition => _globalPosition ?? position;
+
+  /// This input with the given fields replaced; [globalPosition] stays as
+  /// it reads now.
+  @internal
+  PointerMoveInput copyWith({double? time, Offset? position}) =>
+      PointerMoveInput(
+        time: time ?? this.time,
+        pointer: pointer,
+        position: position ?? this.position,
+        globalPosition: globalPosition,
+      );
 }
 
 /// A tracked pointer lifted.
@@ -129,6 +165,19 @@ final class PointerUpInput extends InteractionInput {
   /// [velocity] in global coordinates; [velocity] when the input did not
   /// say.
   Offset get globalVelocity => _globalVelocity ?? velocity;
+
+  /// This input with the given fields replaced; [globalPosition] and
+  /// [globalVelocity] stay as they read now.
+  @internal
+  PointerUpInput copyWith({Offset? position, Offset? velocity}) =>
+      PointerUpInput(
+        time: time,
+        pointer: pointer,
+        position: position ?? this.position,
+        velocity: velocity ?? this.velocity,
+        globalPosition: globalPosition,
+        globalVelocity: globalVelocity,
+      );
 }
 
 /// The gesture arena gave the region the touch of [pointer]: no other

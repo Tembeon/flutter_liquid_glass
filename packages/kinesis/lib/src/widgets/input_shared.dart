@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:meta/meta.dart';
@@ -73,3 +75,14 @@ void dispatchInput(InteractionInput input, VoidCallback body) {
     _dispatching = outer;
   }
 }
+
+/// [rect] grown about its centre to at least [minimum], where it has one:
+/// the area a region takes pointers in.
+@internal
+Rect hitRectAround(Rect rect, Size? minimum) => minimum == null
+    ? rect
+    : Rect.fromCenter(
+        center: rect.center,
+        width: math.max(rect.width, minimum.width),
+        height: math.max(rect.height, minimum.height),
+      );

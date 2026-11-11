@@ -296,12 +296,7 @@ class InteractionSession {
           output,
           next,
           next.handle(
-            PointerMoveInput(
-              time: at,
-              pointer: latest.pointer,
-              position: latest.position,
-              globalPosition: latest.globalPosition,
-            ),
+            latest.copyWith(time: at),
           ),
         );
       }
@@ -319,19 +314,7 @@ class InteractionSession {
   }
 
   static PointerDownInput _at(PointerDownInput down, double time) =>
-      PointerDownInput(
-        time: time,
-        pointer: down.pointer,
-        position: down.position,
-        regionSize: down.regionSize,
-        contactTime: down.contactTime,
-        hitArea: down.hitArea,
-        globalPosition: down.globalPosition,
-        kind: down.kind,
-        buttons: down.buttons,
-        scrollAxes: down.scrollAxes,
-        contested: down.contested,
-      );
+      down.copyWith(time: time);
 
   SessionOutput _apply(
     SessionOutput output,

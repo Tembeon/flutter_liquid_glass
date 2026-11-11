@@ -53,48 +53,28 @@ final class FollowInteraction extends Interaction {
         _width = input.regionSize.width;
         follower.down(
           mirrored
-              ? PointerDownInput(
-                  time: input.time,
-                  pointer: input.pointer,
+              ? input.copyWith(
                   position: _x(input.position),
-                  regionSize: input.regionSize,
-                  contactTime: input.contactTime,
                   hitArea: Rect.fromLTRB(
                     _width - input.hitArea.right,
                     input.hitArea.top,
                     _width - input.hitArea.left,
                     input.hitArea.bottom,
                   ),
-                  globalPosition: input.globalPosition,
-                  kind: input.kind,
-                  buttons: input.buttons,
-                  scrollAxes: input.scrollAxes,
-                  contested: input.contested,
                 )
               : input,
         );
       case PointerMoveInput() when input.pointer == _pointer:
         follower.move(
-          mirrored
-              ? PointerMoveInput(
-                  time: input.time,
-                  pointer: input.pointer,
-                  position: _x(input.position),
-                  globalPosition: input.globalPosition,
-                )
-              : input,
+          mirrored ? input.copyWith(position: _x(input.position)) : input,
         );
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
         follower.up(
           mirrored
-              ? PointerUpInput(
-                  time: input.time,
-                  pointer: input.pointer,
+              ? input.copyWith(
                   position: _x(input.position),
                   velocity: Offset(-input.velocity.dx, input.velocity.dy),
-                  globalPosition: input.globalPosition,
-                  globalVelocity: input.globalVelocity,
                 )
               : input,
         );
