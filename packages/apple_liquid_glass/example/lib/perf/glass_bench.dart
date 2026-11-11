@@ -165,7 +165,7 @@ class _BenchAppState extends State<GlassBenchApp>
     ]) {
       final shots = <ByteData>[];
       for (final on in [false, true]) {
-        GlassCopies.debugEnabledOverride = on;
+        debugGlassCopies = on;
         setState(() {
           _scene = scene;
           _moving = true;
@@ -239,7 +239,7 @@ class _BenchAppState extends State<GlassBenchApp>
           ]
         : [for (final scene in Scene.values) (scene, null)];
     for (final (scene, on) in runs) {
-      if (on != null) GlassCopies.debugEnabledOverride = on;
+      if (on != null) debugGlassCopies = on;
       setState(() {
         _scene = scene;
         _moving = false;

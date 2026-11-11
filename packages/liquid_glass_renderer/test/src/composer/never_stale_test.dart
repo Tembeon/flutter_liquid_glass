@@ -118,8 +118,8 @@ void main() {
       tester.view.physicalSize = const Size(400, 400);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      GlassCopies.debugEnabledOverride = true;
-      addTearDown(() => GlassCopies.debugEnabledOverride = null);
+      debugGlassCopies = true;
+      addTearDown(() => debugGlassCopies = null);
 
       await tester.pumpWidget(places(glassFirst: true));
       for (var i = 0; i < 60; i++) {
@@ -137,8 +137,8 @@ void main() {
     tester.view.physicalSize = const Size(400, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    GlassCopies.debugEnabledOverride = true;
-    addTearDown(() => GlassCopies.debugEnabledOverride = null);
+    debugGlassCopies = true;
+    addTearDown(() => debugGlassCopies = null);
     final settings = LiquidGlassSettings.ios27RegularLight();
 
     Widget glassAt(double left) => Positioned(
@@ -203,8 +203,8 @@ void main() {
     tester.view.physicalSize = const Size(400, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    GlassCopies.debugEnabledOverride = true;
-    addTearDown(() => GlassCopies.debugEnabledOverride = null);
+    debugGlassCopies = true;
+    addTearDown(() => debugGlassCopies = null);
     final width = ValueNotifier<double>(100);
     addTearDown(width.dispose);
 
@@ -388,8 +388,8 @@ void main() {
         tester.view.physicalSize = const Size(400, 800);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
-        GlassCopies.debugEnabledOverride = true;
-        addTearDown(() => GlassCopies.debugEnabledOverride = null);
+        debugGlassCopies = true;
+        addTearDown(() => debugGlassCopies = null);
 
         await tester.pumpWidget(scene());
         for (var i = 0; i < 60; i++) {

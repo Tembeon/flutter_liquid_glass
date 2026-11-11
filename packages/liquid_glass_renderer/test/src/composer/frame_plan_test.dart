@@ -22,11 +22,11 @@ Widget _button(double left, double top) => Positioned(
 
 void main() {
   setUp(() {
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
   });
 
   tearDown(() {
-    GlassCopies.debugEnabledOverride = null;
+    debugGlassCopies = null;
   });
 
   testWidgets('joins three disjoint buttons on a real frame', (tester) async {

@@ -184,10 +184,10 @@ Future<Uint8List> _drawn(
 
 void main() {
   setUp(() {
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
   });
   tearDown(() {
-    GlassCopies.debugEnabledOverride = null;
+    debugGlassCopies = null;
     GlassComposer.debugPolicy = const PlanPolicy();
   });
 

@@ -20,5 +20,5 @@ final benchSwitches = <String, void Function({required bool on})>{
       GlassComposer.debugPolicy = PlanPolicy(maxTargets: on ? 8 : 0),
   // B reads the backdrop live instead of drawing copies.
   'live_reads': ({required on}) =>
-      GlassCopies.debugEnabledOverride = on ? false : null,
+      debugGlassCopies = on ? false : null,
 };

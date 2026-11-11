@@ -98,6 +98,7 @@ StateChain
 ceilPixels
 compilePlan
 debugDumpGlassPlan
+debugGlassCopies
 debugPaintLiquidGlassGeometry
 fakeGlassSurfaceOutset
 frostLatticeOf

@@ -121,10 +121,10 @@ int _difference(Uint8List a, Uint8List b, {int? width, int? columns}) {
 void main() {
   setUp(() {
     MotionClock.debugReset();
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
   });
   tearDown(() {
-    GlassCopies.debugEnabledOverride = null;
+    debugGlassCopies = null;
     GlassComposer.debugPolicy = const PlanPolicy();
     GlassCopyTuning.debugOverride();
   });

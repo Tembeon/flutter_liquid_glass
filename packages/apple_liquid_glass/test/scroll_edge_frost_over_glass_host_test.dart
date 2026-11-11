@@ -156,7 +156,7 @@ void main() {
   // here, which moves the band to an image; the test is of the frame's own.
   setUp(MotionClock.debugReset);
   tearDown(() {
-    GlassCopies.debugEnabledOverride = null;
+    debugGlassCopies = null;
     GlassComposer.debugPolicy = const PlanPolicy();
   });
 
@@ -169,9 +169,9 @@ void main() {
       tester.view.physicalSize = Size(300 * dpr, 400 * dpr);
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
-      GlassCopies.debugEnabledOverride = false;
+      debugGlassCopies = false;
       final live = await _scrolled(tester, dpr, glass: true, serves: false);
-      GlassCopies.debugEnabledOverride = true;
+      debugGlassCopies = true;
       GlassComposer.debugPolicy = const PlanPolicy(maxTargets: 64);
       final copied = await _scrolled(tester, dpr, glass: true, serves: true);
       expect(_band(tester).debugPage, isNull);

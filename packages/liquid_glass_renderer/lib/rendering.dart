@@ -40,6 +40,7 @@ export 'src/rendering/live_paint_size.dart' show LivePaintSize;
 export 'src/rendering/paint_fake_glass_surface.dart'
     show fakeGlassSurfaceOutset;
 export 'src/rendering/precache.dart' show precacheLiquidGlass;
+export 'src/rendering/read.dart' show debugGlassCopies;
 export 'src/rendering/render_liquid_glass_geometry.dart'
     show LiquidGlassShapeRenderObject, RenderLiquidGlassGeometry, ShapeGeometry;
 export 'src/rendering/shader_programs.dart' show GlassShaderPrograms;

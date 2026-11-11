@@ -133,8 +133,8 @@ Future<(Uint8List, GlassFrameReport)> _draw(
 const _photoColor = Color(0xFF20D040);
 
 void main() {
-  setUp(() => GlassCopies.debugEnabledOverride = true);
-  tearDown(() => GlassCopies.debugEnabledOverride = null);
+  setUp(() => debugGlassCopies = true);
+  tearDown(() => debugGlassCopies = null);
 
   testWidgets('a control on a row reads nothing and looks the same', (
     tester,

@@ -134,8 +134,8 @@ void main() {
       tester.view.physicalSize = const Size(402, 300) * dpr;
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
-      GlassCopies.debugEnabledOverride = true;
-      addTearDown(() => GlassCopies.debugEnabledOverride = null);
+      debugGlassCopies = true;
+      addTearDown(() => debugGlassCopies = null);
       final (bar, text) = await _centers(tester, dpr, glass: false);
       final (frostedBar, frostedText) = await _centers(
         tester,
@@ -157,8 +157,8 @@ void main() {
     tester.view.physicalSize = const Size(402, 300) * dpr;
     tester.view.devicePixelRatio = dpr;
     addTearDown(tester.view.reset);
-    GlassCopies.debugEnabledOverride = true;
-    addTearDown(() => GlassCopies.debugEnabledOverride = null);
+    debugGlassCopies = true;
+    addTearDown(() => debugGlassCopies = null);
     // The copy holds four device pixels a side here; a third of a logical
     // pixel is a quarter of one of its own.
     for (final (quarters, shift) in [(0, 0.0), (1, 1.0), (2, 2.0), (3, 3.0)]) {

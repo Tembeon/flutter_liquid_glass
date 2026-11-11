@@ -100,8 +100,8 @@ Future<Uint8List> _draw(
 }
 
 void main() {
-  setUp(() => GlassCopies.debugEnabledOverride = true);
-  tearDown(() => GlassCopies.debugEnabledOverride = null);
+  setUp(() => debugGlassCopies = true);
+  tearDown(() => debugGlassCopies = null);
 
   testWidgets('glass reads its own copy with other glass in the frame', (
     tester,

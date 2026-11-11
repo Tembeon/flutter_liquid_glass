@@ -38,8 +38,8 @@ Future<String> _measure(WidgetTester tester, String tab, double scroll) async {
     bottom: 34 * 2.625,
   );
   addTearDown(tester.view.reset);
-  GlassCopies.debugEnabledOverride = true;
-  addTearDown(() => GlassCopies.debugEnabledOverride = null);
+  debugGlassCopies = true;
+  addTearDown(() => debugGlassCopies = null);
   await tester.pumpWidget(
     const GalleryApp(
       settings: GallerySettings(renderer: GalleryRenderer.liquid),

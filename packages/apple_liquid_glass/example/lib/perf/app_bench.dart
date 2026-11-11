@@ -312,7 +312,7 @@ class _Journey {
   late final Rect screen;
 
   Future<void> run() async {
-    if (_live) GlassCopies.debugEnabledOverride = false;
+    if (_live) debugGlassCopies = false;
     SchedulerBinding.instance.addTimingsCallback(_timings);
     if (_census) SchedulerBinding.instance.addPersistentFrameCallback(_frame);
     await wait(4000);

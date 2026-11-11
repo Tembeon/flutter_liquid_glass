@@ -162,7 +162,7 @@ int _difference(Uint8List a, Uint8List b) {
 
 void main() {
   tearDown(() {
-    GlassCopies.debugEnabledOverride = null;
+    debugGlassCopies = null;
   });
 
   testWidgets('the band over a copy drawn in the very frame what lies under '
@@ -173,12 +173,12 @@ void main() {
 
     // flutter_tester renders only a process's first backdrop filter
     // reliably, so the reference reads the backdrop first.
-    GlassCopies.debugEnabledOverride = false;
+    debugGlassCopies = false;
     await tester.pumpWidget(_scene());
     final reading = await _pixels(tester);
     expect(_band(tester).serves, isFalse);
 
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(shift: 0.3));
     expect(_band(tester).serves, isTrue);
@@ -194,7 +194,7 @@ void main() {
 
   testWidgets('the band keeps its copy while what lies under it holds '
       'still', (tester) async {
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -211,7 +211,7 @@ void main() {
 
   testWidgets('the band reads its backdrop over a layer the copy cannot '
       'draw', (tester) async {
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -221,7 +221,7 @@ void main() {
 
   testWidgets('the copy under the band is drawn in one image with the '
       'copies of the glass in the frame', (tester) async {
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -243,7 +243,7 @@ void main() {
     tester,
   ) async {
     copyIntoImages();
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -268,7 +268,7 @@ void main() {
   testWidgets('glass near the band draws from its own copy while the band '
       'draws from its copy, and reads its backdrop while the band reads '
       'its', (tester) async {
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);

@@ -2,7 +2,9 @@
 // its metrics fired unchanged, its pixel ratio changed and restored, a tab
 // switched away and back. The test holds one testWidgets on purpose: each
 // test file is a fresh process, and a picture kept wrong from a process's
-// first frames shows only in its first test.
+// first frames shows only in its first test. Glass reads its copies, as it
+// does in an app and not by default under flutter test: the pictures that
+// can be kept wrong are drawn from them.
 //
 // flutter test --enable-impeller --enable-flutter-gpu \
 //   test/glass_history_host_test.dart
@@ -14,6 +16,7 @@ import 'package:apple_liquid_glass_example/app.dart';
 import 'package:apple_liquid_glass_example/stand/stand_home.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/rendering.dart' show debugGlassCopies;
 
 const _frame = Duration(milliseconds: 16);
 const _dpr = 2.0;
@@ -110,9 +113,11 @@ Future<void> _rest(WidgetTester tester, [int frames = 60]) async {
   }
 }
 
-// Pixels a level apart are the rasterizer's rounding; a handful of them is
-// noise, anything more or any pixel further apart is another picture.
-const _handful = 16;
+// Pixels a level apart are rounding: glass over a held copy and glass over
+// the scene the copy was taken from round a pixel here and there apart.
+// More of them than glass has at its rims, or any pixel further apart, is
+// another picture.
+const _handful = 2000;
 
 // Null when equal; else how many pixels differ, by how much at most, and
 // where, in logical pixels.
@@ -164,6 +169,8 @@ void main() {
         bottom: 34 * _dpr,
       );
       addTearDown(tester.view.reset);
+      debugGlassCopies = true;
+      addTearDown(() => debugGlassCopies = null);
       await tester.pumpWidget(const GalleryApp(home: StandHome()));
       await _rest(tester, 40);
       await tester.tap(find.text('Controls').last);

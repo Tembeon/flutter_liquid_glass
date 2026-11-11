@@ -1344,6 +1344,7 @@ class ShapeGeometry
   final Rect shapeBounds
   final Matrix4? shapeToGeometry
   overrides: ==, hashCode, toString
+@visibleForTesting bool? debugGlassCopies
 bool debugPaintLiquidGlassGeometry
 double fakeGlassSurfaceOutset(LiquidGlassSettings settings)
 Future<LiquidGlassSupport> precacheLiquidGlass({bool warmUp = ...})

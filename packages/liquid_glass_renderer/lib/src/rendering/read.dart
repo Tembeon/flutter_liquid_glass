@@ -160,13 +160,19 @@ final class ReadLayer extends ContainerLayer {
   }
 }
 
+/// Whether glass reads copies of what lies under it, for a test: true or
+/// false decides, null goes back to the default.
+///
+/// An app's glass reads copies wherever Impeller renders. Under
+/// `flutter test` it reads none unless a test sets this to true, so a test
+/// that checks what an app draws turns it on.
+@visibleForTesting
+bool? debugGlassCopies;
+
 /// Whether glass reads copies of what lies under it, wherever Impeller renders,
-/// not under `flutter test` unless a test turns it on.
+/// not under `flutter test` unless a test turns it on ([debugGlassCopies]).
 @internal
 abstract final class GlassCopies {
-  /// Replaces [enabled] for a test.
-  @visibleForTesting
-  static bool? debugEnabledOverride;
 
   static final bool _defaultEnabled =
       !kIsWeb &&
@@ -174,7 +180,7 @@ abstract final class GlassCopies {
       !runningUnderFlutterTest;
 
   /// Whether glass layers keep copies of what lies under them.
-  static bool get enabled => debugEnabledOverride ?? _defaultEnabled;
+  static bool get enabled => debugGlassCopies ?? _defaultEnabled;
 
   /// How many images were drawn.
   @visibleForTesting

@@ -35,9 +35,9 @@ Widget _glass(Rect rect, double highlight, {double frost = 1.5}) =>
     );
 
 void main() {
-  setUp(() => GlassCopies.debugEnabledOverride = true);
+  setUp(() => debugGlassCopies = true);
   tearDown(() {
-    GlassCopies.debugEnabledOverride = null;
+    debugGlassCopies = null;
     GlassComposer.debugPolicy = const PlanPolicy();
     GlassComposer.debugOnPlan = null;
   });

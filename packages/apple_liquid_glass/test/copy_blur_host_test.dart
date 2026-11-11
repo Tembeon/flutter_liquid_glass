@@ -14,7 +14,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
 
 const _key = ValueKey('page');
 
@@ -117,7 +116,7 @@ int _difference(Uint8List a, Uint8List b) {
 void main() {
   setUp(MotionClock.debugReset);
   tearDown(() {
-    GlassCopies.debugEnabledOverride = null;
+    debugGlassCopies = null;
     GlassCopyTuning.debugOverride();
   });
 
@@ -131,10 +130,10 @@ void main() {
     // Exact parity needs the band's filtered copy; the shader frost is NEAR.
     GlassCopyTuning.debugOverride(shaderFrost: false);
 
-    GlassCopies.debugEnabledOverride = false;
+    debugGlassCopies = false;
     final live = await _scrolled(tester);
 
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
     final copied = await _scrolled(tester);
     expect(_band(tester).serves, isTrue);
     // The copy reads as far as the blur's reach, the backdrop reads the pass.

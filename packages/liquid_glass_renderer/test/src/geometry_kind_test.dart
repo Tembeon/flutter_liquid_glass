@@ -42,11 +42,11 @@ Widget _scene({required double left, required int shapes}) => Directionality(
 
 void main() {
   setUp(() {
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
   });
 
   tearDown(() {
-    GlassCopies.debugEnabledOverride = null;
+    debugGlassCopies = null;
   });
 
   for (final (shapes, kind) in [(1, ComputedGeometry), (2, AtlasGeometry)]) {

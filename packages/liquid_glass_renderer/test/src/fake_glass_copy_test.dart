@@ -9,7 +9,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
 import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
 
 import 'shared.dart';
@@ -91,7 +90,7 @@ int _difference(Uint8List a, Uint8List b) {
 
 void main() {
   tearDown(() {
-    GlassCopies.debugEnabledOverride = null;
+    debugGlassCopies = null;
     GlassCopyTuning.debugOverride();
   });
 
@@ -104,13 +103,13 @@ void main() {
 
     // flutter_tester renders only a process's first backdrop filter
     // reliably, so the reference reads the backdrop first.
-    GlassCopies.debugEnabledOverride = false;
+    debugGlassCopies = false;
     await tester.pumpWidget(_scene());
     await tester.pump();
     final reading = await _pixels(tester);
     expect(_glass(tester).debugBackdropFilterLayer!.serves, isFalse);
 
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
     GlassCopyTuning.debugOverride(shaderFrost: false);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(shift: 0.3));
@@ -134,12 +133,12 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.runAsync(LiquidGlass.precache);
 
-    GlassCopies.debugEnabledOverride = false;
+    debugGlassCopies = false;
     await tester.pumpWidget(_scene());
     await tester.pump();
     final reading = await _pixels(tester, dpr: dpr);
 
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(shift: 0.3));
     await tester.pumpWidget(_scene());

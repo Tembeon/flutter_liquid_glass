@@ -165,13 +165,13 @@ Future<void> _expectSameAsFresh(
 
 void main() {
   setUp(() {
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
     // Every read stays in the scene while the test counts what it adds: the
     // rows under each are layers drawn apart, six targets a read.
     GlassComposer.debugPolicy = const PlanPolicy(maxTargets: 64);
   });
   tearDown(() {
-    GlassCopies.debugEnabledOverride = null;
+    debugGlassCopies = null;
     GlassComposer.debugPolicy = const PlanPolicy();
   });
 

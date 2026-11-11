@@ -101,9 +101,9 @@ Future<Uint8List> _pixels(WidgetTester tester, _CapturingView view) async {
 }
 
 void main() {
-  setUp(() => GlassCopies.debugEnabledOverride = true);
+  setUp(() => debugGlassCopies = true);
   tearDown(() {
-    GlassCopies.debugEnabledOverride = null;
+    debugGlassCopies = null;
     GlassComposer.debugPolicy = const PlanPolicy();
   });
 

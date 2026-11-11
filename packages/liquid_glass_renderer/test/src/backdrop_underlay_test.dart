@@ -321,10 +321,10 @@ Future<void> _settle(WidgetTester tester, {double dot = 0}) async {
 
 void main() {
   setUp(() {
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
   });
   tearDown(() {
-    GlassCopies.debugEnabledOverride = null;
+    debugGlassCopies = null;
   });
 
   testWidgets('glass over a copy drawn in the very frame what lies under '
@@ -336,13 +336,13 @@ void main() {
 
     // flutter_tester renders only a process's first backdrop filter
     // reliably, so the reference reads the backdrop first.
-    GlassCopies.debugEnabledOverride = false;
+    debugGlassCopies = false;
     await tester.pumpWidget(_scene());
     await tester.pump();
     final reading = await _pixels(tester);
     expect(_liveFilters(tester), isNotEmpty);
 
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(shift: 0.3));
     expect(_glass(tester).debugDrewOverCopy, isTrue);
@@ -369,12 +369,12 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    GlassCopies.debugEnabledOverride = false;
+    debugGlassCopies = false;
     await tester.pumpWidget(_scene(follower: true));
     await tester.pump();
     final reading = await _pixels(tester);
 
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(follower: true, dot: 1));
     await tester.pumpWidget(_scene(follower: true));
@@ -389,12 +389,12 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    GlassCopies.debugEnabledOverride = false;
+    debugGlassCopies = false;
     await tester.pumpWidget(_scene(follower: true, leader: 70));
     await tester.pump();
     final reading = await _pixels(tester);
 
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
     await tester.pumpWidget(const SizedBox());
     final watch = PlanWatch();
     await tester.pumpWidget(_scene(follower: true, dot: 1));
@@ -414,14 +414,14 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    GlassCopies.debugEnabledOverride = false;
+    debugGlassCopies = false;
     await tester.pumpWidget(
       _scene(follower: true, glassFollows: true, leader: 40),
     );
     await tester.pump();
     final reading = await _pixels(tester);
 
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(follower: true, glassFollows: true, dot: 1));
     await tester.pumpWidget(_scene(follower: true, glassFollows: true));
@@ -634,10 +634,10 @@ void main() {
     // flutter_tester renders only a process's first backdrop filter
     // reliably, so the reference reads the backdrop first: the lower glass
     // alone, as the upper glass's copy should hold it.
-    GlassCopies.debugEnabledOverride = false;
+    debugGlassCopies = false;
     await tester.pumpWidget(_pairScene(top: 200, second: false));
     final reading = await _pixels(tester);
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_pairScene(shift: 0.3, top: 200));
     await tester.pumpWidget(_pairScene(top: 200));
@@ -671,7 +671,7 @@ void main() {
       'loses nothing under it', (
     tester,
   ) async {
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
     tester.view.physicalSize = const Size(260, 360);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -745,9 +745,9 @@ void main() {
 
     // flutter_tester renders only a process's first backdrop filter
     // reliably, so the reference reads the backdrop first.
-    GlassCopies.debugEnabledOverride = false;
+    debugGlassCopies = false;
     final reading = await draw();
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
     final together = await draw();
     final glass = tester.allRenderObjects
         .whereType<RenderLiquidGlassLayer>()
@@ -764,14 +764,14 @@ void main() {
     tester.view.physicalSize = const Size(520, 720);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    addTearDown(() => GlassCopies.debugEnabledOverride = null);
+    addTearDown(() => debugGlassCopies = null);
     GlassCopyTuning.debugOverride(shaderFrost: false);
     addTearDown(GlassCopyTuning.debugOverride);
 
-    GlassCopies.debugEnabledOverride = false;
+    debugGlassCopies = false;
     await tester.pumpWidget(_pairScene(frost: 6));
     final reading = await _pixels(tester, pixelRatio: 2);
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
     await tester.pumpWidget(const SizedBox());
     final layers = GlassCopies.debugBlurLayers;
     await tester.pumpWidget(_pairScene(frost: 6));
@@ -795,12 +795,12 @@ void main() {
     tester.view.physicalSize = const Size(520, 720);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    addTearDown(() => GlassCopies.debugEnabledOverride = null);
+    addTearDown(() => debugGlassCopies = null);
 
-    GlassCopies.debugEnabledOverride = false;
+    debugGlassCopies = false;
     await tester.pumpWidget(_pairScene(frost: 6));
     final reading = await _pixels(tester, pixelRatio: 2);
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
     await tester.pumpWidget(const SizedBox());
     final layers = GlassCopies.debugBlurLayers;
     await tester.pumpWidget(_pairScene(frost: 6));
@@ -817,7 +817,7 @@ void main() {
     tester.view.physicalSize = const Size(520, 720);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    addTearDown(() => GlassCopies.debugEnabledOverride = null);
+    addTearDown(() => debugGlassCopies = null);
     List<bool> under() => [
       for (final g
           in tester.allRenderObjects
@@ -826,11 +826,11 @@ void main() {
         g.debugShadowsUnderGlass,
     ];
 
-    GlassCopies.debugEnabledOverride = false;
+    debugGlassCopies = false;
     await tester.pumpWidget(_pairScene(top: 160, shadowed: true));
     expect(under(), [false, false]);
     final cut = await _pixels(tester, pixelRatio: 2);
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_pairScene(top: 160, shadowed: true));
     expect(under(), [true, true]);
@@ -870,8 +870,8 @@ void main() {
     tester.view.physicalSize = const Size(260, 360);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    GlassCopies.debugEnabledOverride = true;
-    addTearDown(() => GlassCopies.debugEnabledOverride = null);
+    debugGlassCopies = true;
+    addTearDown(() => debugGlassCopies = null);
     List<RenderLiquidGlassLayer> glass() => tester.allRenderObjects
         .whereType<RenderLiquidGlassLayer>()
         .toSet()
@@ -903,8 +903,8 @@ void main() {
     tester.view.physicalSize = const Size(260, 360);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    GlassCopies.debugEnabledOverride = true;
-    addTearDown(() => GlassCopies.debugEnabledOverride = null);
+    debugGlassCopies = true;
+    addTearDown(() => debugGlassCopies = null);
     List<RenderLiquidGlassLayer> glass() => tester.allRenderObjects
         .whereType<RenderLiquidGlassLayer>()
         .toSet()
@@ -930,8 +930,8 @@ void main() {
     tester.view.physicalSize = const Size(260, 360);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    GlassCopies.debugEnabledOverride = true;
-    addTearDown(() => GlassCopies.debugEnabledOverride = null);
+    debugGlassCopies = true;
+    addTearDown(() => debugGlassCopies = null);
     final drawn = GlassCopies.debugImagesDrawn;
     await tester.pumpWidget(_pairScene(top: 160, shadowed: true));
     expect(GlassCopies.debugImagesDrawn, drawn + 1);

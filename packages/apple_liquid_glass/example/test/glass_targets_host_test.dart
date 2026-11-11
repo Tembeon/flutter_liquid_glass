@@ -306,8 +306,8 @@ Future<void> _open(WidgetTester tester, String tab) async {
     bottom: 34 * _dpr,
   );
   addTearDown(tester.view.reset);
-  GlassCopies.debugEnabledOverride = true;
-  addTearDown(() => GlassCopies.debugEnabledOverride = null);
+  debugGlassCopies = true;
+  addTearDown(() => debugGlassCopies = null);
   // No read buys an image, so every frame shows what its reads issue.
   GlassComposer.debugPrices = const PlanPrices(imageRaster: 100000);
   addTearDown(() => GlassComposer.debugPrices = const PlanPrices());

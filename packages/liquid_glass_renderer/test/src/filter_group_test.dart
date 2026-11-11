@@ -146,10 +146,10 @@ int _layersOf(WidgetTester tester, _CapturingView view) {
 
 void main() {
   setUp(() {
-    GlassCopies.debugEnabledOverride = true;
+    debugGlassCopies = true;
     GroupMatte.debugRenders = 0;
   });
-  tearDown(() => GlassCopies.debugEnabledOverride = null);
+  tearDown(() => debugGlassCopies = null);
 
   Future<void> expectSame(
     WidgetTester tester,

@@ -75,8 +75,8 @@ int _filledSlots(WidgetTester tester) {
 }
 
 void main() {
-  setUp(() => GlassCopies.debugEnabledOverride = true);
-  tearDown(() => GlassCopies.debugEnabledOverride = null);
+  setUp(() => debugGlassCopies = true);
+  tearDown(() => debugGlassCopies = null);
 
   group('a frame nothing changed', () {
     testWidgets('makes no filter, picture or image and replays nothing', (
