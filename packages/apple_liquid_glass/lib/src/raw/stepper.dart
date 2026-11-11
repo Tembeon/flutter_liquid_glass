@@ -59,9 +59,10 @@ final class GlassStepperDetails {
 /// Home and End take the value to [min] and [max]; the stepper has no
 /// larger step, so Page Up and Page Down do nothing, and neither do Space
 /// and Enter, as on Flutter's `Slider`. Screen readers see two buttons that
-/// announce the value and run the same commands as the keys, and the
-/// accessibility increase and decrease. A disabled stepper ignores input;
-/// [builder] sees [WidgetState.disabled].
+/// announce the value and run the same commands as the keys, inside one
+/// adjustable node with the value and the accessibility increase and
+/// decrease. A disabled stepper ignores input; [builder] sees
+/// [WidgetState.disabled].
 class RawGlassStepper extends StatefulWidget {
   /// Creates a stepper showing [value] between [min] and [max].
   const RawGlassStepper({
@@ -162,16 +163,16 @@ class _RawGlassStepperState extends State<RawGlassStepper>
     GlassStepperHalf.increment => _value < _maximum,
   };
 
-  void _stepBy(GlassStepperHalf half) {
+  double _after(GlassStepperHalf half) {
     final step = widget.step;
-    if (widget.onChanged == null ||
-        !step.isFinite ||
-        step <= 0 ||
-        !_canStep(half)) {
-      return;
-    }
+    if (!step.isFinite || step <= 0 || !_canStep(half)) return _value;
     final delta = half == GlassStepperHalf.increment ? step : -step;
-    widget.onChanged?.call((_value + delta).clamp(_minimum, _maximum));
+    return (_value + delta).clamp(_minimum, _maximum);
+  }
+
+  void _stepBy(GlassStepperHalf half) {
+    final next = _after(half);
+    if (next != _value) widget.onChanged?.call(next);
   }
 
   void _command(ValueCommand command) {
@@ -195,8 +196,9 @@ class _RawGlassStepperState extends State<RawGlassStepper>
   @override
   Widget build(BuildContext context) {
     final enabled = widget.onChanged != null;
-    final value =
-        widget.semanticFormatterCallback?.call(_value) ?? _format(_value);
+    String format(double value) =>
+        widget.semanticFormatterCallback?.call(value) ?? _format(value);
+    final value = format(_value);
     Widget half(GlassStepperHalf half, String label) => Expanded(
       child: Builder(
         builder: (context) => Semantics(
@@ -229,37 +231,42 @@ class _RawGlassStepperState extends State<RawGlassStepper>
         focusNode: widget.focusNode,
         autofocus: widget.autofocus,
         minimumHitSize: const Size(44, 44),
-        child: SizedBox.fromSize(
-          size: RawGlassStepper.size,
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: ExcludeSemantics(
-                  child: Directionality(
-                    textDirection: direction,
-                    child: Builder(
-                      builder: (context) => widget.builder(
-                        context,
-                        GlassStepperDetails(
-                          pressed: _pressed,
-                          canDecrement: _canStep(GlassStepperHalf.decrement),
-                          canIncrement: _canStep(GlassStepperHalf.increment),
-                          states: {...widgetStates.value},
+        child: Semantics(
+          value: value,
+          increasedValue: format(_after(GlassStepperHalf.increment)),
+          decreasedValue: format(_after(GlassStepperHalf.decrement)),
+          child: SizedBox.fromSize(
+            size: RawGlassStepper.size,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: ExcludeSemantics(
+                    child: Directionality(
+                      textDirection: direction,
+                      child: Builder(
+                        builder: (context) => widget.builder(
+                          context,
+                          GlassStepperDetails(
+                            pressed: _pressed,
+                            canDecrement: _canStep(GlassStepperHalf.decrement),
+                            canIncrement: _canStep(GlassStepperHalf.increment),
+                            states: {...widgetStates.value},
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              Positioned.fill(
-                child: Row(
-                  children: [
-                    half(GlassStepperHalf.decrement, widget.decrementLabel),
-                    half(GlassStepperHalf.increment, widget.incrementLabel),
-                  ],
+                Positioned.fill(
+                  child: Row(
+                    children: [
+                      half(GlassStepperHalf.decrement, widget.decrementLabel),
+                      half(GlassStepperHalf.increment, widget.incrementLabel),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

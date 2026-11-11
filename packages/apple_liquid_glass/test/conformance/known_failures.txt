@@ -94,7 +94,6 @@ GlassSlider mouse-hover: hover draws nothing
 GlassStepper focus-indicator: keyboard focus draws nothing
 GlassStepper mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 GlassStepper mouse-hover: hover draws nothing
-GlassStepper semantics-role: no node has a value with increase and decrease
 GlassStepper tap-target: "Decrement": expected tap target size of at least Size(44.0, 44.0), but found Size(47.0, 32.0)
 GlassSwipeActions focus-indicator: keyboard focus draws nothing
 GlassSwipeActions mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
@@ -153,7 +152,6 @@ RawGlassSelector tab-stops: Tab stops at 0 parts, expected 1
 RawGlassSelector tap-target: "Day": expected tap target size of at least Size(44.0, 44.0), but found Size(100.0, 36.0)
 RawGlassSlider mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 RawGlassStepper mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
-RawGlassStepper semantics-role: no node has a value with increase and decrease
 RawGlassStepper tap-target: "Decrement": expected tap target size of at least Size(44.0, 44.0), but found Size(47.0, 32.0)
 RawGlassSwitch mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 reference.bad.button focus-disabled: Tab reaches 1 parts while disabled

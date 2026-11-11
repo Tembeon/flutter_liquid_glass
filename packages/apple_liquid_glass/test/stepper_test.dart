@@ -267,8 +267,8 @@ void main() {
     semantics.dispose();
   });
 
-  testWidgets('one adjustable node over its 44 point target holds the two '
-      'buttons', (tester) async {
+  testWidgets('one adjustable node with the value over its 44 point target '
+      'holds the two buttons', (tester) async {
     final semantics = tester.ensureSemantics();
     final values = <double>[];
     await tester.pumpWidget(
@@ -285,6 +285,10 @@ void main() {
       node,
       matchesSemantics(
         rect: const Rect.fromLTWH(0, -6, 94, 44),
+        value: '5',
+        increasedValue: '6',
+        decreasedValue: '4',
+        textDirection: TextDirection.ltr,
         hasIncreaseAction: true,
         hasDecreaseAction: true,
         hasFocusAction: true,
