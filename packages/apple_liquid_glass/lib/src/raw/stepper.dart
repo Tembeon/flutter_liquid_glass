@@ -45,8 +45,9 @@ final class GlassStepperDetails {
   final Set<WidgetState> states;
 
   /// The stepper's states as they change, or null for a look that shows
-  /// neither focus nor hover: the default look draws its focus ring and
-  /// hover response from it.
+  /// neither focus nor hover: a builder hands it to the `GlassSurface` of
+  /// the halves, whose renderer then draws the focus ring and the hover
+  /// response.
   final ValueListenable<Set<WidgetState>>? statesListenable;
 }
 

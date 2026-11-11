@@ -52,8 +52,9 @@ final class GlassPageControlDetails {
   final Set<WidgetState> states;
 
   /// The control's states as they change, or null for a look that shows
-  /// neither focus nor hover: the default look draws its focus ring and
-  /// hover response from it.
+  /// neither focus nor hover: a builder hands it to the `GlassSurface` of
+  /// the platter, whose renderer then draws the focus ring and the hover
+  /// response.
   final ValueListenable<Set<WidgetState>>? statesListenable;
 }
 
@@ -90,8 +91,8 @@ final class GlassPageControlPose {
   final List<Rect> indicators;
 
   /// How far each indicator's fill shows, 0 to 1: 1 on the current page,
-  /// fading on the page just left, 0 elsewhere. The default look draws the
-  /// fill only while the control shows a progress.
+  /// fading on the page just left, 0 elsewhere. A look draws the fill only
+  /// while the control shows a progress.
   final List<double> fills;
 
   /// How far the platter behind the indicators shows, 0 to 1.
