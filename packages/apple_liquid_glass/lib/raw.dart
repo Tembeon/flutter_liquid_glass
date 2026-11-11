@@ -45,14 +45,14 @@ export 'src/raw/search_field.dart'
         GlassSearchFieldDetails,
         GlassSearchFieldHost,
         RawGlassSearchField;
-export 'src/raw/selector.dart'
+export 'src/raw/selector.dart' show RawGlassSelector;
+export 'src/raw/selector_values.dart'
     show
         GlassSelectorBuilder,
         GlassSelectorCollapse,
         GlassSelectorDetails,
         GlassSelectorItemBuilder,
-        GlassSelectorMotion,
-        RawGlassSelector;
+        GlassSelectorMotion;
 export 'src/raw/slider.dart'
     show GlassSliderBuilder, GlassSliderDetails, RawGlassSlider;
 export 'src/raw/source.dart'
