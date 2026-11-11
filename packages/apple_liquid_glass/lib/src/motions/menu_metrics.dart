@@ -168,7 +168,7 @@ class MenuMetrics {
   /// The height of a submenu card's header.
   final double cardHeaderHeight;
 
-  /// The inset of a free-form row from the menu's sides; morph's
+  /// The inset of a free-form row from the menu's sides; this package's
   /// own (no native element).
   final double widgetInset;
 

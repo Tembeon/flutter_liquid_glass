@@ -71,10 +71,7 @@ final class _KickLoop extends MotionLoop {
 
   final MenuMotion _motion;
 
-  /// The kick of the menu shape.
   final menu = _DrivenKick();
-
-  /// The kick of the button shape.
   final button = _DrivenKick();
 
   @override
