@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:meta/meta.dart';
 
 /// Whether shaders load from the package's own folder, as in its tests,
@@ -17,6 +18,10 @@ abstract class ShaderKeys {
   /// The compiled final shader [name], a FinalShaderVariant's.
   static String finalRender(String name) =>
       '${_shadersRoot}build/shaderbundles/$name.iplr';
+
+  /// Every compiled final shader, in the order a `RenderLiquidGlassLayer`
+  /// takes them.
+  static List<String> get finalRenders => FinalShaderVariant.assetKeys;
 
   /// The compiled shader a LiquidGlassBackdropFrost draws a copy with.
   static final String backdropFrost =

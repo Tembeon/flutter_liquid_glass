@@ -125,22 +125,10 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
 
   // MARK: Retained frame hooks
 
-  // The fake effect encodes no matte, so a fully-hidden frame retains
-  // nothing that must stay compositor-only.
+  // The fake effect paints its shapes straight from their geometry, so a
+  // fully hidden frame retains nothing that must stay compositor-only.
   @override
-  GlassFrameState get hiddenFrameState => GlassFrameState.empty;
-
-  // Without a matte, every shape is drawable.
-  @override
-  bool hasDrawableGlass(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
-  ) => true;
-
-  @override
-  bool isSnapshotCurrent(
-    RenderLiquidGlassGeometry geometry,
-    GeometryCache snapshot,
-  ) => geometry.hasCurrentGeometryCache(snapshot);
+  bool get encodesMatte => false;
 
   @override
   double get materialOutset => fakeGlassSurfaceOutset(settings);

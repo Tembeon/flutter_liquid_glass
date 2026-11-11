@@ -138,15 +138,10 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     _renderLink?.registerGeometry(this);
   }
 
-  /// The current state of the geometry.
-  @visibleForTesting
-  @protected
-  LiquidGlassGeometryState geometryState = LiquidGlassGeometryState.needsUpdate;
+  LiquidGlassGeometryState _geometryState =
+      LiquidGlassGeometryState.needsUpdate;
 
-  /// The current geometry matte image.
-  @visibleForTesting
-  @protected
-  GeometryCache? geometry;
+  GeometryCache? _geometry;
 
   int _matteRevision = 0;
 
@@ -157,8 +152,8 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   /// unless it is already marked as definitely needing an update.
   @protected
   void markGeometryNeedsUpdate({bool force = false}) {
-    geometryState =
-        force || geometryState == LiquidGlassGeometryState.needsUpdate
+    _geometryState =
+        force || _geometryState == LiquidGlassGeometryState.needsUpdate
         ? LiquidGlassGeometryState.needsUpdate
         : LiquidGlassGeometryState.mightNeedUpdate;
     _renderLink?.markDirty();
@@ -171,6 +166,86 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   /// is in the leader's tree.
   bool get transformMayLag => _transformMayLag;
   bool _transformMayLag = false;
+
+  /// Whether the encoded matte revision was current before compositor motion.
+  bool hasCurrentMatteRevision(int revision) =>
+      _geometry?.matteRevision == revision &&
+      _geometryState == LiquidGlassGeometryState.updated;
+
+  /// Records that a translation was applied to the retained layer instead of
+  /// invalidating this node's local geometry.
+  void acceptCompositorTranslation() {
+    if (_geometryState == LiquidGlassGeometryState.mightNeedUpdate) {
+      _geometryState = LiquidGlassGeometryState.updated;
+    }
+  }
+
+  /// Detects motion of registered shapes relative to this geometry node.
+  ///
+  /// Direct children can skip this: their offset changes go through layout.
+  @protected
+  bool pollChildShapeTransforms() => false;
+
+  @override
+  @mustCallSuper
+  void attach(PipelineOwner owner) {
+    _renderLink?.registerGeometry(this);
+    super.attach(owner);
+  }
+
+  @override
+  @mustCallSuper
+  void detach() {
+    _renderLink?.unregisterGeometry(this);
+    super.detach();
+  }
+
+  @override
+  @mustCallSuper
+  void dispose() {
+    _renderLink?.unregisterGeometry(this);
+    _geometry = null;
+    super.dispose();
+  }
+
+  /// The shapes this node draws, their bounds in its own coordinates, and
+  /// whether any shape changed against [geometry].
+  (
+    Rect bounds,
+    List<ShapeGeometry> geometries,
+    bool needsUpdate,
+  )
+  gatherShapeData();
+
+  /// Smooth-union radius for shapes owned by this geometry node.
+  double get geometryBlend => 0;
+
+  /// Refresh source ordering before owner paint consumes cached geometry.
+  void updatePaintOrder() {}
+
+  static bool _matteVisibilityChanged(
+    List<ShapeGeometry> before,
+    List<ShapeGeometry> after,
+  ) {
+    if (before.length != after.length) return true;
+    for (var index = 0; index < before.length; index++) {
+      if ((before[index].appearance.visibility > 0) !=
+          (after[index].appearance.visibility > 0)) {
+        return true;
+      }
+    }
+    return false;
+  }
+}
+
+/// The geometry a [RenderLiquidGlassGeometry] gives the layer it registers
+/// on, which only the rendering library reads.
+extension RenderLiquidGlassGeometryCache on RenderLiquidGlassGeometry {
+  /// The current state of the geometry.
+  LiquidGlassGeometryState get geometryState => _geometryState;
+
+  /// The geometry last built, if any.
+  GeometryCache? get geometry => _geometry;
 
   /// Detects motion of this geometry relative to [layer].
   ///
@@ -210,100 +285,48 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
 
   /// Whether [candidate] was current before polling compositor motion.
   bool hasCurrentGeometryCache(GeometryCache candidate) =>
-      identical(geometry, candidate) &&
-      geometryState == LiquidGlassGeometryState.updated;
-
-  /// Whether the encoded matte revision was current before compositor motion.
-  bool hasCurrentMatteRevision(int revision) =>
-      geometry?.matteRevision == revision &&
-      geometryState == LiquidGlassGeometryState.updated;
-
-  /// Records that a translation was applied to the retained layer instead of
-  /// invalidating this node's local geometry.
-  void acceptCompositorTranslation() {
-    if (geometryState == LiquidGlassGeometryState.mightNeedUpdate) {
-      geometryState = LiquidGlassGeometryState.updated;
-    }
-  }
-
-  /// Detects motion of registered shapes relative to this geometry node.
-  ///
-  /// Direct children can skip this: their offset changes go through layout.
-  @protected
-  bool pollChildShapeTransforms() => false;
-
-  @override
-  @mustCallSuper
-  void attach(PipelineOwner owner) {
-    _renderLink?.registerGeometry(this);
-    super.attach(owner);
-  }
-
-  @override
-  @mustCallSuper
-  void detach() {
-    _renderLink?.unregisterGeometry(this);
-    super.detach();
-  }
-
-  @override
-  @mustCallSuper
-  void dispose() {
-    _renderLink?.unregisterGeometry(this);
-    geometry = null;
-    super.dispose();
-  }
-
-  /// The shapes this node draws, their bounds in its own coordinates, and
-  /// whether any shape changed against [geometry].
-  (
-    Rect bounds,
-    List<ShapeGeometry> geometries,
-    bool needsUpdate,
-  )
-  gatherShapeData();
-
-  /// Smooth-union radius for shapes owned by this geometry node.
-  double get geometryBlend => 0;
-
-  /// Refresh source ordering before owner paint consumes cached geometry.
-  void updatePaintOrder() {}
+      identical(_geometry, candidate) &&
+      _geometryState == LiquidGlassGeometryState.updated;
 
   /// Refreshes CPU geometry during owner paint or pre-submission preparation.
   /// This advances cache state but does not paint children or encode a matte.
   GeometryCache? maybeRebuildGeometry() {
-    if (geometryState == LiquidGlassGeometryState.updated && geometry != null) {
-      return geometry;
+    if (_geometryState == LiquidGlassGeometryState.updated &&
+        _geometry != null) {
+      return _geometry;
     }
 
     final (layerBounds, shapes, anyShapeChangedInLayer) = gatherShapeData();
 
-    if (geometryState == LiquidGlassGeometryState.mightNeedUpdate &&
+    if (_geometryState == LiquidGlassGeometryState.mightNeedUpdate &&
         !anyShapeChangedInLayer &&
-        geometry != null &&
-        !_matteVisibilityChanged(geometry!.shapes, shapes)) {
+        _geometry != null &&
+        !RenderLiquidGlassGeometry._matteVisibilityChanged(
+          _geometry!.shapes,
+          shapes,
+        )) {
       // Shadows refresh with cached geometry without re-encoding its matte.
-      geometry = GeometryCache(
-        bounds: geometry!.bounds,
+      _geometry = GeometryCache(
+        bounds: _geometry!.bounds,
         shapes: shapes,
-        blend: geometry!.blend,
-        matteRevision: geometry!.matteRevision,
+        blend: _geometry!.blend,
+        matteRevision: _geometry!.matteRevision,
       );
       renderLink?.markDirty();
 
-      geometryState = LiquidGlassGeometryState.updated;
-      return geometry;
+      _geometryState = LiquidGlassGeometryState.updated;
+      return _geometry;
     }
 
-    geometry = null;
-    geometryState = LiquidGlassGeometryState.updated;
+    _geometry = null;
+    _geometryState = LiquidGlassGeometryState.updated;
 
     if (shapes.isEmpty) {
       return null;
     }
 
     final snappedBounds = layerBounds.snapToPixels(devicePixelRatio);
-    final newGeo = geometry = GeometryCache(
+    final newGeo = _geometry = GeometryCache(
       bounds: snappedBounds,
       shapes: shapes,
       blend: geometryBlend,
@@ -312,20 +335,6 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
 
     _renderLink?.markDirty();
     return newGeo;
-  }
-
-  static bool _matteVisibilityChanged(
-    List<ShapeGeometry> before,
-    List<ShapeGeometry> after,
-  ) {
-    if (before.length != after.length) return true;
-    for (var index = 0; index < before.length; index++) {
-      if ((before[index].appearance.visibility > 0) !=
-          (after[index].appearance.visibility > 0)) {
-        return true;
-      }
-    }
-    return false;
   }
 }
 
@@ -399,13 +408,13 @@ class ShapeGeometry {
     required this.appearance,
     this.shadows = const [],
     this.shapeToGeometry,
-  }) : rawCornerRadius = shape.cornerRadius,
-       rawBottomRadius = switch (shape) {
+  }) : _rawCornerRadius = shape.cornerRadius,
+       _rawBottomRadius = switch (shape) {
          LiquidRoundedSuperellipse(:final effectiveBottomRadius) =>
            effectiveBottomRadius,
          _ => shape.cornerRadius,
        },
-       rawShapeType = RawShapeType.fromLiquidGlassShape(shape);
+       _rawShapeType = RawShapeType.fromLiquidGlassShape(shape);
 
   /// The render object of the shape.
   final LiquidGlassShapeRenderObject renderObject;
@@ -413,15 +422,9 @@ class ShapeGeometry {
   /// The shape.
   final LiquidShape shape;
 
-  /// The kind of the shape, as the geometry shaders tell it.
-  final RawShapeType rawShapeType;
-
-  /// The corner radius the geometry shaders draw the shape with.
-  final double rawCornerRadius;
-
-  /// The radius of the two bottom corners: [rawCornerRadius] except for a
-  /// [RawShapeType.squirclePair].
-  final double rawBottomRadius;
+  final RawShapeType _rawShapeType;
+  final double _rawCornerRadius;
+  final double _rawBottomRadius;
 
   /// The appearance of the shape.
   final LiquidGlassAppearance appearance;
@@ -462,4 +465,18 @@ class ShapeGeometry {
   String toString() =>
       'ShapeGeometry($renderObject, $shape, $appearance, $shapeBounds, '
       '$shadows, $shapeToGeometry)';
+}
+
+/// A [ShapeGeometry] as the geometry shaders take it, which only the
+/// rendering library encodes.
+extension ShapeGeometryEncoding on ShapeGeometry {
+  /// The kind of the shape, as the geometry shaders tell it.
+  RawShapeType get rawShapeType => _rawShapeType;
+
+  /// The corner radius the geometry shaders draw the shape with.
+  double get rawCornerRadius => _rawCornerRadius;
+
+  /// The radius of the two bottom corners: [rawCornerRadius] except for a
+  /// [RawShapeType.squirclePair].
+  double get rawBottomRadius => _rawBottomRadius;
 }

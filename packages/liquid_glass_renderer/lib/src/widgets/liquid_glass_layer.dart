@@ -363,7 +363,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
         child: InheritedGeometryRenderLink(
           link: _link,
           child: MultiShaderBuilder(
-            assetKeys: FinalShaderVariant.assetKeys,
+            assetKeys: ShaderKeys.finalRenders,
             (context, shaders, child) {
               return _RawShapes(
                 key: _layerKey,

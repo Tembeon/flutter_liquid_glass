@@ -128,13 +128,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   FragmentShader get debugLiveShader => finalShaders[_liveDraw.variant];
 
-  /// What the live filter draws.
-  @visibleForTesting
-  GlassDraw get debugLiveDraw => _liveDraw;
-
-  /// What the glass last drew over a copy of a read.
-  @visibleForTesting
-  GlassDraw? debugReadDraw;
+  GlassDraw? _debugReadDraw;
 
   // Whether the shader may frost the copy it draws over, which picks a
   // variant that can. Settings pick it, as they pick the color models.
@@ -254,9 +248,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   bool debugDrewOverCopy = false;
 
-  /// The page this glass reads in the last composited frame, if it reads one.
-  @visibleForTesting
-  PageCopy? debugPage;
+  PageCopy? _debugPage;
 
   /// What the last plan has this glass do.
   @visibleForTesting
@@ -323,12 +315,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   bool? _drawableEmpty;
 
   @override
-  void commitFrameGeometry(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> candidate,
-  ) {
-    super.commitFrameGeometry(candidate);
-    _drawableEmpty = null;
-  }
+  void onFrameGeometryCommitted() => _drawableEmpty = null;
 
   /// True once geometry has been encoded, so ancestor motion can stay on the
   /// compositor without crossing this layer's repaint boundary.
@@ -350,22 +337,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   };
 
   @override
-  GlassFrameState get hiddenFrameState => GlassFrameState.idle;
-
-  @override
-  bool hasDrawableGlass(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
-  ) => geometries.any(
-    (entry) => entry.$2.shapes.any(
-      (shape) => matteShapeBasis(shape, entry.$3) != null,
-    ),
-  );
-
-  @override
-  bool isSnapshotCurrent(
-    RenderLiquidGlassGeometry geometry,
-    GeometryCache snapshot,
-  ) => geometry.hasCurrentMatteRevision(snapshot.matteRevision);
+  bool get encodesMatte => true;
 
   @override
   void onSettingsChanged(LiquidGlassSettings old) {
@@ -397,10 +369,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // another atlas or releases this one.
   GlassGeometry? _geometry;
 
-  /// Where the shader takes the glass's geometry from.
-  @visibleForTesting
-  GlassGeometry? get debugGeometry => _geometry;
-
   /// How many times the glass's geometry was encoded, as an atlas or as one
   /// shape for the shader.
   @visibleForTesting
@@ -411,13 +379,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   Rect _geometryMatteBounds = Rect.zero;
   Offset _materialCenterInMatte = Offset.zero;
   Size _materialSize = Size.zero;
-
-  /// Where the atlas lies in [debugGeometryImage].
-  @visibleForTesting
-  AtlasPlace get debugGeometryPlace => switch (_geometry) {
-    AtlasGeometry(:final place) => place,
-    _ => AtlasLayout.unplaced,
-  };
 
   /// The page holding the glass's atlas, where its geometry is one.
   @visibleForTesting
@@ -1193,7 +1154,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
             )
           : null,
     );
-    if (!kReleaseMode) debugReadDraw = draw;
+    if (!kReleaseMode) _debugReadDraw = draw;
     return draw;
   }
 
@@ -1336,7 +1297,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @override
   void beginFate(Fate fate) {
     _fate = fate;
-    debugPage = null;
+    _debugPage = null;
     if (!_rig.hasSlot) {
       _placeShadows(under: false);
       return;
@@ -1446,7 +1407,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   void _showPage(Read read, PageCopy page) {
-    debugPage = page;
+    _debugPage = page;
     final toCanvas = _screenToCanvas();
     final under = _shadowsOfOthers(read);
     final dpr = devicePixelRatio;
@@ -1656,10 +1617,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // The shapes of the latest encode.
   ShapeSet _shapes = ShapeSet.empty;
 
-  /// The tiling of the latest atlas.
-  @visibleForTesting
-  Tiling? get debugTiling => _tiling;
-
   // The tiling of the latest atlas, the layer-local bounds of its buffer
   // and the pixel ratio it was tiled at.
   Tiling? _tiling;
@@ -1868,6 +1825,30 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       ),
     );
   }
+}
+
+/// What a [RenderLiquidGlassLayer] drew, for the package's tests.
+extension RenderLiquidGlassLayerDebug on RenderLiquidGlassLayer {
+  /// What the glass last drew over a copy of a read.
+  GlassDraw? get debugReadDraw => _debugReadDraw;
+
+  /// The page this glass reads in the last composited frame, if it reads one.
+  PageCopy? get debugPage => _debugPage;
+
+  /// What the live filter draws.
+  GlassDraw get debugLiveDraw => _liveDraw;
+
+  /// Where the shader takes the glass's geometry from.
+  GlassGeometry? get debugGeometry => _geometry;
+
+  /// Where the atlas lies in [debugGeometryImage].
+  AtlasPlace get debugGeometryPlace => switch (_geometry) {
+    AtlasGeometry(:final place) => place,
+    _ => AtlasLayout.unplaced,
+  };
+
+  /// The tiling of the latest atlas.
+  Tiling? get debugTiling => _tiling;
 }
 
 // A band beside glass in a read: [shown] of it in the draw's fragments,

@@ -284,68 +284,9 @@ class FlutterGpuGeometryRenderer {
   /// and color model shares.
   List<ui.Image> get lookImages => _lookImages;
 
-  /// Where the latest atlas lies in [atlasImage].
-  AtlasPlace? get atlasPlace => _atlasPlace;
-
   /// How many shapes the latest atlas left out: past
   /// [geometryMaxShapesPerDraw] reaching one tile (Tiling.droppedShapes).
   int droppedShapes = 0;
-
-  /// Places the geometry atlas of [tiling] (geometry_tiling.dart) in the
-  /// page of this frame: the constant tiles, the table and every ring
-  /// strip, the strips evaluating the tiling's shapes, or its field. With
-  /// [Tiling.looks] the page holds each texel's look beside it, in textures
-  /// of its size.
-  ///
-  /// Table texels hold their tile's entry in x and y, the strip's texels a
-  /// pixel in z (0 for a constant tile) and 1 in w. The page is drawn by
-  /// [flush]: at once outside a frame, else once for every atlas of the
-  /// frame, before its scene is built.
-  ///
-  /// The images are the page's: do not dispose them. This renderer keeps
-  /// the page from being drawn over until it renders another atlas or
-  /// releases this one. The images are disposed once every atlas of the
-  /// page is released; a clone lives on, and [reuseAfterFrames] frames
-  /// later may show other atlases.
-  ({ui.Image image, List<ui.Image> looks, AtlasPlace place}) renderAtlas(
-    Tiling tiling,
-  ) {
-    assert(() {
-      debugRenderCount++;
-      _debugTotalRenderCount++;
-      return true;
-    }(), 'Track geometry submissions in debug builds.');
-    _ensureFrameCounter();
-    assert(
-      tiling.layout.height <= AtlasLayout.maxSize,
-      'A geometry atlas outgrew ${AtlasLayout.maxSize} rows at an inward '
-      'reach of 1.',
-    );
-    final pages = _resources.pages[_LookTargets.of(tiling.looks).index];
-    final (page, place) = pages.add(tiling, _fieldTextures);
-    page.leases++;
-    releaseAtlas();
-    _page = page;
-    assert(() {
-      _debugActiveGeometryTextureCount++;
-      return true;
-    }(), 'Track held geometry atlases in debug builds.');
-    droppedShapes = tiling.droppedShapes;
-    if (_deferring) {
-      assert(() {
-        debugDeferredPassCount++;
-        return true;
-      }(), 'Count deferred atlases in debug builds.');
-      _flushAfterFrame();
-    } else {
-      flush();
-    }
-    return (
-      image: _atlasImage = page.image,
-      looks: _lookImages = page.lookImages,
-      place: _atlasPlace = place,
-    );
-  }
 
   /// Lets go of the latest atlas: its page is drawn over once no renderer
   /// holds an atlas in it. Its images are not to be drawn with after this.
@@ -511,6 +452,68 @@ class FlutterGpuGeometryRenderer {
       _debugActiveRendererCount--;
       return true;
     }(), 'Track disposed geometry renderers in debug builds.');
+  }
+}
+
+/// The renderer's atlas, which only the rendering library draws and reads.
+extension FlutterGpuGeometryRendererAtlas on FlutterGpuGeometryRenderer {
+  /// Where the latest atlas lies in [atlasImage].
+  AtlasPlace? get atlasPlace => _atlasPlace;
+
+  /// Places the geometry atlas of [tiling] (geometry_tiling.dart) in the
+  /// page of this frame: the constant tiles, the table and every ring
+  /// strip, the strips evaluating the tiling's shapes, or its field. With
+  /// [Tiling.looks] the page holds each texel's look beside it, in textures
+  /// of its size.
+  ///
+  /// Table texels hold their tile's entry in x and y, the strip's texels a
+  /// pixel in z (0 for a constant tile) and 1 in w. The page is drawn by
+  /// [flush]: at once outside a frame, else once for every atlas of the
+  /// frame, before its scene is built.
+  ///
+  /// The images are the page's: do not dispose them. This renderer keeps
+  /// the page from being drawn over until it renders another atlas or
+  /// releases this one. The images are disposed once every atlas of the
+  /// page is released; a clone lives on, and [reuseAfterFrames] frames
+  /// later may show other atlases.
+  ({ui.Image image, List<ui.Image> looks, AtlasPlace place}) renderAtlas(
+    Tiling tiling,
+  ) {
+    assert(() {
+      debugRenderCount++;
+      FlutterGpuGeometryRenderer._debugTotalRenderCount++;
+      return true;
+    }(), 'Track geometry submissions in debug builds.');
+    FlutterGpuGeometryRenderer._ensureFrameCounter();
+    assert(
+      tiling.layout.height <= AtlasLayout.maxSize,
+      'A geometry atlas outgrew ${AtlasLayout.maxSize} rows at an inward '
+      'reach of 1.',
+    );
+    final pages = _resources.pages[_LookTargets.of(tiling.looks).index];
+    final (page, place) = pages.add(tiling, _fieldTextures);
+    page.leases++;
+    releaseAtlas();
+    _page = page;
+    assert(() {
+      FlutterGpuGeometryRenderer._debugActiveGeometryTextureCount++;
+      return true;
+    }(), 'Track held geometry atlases in debug builds.');
+    droppedShapes = tiling.droppedShapes;
+    if (FlutterGpuGeometryRenderer._deferring) {
+      assert(() {
+        FlutterGpuGeometryRenderer.debugDeferredPassCount++;
+        return true;
+      }(), 'Count deferred atlases in debug builds.');
+      FlutterGpuGeometryRenderer._flushAfterFrame();
+    } else {
+      FlutterGpuGeometryRenderer.flush();
+    }
+    return (
+      image: _atlasImage = page.image,
+      looks: _lookImages = page.lookImages,
+      place: _atlasPlace = place,
+    );
   }
 }
 

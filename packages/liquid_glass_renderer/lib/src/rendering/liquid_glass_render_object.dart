@@ -11,6 +11,7 @@ import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart
 import 'package:liquid_glass_renderer/src/rendering/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/rendering/retained_glass_clip.dart';
+import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 import 'package:liquid_glass_renderer/src/rendering/snap_rect_to_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
 
@@ -232,14 +233,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
   GlassFrameState _frameState = GlassFrameState.empty;
 
-  /// The state the last painted frame committed.
-  @protected
-  GlassFrameState get frameState => _frameState;
-
-  /// The shapes the last frame committed, in paint order.
-  @protected
   final List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)>
-  shapesWithGeometry = [];
+  _shapesWithGeometry = [];
 
   /// The inputs the effect last encoded: each shape's render object,
   /// geometry cache and transform into this layer. The compositor-translation
@@ -289,7 +284,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// ancestor motion moves its retained layers without a repaint.
   @protected
   bool get hasReusableIdleContents =>
-      _frameState != GlassFrameState.active && shapesWithGeometry.isNotEmpty;
+      _frameState != GlassFrameState.active && _shapesWithGeometry.isNotEmpty;
 
   /// Bounds of the clips between this object and its shapes that are
   /// re-applied around the glass filter, in local coordinates, or `null`.
@@ -364,7 +359,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     final candidate = <(RenderLiquidGlassGeometry, GeometryCache, Matrix4)>[];
     final bounds = collectFrameGeometry(candidate);
     commitFrameGeometry(candidate);
-    _frameState = classifyFrame(candidate);
+    _frameState = _classifyFrame(candidate);
     return bounds;
   }
 
@@ -380,97 +375,22 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     Rect? geometryBounds,
   );
 
-  /// Collects this frame's shapes into [candidate] without recording pictures
-  /// or painting children; returns their bounds in this layer, or null
-  /// without any.
-  @protected
-  Rect? collectFrameGeometry(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> candidate,
-  ) {
-    Rect? boundingBox;
-    link.updatePaintOrder(this);
-    final painted = paintedShapes;
-    // A shape coming back onstage keeps its registration and geometry, so the
-    // link would not tell the matte it changed.
-    if (!listEquals(painted, _lastPaintedShapes)) link.markDirty();
-    _lastPaintedShapes = painted;
-    for (final geometryRo in painted) {
-      final transformPoll = geometryRo.pollRelativeTransforms(this);
-      final geometry = geometryRo.maybeRebuildGeometry();
-      final transform = transformPoll.transform;
-      if (geometry == null || transform == null) continue;
-      candidate.add((geometryRo, geometry, transform));
-      final geoBounds = MatrixUtils.transformRect(transform, geometry.bounds);
-      boundingBox = boundingBox == null
-          ? geoBounds
-          : boundingBox.expandToInclude(geoBounds);
-    }
-    // A shape under a follower that repaints maps it only once the follower
-    // is back in its leader's tree, which the compositing poll sees.
-    if (!painted.any((shape) => shape.transformMayLag)) _framePoll.markPolled();
-    assert(
-      debugCheckOpacityBetweenShapesAndLayer(this, link.shapes),
-      'Warns about an Opacity between a shape and its layer.',
-    );
-    return boundingBox;
-  }
-
-  /// Commits the collected [candidate] to the retained frame state without
-  /// deciding the frame's [GlassFrameState], so retained compositor ticks
-  /// can refresh contributors without crossing an idle boundary.
-  /// [shapesWithGeometry] is also the compositor-translation poll's
-  /// baseline: it always reflects the last painted frame, including idle
-  /// and drawable-empty ones.
-  @protected
-  void commitFrameGeometry(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> candidate,
-  ) {
-    setCompositorTranslation(Offset.zero);
-    shapesWithGeometry
-      ..clear()
-      ..addAll(candidate);
-    _fading = null;
-    _retainedStructure = geometryStructure(candidate);
-    _ancestorClips.update(this, shapeRenderObjects);
-  }
-
-  /// The structural identity of a frame's geometry: render objects, whether
-  /// they carry shadows, and their ancestry to this layer. Retained updates
-  /// compare it to detect topology changes that need a normal paint.
-  @protected
-  List<Object> geometryStructure(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
-  ) => [
-    for (final entry in geometries)
-      for (final shape in entry.$2.shapes) ...[
-        shape.renderObject,
-        shape.shadows.isNotEmpty,
-        for (
-          var node = shape.renderObject.parent;
-          node != null && !identical(node, this);
-          node = node.parent
-        )
-          node,
-      ],
-  ];
-
-  /// The state a frame that collected [geometries] commits: empty when
-  /// nothing drawable remains, [hiddenFrameState] when every shape is
-  /// invisible, and active otherwise.
-  @protected
-  GlassFrameState classifyFrame(
+  // The state a frame that collected [geometries] commits: empty when nothing
+  // drawable remains, idle when every shape is invisible and the effect keeps
+  // its matte, and active otherwise.
+  GlassFrameState _classifyFrame(
     List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
   ) {
     if (geometries.isEmpty) return GlassFrameState.empty;
-    if (!hasVisibleShape(geometries)) return hiddenFrameState;
+    if (!_hasVisibleShape(geometries)) {
+      return encodesMatte ? GlassFrameState.idle : GlassFrameState.empty;
+    }
     return hasDrawableGlass(geometries)
         ? GlassFrameState.active
         : GlassFrameState.empty;
   }
 
-  /// Whether [geometries] contains a shape whose appearance is visible.
-  @protected
-  bool hasVisibleShape(
+  static bool _hasVisibleShape(
     List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
   ) => geometries.any(
     (entry) => entry.$2.shapes.any(
@@ -483,7 +403,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   @protected
   double? smallestVisibleShortSide() {
     double? shortest;
-    for (final (_, geometry, geometryToLayer) in shapesWithGeometry) {
+    for (final (_, geometry, geometryToLayer) in _shapesWithGeometry) {
       for (final shape in geometry.shapes) {
         if (shape.appearance.visibility <= 0) continue;
         // shapeBounds is already in the geometry's local space.
@@ -502,20 +422,19 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// grows the blur.
   static const largestFittedShortSide = 150.0;
 
-  /// The state a fully-hidden frame commits: idle for effects that retain
-  /// an encoded matte, empty for effects that cannot reuse one.
+  /// Whether the effect encodes its shapes into a matte, as real glass does.
+  ///
+  /// A frame whose shapes are all hidden then idles and keeps the matte,
+  /// a shape draws only where the matte can hold it, and a shape's encode is
+  /// current while its matte revision holds. Without a matte every shape
+  /// draws, a hidden frame is empty, and an encode is current while the
+  /// shape's geometry is the one painted from.
   @protected
-  GlassFrameState get hiddenFrameState;
-
-  /// Whether [geometries] holds at least one shape this effect can draw.
-  @protected
-  bool hasDrawableGlass(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
-  );
+  bool get encodesMatte;
 
   /// The render objects of all committed shapes, in frame order.
   @protected
-  Iterable<RenderBox> get shapeRenderObjects => shapesWithGeometry.expand(
+  Iterable<RenderBox> get shapeRenderObjects => _shapesWithGeometry.expand(
     (entry) => entry.$2.shapes.map((shape) => shape.renderObject),
   );
 
@@ -525,28 +444,28 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     final inputs = _encodedGeometryInputs;
     final sharedLength = min(
       inputs.length,
-      shapesWithGeometry.length,
+      _shapesWithGeometry.length,
     );
     for (var index = 0; index < sharedLength; index++) {
-      final current = shapesWithGeometry[index];
+      final current = _shapesWithGeometry[index];
       inputs[index].update(
         current.$1,
         current.$2,
         current.$3,
       );
     }
-    if (inputs.length > shapesWithGeometry.length) {
+    if (inputs.length > _shapesWithGeometry.length) {
       inputs.removeRange(
-        shapesWithGeometry.length,
+        _shapesWithGeometry.length,
         inputs.length,
       );
     }
     for (
       var index = inputs.length;
-      index < shapesWithGeometry.length;
+      index < _shapesWithGeometry.length;
       index++
     ) {
-      final current = shapesWithGeometry[index];
+      final current = _shapesWithGeometry[index];
       inputs.add(
         _EncodedGeometryInput(
           current.$1,
@@ -564,32 +483,13 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     encodedGeometryBounds = null;
   }
 
-  /// Whether [geometries] still matches the encoded inputs exactly: same
-  /// render objects, same geometry caches, same transforms.
-  @protected
-  bool encodedInputsMatch(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
-  ) {
-    if (geometries.length != _encodedGeometryInputs.length) return false;
-    for (var index = 0; index < geometries.length; index++) {
-      final (renderObject, cache, transform) = geometries[index];
-      final encoded = _encodedGeometryInputs[index];
-      if (!identical(renderObject, encoded.renderObject) ||
-          !identical(cache, encoded.cache) ||
-          !MatrixUtils.matrixEquals(transform, encoded.transform)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   /// Polls the committed shapes ([shapesWithGeometry]) for one translation
   /// the compositor can apply without a repaint.
   @protected
   ({bool needsRepaint, Offset? translation}) pollCompositorTranslation() {
     // A shape going offstage or onstage changes this list, which repaints.
     final current = paintedShapes;
-    final committed = shapesWithGeometry;
+    final committed = _shapesWithGeometry;
     if (_framePoll.polledThisFrame && committed.length == current.length) {
       return (needsRepaint: false, translation: Offset.zero);
     }
@@ -610,7 +510,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     for (var index = 0; index < current.length; index++) {
       final geometry = current[index];
       final encoded = committed[index];
-      final wasCurrent = isSnapshotCurrent(geometry, encoded.$2);
+      final wasCurrent = _isSnapshotCurrent(geometry, encoded.$2);
       final poll = geometry.pollRelativeTransforms(this);
       final transform = poll.transform;
       if (poll.selfChanged || poll.childChanged) needsRepaint = true;
@@ -640,14 +540,14 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     return (needsRepaint: false, translation: translation);
   }
 
-  /// Whether [geometry]'s inputs still match the snapshot it was encoded
-  /// with: the encoded matte revision for real glass, the geometry cache
-  /// identity for effects that paint from the cache directly.
-  @protected
-  bool isSnapshotCurrent(
+  // Whether [geometry]'s inputs still match the snapshot it was encoded with
+  // (see [encodesMatte]).
+  bool _isSnapshotCurrent(
     RenderLiquidGlassGeometry geometry,
     GeometryCache snapshot,
-  );
+  ) => encodesMatte
+      ? geometry.hasCurrentMatteRevision(snapshot.matteRevision)
+      : geometry.hasCurrentGeometryCache(snapshot);
 
   /// The one translation that maps every encoded transform in [before] to
   /// the matching transform in [current], or `null` when there is none.
@@ -694,11 +594,11 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   Offset? encodedMatteDelta(Rect bounds) {
     final oldBounds = encodedGeometryBounds;
     if (oldBounds == null ||
-        _encodedGeometryInputs.length != shapesWithGeometry.length) {
+        _encodedGeometryInputs.length != _shapesWithGeometry.length) {
       return null;
     }
-    for (var index = 0; index < shapesWithGeometry.length; index++) {
-      final current = shapesWithGeometry[index];
+    for (var index = 0; index < _shapesWithGeometry.length; index++) {
+      final current = _shapesWithGeometry[index];
       final encoded = _encodedGeometryInputs[index];
       if (!identical(current.$1, encoded.renderObject) ||
           current.$2.matteRevision != encoded.cache.matteRevision) {
@@ -707,7 +607,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     }
     final delta = _sharedTranslation(
       [for (final entry in _encodedGeometryInputs) entry.transform],
-      [for (final entry in shapesWithGeometry) entry.$3],
+      [for (final entry in _shapesWithGeometry) entry.$3],
     );
     if (delta == null) return null;
     if (!_nearRect(bounds, oldBounds.shift(delta))) return null;
@@ -799,7 +699,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   @protected
   Rect expandEffectBounds(Rect bounds) => expandForGlassShadows(
     bounds.inflate(materialOutset),
-    shapesWithGeometry.map((entry) => (entry.$2.shapes, entry.$3)),
+    _shapesWithGeometry.map((entry) => (entry.$2.shapes, entry.$3)),
   );
 
   /// Whether [recordGlassShadows] records the shadows for a place under the
@@ -839,11 +739,11 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// silhouette scale with shape visibility.
   @protected
   void drawGlassShadows(Canvas canvas, Offset offset) {
-    final hasShadows = shapesWithGeometry.any(
+    final hasShadows = _shapesWithGeometry.any(
       (entry) => entry.$2.shapes.any((shape) => shape.shadows.isNotEmpty),
     );
     if (!hasShadows) return;
-    final entry = shapesWithGeometry.singleOrNull;
+    final entry = _shapesWithGeometry.singleOrNull;
     final shape = entry?.$2.shapes.singleOrNull;
     final useNativeOuterBlur =
         shape != null &&
@@ -881,7 +781,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     bool Function(ShapeGeometry shape) include, {
     required bool outer,
   }) {
-    for (final (_, geometry, geometryToLayer) in shapesWithGeometry) {
+    for (final (_, geometry, geometryToLayer) in _shapesWithGeometry) {
       for (final shape in geometry.shapes) {
         final shapeVisibility = shape.appearance.visibility.clamp(0.0, 1.0);
         if (shape.shadows.isEmpty || shapeVisibility <= 0) continue;
@@ -924,7 +824,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
   // Asked several times a frame; the committed shapes change in
   // [commitFrameGeometry] alone.
-  bool get _anyShapeFading => _fading ??= shapesWithGeometry.any(
+  bool get _anyShapeFading => _fading ??= _shapesWithGeometry.any(
     (entry) => entry.$2.shapes.any(
       (shape) =>
           shape.appearance.visibility > 0 && shape.appearance.visibility < 1,
@@ -944,7 +844,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
       Paint(),
     );
     _paintShadows(canvas, (_) => true, outer: false);
-    for (final (_, geometry, geometryToLayer) in shapesWithGeometry) {
+    for (final (_, geometry, geometryToLayer) in _shapesWithGeometry) {
       for (final shape in geometry.shapes) {
         final visibility = shape.appearance.visibility.clamp(0.0, 1.0);
         if (visibility <= 0) continue;
@@ -967,7 +867,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
   List<({Rect bounds, Set<ShapeGeometry> shapes})> _shadowGroups() {
     final groups = <({Rect bounds, Set<ShapeGeometry> shapes})>[];
-    for (final (_, geometry, geometryToLayer) in shapesWithGeometry) {
+    for (final (_, geometry, geometryToLayer) in _shapesWithGeometry) {
       for (final shape in geometry.shapes) {
         if (shape.shadows.isEmpty || shape.appearance.visibility <= 0) continue;
         var bounds = expandForGlassShadows(
@@ -1009,7 +909,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   List<_Silhouette> _currentSilhouettes() {
     final previous = _silhouettes;
     final next = <_Silhouette>[];
-    for (final (_, geometry, geometryToLayer) in shapesWithGeometry) {
+    for (final (_, geometry, geometryToLayer) in _shapesWithGeometry) {
       for (final shape in geometry.shapes) {
         if (shape.appearance.visibility <= 0) continue;
         // A copy: the silhouette keeps it to compare with the next frame's.
@@ -1098,7 +998,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// or returns null when no shape casts one.
   @protected
   ContainerLayer? recordGlassShadows(Offset offset) {
-    final hasShadows = shapesWithGeometry.any(
+    final hasShadows = _shapesWithGeometry.any(
       (entry) => entry.$2.shapes.any((shape) => shape.shadows.isNotEmpty),
     );
     if (!hasShadows) {
@@ -1108,7 +1008,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     final slot = (_originalShadows.layer ??= ContainerLayer())
       ..removeAllChildren();
     _shadowPicture.layer = null;
-    if (!hasDrawableGlass(shapesWithGeometry)) return slot;
+    if (!hasDrawableGlass(_shapesWithGeometry)) return slot;
     if (!kReleaseMode) GlassWork.pictures++;
     final recorder = ui.PictureRecorder();
     drawGlassShadows(Canvas(recorder), offset);
@@ -1138,6 +1038,124 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     _effectLayer.layer = null;
     clearGlassShadows();
     super.dispose();
+  }
+
+  /// Runs after a frame's shapes are committed to [shapesWithGeometry],
+  /// before the frame's state is decided.
+  @protected
+  void onFrameGeometryCommitted() {}
+}
+
+/// The retained frame of a [LiquidGlassRenderObject], which its subclasses
+/// in the rendering library share.
+extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
+  /// The state the last painted frame committed.
+  GlassFrameState get frameState => _frameState;
+
+  /// The shapes the last frame committed, in paint order.
+  List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)>
+  get shapesWithGeometry => _shapesWithGeometry;
+
+  /// Whether [geometries] holds at least one shape this effect can draw (see
+  /// [LiquidGlassRenderObject.encodesMatte]).
+  bool hasDrawableGlass(
+    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
+  ) =>
+      !encodesMatte ||
+      geometries.any(
+        (entry) => entry.$2.shapes.any(
+          (shape) => matteShapeBasis(shape, entry.$3) != null,
+        ),
+      );
+
+  /// Collects this frame's shapes into [candidate] without recording pictures
+  /// or painting children; returns their bounds in this layer, or null
+  /// without any.
+  Rect? collectFrameGeometry(
+    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> candidate,
+  ) {
+    Rect? boundingBox;
+    link.updatePaintOrder(this);
+    final painted = paintedShapes;
+    // A shape coming back onstage keeps its registration and geometry, so the
+    // link would not tell the matte it changed.
+    if (!listEquals(painted, _lastPaintedShapes)) link.markDirty();
+    _lastPaintedShapes = painted;
+    for (final geometryRo in painted) {
+      final transformPoll = geometryRo.pollRelativeTransforms(this);
+      final geometry = geometryRo.maybeRebuildGeometry();
+      final transform = transformPoll.transform;
+      if (geometry == null || transform == null) continue;
+      candidate.add((geometryRo, geometry, transform));
+      final geoBounds = MatrixUtils.transformRect(transform, geometry.bounds);
+      boundingBox = boundingBox == null
+          ? geoBounds
+          : boundingBox.expandToInclude(geoBounds);
+    }
+    // A shape under a follower that repaints maps it only once the follower
+    // is back in its leader's tree, which the compositing poll sees.
+    if (!painted.any((shape) => shape.transformMayLag)) _framePoll.markPolled();
+    assert(
+      debugCheckOpacityBetweenShapesAndLayer(this, link.shapes),
+      'Warns about an Opacity between a shape and its layer.',
+    );
+    return boundingBox;
+  }
+
+  /// Commits the collected [candidate] to the retained frame state without
+  /// deciding the frame's [GlassFrameState], so retained compositor ticks
+  /// can refresh contributors without crossing an idle boundary.
+  /// [shapesWithGeometry] is also the compositor-translation poll's
+  /// baseline: it always reflects the last painted frame, including idle
+  /// and drawable-empty ones.
+  void commitFrameGeometry(
+    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> candidate,
+  ) {
+    setCompositorTranslation(Offset.zero);
+    _shapesWithGeometry
+      ..clear()
+      ..addAll(candidate);
+    _fading = null;
+    _retainedStructure = geometryStructure(candidate);
+    _ancestorClips.update(this, shapeRenderObjects);
+    onFrameGeometryCommitted();
+  }
+
+  /// The structural identity of a frame's geometry: render objects, whether
+  /// they carry shadows, and their ancestry to this layer. Retained updates
+  /// compare it to detect topology changes that need a normal paint.
+  List<Object> geometryStructure(
+    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
+  ) => [
+    for (final entry in geometries)
+      for (final shape in entry.$2.shapes) ...[
+        shape.renderObject,
+        shape.shadows.isNotEmpty,
+        for (
+          var node = shape.renderObject.parent;
+          node != null && !identical(node, this);
+          node = node.parent
+        )
+          node,
+      ],
+  ];
+
+  /// Whether [geometries] still matches the encoded inputs exactly: same
+  /// render objects, same geometry caches, same transforms.
+  bool encodedInputsMatch(
+    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
+  ) {
+    if (geometries.length != _encodedGeometryInputs.length) return false;
+    for (var index = 0; index < geometries.length; index++) {
+      final (renderObject, cache, transform) = geometries[index];
+      final encoded = _encodedGeometryInputs[index];
+      if (!identical(renderObject, encoded.renderObject) ||
+          !identical(cache, encoded.cache) ||
+          !MatrixUtils.matrixEquals(transform, encoded.transform)) {
+        return false;
+      }
+    }
+    return true;
   }
 }
 

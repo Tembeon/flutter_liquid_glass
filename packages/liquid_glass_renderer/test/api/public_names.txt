@@ -6,7 +6,6 @@ DirtyLog
 FakeGlass
 FakeGlassRole
 Fate
-FinalShaderVariant
 FlutterGpuGeometryRenderer
 Follows
 FrostBandPaint

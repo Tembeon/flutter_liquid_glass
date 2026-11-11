@@ -22,7 +22,6 @@ export 'src/rendering/consolidated_fake_glass_layer.dart'
     show RenderConsolidatedFakeGlassLayer;
 export 'src/rendering/debug.dart' show debugPaintLiquidGlassGeometry;
 export 'src/rendering/fake_glass.dart' show FakeGlassRole, RenderFakeGlass;
-export 'src/rendering/final_shader_variant.dart' show FinalShaderVariant;
 export 'src/rendering/flutter_gpu_geometry_renderer.dart'
     show FlutterGpuGeometryRenderer;
 export 'src/rendering/glass_content.dart' show RenderLiquidGlassContent;

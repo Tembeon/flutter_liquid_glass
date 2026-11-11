@@ -965,26 +965,8 @@ enum FakeGlassRole
   layerPaints,
   inFakeLayer,
   standalone,
-final class FinalShaderVariant
-  static final List<FinalShaderVariant> all
-  String get assetKey
-  static final List<String> assetKeys
-  final bool band
-  final bool frost
-  static int indexOf(
-    FinalShaderKind kind,
-    FinalShaderModels models, {
-    bool frost = ...,
-    bool band = ...,
-    bool shape = ...,
-  })
-  final FinalShaderKind kind
-  final FinalShaderModels models
-  String get name
-  final bool shape
 class FlutterGpuGeometryRenderer
   Image? get atlasImage
-  ({int height, int tableX, int tableY, int width})? get atlasPlace
   @visibleForTesting static int get debugActiveGeometryTextureCount
   @visibleForTesting static int get debugActiveRendererCount
   @visibleForTesting static int debugAllocatedTextureCount
@@ -1010,9 +992,6 @@ class FlutterGpuGeometryRenderer
   List<Image> get lookImages
   void releaseAtlas()
   void releaseOutput()
-  ({Image image, List<Image> looks, ({int height, int tableX, int tableY, int width}) place}) renderAtlas(
-    Tiling tiling,
-  )
   static const int reuseAfterFrames
   static FlutterGpuGeometryRenderer? tryCreateCached(String assetKey)
 class GeometryRenderLink
@@ -1064,7 +1043,6 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer i
   BlendMode get blendMode
   Rect get clip
   set clip(Rect value)
-  @visibleForTesting PageCopy? debugPage
   double get devicePixelRatio
   set devicePixelRatio(double value)
   @internal bool get drawsGroup
@@ -1095,17 +1073,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
     required LiquidGlassAppearance defaultAppearance,
     required double devicePixelRatio,
   })
-  @protected GlassFrameState classifyFrame(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
-  )
   @protected void clearFrameInputs()
   @protected void clearGlassShadows()
-  @protected Rect? collectFrameGeometry(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> candidate,
-  )
-  @protected void commitFrameGeometry(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> candidate,
-  )
   @protected bool get compositionProbeSeeding
   @protected bool get compositionSeedSuppressed
   @protected set compositionSeedSuppressed(bool value)
@@ -1120,29 +1089,12 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
   @protected void drawGlassShadows(Canvas canvas, Offset offset)
   @protected Rect effectPaintBounds
   @protected Rect? encodedGeometryBounds
-  @protected bool encodedInputsMatch(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
-  )
   @protected Offset? encodedMatteDelta(Rect bounds)
+  @protected bool get encodesMatte
   @protected Rect expandEffectBounds(Rect bounds)
-  @protected GlassFrameState get frameState
-  @protected List<Object> geometryStructure(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
-  )
   @protected PictureLayer? get glassShadowPicture
   @protected bool get glassShadowsFade
-  @protected abstract bool hasDrawableGlass(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
-  )
   @protected bool get hasReusableIdleContents
-  @protected bool hasVisibleShape(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
-  )
-  @protected GlassFrameState get hiddenFrameState
-  @protected abstract bool isSnapshotCurrent(
-    RenderLiquidGlassGeometry geometry,
-    GeometryCache snapshot,
-  )
   static const double largestFittedShortSide
   GeometryRenderLink get link
   set link(GeometryRenderLink value)
@@ -1153,6 +1105,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
     ({bool needsRepaint, Offset? translation}) motion,
   )
   @protected void onDevicePixelRatioChanged()
+  @protected void onFrameGeometryCommitted()
   @protected void onSettingsChanged(LiquidGlassSettings old)
   @protected abstract void paintFrame(
     PaintingContext context,
@@ -1179,7 +1132,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
   set settings(LiquidGlassSettings value)
   @protected bool shadowsUnderGlass
   @protected Iterable<RenderBox> get shapeRenderObjects
-  @protected final List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> shapesWithGeometry
   @protected double? smallestVisibleShortSide()
   @protected void syncAncestorClips()
   @protected void syncCompositionOpacity()
@@ -1220,7 +1172,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject with Tran
   @visibleForTesting FragmentShader? get debugSurfaceShader
   FragmentShader? get surfaceShader
   set surfaceShader(FragmentShader? value)
-  overrides: addOutput, ask, beginFate, dispose, hasDrawableGlass, hiddenFrameState, isSnapshotCurrent, materialOutset, onAppearanceChanged, onCompositorTranslationMissed, onDevicePixelRatioChanged, onPreparing, onSettingsChanged, onTransformChanged, paintFrame, show
+  overrides: addOutput, ask, beginFate, dispose, encodesMatte, materialOutset, onAppearanceChanged, onCompositorTranslationMissed, onDevicePixelRatioChanged, onPreparing, onSettingsChanged, onTransformChanged, paintFrame, show
 class RenderFakeGlass extends RenderProxyBox with LivePaintSize
   RenderFakeGlass({
     required double devicePixelRatio,
@@ -1312,17 +1264,10 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
   double get devicePixelRatio
   set devicePixelRatio(double value)
   abstract (Rect, List<ShapeGeometry>, bool) gatherShapeData()
-  @protected @visibleForTesting GeometryCache? geometry
   double get geometryBlend
-  @protected @visibleForTesting LiquidGlassGeometryState geometryState
-  bool hasCurrentGeometryCache(GeometryCache candidate)
   bool hasCurrentMatteRevision(int revision)
   @protected void markGeometryNeedsUpdate({bool force = ...})
-  GeometryCache? maybeRebuildGeometry()
   @protected bool pollChildShapeTransforms()
-  ({bool childChanged, bool selfChanged, Matrix4? transform}) pollRelativeTransforms(
-    RenderObject layer,
-  )
   GeometryRenderLink? get renderLink
   set renderLink(GeometryRenderLink? value)
   LiquidGlassSettings get settings
@@ -1348,19 +1293,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject with TransformTrack
   @visibleForTesting int debugEncodeCount
   @visibleForTesting Fate? get debugFate
   @visibleForTesting Rect? debugFilterBounds
-  @visibleForTesting GlassGeometry? get debugGeometry
   @visibleForTesting Image? get debugGeometryImage
   @visibleForTesting Rect get debugGeometryMatteBounds
-  @visibleForTesting ({int height, int tableX, int tableY, int width}) get debugGeometryPlace
-  @visibleForTesting GlassDraw get debugLiveDraw
   @visibleForTesting FragmentShader get debugLiveShader
   @visibleForTesting List<Image> get debugLookImages
   @visibleForTesting static int debugMaxCopyShare
-  @visibleForTesting PageCopy? debugPage
-  @visibleForTesting GlassDraw? debugReadDraw
   @visibleForTesting static bool debugShaderFrost
   @visibleForTesting static bool debugShaderVariants
-  @visibleForTesting Tiling? get debugTiling
   @visibleForTesting bool get debugUsesShapeAppearances
   @visibleForTesting bool get debugUsesTintOnlyAppearance
   bool get drawableEmpty
@@ -1376,7 +1315,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject with TransformTrack
   Matrix4 get shaderCoordinateTransform
   Color? get solidBackdrop
   set solidBackdrop(Color? value)
-  overrides: addOutput, ask, beginFate, commitFrameGeometry, dispose, hasDrawableGlass, hiddenFrameState, isSnapshotCurrent, materialOutset, mayRest, onAppearanceChanged, onCompositorTranslated, onCompositorTranslationMissed, onDevicePixelRatioChanged, onPreparing, onResting, onSettingsChanged, onTransformChanged, pageKey, paintFrame, readFilter, recordPage, repaintsOnMove, show
+  overrides: addOutput, ask, beginFate, dispose, encodesMatte, materialOutset, mayRest, onAppearanceChanged, onCompositorTranslated, onCompositorTranslationMissed, onDevicePixelRatioChanged, onFrameGeometryCommitted, onPreparing, onResting, onSettingsChanged, onTransformChanged, pageKey, paintFrame, readFilter, recordPage, repaintsOnMove, show
 class RenderLiveGlassFrame extends RenderProxyBox
   RenderLiveGlassFrame({required ValueListenable<LiquidGlassShapeFrame> frame})
   ValueListenable<LiquidGlassShapeFrame> get frame
@@ -1388,6 +1327,7 @@ abstract class ShaderKeys
   static final String backdropFrostSquare
   static final String fakeGlassSurface
   static String finalRender(String name)
+  static List<String> get finalRenders
   static final String gpuGeometryShaderBundle
 class ShapeGeometry
   ShapeGeometry({
@@ -1399,9 +1339,6 @@ class ShapeGeometry
     Matrix4? shapeToGeometry,
   })
   final LiquidGlassAppearance appearance
-  final double rawBottomRadius
-  final double rawCornerRadius
-  final RawShapeType rawShapeType
   final LiquidGlassShapeRenderObject renderObject
   final List<BoxShadow> shadows
   final LiquidShape shape

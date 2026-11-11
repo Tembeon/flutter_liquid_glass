@@ -87,14 +87,6 @@ class FlutterGpuGeometryRenderer {
   /// Always empty on the web.
   List<ui.Image> get lookImages => const [];
 
-  /// Always null on the web.
-  AtlasPlace? get atlasPlace => null;
-
-  /// Throws: the web has no Flutter GPU.
-  ({ui.Image image, List<ui.Image> looks, AtlasPlace place}) renderAtlas(
-    Tiling tiling,
-  ) => throw UnsupportedError('Flutter GPU is not available on the web.');
-
   /// Does nothing on the web.
   void releaseAtlas() {}
 
@@ -103,4 +95,15 @@ class FlutterGpuGeometryRenderer {
 
   /// Does nothing on the web.
   void dispose() {}
+}
+
+/// The renderer's atlas, which only the rendering library draws and reads.
+extension FlutterGpuGeometryRendererAtlas on FlutterGpuGeometryRenderer {
+  /// Always null on the web.
+  AtlasPlace? get atlasPlace => null;
+
+  /// Throws: the web has no Flutter GPU.
+  ({ui.Image image, List<ui.Image> looks, AtlasPlace place}) renderAtlas(
+    Tiling tiling,
+  ) => throw UnsupportedError('Flutter GPU is not available on the web.');
 }
