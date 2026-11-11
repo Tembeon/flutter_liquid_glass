@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/effects/glass_glow.dart';
 
 void main() {
   group('$GlassGlow', () {
@@ -86,21 +87,12 @@ void main() {
             ),
           );
 
-          RenderObject? glowRo;
-          void findGlowRo(RenderObject ro) {
-            if (ro.runtimeType.toString() == '_RenderGlassGlowLayer') {
-              glowRo = ro;
-              return;
-            }
-            ro.visitChildren(findGlowRo);
-          }
-
-          double glowAlpha() {
-            glowRo = null;
-            findGlowRo(tester.renderObject(find.byType(GlassGlowLayer)));
-            expect(glowRo, isNotNull);
-            return ((glowRo! as dynamic).glowColor as Color).a;
-          }
+          double glowAlpha() => tester
+              .renderObject<RenderGlassGlowLayer>(
+                find.byType(GlassGlowLayer),
+              )
+              .glowColor
+              .a;
 
           expect(glowAlpha(), 0);
 

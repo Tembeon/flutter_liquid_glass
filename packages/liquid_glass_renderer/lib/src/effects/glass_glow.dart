@@ -222,7 +222,7 @@ class _RenderGlassGlowLayerWidget extends SingleChildRenderObjectWidget {
 
   @override
   RenderObject createRenderObject(BuildContext context) {
-    return _RenderGlassGlowLayer(
+    return RenderGlassGlowLayer(
       glowRadius: glowRadius,
       glowColor: glowColor,
       glowOffset: glowOffset,
@@ -232,7 +232,7 @@ class _RenderGlassGlowLayerWidget extends SingleChildRenderObjectWidget {
   @override
   void updateRenderObject(
     BuildContext context,
-    _RenderGlassGlowLayer renderObject,
+    RenderGlassGlowLayer renderObject,
   ) {
     renderObject
       ..glowRadius = glowRadius
@@ -241,8 +241,9 @@ class _RenderGlassGlowLayerWidget extends SingleChildRenderObjectWidget {
   }
 }
 
-class _RenderGlassGlowLayer extends RenderProxyBox {
-  _RenderGlassGlowLayer({
+@internal
+class RenderGlassGlowLayer extends RenderProxyBox {
+  RenderGlassGlowLayer({
     required this._glowRadius,
     required this._glowColor,
     required this._glowOffset,
