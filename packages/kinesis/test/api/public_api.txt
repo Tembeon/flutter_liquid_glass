@@ -531,6 +531,10 @@ class InteractionInput (see package:kinesis/input.dart)
 enum InteractionRole (see package:kinesis/input.dart)
 class InteractionSession (see package:kinesis/input.dart)
 class InteractionUpdate (see package:kinesis/input.dart)
+abstract final class KeyboardUse
+  KeyboardUse()
+  static Listenable get changes
+  static bool get inUse
 final class LayoutAccent
   const LayoutAccent({
     required Size scale,
@@ -1405,6 +1409,7 @@ class InputZoneFrame (see package:kinesis/kinesis.dart)
 enum InputZoneStops (see package:kinesis/kinesis.dart)
 class InputZones (see package:kinesis/kinesis.dart)
 class InputZonesController (see package:kinesis/kinesis.dart)
+class KeyboardUse (see package:kinesis/kinesis.dart)
 class MotionClockScope (see package:kinesis/kinesis.dart)
 class MotionDriven (see package:kinesis/kinesis.dart)
 extension MotionHapticPlay (see package:kinesis/kinesis.dart)

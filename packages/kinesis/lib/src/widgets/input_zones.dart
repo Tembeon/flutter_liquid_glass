@@ -11,6 +11,7 @@ import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/widgets/input_shared.dart';
 import 'package:kinesis/src/widgets/input_target.dart';
 import 'package:kinesis/src/widgets/input_zone.dart';
+import 'package:kinesis/src/widgets/keyboard_use.dart';
 import 'package:kinesis/src/widgets/pointer_line.dart';
 import 'package:kinesis/src/widgets/scope.dart';
 import 'package:kinesis/src/widgets/source.dart';
@@ -414,6 +415,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     controller._host = this;
     widget.frames.addListener(_framesChanged);
     FocusManager.instance.addHighlightModeListener(_highlightModeChanged);
+    KeyboardUse.changes.addListener(_showFocus);
     _line.port = widget.port;
     _scheduleResize();
   }
@@ -465,6 +467,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     _base.dispose();
     widget.frames.removeListener(_framesChanged);
     FocusManager.instance.removeHighlightModeListener(_highlightModeChanged);
+    KeyboardUse.changes.removeListener(_showFocus);
     if (_resize case final id?) {
       SchedulerBinding.instance.cancelFrameCallbackWithId(id);
     }
@@ -549,7 +552,9 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     return (last ?? first)?.node;
   }
 
-  void _highlightModeChanged(FocusHighlightMode mode) {
+  void _highlightModeChanged(FocusHighlightMode mode) => _showFocus();
+
+  void _showFocus() {
     for (final zone in _zones.values) {
       zone.target.showFocus();
     }

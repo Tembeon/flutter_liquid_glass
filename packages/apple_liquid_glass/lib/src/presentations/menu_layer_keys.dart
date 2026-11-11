@@ -104,9 +104,7 @@ class MenuLayerKeys {
 
   /// The menu took the focus: under the keyboard its first row has it.
   void menuFocused() {
-    if (FocusManager.instance.highlightMode != FocusHighlightMode.traditional) {
-      return;
-    }
+    if (!KeyboardUse.inUse) return;
     final built = _layer.built;
     if (built.layouts[built.top].targets.isEmpty) return;
     zones.requestFocus(ids.idOf(0));

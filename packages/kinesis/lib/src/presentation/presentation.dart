@@ -176,9 +176,9 @@ final class Presentation<T, M extends Presented> {
   /// The node that takes the focus when the presentation opens, such as the
   /// field of a sheet that asks for a name. Without one, the first
   /// focusable node of the content takes it while the keyboard is in use
-  /// (`FocusManager.highlightMode` is traditional) and the presentation
-  /// itself otherwise, so a touch never brings up the keyboard for a field
-  /// it did not tap. Either way Escape reaches the presentation.
+  /// ([KeyboardUse]) and the presentation itself otherwise, so a touch
+  /// never brings up the keyboard for a field it did not tap and a click
+  /// lights no focus ring. Either way Escape reaches the presentation.
   final FocusNode? initialFocus;
 
   // The calls below take the motion as a Presented and the result as an
@@ -442,7 +442,7 @@ class _FocusInState extends State<_FocusIn> {
       named.requestFocus();
       return;
     }
-    if (FocusManager.instance.highlightMode == FocusHighlightMode.traditional) {
+    if (KeyboardUse.inUse) {
       final policy =
           FocusTraversalGroup.maybeOf(context) ?? ReadingOrderTraversalPolicy();
       final first = policy.findFirstFocus(scope, ignoreCurrentFocus: true);

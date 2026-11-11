@@ -9,6 +9,7 @@ import 'package:kinesis/src/widgets/haptics.dart';
 import 'package:kinesis/src/widgets/input_intents.dart';
 import 'package:kinesis/src/widgets/input_shared.dart';
 import 'package:kinesis/src/widgets/input_target.dart';
+import 'package:kinesis/src/widgets/keyboard_use.dart';
 import 'package:kinesis/src/widgets/pointer_line.dart';
 import 'package:kinesis/src/widgets/scope.dart';
 
@@ -225,6 +226,7 @@ class _InputRegionState extends State<InputRegion> {
     _states.update(WidgetState.disabled, !widget.enabled);
     _states.addListener(_statesChanged);
     FocusManager.instance.addHighlightModeListener(_highlightModeChanged);
+    KeyboardUse.changes.addListener(_target.showFocus);
     _line.port = widget.port;
     widget.adjustRange?.addListener(_rangeChanged);
   }
@@ -271,6 +273,7 @@ class _InputRegionState extends State<InputRegion> {
     _target.dispose();
     _states.removeListener(_statesChanged);
     FocusManager.instance.removeHighlightModeListener(_highlightModeChanged);
+    KeyboardUse.changes.removeListener(_target.showFocus);
     _ownStates?.dispose();
     _ownFocus?.dispose();
     super.dispose();

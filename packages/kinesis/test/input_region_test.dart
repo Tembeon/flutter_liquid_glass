@@ -778,11 +778,49 @@ void main() {
       expect(focus.hasPrimaryFocus, isTrue);
       expect(states.value, isNot(contains(WidgetState.focused)));
       await tester.sendKeyEvent(LogicalKeyboardKey.shiftLeft);
+      expect(states.value, isNot(contains(WidgetState.focused)));
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
       expect(states.value, contains(WidgetState.focused));
       await tester.tap(find.byType(InputRegion));
       expect(focus.hasPrimaryFocus, isTrue);
       expect(states.value, isNot(contains(WidgetState.focused)));
     });
+
+    testWidgets('on a desktop a click that focuses lights no ring, a key '
+        'does, and a shortcut does not', (tester) async {
+      final states = WidgetStatesController();
+      final focus = FocusNode();
+      addTearDown(states.dispose);
+      addTearDown(focus.dispose);
+      await tester.pumpWidget(
+        _widgetsApp(
+          InputRegion(
+            interactions: [PressInteraction()],
+            statesController: states,
+            focusNode: focus,
+            child: const SizedBox(width: 80, height: 40),
+          ),
+        ),
+      );
+      expect(
+        FocusManager.instance.highlightMode,
+        FocusHighlightMode.traditional,
+      );
+      await tester.tap(find.byType(InputRegion), kind: PointerDeviceKind.mouse);
+      focus.requestFocus();
+      await tester.pump();
+      expect(focus.hasPrimaryFocus, isTrue);
+      expect(states.value, isNot(contains(WidgetState.focused)));
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+      expect(states.value, isNot(contains(WidgetState.focused)));
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      expect(states.value, contains(WidgetState.focused));
+      await tester.tap(find.byType(InputRegion), kind: PointerDeviceKind.mouse);
+      expect(focus.hasPrimaryFocus, isTrue);
+      expect(states.value, isNot(contains(WidgetState.focused)));
+    }, variant: TargetPlatformVariant.desktop());
   });
 
   group('mouse buttons and wheel', () {

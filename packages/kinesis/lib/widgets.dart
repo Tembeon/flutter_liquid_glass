@@ -32,6 +32,7 @@ export 'src/widgets/input_region.dart' show InputRegion;
 export 'src/widgets/input_zone.dart'
     show InputZone, InputZoneFrame, InputZoneStops;
 export 'src/widgets/input_zones.dart' show InputZones, InputZonesController;
+export 'src/widgets/keyboard_use.dart' show KeyboardUse;
 export 'src/widgets/layout.dart' show MotionLayout, MotionLayoutBuilder;
 export 'src/widgets/measure.dart' show MotionMeasure;
 export 'src/widgets/resolve.dart' show MotionResolveHost;

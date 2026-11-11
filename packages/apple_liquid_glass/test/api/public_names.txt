@@ -214,6 +214,7 @@ InteractionInput
 InteractionRole
 InteractionSession
 InteractionUpdate
+KeyboardUse
 LargeTitleSnap
 LayoutAccent
 LayoutChange

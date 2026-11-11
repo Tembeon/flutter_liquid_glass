@@ -6,6 +6,7 @@ import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/widgets/haptics.dart';
 import 'package:kinesis/src/widgets/input_intents.dart';
 import 'package:kinesis/src/widgets/input_shared.dart';
+import 'package:kinesis/src/widgets/keyboard_use.dart';
 import 'package:kinesis/src/widgets/pointer_line.dart';
 
 /// One thing a person acts on, as an input host keeps it: a session of
@@ -405,16 +406,16 @@ class _ContextMenu extends _HostAction<ContextMenuIntent> {
   void run(ContextMenuIntent intent) => target.openMenu();
 }
 
-/// Whether focus shows: as `InkWell` does, only after the keyboard was used
-/// last, so a tap that focuses lights no ring; under directional navigation
-/// (a TV remote) a disabled host that holds focus shows it too.
+/// Whether focus shows: only while the keyboard is in use ([KeyboardUse]),
+/// so a tap or a click that focuses lights no ring; under directional
+/// navigation (a TV remote) a disabled host that holds focus shows it too.
 bool _focusShows({
   required bool hasFocus,
   required bool enabled,
   required NavigationMode? navigation,
 }) =>
     hasFocus &&
-    FocusManager.instance.highlightMode == FocusHighlightMode.traditional &&
+    KeyboardUse.inUse &&
     (enabled || navigation == NavigationMode.directional);
 
 /// An input host's own action for an intent of the focused host: a
