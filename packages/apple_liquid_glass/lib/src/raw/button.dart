@@ -171,7 +171,7 @@ class _RawGlassButtonState extends State<RawGlassButton>
           label: widget.semanticLabel,
           button: true,
         ),
-        minimumHitSize: const Size(44, 44),
+        minimumHitSize: glassMinimumTarget,
         child: ExcludeSemantics(
           excluding: widget.semanticLabel != null,
           child: _described(

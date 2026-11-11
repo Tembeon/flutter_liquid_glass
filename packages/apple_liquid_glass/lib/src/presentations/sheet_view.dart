@@ -411,7 +411,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   Widget _grabber(BuildContext context, Color color) {
     final handle = SizedBox.fromSize(size: _SheetLook.grabberSize);
     final top = _SheetLook.grabberOffset - _SheetLook.grabberSize.height / 2;
-    final side = _target / _floatingScale(context);
+    final side = glassMinimumTargetExtent / _floatingScale(context);
     return Align(
       alignment: Alignment.topCenter,
       child: InputRegion(

@@ -116,9 +116,6 @@ class RawGlassListRow extends StatefulWidget {
   /// Whether the row takes focus when it first appears.
   final bool autofocus;
 
-  /// The smallest target the info button takes a finger in.
-  static const Size infoTarget = Size.square(44);
-
   @override
   State<RawGlassListRow> createState() => _RawGlassListRowState();
 }
@@ -180,7 +177,7 @@ class _RawGlassListRowState extends State<RawGlassListRow>
     );
     final infoBuilder = widget.infoBuilder;
     if (infoBuilder == null) return row;
-    const target = RawGlassListRow.infoTarget;
+    const target = glassMinimumTarget;
     // The info button is a target beside the row's, not inside it: a
     // region inside another one would hand its keys to the outer one.
     return Semantics(
@@ -253,7 +250,7 @@ class _InfoButtonState extends State<_InfoButton>
     enabled: widget.enabled,
     statesController: widgetStates,
     semantics: SemanticsProperties(label: widget.label, button: true),
-    minimumHitSize: RawGlassListRow.infoTarget,
+    minimumHitSize: glassMinimumTarget,
     child: widget.builder(
       context,
       GlassListRowDetails(

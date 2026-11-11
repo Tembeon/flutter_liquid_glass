@@ -386,6 +386,8 @@ ValueCommand
 ZoomPageMotion
 debugDumpGlassPlan
 glassLabelTextOf
+glassMinimumTarget
+glassMinimumTargetExtent
 layoutGlassBar
 placeDatePicker
 placePopover

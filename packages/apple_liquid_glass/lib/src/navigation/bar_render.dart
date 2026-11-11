@@ -219,8 +219,8 @@ class _RenderBarItems extends RenderBox
         final rect = frame.rect;
         final box = Rect.fromCenter(
           center: rect.center,
-          width: math.max(rect.width, _Bar.minimumTarget),
-          height: math.max(rect.height, _Bar.minimumTarget),
+          width: math.max(rect.width, glassMinimumTargetExtent),
+          height: math.max(rect.height, glassMinimumTargetExtent),
         );
         if (box.contains(position)) {
           final origin = rect.center - child.size.center(Offset.zero);
@@ -397,7 +397,7 @@ class _ItemSourceState extends State<_ItemSource> {
   Widget build(BuildContext context) => InputRegion(
     interactions: _tap,
     semantics: SemanticsProperties(label: widget.semanticLabel),
-    minimumHitSize: const Size.square(_Bar.minimumTarget),
+    minimumHitSize: glassMinimumTarget,
     child: GlassSource(
       description: GlassSourceDescription(look: widget.look),
       child: widget.child,

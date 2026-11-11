@@ -35,6 +35,8 @@ export 'src/foundation/media.dart' show GlassMediaQueryData;
 export 'src/foundation/outline.dart' show GlassField, GlassOutline;
 export 'src/foundation/shape.dart'
     show GlassOval, GlassRoundedRect, GlassShape, GlassSuperellipse;
+export 'src/foundation/target.dart'
+    show glassMinimumTarget, glassMinimumTargetExtent;
 export 'src/foundation/theme.dart'
     show GlassColorScheme, GlassStyle, GlassTheme, GlassThemeData;
 export 'src/foundation/touch_glow.dart' show GlassTouchGlow;

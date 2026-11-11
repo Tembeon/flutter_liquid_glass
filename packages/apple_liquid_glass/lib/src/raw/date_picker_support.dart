@@ -60,6 +60,3 @@ abstract final class _Metrics {
   static const double wheelsWidth = 288;
   static const double wheelsHeight = 216;
 }
-
-/// The smallest target of a part, the size Apple's guidelines ask for.
-const Size _target = Size(44, 44);

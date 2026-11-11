@@ -35,8 +35,6 @@ class _RenderControlSemantics extends RenderProxyBox {
     required this._onLongPress,
   });
 
-  static const _minimum = 44.0;
-
   bool get expanded => _expanded;
   bool _expanded;
   set expanded(bool value) {
@@ -59,8 +57,8 @@ class _RenderControlSemantics extends RenderProxyBox {
   @override
   Rect get semanticBounds => Rect.fromCenter(
     center: size.center(Offset.zero),
-    width: math.max(size.width, _minimum),
-    height: math.max(size.height, _minimum),
+    width: math.max(size.width, glassMinimumTargetExtent),
+    height: math.max(size.height, glassMinimumTargetExtent),
   );
 
   @override

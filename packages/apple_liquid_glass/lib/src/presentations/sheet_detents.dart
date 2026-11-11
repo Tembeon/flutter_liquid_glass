@@ -119,10 +119,6 @@ final class _DetentStep extends Interaction {
   }
 }
 
-// The side of the grabber's target on screen, the smallest UIKit's
-// guidelines allow.
-const double _target = 44;
-
 /// Tells screen readers the detent the sheet rests at, and the ones a step
 /// up and down reach, as the grabber's value. It reads them when semantics
 /// are gathered, so the frame whose resolve phase lays the sheet out

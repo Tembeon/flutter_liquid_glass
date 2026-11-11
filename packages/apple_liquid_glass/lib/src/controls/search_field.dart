@@ -326,10 +326,6 @@ class _SearchFieldLook extends StatefulWidget {
 }
 
 class _SearchFieldLookState extends State<_SearchFieldLook> {
-  // Apple's 44 point target around the 20 point glyph; the look does not
-  // grow.
-  static const double _clearTarget = 44;
-
   late final List<Interaction> _clearInteractions = [
     PressInteraction(onTap: (t) => widget.details.clear?.call()),
   ];
@@ -395,13 +391,13 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
       ),
       // The target reaches past the glyph only inside its parents' boxes.
       child: SizedBox(
-        height: _clearTarget,
+        height: glassMinimumTargetExtent,
         child: Center(
           child: InputRegion(
             interactions: _clearInteractions,
             enabled: details.clear != null,
             statesController: _clearStates,
-            minimumHitSize: const Size.square(_clearTarget),
+            minimumHitSize: glassMinimumTarget,
             semantics: SemanticsProperties(
               label:
                   widget.clearSemanticLabel ??

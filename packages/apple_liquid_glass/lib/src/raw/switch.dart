@@ -202,7 +202,7 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
             label: widget.semanticLabel,
             toggled: widget.value,
           ),
-          minimumHitSize: const Size(44, 44),
+          minimumHitSize: glassMinimumTarget,
           child: SizedBox.fromSize(
             size: RawGlassSwitch.size,
             child: widget.builder(

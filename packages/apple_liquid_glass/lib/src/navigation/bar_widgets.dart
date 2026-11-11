@@ -212,7 +212,7 @@ class _BandState extends State<_Band> {
       id: id,
       interactions: menu ? input.menuSource : input.press,
       enabled: menu || input.onPressed != null,
-      minimumHitSize: const Size.square(_Bar.minimumTarget),
+      minimumHitSize: glassMinimumTarget,
       semantics: SemanticsProperties(
         label: switch (button.back) {
           final back? => back.labelIn(context),

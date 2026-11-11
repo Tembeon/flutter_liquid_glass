@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_entries.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_layer_scope.dart';
@@ -160,7 +161,7 @@ class MenuLayerKeys {
         InputZone<int>(
           id: id,
           interactions: inputsOf(id),
-          minimumHitSize: const Size.square(44),
+          minimumHitSize: glassMinimumTarget,
           semantics: SemanticsProperties(
             label: label,
             value: value,

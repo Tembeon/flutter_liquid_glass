@@ -347,7 +347,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
           increasedValue: percent(_stepFrom(value, 1)),
           decreasedValue: percent(_stepFrom(value, -1)),
         ),
-        minimumHitSize: const Size(44, 44),
+        minimumHitSize: glassMinimumTarget,
         // The ticks of the first frame need the width at build; the motion
         // hears it from MotionMeasure after layout, where it may change.
         child: LayoutBuilder(

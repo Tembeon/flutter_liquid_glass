@@ -3142,7 +3142,6 @@ class RawGlassListRow extends StatefulWidget
   final Widget Function(BuildContext, GlassListRowDetails)? infoBuilder
   final double infoCenterInset
   final String? infoSemanticLabel
-  static const Size infoTarget
   final void Function()? onInfoPressed
   final void Function()? onPressed
   final bool selected
@@ -3878,6 +3877,8 @@ final class ZoomPageMotion extends PageMotion with Sourced
   @internal final ZoomPageTuning tuning
   overrides: holds, isShown, leave, open, presence, progress, showInPlace, sourceMoved, start
 String? glassLabelTextOf(Widget? label)
+const Size glassMinimumTarget
+const double glassMinimumTargetExtent
 List<GlassBarCapsuleLayout> layoutGlassBar({
   required List<GlassBarCapsuleSpec> leading,
   required List<GlassBarCapsuleSpec> trailing,
@@ -4152,6 +4153,8 @@ class GlassTouchGlow (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTraits (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTraitsOverride (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function glassLabelTextOf (see package:apple_liquid_glass/apple_liquid_glass.dart)
+variable glassMinimumTarget (see package:apple_liquid_glass/apple_liquid_glass.dart)
+variable glassMinimumTargetExtent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function resolveGlassText (see package:apple_liquid_glass/apple_liquid_glass.dart)
 
 # package:apple_liquid_glass/liquid.dart

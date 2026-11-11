@@ -228,7 +228,7 @@ class _RawGlassStepperState extends State<RawGlassStepper>
           interactions: [_halfInputs[half]!],
           enabled: enabled && _canStep(half),
           focusable: false,
-          minimumHitSize: const Size.square(44),
+          minimumHitSize: glassMinimumTarget,
           semantics: SemanticsProperties(
             label: label,
             value: value,
@@ -251,7 +251,7 @@ class _RawGlassStepperState extends State<RawGlassStepper>
           increasedValue: format(_after(GlassStepperHalf.increment)),
           decreasedValue: format(_after(GlassStepperHalf.decrement)),
         ),
-        minimumHitSize: const Size(44, 44),
+        minimumHitSize: glassMinimumTarget,
         child: SizedBox.fromSize(
           size: RawGlassStepper.size,
           child: InputZones<GlassStepperHalf>(

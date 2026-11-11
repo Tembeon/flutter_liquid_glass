@@ -510,7 +510,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
           id: key,
           interactions: _presses[key] ??= [_ItemPress(() => _activate(key))],
           enabled: _selectable(i),
-          minimumHitSize: const Size.square(44),
+          minimumHitSize: glassMinimumTarget,
           autofocus: widget.autofocus && i == (selected ?? 0),
           semantics: SemanticsProperties(
             label: widget.itemLabels?[i],
@@ -624,7 +624,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     final dragged = InputRegion(
       interactions: _interactions,
       enabled: _enabled && widget.itemCount > 0,
-      minimumHitSize: const Size.square(44),
+      minimumHitSize: glassMinimumTarget,
       child: look,
     );
     Widget child = _SelectorBox(

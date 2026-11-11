@@ -1,3 +1,4 @@
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
@@ -51,7 +52,7 @@ class DatePickerHeaderPart extends StatelessWidget {
       value: value,
       liveRegion: liveRegion,
     ),
-    minimumHitSize: const Size(44, 44),
+    minimumHitSize: glassMinimumTarget,
     child: ExcludeSemantics(child: child),
   );
 }

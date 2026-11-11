@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -318,7 +319,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
           increasedValue: count == 0 ? null : value(math.min(page + 2, count)),
           decreasedValue: count == 0 ? null : value(math.max(page, 1)),
         ),
-        minimumHitSize: const Size(44, 44),
+        minimumHitSize: glassMinimumTarget,
         child: SizedBox.fromSize(
           size: _size,
           child: widget.builder(

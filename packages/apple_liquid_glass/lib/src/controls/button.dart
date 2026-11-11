@@ -453,7 +453,6 @@ class GlassButton extends StatelessWidget {
   static const _labelStyle = TextStyle(fontSize: 17);
   static const _iconSize = 22.0;
   static const _padding = EdgeInsets.symmetric(horizontal: 20, vertical: 11);
-  static const _minimumSize = Size(44, 44);
 
   static const _white = Color(0xFFFFFFFF);
 
@@ -478,7 +477,7 @@ class GlassButton extends StatelessWidget {
       }),
       textStyle: const WidgetStatePropertyAll(_labelStyle),
       padding: const WidgetStatePropertyAll(_padding),
-      minimumSize: const WidgetStatePropertyAll(_minimumSize),
+      minimumSize: const WidgetStatePropertyAll(glassMinimumTarget),
       iconSize: const WidgetStatePropertyAll(_iconSize),
     );
   }

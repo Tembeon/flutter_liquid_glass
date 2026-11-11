@@ -184,10 +184,6 @@ final class _Bar {
     );
   }
 
-  /// The smallest box a bar item takes touches in (Apple's 44 point
-  /// target); its look does not grow.
-  static const double minimumTarget = 44;
-
   /// The box [item] takes input in: its slot across the capsule's height,
   /// where the motion paints it now, without its scale.
   Rect? zoneRectOf(Object item) {

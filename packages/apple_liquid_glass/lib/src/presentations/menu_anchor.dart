@@ -669,7 +669,7 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
         interactions: [_watch, _hold],
         feedback: _MenuHost._feedback,
         enabled: enabled,
-        minimumHitSize: const Size(44, 44),
+        minimumHitSize: glassMinimumTarget,
         child: _ControlSemantics(
           expanded: _showing,
           onLongPress: enabled ? _openFromCode : null,
