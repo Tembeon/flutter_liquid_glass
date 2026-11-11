@@ -402,7 +402,8 @@ enum InputZoneStops {
 /// the arrows, Home and End for its value
 /// (`AdjustValueIntent.defaultShortcuts`). Space and Enter activate the focused
 /// zone through `ActivateIntent`, which an app overrides with `Actions` above
-/// the host, as for `InputRegion`.
+/// the host, as for `InputRegion`; a region around the host does not take
+/// them from a focused zone.
 ///
 /// Semantics: each zone that is [InputZoneFrame.live] is one semantics
 /// node over its hit rectangle, which follows [frameOf], with its label,
@@ -1566,35 +1567,36 @@ class _ZoneEndIntent extends Intent {
   final bool last;
 }
 
-class _ZoneActivate<I extends Intent, T extends Object> extends Action<I> {
+class _ZoneActivate<I extends Intent, T extends Object> extends HostAction<I> {
   _ZoneActivate(this.zone);
 
   final _ZoneState<T> zone;
 
   @override
-  bool isEnabled(I intent) => zone.zone.enabled && zone._activates;
+  bool takes(I intent) => zone.zone.enabled && zone._activates;
 
   @override
-  Object? invoke(I intent) {
-    zone._activate(ActivationSource.keyboard);
-    return null;
-  }
+  bool get focused => zone.node.hasPrimaryFocus;
+
+  @override
+  void run(I intent) => zone._activate(ActivationSource.keyboard);
 }
 
-class _ZoneAdjust<T extends Object> extends Action<AdjustValueIntent> {
+class _ZoneAdjust<T extends Object> extends HostAction<AdjustValueIntent> {
   _ZoneAdjust(this.zone);
 
   final _ZoneState<T> zone;
 
   @override
-  bool isEnabled(AdjustValueIntent intent) =>
+  bool takes(AdjustValueIntent intent) =>
       zone.zone.enabled && zone._adjusts && zone._range.allows(intent.command);
 
   @override
-  Object? invoke(AdjustValueIntent intent) {
-    zone._adjust(intent.command, ActivationSource.keyboard);
-    return null;
-  }
+  bool get focused => true;
+
+  @override
+  void run(AdjustValueIntent intent) =>
+      zone._adjust(intent.command, ActivationSource.keyboard);
 }
 
 class _ZoneMove<T extends Object> extends Action<DirectionalFocusIntent> {

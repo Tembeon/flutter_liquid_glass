@@ -67,6 +67,46 @@ MouseCursor resolveCursor(
   states,
 );
 
+/// An input host's own action for an intent of the focused host: a
+/// region's or a zone's activation.
+///
+/// Hosts register their actions as `Action.overridable`, so the lookup of
+/// an inner host's override finds the action of the host around it. Such an
+/// action, reached as the override of another host's, hands the intent
+/// back to that host; reached first, it answers only while its own focus
+/// node has the primary focus. The focused, innermost host handles the
+/// intent, and a host around it handles it only when it is focused itself.
+@internal
+abstract class HostAction<I extends Intent> extends Action<I> {
+  /// Whether the host takes the intent now: it is enabled and one of its
+  /// interactions takes it.
+  bool takes(I intent);
+
+  /// Whether the host's own focus node has the primary focus.
+  bool get focused;
+
+  /// Runs the intent on the host.
+  void run(I intent);
+
+  HostAction<I>? get _inner => switch (callingAction) {
+    final HostAction<I> inner => inner,
+    _ => null,
+  };
+
+  @override
+  bool isEnabled(I intent) {
+    if (_inner case final inner?) return inner.isEnabled(intent);
+    return focused && takes(intent);
+  }
+
+  @override
+  Object? invoke(I intent) {
+    if (_inner case final inner?) return inner.invoke(intent);
+    run(intent);
+    return null;
+  }
+}
+
 ActivationSource? _dispatching;
 
 /// Whether no input host is handling a keyboard or accessibility input

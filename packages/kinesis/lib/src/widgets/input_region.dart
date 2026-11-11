@@ -29,7 +29,12 @@ import 'package:kinesis/src/widgets/input_shared.dart';
 /// Enter under a `WidgetsApp`, as for Flutter's own buttons. An app remaps
 /// the keys with `Shortcuts` and replaces what activation does with an
 /// `Actions` above the region, since the region's actions are
-/// `Action.overridable`. When an interaction [Interaction.adjusts] (a
+/// `Action.overridable`. A region activates only while its own focus node
+/// has the primary focus: in a region inside another (a switch in a
+/// pressable row), the focused inner region handles Space and Enter, and
+/// the outer one only when it is focused itself; an override above both
+/// hears the inner region's activation. When an interaction
+/// [Interaction.adjusts] (a
 /// slider, a stepper), the region binds the keys of
 /// [AdjustValueIntent.defaultShortcuts] around its focus and gives
 /// accessibility increase and decrease; both arrive as [AdjustInput]s, and
@@ -630,40 +635,45 @@ class _InputRegionState extends State<InputRegion> {
 }
 
 /// Activates the region for an intent the app's shortcuts send, as long as
-/// the region is enabled and an interaction activates.
-class _Activate<T extends Intent> extends Action<T> {
+/// the region is enabled, an interaction activates, and the region has the
+/// focus or a region inside it handed the intent on.
+class _Activate<T extends Intent> extends HostAction<T> {
   _Activate(this.state);
 
   final _InputRegionState state;
 
   @override
-  bool isEnabled(T intent) => state.widget.enabled && state._activates;
+  bool takes(T intent) => state.widget.enabled && state._activates;
 
   @override
-  Object? invoke(T intent) {
-    state._input(ActivateInput(time: state._clock.now));
-    return null;
-  }
+  bool get focused => state._focus.hasPrimaryFocus;
+
+  @override
+  void run(T intent) => state._input(ActivateInput(time: state._clock.now));
 }
 
 /// Steps the region's value for an [AdjustValueIntent], as long as the
 /// region is enabled and an interaction adjusts.
-class _Adjust extends Action<AdjustValueIntent> {
+///
+/// A control may send the intent from below the region without its focus
+/// (a stepper's half), so the region takes it unfocused too.
+class _Adjust extends HostAction<AdjustValueIntent> {
   _Adjust(this.state);
 
   final _InputRegionState state;
 
   @override
-  bool isEnabled(AdjustValueIntent intent) =>
+  bool takes(AdjustValueIntent intent) =>
       state.widget.enabled &&
       state._adjusts &&
       state._range.allows(intent.command);
 
   @override
-  Object? invoke(AdjustValueIntent intent) {
-    state._adjust(intent.command, ActivationSource.keyboard);
-    return null;
-  }
+  bool get focused => true;
+
+  @override
+  void run(AdjustValueIntent intent) =>
+      state._adjust(intent.command, ActivationSource.keyboard);
 }
 
 /// Asks the focused region to step its value: the intent of the arrows,
