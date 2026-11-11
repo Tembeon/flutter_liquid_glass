@@ -1,16 +1,22 @@
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/liquid/adaptive.dart';
-import 'package:apple_liquid_glass/src/liquid/liquid.dart';
-import 'package:apple_liquid_glass/src/liquid/scroll_edge.dart';
-import 'package:apple_liquid_glass/src/surfaces/flat.dart';
 import 'package:apple_liquid_glass/src/surfaces/group.dart';
+import 'package:apple_liquid_glass/src/surfaces/scroll_edge.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// How every glass surface is drawn: real glass, fake glass, one flat look
 /// or an app's own, chosen by the app or its user in a `GlassRendererScope`
 /// and switchable at any time.
+///
+/// The package draws with `FlatGlassRenderer` (this library) and with
+/// `LiquidGlassRenderer`, `FakeGlassRenderer` and `AdaptiveGlassRenderer`
+/// (the `liquid` library). An app's own renderer extends this class with
+/// public API only: [GlassSurfaceDetails] says what to draw; a frame's
+/// [GlassShape.pathIn], or the shape's kinds ([GlassSuperellipse],
+/// [GlassRoundedRect], [GlassOval]), and [GlassOutline.path] give the
+/// body; [GlassFrame.drawnIn] and [GlassFrame.contentTransformIn] say
+/// where it and its content go; [GlassFrame.glassnessAt] says how far a
+/// lens has turned into glass.
 ///
 /// A renderer builds a surface when the surface's widget rebuilds; frames
 /// reach what it built through [GlassSurfaceDetails.frame], followed below
@@ -21,37 +27,6 @@ abstract class GlassRenderer {
   /// Creates a renderer.
   const GlassRenderer();
 
-  /// Draws every surface as liquid glass on `LiquidGlassLayer`s; on a device
-  /// without full glass the layers draw fake glass instead.
-  const factory GlassRenderer.liquid() = LiquidGlassRenderer;
-
-  /// Draws every surface as fake glass: blurred and lit, without
-  /// refraction.
-  const factory GlassRenderer.fake() = LiquidGlassRenderer.fake;
-
-  /// Draws every surface flat: a fill per role, a soft shadow under
-  /// floating ones, no backdrop reads.
-  const factory GlassRenderer.flat() = FlatGlassRenderer;
-
-  /// Draws with [capable] on a device whose GPU draws full glass well and
-  /// with [fallback] on any other. [precache] finds which, or else the
-  /// first adaptive surface does; [capable] draws until one has.
-  const factory GlassRenderer.adaptive({
-    required GlassRenderer capable,
-    required GlassRenderer fallback,
-  }) = AdaptiveGlassRenderer;
-
-  /// Loads the glass shaders and finds whether this device draws full
-  /// glass, ahead of the first glass frame, so that [GlassRenderer.adaptive]
-  /// draws its pick from that frame on; it may be awaited before `runApp`.
-  /// With [warmUp] it also draws every glass pipeline once, offscreen,
-  /// which spares the first frame after an install a stall on a mid-range
-  /// Android phone and costs every launch. Failures are reported through
-  /// `FlutterError`, never thrown. A later call loads nothing new, and
-  /// warms up only if no earlier call did.
-  static Future<void> precache({bool warmUp = false}) =>
-      AdaptiveGlassRenderer.learn(LiquidGlass.precache(warmUp: warmUp));
-
   /// Builds the surface [details] describes.
   Widget buildSurface(BuildContext context, GlassSurfaceDetails details);
 
@@ -61,12 +36,12 @@ abstract class GlassRenderer {
       details.child;
 
   /// Builds the scroll edge effect [details] describes, laid out over the
-  /// whole scroll view; by default the content under it dissolves toward
-  /// the background without a blur.
+  /// whole scroll view; by default the flat renderer's, where the content
+  /// under it dissolves toward the background without a blur.
   Widget buildScrollEdge(
     BuildContext context,
     GlassScrollEdgeDetails details,
-  ) => ScrollEdge(details: details, blurs: false);
+  ) => FlatScrollEdge(details: details);
 }
 
 /// What a renderer needs to build one surface.

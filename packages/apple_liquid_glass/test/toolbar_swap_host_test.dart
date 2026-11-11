@@ -108,8 +108,8 @@ void main() {
   setUpAll(LiquidGlass.precache);
 
   for (final (name, renderer, shaded) in [
-    ('liquid', const GlassRenderer.liquid(), true),
-    ('flat', const GlassRenderer.flat(), false),
+    ('liquid', const LiquidGlassRenderer(), true),
+    ('flat', const FlatGlassRenderer(), false),
   ]) {
     testWidgets('on the $name glass an item that joins a capsule draws '
         'inside the glass on every frame of the change', (tester) async {

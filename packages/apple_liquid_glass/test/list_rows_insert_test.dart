@@ -61,7 +61,7 @@ class _NotesState extends State<_Notes> {
     child: Directionality(
       textDirection: TextDirection.ltr,
       child: GlassRendererScope(
-        renderer: const GlassRenderer.flat(),
+        renderer: const FlatGlassRenderer(),
         child: GlassTheme(
           data: const GlassThemeData(),
           child: CustomScrollView(

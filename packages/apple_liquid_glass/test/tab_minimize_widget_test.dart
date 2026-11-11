@@ -28,7 +28,7 @@ Widget _app({
   child: Directionality(
     textDirection: direction,
     child: GlassRendererScope(
-      renderer: const GlassRenderer.flat(),
+      renderer: const FlatGlassRenderer(),
       child: GlassTheme(
         data: const GlassThemeData(),
         child: GlassTabScaffold(

@@ -14,7 +14,7 @@ Widget _app(
   Widget button, {
   Alignment alignment = const Alignment(0, -0.6),
   VoidCallback? onPage,
-  GlassRenderer renderer = const GlassRenderer.flat(),
+  GlassRenderer renderer = const FlatGlassRenderer(),
 }) => WidgetsApp(
   color: const Color(0xFF000000),
   pageRouteBuilder: <T>(settings, builder) =>
@@ -258,7 +258,7 @@ void main() {
       'body while they part', (tester) async {
     _phone(tester);
     await tester.pumpWidget(
-      _app(_button(<String>[]), renderer: const GlassRenderer.liquid()),
+      _app(_button(<String>[]), renderer: const LiquidGlassRenderer()),
     );
     await tester.tap(_source);
     await tester.pump();

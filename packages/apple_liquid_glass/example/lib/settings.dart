@@ -11,9 +11,9 @@ enum GalleryRenderer {
   final String title;
 
   GlassRenderer get renderer => switch (this) {
-    liquid => const GlassRenderer.liquid(),
-    fake => const GlassRenderer.fake(),
-    flat => const GlassRenderer.flat(),
+    liquid => const LiquidGlassRenderer(),
+    fake => const FakeGlassRenderer(),
+    flat => const FlatGlassRenderer(),
   };
 }
 

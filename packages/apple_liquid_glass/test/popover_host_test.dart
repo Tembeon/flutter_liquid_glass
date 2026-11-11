@@ -82,8 +82,8 @@ void main() {
   setUpAll(LiquidGlass.precache);
 
   for (final (name, renderer, shaded) in [
-    ('liquid', const GlassRenderer.liquid(), true),
-    ('flat', const GlassRenderer.flat(), false),
+    ('liquid', const LiquidGlassRenderer(), true),
+    ('flat', const FlatGlassRenderer(), false),
   ]) {
     testWidgets('the $name popover draws its arrow as part of its body', (
       tester,

@@ -18,7 +18,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/rendering.dart';
+import 'package:liquid_glass_renderer/widgets.dart';
 
 /// The liquid renderer: every surface is liquid glass, and the members of
 /// a group share one glass layer.
@@ -43,16 +45,16 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 ///
 /// Under Reduce Transparency the surfaces draw flat, an unmeasured
 /// stand-in for iOS's frosted glass.
-@internal
-final class LiquidGlassRenderer extends GlassRenderer {
+///
+/// On a device without shader filters the layers draw fake glass, as
+/// [FakeGlassRenderer] does.
+base class LiquidGlassRenderer extends GlassRenderer {
   /// Creates the liquid renderer.
-  const LiquidGlassRenderer() : fake = false;
-
-  /// Creates the renderer that draws fake glass.
-  const LiquidGlassRenderer.fake() : fake = true;
+  const LiquidGlassRenderer();
 
   /// Whether every layer draws fake glass, which shows no touch glow.
-  final bool fake;
+  @internal
+  bool get fake => false;
 
   @override
   Widget buildSurface(BuildContext context, GlassSurfaceDetails details) {
@@ -81,10 +83,9 @@ final class LiquidGlassRenderer extends GlassRenderer {
   Widget buildScrollEdge(
     BuildContext context,
     GlassScrollEdgeDetails details,
-  ) => ScrollEdge(
-    details: details,
-    blurs: !GlassTraits.of(context).reduceTransparency,
-  );
+  ) => GlassTraits.of(context).reduceTransparency
+      ? super.buildScrollEdge(context, details)
+      : ScrollEdge(details: details);
 
   @override
   Widget buildGroup(BuildContext context, GlassGroupDetails details) {
@@ -97,13 +98,13 @@ final class LiquidGlassRenderer extends GlassRenderer {
   }
 
   @override
-  bool operator ==(Object other) =>
-      other is LiquidGlassRenderer && other.fake == fake;
+  bool operator ==(Object other) => other.runtimeType == runtimeType;
 
   @override
-  int get hashCode => Object.hash(LiquidGlassRenderer, fake);
+  int get hashCode => runtimeType.hashCode;
 
   /// The appearance of [glass] in [brightness].
+  @internal
   static LiquidGlassAppearance appearanceOf(
     Glass glass,
     Brightness brightness,
@@ -127,6 +128,7 @@ final class LiquidGlassRenderer extends GlassRenderer {
   /// Engineering defaults, not measured: one soft body shadow for controls
   /// and panels; a lens's drops from 1.5 to 3.5 and blurs from 3 to 9 as it
   /// lifts.
+  @internal
   static List<BoxShadow> shadowsOf(GlassRole role, {double lift = 0}) {
     final l = lift.clamp(0.0, 1.0);
     return switch (role) {
@@ -147,6 +149,17 @@ final class LiquidGlassRenderer extends GlassRenderer {
       GlassRole.bar || GlassRole.track => const [],
     };
   }
+}
+
+/// The liquid renderer on fake glass: every surface blurred and lit, with
+/// no refraction and no touch glow. Cheaper than real glass, and the glass
+/// a platform without shader filters, such as the web, can draw.
+final class FakeGlassRenderer extends LiquidGlassRenderer {
+  /// Creates the fake glass renderer.
+  const FakeGlassRenderer();
+
+  @override
+  bool get fake => true;
 }
 
 // The tint [frame] gives a body whose glass has [own], crossing from it

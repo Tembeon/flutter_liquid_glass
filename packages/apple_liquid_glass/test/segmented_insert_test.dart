@@ -50,7 +50,7 @@ Widget _app(Widget child, {double? width = 300}) => MediaQuery(
   child: Directionality(
     textDirection: TextDirection.ltr,
     child: GlassRendererScope(
-      renderer: const GlassRenderer.flat(),
+      renderer: const FlatGlassRenderer(),
       child: GlassTheme(
         data: const GlassThemeData(),
         child: Center(

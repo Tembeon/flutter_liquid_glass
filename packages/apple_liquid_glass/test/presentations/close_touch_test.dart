@@ -103,7 +103,7 @@ void main() {
               padding: EdgeInsets.only(top: 62, bottom: 34),
             ),
             child: GlassRendererScope(
-              renderer: const GlassRenderer.flat(),
+              renderer: const FlatGlassRenderer(),
               child: GlassTheme(
                 data: const GlassThemeData(),
                 child: WidgetsApp(

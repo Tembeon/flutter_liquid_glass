@@ -40,7 +40,7 @@ Widget _scene(_CapturingView view, Widget child) => View(
     child: MediaQuery(
       data: const MediaQueryData(size: _size, devicePixelRatio: _dpr),
       child: GlassRendererScope(
-        renderer: const GlassRenderer.liquid(),
+        renderer: const LiquidGlassRenderer(),
         child: GlassTheme(
           data: const GlassThemeData(),
           child: ColoredBox(color: _background, child: child),
@@ -94,7 +94,7 @@ void main() {
     tester,
   ) async {
     if (!ui.ImageFilter.isShaderFilterSupported) return;
-    await tester.runAsync(GlassRenderer.precache);
+    await tester.runAsync(precacheGlass);
     final view = _CapturingView(tester);
     for (var w = 60.0; w <= 380; w += 27.4) {
       for (var h = 40.0; h <= 170; h += 7.3) {
@@ -115,7 +115,7 @@ void main() {
     tester,
   ) async {
     if (!ui.ImageFilter.isShaderFilterSupported) return;
-    await tester.runAsync(GlassRenderer.precache);
+    await tester.runAsync(precacheGlass);
     final view = _CapturingView(tester);
     final random = Random(7);
     Rect anywhere() {
@@ -148,7 +148,7 @@ void main() {
   // it is drawn while the box lands elsewhere, not at the box with its old size.
   testWidgets('glass following a layout moves with its box', (tester) async {
     if (!ui.ImageFilter.isShaderFilterSupported) return;
-    await tester.runAsync(GlassRenderer.precache);
+    await tester.runAsync(precacheGlass);
     final view = _CapturingView(tester);
     final layout = LayoutMotion();
     const id = ValueKey('tile');

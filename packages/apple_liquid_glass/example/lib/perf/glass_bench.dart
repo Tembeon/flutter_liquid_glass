@@ -333,10 +333,10 @@ class _BenchAppState extends State<GlassBenchApp>
         GlassPageRoute<T>(builder: builder, settings: routeSettings),
     builder: (context, child) => GlassRendererScope(
       renderer: _scene == Scene.flat
-          ? const GlassRenderer.flat()
+          ? const FlatGlassRenderer()
           : _fake
-          ? const GlassRenderer.fake()
-          : const GlassRenderer.liquid(),
+          ? const FakeGlassRenderer()
+          : const LiquidGlassRenderer(),
       child: GlassTheme(
         data: const GlassThemeData(),
         child: DefaultTextStyle(

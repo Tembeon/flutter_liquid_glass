@@ -16,9 +16,8 @@
 2:through-library         lib/src/controls/swipe_actions.dart         3
 2:through-library         lib/src/controls/switch.dart                7
 2:through-library         lib/src/foundation/theme.dart               17
-2:through-library         lib/src/liquid/adaptive.dart                1
 2:through-library         lib/src/liquid/liquid.dart                  10
-2:through-library         lib/src/liquid/scroll_edge.dart             2
+2:through-library         lib/src/liquid/scroll_edge.dart             1
 2:through-library         lib/src/motions/menu_fusion.dart            2
 2:through-library         lib/src/motions/menu_layout.dart            1
 2:through-library         lib/src/motions/menu_outline_math.dart      2
@@ -46,7 +45,6 @@
 2:through-library         lib/src/raw/slider.dart                     4
 2:through-library         lib/src/raw/switch.dart                     3
 2:through-library         lib/src/surfaces/follow_frame.dart          1
-2:through-library         lib/src/surfaces/renderer.dart              3
 3:not-allowed             lib/src/controls/button.dart                2
 3:not-allowed             lib/src/controls/search_field.dart          1
 3:not-allowed             lib/src/foundation/theme.dart               17
@@ -54,7 +52,6 @@
 3:not-allowed             lib/src/raw/button.dart                     1
 3:not-allowed             lib/src/raw/search_field.dart               2
 3:not-allowed             lib/src/raw/selector.dart                   2
-3:not-allowed             lib/src/surfaces/renderer.dart              3
 4:forbidden               lib/src/controls/button.dart                1
 4:forbidden               lib/src/controls/date_picker.dart           1
 4:forbidden               lib/src/controls/list.dart                  1
@@ -78,7 +75,6 @@
 4:forbidden               lib/src/raw/slider.dart                     1
 4:forbidden               lib/src/raw/stepper.dart                    1
 4:forbidden               lib/src/raw/switch.dart                     1
-4:forbidden               lib/src/surfaces/renderer.dart              1
 5:AnimationController     lib/src/presentations/menu_rows.dart        2
 5:CallbackShortcuts       lib/src/navigation/tab_bar.dart             1
 5:CallbackShortcuts       lib/src/presentations/alert.dart            1

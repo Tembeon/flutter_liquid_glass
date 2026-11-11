@@ -77,7 +77,7 @@ Widget _page(_CapturingView view, Widget content, {required int key}) {
       child: MediaQuery(
         data: const MediaQueryData(size: _viewSize, devicePixelRatio: _dpr),
         child: GlassRendererScope(
-          renderer: const GlassRenderer.liquid(),
+          renderer: const LiquidGlassRenderer(),
           child: GlassTheme(
             data: const GlassThemeData(),
             child: ColoredBox(
@@ -143,7 +143,7 @@ void main() {
     tester,
   ) async {
     if (!ui.ImageFilter.isShaderFilterSupported) return;
-    await tester.runAsync(GlassRenderer.precache);
+    await tester.runAsync(precacheGlass);
     final view = _CapturingView(tester);
     final (read, readReport) = await _draw(
       tester,
@@ -183,7 +183,7 @@ void main() {
     tester,
   ) async {
     if (!ui.ImageFilter.isShaderFilterSupported) return;
-    await tester.runAsync(GlassRenderer.precache);
+    await tester.runAsync(precacheGlass);
     final view = _CapturingView(tester);
     final (pixels, report) = await _draw(tester, view, _photo(), key: 2);
     expect(report.reads, isNotEmpty);
@@ -195,7 +195,7 @@ void main() {
 
   testWidgets('a control on a row that highlights reads', (tester) async {
     if (!ui.ImageFilter.isShaderFilterSupported) return;
-    await tester.runAsync(GlassRenderer.precache);
+    await tester.runAsync(precacheGlass);
     final view = _CapturingView(tester);
     final (_, report) = await _draw(tester, view, _highlightingRow(), key: 3);
     expect(report.reads, isNotEmpty);

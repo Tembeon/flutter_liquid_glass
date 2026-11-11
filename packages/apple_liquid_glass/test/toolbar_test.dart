@@ -1,5 +1,5 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass/src/liquid/scroll_edge.dart';
+import 'package:apple_liquid_glass/src/surfaces/scroll_edge.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -13,7 +13,7 @@ Widget _app(Widget child, {double keyboard = 0}) => MediaQuery(
   child: Directionality(
     textDirection: TextDirection.ltr,
     child: GlassRendererScope(
-      renderer: const GlassRenderer.flat(),
+      renderer: const FlatGlassRenderer(),
       child: GlassTheme(
         data: const GlassThemeData(),
         child: child,
@@ -88,7 +88,7 @@ void main() {
     await tester.pump();
     expect(tester.getBottomLeft(find.text('Row 39')).dy, 874 - 76);
     final edges = tester
-        .widgetList<ScrollEdge>(find.byType(ScrollEdge))
+        .widgetList<ScrollEdgeBand>(find.byType(ScrollEdgeBand))
         .map((edge) => edge.details.edge);
     expect(edges, isNot(contains(AxisDirection.down)));
   });
@@ -235,7 +235,7 @@ void main() {
         child: Directionality(
           textDirection: TextDirection.ltr,
           child: GlassRendererScope(
-            renderer: const GlassRenderer.flat(),
+            renderer: const FlatGlassRenderer(),
             child: GlassTheme(
               data: const GlassThemeData(
                 toolbarStyle: style,

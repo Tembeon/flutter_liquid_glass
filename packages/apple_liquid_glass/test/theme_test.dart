@@ -133,7 +133,7 @@ void main() {
       late GlassThemeData data;
       await tester.pumpWidget(
         GlassRendererScope(
-          renderer: const GlassRenderer.flat(),
+          renderer: const FlatGlassRenderer(),
           child: GlassTheme(
             data: GlassThemeData(
               fontFamily: 'Outer',

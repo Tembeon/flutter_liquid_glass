@@ -1,6 +1,7 @@
 ActivateInput
 ActivationEvent
 ActivationSource
+AdaptiveGlassRenderer
 AnimatedGlassTheme
 Band
 ControlStates
@@ -8,6 +9,8 @@ DismissPolicy
 DismissTrigger
 DragInteraction
 DragInteractionDetails
+FakeGlassRenderer
+FlatGlassRenderer
 FollowInteraction
 FrameCadence
 Glass
@@ -152,6 +155,7 @@ LayoutMotion
 LayoutPhase
 LayoutPlan
 LayoutPlanner
+LiquidGlassRenderer
 LongPressInteraction
 LongPressStartEvent
 ManualMotionClock
@@ -231,6 +235,7 @@ TapInteraction
 TimedValue
 debugDumpGlassPlan
 expectGlassBudget
+precacheGlass
 showGlassActionSheet
 showGlassAlert
 showGlassPopover

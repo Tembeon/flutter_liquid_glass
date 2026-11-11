@@ -39,19 +39,19 @@ Future<void> _readConfig() async {
   }
 }
 
-final _renderer = ValueNotifier<GlassRenderer>(const GlassRenderer.liquid());
+final _renderer = ValueNotifier<GlassRenderer>(const LiquidGlassRenderer());
 final _stage = GridStageController();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await _readConfig();
-  if (_number('flat', 0) == 1) _renderer.value = const GlassRenderer.flat();
+  if (_number('flat', 0) == 1) _renderer.value = const FlatGlassRenderer();
   for (final held in _text('base', '').split(',')) {
     if (held.isEmpty) continue;
     final [name, value] = held.split('=');
     benchSwitches[name]!(on: value == '1');
   }
-  unawaited(GlassRenderer.precache());
+  unawaited(precacheGlass());
   runApp(
     GridApp(
       renderer: _renderer,
@@ -65,8 +65,8 @@ Future<void> _run() async {
   final runner = GridRunner(
     stage: _stage,
     setGlass: ({required on}) => _renderer.value = on
-        ? const GlassRenderer.liquid()
-        : const GlassRenderer.flat(),
+        ? const LiquidGlassRenderer()
+        : const FlatGlassRenderer(),
   );
   try {
     runner.start();

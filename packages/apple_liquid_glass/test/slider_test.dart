@@ -9,7 +9,7 @@ const _frame = Duration(milliseconds: 16);
 
 Widget _app(
   Widget child, {
-  GlassRenderer renderer = const GlassRenderer.flat(),
+  GlassRenderer renderer = const FlatGlassRenderer(),
   GlassThemeData theme = const GlassThemeData(),
   TextDirection direction = TextDirection.ltr,
 }) => MediaQuery(
@@ -257,7 +257,7 @@ void main() {
   testWidgets('on liquid glass the thumb gets a glass layer only while '
       'lifted', (tester) async {
     await tester.pumpWidget(
-      _app(const _Controlled(), renderer: const GlassRenderer.liquid()),
+      _app(const _Controlled(), renderer: const LiquidGlassRenderer()),
     );
     expect(find.byType(LiquidGlassLayer), findsNothing);
     final gesture = await tester.startGesture(_thumbStart(tester));

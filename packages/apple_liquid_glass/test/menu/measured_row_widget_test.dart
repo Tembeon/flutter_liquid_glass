@@ -18,7 +18,7 @@ void main() {
         pageRouteBuilder: <T>(settings, builder) =>
             GlassPageRoute<T>(builder: builder, settings: settings),
         builder: (context, child) => GlassRendererScope(
-          renderer: const GlassRenderer.flat(),
+          renderer: const FlatGlassRenderer(),
           child: GlassTheme(
             data: const GlassThemeData(),
             child: child!,

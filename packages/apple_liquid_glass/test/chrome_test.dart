@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/liquid/scroll_edge.dart';
+import 'package:apple_liquid_glass/src/surfaces/scroll_edge.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,7 +9,7 @@ const _frame = Duration(milliseconds: 16);
 
 Widget _app(
   Widget child, {
-  GlassRenderer renderer = const GlassRenderer.flat(),
+  GlassRenderer renderer = const FlatGlassRenderer(),
   bool reduceTransparency = false,
 }) => MediaQuery(
   data: const MediaQueryData(
@@ -61,7 +62,9 @@ Future<void> _settle(WidgetTester tester) async {
 }
 
 List<GlassScrollEdgeDetails> _edges(WidgetTester tester) => [
-  for (final edge in tester.widgetList<ScrollEdge>(find.byType(ScrollEdge)))
+  for (final edge in tester.widgetList<ScrollEdgeBand>(
+    find.byType(ScrollEdgeBand),
+  ))
     edge.details,
 ];
 
@@ -123,18 +126,23 @@ void main() {
 
   testWidgets('liquid glass blurs under the edge; flat and Reduce '
       'Transparency only dissolve', (tester) async {
-    bool blurs() =>
-        tester.widgetList<ScrollEdge>(find.byType(ScrollEdge)).first.blurs;
+    bool blurs() {
+      final blurred = find.byType(ScrollEdge).evaluate().length;
+      final flat = find.byType(FlatScrollEdge).evaluate().length;
+      expect(blurred + flat, greaterThan(0));
+      return blurred > 0 && flat == 0;
+    }
+
     await tester.pumpWidget(_app(_page()));
     expect(blurs(), isFalse);
     await tester.pumpWidget(
-      _app(_page(), renderer: const GlassRenderer.liquid()),
+      _app(_page(), renderer: const LiquidGlassRenderer()),
     );
     expect(blurs(), isTrue);
     await tester.pumpWidget(
       _app(
         _page(),
-        renderer: const GlassRenderer.liquid(),
+        renderer: const LiquidGlassRenderer(),
         reduceTransparency: true,
       ),
     );

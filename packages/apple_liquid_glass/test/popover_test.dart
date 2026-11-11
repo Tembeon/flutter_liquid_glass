@@ -11,7 +11,7 @@ const _source = Key('source');
 
 Widget _app({
   required void Function(BuildContext context) onPresent,
-  GlassRenderer renderer = const GlassRenderer.flat(),
+  GlassRenderer renderer = const FlatGlassRenderer(),
   Alignment at = Alignment.bottomCenter,
 }) => WidgetsApp(
   color: const Color(0xFF000000),
@@ -248,7 +248,7 @@ void main() {
       await tester.pumpWidget(
         _app(
           at: Alignment.topCenter,
-          renderer: const GlassRenderer.liquid(),
+          renderer: const LiquidGlassRenderer(),
           onPresent: (context) => unawaited(
             showGlassPopover<void>(
               context,

@@ -11,7 +11,7 @@ Widget _app(
   child: Directionality(
     textDirection: TextDirection.ltr,
     child: GlassRendererScope(
-      renderer: const GlassRenderer.flat(),
+      renderer: const FlatGlassRenderer(),
       child: GlassTheme(
         data: theme.merge(
           const GlassThemeData(),

@@ -18,7 +18,7 @@ Widget _app(GlobalKey<NavigatorState> navigator, Widget home) => WidgetsApp(
       context,
     ).copyWith(padding: const EdgeInsets.only(top: 62, bottom: 34)),
     child: GlassRendererScope(
-      renderer: const GlassRenderer.flat(),
+      renderer: const FlatGlassRenderer(),
       child: GlassTheme(
         data: const GlassThemeData(),
         child: child!,
@@ -180,7 +180,7 @@ void main() {
         child: Directionality(
           textDirection: TextDirection.ltr,
           child: GlassRendererScope(
-            renderer: const GlassRenderer.flat(),
+            renderer: const FlatGlassRenderer(),
             child: GlassTheme(
               data: const GlassThemeData(),
               child: _page('Alone', trailing: [_icon('plus')]),

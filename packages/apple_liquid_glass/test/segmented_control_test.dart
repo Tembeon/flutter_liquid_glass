@@ -11,7 +11,7 @@ const _frame = Duration(milliseconds: 16);
 
 Widget _app(
   Widget child, {
-  GlassRenderer renderer = const GlassRenderer.flat(),
+  GlassRenderer renderer = const FlatGlassRenderer(),
   GlassThemeData theme = const GlassThemeData(),
   TextDirection direction = TextDirection.ltr,
   double? width = 300,
@@ -405,7 +405,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         _Controlled(onChanged: (_) {}),
-        renderer: const GlassRenderer.liquid(),
+        renderer: const LiquidGlassRenderer(),
       ),
     );
     expect(find.byType(LiquidGlassLayer), findsNothing);

@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/foundation/outline.dart';
 import 'package:apple_liquid_glass/src/foundation/touch_glow.dart';
-import 'package:apple_liquid_glass/src/liquid/adaptive.dart';
 import 'package:apple_liquid_glass/src/surfaces/flat.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -73,8 +72,8 @@ void main() {
   });
 
   for (final renderer in const [
-    GlassRenderer.flat(),
-    GlassRenderer.liquid(),
+    FlatGlassRenderer(),
+    LiquidGlassRenderer(),
   ]) {
     testWidgets('${renderer.runtimeType}: a live body smaller than its box '
         'draws its content centered on the body', (tester) async {
@@ -110,7 +109,7 @@ void main() {
       final builds = <int>[];
       await tester.pumpWidget(
         _app(
-          const GlassRenderer.flat(),
+          const FlatGlassRenderer(),
           GlassSurface.live(frame: frames.selection, child: _Counted(builds)),
         ),
       );
@@ -179,7 +178,7 @@ void main() {
     ) async {
       await tester.pumpWidget(
         _app(
-          const GlassRenderer.liquid(),
+          const LiquidGlassRenderer(),
           const GlassSurface(child: SizedBox(width: 100, height: 44)),
         ),
       );
@@ -192,7 +191,7 @@ void main() {
     ) async {
       await tester.pumpWidget(
         _app(
-          const GlassRenderer.liquid(),
+          const LiquidGlassRenderer(),
           const Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -221,7 +220,7 @@ void main() {
       for (final glass in [const Glass.regular(), const Glass.clear()]) {
         await tester.pumpWidget(
           _app(
-            const GlassRenderer.liquid(),
+            const LiquidGlassRenderer(),
             GlassTraitsOverride(
               glassTintAmount: 0.6,
               child: GlassSurface(
@@ -250,7 +249,7 @@ void main() {
       ]) {
         await tester.pumpWidget(
           _app(
-            const GlassRenderer.liquid(),
+            const LiquidGlassRenderer(),
             GlassSurface.live(
               role: GlassRole.lens,
               lens: lens,
@@ -314,7 +313,7 @@ void main() {
           const GlassLens(small: true),
         ),
       ]) {
-        await tester.pumpWidget(_app(const GlassRenderer.flat(), control));
+        await tester.pumpWidget(_app(const FlatGlassRenderer(), control));
         final surface = tester.widget<GlassSurface>(
           find.byWidgetPredicate(
             (w) => w is GlassSurface && w.role == GlassRole.lens,
@@ -327,7 +326,7 @@ void main() {
     testWidgets('a group draws its members on one layer and blends them '
         'when they merge', (tester) async {
       Widget row(GlassMerge merge) => _app(
-        const GlassRenderer.liquid(),
+        const LiquidGlassRenderer(),
         GlassGroup(
           merge: merge,
           child: const Row(
@@ -359,7 +358,7 @@ void main() {
       final frames = _Frames(const GlassFrame());
       await tester.pumpWidget(
         _app(
-          const GlassRenderer.liquid(),
+          const LiquidGlassRenderer(),
           GlassGroup(
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -410,7 +409,7 @@ void main() {
           .value;
       await tester.pumpWidget(
         _app(
-          const GlassRenderer.fake(),
+          const FakeGlassRenderer(),
           GlassSurface.live(
             frame: frames.selection,
             child: const SizedBox(width: 100, height: 44),
@@ -430,7 +429,7 @@ void main() {
 
       await tester.pumpWidget(
         _app(
-          const GlassRenderer.liquid(),
+          const LiquidGlassRenderer(),
           const GlassSurface(
             glass: Glass.clear(),
             child: SizedBox(width: 100, height: 44),
@@ -442,7 +441,7 @@ void main() {
         MediaQuery(
           data: const MediaQueryData(platformBrightness: .dark),
           child: _app(
-            const GlassRenderer.liquid(),
+            const LiquidGlassRenderer(),
             const GlassSurface(child: SizedBox(width: 100, height: 44)),
           ),
         ),
@@ -483,8 +482,8 @@ void main() {
       final clear = LiquidGlassSettings.ios27Clear();
       final regular = LiquidGlassSettings.ios27Regular(brightness: .light);
       for (final renderer in [
-        const GlassRenderer.liquid(),
-        const GlassRenderer.fake(),
+        const LiquidGlassRenderer(),
+        const FakeGlassRenderer(),
       ]) {
         await tester.pumpWidget(
           group(renderer, const [Glass.clear(), Glass.clear()]),
@@ -518,7 +517,7 @@ void main() {
           tester.widget<LiquidGlass>(find.byType(LiquidGlass)).frame!.value;
       await tester.pumpWidget(
         _app(
-          const GlassRenderer.liquid(),
+          const LiquidGlassRenderer(),
           GlassSurface.live(
             frame: frames.selection,
             child: const SizedBox(width: 100, height: 44),
@@ -528,7 +527,7 @@ void main() {
       expect(shape().scaleX, 1.2);
       await tester.pumpWidget(
         _app(
-          const GlassRenderer.liquid(),
+          const LiquidGlassRenderer(),
           const GlassSurface(child: SizedBox(width: 100, height: 44)),
         ),
       );
@@ -547,13 +546,13 @@ void main() {
         child: const SizedBox(width: 100, height: 44),
       ),
     );
-    await tester.pumpWidget(surface(const GlassRenderer.liquid()));
+    await tester.pumpWidget(surface(const LiquidGlassRenderer()));
     final liquid = tester
         .widget<LiquidGlass>(find.byType(LiquidGlass))
         .frame!
         .value;
     expect(liquid.appearance!.visibility, closeTo(0.25, 1e-9));
-    await tester.pumpWidget(surface(const GlassRenderer.flat()));
+    await tester.pumpWidget(surface(const FlatGlassRenderer()));
     expect(
       tester.layers.whereType<OpacityLayer>().map((layer) => layer.alpha),
       contains(64),
@@ -596,13 +595,13 @@ void main() {
       );
     }
 
-    await tester.pumpWidget(surface(const GlassRenderer.flat()));
+    await tester.pumpWidget(surface(const FlatGlassRenderer()));
     final at = tester.getTopLeft(find.byType(GlassSurface));
     final clip = tester.layers.whereType<ClipPathLayer>().single.clipPath!;
     expect(clip.getBounds(), edge.getBounds().shift(at));
     expect(clip.contains(at + const Offset(50, 58)), isTrue);
     expect(clip.contains(at + const Offset(4, 58)), isFalse);
-    await tester.pumpWidget(surface(const GlassRenderer.liquid()));
+    await tester.pumpWidget(surface(const LiquidGlassRenderer()));
     LiquidGlassLayerFrame layer() => tester
         .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
         .live!
@@ -618,7 +617,7 @@ void main() {
 
     frames.value = GlassFrame(outline: GlassOutline(edge));
     await tester.pumpWidget(const SizedBox());
-    await tester.pumpWidget(surface(const GlassRenderer.liquid()));
+    await tester.pumpWidget(surface(const LiquidGlassRenderer()));
     expect(
       find.byType(LiquidGlass),
       findsNothing,
@@ -627,7 +626,7 @@ void main() {
     frames.value = GlassFrame(outline: GlassOutline(edge, field: () => field));
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(
-      surface(const GlassRenderer.liquid(), grouped: true),
+      surface(const LiquidGlassRenderer(), grouped: true),
     );
     expect(
       find.byType(LiquidGlass),
@@ -659,7 +658,7 @@ void main() {
     );
     final frames = _Frames(still);
     Widget surface() => _app(
-      const GlassRenderer.liquid(),
+      const LiquidGlassRenderer(),
       GlassSurface.live(
         frame: frames.selection,
         child: const SizedBox(width: 100, height: 60),
@@ -691,7 +690,7 @@ void main() {
     const key = Key('content');
     await tester.pumpWidget(
       _app(
-        const GlassRenderer.flat(),
+        const FlatGlassRenderer(),
         GlassSurface.live(
           frame: frames.selection,
           child: const SizedBox(key: key, width: 100, height: 44),
@@ -714,11 +713,11 @@ void main() {
         renderer,
         GlassSurface.live(frame: frames.selection, child: _Counted(builds)),
       );
-      await tester.pumpWidget(surface(const GlassRenderer.flat()));
+      await tester.pumpWidget(surface(const FlatGlassRenderer()));
       expect(find.byType(LiquidGlass), findsNothing);
-      await tester.pumpWidget(surface(const GlassRenderer.liquid()));
+      await tester.pumpWidget(surface(const LiquidGlassRenderer()));
       expect(find.byType(LiquidGlass), findsOneWidget);
-      await tester.pumpWidget(surface(const GlassRenderer.fake()));
+      await tester.pumpWidget(surface(const FakeGlassRenderer()));
       expect(
         tester.widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer)).fake,
         isTrue,
@@ -742,17 +741,17 @@ void main() {
             child: GlassTheme(data: theme, child: reader),
           );
       await tester.pumpWidget(
-        scoped(const GlassRenderer.liquid(), const GlassThemeData()),
+        scoped(const LiquidGlassRenderer(), const GlassThemeData()),
       );
       await tester.pumpWidget(
         scoped(
-          const GlassRenderer.liquid(),
+          const LiquidGlassRenderer(),
           const GlassThemeData(primaryColor: Color(0xFF123456)),
         ),
       );
       expect(reads, 1);
       await tester.pumpWidget(
-        scoped(const GlassRenderer.flat(), const GlassThemeData()),
+        scoped(const FlatGlassRenderer(), const GlassThemeData()),
       );
       expect(reads, 2);
     });
@@ -767,7 +766,7 @@ void main() {
           },
         ),
       );
-      expect(renderer, const GlassRenderer.flat());
+      expect(renderer, const FlatGlassRenderer());
       expect(
         GlassRendererScope.maybeOf(tester.element(find.byType(SizedBox))),
         isNull,
@@ -778,10 +777,7 @@ void main() {
         'then the one it picks', (tester) async {
       AdaptiveGlassRenderer.debugReset();
       addTearDown(AdaptiveGlassRenderer.debugReset);
-      const renderer = GlassRenderer.adaptive(
-        capable: GlassRenderer.liquid(),
-        fallback: GlassRenderer.flat(),
-      );
+      const renderer = AdaptiveGlassRenderer(fallback: FlatGlassRenderer());
       await tester.pumpWidget(
         _app(
           renderer,
@@ -799,18 +795,15 @@ void main() {
       );
     });
 
-    testWidgets('adaptive draws what GlassRenderer.precache found from its '
+    testWidgets('adaptive draws what precacheGlass found from its '
         'first frame', (tester) async {
       AdaptiveGlassRenderer.debugReset();
       addTearDown(AdaptiveGlassRenderer.debugReset);
-      await tester.runAsync(GlassRenderer.precache);
+      await tester.runAsync(precacheGlass);
       final support = (await tester.runAsync(LiquidGlass.precache))!;
       await tester.pumpWidget(
         _app(
-          const GlassRenderer.adaptive(
-            capable: GlassRenderer.liquid(),
-            fallback: GlassRenderer.flat(),
-          ),
+          const AdaptiveGlassRenderer(fallback: FlatGlassRenderer()),
           const GlassSurface(child: SizedBox(width: 100, height: 44)),
         ),
       );
@@ -832,7 +825,7 @@ void main() {
     final builds = <int>[];
     await tester.pumpWidget(
       _app(
-        const GlassRenderer.flat(),
+        const FlatGlassRenderer(),
         GlassClip.live(frame: frames.selection, child: _Counted(builds)),
       ),
     );

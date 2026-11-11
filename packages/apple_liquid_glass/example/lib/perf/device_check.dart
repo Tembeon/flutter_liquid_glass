@@ -56,7 +56,7 @@ class _DeviceCheckAppState extends State<_DeviceCheckApp> {
   Map<String, Object?>? _report;
   String? _sent;
 
-  final _renderer = ValueNotifier<GlassRenderer>(const GlassRenderer.liquid());
+  final _renderer = ValueNotifier<GlassRenderer>(const LiquidGlassRenderer());
 
   // The app's home stays one route, so what it shows changes below it.
   final _changed = ValueNotifier<int>(0);
@@ -74,8 +74,8 @@ class _DeviceCheckAppState extends State<_DeviceCheckApp> {
   }
 
   void _setGlass({required bool on}) => _renderer.value = on
-      ? const GlassRenderer.liquid()
-      : const GlassRenderer.flat();
+      ? const LiquidGlassRenderer()
+      : const FlatGlassRenderer();
 
   Future<void> _start() async {
     _update(() {

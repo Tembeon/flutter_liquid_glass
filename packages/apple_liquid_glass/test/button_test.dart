@@ -74,8 +74,8 @@ void main() {
   setUp(MotionClock.debugReset);
 
   for (final (name, renderer) in [
-    ('flat', const GlassRenderer.flat()),
-    ('liquid', const GlassRenderer.liquid()),
+    ('flat', const FlatGlassRenderer()),
+    ('liquid', const LiquidGlassRenderer()),
   ]) {
     testWidgets('$name: a press builds on its state changes only while the '
         'body lifts and returns', (tester) async {
@@ -154,7 +154,7 @@ void main() {
       child: _Label(labels),
     );
     Widget button(GlassRenderer renderer) => _app(renderer, rawButton);
-    await tester.pumpWidget(button(const GlassRenderer.flat()));
+    await tester.pumpWidget(button(const FlatGlassRenderer()));
     final gesture = await tester.startGesture(
       tester.getCenter(find.byType(GlassPressable)),
     );
@@ -165,7 +165,7 @@ void main() {
     final before = probe.body!.value.scaleX;
     expect(before, greaterThan(1));
 
-    await tester.pumpWidget(button(const GlassRenderer.liquid()));
+    await tester.pumpWidget(button(const LiquidGlassRenderer()));
     expect(probe.builds, builds);
     expect(find.byType(LiquidGlass), findsOneWidget);
     await tester.pump(_frame);
@@ -190,7 +190,7 @@ void main() {
     var presses = 0;
     await tester.pumpWidget(
       _app(
-        const GlassRenderer.flat(),
+        const FlatGlassRenderer(),
         GlassPressable(
           onPressed: () => presses++,
           builder: _Probe().build,
@@ -223,7 +223,7 @@ void main() {
     var presses = 0;
     await tester.pumpWidget(
       _app(
-        const GlassRenderer.flat(),
+        const FlatGlassRenderer(),
         SizedBox(
           height: 400,
           child: ListView(
@@ -276,7 +276,7 @@ void main() {
     var presses = 0;
     await tester.pumpWidget(
       _app(
-        const GlassRenderer.flat(),
+        const FlatGlassRenderer(),
         GlassPressable(
           onPressed: () => presses++,
           builder: _Probe().build,
@@ -314,7 +314,7 @@ void main() {
     final probe = _Probe();
     await tester.pumpWidget(
       _app(
-        const GlassRenderer.flat(),
+        const FlatGlassRenderer(),
         GlassPressable(
           onPressed: null,
           builder: probe.build,
@@ -335,7 +335,7 @@ void main() {
     final probe = _Probe();
     await tester.pumpWidget(
       _app(
-        const GlassRenderer.flat(),
+        const FlatGlassRenderer(),
         GlassPressable(
           onPressed: () {},
           builder: probe.build,
@@ -380,7 +380,7 @@ void main() {
     testWidgets('regular, prominent and disabled looks', (tester) async {
       await tester.pumpWidget(
         _app(
-          const GlassRenderer.flat(),
+          const FlatGlassRenderer(),
           GlassButton(onPressed: () {}, child: const Text('Go')),
         ),
       );
@@ -390,7 +390,7 @@ void main() {
 
       await tester.pumpWidget(
         _app(
-          const GlassRenderer.flat(),
+          const FlatGlassRenderer(),
           GlassButton.prominent(onPressed: () {}, child: const Text('Go')),
         ),
       );
@@ -399,7 +399,7 @@ void main() {
 
       await tester.pumpWidget(
         _app(
-          const GlassRenderer.flat(),
+          const FlatGlassRenderer(),
           const GlassButton.prominent(onPressed: null, child: Text('Go')),
         ),
       );
@@ -417,7 +417,7 @@ void main() {
       );
       await tester.pumpWidget(
         _app(
-          const GlassRenderer.flat(),
+          const FlatGlassRenderer(),
           GlassButton.clear(
             onPressed: () {},
             style: style,
@@ -437,7 +437,7 @@ void main() {
 
       await tester.pumpWidget(
         _app(
-          const GlassRenderer.flat(),
+          const FlatGlassRenderer(),
           GlassButton(
             onPressed: () {},
             style: GlassButtonStyle(
@@ -462,7 +462,7 @@ void main() {
     tester,
   ) async {
     Widget button(VoidCallback? onPressed) => _app(
-      const GlassRenderer.flat(),
+      const FlatGlassRenderer(),
       GlassButton(onPressed: onPressed, child: const Text('Go')),
     );
     await tester.pumpWidget(button(() {}));

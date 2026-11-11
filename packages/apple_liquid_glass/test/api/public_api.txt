@@ -1,4 +1,13 @@
 # package:apple_liquid_glass/apple_liquid_glass.dart
+final class AdaptiveGlassRenderer extends GlassRenderer
+  const AdaptiveGlassRenderer({
+    GlassRenderer capable = ...,
+    GlassRenderer fallback = ...,
+  })
+  final GlassRenderer capable
+  @visibleForTesting static void debugReset()
+  final GlassRenderer fallback
+  overrides: ==, buildGroup, buildScrollEdge, buildSurface, hashCode
 class AnimatedGlassTheme extends StatefulWidget
   const AnimatedGlassTheme({
     required GlassThemeData data,
@@ -10,6 +19,17 @@ class AnimatedGlassTheme extends StatefulWidget
   final GlassThemeData data
   final Spring spring
   overrides: createState
+final class FakeGlassRenderer extends LiquidGlassRenderer
+  const FakeGlassRenderer()
+  overrides: fake
+final class FlatGlassRenderer extends GlassRenderer
+  const FlatGlassRenderer()
+  @internal static Widget flatSurface(
+    BuildContext context,
+    GlassSurfaceDetails details, {
+    bool underGlass = ...,
+  })
+  overrides: ==, buildSurface, hashCode
 final class Glass
   const Glass.clear({Color? tint})
   const Glass.regular({Color? tint})
@@ -913,13 +933,6 @@ class GlassPressable extends StatefulWidget
   final WidgetStatesController? statesController
   overrides: createState
 abstract class GlassRenderer
-  const factory GlassRenderer.adaptive({
-    required GlassRenderer capable,
-    required GlassRenderer fallback,
-  })
-  const factory GlassRenderer.fake()
-  const factory GlassRenderer.flat()
-  const factory GlassRenderer.liquid()
   const GlassRenderer()
   Widget buildGroup(BuildContext context, GlassGroupDetails details)
   Widget buildScrollEdge(BuildContext context, GlassScrollEdgeDetails details)
@@ -927,7 +940,6 @@ abstract class GlassRenderer
     BuildContext context,
     GlassSurfaceDetails details,
   )
-  static Future<void> precache({bool warmUp = ...})
 class GlassRendererScope extends InheritedWidget
   const GlassRendererScope({
     required GlassRenderer renderer,
@@ -1759,6 +1771,18 @@ class GlassZoomSource extends StatelessWidget
   final Widget child
   final MotionSource source
   overrides: build
+base class LiquidGlassRenderer extends GlassRenderer
+  const LiquidGlassRenderer()
+  @internal static LiquidGlassAppearance appearanceOf(
+    Glass glass,
+    Brightness brightness,
+  )
+  @internal bool get fake
+  @internal static List<BoxShadow> shadowsOf(
+    GlassRole role, {
+    double lift = ...,
+  })
+  overrides: ==, buildGroup, buildScrollEdge, buildSurface, hashCode
 class RawGlassList extends StatefulWidget
   const RawGlassList({
     required List<Object> ids,
@@ -1972,6 +1996,7 @@ class RawGlassSwitch extends StatefulWidget
   final WidgetStatesController? statesController
   final bool value
   overrides: createState
+Future<void> precacheGlass({bool warmUp = ...})
 Future<GlassAlertAction?> showGlassActionSheet(
   BuildContext context, {
   Widget? title,
@@ -2177,6 +2202,10 @@ class GlassTraits (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTraitsOverride (see package:apple_liquid_glass/apple_liquid_glass.dart)
 
 # package:apple_liquid_glass/liquid.dart
+class AdaptiveGlassRenderer (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class FakeGlassRenderer (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class LiquidGlassRenderer (see package:apple_liquid_glass/apple_liquid_glass.dart)
+function precacheGlass (see package:apple_liquid_glass/apple_liquid_glass.dart)
 re-exported from package:liquid_glass_renderer:
   GlassFrameReport
   GlassPlanOverlay
@@ -2267,6 +2296,7 @@ class RawGlassStepper (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassSwitch (see package:apple_liquid_glass/apple_liquid_glass.dart)
 
 # package:apple_liquid_glass/surfaces.dart
+class FlatGlassRenderer (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassClip (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassGroup (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassGroupDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)

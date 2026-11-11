@@ -530,8 +530,8 @@ class _RenderersState extends State<_Renderers> {
         Row(
           children: [
             for (final (name, renderer) in const [
-              ('Liquid', GlassRenderer.liquid()),
-              ('Flat', GlassRenderer.flat()),
+              ('Liquid', LiquidGlassRenderer()),
+              ('Flat', FlatGlassRenderer()),
             ])
               Expanded(
                 child: GlassRendererScope(

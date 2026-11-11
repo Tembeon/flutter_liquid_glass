@@ -29,7 +29,7 @@ Widget _page(
   child: Directionality(
     textDirection: TextDirection.ltr,
     child: GlassRendererScope(
-      renderer: const GlassRenderer.liquid(),
+      renderer: const LiquidGlassRenderer(),
       child: GlassTheme(
         data: const GlassThemeData(),
         child: Align(

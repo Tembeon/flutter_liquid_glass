@@ -1,6 +1,6 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass/src/liquid/scroll_edge.dart';
 import 'package:apple_liquid_glass/src/navigation/chrome.dart';
+import 'package:apple_liquid_glass/src/surfaces/scroll_edge.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -16,7 +16,7 @@ Widget _app(Widget child, {TextDirection direction = TextDirection.ltr}) =>
       child: Directionality(
         textDirection: direction,
         child: GlassRendererScope(
-          renderer: const GlassRenderer.flat(),
+          renderer: const FlatGlassRenderer(),
           child: GlassTheme(
             data: const GlassThemeData(),
             child: child,
@@ -227,7 +227,7 @@ void main() {
     );
     await tester.pump();
     final top = tester
-        .widgetList<ScrollEdge>(find.byType(ScrollEdge))
+        .widgetList<ScrollEdgeBand>(find.byType(ScrollEdgeBand))
         .map((edge) => edge.details)
         .firstWhere((details) => details.edge == AxisDirection.up);
     expect(top.hard, isTrue);

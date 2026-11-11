@@ -20,7 +20,9 @@ import 'package:flutter/widgets.dart';
 /// 6 of 255 levels from a Gaussian blur of its path, 2 on average, at 2.625
 /// and 3 device pixels per point, and no offscreen passes. A body with an
 /// outline blurs its path offscreen.
-@internal
+///
+/// It is the renderer of glass with no `GlassRendererScope` above, and it
+/// draws without the glass package: no shader, no backdrop read.
 final class FlatGlassRenderer extends GlassRenderer {
   /// Creates the flat renderer.
   const FlatGlassRenderer();
@@ -31,6 +33,7 @@ final class FlatGlassRenderer extends GlassRenderer {
 
   /// The flat body of [details]; [underGlass] for a lens or knob whose
   /// liquid glass covers it while it is lifted.
+  @internal
   static Widget flatSurface(
     BuildContext context,
     GlassSurfaceDetails details, {

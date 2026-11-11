@@ -21,7 +21,7 @@ void main() {
     );
     await tester.pumpWidget(
       GlassRendererScope(
-        renderer: const GlassRenderer.flat(),
+        renderer: const FlatGlassRenderer(),
         child: GlassTheme(
           data: const GlassThemeData(),
           child: WidgetsApp(

@@ -8,7 +8,7 @@ const _frame = Duration(milliseconds: 16);
 
 Widget _app(
   Widget child, {
-  GlassRenderer renderer = const GlassRenderer.flat(),
+  GlassRenderer renderer = const FlatGlassRenderer(),
   GlassThemeData theme = const GlassThemeData(),
   TextDirection direction = TextDirection.ltr,
 }) => MediaQuery(

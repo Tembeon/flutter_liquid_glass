@@ -2,9 +2,9 @@
 /// UIKit's measured motion.
 ///
 /// The app picks how glass draws in `GlassRendererScope`:
-/// `GlassRenderer.liquid()`, `.fake()`, `.flat()` or `.adaptive(...)`.
-/// Exports the eight libraries of the package and kinesis, the motion the
-/// controls run on.
+/// `LiquidGlassRenderer`, `FakeGlassRenderer`, `FlatGlassRenderer`,
+/// `AdaptiveGlassRenderer` or its own. Exports the eight libraries of the
+/// package and kinesis, the motion the controls run on.
 library;
 
 export 'package:kinesis/kinesis.dart';

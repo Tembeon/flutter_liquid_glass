@@ -92,7 +92,7 @@ void main() {
 
   testWidgets('the hard band fades the content toward the background and '
       'blurs it on liquid glass', (tester) async {
-    final liquid = await _scrolled(tester, const GlassRenderer.liquid());
+    final liquid = await _scrolled(tester, const LiquidGlassRenderer());
     final band = _pixel(liquid, 40, 30);
     expect(band[0], greaterThan(240));
     expect(band[1], inInclusiveRange(100, 160));
@@ -103,7 +103,7 @@ void main() {
   });
 
   testWidgets('flat glass dissolves the band without a blur', (tester) async {
-    final flat = await _scrolled(tester, const GlassRenderer.flat());
+    final flat = await _scrolled(tester, const FlatGlassRenderer());
     final band = _pixel(flat, 40, 30);
     expect(band[1], inInclusiveRange(100, 160));
     expect(_pixel(flat, 97, 30), band);
