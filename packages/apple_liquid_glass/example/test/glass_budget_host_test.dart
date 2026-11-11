@@ -15,7 +15,7 @@ import 'package:apple_liquid_glass_example/settings.dart';
 import 'package:apple_liquid_glass_example/stand/stand_home.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/src/composer/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/read.dart';
 
 const _frame = Duration(milliseconds: 16);
 const _update = bool.fromEnvironment('UPDATE_GLASS_BUDGETS');
