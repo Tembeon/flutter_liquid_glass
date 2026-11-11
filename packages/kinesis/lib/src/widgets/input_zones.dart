@@ -184,8 +184,7 @@ final class _ZoneSource<T extends Object> implements SourceView {
 ///       InputZone(
 ///         id: i,
 ///         interactions: presses[i],
-///         semanticLabel: item.label,
-///         button: true,
+///         semantics: SemanticsProperties(label: item.label, button: true),
 ///         minimumHitSize: const Size.square(44),
 ///       ),
 ///   ],

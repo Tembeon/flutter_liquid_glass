@@ -113,6 +113,3 @@ class AdjustValueIntent extends Intent {
     (NavigationMode.traditional, TextDirection.rtl) => _traditionalRightToLeft,
   };
 }
-
-/// What the region's box needs besides its state: its hit size and what
-/// it tells accessibility.

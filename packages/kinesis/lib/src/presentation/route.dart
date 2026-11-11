@@ -386,7 +386,6 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     _scroll = null;
   }
 
-  // Whether Tab stays inside a modal presentation, as in a dialog.
   bool get _trapsFocus => false;
 
   /// How focus traversal behaves at the content's edges: as given, or a
