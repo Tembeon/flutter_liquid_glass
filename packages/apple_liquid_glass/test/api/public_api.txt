@@ -3513,6 +3513,79 @@ final class SegmentHighlight extends Motion
   void release(double t)
   static const double restoreDuration
   overrides: didAdvance
+final class SelectorGeometry
+  const SelectorGeometry({
+    required Size size,
+    required List<Rect> slots,
+    required List<({double center, double width})> lenses,
+    Rect? drawn,
+  })
+  factory SelectorGeometry.of(
+    GlassSelectorMotion kind,
+    double maxWidth,
+    Size Function(Size) constrain,
+    List<double> items, {
+    required List<double?>? fixed,
+    required bool proportional,
+    required bool spans,
+    required bool hosted,
+  })
+  Rect get bar
+  final Rect? drawn
+  static double height(GlassSelectorMotion kind)
+  static double lensHeight(GlassSelectorMotion kind)
+  final List<({double center, double width})> lenses
+  static double natural(
+    GlassSelectorMotion kind,
+    List<double> items,
+    List<double?>? fixed,
+  )
+  static const double segmentedHeight
+  static const double segmentedInset
+  static const double segmentedPadding
+  final Size size
+  final List<Rect> slots
+  static const double tabBarHeight
+  static const double tabBarLensHeight
+  static const double tabBarWidth
+final class SelectorMotion extends Motion
+  SelectorMotion({
+    required GlassSelectorMotion kind,
+    required int selected,
+    required bool Function(int) isSelectable,
+    required void Function(LensEvent) onEvent,
+  })
+  Rect bar
+  void cancel(double t)
+  void choose(double t, int index, {bool notify = ...})
+  void down(double t, double x, Offset position, {required bool glows})
+  void drag(double t, double x, Offset position)
+  (Rect, double)? drawn(Object key)
+  late final TouchGlowMotion glow
+  late final SegmentHighlight highlight
+  bool get isDragging
+  final bool Function(int) isSelectable
+  late final LayoutMotion items
+  final GlassSelectorMotion kind
+  void layout(
+    double t,
+    SelectorGeometry geometry,
+    Map<Object, Rect> rects, {
+    required Offset shift,
+    required bool mirrored,
+    Spring? spring,
+  })
+  LensMotion? get lens
+  void move(double t, double x, Offset position)
+  Rect? get movingBounds
+  final void Function(LensEvent) onEvent
+  void place(double t, int index)
+  int get selected
+  set selected(int index)
+  Size size
+  int slotAt(double x)
+  bool get tabBar
+  void up(double t, double x)
 final class SheetDetentChanged extends SheetEvent
   const SheetDetentChanged(int index, {required bool byUser})
   final bool byUser
@@ -4192,6 +4265,7 @@ class GlassBarMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassBarSegment (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassBarTransitionSpec (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPress (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassSelectorMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSheetDetent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassTabBarMinimizeBehavior (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class LargeTitleSnap (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -4240,6 +4314,8 @@ class SearchMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SearchTabGeometry (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SearchTabMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SegmentHighlight (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SelectorGeometry (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SelectorMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SheetDetentChanged (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SheetDismissRefused (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SheetDismissed (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -4347,7 +4423,6 @@ typedef GlassSelectorBuilder (see package:apple_liquid_glass/apple_liquid_glass.
 class GlassSelectorCollapse (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSelectorDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassSelectorItemBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
-enum GlassSelectorMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassSliderBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSliderDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSource (see package:apple_liquid_glass/apple_liquid_glass.dart)

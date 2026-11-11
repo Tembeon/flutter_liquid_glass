@@ -13,7 +13,7 @@ import 'package:kinesis/motion.dart';
 import 'package:kinesis/widgets.dart';
 
 part 'package:apple_liquid_glass/src/raw/selector_inputs.dart';
-part 'package:apple_liquid_glass/src/raw/selector_motion.dart';
+part 'package:apple_liquid_glass/src/raw/selector_frames.dart';
 part 'package:apple_liquid_glass/src/raw/selector_nodes.dart';
 part 'package:apple_liquid_glass/src/raw/selector_render.dart';
 part 'package:apple_liquid_glass/src/raw/selector_row.dart';
@@ -177,7 +177,7 @@ class RawGlassSelector extends StatefulWidget {
 
 class _RawGlassSelectorState extends State<RawGlassSelector>
     with ControlStates<RawGlassSelector>, ControlledValue<RawGlassSelector> {
-  late _SelectorMotion _motion = _create(widget.selectedIndex ?? 0);
+  late SelectorMotion _motion = _create(widget.selectedIndex ?? 0);
   late _SelectorFrames _frames = _SelectorFrames(
     _motion,
     mirrored: false,
@@ -233,7 +233,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   static List<Object> _keysOf(RawGlassSelector widget) =>
       widget.itemKeys ?? [for (var i = 0; i < widget.itemCount; i++) i];
 
-  _SelectorMotion _create(int selected) => _SelectorMotion(
+  SelectorMotion _create(int selected) => SelectorMotion(
     kind: widget.motion,
     selected: selected,
     isSelectable: _selectable,

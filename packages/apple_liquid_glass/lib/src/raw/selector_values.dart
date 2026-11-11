@@ -4,21 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 
-/// The measured UIKit control whose motion and geometry a
-/// [RawGlassSelector] takes.
-enum GlassSelectorMotion {
-  /// `UISegmentedControl`: a track 32 points tall with a lens inset 2
-  /// points in it. A touch dims the label of a segment that is not
-  /// selected, a drag lifts the lens into glass and carries it, and a
-  /// release outside 70 points of the control selects nothing.
-  segmented,
-
-  /// `UITabBar`: a bar 62 points tall with a lens 54 points tall. The bar
-  /// swells and drifts under the finger and a glow follows it, and inside
-  /// the lens every item shows its selected look.
-  tabBar,
-}
-
 /// What turns a tab bar selector into a circle and back: the same bar
 /// throughout, its glass and content following [morph], whatever asks for
 /// it (a scroll, a search).

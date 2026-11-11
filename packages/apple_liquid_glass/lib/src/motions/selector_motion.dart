@@ -1,18 +1,42 @@
-part of 'selector.dart';
+import 'dart:math' as math;
+import 'dart:ui';
+
+import 'package:apple_liquid_glass/src/motions/lens_motion.dart';
+import 'package:apple_liquid_glass/src/motions/lens_values.dart';
+import 'package:apple_liquid_glass/src/motions/segment_highlight.dart';
+import 'package:apple_liquid_glass/src/motions/tab_bar_layout.dart';
+import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
+import 'package:kinesis/motion.dart';
+import 'package:meta/meta.dart';
+
+/// The measured UIKit control whose motion and geometry a selector takes.
+enum GlassSelectorMotion {
+  /// `UISegmentedControl`: a track 32 points tall with a lens inset 2
+  /// points in it. A touch dims the label of a segment that is not
+  /// selected, a drag lifts the lens into glass and carries it, and a
+  /// release outside 70 points of the control selects nothing.
+  segmented,
+
+  /// `UITabBar`: a bar 62 points tall with a lens 54 points tall. The bar
+  /// swells and drifts under the finger and a glow follows it, and inside
+  /// the lens every item shows its selected look.
+  tabBar,
+}
 
 /// The geometry a selector lays its items out in.
 @immutable
-final class _Geometry {
-  const _Geometry({
+final class SelectorGeometry {
+  const SelectorGeometry({
     required this.size,
     required this.slots,
     required this.lenses,
     this.drawn,
   });
 
-  factory _Geometry.of(
+  factory SelectorGeometry.of(
     GlassSelectorMotion kind,
-    BoxConstraints constraints,
+    double maxWidth,
+    Size Function(Size) constrain,
     List<double> items, {
     required List<double?>? fixed,
     required bool proportional,
@@ -22,10 +46,10 @@ final class _Geometry {
     final h = height(kind);
     switch (kind) {
       case GlassSelectorMotion.segmented:
-        final width = constraints.hasBoundedWidth
-            ? constraints.maxWidth
+        final width = maxWidth < double.infinity
+            ? maxWidth
             : natural(kind, items, fixed);
-        final size = constraints.constrain(Size(width, h));
+        final size = constrain(Size(width, h));
         final widths = _segmentWidths(
           size.width,
           items,
@@ -40,21 +64,17 @@ final class _Geometry {
           lenses.add((center: left + w / 2, width: w - 2 * segmentedInset));
           left += w;
         }
-        return _Geometry(size: size, slots: slots, lenses: lenses);
+        return SelectorGeometry(size: size, slots: slots, lenses: lenses);
       case GlassSelectorMotion.tabBar:
-        final box = constraints.hasBoundedWidth
-            ? constraints.maxWidth
-            : tabBarWidth;
+        final box = maxWidth < double.infinity ? maxWidth : tabBarWidth;
         final bar = TabBarLayout.of(
           items,
           available: box < TabBarLayout.phoneBelow ? box : tabBarWidth,
           hosted: hosted,
         );
-        final size = constraints.constrain(
-          Size(spans ? box : bar.width, h),
-        );
+        final size = constrain(Size(spans ? box : bar.width, h));
         final left = (size.width - bar.width) / 2;
-        return _Geometry(
+        return SelectorGeometry(
           size: size,
           drawn: Rect.fromLTWH(left, 0, bar.width, size.height),
           slots: [
@@ -76,7 +96,7 @@ final class _Geometry {
 
   final Size size;
 
-  /// Where a tab bar under a [GlassSelectorCollapse] draws in its box,
+  /// Where a tab bar under a `GlassSelectorCollapse` draws in its box,
   /// which spans the whole group.
   final Rect? drawn;
 
@@ -182,8 +202,8 @@ final class _Geometry {
 /// The motion of a selector: its lens, made at the first layout, its
 /// items and bounds through changes of the items, the dimming of a pressed
 /// segment and a tab bar's touch glow.
-final class _SelectorMotion extends Motion {
-  _SelectorMotion({
+final class SelectorMotion extends Motion {
+  SelectorMotion({
     required this.kind,
     required int selected,
     required this.isSelectable,
@@ -251,7 +271,7 @@ final class _SelectorMotion extends Motion {
   /// place on screen through.
   void layout(
     double t,
-    _Geometry geometry,
+    SelectorGeometry geometry,
     Map<Object, Rect> rects, {
     required Offset shift,
     required bool mirrored,
@@ -273,7 +293,7 @@ final class _SelectorMotion extends Motion {
       jump: jump,
     );
     final changed =
-        !listEquals(geometry.lenses, _lenses) || geometry.size != size;
+        !_sameSlots(geometry.lenses, _lenses) || geometry.size != size;
     size = geometry.size;
     bar = geometry.bar;
     _lenses = geometry.lenses;
@@ -285,7 +305,7 @@ final class _SelectorMotion extends Motion {
         GlassSelectorMotion.segmented => LensMotion.segmented(
           slots: geometry.lenses,
           selected: pending!,
-          height: _Geometry.lensHeight(kind),
+          height: SelectorGeometry.lensHeight(kind),
           frameRate: clock.frameRate,
           chromeSize: geometry.bar.size,
           onEvent: onEvent,
@@ -293,7 +313,7 @@ final class _SelectorMotion extends Motion {
         GlassSelectorMotion.tabBar => LensMotion.tabBar(
           slots: geometry.lenses,
           selected: pending!,
-          height: _Geometry.lensHeight(kind),
+          height: SelectorGeometry.lensHeight(kind),
           frameRate: clock.frameRate,
           chromeSize: geometry.bar.size,
           onEvent: onEvent,
@@ -369,98 +389,10 @@ final class _SelectorMotion extends Motion {
   }
 }
 
-/// What a selector shows of its motion, laid out left to right or
-/// mirrored.
-final class _SelectorFrames {
-  _SelectorFrames(this._motion, {required this.mirrored, this.collapse});
-
-  final _SelectorMotion _motion;
-  final bool mirrored;
-
-  /// What collapses the bar, when something does.
-  final GlassSelectorCollapse? collapse;
-
-  late final MotionSelection<GlassFrame> lens = collapse == null
-      ? _lens
-      : MotionSelection(() {
-          final frame = _lens.value;
-          final morph = collapse!.morph.value;
-          if (morph <= 0) return frame;
-          return frame.copyWith(opacity: lensOpacity(morph, frame.lift));
-        });
-
-  /// How much of the lens shows at [morph]: a lens a finger carries stays.
-  static double lensOpacity(double morph, double lift) => math
-      .max(
-        1 - morph / TabBarMinimizeMotion.lensGoneAt,
-        lift,
-      )
-      .clamp(0.0, 1.0);
-
-  late final MotionSelection<GlassFrame> _lens = _motion.select((motion) {
-    final lens = motion.lens;
-    if (lens == null) return const GlassFrame();
-    final size = lens.size;
-    final width = motion.size.width;
-    return GlassFrame(
-      rect: Rect.fromCenter(
-        center: Offset(
-          mirrored ? width - lens.center : lens.center,
-          motion.size.height / 2,
-        ),
-        width: size.width * lens.scaleX,
-        height: size.height * lens.scaleY,
-      ),
-      lift: lens.lift.clamp(0.0, 1.0),
-    );
-  });
-
-  late final MotionSelection<GlassFrame> body = collapse == null
-      ? _body
-      : MotionSelection(() {
-          final frame = _body.value;
-          final morph = collapse!.morph.value;
-          if (morph == 0) return frame;
-          final lifted = collapse!.press?.value ?? 0;
-          final circle = collapse!
-              .circleIn(_motion.size)
-              .inflate(TabBarMinimizeMotion.pressGrowth * lifted);
-          return frame.copyWith(rect: Rect.lerp(frame.rect, circle, morph));
-        });
-
-  late final MotionSelection<GlassFrame> _body = _motion.select(
-    (motion) => GlassFrame(
-      rect: motion.movingBounds ?? (collapse == null ? null : motion.bar),
-      glow: motion.tabBar ? motion.glow.glow : null,
-    ),
-  );
-
-  /// How many items the motion places, ghosts included.
-  late final MotionSelection<int> placed = _motion.select(
-    (motion) => motion.items.ids.length,
-  );
-
-  /// Where every item is drawn, ghosts included.
-  late final MotionSelection<List<(Rect, double)?>> items = _motion.select(
-    (motion) => [for (final id in motion.items.ids) motion.drawn(id)],
-    equals: listEquals,
-  );
-
-  late final MotionSelection<(int?, double)> dim = _motion.select((motion) {
-    final index = motion.highlight.index;
-    return (index, index == null ? 1.0 : motion.highlight.opacity(index));
-  });
-
-  late final MotionSelection<Offset> drift = _motion.select((motion) {
-    final chrome = motion.lens?.chrome ?? LensMotion.chromeAtRest;
-    return Offset(mirrored ? -chrome.driftX : chrome.driftX, chrome.driftY);
-  });
-
-  late final MotionSelection<double> scaleX = _motion.select(
-    (motion) => (motion.lens?.chrome ?? LensMotion.chromeAtRest).scaleX,
-  );
-
-  late final MotionSelection<double> scaleY = _motion.select(
-    (motion) => (motion.lens?.chrome ?? LensMotion.chromeAtRest).scaleY,
-  );
+bool _sameSlots(List<LensSlot> a, List<LensSlot> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
 }

@@ -54,8 +54,7 @@ export 'src/raw/selector_values.dart'
         GlassSelectorBuilder,
         GlassSelectorCollapse,
         GlassSelectorDetails,
-        GlassSelectorItemBuilder,
-        GlassSelectorMotion;
+        GlassSelectorItemBuilder;
 export 'src/raw/slider.dart'
     show GlassSliderBuilder, GlassSliderDetails, RawGlassSlider;
 export 'src/raw/source.dart'

@@ -30,9 +30,9 @@ class _RenderSelectorRow extends RenderBox
     required this._direction,
   });
 
-  _SelectorMotion _motion;
-  _SelectorMotion get motion => _motion;
-  set motion(_SelectorMotion value) {
+  SelectorMotion _motion;
+  SelectorMotion get motion => _motion;
+  set motion(SelectorMotion value) {
     if (identical(value, _motion)) return;
     _motion = value;
     markNeedsLayout();
@@ -232,10 +232,10 @@ class _RenderSelectorRow extends RenderBox
         ),
   ];
 
-  double get _height => _Geometry.height(_kind);
+  double get _height => SelectorGeometry.height(_kind);
 
   double _natural() =>
-      _Geometry.natural(_kind, _itemExtents(_height), _itemWidths);
+      SelectorGeometry.natural(_kind, _itemExtents(_height), _itemWidths);
 
   @override
   double computeMinIntrinsicWidth(double height) => _natural();
@@ -249,9 +249,10 @@ class _RenderSelectorRow extends RenderBox
   @override
   double computeMaxIntrinsicHeight(double width) => _height;
 
-  _Geometry _geometry(BoxConstraints constraints) => _Geometry.of(
+  SelectorGeometry _geometry(BoxConstraints constraints) => SelectorGeometry.of(
     _kind,
-    constraints,
+    constraints.hasBoundedWidth ? constraints.maxWidth : double.infinity,
+    constraints.constrain,
     _itemExtents(_height),
     fixed: _itemWidths,
     proportional: _proportional,
@@ -278,7 +279,8 @@ class _RenderSelectorRow extends RenderBox
     return offset;
   }
 
-  ({_Geometry geometry, Map<Object, Rect> rects, Offset origin})? _laidOut;
+  ({SelectorGeometry geometry, Map<Object, Rect> rects, Offset origin})?
+  _laidOut;
 
   @override
   void performLayout() {

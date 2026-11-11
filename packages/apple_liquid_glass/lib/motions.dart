@@ -78,6 +78,8 @@ export 'src/motions/search_motion.dart'
         searchTabLayout;
 export 'src/motions/search_tab_motion.dart' show SearchTabMotion;
 export 'src/motions/segment_highlight.dart' show SegmentHighlight;
+export 'src/motions/selector_motion.dart'
+    show GlassSelectorMotion, SelectorGeometry, SelectorMotion;
 export 'src/motions/sheet_detent.dart' show GlassSheetDetent;
 export 'src/motions/sheet_event.dart'
     show SheetDetentChanged, SheetDismissRefused, SheetDismissed, SheetEvent;

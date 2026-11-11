@@ -23,7 +23,7 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
     required super.children,
   });
 
-  final _SelectorMotion motion;
+  final SelectorMotion motion;
   final _SelectorFrames frames;
   final GlassSelectorMotion kind;
   final List<Object> keys;

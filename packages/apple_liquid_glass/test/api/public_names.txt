@@ -358,6 +358,8 @@ SearchTabGeometry
 SearchTabMotion
 SecondaryClickInteraction
 SegmentHighlight
+SelectorGeometry
+SelectorMotion
 SessionOutput
 SheetDetentChanged
 SheetDismissRefused

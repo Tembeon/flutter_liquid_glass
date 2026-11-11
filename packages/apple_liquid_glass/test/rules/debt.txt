@@ -3,4 +3,3 @@
 # that lists more than the code has. After fixing one, rewrite this file
 # with UPDATE_DEBT=1 (it never grows an entry).
 
-5:law-outside-motions  lib/src/raw/selector_motion.dart  1
