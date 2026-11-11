@@ -78,6 +78,7 @@ class _PresentationPortalState extends State<PresentationPortal>
   Presented? _motion;
   SourceLease? _lease;
   ModalRoute<Object?>? _route;
+  ScrollPosition? _scroll;
   FocusNode? _restore;
   Object? _result;
   bool _leaving = false;
@@ -100,11 +101,28 @@ class _PresentationPortalState extends State<PresentationPortal>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final scroll = Scrollable.maybeOf(context)?.position;
+    if (!identical(scroll, _scroll)) {
+      _scroll?.isScrollingNotifier.removeListener(_scrolled);
+      _scroll = scroll;
+      scroll?.isScrollingNotifier.addListener(_scrolled);
+    }
     final route = ModalRoute.of(context);
     if (identical(route, _route)) return;
     _route?.unregisterPopEntry(this);
     _route = route;
     route?.registerPopEntry(this);
+  }
+
+  void _scrolled() {
+    if (!widget.presentation.dismissesOnScroll) return;
+    if (_scroll?.isScrollingNotifier.value ?? false) {
+      dismiss(DismissTrigger.scroll);
+    }
+  }
+
+  void _tappedOutside() {
+    if (!_modal.value) dismiss(DismissTrigger.outsideTap);
   }
 
   @override
@@ -113,6 +131,7 @@ class _PresentationPortalState extends State<PresentationPortal>
       widget.controller._portal = null;
     }
     _route?.unregisterPopEntry(this);
+    _scroll?.isScrollingNotifier.removeListener(_scrolled);
     _end();
     _canPop.dispose();
     _modal.dispose();
@@ -271,7 +290,9 @@ class _PresentationPortalState extends State<PresentationPortal>
     controller: _overlay,
     overlayLocation: OverlayChildLocation.rootOverlay,
     overlayChildBuilder: _content,
-    child: widget.child,
+    child: widget.presentation.dismissesOnOutsideTap
+        ? TapRegion(groupId: this, child: widget.child)
+        : widget.child,
   );
 
   Widget _content(BuildContext context) {
@@ -304,6 +325,10 @@ class _PresentationPortalState extends State<PresentationPortal>
               label: presentation.semanticsLabel,
               role: presentation.semanticsRole,
               initialFocus: presentation.initialFocus,
+              tapRegion: this,
+              onTapOutside: presentation.dismissesOnOutsideTap
+                  ? _tappedOutside
+                  : null,
               child: PresentedContent(
                 presentation: presentation,
                 motion: motion,

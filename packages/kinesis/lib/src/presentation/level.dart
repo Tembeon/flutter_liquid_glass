@@ -68,6 +68,6 @@ Future<T?> showPresentation<T>(
   if (navigator == null) {
     throw FlutterError('showPresentation found no Navigator above $context.');
   }
-  route.captureThemes(context, navigator);
+  route.presentFrom(context, navigator);
   return navigator.push(route);
 }

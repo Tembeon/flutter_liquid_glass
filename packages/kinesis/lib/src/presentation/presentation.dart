@@ -86,6 +86,8 @@ final class Presentation<T, M extends Presented> {
     this.barrierLabel,
     this.initialFocus,
     this.semanticsRole,
+    this.dismissesOnScroll = false,
+    this.dismissesOnOutsideTap = false,
   });
 
   /// Makes the motion at the commit, or hands over one the caller keeps
@@ -131,6 +133,22 @@ final class Presentation<T, M extends Presented> {
   /// presentation opens. Without one, VoiceOver plays its sound and
   /// TalkBack says nothing, as for a route.
   final String? semanticsLabel;
+
+  /// Whether the presentation goes, as a menu of `RawMenuAnchor` does, when
+  /// the nearest scrollable around where it was shown from starts to
+  /// scroll: around a portal's anchor, or around the context a route was
+  /// shown from with `showPresentation` (a route pushed otherwise has none).
+  /// The dismissal is a [DismissTrigger.scroll] through [dismiss]; scrolls
+  /// inside the content do not count.
+  final bool dismissesOnScroll;
+
+  /// Whether a tap outside the content dismisses the presentation while it
+  /// is not modal, as a tap outside a `RawMenuAnchor`'s menu closes it; the
+  /// tap still reaches what it lands on. A portal's anchor counts as
+  /// inside. While the presentation is modal its barrier takes every tap
+  /// outside instead. The dismissal is a [DismissTrigger.outsideTap]
+  /// through [dismiss].
+  final bool dismissesOnOutsideTap;
 
   /// What the content is to assistive technology: `SemanticsRole.dialog`,
   /// `SemanticsRole.alertDialog` or `SemanticsRole.menu` (whose children
@@ -276,6 +294,8 @@ class PresentationRoot extends StatelessWidget {
     required this.role,
     required this.initialFocus,
     required this.child,
+    this.tapRegion,
+    this.onTapOutside,
     super.key,
   });
 
@@ -300,8 +320,25 @@ class PresentationRoot extends StatelessWidget {
   /// The content.
   final Widget child;
 
+  /// The tap region group of the content and what counts as inside it.
+  final Object? tapRegion;
+
+  /// Called for a tap outside the content; none when null.
+  final VoidCallback? onTapOutside;
+
   @override
-  Widget build(BuildContext context) => Semantics(
+  Widget build(BuildContext context) {
+    final onTapOutside = this.onTapOutside;
+    final root = _semantics();
+    if (onTapOutside == null) return root;
+    return TapRegion(
+      groupId: tapRegion,
+      onTapOutside: (_) => onTapOutside(),
+      child: root,
+    );
+  }
+
+  Widget _semantics() => Semantics(
     scopesRoute: true,
     namesRoute: label != null,
     explicitChildNodes: true,

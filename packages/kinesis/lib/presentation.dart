@@ -6,16 +6,21 @@
 /// For the author of any overlay: a menu, a sheet, an alert or a panel of
 /// one's own.
 ///
-/// It promises the focus moved in at the open, Tab kept inside a modal
-/// presentation (a page keeps its navigator's rule) and the focus handed
-/// back to the opener however the presentation goes, Escape,
-/// the Back button and gesture (Android's predictive back drives a route
-/// whose motion is `PredictiveBack`), a barrier that hides the screen from the
-/// screen reader in a route and, labelled by the presenter, offers the
-/// dismissal after the content, an overlay that announces itself to the
-/// screen reader as a route of its own with the label and role the
-/// presenter gives, and an overlay that is inert while it closes: no
-/// touches, no focus, no semantics.
+/// It promises, in every shell unless said otherwise:
+///
+/// - focus: it moves in at the open, Tab stays inside a modal presentation
+///   (a page keeps its navigator's rule), and it goes back to the opener
+///   however the presentation goes;
+/// - dismissal: Escape as a `DismissIntent` an app can remap, the Back
+///   button, and Android's predictive back driving a route whose motion is
+///   `PredictiveBack`; for an anchored presentation that asks, a scroll
+///   around its anchor and a tap outside;
+/// - screen readers: the presentation is a route of its own, named and
+///   given a role by the presenter; a route's barrier hides the screen
+///   behind it, and a barrier the presenter labels offers the dismissal
+///   after the content;
+/// - from the start of its leave it is inert: no touches, no focus, no
+///   semantics.
 ///
 /// It never knows how an overlay looks or which spring it moves on.
 library;

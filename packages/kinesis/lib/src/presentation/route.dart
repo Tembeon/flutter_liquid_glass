@@ -329,11 +329,31 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     );
   }
 
-  /// Captures the themes around [from] for the content, as a presentation
-  /// shown from a source carries the source's look.
+  ScrollPosition? _scroll;
+
+  /// Notes where the route is shown from: the content carries the themes
+  /// around [from], as a presentation shown from a source carries the
+  /// source's look, and a presentation that asks for it goes when the
+  /// scrollable around [from] starts to scroll.
   @internal
-  void captureThemes(BuildContext from, NavigatorState to) =>
-      _themes = InheritedTheme.capture(from: from, to: to.context);
+  void presentFrom(BuildContext from, NavigatorState to) {
+    _themes = InheritedTheme.capture(from: from, to: to.context);
+    if (!(presentation?.dismissesOnScroll ?? false)) return;
+    _unfollowScroll();
+    final scroll = _scroll = Scrollable.maybeOf(from)?.position;
+    scroll?.isScrollingNotifier.addListener(_scrolled);
+  }
+
+  void _scrolled() {
+    if (_scroll?.isScrollingNotifier.value ?? false) {
+      dismiss(DismissTrigger.scroll);
+    }
+  }
+
+  void _unfollowScroll() {
+    _scroll?.isScrollingNotifier.removeListener(_scrolled);
+    _scroll = null;
+  }
 
   // Whether Tab stays inside a modal presentation, as in a dialog.
   bool get _trapsFocus => false;
@@ -507,6 +527,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   }
 
   void _finish() {
+    _unfollowScroll();
     if (_finished) return;
     _finished = true;
     _lease?.release();
@@ -702,6 +723,11 @@ class _ContentRootState extends State<_ContentRoot>
         label: route.semanticsLabel,
         role: route.presentation?.semanticsRole,
         initialFocus: route.presentation?.initialFocus,
+        onTapOutside: route.presentation?.dismissesOnOutsideTap ?? false
+            ? () {
+                if (!route.modal) route.dismiss(DismissTrigger.outsideTap);
+              }
+            : null,
         child: widget.child,
       ),
     );

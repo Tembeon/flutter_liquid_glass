@@ -8,6 +8,10 @@ enum DismissTrigger {
   /// counts as outside.
   outsideTap,
 
+  /// A scroll of what the presentation was shown from, for a presentation
+  /// that asks for it (`Presentation.dismissesOnScroll`).
+  scroll,
+
   /// The Escape key (`DismissIntent`).
   escape,
 
@@ -84,6 +88,7 @@ final class DismissPolicy {
   /// Every trigger: a menu, a popover, a sheet.
   static const Set<DismissTrigger> all = {
     DismissTrigger.outsideTap,
+    DismissTrigger.scroll,
     DismissTrigger.escape,
     DismissTrigger.back,
     DismissTrigger.accessibility,
@@ -91,7 +96,7 @@ final class DismissPolicy {
     DismissTrigger.programmatic,
   };
 
-  /// Everything but a tap outside: an alert.
+  /// Everything but a tap outside and a scroll below: an alert.
   static const DismissPolicy modal = DismissPolicy({
     DismissTrigger.escape,
     DismissTrigger.back,

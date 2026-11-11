@@ -94,6 +94,8 @@ Presentation<String, _Card> _presentation(
   String? label = 'Panel',
   SemanticsRole? role,
   bool predictive = false,
+  bool onScroll = false,
+  bool onOutsideTap = false,
 }) => Presentation<String, _Card>(
   motion: (_) {
     final card = predictive ? _BackCard() : _Card();
@@ -135,6 +137,8 @@ Presentation<String, _Card> _presentation(
   semanticsRole: role,
   barrierLabel: barrierLabel,
   initialFocus: named ? initialFocus : null,
+  dismissesOnScroll: onScroll,
+  dismissesOnOutsideTap: onOutsideTap,
 );
 
 /// One way to show a [Presentation]: a popup route, a page route or a
@@ -999,6 +1003,139 @@ void main() {
       });
     });
   }
+
+  group('anchored', () {
+    for (final portal in [true, false]) {
+      final name = portal ? 'portal' : 'popup route';
+
+      /// Pumps a list whose second row shows [presentation] when presented,
+      /// from inside the list; returns a callback that presents it.
+      Future<VoidCallback> pumpList(
+        WidgetTester tester,
+        Presentation<String, _Card> presentation, {
+        required ScrollController scroll,
+        required VoidCallback onBelow,
+      }) async {
+        final controller = PresentationPortalController();
+        late BuildContext from;
+        await tester.pumpWidget(
+          _app(
+            Listener(
+              onPointerDown: (_) => onBelow(),
+              child: ListView(
+                controller: scroll,
+                children: [
+                  const SizedBox(height: 40),
+                  Builder(
+                    builder: (context) {
+                      from = context;
+                      const anchor = ColoredBox(
+                        key: ValueKey('anchor'),
+                        color: Color(0xFF00FF00),
+                        child: SizedBox(height: 50),
+                      );
+                      return portal
+                          ? PresentationPortal(
+                              controller: controller,
+                              presentation: presentation,
+                              child: anchor,
+                            )
+                          : anchor;
+                    },
+                  ),
+                  const SizedBox(height: 2000),
+                ],
+              ),
+            ),
+          ),
+        );
+        return portal
+            ? controller.present
+            : () => unawaited(
+                showPresentation(
+                  from,
+                  PresentationRoute(presentation: presentation),
+                ),
+              );
+      }
+
+      testWidgets('$name: a scroll around where it was shown from dismisses '
+          'it when it asks', (tester) async {
+        for (final asks in [false, true]) {
+          final made = <_Card>[];
+          final scroll = ScrollController();
+          final present = await pumpList(
+            tester,
+            _presentation(made, modal: false, onScroll: asks),
+            scroll: scroll,
+            onBelow: () {},
+          );
+          present();
+          await tester.pump();
+          await _settle(tester);
+          await tester.dragFrom(
+            const Offset(5, 500),
+            const Offset(0, -100),
+            touchSlopY: 0,
+          );
+          await tester.pump();
+          expect(
+            made.single.left,
+            asks ? [DismissTrigger.scroll] : isEmpty,
+            reason: 'asks $asks',
+          );
+          await _settle(tester);
+          await tester.pumpWidget(const SizedBox());
+          scroll.dispose();
+        }
+      });
+
+      testWidgets('$name: a tap outside dismisses it when it asks, and still '
+          'reaches what it lands on', (tester) async {
+        for (final asks in [false, true]) {
+          final made = <_Card>[];
+          final scroll = ScrollController();
+          var below = 0;
+          final present = await pumpList(
+            tester,
+            _presentation(made, modal: false, onOutsideTap: asks),
+            scroll: scroll,
+            onBelow: () => below++,
+          );
+          present();
+          await tester.pump();
+          await _settle(tester);
+          await tester.tap(find.byKey(_contentKey));
+          await tester.pump();
+          expect(made.single.left, [
+            DismissTrigger.programmatic,
+          ], reason: 'a tap inside');
+          made.single.left.clear();
+          await _settle(tester);
+          present();
+          await tester.pump();
+          await _settle(tester);
+          if (portal) {
+            await tester.tap(find.byKey(const ValueKey('anchor')));
+            await tester.pump();
+            expect(made.last.left, isEmpty, reason: 'the anchor is inside');
+          }
+          below = 0;
+          await tester.tapAt(const Offset(5, 590));
+          await tester.pump();
+          expect(below, 1);
+          expect(
+            made.last.left,
+            asks ? [DismissTrigger.outsideTap] : isEmpty,
+            reason: 'asks $asks',
+          );
+          await _settle(tester);
+          await tester.pumpWidget(const SizedBox());
+          scroll.dispose();
+        }
+      });
+    }
+  });
 
   group('portal', () {
     testWidgets('the touch that presents it is not cancelled', (tester) async {

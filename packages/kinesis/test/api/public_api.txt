@@ -338,6 +338,7 @@ final class DismissPolicy
   overrides: ==, hashCode
 enum DismissTrigger
   outsideTap,
+  scroll,
   escape,
   back,
   accessibility,
@@ -908,6 +909,8 @@ final class Presentation<T, M extends Presented>
     String? barrierLabel,
     FocusNode? initialFocus,
     SemanticsRole? semanticsRole,
+    bool dismissesOnScroll = ...,
+    bool dismissesOnOutsideTap = ...,
   })
   final String? barrierLabel
   @internal Widget build(BuildContext context, Presented motion)
@@ -919,6 +922,8 @@ final class Presentation<T, M extends Presented>
   @internal MotionSelection<double>? dimOf(Presented motion)
   final DismissPolicy dismiss
   @internal void dismissed(Object? result)
+  final bool dismissesOnOutsideTap
+  final bool dismissesOnScroll
   final FocusNode? initialFocus
   final bool Function(M)? modal
   @internal bool modalOf(Presented motion)
