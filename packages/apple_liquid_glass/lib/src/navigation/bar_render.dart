@@ -158,6 +158,12 @@ class _RenderBarItems extends RenderBox
   }
 
   @override
+  void dropChild(covariant RenderBox child) {
+    _layers.remove(child)?.layer = null;
+    super.dropChild(child);
+  }
+
+  @override
   void dispose() {
     for (final handle in _layers.values) {
       handle.layer = null;

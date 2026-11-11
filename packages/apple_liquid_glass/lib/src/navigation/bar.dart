@@ -26,6 +26,12 @@ part 'package:apple_liquid_glass/src/navigation/bar_widgets.dart';
 @internal
 const double glassBarDrift = 0.5;
 
+/// How many child layer handles the bar item render object [object] holds;
+/// -1 when it is not one.
+@visibleForTesting
+int glassBarLayerHandles(RenderObject object) =>
+    object is _RenderBarItems ? object._layers.length : -1;
+
 /// What a page declares to its navigator's bar.
 @internal
 @immutable
