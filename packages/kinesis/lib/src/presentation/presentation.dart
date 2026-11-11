@@ -84,6 +84,7 @@ final class Presentation<T, M extends Presented> {
     this.onDismissed,
     this.semanticsLabel,
     this.barrierLabel,
+    this.initialFocus,
   });
 
   /// Makes the motion at the commit, or hands over one the caller keeps
@@ -133,6 +134,14 @@ final class Presentation<T, M extends Presented> {
   /// readers either way. The presentation has no words of its own: pass the
   /// app's localized string, as `ModalRoute.barrierLabel` takes one.
   final String? barrierLabel;
+
+  /// The node that takes the focus when the presentation opens, such as the
+  /// field of a sheet that asks for a name. Without one, the first
+  /// focusable node of the content takes it while the keyboard is in use
+  /// (`FocusManager.highlightMode` is traditional) and the presentation
+  /// itself otherwise, so a touch never brings up the keyboard for a field
+  /// it did not tap. Either way Escape reaches the presentation.
+  final FocusNode? initialFocus;
 
   // The calls below take the motion as a Presented and the result as an
   // Object?, so a shell holding a Presentation<Object?, Presented> calls
@@ -238,6 +247,142 @@ Widget presentationBarrier({
   );
   if (!dismissible || label == null) return barrier;
   return Semantics(sortKey: const OrdinalSortKey(1), child: barrier);
+}
+
+/// The root every shell puts around a presentation's content: it names it
+/// to screen readers as a route of its own with [label], offers their dismiss
+/// and maps Escape (`DismissIntent`) to [dismiss] where [allows] lets the
+/// trigger through, and moves the focus in when the shell's scope gets it.
+@internal
+class PresentationRoot extends StatelessWidget {
+  /// The root around [child].
+  const PresentationRoot({
+    required this.isLeaving,
+    required this.allows,
+    required this.dismiss,
+    required this.label,
+    required this.initialFocus,
+    required this.child,
+    super.key,
+  });
+
+  /// Whether the presentation leaves now.
+  final bool Function() isLeaving;
+
+  /// Whether the policy lets a trigger through.
+  final bool Function(DismissTrigger trigger) allows;
+
+  /// Dismisses through the shell's gate.
+  final void Function(DismissTrigger trigger) dismiss;
+
+  /// The name screen readers announce.
+  final String? label;
+
+  /// The node that takes the focus at the open.
+  final FocusNode? initialFocus;
+
+  /// The content.
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    scopesRoute: true,
+    namesRoute: label != null,
+    explicitChildNodes: true,
+    label: label,
+    onDismiss: allows(DismissTrigger.accessibility)
+        ? () => dismiss(DismissTrigger.accessibility)
+        : null,
+    child: Actions(
+      actions: <Type, Action<Intent>>{DismissIntent: _DismissAction(this)},
+      child: _FocusIn(initialFocus: initialFocus, child: child),
+    ),
+  );
+}
+
+class _DismissAction extends DismissAction {
+  _DismissAction(this.root);
+
+  final PresentationRoot root;
+
+  // A disabled action still ends the search, so Escape on a presentation
+  // that may not leave by it never reaches one below.
+  @override
+  bool isEnabled(DismissIntent intent) =>
+      !root.isLeaving() && root.allows(DismissTrigger.escape);
+
+  @override
+  void invoke(DismissIntent intent) => root.dismiss(DismissTrigger.escape);
+}
+
+/// Moves the focus into the content whenever the shell's scope holds it
+/// itself: to the named node, to the first focusable one while the
+/// keyboard is in use, or to a node of its own, so Escape reaches the
+/// presentation. What the content focuses itself wins.
+class _FocusIn extends StatefulWidget {
+  const _FocusIn({required this.initialFocus, required this.child});
+
+  final FocusNode? initialFocus;
+  final Widget child;
+
+  @override
+  State<_FocusIn> createState() => _FocusInState();
+}
+
+class _FocusInState extends State<_FocusIn> {
+  final FocusNode _own = FocusNode(
+    debugLabel: 'Presentation',
+    skipTraversal: true,
+  );
+
+  FocusScopeNode? _scope;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final scope = Focus.maybeOf(
+      context,
+      scopeOk: true,
+      createDependency: false,
+    )?.nearestScope;
+    if (identical(scope, _scope)) return;
+    _scope?.removeListener(_caught);
+    _scope = scope;
+    scope?.addListener(_caught);
+  }
+
+  // The scope gets the focus after the frame that built the content, so
+  // the content's nodes are in the focus tree by then.
+  void _caught() {
+    final scope = _scope;
+    if (scope == null || !scope.hasPrimaryFocus) return;
+    final named = widget.initialFocus;
+    if (named != null && named.context != null && named.canRequestFocus) {
+      named.requestFocus();
+      return;
+    }
+    if (FocusManager.instance.highlightMode == FocusHighlightMode.traditional) {
+      final policy =
+          FocusTraversalGroup.maybeOf(context) ?? ReadingOrderTraversalPolicy();
+      final first = policy.findFirstFocus(scope, ignoreCurrentFocus: true);
+      if (first != null && !identical(first, scope)) {
+        first.requestFocus();
+        return;
+      }
+    }
+    _own.requestFocus();
+  }
+
+  @override
+  void dispose() {
+    _scope?.removeListener(_caught);
+    _own.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      Focus(focusNode: _own, includeSemantics: false, child: widget.child);
 }
 
 /// Makes [child] inert from the moment its presentation starts to leave:

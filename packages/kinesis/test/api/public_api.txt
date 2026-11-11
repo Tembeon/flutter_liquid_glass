@@ -898,6 +898,7 @@ final class Presentation<T, M extends Presented>
     void Function(T?)? onDismissed,
     String? semanticsLabel,
     String? barrierLabel,
+    FocusNode? initialFocus,
   })
   final String? barrierLabel
   @internal Widget build(BuildContext context, Presented motion)
@@ -909,6 +910,7 @@ final class Presentation<T, M extends Presented>
   @internal MotionSelection<double>? dimOf(Presented motion)
   final DismissPolicy dismiss
   @internal void dismissed(Object? result)
+  final FocusNode? initialFocus
   final bool Function(M)? modal
   @internal bool modalOf(Presented motion)
   final M Function(PresentationEnvironment) motion

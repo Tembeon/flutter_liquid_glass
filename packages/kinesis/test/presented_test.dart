@@ -44,6 +44,8 @@ Presentation<String, _Card> _presentation(
   VoidCallback? onContentPointer,
   String? barrierLabel,
   FocusNode? focus,
+  FocusNode? initialFocus,
+  bool named = false,
 }) => Presentation<String, _Card>(
   motion: (_) {
     final card = _Card();
@@ -60,9 +62,18 @@ Presentation<String, _Card> _presentation(
         onTap: () => PresentationHandle.of(
           context,
         ).dismiss(DismissTrigger.programmatic, 'tapped'),
-        child: Focus(
-          focusNode: focus,
-          child: const SizedBox(width: 100, height: 100),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Focus(
+              focusNode: focus,
+              child: const SizedBox(width: 100, height: 50),
+            ),
+            Focus(
+              focusNode: initialFocus,
+              child: const SizedBox(width: 100, height: 50),
+            ),
+          ],
         ),
       ),
     ),
@@ -74,6 +85,7 @@ Presentation<String, _Card> _presentation(
   onDismissed: dismissed?.add,
   semanticsLabel: 'Panel',
   barrierLabel: barrierLabel,
+  initialFocus: named ? initialFocus : null,
 );
 
 /// One way to show a [Presentation]: a popup route, a page route or a
@@ -472,6 +484,150 @@ void main() {
         semantics.dispose();
       });
 
+      testWidgets('the focus moves in at the open: to the named node, to '
+          'the first focusable one with the keyboard, to itself on touch', (
+        tester,
+      ) async {
+        for (final keyboard in [false, true]) {
+          for (final named in [false, true]) {
+            FocusManager.instance.highlightStrategy = keyboard
+                ? FocusHighlightStrategy.alwaysTraditional
+                : FocusHighlightStrategy.alwaysTouch;
+            final shell = make();
+            final first = FocusNode();
+            final second = FocusNode();
+            await shell.pump(tester, const SizedBox.expand());
+            await shell.present(
+              tester,
+              _presentation(
+                [],
+                focus: first,
+                initialFocus: second,
+                named: named,
+              ),
+            );
+            await tester.pump();
+            await tester.pump();
+            final reason = 'keyboard $keyboard, named $named';
+            if (named) {
+              expect(second.hasPrimaryFocus, isTrue, reason: reason);
+            } else if (keyboard) {
+              expect(first.hasPrimaryFocus, isTrue, reason: reason);
+            } else {
+              expect(first.hasFocus || second.hasFocus, isFalse);
+              expect(
+                FocusManager.instance.primaryFocus?.debugLabel,
+                'Presentation',
+                reason: reason,
+              );
+            }
+            await tester.pumpWidget(const SizedBox());
+            first.dispose();
+            second.dispose();
+          }
+        }
+        FocusManager.instance.highlightStrategy =
+            FocusHighlightStrategy.automatic;
+      });
+
+      testWidgets('Tab cycles inside a modal presentation', (tester) async {
+        final shell = make();
+        final first = FocusNode();
+        final second = FocusNode();
+        final outside = FocusNode();
+        FocusManager.instance.highlightStrategy =
+            FocusHighlightStrategy.alwaysTraditional;
+        await shell.pump(
+          tester,
+          Focus(focusNode: outside, child: const SizedBox.expand()),
+        );
+        await shell.present(
+          tester,
+          _presentation([], focus: first, initialFocus: second),
+        );
+        await tester.pump();
+        await tester.pump();
+        expect(first.hasPrimaryFocus, isTrue);
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        expect(second.hasPrimaryFocus, isTrue);
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        if (shell is _RouteShell && shell.page) {
+          // A page keeps its navigator's edge behaviour, as page routes do.
+          expect(outside.hasFocus, isFalse);
+        } else {
+          expect(first.hasPrimaryFocus, isTrue);
+        }
+        FocusManager.instance.highlightStrategy =
+            FocusHighlightStrategy.automatic;
+        await tester.pumpWidget(const SizedBox());
+        first.dispose();
+        second.dispose();
+        outside.dispose();
+      });
+
+      testWidgets('the focus returns to the opener after Escape, an outside '
+          'tap and Back, and falls back when the opener went', (tester) async {
+        for (final way in ['escape', 'outside', 'back', 'gone']) {
+          final shell = make();
+          final opener = FocusNode(debugLabel: 'opener');
+          final other = FocusNode(debugLabel: 'other');
+          final showOpener = ValueNotifier(true);
+          await shell.pump(
+            tester,
+            Column(
+              children: [
+                Focus(focusNode: other, child: const SizedBox(height: 10)),
+                ValueListenableBuilder(
+                  valueListenable: showOpener,
+                  builder: (context, show, _) => show
+                      ? Focus(
+                          focusNode: opener,
+                          child: const SizedBox(height: 10),
+                        )
+                      : const SizedBox(height: 10),
+                ),
+                const Expanded(child: SizedBox()),
+              ],
+            ),
+          );
+          other.requestFocus();
+          await tester.pump();
+          opener.requestFocus();
+          await tester.pump();
+          await shell.present(tester, _presentation([]));
+          await tester.pump();
+          await tester.pump();
+          expect(opener.hasFocus, isFalse, reason: way);
+          switch (way) {
+            case 'escape':
+              await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+            case 'outside':
+              await tester.tapAt(const Offset(5, 590));
+            case 'back':
+              await tester.binding.handlePopRoute();
+            default:
+              showOpener.value = false;
+              await tester.pump();
+              PresentationHandle.of(
+                tester.element(find.byKey(_contentKey)),
+              ).dismiss(DismissTrigger.programmatic);
+          }
+          await tester.pump();
+          await _settle(tester);
+          expect(shell.isPresented, isFalse, reason: way);
+          if (way == 'gone') {
+            final focused = FocusManager.instance.primaryFocus;
+            expect(focused, isNotNull);
+            expect(focused!.context?.mounted, isTrue, reason: way);
+          } else {
+            expect(opener.hasPrimaryFocus, isTrue, reason: way);
+          }
+          await tester.pumpWidget(const SizedBox());
+          opener.dispose();
+          other.dispose();
+        }
+      });
+
       testWidgets('hides its source in the commit frame, follows it and '
           'shows it again once gone', (tester) async {
         final shell = make();
@@ -647,6 +803,36 @@ void main() {
       await tester.pump();
       expect(below, 1);
       await _settle(tester);
+    });
+
+    testWidgets('Tab leaves a presentation that is not modal', (tester) async {
+      final shell = _PortalShell();
+      final first = FocusNode();
+      final outside = FocusNode();
+      FocusManager.instance.highlightStrategy =
+          FocusHighlightStrategy.alwaysTraditional;
+      await shell.pump(
+        tester,
+        Focus(focusNode: outside, child: const SizedBox.expand()),
+      );
+      await shell.present(
+        tester,
+        _presentation([], focus: first, modal: false),
+      );
+      await tester.pump();
+      await tester.pump();
+      expect(first.hasPrimaryFocus, isTrue);
+      final visited = <FocusNode?>[];
+      for (var i = 0; i < 3; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        visited.add(FocusManager.instance.primaryFocus);
+      }
+      expect(visited, contains(outside));
+      FocusManager.instance.highlightStrategy =
+          FocusHighlightStrategy.automatic;
+      await tester.pumpWidget(const SizedBox());
+      first.dispose();
+      outside.dispose();
     });
 
     testWidgets('takes the focus and gives it back', (tester) async {

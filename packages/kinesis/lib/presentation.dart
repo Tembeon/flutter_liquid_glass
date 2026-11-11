@@ -6,7 +6,9 @@
 /// For the author of any overlay: a menu, a sheet, an alert or a panel of
 /// one's own.
 ///
-/// It promises a focus trap and focus handed back to the opener, Escape,
+/// It promises the focus moved in at the open, Tab kept inside a modal
+/// presentation (a page keeps its navigator's rule) and the focus handed
+/// back to the opener however the presentation goes, Escape,
 /// the Back button and gesture, a barrier that hides the screen from the
 /// screen reader in a route and, labelled by the presenter, offers the
 /// dismissal after the content, an overlay that announces itself to the

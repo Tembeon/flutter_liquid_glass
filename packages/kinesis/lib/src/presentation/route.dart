@@ -26,6 +26,8 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   bool _removeAtEnd = false;
   bool _popped = false;
   ValueNotifier<bool>? _barrierModal;
+  ValueNotifier<bool> get _modalNow =>
+      _barrierModal ??= ValueNotifier<bool>(modal);
   final ValueNotifier<bool> _closing = ValueNotifier<bool>(false);
   bool _disposed = false;
   T? _result;
@@ -229,6 +231,16 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   void captureThemes(BuildContext from, NavigatorState to) =>
       _themes = InheritedTheme.capture(from: from, to: to.context);
 
+  // Whether Tab stays inside a modal presentation, as in a dialog.
+  bool get _trapsFocus => false;
+
+  /// How focus traversal behaves at the content's edges: as given, or a
+  /// closed loop while a popup presentation is [modal], as in a dialog.
+  @override
+  TraversalEdgeBehavior? get traversalEdgeBehavior =>
+      super.traversalEdgeBehavior ??
+      (_trapsFocus && modal ? TraversalEdgeBehavior.closedLoop : null);
+
   @override
   @nonVirtual
   Color? get barrierColor => null;
@@ -332,7 +344,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     isLeaving: () => isLeaving,
     leaving: _closing,
     child: ValueListenableBuilder<bool>(
-      valueListenable: _barrierModal ??= ValueNotifier<bool>(modal),
+      valueListenable: _modalNow,
       builder: (context, modal, _) => modal
           ? presentationBarrier(
               dismissible: allows(DismissTrigger.outsideTap),
@@ -440,6 +452,11 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
 /// While [modal], the barrier absorbs taps and hides the routes below from
 /// screen readers; with a [barrierLabel] and an [allows] outside tap it is
 /// a labelled dismiss target, read after the content.
+///
+/// The focus moves into the content at the open (see
+/// [Presentation.initialFocus]), Tab stays inside while it is [modal]
+/// unless a `traversalEdgeBehavior` is given, and the navigator hands the
+/// focus back to the route below, to what had it there, at the pop.
 class PresentationRoute<T> extends PopupRoute<T> with _PresentationEngine<T> {
   /// Creates a route that shows [presentation].
   PresentationRoute({
@@ -457,6 +474,9 @@ class PresentationRoute<T> extends PopupRoute<T> with _PresentationEngine<T> {
 
   @override
   String? get semanticsLabel => _semanticsLabel ?? presentation?.semanticsLabel;
+
+  @override
+  bool get _trapsFocus => true;
 }
 
 /// A page whose motion lives in its content, such as a page that zooms out
@@ -503,38 +523,39 @@ class _ContentRoot extends StatefulWidget {
 }
 
 class _ContentRootState extends State<_ContentRoot> {
-  final FocusNode _fallback = FocusNode(
-    debugLabel: 'PresentationRoute',
-    skipTraversal: true,
-  );
-
   FocusScopeNode? _scope;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.route._modalNow.addListener(_trap);
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final scope = Focus.maybeOf(
+    _scope = Focus.maybeOf(
       context,
       scopeOk: true,
       createDependency: false,
     )?.nearestScope;
-    if (identical(scope, _scope)) return;
-    _scope?.removeListener(_catchScopeFocus);
-    _scope = scope;
-    scope?.addListener(_catchScopeFocus);
+    _trap();
   }
 
-  // Escape reaches the dismiss action only from focus inside it. When the
-  // route's scope keeps focus itself, nothing in the content took it, so
-  // the content root takes it; what the content focuses wins.
-  void _catchScopeFocus() {
-    if (_scope?.hasPrimaryFocus ?? false) _fallback.requestFocus();
+  // The route's scope reads the edge behaviour only when it builds; a
+  // change of modality applies it at once.
+  void _trap() {
+    final scope = _scope;
+    final navigator = widget.route.navigator;
+    if (scope == null || navigator == null) return;
+    scope.traversalEdgeBehavior =
+        widget.route.traversalEdgeBehavior ??
+        navigator.widget.routeTraversalEdgeBehavior;
   }
 
   @override
   void dispose() {
-    _scope?.removeListener(_catchScopeFocus);
-    _fallback.dispose();
+    widget.route._modalNow.removeListener(_trap);
     super.dispose();
   }
 
@@ -544,38 +565,16 @@ class _ContentRootState extends State<_ContentRoot> {
     return PresentationInert(
       isLeaving: () => route.isLeaving,
       leaving: route._closing,
-      child: Semantics(
-        scopesRoute: true,
-        namesRoute: route.semanticsLabel != null,
-        explicitChildNodes: true,
+      child: PresentationRoot(
+        isLeaving: () => route.isLeaving,
+        allows: (trigger) => route.isActive && route.allows(trigger),
+        dismiss: route.dismiss,
         label: route.semanticsLabel,
-        onDismiss: route.allows(DismissTrigger.accessibility)
-            ? () => route.dismiss(DismissTrigger.accessibility)
-            : null,
-        child: Actions(
-          actions: <Type, Action<Intent>>{DismissIntent: _DismissAction(route)},
-          child: Focus(
-            focusNode: _fallback,
-            includeSemantics: false,
-            child: widget.child,
-          ),
-        ),
+        initialFocus: route.presentation?.initialFocus,
+        child: widget.child,
       ),
     );
   }
-}
-
-class _DismissAction extends DismissAction {
-  _DismissAction(this.route);
-
-  final _PresentationEngine<Object?> route;
-
-  @override
-  bool isEnabled(DismissIntent intent) =>
-      route.isActive && !route.isLeaving && route.allows(DismissTrigger.escape);
-
-  @override
-  void invoke(DismissIntent intent) => route.dismiss(DismissTrigger.escape);
 }
 
 final class _StatusProjection extends Animation<double>

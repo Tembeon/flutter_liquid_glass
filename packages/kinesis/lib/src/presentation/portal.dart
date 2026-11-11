@@ -39,6 +39,11 @@ final class PresentationPortalController {
 /// its anchor, so screen readers find the presentation right after [child],
 /// as they find the menu of a `RawMenuAnchor`. The labelled barrier is
 /// there as on a route.
+///
+/// The focus moves in at the open (see [Presentation.initialFocus]), Tab
+/// stays inside while the presentation is modal, and the focus goes back
+/// to what had it as soon as the presentation starts to leave, or to what
+/// had it before that when it is gone.
 class PresentationPortal extends StatefulWidget {
   /// Shows [presentation] over [child] when [controller] presents it.
   const PresentationPortal({
@@ -144,6 +149,7 @@ class _PresentationPortalState extends State<PresentationPortal>
     _restore = FocusManager.instance.primaryFocus;
     _canPop.value = false;
     _modal.value = presentation.modalOf(motion);
+    _trap();
     _overlay.show();
     // The scope's node joins the focus tree only in the build that shows
     // the overlay, and a scope node asked before that drops the request; the
@@ -195,12 +201,18 @@ class _PresentationPortalState extends State<PresentationPortal>
     _inert.value = leaving;
   }
 
+  // An opener that is gone hands the focus to the scope around the portal,
+  // which gives it to what had it before.
   void _restoreFocus() {
+    if (!_scope.hasFocus) return;
     final restore = _restore;
-    if (!_scope.hasFocus || restore == null || !restore.canRequestFocus) {
-      return;
+    if (restore != null &&
+        (restore.context?.mounted ?? false) &&
+        restore.canRequestFocus) {
+      restore.requestFocus();
+    } else {
+      _scope.unfocus(disposition: UnfocusDisposition.previouslyFocusedChild);
     }
-    restore.requestFocus();
   }
 
   @override
@@ -224,8 +236,15 @@ class _PresentationPortalState extends State<PresentationPortal>
   @override
   void modalityChanged() {
     final motion = _motion;
-    if (motion != null) _modal.value = widget.presentation.modalOf(motion);
+    if (motion == null) return;
+    _modal.value = widget.presentation.modalOf(motion);
+    _trap();
   }
+
+  // Tab stays inside a modal presentation, as in a dialog.
+  void _trap() => _scope.traversalEdgeBehavior = _modal.value
+      ? TraversalEdgeBehavior.closedLoop
+      : TraversalEdgeBehavior.parentScope;
 
   @override
   bool get isLeaving => _leaving;
@@ -276,25 +295,14 @@ class _PresentationPortalState extends State<PresentationPortal>
         ),
         Semantics(
           sortKey: const OrdinalSortKey(0),
-          scopesRoute: true,
-          namesRoute: presentation.semanticsLabel != null,
-          explicitChildNodes: true,
-          label: presentation.semanticsLabel,
-          onDismiss: presentation.dismiss.allows(DismissTrigger.accessibility)
-              ? () => dismiss(DismissTrigger.accessibility)
-              : null,
-          child: Actions(
-            actions: <Type, Action<Intent>>{
-              if (presentation.dismiss.allows(DismissTrigger.escape))
-                DismissIntent: CallbackAction<DismissIntent>(
-                  onInvoke: (_) {
-                    dismiss(DismissTrigger.escape);
-                    return null;
-                  },
-                ),
-            },
-            child: FocusScope(
-              node: _scope,
+          child: FocusScope(
+            node: _scope,
+            child: PresentationRoot(
+              isLeaving: () => _leaving,
+              allows: presentation.dismiss.allows,
+              dismiss: dismiss,
+              label: presentation.semanticsLabel,
+              initialFocus: presentation.initialFocus,
               child: PresentedContent(
                 presentation: presentation,
                 motion: motion,
