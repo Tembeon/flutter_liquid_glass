@@ -54,9 +54,10 @@ mixin MotionResolveHost on RenderObject {
 /// which Flutter flushes after the view's own layout and before its
 /// compositing bits and paint.
 ///
-/// It stays adopted while hosts are attached to the view and drops itself
-/// with the last one, so the view's owner has no children when it is
-/// disposed.
+/// It stays adopted while hosts are attached to the view and drops and
+/// disposes itself with the last one, so the view's owner has no children
+/// when it is disposed, and the semantics owner Flutter made for it once
+/// semantics turned on goes with it.
 final class _ResolveOwner extends PipelineOwner {
   factory _ResolveOwner.of(PipelineOwner view) {
     final existing = _owners[view];
@@ -88,6 +89,7 @@ final class _ResolveOwner extends PipelineOwner {
     if (owner._hosts.isNotEmpty) return;
     _owners[view] = null;
     view.dropChild(owner);
+    owner.dispose();
     if (--_live == 0) MotionTransaction.onLayoutTransaction = null;
   }
 

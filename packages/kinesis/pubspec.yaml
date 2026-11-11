@@ -24,4 +24,5 @@ dev_dependencies:
     sdk: flutter
   layer_rules:
     path: ../layer_rules
+  leak_tracker_flutter_testing: ^3.0.10
   lintervention: ^0.3.1
