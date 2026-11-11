@@ -1296,6 +1296,7 @@ abstract class ShaderKeys
   static final String backdropFrostAxis
   static final String backdropFrostSquare
   static final String fakeGlassSurface
+  static final List<String> fakeSurfaceAssets
   static String finalRender(String name)
   static List<String> get finalRenders
   static final String gpuGeometryShaderBundle

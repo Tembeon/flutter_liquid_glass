@@ -421,6 +421,14 @@ void _setFrost(
   }
 }
 
+/// One transparent pixel: what a sampler is bound to where a draw has no image
+/// of its own for it.
+final ui.Image transparentPixel = () {
+  final recorder = ui.PictureRecorder();
+  Canvas(recorder);
+  return recorder.endRecording().toImageSync(1, 1);
+}();
+
 const _identityMatrix = <double>[
   1, 0, 0, 0, 0, //
   0, 1, 0, 0, 0, //

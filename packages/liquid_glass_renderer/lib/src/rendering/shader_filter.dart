@@ -3,14 +3,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 
-/// One transparent pixel: what a sampler is bound to where a draw has no image
-/// of its own for it.
-final ui.Image transparentPixel = () {
-  final recorder = ui.PictureRecorder();
-  ui.Canvas(recorder);
-  return recorder.endRecording().toImageSync(1, 1);
-}();
-
 /// [ui.ImageFilter.shader] over [shader], reading its input bilinearly.
 ///
 /// Up to Flutter 3.47 the filter samples its input as the image bound to the
