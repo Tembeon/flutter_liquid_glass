@@ -123,8 +123,11 @@ void main() {
 
   test('the hover rule is a pressed wash at half strength on the glow '
       'spring', () {
-    expect(GlassHighlights.pressedWash, TouchGlowMotion.washOffset);
     expect(GlassHighlights.hoverGain, 0.5);
+    expect(
+      GlassHighlights.hoverColor.a,
+      closeTo(TouchGlowMotion.washOffset * GlassHighlights.hoverGain, 1e-6),
+    );
     expect(GlassHighlights.hoverColor.a, closeTo(0.025, 1e-6));
     expect(
       GlassHighlights.hoverSpring.response,
@@ -457,7 +460,7 @@ void main() {
           expect(bounds, box);
           expect(rings.single.contains(_body.center(Offset.zero)), isFalse);
         } else {
-          expect(bounds, box.inflate(GlassHighlights.ringWidth));
+          expect(bounds, box.inflate(3.5));
           expect(rings.single.contains(const Offset(1, 1)), isFalse);
         }
         states.update(WidgetState.focused, false);

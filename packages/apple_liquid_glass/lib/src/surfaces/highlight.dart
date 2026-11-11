@@ -13,9 +13,9 @@ import 'package:kinesis/motion.dart';
 /// The focus ring is Flutter's Cupertino one (`cupertino_ui` 1.1.4,
 /// `CupertinoButton`'s focus outline in `lib/src/button.dart` and
 /// `CupertinoFocusHalo` in `lib/src/cupertino_focus_halo.dart`, constants
-/// in `lib/src/constants.dart`): a [ringWidth] stroke outside the body's
-/// shape in the body's color at [ringOpacity] with its lightness and
-/// saturation set to [ringLightness] and [ringSaturation]; the color of an
+/// in `lib/src/constants.dart`): a 3.5 point stroke outside the body's
+/// shape in the body's color at 0.8 opacity with its lightness and
+/// saturation set to 0.69 and 0.835 ([ringColor]); the color of an
 /// untinted body is derived from systemBlue, as Cupertino's from
 /// `activeBlue`. It is an approximation of the platform pending a
 /// measurement. Under Increase Contrast the ring is opaque and its base
@@ -23,48 +23,48 @@ import 'package:kinesis/motion.dart';
 /// measured.
 ///
 /// The hover response is a pressed body's wash at [hoverGain] of its
-/// strength: [pressedWash] added to every color channel, eased in and out
-/// on [hoverSpring], with no scale, lift or spot. It also lifts the
+/// strength: the touch glow's wash offset added to every color channel
+/// ([hoverColor]), eased in and out on the spring a press's glow fades on,
+/// with no scale, lift or spot. It also lifts the
 /// content by the same amount, where a press's wash lies under it. A part
 /// that is not glass fills with [hoverGain] of its pressed fill instead.
 /// Both are approximations waiting for the owner's eye and for a
 /// measurement on macOS. Under Reduce Motion the response switches without
 /// motion. Only a mouse reports hover, so touch shows none.
 abstract final class GlassHighlights {
-  /// The width of the focus ring: `CupertinoButton`'s 3.5 point outside
-  /// border (`cupertino_ui` 1.1.4, `lib/src/button.dart:541`).
-  static const double ringWidth = 3.5;
+  // `CupertinoButton`'s 3.5 point outside border (`cupertino_ui` 1.1.4,
+  // `lib/src/button.dart:541`).
+  static const double _ringWidth = 3.5;
 
-  /// The opacity of the ring's color: `kCupertinoFocusColorOpacity`
-  /// (`cupertino_ui` 1.1.4, `lib/src/constants.dart:40`).
-  static const double ringOpacity = 0.8;
+  // `kCupertinoFocusColorOpacity` (`cupertino_ui` 1.1.4,
+  // `lib/src/constants.dart:40`).
+  static const double _ringOpacity = 0.8;
 
-  /// The lightness the ring's color takes: `kCupertinoFocusColorBrightness`
-  /// (`lib/src/constants.dart:41`).
-  static const double ringLightness = 0.69;
+  // `kCupertinoFocusColorBrightness` (`lib/src/constants.dart:41`).
+  static const double _ringLightness = 0.69;
 
-  /// The saturation the ring's color takes:
-  /// `kCupertinoFocusColorSaturation` (`lib/src/constants.dart:42`).
-  static const double ringSaturation = 0.835;
+  // `kCupertinoFocusColorSaturation` (`lib/src/constants.dart:42`).
+  static const double _ringSaturation = 0.835;
 
-  /// How much every color channel of a pressed glass body rises at the
-  /// press's full wash: the touch glow's wash offset.
-  static const double pressedWash = 0.05;
+  // The touch glow's wash offset: how much every color channel of a
+  // pressed glass body rises at the press's full wash.
+  static const double _pressedWash = 0.05;
 
   /// The share of its pressed response a hovered part shows.
   static const double hoverGain = 0.5;
 
   /// The spring the hover response eases in and out on: the one a press's
   /// glow fades on; under Reduce Motion it switches at once.
+  @internal
   static const Spring hoverSpring = Spring.response(
     0.5,
     reduced: Spring.immediate,
   );
 
   /// The color added to a hovered glass body by default: white at
-  /// [hoverGain] of [pressedWash].
+  /// [hoverGain] of the touch glow's wash offset.
   static const Color hoverColor = Color.from(
-    alpha: pressedWash * hoverGain,
+    alpha: _pressedWash * hoverGain,
     red: 1,
     green: 1,
     blue: 1,
@@ -80,17 +80,17 @@ abstract final class GlassHighlights {
   }) {
     final color =
         given ??
-        HSLColor.fromColor(base.withValues(alpha: ringOpacity))
-            .withLightness(ringLightness)
-            .withSaturation(ringSaturation)
+        HSLColor.fromColor(base.withValues(alpha: _ringOpacity))
+            .withLightness(_ringLightness)
+            .withSaturation(_ringSaturation)
             .toColor();
     return highContrast ? color.withValues(alpha: 1) : color;
   }
 
-  /// The ring's color for a glass body of [glass] under [traits]: from its
-  /// tint, else from systemBlue. A tint without a hue (white, a gray) gives
-  /// systemBlue's ring too, where Cupertino's rule would turn it red.
-  static Color ringColorOf(
+  // From the glass's tint, else from systemBlue. A tint without a hue
+  // (white, a gray) gives systemBlue's ring too, where Cupertino's rule
+  // would turn it red.
+  static Color _ringColorOf(
     Color? given,
     Glass glass,
     GlassTraits traits,
@@ -106,16 +106,17 @@ abstract final class GlassHighlights {
 
   static const double _hueless = 0.05;
 
-  /// Fills the ring of [width] around a body of [shape] drawn at [body],
-  /// outside it, or inside it when [inside]; an [outline] gives the
-  /// body's edge in place of the shape.
+  /// Fills the ring of [width], by default the focus ring's 3.5 points,
+  /// around a body of [shape] drawn at [body], outside it, or inside it
+  /// when [inside]; an [outline] gives the body's edge in place of the
+  /// shape.
   static void paintRing(
     Canvas canvas,
     Color color, {
     required GlassShape shape,
     required Rect body,
     GlassOutline? outline,
-    double width = ringWidth,
+    double width = _ringWidth,
     bool inside = false,
   }) {
     if (color.a <= 0 || body.isEmpty) return;
@@ -313,7 +314,7 @@ class GlassHighlightBox extends SingleChildRenderObjectWidget {
     return GlassHighlightBox(
       frame: details.frame,
       states: states,
-      focusColor: GlassHighlights.ringColorOf(
+      focusColor: GlassHighlights._ringColorOf(
         details.focusColor,
         details.glass,
         traits,
