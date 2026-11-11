@@ -2973,20 +2973,14 @@ enum PopoverArrowDirection
   left,
   right,
 class PopoverMotion extends Motion with Presented, PredictiveBack
-  PopoverMotion({
-    Spring presentSpring = ...,
-    Spring dismissSpring = ...,
-    double hiddenScale = ...,
-  })
+  PopoverMotion({double hiddenScale = ...})
   void dismiss(double t)
-  final Spring dismissSpring
   final double hiddenScale
   bool get isDismissed
   bool get isLeaving
   static const double margin
   double get opacity
   void present(double t)
-  final Spring presentSpring
   double get progress
   double get scale
   overrides: backEnded, backMoved, backStarted, leave, open, presence

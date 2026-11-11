@@ -144,17 +144,7 @@ abstract final class PopoverTuning {
 /// own path, not a recording.
 class PopoverMotion extends Motion with Presented, PredictiveBack {
   /// Creates the motion of a popover that is not shown yet.
-  PopoverMotion({
-    this.presentSpring = PopoverTuning.presentSpring,
-    this.dismissSpring = PopoverTuning.dismissSpring,
-    this.hiddenScale = PopoverTuning.hiddenScale,
-  });
-
-  /// The spring the popover presents on.
-  final Spring presentSpring;
-
-  /// The spring the popover dismisses on.
-  final Spring dismissSpring;
+  PopoverMotion({this.hiddenScale = PopoverTuning.hiddenScale});
 
   /// The scale of the hidden popover.
   final double hiddenScale;
@@ -170,7 +160,7 @@ class PopoverMotion extends Motion with Presented, PredictiveBack {
   static const double _rest = 1e-3;
 
   late final _progress = own(
-    MotionValue<double>(0, spring: presentSpring),
+    MotionValue<double>(0, spring: PopoverTuning.presentSpring),
     rest: () => _rest,
   );
   bool _dismissing = false;
@@ -185,14 +175,14 @@ class PopoverMotion extends Motion with Presented, PredictiveBack {
   void present(double t) {
     advance(t);
     _dismissing = false;
-    _progress.retarget(t, 1, spring: presentSpring);
+    _progress.retarget(t, 1, spring: PopoverTuning.presentSpring);
   }
 
   /// Starts dismissing the popover at time [t].
   void dismiss(double t) {
     advance(t);
     _dismissing = true;
-    _progress.retarget(t, 0, spring: dismissSpring);
+    _progress.retarget(t, 0, spring: PopoverTuning.dismissSpring);
   }
 
   @override
@@ -237,7 +227,7 @@ class PopoverMotion extends Motion with Presented, PredictiveBack {
   void backEnded(double t, {required bool commits, required double velocity}) {
     advance(t);
     _progress.setVelocity(t, -velocity);
-    if (!commits) _progress.retarget(t, 1, spring: presentSpring);
+    if (!commits) _progress.retarget(t, 1, spring: PopoverTuning.presentSpring);
   }
 }
 
