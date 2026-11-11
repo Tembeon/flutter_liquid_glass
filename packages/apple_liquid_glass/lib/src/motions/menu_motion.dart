@@ -68,7 +68,6 @@ class MenuTuning {
     this.glowDiameter = 160,
     this.glowRiseLag = 0.03,
     this.glowMinimumLit = 0.1,
-    this.highlightInset = 10,
     this.flex = FlexSpec.menu,
     this.flexInBoundsPoints = 40,
     this.flexPulseSpring = const Spring.response(0.574, dampingRatio: 0.548),
@@ -169,47 +168,11 @@ class MenuTuning {
   /// frames below it.
   static const double flexReturnRest = 0.01;
 
-  /// The row glyph size from the iOS 27 menu view tree, in points.
-  static const double rowIconSize = 20;
-
   /// The context preview/menu margin inside the safe area, in points.
   /// iOS 27 simulator fit captures (2026-10-24): a 390-point card in a
   /// 402-point window fits to 370; a tall preview spans y=78..824 with
   /// system insets 62/34. See the context-menu passport.
   static const double contextMargin = 16;
-
-  /// The gap below a row title, from the 60-point subtitle row view tree.
-  static const double subtitleGap = 2.67;
-
-  /// The checkmark bounds from the iOS 27 menu view tree.
-  static const Size checkSize = Size(13.33, 12.33);
-
-  /// The mixed-state dash bounds from the iOS 27 menu view tree.
-  static const Size mixedSize = Size(12.67, 3.67);
-
-  /// The submenu chevron bounds from the iOS 27 menu view tree.
-  static const Size chevronSize = Size(9.33, 12.67);
-
-  /// The selection glyph slot; a layout default, not measured.
-  static const double markSlot = 16;
-
-  /// The row image slot; a layout default, not measured.
-  static const double imageSlot = 30;
-
-  /// The cell highlight radius; a rendering default, not measured.
-  static const double cellHighlightRadius = 12;
-
-  /// Seconds the mouse rests on a submenu row before its card opens: 0,
-  /// the default `hoverOpenDelay` of Flutter's `SubmenuButton` (Flutter
-  /// 3.47, `material/menu_anchor.dart`), since no public document gives the
-  /// delay of a Mac menu. Not measured; a finger waits [hoverOpenDelay].
-  static const double mouseSubmenuDelay = 0;
-
-  /// The menu scroll indicator width; a rendering default, not measured.
-  static const double scrollThickness = 3;
-
-  /// The menu scroll indicator edge inset; a rendering default, not measured.
-  static const double scrollInset = 4;
 
   /// The layout of the inside of the menu.
   final MenuMetrics metrics;
@@ -599,9 +562,6 @@ class MenuTuning {
   /// where a long hold falls 26 ms after its lift. 0.1 is the rise
   /// spring's response; the captures' spread around it is not modelled.
   final double glowMinimumLit;
-
-  /// The horizontal inset of the highlight pill from the menu's sides.
-  final double highlightInset;
 
   /// The flex of the open menu under a finger: UIKit's flex interaction
   /// spec for menus, [FlexSpec.menu], applied by [flexTargets] and
@@ -1349,6 +1309,38 @@ class MenuMotion extends Motion with Presented {
     _place(1);
   }
 
+  /// Creates the motion of an iOS 27 context menu: the menu of the default
+  /// constructor on the context menu's morph, dimming the page under it,
+  /// beside the preview of [attachment].
+  MenuMotion.context({
+    required MenuSource source,
+    required Size bounds,
+    required MenuAttachment attachment,
+    MenuLayout Function({required bool reversed})? layout,
+    EdgeInsets padding = EdgeInsets.zero,
+    MotionClock? clock,
+  }) : this(
+         source: source,
+         bounds: bounds,
+         layout: layout,
+         padding: padding,
+         tuning: MenuTuning.context,
+         attachment: attachment,
+         clock: clock,
+       );
+
+  /// Seconds a held finger needs to open the menu without a release: a
+  /// host that takes the touch from its control once a hold opens the menu
+  /// claims it after this.
+  static double get holdDuration => MenuTuning.standard.holdDuration;
+
+  /// Seconds the mouse rests on a submenu row before its card opens: 0,
+  /// the default `hoverOpenDelay` of Flutter's `SubmenuButton` (Flutter
+  /// 3.47, `material/menu_anchor.dart`), since no public document gives the
+  /// delay of a Mac menu. Not measured; a finger waits
+  /// [MenuTuning.hoverOpenDelay].
+  static const double mouseSubmenuDelay = 0;
+
   // UIKit's link for the open and the close asks for 48 - 120 Hz and the
   // device's rows step at 120 Hz [device, menu-button.md]: at 60 the morph
   // reads as stuttering beside everything else on a 120 Hz screen.
@@ -1358,6 +1350,15 @@ class MenuMotion extends Motion with Presented {
   /// The measured behavior this motion reproduces.
   @internal
   final MenuTuning tuning;
+
+  /// The width of the open menu.
+  double get menuWidth => tuning.menuWidth;
+
+  /// The height of one row.
+  double get rowHeight => tuning.rowHeight;
+
+  /// The corner radius of the open menu.
+  double get cornerRadius => tuning.cornerRadius;
 
   late final MotionValue<double> _progress = own(
     MotionValue<double>(0, spring: tuning.openSpring),

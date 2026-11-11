@@ -1085,7 +1085,6 @@ class GlassMenuAnchor extends StatefulWidget
     String? semanticLabel,
     GlassMenuOrder order = ...,
     GlassMenuStyle? style,
-    @internal MenuTuning tuning = ...,
     @internal MenuSource? Function(RenderBox)? sourceOf,
     @internal bool scalesOnPress = ...,
     Key? key,
@@ -1102,7 +1101,6 @@ class GlassMenuAnchor extends StatefulWidget
   final String? semanticLabel
   @internal final MenuSource? Function(RenderBox)? sourceOf
   final GlassMenuStyle? style
-  @internal final MenuTuning tuning
   overrides: createState
 typedef GlassMenuAnchorChildBuilder = Widget Function(BuildContext, GlassMenuController, Widget?)
 class GlassMenuController
@@ -2652,6 +2650,14 @@ class MenuMetrics
   final double widgetInset
   final double width
 class MenuMotion extends Motion with Presented
+  MenuMotion.context({
+    required MenuSource source,
+    required Size bounds,
+    required MenuAttachment attachment,
+    MenuLayout Function({required bool reversed})? layout,
+    EdgeInsets padding = ...,
+    MotionClock? clock,
+  })
   MenuMotion({
     required MenuSource source,
     required Size bounds,
@@ -2680,6 +2686,7 @@ class MenuMotion extends Motion with Presented
   Rect get contentRect
   double get contentScale
   Offset get contentStretch
+  double get cornerRadius
   double get dim
   bool? dismissOnSelect
   List<MenuEvent> drainEvents()
@@ -2691,6 +2698,7 @@ class MenuMotion extends Motion with Presented
   void highlight(double t, int? index)
   int? get highlighted
   int get highlightedCard
+  static double get holdDuration
   void holdOpen(double t, Offset position)
   bool get isArming
   bool isBesideCard(Offset position)
@@ -2706,6 +2714,8 @@ class MenuMotion extends Motion with Presented
   @internal MenuBlob get menuBlob
   double get menuKick
   Rect get menuRect
+  double get menuWidth
+  static const double mouseSubmenuDelay
   void openAfterTap(double t)
   bool get opensDown
   bool opensOnTap
@@ -2740,6 +2750,7 @@ class MenuMotion extends Motion with Presented
   @internal MenuBlob get rootBlob
   GlassTouchGlow? get rootGlow
   int? rowAt(Offset position)
+  double get rowHeight
   double scrollOffset
   void select(double t, int index)
   GlassOutline? get silhouette

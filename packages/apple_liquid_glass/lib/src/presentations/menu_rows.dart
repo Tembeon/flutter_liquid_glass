@@ -3,7 +3,6 @@ import 'dart:ui' as ui;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
-import 'package:apple_liquid_glass/src/motions/menu_motion.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_appearance.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_content.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_entries.dart';
@@ -308,11 +307,11 @@ class _MenuElement extends StatelessWidget {
           if (check != null && state != GlassMenuItemState.off)
             _at(
               check,
-              MenuTuning.markSlot,
+              MenuAppearance.markSlot,
               CustomPaint(
                 size: state == GlassMenuItemState.on
-                    ? MenuTuning.checkSize
-                    : MenuTuning.mixedSize,
+                    ? MenuAppearance.checkSize
+                    : MenuAppearance.mixedSize,
                 painter: _MarkPainter(
                   color: color,
                   mixed: state == GlassMenuItemState.mixed,
@@ -322,7 +321,7 @@ class _MenuElement extends StatelessWidget {
           if (image != null && icon != null)
             _at(
               image,
-              MenuTuning.imageSlot,
+              MenuAppearance.imageSlot,
               IconTheme.merge(
                 data: IconThemeData(
                   size: style.iconSize,
@@ -348,7 +347,7 @@ class _MenuElement extends StatelessWidget {
                   maxLines: element.maxLines,
                 ),
                 if (subtitle != null) ...[
-                  const SizedBox(height: MenuTuning.subtitleGap),
+                  const SizedBox(height: MenuAppearance.subtitleGap),
                   _text(
                     context,
                     subtitle,
@@ -362,11 +361,11 @@ class _MenuElement extends StatelessWidget {
           if (submenu)
             _at(
               _metrics.chevronCenter,
-              MenuTuning.markSlot,
+              MenuAppearance.markSlot,
               Transform.flip(
                 flipX: content.rtl,
                 child: CustomPaint(
-                  size: MenuTuning.chevronSize,
+                  size: MenuAppearance.chevronSize,
                   painter: _ChevronPainter(color: color),
                 ),
               ),
@@ -521,7 +520,7 @@ class _MenuElement extends StatelessWidget {
         children: [
           _at(
             check,
-            MenuTuning.imageSlot,
+            MenuAppearance.imageSlot,
             _Spinner(color: style.disabledColor),
           ),
           PositionedDirectional(
@@ -796,8 +795,8 @@ class MenuCardHeader extends StatelessWidget {
                 frames,
                 (_) => menuPlacement(
                   _span(
-                    placed().imageCenter! - MenuTuning.imageSlot / 2,
-                    MenuTuning.imageSlot,
+                    placed().imageCenter! - MenuAppearance.imageSlot / 2,
+                    MenuAppearance.imageSlot,
                     height,
                     rtl,
                   ),
@@ -839,8 +838,8 @@ class MenuCardHeader extends StatelessWidget {
               ),
             ),
             PositionedDirectional(
-              start: metrics.chevronCenter - MenuTuning.markSlot / 2,
-              width: MenuTuning.markSlot,
+              start: metrics.chevronCenter - MenuAppearance.markSlot / 2,
+              width: MenuAppearance.markSlot,
               top: 0,
               bottom: 0,
               child: Center(
@@ -852,7 +851,7 @@ class MenuCardHeader extends StatelessWidget {
                       angle: values().turn * math.pi / 2,
                     ),
                     child: CustomPaint(
-                      size: MenuTuning.chevronSize,
+                      size: MenuAppearance.chevronSize,
                       painter: _ChevronPainter(color: _title),
                     ),
                   ),

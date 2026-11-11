@@ -1,5 +1,4 @@
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/motions/menu_motion.dart';
 import 'package:flutter/widgets.dart';
 import 'package:meta/meta.dart';
 
@@ -117,7 +116,7 @@ class MenuAppearance {
   /// Creates an appearance; the defaults are the iOS 27 light appearance.
   const MenuAppearance({
     this.textStyle = const TextStyle(fontSize: 17, color: Color(0xF5000000)),
-    this.iconSize = MenuTuning.rowIconSize,
+    this.iconSize = rowIconSize,
     this.destructiveColor = const Color(0xFFFF383C),
     this.highlightColor = const Color(0x1F000000),
     this.secondaryColor = const Color(0x993C3C43),
@@ -187,6 +186,39 @@ class MenuAppearance {
   /// The platter under the selected palette cell (sampled: 233 on 249
   /// light, 53 on 32 dark).
   final Color paletteSelectionColor;
+
+  /// The row glyph size from the iOS 27 menu view tree, in points.
+  static const double rowIconSize = 20;
+
+  /// The gap below a row title, from the 60-point subtitle row view tree.
+  static const double subtitleGap = 2.67;
+
+  /// The checkmark bounds from the iOS 27 menu view tree.
+  static const Size checkSize = Size(13.33, 12.33);
+
+  /// The mixed-state dash bounds from the iOS 27 menu view tree.
+  static const Size mixedSize = Size(12.67, 3.67);
+
+  /// The submenu chevron bounds from the iOS 27 menu view tree.
+  static const Size chevronSize = Size(9.33, 12.67);
+
+  /// The selection glyph slot; a layout default, not measured.
+  static const double markSlot = 16;
+
+  /// The row image slot; a layout default, not measured.
+  static const double imageSlot = 30;
+
+  /// The horizontal inset of the highlight pill from the menu's sides.
+  static const double highlightInset = 10;
+
+  /// The cell highlight radius; a rendering default, not measured.
+  static const double cellHighlightRadius = 12;
+
+  /// The menu scroll indicator width; a rendering default, not measured.
+  static const double scrollThickness = 3;
+
+  /// The menu scroll indicator edge inset; a rendering default, not measured.
+  static const double scrollInset = 4;
 
   /// The light appearance.
   static const light = MenuAppearance();

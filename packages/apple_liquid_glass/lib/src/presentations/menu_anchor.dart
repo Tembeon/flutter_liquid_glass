@@ -6,7 +6,6 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/motions/menu_fusion.dart';
-import 'package:apple_liquid_glass/src/motions/menu_motion.dart';
 import 'package:apple_liquid_glass/src/motions/menu_outline_math.dart';
 import 'package:apple_liquid_glass/src/motions/outline_boxes.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_appearance.dart';
@@ -467,7 +466,6 @@ class GlassMenuAnchor extends StatefulWidget {
     this.semanticLabel,
     this.order = GlassMenuOrder.automatic,
     this.style,
-    @internal this.tuning = MenuTuning.standard,
     @internal this.sourceOf,
     @internal this.scalesOnPress = true,
     super.key,
@@ -505,11 +503,6 @@ class GlassMenuAnchor extends StatefulWidget {
 
   /// The look of the menu's rows, over the theme's.
   final GlassMenuStyle? style;
-
-  /// The measured behavior of the menu, read once: a later tuning is
-  /// ignored.
-  @internal
-  final MenuTuning tuning;
 
   /// Where the menu grows out of in the coordinates of the given overlay,
   /// when that is not the control, or null to use the control.
@@ -621,7 +614,6 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
       layout: _content.root,
       bounds: bounds,
       padding: padding,
-      tuning: widget.tuning,
     );
     motion.opensOnTap = false;
     return motion;
@@ -656,7 +648,7 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
   // Takes the touch from the control once a hold opens the menu; until then
   // the control's claims do not hold it, so its release still taps.
   late final _hold = _MenuInput(
-    claimAfter: widget.tuning.holdDuration,
+    claimAfter: MenuMotion.holdDuration,
     contends: true,
     down: (pointer, t, global) => pointer == _pointer,
     move: (pointer, t, global) {},
@@ -958,7 +950,7 @@ class _MenuLayerState extends State<_MenuLayer> {
 
   MenuMotion get _motion => _host._motion!;
 
-  double get _width => _motion.tuning.menuWidth;
+  double get _width => _motion.menuWidth;
 
   bool get _rtl => _host._content.rtl;
 
@@ -1174,7 +1166,7 @@ class _MenuLayerState extends State<_MenuLayer> {
         onEnter: () => _rowEntered(id),
       ),
       HoverDwellInteraction(
-        duration: MenuTuning.mouseSubmenuDelay,
+        duration: MenuMotion.mouseSubmenuDelay,
         onDwell: (_) => _dwelled(id),
       ),
     ],
@@ -1307,7 +1299,7 @@ class _MenuLayerState extends State<_MenuLayer> {
       MenuPlacedKind.medium => true,
       _ => false,
     };
-    final inset = _motion.tuning.highlightInset;
+    const inset = MenuAppearance.highlightInset;
     final rect = cell
         ? target.rect
         : Rect.fromLTRB(
@@ -1320,8 +1312,8 @@ class _MenuLayerState extends State<_MenuLayer> {
       rect,
       Radius.circular(
         cell
-            ? MenuTuning.cellHighlightRadius
-            : math.min(rect.height / 2, _motion.tuning.rowHeight / 2),
+            ? MenuAppearance.cellHighlightRadius
+            : math.min(rect.height / 2, _motion.rowHeight / 2),
       ),
     );
   }
@@ -1404,10 +1396,10 @@ class _MenuLayerState extends State<_MenuLayer> {
             child: RawScrollbar(
               controller: _scroll,
               thumbColor: style.secondaryColor,
-              thickness: MenuTuning.scrollThickness,
-              radius: const Radius.circular(MenuTuning.scrollThickness / 2),
-              mainAxisMargin: _motion.tuning.cornerRadius / 2,
-              crossAxisMargin: MenuTuning.scrollInset,
+              thickness: MenuAppearance.scrollThickness,
+              radius: const Radius.circular(MenuAppearance.scrollThickness / 2),
+              mainAxisMargin: _motion.cornerRadius / 2,
+              crossAxisMargin: MenuAppearance.scrollInset,
               child: CustomScrollView(
                 controller: _scroll,
                 physics: locked ? const NeverScrollableScrollPhysics() : null,
@@ -1423,7 +1415,7 @@ class _MenuLayerState extends State<_MenuLayer> {
           );
     return ClipRRect(
       borderRadius: BorderRadius.circular(
-        locked ? _motion.tuning.cornerRadius : 0,
+        locked ? _motion.cornerRadius : 0,
       ),
       child: IgnorePointer(ignoring: locked, child: body),
     );
@@ -1473,8 +1465,7 @@ class _MenuLayerState extends State<_MenuLayer> {
     for (final element in layout.elements) {
       if (element.kind == MenuPlacedKind.cardHeader) header = element;
     }
-    double radius() =>
-        math.min(_motion.tuning.cornerRadius, card().rect.height / 2);
+    double radius() => math.min(_motion.cornerRadius, card().rect.height / 2);
     return _driven(
       key: ValueKey<int>(index),
       (motion) {
@@ -2075,12 +2066,11 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     EdgeInsets padding,
   ) {
     final attachment = _attach(source.shape, bounds, padding);
-    final motion = MenuMotion(
+    final motion = MenuMotion.context(
       source: source,
       layout: _content.root,
       bounds: bounds,
       padding: padding,
-      tuning: MenuTuning.context,
       attachment: attachment,
     );
     _placePreview(motion, source.shape);
