@@ -23,6 +23,7 @@ export 'src/motions/bar_layout.dart'
         GlassBarCapsuleSpec,
         GlassBarItemId,
         GlassBarMetrics,
+        GlassBarSegment,
         layoutGlassBar;
 export 'src/motions/bar_motion.dart'
     show

@@ -364,6 +364,10 @@ final class GlassBarMotion extends Motion
   })
   GlassBarTransitionSpec spec
   overrides: didAdvance
+enum GlassBarSegment
+  leading,
+  center,
+  trailing,
 final class GlassBarSpacer extends GlassBarEntry
   const GlassBarSpacer.flexible()
   const GlassBarSpacer()
@@ -3894,6 +3898,7 @@ class GlassBarItemFrame (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassBarItemId (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassBarMetrics (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassBarMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassBarSegment (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassBarTransitionSpec (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPress (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSheetDetent (see package:apple_liquid_glass/apple_liquid_glass.dart)

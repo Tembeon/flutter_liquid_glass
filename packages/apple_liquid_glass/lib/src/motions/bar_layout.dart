@@ -157,13 +157,23 @@ class GlassBarItemId {
   String toString() => 'GlassBarItemId($id, $index)';
 }
 
-/// The segment of the capsules of a bar's leading run.
-@internal
-const Object glassBarLeading = 'leading';
+/// The part of a bar a capsule belongs to: the run before the title, the
+/// runs a toolbar's flexible spaces leave between the ends, or the run
+/// after it.
+///
+/// It is the [GlassBarCapsuleLayout.segment] of a leading or trailing
+/// capsule; a capsule of the center runs carries the pair of [center] and
+/// the run's index, so a change pairs capsules only within one run.
+enum GlassBarSegment {
+  /// The run that starts at the leading side.
+  leading,
 
-/// The segment of the capsules of a bar's trailing run.
-@internal
-const Object glassBarTrailing = 'trailing';
+  /// The runs between the leading and trailing ones.
+  center,
+
+  /// The run that ends at the trailing side.
+  trailing,
+}
 
 /// Lays out a bar [width] wide with its capsules' top at [top]:
 /// [leading] from [leadingInset], [trailing] ending [trailingInset] from
@@ -188,9 +198,9 @@ List<GlassBarCapsuleLayout> layoutGlassBar({
   var x = leadingInset;
   for (var i = 0; i < leading.length; i++) {
     final c = _capsule(leading[i], x, top, metrics, (
-      glassBarLeading,
+      GlassBarSegment.leading,
       i,
-    ), glassBarLeading);
+    ), GlassBarSegment.leading);
     out.add(c);
     x = c.rect.right + metrics.groupGap;
   }
@@ -202,8 +212,8 @@ List<GlassBarCapsuleLayout> layoutGlassBar({
       0,
       top,
       metrics,
-      (glassBarTrailing, i),
-      glassBarTrailing,
+      (GlassBarSegment.trailing, i),
+      GlassBarSegment.trailing,
     );
     final shifted = _shift(c, right - c.rect.width);
     out.add(shifted);
@@ -215,7 +225,7 @@ List<GlassBarCapsuleLayout> layoutGlassBar({
   if (center.isNotEmpty) {
     final share = (trailingStart - leadingEnd) / center.length;
     for (var r = 0; r < center.length; r++) {
-      final segment = ('center', r);
+      final segment = (GlassBarSegment.center, r);
       final run = [
         for (var i = 0; i < center[r].length; i++)
           _capsule(center[r][i], 0, top, metrics, (segment, i), segment),

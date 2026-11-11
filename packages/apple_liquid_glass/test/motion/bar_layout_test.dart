@@ -81,8 +81,8 @@ void main() {
     );
     _expectCapsule(page4[1], cx: 349.2, w: 73.7);
     _expectCapsule(page4[2], cx: 278.3, w: 44);
-    expect(page4[1].id, ('trailing', 0));
-    expect(page4[2].id, ('trailing', 1));
+    expect(page4[1].id, (GlassBarSegment.trailing, 0));
+    expect(page4[2].id, (GlassBarSegment.trailing, 1));
     expect(page4.every((c) => c.anonymous), isTrue);
   });
 
@@ -141,7 +141,7 @@ void main() {
       ],
     ).single;
     expect(middle.rect.center.dx, closeTo(201, 1e-9));
-    expect(middle.segment, ('center', 0));
+    expect(middle.segment, (GlassBarSegment.center, 0));
   });
 
   test('right to left mirrors the bar', () {

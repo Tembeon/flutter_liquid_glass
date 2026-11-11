@@ -4,7 +4,6 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/presentations.dart';
 import 'package:apple_liquid_glass/raw.dart';
-import 'package:apple_liquid_glass/src/motions/bar_layout.dart';
 import 'package:apple_liquid_glass/src/navigation/bar_entry.dart';
 import 'package:apple_liquid_glass/src/navigation/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/navigation/toolbar.dart';
@@ -1201,7 +1200,7 @@ final class _Bar {
     var start = sideInset;
     var end = width - sideInset;
     for (final capsule in layout) {
-      final leading = capsule.segment == glassBarLeading;
+      final leading = capsule.segment == GlassBarSegment.leading;
       if (leading != rtl) {
         start = math.max(start, capsule.rect.right + padding);
       } else {
