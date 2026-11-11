@@ -42,25 +42,25 @@ final class GlassStepperDetails {
   final Set<WidgetState> states;
 }
 
-/// A stepper with the behavior of iOS 27's `UIStepper` and no look of its
-/// own: [builder] decides how it looks.
+/// A stepper with the behavior of iOS 27's `UIStepper` and no look of its own:
+/// [builder] decides how it looks.
 ///
 /// UIKit: `UIStepper`. SwiftUI: `Stepper`. Flutter: none.
 ///
-/// There is no motion: a held half highlights at once and clears on
-/// release. A tap commits on release; a held half repeats every
-/// [repeatInterval], first after that long, without acceleration. Sliding
-/// to the other half moves the highlight and the repeat with it without a
-/// step, and leaving the control's 44 point tall target, which reaches
-/// above and below its 32 point box where its parent leaves that room,
-/// cancels the touch. Minus stays on the left in a right-to-left context,
-/// as UIKit's does (stepper passport, device), and so do the arrow keys:
-/// left and down decrement, right and up increment, in either direction.
-/// Home and End take the value to [min] and [max]; the stepper has no
-/// larger step, so Page Up and Page Down do nothing, and neither do Space
-/// and Enter, as on Flutter's `Slider`. Screen readers see two buttons that
-/// announce the value and run the same commands as the keys, inside one
-/// adjustable node with the value and the accessibility increase and
+/// There is no motion: a held half highlights at once and clears on release. A
+/// tap commits on release; a held half repeats every [repeatInterval], first
+/// after that long, without acceleration. Sliding to the other half moves the
+/// highlight and the repeat with it without a step, and leaving the control's
+/// 44 point tall target, which reaches above and below its 32 point box where
+/// its parent leaves that room, cancels the touch. Minus stays on the left in a
+/// right-to-left context, as UIKit's does (stepper passport, device), and so do
+/// the arrow keys: left and down decrement, right and up increment, in either
+/// direction. Home and End take the value to [min] and [max]; the stepper has
+/// no larger step, so Page Up and Page Down do nothing, and neither do Space
+/// and Enter, as on Flutter's `Slider`. The stepper is one Tab stop; its halves
+/// are zones that are not focus targets. Screen readers see two buttons with 44
+/// point targets that announce the value and run the same commands as the keys,
+/// inside one adjustable node with the value and the accessibility increase and
 /// decrease. A disabled stepper ignores input; [builder] sees
 /// [WidgetState.disabled].
 class RawGlassStepper extends StatefulWidget {
@@ -138,6 +138,11 @@ class _RawGlassStepperState extends State<RawGlassStepper>
     onCommand: _command,
   );
   late final List<Interaction> _interactions = [_input];
+  late final Map<GlassStepperHalf, _HalfButton> _halfInputs = {
+    for (final half in GlassStepperHalf.values)
+      half: _HalfButton(() => _halfActivated(half)),
+  };
+  final GlobalKey _halves = GlobalKey();
   GlassStepperHalf? _pressed;
 
   @override
@@ -199,27 +204,17 @@ class _RawGlassStepperState extends State<RawGlassStepper>
     String format(double value) =>
         widget.semanticFormatterCallback?.call(value) ?? _format(value);
     final value = format(_value);
-    Widget half(GlassStepperHalf half, String label) => Expanded(
-      child: Builder(
-        builder: (context) => Semantics(
-          container: true,
-          button: true,
+    InputZone<GlassStepperHalf> half(GlassStepperHalf half, String label) =>
+        InputZone(
+          id: half,
+          interactions: [_halfInputs[half]!],
           enabled: enabled && _canStep(half),
-          label: label,
-          value: value,
-          onTap: enabled
-              ? () => Actions.maybeInvoke(
-                  context,
-                  AdjustValueIntent(switch (half) {
-                    GlassStepperHalf.decrement => ValueCommand.decrease,
-                    GlassStepperHalf.increment => ValueCommand.increase,
-                  }),
-                )
-              : null,
-          child: const SizedBox.expand(),
-        ),
-      ),
-    );
+          focusable: false,
+          minimumHitSize: const Size.square(44),
+          semanticLabel: label,
+          semanticValue: value,
+          button: true,
+        );
     final direction = Directionality.of(context);
     // The region lays its arrow keys out left to right, as the halves are.
     return Directionality(
@@ -237,39 +232,62 @@ class _RawGlassStepperState extends State<RawGlassStepper>
           decreasedValue: format(_after(GlassStepperHalf.decrement)),
           child: SizedBox.fromSize(
             size: RawGlassStepper.size,
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: ExcludeSemantics(
-                    child: Directionality(
-                      textDirection: direction,
-                      child: Builder(
-                        builder: (context) => widget.builder(
-                          context,
-                          GlassStepperDetails(
-                            pressed: _pressed,
-                            canDecrement: _canStep(GlassStepperHalf.decrement),
-                            canIncrement: _canStep(GlassStepperHalf.increment),
-                            states: {...widgetStates.value},
-                          ),
-                        ),
-                      ),
+            child: InputZones<GlassStepperHalf>(
+              key: _halves,
+              zones: [
+                half(GlassStepperHalf.decrement, widget.decrementLabel),
+                half(GlassStepperHalf.increment, widget.incrementLabel),
+              ],
+              frameOf: _frameOf,
+              frames: _still,
+              child: Directionality(
+                textDirection: direction,
+                child: Builder(
+                  builder: (context) => widget.builder(
+                    context,
+                    GlassStepperDetails(
+                      pressed: _pressed,
+                      canDecrement: _canStep(GlassStepperHalf.decrement),
+                      canIncrement: _canStep(GlassStepperHalf.increment),
+                      states: {...widgetStates.value},
                     ),
                   ),
                 ),
-                Positioned.fill(
-                  child: Row(
-                    children: [
-                      half(GlassStepperHalf.decrement, widget.decrementLabel),
-                      half(GlassStepperHalf.increment, widget.incrementLabel),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  static final Listenable _still = Listenable.merge(const []);
+
+  static InputZoneFrame _frameOf(GlassStepperHalf half) {
+    final halfSize = Size(
+      RawGlassStepper.size.width / 2,
+      RawGlassStepper.size.height,
+    );
+    return InputZoneFrame(
+      switch (half) {
+            GlassStepperHalf.decrement => Offset.zero,
+            GlassStepperHalf.increment => Offset(halfSize.width, 0),
+          } &
+          halfSize,
+    );
+  }
+
+  // A half's button runs the stepper's own command through the actions
+  // above the halves, so an app that overrides AdjustValueIntent hears it.
+  void _halfActivated(GlassStepperHalf half) {
+    final context = _halves.currentContext;
+    if (context == null) return;
+    Actions.maybeInvoke(
+      context,
+      AdjustValueIntent(switch (half) {
+        GlassStepperHalf.decrement => ValueCommand.decrease,
+        GlassStepperHalf.increment => ValueCommand.increase,
+      }),
     );
   }
 
@@ -279,6 +297,26 @@ class _RawGlassStepperState extends State<RawGlassStepper>
     return number == number.truncateToDouble()
         ? number.toInt().toString()
         : number.toString();
+  }
+}
+
+/// A half's button for the keyboard-free activation assistive technology
+/// sends; touch stays with the stepper's own input around the halves.
+final class _HalfButton extends Interaction {
+  _HalfButton(this.onActivate) : super(role: InteractionRole.control);
+
+  final VoidCallback onActivate;
+
+  @override
+  bool get activates => true;
+
+  @override
+  bool accepts(PointerDownInput down) => false;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    if (input is ActivateInput) onActivate();
+    return InteractionUpdate.none;
   }
 }
 

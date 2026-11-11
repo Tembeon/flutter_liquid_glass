@@ -299,7 +299,7 @@ void main() {
           matchesSemantics(
             label: 'Decrement',
             value: '5',
-            rect: const Rect.fromLTWH(0, 0, 47, 32),
+            rect: const Rect.fromLTWH(0, 0, 47, 44),
             isButton: true,
             hasTapAction: true,
             hasEnabledState: true,
@@ -308,7 +308,7 @@ void main() {
           matchesSemantics(
             label: 'Increment',
             value: '5',
-            rect: const Rect.fromLTWH(0, 0, 47, 32),
+            rect: const Rect.fromLTWH(0, 0, 47, 44),
             isButton: true,
             hasTapAction: true,
             hasEnabledState: true,
@@ -316,6 +316,15 @@ void main() {
           ),
         ],
       ),
+    );
+    final origin = tester.getTopLeft(find.byType(RawGlassStepper));
+    expect(
+      tester.getRect(find.bySemanticsLabel('Decrement')).shift(-origin),
+      const Rect.fromLTWH(0, -6, 47, 44),
+    );
+    expect(
+      tester.getRect(find.bySemanticsLabel('Increment')).shift(-origin),
+      const Rect.fromLTWH(47, -6, 47, 44),
     );
     tester.semantics.increase(
       find.semantics.byAction(SemanticsAction.increase),
