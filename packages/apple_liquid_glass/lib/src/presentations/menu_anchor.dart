@@ -11,6 +11,8 @@ import 'package:apple_liquid_glass/src/presentations/menu_card_geometry.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_content.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_entries.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_layer_highlight.dart';
+import 'package:apple_liquid_glass/src/presentations/menu_layer_hover.dart';
+import 'package:apple_liquid_glass/src/presentations/menu_layer_keys.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_layer_scope.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_layer_scroll.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_rows.dart';

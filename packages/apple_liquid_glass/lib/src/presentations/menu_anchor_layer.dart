@@ -23,17 +23,18 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
   late final _scroll = MenuLayerScroll(this);
   final _ids = MenuZoneIds();
   late final _highlight = MenuLayerHighlight(this, zones: _zones, ids: _ids);
+  late final _keys = MenuLayerKeys(
+    this,
+    zones: _zones,
+    ids: _ids,
+    scroll: _scroll,
+  );
+  late final _hover = MenuLayerHover(this, keys: _keys);
   final Map<MenuLayout, (int?, Widget)> _rows = Map.identity();
   final _zones = InputZonesController<int>();
   final Map<int, List<Interaction>> _rowInputs = {};
   MenuAppearance? _rowsStyle;
   late MenuLayerStructure _built;
-
-  // The row of the next top card the keyboard moves to: -1 for its first
-  // row, else a target index; null when no key changed the card.
-  int? _pending;
-  int? _lastFocused;
-  bool _cardEntered = false;
 
   _MenuHost<StatefulWidget> get _host => widget.host;
 
@@ -48,7 +49,7 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
     heard: _host._takeHeard,
   );
 
-  late final _hover = _HoverInput(onHover: _hovered);
+  late final _hoverInput = _HoverInput(onHover: _hovered);
 
   MenuMotion get _motion => _host._motion!;
 
@@ -67,20 +68,18 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
 
   double get _width => _motion.menuWidth;
 
-  bool get _rtl => _host._content.rtl;
-
   @override
   void initState() {
     super.initState();
     frames.addListener(_tick);
-    _zones.addListener(_focusMoved);
+    _zones.addListener(_keys.focusMoved);
     _built = _structure();
   }
 
   @override
   void dispose() {
     frames.removeListener(_tick);
-    _zones.removeListener(_focusMoved);
+    _zones.removeListener(_keys.focusMoved);
     _zones.dispose();
     _scroll.dispose();
     super.dispose();
@@ -102,199 +101,43 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
   void _tick() {
     final structure = _structure();
     if (structure == _built) return;
-    if (structure.top != _built.top) _cardChanged(structure.top);
-    setState(() => _built = structure);
-  }
-
-  /// The top card is now [top]: the focus a key asked for moves onto its
-  /// row, carried by the zone that has the focus.
-  void _cardChanged(int top) {
-    final pending = _pending;
-    _pending = null;
-    _cardEntered = false;
-    final focused = _zones.focusedZone;
-    _ids.clear();
-    if (pending == null || focused == null) return;
-    final targets = _motion.cards[top].layout.targets;
-    var target = pending;
-    if (pending < 0) {
-      target = targets.indexWhere(
-        (MenuTarget t) => t.kind != MenuTargetKind.back,
-      );
-      if (target < 0) target = 0;
+    if (structure.top != _built.top) {
+      _keys.cardChanged(structure.top);
+      _hover.cardChanged();
     }
-    if (target >= targets.length || target == focused) return;
-    _ids.swap(focused, target);
+    setState(() => _built = structure);
   }
 
   /// Whether the rows the zones stand for are the top card's now.
   @override
-  bool get current => _current;
-
-  bool get _current {
+  bool get current {
     final motion = _motion;
     return motion.isOpen && motion.topCard == _built.top;
   }
 
-  MenuTarget? _targetAt(int index) => _built.targetAt(index);
-
-  /// Chooses [index] of the top card; [pending] is where the focus moves
-  /// when that changes the card, or null to leave it.
-  void _choose(int index, {int? pending}) {
-    if (!_current) return;
-    final target = _targetAt(index);
-    if (target == null) return;
-    _pending = switch (target.kind) {
-      MenuTargetKind.submenu => pending,
-      MenuTargetKind.back =>
-        pending == null ? null : _motion.cards[_built.top].source,
-      MenuTargetKind.action => null,
-    };
-    _host._command((motion, t) => motion.select(t, index));
-  }
-
-  void _back({required bool keys}) {
-    if (!_current || _built.top == 0) return;
-    if (keys) _pending = _motion.cards[_built.top].source;
-    _host._command((motion, t) => motion.back(t));
-  }
-
-  void _focusMoved() {
-    final id = _zones.focusedZone;
-    if (id == _lastFocused) return;
-    _lastFocused = id;
-    if (id == null || !_current) return;
-    final index = _ids.targetOf(id);
-    if (_motion.highlighted != index || _motion.highlightedCard != _built.top) {
-      _host._command((motion, t) => motion.highlight(t, index));
-    }
-    _scroll.reveal(index);
-  }
-
   void _menuFocused(bool focused) {
-    if (!focused ||
-        FocusManager.instance.highlightMode != FocusHighlightMode.traditional) {
-      return;
-    }
-    final targets = _built.layouts[_built.top].targets;
-    if (targets.isEmpty) return;
-    _zones.requestFocus(_ids.idOf(0));
+    if (focused) _keys.menuFocused();
   }
 
-  // The arrow toward the trailing edge opens a submenu row's card, the one
-  // toward the leading edge goes back; past the first or the last row the
-  // focus stays.
-  bool _edge(int id, TraversalDirection direction) {
-    final into = _rtl ? TraversalDirection.left : TraversalDirection.right;
-    final out = _rtl ? TraversalDirection.right : TraversalDirection.left;
-    final index = _ids.targetOf(id);
-    if (direction == into && _targetAt(index)?.kind == MenuTargetKind.submenu) {
-      _choose(index, pending: -1);
-    } else if (direction == out) {
-      _back(keys: true);
-    }
-    return true;
-  }
-
-  // The mouse that rests on a row moves the focus there, as Flutter's menu
-  // items do; a row scrolled out of the list takes nothing.
-  void _rowEntered(int id) {
-    if (!_current) return;
-    final rect = _motion.targetRect(_ids.targetOf(id));
-    if (rect == null) return;
-    final frame = _motion.menuRect;
-    if (!frame.contains(rect.center)) return;
-    _zones.requestFocus(id);
-  }
-
-  void _dwelled(int id) {
-    final index = _ids.targetOf(id);
-    if (_targetAt(index)?.kind != MenuTargetKind.submenu) return;
-    _choose(index);
-  }
-
-  // The mouse that leaves an open submenu card for the menu beside it
-  // sends the card back, as a menu on the Mac closes a submenu when the
-  // pointer moves to another item.
-  void _hovered(Offset local) {
-    final motion = _motion;
-    if (!_current || _built.top == 0) return;
-    final position = _host._local(
+  void _hovered(Offset local) => _hover.hovered(
+    _host._local(
       (context.findRenderObject()! as RenderBox).localToGlobal(local),
-    );
-    if (motion.isOnCard(position)) {
-      _cardEntered = true;
-    } else if (_cardEntered && motion.isBesideCard(position)) {
-      _cardEntered = false;
-      _back(keys: false);
-    }
-  }
+    ),
+  );
 
   List<Interaction> _inputsOf(int id) => _rowInputs.putIfAbsent(
     id,
     () => [
       _RowInput(
-        onActivate: () => _choose(_ids.targetOf(id), pending: -1),
-        onEnter: () => _rowEntered(id),
+        onActivate: () => _keys.choose(_ids.targetOf(id), pending: -1),
+        onEnter: () => _hover.rowEntered(id),
       ),
       HoverDwellInteraction(
         duration: MenuMotion.mouseSubmenuDelay,
-        onDwell: (_) => _dwelled(id),
+        onDwell: (_) => _hover.dwelled(id),
       ),
     ],
   );
-
-  InputZoneFrame? _frameOf(int id) {
-    if (!_current) return null;
-    final rect = _motion.targetRect(_ids.targetOf(id));
-    return rect == null ? null : InputZoneFrame(rect);
-  }
-
-  List<InputZone<int>> _zonesOf(MenuLayout layout) {
-    final zones = <InputZone<int>>[];
-    for (var i = 0; i < layout.targets.length; i++) {
-      final target = layout.targets[i];
-      final element = target.element < 0
-          ? null
-          : layout.elements[target.element];
-      final id = _ids.idOf(i);
-      final entry = target.entry;
-      final (String label, String? value) = switch (entry) {
-        GlassMenuItem(:final title, :final subtitle) ||
-        GlassSubmenu(:final title, :final subtitle) => (title, subtitle),
-        _ => (element?.title ?? '', null),
-      };
-      final state = entry is GlassMenuItem ? entry.state : null;
-      final checkable = state != null && state != GlassMenuItemState.off;
-      zones.add(
-        InputZone<int>(
-          id: id,
-          interactions: _inputsOf(id),
-          minimumHitSize: const Size.square(44),
-          semantics: SemanticsProperties(
-            label: label,
-            value: value,
-            button: true,
-            checked: checkable ? state == GlassMenuItemState.on : null,
-            mixed:
-                target.kind == MenuTargetKind.action &&
-                    state == GlassMenuItemState.mixed
-                ? true
-                : null,
-            expanded: switch (target.kind) {
-              MenuTargetKind.submenu => false,
-              MenuTargetKind.back => true,
-              MenuTargetKind.action => null,
-            },
-            role: checkable
-                ? ui.SemanticsRole.menuItemCheckbox
-                : ui.SemanticsRole.menuItem,
-          ),
-        ),
-      );
-    }
-    return zones;
-  }
 
   Widget _rowsOf(int card, MenuLayout layout, MenuAppearance style) {
     if (style != _rowsStyle) {
@@ -596,15 +439,17 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
       ],
     );
     final layer = InputZones<int>(
-      zones: structure.open ? _zonesOf(layouts[structure.top]) : const [],
-      frameOf: _frameOf,
+      zones: structure.open
+          ? _keys.zonesOf(layouts[structure.top], _inputsOf)
+          : const [],
+      frameOf: _keys.frameOf,
       frames: frames,
       controller: _zones,
       axis: null,
       stops: InputZoneStops.one,
-      onEdge: _edge,
+      onEdge: _keys.edge,
       excludeChildSemantics: false,
-      interactions: [_input, _hover],
+      interactions: [_input, _hoverInput],
       hostFeedback: _MenuHost._feedback,
       child: Stack(
         fit: StackFit.expand,

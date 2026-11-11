@@ -97,8 +97,8 @@ class _MenuEscape extends Action<DismissIntent> {
 
   @override
   Object? invoke(DismissIntent intent) {
-    if (layer._current && layer._built.top > 0) {
-      layer._back(keys: true);
+    if (layer.current && layer.built.top > 0) {
+      layer._keys.back(keys: true);
       return null;
     }
     return Actions.maybeInvoke(layer.context, intent);
