@@ -99,8 +99,8 @@ class GlassToolbar extends StatefulWidget implements PreferredSizeWidget {
   /// The capsules' items, leading to trailing.
   final List<GlassBarEntry> items;
 
-  /// What accessibility reads for the search's close button; `Close` when
-  /// null.
+  /// What accessibility reads for the search's close button; the localized
+  /// "Close" when null.
   final String? closeSemanticLabel;
 
   /// The height of the toolbar's items.
@@ -453,7 +453,6 @@ final class SearchParts {
   const SearchParts._({
     required this.field,
     required this.close,
-    required this.active,
     required this.keyboard,
     required this.held,
   });
@@ -462,11 +461,9 @@ final class SearchParts {
   final Widget field;
 
   /// The close button, which ends the search; it takes touches and the
-  /// focus only while the search is [active]. The bar moves and fades it.
+  /// focus only while the search is active, from the field's focus to its
+  /// end. The bar moves and fades it.
   final Widget close;
-
-  /// Whether the search is active: from the field's focus to its end.
-  final bool active;
 
   /// How high the keyboard stands, as the field's layout follows it: held
   /// from the search's end until the motion has returned, so nothing
@@ -634,7 +631,6 @@ class _SearchHostState extends State<SearchHost> {
           ),
         ),
       ),
-      active: active,
       keyboard: _keyboard,
       held: _held,
     );
@@ -699,9 +695,8 @@ Rect lerpRect(Rect a, Rect b, double t) {
   );
 }
 
-/// The signal a toolbar's close button fires through [end] when a search
+/// The signal a search's close button fires through [end] when the search
 /// ends.
 class _SearchEndSignal extends ChangeNotifier {
-  /// Tells the listeners that a search ended.
   void end() => notifyListeners();
 }

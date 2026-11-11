@@ -1,9 +1,5 @@
 part of 'bar.dart';
 
-// ===========================================================================
-// The view
-// ===========================================================================
-
 class _LinkScope extends InheritedWidget {
   const _LinkScope({required this.link, required super.child});
 
