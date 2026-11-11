@@ -1,3 +1,4 @@
+import 'package:apple_liquid_glass/src/motions/ui_frame_rate.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
@@ -49,9 +50,8 @@ class AlertMotion extends Motion with Presented, PredictiveBack {
   /// it.
   static const double width = 320;
 
-  // UIKit asks at least 80 Hz of this (read from UIKit, notes private).
   @override
-  double get minFrameRate => 80;
+  double get minFrameRate => uikitMinFrameRate;
 
   late final _progress = own(
     MotionValue<double>(0, spring: AlertTuning.spring),

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motions/small_lens.dart';
+import 'package:apple_liquid_glass/src/motions/ui_frame_rate.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
@@ -101,9 +102,8 @@ final class SliderMotion extends Motion {
     );
   }
 
-  // UIKit asks at least 80 Hz of this (read from UIKit, notes private).
   @override
-  double get minFrameRate => 80;
+  double get minFrameRate => uikitMinFrameRate;
 
   static double _length() => MotionRest.length;
 

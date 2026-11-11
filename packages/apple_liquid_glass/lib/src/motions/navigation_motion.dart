@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/motions/ui_frame_rate.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/motion.dart';
@@ -231,9 +232,8 @@ class NavigationPopMotion {
 /// The motion of a pushed page, which the navigator's shared bar and the
 /// page below follow through [progress].
 abstract class PageMotion extends Motion with Presented {
-  // UIKit asks at least 80 Hz of this (read from UIKit, notes private).
   @override
-  double get minFrameRate => 80;
+  double get minFrameRate => uikitMinFrameRate;
 
   /// How far the page has come in, 0 hidden to 1 shown: a slide's
   /// progress, a zoom's reach.
