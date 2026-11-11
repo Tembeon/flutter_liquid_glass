@@ -4,8 +4,8 @@
 // ignore_for_file: invalid_use_of_visible_for_testing_member
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/composer/plan.dart' show PlanPolicy;
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
 
 /// The switches an A/B run can flip, by name, for questions still open.
