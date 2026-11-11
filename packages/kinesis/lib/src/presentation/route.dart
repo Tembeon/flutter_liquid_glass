@@ -570,6 +570,7 @@ class _ContentRootState extends State<_ContentRoot> {
         allows: (trigger) => route.isActive && route.allows(trigger),
         dismiss: route.dismiss,
         label: route.semanticsLabel,
+        role: route.presentation?.semanticsRole,
         initialFocus: route.presentation?.initialFocus,
         child: widget.child,
       ),

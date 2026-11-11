@@ -899,6 +899,7 @@ final class Presentation<T, M extends Presented>
     String? semanticsLabel,
     String? barrierLabel,
     FocusNode? initialFocus,
+    SemanticsRole? semanticsRole,
   })
   final String? barrierLabel
   @internal Widget build(BuildContext context, Presented motion)
@@ -919,6 +920,7 @@ final class Presentation<T, M extends Presented>
   final T? Function(T?)? result
   @internal Object? resultOf(Object? popped)
   final String? semanticsLabel
+  final SemanticsRole? semanticsRole
   final MotionSource? source
 class PresentationContext extends InheritedWidget
   const PresentationContext({required Widget child, Key? key})

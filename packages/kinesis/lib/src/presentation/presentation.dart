@@ -85,6 +85,7 @@ final class Presentation<T, M extends Presented> {
     this.semanticsLabel,
     this.barrierLabel,
     this.initialFocus,
+    this.semanticsRole,
   });
 
   /// Makes the motion at the commit, or hands over one the caller keeps
@@ -123,7 +124,18 @@ final class Presentation<T, M extends Presented> {
   final void Function(T? result)? onDismissed;
 
   /// The name screen readers announce for the content.
+  ///
+  /// The content's root is a route of its own to screen readers
+  /// (`SemanticsProperties.scopesRoute`); with a label it also names it
+  /// (`namesRoute`), and screen readers announce the label when the
+  /// presentation opens. Without one, VoiceOver plays its sound and
+  /// TalkBack says nothing, as for a route.
   final String? semanticsLabel;
+
+  /// What the content is to assistive technology: `SemanticsRole.dialog`,
+  /// `SemanticsRole.alertDialog` or `SemanticsRole.menu` (whose children
+  /// then must be menu items), set on the content's root; none when null.
+  final SemanticsRole? semanticsRole;
 
   /// What screen readers call the barrier behind the content while the
   /// presentation is modal and an outside tap may dismiss it, such as
@@ -261,6 +273,7 @@ class PresentationRoot extends StatelessWidget {
     required this.allows,
     required this.dismiss,
     required this.label,
+    required this.role,
     required this.initialFocus,
     required this.child,
     super.key,
@@ -278,6 +291,9 @@ class PresentationRoot extends StatelessWidget {
   /// The name screen readers announce.
   final String? label;
 
+  /// What the content is to assistive technology.
+  final SemanticsRole? role;
+
   /// The node that takes the focus at the open.
   final FocusNode? initialFocus;
 
@@ -290,6 +306,7 @@ class PresentationRoot extends StatelessWidget {
     namesRoute: label != null,
     explicitChildNodes: true,
     label: label,
+    role: role,
     onDismiss: allows(DismissTrigger.accessibility)
         ? () => dismiss(DismissTrigger.accessibility)
         : null,

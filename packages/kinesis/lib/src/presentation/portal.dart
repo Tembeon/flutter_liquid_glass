@@ -302,6 +302,7 @@ class _PresentationPortalState extends State<PresentationPortal>
               allows: presentation.dismiss.allows,
               dismiss: dismiss,
               label: presentation.semanticsLabel,
+              role: presentation.semanticsRole,
               initialFocus: presentation.initialFocus,
               child: PresentedContent(
                 presentation: presentation,

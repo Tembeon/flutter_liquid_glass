@@ -46,6 +46,8 @@ Presentation<String, _Card> _presentation(
   FocusNode? focus,
   FocusNode? initialFocus,
   bool named = false,
+  String? label = 'Panel',
+  SemanticsRole? role,
 }) => Presentation<String, _Card>(
   motion: (_) {
     final card = _Card();
@@ -83,7 +85,8 @@ Presentation<String, _Card> _presentation(
   modal: modal ? null : (_) => false,
   onVeto: vetoes?.add,
   onDismissed: dismissed?.add,
-  semanticsLabel: 'Panel',
+  semanticsLabel: label,
+  semanticsRole: role,
   barrierLabel: barrierLabel,
   initialFocus: named ? initialFocus : null,
 );
@@ -626,6 +629,67 @@ void main() {
           opener.dispose();
           other.dispose();
         }
+      });
+
+      testWidgets('announces itself: a route of its own, named by its '
+          'label, with the role the presenter gives', (tester) async {
+        final semantics = tester.ensureSemantics();
+        final shell = make();
+        await shell.pump(tester, const SizedBox.expand());
+        await shell.present(
+          tester,
+          _presentation([], role: SemanticsRole.dialog),
+        );
+        await tester.pump();
+        await _settle(tester);
+        final root = find.bySemanticsLabel('Panel');
+        expect(
+          tester.getSemantics(root),
+          matchesSemantics(
+            label: 'Panel',
+            textDirection: TextDirection.ltr,
+            scopesRoute: true,
+            namesRoute: true,
+            hasDismissAction: true,
+          ),
+        );
+        expect(
+          tester.getSemantics(root).getSemanticsData().role,
+          SemanticsRole.dialog,
+        );
+        await tester.pumpWidget(const SizedBox());
+
+        final unnamed = make();
+        await unnamed.pump(tester, const SizedBox.expand());
+        await unnamed.present(
+          tester,
+          _presentation([], label: null, dismiss: DismissPolicy.modal),
+        );
+        await tester.pump();
+        await _settle(tester);
+        final scopes = <SemanticsData>[];
+        bool visit(SemanticsNode node) {
+          final data = node.getSemanticsData();
+          if (data.flagsCollection.scopesRoute) scopes.add(data);
+          node.visitChildren(visit);
+          return true;
+        }
+
+        visit(
+          tester
+              .binding
+              .renderViews
+              .first
+              .owner!
+              .semanticsOwner!
+              .rootSemanticsNode!,
+        );
+        final content = scopes.last;
+        expect(content.flagsCollection.namesRoute, isFalse);
+        expect(content.label, isEmpty);
+        expect(content.role, SemanticsRole.none);
+        expect(content.hasAction(SemanticsAction.dismiss), isTrue);
+        semantics.dispose();
       });
 
       testWidgets('hides its source in the commit frame, follows it and '

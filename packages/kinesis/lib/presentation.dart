@@ -12,7 +12,8 @@
 /// the Back button and gesture, a barrier that hides the screen from the
 /// screen reader in a route and, labelled by the presenter, offers the
 /// dismissal after the content, an overlay that announces itself to the
-/// screen reader, and an overlay that is inert while it closes: no
+/// screen reader as a route of its own with the label and role the
+/// presenter gives, and an overlay that is inert while it closes: no
 /// touches, no focus, no semantics.
 ///
 /// It never knows how an overlay looks or which spring it moves on.
