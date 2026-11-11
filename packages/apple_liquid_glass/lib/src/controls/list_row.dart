@@ -109,47 +109,17 @@ class GlassListRow extends StatefulWidget {
   State<GlassListRow> createState() => _GlassListRowState();
 }
 
-class _GlassListRowState extends State<GlassListRow>
-    with ControlStates<GlassListRow> {
-  final _highlight = ListRowHighlight();
-  late final _strength = _highlight.select((h) => h.opacity);
+class _GlassListRowState extends State<GlassListRow> {
   final _textStart = ValueNotifier<double>(_Metrics.contentInset);
-  late final List<Interaction> _interactions = [
-    PressInteraction(
-      role: InteractionRole.content,
-      onTap: (t) => widget.onPressed?.call(),
-    ).simultaneously(
-      FollowInteraction(_highlight, role: InteractionRole.content),
-    ),
-  ];
-  late final List<Interaction> _accessoryInteractions = [
-    PressInteraction(onTap: (t) => widget.onAccessoryPressed?.call()),
-  ];
-  final _accessoryStates = WidgetStatesController();
-
-  @override
-  WidgetStatesController? get givenStates => widget.statesController;
-
-  bool get _active => widget.onPressed != null && widget.enabled;
-
-  @override
-  void didUpdateWidget(GlassListRow oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (!_active) _highlight.clear(_highlight.clock.now);
-  }
 
   @override
   void dispose() {
     _textStart.dispose();
-    _accessoryStates.dispose();
     super.dispose();
   }
 
-  @override
-  void writeStates() {
-    widgetStates.update(WidgetState.disabled, !_active);
-    if (!_active) widgetStates.update(WidgetState.pressed, false);
-  }
+  void _measureLeading(double t, Size size) => _textStart.value =
+      _Metrics.contentInset + size.width + _Metrics.leadingGap;
 
   @override
   Widget build(BuildContext context) {
@@ -157,15 +127,77 @@ class _GlassListRowState extends State<GlassListRow>
     final look = (widget.style ?? const GlassListStyle()).merge(
       place?.look ?? _sectionLook(context, null),
     );
-    final states = widgetStates.value;
+    final kind = widget.accessory;
+    final chevron =
+        kind == GlassListAccessory.disclosureIndicator ||
+        kind == GlassListAccessory.detailDisclosureButton;
+    final info =
+        kind == GlassListAccessory.detailButton ||
+        kind == GlassListAccessory.detailDisclosureButton;
+    final check = kind == GlassListAccessory.checkmark;
+    return RawGlassListRow(
+      onPressed: widget.onPressed,
+      enabled: widget.enabled,
+      selected: check,
+      statesController: widget.statesController,
+      focusNode: widget.focusNode,
+      autofocus: widget.autofocus,
+      onInfoPressed: widget.onAccessoryPressed,
+      infoSemanticLabel: widget.accessorySemanticLabel,
+      infoCenterInset:
+          _Metrics.accessoryInset +
+          (chevron ? _Metrics.chevronSize.width + _Metrics.gap : 0) +
+          _Metrics.glyphSize / 2,
+      infoBuilder: info
+          ? (context, details) => GlassHighlightPaint.of(
+              context,
+              states: details.statesListenable,
+              focusColor: look.focusColor,
+              hoverColor: _hover(look, details.states, context),
+              shape: const GlassShape.oval(),
+              child: _Glyph(
+                painter: _InfoPainter(
+                  _resolve(look.iconColor, details.states, context),
+                ),
+              ),
+            )
+          : null,
+      builder: (context, details) => _row(
+        context,
+        details,
+        look: look,
+        place: place,
+        chevron: chevron,
+        info: info,
+        check: check,
+      ),
+    );
+  }
+
+  static Color _hover(
+    GlassListStyle look,
+    Set<WidgetState> states,
+    BuildContext context,
+  ) {
+    final fill = _resolve(look.overlayColor, states, context);
+    return look.hoverColor ??
+        fill.withValues(alpha: fill.a * GlassHighlights.hoverGain);
+  }
+
+  Widget _row(
+    BuildContext context,
+    GlassListRowDetails details, {
+    required GlassListStyle look,
+    required _RowPlace? place,
+    required bool chevron,
+    required bool info,
+    required bool check,
+  }) {
+    final states = details.states;
     Color color(WidgetStateProperty<Color?>? property) =>
         _resolve(property, states, context);
     final secondary = color(look.secondaryColor);
     final icon = color(look.iconColor);
-    final fill = color(look.overlayColor);
-    final hover =
-        look.hoverColor ??
-        fill.withValues(alpha: fill.a * GlassHighlights.hoverGain);
     final titleStyle = resolveGlassText(
       _Metrics.body.copyWith(color: color(look.foregroundColor)),
       context,
@@ -182,35 +214,28 @@ class _GlassListRowState extends State<GlassListRow>
     final subtitle = widget.subtitle;
     final detail = widget.detail;
     final trailing = widget.trailing;
-    final kind = widget.accessory;
-    final chevron =
-        kind == GlassListAccessory.disclosureIndicator ||
-        kind == GlassListAccessory.detailDisclosureButton;
-    final info =
-        kind == GlassListAccessory.detailButton ||
-        kind == GlassListAccessory.detailDisclosureButton;
-    final check = kind == GlassListAccessory.checkmark;
     final mark = chevron || info || check;
     final accessory = trailing != null || mark;
     // A row that highlights has more than the card's color under its control.
     final card = place != null && widget.onPressed == null
         ? _resolve(place.look.backgroundColor, const {}, context)
         : null;
-    if (leading == null) _textStart.value = _Metrics.contentInset;
     final text = Padding(
       padding: const EdgeInsets.symmetric(vertical: _Metrics.rowPadding),
       child: LayoutBuilder(
         builder: (context, constraints) => Row(
           children: [
             if (leading != null) ...[
-              _LeadingSlot(
-                textStart: _textStart,
-                child: IconTheme.merge(
-                  data: IconThemeData(
-                    size: _Metrics.leadingIconSize,
-                    color: icon,
+              MotionMeasure(
+                onSize: _measureLeading,
+                child: _LeadingSlot(
+                  child: IconTheme.merge(
+                    data: IconThemeData(
+                      size: _Metrics.leadingIconSize,
+                      color: icon,
+                    ),
+                    child: leading,
                   ),
-                  child: leading,
                 ),
               ),
               const SizedBox(width: _Metrics.leadingGap),
@@ -276,112 +301,24 @@ class _GlassListRowState extends State<GlassListRow>
     );
     final separated = place != null && !place.last;
     final surface = _RowSurface(
-      strength: _strength,
-      fill: fill,
+      strength: details.highlight,
+      fill: color(look.overlayColor),
       separator: separated ? color(look.separatorColor) : null,
-      separatorStart: _textStart,
+      separatorStart: leading == null ? null : _textStart,
       direction: Directionality.of(context),
       child: row,
     );
-    final infoButton = info
-        ? _InfoButton(
-            interactions: _accessoryInteractions,
-            enabled: widget.enabled && widget.onAccessoryPressed != null,
-            states: _accessoryStates,
-            label:
-                widget.accessorySemanticLabel ??
-                GlassLocalizations.of(context).moreInfoLabel,
-            end:
-                _Metrics.accessoryInset +
-                (chevron ? _Metrics.chevronSize.width + _Metrics.gap : 0),
-            child: GlassHighlightPaint.of(
-              context,
-              states: _accessoryStates,
-              focusColor: look.focusColor,
-              hoverColor: hover,
-              shape: const GlassShape.oval(),
-              child: _Glyph(painter: _InfoPainter(icon)),
-            ),
-          )
-        : null;
-    final rowNode = Semantics(
-      container: true,
-      child: widget.onPressed == null
-          ? Semantics(
-              button: false,
-              selected: check ? true : null,
-              child: surface,
-            )
-          : InputRegion(
-              interactions: _interactions,
-              enabled: _active,
-              statesController: widgetStates,
-              focusNode: widget.focusNode,
-              autofocus: widget.autofocus,
-              semantics: SemanticsProperties(
-                button: true,
-                selected: check ? true : null,
-              ),
-              child: GlassHighlightPaint.of(
-                context,
-                states: widgetStates,
-                focusColor: look.focusColor,
-                hoverColor: hover,
-                shape: const GlassShape.roundedRect(0),
-                inside: true,
-                child: surface,
-              ),
-            ),
-    );
-    if (infoButton == null) return rowNode;
-    // The info button is a target beside the row's, not inside it: a
-    // region inside another one would hand its keys to the outer one.
-    return Semantics(
-      container: true,
-      explicitChildNodes: true,
-      child: Stack(children: [rowNode, infoButton]),
+    if (widget.onPressed == null) return surface;
+    return GlassHighlightPaint.of(
+      context,
+      states: details.statesListenable,
+      focusColor: look.focusColor,
+      hoverColor: _hover(look, states, context),
+      shape: const GlassShape.roundedRect(0),
+      inside: true,
+      child: surface,
     );
   }
-}
-
-/// The info button of a row, laid over the row where the row leaves its
-/// slot: a 22 point glyph that takes a finger in 44 by 44 points.
-class _InfoButton extends StatelessWidget {
-  const _InfoButton({
-    required this.interactions,
-    required this.enabled,
-    required this.states,
-    required this.label,
-    required this.end,
-    required this.child,
-  });
-
-  final List<Interaction> interactions;
-  final bool enabled;
-  final WidgetStatesController states;
-  final String label;
-  final double end;
-  final Widget child;
-
-  static const double _target = 44;
-
-  @override
-  Widget build(BuildContext context) => PositionedDirectional(
-    top: 0,
-    bottom: 0,
-    end: end - (_target - _Metrics.glyphSize) / 2,
-    width: _target,
-    child: Center(
-      child: InputRegion(
-        interactions: interactions,
-        enabled: enabled,
-        statesController: states,
-        semantics: SemanticsProperties(label: label, button: true),
-        minimumHitSize: const Size.square(_target),
-        child: child,
-      ),
-    ),
-  );
 }
 
 class _RowPlace extends InheritedWidget {

@@ -1002,6 +1002,16 @@ class GlassListRow extends StatefulWidget
   final Widget? title
   final Widget? trailing
   overrides: createState
+typedef GlassListRowBuilder = Widget Function(BuildContext, GlassListRowDetails)
+final class GlassListRowDetails
+  const GlassListRowDetails({
+    required Set<WidgetState> states,
+    required ValueListenable<double> highlight,
+    ValueListenable<Set<WidgetState>>? statesListenable,
+  })
+  final ValueListenable<double> highlight
+  final Set<WidgetState> states
+  final ValueListenable<Set<WidgetState>>? statesListenable
 class GlassListSection extends StatelessWidget
   const GlassListSection({
     required List<Widget> children,
@@ -3098,6 +3108,34 @@ class RawGlassList extends StatelessWidget
   final Widget Function(BuildContext, Object) itemBuilder
   final LayoutPlanner planner
   overrides: build
+class RawGlassListRow extends StatefulWidget
+  const RawGlassListRow({
+    required Widget Function(BuildContext, GlassListRowDetails) builder,
+    void Function()? onPressed,
+    bool enabled = ...,
+    bool selected = ...,
+    Widget Function(BuildContext, GlassListRowDetails)? infoBuilder,
+    void Function()? onInfoPressed,
+    double infoCenterInset = ...,
+    String? infoSemanticLabel,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    Key? key,
+  })
+  final bool autofocus
+  final Widget Function(BuildContext, GlassListRowDetails) builder
+  final bool enabled
+  final FocusNode? focusNode
+  final Widget Function(BuildContext, GlassListRowDetails)? infoBuilder
+  final double infoCenterInset
+  final String? infoSemanticLabel
+  static const Size infoTarget
+  final void Function()? onInfoPressed
+  final void Function()? onPressed
+  final bool selected
+  final WidgetStatesController? statesController
+  overrides: createState
 class RawGlassPageControl extends StatefulWidget
   const RawGlassPageControl({
     required int count,
@@ -4201,6 +4239,8 @@ class GlassDatePickerMonthYear (see package:apple_liquid_glass/apple_liquid_glas
 typedef GlassDatePickerMonthYearBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassDatePickerTitle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassDatePickerTitleBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef GlassListRowBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassListRowDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassPageControlBackground (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassPageControlBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPageControlDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -4227,6 +4267,7 @@ class GlassSwitchDetails (see package:apple_liquid_glass/apple_liquid_glass.dart
 class RawGlassButton (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassDatePicker (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassList (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class RawGlassListRow (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassPageControl (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassSearchField (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassSelector (see package:apple_liquid_glass/apple_liquid_glass.dart)

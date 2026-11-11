@@ -499,6 +499,32 @@ final List<Entry> registry = [
     ),
   ),
   Entry(
+    'RawGlassListRow',
+    covers: const ['RawGlassListRow'],
+    look: Look.builder,
+    kind: Kind.pressable,
+    build: (probe, {required enabled}) => SizedBox(
+      width: 402,
+      child: RawGlassListRow(
+        enabled: enabled,
+        onPressed: () => probe.add('pressed'),
+        builder: (context, details) {
+          probe.states = details.states;
+          return const SizedBox(
+            height: 53,
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              child: GlassDefaultTextStyle(
+                role: GlassTextRole.body,
+                child: Text('General'),
+              ),
+            ),
+          );
+        },
+      ),
+    ),
+  ),
+  Entry(
     'GlassSwipeActions',
     covers: const ['GlassSwipeActions', 'GlassSwipeAction'],
     kind: Kind.actions,

@@ -87,6 +87,8 @@ GlassLensShrink
 GlassListAccessory
 GlassListBackground
 GlassListRow
+GlassListRowBuilder
+GlassListRowDetails
 GlassListSection
 GlassListStyle
 GlassLocalizations
@@ -325,6 +327,7 @@ Ramp
 RawGlassButton
 RawGlassDatePicker
 RawGlassList
+RawGlassListRow
 RawGlassPageControl
 RawGlassSearchField
 RawGlassSelector

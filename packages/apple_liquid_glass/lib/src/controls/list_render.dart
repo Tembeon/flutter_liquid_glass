@@ -15,7 +15,7 @@ class _RowSurface extends SingleChildRenderObjectWidget {
   final ValueListenable<double> strength;
   final Color fill;
   final Color? separator;
-  final ValueListenable<double> separatorStart;
+  final ValueListenable<double>? separatorStart;
   final TextDirection direction;
 
   @override
@@ -76,13 +76,13 @@ class _RenderRowSurface extends RenderProxyBox {
     markNeedsPaint();
   }
 
-  ValueListenable<double> _separatorStart;
-  ValueListenable<double> get separatorStart => _separatorStart;
-  set separatorStart(ValueListenable<double> value) {
+  ValueListenable<double>? _separatorStart;
+  ValueListenable<double>? get separatorStart => _separatorStart;
+  set separatorStart(ValueListenable<double>? value) {
     if (identical(value, _separatorStart)) return;
-    if (attached) _separatorStart.removeListener(markNeedsPaint);
+    if (attached) _separatorStart?.removeListener(markNeedsPaint);
     _separatorStart = value;
-    if (attached) _separatorStart.addListener(markNeedsPaint);
+    if (attached) _separatorStart?.addListener(markNeedsPaint);
     markNeedsPaint();
   }
 
@@ -98,13 +98,13 @@ class _RenderRowSurface extends RenderProxyBox {
   void attach(PipelineOwner owner) {
     super.attach(owner);
     _strength.addListener(markNeedsPaint);
-    _separatorStart.addListener(markNeedsPaint);
+    _separatorStart?.addListener(markNeedsPaint);
   }
 
   @override
   void detach() {
     _strength.removeListener(markNeedsPaint);
-    _separatorStart.removeListener(markNeedsPaint);
+    _separatorStart?.removeListener(markNeedsPaint);
     super.detach();
   }
 
@@ -121,7 +121,7 @@ class _RenderRowSurface extends RenderProxyBox {
     if (separator == null) return;
     const end = _Metrics.contentInset;
     final ltr = _direction == TextDirection.ltr;
-    final start = _separatorStart.value;
+    final start = _separatorStart?.value ?? _Metrics.contentInset;
     final left = ltr ? start : end;
     final right = size.width - (ltr ? end : start);
     final line = Paint();
@@ -139,56 +139,36 @@ class _RenderRowSurface extends RenderProxyBox {
 }
 
 /// A row's leading slot: [_Metrics.leadingWidth] wide with the symbol
-/// centered, or as wide as a wider image, which it never squeezes. It
-/// writes where the text starts, which the separator follows.
+/// centered, or as wide as a wider image, which it never squeezes.
 class _LeadingSlot extends SingleChildRenderObjectWidget {
-  const _LeadingSlot({required this.textStart, required super.child});
-
-  final ValueNotifier<double> textStart;
+  const _LeadingSlot({required super.child});
 
   @override
   _RenderLeadingSlot createRenderObject(BuildContext context) =>
-      _RenderLeadingSlot(textStart);
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    _RenderLeadingSlot renderObject,
-  ) {
-    renderObject.textStart = textStart;
-  }
+      _RenderLeadingSlot();
 }
 
 class _RenderLeadingSlot extends RenderShiftedBox {
-  _RenderLeadingSlot(this._textStart) : super(null);
-
-  ValueNotifier<double> _textStart;
-  ValueNotifier<double> get textStart => _textStart;
-  set textStart(ValueNotifier<double> value) {
-    if (identical(value, _textStart)) return;
-    _textStart = value;
-    markNeedsLayout();
-  }
+  _RenderLeadingSlot() : super(null);
 
   @override
   void performLayout() {
     final child = this.child;
     if (child == null) {
       size = constraints.constrain(const Size(_Metrics.leadingWidth, 0));
-    } else {
-      child.layout(constraints.loosen(), parentUsesSize: true);
-      size = constraints.constrain(
-        Size(
-          math.max(_Metrics.leadingWidth, child.size.width),
-          child.size.height,
-        ),
-      );
-      (child.parentData! as BoxParentData).offset = Offset(
-        (size.width - child.size.width) / 2,
-        (size.height - child.size.height) / 2,
-      );
+      return;
     }
-    _textStart.value = _Metrics.contentInset + size.width + _Metrics.leadingGap;
+    child.layout(constraints.loosen(), parentUsesSize: true);
+    size = constraints.constrain(
+      Size(
+        math.max(_Metrics.leadingWidth, child.size.width),
+        child.size.height,
+      ),
+    );
+    (child.parentData! as BoxParentData).offset = Offset(
+      (size.width - child.size.width) / 2,
+      (size.height - child.size.height) / 2,
+    );
   }
 }
 

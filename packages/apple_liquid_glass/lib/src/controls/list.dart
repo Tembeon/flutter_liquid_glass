@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/controls/list_accessory.dart';
 import 'package:apple_liquid_glass/src/controls/list_style.dart';
@@ -10,8 +9,6 @@ import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/input.dart';
-import 'package:kinesis/motion.dart';
 import 'package:kinesis/widgets.dart';
 
 part 'package:apple_liquid_glass/src/controls/list_marks.dart';
