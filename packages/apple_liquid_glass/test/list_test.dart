@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -22,6 +23,27 @@ Widget _app(Widget child, {GlassThemeData theme = const GlassThemeData()}) =>
         ),
       ),
     );
+
+Widget _keyApp(Widget child, {Map<ShortcutActivator, Intent>? shortcuts}) =>
+    WidgetsApp(
+      color: const Color(0xFF000000),
+      shortcuts: shortcuts,
+      builder: (context, _) => GlassScope(
+        renderer: const FlatGlassRenderer(),
+        child: FocusScope(
+          autofocus: true,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: SizedBox(width: 402, child: child),
+          ),
+        ),
+      ),
+    );
+
+Future<void> _tab(WidgetTester tester) async {
+  await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+  await tester.pump();
+}
 
 Future<void> _settle(WidgetTester tester) async {
   for (var i = 0; i < 60; i++) {
@@ -192,6 +214,178 @@ void main() {
         isSelected: true,
       ),
     );
+    semantics.dispose();
+  });
+
+  testWidgets('the info button is a Tab stop of its own after the row; the '
+      "app's activation keys press the one that has focus", (tester) async {
+    var row = 0;
+    var info = 0;
+    Widget list({Map<ShortcutActivator, Intent>? shortcuts}) => _keyApp(
+      GlassListSection(
+        children: [
+          GlassListRow(
+            title: const Text('Wi-Fi'),
+            accessory: GlassListAccessory.detailDisclosureButton,
+            onPressed: () => row++,
+            onAccessoryPressed: () => info++,
+          ),
+        ],
+      ),
+      shortcuts: shortcuts,
+    );
+    await tester.pumpWidget(list());
+    await _tab(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    expect((row, info), (1, 0));
+    await _tab(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    expect((row, info), (1, 1));
+    await _settle(tester);
+
+    await tester.pumpWidget(
+      list(
+        shortcuts: {
+          ...WidgetsApp.defaultShortcuts,
+          const SingleActivator(LogicalKeyboardKey.space):
+              const DoNothingAndStopPropagationIntent(),
+          const SingleActivator(LogicalKeyboardKey.keyI):
+              const ActivateIntent(),
+        },
+      ),
+    );
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pump();
+    await _tab(tester);
+    await _tab(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    expect((row, info), (1, 1));
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyI);
+    expect((row, info), (1, 2));
+    await _settle(tester);
+  });
+
+  testWidgets('the info button reads as a localized button over its 44 '
+      'point target; a row that only displays is no button and no stop', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    var info = 0;
+    await tester.pumpWidget(
+      _keyApp(
+        GlassListSection(
+          children: [
+            GlassListRow(
+              title: const Text('Network'),
+              accessory: GlassListAccessory.detailButton,
+              onAccessoryPressed: () => info++,
+            ),
+          ],
+        ),
+      ),
+    );
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('More info')),
+      matchesSemantics(
+        label: 'More info',
+        rect: const Rect.fromLTWH(-11, -11, 44, 44),
+        textDirection: TextDirection.ltr,
+        isButton: true,
+        hasTapAction: true,
+        hasFocusAction: true,
+        hasEnabledState: true,
+        isEnabled: true,
+        isFocusable: true,
+      ),
+    );
+    expect(
+      tester.getSemantics(find.text('Network')),
+      matchesSemantics(label: 'Network'),
+    );
+    await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
+    await _tab(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    expect(info, 1);
+    tester.semantics.tap(find.semantics.byLabel('More info'));
+    expect(info, 2);
+    await _settle(tester);
+    semantics.dispose();
+  });
+
+  testWidgets("a tap in the info button's 44 point extension presses it; "
+      'one beyond does not', (tester) async {
+    var info = 0;
+    await tester.pumpWidget(
+      _app(
+        GlassListSection(
+          children: [
+            GlassListRow(
+              title: const Text('Network'),
+              accessory: GlassListAccessory.detailButton,
+              onAccessoryPressed: () => info++,
+            ),
+          ],
+        ),
+      ),
+    );
+    final glyph = tester.getRect(
+      find
+          .descendant(
+            of: find.byType(InputRegion),
+            matching: find.byType(CustomPaint),
+          )
+          .last,
+    );
+    expect(glyph.size, const Size(22, 22));
+    for (final offset in const [
+      Offset(21, 0),
+      Offset(0, -21),
+      Offset(-21, 0),
+    ]) {
+      await tester.tapAt(glyph.center + offset);
+      await _settle(tester);
+    }
+    expect(info, 3);
+    await tester.tapAt(glyph.center + const Offset(0, 23));
+    await _settle(tester);
+    expect(info, 3);
+  });
+
+  testWidgets('a disabled row disables its info button: no Tab stop, '
+      'announced as disabled', (tester) async {
+    final semantics = tester.ensureSemantics();
+    var info = 0;
+    await tester.pumpWidget(
+      _keyApp(
+        GlassListSection(
+          children: [
+            GlassListRow(
+              title: const Text('Network'),
+              accessory: GlassListAccessory.detailButton,
+              enabled: false,
+              onPressed: () {},
+              onAccessoryPressed: () => info++,
+            ),
+          ],
+        ),
+      ),
+    );
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('More info')),
+      matchesSemantics(
+        label: 'More info',
+        rect: const Rect.fromLTWH(-11, -11, 44, 44),
+        textDirection: TextDirection.ltr,
+        isButton: true,
+        hasEnabledState: true,
+      ),
+    );
+    await _tab(tester);
+    expect(FocusManager.instance.primaryFocus, isA<FocusScopeNode>());
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.tap(find.bySemanticsLabel('More info'), warnIfMissed: false);
+    await _settle(tester);
+    expect(info, 0);
     semantics.dispose();
   });
 

@@ -6,7 +6,7 @@ import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/list_highlight.dart';
 import 'package:apple_liquid_glass/src/raw/list.dart';
 import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
-import 'package:apple_liquid_glass/src/surfaces/solid_backdrop.dart';
+import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -472,7 +472,8 @@ class GlassListRow extends StatefulWidget {
   /// Whether the row takes focus when it first appears.
   final bool autofocus;
 
-  /// What accessibility reads for the info button; `More info` when null.
+  /// What accessibility reads for the info button; the localized
+  /// [GlassLocalizations.moreInfoLabel] when null.
   final String? accessorySemanticLabel;
 
   @override
@@ -505,7 +506,7 @@ class _GlassListRowState extends State<GlassListRow>
   @override
   void didUpdateWidget(GlassListRow oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!_active) _highlight.clear(MotionClock.instance.now);
+    if (!_active) _highlight.clear(_highlight.clock.now);
   }
 
   @override
@@ -637,28 +638,7 @@ class _GlassListRowState extends State<GlassListRow>
               GlassSolidBackdrop(color: card, child: trailing),
             if (trailing != null && mark) const SizedBox(width: _Metrics.gap),
             if (check) _Glyph(painter: _CheckPainter(icon)),
-            if (info)
-              Semantics(
-                container: true,
-                button: true,
-                label: widget.accessorySemanticLabel ?? 'More info',
-                onTap: widget.onAccessoryPressed,
-                child: ExcludeSemantics(
-                  child: InputRegion(
-                    interactions: _accessoryInteractions,
-                    enabled: widget.onAccessoryPressed != null,
-                    statesController: _accessoryStates,
-                    child: GlassHighlightPaint.of(
-                      context,
-                      states: _accessoryStates,
-                      focusColor: look.focusColor,
-                      hoverColor: hover,
-                      shape: const GlassShape.oval(),
-                      child: _Glyph(painter: _InfoPainter(icon)),
-                    ),
-                  ),
-                ),
-              ),
+            if (info) const SizedBox.square(dimension: _Metrics.glyphSize),
             if (info && chevron) const SizedBox(width: _Metrics.gap),
             if (chevron) _Chevron(color: color(look.disclosureColor)),
           ],
@@ -674,12 +654,36 @@ class _GlassListRowState extends State<GlassListRow>
       direction: Directionality.of(context),
       child: row,
     );
-    return Semantics(
-      container: true,
+    final infoButton = info
+        ? _InfoButton(
+            interactions: _accessoryInteractions,
+            enabled: widget.enabled && widget.onAccessoryPressed != null,
+            states: _accessoryStates,
+            label:
+                widget.accessorySemanticLabel ??
+                GlassLocalizations.of(context).moreInfoLabel,
+            end:
+                _Metrics.accessoryInset +
+                (chevron ? _Metrics.chevronSize.width + _Metrics.gap : 0),
+            child: GlassHighlightPaint.of(
+              context,
+              states: _accessoryStates,
+              focusColor: look.focusColor,
+              hoverColor: hover,
+              shape: const GlassShape.oval(),
+              child: _Glyph(painter: _InfoPainter(icon)),
+            ),
+          )
+        : null;
+    final described = Semantics(
       button: widget.onPressed != null,
       selected: check ? true : null,
+      child: surface,
+    );
+    final rowNode = Semantics(
+      container: true,
       child: widget.onPressed == null
-          ? surface
+          ? described
           : InputRegion(
               interactions: _interactions,
               enabled: _active,
@@ -693,11 +697,59 @@ class _GlassListRowState extends State<GlassListRow>
                 hoverColor: hover,
                 shape: const GlassShape.roundedRect(0),
                 inside: true,
-                child: surface,
+                child: described,
               ),
             ),
     );
+    if (infoButton == null) return rowNode;
+    // The info button is a target beside the row's, not inside it: a
+    // region inside another one would hand its keys to the outer one.
+    return Semantics(
+      container: true,
+      explicitChildNodes: true,
+      child: Stack(children: [rowNode, infoButton]),
+    );
   }
+}
+
+/// The info button of a row, laid over the row where the row leaves its
+/// slot: a 22 point glyph that takes a finger in 44 by 44 points.
+class _InfoButton extends StatelessWidget {
+  const _InfoButton({
+    required this.interactions,
+    required this.enabled,
+    required this.states,
+    required this.label,
+    required this.end,
+    required this.child,
+  });
+
+  final List<Interaction> interactions;
+  final bool enabled;
+  final WidgetStatesController states;
+  final String label;
+  final double end;
+  final Widget child;
+
+  static const double _target = 44;
+
+  @override
+  Widget build(BuildContext context) => PositionedDirectional(
+    top: 0,
+    bottom: 0,
+    end: end - (_target - _Metrics.glyphSize) / 2,
+    width: _target,
+    child: Center(
+      child: InputRegion(
+        interactions: interactions,
+        enabled: enabled,
+        statesController: states,
+        semanticLabel: label,
+        minimumHitSize: const Size.square(_target),
+        child: Semantics(button: true, child: child),
+      ),
+    ),
+  );
 }
 
 GlassListStyle _sectionLook(BuildContext context, GlassListStyle? style) {
@@ -794,6 +846,9 @@ abstract final class _Metrics {
 
   /// The size of the disclosure chevron's glyph box.
   static const Size chevronSize = Size(10.33, 14);
+
+  /// The box of a checkmark or an info button.
+  static const double glyphSize = 22;
 
   /// A row's title and detail.
   static const body = TextStyle(fontSize: 17, fontWeight: FontWeight.w400);
@@ -1202,8 +1257,10 @@ class _Glyph extends StatelessWidget {
   final CustomPainter painter;
 
   @override
-  Widget build(BuildContext context) =>
-      CustomPaint(size: const Size.square(22), painter: painter);
+  Widget build(BuildContext context) => CustomPaint(
+    size: const Size.square(_Metrics.glyphSize),
+    painter: painter,
+  );
 }
 
 class _CheckPainter extends CustomPainter {

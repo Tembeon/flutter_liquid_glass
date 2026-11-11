@@ -6,7 +6,7 @@
 2:through-library         lib/src/controls/badge.dart                 4
 2:through-library         lib/src/controls/button.dart                10
 2:through-library         lib/src/controls/date_picker.dart           11
-2:through-library         lib/src/controls/list.dart                  6
+2:through-library         lib/src/controls/list.dart                  5
 2:through-library         lib/src/controls/page_control.dart          3
 2:through-library         lib/src/controls/search_field.dart          6
 2:through-library         lib/src/controls/search_glyphs.dart         1
@@ -58,7 +58,6 @@
 5:Listener                lib/src/presentations/menu_anchor.dart      1
 5:Listener                lib/src/presentations/sheet.dart            1
 5:MotionClock.instance    lib/src/controls/date_picker.dart           4
-5:MotionClock.instance    lib/src/controls/list.dart                  1
 5:MotionClock.instance    lib/src/controls/swipe_actions.dart         1
 5:MotionClock.instance    lib/src/navigation/chrome.dart              1
 5:MotionClock.instance    lib/src/navigation/navigation_bar.dart      3

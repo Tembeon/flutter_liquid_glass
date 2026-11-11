@@ -429,7 +429,9 @@ final List<Entry> registry = [
     'GlassListRow.detail',
     covers: const ['GlassListAccessory'],
     kind: Kind.pressable,
-    part: semanticsWidget('More info'),
+    part: find.byWidgetPredicate(
+      (widget) => widget is InputRegion && widget.semanticLabel == 'More info',
+    ),
     build: (probe, {required enabled}) => SizedBox(
       width: 402,
       child: GlassListSection(
