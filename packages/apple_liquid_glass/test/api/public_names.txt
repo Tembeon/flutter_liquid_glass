@@ -54,6 +54,8 @@ GlassListRow
 GlassListSection
 GlassListStyle
 GlassLocalizations
+GlassMenuAnchor
+GlassMenuAnchorChildBuilder
 GlassMenuController
 GlassMenuDeferred
 GlassMenuDivider
@@ -114,6 +116,8 @@ GlassSliderDetails
 GlassSliderStyle
 GlassSliverListSection
 GlassSolidBackdrop
+GlassSourceLink
+GlassSourceScope
 GlassStepper
 GlassStepperBuilder
 GlassStepperDetails

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/foundation/boxes.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/menu_context_hold.dart';
@@ -152,6 +153,9 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   MenuAppearance _style = MenuAppearance.light;
   int? _pointer;
   int? _early;
+
+  // The time of the tap whose action runs now, while it runs.
+  double? _tapAt;
   bool _routing = false;
   bool _delivering = false;
 
@@ -288,8 +292,14 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
         if (tracked) MotionHaptic.selection.play(context);
       case MenuActivated(:final target):
         _content.activate(target);
-      case MenuTapped():
-        if (_enabled) _onTap?.call();
+      case MenuTapped(:final time):
+        if (!_enabled) return;
+        _tapAt = time;
+        try {
+          _onTap?.call();
+        } finally {
+          _tapAt = null;
+        }
     }
   }
 
@@ -366,6 +376,12 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
 
   void _openFromCode() {
     if (!mounted || !_enabled || _isOpen) return;
+    // A tap that opens the menu from the source's own action opens it as
+    // the tap of a source whose tap is the menu's does.
+    if (_tapAt case final t?) {
+      _motion?.openAfterTap(t);
+      return;
+    }
     _prepare();
     _command((motion, t) => motion.open(t));
   }
@@ -473,6 +489,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
       source: _source,
       dim: _dim(context),
       semanticsLabel: _semanticLabel,
+      barrierLabel: GlassLocalizations.of(context).menuDismissLabel,
       semanticsRole: ui.SemanticsRole.menu,
       initialFocus: _menuFocus,
       onDismissed: (_) => _shown(false),
@@ -635,6 +652,318 @@ class _RawGlassMenuState extends _MenuHost<RawGlassMenu> {
       ),
     );
   }
+}
+
+/// Builds the control a [GlassMenuAnchor] wraps, given the anchor's
+/// [controller] and its `child`.
+///
+/// Flutter: `MenuAnchorChildBuilder`.
+typedef GlassMenuAnchorChildBuilder = Widget Function(
+  BuildContext context,
+  GlassMenuController controller,
+  Widget? child,
+);
+
+/// Wraps a control, such as a `GlassButton`, whose glass grows into a menu
+/// of [menuChildren], as a `UIButton` with a menu does on iOS 27.
+///
+/// UIKit: `UIButton.menu`. SwiftUI: `Menu`. Flutter: `MenuAnchor`,
+/// `CupertinoMenuAnchor`.
+///
+/// [builder] builds the control and opens the menu from its action with
+/// the controller it is given: `onPressed: controller.open` makes the tap
+/// open the menu, as UIKit's `showsMenuAsPrimaryAction`; another action
+/// keeps the tap and leaves the menu to a hold. Either way a hold opens it
+/// under the finger. The anchor takes the control's touches: the measured
+/// press shrinks it, a tap opens the menu on its release after UIKit's
+/// delay, and a finger that pressed it keeps sliding over the open menu and
+/// chooses the row it lifts from. The menu shows on the root overlay
+/// without a route; Escape, Back and a tap outside close it, and the tap
+/// outside reaches nothing under it. The menu grows out of the control on
+/// UIKit's liquid morph springs, the control's glass and the menu one body
+/// joined by a neck while they part (read from UIKit and replayed against
+/// iPhone 16 Pro recordings).
+///
+/// A control that lends itself through a [GlassSourceLink] (a
+/// `GlassButton` or [RawGlassButton] does) hands the menu its glass: its
+/// body hides while the menu shows, the menu's glass grows out of its
+/// shape, takes its tint at both hand-offs and carries its label as it
+/// fades. Its Space, Enter and accessibility tap run its action, its focus
+/// and states are the anchor's, and it reads as a button that is expanded
+/// while the menu shows. Anything else, such as plain text, an icon or a
+/// list row, keeps showing under the menu, whose untinted glass grows out
+/// of the anchor's box as a capsule; a tap on it opens the menu, and the
+/// keyboard focus and the mouse show on it as a ring and a systemFill wash
+/// (an approximation, not measured).
+class GlassMenuAnchor extends StatefulWidget {
+  /// Creates an anchor of [menuChildren] around what [builder] builds, or
+  /// around [child] without one.
+  const GlassMenuAnchor({
+    required this.menuChildren,
+    this.builder,
+    this.child,
+    this.controller,
+    this.childFocusNode,
+    this.onOpen,
+    this.onClose,
+    this.enabled = true,
+    this.semanticLabel,
+    this.order = GlassMenuOrder.automatic,
+    this.style,
+    @internal this.tuning = MenuTuning.standard,
+    @internal this.sourceOf,
+    @internal this.scalesOnPress = true,
+    super.key,
+  }) : assert(builder != null || child != null, 'Give a builder or a child.');
+
+  /// The menu's entries.
+  final List<GlassMenuEntry> menuChildren;
+
+  /// Builds the control the menu grows out of; null shows [child].
+  final GlassMenuAnchorChildBuilder? builder;
+
+  /// What [builder] is given to place, or the control itself without a
+  /// builder.
+  final Widget? child;
+
+  /// Opens and closes the menu from code; null for the anchor's own, which
+  /// [builder] is given either way.
+  final GlassMenuController? controller;
+
+  /// The focus node of the control, which takes the keyboard focus for it
+  /// and gets it back when the menu closes; null for the anchor's own.
+  final FocusNode? childFocusNode;
+
+  /// Called when the menu starts to show.
+  final VoidCallback? onOpen;
+
+  /// Called when the menu has gone.
+  final VoidCallback? onClose;
+
+  /// Whether the control takes touches and keys.
+  final bool enabled;
+
+  /// What accessibility reads for the control and the menu; null lets the
+  /// control speak, and names the menu after it.
+  final String? semanticLabel;
+
+  /// How the rows order in a menu that opens upward.
+  final GlassMenuOrder order;
+
+  /// The look of the menu's rows, over the theme's.
+  final GlassMenuStyle? style;
+
+  /// The measured behavior of the menu, read once: a later tuning is
+  /// ignored.
+  @internal
+  final MenuTuning tuning;
+
+  /// Where the menu grows out of in the coordinates of the given overlay,
+  /// when that is not the control, or null to use the control.
+  @internal
+  final MenuSource? Function(RenderBox overlay)? sourceOf;
+
+  /// Whether the control scales under a finger; false when something
+  /// around it already does.
+  @internal
+  final bool scalesOnPress;
+
+  @override
+  State<GlassMenuAnchor> createState() => _GlassMenuAnchorState();
+}
+
+class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
+  late final _link = GlassSourceLink(states: _states);
+  late final _unlent = _UnlentStates(_states, _link);
+  final _ownController = GlassMenuController();
+
+  @override
+  List<GlassMenuEntry> get _entries => widget.menuChildren;
+
+  @override
+  GlassMenuOrder get _order => widget.order;
+
+  @override
+  GlassMenuController get _controller => widget.controller ?? _ownController;
+
+  @override
+  bool get _enabled => widget.enabled;
+
+  @override
+  String? get _semanticLabel => widget.semanticLabel ?? _link.semanticLabel;
+
+  @override
+  VoidCallback? get _onTap => _link.isLent ? _link.onPressed : _openFromCode;
+
+  @override
+  Widget? get _look => _link.look;
+
+  @override
+  Color? get _sourceTint => _link.tint;
+
+  @override
+  MenuSource _sourceIn(RenderBox overlay, Rect box) {
+    final given = widget.sourceOf?.call(overlay);
+    if (given != null) return given;
+    final shown = _link.source.geometry?.rect;
+    final rect = shown == null
+        ? box
+        : Rect.fromPoints(
+            overlay.globalToLocal(shown.topLeft),
+            overlay.globalToLocal(shown.bottomRight),
+          );
+    final shape = _link.shape;
+    return MenuSource(
+      rect,
+      radius: shape == GlassShape.capsule ? null : shape.radiusIn(rect),
+    );
+  }
+
+  // What the region reports of the keyboard focus and the mouse, which
+  // the source's ring and hover response follow.
+  final _states = WidgetStatesController();
+
+  @override
+  void dispose() {
+    if (_showing) widget.onClose?.call();
+    _states.dispose();
+    super.dispose();
+  }
+
+  @override
+  void _reportShowing(bool showing) =>
+      (showing ? widget.onOpen : widget.onClose)?.call();
+
+  @override
+  MenuMotion _createMotion(
+    MenuSource source,
+    Size bounds,
+    EdgeInsets padding,
+  ) {
+    final motion = MenuMotion(
+      source: source,
+      layout: _content.root,
+      bounds: bounds,
+      padding: padding,
+      tuning: widget.tuning,
+    );
+    motion.opensOnTap = false;
+    return motion;
+  }
+
+  @override
+  void _relayout(
+    MenuMotion motion,
+    MenuSource source,
+    Size bounds,
+    EdgeInsets padding,
+  ) => motion.relayout(source: source, bounds: bounds, padding: padding);
+
+  @override
+  void didUpdateWidget(GlassMenuAnchor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _updated(
+      oldController: oldWidget.controller ?? _ownController,
+      wasEnabled: oldWidget.enabled,
+    );
+  }
+
+  late final _input = _MenuInput(
+    claimAfter: widget.tuning.holdDuration,
+    toGlobal: _toGlobal,
+    down: _sourceDown,
+    move: _pointerMove,
+    up: _pointerUp,
+    cancel: _pointerCancel,
+    activate: _activate,
+  );
+
+  bool _sourceDown(int pointer, double t, Offset global) {
+    if (!widget.enabled || _pointer != null || _isOpen) return false;
+    _prepare();
+    return _pointerDown(pointer, t, global);
+  }
+
+  void _activate() {
+    if (!widget.enabled) return;
+    if (_link.isLent) {
+      _link.onPressed?.call();
+    } else {
+      _openFromCode();
+    }
+  }
+
+  // Read through the steps, so the press follows the motion's frames once
+  // there is one.
+  Matrix4 _pressTransform() {
+    final motion = _steps?.value;
+    if (motion == null || !widget.scalesOnPress) return Matrix4.identity();
+    final s = motion.isPresented ? 1.0 : motion.pressScale;
+    return Matrix4.diagonal3Values(s, s, 1);
+  }
+
+  // systemFill at the hover's share of a press, as a list row's: not
+  // measured, a plain source on iOS shows no hover.
+  static Color _hoverOf(BuildContext context) {
+    final fill = GlassDynamicColor.resolve(GlassColors.systemFill, context);
+    return fill.withValues(alpha: fill.a * GlassHighlights.hoverGain);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _style = MenuAppearance.of(context, widget.style);
+    final enabled = widget.enabled;
+    final control =
+        widget.builder?.call(context, _controller, widget.child) ??
+        widget.child!;
+    return _host(
+      InputRegion(
+        interactions: [_input],
+        statesController: _states,
+        enabled: enabled,
+        focusNode: widget.childFocusNode,
+        semanticLabel: widget.semanticLabel,
+        child: Semantics(
+          button: true,
+          expanded: _showing,
+          excludeSemantics: widget.semanticLabel != null,
+          onLongPress: enabled ? _openFromCode : null,
+          child: MotionDriven(
+            template: () => Transform(
+              transform: _pressTransform(),
+              alignment: Alignment.center,
+            ),
+            child: GlassHighlightPaint.of(
+              context,
+              states: _unlent,
+              hoverColor: _hoverOf(context),
+              child: GlassSourceScope(link: _link, child: control),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The states of an anchor's region while no control lent itself to it: a
+/// control that did draws its own focus ring and hover from the link.
+final class _UnlentStates implements ValueListenable<Set<WidgetState>> {
+  _UnlentStates(this._states, this._link);
+
+  final ValueListenable<Set<WidgetState>> _states;
+  final GlassSourceLink _link;
+
+  @override
+  Set<WidgetState> get value =>
+      _link.isLent ? const <WidgetState>{} : _states.value;
+
+  @override
+  void addListener(VoidCallback listener) => _states.addListener(listener);
+
+  @override
+  void removeListener(VoidCallback listener) =>
+      _states.removeListener(listener);
 }
 
 /// The touches of a region over a menu's source or its layer, handed to

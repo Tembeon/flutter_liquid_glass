@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/motions/glass_press.dart';
+import 'package:apple_liquid_glass/src/raw/source.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
@@ -58,6 +59,12 @@ final class GlassButtonDetails {
 /// leaves that room; the body does not grow. Under Reduce Motion (kinesis's
 /// motion traits) the body glows but never lifts or leans (an
 /// approximation, not measured).
+///
+/// Under a [GlassSourceLink], such as inside a `GlassMenuAnchor`, the button
+/// lends itself: the presentation takes its touches, keys, focus and
+/// states and presses it as it measures, [onPressed] is what the
+/// presentation calls on a tap, and the body stays at rest. It then ignores
+/// [statesController], [focusNode] and [autofocus].
 class RawGlassButton extends StatefulWidget {
   /// Creates a button labeled [child] whose look [builder] builds.
   const RawGlassButton({
@@ -123,13 +130,38 @@ class _RawGlassButtonState extends State<RawGlassButton>
           ),
   );
 
+  late MotionSelection<GlassFrame> _resting = _restingOf(widget.shape);
+
+  static MotionSelection<GlassFrame> _restingOf(GlassShape shape) =>
+      MotionSelection(() => GlassFrame(shape: shape));
+
+  GlassSourceLink? _link;
+
   @override
   WidgetStatesController? get givenStates => widget.statesController;
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final link = GlassSourceLink.maybeOf(context);
+    if (identical(link, _link)) return;
+    _link?.release(this);
+    _link = link;
+  }
+
+  @override
+  void dispose() {
+    _link?.release(this);
+    super.dispose();
+  }
+
+  @override
   void didUpdateWidget(RawGlassButton oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.shape != oldWidget.shape) _body = _bodyOf(widget.shape);
+    if (widget.shape != oldWidget.shape) {
+      _body = _bodyOf(widget.shape);
+      _resting = _restingOf(widget.shape);
+    }
   }
 
   @override
@@ -140,7 +172,38 @@ class _RawGlassButtonState extends State<RawGlassButton>
   }
 
   @override
-  Widget build(BuildContext context) => MotionScope(
+  Widget build(BuildContext context) {
+    final link = _link;
+    if (link == null) return _button(context);
+    link.lend(
+      this,
+      onPressed: widget.onPressed,
+      shape: widget.shape,
+      semanticLabel: widget.semanticLabel,
+    );
+    final label = widget.semanticLabel;
+    return Semantics(
+      label: label,
+      excludeSemantics: label != null,
+      child: MotionSourceBox(
+        source: link.source,
+        child: widget.builder(
+          context,
+          GlassButtonDetails(
+            body: _resting,
+            states: {
+              ...link.states.value,
+              if (widget.onPressed == null) WidgetState.disabled,
+            },
+            statesListenable: link.states,
+            label: widget.child,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _button(BuildContext context) => MotionScope(
     motion: _press,
     child: InputRegion(
       interactions: _interactions,

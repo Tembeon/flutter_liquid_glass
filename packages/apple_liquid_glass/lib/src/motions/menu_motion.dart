@@ -2832,6 +2832,16 @@ class MenuMotion extends Motion with Presented {
     }
   }
 
+  /// Opens the menu as a tap released on the source at [t] does when the
+  /// tap opens it ([opensOnTap]): after [MenuTuning.tapOpenDelay]. For an
+  /// owner that heard [MenuTapped] and whose source's tap opens the menu.
+  void openAfterTap(double t) {
+    _take(t);
+    if (_phase == _Phase.opening || _openPending) return;
+    _openPending = true;
+    at(t + tuning.tapOpenDelay, _open);
+  }
+
   /// The touch was cancelled.
   void pointerCancel(double t) {
     _take(t);

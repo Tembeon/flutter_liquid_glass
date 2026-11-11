@@ -524,15 +524,26 @@ class GlassButton extends StatelessWidget {
     );
   }
 
-  Widget _button(BuildContext context) => RawGlassButton(
-    onPressed: onPressed,
-    statesController: statesController,
-    focusNode: focusNode,
-    autofocus: autofocus,
-    semanticLabel: semanticLabel,
-    builder: style?.builder ?? _themeStyleOf(context)?.builder ?? _defaultBody,
-    child: child,
-  );
+  Widget _button(BuildContext context) {
+    if (GlassSourceLink.maybeOf(context) case final link?) {
+      final states = {if (onPressed == null) WidgetState.disabled};
+      link.look = _label(context, states, child);
+      link.tint = GlassDynamicColor.maybeResolve(
+        _lookOf(context).backgroundColor?.resolve(states),
+        context,
+      );
+    }
+    return RawGlassButton(
+      onPressed: onPressed,
+      statesController: statesController,
+      focusNode: focusNode,
+      autofocus: autofocus,
+      semanticLabel: semanticLabel,
+      builder:
+          style?.builder ?? _themeStyleOf(context)?.builder ?? _defaultBody,
+      child: child,
+    );
+  }
 
   GlassButtonStyle _lookOf(BuildContext context) =>
       (style ?? const GlassButtonStyle())

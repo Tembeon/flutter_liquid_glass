@@ -69,6 +69,38 @@ final List<Entry> registry = [
     ),
   ),
   Entry(
+    'GlassMenuAnchor',
+    covers: const ['GlassMenuAnchor'],
+    kind: Kind.opener,
+    marker: find.text('First item'),
+    inside: find.text('First item'),
+    build: (probe, {required enabled}) => GlassMenuAnchor(
+      enabled: enabled,
+      menuChildren: _menu(probe),
+      builder: (context, controller, child) => GlassButton(
+        onPressed: controller.open,
+        semanticLabel: 'More',
+        child: const Text('More'),
+      ),
+    ),
+  ),
+  Entry(
+    'GlassMenuAnchor.text',
+    covers: const [],
+    kind: Kind.opener,
+    marker: find.text('First item'),
+    inside: find.text('First item'),
+    build: (probe, {required enabled}) => GlassMenuAnchor(
+      enabled: enabled,
+      menuChildren: _menu(probe),
+      child: const SizedBox(
+        width: 120,
+        height: 44,
+        child: Center(child: Text('Sort')),
+      ),
+    ),
+  ),
+  Entry(
     'RawGlassMenu',
     covers: const ['RawGlassMenu'],
     kind: Kind.opener,
@@ -688,6 +720,9 @@ const Map<String, String> nonInteractive = {
   'GlassScope': 'the root widget: theme and renderer',
   'GlassSliverListSection': 'the sliver form of GlassListSection',
   'GlassSolidBackdrop': 'tells glass what is behind it',
+  'GlassSourceScope':
+      'hands its link to the control in it; the presentation that made '
+      'the link takes the input',
   'GlassSurface': 'draws glass behind a child',
   'GlassTabScaffold': 'switches tab pages; its tab bar is an entry',
   'GlassTheme': 'provides the theme to its subtree',

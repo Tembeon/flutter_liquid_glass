@@ -16,7 +16,12 @@ export 'src/presentations/alert.dart'
         showGlassActionSheet,
         showGlassAlert;
 export 'src/presentations/menu_anchor.dart'
-    show GlassContextMenu, GlassMenuController, RawGlassMenu;
+    show
+        GlassContextMenu,
+        GlassMenuAnchor,
+        GlassMenuAnchorChildBuilder,
+        GlassMenuController,
+        RawGlassMenu;
 export 'src/presentations/menu_appearance.dart' show GlassMenuStyle;
 export 'src/presentations/menu_entries.dart'
     show
