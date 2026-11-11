@@ -1,8 +1,7 @@
 import 'package:flutter/painting.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass.dart';
 import 'package:meta/meta.dart';
 
-/// Represents a shape that can be used by a [LiquidGlass] widget.
+/// Represents a shape that can be used by a `LiquidGlass` widget.
 ///
 /// The set of shapes is closed and sealed: use [LiquidRoundedSuperellipse],
 /// [LiquidOval] or [LiquidRoundedRectangle]. `switch`es over a [LiquidShape]
@@ -56,7 +55,7 @@ sealed class LiquidShape extends OutlinedBorder {
   int get hashCode => side.hashCode;
 }
 
-/// Represents a squircle shape that can be used by a [LiquidGlass] widget.
+/// Represents a squircle shape that can be used by a `LiquidGlass` widget.
 ///
 /// Works like a [RoundedSuperellipseBorder], with one radius for all four
 /// corners, or one for the two top corners and another for the two bottom
@@ -141,7 +140,7 @@ final class LiquidRoundedSuperellipse extends LiquidShape {
       'LiquidRoundedSuperellipse($side, $borderRadius, $bottomRadius)';
 }
 
-/// Represents an ellipse shape that can be used by a [LiquidGlass] widget.
+/// Represents an ellipse shape that can be used by a `LiquidGlass` widget.
 ///
 /// Works like an [OvalBorder].
 final class LiquidOval extends LiquidShape {
@@ -175,7 +174,7 @@ final class LiquidOval extends LiquidShape {
   String toString() => 'LiquidOval($side)';
 }
 
-/// Represents a rounded rectangle shape that can be used by a [LiquidGlass]
+/// Represents a rounded rectangle shape that can be used by a `LiquidGlass`
 /// widget.
 ///
 /// Works like a [RoundedRectangleBorder].

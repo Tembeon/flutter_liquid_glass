@@ -36,9 +36,8 @@ import 'package:liquid_glass_renderer/src/rendering/glass/group_matte.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/shading.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass/shape_set.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
-import 'package:liquid_glass_renderer/src/widgets/liquid_glass_layer.dart';
 
-/// One frame of a live [LiquidGlassLayer]: what it shades with.
+/// One frame of a live `LiquidGlassLayer`: what it shades with.
 @immutable
 class LiquidGlassLayerFrame {
   /// Describes one frame of a layer.
@@ -48,13 +47,13 @@ class LiquidGlassLayerFrame {
     this.glow,
   });
 
-  /// See [LiquidGlassLayer.settings].
+  /// See `LiquidGlassLayer.settings`.
   final LiquidGlassSettings settings;
 
-  /// See [LiquidGlassLayer.field].
+  /// See `LiquidGlassLayer.field`.
   final LiquidGlassField? field;
 
-  /// See [LiquidGlassLayer.glow].
+  /// See `LiquidGlassLayer.glow`.
   final LiquidGlassGlow? glow;
 }
 
@@ -263,7 +262,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   Fate? get debugFate => _fate;
 
-  /// See [LiquidGlassLayer.glow].
+  /// See `LiquidGlassLayer.glow`.
   LiquidGlassGlow? get glow => _glow;
   LiquidGlassGlow? _glow;
   set glow(LiquidGlassGlow? value) {
@@ -285,7 +284,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return true;
   }
 
-  /// See [LiquidGlassLayer.field].
+  /// See `LiquidGlassLayer.field`.
   LiquidGlassField? get field => _field;
   LiquidGlassField? _field;
   set field(LiquidGlassField? value) {

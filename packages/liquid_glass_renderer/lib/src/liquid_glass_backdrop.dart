@@ -1,9 +1,8 @@
 import 'dart:ui';
 
-import 'package:liquid_glass_renderer/src/widgets/liquid_glass_layer.dart';
 import 'package:meta/meta.dart';
 
-/// Where the glass of a [LiquidGlassLayer] takes what it shows through.
+/// Where the glass of a `LiquidGlassLayer` takes what it shows through.
 ///
 /// A layer reads what is painted behind it ([LiquidGlassBackdrop.read], the
 /// default). When the caller knows the backdrop is one opaque color, the
