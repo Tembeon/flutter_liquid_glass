@@ -95,7 +95,7 @@ class ComponentsPage extends StatelessWidget {
           CupertinoIcons.calendar,
           GlassColors.systemRed,
           'Date picker',
-          'GlassDatePicker',
+          'GlassCompactDatePicker, GlassDatePicker',
           DatePickerPage.new,
         ),
         (

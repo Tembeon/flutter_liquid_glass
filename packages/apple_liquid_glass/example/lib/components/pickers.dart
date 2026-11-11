@@ -15,93 +15,94 @@ class DatePickerPage extends StatefulWidget {
 class _DatePickerPageState extends State<DatePickerPage> {
   var _date = DateTime(2026, 6, 12, 8, 30);
   var _mode = GlassDatePickerMode.date;
-  var _variant = GlassDatePickerVariant.compact;
+  var _inline = false;
   var _fives = false;
   var _brand = Brand.system;
   var _repot = DateTime(2026, 8, 3);
   var _alarm = DateTime(2026, 1, 1, 7, 15);
 
   @override
-  Widget build(BuildContext context) => ComponentPage(
-    name: 'GlassDatePicker',
-    summary:
-        'A date, a time or both: a compact field that opens its calendar '
-        'or its wheels out of itself, or the calendar or the wheels in '
-        'place.',
-    stageHeight: 120,
-    stage: FittedBox(
-      fit: BoxFit.scaleDown,
-      child: GlassDatePicker(
-        value: _date,
-        mode: _mode,
-        variant: _variant,
-        minuteInterval: _fives ? 5 : 1,
-        style: _brand.color == null
-            ? null
-            : GlassDatePickerStyle(accentColor: _brand.color),
-        onChanged: (date) => setState(() => _date = date),
-      ),
-    ),
-    knobs: [
-      ChoiceKnob<GlassDatePickerMode>(
-        'Mode',
-        value: _mode,
-        options: const {
-          GlassDatePickerMode.date: 'Date',
-          GlassDatePickerMode.time: 'Time',
-          GlassDatePickerMode.dateAndTime: 'Both',
-        },
-        onChanged: (mode) => setState(() => _mode = mode),
-      ),
-      ChoiceKnob<GlassDatePickerVariant>(
-        'Variant',
-        value: _variant,
-        options: const {
-          GlassDatePickerVariant.compact: 'Compact',
-          GlassDatePickerVariant.inline: 'Inline',
-          GlassDatePickerVariant.wheels: 'Wheels',
-        },
-        onChanged: (variant) => setState(() => _variant = variant),
-      ),
-      ToggleKnob(
-        'Minutes by five',
-        value: _fives,
-        onChanged: (on) => setState(() => _fives = on),
-      ),
-      ChoiceKnob<Brand>(
-        'Colors',
-        value: _brand,
-        options: Brand.names,
-        onChanged: (brand) => setState(() => _brand = brand),
-      ),
-    ],
-    ideas: [
-      Idea(
-        'In a list',
-        'The compact field at the end of a row.',
-        flush: true,
-        child: GlassListSection(
-          children: [
-            GlassListRow(
-              title: const Text('Repot'),
-              trailing: GlassDatePicker(
-                value: _repot,
-                onChanged: (date) => setState(() => _repot = date),
+  Widget build(BuildContext context) {
+    final style = _brand.color == null
+        ? null
+        : GlassDatePickerStyle(accentColor: _brand.color);
+    void changed(DateTime date) => setState(() => _date = date);
+    return ComponentPage(
+      name: 'GlassCompactDatePicker',
+      summary:
+          'A date, a time or both: a compact field that opens its calendar '
+          'or its wheels out of itself, or GlassDatePicker, the calendar in '
+          'place.',
+      stageHeight: _inline ? 360 : 120,
+      stage: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: _inline
+            ? GlassDatePicker(value: _date, style: style, onChanged: changed)
+            : GlassCompactDatePicker(
+                value: _date,
+                mode: _mode,
+                minuteInterval: _fives ? 5 : 1,
+                style: style,
+                onChanged: changed,
               ),
-            ),
-            GlassListRow(
-              title: const Text('Morning mist'),
-              trailing: GlassDatePicker(
-                value: _alarm,
-                mode: GlassDatePickerMode.time,
-                onChanged: (date) => setState(() => _alarm = date),
-              ),
-            ),
-          ],
+      ),
+      knobs: [
+        ChoiceKnob<bool>(
+          'Form',
+          value: _inline,
+          options: const {false: 'Compact', true: 'Inline'},
+          onChanged: (inline) => setState(() => _inline = inline),
         ),
-      ),
-    ],
-  );
+        ChoiceKnob<GlassDatePickerMode>(
+          'Mode',
+          value: _mode,
+          options: const {
+            GlassDatePickerMode.date: 'Date',
+            GlassDatePickerMode.time: 'Time',
+            GlassDatePickerMode.dateAndTime: 'Both',
+          },
+          onChanged: (mode) => setState(() => _mode = mode),
+        ),
+        ToggleKnob(
+          'Minutes by five',
+          value: _fives,
+          onChanged: (on) => setState(() => _fives = on),
+        ),
+        ChoiceKnob<Brand>(
+          'Colors',
+          value: _brand,
+          options: Brand.names,
+          onChanged: (brand) => setState(() => _brand = brand),
+        ),
+      ],
+      ideas: [
+        Idea(
+          'In a list',
+          'The compact field at the end of a row.',
+          flush: true,
+          child: GlassListSection(
+            children: [
+              GlassListRow(
+                title: const Text('Repot'),
+                trailing: GlassCompactDatePicker(
+                  value: _repot,
+                  onChanged: (date) => setState(() => _repot = date),
+                ),
+              ),
+              GlassListRow(
+                title: const Text('Morning mist'),
+                trailing: GlassCompactDatePicker(
+                  value: _alarm,
+                  mode: GlassDatePickerMode.time,
+                  onChanged: (date) => setState(() => _alarm = date),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class SearchFieldPage extends StatefulWidget {

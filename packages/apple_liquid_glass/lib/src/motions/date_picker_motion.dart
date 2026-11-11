@@ -253,16 +253,14 @@ DatePickerPlacement placeDatePicker({
 
 /// The press highlight of a compact date picker's label: the text dims
 /// under a finger over [DatePickerTuning.highlightDuration] on
-/// [DatePickerTuning.highlightCurve] and comes back on release.
+/// [DatePickerTuning.highlightCurve] and comes back on release. Under
+/// Reduce Motion (the motion's [Motion.traits]) the text does not dim
+/// (approximation, not recorded on the device).
 ///
 /// Times are seconds on the motion's timeline.
 @internal
 final class DatePickerLabelMotion extends Motion {
   late final _highlight = own(TimedValue(1));
-
-  /// Whether the label skips its press dimming for Reduce Motion
-  /// (approximation, not recorded on the device).
-  bool reducedMotion = false;
 
   /// The label's text dims under a finger at time [t].
   void press(double t) => _to(t, DatePickerTuning.highlightOpacity);
@@ -274,7 +272,7 @@ final class DatePickerLabelMotion extends Motion {
     advance(t);
     _highlight.animate(
       t,
-      reducedMotion ? 1 : opacity,
+      traits.reduceMotion ? 1 : opacity,
       duration: DatePickerTuning.highlightDuration,
       curve: DatePickerTuning.highlightCurve,
     );
@@ -285,16 +283,17 @@ final class DatePickerLabelMotion extends Motion {
 }
 
 /// The motion of a compact date picker's overlay: opening out of its label
-/// and closing back, the calendar's page turns, the calendar's change
-/// between its day grid and its month and year wheels, and a switch
-/// between the date and the time picker.
+/// and closing back, and a switch between the date and the time picker.
 ///
 /// One progress drives the overlay: it scales about its anchor from
 /// [DatePickerTuning.hiddenScale], fades in, and grows its box from
 /// [DatePickerTuning.hiddenHeight] to its own height, on
 /// [DatePickerTuning.openSpring]; closing reverses it on
 /// [DatePickerTuning.closeSpring], velocity included. The progress and a
-/// switch rest within [overlayRest].
+/// switch rest within [overlayRest]. Under Reduce Motion (the motion's
+/// [Motion.traits]) the overlay fades in and out at its full size over
+/// [DatePickerTuning.reducedMotionDuration] instead (read from UIKit,
+/// notes private).
 ///
 /// Times are seconds on the motion's timeline.
 @internal
@@ -307,16 +306,6 @@ final class DatePickerMotion extends Motion with Presented {
   /// [DatePickerTuning.reopenDelay] after the tap instead of
   /// [DatePickerTuning.openDelay].
   final bool reopening;
-
-  /// Whether the motion follows Reduce Motion: the overlay fades in and
-  /// out at its full size over [DatePickerTuning.reducedMotionDuration]
-  /// (read from UIKit, notes private); page turns keep their timing
-  /// (approximation, not recorded on the device).
-  bool reducedMotion = false;
-
-  /// Takes a page turn in the given direction as it starts, or refuses it
-  /// with false: the host turns the month the calendar shows.
-  bool Function(int direction)? onTurn;
 
   /// The swing of the overlay's progress, and of a switch between the
   /// pickers, at which they rest. NEAR: the calendar's edge lands by up to
@@ -336,9 +325,6 @@ final class DatePickerMotion extends Motion with Presented {
     rest: _rest,
   );
   late final _fade = own(TimedValue(0));
-  late final _page = own(TimedValue(1));
-  late final _years = own(TimedValue(0));
-  late final _turns = own(TimedValue(0, additive: true));
   late final _swap = own(
     MotionValue<double>(1, spring: DatePickerTuning.switchSpring),
     rest: _rest,
@@ -348,13 +334,11 @@ final class DatePickerMotion extends Motion with Presented {
   double? _pendingAt;
   MotionCancel _cancelPending = _keep;
   int _pending = 0;
-  int _pageDirection = 0;
-  int _queued = 0;
   bool _switching = false;
 
   static void _keep() {}
 
-  static const _queue = #queue;
+  bool get _reduced => traits.reduceMotion;
 
   /// Whether the overlay is open or opening.
   bool get isOpen => _open;
@@ -363,13 +347,11 @@ final class DatePickerMotion extends Motion with Presented {
   bool get isClosed =>
       !_open &&
       _pendingAt == null &&
-      (reducedMotion
-          ? _fade.restsAt(now)
-          : _progress.restsAt(now, _closedRest));
+      (_reduced ? _fade.restsAt(now) : _progress.restsAt(now, _closedRest));
 
   bool get _overlayRests {
     if (_pendingAt != null) return false;
-    if (reducedMotion) return _fade.restsAt(now);
+    if (_reduced) return _fade.restsAt(now);
     final rest = _progress.restTime(overlayRest);
     return rest != null && rest <= now;
   }
@@ -417,9 +399,7 @@ final class DatePickerMotion extends Motion with Presented {
     advance(t);
     final opening =
         _pendingAt != null ||
-        (reducedMotion
-            ? !_fade.restsAt(t)
-            : !_progress.restsAt(t, _closedRest));
+        (_reduced ? !_fade.restsAt(t) : !_progress.restsAt(t, _closedRest));
     _open = false;
     _schedule(
       t +
@@ -441,7 +421,7 @@ final class DatePickerMotion extends Motion with Presented {
     _pendingAt = due;
     _cancelPending = at(due, (s) {
       if (id == _pending) _pendingAt = null;
-      if (reducedMotion) {
+      if (_reduced) {
         _fade.animate(
           s,
           target,
@@ -456,11 +436,10 @@ final class DatePickerMotion extends Motion with Presented {
   }
 
   /// The overlay's progress: 0 hidden, 1 open.
-  double get progress =>
-      reducedMotion ? _fade.valueAt(now) : _progress.valueAt(now);
+  double get progress => _reduced ? _fade.valueAt(now) : _progress.valueAt(now);
 
   /// The overlay's scale about its anchor.
-  double get scale => reducedMotion
+  double get scale => _reduced
       ? 1
       : DatePickerTuning.hiddenScale +
             (1 - DatePickerTuning.hiddenScale) * progress;
@@ -470,10 +449,68 @@ final class DatePickerMotion extends Motion with Presented {
 
   /// The height of the overlay's box before the scale, for an overlay
   /// [full] points tall.
-  double height(double full) => reducedMotion
+  double height(double full) => _reduced
       ? full
       : DatePickerTuning.hiddenHeight +
             (full - DatePickerTuning.hiddenHeight) * progress;
+
+  @override
+  void didAdvance(double t) {
+    if (_switching) {
+      final rest = _swap.restTime(overlayRest);
+      if (rest != null && rest <= t) _switching = false;
+    }
+  }
+
+  /// Switches the overlay to the other picker at time [t], the lift of the
+  /// tap on its label: [DatePickerTuning.switchDelay] later the platter
+  /// moves to the new picker's placement on [DatePickerTuning.switchSpring]
+  /// while the two contents cross-fade ([swap]). Switching [back] to the
+  /// picker a running switch leaves turns that switch around from where it
+  /// stands, velocity included.
+  void switchPicker(double t, {required bool back}) {
+    advance(t);
+    final q = _swap.valueAt(t);
+    final v = _swap.velocityAt(t);
+    final start = t + DatePickerTuning.switchDelay;
+    if (back && q < 1) {
+      _swap.setPresentation(start, 1 - q, velocity: -v);
+    } else {
+      _swap.setPresentation(start, 0);
+    }
+    _swap.retarget(start, 1);
+    _switching = true;
+  }
+
+  /// How far a switch between the pickers has gone: 0 the old picker's
+  /// placement and content, 1 the new one's.
+  double get swap => _swap.valueAt(now);
+
+  /// Whether a switch between the pickers runs or waits to start.
+  bool get switching => _switching;
+}
+
+/// The motion of a date picker's calendar: its month page turns and its
+/// change between the day grid and the month and year wheels.
+///
+/// Page turns keep their timing under Reduce Motion (approximation, not
+/// recorded on the device).
+///
+/// Times are seconds on the motion's timeline.
+@internal
+final class DatePickerCalendarMotion extends Motion {
+  late final _page = own(TimedValue(1));
+  late final _years = own(TimedValue(0));
+  late final _turns = own(TimedValue(0, additive: true));
+
+  int _pageDirection = 0;
+  int _queued = 0;
+
+  static const _queue = #queue;
+
+  /// Takes a page turn in the given direction as it starts, or refuses it
+  /// with false: the calendar turns the month it shows.
+  bool Function(int direction)? onTurn;
 
   /// Turns the calendar one month forward ([direction] 1) or back (-1) at
   /// time [t], after [onTurn] takes the turn. A running turn completes
@@ -504,14 +541,6 @@ final class DatePickerMotion extends Motion with Presented {
       duration: DatePickerTuning.pageDuration,
       curve: const _SineInOut(),
     );
-  }
-
-  @override
-  void didAdvance(double t) {
-    if (_switching) {
-      final rest = _swap.restTime(overlayRest);
-      if (rest != null && rest <= t) _switching = false;
-    }
   }
 
   /// How far the current page turn has gone, from 0 (the old
@@ -575,33 +604,6 @@ final class DatePickerMotion extends Motion with Presented {
   /// How far the calendar has turned to its month and year wheels: 0 the
   /// day grid, 1 the wheels.
   double get yearPicker => _years.valueAt(now);
-
-  /// Switches the overlay to the other picker at time [t], the lift of the
-  /// tap on its label: [DatePickerTuning.switchDelay] later the platter
-  /// moves to the new picker's placement on [DatePickerTuning.switchSpring]
-  /// while the two contents cross-fade ([swap]). Switching [back] to the
-  /// picker a running switch leaves turns that switch around from where it
-  /// stands, velocity included.
-  void switchPicker(double t, {required bool back}) {
-    advance(t);
-    final q = _swap.valueAt(t);
-    final v = _swap.velocityAt(t);
-    final start = t + DatePickerTuning.switchDelay;
-    if (back && q < 1) {
-      _swap.setPresentation(start, 1 - q, velocity: -v);
-    } else {
-      _swap.setPresentation(start, 0);
-    }
-    _swap.retarget(start, 1);
-    _switching = true;
-  }
-
-  /// How far a switch between the pickers has gone: 0 the old picker's
-  /// placement and content, 1 the new one's.
-  double get swap => _swap.valueAt(now);
-
-  /// Whether a switch between the pickers runs or waits to start.
-  bool get switching => _switching;
 }
 
 /// A sine ease in and out, `(1 - cos(pi k)) / 2`: a page turn's curve.

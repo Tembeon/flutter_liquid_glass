@@ -85,7 +85,7 @@ void main() {
           home: StatefulBuilder(
             builder: (BuildContext context, StateSetter setState) => Align(
               alignment: alignment,
-              child: GlassDatePicker(
+              child: GlassCompactDatePicker(
                 value: current,
                 mode: mode,
                 style: style,
@@ -323,8 +323,8 @@ void main() {
       tester,
     ) async {
       await pump(tester, onChanged: (_) {});
-      final label = tester.getRect(find.byType(GlassDatePicker));
-      await tester.tap(find.byType(GlassDatePicker));
+      final label = tester.getRect(find.byType(GlassCompactDatePicker));
+      await tester.tap(find.byType(GlassCompactDatePicker));
       await tester.pumpAndSettle(
         const Duration(milliseconds: 100),
         EnginePhase.sendSemanticsUpdate,
@@ -344,8 +344,8 @@ void main() {
         direction: TextDirection.rtl,
         alignment: const Alignment(-0.6, -0.4),
       );
-      final label = tester.getRect(find.byType(GlassDatePicker));
-      await tester.tap(find.byType(GlassDatePicker));
+      final label = tester.getRect(find.byType(GlassCompactDatePicker));
+      await tester.tap(find.byType(GlassCompactDatePicker));
       await tester.pumpAndSettle(
         const Duration(milliseconds: 100),
         EnginePhase.sendSemanticsUpdate,
@@ -357,7 +357,7 @@ void main() {
 
     testWidgets('the chevrons turn the month', (tester) async {
       await pump(tester, onChanged: (_) {});
-      await tester.tap(find.byType(GlassDatePicker));
+      await tester.tap(find.byType(GlassCompactDatePicker));
       await tester.pumpAndSettle(
         const Duration(milliseconds: 100),
         EnginePhase.sendSemanticsUpdate,
@@ -382,7 +382,7 @@ void main() {
 
     testWidgets('Escape closes the overlay', (tester) async {
       await pump(tester, onChanged: (_) {});
-      await tester.tap(find.byType(GlassDatePicker));
+      await tester.tap(find.byType(GlassCompactDatePicker));
       await tester.pumpAndSettle(
         const Duration(milliseconds: 100),
         EnginePhase.sendSemanticsUpdate,
@@ -436,7 +436,7 @@ void main() {
 
     testWidgets('a disabled picker does not open', (tester) async {
       await pump(tester);
-      await tester.tap(find.byType(GlassDatePicker));
+      await tester.tap(find.byType(GlassCompactDatePicker));
       await tester.pumpAndSettle(
         const Duration(milliseconds: 100),
         EnginePhase.sendSemanticsUpdate,
@@ -461,7 +461,7 @@ void main() {
       );
       final label = tester.widget<Text>(find.text('Oct 3, 2026'));
       expect(label.style?.color, _white);
-      await tester.tap(find.byType(GlassDatePicker));
+      await tester.tap(find.byType(GlassCompactDatePicker));
       await tester.pumpAndSettle(
         const Duration(milliseconds: 100),
         EnginePhase.sendSemanticsUpdate,
@@ -485,7 +485,7 @@ void main() {
           home: StatefulBuilder(
             builder: (BuildContext context, StateSetter setState) => Align(
               alignment: const Alignment(0, -0.3135),
-              child: GlassDatePicker(
+              child: GlassCompactDatePicker(
                 value: value,
                 mode: mode,
                 use24HourFormat: true,
@@ -619,7 +619,7 @@ void main() {
         _App(
           home: Align(
             alignment: const Alignment(0, -0.3135),
-            child: GlassDatePicker(
+            child: GlassCompactDatePicker(
               value: DateTime(2026, 10, 3, 7, 41),
               mode: GlassDatePickerMode.time,
               use24HourFormat: true,
@@ -628,7 +628,7 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.byType(GlassDatePicker));
+      await tester.tap(find.byType(GlassCompactDatePicker));
       await tester.pumpAndSettle(
         const Duration(milliseconds: 100),
         EnginePhase.sendSemanticsUpdate,
@@ -668,7 +668,7 @@ void main() {
           home: StatefulBuilder(
             builder: (BuildContext context, StateSetter setState) => Align(
               alignment: const Alignment(0, -0.3135),
-              child: GlassDatePicker(
+              child: GlassCompactDatePicker(
                 value: value,
                 mode: GlassDatePickerMode.time,
                 use24HourFormat: false,
@@ -780,7 +780,7 @@ void main() {
           home: StatefulBuilder(
             builder: (BuildContext context, StateSetter setState) => Align(
               alignment: const Alignment(0, -0.3135),
-              child: GlassDatePicker(
+              child: GlassCompactDatePicker(
                 value: value,
                 today: DateTime(2026, 10, 3),
                 onChanged: (DateTime v) {
@@ -792,7 +792,7 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.byType(GlassDatePicker));
+      await tester.tap(find.byType(GlassCompactDatePicker));
       await tester.pumpAndSettle(
         const Duration(milliseconds: 100),
         EnginePhase.sendSemanticsUpdate,

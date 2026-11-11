@@ -1,9 +1,9 @@
 /// The behaviour cores of the controls: `RawGlassButton` (the button's),
 /// `RawGlassSwitch`, `RawGlassSlider`, `RawGlassStepper`,
-/// `RawGlassSelector`, `RawGlassPageControl`, `RawGlassSearchField` and
-/// `RawGlassList`, with the details each gives its builder; and
-/// `GlassSourceLink`, through which a control lends itself to a
-/// presentation that grows out of it.
+/// `RawGlassSelector`, `RawGlassPageControl`, `RawGlassSearchField`,
+/// `RawGlassList` and `RawGlassDatePicker`, with the details each gives its
+/// builder; and `GlassSourceLink`, through which a control lends itself to
+/// a presentation that grows out of it.
 ///
 /// For the author of a design system who wants iOS behaviour with a look
 /// of their own. A core runs the measured motion of its control and takes
@@ -19,6 +19,17 @@ library;
 
 export 'src/raw/button.dart'
     show GlassButtonBuilder, GlassButtonDetails, RawGlassButton;
+export 'src/raw/date_picker.dart'
+    show
+        GlassDatePickerArrow,
+        GlassDatePickerArrowBuilder,
+        GlassDatePickerDay,
+        GlassDatePickerDayBuilder,
+        GlassDatePickerMonthYear,
+        GlassDatePickerMonthYearBuilder,
+        GlassDatePickerTitle,
+        GlassDatePickerTitleBuilder,
+        RawGlassDatePicker;
 export 'src/raw/list.dart' show RawGlassList;
 export 'src/raw/page_control.dart'
     show

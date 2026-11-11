@@ -482,7 +482,7 @@ class _ControlsPageState extends State<ControlsPage> {
     children: [
       GlassListRow(
         title: const Text('Dinner'),
-        trailing: GlassDatePicker(
+        trailing: GlassCompactDatePicker(
           value: _date,
           mode: GlassDatePickerMode.dateAndTime,
           minuteInterval: 5,
@@ -491,14 +491,14 @@ class _ControlsPageState extends State<ControlsPage> {
       ),
       GlassListRow(
         title: const Text('Trip'),
-        trailing: GlassDatePicker(
+        trailing: GlassCompactDatePicker(
           value: _trip,
           onChanged: (date) => setState(() => _trip = date),
         ),
       ),
       GlassListRow(
         title: const Text('Alarm'),
-        trailing: GlassDatePicker(
+        trailing: GlassCompactDatePicker(
           value: _alarm,
           mode: GlassDatePickerMode.time,
           onChanged: (date) => setState(() => _alarm = date),

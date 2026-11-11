@@ -192,7 +192,7 @@ void main() {
           if (r['text'] == '15' && r['id'] == first['id'] && _d(r, 't') > up) r,
       ];
       final (_, rms) = _fit(up - 0.03, 0.08, (start) {
-        final m = DatePickerMotion();
+        final m = DatePickerCalendarMotion();
         m.turnPage(start, 1);
         return [
           for (final r in day)
@@ -440,7 +440,7 @@ void main() {
                 _d(r, 't') > titleTaps.first)
               _d(r, 't'),
         ].first;
-        final m = DatePickerMotion();
+        final m = DatePickerCalendarMotion();
         var show = true;
         var next = 0;
         final fade = <double>[];
@@ -519,7 +519,7 @@ void main() {
     });
 
     test('the year picker eases in 0.25 s after its delay, both ways', () {
-      final m = DatePickerMotion();
+      final m = DatePickerCalendarMotion();
       m.showYearPicker(1, show: true);
       expect(m.showsYearPicker, isTrue);
       const show = DatePickerTuning.yearPickerShowDelay;
@@ -533,7 +533,7 @@ void main() {
     });
 
     test('a reversal restarts from where the change stands', () {
-      final m = DatePickerMotion();
+      final m = DatePickerCalendarMotion();
       m.showYearPicker(0, show: true);
       m.showYearPicker(0.15, show: false);
       const hide = DatePickerTuning.yearPickerHideDelay;
@@ -544,7 +544,7 @@ void main() {
       expect(m.seenAt(at + 0.25).yearPicker, 0);
       // A reversal scheduled to start before the change has started
       // leaves it where it was.
-      final n = DatePickerMotion();
+      final n = DatePickerCalendarMotion();
       n.showYearPicker(0, show: true);
       n.showYearPicker(0.01, show: false);
       for (var t = 0.0; t < 0.6; t += 0.01) {
@@ -568,7 +568,7 @@ void main() {
   });
 
   test('another page turn waits for the running slide, then runs', () {
-    final motion = DatePickerMotion();
+    final motion = DatePickerCalendarMotion();
     final turns = <int>[];
     motion.onTurn = (direction) {
       turns.add(direction);
@@ -588,25 +588,27 @@ void main() {
   });
 
   test('reduced motion drops the label dim and fades the overlay', () {
-    final regular = DatePickerMotion();
-    final reduced = DatePickerMotion();
-    reduced.reducedMotion = true;
-    regular.open(0);
-    reduced.open(0);
-    final pressed = DatePickerLabelMotion();
-    final calm = DatePickerLabelMotion();
-    calm.reducedMotion = true;
-    pressed.press(0);
-    calm.press(0);
-    expect(pressed.seenAt(0.2).highlight, lessThan(1));
-    expect(calm.seenAt(0.2).highlight, 1);
     const start = DatePickerTuning.openDelay;
     const fade = DatePickerTuning.reducedMotionDuration;
+    final regular = DatePickerMotion();
+    regular.open(0);
+    final pressed = DatePickerLabelMotion();
+    pressed.press(0);
+    expect(pressed.seenAt(0.2).highlight, lessThan(1));
+    expect(regular.seenAt(start + fade / 2).scale, lessThan(1));
+    MotionTraits.debugPlatformOverride = const MotionTraits(
+      reduceMotion: true,
+    );
+    addTearDown(() => MotionTraits.debugPlatformOverride = null);
+    final reduced = DatePickerMotion();
+    reduced.open(0);
+    final calm = DatePickerLabelMotion();
+    calm.press(0);
+    expect(calm.seenAt(0.2).highlight, 1);
     reduced.advance(start + fade / 2);
     expect(reduced.seenAt(start + fade / 2).opacity, closeTo(0.5, 1e-9));
     expect(reduced.seenAt(start + fade / 2).scale, 1);
     expect(reduced.seenAt(start + fade / 2).height(300), 300);
-    expect(regular.seenAt(start + fade / 2).scale, lessThan(1));
     reduced.advance(start + fade);
     expect(reduced.seenAt(start + fade).opacity, 1);
     reduced.close(1);

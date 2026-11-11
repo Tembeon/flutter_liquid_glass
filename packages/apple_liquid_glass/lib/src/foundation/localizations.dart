@@ -88,6 +88,69 @@ abstract class GlassLocalizations {
 
   /// The value of a slider at [fraction] of its range, 0 to 1.
   String percentValue(double fraction);
+
+  /// The name of [month], 1 for January to 12 for December.
+  String monthName(int month);
+
+  /// The initial a calendar heads the column of [weekday] with, as a
+  /// [DateTime] weekday: 1 for Monday to 7 for Sunday.
+  String weekdayAbbreviation(int weekday);
+
+  /// The title of a calendar showing the month of [month] and its year.
+  String monthYear(DateTime month);
+
+  /// What a calendar's day [date] reads: its number first, then the full
+  /// date, then that it is [today], as `CalendarDatePicker` reads a day.
+  String dayLabel(DateTime date, {required bool today});
+
+  /// The date a compact date picker's label shows, such as "Oct 3, 2026".
+  String compactDate(DateTime date);
+
+  /// The time of day a compact date picker's label shows, in 24 hours or
+  /// in 12 with the half of the day.
+  String compactTime(DateTime time, {required bool use24HourFormat});
+
+  /// The label of a calendar's button that shows the previous month.
+  String get previousMonthLabel;
+
+  /// The label of a calendar's button that shows the next month.
+  String get nextMonthLabel;
+
+  /// The label of a calendar's month title while it shows the days: a tap
+  /// shows the month and year wheels.
+  String get showYearPickerLabel;
+
+  /// The label of a calendar's month title while it shows the month and
+  /// year wheels: a tap shows the days again.
+  String get hideYearPickerLabel;
+
+  /// The label of the wheel of months.
+  String get monthLabel;
+
+  /// The label of the wheel of years.
+  String get yearLabel;
+
+  /// The label of the wheel of hours.
+  String get hourLabel;
+
+  /// The label of the wheel of minutes.
+  String get minuteLabel;
+
+  /// The label of the wheel of the half of the day.
+  String get dayPeriodLabel;
+
+  /// The first half of the day on a wheel of 12 hours.
+  String get anteMeridiemAbbreviation;
+
+  /// The second half of the day on a wheel of 12 hours.
+  String get postMeridiemAbbreviation;
+
+  /// What a compact date picker's label says it does when activated.
+  String get compactDatePickerHint;
+
+  /// The label of what lies around a compact date picker's calendar or
+  /// wheels, whose tap dismisses them.
+  String get datePickerDismissLabel;
 }
 
 /// The English [GlassLocalizations], used where an app loaded none.
@@ -157,6 +220,101 @@ class DefaultGlassLocalizations extends GlassLocalizations {
 
   @override
   String percentValue(double fraction) => '${(fraction * 100).round()}%';
+
+  static const List<String> _months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+
+  static const List<String> _weekdays = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
+
+  @override
+  String monthName(int month) => _months[month - 1];
+
+  @override
+  String weekdayAbbreviation(int weekday) =>
+      _weekdays[weekday - 1].substring(0, 3).toUpperCase();
+
+  @override
+  String monthYear(DateTime month) => '${monthName(month.month)} ${month.year}';
+
+  @override
+  String dayLabel(DateTime date, {required bool today}) =>
+      '${date.day}, ${_weekdays[date.weekday - 1]}, '
+      '${monthName(date.month)} ${date.day}, ${date.year}'
+      '${today ? ', Today' : ''}';
+
+  @override
+  String compactDate(DateTime date) =>
+      '${monthName(date.month).substring(0, 3)} ${date.day}, ${date.year}';
+
+  @override
+  String compactTime(DateTime time, {required bool use24HourFormat}) {
+    String two(int v) => v.toString().padLeft(2, '0');
+    if (use24HourFormat) return '${two(time.hour)}:${two(time.minute)}';
+    final hour = time.hour % 12 == 0 ? 12 : time.hour % 12;
+    final period = time.hour < 12
+        ? anteMeridiemAbbreviation
+        : postMeridiemAbbreviation;
+    return '$hour:${two(time.minute)} $period';
+  }
+
+  @override
+  String get previousMonthLabel => 'Previous month';
+
+  @override
+  String get nextMonthLabel => 'Next month';
+
+  @override
+  String get showYearPickerLabel => 'Show year picker';
+
+  @override
+  String get hideYearPickerLabel => 'Hide year picker';
+
+  @override
+  String get monthLabel => 'Month';
+
+  @override
+  String get yearLabel => 'Year';
+
+  @override
+  String get hourLabel => 'Hour';
+
+  @override
+  String get minuteLabel => 'Minute';
+
+  @override
+  String get dayPeriodLabel => 'AM/PM';
+
+  @override
+  String get anteMeridiemAbbreviation => 'AM';
+
+  @override
+  String get postMeridiemAbbreviation => 'PM';
+
+  @override
+  String get compactDatePickerHint => 'Shows the picker';
+
+  @override
+  String get datePickerDismissLabel => 'Dismiss picker';
 }
 
 class _DefaultGlassLocalizationsDelegate

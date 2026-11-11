@@ -475,23 +475,72 @@ final List<Entry> registry = [
     ),
   ),
   Entry(
-    'GlassDatePicker.compact',
-    covers: const [
-      'GlassDatePicker',
-      'GlassDatePickerMode',
-      'GlassDatePickerVariant',
-    ],
+    'GlassCompactDatePicker',
+    covers: const ['GlassCompactDatePicker', 'GlassDatePickerMode'],
     kind: Kind.opener,
     marker: find.text('October 2026'),
     inside: find.text('15'),
     build: (probe, {required enabled}) => Held<DateTime>(
       probe: probe,
       initial: DateTime(2026, 10, 3, 9, 41),
-      builder: (context, value, set) => GlassDatePicker(
+      builder: (context, value, set) => GlassCompactDatePicker(
         value: value,
         today: DateTime(2026, 10, 3),
         semanticLabel: 'Date',
         onChanged: enabled ? set : null,
+      ),
+    ),
+  ),
+  Entry(
+    'GlassDatePicker',
+    covers: const ['GlassDatePicker', 'GlassDatePickerStyle'],
+    kind: Kind.selection,
+    focusStops: 4,
+    build: (probe, {required enabled}) => Held<DateTime>(
+      probe: probe,
+      initial: DateTime(2026, 10, 3, 9, 41),
+      builder: (context, value, set) => GlassDatePicker(
+        value: value,
+        today: DateTime(2026, 10, 3),
+        onChanged: enabled ? set : null,
+      ),
+    ),
+  ),
+  Entry(
+    'RawGlassDatePicker',
+    covers: const [
+      'RawGlassDatePicker',
+      'GlassDatePickerDay',
+      'GlassDatePickerTitle',
+      'GlassDatePickerArrow',
+      'GlassDatePickerMonthYear',
+    ],
+    look: Look.builder,
+    kind: Kind.selection,
+    focusStops: 4,
+    part: find.text('October 2026'),
+    build: (probe, {required enabled}) => Held<DateTime>(
+      probe: probe,
+      initial: DateTime(2026, 10, 3, 9, 41),
+      builder: (context, value, set) => RawGlassDatePicker(
+        value: value,
+        today: DateTime(2026, 10, 3),
+        onChanged: enabled ? set : null,
+        dayBuilder: (context, day) => SizedBox.fromSize(
+          size: day.size,
+          child: Center(child: Text('${day.date.day}')),
+        ),
+        titleBuilder: (context, title) => ListenableBuilder(
+          listenable: title.states,
+          builder: (context, _) {
+            probe.states = title.states.value;
+            return Text(title.text);
+          },
+        ),
+        arrowBuilder: (context, arrow) =>
+            Center(child: Text(arrow.next ? '>' : '<')),
+        weekdayBuilder: (context, label) => Text(label),
+        monthYearBuilder: (context, details) => const SizedBox.expand(),
       ),
     ),
   ),
