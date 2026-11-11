@@ -74,6 +74,10 @@ class InputRegion extends StatefulWidget {
   final WidgetStatesController? statesController;
 
   /// The haptic for an event, or null for none.
+  ///
+  /// This is the one way a control plays a haptic: the region plays it as
+  /// the event happens, never for a keyboard or accessibility activation,
+  /// and plays none under a [MotionHapticScope] that turns haptics off.
   final MotionHaptic? Function(InteractionEvent event)? feedback;
 
   /// Whether the region takes input; disabling it ends a touch.
@@ -464,6 +468,7 @@ class _InputRegionState extends State<InputRegion> {
     if (event is ActivationEvent && event.source != ActivationSource.pointer) {
       return;
     }
+    if (!MotionHapticScope._enabledHere(context)) return;
     widget.feedback?.call(event)?.play();
   }
 
@@ -838,9 +843,63 @@ class _RenderRegion extends RenderProxyBox {
   }
 }
 
-/// Plays a [MotionHaptic] on the platform.
+/// Turns the haptics of the input regions below it on or off: an app's
+/// setting for haptics, or a part of a screen that stays quiet.
+///
+/// UIKit: the System Haptics setting. Flutter: none; `TickerMode` is the
+/// same shape for tickers.
+///
+/// An [InputRegion] below a scope with [enabled] false plays no
+/// [InputRegion.feedback]. A scope cannot turn haptics back on below one
+/// that turned them off. Code that calls [MotionHapticPlay.play] itself is
+/// not silenced.
+class MotionHapticScope extends StatelessWidget {
+  /// Turns the haptics of [child] on or off.
+  const MotionHapticScope({
+    required this.enabled,
+    required this.child,
+    super.key,
+  });
+
+  /// Whether the regions below play their haptics.
+  final bool enabled;
+
+  /// The subtree the scope governs.
+  final Widget child;
+
+  /// Whether haptics are on at [context]: false below any scope that turns
+  /// them off, true otherwise. Rebuilds [context] when that changes.
+  static bool enabledOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_HapticScope>()?.enabled ??
+      true;
+
+  static bool _enabledHere(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<_HapticScope>()?.enabled ?? true;
+
+  @override
+  Widget build(BuildContext context) => _HapticScope(
+    enabled: enabled && enabledOf(context),
+    child: child,
+  );
+}
+
+class _HapticScope extends InheritedWidget {
+  const _HapticScope({required this.enabled, required super.child});
+
+  final bool enabled;
+
+  @override
+  bool updateShouldNotify(_HapticScope oldWidget) =>
+      enabled != oldWidget.enabled;
+}
+
+/// Plays a [MotionHaptic] on the platform at once.
+///
+/// It plays even below a [MotionHapticScope] that turns haptics off: a
+/// control plays its haptics through [InputRegion.feedback], which the
+/// scope silences, and calls this only where no region event fits.
 extension MotionHapticPlay on MotionHaptic {
-  /// Plays the haptic.
+  /// Plays the haptic, whatever any scope says.
   void play() => switch (this) {
     .selection => HapticFeedback.selectionClick(),
     .lightImpact => HapticFeedback.lightImpact(),

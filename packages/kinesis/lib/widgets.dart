@@ -18,7 +18,7 @@ library;
 export 'src/widgets/control_states.dart' show ControlStates;
 export 'src/widgets/driven.dart' show MotionDriven;
 export 'src/widgets/input_region.dart'
-    show AdjustValueIntent, InputRegion, MotionHapticPlay;
+    show AdjustValueIntent, InputRegion, MotionHapticPlay, MotionHapticScope;
 export 'src/widgets/layout.dart' show MotionLayout, MotionLayoutBuilder;
 export 'src/widgets/measure.dart' show MotionMeasure;
 export 'src/widgets/resolve.dart' show MotionResolveHost;

@@ -734,6 +734,35 @@ void main() {
       expect(scroll.position.pixels, 30);
     });
   });
+
+  testWidgets('a haptic scope turns the feedback of the regions below off, '
+      'and an inner scope cannot turn it back on', (tester) async {
+    Widget pressable({required bool outer, required bool inner}) => _app(
+      MotionHapticScope(
+        enabled: outer,
+        child: MotionHapticScope(
+          enabled: inner,
+          child: Center(
+            child: _Pressable(
+              onPressed: () {},
+              haptic: MotionHaptic.mediumImpact,
+              child: const SizedBox(width: 80, height: 40),
+            ),
+          ),
+        ),
+      ),
+    );
+    for (final (outer, inner) in [
+      (true, true),
+      (false, true),
+      (true, false),
+    ]) {
+      await tester.pumpWidget(pressable(outer: outer, inner: inner));
+      await tester.tap(find.byType(_Pressable));
+      await tester.pump();
+    }
+    expect(haptics, ['HapticFeedbackType.mediumImpact']);
+  });
 }
 
 final class _WheelHeard extends Interaction {

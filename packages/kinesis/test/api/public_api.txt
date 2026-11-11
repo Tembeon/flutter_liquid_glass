@@ -581,6 +581,16 @@ final class MotionEffect
 enum MotionHaptic (see package:kinesis/input.dart)
 extension MotionHapticPlay on MotionHaptic
   void play()
+class MotionHapticScope extends StatelessWidget
+  const MotionHapticScope({
+    required bool enabled,
+    required Widget child,
+    Key? key,
+  })
+  final Widget child
+  final bool enabled
+  static bool enabledOf(BuildContext context)
+  overrides: build
 class MotionLayout extends StatefulWidget
   const MotionLayout({
     required Widget Function(BuildContext, List<Widget>) layoutBuilder,
@@ -1168,6 +1178,7 @@ class AdjustValueIntent (see package:kinesis/kinesis.dart)
 class InputRegion (see package:kinesis/kinesis.dart)
 class MotionDriven (see package:kinesis/kinesis.dart)
 extension MotionHapticPlay (see package:kinesis/kinesis.dart)
+class MotionHapticScope (see package:kinesis/kinesis.dart)
 class MotionLayout (see package:kinesis/kinesis.dart)
 typedef MotionLayoutBuilder (see package:kinesis/kinesis.dart)
 class MotionMeasure (see package:kinesis/kinesis.dart)
