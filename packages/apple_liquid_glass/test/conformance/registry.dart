@@ -451,7 +451,6 @@ final List<Entry> registry = [
     covers: const ['GlassSwipeActions', 'GlassSwipeAction'],
     kind: Kind.actions,
     canDisable: false,
-    focusStops: 2,
     build: (probe, {required enabled}) => SizedBox(
       width: 402,
       child: GlassSwipeActions(
@@ -466,7 +465,10 @@ final List<Entry> registry = [
             onPressed: () => probe.add('Delete'),
           ),
         ],
-        child: const GlassListRow(title: Text('Message')),
+        child: GlassListRow(
+          title: const Text('Message'),
+          onPressed: () => probe.add('Message'),
+        ),
       ),
     ),
   ),

@@ -1,6 +1,8 @@
-import 'package:apple_liquid_glass/src/foundation/colors.dart';
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/raw/list.dart';
+import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
@@ -58,7 +60,13 @@ final class GlassSwipeAction {
 /// row performs the first action, as UIKit's
 /// `performsFirstActionWithFullSwipe`. A tap on the open row closes it,
 /// and so does a scroll, or a swipe of another row of the same
-/// [RawGlassList]. Accessibility offers the actions as custom actions.
+/// [RawGlassList]. Accessibility offers the actions as custom actions of
+/// the row, as UIKit does, which is also how iOS's Full Keyboard Access
+/// reaches them (its actions command, Tab-Z). A closed row's actions are
+/// no Tab stops; an open row's actions are, before the row, and Space and
+/// Enter press the focused one. A focused action draws Flutter's Cupertino
+/// focus ring inside its edge and a mouse over it washes it, by the rule
+/// of the glass controls (an approximation, not measured).
 ///
 /// Not measured: the springs, the widths and the full-swipe threshold are
 /// chosen by eye, as UIKit's swipe actions were not captured on iOS 27.
@@ -115,6 +123,10 @@ class _GlassSwipeActionsState extends State<GlassSwipeActions>
     onCancel: _cancel,
   );
   late final List<Interaction> _interactions = [_drag];
+  final List<List<Interaction>> _presses = [];
+  final List<GlobalKey> _actionKeys = [];
+  final _swipeKey = GlobalKey(debugLabel: 'swipe');
+  final _zones = InputZonesController<int>();
   double _grab = 0;
   OpenSwipeRow? _group;
   ScrollPosition? _scroll;
@@ -141,6 +153,7 @@ class _GlassSwipeActionsState extends State<GlassSwipeActions>
   void dispose() {
     _scroll?.isScrollingNotifier.removeListener(_scrolled);
     _group?.closed(this);
+    _zones.dispose();
     super.dispose();
   }
 
@@ -152,7 +165,7 @@ class _GlassSwipeActionsState extends State<GlassSwipeActions>
   @override
   void close() {
     _group?.closed(this);
-    _motion.moveTo(MotionClock.instance.now, 0);
+    _motion.moveTo(_motion.clock.now, 0);
   }
 
   void _start(DragInteractionDetails details) {
@@ -199,42 +212,101 @@ class _GlassSwipeActionsState extends State<GlassSwipeActions>
     action.onPressed();
   }
 
+  // A press on an action yields to the row's drag once the finger moves.
+  List<Interaction> _pressOf(int index) {
+    while (_presses.length <= index) {
+      final i = _presses.length;
+      _presses.add([
+        PressInteraction(
+          role: InteractionRole.content,
+          onTap: (t) => _perform(widget.trailing[i]),
+        ),
+      ]);
+    }
+    return _presses[index];
+  }
+
+  GlobalKey _actionKey(int index) {
+    while (_actionKeys.length <= index) {
+      _actionKeys.add(GlobalKey(debugLabel: 'swipe action'));
+    }
+    return _actionKeys[index];
+  }
+
+  // Where action [index] is drawn now, cut to the row: nowhere while the
+  // row is closed, so a closed row's actions take no input and no focus.
+  InputZoneFrame? _frameOf(int index) {
+    if (_offset.value == 0 || index >= _actionKeys.length) return null;
+    final row = _swipeKey.currentContext?.findRenderObject();
+    final action = _actionKeys[index].currentContext?.findRenderObject();
+    if (row is! RenderBox ||
+        action is! RenderBox ||
+        !row.hasSize ||
+        !action.hasSize ||
+        !action.attached) {
+      return null;
+    }
+    final rect = MatrixUtils.transformRect(
+      action.getTransformTo(row),
+      Offset.zero & action.size,
+    );
+    return InputZoneFrame(rect.intersect(Offset.zero & row.size));
+  }
+
   @override
   Widget build(BuildContext context) {
     final rtl = Directionality.of(context) == TextDirection.rtl;
     _drag.mirrored = rtl;
+    final actions = widget.trailing;
     return MotionScope(
       motion: _motion,
       child: Semantics(
         customSemanticsActions: {
-          for (final action in widget.trailing)
+          for (final action in actions)
             CustomSemanticsAction(label: action.title): action.onPressed,
         },
-        child: InputRegion(
-          interactions: _interactions,
-          child: _Swipe(
-            motion: _motion,
-            offset: _offset,
-            rtl: rtl,
-            fill: widget.trailing.isEmpty
-                ? null
-                : _fillOf(widget.trailing.first, context),
-            onTap: () {
-              if (!_drag.started) close();
-            },
-            children: [
-              widget.child,
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (final action in widget.trailing.reversed)
-                    _ActionButton(
-                      action: action,
-                      onPressed: () => _perform(action),
-                    ),
-                ],
+        // The actions' zones sit above the row's drag: a region around them
+        // would answer their Space and Enter.
+        child: InputZones<int>(
+          zones: [
+            for (final (i, action) in actions.indexed)
+              InputZone<int>(
+                id: i,
+                interactions: _pressOf(i),
+                semanticLabel: action.title,
+                button: true,
               ),
-            ],
+          ],
+          frameOf: _frameOf,
+          frames: _offset,
+          controller: _zones,
+          excludeChildSemantics: false,
+          child: InputRegion(
+            interactions: _interactions,
+            child: _Swipe(
+              key: _swipeKey,
+              motion: _motion,
+              offset: _offset,
+              rtl: rtl,
+              fill: actions.isEmpty ? null : _fillOf(actions.first, context),
+              onTap: () {
+                if (!_drag.started) close();
+              },
+              children: [
+                widget.child,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final (i, action) in actions.indexed.toList().reversed)
+                      _ActionButton(
+                        key: _actionKey(i),
+                        action: action,
+                        states: _ZoneStates(_zones, i),
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -249,11 +321,17 @@ Color _fillOf(GlassSwipeAction action, BuildContext context) =>
       context,
     );
 
+/// An action's fill and label; its zone of the row's [InputZones] takes
+/// its input and speaks for it.
 class _ActionButton extends StatelessWidget {
-  const _ActionButton({required this.action, required this.onPressed});
+  const _ActionButton({
+    required this.action,
+    required this.states,
+    super.key,
+  });
 
   final GlassSwipeAction action;
-  final VoidCallback onPressed;
+  final ValueListenable<Set<WidgetState>> states;
 
   @override
   Widget build(BuildContext context) {
@@ -262,10 +340,14 @@ class _ActionButton extends StatelessWidget {
       context,
     );
     return ExcludeSemantics(
-      child: InputRegion(
-        interactions: [PressInteraction(onTap: (t) => onPressed())],
-        child: ColoredBox(
-          color: _fillOf(action, context),
+      child: ColoredBox(
+        color: _fillOf(action, context),
+        child: GlassHighlightPaint.of(
+          context,
+          states: states,
+          shape: const GlassShape.roundedRect(0),
+          inside: true,
+          wash: true,
           child: ConstrainedBox(
             constraints: const BoxConstraints(
               minWidth: GlassSwipeActions.minActionWidth,
@@ -300,6 +382,23 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
+/// One action's states, read from the zones of all of them.
+final class _ZoneStates implements ValueListenable<Set<WidgetState>> {
+  _ZoneStates(this.zones, this.id);
+
+  final InputZonesController<int> zones;
+  final int id;
+
+  @override
+  Set<WidgetState> get value => zones.statesOf(id);
+
+  @override
+  void addListener(VoidCallback listener) => zones.addListener(listener);
+
+  @override
+  void removeListener(VoidCallback listener) => zones.removeListener(listener);
+}
+
 /// How far a swiped row is moved toward its trailing edge (negative), and
 /// the extents it settles between.
 final class _SwipeMotion extends Motion {
@@ -332,6 +431,7 @@ class _Swipe extends MultiChildRenderObjectWidget {
     required this.fill,
     required this.onTap,
     required super.children,
+    super.key,
   });
 
   final _SwipeMotion motion;
