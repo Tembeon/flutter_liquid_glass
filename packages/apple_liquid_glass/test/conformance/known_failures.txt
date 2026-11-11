@@ -5,10 +5,4 @@
 # never adds one. The failures that are right live elsewhere: a reference
 # control's in its `fails`, a reviewed deviation in its entry's `exempt`.
 # Format: <entry> <check>: <reason>
-GlassCompactDatePicker tap-target: "3, Saturday, October 3, 2026, Today": expected tap target size of at least Size(44.0, 44.0), but found Siz...
-GlassCompactDatePicker zero-size: A RenderFlex overflowed by 210 pixels on the right.
-GlassDatePicker key-arrows-edge: Arrow Down past the last row takes the focus off the items
-GlassDatePicker tap-target: "3, Saturday, October 3, 2026, Today": expected tap target size of at least Size(44.0, 44.0), but found Siz...
 GlassMenuAnchor barrier-hides-behind: assistive technology reads it before its anchor
-RawGlassDatePicker key-arrows-edge: Arrow Down past the last row takes the focus off the items
-RawGlassDatePicker tap-target: "3, Saturday, October 3, 2026, Today": expected tap target size of at least Size(44.0, 44.0), but found Siz...
