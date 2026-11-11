@@ -288,6 +288,9 @@ abstract class PageMotion extends Motion with Presented {
   /// Whether the page cross-fades instead of sliding.
   bool get fades => false;
 
+  /// Whether the page is shown or opening, not leaving.
+  bool get isShown;
+
   /// Starts at [t] the open that [open] committed: the first frame after
   /// the push picks [t] ([transitionOrigin]).
   void start(double t);
@@ -303,8 +306,11 @@ abstract class PageMotion extends Motion with Presented {
 /// [open] waits for [start]. A finger takes the page with [hold], moves it
 /// with [drag] and lets it go with [release]; a leave asked for while the
 /// finger holds waits for the release, which then takes the page out.
+/// Android's predictive back moves the page as the finger does, its
+/// progress the travel: a commit lets the page go toward the pop at the
+/// gesture's speed, a cancel sends it back as a refused pop does.
 @internal
-final class PageSlideMotion extends PageMotion {
+final class PageSlideMotion extends PageMotion with PredictiveBack {
   /// The page's width, which sets how close to its end the slide rests.
   double width = 400;
 
@@ -332,7 +338,7 @@ final class PageSlideMotion extends PageMotion {
   @override
   bool get fades => _fades;
 
-  /// Whether the page is shown or opening, not leaving.
+  @override
   bool get isShown => _shown;
 
   /// Whether a finger may take the page for an interactive pop now.
@@ -466,6 +472,27 @@ final class PageSlideMotion extends PageMotion {
     advance(t);
     _slide.retarget(t, 1, spring: NavigationTuning.interactiveSpring);
     _returning = true;
+  }
+
+  @override
+  void backStarted(double t) => hold(t);
+
+  @override
+  void backMoved(double t, double progress) => drag(t, progress);
+
+  @override
+  void backEnded(double t, {required bool commits, required double velocity}) {
+    if (commits) {
+      release(t, pops: true, velocity: velocity);
+      return;
+    }
+    // The route ends the gesture once the page rests, as it does for any
+    // presentation; the page returns without ending it a second time.
+    advance(t);
+    _held = false;
+    _slide.setVelocity(t, -velocity);
+    _slide.retarget(t, 1, spring: NavigationTuning.interactiveSpring);
+    changed();
   }
 
   @override

@@ -236,7 +236,7 @@ final class ZoomPageMotion extends PageMotion with Sourced {
   /// The source frame the motion zooms out of and back into.
   Rect get source => _source;
 
-  /// Whether the page is shown or opening, not leaving.
+  @override
   bool get isShown => _shown;
 
   /// Whether a finger may take the page now.

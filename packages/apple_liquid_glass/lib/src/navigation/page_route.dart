@@ -4,7 +4,6 @@ import 'package:apple_liquid_glass/src/motions/zoom_page_motion.dart';
 import 'package:apple_liquid_glass/src/navigation/bar.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
@@ -31,7 +30,10 @@ import 'package:kinesis/kinesis.dart';
 /// pop without a finger cross-fades over 0.5 s instead.
 /// Back, Escape and a screen reader's dismiss pop it through the page's
 /// `PopScope`s; a pop asked for while a finger holds the page waits for
-/// the release, which then takes the page out.
+/// the release, which then takes the page out. Android's predictive back
+/// slides a sliding page with the gesture, as a finger's swipe does, pops
+/// it on commit and returns it on cancel; a page whose `PopScope` refuses
+/// Back does not take the gesture.
 ///
 /// The pages of a navigator share one `GlassNavigationBar`, drawn right
 /// above the topmost glass page and under every route pushed after it, so
@@ -125,7 +127,7 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
   @override
   void didPresent() {
     super.didPresent();
-    _presented = MotionClock.instance.now;
+    _presented = _motion.clock.now;
     _presenting = true;
   }
 
@@ -172,7 +174,7 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
       _bar.host.previousChanged(
         _bar,
         below: below,
-        time: MotionClock.instance.now,
+        time: _motion.clock.now,
       );
     }
   }
@@ -235,19 +237,25 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
   bool leave(DismissTrigger trigger) {
     final lifted = trigger == DismissTrigger.interaction ? _lifted : null;
     _lifted = null;
-    _bar.host.leaving(_bar, time: lifted ?? MotionClock.instance.now);
+    _bar.host.leaving(_bar, time: lifted ?? _motion.clock.now);
     return super.leave(trigger);
   }
 
-  // The time a push's transition counts from, read in the first frame
-  // after it.
-  double _origin() {
-    final clock = MotionClock.instance;
-    return transitionOrigin(
-      call: _presented,
-      firstFrame: clock.now,
-      framePeriod: clock.framePeriod,
-    );
+  // Starts the push's transition from the time it counts from, read at
+  // the page's first frame: the clock runs the start at that frame's time
+  // in the next frame, before the motion steps.
+  VoidCallback _startAfterFirstFrame() {
+    final clock = _motion.clock;
+    return clock.schedule(clock.now, (firstFrame) {
+      if (!_motion.isShown) return;
+      _motion.start(
+        transitionOrigin(
+          call: _presented,
+          firstFrame: firstFrame,
+          framePeriod: clock.framePeriod,
+        ),
+      );
+    });
   }
 }
 
@@ -269,14 +277,13 @@ class _Slide extends StatefulWidget {
 /// The page's slide, its cross-fade for Prefer Cross-Fade Transitions and its
 /// interactive pop.
 class _SlideState extends State<_Slide> {
-  // The page moves under the card of a page pushed above it and back; the
-  // key carries its state along.
-  final _page = GlobalKey(debugLabel: 'GlassPageRoute.page');
   late final _input = _SwipePop(this);
   late final List<Interaction> _interactions = [_input];
 
   GlassPageRoute<Object?> get route => widget.route;
   PageSlideMotion get motion => widget.motion;
+
+  VoidCallback? _cancelStart;
 
   @override
   void initState() {
@@ -284,16 +291,15 @@ class _SlideState extends State<_Slide> {
     motion.onReturned = route.endInteraction;
     // A page added without a push, as a navigator's first, stands in place.
     if (route.animation?.status == AnimationStatus.completed) {
-      motion.showInPlace(MotionClock.instance.now);
+      motion.showInPlace(motion.clock.now);
       return;
     }
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (mounted && motion.isShown) motion.start(route._origin());
-    });
+    _cancelStart = route._startAfterFirstFrame();
   }
 
   @override
   void dispose() {
+    _cancelStart?.call();
     motion.onReturned = null;
     super.dispose();
   }
@@ -336,17 +342,9 @@ class _SlideState extends State<_Slide> {
         presence: route._progress,
         fades: route._fades,
         top: true,
-        child: ValueListenableBuilder(
-          valueListenable: route._cover,
-          builder: (context, cover, child) => cover == null
-              ? child!
-              : _Card(
-                  presence: cover._progress,
-                  fades: cover._fades,
-                  top: false,
-                  child: child,
-                ),
-          child: RepaintBoundary(key: _page, child: widget.child),
+        child: _Covered(
+          cover: route._cover,
+          child: RepaintBoundary(child: widget.child),
         ),
       ),
     );
@@ -498,25 +496,31 @@ class _RenderCard extends RenderProxyBox {
   final _offset = LayerHandle<OffsetLayer>();
   final _opacity = LayerHandle<OpacityLayer>();
 
-  ValueListenable<double> _presence;
-  ValueListenable<double> get presence => _presence;
-  set presence(ValueListenable<double> value) {
+  // Null for a page below with no glass page above it: it paints as it is.
+  ValueListenable<double>? _presence;
+  ValueListenable<double>? get presence => _presence;
+  set presence(ValueListenable<double>? value) {
     if (identical(value, _presence)) return;
-    if (attached) _presence.removeListener(markNeedsPaint);
+    if (attached) _presence?.removeListener(markNeedsPaint);
+    if ((value == null) != (_presence == null)) {
+      markNeedsCompositingBitsUpdate();
+    }
     _presence = value;
-    if (attached) _presence.addListener(markNeedsPaint);
+    if (attached) _presence?.addListener(markNeedsPaint);
     markNeedsPaint();
   }
 
-  ValueListenable<bool> _fades;
-  ValueListenable<bool> get fades => _fades;
-  set fades(ValueListenable<bool> value) {
+  ValueListenable<bool>? _fades;
+  ValueListenable<bool>? get fades => _fades;
+  set fades(ValueListenable<bool>? value) {
     if (identical(value, _fades)) return;
-    if (attached) _fades.removeListener(markNeedsPaint);
+    if (attached) _fades?.removeListener(markNeedsPaint);
     _fades = value;
-    if (attached) _fades.addListener(markNeedsPaint);
+    if (attached) _fades?.addListener(markNeedsPaint);
     markNeedsPaint();
   }
+
+  bool get _fading => _fades?.value ?? false;
 
   BorderRadius _radius;
   BorderRadius get radius => _radius;
@@ -537,14 +541,14 @@ class _RenderCard extends RenderProxyBox {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _presence.addListener(markNeedsPaint);
-    _fades.addListener(markNeedsPaint);
+    _presence?.addListener(markNeedsPaint);
+    _fades?.addListener(markNeedsPaint);
   }
 
   @override
   void detach() {
-    _presence.removeListener(markNeedsPaint);
-    _fades.removeListener(markNeedsPaint);
+    _presence?.removeListener(markNeedsPaint);
+    _fades?.removeListener(markNeedsPaint);
     super.detach();
   }
 
@@ -557,7 +561,8 @@ class _RenderCard extends RenderProxyBox {
   }
 
   double get _shift {
-    final p = _presence.value;
+    final p = _presence?.value;
+    if (p == null) return 0;
     final width = size.width;
     if (top) return (1 - p) * width * (_rtl ? -1 : 1);
     final aside = width - (NavigationTuning.underneathKeeps * width).round();
@@ -565,17 +570,17 @@ class _RenderCard extends RenderProxyBox {
   }
 
   @override
-  bool get alwaysNeedsCompositing => child != null;
+  bool get alwaysNeedsCompositing => child != null && _presence != null;
 
   @override
   void applyPaintTransform(RenderBox child, Matrix4 transform) {
-    if (!_fades.value) transform.translateByDouble(_shift, 0, 0, 1);
+    if (!_fading) transform.translateByDouble(_shift, 0, 0, 1);
   }
 
   @override
   bool hitTest(BoxHitTestResult result, {required Offset position}) =>
       result.addWithPaintOffset(
-        offset: _fades.value ? Offset.zero : Offset(_shift, 0),
+        offset: _fading ? Offset.zero : Offset(_shift, 0),
         position: position,
         hitTest: (result, local) => super.hitTest(result, position: local),
       );
@@ -583,9 +588,16 @@ class _RenderCard extends RenderProxyBox {
   @override
   void paint(PaintingContext context, Offset offset) {
     final child = this.child;
+    final p = _presence?.value;
     if (child == null) return;
-    final p = _presence.value;
-    if (_fades.value) {
+    if (p == null) {
+      _clip.layer = null;
+      _offset.layer = null;
+      _opacity.layer = null;
+      super.paint(context, offset);
+      return;
+    }
+    if (_fading) {
       _clip.layer = null;
       _offset.layer = null;
       final shown = top ? p : 1 - p;
@@ -648,6 +660,71 @@ class _RenderCard extends RenderProxyBox {
   }
 }
 
+/// The page under the card of a glass page pushed above it, moved aside
+/// and dimmed with that page's progress, or as it is while none is: the
+/// page keeps its place in the tree as pages above it come and go.
+class _Covered extends SingleChildRenderObjectWidget {
+  const _Covered({required this.cover, super.child});
+
+  final ValueListenable<GlassPageRoute<Object?>?> cover;
+
+  @override
+  _RenderCovered createRenderObject(BuildContext context) => _RenderCovered(
+    cover: cover,
+    radius: _cardRadius(context),
+    rtl: Directionality.of(context) == TextDirection.rtl,
+  );
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderCovered renderObject) {
+    renderObject.cover = cover;
+    renderObject.radius = _cardRadius(context);
+    renderObject.rtl = Directionality.of(context) == TextDirection.rtl;
+  }
+}
+
+class _RenderCovered extends _RenderCard {
+  _RenderCovered({
+    required ValueListenable<GlassPageRoute<Object?>?> cover,
+    required super.radius,
+    required super.rtl,
+  }) : _cover = cover,
+       super(
+         presence: cover.value?._progress,
+         fades: cover.value?._fades,
+         top: false,
+       );
+
+  ValueListenable<GlassPageRoute<Object?>?> _cover;
+  ValueListenable<GlassPageRoute<Object?>?> get cover => _cover;
+  set cover(ValueListenable<GlassPageRoute<Object?>?> value) {
+    if (identical(value, _cover)) return;
+    if (attached) _cover.removeListener(_covered);
+    _cover = value;
+    if (attached) _cover.addListener(_covered);
+    _covered();
+  }
+
+  void _covered() {
+    final cover = _cover.value;
+    presence = cover?._progress;
+    fades = cover?._fades;
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _cover.addListener(_covered);
+    _covered();
+  }
+
+  @override
+  void detach() {
+    _cover.removeListener(_covered);
+    super.detach();
+  }
+}
+
 class _Zoom extends StatefulWidget {
   const _Zoom({required this.route, required this.motion, required this.child});
 
@@ -671,6 +748,7 @@ class _ZoomState extends State<_Zoom> {
   late final _scale = motion.select((m) => m.contentScale);
   late final _lookScale = motion.select((m) => m.lookScale);
   bool _begun = false;
+  VoidCallback? _cancelStart;
 
   GlassPageRoute<Object?> get route => widget.route;
   ZoomPageMotion get motion => widget.motion;
@@ -683,17 +761,21 @@ class _ZoomState extends State<_Zoom> {
     _begun = true;
     // A page added without a push, as a navigator's first, stands in place.
     if (route.animation?.status == AnimationStatus.completed) {
-      motion.showInPlace(MotionClock.instance.now);
+      motion.showInPlace(motion.clock.now);
       return;
     }
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      if (mounted && motion.isShown) motion.start(route._origin());
-    });
+    _cancelStart = route._startAfterFirstFrame();
+  }
+
+  @override
+  void dispose() {
+    _cancelStart?.call();
+    super.dispose();
   }
 
   void _resize() {
     motion.displayRadius = _cardRadius(context).topLeft.x;
-    motion.resize(MotionClock.instance.now, MediaQuery.sizeOf(context));
+    motion.resize(motion.clock.now, MediaQuery.sizeOf(context));
   }
 
   bool get _canPop =>
