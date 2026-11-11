@@ -7,7 +7,9 @@ import 'package:apple_liquid_glass/src/navigation/search_stacking.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/input.dart';
+import 'package:kinesis/motion.dart';
+import 'package:kinesis/widgets.dart';
 
 /// Builds a search field from [details]; it runs when the field builds,
 /// such as when its states change, never on a frame of its motion.

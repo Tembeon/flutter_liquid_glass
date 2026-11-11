@@ -1,5 +1,6 @@
 import 'package:flutter/animation.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/input.dart';
+import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
 /// The highlight of a tappable list row (UIKit `UITableViewCell` in a

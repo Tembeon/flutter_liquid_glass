@@ -5,7 +5,8 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/motions/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
 import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/input.dart';
+import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
 /// How a [GlassPress] takes a touch: whether it stretches after a dragging

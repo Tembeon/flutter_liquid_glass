@@ -10,7 +10,9 @@ import 'package:apple_liquid_glass/src/surfaces/solid_backdrop.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/input.dart';
+import 'package:kinesis/motion.dart';
+import 'package:kinesis/widgets.dart';
 
 /// The standard accessory of a [GlassListRow].
 ///

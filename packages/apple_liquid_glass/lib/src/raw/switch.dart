@@ -3,7 +3,9 @@ import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:apple_liquid_glass/src/motions/switch_motion.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/input.dart';
+import 'package:kinesis/motion.dart';
+import 'package:kinesis/widgets.dart';
 
 /// Builds a glass switch from [details]; it runs when the switch builds,
 /// such as when its states change, never on a frame of its motion.

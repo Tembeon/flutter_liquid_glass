@@ -11,7 +11,7 @@ import 'package:apple_liquid_glass/src/motions/menu_morph_spec.dart';
 import 'package:apple_liquid_glass/src/motions/menu_outline_math.dart';
 import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
 import 'package:flutter/painting.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
 /// The tuning of a glass button's menu, as measured on iOS 27.

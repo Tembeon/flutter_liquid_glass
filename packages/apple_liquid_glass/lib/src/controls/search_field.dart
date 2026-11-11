@@ -12,7 +12,8 @@ import 'package:apple_liquid_glass/src/navigation/search_stacking.dart';
 import 'package:apple_liquid_glass/src/raw/search_field.dart';
 import 'package:apple_liquid_glass/src/surfaces/surface.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
+import 'package:kinesis/widgets.dart';
 
 /// The look of a [GlassSearchField], like Flutter's `ButtonStyle`.
 ///

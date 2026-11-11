@@ -12,7 +12,7 @@ import 'package:apple_liquid_glass/src/raw/button.dart';
 import 'package:apple_liquid_glass/src/surfaces/surface.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 
 /// The look of a [GlassButton], like Flutter's `ButtonStyle`.
 ///

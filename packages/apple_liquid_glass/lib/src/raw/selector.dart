@@ -19,7 +19,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/input.dart';
+import 'package:kinesis/motion.dart';
+import 'package:kinesis/widgets.dart';
 
 /// The measured UIKit control whose motion and geometry a
 /// [RawGlassSelector] takes.

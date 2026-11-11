@@ -3,7 +3,7 @@ import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motions/navigation_motion.dart';
 import 'package:flutter/foundation.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
 /// The measured motion of UIKit's zoom transition into a pushed page

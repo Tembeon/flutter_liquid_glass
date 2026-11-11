@@ -3,7 +3,9 @@ import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/raw/list.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/input.dart';
+import 'package:kinesis/motion.dart';
+import 'package:kinesis/widgets.dart';
 
 /// One trailing swipe action of a list row.
 ///
