@@ -22,6 +22,7 @@ class _MenuLayer extends StatefulWidget {
 class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
   late final _scroll = MenuLayerScroll(this);
   final _ids = MenuZoneIds();
+  late final _highlight = MenuLayerHighlight(this, zones: _zones, ids: _ids);
   final Map<MenuLayout, (int?, Widget)> _rows = Map.identity();
   final _zones = InputZonesController<int>();
   final Map<int, List<Interaction>> _rowInputs = {};
@@ -295,30 +296,6 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
     return zones;
   }
 
-  /// The target of [card] the highlight shows on now: the focused row of
-  /// the top card while the keyboard or the mouse is in use, else the row
-  /// the motion highlights (under the finger, or the one chosen).
-  int? _lit(int card) {
-    final motion = _motion;
-    final focused = _zones.focusedZone;
-    if (focused != null &&
-        card == _built.top &&
-        _current &&
-        FocusManager.instance.highlightMode == FocusHighlightMode.traditional) {
-      return _ids.targetOf(focused);
-    }
-    if (motion.highlightedCard != card) return null;
-    final index = motion.highlighted;
-    final targets = _built.layouts[card].targets;
-    if (index == null || index >= targets.length) return null;
-    // A tapped submenu row gives way to its card at once.
-    return switch (targets[index].kind) {
-      MenuTargetKind.back => null,
-      MenuTargetKind.submenu when !motion.isSliding => null,
-      _ => index,
-    };
-  }
-
   Widget _rowsOf(int card, MenuLayout layout, MenuAppearance style) {
     if (style != _rowsStyle) {
       _rows.clear();
@@ -342,53 +319,6 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
     return rows;
   }
 
-  /// The highlight of [card], painted from the motion and the focus as they
-  /// move: a row changing hands repaints it and rebuilds nothing.
-  Widget _highlight(MenuLayout layout, MenuAppearance style, int card) =>
-      Positioned.fill(
-        child: CustomPaint(
-          painter: _HighlightPainter(
-            layer: this,
-            card: card,
-            layout: layout,
-            color: style.highlightColor,
-          ),
-        ),
-      );
-
-  /// Where the highlight of [card] shows in its content, with its corner
-  /// radius, or null for none.
-  RRect? _highlightOf(int card, MenuLayout layout) {
-    if (card >= _built.layouts.length) return null;
-    final index = _lit(card);
-    if (index == null || index >= layout.targets.length) return null;
-    final target = layout.targets[index];
-    final element = target.element < 0 ? null : layout.elements[target.element];
-    final cell = switch (element?.kind) {
-      MenuPlacedKind.palette ||
-      MenuPlacedKind.small ||
-      MenuPlacedKind.medium => true,
-      _ => false,
-    };
-    const inset = MenuAppearance.highlightInset;
-    final rect = cell
-        ? target.rect
-        : Rect.fromLTRB(
-            target.rect.left + inset,
-            target.rect.top,
-            target.rect.right - inset,
-            target.rect.bottom,
-          );
-    return RRect.fromRectAndRadius(
-      rect,
-      Radius.circular(
-        cell
-            ? MenuAppearance.cellHighlightRadius
-            : math.min(rect.height / 2, _motion.rowHeight / 2),
-      ),
-    );
-  }
-
   Widget _root(
     MenuLayout layout,
     MenuAppearance style, {
@@ -400,7 +330,7 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          _highlight(layout, style, 0),
+          _highlight.of(layout, style, 0),
           _rowsOf(0, layout, style),
         ],
       ),
@@ -500,7 +430,7 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
         clipBehavior: Clip.none,
         children: [
           IgnorePointer(
-            child: _LiveGlassSurface(
+            child: MenuLiveGlass(
               live: frames,
               frameOf: () => GlassFrame(
                 shape: GlassShape.roundedRect(radius()),
@@ -534,7 +464,7 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      _highlight(layout, style, index),
+                      _highlight.of(layout, style, index),
                       _driven((_) {
                         final now = card();
                         return Opacity(
@@ -681,9 +611,9 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
         children: [
           ..._host._backdrop(this),
           IgnorePointer(
-            child: _LiveGlassSurface(
+            child: MenuLiveGlass(
               live: frames,
-              frameOf: () => _menuFrame(
+              frameOf: () => menuFrame(
                 motion,
                 sourceTint: _host._sourceTint,
                 opacity: motion.glassOpacity,

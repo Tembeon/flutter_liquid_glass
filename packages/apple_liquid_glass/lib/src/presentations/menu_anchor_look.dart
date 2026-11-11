@@ -1,39 +1,16 @@
-part of 'menu_anchor.dart';
+import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/motions.dart';
+import 'package:apple_liquid_glass/surfaces.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:kinesis/kinesis.dart';
 
-/// Paints the highlight of one card where the layer says it is now.
-class _HighlightPainter extends CustomPainter {
-  _HighlightPainter({
-    required this.layer,
-    required this.card,
-    required this.layout,
-    required this.color,
-  }) : super(repaint: Listenable.merge([layer.frames, layer._zones]));
-
-  final _MenuLayerState layer;
-  final int card;
-  final MenuLayout layout;
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (!layer.mounted) return;
-    final rrect = layer._highlightOf(card, layout);
-    if (rrect == null) return;
-    final paint = Paint();
-    paint.color = color;
-    canvas.drawRRect(rrect, paint);
-  }
-
-  @override
-  bool shouldRepaint(_HighlightPainter oldDelegate) =>
-      !identical(oldDelegate.layout, layout) ||
-      oldDelegate.card != card ||
-      oldDelegate.color != color;
-}
-
-// The menu's glass in [motion]'s frame. A tinted source's color stays on
-// the glass, fused body included, until its look has faded.
-GlassFrame _menuFrame(
+/// The menu's glass in [motion]'s frame.
+///
+/// A tinted source's color, [sourceTint], stays on the glass, fused body
+/// included, until its look has faded.
+@internal
+GlassFrame menuFrame(
   MenuMotion motion, {
   Color? sourceTint,
   double opacity = 1,
@@ -61,13 +38,17 @@ GlassFrame _menuFrame(
   );
 }
 
-// A menu's GlassSurface.live over its whole box, whose frame is frameOf,
-// read again on every step live publishes and on every rebuild.
-class _LiveGlassSurface extends StatelessWidget {
-  const _LiveGlassSurface({required this.live, required this.frameOf});
+/// A menu's glass over its whole box, whose frame is [frameOf], read again
+/// on every step [live] publishes and on every rebuild.
+@internal
+class MenuLiveGlass extends StatelessWidget {
+  /// Creates glass framed by [frameOf] as [live] steps.
+  const MenuLiveGlass({required this.live, required this.frameOf, super.key});
 
+  /// The steps that frame the glass again.
   final MotionSelection<Object?> live;
 
+  /// The glass's frame now.
   final GlassFrame Function() frameOf;
 
   @override

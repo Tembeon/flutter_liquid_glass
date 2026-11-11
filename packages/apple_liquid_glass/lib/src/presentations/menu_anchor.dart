@@ -5,10 +5,12 @@ import 'dart:ui' as ui;
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
+import 'package:apple_liquid_glass/src/presentations/menu_anchor_look.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_appearance.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_card_geometry.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_content.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_entries.dart';
+import 'package:apple_liquid_glass/src/presentations/menu_layer_highlight.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_layer_scope.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_layer_scroll.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_rows.dart';
@@ -23,7 +25,6 @@ import 'package:kinesis/kinesis.dart';
 part 'package:apple_liquid_glass/src/presentations/menu_anchor_context.dart';
 part 'package:apple_liquid_glass/src/presentations/menu_anchor_inputs.dart';
 part 'package:apple_liquid_glass/src/presentations/menu_anchor_layer.dart';
-part 'package:apple_liquid_glass/src/presentations/menu_anchor_look.dart';
 part 'package:apple_liquid_glass/src/presentations/menu_anchor_semantics.dart';
 
 /// Opens and closes the menu of a [GlassMenuAnchor] or a
