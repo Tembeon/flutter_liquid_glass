@@ -101,12 +101,6 @@ const double _underneathKeeps = 0.7;
 /// UIKit; iPhone 16 Pro held edge samples agree).
 const double _underDimOpacity = 0.1;
 
-/// The corner radius of a sliding page where the platform reports no
-/// display corner radius: the moving pages are cards with the display's
-/// corners, square again at rest (read from UIKit; 62 fits a simulator film
-/// of an iPhone 17 Pro).
-const double _fallbackCardRadius = 62;
-
 /// The shadow of a sliding card: black at 4 percent, radius 12, offset
 /// (0, -3) (read from UIKit; not filmed).
 const double _cardShadowOpacity = 0.04;
@@ -115,9 +109,7 @@ const double _cardShadowOffset = -3;
 
 BorderRadius _cardRadius(BuildContext context) =>
     MediaQuery.maybeDisplayCornerRadiiOf(context) ??
-    const BorderRadius.all(
-      Radius.circular(_fallbackCardRadius),
-    );
+    const BorderRadius.all(Radius.circular(SheetMotion.fallbackDisplayRadius));
 
 /// The interactive pop: a touch on the page that moves along it toward
 /// the trailing side drags the page, and its release pops or returns the

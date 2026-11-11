@@ -3443,6 +3443,7 @@ class SheetMotion extends Motion
   void dragStart(double t, double y)
   void dragUpdate(double t, double y)
   List<SheetEvent> drainEvents()
+  static const double fallbackDisplayRadius
   double get fill
   static const double floatingInset
   double get floatingRadius

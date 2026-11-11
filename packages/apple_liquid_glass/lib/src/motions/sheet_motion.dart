@@ -261,12 +261,15 @@ class SheetMotion extends Motion {
       ? _fill.target
       : _fill.valueAt(t).clamp(0.0, 1.0);
 
+  /// The display corner radius a card or sheet assumes where the platform
+  /// reports none (62, the iPhone 16 Pro's).
+  static const double fallbackDisplayRadius = SheetTuning.fallbackDisplayRadius;
+
   /// The radius of the bottom corners of a floating sheet, in unscaled
   /// pixels: the display's less [inset] (62 - 8 = 54 on an iPhone 16 Pro),
-  /// [SheetTuning.fallbackDisplayRadius] less it where the platform
+  /// [fallbackDisplayRadius] less it where the platform
   /// reports none.
-  double get floatingRadius =>
-      (displayRadius ?? SheetTuning.fallbackDisplayRadius) - inset;
+  double get floatingRadius => (displayRadius ?? fallbackDisplayRadius) - inset;
 
   /// The radius the bottom corners turn to as the sheet docks: the
   /// display's, 0 where the platform reports none.

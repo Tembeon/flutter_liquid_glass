@@ -392,11 +392,10 @@ class _BarItem extends StatelessWidget {
       context,
     );
     final text = resolveGlassText(
-      TextStyle(
-        fontSize: 17,
-        fontWeight: prominent ? FontWeight.w600 : FontWeight.w500,
-        height: 1.2,
-      ).merge(look?.textStyle).copyWith(color: color),
+      barLabelStyle
+          .copyWith(fontWeight: prominent ? FontWeight.w600 : null)
+          .merge(look?.textStyle)
+          .copyWith(color: color),
       context,
     );
     if (button.back case final back?) {

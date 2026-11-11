@@ -2,6 +2,14 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/presentations.dart';
 import 'package:flutter/widgets.dart';
 
+/// The text of a bar's labels: 17 pt, weight 500, height 1.2 (bars
+/// passport).
+const TextStyle barLabelStyle = TextStyle(
+  fontSize: 17,
+  fontWeight: FontWeight.w500,
+  height: 1.2,
+);
+
 /// The look of a bar's items; a null field leaves it to the default.
 ///
 /// The bars of a navigator are shared by its pages and their capsules
