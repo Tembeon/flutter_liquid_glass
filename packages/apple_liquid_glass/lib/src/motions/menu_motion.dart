@@ -17,6 +17,7 @@ import 'package:flutter/painting.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
+part 'package:apple_liquid_glass/src/motions/menu_card_stack.dart';
 part 'package:apple_liquid_glass/src/motions/menu_motion_state.dart';
 
 /// The motion of a glass button turning into its menu and back: a pure
@@ -183,7 +184,7 @@ class MenuMotion extends Motion with Presented {
 
   late MenuLayout _root;
   bool _reversed = false;
-  final List<_Card> _cards = [];
+  late final _CardStack _stack = _CardStack(this);
   Ramp _cardFade = const Ramp(from: 1);
   double _resizeTo = 0;
   bool _resizeGrows = false;
@@ -383,26 +384,10 @@ class MenuMotion extends Motion with Presented {
   void updateLayout(double t, {bool animate = true}) {
     _take(t);
     _root = _build(reversed: _reversed);
-    for (var i = 0; i < _cards.length; i++) {
-      final card = _cards[i];
-      final parent = i == 0 ? _root : _cards[i - 1].layout;
-      final source = card.source < parent.targets.length
-          ? parent.targets[card.source]
-          : null;
-      final layout = source == null || source.kind != .submenu
-          ? null
-          : submenuLayout?.call(source);
-      if (layout == null) {
-        _dropCards(i);
-        _setHighlight(null, 0);
-        break;
-      }
-      card.layout = layout;
-      card.top = _clampCardTop(card.top, layout.height);
-    }
+    if (_stack.relayout() != null) _setHighlight(null, 0);
     _frameMemo = null;
     if (_highlighted != null) {
-      final targets = _layoutOf(_highlightCard).targets;
+      final targets = _stack.layoutOf(_highlightCard).targets;
       if (_highlighted! >= targets.length) _setHighlight(null, 0);
     }
     final height = _visibleRoot(_root);
@@ -439,9 +424,6 @@ class MenuMotion extends Motion with Presented {
     );
   }
 
-  MenuLayout _layoutOf(int card) =>
-      card == 0 || card > _cards.length ? _root : _cards[card - 1].layout;
-
   /// The progress of the morph at the time the motion was last advanced
   /// to: 0 is the button, 1 the menu.
   ///
@@ -464,7 +446,7 @@ class MenuMotion extends Motion with Presented {
   /// and the matched glass copy remain in the shrinking carrier.
   bool get cardGlassTransferred =>
       isClosing &&
-      _cards.isNotEmpty &&
+      _stack.isNotEmpty &&
       _now >= _closeStart + tuning.closeKickDelay;
 
   /// Visibility of the matched card material during a whole-stack close.
@@ -550,136 +532,29 @@ class MenuMotion extends Motion with Presented {
   );
 
   Rect _frameAt(double t) {
-    final h = _rootHeight.valueAt(t) + _cardsExtra(t);
+    final h = _rootHeight.valueAt(t) + _stack.extra(t);
     var top = _down ? _anchor : _anchor - h;
     final maxBottom = _bounds.height - _padding.bottom;
     top = math.max(_padding.top, math.min(top, maxBottom - h));
     return Rect.fromLTWH(_left, top, tuning.menuWidth, h);
   }
 
-  void _dropCards(int from) {
-    while (_cards.length > from) {
-      _dropCard(_cards.removeLast());
-    }
-  }
+  MotionValue<double> _ownCardProgress(Spring spring) => own(
+    MotionValue<double>(0, spring: spring),
+    rest: () => _cardRest,
+  );
 
-  void _dropCard(_Card card) {
+  void _disownCard(_Card card) {
     disown(card.progress);
     disown(card.flex);
     _frameMemo = null;
   }
 
-  double _cardsExtra(double t) {
-    var reach = _rootHeight.target;
-    var extra = 0.0;
-    for (final card in _cards) {
-      final bottom = card.top + math.min(card.layout.height, _cap);
-      if (bottom > reach) {
-        extra += (bottom - reach) * card.progress.valueAt(t);
-        reach = bottom;
-      }
-    }
-    return extra;
-  }
-
-  double _headerCenter(MenuLayout layout) {
-    for (final element in layout.elements) {
-      if (element.kind == MenuPlacedKind.cardHeader) {
-        return element.rect.center.dy;
-      }
-    }
-    return 0;
-  }
-
   double _cardFadeProgress(double t) =>
       _phase == _Phase.idle ? 1 : _progress.valueAt(t + tuning.fadeLead);
 
-  double _clampCardTop(double top, double height) {
-    final cap = math.max(_cap, _rootHeight.target);
-    return math.max(0, math.min(top, cap - math.min(height, _cap)));
-  }
-
-  double _scaleUnder(int card, double t) {
-    var scale = 1.0;
-    for (var k = card; k < _cards.length; k++) {
-      final q = _cards[k].progress.valueAt(t);
-      scale *= 1 - (1 - tuning.parentScale) * q;
-    }
-    return scale;
-  }
-
   /// The cards of the menu, the root list first.
   List<MenuCard> get cards => _frame.cards;
-
-  List<MenuCard> _cardsAt(double t) {
-    final result = <MenuCard>[];
-    final count = _cards.length;
-    for (var i = 0; i <= count; i++) {
-      final scale = _scaleUnder(i, t);
-      final above = i < count ? _cards[i].progress.valueAt(t) : 0.0;
-      final opacity = (1 - (1 - tuning.parentRowOpacity) * above).clamp(
-        0.0,
-        1.0,
-      );
-      if (i == 0) {
-        result.add(
-          MenuCard(
-            layout: _root,
-            rect: Rect.fromLTWH(0, 0, tuning.menuWidth, _root.height),
-            scale: scale,
-            rowOpacity: opacity,
-            progress: 1,
-          ),
-        );
-        continue;
-      }
-      final card = _cards[i - 1];
-      final q = card.progress.valueAt(t);
-      final to = Rect.fromLTWH(
-        0,
-        card.top,
-        tuning.menuWidth,
-        math.min(card.layout.height, _cap),
-      );
-      final rect = Rect.lerp(card.from, to, q)!;
-      final parent = result[i - 1];
-      final targets = parent.layout.targets;
-      final row = card.source < targets.length
-          ? parent.rect.top +
-                targets[card.source].rect.center.dy -
-                (i == 1 ? scrollOffset : 0)
-          : card.from.center.dy;
-      final ratio = scale == 0 ? 1.0 : parent.scale / scale;
-      final onRow = ratio * row - _headerCenter(card.layout);
-      final contentTop = onRow + (card.top - onRow) * q;
-      final c = q.clamp(0.0, 1.0);
-      final from = card.backFrom.clamp(1e-6, 1.0);
-      result.add(
-        MenuCard(
-          layout: card.layout,
-          rect: rect,
-          scale: scale,
-          rowOpacity: opacity,
-          progress: q,
-          contentTop: contentTop - rect.top,
-          rowsOpacity: card.backing
-              ? _ramp(c, tuning.cardRowsFadeOut * from, from)
-              : _ramp(c, 0, tuning.cardRowsFadeIn),
-          platterOpacity: math.sqrt(_ramp(c, 0, tuning.cardPlatterFade)),
-          headerBold: card.backing
-              ? _ramp(c, tuning.cardHeaderBoldBack * from, from)
-              : _ramp(c, tuning.cardHeaderBoldStart, tuning.cardHeaderBoldEnd),
-          chevronTurn: card.backing
-              ? _ramp(c, tuning.cardChevronBack * from, from)
-              : _ramp(c, 0, tuning.cardChevronTurn),
-          closeOpacity: i == count ? _cardFade.at(_cardFadeProgress(t)) : 1,
-          backing: card.backing,
-          source: card.source,
-        ),
-      );
-    }
-    return result;
-  }
 
   /// Whether the menu opens below the button; otherwise it opens above it
   /// and its content is reversed.
@@ -712,7 +587,7 @@ class MenuMotion extends Motion with Presented {
 
   MenuTarget? _targetOf(int card, int? index) {
     if (index == null) return null;
-    final targets = _layoutOf(card).targets;
+    final targets = _stack.layoutOf(card).targets;
     return index < targets.length ? targets[index] : null;
   }
 
@@ -731,29 +606,18 @@ class MenuMotion extends Motion with Presented {
     if (glow == null || index == 0 || index != _topCard) return null;
     return GlassTouchGlow(
       wash: glow.wash,
-      center: _unflexed(glow.center) - _cardFrame(_cards[index - 1]).topLeft,
+      center:
+          _unflexed(glow.center) -
+          _stack.frame(_stack.all[index - 1], menuRect).topLeft,
       radius: glow.radius,
       spot: glow.spot,
-    );
-  }
-
-  Rect _cardFrame(_Card card) {
-    final frame = menuRect;
-    return Rect.fromLTWH(
-      frame.left,
-      frame.top + card.top,
-      tuning.menuWidth,
-      math.min(card.layout.height, _cap),
     );
   }
 
   /// The flex of card [index] under a finger: the shift of its center and
   /// the growth of its width and height. Its content rides it 1:1.
   ({Offset shift, double width, double height}) cardFlex(int index) {
-    if (index == 0 || index > _cards.length) return noMenuFlex;
-    final card = _cards[index - 1];
-    final frame = _cardFrame(card);
-    return menuFlexOf(card.flex.valuesAt(_now), frame, _side);
+    return _stack.flex(index, menuRect, _now);
   }
 
   final List<MenuEvent> _events = [];
@@ -859,10 +723,7 @@ class MenuMotion extends Motion with Presented {
     final width = frame.width * scale;
     final height = frame.height * scale;
     final shape = menu.rect;
-    _Card? card;
-    for (final open in _cards) {
-      if (!open.backing) card = open;
-    }
+    final card = _stack.focus;
     if (card != null) {
       final f = ((1 - progress) / tuning.cardCloseCenter).clamp(0.0, 1.0);
       final middle = frame.height / 2;
@@ -1002,7 +863,7 @@ class MenuMotion extends Motion with Presented {
   // being near says nothing until the kick has come and gone.
   bool _sourceReturned(double t) {
     if (!drawsSource ||
-        _cards.isNotEmpty ||
+        _stack.isNotEmpty ||
         t - _closeStart < tuning.sourceReturnAfter) {
       return false;
     }
@@ -1140,7 +1001,10 @@ class MenuMotion extends Motion with Presented {
   MenuStretch? _cardStretchOf() {
     final top = _topCard;
     if (top == 0) return null;
-    return flexStretch(_cardFrame(_cards[top - 1]), cardFlex(top));
+    return flexStretch(
+      _stack.frame(_stack.all[top - 1], menuRect),
+      cardFlex(top),
+    );
   }
 
   /// What the flex's pulse channel ([MenuTuning.flexPulseSpring])
@@ -1171,9 +1035,9 @@ class MenuMotion extends Motion with Presented {
   MenuBlob get rootBlob => _frame.rootBlob;
 
   MenuBlob _rootBlobOf(_MenuFrame frame) {
-    if (_cards.isEmpty) return frame.menuBlob;
+    if (_stack.isEmpty) return frame.menuBlob;
     final rect = frame.rect;
-    final parentScale = _scaleUnder(0, frame.time);
+    final parentScale = _stack.scaleUnder(0, frame.time);
     final root = Rect.fromLTWH(
       rect.left + rect.width * (1 - parentScale) / 2,
       rect.top,
@@ -1255,7 +1119,7 @@ class MenuMotion extends Motion with Presented {
   Rect? targetRect(int index) {
     if (_phase != _Phase.opening) return null;
     final top = _topCard;
-    final targets = _layoutOf(top).targets;
+    final targets = _stack.layoutOf(top).targets;
     if (index < 0 || index >= targets.length) return null;
     final frame = menuRect;
     final origin = top == 0
@@ -1287,7 +1151,7 @@ class MenuMotion extends Motion with Presented {
 
   MenuFlex get _topFlex {
     final top = _topCard;
-    return top == 0 ? _flex : _cards[top - 1].flex;
+    return top == 0 ? _flex : _stack.all[top - 1].flex;
   }
 
   ({int card, int? target, bool beside}) _hitAt(Offset shown) {
@@ -1338,13 +1202,7 @@ class MenuMotion extends Motion with Presented {
   @internal
   int get topCard => _topCard;
 
-  int get _topCard {
-    var top = _cards.length;
-    while (top > 0 && _cards[top - 1].backing) {
-      top--;
-    }
-    return top;
-  }
+  int get _topCard => _stack.top;
 
   /// Opens the menu at time [t].
   ///
@@ -1386,7 +1244,7 @@ class MenuMotion extends Motion with Presented {
     unscheduleAll();
     _press.unscheduleAll();
     _flex.unscheduleAll();
-    for (final card in _cards) {
+    for (final card in _stack.all) {
       card.flex.unscheduleAll();
     }
     _pointer = null;
@@ -1400,7 +1258,7 @@ class MenuMotion extends Motion with Presented {
     _take(t);
     if (_phase != _Phase.opening) return;
     final card = _topCard;
-    if (index < 0 || index >= _layoutOf(card).targets.length) return;
+    if (index < 0 || index >= _stack.layoutOf(card).targets.length) return;
     _select(t, card, index);
   }
 
@@ -1643,12 +1501,7 @@ class MenuMotion extends Motion with Presented {
   @override
   void didAdvance(double t) {
     _frameMemo = null;
-    for (var i = _cards.length - 1; i >= 0; i--) {
-      final card = _cards[i];
-      if (card.backing && card.progress.valueAt(t) < tuning.cardGone) {
-        _dropCard(_cards.removeAt(i));
-      }
-    }
+    _stack.dropGone(t);
     final returned = _phase == _Phase.closing && _sourceReturned(t);
     if (returned) {
       _returned = true;
@@ -1664,7 +1517,7 @@ class MenuMotion extends Motion with Presented {
       _phase = _Phase.idle;
       _highlighted = null;
       _highlightCard = 0;
-      _dropCards(0);
+      _stack.drop(0);
       _cardContainerActive = false;
       scrollOffset = 0;
       _kicks.rest();
@@ -1930,7 +1783,7 @@ class MenuMotion extends Motion with Presented {
     );
     _progress.retarget(t, 0, spring: tuning.closeSpring);
     _fade(t, from: opacity, opening: false);
-    if (_cards.isNotEmpty && !_cardContainerActive) {
+    if (_stack.isNotEmpty && !_cardContainerActive) {
       _cardContainerActive = true;
       _cardContainer.snap(t, 1);
     }
@@ -1995,73 +1848,22 @@ class MenuMotion extends Motion with Presented {
     if (_phase != _Phase.opening) return;
     final source = _targetOf(card, index);
     if (source == null || source.kind != MenuTargetKind.submenu) return;
-    while (_cards.length > card) {
-      final last = _cards.last;
-      if (!last.backing) break;
-      if (_cards.length == card + 1 && last.source == index) {
-        last.backing = false;
-        last.progress.retarget(
-          t,
-          1,
-          spring: card == 0 ? tuning.submenuSpring : tuning.deeperSubmenuSpring,
-        );
-        _frameMemo = null;
-        _setHighlight(null, card + 1);
-        return;
-      }
-      _dropCard(_cards.removeLast());
-    }
-    if (_cards.length != card) return;
-    final layout = submenuLayout?.call(source);
-    if (layout == null) return;
-    final shown = cards[card];
-    final rowLocal = source.rect.center.dy - (card == 0 ? scrollOffset : 0);
-    final rowCenter = shown.rect.top + rowLocal;
-    final from = Rect.fromCenter(
-      center: Offset(tuning.menuWidth / 2, rowCenter),
-      width: tuning.cardStartWidth,
-      height: source.rect.height,
-    );
-    final spring = card == 0
-        ? tuning.submenuSpring
-        : tuning.deeperSubmenuSpring;
-    final progress = own(
-      MotionValue<double>(0, spring: spring),
-      rest: () => _cardRest,
-    );
-    progress.retarget(t, 1);
-    final opened = _Card(
-      layout: layout,
-      source: index,
-      from: from,
-      top: _clampCardTop(
-        shown.rect.top +
-            (rowLocal - tuning.cardLead) * (card == 0 ? 1 : tuning.parentScale),
-        layout.height,
-      ),
-      progress: progress,
-    );
-    opened.flex = _flexOf(() => _cardFrame(opened));
-    _cards.add(opened);
+    if (!_stack.open(t, card, index, source)) return;
     _frameMemo = null;
     _setHighlight(null, card + 1);
   }
 
   void _back(double t) {
     if (_phase != _Phase.opening) return;
-    final top = _topCard;
-    if (top == 0) return;
-    final card = _cards[top - 1];
-    card.backing = true;
-    card.backFrom = card.progress.valueAt(t);
-    card.progress.retarget(t, 0, spring: tuning.backSpring);
+    final under = _stack.back(t);
+    if (under == null) return;
     _frameMemo = null;
-    _setHighlight(null, top - 1);
+    _setHighlight(null, under);
   }
 
   void _relax(double t) {
     _flex.up(t);
-    for (final card in _cards) {
+    for (final card in _stack.all) {
       card.flex.up(t);
     }
     _touchGlow.pointerUp(t);

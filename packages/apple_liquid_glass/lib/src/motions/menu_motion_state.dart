@@ -212,7 +212,7 @@ double _interpolate(List<(double, double)> table, double height) {
 /// reaction of the law before and after it runs (`at`), `didAdvance` at its
 /// start and end (after the reactions, loop steps and part writes of the
 /// advance), the private writers `_place`, `_open`, `_close`, `_openCard`,
-/// `_back`, `_dropCard` and `updateLayout` after they write, the flex's
+/// `_back`, `_disownCard` and `updateLayout` after they write, the flex's
 /// commands (`_relax`, and `pointerMove` after it moves the flex), whose
 /// reactions write at once under a tuning without a flex delay, and the
 /// [MenuMotion.scrollOffset] setter. A frame keeps its time, and one
@@ -244,39 +244,9 @@ final class _MenuFrame {
 
   late final MenuStretch? cardStretch = _motion._cardStretchOf();
 
-  late final List<MenuCard> cards = List.unmodifiable(_motion._cardsAt(time));
-}
-
-/// A submenu card stacked over the menu.
-class _Card {
-  _Card({
-    required this.layout,
-    required this.source,
-    required this.from,
-    required this.top,
-    required this.progress,
-  });
-
-  MenuLayout layout;
-
-  /// The index of the target in the card below that opened this one.
-  final int source;
-
-  /// The frame the card grows out of, in content coordinates.
-  final Rect from;
-
-  /// The top of the open card, in content coordinates.
-  double top;
-
-  final MotionValue<double> progress;
-
-  /// The card's own flex: UIKit attaches one to each list, and a finger on a
-  /// card leaves the list under it where it is.
-  late final MenuFlex flex;
-  bool backing = false;
-
-  /// The progress the card had when it started back to its row.
-  double backFrom = 1;
+  late final List<MenuCard> cards = List.unmodifiable(
+    _motion._stack.at(time),
+  );
 }
 
 const List<(double, double)> _kickAmplitude = [
