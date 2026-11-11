@@ -7,7 +7,8 @@
 /// 1. Every folder `lib/src/<name>/` is one library, opened by the one file
 ///    `lib/<name>.dart`, which exports only from its own folder. No Dart file
 ///    sits directly in `lib/src/`. The umbrella exports every library and
-///    nothing else; the `unchecked` library files are exempt.
+///    nothing else but the packages it re-exports; the `unchecked` library
+///    files are exempt.
 /// 2. A file of `lib/src/<a>/` reaches another library only through
 ///    `package:<package>/<b>.dart`, and its own library one way.
 /// 3. A library imports only the libraries its row of the table names; the

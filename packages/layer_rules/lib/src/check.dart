@@ -203,6 +203,7 @@ final class _Checker {
     final exported = <String>{};
     for (final uris in directives(file.readAsStringSync())) {
       for (final uri in uris) {
+        if (rules.umbrellaReexports.contains(uri)) continue;
         final target = _resolve('lib/$name.dart', uri);
         final library = target == null ? null : _topLevel(target);
         if (library == null || !rules.libraries.containsKey(library)) {
@@ -293,7 +294,11 @@ final class _Checker {
   void _checkBans(String file, String source) {
     final code = blank(source, strings: true);
     for (final ban in rules.bans) {
-      if (ban.allowedIn.contains(file)) continue;
+      if (ban.allowedIn.any(
+        (path) => path == file || path.endsWith('/') && file.startsWith(path),
+      )) {
+        continue;
+      }
       final text = ban.code ? code : source;
       final hits = RegExp(ban.pattern, multiLine: true).allMatches(text).length;
       for (var i = 0; i < hits; i++) {

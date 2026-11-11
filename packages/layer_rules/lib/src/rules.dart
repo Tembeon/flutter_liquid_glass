@@ -34,7 +34,8 @@ final class Ban {
   final bool code;
 
   /// Paths relative to the package root, such as `lib/src/a/b.dart`, where
-  /// the pattern may occur.
+  /// the pattern may occur. A path that ends in `/`, such as `lib/src/a/`,
+  /// allows every file under it.
   final Set<String> allowedIn;
 }
 
@@ -49,6 +50,7 @@ final class LayerRules {
     required this.package,
     required this.libraries,
     this.umbrella,
+    this.umbrellaReexports = const {},
     this.unchecked = const {},
     this.sameLibraryImports = SameLibraryImports.package,
     this.packages = const {},
@@ -65,6 +67,11 @@ final class LayerRules {
   /// The library file, without `.dart`, that exports every library and
   /// nothing else, or null when the package has none.
   final String? umbrella;
+
+  /// Libraries of other packages, as `package:` URIs, that the umbrella
+  /// exports besides this package's libraries, such as the umbrella of a
+  /// package this one builds on.
+  final Set<String> umbrellaReexports;
 
   /// Library files, without `.dart`, that rule 1 leaves alone, such as a
   /// `testing` library that picks names from several libraries. A library

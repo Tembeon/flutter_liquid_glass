@@ -11,6 +11,7 @@ const _rules = LayerRules(
     'top': {'base'},
   },
   umbrella: 'sample',
+  umbrellaReexports: {'package:flutter/widgets.dart'},
   unchecked: {'testing'},
   packages: {'flutter'},
   forbidden: {
@@ -47,6 +48,44 @@ void main() {
       '5:dynamic lib/src/base/a.dart 2',
       '5:ignore lib/src/base/a.dart 1',
     ]);
+  });
+
+  test('the umbrella may re-export only the packages it names', () {
+    const strict = LayerRules(
+      package: 'sample',
+      libraries: {
+        'base': {},
+        'top': {'base'},
+      },
+      umbrella: 'sample',
+    );
+    expect(
+      checkLayers(fixture, strict).structure,
+      contains(
+        'the umbrella lib/sample.dart names package:flutter/widgets.dart',
+      ),
+    );
+  });
+
+  test('a ban allows a folder by a path ending in a slash', () {
+    const folder = LayerRules(
+      package: 'sample',
+      libraries: {
+        'base': {},
+        'top': {'base'},
+      },
+      bans: [
+        Ban('dynamic', r'\bdynamic\b', allowedIn: {'lib/src/base/'}),
+      ],
+    );
+    expect(
+      checkLayers(fixture, folder).violations.map((v) => '$v'),
+      contains('5:dynamic lib/src/top/t.dart 1'),
+    );
+    expect(
+      checkLayers(fixture, folder).violations.map((v) => '$v'),
+      isNot(contains('5:dynamic lib/src/base/a.dart 2')),
+    );
   });
 
   test('a cycle in the table fails', () {
