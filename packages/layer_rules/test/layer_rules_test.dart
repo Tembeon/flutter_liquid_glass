@@ -67,6 +67,36 @@ void main() {
     );
   });
 
+  test('an umbrella exports the libraries it lists, and only them', () {
+    LayerRules listing(Set<String> libraries) => LayerRules(
+      package: 'sample',
+      libraries: const {
+        'base': {},
+        'top': {'base'},
+      },
+      umbrella: 'sample',
+      umbrellaLibraries: libraries,
+      umbrellaReexports: const {'package:flutter/widgets.dart'},
+    );
+    bool aboutUmbrella(String error) => error.startsWith('the umbrella');
+
+    expect(
+      checkLayers(fixture, listing({'base'})).structure.where(aboutUmbrella),
+      isEmpty,
+    );
+    expect(
+      checkLayers(
+        fixture,
+        listing({'top', 'gone'}),
+      ).structure.where(aboutUmbrella),
+      unorderedEquals([
+        'the umbrella is to export gone, no library',
+        'the umbrella lib/sample.dart does not export top',
+        'the umbrella lib/sample.dart exports base, which it does not list',
+      ]),
+    );
+  });
+
   test('a ban allows a folder by a path ending in a slash', () {
     const folder = LayerRules(
       package: 'sample',

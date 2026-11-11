@@ -50,6 +50,7 @@ final class LayerRules {
     required this.package,
     required this.libraries,
     this.umbrella,
+    this.umbrellaLibraries,
     this.umbrellaReexports = const {},
     this.unchecked = const {},
     this.sameLibraryImports = SameLibraryImports.package,
@@ -64,9 +65,17 @@ final class LayerRules {
   /// Each library, by folder name, with the libraries it may import.
   final Map<String, Set<String>> libraries;
 
-  /// The library file, without `.dart`, that exports every library and
-  /// nothing else, or null when the package has none.
+  /// The library file, without `.dart`, that exports the libraries
+  /// [umbrellaLibraries] names and nothing else, or null when the package
+  /// has none.
   final String? umbrella;
+
+  /// The libraries, by folder name, that the [umbrella] exports, or null
+  /// for every library.
+  ///
+  /// An umbrella that is what an app needs leaves out the libraries for
+  /// those who extend the package, which import them by name.
+  final Set<String>? umbrellaLibraries;
 
   /// Libraries of other packages, as `package:` URIs, that the umbrella
   /// exports besides this package's libraries, such as the umbrella of a

@@ -213,10 +213,18 @@ final class _Checker {
         }
       }
     }
-    for (final library in rules.libraries.keys) {
-      if (!exported.contains(library)) {
+    final listed = rules.umbrellaLibraries ?? rules.libraries.keys.toSet();
+    for (final library in listed) {
+      if (!rules.libraries.containsKey(library)) {
+        structure.add('the umbrella is to export $library, no library');
+      } else if (!exported.contains(library)) {
         structure.add('the umbrella lib/$name.dart does not export $library');
       }
+    }
+    for (final library in exported.difference(listed)) {
+      structure.add(
+        'the umbrella lib/$name.dart exports $library, which it does not list',
+      );
     }
   }
 
