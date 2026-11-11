@@ -216,6 +216,18 @@ class InputZonesController<T extends Object> extends ChangeNotifier {
   /// The zone that has the primary focus, or null.
   T? get focusedZone => _focused;
 
+  /// The zone that takes input under [position], in the host's
+  /// coordinates, as a touch landing there finds it (its rect, else its
+  /// hit extension); null between and beyond the zones, on a disabled
+  /// zone, and while no host holds the controller.
+  ///
+  /// What a host interaction (`InputZones.interactions`) asks as the
+  /// finger moves: a menu's finger over its rows.
+  T? zoneAt(Offset position) {
+    final zone = _host?._zoneAt(position);
+    return zone != null && zone.takesInput ? zone.id : null;
+  }
+
   /// Moves focus to [zone]; false when the host holds no such zone or it
   /// cannot take focus now.
   bool requestFocus(T zone) {
@@ -377,7 +389,10 @@ enum InputZoneStops {
 /// a `ScrubChangeEvent` with the new zone; the touch then ends where the
 /// finger lifts. This is how an alert's actions, a menu's rows and a tab
 /// bar's items are scrubbed. With a [port], touches handed on from another
-/// region arrive the same way, also onto no zone at first.
+/// region arrive the same way, also onto no zone at first. The host's own
+/// [interactions] hear each touch on the host whole, from down to up,
+/// wherever the finger goes, and ask [InputZonesController.zoneAt] what
+/// lies under it.
 ///
 /// Mouse: each zone has its own cursor and hovered state, and hears hover
 /// as `PointerHoverInput`s; a zone that moves under a resting mouse is
@@ -446,6 +461,7 @@ class InputZones<T extends Object> extends StatefulWidget {
     this.onEdge,
     this.port,
     this.excludeChildSemantics = true,
+    this.interactions = const [],
     super.key,
   });
 
@@ -506,6 +522,21 @@ class InputZones<T extends Object> extends StatefulWidget {
   /// Whether the semantics of [child] are dropped, leaving the zones'.
   final bool excludeChildSemantics;
 
+  /// What hears the touches on the host as a whole, in the host's
+  /// coordinates; when two recognize on one input, the first wins.
+  ///
+  /// They hear a touch that lands anywhere on the host, on a zone or
+  /// between the zones, or arrives through [port], from its down to its
+  /// release wherever the finger goes, beyond the host too, beside the
+  /// zone the touch lands on. They hold or give up the touch in the gesture
+  /// arena as an `InputRegion`'s interactions do; an observer
+  /// ([InteractionRole.observer]) stays out of it. A host interaction asks
+  /// [InputZonesController.zoneAt] which zone lies under the finger: a
+  /// finger that opened a menu slides over its rows and beyond its edge,
+  /// and the menu follows it. Keys, hover and accessibility stay the
+  /// zones'; the host's interactions play no [feedback].
+  final List<Interaction> interactions;
+
   @override
   State<InputZones<T>> createState() => _InputZonesState<T>();
 }
@@ -519,6 +550,9 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
   final Map<int, VelocityTracker> _trackers = {};
   final Map<int, InputArenaMember> _members = {};
   final PointerSpeed _speed = PointerSpeed();
+  late InteractionSession _hostSession = InteractionSession(
+    widget.interactions,
+  );
   late final FocusTraversalPolicy _policy = _ZonesTraversal<T>(this);
   double? _scheduled;
   VoidCallback? _cancelDue;
@@ -538,6 +572,28 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     FocusManager.instance.addHighlightModeListener(_highlightModeChanged);
     _attachPort(widget.port);
     _scheduleResize();
+    _bindHost();
+  }
+
+  void _bindHost() {
+    for (final interaction in widget.interactions) {
+      interaction.bindRegion((local) => _box?.localToGlobal(local) ?? local);
+    }
+  }
+
+  /// Ends the touches the host's interactions follow, for [reason].
+  void _cancelHost(PointerCancelReason reason) {
+    for (final pointer in _downs.keys.toList()) {
+      _answerHost(
+        _hostSession.handle(
+          PointerCancelInput(
+            time: _clock.now,
+            pointer: pointer,
+            reason: reason,
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -575,6 +631,11 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
       oldWidget.port?.detach(_receive);
       _attachPort(widget.port);
     }
+    if (!listEquals(oldWidget.interactions, widget.interactions)) {
+      _cancelHost(PointerCancelReason.platform);
+      _hostSession = InteractionSession(widget.interactions);
+      _bindHost();
+    }
     assert(
       widget.zones.map((zone) => zone.id).toSet().length == widget.zones.length,
       'Every zone of an InputZones has its own id.',
@@ -584,6 +645,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
   @override
   void dispose() {
     widget.port?.detach(_receive);
+    _cancelHost(PointerCancelReason.platform);
     widget.frames.removeListener(_framesChanged);
     FocusManager.instance.removeHighlightModeListener(_highlightModeChanged);
     _cancelDue?.call();
@@ -825,6 +887,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
         _move(input);
       case PointerUpInput(:final pointer) || PointerCancelInput(:final pointer):
         if (_downs.remove(pointer) == null) return;
+        _answerHost(_hostSession.handle(input), pointer: pointer);
         final zone = _zones[_owners.remove(pointer)];
         if (zone == null) return;
         _answer(
@@ -842,45 +905,58 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
   }
 
   void _down(PointerDownInput down, {required bool arena}) {
-    if (_downs.containsKey(down.pointer)) return;
+    final pointer = down.pointer;
+    if (_downs.containsKey(pointer)) return;
+    final host = _hostSession.handle(down);
+    final hostTakes = _hostSession.follows(pointer);
     final zone = _zoneAt(down.position);
     final output = zone != null && zone.takesInput
         ? zone.session.handle(zone._local(down))
         : null;
     final accepted = output != null && !output.reject;
-    if (!accepted && !widget.slides) {
+    if (!accepted &&
+        !widget.slides &&
+        !hostTakes &&
+        !_hostSession.observes(pointer)) {
       if (zone != null && output != null) _answer(zone, output);
+      _answerHost(host);
       return;
     }
-    _downs[down.pointer] = down;
-    if (arena) {
+    _downs[pointer] = down;
+    if (arena && (accepted || widget.slides || hostTakes)) {
       final member = InputArenaMember(_lost);
-      _members[down.pointer] = member;
-      member.entry = GestureBinding.instance.gestureArena.add(
-        down.pointer,
-        member,
-      );
+      _members[pointer] = member;
+      member.entry = GestureBinding.instance.gestureArena.add(pointer, member);
     }
-    if (zone == null || output == null) return;
-    if (!accepted) {
-      _answer(zone, output);
-      return;
+    if (zone != null && output != null) {
+      if (accepted) {
+        _owners[pointer] = zone.id;
+        _answer(
+          zone,
+          output,
+          pointer: pointer,
+          extra: [
+            if (widget.slides)
+              ScrubChangeEvent(
+                time: down.time,
+                selected: zone.id,
+                atDown: true,
+              ),
+          ],
+        );
+      } else {
+        _answer(zone, output);
+      }
     }
-    _owners[down.pointer] = zone.id;
-    _answer(
-      zone,
-      output,
-      pointer: down.pointer,
-      extra: [
-        if (widget.slides)
-          ScrubChangeEvent(time: down.time, selected: zone.id, atDown: true),
-      ],
-    );
+    // After the zone took its part, so a host that takes nothing leaves
+    // the touch to the zone.
+    _answerHost(host, pointer: pointer);
   }
 
   void _move(PointerMoveInput move) {
     final down = _downs[move.pointer];
     if (down == null) return;
+    _answerHost(_hostSession.handle(move), pointer: move.pointer);
     final zone = _zones[_owners[move.pointer]];
     if (widget.slides) {
       final under = _zoneAt(move.position);
@@ -946,8 +1022,11 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
 
   void _lost(int pointer) {
     if (_members.remove(pointer) == null) return;
-    _trackers.remove(pointer);
-    _downs.remove(pointer);
+    if (!_hostSession.observes(pointer)) {
+      _trackers.remove(pointer);
+      _downs.remove(pointer);
+    }
+    _answerHost(_hostSession.lost(pointer, _clock.now));
     final zone = _zones[_owners.remove(pointer)];
     if (zone == null) return;
     _answer(zone, zone.session.lost(pointer, _clock.now));
@@ -985,7 +1064,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     if (pointer != null) {
       final entry = _members[pointer]?.entry;
       if (output.claim) entry?.resolve(GestureDisposition.accepted);
-      if (output.reject && !widget.slides) {
+      if (output.reject && !widget.slides && !_hostSession.follows(pointer)) {
         entry?.resolve(GestureDisposition.rejected);
       }
     }
@@ -993,6 +1072,18 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
       _play(zone.id, event);
     }
     if (zone.mounted) zone._writeStates();
+    _scheduleDue();
+  }
+
+  /// Resolves the arena for what the host's interactions made of a touch.
+  void _answerHost(SessionOutput output, {int? pointer}) {
+    if (pointer != null) {
+      final entry = _members[pointer]?.entry;
+      if (output.claim) entry?.resolve(GestureDisposition.accepted);
+      if (output.reject && !widget.slides && !_owners.containsKey(pointer)) {
+        entry?.resolve(GestureDisposition.rejected);
+      }
+    }
     _scheduleDue();
   }
 
@@ -1006,7 +1097,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
   }
 
   void _scheduleDue() {
-    double? due;
+    var due = _hostSession.nextDue;
     for (final zone in _zones.values) {
       final at = zone.session.nextDue;
       if (at != null && (due == null || at < due)) due = at;
@@ -1021,6 +1112,13 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
       _cancelDue = null;
       if (!mounted) return;
       _clock.input(time, () {
+        final hostDue = _hostSession.nextDue;
+        if (hostDue != null && hostDue <= time) {
+          _answerHost(
+            _hostSession.advance(time),
+            pointer: _downs.keys.where(_hostSession.follows).firstOrNull,
+          );
+        }
         for (final zone in _zones.values.toList()) {
           final at = zone.session.nextDue;
           if (at == null || at > time) continue;
@@ -1799,7 +1897,11 @@ class _RenderZones<T extends Object> extends RenderBox
     final zone = state._zoneAt(position);
     if (zone == null) {
       if (content == null || !size.contains(position)) return false;
-      return content.hitTest(result, position: position);
+      final hit = content.hitTest(result, position: position);
+      if (state.widget.interactions.isEmpty) return hit;
+      // The host's own interactions hear a touch between the zones.
+      result.add(BoxHitTestEntry(this, position));
+      return true;
     }
     content?.hitTest(result, position: position);
     // In the host's coordinates: the zone's events are read in them.
@@ -1807,6 +1909,11 @@ class _RenderZones<T extends Object> extends RenderBox
       result.add(BoxHitTestEntry(anchor, position));
     }
     return true;
+  }
+
+  @override
+  void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
+    if (state.mounted) state._pointer(event);
   }
 
   @override
