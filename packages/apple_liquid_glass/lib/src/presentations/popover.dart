@@ -9,7 +9,6 @@ import 'package:apple_liquid_glass/src/presentations/sheet.dart';
 import 'package:apple_liquid_glass/src/surfaces/surface.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
@@ -346,7 +345,8 @@ class _PopoverParentData extends ContainerBoxParentData<RenderBox> {}
 class _RenderPopover extends RenderBox
     with
         ContainerRenderObjectMixin<RenderBox, _PopoverParentData>,
-        RenderBoxContainerDefaultsMixin<RenderBox, _PopoverParentData> {
+        RenderBoxContainerDefaultsMixin<RenderBox, _PopoverParentData>,
+        MotionResolveHost {
   _RenderPopover({
     required this._source,
     required this.scale,
@@ -386,8 +386,8 @@ class _RenderPopover extends RenderBox
 
   PopoverPlacement? _placement;
 
-  // Where the last paint found the popover's box, which layout places the
-  // popover by: no box's position can be read during layout.
+  // Where the frame's resolve phase found the popover's box, which layout
+  // places the popover by: no box's position can be read during layout.
   Offset _seen = Offset.zero;
   Offset _laidOutAt = Offset.zero;
   final _glassLayer = LayerHandle<TransformLayer>();
@@ -481,17 +481,23 @@ class _RenderPopover extends RenderBox
         : _placement!.content.topLeft,
   );
 
+  // The box can move without laying the popover out: an overlay moved, a
+  // nested navigator's page sliding.
+  @override
+  bool get resolvesEveryFrame => true;
+
+  // Laid out for another position of its box, the popover lays out again
+  // in the same frame, before it paints.
+  @override
+  void resolve() {
+    final seen = localToGlobal(Offset.zero);
+    if (seen == _laidOutAt) return;
+    _seen = seen;
+    markNeedsLayout();
+  }
+
   @override
   void paint(PaintingContext context, Offset offset) {
-    // Laid out for another position of its box (a popover in a nested
-    // navigator, an overlay moved since), the popover is placed again in
-    // the next frame; its first frame shows nothing, its opacity at 0.
-    _seen = localToGlobal(Offset.zero);
-    if (_seen != _laidOutAt) {
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (attached) markNeedsLayout();
-      });
-    }
     if (!_shown) {
       _glassLayer.layer = null;
       _cardLayer.layer = null;

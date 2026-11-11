@@ -205,6 +205,68 @@ void main() {
       expect(find.text('Details'), findsNothing);
     });
 
+    testWidgets('in a navigator away from the corner of the screen it points '
+        'at the source in its first frame', (tester) async {
+      _screen(tester, const Size(1024, 1366));
+      await tester.pumpWidget(
+        WidgetsApp(
+          color: const Color(0xFF000000),
+          builder: (context, child) => GlassScope(
+            renderer: const FlatGlassRenderer(),
+            child: Padding(
+              padding: const EdgeInsets.only(left: 240, top: 160),
+              child: Navigator(
+                onGenerateRoute: (settings) => GlassPageRoute<void>(
+                  builder: (context) => Align(
+                    alignment: Alignment.topLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.all(100),
+                      child: Builder(
+                        builder: (context) => GestureDetector(
+                          key: _source,
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => unawaited(
+                            showGlassPopover<void>(
+                              context,
+                              anchor: context,
+                              level: PresentationLevel.page,
+                              builder: (context) => const SizedBox(
+                                width: 300,
+                                height: 200,
+                                child: Center(child: Text('Details')),
+                              ),
+                            ),
+                          ),
+                          child: const SizedBox(width: 120, height: 48),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(_source));
+      await tester.pump();
+      final source = tester.getRect(find.byKey(_source));
+      Rect content() => tester.getRect(
+        find.ancestor(
+          of: find.text('Details'),
+          matching: find.byType(ClipRSuperellipse),
+        ),
+      );
+      final first = content();
+      await _settle(tester);
+      final settled = content();
+      expect(settled.top - source.bottom, closeTo(13, 0.5));
+      expect(settled.center.dx, closeTo(source.center.dx, 0.5));
+      // It grows out of the arrow's tip under the source's center.
+      expect(first.center.dx, closeTo(source.center.dx, 0.5));
+      expect(first.top, greaterThanOrEqualTo(source.bottom));
+    });
+
     testWidgets('on a phone presents a sheet unless it is told not to', (
       tester,
     ) async {

@@ -1023,6 +1023,19 @@ final class _Bar {
     return {for (final id in ids) id: buttons[id]!};
   }
 
+  /// The title rooms the latest layout computed, which the pages take in
+  /// the frame's resolve phase ([giveRooms]).
+  List<(GlassPageBarLink, GlassTitleRoom)> pendingRooms = const [];
+
+  /// Gives the pages the title rooms the latest layout computed.
+  void giveRooms() {
+    final rooms = pendingRooms;
+    pendingRooms = const [];
+    for (final (page, room) in rooms) {
+      if (host._pages.contains(page)) page.titleRoom.value = room;
+    }
+  }
+
   /// Takes the content widths the view measured in a bar [width] wide and
   /// applies the waiting changes, each at its own time.
   void measured(
@@ -1057,15 +1070,10 @@ final class _Bar {
         if (page.titleRoom.value != room) rooms.add((page, room));
       }
     }
-    if (rooms.isNotEmpty) {
-      // The titles are laid out in their pages, which this layout must
-      // not touch: they take their room after the frame.
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        for (final (page, room) in rooms) {
-          if (host._pages.contains(page)) page.titleRoom.value = room;
-        }
-      });
-    }
+    // The titles are laid out in their pages, which this layout must not
+    // touch: they take their room in the frame's resolve phase, and lay
+    // out again in this frame.
+    pendingRooms = rooms;
     final pending = List.of(changes);
     changes.clear();
     for (final change in pending) {
@@ -1898,7 +1906,8 @@ class _ItemData extends ContainerBoxParentData<RenderBox> {}
 class _RenderBarItems extends RenderBox
     with
         ContainerRenderObjectMixin<RenderBox, _ItemData>,
-        RenderBoxContainerDefaultsMixin<RenderBox, _ItemData> {
+        RenderBoxContainerDefaultsMixin<RenderBox, _ItemData>,
+        MotionResolveHost {
   _RenderBarItems(
     this.bar, {
     required this._rtl,
@@ -1997,7 +2006,11 @@ class _RenderBarItems extends RenderBox
       _shown.remove(id);
     }
     bar.measured(widths, size.width, rtl: _rtl);
+    if (bar.pendingRooms.isNotEmpty) scheduleResolve();
   }
+
+  @override
+  void resolve() => bar.giveRooms();
 
   @override
   void applyPaintTransform(RenderBox child, Matrix4 transform) {

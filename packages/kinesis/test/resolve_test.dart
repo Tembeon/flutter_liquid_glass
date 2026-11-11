@@ -183,6 +183,33 @@ void main() {
     expect(tester.binding.hasScheduledFrame, isFalse);
   });
 
+  testWidgets('a box placed by where it sits on screen is placed in its '
+      'first frame and follows a move in the same frame', (tester) async {
+    Widget at(double left) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: Stack(
+        children: [
+          Positioned(
+            left: left,
+            top: 0,
+            width: 200,
+            height: 100,
+            child: const _ScreenPlaced(),
+          ),
+        ],
+      ),
+    );
+    await tester.pumpWidget(at(30));
+    final placed = tester.renderObject<_RenderScreenPlaced>(
+      find.byType(_ScreenPlaced),
+    );
+    // It keeps its child at screen x 100 wherever its own box is.
+    expect(placed.painted, [70]);
+    await tester.pumpWidget(at(60));
+    expect(placed.painted, [70, 40]);
+    expect(tester.binding.hasScheduledFrame, isFalse);
+  });
+
   testWidgets('hosts that keep marking each other finish in the next '
       'frame', (tester) async {
     await tester.pumpWidget(
@@ -218,4 +245,40 @@ void main() {
     await tester.pump();
     expect(MotionTransaction.layout, isNull);
   });
+}
+
+class _ScreenPlaced extends LeafRenderObjectWidget {
+  const _ScreenPlaced();
+
+  @override
+  _RenderScreenPlaced createRenderObject(BuildContext context) =>
+      _RenderScreenPlaced();
+}
+
+// Lays out an inner offset that puts a mark at screen x 100, from where the
+// resolve phase saw its box: a popover's placement in small.
+class _RenderScreenPlaced extends RenderBox with MotionResolveHost {
+  double _seen = 0;
+  double _inner = 0;
+  final List<double> painted = [];
+
+  @override
+  bool get resolvesEveryFrame => true;
+
+  @override
+  void performLayout() {
+    size = constraints.biggest;
+    _inner = 100 - _seen;
+  }
+
+  @override
+  void resolve() {
+    final seen = localToGlobal(Offset.zero).dx;
+    if (seen == _seen) return;
+    _seen = seen;
+    markNeedsLayout();
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) => painted.add(_inner);
 }
