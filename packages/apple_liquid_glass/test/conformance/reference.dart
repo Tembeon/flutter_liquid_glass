@@ -69,6 +69,32 @@ final List<Entry> references = [
     ),
   ),
   Entry(
+    'reference.bad.contextMenu',
+    covers: const [],
+    kind: Kind.opener,
+    openGesture: OpenGesture.longPress,
+    contextMenu: true,
+    marker: find.text('First item'),
+    inside: find.text('First item'),
+    build: (probe, {required enabled}) => Builder(
+      builder: (context) => GestureDetector(
+        onLongPress: enabled
+            ? () => _dialog(context, probe, 'Menu', 'First item')
+            : null,
+        child: SizedBox(
+          width: 120,
+          height: 80,
+          child: Center(
+            child: Text(
+              'Photo',
+              style: TextStyle(fontSize: 17, color: _ink(context)),
+            ),
+          ),
+        ),
+      ),
+    ),
+  ),
+  Entry(
     'reference.bad.overlay',
     covers: const [],
     kind: Kind.overlay,

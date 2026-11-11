@@ -1,10 +1,8 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/foundation/boxes.dart';
-import 'package:apple_liquid_glass/src/foundation/frame.dart';
-import 'package:apple_liquid_glass/src/foundation/shape.dart';
-import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/menu_context_hold.dart';
 import 'package:apple_liquid_glass/src/motions/menu_fusion.dart';
@@ -15,6 +13,7 @@ import 'package:apple_liquid_glass/src/presentations/menu_appearance.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_content.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_entries.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_rows.dart';
+import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
 import 'package:apple_liquid_glass/src/surfaces/surface.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -511,9 +510,14 @@ class _RawGlassMenuState extends _MenuHost<RawGlassMenu> {
   MenuSource _sourceIn(RenderBox overlay, Rect box) =>
       widget.sourceOf?.call(overlay) ?? MenuSource(box, radius: widget.radius);
 
+  // What the region reports of the keyboard focus and the mouse, which
+  // the source's ring and hover response follow.
+  final _states = WidgetStatesController();
+
   @override
   void dispose() {
     if (_showing) widget.onShowing?.call(false);
+    _states.dispose();
     super.dispose();
   }
 
@@ -600,6 +604,7 @@ class _RawGlassMenuState extends _MenuHost<RawGlassMenu> {
     return _host(
       InputRegion(
         interactions: [_input],
+        statesController: _states,
         enabled: enabled,
         semanticLabel: widget.semanticLabel,
         child: Semantics(
@@ -614,7 +619,16 @@ class _RawGlassMenuState extends _MenuHost<RawGlassMenu> {
                 transform: _pressTransform(),
                 alignment: Alignment.center,
               ),
-              child: widget.child,
+              child: GlassHighlightPaint.of(
+                context,
+                states: _states,
+                shape: switch (widget.radius) {
+                  null => GlassShape.capsule,
+                  final radius => GlassShape.roundedRect(radius),
+                },
+                wash: true,
+                child: widget.child,
+              ),
             ),
           ),
         ),
@@ -1826,11 +1840,23 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     up: (pointer, t, global) {},
     cancel: (pointer, t) {},
   );
-  final _claimFocus = FocusNode(skipTraversal: true);
+  // One Tab stop, where the keyboard's context menu key lands.
+  final _claimFocus = FocusNode(debugLabel: 'GlassContextMenu');
+
+  // What the region reports of the keyboard focus and the mouse, which the
+  // ring and the hover response around the anchor follow.
+  final _states = WidgetStatesController();
+
+  // A mouse opens the menu at the press of its secondary button, as a
+  // context menu does on iPadOS and macOS.
+  late final _secondary = SecondaryClickInteraction(
+    onClick: (t, position) => _openFromCode(),
+  );
 
   @override
   void dispose() {
     _claimFocus.dispose();
+    _states.dispose();
     super.dispose();
   }
 
@@ -2059,30 +2085,34 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
       );
     }, child: child);
     double shown() => ((_motion?.progress ?? 0) * 2).clamp(0.0, 1.0);
+    // The preview is a picture of the anchor, which screen readers read
+    // in its place.
     return [
       IgnorePointer(
-        child: Stack(
-          children: [
-            carried(
-              natural,
-              builder == null
-                  ? widget.child
-                  : menuDriven(
-                      frames,
-                      (_) => Opacity(opacity: 1 - shown()),
-                      child: widget.child,
-                    ),
-            ),
-            if (builder != null)
+        child: ExcludeSemantics(
+          child: Stack(
+            children: [
               carried(
-                _previewRect.size,
-                menuDriven(
-                  frames,
-                  (_) => Opacity(opacity: shown()),
-                  child: Builder(builder: builder),
-                ),
+                natural,
+                builder == null
+                    ? widget.child
+                    : menuDriven(
+                        frames,
+                        (_) => Opacity(opacity: 1 - shown()),
+                        child: widget.child,
+                      ),
               ),
-          ],
+              if (builder != null)
+                carried(
+                  _previewRect.size,
+                  menuDriven(
+                    frames,
+                    (_) => Opacity(opacity: shown()),
+                    child: Builder(builder: builder),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     ];
@@ -2092,14 +2122,16 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   Widget build(BuildContext context) {
     _style = MenuAppearance.of(context, widget.style);
     final enabled = widget.enabled;
+    // The anchor is the region's one node, named by what it shows, with
+    // the hold as its long press; the menu is read after it.
     return _host(
-      Semantics(
+      InputRegion(
+        interactions: [_claim, _secondary],
+        statesController: _states,
         enabled: enabled,
-        onLongPress: enabled ? _openFromCode : null,
-        child: InputRegion(
-          interactions: [_claim],
-          enabled: enabled,
-          focusNode: _claimFocus,
+        focusNode: _claimFocus,
+        child: Semantics(
+          onLongPress: enabled ? _openFromCode : null,
           // The hold listens outside the gesture arena: a child that claims
           // its touch at once, a glass button, would win it, and Flutter's
           // arena never hands a won touch on, where UIKit cancels the
@@ -2118,7 +2150,13 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
                   alignment: Alignment.center,
                   transform: _growthTransform(),
                 ),
-                child: widget.child,
+                child: GlassHighlightPaint.of(
+                  context,
+                  states: _states,
+                  shape: const GlassShape.roundedRect(0),
+                  wash: true,
+                  child: widget.child,
+                ),
               ),
             ),
           ),

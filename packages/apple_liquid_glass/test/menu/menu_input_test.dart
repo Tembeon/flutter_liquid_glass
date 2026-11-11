@@ -323,4 +323,42 @@ void main() {
     await _settle(tester);
     expect(log, ['Copy']);
   });
+
+  testWidgets('a secondary click opens a context menu, whose rows the mouse '
+      'then chooses', (tester) async {
+    _phone(tester);
+    final log = <String>[];
+    await tester.pumpWidget(
+      _app(
+        GlassContextMenu(
+          menuChildren: _entries(log),
+          child: const SizedBox(
+            key: Key('held'),
+            width: 160,
+            height: 100,
+            child: Text('Photo'),
+          ),
+        ),
+      ),
+    );
+    final mouse = await tester.createGesture(
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryMouseButton,
+    );
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.down(tester.getCenter(find.byKey(const Key('held'))));
+    await mouse.up();
+    await mouse.removePointer();
+    await _settle(tester);
+    expect(find.text('Copy'), findsOneWidget);
+    final click = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await click.addPointer(location: tester.getCenter(find.text('Copy')));
+    addTearDown(click.removePointer);
+    await tester.pump();
+    await click.down(tester.getCenter(find.text('Copy')));
+    await click.up();
+    await _settle(tester);
+    expect(log, ['Copy']);
+    expect(find.text('Copy'), findsNothing);
+  });
 }
