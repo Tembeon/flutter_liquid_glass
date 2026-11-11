@@ -426,6 +426,7 @@ class LiquidGlassLayer extends StatefulWidget
   final LiquidGlassGlow? glow
   final ValueListenable<LiquidGlassLayerFrame>? live
   final LiquidGlassSettings settings
+  static LiquidGlassSettings settingsOf(BuildContext context)
   overrides: createState
 typedef LiquidGlassLayerEffects = ({int? alpha, double blur, RRect? clip, Matrix4 transform})
 class LiquidGlassLayerFrame
@@ -504,7 +505,6 @@ final class LiquidGlassSettings
   final double highlight
   static double ios27ClearFrost(double tintAmount)
   static double ios27RegularFrost(double tintAmount)
-  static LiquidGlassSettings of(BuildContext context)
   final double refractionAmount
   final bool refractionFitsShape
   final double refractionHeight

@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
-import 'package:liquid_glass_renderer/src/widgets/liquid_glass_render_scope.dart';
 import 'package:meta/meta.dart';
 
 /// Material parameters for the liquid-glass compositor.
@@ -260,11 +259,6 @@ final class LiquidGlassSettings {
   static double _ios27ClearBlur(double tintAmount) {
     if (tintAmount <= 0) return 0;
     return math.max(_minBlurPassSigma, ios27ClearFrost(tintAmount));
-  }
-
-  /// Returns the material settings supplied by the nearest glass layer.
-  static LiquidGlassSettings of(BuildContext context) {
-    return LiquidGlassRenderScope.of(context).settings;
   }
 
   /// Width of the refracting bevel in logical pixels, measured inward from

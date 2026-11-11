@@ -457,7 +457,7 @@ void main() {
           .live!
           .value
           .settings;
-      LiquidGlassSettings scope() => LiquidGlassSettings.of(
+      LiquidGlassSettings scope() => LiquidGlassLayer.settingsOf(
         tester.element(find.byType(SizedBox).first),
       );
       Widget group(GlassRenderer renderer, List<Glass> members) => _app(

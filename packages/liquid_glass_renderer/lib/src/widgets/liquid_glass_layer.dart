@@ -92,7 +92,7 @@ class LiquidGlassLayer extends StatefulWidget {
   ///
   /// Every notification writes the new frame straight into the layer's
   /// render object; nothing rebuilds. Widgets below that read the settings
-  /// from the tree (`LiquidGlassSettings.of`, a nested [LiquidGlass] that
+  /// from the tree ([settingsOf], a nested [LiquidGlass] that
   /// opens its own layer) see those of the frame the layer last built with.
   /// A layer that draws fake glass, or whose shaders are still loading,
   /// draws neither the field nor the glow and rebuilds only when the
@@ -159,6 +159,13 @@ class LiquidGlassLayer extends StatefulWidget {
   static bool existsIn(BuildContext context, {bool watch = true}) {
     return LiquidGlassRenderScope.maybeOf(context, watch: watch) != null;
   }
+
+  /// The settings of the nearest [LiquidGlassLayer] above [context], which
+  /// its glass draws with; [context] rebuilds when they change.
+  ///
+  /// There must be such a layer: see [existsIn].
+  static LiquidGlassSettings settingsOf(BuildContext context) =>
+      LiquidGlassRenderScope.of(context).settings;
 
   @override
   State<LiquidGlassLayer> createState() => _LiquidGlassLayerState();

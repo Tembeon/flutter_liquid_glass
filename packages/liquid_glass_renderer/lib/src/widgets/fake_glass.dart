@@ -142,10 +142,10 @@ class FakeGlass extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final settings = this.settings ?? LiquidGlassSettings.of(context);
     final renderScope = this.settings == null
         ? LiquidGlassRenderScope.of(context)
         : null;
+    final settings = this.settings ?? renderScope!.settings;
     final baseAppearance =
         this.appearance ??
         renderScope?.defaultAppearance ??

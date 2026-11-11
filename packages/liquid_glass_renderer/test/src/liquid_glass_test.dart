@@ -12,6 +12,25 @@ import 'shared.dart';
 
 void main() {
   group('LiquidGlass', () {
+    testWidgets('settingsOf reads the settings of the nearest layer', (
+      tester,
+    ) async {
+      const settings = LiquidGlassSettings(refractionHeight: 12);
+      late LiquidGlassSettings seen;
+      await tester.pumpWidget(
+        LiquidGlassLayer(
+          settings: settings,
+          child: Builder(
+            builder: (context) {
+              seen = LiquidGlassLayer.settingsOf(context);
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+      expect(seen, settings);
+    });
+
     testWidgets('fake layer retains its painted subtree', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
