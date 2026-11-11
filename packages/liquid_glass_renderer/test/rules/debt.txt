@@ -3,11 +3,6 @@
 # that lists more than the code has. After fixing one, rewrite this file
 # with UPDATE_DEBT=1 (it never grows an entry).
 
-2:through-library       lib/src/widgets/fake_glass.dart                                5
-2:through-library       lib/src/widgets/glass_shadow.dart                              1
-2:through-library       lib/src/widgets/liquid_glass.dart                              2
-2:through-library       lib/src/widgets/liquid_glass_blend_group.dart                  3
-2:through-library       lib/src/widgets/liquid_glass_layer.dart                        7
 5:addPostFrameCallback  lib/src/composer/frame_report.dart                             1
 5:addPostFrameCallback  lib/src/rendering/flutter_gpu_geometry_renderer_native.dart    1
 5:addPostFrameCallback  lib/src/rendering/glass_composer.dart                          3

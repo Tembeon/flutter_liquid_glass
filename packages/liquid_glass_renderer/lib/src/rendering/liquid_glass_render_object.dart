@@ -132,8 +132,8 @@ bool debugCheckOpacityBetweenShapesAndLayer(
 /// and compositor translation. Subclasses implement only their effect in
 /// [paintFrame]: real glass renders a GPU matte plus the final shader
 /// filter; fake glass draws a blur plus a surface shader.
-@internal
 abstract class LiquidGlassRenderObject extends RenderProxyBox {
+  /// Creates a layer of glass that draws the geometry [link] gathers.
   LiquidGlassRenderObject({
     required this._link,
     required this._settings,
@@ -144,6 +144,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   // MARK: Configuration
 
   GeometryRenderLink _link;
+
+  /// The link its glass and blend groups register their geometry on.
   GeometryRenderLink get link => _link;
   set link(GeometryRenderLink value) {
     if (_link == value) return;
@@ -181,6 +183,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   }
 
   LiquidGlassSettings _settings;
+
+  /// The settings its glass draws with.
   LiquidGlassSettings get settings => _settings;
   set settings(LiquidGlassSettings value) {
     if (_settings == value) return;
@@ -195,6 +199,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   void onSettingsChanged(LiquidGlassSettings old) {}
 
   LiquidGlassAppearance _defaultAppearance;
+
+  /// The appearance of glass that sets none of its own.
   LiquidGlassAppearance get defaultAppearance => _defaultAppearance;
   set defaultAppearance(LiquidGlassAppearance value) {
     if (_defaultAppearance == value) return;
@@ -208,6 +214,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   void onAppearanceChanged() {}
 
   double _devicePixelRatio;
+
+  /// The device pixels per logical pixel it draws at.
   double get devicePixelRatio => _devicePixelRatio;
   set devicePixelRatio(double value) {
     if (_devicePixelRatio == value) return;
@@ -293,6 +301,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   @protected
   Offset get compositorTranslation => _effectTranslation;
 
+  /// The translation its effect layer last composited at.
   @visibleForTesting
   Offset get debugCompositorTranslation => _effectTranslation;
 
@@ -348,6 +357,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     super.paint(context, offset);
   }
 
+  /// Brings every registered geometry up to date for this frame and returns the
+  /// bounds of the shapes it draws, or null when it draws none.
   @protected
   Rect? prepareFrameGeometry() {
     final candidate = <(RenderLiquidGlassGeometry, GeometryCache, Matrix4)>[];
@@ -1083,6 +1094,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     }
   }
 
+  /// Records the shadows of its shapes at [offset] into a layer of their own,
+  /// or returns null when no shape casts one.
   @protected
   ContainerLayer? recordGlassShadows(Offset offset) {
     final hasShadows = shapesWithGeometry.any(
@@ -1106,12 +1119,14 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     return slot;
   }
 
+  /// Drops the layer [recordGlassShadows] recorded.
   @protected
   void clearGlassShadows() {
     _originalShadows.layer = null;
     _shadowPicture.layer = null;
   }
 
+  /// Forgets every registered geometry.
   @override
   @mustCallSuper
   void dispose() {
@@ -1148,10 +1163,12 @@ final class _EncodedGeometryInput {
   }
 }
 
-@internal
+/// Where the glass shapes and blend groups of one glass layer register, in
+/// paint order, so the layer draws their geometry.
 class GeometryRenderLink {
   final List<RenderLiquidGlassGeometry> _shapeGeometries = [];
 
+  /// The registered geometries in paint order.
   late final UnmodifiableListView<RenderLiquidGlassGeometry> shapes =
       UnmodifiableListView(_shapeGeometries);
 
@@ -1163,6 +1180,8 @@ class GeometryRenderLink {
   /// Consumes the dirty flag after the layer rebuilt its frame.
   void markClean() => _dirty = false;
 
+  /// Sorts the registered geometries into the paint order under [owner], and
+  /// each of them its own shapes.
   void updatePaintOrder(RenderObject owner) {
     if (sortGlassPaintOrder(owner, _shapeGeometries, (source) => source)) {
       _dirty = true;
@@ -1172,6 +1191,7 @@ class GeometryRenderLink {
     }
   }
 
+  /// Rebuilds the geometry of every registered render object that changed.
   void updateAllGeometries() {
     for (final renderObject in _shapeGeometries) {
       renderObject.maybeRebuildGeometry();
@@ -1181,6 +1201,7 @@ class GeometryRenderLink {
   /// Called when a glass or a blend group registers with or leaves the layer.
   VoidCallback? onMembershipChanged;
 
+  /// Adds [renderObject]'s geometry to the layer.
   void registerGeometry(
     RenderLiquidGlassGeometry renderObject,
   ) {
@@ -1190,10 +1211,12 @@ class GeometryRenderLink {
     onMembershipChanged?.call();
   }
 
+  /// Marks the geometry as changed since the layer last drew it.
   void markDirty() {
     _dirty = true;
   }
 
+  /// Removes [renderObject]'s geometry from the layer.
   void unregisterGeometry(RenderLiquidGlassGeometry renderObject) {
     if (_shapeGeometries.remove(renderObject)) {
       _dirty = true;
@@ -1201,30 +1224,9 @@ class GeometryRenderLink {
     }
   }
 
+  /// Forgets every registered geometry.
   void dispose() {
     _shapeGeometries.clear();
-  }
-}
-
-@internal
-class InheritedGeometryRenderLink extends InheritedWidget {
-  const InheritedGeometryRenderLink({
-    required this.link,
-    required super.child,
-    super.key,
-  });
-
-  final GeometryRenderLink link;
-
-  static GeometryRenderLink? of(BuildContext context) {
-    return context
-        .dependOnInheritedWidgetOfExactType<InheritedGeometryRenderLink>()
-        ?.link;
-  }
-
-  @override
-  bool updateShouldNotify(covariant InheritedGeometryRenderLink oldWidget) {
-    return oldWidget.link != link;
   }
 }
 

@@ -89,7 +89,6 @@ const _tileVertexLayout = gpu.VertexLayout(
 /// is released. Recorded scenes hold independent native references; a
 /// scene rasterized more than [reuseAfterFrames] frames after its atlas was
 /// released may show other atlases.
-@internal
 class FlutterGpuGeometryRenderer {
   factory FlutterGpuGeometryRenderer._fromResolved(
     String assetKey,
@@ -136,6 +135,8 @@ class FlutterGpuGeometryRenderer {
     return LiquidGlassDeviceClass.capable;
   }
 
+  /// Loads the geometry shader bundle at [assetKey] and creates a renderer on
+  /// it; a later call for the same bundle reuses what the first one loaded.
   static Future<FlutterGpuGeometryRenderer> fromAsset(String assetKey) async {
     if (_resolvedAssetResources[assetKey] case final resources?) {
       return FlutterGpuGeometryRenderer._fromResolved(assetKey, resources);
@@ -210,6 +211,7 @@ class FlutterGpuGeometryRenderer {
   @visibleForTesting
   static int get debugTotalRenderCount => _debugTotalRenderCount;
 
+  /// Renderers created and not yet disposed.
   @visibleForTesting
   static int get debugActiveRendererCount => _debugActiveRendererCount;
 
@@ -249,12 +251,15 @@ class FlutterGpuGeometryRenderer {
   List<ui.Image> _lookImages = const [];
   AtlasPlace? _atlasPlace;
 
+  /// The geometry pipeline, which renderers of one bundle share.
   @visibleForTesting
   Object get debugPipelineIdentity => _resources.pipelines.first.geometry;
 
+  /// The block length of the host buffer every renderer shares.
   @visibleForTesting
   int get debugHostBufferBlockLength => _sharedHostBufferBlockLength;
 
+  /// The host buffer every renderer shares.
   @visibleForTesting
   Object? get debugHostBufferIdentity => _sharedHostBuffer;
 
@@ -262,6 +267,7 @@ class FlutterGpuGeometryRenderer {
   @visibleForTesting
   int debugRenderCount = 0;
 
+  /// Whether [dispose] ran.
   @visibleForTesting
   bool get debugDisposed => _disposed;
 

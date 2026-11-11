@@ -7,9 +7,9 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
-import 'package:liquid_glass_renderer/src/rendering/multi_shader_builder.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_filter.dart';
+import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 
 /// The shift from [anchor]'s coordinates to the screen's, in logical pixels,
@@ -52,8 +52,8 @@ CopyNeed? frostNeed(double sigma, {required double devicePixelRatio}) {
       !ui.ImageFilter.isShaderFilterSupported) {
     return null;
   }
-  if (!MultiShaderBuilder.isCached(ShaderKeys.backdropFrost)) {
-    unawaited(MultiShaderBuilder.precacheShader(ShaderKeys.backdropFrost));
+  if (!GlassShaderPrograms.isCached(ShaderKeys.backdropFrost)) {
+    unawaited(GlassShaderPrograms.precacheShader(ShaderKeys.backdropFrost));
     return null;
   }
   return CopyNeed.edgeFrost(sigma, devicePixelRatio: devicePixelRatio);
@@ -88,7 +88,7 @@ ui.Picture recordFilteredCopy(
 /// its owner disposes it.
 @internal
 ui.FragmentShader newFrostShader() =>
-    MultiShaderBuilder.cached(ShaderKeys.backdropFrost)!.fragmentShader();
+    GlassShaderPrograms.cached(ShaderKeys.backdropFrost)!.fragmentShader();
 
 /// [frost] drawn from the unblurred [copy] by [shader], into
 /// coordinates that [origin] shifts to the screen's: the part [shown], in
@@ -202,13 +202,13 @@ InPlaceFrost frostInPlace(double sigma, FrostSampling Function() sampling) {
 // What frosts a layer as [sampling] says, or null before its shader is
 // loaded.
 CopyFrost? _frostFilterOf(FrostSampling sampling) {
-  final shader = _inPlaceFrost ??= MultiShaderBuilder.cached(
+  final shader = _inPlaceFrost ??= GlassShaderPrograms.cached(
     ShaderKeys.backdropFrost,
   )?.fragmentShader();
   if (shader == null) {
     // An app that warms nothing up still gets its copies frosted: until
     // the program loads the glass frosts them itself, with sparse taps.
-    unawaited(MultiShaderBuilder.precacheShader(ShaderKeys.backdropFrost));
+    unawaited(GlassShaderPrograms.precacheShader(ShaderKeys.backdropFrost));
     return null;
   }
   final key = (sampling.size, sampling.bounds, sampling.frost, sampling.shown);
@@ -342,9 +342,9 @@ CopyFrost? _latticeOf(FrostSampling sampling) {
       ? ShaderKeys.backdropFrostSquare
       : ShaderKeys.backdropFrostAxis;
   final held = square ? _squareFrost : _axisFrost;
-  final shader = held ?? MultiShaderBuilder.cached(key)?.fragmentShader();
+  final shader = held ?? GlassShaderPrograms.cached(key)?.fragmentShader();
   if (shader == null) {
-    unawaited(MultiShaderBuilder.precacheShader(key));
+    unawaited(GlassShaderPrograms.precacheShader(key));
     return null;
   }
   if (square) {

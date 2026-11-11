@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/rendering.dart';
 
 /// A callback used by [MultiShaderBuilder].
 typedef MultiShaderBuilderCallback = Widget Function(
@@ -16,8 +17,8 @@ typedef MultiShaderBuilderCallback = Widget Function(
 
 /// Loads and caches [ui.FragmentProgram]s by asset key and builds with one
 /// shader per key, in [assetKeys] order, once all have loaded; until then it
-/// shows [child], or nothing. Programs precached with [precacheShaders] are
-/// there on the first build.
+/// shows [child], or nothing. Programs precached with
+/// [GlassShaderPrograms.precacheShaders] are there on the first build.
 class MultiShaderBuilder extends StatefulWidget {
   /// Create a new [MultiShaderBuilder].
   const MultiShaderBuilder(
@@ -40,52 +41,10 @@ class MultiShaderBuilder extends StatefulWidget {
   State<StatefulWidget> createState() {
     return _MultiShaderBuilderState();
   }
-
-  /// Precache a [ui.FragmentProgram] based on its [assetKey].
-  ///
-  /// Once the returned future completes, a new builder for [assetKey] has its
-  /// shader on its first build, unless loading failed (reported through
-  /// [FlutterError]).
-  static Future<void> precacheShader(String assetKey) {
-    if (_MultiShaderBuilderState._shaderCache.containsKey(assetKey)) {
-      return Future<void>.value();
-    }
-    return ui.FragmentProgram.fromAsset(assetKey).then(
-      (ui.FragmentProgram program) {
-        _MultiShaderBuilderState._shaderCache[assetKey] = program;
-      },
-      onError: (Object error, StackTrace stackTrace) {
-        FlutterError.reportError(
-          FlutterErrorDetails(exception: error, stack: stackTrace),
-        );
-      },
-    );
-  }
-
-  /// Whether the program of [assetKey] has loaded.
-  static bool isCached(String assetKey) =>
-      _MultiShaderBuilderState._shaderCache.containsKey(assetKey);
-
-  /// The program of [assetKey], once it has loaded.
-  static ui.FragmentProgram? cached(String assetKey) =>
-      _MultiShaderBuilderState._shaderCache[assetKey];
-
-  /// Precache multiple [ui.FragmentProgram]s based on their [assetKeys].
-  ///
-  /// Once the returned future completes, a new builder for [assetKeys] has
-  /// its shaders on its first build, unless loading failed.
-  static Future<void> precacheShaders(List<String> assetKeys) {
-    return Future.wait(
-      assetKeys.map(precacheShader),
-    );
-  }
 }
 
 class _MultiShaderBuilderState extends State<MultiShaderBuilder> {
   final Map<String, ui.FragmentShader> _shaders = {};
-
-  static final Map<String, ui.FragmentProgram> _shaderCache =
-      <String, ui.FragmentProgram>{};
 
   @override
   void initState() {
@@ -104,12 +63,12 @@ class _MultiShaderBuilderState extends State<MultiShaderBuilder> {
   void _loadShaders(List<String> assetKeys) {
     _disposeShaders();
     for (final assetKey in assetKeys) {
-      if (_shaderCache[assetKey] case final program?) {
+      if (GlassShaderPrograms.cached(assetKey) case final program?) {
         _shaders[assetKey] = program.fragmentShader();
         continue;
       }
-      MultiShaderBuilder.precacheShader(assetKey).then((_) {
-        final program = _shaderCache[assetKey];
+      GlassShaderPrograms.precacheShader(assetKey).then((_) {
+        final program = GlassShaderPrograms.cached(assetKey);
         if (!mounted || program == null) return;
         setState(() => _shaders[assetKey] = program.fragmentShader());
       });

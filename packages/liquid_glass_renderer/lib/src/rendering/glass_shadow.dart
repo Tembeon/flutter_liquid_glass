@@ -29,7 +29,6 @@ Rect glassShadowRect(Rect shape, BoxShadow shadow, double visibility) => shape
     );
 
 /// Paints a `GlassShadow`.
-@internal
 class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
   /// Creates the render object of a `GlassShadow`.
   RenderGlassShadow({
@@ -39,6 +38,7 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
     required this._devicePixelRatio,
   }) : _visibility = visibility.clamp(0, 1);
 
+  /// The shape whose shadows it paints.
   LiquidShape get shape => _shape;
   LiquidShape _shape;
   set shape(LiquidShape value) {
@@ -47,6 +47,7 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
     markNeedsPaint();
   }
 
+  /// The shadows it paints around [shape].
   List<BoxShadow> get shadows => _shadows;
   List<BoxShadow> _shadows;
   set shadows(List<BoxShadow> value) {
@@ -55,6 +56,7 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
     markNeedsPaint();
   }
 
+  /// The pixel ratio its shadow layer's bounds are kept on stable buckets for.
   double get devicePixelRatio => _devicePixelRatio;
   double _devicePixelRatio;
   set devicePixelRatio(double value) {
@@ -63,6 +65,7 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
     markNeedsPaint();
   }
 
+  /// How far the shape has materialized, which fades the shadows.
   double get visibility => _visibility;
   double _visibility;
   set visibility(double value) {

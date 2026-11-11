@@ -961,6 +961,90 @@ class LiquidRoundedSuperellipse (see package:liquid_glass_renderer/liquid_glass_
 class LiquidShape (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 
 # package:liquid_glass_renderer/rendering.dart
+enum FakeGlassRole
+  layerPaints,
+  inFakeLayer,
+  standalone,
+final class FinalShaderVariant
+  static final List<FinalShaderVariant> all
+  String get assetKey
+  static final List<String> assetKeys
+  final bool band
+  final bool frost
+  static int indexOf(
+    FinalShaderKind kind,
+    FinalShaderModels models, {
+    bool frost = ...,
+    bool band = ...,
+    bool shape = ...,
+  })
+  final FinalShaderKind kind
+  final FinalShaderModels models
+  String get name
+  final bool shape
+class FlutterGpuGeometryRenderer
+  Image? get atlasImage
+  ({int height, int tableX, int tableY, int width})? get atlasPlace
+  @visibleForTesting static int get debugActiveGeometryTextureCount
+  @visibleForTesting static int get debugActiveRendererCount
+  @visibleForTesting static int debugAllocatedTextureCount
+  @visibleForTesting static int debugBatchedSubmitCount
+  @visibleForTesting static int debugDeferredPassCount
+  @visibleForTesting bool get debugDisposed
+  @visibleForTesting static int debugDroppedTextureCount
+  @visibleForTesting int get debugHostBufferBlockLength
+  @visibleForTesting Object? get debugHostBufferIdentity
+  @visibleForTesting Object? get debugMatteTexture
+  @visibleForTesting (int, int)? get debugMatteTextureSize
+  @visibleForTesting Object get debugPipelineIdentity
+  @visibleForTesting static int debugPostFrameFlushCount
+  @visibleForTesting int debugRenderCount
+  @visibleForTesting static void debugResetPages()
+  @visibleForTesting static int debugReusedTextureCount
+  @visibleForTesting static int get debugTotalRenderCount
+  LiquidGlassDeviceClass get deviceClass
+  void dispose()
+  int droppedShapes
+  static void flush()
+  static Future<FlutterGpuGeometryRenderer> fromAsset(String assetKey)
+  List<Image> get lookImages
+  void releaseAtlas()
+  void releaseOutput()
+  ({Image image, List<Image> looks, ({int height, int tableX, int tableY, int width}) place}) renderAtlas(
+    Tiling tiling,
+  )
+  static const int reuseAfterFrames
+  static FlutterGpuGeometryRenderer? tryCreateCached(String assetKey)
+class GeometryRenderLink
+  GeometryRenderLink()
+  void dispose()
+  bool get isDirty
+  void markClean()
+  void markDirty()
+  void Function()? onMembershipChanged
+  void registerGeometry(RenderLiquidGlassGeometry renderObject)
+  late final UnmodifiableListView<RenderLiquidGlassGeometry> shapes
+  void unregisterGeometry(RenderLiquidGlassGeometry renderObject)
+  void updateAllGeometries()
+  void updatePaintOrder(RenderObject owner)
+class GlassGroupLink with ChangeNotifier
+  GlassGroupLink()
+  void notifyShapeLayoutChanged(RenderObject renderObject)
+  void Function()? onMembershipChanged
+  void registerShape(
+    LiquidGlassShapeRenderObject renderObject,
+    LiquidShape shape,
+  )
+  List<MapEntry<LiquidGlassShapeRenderObject, LiquidShape>> get shapeEntries
+  void unregisterShape(LiquidGlassShapeRenderObject renderObject)
+  void updateShape(LiquidGlassShapeRenderObject renderObject, LiquidShape shape)
+  overrides: dispose
+abstract final class GlassShaderPrograms
+  GlassShaderPrograms()
+  static FragmentProgram? cached(String assetKey)
+  static bool isCached(String assetKey)
+  static Future<void> precacheShader(String assetKey)
+  static Future<void> precacheShaders(List<String> assetKeys)
 class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer implements PlanSite
   LiquidGlassBackdropFilterLayer.frosted({
     required LiquidGlassBackdropFrost frost,
@@ -1004,6 +1088,107 @@ class LiquidGlassLayerFrame
   final LiquidGlassField? field
   final LiquidGlassGlow? glow
   final LiquidGlassSettings settings
+abstract class LiquidGlassRenderObject extends RenderProxyBox
+  LiquidGlassRenderObject({
+    required GeometryRenderLink link,
+    required LiquidGlassSettings settings,
+    required LiquidGlassAppearance defaultAppearance,
+    required double devicePixelRatio,
+  })
+  @protected GlassFrameState classifyFrame(
+    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
+  )
+  @protected void clearFrameInputs()
+  @protected void clearGlassShadows()
+  @protected Rect? collectFrameGeometry(
+    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> candidate,
+  )
+  @protected void commitFrameGeometry(
+    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> candidate,
+  )
+  @protected bool get compositionProbeSeeding
+  @protected bool get compositionSeedSuppressed
+  @protected set compositionSeedSuppressed(bool value)
+  @protected Offset get compositorTranslation
+  @visibleForTesting Offset get debugCompositorTranslation
+  @visibleForTesting int debugPaintCount
+  @visibleForTesting bool get debugShadowsUnderGlass
+  LiquidGlassAppearance get defaultAppearance
+  set defaultAppearance(LiquidGlassAppearance value)
+  double get devicePixelRatio
+  set devicePixelRatio(double value)
+  @protected void drawGlassShadows(Canvas canvas, Offset offset)
+  @protected Rect effectPaintBounds
+  @protected Rect? encodedGeometryBounds
+  @protected bool encodedInputsMatch(
+    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
+  )
+  @protected Offset? encodedMatteDelta(Rect bounds)
+  @protected Rect expandEffectBounds(Rect bounds)
+  @protected GlassFrameState get frameState
+  @protected List<Object> geometryStructure(
+    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
+  )
+  @protected PictureLayer? get glassShadowPicture
+  @protected bool get glassShadowsFade
+  @protected abstract bool hasDrawableGlass(
+    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
+  )
+  @protected bool get hasReusableIdleContents
+  @protected bool hasVisibleShape(
+    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
+  )
+  @protected GlassFrameState get hiddenFrameState
+  @protected abstract bool isSnapshotCurrent(
+    RenderLiquidGlassGeometry geometry,
+    GeometryCache snapshot,
+  )
+  static const double largestFittedShortSide
+  GeometryRenderLink get link
+  set link(GeometryRenderLink value)
+  @protected double get materialOutset
+  @protected void onAppearanceChanged()
+  @protected void onCompositorTranslated(Offset translation)
+  @protected abstract void onCompositorTranslationMissed(
+    ({bool needsRepaint, Offset? translation}) motion,
+  )
+  @protected void onDevicePixelRatioChanged()
+  @protected void onSettingsChanged(LiquidGlassSettings old)
+  @protected abstract void paintFrame(
+    PaintingContext context,
+    Offset offset,
+    Rect? geometryBounds,
+  )
+  @protected void paintRetainedEffect(
+    PaintingContext context,
+    Offset offset,
+    void Function(PaintingContext, Offset) painter,
+  )
+  @protected List<RenderLiquidGlassGeometry> get paintedShapes
+  @protected ({bool needsRepaint, Offset? translation}) pollCompositorTranslation()
+  @protected Rect? prepareFrameGeometry()
+  @protected ContainerLayer? recordGlassShadows(Offset offset)
+  @protected void releaseRetainedEffectLayer()
+  @protected void rememberFrameInputs()
+  @protected Rect? get retainedClipBounds
+  @protected Offset retainedPaintOffset
+  @protected List<Object> get retainedStructure
+  @protected void runCompositorPoll()
+  @protected bool setCompositorTranslation(Offset value)
+  LiquidGlassSettings get settings
+  set settings(LiquidGlassSettings value)
+  @protected bool shadowsUnderGlass
+  @protected Iterable<RenderBox> get shapeRenderObjects
+  @protected final List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> shapesWithGeometry
+  @protected double? smallestVisibleShortSide()
+  @protected void syncAncestorClips()
+  @protected void syncCompositionOpacity()
+  @protected void updateIdleAncestorClips()
+  overrides: attach, detach, dispose, paint, paintBounds
+mixin LiquidGlassShapeRenderObject on RenderBox
+  LiquidGlassAppearance get appearance
+  List<BoxShadow> get layerShadows
+  Size get paintSize
 abstract final class LiquidGlassUnderlay
   LiquidGlassUnderlay()
   @internal static ({int? alpha, double blur, RRect? clip, Matrix4 transform})? effectsOf(
@@ -1018,6 +1203,96 @@ mixin LivePaintSize on RenderBox
   @protected void livePaintSizeChanged()
   Size get paintSize
   overrides: attach, detach
+class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject with TransformTrackingRenderObjectMixin
+  RenderConsolidatedFakeGlassLayer({
+    required double devicePixelRatio,
+    required GeometryRenderLink link,
+    required LiquidGlassSettings settings,
+    required LiquidGlassAppearance defaultAppearance,
+    required FragmentShader? surfaceShader,
+  })
+  @visibleForTesting BackdropFilterLayer? get debugBackdropFilterLayer
+  @visibleForTesting Rect? debugClipBounds
+  @visibleForTesting Path? get debugClipPath
+  @visibleForTesting bool debugDrewOverCopy
+  @visibleForTesting List<String> get debugLastPaintStages
+  @visibleForTesting Iterable<BackdropFilterLayer> get debugSeparateBackdropLayers
+  @visibleForTesting FragmentShader? get debugSurfaceShader
+  FragmentShader? get surfaceShader
+  set surfaceShader(FragmentShader? value)
+  overrides: addOutput, ask, beginFate, dispose, hasDrawableGlass, hiddenFrameState, isSnapshotCurrent, materialOutset, onAppearanceChanged, onCompositorTranslationMissed, onDevicePixelRatioChanged, onPreparing, onSettingsChanged, onTransformChanged, paintFrame, show
+class RenderFakeGlass extends RenderProxyBox with LivePaintSize
+  RenderFakeGlass({
+    required double devicePixelRatio,
+    required LiquidShape shape,
+    required LiquidGlassSettings settings,
+    required LiquidGlassAppearance appearance,
+    required FakeGlassRole role,
+    required FragmentShader? surfaceShader,
+  })
+  LiquidGlassAppearance get appearance
+  set appearance(LiquidGlassAppearance value)
+  @visibleForTesting LiquidGlassBackdropFilterLayer? get debugBackdropFilterLayer
+  @visibleForTesting int debugPaintCount
+  double get devicePixelRatio
+  set devicePixelRatio(double value)
+  FakeGlassRole get role
+  set role(FakeGlassRole value)
+  LiquidGlassSettings get settings
+  set settings(LiquidGlassSettings value)
+  LiquidShape get shape
+  set shape(LiquidShape value)
+  FragmentShader? get surfaceShader
+  set surfaceShader(FragmentShader? value)
+  overrides: alwaysNeedsCompositing, layer, paint
+class RenderGlassShadow extends RenderProxyBox with LivePaintSize
+  RenderGlassShadow({
+    required LiquidShape shape,
+    required List<BoxShadow> shadows,
+    required double visibility,
+    required double devicePixelRatio,
+  })
+  double get devicePixelRatio
+  set devicePixelRatio(double value)
+  List<BoxShadow> get shadows
+  set shadows(List<BoxShadow> value)
+  LiquidShape get shape
+  set shape(LiquidShape value)
+  double get visibility
+  set visibility(double value)
+  overrides: paint, paintBounds
+class RenderLiquidGlass extends RenderLiquidGlassGeometry with LiquidGlassShapeRenderObject, LivePaintSize
+  RenderLiquidGlass({
+    required LiquidShape shape,
+    required List<BoxShadow> layerShadows,
+    required LiquidGlassSettings settings,
+    required LiquidGlassAppearance appearance,
+    required double devicePixelRatio,
+    GlassGroupLink? blendGroupLink,
+    GeometryRenderLink? renderLink,
+  })
+  set appearance(LiquidGlassAppearance value)
+  void bindLinks({
+    GlassGroupLink? blendGroupLink,
+    GeometryRenderLink? renderLink,
+  })
+  set layerShadows(List<BoxShadow> value)
+  LiquidShape get shape
+  set shape(LiquidShape value)
+  overrides: appearance, attach, detach, gatherShapeData, layerShadows, livePaintSizeChanged, performLayout
+class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry
+  RenderLiquidGlassBlendGroup({
+    required GeometryRenderLink? renderLink,
+    required double devicePixelRatio,
+    required LiquidGlassSettings settings,
+    required GlassGroupLink link,
+    required double blend,
+  })
+  double get blend
+  set blend(double value)
+  GlassGroupLink get link
+  set link(GlassGroupLink value)
+  overrides: gatherShapeData, geometryBlend, pollChildShapeTransforms, updatePaintOrder
 class RenderLiquidGlassContent extends RenderOpacity
   RenderLiquidGlassContent({double opacity = ..., RenderBox? child})
   Color get glowColor
@@ -1027,7 +1302,114 @@ class RenderLiquidGlassContent extends RenderOpacity
   double get glowRadius
   set glowRadius(double value)
   overrides: debugFillProperties, paint
+abstract class RenderLiquidGlassGeometry extends RenderProxyBox
+  RenderLiquidGlassGeometry({
+    required LiquidGlassSettings settings,
+    required double devicePixelRatio,
+    GeometryRenderLink? renderLink,
+  })
+  void acceptCompositorTranslation()
+  double get devicePixelRatio
+  set devicePixelRatio(double value)
+  abstract (Rect, List<ShapeGeometry>, bool) gatherShapeData()
+  @protected @visibleForTesting GeometryCache? geometry
+  double get geometryBlend
+  @protected @visibleForTesting LiquidGlassGeometryState geometryState
+  bool hasCurrentGeometryCache(GeometryCache candidate)
+  bool hasCurrentMatteRevision(int revision)
+  @protected void markGeometryNeedsUpdate({bool force = ...})
+  GeometryCache? maybeRebuildGeometry()
+  @protected bool pollChildShapeTransforms()
+  ({bool childChanged, bool selfChanged, Matrix4? transform}) pollRelativeTransforms(
+    RenderObject layer,
+  )
+  GeometryRenderLink? get renderLink
+  set renderLink(GeometryRenderLink? value)
+  LiquidGlassSettings get settings
+  set settings(LiquidGlassSettings value)
+  bool get transformMayLag
+  void updatePaintOrder()
+  overrides: attach, detach, dispose
+class RenderLiquidGlassLayer extends LiquidGlassRenderObject with TransformTrackingRenderObjectMixin implements ReadPainter
+  RenderLiquidGlassLayer({
+    required List<FragmentShader> finalShaders,
+    required double devicePixelRatio,
+    required LiquidGlassSettings settings,
+    required LiquidGlassAppearance defaultAppearance,
+    required GeometryRenderLink link,
+    FlutterGpuGeometryRenderer? gpuGeometryRenderer,
+  })
+  @protected Rect? get backdropSampleBounds
+  double backdropSamplingReach(Rect material)
+  double get blurPassSigma
+  @visibleForTesting BackdropFilterLayer? get debugBackdropFilterLayer
+  @visibleForTesting Rect? get debugBackdropSampleBounds
+  @visibleForTesting bool debugDrewOverCopy
+  @visibleForTesting int debugEncodeCount
+  @visibleForTesting Fate? get debugFate
+  @visibleForTesting Rect? debugFilterBounds
+  @visibleForTesting GlassGeometry? get debugGeometry
+  @visibleForTesting Image? get debugGeometryImage
+  @visibleForTesting Rect get debugGeometryMatteBounds
+  @visibleForTesting ({int height, int tableX, int tableY, int width}) get debugGeometryPlace
+  @visibleForTesting GlassDraw get debugLiveDraw
+  @visibleForTesting FragmentShader get debugLiveShader
+  @visibleForTesting List<Image> get debugLookImages
+  @visibleForTesting static int debugMaxCopyShare
+  @visibleForTesting PageCopy? debugPage
+  @visibleForTesting GlassDraw? debugReadDraw
+  @visibleForTesting static bool debugShaderFrost
+  @visibleForTesting static bool debugShaderVariants
+  @visibleForTesting Tiling? get debugTiling
+  @visibleForTesting bool get debugUsesShapeAppearances
+  @visibleForTesting bool get debugUsesTintOnlyAppearance
+  bool get drawableEmpty
+  LiquidGlassField? get field
+  set field(LiquidGlassField? value)
+  final List<FragmentShader> finalShaders
+  LiquidGlassGlow? get glow
+  set glow(LiquidGlassGlow? value)
+  FlutterGpuGeometryRenderer? get gpuGeometryRenderer
+  set gpuGeometryRenderer(FlutterGpuGeometryRenderer? value)
+  @protected bool get hasReusableGeometry
+  @protected bool needsGeometryUpdate
+  Matrix4 get shaderCoordinateTransform
+  Color? get solidBackdrop
+  set solidBackdrop(Color? value)
+  overrides: addOutput, ask, beginFate, commitFrameGeometry, dispose, hasDrawableGlass, hiddenFrameState, isSnapshotCurrent, materialOutset, mayRest, onAppearanceChanged, onCompositorTranslated, onCompositorTranslationMissed, onDevicePixelRatioChanged, onPreparing, onResting, onSettingsChanged, onTransformChanged, pageKey, paintFrame, readFilter, recordPage, repaintsOnMove, show
+class RenderLiveGlassFrame extends RenderProxyBox
+  RenderLiveGlassFrame({required ValueListenable<LiquidGlassShapeFrame> frame})
+  ValueListenable<LiquidGlassShapeFrame> get frame
+  set frame(ValueListenable<LiquidGlassShapeFrame> value)
+  overrides: applyPaintTransform, attach, detach, paint
+abstract class ShaderKeys
+  static final String backdropFrost
+  static final String backdropFrostAxis
+  static final String backdropFrostSquare
+  static final String fakeGlassSurface
+  static String finalRender(String name)
+  static final String gpuGeometryShaderBundle
+class ShapeGeometry
+  ShapeGeometry({
+    required LiquidGlassShapeRenderObject renderObject,
+    required LiquidShape shape,
+    required Rect shapeBounds,
+    required LiquidGlassAppearance appearance,
+    List<BoxShadow> shadows = ...,
+    Matrix4? shapeToGeometry,
+  })
+  final LiquidGlassAppearance appearance
+  final double rawBottomRadius
+  final double rawCornerRadius
+  final RawShapeType rawShapeType
+  final LiquidGlassShapeRenderObject renderObject
+  final List<BoxShadow> shadows
+  final LiquidShape shape
+  final Rect shapeBounds
+  final Matrix4? shapeToGeometry
+  overrides: ==, hashCode, toString
 bool debugPaintLiquidGlassGeometry
+double fakeGlassSurfaceOutset(LiquidGlassSettings settings)
 Future<LiquidGlassSupport> precacheLiquidGlass({bool warmUp = ...})
 
 # package:liquid_glass_renderer/widgets.dart

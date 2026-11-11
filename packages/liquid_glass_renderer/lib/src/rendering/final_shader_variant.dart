@@ -48,7 +48,6 @@ enum FinalShaderModels {
 /// Every variant can frost an unblurred copy of the backdrop itself, except
 /// the ones that fit in 32 registers only without that: a frosted twin of
 /// each draws frosted glass ([frost]).
-@internal
 @immutable
 final class FinalShaderVariant {
   const FinalShaderVariant._(

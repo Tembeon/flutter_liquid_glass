@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/multi_shader_builder.dart';
+import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shading.dart';
 
 import 'shared.dart';
@@ -81,10 +81,10 @@ void main() {
     tester,
   ) async {
     await tester.runAsync(
-      () => MultiShaderBuilder.precacheShaders(FinalShaderVariant.assetKeys),
+      () => GlassShaderPrograms.precacheShaders(FinalShaderVariant.assetKeys),
     );
     for (final variant in FinalShaderVariant.all) {
-      final shader = MultiShaderBuilder.cached(
+      final shader = GlassShaderPrograms.cached(
         variant.assetKey,
       )!.fragmentShader();
       expect(

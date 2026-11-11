@@ -10,7 +10,7 @@ final String _shadersRoot = !kIsWeb && isLocalTest
     ? ''
     : 'packages/liquid_glass_renderer/';
 
-@internal
+/// The asset keys of the shaders glass draws with.
 abstract class ShaderKeys {
   const ShaderKeys._();
 
@@ -30,9 +30,11 @@ abstract class ShaderKeys {
   static final String backdropFrostAxis =
       '${_shadersRoot}build/shaderbundles/backdrop_frost_axis.iplr';
 
+  /// The surface shader of fake glass.
   static final fakeGlassSurface =
       '${_shadersRoot}lib/assets/shaders/fake_glass_surface.frag';
 
+  /// The Flutter GPU shader bundle of the geometry renderer.
   static final String gpuGeometryShaderBundle =
       '${_shadersRoot}build/shaderbundles/liquid_glass_renderer.shaderbundle';
 }

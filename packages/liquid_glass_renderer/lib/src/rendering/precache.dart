@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
-import 'package:liquid_glass_renderer/src/rendering/multi_shader_builder.dart';
+import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:liquid_glass_renderer/src/rendering/warm_up.dart';
 
@@ -21,16 +21,16 @@ Future<LiquidGlassSupport> precacheLiquidGlass({bool warmUp = false}) async {
   final finalShaders = FinalShaderVariant.assetKeys;
   FlutterGpuGeometryRenderer? renderer;
   final results = await Future.wait<bool>([
-    MultiShaderBuilder.precacheShaders([
+    GlassShaderPrograms.precacheShaders([
       ShaderKeys.fakeGlassSurface,
     ]).then((_) => true),
     if (fullGlass) ...[
-      MultiShaderBuilder.precacheShaders([
+      GlassShaderPrograms.precacheShaders([
         ...finalShaders,
         ShaderKeys.backdropFrost,
         ShaderKeys.backdropFrostAxis,
         ShaderKeys.backdropFrostSquare,
-      ]).then((_) => finalShaders.every(MultiShaderBuilder.isCached)),
+      ]).then((_) => finalShaders.every(GlassShaderPrograms.isCached)),
       _guard(() async {
         renderer = await FlutterGpuGeometryRenderer.fromAsset(
           ShaderKeys.gpuGeometryShaderBundle,

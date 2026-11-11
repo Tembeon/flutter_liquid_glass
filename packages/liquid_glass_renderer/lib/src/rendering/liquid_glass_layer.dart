@@ -51,10 +51,11 @@ class LiquidGlassLayerFrame {
 
 /// The real glass layer: renders the shapes into a GPU matte and paints the
 /// final shader filter over it.
-@internal
 class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     with TransformTrackingRenderObjectMixin
     implements ReadPainter {
+  /// Creates a glass layer that draws with [finalShaders] and builds its
+  /// geometry with [gpuGeometryRenderer].
   RenderLiquidGlassLayer({
     required this.finalShaders,
     required super.devicePixelRatio,
@@ -152,6 +153,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   FlutterGpuGeometryRenderer? _gpuGeometryRenderer;
+
+  /// The renderer that draws the layer's geometry, or null before it has
+  /// loaded.
   FlutterGpuGeometryRenderer? get gpuGeometryRenderer => _gpuGeometryRenderer;
   set gpuGeometryRenderer(FlutterGpuGeometryRenderer? value) {
     if (_gpuGeometryRenderer == value) return;
@@ -422,6 +426,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _ => null,
   };
 
+  /// The bounds of the last geometry matte it drew.
   @visibleForTesting
   Rect get debugGeometryMatteBounds => _geometryMatteBounds;
 
@@ -641,6 +646,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // MARK: Coordinate mapping
 
+  /// The transform from the layer's coordinates to those its final shader draws
+  /// in.
   Matrix4 get shaderCoordinateTransform => filterPassTransform(
     this,
     seeding: compositionProbeSeeding,
@@ -719,6 +726,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
   }
 
+  /// The backdrop filter layer it last drew through.
   @visibleForTesting
   BackdropFilterLayer? get debugBackdropFilterLayer => _rig.filterLayer;
 
@@ -1641,6 +1649,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // MARK: Geometry
 
+  /// Whether its geometry changed since it last drew it.
   @protected
   bool needsGeometryUpdate = true;
 

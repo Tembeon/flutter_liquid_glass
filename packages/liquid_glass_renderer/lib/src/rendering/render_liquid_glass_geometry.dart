@@ -71,7 +71,6 @@ typedef LiquidGlassTransformPoll = ({
 });
 
 /// A render object that contributes one glass shape to a geometry pass.
-@internal
 mixin LiquidGlassShapeRenderObject on RenderBox {
   /// Shadows painted by the parent layer before grouped glass shading.
   List<BoxShadow> get layerShadows;
@@ -88,8 +87,8 @@ mixin LiquidGlassShapeRenderObject on RenderBox {
 ///
 /// Standalone shapes and blend groups both register with a
 /// [GeometryRenderLink] so the parent layer can pack them into one sample.
-@internal
 abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
+  /// Creates a geometry that registers on [renderLink].
   RenderLiquidGlassGeometry({
     required this._settings,
     required this._devicePixelRatio,
@@ -128,6 +127,9 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   }
 
   GeometryRenderLink? _renderLink;
+
+  /// The link of the layer this geometry registers on, or null while it
+  /// registers nowhere.
   GeometryRenderLink? get renderLink => _renderLink;
   set renderLink(GeometryRenderLink? value) {
     if (_renderLink == value) return;
@@ -388,8 +390,8 @@ enum RawShapeType {
 /// Can be part of multiple blended shapes in [RenderLiquidGlassGeometry], or on
 /// its own.
 @immutable
-@internal
 class ShapeGeometry {
+  /// Describes one shape as its layer draws it.
   ShapeGeometry({
     required this.renderObject,
     required this.shape,
@@ -405,25 +407,33 @@ class ShapeGeometry {
        },
        rawShapeType = RawShapeType.fromLiquidGlassShape(shape);
 
+  /// The render object of the shape.
   final LiquidGlassShapeRenderObject renderObject;
 
+  /// The shape.
   final LiquidShape shape;
 
+  /// The kind of the shape, as the geometry shaders tell it.
   final RawShapeType rawShapeType;
 
+  /// The corner radius the geometry shaders draw the shape with.
   final double rawCornerRadius;
 
   /// The radius of the two bottom corners: [rawCornerRadius] except for a
   /// [RawShapeType.squirclePair].
   final double rawBottomRadius;
 
+  /// The appearance of the shape.
   final LiquidGlassAppearance appearance;
 
   /// Bounds in geometry-local coordinates (for painting)
   final Rect shapeBounds;
 
+  /// The shadows the shape casts.
   final List<BoxShadow> shadows;
 
+  /// The transform from the shape to its geometry, or null when they share
+  /// coordinates.
   final Matrix4? shapeToGeometry;
 
   @override

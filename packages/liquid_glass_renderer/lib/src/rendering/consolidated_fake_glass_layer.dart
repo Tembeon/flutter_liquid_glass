@@ -2,7 +2,6 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
@@ -23,45 +22,6 @@ enum _FakeGlassPaintStage {
   contents,
 }
 
-@internal
-class ConsolidatedFakeGlassLayer extends SingleChildRenderObjectWidget {
-  const ConsolidatedFakeGlassLayer({
-    required this.link,
-    required this.settings,
-    required this.defaultAppearance,
-    required this.surfaceShader,
-    required super.child,
-    super.key,
-  });
-
-  final GeometryRenderLink link;
-  final LiquidGlassSettings settings;
-  final LiquidGlassAppearance defaultAppearance;
-  final FragmentShader? surfaceShader;
-  @override
-  RenderObject createRenderObject(BuildContext context) =>
-      RenderConsolidatedFakeGlassLayer(
-        devicePixelRatio: MediaQuery.maybeDevicePixelRatioOf(context) ?? 1,
-        link: link,
-        settings: settings,
-        defaultAppearance: defaultAppearance,
-        surfaceShader: surfaceShader,
-      );
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    RenderConsolidatedFakeGlassLayer renderObject,
-  ) {
-    renderObject
-      ..devicePixelRatio = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1
-      ..link = link
-      ..settings = settings
-      ..defaultAppearance = defaultAppearance
-      ..surfaceShader = surfaceShader;
-  }
-}
-
 /// The fake glass layer: paints a clipped backdrop blur plus the surface
 /// shader for the shared shape geometry. Where it can, the shared blur is
 /// drawn over a copy of what lies under the glass instead of reading the
@@ -70,10 +30,9 @@ class ConsolidatedFakeGlassLayer extends SingleChildRenderObjectWidget {
 /// channel levels apart in the host test of white text under 6 px of frost
 /// and 24 at the edges of buttons over photos on the Pixel 6a; at 2 px the
 /// two do not differ.
-@visibleForTesting
-@internal
 class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     with TransformTrackingRenderObjectMixin {
+  /// Creates a fake glass layer that draws the shapes [link] gathers.
   RenderConsolidatedFakeGlassLayer({
     required super.devicePixelRatio,
     required super.link,
@@ -83,8 +42,11 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   });
 
   FragmentShader? _surfaceShader;
+
+  /// The surface shader of fake glass, or null before it has loaded.
   FragmentShader? get surfaceShader => _surfaceShader;
 
+  /// The surface shader it draws with.
   @visibleForTesting
   FragmentShader? get debugSurfaceShader => _surfaceShader;
   set surfaceShader(FragmentShader? value) {
@@ -132,6 +94,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   bool _sharesLayerBackdrop(LiquidGlassAppearance appearance) =>
       appearance.colorModel == defaultAppearance.colorModel;
 
+  /// The backdrop filter layer it last drew through.
   @visibleForTesting
   BackdropFilterLayer? get debugBackdropFilterLayer => _sharedRig.filterLayer;
 
@@ -140,6 +103,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   Iterable<BackdropFilterLayer> get debugSeparateBackdropLayers =>
       _separateRigs.values.map((rig) => rig.filterLayer).nonNulls;
 
+  /// The bounds of the clip it last drew its backdrop in.
   @visibleForTesting
   Rect? debugClipBounds;
 
@@ -148,11 +112,13 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   bool debugDrewOverCopy = false;
 
+  /// The clip path it last drew its backdrop in.
   @visibleForTesting
   Path? get debugClipPath => _cachedClipPath;
 
   final List<_FakeGlassPaintStage> _debugLastPaintStages = [];
 
+  /// The stages of its last paint, in order.
   @visibleForTesting
   List<String> get debugLastPaintStages =>
       _debugLastPaintStages.map((stage) => stage.name).toList(growable: false);

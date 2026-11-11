@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/multi_shader_builder.dart';
+import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 
 import 'shared.dart';
@@ -38,7 +38,7 @@ void runOpacityTests(SubmittedSceneCapture binding) {
           ..devicePixelRatio = 1;
         addTearDown(tester.view.reset);
         await tester.runAsync(
-          () => MultiShaderBuilder.precacheShaders([
+          () => GlassShaderPrograms.precacheShaders([
             ShaderKeys.fakeGlassSurface,
           ]),
         );
