@@ -20,18 +20,15 @@ void main() {
       setGlass: ({required on}) => flips.add(on),
     );
     await tester.pumpWidget(
-      GlassRendererScope(
+      GlassScope(
         renderer: const FlatGlassRenderer(),
-        child: GlassTheme(
-          data: const GlassThemeData(),
-          child: WidgetsApp(
-            color: const Color(0xFF007AFF),
-            pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(
-              settings: settings,
-              pageBuilder: (context, _, _) => builder(context),
-            ),
-            home: GridStage(controller: stage),
+        child: WidgetsApp(
+          color: const Color(0xFF007AFF),
+          pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(
+            settings: settings,
+            pageBuilder: (context, _, _) => builder(context),
           ),
+          home: GridStage(controller: stage),
         ),
       ),
     );

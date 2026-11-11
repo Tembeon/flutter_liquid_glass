@@ -1,9 +1,7 @@
 import 'package:apple_liquid_glass/src/foundation/colors.dart';
 import 'package:apple_liquid_glass/src/foundation/glass.dart';
-import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/motion.dart';
 
 /// The app's overrides of the iOS semantic colors.
 ///
@@ -235,10 +233,9 @@ class GlassThemeData {
 /// [primaryColorOf], [fontFamilyOf], [colorSchemeOf], or one style with
 /// [styleOf]) rebuilds only when that part changes.
 ///
-/// The outermost theme starts `FrameCadence`, which on a fast display draws
-/// about 60 frames a second while nothing fast moves, and reports it the
-/// scrolls below the theme. Put it above the app's scroll views: a scroll
-/// outside any theme stays at the lower rate.
+/// It only provides: an app's root is a `GlassScope`, which also animates
+/// a theme change and sets the renderer and the frame rate; a
+/// [GlassTheme] gives a subtree a theme of its own.
 class GlassTheme extends StatelessWidget {
   /// Applies [data] to [child].
   const GlassTheme({required this.data, required this.child, super.key});
@@ -304,27 +301,10 @@ class GlassTheme extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final outer = maybeOf(context);
-    final scope = _GlassThemeScope(
-      data: outer?.merge(data) ?? data,
-      child: child,
-    );
-    if (outer != null) return scope;
-    FrameCadence.instance.start();
-    return NotificationListener<ScrollUpdateNotification>(
-      onNotification: (notification) {
-        if (notification.scrollDelta case final delta?) {
-          FrameCadence.instance.scrolled(
-            delta,
-            notification.metrics.devicePixelRatio,
-          );
-        }
-        return false;
-      },
-      child: scope,
-    );
-  }
+  Widget build(BuildContext context) => _GlassThemeScope(
+    data: maybeOf(context)?.merge(data) ?? data,
+    child: child,
+  );
 }
 
 enum _GlassThemeAspect { brightness, primaryColor, fontFamily, colorScheme }
@@ -355,68 +335,4 @@ class _GlassThemeScope extends InheritedModel<Object> {
       },
     );
   }
-}
-
-/// A [GlassTheme] that moves to a new [data] on [spring], as
-/// [GlassThemeData.lerp] interpolates.
-///
-/// Flutter: `AnimatedTheme`. Under Reduce Motion it switches at once. While
-/// it moves, widgets that read the whole theme ([GlassTheme.of]), or a
-/// color scheme that differs between the two themes
-/// ([GlassTheme.colorSchemeOf]), rebuild every frame; at rest it is [data]
-/// exactly.
-class AnimatedGlassTheme extends StatefulWidget {
-  /// Animates [child]'s theme to [data] on [spring].
-  const AnimatedGlassTheme({
-    required this.data,
-    required this.child,
-    this.spring = Spring.smooth,
-    super.key,
-  });
-
-  /// The theme to move to.
-  final GlassThemeData data;
-
-  /// The spring the theme moves on.
-  final Spring spring;
-
-  /// The subtree the theme applies to.
-  final Widget child;
-
-  @override
-  State<AnimatedGlassTheme> createState() => _AnimatedGlassThemeState();
-}
-
-class _AnimatedGlassThemeState extends State<AnimatedGlassTheme> {
-  // The double converter's rest distance is a pixel's; this runs 0 to 1.
-  final _progress = MotionValue<double>(1, restDistance: 0.002);
-  late GlassThemeData _from = widget.data;
-
-  GlassThemeData get _shown =>
-      GlassThemeData.lerp(_from, widget.data, _progress.value.clamp(0, 1));
-
-  @override
-  void didUpdateWidget(AnimatedGlassTheme oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.data == widget.data) return;
-    _from = GlassThemeData.lerp(
-      _from,
-      oldWidget.data,
-      _progress.value.clamp(0, 1),
-    );
-    final now = _progress.clock.now;
-    if (GlassTraits.of(context).reduceMotion) {
-      _progress.snap(now, 1);
-      return;
-    }
-    _progress.snap(now, 0);
-    withSpring(widget.spring, () => _progress.target = 1);
-  }
-
-  @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: _progress,
-    builder: (context, child) => GlassTheme(data: _shown, child: child!),
-    child: widget.child,
-  );
 }

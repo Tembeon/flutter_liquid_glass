@@ -21,60 +21,57 @@ Widget _page(ScrollController controller) => MediaQuery(
   data: const MediaQueryData(size: Size(300, 400), devicePixelRatio: 3),
   child: Directionality(
     textDirection: TextDirection.ltr,
-    child: GlassRendererScope(
+    child: GlassScope(
       renderer: const LiquidGlassRenderer(),
-      child: GlassTheme(
-        data: const GlassThemeData(),
-        child: Align(
-          alignment: Alignment.topLeft,
-          child: SizedBox(
-            width: 300,
-            height: 400,
-            child: RepaintBoundary(
-              key: _key,
-              child: GlassPageScaffold(
-                backgroundColor: const Color(0xFF000000),
-                navigationBar: const PreferredSize(
-                  preferredSize: Size.fromHeight(60),
-                  child: SizedBox(height: 60),
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: SizedBox(
+          width: 300,
+          height: 400,
+          child: RepaintBoundary(
+            key: _key,
+            child: GlassPageScaffold(
+              backgroundColor: const Color(0xFF000000),
+              navigationBar: const PreferredSize(
+                preferredSize: Size.fromHeight(60),
+                child: SizedBox(height: 60),
+              ),
+              child: GlassContentScroll(
+                edgeEffects: const GlassScrollEdgeEffects(
+                  top: GlassScrollEdgeEffect.hard,
                 ),
-                child: GlassContentScroll(
-                  edgeEffects: const GlassScrollEdgeEffects(
-                    top: GlassScrollEdgeEffect.hard,
-                  ),
-                  child: ListView(
-                    controller: controller,
-                    children: [
-                      for (var i = 0; i < 40; i++)
-                        SizedBox(
-                          height: 30,
-                          child: i == 7
-                              ? Center(
-                                  child: MotionTransition(
-                                    opacity: const AlwaysStoppedAnimation(0.7),
-                                    blur: const AlwaysStoppedAnimation(4),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        for (var j = 0; j < 4; j++)
-                                          Container(
-                                            width: 12,
-                                            height: 20,
-                                            margin: const EdgeInsets.all(3),
-                                            color: const Color(0xFFFFFFFF),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                )
-                              : ColoredBox(
-                                  color: Color(
-                                    0xFF000000 | (i * 2654435761) & 0x7F7F7F,
+                child: ListView(
+                  controller: controller,
+                  children: [
+                    for (var i = 0; i < 40; i++)
+                      SizedBox(
+                        height: 30,
+                        child: i == 7
+                            ? Center(
+                                child: MotionTransition(
+                                  opacity: const AlwaysStoppedAnimation(0.7),
+                                  blur: const AlwaysStoppedAnimation(4),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      for (var j = 0; j < 4; j++)
+                                        Container(
+                                          width: 12,
+                                          height: 20,
+                                          margin: const EdgeInsets.all(3),
+                                          color: const Color(0xFFFFFFFF),
+                                        ),
+                                    ],
                                   ),
                                 ),
-                        ),
-                    ],
-                  ),
+                              )
+                            : ColoredBox(
+                                color: Color(
+                                  0xFF000000 | (i * 2654435761) & 0x7F7F7F,
+                                ),
+                              ),
+                      ),
+                  ],
                 ),
               ),
             ),

@@ -20,18 +20,15 @@ Widget _app(Widget page) => MediaQuery(
   ),
   child: Directionality(
     textDirection: TextDirection.ltr,
-    child: GlassRendererScope(
+    child: GlassScope(
       renderer: const FlatGlassRenderer(),
-      child: GlassTheme(
-        data: const GlassThemeData(),
-        child: WidgetsApp(
-          color: const Color(0xFFFFFFFF),
-          pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(
-            settings: settings,
-            pageBuilder: (context, _, _) => builder(context),
-          ),
-          home: page,
+      child: WidgetsApp(
+        color: const Color(0xFFFFFFFF),
+        pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(
+          settings: settings,
+          pageBuilder: (context, _, _) => builder(context),
         ),
+        home: page,
       ),
     ),
   ),

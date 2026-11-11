@@ -27,40 +27,37 @@ Widget _app({
   ),
   child: Directionality(
     textDirection: direction,
-    child: GlassRendererScope(
+    child: GlassScope(
       renderer: const FlatGlassRenderer(),
-      child: GlassTheme(
-        data: const GlassThemeData(),
-        child: GlassTabScaffold(
-          tabBar: GlassTabBar(
-            minimizeBehavior: behavior,
-            bottomAccessory: accessory,
-            destinations: const [
-              GlassTabDestination(
-                icon: SizedBox.square(key: Key('glyph 0'), dimension: 24),
-                label: Text('One'),
-              ),
-              GlassTabDestination(
-                icon: SizedBox.square(dimension: 24),
-                label: Text('Two'),
-              ),
-              GlassTabDestination(
-                icon: SizedBox.square(dimension: 24),
-                label: Text('Three'),
-              ),
-            ],
-            selectedIndex: 0,
-            onDestinationSelected: onSelected ?? (_) {},
-          ),
-          tabBuilder: (context, i) => GlassPageScaffold(
-            child: GlassContentScroll(
-              child: ListView(
-                controller: controller,
-                children: [
-                  for (var r = 0; r < rows; r++)
-                    SizedBox(key: ValueKey(r), height: 50),
-                ],
-              ),
+      child: GlassTabScaffold(
+        tabBar: GlassTabBar(
+          minimizeBehavior: behavior,
+          bottomAccessory: accessory,
+          destinations: const [
+            GlassTabDestination(
+              icon: SizedBox.square(key: Key('glyph 0'), dimension: 24),
+              label: Text('One'),
+            ),
+            GlassTabDestination(
+              icon: SizedBox.square(dimension: 24),
+              label: Text('Two'),
+            ),
+            GlassTabDestination(
+              icon: SizedBox.square(dimension: 24),
+              label: Text('Three'),
+            ),
+          ],
+          selectedIndex: 0,
+          onDestinationSelected: onSelected ?? (_) {},
+        ),
+        tabBuilder: (context, i) => GlassPageScaffold(
+          child: GlassContentScroll(
+            child: ListView(
+              controller: controller,
+              children: [
+                for (var r = 0; r < rows; r++)
+                  SizedBox(key: ValueKey(r), height: 50),
+              ],
             ),
           ),
         ),

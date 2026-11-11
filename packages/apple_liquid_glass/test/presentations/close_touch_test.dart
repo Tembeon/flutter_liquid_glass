@@ -102,58 +102,54 @@ void main() {
               devicePixelRatio: 3,
               padding: EdgeInsets.only(top: 62, bottom: 34),
             ),
-            child: GlassRendererScope(
+            child: GlassScope(
               renderer: const FlatGlassRenderer(),
-              child: GlassTheme(
-                data: const GlassThemeData(),
-                child: WidgetsApp(
-                  color: const Color(0xFFFFFFFF),
-                  textStyle: const TextStyle(fontSize: 17),
-                  pageRouteBuilder: <T>(settings, builder) =>
-                      PageRouteBuilder<T>(
-                        settings: settings,
-                        pageBuilder: (context, _, _) => builder(context),
-                      ),
-                  home: Builder(
-                    builder: (context) {
-                      page = context;
-                      return Stack(
-                        children: [
-                          Positioned(
-                            left: 16,
-                            top: 100,
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () => taps++,
-                              child: const SizedBox(
-                                key: Key('below'),
-                                width: 100,
-                                height: 60,
-                              ),
+              child: WidgetsApp(
+                color: const Color(0xFFFFFFFF),
+                textStyle: const TextStyle(fontSize: 17),
+                pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(
+                  settings: settings,
+                  pageBuilder: (context, _, _) => builder(context),
+                ),
+                home: Builder(
+                  builder: (context) {
+                    page = context;
+                    return Stack(
+                      children: [
+                        Positioned(
+                          left: 16,
+                          top: 100,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => taps++,
+                            child: const SizedBox(
+                              key: Key('below'),
+                              width: 100,
+                              height: 60,
                             ),
                           ),
-                          const Align(
-                            alignment: Alignment(0, 0.5),
-                            child: GlassContextMenu(
-                              menuChildren: [GlassMenuItem(title: 'Content')],
-                              child: SizedBox(
-                                key: Key('held'),
-                                width: 120,
-                                height: 44,
-                              ),
+                        ),
+                        const Align(
+                          alignment: Alignment(0, 0.5),
+                          child: GlassContextMenu(
+                            menuChildren: [GlassMenuItem(title: 'Content')],
+                            child: SizedBox(
+                              key: Key('held'),
+                              width: 120,
+                              height: 44,
                             ),
                           ),
-                          const Center(
-                            child: GlassButton(
-                              onPressed: null,
-                              menuChildren: [GlassMenuItem(title: 'Content')],
-                              child: Text('Menu'),
-                            ),
+                        ),
+                        const Center(
+                          child: GlassButton(
+                            onPressed: null,
+                            menuChildren: [GlassMenuItem(title: 'Content')],
+                            child: Text('Menu'),
                           ),
-                        ],
-                      );
-                    },
-                  ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),

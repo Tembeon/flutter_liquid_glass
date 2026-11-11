@@ -12,13 +12,7 @@ Widget _app(Widget child, {double keyboard = 0}) => MediaQuery(
   ),
   child: Directionality(
     textDirection: TextDirection.ltr,
-    child: GlassRendererScope(
-      renderer: const FlatGlassRenderer(),
-      child: GlassTheme(
-        data: const GlassThemeData(),
-        child: child,
-      ),
-    ),
+    child: GlassScope(renderer: const FlatGlassRenderer(), child: child),
   ),
 );
 
@@ -234,27 +228,25 @@ void main() {
         ),
         child: Directionality(
           textDirection: TextDirection.ltr,
-          child: GlassRendererScope(
+          child: GlassScope(
             renderer: const FlatGlassRenderer(),
-            child: GlassTheme(
-              data: const GlassThemeData(
-                styles: [style],
+            data: const GlassThemeData(
+              styles: [style],
+            ),
+            child: GlassPageScaffold(
+              toolbar: GlassToolbar(
+                items: [
+                  GlassBarItem(label: const Text('Edit'), onPressed: () {}),
+                  const GlassBarSpacer.flexible(),
+                  const GlassBarItem(label: Text('Off')),
+                  const GlassBarSpacer.flexible(),
+                  GlassBarItem.prominent(
+                    label: const Text('Go'),
+                    onPressed: () {},
+                  ),
+                ],
               ),
-              child: GlassPageScaffold(
-                toolbar: GlassToolbar(
-                  items: [
-                    GlassBarItem(label: const Text('Edit'), onPressed: () {}),
-                    const GlassBarSpacer.flexible(),
-                    const GlassBarItem(label: Text('Off')),
-                    const GlassBarSpacer.flexible(),
-                    GlassBarItem.prominent(
-                      label: const Text('Go'),
-                      onPressed: () {},
-                    ),
-                  ],
-                ),
-                child: const SizedBox.expand(),
-              ),
+              child: const SizedBox.expand(),
             ),
           ),
         ),

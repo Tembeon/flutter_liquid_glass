@@ -11,12 +11,9 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 Widget _app(GlassRenderer renderer, Widget child) => Directionality(
   textDirection: TextDirection.ltr,
-  child: GlassRendererScope(
+  child: GlassScope(
     renderer: renderer,
-    child: GlassTheme(
-      data: const GlassThemeData(),
-      child: Center(child: child),
-    ),
+    child: Center(child: child),
   ),
 );
 
@@ -736,10 +733,7 @@ void main() {
         },
       );
       Widget scoped(GlassRenderer renderer, GlassThemeData theme) =>
-          GlassRendererScope(
-            renderer: renderer,
-            child: GlassTheme(data: theme, child: reader),
-          );
+          GlassScope(renderer: renderer, data: theme, child: reader);
       await tester.pumpWidget(
         scoped(const LiquidGlassRenderer(), const GlassThemeData()),
       );

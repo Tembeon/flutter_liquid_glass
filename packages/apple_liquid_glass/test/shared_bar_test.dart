@@ -17,13 +17,7 @@ Widget _app(GlobalKey<NavigatorState> navigator, Widget home) => WidgetsApp(
     data: MediaQuery.of(
       context,
     ).copyWith(padding: const EdgeInsets.only(top: 62, bottom: 34)),
-    child: GlassRendererScope(
-      renderer: const FlatGlassRenderer(),
-      child: GlassTheme(
-        data: const GlassThemeData(),
-        child: child!,
-      ),
-    ),
+    child: GlassScope(renderer: const FlatGlassRenderer(), child: child!),
   ),
   home: home,
 );
@@ -179,12 +173,9 @@ void main() {
         ),
         child: Directionality(
           textDirection: TextDirection.ltr,
-          child: GlassRendererScope(
+          child: GlassScope(
             renderer: const FlatGlassRenderer(),
-            child: GlassTheme(
-              data: const GlassThemeData(),
-              child: _page('Alone', trailing: [_icon('plus')]),
-            ),
+            child: _page('Alone', trailing: [_icon('plus')]),
           ),
         ),
       ),

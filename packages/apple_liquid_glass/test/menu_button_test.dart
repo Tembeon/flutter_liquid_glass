@@ -19,13 +19,7 @@ Widget _app(
   color: const Color(0xFF000000),
   pageRouteBuilder: <T>(settings, builder) =>
       GlassPageRoute<T>(builder: builder, settings: settings),
-  builder: (context, child) => GlassRendererScope(
-    renderer: renderer,
-    child: GlassTheme(
-      data: const GlassThemeData(),
-      child: child!,
-    ),
-  ),
+  builder: (context, child) => GlassScope(renderer: renderer, child: child!),
   home: Stack(
     children: [
       Positioned.fill(

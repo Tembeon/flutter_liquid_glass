@@ -18,14 +18,12 @@ Widget _app({
   color: const Color(0xFF000000),
   pageRouteBuilder: <T>(settings, builder) =>
       GlassPageRoute<T>(builder: builder, settings: settings),
-  builder: (context, child) => GlassRendererScope(
+  builder: (context, child) => GlassScope(
     renderer: const FlatGlassRenderer(),
-    child: GlassTheme(
-      data: GlassThemeData(
-        brightness: brightness,
-      ),
-      child: child!,
+    data: GlassThemeData(
+      brightness: brightness,
     ),
+    child: child!,
   ),
   home: Builder(
     builder: (context) => ColoredBox(

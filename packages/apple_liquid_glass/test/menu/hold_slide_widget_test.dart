@@ -20,13 +20,8 @@ void main() {
         color: const Color(0xFF000000),
         pageRouteBuilder: <T>(settings, builder) =>
             GlassPageRoute<T>(builder: builder, settings: settings),
-        builder: (context, child) => GlassRendererScope(
-          renderer: const FlatGlassRenderer(),
-          child: GlassTheme(
-            data: const GlassThemeData(),
-            child: child!,
-          ),
-        ),
+        builder: (context, child) =>
+            GlassScope(renderer: const FlatGlassRenderer(), child: child!),
         home: ListView(
           controller: scroll,
           children: [
@@ -85,13 +80,8 @@ void main() {
         color: const Color(0xFF000000),
         pageRouteBuilder: <T>(settings, builder) =>
             GlassPageRoute<T>(builder: builder, settings: settings),
-        builder: (context, child) => GlassRendererScope(
-          renderer: const FlatGlassRenderer(),
-          child: GlassTheme(
-            data: const GlassThemeData(),
-            child: child!,
-          ),
-        ),
+        builder: (context, child) =>
+            GlassScope(renderer: const FlatGlassRenderer(), child: child!),
         home: ListView(
           controller: scroll,
           children: [

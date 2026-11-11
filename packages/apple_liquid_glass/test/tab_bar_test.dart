@@ -15,12 +15,10 @@ Widget _app(
   data: const MediaQueryData(),
   child: Directionality(
     textDirection: direction,
-    child: GlassRendererScope(
+    child: GlassScope(
       renderer: renderer,
-      child: GlassTheme(
-        data: theme,
-        child: Center(child: child),
-      ),
+      data: theme,
+      child: Center(child: child),
     ),
   ),
 );

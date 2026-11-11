@@ -1,5 +1,6 @@
-/// The root widget of an app's glass, `GlassScope`: the theme and the
-/// renderer in one place, liquid glass where the device draws it well.
+/// The root widget of an app's glass, `GlassScope`: the theme, animated
+/// when it changes, the renderer, liquid glass where the device draws it
+/// well, and the frame rate fed by the app's scrolls, in one place.
 ///
 /// For the app developer who wants the package's glass with one widget at
 /// the root. It sits above every other library of the package and may

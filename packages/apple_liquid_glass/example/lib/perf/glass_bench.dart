@@ -331,18 +331,15 @@ class _BenchAppState extends State<GlassBenchApp>
     debugShowCheckedModeBanner: false,
     pageRouteBuilder: <T>(routeSettings, builder) =>
         GlassPageRoute<T>(builder: builder, settings: routeSettings),
-    builder: (context, child) => GlassRendererScope(
+    builder: (context, child) => GlassScope(
       renderer: _scene == Scene.flat
           ? const FlatGlassRenderer()
           : _fake
           ? const FakeGlassRenderer()
           : const LiquidGlassRenderer(),
-      child: GlassTheme(
-        data: const GlassThemeData(),
-        child: DefaultTextStyle(
-          style: const TextStyle(color: Color(0xFFFFFFFF)),
-          child: child!,
-        ),
+      child: DefaultTextStyle(
+        style: const TextStyle(color: Color(0xFFFFFFFF)),
+        child: child!,
       ),
     ),
     home: _scene == Scene.bare

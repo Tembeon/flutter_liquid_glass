@@ -11,13 +11,7 @@ Widget _app(Widget child) => MediaQuery(
   ),
   child: Directionality(
     textDirection: TextDirection.ltr,
-    child: GlassRendererScope(
-      renderer: const FlatGlassRenderer(),
-      child: GlassTheme(
-        data: const GlassThemeData(),
-        child: child,
-      ),
-    ),
+    child: GlassScope(renderer: const FlatGlassRenderer(), child: child),
   ),
 );
 
@@ -171,13 +165,8 @@ void main() {
         color: const Color(0xFF000000),
         pageRouteBuilder: <T>(settings, builder) =>
             GlassPageRoute<T>(builder: builder, settings: settings),
-        builder: (context, child) => GlassRendererScope(
-          renderer: const FlatGlassRenderer(),
-          child: GlassTheme(
-            data: const GlassThemeData(),
-            child: child!,
-          ),
-        ),
+        builder: (context, child) =>
+            GlassScope(renderer: const FlatGlassRenderer(), child: child!),
         home: const _Bare(),
       ),
     );

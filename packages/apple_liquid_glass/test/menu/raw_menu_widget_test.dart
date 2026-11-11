@@ -22,14 +22,12 @@ void main() {
         color: const Color(0xFF000000),
         pageRouteBuilder: <T>(settings, builder) =>
             GlassPageRoute<T>(builder: builder, settings: settings),
-        builder: (context, child) => GlassRendererScope(
+        builder: (context, child) => GlassScope(
           renderer: const FlatGlassRenderer(),
-          child: GlassTheme(
-            data: GlassThemeData(
-              styles: [?themeStyle],
-            ),
-            child: child!,
+          data: GlassThemeData(
+            styles: [?themeStyle],
           ),
+          child: child!,
         ),
         home: Center(
           child: RawGlassMenu(

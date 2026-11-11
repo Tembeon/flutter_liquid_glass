@@ -53,74 +53,71 @@ Widget _page(
   view: view,
   child: Directionality(
     textDirection: TextDirection.ltr,
-    child: GlassRendererScope(
+    child: GlassScope(
       renderer: const LiquidGlassRenderer(),
-      child: GlassTheme(
-        data: const GlassThemeData(),
-        child: Stack(
-          children: [
-            GlassPageScaffold(
-              backgroundColor: const Color(0xFFFFFFFF),
-              navigationBar: const PreferredSize(
-                preferredSize: Size.fromHeight(60),
-                child: SizedBox(height: 60),
+      child: Stack(
+        children: [
+          GlassPageScaffold(
+            backgroundColor: const Color(0xFFFFFFFF),
+            navigationBar: const PreferredSize(
+              preferredSize: Size.fromHeight(60),
+              child: SizedBox(height: 60),
+            ),
+            child: GlassContentScroll(
+              edgeEffects: GlassScrollEdgeEffects(
+                top: hard
+                    ? GlassScrollEdgeEffect.hard
+                    : GlassScrollEdgeEffect.soft,
               ),
-              child: GlassContentScroll(
-                edgeEffects: GlassScrollEdgeEffects(
-                  top: hard
-                      ? GlassScrollEdgeEffect.hard
-                      : GlassScrollEdgeEffect.soft,
-                ),
-                child: ListView(
-                  controller: controller,
-                  children: [
-                    for (var i = 0; i < 40; i++)
-                      Container(
-                        height: 30,
-                        color: Color(0xFF000000 | (i * 2654435761) & 0xFFFFFF),
-                      ),
-                  ],
-                ),
+              child: ListView(
+                controller: controller,
+                children: [
+                  for (var i = 0; i < 40; i++)
+                    Container(
+                      height: 30,
+                      color: Color(0xFF000000 | (i * 2654435761) & 0xFFFFFF),
+                    ),
+                ],
               ),
             ),
-            Positioned(
-              right: 16,
-              top: 10,
-              width: tints ? 100 : 44,
-              height: 44,
-              child: LiquidGlassLayer(
-                settings: LiquidGlassSettings.ios27RegularLight(),
-                child: tints
-                    ? Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          for (final tint in [
-                            const Color(0x40FF3B30),
-                            const Color(0x40007AFF),
-                          ])
-                            SizedBox.square(
-                              dimension: 44,
-                              child: LiquidGlass(
-                                shape: const LiquidRoundedSuperellipse(
-                                  borderRadius: 22,
-                                ),
-                                appearance:
-                                    LiquidGlassAppearance.ios27RegularLight(
-                                      tint: tint,
-                                    ),
-                                child: const SizedBox.expand(),
+          ),
+          Positioned(
+            right: 16,
+            top: 10,
+            width: tints ? 100 : 44,
+            height: 44,
+            child: LiquidGlassLayer(
+              settings: LiquidGlassSettings.ios27RegularLight(),
+              child: tints
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        for (final tint in [
+                          const Color(0x40FF3B30),
+                          const Color(0x40007AFF),
+                        ])
+                          SizedBox.square(
+                            dimension: 44,
+                            child: LiquidGlass(
+                              shape: const LiquidRoundedSuperellipse(
+                                borderRadius: 22,
                               ),
+                              appearance:
+                                  LiquidGlassAppearance.ios27RegularLight(
+                                    tint: tint,
+                                  ),
+                              child: const SizedBox.expand(),
                             ),
-                        ],
-                      )
-                    : const LiquidGlass(
-                        shape: LiquidRoundedSuperellipse(borderRadius: 22),
-                        child: SizedBox.expand(),
-                      ),
-              ),
+                          ),
+                      ],
+                    )
+                  : const LiquidGlass(
+                      shape: LiquidRoundedSuperellipse(borderRadius: 22),
+                      child: SizedBox.expand(),
+                    ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     ),
   ),

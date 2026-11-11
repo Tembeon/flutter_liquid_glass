@@ -49,13 +49,10 @@ Widget _app(Widget child, {double? width = 300}) => MediaQuery(
   data: const MediaQueryData(),
   child: Directionality(
     textDirection: TextDirection.ltr,
-    child: GlassRendererScope(
+    child: GlassScope(
       renderer: const FlatGlassRenderer(),
-      child: GlassTheme(
-        data: const GlassThemeData(),
-        child: Center(
-          child: SizedBox(width: width, child: child),
-        ),
+      child: Center(
+        child: SizedBox(width: width, child: child),
       ),
     ),
   ),

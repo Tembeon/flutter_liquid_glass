@@ -39,12 +39,9 @@ Widget _scene(_CapturingView view, Widget child) => View(
     textDirection: TextDirection.ltr,
     child: MediaQuery(
       data: const MediaQueryData(size: _size, devicePixelRatio: _dpr),
-      child: GlassRendererScope(
+      child: GlassScope(
         renderer: const LiquidGlassRenderer(),
-        child: GlassTheme(
-          data: const GlassThemeData(),
-          child: ColoredBox(color: _background, child: child),
-        ),
+        child: ColoredBox(color: _background, child: child),
       ),
     ),
   ),

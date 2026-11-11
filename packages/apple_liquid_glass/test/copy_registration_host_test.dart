@@ -21,60 +21,57 @@ Widget _page(
   data: MediaQueryData(size: const Size(402, 300), devicePixelRatio: dpr),
   child: Directionality(
     textDirection: TextDirection.ltr,
-    child: GlassRendererScope(
+    child: GlassScope(
       renderer: const LiquidGlassRenderer(),
-      child: GlassTheme(
-        data: const GlassThemeData(),
-        child: GlassTraitsOverride(
-          glassTintAmount: tint,
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: SizedBox(
-              width: 402,
-              height: 300,
-              child: RepaintBoundary(
-                key: _key,
-                child: ColoredBox(
-                  color: const Color(0xFF000000),
-                  child: Stack(
-                    children: [
+      child: GlassTraitsOverride(
+        glassTintAmount: tint,
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: 402,
+            height: 300,
+            child: RepaintBoundary(
+              key: _key,
+              child: ColoredBox(
+                color: const Color(0xFF000000),
+                child: Stack(
+                  children: [
+                    const Positioned(
+                      left: 120.37,
+                      top: 40,
+                      child: SizedBox(
+                        width: 6,
+                        height: 220,
+                        child: ColoredBox(color: Color(0xFFFFFFFF)),
+                      ),
+                    ),
+                    Positioned(
+                      left: textAt,
+                      top: 142,
+                      child: const Text(
+                        'X',
+                        style: TextStyle(
+                          color: Color(0xFFFFFFFF),
+                          fontSize: 16,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                    if (glass)
                       const Positioned(
-                        left: 120.37,
-                        top: 40,
+                        left: 40.7,
+                        top: 80.3,
                         child: SizedBox(
-                          width: 6,
-                          height: 220,
-                          child: ColoredBox(color: Color(0xFFFFFFFF)),
-                        ),
-                      ),
-                      Positioned(
-                        left: textAt,
-                        top: 142,
-                        child: const Text(
-                          'X',
-                          style: TextStyle(
-                            color: Color(0xFFFFFFFF),
-                            fontSize: 16,
-                            height: 1,
+                          width: 320,
+                          height: 140,
+                          child: GlassSurface(
+                            shape: GlassShape.superellipse(40),
+                            glass: Glass.clear(),
+                            child: SizedBox.expand(),
                           ),
                         ),
                       ),
-                      if (glass)
-                        const Positioned(
-                          left: 40.7,
-                          top: 80.3,
-                          child: SizedBox(
-                            width: 320,
-                            height: 140,
-                            child: GlassSurface(
-                              shape: GlassShape.superellipse(40),
-                              glass: Glass.clear(),
-                              child: SizedBox.expand(),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
+                  ],
                 ),
               ),
             ),

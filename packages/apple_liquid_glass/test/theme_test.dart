@@ -132,33 +132,31 @@ void main() {
     ) async {
       late GlassThemeData data;
       await tester.pumpWidget(
-        GlassRendererScope(
+        GlassScope(
           renderer: const FlatGlassRenderer(),
+          data: GlassThemeData(
+            fontFamily: 'Outer',
+            styles: [
+              GlassButton.styleFrom(
+                foregroundColor: const Color(0xFF00FF00),
+              ),
+            ],
+          ),
           child: GlassTheme(
             data: GlassThemeData(
-              fontFamily: 'Outer',
+              fontFamily: 'Inner',
+              colorScheme: const GlassColorScheme(label: Color(0xFF111111)),
               styles: [
                 GlassButton.styleFrom(
-                  foregroundColor: const Color(0xFF00FF00),
+                  disabledForegroundColor: const Color(0xFFFF0000),
                 ),
               ],
             ),
-            child: GlassTheme(
-              data: GlassThemeData(
-                fontFamily: 'Inner',
-                colorScheme: const GlassColorScheme(label: Color(0xFF111111)),
-                styles: [
-                  GlassButton.styleFrom(
-                    disabledForegroundColor: const Color(0xFFFF0000),
-                  ),
-                ],
-              ),
-              child: Builder(
-                builder: (context) {
-                  data = GlassTheme.of(context);
-                  return const SizedBox();
-                },
-              ),
+            child: Builder(
+              builder: (context) {
+                data = GlassTheme.of(context);
+                return const SizedBox();
+              },
             ),
           ),
         ),
@@ -203,7 +201,7 @@ void main() {
       expect(brightnessReads, 2);
     });
 
-    testWidgets('an animated theme moves colors on its spring, switches '
+    testWidgets('a glass scope moves its theme colors on its spring, switches '
         'and rests on its data', (tester) async {
       final seen = <GlassThemeData>[];
       final reader = Builder(
@@ -225,7 +223,7 @@ void main() {
         ],
       );
       Widget themed(GlassThemeData data) =>
-          AnimatedGlassTheme(data: data, child: reader);
+          GlassScope(data: data, child: reader);
       await tester.pumpWidget(themed(from));
       await tester.pumpWidget(themed(to));
       seen.clear();
@@ -245,26 +243,29 @@ void main() {
       expect(seen.length, builds);
     });
 
-    testWidgets('under Reduce Motion an animated theme switches at once', (
-      tester,
-    ) async {
-      final seen = <Color?>[];
-      Widget themed(Color color) => _app(
-        media: const MediaQueryData(disableAnimations: true),
-        AnimatedGlassTheme(
-          data: GlassThemeData(primaryColor: color),
-          child: Builder(
-            builder: (context) {
-              seen.add(GlassTheme.of(context).primaryColor);
-              return const SizedBox();
-            },
+    testWidgets(
+      'under Reduce Motion a glass scope switches its theme at once',
+      (
+        tester,
+      ) async {
+        final seen = <Color?>[];
+        Widget themed(Color color) => _app(
+          media: const MediaQueryData(disableAnimations: true),
+          GlassScope(
+            data: GlassThemeData(primaryColor: color),
+            child: Builder(
+              builder: (context) {
+                seen.add(GlassTheme.of(context).primaryColor);
+                return const SizedBox();
+              },
+            ),
           ),
-        ),
-      );
-      await tester.pumpWidget(themed(const Color(0xFF000000)));
-      await tester.pumpWidget(themed(const Color(0xFFFFFFFF)));
-      expect(seen.last, const Color(0xFFFFFFFF));
-    });
+        );
+        await tester.pumpWidget(themed(const Color(0xFF000000)));
+        await tester.pumpWidget(themed(const Color(0xFFFFFFFF)));
+        expect(seen.last, const Color(0xFFFFFFFF));
+      },
+    );
   });
 
   group('styles', () {
@@ -337,7 +338,9 @@ void main() {
       expect(reads, 2);
     });
 
-    testWidgets('an animated theme interpolates a style', (tester) async {
+    testWidgets('a glass scope that changes its theme interpolates a style', (
+      tester,
+    ) async {
       final reds = <double>[];
       final reader = Builder(
         builder: (context) {
@@ -350,7 +353,7 @@ void main() {
         styles: [GlassSwitch.styleFrom(thumbColor: thumb)],
       );
       Widget themed(GlassThemeData data) =>
-          AnimatedGlassTheme(data: data, child: reader);
+          GlassScope(data: data, child: reader);
       await tester.pumpWidget(themed(data(const Color(0xFF000000))));
       await tester.pumpWidget(themed(data(const Color(0xFFFFFFFF))));
       reds.clear();

@@ -21,13 +21,7 @@ Widget _app(
     data: MediaQuery.of(context).copyWith(disableAnimations: reduceMotion),
     child: Directionality(
       textDirection: direction,
-      child: GlassRendererScope(
-        renderer: const FlatGlassRenderer(),
-        child: GlassTheme(
-          data: const GlassThemeData(),
-          child: child!,
-        ),
-      ),
+      child: GlassScope(renderer: const FlatGlassRenderer(), child: child!),
     ),
   ),
   home: const ColoredBox(

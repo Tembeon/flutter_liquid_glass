@@ -51,12 +51,9 @@ Widget _app(
   ),
   child: Directionality(
     textDirection: TextDirection.ltr,
-    child: GlassRendererScope(
+    child: GlassScope(
       renderer: const FlatGlassRenderer(),
-      child: GlassTheme(
-        data: const GlassThemeData(),
-        child: _Shell(search, tabs: tabs),
-      ),
+      child: _Shell(search, tabs: tabs),
     ),
   ),
 );

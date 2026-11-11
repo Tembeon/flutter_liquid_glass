@@ -1,15 +1,17 @@
 # package:apple_liquid_glass/app.dart
-class GlassScope extends StatelessWidget
+class GlassScope extends StatefulWidget
   const GlassScope({
     required Widget child,
     GlassThemeData data = ...,
     GlassRenderer renderer = ...,
+    Spring themeSpring = ...,
     Key? key,
   })
   final Widget child
   final GlassThemeData data
   final GlassRenderer renderer
-  overrides: build
+  final Spring themeSpring
+  overrides: createState
 
 # package:apple_liquid_glass/apple_liquid_glass.dart
 final class AdaptiveGlassRenderer extends GlassRenderer
@@ -21,17 +23,6 @@ final class AdaptiveGlassRenderer extends GlassRenderer
   @visibleForTesting static void debugReset()
   final GlassRenderer fallback
   overrides: ==, buildGroup, buildScrollEdge, buildSurface, hashCode
-class AnimatedGlassTheme extends StatefulWidget
-  const AnimatedGlassTheme({
-    required GlassThemeData data,
-    required Widget child,
-    Spring spring = ...,
-    Key? key,
-  })
-  final Widget child
-  final GlassThemeData data
-  final Spring spring
-  overrides: createState
 final class FakeGlassRenderer extends LiquidGlassRenderer
   const FakeGlassRenderer()
   overrides: fake
@@ -2121,7 +2112,6 @@ class GlassSwitch (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSwitchStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 
 # package:apple_liquid_glass/foundation.dart
-class AnimatedGlassTheme (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class Glass (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassColorScheme (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassColors (see package:apple_liquid_glass/apple_liquid_glass.dart)

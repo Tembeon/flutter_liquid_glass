@@ -10,12 +10,10 @@ Widget _app(
   data: MediaQueryData(platformBrightness: brightness),
   child: Directionality(
     textDirection: TextDirection.ltr,
-    child: GlassRendererScope(
+    child: GlassScope(
       renderer: const FlatGlassRenderer(),
       child: GlassTheme(
-        data: theme.merge(
-          const GlassThemeData(),
-        ),
+        data: theme,
         child: Center(child: child),
       ),
     ),
