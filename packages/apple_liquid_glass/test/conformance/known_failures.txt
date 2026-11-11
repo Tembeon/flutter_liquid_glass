@@ -3,49 +3,41 @@
 # and so does a line whose pair now passes. The list only shrinks:
 # UPDATE_CONFORMANCE=1 drops the lines that pass and never adds one.
 # Format: <entry> <check>: <reason>
-GlassBarItem.menu barrier-hides-behind: assistive technology still reaches what is behind it
 GlassBarItem.menu barrier-label: no barrier is offered to assistive technology
 GlassBarItem.menu focus-indicator: keyboard focus draws nothing
-GlassBarItem.menu mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 GlassBarItem.menu mouse-hover: hover draws nothing
 GlassBarItem.menu no-leaks: leaks ValueNotifier<GlassFrame>, ValueNotifier<GlassPageBarLink?>, ValueNotifier<bool>, ValueNotifier<double>
 GlassBarItem.menu tap-target: "Sort": expected tap target size of at least Size(44.0, 44.0), but found Size(68.0, 20.0)
 GlassButton focus-indicator: keyboard focus draws nothing
-GlassButton mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 GlassButton mouse-hover: hover draws nothing
-GlassButton.menu barrier-hides-behind: assistive technology still reaches what is behind it
 GlassButton.menu barrier-label: no barrier is offered to assistive technology
 GlassButton.menu focus-indicator: keyboard focus draws nothing
-GlassButton.menu mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 GlassButton.menu mouse-hover: hover draws nothing
 GlassButton.menu tap-target: "First item": expected tap target size of at least Size(44.0, 44.0), but found Size(250.0, 42.0)
 GlassButton.prominent contrast-dark: "Save": expected contrast ratio of at least 4.5 but found 3.23 for a font size of 17.0
 GlassButton.prominent contrast-light: "Save": expected contrast ratio of at least 4.5 but found 3.52 for a font size of 17.0
 GlassButton.prominent focus-indicator: keyboard focus draws nothing
-GlassButton.prominent mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 GlassButton.prominent mouse-hover: hover draws nothing
-GlassContextMenu barrier-hides-behind: assistive technology still reaches what is behind it
+GlassContextMenu barrier-hides-behind: assistive technology reads it before its anchor
 GlassContextMenu barrier-label: no barrier is offered to assistive technology
 GlassContextMenu focus-enabled: Tab reaches no part of it
 GlassContextMenu focus-indicator: Tab reaches no part of it
 GlassContextMenu key-context-menu: Tab reaches no part of it
-GlassContextMenu mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassContextMenu mouse-cursor: it declares no cursor; the cursor over it is SystemMouseCursor(basic)
 GlassContextMenu mouse-hover: hover draws nothing
 GlassContextMenu mouse-secondary-click: a secondary click does not open its context menu
 GlassContextMenu semantics-label: expected tappable node to have semantic label, but none was found
 GlassContextMenu tab-stops: Tab stops at 0 parts, expected 1
 GlassContextMenu tap-target: "First item": expected tap target size of at least Size(44.0, 44.0), but found Size(250.0, 42.0)
 GlassDatePicker.compact barrier-label: no barrier is offered to assistive technology
-GlassDatePicker.compact mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassDatePicker.compact mouse-cursor: it declares no cursor; the cursor over it is SystemMouseCursor(basic)
 GlassDatePicker.compact mouse-hover: hover draws nothing
 GlassDatePicker.compact tap-target: "Show year picker": expected tap target size of at least Size(44.0, 44.0), but found Size(215.3, 37.7)
 GlassDatePicker.compact zero-size: A RenderFlex overflowed by 210 pixels on the right.
 GlassListRow contrast-light: "Settings": expected contrast ratio of at least 4.5 but found 3.44 for a font size of 17.0
-GlassListRow mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 GlassListRow mouse-hover: hover draws nothing
 GlassListRow.detail focus-disabled: Tab reaches 1 parts while disabled
 GlassListRow.detail focus-indicator: keyboard focus draws nothing
-GlassListRow.detail mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 GlassListRow.detail mouse-hover: hover draws nothing
 GlassListRow.detail semantics-disabled: nothing is announced as disabled
 GlassListRow.detail tap-target: "More info": expected tap target size of at least Size(44.0, 44.0), but found Size(22.0, 22.0)
@@ -53,7 +45,7 @@ GlassNavigationBar focus-enabled: Tab reaches no part of it
 GlassNavigationBar focus-indicator: Tab does not reach the part
 GlassNavigationBar key-activate: Tab does not reach the part
 GlassNavigationBar key-remap: Tab does not reach the part
-GlassNavigationBar mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassNavigationBar mouse-cursor: it declares no cursor; the cursor over it is SystemMouseCursor(basic)
 GlassNavigationBar mouse-hover: hover draws nothing
 GlassNavigationBar no-leaks: leaks ValueNotifier<GlassFrame>, ValueNotifier<GlassPageBarLink?>, ValueNotifier<bool>, ValueNotifier<double>
 GlassNavigationBar semantics-label: expected tappable node to have semantic label, but none was found
@@ -61,18 +53,16 @@ GlassNavigationBar semantics-role: "Edit" offers a tap but is not a button
 GlassNavigationBar tab-stops: Tab stops at 0 parts, expected 2
 GlassNavigationBar tap-target: "Edit": expected tap target size of at least Size(44.0, 44.0), but found Size(68.0, 20.0)
 GlassPageControl focus-indicator: keyboard focus draws nothing
-GlassPageControl mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 GlassPageControl mouse-hover: hover draws nothing
 GlassPageRoute no-leaks: leaks ValueNotifier<GlassFrame>, ValueNotifier<GlassPageBarLink?>, ValueNotifier<bool>, ValueNotifier<double>
 GlassPageRoute semantics-role: the overlay is not announced as a named route
 GlassPageRoute tap-target: "Home": expected tap target size of at least Size(44.0, 44.0), but found Size(143.2, 27.6)
-GlassPressable mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 GlassPressable tap-target: "Press": expected tap target size of at least Size(44.0, 44.0), but found Size(117.0, 41.0)
 GlassSearchField mouse-hover: hover draws nothing
 GlassSearchField.clear focus-indicator: Tab does not reach the part
 GlassSearchField.clear key-activate: Tab does not reach the part
 GlassSearchField.clear key-remap: Tab does not reach the part
-GlassSearchField.clear mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassSearchField.clear mouse-cursor: it declares no cursor; the cursor over it is SystemMouseCursor(basic)
 GlassSearchField.clear mouse-hover: hover draws nothing
 GlassSearchField.clear semantics-label: expected tappable node to have semantic label, but none was found
 GlassSearchField.clear semantics-role: "" offers a tap but is not a button
@@ -82,40 +72,32 @@ GlassSegmentedControl focus-indicator: keyboard focus draws nothing
 GlassSegmentedControl key-arrows: Arrow Right does not step it forward
 GlassSegmentedControl key-arrows-rtl: Arrow Left does not step it forward
 GlassSegmentedControl key-home-end: Home does not reach the start
-GlassSegmentedControl mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 GlassSegmentedControl mouse-hover: hover draws nothing
-GlassSegmentedControl no-leaks: leaks SemanticsOwner, _ResolveOwner
 GlassSegmentedControl tab-stops: Tab stops at 3 parts, expected 1
 GlassSlider focus-indicator: keyboard focus draws nothing
-GlassSlider mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 GlassSlider mouse-hover: hover draws nothing
 GlassStepper focus-indicator: keyboard focus draws nothing
-GlassStepper mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 GlassStepper mouse-hover: hover draws nothing
 GlassStepper tap-target: "Decrement": expected tap target size of at least Size(44.0, 44.0), but found Size(47.0, 32.0)
 GlassSwipeActions focus-indicator: keyboard focus draws nothing
-GlassSwipeActions mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassSwipeActions mouse-cursor: it declares no cursor; the cursor over it is SystemMouseCursor(basic)
 GlassSwipeActions mouse-hover: hover draws nothing
 GlassSwitch focus-indicator: keyboard focus draws nothing
-GlassSwitch mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 GlassSwitch mouse-hover: hover draws nothing
 GlassTabBar contrast-light: "Home": expected contrast ratio of at least 4.5 but found 2.27 for a font size of 10.0
 GlassTabBar focus-indicator: keyboard focus draws nothing
 GlassTabBar key-arrows: Arrow Right does not step it forward
 GlassTabBar key-arrows-rtl: Arrow Left does not step it forward
 GlassTabBar key-home-end: Home does not reach the start
-GlassTabBar mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 GlassTabBar mouse-hover: hover draws nothing
-GlassTabBar no-leaks: leaks SemanticsOwner, _ResolveOwner
 GlassTabBar tab-stops: Tab stops at 3 parts, expected 1
 GlassTabBar.search contrast-light: "Home": expected contrast ratio of at least 4.5 but found 2.27 for a font size of 10.0
 GlassTabBar.search focus-indicator: keyboard focus draws nothing
 GlassTabBar.search key-arrows: Arrow Right does not step it forward
 GlassTabBar.search key-arrows-rtl: Arrow Left does not step it forward
 GlassTabBar.search key-home-end: Home does not reach the start
-GlassTabBar.search mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassTabBar.search mouse-cursor: it declares no cursor; the cursor over it is SystemMouseCursor(basic)
 GlassTabBar.search mouse-hover: hover draws nothing
-GlassTabBar.search no-leaks: leaks SemanticsOwner, _ResolveOwner
 GlassTabBar.search tab-stops: Tab stops at 4 parts, expected 2
 GlassToolbar contrast-dark: "Done": expected contrast ratio of at least 4.5 but found 3.52 for a font size of 17.0
 GlassToolbar contrast-light: "Done": expected contrast ratio of at least 4.5 but found 3.52 for a font size of 17.0
@@ -123,36 +105,28 @@ GlassToolbar focus-enabled: Tab reaches no part of it
 GlassToolbar focus-indicator: Tab does not reach the part
 GlassToolbar key-activate: Tab does not reach the part
 GlassToolbar key-remap: Tab does not reach the part
-GlassToolbar mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+GlassToolbar mouse-cursor: it declares no cursor; the cursor over it is SystemMouseCursor(basic)
 GlassToolbar mouse-hover: hover draws nothing
 GlassToolbar no-leaks: leaks ValueNotifier<GlassFrame>, ValueNotifier<GlassPageBarLink?>, ValueNotifier<bool>, ValueNotifier<double>
 GlassToolbar semantics-label: expected tappable node to have semantic label, but none was found
 GlassToolbar semantics-role: "Edit" offers a tap but is not a button
 GlassToolbar tab-stops: Tab stops at 0 parts, expected 2
 GlassToolbar tap-target: "Edit": expected tap target size of at least Size(44.0, 44.0), but found Size(68.0, 20.0)
-RawGlassMenu barrier-hides-behind: assistive technology still reaches what is behind it
 RawGlassMenu barrier-label: no barrier is offered to assistive technology
 RawGlassMenu focus-indicator: keyboard focus draws nothing
-RawGlassMenu mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 RawGlassMenu mouse-hover: hover draws nothing
 RawGlassMenu tap-target: "First item": expected tap target size of at least Size(44.0, 44.0), but found Size(250.0, 42.0)
-RawGlassPageControl mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 RawGlassSelector key-arrows: Arrow Right does not step it forward
 RawGlassSelector key-arrows-rtl: Arrow Left does not step it forward
 RawGlassSelector key-home-end: Home does not reach the start
-RawGlassSelector mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
-RawGlassSelector no-leaks: leaks SemanticsOwner, _ResolveOwner
 RawGlassSelector tab-stops: Tab stops at 3 parts, expected 1
-RawGlassSlider mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
-RawGlassStepper mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 RawGlassStepper tap-target: "Decrement": expected tap target size of at least Size(44.0, 44.0), but found Size(47.0, 32.0)
-RawGlassSwitch mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
 reference.bad.button focus-disabled: Tab reaches 1 parts while disabled
 reference.bad.button focus-indicator: keyboard focus draws nothing
 reference.bad.button haptics-gesture-only: assistive activation plays the gesture feedback
 reference.bad.button key-activate: Space does not activate it
 reference.bad.button key-remap: a key the app maps to ActivateIntent does nothing
-reference.bad.button mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+reference.bad.button mouse-cursor: it declares no cursor; the cursor over it is SystemMouseCursor(basic)
 reference.bad.button mouse-hover: hover draws nothing
 reference.bad.button rtl-text-scale-2: A RenderFlex overflowed by 278 pixels on the right.
 reference.bad.button semantics-disabled: nothing is announced as disabled
@@ -175,7 +149,7 @@ reference.bad.slider focus-indicator: keyboard focus draws nothing
 reference.bad.slider key-arrows: Arrow Right does not step it forward
 reference.bad.slider key-arrows-rtl: Arrow Left does not step it forward
 reference.bad.slider key-home-end: Home does not reach the start
-reference.bad.slider mouse-cursor: the cursor over it is SystemMouseCursor(basic), expected SystemMouseCursor(click)
+reference.bad.slider mouse-cursor: it declares no cursor; the cursor over it is SystemMouseCursor(basic)
 reference.bad.slider mouse-hover: hover draws nothing
 reference.bad.slider mouse-wheel: the wheel steps it, but it does not declare that
 reference.bad.slider semantics-actions: nothing offers increase
