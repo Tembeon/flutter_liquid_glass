@@ -3236,7 +3236,6 @@ class RawGlassSelector extends StatefulWidget
   final void Function(int)? onChanged
   final void Function(int)? onReselected
   final bool proportionalWidth
-  static const double segmentedReleaseSlop
   final int? selectedIndex
   final String? semanticLabel
   final WidgetStatesController? statesController

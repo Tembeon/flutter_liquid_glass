@@ -161,7 +161,7 @@ class RawGlassSelector extends StatefulWidget {
   /// this package's fixtures). 70 with the bottom and right edges
   /// excluded, the way `CGRectContainsPoint` tests a point, also gives the
   /// glass button's measured edges.
-  static const double segmentedReleaseSlop = GlassPress.highlightSlop;
+  static const double _segmentedReleaseSlop = GlassPress.highlightSlop;
 
   // The app's selection among the items; what the selector shows is its
   // motion's.
@@ -385,7 +385,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   bool _within(Offset position) {
     if (!_segmented) return true;
     return (Offset.zero & _motion.size)
-        .inflate(RawGlassSelector.segmentedReleaseSlop)
+        .inflate(RawGlassSelector._segmentedReleaseSlop)
         .contains(position);
   }
 
