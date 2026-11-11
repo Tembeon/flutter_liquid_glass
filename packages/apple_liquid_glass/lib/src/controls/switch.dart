@@ -77,15 +77,7 @@ class GlassSwitchStyle extends GlassStyle<GlassSwitchStyle> {
   @override
   GlassSwitchStyle lerp(GlassSwitchStyle other, double t) {
     if (identical(this, other)) return this;
-    WidgetStateProperty<Color?>? color(
-      WidgetStateProperty<Color?>? from,
-      WidgetStateProperty<Color?>? to,
-    ) => WidgetStateProperty.lerp<Color?>(
-      from,
-      to,
-      t,
-      GlassStyle.lerpNullable(GlassDynamicColor.lerp),
-    );
+    final color = GlassStyle.lerpStateColors(t);
     return GlassSwitchStyle(
       thumbColor: color(thumbColor, other.thumbColor),
       activeTrackColor: color(activeTrackColor, other.activeTrackColor),

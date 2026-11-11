@@ -123,6 +123,20 @@ abstract class GlassStyle<T extends Object> {
     return _MergedStates<T>(first, second);
   }
 
+  /// The lerp of a state-colour field at [t]: the colours of each state
+  /// interpolate as dynamic colours, and a null end jumps at the middle.
+  static WidgetStateProperty<Color?>? Function(
+    WidgetStateProperty<Color?>?,
+    WidgetStateProperty<Color?>?,
+  )
+  lerpStateColors(double t) =>
+      (from, to) => WidgetStateProperty.lerp<Color?>(
+        from,
+        to,
+        t,
+        lerpNullable(GlassDynamicColor.lerp),
+      );
+
   /// [lerp] with a null end jumping to the other end at the middle.
   ///
   /// In a style a null value falls through to what lies under it, so it

@@ -70,15 +70,7 @@ class GlassStepperStyle extends GlassStyle<GlassStepperStyle> {
   @override
   GlassStepperStyle lerp(GlassStepperStyle other, double t) {
     if (identical(this, other)) return this;
-    WidgetStateProperty<Color?>? color(
-      WidgetStateProperty<Color?>? from,
-      WidgetStateProperty<Color?>? to,
-    ) => WidgetStateProperty.lerp<Color?>(
-      from,
-      to,
-      t,
-      GlassStyle.lerpNullable(GlassDynamicColor.lerp),
-    );
+    final color = GlassStyle.lerpStateColors(t);
     return GlassStepperStyle(
       backgroundColor: color(backgroundColor, other.backgroundColor),
       foregroundColor: color(foregroundColor, other.foregroundColor),

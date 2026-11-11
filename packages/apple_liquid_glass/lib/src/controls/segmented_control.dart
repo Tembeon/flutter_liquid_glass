@@ -121,15 +121,7 @@ class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle> {
   @override
   GlassSegmentedStyle lerp(GlassSegmentedStyle other, double t) {
     if (identical(this, other)) return this;
-    WidgetStateProperty<Color?>? color(
-      WidgetStateProperty<Color?>? from,
-      WidgetStateProperty<Color?>? to,
-    ) => WidgetStateProperty.lerp<Color?>(
-      from,
-      to,
-      t,
-      GlassStyle.lerpNullable(GlassDynamicColor.lerp),
-    );
+    final color = GlassStyle.lerpStateColors(t);
     return GlassSegmentedStyle(
       backgroundColor: color(backgroundColor, other.backgroundColor),
       thumbColor: color(thumbColor, other.thumbColor),

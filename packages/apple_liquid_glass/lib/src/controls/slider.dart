@@ -88,15 +88,7 @@ class GlassSliderStyle extends GlassStyle<GlassSliderStyle> {
   @override
   GlassSliderStyle lerp(GlassSliderStyle other, double t) {
     if (identical(this, other)) return this;
-    WidgetStateProperty<Color?>? color(
-      WidgetStateProperty<Color?>? from,
-      WidgetStateProperty<Color?>? to,
-    ) => WidgetStateProperty.lerp<Color?>(
-      from,
-      to,
-      t,
-      GlassStyle.lerpNullable(GlassDynamicColor.lerp),
-    );
+    final color = GlassStyle.lerpStateColors(t);
     return GlassSliderStyle(
       thumbColor: color(thumbColor, other.thumbColor),
       activeTrackColor: color(activeTrackColor, other.activeTrackColor),

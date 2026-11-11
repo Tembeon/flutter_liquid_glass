@@ -1917,6 +1917,9 @@ abstract class GlassStyle<T extends Object>
   static T? Function(T?, T?, double) lerpNullable<T>(
     T? Function(T?, T?, double) lerp,
   )
+  static WidgetStateProperty<Color?>? Function(WidgetStateProperty<Color?>?, WidgetStateProperty<Color?>?) lerpStateColors(
+    double t,
+  )
   abstract T merge(T? other)
   static WidgetStateProperty<T?>? mergeStates<T>(
     WidgetStateProperty<T?>? first,
