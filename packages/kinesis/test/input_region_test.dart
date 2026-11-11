@@ -604,6 +604,76 @@ void main() {
       semantics.dispose();
     });
   });
+
+  group('focus', () {
+    String? focused() => FocusManager.instance.primaryFocus?.context
+        ?.findAncestorWidgetOfExactType<InputRegion>()
+        ?.semanticLabel;
+
+    testWidgets('Tab skips a region that takes no key unless it was given '
+        'a focus node', (tester) async {
+      final given = FocusNode();
+      addTearDown(given.dispose);
+      Widget region(String label, Interaction interaction, [FocusNode? n]) =>
+          InputRegion(
+            interactions: [interaction],
+            semanticLabel: label,
+            focusNode: n,
+            child: const SizedBox(width: 40, height: 40),
+          );
+      await tester.pumpWidget(
+        _widgetsApp(
+          FocusScope(
+            autofocus: true,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                region('press', PressInteraction()),
+                region('drag', DragInteraction()),
+                region('value', _Value()),
+                region('given', DragInteraction(), given),
+              ],
+            ),
+          ),
+        ),
+      );
+      final order = <String?>[];
+      for (var i = 0; i < 3; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        order.add(focused());
+      }
+      expect(order, ['press', 'value', 'given']);
+    });
+
+    testWidgets('the focused state shows only in keyboard mode', (
+      tester,
+    ) async {
+      final states = WidgetStatesController();
+      addTearDown(states.dispose);
+      final focus = FocusNode();
+      addTearDown(focus.dispose);
+      await tester.pumpWidget(
+        _widgetsApp(
+          InputRegion(
+            interactions: [PressInteraction()],
+            statesController: states,
+            focusNode: focus,
+            child: const SizedBox(width: 80, height: 40),
+          ),
+        ),
+      );
+      await tester.tap(find.byType(InputRegion));
+      focus.requestFocus();
+      await tester.pump();
+      expect(focus.hasPrimaryFocus, isTrue);
+      expect(states.value, isNot(contains(WidgetState.focused)));
+      await tester.sendKeyEvent(LogicalKeyboardKey.shiftLeft);
+      expect(states.value, contains(WidgetState.focused));
+      await tester.tap(find.byType(InputRegion));
+      expect(focus.hasPrimaryFocus, isTrue);
+      expect(states.value, isNot(contains(WidgetState.focused)));
+    });
+  });
 }
 
 final class _Value extends Interaction {

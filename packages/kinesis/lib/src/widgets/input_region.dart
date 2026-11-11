@@ -36,8 +36,10 @@ import 'package:kinesis/src/input/port.dart';
 ///
 /// With a [port] it also hears the touches another region hands on to it
 /// (`InputPort.forward`), mapped into its own coordinates. It writes
-/// pressed, hovered, focused, dragged and disabled into [statesController],
-/// and plays the haptic [feedback] picks for each event as it happens;
+/// pressed, hovered, focused, dragged and disabled into [statesController]
+/// (focused only while the focus should show: when the keyboard was used
+/// last, as `InkWell` does, so a tap that focuses lights no ring), and
+/// plays the haptic [feedback] picks for each event as it happens;
 /// keyboard and accessibility activations play none.
 class InputRegion extends StatefulWidget {
   /// Creates a region whose [interactions] answer input on [child].
@@ -84,6 +86,11 @@ class InputRegion extends StatefulWidget {
   final MouseCursor? mouseCursor;
 
   /// The region's focus node, or null for its own.
+  ///
+  /// The region's own node is skipped in focus traversal when no
+  /// interaction activates or adjusts, since such a region takes no key:
+  /// Tab never stops on it. A given node keeps its own
+  /// `FocusNode.skipTraversal`.
   final FocusNode? focusNode;
 
   /// Whether the region takes focus when it first appears.
@@ -147,8 +154,18 @@ class _InputRegionState extends State<InputRegion> {
     super.initState();
     _states.update(WidgetState.disabled, !widget.enabled);
     _states.addListener(_statesChanged);
+    FocusManager.instance.addHighlightModeListener(_highlightModeChanged);
     _bindForwards();
     _attachPort(widget.port);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final navigation = MediaQuery.maybeNavigationModeOf(context);
+    if (navigation == _navigation) return;
+    _navigation = navigation;
+    _showFocus();
   }
 
   @override
@@ -177,6 +194,7 @@ class _InputRegionState extends State<InputRegion> {
       _states.addListener(_statesChanged);
     }
     _states.update(WidgetState.disabled, !widget.enabled);
+    if (oldWidget.enabled != widget.enabled) _showFocus();
   }
 
   @override
@@ -185,9 +203,30 @@ class _InputRegionState extends State<InputRegion> {
     _cancelAll(PointerCancelReason.platform);
     _cancelDue?.call();
     _states.removeListener(_statesChanged);
+    FocusManager.instance.removeHighlightModeListener(_highlightModeChanged);
     _ownStates?.dispose();
     _ownFocus?.dispose();
     super.dispose();
+  }
+
+  bool _hasFocus = false;
+
+  void _focusChanged(bool focused) {
+    _hasFocus = focused;
+    _showFocus();
+  }
+
+  void _highlightModeChanged(FocusHighlightMode mode) => _showFocus();
+
+  // As InkWell does: focus shows only in keyboard mode, so a tap that
+  // focuses lights no ring, and under directional navigation (a TV remote)
+  // a disabled region that holds focus shows it too.
+  void _showFocus() {
+    final shown =
+        _hasFocus &&
+        FocusManager.instance.highlightMode == FocusHighlightMode.traditional &&
+        (widget.enabled || _navigation == NavigationMode.directional);
+    _states.update(WidgetState.focused, shown);
   }
 
   MouseCursor get _cursor => WidgetStateProperty.resolveAs<MouseCursor>(
@@ -438,7 +477,6 @@ class _InputRegionState extends State<InputRegion> {
   @override
   Widget build(BuildContext context) {
     final enabled = widget.enabled;
-    _navigation = MediaQuery.maybeNavigationModeOf(context);
     _actions ??= {
       ActivateIntent: Action<ActivateIntent>.overridable(
         defaultAction: _Activate<ActivateIntent>(this),
@@ -476,8 +514,10 @@ class _InputRegionState extends State<InputRegion> {
             focusNode: _focus,
             autofocus: widget.autofocus,
             canRequestFocus: enabled,
-            onFocusChange: (focused) =>
-                _states.update(WidgetState.focused, focused),
+            skipTraversal: widget.focusNode == null
+                ? !_activates && !_adjusts
+                : null,
+            onFocusChange: _focusChanged,
             child: MouseRegion(
               cursor: _builtCursor = _cursor,
               onEnter: (event) => _hover(event, inside: true),
