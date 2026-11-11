@@ -26,13 +26,9 @@ export 'src/widgets/haptics.dart' show MotionHapticPlay, MotionHapticScope;
 export 'src/widgets/input_intents.dart'
     show AdjustValueIntent, ContextMenuIntent;
 export 'src/widgets/input_region.dart' show InputRegion;
-export 'src/widgets/input_zones.dart'
-    show
-        InputZone,
-        InputZoneFrame,
-        InputZoneStops,
-        InputZones,
-        InputZonesController;
+export 'src/widgets/input_zone.dart'
+    show InputZone, InputZoneFrame, InputZoneStops;
+export 'src/widgets/input_zones.dart' show InputZones, InputZonesController;
 export 'src/widgets/layout.dart' show MotionLayout, MotionLayoutBuilder;
 export 'src/widgets/measure.dart' show MotionMeasure;
 export 'src/widgets/resolve.dart' show MotionResolveHost;
