@@ -1,6 +1,7 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 
@@ -227,21 +228,13 @@ class GlassSwitch extends StatelessWidget {
     final body = Stack(
       children: [
         Positioned.fill(
-          child: GlassSurface.live(
-            role: GlassRole.track,
+          child: _SwitchTrack(
+            off: off,
+            on: on,
+            progress: details.progress,
             states: details.statesListenable,
             focusColor: look.focusColor,
             hoverColor: look.hoverColor,
-            frame: MotionSelection(
-              () => GlassFrame(
-                tint: Color.lerp(
-                  off,
-                  on,
-                  details.progress.value.clamp(0.0, 1.0),
-                ),
-              ),
-            ),
-            child: const SizedBox.expand(),
           ),
         ),
         Positioned.fill(
@@ -262,4 +255,62 @@ class GlassSwitch extends StatelessWidget {
       child: body,
     );
   }
+}
+
+class _SwitchTrack extends StatefulWidget {
+  const _SwitchTrack({
+    required this.off,
+    required this.on,
+    required this.progress,
+    required this.states,
+    required this.focusColor,
+    required this.hoverColor,
+  });
+
+  final Color off;
+  final Color on;
+  final MotionSelection<double> progress;
+  final ValueListenable<Set<WidgetState>>? states;
+  final Color? focusColor;
+  final Color? hoverColor;
+
+  @override
+  State<_SwitchTrack> createState() => _SwitchTrackState();
+}
+
+class _SwitchTrackState extends State<_SwitchTrack> {
+  late MotionSelection<GlassFrame> _frame = _tint();
+
+  // The colors are not motion reads, so a selection made for other colors
+  // cannot notice them change.
+  MotionSelection<GlassFrame> _tint() {
+    final off = widget.off;
+    final on = widget.on;
+    final progress = widget.progress;
+    return MotionSelection(
+      () => GlassFrame(
+        tint: Color.lerp(off, on, progress.value.clamp(0.0, 1.0)),
+      ),
+    );
+  }
+
+  @override
+  void didUpdateWidget(_SwitchTrack old) {
+    super.didUpdateWidget(old);
+    if (old.off != widget.off ||
+        old.on != widget.on ||
+        old.progress != widget.progress) {
+      _frame = _tint();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => GlassSurface.live(
+    role: GlassRole.track,
+    states: widget.states,
+    focusColor: widget.focusColor,
+    hoverColor: widget.hoverColor,
+    frame: _frame,
+    child: const SizedBox.expand(),
+  );
 }

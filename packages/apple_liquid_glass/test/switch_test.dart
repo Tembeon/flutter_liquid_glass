@@ -614,4 +614,21 @@ void main() {
     expect(probe.progress!.value, 1);
     expect(probe.thumb!.value.rect!.center.dx, greaterThan(31.5));
   });
+
+  testWidgets('the track tint selection survives a rebuild of the body', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app(_Controlled()));
+    Object? track() =>
+        tester.widgetList<GlassSurface>(find.byType(GlassSurface)).first.frame;
+    final before = track();
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(GlassSwitch)),
+    );
+    await tester.pump(_frame);
+    await gesture.up();
+    await tester.pump(_frame);
+    await _settle(tester);
+    expect(track(), same(before));
+  });
 }
