@@ -7,10 +7,10 @@ import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 
-part 'geometry_tiling_atlas.dart';
-part 'geometry_tiling_bounds.dart';
-part 'geometry_tiling_groups.dart';
-part 'geometry_tiling_values.dart';
+part 'package:liquid_glass_renderer/src/rendering/geometry_tiling_atlas.dart';
+part 'package:liquid_glass_renderer/src/rendering/geometry_tiling_bounds.dart';
+part 'package:liquid_glass_renderer/src/rendering/geometry_tiling_groups.dart';
+part 'package:liquid_glass_renderer/src/rendering/geometry_tiling_values.dart';
 
 /// Which tiles of one geometry buffer need exact texels and which read a
 /// constant, and which shapes each ring tile evaluates.

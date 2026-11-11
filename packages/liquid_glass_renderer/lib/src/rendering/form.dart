@@ -13,9 +13,9 @@ import 'package:liquid_glass_renderer/src/rendering/retained_glass_clip.dart';
 import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
 
-part 'form_layers.dart';
-part 'form_nodes.dart';
-part 'form_open.dart';
+part 'package:liquid_glass_renderer/src/rendering/form_layers.dart';
+part 'package:liquid_glass_renderer/src/rendering/form_nodes.dart';
+part 'package:liquid_glass_renderer/src/rendering/form_open.dart';
 
 const Rect _everywhere = Rect.largest;
 

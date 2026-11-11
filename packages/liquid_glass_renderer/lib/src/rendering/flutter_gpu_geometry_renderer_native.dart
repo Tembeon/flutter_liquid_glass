@@ -13,9 +13,9 @@ import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
-part 'flutter_gpu_geometry_renderer_native_pages.dart';
-part 'flutter_gpu_geometry_renderer_native_quads.dart';
-part 'flutter_gpu_geometry_renderer_native_resources.dart';
+part 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer_native_pages.dart';
+part 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer_native_quads.dart';
+part 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer_native_resources.dart';
 
 /// The edge distance of a geometry atlas's outside tile and of its texels
 /// far from every shape: `kFarInward` in `matte_encoding.glsl`.

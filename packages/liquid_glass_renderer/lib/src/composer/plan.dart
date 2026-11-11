@@ -9,7 +9,7 @@ import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:meta/meta.dart';
 
-part 'plan_tuning.dart';
+part 'package:liquid_glass_renderer/src/composer/plan_tuning.dart';
 
 /// The cost of drawing [site] with [read], minus that of one more read, in GPU
 /// ms equivalents. Below zero, sharing pays.

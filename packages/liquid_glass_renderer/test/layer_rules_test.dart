@@ -72,6 +72,7 @@ const _rules = LayerRules(
         'lib/src/rendering/consolidated_fake_glass_layer.dart',
         'lib/src/rendering/copy_read.dart',
         'lib/src/rendering/form.dart',
+        'lib/src/rendering/form_open.dart',
         'lib/src/rendering/glass_composer.dart',
         'lib/src/rendering/glass_composition_probe.dart',
         'lib/src/rendering/read.dart',

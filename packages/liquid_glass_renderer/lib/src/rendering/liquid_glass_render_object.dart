@@ -17,7 +17,7 @@ import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 import 'package:liquid_glass_renderer/src/rendering/snap_rect_to_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
 
-part 'liquid_glass_render_object_frame.dart';
+part 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object_frame.dart';
 
 /// Shared base for render objects that assemble [RenderLiquidGlassGeometry]
 /// shapes and paint one glass effect over the layer's foreground.
