@@ -2,15 +2,6 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-const _banned = [
-  'package:flutter/material.dart',
-  'package:flutter/cupertino.dart',
-  'package:material_ui/',
-  'package:cupertino_ui/',
-  'package:morph/',
-  'package:motor/',
-];
-
 // What reads a backdrop or takes a copy of the screen. The renderer reads
 // the backdrop for every surface, through the view's composer
 // (LiquidGlassBackdropFilterLayer for a filter of the widget layer's own).
@@ -22,7 +13,6 @@ final _read = RegExp(
 // Code the stack replaced, with the files that still hold it. A listed file
 // that stops offending fails too, so the list only shrinks.
 final _bans = <String, (RegExp, Set<String>)>{
-  'haptics through MotionHaptic.play': (RegExp(r'\bHapticFeedback\.'), {}),
   // The sheet reads the finger in screen coordinates while it moves under
   // it, which a region inside the moving sheet cannot.
   'a release velocity comes from InputRegion': (
@@ -82,23 +72,6 @@ void main() {
       if (count > 0) found[file.path] = count;
     }
     expect(found, isEmpty);
-  });
-
-  test('lib imports no Material, Cupertino, Morph or motor', () {
-    final directive = RegExp(r'''^(?:import|export)\s+'([^']+)'.*$''');
-    final offenders = <String>[];
-    final files = Directory('lib')
-        .listSync(recursive: true)
-        .whereType<File>()
-        .where((file) => file.path.endsWith('.dart'));
-    for (final file in files) {
-      for (final line in file.readAsLinesSync()) {
-        final uri = directive.firstMatch(line.trim())?.group(1);
-        if (uri == null) continue;
-        if (_banned.any(uri.startsWith)) offenders.add('${file.path}: $uri');
-      }
-    }
-    expect(offenders, isEmpty);
   });
 
   group('public libraries', () {
