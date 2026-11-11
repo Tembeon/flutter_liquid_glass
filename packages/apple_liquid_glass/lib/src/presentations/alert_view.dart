@@ -214,23 +214,42 @@ class _AlertViewState extends State<_AlertView> {
       );
 
   @override
-  Widget build(BuildContext context) {
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _derive();
+  }
+
+  @override
+  void didUpdateWidget(_AlertView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _derive();
+  }
+
+  // Everything a handler or a slot reads is settled where its inputs
+  // change, not in build: the look and direction from the context, the row
+  // fit and the order from the actions.
+  void _derive() {
     _look = (widget.style ?? const GlassAlertStyle()).merge(
       GlassAlertStyle.maybeOf(context),
     );
-    final traits = GlassTraits.of(context);
     _rtl = Directionality.of(context) == TextDirection.rtl;
     final popover = widget.anchorRect;
-    final screen = MediaQuery.sizeOf(context);
-    final width = math.min(
-      popover == null ? AlertMotion.width : _AlertLook.popoverWidth,
-      screen.width - 2 * _AlertLook.screenMargin,
-    );
     _row =
         !widget.actionSheet &&
         widget.actions.length == 2 &&
-        _fitsInRow(width, context);
+        _fitsInRow(_cardWidth(context), context);
     _shown = _ordered(widget.actions, row: _row, popover: popover != null);
+  }
+
+  double _cardWidth(BuildContext context) => math.min(
+    widget.anchorRect == null ? AlertMotion.width : _AlertLook.popoverWidth,
+    MediaQuery.sizeOf(context).width - 2 * _AlertLook.screenMargin,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final traits = GlassTraits.of(context);
+    final width = _cardWidth(context);
     for (final highlight in _highlights) {
       highlight.reduceMotion = traits.reduceMotion;
     }
