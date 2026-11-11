@@ -20,9 +20,7 @@ void main() {
         builder: (context, child) =>
             GlassScope(renderer: const FlatGlassRenderer(), child: child!),
         home: Center(
-          child: GlassButton(
-            key: const Key('button'),
-            onPressed: null,
+          child: GlassMenuAnchor(
             menuChildren: [
               GlassMenuItem(title: 'Copy', onPressed: () {}),
               GlassMenuWidget(
@@ -30,7 +28,11 @@ void main() {
               ),
               GlassMenuItem(title: 'Delete', onPressed: () {}),
             ],
-            child: const Text('More'),
+            builder: (context, controller, child) => GlassButton(
+              key: const Key('button'),
+              onPressed: controller.open,
+              child: const Text('More'),
+            ),
           ),
         ),
       ),

@@ -44,13 +44,15 @@ Widget _button(
   int count = 3,
   VoidCallback? onPressed,
   GlassMenuController? controller,
-}) => GlassButton(
-  key: const Key('button'),
-  onPressed: onPressed,
-  menuController: controller,
-  semanticLabel: 'More',
+}) => GlassMenuAnchor(
+  controller: controller,
   menuChildren: _entries(log, count: count),
-  child: const Text('More'),
+  builder: (context, controller, child) => GlassButton(
+    key: const Key('button'),
+    onPressed: onPressed ?? controller.open,
+    semanticLabel: 'More',
+    child: const Text('More'),
+  ),
 );
 
 void _phone(WidgetTester tester) {
@@ -283,9 +285,7 @@ void main() {
     final log = <String>[];
     await tester.pumpWidget(
       _app(
-        GlassButton(
-          key: const Key('button'),
-          onPressed: null,
+        GlassMenuAnchor(
           menuChildren: [
             GlassMenuItem(title: 'Copy', onPressed: () => log.add('Copy')),
             GlassSubmenu(
@@ -296,7 +296,11 @@ void main() {
               ],
             ),
           ],
-          child: const Text('More'),
+          builder: (context, controller, child) => GlassButton(
+            key: const Key('button'),
+            onPressed: controller.open,
+            child: const Text('More'),
+          ),
         ),
       ),
     );
@@ -326,11 +330,13 @@ void main() {
     _phone(tester);
     await tester.pumpWidget(
       _app(
-        GlassButton.prominent(
-          key: const Key('button'),
-          onPressed: null,
+        GlassMenuAnchor(
           menuChildren: _entries(<String>[]),
-          child: const Text('Add'),
+          builder: (context, controller, child) => GlassButton.prominent(
+            key: const Key('button'),
+            onPressed: controller.open,
+            child: const Text('Add'),
+          ),
         ),
       ),
     );

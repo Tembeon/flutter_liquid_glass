@@ -121,7 +121,7 @@ class ComponentsPage extends StatelessWidget {
           CupertinoIcons.ellipsis_circle_fill,
           Color(0xFF5E5CE6),
           'Menu',
-          'GlassMenuItem, GlassSubmenu, GlassContextMenu',
+          'GlassMenuAnchor, GlassMenuItem, GlassSubmenu, GlassContextMenu',
           MenuPage.new,
         ),
         (

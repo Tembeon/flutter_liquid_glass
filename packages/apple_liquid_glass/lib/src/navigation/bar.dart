@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/presentations.dart';
+import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/bar_layout.dart';
 import 'package:apple_liquid_glass/src/motions/bar_motion.dart';
@@ -11,7 +13,6 @@ import 'package:apple_liquid_glass/src/motions/navigation_motion.dart';
 import 'package:apple_liquid_glass/src/navigation/bar_entry.dart';
 import 'package:apple_liquid_glass/src/navigation/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/navigation/toolbar.dart';
-import 'package:apple_liquid_glass/src/presentations/menu_anchor.dart';
 import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
@@ -1661,24 +1662,28 @@ class _BarItem extends StatelessWidget {
         bar: bar,
         id: id,
         child: ExcludeFocusTraversal(
-          child: RawGlassMenu(
-            entries: menu,
-            onPressed: item!.onPressed,
-            semanticLabel: _BandState._labelOf(item),
+          child: GlassMenuAnchor(
+            menuChildren: menu,
+            semanticLabel: _BandState._labelOf(item!),
             controller: bar.inputOf(id).menu,
-            label: _CapsuleLook(
-              bar: bar,
-              item: id,
-              glyphs: {
-                for (final MapEntry(key: id, value: button)
-                    in bar.buttons.entries)
-                  if (button.item?.child == null) id: _glyphOf(context, button),
-              },
-            ),
             scalesOnPress: false,
             sourceOf: (overlay) => bar.menuSource(id, overlay),
-            onShowing: (showing) => bar.menuShowing(id, showing: showing),
-            child: content,
+            onOpen: () => bar.menuShowing(id, showing: true),
+            onClose: () => bar.menuShowing(id, showing: false),
+            child: _ItemSource(
+              onPressed: item.onPressed ?? bar.inputOf(id).menu.open,
+              look: _CapsuleLook(
+                bar: bar,
+                item: id,
+                glyphs: {
+                  for (final MapEntry(key: id, value: button)
+                      in bar.buttons.entries)
+                    if (button.item?.child == null)
+                      id: _glyphOf(context, button),
+                },
+              ),
+              child: content,
+            ),
           ),
         ),
       ),
@@ -2181,6 +2186,50 @@ class _RenderBarItems extends RenderBox
 
 /// Reads its child, a menu and its source, to assistive technology only
 /// while the menu shows: the item's zone speaks for the source otherwise.
+/// An item lending itself to its menu anchor: its tap, the capsule look the
+/// menu's glass carries, and its glyph, which hides while the menu shows.
+class _ItemSource extends StatefulWidget {
+  const _ItemSource({
+    required this.onPressed,
+    required this.look,
+    required this.child,
+  });
+
+  final VoidCallback onPressed;
+  final Widget look;
+  final Widget child;
+
+  @override
+  State<_ItemSource> createState() => _ItemSourceState();
+}
+
+class _ItemSourceState extends State<_ItemSource> {
+  GlassSourceLink? _link;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final link = GlassSourceLink.maybeOf(context);
+    if (identical(link, _link)) return;
+    _link?.release(this);
+    _link = link;
+  }
+
+  @override
+  void dispose() {
+    _link?.release(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final link = _link!;
+    link.lend(this, onPressed: widget.onPressed);
+    link.look = widget.look;
+    return MotionSourceBox(source: link.source, child: widget.child);
+  }
+}
+
 class _OpenMenuSemantics extends SingleChildRenderObjectWidget {
   const _OpenMenuSemantics({
     required this.bar,

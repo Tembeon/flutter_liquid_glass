@@ -40,8 +40,7 @@ class _ButtonPageState extends State<ButtonPage> {
   var _sort = 'Thirst';
   final _lit = <int>{1};
 
-  Widget _sortButton() => GlassButton(
-    onPressed: null,
+  Widget _sortButton() => GlassMenuAnchor(
     menuChildren: [
       GlassMenuSection(
         singleSelection: true,
@@ -57,7 +56,10 @@ class _ButtonPageState extends State<ButtonPage> {
         ],
       ),
     ],
-    child: Text('Sort by $_sort'),
+    builder: (context, controller, child) => GlassButton(
+      onPressed: controller.open,
+      child: Text('Sort by $_sort'),
+    ),
   );
 
   @override
@@ -120,7 +122,7 @@ class _ButtonPageState extends State<ButtonPage> {
       ideas: [
         Idea(
           'It grows into a menu',
-          'With menuChildren a tap opens the menu out of the button, and '
+          'In a GlassMenuAnchor a tap opens the menu out of the button, and '
               'the finger can slide straight on to an item.',
           child: Stage(
             backdrop: Wallpaper.dunes,
@@ -137,9 +139,7 @@ class _ButtonPageState extends State<ButtonPage> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                GlassButton.prominent(
-                  onPressed: null,
-                  semanticLabel: 'Add',
+                GlassMenuAnchor(
                   menuChildren: [
                     for (final (title, icon) in const [
                       ('Plant', CupertinoIcons.tree),
@@ -152,7 +152,12 @@ class _ButtonPageState extends State<ButtonPage> {
                         onPressed: () {},
                       ),
                   ],
-                  child: const Icon(CupertinoIcons.plus),
+                  builder: (context, controller, child) =>
+                      GlassButton.prominent(
+                        onPressed: controller.open,
+                        semanticLabel: 'Add',
+                        child: const Icon(CupertinoIcons.plus),
+                      ),
                 ),
               ],
             ),

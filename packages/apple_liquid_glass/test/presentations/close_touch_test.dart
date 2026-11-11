@@ -140,11 +140,16 @@ void main() {
                             ),
                           ),
                         ),
-                        const Center(
-                          child: GlassButton(
-                            onPressed: null,
-                            menuChildren: [GlassMenuItem(title: 'Content')],
-                            child: Text('Menu'),
+                        Center(
+                          child: GlassMenuAnchor(
+                            menuChildren: const [
+                              GlassMenuItem(title: 'Content'),
+                            ],
+                            builder: (context, controller, child) =>
+                                GlassButton(
+                                  onPressed: controller.open,
+                                  child: const Text('Menu'),
+                                ),
                           ),
                         ),
                       ],

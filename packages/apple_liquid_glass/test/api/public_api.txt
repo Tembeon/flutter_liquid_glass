@@ -180,8 +180,6 @@ class GlassButton extends StatelessWidget
     FocusNode? focusNode,
     bool autofocus = ...,
     String? semanticLabel,
-    List<GlassMenuEntry>? menuChildren,
-    GlassMenuController? menuController,
     Key? key,
   })
   const GlassButton({
@@ -192,8 +190,6 @@ class GlassButton extends StatelessWidget
     FocusNode? focusNode,
     bool autofocus = ...,
     String? semanticLabel,
-    List<GlassMenuEntry>? menuChildren,
-    GlassMenuController? menuController,
     Key? key,
   })
   const GlassButton.prominent({
@@ -204,8 +200,6 @@ class GlassButton extends StatelessWidget
     FocusNode? focusNode,
     bool autofocus = ...,
     String? semanticLabel,
-    List<GlassMenuEntry>? menuChildren,
-    GlassMenuController? menuController,
     Key? key,
   })
   const GlassButton.prominentClear({
@@ -216,16 +210,12 @@ class GlassButton extends StatelessWidget
     FocusNode? focusNode,
     bool autofocus = ...,
     String? semanticLabel,
-    List<GlassMenuEntry>? menuChildren,
-    GlassMenuController? menuController,
     Key? key,
   })
   final bool autofocus
   final Widget child
   @internal GlassButtonStyle defaultStyleOf(BuildContext context)
   final FocusNode? focusNode
-  final List<GlassMenuEntry>? menuChildren
-  final GlassMenuController? menuController
   final void Function()? onPressed
   final String? semanticLabel
   final WidgetStatesController? statesController
@@ -1890,41 +1880,6 @@ class RawGlassList extends StatefulWidget
   final Widget Function(BuildContext, Object) itemBuilder
   final LayoutPlanner planner
   overrides: createState
-class RawGlassMenu extends StatefulWidget
-  const RawGlassMenu({
-    required List<GlassMenuEntry> entries,
-    required Widget child,
-    required Widget label,
-    Color? tint,
-    double? radius,
-    void Function()? onPressed,
-    bool enabled = ...,
-    GlassMenuController? controller,
-    String? semanticLabel,
-    GlassMenuOrder order = ...,
-    GlassMenuStyle? style,
-    @internal MenuTuning tuning = ...,
-    @internal MenuSource? Function(RenderBox)? sourceOf,
-    @internal void Function(bool)? onShowing,
-    @internal bool scalesOnPress = ...,
-    Key? key,
-  })
-  final Widget child
-  final GlassMenuController? controller
-  final bool enabled
-  final List<GlassMenuEntry> entries
-  final Widget label
-  final void Function()? onPressed
-  @internal final void Function(bool)? onShowing
-  final GlassMenuOrder order
-  final double? radius
-  @internal final bool scalesOnPress
-  final String? semanticLabel
-  @internal final MenuSource? Function(RenderBox)? sourceOf
-  final GlassMenuStyle? style
-  final Color? tint
-  @internal final MenuTuning tuning
-  overrides: createState
 class RawGlassPageControl extends StatefulWidget
   const RawGlassPageControl({
     required int count,
@@ -2390,7 +2345,6 @@ class GlassPopoverStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSheet (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSheetStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSubmenu (see package:apple_liquid_glass/apple_liquid_glass.dart)
-class RawGlassMenu (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function showGlassActionSheet (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function showGlassAlert (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function showGlassPopover (see package:apple_liquid_glass/apple_liquid_glass.dart)

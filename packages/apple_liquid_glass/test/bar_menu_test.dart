@@ -93,7 +93,7 @@ class _PageState extends State<_Page> {
 
 // The menu's overlay stays below its source in the element tree.
 bool _inMenu(Element element) =>
-    element.findAncestorWidgetOfExactType<RawGlassMenu>() != null;
+    element.findAncestorWidgetOfExactType<GlassMenuAnchor>() != null;
 
 List<double> _capsules(WidgetTester tester) => [
   for (final element

@@ -516,11 +516,13 @@ class _PresentPageState extends State<PresentPage> {
               right: 16,
               child: Row(
                 children: [
-                  GlassButton(
-                    onPressed: null,
+                  GlassMenuAnchor(
                     menuChildren: _moreMenu(),
-                    semanticLabel: 'More',
-                    child: const Icon(CupertinoIcons.ellipsis),
+                    builder: (context, controller, child) => GlassButton(
+                      onPressed: controller.open,
+                      semanticLabel: 'More',
+                      child: const Icon(CupertinoIcons.ellipsis),
+                    ),
                   ),
                   const Spacer(),
                   Builder(
@@ -530,8 +532,7 @@ class _PresentPageState extends State<PresentPage> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  GlassButton.prominent(
-                    onPressed: null,
+                  GlassMenuAnchor(
                     menuChildren: [
                       GlassMenuItem(
                         title: 'Photo',
@@ -549,8 +550,12 @@ class _PresentPageState extends State<PresentPage> {
                         onPressed: () => _say('New shared album'),
                       ),
                     ],
-                    semanticLabel: 'New',
-                    child: const Icon(CupertinoIcons.plus),
+                    builder: (context, controller, child) =>
+                        GlassButton.prominent(
+                          onPressed: controller.open,
+                          semanticLabel: 'New',
+                          child: const Icon(CupertinoIcons.plus),
+                        ),
                   ),
                 ],
               ),

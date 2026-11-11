@@ -1,9 +1,10 @@
 /// Menus and the context menu, the alert and the action sheet, the sheet and
 /// the popover.
 ///
-/// For the app developer: `GlassContextMenu`, `RawGlassMenu` with its
-/// entries, `showGlassAlert`, `showGlassActionSheet`, `showGlassSheet` and
-/// `showGlassPopover`, each with its style.
+/// For the app developer: `GlassMenuAnchor`, which grows a menu out of any
+/// control, and `GlassContextMenu`, with their entries; `showGlassAlert`,
+/// `showGlassActionSheet`, `showGlassSheet` and `showGlassPopover`, each
+/// with its style.
 ///
 /// It promises that a presentation moves by the measured laws of
 /// `motions` on kinesis's presentations, and works with every renderer.
@@ -20,8 +21,7 @@ export 'src/presentations/menu_anchor.dart'
         GlassContextMenu,
         GlassMenuAnchor,
         GlassMenuAnchorChildBuilder,
-        GlassMenuController,
-        RawGlassMenu;
+        GlassMenuController;
 export 'src/presentations/menu_appearance.dart' show GlassMenuStyle;
 export 'src/presentations/menu_entries.dart'
     show

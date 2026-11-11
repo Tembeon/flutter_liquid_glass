@@ -25,9 +25,9 @@ void main() {
           child: StatefulBuilder(
             builder: (context, setState) {
               setMenu = setState;
-              return RawGlassMenu(
+              return GlassMenuAnchor(
                 key: const Key('source'),
-                entries: [
+                menuChildren: [
                   GlassMenuItem(title: 'Copy', onPressed: () {}),
                   if (more)
                     for (final title in ['Paste', 'Move', 'Rename'])
@@ -39,7 +39,6 @@ void main() {
                       onPressed: () => setMenu(() => more = true),
                     ),
                 ],
-                label: const Text('Label'),
                 child: const SizedBox(width: 120, height: 44),
               );
             },

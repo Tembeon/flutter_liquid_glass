@@ -18,7 +18,6 @@ GlassTabBar contrast-light: "Library": expected contrast ratio of at least 4.5 b
 GlassTabBar.search contrast-light: "Library": expected contrast ratio of at least 4.5 but found 2.27 for a font size of 10.0
 GlassTabBar.search mouse-cursor: it declares no cursor; the cursor over it is SystemMouseCursor(basic)
 GlassTabBar.search mouse-hover: hover draws nothing
-RawGlassMenu mouse-hover: hover draws nothing
 reference.bad.button focus-disabled: Tab reaches 1 parts while disabled
 reference.bad.button focus-indicator: keyboard focus draws nothing
 reference.bad.button haptics-gesture-only: assistive activation plays the gesture feedback

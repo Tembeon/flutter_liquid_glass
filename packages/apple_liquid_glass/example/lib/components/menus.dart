@@ -68,15 +68,17 @@ class _MenuPageState extends State<MenuPage> {
   Widget build(BuildContext context) => ComponentPage(
     name: 'GlassMenuItem',
     summary:
-        'A menu that grows out of the glass of what opened it: a button '
-        'with menuChildren, a bar item, or anything under a '
+        'A menu that grows out of the glass of what opened it: a control '
+        'in a GlassMenuAnchor, a bar item, or anything under a '
         'GlassContextMenu.',
     backdrop: Wallpaper.city,
     stageHeight: 130,
-    stage: GlassButton(
-      onPressed: null,
+    stage: GlassMenuAnchor(
       menuChildren: _menu(),
-      child: const Text('Open the menu'),
+      builder: (context, controller, child) => GlassButton(
+        onPressed: controller.open,
+        child: const Text('Open the menu'),
+      ),
     ),
     knobs: [
       ToggleKnob(
@@ -109,8 +111,7 @@ class _MenuPageState extends State<MenuPage> {
         child: Stage(
           backdrop: Wallpaper.dunes,
           height: 96,
-          child: GlassButton(
-            onPressed: null,
+          child: GlassMenuAnchor(
             menuChildren: [
               GlassMenuItem(
                 title: 'New plant',
@@ -148,7 +149,10 @@ class _MenuPageState extends State<MenuPage> {
                 ],
               ),
             ],
-            child: const Text('Options'),
+            builder: (context, controller, child) => GlassButton(
+              onPressed: controller.open,
+              child: const Text('Options'),
+            ),
           ),
         ),
       ),

@@ -22,7 +22,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
-/// Opens and closes the menu of a [RawGlassMenu], a `GlassButton` or a
+/// Opens and closes the menu of a [GlassMenuAnchor] or a
 /// [GlassContextMenu] from code.
 ///
 /// Flutter: `MenuController`.
@@ -37,103 +37,6 @@ class GlassMenuController {
 
   /// Closes the menu.
   void close() => _host?._close();
-}
-
-/// A source whose glass grows into a menu of [entries], as a `UIButton`
-/// with a menu does on iOS 27, with no look of its own: [child] draws the
-/// source.
-///
-/// UIKit: `UIButton.menu`. SwiftUI: `Menu`. Flutter: `RawMenuAnchor`.
-///
-/// Without [onPressed] a tap opens the menu on its release and a hold
-/// opens it under the finger (UIKit's `showsMenuAsPrimaryAction`); with it
-/// a tap calls it and only a hold opens the menu. The menu shows on the
-/// root overlay without a route, so a finger that pressed the source keeps
-/// sliding over the open menu and chooses the row it lifts from. Escape,
-/// Back and a tap outside close it; the tap outside reaches nothing under
-/// it. While the menu shows, [child] paints nothing and the menu's glass
-/// draws [label] as it grows out of the source; `GlassButton` with
-/// `menuChildren` is this core with the button's glass.
-class RawGlassMenu extends StatefulWidget {
-  /// Creates the menu source drawn as [child].
-  const RawGlassMenu({
-    required this.entries,
-    required this.child,
-    required this.label,
-    this.tint,
-    this.radius,
-    this.onPressed,
-    this.enabled = true,
-    this.controller,
-    this.semanticLabel,
-    this.order = GlassMenuOrder.automatic,
-    this.style,
-    @internal this.tuning = MenuTuning.standard,
-    @internal this.sourceOf,
-    @internal this.onShowing,
-    @internal this.scalesOnPress = true,
-    super.key,
-  });
-
-  /// The menu's entries.
-  final List<GlassMenuEntry> entries;
-
-  /// The source at rest, glass included.
-  final Widget child;
-
-  /// The source's label or glyph, drawn on the menu's glass while it grows
-  /// out of the source.
-  final Widget label;
-
-  /// The color of the source's glass at rest, or null for untinted glass.
-  /// The menu's glass takes it at both hand-offs and crosses it into its
-  /// own while [label] fades, the fused body included (menu-button.md);
-  /// the color hand-off of a tinted `UIButton` is not recorded.
-  final Color? tint;
-
-  /// The corner radius of the source's glass at rest; null for a capsule.
-  final double? radius;
-
-  /// Called on a tap; null makes a tap open the menu.
-  final VoidCallback? onPressed;
-
-  /// Whether the source takes touches.
-  final bool enabled;
-
-  /// Opens and closes the menu from code.
-  final GlassMenuController? controller;
-
-  /// What accessibility reads for the source.
-  final String? semanticLabel;
-
-  /// How the rows order in a menu that opens upward.
-  final GlassMenuOrder order;
-
-  /// The look of the menu's rows, over the theme's.
-  final GlassMenuStyle? style;
-
-  /// The measured behavior of the menu, read once: a later tuning is
-  /// ignored.
-  @internal
-  final MenuTuning tuning;
-
-  /// Where the menu grows out of in the coordinates of the given overlay, when
-  /// that is not [child]'s box, or null to use the box.
-  @internal
-  final MenuSource? Function(RenderBox overlay)? sourceOf;
-
-  /// Told when the menu starts to show and when it has gone, for a source
-  /// whose glass [child] does not draw.
-  @internal
-  final ValueChanged<bool>? onShowing;
-
-  /// Whether [child] scales under a finger; false when something around it
-  /// already does.
-  @internal
-  final bool scalesOnPress;
-
-  @override
-  State<RawGlassMenu> createState() => _RawGlassMenuState();
 }
 
 /// The state of a widget whose menu shows on the overlay: the motion, the
@@ -175,7 +78,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   /// or null for a menu that does not grow out of its source's glass.
   Widget? get _look;
 
-  /// The color of the source's glass at rest (see [RawGlassMenu.tint]).
+  /// The color of the source's glass at rest (see [GlassSourceLink.tint]).
   Color? get _sourceTint => null;
 
   /// Where the menu grows out of in [overlay]'s coordinates, or null for
@@ -496,162 +399,6 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     ),
     child: child,
   );
-}
-
-class _RawGlassMenuState extends _MenuHost<RawGlassMenu> {
-  @override
-  List<GlassMenuEntry> get _entries => widget.entries;
-
-  @override
-  GlassMenuOrder get _order => widget.order;
-
-  @override
-  GlassMenuController? get _controller => widget.controller;
-
-  @override
-  bool get _enabled => widget.enabled;
-
-  @override
-  String? get _semanticLabel => widget.semanticLabel;
-
-  @override
-  VoidCallback? get _onTap => widget.onPressed;
-
-  @override
-  Widget? get _look => widget.label;
-
-  @override
-  Color? get _sourceTint => widget.tint;
-
-  @override
-  MenuSource _sourceIn(RenderBox overlay, Rect box) =>
-      widget.sourceOf?.call(overlay) ?? MenuSource(box, radius: widget.radius);
-
-  // What the region reports of the keyboard focus and the mouse, which
-  // the source's ring and hover response follow.
-  final _states = WidgetStatesController();
-
-  @override
-  void dispose() {
-    if (_showing) widget.onShowing?.call(false);
-    _states.dispose();
-    super.dispose();
-  }
-
-  @override
-  void _reportShowing(bool showing) => widget.onShowing?.call(showing);
-
-  @override
-  MenuMotion _createMotion(
-    MenuSource source,
-    Size bounds,
-    EdgeInsets padding,
-  ) {
-    final motion = MenuMotion(
-      source: source,
-      layout: _content.root,
-      bounds: bounds,
-      padding: padding,
-      tuning: widget.tuning,
-    );
-    motion.opensOnTap = widget.onPressed == null;
-    return motion;
-  }
-
-  @override
-  void _relayout(
-    MenuMotion motion,
-    MenuSource source,
-    Size bounds,
-    EdgeInsets padding,
-  ) {
-    motion.relayout(source: source, bounds: bounds, padding: padding);
-    motion.opensOnTap = widget.onPressed == null;
-  }
-
-  @override
-  void didUpdateWidget(RawGlassMenu oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _updated(
-      oldController: oldWidget.controller,
-      wasEnabled: oldWidget.enabled,
-    );
-  }
-
-  late final _input = _MenuInput(
-    claimAfter: widget.tuning.holdDuration,
-    toGlobal: _toGlobal,
-    down: _sourceDown,
-    move: _pointerMove,
-    up: _pointerUp,
-    cancel: _pointerCancel,
-    activate: _activate,
-  );
-
-  bool _sourceDown(int pointer, double t, Offset global) {
-    if (!widget.enabled || _pointer != null || _isOpen) return false;
-    _prepare();
-    return _pointerDown(pointer, t, global);
-  }
-
-  void _activate() {
-    if (!widget.enabled) return;
-    final onPressed = widget.onPressed;
-    if (onPressed != null) {
-      onPressed();
-    } else {
-      _openFromCode();
-    }
-  }
-
-  // Read through the steps, so the press follows the motion's frames once
-  // there is one.
-  Matrix4 _pressTransform() {
-    final motion = _steps?.value;
-    if (motion == null || !widget.scalesOnPress) return Matrix4.identity();
-    final s = motion.isPresented ? 1.0 : motion.pressScale;
-    return Matrix4.diagonal3Values(s, s, 1);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    _style = MenuAppearance.of(context, widget.style);
-    final enabled = widget.enabled;
-    final hold = widget.onPressed != null;
-    return _host(
-      InputRegion(
-        interactions: [_input],
-        statesController: _states,
-        enabled: enabled,
-        semanticLabel: widget.semanticLabel,
-        child: Semantics(
-          button: true,
-          expanded: _showing,
-          excludeSemantics: widget.semanticLabel != null,
-          onLongPress: enabled && hold ? _openFromCode : null,
-          child: MotionSourceBox(
-            source: _source,
-            child: MotionDriven(
-              template: () => Transform(
-                transform: _pressTransform(),
-                alignment: Alignment.center,
-              ),
-              child: GlassHighlightPaint.of(
-                context,
-                states: _states,
-                shape: switch (widget.radius) {
-                  null => GlassShape.capsule,
-                  final radius => GlassShape.roundedRect(radius),
-                },
-                wash: true,
-                child: widget.child,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 /// Builds the control a [GlassMenuAnchor] wraps, given the anchor's

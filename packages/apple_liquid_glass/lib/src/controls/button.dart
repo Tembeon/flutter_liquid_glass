@@ -4,12 +4,9 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
-import 'package:apple_liquid_glass/src/presentations/menu_anchor.dart';
-import 'package:apple_liquid_glass/src/presentations/menu_entries.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/motion.dart';
 
 /// The look of a [GlassButton], like Flutter's `ButtonStyle`.
 ///
@@ -311,6 +308,11 @@ enum _Variant { regular, prominent, clear, prominentClear }
 /// measured one of [RawGlassButton]. A disabled regular button keeps its
 /// glass, and every disabled button draws its label in tertiaryLabel, as
 /// UIKit does (iPhone 16 Pro, iOS 27.0.1, light and dark).
+///
+/// Its menu form, UIKit's `UIButton.menu`, is a `GlassMenuAnchor` around
+/// it: the button lends the anchor its glass ([GlassSourceLink]), which the
+/// menu grows out of, and its tint and label, which the menu's glass
+/// carries as it grows.
 class GlassButton extends StatelessWidget {
   /// Creates a regular glass button.
   const GlassButton({
@@ -321,8 +323,6 @@ class GlassButton extends StatelessWidget {
     this.focusNode,
     this.autofocus = false,
     this.semanticLabel,
-    this.menuChildren,
-    this.menuController,
     super.key,
   }) : _variant = _Variant.regular;
 
@@ -339,8 +339,6 @@ class GlassButton extends StatelessWidget {
     this.focusNode,
     this.autofocus = false,
     this.semanticLabel,
-    this.menuChildren,
-    this.menuController,
     super.key,
   }) : _variant = _Variant.prominent;
 
@@ -356,8 +354,6 @@ class GlassButton extends StatelessWidget {
     this.focusNode,
     this.autofocus = false,
     this.semanticLabel,
-    this.menuChildren,
-    this.menuController,
     super.key,
   }) : _variant = _Variant.clear;
 
@@ -373,35 +369,11 @@ class GlassButton extends StatelessWidget {
     this.focusNode,
     this.autofocus = false,
     this.semanticLabel,
-    this.menuChildren,
-    this.menuController,
     super.key,
   }) : _variant = _Variant.prominentClear;
 
-  /// Called when the button is pressed; null disables it, except for a
-  /// button with [menuChildren], which a tap then opens.
+  /// Called when the button is pressed; null disables it.
   final VoidCallback? onPressed;
-
-  /// The entries of the menu the button's glass grows into, or null for a
-  /// button without a menu.
-  ///
-  /// UIKit: `UIButton.menu`. SwiftUI: `Menu`. Flutter: `MenuAnchor`. The
-  /// core without the button's look is [RawGlassMenu].
-  ///
-  /// Without [onPressed] a tap opens the menu on its release and a hold
-  /// opens it under the finger (UIKit's `showsMenuAsPrimaryAction`); with
-  /// it a tap presses the button and only a hold opens the menu. The menu
-  /// grows out of the button on UIKit's liquid morph springs, the button
-  /// and the menu one glass body joined by a neck while they part, and a
-  /// finger slides over its rows and chooses the one it lifts from (read
-  /// from UIKit and replayed against iPhone 16 Pro recordings). Escape,
-  /// Back and a tap outside close it. A button with a menu takes its focus
-  /// and states from the menu: it ignores [statesController], [focusNode],
-  /// [autofocus] and the [style]'s builder.
-  final List<GlassMenuEntry>? menuChildren;
-
-  /// Opens and closes the button's menu from code.
-  final GlassMenuController? menuController;
 
   /// The label.
   final Widget child;
@@ -494,37 +466,6 @@ class GlassButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final menu = menuChildren;
-    if (menu != null) return _menuButton(context, menu);
-    return _button(context);
-  }
-
-  static final _restingBody = MotionSelection(() => const GlassFrame());
-
-  Widget _menuButton(BuildContext context, List<GlassMenuEntry> menu) {
-    const states = <WidgetState>{};
-    return RawGlassMenu(
-      entries: menu,
-      onPressed: onPressed,
-      controller: menuController,
-      semanticLabel: semanticLabel,
-      label: _label(context, states, child),
-      tint: GlassDynamicColor.maybeResolve(
-        _lookOf(context).backgroundColor?.resolve(states),
-        context,
-      ),
-      child: _defaultBody(
-        context,
-        GlassButtonDetails(
-          body: _restingBody,
-          states: states,
-          label: child,
-        ),
-      ),
-    );
-  }
-
-  Widget _button(BuildContext context) {
     if (GlassSourceLink.maybeOf(context) case final link?) {
       final states = {if (onPressed == null) WidgetState.disabled};
       link.look = _label(context, states, child);
@@ -611,6 +552,3 @@ class GlassButton extends StatelessWidget {
     );
   }
 }
-
-/// The frame of a glass button at rest: a menu button's glass stands
-/// still, the menu's motion lifts it.

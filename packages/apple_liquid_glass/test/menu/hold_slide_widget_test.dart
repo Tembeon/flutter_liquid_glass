@@ -27,9 +27,7 @@ void main() {
           children: [
             const SizedBox(height: 220),
             Center(
-              child: GlassButton(
-                key: const Key('button'),
-                onPressed: null,
+              child: GlassMenuAnchor(
                 menuChildren: [
                   for (final title in ['Copy', 'Share', 'Rename', 'Delete'])
                     GlassMenuItem(
@@ -37,7 +35,11 @@ void main() {
                       onPressed: () => log.add(title),
                     ),
                 ],
-                child: const Text('More'),
+                builder: (context, controller, child) => GlassButton(
+                  key: const Key('button'),
+                  onPressed: controller.open,
+                  child: const Text('More'),
+                ),
               ),
             ),
             const SizedBox(height: 2000),

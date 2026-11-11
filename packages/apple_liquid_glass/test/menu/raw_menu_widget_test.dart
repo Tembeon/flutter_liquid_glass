@@ -30,11 +30,10 @@ void main() {
           child: child!,
         ),
         home: Center(
-          child: RawGlassMenu(
+          child: GlassMenuAnchor(
             key: const Key('source'),
-            onPressed: onPressed,
             style: style,
-            entries: [
+            menuChildren: [
               for (final title in ['Copy', 'Share'])
                 GlassMenuItem(title: title, onPressed: () => log.add(title)),
               GlassMenuItem(
@@ -43,7 +42,11 @@ void main() {
                 onPressed: () => log.add('Delete'),
               ),
             ],
-            label: const Text('Label'),
+            builder: (context, controller, child) => RawGlassButton(
+              onPressed: onPressed ?? controller.open,
+              builder: (context, details) => details.label,
+              child: child!,
+            ),
             child: const SizedBox(width: 120, height: 44, child: Text('Face')),
           ),
         ),
@@ -58,18 +61,22 @@ void main() {
     }
   }
 
-  testWidgets('an app face opens the menu on a tap and chooses a row', (
-    tester,
-  ) async {
-    final log = await pumpMenu(tester);
-    await tester.tap(find.byKey(const Key('source')));
-    await settle(tester);
-    expect(find.text('Copy'), findsOneWidget);
-    await tester.tap(find.text('Copy'));
-    await settle(tester);
-    expect(log, ['Copy']);
-    expect(find.text('Copy'), findsNothing);
-  });
+  testWidgets(
+    'a raw button whose action opens the menu opens it on a tap and '
+    'chooses a row',
+    (
+      tester,
+    ) async {
+      final log = await pumpMenu(tester);
+      await tester.tap(find.byKey(const Key('source')));
+      await settle(tester);
+      expect(find.text('Copy'), findsOneWidget);
+      await tester.tap(find.text('Copy'));
+      await settle(tester);
+      expect(log, ['Copy']);
+      expect(find.text('Copy'), findsNothing);
+    },
+  );
 
   testWidgets('with onPressed a tap calls it and opens no menu', (
     tester,

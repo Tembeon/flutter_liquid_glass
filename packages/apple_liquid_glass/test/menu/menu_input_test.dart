@@ -39,11 +39,10 @@ List<GlassMenuEntry> _entries(List<String> log) => [
   ),
 ];
 
-Widget _menu(List<String> log) => RawGlassMenu(
+Widget _menu(List<String> log) => GlassMenuAnchor(
   key: const Key('source'),
   semanticLabel: 'More',
-  entries: _entries(log),
-  label: const Text('More'),
+  menuChildren: _entries(log),
   child: const SizedBox(width: 120, height: 44, child: Text('More')),
 );
 
