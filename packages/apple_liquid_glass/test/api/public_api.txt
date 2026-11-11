@@ -2794,6 +2794,10 @@ class NavigationPopMotion
   double get averageAcceleration
   double get averageVelocity
   void begin(double t, {double progress = ...})
+  static double contentFunnel(double along)
+  static const double contentHysteresis
+  static const double edgeHysteresis
+  static const double edgeShare
   static const double flickBoost
   static const double flickThreshold
   static const double predictionDistance
@@ -2843,6 +2847,11 @@ abstract class PageMotion extends Motion with Presented
   double get progress
   abstract void showInPlace(double t)
   abstract void start(double t)
+  static double transitionOrigin({
+    required double call,
+    required double firstFrame,
+    required double? framePeriod,
+  })
   overrides: minFrameRate
 final class PageSlideMotion extends PageMotion with PredictiveBack
   PageSlideMotion()

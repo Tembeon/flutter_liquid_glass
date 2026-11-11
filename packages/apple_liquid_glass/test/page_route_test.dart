@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass/src/motions/navigation_motion.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -371,14 +370,25 @@ void main() {
   test('a transition counts from the call, or a period before a late first '
       'frame', () {
     expect(
-      transitionOrigin(call: 1, firstFrame: 1.016, framePeriod: 1 / 60),
+      PageMotion.transitionOrigin(
+        call: 1,
+        firstFrame: 1.016,
+        framePeriod: 1 / 60,
+      ),
       1,
     );
     expect(
-      transitionOrigin(call: 1, firstFrame: 1.1, framePeriod: 1 / 60),
+      PageMotion.transitionOrigin(
+        call: 1,
+        firstFrame: 1.1,
+        framePeriod: 1 / 60,
+      ),
       closeTo(1.1 - 1 / 60, 1e-12),
     );
-    expect(transitionOrigin(call: 1, firstFrame: 1.1, framePeriod: null), 1);
+    expect(
+      PageMotion.transitionOrigin(call: 1, firstFrame: 1.1, framePeriod: null),
+      1,
+    );
   });
 
   testWidgets('right to left, the page slides in from the left', (

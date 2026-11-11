@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motions/navigation_motion.dart';
+import 'package:apple_liquid_glass/src/motions/sheet_motion.dart';
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
@@ -189,7 +190,7 @@ final class ZoomPageMotion extends PageMotion with Sourced {
 
   /// The radius of the display's corners, which the container's corners
   /// turn into.
-  double displayRadius = NavigationTuning.fallbackCardRadius;
+  double displayRadius = SheetTuning.fallbackDisplayRadius;
 
   late final _cx = own(
     MotionValue<double>(0, spring: tuning.openSpring),

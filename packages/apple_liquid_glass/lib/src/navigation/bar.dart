@@ -5,7 +5,6 @@ import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/presentations.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/motions/bar_layout.dart';
-import 'package:apple_liquid_glass/src/motions/navigation_motion.dart';
 import 'package:apple_liquid_glass/src/navigation/bar_entry.dart';
 import 'package:apple_liquid_glass/src/navigation/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/navigation/toolbar.dart';
@@ -15,6 +14,13 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
+
+/// The share of an interactive pop's progress the navigation bar's capsules
+/// lean toward their places on the page below while the finger drags the
+/// page: half the way when the page is fully out (device fit over four
+/// swipes, 0.16 - 0.27 points rms).
+@internal
+const double glassBarDrift = 0.5;
 
 /// What a page declares to its navigator's bar.
 @internal
@@ -418,7 +424,7 @@ final class GlassBarHost {
 
   /// Reports that a finger began to drag [link]'s page toward a pop: until
   /// it ends, each navigation bar capsule the page below also has leans
-  /// toward its place there by [NavigationTuning.barDrift] of the page's
+  /// toward its place there by [glassBarDrift] of the page's
   /// way out; the toolbar stays.
   void swipeStarted(GlassPageBarLink link) {
     if (!identical(link, _shown) || link._below == null) return;
@@ -446,7 +452,7 @@ final class GlassBarHost {
     if (presence == null) return;
     _bars[GlassBarKind.navigation]!.motion.setDrift(
       _swiped?._below?._layouts[GlassBarKind.navigation],
-      NavigationTuning.barDrift * (1 - presence.value).clamp(0.0, 1.0),
+      glassBarDrift * (1 - presence.value).clamp(0.0, 1.0),
     );
   }
 

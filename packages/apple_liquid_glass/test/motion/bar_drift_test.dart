@@ -4,7 +4,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motions/bar_motion.dart';
-import 'package:apple_liquid_glass/src/motions/navigation_motion.dart';
+import 'package:apple_liquid_glass/src/navigation/bar.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 List<Map<String, Object?>> _rows(String path) => [
@@ -94,7 +94,7 @@ void main() {
           _ => null,
         };
         if (id == null) continue;
-        motion.setDrift(list, NavigationTuning.barDrift * p);
+        motion.setDrift(list, glassBarDrift * p);
         final frame = motion.capsuleFrame(id)!.rect;
         own.add(frame.width - w);
         own.add(frame.center.dx - x);

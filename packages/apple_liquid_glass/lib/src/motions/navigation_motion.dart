@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/motions/sheet_motion.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/motion.dart';
@@ -27,65 +26,11 @@ abstract final class NavigationTuning {
   /// 8.77 (fits the device push rows within 0.9 pt).
   static const double pushVelocity = 8.77;
 
-  /// The share of the page the page underneath keeps on screen: it moves by
-  /// the width less 0.7 of it, rounded (read from UIKit).
-  static const double underneathKeeps = 0.7;
-
-  /// The opacity of the black over the page underneath when the page on
-  /// top covers it fully; it follows the top page's progress linearly
-  /// (read from UIKit; iPhone 16 Pro held edge samples agree).
-  static const double underDimOpacity = 0.1;
-
-  /// The corner radius of a sliding page where the platform reports no
-  /// display corner radius: the moving pages are cards with the display's
-  /// corners, square again at rest (read from UIKit; 62 fits a simulator
-  /// film of an iPhone 17 Pro, as [SheetTuning.fallbackDisplayRadius]).
-  static const double fallbackCardRadius = SheetTuning.fallbackDisplayRadius;
-
-  /// The shadow of a sliding card: black at 4 percent, radius 12, offset
-  /// (0, -3) (read from UIKit; not filmed).
-  static const double cardShadowOpacity = 0.04;
-
-  /// See [cardShadowOpacity].
-  static const double cardShadowRadius = 12;
-
-  /// See [cardShadowOpacity].
-  static const double cardShadowOffset = -3;
-
-  /// The width of the screen edge an interactive pop starts from: 13
-  /// points, or 9 percent of the portrait width on phones with thin bezels
-  /// (read from UIKit; which branch an iPhone 16 Pro takes is not read, the
-  /// port takes the thin-bezel one).
-  static const double edgeShare = 0.09;
-
-  /// How far a finger on the edge moves before the pop begins (read from
-  /// UIKit).
-  static const double edgeHysteresis = 15;
-
-  /// How far a finger away from the edge moves along the page before the
-  /// pop begins, or the wrong way before it fails (read from UIKit; the
-  /// content swipe of `UINavigationController`).
-  static const double contentHysteresis = 30;
-
-  /// The most a finger away from the edge may move across the page before
-  /// the pop begins: min(25, 0.8 |tx| + 10) points, which a straight drag
-  /// passes up to about 40 degrees (read from UIKit). On a vertical list
-  /// the list's own drag takes steeper ones first; the device cut-off there
-  /// is 29 to 30 degrees (device recordings).
-  static double contentFunnel(double along) =>
-      math.min(25, 0.8 * along.abs() + 10);
-
   /// The drag progress, rubber banded past either end of its travel as
   /// UIKit does: at most half the page's width past an end, with the
   /// coefficient 0.55 (read from UIKit; the coefficient is UIKit's default
   /// for scrolling, assumed for touch).
   static const Band band = Band(0, 1, dimension: 0.5);
-
-  /// The share of an interactive pop's progress the navigation bar's
-  /// capsules lean toward their places on the page below while the finger
-  /// drags the page: half the way when the page is fully out (device fit
-  /// over four swipes, 0.16 - 0.27 points rms).
-  static const double barDrift = 0.5;
 
   /// The seconds a push or pop without a finger cross-fades for under
   /// Prefer Cross-Fade Transitions (`GlassTraits.prefersCrossFade`), on
@@ -96,19 +41,6 @@ abstract final class NavigationTuning {
   /// The easing of the cross-fade: UIView's default animation curve.
   static const Curve crossFadeCurve = Curves.easeInOut;
 }
-
-/// The time a navigation transition counts from, shared by the page's slide
-/// and the bar: the push or pop [call], unless the first frame after it
-/// came more than a display period later, in which case the motion starts
-/// one period before that frame, so a slow first frame delays the motion
-/// and skips none of it (navigation pages passport). Without a frame
-/// period yet, the call.
-@internal
-double transitionOrigin({
-  required double call,
-  required double firstFrame,
-  required double? framePeriod,
-}) => framePeriod == null ? call : math.max(call, firstFrame - framePeriod);
 
 /// Predicts whether an interactive back swipe completes.
 ///
@@ -149,6 +81,30 @@ class NavigationPopMotion {
   /// The settle-speed boost while the initial flick phase persists.
   /// Read from UIKit on iOS 27.0.1, notes private.
   static const double flickBoost = 4.25;
+
+  /// The share of the page's width at its leading edge an interactive pop
+  /// starts from: 13 points, or 9 percent of the portrait width on phones
+  /// with thin bezels (read from UIKit; which branch an iPhone 16 Pro takes
+  /// is not read, the port takes the thin-bezel one).
+  static const double edgeShare = 0.09;
+
+  /// How far a finger on the edge moves before the pop begins, in points
+  /// (read from UIKit).
+  static const double edgeHysteresis = 15;
+
+  /// How far a finger away from the edge moves along the page before the
+  /// pop begins, or the wrong way before it fails, in points (read from
+  /// UIKit; the content swipe of `UINavigationController`).
+  static const double contentHysteresis = 30;
+
+  /// The most a finger away from the edge may move across the page, in
+  /// points, before the pop begins, for a move [along] the page:
+  /// min(25, 0.8 |tx| + 10), which a straight drag passes up to about 40
+  /// degrees (read from UIKit). On a vertical list the list's own drag
+  /// takes steeper ones first; the device cut-off there is 29 to 30
+  /// degrees (device recordings).
+  static double contentFunnel(double along) =>
+      math.min(25, 0.8 * along.abs() + 10);
 
   final _velocities = List<double>.filled(3, 0);
   final _accelerations = List<double>.filled(3, 0);
@@ -288,6 +244,18 @@ abstract class PageMotion extends Motion with Presented {
 
   /// Whether the page is shown or opening, not leaving.
   bool get isShown;
+
+  /// The time a navigation transition counts from, shared by the page's
+  /// slide and the bar: the push or pop [call], unless the first frame
+  /// after it came more than a display period later, in which case the
+  /// motion starts one period before that frame, so a slow first frame
+  /// delays the motion and skips none of it (navigation pages passport).
+  /// Without a frame period yet, the call.
+  static double transitionOrigin({
+    required double call,
+    required double firstFrame,
+    required double? framePeriod,
+  }) => framePeriod == null ? call : math.max(call, firstFrame - framePeriod);
 
   /// Starts at [t] the open that [open] committed: the first frame after
   /// the push picks [t] ([transitionOrigin]).

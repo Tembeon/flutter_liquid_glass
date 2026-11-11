@@ -1,6 +1,5 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
-import 'package:apple_liquid_glass/src/motions/navigation_motion.dart';
 import 'package:apple_liquid_glass/src/navigation/bar.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -265,7 +264,7 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
     return clock.schedule(clock.now, (firstFrame) {
       if (!_motion.isShown) return;
       _motion.start(
-        transitionOrigin(
+        PageMotion.transitionOrigin(
           call: _presented,
           firstFrame: firstFrame,
           framePeriod: clock.framePeriod,
@@ -367,17 +366,38 @@ class _SlideState extends State<_Slide> {
   }
 }
 
+/// The share of the page the page underneath keeps on screen: it moves by
+/// the width less 0.7 of it, rounded (read from UIKit).
+const double _underneathKeeps = 0.7;
+
+/// The opacity of the black over the page underneath when the page on top
+/// covers it fully; it follows the top page's progress linearly (read from
+/// UIKit; iPhone 16 Pro held edge samples agree).
+const double _underDimOpacity = 0.1;
+
+/// The corner radius of a sliding page where the platform reports no
+/// display corner radius: the moving pages are cards with the display's
+/// corners, square again at rest (read from UIKit; 62 fits a simulator film
+/// of an iPhone 17 Pro).
+const double _fallbackCardRadius = 62;
+
+/// The shadow of a sliding card: black at 4 percent, radius 12, offset
+/// (0, -3) (read from UIKit; not filmed).
+const double _cardShadowOpacity = 0.04;
+const double _cardShadowRadius = 12;
+const double _cardShadowOffset = -3;
+
 BorderRadius _cardRadius(BuildContext context) =>
     MediaQuery.maybeDisplayCornerRadiiOf(context) ??
     const BorderRadius.all(
-      Radius.circular(NavigationTuning.fallbackCardRadius),
+      Radius.circular(_fallbackCardRadius),
     );
 
 /// The interactive pop: a touch on the page that moves along it toward
 /// the trailing side drags the page, and its release pops or returns the
 /// page as UIKit predicts. A touch on the leading edge begins after
-/// [NavigationTuning.edgeHysteresis]; one elsewhere, UIKit's content
-/// swipe, after [NavigationTuning.contentHysteresis] inside its funnel, so
+/// [NavigationPopMotion.edgeHysteresis]; one elsewhere, UIKit's content
+/// swipe, after [NavigationPopMotion.contentHysteresis] inside its funnel, so
 /// the page's own drags and scrolls take the touches they claim first.
 final class _SwipePop extends Interaction {
   _SwipePop(this._slide) : super(role: InteractionRole.gesture);
@@ -408,7 +428,7 @@ final class _SwipePop extends Interaction {
         _pointer = input.pointer;
         _start = input.position;
         final x = rtl ? _width - input.position.dx : input.position.dx;
-        _fromEdge = x <= _width * NavigationTuning.edgeShare;
+        _fromEdge = x <= _width * NavigationPopMotion.edgeShare;
         _dragging = false;
         _predictor = NavigationPopMotion(_width);
         _predictor.addPosition(input.time, _along(input.position));
@@ -419,15 +439,15 @@ final class _SwipePop extends Interaction {
         final travel = along - _along(_start);
         if (!_dragging) {
           if (_fromEdge) {
-            if (travel.abs() < NavigationTuning.edgeHysteresis) break;
+            if (travel.abs() < NavigationPopMotion.edgeHysteresis) break;
           } else {
             final across = (input.position.dy - _start.dy).abs();
-            if (across >= NavigationTuning.contentFunnel(travel) ||
-                travel <= -NavigationTuning.contentHysteresis) {
+            if (across >= NavigationPopMotion.contentFunnel(travel) ||
+                travel <= -NavigationPopMotion.contentHysteresis) {
               _pointer = null;
               return const InteractionUpdate(fails: true);
             }
-            if (travel < NavigationTuning.contentHysteresis) break;
+            if (travel < NavigationPopMotion.contentHysteresis) break;
           }
           _dragging = true;
           _start = input.position;
@@ -581,7 +601,7 @@ class _RenderCard extends RenderProxyBox {
     if (p == null) return 0;
     final width = size.width;
     if (top) return (1 - p) * width * (_rtl ? -1 : 1);
-    final aside = width - (NavigationTuning.underneathKeeps * width).round();
+    final aside = width - (_underneathKeeps * width).round();
     return -aside * p.clamp(0.0, 1.0) * (_rtl ? -1 : 1);
   }
 
@@ -642,15 +662,15 @@ class _RenderCard extends RenderProxyBox {
       if (top) {
         final shadow = Paint();
         shadow.color = const Color(0xFF000000).withValues(
-          alpha: NavigationTuning.cardShadowOpacity,
+          alpha: _cardShadowOpacity,
         );
         shadow.maskFilter = const MaskFilter.blur(
           BlurStyle.normal,
-          NavigationTuning.cardShadowRadius / 2,
+          _cardShadowRadius / 2,
         );
         context.canvas.drawRRect(
           card.shift(
-            offset + const Offset(0, NavigationTuning.cardShadowOffset),
+            offset + const Offset(0, _cardShadowOffset),
           ),
           shadow,
         );
@@ -665,7 +685,7 @@ class _RenderCard extends RenderProxyBox {
           if (!top) {
             final dim = Paint();
             dim.color = const Color(0xFF000000).withValues(
-              alpha: NavigationTuning.underDimOpacity * p.clamp(0.0, 1.0),
+              alpha: _underDimOpacity * p.clamp(0.0, 1.0),
             );
             context.canvas.drawRect(offset & size, dim);
           }
