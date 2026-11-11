@@ -900,6 +900,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return frame;
   }
 
+  // Four answers, read in this order because each needs more of the glass
+  // than the one before: none (no slot, no bounds or nothing drawn: no read),
+  // turned (flipped, rotated or skewed: a copy taken in screen space cannot
+  // stand for it, so the read stays live and the look is not asked), scaled
+  // (the full answer kept out of every group, NoJoin.scaled) and full (the
+  // copy need, the look and this frame's place for the glass's own draws).
+  // Only the full answer sets [_frame]: a turned glass draws no read of a
+  // copy.
   @override
   SiteAsk ask() {
     _frame = null;
@@ -982,7 +990,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         );
     final frost = need.shaderFrost;
     final appearance = _uniformAppearance ?? defaultAppearance;
-    _frame = (screen: screen, logical: logical, frost: frost);
+    _frame = (screen: screen, logical: logical, shaderFrost: frost);
     return SiteAsk(
       drawn: drawn,
       reads: reads,
@@ -1191,7 +1199,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final draw = _readDraw(
       read,
       frame,
-      corner.glassSampling(frame.frost),
+      corner.glassSampling(frame.shaderFrost),
       band: look == null
           ? null
           : (
@@ -1216,7 +1224,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final draw = _readDraw(
       read,
       frame,
-      page.glassSampling(frame.frost),
+      page.glassSampling(frame.shaderFrost),
       band: look == null
           ? null
           : (
@@ -1790,4 +1798,4 @@ extension RenderLiquidGlassLayerDebug on RenderLiquidGlassLayer {
 // frosted by [whole] device pixels, of which [held] is in what it reads.
 typedef _BandAt = ({BandLook look, Rect shown, double whole, double held});
 
-typedef _Frame = ({Matrix4 screen, Rect logical, double frost});
+typedef _Frame = ({Matrix4 screen, Rect logical, double shaderFrost});
