@@ -384,6 +384,78 @@ class InputRegion extends StatefulWidget
   final String? semanticLabel
   final WidgetStatesController? statesController
   overrides: createState
+class InputZone<T extends Object>
+  const InputZone({
+    required T id,
+    List<Interaction> interactions = ...,
+    bool enabled = ...,
+    MouseCursor? mouseCursor,
+    Size? minimumHitSize,
+    bool autofocus = ...,
+    String? semanticLabel,
+    String? semanticValue,
+    bool button = ...,
+    bool? selected,
+    bool? checked,
+    bool? toggled,
+    SemanticsRole? semanticsRole,
+    void Function(SemanticsConfiguration)? describeSemantics,
+  })
+  final bool autofocus
+  final bool button
+  final bool? checked
+  final void Function(SemanticsConfiguration)? describeSemantics
+  final bool enabled
+  final T id
+  final List<Interaction> interactions
+  final Size? minimumHitSize
+  final MouseCursor? mouseCursor
+  final bool? selected
+  final String? semanticLabel
+  final String? semanticValue
+  final SemanticsRole? semanticsRole
+  final bool? toggled
+final class InputZoneFrame
+  const InputZoneFrame(Rect rect, {double opacity = ..., bool takesInput = ...})
+  bool get live
+  static const double minimumOpacity
+  final double opacity
+  final Rect rect
+  final bool takesInput
+  overrides: ==, hashCode
+class InputZones<T extends Object> extends StatefulWidget
+  const InputZones({
+    required List<InputZone<T>> zones,
+    required InputZoneFrame? Function(T) frameOf,
+    required Listenable frames,
+    required Widget child,
+    InputZonesController<T>? controller,
+    Axis? axis = ...,
+    bool slides = ...,
+    MotionHaptic? Function(T, InteractionEvent)? feedback,
+    bool Function(T, TraversalDirection)? onEdge,
+    InputPort? port,
+    bool excludeChildSemantics = ...,
+    Key? key,
+  })
+  final Axis? axis
+  final Widget child
+  final InputZonesController<T>? controller
+  final bool excludeChildSemantics
+  final MotionHaptic? Function(T, InteractionEvent)? feedback
+  final InputZoneFrame? Function(T) frameOf
+  final Listenable frames
+  final bool Function(T, TraversalDirection)? onEdge
+  final InputPort? port
+  final bool slides
+  final List<InputZone<T>> zones
+  overrides: createState
+class InputZonesController<T extends Object> extends ChangeNotifier
+  InputZonesController()
+  T? get focusedZone
+  bool requestFocus(T zone)
+  Set<WidgetState> statesOf(T zone)
+  void update(T zone, WidgetState state, {required bool add})
 class Interaction (see package:kinesis/input.dart)
 class InteractionEvent (see package:kinesis/input.dart)
 class InteractionInput (see package:kinesis/input.dart)
@@ -1228,6 +1300,10 @@ class ManualMotionClock extends MotionClock
 class AdjustValueIntent (see package:kinesis/kinesis.dart)
 mixin ControlStates (see package:kinesis/kinesis.dart)
 class InputRegion (see package:kinesis/kinesis.dart)
+class InputZone (see package:kinesis/kinesis.dart)
+class InputZoneFrame (see package:kinesis/kinesis.dart)
+class InputZones (see package:kinesis/kinesis.dart)
+class InputZonesController (see package:kinesis/kinesis.dart)
 class MotionDriven (see package:kinesis/kinesis.dart)
 extension MotionHapticPlay (see package:kinesis/kinesis.dart)
 class MotionHapticScope (see package:kinesis/kinesis.dart)
