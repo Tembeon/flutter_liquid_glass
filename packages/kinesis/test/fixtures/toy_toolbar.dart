@@ -77,6 +77,9 @@ class ToyToolbar extends StatefulWidget {
     this.feedback,
     this.port,
     this.axis = Axis.horizontal,
+    this.stops = InputZoneStops.each,
+    this.current,
+    this.activatesOnMove = false,
     super.key,
   });
 
@@ -109,6 +112,15 @@ class ToyToolbar extends StatefulWidget {
 
   /// The axis of the arrows.
   final Axis? axis;
+
+  /// Where Tab stops among the items.
+  final InputZoneStops stops;
+
+  /// The item Tab enters a single stop at.
+  final String? current;
+
+  /// Whether an arrow activates the item it moves to.
+  final bool activatesOnMove;
 
   @override
   State<ToyToolbar> createState() => _ToyToolbarState();
@@ -153,6 +165,9 @@ class _ToyToolbarState extends State<ToyToolbar> {
       feedback: widget.feedback,
       port: widget.port,
       axis: widget.axis,
+      stops: widget.stops,
+      current: widget.current,
+      activatesOnMove: widget.activatesOnMove,
       child: Semantics(
         label: 'paint',
         child: _Counted(

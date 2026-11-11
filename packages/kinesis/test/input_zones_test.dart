@@ -106,6 +106,9 @@ void main() {
     ToyCounts? counts,
     InputPort? port,
     Axis? axis = Axis.horizontal,
+    InputZoneStops stops = InputZoneStops.each,
+    String? current,
+    bool activatesOnMove = false,
   }) => ToyToolbar(
     motion: motion,
     controller: zones,
@@ -116,6 +119,9 @@ void main() {
     counts: counts,
     port: port,
     axis: axis,
+    stops: stops,
+    current: current,
+    activatesOnMove: activatesOnMove,
     feedback: (item, event) => switch (event) {
       ActivationEvent() => MotionHaptic.lightImpact,
       ScrubChangeEvent(atDown: false) => MotionHaptic.selection,
@@ -424,6 +430,117 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
       expect(zones.focusedZone, 'c');
+    });
+
+    group('one stop', () {
+      late FocusNode after;
+
+      setUp(() => after = FocusNode(debugLabel: 'after'));
+      tearDown(() => after.dispose());
+
+      Widget group({String? current, bool activatesOnMove = false}) => _app(
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            toolbar(
+              stops: InputZoneStops.one,
+              current: current,
+              activatesOnMove: activatesOnMove,
+            ),
+            Focus(
+              focusNode: after,
+              child: const SizedBox(width: 10, height: 10),
+            ),
+          ],
+        ),
+      );
+
+      Future<void> tab(WidgetTester tester, {bool back = false}) async {
+        if (back) await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        if (back) await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+        await tester.pump();
+      }
+
+      testWidgets('Tab enters at the current zone and leaves on the next '
+          'Tab, both ways', (tester) async {
+        await tester.pumpWidget(group(current: 'b'));
+        await tab(tester);
+        expect(zones.focusedZone, 'b');
+        expect(zones.statesOf('b'), contains(WidgetState.focused));
+        await tab(tester);
+        expect(after.hasPrimaryFocus, isTrue);
+        await tab(tester, back: true);
+        expect(zones.focusedZone, 'b');
+        await tab(tester, back: true);
+        expect(zones.focusedZone, isNull);
+      });
+
+      testWidgets('the arrows, Home and End move among the zones, and Tab '
+          'comes back to the zone focused last', (tester) async {
+        await tester.pumpWidget(group());
+        await tab(tester);
+        expect(zones.focusedZone, 'a');
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+        await tester.pump();
+        expect(zones.focusedZone, 'b');
+        await tester.sendKeyEvent(LogicalKeyboardKey.end);
+        await tester.pump();
+        expect(zones.focusedZone, 'c');
+        await tester.sendKeyEvent(LogicalKeyboardKey.home);
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+        await tester.pump();
+        expect(zones.focusedZone, 'b');
+        await tab(tester);
+        expect(after.hasPrimaryFocus, isTrue);
+        await tab(tester, back: true);
+        expect(zones.focusedZone, 'b');
+        expect(pressed, isEmpty);
+      });
+
+      testWidgets('a zone that cannot take focus is not where Tab enters', (
+        tester,
+      ) async {
+        await tester.pumpWidget(group(current: 'b'));
+        motion.leaving.add('b');
+        motion.changed();
+        await tester.pump();
+        await tab(tester);
+        expect(zones.focusedZone, 'a');
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+        await tester.pump();
+        expect(zones.focusedZone, 'c');
+      });
+
+      testWidgets('with activatesOnMove the zone an arrow, Home or End '
+          'reaches is activated, with no haptic', (tester) async {
+        await tester.pumpWidget(group(current: 'a', activatesOnMove: true));
+        await tab(tester);
+        expect(pressed, isEmpty);
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+        await tester.sendKeyEvent(LogicalKeyboardKey.end);
+        await tester.sendKeyEvent(LogicalKeyboardKey.home);
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.space);
+        expect(pressed, ['b', 'c', 'a', 'a']);
+        expect(haptics, isEmpty);
+      });
+
+      testWidgets('assistive technology still reaches every zone', (
+        tester,
+      ) async {
+        final handle = tester.ensureSemantics();
+        await tester.pumpWidget(group(current: 'b'));
+        for (final item in ToyMotion.items) {
+          final data = tester
+              .getSemantics(find.bySemanticsLabel('Item $item'))
+              .getSemanticsData();
+          expect(data.hasAction(SemanticsAction.focus), isTrue, reason: item);
+        }
+        handle.dispose();
+      });
     });
 
     testWidgets('the arrows move along the zones, Home and End reach the '

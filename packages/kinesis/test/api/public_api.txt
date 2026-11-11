@@ -452,6 +452,9 @@ final class InputZoneFrame
   final Rect rect
   final bool takesInput
   overrides: ==, hashCode
+enum InputZoneStops
+  each,
+  one,
 class InputZones<T extends Object> extends StatefulWidget
   const InputZones({
     required List<InputZone<T>> zones,
@@ -460,6 +463,9 @@ class InputZones<T extends Object> extends StatefulWidget
     required Widget child,
     InputZonesController<T>? controller,
     Axis? axis = ...,
+    InputZoneStops stops = ...,
+    T? current,
+    bool activatesOnMove = ...,
     bool slides = ...,
     MotionHaptic? Function(T, InteractionEvent)? feedback,
     bool Function(T, TraversalDirection)? onEdge,
@@ -467,9 +473,11 @@ class InputZones<T extends Object> extends StatefulWidget
     bool excludeChildSemantics = ...,
     Key? key,
   })
+  final bool activatesOnMove
   final Axis? axis
   final Widget child
   final InputZonesController<T>? controller
+  final T? current
   final bool excludeChildSemantics
   final MotionHaptic? Function(T, InteractionEvent)? feedback
   final InputZoneFrame? Function(T) frameOf
@@ -477,6 +485,7 @@ class InputZones<T extends Object> extends StatefulWidget
   final bool Function(T, TraversalDirection)? onEdge
   final InputPort? port
   final bool slides
+  final InputZoneStops stops
   final List<InputZone<T>> zones
   overrides: createState
 class InputZonesController<T extends Object> extends ChangeNotifier
@@ -1332,6 +1341,7 @@ mixin ControlStates (see package:kinesis/kinesis.dart)
 class InputRegion (see package:kinesis/kinesis.dart)
 class InputZone (see package:kinesis/kinesis.dart)
 class InputZoneFrame (see package:kinesis/kinesis.dart)
+enum InputZoneStops (see package:kinesis/kinesis.dart)
 class InputZones (see package:kinesis/kinesis.dart)
 class InputZonesController (see package:kinesis/kinesis.dart)
 class MotionDriven (see package:kinesis/kinesis.dart)

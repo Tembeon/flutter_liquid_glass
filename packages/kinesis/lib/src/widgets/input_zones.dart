@@ -298,6 +298,23 @@ final class _ZoneSource<T extends Object> implements SourceView {
   void sourceHiddenChanged() => controller._sourceHiddenChanged();
 }
 
+/// Where Tab stops among the zones of an [InputZones] host.
+///
+/// WAI-ARIA: the tab sequence of a composite widget, every item or one
+/// roving stop. Flutter: a `FocusTraversalGroup` whose items are all in
+/// traversal, or a `RadioGroup`, whose radios Tab treats as one.
+enum InputZoneStops {
+  /// Every zone that takes a key is a stop of its own: the buttons of a
+  /// dialog, the items of a toolbar.
+  each,
+
+  /// The host is one stop: Tab enters at [InputZones.current] (the
+  /// selected item), else at the zone focused last, else at the first, and
+  /// the next Tab leaves the group; the arrows, Home and End move among
+  /// the zones. A segmented control, a tab bar, a radio-like group.
+  one,
+}
+
 /// Gives each of the interactive [zones] a control paints inside [child]
 /// what an `InputRegion` gives a box: touch, mouse, focus, keys,
 /// semantics, states and haptics, while the zones move every frame.
@@ -355,20 +372,24 @@ final class _ZoneSource<T extends Object> implements SourceView {
 /// entered and left with the next frame. The secondary button and the
 /// scroll wheel reach a zone's interactions that take them.
 ///
-/// Focus: each zone has a focus node, made and disposed with the zone. Tab
-/// visits the zones in the order of [zones] (other focusable widgets
-/// inside [child] come after them), skipping zones that take no key (no
-/// interaction activates or adjusts) or no input now. The arrows move
-/// between zones: along [axis] in the order of [zones], mirrored in
-/// right-to-left for a horizontal axis, or to the nearest zone on screen
-/// when [axis] is null; Home and End reach the first and the last zone.
-/// An arrow with no zone in its direction (past the last one, or across
-/// [axis]) asks [onEdge], then moves focus as Flutter's directional focus
-/// does, which may leave the host. A zone whose interaction
-/// adjusts keeps the arrows, Home and End for its value
-/// (`AdjustValueIntent.defaultShortcuts`). Space and Enter activate the
-/// focused zone through `ActivateIntent`, which an app overrides with
-/// `Actions` above the host, as for `InputRegion`.
+/// Focus: each zone has a focus node, made and disposed with the zone. A zone
+/// can take focus while it takes input now, and is a focus target for the keys
+/// while an interaction also activates or adjusts. With [stops] at
+/// [InputZoneStops.each], Tab visits the targets in the order of [zones] (other
+/// focusable widgets inside [child] come after them); at [InputZoneStops.one]
+/// the host is a single stop that Tab enters at [current] or at the zone
+/// focused last. Assistive technology reaches every zone that can take focus
+/// either way. The arrows move between targets: along [axis] in the order of
+/// [zones], mirrored in right-to-left for a horizontal axis, or to the nearest
+/// zone on screen when [axis] is null; Home and End reach the first and the
+/// last target. With [activatesOnMove], the zone an arrow, Home or End moves to
+/// is also activated, as a keyboard activation: a selection that follows focus.
+/// An arrow with no zone in its direction (past the last one, or across [axis])
+/// asks [onEdge], then moves focus as Flutter's directional focus does, which
+/// may leave the host. A zone whose interaction adjusts keeps the arrows, Home
+/// and End for its value (`AdjustValueIntent.defaultShortcuts`). Space and
+/// Enter activate the focused zone through `ActivateIntent`, which an app
+/// overrides with `Actions` above the host, as for `InputRegion`.
 ///
 /// Semantics: each zone that is [InputZoneFrame.live] is one semantics
 /// node over its hit rectangle, which follows [frameOf], with its label,
@@ -388,6 +409,9 @@ class InputZones<T extends Object> extends StatefulWidget {
     required this.child,
     this.controller,
     this.axis = Axis.horizontal,
+    this.stops = InputZoneStops.each,
+    this.current,
+    this.activatesOnMove = false,
     this.slides = false,
     this.feedback,
     this.onEdge,
@@ -418,6 +442,19 @@ class InputZones<T extends Object> extends StatefulWidget {
   /// The axis the arrows move along in the order of [zones], or null to
   /// move to the nearest zone on screen in the arrow's direction (a grid).
   final Axis? axis;
+
+  /// Whether every zone that takes a key is a Tab stop, or the host is one.
+  final InputZoneStops stops;
+
+  /// The zone Tab enters a host of [InputZoneStops.one] at, such as the
+  /// selected item; null, or a zone that cannot take focus now, enters at
+  /// the zone focused last, else at the first.
+  final T? current;
+
+  /// Whether the zone an arrow, Home or End moves focus to is activated
+  /// too, as a keyboard activation: a selection that follows focus, as in
+  /// a radio group or a segmented control.
+  final bool activatesOnMove;
 
   /// Whether a finger moves its touch onto the zone it slides onto.
   final bool slides;
@@ -453,10 +490,11 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
   final Map<int, VelocityTracker> _trackers = {};
   final Map<int, InputArenaMember> _members = {};
   final PointerSpeed _speed = PointerSpeed();
-  late final FocusTraversalPolicy _policy = OrderedTraversalPolicy();
+  late final FocusTraversalPolicy _policy = _ZonesTraversal<T>(this);
   double? _scheduled;
   VoidCallback? _cancelDue;
   NavigationMode? _navigation;
+  T? _lastFocused;
 
   InputZonesController<T> get controller =>
       widget.controller ?? (_ownController ??= InputZonesController<T>());
@@ -529,6 +567,21 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
       zone._anchor?.markNeedsSemanticsUpdate();
     }
     _box?.markNeedsSemanticsUpdate();
+  }
+
+  /// The node Tab enters a host of one stop at: the current zone's, else
+  /// the one focused last, else the first target's.
+  FocusNode? _entry() {
+    _ZoneState<T>? first;
+    _ZoneState<T>? last;
+    for (final zone in widget.zones) {
+      final state = _zones[zone.id];
+      if (state == null || !_traversable(state)) continue;
+      if (zone.id == widget.current) return state.node;
+      first ??= state;
+      if (zone.id == _lastFocused) last = state;
+    }
+    return (last ?? first)?.node;
   }
 
   void _highlightModeChanged(FocusHighlightMode mode) {
@@ -909,15 +962,23 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     });
   }
 
+  // What can take focus for the keys, whether or not Tab visits it.
   bool _traversable(_ZoneState<T> zone) =>
-      zone.node.canRequestFocus && !zone.node.skipTraversal;
+      zone.node.canRequestFocus && zone._takesKeys;
+
+  void _moveTo(_ZoneState<T> zone) {
+    zone.node.requestFocus();
+    if (widget.activatesOnMove && zone._activates) {
+      zone._activate(ActivationSource.keyboard);
+    }
+  }
 
   void _moveFocus(_ZoneState<T> from, TraversalDirection direction) {
     final next = widget.axis == null
         ? _nearest(from, direction)
         : _along(from, direction, widget.axis!);
     if (next != null) {
-      next.node.requestFocus();
+      _moveTo(next);
       return;
     }
     if (widget.onEdge?.call(from.id, direction) ?? false) return;
@@ -980,27 +1041,52 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
         if (_zones[zone.id] case final state? when _traversable(state)) state,
     ];
     final target = last ? order.lastOrNull : order.firstOrNull;
-    if (target != null && !identical(target, from)) target.node.requestFocus();
+    if (target != null && !identical(target, from)) _moveTo(target);
   }
 
   @override
-  Widget build(BuildContext context) => FocusTraversalGroup(
-    policy: _policy,
-    child: _ZonesHost<T>(
-      state: this,
-      excludeChildSemantics: widget.excludeChildSemantics,
-      children: [
-        widget.child,
-        for (final (order, zone) in widget.zones.indexed)
-          _Zone<T>(
-            key: _ZoneKey<T>(zone.id),
-            host: this,
-            zone: zone,
-            order: order,
-          ),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    return FocusTraversalGroup(
+      policy: _policy,
+      child: _ZonesHost<T>(
+        state: this,
+        excludeChildSemantics: widget.excludeChildSemantics,
+        children: [
+          widget.child,
+          for (final (order, zone) in widget.zones.indexed)
+            _Zone<T>(
+              key: _ZoneKey<T>(zone.id),
+              host: this,
+              zone: zone,
+              order: order,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tab order of the zones: every target in the order of the zones, or,
+/// for a host of one stop, the entry alone besides the focused node.
+class _ZonesTraversal<T extends Object> extends OrderedTraversalPolicy {
+  _ZonesTraversal(this.host);
+
+  final _InputZonesState<T> host;
+
+  @override
+  Iterable<FocusNode> sortDescendants(
+    Iterable<FocusNode> descendants,
+    FocusNode currentNode,
+  ) {
+    final sorted = super.sortDescendants(descendants, currentNode);
+    if (host.widget.stops == InputZoneStops.each) return sorted;
+    final zones = {for (final zone in host._zones.values) zone.node};
+    final entry = host._entry();
+    return [
+      for (final node in sorted)
+        if (!zones.contains(node) || node == entry || node == currentNode) node,
+    ];
+  }
 }
 
 class _ZoneKey<T extends Object> extends ValueKey<T> {
@@ -1143,9 +1229,12 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
     _showFocus(notify: false);
   }
 
+  /// Whether the zone takes a key: an interaction activates or adjusts.
+  bool get _takesKeys => _activates || _adjusts;
+
   void _syncNode() {
     node.canRequestFocus = takesInput;
-    node.skipTraversal = !_activates && !_adjusts;
+    node.skipTraversal = !_takesKeys;
   }
 
   void _set(WidgetState state, {required bool add, bool notify = true}) {
@@ -1170,6 +1259,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
     _hasFocus = focused;
     _showFocus();
     _controller._focus(id, focused: focused);
+    if (focused) host._lastFocused = id;
     _anchor?.markNeedsSemanticsUpdate();
   }
 

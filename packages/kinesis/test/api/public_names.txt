@@ -17,6 +17,7 @@ InputPort
 InputRegion
 InputZone
 InputZoneFrame
+InputZoneStops
 InputZones
 InputZonesController
 Interaction
