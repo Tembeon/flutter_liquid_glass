@@ -233,6 +233,7 @@ LensSelected
 LensSlot
 LiquidGlassRenderer
 ListRowHighlight
+ListenableFollower
 LongPressInteraction
 LongPressStartEvent
 MenuActivated

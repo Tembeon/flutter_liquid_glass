@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/src/surfaces/follow.dart';
 import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -142,7 +143,7 @@ class _FlatEdgePaint extends LeafRenderObjectWidget {
 /// renderer that blurs the band extends it, drawing the fade inside its
 /// blur ([paintBand]) and updating its own layers in place
 /// ([updateBand]).
-class RenderScrollEdge extends RenderBox {
+class RenderScrollEdge extends RenderBox with ListenableFollower {
   /// Creates the band.
   RenderScrollEdge({
     required this._details,
@@ -158,9 +159,7 @@ class RenderScrollEdge extends RenderBox {
   GlassScrollEdgeDetails _details;
   set details(GlassScrollEdgeDetails value) {
     if (value == _details) return;
-    if (attached) _details.presence.removeListener(_presenceChanged);
-    _details = value;
-    if (attached) _details.presence.addListener(_presenceChanged);
+    refollow(() => _details = value);
     markNeedsPaint();
   }
 
@@ -249,16 +248,9 @@ class RenderScrollEdge extends RenderBox {
   void dropBand() {}
 
   @override
-  void attach(PipelineOwner owner) {
-    super.attach(owner);
-    _details.presence.addListener(_presenceChanged);
-  }
-
-  @override
-  void detach() {
-    _details.presence.removeListener(_presenceChanged);
-    super.detach();
-  }
+  List<(Listenable, VoidCallback)> get followed => [
+    (_details.presence, _presenceChanged),
+  ];
 
   @override
   void dispose() {

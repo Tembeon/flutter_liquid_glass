@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
+import 'package:apple_liquid_glass/src/surfaces/follow.dart';
 import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -346,7 +347,7 @@ class GlassHighlightBox extends SingleChildRenderObjectWidget {
 
 /// Paints a glass body's highlights over it; see [GlassHighlightBox].
 @internal
-class RenderGlassHighlight extends RenderProxyBox {
+class RenderGlassHighlight extends RenderProxyBox with ListenableFollower {
   /// Paints the highlights of a body that follows [frame].
   RenderGlassHighlight({
     required this._frame,
@@ -364,11 +365,15 @@ class RenderGlassHighlight extends RenderProxyBox {
   ValueListenable<GlassFrame> get frame => _frame;
   set frame(ValueListenable<GlassFrame> value) {
     if (value == _frame) return;
-    if (attached) _frame.removeListener(_framed);
-    _frame = value;
-    if (attached) _frame.addListener(_framed);
+    refollow(() => _frame = value);
     markNeedsPaint();
   }
+
+  @override
+  List<(Listenable, VoidCallback)> get followed => [
+    (_frame, _framed),
+    (highlight, markNeedsPaint),
+  ];
 
   Color _focusColor;
 
@@ -394,20 +399,6 @@ class RenderGlassHighlight extends RenderProxyBox {
 
   void _framed() {
     if (_shows) markNeedsPaint();
-  }
-
-  @override
-  void attach(PipelineOwner owner) {
-    super.attach(owner);
-    _frame.addListener(_framed);
-    highlight.addListener(markNeedsPaint);
-  }
-
-  @override
-  void detach() {
-    _frame.removeListener(_framed);
-    highlight.removeListener(markNeedsPaint);
-    super.detach();
   }
 
   @override
@@ -574,7 +565,7 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget {
 /// Paints the highlights of a part that is not glass; see
 /// [GlassHighlightPaint].
 @internal
-class RenderGlassHighlightPaint extends RenderProxyBox {
+class RenderGlassHighlightPaint extends RenderProxyBox with ListenableFollower {
   /// Paints the highlights a part's [highlight] shows.
   RenderGlassHighlightPaint({
     required this.highlight,
@@ -639,16 +630,9 @@ class RenderGlassHighlightPaint extends RenderProxyBox {
   }
 
   @override
-  void attach(PipelineOwner owner) {
-    super.attach(owner);
-    highlight.addListener(markNeedsPaint);
-  }
-
-  @override
-  void detach() {
-    highlight.removeListener(markNeedsPaint);
-    super.detach();
-  }
+  List<(Listenable, VoidCallback)> get followed => [
+    (highlight, markNeedsPaint),
+  ];
 
   @override
   void paint(PaintingContext context, Offset offset) {

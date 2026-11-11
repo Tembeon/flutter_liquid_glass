@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/src/surfaces/follow.dart';
 import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -208,7 +209,7 @@ class _FlatSurface extends SingleChildRenderObjectWidget {
 
 /// Paints a flat glass body under its child where the frame draws it.
 @internal
-class RenderFlatGlass extends RenderProxyBox {
+class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
   /// Creates a body that follows [frame].
   RenderFlatGlass({
     required this._frame,
@@ -229,11 +230,12 @@ class RenderFlatGlass extends RenderProxyBox {
   ValueListenable<GlassFrame> get frame => _frame;
   set frame(ValueListenable<GlassFrame> value) {
     if (value == _frame) return;
-    if (attached) _frame.removeListener(_framed);
-    _frame = value;
-    if (attached) _frame.addListener(_framed);
+    refollow(() => _frame = value);
     _framed();
   }
+
+  @override
+  List<(Listenable, VoidCallback)> get followed => [(_frame, _framed)];
 
   bool _fading = false;
 
@@ -267,14 +269,7 @@ class RenderFlatGlass extends RenderProxyBox {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _frame.addListener(_framed);
     _fading = _frame.value.opacity < 1;
-  }
-
-  @override
-  void detach() {
-    _frame.removeListener(_framed);
-    super.detach();
   }
 
   @override

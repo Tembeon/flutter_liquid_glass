@@ -89,20 +89,19 @@ class _CenteredOnBody extends SingleChildRenderObjectWidget {
   }
 }
 
-class _RenderCenteredOnBody extends RenderProxyBox {
+class _RenderCenteredOnBody extends RenderProxyBox with ListenableFollower {
   _RenderCenteredOnBody(this._frame);
 
   ValueListenable<LiquidGlassShapeFrame> _frame;
   ValueListenable<LiquidGlassShapeFrame> get frame => _frame;
   set frame(ValueListenable<LiquidGlassShapeFrame> value) {
     if (identical(_frame, value)) return;
-    if (attached) {
-      _frame.removeListener(_onFrame);
-      value.addListener(_onFrame);
-    }
-    _frame = value;
+    refollow(() => _frame = value);
     _onFrame();
   }
+
+  @override
+  List<(Listenable, VoidCallback)> get followed => [(_frame, _onFrame)];
 
   Size? _body;
 
@@ -125,14 +124,7 @@ class _RenderCenteredOnBody extends RenderProxyBox {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _frame.addListener(_onFrame);
     _body = _frame.value.rect?.size;
-  }
-
-  @override
-  void detach() {
-    _frame.removeListener(_onFrame);
-    super.detach();
   }
 
   @override
@@ -172,18 +164,19 @@ class _OutlineShadow extends SingleChildRenderObjectWidget {
   }
 }
 
-class _RenderOutlineShadow extends RenderProxyBox {
+class _RenderOutlineShadow extends RenderProxyBox with ListenableFollower {
   _RenderOutlineShadow(this._frame, this._shadows);
 
   ValueListenable<GlassFrame> _frame;
   ValueListenable<GlassFrame> get frame => _frame;
   set frame(ValueListenable<GlassFrame> value) {
     if (value == _frame) return;
-    if (attached) _frame.removeListener(_changed);
-    _frame = value;
-    if (attached) _frame.addListener(_changed);
+    refollow(() => _frame = value);
     markNeedsPaint();
   }
+
+  @override
+  List<(Listenable, VoidCallback)> get followed => [(_frame, _changed)];
 
   List<BoxShadow> _shadows;
   List<BoxShadow> get shadows => _shadows;
@@ -201,18 +194,6 @@ class _RenderOutlineShadow extends RenderProxyBox {
     final frame = _frame.value;
     if (frame.outline == _outline && frame.opacity == _opacity) return;
     markNeedsPaint();
-  }
-
-  @override
-  void attach(PipelineOwner owner) {
-    super.attach(owner);
-    _frame.addListener(_changed);
-  }
-
-  @override
-  void detach() {
-    _frame.removeListener(_changed);
-    super.detach();
   }
 
   @override

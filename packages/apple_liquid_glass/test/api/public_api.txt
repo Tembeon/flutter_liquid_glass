@@ -2483,6 +2483,10 @@ final class ListRowHighlight extends Motion implements PointerFollower
   void press(double t, {required double contact, double delay = ...})
   static const double touchDelay
   overrides: cancel, down, hover, move, up
+mixin ListenableFollower on RenderObject
+  @protected List<(Listenable, void Function())> get followed
+  @protected void refollow(void Function() change)
+  overrides: attach, detach
 final class MenuActivated extends MenuEvent
   const MenuActivated(
     double time,
@@ -3389,7 +3393,7 @@ class RawGlassWheel extends StatefulWidget
   final WidgetStatesController? statesController
   final int value
   overrides: createState
-class RenderScrollEdge extends RenderBox
+class RenderScrollEdge extends RenderBox with ListenableFollower
   RenderScrollEdge({
     required GlassScrollEdgeDetails details,
     required Brightness brightness,
@@ -3412,7 +3416,7 @@ class RenderScrollEdge extends RenderBox
   @protected void paintFade(PaintingContext context, Offset offset)
   double get presence
   @protected bool updateBand(double presence)
-  overrides: alwaysNeedsCompositing, attach, computeDryLayout, detach, dispose, hitTestSelf, isRepaintBoundary, paint, sizedByParent
+  overrides: alwaysNeedsCompositing, computeDryLayout, dispose, followed, hitTestSelf, isRepaintBoundary, paint, sizedByParent
 class ScrollAway
   ScrollAway({bool minimizesOnScrollUp = ...})
   void beginDrag()
@@ -4470,5 +4474,6 @@ class GlassScrollEdgeDetails (see package:apple_liquid_glass/apple_liquid_glass.
 class GlassSolidBackdrop (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSurface (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSurfaceDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
+mixin ListenableFollower (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RenderScrollEdge (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ScrollEdgeBand (see package:apple_liquid_glass/apple_liquid_glass.dart)
