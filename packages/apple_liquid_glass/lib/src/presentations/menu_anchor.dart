@@ -55,7 +55,10 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   OverlayState? _overlay;
   MenuAppearance _style = MenuAppearance.light;
   int? _pointer;
-  int? _early;
+
+  // Takes a touch made between a tap's release and the menu's opening,
+  // which no region lies under yet, as UIKit's menu does.
+  InputCapture? _capture;
 
   // The release of a tap on the source, until the source's own control has
   // heard it in the same event.
@@ -64,7 +67,6 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   // What the menu made of the pointer command running now, for the haptics
   // of the input host that heard the pointer.
   final List<InteractionEvent> _heard = [];
-  bool _routing = false;
   bool _delivering = false;
 
   // Only read while there is a motion, whose clock it is.
@@ -137,7 +139,10 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     if (identical(_controller?._host, this)) {
       _controller?._host = null;
     }
-    _unroute();
+    // A touch the capture holds ends with the menu, which commands nothing
+    // more.
+    _pointer = null;
+    _capture?.dispose();
     _steps?.removeListener(_stepped);
     _content.dispose();
     _menuFocus.dispose();
@@ -156,7 +161,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     final motion = _motion;
     if (motion == null) return;
     _deliver(motion);
-    if (_early == null && !motion.isOpenPending) _unroute();
+    if (!motion.isOpenPending) _capture?.disarm();
   }
 
   void _command(
@@ -282,7 +287,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
       if (tap != null) {
         motion.openAfterTap(tap);
         _deliver(motion);
-        if (_pointer == null && motion.isOpenPending) _route();
+        if (_pointer == null && motion.isOpenPending) _arm();
         return;
       }
     }
@@ -337,7 +342,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     if (motion == null) return;
     final local = _local(global);
     _command((motion, t) => motion.pointerUp(t, local), at: t);
-    if (motion.isOpenPending) _route();
+    if (motion.isOpenPending) _arm();
   }
 
   void _pointerCancel(int pointer, double t) {
@@ -346,52 +351,20 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     _command((motion, t) => motion.pointerCancel(t), at: t);
   }
 
-  // A touch made between a tap's release and the menu's opening belongs
-  // to the menu, as UIKit's does.
-  void _route() {
-    if (_routing) return;
-    _routing = true;
-    GestureBinding.instance.pointerRouter.addGlobalRoute(_earlyEvent);
-  }
-
-  void _unroute() {
-    if (!_routing) return;
-    _routing = false;
-    GestureBinding.instance.pointerRouter.removeGlobalRoute(_earlyEvent);
-  }
-
-  // No region lies under such a touch yet: the menu shows only once it
-  // opens.
-  void _earlyEvent(PointerEvent event) {
-    final motion = _motion;
-    if (motion == null) return;
-    final t = motion.clock.stamp(event.timeStamp);
-    if (event is PointerDownEvent) {
-      if (!motion.isOpenPending ||
-          _pointer != null ||
-          event.buttons != kPrimaryButton) {
-        return;
-      }
-      _early = event.pointer;
-      _pointerDown(event.pointer, t, event.position);
-    } else if (event.pointer == _early) {
-      switch (event) {
-        case PointerMoveEvent():
-          _pointerMove(event.pointer, t, event.position);
-        case PointerUpEvent():
-          _early = null;
-          _pointerUp(event.pointer, t, event.position);
-        case PointerCancelEvent():
-          _early = null;
-          _pointerCancel(event.pointer, t);
-        default:
-      }
-    }
-    // No input host hears such a touch, so the menu plays its haptics.
-    for (final event in _takeHeard()) {
-      _feedback(event)?.play(context);
-    }
-  }
+  void _arm() => (_capture ??= InputCapture(
+    context: context,
+    interactions: [
+      _MenuInput(
+        takes: () => (_motion?.isOpenPending ?? false) && _pointer == null,
+        down: _pointerDown,
+        move: _pointerMove,
+        up: _pointerUp,
+        cancel: _pointerCancel,
+        heard: _takeHeard,
+      ),
+    ],
+    feedback: _feedback,
+  )).arm();
 
   /// The opacity of the dim under the open menu, or null for none.
   double Function(MenuMotion motion)? _dim(BuildContext context) => null;

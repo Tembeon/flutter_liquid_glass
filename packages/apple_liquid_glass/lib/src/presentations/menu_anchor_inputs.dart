@@ -7,7 +7,8 @@ part of 'menu_anchor.dart';
 /// It hears a touch at contact and claims it [claimAfter] later, when a
 /// hold opens the menu under the finger, or at once without one: a scroll
 /// view around the source takes a finger that moves before then and never
-/// one that may choose from the menu.
+/// one that may choose from the menu. With [takes] it accepts a touch only
+/// while that holds.
 final class _MenuInput extends Interaction {
   _MenuInput({
     required this.down,
@@ -17,6 +18,7 @@ final class _MenuInput extends Interaction {
     required this.heard,
     this.claimAfter,
     this.contends = false,
+    this.takes,
   });
 
   final bool Function(int pointer, double t, Offset global) down;
@@ -26,12 +28,17 @@ final class _MenuInput extends Interaction {
   final List<InteractionEvent> Function() heard;
   final double? claimAfter;
   final bool contends;
+  final bool Function()? takes;
 
   int? _pointer;
   double? _claimAt;
 
   @override
   bool get contendsWithControls => contends;
+
+  @override
+  bool accepts(PointerDownInput down) =>
+      super.accepts(down) && (takes?.call() ?? true);
 
   @override
   double? get nextDue => _claimAt;
