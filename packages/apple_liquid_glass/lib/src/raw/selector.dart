@@ -258,6 +258,8 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     if (widget.motion != _motion.kind) {
       _motion = _create(_motion.selected);
       _setFrames(_frames.mirrored);
+    } else if (!identical(widget.collapse, _frames.collapse)) {
+      _setFrames(_frames.mirrored);
     }
     final keys = _keysOf(widget);
     final wasNone = oldWidget.selectedIndex == null;
@@ -590,12 +592,14 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   @override
-  Widget buildControl(BuildContext context) {
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     _rtl = Directionality.maybeOf(context) == TextDirection.rtl;
-    if (_rtl != _frames.mirrored ||
-        !identical(widget.collapse, _frames.collapse)) {
-      _setFrames(_rtl);
-    }
+    if (_rtl != _frames.mirrored) _setFrames(_rtl);
+  }
+
+  @override
+  Widget buildControl(BuildContext context) {
     _ghosts.removeWhere((key) {
       if (_motion.items.contains(key)) return false;
       _built.remove(key);

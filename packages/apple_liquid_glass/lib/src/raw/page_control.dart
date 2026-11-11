@@ -288,12 +288,16 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
   Size get _size => _motion.size;
 
   @override
-  Widget buildControl(BuildContext context) {
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     final rtl = Directionality.maybeOf(context) == TextDirection.rtl;
-    if (rtl != _input.rtl) {
-      _input.rtl = rtl;
-      _pose = _poseOf();
-    }
+    if (rtl == _input.rtl) return;
+    _input.rtl = rtl;
+    _pose = _poseOf();
+  }
+
+  @override
+  Widget buildControl(BuildContext context) {
     final count = _count;
     final page = _page;
     String value(int page) =>

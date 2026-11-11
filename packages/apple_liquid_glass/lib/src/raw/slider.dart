@@ -321,12 +321,17 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   void _measured(double t, Size size) => _motion.width = size.width;
 
   @override
-  Widget buildControl(BuildContext context) {
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     final rtl = Directionality.maybeOf(context) == TextDirection.rtl;
     if (rtl != _frames.mirrored) {
       _frames = _SliderFrames(_motion, mirrored: rtl);
     }
     _input.mirrored = rtl;
+  }
+
+  @override
+  Widget buildControl(BuildContext context) {
     final value = _unit(widget.value);
     String percent(double v) => '${(v * 100).round()}%';
     return MotionScope(

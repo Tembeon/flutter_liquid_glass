@@ -179,12 +179,16 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
   }
 
   @override
-  Widget buildControl(BuildContext context) {
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     final mirrored = Directionality.maybeOf(context) == TextDirection.rtl;
-    if (mirrored != _input.mirrored) {
-      _input.mirrored = mirrored;
-      _thumb = _thumbOf(mirrored: mirrored);
-    }
+    if (mirrored == _input.mirrored) return;
+    _input.mirrored = mirrored;
+    _thumb = _thumbOf(mirrored: mirrored);
+  }
+
+  @override
+  Widget buildControl(BuildContext context) {
     return MotionScope(
       motion: _motion,
       child: _Centered(
