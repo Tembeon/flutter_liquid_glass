@@ -311,10 +311,10 @@ final class FormWorld {
   /// The transform to the screen, without [dx] and [dy].
   Matrix4 base;
 
-  /// The translation after [base].
+  /// The horizontal translation after [base].
   double dx = 0;
 
-  /// The translation after [base].
+  /// The vertical translation after [base].
   double dy = 0;
 
   /// The clip on the screen, if any.
