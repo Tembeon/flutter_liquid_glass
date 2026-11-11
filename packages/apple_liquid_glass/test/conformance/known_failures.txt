@@ -8,7 +8,6 @@ GlassBarItem.menu tap-target: "Sort": expected tap target size of at least Size(
 GlassButton.menu barrier-label: no barrier is offered to assistive technology
 GlassButton.menu focus-indicator: keyboard focus draws nothing
 GlassButton.menu mouse-hover: hover draws nothing
-GlassButton.menu tap-target: "First item": expected tap target size of at least Size(44.0, 44.0), but found Size(250.0, 42.0)
 GlassButton.prominent contrast-dark: "Save": expected contrast ratio of at least 4.5 but found 3.23 for a font size of 17.0
 GlassButton.prominent contrast-light: "Save": expected contrast ratio of at least 4.5 but found 3.52 for a font size of 17.0
 GlassContextMenu barrier-hides-behind: assistive technology reads it before its anchor
@@ -21,7 +20,6 @@ GlassContextMenu mouse-hover: hover draws nothing
 GlassContextMenu mouse-secondary-click: a secondary click does not open its context menu
 GlassContextMenu semantics-label: expected tappable node to have semantic label, but none was found
 GlassContextMenu tab-stops: Tab stops at 0 parts, expected 1
-GlassContextMenu tap-target: "First item": expected tap target size of at least Size(44.0, 44.0), but found Size(250.0, 42.0)
 GlassDatePicker.compact barrier-label: no barrier is offered to assistive technology
 GlassDatePicker.compact mouse-cursor: it declares no cursor; the cursor over it is SystemMouseCursor(basic)
 GlassDatePicker.compact mouse-hover: hover draws nothing
@@ -54,7 +52,6 @@ GlassToolbar contrast-light: "Done": expected contrast ratio of at least 4.5 but
 RawGlassMenu barrier-label: no barrier is offered to assistive technology
 RawGlassMenu focus-indicator: keyboard focus draws nothing
 RawGlassMenu mouse-hover: hover draws nothing
-RawGlassMenu tap-target: "First item": expected tap target size of at least Size(44.0, 44.0), but found Size(250.0, 42.0)
 reference.bad.button focus-disabled: Tab reaches 1 parts while disabled
 reference.bad.button focus-indicator: keyboard focus draws nothing
 reference.bad.button haptics-gesture-only: assistive activation plays the gesture feedback

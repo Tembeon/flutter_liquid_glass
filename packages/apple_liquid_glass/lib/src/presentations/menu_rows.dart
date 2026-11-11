@@ -37,7 +37,6 @@ class MenuRows extends StatefulWidget {
     required this.style,
     required this.hidden,
     required this.content,
-    required this.onSelect,
     super.key,
   });
 
@@ -52,9 +51,6 @@ class MenuRows extends StatefulWidget {
 
   /// The menu's entries and their state.
   final MenuContent content;
-
-  /// Called with the target of a row a screen reader activates.
-  final ValueChanged<int> onSelect;
 
   @override
   State<MenuRows> createState() => _MenuRowsState();
@@ -95,8 +91,6 @@ class _MenuRowsState extends State<MenuRows> {
 
   void _hiddenChanged() => _hidden.value = widget.hidden.value;
 
-  void _select(int target) => widget.onSelect(target);
-
   List<Widget> _build() {
     final layout = widget.layout;
     final children = <Widget>[];
@@ -114,7 +108,6 @@ class _MenuRowsState extends State<MenuRows> {
                       style: widget.style,
                       width: layout.width,
                       content: widget.content,
-                      onSelect: _select,
                       hidden: hidden == element.target,
                     ),
               )
@@ -124,7 +117,6 @@ class _MenuRowsState extends State<MenuRows> {
                 style: widget.style,
                 width: layout.width,
                 content: widget.content,
-                onSelect: _select,
               ),
       );
     }
@@ -152,7 +144,6 @@ class _MenuElement extends StatelessWidget {
     required this.style,
     required this.width,
     required this.content,
-    required this.onSelect,
     this.hidden = false,
     super.key,
   });
@@ -163,14 +154,13 @@ class _MenuElement extends StatelessWidget {
   final MenuAppearance style;
   final double width;
   final MenuContent content;
-  final ValueChanged<int> onSelect;
 
   Color get _title => style.textStyle.color!;
 
-  VoidCallback? get _tap {
-    final target = element.target;
-    return target < 0 ? null : () => onSelect(target);
-  }
+  // A row that is a target is described by its zone in the menu's layer;
+  // one that is not (a disabled row) describes itself.
+  Widget _described(Widget child, {required Widget Function(Widget) own}) =>
+      element.target >= 0 ? ExcludeSemantics(child: child) : own(child);
 
   Widget _at(double center, double extent, Widget child) =>
       PositionedDirectional(
@@ -262,20 +252,22 @@ class _MenuElement extends StatelessWidget {
         : _title;
     final check = element.checkCenter;
     final image = element.imageCenter;
-    return Semantics(
-      button: true,
-      role: ui.SemanticsRole.menuItem,
-      enabled: enabled,
-      checked: state == GlassMenuItemState.off || submenu
-          ? null
-          : state == GlassMenuItemState.on,
-      mixed: state == GlassMenuItemState.mixed ? true : null,
-      expanded: submenu ? false : null,
-      label: title,
-      value: subtitle,
-      onTap: enabled ? _tap : null,
-      excludeSemantics: true,
-      child: Stack(
+    return _described(
+      own: (child) => Semantics(
+        button: true,
+        role: ui.SemanticsRole.menuItem,
+        enabled: enabled,
+        checked: state == GlassMenuItemState.off || submenu
+            ? null
+            : state == GlassMenuItemState.on,
+        mixed: state == GlassMenuItemState.mixed ? true : null,
+        expanded: submenu ? false : null,
+        label: title,
+        value: subtitle,
+        excludeSemantics: true,
+        child: child,
+      ),
+      Stack(
         children: [
           if (check != null && state != GlassMenuItemState.off)
             _at(
@@ -469,15 +461,17 @@ class _MenuElement extends StatelessWidget {
         ],
       );
     }
-    return Semantics(
-      button: true,
-      role: ui.SemanticsRole.menuItem,
-      enabled: enabled,
-      selected: selected,
-      label: title,
-      onTap: enabled ? _tap : null,
-      excludeSemantics: true,
-      child: body,
+    return _described(
+      own: (child) => Semantics(
+        button: true,
+        role: ui.SemanticsRole.menuItem,
+        enabled: enabled,
+        selected: selected,
+        label: title,
+        excludeSemantics: true,
+        child: child,
+      ),
+      body,
     );
   }
 
@@ -690,7 +684,6 @@ class MenuCardHeader extends StatelessWidget {
     required this.style,
     required this.width,
     required this.content,
-    required this.onSelect,
     super.key,
   });
 
@@ -715,9 +708,6 @@ class MenuCardHeader extends StatelessWidget {
   /// The menu's entries and their state.
   final MenuContent content;
 
-  /// Called with the header's target when a screen reader activates it.
-  final ValueChanged<int> onSelect;
-
   Color get _title => style.textStyle.color!;
 
   static const _bold = TextStyle(fontSize: 17, fontWeight: FontWeight.w600);
@@ -737,19 +727,13 @@ class MenuCardHeader extends StatelessWidget {
     final header = this.header;
     final entry = header.entry;
     final icon = entry is GlassSubmenu ? entry.icon : null;
-    final target = header.target;
     final rtl = content.rtl;
     final metrics = content.metrics;
     final height = header.rect.height;
     return Positioned.fromRect(
       rect: header.rect,
-      child: Semantics(
-        button: true,
-        role: ui.SemanticsRole.menuItem,
-        expanded: true,
-        label: header.title,
-        onTap: target < 0 ? null : () => onSelect(target),
-        excludeSemantics: true,
+      // The header is the back target, described by its zone.
+      child: ExcludeSemantics(
         child: Stack(
           fit: StackFit.expand,
           children: [

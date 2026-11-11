@@ -199,6 +199,12 @@ class MenuTuning {
   /// The cell highlight radius; a rendering default, not measured.
   static const double cellHighlightRadius = 12;
 
+  /// Seconds the mouse rests on a submenu row before its card opens: 0,
+  /// the default `hoverOpenDelay` of Flutter's `SubmenuButton` (Flutter
+  /// 3.47, `material/menu_anchor.dart`), since no public document gives the
+  /// delay of a Mac menu. Not measured; a finger waits [hoverOpenDelay].
+  static const double mouseSubmenuDelay = 0;
+
   /// The menu scroll indicator width; a rendering default, not measured.
   static const double scrollThickness = 3;
 
@@ -2439,8 +2445,58 @@ class MenuMotion extends Motion with Presented {
   /// content through the flex ([contentStretch]).
   int? rowAt(Offset position) => _hitAt(position).target;
 
+  /// Where target [index] of the top card shows, through the root list's
+  /// scroll and the flex: the box a finger at any point of it hits
+  /// ([rowAt]), for the keyboard focus, the mouse and accessibility. Null
+  /// while the menu is not open or the top card has no such target.
+  Rect? targetRect(int index) {
+    if (_phase != _Phase.opening) return null;
+    final top = _topCard;
+    final targets = _layoutOf(top).targets;
+    if (index < 0 || index >= targets.length) return null;
+    final frame = menuRect;
+    final origin = top == 0
+        ? frame.topLeft - Offset(0, scrollOffset)
+        : frame.topLeft + cards[top].rect.topLeft;
+    final rect = targets[index].rect.shift(origin);
+    return Rect.fromPoints(_flexed(rect.topLeft), _flexed(rect.bottomRight));
+  }
+
+  /// Whether [position], where it shows, lies on the menu beside its top
+  /// submenu card: where a finger lifted sends the card back.
+  bool isBesideCard(Offset position) =>
+      _phase == _Phase.opening && _topCard > 0 && _hitAt(position).beside;
+
+  /// Whether [position], where it shows, lies on the top submenu card.
+  bool isOnCard(Offset position) {
+    if (_phase != _Phase.opening || _topCard == 0) return false;
+    final hit = _hitAt(position);
+    return !hit.beside && _onMenu(position);
+  }
+
   /// Whether [position] is on the menu as it shows, flexed.
   bool _onMenu(Offset position) => menuRect.contains(_unflexed(position));
+
+  /// [position] in the unflexed menu mapped through the flex: where the
+  /// flexed menu shows it; the inverse of [_unflexed].
+  Offset _flexed(Offset position) {
+    var shown = position;
+    final top = _topCard;
+    if (top > 0) {
+      final flex = cardFlex(top);
+      if (!identical(flex, _noFlex)) {
+        final from = _cardFrame(_cards[top - 1]);
+        final to = Rect.fromCenter(
+          center: from.center + flex.shift,
+          width: from.width + flex.width,
+          height: from.height + flex.height,
+        );
+        shown = _mapped(shown, from, to);
+      }
+    }
+    final stretch = _stretch;
+    return stretch == null ? shown : _mapped(shown, stretch.from, stretch.to);
+  }
 
   MenuFlex get _topFlex {
     final top = _topCard;
