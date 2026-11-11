@@ -866,6 +866,14 @@ class PointerMoveInput (see package:kinesis/input.dart)
 class PointerScrollInput (see package:kinesis/input.dart)
 class PointerUpInput (see package:kinesis/input.dart)
 class PortEvent (see package:kinesis/input.dart)
+mixin PredictiveBack on Presented
+  abstract void backEnded(
+    double t, {
+    required bool commits,
+    required double velocity,
+  })
+  abstract void backMoved(double t, double progress)
+  abstract void backStarted(double t)
 final class Presence extends Motion
   Presence({required Spring openSpring, Spring? closeSpring, double rest = ...})
   final Spring closeSpring
@@ -1170,6 +1178,7 @@ class MotionTraits (see package:kinesis/kinesis.dart)
 class MotionTransaction (see package:kinesis/kinesis.dart)
 class MotionValue (see package:kinesis/kinesis.dart)
 extension MotionValueCommands (see package:kinesis/kinesis.dart)
+mixin PredictiveBack (see package:kinesis/kinesis.dart)
 class Presence (see package:kinesis/kinesis.dart)
 enum PresenceStatus (see package:kinesis/kinesis.dart)
 mixin Presented (see package:kinesis/kinesis.dart)

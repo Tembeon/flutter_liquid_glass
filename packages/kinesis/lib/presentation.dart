@@ -9,7 +9,8 @@
 /// It promises the focus moved in at the open, Tab kept inside a modal
 /// presentation (a page keeps its navigator's rule) and the focus handed
 /// back to the opener however the presentation goes, Escape,
-/// the Back button and gesture, a barrier that hides the screen from the
+/// the Back button and gesture (Android's predictive back drives a route
+/// whose motion is `PredictiveBack`), a barrier that hides the screen from the
 /// screen reader in a route and, labelled by the presenter, offers the
 /// dismissal after the content, an overlay that announces itself to the
 /// screen reader as a route of its own with the label and role the

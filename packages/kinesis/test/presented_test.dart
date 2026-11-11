@@ -32,6 +32,51 @@ final class _Card extends Motion with Presented, Sourced {
   void sourceMoved(double t, SourceGeometry? geometry) => sources.add(geometry);
 }
 
+/// A card that follows Android's predictive back.
+final class _BackCard extends _Card with PredictiveBack {
+  final List<String> back = [];
+  double? velocity;
+  late final MotionValue<double> drag = own(
+    MotionValue<double>(0, spring: Spring.snappy),
+  );
+
+  @override
+  void backStarted(double t) => back.add('started');
+
+  @override
+  void backMoved(double t, double progress) {
+    back.add('moved $progress');
+    drag.retarget(t, progress);
+  }
+
+  @override
+  void backEnded(double t, {required bool commits, required double velocity}) {
+    back.add(commits ? 'committed' : 'cancelled');
+    this.velocity = velocity;
+    if (!commits) drag.retarget(t, 0);
+  }
+}
+
+Future<void> _backGesture(
+  WidgetTester tester,
+  String method, {
+  double progress = 0,
+  bool button = false,
+}) async {
+  final message = const StandardMethodCodec().encodeMethodCall(
+    MethodCall(method, <String, Object?>{
+      'touchOffset': button ? null : <double>[5, 300],
+      'progress': progress,
+      'swipeEdge': 0,
+    }),
+  );
+  await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+    SystemChannels.backGesture.name,
+    message,
+    (_) {},
+  );
+}
+
 const _contentKey = ValueKey('content');
 
 Presentation<String, _Card> _presentation(
@@ -48,9 +93,10 @@ Presentation<String, _Card> _presentation(
   bool named = false,
   String? label = 'Panel',
   SemanticsRole? role,
+  bool predictive = false,
 }) => Presentation<String, _Card>(
   motion: (_) {
-    final card = _Card();
+    final card = predictive ? _BackCard() : _Card();
     made.add(card);
     return card;
   },
@@ -395,6 +441,142 @@ void main() {
         expect(made.last.left, isEmpty);
         await tester.pumpWidget(const SizedBox());
         focus.dispose();
+      });
+
+      testWidgets('Android predictive back drives the dismissal through the '
+          'motion and commits with its velocity', (tester) async {
+        final shell = make();
+        final made = <_Card>[];
+        await shell.pump(tester, const SizedBox.expand());
+        await shell.present(tester, _presentation(made, predictive: true));
+        await tester.pump();
+        await _settle(tester);
+        final card = made.single as _BackCard;
+        await _backGesture(tester, 'startBackGesture');
+        await tester.pump(const Duration(milliseconds: 16));
+        await _backGesture(
+          tester,
+          'updateBackGestureProgress',
+          progress: 0.25,
+        );
+        // Under the test's frame clock, motion time moves only while
+        // something moves.
+        await tester.pump(const Duration(milliseconds: 16));
+        await tester.pump(const Duration(milliseconds: 16));
+        await _backGesture(
+          tester,
+          'updateBackGestureProgress',
+          progress: 0.5,
+        );
+        await tester.pump(const Duration(milliseconds: 16));
+        if (shell is _PortalShell) {
+          // Back on a portal stays a plain Back.
+          expect(card.back, isEmpty);
+        } else {
+          expect(card.back, [
+            'started',
+            'moved 0.0',
+            'moved 0.25',
+            'moved 0.5',
+          ]);
+          expect(card.drag.target, 0.5);
+          final navigator = tester.state<NavigatorState>(
+            find.byType(Navigator),
+          );
+          expect(navigator.userGestureInProgress, isTrue);
+          expect(card.left, isEmpty);
+        }
+        await _backGesture(tester, 'commitBackGesture');
+        await tester.pump();
+        expect(card.left, [DismissTrigger.back]);
+        if (shell is! _PortalShell) {
+          expect(card.back.last, 'committed');
+          expect(card.velocity, greaterThan(0));
+        }
+        await _settle(tester);
+        expect(shell.isPresented, isFalse);
+        expect(
+          tester
+              .state<NavigatorState>(find.byType(Navigator))
+              .userGestureInProgress,
+          isFalse,
+        );
+      });
+
+      testWidgets('a cancelled predictive back springs the presentation back', (
+        tester,
+      ) async {
+        final shell = make();
+        if (shell is _PortalShell) return;
+        final made = <_Card>[];
+        await shell.pump(tester, const SizedBox.expand());
+        await shell.present(tester, _presentation(made, predictive: true));
+        await tester.pump();
+        await _settle(tester);
+        final card = made.single as _BackCard;
+        await _backGesture(tester, 'startBackGesture');
+        await _backGesture(
+          tester,
+          'updateBackGestureProgress',
+          progress: 0.4,
+        );
+        await tester.pump(const Duration(milliseconds: 16));
+        await tester.pump(const Duration(milliseconds: 16));
+        await _backGesture(tester, 'cancelBackGesture');
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(card.back.last, 'cancelled');
+        final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+        expect(navigator.userGestureInProgress, isTrue);
+        await _settle(tester);
+        expect(card.drag.value, 0);
+        expect(card.left, isEmpty);
+        expect(shell.isPresented, isTrue);
+        expect(navigator.userGestureInProgress, isFalse);
+      });
+
+      testWidgets('predictive back does not start where Back may be refused, '
+          'for a motion that does not follow it, or from a button', (
+        tester,
+      ) async {
+        for (final (way, policy, predictive, button) in [
+          ('refused', const DismissPolicy({}), true, false),
+          ('plain motion', const DismissPolicy(), false, false),
+          ('button', const DismissPolicy(), true, true),
+        ]) {
+          final shell = make();
+          final made = <_Card>[];
+          final vetoes = <DismissTrigger>[];
+          await shell.pump(tester, const SizedBox.expand());
+          await shell.present(
+            tester,
+            _presentation(
+              made,
+              dismiss: policy,
+              predictive: predictive,
+              vetoes: vetoes,
+            ),
+          );
+          await tester.pump();
+          await _settle(tester);
+          final card = made.single;
+          await _backGesture(tester, 'startBackGesture', button: button);
+          await _backGesture(
+            tester,
+            'updateBackGestureProgress',
+            progress: 0.5,
+            button: button,
+          );
+          if (card is _BackCard) expect(card.back, isEmpty, reason: way);
+          await _backGesture(tester, 'commitBackGesture');
+          await tester.pump();
+          if (way == 'refused') {
+            expect(vetoes, [DismissTrigger.back], reason: way);
+            expect(card.left, isEmpty, reason: way);
+          } else {
+            expect(card.left, [DismissTrigger.back], reason: way);
+          }
+          await tester.pumpWidget(const SizedBox());
+        }
       });
 
       testWidgets('the screen reader dismisses it by its name', (

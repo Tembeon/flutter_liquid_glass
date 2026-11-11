@@ -1,4 +1,5 @@
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/presentation/presentation.dart';
@@ -225,6 +226,109 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     }
   }
 
+  // The back gesture under way, and its last sample for its velocity.
+  bool _backing = false;
+  double _backTime = 0;
+  double _backProgress = 0;
+  double _backVelocity = 0;
+  VoidCallback? _cancelReturn;
+
+  /// Whether Android's predictive back gesture may start on this route: its
+  /// motion is [PredictiveBack], it rests open as the navigator's top route
+  /// above another, no gesture runs already and nothing would refuse its
+  /// pop: [allows] lets Back through and no `PopScope` or local history
+  /// entry takes it.
+  @override
+  bool get popGestureEnabled {
+    final navigator = this.navigator;
+    return _motion is PredictiveBack &&
+        navigator != null &&
+        !navigator.userGestureInProgress &&
+        isCurrent &&
+        !isFirst &&
+        _projection.status == AnimationStatus.completed &&
+        canDismiss(DismissTrigger.back);
+  }
+
+  /// Starts the presentation's interactive dismissal under Android's
+  /// predictive back gesture; [progress] is the route's, 1 open and 0
+  /// gone, as `PredictiveBackRoute` counts it.
+  @override
+  void handleStartBackGesture({double progress = 0}) {
+    final motion = _motion;
+    if (motion is! PredictiveBack || _backing) return;
+    _cancelReturn?.call();
+    _cancelReturn = null;
+    _backing = true;
+    beginInteraction();
+    final t = MotionClock.instance.now;
+    _backTime = t;
+    _backProgress = 1 - progress;
+    _backVelocity = 0;
+    motion.backStarted(t);
+    motion.backMoved(t, _backProgress);
+  }
+
+  /// Moves the presentation with the gesture.
+  @override
+  void handleUpdateBackGestureProgress({required double progress}) {
+    final motion = _motion;
+    if (!_backing || motion is! PredictiveBack) return;
+    final t = MotionClock.instance.now;
+    final p = 1 - progress;
+    if (t > _backTime) {
+      _backVelocity = (p - _backProgress) / (t - _backTime);
+      _backTime = t;
+    }
+    _backProgress = p;
+    motion.backMoved(t, p);
+  }
+
+  /// Dismisses the presentation for [DismissTrigger.back], its motion
+  /// continuing from the gesture with the gesture's velocity.
+  @override
+  void handleCommitBackGesture() => _endBack(commits: true);
+
+  /// Returns the presentation to rest open.
+  @override
+  void handleCancelBackGesture() => _endBack(commits: false);
+
+  void _endBack({required bool commits}) {
+    final motion = _motion;
+    if (!_backing || motion is! PredictiveBack) return;
+    _backing = false;
+    final t = MotionClock.instance.now;
+    final goes = commits && isCurrent && canDismiss(DismissTrigger.back);
+    motion.backEnded(
+      t,
+      commits: goes,
+      velocity: _backVelocity,
+    );
+    if (goes) {
+      dismiss(DismissTrigger.back);
+      endInteraction();
+    } else {
+      _awaitReturn(motion, t);
+    }
+  }
+
+  // What is below stays shown until the presentation is back at rest.
+  void _awaitReturn(Presented motion, double t) {
+    final rest = motion.restTime();
+    if (!isActive || isLeaving || (rest != null && rest <= t)) {
+      endInteraction();
+      return;
+    }
+    final clock = MotionClock.instance;
+    _cancelReturn = clock.schedule(
+      rest ?? t + (clock.framePeriod ?? 1 / 60),
+      (time) {
+        _cancelReturn = null;
+        _awaitReturn(motion, time);
+      },
+    );
+  }
+
   /// Captures the themes around [from] for the content, as a presentation
   /// shown from a source carries the source's look.
   @internal
@@ -412,6 +516,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
 
   @override
   void dispose() {
+    _cancelReturn?.call();
     _settle?.dispose();
     _finish();
     super.dispose();
@@ -522,14 +627,38 @@ class _ContentRoot extends StatefulWidget {
   State<_ContentRoot> createState() => _ContentRootState();
 }
 
-class _ContentRootState extends State<_ContentRoot> {
+class _ContentRootState extends State<_ContentRoot>
+    with WidgetsBindingObserver {
   FocusScopeNode? _scope;
 
   @override
   void initState() {
     super.initState();
     widget.route._modalNow.addListener(_trap);
+    WidgetsBinding.instance.addObserver(this);
   }
+
+  // Android's predictive back reaches routes only through binding
+  // observers, as it reaches a page through its transitions builder.
+  @override
+  bool handleStartBackGesture(PredictiveBackEvent backEvent) {
+    final route = widget.route;
+    if (backEvent.isButtonEvent || !route.popGestureEnabled) return false;
+    route.handleStartBackGesture(progress: 1 - backEvent.progress);
+    return true;
+  }
+
+  @override
+  void handleUpdateBackGestureProgress(PredictiveBackEvent backEvent) =>
+      widget.route.handleUpdateBackGestureProgress(
+        progress: 1 - backEvent.progress,
+      );
+
+  @override
+  void handleCommitBackGesture() => widget.route.handleCommitBackGesture();
+
+  @override
+  void handleCancelBackGesture() => widget.route.handleCancelBackGesture();
 
   @override
   void didChangeDependencies() {
@@ -555,6 +684,7 @@ class _ContentRootState extends State<_ContentRoot> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     widget.route._modalNow.removeListener(_trap);
     super.dispose();
   }

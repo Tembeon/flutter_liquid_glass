@@ -43,6 +43,37 @@ mixin Presented on Motion {
   bool leave(double t, DismissTrigger trigger);
 }
 
+/// A presented motion that Android's predictive back gesture drives, as a
+/// drag of the content that dismisses it does: the shell hands it the
+/// gesture's progress while the finger moves, then commits or cancels.
+///
+/// A route shell starts the gesture only while the presentation rests open,
+/// is the navigator's top route and nothing would refuse its pop (the
+/// policy lets [DismissTrigger.back] through and no `PopScope` may veto);
+/// otherwise, and for a motion without this mixin, the gesture's end is a
+/// plain Back. A portal does not start it: Back closes a portal as before.
+///
+/// While the gesture moves it, the motion's [presence] stays toward shown:
+/// a presence that turns to [PresenceStatus.leaving] is the motion leaving
+/// on its own, which dismisses the presentation at once.
+mixin PredictiveBack on Presented {
+  /// A back gesture starts at [t]: until [backEnded] the presentation
+  /// follows [backMoved] instead of its own course.
+  void backStarted(double t);
+
+  /// The gesture stands at [progress] at [t]: 0 where it started, 1 at the
+  /// far end, as Android reports it.
+  void backMoved(double t, double progress);
+
+  /// The gesture ends at [t] with [velocity], its progress per second.
+  ///
+  /// When [commits], [leave] for [DismissTrigger.back] follows at the same
+  /// time and continues from where the gesture left the presentation, with
+  /// that velocity. Otherwise the presentation returns to rest open; the
+  /// shell shows what is below until it settles.
+  void backEnded(double t, {required bool commits, required double velocity});
+}
+
 /// Which user dismissals a presentation lets through, before the
 /// content's `PopScope`s are asked. A programmatic dismissal always goes.
 @immutable
