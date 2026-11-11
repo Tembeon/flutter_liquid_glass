@@ -300,6 +300,9 @@ abstract final class _Metrics {
   static const double chevronEnd = 2;
   static const double grid = 7 * cell;
 
+  /// How far a day's 44-point target reaches past its cell on each side.
+  static const double reach = (44 - cell) / 2;
+
   /// Where the month and year wheels sit in the calendar
   /// (`_UICalendarMonthYearSelector`, iPhone 16 Pro, fixture
   /// ios27-device/date_picker/month-year.json): 288 x 216 at 16 x 76.84.
@@ -860,12 +863,13 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.fromLTRB(
-                              _Metrics.gridInset,
+                              _Metrics.gridInset - _Metrics.reach,
                               _Metrics.gridTop,
-                              _Metrics.gridInset,
+                              _Metrics.gridInset - _Metrics.reach,
                               0,
                             ),
-                            child: ClipRect(
+                            child: _PageClip(
+                              inset: _Metrics.reach,
                               // A page turn repaints the moving grids'
                               // offsets only, not the weekday row above;
                               // mounting or swapping a grid lays out only
@@ -957,7 +961,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
         if (previousGrid != null && previous != null && turning)
           Positioned(
             key: ValueKey<DateTime>(previous),
-            left: 0,
+            left: _Metrics.reach,
             top: 0,
             width: _Metrics.grid,
             child: MotionTransition(
@@ -971,7 +975,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
           key: ValueKey<DateTime>(month),
           left: 0,
           top: 0,
-          width: _Metrics.grid,
+          width: _Metrics.grid + 2 * _Metrics.reach,
           child: MotionTransition(
             offset: _motion.select((m) {
               final q = m.page;
@@ -982,7 +986,11 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
                 0,
               );
             }),
-            child: monthGrid,
+            // The outer days' targets reach past the grid.
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: _Metrics.reach),
+              child: monthGrid,
+            ),
           ),
         ),
       ],
@@ -1093,5 +1101,51 @@ class _RenderScopedRepaintBoundary extends RenderBox
     _keepsPaint = false;
     final child = this.child;
     if (child != null) context.paintChild(child, offset);
+  }
+}
+
+/// Paints its child clipped [inset] inside its left and right edges, but
+/// takes hits and bounds semantics in its whole box: the outer days'
+/// targets reach past the grid that the paging months must not paint
+/// beyond.
+class _PageClip extends SingleChildRenderObjectWidget {
+  const _PageClip({required this.inset, super.child});
+
+  final double inset;
+
+  @override
+  _RenderPageClip createRenderObject(BuildContext context) =>
+      _RenderPageClip(inset);
+}
+
+class _RenderPageClip extends RenderProxyBox {
+  _RenderPageClip(this._inset);
+
+  final double _inset;
+
+  final LayerHandle<ClipRectLayer> _clip = LayerHandle<ClipRectLayer>();
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    if (child == null) {
+      _clip.layer = null;
+      return;
+    }
+    _clip.layer = context.pushClipRect(
+      needsCompositing,
+      offset,
+      Rect.fromLTRB(_inset, 0, size.width - _inset, size.height),
+      super.paint,
+      oldLayer: _clip.layer,
+    );
+  }
+
+  @override
+  Rect? describeApproximatePaintClip(RenderObject child) => Offset.zero & size;
+
+  @override
+  void dispose() {
+    _clip.layer = null;
+    super.dispose();
   }
 }

@@ -1087,4 +1087,70 @@ void main() {
       expect(tester.getCenter(find.text('31')).dy, closeTo(top + 295.34, 0.6));
     });
   });
+
+  group('RawGlassDatePicker', () {
+    Future<List<DateTime>> pump(
+      WidgetTester tester, {
+      TextDirection direction = TextDirection.ltr,
+      DateTime? value,
+    }) async {
+      final picked = <DateTime>[];
+      var current = value ?? DateTime(2026, 10, 3, 9, 41);
+      await tester.pumpWidget(
+        _App(
+          builder: (BuildContext context, Widget? child) =>
+              Directionality(textDirection: direction, child: child!),
+          home: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) => Center(
+              child: RawGlassDatePicker(
+                value: current,
+                today: DateTime(2026, 10, 3),
+                onChanged: (DateTime v) {
+                  picked.add(v);
+                  setState(() => current = v);
+                },
+                dayBuilder: (context, day) => SizedBox.fromSize(
+                  size: day.size,
+                  child: Center(child: Text('${day.date.day}')),
+                ),
+                titleBuilder: (context, title) => Text(title.text),
+                arrowBuilder: (context, arrow) =>
+                    Center(child: Text(arrow.next ? '>' : '<')),
+                weekdayBuilder: (context, label) => Text(label),
+                monthYearBuilder: (context, details) => const SizedBox.expand(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return picked;
+    }
+
+    testWidgets('the outer columns keep 44-point targets', (tester) async {
+      final handle = tester.ensureSemantics();
+      final picked = await pump(tester);
+      // October 2026 in weeks from Sunday: the 4th opens a row, the 3rd
+      // closes one.
+      for (final (day, edge) in [('4', -0.5), ('3', 0.5)]) {
+        final node = tester.getSemantics(find.text(day));
+        final rect = switch (node.transform) {
+          final transform? => MatrixUtils.transformRect(transform, node.rect),
+          null => node.rect,
+        };
+        expect(rect.width, greaterThanOrEqualTo(44 - 0.01), reason: day);
+        final cell = tester.getRect(
+          find
+              .ancestor(of: find.text(day), matching: find.byType(SizedBox))
+              .first,
+        );
+        await tester.tapAt(
+          (edge < 0 ? cell.centerLeft : cell.centerRight) + Offset(edge, 0),
+        );
+        await tester.pumpAndSettle();
+        expect(picked.last.day, int.parse(day));
+      }
+      handle.dispose();
+    });
+  });
 }
