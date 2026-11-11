@@ -1,3 +1,5 @@
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
@@ -35,6 +37,42 @@ class _Finger extends Interaction {
   }
 }
 
+/// Hears what reaches a host interaction besides the finger's path: the
+/// arena's acceptance, the mouse over the host, and reports the row under
+/// a sliding finger as an event.
+class _Listener extends Interaction {
+  _Listener(this.zones, {this.contends = false});
+
+  final InputZonesController<int> zones;
+  final bool contends;
+  final List<String> heard = [];
+  int? _row;
+
+  @override
+  bool get contendsWithControls => contends;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    switch (input) {
+      case PointerDownInput(:final position):
+        _row = zones.zoneAt(position);
+      case PointerMoveInput(:final position):
+        final row = zones.zoneAt(position);
+        if (row == _row) break;
+        _row = row;
+        return InteractionUpdate(
+          events: [ScrubChangeEvent(time: input.time, selected: row)],
+        );
+      case PointerAcceptedInput():
+        heard.add('accepted');
+      case PointerHoverInput(:final position):
+        heard.add('hover ${zones.zoneAt(position)}');
+      default:
+    }
+    return InteractionUpdate.none;
+  }
+}
+
 /// Three rows of 40 points, one under the other, in a 100 point wide menu
 /// at (50, 50).
 class _Menu extends StatelessWidget {
@@ -44,10 +82,18 @@ class _Menu extends StatelessWidget {
     required this.frames,
     this.port,
     this.rowTaps,
+    this.others = const [],
+    this.hostFeedback,
+    this.rowInputs,
+    this.child = const SizedBox(width: 100, height: 120),
   });
 
   final InputZonesController<int> zones;
   final _Finger finger;
+  final List<Interaction> others;
+  final MotionHaptic? Function(InteractionEvent event)? hostFeedback;
+  final List<String>? rowInputs;
+  final Widget child;
   final Listenable frames;
   final InputPort? port;
   final List<int>? rowTaps;
@@ -61,17 +107,34 @@ class _Menu extends StatelessWidget {
         for (var i = 0; i < 3; i++)
           InputZone(
             id: i,
-            interactions: [PressInteraction(onTap: (t) => rowTaps?.add(i))],
+            interactions: [
+              PressInteraction(onTap: (t) => rowTaps?.add(i)),
+              if (rowInputs case final inputs?) _Heard(inputs),
+            ],
           ),
       ],
       frameOf: (id) => InputZoneFrame(Rect.fromLTWH(0, id * 40.0, 100, 40)),
       frames: frames,
       controller: zones,
-      interactions: [finger],
+      interactions: [finger, ...others],
+      hostFeedback: hostFeedback,
       port: port,
-      child: const SizedBox(width: 100, height: 120),
+      child: child,
     ),
   );
+}
+
+/// Writes the arena's acceptance of a row's touch.
+class _Heard extends Interaction {
+  _Heard(this.heard);
+
+  final List<String> heard;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    if (input is PointerAcceptedInput) heard.add('accepted');
+    return InteractionUpdate.none;
+  }
 }
 
 Widget _screen(List<Widget> children) => Directionality(
@@ -199,4 +262,128 @@ void main() {
     expect(zones.zoneAt(const Offset(60, 10)), isNull);
     expect(zones.zoneAt(const Offset(10, 60)), isNull);
   });
+
+  testWidgets('the haptics of a host interaction play through hostFeedback '
+      'as the finger slides onto another row', (tester) async {
+    final haptics = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'HapticFeedback.vibrate') {
+          haptics.add(call.arguments as String);
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    final finger = _Finger(zones);
+    await tester.pumpWidget(
+      _screen([
+        _Menu(
+          zones: zones,
+          finger: finger,
+          frames: frames,
+          others: [_Listener(zones)],
+          hostFeedback: (event) =>
+              event is ScrubChangeEvent ? MotionHaptic.selection : null,
+        ),
+      ]),
+    );
+    final gesture = await tester.startGesture(const Offset(100, 70));
+    await gesture.moveTo(const Offset(100, 75));
+    expect(haptics, isEmpty);
+    await gesture.moveTo(const Offset(100, 110));
+    await gesture.moveTo(const Offset(100, 150));
+    await gesture.up();
+    expect(haptics, [
+      'HapticFeedbackType.selectionClick',
+      'HapticFeedbackType.selectionClick',
+    ]);
+  });
+
+  testWidgets('the host and the row under the finger hear the arena give '
+      'the host the touch', (tester) async {
+    final finger = _Finger(zones);
+    final listener = _Listener(zones);
+    final rows = <String>[];
+    await tester.pumpWidget(
+      _screen([
+        _Menu(
+          zones: zones,
+          finger: finger,
+          frames: frames,
+          others: [listener],
+          rowInputs: rows,
+        ),
+      ]),
+    );
+    await tester.tapAt(const Offset(100, 70));
+    expect(listener.heard, ['accepted']);
+    expect(rows, ['accepted']);
+  });
+
+  testWidgets('the mouse over the host reaches its interactions', (
+    tester,
+  ) async {
+    final finger = _Finger(zones);
+    final listener = _Listener(zones);
+    await tester.pumpWidget(
+      _screen([
+        _Menu(zones: zones, finger: finger, frames: frames, others: [listener]),
+      ]),
+    );
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: const Offset(10, 10));
+    await mouse.moveTo(const Offset(100, 115));
+    await mouse.moveTo(const Offset(100, 155));
+    await mouse.removePointer();
+    expect(listener.heard, ['hover 1', 'hover 2']);
+  });
+
+  testWidgets('a host interaction that contends with controls starts the '
+      'touches of a region inside the host contested', (tester) async {
+    final contested = <bool>[];
+    final finger = _Finger(zones);
+    await tester.pumpWidget(
+      _screen([
+        _Menu(
+          zones: zones,
+          finger: finger,
+          frames: frames,
+          others: [_Listener(zones, contends: true)],
+          child: SizedBox(
+            width: 100,
+            height: 120,
+            child: Align(
+              alignment: Alignment.bottomRight,
+              child: InputRegion(
+                interactions: [_Contested(contested)],
+                child: const SizedBox(width: 10, height: 10),
+              ),
+            ),
+          ),
+        ),
+      ]),
+    );
+    await tester.tapAt(const Offset(145, 165));
+    expect(contested, [true]);
+  });
+}
+
+/// Writes whether the touches it hears start contested.
+class _Contested extends Interaction {
+  _Contested(this.contested);
+
+  final List<bool> contested;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    if (input is PointerDownInput) contested.add(input.contested);
+    return InteractionUpdate.none;
+  }
 }

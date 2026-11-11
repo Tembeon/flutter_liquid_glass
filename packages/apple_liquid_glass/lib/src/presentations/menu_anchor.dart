@@ -59,6 +59,10 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
 
   // The time of the tap whose action runs now, while it runs.
   double? _tapAt;
+
+  // What the menu made of the pointer command running now, for the haptics
+  // of the input host that heard the pointer.
+  final List<InteractionEvent> _heard = [];
   bool _routing = false;
   bool _delivering = false;
 
@@ -192,7 +196,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     switch (event) {
       case MenuHighlightChanged(:final from, :final to, :final tracked):
         _content.highlight(from, to);
-        if (tracked) MotionHaptic.selection.play(context);
+        if (tracked) _heard.add(ScrubChangeEvent(time: _now, selected: to));
       case MenuActivated(:final target):
         _content.activate(target);
       case MenuTapped(:final time):
@@ -300,10 +304,18 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     return box is RenderBox ? box.globalToLocal(global) : global;
   }
 
-  Offset _toGlobal(Offset local) {
-    final box = context.findRenderObject();
-    return box is RenderBox ? box.localToGlobal(local) : local;
+  /// The events of the pointer commands given since the last call: a
+  /// finger that slid onto another row.
+  List<InteractionEvent> _takeHeard() {
+    if (_heard.isEmpty) return const [];
+    final heard = [..._heard];
+    _heard.clear();
+    return heard;
   }
+
+  /// The haptic an input host plays for an event of the menu's pointer.
+  static MotionHaptic? _feedback(InteractionEvent event) =>
+      event is ScrubChangeEvent ? MotionHaptic.selection : null;
 
   /// A finger touched the menu at [global] at time [t]; whether the menu
   /// takes the touch.
@@ -377,6 +389,10 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
           _pointerCancel(event.pointer, t);
         default:
       }
+    }
+    // No input host hears such a touch, so the menu plays its haptics.
+    for (final event in _takeHeard()) {
+      _feedback(event)?.play(context);
     }
   }
 
@@ -618,11 +634,11 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
 
   late final _input = _MenuInput(
     claimAfter: widget.tuning.holdDuration,
-    toGlobal: _toGlobal,
     down: _sourceDown,
     move: _pointerMove,
     up: _pointerUp,
     cancel: _pointerCancel,
+    heard: _takeHeard,
     activate: _activate,
   );
 
@@ -667,6 +683,7 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
     return _host(
       InputRegion(
         interactions: [_input],
+        feedback: _MenuHost._feedback,
         statesController: _states,
         enabled: enabled,
         focusNode: widget.childFocusNode,
@@ -716,7 +733,8 @@ final class _UnlentStates implements ValueListenable<Set<WidgetState>> {
 }
 
 /// The touches of a region over a menu's source or its layer, handed to
-/// the menu in global coordinates at their stamps.
+/// the menu in global coordinates at their stamps, with what the menu made
+/// of them ([heard]) as the events the host plays haptics for.
 ///
 /// It hears a touch at contact and claims it [claimAfter] later, when a
 /// hold opens the menu under the finger, or at once without one: a scroll
@@ -724,20 +742,20 @@ final class _UnlentStates implements ValueListenable<Set<WidgetState>> {
 /// one that may choose from the menu.
 final class _MenuInput extends Interaction {
   _MenuInput({
-    required this.toGlobal,
     required this.down,
     required this.move,
     required this.up,
     required this.cancel,
+    required this.heard,
     this.activate,
     this.claimAfter,
   });
 
-  final Offset Function(Offset local) toGlobal;
   final bool Function(int pointer, double t, Offset global) down;
   final void Function(int pointer, double t, Offset global) move;
   final void Function(int pointer, double t, Offset global) up;
   final void Function(int pointer, double t) cancel;
+  final List<InteractionEvent> Function() heard;
   final VoidCallback? activate;
   final double? claimAfter;
 
@@ -760,21 +778,25 @@ final class _MenuInput extends Interaction {
 
   @override
   InteractionUpdate handle(InteractionInput input) {
+    var claims = false;
     switch (input) {
       case PointerDownInput() when _pointer == null && accepts(input):
-        if (!down(input.pointer, input.time, toGlobal(input.position))) {
+        if (!down(input.pointer, input.time, input.globalPosition)) {
           return InteractionUpdate.none;
         }
         _pointer = input.pointer;
         final after = claimAfter;
-        if (after == null) return const InteractionUpdate(claims: true);
-        _claimAt = input.time + after;
+        if (after == null) {
+          claims = true;
+        } else {
+          _claimAt = input.time + after;
+        }
       case PointerMoveInput() when input.pointer == _pointer:
-        move(input.pointer, input.time, toGlobal(input.position));
+        move(input.pointer, input.time, input.globalPosition);
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
         _claimAt = null;
-        up(input.pointer, input.time, toGlobal(input.position));
+        up(input.pointer, input.time, input.globalPosition);
       case PointerCancelInput() when input.pointer == _pointer:
         _pointer = null;
         _claimAt = null;
@@ -783,7 +805,9 @@ final class _MenuInput extends Interaction {
         activate?.call();
       default:
     }
-    return InteractionUpdate.none;
+    final events = heard();
+    if (!claims && events.isEmpty) return InteractionUpdate.none;
+    return InteractionUpdate(claims: claims, events: events);
   }
 }
 
@@ -875,18 +899,14 @@ class _MenuLayerState extends State<_MenuLayer> {
   late final MotionSelection<MenuMotion> _frames = _host._steps!;
 
   late final _input = _MenuInput(
-    toGlobal: (local) =>
-        (context.findRenderObject()! as RenderBox).localToGlobal(local),
     down: _host._pointerDown,
     move: _host._pointerMove,
     up: _host._pointerUp,
     cancel: _host._pointerCancel,
+    heard: _host._takeHeard,
   );
 
   late final _hover = _HoverInput(onHover: _hovered);
-
-  // The rows take the keys; the region's node stays out of the traversal.
-  final _regionFocus = FocusNode(skipTraversal: true);
 
   MenuMotion get _motion => _host._motion!;
 
@@ -908,7 +928,6 @@ class _MenuLayerState extends State<_MenuLayer> {
     _frames.removeListener(_tick);
     _zones.removeListener(_focusMoved);
     _zones.dispose();
-    _regionFocus.dispose();
     _scroll.dispose();
     super.dispose();
   }
@@ -1358,11 +1377,7 @@ class _MenuLayerState extends State<_MenuLayer> {
       borderRadius: BorderRadius.circular(
         locked ? _motion.tuning.cornerRadius : 0,
       ),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onPanUpdate: locked ? (_) => _scrollGesture() : null,
-        child: IgnorePointer(ignoring: locked, child: body),
-      ),
+      child: IgnorePointer(ignoring: locked, child: body),
     );
   }
 
@@ -1614,70 +1629,72 @@ class _MenuLayerState extends State<_MenuLayer> {
         if (top > 0) _card(top, layouts[top], style),
       ],
     );
-    final layer = InputRegion(
+    final layer = InputZones<int>(
+      zones: structure.open ? _zonesOf(layouts[structure.top]) : const [],
+      frameOf: _frameOf,
+      frames: _frames,
+      controller: _zones,
+      axis: null,
+      stops: InputZoneStops.one,
+      onEdge: _edge,
+      excludeChildSemantics: false,
       interactions: [_input, _hover],
-      focusNode: _regionFocus,
-      child: InputZones<int>(
-        zones: structure.open ? _zonesOf(layouts[structure.top]) : const [],
-        frameOf: _frameOf,
-        frames: _frames,
-        controller: _zones,
-        axis: null,
-        stops: InputZoneStops.one,
-        onEdge: _edge,
-        excludeChildSemantics: false,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            ..._host._backdrop(this),
-            IgnorePointer(
-              child: LiveGlassSurface(
-                live: _frames,
-                frameOf: () => _menuFrame(
-                  motion,
-                  sourceTint: _host._sourceTint,
-                  opacity: motion.glassOpacity,
-                ),
+      hostFeedback: _MenuHost._feedback,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ..._host._backdrop(this),
+          IgnorePointer(
+            child: LiveGlassSurface(
+              live: _frames,
+              frameOf: () => _menuFrame(
+                motion,
+                sourceTint: _host._sourceTint,
+                opacity: motion.glassOpacity,
               ),
             ),
-            if (motion.drawsSource)
-              IgnorePointer(
-                child: _driven(
-                  (motion) => menuPlacement(
-                    motion.buttonBlob.localRect,
-                    Transform(
-                      alignment: Alignment.center,
-                      transform: _lookTransform(),
-                      child: Opacity(
-                        opacity: motion.buttonLookOpacity.clamp(0.0, 1.0),
-                      ),
+          ),
+          if (motion.drawsSource)
+            IgnorePointer(
+              child: _driven(
+                (motion) => menuPlacement(
+                  motion.buttonBlob.localRect,
+                  Transform(
+                    alignment: Alignment.center,
+                    transform: _lookTransform(),
+                    child: Opacity(
+                      opacity: motion.buttonLookOpacity.clamp(0.0, 1.0),
                     ),
                   ),
+                ),
+                // A picture of the source, which screen readers read in its
+                // place.
+                child: ExcludeSemantics(
                   child: MotionTransition(
                     blur: _lookBlur,
                     child: Center(child: _host._look),
                   ),
                 ),
               ),
-            _driven(
-              (motion) => ClipRRect(
-                clipper: MenuClip(
-                  motion.cards.length < 2
-                      ? motion.menuBlob.rrect
-                      : RRect.fromRectAndRadius(Rect.largest, Radius.zero),
-                ),
-                child: menuPlacement(
-                  motion.contentRect.topLeft & motion.menuRect.size,
-                  Transform(
-                    alignment: Alignment.topLeft,
-                    transform: _contentTransform(),
-                  ),
+            ),
+          _driven(
+            (motion) => ClipRRect(
+              clipper: MenuClip(
+                motion.cards.length < 2
+                    ? motion.menuBlob.rrect
+                    : RRect.fromRectAndRadius(Rect.largest, Radius.zero),
+              ),
+              child: menuPlacement(
+                motion.contentRect.topLeft & motion.menuRect.size,
+                Transform(
+                  alignment: Alignment.topLeft,
+                  transform: _contentTransform(),
                 ),
               ),
-              child: IgnorePointer(ignoring: !structure.open, child: content),
             ),
-          ],
-        ),
+            child: IgnorePointer(ignoring: !structure.open, child: content),
+          ),
+        ],
       ),
     );
     return Actions(
@@ -1907,16 +1924,26 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   );
   late final _growth = _hold.select((hold) => hold.growth);
 
-  // The hold itself listens outside the gesture arena (the Listener in build);
-  // this member only claims the touch when the menu opens, so a surrounding
-  // scroll view does not take the finger sliding into the rows.
+  // The hold hears the touch outside the gesture arena: a child that claims
+  // its touch at once, a glass button, would win it, and Flutter's arena
+  // never hands a won touch on, where UIKit cancels the button's.
+  late final _hear = _ObservedTouch(
+    down: _down,
+    move: _move,
+    up: _up,
+    cancel: _cancel,
+    heard: _takeHeard,
+  );
+
+  // Only claims the touch when the menu opens, so a surrounding scroll view
+  // does not take the finger sliding into the rows.
   late final _claim = _MenuInput(
     claimAfter: ContextHold.openAfter,
-    toGlobal: (local) => local,
     down: (pointer, t, global) => _enabled && !(_motion?.isPresented ?? false),
     move: (pointer, t, global) {},
     up: (pointer, t, global) {},
     cancel: (pointer, t) {},
+    heard: () => const [],
   );
   // One Tab stop, where the keyboard's context menu key lands.
   final _claimFocus = FocusNode(debugLabel: 'GlassContextMenu');
@@ -2068,54 +2095,48 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     _hold.release(t);
   }
 
-  double _stamp(PointerEvent event) => _hold.clock.stamp(event.timeStamp);
-
-  void _down(PointerDownEvent event) {
+  void _down(int pointer, double t, Offset global) {
     if (!_enabled ||
-        event.buttons != kPrimaryButton ||
         _held != null ||
         _pointer != null ||
         (_motion?.isPresented ?? false)) {
       return;
     }
-    _held = event.pointer;
-    _from = event.position;
-    _finger = event.position;
-    _hold.down(_stamp(event));
+    _held = pointer;
+    _from = global;
+    _finger = global;
+    _hold.down(t);
   }
 
-  void _move(PointerMoveEvent event) {
-    final t = _stamp(event);
-    if (event.pointer == _held) {
-      _finger = event.position;
-      if ((event.position - _from).distance > kTouchSlop) _drop(t);
+  void _move(int pointer, double t, Offset global) {
+    if (pointer == _held) {
+      _finger = global;
+      if ((global - _from).distance > kTouchSlop) _drop(t);
       return;
     }
-    _pointerMove(event.pointer, t, event.position);
+    _pointerMove(pointer, t, global);
   }
 
-  void _up(PointerUpEvent event) {
-    final t = _stamp(event);
-    if (event.pointer == _held) {
-      _finger = event.position;
+  void _up(int pointer, double t, Offset global) {
+    if (pointer == _held) {
+      _finger = global;
       if (_hold.isCommitted) {
         _openUnder(t, _hold.release(t));
-        _pointerUp(event.pointer, t, event.position);
+        _pointerUp(pointer, t, global);
       } else {
         _drop(t);
       }
       return;
     }
-    _pointerUp(event.pointer, t, event.position);
+    _pointerUp(pointer, t, global);
   }
 
-  void _cancel(PointerCancelEvent event) {
-    final t = _stamp(event);
-    if (event.pointer == _held) {
+  void _cancel(int pointer, double t) {
+    if (pointer == _held) {
       _drop(t);
       return;
     }
-    _pointerCancel(event.pointer, t);
+    _pointerCancel(pointer, t);
   }
 
   Matrix4 _growthTransform() {
@@ -2204,43 +2225,73 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     // the hold as its long press; the menu is read after it.
     return _host(
       InputRegion(
-        interactions: [_claim, _secondary],
+        interactions: [_hear, _claim, _secondary],
+        feedback: _MenuHost._feedback,
         statesController: _states,
         mouseCursor: WidgetStateMouseCursor.adaptiveClickable,
         enabled: enabled,
         focusNode: _claimFocus,
         child: Semantics(
           onLongPress: enabled ? _openFromCode : null,
-          // The hold listens outside the gesture arena: a child that claims
-          // its touch at once, a glass button, would win it, and Flutter's
-          // arena never hands a won touch on, where UIKit cancels the
-          // button's.
-          child: Listener(
-            behavior: HitTestBehavior.translucent,
-            onPointerDown: _down,
-            onPointerMove: _move,
-            onPointerUp: _up,
-            onPointerCancel: _cancel,
-            child: MotionSourceBox(
-              source: _source,
-              child: menuDriven(
-                _growth,
-                (_) => Transform(
-                  alignment: Alignment.center,
-                  transform: _growthTransform(),
-                ),
-                child: GlassHighlightPaint.of(
-                  context,
-                  states: _states,
-                  shape: const GlassShape.roundedRect(0),
-                  wash: true,
-                  child: widget.child,
-                ),
+          child: MotionSourceBox(
+            source: _source,
+            child: menuDriven(
+              _growth,
+              (_) => Transform(
+                alignment: Alignment.center,
+                transform: _growthTransform(),
+              ),
+              child: GlassHighlightPaint.of(
+                context,
+                states: _states,
+                shape: const GlassShape.roundedRect(0),
+                wash: true,
+                child: widget.child,
               ),
             ),
           ),
         ),
       ),
     );
+  }
+}
+
+/// Every touch on a region, heard outside the gesture arena however it
+/// decides (a `Listener`'s view), handed on in global coordinates at its
+/// stamps, with what the menu made of it ([heard]) as the events the
+/// region plays haptics for.
+final class _ObservedTouch extends Interaction {
+  _ObservedTouch({
+    required this.down,
+    required this.move,
+    required this.up,
+    required this.cancel,
+    required this.heard,
+  }) : super(role: InteractionRole.observer);
+
+  final void Function(int pointer, double t, Offset global) down;
+  final void Function(int pointer, double t, Offset global) move;
+  final void Function(int pointer, double t, Offset global) up;
+  final void Function(int pointer, double t) cancel;
+  final List<InteractionEvent> Function() heard;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    switch (input) {
+      case PointerDownInput():
+        down(input.pointer, input.time, input.globalPosition);
+      case PointerMoveInput():
+        move(input.pointer, input.time, input.globalPosition);
+      case PointerUpInput():
+        up(input.pointer, input.time, input.globalPosition);
+      case PointerCancelInput():
+        cancel(input.pointer, input.time);
+      default:
+        return InteractionUpdate.none;
+    }
+    final events = heard();
+    return events.isEmpty
+        ? InteractionUpdate.none
+        : InteractionUpdate(events: events);
   }
 }

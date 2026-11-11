@@ -512,6 +512,7 @@ class InputZones<T extends Object> extends StatefulWidget
     InputPort? port,
     bool excludeChildSemantics = ...,
     List<Interaction> interactions = ...,
+    MotionHaptic? Function(InteractionEvent)? hostFeedback,
     Key? key,
   })
   final bool activatesOnMove
@@ -523,6 +524,7 @@ class InputZones<T extends Object> extends StatefulWidget
   final MotionHaptic? Function(T, InteractionEvent)? feedback
   final InputZoneFrame? Function(T) frameOf
   final Listenable frames
+  final MotionHaptic? Function(InteractionEvent)? hostFeedback
   final List<Interaction> interactions
   final bool Function(T, TraversalDirection)? onEdge
   final InputPort? port

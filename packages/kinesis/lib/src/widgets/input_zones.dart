@@ -462,6 +462,7 @@ class InputZones<T extends Object> extends StatefulWidget {
     this.port,
     this.excludeChildSemantics = true,
     this.interactions = const [],
+    this.hostFeedback,
     super.key,
   });
 
@@ -529,13 +530,26 @@ class InputZones<T extends Object> extends StatefulWidget {
   /// between the zones, or arrives through [port], from its down to its
   /// release wherever the finger goes, beyond the host too, beside the
   /// zone the touch lands on. They hold or give up the touch in the gesture
-  /// arena as an `InputRegion`'s interactions do; an observer
+  /// arena as an `InputRegion`'s interactions do, and hear the arena give
+  /// it to the host ([PointerAcceptedInput]); an observer
   /// ([InteractionRole.observer]) stays out of it. A host interaction asks
   /// [InputZonesController.zoneAt] which zone lies under the finger: a
   /// finger that opened a menu slides over its rows and beyond its edge,
-  /// and the menu follows it. Keys, hover and accessibility stay the
-  /// zones'; the host's interactions play no [feedback].
+  /// and the menu follows it. They also hear the mouse moving over the
+  /// host, as `PointerHoverInput`s with `inside` true. When one
+  /// [Interaction.contendsWithControls], the controls inside [child] start
+  /// their touches contested, as below an `InputRegion`. Keys and
+  /// accessibility stay the zones'; the haptics of the host's interactions
+  /// are [hostFeedback]'s.
   final List<Interaction> interactions;
+
+  /// The haptic for an event of [interactions], or null for none.
+  ///
+  /// As [feedback]: played as the event happens, never for a keyboard or
+  /// accessibility input, and not below a `MotionHapticScope` that turns
+  /// haptics off. A menu plays its selection haptic for the row a sliding
+  /// finger reaches this way.
+  final MotionHaptic? Function(InteractionEvent event)? hostFeedback;
 
   @override
   State<InputZones<T>> createState() => _InputZonesState<T>();
@@ -771,6 +785,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
       case PointerScrollEvent():
         _wheel(event);
       case PointerHoverEvent():
+        _hoverHost(event);
         final zone = _zoneAt(event.localPosition);
         if (zone != null && zone.takesInput) {
           zone._input(
@@ -788,6 +803,23 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
       default:
         break;
     }
+  }
+
+  void _hoverHost(PointerHoverEvent event) {
+    if (widget.interactions.isEmpty) return;
+    final time = _clock.now;
+    _clock.input(
+      time,
+      () => _answerHost(
+        _hostSession.handle(
+          PointerHoverInput(
+            time: time,
+            position: event.localPosition,
+            inside: true,
+          ),
+        ),
+      ),
+    );
   }
 
   void _wheel(PointerScrollEvent event) {
@@ -936,7 +968,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     }
     _downs[pointer] = down;
     if (arena && (accepted || widget.slides || hostTakes)) {
-      final member = InputArenaMember(_lost);
+      final member = InputArenaMember(_lost, onAccepted: _accepted);
       _members[pointer] = member;
       member.entry = GestureBinding.instance.gestureArena.add(pointer, member);
     }
@@ -1034,6 +1066,18 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     );
   }
 
+  void _accepted(int pointer) {
+    if (!_members.containsKey(pointer)) return;
+    final time = _clock.now;
+    _clock.input(time, () {
+      final input = PointerAcceptedInput(time: time, pointer: pointer);
+      _answerHost(_hostSession.handle(input), pointer: pointer);
+      final zone = _zones[_owners[pointer]];
+      if (zone == null) return;
+      _answer(zone, zone.session.handle(input), pointer: pointer);
+    });
+  }
+
   void _lost(int pointer) {
     if (_members.remove(pointer) == null) return;
     if (!_hostSession.observes(pointer)) {
@@ -1089,7 +1133,8 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     _scheduleDue();
   }
 
-  /// Resolves the arena for what the host's interactions made of a touch.
+  /// Resolves the arena for what the host's interactions made of a touch,
+  /// and plays their haptics.
   void _answerHost(SessionOutput output, {int? pointer}) {
     if (pointer != null) {
       final entry = _members[pointer]?.entry;
@@ -1098,7 +1143,19 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
         entry?.resolve(GestureDisposition.rejected);
       }
     }
+    for (final event in output.events) {
+      _playHost(event);
+    }
     _scheduleDue();
+  }
+
+  void _playHost(InteractionEvent event) {
+    if (event is ActivationEvent && event.source != ActivationSource.pointer) {
+      return;
+    }
+    if (!mounted) return;
+    final haptic = widget.hostFeedback?.call(event);
+    if (haptic != null) playHaptic(context, haptic);
   }
 
   void _play(T zone, InteractionEvent event) {
@@ -1229,13 +1286,17 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
 
   @override
   Widget build(BuildContext context) {
+    final contends = widget.interactions.any((i) => i.contendsWithControls);
     return FocusTraversalGroup(
       policy: _policy,
       child: _ZonesHost<T>(
         state: this,
         excludeChildSemantics: widget.excludeChildSemantics,
         children: [
-          widget.child,
+          ContestScope(
+            contested: ContestScope.of(context) || contends,
+            child: widget.child,
+          ),
           for (final (order, zone) in widget.zones.indexed)
             _Zone<T>(
               key: _ZoneKey<T>(zone.id),
