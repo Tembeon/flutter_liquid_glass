@@ -958,35 +958,22 @@ enum FakeGlassRole
   layerPaints,
   inFakeLayer,
   standalone,
-class FlutterGpuGeometryRenderer
-  Image? get atlasImage
+class FlutterGpuGeometryRenderer implements GeometryRendererMembers
   @visibleForTesting static int get debugActiveGeometryTextureCount
   @visibleForTesting static int get debugActiveRendererCount
   @visibleForTesting static int debugAllocatedTextureCount
   @visibleForTesting static int debugBatchedSubmitCount
   @visibleForTesting static int debugDeferredPassCount
-  @visibleForTesting bool get debugDisposed
   @visibleForTesting static int debugDroppedTextureCount
-  @visibleForTesting int get debugHostBufferBlockLength
-  @visibleForTesting Object? get debugHostBufferIdentity
-  @visibleForTesting Object? get debugMatteTexture
-  @visibleForTesting (int, int)? get debugMatteTextureSize
-  @visibleForTesting Object get debugPipelineIdentity
   @visibleForTesting static int debugPostFrameFlushCount
-  @visibleForTesting int debugRenderCount
   @visibleForTesting static void debugResetPages()
   @visibleForTesting static int debugReusedTextureCount
   @visibleForTesting static int get debugTotalRenderCount
-  LiquidGlassDeviceClass get deviceClass
-  void dispose()
-  int droppedShapes
   static void flush()
   static Future<FlutterGpuGeometryRenderer> fromAsset(String assetKey)
-  List<Image> get lookImages
-  void releaseAtlas()
-  void releaseOutput()
   static const int reuseAfterFrames
   static FlutterGpuGeometryRenderer? tryCreateCached(String assetKey)
+  overrides: atlasImage, debugDisposed, debugHostBufferBlockLength, debugHostBufferIdentity, debugMatteTexture, debugMatteTextureSize, debugPipelineIdentity, debugRenderCount, deviceClass, dispose, droppedShapes, lookImages, releaseAtlas, releaseOutput
 class GeometryRenderLink
   GeometryRenderLink()
   void dispose()

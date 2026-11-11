@@ -1,4 +1,5 @@
 ComposedLayer in LiquidGlassBackdropFilterLayer
+GeometryRendererMembers in FlutterGpuGeometryRenderer
 PlanSite in LiquidGlassBackdropFilterLayer
 ReadPainter in RenderLiquidGlassLayer
 TransformTrackingRenderObjectMixin in RenderConsolidatedFakeGlassLayer

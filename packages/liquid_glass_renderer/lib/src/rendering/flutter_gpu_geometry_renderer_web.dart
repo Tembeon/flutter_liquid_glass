@@ -1,11 +1,14 @@
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
+
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer_members.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 
 /// Web stand-in for the Flutter GPU geometry renderer: the web has no
 /// `flutter_gpu`, and every entry point that would submit GPU work throws.
-class FlutterGpuGeometryRenderer {
+class FlutterGpuGeometryRenderer implements GeometryRendererMembers {
   FlutterGpuGeometryRenderer._();
 
   /// Always fails on the web; callers fall back to fake glass.
@@ -18,6 +21,7 @@ class FlutterGpuGeometryRenderer {
   static FlutterGpuGeometryRenderer? tryCreateCached(String assetKey) => null;
 
   /// The web has no shader filters.
+  @override
   LiquidGlassDeviceClass get deviceClass =>
       LiquidGlassDeviceClass.noShaderFilters;
 
@@ -58,44 +62,62 @@ class FlutterGpuGeometryRenderer {
   static int debugPostFrameFlushCount = 0;
 
   /// Always null on the web.
+  @override
   Object? get debugMatteTexture => null;
 
   /// Always null on the web.
+  @override
   (int, int)? get debugMatteTextureSize => null;
 
   /// Nothing is drawn on the web, so nothing is left out.
+  @override
   int get droppedShapes => 0;
 
   /// Never counts on the web.
+  @override
   int debugRenderCount = 0;
 
   /// The renderer itself: there is no pipeline on the web.
+  @override
   Object get debugPipelineIdentity => this;
 
   /// Always 0 on the web.
+  @override
   int get debugHostBufferBlockLength => 0;
 
   /// Always null on the web.
+  @override
   Object? get debugHostBufferIdentity => null;
 
   /// Always true: a web renderer holds nothing.
+  @override
   bool get debugDisposed => true;
 
   /// Always null on the web.
+  @override
   ui.Image? get atlasImage => null;
 
   /// Always empty on the web.
+  @override
   List<ui.Image> get lookImages => const [];
 
   /// Does nothing on the web.
+  @override
   void releaseAtlas() {}
 
   /// Does nothing on the web.
+  @override
   void releaseOutput() {}
 
   /// Does nothing on the web.
+  @override
   void dispose() {}
 }
+
+/// A web renderer for a host test: the web build itself never makes one.
+@visibleForTesting
+FlutterGpuGeometryRenderer debugWebGeometryRenderer() =>
+    FlutterGpuGeometryRenderer._();
 
 /// The renderer's atlas, which only the rendering library draws and reads.
 extension FlutterGpuGeometryRendererAtlas on FlutterGpuGeometryRenderer {

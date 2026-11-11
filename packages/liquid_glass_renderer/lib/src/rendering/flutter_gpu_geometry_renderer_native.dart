@@ -9,6 +9,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer_members.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 import 'package:vector_math/vector_math.dart' as vm;
@@ -93,7 +94,7 @@ const _tileVertexLayout = gpu.VertexLayout(
 /// is released. Recorded scenes hold independent native references; a
 /// scene rasterized more than [reuseAfterFrames] frames after its atlas was
 /// released may show other atlases.
-class FlutterGpuGeometryRenderer {
+class FlutterGpuGeometryRenderer implements GeometryRendererMembers {
   factory FlutterGpuGeometryRenderer._fromResolved(
     String assetKey,
     _SharedGeometryResources resources,
@@ -121,6 +122,7 @@ class FlutterGpuGeometryRenderer {
   /// mip level is not implemented on GLES yet, and ASTC HDR starts at the
   /// A13 (Apple6). A renderer exists only once the engine has created the
   /// context; reading it earlier blocks the UI thread on Android.
+  @override
   LiquidGlassDeviceClass get deviceClass {
     final context = gpu.gpuContext;
     if (!context.doesSupportFramebufferRenderMipmap) {
@@ -257,22 +259,27 @@ class FlutterGpuGeometryRenderer {
 
   /// The geometry pipeline, which renderers of one bundle share.
   @visibleForTesting
+  @override
   Object get debugPipelineIdentity => _resources.pipelines.first.geometry;
 
   /// The block length of the host buffer every renderer shares.
   @visibleForTesting
+  @override
   int get debugHostBufferBlockLength => _sharedHostBufferBlockLength;
 
   /// The host buffer every renderer shares.
   @visibleForTesting
+  @override
   Object? get debugHostBufferIdentity => _sharedHostBuffer;
 
   /// Number of atlases rendered.
   @visibleForTesting
+  @override
   int debugRenderCount = 0;
 
   /// Whether [dispose] ran.
   @visibleForTesting
+  @override
   bool get debugDisposed => _disposed;
 
   bool _disposed = false;
@@ -282,18 +289,22 @@ class FlutterGpuGeometryRenderer {
   static gpu.BufferView? _corners;
 
   /// The latest geometry atlas, in the page it shares.
+  @override
   ui.Image? get atlasImage => _atlasImage;
 
   /// The looks beside the latest atlas: none, the tint, or tint, response
   /// and color model shares.
+  @override
   List<ui.Image> get lookImages => _lookImages;
 
   /// How many shapes the latest atlas left out: past
   /// [geometryMaxShapesPerDraw] reaching one tile (Tiling.droppedShapes).
+  @override
   int droppedShapes = 0;
 
   /// Lets go of the latest atlas: its page is drawn over once no renderer
   /// holds an atlas in it. Its images are not to be drawn with after this.
+  @override
   void releaseAtlas() {
     final page = _page;
     if (page == null) return;
@@ -413,10 +424,12 @@ class FlutterGpuGeometryRenderer {
   /// The texture of the page holding the latest atlas, compared by identity
   /// in tests.
   @visibleForTesting
+  @override
   Object? get debugMatteTexture => _page?.texture;
 
   /// Size of the page holding the latest atlas.
   @visibleForTesting
+  @override
   (int, int)? get debugMatteTextureSize => switch (_page) {
     final page? => (page.width, page.height),
     null => null,
@@ -442,12 +455,14 @@ class FlutterGpuGeometryRenderer {
   ///
   /// Callers retaining an output must clone its images before calling this.
   /// Independent clones and submitted native scenes remain valid.
+  @override
   void releaseOutput() {
     releaseAtlas();
     _fieldTextures.release();
   }
 
   /// Releases the current output and retires this renderer.
+  @override
   void dispose() {
     if (_disposed) return;
     _disposed = true;
