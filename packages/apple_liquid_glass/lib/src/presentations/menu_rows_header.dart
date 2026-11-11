@@ -63,7 +63,7 @@ class MenuCardHeader extends StatelessWidget {
     final entry = header.entry;
     final icon = entry is GlassSubmenu ? entry.icon : null;
     final rtl = content.rtl;
-    final metrics = content.metrics;
+    const metrics = MenuMetrics.standard;
     final height = header.rect.height;
     return Positioned.fromRect(
       rect: header.rect,
@@ -85,7 +85,10 @@ class MenuCardHeader extends StatelessWidget {
                 ),
                 child: Center(
                   child: IconTheme.merge(
-                    data: IconThemeData(size: style.iconSize, color: _title),
+                    data: IconThemeData(
+                      size: MenuAppearance.rowIconSize,
+                      color: _title,
+                    ),
                     child: icon,
                   ),
                 ),

@@ -137,7 +137,6 @@ abstract final class _SheetLook {
   /// The radius of the top corners, in the sheet's unscaled points.
   static const double topRadius = 38;
 
-  /// The opacity of the black dimming behind a dimmed detent.
   static const double dimmingOpacity = 0.2;
 
   /// The grabber's size in unscaled points.

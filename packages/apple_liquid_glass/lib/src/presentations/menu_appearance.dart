@@ -116,7 +116,6 @@ class MenuAppearance {
   /// Creates an appearance; the defaults are the iOS 27 light appearance.
   const MenuAppearance({
     this.textStyle = const TextStyle(fontSize: 17, color: Color(0xF5000000)),
-    this.iconSize = rowIconSize,
     this.destructiveColor = const Color(0xFFFF383C),
     this.highlightColor = const Color(0x1F000000),
     this.secondaryColor = const Color(0x993C3C43),
@@ -144,7 +143,6 @@ class MenuAppearance {
       textStyle: text.copyWith(
         color: color(text.color, table.textStyle.color!),
       ),
-      iconSize: table.iconSize,
       destructiveColor: color(look.destructiveColor, table.destructiveColor),
       highlightColor: color(look.highlightColor, table.highlightColor),
       secondaryColor: color(look.secondaryColor, table.secondaryColor),
@@ -163,9 +161,6 @@ class MenuAppearance {
   /// the button sits on, so this is the whole style of its titles: it
   /// replaces the overlay's ambient text style instead of merging into it.
   final TextStyle textStyle;
-
-  /// The size of row glyphs.
-  final double iconSize;
 
   /// The color of destructive rows.
   final Color destructiveColor;
@@ -238,7 +233,6 @@ class MenuAppearance {
   bool operator ==(Object other) =>
       other is MenuAppearance &&
       other.textStyle == textStyle &&
-      other.iconSize == iconSize &&
       other.destructiveColor == destructiveColor &&
       other.highlightColor == highlightColor &&
       other.secondaryColor == secondaryColor &&
@@ -249,7 +243,6 @@ class MenuAppearance {
   @override
   int get hashCode => Object.hash(
     textStyle,
-    iconSize,
     destructiveColor,
     highlightColor,
     secondaryColor,

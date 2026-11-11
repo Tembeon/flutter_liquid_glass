@@ -94,7 +94,6 @@ class _CapsulePainter extends CustomPainter {
 }
 
 abstract final class _AlertLook {
-  /// The opacity of the black dimming behind an alert.
   static const double dimmingOpacity = 0.2;
 
   /// The alert text size in points, from the UIKit layout captures.
@@ -124,7 +123,6 @@ abstract final class _AlertLook {
   /// The text scale cap, an engineering layout default.
   static const double maxTextScale = 2;
 
-  /// The corner radius of an alert's platter.
   static const double cornerRadius = 34;
 
   /// The space between the top of an alert and its first text label.
@@ -163,23 +161,14 @@ abstract final class _AlertLook {
   /// 20.33 point label is not replayed.
   static const double singleHeaderBottom = 11 / 3;
 
-  /// The space around the stack of buttons.
   static const double buttonInset = 16;
 
-  /// The height of a button.
   static const double buttonHeight = 48;
 
-  /// The space between two buttons.
   static const double buttonGap = 8;
 
   /// The opacity of a pressed button's fill, relative to its normal fill.
   static const double pressedFillOpacity = 0.4;
 
-  /// The width of an action sheet's content when it presents as a popover
-  /// from its source.
   static const double popoverWidth = 240;
-
-  /// The corner radius of an action sheet's popover content, as a popover
-  /// draws its own.
-  static const double popoverCornerRadius = 34;
 }

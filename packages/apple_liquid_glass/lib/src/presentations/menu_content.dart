@@ -28,9 +28,6 @@ class MenuContent {
   /// Whether the menu is laid out right to left.
   bool rtl = false;
 
-  /// The layout of the inside of the menu.
-  MenuMetrics metrics = MenuMetrics.standard;
-
   /// The style row titles are measured in when they may wrap.
   TextStyle titleStyle = const TextStyle(fontSize: 17);
 
@@ -59,7 +56,6 @@ class MenuContent {
   /// order is fixed.
   MenuLayout root({required bool reversed}) => MenuLayout.build(
     menuSpecs(entries, resolve: _resolve),
-    metrics: metrics,
     reversed: reversed && order != GlassMenuOrder.fixed,
     rtl: rtl,
     widgetHeight: (Object key) => _heights[key],
@@ -72,7 +68,6 @@ class MenuContent {
     if (entry is! GlassSubmenu) return null;
     return MenuLayout.build(
       menuSpecs(entry.children, resolve: _resolve),
-      metrics: metrics,
       rtl: rtl,
       header: menuRowSpec(entry),
       singleSelection: entry.singleSelection,

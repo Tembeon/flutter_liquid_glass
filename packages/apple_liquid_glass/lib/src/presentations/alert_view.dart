@@ -443,7 +443,7 @@ class _AlertViewState extends State<_AlertView> {
               borderRadius: BorderRadius.circular(
                 _popover == null
                     ? _AlertLook.cornerRadius
-                    : _AlertLook.popoverCornerRadius,
+                    : popoverCornerRadius,
               ),
               child: ListView(
                 controller: _scroll,

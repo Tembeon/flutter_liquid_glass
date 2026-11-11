@@ -103,18 +103,13 @@ Widget _highlight(
 );
 
 abstract final class _DatePickerLook {
-  /// The corner radius of the overlay.
   static const double cornerRadius = 28;
 
-  /// The height of the compact date label.
   static const double dateLabelHeight = 34.33;
 
-  /// The height of the compact time label.
   static const double timeLabelHeight = 36;
 
-  /// The horizontal space inside a compact label.
   static const double labelPadding = 12;
 
-  /// The space between the date label and the time label.
   static const double labelGap = 4;
 }

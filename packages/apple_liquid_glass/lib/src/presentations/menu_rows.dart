@@ -327,7 +327,7 @@ class _MenuElement extends StatelessWidget {
               MenuAppearance.imageSlot,
               IconTheme.merge(
                 data: IconThemeData(
-                  size: style.iconSize,
+                  size: MenuAppearance.rowIconSize,
                   color: iconColor ?? color,
                 ),
                 child: icon,
@@ -378,7 +378,7 @@ class _MenuElement extends StatelessWidget {
     );
   }
 
-  MenuMetrics get _metrics => content.metrics;
+  static const _metrics = MenuMetrics.standard;
 
   static const _subtitleStyle = TextStyle(fontSize: 13);
 
@@ -437,7 +437,6 @@ class _MenuElement extends StatelessWidget {
         ? style.destructiveColor
         : _title;
     final kind = element.kind;
-    final metrics = _metrics;
     final Widget body;
     if (kind == MenuPlacedKind.medium) {
       body = Stack(
@@ -446,13 +445,13 @@ class _MenuElement extends StatelessWidget {
             left: 0,
             right: 0,
             top: 0,
-            height: metrics.mediumLabelTop,
+            height: _metrics.mediumLabelTop,
             child: Center(
               child: icon == null
                   ? null
                   : IconTheme.merge(
                       data: IconThemeData(
-                        size: style.iconSize,
+                        size: MenuAppearance.rowIconSize,
                         color: iconColor ?? color,
                       ),
                       child: icon,
@@ -462,7 +461,7 @@ class _MenuElement extends StatelessWidget {
           Positioned(
             left: 2,
             right: 2,
-            top: metrics.mediumLabelTop,
+            top: _metrics.mediumLabelTop,
             child: _text(
               context,
               title,
@@ -480,18 +479,20 @@ class _MenuElement extends StatelessWidget {
         children: [
           if (palette && selected)
             SizedBox.square(
-              dimension: metrics.palettePlatter,
+              dimension: _metrics.palettePlatter,
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   color: style.paletteSelectionColor,
-                  borderRadius: .circular(metrics.palettePlatterRadius),
+                  borderRadius: .circular(_metrics.palettePlatterRadius),
                 ),
               ),
             ),
           if (icon != null)
             IconTheme.merge(
               data: IconThemeData(
-                size: palette ? metrics.paletteImageSize : style.iconSize,
+                size: palette
+                    ? _metrics.paletteImageSize
+                    : MenuAppearance.rowIconSize,
                 color: iconColor ?? color,
               ),
               child: icon,
