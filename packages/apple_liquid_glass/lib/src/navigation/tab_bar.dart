@@ -6,7 +6,6 @@ import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/controls/search_glyphs.dart';
 import 'package:apple_liquid_glass/src/motions/search_motion.dart';
-import 'package:apple_liquid_glass/src/motions/tab_minimize.dart';
 import 'package:apple_liquid_glass/src/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/navigation/toolbar.dart';
 import 'package:apple_liquid_glass/src/raw/selector.dart';
@@ -351,10 +350,7 @@ class GlassTabBar extends StatelessWidget {
   /// accessory above it.
   static double groupHeight({required bool accessory}) =>
       height +
-      (accessory
-          ? TabBarMinimizeTuning.accessoryGap +
-                TabBarMinimizeTuning.accessoryHeight
-          : 0);
+      (accessory ? _Minimized.accessoryGap + _Minimized.accessoryHeight : 0);
 
   /// The height of the bar (tab bar passport).
   static const double height = 62;
@@ -583,8 +579,8 @@ class _TabContent extends StatelessWidget {
         builder: (context) => _TabItem(
           morph: morph,
           titleGoneAt: selected
-              ? TabBarMinimizeTuning.lensGoneAt
-              : TabBarMinimizeTuning.titlesGoneAt,
+              ? TabBarMinimizeMotion.lensGoneAt
+              : TabBarMinimizeMotion.titlesGoneAt,
           children: [
             glyph,
             DefaultTextStyle.merge(
@@ -727,7 +723,7 @@ class _RenderTabItem extends RenderBox
     _glyph.layout(const BoxConstraints(), parentUsesSize: true);
     (_glyph.parentData! as _TabItemParentData).offset = Offset(
       (size.width - _glyph.size.width) / 2,
-      TabBarMinimizeTuning.glyphCenter - _glyph.size.height / 2,
+      TabBarMinimizeMotion.glyphCenter - _glyph.size.height / 2,
     );
     _title.layout(
       BoxConstraints(
@@ -835,11 +831,35 @@ final class _MinimizeFrames implements GlassSelectorCollapse {
   void activate() => motion.setMinimized(motion.clock.now, minimized: false);
 }
 
+/// The layout numbers of the minimized bar's circle and the bottom
+/// accessory around it, read from UIKit's layout record on iOS 27.
+abstract final class _Minimized {
+  /// The space between the minimized bar and the expanded bar's edges:
+  /// (62 - 48) / 2 = 7, read from UIKit's layout record; with the bar 21
+  /// from the screen's side and bottom, the circle sits 28 from both, as
+  /// the measured search tab circle does.
+  static const double collapsedInset = 7;
+
+  /// The space between the expanded bar and the accessory above it: the
+  /// accessory's bottom stands 8 above the bar's top (read from UIKit).
+  static const double accessoryGap = 8;
+
+  /// The space between the minimized circle and the inline accessory, and
+  /// between the accessory and a minimized search circle (read from
+  /// UIKit).
+  static const double inlineGap = 14;
+
+  /// The height of the bottom accessory, expanded and inline (read from
+  /// UIKit; content may opt into 48 - 64 there, which this package does
+  /// not offer).
+  static const double accessoryHeight = 48;
+}
+
 /// The minimized circle in a bar's box of [size], 7 points inside its
 /// leading and bottom edges (read from UIKit).
 Rect _circleIn(Size size, {required bool rtl}) {
-  const inset = TabBarMinimizeTuning.collapsedInset;
-  const diameter = TabBarMinimizeTuning.collapsedSize;
+  const inset = _Minimized.collapsedInset;
+  const diameter = TabBarMinimizeMotion.collapsedSize;
   return Rect.fromLTWH(
     rtl ? size.width - inset - diameter : inset,
     size.height - inset - diameter,
@@ -1114,22 +1134,20 @@ class _AccessoryState extends State<_Accessory> {
     0,
     0,
     widget.width,
-    TabBarMinimizeTuning.accessoryHeight,
+    _Minimized.accessoryHeight,
   );
 
   Rect get _inline {
-    const inset = TabBarMinimizeTuning.collapsedInset;
+    const inset = _Minimized.collapsedInset;
     const circleTop =
-        TabBarMinimizeTuning.accessoryGap +
-        TabBarMinimizeTuning.accessoryHeight +
-        inset;
-    const circleEnd = inset + TabBarMinimizeTuning.collapsedSize;
+        _Minimized.accessoryGap + _Minimized.accessoryHeight + inset;
+    const circleEnd = inset + TabBarMinimizeMotion.collapsedSize;
     return _mirror(
       Rect.fromLTRB(
-        circleEnd + TabBarMinimizeTuning.inlineGap,
+        circleEnd + _Minimized.inlineGap,
         circleTop,
         widget.width - inset,
-        circleTop + TabBarMinimizeTuning.accessoryHeight,
+        circleTop + _Minimized.accessoryHeight,
       ),
     );
   }

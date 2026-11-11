@@ -38,6 +38,7 @@ export 'src/motions/date_picker_motion.dart'
         DatePickerMotion,
         DatePickerPlacement,
         placeDatePicker;
+export 'src/motions/flex_interaction.dart' show FlexValues;
 export 'src/motions/glass_press.dart' show FlexLaw, GlassPress;
 export 'src/motions/lens_motion.dart'
     show LensEvent, LensMotion, LensSelected, LensSlot;
@@ -98,10 +99,11 @@ export 'src/motions/slider_motion.dart'
         SliderEvent,
         SliderFelt,
         SliderMotion;
+export 'src/motions/small_lens.dart' show SmallLens;
 export 'src/motions/switch_motion.dart'
     show SwitchChanged, SwitchEvent, SwitchMotion, SwitchShown;
 export 'src/motions/tab_bar_layout.dart' show TabBarLayout;
 export 'src/motions/tab_minimize.dart'
-    show GlassTabBarMinimizeBehavior, TabBarMinimizeMotion;
+    show GlassTabBarMinimizeBehavior, ScrollAway, TabBarMinimizeMotion;
 export 'src/motions/touch_glow.dart' show TouchGlowMotion;
 export 'src/motions/zoom_page_motion.dart' show ZoomPageMotion;

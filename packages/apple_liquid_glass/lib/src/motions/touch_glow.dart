@@ -38,6 +38,19 @@ final class TouchGlowMotion extends Motion {
     this.minimumLit = 0,
   });
 
+  /// Creates the glow of a floating tab bar: the peaks of the flex spec of
+  /// the measured 274 x 62 pt bar, a [tabBarDiameter] spot and
+  /// [tabBarRiseLag] (tab bar passport).
+  factory TouchGlowMotion.tabBar() {
+    final spec = FlexSpec.forSize(const Size(274, 62));
+    return TouchGlowMotion(
+      washPeak: spec.bigGlowOpacity,
+      spotPeak: spec.littleGlowOpacity,
+      diameter: tabBarDiameter,
+      riseLag: tabBarRiseLag,
+    );
+  }
+
   /// The opacity the wash rises to.
   final double washPeak;
 

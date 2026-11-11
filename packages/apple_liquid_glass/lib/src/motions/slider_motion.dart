@@ -3,7 +3,6 @@ import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motions/small_lens.dart';
 import 'package:kinesis/motion.dart';
-import 'package:meta/meta.dart';
 
 /// The motion of an iOS 27 slider: value, thumb lens and track stretch.
 ///
@@ -236,7 +235,6 @@ final class SliderMotion extends Motion {
   bool _detented = false;
 
   /// The thumb's lens; it follows the thumb.
-  @internal
   late final SmallLens lens;
 
   _Press? _press;

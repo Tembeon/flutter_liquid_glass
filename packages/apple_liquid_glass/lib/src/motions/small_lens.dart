@@ -5,7 +5,6 @@ import 'package:apple_liquid_glass/src/motions/flex_integrator.dart';
 import 'package:apple_liquid_glass/src/motions/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
 import 'package:kinesis/motion.dart';
-import 'package:meta/meta.dart';
 
 /// The small liquid lens of a switch knob or a slider thumb.
 ///
@@ -37,7 +36,6 @@ import 'package:meta/meta.dart';
 /// The lift and size rest within a visible step; the deformation rests
 /// once its filter is still, and comes to rest undeformed with the filter
 /// primed at the position.
-@internal
 final class SmallLens extends Motion {
   /// Creates a lens that rests at [restSize] and lifts to [liftedSize],
   /// filtering its motion at [frameRate] frames per second, or at the

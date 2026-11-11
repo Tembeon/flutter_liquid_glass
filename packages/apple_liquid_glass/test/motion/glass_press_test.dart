@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motions/flex_interaction.dart';
+import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
 import 'package:apple_liquid_glass/src/motions/glass_press.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
@@ -90,7 +91,7 @@ void main() {
 
   test('a press rides the tracking spring, a release the scale spring', () {
     final press = GlassPress(size: _size, law: const FlexLaw());
-    final spec = press.spec;
+    final spec = FlexSpec.forSize(_size);
     final lift = MotionValue<double>(1, spring: spec.trackingSpring);
     press.pointerDown(0, _center);
     lift.retarget(0, press.liftedScale);

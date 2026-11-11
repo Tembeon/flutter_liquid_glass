@@ -23,6 +23,7 @@ DragInteractionDetails
 FakeGlassRenderer
 FlatGlassRenderer
 FlexLaw
+FlexValues
 FollowInteraction
 FrameCadence
 Glass
@@ -318,6 +319,7 @@ RawGlassStepper
 RawGlassSwitch
 RectSprings
 RenderScrollEdge
+ScrollAway
 ScrollEdgeBand
 ScrubChangeEvent
 SearchBarGeometry
@@ -337,6 +339,7 @@ SliderEvent
 SliderFelt
 SliderMotion
 SliverMotionList
+SmallLens
 SourceGeometry
 Sourced
 Spring

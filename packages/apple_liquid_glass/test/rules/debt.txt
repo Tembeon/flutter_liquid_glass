@@ -14,7 +14,7 @@
 2:through-library       lib/src/navigation/bar.dart                 2
 2:through-library       lib/src/navigation/navigation_bar.dart      1
 2:through-library       lib/src/navigation/page_route.dart          1
-2:through-library       lib/src/navigation/tab_bar.dart             5
+2:through-library       lib/src/navigation/tab_bar.dart             4
 2:through-library       lib/src/navigation/toolbar.dart             2
 2:through-library       lib/src/presentations/alert.dart            2
 2:through-library       lib/src/presentations/date_picker.dart      2
@@ -25,9 +25,7 @@
 2:through-library       lib/src/presentations/popover_shape.dart    2
 2:through-library       lib/src/presentations/sheet.dart            1
 2:through-library       lib/src/raw/date_picker.dart                1
-2:through-library       lib/src/raw/page_control.dart               1
 2:through-library       lib/src/raw/search_field.dart               2
-2:through-library       lib/src/raw/selector.dart                   4
 3:not-allowed           lib/src/controls/search_field.dart          1
 3:not-allowed           lib/src/raw/search_field.dart               2
 5:addPostFrameCallback  lib/src/liquid/liquid.dart                  1

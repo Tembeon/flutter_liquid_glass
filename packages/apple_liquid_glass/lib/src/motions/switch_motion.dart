@@ -2,7 +2,6 @@ import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motions/small_lens.dart';
 import 'package:kinesis/motion.dart';
-import 'package:meta/meta.dart';
 
 /// The motion of an iOS 27 switch: knob, track color and knob lens.
 ///
@@ -128,7 +127,6 @@ final class SwitchMotion extends Motion {
   late final MotionValue<double> _color;
 
   /// The knob's lens; it follows the knob.
-  @internal
   late final SmallLens lens;
 
   static const _colorSlot = #color;

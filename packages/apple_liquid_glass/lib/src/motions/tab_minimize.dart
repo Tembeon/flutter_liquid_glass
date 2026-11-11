@@ -120,38 +120,11 @@ abstract final class TabBarMinimizeTuning {
   /// The delay of the accessory's second axis, both ways (0.05 s).
   static const double accessoryFollowDelay = 0.05;
 
-  /// The diameter of the minimized bar: UIKit's collapsed platter, 48,
-  /// the size of the search tab's circle while searching.
-  static const double collapsedSize = 48;
-
-  /// The space between the minimized bar and the expanded bar's edges:
-  /// (62 - 48) / 2 = 7, read from UIKit's layout record; with the bar 21
-  /// from the screen's side and bottom, the circle sits 28 from both, as
-  /// the measured search tab circle does.
-  static const double collapsedInset = 7;
-
-  /// The space between the expanded bar and the accessory above it: the
-  /// accessory's bottom stands 8 above the bar's top (read from UIKit).
-  static const double accessoryGap = 8;
-
-  /// The space between the minimized circle and the inline accessory, and
-  /// between the accessory and a minimized search circle (read from
-  /// UIKit).
-  static const double inlineGap = 14;
-
-  /// The height of the bottom accessory, expanded and inline (read from
-  /// UIKit; content may opt into 48 - 64 there, which this package does
-  /// not offer).
-  static const double accessoryHeight = 48;
-
   /// How far a finger on the minimized bar moves along the bar, in points,
   /// before the bar expands and the touch becomes the bar's selection drag:
   /// 4, read from UIKit. A finger that only rests does nothing more: a 1.6 s
   /// hold leaves the circle lifted until the lift (iPhone 16 Pro).
   static const double dragHysteresis = 4;
-
-  /// How far a finger lifts the circle: from 48 to 64 points (iPhone 16 Pro).
-  static const double pressGrowth = 8;
 
   /// The spring of that lift: damping 0.625, response 0.262, fitted to the
   /// device's rows within 0.01 points.
@@ -159,29 +132,6 @@ abstract final class TabBarMinimizeTuning {
 
   /// The time from the touch to the start of that lift: 0.032 s.
   static const double pressLag = 0.032;
-
-  /// The height of a tab's glyph center in the bar: 24 points, read from
-  /// UIKit.
-  static const double glyphCenter = 24;
-
-  /// The morph's progress at which the lens has gone: it goes within two
-  /// frames of the start (film), and comes back as late.
-  static const double lensGoneAt = 0.1;
-
-  /// The morph's progress at which the titles have gone: 0.07 s into it
-  /// (film).
-  static const double titlesGoneAt = 0.48;
-
-  /// The morph's progress at which the other tabs have gone: 0.13 s into it
-  /// (film).
-  static const double othersGoneAt = 0.85;
-
-  /// How much the tabs that dissolve draw together toward the circle over
-  /// the whole morph, by eye.
-  static const double othersDrift = 0.15;
-
-  /// The blur the dissolving tabs reach, by eye: UIKit's radius is not read.
-  static const double othersBlur = 3;
 }
 
 /// The scroll-away interaction of a minimizing tab bar: how far a user's
@@ -199,13 +149,11 @@ abstract final class TabBarMinimizeTuning {
 /// - Past an end, only motion further past it counts (a rubber band's
 ///   return does not).
 /// - Motion in the minimizing direction starts the interaction once it
-///   passes [TabBarMinimizeTuning.activationDistance], if the
-///   content's range is at least
-///   [TabBarMinimizeTuning.minimumRangeFactor] x (activation + active
-///   distance); from then on
-///   [progress] grows by the scroll over
-///   [TabBarMinimizeTuning.activeDistance], clamped to 0.01 - 1; at 1
-///   the bar minimizes and the interaction rests until the next drag.
+///   passes the activation distance (0 points), if the content's range is
+///   at least 1.5 x (activation + active distance, 96 points); from then
+///   on [progress] grows by the scroll over the active distance (64
+///   points), clamped to 0.01 - 1; at 1 the bar minimizes and the
+///   interaction rests until the next drag.
 /// - The end of a drag that does not decelerate, and the end of a
 ///   deceleration, floor [progress]: a scroll that stopped short returns
 ///   to 0.
@@ -217,7 +165,6 @@ abstract final class TabBarMinimizeTuning {
 ///   iOS 27 simulator a 150 point drag back left the bar minimized,
 ///   although the SDK header says the bar expands when the content
 ///   scrolls back.
-@internal
 class ScrollAway {
   /// Creates the interaction; [minimizesOnScrollUp] reverses the
   /// minimizing direction (UIKit `onScrollUp`).
@@ -370,9 +317,38 @@ final class TabBarMinimizeMotion extends Motion {
     scrollAway.onProgress = _progressChanged;
   }
 
+  /// The diameter of the minimized bar: UIKit's collapsed platter, 48,
+  /// the size of the search tab's circle while searching.
+  static const double collapsedSize = 48;
+
+  /// How far a finger lifts the circle: from 48 to 64 points (iPhone 16 Pro).
+  static const double pressGrowth = 8;
+
+  /// The height of a tab's glyph center in the bar: 24 points, read from
+  /// UIKit.
+  static const double glyphCenter = 24;
+
+  /// The morph's progress at which the lens has gone: it goes within two
+  /// frames of the start (film), and comes back as late.
+  static const double lensGoneAt = 0.1;
+
+  /// The morph's progress at which the titles have gone: 0.07 s into it
+  /// (film).
+  static const double titlesGoneAt = 0.48;
+
+  /// The morph's progress at which the other tabs have gone: 0.13 s into it
+  /// (film).
+  static const double othersGoneAt = 0.85;
+
+  /// How much the tabs that dissolve draw together toward the circle over
+  /// the whole morph, by eye.
+  static const double othersDrift = 0.15;
+
+  /// The blur the dissolving tabs reach, by eye: UIKit's radius is not read.
+  static const double othersBlur = 3;
+
   /// The scroll-away interaction; feed it the content's scrolls after
   /// [advance] to their time.
-  @internal
   final ScrollAway scrollAway = ScrollAway();
 
   /// The width of the bar group, which sets how closely the springs rest.

@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
@@ -254,6 +256,43 @@ final class PageControlMotion extends Motion {
     }
     return w;
   }
+
+  /// The size of the control: the dots between the platter's paddings,
+  /// [PageControlTuning.height] tall.
+  Size get size => Size(
+    contentWidth + 2 * PageControlTuning.padding,
+    PageControlTuning.height,
+  );
+
+  /// Each page's indicator box in the control's box, a dot tall and as
+  /// wide as the indicator less the dot's inset, vertically centered;
+  /// mirrored when [rtl].
+  List<Rect> indicatorRects({required bool rtl}) {
+    const dot = PageControlTuning.dotSize;
+    const inset = (PageControlTuning.indicatorSize - dot) / 2;
+    final box = size;
+    var x = 0.0;
+    final rects = <Rect>[];
+    for (var i = 0; i < count; i++) {
+      final w = width(i);
+      var cx = PageControlTuning.padding + x + w / 2;
+      x += w + PageControlTuning.spacing;
+      if (rtl) cx = box.width - cx;
+      rects.add(
+        Rect.fromCenter(
+          center: Offset(cx, box.height / 2),
+          width: w - 2 * inset,
+          height: dot,
+        ),
+      );
+    }
+    return rects;
+  }
+
+  /// The position along the dots, from their start, of a touch at [x] in
+  /// the control's box; [rtl] counts from the right edge.
+  double contentX(double x, {required bool rtl}) =>
+      (rtl ? size.width - x : x) - PageControlTuning.padding;
 
   /// The center of indicator [index] from the start of the dots.
   double center(int index) {

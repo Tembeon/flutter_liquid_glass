@@ -3,10 +3,6 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
-import 'package:apple_liquid_glass/src/motions/flex_interaction.dart';
-import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
-import 'package:apple_liquid_glass/src/motions/lens_motion.dart';
-import 'package:apple_liquid_glass/src/motions/tab_minimize.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -1151,7 +1147,7 @@ final class _SelectorMotion extends Motion {
   final void Function(LensEvent event) onEvent;
 
   late final highlight = own(SegmentHighlight());
-  late final glow = own(_tabBarGlow());
+  late final glow = own(TouchGlowMotion.tabBar());
 
   /// The items by key, and the control's bounds, in the selector's box
   /// moved by [_anchor].
@@ -1168,18 +1164,6 @@ final class _SelectorMotion extends Motion {
 
   /// Where the control draws its track or bar at its last layout.
   Rect bar = Rect.zero;
-
-  static TouchGlowMotion _tabBarGlow() {
-    // The glow's peaks are the flex spec of the measured 274 point bar
-    // (tab bar passport).
-    final spec = FlexSpec.forSize(const Size(274, _Geometry.tabBarHeight));
-    return TouchGlowMotion(
-      washPeak: spec.bigGlowOpacity,
-      spotPeak: spec.littleGlowOpacity,
-      diameter: TouchGlowMotion.tabBarDiameter,
-      riseLag: TouchGlowMotion.tabBarRiseLag,
-    );
-  }
 
   bool get tabBar => kind == GlassSelectorMotion.tabBar;
 
@@ -1248,17 +1232,24 @@ final class _SelectorMotion extends Motion {
     _remapped = null;
     final lens = _lens;
     if (lens == null) {
-      final created = LensMotion(
-        tuning: kind == GlassSelectorMotion.segmented
-            ? LensTuning.segmented
-            : LensTuning.tabBar,
-        slots: geometry.lenses,
-        selected: _selected,
-        height: _Geometry.lensHeight(kind),
-        frameRate: clock.frameRate,
-        chromeSize: geometry.bar.size,
-        onEvent: onEvent,
-      );
+      final created = switch (kind) {
+        GlassSelectorMotion.segmented => LensMotion.segmented(
+          slots: geometry.lenses,
+          selected: _selected,
+          height: _Geometry.lensHeight(kind),
+          frameRate: clock.frameRate,
+          chromeSize: geometry.bar.size,
+          onEvent: onEvent,
+        ),
+        GlassSelectorMotion.tabBar => LensMotion.tabBar(
+          slots: geometry.lenses,
+          selected: _selected,
+          height: _Geometry.lensHeight(kind),
+          frameRate: clock.frameRate,
+          chromeSize: geometry.bar.size,
+          onEvent: onEvent,
+        ),
+      };
       created.isSelectable = isSelectable;
       _lens = own(created);
     } else if (changed || remapped != null) {
@@ -1344,7 +1335,7 @@ final class _SelectorFrames {
   /// How much of the lens shows at [morph]: a lens a finger carries stays.
   static double lensOpacity(double morph, double lift) => math
       .max(
-        1 - morph / TabBarMinimizeTuning.lensGoneAt,
+        1 - morph / TabBarMinimizeMotion.lensGoneAt,
         lift,
       )
       .clamp(0.0, 1.0);
@@ -1376,7 +1367,7 @@ final class _SelectorFrames {
           final lifted = collapse!.press?.value ?? 0;
           final circle = collapse!
               .circleIn(_motion.size)
-              .inflate(TabBarMinimizeTuning.pressGrowth * lifted);
+              .inflate(TabBarMinimizeMotion.pressGrowth * lifted);
           return frame.copyWith(rect: Rect.lerp(frame.rect, circle, morph));
         });
 
@@ -1404,16 +1395,16 @@ final class _SelectorFrames {
   });
 
   late final MotionSelection<Offset> drift = _motion.select((motion) {
-    final chrome = motion.lens?.chrome ?? FlexInteraction.rest;
+    final chrome = motion.lens?.chrome ?? LensMotion.chromeAtRest;
     return Offset(mirrored ? -chrome.driftX : chrome.driftX, chrome.driftY);
   });
 
   late final MotionSelection<double> scaleX = _motion.select(
-    (motion) => (motion.lens?.chrome ?? FlexInteraction.rest).scaleX,
+    (motion) => (motion.lens?.chrome ?? LensMotion.chromeAtRest).scaleX,
   );
 
   late final MotionSelection<double> scaleY = _motion.select(
-    (motion) => (motion.lens?.chrome ?? FlexInteraction.rest).scaleY,
+    (motion) => (motion.lens?.chrome ?? LensMotion.chromeAtRest).scaleY,
   );
 }
 
@@ -1908,7 +1899,7 @@ class _RenderSelectorRow extends RenderBox
   Offset _glyphTravel(Rect slot, double morph) {
     final circle = _collapse!.circleIn(size);
     return (circle.center -
-            Offset(slot.center.dx, TabBarMinimizeTuning.glyphCenter)) *
+            Offset(slot.center.dx, TabBarMinimizeMotion.glyphCenter)) *
         morph;
   }
 
@@ -2056,11 +2047,11 @@ class _RenderSelectorRow extends RenderBox
     List<Rect> slots,
     double morph,
   ) {
-    final left = 1 - morph / TabBarMinimizeTuning.othersGoneAt;
+    final left = 1 - morph / TabBarMinimizeMotion.othersGoneAt;
     if (left <= 0) return;
     final body = _frames.body.value.drawnIn(size);
     final toward = _collapse!.circleIn(size).center.dx;
-    final together = 1 - TabBarMinimizeTuning.othersDrift * morph;
+    final together = 1 - TabBarMinimizeMotion.othersDrift * morph;
     void items(PaintingContext context, Offset offset) {
       var i = 0;
       for (final (regular, _, _) in _live) {
@@ -2074,7 +2065,7 @@ class _RenderSelectorRow extends RenderBox
     }
 
     void dissolved(PaintingContext context, Offset offset) {
-      final sigma = TabBarMinimizeTuning.othersBlur * morph.clamp(0.0, 1.0);
+      final sigma = TabBarMinimizeMotion.othersBlur * morph.clamp(0.0, 1.0);
       if (sigma <= 0) return items(context, offset);
       context.pushLayer(
         ImageFilterLayer(
@@ -2119,11 +2110,11 @@ class _RenderSelectorRow extends RenderBox
     final scale =
         1 +
         (_collapse!.press?.value ?? 0) *
-            TabBarMinimizeTuning.pressGrowth *
+            TabBarMinimizeMotion.pressGrowth *
             2 /
-            TabBarMinimizeTuning.collapsedSize;
+            TabBarMinimizeMotion.collapsedSize;
     final center =
-        Offset(slot.center.dx, TabBarMinimizeTuning.glyphCenter) + travel;
+        Offset(slot.center.dx, TabBarMinimizeMotion.glyphCenter) + travel;
     final transform = Matrix4.translationValues(center.dx, center.dy, 0);
     transform.scaleByDouble(scale, scale, 1, 1);
     transform.translateByDouble(
@@ -2140,7 +2131,7 @@ class _RenderSelectorRow extends RenderBox
     );
     final shows =
         1 -
-        lift * (1 - morph / TabBarMinimizeTuning.lensGoneAt).clamp(0.0, 1.0);
+        lift * (1 - morph / TabBarMinimizeMotion.lensGoneAt).clamp(0.0, 1.0);
     if (shows >= 1) return glyph(context, offset);
     context.pushOpacity(offset, Color.getAlphaFromOpacity(shows), glyph);
   }

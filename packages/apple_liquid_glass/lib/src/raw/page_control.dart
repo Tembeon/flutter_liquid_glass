@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/motions/page_control_motion.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -73,27 +73,8 @@ final class GlassPageControlPose {
     required GlassPageControlBackground background,
     required bool rtl,
   }) {
-    const dot = PageControlTuning.dotSize;
-    const inset = (PageControlTuning.indicatorSize - dot) / 2;
-    const cy = PageControlTuning.height / 2;
-    final width = motion.contentWidth + 2 * PageControlTuning.padding;
-    var x = 0.0;
-    final indicators = <Rect>[];
-    for (var i = 0; i < motion.count; i++) {
-      final w = motion.width(i);
-      var cx = PageControlTuning.padding + x + w / 2;
-      x += w + PageControlTuning.spacing;
-      if (rtl) cx = width - cx;
-      indicators.add(
-        Rect.fromCenter(
-          center: Offset(cx, cy),
-          width: w - 2 * inset,
-          height: dot,
-        ),
-      );
-    }
     return GlassPageControlPose(
-      indicators: indicators,
+      indicators: motion.indicatorRects(rtl: rtl),
       fills: [for (var i = 0; i < motion.count; i++) motion.fillOpacity(i)],
       platter: switch (background) {
         GlassPageControlBackground.prominent => 1,
@@ -297,10 +278,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
     if (next != _page) widget.onChanged?.call(next);
   }
 
-  Size get _size => Size(
-    _motion.contentWidth + 2 * PageControlTuning.padding,
-    PageControlTuning.height,
-  );
+  Size get _size => _motion.size;
 
   @override
   Widget build(BuildContext context) {
@@ -374,9 +352,7 @@ final class _PageControlInput extends Interaction {
   );
 
   double _x(Offset position) {
-    final width = state._size.width;
-    final x = rtl ? width - position.dx : position.dx;
-    return x - PageControlTuning.padding;
+    return state._motion.contentX(position.dx, rtl: rtl);
   }
 
   @override

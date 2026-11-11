@@ -154,10 +154,6 @@ final class GlassPress extends Motion implements PointerFollower {
     _spec = FlexSpec.forSize(value);
   }
 
-  /// The deformation tuning UIKit derives for [size].
-  @internal
-  FlexSpec get spec => _spec;
-
   /// The scale of the fully lifted surface.
   double get liftedScale => _spec.liftScaleFor(_size);
 
@@ -194,7 +190,6 @@ final class GlassPress extends Motion implements PointerFollower {
       Offset(_driftX.valueAt(now) * scaleX, _driftY.valueAt(now) * scaleY);
 
   /// The flex's four channels.
-  @internal
   FlexValues get values => (
     scaleX: scaleX,
     scaleY: scaleY,
@@ -415,7 +410,7 @@ final class _GlowRise extends MotionPart {
   bool get _rising => _press._down != null;
 
   double get _peak =>
-      math.max(_press.spec.bigGlowOpacity, _press.spec.littleGlowOpacity);
+      math.max(_press._spec.bigGlowOpacity, _press._spec.littleGlowOpacity);
 
   void start(double t, {required double from}) {
     _from = from;

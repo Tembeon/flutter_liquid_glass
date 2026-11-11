@@ -348,9 +348,55 @@ final class LensMotion extends Motion {
     _previousVisible = slot.center;
   }
 
+  /// Creates the lens of a UISegmentedControl resting in [selected]
+  /// among [slots]; the other parameters are those of [LensMotion.new].
+  LensMotion.segmented({
+    required List<LensSlot> slots,
+    required int selected,
+    required double height,
+    double frameRate = 120,
+    Size chromeSize = Size.zero,
+    double? startDelay,
+    void Function(LensEvent event)? onEvent,
+  }) : this(
+         tuning: LensTuning.segmented,
+         slots: slots,
+         selected: selected,
+         height: height,
+         frameRate: frameRate,
+         chromeSize: chromeSize,
+         startDelay: startDelay,
+         onEvent: onEvent,
+       );
+
+  /// Creates the lens of a floating UITabBar resting in [selected] among
+  /// [slots]; the other parameters are those of [LensMotion.new].
+  LensMotion.tabBar({
+    required List<LensSlot> slots,
+    required int selected,
+    required double height,
+    double frameRate = 120,
+    Size chromeSize = Size.zero,
+    double? startDelay,
+    void Function(LensEvent event)? onEvent,
+  }) : this(
+         tuning: LensTuning.tabBar,
+         slots: slots,
+         selected: selected,
+         height: height,
+         frameRate: frameRate,
+         chromeSize: chromeSize,
+         startDelay: startDelay,
+         onEvent: onEvent,
+       );
+
   /// The measured behavior this lens reproduces.
   @internal
   final LensTuning tuning;
+
+  /// The flex of a control that no finger touches: [chrome] of a lens
+  /// while it rests.
+  static const FlexValues chromeAtRest = FlexInteraction.rest;
 
   /// The resting height of the lens.
   final double height;
@@ -545,10 +591,9 @@ final class LensMotion extends Motion {
   }
 
   /// The flex of the whole control now: its scales about its center and
-  /// its drift along and across the track, [FlexInteraction.rest]
-  /// exactly while it rests. The control shows the drift times the scale
+  /// its drift along and across the track, [chromeAtRest] exactly while
+  /// it rests. The control shows the drift times the scale
   /// ([GlassPress.lean]).
-  @internal
   FlexValues get chrome => _chrome.values;
 
   /// Whether the finger currently drags the lens.

@@ -117,6 +117,7 @@ final class FlexLaw
   final bool glows
   final bool stretches
   final double touchDelay
+typedef FlexValues = ({double driftX, double driftY, double scaleX, double scaleY})
 final class Glass
   const Glass.clear({Color? tint})
   const Glass.regular({Color? tint})
@@ -1373,11 +1374,10 @@ final class GlassPress extends Motion implements PointerFollower
   double get scaleY
   Size get size
   set size(Size value)
-  @internal FlexSpec get spec
   @internal ({double driftX, double driftY, double scaleX, double scaleY}) get targets
   static const double touchDelay
   GlassTouchGlow? get touchGlow
-  @internal ({double driftX, double driftY, double scaleX, double scaleY}) get values
+  ({double driftX, double driftY, double scaleX, double scaleY}) get values
   overrides: cancel, down, hover, move, up
 class GlassProminentButtonStyle extends GlassButtonStyle
   factory GlassProminentButtonStyle.from(GlassButtonStyle style)
@@ -2295,8 +2295,27 @@ final class LensMotion extends Motion
     double? startDelay,
     void Function(LensEvent)? onEvent,
   })
+  LensMotion.segmented({
+    required List<({double center, double width})> slots,
+    required int selected,
+    required double height,
+    double frameRate = ...,
+    Size chromeSize = ...,
+    double? startDelay,
+    void Function(LensEvent)? onEvent,
+  })
+  LensMotion.tabBar({
+    required List<({double center, double width})> slots,
+    required int selected,
+    required double height,
+    double frameRate = ...,
+    Size chromeSize = ...,
+    double? startDelay,
+    void Function(LensEvent)? onEvent,
+  })
   double get center
-  @internal ({double driftX, double driftY, double scaleX, double scaleY}) get chrome
+  ({double driftX, double driftY, double scaleX, double scaleY}) get chrome
+  static const ({double driftX, double driftY, double scaleX, double scaleY}) chromeAtRest
   Size get chromeSize
   set chromeSize(Size value)
   final double frameRate
@@ -2792,8 +2811,10 @@ final class PageControlMotion extends Motion
   })
   double center(int index)
   double get contentWidth
+  double contentX(double x, {required bool rtl})
   int get count
   double fillOpacity(int index)
+  List<Rect> indicatorRects({required bool rtl})
   final void Function(PageControlEvent)? onEvent
   int get page
   double get platter
@@ -2803,6 +2824,7 @@ final class PageControlMotion extends Motion
   void pointerUp(double t, double x, {required double width})
   void setPage(double t, int page)
   bool showsProgress
+  Size get size
   double width(int index)
   overrides: minFrameRate
 final class PageControlPicked extends PageControlEvent
@@ -3130,6 +3152,23 @@ class RenderScrollEdge extends RenderBox
   double get presence
   @protected bool updateBand(double presence)
   overrides: alwaysNeedsCompositing, attach, computeDryLayout, detach, dispose, hitTestSelf, isRepaintBoundary, paint, sizedByParent
+class ScrollAway
+  ScrollAway({bool minimizesOnScrollUp = ...})
+  void beginDrag()
+  void endDeceleration()
+  void endDrag({required bool decelerates})
+  double? last
+  bool minimizesOnScrollUp
+  void Function(double, {required bool tracking})? onProgress
+  double get progress
+  void reset(double value)
+  void scroll(
+    double offset, {
+    required double min,
+    required double max,
+    required bool tracking,
+  })
+  void scrollToTop()
 class ScrollEdgeBand extends StatelessWidget
   const ScrollEdgeBand({
     required GlassScrollEdgeDetails details,
@@ -3287,7 +3326,7 @@ final class SliderMotion extends Motion
   bool get isAnimatingValueChange
   bool get isDragging
   bool get isGliding
-  @internal late final SmallLens lens
+  late final SmallLens lens
   static const Size liftedThumbSize
   final void Function(SliderEvent)? onEvent
   static const (double, double) overdrag
@@ -3325,6 +3364,33 @@ final class SliderMotion extends Motion
   double get width
   set width(double value)
   overrides: didAdvance, holds, minFrameRate
+final class SmallLens extends Motion
+  SmallLens({
+    required Size restSize,
+    required Size liftedSize,
+    double? frameRate = ...,
+    double Function(double)? position,
+  })
+  void follow(double t)
+  final double? frameRate
+  static const double hangTime
+  bool get isLifted
+  void lift(double t)
+  static const Spring liftSpring
+  static const double liftVelocity
+  final Size liftedSize
+  double progress(double t)
+  void resetFlex(double t, double position)
+  final Size restSize
+  double scaleX(double t)
+  double scaleY(double t)
+  double shift(double t)
+  Size size(double t)
+  double get sizeLag
+  static const Spring sizeUnliftSpring
+  static final Spring stretchSpring
+  void unlift(double t)
+  static const Spring unliftSpring
 final class SwitchChanged extends SwitchEvent
   const SwitchChanged({required bool on})
   final bool on
@@ -3346,7 +3412,7 @@ final class SwitchMotion extends Motion
   double get knob
   static const Size knobSize
   static const Spring knobSpring
-  @internal late final SmallLens lens
+  late final SmallLens lens
   static const Size liftedKnobSize
   static const Spring offColorSpring
   static const Spring onColorSpring
@@ -3381,19 +3447,27 @@ final class TabBarMinimizeMotion extends Motion
   double get accessoryX
   double get accessoryY
   GlassTabBarMinimizeBehavior get behavior
+  static const double collapsedSize
   double extent
+  static const double glyphCenter
   double get hint
+  static const double lensGoneAt
   bool get minimized
   double get morph
+  static const double othersBlur
+  static const double othersDrift
+  static const double othersGoneAt
   double get press
   void pressCancel(double t)
   void pressDown(double t, double x)
+  static const double pressGrowth
   bool pressMove(double t, double x)
   void pressUp(double t)
   bool get pressed
-  @internal final ScrollAway scrollAway
+  final ScrollAway scrollAway
   void setBehavior(double t, GlassTabBarMinimizeBehavior value)
   void setMinimized(double t, {required bool minimized})
+  static const double titlesGoneAt
 final class TouchGlowMotion extends Motion
   TouchGlowMotion({
     required double washPeak,
@@ -3402,6 +3476,7 @@ final class TouchGlowMotion extends Motion
     required double riseLag,
     double minimumLit = ...,
   })
+  factory TouchGlowMotion.tabBar()
   final double diameter
   static const double dragDistance
   static const double dragGrowth
@@ -3739,6 +3814,7 @@ class DatePickerLabelMotion (see package:apple_liquid_glass/apple_liquid_glass.d
 class DatePickerMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class DatePickerPlacement (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class FlexLaw (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef FlexValues (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassBarButtonKind (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassBarButtonSpec (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassBarCapsuleFrame (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -3788,6 +3864,7 @@ class PageSlideMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum PopoverArrowDirection (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class PopoverMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class PopoverPlacement (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class ScrollAway (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SearchBarGeometry (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SearchMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SearchTabGeometry (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -3802,6 +3879,7 @@ class SliderChanged (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SliderEvent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SliderFelt (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SliderMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SmallLens (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SwitchChanged (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SwitchEvent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SwitchMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
