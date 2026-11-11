@@ -5,9 +5,6 @@ import 'dart:ui' as ui;
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
-import 'package:apple_liquid_glass/src/motions/menu_fusion.dart';
-import 'package:apple_liquid_glass/src/motions/menu_outline_math.dart';
-import 'package:apple_liquid_glass/src/motions/outline_boxes.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_appearance.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_content.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_entries.dart';
@@ -1856,21 +1853,10 @@ GlassFrame _menuFrame(
   final glow = motion.rootGlow;
   final tint = motion.drawsSource ? sourceTint : null;
   final tintAmount = tint == null ? 1.0 : motion.buttonLookOpacity;
-  final root = motion.rootBlob.rrect;
-  if (motion.fusionRadius >= MenuFusion.minimumRadius) {
+  final (:shape, :outline) = motion.rootBody;
+  if (outline != null) {
     return GlassFrame(
-      outline: motion.silhouette,
-      tint: tint,
-      tintAmount: tintAmount,
-      glow: glow,
-      opacity: opacity,
-    );
-  }
-  final source = motion.drawsSource ? motion.buttonBlob.rrect : null;
-  if (source == null || encloses(root, source)) {
-    return GlassFrame(
-      shape: GlassShape.roundedRect(root.tlRadiusX),
-      rect: root.outerRect,
+      outline: outline,
       tint: tint,
       tintAmount: tintAmount,
       glow: glow,
@@ -1878,7 +1864,8 @@ GlassFrame _menuFrame(
     );
   }
   return GlassFrame(
-    outline: unionOutline([root, source]),
+    shape: GlassShape.roundedRect(shape.tlRadiusX),
+    rect: shape.outerRect,
     tint: tint,
     tintAmount: tintAmount,
     glow: glow,

@@ -9,6 +9,7 @@ import 'package:apple_liquid_glass/src/motions/menu_fusion.dart';
 import 'package:apple_liquid_glass/src/motions/menu_layout.dart';
 import 'package:apple_liquid_glass/src/motions/menu_morph_spec.dart';
 import 'package:apple_liquid_glass/src/motions/menu_outline_math.dart';
+import 'package:apple_liquid_glass/src/motions/outline_boxes.dart';
 import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
 import 'package:flutter/painting.dart';
 import 'package:kinesis/motion.dart';
@@ -2105,6 +2106,25 @@ class MenuMotion extends Motion with Presented {
         : _fusion.outline(rootBlob.rrect, buttonBlob.rrect, radius)!;
     _prefetchSilhouette();
     return outline;
+  }
+
+  /// Whether the menu and its source draw as one [silhouette] this frame:
+  /// [fusionRadius] blurs them enough to move an edge.
+  bool get fused => fusionRadius >= MenuFusion.minimumRadius;
+
+  /// The glass body of the root menu this frame, in the motion's
+  /// coordinates: the [silhouette] while [fused]; else the rounded rect
+  /// `shape` of [rootBlob] alone (a null `outline`) when no source is
+  /// drawn or the menu covers it; else the plain union of the menu and
+  /// [buttonBlob] as the `outline`.
+  ({RRect shape, GlassOutline? outline}) get rootBody {
+    final root = rootBlob.rrect;
+    if (fused) return (shape: root, outline: silhouette);
+    final source = drawsSource ? buttonBlob.rrect : null;
+    if (source == null || encloses(root, source)) {
+      return (shape: root, outline: null);
+    }
+    return (shape: root, outline: unionOutline([root, source]));
   }
 
   /// Hands the coming frames' fusions to [MenuFusion.prefetch]: the

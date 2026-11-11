@@ -2693,6 +2693,7 @@ class MenuMotion extends Motion with Presented
   bool get drawsSource
   @visibleForTesting ({double value, double velocity}) get flexPulse
   @visibleForTesting Rect get flexedMenuRect
+  bool get fused
   double get fusionRadius
   double get glassOpacity
   void highlight(double t, int? index)
@@ -2748,6 +2749,7 @@ class MenuMotion extends Motion with Presented
     MenuAttachment? attachment,
   })
   @internal MenuBlob get rootBlob
+  ({GlassOutline? outline, RRect shape}) get rootBody
   GlassTouchGlow? get rootGlow
   int? rowAt(Offset position)
   double get rowHeight
