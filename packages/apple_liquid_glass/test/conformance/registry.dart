@@ -978,6 +978,7 @@ const Map<String, String> nonInteractive = {
   'PageControlMotion': 'the page control law; a control runs it',
   'RawGlassList': 'animates the layout of keyed children',
   'ScrollEdgeBand': 'draws the scroll edge band of a renderer',
+  'SelectorMotion': 'the selector law; a control runs it',
   'SliderMotion': 'the slider law; a control runs it',
   'SwipeGroup':
       'keeps one swiped row of its subtree open; the rows are entries',
