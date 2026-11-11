@@ -3,7 +3,7 @@ import 'dart:developer' show Timeline;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:kinesis/src/motion/frame_grid.dart';
+import 'package:kinesis/src/motion/frame_time.dart';
 import 'package:kinesis/src/motion/pointer_clock_stub.dart'
     if (dart.library.ffi) 'package:kinesis/src/motion/pointer_clock_io.dart';
 import 'package:kinesis/src/motion/timeline.dart';
@@ -425,16 +425,10 @@ class ManualMotionClock extends MotionClock {
 
 /// The binding's frame clock.
 ///
-/// Its time is the scheduler's frame time stamp (so `timeDilation` and test
-/// pumps apply), put on the display's frame grid ([FrameGrid]). The clock
-/// asks for frames only while something is active. With only a later change
-/// pending it dozes on a timer instead, and with nothing pending it sleeps.
-/// Both count where the frame time stamps follow the engine clock, as on a
-/// device: input stamped and changes made meanwhile get the time an
-/// uninterrupted clock would give them, and so does the frame that ends the
-/// wait, so a finger held still keeps its time. Under a test's fake frame
-/// clock, which the engine clock does not follow, the time stands still
-/// while the clock sleeps.
+/// Its time is its [FrameTime]'s, fed the scheduler's frame time stamps and
+/// the input's. The clock asks for frames only while something is active.
+/// With only a later change pending it dozes on a timer instead, and with
+/// nothing pending it sleeps.
 ///
 /// A frame's phases run in a microtask scheduled from the clock's frame
 /// callback, so after every ticker of the frame and before build; a clock
@@ -442,82 +436,42 @@ class ManualMotionClock extends MotionClock {
 /// runs them in that frame. The frame's time is computed once, by whichever
 /// reads it first: a ticker that runs before the clock's callback reads the
 /// time the frame steps at.
-///
-/// Input events are stamped at their own time stamp, moved onto the frame
-/// clock by the pointer clock offset: UIKit's measured delays count from
-/// the touch's time stamp. While the clock runs or dozes, an event's time is
-/// the latest frame's time plus the time from that frame's time stamp to
-/// the event's, usually a frame or two in the past. Events that arrive
-/// before its first frame, or while it sleeps under a fake frame clock,
-/// keep their spacing, measured by their own time stamps and slowed by
-/// `timeDilation`, and the first frame after the wake continues from the
-/// latest of them, so the clock never runs backwards. An
-/// event whose time stamp does not land within [maxEventAge] before the
-/// engine clock is taken as happening one frame after its delivery. When
-/// the frame time stamps and the engine clock disagree by more than
-/// [maxFrameLead] (a test's fake frame clock), an event gets the latest
-/// frame's time while the clock runs, and the first frame after a wake
-/// continues from the latest stamp itself.
 class _BindingClock extends MotionClock {
-  /// The largest distance, in seconds, between a frame's time stamp and
-  /// the engine clock at its callback for which the two count as one.
-  static const double maxFrameLead = 0.05;
-
-  /// The oldest an event's time stamp may be at its delivery, in seconds,
-  /// for [stamp] to trust it.
-  static const double maxEventAge = 0.25;
-
-  final FrameGrid _grid = FrameGrid();
-  double _base = 0;
-  double _time = 0;
-  double _tickTime = 0;
+  late final FrameTime _frames = FrameTime(
+    engineNow: _engineNow,
+    pointerClockOffset: _pointerClockOffset,
+    dilation: () => timeDilation,
+    frameRate: () => frameRate,
+  );
   bool _running = false;
   bool _phasesQueued = false;
   bool _phasesRan = false;
-  bool _ticking = false;
   int? _callbackId;
-  Duration? _start;
-  Duration? _advanced;
-  Duration? _tickStamp;
-  bool _stampsAgree = false;
-  Duration? _stampFrom;
-  double _stampTime = 0;
-  Duration? _wakeFrom;
-  double _wakeTime = 0;
   Timer? _doze;
-  Duration? _dozeStamp;
-  Duration? _dozeSystemStamp;
-  double _dozeTime = 0;
 
   @override
   double get frameTime {
     if (_callbackId != null) {
       final scheduler = SchedulerBinding.instance;
       if (scheduler.schedulerPhase == SchedulerPhase.transientCallbacks) {
-        _advance(scheduler.currentFrameTimeStamp);
-        return _time;
+        _frames.advance(
+          scheduler.currentFrameTimeStamp,
+          scheduler.currentSystemFrameTimeStamp,
+        );
+        return _frames.time;
       }
     }
-    final dozed = _dozeSystemStamp;
-    final dozedFrame = _dozeStamp;
-    if (dozed != null && dozedFrame != null && _stampsAgree) {
-      final scheduler = SchedulerBinding.instance;
-      // In a frame the clock sits out, a change made now shows in that frame,
-      // so it takes that frame's time; the clock's next frame counts on from
-      // it.
-      final t = scheduler.schedulerPhase == SchedulerPhase.idle
-          ? _dozeTime +
-                (_engineNow() - dozed).inMicroseconds / 1e6 / timeDilation
-          : _dozeTime +
-                (scheduler.currentFrameTimeStamp - dozedFrame).inMicroseconds /
-                    1e6;
-      if (t > _time) return t;
-    }
-    return _time;
+    if (!_frames.dozing) return _frames.time;
+    final scheduler = SchedulerBinding.instance;
+    return _frames.read(
+      frameStamp: scheduler.schedulerPhase == SchedulerPhase.idle
+          ? null
+          : scheduler.currentFrameTimeStamp,
+    );
   }
 
   @override
-  double? get framePeriod => _grid.period;
+  double? get framePeriod => _frames.period;
 
   @override
   double get frameRate {
@@ -529,47 +483,17 @@ class _BindingClock extends MotionClock {
   // The engine stamps frames on the Dart timeline clock: on iOS that is
   // CLOCK_MONOTONIC_RAW (iPhone 16 Pro, iOS 27.0.1, Flutter 3.47.2), while
   // touches count CLOCK_UPTIME_RAW (pointerClockOffset).
-  Duration _engineNow() =>
+  static Duration _engineNow() =>
       MotionClock.debugEngineNow?.call() ??
       Duration(microseconds: Timeline.now);
 
-  Duration _occurred(Duration timeStamp, Duration now) {
+  static Duration? _pointerClockOffset() {
     final hook = MotionClock.debugPointerClockOffset;
-    final offset = hook == null ? pointerClockOffset() : hook();
-    if (offset != null) {
-      final at = timeStamp + offset;
-      final age = (now - at).inMicroseconds / 1e6;
-      if (age >= 0 && age < maxEventAge) return at;
-    }
-    return now + Duration(microseconds: (1e6 / frameRate).round());
+    return hook == null ? pointerClockOffset() : hook();
   }
 
   @override
-  double stamp(Duration timeStamp) {
-    final now = _engineNow();
-    if (_ticking) {
-      final tick = _tickStamp;
-      if (!_stampsAgree || tick == null) return _time;
-      final since = (_occurred(timeStamp, now) - tick).inMicroseconds / 1e6;
-      if (since < -maxEventAge) return _time;
-      return _tickTime + since / timeDilation;
-    }
-    _wakeFrom = _occurred(timeStamp, now);
-    final from = _stampFrom;
-    if (from == null) {
-      _stampFrom = timeStamp;
-      _stampTime = _time;
-      _wakeTime = _time;
-      return _time;
-    }
-    final elapsed = (timeStamp - from).inMicroseconds / 1e6;
-    if (elapsed > 0) {
-      final t = _stampTime + elapsed / timeDilation;
-      if (t > _time) _time = t;
-    }
-    _wakeTime = _time;
-    return _time;
-  }
+  double stamp(Duration timeStamp) => _frames.stamp(timeStamp);
 
   @override
   void wake() {
@@ -587,15 +511,18 @@ class _BindingClock extends MotionClock {
       return;
     }
     _running = true;
-    _start = null;
     // As a Ticker started inside a frame does, count from that frame, so
     // the next frame already moves by a frame.
-    if (phase.index > SchedulerPhase.idle.index &&
-        phase.index < SchedulerPhase.postFrameCallbacks.index) {
-      _start = scheduler.currentFrameTimeStamp;
-    }
+    _frames.origin =
+        phase.index > SchedulerPhase.idle.index &&
+            phase.index < SchedulerPhase.postFrameCallbacks.index
+        ? scheduler.currentFrameTimeStamp
+        : null;
     if (building) {
-      _advance(scheduler.currentFrameTimeStamp);
+      _frames.advance(
+        scheduler.currentFrameTimeStamp,
+        scheduler.currentSystemFrameTimeStamp,
+      );
       _queuePhases();
       return;
     }
@@ -622,73 +549,27 @@ class _BindingClock extends MotionClock {
   }
 
   void _sleep() {
-    final frame = _advanced;
-    if (!_stampsAgree || !_ticking || (_dozeStamp == null && frame == null)) {
-      _stop();
-      return;
-    }
+    _frames.sleep();
     _cancel();
-    _advanced = null;
     _doze?.cancel();
     _doze = null;
-    // Sleep counts as a doze without a timer: a finger held still while
-    // nothing moves keeps its time.
-    if (_dozeStamp == null) {
-      _dozeStamp = frame;
-      _dozeSystemStamp = _tickStamp;
-      _dozeTime = _time;
-    }
   }
 
   void _stop() {
     _cancel();
-    _advanced = null;
     _doze?.cancel();
     _doze = null;
-    _dozeStamp = null;
-    _dozeSystemStamp = null;
-    _base = _time;
-    _ticking = false;
-    _start = null;
-  }
-
-  void _advance(Duration timeStamp) {
-    final start = _start ??= timeStamp;
-    if (timeStamp == _advanced) return;
-    _advanced = timeStamp;
-    final seconds = (timeStamp - start).inMicroseconds / 1e6;
-    final stamp = SchedulerBinding.instance.currentSystemFrameTimeStamp;
-    _stampsAgree =
-        ((stamp - _engineNow()).inMicroseconds / 1e6).abs() < maxFrameLead;
-    _tickStamp = stamp;
-    if (_wakeFrom case final from?) {
-      _wakeFrom = null;
-      final lag = (stamp - from).inMicroseconds / 1e6;
-      if (_stampsAgree && lag > 0 && lag < 1) {
-        final woken = _wakeTime + lag / timeDilation;
-        if (_base + seconds < woken) _base = woken - seconds;
-      }
-    }
-    if (_dozeStamp case final dozed?) {
-      final micros =
-          (_dozeTime * 1e6).round() + (timeStamp - dozed).inMicroseconds;
-      _base = micros / 1e6 - seconds;
-      _dozeStamp = null;
-      _dozeSystemStamp = null;
-    }
-    if (_base + seconds < _time) _base = _time - seconds;
-    _tickTime = _base + seconds;
-    final snapped = _grid.snap(_tickTime);
-    _time = snapped >= _time ? snapped : _tickTime;
-    _ticking = true;
-    _stampFrom = null;
+    _frames.stop();
   }
 
   void _onFrame(Duration timeStamp) {
     _callbackId = null;
     _phasesRan = false;
     if (!_running) return;
-    _advance(timeStamp);
+    _frames.advance(
+      timeStamp,
+      SchedulerBinding.instance.currentSystemFrameTimeStamp,
+    );
     _queuePhases();
   }
 
@@ -696,7 +577,7 @@ class _BindingClock extends MotionClock {
     _phasesQueued = false;
     if (!_running) return;
     _phasesRan = false;
-    runFrame(_time);
+    runFrame(_frames.time);
     _phasesRan = true;
     if (!needsFrame) {
       _sleep();
@@ -704,14 +585,15 @@ class _BindingClock extends MotionClock {
     }
     final until = wakeTime;
     // A wait of two frames or less keeps the frames: dozing saves nothing.
-    if (until != null && until - _time > 2 / frameRate) {
+    if (until != null && until - _frames.time > 2 / frameRate) {
       final scheduler = SchedulerBinding.instance;
-      _dozeStamp = scheduler.currentFrameTimeStamp;
-      _dozeSystemStamp = scheduler.currentSystemFrameTimeStamp;
-      _dozeTime = _time;
+      _frames.dozed(
+        scheduler.currentFrameTimeStamp,
+        scheduler.currentSystemFrameTimeStamp,
+      );
       // Half a frame early, so the frame that shows the change is never
       // missed.
-      final delay = (until - _time - 0.5 / frameRate) * timeDilation;
+      final delay = (until - _frames.time - 0.5 / frameRate) * timeDilation;
       _cancel();
       _doze = Timer(
         Duration(microseconds: (delay * 1e6).floor()),
