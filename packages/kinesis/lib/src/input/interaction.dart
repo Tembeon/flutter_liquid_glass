@@ -24,6 +24,18 @@ enum InteractionRole {
 
   /// Hears the touch at contact plus its onset; its claims hold the touch.
   gesture,
+
+  /// Hears every pointer input of each touch on the region at once, at its
+  /// stamp, outside the gesture arena: its claims are ignored, a gesture
+  /// that takes the touch does not cancel it, and it hears the release or
+  /// the platform's cancel however the arena decided. It hears every
+  /// pointer it [Interaction.accepts], several at once. A region whose
+  /// interactions only observe never joins the arena, so it blocks no
+  /// gesture below or around it.
+  ///
+  /// Flutter: a `Listener`. UIKit: a gesture recognizer that recognizes
+  /// simultaneously with every other and cancels no touch.
+  observer,
 }
 
 /// A haptic a control plays for an interaction event.
@@ -1189,7 +1201,9 @@ final class _Simultaneous extends Interaction {
   bool _bFailed = false;
 
   static InteractionRole _stronger(InteractionRole a, InteractionRole b) =>
-      a == InteractionRole.gesture || b == InteractionRole.gesture
+      a == InteractionRole.observer && b == InteractionRole.observer
+      ? InteractionRole.observer
+      : a == InteractionRole.gesture || b == InteractionRole.gesture
       ? InteractionRole.gesture
       : a == InteractionRole.control || b == InteractionRole.control
       ? InteractionRole.control
@@ -1494,11 +1508,18 @@ final class SessionOutput {
 /// others are cancelled for the rest of the touch. Claims of content are
 /// ignored. A second pointer during a touch is rejected. Timed deliveries
 /// come due at [nextDue] and run in [advance], so scroll timing replays
-/// from recorded input.
+/// from recorded input. Observers ([InteractionRole.observer]) hear every
+/// pointer they accept at once, beside all of this, and are not cancelled
+/// when the touch is [lost].
 class InteractionSession {
   /// Creates a session over [interactions].
   InteractionSession(List<Interaction> interactions)
-    : interactions = [for (final i in interactions) ..._apart(i)];
+    : interactions = [for (final i in interactions) ..._apart(i)] {
+    _observers = [
+      for (final i in this.interactions)
+        if (i.role == InteractionRole.observer) i,
+    ];
+  }
 
   /// UIScrollView's delay before content hears a touch, in seconds.
   static const double scrollDelay = 0.15;
@@ -1516,6 +1537,8 @@ class InteractionSession {
     }
   }
 
+  late final List<Interaction> _observers;
+  final Map<int, List<Interaction>> _observing = {};
   final List<Interaction> _accepting = [];
   final Set<Interaction> _failed = {};
   final Set<Interaction> _cancelled = {};
@@ -1527,6 +1550,14 @@ class InteractionSession {
 
   /// Whether a touch is being followed.
   bool get isActive => _down != null;
+
+  /// Whether the session follows [pointer] for its interactions that take
+  /// part in the arena: they accepted its down and have not given it up.
+  bool follows(int pointer) => _down?.pointer == pointer;
+
+  /// Whether an observer hears [pointer]: one accepted its down and it has
+  /// not lifted or been cancelled.
+  bool observes(int pointer) => _observing.containsKey(pointer);
 
   /// The time the next held delivery or timed reaction comes due, a
   /// reaction to hover between touches included.
@@ -1555,6 +1586,45 @@ class InteractionSession {
   /// Hover, scrolls, activations, value commands and context menu requests
   /// reach every interaction.
   SessionOutput handle(InteractionInput input) {
+    final observed = _observe(input);
+    final output = _track(input);
+    if (observed.events.isEmpty) return output;
+    return SessionOutput(
+      claim: output.claim,
+      reject: output.reject,
+      events: [...observed.events, ...output.events],
+    );
+  }
+
+  SessionOutput _observe(InteractionInput input) {
+    final List<Interaction>? observers;
+    switch (input) {
+      case PointerDownInput(:final pointer):
+        observers = [
+          for (final observer in _observers)
+            if (observer.accepts(input)) observer,
+        ];
+        if (observers.isEmpty) return SessionOutput.none;
+        _observing[pointer] = observers;
+      case PointerMoveInput(:final pointer):
+        observers = _observing[pointer];
+      case PointerUpInput(:final pointer) || PointerCancelInput(:final pointer):
+        observers = _observing.remove(pointer);
+      case PointerHoverInput() ||
+          PointerScrollInput() ||
+          ActivateInput() ||
+          AdjustInput() ||
+          ContextMenuInput():
+        return SessionOutput.none;
+    }
+    if (observers == null) return SessionOutput.none;
+    final events = <InteractionEvent>[
+      for (final observer in observers) ...observer.handle(input).events,
+    ];
+    return events.isEmpty ? SessionOutput.none : SessionOutput(events: events);
+  }
+
+  SessionOutput _track(InteractionInput input) {
     _time = input.time;
     switch (input) {
       case PointerDownInput():
@@ -1565,7 +1635,10 @@ class InteractionSession {
         _held.clear();
         _claimed = false;
         for (final interaction in interactions) {
-          if (interaction.accepts(input)) _accepting.add(interaction);
+          if (interaction.role != InteractionRole.observer &&
+              interaction.accepts(input)) {
+            _accepting.add(interaction);
+          }
         }
         if (_accepting.isEmpty) return const SessionOutput(reject: true);
         _down = input;
@@ -1640,8 +1713,8 @@ class InteractionSession {
 
   /// The touch of [pointer] went to another gesture at [time], or the
   /// region gave it up: held deliveries are dropped and delivered
-  /// interactions cancelled.
-  SessionOutput lost(int pointer, double time) => handle(
+  /// interactions cancelled. Observers keep hearing it.
+  SessionOutput lost(int pointer, double time) => _track(
     PointerCancelInput(
       time: time,
       pointer: pointer,
@@ -1712,6 +1785,14 @@ class InteractionSession {
     Interaction interaction,
     InteractionUpdate update,
   ) {
+    if (interaction.role == InteractionRole.observer) {
+      if (update.events.isEmpty) return output;
+      return SessionOutput(
+        claim: output.claim,
+        reject: output.reject,
+        events: [...output.events, ...update.events],
+      );
+    }
     final holds = interaction.role != InteractionRole.content;
     final claim = holds && (update.claims || update.recognizes) && !_claimed;
     if (claim) _claimed = true;

@@ -125,14 +125,17 @@ enum InteractionRole
   control,
   content,
   gesture,
+  observer,
 class InteractionSession
   InteractionSession(List<Interaction> interactions)
   SessionOutput advance(double time)
+  bool follows(int pointer)
   SessionOutput handle(InteractionInput input)
   final List<Interaction> interactions
   bool get isActive
   SessionOutput lost(int pointer, double time)
   double? get nextDue
+  bool observes(int pointer)
   static const double scrollDelay
 final class InteractionUpdate
   const InteractionUpdate({

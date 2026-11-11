@@ -43,6 +43,11 @@ import 'package:kinesis/src/widgets/input_shared.dart';
 /// neither activates nor adjusts (a drag region around a row of focusable
 /// items) leaves Space, Enter and the value keys to the focus below it.
 ///
+/// An interaction of the [InteractionRole.observer] role hears every touch
+/// it accepts at once and to its end, outside the gesture arena, as a
+/// `Listener` does: a control that must follow a finger another gesture
+/// may win (a hold that opens a menu over a button) observes it.
+///
 /// Presses of the secondary button reach the interactions that accept them
 /// (`SecondaryClickInteraction`). When an interaction
 /// [Interaction.opensContextMenu], the region binds
@@ -322,7 +327,7 @@ class _InputRegionState extends State<InputRegion> {
       }
       return;
     }
-    if (event is! PointerDownEvent && !_members.containsKey(event.pointer)) {
+    if (event is! PointerDownEvent && !_trackers.containsKey(event.pointer)) {
       return;
     }
     final time = _clock.stamp(event.timeStamp);
@@ -366,6 +371,9 @@ class _InputRegionState extends State<InputRegion> {
           ),
         );
         if (output.reject) {
+          if (_session.observes(event.pointer)) {
+            _trackers[event.pointer] = tracker;
+          }
           _answer(output);
           return;
         }
@@ -431,12 +439,12 @@ class _InputRegionState extends State<InputRegion> {
 
   void _lost(int pointer) {
     if (_members.remove(pointer) == null) return;
-    _trackers.remove(pointer);
+    if (!_session.observes(pointer)) _trackers.remove(pointer);
     _answer(_session.lost(pointer, _clock.now));
   }
 
   void _cancelAll(PointerCancelReason reason) {
-    for (final pointer in _members.keys.toList()) {
+    for (final pointer in _trackers.keys.toList()) {
       _members.remove(pointer)?.entry?.resolve(GestureDisposition.rejected);
       _trackers.remove(pointer);
       _answer(
