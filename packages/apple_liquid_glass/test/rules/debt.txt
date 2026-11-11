@@ -83,7 +83,6 @@
 5:MotionClock.instance    lib/src/raw/search_field.dart               1
 5:MotionClock.instance    lib/src/raw/selector.dart                   3
 5:MotionClock.instance    lib/src/raw/slider.dart                     2
-5:MotionClock.instance    lib/src/raw/switch.dart                     2
 5:ValueListenableBuilder  lib/src/controls/date_picker.dart           3
 5:ValueListenableBuilder  lib/src/navigation/bar.dart                 2
 5:ValueListenableBuilder  lib/src/navigation/navigation_bar.dart      1
@@ -106,7 +105,6 @@
 5:addPostFrameCallback    lib/src/raw/page_control.dart               1
 5:addPostFrameCallback    lib/src/raw/selector.dart                   2
 5:addPostFrameCallback    lib/src/raw/slider.dart                     1
-5:addPostFrameCallback    lib/src/raw/switch.dart                     1
 5:dynamic                 lib/src/foundation/colors.dart              2
 5:engine-layer            lib/src/presentations/menu_anchor.dart      2
 5:engine-layer            lib/src/raw/selector.dart                   1
@@ -114,7 +112,6 @@
 5:haptic-play             lib/src/presentations/menu_anchor.dart      1
 5:haptic-play             lib/src/raw/page_control.dart               1
 5:haptic-play             lib/src/raw/slider.dart                     1
-5:haptic-play             lib/src/raw/switch.dart                     1
 5:key-handler             lib/src/presentations/menu_anchor.dart      1
 5:reducedMotion           lib/src/controls/date_picker.dart           2
 5:reducedMotion           lib/src/motions/alert_motion.dart           2

@@ -63,6 +63,31 @@ class _Probe {
   }
 }
 
+List<Object?> _haptics(WidgetTester tester) {
+  final played = <Object?>[];
+  tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+    SystemChannels.platform,
+    (call) async {
+      if (call.method == 'HapticFeedback.vibrate') played.add(call.arguments);
+      return null;
+    },
+  );
+  addTearDown(
+    () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      null,
+    ),
+  );
+  return played;
+}
+
+Widget _keyApp(Widget child, {Map<ShortcutActivator, Intent>? shortcuts}) =>
+    WidgetsApp(
+      color: const Color(0xFF000000),
+      shortcuts: shortcuts,
+      builder: (context, _) => Center(child: child),
+    );
+
 Future<void> _settle(WidgetTester tester) async {
   for (var i = 0; i < 120; i++) {
     await tester.pump(_frame);
@@ -427,5 +452,164 @@ void main() {
     );
     await _settle(tester);
     expect(track(), isSameColorAs(const Color(0xFF654321)));
+  });
+
+  testWidgets('under a WidgetsApp Space and Enter toggle it, and an app '
+      'that rebinds the keys toggles it with its own', (tester) async {
+    final changes = <bool>[];
+    await tester.pumpWidget(
+      _keyApp(
+        GlassSwitch(value: false, onChanged: changes.add, autofocus: true),
+      ),
+    );
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    expect(changes, [true, true]);
+
+    changes.clear();
+    await tester.pumpWidget(
+      _keyApp(
+        GlassSwitch(value: false, onChanged: changes.add, autofocus: true),
+        shortcuts: {
+          ...WidgetsApp.defaultShortcuts,
+          const SingleActivator(LogicalKeyboardKey.space):
+              const DoNothingAndStopPropagationIntent(),
+          const SingleActivator(LogicalKeyboardKey.keyT):
+              const ActivateIntent(),
+        },
+      ),
+    );
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    expect(changes, isEmpty);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyT);
+    expect(changes, [true]);
+  });
+
+  testWidgets('it reads as one toggle over its 44 point target, below the '
+      'region', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _app(
+        GlassSwitch(value: true, onChanged: (_) {}, semanticLabel: 'Wi-Fi'),
+      ),
+    );
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('Wi-Fi')),
+      matchesSemantics(
+        label: 'Wi-Fi',
+        rect: const Rect.fromLTWH(0, -8, 63, 44),
+        textDirection: TextDirection.ltr,
+        hasToggledState: true,
+        isToggled: true,
+        hasTapAction: true,
+        hasFocusAction: true,
+        hasEnabledState: true,
+        isEnabled: true,
+        isFocusable: true,
+      ),
+    );
+    await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
+    semantics.dispose();
+  });
+
+  testWidgets('a tap in the 44 point extension toggles it; one beyond does '
+      'not', (tester) async {
+    final changes = <bool>[];
+    await tester.pumpWidget(_app(_Controlled(onChanged: changes.add)));
+    final center = tester.getCenter(find.byType(GlassSwitch));
+    expect(tester.getSize(find.byType(GlassSwitch)), RawGlassSwitch.size);
+    await tester.tapAt(center + const Offset(0, -21));
+    await _settle(tester);
+    expect(changes, [true]);
+    await tester.tapAt(center + const Offset(0, 23));
+    await _settle(tester);
+    expect(changes, [true]);
+  });
+
+  testWidgets('a touch that toggles plays a light impact; a key, the '
+      'accessibility tap and a haptic scope play none', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final played = _haptics(tester);
+    Widget sw({bool haptics = true}) => _keyApp(
+      MotionHapticScope(
+        enabled: haptics,
+        child: GlassSwitch(
+          value: false,
+          onChanged: (_) {},
+          autofocus: true,
+          semanticLabel: 'Wi-Fi',
+        ),
+      ),
+    );
+    await tester.pumpWidget(sw());
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    tester.semantics.tap(find.semantics.byLabel('Wi-Fi'));
+    await _settle(tester);
+    expect(played, isEmpty);
+    await tester.tap(find.byType(GlassSwitch));
+    await _settle(tester);
+    expect(played, ['HapticFeedbackType.lightImpact']);
+    await tester.pumpWidget(sw(haptics: false));
+    await tester.tap(find.byType(GlassSwitch));
+    await _settle(tester);
+    expect(played, ['HapticFeedbackType.lightImpact']);
+    semantics.dispose();
+  });
+
+  testWidgets('Reduce Motion from MotionTraitsOverride keeps the knob '
+      'down', (tester) async {
+    final probe = _Probe();
+    await tester.pumpWidget(
+      _app(
+        MotionTraitsOverride(
+          traits: const MotionTraits(reduceMotion: true),
+          child: RawGlassSwitch(
+            value: false,
+            onChanged: (_) {},
+            builder: probe.build,
+          ),
+        ),
+      ),
+    );
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(RawGlassSwitch)),
+    );
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(_frame);
+    }
+    expect(probe.thumb!.value.lift, 0);
+    await gesture.up();
+    await _settle(tester);
+  });
+
+  testWidgets('an app that passes the value back late sees the switch '
+      'return, then follow', (tester) async {
+    final probe = _Probe();
+    var value = false;
+    late StateSetter set;
+    await tester.pumpWidget(
+      _app(
+        StatefulBuilder(
+          builder: (context, setState) {
+            set = setState;
+            return RawGlassSwitch(
+              value: value,
+              onChanged: (_) {},
+              builder: probe.build,
+            );
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.byType(RawGlassSwitch));
+    await _settle(tester);
+    expect(probe.progress!.value, 0);
+    set(() => value = true);
+    await _settle(tester);
+    expect(probe.progress!.value, 1);
+    expect(probe.thumb!.value.rect!.center.dx, greaterThan(31.5));
   });
 }

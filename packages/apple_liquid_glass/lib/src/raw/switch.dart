@@ -1,6 +1,6 @@
 import 'package:apple_liquid_glass/src/foundation/frame.dart';
 import 'package:apple_liquid_glass/src/motions/switch_motion.dart';
-import 'package:flutter/scheduler.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
@@ -42,11 +42,15 @@ final class GlassSwitchDetails {
 /// The knob lifts into a clear lens under the finger, a tap toggles on
 /// release, and a drag carries the knob with a rubber band past the ends
 /// and flips the shown state every 25 points toward the other one. In a
-/// right-to-left context on is to the left. Space, Enter and the
-/// accessibility tap toggle it. Under Reduce Motion the knob travels
-/// without lifting, growing or rubber-banding, as UIKit's does, and without
-/// stretching, an approximation. A touch that changes the shown state plays
-/// a light impact, as UIKit does (read from UIKit, notes private).
+/// right-to-left context on is to the left. The app's `ActivateIntent`
+/// (Space and Enter under a `WidgetsApp`) and the accessibility tap toggle
+/// it. A finger takes it within a 44 by 44 point area around its 63 by 28
+/// box, as UIKit's does, where the switch's parent leaves that room. Under
+/// Reduce Motion the knob travels without lifting, growing or
+/// rubber-banding, as UIKit's does, and without stretching, an
+/// approximation. A touch that changes the shown state plays a light
+/// impact, as UIKit does (read from UIKit, notes private); a key or an
+/// accessibility action plays none, and a `MotionHapticScope` turns it off.
 class RawGlassSwitch extends StatefulWidget {
   /// Creates a switch showing [value].
   const RawGlassSwitch({
@@ -93,7 +97,7 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
     with ControlStates<RawGlassSwitch> {
   late final SwitchMotion _motion = SwitchMotion(
     value: widget.value,
-    frameRate: MotionClock.instance.frameRate,
+    frameRate: null,
     onEvent: _deliver,
   );
   late final _SwitchInput _input = _SwitchInput(
@@ -105,6 +109,7 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
   late final MotionSelection<double> _progress = _motion.select(
     (motion) => motion.color,
   );
+  bool _returning = false;
 
   MotionSelection<GlassFrame> _thumbOf({required bool mirrored}) =>
       _motion.select((motion) {
@@ -146,23 +151,30 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
 
   void _setValue(bool value) {
     if (value == _motion.value) return;
-    _motion.setValue(MotionClock.instance.now, value: value);
+    _motion.setValue(_motion.clock.now, value: value);
   }
 
   void _deliver(SwitchEvent event) {
     switch (event) {
       case SwitchChanged(:final on):
         if (on != widget.value) widget.onChanged?.call(on);
-        SchedulerBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _setValue(widget.value);
-        });
-      case SwitchShown():
-        MotionHaptic.lightImpact.play();
+        // The build that follows shows the value the app passes by then,
+        // so a switch whose app does not follow returns to its value.
+        setState(() => _returning = true);
+      case SwitchShown(:final on):
+        _input.feel(on: on);
     }
   }
 
+  static MotionHaptic? _feedback(InteractionEvent event) =>
+      event is ScrubChangeEvent ? MotionHaptic.lightImpact : null;
+
   @override
   Widget build(BuildContext context) {
+    if (_returning) {
+      _returning = false;
+      _setValue(widget.value);
+    }
     final mirrored = Directionality.maybeOf(context) == TextDirection.rtl;
     if (mirrored != _input.mirrored) {
       _input.mirrored = mirrored;
@@ -170,18 +182,18 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
     }
     return MotionScope(
       motion: _motion,
-      child: Align(
-        widthFactor: 1,
-        heightFactor: 1,
-        child: Semantics(
-          toggled: widget.value,
-          child: InputRegion(
-            interactions: _interactions,
-            enabled: widget.onChanged != null,
-            statesController: widgetStates,
-            focusNode: widget.focusNode,
-            autofocus: widget.autofocus,
-            semanticLabel: widget.semanticLabel,
+      child: _Centered(
+        child: InputRegion(
+          interactions: _interactions,
+          enabled: widget.onChanged != null,
+          statesController: widgetStates,
+          feedback: _feedback,
+          focusNode: widget.focusNode,
+          autofocus: widget.autofocus,
+          semanticLabel: widget.semanticLabel,
+          minimumHitSize: const Size(44, 44),
+          child: Semantics(
+            toggled: widget.value,
             child: SizedBox.fromSize(
               size: RawGlassSwitch.size,
               child: widget.builder(
@@ -200,9 +212,31 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
   }
 }
 
+/// Centres the switch in a larger box, and lets through the pointers its
+/// input region takes outside the switch's own box.
+class _Centered extends SingleChildRenderObjectWidget {
+  const _Centered({required super.child});
+
+  @override
+  RenderPositionedBox createRenderObject(BuildContext context) =>
+      _RenderCentered();
+}
+
+class _RenderCentered extends RenderPositionedBox {
+  _RenderCentered() : super(widthFactor: 1, heightFactor: 1);
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    if (!hitTestChildren(result, position: position)) return false;
+    result.add(BoxHitTestEntry(this, position));
+    return true;
+  }
+}
+
 /// A switch's touch: the press tracks the highlight and holds the touch
 /// against a scroll, the motion follows the finger, and an activation
-/// toggles.
+/// toggles. A change of the shown state under the finger reaches the
+/// region as a [ScrubChangeEvent], for its haptic.
 final class _SwitchInput extends PressInteraction {
   _SwitchInput({required this.motion, required this.toggle});
 
@@ -210,9 +244,13 @@ final class _SwitchInput extends PressInteraction {
   final VoidCallback toggle;
   bool mirrored = false;
   int? _pointer;
+  final List<InteractionEvent> _felt = [];
 
   double _x(Offset position) =>
       mirrored ? RawGlassSwitch.size.width - position.dx : position.dx;
+
+  void feel({required bool on}) =>
+      _felt.add(ScrubChangeEvent(time: motion.now, selected: on));
 
   @override
   InteractionUpdate handle(InteractionInput input) {
@@ -235,6 +273,15 @@ final class _SwitchInput extends PressInteraction {
         motion.pointerCancel(input.time);
       default:
     }
-    return super.handle(input);
+    final update = super.handle(input);
+    if (_felt.isEmpty) return update;
+    final events = [...update.events, ..._felt];
+    _felt.clear();
+    return InteractionUpdate(
+      claims: update.claims,
+      recognizes: update.recognizes,
+      fails: update.fails,
+      events: events,
+    );
   }
 }
