@@ -559,6 +559,68 @@ void main() {
     expect(probe.lens.rect!.center.dx, closeTo(start, 1));
   });
 
+  testWidgets('a change raised while the framework builds does not throw '
+      'and reaches the app in the next frame', (tester) async {
+    final focus = FocusNode();
+    addTearDown(focus.dispose);
+    final values = <String>[];
+    var value = 'a';
+    var follow = false;
+    var raise = false;
+    late StateSetter rebuild;
+    await tester.pumpWidget(
+      StatefulBuilder(
+        builder: (context, setState) => _keys(
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              StatefulBuilder(
+                builder: (context, setRaiser) {
+                  rebuild = setRaiser;
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      if (raise) {
+                        raise = false;
+                        Actions.invoke(
+                          FocusManager.instance.primaryFocus!.context!,
+                          const ActivateIntent(),
+                        );
+                      }
+                      return const SizedBox();
+                    },
+                  );
+                },
+              ),
+              GlassSegmentedControl<String>(
+                segments: _segments,
+                groupValue: value,
+                focusNode: focus,
+                onChanged: (next) {
+                  values.add(next);
+                  if (follow) setState(() => value = next);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    focus.requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await _settle(tester);
+    expect(values, ['b']);
+    expect(value, 'a');
+    follow = true;
+    rebuild(() => raise = true);
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(values, ['b']);
+    await tester.pump(_frame);
+    expect(values, ['b', 'b']);
+    expect(value, 'b');
+  });
+
   testWidgets('on liquid glass the lens gets a glass layer only while '
       'lifted', (tester) async {
     await tester.pumpWidget(

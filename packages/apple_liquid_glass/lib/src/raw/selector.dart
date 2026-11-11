@@ -168,7 +168,7 @@ class RawGlassSelector extends StatefulWidget {
 }
 
 class _RawGlassSelectorState extends State<RawGlassSelector>
-    with ControlStates<RawGlassSelector> {
+    with ControlStates<RawGlassSelector>, ControlledValue<RawGlassSelector> {
   late _SelectorMotion _motion = _create(widget.selectedIndex ?? 0);
   late _SelectorFrames _frames = _SelectorFrames(
     _motion,
@@ -181,9 +181,6 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   late final List<Interaction> _interactions = [_input];
   final _zones = InputZonesController<Object>();
   final Map<Object, List<Interaction>> _presses = {};
-  // A selection the app may not follow: the next build returns the lens to
-  // the selected item if it did not.
-  bool _returning = false;
   bool _rtl = false;
   final _lensShrink = ValueNotifier<GlassLensShrink>((
     shrink: 0,
@@ -200,6 +197,20 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
 
   @override
   WidgetStatesController? get givenStates => widget.statesController;
+
+  @override
+  MotionClock get valueClock => _motion.clock;
+
+  @override
+  bool get userLeads => _input.active;
+
+  @override
+  void followWidget() {
+    final selected = _selected;
+    if (selected != null && _motion.selected != selected) {
+      _motion.choose(_now, selected, notify: false);
+    }
+  }
 
   bool get _enabled => widget.onChanged != null || widget.onReselected != null;
 
@@ -340,17 +351,6 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     }
   }
 
-  // A selection the app does not follow returns in the next build, which
-  // the selection itself asks for: the app's own rebuild may never come.
-  void _return() {
-    if (!_returning || _input.active) return;
-    _returning = false;
-    final selected = _selected;
-    if (selected != null && _motion.selected != selected) {
-      _motion.choose(_now, selected, notify: false);
-    }
-  }
-
   void _deliver(LensEvent event) {
     switch (event) {
       case LensSelected(:final index):
@@ -358,10 +358,9 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     }
   }
 
-  void _chosen(int index) {
+  void _chosen(int index) => tellApp(() {
     if (index != widget.selectedIndex) widget.onChanged?.call(index);
-    if (mounted) setState(() => _returning = true);
-  }
+  });
 
   void _select(int index) {
     if (!_selectable(index)) return;
@@ -419,6 +418,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   void _up(PointerUpInput input) {
+    returnUnlessFollowed();
     if (_fingerOnCircle) {
       _fingerOnCircle = false;
       widget.collapse!.pressUp(input.time);
@@ -450,6 +450,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   void _cancel(double time) {
+    returnUnlessFollowed();
     if (_fingerOnCircle) {
       _fingerOnCircle = false;
       widget.collapse!.pressCancel(time);
@@ -589,8 +590,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   @override
-  Widget build(BuildContext context) {
-    _return();
+  Widget buildControl(BuildContext context) {
     _rtl = Directionality.maybeOf(context) == TextDirection.rtl;
     if (_rtl != _frames.mirrored ||
         !identical(widget.collapse, _frames.collapse)) {
