@@ -302,6 +302,10 @@ class _PopoverGlassState extends State<_PopoverGlass> {
   @override
   void didUpdateWidget(_PopoverGlass oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // A selection hears only the motions it reads, never a new shape: a new
+    // selection is what makes the glass take the shape in this frame. The
+    // old one, which the glass stops following, tracks nothing and needs no
+    // dispose.
     if (oldWidget.shape != widget.shape) {
       _frame = _frameNow();
     }
