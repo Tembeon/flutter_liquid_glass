@@ -173,6 +173,43 @@ String _note(
   final notes = <String>[];
   final reads = <GlassRead>[];
   final fates = <SiteFate>[];
+  final edits = PlanLedgerEdits();
+  _decideFates(scene, prices, policy, reads, fates, explain ? notes : null);
+  _decideGeometryKinds(reads);
+  _resolveGeometry(scene, policy, reads);
+  final dueAt = _chooseSources(scene, ledger, prices, frame, reads, edits);
+  final issued = _keepBudget(
+    scene,
+    ledger,
+    prices,
+    policy,
+    frame,
+    reads,
+    edits,
+    explain ? notes : null,
+  );
+  _groupLiveReads(reads);
+  return (
+    GlassPlan(
+      reads,
+      fates,
+      issuedTargets: issued,
+      dueAt: dueAt,
+      notes: notes,
+    ),
+    edits,
+  );
+}
+
+// Decides each site's fate in paint order: hidden, follower or lead.
+void _decideFates(
+  PlanScenery scene,
+  PlanPrices prices,
+  PlanPolicy policy,
+  List<GlassRead> reads,
+  List<SiteFate> fates,
+  List<String>? notes,
+) {
   final screen = scene.screen;
   final sites = scene.sites;
   for (var at = 0; at < sites.length; at++) {
@@ -188,7 +225,7 @@ String _note(
     final pageOnly = site.ask.look.page != null;
     GlassRead? joined;
     if (_alone(site, limit) case final why?) {
-      if (explain) notes.add(_note(why, site, null, scene, prices));
+      notes?.add(_note(why, site, null, scene, prices));
     } else {
       for (var i = reads.length - 1; i >= 0; i--) {
         final read = reads[i];
@@ -197,7 +234,7 @@ String _note(
             .skip(band ? 1 : 0)
             .any((m) => m.ask.drawn.overlaps(site.ask.drawn));
         if (overGlass) {
-          if (explain) notes.add('${site.id}: overlaps');
+          notes?.add('${site.id}: overlaps');
           break;
         }
         final why = _apart(read, site, prices, policy);
@@ -205,7 +242,7 @@ String _note(
           joined = read;
           break;
         }
-        if (explain) notes.add(_note(why, site, read, scene, prices));
+        notes?.add(_note(why, site, read, scene, prices));
         // Joining a read further down would draw this glass under the band.
         if (band && read.lead.ask.drawn.overlaps(site.ask.drawn)) break;
       }
@@ -227,11 +264,21 @@ String _note(
     reads.add(read);
     fates.add(LeadFate(read));
   }
+}
 
+// Decides where each read's final shader takes its geometry from.
+void _decideGeometryKinds(List<GlassRead> reads) {
   for (final read in reads) {
     read.geometryKind = geometryKindOf(read.glass);
   }
+}
 
+// Decides the reads each copy holds and its lattice, rects and frost.
+void _resolveGeometry(
+  PlanScenery scene,
+  PlanPolicy policy,
+  List<GlassRead> reads,
+) {
   for (var i = 0; i < reads.length; i++) {
     final read = reads[i];
     if (read.source is LiveRead) continue;
@@ -257,7 +304,7 @@ String _note(
       share: read.share,
       atScreen: !_holdsAtOwnGrid(read),
       reads: read.band,
-      screen: screen,
+      screen: scene.screen,
       clip: read.lead.clip,
       holdsGlass: read.holds.isNotEmpty,
       glassFrost: read.lead.isBand
@@ -268,8 +315,18 @@ String _note(
       filter: page == null ? null : (page.key, page.blendMode),
     );
   }
+}
 
-  final edits = PlanLedgerEdits();
+// Decides each copy's source (scene, held or new image) and its memo.
+int _chooseSources(
+  PlanScenery scene,
+  PlanLedger ledger,
+  PlanPrices prices,
+  int frame,
+  List<GlassRead> reads,
+  PlanLedgerEdits edits,
+) {
+  final screen = scene.screen;
   var dueAt = _never;
   for (final read in reads) {
     if (read.source is LiveRead) {
@@ -347,51 +404,61 @@ String _note(
       ..boughtAt = boughtAt;
     edits.writes[id] = next;
   }
+  return dueAt;
+}
 
-  int targets() => reads.fold(0, (sum, read) => sum + read.targets);
-  var issued = targets();
-  if (issued > policy.maxTargets) {
-    // The deepest read another holds first: doubling becomes linear. Then the
-    // last in paint order, so the same frame always moves the same reads.
-    final deepest = reads.where((read) => read.level > 0).toList()
-      ..sort((a, b) => b.level.compareTo(a.level));
-    final order = [...deepest, ...reads.reversed];
-    for (final read in order) {
-      if (issued <= policy.maxTargets) break;
-      if (read.source is! SceneRead || read.limit != ReadLimit.none) continue;
-      final id = read.lead.id;
-      final rent = prices.rent(
-        read.band,
-        read.share,
-        targets: read.sceneTargets,
-      );
-      read.source = const ImageRead(held: false);
-      read.geometry = read.geometry.withRoom(
-        _withRoom(read, ledger.reads[id], rent, screen),
-        screen,
-      );
-      edits.writes[id]!
-        ..geometry = read.geometry
-        ..boughtAt = frame
-        ..forBudget = true;
-      issued = targets();
-      if (explain) notes.add('${read.lead.id}: over budget, reads an image');
-    }
-    if (explain && issued > policy.maxTargets) {
-      notes.add('over budget at $issued: what is left can not use an image');
-    }
+// Decides which scene reads become images to keep within the target budget.
+int _keepBudget(
+  PlanScenery scene,
+  PlanLedger ledger,
+  PlanPrices prices,
+  PlanPolicy policy,
+  int frame,
+  List<GlassRead> reads,
+  PlanLedgerEdits edits,
+  List<String>? notes,
+) {
+  var issued = _targets(reads);
+  if (issued <= policy.maxTargets) return issued;
+  final screen = scene.screen;
+  // The deepest read another holds first: doubling becomes linear. Then the
+  // last in paint order, so the same frame always moves the same reads.
+  final deepest = reads.where((read) => read.level > 0).toList()
+    ..sort((a, b) => b.level.compareTo(a.level));
+  final order = [...deepest, ...reads.reversed];
+  for (final read in order) {
+    if (issued <= policy.maxTargets) break;
+    if (read.source is! SceneRead || read.limit != ReadLimit.none) continue;
+    final id = read.lead.id;
+    final rent = prices.rent(
+      read.band,
+      read.share,
+      targets: read.sceneTargets,
+    );
+    read.source = const ImageRead(held: false);
+    read.geometry = read.geometry.withRoom(
+      _withRoom(read, ledger.reads[id], rent, screen),
+      screen,
+    );
+    edits.writes[id]!
+      ..geometry = read.geometry
+      ..boughtAt = frame
+      ..forBudget = true;
+    issued = _targets(reads);
+    notes?.add('${read.lead.id}: over budget, reads an image');
   }
-  _groupLiveReads(reads);
-  return (
-    GlassPlan(
-      reads,
-      fates,
-      issuedTargets: issued,
-      dueAt: dueAt,
-      notes: notes,
-    ),
-    edits,
-  );
+  if (issued > policy.maxTargets) {
+    notes?.add('over budget at $issued: what is left can not use an image');
+  }
+  return issued;
+}
+
+int _targets(List<GlassRead> reads) {
+  var sum = 0;
+  for (final read in reads) {
+    sum += read.targets;
+  }
+  return sum;
 }
 
 // No frame comes this far.
