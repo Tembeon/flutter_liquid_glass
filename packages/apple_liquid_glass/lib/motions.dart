@@ -14,6 +14,7 @@
 /// decides what is drawn.
 library;
 
+export 'src/motions/activity_motion.dart' show ActivityMotion;
 export 'src/motions/alert_motion.dart' show AlertMotion;
 export 'src/motions/bar_frames.dart'
     show GlassBarCapsuleFrame, GlassBarCapsuleLayout, GlassBarItemFrame;

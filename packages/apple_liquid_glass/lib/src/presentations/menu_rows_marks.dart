@@ -77,7 +77,7 @@ class _Spinner extends StatefulWidget {
 }
 
 class _SpinnerState extends State<_Spinner> {
-  final _spin = _Spin();
+  final _spin = ActivityMotion();
   late final _head = _spin.select((spin) => spin.head);
 
   @override
@@ -93,33 +93,6 @@ class _SpinnerState extends State<_Spinner> {
   );
 }
 
-/// The spokes of an activity indicator, stepping round from [start].
-final class _Spin extends Motion {
-  late final _loop = own(_SpinLoop());
-
-  /// The brightest spoke now.
-  int get head => _loop.head;
-
-  /// Starts the turn at [t].
-  void start(double t) {
-    _loop.start = t;
-    _loop.wake(t);
-  }
-}
-
-final class _SpinLoop extends MotionLoop {
-  static const spokes = 8;
-
-  double start = 0;
-  int head = 0;
-
-  @override
-  bool step(double t) {
-    head = ((t - start) * spokes).floor() % spokes;
-    return true;
-  }
-}
-
 class _SpinnerPainter extends CustomPainter {
   _SpinnerPainter({required this.head, required this.color})
     : super(repaint: head);
@@ -129,7 +102,7 @@ class _SpinnerPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const spokes = _SpinLoop.spokes;
+    const spokes = ActivityMotion.spokes;
     final head = this.head.value;
     final center = size.center(Offset.zero);
     final radius = size.shortestSide / 2;

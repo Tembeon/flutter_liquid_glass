@@ -14,6 +14,11 @@ class GlassScope extends StatefulWidget
   overrides: createState
 
 # package:apple_liquid_glass/apple_liquid_glass.dart
+final class ActivityMotion extends Motion
+  ActivityMotion({MotionClock? clock})
+  int get head
+  static const int spokes
+  void start(double t)
 final class AdaptiveGlassRenderer extends GlassRenderer
   const AdaptiveGlassRenderer({
     GlassRenderer capable = ...,
@@ -3992,6 +3997,7 @@ re-exported from package:liquid_glass_renderer:
   debugDumpGlassPlan
 
 # package:apple_liquid_glass/motions.dart
+class ActivityMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class AlertMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ContextHold (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class DatePickerCalendarMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
