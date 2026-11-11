@@ -26,6 +26,7 @@ class _TimeWheelsState extends State<GlassTimePicker> {
   bool get _pm => _hour >= 12;
   bool? _twentyFourShown;
   int _hourLaps = 0;
+  bool _meridiemSteps = false;
 
   @override
   void didUpdateWidget(GlassTimePicker oldWidget) {
@@ -54,6 +55,9 @@ class _TimeWheelsState extends State<GlassTimePicker> {
   }
 
   void _sync(DateTime value) {
+    // An hour the app sets jumps the day period; only the hour wheel's own
+    // wrap turns it in a step.
+    if (value.hour != _hour) _meridiemSteps = false;
     _hour = value.hour;
     _minute = _rounded(value.minute);
   }
@@ -74,7 +78,10 @@ class _TimeWheelsState extends State<GlassTimePicker> {
     final laps = _hourLaps;
     _hourLaps = 0;
     final pm = laps.isOdd != _pm;
-    setState(() => _hour = _twentyFour ? row : row + (pm ? 12 : 0));
+    setState(() {
+      _meridiemSteps = pm != _pm;
+      _hour = _twentyFour ? row : row + (pm ? 12 : 0);
+    });
     _emit();
   }
 
@@ -169,7 +176,7 @@ class _TimeWheelsState extends State<GlassTimePicker> {
                         look: look,
                         count: 2,
                         looping: false,
-                        animatesValue: true,
+                        animatesValue: _meridiemSteps,
                         text: (int i) => i == 0
                             ? loc.anteMeridiemAbbreviation
                             : loc.postMeridiemAbbreviation,

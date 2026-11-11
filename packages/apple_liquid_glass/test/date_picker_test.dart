@@ -764,6 +764,35 @@ void main() {
     });
   });
 
+  group('GlassTimePicker with a value the app sets', () {
+    testWidgets('an hour across noon jumps the AM/PM wheel', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(402, 874));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      Widget picker(DateTime value) => _App(
+        home: Center(
+          child: GlassTimePicker(
+            value: value,
+            use24HourFormat: false,
+            onChanged: (_) {},
+          ),
+        ),
+      );
+      await tester.pumpWidget(picker(DateTime(2026, 10, 3, 9, 41)));
+      await tester.pump();
+      FixedExtentScrollController meridiem() =>
+          tester
+                  .widgetList<ListWheelScrollView>(
+                    find.byType(ListWheelScrollView),
+                  )
+                  .last
+                  .controller!
+              as FixedExtentScrollController;
+      expect(meridiem().selectedItem, 0);
+      await tester.pumpWidget(picker(DateTime(2026, 10, 3, 21, 41)));
+      expect(meridiem().selectedItem, 1);
+    });
+  });
+
   group('GlassDatePicker month and year wheels', () {
     Future<List<DateTime>> open(
       WidgetTester tester, {
