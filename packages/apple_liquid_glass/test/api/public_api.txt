@@ -3508,9 +3508,7 @@ final class SliderMotion extends Motion
   void pointerMove(double t, double x, {bool begin = ...})
   void pointerUp(double t, double x, {double? velocity})
   double get position
-  static const Spring programmaticSpring
   static const double releaseDelay
-  static const Spring releaseSpring
   double get reportedValue
   void setValue(double t, double value, {bool animated = ...})
   static const double squish
@@ -3524,7 +3522,6 @@ final class SliderMotion extends Motion
   static const double tickOffset
   static const double tickProjection
   static const double tickProjectionThreshold
-  static const Spring tickReleaseSpring
   static const double tickSize
   int get ticks
   set ticks(int value)

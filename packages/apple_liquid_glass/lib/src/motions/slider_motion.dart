@@ -3,6 +3,29 @@ import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motions/small_lens.dart';
 import 'package:kinesis/motion.dart';
+import 'package:meta/meta.dart';
+
+/// The springs of an iOS 27 slider.
+@internal
+abstract final class SliderTuning {
+  /// The spring the stretched track returns on (simulator fit, slider
+  /// passport).
+  static const releaseSpring = Spring.response(0.63, dampingRatio: 0.85);
+
+  /// The critically damped spring, response 0.4 s, a released stepped
+  /// slider moves onto its stop on, starting from the release speed. Read
+  /// from UIKit, notes private.
+  static const tickReleaseSpring = Spring.response(0.4);
+
+  /// The spring an animated [SliderMotion.setValue] moves the thumb and
+  /// fill on: UIKit's programmatic-update spring, response 0.4, damping
+  /// 0.8, read from UIKit (notes private) on the iOS 27.0 simulator; the
+  /// glass slider's fill replays it within 0.16 pt on a 300 pt track for
+  /// jumps of 0.01 to 0.8.
+  /// The duration does not depend on the distance, whatever UISlider.h's
+  /// "fixed velocity" says.
+  static const programmaticSpring = Spring.response(0.4, dampingRatio: 0.8);
+}
 
 /// The motion of an iOS 27 slider: value, thumb lens and track stretch.
 ///
@@ -36,10 +59,10 @@ import 'package:kinesis/motion.dart';
 /// midpoint, with no smoothing and no dependence on the finger's speed. A
 /// fast finger crosses that band within a frame or two and the thumb seems
 /// to jump stop to stop; a slow one shows it between. After a release the
-/// place springs ([tickReleaseSpring], from the release speed) onto the
-/// stop nearest to where the release speed projects it ([tickProjection],
-/// when that is at least [tickProjectionThreshold]), seen through the same
-/// curve, without a glide.
+/// place springs ([SliderTuning.tickReleaseSpring], from the release
+/// speed) onto the stop nearest to where the release speed projects it
+/// ([tickProjection], when that is at least [tickProjectionThreshold]),
+/// seen through the same curve, without a glide.
 ///
 /// Times are seconds and positions pixels from the track's left end.
 ///
@@ -61,11 +84,11 @@ final class SliderMotion extends Motion {
   }) : _value = value.clamp(0.0, 1.0),
        _reported = value.clamp(0.0, 1.0) {
     _stretch = own(
-      MotionValue<double>(0, spring: releaseSpring),
+      MotionValue<double>(0, spring: SliderTuning.releaseSpring),
       rest: _length,
     );
     _settle = own(
-      MotionValue<double>(_value, spring: tickReleaseSpring),
+      MotionValue<double>(_value, spring: SliderTuning.tickReleaseSpring),
       rest: _settleRest,
     );
     lens = own(
@@ -137,10 +160,6 @@ final class SliderMotion extends Motion {
   /// slider passport).
   static const double squish = 0.2936;
 
-  /// The spring the stretched track returns on (simulator fit, slider
-  /// passport).
-  static const releaseSpring = Spring.response(0.63, dampingRatio: 0.85);
-
   /// Seconds between the release and the return of the stretched track;
   /// not measured.
   static const double releaseDelay = 0.07;
@@ -155,11 +174,6 @@ final class SliderMotion extends Motion {
   /// private.
   static const double tickExponent = 5;
 
-  /// The critically damped spring, response 0.4 s, a released stepped
-  /// slider moves onto its stop on, starting from the release speed. Read
-  /// from UIKit, notes private.
-  static const tickReleaseSpring = Spring.response(0.4);
-
   /// Seconds of release speed a released stepped slider projects ahead to
   /// pick its stop. Read from UIKit, notes private.
   static const double tickProjection = 0.099;
@@ -167,14 +181,6 @@ final class SliderMotion extends Motion {
   /// The shortest projection, in pixels, that picks a stop other than the
   /// one the finger left the thumb at. Read from UIKit, notes private.
   static const double tickProjectionThreshold = 10;
-
-  /// The spring an animated [setValue] moves the thumb and fill on: UIKit's
-  /// programmatic-update spring, response 0.4, damping 0.8, read from UIKit
-  /// (notes private) on the iOS 27.0 simulator; the glass slider's fill
-  /// replays it within 0.16 pt on a 300 pt track for jumps of 0.01 to 0.8.
-  /// The duration does not depend on the distance, whatever UISlider.h's
-  /// "fixed velocity" says.
-  static const programmaticSpring = Spring.response(0.4, dampingRatio: 0.8);
 
   /// The diameter of a tick mark (slider passport; the device ticks replay
   /// exactly).
@@ -441,7 +447,7 @@ final class SliderMotion extends Motion {
     );
     final stop = _stopNear(projection.landing(from, v));
     _settle.setVelocity(t, v);
-    _settle.retarget(t, stop, spring: tickReleaseSpring);
+    _settle.retarget(t, stop, spring: SliderTuning.tickReleaseSpring);
     _set(stop);
     lens.follow(t);
   }
@@ -472,8 +478,8 @@ final class SliderMotion extends Motion {
   }
 
   /// Sets the value without a touch: the thumb jumps there, or with
-  /// [animated] travels there on [programmaticSpring] from where it shows,
-  /// as UIKit's `setValue(_:animated: true)` does.
+  /// [animated] travels there on [SliderTuning.programmaticSpring] from
+  /// where it shows, as UIKit's `setValue(_:animated: true)` does.
   ///
   /// The animated thumb stays between the ends; on iOS the spring's
   /// overshoot at an end stretches the track instead (not reproduced). A
@@ -490,7 +496,7 @@ final class SliderMotion extends Motion {
     if (animated && !_stepped && shown != _value) {
       if (!_programmatic) _settle.snap(t, shown);
       _programmatic = true;
-      _settle.retarget(t, _value, spring: programmaticSpring);
+      _settle.retarget(t, _value, spring: SliderTuning.programmaticSpring);
       lens.follow(t);
       return;
     }
