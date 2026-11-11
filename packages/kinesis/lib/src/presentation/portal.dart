@@ -32,6 +32,12 @@ final class PresentationPortalController {
 /// menu keeps its finger on the rows. The content's `PopScope`s are not
 /// asked. As on a route, new touches reach what is below as soon as the
 /// presentation leaves, while its close plays on.
+///
+/// Unlike a route's, its barrier does not hide what is below from screen
+/// readers: Flutter puts the semantics of an overlay portal's child under
+/// its anchor, so screen readers find the presentation right after [child],
+/// as they find the menu of a `RawMenuAnchor`. The labelled barrier is
+/// there as on a route.
 class PresentationPortal extends StatefulWidget {
   /// Shows [presentation] over [child] when [controller] presents it.
   const PresentationPortal({
@@ -234,15 +240,17 @@ class _PresentationPortalState extends State<PresentationPortal>
         ValueListenableBuilder<bool>(
           valueListenable: _modal,
           builder: (context, modal, _) => modal
-              ? ModalBarrier(
-                  barrierSemanticsDismissible: presentation.dismiss.allows(
+              ? presentationBarrier(
+                  dismissible: presentation.dismiss.allows(
                     DismissTrigger.outsideTap,
                   ),
-                  onDismiss: () => dismiss(DismissTrigger.outsideTap),
+                  label: presentation.barrierLabel,
+                  onTap: () => dismiss(DismissTrigger.outsideTap),
                 )
               : const SizedBox.shrink(),
         ),
         Semantics(
+          sortKey: const OrdinalSortKey(0),
           scopesRoute: true,
           namesRoute: presentation.semanticsLabel != null,
           explicitChildNodes: true,
@@ -272,7 +280,18 @@ class _PresentationPortalState extends State<PresentationPortal>
         ),
       ],
     );
-    return _LeavingGate(isLeaving: () => _leaving, child: content);
+    // An overlay portal's child joins the semantics tree under its anchor,
+    // so a barrier blocking what was painted before it would drop the whole
+    // screen, the presentation and its anchor included; in a container of
+    // its own it blocks nothing, and what is below stays readable.
+    return _LeavingGate(
+      isLeaving: () => _leaving,
+      child: Semantics(
+        container: true,
+        explicitChildNodes: true,
+        child: content,
+      ),
+    );
   }
 }
 

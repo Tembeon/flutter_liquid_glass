@@ -1,3 +1,4 @@
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/presentation/route.dart';
@@ -82,6 +83,7 @@ final class Presentation<T, M extends Presented> {
     this.onVeto,
     this.onDismissed,
     this.semanticsLabel,
+    this.barrierLabel,
   });
 
   /// Makes the motion at the commit, or hands over one the caller keeps
@@ -121,6 +123,16 @@ final class Presentation<T, M extends Presented> {
 
   /// The name screen readers announce for the content.
   final String? semanticsLabel;
+
+  /// What screen readers call the barrier behind the content while the
+  /// presentation is modal and an outside tap may dismiss it, such as
+  /// "Dismiss menu"; the barrier then offers that dismissal and comes after
+  /// the content in the reading order. Without a label, or where the
+  /// platform does not dismiss through a barrier (Linux, Windows, Fuchsia),
+  /// the barrier is silent. In a route it hides what is below from screen
+  /// readers either way. The presentation has no words of its own: pass the
+  /// app's localized string, as `ModalRoute.barrierLabel` takes one.
+  final String? barrierLabel;
 
   // The calls below take the motion as a Presented and the result as an
   // Object?, so a shell holding a Presentation<Object?, Presented> calls
@@ -203,6 +215,29 @@ abstract interface class PresentationShell implements PresentationHandle {
 
   /// Whether the presentation was dismissed and its motion leaves.
   bool get isLeaving;
+}
+
+/// The barrier of a modal presentation: it absorbs every tap and hands it
+/// to [onTap], which goes through the dismissal gate, and hides what is
+/// below from screen readers. With a [label] and an outside tap the gate
+/// may let through ([dismissible]), screen readers find it after the
+/// content as a dismiss target where the platform offers one.
+@internal
+Widget presentationBarrier({
+  required bool dismissible,
+  required String? label,
+  required VoidCallback onTap,
+}) {
+  final Widget barrier = ModalBarrier(
+    barrierSemanticsDismissible: dismissible,
+    semanticsLabel: label,
+    // Every tap goes through the gate, so a refused one is reported as a
+    // veto, as UIKit reports a tap on the dimming of a sheet that may not
+    // leave.
+    onDismiss: onTap,
+  );
+  if (!dismissible || label == null) return barrier;
+  return Semantics(sortKey: const OrdinalSortKey(1), child: barrier);
 }
 
 class _HandleScope extends InheritedWidget {

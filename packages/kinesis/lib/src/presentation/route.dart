@@ -235,8 +235,10 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   @nonVirtual
   bool get barrierDismissible => false;
 
+  /// What screen readers call the barrier: the [presentation]'s
+  /// [Presentation.barrierLabel] by default.
   @override
-  String? get barrierLabel => null;
+  String? get barrierLabel => presentation?.barrierLabel;
 
   @override
   @nonVirtual
@@ -327,13 +329,10 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   Widget buildModalBarrier() => ValueListenableBuilder<bool>(
     valueListenable: _barrierModal ??= ValueNotifier<bool>(modal),
     builder: (context, modal, _) => modal
-        ? ModalBarrier(
-            barrierSemanticsDismissible: allows(DismissTrigger.outsideTap),
-            semanticsLabel: barrierLabel,
-            // Every tap goes through the gate, so a refused one is
-            // reported as a veto, as UIKit reports a tap on the dimming of
-            // a sheet that may not leave.
-            onDismiss: () => dismiss(DismissTrigger.outsideTap),
+        ? presentationBarrier(
+            dismissible: allows(DismissTrigger.outsideTap),
+            label: barrierLabel,
+            onTap: () => dismiss(DismissTrigger.outsideTap),
           )
         : const SizedBox.shrink(),
   );
@@ -418,7 +417,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
 ///
 /// While [modal], the barrier absorbs taps and hides the routes below from
 /// screen readers; with a [barrierLabel] and an [allows] outside tap it is
-/// a labelled dismiss target.
+/// a labelled dismiss target, read after the content.
 class PresentationRoute<T> extends PopupRoute<T> with _PresentationEngine<T> {
   /// Creates a route that shows [presentation].
   PresentationRoute({

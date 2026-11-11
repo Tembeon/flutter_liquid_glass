@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -41,6 +42,7 @@ Presentation<String, _Card> _presentation(
   List<DismissTrigger>? vetoes,
   List<String?>? dismissed,
   VoidCallback? onContentPointer,
+  String? barrierLabel,
 }) => Presentation<String, _Card>(
   motion: (_) {
     final card = _Card();
@@ -67,6 +69,7 @@ Presentation<String, _Card> _presentation(
   onVeto: vetoes?.add,
   onDismissed: dismissed?.add,
   semanticsLabel: 'Panel',
+  barrierLabel: barrierLabel,
 );
 
 /// One way to show a [Presentation]: a popup route, a page route or a
@@ -206,6 +209,25 @@ SemanticsNode? _node(WidgetTester tester, String label) {
   return found;
 }
 
+/// The labels of the semantics tree in the order a screen reader visits
+/// them.
+List<String> _readingOrder(WidgetTester tester) {
+  final labels = <String>[];
+  void visit(SemanticsNode node) {
+    if (node.label.isNotEmpty) labels.add(node.label);
+    for (final child in node.debugListChildrenInOrder(
+      DebugSemanticsDumpOrder.traversalOrder,
+    )) {
+      visit(child);
+    }
+  }
+
+  visit(
+    tester.binding.renderViews.first.owner!.semanticsOwner!.rootSemanticsNode!,
+  );
+  return labels;
+}
+
 void main() {
   setUp(MotionClock.debugReset);
 
@@ -319,6 +341,74 @@ void main() {
         );
         await tester.pump();
         expect(made.single.left, [DismissTrigger.accessibility]);
+        semantics.dispose();
+      });
+
+      testWidgets('the barrier hides what is below in a route and, '
+          'labelled, offers the dismissal after the content', (tester) async {
+        final semantics = tester.ensureSemantics();
+        final shell = make();
+        final made = <_Card>[];
+        await shell.pump(
+          tester,
+          Semantics(label: 'Page below', child: const SizedBox.expand()),
+        );
+        expect(_readingOrder(tester), contains('Page below'));
+        await shell.present(
+          tester,
+          _presentation(made, barrierLabel: 'Dismiss panel'),
+        );
+        await tester.pump();
+        await _settle(tester);
+        // A portal's content reads after its anchor, the page below.
+        expect(_readingOrder(tester), [
+          if (shell is _PortalShell) 'Page below',
+          'Panel',
+          'Dismiss panel',
+        ]);
+        final barrier = _node(tester, 'Dismiss panel')!.getSemanticsData();
+        expect(barrier.hasAction(SemanticsAction.tap), isTrue);
+        expect(barrier.hasAction(SemanticsAction.dismiss), isTrue);
+        tester.binding.renderViews.first.owner!.semanticsOwner!.performAction(
+          _node(tester, 'Dismiss panel')!.id,
+          SemanticsAction.tap,
+        );
+        await tester.pump();
+        expect(made.single.left, [DismissTrigger.outsideTap]);
+        semantics.dispose();
+      });
+
+      testWidgets('the barrier is silent without a label, when an outside '
+          'tap may not dismiss and where the platform has no such dismissal', (
+        tester,
+      ) async {
+        final semantics = tester.ensureSemantics();
+        for (final (label, policy, platform) in [
+          (null, const DismissPolicy(), TargetPlatform.android),
+          ('Dismiss panel', DismissPolicy.modal, TargetPlatform.iOS),
+          ('Dismiss panel', const DismissPolicy(), TargetPlatform.linux),
+          ('Dismiss panel', const DismissPolicy(), TargetPlatform.windows),
+        ]) {
+          debugDefaultTargetPlatformOverride = platform;
+          final shell = make();
+          final made = <_Card>[];
+          await shell.pump(
+            tester,
+            Semantics(label: 'Page below', child: const SizedBox.expand()),
+          );
+          await shell.present(
+            tester,
+            _presentation(made, barrierLabel: label, dismiss: policy),
+          );
+          await tester.pump();
+          await _settle(tester);
+          expect(_readingOrder(tester), [
+            if (shell is _PortalShell) 'Page below',
+            'Panel',
+          ], reason: '$platform');
+          await tester.pumpWidget(const SizedBox());
+        }
+        debugDefaultTargetPlatformOverride = null;
         semantics.dispose();
       });
 

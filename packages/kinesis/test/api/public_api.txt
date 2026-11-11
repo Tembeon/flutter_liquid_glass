@@ -897,7 +897,9 @@ final class Presentation<T, M extends Presented>
     void Function(DismissTrigger)? onVeto,
     void Function(T?)? onDismissed,
     String? semanticsLabel,
+    String? barrierLabel,
   })
+  final String? barrierLabel
   @internal Widget build(BuildContext context, Presented motion)
   final Widget Function(BuildContext, M) builder
   @internal bool get changesModality
