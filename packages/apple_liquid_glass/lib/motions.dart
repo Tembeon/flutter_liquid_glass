@@ -4,9 +4,9 @@
 ///
 /// For the controls of this package, and for the tests that replay
 /// recordings from an iPhone against the same laws. Its public names
-/// today are the values a control's parameters take: `GlassSheetDetent`,
-/// `GlassTabBarMinimizeBehavior` and `GlassTouchGlow`; the laws themselves
-/// are the package's own.
+/// today are the values a control's parameters take: `GlassSheetDetent`
+/// and `GlassTabBarMinimizeBehavior`; the laws themselves are the
+/// package's own.
 ///
 /// It promises that a number in a law carries its source, a measurement on
 /// the device or UIKit's tuning, in its dartdoc.
@@ -17,4 +17,3 @@ library;
 
 export 'src/motions/sheet_motion.dart' show GlassSheetDetent;
 export 'src/motions/tab_minimize.dart' show GlassTabBarMinimizeBehavior;
-export 'src/motions/touch_glow.dart' show GlassTouchGlow;

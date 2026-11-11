@@ -1,5 +1,4 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass/src/surfaces/flat.dart';
 import 'package:apple_liquid_glass/src/surfaces/lens_shrink.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -536,7 +535,7 @@ void main() {
     final grow =
         1 +
         (1 / (1 - _ShrinkingLens.shrink * frame.lift) - 1) *
-            FlatGlassLook.glassness(frame.lift);
+            GlassFrame.glassnessAt(frame.lift);
     expect(grow, greaterThan(1.1));
     final half = (lens.longestSide - lens.shortestSide) / 2;
     // Where the glass reads what lies under the point it shows: farther

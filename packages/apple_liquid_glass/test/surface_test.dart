@@ -2,8 +2,9 @@ import 'dart:typed_data';
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/foundation/glass.dart';
+import 'package:apple_liquid_glass/src/foundation/outline.dart';
+import 'package:apple_liquid_glass/src/foundation/touch_glow.dart';
 import 'package:apple_liquid_glass/src/liquid/adaptive.dart';
-import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
 import 'package:apple_liquid_glass/src/surfaces/flat.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -339,7 +340,7 @@ void main() {
       expect(lit.bounds, const Rect.fromLTWH(44, 0, 100, 44));
       expect(lit.center, const Offset(74, 22));
       expect(lit.wash, 0.04);
-      expect(lit.gain, closeTo(0.3 * TouchGlowMotion.spotGain(.light), 1e-9));
+      expect(lit.gain, closeTo(0.3 * TouchGlowGain.spotGain(.light), 1e-9));
       frames.value = const GlassFrame();
       await tester.pump();
       expect(glow(), isNull);
@@ -521,7 +522,7 @@ void main() {
     edge.lineTo(50, 60);
     edge.lineTo(0, 44);
     edge.close();
-    final field = LiquidGlassField(
+    final field = GlassField(
       samples: Float32List(2 * 2 * 4),
       cols: 2,
       rows: 2,
@@ -553,7 +554,7 @@ void main() {
         .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
         .live!
         .value;
-    expect(layer().field, field);
+    expect(layer().field!.samples, same(field.samples));
     expect(
       tester.widget<LiquidGlass>(find.byType(LiquidGlass)).frame!.value.rect,
       const Rect.fromLTWH(0, 0, 100, 60),
@@ -580,6 +581,56 @@ void main() {
       findsNothing,
       reason: 'a shared layer has no field for one member',
     );
+  });
+
+  testWidgets('a still frame makes no new renderer shape or field, through '
+      'rebuilds and republished frames', (tester) async {
+    final edge = Path();
+    edge.addRect(const Rect.fromLTWH(0, 0, 100, 60));
+    var sampled = 0;
+    final still = GlassFrame(
+      shape: const GlassShape.superellipse(12),
+      outline: GlassOutline(
+        edge,
+        field: () {
+          sampled++;
+          return GlassField(
+            samples: Float32List(2 * 2 * 4),
+            cols: 2,
+            rows: 2,
+            origin: Offset.zero,
+            step: 60,
+          );
+        },
+      ),
+    );
+    final frames = _Frames(still);
+    Widget surface() => _app(
+      const GlassRenderer.liquid(),
+      GlassSurface.live(
+        frame: frames.selection,
+        child: const SizedBox(width: 100, height: 60),
+      ),
+    );
+    await tester.pumpWidget(surface());
+    LiquidShape shape() =>
+        tester.widget<LiquidGlass>(find.byType(LiquidGlass)).frame!.value.shape;
+    LiquidGlassField? field() => tester
+        .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
+        .live!
+        .value
+        .field;
+    final firstShape = shape();
+    final firstField = field();
+    expect(firstField, isNotNull);
+    for (var i = 0; i < 3; i++) {
+      await tester.pumpWidget(surface());
+      frames.value = still;
+      await tester.pump();
+    }
+    expect(shape(), same(firstShape));
+    expect(field(), same(firstField));
+    expect(sampled, 1);
   });
 
   testWidgets('flat content reports where it is drawn', (tester) async {

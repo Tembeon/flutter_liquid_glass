@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/src/foundation/colors.dart';
 import 'package:apple_liquid_glass/src/foundation/frame.dart';
 import 'package:apple_liquid_glass/src/foundation/theme.dart';
+import 'package:apple_liquid_glass/src/foundation/touch_glow.dart';
 import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/bar_layout.dart';
@@ -11,7 +12,6 @@ import 'package:apple_liquid_glass/src/motions/glass_press.dart';
 import 'package:apple_liquid_glass/src/motions/menu_motion.dart'
     show MenuCapsuleSource, MenuSource;
 import 'package:apple_liquid_glass/src/motions/navigation_motion.dart';
-import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
 import 'package:apple_liquid_glass/src/navigation/bar_entry.dart';
 import 'package:apple_liquid_glass/src/navigation/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/navigation/toolbar.dart';

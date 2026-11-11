@@ -13,7 +13,6 @@ import 'package:apple_liquid_glass/src/motions/tab_bar_layout.dart';
 import 'package:apple_liquid_glass/src/motions/tab_minimize.dart';
 import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
 import 'package:apple_liquid_glass/src/navigation/bar_collapse.dart';
-import 'package:apple_liquid_glass/src/surfaces/flat.dart';
 import 'package:apple_liquid_glass/src/surfaces/lens_shrink.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -1755,7 +1754,7 @@ class _RenderSelectorRow extends RenderBox
     if (morph != 0) _paintDissolving(context, offset, slots, morph);
     final copies = frame.opacity;
     final lift = frame.lift.clamp(0.0, 1.0);
-    final glass = mask == null ? 0.0 : FlatGlassLook.glassness(lift);
+    final glass = mask == null ? 0.0 : GlassFrame.glassnessAt(lift);
     final zoom = _kind == GlassSelectorMotion.tabBar
         ? 1 + _tabBarMagnification * lift
         : 1.0;

@@ -1,6 +1,6 @@
 import 'package:apple_liquid_glass/src/foundation/outline.dart';
 import 'package:apple_liquid_glass/src/foundation/shape.dart';
-import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
+import 'package:apple_liquid_glass/src/foundation/touch_glow.dart';
 import 'package:flutter/widgets.dart';
 
 /// One frame of one glass surface: where its body is drawn, how far it is
@@ -75,6 +75,21 @@ final class GlassFrame {
   /// the box the outline spans for what a renderer cannot draw from the
   /// outline, and [rect], [scaleX] and [scaleY] keep their defaults.
   final GlassOutline? outline;
+
+  /// Below this [lift] a lens or knob draws no glass.
+  ///
+  /// Above it the glass appears over the first quarter of the lift.
+  /// Engineering defaults from Morph, not measured; a lens crossing it
+  /// changes by at most 2% of its blend: invisible, NEAR.
+  static const double restingLift = 0.005;
+
+  static const double _glassLiftSpan = 0.25;
+
+  /// How far a lens or knob lifted by [lift] has turned into glass, 0 an
+  /// opaque platter to 1 all glass: the one curve every renderer and every
+  /// control that draws under a lens follows.
+  static double glassnessAt(double lift) =>
+      lift <= restingLift ? 0 : (lift / _glassLiftSpan).clamp(0.0, 1.0);
 
   /// A copy of this frame with the given fields replaced.
   GlassFrame copyWith({

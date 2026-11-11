@@ -1,9 +1,9 @@
 import 'dart:ui';
 
+import 'package:apple_liquid_glass/src/foundation/outline.dart';
 import 'package:apple_liquid_glass/src/motions/popover_motion.dart';
 import 'package:apple_liquid_glass/src/presentations/popover_shape.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 PopoverShape _down(double width, double height, double center) => PopoverShape(
   content: Rect.fromLTWH(0, 0, width, height),
@@ -11,7 +11,7 @@ PopoverShape _down(double width, double height, double center) => PopoverShape(
   arrowCenter: center,
 );
 
-double _sample(LiquidGlassField field, Offset p) {
+double _sample(GlassField field, Offset p) {
   final gx = (p.dx - field.origin.dx) / field.step;
   final gy = (p.dy - field.origin.dy) / field.step;
   final i = gx.floor();

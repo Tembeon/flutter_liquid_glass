@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/motions/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
 import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
@@ -221,7 +222,7 @@ final class GlassPress extends Motion implements PointerFollower {
   ///
   /// Its timing and growth follow the flex; how bright the spot gets is
   /// the glass's own, which the renderer reads from the surface
-  /// ([TouchGlowMotion.spotGainFor]). The press itself is the same for
+  /// ([GlassTouchGlow.gainOn]). The press itself is the same for
   /// every glass (UIKit gives the clear configurations no press of their
   /// own, read from UIKit, notes private).
   GlassTouchGlow? get touchGlow {

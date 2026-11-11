@@ -4,7 +4,6 @@ import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// The flat renderer: a fill per role and glass, a hairline rim on all but
 /// a track and a resting lens or knob, a soft shadow under floating roles;
@@ -147,27 +146,13 @@ final class FlatGlassLook {
   final Color? liftRim;
 
   /// Whether liquid glass covers this lifting body while it is lifted: its
-  /// fill and shadow then fade as the glass appears ([glassness]), and the
-  /// glass draws the rim.
+  /// fill and shadow then fade as the glass appears
+  /// ([GlassFrame.glassnessAt]), and the glass draws the rim.
   final bool underGlass;
 
   /// The share of its opacity a lens's fill keeps at [lift]: all at rest, a
   /// fifth fully lifted.
   static double liftedOpacity(double lift) => 1 - 0.8 * lift.clamp(0.0, 1.0);
-
-  /// Below this lift a lens or knob draws no glass.
-  ///
-  /// Above it the glass appears over the first [glassLiftSpan] of the
-  /// lift. Engineering defaults from Morph, not measured; a lens crossing
-  /// it changes by at most 2% of its blend: invisible, NEAR.
-  static const double restingLift = 0.005;
-
-  /// See [restingLift].
-  static const double glassLiftSpan = 0.25;
-
-  /// How far a lens or knob lifted by [lift] has turned into glass.
-  static double glassness(double lift) =>
-      lift <= restingLift ? 0 : (lift / glassLiftSpan).clamp(0.0, 1.0);
 
   @override
   bool operator ==(Object other) =>
@@ -348,7 +333,7 @@ class RenderFlatGlass extends RenderProxyBox {
     Color liftRim,
   ) {
     final lift = frame.lift.clamp(0.0, 1.0);
-    final shown = _look.underGlass ? 1 - FlatGlassLook.glassness(lift) : 1.0;
+    final shown = _look.underGlass ? 1 - GlassFrame.glassnessAt(lift) : 1.0;
     if (shown <= 0) return;
     if (_look.shadow case final resting?) {
       final shadow = Paint();
@@ -410,17 +395,17 @@ class RenderFlatGlass extends RenderProxyBox {
       return;
     }
     final rect = body.shift(shift);
-    switch (frame.shape.liquid) {
-      case LiquidRoundedSuperellipse(:final borderRadius):
+    switch (frame.shape) {
+      case GlassSuperellipse(:final radius):
         canvas.drawRSuperellipse(
-          RSuperellipse.fromRectAndRadius(rect, Radius.circular(borderRadius)),
+          RSuperellipse.fromRectAndRadius(rect, Radius.circular(radius)),
           paint,
         );
-      case LiquidOval():
+      case GlassOval():
         canvas.drawOval(rect, paint);
-      case LiquidRoundedRectangle(:final borderRadius):
+      case GlassRoundedRect(:final radius):
         canvas.drawRRect(
-          RRect.fromRectAndRadius(rect, Radius.circular(borderRadius)),
+          RRect.fromRectAndRadius(rect, Radius.circular(radius)),
           paint,
         );
     }

@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:flutter/painting.dart';
 import 'package:meta/meta.dart';
 
 /// The outline of a glass body.
@@ -12,105 +11,95 @@ import 'package:meta/meta.dart';
 /// A corner radius larger than half the short side of the box the body is
 /// drawn in draws as half of it, as Flutter's rounded borders do, so
 /// [capsule] fits any box.
+///
+/// The kinds are [GlassSuperellipse], [GlassRoundedRect] and [GlassOval]: a
+/// renderer of its own switches over them, or draws [pathIn].
 @immutable
 sealed class GlassShape {
   /// Continuous (superellipse) corners of [radius], UIKit's
   /// `.continuous` corner curve.
-  const factory GlassShape.superellipse(double radius) = _Superellipse;
+  const factory GlassShape.superellipse(double radius) = GlassSuperellipse;
 
   /// Circular corners of [radius].
-  const factory GlassShape.roundedRect(double radius) = _RoundedRect;
+  const factory GlassShape.roundedRect(double radius) = GlassRoundedRect;
 
   /// An ellipse filling the box.
-  const factory GlassShape.oval() = _Oval;
+  const factory GlassShape.oval() = GlassOval;
 
   const GlassShape._();
 
   /// A capsule: superellipse corners as round as the box allows.
   static const GlassShape capsule = GlassShape.superellipse(10000);
 
-  /// The renderer's shape of this outline.
-  @internal
-  LiquidShape get liquid;
-
-  /// The corner radius drawn in [box].
-  @internal
+  /// The corner radius of the body drawn in [box].
   double radiusIn(Rect box);
 
   /// The edge of the body drawn in [box].
-  @internal
-  Path pathIn(Rect box) => liquid.getOuterPath(box);
-
-  /// Clips [child] to the body drawn in its box.
-  @internal
-  Widget clip(Widget? child);
+  Path pathIn(Rect box);
 }
 
-final class _Superellipse extends GlassShape {
-  const _Superellipse(this.radius) : super._();
+/// A [GlassShape] with continuous (superellipse) corners of [radius].
+final class GlassSuperellipse extends GlassShape {
+  /// Creates the shape, as [GlassShape.superellipse] does.
+  const GlassSuperellipse(this.radius) : super._();
 
+  /// The radius of the corners.
   final double radius;
-
-  @override
-  LiquidShape get liquid => LiquidRoundedSuperellipse(borderRadius: radius);
 
   @override
   double radiusIn(Rect box) => math.min(radius, box.shortestSide / 2);
 
   @override
-  Widget clip(Widget? child) => ClipRSuperellipse(
+  Path pathIn(Rect box) => RoundedSuperellipseBorder(
     borderRadius: BorderRadius.all(Radius.circular(radius)),
-    child: child,
-  );
+  ).getOuterPath(box);
 
   @override
   bool operator ==(Object other) =>
-      other is _Superellipse && other.radius == radius;
+      other is GlassSuperellipse && other.radius == radius;
 
   @override
-  int get hashCode => Object.hash(_Superellipse, radius);
+  int get hashCode => Object.hash(GlassSuperellipse, radius);
 }
 
-final class _RoundedRect extends GlassShape {
-  const _RoundedRect(this.radius) : super._();
+/// A [GlassShape] with circular corners of [radius].
+final class GlassRoundedRect extends GlassShape {
+  /// Creates the shape, as [GlassShape.roundedRect] does.
+  const GlassRoundedRect(this.radius) : super._();
 
+  /// The radius of the corners.
   final double radius;
-
-  @override
-  LiquidShape get liquid => LiquidRoundedRectangle(borderRadius: radius);
 
   @override
   double radiusIn(Rect box) => math.min(radius, box.shortestSide / 2);
 
   @override
-  Widget clip(Widget? child) => ClipRRect(
+  Path pathIn(Rect box) => RoundedRectangleBorder(
     borderRadius: BorderRadius.all(Radius.circular(radius)),
-    child: child,
-  );
+  ).getOuterPath(box);
 
   @override
   bool operator ==(Object other) =>
-      other is _RoundedRect && other.radius == radius;
+      other is GlassRoundedRect && other.radius == radius;
 
   @override
-  int get hashCode => Object.hash(_RoundedRect, radius);
+  int get hashCode => Object.hash(GlassRoundedRect, radius);
 }
 
-final class _Oval extends GlassShape {
-  const _Oval() : super._();
-
-  @override
-  LiquidShape get liquid => const LiquidOval();
+/// A [GlassShape] that is an ellipse filling its box.
+final class GlassOval extends GlassShape {
+  /// Creates the shape, as [GlassShape.oval] does.
+  const GlassOval() : super._();
 
   @override
   double radiusIn(Rect box) => box.shortestSide / 2;
 
   @override
-  Widget clip(Widget? child) => ClipOval(child: child);
+  Path pathIn(Rect box) => const OvalBorder().getOuterPath(box);
 
   @override
-  bool operator ==(Object other) => other is _Oval;
+  bool operator ==(Object other) => other is GlassOval;
 
   @override
-  int get hashCode => (_Oval).hashCode;
+  int get hashCode => (GlassOval).hashCode;
 }

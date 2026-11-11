@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/foundation/outline.dart';
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/motions/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
 import 'package:apple_liquid_glass/src/motions/glass_press.dart';

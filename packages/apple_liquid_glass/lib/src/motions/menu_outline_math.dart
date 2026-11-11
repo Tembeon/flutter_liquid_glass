@@ -4,7 +4,6 @@ import 'package:apple_liquid_glass/src/foundation/boxes.dart';
 import 'package:apple_liquid_glass/src/foundation/outline.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// A fused outline before it becomes a [GlassOutline]: its field
 /// samples and its edge as closed loops of contour crossings, plain typed
@@ -183,7 +182,7 @@ GlassOutline outlineFromParts(
   return GlassOutline(path, field: () => _field(shaded()));
 }
 
-LiquidGlassField _field(OutlineParts parts) => LiquidGlassField(
+GlassField _field(OutlineParts parts) => GlassField(
   samples: parts.samples,
   cols: parts.cols,
   rows: parts.rows,
@@ -642,7 +641,7 @@ bool _covered(List<RRect> shapes, int i) {
   return false;
 }
 
-LiquidGlassField _unionField(List<RRect> kept, Rect bounds) {
+GlassField _unionField(List<RRect> kept, Rect bounds) {
   const step = 4.0;
   final boxes = OutlineBoxes(kept);
   final area = bounds.inflate(2 * step + 4);
@@ -698,7 +697,7 @@ LiquidGlassField _unionField(List<RRect> kept, Rect bounds) {
       samples[out + 3] = boxes.halfMinor(which);
     }
   }
-  return LiquidGlassField(
+  return GlassField(
     samples: samples,
     cols: cols,
     rows: rows,

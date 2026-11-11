@@ -1,9 +1,9 @@
-/// A way to say "here is a body of glass": `GlassSurface` and its shape
-/// (`GlassShape`), outline (`GlassOutline`), material (`Glass`,
-/// `GlassRole`), clip (`GlassClip`), fusion group (`GlassGroup`,
-/// `GlassMerge`) and the solid backdrop that stands in for glass
-/// (`GlassSolidBackdrop`); and the renderer seam, `GlassRenderer`, with
-/// the details it builds every surface, group and scroll edge from.
+/// A way to say "here is a body of glass": `GlassSurface`, described by
+/// the glass values of `foundation` (material, shape, outline, frame), its
+/// clip (`GlassClip`), fusion group (`GlassGroup`, `GlassMerge`) and the
+/// solid backdrop that stands in for glass (`GlassSolidBackdrop`); and the
+/// renderer seam, `GlassRenderer`, with the details it builds every
+/// surface, group and scroll edge from.
 ///
 /// For the app developer who makes glass bodies of their own, such as a
 /// card or a panel, that follow the renderer the app picks, and for the

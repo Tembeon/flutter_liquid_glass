@@ -7,6 +7,7 @@ import 'package:apple_liquid_glass/src/foundation/outline.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
 import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:apple_liquid_glass/src/liquid/scroll_edge.dart';
+import 'package:apple_liquid_glass/src/liquid/shapes.dart';
 import 'package:apple_liquid_glass/src/liquid/underlay_layers.dart';
 import 'package:apple_liquid_glass/src/surfaces/flat.dart';
 import 'package:apple_liquid_glass/src/surfaces/follow_frame.dart';
@@ -253,7 +254,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
     final tint = _tintOf(frame, widget.details.glass.tint);
     final appearance = role == GlassRole.lens
         ? LiquidGlassAppearance(
-            visibility: FlatGlassLook.glassness(frame.lift),
+            visibility: GlassFrame.glassnessAt(frame.lift),
           )
         : tint == null
         ? _appearance
@@ -265,7 +266,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
           );
     final outline = frame.outline;
     return LiquidGlassShapeFrame(
-      shape: frame.shape.liquid,
+      shape: liquidShapeOf(frame.shape),
       appearance: frame.opacity >= 1
           ? appearance
           : appearance.copyWith(
@@ -649,7 +650,8 @@ class _LiquidGroupState extends State<_LiquidGroup> with _RebuildOutsideFrame {
 
   void _writeSettings() {
     final settings = _settings;
-    final field = widget.body?.value.outline?.field;
+    final outline = widget.body?.value.outline;
+    final field = outline == null ? null : liquidFieldOf(outline);
     final frame = _layer.value;
     if (settings == frame.settings && field == frame.field) return;
     _layer.value = LiquidGlassLayerFrame(
@@ -792,7 +794,7 @@ class _LiquidLensState extends State<_LiquidLens> with _RebuildOutsideFrame {
 
   ValueListenable<GlassFrame> get _source => widget.details.frame;
 
-  bool get _isLifted => _source.value.lift > FlatGlassLook.restingLift;
+  bool get _isLifted => _source.value.lift > GlassFrame.restingLift;
 
   @override
   void initState() {
