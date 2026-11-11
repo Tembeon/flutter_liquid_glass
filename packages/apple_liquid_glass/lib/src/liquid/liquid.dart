@@ -2,8 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/foundation/outline.dart';
-import 'package:apple_liquid_glass/src/foundation/style.dart';
+import 'package:apple_liquid_glass/src/liquid/path_outside.dart';
 import 'package:apple_liquid_glass/src/liquid/scroll_edge.dart';
 import 'package:apple_liquid_glass/src/liquid/shapes.dart';
 import 'package:apple_liquid_glass/src/liquid/underlay_layers.dart';
@@ -752,7 +751,7 @@ class _LiquidGroupState extends State<_LiquidGroup> {
     if (!_active || _clear == wasClear) return;
     _base = _baseSettings;
     _writeSettings();
-    runAfterBuild(this, () => setState(() {}));
+    _runAfterBuild(this, () => setState(() {}));
   }
 
   /// Sets the layer's glow to [glow] of [member], or clears it when [glow]
@@ -932,4 +931,19 @@ final class _Lifted implements ValueListenable<bool> {
 
   @override
   void removeListener(VoidCallback listener) => frame.removeListener(listener);
+}
+
+/// Runs [callback] now, or after the frame while the framework builds or
+/// finalizes the tree, if [state] is still mounted then: a callback may
+/// rebuild ancestors, and a cancel from a widget's own update or dispose
+/// arrives in those phases.
+void _runAfterBuild(State<StatefulWidget> state, VoidCallback callback) {
+  if (SchedulerBinding.instance.schedulerPhase ==
+      SchedulerPhase.persistentCallbacks) {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (state.mounted) callback();
+    });
+    return;
+  }
+  callback();
 }

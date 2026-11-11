@@ -1,6 +1,4 @@
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/raw/selector.dart';
 import 'package:apple_liquid_glass/src/surfaces/lens_shrink.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
@@ -103,10 +101,16 @@ class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle> {
   GlassSegmentedStyle merge(GlassSegmentedStyle? other) {
     if (other == null) return this;
     return GlassSegmentedStyle(
-      backgroundColor: fallThrough(backgroundColor, other.backgroundColor),
-      thumbColor: fallThrough(thumbColor, other.thumbColor),
-      foregroundColor: fallThrough(foregroundColor, other.foregroundColor),
-      textStyle: fallThrough(textStyle, other.textStyle),
+      backgroundColor: GlassStyle.mergeStates(
+        backgroundColor,
+        other.backgroundColor,
+      ),
+      thumbColor: GlassStyle.mergeStates(thumbColor, other.thumbColor),
+      foregroundColor: GlassStyle.mergeStates(
+        foregroundColor,
+        other.foregroundColor,
+      ),
+      textStyle: GlassStyle.mergeStates(textStyle, other.textStyle),
       focusColor: focusColor ?? other.focusColor,
       hoverColor: hoverColor ?? other.hoverColor,
       builder: builder ?? other.builder,
@@ -125,7 +129,7 @@ class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle> {
       from,
       to,
       t,
-      snapNull(GlassDynamicColor.lerp),
+      GlassStyle.lerpNullable(GlassDynamicColor.lerp),
     );
     return GlassSegmentedStyle(
       backgroundColor: color(backgroundColor, other.backgroundColor),
@@ -135,7 +139,7 @@ class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle> {
         textStyle,
         other.textStyle,
         t,
-        snapNull(TextStyle.lerp),
+        GlassStyle.lerpNullable(TextStyle.lerp),
       ),
       focusColor: GlassDynamicColor.lerp(focusColor, other.focusColor, t),
       hoverColor: GlassDynamicColor.lerp(hoverColor, other.hoverColor, t),
@@ -267,12 +271,15 @@ class GlassSegmentedControl<T> extends StatelessWidget {
     TextStyle? textStyle,
     TextStyle? selectedTextStyle,
   }) => GlassSegmentedStyle(
-    backgroundColor: allStates(backgroundColor),
-    thumbColor: allStates(thumbColor),
-    foregroundColor: allStates(foregroundColor),
+    backgroundColor: GlassStyle.allOrNull(backgroundColor),
+    thumbColor: GlassStyle.allOrNull(thumbColor),
+    foregroundColor: GlassStyle.allOrNull(foregroundColor),
     textStyle: textStyle == null && selectedTextStyle == null
         ? null
-        : BySelection(textStyle, selectedTextStyle),
+        : WidgetStateMapper<TextStyle?>({
+            WidgetState.selected: selectedTextStyle,
+            WidgetState.any: textStyle,
+          }),
   );
 
   GlassSegmentedStyle _defaults(BuildContext context) => GlassSegmentedStyle(
@@ -283,7 +290,10 @@ class GlassSegmentedControl<T> extends StatelessWidget {
     foregroundColor: WidgetStatePropertyAll(
       GlassTheme.labelColorOf(context),
     ),
-    textStyle: const BySelection(_label, _selectedLabel),
+    textStyle: const WidgetStateMapper<TextStyle?>({
+      WidgetState.selected: _selectedLabel,
+      WidgetState.any: _label,
+    }),
   );
 
   int? get _selectedIndex {

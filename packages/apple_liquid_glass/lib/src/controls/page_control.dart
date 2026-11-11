@@ -1,6 +1,5 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/raw.dart';
-import 'package:apple_liquid_glass/src/foundation/style.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -64,16 +63,16 @@ class GlassPageControlStyle extends GlassStyle<GlassPageControlStyle> {
   GlassPageControlStyle merge(GlassPageControlStyle? other) {
     if (other == null) return this;
     return GlassPageControlStyle(
-      pageIndicatorColor: fallThrough(
+      pageIndicatorColor: GlassStyle.mergeStates(
         pageIndicatorColor,
         other.pageIndicatorColor,
       ),
-      currentPageIndicatorColor: fallThrough(
+      currentPageIndicatorColor: GlassStyle.mergeStates(
         currentPageIndicatorColor,
         other.currentPageIndicatorColor,
       ),
-      platterColor: fallThrough(platterColor, other.platterColor),
-      platterIndicatorColor: fallThrough(
+      platterColor: GlassStyle.mergeStates(platterColor, other.platterColor),
+      platterIndicatorColor: GlassStyle.mergeStates(
         platterIndicatorColor,
         other.platterIndicatorColor,
       ),
@@ -95,7 +94,7 @@ class GlassPageControlStyle extends GlassStyle<GlassPageControlStyle> {
       from,
       to,
       t,
-      snapNull(GlassDynamicColor.lerp),
+      GlassStyle.lerpNullable(GlassDynamicColor.lerp),
     );
     return GlassPageControlStyle(
       pageIndicatorColor: color(pageIndicatorColor, other.pageIndicatorColor),
@@ -213,10 +212,10 @@ class GlassPageControl extends StatelessWidget {
     Color? platterColor,
     Color? platterIndicatorColor,
   }) => GlassPageControlStyle(
-    pageIndicatorColor: allStates(pageIndicatorColor),
-    currentPageIndicatorColor: allStates(currentPageIndicatorColor),
-    platterColor: allStates(platterColor),
-    platterIndicatorColor: allStates(platterIndicatorColor),
+    pageIndicatorColor: GlassStyle.allOrNull(pageIndicatorColor),
+    currentPageIndicatorColor: GlassStyle.allOrNull(currentPageIndicatorColor),
+    platterColor: GlassStyle.allOrNull(platterColor),
+    platterIndicatorColor: GlassStyle.allOrNull(platterIndicatorColor),
   );
 
   static const _pageIndicator = GlassDynamicColor.withBrightnessAndContrast(

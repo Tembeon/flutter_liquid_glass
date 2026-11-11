@@ -1,6 +1,5 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/raw.dart';
-import 'package:apple_liquid_glass/src/foundation/style.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/widgets.dart';
 
@@ -52,8 +51,14 @@ class GlassStepperStyle extends GlassStyle<GlassStepperStyle> {
   GlassStepperStyle merge(GlassStepperStyle? other) {
     if (other == null) return this;
     return GlassStepperStyle(
-      backgroundColor: fallThrough(backgroundColor, other.backgroundColor),
-      foregroundColor: fallThrough(foregroundColor, other.foregroundColor),
+      backgroundColor: GlassStyle.mergeStates(
+        backgroundColor,
+        other.backgroundColor,
+      ),
+      foregroundColor: GlassStyle.mergeStates(
+        foregroundColor,
+        other.foregroundColor,
+      ),
       focusColor: focusColor ?? other.focusColor,
       hoverColor: hoverColor ?? other.hoverColor,
       builder: builder ?? other.builder,
@@ -72,7 +77,7 @@ class GlassStepperStyle extends GlassStyle<GlassStepperStyle> {
       from,
       to,
       t,
-      snapNull(GlassDynamicColor.lerp),
+      GlassStyle.lerpNullable(GlassDynamicColor.lerp),
     );
     return GlassStepperStyle(
       backgroundColor: color(backgroundColor, other.backgroundColor),
@@ -178,8 +183,8 @@ class GlassStepper extends StatelessWidget {
     Color? backgroundColor,
     Color? foregroundColor,
   }) => GlassStepperStyle(
-    backgroundColor: allStates(backgroundColor),
-    foregroundColor: allStates(foregroundColor),
+    backgroundColor: GlassStyle.allOrNull(backgroundColor),
+    foregroundColor: GlassStyle.allOrNull(foregroundColor),
   );
 
   /// UIStepper's fill of each half (stepper passport, device).

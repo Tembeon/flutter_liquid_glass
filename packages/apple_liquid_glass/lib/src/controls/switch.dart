@@ -1,6 +1,5 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/raw.dart';
-import 'package:apple_liquid_glass/src/foundation/style.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
@@ -57,9 +56,12 @@ class GlassSwitchStyle extends GlassStyle<GlassSwitchStyle> {
   GlassSwitchStyle merge(GlassSwitchStyle? other) {
     if (other == null) return this;
     return GlassSwitchStyle(
-      thumbColor: fallThrough(thumbColor, other.thumbColor),
-      activeTrackColor: fallThrough(activeTrackColor, other.activeTrackColor),
-      inactiveTrackColor: fallThrough(
+      thumbColor: GlassStyle.mergeStates(thumbColor, other.thumbColor),
+      activeTrackColor: GlassStyle.mergeStates(
+        activeTrackColor,
+        other.activeTrackColor,
+      ),
+      inactiveTrackColor: GlassStyle.mergeStates(
         inactiveTrackColor,
         other.inactiveTrackColor,
       ),
@@ -81,7 +83,7 @@ class GlassSwitchStyle extends GlassStyle<GlassSwitchStyle> {
       from,
       to,
       t,
-      snapNull(GlassDynamicColor.lerp),
+      GlassStyle.lerpNullable(GlassDynamicColor.lerp),
     );
     return GlassSwitchStyle(
       thumbColor: color(thumbColor, other.thumbColor),
@@ -174,9 +176,9 @@ class GlassSwitch extends StatelessWidget {
     Color? activeTrackColor,
     Color? inactiveTrackColor,
   }) => GlassSwitchStyle(
-    thumbColor: allStates(thumbColor),
-    activeTrackColor: allStates(activeTrackColor),
-    inactiveTrackColor: allStates(inactiveTrackColor),
+    thumbColor: GlassStyle.allOrNull(thumbColor),
+    activeTrackColor: GlassStyle.allOrNull(activeTrackColor),
+    inactiveTrackColor: GlassStyle.allOrNull(inactiveTrackColor),
   );
 
   /// UISwitch's off track: secondarySystemFill, and under Increase Contrast

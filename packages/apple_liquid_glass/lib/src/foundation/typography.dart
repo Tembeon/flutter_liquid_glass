@@ -174,7 +174,6 @@ final class _RoleTextScaler extends TextScaler {
 /// Pro's size-dependent tracking ([glassTracking]), all at the size the
 /// ambient text scaler paints. Under Bold Text the weight axis is left to
 /// Flutter's bold, an approximation: iOS's bold weights are not measured.
-@internal
 TextStyle resolveGlassText(TextStyle style, BuildContext context) {
   final family = GlassTheme.fontFamilyOf(context);
   final themed = style.fontFamily == null && family != null

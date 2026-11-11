@@ -1,8 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/sheet_motion.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
@@ -53,11 +51,15 @@ class GlassSheetStyle extends GlassStyle<GlassSheetStyle> {
   @override
   GlassSheetStyle lerp(GlassSheetStyle other, double t) {
     if (identical(this, other)) return this;
-    final color = snapNull(GlassDynamicColor.lerp);
+    final color = GlassStyle.lerpNullable(GlassDynamicColor.lerp);
     return GlassSheetStyle(
       backgroundColor: color(backgroundColor, other.backgroundColor, t),
       dragHandleColor: color(dragHandleColor, other.dragHandleColor, t),
-      textStyle: snapNull(TextStyle.lerp)(textStyle, other.textStyle, t),
+      textStyle: GlassStyle.lerpNullable(TextStyle.lerp)(
+        textStyle,
+        other.textStyle,
+        t,
+      ),
     );
   }
 

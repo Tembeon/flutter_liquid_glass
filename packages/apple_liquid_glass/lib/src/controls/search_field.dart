@@ -3,8 +3,6 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/controls/search_glyphs.dart';
-import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/search_motion.dart';
 import 'package:apple_liquid_glass/src/navigation/search_stacking.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
@@ -85,12 +83,21 @@ class GlassSearchFieldStyle extends GlassStyle<GlassSearchFieldStyle> {
   GlassSearchFieldStyle merge(GlassSearchFieldStyle? other) {
     if (other == null) return this;
     return GlassSearchFieldStyle(
-      backgroundColor: fallThrough(backgroundColor, other.backgroundColor),
-      foregroundColor: fallThrough(foregroundColor, other.foregroundColor),
-      placeholderColor: fallThrough(placeholderColor, other.placeholderColor),
-      iconColor: fallThrough(iconColor, other.iconColor),
-      cursorColor: fallThrough(cursorColor, other.cursorColor),
-      textStyle: fallThrough(textStyle, other.textStyle),
+      backgroundColor: GlassStyle.mergeStates(
+        backgroundColor,
+        other.backgroundColor,
+      ),
+      foregroundColor: GlassStyle.mergeStates(
+        foregroundColor,
+        other.foregroundColor,
+      ),
+      placeholderColor: GlassStyle.mergeStates(
+        placeholderColor,
+        other.placeholderColor,
+      ),
+      iconColor: GlassStyle.mergeStates(iconColor, other.iconColor),
+      cursorColor: GlassStyle.mergeStates(cursorColor, other.cursorColor),
+      textStyle: GlassStyle.mergeStates(textStyle, other.textStyle),
       focusColor: focusColor ?? other.focusColor,
       hoverColor: hoverColor ?? other.hoverColor,
       builder: builder ?? other.builder,
@@ -109,7 +116,7 @@ class GlassSearchFieldStyle extends GlassStyle<GlassSearchFieldStyle> {
       from,
       to,
       t,
-      snapNull(GlassDynamicColor.lerp),
+      GlassStyle.lerpNullable(GlassDynamicColor.lerp),
     );
     return GlassSearchFieldStyle(
       backgroundColor: color(backgroundColor, other.backgroundColor),
@@ -121,7 +128,7 @@ class GlassSearchFieldStyle extends GlassStyle<GlassSearchFieldStyle> {
         textStyle,
         other.textStyle,
         t,
-        snapNull(TextStyle.lerp),
+        GlassStyle.lerpNullable(TextStyle.lerp),
       ),
       focusColor: GlassDynamicColor.lerp(focusColor, other.focusColor, t),
       hoverColor: GlassDynamicColor.lerp(hoverColor, other.hoverColor, t),
@@ -293,7 +300,10 @@ class GlassSearchField extends StatelessWidget {
   static GlassSearchFieldStyle _defaults(BuildContext context) {
     final label = GlassTheme.labelColorOf(context);
     return GlassSearchFieldStyle(
-      backgroundColor: const ByState(null, GlassSearchField.disabledFill),
+      backgroundColor: const WidgetStateMapper<Color?>({
+        WidgetState.disabled: GlassSearchField.disabledFill,
+        WidgetState.any: null,
+      }),
       foregroundColor: WidgetStatePropertyAll(label),
       placeholderColor: GlassSearchField.placeholderColors,
       iconColor: WidgetStatePropertyAll(label),

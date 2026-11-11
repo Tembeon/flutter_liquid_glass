@@ -357,6 +357,7 @@ listenForRender
 placeDatePicker
 placePopover
 precacheGlass
+resolveGlassText
 searchBarLayout
 searchTabLayout
 showGlassActionSheet

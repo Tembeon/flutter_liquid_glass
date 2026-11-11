@@ -5,8 +5,6 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/controls/search_glyphs.dart';
-import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/search_motion.dart';
 import 'package:apple_liquid_glass/src/motions/tab_minimize.dart';
 import 'package:apple_liquid_glass/src/navigation/chrome.dart';
@@ -132,10 +130,16 @@ class GlassTabBarStyle extends GlassStyle<GlassTabBarStyle> {
   GlassTabBarStyle merge(GlassTabBarStyle? other) {
     if (other == null) return this;
     return GlassTabBarStyle(
-      backgroundColor: fallThrough(backgroundColor, other.backgroundColor),
-      thumbColor: fallThrough(thumbColor, other.thumbColor),
-      foregroundColor: fallThrough(foregroundColor, other.foregroundColor),
-      textStyle: fallThrough(textStyle, other.textStyle),
+      backgroundColor: GlassStyle.mergeStates(
+        backgroundColor,
+        other.backgroundColor,
+      ),
+      thumbColor: GlassStyle.mergeStates(thumbColor, other.thumbColor),
+      foregroundColor: GlassStyle.mergeStates(
+        foregroundColor,
+        other.foregroundColor,
+      ),
+      textStyle: GlassStyle.mergeStates(textStyle, other.textStyle),
       focusColor: focusColor ?? other.focusColor,
       hoverColor: hoverColor ?? other.hoverColor,
       builder: builder ?? other.builder,
@@ -154,7 +158,7 @@ class GlassTabBarStyle extends GlassStyle<GlassTabBarStyle> {
       from,
       to,
       t,
-      snapNull(GlassDynamicColor.lerp),
+      GlassStyle.lerpNullable(GlassDynamicColor.lerp),
     );
     return GlassTabBarStyle(
       backgroundColor: color(backgroundColor, other.backgroundColor),
@@ -164,7 +168,7 @@ class GlassTabBarStyle extends GlassStyle<GlassTabBarStyle> {
         textStyle,
         other.textStyle,
         t,
-        snapNull(TextStyle.lerp),
+        GlassStyle.lerpNullable(TextStyle.lerp),
       ),
       focusColor: GlassDynamicColor.lerp(focusColor, other.focusColor, t),
       hoverColor: GlassDynamicColor.lerp(hoverColor, other.hoverColor, t),
@@ -401,23 +405,32 @@ class GlassTabBar extends StatelessWidget {
     TextStyle? textStyle,
     TextStyle? selectedTextStyle,
   }) => GlassTabBarStyle(
-    backgroundColor: allStates(backgroundColor),
-    thumbColor: allStates(thumbColor),
+    backgroundColor: GlassStyle.allOrNull(backgroundColor),
+    thumbColor: GlassStyle.allOrNull(thumbColor),
     foregroundColor: foregroundColor == null && selectedForegroundColor == null
         ? null
-        : BySelection(foregroundColor, selectedForegroundColor),
+        : WidgetStateMapper<Color?>({
+            WidgetState.selected: selectedForegroundColor,
+            WidgetState.any: foregroundColor,
+          }),
     textStyle: textStyle == null && selectedTextStyle == null
         ? null
-        : BySelection(textStyle, selectedTextStyle),
+        : WidgetStateMapper<TextStyle?>({
+            WidgetState.selected: selectedTextStyle,
+            WidgetState.any: textStyle,
+          }),
   );
 
   GlassTabBarStyle _defaults(BuildContext context) => GlassTabBarStyle(
     thumbColor: const WidgetStatePropertyAll(thumb),
-    foregroundColor: BySelection(
-      unselected,
-      GlassTheme.primaryColorOf(context) ?? selected,
-    ),
-    textStyle: const BySelection(_title, _selectedTitle),
+    foregroundColor: WidgetStateMapper<Color?>({
+      WidgetState.selected: GlassTheme.primaryColorOf(context) ?? selected,
+      WidgetState.any: unselected,
+    }),
+    textStyle: const WidgetStateMapper<TextStyle?>({
+      WidgetState.selected: _selectedTitle,
+      WidgetState.any: _title,
+    }),
   );
 
   @override

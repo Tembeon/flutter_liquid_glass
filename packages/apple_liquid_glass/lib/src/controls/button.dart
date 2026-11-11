@@ -2,8 +2,6 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/raw.dart';
-import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -102,13 +100,19 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
   GlassButtonStyle merge(GlassButtonStyle? other) {
     if (other == null) return this;
     return _with(
-      backgroundColor: fallThrough(backgroundColor, other.backgroundColor),
-      foregroundColor: fallThrough(foregroundColor, other.foregroundColor),
-      iconColor: fallThrough(iconColor, other.iconColor),
-      textStyle: fallThrough(textStyle, other.textStyle),
-      padding: fallThrough(padding, other.padding),
-      minimumSize: fallThrough(minimumSize, other.minimumSize),
-      iconSize: fallThrough(iconSize, other.iconSize),
+      backgroundColor: GlassStyle.mergeStates(
+        backgroundColor,
+        other.backgroundColor,
+      ),
+      foregroundColor: GlassStyle.mergeStates(
+        foregroundColor,
+        other.foregroundColor,
+      ),
+      iconColor: GlassStyle.mergeStates(iconColor, other.iconColor),
+      textStyle: GlassStyle.mergeStates(textStyle, other.textStyle),
+      padding: GlassStyle.mergeStates(padding, other.padding),
+      minimumSize: GlassStyle.mergeStates(minimumSize, other.minimumSize),
+      iconSize: GlassStyle.mergeStates(iconSize, other.iconSize),
       focusColor: focusColor ?? other.focusColor,
       hoverColor: hoverColor ?? other.hoverColor,
       builder: builder ?? other.builder,
@@ -150,43 +154,43 @@ class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
         backgroundColor,
         other.backgroundColor,
         t,
-        snapNull(GlassDynamicColor.lerp),
+        GlassStyle.lerpNullable(GlassDynamicColor.lerp),
       ),
       foregroundColor: WidgetStateProperty.lerp<Color?>(
         foregroundColor,
         other.foregroundColor,
         t,
-        snapNull(GlassDynamicColor.lerp),
+        GlassStyle.lerpNullable(GlassDynamicColor.lerp),
       ),
       iconColor: WidgetStateProperty.lerp<Color?>(
         iconColor,
         other.iconColor,
         t,
-        snapNull(GlassDynamicColor.lerp),
+        GlassStyle.lerpNullable(GlassDynamicColor.lerp),
       ),
       textStyle: WidgetStateProperty.lerp<TextStyle?>(
         textStyle,
         other.textStyle,
         t,
-        snapNull(TextStyle.lerp),
+        GlassStyle.lerpNullable(TextStyle.lerp),
       ),
       padding: WidgetStateProperty.lerp<EdgeInsetsGeometry?>(
         padding,
         other.padding,
         t,
-        snapNull(EdgeInsetsGeometry.lerp),
+        GlassStyle.lerpNullable(EdgeInsetsGeometry.lerp),
       ),
       minimumSize: WidgetStateProperty.lerp<Size?>(
         minimumSize,
         other.minimumSize,
         t,
-        snapNull(Size.lerp),
+        GlassStyle.lerpNullable(Size.lerp),
       ),
       iconSize: WidgetStateProperty.lerp<double?>(
         iconSize,
         other.iconSize,
         t,
-        snapNull(lerpDouble),
+        GlassStyle.lerpNullable(lerpDouble),
       ),
       focusColor: GlassDynamicColor.lerp(focusColor, other.focusColor, t),
       hoverColor: GlassDynamicColor.lerp(hoverColor, other.hoverColor, t),
@@ -417,16 +421,32 @@ class GlassButton extends StatelessWidget {
     Color? focusColor,
     Color? hoverColor,
   }) => GlassButtonStyle(
-    backgroundColor: byState(backgroundColor, disabledBackgroundColor),
-    foregroundColor: byState(foregroundColor, disabledForegroundColor),
-    iconColor: byState(iconColor, disabledIconColor),
-    textStyle: allStates(textStyle),
-    padding: allStates(padding),
-    minimumSize: allStates(minimumSize),
-    iconSize: allStates(iconSize),
+    backgroundColor: _enabledOrDisabled(
+      backgroundColor,
+      disabledBackgroundColor,
+    ),
+    foregroundColor: _enabledOrDisabled(
+      foregroundColor,
+      disabledForegroundColor,
+    ),
+    iconColor: _enabledOrDisabled(iconColor, disabledIconColor),
+    textStyle: GlassStyle.allOrNull(textStyle),
+    padding: GlassStyle.allOrNull(padding),
+    minimumSize: GlassStyle.allOrNull(minimumSize),
+    iconSize: GlassStyle.allOrNull(iconSize),
     focusColor: focusColor,
     hoverColor: hoverColor,
   );
+
+  static WidgetStateProperty<Color?>? _enabledOrDisabled(
+    Color? enabled,
+    Color? disabled,
+  ) => enabled == null && disabled == null
+      ? null
+      : WidgetStateMapper<Color?>({
+          WidgetState.disabled: disabled,
+          WidgetState.any: enabled,
+        });
 
   // UIKit's title style, 17 regular (typography passport). The glyph size,
   // insets and minimum size are not measured (glass-button passport).
@@ -446,12 +466,16 @@ class GlassButton extends StatelessWidget {
     final label = _prominent ? _white : GlassTheme.labelColorOf(context);
     return GlassButtonStyle(
       backgroundColor: _prominent
-          ? ByState<Color>(
-              GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
-              GlassColors.systemGray4,
-            )
+          ? WidgetStateMapper<Color?>({
+              WidgetState.disabled: GlassColors.systemGray4,
+              WidgetState.any:
+                  GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
+            })
           : null,
-      foregroundColor: ByState<Color>(label, disabledLabel),
+      foregroundColor: WidgetStateMapper<Color?>({
+        WidgetState.disabled: disabledLabel,
+        WidgetState.any: label,
+      }),
       textStyle: const WidgetStatePropertyAll(_labelStyle),
       padding: const WidgetStatePropertyAll(_padding),
       minimumSize: const WidgetStatePropertyAll(_minimumSize),

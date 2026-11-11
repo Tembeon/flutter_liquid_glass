@@ -38,4 +38,4 @@ export 'src/foundation/touch_glow.dart' show GlassTouchGlow;
 export 'src/foundation/traits.dart'
     show GlassInterfaceLevel, GlassTraits, GlassTraitsOverride;
 export 'src/foundation/typography.dart'
-    show GlassDefaultTextStyle, GlassTextRole;
+    show GlassDefaultTextStyle, GlassTextRole, resolveGlassText;

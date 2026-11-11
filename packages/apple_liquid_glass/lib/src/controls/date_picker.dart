@@ -2,8 +2,6 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/raw.dart';
-import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -91,7 +89,7 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
   @override
   GlassDatePickerStyle lerp(GlassDatePickerStyle other, double t) {
     if (identical(this, other)) return this;
-    final color = snapNull(GlassDynamicColor.lerp);
+    final color = GlassStyle.lerpNullable(GlassDynamicColor.lerp);
     return GlassDatePickerStyle(
       accentColor: color(accentColor, other.accentColor, t),
       labelColor: color(labelColor, other.labelColor, t),

@@ -3,8 +3,6 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
-import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -107,13 +105,28 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
   GlassListStyle merge(GlassListStyle? other) {
     if (other == null) return this;
     return GlassListStyle(
-      backgroundColor: fallThrough(backgroundColor, other.backgroundColor),
-      overlayColor: fallThrough(overlayColor, other.overlayColor),
-      separatorColor: fallThrough(separatorColor, other.separatorColor),
-      foregroundColor: fallThrough(foregroundColor, other.foregroundColor),
-      secondaryColor: fallThrough(secondaryColor, other.secondaryColor),
-      iconColor: fallThrough(iconColor, other.iconColor),
-      disclosureColor: fallThrough(disclosureColor, other.disclosureColor),
+      backgroundColor: GlassStyle.mergeStates(
+        backgroundColor,
+        other.backgroundColor,
+      ),
+      overlayColor: GlassStyle.mergeStates(overlayColor, other.overlayColor),
+      separatorColor: GlassStyle.mergeStates(
+        separatorColor,
+        other.separatorColor,
+      ),
+      foregroundColor: GlassStyle.mergeStates(
+        foregroundColor,
+        other.foregroundColor,
+      ),
+      secondaryColor: GlassStyle.mergeStates(
+        secondaryColor,
+        other.secondaryColor,
+      ),
+      iconColor: GlassStyle.mergeStates(iconColor, other.iconColor),
+      disclosureColor: GlassStyle.mergeStates(
+        disclosureColor,
+        other.disclosureColor,
+      ),
       focusColor: focusColor ?? other.focusColor,
       hoverColor: hoverColor ?? other.hoverColor,
     );
@@ -130,7 +143,7 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
       from,
       to,
       t,
-      snapNull(GlassDynamicColor.lerp),
+      GlassStyle.lerpNullable(GlassDynamicColor.lerp),
     );
     return GlassListStyle(
       backgroundColor: color(backgroundColor, other.backgroundColor),

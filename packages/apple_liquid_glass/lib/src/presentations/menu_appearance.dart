@@ -1,5 +1,4 @@
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/foundation/style.dart';
 import 'package:apple_liquid_glass/src/motions/menu_motion.dart';
 import 'package:flutter/widgets.dart';
 import 'package:meta/meta.dart';
@@ -68,9 +67,13 @@ class GlassMenuStyle extends GlassStyle<GlassMenuStyle> {
   @override
   GlassMenuStyle lerp(GlassMenuStyle other, double t) {
     if (identical(this, other)) return this;
-    final color = snapNull(GlassDynamicColor.lerp);
+    final color = GlassStyle.lerpNullable(GlassDynamicColor.lerp);
     return GlassMenuStyle(
-      textStyle: snapNull(TextStyle.lerp)(textStyle, other.textStyle, t),
+      textStyle: GlassStyle.lerpNullable(TextStyle.lerp)(
+        textStyle,
+        other.textStyle,
+        t,
+      ),
       destructiveColor: color(destructiveColor, other.destructiveColor, t),
       highlightColor: color(highlightColor, other.highlightColor, t),
       secondaryColor: color(secondaryColor, other.secondaryColor, t),

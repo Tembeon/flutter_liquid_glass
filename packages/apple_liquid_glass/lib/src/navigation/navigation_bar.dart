@@ -2,8 +2,6 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/controls.dart';
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/search_motion.dart';
 import 'package:apple_liquid_glass/src/navigation/bar.dart';
 import 'package:apple_liquid_glass/src/navigation/bar_entry.dart';
@@ -70,8 +68,8 @@ class GlassNavigationBarStyle extends GlassStyle<GlassNavigationBarStyle> {
   @override
   GlassNavigationBarStyle lerp(GlassNavigationBarStyle other, double t) {
     if (identical(this, other)) return this;
-    final color = snapNull(GlassDynamicColor.lerp);
-    final text = snapNull(TextStyle.lerp);
+    final color = GlassStyle.lerpNullable(GlassDynamicColor.lerp);
+    final text = GlassStyle.lerpNullable(TextStyle.lerp);
     return GlassNavigationBarStyle(
       backgroundColor: color(backgroundColor, other.backgroundColor, t),
       foregroundColor: color(foregroundColor, other.foregroundColor, t),

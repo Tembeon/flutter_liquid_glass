@@ -2,8 +2,6 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
-import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/alert_motion.dart';
 import 'package:apple_liquid_glass/src/motions/popover_motion.dart';
 import 'package:apple_liquid_glass/src/presentations/popover.dart';
@@ -90,8 +88,8 @@ class GlassAlertStyle extends GlassStyle<GlassAlertStyle> {
   @override
   GlassAlertStyle lerp(GlassAlertStyle other, double t) {
     if (identical(this, other)) return this;
-    final color = snapNull(GlassDynamicColor.lerp);
-    final text = snapNull(TextStyle.lerp);
+    final color = GlassStyle.lerpNullable(GlassDynamicColor.lerp);
+    final text = GlassStyle.lerpNullable(TextStyle.lerp);
     return GlassAlertStyle(
       titleTextStyle: text(titleTextStyle, other.titleTextStyle, t),
       messageTextStyle: text(messageTextStyle, other.messageTextStyle, t),

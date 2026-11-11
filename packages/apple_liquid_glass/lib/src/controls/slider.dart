@@ -1,6 +1,5 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/raw.dart';
-import 'package:apple_liquid_glass/src/foundation/style.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -68,13 +67,16 @@ class GlassSliderStyle extends GlassStyle<GlassSliderStyle> {
   GlassSliderStyle merge(GlassSliderStyle? other) {
     if (other == null) return this;
     return GlassSliderStyle(
-      thumbColor: fallThrough(thumbColor, other.thumbColor),
-      activeTrackColor: fallThrough(activeTrackColor, other.activeTrackColor),
-      inactiveTrackColor: fallThrough(
+      thumbColor: GlassStyle.mergeStates(thumbColor, other.thumbColor),
+      activeTrackColor: GlassStyle.mergeStates(
+        activeTrackColor,
+        other.activeTrackColor,
+      ),
+      inactiveTrackColor: GlassStyle.mergeStates(
         inactiveTrackColor,
         other.inactiveTrackColor,
       ),
-      tickColor: fallThrough(tickColor, other.tickColor),
+      tickColor: GlassStyle.mergeStates(tickColor, other.tickColor),
       focusColor: focusColor ?? other.focusColor,
       hoverColor: hoverColor ?? other.hoverColor,
       builder: builder ?? other.builder,
@@ -93,7 +95,7 @@ class GlassSliderStyle extends GlassStyle<GlassSliderStyle> {
       from,
       to,
       t,
-      snapNull(GlassDynamicColor.lerp),
+      GlassStyle.lerpNullable(GlassDynamicColor.lerp),
     );
     return GlassSliderStyle(
       thumbColor: color(thumbColor, other.thumbColor),
@@ -207,10 +209,10 @@ class GlassSlider extends StatefulWidget {
     Color? inactiveTrackColor,
     Color? tickColor,
   }) => GlassSliderStyle(
-    thumbColor: allStates(thumbColor),
-    activeTrackColor: allStates(activeTrackColor),
-    inactiveTrackColor: allStates(inactiveTrackColor),
-    tickColor: allStates(tickColor),
+    thumbColor: GlassStyle.allOrNull(thumbColor),
+    activeTrackColor: GlassStyle.allOrNull(activeTrackColor),
+    inactiveTrackColor: GlassStyle.allOrNull(inactiveTrackColor),
+    tickColor: GlassStyle.allOrNull(tickColor),
   );
 
   /// UISlider's track above the value: black or white at 10 percent (slider

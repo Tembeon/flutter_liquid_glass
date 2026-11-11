@@ -1,8 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/popover_motion.dart';
 import 'package:apple_liquid_glass/src/presentations/popover_shape.dart';
 import 'package:apple_liquid_glass/src/presentations/sheet.dart';
@@ -42,7 +40,11 @@ class GlassPopoverStyle extends GlassStyle<GlassPopoverStyle> {
   GlassPopoverStyle lerp(GlassPopoverStyle other, double t) {
     if (identical(this, other)) return this;
     return GlassPopoverStyle(
-      textStyle: snapNull(TextStyle.lerp)(textStyle, other.textStyle, t),
+      textStyle: GlassStyle.lerpNullable(TextStyle.lerp)(
+        textStyle,
+        other.textStyle,
+        t,
+      ),
     );
   }
 

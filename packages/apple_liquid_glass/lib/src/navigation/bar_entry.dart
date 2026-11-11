@@ -1,6 +1,5 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/presentations.dart';
-import 'package:apple_liquid_glass/src/foundation/style.dart';
 import 'package:flutter/widgets.dart';
 
 /// The look of a bar's items; a null field leaves it to the default.
@@ -38,7 +37,10 @@ class GlassBarItemStyle {
   GlassBarItemStyle merge(GlassBarItemStyle? other) {
     if (other == null) return this;
     return GlassBarItemStyle(
-      foregroundColor: fallThrough(foregroundColor, other.foregroundColor),
+      foregroundColor: GlassStyle.mergeStates(
+        foregroundColor,
+        other.foregroundColor,
+      ),
       prominentColor: prominentColor ?? other.prominentColor,
       prominentForegroundColor:
           prominentForegroundColor ?? other.prominentForegroundColor,
@@ -54,7 +56,7 @@ class GlassBarItemStyle {
   ) {
     if (identical(a, b)) return a;
     if (a == null || b == null) return t < 0.5 ? a : b;
-    final color = snapNull(GlassDynamicColor.lerp);
+    final color = GlassStyle.lerpNullable(GlassDynamicColor.lerp);
     return GlassBarItemStyle(
       foregroundColor: WidgetStateProperty.lerp<Color?>(
         a.foregroundColor,
@@ -68,7 +70,11 @@ class GlassBarItemStyle {
         b.prominentForegroundColor,
         t,
       ),
-      textStyle: snapNull(TextStyle.lerp)(a.textStyle, b.textStyle, t),
+      textStyle: GlassStyle.lerpNullable(TextStyle.lerp)(
+        a.textStyle,
+        b.textStyle,
+        t,
+      ),
     );
   }
 

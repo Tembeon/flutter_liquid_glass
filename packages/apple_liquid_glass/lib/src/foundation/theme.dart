@@ -99,6 +99,59 @@ abstract class GlassStyle<T extends Object> {
 
   /// The style between this one and [other] at [t].
   T lerp(T other, double t);
+
+  /// [value] in every state, or null when [value] is null.
+  ///
+  /// Flutter: `ButtonStyleButton.allOrNull`. A style author's `styleFrom`
+  /// uses it to turn a plain value into the state property a style field
+  /// holds.
+  static WidgetStateProperty<T?>? allOrNull<T>(T? value) =>
+      value == null ? null : WidgetStatePropertyAll<T?>(value);
+
+  /// [first] over [second], state by state: a state [first] resolves to
+  /// null takes [second]'s value.
+  ///
+  /// A style's `merge` uses it for every state property field, so that a
+  /// nested theme layers over the enclosing one the way the package's own
+  /// styles do. A null side yields the other.
+  static WidgetStateProperty<T?>? mergeStates<T>(
+    WidgetStateProperty<T?>? first,
+    WidgetStateProperty<T?>? second,
+  ) {
+    if (first == null) return second;
+    if (second == null) return first;
+    return _MergedStates<T>(first, second);
+  }
+
+  /// [lerp] with a null end jumping to the other end at the middle.
+  ///
+  /// In a style a null value falls through to what lies under it, so it
+  /// does not fade; a style's `lerp` wraps each field's own lerp with it.
+  static T? Function(T?, T?, double) lerpNullable<T>(
+    T? Function(T?, T?, double) lerp,
+  ) =>
+      (a, b, t) => a == null || b == null ? (t < 0.5 ? a : b) : lerp(a, b, t);
+}
+
+@immutable
+final class _MergedStates<T> implements WidgetStateProperty<T?> {
+  const _MergedStates(this.first, this.second);
+
+  final WidgetStateProperty<T?> first;
+  final WidgetStateProperty<T?> second;
+
+  @override
+  T? resolve(Set<WidgetState> states) =>
+      first.resolve(states) ?? second.resolve(states);
+
+  @override
+  bool operator ==(Object other) =>
+      other is _MergedStates<T> &&
+      other.first == first &&
+      other.second == second;
+
+  @override
+  int get hashCode => Object.hash(first, second);
 }
 
 /// The look of the glass widgets below a [GlassTheme].
