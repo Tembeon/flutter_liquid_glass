@@ -1,8 +1,7 @@
 import 'dart:ui';
 
-import 'package:apple_liquid_glass/src/foundation/outline.dart';
-import 'package:apple_liquid_glass/src/motions/popover_motion.dart';
-import 'package:apple_liquid_glass/src/motions/popover_shape.dart';
+import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 PopoverShape _down(double width, double height, double center) => PopoverShape(
