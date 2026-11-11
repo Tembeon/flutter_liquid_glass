@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/geometry_renderer_limits.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
@@ -20,7 +19,6 @@ void main() {
   test('every geometry draw holds as many shapes as its shaders', () {
     const most = geometryMaxShapesPerDraw;
     expect(_define('gpu/geometry_uniforms.glsl', 'MAX_SHAPES'), most);
-    expect(LiquidGlassBlendGroup.maxShapesPerCluster, most);
     expect(const PlanPolicy().maxShapes, most);
     expect(ShapeLooks.maxLooks, most);
   });

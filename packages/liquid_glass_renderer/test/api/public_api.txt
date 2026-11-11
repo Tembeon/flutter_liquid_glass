@@ -721,7 +721,6 @@ class LiquidGlassBlendGroup extends StatefulWidget
   })
   final double blend
   final Widget child
-  static const int maxShapesPerCluster
   @internal static GlassGroupLink? maybeOf(BuildContext context)
   overrides: createState
 final class LiquidGlassColorModel

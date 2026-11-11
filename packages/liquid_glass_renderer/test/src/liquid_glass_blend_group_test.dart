@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/effects.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
@@ -226,11 +227,7 @@ void main() {
                 child: LiquidGlassBlendGroup(
                   child: Wrap(
                     children: [
-                      for (
-                        var i = 0;
-                        i <= LiquidGlassBlendGroup.maxShapesPerCluster;
-                        i++
-                      )
+                      for (var i = 0; i <= geometryMaxShapesPerDraw; i++)
                         const LiquidGlass.grouped(
                           shape: LiquidOval(),
                           child: SizedBox.square(dimension: 20),

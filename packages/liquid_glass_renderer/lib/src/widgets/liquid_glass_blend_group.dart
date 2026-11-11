@@ -1,5 +1,4 @@
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:liquid_glass_renderer/src/widgets/inherited_geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass.dart';
@@ -28,16 +27,6 @@ class LiquidGlassBlendGroup extends StatefulWidget {
 
   /// The child widget containing liquid glass shapes.
   final Widget child;
-
-  /// Maximum number of glass shapes a [LiquidGlassLayer] renders in one
-  /// cluster: shapes whose edges reach the same 16-pixel tile of the layer.
-  /// A layer renders any number of clusters, but caps the whole layer at
-  /// this many shapes when it draws a field whose shapes carry their own
-  /// appearances.
-  ///
-  /// Shapes beyond it are not drawn; debug builds print a warning when that
-  /// happens. Split the glass across several layers if you need more.
-  static const int maxShapesPerCluster = geometryMaxShapesPerDraw;
 
   /// Retrieves the [GlassGroupLink] from the nearest ancestor
   /// [LiquidGlassBlendGroup], or null if none is found.
