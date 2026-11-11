@@ -3545,7 +3545,6 @@ final class SmallLens extends Motion
   static const double hangTime
   bool get isLifted
   void lift(double t)
-  static const Spring liftSpring
   static const double liftVelocity
   final Size liftedSize
   double progress(double t)
@@ -3556,10 +3555,7 @@ final class SmallLens extends Motion
   double shift(double t)
   Size size(double t)
   double get sizeLag
-  static const Spring sizeUnliftSpring
-  static final Spring stretchSpring
   void unlift(double t)
-  static const Spring unliftSpring
 final class StackedSearchMotion
   StackedSearchMotion({
     required MotionValue<double> barFade,

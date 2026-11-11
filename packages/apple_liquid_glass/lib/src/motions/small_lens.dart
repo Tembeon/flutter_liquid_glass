@@ -5,6 +5,28 @@ import 'package:apple_liquid_glass/src/motions/flex_integrator.dart';
 import 'package:apple_liquid_glass/src/motions/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
 import 'package:kinesis/motion.dart';
+import 'package:meta/meta.dart';
+
+/// The springs of the small liquid lens.
+@internal
+abstract final class SmallLensTuning {
+  /// The spring that lifts the lens: UIKit's small lens lift tuning, which
+  /// with [SmallLens.liftVelocity] fits the device knob and thumb
+  /// recordings (peak 1.12).
+  static const liftSpring = Spring.response(0.27, dampingRatio: 0.625);
+
+  /// The spring that fades the glass back to solid on landing, fitted to
+  /// device recordings.
+  static const unliftSpring = Spring.response(0.4);
+
+  /// The spring that shrinks the lens on landing, fitted to device
+  /// recordings: underdamped, so the lens dips under its rest size.
+  static const sizeUnliftSpring = Spring.response(0.48, dampingRatio: 0.7);
+
+  /// The spring the stretch follows its target on: [FlexSpec.smallLoupe]'s
+  /// tracking spring.
+  static final stretchSpring = FlexSpec.smallLoupe.trackingSpring;
+}
 
 /// The small liquid lens of a switch knob or a slider thumb.
 ///
@@ -63,23 +85,6 @@ final class SmallLens extends Motion {
   /// the clock that steps the lens.
   final double? frameRate;
 
-  /// The spring that lifts the lens: UIKit's small lens lift tuning, which
-  /// with [liftVelocity] fits the device knob and thumb recordings (peak
-  /// 1.12).
-  static const liftSpring = Spring.response(0.27, dampingRatio: 0.625);
-
-  /// The spring that fades the glass back to solid on landing, fitted to
-  /// device recordings.
-  static const unliftSpring = Spring.response(0.4);
-
-  /// The spring that shrinks the lens on landing, fitted to device
-  /// recordings: underdamped, so the lens dips under its rest size.
-  static const sizeUnliftSpring = Spring.response(0.48, dampingRatio: 0.7);
-
-  /// The spring the stretch follows its target on: [FlexSpec.smallLoupe]'s
-  /// tracking spring.
-  static final stretchSpring = FlexSpec.smallLoupe.trackingSpring;
-
   /// The lift's starting speed, in progress per second, fitted to device
   /// recordings; it applies only to a lens at rest.
   static const double liftVelocity = 18;
@@ -89,23 +94,23 @@ final class SmallLens extends Motion {
   static const double hangTime = 0.22;
 
   late final _progress = own(
-    MotionValue<double>(0, spring: liftSpring),
+    MotionValue<double>(0, spring: SmallLensTuning.liftSpring),
     rest: _opacity,
   );
   late final _size = own(
-    MotionValue<double>(0, spring: liftSpring),
+    MotionValue<double>(0, spring: SmallLensTuning.liftSpring),
     rest: _sizeRest,
   );
   late final _scaleX = own(
-    MotionValue<double>(1, spring: stretchSpring),
+    MotionValue<double>(1, spring: SmallLensTuning.stretchSpring),
     rest: _scaleRest,
   );
   late final _scaleY = own(
-    MotionValue<double>(1, spring: stretchSpring),
+    MotionValue<double>(1, spring: SmallLensTuning.stretchSpring),
     rest: _scaleRest,
   );
   late final _drift = own(
-    MotionValue<double>(0, spring: stretchSpring),
+    MotionValue<double>(0, spring: SmallLensTuning.stretchSpring),
     rest: _length,
   );
   late final _LensLoop _loop;
@@ -149,11 +154,11 @@ final class SmallLens extends Motion {
     follow(t);
     final progressResting =
         _progress.restsAt(t, MotionRest.opacity) && _progress.nextDue == null;
-    _progress.retarget(t, 1, spring: liftSpring);
+    _progress.retarget(t, 1, spring: SmallLensTuning.liftSpring);
     if (progressResting) _progress.setVelocity(t, liftVelocity);
     final at = t + sizeLag;
     final sizeResting = _size.restsAt(at, _sizeRest()) && _size.nextDue == null;
-    _size.retarget(at, 1, spring: liftSpring);
+    _size.retarget(at, 1, spring: SmallLensTuning.liftSpring);
     if (sizeResting) _size.setVelocity(at, liftVelocity);
   }
 
@@ -174,8 +179,8 @@ final class SmallLens extends Motion {
   void _land(double t) {
     unschedule(_landing);
     follow(t);
-    _progress.retarget(t, 0, spring: unliftSpring);
-    _size.retarget(t, 0, spring: sizeUnliftSpring);
+    _progress.retarget(t, 0, spring: SmallLensTuning.unliftSpring);
+    _size.retarget(t, 0, spring: SmallLensTuning.sizeUnliftSpring);
   }
 
   /// Tells the lens that its position's course changed at [t], so the
