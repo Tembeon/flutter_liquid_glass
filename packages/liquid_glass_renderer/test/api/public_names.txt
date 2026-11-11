@@ -7,7 +7,6 @@ GlassGlowLayer
 GlassPlanOverlay
 GlassReadReport
 GlassReadSource
-LgrLogs
 LiquidGlass
 LiquidGlassAppearance
 LiquidGlassBackdrop

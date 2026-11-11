@@ -145,12 +145,6 @@ enum GlassReadSource
   image,
   heldImage,
   live,
-abstract final class LgrLogs
-  LgrLogs()
-  static void deactivateLoggers(Set<Logger> loggers)
-  static void initAllLogs([Level level = ...])
-  static void initLoggers(Set<Logger> loggers, [Level level = ...])
-  static bool isLogActive(Logger logger)
 class LiquidGlass extends StatefulWidget
   const LiquidGlass.auto({
     required Widget child,

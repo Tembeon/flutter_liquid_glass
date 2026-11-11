@@ -3,7 +3,6 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
-import 'package:liquid_glass_renderer/src/logging.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 import 'package:meta/meta.dart';
 
@@ -98,9 +97,6 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     this._renderLink,
   });
 
-  /// The logger for liquid glass geometry.
-  final Logger logger = Logger(LgrLogNames.geometry);
-
   LiquidGlassSettings _settings;
 
   /// The settings used for liquid glass rendering.
@@ -112,7 +108,6 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     if (_settings == value) return;
 
     if (value.requiresGeometryRebuild(_settings)) {
-      logger.finer('$hashCode rebuild ');
       markGeometryNeedsUpdate(force: true);
     }
 
@@ -286,7 +281,6 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
         !anyShapeChangedInLayer &&
         geometry != null &&
         !_matteVisibilityChanged(geometry!.shapes, shapes)) {
-      logger.finer('$hashCode Skipping geometry rebuild.');
       // Shadows refresh with cached geometry without re-encoding its matte.
       geometry = GeometryCache(
         bounds: geometry!.bounds,
@@ -299,8 +293,6 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
       geometryState = LiquidGlassGeometryState.updated;
       return geometry;
     }
-
-    logger.finer('$hashCode Rebuilding geometry');
 
     geometry = null;
     geometryState = LiquidGlassGeometryState.updated;

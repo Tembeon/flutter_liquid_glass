@@ -545,7 +545,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         'blend, lie within reach of each other, or carry their own '
         'appearances; the extra shapes are not drawn. Split the glass across '
         'several layers.';
-    LiquidGlassRenderObject.logger.warning(message);
     debugPrint('liquid_glass_renderer: $message');
   }
 

@@ -36,7 +36,6 @@ export 'src/liquid_shape.dart'
         LiquidRoundedRectangle,
         LiquidRoundedSuperellipse,
         LiquidShape;
-export 'src/logging.dart' show LgrLogs;
 export 'src/rendering/liquid_glass_layer.dart'
     show LiquidGlassLayer, LiquidGlassLayerFrame;
 export 'src/stretch.dart'
