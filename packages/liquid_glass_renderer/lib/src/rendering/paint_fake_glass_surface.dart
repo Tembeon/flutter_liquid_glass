@@ -71,6 +71,40 @@ Rect fakeGlassSurfaceQuad(Rect localQuad, Float64List transform) {
   return Rect.fromLTRB(left, top, right, bottom);
 }
 
+/// Paints a FakeGlass surface and, when the glass has any highlight, its
+/// highlight pass on top.
+void paintFakeGlassSurfaceWithHighlight(
+  Canvas canvas, {
+  required ui.FragmentShader shader,
+  required Size size,
+  required LiquidShape shape,
+  required LiquidGlassSettings settings,
+  required LiquidGlassAppearance appearance,
+  required double devicePixelRatio,
+}) {
+  paintFakeGlassSurface(
+    canvas,
+    shader: shader,
+    size: size,
+    shape: shape,
+    settings: settings,
+    appearance: appearance,
+    devicePixelRatio: devicePixelRatio,
+  );
+  if (settings.highlight * appearance.visibility > 0) {
+    paintFakeGlassSurface(
+      canvas,
+      shader: shader,
+      size: size,
+      shape: shape,
+      settings: settings,
+      appearance: appearance,
+      devicePixelRatio: devicePixelRatio,
+      highlightOnly: true,
+    );
+  }
+}
+
 /// Paints one analytic FakeGlass surface with the same logical-pixel setting
 /// contract used by RealGlass.
 void paintFakeGlassSurface(

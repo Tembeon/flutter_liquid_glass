@@ -238,25 +238,20 @@ PictureLayer _fakeSurface(ui.FragmentShader shader, Rect bounds) {
   );
   const appearance = LiquidGlassAppearance.ios27RegularLight();
   final local = Offset.zero & bounds.size;
-  void paint({bool exteriorOnly = false, bool highlightOnly = false}) =>
-      paintFakeGlassSurface(
-        canvas,
-        shader: shader,
-        size: bounds.size,
-        shape: _fakeGlassShape,
-        settings: settings,
-        appearance: appearance,
-        devicePixelRatio: 1,
-        exteriorOnly: exteriorOnly,
-        highlightOnly: highlightOnly,
-      );
   canvas
     ..save()
     ..translate(bounds.left, bounds.top)
     ..save()
     ..clipPath(_fakeGlassShape.getOuterPath(local));
-  paint();
-  paint(highlightOnly: true);
+  paintFakeGlassSurfaceWithHighlight(
+    canvas,
+    shader: shader,
+    size: bounds.size,
+    shape: _fakeGlassShape,
+    settings: settings,
+    appearance: appearance,
+    devicePixelRatio: 1,
+  );
   canvas
     ..restore()
     ..clipPath(
@@ -264,7 +259,16 @@ PictureLayer _fakeSurface(ui.FragmentShader shader, Rect bounds) {
         ..addRect(local.inflate(fakeGlassSurfaceOutset(settings)))
         ..fillType = PathFillType.evenOdd,
     );
-  paint(exteriorOnly: true);
+  paintFakeGlassSurface(
+    canvas,
+    shader: shader,
+    size: bounds.size,
+    shape: _fakeGlassShape,
+    settings: settings,
+    appearance: appearance,
+    devicePixelRatio: 1,
+    exteriorOnly: true,
+  );
   canvas.restore();
   return PictureLayer(bounds)..picture = recorder.endRecording();
 }

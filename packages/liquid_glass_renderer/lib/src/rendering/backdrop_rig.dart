@@ -142,7 +142,7 @@ ui.ImageFilter frostFilter(
   ui.FragmentShader shader,
 ) {
   _setFrost(shader, sampling, colorMatrix);
-  shader.setImageSampler(0, _bilinear, filterQuality: FilterQuality.low);
+  shader.setImageSampler(0, transparentPixel, filterQuality: FilterQuality.low);
   return shaderFilterNow(shader);
 }
 
@@ -217,7 +217,7 @@ CopyFrost? _frostFilterOf(FrostSampling sampling) {
   final lattice = sampling.frost > 0 ? _latticeOf(sampling) : null;
   if (lattice != null) return _inPlaceFilters[key] = lattice;
   _setFrost(shader, sampling, null);
-  shader.setImageSampler(0, _bilinear, filterQuality: FilterQuality.low);
+  shader.setImageSampler(0, transparentPixel, filterQuality: FilterQuality.low);
   // The one shader holds other uniforms by the time a scene takes this.
   final sparse = CopyFrost._([shaderFilterNow(shader)]);
   // Sparse taps that stand in until the lattice's program loads are not
@@ -366,7 +366,11 @@ CopyFrost? _latticeOf(FrostSampling sampling) {
     for (final (i, value) in uniforms.indexed) {
       shader.setFloat(i, value);
     }
-    shader.setImageSampler(0, _bilinear, filterQuality: FilterQuality.low);
+    shader.setImageSampler(
+      0,
+      transparentPixel,
+      filterQuality: FilterQuality.low,
+    );
     // The one shader holds other uniforms by the time a scene takes this.
     return shaderFilterNow(shader);
   }
@@ -416,14 +420,6 @@ void _setFrost(
     put(m[row * 5 + 4] / 255);
   }
 }
-
-// Up to Flutter 3.47 a shader filter samples its input as the image bound
-// to the shader's first sampler says (see bilinearShaderFilter).
-final ui.Image _bilinear = () {
-  final recorder = ui.PictureRecorder();
-  Canvas(recorder);
-  return recorder.endRecording().toImageSync(1, 1);
-}();
 
 const _identityMatrix = <double>[
   1, 0, 0, 0, 0, //

@@ -301,7 +301,7 @@ class RenderFakeGlass extends RenderProxyBox with LivePaintSize {
     if (_role != FakeGlassRole.inFakeLayer) {
       canvas.clipPath(shape.getOuterPath(Offset.zero & paintSize));
     }
-    paintFakeGlassSurface(
+    paintFakeGlassSurfaceWithHighlight(
       canvas,
       shader: shader,
       size: paintSize,
@@ -310,18 +310,6 @@ class RenderFakeGlass extends RenderProxyBox with LivePaintSize {
       appearance: appearance,
       devicePixelRatio: devicePixelRatio,
     );
-    if (settings.highlight * appearance.visibility > 0) {
-      paintFakeGlassSurface(
-        canvas,
-        shader: shader,
-        size: paintSize,
-        shape: shape,
-        settings: settings,
-        appearance: appearance,
-        devicePixelRatio: devicePixelRatio,
-        highlightOnly: true,
-      );
-    }
     canvas.restore();
   }
 }

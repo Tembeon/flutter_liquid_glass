@@ -75,10 +75,6 @@ class FakeGlass extends StatelessWidget {
        _handledByLayer = true,
        inheritVisibility = false;
 
-  static final List<String> _surfaceShaderAssets = [
-    ShaderKeys.fakeGlassSurface,
-  ];
-
   /// {@macro liquid_glass_renderer.LiquidGlass.shape}
   final LiquidShape shape;
 
@@ -170,7 +166,7 @@ class FakeGlass extends StatelessWidget {
     final fake = role != FakeGlassRole.layerPaints
         ? MultiShaderBuilder(
             (_, shaders, _) => buildRawFake(shaders.single),
-            assetKeys: _surfaceShaderAssets,
+            assetKeys: ShaderKeys.fakeSurfaceAssets,
             child: buildRawFake(null),
           )
         : buildRawFake(null);

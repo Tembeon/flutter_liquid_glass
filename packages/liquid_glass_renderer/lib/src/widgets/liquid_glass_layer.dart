@@ -166,10 +166,6 @@ class LiquidGlassLayer extends StatefulWidget {
 }
 
 class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
-  static final List<String> _fakeSurfaceShaderAssets = [
-    ShaderKeys.fakeGlassSurface,
-  ];
-
   late final GeometryRenderLink _link = GeometryRenderLink();
 
   FlutterGpuGeometryRenderer? _gpuGeometryRenderer;
@@ -416,7 +412,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
     }
 
     return MultiShaderBuilder(
-      assetKeys: _fakeSurfaceShaderAssets,
+      assetKeys: ShaderKeys.fakeSurfaceAssets,
       (_, shaders, _) => buildFakeSurfaceLayer(shaders.firstOrNull),
       child: buildFakeSurfaceLayer(null),
     );

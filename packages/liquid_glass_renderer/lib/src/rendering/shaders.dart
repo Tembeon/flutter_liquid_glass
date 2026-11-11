@@ -23,6 +23,9 @@ abstract class ShaderKeys {
   /// takes them.
   static List<String> get finalRenders => FinalShaderVariant.assetKeys;
 
+  /// The shader assets a fake-glass surface needs, shared by every layer.
+  static final List<String> fakeSurfaceAssets = [fakeGlassSurface];
+
   /// The compiled shader a LiquidGlassBackdropFrost draws a copy with.
   static final String backdropFrost =
       '${_shadersRoot}build/shaderbundles/backdrop_frost.iplr';

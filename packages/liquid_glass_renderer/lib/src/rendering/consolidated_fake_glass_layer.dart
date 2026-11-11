@@ -330,7 +330,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
         if (shape.shapeToGeometry case final transform?) {
           canvas.transform(transform.storage);
         }
-        paintFakeGlassSurface(
+        paintFakeGlassSurfaceWithHighlight(
           canvas,
           shader: shader,
           size: shape.renderObject.paintSize,
@@ -339,18 +339,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
           appearance: shape.appearance,
           devicePixelRatio: devicePixelRatio,
         );
-        if (settings.highlight * shape.appearance.visibility > 0) {
-          paintFakeGlassSurface(
-            canvas,
-            shader: shader,
-            size: shape.renderObject.paintSize,
-            shape: shape.shape,
-            settings: settings,
-            appearance: shape.appearance,
-            devicePixelRatio: devicePixelRatio,
-            highlightOnly: true,
-          );
-        }
         canvas.restore();
       }
     }
