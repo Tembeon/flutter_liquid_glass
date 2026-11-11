@@ -180,15 +180,19 @@ final class GlassFrameReport {
 
   @override
   String toString() {
+    final head =
+        'frame $frame${planned ? '' : ' (as planned before)'}  '
+        'reads ${reads.length}  targets $issuedTargets/'
+        '$targetBudget  images $imageReads  live $liveReads  '
+        'walk ${walk.inMicroseconds}us  compile ${compile.inMicroseconds}us  '
+        'emit ${emit.inMicroseconds}us';
+    final made =
+        'made: filters $filtersBuilt  pictures $picturesRecorded  '
+        'images $imagesDrawn  replayed $layersReplayed  '
+        'repaints $repaintsAsked';
     final lines = <String>[
-      'frame $frame${planned ? '' : ' (as planned before)'}  '
-          'reads ${reads.length}  targets $issuedTargets/'
-          '$targetBudget  images $imageReads  live $liveReads  '
-          'walk ${walk.inMicroseconds}us  compile ${compile.inMicroseconds}us  '
-          'emit ${emit.inMicroseconds}us',
-      'made: filters $filtersBuilt  pictures $picturesRecorded  '
-          'images $imagesDrawn  replayed $layersReplayed  '
-          'repaints $repaintsAsked',
+      head,
+      made,
       for (var i = 0; i < reads.length; i++) 'R$i ${reads[i]}',
       if (notes.isNotEmpty) 'why apart:',
       for (final note in notes) '  $note',

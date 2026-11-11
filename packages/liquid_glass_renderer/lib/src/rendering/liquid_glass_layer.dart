@@ -1353,11 +1353,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   // Where this glass's read shows in the scene.
-  CornerRead? _shownCorner;
-  ImageFilter? _shownFilter;
+  late CornerRead _shownCorner;
+  late ImageFilter _shownFilter;
   CopyFrost? _shownInPlace;
   ui.Path? _shownClip;
-  Matrix4? _shownToCanvas;
+  late Matrix4 _shownToCanvas;
   List<(ui.Picture, Offset)> _shownUnder = const [];
   Object? _shownKey;
 
@@ -1413,10 +1413,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     for (final (picture, offset) in _shownUnder) {
       builder.addPicture(offset, picture);
     }
-    return _shownCorner!.addToScene(
+    return _shownCorner.addToScene(
       builder,
-      _shownFilter!,
-      _shownToCanvas!,
+      _shownFilter,
+      _shownToCanvas,
       clip: _shownClip,
       inPlace: _shownInPlace,
     );

@@ -871,7 +871,7 @@ final class Tiling {
     // In the field's own units, so a node's distance is compared as read.
     final outward = reach.outward / scale;
     final inward = -reach.inward / scale;
-    final agreement = _fieldAgreement * _fieldAgreement;
+    const agreement = _fieldAgreement * _fieldAgreement;
     // A tile's nodes are those over it and over its strip's apron.
     final apron = reach.coarseTexel / 2;
     final spanX = (xx.abs() + xy.abs()) * (size / 2 + apron);

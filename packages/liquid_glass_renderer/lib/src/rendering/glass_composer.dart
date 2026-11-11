@@ -210,7 +210,7 @@ final class GlassComposer extends PipelineOwner {
   // site, or an image of a subtree taken outside a frame, which plans once from
   // nothing held. What it draws stands until the next plan.
   static void _composeAlone(Layer layer) {
-    Layer top = layer;
+    var top = layer;
     while (top.parent != null) {
       top = top.parent!;
     }

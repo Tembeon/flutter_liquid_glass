@@ -23,6 +23,7 @@ class GlassCompositionProbe {
   bool _wanted = false;
 
   /// Leaves the pass unseeded while the owner reads no backdrop.
+  bool get suppressed => _suppressed;
   bool _suppressed = false;
   set suppressed(bool value) {
     if (value == _suppressed) return;

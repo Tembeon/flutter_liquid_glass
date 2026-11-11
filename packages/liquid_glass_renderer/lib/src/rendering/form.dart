@@ -71,7 +71,7 @@ final class Form implements Scenery {
   Layer? _root;
   double _dpr = 0;
   OpenNode? _top;
-  FormWorld? _outside;
+  late FormWorld _outside;
 
   final List<FormNode> _flat = [];
   int _count = 0;
@@ -112,7 +112,7 @@ final class Form implements Scenery {
       };
       dirty.add(0, _everywhere);
     }
-    _top!.refreshIn(this, _outside!);
+    _top!.refreshIn(this, _outside);
     _flat.length = _count;
     _volatile.length = _volatileCount;
   }
@@ -232,8 +232,9 @@ final class Form implements Scenery {
     var limit = ReadLimit.none;
     for (var i = 0; i < _volatileCount; i++) {
       final node = _volatile[i];
-      if (node.order >= site.order || !node.screen.overlaps(site.ask.reads))
+      if (node.order >= site.order || !node.screen.overlaps(site.ask.reads)) {
         continue;
+      }
       if (node.limit == ReadLimit.liveOnly) return ReadLimit.liveOnly;
       limit = ReadLimit.sceneOnly;
     }

@@ -135,28 +135,28 @@ class RetainedGlassClip {
           ? _ovalPath(geometry as Rect)
           : geometry;
       switch (paintGeometry) {
-        case Rect rect:
+        case final Rect rect:
           clipContext.clipRectAndPaint(
             rect,
             behavior,
             rect,
             descend,
           );
-        case RRect rrect:
+        case final RRect rrect:
           clipContext.clipRRectAndPaint(
             rrect,
             behavior,
             rrect.outerRect,
             descend,
           );
-        case RSuperellipse rse:
+        case final RSuperellipse rse:
           clipContext.clipRSuperellipseAndPaint(
             rse,
             behavior,
             rse.outerRect,
             descend,
           );
-        case Path path:
+        case final Path path:
           clipContext.clipPathAndPaint(
             path,
             behavior,

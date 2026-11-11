@@ -137,8 +137,8 @@ typedef FakeGlassFilterParts = ({
 });
 
 /// The backdrop filter of fake glass, standalone or consolidated, with the
-/// blur's logical sigma and its frost. Tint stays in the analytic surface pass, so contour
-/// transmittance treats tint and backdrop energy apart.
+/// blur's logical sigma and its frost. Tint stays in the analytic surface
+/// pass, so contour transmittance treats tint and backdrop energy apart.
 @internal
 FakeGlassFilterParts? fakeGlassBackdropFilterParts(
   LiquidGlassSettings settings,

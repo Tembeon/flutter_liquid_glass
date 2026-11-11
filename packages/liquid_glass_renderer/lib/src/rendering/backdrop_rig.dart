@@ -567,9 +567,9 @@ class BackdropRig {
     _filter.layer = null;
   }
 
-  /// Paints the clip [outline] (or the rect [bounds] without one) and the filter
-  /// in it, [offset] from [context]'s layer. Without [drawsFilter] the clip is
-  /// empty.
+  /// Paints the clip [outline] (or the rect [bounds] without one) and the
+  /// filter in it, [offset] from [context]'s layer. Without [drawsFilter] the
+  /// clip is empty.
   void paintLive(
     PaintingContext context,
     Offset offset, {

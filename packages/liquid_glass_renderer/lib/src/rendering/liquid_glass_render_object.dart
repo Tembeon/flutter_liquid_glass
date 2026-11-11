@@ -320,6 +320,8 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// Leaves the fractional-opacity pass unseeded while this layer reads no
   /// backdrop.
   @protected
+  bool get compositionSeedSuppressed => _compositionProbe.suppressed;
+  @protected
   set compositionSeedSuppressed(bool value) =>
       _compositionProbe.suppressed = value;
 
