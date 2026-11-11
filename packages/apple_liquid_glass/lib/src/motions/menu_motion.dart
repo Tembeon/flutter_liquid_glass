@@ -554,6 +554,7 @@ class MenuMotion extends Motion with Presented {
 
   /// Whether the menu opens below the button; otherwise it opens above it
   /// and its content is reversed.
+  @visibleForTesting
   bool get opensDown => _down;
 
   /// The scale of the button's press growth.
@@ -1623,11 +1624,6 @@ class MenuMotion extends Motion with Presented {
       shift: Offset(dx, dy),
     );
   }
-
-  /// The opening kick's amplitude relative to a 146-pixel menu, for a
-  /// menu [height] pixels tall; it scales [MenuTuning.openKickGain].
-  static double kickAmplitude(double height) =>
-      _interpolate(_kickAmplitude, height);
 
   void _place(double sourceScale) {
     _sourceScale = sourceScale;

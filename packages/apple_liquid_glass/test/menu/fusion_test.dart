@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:apple_liquid_glass/src/motions/menu_fusion.dart';
 import 'package:apple_liquid_glass/src/motions/menu_fusion_worker.dart';
 import 'package:apple_liquid_glass/src/motions/menu_motion.dart';
+import 'package:apple_liquid_glass/src/motions/menu_outline_math.dart';
 import 'package:apple_liquid_glass/src/motions/menu_tuning.dart';
 import 'package:apple_liquid_glass/src/motions/menu_values.dart';
 import 'package:flutter/rendering.dart';
@@ -110,10 +111,12 @@ void main() {
           ),
           Radius.circular(d / 2),
         );
-        final path = menuSilhouette(
-          g,
-          s,
-          (frame['gaussianRadius']! as num).toDouble(),
+        final path = outlineFromParts(
+          menuSilhouetteParts(
+            g,
+            s,
+            (frame['gaussianRadius']! as num).toDouble(),
+          ),
         ).path;
         var sum = 0.0;
         var count = 0;
@@ -279,7 +282,7 @@ void main() {
         d / 2,
         d / 2,
       );
-      final outline = menuSilhouette(g, s, radius);
+      final outline = outlineFromParts(menuSilhouetteParts(g, s, radius));
       final field = outline.field!;
       final band = 1.26 * radius + 1.5 * step;
       for (var j = 0; j < field.rows; j += 3) {

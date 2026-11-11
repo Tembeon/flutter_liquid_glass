@@ -6,7 +6,6 @@ import 'package:apple_liquid_glass/src/motions/glass_press.dart';
 import 'package:apple_liquid_glass/src/motions/menu_event.dart';
 import 'package:apple_liquid_glass/src/motions/menu_metrics.dart';
 import 'package:apple_liquid_glass/src/motions/menu_morph_spec.dart';
-import 'package:apple_liquid_glass/src/motions/menu_motion.dart';
 import 'package:apple_liquid_glass/src/motions/menu_values.dart';
 import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
 import 'package:flutter/painting.dart';
@@ -501,8 +500,8 @@ class MenuTuning {
   final Spring openKickSpring;
 
   /// The gain of the opening kick, in pixels per unit of progress
-  /// velocity, for a menu 146 pixels tall; other heights scale it by
-  /// [MenuMotion.kickAmplitude].
+  /// velocity, for a menu 146 pixels tall; other heights scale it by an
+  /// amplitude interpolated over measured menu heights.
   final double openKickGain;
 
   /// The spring the menu shape's closing kick rings on.

@@ -1,7 +1,7 @@
 part of 'menu_fusion.dart';
 
 /// The union of two rounded boxes on a grid and its Gaussian blur, both
-/// evaluated on demand: the trace and field grid of [menuSilhouette]
+/// evaluated on demand: the trace and field grid of [menuSilhouetteParts]
 /// padded by the kernel's reach, node (i, j) of the trace grid at padded
 /// node (i + reach, j + reach).
 ///

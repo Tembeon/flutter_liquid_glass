@@ -2760,7 +2760,6 @@ class MenuMotion extends Motion with Presented
   bool get isOpenPending
   bool get isPresented
   bool get isSliding
-  static double kickAmplitude(double height)
   MenuLayout get layout
   bool lightsGlow
   MenuBlob get menuBlob
@@ -2769,7 +2768,7 @@ class MenuMotion extends Motion with Presented
   double get menuWidth
   static const double mouseSubmenuDelay
   void openAfterTap(double t)
-  bool get opensDown
+  @visibleForTesting bool get opensDown
   bool opensOnTap
   static ({bool down, Rect rect}) place({
     required Rect button,

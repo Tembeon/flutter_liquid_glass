@@ -217,10 +217,11 @@ class MenuFusion {
   }
 }
 
-/// The union of [menu] and [source] whose signed distance field is
-/// blurred by a Gaussian of standard deviation [radius]: its zero contour
-/// as one even-odd path, with the blurred field itself for a renderer that
-/// shades the body.
+/// The parts, computable on any isolate, of the outline of the union of
+/// [menu] and [source] whose signed distance field is blurred by a
+/// Gaussian of standard deviation [radius]; [outlineFromParts] makes them
+/// its zero contour as one even-odd path, with the blurred field itself
+/// for a renderer that shades the body.
 ///
 /// The half thickness each node of the field belongs to, and the turn of
 /// its normal toward the optical corners of the shapes, blend from the
@@ -233,23 +234,12 @@ class MenuFusion {
 /// shape takes its unblurred distance: the kernel is symmetric, so it
 /// leaves a linear field unchanged.
 ///
-/// With [withField] false the outline is its edge alone, for a body that
-/// is only filled: the same contour, crossing for crossing, without the
-/// field. The blur then reaches inside the body only as far as the trace
-/// and its choice of blocks need, not [MenuFusion.shadedDepth], and
-/// no half thickness, optical turn or field sample is computed.
-@internal
-GlassOutline menuSilhouette(
-  RRect menu,
-  RRect source,
-  double radius, {
-  bool withField = true,
-}) => outlineFromParts(
-  menuSilhouetteParts(menu, source, radius, withField: withField),
-);
-
-/// The parts of [menuSilhouette]'s outline, computable on any
-/// isolate; with [withField] false the edge alone, without samples.
+/// With [withField] false the parts are the edge alone, without samples,
+/// for a body that is only filled: the same contour, crossing for
+/// crossing, without the field. The blur then reaches inside the body
+/// only as far as the trace and its choice of blocks need, not
+/// [MenuFusion.shadedDepth], and no half thickness, optical turn or field
+/// sample is computed.
 @internal
 @pragma('vm:unsafe:no-bounds-checks')
 OutlineParts menuSilhouetteParts(
