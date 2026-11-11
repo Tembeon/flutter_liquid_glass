@@ -2,10 +2,10 @@
 /// a touch between regions, and time-stamped input events.
 ///
 /// For the author of a control: an `Interaction` (press, tap, long press,
-/// drag, scrub, follow, secondary click) takes `InteractionInput`s and
-/// answers with `InteractionEvent`s, so a gesture is checked by replaying a
-/// recording, with no screen. `InputPort` hands a touch from one region to
-/// another.
+/// drag, scrub, follow, secondary click, hover dwell) takes
+/// `InteractionInput`s and answers with `InteractionEvent`s, so a gesture
+/// is checked by replaying a recording, with no screen. `InputPort` hands
+/// a touch from one region to another.
 ///
 /// It promises one way to stamp an event with its time, and that keyboard
 /// and accessibility commands (`ActivateInput`, the value commands of
@@ -26,6 +26,7 @@ export 'src/input/interaction.dart'
         AdjustRange,
         DragInteraction,
         DragInteractionDetails,
+        HoverDwellInteraction,
         Interaction,
         InteractionEvent,
         InteractionInput,

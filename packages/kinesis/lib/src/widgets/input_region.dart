@@ -202,6 +202,7 @@ class _InputRegionState extends State<InputRegion> {
     }
     if (oldWidget.enabled && !widget.enabled) {
       _cancelAll(PointerCancelReason.disabled);
+      _leaveHover();
     }
     if (oldWidget.port != widget.port) {
       oldWidget.port?.detach(_receive);
@@ -572,6 +573,24 @@ class _InputRegionState extends State<InputRegion> {
   void _adjust(ValueCommand command, ActivationSource source) => _input(
     AdjustInput(time: _clock.now, command: command, source: source),
   );
+
+  // A disabled region hears no more hover, so what waits on the pointer
+  // resting (a dwell) hears it leave.
+  void _leaveHover() {
+    if (!_states.value.contains(WidgetState.hovered)) return;
+    _clock.input(
+      _clock.now,
+      () => _answer(
+        _session.handle(
+          PointerHoverInput(
+            time: _clock.now,
+            position: Offset.zero,
+            inside: false,
+          ),
+        ),
+      ),
+    );
+  }
 
   void _hover(PointerEvent event, {required bool inside}) {
     _states.update(WidgetState.hovered, inside);

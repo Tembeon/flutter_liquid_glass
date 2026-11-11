@@ -1012,6 +1012,22 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
     }
     if (old.enabled && !zone.enabled) {
       host._cancelTouches(this, PointerCancelReason.disabled);
+      if (_hovering) {
+        final now = host._clock.now;
+        host._clock.input(
+          now,
+          () => host._answer(
+            this,
+            session.handle(
+              PointerHoverInput(
+                time: now,
+                position: Offset.zero,
+                inside: false,
+              ),
+            ),
+          ),
+        );
+      }
     }
     if (old.adjustRange != zone.adjustRange) {
       old.adjustRange?.removeListener(_rangeChanged);

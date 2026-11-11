@@ -73,6 +73,15 @@ final class FollowInteraction extends Interaction
   final PointerFollower follower
   bool mirrored
   overrides: handle
+class HoverDwellInteraction extends Interaction
+  HoverDwellInteraction({
+    required double duration,
+    void Function(double)? onDwell,
+  })
+  double duration
+  void Function(double)? onDwell
+  bool get waiting
+  overrides: accepts, advance, handle, nextDue
 final class InputPort
   InputPort()
   void attach(void Function(PortEvent) receiver)
@@ -365,6 +374,7 @@ final class FrameCadence
   static final FrameCadence instance
   void scrolled(double delta, double devicePixelRatio)
   void start()
+class HoverDwellInteraction (see package:kinesis/input.dart)
 class InputPort (see package:kinesis/input.dart)
 class InputRegion extends StatefulWidget
   const InputRegion({

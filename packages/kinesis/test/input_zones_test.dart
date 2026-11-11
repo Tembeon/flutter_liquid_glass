@@ -325,6 +325,36 @@ void main() {
       expect(active(), SystemMouseCursors.text);
     });
 
+    testWidgets('a hover dwell fires for the zone the mouse rests on', (
+      tester,
+    ) async {
+      final fired = <double>[];
+      await tester.pumpWidget(
+        _app(
+          toolbar(
+            extra: {
+              'b': [HoverDwellInteraction(duration: 0.3, onDwell: fired.add)],
+            },
+          ),
+        ),
+      );
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: const Offset(5, 100));
+      await mouse.moveTo(_at(motion, 'b'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await mouse.moveTo(_at(motion, 'a'));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(fired, isEmpty);
+      await mouse.moveTo(_at(motion, 'b'));
+      // The clock dozes on a timer until the due time, then asks for the
+      // frame that runs it.
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(fired, hasLength(1));
+    });
+
     testWidgets('a secondary click reaches the zone under it, in its '
         'coordinates', (tester) async {
       final clicks = <Offset>[];

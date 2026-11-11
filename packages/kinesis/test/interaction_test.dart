@@ -123,6 +123,46 @@ void main() {
     });
   });
 
+  group('HoverDwellInteraction', () {
+    PointerHoverInput hover(double time, {bool inside = true}) =>
+        PointerHoverInput(
+          time: time,
+          position: const Offset(10, 10),
+          inside: inside,
+        );
+
+    test('fires once at its due time after the pointer enters, through a '
+        'session between touches', () {
+      final fired = <double>[];
+      final dwell = HoverDwellInteraction(duration: 0.3, onDwell: fired.add);
+      final session = InteractionSession([PressInteraction(), dwell]);
+      session.handle(hover(1));
+      session.handle(hover(1.1));
+      expect(session.nextDue, 1.3);
+      session.advance(1.2);
+      expect(fired, isEmpty);
+      session.advance(1.5);
+      expect(fired, [1.3]);
+      expect(session.nextDue, isNull);
+      session.advance(2);
+      expect(fired, [1.3]);
+    });
+
+    test('leaving before the due time cancels it; a leave stamped after it '
+        'fires it first', () {
+      final fired = <double>[];
+      final dwell = HoverDwellInteraction(duration: 0.3, onDwell: fired.add);
+      dwell.handle(hover(0));
+      dwell.handle(hover(0.2, inside: false));
+      expect(dwell.waiting, isFalse);
+      dwell.advance(1);
+      expect(fired, isEmpty);
+      dwell.handle(hover(2));
+      dwell.handle(hover(2.4, inside: false));
+      expect(fired, [2.3]);
+    });
+  });
+
   group('PressInteraction', () {
     test('highlights inside its slop and taps on a release inside', () {
       final highlights = <bool>[];

@@ -428,6 +428,47 @@ void main() {
     });
   });
 
+  testWidgets('a hover dwell fires on the motion clock once the mouse '
+      'rests, and not after it leaves or the region is disabled', (
+    tester,
+  ) async {
+    final fired = <double>[];
+    final dwell = HoverDwellInteraction(duration: 0.3, onDwell: fired.add);
+    Widget region({bool enabled = true}) => _app(
+      Center(
+        child: InputRegion(
+          interactions: [PressInteraction(), dwell],
+          enabled: enabled,
+          child: const SizedBox(width: 80, height: 40),
+        ),
+      ),
+    );
+    await tester.pumpWidget(region());
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    await mouse.moveTo(tester.getCenter(find.byType(InputRegion)));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(fired, isEmpty);
+    // The clock dozes on a timer until the due time, then asks for the
+    // frame that runs it.
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(fired, hasLength(1));
+    await mouse.moveTo(Offset.zero);
+    await mouse.moveTo(tester.getCenter(find.byType(InputRegion)));
+    await tester.pump(const Duration(milliseconds: 100));
+    await mouse.moveTo(Offset.zero);
+    await tester.pump(const Duration(seconds: 1));
+    expect(fired, hasLength(1));
+    await mouse.moveTo(tester.getCenter(find.byType(InputRegion)));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpWidget(region(enabled: false));
+    await tester.pump(const Duration(seconds: 1));
+    expect(fired, hasLength(1));
+  });
+
   group('minimum hit size', () {
     Widget small({Size? minimum, VoidCallback? onTap}) => _app(
       Center(

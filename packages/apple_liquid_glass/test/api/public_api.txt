@@ -1999,6 +1999,7 @@ re-exported from package:kinesis:
   DragInteractionDetails
   FollowInteraction
   FrameCadence
+  HoverDwellInteraction
   InputPort
   InputRegion
   InputZone
