@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/painting.dart';
-import 'package:liquid_glass_renderer/src/composer/backdrop_frost.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:meta/meta.dart';
 

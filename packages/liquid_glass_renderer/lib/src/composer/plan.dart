@@ -8,7 +8,6 @@ import 'package:meta/meta.dart';
 
 /// All [compile] needs of a frame. A form answers from a layer tree; a test
 /// answers from a generated scene, ten thousand scenes in seconds.
-@internal
 abstract interface class Scenery {
   /// The frame's sites in paint order.
   List<SiteFacts> get sites;
@@ -39,7 +38,6 @@ abstract interface class Scenery {
 }
 
 /// What a kind of layer lets a read over it be.
-@internal
 enum ReadLimit {
   /// Anything: pictures and known containers.
   none,
@@ -58,7 +56,6 @@ enum ReadLimit {
 /// A read over the frame is unchanged when no span before its lead meets its
 /// band and no read it holds changed. Past [capacity] spans merge, which only
 /// ever says more changed than did.
-@internal
 final class DirtyLog {
   /// Spans kept before they merge.
   static const int capacity = 16;
@@ -104,7 +101,6 @@ final class DirtyLog {
 ///
 /// Links are shared while a layer's value holds, so siblings compare by
 /// identity first.
-@internal
 final class StateChain {
   /// Adds [token] under [parent].
   const StateChain(this.parent, this.token);
@@ -133,7 +129,6 @@ final class StateChain {
 }
 
 /// Why a site can never share a filter.
-@internal
 enum NoJoin {
   /// Part of a fused field, or its shapes have appearances of their own.
   field,
@@ -156,7 +151,6 @@ enum NoJoin {
 
 /// What a read that can only come from an image does to it, past the plain
 /// copy glass frosts by itself.
-@internal
 @immutable
 final class PageFilter {
   /// Creates the filter of a page.
@@ -201,7 +195,6 @@ final class PageFilter {
 /// What a glass is, as far as where the final shader takes its geometry from
 /// goes: how many shapes it draws, and whether they fuse into a field or
 /// carry looks of their own.
-@internal
 @immutable
 final class GlassBody {
   /// Creates the body of glass of [shapes] shapes.
@@ -241,13 +234,11 @@ final class GlassBody {
 ///
 /// What the glass a draw holds is decides it, never whether it moves:
 /// [geometryKindOf] is the one place that does.
-@internal
 sealed class GeometryKind {
   const GeometryKind();
 }
 
 /// One shape of one look, which the final shader works out at each fragment.
-@internal
 final class ComputedShape extends GeometryKind {
   /// Creates the kind.
   const ComputedShape();
@@ -255,14 +246,12 @@ final class ComputedShape extends GeometryKind {
 
 /// The atlas of one glass: several shapes, a fused field, or shapes with
 /// looks of their own.
-@internal
 final class OwnAtlas extends GeometryKind {
   /// Creates the kind.
   const OwnAtlas();
 }
 
 /// One atlas of all the glass one filter draws.
-@internal
 final class SharedAtlas extends GeometryKind {
   /// Creates the kind.
   const SharedAtlas();
@@ -274,7 +263,6 @@ final class SharedAtlas extends GeometryKind {
 /// before the frame is planned; [compile] gives every read the kind of the
 /// glass it draws, so a read of one glass draws the geometry that glass
 /// encoded.
-@internal
 GeometryKind geometryKindOf(List<GlassBody> glass) => switch (glass) {
   [GlassBody(shapes: 1, field: false, looks: false)] => const ComputedShape(),
   [] || [_] => const OwnAtlas(),
@@ -282,7 +270,6 @@ GeometryKind geometryKindOf(List<GlassBody> glass) => switch (glass) {
 };
 
 /// What one filter's uniforms must share.
-@internal
 @immutable
 final class Look {
   /// Creates a look.
@@ -352,7 +339,6 @@ final class Look {
 ///
 /// A site makes one each frame and the form keeps the last while they are
 /// equal, so the plan's inputs from a site changed exactly when its ask did.
-@internal
 @immutable
 final class SiteAsk {
   /// Creates the ask of a site that draws this frame.
@@ -422,7 +408,6 @@ final class SiteAsk {
 }
 
 /// What the other sites of a read use of one of them.
-@internal
 @immutable
 sealed class SiteRole {
   const SiteRole();
@@ -433,14 +418,12 @@ sealed class SiteRole {
 ///
 /// What draws the read is the renderer's, which extends this role: the plan
 /// tells one glass from another and nothing more.
-@internal
 abstract base class GlassRole extends SiteRole {
   /// Creates the role.
   const GlassRole();
 }
 
 /// A scroll edge that the glass over it can draw in its own filter.
-@internal
 final class BandRole extends SiteRole {
   /// Creates the role of a band that looks like [look].
   const BandRole(this.look);
@@ -456,7 +439,6 @@ final class BandRole extends SiteRole {
 }
 
 /// One site of the frame: where the form found it and what it asks.
-@internal
 final class SiteFacts {
   /// Creates the facts of the site known as [id].
   SiteFacts(this.id);
@@ -491,20 +473,17 @@ final class SiteFacts {
 }
 
 /// Where a read's backdrop comes from.
-@internal
 sealed class ReadSource {
   const ReadSource();
 }
 
 /// The copy's layers added again inside the read's filter: one target.
-@internal
 final class SceneRead extends ReadSource {
   /// Creates the source.
   const SceneRead();
 }
 
 /// An image: none in the frame's scene. A new one costs its own submit.
-@internal
 final class ImageRead extends ReadSource {
   /// Creates the source.
   const ImageRead({required this.held});
@@ -514,14 +493,12 @@ final class ImageRead extends ReadSource {
 }
 
 /// A backdrop filter: the frame goes offscreen, and splits once per read.
-@internal
 final class LiveRead extends ReadSource {
   /// Creates the source.
   const LiveRead();
 }
 
 /// One backdrop and all the glass drawn from it.
-@internal
 final class Read {
   /// Opens a read at [lead].
   Read(this.lead)
@@ -624,20 +601,17 @@ final class Read {
 }
 
 /// What a site does this frame.
-@internal
 sealed class Fate {
   const Fate();
 }
 
 /// Idle, off screen or outside its clips.
-@internal
 final class Hidden extends Fate {
   /// Creates the fate.
   const Hidden();
 }
 
 /// Draws [read]'s filter at its own place.
-@internal
 final class Leads extends Fate {
   /// Creates the fate.
   const Leads(this.read);
@@ -647,7 +621,6 @@ final class Leads extends Fate {
 }
 
 /// Another site's filter draws this glass.
-@internal
 final class Follows extends Fate {
   /// Creates the fate.
   const Follows(this.read);
@@ -657,7 +630,6 @@ final class Follows extends Fate {
 }
 
 /// One frame's plan. Every route the frame takes is a value in here.
-@internal
 final class Plan {
   /// Creates a plan.
   Plan(
@@ -687,14 +659,12 @@ final class Plan {
 
 /// What is kept between frames for the decisions, with one writer: [compile]
 /// returns edits and the composer applies them.
-@internal
 final class Ledger {
   /// Per read's lead.
   final Map<Object, ReadMemo> reads = Map.identity();
 }
 
 /// What a read's lead remembers.
-@internal
 final class ReadMemo {
   /// The frame its band last changed.
   int changedAt = 0;
@@ -729,7 +699,6 @@ final class ReadMemo {
 /// from the 2026-11-05 one-pass results. Some are inferred from those pairs;
 /// the sensitivity gate holds the plan to at most two targets more or less when
 /// any of them is three times off.
-@internal
 final class Prices {
   /// Creates a price table.
   const Prices({
@@ -795,7 +764,6 @@ final class Prices {
 }
 
 /// Decisions a person made once.
-@internal
 final class Policy {
   /// Creates a policy.
   const Policy({
@@ -826,7 +794,6 @@ final class Policy {
 }
 
 /// Edits to a [Ledger] that [compile] asks for.
-@internal
 final class LedgerEdits {
   /// The memos to write, by lead.
   final Map<Object, ReadMemo> writes = Map.identity();
@@ -985,7 +952,6 @@ String _note(
 /// (closest_groups +31.7 %, dead_free +27 % on the menu).
 ///
 /// Same inputs, same plan and same edits.
-@internal
 (Plan, LedgerEdits) compile(
   Scenery scene,
   Ledger ledger,

@@ -3,11 +3,13 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 
-/// What a frame did beyond the plan, counted where it happens.
+/// What a frame did beyond its plan, counted where it happens.
 ///
-/// The counts run from the end of the last frame to the end of this one, so
-/// they hold what paint recorded and what the scene added too.
-@internal
+/// A renderer adds one to a count each time it does that work, in debug and
+/// profile builds; [GlassFrameReport] reads the counts into a frame's report
+/// and starts them again from zero. The counts run from the end of the last
+/// reported frame to the end of this one, so they hold what paint recorded
+/// and what the scene added too.
 abstract final class GlassWork {
   /// Image filters made.
   static int filters = 0;
@@ -216,14 +218,12 @@ final class GlassFrameReport {
   }
 
   /// Whether a frame should report.
-  @internal
   static bool get listening => !kReleaseMode && _listeners.isNotEmpty;
 
   static final _pending = <GlassFrameReport Function()>[];
 
   /// Hands the frame's report to the listeners once the frame is over, when
   /// [GlassWork] holds what its scene did as well.
-  @internal
   static void deliver(GlassFrameReport Function() report) {
     _pending.add(report);
     if (_pending.length > 1) return;
@@ -241,7 +241,6 @@ final class GlassFrameReport {
 
   /// Describes a [read] of the frame's plan, or of the last one where that
   /// [stands].
-  @internal
   static GlassReadReport readOf(Read read, {required bool stands}) =>
       GlassReadReport(
         source: switch (read.source) {

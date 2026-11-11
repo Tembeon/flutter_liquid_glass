@@ -10,6 +10,13 @@
 /// `LiquidGlassBackdropFrost` says how a backdrop filter is frosted and
 /// `FrostBandPaint` what a scroll edge paints over its frost.
 ///
+/// For a renderer, `compile` takes a `Scenery` (the frame's sites, each a
+/// `SiteFacts` holding the `SiteAsk` its glass made) with the `Ledger` kept
+/// between frames, the `Prices` and the `Policy`, and returns the `Plan`: a
+/// `Fate` for every site and the frame's `Read`s, each with the
+/// `ReadGeometry` of its copy on a `Lattice`. `GlassWork` counts what the
+/// renderer did beyond the plan for the frame's report.
+///
 /// For those who develop the renderer, and for an app that holds its glass
 /// to a budget.
 ///
@@ -18,6 +25,58 @@
 library;
 
 export 'src/composer/backdrop_frost.dart' show LiquidGlassBackdropFrost;
-export 'src/composer/band_look.dart' show FrostBandPaint;
+export 'src/composer/band_look.dart' show BandLook, FrostBandPaint;
 export 'src/composer/frame_report.dart'
-    show GlassFrameReport, GlassReadReport, GlassReadSource, debugDumpGlassPlan;
+    show
+        GlassFrameReport,
+        GlassReadReport,
+        GlassReadSource,
+        GlassWork,
+        debugDumpGlassPlan;
+export 'src/composer/geometry.dart'
+    show
+        CopyNeed,
+        ImpellerLayers,
+        Lattice,
+        ReadGeometry,
+        ceilPixels,
+        frostLatticeWidest,
+        frostSquareWidest;
+export 'src/composer/geometry_renderer_limits.dart'
+    show geometryMaxShapesPerDraw;
+export 'src/composer/plan.dart'
+    show
+        BandRole,
+        ComputedShape,
+        DirtyLog,
+        Fate,
+        Follows,
+        GeometryKind,
+        GlassBody,
+        GlassRole,
+        Hidden,
+        ImageRead,
+        Leads,
+        Ledger,
+        LedgerEdits,
+        LiveRead,
+        Look,
+        NoJoin,
+        OwnAtlas,
+        PageFilter,
+        Plan,
+        Policy,
+        Prices,
+        Read,
+        ReadLimit,
+        ReadMemo,
+        ReadSource,
+        SceneRead,
+        Scenery,
+        SharedAtlas,
+        SiteAsk,
+        SiteFacts,
+        SiteRole,
+        StateChain,
+        compile,
+        geometryKindOf;

@@ -78,7 +78,6 @@ double _frostResidual(double sigma, {required int share}) {
 double _floorPixels(double pixels) => (pixels + 1e-6).floorToDouble();
 
 /// The whole pixels above [pixels], as [_floorPixels] rounds.
-@internal
 double ceilPixels(double pixels) => (pixels - 1e-6).ceilToDouble();
 
 /// Whether [outer] holds all of [inner].
@@ -96,7 +95,6 @@ bool encloses(Rect outer, Rect inner) =>
 /// A site states the most a copy may be reduced for it; the read joining
 /// sites takes the least of their shares, and its [ReadGeometry] decides the
 /// copy's grid.
-@internal
 @immutable
 final class CopyNeed {
   /// A need of [share] device pixels a copy pixel, frosted by [frost]; by
@@ -207,7 +205,6 @@ final class CopyNeed {
 ///
 /// Equal lattices draw the same pixels for the same content, which is what
 /// an image, a held layer or a filter keyed by one needs to stay valid.
-@internal
 @immutable
 final class Lattice {
   /// The grid of [share] device pixels a pixel at [devicePixelRatio].
@@ -332,7 +329,6 @@ final class Lattice {
 /// it cuts the layer to the clip, and starts fragment coordinates at the cut,
 /// only once the part it cuts off either axis is 30 % or more of what is left
 /// (ComputeSaveLayerCoverage, impeller/entity/save_layer_utils.cc).
-@internal
 abstract final class ImpellerLayers {
   /// Whether Impeller draws a layer of [layer] whole inside a clip of
   /// [clip], both in the same space.
@@ -452,12 +448,10 @@ double _bakedFrost({
 /// The widest frost, in a copy's pixels squared, eight pairs of them hold:
 /// what a copy picked for its frost spans ([CopyNeed]). A copy finer than was
 /// asked, such as one that holds glass, leaves a wider frost to sparse taps.
-@internal
 const double frostLatticeWidest = 11.87;
 
 /// The widest frost, in a copy's pixels squared, three pairs hold: one pass
 /// of nine reads draws it. A wider one is a pass an axis.
-@internal
 const double frostSquareWidest = 1.5235;
 
 /// How many filtered layers frost a copy in place by a sigma of
@@ -474,7 +468,6 @@ int frostLayersOf(double inCopyPixels) {
 /// and with which frost, in the frame and inside the copies that hold it.
 /// Compile resolves it, the ledger compares it, emit lays it out and sites
 /// read it; nothing decides any of it again.
-@internal
 @immutable
 final class ReadGeometry {
   const ReadGeometry._({

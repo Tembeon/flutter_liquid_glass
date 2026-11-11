@@ -4,7 +4,6 @@ import 'package:meta/meta.dart';
 
 /// How a scroll edge looks where it lies this frame, which glass over it
 /// draws in its own filter.
-@internal
 @immutable
 final class BandLook {
   /// Creates the look.
