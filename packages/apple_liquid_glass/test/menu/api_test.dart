@@ -275,7 +275,7 @@ void main() {
     });
 
     test('rich1: header, selection column, gaps, subtitle row', () {
-      final layout = MenuLayout.build(_rich1);
+      final layout = MenuLayout.build(menuSpecs(_rich1));
       expect(_element(layout, 'Sort by').top, 0);
       final tops = {
         'Name': 38.33,
@@ -326,7 +326,7 @@ void main() {
     });
 
     test('rich2: palette, small and medium cells, inline header', () {
-      final layout = MenuLayout.build(_rich2);
+      final layout = MenuLayout.build(menuSpecs(_rich2));
       final palette = layout.elements
           .where((MenuPlaced e) => e.kind == MenuPlacedKind.palette)
           .toList();
@@ -380,8 +380,8 @@ void main() {
 
     test('a submenu card: header 62, rows after the inset', () {
       final layout = MenuLayout.build(
-        (_sub[2] as GlassSubmenu).children,
-        header: _sub[2] as GlassSubmenu,
+        menuSpecs((_sub[2] as GlassSubmenu).children),
+        header: menuRowSpec(_sub[2]),
       );
       expect(_element(layout, 'More').height, 62);
       expect(_element(layout, 'Sub one').top, 72);
@@ -395,10 +395,12 @@ void main() {
     });
 
     test('a loading deferred group is one 42 pt row', () {
-      final layout = MenuLayout.build([
-        const GlassMenuItem(title: 'Copy', icon: Icon(IconData(1))),
-        GlassMenuDeferred(() async => const []),
-      ], resolve: (GlassMenuDeferred deferred) => null);
+      final layout = MenuLayout.build(
+        menuSpecs([
+          const GlassMenuItem(title: 'Copy', icon: Icon(IconData(1))),
+          GlassMenuDeferred(() async => const []),
+        ], resolve: (GlassMenuDeferred deferred) => null),
+      );
       expect(layout.loading, isTrue);
       expect(layout.height, 104);
       final loading = layout.elements.last;
@@ -408,7 +410,7 @@ void main() {
     });
 
     test('an upward menu reverses groups and rows, a fixed order does not', () {
-      final up = MenuLayout.build(_rich1, reversed: true);
+      final up = MenuLayout.build(menuSpecs(_rich1), reversed: true);
       expect(_element(up, 'Delete').top, lessThan(_element(up, 'Name').top));
       expect(_element(up, 'Sort by').top, lessThan(_element(up, 'Size').top));
       final content = MenuContent(onChanged: ({required bool animate}) {});
@@ -422,7 +424,7 @@ void main() {
     });
 
     test('right to left mirrors the cells', () {
-      final layout = MenuLayout.build(_rich2, rtl: true);
+      final layout = MenuLayout.build(menuSpecs(_rich2), rtl: true);
       final palette = layout.elements
           .where((MenuPlaced e) => e.kind == MenuPlacedKind.palette)
           .toList();

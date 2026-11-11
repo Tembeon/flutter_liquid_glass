@@ -18,7 +18,6 @@
 2:through-library         lib/src/liquid/liquid.dart                  10
 2:through-library         lib/src/liquid/scroll_edge.dart             1
 2:through-library         lib/src/motions/menu_fusion.dart            2
-2:through-library         lib/src/motions/menu_layout.dart            1
 2:through-library         lib/src/motions/menu_outline_math.dart      2
 2:through-library         lib/src/motions/touch_glow.dart             1
 2:through-library         lib/src/navigation/bar.dart                 8
@@ -46,7 +45,6 @@
 2:through-library         lib/src/surfaces/follow_frame.dart          1
 3:not-allowed             lib/src/controls/button.dart                2
 3:not-allowed             lib/src/controls/search_field.dart          1
-3:not-allowed             lib/src/motions/menu_layout.dart            1
 3:not-allowed             lib/src/raw/button.dart                     1
 3:not-allowed             lib/src/raw/search_field.dart               2
 4:forbidden               lib/src/controls/date_picker.dart           1

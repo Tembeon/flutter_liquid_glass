@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:apple_liquid_glass/src/presentations/menu_entries.dart';
+import 'package:meta/meta.dart';
 
 /// The measured layout of the inside of an iOS 27 menu.
 ///
@@ -173,7 +173,7 @@ class MenuMetrics {
   /// The height of a submenu card's header.
   final double cardHeaderHeight;
 
-  /// The inset of a [GlassMenuWidget] row from the menu's sides; morph's
+  /// The inset of a free-form row from the menu's sides; morph's
   /// own (no native element).
   final double widgetInset;
 
@@ -182,6 +182,130 @@ class MenuMetrics {
 
   /// The measured iOS 27 menu.
   static const standard = MenuMetrics();
+}
+
+/// How the elements of a group of a menu are laid out.
+enum MenuSpecSize {
+  /// Full-width rows.
+  rows,
+
+  /// Small cells, four to a row.
+  small,
+
+  /// Medium cells, three to a row.
+  medium,
+
+  /// One row of palette cells.
+  palette,
+}
+
+/// What the layout of a menu reads of one of its entries: its kind, its
+/// size and whether it has an icon, with no widget.
+///
+/// The presenter builds the specs from its entries and keeps each entry in
+/// [entry], which the layout hands back on the elements and targets it
+/// places for it without reading it.
+@immutable
+sealed class MenuSpec {
+  const MenuSpec({this.entry});
+
+  /// The presenter's entry behind the spec, opaque to the layout.
+  final Object? entry;
+}
+
+/// An item or a submenu: a row, or a cell in a group of cells.
+final class MenuRowSpec extends MenuSpec {
+  /// Describes a row titled [title].
+  const MenuRowSpec({
+    required this.title,
+    this.subtitle,
+    this.hasIcon = false,
+    this.enabled = true,
+    this.keepsOpen = false,
+    this.marked = false,
+    this.submenu = false,
+    super.entry,
+  });
+
+  /// The title, measured when it may wrap.
+  final String title;
+
+  /// The line under the title, or null; a row with one is taller.
+  final String? subtitle;
+
+  /// Whether the row shows an icon, which opens the icon column.
+  final bool hasIcon;
+
+  /// Whether choosing the row does anything; a disabled row is no target.
+  final bool enabled;
+
+  /// Whether the menu stays open after the row's action.
+  final bool keepsOpen;
+
+  /// Whether the row shows a selection mark, which opens the selection
+  /// column.
+  final bool marked;
+
+  /// Whether the row opens a submenu card.
+  final bool submenu;
+}
+
+/// A free-form row of the presenter's own.
+final class MenuWidgetSpec extends MenuSpec {
+  /// Describes a free-form row [height] high, or as high as measured under
+  /// [key] when null.
+  const MenuWidgetSpec({this.height, this.key, super.entry});
+
+  /// The row's height, or null for its measured one.
+  final double? height;
+
+  /// The identity of the row's measured height, or null for its place
+  /// among the free-form rows.
+  final Object? key;
+}
+
+/// The line between two groups of a list.
+final class MenuDividerSpec extends MenuSpec {
+  /// Describes a divider.
+  const MenuDividerSpec({super.entry});
+}
+
+/// A row that stands for a group still loading.
+final class MenuLoadingSpec extends MenuSpec {
+  /// Describes a loading row titled [title].
+  const MenuLoadingSpec(this.title, {super.entry});
+
+  /// The row's title.
+  final String title;
+}
+
+/// A group of its own, with an optional header.
+final class MenuSectionSpec extends MenuSpec {
+  /// Describes a section of [children].
+  const MenuSectionSpec({
+    required this.children,
+    this.title,
+    this.singleSelection = false,
+    this.size = MenuSpecSize.rows,
+    this.maxTitleLines,
+    super.entry,
+  });
+
+  /// The section's entries.
+  final List<MenuSpec> children;
+
+  /// The header, or null for none.
+  final String? title;
+
+  /// Whether the section is a single choice, which opens the selection
+  /// column.
+  final bool singleSelection;
+
+  /// How the section's entries are laid out.
+  final MenuSpecSize size;
+
+  /// The most lines a row title wraps to, or null for one.
+  final int? maxTitleLines;
 }
 
 /// What choosing a [MenuTarget] does.
@@ -216,8 +340,8 @@ class MenuTarget {
   /// Whether the menu stays open after the target's action.
   final bool keepsOpen;
 
-  /// The entry behind the target.
-  final GlassMenuEntry? entry;
+  /// The entry behind the target ([MenuSpec.entry]).
+  final Object? entry;
 
   /// The index of the element the target belongs to in
   /// [MenuLayout.elements], or -1.
@@ -277,8 +401,8 @@ class MenuPlaced {
   /// The frame, in the coordinates of its card's content.
   final Rect rect;
 
-  /// The entry drawn, if any.
-  final GlassMenuEntry? entry;
+  /// The entry drawn ([MenuSpec.entry]), if any.
+  final Object? entry;
 
   /// The text of a header or a loading row.
   final String? title;
@@ -345,24 +469,22 @@ class MenuLayout {
     );
   }
 
-  /// Lays out [entries] as the iOS 27 menu does.
+  /// Lays out [specs] as the iOS 27 menu does.
   ///
-  /// [header] makes it a submenu card under that submenu's header.
-  /// [resolve] answers a deferred group, null while it loads;
-  /// [widgetHeight] answers the height of a free-form row (keyed by its
-  /// id or its place); [titleLines] answers how many lines a title takes
-  /// when it may wrap to more than one. [reversed] reverses the groups
-  /// and the rows inside them, for a menu opening upward; [rtl] mirrors
-  /// the frames.
+  /// [header] makes it a submenu card under that submenu's header; [size]
+  /// lays out the entries outside sections. [widgetHeight] answers the
+  /// height of a free-form row (keyed by its key or its place);
+  /// [titleLines] answers how many lines a title takes when it may wrap to
+  /// more than one. [reversed] reverses the groups and the rows inside
+  /// them, for a menu opening upward; [rtl] mirrors the frames.
   factory MenuLayout.build(
-    List<GlassMenuEntry> entries, {
+    List<MenuSpec> specs, {
     MenuMetrics metrics = MenuMetrics.standard,
     bool reversed = false,
     bool rtl = false,
     bool singleSelection = false,
-    GlassMenuElementSize elementSize = GlassMenuElementSize.large,
-    GlassSubmenu? header,
-    List<GlassMenuEntry>? Function(GlassMenuDeferred deferred)? resolve,
+    MenuSpecSize size = MenuSpecSize.rows,
+    MenuRowSpec? header,
     double? Function(Object key)? widgetHeight,
     int Function(String title, double width, int maxLines)? titleLines,
   }) {
@@ -370,15 +492,6 @@ class MenuLayout {
     var loading = false;
     _Group? open;
     var widgetIndex = 0;
-    _Kind kindOf(GlassMenuElementSize size, {required bool palette}) => palette
-        ? _Kind.palette
-        : switch (size) {
-            GlassMenuElementSize.small => _Kind.small,
-            GlassMenuElementSize.medium => _Kind.medium,
-            GlassMenuElementSize.large ||
-            GlassMenuElementSize.automatic => _Kind.rows,
-          };
-    final rootKind = kindOf(elementSize, palette: false);
     void flush() {
       final group = open;
       if (group != null && group.items.isNotEmpty) groups.add(group);
@@ -386,53 +499,38 @@ class MenuLayout {
     }
 
     void add(
-      List<GlassMenuEntry> list,
-      _Kind kind,
+      List<MenuSpec> list,
+      MenuSpecSize kind,
       int maxLines, {
       required bool section,
     }) {
-      for (final entry in list) {
-        switch (entry) {
-          case GlassMenuItem(:final hidden) when hidden:
-          case GlassSubmenu(:final hidden) when hidden:
-            break;
-          case GlassMenuItem() || GlassSubmenu():
-            (open ??= _Group(kind, maxLines)).items.add(entry);
-          case GlassMenuWidget():
+      for (final spec in list) {
+        switch (spec) {
+          case MenuRowSpec():
+            (open ??= _Group(kind, maxLines)).items.add(spec);
+          case MenuWidgetSpec():
             (open ??= _Group(
               kind,
               maxLines,
-            )).items.add(_WidgetSlot(entry, entry.id ?? widgetIndex));
+            )).items.add(_WidgetSlot(spec, spec.key ?? widgetIndex));
             widgetIndex++;
-          case GlassMenuDivider():
+          case MenuDividerSpec():
             if (!section) flush();
-          case GlassMenuDeferred():
-            final answer = resolve?.call(entry);
-            if (answer == null) {
-              loading = true;
-              (open ??= _Group(
-                kind,
-                maxLines,
-              )).items.add(_LoadingSlot(entry.loadingTitle));
-            } else {
-              add(answer, kind, maxLines, section: section);
-            }
-          case GlassMenuSection():
+          case MenuLoadingSpec():
+            loading = true;
+            (open ??= _Group(kind, maxLines)).items.add(spec);
+          case MenuSectionSpec():
             flush();
-            final sectionKind = kindOf(
-              entry.elementSize,
-              palette: entry.palette,
-            );
             open = _Group(
-              sectionKind,
-              entry.maxTitleLines ?? 1,
-              header: entry.title,
-              singleSelection: entry.singleSelection,
+              spec.size,
+              spec.maxTitleLines ?? 1,
+              header: spec.title,
+              singleSelection: spec.singleSelection,
             );
             add(
-              entry.children,
-              sectionKind,
-              entry.maxTitleLines ?? 1,
+              spec.children,
+              spec.size,
+              spec.maxTitleLines ?? 1,
               section: true,
             );
             flush();
@@ -440,12 +538,12 @@ class MenuLayout {
       }
     }
 
-    add(entries, rootKind, 1, section: false);
+    add(specs, size, 1, section: false);
     flush();
     if (reversed) {
       groups.setAll(0, groups.reversed.toList());
       for (final group in groups) {
-        if (group.kind == _Kind.rows) {
+        if (group.kind == MenuSpecSize.rows) {
           group.items.setAll(0, group.items.reversed.toList());
         }
       }
@@ -454,19 +552,15 @@ class MenuLayout {
     var selection = singleSelection;
     for (final group in groups) {
       if (group.singleSelection) selection = true;
-      if (group.kind != _Kind.rows) continue;
+      if (group.kind != MenuSpecSize.rows) continue;
       for (final item in group.items) {
-        if (item is GlassMenuItem && item.state != GlassMenuItemState.off) {
-          selection = true;
-        }
+        if (item is MenuRowSpec && item.marked) selection = true;
       }
     }
     bool imagesOf(_Group group) => group.items.any(
       (Object item) => switch (item) {
-        GlassMenuItem(:final icon, :final iconVisibility) =>
-          icon != null && iconVisibility != .hidden,
-        GlassSubmenu(:final icon) => icon != null,
-        _LoadingSlot() => true,
+        MenuRowSpec(:final hasIcon) => hasIcon,
+        MenuLoadingSpec() => true,
         _ => false,
       },
     );
@@ -485,7 +579,7 @@ class MenuLayout {
       required Rect rect,
       MenuTargetKind? kind,
       bool keepsOpen = false,
-      GlassMenuEntry? entry,
+      Object? entry,
     }) {
       final index = elements.length;
       var target = -1;
@@ -511,30 +605,30 @@ class MenuLayout {
         (int target) => MenuPlaced(
           kind: MenuPlacedKind.cardHeader,
           rect: mirror(rect),
-          entry: header,
+          entry: header.entry,
           title: header.title,
-          imageCenter: header.icon == null ? null : m.imageCenter,
-          titleStart: header.icon == null ? m.plainTitleStart : m.titleStart,
+          imageCenter: header.hasIcon ? m.imageCenter : null,
+          titleStart: header.hasIcon ? m.titleStart : m.plainTitleStart,
           titleEnd: m.titleEnd,
           target: target,
         ),
         kind: MenuTargetKind.back,
-        entry: header,
+        entry: header.entry,
         rect: rect,
       );
       y = m.cardHeaderHeight;
     }
-    _Kind? previous;
+    MenuSpecSize? previous;
     for (final group in groups) {
       if (previous == null) {
         if (group.header == null) y += m.topInset;
       } else {
         final gap = switch (previous) {
-          _Kind.rows => m.groupGap,
-          _Kind.small || _Kind.medium => m.cellGroupGap,
-          _Kind.palette => 0.0,
+          MenuSpecSize.rows => m.groupGap,
+          MenuSpecSize.small || MenuSpecSize.medium => m.cellGroupGap,
+          MenuSpecSize.palette => 0.0,
         };
-        if (previous != _Kind.palette) {
+        if (previous != MenuSpecSize.palette) {
           final line = y + gap / 2;
           elements.add(
             MenuPlaced(
@@ -561,10 +655,12 @@ class MenuLayout {
             titleEnd: m.titleEnd,
           ),
         );
-        y += group.kind == _Kind.rows ? m.rowsAfterHeader : m.cellsAfterHeader;
+        y += group.kind == MenuSpecSize.rows
+            ? m.rowsAfterHeader
+            : m.cellsAfterHeader;
       }
       switch (group.kind) {
-        case _Kind.rows:
+        case MenuSpecSize.rows:
           final images = imagesOf(group);
           final image = images
               ? (selection ? m.selectionImageCenter : m.imageCenter)
@@ -577,9 +673,9 @@ class MenuLayout {
           };
           for (final item in group.items) {
             switch (item) {
-              case GlassMenuItem():
+              case MenuRowSpec():
                 var lines = 1;
-                if (group.maxLines > 1 && titleLines != null) {
+                if (!item.submenu && group.maxLines > 1 && titleLines != null) {
                   lines = math.min(
                     group.maxLines,
                     titleLines(
@@ -599,56 +695,39 @@ class MenuLayout {
                   (int target) => MenuPlaced(
                     kind: MenuPlacedKind.row,
                     rect: mirror(rect),
-                    entry: item,
+                    entry: item.entry,
                     checkCenter: check,
                     imageCenter: image,
                     titleStart: titleStart,
                     titleEnd: m.titleEnd,
-                    maxLines: group.maxLines,
+                    maxLines: item.submenu ? 1 : group.maxLines,
                     target: target,
                   ),
-                  kind: item.enabled ? MenuTargetKind.action : null,
-                  keepsOpen: item.keepsMenuOpen,
-                  entry: item,
+                  kind: !item.enabled
+                      ? null
+                      : item.submenu
+                      ? MenuTargetKind.submenu
+                      : MenuTargetKind.action,
+                  keepsOpen: item.keepsOpen,
+                  entry: item.entry,
                   rect: rect,
                 );
                 y += height;
-              case GlassSubmenu():
-                final height = item.subtitle == null
-                    ? m.rowHeight
-                    : m.subtitleRowHeight;
-                final rect = Rect.fromLTWH(0, y, width, height);
-                place(
-                  (int target) => MenuPlaced(
-                    kind: MenuPlacedKind.row,
-                    rect: mirror(rect),
-                    entry: item,
-                    checkCenter: check,
-                    imageCenter: image,
-                    titleStart: titleStart,
-                    titleEnd: m.titleEnd,
-                    target: target,
-                  ),
-                  kind: item.enabled ? MenuTargetKind.submenu : null,
-                  entry: item,
-                  rect: rect,
-                );
-                y += height;
-              case _WidgetSlot(:final widget, :final key):
+              case _WidgetSlot(:final spec, :final key):
                 final height =
-                    widget.height ?? widgetHeight?.call(key) ?? m.rowHeight;
+                    spec.height ?? widgetHeight?.call(key) ?? m.rowHeight;
                 elements.add(
                   MenuPlaced(
                     kind: MenuPlacedKind.widget,
                     rect: mirror(Rect.fromLTWH(0, y, width, height)),
-                    entry: widget,
+                    entry: spec.entry,
                     titleStart: m.widgetInset,
                     titleEnd: width - m.widgetInset,
                     key: key,
                   ),
                 );
                 y += height;
-              case _LoadingSlot(:final title):
+              case MenuLoadingSpec(:final title):
                 elements.add(
                   MenuPlaced(
                     kind: MenuPlacedKind.loading,
@@ -663,8 +742,8 @@ class MenuLayout {
                 y += m.rowHeight;
             }
           }
-        case _Kind.palette:
-          final cells = group.items.whereType<GlassMenuEntry>().toList();
+        case MenuSpecSize.palette:
+          final cells = group.items.whereType<MenuRowSpec>().toList();
           final n = math.max(1, cells.length);
           final cell = math.min(
             m.paletteMaxCellWidth,
@@ -677,11 +756,11 @@ class MenuLayout {
             x += cell;
           }
           y += m.paletteCellHeight;
-        case _Kind.small || _Kind.medium:
-          final small = group.kind == _Kind.small;
+        case MenuSpecSize.small || MenuSpecSize.medium:
+          final small = group.kind == MenuSpecSize.small;
           final perRow = small ? m.smallPerRow : m.mediumPerRow;
           final height = small ? m.smallCellHeight : m.mediumCellHeight;
-          final cells = group.items.whereType<GlassMenuEntry>().toList();
+          final cells = group.items.whereType<MenuRowSpec>().toList();
           final cell = (width - 2 * m.cellInset) / perRow;
           for (var i = 0; i < cells.length; i++) {
             final column = i % perRow;
@@ -745,47 +824,36 @@ void _placeCell(
     required Rect rect,
     MenuTargetKind? kind,
     bool keepsOpen,
-    GlassMenuEntry? entry,
+    Object? entry,
   })
   place,
-  GlassMenuEntry entry,
+  MenuRowSpec spec,
   Rect rect,
   Rect Function(Rect) mirror,
   MenuPlacedKind kind,
 ) {
-  final (enabled, targetKind, keepsOpen) = switch (entry) {
-    GlassMenuItem(:final enabled, :final keepsMenuOpen) => (
-      enabled,
-      MenuTargetKind.action,
-      keepsMenuOpen,
-    ),
-    GlassSubmenu(:final enabled) => (
-      enabled,
-      MenuTargetKind.submenu,
-      false,
-    ),
-    _ => (false, MenuTargetKind.action, false),
-  };
   place(
     (int target) => MenuPlaced(
       kind: kind,
       rect: mirror(rect),
-      entry: entry,
+      entry: spec.entry,
       target: target,
     ),
-    kind: enabled ? targetKind : null,
-    keepsOpen: keepsOpen,
-    entry: entry,
+    kind: !spec.enabled
+        ? null
+        : spec.submenu
+        ? MenuTargetKind.submenu
+        : MenuTargetKind.action,
+    keepsOpen: spec.keepsOpen,
+    entry: spec.entry,
     rect: rect,
   );
 }
 
-enum _Kind { rows, palette, small, medium }
-
 class _Group {
   _Group(this.kind, this.maxLines, {this.header, this.singleSelection = false});
 
-  final _Kind kind;
+  final MenuSpecSize kind;
   final int maxLines;
   final String? header;
   final bool singleSelection;
@@ -793,14 +861,8 @@ class _Group {
 }
 
 class _WidgetSlot {
-  const _WidgetSlot(this.widget, this.key);
+  const _WidgetSlot(this.spec, this.key);
 
-  final GlassMenuWidget widget;
+  final MenuWidgetSpec spec;
   final Object key;
-}
-
-class _LoadingSlot {
-  const _LoadingSlot(this.title);
-
-  final String title;
 }

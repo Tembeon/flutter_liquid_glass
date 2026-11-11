@@ -58,11 +58,10 @@ class MenuContent {
   /// The root list, reversed for a menu that opens upward unless the
   /// order is fixed.
   MenuLayout root({required bool reversed}) => MenuLayout.build(
-    entries,
+    menuSpecs(entries, resolve: _resolve),
     metrics: metrics,
     reversed: reversed && order != GlassMenuOrder.fixed,
     rtl: rtl,
-    resolve: _resolve,
     widgetHeight: (Object key) => _heights[key],
     titleLines: _lines,
   );
@@ -72,13 +71,12 @@ class MenuContent {
     final entry = target.entry;
     if (entry is! GlassSubmenu) return null;
     return MenuLayout.build(
-      entry.children,
+      menuSpecs(entry.children, resolve: _resolve),
       metrics: metrics,
       rtl: rtl,
-      header: entry,
+      header: menuRowSpec(entry),
       singleSelection: entry.singleSelection,
-      elementSize: entry.elementSize,
-      resolve: _resolve,
+      size: menuSpecSize(entry.elementSize),
       widgetHeight: (Object key) => _heights[key],
       titleLines: _lines,
     );
@@ -157,3 +155,73 @@ class MenuContent {
     return null;
   }
 }
+
+/// The specs the menu's layout reads of [entries]: hidden entries left
+/// out, a deferred group spliced in as [resolve] answers it, or a loading
+/// row while it answers null.
+@internal
+List<MenuSpec> menuSpecs(
+  List<GlassMenuEntry> entries, {
+  List<GlassMenuEntry>? Function(GlassMenuDeferred deferred)? resolve,
+}) => [
+  for (final entry in entries)
+    ...switch (entry) {
+      GlassMenuItem(:final hidden) ||
+      GlassSubmenu(:final hidden) when hidden => const <MenuSpec>[],
+      GlassMenuItem() || GlassSubmenu() => [menuRowSpec(entry)],
+      GlassMenuWidget(:final height, :final id) => [
+        MenuWidgetSpec(height: height, key: id, entry: entry),
+      ],
+      GlassMenuDivider() => [MenuDividerSpec(entry: entry)],
+      GlassMenuDeferred(:final loadingTitle) => switch (resolve?.call(entry)) {
+        final answer? => menuSpecs(answer, resolve: resolve),
+        null => [MenuLoadingSpec(loadingTitle, entry: entry)],
+      },
+      GlassMenuSection() => [
+        MenuSectionSpec(
+          children: menuSpecs(entry.children, resolve: resolve),
+          title: entry.title,
+          singleSelection: entry.singleSelection,
+          size: entry.palette
+              ? MenuSpecSize.palette
+              : menuSpecSize(entry.elementSize),
+          maxTitleLines: entry.maxTitleLines,
+          entry: entry,
+        ),
+      ],
+    },
+];
+
+/// The spec of an item or a submenu.
+@internal
+MenuRowSpec menuRowSpec(GlassMenuEntry entry) => switch (entry) {
+  GlassSubmenu() => MenuRowSpec(
+    title: entry.title,
+    subtitle: entry.subtitle,
+    hasIcon: entry.icon != null,
+    enabled: entry.enabled,
+    submenu: true,
+    entry: entry,
+  ),
+  GlassMenuItem() => MenuRowSpec(
+    title: entry.title,
+    subtitle: entry.subtitle,
+    hasIcon:
+        entry.icon != null &&
+        entry.iconVisibility != GlassMenuIconVisibility.hidden,
+    enabled: entry.enabled,
+    keepsOpen: entry.keepsMenuOpen,
+    marked: entry.state != GlassMenuItemState.off,
+    entry: entry,
+  ),
+  _ => MenuRowSpec(title: '', enabled: false, entry: entry),
+};
+
+/// How the layout places entries of [size].
+@internal
+MenuSpecSize menuSpecSize(GlassMenuElementSize size) => switch (size) {
+  GlassMenuElementSize.small => MenuSpecSize.small,
+  GlassMenuElementSize.medium => MenuSpecSize.medium,
+  GlassMenuElementSize.large ||
+  GlassMenuElementSize.automatic => MenuSpecSize.rows,
+};
