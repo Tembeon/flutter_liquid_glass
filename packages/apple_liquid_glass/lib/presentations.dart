@@ -16,6 +16,13 @@ export 'src/presentations/alert.dart'
         GlassAlertStyle,
         showGlassActionSheet,
         showGlassAlert;
+export 'src/presentations/date_picker.dart'
+    show
+        GlassDatePicker,
+        GlassDatePickerLocalizations,
+        GlassDatePickerMode,
+        GlassDatePickerStyle,
+        GlassDatePickerVariant;
 export 'src/presentations/menu_anchor.dart'
     show
         GlassContextMenu,

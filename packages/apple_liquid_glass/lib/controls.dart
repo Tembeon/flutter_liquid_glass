@@ -16,13 +16,6 @@ library;
 export 'src/controls/badge.dart' show GlassBadge, GlassBadgeStyle;
 export 'src/controls/button.dart'
     show GlassButton, GlassButtonStyle, GlassProminentButtonStyle;
-export 'src/controls/date_picker.dart'
-    show
-        GlassDatePicker,
-        GlassDatePickerLocalizations,
-        GlassDatePickerMode,
-        GlassDatePickerStyle,
-        GlassDatePickerVariant;
 export 'src/controls/list.dart'
     show
         GlassListAccessory,
