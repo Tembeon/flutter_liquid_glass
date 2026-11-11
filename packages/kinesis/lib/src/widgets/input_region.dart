@@ -60,7 +60,15 @@ class InputRegion extends StatefulWidget {
   /// Whether the region takes input; disabling it ends a touch.
   final bool enabled;
 
-  /// The cursor over the region.
+  /// The cursor over the region, or null for the default.
+  ///
+  /// A `WidgetStateMouseCursor` is resolved against the region's states:
+  /// [statesController]'s value when there is one, else the states the
+  /// region writes (pressed, hovered, focused, dragged, disabled). The
+  /// default is `WidgetStateMouseCursor.adaptiveClickable` when an
+  /// interaction [Interaction.activates] (a click cursor on the web, the
+  /// basic one elsewhere and while disabled), `MouseCursor.defer`
+  /// otherwise, which leaves the cursor to what lies under the region.
   final MouseCursor? mouseCursor;
 
   /// The region's focus node, or null for its own.
@@ -82,6 +90,8 @@ class InputRegion extends StatefulWidget {
 class _InputRegionState extends State<InputRegion> {
   late InteractionSession _session = InteractionSession(widget.interactions);
   FocusNode? _ownFocus;
+  WidgetStatesController? _ownStates;
+  MouseCursor? _builtCursor;
   double? _scheduled;
   VoidCallback? _cancelDue;
   final Map<int, VelocityTracker> _trackers = {};
@@ -96,10 +106,14 @@ class _InputRegionState extends State<InputRegion> {
 
   _RenderListener? _box;
 
+  WidgetStatesController get _states =>
+      widget.statesController ?? (_ownStates ??= WidgetStatesController());
+
   @override
   void initState() {
     super.initState();
-    widget.statesController?.update(WidgetState.disabled, !widget.enabled);
+    _states.update(WidgetState.disabled, !widget.enabled);
+    _states.addListener(_statesChanged);
     _bindForwards();
     _attachPort(widget.port);
   }
@@ -119,7 +133,17 @@ class _InputRegionState extends State<InputRegion> {
       oldWidget.port?.detach(_receive);
       _attachPort(widget.port);
     }
-    widget.statesController?.update(WidgetState.disabled, !widget.enabled);
+    if (oldWidget.statesController != widget.statesController) {
+      (oldWidget.statesController ?? _ownStates)?.removeListener(
+        _statesChanged,
+      );
+      if (widget.statesController != null) {
+        _ownStates?.dispose();
+        _ownStates = null;
+      }
+      _states.addListener(_statesChanged);
+    }
+    _states.update(WidgetState.disabled, !widget.enabled);
   }
 
   @override
@@ -127,8 +151,25 @@ class _InputRegionState extends State<InputRegion> {
     widget.port?.detach(_receive);
     _cancelAll(PointerCancelReason.platform);
     _cancelDue?.call();
+    _states.removeListener(_statesChanged);
+    _ownStates?.dispose();
     _ownFocus?.dispose();
     super.dispose();
+  }
+
+  MouseCursor get _cursor => WidgetStateProperty.resolveAs<MouseCursor>(
+    widget.mouseCursor ??
+        (_activates
+            ? WidgetStateMouseCursor.adaptiveClickable
+            : MouseCursor.defer),
+    _states.value,
+  );
+
+  // Only a cursor that changes with the states rebuilds the region.
+  void _statesChanged() {
+    if (mounted && _builtCursor != null && _cursor != _builtCursor) {
+      setState(() {});
+    }
   }
 
   void _bindForwards() {
@@ -342,8 +383,7 @@ class _InputRegionState extends State<InputRegion> {
   }
 
   void _writeStates() {
-    final states = widget.statesController;
-    if (states == null) return;
+    final states = _states;
     var pressed = false;
     var dragged = false;
     for (final interaction in _all) {
@@ -386,9 +426,9 @@ class _InputRegionState extends State<InputRegion> {
         canRequestFocus: enabled,
         onKeyEvent: _key,
         onFocusChange: (focused) =>
-            widget.statesController?.update(WidgetState.focused, focused),
+            _states.update(WidgetState.focused, focused),
         child: MouseRegion(
-          cursor: widget.mouseCursor ?? MouseCursor.defer,
+          cursor: _builtCursor = _cursor,
           onEnter: (event) => _hover(event, inside: true),
           onHover: (event) => _hover(event, inside: true),
           onExit: (event) => _hover(event, inside: false),
@@ -399,7 +439,7 @@ class _InputRegionState extends State<InputRegion> {
   }
 
   void _hover(PointerEvent event, {required bool inside}) {
-    widget.statesController?.update(WidgetState.hovered, inside);
+    _states.update(WidgetState.hovered, inside);
     _input(
       PointerHoverInput(
         time: _clock.now,

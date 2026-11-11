@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -269,6 +270,82 @@ void main() {
     await tester.pump();
     expect(states.value, isNot(contains(WidgetState.pressed)));
     expect(states.value, isNot(contains(WidgetState.dragged)));
+  });
+
+  group('cursor', () {
+    MouseCursor? active() =>
+        RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1);
+
+    Future<TestGesture> hoverAt(WidgetTester tester, Offset at) async {
+      final gesture = await tester.createGesture(
+        kind: PointerDeviceKind.mouse,
+        pointer: 1,
+      );
+      await gesture.addPointer(location: at);
+      addTearDown(gesture.removePointer);
+      await tester.pump();
+      return gesture;
+    }
+
+    testWidgets('a state cursor resolves against the region states', (
+      tester,
+    ) async {
+      final cursor = WidgetStateMouseCursor.resolveWith(
+        (states) => states.contains(WidgetState.disabled)
+            ? SystemMouseCursors.forbidden
+            : states.contains(WidgetState.pressed)
+            ? SystemMouseCursors.grabbing
+            : states.contains(WidgetState.hovered)
+            ? SystemMouseCursors.click
+            : SystemMouseCursors.basic,
+      );
+      Widget region({required bool enabled}) => _app(
+        Center(
+          child: InputRegion(
+            interactions: [PressInteraction()],
+            enabled: enabled,
+            mouseCursor: cursor,
+            child: const SizedBox(width: 80, height: 40),
+          ),
+        ),
+      );
+      await tester.pumpWidget(region(enabled: true));
+      final center = tester.getCenter(find.byType(InputRegion));
+      final gesture = await hoverAt(tester, center);
+      expect(active(), SystemMouseCursors.click);
+      await gesture.down(center);
+      await tester.pump();
+      expect(active(), SystemMouseCursors.grabbing);
+      await gesture.up();
+      await tester.pump();
+      expect(active(), SystemMouseCursors.click);
+      await tester.pumpWidget(region(enabled: false));
+      expect(active(), SystemMouseCursors.forbidden);
+    });
+
+    testWidgets('the default is adaptive clickable for what activates and '
+        'defers otherwise', (tester) async {
+      Widget region(List<Interaction> interactions) => _app(
+        MouseRegion(
+          cursor: SystemMouseCursors.text,
+          child: Center(
+            child: InputRegion(
+              interactions: interactions,
+              child: const SizedBox(width: 80, height: 40),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpWidget(region([PressInteraction()]));
+      await hoverAt(tester, tester.getCenter(find.byType(InputRegion)));
+      expect(
+        active(),
+        WidgetStateMouseCursor.adaptiveClickable.resolve(const {}),
+      );
+      await tester.pumpWidget(region([DragInteraction()]));
+      await tester.pump();
+      expect(active(), SystemMouseCursors.text);
+    });
   });
 }
 
