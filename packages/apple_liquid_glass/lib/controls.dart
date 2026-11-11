@@ -20,12 +20,12 @@ export 'src/controls/date_picker.dart'
     show GlassDatePicker, GlassDatePickerStyle, GlassTimePicker;
 export 'src/controls/list.dart'
     show
-        GlassListAccessory,
         GlassListBackground,
         GlassListRow,
         GlassListSection,
-        GlassListStyle,
         GlassSliverListSection;
+export 'src/controls/list_accessory.dart' show GlassListAccessory;
+export 'src/controls/list_style.dart' show GlassListStyle;
 export 'src/controls/page_control.dart'
     show GlassPageControl, GlassPageControlStyle;
 export 'src/controls/search_field.dart'
