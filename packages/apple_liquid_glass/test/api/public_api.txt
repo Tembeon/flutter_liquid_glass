@@ -97,7 +97,7 @@ class DatePickerPlacement
 class DefaultGlassLocalizations extends GlassLocalizations
   const DefaultGlassLocalizations()
   static const LocalizationsDelegate<GlassLocalizations> delegate
-  overrides: actionSheetDismissLabel, alertLabel, anteMeridiemAbbreviation, backButtonLabel, clearTextLabel, closeButtonLabel, compactDate, compactDatePickerHint, compactTime, datePickerDismissLabel, dayLabel, dayPeriodLabel, decrementLabel, hideYearPickerLabel, hourLabel, incrementLabel, menuDismissLabel, menuLabel, minuteLabel, monthLabel, monthName, monthYear, moreInfoLabel, nextMonthLabel, pageValue, percentValue, popoverDismissLabel, postMeridiemAbbreviation, previousMonthLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue, showYearPickerLabel, weekdayAbbreviation, yearLabel
+  overrides: actionSheetDismissLabel, alertLabel, anteMeridiemAbbreviation, backButtonLabel, clearTextLabel, closeButtonLabel, compactDate, compactDatePickerHint, compactTime, datePickerDismissLabel, dayLabel, dayPeriodLabel, decrementLabel, hideYearPickerLabel, hourLabel, incrementLabel, loadingLabel, menuDismissLabel, menuLabel, minuteLabel, monthLabel, monthName, monthYear, moreInfoLabel, nextMonthLabel, pageValue, percentValue, popoverDismissLabel, postMeridiemAbbreviation, previousMonthLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue, showYearPickerLabel, weekdayAbbreviation, yearLabel
 final class FakeGlassRenderer extends LiquidGlassRenderer
   const FakeGlassRenderer()
   overrides: fake
@@ -1051,6 +1051,7 @@ abstract class GlassLocalizations
   String get hideYearPickerLabel
   String get hourLabel
   String get incrementLabel
+  String get loadingLabel
   String get menuDismissLabel
   String get menuLabel
   String get minuteLabel
@@ -1114,13 +1115,13 @@ class GlassMenuDeferred extends GlassMenuEntry
     Future<List<GlassMenuEntry>> Function() load, {
     bool cache = ...,
     Object? id,
-    String loadingTitle = ...,
+    String? loadingTitle,
   })
   final bool cache
   Object get cacheKey
   final Object? id
   final Future<List<GlassMenuEntry>> Function() load
-  final String loadingTitle
+  final String? loadingTitle
 class GlassMenuDivider extends GlassMenuEntry
   const GlassMenuDivider()
 enum GlassMenuElementSize

@@ -238,6 +238,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
       bottom: math.max(media.padding.bottom, media.viewInsets.bottom),
     );
     _content.rtl = Directionality.maybeOf(context) == TextDirection.rtl;
+    _content.loadingLabel = GlassLocalizations.of(context).loadingLabel;
     _content.titleStyle = resolveGlassText(_style.textStyle, context);
     _content.textScaler = MediaQuery.textScalerOf(context);
     _content.beginSession();

@@ -23,7 +23,7 @@ class _SearchCircle extends StatelessWidget {
   Widget build(BuildContext context) => Semantics(
     container: true,
     button: true,
-    label: 'Search',
+    label: GlassLocalizations.of(context).searchLabel,
     onTap: onTap,
     excludeSemantics: true,
     child: RawGlassButton(
@@ -66,7 +66,7 @@ class _SearchCircle extends StatelessWidget {
                     ),
                     maxLines: 1,
                     softWrap: false,
-                    child: const Text('Search'),
+                    child: Text(GlassLocalizations.of(context).searchLabel),
                   ),
                 ),
               ),

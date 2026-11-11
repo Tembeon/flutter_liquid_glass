@@ -28,6 +28,9 @@ class MenuContent {
   /// Whether the menu is laid out right to left.
   bool rtl = false;
 
+  /// The title of a loading row whose group gives none.
+  String loadingLabel = '';
+
   /// The style row titles are measured in when they may wrap.
   TextStyle titleStyle = const TextStyle(fontSize: 17);
 
@@ -55,7 +58,7 @@ class MenuContent {
   /// The root list, reversed for a menu that opens upward unless the
   /// order is fixed.
   MenuLayout root({required bool reversed}) => MenuLayout.build(
-    menuSpecs(entries, resolve: _resolve),
+    menuSpecs(entries, loadingLabel: loadingLabel, resolve: _resolve),
     reversed: reversed && order != GlassMenuOrder.fixed,
     rtl: rtl,
     widgetHeight: (Object key) => _heights[key],
@@ -67,7 +70,7 @@ class MenuContent {
     final entry = target.entry;
     if (entry is! GlassSubmenu) return null;
     return MenuLayout.build(
-      menuSpecs(entry.children, resolve: _resolve),
+      menuSpecs(entry.children, loadingLabel: loadingLabel, resolve: _resolve),
       rtl: rtl,
       header: menuRowSpec(entry),
       singleSelection: entry.singleSelection,
@@ -157,6 +160,7 @@ class MenuContent {
 @internal
 List<MenuSpec> menuSpecs(
   List<GlassMenuEntry> entries, {
+  required String loadingLabel,
   List<GlassMenuEntry>? Function(GlassMenuDeferred deferred)? resolve,
 }) => [
   for (final entry in entries)
@@ -169,12 +173,20 @@ List<MenuSpec> menuSpecs(
       ],
       GlassMenuDivider() => [MenuDividerSpec(entry: entry)],
       GlassMenuDeferred(:final loadingTitle) => switch (resolve?.call(entry)) {
-        final answer? => menuSpecs(answer, resolve: resolve),
-        null => [MenuLoadingSpec(loadingTitle, entry: entry)],
+        final answer? => menuSpecs(
+          answer,
+          loadingLabel: loadingLabel,
+          resolve: resolve,
+        ),
+        null => [MenuLoadingSpec(loadingTitle ?? loadingLabel, entry: entry)],
       },
       GlassMenuSection() => [
         MenuSectionSpec(
-          children: menuSpecs(entry.children, resolve: resolve),
+          children: menuSpecs(
+            entry.children,
+            loadingLabel: loadingLabel,
+            resolve: resolve,
+          ),
           title: entry.title,
           singleSelection: entry.singleSelection,
           size: entry.palette

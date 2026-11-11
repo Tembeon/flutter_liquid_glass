@@ -225,7 +225,7 @@ class GlassMenuDivider extends GlassMenuEntry {
 
 /// Entries that load when the menu opens: `UIDeferredMenuElement`.
 ///
-/// Until [load] answers the menu shows a 42 pt "Loading..." row with a
+/// Until [load] answers the menu shows a 42 pt loading row with a
 /// spinner; the answer replaces it and the menu grows on the measured
 /// resize spring.
 class GlassMenuDeferred extends GlassMenuEntry {
@@ -234,7 +234,7 @@ class GlassMenuDeferred extends GlassMenuEntry {
     this.load, {
     this.cache = true,
     this.id,
-    this.loadingTitle = 'Loading...',
+    this.loadingTitle,
   });
 
   /// Loads the entries.
@@ -250,8 +250,9 @@ class GlassMenuDeferred extends GlassMenuEntry {
   /// cached across builds.
   final Object? id;
 
-  /// The title of the loading row.
-  final String loadingTitle;
+  /// The title of the loading row; null reads
+  /// [GlassLocalizations.loadingLabel].
+  final String? loadingTitle;
 
   /// The key the answer is cached under.
   Object get cacheKey => id ?? load;

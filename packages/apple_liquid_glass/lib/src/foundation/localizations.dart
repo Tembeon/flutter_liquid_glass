@@ -71,6 +71,9 @@ abstract class GlassLocalizations {
   /// The label of a search field and of the button that opens one.
   String get searchLabel;
 
+  /// The title of the row a menu shows while a deferred group loads.
+  String get loadingLabel;
+
   /// The label of the button that clears a text field.
   String get clearTextLabel;
 
@@ -202,6 +205,9 @@ class DefaultGlassLocalizations extends GlassLocalizations {
 
   @override
   String get searchLabel => 'Search';
+
+  @override
+  String get loadingLabel => 'Loading...';
 
   @override
   String get clearTextLabel => 'Clear text';
