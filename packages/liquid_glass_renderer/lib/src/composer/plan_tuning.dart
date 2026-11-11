@@ -96,7 +96,6 @@ final class PlanPolicy {
   final int maxShapes;
 
   /// Targets a frame may issue before reads move to images. Counted as
-  /// [GlassRead.targets] counts them, a frosted read is two or three: 24 is
-  /// where 8 stood while a read counted as one.
+  /// [GlassRead.targets] counts them: a frosted read is two or three.
   final int maxTargets;
 }
