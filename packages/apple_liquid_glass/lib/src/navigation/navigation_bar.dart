@@ -6,7 +6,7 @@ import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/navigation/bar.dart';
 import 'package:apple_liquid_glass/src/navigation/bar_entry.dart';
 import 'package:apple_liquid_glass/src/navigation/chrome.dart';
-import 'package:apple_liquid_glass/src/navigation/toolbar.dart';
+import 'package:apple_liquid_glass/src/navigation/search_host.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';

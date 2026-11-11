@@ -5,7 +5,7 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/navigation/chrome.dart';
-import 'package:apple_liquid_glass/src/navigation/toolbar.dart';
+import 'package:apple_liquid_glass/src/navigation/search_host.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
