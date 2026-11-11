@@ -678,20 +678,50 @@ Future<MouseCursor?> _cursorAt(WidgetTester tester, Offset at) async {
   return cursor;
 }
 
+/// The cursor the first annotation at [at] that does not defer declares,
+/// as the mouse tracker picks it, or null when every one defers.
+MouseCursor? _declaredCursorAt(WidgetTester tester, Offset at) {
+  final result = HitTestResult();
+  tester.binding.hitTestInView(result, at, tester.view.viewId);
+  for (final hit in result.path) {
+    if (hit.target case final MouseTrackerAnnotation target
+        when target.validForMouseTracker &&
+            target.cursor != MouseCursor.defer) {
+      return target.cursor;
+    }
+  }
+  return null;
+}
+
+// Off the web Flutter's adaptive click cursor is the basic arrow, so a
+// declared basic cursor stands for it; the mouse tracker's own fallback,
+// when nothing declares a cursor, does not.
 Future<void> _cursor(WidgetTester tester, Entry entry) async {
-  final expected = entry.kind == Kind.textInput
-      ? SystemMouseCursors.text
-      : SystemMouseCursors.click;
+  final accepted = entry.kind == Kind.textInput
+      ? {SystemMouseCursors.text}
+      : {
+          SystemMouseCursors.click,
+          WidgetStateMouseCursor.adaptiveClickable.resolve(const {}),
+        };
   await pumpEntry(tester, entry);
-  final enabled = await _cursorAt(tester, _aim(tester, entry));
-  if (enabled != expected) {
-    throw TestFailure('the cursor over it is $enabled, expected $expected');
+  final active = await _cursorAt(tester, _aim(tester, entry));
+  final declared = _declaredCursorAt(tester, _aim(tester, entry));
+  if (declared == null) {
+    throw TestFailure('it declares no cursor; the cursor over it is $active');
+  }
+  if (!accepted.contains(declared)) {
+    throw TestFailure(
+      'the cursor over it is $declared, expected one of $accepted',
+    );
   }
   if (!entry.canDisable) return;
   await _fresh(tester, entry, enabled: false);
-  final disabled = await _cursorAt(tester, _aim(tester, entry));
-  if (disabled == expected) {
-    throw TestFailure('the cursor stays $expected while disabled');
+  final disabled = _declaredCursorAt(tester, _aim(tester, entry));
+  final clickable = entry.kind == Kind.textInput
+      ? SystemMouseCursors.text
+      : SystemMouseCursors.click;
+  if (disabled == clickable) {
+    throw TestFailure('the cursor stays $clickable while disabled');
   }
 }
 
@@ -851,17 +881,82 @@ Future<void> _overlayFocusReturn(WidgetTester tester, Entry entry) async {
   }
 }
 
+// A menu in an overlay portal is read right after its anchor and leaves
+// the page readable, as Flutter's RawMenuAnchor does; for such a menu the
+// check holds that order instead of hiding.
 Future<void> _barrierHides(WidgetTester tester, Entry entry) async {
   final probe = await pumpEntry(tester, entry);
   if (!semanticsNodes(tester).any((node) => node.label == behindLabel)) {
     throw TestFailure('the content behind is not in the tree to begin with');
   }
   await present(tester, entry, probe);
+  final marker = entry.marker!.evaluate().firstOrNull;
+  if (entry.kind == Kind.opener &&
+      marker != null &&
+      isInside(marker, find.byWidgetPredicate((w) => w is OverlayPortal))) {
+    _readAfterAnchor(tester, entry);
+    return;
+  }
   final behind = semanticsNodes(
     tester,
   ).where((node) => node.label == behindLabel && !node.isInvisible);
   if (behind.isNotEmpty) {
     throw TestFailure('assistive technology still reaches what is behind it');
+  }
+}
+
+void _readAfterAnchor(WidgetTester tester, Entry entry) {
+  final anchor = tester.getSemantics((entry.part ?? subject).first);
+  final item = tester.getSemantics(entry.marker!.first);
+  final anchorLine = <SemanticsNode>{};
+  for (SemanticsNode? node = anchor; node != null; node = node.parent) {
+    anchorLine.add(node);
+  }
+  var menu = item;
+  while (menu.parent != null && !anchorLine.contains(menu.parent)) {
+    menu = menu.parent!;
+  }
+  bool under(SemanticsNode node, SemanticsNode root) {
+    for (SemanticsNode? at = node; at != null; at = at.parent) {
+      if (at == root) return true;
+    }
+    return false;
+  }
+
+  final read = <SemanticsNode>[];
+  void visit(SemanticsNode node) {
+    final data = node.getSemanticsData();
+    if (!node.isInvisible &&
+        !node.isMergedIntoParent &&
+        (data.label.isNotEmpty || data.value.isNotEmpty)) {
+      read.add(node);
+    }
+    for (final child in node.debugListChildrenInOrder(
+      DebugSemanticsDumpOrder.traversalOrder,
+    )) {
+      visit(child);
+    }
+  }
+
+  final root =
+      tester.binding.renderViews.first.owner!.semanticsOwner!.rootSemanticsNode;
+  if (root != null) visit(root);
+  final last = read.lastIndexWhere(
+    (node) => under(node, anchor) && !under(node, menu),
+  );
+  final first = read.indexWhere((node) => under(node, menu));
+  if (last < 0) {
+    throw TestFailure('assistive technology does not read its anchor');
+  }
+  if (first < 0) throw TestFailure('assistive technology does not read it');
+  if (first < last) {
+    throw TestFailure('assistive technology reads it before its anchor');
+  }
+  if (first != last + 1) {
+    throw TestFailure(
+      'assistive technology reads "${read[last + 1].label}" between its '
+      'anchor and it',
+    );
   }
 }
 
