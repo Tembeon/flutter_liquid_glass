@@ -194,7 +194,7 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
           statesController: widgetStates,
           focusNode: widget.focusNode,
           autofocus: widget.autofocus,
-          semanticLabel: widget.semanticLabel,
+          semantics: SemanticsProperties(label: widget.semanticLabel),
           minimumHitSize: const Size(44, 44),
           child: Semantics(
             toggled: widget.value,

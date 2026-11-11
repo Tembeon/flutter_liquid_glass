@@ -27,7 +27,7 @@ void main() {
           interactions: press,
           enabled: enabled,
           focusNode: focus,
-          semanticLabel: 'go',
+          semantics: const SemanticsProperties(label: 'go'),
           child: const SizedBox(width: 80, height: 40),
         ),
       );

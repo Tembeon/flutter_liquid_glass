@@ -705,7 +705,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
     interactions: interactions,
     enabled: enabled,
     statesController: states,
-    semanticLabel: label,
+    semantics: SemanticsProperties(label: label),
     minimumHitSize: _target,
     child: Semantics(
       button: true,

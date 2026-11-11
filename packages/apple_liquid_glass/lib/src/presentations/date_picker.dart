@@ -340,7 +340,9 @@ class _CompactLabelState extends State<_CompactLabel> {
         interactions: _press,
         enabled: widget.enabled,
         statesController: _states,
-        semanticLabel: label == null ? widget.text : '$label, ${widget.text}',
+        semantics: SemanticsProperties(
+          label: label == null ? widget.text : '$label, ${widget.text}',
+        ),
         child: Semantics(
           button: true,
           expanded: widget.open,

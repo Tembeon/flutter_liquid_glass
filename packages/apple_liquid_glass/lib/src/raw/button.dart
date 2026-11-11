@@ -2,6 +2,7 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/motions/glass_press.dart';
 import 'package:apple_liquid_glass/src/raw/source.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
@@ -166,7 +167,7 @@ class _RawGlassButtonState extends State<RawGlassButton>
         statesController: widgetStates,
         focusNode: widget.focusNode,
         autofocus: widget.autofocus,
-        semanticLabel: widget.semanticLabel,
+        semantics: SemanticsProperties(label: widget.semanticLabel),
         minimumHitSize: const Size(44, 44),
         child: Semantics(
           button: true,

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motions/page_control_motion.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
@@ -326,7 +327,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
         feedback: _feedback,
         focusNode: widget.focusNode,
         autofocus: widget.autofocus,
-        semanticLabel: widget.semanticLabel,
+        semantics: SemanticsProperties(label: widget.semanticLabel),
         minimumHitSize: const Size(44, 44),
         child: Semantics(
           value: count == 0 ? null : value(page + 1),

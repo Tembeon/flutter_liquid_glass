@@ -4,6 +4,7 @@ import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_example/backdrop.dart';
 import 'package:apple_liquid_glass_example/widgets.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
 /// Two presentations of the app's own, on kinesis's portal.
@@ -120,7 +121,9 @@ class _PeekSectionState extends State<PeekSection> {
                       child: InputRegion(
                         key: _reactionsKey,
                         interactions: _hold,
-                        semanticLabel: 'Reactions',
+                        semantics: const SemanticsProperties(
+                          label: 'Reactions',
+                        ),
                         child: const GlassSurface(
                           child: Padding(
                             padding: EdgeInsets.symmetric(

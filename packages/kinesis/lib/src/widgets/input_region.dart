@@ -89,7 +89,7 @@ class InputRegion extends StatefulWidget {
     this.mouseCursor,
     this.focusNode,
     this.autofocus = false,
-    this.semanticLabel,
+    this.semantics,
     this.port,
     this.minimumHitSize,
     this.adjustRange,
@@ -142,8 +142,26 @@ class InputRegion extends StatefulWidget {
   /// Whether the region takes focus when it first appears.
   final bool autofocus;
 
-  /// What accessibility reads for the region.
-  final String? semanticLabel;
+  /// What accessibility reads for the region, or null for a node with only
+  /// what the region does: the properties of a `Semantics` widget, written
+  /// on the region's own node, whose rectangle is the region's hit area.
+  ///
+  /// ```dart
+  /// InputRegion(
+  ///   interactions: [press],
+  ///   semantics: const SemanticsProperties(label: 'Play', button: true),
+  ///   child: icon,
+  /// )
+  /// ```
+  ///
+  /// What the region does is its own and is written over what this says:
+  /// whether it is enabled and focused, the tap of a region whose
+  /// interaction [Interaction.activates], increase and decrease of one that
+  /// [Interaction.adjusts]. A `Semantics` below the region joins the same
+  /// node; one around a region that activates or adjusts is a node of its
+  /// own, so a label put there is read apart from the region's actions.
+  /// `InputZone.semantics` is the same for a zone.
+  final SemanticsProperties? semantics;
 
   /// Where touches handed on from another region arrive, or null.
   final InputPort? port;
@@ -287,8 +305,6 @@ class _InputRegionState extends State<InputRegion> {
       described: (
         minimumHitSize: widget.minimumHitSize,
         takesPointers: target.takesPointers,
-        label: widget.semanticLabel,
-        textDirection: Directionality.maybeOf(context),
         enabled: widget.enabled,
         activates: target.activates,
         adjusts: target.adjusts,
@@ -406,8 +422,6 @@ final class _RegionLine extends PointerLine {
 typedef _Described = ({
   Size? minimumHitSize,
   bool takesPointers,
-  String? label,
-  TextDirection? textDirection,
   bool enabled,
   bool activates,
   bool adjusts,
@@ -423,9 +437,17 @@ class _Region extends SingleChildRenderObjectWidget {
   final _InputRegionState state;
   final _Described described;
 
+  SemanticsProperties get _properties =>
+      state.widget.semantics ?? const SemanticsProperties();
+
   @override
   _RenderRegion createRenderObject(BuildContext context) {
-    final box = _RenderRegion(state, described);
+    final box = _RenderRegion(
+      state,
+      described,
+      properties: _properties,
+      textDirection: Directionality.maybeOf(context),
+    );
     state._box = box;
     return box;
   }
@@ -434,14 +456,29 @@ class _Region extends SingleChildRenderObjectWidget {
   void updateRenderObject(BuildContext context, _RenderRegion renderObject) {
     renderObject.state = state;
     renderObject.described = described;
+    renderObject.properties = _properties;
+    renderObject.textDirection = Directionality.maybeOf(context);
     state._box = renderObject;
   }
 }
 
-/// The region's box: it takes pointers in its hit area and describes the
-/// region to accessibility over that area.
-class _RenderRegion extends RenderProxyBox {
-  _RenderRegion(this.state, this._described);
+class _RenderRegion extends RenderProxyBox with SemanticsAnnotationsMixin {
+  _RenderRegion(
+    this.state,
+    this._described, {
+    required SemanticsProperties properties,
+    required TextDirection? textDirection,
+  }) {
+    initSemanticsAnnotations(
+      properties: properties,
+      container: _acts,
+      explicitChildNodes: false,
+      excludeSemantics: false,
+      blockUserActions: false,
+      localeForSubtree: null,
+      textDirection: textDirection,
+    );
+  }
 
   _InputRegionState state;
 
@@ -452,10 +489,14 @@ class _RenderRegion extends RenderProxyBox {
     // The accessibility rectangle is laid out with the box.
     if (value.minimumHitSize != _described.minimumHitSize) markNeedsLayout();
     _described = value;
+    container = _acts;
     markNeedsSemanticsUpdate();
   }
 
-  /// Where the region takes pointers, in its coordinates.
+  // A region that acts is one node of its own, as a button is, disabled
+  // too: otherwise its label and actions merge into what is around it.
+  bool get _acts => _described.activates || _described.adjusts;
+
   Rect get hitArea {
     final box = Offset.zero & size;
     final minimum = _described.minimumHitSize;
@@ -506,15 +547,6 @@ class _RenderRegion extends RenderProxyBox {
   @override
   void describeSemanticsConfiguration(SemanticsConfiguration config) {
     super.describeSemanticsConfiguration(config);
-    final described = _described;
-    final label = described.label;
-    if (label != null) {
-      config.label = label;
-      config.textDirection = described.textDirection;
-    }
-    // A region that acts is one node of its own, as a button is, disabled
-    // too: without this its label and actions merge into what is around it.
-    config.isSemanticBoundary = described.activates || described.adjusts;
     state._target.describe(config);
   }
 }

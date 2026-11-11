@@ -9,6 +9,7 @@ import 'package:apple_liquid_glass/src/navigation/search_stacking.dart';
 import 'package:apple_liquid_glass/src/raw/search_field.dart';
 import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
@@ -399,9 +400,11 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
             enabled: details.clear != null,
             statesController: _clearStates,
             minimumHitSize: const Size.square(_clearTarget),
-            semanticLabel:
-                widget.clearSemanticLabel ??
-                GlassLocalizations.of(context).clearTextLabel,
+            semantics: SemanticsProperties(
+              label:
+                  widget.clearSemanticLabel ??
+                  GlassLocalizations.of(context).clearTextLabel,
+            ),
             child: Semantics(
               button: true,
               child: ExcludeSemantics(

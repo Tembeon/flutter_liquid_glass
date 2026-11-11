@@ -2,6 +2,7 @@ import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_example/backdrop.dart';
 import 'package:apple_liquid_glass_example/widgets.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
+import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
@@ -191,7 +192,7 @@ class _OwnControlSectionState extends State<OwnControlSection> {
                   motion: widget.recording.knob,
                   child: InputRegion(
                     interactions: _interactions,
-                    semanticLabel: 'Knob',
+                    semantics: const SemanticsProperties(label: 'Knob'),
                     child: SizedBox.fromSize(
                       size: _knob,
                       child: GlassSurface.live(

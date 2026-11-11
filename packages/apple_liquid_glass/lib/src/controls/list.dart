@@ -744,7 +744,7 @@ class _InfoButton extends StatelessWidget {
         interactions: interactions,
         enabled: enabled,
         statesController: states,
-        semanticLabel: label,
+        semantics: SemanticsProperties(label: label),
         minimumHitSize: const Size.square(_target),
         child: Semantics(button: true, child: child),
       ),

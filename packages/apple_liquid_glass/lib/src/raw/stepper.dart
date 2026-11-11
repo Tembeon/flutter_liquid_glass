@@ -239,7 +239,7 @@ class _RawGlassStepperState extends State<RawGlassStepper>
         statesController: widgetStates,
         focusNode: widget.focusNode,
         autofocus: widget.autofocus,
-        semanticLabel: widget.semanticLabel,
+        semantics: SemanticsProperties(label: widget.semanticLabel),
         minimumHitSize: const Size(44, 44),
         child: Semantics(
           value: value,

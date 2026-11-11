@@ -772,7 +772,9 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
       alignment: Alignment.topCenter,
       child: InputRegion(
         interactions: _detentInput,
-        semanticLabel: GlassLocalizations.of(context).sheetGrabberLabel,
+        semantics: SemanticsProperties(
+          label: GlassLocalizations.of(context).sheetGrabberLabel,
+        ),
         adjustRange: _range,
         child: _DetentValue(
           state: this,

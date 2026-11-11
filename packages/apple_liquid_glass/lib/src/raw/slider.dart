@@ -1,6 +1,7 @@
 import 'package:apple_liquid_glass/src/foundation/frame.dart';
 import 'package:apple_liquid_glass/src/motions/slider_motion.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
@@ -351,7 +352,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
         statesController: widgetStates,
         focusNode: widget.focusNode,
         autofocus: widget.autofocus,
-        semanticLabel: widget.semanticLabel,
+        semantics: SemanticsProperties(label: widget.semanticLabel),
         minimumHitSize: const Size(44, 44),
         child: Semantics(
           slider: true,

@@ -1,5 +1,4 @@
-import 'dart:ui' show SemanticsAction;
-
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
@@ -325,7 +324,7 @@ void main() {
             Center(
               child: InputRegion(
                 interactions: [keys],
-                semanticLabel: 'Steps',
+                semantics: const SemanticsProperties(label: 'Steps'),
                 child: const SizedBox(width: 44, height: 44),
               ),
             ),

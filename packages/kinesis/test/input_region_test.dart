@@ -494,7 +494,7 @@ void main() {
       Center(
         child: InputRegion(
           interactions: [PressInteraction(onTap: (t) => onTap?.call())],
-          semanticLabel: 'small',
+          semantics: const SemanticsProperties(label: 'small'),
           minimumHitSize: minimum,
           child: const SizedBox(width: 20, height: 20),
         ),
@@ -557,7 +557,7 @@ void main() {
           child: InputRegion(
             interactions: [interaction],
             enabled: enabled,
-            semanticLabel: 'level',
+            semantics: const SemanticsProperties(label: 'level'),
             autofocus: true,
             feedback: (_) => haptic,
             adjustRange: range,
@@ -717,7 +717,8 @@ void main() {
   group('focus', () {
     String? focused() => FocusManager.instance.primaryFocus?.context
         ?.findAncestorWidgetOfExactType<InputRegion>()
-        ?.semanticLabel;
+        ?.semantics
+        ?.label;
 
     testWidgets('Tab skips a region that takes no key unless it was given '
         'a focus node', (tester) async {
@@ -726,7 +727,7 @@ void main() {
       Widget region(String label, Interaction interaction, [FocusNode? n]) =>
           InputRegion(
             interactions: [interaction],
-            semanticLabel: label,
+            semantics: SemanticsProperties(label: label),
             focusNode: n,
             child: const SizedBox(width: 40, height: 40),
           );
@@ -895,7 +896,7 @@ void main() {
                   },
                 ),
               ],
-              semanticLabel: 'press',
+              semantics: const SemanticsProperties(label: 'press'),
               child: const SizedBox(width: 80, height: 40),
             );
           },

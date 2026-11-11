@@ -413,7 +413,7 @@ class InputRegion extends StatefulWidget
     MouseCursor? mouseCursor,
     FocusNode? focusNode,
     bool autofocus = ...,
-    String? semanticLabel,
+    SemanticsProperties? semantics,
     InputPort? port,
     Size? minimumHitSize,
     ValueListenable<AdjustRange>? adjustRange,
@@ -429,7 +429,7 @@ class InputRegion extends StatefulWidget
   final Size? minimumHitSize
   final MouseCursor? mouseCursor
   final InputPort? port
-  final String? semanticLabel
+  final SemanticsProperties? semantics
   final WidgetStatesController? statesController
   overrides: createState
 class InputZone<T extends Object>

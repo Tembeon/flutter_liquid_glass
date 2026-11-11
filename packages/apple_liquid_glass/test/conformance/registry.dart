@@ -417,7 +417,8 @@ final List<Entry> registry = [
     canDisable: false,
     focusStops: 2,
     part: find.byWidgetPredicate(
-      (widget) => widget is InputRegion && widget.semanticLabel == 'Clear text',
+      (widget) =>
+          widget is InputRegion && widget.semantics?.label == 'Clear text',
     ),
     build: (probe, {required enabled}) => SizedBox(
       width: 340,
@@ -480,7 +481,8 @@ final List<Entry> registry = [
     covers: const ['GlassListAccessory'],
     kind: Kind.pressable,
     part: find.byWidgetPredicate(
-      (widget) => widget is InputRegion && widget.semanticLabel == 'More info',
+      (widget) =>
+          widget is InputRegion && widget.semantics?.label == 'More info',
     ),
     build: (probe, {required enabled}) => SizedBox(
       width: 402,

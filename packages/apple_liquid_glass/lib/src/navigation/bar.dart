@@ -2260,7 +2260,7 @@ class _ItemSourceState extends State<_ItemSource> {
   @override
   Widget build(BuildContext context) => InputRegion(
     interactions: _tap,
-    semanticLabel: widget.semanticLabel,
+    semantics: SemanticsProperties(label: widget.semanticLabel),
     minimumHitSize: const Size.square(_Bar.minimumTarget),
     child: GlassSource(
       description: GlassSourceDescription(look: widget.look),
