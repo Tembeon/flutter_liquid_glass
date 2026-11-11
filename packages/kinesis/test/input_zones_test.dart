@@ -297,6 +297,34 @@ void main() {
       await mouse.removePointer();
     });
 
+    testWidgets('a zone that adjusts gets the adaptive click cursor, one '
+        'that takes no key defers', (tester) async {
+      Widget zonesOf(List<Interaction> interactions) => _app(
+        MouseRegion(
+          cursor: SystemMouseCursors.text,
+          child: InputZones<String>(
+            zones: [InputZone(id: 'a', interactions: interactions)],
+            frameOf: (zone) =>
+                const InputZoneFrame(Rect.fromLTWH(0, 0, 40, 40)),
+            frames: motion,
+            child: const SizedBox(width: 100, height: 100),
+          ),
+        ),
+      );
+      await tester.pumpWidget(zonesOf([_Values()]));
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: const Offset(20, 20));
+      addTearDown(mouse.removePointer);
+      await tester.pump();
+      expect(
+        active(),
+        WidgetStateMouseCursor.adaptiveClickable.resolve(const {}),
+      );
+      await tester.pumpWidget(zonesOf([DragInteraction()]));
+      await tester.pump();
+      expect(active(), SystemMouseCursors.text);
+    });
+
     testWidgets('a secondary click reaches the zone under it, in its '
         'coordinates', (tester) async {
       final clicks = <Offset>[];

@@ -396,8 +396,8 @@ void main() {
       expect(active(), SystemMouseCursors.forbidden);
     });
 
-    testWidgets('the default is adaptive clickable for what activates and '
-        'defers otherwise', (tester) async {
+    testWidgets('the default is adaptive clickable for what activates or '
+        'adjusts and defers otherwise', (tester) async {
       Widget region(List<Interaction> interactions) => _app(
         MouseRegion(
           cursor: SystemMouseCursors.text,
@@ -411,6 +411,12 @@ void main() {
       );
       await tester.pumpWidget(region([PressInteraction()]));
       await hoverAt(tester, tester.getCenter(find.byType(InputRegion)));
+      expect(
+        active(),
+        WidgetStateMouseCursor.adaptiveClickable.resolve(const {}),
+      );
+      await tester.pumpWidget(region([_Value()]));
+      await tester.pump();
       expect(
         active(),
         WidgetStateMouseCursor.adaptiveClickable.resolve(const {}),

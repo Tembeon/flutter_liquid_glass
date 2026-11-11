@@ -110,7 +110,8 @@ class InputZone<T extends Object> {
   ///
   /// A `WidgetStateMouseCursor` resolves against the zone's states. The
   /// default is `WidgetStateMouseCursor.adaptiveClickable` when an
-  /// interaction [Interaction.activates], `MouseCursor.defer` otherwise.
+  /// interaction [Interaction.activates] or [Interaction.adjusts],
+  /// `MouseCursor.defer` otherwise, as for `InputRegion.mouseCursor`.
   final MouseCursor? mouseCursor;
 
   /// The smallest area the zone takes pointers in, centred on its rect, or
@@ -974,7 +975,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
 
   MouseCursor get cursor => resolveCursor(
     zone.mouseCursor,
-    activates: _activates,
+    clickable: _activates || _adjusts,
     states: _controller.statesOf(id),
   );
 

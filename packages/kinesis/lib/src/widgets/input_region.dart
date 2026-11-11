@@ -89,9 +89,11 @@ class InputRegion extends StatefulWidget {
   /// [statesController]'s value when there is one, else the states the
   /// region writes (pressed, hovered, focused, dragged, disabled). The
   /// default is `WidgetStateMouseCursor.adaptiveClickable` when an
-  /// interaction [Interaction.activates] (a click cursor on the web, the
-  /// basic one elsewhere and while disabled), `MouseCursor.defer`
-  /// otherwise, which leaves the cursor to what lies under the region.
+  /// interaction [Interaction.activates] or [Interaction.adjusts] (a
+  /// button, a switch, a slider: the click cursor on the web, the basic
+  /// arrow elsewhere, as native desktop controls keep it, and while
+  /// disabled), `MouseCursor.defer` otherwise, which leaves the cursor to
+  /// what lies under the region.
   final MouseCursor? mouseCursor;
 
   /// The region's focus node, or null for its own.
@@ -236,7 +238,7 @@ class _InputRegionState extends State<InputRegion> {
 
   MouseCursor get _cursor => resolveCursor(
     widget.mouseCursor,
-    activates: _activates,
+    clickable: _activates || _adjusts,
     states: _states.value,
   );
 

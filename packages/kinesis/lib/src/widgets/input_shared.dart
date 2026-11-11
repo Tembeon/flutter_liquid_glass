@@ -50,16 +50,17 @@ bool focusShows({
     FocusManager.instance.highlightMode == FocusHighlightMode.traditional &&
     (enabled || navigation == NavigationMode.directional);
 
-/// The cursor [given] resolves to in [states]; by default a click cursor
-/// when the host [activates], the cursor of what lies below otherwise.
+/// The cursor [given] resolves to in [states]; by default the adaptive
+/// click cursor when the host [clickable] (it activates or adjusts), the
+/// cursor of what lies below otherwise.
 @internal
 MouseCursor resolveCursor(
   MouseCursor? given, {
-  required bool activates,
+  required bool clickable,
   required Set<WidgetState> states,
 }) => WidgetStateProperty.resolveAs<MouseCursor>(
   given ??
-      (activates
+      (clickable
           ? WidgetStateMouseCursor.adaptiveClickable
           : MouseCursor.defer),
   states,
