@@ -671,6 +671,7 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
         enabled: enabled,
         focusNode: widget.childFocusNode,
         semanticLabel: widget.semanticLabel,
+        minimumHitSize: const Size(44, 44),
         child: Semantics(
           button: true,
           expanded: _showing,
@@ -2205,6 +2206,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
       InputRegion(
         interactions: [_claim, _secondary],
         statesController: _states,
+        mouseCursor: WidgetStateMouseCursor.adaptiveClickable,
         enabled: enabled,
         focusNode: _claimFocus,
         child: Semantics(

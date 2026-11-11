@@ -7,7 +7,6 @@ GlassBarItem.menu tap-target: "Sort": expected tap target size of at least Size(
 GlassButton.prominent contrast-dark: "Save": expected contrast ratio of at least 4.5 but found 3.23 for a font size of 17.0
 GlassButton.prominent contrast-light: "Save": expected contrast ratio of at least 4.5 but found 3.52 for a font size of 17.0
 GlassContextMenu key-context-menu: the context menu key does not open it
-GlassContextMenu mouse-cursor: it declares no cursor; the cursor over it is SystemMouseCursor(basic)
 GlassDatePicker.compact barrier-label: no barrier is offered to assistive technology
 GlassDatePicker.compact mouse-cursor: it declares no cursor; the cursor over it is SystemMouseCursor(basic)
 GlassDatePicker.compact mouse-hover: hover draws nothing
