@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:apple_liquid_glass/src/motion/glass_press.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/painting.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 

@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/painting.dart';
 import 'package:kinesis/kinesis.dart';
 import 'package:meta/meta.dart';
 

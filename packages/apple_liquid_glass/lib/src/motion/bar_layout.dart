@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motion/bar_motion.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/painting.dart';
 import 'package:meta/meta.dart';
 
 /// The measured geometry of a bar's glass buttons, read from the view

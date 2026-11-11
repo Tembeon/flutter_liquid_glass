@@ -2,7 +2,8 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motion/flex_spec.dart' show FlexSpec;
 import 'package:apple_liquid_glass/src/surface/glass.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
 import 'package:kinesis/motion.dart';
 
 /// The glow a finger raises on a pressed glass surface, in one frame.
