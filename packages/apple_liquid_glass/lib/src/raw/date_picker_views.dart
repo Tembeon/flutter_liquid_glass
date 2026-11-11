@@ -1,5 +1,19 @@
 part of 'date_picker.dart';
 
+/// The states of the header's parts, one controller for each part's input
+/// region.
+final class _HeaderStates {
+  final WidgetStatesController title = WidgetStatesController();
+  final WidgetStatesController previous = WidgetStatesController();
+  final WidgetStatesController next = WidgetStatesController();
+
+  void dispose() {
+    title.dispose();
+    previous.dispose();
+    next.dispose();
+  }
+}
+
 /// The states of one day's zone as they change.
 final class _DayStates extends ChangeNotifier
     implements ValueListenable<Set<WidgetState>> {

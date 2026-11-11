@@ -3084,6 +3084,7 @@ class RawGlassDatePicker extends StatefulWidget
     DateTime? maximumDate,
     int firstDayOfWeek = ...,
     DateTime? today,
+    WidgetStatesController? statesController,
     FocusNode? focusNode,
     bool autofocus = ...,
     @internal bool defersDays = ...,
@@ -3100,6 +3101,7 @@ class RawGlassDatePicker extends StatefulWidget
   final Widget Function(BuildContext, GlassDatePickerMonthYear) monthYearBuilder
   final void Function(DateTime)? onChanged
   static const Size size
+  final WidgetStatesController? statesController
   final Widget Function(BuildContext, GlassDatePickerTitle) titleBuilder
   final DateTime? today
   final DateTime value

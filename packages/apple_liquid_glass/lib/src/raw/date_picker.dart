@@ -55,6 +55,7 @@ class RawGlassDatePicker extends StatefulWidget {
     this.maximumDate,
     this.firstDayOfWeek = DateTime.sunday,
     this.today,
+    this.statesController,
     this.focusNode,
     this.autofocus = false,
     @internal this.defersDays = false,
@@ -96,6 +97,10 @@ class RawGlassDatePicker extends StatefulWidget {
   /// The day to show as today; null for the current day.
   final DateTime? today;
 
+  /// Where the picker writes the states of the picker as a whole, or null
+  /// for its own: [WidgetState.disabled] while [onChanged] is null.
+  final WidgetStatesController? statesController;
+
   /// The focus node of the days, or null for the picker's own: focusing
   /// it focuses the picked day.
   final FocusNode? focusNode;
@@ -115,13 +120,12 @@ class RawGlassDatePicker extends StatefulWidget {
   State<RawGlassDatePicker> createState() => _RawGlassDatePickerState();
 }
 
-class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
+class _RawGlassDatePickerState extends State<RawGlassDatePicker>
+    with ControlStates<RawGlassDatePicker> {
   final DatePickerCalendarMotion _motion = DatePickerCalendarMotion();
   final InputZonesController<DateTime> _zones =
       InputZonesController<DateTime>();
-  final WidgetStatesController _title = WidgetStatesController();
-  final WidgetStatesController _previous = WidgetStatesController();
-  final WidgetStatesController _next = WidgetStatesController();
+  final _HeaderStates _header = _HeaderStates();
   final Map<DateTime, _DayStates> _dayStates = {};
   final Map<DateTime, List<Interaction>> _presses = {};
   late final List<Interaction> _titlePress = [
@@ -165,6 +169,12 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
   bool get _enabled => widget.onChanged != null;
 
   @override
+  WidgetStatesController? get givenStates => widget.statesController;
+
+  @override
+  void writeStates() => widgetStates.update(WidgetState.disabled, !_enabled);
+
+  @override
   void initState() {
     super.initState();
     _motion.onTurn = _turned;
@@ -196,9 +206,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
       states.dispose();
     }
     _zones.dispose();
-    _title.dispose();
-    _previous.dispose();
-    _next.dispose();
+    _header.dispose();
     super.dispose();
   }
 
@@ -512,7 +520,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
     final canNext = _enabled && _canTurn(1);
     Widget arrow({required bool next}) {
       final enabled = next ? canNext : canPrevious;
-      final states = next ? _next : _previous;
+      final states = next ? _header.next : _header.previous;
       return _part(
         states: states,
         interactions: next ? _nextPress : _previousPress,
@@ -558,7 +566,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
                     children: [
                       Flexible(
                         child: _part(
-                          states: _title,
+                          states: _header.title,
                           interactions: _titlePress,
                           enabled: _enabled,
                           label: years
@@ -581,7 +589,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
                                   text: titleText,
                                   showsYearPicker: years,
                                   chevronAngle: _chevronAngle,
-                                  states: _title,
+                                  states: _header.title,
                                 ),
                               ),
                             ),
