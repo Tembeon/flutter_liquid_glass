@@ -66,6 +66,28 @@ final class _Touch<P extends InputTarget> {
 /// the touch first, as it would from a recognizer around it. The box stays
 /// in the arena for a pointer while a target contends for it, and takes it
 /// when one claims.
+///
+/// The line and its targets do not own each other: the host's state holds
+/// both, and each finds the other through it, a target its line through
+/// `InputTarget.line` and the line its targets through [base] and
+/// [partAt]. While a touch lasts, the line keeps the targets it found at
+/// the down on that touch. The host hands every pointer event to the line
+/// ([pointer]); the line asks each target's session and gives the answer
+/// back to the target (`InputTarget.answer`), which plays the haptics and
+/// writes the states. A target calls into the line only to end its touches
+/// ([drop]) and to deliver a timed reaction that came due ([due]); keys,
+/// hover, the wheel and accessibility reach a target without the line.
+///
+/// ```text
+/// down: host -> pointer -> line: partAt, then for base and part
+///         session.observe + session.track, the arena if one contends,
+///         target.answer
+/// move: host -> pointer -> line: observers hear it (session.observe)
+///       arena route -> line: session.track, a sliding finger handed
+///         over to the part under it, target.answer
+/// up:   as a move, then the touch leaves the route and the line
+/// timer or disable: target -> line.due / line.drop -> target.answer
+/// ```
 @internal
 abstract class PointerLine<P extends InputTarget> {
   final Map<int, _Touch<P>> _touches = {};

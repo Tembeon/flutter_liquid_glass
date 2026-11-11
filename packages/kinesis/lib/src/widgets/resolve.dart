@@ -15,6 +15,23 @@ import 'package:kinesis/motion.dart';
 /// resolve again, a few rounds at most: a value that one subtree's layout
 /// computes reaches another subtree's layout in the frame that computed it.
 ///
+/// A host's [resolve] runs in a frame for one of three reasons: its layout
+/// in this frame called [scheduleResolve]; it [resolvesEveryFrame]; or a
+/// resolve round marked it for layout and that layout called
+/// [scheduleResolve] again, which runs it in the next round of the same
+/// frame. A round resolves its hosts from the shallowest down; after
+/// eight rounds the rest waits for the next frame.
+///
+/// ```text
+/// build -> layout (hosts call scheduleResolve)
+///   -> resolve phase, one round after another:
+///        + hosts that resolve every frame (first round only)
+///        resolve the scheduled hosts, shallowest first; values publish
+///        lay out again what the round marked
+///        (scheduleResolve here schedules the next round)
+///   -> compositing bits -> paint
+/// ```
+///
 /// A render object that animates its own layout reads the app's
 /// `withSpring` and `withoutAnimation` around a change through
 /// [layoutSpring].

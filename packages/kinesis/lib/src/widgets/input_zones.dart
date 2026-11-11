@@ -24,12 +24,14 @@ part 'package:kinesis/src/widgets/input_zones_render.dart';
 /// UIKit: each control's `state`. Flutter: one `WidgetStatesController`
 /// per zone.
 ///
-/// The host writes pressed, dragged, hovered, focused (only while focus
-/// should show, as `InputRegion` does) and disabled; the control writes the
-/// rest, such as selected, with [update]. It notifies on every change, so a
-/// control that paints its zones listens to it and repaints. The host
-/// writes disabled without notifying while it builds: the control that
-/// gave the zone its `enabled` already knows it.
+/// The controller is the one place a zone's states live, by the zone's
+/// id: a zone that rebuilds keeps them, and a zone that leaves the host
+/// drops them. The host writes pressed, dragged, hovered, focused (only
+/// while focus should show, as `InputRegion` does) and disabled; the
+/// control writes the rest, such as selected, with [update]. It notifies
+/// on every change, so a control that paints its zones listens to it and
+/// repaints. The host writes disabled and the focus a zone's build shows
+/// without notifying: the control that built the zone already knows them.
 ///
 /// A controller serves one host at a time. While two hosts hold it, as when
 /// a date picker builds the next month's grid before the old one leaves,

@@ -44,6 +44,18 @@ class _Zone<T extends Object> extends StatefulWidget {
 }
 
 /// One zone's session, focus node, hit target and semantics anchor.
+///
+/// The zone keeps none of its states. They live in the host's
+/// [InputZonesController], by zone id; the zone is the only writer of the
+/// states the host owns (pressed, dragged and hovered through its
+/// [target], focused, disabled), and the control writes the rest with
+/// `InputZonesController.update`. A write from input notifies the
+/// controller's listeners at once; the writes a build makes, from what the
+/// zone's widget says, notify nobody, since the control that built the
+/// zone already knows them: disabled is written without notifying, and the
+/// focused state goes through the target with `_quiet` set. A zone that
+/// leaves clears its states only while its host still holds the
+/// controller, so a newer host's zone of the same id keeps them.
 class _ZoneState<T extends Object> extends State<_Zone<T>> {
   late final _ZoneTarget<T> target = _ZoneTarget<T>(this);
   final FocusNode node = FocusNode();

@@ -44,6 +44,21 @@ final class SessionOutput {
 /// from recorded input. Observers ([InteractionRole.observer]) hear every
 /// pointer they accept at once, beside all of this, and are not cancelled
 /// when the touch is [lost].
+///
+/// Whether a touch is still the session's has two answers, one per side.
+/// [isActive] answers for the interactions that take part in the arena:
+/// a down one of them accepted starts the touch, and its release, its
+/// cancel or [lost] ends it; one touch at a time. [observes] answers for
+/// the observers of one pointer: from a down an observer accepted until
+/// that pointer lifts or is cancelled, [lost] or not. A host that hands a
+/// pointer on asks [observes] for the observers ([observe]) and keeps
+/// [track]ing the others while [isActive]:
+///
+/// ```text
+///            down     lost        up
+/// isActive   +--------+                   arena members
+/// observes   +--------------------+       observers of that pointer
+/// ```
 class InteractionSession {
   /// Creates a session over [interactions].
   InteractionSession(List<Interaction> interactions)
