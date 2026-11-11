@@ -15,7 +15,6 @@
 2:through-library         lib/src/controls/stepper.dart               5
 2:through-library         lib/src/controls/swipe_actions.dart         3
 2:through-library         lib/src/controls/switch.dart                7
-2:through-library         lib/src/foundation/theme.dart               17
 2:through-library         lib/src/liquid/liquid.dart                  10
 2:through-library         lib/src/liquid/scroll_edge.dart             1
 2:through-library         lib/src/motions/menu_fusion.dart            2
@@ -47,7 +46,6 @@
 2:through-library         lib/src/surfaces/follow_frame.dart          1
 3:not-allowed             lib/src/controls/button.dart                2
 3:not-allowed             lib/src/controls/search_field.dart          1
-3:not-allowed             lib/src/foundation/theme.dart               17
 3:not-allowed             lib/src/motions/menu_layout.dart            1
 3:not-allowed             lib/src/raw/button.dart                     1
 3:not-allowed             lib/src/raw/search_field.dart               2

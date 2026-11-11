@@ -46,7 +46,7 @@ enum GlassListAccessory {
 /// are the iOS 27 system colors the table resolves (list passport, light
 /// and dark).
 @immutable
-class GlassListStyle {
+class GlassListStyle extends GlassStyle<GlassListStyle> {
   /// Creates a style.
   const GlassListStyle({
     this.backgroundColor,
@@ -57,6 +57,11 @@ class GlassListStyle {
     this.iconColor,
     this.disclosureColor,
   });
+
+  /// The theme's [GlassListStyle] at [context], or null without one: the
+  /// look between a widget's own style and its defaults.
+  static GlassListStyle? maybeOf(BuildContext context) =>
+      GlassTheme.styleOf<GlassListStyle>(context);
 
   /// The fill of a section's card;
   /// [GlassColors.secondarySystemGroupedBackground] by default.
@@ -85,6 +90,7 @@ class GlassListStyle {
   final WidgetStateProperty<Color?>? disclosureColor;
 
   /// This style over [other], state by state.
+  @override
   GlassListStyle merge(GlassListStyle? other) {
     if (other == null) return this;
     return GlassListStyle(
@@ -98,10 +104,10 @@ class GlassListStyle {
     );
   }
 
-  /// The style between [a] and [b] at [t].
-  static GlassListStyle? lerp(GlassListStyle? a, GlassListStyle? b, double t) {
-    if (identical(a, b)) return a;
-    if (a == null || b == null) return t < 0.5 ? a : b;
+  /// The style between this one and [other] at [t].
+  @override
+  GlassListStyle lerp(GlassListStyle other, double t) {
+    if (identical(this, other)) return this;
     WidgetStateProperty<Color?>? color(
       WidgetStateProperty<Color?>? from,
       WidgetStateProperty<Color?>? to,
@@ -112,13 +118,13 @@ class GlassListStyle {
       snapNull(GlassDynamicColor.lerp),
     );
     return GlassListStyle(
-      backgroundColor: color(a.backgroundColor, b.backgroundColor),
-      overlayColor: color(a.overlayColor, b.overlayColor),
-      separatorColor: color(a.separatorColor, b.separatorColor),
-      foregroundColor: color(a.foregroundColor, b.foregroundColor),
-      secondaryColor: color(a.secondaryColor, b.secondaryColor),
-      iconColor: color(a.iconColor, b.iconColor),
-      disclosureColor: color(a.disclosureColor, b.disclosureColor),
+      backgroundColor: color(backgroundColor, other.backgroundColor),
+      overlayColor: color(overlayColor, other.overlayColor),
+      separatorColor: color(separatorColor, other.separatorColor),
+      foregroundColor: color(foregroundColor, other.foregroundColor),
+      secondaryColor: color(secondaryColor, other.secondaryColor),
+      iconColor: color(iconColor, other.iconColor),
+      disclosureColor: color(disclosureColor, other.disclosureColor),
     );
   }
 
@@ -648,10 +654,9 @@ class _GlassListRowState extends State<GlassListRow>
 }
 
 GlassListStyle _sectionLook(BuildContext context, GlassListStyle? style) {
-  final theme = GlassTheme.of(context);
-  final label = theme.labelColor;
+  final label = GlassTheme.labelColorOf(context);
   return (style ?? const GlassListStyle())
-      .merge(theme.listStyle)
+      .merge(GlassListStyle.maybeOf(context))
       .merge(
         GlassListStyle(
           backgroundColor: const WidgetStatePropertyAll(
@@ -666,9 +671,11 @@ GlassListStyle _sectionLook(BuildContext context, GlassListStyle? style) {
             GlassColors.secondaryLabel,
           ),
           iconColor: WidgetStatePropertyAll(
-            theme.primaryColor ?? GlassColors.systemBlue,
+            GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
           ),
-          disclosureColor: WidgetStatePropertyAll(theme.tertiaryLabelColor),
+          disclosureColor: WidgetStatePropertyAll(
+            GlassTheme.tertiaryLabelColorOf(context),
+          ),
         ),
       );
 }

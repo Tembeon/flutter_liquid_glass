@@ -10,7 +10,7 @@ import 'package:meta/meta.dart';
 /// style, then the default, which follows the brightness (iPhone 16 Pro,
 /// iOS 27).
 @immutable
-class GlassMenuStyle {
+class GlassMenuStyle extends GlassStyle<GlassMenuStyle> {
   /// Creates a style.
   const GlassMenuStyle({
     this.textStyle,
@@ -21,6 +21,11 @@ class GlassMenuStyle {
     this.separatorColor,
     this.paletteSelectionColor,
   });
+
+  /// The theme's [GlassMenuStyle] at [context], or null without one: the
+  /// look between a widget's own style and its defaults.
+  static GlassMenuStyle? maybeOf(BuildContext context) =>
+      GlassTheme.styleOf<GlassMenuStyle>(context);
 
   /// The row titles, whose color also draws row glyphs, over the default
   /// 17 points in label at 96 percent. The menu measures its titles in it
@@ -46,6 +51,7 @@ class GlassMenuStyle {
   final Color? paletteSelectionColor;
 
   /// This style over [other].
+  @override
   GlassMenuStyle merge(GlassMenuStyle? other) {
     if (other == null) return this;
     return GlassMenuStyle(
@@ -60,21 +66,21 @@ class GlassMenuStyle {
     );
   }
 
-  /// The style between [a] and [b] at [t].
-  static GlassMenuStyle? lerp(GlassMenuStyle? a, GlassMenuStyle? b, double t) {
-    if (identical(a, b)) return a;
-    if (a == null || b == null) return t < 0.5 ? a : b;
+  /// The style between this one and [other] at [t].
+  @override
+  GlassMenuStyle lerp(GlassMenuStyle other, double t) {
+    if (identical(this, other)) return this;
     final color = snapNull(GlassDynamicColor.lerp);
     return GlassMenuStyle(
-      textStyle: snapNull(TextStyle.lerp)(a.textStyle, b.textStyle, t),
-      destructiveColor: color(a.destructiveColor, b.destructiveColor, t),
-      highlightColor: color(a.highlightColor, b.highlightColor, t),
-      secondaryColor: color(a.secondaryColor, b.secondaryColor, t),
-      disabledColor: color(a.disabledColor, b.disabledColor, t),
-      separatorColor: color(a.separatorColor, b.separatorColor, t),
+      textStyle: snapNull(TextStyle.lerp)(textStyle, other.textStyle, t),
+      destructiveColor: color(destructiveColor, other.destructiveColor, t),
+      highlightColor: color(highlightColor, other.highlightColor, t),
+      secondaryColor: color(secondaryColor, other.secondaryColor, t),
+      disabledColor: color(disabledColor, other.disabledColor, t),
+      separatorColor: color(separatorColor, other.separatorColor, t),
       paletteSelectionColor: color(
-        a.paletteSelectionColor,
-        b.paletteSelectionColor,
+        paletteSelectionColor,
+        other.paletteSelectionColor,
         t,
       ),
     );
@@ -127,7 +133,7 @@ class MenuAppearance {
       Brightness.light => light,
     };
     final look = (style ?? const GlassMenuStyle()).merge(
-      GlassTheme.of(context).menuStyle,
+      GlassMenuStyle.maybeOf(context),
     );
     if (look == const GlassMenuStyle()) return table;
     Color color(Color? override, Color fallback) => override == null

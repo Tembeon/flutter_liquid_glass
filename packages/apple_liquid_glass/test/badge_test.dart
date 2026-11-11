@@ -72,7 +72,7 @@ void main() {
         child: GlassTheme(
           data: const GlassThemeData(
             brightness: Brightness.light,
-            badgeStyle: GlassBadgeStyle(backgroundColor: Color(0xFF00AA00)),
+            styles: [GlassBadgeStyle(backgroundColor: Color(0xFF00AA00))],
           ),
           child: Center(child: badge),
         ),

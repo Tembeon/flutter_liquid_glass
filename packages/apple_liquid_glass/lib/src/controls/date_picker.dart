@@ -51,7 +51,7 @@ enum GlassDatePickerVariant {
 /// it to the theme's style, then the default, which follows the
 /// brightness and Increase Contrast.
 @immutable
-class GlassDatePickerStyle {
+class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
   /// Creates a style.
   const GlassDatePickerStyle({
     this.accentColor,
@@ -62,6 +62,11 @@ class GlassDatePickerStyle {
     this.selectedDayTextColor,
     this.wheelBandColor,
   });
+
+  /// The theme's [GlassDatePickerStyle] at [context], or null without one: the
+  /// look between a widget's own style and its defaults.
+  static GlassDatePickerStyle? maybeOf(BuildContext context) =>
+      GlassTheme.styleOf<GlassDatePickerStyle>(context);
 
   /// The accent: the text of an open label, the month title's chevron,
   /// today's number and, when today is the chosen day, its disc; the
@@ -92,6 +97,7 @@ class GlassDatePickerStyle {
   final Color? wheelBandColor;
 
   /// This style over [other].
+  @override
   GlassDatePickerStyle merge(GlassDatePickerStyle? other) {
     if (other == null) return this;
     return GlassDatePickerStyle(
@@ -105,27 +111,23 @@ class GlassDatePickerStyle {
     );
   }
 
-  /// The style between [a] and [b] at [t].
-  static GlassDatePickerStyle? lerp(
-    GlassDatePickerStyle? a,
-    GlassDatePickerStyle? b,
-    double t,
-  ) {
-    if (identical(a, b)) return a;
-    if (a == null || b == null) return t < 0.5 ? a : b;
+  /// The style between this one and [other] at [t].
+  @override
+  GlassDatePickerStyle lerp(GlassDatePickerStyle other, double t) {
+    if (identical(this, other)) return this;
     final color = snapNull(GlassDynamicColor.lerp);
     return GlassDatePickerStyle(
-      accentColor: color(a.accentColor, b.accentColor, t),
-      labelColor: color(a.labelColor, b.labelColor, t),
-      labelFillColor: color(a.labelFillColor, b.labelFillColor, t),
-      weekdayColor: color(a.weekdayColor, b.weekdayColor, t),
-      todayFillColor: color(a.todayFillColor, b.todayFillColor, t),
+      accentColor: color(accentColor, other.accentColor, t),
+      labelColor: color(labelColor, other.labelColor, t),
+      labelFillColor: color(labelFillColor, other.labelFillColor, t),
+      weekdayColor: color(weekdayColor, other.weekdayColor, t),
+      todayFillColor: color(todayFillColor, other.todayFillColor, t),
       selectedDayTextColor: color(
-        a.selectedDayTextColor,
-        b.selectedDayTextColor,
+        selectedDayTextColor,
+        other.selectedDayTextColor,
         t,
       ),
-      wheelBandColor: color(a.wheelBandColor, b.wheelBandColor, t),
+      wheelBandColor: color(wheelBandColor, other.wheelBandColor, t),
     );
   }
 
@@ -236,13 +238,14 @@ class _Appearance {
     final table = traits.highContrast
         ? (night ? darkHighContrast : lightHighContrast)
         : (night ? dark : light);
-    final theme = GlassTheme.of(context);
     final look = (style ?? const GlassDatePickerStyle()).merge(
-      theme.datePickerStyle,
+      GlassDatePickerStyle.maybeOf(context),
     );
     Color? resolved(Color? color) =>
         color == null ? null : GlassDynamicColor.resolve(color, context);
-    final accent = resolved(look.accentColor ?? theme.primaryColor);
+    final accent = resolved(
+      look.accentColor ?? GlassTheme.primaryColorOf(context),
+    );
     return _Appearance(
       labelFillColor: resolved(look.labelFillColor) ?? table.labelFillColor,
       labelColor: resolved(look.labelColor) ?? table.labelColor,

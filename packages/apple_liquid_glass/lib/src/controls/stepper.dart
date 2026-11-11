@@ -11,13 +11,18 @@ import 'package:flutter/widgets.dart';
 /// stepper looks a field up in its own style, then in the theme's, then in
 /// its defaults, state by state. [merge] combines two styles the same way.
 @immutable
-class GlassStepperStyle {
+class GlassStepperStyle extends GlassStyle<GlassStepperStyle> {
   /// Creates a style.
   const GlassStepperStyle({
     this.backgroundColor,
     this.foregroundColor,
     this.builder,
   });
+
+  /// The theme's [GlassStepperStyle] at [context], or null without one: the
+  /// look between a widget's own style and its defaults.
+  static GlassStepperStyle? maybeOf(BuildContext context) =>
+      GlassTheme.styleOf<GlassStepperStyle>(context);
 
   /// The fill of each half; the device's measured fill by default
   /// ([GlassStepper.background]).
@@ -33,6 +38,7 @@ class GlassStepperStyle {
   final GlassStepperBuilder? builder;
 
   /// This style over [other], state by state.
+  @override
   GlassStepperStyle merge(GlassStepperStyle? other) {
     if (other == null) return this;
     return GlassStepperStyle(
@@ -42,15 +48,11 @@ class GlassStepperStyle {
     );
   }
 
-  /// The style between [a] and [b] at [t]; the builder switches at the
-  /// middle.
-  static GlassStepperStyle? lerp(
-    GlassStepperStyle? a,
-    GlassStepperStyle? b,
-    double t,
-  ) {
-    if (identical(a, b)) return a;
-    if (a == null || b == null) return t < 0.5 ? a : b;
+  /// The style between this one and [other] at [t]; the builder switches
+  /// at the middle.
+  @override
+  GlassStepperStyle lerp(GlassStepperStyle other, double t) {
+    if (identical(this, other)) return this;
     WidgetStateProperty<Color?>? color(
       WidgetStateProperty<Color?>? from,
       WidgetStateProperty<Color?>? to,
@@ -61,9 +63,9 @@ class GlassStepperStyle {
       snapNull(GlassDynamicColor.lerp),
     );
     return GlassStepperStyle(
-      backgroundColor: color(a.backgroundColor, b.backgroundColor),
-      foregroundColor: color(a.foregroundColor, b.foregroundColor),
-      builder: t < 0.5 ? a.builder : b.builder,
+      backgroundColor: color(backgroundColor, other.backgroundColor),
+      foregroundColor: color(foregroundColor, other.foregroundColor),
+      builder: t < 0.5 ? builder : other.builder,
     );
   }
 
@@ -158,7 +160,7 @@ class GlassStepper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final look = (style ?? const GlassStepperStyle()).merge(
-      GlassTheme.of(context).stepperStyle,
+      GlassStepperStyle.maybeOf(context),
     );
     return RawGlassStepper(
       value: value,

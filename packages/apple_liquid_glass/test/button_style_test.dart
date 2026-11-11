@@ -108,8 +108,8 @@ void main() {
         style.iconSize!.resolve({}),
       ];
       expect(values(const GlassButtonStyle().merge(b)), values(b));
-      expect(values(GlassButtonStyle.lerp(a, b, 0)!), values(a));
-      expect(values(GlassButtonStyle.lerp(a, b, 1)!), values(b));
+      expect(values(a.lerp(b, 0)), values(a));
+      expect(values(a.lerp(b, 1)), values(b));
     });
 
     test('a merge falls through state by state', () {
@@ -172,12 +172,16 @@ void main() {
     testWidgets('the theme styles each kind; the widget style wins; '
         'WidgetStatePropertyAll(null) hands a field on', (tester) async {
       final theme = GlassThemeData(
-        buttonStyle: GlassButton.styleFrom(
-          foregroundColor: const Color(0xFF00AA00),
-        ),
-        prominentButtonStyle: GlassButton.styleFrom(
-          foregroundColor: const Color(0xFF0000AA),
-        ),
+        styles: [
+          GlassButton.styleFrom(
+            foregroundColor: const Color(0xFF00AA00),
+          ),
+          GlassProminentButtonStyle.from(
+            GlassButton.styleFrom(
+              foregroundColor: const Color(0xFF0000AA),
+            ),
+          ),
+        ],
       );
       await tester.pumpWidget(
         _app(

@@ -4,15 +4,18 @@
 /// `GlassDatePicker` and `GlassBadge`.
 ///
 /// For the app developer: put one in and it works. Each control has a
-/// `*Style` shaped like Flutter's `ButtonStyle`, and looks a field up in
-/// its own style, then in the theme's, then in its defaults.
+/// `*Style` beside it, shaped like Flutter's `ButtonStyle`, and looks a
+/// field up in its own style, then in the theme's style of that type
+/// (`GlassSwitchStyle.maybeOf`), then in its defaults. The prominent
+/// buttons' theme style is a `GlassProminentButtonStyle`.
 ///
 /// It promises that a control works with every renderer: no control asks
 /// which renderer draws it.
 library;
 
 export 'src/controls/badge.dart' show GlassBadge, GlassBadgeStyle;
-export 'src/controls/button.dart' show GlassButton, GlassButtonStyle;
+export 'src/controls/button.dart'
+    show GlassButton, GlassButtonStyle, GlassProminentButtonStyle;
 export 'src/controls/date_picker.dart'
     show
         GlassDatePicker,

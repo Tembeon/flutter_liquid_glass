@@ -78,6 +78,7 @@ GlassPageScaffold
 GlassPlanOverlay
 GlassPopoverStyle
 GlassPressable
+GlassProminentButtonStyle
 GlassReadReport
 GlassReadSource
 GlassRenderer
@@ -115,6 +116,7 @@ GlassStepperBuilder
 GlassStepperDetails
 GlassStepperHalf
 GlassStepperStyle
+GlassStyle
 GlassSubmenu
 GlassSuperellipse
 GlassSurface

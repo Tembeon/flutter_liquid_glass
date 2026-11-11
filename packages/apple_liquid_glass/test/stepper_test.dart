@@ -166,9 +166,11 @@ void main() {
       _app(
         GlassTheme(
           data: GlassThemeData(
-            stepperStyle: GlassStepper.styleFrom(
-              backgroundColor: const Color(0xFF123456),
-            ),
+            styles: [
+              GlassStepper.styleFrom(
+                backgroundColor: const Color(0xFF123456),
+              ),
+            ],
           ),
           child: GlassStepper(value: 5, onChanged: (_) {}),
         ),

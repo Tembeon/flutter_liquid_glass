@@ -628,9 +628,11 @@ final class _Bar {
   // The capsule of a prominent item, from the theme.
   Color? tint;
 
-  GlassBarItemStyle? itemStyleOf(GlassThemeData theme) => switch (kind) {
-    GlassBarKind.navigation => theme.navigationBarStyle?.itemStyle,
-    GlassBarKind.toolbar => theme.toolbarStyle?.itemStyle,
+  GlassBarItemStyle? itemStyleOf(BuildContext context) => switch (kind) {
+    GlassBarKind.navigation => GlassNavigationBarStyle.maybeOf(
+      context,
+    )?.itemStyle,
+    GlassBarKind.toolbar => GlassToolbarStyle.maybeOf(context)?.itemStyle,
   };
 
   // The frames follow the motion while the bar's items are on screen.
@@ -1205,12 +1207,11 @@ class GlassBarView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final reduceMotion = GlassTraits.of(context).reduceMotion;
-    final theme = GlassTheme.of(context);
     for (final bar in host._bars.values) {
       bar.motion.reducedMotion = reduceMotion;
       bar.tint = GlassDynamicColor.resolve(
-        bar.itemStyleOf(theme)?.prominentColor ??
-            theme.primaryColor ??
+        bar.itemStyleOf(context)?.prominentColor ??
+            GlassTheme.primaryColorOf(context) ??
             _prominentColor,
         context,
       );
@@ -1458,8 +1459,7 @@ class _BarItem extends StatelessWidget {
   }
 
   Widget _glyphOf(BuildContext context, _Button button) {
-    final theme = GlassTheme.of(context);
-    final look = bar.itemStyleOf(theme);
+    final look = bar.itemStyleOf(context);
     final item = button.item;
     final enabled =
         button.back != null ||
@@ -1472,7 +1472,9 @@ class _BarItem extends StatelessWidget {
           : look?.foregroundColor?.resolve({
                   if (!enabled) WidgetState.disabled,
                 }) ??
-                (enabled ? theme.labelColor : theme.tertiaryLabelColor),
+                (enabled
+                    ? GlassTheme.labelColorOf(context)
+                    : GlassTheme.tertiaryLabelColorOf(context)),
       context,
     );
     final text = resolveGlassText(

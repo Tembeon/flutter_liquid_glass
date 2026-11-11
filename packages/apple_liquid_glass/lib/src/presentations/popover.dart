@@ -22,14 +22,20 @@ import 'package:kinesis/kinesis.dart';
 /// then the default. A popover that adapts to a sheet draws in the
 /// sheet's style with this style's text.
 @immutable
-class GlassPopoverStyle {
+class GlassPopoverStyle extends GlassStyle<GlassPopoverStyle> {
   /// Creates a style.
   const GlassPopoverStyle({this.textStyle});
+
+  /// The theme's [GlassPopoverStyle] at [context], or null without one: the
+  /// look between a widget's own style and its defaults.
+  static GlassPopoverStyle? maybeOf(BuildContext context) =>
+      GlassTheme.styleOf<GlassPopoverStyle>(context);
 
   /// The default text of the content, over 17 points in label.
   final TextStyle? textStyle;
 
   /// This style over [other].
+  @override
   GlassPopoverStyle merge(GlassPopoverStyle? other) {
     if (other == null) return this;
     return GlassPopoverStyle(
@@ -37,16 +43,12 @@ class GlassPopoverStyle {
     );
   }
 
-  /// The style between [a] and [b] at [t].
-  static GlassPopoverStyle? lerp(
-    GlassPopoverStyle? a,
-    GlassPopoverStyle? b,
-    double t,
-  ) {
-    if (identical(a, b)) return a;
-    if (a == null || b == null) return t < 0.5 ? a : b;
+  /// The style between this one and [other] at [t].
+  @override
+  GlassPopoverStyle lerp(GlassPopoverStyle other, double t) {
+    if (identical(this, other)) return this;
     return GlassPopoverStyle(
-      textStyle: snapNull(TextStyle.lerp)(a.textStyle, b.textStyle, t),
+      textStyle: snapNull(TextStyle.lerp)(textStyle, other.textStyle, t),
     );
   }
 
@@ -90,7 +92,7 @@ Future<T?> showGlassPopover<T>(
 }) {
   if (adaptsToSheet && MediaQuery.sizeOf(context).shortestSide < 600) {
     final look = (style ?? const GlassPopoverStyle()).merge(
-      GlassTheme.of(context).popoverStyle,
+      GlassPopoverStyle.maybeOf(context),
     );
     return showGlassSheet<T>(
       context,
@@ -177,7 +179,7 @@ class _PopoverViewState extends State<_PopoverView> {
 
   TextStyle _textStyle(Color label, BuildContext context) {
     final look = (widget.style ?? const GlassPopoverStyle()).merge(
-      GlassTheme.of(context).popoverStyle,
+      GlassPopoverStyle.maybeOf(context),
     );
     final text = TextStyle(fontSize: 17, color: label).merge(look.textStyle);
     return text.copyWith(
@@ -189,7 +191,7 @@ class _PopoverViewState extends State<_PopoverView> {
   Widget build(BuildContext context) {
     widget.motion.reducedMotion = GlassTraits.of(context).reduceMotion;
     final media = MediaQuery.of(context);
-    final label = GlassTheme.of(context).labelColor;
+    final label = GlassTheme.labelColorOf(context);
     return PopoverLayout(
       source: widget.source,
       scale: _scale,

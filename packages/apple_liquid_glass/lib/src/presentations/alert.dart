@@ -24,7 +24,7 @@ enum _Role { normal, cancel, destructive }
 /// The look of alerts and action sheets; a null field leaves it to the
 /// theme's style, then the default (iPhone 16 Pro, iOS 27).
 @immutable
-class GlassAlertStyle {
+class GlassAlertStyle extends GlassStyle<GlassAlertStyle> {
   /// Creates a style.
   const GlassAlertStyle({
     this.titleTextStyle,
@@ -36,6 +36,11 @@ class GlassAlertStyle {
     this.actionFillColor,
     this.defaultActionFillColor,
   });
+
+  /// The theme's [GlassAlertStyle] at [context], or null without one: the
+  /// look between a widget's own style and its defaults.
+  static GlassAlertStyle? maybeOf(BuildContext context) =>
+      GlassTheme.styleOf<GlassAlertStyle>(context);
 
   /// The title, over the default 17 points in label, semibold above a
   /// message.
@@ -67,6 +72,7 @@ class GlassAlertStyle {
   final Color? defaultActionFillColor;
 
   /// This style over [other].
+  @override
   GlassAlertStyle merge(GlassAlertStyle? other) {
     if (other == null) return this;
     return GlassAlertStyle(
@@ -86,31 +92,31 @@ class GlassAlertStyle {
     );
   }
 
-  /// The style between [a] and [b] at [t].
-  static GlassAlertStyle? lerp(
-    GlassAlertStyle? a,
-    GlassAlertStyle? b,
-    double t,
-  ) {
-    if (identical(a, b)) return a;
-    if (a == null || b == null) return t < 0.5 ? a : b;
+  /// The style between this one and [other] at [t].
+  @override
+  GlassAlertStyle lerp(GlassAlertStyle other, double t) {
+    if (identical(this, other)) return this;
     final color = snapNull(GlassDynamicColor.lerp);
     final text = snapNull(TextStyle.lerp);
     return GlassAlertStyle(
-      titleTextStyle: text(a.titleTextStyle, b.titleTextStyle, t),
-      messageTextStyle: text(a.messageTextStyle, b.messageTextStyle, t),
-      actionTextStyle: text(a.actionTextStyle, b.actionTextStyle, t),
-      actionColor: color(a.actionColor, b.actionColor, t),
+      titleTextStyle: text(titleTextStyle, other.titleTextStyle, t),
+      messageTextStyle: text(messageTextStyle, other.messageTextStyle, t),
+      actionTextStyle: text(actionTextStyle, other.actionTextStyle, t),
+      actionColor: color(actionColor, other.actionColor, t),
       destructiveActionColor: color(
-        a.destructiveActionColor,
-        b.destructiveActionColor,
+        destructiveActionColor,
+        other.destructiveActionColor,
         t,
       ),
-      defaultActionColor: color(a.defaultActionColor, b.defaultActionColor, t),
-      actionFillColor: color(a.actionFillColor, b.actionFillColor, t),
+      defaultActionColor: color(
+        defaultActionColor,
+        other.defaultActionColor,
+        t,
+      ),
+      actionFillColor: color(actionFillColor, other.actionFillColor, t),
       defaultActionFillColor: color(
-        a.defaultActionFillColor,
-        b.defaultActionFillColor,
+        defaultActionFillColor,
+        other.defaultActionFillColor,
         t,
       ),
     );
@@ -527,10 +533,9 @@ class _AlertViewState extends State<_AlertView> {
 
   TextStyle _labelStyle(GlassAlertAction action, BuildContext context) {
     final look = _look;
-    final theme = GlassTheme.of(context);
-    final label = theme.labelColor;
+    final label = GlassTheme.labelColorOf(context);
     final color = !action.enabled
-        ? theme.tertiaryLabelColor
+        ? GlassTheme.tertiaryLabelColorOf(context)
         : action.isDefaultAction
         ? look.defaultActionColor ?? const Color(0xFFFFFFFF)
         : action.isDestructive
@@ -556,7 +561,7 @@ class _AlertViewState extends State<_AlertView> {
       GlassDynamicColor.resolve(
         action.isDefaultAction && action.enabled
             ? _look.defaultActionFillColor ??
-                  GlassTheme.of(context).primaryColor ??
+                  GlassTheme.primaryColorOf(context) ??
                   GlassColors.systemBlue
             : _look.actionFillColor ?? GlassColors.tertiarySystemFill,
         context,
@@ -565,7 +570,7 @@ class _AlertViewState extends State<_AlertView> {
   @override
   Widget build(BuildContext context) {
     _look = (widget.style ?? const GlassAlertStyle()).merge(
-      GlassTheme.of(context).alertStyle,
+      GlassAlertStyle.maybeOf(context),
     );
     final reduced = GlassTraits.of(context).reduceMotion;
     _alert?.reducedMotion = reduced;
@@ -630,7 +635,7 @@ class _AlertViewState extends State<_AlertView> {
   }
 
   Widget _buildCard(double width, bool row, BuildContext context) {
-    final label = GlassTheme.of(context).labelColor;
+    final label = GlassTheme.labelColorOf(context);
     final title = widget.title;
     final message = widget.message;
     final both = title != null && message != null;

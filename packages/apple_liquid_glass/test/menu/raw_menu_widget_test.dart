@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:apple_liquid_glass/src/presentations/menu_appearance.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,7 +26,7 @@ void main() {
           renderer: const FlatGlassRenderer(),
           child: GlassTheme(
             data: GlassThemeData(
-              menuStyle: themeStyle,
+              styles: [?themeStyle],
             ),
             child: child!,
           ),
@@ -103,5 +104,25 @@ void main() {
     await settle(tester);
     expect(color('Copy'), const Color(0xFF00AA00));
     expect(color('Delete'), const Color(0xFF0000AA));
+  });
+
+  testWidgets('a row field the theme style leaves null keeps its default', (
+    tester,
+  ) async {
+    Color? color(String title) => tester
+        .renderObject<RenderParagraph>(find.text(title))
+        .text
+        .style
+        ?.color;
+    await pumpMenu(
+      tester,
+      themeStyle: const GlassMenuStyle(
+        textStyle: TextStyle(color: Color(0xFF00AA00)),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('source')));
+    await settle(tester);
+    expect(color('Copy'), const Color(0xFF00AA00));
+    expect(color('Delete'), MenuAppearance.light.destructiveColor);
   });
 }

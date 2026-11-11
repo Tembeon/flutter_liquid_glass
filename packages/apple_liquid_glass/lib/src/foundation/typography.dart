@@ -176,7 +176,7 @@ final class _RoleTextScaler extends TextScaler {
 /// Flutter's bold, an approximation: iOS's bold weights are not measured.
 @internal
 TextStyle resolveGlassText(TextStyle style, BuildContext context) {
-  final family = GlassTheme.of(context).fontFamily;
+  final family = GlassTheme.fontFamilyOf(context);
   final themed = style.fontFamily == null && family != null
       ? style.copyWith(fontFamily: family)
       : style;

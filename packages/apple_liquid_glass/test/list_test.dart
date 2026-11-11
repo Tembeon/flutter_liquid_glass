@@ -255,9 +255,11 @@ void main() {
           children: [GlassListRow(title: Text('Row'), detail: Text('Value'))],
         ),
         theme: const GlassThemeData(
-          listStyle: GlassListStyle(
-            secondaryColor: WidgetStatePropertyAll(Color(0xFF123456)),
-          ),
+          styles: [
+            GlassListStyle(
+              secondaryColor: WidgetStatePropertyAll(Color(0xFF123456)),
+            ),
+          ],
         ),
       ),
     );

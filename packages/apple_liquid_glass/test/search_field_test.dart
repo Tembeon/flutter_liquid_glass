@@ -118,9 +118,11 @@ void main() {
       _app(
         GlassSearchField(focusNode: focus),
         theme: const GlassThemeData(
-          searchFieldStyle: GlassSearchFieldStyle(
-            foregroundColor: WidgetStatePropertyAll(Color(0xFF123456)),
-          ),
+          styles: [
+            GlassSearchFieldStyle(
+              foregroundColor: WidgetStatePropertyAll(Color(0xFF123456)),
+            ),
+          ],
         ),
       ),
     );

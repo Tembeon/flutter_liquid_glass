@@ -21,7 +21,7 @@ import 'package:kinesis/kinesis.dart';
 /// from this style to the theme's to the field's defaults: a null for a
 /// state leaves that state to the next one.
 @immutable
-class GlassSearchFieldStyle {
+class GlassSearchFieldStyle extends GlassStyle<GlassSearchFieldStyle> {
   /// Creates a style.
   const GlassSearchFieldStyle({
     this.backgroundColor,
@@ -32,6 +32,11 @@ class GlassSearchFieldStyle {
     this.textStyle,
     this.builder,
   });
+
+  /// The theme's [GlassSearchFieldStyle] at [context], or null without one: the
+  /// look between a widget's own style and its defaults.
+  static GlassSearchFieldStyle? maybeOf(BuildContext context) =>
+      GlassTheme.styleOf<GlassSearchFieldStyle>(context);
 
   /// A tint over the field's glass, or, disabled, the plain fill that
   /// replaces it; [GlassSearchField.disabledFill] when disabled and no tint
@@ -62,6 +67,7 @@ class GlassSearchFieldStyle {
   final GlassSearchFieldBuilder? builder;
 
   /// This style over [other], state by state.
+  @override
   GlassSearchFieldStyle merge(GlassSearchFieldStyle? other) {
     if (other == null) return this;
     return GlassSearchFieldStyle(
@@ -75,15 +81,11 @@ class GlassSearchFieldStyle {
     );
   }
 
-  /// The style between [a] and [b] at [t]; the builder switches at the
-  /// half.
-  static GlassSearchFieldStyle? lerp(
-    GlassSearchFieldStyle? a,
-    GlassSearchFieldStyle? b,
-    double t,
-  ) {
-    if (identical(a, b)) return a;
-    if (a == null || b == null) return t < 0.5 ? a : b;
+  /// The style between this one and [other] at [t]; the builder switches
+  /// at the half.
+  @override
+  GlassSearchFieldStyle lerp(GlassSearchFieldStyle other, double t) {
+    if (identical(this, other)) return this;
     WidgetStateProperty<Color?>? color(
       WidgetStateProperty<Color?>? from,
       WidgetStateProperty<Color?>? to,
@@ -94,18 +96,18 @@ class GlassSearchFieldStyle {
       snapNull(GlassDynamicColor.lerp),
     );
     return GlassSearchFieldStyle(
-      backgroundColor: color(a.backgroundColor, b.backgroundColor),
-      foregroundColor: color(a.foregroundColor, b.foregroundColor),
-      placeholderColor: color(a.placeholderColor, b.placeholderColor),
-      iconColor: color(a.iconColor, b.iconColor),
-      cursorColor: color(a.cursorColor, b.cursorColor),
+      backgroundColor: color(backgroundColor, other.backgroundColor),
+      foregroundColor: color(foregroundColor, other.foregroundColor),
+      placeholderColor: color(placeholderColor, other.placeholderColor),
+      iconColor: color(iconColor, other.iconColor),
+      cursorColor: color(cursorColor, other.cursorColor),
       textStyle: WidgetStateProperty.lerp<TextStyle?>(
-        a.textStyle,
-        b.textStyle,
+        textStyle,
+        other.textStyle,
         t,
         snapNull(TextStyle.lerp),
       ),
-      builder: t < 0.5 ? a.builder : b.builder,
+      builder: t < 0.5 ? builder : other.builder,
     );
   }
 
@@ -238,7 +240,7 @@ class GlassSearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final look = (style ?? const GlassSearchFieldStyle()).merge(
-      GlassTheme.of(context).searchFieldStyle,
+      GlassSearchFieldStyle.maybeOf(context),
     );
     return RawGlassSearchField(
       controller: controller,
@@ -260,7 +262,7 @@ class GlassSearchField extends StatelessWidget {
   }
 
   static GlassSearchFieldStyle _defaults(BuildContext context) {
-    final label = GlassTheme.of(context).labelColor;
+    final label = GlassTheme.labelColorOf(context);
     return GlassSearchFieldStyle(
       backgroundColor: const ByState(null, GlassSearchField.disabledFill),
       foregroundColor: WidgetStatePropertyAll(label),

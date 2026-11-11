@@ -52,7 +52,7 @@ final class GlassSegment<T> {
 /// style, then in the theme's, then in its defaults, state by state: a
 /// property that gives null for a state leaves that state to the next one.
 @immutable
-class GlassSegmentedStyle {
+class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle> {
   /// Creates a style.
   const GlassSegmentedStyle({
     this.backgroundColor,
@@ -61,6 +61,11 @@ class GlassSegmentedStyle {
     this.textStyle,
     this.builder,
   });
+
+  /// The theme's [GlassSegmentedStyle] at [context], or null without one: the
+  /// look between a widget's own style and its defaults.
+  static GlassSegmentedStyle? maybeOf(BuildContext context) =>
+      GlassTheme.styleOf<GlassSegmentedStyle>(context);
 
   /// The track (UIKit `backgroundColor`); [GlassColors.tertiarySystemFill]
   /// by default.
@@ -83,6 +88,7 @@ class GlassSegmentedStyle {
   final GlassSelectorBuilder? builder;
 
   /// This style over [other], state by state.
+  @override
   GlassSegmentedStyle merge(GlassSegmentedStyle? other) {
     if (other == null) return this;
     return GlassSegmentedStyle(
@@ -94,15 +100,11 @@ class GlassSegmentedStyle {
     );
   }
 
-  /// The style between [a] and [b] at [t]; the builder switches at the
-  /// middle.
-  static GlassSegmentedStyle? lerp(
-    GlassSegmentedStyle? a,
-    GlassSegmentedStyle? b,
-    double t,
-  ) {
-    if (identical(a, b)) return a;
-    if (a == null || b == null) return t < 0.5 ? a : b;
+  /// The style between this one and [other] at [t]; the builder switches
+  /// at the middle.
+  @override
+  GlassSegmentedStyle lerp(GlassSegmentedStyle other, double t) {
+    if (identical(this, other)) return this;
     WidgetStateProperty<Color?>? color(
       WidgetStateProperty<Color?>? from,
       WidgetStateProperty<Color?>? to,
@@ -113,16 +115,16 @@ class GlassSegmentedStyle {
       snapNull(GlassDynamicColor.lerp),
     );
     return GlassSegmentedStyle(
-      backgroundColor: color(a.backgroundColor, b.backgroundColor),
-      thumbColor: color(a.thumbColor, b.thumbColor),
-      foregroundColor: color(a.foregroundColor, b.foregroundColor),
+      backgroundColor: color(backgroundColor, other.backgroundColor),
+      thumbColor: color(thumbColor, other.thumbColor),
+      foregroundColor: color(foregroundColor, other.foregroundColor),
       textStyle: WidgetStateProperty.lerp<TextStyle?>(
-        a.textStyle,
-        b.textStyle,
+        textStyle,
+        other.textStyle,
         t,
         snapNull(TextStyle.lerp),
       ),
-      builder: t < 0.5 ? a.builder : b.builder,
+      builder: t < 0.5 ? builder : other.builder,
     );
   }
 
@@ -255,7 +257,7 @@ class GlassSegmentedControl<T> extends StatelessWidget {
     ),
     thumbColor: const WidgetStatePropertyAll(thumb),
     foregroundColor: WidgetStatePropertyAll(
-      GlassTheme.of(context).labelColor,
+      GlassTheme.labelColorOf(context),
     ),
     textStyle: const BySelection(_label, _selectedLabel),
   );
@@ -269,7 +271,7 @@ class GlassSegmentedControl<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themed = GlassTheme.of(context).segmentedStyle;
+    final themed = GlassSegmentedStyle.maybeOf(context);
     final look = (style ?? const GlassSegmentedStyle())
         .merge(themed)
         .merge(_defaults(context));

@@ -1,23 +1,6 @@
-import 'package:apple_liquid_glass/src/controls/badge.dart';
-import 'package:apple_liquid_glass/src/controls/button.dart';
-import 'package:apple_liquid_glass/src/controls/date_picker.dart';
-import 'package:apple_liquid_glass/src/controls/list.dart';
-import 'package:apple_liquid_glass/src/controls/page_control.dart';
-import 'package:apple_liquid_glass/src/controls/search_field.dart';
-import 'package:apple_liquid_glass/src/controls/segmented_control.dart';
-import 'package:apple_liquid_glass/src/controls/slider.dart';
-import 'package:apple_liquid_glass/src/controls/stepper.dart';
-import 'package:apple_liquid_glass/src/controls/switch.dart';
 import 'package:apple_liquid_glass/src/foundation/colors.dart';
 import 'package:apple_liquid_glass/src/foundation/glass.dart';
 import 'package:apple_liquid_glass/src/foundation/traits.dart';
-import 'package:apple_liquid_glass/src/navigation/navigation_bar.dart';
-import 'package:apple_liquid_glass/src/navigation/tab_bar.dart';
-import 'package:apple_liquid_glass/src/navigation/toolbar.dart';
-import 'package:apple_liquid_glass/src/presentations/alert.dart';
-import 'package:apple_liquid_glass/src/presentations/menu_appearance.dart';
-import 'package:apple_liquid_glass/src/presentations/popover.dart';
-import 'package:apple_liquid_glass/src/presentations/sheet.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
@@ -96,11 +79,38 @@ final class GlassColorScheme {
   );
 }
 
+/// The look of one component, kept in a [GlassThemeData] under its [type].
+///
+/// Flutter: `ThemeExtension`. Each component's style class extends it, so
+/// the theme holds a style it knows nothing about, finds it by type, layers
+/// a nested theme's over the enclosing one with [merge] and moves between
+/// two themes with [lerp]. A widget that reads one style through
+/// [GlassTheme.styleOf] rebuilds only when that style changes.
+@immutable
+abstract class GlassStyle<T extends Object> {
+  /// Creates a style.
+  const GlassStyle();
+
+  /// The key the theme keeps this style under: [T], unless a component
+  /// keeps two looks of one style class apart.
+  Object get type => T;
+
+  /// This style over [other]: what this style leaves null comes from
+  /// [other].
+  T merge(T? other);
+
+  /// The style between this one and [other] at [t].
+  T lerp(T other, double t);
+}
+
 /// The look of the glass widgets below a [GlassTheme].
 ///
 /// Every field is an override: null keeps the enclosing theme's value, and
 /// at the root the native one. A nested theme merges into the enclosing
-/// one field by field.
+/// one field by field, and style by style.
+///
+/// The theme names no component: the look of each one is a [GlassStyle] in
+/// [styles], which the component looks up by type.
 @immutable
 class GlassThemeData {
   /// Creates a theme.
@@ -109,28 +119,12 @@ class GlassThemeData {
     this.primaryColor,
     this.fontFamily,
     this.colorScheme,
-    this.buttonStyle,
-    this.prominentButtonStyle,
-    this.switchStyle,
-    this.sliderStyle,
-    this.stepperStyle,
-    this.pageControlStyle,
-    this.segmentedStyle,
-    this.tabBarStyle,
-    this.searchFieldStyle,
-    this.listStyle,
-    this.navigationBarStyle,
-    this.badgeStyle,
-    this.datePickerStyle,
-    this.menuStyle,
-    this.alertStyle,
-    this.sheetStyle,
-    this.popoverStyle,
-    this.toolbarStyle,
+    this.styles = const [],
   });
 
   /// The theme between [a] and [b] at [t]: colors and styles interpolate;
-  /// brightness and font take [b]'s at once.
+  /// brightness and font take [b]'s at once, and a style only one of the
+  /// two has switches at the middle.
   factory GlassThemeData.lerp(
     GlassThemeData a,
     GlassThemeData b,
@@ -138,53 +132,22 @@ class GlassThemeData {
   ) {
     if (identical(a, b) || t == 0) return a;
     if (t == 1) return b;
+    final from = {for (final style in a.styles) style.type: style};
+    final to = {for (final style in b.styles) style.type: style};
     return GlassThemeData(
       brightness: b.brightness,
       primaryColor: GlassDynamicColor.lerp(a.primaryColor, b.primaryColor, t),
       fontFamily: b.fontFamily,
       colorScheme: GlassColorScheme.lerp(a.colorScheme, b.colorScheme, t),
-      buttonStyle: GlassButtonStyle.lerp(a.buttonStyle, b.buttonStyle, t),
-      prominentButtonStyle: GlassButtonStyle.lerp(
-        a.prominentButtonStyle,
-        b.prominentButtonStyle,
-        t,
-      ),
-      switchStyle: GlassSwitchStyle.lerp(a.switchStyle, b.switchStyle, t),
-      sliderStyle: GlassSliderStyle.lerp(a.sliderStyle, b.sliderStyle, t),
-      stepperStyle: GlassStepperStyle.lerp(a.stepperStyle, b.stepperStyle, t),
-      pageControlStyle: GlassPageControlStyle.lerp(
-        a.pageControlStyle,
-        b.pageControlStyle,
-        t,
-      ),
-      segmentedStyle: GlassSegmentedStyle.lerp(
-        a.segmentedStyle,
-        b.segmentedStyle,
-        t,
-      ),
-      tabBarStyle: GlassTabBarStyle.lerp(a.tabBarStyle, b.tabBarStyle, t),
-      searchFieldStyle: GlassSearchFieldStyle.lerp(
-        a.searchFieldStyle,
-        b.searchFieldStyle,
-        t,
-      ),
-      listStyle: GlassListStyle.lerp(a.listStyle, b.listStyle, t),
-      navigationBarStyle: GlassNavigationBarStyle.lerp(
-        a.navigationBarStyle,
-        b.navigationBarStyle,
-        t,
-      ),
-      badgeStyle: GlassBadgeStyle.lerp(a.badgeStyle, b.badgeStyle, t),
-      datePickerStyle: GlassDatePickerStyle.lerp(
-        a.datePickerStyle,
-        b.datePickerStyle,
-        t,
-      ),
-      menuStyle: GlassMenuStyle.lerp(a.menuStyle, b.menuStyle, t),
-      alertStyle: GlassAlertStyle.lerp(a.alertStyle, b.alertStyle, t),
-      sheetStyle: GlassSheetStyle.lerp(a.sheetStyle, b.sheetStyle, t),
-      popoverStyle: GlassPopoverStyle.lerp(a.popoverStyle, b.popoverStyle, t),
-      toolbarStyle: GlassToolbarStyle.lerp(a.toolbarStyle, b.toolbarStyle, t),
+      styles: [
+        for (final type in {...from.keys, ...to.keys})
+          if (switch ((from[type], to[type])) {
+                (final a?, final b?) => a.lerp(b, t) as GlassStyle<Object>,
+                (final a, final b) => t < 0.5 ? a : b,
+              }
+              case final style?)
+            style,
+      ],
     );
   }
 
@@ -200,71 +163,25 @@ class GlassThemeData {
   /// The app's semantic colors.
   final GlassColorScheme? colorScheme;
 
-  /// [colorScheme]'s label, or [GlassColors.label].
-  @internal
-  Color get labelColor => colorScheme?.label ?? GlassColors.label;
+  /// The looks of the components, one per [GlassStyle.type]; of two with
+  /// one type, the later wins.
+  final List<GlassStyle<Object>> styles;
 
-  /// [colorScheme]'s tertiary label, or [GlassColors.tertiaryLabel].
-  @internal
-  Color get tertiaryLabelColor =>
-      colorScheme?.tertiaryLabel ?? GlassColors.tertiaryLabel;
+  /// The style in [styles] kept under [type], or under [T] without one;
+  /// null when there is none.
+  ///
+  /// Flutter: `ThemeData.extension`.
+  T? style<T extends GlassStyle<Object>>([Object? type]) {
+    final key = type ?? T;
+    for (final style in styles.reversed) {
+      if (style.type == key) return style as T;
+    }
+    return null;
+  }
 
-  /// The look of regular and clear glass buttons.
-  final GlassButtonStyle? buttonStyle;
-
-  /// The look of prominent glass buttons.
-  final GlassButtonStyle? prominentButtonStyle;
-
-  /// The look of switches.
-  final GlassSwitchStyle? switchStyle;
-
-  /// The look of sliders.
-  final GlassSliderStyle? sliderStyle;
-
-  /// The look of steppers.
-  final GlassStepperStyle? stepperStyle;
-
-  /// The look of page controls.
-  final GlassPageControlStyle? pageControlStyle;
-
-  /// The look of segmented controls.
-  final GlassSegmentedStyle? segmentedStyle;
-
-  /// The look of tab bars.
-  final GlassTabBarStyle? tabBarStyle;
-
-  /// The look of search fields.
-  final GlassSearchFieldStyle? searchFieldStyle;
-
-  /// The look of inset grouped lists.
-  final GlassListStyle? listStyle;
-
-  /// The look of navigation bars.
-  final GlassNavigationBarStyle? navigationBarStyle;
-
-  /// The look of badges.
-  final GlassBadgeStyle? badgeStyle;
-
-  /// The colors of date pickers.
-  final GlassDatePickerStyle? datePickerStyle;
-
-  /// The look of menus and context menus.
-  final GlassMenuStyle? menuStyle;
-
-  /// The look of alerts and action sheets.
-  final GlassAlertStyle? alertStyle;
-
-  /// The look of sheets.
-  final GlassSheetStyle? sheetStyle;
-
-  /// The look of popovers.
-  final GlassPopoverStyle? popoverStyle;
-
-  /// The look of toolbars.
-  final GlassToolbarStyle? toolbarStyle;
-
-  /// This theme with the non-null fields of [other] over it; styles and
-  /// schemes merge too.
+  /// This theme with the non-null fields of [other] over it; schemes merge
+  /// too, and each of [other]'s styles merges over this theme's of its
+  /// type.
   GlassThemeData merge(GlassThemeData? other) {
     if (other == null) return this;
     return GlassThemeData(
@@ -272,33 +189,22 @@ class GlassThemeData {
       primaryColor: other.primaryColor ?? primaryColor,
       fontFamily: other.fontFamily ?? fontFamily,
       colorScheme: colorScheme?.merge(other.colorScheme) ?? other.colorScheme,
-      buttonStyle: other.buttonStyle?.merge(buttonStyle) ?? buttonStyle,
-      prominentButtonStyle:
-          other.prominentButtonStyle?.merge(prominentButtonStyle) ??
-          prominentButtonStyle,
-      switchStyle: other.switchStyle?.merge(switchStyle) ?? switchStyle,
-      sliderStyle: other.sliderStyle?.merge(sliderStyle) ?? sliderStyle,
-      stepperStyle: other.stepperStyle?.merge(stepperStyle) ?? stepperStyle,
-      pageControlStyle:
-          other.pageControlStyle?.merge(pageControlStyle) ?? pageControlStyle,
-      segmentedStyle:
-          other.segmentedStyle?.merge(segmentedStyle) ?? segmentedStyle,
-      tabBarStyle: other.tabBarStyle?.merge(tabBarStyle) ?? tabBarStyle,
-      searchFieldStyle:
-          other.searchFieldStyle?.merge(searchFieldStyle) ?? searchFieldStyle,
-      listStyle: other.listStyle?.merge(listStyle) ?? listStyle,
-      navigationBarStyle:
-          other.navigationBarStyle?.merge(navigationBarStyle) ??
-          navigationBarStyle,
-      badgeStyle: other.badgeStyle?.merge(badgeStyle) ?? badgeStyle,
-      datePickerStyle:
-          other.datePickerStyle?.merge(datePickerStyle) ?? datePickerStyle,
-      menuStyle: other.menuStyle?.merge(menuStyle) ?? menuStyle,
-      alertStyle: other.alertStyle?.merge(alertStyle) ?? alertStyle,
-      sheetStyle: other.sheetStyle?.merge(sheetStyle) ?? sheetStyle,
-      popoverStyle: other.popoverStyle?.merge(popoverStyle) ?? popoverStyle,
-      toolbarStyle: other.toolbarStyle?.merge(toolbarStyle) ?? toolbarStyle,
+      styles: _mergeStyles(styles, other.styles),
     );
+  }
+
+  static List<GlassStyle<Object>> _mergeStyles(
+    List<GlassStyle<Object>> under,
+    List<GlassStyle<Object>> over,
+  ) {
+    if (over.isEmpty) return under;
+    if (under.isEmpty) return over;
+    final byType = {for (final style in under) style.type: style};
+    for (final style in over) {
+      byType[style.type] =
+          style.merge(byType[style.type]) as GlassStyle<Object>;
+    }
+    return List.unmodifiable(byType.values);
   }
 
   @override
@@ -308,50 +214,16 @@ class GlassThemeData {
       other.primaryColor == primaryColor &&
       other.fontFamily == fontFamily &&
       other.colorScheme == colorScheme &&
-      other.buttonStyle == buttonStyle &&
-      other.prominentButtonStyle == prominentButtonStyle &&
-      other.switchStyle == switchStyle &&
-      other.sliderStyle == sliderStyle &&
-      other.stepperStyle == stepperStyle &&
-      other.pageControlStyle == pageControlStyle &&
-      other.segmentedStyle == segmentedStyle &&
-      other.tabBarStyle == tabBarStyle &&
-      other.searchFieldStyle == searchFieldStyle &&
-      other.listStyle == listStyle &&
-      other.navigationBarStyle == navigationBarStyle &&
-      other.badgeStyle == badgeStyle &&
-      other.datePickerStyle == datePickerStyle &&
-      other.menuStyle == menuStyle &&
-      other.alertStyle == alertStyle &&
-      other.sheetStyle == sheetStyle &&
-      other.popoverStyle == popoverStyle &&
-      other.toolbarStyle == toolbarStyle;
+      listEquals(other.styles, styles);
 
   @override
-  int get hashCode => Object.hashAll([
+  int get hashCode => Object.hash(
     brightness,
     primaryColor,
     fontFamily,
     colorScheme,
-    buttonStyle,
-    prominentButtonStyle,
-    switchStyle,
-    sliderStyle,
-    stepperStyle,
-    pageControlStyle,
-    segmentedStyle,
-    tabBarStyle,
-    searchFieldStyle,
-    listStyle,
-    navigationBarStyle,
-    badgeStyle,
-    datePickerStyle,
-    menuStyle,
-    alertStyle,
-    sheetStyle,
-    popoverStyle,
-    toolbarStyle,
-  ]);
+    Object.hashAll(styles),
+  );
 }
 
 /// Sets the look of the glass widgets below it.
@@ -360,7 +232,8 @@ class GlassThemeData {
 /// enclosing one instead of replacing it.
 ///
 /// A widget that reads one part of the theme ([brightnessOf],
-/// [colorSchemeOf]) rebuilds only when that part changes.
+/// [primaryColorOf], [fontFamilyOf], [colorSchemeOf], or one style with
+/// [styleOf]) rebuilds only when that part changes.
 ///
 /// The outermost theme starts `FrameCadence`, which on a fast display draws
 /// about 60 frames a second while nothing fast moves, and reports it the
@@ -384,7 +257,7 @@ class GlassTheme extends StatelessWidget {
   static GlassThemeData? maybeOf(BuildContext context) =>
       InheritedModel.inheritFrom<_GlassThemeScope>(context)?.data;
 
-  static GlassThemeData? _of(BuildContext context, _GlassThemeAspect aspect) =>
+  static GlassThemeData? _of(BuildContext context, Object aspect) =>
       InheritedModel.inheritFrom<_GlassThemeScope>(
         context,
         aspect: aspect,
@@ -394,9 +267,41 @@ class GlassTheme extends StatelessWidget {
   static Brightness? brightnessOf(BuildContext context) =>
       _of(context, _GlassThemeAspect.brightness)?.brightness;
 
+  /// The theme's accent at [context], or null for the native one.
+  static Color? primaryColorOf(BuildContext context) =>
+      _of(context, _GlassThemeAspect.primaryColor)?.primaryColor;
+
+  /// The theme's font at [context], or null for the system font.
+  static String? fontFamilyOf(BuildContext context) =>
+      _of(context, _GlassThemeAspect.fontFamily)?.fontFamily;
+
   /// The theme's color scheme at [context], or null without one.
   static GlassColorScheme? colorSchemeOf(BuildContext context) =>
       _of(context, _GlassThemeAspect.colorScheme)?.colorScheme;
+
+  /// The scheme's label at [context], or [GlassColors.label].
+  @internal
+  static Color labelColorOf(BuildContext context) =>
+      colorSchemeOf(context)?.label ?? GlassColors.label;
+
+  /// The scheme's tertiary label at [context], or
+  /// [GlassColors.tertiaryLabel].
+  @internal
+  static Color tertiaryLabelColorOf(BuildContext context) =>
+      colorSchemeOf(context)?.tertiaryLabel ?? GlassColors.tertiaryLabel;
+
+  /// The theme's style kept under [type], or under [T] without one, at
+  /// [context]; null when the theme has none.
+  ///
+  /// The widget at [context] rebuilds when that style changes, and not when
+  /// another one does.
+  static T? styleOf<T extends GlassStyle<Object>>(
+    BuildContext context, [
+    Object? type,
+  ]) {
+    final key = type ?? T;
+    return _of(context, key)?.style<T>(key);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -422,9 +327,9 @@ class GlassTheme extends StatelessWidget {
   }
 }
 
-enum _GlassThemeAspect { brightness, colorScheme }
+enum _GlassThemeAspect { brightness, primaryColor, fontFamily, colorScheme }
 
-class _GlassThemeScope extends InheritedModel<_GlassThemeAspect> {
+class _GlassThemeScope extends InheritedModel<Object> {
   const _GlassThemeScope({required this.data, required super.child});
 
   final GlassThemeData data;
@@ -435,15 +340,21 @@ class _GlassThemeScope extends InheritedModel<_GlassThemeAspect> {
   @override
   bool updateShouldNotifyDependent(
     _GlassThemeScope oldWidget,
-    Set<_GlassThemeAspect> dependencies,
-  ) => dependencies.any(
-    (aspect) => switch (aspect) {
-      _GlassThemeAspect.brightness =>
-        data.brightness != oldWidget.data.brightness,
-      _GlassThemeAspect.colorScheme =>
-        data.colorScheme != oldWidget.data.colorScheme,
-    },
-  );
+    Set<Object> dependencies,
+  ) {
+    final old = oldWidget.data;
+    return dependencies.any(
+      (aspect) => switch (aspect) {
+        _GlassThemeAspect.brightness => data.brightness != old.brightness,
+        _GlassThemeAspect.primaryColor => data.primaryColor != old.primaryColor,
+        _GlassThemeAspect.fontFamily => data.fontFamily != old.fontFamily,
+        _GlassThemeAspect.colorScheme => data.colorScheme != old.colorScheme,
+        _ =>
+          data.style<GlassStyle<Object>>(aspect) !=
+              old.style<GlassStyle<Object>>(aspect),
+      },
+    );
+  }
 }
 
 /// A [GlassTheme] that moves to a new [data] on [spring], as

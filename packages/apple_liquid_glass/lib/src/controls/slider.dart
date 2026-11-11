@@ -17,7 +17,7 @@ import 'package:kinesis/kinesis.dart';
 /// leaves that state to the next one. [merge] combines two styles the same
 /// way.
 @immutable
-class GlassSliderStyle {
+class GlassSliderStyle extends GlassStyle<GlassSliderStyle> {
   /// Creates a style.
   const GlassSliderStyle({
     this.thumbColor,
@@ -26,6 +26,11 @@ class GlassSliderStyle {
     this.tickColor,
     this.builder,
   });
+
+  /// The theme's [GlassSliderStyle] at [context], or null without one: the
+  /// look between a widget's own style and its defaults.
+  static GlassSliderStyle? maybeOf(BuildContext context) =>
+      GlassTheme.styleOf<GlassSliderStyle>(context);
 
   /// The fill of the resting thumb (UIKit `thumbTintColor`); white in both
   /// appearances by default (slider passport).
@@ -49,6 +54,7 @@ class GlassSliderStyle {
   final GlassSliderBuilder? builder;
 
   /// This style over [other], state by state.
+  @override
   GlassSliderStyle merge(GlassSliderStyle? other) {
     if (other == null) return this;
     return GlassSliderStyle(
@@ -63,15 +69,11 @@ class GlassSliderStyle {
     );
   }
 
-  /// The style between [a] and [b] at [t]; the builder switches at the
-  /// middle.
-  static GlassSliderStyle? lerp(
-    GlassSliderStyle? a,
-    GlassSliderStyle? b,
-    double t,
-  ) {
-    if (identical(a, b)) return a;
-    if (a == null || b == null) return t < 0.5 ? a : b;
+  /// The style between this one and [other] at [t]; the builder switches
+  /// at the middle.
+  @override
+  GlassSliderStyle lerp(GlassSliderStyle other, double t) {
+    if (identical(this, other)) return this;
     WidgetStateProperty<Color?>? color(
       WidgetStateProperty<Color?>? from,
       WidgetStateProperty<Color?>? to,
@@ -82,11 +84,11 @@ class GlassSliderStyle {
       snapNull(GlassDynamicColor.lerp),
     );
     return GlassSliderStyle(
-      thumbColor: color(a.thumbColor, b.thumbColor),
-      activeTrackColor: color(a.activeTrackColor, b.activeTrackColor),
-      inactiveTrackColor: color(a.inactiveTrackColor, b.inactiveTrackColor),
-      tickColor: color(a.tickColor, b.tickColor),
-      builder: t < 0.5 ? a.builder : b.builder,
+      thumbColor: color(thumbColor, other.thumbColor),
+      activeTrackColor: color(activeTrackColor, other.activeTrackColor),
+      inactiveTrackColor: color(inactiveTrackColor, other.inactiveTrackColor),
+      tickColor: color(tickColor, other.tickColor),
+      builder: t < 0.5 ? builder : other.builder,
     );
   }
 
@@ -218,7 +220,7 @@ class _GlassSliderState extends State<GlassSlider> {
   @override
   Widget build(BuildContext context) {
     final look = (widget.style ?? const GlassSliderStyle()).merge(
-      GlassTheme.of(context).sliderStyle,
+      GlassSliderStyle.maybeOf(context),
     );
     return RawGlassSlider(
       value: widget.value,
@@ -258,7 +260,7 @@ class _SliderLook extends StatelessWidget {
         );
     final active = resolve(
       look.activeTrackColor,
-      GlassTheme.of(context).primaryColor ?? GlassColors.systemBlue,
+      GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
     );
     Widget surface(
       GlassRole role,

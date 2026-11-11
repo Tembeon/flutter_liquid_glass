@@ -345,9 +345,11 @@ void main() {
         const _Controlled(),
         theme: GlassThemeData(
           primaryColor: const Color(0xFF123456),
-          tabBarStyle: GlassTabBar.styleFrom(
-            thumbColor: const Color(0xFF654321),
-          ),
+          styles: [
+            GlassTabBar.styleFrom(
+              thumbColor: const Color(0xFF654321),
+            ),
+          ],
         ),
       ),
     );

@@ -137,17 +137,21 @@ void main() {
           child: GlassTheme(
             data: GlassThemeData(
               fontFamily: 'Outer',
-              buttonStyle: GlassButton.styleFrom(
-                foregroundColor: const Color(0xFF00FF00),
-              ),
+              styles: [
+                GlassButton.styleFrom(
+                  foregroundColor: const Color(0xFF00FF00),
+                ),
+              ],
             ),
             child: GlassTheme(
               data: GlassThemeData(
                 fontFamily: 'Inner',
                 colorScheme: const GlassColorScheme(label: Color(0xFF111111)),
-                buttonStyle: GlassButton.styleFrom(
-                  disabledForegroundColor: const Color(0xFFFF0000),
-                ),
+                styles: [
+                  GlassButton.styleFrom(
+                    disabledForegroundColor: const Color(0xFFFF0000),
+                  ),
+                ],
               ),
               child: Builder(
                 builder: (context) {
@@ -161,7 +165,7 @@ void main() {
       );
       expect(data.fontFamily, 'Inner');
       expect(data.colorScheme!.label, const Color(0xFF111111));
-      final foreground = data.buttonStyle!.foregroundColor!;
+      final foreground = data.style<GlassButtonStyle>()!.foregroundColor!;
       expect(foreground.resolve({}), const Color(0xFF00FF00));
       expect(
         foreground.resolve({WidgetState.disabled}),
@@ -210,13 +214,15 @@ void main() {
       );
       final from = GlassThemeData(
         primaryColor: const Color(0xFF000000),
-        buttonStyle: GlassButton.styleFrom(padding: const EdgeInsets.all(30)),
+        styles: [GlassButton.styleFrom(padding: const EdgeInsets.all(30))],
       );
       final to = GlassThemeData(
         primaryColor: const Color(0xFFFFFFFF),
-        buttonStyle: GlassButton.styleFrom(
-          foregroundColor: const Color(0xFFFF0000),
-        ),
+        styles: [
+          GlassButton.styleFrom(
+            foregroundColor: const Color(0xFFFF0000),
+          ),
+        ],
       );
       Widget themed(GlassThemeData data) =>
           AnimatedGlassTheme(data: data, child: reader);
@@ -258,6 +264,171 @@ void main() {
       await tester.pumpWidget(themed(const Color(0xFF000000)));
       await tester.pumpWidget(themed(const Color(0xFFFFFFFF)));
       expect(seen.last, const Color(0xFFFFFFFF));
+    });
+  });
+
+  group('styles', () {
+    test('a theme finds a style by its type; the prominent buttons keep '
+        'theirs apart', () {
+      final regular = GlassButton.styleFrom(
+        foregroundColor: const Color(0xFF00AA00),
+      );
+      final prominent = GlassProminentButtonStyle.from(
+        GlassButton.styleFrom(foregroundColor: const Color(0xFF0000AA)),
+      );
+      final theme = GlassThemeData(styles: [prominent, regular]);
+      expect(theme.style<GlassButtonStyle>(), same(regular));
+      expect(
+        theme.style<GlassButtonStyle>(GlassProminentButtonStyle),
+        same(prominent),
+      );
+      expect(theme.style<GlassSwitchStyle>(), isNull);
+
+      final merged = theme.merge(
+        GlassThemeData(
+          styles: [
+            GlassProminentButtonStyle.from(
+              GlassButton.styleFrom(padding: const EdgeInsets.all(4)),
+            ),
+          ],
+        ),
+      );
+      final both = merged.style<GlassButtonStyle>(GlassProminentButtonStyle)!;
+      expect(both, isA<GlassProminentButtonStyle>());
+      expect(both.padding!.resolve({}), const EdgeInsets.all(4));
+      expect(both.foregroundColor!.resolve({}), const Color(0xFF0000AA));
+      expect(merged.style<GlassButtonStyle>(), same(regular));
+    });
+
+    testWidgets('a reader of one style rebuilds when that style changes, '
+        'and not when another one does', (tester) async {
+      var reads = 0;
+      final reader = Builder(
+        builder: (context) {
+          GlassSwitchStyle.maybeOf(context);
+          reads++;
+          return const SizedBox();
+        },
+      );
+      Widget themed(List<GlassStyle<Object>> styles) => GlassTheme(
+        data: GlassThemeData(styles: styles),
+        child: reader,
+      );
+      final own = GlassSwitch.styleFrom(thumbColor: const Color(0xFF111111));
+      await tester.pumpWidget(themed([own]));
+      expect(reads, 1);
+      await tester.pumpWidget(
+        themed([
+          own,
+          GlassSlider.styleFrom(thumbColor: const Color(0xFF222222)),
+        ]),
+      );
+      await tester.pumpWidget(
+        themed([
+          own,
+          GlassSlider.styleFrom(thumbColor: const Color(0xFF333333)),
+          GlassButton.styleFrom(foregroundColor: const Color(0xFF444444)),
+        ]),
+      );
+      expect(reads, 1);
+      await tester.pumpWidget(
+        themed([GlassSwitch.styleFrom(thumbColor: const Color(0xFF555555))]),
+      );
+      expect(reads, 2);
+    });
+
+    testWidgets('an animated theme interpolates a style', (tester) async {
+      final reds = <double>[];
+      final reader = Builder(
+        builder: (context) {
+          final thumb = GlassSwitchStyle.maybeOf(context)!.thumbColor!;
+          reds.add(thumb.resolve({})!.r);
+          return const SizedBox();
+        },
+      );
+      GlassThemeData data(Color thumb) => GlassThemeData(
+        styles: [GlassSwitch.styleFrom(thumbColor: thumb)],
+      );
+      Widget themed(GlassThemeData data) =>
+          AnimatedGlassTheme(data: data, child: reader);
+      await tester.pumpWidget(themed(data(const Color(0xFF000000))));
+      await tester.pumpWidget(themed(data(const Color(0xFFFFFFFF))));
+      reds.clear();
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(reds.where((red) => red > 0.1 && red < 0.9), isNotEmpty);
+      for (var i = 1; i < reds.length; i++) {
+        expect(reds[i], greaterThanOrEqualTo(reds[i - 1]));
+      }
+      expect(reds.last, 1);
+    });
+
+    testWidgets('without a theme every component builds with its defaults', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(402, 874) * 3;
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        WidgetsApp(
+          color: const Color(0xFFFFFFFF),
+          pageRouteBuilder: <T>(settings, builder) =>
+              GlassPageRoute<T>(builder: builder, settings: settings),
+          home: GlassPageScaffold(
+            navigationBar: const GlassNavigationBar(title: Text('Title')),
+            toolbar: GlassToolbar(
+              items: [
+                GlassBarItem(label: const Text('Edit'), onPressed: () {}),
+              ],
+            ),
+            child: ListView(
+              children: [
+                GlassButton(onPressed: () {}, child: const Text('Regular')),
+                GlassButton.prominent(
+                  onPressed: () {},
+                  child: const Text('Prominent'),
+                ),
+                GlassSwitch(value: true, onChanged: (_) {}),
+                GlassSlider(value: 0.5, onChanged: (_) {}),
+                GlassStepper(value: 1, onChanged: (_) {}),
+                GlassSegmentedControl<String>(
+                  segments: const [
+                    GlassSegment(value: 'a', label: Text('A')),
+                    GlassSegment(value: 'b', label: Text('B')),
+                  ],
+                  groupValue: 'a',
+                  onChanged: (_) {},
+                ),
+                GlassPageControl(count: 3, page: 0, onChanged: (_) {}),
+                const Center(child: GlassBadge.count(3)),
+                const GlassSearchField(),
+                const GlassListSection(
+                  children: [GlassListRow(title: Text('Row'))],
+                ),
+                GlassDatePicker(value: DateTime(2026), onChanged: (_) {}),
+                GlassTabBar(
+                  destinations: const [
+                    GlassTabDestination(
+                      icon: SizedBox.square(dimension: 24),
+                      label: Text('One'),
+                    ),
+                    GlassTabDestination(
+                      icon: SizedBox.square(dimension: 24),
+                      label: Text('Two'),
+                    ),
+                  ],
+                  selectedIndex: 0,
+                  onDestinationSelected: (_) {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(tester.takeException(), isNull);
+      expect(find.text('Prominent'), findsOneWidget);
     });
   });
 

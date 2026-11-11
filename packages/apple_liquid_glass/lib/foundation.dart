@@ -9,7 +9,9 @@
 /// `GlassRole`), shape (`GlassShape`), free outline (`GlassOutline`),
 /// touch glow (`GlassTouchGlow`) and one frame of it (`GlassFrame`); and
 /// the theme (`GlassTheme`, `GlassThemeData`, `GlassColorScheme`,
-/// `AnimatedGlassTheme`).
+/// `AnimatedGlassTheme`): a container of colours, type and a list of
+/// component styles (`GlassStyle`), found by type, that names no
+/// component.
 ///
 /// It promises that the traits report what Flutter reports (contrast, bold
 /// text) and Reduce Motion through kinesis's one channel,
@@ -27,7 +29,12 @@ export 'src/foundation/outline.dart' show GlassOutline;
 export 'src/foundation/shape.dart'
     show GlassOval, GlassRoundedRect, GlassShape, GlassSuperellipse;
 export 'src/foundation/theme.dart'
-    show AnimatedGlassTheme, GlassColorScheme, GlassTheme, GlassThemeData;
+    show
+        AnimatedGlassTheme,
+        GlassColorScheme,
+        GlassStyle,
+        GlassTheme,
+        GlassThemeData;
 export 'src/foundation/touch_glow.dart' show GlassTouchGlow;
 export 'src/foundation/traits.dart'
     show GlassInterfaceLevel, GlassTraits, GlassTraitsOverride;

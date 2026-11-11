@@ -328,10 +328,12 @@ void main() {
           onChanged: null,
         ),
         theme: GlassThemeData(
-          segmentedStyle: GlassSegmentedControl.styleFrom(
-            backgroundColor: const Color(0xFF123456),
-            thumbColor: const Color(0xFF654321),
-          ),
+          styles: [
+            GlassSegmentedControl.styleFrom(
+              backgroundColor: const Color(0xFF123456),
+              thumbColor: const Color(0xFF654321),
+            ),
+          ],
         ),
       ),
     );
@@ -591,7 +593,7 @@ void main() {
       backgroundColor: const Color(0xFFFFFFFF),
       thumbColor: const Color(0xFF00FF00),
     );
-    final half = GlassSegmentedStyle.lerp(a, b, 0.5)!;
+    final half = a.lerp(b, 0.5);
     expect(
       half.backgroundColor!.resolve({}),
       isSameColorAs(const Color(0xFF808080)),

@@ -86,7 +86,7 @@ final class GlassTabDestination {
 /// state: a property that gives null for a state leaves that state to the
 /// next one.
 @immutable
-class GlassTabBarStyle {
+class GlassTabBarStyle extends GlassStyle<GlassTabBarStyle> {
   /// Creates a style.
   const GlassTabBarStyle({
     this.backgroundColor,
@@ -95,6 +95,11 @@ class GlassTabBarStyle {
     this.textStyle,
     this.builder,
   });
+
+  /// The theme's [GlassTabBarStyle] at [context], or null without one: the
+  /// look between a widget's own style and its defaults.
+  static GlassTabBarStyle? maybeOf(BuildContext context) =>
+      GlassTheme.styleOf<GlassTabBarStyle>(context);
 
   /// A tint over the bar's glass (UIKit `barTintColor`); none by default.
   final WidgetStateProperty<Color?>? backgroundColor;
@@ -119,6 +124,7 @@ class GlassTabBarStyle {
   final GlassSelectorBuilder? builder;
 
   /// This style over [other], state by state.
+  @override
   GlassTabBarStyle merge(GlassTabBarStyle? other) {
     if (other == null) return this;
     return GlassTabBarStyle(
@@ -130,15 +136,11 @@ class GlassTabBarStyle {
     );
   }
 
-  /// The style between [a] and [b] at [t]; the builder switches at the
-  /// middle.
-  static GlassTabBarStyle? lerp(
-    GlassTabBarStyle? a,
-    GlassTabBarStyle? b,
-    double t,
-  ) {
-    if (identical(a, b)) return a;
-    if (a == null || b == null) return t < 0.5 ? a : b;
+  /// The style between this one and [other] at [t]; the builder switches
+  /// at the middle.
+  @override
+  GlassTabBarStyle lerp(GlassTabBarStyle other, double t) {
+    if (identical(this, other)) return this;
     WidgetStateProperty<Color?>? color(
       WidgetStateProperty<Color?>? from,
       WidgetStateProperty<Color?>? to,
@@ -149,16 +151,16 @@ class GlassTabBarStyle {
       snapNull(GlassDynamicColor.lerp),
     );
     return GlassTabBarStyle(
-      backgroundColor: color(a.backgroundColor, b.backgroundColor),
-      thumbColor: color(a.thumbColor, b.thumbColor),
-      foregroundColor: color(a.foregroundColor, b.foregroundColor),
+      backgroundColor: color(backgroundColor, other.backgroundColor),
+      thumbColor: color(thumbColor, other.thumbColor),
+      foregroundColor: color(foregroundColor, other.foregroundColor),
       textStyle: WidgetStateProperty.lerp<TextStyle?>(
-        a.textStyle,
-        b.textStyle,
+        textStyle,
+        other.textStyle,
         t,
         snapNull(TextStyle.lerp),
       ),
-      builder: t < 0.5 ? a.builder : b.builder,
+      builder: t < 0.5 ? builder : other.builder,
     );
   }
 
@@ -394,14 +396,14 @@ class GlassTabBar extends StatelessWidget {
     thumbColor: const WidgetStatePropertyAll(thumb),
     foregroundColor: BySelection(
       unselected,
-      GlassTheme.of(context).primaryColor ?? selected,
+      GlassTheme.primaryColorOf(context) ?? selected,
     ),
     textStyle: const BySelection(_title, _selectedTitle),
   );
 
   @override
   Widget build(BuildContext context) {
-    final themed = GlassTheme.of(context).tabBarStyle;
+    final themed = GlassTabBarStyle.maybeOf(context);
     final look = (style ?? const GlassTabBarStyle())
         .merge(themed)
         .merge(_defaults(context));
@@ -1408,7 +1410,7 @@ class _SearchTabBarState extends State<_SearchTabBar> {
   Widget build(BuildContext context) {
     final rtl = Directionality.of(context) == TextDirection.rtl;
     _collapse.rtl = rtl;
-    final label = GlassTheme.of(context).labelColor;
+    final label = GlassTheme.labelColorOf(context);
     final glyph = GlassDynamicColor.resolve(label, context);
     return MotionScope(
       motion: _motion,

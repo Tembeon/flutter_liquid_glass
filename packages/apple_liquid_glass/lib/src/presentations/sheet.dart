@@ -17,13 +17,18 @@ import 'package:kinesis/kinesis.dart';
 /// The look of sheets, and of popovers that adapt to one; a null field
 /// leaves it to the theme's style, then the default.
 @immutable
-class GlassSheetStyle {
+class GlassSheetStyle extends GlassStyle<GlassSheetStyle> {
   /// Creates a style.
   const GlassSheetStyle({
     this.backgroundColor,
     this.dragHandleColor,
     this.textStyle,
   });
+
+  /// The theme's [GlassSheetStyle] at [context], or null without one: the
+  /// look between a widget's own style and its defaults.
+  static GlassSheetStyle? maybeOf(BuildContext context) =>
+      GlassTheme.styleOf<GlassSheetStyle>(context);
 
   /// The opaque fill of a sheet that fills the screen or sits under
   /// another; white in light and 0x1C1C1E in dark by default (simulator).
@@ -37,6 +42,7 @@ class GlassSheetStyle {
   final TextStyle? textStyle;
 
   /// This style over [other].
+  @override
   GlassSheetStyle merge(GlassSheetStyle? other) {
     if (other == null) return this;
     return GlassSheetStyle(
@@ -46,19 +52,15 @@ class GlassSheetStyle {
     );
   }
 
-  /// The style between [a] and [b] at [t].
-  static GlassSheetStyle? lerp(
-    GlassSheetStyle? a,
-    GlassSheetStyle? b,
-    double t,
-  ) {
-    if (identical(a, b)) return a;
-    if (a == null || b == null) return t < 0.5 ? a : b;
+  /// The style between this one and [other] at [t].
+  @override
+  GlassSheetStyle lerp(GlassSheetStyle other, double t) {
+    if (identical(this, other)) return this;
     final color = snapNull(GlassDynamicColor.lerp);
     return GlassSheetStyle(
-      backgroundColor: color(a.backgroundColor, b.backgroundColor, t),
-      dragHandleColor: color(a.dragHandleColor, b.dragHandleColor, t),
-      textStyle: snapNull(TextStyle.lerp)(a.textStyle, b.textStyle, t),
+      backgroundColor: color(backgroundColor, other.backgroundColor, t),
+      dragHandleColor: color(dragHandleColor, other.dragHandleColor, t),
+      textStyle: snapNull(TextStyle.lerp)(textStyle, other.textStyle, t),
     );
   }
 
@@ -179,7 +181,7 @@ class _SheetSpec {
 
   GlassSheetStyle lookOf(BuildContext context) =>
       (style ?? const GlassSheetStyle()).merge(
-        GlassTheme.of(context).sheetStyle,
+        GlassSheetStyle.maybeOf(context),
       );
 }
 
@@ -727,7 +729,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   Widget _contentFor(BuildContext context) {
     final text = TextStyle(
       fontSize: 17,
-      color: GlassTheme.of(context).labelColor,
+      color: GlassTheme.labelColorOf(context),
     ).merge(_spec.lookOf(context).textStyle);
     final style = resolveGlassText(
       text.copyWith(color: GlassDynamicColor.resolve(text.color!, context)),

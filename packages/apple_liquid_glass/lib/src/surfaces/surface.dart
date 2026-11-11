@@ -106,7 +106,7 @@ class _GlassSurfaceState extends State<GlassSurface> {
     );
     if (!GlassTraits.of(context).showBorders) return body;
     final label = GlassDynamicColor.resolve(
-      GlassTheme.of(context).labelColor,
+      GlassTheme.labelColorOf(context),
       context,
     );
     return CustomPaint(

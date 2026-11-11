@@ -20,7 +20,7 @@ import 'package:kinesis/kinesis.dart';
 
 /// The look of a [GlassNavigationBar].
 @immutable
-class GlassNavigationBarStyle {
+class GlassNavigationBarStyle extends GlassStyle<GlassNavigationBarStyle> {
   /// Creates a style.
   const GlassNavigationBarStyle({
     this.backgroundColor,
@@ -29,6 +29,11 @@ class GlassNavigationBarStyle {
     this.largeTitleTextStyle,
     this.itemStyle,
   });
+
+  /// The theme's [GlassNavigationBarStyle] at [context], or null without
+  /// one: the look between a widget's own style and its defaults.
+  static GlassNavigationBarStyle? maybeOf(BuildContext context) =>
+      GlassTheme.styleOf<GlassNavigationBarStyle>(context);
 
   /// A fill behind the bar (UIKit `backgroundColor` of the bar's
   /// appearance); none by default, as iOS 27's bar shows the content under
@@ -49,6 +54,7 @@ class GlassNavigationBarStyle {
   final GlassBarItemStyle? itemStyle;
 
   /// This style over [other]: a null field takes [other]'s.
+  @override
   GlassNavigationBarStyle merge(GlassNavigationBarStyle? other) {
     if (other == null) return this;
     return GlassNavigationBarStyle(
@@ -63,26 +69,22 @@ class GlassNavigationBarStyle {
     );
   }
 
-  /// The style between [a] and [b] at [t].
-  static GlassNavigationBarStyle? lerp(
-    GlassNavigationBarStyle? a,
-    GlassNavigationBarStyle? b,
-    double t,
-  ) {
-    if (identical(a, b)) return a;
-    if (a == null || b == null) return t < 0.5 ? a : b;
+  /// The style between this one and [other] at [t].
+  @override
+  GlassNavigationBarStyle lerp(GlassNavigationBarStyle other, double t) {
+    if (identical(this, other)) return this;
     final color = snapNull(GlassDynamicColor.lerp);
     final text = snapNull(TextStyle.lerp);
     return GlassNavigationBarStyle(
-      backgroundColor: color(a.backgroundColor, b.backgroundColor, t),
-      foregroundColor: color(a.foregroundColor, b.foregroundColor, t),
-      titleTextStyle: text(a.titleTextStyle, b.titleTextStyle, t),
+      backgroundColor: color(backgroundColor, other.backgroundColor, t),
+      foregroundColor: color(foregroundColor, other.foregroundColor, t),
+      titleTextStyle: text(titleTextStyle, other.titleTextStyle, t),
       largeTitleTextStyle: text(
-        a.largeTitleTextStyle,
-        b.largeTitleTextStyle,
+        largeTitleTextStyle,
+        other.largeTitleTextStyle,
         t,
       ),
-      itemStyle: GlassBarItemStyle.lerp(a.itemStyle, b.itemStyle, t),
+      itemStyle: GlassBarItemStyle.lerp(itemStyle, other.itemStyle, t),
     );
   }
 
@@ -371,12 +373,11 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = GlassTheme.of(context);
     final look = (widget.style ?? const GlassNavigationBarStyle()).merge(
-      theme.navigationBarStyle,
+      GlassNavigationBarStyle.maybeOf(context),
     );
     final color = GlassDynamicColor.resolve(
-      look.foregroundColor ?? theme.labelColor,
+      look.foregroundColor ?? GlassTheme.labelColorOf(context),
       context,
     );
     final title = widget.title ?? widget.largeTitle;
@@ -731,7 +732,7 @@ class _StackedSearchState extends State<_StackedSearch> {
   @override
   Widget build(BuildContext context) {
     final glyph = GlassDynamicColor.resolve(
-      GlassTheme.of(context).labelColor,
+      GlassTheme.labelColorOf(context),
       context,
     );
     return SizedBox(

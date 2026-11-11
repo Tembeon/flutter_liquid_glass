@@ -74,7 +74,7 @@ class GlassAlertAction
   final bool isDefaultAction
   bool get isDestructive
   final void Function()? onPressed
-class GlassAlertStyle
+class GlassAlertStyle extends GlassStyle<GlassAlertStyle>
   const GlassAlertStyle({
     TextStyle? titleTextStyle,
     TextStyle? messageTextStyle,
@@ -91,11 +91,10 @@ class GlassAlertStyle
   final Color? defaultActionColor
   final Color? defaultActionFillColor
   final Color? destructiveActionColor
-  static GlassAlertStyle? lerp(GlassAlertStyle? a, GlassAlertStyle? b, double t)
-  GlassAlertStyle merge(GlassAlertStyle? other)
+  static GlassAlertStyle? maybeOf(BuildContext context)
   final TextStyle? messageTextStyle
   final TextStyle? titleTextStyle
-  overrides: ==, hashCode
+  overrides: ==, hashCode, lerp, merge
 enum GlassBackButtonDisplayMode
   title,
   generic,
@@ -113,7 +112,7 @@ class GlassBadge extends StatelessWidget
   final String? text
   static const double verticalPadding
   overrides: build
-class GlassBadgeStyle
+class GlassBadgeStyle extends GlassStyle<GlassBadgeStyle>
   const GlassBadgeStyle({
     Color? backgroundColor,
     Color? foregroundColor,
@@ -121,10 +120,9 @@ class GlassBadgeStyle
   })
   final Color? backgroundColor
   final Color? foregroundColor
-  static GlassBadgeStyle? lerp(GlassBadgeStyle? a, GlassBadgeStyle? b, double t)
-  GlassBadgeStyle merge(GlassBadgeStyle? other)
+  static GlassBadgeStyle? maybeOf(BuildContext context)
   final TextStyle? textStyle
-  overrides: ==, hashCode
+  overrides: ==, hashCode, lerp, merge
 sealed class GlassBarEntry
   const GlassBarEntry()
 final class GlassBarItem extends GlassBarEntry
@@ -260,7 +258,7 @@ final class GlassButtonDetails
   final MotionSelection<GlassFrame> body
   final Widget label
   final Set<WidgetState> states
-class GlassButtonStyle
+class GlassButtonStyle extends GlassStyle<GlassButtonStyle>
   const GlassButtonStyle({
     WidgetStateProperty<Color?>? backgroundColor,
     WidgetStateProperty<Color?>? foregroundColor,
@@ -286,16 +284,11 @@ class GlassButtonStyle
   final WidgetStateProperty<Color?>? foregroundColor
   final WidgetStateProperty<Color?>? iconColor
   final WidgetStateProperty<double?>? iconSize
-  static GlassButtonStyle? lerp(
-    GlassButtonStyle? a,
-    GlassButtonStyle? b,
-    double t,
-  )
-  GlassButtonStyle merge(GlassButtonStyle? other)
+  static GlassButtonStyle? maybeOf(BuildContext context)
   final WidgetStateProperty<Size?>? minimumSize
   final WidgetStateProperty<EdgeInsetsGeometry?>? padding
   final WidgetStateProperty<TextStyle?>? textStyle
-  overrides: ==, hashCode
+  overrides: ==, hashCode, lerp, merge
 class GlassClip extends StatelessWidget
   const GlassClip.live({
     required MotionSelection<GlassFrame> frame,
@@ -430,7 +423,7 @@ enum GlassDatePickerMode
   date,
   time,
   dateAndTime,
-class GlassDatePickerStyle
+class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle>
   const GlassDatePickerStyle({
     Color? accentColor,
     Color? labelColor,
@@ -443,17 +436,12 @@ class GlassDatePickerStyle
   final Color? accentColor
   final Color? labelColor
   final Color? labelFillColor
-  static GlassDatePickerStyle? lerp(
-    GlassDatePickerStyle? a,
-    GlassDatePickerStyle? b,
-    double t,
-  )
-  GlassDatePickerStyle merge(GlassDatePickerStyle? other)
+  static GlassDatePickerStyle? maybeOf(BuildContext context)
   final Color? selectedDayTextColor
   final Color? todayFillColor
   final Color? weekdayColor
   final Color? wheelBandColor
-  overrides: ==, hashCode
+  overrides: ==, hashCode, lerp, merge
 enum GlassDatePickerVariant
   compact,
   inline,
@@ -623,7 +611,7 @@ class GlassListSection extends StatelessWidget
   static const GlassDynamicColor separator
   final GlassListStyle? style
   overrides: build
-class GlassListStyle
+class GlassListStyle extends GlassStyle<GlassListStyle>
   const GlassListStyle({
     WidgetStateProperty<Color?>? backgroundColor,
     WidgetStateProperty<Color?>? overlayColor,
@@ -637,12 +625,11 @@ class GlassListStyle
   final WidgetStateProperty<Color?>? disclosureColor
   final WidgetStateProperty<Color?>? foregroundColor
   final WidgetStateProperty<Color?>? iconColor
-  static GlassListStyle? lerp(GlassListStyle? a, GlassListStyle? b, double t)
-  GlassListStyle merge(GlassListStyle? other)
+  static GlassListStyle? maybeOf(BuildContext context)
   final WidgetStateProperty<Color?>? overlayColor
   final WidgetStateProperty<Color?>? secondaryColor
   final WidgetStateProperty<Color?>? separatorColor
-  overrides: ==, hashCode
+  overrides: ==, hashCode, lerp, merge
 class GlassMenuController
   GlassMenuController()
   void close()
@@ -725,7 +712,7 @@ class GlassMenuSection extends GlassMenuEntry
   final bool palette
   final bool singleSelection
   final String? title
-class GlassMenuStyle
+class GlassMenuStyle extends GlassStyle<GlassMenuStyle>
   const GlassMenuStyle({
     TextStyle? textStyle,
     Color? destructiveColor,
@@ -738,13 +725,12 @@ class GlassMenuStyle
   final Color? destructiveColor
   final Color? disabledColor
   final Color? highlightColor
-  static GlassMenuStyle? lerp(GlassMenuStyle? a, GlassMenuStyle? b, double t)
-  GlassMenuStyle merge(GlassMenuStyle? other)
+  static GlassMenuStyle? maybeOf(BuildContext context)
   final Color? paletteSelectionColor
   final Color? secondaryColor
   final Color? separatorColor
   final TextStyle? textStyle
-  overrides: ==, hashCode
+  overrides: ==, hashCode, lerp, merge
 class GlassMenuWidget extends GlassMenuEntry
   const GlassMenuWidget({
     required Widget Function(BuildContext) builder,
@@ -786,7 +772,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget
   final Widget? title
   final List<GlassBarEntry> trailing
   overrides: createState, preferredSize
-class GlassNavigationBarStyle
+class GlassNavigationBarStyle extends GlassStyle<GlassNavigationBarStyle>
   const GlassNavigationBarStyle({
     Color? backgroundColor,
     Color? foregroundColor,
@@ -798,14 +784,9 @@ class GlassNavigationBarStyle
   final Color? foregroundColor
   final GlassBarItemStyle? itemStyle
   final TextStyle? largeTitleTextStyle
-  static GlassNavigationBarStyle? lerp(
-    GlassNavigationBarStyle? a,
-    GlassNavigationBarStyle? b,
-    double t,
-  )
-  GlassNavigationBarStyle merge(GlassNavigationBarStyle? other)
+  static GlassNavigationBarStyle? maybeOf(BuildContext context)
   final TextStyle? titleTextStyle
-  overrides: ==, hashCode
+  overrides: ==, hashCode, lerp, merge
 final class GlassOutline
   GlassOutline(Path path, {@internal GlassField? Function()? field})
   Rect get bounds
@@ -872,7 +853,7 @@ final class GlassPageControlPose
   final int page
   final double platter
   overrides: ==, hashCode
-class GlassPageControlStyle
+class GlassPageControlStyle extends GlassStyle<GlassPageControlStyle>
   const GlassPageControlStyle({
     WidgetStateProperty<Color?>? pageIndicatorColor,
     WidgetStateProperty<Color?>? currentPageIndicatorColor,
@@ -882,16 +863,11 @@ class GlassPageControlStyle
   })
   final Widget Function(BuildContext, GlassPageControlDetails)? builder
   final WidgetStateProperty<Color?>? currentPageIndicatorColor
-  static GlassPageControlStyle? lerp(
-    GlassPageControlStyle? a,
-    GlassPageControlStyle? b,
-    double t,
-  )
-  GlassPageControlStyle merge(GlassPageControlStyle? other)
+  static GlassPageControlStyle? maybeOf(BuildContext context)
   final WidgetStateProperty<Color?>? pageIndicatorColor
   final WidgetStateProperty<Color?>? platterColor
   final WidgetStateProperty<Color?>? platterIndicatorColor
-  overrides: ==, hashCode
+  overrides: ==, hashCode, lerp, merge
 class GlassPageRoute<T> extends PresentationPageRoute<T>
   GlassPageRoute({
     required Widget Function(BuildContext) builder,
@@ -914,16 +890,11 @@ class GlassPageScaffold extends StatefulWidget
   final PreferredSizeWidget? navigationBar
   final PreferredSizeWidget? toolbar
   overrides: createState
-class GlassPopoverStyle
+class GlassPopoverStyle extends GlassStyle<GlassPopoverStyle>
   const GlassPopoverStyle({TextStyle? textStyle})
-  static GlassPopoverStyle? lerp(
-    GlassPopoverStyle? a,
-    GlassPopoverStyle? b,
-    double t,
-  )
-  GlassPopoverStyle merge(GlassPopoverStyle? other)
+  static GlassPopoverStyle? maybeOf(BuildContext context)
   final TextStyle? textStyle
-  overrides: ==, hashCode
+  overrides: ==, hashCode, lerp, merge
 class GlassPressable extends StatefulWidget
   const GlassPressable({
     required void Function()? onPressed,
@@ -945,6 +916,20 @@ class GlassPressable extends StatefulWidget
   final GlassShape shape
   final WidgetStatesController? statesController
   overrides: createState
+class GlassProminentButtonStyle extends GlassButtonStyle
+  factory GlassProminentButtonStyle.from(GlassButtonStyle style)
+  const GlassProminentButtonStyle({
+    WidgetStateProperty<Color?>? backgroundColor,
+    WidgetStateProperty<Color?>? foregroundColor,
+    WidgetStateProperty<Color?>? iconColor,
+    WidgetStateProperty<TextStyle?>? textStyle,
+    WidgetStateProperty<EdgeInsetsGeometry?>? padding,
+    WidgetStateProperty<Size?>? minimumSize,
+    WidgetStateProperty<double?>? iconSize,
+    Widget Function(BuildContext, GlassButtonDetails)? builder,
+  })
+  static GlassButtonStyle? maybeOf(BuildContext context)
+  overrides: type
 abstract class GlassRenderer
   const GlassRenderer()
   Widget buildGroup(BuildContext context, GlassGroupDetails details)
@@ -1048,7 +1033,7 @@ final class GlassSearchFieldDetails
     required Color cursorColor,
     required Color backgroundCursorColor,
   })
-class GlassSearchFieldStyle
+class GlassSearchFieldStyle extends GlassStyle<GlassSearchFieldStyle>
   const GlassSearchFieldStyle({
     WidgetStateProperty<Color?>? backgroundColor,
     WidgetStateProperty<Color?>? foregroundColor,
@@ -1063,15 +1048,10 @@ class GlassSearchFieldStyle
   final WidgetStateProperty<Color?>? cursorColor
   final WidgetStateProperty<Color?>? foregroundColor
   final WidgetStateProperty<Color?>? iconColor
-  static GlassSearchFieldStyle? lerp(
-    GlassSearchFieldStyle? a,
-    GlassSearchFieldStyle? b,
-    double t,
-  )
-  GlassSearchFieldStyle merge(GlassSearchFieldStyle? other)
+  static GlassSearchFieldStyle? maybeOf(BuildContext context)
   final WidgetStateProperty<Color?>? placeholderColor
   final WidgetStateProperty<TextStyle?>? textStyle
-  overrides: ==, hashCode
+  overrides: ==, hashCode, lerp, merge
 final class GlassSegment<T>
   const GlassSegment({
     required T value,
@@ -1119,7 +1099,7 @@ class GlassSegmentedControl<T> extends StatelessWidget
   })
   static const GlassDynamicColor thumb
   overrides: build
-class GlassSegmentedStyle
+class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle>
   const GlassSegmentedStyle({
     WidgetStateProperty<Color?>? backgroundColor,
     WidgetStateProperty<Color?>? thumbColor,
@@ -1130,15 +1110,10 @@ class GlassSegmentedStyle
   final WidgetStateProperty<Color?>? backgroundColor
   final Widget Function(BuildContext, GlassSelectorDetails)? builder
   final WidgetStateProperty<Color?>? foregroundColor
-  static GlassSegmentedStyle? lerp(
-    GlassSegmentedStyle? a,
-    GlassSegmentedStyle? b,
-    double t,
-  )
-  GlassSegmentedStyle merge(GlassSegmentedStyle? other)
+  static GlassSegmentedStyle? maybeOf(BuildContext context)
   final WidgetStateProperty<TextStyle?>? textStyle
   final WidgetStateProperty<Color?>? thumbColor
-  overrides: ==, hashCode
+  overrides: ==, hashCode, lerp, merge
 typedef GlassSelectorBuilder = Widget Function(BuildContext, GlassSelectorDetails)
 final class GlassSelectorDetails
   const GlassSelectorDetails({
@@ -1186,7 +1161,7 @@ class GlassSheetDetent
   static const GlassSheetDetent medium
   double resolve(double maximum, {double? fittedHeight})
   overrides: ==, hashCode, toString
-class GlassSheetStyle
+class GlassSheetStyle extends GlassStyle<GlassSheetStyle>
   const GlassSheetStyle({
     Color? backgroundColor,
     Color? dragHandleColor,
@@ -1194,10 +1169,9 @@ class GlassSheetStyle
   })
   final Color? backgroundColor
   final Color? dragHandleColor
-  static GlassSheetStyle? lerp(GlassSheetStyle? a, GlassSheetStyle? b, double t)
-  GlassSheetStyle merge(GlassSheetStyle? other)
+  static GlassSheetStyle? maybeOf(BuildContext context)
   final TextStyle? textStyle
-  overrides: ==, hashCode
+  overrides: ==, hashCode, lerp, merge
 class GlassSlider extends StatefulWidget
   const GlassSlider({
     required double value,
@@ -1250,7 +1224,7 @@ final class GlassSliderDetails
   final MotionSelection<GlassFrame> thumb
   final List<Offset> ticks
   final MotionSelection<GlassFrame> track
-class GlassSliderStyle
+class GlassSliderStyle extends GlassStyle<GlassSliderStyle>
   const GlassSliderStyle({
     WidgetStateProperty<Color?>? thumbColor,
     WidgetStateProperty<Color?>? activeTrackColor,
@@ -1261,15 +1235,10 @@ class GlassSliderStyle
   final WidgetStateProperty<Color?>? activeTrackColor
   final Widget Function(BuildContext, GlassSliderDetails)? builder
   final WidgetStateProperty<Color?>? inactiveTrackColor
-  static GlassSliderStyle? lerp(
-    GlassSliderStyle? a,
-    GlassSliderStyle? b,
-    double t,
-  )
-  GlassSliderStyle merge(GlassSliderStyle? other)
+  static GlassSliderStyle? maybeOf(BuildContext context)
   final WidgetStateProperty<Color?>? thumbColor
   final WidgetStateProperty<Color?>? tickColor
-  overrides: ==, hashCode
+  overrides: ==, hashCode, lerp, merge
 class GlassSliverListSection extends StatelessWidget
   const GlassSliverListSection({
     required Widget Function(BuildContext, int) itemBuilder,
@@ -1345,7 +1314,7 @@ final class GlassStepperDetails
 enum GlassStepperHalf
   decrement,
   increment,
-class GlassStepperStyle
+class GlassStepperStyle extends GlassStyle<GlassStepperStyle>
   const GlassStepperStyle({
     WidgetStateProperty<Color?>? backgroundColor,
     WidgetStateProperty<Color?>? foregroundColor,
@@ -1354,13 +1323,13 @@ class GlassStepperStyle
   final WidgetStateProperty<Color?>? backgroundColor
   final Widget Function(BuildContext, GlassStepperDetails)? builder
   final WidgetStateProperty<Color?>? foregroundColor
-  static GlassStepperStyle? lerp(
-    GlassStepperStyle? a,
-    GlassStepperStyle? b,
-    double t,
-  )
-  GlassStepperStyle merge(GlassStepperStyle? other)
-  overrides: ==, hashCode
+  static GlassStepperStyle? maybeOf(BuildContext context)
+  overrides: ==, hashCode, lerp, merge
+abstract class GlassStyle<T extends Object>
+  const GlassStyle()
+  abstract T lerp(T other, double t)
+  abstract T merge(T? other)
+  Object get type
 class GlassSubmenu extends GlassMenuEntry
   const GlassSubmenu({
     required String title,
@@ -1493,7 +1462,7 @@ final class GlassSwitchDetails
   final MotionSelection<double> progress
   final Set<WidgetState> states
   final MotionSelection<GlassFrame> thumb
-class GlassSwitchStyle
+class GlassSwitchStyle extends GlassStyle<GlassSwitchStyle>
   const GlassSwitchStyle({
     WidgetStateProperty<Color?>? thumbColor,
     WidgetStateProperty<Color?>? activeTrackColor,
@@ -1503,14 +1472,9 @@ class GlassSwitchStyle
   final WidgetStateProperty<Color?>? activeTrackColor
   final Widget Function(BuildContext, GlassSwitchDetails)? builder
   final WidgetStateProperty<Color?>? inactiveTrackColor
-  static GlassSwitchStyle? lerp(
-    GlassSwitchStyle? a,
-    GlassSwitchStyle? b,
-    double t,
-  )
-  GlassSwitchStyle merge(GlassSwitchStyle? other)
+  static GlassSwitchStyle? maybeOf(BuildContext context)
   final WidgetStateProperty<Color?>? thumbColor
-  overrides: ==, hashCode
+  overrides: ==, hashCode, lerp, merge
 enum GlassTabAccessoryPlacement
   expanded,
   inline,
@@ -1564,7 +1528,7 @@ enum GlassTabBarMinimizeBehavior
   onScrollDown,
   onScrollUp,
   bool get minimizes
-class GlassTabBarStyle
+class GlassTabBarStyle extends GlassStyle<GlassTabBarStyle>
   const GlassTabBarStyle({
     WidgetStateProperty<Color?>? backgroundColor,
     WidgetStateProperty<Color?>? thumbColor,
@@ -1575,15 +1539,10 @@ class GlassTabBarStyle
   final WidgetStateProperty<Color?>? backgroundColor
   final Widget Function(BuildContext, GlassSelectorDetails)? builder
   final WidgetStateProperty<Color?>? foregroundColor
-  static GlassTabBarStyle? lerp(
-    GlassTabBarStyle? a,
-    GlassTabBarStyle? b,
-    double t,
-  )
-  GlassTabBarStyle merge(GlassTabBarStyle? other)
+  static GlassTabBarStyle? maybeOf(BuildContext context)
   final WidgetStateProperty<TextStyle?>? textStyle
   final WidgetStateProperty<Color?>? thumbColor
-  overrides: ==, hashCode
+  overrides: ==, hashCode, lerp, merge
 final class GlassTabDestination
   const GlassTabDestination({
     required Widget icon,
@@ -1642,8 +1601,16 @@ class GlassTheme extends StatelessWidget
   final Widget child
   static GlassColorScheme? colorSchemeOf(BuildContext context)
   final GlassThemeData data
+  static String? fontFamilyOf(BuildContext context)
+  @internal static Color labelColorOf(BuildContext context)
   static GlassThemeData? maybeOf(BuildContext context)
   static GlassThemeData of(BuildContext context)
+  static Color? primaryColorOf(BuildContext context)
+  static T? styleOf<T extends GlassStyle<Object>>(
+    BuildContext context, [
+    Object? type,
+  ])
+  @internal static Color tertiaryLabelColorOf(BuildContext context)
   overrides: build
 class GlassThemeData
   factory GlassThemeData.lerp(GlassThemeData a, GlassThemeData b, double t)
@@ -1652,50 +1619,15 @@ class GlassThemeData
     Color? primaryColor,
     String? fontFamily,
     GlassColorScheme? colorScheme,
-    GlassButtonStyle? buttonStyle,
-    GlassButtonStyle? prominentButtonStyle,
-    GlassSwitchStyle? switchStyle,
-    GlassSliderStyle? sliderStyle,
-    GlassStepperStyle? stepperStyle,
-    GlassPageControlStyle? pageControlStyle,
-    GlassSegmentedStyle? segmentedStyle,
-    GlassTabBarStyle? tabBarStyle,
-    GlassSearchFieldStyle? searchFieldStyle,
-    GlassListStyle? listStyle,
-    GlassNavigationBarStyle? navigationBarStyle,
-    GlassBadgeStyle? badgeStyle,
-    GlassDatePickerStyle? datePickerStyle,
-    GlassMenuStyle? menuStyle,
-    GlassAlertStyle? alertStyle,
-    GlassSheetStyle? sheetStyle,
-    GlassPopoverStyle? popoverStyle,
-    GlassToolbarStyle? toolbarStyle,
+    List<GlassStyle<Object>> styles = ...,
   })
-  final GlassAlertStyle? alertStyle
-  final GlassBadgeStyle? badgeStyle
   final Brightness? brightness
-  final GlassButtonStyle? buttonStyle
   final GlassColorScheme? colorScheme
-  final GlassDatePickerStyle? datePickerStyle
   final String? fontFamily
-  @internal Color get labelColor
-  final GlassListStyle? listStyle
-  final GlassMenuStyle? menuStyle
   GlassThemeData merge(GlassThemeData? other)
-  final GlassNavigationBarStyle? navigationBarStyle
-  final GlassPageControlStyle? pageControlStyle
-  final GlassPopoverStyle? popoverStyle
   final Color? primaryColor
-  final GlassButtonStyle? prominentButtonStyle
-  final GlassSearchFieldStyle? searchFieldStyle
-  final GlassSegmentedStyle? segmentedStyle
-  final GlassSheetStyle? sheetStyle
-  final GlassSliderStyle? sliderStyle
-  final GlassStepperStyle? stepperStyle
-  final GlassSwitchStyle? switchStyle
-  final GlassTabBarStyle? tabBarStyle
-  @internal Color get tertiaryLabelColor
-  final GlassToolbarStyle? toolbarStyle
+  T? style<T extends GlassStyle<Object>>([Object? type])
+  final List<GlassStyle<Object>> styles
   overrides: ==, hashCode
 class GlassToolbar extends StatefulWidget implements PreferredSizeWidget
   const GlassToolbar({
@@ -1711,16 +1643,11 @@ class GlassToolbar extends StatefulWidget implements PreferredSizeWidget
   static const double keyboardInset
   static const double sideInset
   overrides: createState, preferredSize
-class GlassToolbarStyle
+class GlassToolbarStyle extends GlassStyle<GlassToolbarStyle>
   const GlassToolbarStyle({GlassBarItemStyle? itemStyle})
   final GlassBarItemStyle? itemStyle
-  static GlassToolbarStyle? lerp(
-    GlassToolbarStyle? a,
-    GlassToolbarStyle? b,
-    double t,
-  )
-  GlassToolbarStyle merge(GlassToolbarStyle? other)
-  overrides: ==, hashCode
+  static GlassToolbarStyle? maybeOf(BuildContext context)
+  overrides: ==, hashCode, lerp, merge
 class GlassTouchGlow
   const GlassTouchGlow({
     required double wash,
@@ -2177,6 +2104,7 @@ class GlassListSection (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassListStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPageControl (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPageControlStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassProminentButtonStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSearchField (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSearchFieldStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSegment (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -2207,6 +2135,7 @@ class GlassOval (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassRole (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassRoundedRect (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassShape (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSuperellipse (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassTextRole (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTheme (see package:apple_liquid_glass/apple_liquid_glass.dart)

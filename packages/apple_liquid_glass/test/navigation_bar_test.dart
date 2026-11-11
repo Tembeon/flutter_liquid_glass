@@ -246,9 +246,11 @@ void main() {
       _app(
         GlassTheme(
           data: const GlassThemeData(
-            navigationBarStyle: GlassNavigationBarStyle(
-              foregroundColor: Color(0xFF123456),
-            ),
+            styles: [
+              GlassNavigationBarStyle(
+                foregroundColor: Color(0xFF123456),
+              ),
+            ],
           ),
           child: _page(title: const Text('Title')),
         ),
@@ -300,5 +302,44 @@ void main() {
 
     expect(followed, isEmpty);
     expect(chrome.active.value, same(scroll));
+  });
+
+  testWidgets('the title takes the bar style, then the theme style, then '
+      'label', (tester) async {
+    await _phone(tester);
+    Color? title() =>
+        DefaultTextStyle.of(tester.element(find.text('Title'))).style.color;
+    Widget page({GlassNavigationBarStyle? style}) => GlassPageScaffold(
+      navigationBar: GlassNavigationBar(
+        title: const Text('Title'),
+        style: style,
+      ),
+      child: const SizedBox.expand(),
+    );
+    const themed = GlassThemeData(
+      styles: [GlassNavigationBarStyle(foregroundColor: Color(0xFF123456))],
+    );
+    await tester.pumpWidget(_app(page()));
+    expect(
+      title(),
+      isSameColorAs(GlassColors.label.resolvedWith(const GlassTraits())),
+    );
+
+    await tester.pumpWidget(_app(GlassTheme(data: themed, child: page())));
+    expect(title(), isSameColorAs(const Color(0xFF123456)));
+
+    await tester.pumpWidget(
+      _app(
+        GlassTheme(
+          data: themed,
+          child: page(
+            style: const GlassNavigationBarStyle(
+              foregroundColor: Color(0xFF654321),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(title(), isSameColorAs(const Color(0xFF654321)));
   });
 }

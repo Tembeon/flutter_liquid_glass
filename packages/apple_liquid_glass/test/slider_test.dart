@@ -241,9 +241,11 @@ void main() {
       _app(
         const GlassSlider(value: 0.5, onChanged: null),
         theme: GlassThemeData(
-          sliderStyle: GlassSlider.styleFrom(
-            activeTrackColor: const Color(0xFF123456),
-          ),
+          styles: [
+            GlassSlider.styleFrom(
+              activeTrackColor: const Color(0xFF123456),
+            ),
+          ],
         ),
       ),
     );

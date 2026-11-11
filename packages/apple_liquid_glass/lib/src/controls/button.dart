@@ -22,7 +22,7 @@ import 'package:kinesis/kinesis.dart';
 /// leaves that state to the next one, and `WidgetStatePropertyAll(null)`
 /// hands every state on. [merge] combines two styles the same way.
 @immutable
-class GlassButtonStyle {
+class GlassButtonStyle extends GlassStyle<GlassButtonStyle> {
   /// Creates a style.
   const GlassButtonStyle({
     this.backgroundColor,
@@ -34,6 +34,11 @@ class GlassButtonStyle {
     this.iconSize,
     this.builder,
   });
+
+  /// The theme's [GlassButtonStyle] at [context], or null without one: the
+  /// look between a widget's own style and its defaults.
+  static GlassButtonStyle? maybeOf(BuildContext context) =>
+      GlassTheme.styleOf<GlassButtonStyle>(context);
 
   /// The tint of the glass; an untinted button's resolves to null.
   final WidgetStateProperty<Color?>? backgroundColor;
@@ -61,10 +66,33 @@ class GlassButtonStyle {
   /// the default look.
   final GlassButtonBuilder? builder;
 
+  // Builds a style of this one's class, so a merge, copy or lerp of a
+  // GlassProminentButtonStyle stays one and keeps its key in the theme.
+  GlassButtonStyle _with({
+    required WidgetStateProperty<Color?>? backgroundColor,
+    required WidgetStateProperty<Color?>? foregroundColor,
+    required WidgetStateProperty<Color?>? iconColor,
+    required WidgetStateProperty<TextStyle?>? textStyle,
+    required WidgetStateProperty<EdgeInsetsGeometry?>? padding,
+    required WidgetStateProperty<Size?>? minimumSize,
+    required WidgetStateProperty<double?>? iconSize,
+    required GlassButtonBuilder? builder,
+  }) => GlassButtonStyle(
+    backgroundColor: backgroundColor,
+    foregroundColor: foregroundColor,
+    iconColor: iconColor,
+    textStyle: textStyle,
+    padding: padding,
+    minimumSize: minimumSize,
+    iconSize: iconSize,
+    builder: builder,
+  );
+
   /// This style over [other], state by state.
+  @override
   GlassButtonStyle merge(GlassButtonStyle? other) {
     if (other == null) return this;
-    return GlassButtonStyle(
+    return _with(
       backgroundColor: fallThrough(backgroundColor, other.backgroundColor),
       foregroundColor: fallThrough(foregroundColor, other.foregroundColor),
       iconColor: fallThrough(iconColor, other.iconColor),
@@ -86,7 +114,7 @@ class GlassButtonStyle {
     WidgetStateProperty<Size?>? minimumSize,
     WidgetStateProperty<double?>? iconSize,
     GlassButtonBuilder? builder,
-  }) => GlassButtonStyle(
+  }) => _with(
     backgroundColor: backgroundColor ?? this.backgroundColor,
     foregroundColor: foregroundColor ?? this.foregroundColor,
     iconColor: iconColor ?? this.iconColor,
@@ -97,65 +125,62 @@ class GlassButtonStyle {
     builder: builder ?? this.builder,
   );
 
-  /// The style between [a] and [b] at [t]; the builder switches at the
-  /// middle.
-  static GlassButtonStyle? lerp(
-    GlassButtonStyle? a,
-    GlassButtonStyle? b,
-    double t,
-  ) {
-    if (identical(a, b)) return a;
-    if (a == null || b == null) return t < 0.5 ? a : b;
-    return GlassButtonStyle(
+  /// The style between this one and [other] at [t]; the builder switches
+  /// at the middle.
+  @override
+  GlassButtonStyle lerp(GlassButtonStyle other, double t) {
+    if (identical(this, other)) return this;
+    return _with(
       backgroundColor: WidgetStateProperty.lerp<Color?>(
-        a.backgroundColor,
-        b.backgroundColor,
+        backgroundColor,
+        other.backgroundColor,
         t,
         snapNull(GlassDynamicColor.lerp),
       ),
       foregroundColor: WidgetStateProperty.lerp<Color?>(
-        a.foregroundColor,
-        b.foregroundColor,
+        foregroundColor,
+        other.foregroundColor,
         t,
         snapNull(GlassDynamicColor.lerp),
       ),
       iconColor: WidgetStateProperty.lerp<Color?>(
-        a.iconColor,
-        b.iconColor,
+        iconColor,
+        other.iconColor,
         t,
         snapNull(GlassDynamicColor.lerp),
       ),
       textStyle: WidgetStateProperty.lerp<TextStyle?>(
-        a.textStyle,
-        b.textStyle,
+        textStyle,
+        other.textStyle,
         t,
         snapNull(TextStyle.lerp),
       ),
       padding: WidgetStateProperty.lerp<EdgeInsetsGeometry?>(
-        a.padding,
-        b.padding,
+        padding,
+        other.padding,
         t,
         snapNull(EdgeInsetsGeometry.lerp),
       ),
       minimumSize: WidgetStateProperty.lerp<Size?>(
-        a.minimumSize,
-        b.minimumSize,
+        minimumSize,
+        other.minimumSize,
         t,
         snapNull(Size.lerp),
       ),
       iconSize: WidgetStateProperty.lerp<double?>(
-        a.iconSize,
-        b.iconSize,
+        iconSize,
+        other.iconSize,
         t,
         snapNull(lerpDouble),
       ),
-      builder: t < 0.5 ? a.builder : b.builder,
+      builder: t < 0.5 ? builder : other.builder,
     );
   }
 
   @override
   bool operator ==(Object other) =>
       other is GlassButtonStyle &&
+      other.type == type &&
       other.backgroundColor == backgroundColor &&
       other.foregroundColor == foregroundColor &&
       other.iconColor == iconColor &&
@@ -175,6 +200,71 @@ class GlassButtonStyle {
     minimumSize,
     iconSize,
     builder,
+  );
+}
+
+/// The look of prominent glass buttons, as a theme keeps it apart from
+/// the regular and clear ones' [GlassButtonStyle].
+///
+/// A theme holds one style per type: put a [GlassButtonStyle] in
+/// `GlassThemeData.styles` for `GlassButton` and `GlassButton.clear`, and
+/// this one for `GlassButton.prominent` and `GlassButton.prominentClear`.
+/// As a button's own `style` it acts as any [GlassButtonStyle].
+class GlassProminentButtonStyle extends GlassButtonStyle {
+  /// Creates a style.
+  const GlassProminentButtonStyle({
+    super.backgroundColor,
+    super.foregroundColor,
+    super.iconColor,
+    super.textStyle,
+    super.padding,
+    super.minimumSize,
+    super.iconSize,
+    super.builder,
+  });
+
+  /// A prominent style with the fields of [style], as from
+  /// [GlassButton.styleFrom].
+  factory GlassProminentButtonStyle.from(GlassButtonStyle style) =>
+      GlassProminentButtonStyle(
+        backgroundColor: style.backgroundColor,
+        foregroundColor: style.foregroundColor,
+        iconColor: style.iconColor,
+        textStyle: style.textStyle,
+        padding: style.padding,
+        minimumSize: style.minimumSize,
+        iconSize: style.iconSize,
+        builder: style.builder,
+      );
+
+  /// The theme's [GlassProminentButtonStyle] at [context], or null without
+  /// one: the look between a prominent button's own style and its
+  /// defaults.
+  static GlassButtonStyle? maybeOf(BuildContext context) =>
+      GlassTheme.styleOf<GlassButtonStyle>(context, GlassProminentButtonStyle);
+
+  @override
+  Object get type => GlassProminentButtonStyle;
+
+  @override
+  GlassButtonStyle _with({
+    required WidgetStateProperty<Color?>? backgroundColor,
+    required WidgetStateProperty<Color?>? foregroundColor,
+    required WidgetStateProperty<Color?>? iconColor,
+    required WidgetStateProperty<TextStyle?>? textStyle,
+    required WidgetStateProperty<EdgeInsetsGeometry?>? padding,
+    required WidgetStateProperty<Size?>? minimumSize,
+    required WidgetStateProperty<double?>? iconSize,
+    required GlassButtonBuilder? builder,
+  }) => GlassProminentButtonStyle(
+    backgroundColor: backgroundColor,
+    foregroundColor: foregroundColor,
+    iconColor: iconColor,
+    textStyle: textStyle,
+    padding: padding,
+    minimumSize: minimumSize,
+    iconSize: iconSize,
+    builder: builder,
   );
 }
 
@@ -345,14 +435,12 @@ class GlassButton extends StatelessWidget {
   /// and [GlassButtonStyle.backgroundColor] only on a prominent button.
   @internal
   GlassButtonStyle defaultStyleOf(BuildContext context) {
-    final theme = GlassTheme.of(context);
-    final scheme = theme.colorScheme;
-    final disabledLabel = scheme?.tertiaryLabel ?? GlassColors.tertiaryLabel;
-    final label = _prominent ? _white : scheme?.label ?? GlassColors.label;
+    final disabledLabel = GlassTheme.tertiaryLabelColorOf(context);
+    final label = _prominent ? _white : GlassTheme.labelColorOf(context);
     return GlassButtonStyle(
       backgroundColor: _prominent
           ? ByState<Color>(
-              theme.primaryColor ?? GlassColors.systemBlue,
+              GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
               GlassColors.systemGray4,
             )
           : null,
@@ -364,10 +452,9 @@ class GlassButton extends StatelessWidget {
     );
   }
 
-  GlassButtonStyle? _themeStyleOf(BuildContext context) {
-    final theme = GlassTheme.of(context);
-    return _prominent ? theme.prominentButtonStyle : theme.buttonStyle;
-  }
+  GlassButtonStyle? _themeStyleOf(BuildContext context) => _prominent
+      ? GlassProminentButtonStyle.maybeOf(context)
+      : GlassButtonStyle.maybeOf(context);
 
   @override
   Widget build(BuildContext context) {

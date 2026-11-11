@@ -15,7 +15,7 @@ import 'package:flutter/widgets.dart';
 /// is a flat color on every renderer where UIKit uses a material (page
 /// control passport).
 @immutable
-class GlassPageControlStyle {
+class GlassPageControlStyle extends GlassStyle<GlassPageControlStyle> {
   /// Creates a style.
   const GlassPageControlStyle({
     this.pageIndicatorColor,
@@ -24,6 +24,11 @@ class GlassPageControlStyle {
     this.platterIndicatorColor,
     this.builder,
   });
+
+  /// The theme's [GlassPageControlStyle] at [context], or null without one: the
+  /// look between a widget's own style and its defaults.
+  static GlassPageControlStyle? maybeOf(BuildContext context) =>
+      GlassTheme.styleOf<GlassPageControlStyle>(context);
 
   /// The dots of the other pages (UIKit `pageIndicatorTintColor`).
   final WidgetStateProperty<Color?>? pageIndicatorColor;
@@ -44,6 +49,7 @@ class GlassPageControlStyle {
   final GlassPageControlBuilder? builder;
 
   /// This style over [other], state by state.
+  @override
   GlassPageControlStyle merge(GlassPageControlStyle? other) {
     if (other == null) return this;
     return GlassPageControlStyle(
@@ -64,15 +70,11 @@ class GlassPageControlStyle {
     );
   }
 
-  /// The style between [a] and [b] at [t]; the builder switches at the
-  /// half.
-  static GlassPageControlStyle? lerp(
-    GlassPageControlStyle? a,
-    GlassPageControlStyle? b,
-    double t,
-  ) {
-    if (identical(a, b)) return a;
-    if (a == null || b == null) return t < 0.5 ? a : b;
+  /// The style between this one and [other] at [t]; the builder switches
+  /// at the half.
+  @override
+  GlassPageControlStyle lerp(GlassPageControlStyle other, double t) {
+    if (identical(this, other)) return this;
     WidgetStateProperty<Color?>? color(
       WidgetStateProperty<Color?>? from,
       WidgetStateProperty<Color?>? to,
@@ -83,17 +85,17 @@ class GlassPageControlStyle {
       snapNull(GlassDynamicColor.lerp),
     );
     return GlassPageControlStyle(
-      pageIndicatorColor: color(a.pageIndicatorColor, b.pageIndicatorColor),
+      pageIndicatorColor: color(pageIndicatorColor, other.pageIndicatorColor),
       currentPageIndicatorColor: color(
-        a.currentPageIndicatorColor,
-        b.currentPageIndicatorColor,
+        currentPageIndicatorColor,
+        other.currentPageIndicatorColor,
       ),
-      platterColor: color(a.platterColor, b.platterColor),
+      platterColor: color(platterColor, other.platterColor),
       platterIndicatorColor: color(
-        a.platterIndicatorColor,
-        b.platterIndicatorColor,
+        platterIndicatorColor,
+        other.platterIndicatorColor,
       ),
-      builder: t < 0.5 ? a.builder : b.builder,
+      builder: t < 0.5 ? builder : other.builder,
     );
   }
 
@@ -209,7 +211,7 @@ class GlassPageControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final look = (style ?? const GlassPageControlStyle()).merge(
-      GlassTheme.of(context).pageControlStyle,
+      GlassPageControlStyle.maybeOf(context),
     );
     return RawGlassPageControl(
       count: count,

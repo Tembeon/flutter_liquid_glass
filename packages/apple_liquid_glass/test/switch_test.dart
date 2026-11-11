@@ -280,9 +280,11 @@ void main() {
       _app(
         const GlassSwitch(value: true, onChanged: null),
         theme: GlassThemeData(
-          switchStyle: GlassSwitch.styleFrom(
-            activeTrackColor: const Color(0xFF123456),
-          ),
+          styles: [
+            GlassSwitch.styleFrom(
+              activeTrackColor: const Color(0xFF123456),
+            ),
+          ],
         ),
       ),
     );
@@ -380,5 +382,49 @@ void main() {
       tester.getCenter(knob),
       tester.getCenter(find.byType(RawGlassSwitch)),
     );
+  });
+
+  testWidgets('the track takes the switch style, then the theme style, then '
+      'its default', (tester) async {
+    Color track() => tester
+        .widgetList<GlassSurface>(find.byType(GlassSurface))
+        .first
+        .frame!
+        .value
+        .tint!;
+    final themed = GlassThemeData(
+      styles: [
+        GlassSwitch.styleFrom(activeTrackColor: const Color(0xFF123456)),
+      ],
+    );
+    await tester.pumpWidget(
+      _app(const GlassSwitch(value: true, onChanged: null)),
+    );
+    await _settle(tester);
+    expect(
+      track(),
+      isSameColorAs(GlassColors.systemGreen.resolvedWith(const GlassTraits())),
+    );
+
+    await tester.pumpWidget(
+      _app(const GlassSwitch(value: true, onChanged: null), theme: themed),
+    );
+    await _settle(tester);
+    expect(track(), isSameColorAs(const Color(0xFF123456)));
+
+    await tester.pumpWidget(
+      _app(
+        GlassSwitch(
+          value: true,
+          onChanged: null,
+          style: GlassSwitch.styleFrom(
+            activeTrackColor: const Color(0xFF654321),
+          ),
+        ),
+        theme: themed,
+      ),
+    );
+    await _settle(tester);
+    expect(track(), isSameColorAs(const Color(0xFF654321)));
   });
 }

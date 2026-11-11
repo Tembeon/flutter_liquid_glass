@@ -16,7 +16,7 @@ import 'package:kinesis/kinesis.dart';
 /// leaves that state to the next one. [merge] combines two styles the same
 /// way.
 @immutable
-class GlassSwitchStyle {
+class GlassSwitchStyle extends GlassStyle<GlassSwitchStyle> {
   /// Creates a style.
   const GlassSwitchStyle({
     this.thumbColor,
@@ -24,6 +24,11 @@ class GlassSwitchStyle {
     this.inactiveTrackColor,
     this.builder,
   });
+
+  /// The theme's [GlassSwitchStyle] at [context], or null without one: the
+  /// look between a widget's own style and its defaults.
+  static GlassSwitchStyle? maybeOf(BuildContext context) =>
+      GlassTheme.styleOf<GlassSwitchStyle>(context);
 
   /// The fill of the resting knob (UIKit `thumbTintColor`).
   final WidgetStateProperty<Color?>? thumbColor;
@@ -40,6 +45,7 @@ class GlassSwitchStyle {
   final GlassSwitchBuilder? builder;
 
   /// This style over [other], state by state.
+  @override
   GlassSwitchStyle merge(GlassSwitchStyle? other) {
     if (other == null) return this;
     return GlassSwitchStyle(
@@ -53,15 +59,11 @@ class GlassSwitchStyle {
     );
   }
 
-  /// The style between [a] and [b] at [t]; the builder switches at the
-  /// middle.
-  static GlassSwitchStyle? lerp(
-    GlassSwitchStyle? a,
-    GlassSwitchStyle? b,
-    double t,
-  ) {
-    if (identical(a, b)) return a;
-    if (a == null || b == null) return t < 0.5 ? a : b;
+  /// The style between this one and [other] at [t]; the builder switches
+  /// at the middle.
+  @override
+  GlassSwitchStyle lerp(GlassSwitchStyle other, double t) {
+    if (identical(this, other)) return this;
     WidgetStateProperty<Color?>? color(
       WidgetStateProperty<Color?>? from,
       WidgetStateProperty<Color?>? to,
@@ -72,10 +74,10 @@ class GlassSwitchStyle {
       snapNull(GlassDynamicColor.lerp),
     );
     return GlassSwitchStyle(
-      thumbColor: color(a.thumbColor, b.thumbColor),
-      activeTrackColor: color(a.activeTrackColor, b.activeTrackColor),
-      inactiveTrackColor: color(a.inactiveTrackColor, b.inactiveTrackColor),
-      builder: t < 0.5 ? a.builder : b.builder,
+      thumbColor: color(thumbColor, other.thumbColor),
+      activeTrackColor: color(activeTrackColor, other.activeTrackColor),
+      inactiveTrackColor: color(inactiveTrackColor, other.inactiveTrackColor),
+      builder: t < 0.5 ? builder : other.builder,
     );
   }
 
@@ -168,7 +170,7 @@ class GlassSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final look = (style ?? const GlassSwitchStyle()).merge(
-      GlassTheme.of(context).switchStyle,
+      GlassSwitchStyle.maybeOf(context),
     );
     return RawGlassSwitch(
       value: value,

@@ -9,13 +9,18 @@ import 'package:flutter/widgets.dart';
 /// The look of a [GlassBadge]; a null field leaves it to the theme's
 /// style, then the default.
 @immutable
-class GlassBadgeStyle {
+class GlassBadgeStyle extends GlassStyle<GlassBadgeStyle> {
   /// Creates a style.
   const GlassBadgeStyle({
     this.backgroundColor,
     this.foregroundColor,
     this.textStyle,
   });
+
+  /// The theme's [GlassBadgeStyle] at [context], or null without one: the
+  /// look between a widget's own style and its defaults.
+  static GlassBadgeStyle? maybeOf(BuildContext context) =>
+      GlassTheme.styleOf<GlassBadgeStyle>(context);
 
   /// The fill of the badge; [GlassColors.systemRed] by default.
   final Color? backgroundColor;
@@ -28,6 +33,7 @@ class GlassBadgeStyle {
   final TextStyle? textStyle;
 
   /// This style over [other].
+  @override
   GlassBadgeStyle merge(GlassBadgeStyle? other) {
     if (other == null) return this;
     return GlassBadgeStyle(
@@ -37,26 +43,22 @@ class GlassBadgeStyle {
     );
   }
 
-  /// The style between [a] and [b] at [t].
-  static GlassBadgeStyle? lerp(
-    GlassBadgeStyle? a,
-    GlassBadgeStyle? b,
-    double t,
-  ) {
-    if (identical(a, b)) return a;
-    if (a == null || b == null) return t < 0.5 ? a : b;
+  /// The style between this one and [other] at [t].
+  @override
+  GlassBadgeStyle lerp(GlassBadgeStyle other, double t) {
+    if (identical(this, other)) return this;
     return GlassBadgeStyle(
       backgroundColor: snapNull(GlassDynamicColor.lerp)(
-        a.backgroundColor,
-        b.backgroundColor,
+        backgroundColor,
+        other.backgroundColor,
         t,
       ),
       foregroundColor: snapNull(GlassDynamicColor.lerp)(
-        a.foregroundColor,
-        b.foregroundColor,
+        foregroundColor,
+        other.foregroundColor,
         t,
       ),
-      textStyle: snapNull(TextStyle.lerp)(a.textStyle, b.textStyle, t),
+      textStyle: snapNull(TextStyle.lerp)(textStyle, other.textStyle, t),
     );
   }
 
@@ -136,7 +138,7 @@ class GlassBadge extends StatelessWidget {
     if (!_visible) return const SizedBox.shrink();
     final label = count?.toString() ?? text;
     final look = (style ?? const GlassBadgeStyle()).merge(
-      GlassTheme.of(context).badgeStyle,
+      GlassBadgeStyle.maybeOf(context),
     );
     final fill = GlassDynamicColor.resolve(
       look.backgroundColor ?? GlassColors.systemRed,

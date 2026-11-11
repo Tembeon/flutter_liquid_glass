@@ -238,7 +238,7 @@ void main() {
             renderer: const FlatGlassRenderer(),
             child: GlassTheme(
               data: const GlassThemeData(
-                toolbarStyle: style,
+                styles: [style],
               ),
               child: GlassPageScaffold(
                 toolbar: GlassToolbar(

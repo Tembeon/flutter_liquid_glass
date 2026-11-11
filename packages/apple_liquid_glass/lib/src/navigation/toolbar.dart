@@ -16,14 +16,20 @@ import 'package:kinesis/kinesis.dart';
 
 /// The look of toolbars, set on the theme.
 @immutable
-class GlassToolbarStyle {
+class GlassToolbarStyle extends GlassStyle<GlassToolbarStyle> {
   /// Creates a style.
   const GlassToolbarStyle({this.itemStyle});
+
+  /// The theme's [GlassToolbarStyle] at [context], or null without one: the
+  /// look between a widget's own style and its defaults.
+  static GlassToolbarStyle? maybeOf(BuildContext context) =>
+      GlassTheme.styleOf<GlassToolbarStyle>(context);
 
   /// The look of the toolbar's items and of its search's close button.
   final GlassBarItemStyle? itemStyle;
 
   /// This style over [other].
+  @override
   GlassToolbarStyle merge(GlassToolbarStyle? other) {
     if (other == null) return this;
     return GlassToolbarStyle(
@@ -31,16 +37,12 @@ class GlassToolbarStyle {
     );
   }
 
-  /// The style between [a] and [b] at [t].
-  static GlassToolbarStyle? lerp(
-    GlassToolbarStyle? a,
-    GlassToolbarStyle? b,
-    double t,
-  ) {
-    if (identical(a, b)) return a;
-    if (a == null || b == null) return t < 0.5 ? a : b;
+  /// The style between this one and [other] at [t].
+  @override
+  GlassToolbarStyle lerp(GlassToolbarStyle other, double t) {
+    if (identical(this, other)) return this;
     return GlassToolbarStyle(
-      itemStyle: GlassBarItemStyle.lerp(a.itemStyle, b.itemStyle, t),
+      itemStyle: GlassBarItemStyle.lerp(itemStyle, other.itemStyle, t),
     );
   }
 
@@ -300,11 +302,10 @@ class _SearchBarState extends State<_SearchBar> {
     final media = MediaQuery.of(context);
     final keyboard = _frozen ?? media.viewInsets.bottom;
     final rtl = Directionality.of(context) == TextDirection.rtl;
-    final theme = GlassTheme.of(context);
+    final itemStyle = GlassToolbarStyle.maybeOf(context)?.itemStyle;
     final glyph = GlassDynamicColor.resolve(
-      theme.toolbarStyle?.itemStyle?.foregroundColor?.resolve(const {}) ??
-          theme.colorScheme?.label ??
-          GlassColors.label,
+      itemStyle?.foregroundColor?.resolve(const {}) ??
+          GlassTheme.labelColorOf(context),
       context,
     );
     Widget item(_Slot slot, Widget child) => LayoutId(
