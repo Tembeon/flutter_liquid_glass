@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/presentation/presentation.dart';
@@ -65,6 +66,7 @@ class _PresentationPortalState extends State<PresentationPortal>
   final OverlayPortalController _overlay = OverlayPortalController();
   final ValueNotifier<bool> _canPop = ValueNotifier<bool>(true);
   final ValueNotifier<bool> _modal = ValueNotifier<bool>(true);
+  final ValueNotifier<bool> _inert = ValueNotifier<bool>(false);
   final FocusScopeNode _scope = FocusScopeNode(
     debugLabel: 'PresentationPortal',
   );
@@ -109,6 +111,7 @@ class _PresentationPortalState extends State<PresentationPortal>
     _end();
     _canPop.dispose();
     _modal.dispose();
+    _inert.dispose();
     _scope.dispose();
     super.dispose();
   }
@@ -118,10 +121,11 @@ class _PresentationPortalState extends State<PresentationPortal>
     final shown = _motion;
     if (shown != null) {
       if (!_leaving) return;
-      _leaving = false;
+      _setLeaving(false);
       _result = null;
       _canPop.value = false;
       shown.open(t);
+      _scope.requestFocus();
       return;
     }
     final presentation = widget.presentation;
@@ -136,7 +140,7 @@ class _PresentationPortalState extends State<PresentationPortal>
       }
     }
     motion.open(t);
-    _leaving = false;
+    _setLeaving(false);
     _restore = FocusManager.instance.primaryFocus;
     _canPop.value = false;
     _modal.value = presentation.modalOf(motion);
@@ -154,7 +158,7 @@ class _PresentationPortalState extends State<PresentationPortal>
     _lease?.release();
     _lease = null;
     _motion = null;
-    _leaving = false;
+    _setLeaving(false);
     _canPop.value = true;
     final result = _result;
     _result = null;
@@ -170,9 +174,33 @@ class _PresentationPortalState extends State<PresentationPortal>
       presentation.onVeto?.call(trigger);
       return;
     }
-    _leaving = true;
+    _setLeaving(true);
+    _restoreFocus();
     _result = presentation.resultOf(result);
     if (!motion.leave(MotionClock.instance.now, trigger)) didLeave();
+  }
+
+  void _setLeaving(bool leaving) {
+    _leaving = leaving;
+    if (_inert.value == leaving) return;
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      // A leave the content reports while it builds applies before the
+      // next build: the touch gate already holds.
+      MotionClock.instance.schedulePublish(() {
+        if (mounted) _inert.value = _leaving;
+      });
+      return;
+    }
+    _inert.value = leaving;
+  }
+
+  void _restoreFocus() {
+    final restore = _restore;
+    if (!_scope.hasFocus || restore == null || !restore.canRequestFocus) {
+      return;
+    }
+    restore.requestFocus();
   }
 
   @override
@@ -188,11 +216,8 @@ class _PresentationPortalState extends State<PresentationPortal>
   void didLeave() {
     if (_motion == null) return;
     _end();
-    final restore = _restore;
+    _restoreFocus();
     _restore = null;
-    if (_scope.hasFocus && restore != null && restore.canRequestFocus) {
-      restore.requestFocus();
-    }
     if (mounted) _overlay.hide();
   }
 
@@ -284,8 +309,9 @@ class _PresentationPortalState extends State<PresentationPortal>
     // so a barrier blocking what was painted before it would drop the whole
     // screen, the presentation and its anchor included; in a container of
     // its own it blocks nothing, and what is below stays readable.
-    return _LeavingGate(
+    return PresentationInert(
       isLeaving: () => _leaving,
+      leaving: _inert,
       child: Semantics(
         container: true,
         explicitChildNodes: true,
@@ -293,35 +319,4 @@ class _PresentationPortalState extends State<PresentationPortal>
       ),
     );
   }
-}
-
-/// Takes no new touches while [isLeaving], asked at each touch: a close can
-/// start in any phase of a frame, and a finger already down stays with what
-/// it touched.
-class _LeavingGate extends SingleChildRenderObjectWidget {
-  const _LeavingGate({required this.isLeaving, required super.child});
-
-  final bool Function() isLeaving;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) =>
-      _RenderLeavingGate(isLeaving);
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    _RenderLeavingGate renderObject,
-  ) {
-    renderObject.isLeaving = isLeaving;
-  }
-}
-
-class _RenderLeavingGate extends RenderProxyBox {
-  _RenderLeavingGate(this.isLeaving);
-
-  bool Function() isLeaving;
-
-  @override
-  bool hitTest(BoxHitTestResult result, {required Offset position}) =>
-      !isLeaving() && super.hitTest(result, position: position);
 }

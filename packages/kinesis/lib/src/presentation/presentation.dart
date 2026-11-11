@@ -1,10 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/presentation/route.dart';
 import 'package:kinesis/src/presentation/source.dart';
 import 'package:kinesis/widgets.dart';
-import 'package:meta/meta.dart';
 
 /// Where and how big a presentation may be, read from the place it shows
 /// in when it commits.
@@ -238,6 +238,73 @@ Widget presentationBarrier({
   );
   if (!dismissible || label == null) return barrier;
   return Semantics(sortKey: const OrdinalSortKey(1), child: barrier);
+}
+
+/// Makes [child] inert from the moment its presentation starts to leave:
+/// it takes no new touch ([isLeaving] is asked at each touch, as a close
+/// can start in any phase of a frame, and a finger already down stays with
+/// what it touched), holds no focus and leaves the semantics tree once
+/// [leaving] turns true.
+@internal
+class PresentationInert extends StatelessWidget {
+  /// Makes [child] inert while [isLeaving].
+  const PresentationInert({
+    required this.isLeaving,
+    required this.leaving,
+    required this.child,
+    super.key,
+  });
+
+  /// Whether the presentation leaves now.
+  final bool Function() isLeaving;
+
+  /// Turns true once the presentation leaves, for what only a rebuild
+  /// changes.
+  final ValueListenable<bool> leaving;
+
+  /// The content.
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => _LeavingGate(
+    isLeaving: isLeaving,
+    child: ValueListenableBuilder<bool>(
+      valueListenable: leaving,
+      builder: (context, leaving, child) => ExcludeFocus(
+        excluding: leaving,
+        child: ExcludeSemantics(excluding: leaving, child: child),
+      ),
+      child: child,
+    ),
+  );
+}
+
+class _LeavingGate extends SingleChildRenderObjectWidget {
+  const _LeavingGate({required this.isLeaving, required super.child});
+
+  final bool Function() isLeaving;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderLeavingGate(isLeaving);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderLeavingGate renderObject,
+  ) {
+    renderObject.isLeaving = isLeaving;
+  }
+}
+
+class _RenderLeavingGate extends RenderProxyBox {
+  _RenderLeavingGate(this.isLeaving);
+
+  bool Function() isLeaving;
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) =>
+      !isLeaving() && super.hitTest(result, position: position);
 }
 
 class _HandleScope extends InheritedWidget {

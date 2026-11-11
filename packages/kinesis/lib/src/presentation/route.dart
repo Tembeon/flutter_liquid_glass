@@ -26,6 +26,8 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   bool _removeAtEnd = false;
   bool _popped = false;
   ValueNotifier<bool>? _barrierModal;
+  final ValueNotifier<bool> _closing = ValueNotifier<bool>(false);
+  bool _disposed = false;
   T? _result;
   CapturedThemes? _themes;
 
@@ -212,7 +214,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     }
     _result = resultFor(result);
     _completeSettle();
-    _projection.update(AnimationStatus.reverse);
+    _close();
     if (leave(trigger)) {
       _removeAtEnd = true;
     } else {
@@ -319,22 +321,26 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     _removeAtEnd = false;
     _result = resolved;
     _completeSettle();
-    _projection.update(AnimationStatus.reverse);
+    _close();
     if (!closing && !leave(trigger)) didLeave();
     return true;
   }
 
   @override
   @nonVirtual
-  Widget buildModalBarrier() => ValueListenableBuilder<bool>(
-    valueListenable: _barrierModal ??= ValueNotifier<bool>(modal),
-    builder: (context, modal, _) => modal
-        ? presentationBarrier(
-            dismissible: allows(DismissTrigger.outsideTap),
-            label: barrierLabel,
-            onTap: () => dismiss(DismissTrigger.outsideTap),
-          )
-        : const SizedBox.shrink(),
+  Widget buildModalBarrier() => PresentationInert(
+    isLeaving: () => isLeaving,
+    leaving: _closing,
+    child: ValueListenableBuilder<bool>(
+      valueListenable: _barrierModal ??= ValueNotifier<bool>(modal),
+      builder: (context, modal, _) => modal
+          ? presentationBarrier(
+              dismissible: allows(DismissTrigger.outsideTap),
+              label: barrierLabel,
+              onTap: () => dismiss(DismissTrigger.outsideTap),
+            )
+          : const SizedBox.shrink(),
+    ),
   );
 
   // The content root sits outside the page's repaint boundary, so the
@@ -357,6 +363,20 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   ) {
     final content = Builder(builder: buildContent);
     return _themes?.wrap(content) ?? content;
+  }
+
+  // A route never comes back once it leaves, so its content stays inert
+  // from here on.
+  void _close() {
+    _projection.update(AnimationStatus.reverse);
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      MotionClock.instance.schedulePublish(() {
+        if (!_disposed) _closing.value = true;
+      });
+      return;
+    }
+    _closing.value = true;
   }
 
   // A route removed from under others still tells its PopScopes it went.
@@ -385,6 +405,8 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     super.dispose();
     _projection.dispose();
     _barrierModal?.dispose();
+    _closing.dispose();
+    _disposed = true;
   }
 }
 
@@ -519,20 +541,24 @@ class _ContentRootState extends State<_ContentRoot> {
   @override
   Widget build(BuildContext context) {
     final route = widget.route;
-    return Semantics(
-      scopesRoute: true,
-      namesRoute: route.semanticsLabel != null,
-      explicitChildNodes: true,
-      label: route.semanticsLabel,
-      onDismiss: route.allows(DismissTrigger.accessibility)
-          ? () => route.dismiss(DismissTrigger.accessibility)
-          : null,
-      child: Actions(
-        actions: <Type, Action<Intent>>{DismissIntent: _DismissAction(route)},
-        child: Focus(
-          focusNode: _fallback,
-          includeSemantics: false,
-          child: widget.child,
+    return PresentationInert(
+      isLeaving: () => route.isLeaving,
+      leaving: route._closing,
+      child: Semantics(
+        scopesRoute: true,
+        namesRoute: route.semanticsLabel != null,
+        explicitChildNodes: true,
+        label: route.semanticsLabel,
+        onDismiss: route.allows(DismissTrigger.accessibility)
+            ? () => route.dismiss(DismissTrigger.accessibility)
+            : null,
+        child: Actions(
+          actions: <Type, Action<Intent>>{DismissIntent: _DismissAction(route)},
+          child: Focus(
+            focusNode: _fallback,
+            includeSemantics: false,
+            child: widget.child,
+          ),
         ),
       ),
     );

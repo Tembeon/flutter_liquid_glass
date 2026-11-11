@@ -43,6 +43,7 @@ Presentation<String, _Card> _presentation(
   List<String?>? dismissed,
   VoidCallback? onContentPointer,
   String? barrierLabel,
+  FocusNode? focus,
 }) => Presentation<String, _Card>(
   motion: (_) {
     final card = _Card();
@@ -59,7 +60,10 @@ Presentation<String, _Card> _presentation(
         onTap: () => PresentationHandle.of(
           context,
         ).dismiss(DismissTrigger.programmatic, 'tapped'),
-        child: const SizedBox(width: 100, height: 100),
+        child: Focus(
+          focusNode: focus,
+          child: const SizedBox(width: 100, height: 100),
+        ),
       ),
     ),
   ),
@@ -409,6 +413,62 @@ void main() {
           await tester.pumpWidget(const SizedBox());
         }
         debugDefaultTargetPlatformOverride = null;
+        semantics.dispose();
+      });
+
+      testWidgets('is inert from the start of its leave: no new touch, no '
+          'focus, no semantics', (tester) async {
+        final semantics = tester.ensureSemantics();
+        final shell = make();
+        final made = <_Card>[];
+        final focus = FocusNode();
+        var below = 0;
+        var onIt = 0;
+        await shell.pump(
+          tester,
+          Listener(
+            behavior: HitTestBehavior.opaque,
+            onPointerDown: (_) => below++,
+            child: const SizedBox.expand(),
+          ),
+        );
+        await shell.present(
+          tester,
+          _presentation(
+            made,
+            focus: focus,
+            onContentPointer: () => onIt++,
+          ),
+        );
+        await tester.pump();
+        await _settle(tester);
+        focus.requestFocus();
+        await tester.pump();
+        expect(focus.hasPrimaryFocus, isTrue);
+        expect(_node(tester, 'Panel'), isNotNull);
+        final center = tester.getCenter(find.byKey(_contentKey));
+        await tester.tapAt(center);
+        expect(onIt, 1);
+        expect(below, 0);
+
+        PresentationHandle.of(
+          tester.element(find.byKey(_contentKey)),
+        ).dismiss(DismissTrigger.outsideTap);
+        await tester.tapAt(center);
+        expect(onIt, 1, reason: 'no touch in the frame the leave started');
+        // A navigator absorbs every touch in the frame of a pop.
+        expect(below, shell is _PortalShell ? 1 : 0);
+        await tester.pump(const Duration(milliseconds: 16));
+        expect(made.single.presence, PresenceStatus.leaving);
+        expect(find.byKey(_contentKey), findsOneWidget);
+        expect(focus.hasFocus, isFalse);
+        expect(focus.canRequestFocus, isFalse);
+        expect(_node(tester, 'Panel'), isNull);
+        await tester.tapAt(center);
+        expect(onIt, 1);
+        expect(below, shell is _PortalShell ? 2 : 1);
+        await _settle(tester);
+        focus.dispose();
         semantics.dispose();
       });
 
