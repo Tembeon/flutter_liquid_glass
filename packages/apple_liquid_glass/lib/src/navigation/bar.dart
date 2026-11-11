@@ -883,26 +883,37 @@ final class _Bar {
     rebuild();
   }
 
+  // Whether the view builds again in its items' resolve phase.
+  bool _rebuildInResolve = false;
+
+  /// Builds the view again in this frame. While the framework builds or
+  /// lays out (a page declares as it builds, maybe under the app's
+  /// LayoutBuilder; the bar's own layout applies a change), marking the
+  /// view would assert or wait for the next frame: the items' resolve phase
+  /// marks it instead, and it builds and lays out again in the same frame.
   void rebuild() {
     final view = this.view;
     if (view == null || !view.mounted) return;
-    var inLayout = false;
-    assert(() {
-      inLayout = view.renderObject?.owner?.debugDoingLayout ?? false;
-      return true;
-    }(), 'reads the layout phase in debug builds only');
-    if (inLayout) {
-      // Debug builds assert against marking an element dirty during a layout
-      // (the bar's own, or a page built under the app's LayoutBuilder);
-      // release builds mark it directly, and both reach the bar a frame
-      // later.
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (view.mounted) view.markNeedsBuild();
-      });
-      SchedulerBinding.instance.ensureVisualUpdate();
+    final items = _items;
+    if (items != null &&
+        items.attached &&
+        SchedulerBinding.instance.schedulerPhase ==
+            SchedulerPhase.persistentCallbacks) {
+      _rebuildInResolve = true;
+      items.scheduleResolve();
       return;
     }
     view.markNeedsBuild();
+  }
+
+  /// The items' resolve phase: the pages take their title rooms, and the
+  /// view builds again if a change asked for it during the frame.
+  void resolve() {
+    giveRooms();
+    if (!_rebuildInResolve) return;
+    _rebuildInResolve = false;
+    final view = this.view;
+    if (view != null && view.mounted) view.markNeedsBuild();
   }
 
   /// The runs of [page]'s bar, each a list of capsules with the identities
@@ -2016,7 +2027,7 @@ class _RenderBarItems extends RenderBox
   }
 
   @override
-  void resolve() => bar.giveRooms();
+  void resolve() => bar.resolve();
 
   @override
   void applyPaintTransform(RenderBox child, Matrix4 transform) {

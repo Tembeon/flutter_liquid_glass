@@ -50,6 +50,6 @@
 5:ValueListenableBuilder  lib/src/navigation/tab_bar.dart             1
 5:addPostFrameCallback    lib/src/foundation/style.dart               1
 5:addPostFrameCallback    lib/src/liquid/liquid.dart                  1
-5:addPostFrameCallback    lib/src/navigation/bar.dart                 2
+5:addPostFrameCallback    lib/src/navigation/bar.dart                 1
 5:dynamic                 lib/src/foundation/colors.dart              2
 5:engine-layer            lib/src/raw/selector.dart                   1
