@@ -12,13 +12,11 @@ class _BarItems extends MultiChildRenderObjectWidget {
 
   _Highlights _highlightsOf(BuildContext context) {
     final traits = GlassTraits.of(context);
-    Color resolved(Color color) =>
-        color is GlassDynamicColor ? color.resolvedWith(traits) : color;
     return _Highlights(
       zones: zones,
       ring: GlassHighlights.ringColor(
         null,
-        resolved(GlassColors.systemBlue),
+        GlassDynamicColor.resolveWith(GlassColors.systemBlue, traits),
         highContrast: traits.highContrast,
       ),
       hover: GlassHighlights.hoverColor,
