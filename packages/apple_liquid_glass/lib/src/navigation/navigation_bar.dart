@@ -1,9 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/controls/button.dart';
 import 'package:apple_liquid_glass/src/controls/search_field.dart';
-import 'package:apple_liquid_glass/src/controls/search_glyphs.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/search_motion.dart';
@@ -11,6 +9,7 @@ import 'package:apple_liquid_glass/src/navigation/bar.dart';
 import 'package:apple_liquid_glass/src/navigation/bar_entry.dart';
 import 'package:apple_liquid_glass/src/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/navigation/search_stacking.dart';
+import 'package:apple_liquid_glass/src/navigation/toolbar.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -693,7 +692,7 @@ class _StackedSearch extends StatefulWidget {
   State<_StackedSearch> createState() => _StackedSearchState();
 }
 
-class _StackedSearchState extends State<_StackedSearch> {
+class _StackedSearchState extends State<_StackedSearch> with SearchLaw {
   late final MotionClock _clock;
   late final _shown = MotionValue<double>(
     0,
@@ -705,10 +704,11 @@ class _StackedSearchState extends State<_StackedSearch> {
     spring: _StackedMetrics.glassSpring,
     clock: _clock,
   );
-  final _ends = SearchEndSignal();
-  final _closing = ValueNotifier<bool>(false);
 
   double get _now => _clock.now;
+
+  @override
+  bool get followsKeyboard => false;
 
   @override
   void initState() {
@@ -722,27 +722,20 @@ class _StackedSearchState extends State<_StackedSearch> {
     _shown.removeListener(_lifted);
     widget.lift?.value = 0;
     widget.fade.snap(_now, 1);
-    _ends.dispose();
-    _closing.dispose();
     super.dispose();
   }
 
   void _lifted() => widget.lift?.value = -widget.travel * _shown.value;
 
-  void _focusChanged(bool focused) {
-    if (!focused || _closing.value) return;
-    _closing.value = true;
-    final t = _now;
+  @override
+  void begin(double t, {required double keyboard}) {
     _shown.retarget(t, 1);
     _glass.retarget(t, 1);
     widget.fade.retarget(t, 0, spring: SearchTuning.stackedFadeOutSpring);
   }
 
-  void _end() {
-    if (!_closing.value) return;
-    _closing.value = false;
-    _ends.end();
-    final t = _now;
+  @override
+  void end(double t) {
     _shown.retarget(t, 0);
     _glass.retarget(t, 0);
     widget.fade.retarget(
@@ -754,49 +747,24 @@ class _StackedSearchState extends State<_StackedSearch> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final glyph = GlassDynamicColor.resolve(
-      GlassTheme.labelColorOf(context),
-      context,
-    );
-    return SizedBox(
-      height: GlassNavigationBar.searchFieldHeight,
-      child: _StackedLayout(
+  Widget build(BuildContext context) => SizedBox(
+    height: GlassNavigationBar.searchFieldHeight,
+    child: SearchHost(
+      law: this,
+      field: SearchFieldStacking(
+        height: _StackedMetrics.fieldHeight,
+        glass: _glass,
+        child: widget.field,
+      ),
+      builder: (context, parts) => _StackedLayout(
         shown: _shown,
         glass: _glass,
         offset: widget.offset,
         fill: GlassDynamicColor.resolve(_StackedMetrics.fill, context),
-        children: [
-          SearchEnds(
-            ends: _ends,
-            child: SearchFieldStacking(
-              height: _StackedMetrics.fieldHeight,
-              glass: _glass,
-              child: Focus(
-                canRequestFocus: false,
-                skipTraversal: true,
-                onFocusChange: _focusChanged,
-                child: widget.field,
-              ),
-            ),
-          ),
-          MotionVisibility(
-            visible: _closing,
-            maintainPaint: true,
-            maintainSemantics: true,
-            child: GlassButton(
-              onPressed: _end,
-              semanticLabel: GlassLocalizations.of(context).closeButtonLabel,
-              child: SizedBox.fromSize(
-                size: SearchTuning.closeGlyphSize,
-                child: CustomPaint(painter: SearchCrossPainter(glyph)),
-              ),
-            ),
-          ),
-        ],
+        children: [parts.field, parts.close],
       ),
-    );
-  }
+    ),
+  );
 }
 
 abstract final class _StackedMetrics {

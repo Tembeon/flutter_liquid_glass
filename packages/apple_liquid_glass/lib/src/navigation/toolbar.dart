@@ -224,10 +224,9 @@ class _SearchBar extends StatefulWidget {
   State<_SearchBar> createState() => _SearchBarState();
 }
 
-class _SearchBarState extends State<_SearchBar> {
+class _SearchBarState extends State<_SearchBar> with SearchLaw {
   late final MotionClock _clock;
   late final _motion = SearchMotion(clock: _clock);
-  final _ends = SearchEndSignal();
   late final _progress = _motion.select((m) => m.progress);
   late final _swell = _motion.select(
     (m) => 1 + (SearchTuning.appearScale - 1) * m.progress,
@@ -240,138 +239,74 @@ class _SearchBarState extends State<_SearchBar> {
   late final _arriveBlur = _motion.select(
     (m) => SearchTuning.appearBlur * (1 - m.progress),
   );
-  bool _focused = false;
-
-  // A search ended: the keyboard inset the bar keeps its layout at while
-  // the field returns, so nothing follows the keyboard down.
-  double? _frozen;
-
-  double get _now => _clock.now;
+  @override
+  late final ValueListenable<bool> returned = _motion.select(
+    (m) => m.progress == 0,
+  );
 
   @override
   void initState() {
     super.initState();
     _clock = MotionClockScope.of(context);
-    _progress.addListener(_returned);
-  }
-
-  void _returned() {
-    if (_frozen == null || _focused || _progress.value != 0) return;
-    setState(() => _frozen = null);
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final keyboard = MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0;
+  void begin(double t, {required double keyboard}) {
+    if (_motion.isFocused) return;
     if (keyboard > 0) {
-      _motion.keyboardRose(_now, lag: SearchTuning.keyboardLag);
-    }
-  }
-
-  @override
-  void dispose() {
-    _progress.removeListener(_returned);
-    _ends.dispose();
-    super.dispose();
-  }
-
-  void _focusChanged(bool focused) {
-    if (!focused || _motion.isFocused) return;
-    setState(() {
-      _focused = true;
-      _frozen = null;
-    });
-    final keyboard = MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0;
-    if (keyboard > 0) {
-      _motion.focus(_now);
+      _motion.focus(t);
     } else {
-      _motion.focusAfterKeyboard(_now);
+      _motion.focusAfterKeyboard(t);
     }
   }
 
-  void _end() {
-    _motion.unfocus(_now);
-    final keyboard = MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0;
-    setState(() {
-      _focused = false;
-      _frozen = keyboard;
-    });
-    _ends.end();
-  }
+  @override
+  void end(double t) => _motion.unfocus(t);
+
+  @override
+  void keyboardRose(double t) =>
+      _motion.keyboardRose(t, lag: SearchTuning.keyboardLag);
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final keyboard = _frozen ?? media.viewInsets.bottom;
     final rtl = Directionality.of(context) == TextDirection.rtl;
     final itemStyle = GlassToolbarStyle.maybeOf(context)?.itemStyle;
-    final glyph = GlassDynamicColor.resolve(
-      itemStyle?.foregroundColor?.resolve(const {}) ??
-          GlassTheme.labelColorOf(context),
-      context,
-    );
     Widget item(_Slot slot, Widget child) => LayoutId(
       id: slot,
       child: MotionTransition(scale: _swell, opacity: _fade, child: child),
     );
     return MotionScope(
       motion: _motion,
-      child: SizedBox(
-        height: math.max(
-          SearchTuning.height + SearchTuning.restInset,
-          keyboard + SearchTuning.keyboardGap + SearchTuning.height,
-        ),
-        child: SearchEnds(
-          ends: _ends,
-          child: CustomMultiChildLayout(
-            delegate: _SearchLayout(
-              progress: _progress,
-              leading: widget.leading.length,
-              trailing: widget.trailing.length,
-              keyboard: keyboard,
-              returning: _frozen != null,
-              rtl: rtl,
-            ),
-            children: [
-              for (var i = 0; i < widget.leading.length; i++)
-                item((_SlotKind.leading, i), widget.leading[i]),
-              LayoutId(
-                id: (_SlotKind.field, 0),
-                child: Focus(
-                  canRequestFocus: false,
-                  skipTraversal: true,
-                  onFocusChange: _focusChanged,
-                  child: widget.field,
-                ),
-              ),
-              for (var i = 0; i < widget.trailing.length; i++)
-                item((_SlotKind.trailing, i), widget.trailing[i]),
-              LayoutId(
-                id: (_SlotKind.close, 0),
-                child: IgnorePointer(
-                  ignoring: !_focused,
-                  child: MotionTransition(
-                    opacity: _progress,
-                    scale: _arriveScale,
-                    blur: _arriveBlur,
-                    child: GlassButton(
-                      onPressed: _end,
-                      child: Semantics(
-                        label: widget.closeSemanticLabel,
-                        child: SizedBox.fromSize(
-                          size: SearchTuning.closeGlyphSize,
-                          child: CustomPaint(
-                            painter: SearchCrossPainter(glyph),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+      child: SearchHost(
+        law: this,
+        field: widget.field,
+        closeLabel: widget.closeSemanticLabel,
+        closeColor: itemStyle?.foregroundColor?.resolve(const {}),
+        builder: (context, parts) => CustomMultiChildLayout(
+          delegate: _SearchLayout(
+            progress: _progress,
+            leading: widget.leading.length,
+            trailing: widget.trailing.length,
+            keyboard: parts.keyboard,
+            returning: parts.held,
+            rtl: rtl,
           ),
+          children: [
+            for (var i = 0; i < widget.leading.length; i++)
+              item((_SlotKind.leading, i), widget.leading[i]),
+            LayoutId(id: (_SlotKind.field, 0), child: parts.field),
+            for (var i = 0; i < widget.trailing.length; i++)
+              item((_SlotKind.trailing, i), widget.trailing[i]),
+            LayoutId(
+              id: (_SlotKind.close, 0),
+              child: MotionTransition(
+                opacity: _progress,
+                scale: _arriveScale,
+                blur: _arriveBlur,
+                child: parts.close,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -386,7 +321,9 @@ typedef _Slot = (_SlotKind, int);
 /// transition's progress has them: the field between its resting and its
 /// focused capsule; the close button with it on the way in and where it
 /// stood on the way back; the items where they rest on the way in and
-/// coming back from the focused layout without a keyboard.
+/// coming back from the focused layout without a keyboard. It stands as
+/// tall as the field above the keyboard needs, and lays out again as the
+/// progress or the keyboard moves, without a build.
 class _SearchLayout extends MultiChildLayoutDelegate {
   _SearchLayout({
     required this.progress,
@@ -395,14 +332,25 @@ class _SearchLayout extends MultiChildLayoutDelegate {
     required this.keyboard,
     required this.returning,
     required this.rtl,
-  }) : super(relayout: progress);
+  }) : super(relayout: Listenable.merge([progress, keyboard, returning]));
 
   final ValueListenable<double> progress;
   final int leading;
   final int trailing;
-  final double keyboard;
-  final bool returning;
+  final ValueListenable<double> keyboard;
+  final ValueListenable<bool> returning;
   final bool rtl;
+
+  @override
+  Size getSize(BoxConstraints constraints) => constraints.constrain(
+    Size(
+      constraints.maxWidth,
+      math.max(
+        SearchTuning.height + SearchTuning.restInset,
+        keyboard.value + SearchTuning.keyboardGap + SearchTuning.height,
+      ),
+    ),
+  );
 
   @override
   void performLayout(Size size) {
@@ -434,11 +382,12 @@ class _SearchLayout extends MultiChildLayoutDelegate {
       trailing: trailWidths,
       rtl: rtl,
     );
-    final focused = focusedAbove(keyboard);
+    final focused = focusedAbove(keyboard.value);
     final bare = focusedAbove(0);
     final p = progress.value;
+    final back = returning.value;
     Rect slotOf(Rect resting, Rect away) =>
-        returning ? lerpRect(resting, away, p) : resting;
+        back ? lerpRect(resting, away, p) : resting;
     for (var i = 0; i < leading; i++) {
       positionChild(
         (_SlotKind.leading, i),
@@ -454,9 +403,7 @@ class _SearchLayout extends MultiChildLayoutDelegate {
     final field = lerpRect(rest.field, focused.field, p);
     layoutChild((_SlotKind.field, 0), BoxConstraints.tight(field.size));
     positionChild((_SlotKind.field, 0), field.topLeft);
-    final close = returning
-        ? focused.close
-        : lerpRect(rest.close, focused.close, p);
+    final close = back ? focused.close : lerpRect(rest.close, focused.close, p);
     layoutChild((_SlotKind.close, 0), BoxConstraints.tight(close.size));
     positionChild((_SlotKind.close, 0), close.topLeft);
   }
@@ -465,8 +412,267 @@ class _SearchLayout extends MultiChildLayoutDelegate {
   bool shouldRelayout(_SearchLayout oldDelegate) =>
       leading != oldDelegate.leading ||
       trailing != oldDelegate.trailing ||
-      keyboard != oldDelegate.keyboard ||
-      returning != oldDelegate.returning ||
       rtl != oldDelegate.rtl ||
-      progress != oldDelegate.progress;
+      !identical(progress, oldDelegate.progress) ||
+      !identical(keyboard, oldDelegate.keyboard) ||
+      !identical(returning, oldDelegate.returning);
+}
+
+/// What one bar's search does that the others' do not: how its measured
+/// motion answers the search's events. A [SearchHost] calls it, and the bar
+/// lays the host's parts out from that motion.
+@internal
+abstract mixin class SearchLaw {
+  /// Whether the field rises with the keyboard: the host then hears the
+  /// keyboard's inset, and holds it from the search's end until [returned].
+  bool get followsKeyboard => true;
+
+  /// Whether the field's losing the focus ends the search, as in a tab
+  /// bar. Elsewhere only the close button and Escape end it, and a tap
+  /// elsewhere leaves the search active, as in UIKit.
+  bool get blurEnds => false;
+
+  /// Whether the motion has come back to rest after an end, telling its
+  /// listeners when that changes; null when nothing waits for it.
+  ValueListenable<bool>? get returned => null;
+
+  /// The field took the focus at [t], with the keyboard [keyboard] high
+  /// (0 before it starts to rise).
+  void begin(double t, {required double keyboard});
+
+  /// The search ended at [t].
+  void end(double t);
+
+  /// The keyboard stands above the bottom at [t].
+  void keyboardRose(double t) {}
+}
+
+/// What a [SearchHost] hands its bar to lay out.
+@internal
+final class SearchParts {
+  const SearchParts._({
+    required this.field,
+    required this.close,
+    required this.active,
+    required this.keyboard,
+    required this.held,
+  });
+
+  /// The field, heard for its focus and ended by the host.
+  final Widget field;
+
+  /// The close button, which ends the search; it takes touches and the
+  /// focus only while the search is [active]. The bar moves and fades it.
+  final Widget close;
+
+  /// Whether the search is active: from the field's focus to its end.
+  final bool active;
+
+  /// How high the keyboard stands, as the field's layout follows it: held
+  /// from the search's end until the motion has returned, so nothing
+  /// follows the keyboard down.
+  final ValueListenable<double> keyboard;
+
+  /// Whether [keyboard] is held for a return.
+  final ValueListenable<bool> held;
+}
+
+/// The one host of a bar's search: the navigation bar's stacked search,
+/// the toolbar's bottom search and the tab bar's search tab.
+///
+/// It hears the field's focus and starts the search on it, ends the search
+/// from its close button and from Escape (the field clears its text and
+/// lets the focus go), and follows the keyboard's inset without building:
+/// [builder] runs when the search starts or ends, never on a frame of the
+/// motion or of the keyboard. What differs between the bars is [law] and
+/// the layout [builder] makes of the [SearchParts]: where the field sits
+/// at rest, what it grows out of and its measured motion.
+@internal
+class SearchHost extends StatefulWidget {
+  /// Hosts [field]'s search under [law].
+  const SearchHost({
+    required this.law,
+    required this.field,
+    required this.builder,
+    this.closeLabel,
+    this.closeColor,
+    super.key,
+  });
+
+  /// What the bar's motion does on the search's events.
+  final SearchLaw law;
+
+  /// The search field.
+  final Widget field;
+
+  /// Lays the parts out.
+  final Widget Function(BuildContext context, SearchParts parts) builder;
+
+  /// What assistive technology reads for the close button; the localized
+  /// "Close" when null.
+  final String? closeLabel;
+
+  /// The color of the close button's cross; the label color when null.
+  final Color? closeColor;
+
+  @override
+  State<SearchHost> createState() => _SearchHostState();
+}
+
+class _SearchHostState extends State<SearchHost> {
+  late final MotionClock _clock;
+  final _ends = SearchEndSignal();
+  final _keyboard = ValueNotifier<double>(0);
+  final _held = ValueNotifier<bool>(false);
+  late final _endAction = _EndSearch(this);
+  ValueListenable<bool>? _returned;
+  double _inset = 0;
+  bool _active = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _clock = MotionClockScope.of(context);
+    _follow();
+  }
+
+  @override
+  void didUpdateWidget(SearchHost oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.law.returned, widget.law.returned)) _follow();
+  }
+
+  @override
+  void dispose() {
+    _returned?.removeListener(_release);
+    _ends.dispose();
+    _keyboard.dispose();
+    _held.dispose();
+    super.dispose();
+  }
+
+  void _follow() {
+    _returned?.removeListener(_release);
+    _returned = widget.law.returned;
+    _returned?.addListener(_release);
+  }
+
+  void _release() {
+    if (_active || !_held.value || !(_returned?.value ?? true)) return;
+    _held.value = false;
+    _keyboard.value = _inset;
+  }
+
+  void _insetChanged(double inset) {
+    _inset = inset;
+    if (!_held.value) _keyboard.value = inset;
+    if (inset > 0) widget.law.keyboardRose(_clock.now);
+  }
+
+  void _focusChanged(bool focused) {
+    if (focused && !_active) {
+      setState(() => _active = true);
+      _endAction.changed();
+      _held.value = false;
+      _keyboard.value = _inset;
+      widget.law.begin(_clock.now, keyboard: _inset);
+    } else if (!focused && _active && widget.law.blurEnds) {
+      _finish();
+    }
+  }
+
+  void _finish() {
+    setState(() => _active = false);
+    _endAction.changed();
+    if (widget.law.followsKeyboard) _held.value = true;
+    widget.law.end(_clock.now);
+    _release();
+  }
+
+  void _end() {
+    if (_active && !widget.law.blurEnds) _finish();
+    _ends.end();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final active = _active;
+    final glyph = GlassDynamicColor.resolve(
+      widget.closeColor ?? GlassTheme.labelColorOf(context),
+      context,
+    );
+    final parts = SearchParts._(
+      field: SearchEnds(
+        ends: _ends,
+        child: Focus(
+          canRequestFocus: false,
+          skipTraversal: true,
+          onFocusChange: _focusChanged,
+          child: widget.field,
+        ),
+      ),
+      close: IgnorePointer(
+        ignoring: !active,
+        child: ExcludeFocus(
+          excluding: !active,
+          child: GlassButton(
+            onPressed: _end,
+            semanticLabel:
+                widget.closeLabel ??
+                GlassLocalizations.of(context).closeButtonLabel,
+            child: SizedBox.fromSize(
+              size: SearchTuning.closeGlyphSize,
+              child: CustomPaint(painter: SearchCrossPainter(glyph)),
+            ),
+          ),
+        ),
+      ),
+      active: active,
+      keyboard: _keyboard,
+      held: _held,
+    );
+    final laidOut = Actions(
+      actions: {DismissIntent: _endAction},
+      child: widget.builder(context, parts),
+    );
+    if (!widget.law.followsKeyboard) return laidOut;
+    return _KeyboardInset(onChanged: _insetChanged, child: laidOut);
+  }
+}
+
+/// Escape ends an active search; otherwise it goes on to the route.
+final class _EndSearch extends Action<DismissIntent> {
+  _EndSearch(this._host);
+
+  final _SearchHostState _host;
+
+  void changed() => notifyActionListeners();
+
+  @override
+  bool isEnabled(DismissIntent intent) => _host._active;
+
+  @override
+  void invoke(DismissIntent intent) => _host._end();
+}
+
+/// Hears the keyboard's inset for its host without building the host.
+class _KeyboardInset extends StatefulWidget {
+  const _KeyboardInset({required this.onChanged, required this.child});
+
+  final ValueChanged<double> onChanged;
+  final Widget child;
+
+  @override
+  State<_KeyboardInset> createState() => _KeyboardInsetState();
+}
+
+class _KeyboardInsetState extends State<_KeyboardInset> {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    widget.onChanged(MediaQuery.maybeViewInsetsOf(context)?.bottom ?? 0);
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
