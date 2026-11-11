@@ -1,13 +1,13 @@
-import 'package:apple_liquid_glass/src/foundation/colors.dart';
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/theme.dart';
 import 'package:apple_liquid_glass/src/raw/page_control.dart';
+import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
-/// The look of a [GlassPageControl], like Flutter's `ButtonStyle`. Every
-/// field but [builder] resolves against the control's states
-/// ([WidgetState.disabled] while it ignores input); a null leaves the field
+/// The look of a [GlassPageControl], like Flutter's `ButtonStyle`. The
+/// indicator and platter colors resolve against the control's states
+/// ([WidgetState.disabled] while it ignores input); a null leaves a field
 /// to the theme's style, then the default.
 ///
 /// The defaults are approximations, not measured, except the dots'
@@ -22,6 +22,8 @@ class GlassPageControlStyle extends GlassStyle<GlassPageControlStyle> {
     this.currentPageIndicatorColor,
     this.platterColor,
     this.platterIndicatorColor,
+    this.focusColor,
+    this.hoverColor,
     this.builder,
   });
 
@@ -42,6 +44,15 @@ class GlassPageControlStyle extends GlassStyle<GlassPageControlStyle> {
 
   /// The dots of the other pages over the platter.
   final WidgetStateProperty<Color?>? platterIndicatorColor;
+
+  /// The ring around a control focused from the keyboard; null derives it
+  /// from systemBlue as Flutter's Cupertino controls do, and a transparent
+  /// color draws none.
+  final Color? focusColor;
+
+  /// What a mouse over the control fills under its dots; null for the
+  /// platter at half strength, and a transparent color shows none.
+  final Color? hoverColor;
 
   /// Builds the control in place of its default look, which then ignores
   /// the other fields. Null leaves it to the theme's builder, then the
@@ -66,6 +77,8 @@ class GlassPageControlStyle extends GlassStyle<GlassPageControlStyle> {
         platterIndicatorColor,
         other.platterIndicatorColor,
       ),
+      focusColor: focusColor ?? other.focusColor,
+      hoverColor: hoverColor ?? other.hoverColor,
       builder: builder ?? other.builder,
     );
   }
@@ -95,6 +108,8 @@ class GlassPageControlStyle extends GlassStyle<GlassPageControlStyle> {
         platterIndicatorColor,
         other.platterIndicatorColor,
       ),
+      focusColor: GlassDynamicColor.lerp(focusColor, other.focusColor, t),
+      hoverColor: GlassDynamicColor.lerp(hoverColor, other.hoverColor, t),
       builder: t < 0.5 ? builder : other.builder,
     );
   }
@@ -106,6 +121,8 @@ class GlassPageControlStyle extends GlassStyle<GlassPageControlStyle> {
       other.currentPageIndicatorColor == currentPageIndicatorColor &&
       other.platterColor == platterColor &&
       other.platterIndicatorColor == platterIndicatorColor &&
+      other.focusColor == focusColor &&
+      other.hoverColor == hoverColor &&
       other.builder == builder;
 
   @override
@@ -114,6 +131,8 @@ class GlassPageControlStyle extends GlassStyle<GlassPageControlStyle> {
     currentPageIndicatorColor,
     platterColor,
     platterIndicatorColor,
+    focusColor,
+    hoverColor,
     builder,
   );
 }
@@ -128,6 +147,11 @@ class GlassPageControlStyle extends GlassStyle<GlassPageControlStyle> {
 /// progressed. Its motion and input are [RawGlassPageControl]'s. A
 /// disabled control looks like an enabled one and ignores input, as
 /// UIKit's does.
+///
+/// Focused from the keyboard it draws Flutter's Cupertino focus ring
+/// around its capsule, and a mouse over it shows the platter at half
+/// strength (the rule of the glass controls; an approximation, not
+/// measured).
 class GlassPageControl extends StatelessWidget {
   /// Creates a page control of [count] pages showing [page].
   const GlassPageControl({
@@ -244,7 +268,8 @@ class GlassPageControl extends StatelessWidget {
           property?.resolve(details.states) ?? fallback,
           context,
         );
-    return CustomPaint(
+    final platter = resolve(look.platterColor, _platter);
+    final painted = CustomPaint(
       painter: _PageControlPainter(
         pose: details.pose,
         rtl: Directionality.maybeOf(context) == TextDirection.rtl,
@@ -254,12 +279,23 @@ class GlassPageControl extends StatelessWidget {
           look.currentPageIndicatorColor,
           const Color(0xFFFFFFFF),
         ),
-        platterColor: resolve(look.platterColor, _platter),
+        platterColor: platter,
         platterIndicator: resolve(
           look.platterIndicatorColor,
           _platterIndicator,
         ),
       ),
+    );
+    final states = details.statesListenable;
+    if (states == null) return painted;
+    return GlassHighlightPaint.of(
+      context,
+      states: states,
+      focusColor: look.focusColor,
+      hoverColor:
+          look.hoverColor ??
+          platter.withValues(alpha: platter.a * GlassHighlights.hoverGain),
+      child: painted,
     );
   }
 }

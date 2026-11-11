@@ -1,23 +1,23 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/controls/search_glyphs.dart';
-import 'package:apple_liquid_glass/src/foundation/colors.dart';
-import 'package:apple_liquid_glass/src/foundation/frame.dart';
-import 'package:apple_liquid_glass/src/foundation/glass.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/theme.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/search_motion.dart';
 import 'package:apple_liquid_glass/src/navigation/search_stacking.dart';
 import 'package:apple_liquid_glass/src/raw/search_field.dart';
-import 'package:apple_liquid_glass/src/surfaces/surface.dart';
+import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
+import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/widgets.dart';
 
 /// The look of a [GlassSearchField], like Flutter's `ButtonStyle`.
 ///
-/// Every property but [builder] resolves against the field's states
+/// Every property but [focusColor], [hoverColor] and [builder] resolves
+/// against the field's states
 /// (focused, pressed, hovered, disabled) and falls through, state by state,
 /// from this style to the theme's to the field's defaults: a null for a
 /// state leaves that state to the next one.
@@ -31,6 +31,8 @@ class GlassSearchFieldStyle extends GlassStyle<GlassSearchFieldStyle> {
     this.iconColor,
     this.cursorColor,
     this.textStyle,
+    this.focusColor,
+    this.hoverColor,
     this.builder,
   });
 
@@ -62,6 +64,17 @@ class GlassSearchFieldStyle extends GlassStyle<GlassSearchFieldStyle> {
   /// by default.
   final WidgetStateProperty<TextStyle?>? textStyle;
 
+  /// The ring around the clear button focused from the keyboard; null
+  /// derives it from systemBlue as Flutter's Cupertino controls do, and a
+  /// transparent color draws none. The field itself shows its focus by its
+  /// cursor.
+  final Color? focusColor;
+
+  /// What a mouse over the field adds to its glass, and over the clear
+  /// button to its disc; null for a pressed glass's wash at half strength,
+  /// and a transparent color shows none.
+  final Color? hoverColor;
+
   /// Builds the field in place of its default look, which then ignores the
   /// other fields. Null leaves it to the theme's builder, then the default
   /// look.
@@ -78,6 +91,8 @@ class GlassSearchFieldStyle extends GlassStyle<GlassSearchFieldStyle> {
       iconColor: fallThrough(iconColor, other.iconColor),
       cursorColor: fallThrough(cursorColor, other.cursorColor),
       textStyle: fallThrough(textStyle, other.textStyle),
+      focusColor: focusColor ?? other.focusColor,
+      hoverColor: hoverColor ?? other.hoverColor,
       builder: builder ?? other.builder,
     );
   }
@@ -108,6 +123,8 @@ class GlassSearchFieldStyle extends GlassStyle<GlassSearchFieldStyle> {
         t,
         snapNull(TextStyle.lerp),
       ),
+      focusColor: GlassDynamicColor.lerp(focusColor, other.focusColor, t),
+      hoverColor: GlassDynamicColor.lerp(hoverColor, other.hoverColor, t),
       builder: t < 0.5 ? builder : other.builder,
     );
   }
@@ -121,6 +138,8 @@ class GlassSearchFieldStyle extends GlassStyle<GlassSearchFieldStyle> {
       other.iconColor == iconColor &&
       other.cursorColor == cursorColor &&
       other.textStyle == textStyle &&
+      other.focusColor == focusColor &&
+      other.hoverColor == hoverColor &&
       other.builder == builder;
 
   @override
@@ -131,6 +150,8 @@ class GlassSearchFieldStyle extends GlassStyle<GlassSearchFieldStyle> {
     iconColor,
     cursorColor,
     textStyle,
+    focusColor,
+    hoverColor,
     builder,
   );
 }
@@ -293,6 +314,12 @@ class _SearchFieldLook extends StatefulWidget {
 }
 
 class _SearchFieldLookState extends State<_SearchFieldLook> {
+  static const _noRing = Color(0x00000000);
+
+  late final List<Interaction> _clearInteractions = [
+    PressInteraction(onTap: (t) => widget.details.clear?.call()),
+  ];
+  final _clearStates = WidgetStatesController();
   MotionSelection<GlassFrame>? _scaledBy;
   late MotionSelection<double> _scaleX;
   late MotionSelection<double> _scaleY;
@@ -302,6 +329,12 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
     _scaledBy = frame;
     _scaleX = MotionSelection(() => frame.value.scaleX);
     _scaleY = MotionSelection(() => frame.value.scaleY);
+  }
+
+  @override
+  void dispose() {
+    _clearStates.dispose();
+    super.dispose();
   }
 
   @override
@@ -349,20 +382,37 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
         button: true,
         label: widget.clearSemanticLabel ?? 'Clear text',
         onTap: details.clear,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: details.clear,
-          child: SizedBox.square(
-            dimension: SearchTuning.clearSize,
-            child: CustomPaint(
-              painter: _ClearPainter(
-                fill: icon,
-                cross: GlassDynamicColor.resolve(
-                  const GlassDynamicColor.withBrightness(
-                    color: Color(0xFFFFFFFF),
-                    darkColor: Color(0xFF000000),
-                  ),
+        child: ExcludeSemantics(
+          child: InputRegion(
+            interactions: _clearInteractions,
+            enabled: details.clear != null,
+            statesController: _clearStates,
+            child: SizedBox.square(
+              dimension: SearchTuning.clearSize,
+              child: Padding(
+                padding: const EdgeInsets.all(
+                  (SearchTuning.clearSize - SearchTuning.clearInk) / 2,
+                ),
+                child: GlassHighlightPaint.of(
                   context,
+                  states: _clearStates,
+                  focusColor: look.focusColor,
+                  hoverColor: look.hoverColor,
+                  shape: const GlassShape.oval(),
+                  wash: true,
+                  child: CustomPaint(
+                    size: Size.infinite,
+                    painter: _ClearPainter(
+                      fill: icon,
+                      cross: GlassDynamicColor.resolve(
+                        const GlassDynamicColor.withBrightness(
+                          color: Color(0xFFFFFFFF),
+                          darkColor: Color(0xFF000000),
+                        ),
+                        context,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -415,6 +465,9 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
       return GlassSurface.live(
         frame: details.frame,
         glass: glass,
+        states: details.statesListenable,
+        focusColor: _noRing,
+        hoverColor: look.hoverColor,
         child: content,
       );
     }
@@ -427,6 +480,9 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
         GlassSurface.live(
           frame: details.frame,
           glass: glass,
+          states: details.statesListenable,
+          focusColor: _noRing,
+          hoverColor: look.hoverColor,
           child: const SizedBox.expand(),
         ),
         MotionTransition(scaleX: _scaleX, scaleY: _scaleY, child: content),
@@ -444,11 +500,7 @@ class _ClearPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final c = size.center(Offset.zero);
-    final r =
-        math.min(size.width, size.height) /
-        2 *
-        SearchTuning.clearInk /
-        SearchTuning.clearSize;
+    final r = math.min(size.width, size.height) / 2;
     final disc = Paint();
     disc.color = fill;
     canvas.drawCircle(c, r, disc);

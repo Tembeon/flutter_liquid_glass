@@ -420,4 +420,224 @@ void main() {
       await _settle(tester);
     });
   }
+
+  group('a part that is not glass', () {
+    Widget part(
+      WidgetStatesController states, {
+      bool inside = false,
+      bool wash = false,
+    }) => Builder(
+      builder: (context) => SizedBox.fromSize(
+        size: _body,
+        child: GlassHighlightPaint.of(
+          context,
+          states: states,
+          hoverColor: const Color(0x40FF0000),
+          shape: const GlassShape.roundedRect(0),
+          inside: inside,
+          wash: wash,
+          child: const ColoredBox(color: Color(0xFF00FF00)),
+        ),
+      ),
+    );
+
+    for (final inside in [false, true]) {
+      testWidgets('draws the ring ${inside ? 'inside' : 'outside'} its box', (
+        tester,
+      ) async {
+        final states = WidgetStatesController({WidgetState.focused});
+        addTearDown(states.dispose);
+        await tester.pumpWidget(
+          _app(const FlatGlassRenderer(), part(states, inside: inside)),
+        );
+        final rings = _rings(tester, find.byType(GlassHighlightPaint));
+        expect(rings, hasLength(1));
+        final box = Offset.zero & _body;
+        final bounds = rings.single.getBounds();
+        if (inside) {
+          expect(bounds, box);
+          expect(rings.single.contains(_body.center(Offset.zero)), isFalse);
+        } else {
+          expect(bounds, box.inflate(GlassHighlights.ringWidth));
+          expect(rings.single.contains(const Offset(1, 1)), isFalse);
+        }
+        states.update(WidgetState.focused, false);
+        await tester.pump();
+        expect(_rings(tester, find.byType(GlassHighlightPaint)), isEmpty);
+      });
+    }
+
+    for (final wash in [false, true]) {
+      testWidgets(
+        'fills its hover ${wash ? 'over the part as a wash' : 'under it'}',
+        (tester) async {
+          final states = WidgetStatesController({WidgetState.hovered});
+          addTearDown(states.dispose);
+          await tester.pumpWidget(
+            _app(const FlatGlassRenderer(), part(states, wash: wash)),
+          );
+          await _settle(tester);
+          final calls = <(Symbol, BlendMode)>[];
+          expect(
+            find.byType(GlassHighlightPaint),
+            paints..everything((method, arguments) {
+              if (method == #drawRect || method == #drawPath) {
+                calls.add((method, (arguments[1] as Paint).blendMode));
+              }
+              return true;
+            }),
+          );
+          expect(
+            calls,
+            wash
+                ? [(#drawRect, BlendMode.srcOver), (#drawPath, BlendMode.plus)]
+                : [
+                    (#drawPath, BlendMode.srcOver),
+                    (#drawRect, BlendMode.srcOver),
+                  ],
+          );
+        },
+      );
+    }
+  });
+
+  /// Tabs into the part [inside] holds and returns its highlight.
+  Future<GlassHighlight> focusFromKeyboard(
+    WidgetTester tester,
+    Finder inside,
+  ) async {
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    Focus.of(tester.element(inside)).requestFocus();
+    await _settle(tester, 2);
+    return tester
+        .renderObject<RenderGlassHighlightPaint>(
+          find.ancestor(of: inside, matching: find.byType(GlassHighlightPaint)),
+        )
+        .highlight;
+  }
+
+  testWidgets('a page control rings its capsule from the keyboard and shows '
+      'half its platter under a mouse', (tester) async {
+    await tester.pumpWidget(
+      _app(
+        const FlatGlassRenderer(),
+        GlassPageControl(count: 4, page: 1, onChanged: (_) {}),
+      ),
+    );
+    final control = find.byType(GlassPageControl);
+    final paint = find.descendant(
+      of: control,
+      matching: find.byType(GlassHighlightPaint),
+    );
+    expect(_rings(tester, paint), isEmpty);
+    final highlight = await focusFromKeyboard(
+      tester,
+      find.descendant(of: paint, matching: find.byType(CustomPaint)).first,
+    );
+    expect(highlight.focused, isTrue);
+    expect(_rings(tester, paint), hasLength(1));
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: tester.getCenter(control));
+    await _settle(tester);
+    expect(highlight.hovered, closeTo(1, 1e-3));
+    final platter = GlassDynamicColor.resolve(
+      const GlassDynamicColor.withBrightness(
+        color: Color(0xFFF0F0F2),
+        darkColor: Color(0xFF1F1F1F),
+      ),
+      tester.element(control),
+    );
+    expect(
+      _filled(
+        tester,
+        paint,
+        platter.withValues(alpha: GlassHighlights.hoverGain),
+      ),
+      hasLength(1),
+    );
+    await mouse.removePointer();
+    await _settle(tester);
+  });
+
+  testWidgets('a focused list row rings inside its edge in place of a full '
+      'fill, and a mouse fills it at half strength', (tester) async {
+    await tester.pumpWidget(
+      _app(
+        const FlatGlassRenderer(),
+        SizedBox(
+          width: 402,
+          child: GlassListSection(
+            children: [
+              GlassListRow(title: const Text('General'), onPressed: () {}),
+            ],
+          ),
+        ),
+      ),
+    );
+    final row = find.byType(GlassListRow);
+    final overlay = GlassDynamicColor.resolve(
+      GlassColors.systemGray4,
+      tester.element(row),
+    );
+    final highlight = await focusFromKeyboard(tester, find.text('General'));
+    expect(highlight.focused, isTrue);
+    expect(_rings(tester, row), hasLength(1));
+    expect(
+      _rings(tester, row).single.getBounds().size,
+      tester.getSize(row),
+    );
+    expect(_filled(tester, row, overlay), isEmpty);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: tester.getCenter(row));
+    await _settle(tester);
+    expect(
+      _filled(
+        tester,
+        row,
+        overlay.withValues(alpha: GlassHighlights.hoverGain),
+      ),
+      hasLength(1),
+    );
+    await mouse.removePointer();
+    await _settle(tester);
+  });
+
+  testWidgets("a search field's clear button clears on a tap, takes the "
+      'keyboard focus with a ring and the hover wash', (tester) async {
+    final controller = TextEditingController(text: 'glass');
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      _app(
+        const FlatGlassRenderer(),
+        SizedBox(
+          width: 340,
+          child: GlassSearchField(controller: controller),
+        ),
+      ),
+    );
+    final clear = find.descendant(
+      of: find.byType(GlassSearchField),
+      matching: find.byType(GlassHighlightPaint),
+    );
+    expect(clear, findsOneWidget);
+    final highlight = await focusFromKeyboard(
+      tester,
+      find.descendant(of: clear, matching: find.byType(CustomPaint)).first,
+    );
+    expect(highlight.focused, isTrue);
+    expect(_rings(tester, clear), hasLength(1));
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: tester.getCenter(clear));
+    await _settle(tester);
+    expect(highlight.hovered, closeTo(1, 1e-3));
+    final field = tester.renderObject<RenderGlassHighlight>(
+      find.byType(GlassHighlightBox),
+    );
+    expect(field.highlight.hovered, closeTo(1, 1e-3));
+    expect(field.focusColor.a, 0);
+    await mouse.removePointer();
+    await tester.tap(clear);
+    await _settle(tester);
+    expect(controller.text, isEmpty);
+  });
 }

@@ -621,10 +621,14 @@ class GlassListStyle extends GlassStyle<GlassListStyle>
     WidgetStateProperty<Color?>? secondaryColor,
     WidgetStateProperty<Color?>? iconColor,
     WidgetStateProperty<Color?>? disclosureColor,
+    Color? focusColor,
+    Color? hoverColor,
   })
   final WidgetStateProperty<Color?>? backgroundColor
   final WidgetStateProperty<Color?>? disclosureColor
+  final Color? focusColor
   final WidgetStateProperty<Color?>? foregroundColor
+  final Color? hoverColor
   final WidgetStateProperty<Color?>? iconColor
   static GlassListStyle? maybeOf(BuildContext context)
   final WidgetStateProperty<Color?>? overlayColor
@@ -840,10 +844,12 @@ final class GlassPageControlDetails
     required MotionSelection<GlassPageControlPose> pose,
     required double? progress,
     required Set<WidgetState> states,
+    ValueListenable<Set<WidgetState>>? statesListenable,
   })
   final MotionSelection<GlassPageControlPose> pose
   final double? progress
   final Set<WidgetState> states
+  final ValueListenable<Set<WidgetState>>? statesListenable
 final class GlassPageControlPose
   const GlassPageControlPose({
     required List<Rect> indicators,
@@ -862,10 +868,14 @@ class GlassPageControlStyle extends GlassStyle<GlassPageControlStyle>
     WidgetStateProperty<Color?>? currentPageIndicatorColor,
     WidgetStateProperty<Color?>? platterColor,
     WidgetStateProperty<Color?>? platterIndicatorColor,
+    Color? focusColor,
+    Color? hoverColor,
     Widget Function(BuildContext, GlassPageControlDetails)? builder,
   })
   final Widget Function(BuildContext, GlassPageControlDetails)? builder
   final WidgetStateProperty<Color?>? currentPageIndicatorColor
+  final Color? focusColor
+  final Color? hoverColor
   static GlassPageControlStyle? maybeOf(BuildContext context)
   final WidgetStateProperty<Color?>? pageIndicatorColor
   final WidgetStateProperty<Color?>? platterColor
@@ -1038,6 +1048,7 @@ final class GlassSearchFieldDetails
   final TextEditingController controller
   final MotionSelection<GlassFrame> frame
   final Set<WidgetState> states
+  final ValueListenable<Set<WidgetState>>? statesListenable
   Widget text({
     required TextStyle style,
     required Color cursorColor,
@@ -1051,12 +1062,16 @@ class GlassSearchFieldStyle extends GlassStyle<GlassSearchFieldStyle>
     WidgetStateProperty<Color?>? iconColor,
     WidgetStateProperty<Color?>? cursorColor,
     WidgetStateProperty<TextStyle?>? textStyle,
+    Color? focusColor,
+    Color? hoverColor,
     Widget Function(BuildContext, GlassSearchFieldDetails)? builder,
   })
   final WidgetStateProperty<Color?>? backgroundColor
   final Widget Function(BuildContext, GlassSearchFieldDetails)? builder
   final WidgetStateProperty<Color?>? cursorColor
+  final Color? focusColor
   final WidgetStateProperty<Color?>? foregroundColor
+  final Color? hoverColor
   final WidgetStateProperty<Color?>? iconColor
   static GlassSearchFieldStyle? maybeOf(BuildContext context)
   final WidgetStateProperty<Color?>? placeholderColor

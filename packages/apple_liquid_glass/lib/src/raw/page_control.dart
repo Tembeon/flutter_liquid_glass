@@ -36,6 +36,7 @@ final class GlassPageControlDetails {
     required this.pose,
     required this.progress,
     required this.states,
+    this.statesListenable,
   });
 
   /// Where the indicators sit and how they show, as the control moves.
@@ -48,6 +49,11 @@ final class GlassPageControlDetails {
   /// The states the control is in: [WidgetState.disabled] while it ignores
   /// input, and what its input region writes (pressed, hovered, focused).
   final Set<WidgetState> states;
+
+  /// The control's states as they change, or null for a look that shows
+  /// neither focus nor hover: the default look draws its focus ring and
+  /// hover response from it.
+  final ValueListenable<Set<WidgetState>>? statesListenable;
 }
 
 /// A page control's indicators at one moment, in the control's box.
@@ -334,6 +340,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
                 pose: _pose,
                 progress: widget.progress,
                 states: {...widgetStates.value},
+                statesListenable: widgetStates,
               ),
             ),
           ),

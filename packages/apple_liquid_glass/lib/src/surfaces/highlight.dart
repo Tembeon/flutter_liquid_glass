@@ -439,3 +439,215 @@ class RenderGlassHighlight extends RenderProxyBox {
     GlassHighlights.paintRing(canvas, color, shape: frame.shape, body: body);
   }
 }
+
+/// Draws the focus ring and hover response of a part that is not glass
+/// (a list row, a page control, a clear button) by the rule of
+/// [GlassHighlights]: [hoverColor] fills the part's [shape] at the hover's
+/// strength, under the part, or added over it as a glass body's wash when
+/// [wash]; the ring follows the shape outside the part, or inside it when
+/// [inside].
+@internal
+class GlassHighlightPaint extends SingleChildRenderObjectWidget {
+  /// Draws the highlights of the part [child].
+  const GlassHighlightPaint({
+    required this.states,
+    required this.focusColor,
+    required this.hoverColor,
+    required this.reduceMotion,
+    this.shape = GlassShape.capsule,
+    this.inside = false,
+    this.wash = false,
+    super.child,
+    super.key,
+  });
+
+  /// Draws the highlights of [child] with [focusColor] and [hoverColor]
+  /// as given, or else from [base]: the ring Cupertino derives from it
+  /// (systemBlue by default) and the wash of a glass body.
+  static Widget of(
+    BuildContext context, {
+    required ValueListenable<Set<WidgetState>> states,
+    required Widget child,
+    Color? focusColor,
+    Color? hoverColor,
+    Color? base,
+    GlassShape shape = GlassShape.capsule,
+    bool inside = false,
+    bool wash = false,
+  }) {
+    final traits = GlassTraits.of(context);
+    Color resolved(Color color) =>
+        color is GlassDynamicColor ? color.resolvedWith(traits) : color;
+    return GlassHighlightPaint(
+      states: states,
+      focusColor: GlassHighlights.ringColor(
+        focusColor == null ? null : resolved(focusColor),
+        resolved(base ?? GlassColors.systemBlue),
+        highContrast: traits.highContrast,
+      ),
+      hoverColor: resolved(hoverColor ?? GlassHighlights.hoverColor),
+      reduceMotion: traits.reduceMotion,
+      shape: shape,
+      inside: inside,
+      wash: wash,
+      child: child,
+    );
+  }
+
+  /// The part's states.
+  final ValueListenable<Set<WidgetState>> states;
+
+  /// The ring's color, resolved.
+  final Color focusColor;
+
+  /// The hover's color at full strength, resolved.
+  final Color hoverColor;
+
+  /// Whether the hover switches without motion.
+  final bool reduceMotion;
+
+  /// The part's shape in its box.
+  final GlassShape shape;
+
+  /// Whether the ring lies inside the part, for a part clipped at its
+  /// edge.
+  final bool inside;
+
+  /// Whether the hover adds to the part's colors over it, as a glass
+  /// body's does, rather than filling under it.
+  final bool wash;
+
+  @override
+  RenderGlassHighlightPaint createRenderObject(BuildContext context) =>
+      RenderGlassHighlightPaint(
+        highlight: GlassHighlight(states: states, reduceMotion: reduceMotion),
+        focusColor: focusColor,
+        hoverColor: hoverColor,
+        shape: shape,
+        inside: inside,
+        wash: wash,
+      );
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    RenderGlassHighlightPaint renderObject,
+  ) {
+    renderObject.highlight.states = states;
+    renderObject.highlight.reduceMotion = reduceMotion;
+    renderObject.focusColor = focusColor;
+    renderObject.hoverColor = hoverColor;
+    renderObject.shape = shape;
+    renderObject.inside = inside;
+    renderObject.wash = wash;
+  }
+}
+
+/// Paints the highlights of a part that is not glass; see
+/// [GlassHighlightPaint].
+@internal
+class RenderGlassHighlightPaint extends RenderProxyBox {
+  /// Paints the highlights a part's [highlight] shows.
+  RenderGlassHighlightPaint({
+    required this.highlight,
+    required this._focusColor,
+    required this._hoverColor,
+    required this._shape,
+    required this._inside,
+    required this._wash,
+  });
+
+  /// Whether the part shows focus and hover.
+  final GlassHighlight highlight;
+
+  Color _focusColor;
+
+  /// The ring's color.
+  Color get focusColor => _focusColor;
+  set focusColor(Color value) {
+    if (value == _focusColor) return;
+    _focusColor = value;
+    markNeedsPaint();
+  }
+
+  Color _hoverColor;
+
+  /// The hover's color at full strength.
+  Color get hoverColor => _hoverColor;
+  set hoverColor(Color value) {
+    if (value == _hoverColor) return;
+    _hoverColor = value;
+    markNeedsPaint();
+  }
+
+  GlassShape _shape;
+
+  /// The part's shape in its box.
+  GlassShape get shape => _shape;
+  set shape(GlassShape value) {
+    if (value == _shape) return;
+    _shape = value;
+    markNeedsPaint();
+  }
+
+  bool _inside;
+
+  /// Whether the ring lies inside the part.
+  bool get inside => _inside;
+  set inside(bool value) {
+    if (value == _inside) return;
+    _inside = value;
+    markNeedsPaint();
+  }
+
+  bool _wash;
+
+  /// Whether the hover adds to the part's colors over it.
+  bool get wash => _wash;
+  set wash(bool value) {
+    if (value == _wash) return;
+    _wash = value;
+    markNeedsPaint();
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    highlight.addListener(markNeedsPaint);
+  }
+
+  @override
+  void detach() {
+    highlight.removeListener(markNeedsPaint);
+    super.detach();
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final body = offset & size;
+    final hovered = highlight.hovered;
+    if (hovered > 0 && !_wash && _hoverColor.a > 0) {
+      final paint = Paint();
+      paint.color = _hoverColor.withValues(alpha: _hoverColor.a * hovered);
+      context.canvas.drawPath(_shape.pathIn(body), paint);
+    }
+    super.paint(context, offset);
+    final canvas = context.canvas;
+    if (hovered > 0 && _wash) {
+      GlassHighlights.paintHover(
+        canvas,
+        _shape.pathIn(body),
+        _hoverColor,
+        hovered,
+      );
+    }
+    if (!highlight.focused) return;
+    GlassHighlights.paintRing(
+      canvas,
+      _focusColor,
+      shape: _shape,
+      body: body,
+      inside: _inside,
+    );
+  }
+}

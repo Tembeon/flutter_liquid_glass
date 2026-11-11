@@ -1,11 +1,11 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/foundation/colors.dart';
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/theme.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/list_highlight.dart';
 import 'package:apple_liquid_glass/src/raw/list.dart';
+import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
 import 'package:apple_liquid_glass/src/surfaces/solid_backdrop.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -41,8 +41,9 @@ enum GlassListAccessory {
 
 /// The look of an inset grouped list, like Flutter's `ButtonStyle`.
 ///
-/// Each property resolves against the row's states (pressed, focused,
-/// hovered, disabled) and falls through, state by state, from the row's
+/// Each color property but [focusColor] and [hoverColor] resolves against
+/// the row's states (pressed, focused, hovered, disabled) and falls
+/// through, state by state, from the row's
 /// style to its section's to the theme's to the defaults: a null for a
 /// state leaves that state to the next one. The defaults
 /// are the iOS 27 system colors the table resolves (list passport, light
@@ -58,6 +59,8 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
     this.secondaryColor,
     this.iconColor,
     this.disclosureColor,
+    this.focusColor,
+    this.hoverColor,
   });
 
   /// The theme's [GlassListStyle] at [context], or null without one: the
@@ -69,7 +72,7 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
   /// [GlassColors.secondarySystemGroupedBackground] by default.
   final WidgetStateProperty<Color?>? backgroundColor;
 
-  /// The fill of a pressed or focused row; [GlassColors.systemGray4], the
+  /// The fill of a pressed row; [GlassColors.systemGray4], the
   /// grouped cell's highlighted color, by default.
   final WidgetStateProperty<Color?>? overlayColor;
 
@@ -91,6 +94,15 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
   /// The disclosure chevron; [GlassColors.tertiaryLabel] by default.
   final WidgetStateProperty<Color?>? disclosureColor;
 
+  /// The ring inside a row, and around an info button, focused from the
+  /// keyboard; null derives it from systemBlue as Flutter's Cupertino
+  /// controls do, and a transparent color draws none.
+  final Color? focusColor;
+
+  /// What a mouse over a row or an info button fills under it; null for
+  /// [overlayColor] at half strength, and a transparent color shows none.
+  final Color? hoverColor;
+
   /// This style over [other], state by state.
   @override
   GlassListStyle merge(GlassListStyle? other) {
@@ -103,6 +115,8 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
       secondaryColor: fallThrough(secondaryColor, other.secondaryColor),
       iconColor: fallThrough(iconColor, other.iconColor),
       disclosureColor: fallThrough(disclosureColor, other.disclosureColor),
+      focusColor: focusColor ?? other.focusColor,
+      hoverColor: hoverColor ?? other.hoverColor,
     );
   }
 
@@ -127,6 +141,8 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
       secondaryColor: color(secondaryColor, other.secondaryColor),
       iconColor: color(iconColor, other.iconColor),
       disclosureColor: color(disclosureColor, other.disclosureColor),
+      focusColor: GlassDynamicColor.lerp(focusColor, other.focusColor, t),
+      hoverColor: GlassDynamicColor.lerp(hoverColor, other.hoverColor, t),
     );
   }
 
@@ -139,7 +155,9 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
       other.foregroundColor == foregroundColor &&
       other.secondaryColor == secondaryColor &&
       other.iconColor == iconColor &&
-      other.disclosureColor == disclosureColor;
+      other.disclosureColor == disclosureColor &&
+      other.focusColor == focusColor &&
+      other.hoverColor == hoverColor;
 
   @override
   int get hashCode => Object.hash(
@@ -150,6 +168,8 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
     secondaryColor,
     iconColor,
     disclosureColor,
+    focusColor,
+    hoverColor,
   );
 }
 
@@ -373,8 +393,12 @@ class GlassSliverListSection extends StatelessWidget {
 /// With [onPressed] the row is a button: it fills with its overlay color
 /// while a finger is down on it, with UIKit's timing (inside a scroll view
 /// after its 0.15 s touch delay, gone at once when a scroll takes the
-/// touch, faded out over 0.5 s after a tap), and while it has the keyboard
-/// focus; Space and Enter press it. A disabled row ignores touches and
+/// touch, faded out over 0.5 s after a tap); Space and Enter press it.
+/// Focused from the keyboard it draws Flutter's Cupertino focus ring
+/// inside its edge, where the card clips, and a mouse over it fills it
+/// with half its overlay color (the rule of the glass controls; an
+/// approximation, not measured); its info button does the same around its
+/// circle. A disabled row ignores touches and
 /// keeps its look: the disabled cell is not measured. Inside a section the
 /// row draws the separator below itself, except on the section's last row.
 /// Right-to-left text mirrors the row and the chevron.
@@ -471,6 +495,7 @@ class _GlassListRowState extends State<GlassListRow>
   late final List<Interaction> _accessoryInteractions = [
     PressInteraction(onTap: (t) => widget.onAccessoryPressed?.call()),
   ];
+  final _accessoryStates = WidgetStatesController();
 
   @override
   WidgetStatesController? get givenStates => widget.statesController;
@@ -486,6 +511,7 @@ class _GlassListRowState extends State<GlassListRow>
   @override
   void dispose() {
     _textStart.dispose();
+    _accessoryStates.dispose();
     super.dispose();
   }
 
@@ -506,6 +532,10 @@ class _GlassListRowState extends State<GlassListRow>
         _resolve(property, states, context);
     final secondary = color(look.secondaryColor);
     final icon = color(look.iconColor);
+    final fill = color(look.overlayColor);
+    final hover =
+        look.hoverColor ??
+        fill.withValues(alpha: fill.a * GlassHighlights.hoverGain);
     final titleStyle = resolveGlassText(
       _Metrics.body.copyWith(color: color(look.foregroundColor)),
       context,
@@ -617,7 +647,15 @@ class _GlassListRowState extends State<GlassListRow>
                   child: InputRegion(
                     interactions: _accessoryInteractions,
                     enabled: widget.onAccessoryPressed != null,
-                    child: _Glyph(painter: _InfoPainter(icon)),
+                    statesController: _accessoryStates,
+                    child: GlassHighlightPaint.of(
+                      context,
+                      states: _accessoryStates,
+                      focusColor: look.focusColor,
+                      hoverColor: hover,
+                      shape: const GlassShape.oval(),
+                      child: _Glyph(painter: _InfoPainter(icon)),
+                    ),
                   ),
                 ),
               ),
@@ -630,8 +668,7 @@ class _GlassListRowState extends State<GlassListRow>
     final separated = place != null && !place.last;
     final surface = _RowSurface(
       strength: _strength,
-      focused: states.contains(WidgetState.focused),
-      fill: color(look.overlayColor),
+      fill: fill,
       separator: separated ? color(look.separatorColor) : null,
       separatorStart: _textStart,
       direction: Directionality.of(context),
@@ -649,7 +686,15 @@ class _GlassListRowState extends State<GlassListRow>
               statesController: widgetStates,
               focusNode: widget.focusNode,
               autofocus: widget.autofocus,
-              child: surface,
+              child: GlassHighlightPaint.of(
+                context,
+                states: widgetStates,
+                focusColor: look.focusColor,
+                hoverColor: hover,
+                shape: const GlassShape.roundedRect(0),
+                inside: true,
+                child: surface,
+              ),
             ),
     );
   }
@@ -829,7 +874,6 @@ class _SectionLabel extends StatelessWidget {
 class _RowSurface extends SingleChildRenderObjectWidget {
   const _RowSurface({
     required this.strength,
-    required this.focused,
     required this.fill,
     required this.separator,
     required this.separatorStart,
@@ -838,7 +882,6 @@ class _RowSurface extends SingleChildRenderObjectWidget {
   });
 
   final ValueListenable<double> strength;
-  final bool focused;
   final Color fill;
   final Color? separator;
   final ValueListenable<double> separatorStart;
@@ -848,7 +891,6 @@ class _RowSurface extends SingleChildRenderObjectWidget {
   _RenderRowSurface createRenderObject(BuildContext context) =>
       _RenderRowSurface(
         strength: strength,
-        focused: focused,
         fill: fill,
         separator: separator,
         separatorStart: separatorStart,
@@ -861,7 +903,6 @@ class _RowSurface extends SingleChildRenderObjectWidget {
     _RenderRowSurface renderObject,
   ) {
     renderObject.strength = strength;
-    renderObject.focused = focused;
     renderObject.fill = fill;
     renderObject.separator = separator;
     renderObject.separatorStart = separatorStart;
@@ -872,7 +913,6 @@ class _RowSurface extends SingleChildRenderObjectWidget {
 class _RenderRowSurface extends RenderProxyBox {
   _RenderRowSurface({
     required this._strength,
-    required this._focused,
     required this._fill,
     required this._separator,
     required this._separatorStart,
@@ -886,14 +926,6 @@ class _RenderRowSurface extends RenderProxyBox {
     if (attached) _strength.removeListener(markNeedsPaint);
     _strength = value;
     if (attached) _strength.addListener(markNeedsPaint);
-    markNeedsPaint();
-  }
-
-  bool _focused;
-  bool get focused => _focused;
-  set focused(bool value) {
-    if (value == _focused) return;
-    _focused = value;
     markNeedsPaint();
   }
 
@@ -947,7 +979,7 @@ class _RenderRowSurface extends RenderProxyBox {
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    final shown = _focused ? 1.0 : _strength.value;
+    final shown = _strength.value;
     if (shown > 0) {
       final paint = Paint();
       paint.color = _fill.withValues(alpha: _fill.a * shown.clamp(0.0, 1.0));

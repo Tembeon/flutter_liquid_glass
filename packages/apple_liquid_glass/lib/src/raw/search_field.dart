@@ -4,6 +4,7 @@ import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:apple_liquid_glass/src/motions/glass_press.dart';
 import 'package:apple_liquid_glass/src/motions/search_motion.dart';
 import 'package:apple_liquid_glass/src/navigation/search_stacking.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -26,6 +27,7 @@ final class GlassSearchFieldDetails {
     required this.states,
     required this.controller,
     required this.clear,
+    this.statesListenable,
   });
 
   /// The frame of the field's glass as a touch lifts it; under a
@@ -35,6 +37,11 @@ final class GlassSearchFieldDetails {
 
   /// The states the field is in: focused, pressed, hovered, disabled.
   final Set<WidgetState> states;
+
+  /// The field's states as they change: a look hands it to the
+  /// `GlassSurface` of its glass, whose renderer then draws the hover
+  /// response (and a focus ring, unless the look turns it off).
+  final ValueListenable<Set<WidgetState>>? statesListenable;
 
   /// The field's text; a look listens to it to show a placeholder or a
   /// clear button.
@@ -282,6 +289,7 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
             _text,
             frame: stacking == null ? _lift : _fadedBy(stacking.glass),
             states: {..._states.value},
+            statesListenable: _states,
             controller: _controller,
             clear: widget.enabled ? _clear : null,
           ),
