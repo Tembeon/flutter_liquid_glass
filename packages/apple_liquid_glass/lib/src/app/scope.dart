@@ -60,6 +60,15 @@ class _GlassScopeState extends State<GlassScope> {
   GlassThemeData get _shown =>
       GlassThemeData.lerp(_from, widget.data, _progress.value.clamp(0, 1));
 
+  bool get _outermost =>
+      context.getInheritedWidgetOfExactType<_Scoped>() == null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_outermost) FrameCadence.instance.start();
+  }
+
   @override
   void didUpdateWidget(GlassScope oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -81,8 +90,7 @@ class _GlassScopeState extends State<GlassScope> {
   @override
   Widget build(BuildContext context) {
     Widget child = _Scoped(child: widget.child);
-    if (context.getInheritedWidgetOfExactType<_Scoped>() == null) {
-      FrameCadence.instance.start();
+    if (_outermost) {
       child = NotificationListener<ScrollUpdateNotification>(
         onNotification: (notification) {
           if (notification.scrollDelta case final delta?) {
