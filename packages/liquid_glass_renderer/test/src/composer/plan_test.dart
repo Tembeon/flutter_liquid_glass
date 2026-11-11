@@ -188,6 +188,69 @@ void main() {
       expect(plan.notes.last, endsWith('never joins: field'));
     });
 
+    test('notes the reason the decision kept glass out by', () {
+      List<String> notesOf(List<SiteFacts> sites, {int maxShapes = 32}) {
+        final (plan, _) = compile(
+          _Scene(sites),
+          Ledger(),
+          const Prices(),
+          Policy(maxShapes: maxShapes),
+          100,
+          explain: true,
+        );
+        return plan.notes;
+      }
+
+      const page = PageFilter(blur: (4, 4));
+      Look paged(int look) => Look(
+        key: look,
+        need: const CopyNeed(1),
+        page: page,
+      );
+
+      final ownPage = _row(2);
+      ownPage[1].ask = ownPage[1]._with(look: paged(0));
+      expect(notesOf(ownPage).single, endsWith('never joins: reads a page'));
+
+      final leadPage = _row(2);
+      leadPage[0].ask = leadPage[0]._with(look: paged(0));
+      expect(notesOf(leadPage), [
+        endsWith('never joins: reads a page'),
+        endsWith('its lead reads a page'),
+      ]);
+
+      final looks = _row(2);
+      looks[1].ask = looks[1]._with(look: _look(1));
+      expect(notesOf(looks).single, endsWith('other look'));
+
+      expect(
+        notesOf(_row(2), maxShapes: 1).single,
+        endsWith('matte is full'),
+      );
+    });
+
+    test('decides the same whether or not it says why', () {
+      for (var seed = 0; seed < 500; seed++) {
+        final quiet = _plan(_generated(seed));
+        final (told, _) = compile(
+          _generated(seed),
+          Ledger(),
+          const Prices(),
+          const Policy(),
+          100,
+          explain: true,
+        );
+        expect(told.reads.length, quiet.reads.length, reason: 'seed $seed');
+        for (var i = 0; i < quiet.fates.length; i++) {
+          expect(
+            told.fates[i].runtimeType,
+            quiet.fates[i].runtimeType,
+            reason: 'seed $seed',
+          );
+        }
+      }
+    });
+
     test('something painted under glass after the lead keeps it apart', () {
       final sites = _row(2);
       sites[1].floor = sites[0].order + 1;

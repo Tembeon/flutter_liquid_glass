@@ -897,22 +897,84 @@ bool _lookFits(Read read, SiteFacts site) {
   return lead.key == look.key;
 }
 
-String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
-  if (read.lead.ask.noJoin case final reason?) {
-    return 'its lead never joins: ${reason.name}';
+// Why a site does not join a read: of itself, whatever the read, or of the
+// read it was held against. The verdict and the frame report's note are both
+// read off one of these.
+enum _Apart {
+  noJoin,
+  turned,
+  limited,
+  page,
+  leadNoJoin,
+  bandsApart,
+  leadPage,
+  leadLive,
+  paintedOver,
+  otherState,
+  clipCut,
+  otherLook,
+  matteFull,
+  costsMore,
+}
+
+// Why [site], over content that leaves its read [limit], never joins a read,
+// or null where it may.
+_Apart? _alone(SiteFacts site, ReadLimit limit) {
+  if (site.ask.noJoin != null) return _Apart.noJoin;
+  if (limit == ReadLimit.liveOnly) {
+    return site.ask.turned ? _Apart.turned : _Apart.limited;
   }
-  if (read.lead.isBand && !policy.bands) return 'bands stay apart';
-  if (read.lead.ask.look.page != null) return 'its lead reads a page';
-  if (read.source is LiveRead) return 'its lead reads live';
-  if (read.lead.order < site.floor) return 'painted over after its lead';
-  if (!site.state.same(read.lead.state)) return 'other clip, alpha or filter';
-  if (!_insideClips(read, site)) return 'a clip would cut it';
-  if (!_lookFits(read, site)) return 'other look';
+  if (site.ask.look.page != null) return _Apart.page;
+  return null;
+}
+
+// Why [site] does not join [read], or null where it joins.
+_Apart? _apart(Read read, SiteFacts site, Prices prices, Policy policy) {
+  final band = read.lead.isBand;
+  if (read.lead.ask.noJoin != null) return _Apart.leadNoJoin;
+  if (band && !policy.bands) return _Apart.bandsApart;
+  if (read.lead.ask.look.page != null) return _Apart.leadPage;
+  if (read.source is LiveRead) return _Apart.leadLive;
+  if (read.lead.order < site.floor) return _Apart.paintedOver;
+  if (!site.state.same(read.lead.state)) return _Apart.otherState;
+  if (!_insideClips(read, site)) return _Apart.clipCut;
+  if (!_lookFits(read, site)) return _Apart.otherLook;
   if (read.shapes + site.ask.look.shapes > policy.maxShapes) {
-    return 'matte is full';
+    return _Apart.matteFull;
   }
-  return 'costs more together: '
-      '${mergeDelta(read, site, prices).toStringAsFixed(2)}';
+  if (!band && !(mergeDelta(read, site, prices) < 0)) return _Apart.costsMore;
+  return null;
+}
+
+// The frame report's note of [why] for [site], held against [read] where
+// that is why.
+String _note(
+  _Apart why,
+  SiteFacts site,
+  Read? read,
+  Scenery scene,
+  Prices prices,
+) {
+  final text = switch (why) {
+    _Apart.noJoin => 'never joins: ${site.ask.noJoin!.name}',
+    _Apart.turned => 'never joins: turned',
+    _Apart.limited =>
+      'never joins: ${scene.whyLimited(site) ?? 'over glass that reads live'}',
+    _Apart.page => 'never joins: reads a page',
+    _Apart.leadNoJoin => 'its lead never joins: ${read!.lead.ask.noJoin!.name}',
+    _Apart.bandsApart => 'bands stay apart',
+    _Apart.leadPage => 'its lead reads a page',
+    _Apart.leadLive => 'its lead reads live',
+    _Apart.paintedOver => 'painted over after its lead',
+    _Apart.otherState => 'other clip, alpha or filter',
+    _Apart.clipCut => 'a clip would cut it',
+    _Apart.otherLook => 'other look',
+    _Apart.matteFull => 'matte is full',
+    _Apart.costsMore =>
+      'costs more together: '
+          '${mergeDelta(read!, site, prices).toStringAsFixed(2)}',
+  };
+  return '${site.id}: $text';
 }
 
 /// The one decision function: every route is an output of it.
@@ -949,15 +1011,8 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
     final limit = _limitOf(site, reads, scene, policy);
     final pageOnly = site.ask.look.page != null;
     Read? joined;
-    if (site.ask.noJoin != null || pageOnly || limit == ReadLimit.liveOnly) {
-      if (explain) {
-        final why =
-            site.ask.noJoin?.name ??
-            (site.ask.turned
-                ? 'turned'
-                : scene.whyLimited(site) ?? 'over glass that reads live');
-        notes.add('${site.id}: never joins: $why');
-      }
+    if (_alone(site, limit) case final why?) {
+      if (explain) notes.add(_note(why, site, null, scene, prices));
     } else {
       for (var i = reads.length - 1; i >= 0; i--) {
         final read = reads[i];
@@ -969,22 +1024,12 @@ String _whyApart(Read read, SiteFacts site, Prices prices, Policy policy) {
           if (explain) notes.add('${site.id}: overlaps');
           break;
         }
-        if (read.lead.ask.noJoin == null &&
-            (policy.bands || !band) &&
-            read.source is! LiveRead &&
-            read.lead.ask.look.page == null &&
-            read.lead.order >= site.floor &&
-            site.state.same(read.lead.state) &&
-            _insideClips(read, site) &&
-            _lookFits(read, site) &&
-            read.shapes + site.ask.look.shapes <= policy.maxShapes &&
-            (band || mergeDelta(read, site, prices) < 0)) {
+        final why = _apart(read, site, prices, policy);
+        if (why == null) {
           joined = read;
           break;
         }
-        if (explain) {
-          notes.add('${site.id}: ${_whyApart(read, site, prices, policy)}');
-        }
+        if (explain) notes.add(_note(why, site, read, scene, prices));
         // Joining a read further down would draw this glass under the band.
         if (band && read.lead.ask.drawn.overlaps(site.ask.drawn)) break;
       }
