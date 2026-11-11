@@ -52,15 +52,17 @@ import 'package:meta/meta.dart';
 final class SliderMotion extends Motion {
   /// Creates a slider of track [width] resting at [value] whose thumb
   /// lens filters its motion at [frameRate] frames per second of motion
-  /// time.
+  /// time, or at the frame rate of the clock that steps it when
+  /// [frameRate] is null.
   SliderMotion({
     required this._width,
     required double value,
-    this.frameRate = 120,
+    double? frameRate = 120,
     this._ticks = 0,
     this.onEvent,
   }) : _value = value.clamp(0.0, 1.0),
        _reported = value.clamp(0.0, 1.0) {
+    this.frameRate = frameRate ?? clock.frameRate;
     _stretch = own(
       MotionValue<double>(0, spring: releaseSpring),
       rest: _length,
@@ -73,7 +75,7 @@ final class SliderMotion extends Motion {
       SmallLens(
         restSize: thumbSize,
         liftedSize: liftedThumbSize,
-        frameRate: frameRate,
+        frameRate: this.frameRate,
         position: _thumbAt,
       ),
     );
@@ -90,7 +92,7 @@ final class SliderMotion extends Motion {
 
   /// The frames per second of motion time the thumb lens filters at: 120
   /// for a ProMotion display, 60 for a 60 Hz one.
-  final double frameRate;
+  late final double frameRate;
 
   /// The size of the resting thumb (device and simulator thumb rows; the
   /// lift replay holds the size within 0.25 pt).

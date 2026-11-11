@@ -75,6 +75,33 @@ class _Probe {
   }
 }
 
+List<Object?> _haptics(WidgetTester tester) {
+  final played = <Object?>[];
+  tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+    SystemChannels.platform,
+    (call) async {
+      if (call.method == 'HapticFeedback.vibrate') played.add(call.arguments);
+      return null;
+    },
+  );
+  addTearDown(
+    () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      null,
+    ),
+  );
+  return played;
+}
+
+Widget _keyApp(Widget child, {TextDirection direction = TextDirection.ltr}) =>
+    WidgetsApp(
+      color: const Color(0xFF000000),
+      builder: (context, _) => Directionality(
+        textDirection: direction,
+        child: Center(child: SizedBox(width: 300, child: child)),
+      ),
+    );
+
 Future<void> _settle(WidgetTester tester) async {
   for (var i = 0; i < 120; i++) {
     await tester.pump(_frame);
@@ -354,4 +381,237 @@ void main() {
     await gesture.up();
     await _settle(tester);
   });
+
+  testWidgets('under a WidgetsApp the value commands step it, Home and End '
+      'end it, and Page Up, Page Down, Space and Enter do nothing', (
+    tester,
+  ) async {
+    final values = <double>[];
+    await tester.pumpWidget(
+      _keyApp(
+        GlassSlider(
+          value: 15,
+          onChanged: values.add,
+          autofocus: true,
+          min: 10,
+          max: 20,
+        ),
+      ),
+    );
+    await tester.pump();
+    for (final key in [
+      LogicalKeyboardKey.arrowRight,
+      LogicalKeyboardKey.arrowLeft,
+      LogicalKeyboardKey.home,
+      LogicalKeyboardKey.end,
+      LogicalKeyboardKey.pageUp,
+      LogicalKeyboardKey.pageDown,
+      LogicalKeyboardKey.space,
+      LogicalKeyboardKey.enter,
+    ]) {
+      await tester.sendKeyEvent(key);
+    }
+    expect(values, [closeTo(16, 1e-9), closeTo(14, 1e-9), 10, 20]);
+  });
+
+  testWidgets('an app adds keys with Shortcuts, and right-to-left mirrors '
+      'the arrows', (tester) async {
+    final values = <double>[];
+    await tester.pumpWidget(
+      _keyApp(
+        Shortcuts(
+          shortcuts: const {
+            SingleActivator(LogicalKeyboardKey.keyJ): AdjustValueIntent(
+              ValueCommand.decrease,
+            ),
+          },
+          child: GlassSlider(
+            value: 0.5,
+            onChanged: values.add,
+            autofocus: true,
+          ),
+        ),
+        direction: TextDirection.rtl,
+      ),
+    );
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyJ);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    expect(values, [
+      closeTo(0.4, 1e-9),
+      closeTo(0.6, 1e-9),
+      closeTo(0.4, 1e-9),
+    ]);
+  });
+
+  testWidgets('it reads as a slider over its 44 point target, its actions '
+      'the value commands', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final values = <double>[];
+    await tester.pumpWidget(
+      _app(
+        GlassSlider(value: 1, onChanged: values.add, semanticLabel: 'Volume'),
+      ),
+    );
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('Volume')),
+      matchesSemantics(
+        label: 'Volume',
+        rect: const Rect.fromLTWH(0, -5, 300, 44),
+        textDirection: TextDirection.ltr,
+        value: '100%',
+        increasedValue: '100%',
+        decreasedValue: '90%',
+        isSlider: true,
+        hasIncreaseAction: true,
+        hasDecreaseAction: true,
+        hasFocusAction: true,
+        hasEnabledState: true,
+        isEnabled: true,
+        isFocusable: true,
+      ),
+    );
+    tester.semantics.increase(find.semantics.byLabel('Volume'));
+    tester.semantics.decrease(find.semantics.byLabel('Volume'));
+    expect(values, [closeTo(0.9, 1e-9)]);
+    semantics.dispose();
+  });
+
+  testWidgets('a drag that starts in the 44 point extension takes the '
+      'thumb', (tester) async {
+    final values = <double>[];
+    await tester.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(),
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(
+            child: SizedBox(
+              width: 300,
+              height: 100,
+              child: Center(child: _Controlled(onChanged: values.add)),
+            ),
+          ),
+        ),
+      ),
+    );
+    final gesture = await tester.startGesture(
+      _thumbStart(tester) + const Offset(0, -21),
+    );
+    for (var i = 1; i <= 10; i++) {
+      await gesture.moveBy(const Offset(8, 0));
+      await tester.pump(_frame);
+    }
+    await gesture.up();
+    await _settle(tester);
+    expect(values, isNotEmpty);
+    expect(values.last, greaterThan(0.1));
+  });
+
+  testWidgets('a finger dragged into an end plays a light impact; keys and '
+      'a haptic scope play none', (tester) async {
+    final played = _haptics(tester);
+    Widget slider({bool haptics = true}) => _keyApp(
+      MotionHapticScope(enabled: haptics, child: const _Focused()),
+    );
+    await tester.pumpWidget(slider());
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.end);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.home);
+    await _settle(tester);
+    expect(played, isEmpty);
+    Future<void> dragToEnd() async {
+      final gesture = await tester.startGesture(_thumbStart(tester));
+      for (var i = 1; i <= 20; i++) {
+        await gesture.moveBy(const Offset(20, 0));
+        await tester.pump(_frame);
+      }
+      await gesture.up();
+      await _settle(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.home);
+      await _settle(tester);
+    }
+
+    await dragToEnd();
+    expect(played, ['HapticFeedbackType.lightImpact']);
+    await tester.pumpWidget(slider(haptics: false));
+    await dragToEnd();
+    expect(played, ['HapticFeedbackType.lightImpact']);
+  });
+
+  testWidgets('Reduce Motion from MotionTraitsOverride keeps the thumb '
+      'down', (tester) async {
+    final probe = _Probe();
+    await tester.pumpWidget(
+      _app(
+        MotionTraitsOverride(
+          traits: const MotionTraits(reduceMotion: true),
+          child: RawGlassSlider(
+            value: 0,
+            onChanged: (_) {},
+            builder: probe.build,
+          ),
+        ),
+      ),
+    );
+    final gesture = await tester.startGesture(_thumbStart(tester));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(_frame);
+    }
+    expect(probe.thumb!.value.lift, 0);
+    await gesture.up();
+    await _settle(tester);
+  });
+
+  testWidgets('an app that passes the value back late sees the slider '
+      'return, then follow', (tester) async {
+    final probe = _Probe();
+    var value = 0.0;
+    late StateSetter set;
+    await tester.pumpWidget(
+      _app(
+        StatefulBuilder(
+          builder: (context, setState) {
+            set = setState;
+            return RawGlassSlider(
+              value: value,
+              onChanged: (_) {},
+              builder: probe.build,
+            );
+          },
+        ),
+      ),
+    );
+    final gesture = await tester.startGesture(_thumbStart(tester));
+    for (var i = 1; i <= 10; i++) {
+      await gesture.moveBy(const Offset(8, 0));
+      await tester.pump(_frame);
+    }
+    await gesture.up();
+    await _settle(tester);
+    expect(probe.fill!.value.rect!.width, lessThan(1));
+    set(() => value = 0.5);
+    await _settle(tester);
+    expect(probe.fill!.value.rect!.width, greaterThan(100));
+  });
+}
+
+class _Focused extends StatefulWidget {
+  const _Focused();
+
+  @override
+  State<_Focused> createState() => _FocusedState();
+}
+
+class _FocusedState extends State<_Focused> {
+  double value = 0;
+
+  @override
+  Widget build(BuildContext context) => GlassSlider(
+    value: value,
+    autofocus: true,
+    onChanged: (next) => setState(() => value = next),
+  );
 }

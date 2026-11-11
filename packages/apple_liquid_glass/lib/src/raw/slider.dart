@@ -1,9 +1,7 @@
 import 'package:apple_liquid_glass/src/foundation/frame.dart';
-import 'package:apple_liquid_glass/src/foundation/style.dart';
 import 'package:apple_liquid_glass/src/motions/slider_motion.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
@@ -58,14 +56,21 @@ final class GlassSliderDetails {
 /// maps the finger's travel onto the value by the full track width, a
 /// release glides on, and a drag past an end stretches the whole track. A
 /// tap on the track does nothing. With [ticks] the value snaps to evenly
-/// spaced stops through UIKit's detent curve. The arrow keys and the
-/// accessibility increase and decrease step it. Under Reduce Motion the
+/// spaced stops through UIKit's detent curve. A finger takes the thumb
+/// within a 44 point tall area around the 34 point slider, where the
+/// slider's parent leaves that room. The value commands of the arrow keys
+/// (mirrored in right-to-left), Home and End, and the accessibility
+/// increase and decrease step it, or take it to [min] and [max]; it has no
+/// larger step, so Page Up and Page Down do nothing, and neither do Space
+/// and Enter, as on Flutter's `Slider`. Under Reduce Motion the
 /// thumb never lifts, as UIKit's does (read from UIKit, notes private), and
 /// never stretches (an approximation, not measured); the track still
 /// stretches past an end. In a right-to-left context the value grows to the
 /// left. Without a bounded width the slider is 200 wide (not measured). A
 /// dragging finger reaching an end or a stop plays UIKit's end or detent
-/// haptic, approximated by a light impact and a selection click.
+/// haptic, approximated by a light impact and a selection click; a key or
+/// an accessibility step plays none, and a `MotionHapticScope` turns them
+/// off.
 class RawGlassSlider extends StatefulWidget {
   /// Creates a slider showing [value] between [min] and [max].
   const RawGlassSlider({
@@ -90,7 +95,7 @@ class RawGlassSlider extends StatefulWidget {
   final double value;
 
   /// Called with each new value as the user drags, as the released thumb
-  /// glides on, and on each arrow-key or accessibility step; null disables
+  /// glides on, and on each key or accessibility step; null disables
   /// the slider. A slider whose [value] does not follow returns to it.
   final ValueChanged<double>? onChanged;
 
@@ -98,12 +103,12 @@ class RawGlassSlider extends StatefulWidget {
   final GlassSliderBuilder builder;
 
   /// Called with the value when a finger touches the thumb, and before each
-  /// arrow-key or accessibility step; [onChangeEnd] follows unless the
+  /// key or accessibility step; [onChangeEnd] follows unless the
   /// slider is removed first.
   final ValueChanged<double>? onChangeStart;
 
   /// Called with the final value when the touch, its drag and its glide
-  /// end, and after each arrow-key or accessibility step.
+  /// end, and after each key or accessibility step.
   final ValueChanged<double>? onChangeEnd;
 
   /// The value at the track's start.
@@ -154,20 +159,21 @@ class _RawGlassSliderState extends State<RawGlassSlider>
     width: 0,
     value: _unit(widget.value),
     ticks: widget.ticks,
-    frameRate: MotionClock.instance.frameRate,
+    frameRate: null,
     onEvent: _deliver,
   );
   late final _SliderInput _input = _SliderInput(
     motion: _motion,
     start: _start,
     end: _endUnlessGliding,
+    command: _command,
   );
   late final List<Interaction> _interactions = [_input];
   late _SliderFrames _frames = _SliderFrames(_motion, mirrored: false);
   Widget? _visual;
   Object? _visualKey;
   Set<WidgetState>? _visualStates;
-  bool _reconcilePending = false;
+  bool _returning = false;
   double? _reported;
   bool _changing = false;
 
@@ -189,11 +195,8 @@ class _RawGlassSliderState extends State<RawGlassSlider>
     }
   }
 
-  void _setValue(double value, {bool animated = false}) => _motion.setValue(
-    MotionClock.instance.now,
-    value,
-    animated: animated,
-  );
+  void _setValue(double value, {bool animated = false}) =>
+      _motion.setValue(_motion.clock.now, value, animated: animated);
 
   @override
   void writeStates() =>
@@ -207,19 +210,39 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   bool get _inSync =>
       widget.value == _reported || _unit(widget.value) == _motion.reportedValue;
 
-  void _deliver(SliderEvent event) => runAfterBuild(this, () {
+  void _deliver(SliderEvent event) {
     switch (event) {
       case SliderChanged(:final value):
-        final out = _reported = _out(value);
-        widget.onChanged?.call(out);
-        _reconcileLater();
+        _outsideBuild(() => widget.onChanged?.call(_reported = _out(value)));
       case SliderChangeEnded(:final value):
-        _end(_out(value));
-        _reconcileLater();
+        _outsideBuild(() {
+          _end(_out(value));
+          _returnUnlessFollowed();
+        });
       case SliderFelt(:final detent):
-        (detent ? MotionHaptic.selection : MotionHaptic.lightImpact).play();
+        _input.feel(detent ? _Felt.detent : _Felt.end);
     }
-  });
+  }
+
+  static MotionHaptic? _feedback(InteractionEvent event) => switch (event) {
+    ScrubChangeEvent(selected: _Felt.detent) => MotionHaptic.selection,
+    ScrubChangeEvent(selected: _Felt.end) => MotionHaptic.lightImpact,
+    _ => null,
+  };
+
+  // An event raised while the framework builds or lays out, such as a drag
+  // the region cancels in its update or a width set in layout, reaches the
+  // app in the motion clock's coming publish phase, where it may rebuild.
+  void _outsideBuild(VoidCallback callback) {
+    if (SchedulerBinding.instance.schedulerPhase !=
+        SchedulerPhase.persistentCallbacks) {
+      callback();
+      return;
+    }
+    _motion.clock.schedulePublish(() {
+      if (mounted) callback();
+    });
+  }
 
   void _start() {
     if (_changing) return;
@@ -237,25 +260,16 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   // SliderChangeEnded; it still ends the change it started.
   void _endUnlessGliding() {
     if (_leading) return;
-    runAfterBuild(this, () => _end(widget.value));
-    _reconcileLater();
-  }
-
-  // One pending check, re-armed while a drag or glide leads the value.
-  void _reconcileLater() {
-    if (_reconcilePending) return;
-    _reconcilePending = true;
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      _reconcilePending = false;
-      if (!mounted || _inSync) return;
-      if (_leading) {
-        _reconcileLater();
-        return;
-      }
-      _setValue(_unit(widget.value));
-      _reported = widget.value;
+    _outsideBuild(() {
+      _end(widget.value);
+      _returnUnlessFollowed();
     });
   }
+
+  // The build that follows shows the value the app passes by then, so a
+  // slider whose app does not follow returns to its value once no drag or
+  // glide leads it.
+  void _returnUnlessFollowed() => setState(() => _returning = true);
 
   double _stepFrom(double from, int delta) {
     final ticks = widget.ticks;
@@ -269,10 +283,16 @@ class _RawGlassSliderState extends State<RawGlassSlider>
     return (base + delta).clamp(0, steps) / steps;
   }
 
-  void _nudge(int delta) {
+  void _command(ValueCommand command) {
     if (widget.onChanged == null) return;
     final from = _unit(widget.value);
-    final unit = _stepFrom(from, delta);
+    final unit = switch (command) {
+      ValueCommand.increase => _stepFrom(from, 1),
+      ValueCommand.decrease => _stepFrom(from, -1),
+      ValueCommand.toMinimum => 0.0,
+      ValueCommand.toMaximum => 1.0,
+      ValueCommand.increaseLarge || ValueCommand.decreaseLarge => from,
+    };
     if (unit == from) return;
     final value = _out(unit);
     _start();
@@ -305,53 +325,48 @@ class _RawGlassSliderState extends State<RawGlassSlider>
 
   @override
   Widget build(BuildContext context) {
+    if (_returning && !_leading) {
+      _returning = false;
+      if (!_inSync) {
+        _setValue(_unit(widget.value));
+        _reported = widget.value;
+      }
+    }
     final rtl = Directionality.maybeOf(context) == TextDirection.rtl;
     if (rtl != _frames.mirrored) {
       _frames = _SliderFrames(_motion, mirrored: rtl);
     }
     _input.mirrored = rtl;
-    final enabled = widget.onChanged != null;
     final value = _unit(widget.value);
     String percent(double v) => '${(v * 100).round()}%';
-    final back = rtl ? 1 : -1;
     return MotionScope(
       motion: _motion,
-      child: CallbackShortcuts(
-        bindings: {
-          const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
-              _nudge(back),
-          const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
-              _nudge(-back),
-          const SingleActivator(LogicalKeyboardKey.arrowDown): () => _nudge(-1),
-          const SingleActivator(LogicalKeyboardKey.arrowUp): () => _nudge(1),
-        },
+      child: InputRegion(
+        interactions: _interactions,
+        enabled: widget.onChanged != null,
+        statesController: widgetStates,
+        feedback: _feedback,
+        focusNode: widget.focusNode,
+        autofocus: widget.autofocus,
+        semanticLabel: widget.semanticLabel,
+        minimumHitSize: const Size(44, 44),
         child: Semantics(
           slider: true,
           value: percent(value),
           increasedValue: percent(_stepFrom(value, 1)),
           decreasedValue: percent(_stepFrom(value, -1)),
-          onIncrease: enabled && value < 1 ? () => _nudge(1) : null,
-          onDecrease: enabled && value > 0 ? () => _nudge(-1) : null,
-          child: InputRegion(
-            interactions: _interactions,
-            enabled: enabled,
-            statesController: widgetStates,
-            focusNode: widget.focusNode,
-            autofocus: widget.autofocus,
-            semanticLabel: widget.semanticLabel,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final width = constraints.hasBoundedWidth
-                    ? constraints.maxWidth
-                    : 200.0;
-                _motion.width = width;
-                return SizedBox(
-                  width: width,
-                  height: RawGlassSlider.height,
-                  child: _visualFor(context, width),
-                );
-              },
-            ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.hasBoundedWidth
+                  ? constraints.maxWidth
+                  : 200.0;
+              _motion.width = width;
+              return SizedBox(
+                width: width,
+                height: RawGlassSlider.height,
+                child: _visualFor(context, width),
+              );
+            },
           ),
         ),
       ),
@@ -427,17 +442,34 @@ final class _SliderFrames {
       : rect;
 }
 
+/// What a dragging finger felt: the value reached an end or an inner stop.
+enum _Felt { end, detent }
+
 /// A slider's touch: it takes a touch only on the thumb and holds it
-/// against a scroll.
+/// against a scroll. It adjusts: the region's value commands reach the
+/// slider through it. A finger reaching an end or a stop reaches the
+/// region as a [ScrubChangeEvent], for its haptic.
 final class _SliderInput extends Interaction {
-  _SliderInput({required this.motion, required this.start, required this.end})
-    : super(role: InteractionRole.control);
+  _SliderInput({
+    required this.motion,
+    required this.start,
+    required this.end,
+    required this.command,
+  }) : super(role: InteractionRole.control);
 
   final SliderMotion motion;
   final VoidCallback start;
   final VoidCallback end;
+  final ValueChanged<ValueCommand> command;
   bool mirrored = false;
   int? _pointer;
+  final List<InteractionEvent> _felt = [];
+
+  @override
+  bool get adjusts => true;
+
+  void feel(_Felt felt) =>
+      _felt.add(ScrubChangeEvent(time: motion.now, selected: felt));
 
   @override
   bool get pressed => _pointer != null;
@@ -456,7 +488,22 @@ final class _SliderInput extends Interaction {
 
   @override
   InteractionUpdate handle(InteractionInput input) {
+    final update = _handle(input);
+    if (_felt.isEmpty) return update;
+    final events = [...update.events, ..._felt];
+    _felt.clear();
+    return InteractionUpdate(
+      claims: update.claims,
+      recognizes: update.recognizes,
+      fails: update.fails,
+      events: events,
+    );
+  }
+
+  InteractionUpdate _handle(InteractionInput input) {
     switch (input) {
+      case AdjustInput(command: final asked):
+        command(asked);
       case PointerDownInput() when _pointer == null && !accepts(input):
         // A delivery held for a scroll may come after the thumb moved away.
         return const InteractionUpdate(fails: true);
