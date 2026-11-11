@@ -16,6 +16,8 @@
 library;
 
 export 'src/motions/alert_motion.dart' show AlertMotion;
+export 'src/motions/bar_frames.dart'
+    show GlassBarCapsuleFrame, GlassBarCapsuleLayout, GlassBarItemFrame;
 export 'src/motions/bar_layout.dart'
     show
         GlassBarButtonKind,
@@ -25,13 +27,8 @@ export 'src/motions/bar_layout.dart'
         GlassBarMetrics,
         GlassBarSegment,
         layoutGlassBar;
-export 'src/motions/bar_motion.dart'
-    show
-        GlassBarCapsuleFrame,
-        GlassBarCapsuleLayout,
-        GlassBarItemFrame,
-        GlassBarMotion,
-        GlassBarTransitionSpec;
+export 'src/motions/bar_motion.dart' show GlassBarMotion;
+export 'src/motions/bar_transition_spec.dart' show GlassBarTransitionSpec;
 export 'src/motions/date_picker_motion.dart'
     show
         DatePickerCalendarMotion,

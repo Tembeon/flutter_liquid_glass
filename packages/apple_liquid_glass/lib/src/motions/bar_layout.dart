@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/motions/bar_motion.dart';
+import 'package:apple_liquid_glass/src/motions/bar_frames.dart';
 import 'package:flutter/painting.dart';
 import 'package:meta/meta.dart';
 
