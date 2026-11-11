@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/widgets/input_shared.dart';
 
 /// Turns pointer, keyboard, hover and accessibility input into the input
 /// of its [interactions].
@@ -143,7 +144,8 @@ class _InputRegionState extends State<InputRegion> {
   double? _scheduled;
   VoidCallback? _cancelDue;
   final Map<int, VelocityTracker> _trackers = {};
-  final Map<int, _ArenaMember> _members = {};
+  final Map<int, InputArenaMember> _members = {};
+  final PointerSpeed _speed = PointerSpeed();
 
   FocusNode get _focus => widget.focusNode ?? (_ownFocus ??= FocusNode());
 
@@ -223,23 +225,19 @@ class _InputRegionState extends State<InputRegion> {
 
   void _highlightModeChanged(FocusHighlightMode mode) => _showFocus();
 
-  // As InkWell does: focus shows only in keyboard mode, so a tap that
-  // focuses lights no ring, and under directional navigation (a TV remote)
-  // a disabled region that holds focus shows it too.
-  void _showFocus() {
-    final shown =
-        _hasFocus &&
-        FocusManager.instance.highlightMode == FocusHighlightMode.traditional &&
-        (widget.enabled || _navigation == NavigationMode.directional);
-    _states.update(WidgetState.focused, shown);
-  }
+  void _showFocus() => _states.update(
+    WidgetState.focused,
+    focusShows(
+      hasFocus: _hasFocus,
+      enabled: widget.enabled,
+      navigation: _navigation,
+    ),
+  );
 
-  MouseCursor get _cursor => WidgetStateProperty.resolveAs<MouseCursor>(
-    widget.mouseCursor ??
-        (_activates
-            ? WidgetStateMouseCursor.adaptiveClickable
-            : MouseCursor.defer),
-    _states.value,
+  MouseCursor get _cursor => resolveCursor(
+    widget.mouseCursor,
+    activates: _activates,
+    states: _states.value,
   );
 
   // Only a cursor that changes with the states rebuilds the region.
@@ -257,17 +255,11 @@ class _InputRegionState extends State<InputRegion> {
 
   Offset _toGlobal(Offset local) => _box?.localToGlobal(local) ?? local;
 
-  // The receiver maps positions with its render box, laid out in the frame
-  // that builds it, and the touches that waited run interactions that may
-  // rebuild or lay out, which that frame's layout and resolve phases do not
-  // allow. The clock's coming phases can run before that layout when the
-  // region is built outside a frame, so the port attaches after the frame.
-  void _attachPort(InputPort? port) {
-    if (port == null) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && widget.port == port) port.attach(_receive);
-    });
-  }
+  void _attachPort(InputPort? port) => attachPortAfterFrame(
+    port,
+    _receive,
+    () => mounted && widget.port == port,
+  );
 
   void _receive(PortEvent event) {
     final box = _box;
@@ -276,20 +268,9 @@ class _InputRegionState extends State<InputRegion> {
       box.globalToLocal,
       size: box.size,
       hitArea: box.hitArea,
-      scrollAxes: event.handOff ? _scrollAxes() : const {},
+      scrollAxes: event.handOff ? scrollAxesAround(context) : const {},
     );
     _clock.input(input.time, () => _answer(_session.handle(input)));
-  }
-
-  Set<Axis> _scrollAxes() {
-    final axes = <Axis>{};
-    context.visitAncestorElements((element) {
-      if (element is StatefulElement && element.state is ScrollableState) {
-        axes.add((element.state as ScrollableState).position.axis);
-      }
-      return true;
-    });
-    return axes;
   }
 
   void _pointer(PointerEvent event, Size size) {
@@ -328,25 +309,10 @@ class _InputRegionState extends State<InputRegion> {
     );
   }
 
-  Duration? _movedAt;
-
-  void _reportSpeed(PointerMoveEvent event) {
-    final last = _movedAt;
-    _movedAt = event.timeStamp;
-    if (last == null || !mounted) return;
-    final seconds = (event.timeStamp - last).inMicroseconds / 1e6;
-    if (seconds <= 0) return;
-    FrameCadence.instance.input(
-      pixelsPerSecond:
-          event.delta.distance * View.of(context).devicePixelRatio / seconds,
-    );
-  }
-
   void _dispatch(PointerEvent event, Size size, double time) {
     switch (event) {
       case PointerDownEvent():
-        _movedAt = event.timeStamp;
-        FrameCadence.instance.input(changed: true);
+        _speed.touched(event.timeStamp);
         final tracker = VelocityTracker.withKind(event.kind);
         tracker.addPosition(event.timeStamp, event.localPosition);
         final output = _session.handle(
@@ -358,7 +324,7 @@ class _InputRegionState extends State<InputRegion> {
             hitArea: _box?.hitArea,
             kind: event.kind,
             buttons: event.buttons,
-            scrollAxes: _scrollAxes(),
+            scrollAxes: scrollAxesAround(context),
           ),
         );
         if (output.reject) {
@@ -366,7 +332,7 @@ class _InputRegionState extends State<InputRegion> {
           return;
         }
         _trackers[event.pointer] = tracker;
-        final member = _ArenaMember(this);
+        final member = InputArenaMember(_lost);
         _members[event.pointer] = member;
         member.entry = GestureBinding.instance.gestureArena.add(
           event.pointer,
@@ -378,7 +344,9 @@ class _InputRegionState extends State<InputRegion> {
           event.timeStamp,
           event.localPosition,
         );
-        _reportSpeed(event);
+        if (mounted) {
+          _speed.moved(event, View.of(context).devicePixelRatio);
+        }
         _answer(
           _session.handle(
             PointerMoveInput(
@@ -390,7 +358,7 @@ class _InputRegionState extends State<InputRegion> {
           pointer: event.pointer,
         );
       case PointerUpEvent():
-        FrameCadence.instance.input(changed: true);
+        _speed.lifted();
         final tracker = _trackers.remove(event.pointer);
         tracker?.addPosition(event.timeStamp, event.localPosition);
         final velocity = tracker?.getVelocity().pixelsPerSecond ?? Offset.zero;
@@ -467,7 +435,7 @@ class _InputRegionState extends State<InputRegion> {
     if (event is ActivationEvent && event.source != ActivationSource.pointer) {
       return;
     }
-    if (!MotionHapticScope._enabledHere(context)) return;
+    if (!hapticsOnAt(context)) return;
     widget.feedback?.call(event)?.play();
   }
 
@@ -709,19 +677,6 @@ class AdjustValueIntent extends Intent {
   };
 }
 
-class _ArenaMember extends GestureArenaMember {
-  _ArenaMember(this.state);
-
-  final _InputRegionState state;
-  GestureArenaEntry? entry;
-
-  @override
-  void acceptGesture(int pointer) {}
-
-  @override
-  void rejectGesture(int pointer) => state._lost(pointer);
-}
-
 /// What the region's box needs besides its state: its hit size and what
 /// it tells accessibility.
 typedef _Described = ({
@@ -872,14 +827,37 @@ class MotionHapticScope extends StatelessWidget {
       context.dependOnInheritedWidgetOfExactType<_HapticScope>()?.enabled ??
       true;
 
-  static bool _enabledHere(BuildContext context) =>
-      context.getInheritedWidgetOfExactType<_HapticScope>()?.enabled ?? true;
-
   @override
   Widget build(BuildContext context) => _HapticScope(
     enabled: enabled && enabledOf(context),
     child: child,
   );
+}
+
+/// Whether the haptics of an input host at [context] play, without making
+/// [context] depend on the scope.
+@internal
+bool hapticsOnAt(BuildContext context) =>
+    context.getInheritedWidgetOfExactType<_HapticScope>()?.enabled ?? true;
+
+/// Attaches [receiver] to [port] after the current frame, while [stillWanted]
+/// holds.
+///
+/// The receiver maps positions with its render box, laid out in the frame
+/// that builds it, and the touches that waited run interactions that may
+/// rebuild or lay out, which that frame's layout and resolve phases do not
+/// allow. The clock's coming phases can run before that layout when the host
+/// is built outside a frame, so the port attaches after the frame.
+@internal
+void attachPortAfterFrame(
+  InputPort? port,
+  void Function(PortEvent event) receiver,
+  bool Function() stillWanted,
+) {
+  if (port == null) return;
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (stillWanted()) port.attach(receiver);
+  });
 }
 
 class _HapticScope extends InheritedWidget {
