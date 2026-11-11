@@ -1272,7 +1272,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
   bool get transformMayLag
   void updatePaintOrder()
   overrides: attach, detach, dispose
-class RenderLiquidGlassLayer extends LiquidGlassRenderObject with TransformTrackingRenderObjectMixin implements ReadPainter
+class RenderLiquidGlassLayer extends LiquidGlassRenderObject with TransformTrackingRenderObjectMixin
   RenderLiquidGlassLayer({
     required List<FragmentShader> finalShaders,
     required double devicePixelRatio,
@@ -1310,7 +1310,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject with TransformTrack
   Matrix4 get shaderCoordinateTransform
   Color? get solidBackdrop
   set solidBackdrop(Color? value)
-  overrides: addOutput, ask, beginFate, dispose, encodesMatte, materialOutset, mayRest, onAppearanceChanged, onCompositorTranslated, onCompositorTranslationMissed, onDevicePixelRatioChanged, onFrameGeometryCommitted, onPreparing, onResting, onSettingsChanged, onTransformChanged, pageKey, paintFrame, paintsLate, readFilter, recordPage, repaintsOnMove, show
+  overrides: addOutput, ask, beginFate, dispose, encodesMatte, materialOutset, mayRest, onAppearanceChanged, onCompositorTranslated, onCompositorTranslationMissed, onDevicePixelRatioChanged, onFrameGeometryCommitted, onPreparing, onResting, onSettingsChanged, onTransformChanged, paintFrame, paintsLate, repaintsOnMove, show
 class RenderLiveGlassFrame extends RenderProxyBox
   RenderLiveGlassFrame({required ValueListenable<LiquidGlassShapeFrame> frame})
   ValueListenable<LiquidGlassShapeFrame> get frame

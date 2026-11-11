@@ -35,8 +35,7 @@ import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_ob
 /// The real glass layer: renders the shapes into a GPU matte and paints the
 /// final shader filter over it.
 class RenderLiquidGlassLayer extends LiquidGlassRenderObject
-    with TransformTrackingRenderObjectMixin
-    implements ReadPainter {
+    with TransformTrackingRenderObjectMixin {
   /// Creates a glass layer that draws with [finalShaders] and builds its
   /// geometry with [gpuGeometryRenderer].
   RenderLiquidGlassLayer({
@@ -872,6 +871,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // reads it: the others of a read hear of it through its ask.
   _Frame? _frame;
 
+  late final _GlassPainter _painter = _GlassPainter(this);
+
   // Kept while the glass rests, so its ask stays equal with no new role.
   PainterRole? _role;
 
@@ -885,7 +886,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         held.originOnScreen.dy == y) {
       return held;
     }
-    return _role = PainterRole(this, originOnScreen: Offset(x, y));
+    return _role = PainterRole(_painter, originOnScreen: Offset(x, y));
   }
 
   // This frame's place, where the glass draws a read. The planner joins only
@@ -1066,10 +1067,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     for (final member in read.members)
       if (member.ask.role
           case final PainterRole role &&
-              PainterRole(
-                :final RenderLiquidGlassLayer painter,
-              ))
-        (painter, role, member.ask.drawn),
+              PainterRole(painter: _GlassPainter(:final layer)))
+        (layer, role, member.ask.drawn),
   ];
 
   static BandLook? _bandOf(GlassRead read) => switch (read.lead.ask.role) {
@@ -1188,8 +1187,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   static const Object _noPageKey = Object();
 
-  @override
-  ImageFilter readFilter(GlassRead read, CornerRead corner) {
+  ImageFilter _readFilterFor(GlassRead read, CornerRead corner) {
     final frame = _drawingFrame;
     return frame == null ? _drawsNothing : _readFilter(read, frame, corner);
   }
@@ -1244,14 +1242,16 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
   }
 
-  @override
-  Object pageKey(GlassRead read, PageCopy page) {
+  Object _pageKeyFor(GlassRead read, PageCopy page) {
     final frame = _drawingFrame;
     return frame == null ? _noPageKey : _pageDraw(read, frame, page);
   }
 
-  @override
-  ui.Picture recordPage(GlassRead read, PageCopy page, Matrix4 screenToCanvas) {
+  ui.Picture _recordPageFor(
+    GlassRead read,
+    PageCopy page,
+    Matrix4 screenToCanvas,
+  ) {
     final frame = _drawingFrame;
     if (!kReleaseMode) GlassWork.pictures++;
     final recorder = ui.PictureRecorder();
@@ -1464,7 +1464,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       page.image,
       page.placement,
       page.rect,
-      pageKey(read, page),
+      _pageKeyFor(read, page),
       toCanvas,
       Object.hashAll([
         for (final (picture, offset) in under) ...[picture, offset],
@@ -1472,7 +1472,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
     _rig.show(
       _rig.pagePicture(key, bounds, () {
-        final body = recordPage(read, page, toCanvas);
+        final body = _recordPageFor(read, page, toCanvas);
         if (under.isEmpty) return body;
         if (!kReleaseMode) GlassWork.pictures++;
         final recorder = ui.PictureRecorder();
@@ -1799,3 +1799,26 @@ extension RenderLiquidGlassLayerDebug on RenderLiquidGlassLayer {
 typedef _BandAt = ({BandLook look, Rect shown, double whole, double held});
 
 typedef _Frame = ({Matrix4 screen, Rect logical, double shaderFrost});
+
+// The layer as the painter of the reads it leads, apart from it so the
+// composer's interface stays out of the layer's public type.
+final class _GlassPainter implements ReadPainter {
+  _GlassPainter(this.layer);
+
+  final RenderLiquidGlassLayer layer;
+
+  @override
+  ImageFilter readFilter(GlassRead read, CornerRead corner) =>
+      layer._readFilterFor(read, corner);
+
+  @override
+  Object pageKey(GlassRead read, PageCopy page) =>
+      layer._pageKeyFor(read, page);
+
+  @override
+  ui.Picture recordPage(
+    GlassRead read,
+    PageCopy page,
+    Matrix4 screenToCanvas,
+  ) => layer._recordPageFor(read, page, screenToCanvas);
+}
