@@ -656,7 +656,6 @@ abstract class MotionClock
   void input(double time, void Function() body)
   static MotionClock get instance
   static set instance(MotionClock clock)
-  @internal bool get isResolving
   @internal void markDirty(MotionDerived derived)
   @protected bool get needsFrame
   double get now

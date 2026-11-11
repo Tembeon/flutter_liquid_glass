@@ -60,8 +60,8 @@ class SliverMotionList extends StatefulWidget {
   final LayoutMotion? motion;
 
   /// Called with each change of the rows in view, after the planner planned
-  /// it, in the frame's resolve phase before paint: it must not mark layout
-  /// or rebuild.
+  /// it, in the frame's resolve phase before paint: it must not rebuild;
+  /// what it marks for layout is laid out again in that frame.
   final ValueChanged<LayoutChange>? onLayout;
 
   @override

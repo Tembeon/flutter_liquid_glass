@@ -10,8 +10,8 @@ import 'package:kinesis/src/widgets/resolve.dart';
 ///
 /// [onSize] hears the frame's time and the new size after the first layout
 /// and after each layout that changes the size. It runs in the frame's
-/// resolve phase: it may command motions, and must not mark layout or
-/// rebuild.
+/// resolve phase: it may command motions and mark layout, which is laid
+/// out again in that frame, and must not rebuild.
 class MotionMeasure extends SingleChildRenderObjectWidget {
   /// Reports the size of [child] to [onSize].
   const MotionMeasure({required this.onSize, super.child, super.key});

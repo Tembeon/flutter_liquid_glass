@@ -113,4 +113,28 @@ void main() {
     await tester.pumpWidget(driven(enabled: true));
     expect(tester.getTopLeft(find.byKey(const ValueKey('child'))).dx, 8);
   });
+
+  testWidgets('a layout property changed in the resolve phase reaches '
+      'the layout of the same frame', (tester) async {
+    final width = MotionValue<double>(10);
+    Widget tree(double measured) => _app(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          MotionMeasure(
+            onSize: (t, size) => width.snap(t, size.width),
+            child: SizedBox(width: measured, height: 10),
+          ),
+          MotionDriven(
+            template: () => SizedBox(width: width.value, height: 10),
+            child: const SizedBox(key: ValueKey('follower')),
+          ),
+        ],
+      ),
+    );
+    await tester.pumpWidget(tree(40));
+    expect(tester.getSize(find.byKey(const ValueKey('follower'))).width, 40);
+    await tester.pumpWidget(tree(70));
+    expect(tester.getSize(find.byKey(const ValueKey('follower'))).width, 70);
+  });
 }

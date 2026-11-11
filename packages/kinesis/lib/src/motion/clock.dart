@@ -215,19 +215,16 @@ abstract class MotionClock {
     if (_dirty.add(derived) && !_resolving && _commanded == null) wake();
   }
 
-  /// Whether the frame's resolve phase runs: after layout, before paint.
-  @internal
-  bool get isResolving => _resolving;
-
   /// Runs [steps] in the frame's resolve phase, after layout and before
   /// paint, each reporting what it throws on its own as the error of
   /// [context], so one failing step does not stop the others.
   ///
   /// The values they change are stepped and published to their render
   /// followers at once, so what draws them shows this frame's
-  /// presentation; a render follower may mark paint and composited layers
-  /// there, not layout. Their other followers, such as widgets that
-  /// rebuild, hear them in the next frame's publish phase.
+  /// presentation; a render follower may mark paint, composited layers and
+  /// layout there, and what it marks for layout is laid out again in the
+  /// same frame. Their other followers, such as widgets that rebuild, hear
+  /// them in the next frame's publish phase.
   @internal
   void resolve(Iterable<VoidCallback> steps, String context) {
     _resolving = true;

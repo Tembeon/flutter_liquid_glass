@@ -4,12 +4,15 @@ import 'package:kinesis/motion.dart';
 
 /// A render object that places its presentation from this frame's layout,
 /// in the frame's resolve phase: after the whole view is laid out, before
-/// compositing bits and paint.
+/// paint.
 ///
-/// [resolve] may retarget values and mark paint and composited layers; it
-/// must not mark layout. Values it changes publish at once
-/// ([MotionClock.resolve]), so what draws them shows this frame's
-/// presentation, never the previous one.
+/// [resolve] may retarget values and mark paint, composited layers and
+/// layout. Values it changes publish at once ([MotionClock.resolve]), so
+/// what draws them shows this frame's presentation, never the previous one.
+/// What it and the values' render listeners mark for layout is laid out
+/// again in the same frame, and the hosts that this layout schedules
+/// resolve again, a few rounds at most: a value that one subtree's layout
+/// computes reaches another subtree's layout in the frame that computed it.
 ///
 /// A render object that animates its own layout reads the app's
 /// `withSpring` and `withoutAnimation` around a change through
@@ -51,8 +54,10 @@ mixin MotionResolveHost on RenderObject {
 }
 
 /// The resolve phase of one view: a child of the view's pipeline owner,
-/// which Flutter flushes after the view's own layout and before its
-/// compositing bits and paint.
+/// which Flutter flushes after the view's own phases. It resolves with the
+/// view's compositing bits, when the view's layout, its child owners'
+/// included, has finished and marking layout is allowed again, and lays
+/// out again what the resolve marked.
 ///
 /// It stays adopted while hosts are attached to the view and drops and
 /// disposes itself with the last one, so the view's owner has no children
@@ -111,19 +116,44 @@ final class _ResolveOwner extends PipelineOwner {
 
   void _schedule(MotionResolveHost host) => _scheduled.add(host);
 
+  // Layouts that keep scheduling each other's resolve finish in the next
+  // frame.
+  static const _rounds = 8;
+
+  bool _resolving = false;
+
   @override
-  void flushLayout() {
-    super.flushLayout();
+  void flushCompositingBits() {
+    // The view's flush below calls back into this owner.
+    if (_resolving) return;
+    _resolving = true;
+    try {
+      _resolveRounds();
+    } finally {
+      _resolving = false;
+    }
+    super.flushCompositingBits();
+  }
+
+  void _resolveRounds() {
     for (final host in _hosts) {
       if (host.resolvesEveryFrame) _scheduled.add(host);
     }
     if (_scheduled.isEmpty) return;
-    final hosts = List<MotionResolveHost>.of(_scheduled);
-    _scheduled.clear();
-    hosts.sort((a, b) => a.depth - b.depth);
-    MotionClock.instance.resolve([
-      for (final host in hosts)
-        if (host.attached && identical(host.owner, _view)) host.resolve,
-    ], 'while resolving a layout motion');
+    for (var round = 0; _scheduled.isNotEmpty; round++) {
+      if (round == _rounds) {
+        SchedulerBinding.instance.scheduleFrame();
+        break;
+      }
+      final hosts = List<MotionResolveHost>.of(_scheduled);
+      _scheduled.clear();
+      hosts.sort((a, b) => a.depth - b.depth);
+      MotionClock.instance.resolve([
+        for (final host in hosts)
+          if (host.attached && identical(host.owner, _view)) host.resolve,
+      ], 'while resolving a layout motion');
+      _view.flushLayout();
+    }
+    _view.flushCompositingBits();
   }
 }

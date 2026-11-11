@@ -24,8 +24,7 @@ import 'package:kinesis/motion.dart';
 /// (a `MotionValue`'s target) and clipped to the presented one, with
 /// [borderRadius]. A moving width or height lays out the parent and repaints
 /// this widget every frame. Discrete layout changes belong to
-/// `MotionLayout`: a width or height changed in the frame's resolve phase
-/// asserts.
+/// `MotionLayout`.
 ///
 /// Hit testing follows what is drawn, inside the clip. The transform,
 /// opacity and blur reach accessibility when the values among them that
@@ -305,14 +304,7 @@ class RenderMotionTransition extends RenderProxyBox {
     }
   }
 
-  void _sizeChanged() {
-    assert(
-      !MotionClock.instance.isResolving,
-      'A MotionTransition width or height changed in the resolve phase, '
-      'after layout: discrete layout changes belong to MotionLayout.',
-    );
-    markNeedsLayout();
-  }
+  void _sizeChanged() => markNeedsLayout();
 
   @override
   void attach(PipelineOwner owner) {

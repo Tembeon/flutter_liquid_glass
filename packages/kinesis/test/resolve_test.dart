@@ -159,19 +159,42 @@ void main() {
     expect(tester.binding.hasScheduledFrame, isFalse);
   });
 
-  testWidgets('marking layout in resolve asserts', (tester) async {
+  testWidgets('layout marked in resolve is laid out again in the same '
+      'frame, and its hosts resolve again', (tester) async {
+    var marks = 0;
     await tester.pumpWidget(
       Directionality(
         textDirection: TextDirection.ltr,
         child: Column(
           children: [
-            _Probe('a', onResolve: (probe) => probe.markNeedsLayout()),
+            _Probe(
+              'a',
+              onResolve: (probe) {
+                if (marks++ < 2) probe.markNeedsLayout();
+              },
+            ),
           ],
         ),
       ),
     );
-    // Flutter rejects a layout mark while its layout phase runs.
-    expect(tester.takeException(), isNotNull);
+    expect(_log.where((e) => e == 'layout a'), hasLength(3));
+    expect(_log.where((e) => e == 'resolve a'), hasLength(3));
+    expect(_log.indexOf('paint a'), greaterThan(_log.lastIndexOf('resolve a')));
+    expect(tester.binding.hasScheduledFrame, isFalse);
+  });
+
+  testWidgets('hosts that keep marking each other finish in the next '
+      'frame', (tester) async {
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: _Probe('a', onResolve: (probe) => probe.markNeedsLayout()),
+      ),
+    );
+    final rounds = _log.where((e) => e == 'resolve a').length;
+    expect(rounds, 8);
+    expect(_log.last, 'paint a');
+    expect(tester.binding.hasScheduledFrame, isTrue);
   });
 
   testWidgets('the resolve phase leaves the view with its last host', (

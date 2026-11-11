@@ -154,9 +154,10 @@ class MotionSelection<T> implements ValueListenable<T>, MotionDerived {
     _stopIfAlone();
   }
 
-  /// Adds a listener of a render object that only marks paint or
-  /// composited layers: it also hears the value when the frame's resolve
-  /// phase changes what it reads, before paint.
+  /// Adds a listener of a render object that only marks paint, composited
+  /// layers or layout: it also hears the value when the frame's resolve
+  /// phase changes what it reads, before paint, and what it marks for
+  /// layout there is laid out again in that frame.
   void addRenderListener(VoidCallback listener) {
     final first = !_followed;
     _renderListeners.add(listener);

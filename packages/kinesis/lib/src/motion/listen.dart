@@ -8,9 +8,9 @@ import 'package:kinesis/src/motion/value.dart';
 /// shows this frame's presentation; any other listenable as usual.
 ///
 /// For a render object that paints from a listenable it is given, such as
-/// a layer that follows a motion: the listener may mark paint and
-/// composited layers, not layout, since it can run after layout. Stop it
-/// with [unlistenForRender].
+/// a layer that follows a motion: the listener may mark paint, composited
+/// layers and layout. When it runs after layout, what it marks for layout
+/// is laid out again in the same frame. Stop it with [unlistenForRender].
 void listenForRender(Listenable listenable, VoidCallback listener) =>
     switch (listenable) {
       final MotionValue<Object?> value => value.addRenderListener(listener),

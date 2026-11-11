@@ -191,10 +191,11 @@ class MotionValue<T> extends MotionPart
     _unfollowIfAlone();
   }
 
-  /// Adds a listener of a render object that only marks paint or
-  /// composited layers. Unlike other listeners it also hears the value
+  /// Adds a listener of a render object that only marks paint, composited
+  /// layers or layout. Unlike other listeners it also hears the value
   /// when the frame's resolve phase changes it, after layout and before
-  /// paint, so it draws that frame's presentation.
+  /// paint, so it draws that frame's presentation; what it marks for
+  /// layout there is laid out again in that frame.
   void addRenderListener(VoidCallback listener) {
     _renderListeners.add(listener);
     if (!_atRest || _pendingDue != null) clock.follow(this);

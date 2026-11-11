@@ -13,11 +13,11 @@ import 'package:kinesis/motion.dart';
 /// goes there. Its render objects are made once. Whenever the motion
 /// values [template] reads change, each level updates its render object
 /// before paint, so a frame costs what the changed properties cost (a
-/// paint or a layout), never a build. Values that the frame's resolve phase
-/// changes, such as a `MotionLayout` child's, may only drive paint there:
-/// a layout property changed then asserts. The chain keeps its shape: the
-/// same widget types at the same depths. Under a muted `TickerMode` it
-/// stops following.
+/// paint or a layout), never a build. A layout property that the frame's
+/// resolve phase changes, such as one read from a `MotionLayout` child's
+/// place or from a `MotionMeasure`, is laid out again in that frame. The
+/// chain keeps its shape: the same widget types at the same depths. Under
+/// a muted `TickerMode` it stops following.
 class MotionDriven extends RenderObjectWidget {
   /// Creates a driven chain around [child].
   const MotionDriven({required this.template, this.child, super.key});
