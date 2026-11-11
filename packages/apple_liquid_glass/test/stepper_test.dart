@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -384,4 +385,46 @@ void main() {
     await tester.pump();
     expect(values, [6, 4]);
   });
+
+  testWidgets('the half labels come from GlassLocalizations', (tester) async {
+    await tester.pumpWidget(
+      WidgetsApp(
+        color: const Color(0xFF000000),
+        localizationsDelegates: const [_FrenchDelegate()],
+        builder: (context, _) => Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(
+            child: GlassStepper(value: 5, onChanged: (_) {}),
+          ),
+        ),
+      ),
+    );
+    expect(find.bySemanticsLabel('Moins'), findsOneWidget);
+    expect(find.bySemanticsLabel('Plus'), findsOneWidget);
+    expect(find.bySemanticsLabel('Decrement'), findsNothing);
+  });
+}
+
+class _French extends DefaultGlassLocalizations {
+  const _French();
+
+  @override
+  String get decrementLabel => 'Moins';
+
+  @override
+  String get incrementLabel => 'Plus';
+}
+
+class _FrenchDelegate extends LocalizationsDelegate<GlassLocalizations> {
+  const _FrenchDelegate();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<GlassLocalizations> load(Locale locale) =>
+      SynchronousFuture<GlassLocalizations>(const _French());
+
+  @override
+  bool shouldReload(_FrenchDelegate old) => false;
 }

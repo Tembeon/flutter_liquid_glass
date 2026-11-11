@@ -128,8 +128,8 @@ class GlassStepper extends StatelessWidget {
     this.max = 100,
     this.step = 1,
     this.style,
-    this.decrementLabel = 'Decrement',
-    this.incrementLabel = 'Increment',
+    this.decrementLabel,
+    this.incrementLabel,
     this.semanticFormatterCallback,
     this.semanticLabel,
     this.statesController,
@@ -157,10 +157,10 @@ class GlassStepper extends StatelessWidget {
   final GlassStepperStyle? style;
 
   /// See [RawGlassStepper.decrementLabel].
-  final String decrementLabel;
+  final String? decrementLabel;
 
   /// See [RawGlassStepper.incrementLabel].
-  final String incrementLabel;
+  final String? incrementLabel;
 
   /// See [RawGlassStepper.semanticFormatterCallback].
   final String Function(double value)? semanticFormatterCallback;

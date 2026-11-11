@@ -1,3 +1,4 @@
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -81,8 +82,8 @@ class RawGlassStepper extends StatefulWidget {
     this.min = 0,
     this.max = 100,
     this.step = 1,
-    this.decrementLabel = 'Decrement',
-    this.incrementLabel = 'Increment',
+    this.decrementLabel,
+    this.incrementLabel,
     this.semanticFormatterCallback,
     this.semanticLabel,
     this.statesController,
@@ -110,11 +111,13 @@ class RawGlassStepper extends StatefulWidget {
   /// How much one step changes the value.
   final double step;
 
-  /// What screen readers announce for the minus half.
-  final String decrementLabel;
+  /// What screen readers announce for the minus half; null reads
+  /// [GlassLocalizations.decrementLabel].
+  final String? decrementLabel;
 
-  /// What screen readers announce for the plus half.
-  final String incrementLabel;
+  /// What screen readers announce for the plus half; null reads
+  /// [GlassLocalizations.incrementLabel].
+  final String? incrementLabel;
 
   /// Formats the value each half announces; null uses up to twelve
   /// significant digits without binary floating-point tails.
@@ -214,6 +217,7 @@ class _RawGlassStepperState extends State<RawGlassStepper>
   @override
   Widget build(BuildContext context) {
     final enabled = widget.onChanged != null;
+    final strings = GlassLocalizations.of(context);
     String format(double value) =>
         widget.semanticFormatterCallback?.call(value) ?? _format(value);
     final value = format(_value);
@@ -252,8 +256,14 @@ class _RawGlassStepperState extends State<RawGlassStepper>
           child: InputZones<GlassStepperHalf>(
             key: _halves,
             zones: [
-              half(GlassStepperHalf.decrement, widget.decrementLabel),
-              half(GlassStepperHalf.increment, widget.incrementLabel),
+              half(
+                GlassStepperHalf.decrement,
+                widget.decrementLabel ?? strings.decrementLabel,
+              ),
+              half(
+                GlassStepperHalf.increment,
+                widget.incrementLabel ?? strings.incrementLabel,
+              ),
             ],
             frameOf: _frameOf,
             frames: _still,

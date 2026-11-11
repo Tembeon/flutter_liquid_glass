@@ -1849,8 +1849,8 @@ class GlassStepper extends StatelessWidget
     double max = ...,
     double step = ...,
     GlassStepperStyle? style,
-    String decrementLabel = ...,
-    String incrementLabel = ...,
+    String? decrementLabel,
+    String? incrementLabel,
     String Function(double)? semanticFormatterCallback,
     String? semanticLabel,
     WidgetStatesController? statesController,
@@ -1860,9 +1860,9 @@ class GlassStepper extends StatelessWidget
   })
   final bool autofocus
   static const GlassDynamicColor background
-  final String decrementLabel
+  final String? decrementLabel
   final FocusNode? focusNode
-  final String incrementLabel
+  final String? incrementLabel
   final double max
   final double min
   final void Function(double)? onChanged
@@ -3221,8 +3221,8 @@ class RawGlassStepper extends StatefulWidget
     double min = ...,
     double max = ...,
     double step = ...,
-    String decrementLabel = ...,
-    String incrementLabel = ...,
+    String? decrementLabel,
+    String? incrementLabel,
     String Function(double)? semanticFormatterCallback,
     String? semanticLabel,
     WidgetStatesController? statesController,
@@ -3232,9 +3232,9 @@ class RawGlassStepper extends StatefulWidget
   })
   final bool autofocus
   final Widget Function(BuildContext, GlassStepperDetails) builder
-  final String decrementLabel
+  final String? decrementLabel
   final FocusNode? focusNode
-  final String incrementLabel
+  final String? incrementLabel
   final double max
   final double min
   final void Function(double)? onChanged
