@@ -20,84 +20,12 @@ class _SearchTabBar extends StatefulWidget {
   State<_SearchTabBar> createState() => _SearchTabBarState();
 }
 
-/// The motion of a tab bar with a search tab: the morph of the bar into
-/// the field and back, the field's focus, and the focus the search takes
-/// [SearchMotion.tabActivationDelay] after it opens.
-final class _SearchTabMotion extends Motion {
-  _SearchTabMotion({required bool open, required this.onActivate})
-    : _open = open {
-    _morph = own(
-      MotionValue<double>(open ? 1 : 0, spring: SearchMotion.tabSpring),
-      rest: _morphRest,
-    );
-    focus = own(SearchMotion.tabBar());
-  }
-
-  /// Gives the field the focus once the opened search activates.
-  final VoidCallback onActivate;
-
-  late final MotionValue<double> _morph;
-
-  /// The field's focus transition.
-  late final SearchMotion focus;
-
-  bool _open;
-
-  // NEAR: the shapes land by up to 0.001 of their travel.
-  static double _morphRest() => 1e-3;
-
-  static const _activation = #activation;
-
-  /// Whether the search is open or heading there.
-  bool get isOpen => _open;
-
-  /// Runs [action] in the first frame after time [t], on the motion's
-  /// timeline.
-  void afterFrame(double t, VoidCallback action) =>
-      at(t + 1e-6, (_) => action(), slot: #afterFrame);
-
-  /// The morph: 0 a tab bar, 1 a search field.
-  double get morph => _morph.valueAt(now);
-
-  /// Opens or closes the search at time [t].
-  void turn(double t, {required bool open}) {
-    advance(t);
-    if (open == _open) return;
-    _open = open;
-    _morph.retarget(t, open ? 1 : 0);
-    if (open) {
-      at(
-        t + SearchMotion.tabActivationDelay,
-        (_) => onActivate(),
-        slot: _activation,
-      );
-    } else {
-      unschedule(_activation);
-    }
-  }
-
-  /// The bar rests as a bar and the search circle takes taps.
-  bool get resting => !_open && morph.abs() < 0.001;
-
-  /// The search is open and the morph into the field has settled: the
-  /// field itself shows.
-  bool get settled => _open && (morph - 1).abs() < 0.001;
-
-  /// The close button shows: the field settled and focused or on its way.
-  bool get closeShown =>
-      settled &&
-      (focus.progress > 0.001 || (focus.isFocused && !focus.waitsForKeyboard));
-
-  /// A tap on the tab circle closes the search.
-  bool get tabTakesTaps => _open && focus.progress < 0.5;
-}
-
 /// The collapse a search tab bar gives its bar: the bar turns into the tab
 /// circle while searching, and a tap on the circle closes the search.
 final class _SearchCollapse implements GlassSelectorCollapse {
   _SearchCollapse(this.motion, this.morph, this.onClose);
 
-  final _SearchTabMotion motion;
+  final SearchTabMotion motion;
   final VoidCallback onClose;
 
   @override
@@ -134,10 +62,8 @@ final class _SearchCollapse implements GlassSelectorCollapse {
 }
 
 class _SearchTabBarState extends State<_SearchTabBar> with SearchLaw {
-  late final _motion = _SearchTabMotion(
-    open: widget.controller.isOpen,
-    onActivate: _activate,
-  );
+  late final _motion = SearchTabMotion(open: widget.controller.isOpen);
+  late final _activated = _motion.select((m) => m.activated);
   final _focus = FocusNode(debugLabel: 'GlassTabBar search');
   late final _q = _motion.select((m) => m.morph);
   late final _p = _motion.select((m) => m.focus.progress);
@@ -171,6 +97,7 @@ class _SearchTabBarState extends State<_SearchTabBar> with SearchLaw {
   void initState() {
     super.initState();
     widget.controller.addListener(_changed);
+    _activated.addListener(_activate);
   }
 
   @override
@@ -186,12 +113,16 @@ class _SearchTabBarState extends State<_SearchTabBar> with SearchLaw {
   @override
   void dispose() {
     widget.controller.removeListener(_changed);
+    _activated.removeListener(_activate);
     _focus.dispose();
     super.dispose();
   }
 
+  // The opened search activated: its field takes the focus.
   void _activate() {
-    if (mounted && _motion.isOpen && !_focus.hasFocus) _focus.requestFocus();
+    if (mounted && _motion.activated && !_focus.hasFocus) {
+      _focus.requestFocus();
+    }
   }
 
   void _changed() {
@@ -210,25 +141,16 @@ class _SearchTabBarState extends State<_SearchTabBar> with SearchLaw {
 
   @override
   void begin(double t, {required double keyboard}) {
-    final focus = _motion.focus;
-    if (focus.isFocused) return;
-    if (keyboard > 0) {
-      focus.focus(t, delay: SearchMotion.tabKeyboardLag);
-    } else {
-      focus.focusAfterKeyboard(t);
-    }
+    _motion.focused(t, keyboard: keyboard);
   }
 
   @override
   void end(double t) {
-    if (_motion.focus.isFocused) {
-      _motion.focus.unfocus(t, delay: SearchMotion.tabUnfocusDelay);
-    }
+    _motion.unfocused(t);
   }
 
   @override
-  void keyboardRose(double t) =>
-      _motion.focus.keyboardRose(t, lag: SearchMotion.tabKeyboardLag);
+  void keyboardRose(double t) => _motion.keyboardRose(t);
 
   @override
   Widget build(BuildContext context) {

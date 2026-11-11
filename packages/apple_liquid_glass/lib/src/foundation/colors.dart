@@ -108,9 +108,10 @@ final class GlassDynamicColor implements Color {
       color == null ? null : resolve(color, context);
 
   /// The color between [a] and [b] at [t]. Dynamic colors interpolate
-  /// value by value and stay dynamic, so the result still resolves for
-  /// every appearance. A null end stands for whatever lies under it (a
-  /// theme's default), so the result jumps to the other end at the middle.
+  /// value by value and keep both appearances, so the result still
+  /// resolves for every appearance. A null end stands for whatever lies
+  /// under it (a theme's default), so the result jumps to the other end at
+  /// the middle.
   static Color? lerp(Color? a, Color? b, double t) {
     if (a == null || b == null) return t < 0.5 ? a : b;
     if (a is! GlassDynamicColor && b is! GlassDynamicColor) {
@@ -266,7 +267,7 @@ final class GlassDynamicColor implements Color {
 }
 
 GlassDynamicColor _asDynamic(Color color) => switch (color) {
-  final GlassDynamicColor dynamic => dynamic,
+  final GlassDynamicColor known => known,
   _ => GlassDynamicColor.withBrightness(color: color, darkColor: color),
 };
 

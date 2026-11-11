@@ -486,7 +486,7 @@ void main() {
       rows.firstWhere((r) => r['e'] == 'willPresentSearch'),
       't',
     );
-    expect(present - ups[0], lessThan(SearchMotion.tabActivationDelay));
+    expect(present - ups[0], lessThan(SearchTuning.tabActivationDelay));
     // The close tap: the field falls from above the keyboard straight to
     // its place above the tab circle.
     final close = ups[1];
@@ -502,7 +502,7 @@ void main() {
     }
     final (fall, rms) = _fit(close, 0.12, (double start) {
       final motion = SearchMotion(
-        spring: SearchMotion.tabFocusSpring,
+        spring: SearchTuning.tabFocusSpring,
       );
       motion.snap(0, focused: true);
       motion.unfocus(start, delay: 0);
@@ -519,7 +519,7 @@ void main() {
     expect(rms, lessThan(1));
     // 0.064 s here, 0.038 s in tab-search-focus: tabUnfocusDelay is the
     // middle of the two.
-    expect(fall - close, closeTo(SearchMotion.tabUnfocusDelay, 0.016));
+    expect(fall - close, closeTo(SearchTuning.tabUnfocusDelay, 0.016));
   });
 
   test('a tab bar search rises once the keyboard does (iPhone 16 Pro)', () {
@@ -543,7 +543,7 @@ void main() {
     final focusedY = _d(field.lastWhere((r) => _d(r, 't') < ups[1]), 'y');
     List<double> errors(double start, {required bool focus}) {
       final motion = SearchMotion(
-        spring: SearchMotion.tabFocusSpring,
+        spring: SearchTuning.tabFocusSpring,
       );
       if (focus) {
         motion.focus(start, delay: 0);
@@ -572,7 +572,7 @@ void main() {
     expect(riseRms, lessThan(1.5));
     expect(
       rise - keyboardRise,
-      closeTo(SearchMotion.tabKeyboardLag, 0.015),
+      closeTo(SearchTuning.tabKeyboardLag, 0.015),
     );
     final (fall, fallRms) = _fit(
       ups[1],
@@ -580,7 +580,7 @@ void main() {
       (start) => errors(start, focus: false),
     );
     expect(fallRms, lessThan(1.5));
-    expect(fall - ups[1], closeTo(SearchMotion.tabUnfocusDelay, 0.015));
+    expect(fall - ups[1], closeTo(SearchTuning.tabUnfocusDelay, 0.015));
   });
 
   group('SearchMotion', () {
@@ -680,7 +680,7 @@ void main() {
       List<double> errors(double start) {
         final spring = MotionValue<double>(
           0,
-          spring: SearchMotion.tabSpring,
+          spring: SearchTuning.tabSpring,
         );
         spring.retarget(start, 1);
         final out = <double>[];

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/navigation/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/navigation/toolbar.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
@@ -198,10 +199,6 @@ class GlassContentScroll extends StatefulWidget {
   /// Which scroll notifications come from the page's scroll view.
   final ScrollNotificationPredicate notificationPredicate;
 
-  /// The spring an edge effect fades on (fitted on the device: 0.34 -
-  /// 0.35 s, critically damped).
-  static const edgeSpring = Spring.response(0.35);
-
   @override
   State<GlassContentScroll> createState() => _GlassContentScrollState();
 }
@@ -213,18 +210,8 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
     clock: _clock,
   );
   late MotionSelection<ScrollMetrics?> _metrics;
-  late final _top = MotionValue<double>(
-    0,
-    spring: GlassContentScroll.edgeSpring,
-    restDistance: MotionRest.opacity,
-    clock: _clock,
-  );
-  late final _bottom = MotionValue<double>(
-    0,
-    spring: GlassContentScroll.edgeSpring,
-    restDistance: MotionRest.opacity,
-    clock: _clock,
-  );
+  late final _top = ScrollEdgeMotion(clock: _clock);
+  late final _bottom = ScrollEdgeMotion(clock: _clock);
   GlassChrome? _chrome;
   bool _reduceMotion = false;
   bool _laidOut = false;
@@ -313,16 +300,13 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
     _show(_bottom, laidOut && metrics.extentAfter > 0.5, appears);
   }
 
-  void _show(MotionValue<double> presence, bool shown, bool appears) {
-    final target = shown ? 1.0 : 0.0;
-    if (presence.target == target) return;
-    final now = _clock.now;
+  void _show(ScrollEdgeMotion edge, bool shown, bool appears) {
     final moving = _scroll.position?.isScrollingNotifier.value ?? false;
-    if (_reduceMotion || appears || !moving) {
-      presence.snap(now, target);
-    } else {
-      presence.retarget(now, target);
-    }
+    edge.turn(
+      _clock.now,
+      shown: shown,
+      animated: !_reduceMotion && !appears && moving,
+    );
   }
 
   bool? _hard(GlassScrollEdgeEffect style, ChromeBar bar) =>
@@ -381,7 +365,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
                   edge: AxisDirection.up,
                   hard: top,
                   extent: topExtent - after,
-                  presence: _top,
+                  presence: _top.presence,
                   background: background,
                 ),
               ),
@@ -394,7 +378,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
                   edge: AxisDirection.down,
                   hard: bottom,
                   extent: bottomExtent,
-                  presence: _bottom,
+                  presence: _bottom.presence,
                   background: background,
                 ),
               ),
@@ -633,9 +617,6 @@ class LargeTitleScrollPhysics extends ScrollPhysics {
   /// Whether a glide that starts now starts at a finger's release.
   final bool Function() released;
 
-  /// The spring the snap runs on.
-  static const snapSpring = Spring.response(0.33);
-
   @override
   LargeTitleScrollPhysics applyTo(ScrollPhysics? ancestor) =>
       LargeTitleScrollPhysics(
@@ -667,7 +648,7 @@ class LargeTitleScrollPhysics extends ScrollPhysics {
     if (rest <= 0.5 || rest >= collapseExtent - 0.5) return base;
     final target = start + (rest < collapseExtent / 2 ? 0 : collapseExtent);
     return ScrollSpringSimulation(
-      snapSpring.description,
+      LargeTitleSnap.spring,
       position.pixels,
       math.min(target, position.maxScrollExtent),
       velocity,

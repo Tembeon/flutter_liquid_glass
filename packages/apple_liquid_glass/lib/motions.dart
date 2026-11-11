@@ -29,6 +29,8 @@ export 'src/motions/bar_layout.dart'
         layoutGlassBar;
 export 'src/motions/bar_motion.dart' show GlassBarMotion;
 export 'src/motions/bar_transition_spec.dart' show GlassBarTransitionSpec;
+export 'src/motions/chrome_motion.dart'
+    show HoverMotion, InlineTitleMotion, LargeTitleSnap, ScrollEdgeMotion;
 export 'src/motions/date_picker_motion.dart'
     show
         DatePickerCalendarMotion,
@@ -74,6 +76,7 @@ export 'src/motions/search_motion.dart'
         SearchTabGeometry,
         searchBarLayout,
         searchTabLayout;
+export 'src/motions/search_tab_motion.dart' show SearchTabMotion;
 export 'src/motions/segment_highlight.dart' show SegmentHighlight;
 export 'src/motions/sheet_detent.dart' show GlassSheetDetent;
 export 'src/motions/sheet_event.dart'
@@ -87,6 +90,8 @@ export 'src/motions/slider_motion.dart'
         SliderFelt,
         SliderMotion;
 export 'src/motions/small_lens.dart' show SmallLens;
+export 'src/motions/stacked_search_motion.dart' show StackedSearchMotion;
+export 'src/motions/swipe_actions_motion.dart' show SwipeActionsMotion;
 export 'src/motions/switch_motion.dart'
     show SwitchChanged, SwitchEvent, SwitchMotion, SwitchShown;
 export 'src/motions/tab_bar_layout.dart' show TabBarLayout;

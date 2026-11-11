@@ -1,9 +1,9 @@
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/motion.dart';
 
 /// The one rule by which every interactive part shows the keyboard focus
 /// and the pointer over it: a glass body through its renderer, a part that
@@ -52,14 +52,6 @@ abstract final class GlassHighlights {
 
   /// The share of its pressed response a hovered part shows.
   static const double hoverGain = 0.5;
-
-  /// The spring the hover response eases in and out on: the one a press's
-  /// glow fades on; under Reduce Motion it switches at once.
-  @internal
-  static const Spring hoverSpring = Spring.response(
-    0.5,
-    reduced: Spring.immediate,
-  );
 
   /// The color added to a hovered glass body by default: white at
   /// [hoverGain] of the touch glow's wash offset.
@@ -178,7 +170,7 @@ abstract final class GlassHighlights {
 
 /// Whether an interactive part shows the keyboard focus and how strongly it
 /// shows the pointer over it, from its states: the hover strength eases on
-/// [GlassHighlights.hoverSpring].
+/// [HoverMotion].
 ///
 /// A listener hears every change of either, the hover strength also in the
 /// frame's resolve phase; while nobody listens it follows nothing.
@@ -218,7 +210,7 @@ final class GlassHighlight implements Listenable {
   /// Whether the hover response switches without motion.
   bool reduceMotion;
 
-  final _hover = MotionValue<double>(0, spring: GlassHighlights.hoverSpring);
+  final _hover = HoverMotion();
   final _listeners = <VoidCallback>[];
   bool _focused = false;
 
@@ -228,39 +220,32 @@ final class GlassHighlight implements Listenable {
   bool get focused => _focused;
 
   /// How strongly the part shows the pointer over it, 0 to 1.
-  double get hovered => _hover.value.clamp(0.0, 1.0);
+  double get hovered => _hover.presence.value.clamp(0.0, 1.0);
 
   @override
   void addListener(VoidCallback listener) {
     if (_listeners.isEmpty) {
       _states?.addListener(_changed);
       _focused = _has(WidgetState.focused);
-      final hovered = _has(WidgetState.hovered) ? 1.0 : 0.0;
-      if (_hover.target != hovered) _hover.snap(_hover.clock.now, hovered);
+      _hover.snap(hovered: _has(WidgetState.hovered));
     }
     _listeners.add(listener);
-    _hover.addRenderListener(listener);
+    _hover.presence.addRenderListener(listener);
   }
 
   @override
   void removeListener(VoidCallback listener) {
     _listeners.remove(listener);
-    _hover.removeRenderListener(listener);
+    _hover.presence.removeRenderListener(listener);
     if (_listeners.isEmpty) _states?.removeListener(_changed);
   }
 
   void _changed() {
     final focused = _has(WidgetState.focused);
-    final hovered = _has(WidgetState.hovered) ? 1.0 : 0.0;
-    if (_hover.target != hovered) {
-      _hover.retarget(
-        _hover.clock.now,
-        hovered,
-        spring: GlassHighlights.hoverSpring.resolve(
-          reduceMotion: reduceMotion,
-        ),
-      );
-    }
+    _hover.turn(
+      hovered: _has(WidgetState.hovered),
+      reduceMotion: reduceMotion,
+    );
     if (focused == _focused) return;
     _focused = focused;
     for (final listener in List.of(_listeners)) {

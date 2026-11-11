@@ -32,16 +32,12 @@ class _StackedSearch extends StatefulWidget {
 
 class _StackedSearchState extends State<_StackedSearch> with SearchLaw {
   late final MotionClock _clock;
-  late final _shown = MotionValue<double>(
-    0,
-    spring: SearchMotion.stackedSpring,
+  late final _motion = StackedSearchMotion(
+    barFade: widget.fade,
     clock: _clock,
   );
-  late final _glass = MotionValue<double>(
-    0,
-    spring: _StackedMetrics.glassSpring,
-    clock: _clock,
-  );
+  MotionValue<double> get _shown => _motion.shown;
+  MotionValue<double> get _glass => _motion.glass;
 
   double get _now => _clock.now;
 
@@ -66,23 +62,10 @@ class _StackedSearchState extends State<_StackedSearch> with SearchLaw {
   void _lifted() => widget.lift?.value = -widget.travel * _shown.value;
 
   @override
-  void begin(double t, {required double keyboard}) {
-    _shown.retarget(t, 1);
-    _glass.retarget(t, 1);
-    widget.fade.retarget(t, 0, spring: SearchMotion.stackedFadeOutSpring);
-  }
+  void begin(double t, {required double keyboard}) => _motion.present(t);
 
   @override
-  void end(double t) {
-    _shown.retarget(t, 0);
-    _glass.retarget(t, 0);
-    widget.fade.retarget(
-      t,
-      1,
-      spring: SearchMotion.stackedFadeInSpring,
-      delay: SearchMotion.stackedFadeInDelay,
-    );
-  }
+  void end(double t) => _motion.dismiss(t);
 
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -123,11 +106,6 @@ abstract final class _StackedMetrics {
     color: Color(0x1F767680),
     darkColor: Color(0x3D767680),
   );
-
-  /// The spring the field's plain fill turns to glass on and back
-  /// (`backgroundMaterialSpring`, damping 1.0, response 0.32, read from
-  /// UIKit).
-  static const glassSpring = Spring.response(0.32);
 
   /// The share of the field's fold at which its text is gone (read from
   /// UIKit).

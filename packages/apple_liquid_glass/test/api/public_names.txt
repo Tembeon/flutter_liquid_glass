@@ -190,6 +190,8 @@ GlassTraits
 GlassTraitsOverride
 GlassZoomSource
 HoverDwellInteraction
+HoverMotion
+InlineTitleMotion
 InputPort
 InputRegion
 InputZone
@@ -203,6 +205,7 @@ InteractionInput
 InteractionRole
 InteractionSession
 InteractionUpdate
+LargeTitleSnap
 LayoutAccent
 LayoutChange
 LayoutEntry
@@ -329,10 +332,12 @@ RectSprings
 RenderScrollEdge
 ScrollAway
 ScrollEdgeBand
+ScrollEdgeMotion
 ScrubChangeEvent
 SearchBarGeometry
 SearchMotion
 SearchTabGeometry
+SearchTabMotion
 SecondaryClickInteraction
 SegmentHighlight
 SessionOutput
@@ -351,6 +356,8 @@ SmallLens
 SourceGeometry
 Sourced
 Spring
+StackedSearchMotion
+SwipeActionsMotion
 SwitchChanged
 SwitchEvent
 SwitchMotion

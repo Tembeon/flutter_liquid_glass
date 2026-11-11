@@ -620,7 +620,6 @@ class GlassContentScroll extends StatefulWidget
   })
   final Widget child
   final GlassScrollEdgeEffects edgeEffects
-  static const Spring edgeSpring
   final bool Function(ScrollNotification) notificationPredicate
   overrides: createState
 class GlassContextMenu extends StatefulWidget
@@ -924,7 +923,6 @@ abstract final class GlassHighlights
   GlassHighlights()
   static const Color hoverColor
   static const double hoverGain
-  @internal static const Spring hoverSpring
   static void paintHover(Canvas canvas, Path body, Color color, double amount)
   static void paintRing(
     Canvas canvas,
@@ -2037,7 +2035,6 @@ class GlassSwipeActions extends StatefulWidget
   final bool fullSwipe
   static const double fullSwipeShare
   static const double minActionWidth
-  static const Spring spring
   final List<GlassSwipeAction> trailing
   overrides: createState
 class GlassSwitch extends StatelessWidget
@@ -2354,6 +2351,19 @@ class GlassZoomSource extends StatelessWidget
   final Widget child
   final MotionSource source
   overrides: build
+final class HoverMotion
+  HoverMotion()
+  bool get hovered
+  final MotionValue<double> presence
+  void snap({required bool hovered})
+  void turn({required bool hovered, required bool reduceMotion})
+final class InlineTitleMotion
+  InlineTitleMotion({required bool shown, MotionClock? clock})
+  final MotionValue<double> presence
+  void turn(double t, {required bool shown, bool animated = ...})
+abstract final class LargeTitleSnap
+  LargeTitleSnap()
+  static SpringDescription get spring
 sealed class LensEvent
   const LensEvent()
 final class LensMotion extends Motion
@@ -3311,6 +3321,10 @@ class ScrollEdgeBand extends StatelessWidget
   final GlassScrollEdgeDetails details
   final Widget paint
   overrides: build
+final class ScrollEdgeMotion
+  ScrollEdgeMotion({MotionClock? clock})
+  final MotionValue<double> presence
+  void turn(double t, {required bool shown, bool animated = ...})
 class SearchBarGeometry
   const SearchBarGeometry({
     required Rect field,
@@ -3328,7 +3342,6 @@ class SearchBarGeometry
   final List<Rect> trailing
 final class SearchMotion extends Motion
   SearchMotion({Spring spring = ..., MotionClock? clock})
-  SearchMotion.tabBar({MotionClock? clock})
   static const double appearBlur
   static const double appearScale
   static double appearScaleFor(double presence)
@@ -3339,15 +3352,6 @@ final class SearchMotion extends Motion
   void keyboardRose(double t, {required double lag})
   double get progress
   void snap(double t, {required bool focused})
-  static const double stackedFadeInDelay
-  static const Spring stackedFadeInSpring
-  static const Spring stackedFadeOutSpring
-  static const Spring stackedSpring
-  static const double tabActivationDelay
-  static const Spring tabFocusSpring
-  static const double tabKeyboardLag
-  static const Spring tabSpring
-  static const double tabUnfocusDelay
   void unfocus(double t, {double delay = ...})
   bool get waitsForKeyboard
 class SearchTabGeometry
@@ -3367,6 +3371,21 @@ class SearchTabGeometry
   final Rect focusedField
   final Rect search
   final Rect tab
+final class SearchTabMotion extends Motion
+  SearchTabMotion({required bool open, MotionClock? clock})
+  bool get activated
+  void afterFrame(double t, void Function() action)
+  bool get closeShown
+  late final SearchMotion focus
+  void focused(double t, {required double keyboard})
+  bool get isOpen
+  void keyboardRose(double t)
+  double get morph
+  bool get resting
+  bool get settled
+  bool get tabTakesTaps
+  void turn(double t, {required bool open})
+  void unfocused(double t)
 final class SegmentHighlight extends Motion
   SegmentHighlight()
   static const Curve curve
@@ -3546,6 +3565,24 @@ final class SmallLens extends Motion
   static final Spring stretchSpring
   void unlift(double t)
   static const Spring unliftSpring
+final class StackedSearchMotion
+  StackedSearchMotion({
+    required MotionValue<double> barFade,
+    MotionClock? clock,
+  })
+  final MotionValue<double> barFade
+  void dismiss(double t)
+  final MotionValue<double> glass
+  void present(double t)
+  final MotionValue<double> shown
+final class SwipeActionsMotion extends Motion
+  SwipeActionsMotion({MotionClock? clock})
+  double actionsWidth
+  void follow(double t, double value)
+  void moveTo(double t, double value, {double velocity = ...})
+  late final MotionValue<double> offset
+  Projection get projection
+  double rowWidth
 final class SwitchChanged extends SwitchEvent
   const SwitchChanged({required bool on})
   final bool on
@@ -3990,6 +4027,9 @@ class GlassBarTransitionSpec (see package:apple_liquid_glass/apple_liquid_glass.
 class GlassPress (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSheetDetent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassTabBarMinimizeBehavior (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class HoverMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class InlineTitleMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class LargeTitleSnap (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class LensEvent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class LensMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class LensSelected (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -4029,9 +4069,11 @@ class PopoverMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class PopoverPlacement (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class PopoverShape (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ScrollAway (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class ScrollEdgeMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SearchBarGeometry (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SearchMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SearchTabGeometry (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SearchTabMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SegmentHighlight (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SheetDetentChanged (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SheetDismissRefused (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -4044,6 +4086,8 @@ class SliderEvent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SliderFelt (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SliderMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SmallLens (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class StackedSearchMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SwipeActionsMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SwitchChanged (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SwitchEvent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SwitchMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)

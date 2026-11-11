@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:apple_liquid_glass/src/motions/chrome_motion.dart';
 import 'package:apple_liquid_glass/src/motions/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
 import 'package:flutter/gestures.dart';
@@ -130,11 +131,11 @@ void main() {
     );
     expect(GlassHighlights.hoverColor.a, closeTo(0.025, 1e-6));
     expect(
-      GlassHighlights.hoverSpring.response,
+      HoverTuning.spring.response,
       FlexInteraction.glowSpring.response,
     );
     expect(
-      GlassHighlights.hoverSpring.resolve(reduceMotion: true).isImmediate,
+      HoverTuning.spring.resolve(reduceMotion: true).isImmediate,
       isTrue,
     );
   });

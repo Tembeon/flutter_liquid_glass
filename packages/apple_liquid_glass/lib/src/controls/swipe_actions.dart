@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -87,9 +88,6 @@ class GlassSwipeActions extends StatefulWidget {
   /// The row.
   final Widget child;
 
-  /// The spring the row settles on; not measured.
-  static const Spring spring = Spring.smooth;
-
   /// The share of the row's width a release must pass to perform the
   /// first action; not measured.
   static const double fullSwipeShare = 0.6;
@@ -159,7 +157,7 @@ final class _OpenRow {
 }
 
 class _GlassSwipeActionsState extends State<GlassSwipeActions> {
-  final _motion = _SwipeMotion();
+  final _motion = SwipeActionsMotion();
   late final _offset = _motion.select((m) => m.offset.valueAt(m.now));
   late final DragInteraction _drag = DragInteraction(
     axis: Axis.horizontal,
@@ -228,7 +226,7 @@ class _GlassSwipeActionsState extends State<GlassSwipeActions> {
     final t = details.time;
     final shown = _motion.offset.valueAt(t);
     final first = widget.trailing.firstOrNull;
-    final choice = Projection.of(GlassSwipeActions.spring).choose(
+    final choice = _motion.projection.choose(
       shown,
       details.velocity.dx,
       stops: [0, -_motion.actionsWidth],
@@ -446,27 +444,6 @@ final class _ZoneStates implements ValueListenable<Set<WidgetState>> {
   void removeListener(VoidCallback listener) => zones.removeListener(listener);
 }
 
-/// How far a swiped row is moved toward its trailing edge (negative), and
-/// the extents it settles between.
-final class _SwipeMotion extends Motion {
-  late final offset = own(MotionValue<double>(0));
-
-  /// The width of the row and of its actions at the last layout.
-  double rowWidth = 0;
-  double actionsWidth = 0;
-
-  void follow(double t, double value) {
-    advance(t);
-    offset.snap(t, value);
-  }
-
-  void moveTo(double t, double value, {double velocity = 0}) {
-    advance(t);
-    if (velocity != 0) offset.setVelocity(t, velocity);
-    offset.retarget(t, value, spring: GlassSwipeActions.spring);
-  }
-}
-
 /// The row and its actions: the row laid out in full and drawn moved by the
 /// offset, the actions at their own width against its trailing edge, the
 /// first action's fill reaching to the edge of the box past them.
@@ -481,7 +458,7 @@ class _Swipe extends MultiChildRenderObjectWidget {
     super.key,
   });
 
-  final _SwipeMotion motion;
+  final SwipeActionsMotion motion;
   final MotionSelection<double> offset;
   final bool rtl;
   final Color? fill;
@@ -539,7 +516,7 @@ class _RenderSwipe extends RenderBox
     required this.onTap,
   });
 
-  _SwipeMotion motion;
+  SwipeActionsMotion motion;
   VoidCallback onTap;
 
   MotionSelection<double> _offset;

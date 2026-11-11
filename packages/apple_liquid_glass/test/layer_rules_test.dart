@@ -29,7 +29,7 @@ const _rules = LayerRules(
   libraries: {
     'foundation': {},
     'motions': {'foundation'},
-    'surfaces': {'foundation'},
+    'surfaces': {'foundation', 'motions'},
     'liquid': {'foundation', 'surfaces'},
     'raw': {'foundation', 'motions'},
     'controls': {'foundation', 'motions', 'surfaces', 'raw'},
@@ -90,7 +90,11 @@ const _rules = LayerRules(
     // rebuild.
     Ban('AnimationController', r'\bAnimationController\b'),
     Ban('Ticker', r'\bTicker\b|\bcreateTicker\b'),
-    Ban('addPostFrameCallback', r'\baddPostFrameCallback\b'),
+    Ban(
+      'addPostFrameCallback',
+      r'\baddPostFrameCallback\b',
+      allowedWith: 'After the frame:',
+    ),
     Ban('MotionClock.instance', r'\bMotionClock\.instance\b'),
     Ban('ValueListenableBuilder', r'\bValueListenableBuilder\b'),
     // Reduce Motion reaches a motion through Motion.traits.
@@ -101,7 +105,9 @@ const _rules = LayerRules(
       'engine-layer',
       r'\b(?:ImageFilter|BackdropFilter|ColorFilter|ShaderMask)Layer\b|'
           r'\bpush(?:ImageFilter|BackdropFilter|ColorFilter|ShaderMask)\b',
-      allowedIn: {'lib/src/liquid/'},
+      // The selector blurs the items that dissolve as its bar collapses in
+      // its own paint, with either renderer.
+      allowedIn: {'lib/src/liquid/', 'lib/src/raw/selector_render.dart'},
     ),
     // A haptic plays with the input that causes it, through InputRegion.
     Ban('haptic-play', r'\.play\(\)'),
@@ -109,6 +115,13 @@ const _rules = LayerRules(
     Ban('ignore', r'//\s*ignore:', code: false),
     Ban('ignore_for_file', r'//\s*ignore_for_file:', code: false),
     Ban('dynamic', r'\bdynamic\b'),
+    // A measured spring lives with its law; the app's own choice of a
+    // spring is a parameter of its scope.
+    Ban(
+      'spring',
+      r'\bSpring(?:\.\w+|\()',
+      allowedIn: {'lib/src/motions/', 'lib/src/app/'},
+    ),
     Ban('SingleChildScrollView', r'\bSingleChildScrollView\b'),
   ],
 );

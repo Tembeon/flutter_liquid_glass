@@ -41,6 +41,61 @@ abstract final class SearchTuning {
   /// The space between the keyboard and a tab bar's focused search (8,
   /// where the toolbar's search keeps [SearchBarGeometry.keyboardGap]).
   static const double tabKeyboardGap = 8;
+
+  /// The spring of a tab bar turning into a search field and back: the
+  /// minimize morph ([TabBarMinimizeTuning.morphSpring], read from UIKit).
+  /// The edges of the glass in a 60 Hz simulator video fit 0.276 and 0.8.
+  static const tabSpring = TabBarMinimizeTuning.morphSpring;
+
+  /// The spring a tab bar's search field rises above the keyboard on when
+  /// it takes the focus, and sinks back on when it loses it: critically
+  /// damped, response 0.30 (an iPhone 16 Pro: 0.19 and 0.93 pt rms over
+  /// 308 points; [SearchTuning.transitionSpring] leaves 12 pt rms).
+  static const tabFocusSpring = Spring.response(0.3);
+
+  /// The time from the lift of the tap on the search tab to the field
+  /// taking the focus when the tab activates search (an iPhone 16 Pro:
+  /// `willPresentSearchController` 0.085 s and the first responder 0.159
+  /// s after the lift, the keyboard's first frame 0.25 s after it, while
+  /// the tab's morph still runs).
+  static const double tabActivationDelay = 0.16;
+
+  /// The time from the keyboard's first frame to the start of a tab bar
+  /// search's rise (an iPhone 16 Pro, 0.07 s).
+  static const double tabKeyboardLag = 0.07;
+
+  /// The time from the end of a tab bar search's focus to the start of its
+  /// fall (an iPhone 16 Pro: 0.038 and 0.064 s after the lift of the
+  /// close tap in two captures; the fall itself runs on [tabFocusSpring],
+  /// 0.08 percent rms of 308 points).
+  static const double tabUnfocusDelay = 0.05;
+
+  /// The spring of a stacked search field's presentation: one spring for
+  /// the page and its field moving up until the field sits under the
+  /// status bar, the field narrowing, the close button arriving and the
+  /// navigation bar hiding (damping 0.8, response 0.34, read from UIKit;
+  /// the iPhone 16 Pro's layers fit 0.346 / 0.794 on the way up and 0.340 /
+  /// 0.800 on the way back).
+  static const stackedSpring = Spring.response(0.34, dampingRatio: 0.8);
+
+  /// The spring a navigation bar's large title and items fade out on while
+  /// a stacked field presents, starting with the rise (an iPhone 16 Pro's
+  /// layers). UIKit fades them in time, not by how far the page has risen,
+  /// and their alpha matches to four digits on every frame.
+  static const stackedFadeOutSpring = Spring.response(0.117);
+
+  /// The spring they fade back in on as the field ends (fitted to the same
+  /// layers, nine cancels).
+  static const stackedFadeInSpring = Spring.response(0.25, dampingRatio: 1.47);
+
+  /// How long the fade back in waits after the page starts to come down
+  /// (the same layers).
+  static const double stackedFadeInDelay = 0.083;
+
+  /// The spring a stacked field's plain fill turns to glass on and back
+  /// (`backgroundMaterialSpring`, damping 1.0, response 0.32, read from
+  /// UIKit).
+  static const stackedGlassSpring = Spring.response(0.32);
 }
 
 /// The geometry of a tab bar with a search tab, at rest and searching.
@@ -167,11 +222,6 @@ final class SearchMotion extends Motion {
     own(_progress, rest: _rest);
   }
 
-  /// Creates the motion of a tab bar's search field, which rises above the
-  /// keyboard on [tabFocusSpring].
-  SearchMotion.tabBar({MotionClock? clock})
-    : this(spring: tabFocusSpring, clock: clock);
-
   final MotionValue<double> _progress;
   bool _focused = false;
   bool _waiting = false;
@@ -195,56 +245,6 @@ final class SearchMotion extends Motion {
   /// The blur of an item at the start of its appearance, in logical
   /// pixels (`GlassContainerAppearanceSearchPTSettings.blurRadius`).
   static const double appearBlur = 10;
-
-  /// The spring of a tab bar turning into a search field and back: the
-  /// minimize morph ([TabBarMinimizeTuning.morphSpring], read from UIKit).
-  /// The edges of the glass in a 60 Hz simulator video fit 0.276 and 0.8.
-  static const tabSpring = TabBarMinimizeTuning.morphSpring;
-
-  /// The spring a tab bar's search field rises above the keyboard on when
-  /// it takes the focus, and sinks back on when it loses it: critically
-  /// damped, response 0.30 (an iPhone 16 Pro: 0.19 and 0.93 pt rms over
-  /// 308 points; [SearchTuning.transitionSpring] leaves 12 pt rms).
-  static const tabFocusSpring = Spring.response(0.3);
-
-  /// The time from the lift of the tap on the search tab to the field
-  /// taking the focus when the tab activates search (an iPhone 16 Pro:
-  /// `willPresentSearchController` 0.085 s and the first responder 0.159
-  /// s after the lift, the keyboard's first frame 0.25 s after it, while
-  /// the tab's morph still runs).
-  static const double tabActivationDelay = 0.16;
-
-  /// The time from the keyboard's first frame to the start of a tab bar
-  /// search's rise (an iPhone 16 Pro, 0.07 s).
-  static const double tabKeyboardLag = 0.07;
-
-  /// The time from the end of a tab bar search's focus to the start of its
-  /// fall (an iPhone 16 Pro: 0.038 and 0.064 s after the lift of the
-  /// close tap in two captures; the fall itself runs on [tabFocusSpring],
-  /// 0.08 percent rms of 308 points).
-  static const double tabUnfocusDelay = 0.05;
-
-  /// The spring of a stacked search field's presentation: one spring for
-  /// the page and its field moving up until the field sits under the
-  /// status bar, the field narrowing, the close button arriving and the
-  /// navigation bar hiding (damping 0.8, response 0.34, read from UIKit;
-  /// the iPhone 16 Pro's layers fit 0.346 / 0.794 on the way up and 0.340 /
-  /// 0.800 on the way back).
-  static const stackedSpring = Spring.response(0.34, dampingRatio: 0.8);
-
-  /// The spring a navigation bar's large title and items fade out on while
-  /// a stacked field presents, starting with the rise (an iPhone 16 Pro's
-  /// layers). UIKit fades them in time, not by how far the page has risen,
-  /// and their alpha matches to four digits on every frame.
-  static const stackedFadeOutSpring = Spring.response(0.117);
-
-  /// The spring they fade back in on as the field ends (fitted to the same
-  /// layers, nine cancels).
-  static const stackedFadeInSpring = Spring.response(0.25, dampingRatio: 1.47);
-
-  /// How long the fade back in waits after the page starts to come down
-  /// (the same layers).
-  static const double stackedFadeInDelay = 0.083;
 
   /// Whether the field is focused or heading there.
   bool get isFocused => _focused;

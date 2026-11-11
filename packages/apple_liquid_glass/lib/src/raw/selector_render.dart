@@ -185,6 +185,16 @@ class _RenderSelectorRow extends RenderBox
     super.detach();
   }
 
+  // The blur of the items that dissolve as the bar collapses, kept between
+  // paints.
+  final _othersBlur = LayerHandle<ImageFilterLayer>();
+
+  @override
+  void dispose() {
+    _othersBlur.layer = null;
+    super.dispose();
+  }
+
   @override
   void setupParentData(RenderBox child) {
     if (child.parentData is! _RowParentData) {
@@ -508,14 +518,13 @@ class _RenderSelectorRow extends RenderBox
 
     void dissolved(PaintingContext context, Offset offset) {
       final sigma = TabBarMinimizeMotion.othersBlur * morph.clamp(0.0, 1.0);
-      if (sigma <= 0) return items(context, offset);
-      context.pushLayer(
-        ImageFilterLayer(
-          imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
-        ),
-        items,
-        offset,
-      );
+      if (sigma <= 0) {
+        _othersBlur.layer = null;
+        return items(context, offset);
+      }
+      final layer = _othersBlur.layer ??= ImageFilterLayer();
+      layer.imageFilter = ImageFilter.blur(sigmaX: sigma, sigmaY: sigma);
+      context.pushLayer(layer, items, offset);
     }
 
     context.pushClipRSuperellipse(

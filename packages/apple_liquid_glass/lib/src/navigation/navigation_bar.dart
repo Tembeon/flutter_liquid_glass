@@ -228,14 +228,12 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
 
 class _GlassNavigationBarState extends State<GlassNavigationBar> {
   late final MotionClock _clock;
-  late final _title = MotionValue<double>(
-    widget.largeTitle == null ? 1 : 0,
-    spring: _Metrics.showSpring,
-    restDistance: MotionRest.opacity,
+  late final _title = InlineTitleMotion(
+    shown: widget.largeTitle == null,
     clock: _clock,
   );
   late final _opacity = MotionSelection(
-    () => _title.value.clamp(0.0, 1.0),
+    () => _title.presence.value.clamp(0.0, 1.0),
     clock: _clock,
   );
   late final _rise = MotionSelection(
@@ -363,22 +361,15 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
         (laidOut &&
             metrics.pixels - metrics.minScrollExtent >=
                 widget.scrolledUnderAfter - 0.5);
-    final target = shown ? 1.0 : 0.0;
     final appears = !_laidOut;
     _laidOut = laidOut;
-    if (_title.target == target) return;
-    final now = _clock.now;
     // A jump of the content switches the title at once, as UIKit does.
     final moving = _scroll?.position?.isScrollingNotifier.value ?? false;
-    if (appears || _reduceMotion || !moving) {
-      _title.snap(now, target);
-    } else {
-      _title.retarget(
-        now,
-        target,
-        spring: shown ? _Metrics.showSpring : _Metrics.hideSpring,
-      );
-    }
+    _title.turn(
+      _clock.now,
+      shown: shown,
+      animated: !appears && !_reduceMotion && moving,
+    );
   }
 
   @override
@@ -560,13 +551,6 @@ abstract final class _Metrics {
 
   /// The blur of the hidden inline title.
   static const double hiddenBlur = 4;
-
-  /// The spring the inline title rises in on (fitted 0.45 - 0.48 s,
-  /// damping 0.98 - 1.0).
-  static const showSpring = Spring.response(0.45);
-
-  /// The spring the inline title leaves on (fitted 0.68 s, damping 0.98).
-  static const hideSpring = Spring.response(0.7);
 
   /// The inline title: UIKit's title role, 17 points semibold, in the
   /// line box UIKit's bar labels lay out in.
