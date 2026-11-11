@@ -260,8 +260,6 @@ class _GlassSliderState extends State<GlassSlider> {
 /// references).
 const _thumbLens = GlassLens(small: true);
 
-const _noRing = Color(0x00000000);
-
 class _SliderLook extends StatelessWidget {
   const _SliderLook({required this.details, required this.look});
 
@@ -295,7 +293,7 @@ class _SliderLook extends StatelessWidget {
         glass: Glass.regular(tint: tint),
         frame: frame,
         states: details.statesListenable,
-        focusColor: ring ? look.focusColor : _noRing,
+        focusColor: ring ? look.focusColor : GlassHighlights.noRing,
         hoverColor: look.hoverColor,
         child: const SizedBox.expand(),
       ),

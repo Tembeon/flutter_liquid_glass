@@ -544,6 +544,7 @@ class GlassCloseIcon extends StatelessWidget
   const GlassCloseIcon({Size size = ..., Color? color, Key? key})
   final Color? color
   static const Size defaultSize
+  @internal static const double ink
   final Size size
   overrides: build
 final class GlassColorScheme
@@ -924,6 +925,7 @@ abstract final class GlassHighlights
   GlassHighlights()
   static const Color hoverColor
   static const double hoverGain
+  @internal static const Color noRing
   static void paintHover(Canvas canvas, Path body, Color color, double amount)
   static void paintRing(
     Canvas canvas,

@@ -53,6 +53,11 @@ abstract final class GlassHighlights {
   /// The share of its pressed response a hovered part shows.
   static const double hoverGain = 0.5;
 
+  /// The ring color that draws no ring: a control whose focus shows by
+  /// other means passes it as its focus color.
+  @internal
+  static const Color noRing = Color(0x00000000);
+
   /// The color added to a hovered glass body by default: white at
   /// [hoverGain] of the touch glow's wash offset.
   static const Color hoverColor = Color.from(

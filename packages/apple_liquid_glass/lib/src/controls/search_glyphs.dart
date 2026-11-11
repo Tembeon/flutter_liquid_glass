@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:meta/meta.dart';
 
 Color _glyphColor(BuildContext context, Color? color) {
   if (color != null) return color;
@@ -54,6 +55,10 @@ class GlassCloseIcon extends StatelessWidget {
   /// Creates the cross, [size] points across, in [color] or the icon
   /// theme's.
   const GlassCloseIcon({this.size = defaultSize, this.color, super.key});
+
+  /// The side of the square the cross's ink fills.
+  @internal
+  static const double ink = 16.67;
 
   /// The size of the cross's box in a search's close button.
   static const Size defaultSize = Size(22.67, 21.33);
@@ -113,7 +118,7 @@ class _CrossPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const ink = 16.67;
+    const ink = GlassCloseIcon.ink;
     const stroke = 2.3;
     final paint = Paint();
     paint.color = color;

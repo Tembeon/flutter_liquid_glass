@@ -13,10 +13,6 @@ import 'package:kinesis/widgets.dart';
 /// The size of the clear button.
 const double _clearSize = 20;
 
-/// The diameter of the clear button's disc, inside its [_clearSize] box
-/// (iPhone 16 Pro screen).
-const double _clearInk = 16.67;
-
 /// The space between the clear button and the field's trailing edge.
 const double _clearInset = 13.33;
 
@@ -330,8 +326,6 @@ class _SearchFieldLook extends StatefulWidget {
 }
 
 class _SearchFieldLookState extends State<_SearchFieldLook> {
-  static const _noRing = Color(0x00000000);
-
   // Apple's 44 point target around the 20 point glyph; the look does not
   // grow.
   static const double _clearTarget = 44;
@@ -419,7 +413,7 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
                 dimension: _clearSize,
                 child: Padding(
                   padding: const EdgeInsets.all(
-                    (_clearSize - _clearInk) / 2,
+                    (_clearSize - GlassCloseIcon.ink) / 2,
                   ),
                   child: GlassHighlightPaint.of(
                     context,
@@ -456,11 +450,11 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
       child: Row(
         children: [
           GlassSearchIcon(color: icon),
-          const SizedBox(
+          SizedBox(
             width:
                 GlassSearchField.textInset -
                 GlassSearchField.glyphInset -
-                20.67,
+                GlassSearchIcon.defaultSize.width,
           ),
           Expanded(
             child: Stack(
@@ -494,7 +488,7 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
         frame: details.frame,
         glass: glass,
         states: details.statesListenable,
-        focusColor: _noRing,
+        focusColor: GlassHighlights.noRing,
         hoverColor: look.hoverColor,
         child: content,
       );
@@ -509,7 +503,7 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
           frame: details.frame,
           glass: glass,
           states: details.statesListenable,
-          focusColor: _noRing,
+          focusColor: GlassHighlights.noRing,
           hoverColor: look.hoverColor,
           child: const SizedBox.expand(),
         ),
