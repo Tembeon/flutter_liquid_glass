@@ -2967,6 +2967,19 @@ class PopoverPlacement
   Rect get bounds
   final Rect content
   overrides: ==, hashCode, toString
+class PopoverShape
+  PopoverShape({
+    required Rect content,
+    required PopoverArrowDirection direction,
+    required double arrowCenter,
+  })
+  final double arrowCenter
+  Rect get bounds
+  final Rect content
+  final PopoverArrowDirection direction
+  static const double fieldStep
+  late final GlassOutline outline
+  Path get path
 class RawGlassButton extends StatefulWidget
   const RawGlassButton({
     required void Function()? onPressed,
@@ -3984,6 +3997,7 @@ class PageSlideMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum PopoverArrowDirection (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class PopoverMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class PopoverPlacement (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class PopoverShape (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ScrollAway (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SearchBarGeometry (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SearchMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)

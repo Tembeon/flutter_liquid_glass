@@ -77,6 +77,7 @@ export 'src/motions/page_control_motion.dart'
     show PageControlEvent, PageControlMotion, PageControlPicked;
 export 'src/motions/popover_motion.dart'
     show PopoverArrowDirection, PopoverMotion, PopoverPlacement, placePopover;
+export 'src/motions/popover_shape.dart' show PopoverShape;
 export 'src/motions/search_motion.dart'
     show
         SearchBarGeometry,

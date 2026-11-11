@@ -4,7 +4,7 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/motions/outline_boxes.dart';
 import 'package:apple_liquid_glass/src/motions/popover_motion.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/painting.dart';
 
 /// The outline of an iOS 27 popover: its content box and its arrow as one
 /// shape, the path UIKit's popover chrome draws and shades as one glass
@@ -29,7 +29,6 @@ import 'package:flutter/widgets.dart';
 /// the tip 0.2 pt short of [path], and deeper than 32 pt above the arrow
 /// it holds the nearest straight edge or fillet start, at most 1.2 pt off
 /// where the glass reads only its sign.
-@internal
 class PopoverShape {
   /// The shape of a popover whose content box is [content] and whose
   /// arrow, on the edge [direction] names, is centered at [arrowCenter]

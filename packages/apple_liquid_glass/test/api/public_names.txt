@@ -293,6 +293,7 @@ PointerUpInput
 PopoverArrowDirection
 PopoverMotion
 PopoverPlacement
+PopoverShape
 PortEvent
 PredictiveBack
 Presence
