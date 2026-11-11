@@ -102,13 +102,30 @@ abstract interface class ReadPainter {
 }
 
 /// The role of glass whose [painter] draws the read it is the first glass of.
+///
+/// Equal while the same painter's origin stays in place on the screen, so a
+/// resting glass asks the same.
 @internal
 final class PainterRole extends GlassSiteRole {
-  /// Creates the role of [painter].
-  const PainterRole(this.painter);
+  /// Creates the role of [painter] whose transform puts its origin at
+  /// [originOnScreen] this frame.
+  const PainterRole(this.painter, {required this.originOnScreen});
 
   /// What draws the read.
   final ReadPainter painter;
+
+  /// Where the glass's transform puts its origin on the screen this frame, in
+  /// logical pixels.
+  final Offset originOnScreen;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PainterRole &&
+      identical(other.painter, painter) &&
+      other.originOnScreen == originOnScreen;
+
+  @override
+  int get hashCode => Object.hash(identityHashCode(painter), originOnScreen);
 }
 
 /// Where a site's fate shows in the layer tree: the walk does not go in, and

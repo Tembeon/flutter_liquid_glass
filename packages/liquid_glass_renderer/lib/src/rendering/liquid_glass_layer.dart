@@ -860,14 +860,40 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @override
   bool get mayRest => frameState == GlassFrameState.idle || !_geometryStale;
 
-  // This frame's place on the screen: the glass's transform to the screen, the
-  // logical rect the shader draws, the material it paints there and the sigma
+  // This frame's place on the screen, for the glass's own draws: the glass's
+  // transform to the screen, the logical rect the shader draws and the sigma
   // of the blur, in the screen's logical pixels, the shader frosts the copy
-  // for, 0 where the copy is blurred or the glass unfrosted.
-  ({Matrix4 screen, Rect logical, Rect drawn, double frost})? _frame;
+  // for, 0 where the copy is blurred or the glass unfrosted. Only this glass
+  // reads it: the others of a read hear of it through its ask.
+  _Frame? _frame;
 
-  // What the other glass of a read it is the first glass of draws through.
-  late final PainterRole _role = PainterRole(this);
+  // Kept while the glass rests, so its ask stays equal with no new role.
+  PainterRole? _role;
+
+  PainterRole _roleAt(Matrix4 screen) {
+    final storage = screen.storage;
+    final x = storage[12];
+    final y = storage[13];
+    final held = _role;
+    if (held != null &&
+        held.originOnScreen.dx == x &&
+        held.originOnScreen.dy == y) {
+      return held;
+    }
+    return _role = PainterRole(this, originOnScreen: Offset(x, y));
+  }
+
+  // This frame's place, where the glass draws a read. The planner joins only
+  // sites that asked this frame, so a missing one is a broken plan: the read
+  // then draws nothing this frame.
+  _Frame? get _drawingFrame {
+    final frame = _frame;
+    assert(
+      frame != null,
+      'The glass was planned to draw a read without an ask this frame.',
+    );
+    return frame;
+  }
 
   @override
   SiteAsk ask() {
@@ -915,7 +941,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       return SiteAsk(
         drawn: drawn,
         reads: reads,
-        role: _role,
+        role: _roleAt(screen),
         noJoin: noJoin,
         turned: true,
         paints: paints,
@@ -951,7 +977,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         );
     final frost = need.frost;
     final appearance = _uniformAppearance ?? defaultAppearance;
-    _frame = (screen: screen, logical: logical, drawn: drawn, frost: frost);
+    _frame = (screen: screen, logical: logical, frost: frost);
     return SiteAsk(
       drawn: drawn,
       reads: reads,
@@ -985,7 +1011,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
             : null,
         anyGrid: true,
       ),
-      role: _role,
+      role: _roleAt(screen),
       noJoin: noJoin,
       paints: paints,
     );
@@ -1001,19 +1027,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   double get _halfMinor =>
       _geometryMatteBounds.shortestSide * devicePixelRatio / 2;
 
-  // Where the origin of the canvas the glass paints in lies on the screen.
-  Offset get _canvasOnScreen {
-    final storage = _frame!.screen.storage;
-    return Offset(storage[12], storage[13]) - _filterPaintOffset;
-  }
+  // Where the origin of the canvas the glass paints in lies on the screen,
+  // with the glass's origin at [origin].
+  Offset _canvasOnScreen(Offset origin) => origin - _filterPaintOffset;
 
   // Where the origin of the encoded shapes lies on the screen, in device
-  // pixels.
-  Offset get _shapesOnScreen {
-    final storage = _frame!.screen.storage;
-    return (Offset(storage[12], storage[13]) + _encodedShift) *
-        devicePixelRatio;
-  }
+  // pixels, with the glass's origin at [origin].
+  Offset _shapesOnScreen(Offset origin) =>
+      (origin + _encodedShift) * devicePixelRatio;
 
   // What the glass is, as its geometry was last encoded.
   GlassBody get _body => _geometry == null
@@ -1024,13 +1045,18 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           looks: _tiling?.looks != null,
         );
 
-  // The glass of [read], its band left out.
-  static List<RenderLiquidGlassLayer> _glassIn(GlassRead read) => [
+  // The glass of [read], its band left out, each with the role and the rect
+  // its ask holds for this frame.
+  static List<(RenderLiquidGlassLayer, PainterRole, Rect)> _glassIn(
+    GlassRead read,
+  ) => [
     for (final member in read.members)
-      if (member.ask.role case PainterRole(
-        :final RenderLiquidGlassLayer painter,
-      ))
-        painter,
+      if (member.ask.role
+          case final PainterRole role &&
+              PainterRole(
+                :final RenderLiquidGlassLayer painter,
+              ))
+        (painter, role, member.ask.drawn),
   ];
 
   static BandLook? _bandOf(GlassRead read) => switch (read.lead.ask.role) {
@@ -1042,14 +1068,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   void _beginRead(GlassRead read) {
     if (read.geometryKind is! SharedAtlas) return;
     final glass = _glassIn(read);
-    final first = glass.first;
+    final (first, _, _) = glass.first;
     (_groupMatte ??= GroupMatte()).gather(
       [
-        for (final layer in glass)
+        for (final (layer, role, drawn) in glass)
           (
             shapes: layer._shapes,
-            onScreen: layer._shapesOnScreen,
-            drawn: layer._frame!.drawn,
+            onScreen: layer._shapesOnScreen(role.originOnScreen),
+            drawn: drawn,
             appearance: layer._uniformAppearance ?? layer.defaultAppearance,
           ),
       ],
@@ -1063,13 +1089,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // From the screen's device pixels into the matte [read] is drawn over, and
   // what its shader samples of the backdrop there.
-  (Matrix4, Rect?) _readMapping(GlassRead read) {
+  (Matrix4, Rect?) _readMapping(GlassRead read, _Frame frame) {
     final origin = switch (read.geometryKind) {
       SharedAtlas() => _groupMatte?.origin,
       ComputedShape() || OwnAtlas() => null,
     };
     return origin == null
-        ? (Matrix4.inverted(_frame!.screen), _backdropBounds)
+        ? (Matrix4.inverted(frame.screen), _backdropBounds)
         : (
             Matrix4.translationValues(-origin.dx, -origin.dy, 0),
             read.band.shift(-origin),
@@ -1078,7 +1104,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // The draw of [read] over a copy read as [sampling], beside the band that
   // leads it, if one does and the variant draws it.
-  GlassDraw _readDraw(GlassRead read, GlassSampling sampling, {_BandAt? band}) {
+  GlassDraw _readDraw(
+    GlassRead read,
+    _Frame frame,
+    GlassSampling sampling, {
+    _BandAt? band,
+  }) {
     final kind = read.geometryKind;
     assert(
       kind is SharedAtlas ||
@@ -1102,7 +1133,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       band: band != null,
       groupTints: tints != null,
     );
-    final (globalToMatte, backdropBounds) = _readMapping(read);
+    final (globalToMatte, backdropBounds) = _readMapping(read, frame);
     final holds = sampling.holds;
     final within = holds == null
         ? null
@@ -1137,12 +1168,25 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return draw;
   }
 
+  // What a read drawn without this frame's place shows: the backdrop as it is.
+  static final ImageFilter _drawsNothing = ImageFilter.matrix(
+    Matrix4.identity().storage,
+  );
+
+  static const Object _noPageKey = Object();
+
   @override
   ImageFilter readFilter(GlassRead read, CornerRead corner) {
+    final frame = _drawingFrame;
+    return frame == null ? _drawsNothing : _readFilter(read, frame, corner);
+  }
+
+  ImageFilter _readFilter(GlassRead read, _Frame frame, CornerRead corner) {
     final look = _bandOf(read);
     final draw = _readDraw(
       read,
-      corner.glassSampling(_frame!.frost),
+      frame,
+      corner.glassSampling(frame.frost),
       band: look == null
           ? null
           : (
@@ -1162,11 +1206,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   // The draw of [read] over [page], and the device rect it covers.
-  (GlassDraw, Rect) _pageDraw(GlassRead read, PageCopy page) {
+  (GlassDraw, Rect) _pageDraw(GlassRead read, _Frame frame, PageCopy page) {
     final look = _bandOf(read);
     final draw = _readDraw(
       read,
-      page.glassSampling(_frame!.frost),
+      frame,
+      page.glassSampling(frame.frost),
       band: look == null
           ? null
           : (
@@ -1178,7 +1223,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
     final dpr = devicePixelRatio;
     final logical = _glassIn(read).length == 1 && look == null
-        ? _frame!.logical
+        ? frame.logical
         : read.quad.expandToPixelBuckets(dpr);
     return (
       draw,
@@ -1187,21 +1232,27 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   @override
-  Object pageKey(GlassRead read, PageCopy page) => _pageDraw(read, page);
+  Object pageKey(GlassRead read, PageCopy page) {
+    final frame = _drawingFrame;
+    return frame == null ? _noPageKey : _pageDraw(read, frame, page);
+  }
 
   @override
   ui.Picture recordPage(GlassRead read, PageCopy page, Matrix4 screenToCanvas) {
-    final (draw, device) = _pageDraw(read, page);
+    final frame = _drawingFrame;
     if (!kReleaseMode) GlassWork.pictures++;
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder)..transform(screenToCanvas.storage);
-    _shading.paintRect(canvas, device, draw);
+    if (frame != null) {
+      final (draw, device) = _pageDraw(read, frame, page);
+      _shading.paintRect(canvas, device, draw);
+    }
     return recorder.endRecording();
   }
 
   // From the screen's device pixels to the canvas the glass paints in.
-  Matrix4 _screenToCanvas() {
-    final canvasToScreen = _frame!.screen.clone()
+  Matrix4 _screenToCanvas(_Frame frame) {
+    final canvasToScreen = frame.screen.clone()
       ..multiply(
         Matrix4.translationValues(
           -_filterPaintOffset.dx,
@@ -1218,13 +1269,15 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // The shadows of the other glass [read] draws, where they lie in this glass's
   // canvas: under its filter, which covers them inside their silhouettes.
-  List<(ui.Picture, Offset)> _shadowsOfOthers(GlassRead read) {
+  List<(ui.Picture, Offset)> _shadowsOfOthers(GlassRead read, _Frame frame) {
     if (_bandOf(read) != null) return const [];
+    final storage = frame.screen.storage;
+    final canvas = _canvasOnScreen(Offset(storage[12], storage[13]));
     return [
-      for (final glass in _glassIn(read))
+      for (final (glass, role, _) in _glassIn(read))
         if (!identical(glass, this))
           if (glass._shadowUnderRead() case final picture?)
-            (picture, glass._canvasOnScreen - _canvasOnScreen),
+            (picture, glass._canvasOnScreen(role.originOnScreen) - canvas),
     ];
   }
 
@@ -1291,7 +1344,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         compositionSeedSuppressed = true;
         debugDrewOverCopy = true;
         // The glass over a band draws it, in the band's place.
-        if (_bandOf(read) != null && identical(_glassIn(read).first, this)) {
+        if (_bandOf(read) != null && identical(_glassIn(read).first.$1, this)) {
           _beginRead(read);
         }
         _rig.hide();
@@ -1318,21 +1371,30 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   @override
   void show(GlassRead read, ReadPixels pixels) {
+    if (pixels case LiveBackdrop(:final group)) {
+      _showLive(group);
+      return;
+    }
+    final frame = _drawingFrame;
+    if (frame == null) {
+      _rig.hide();
+      return;
+    }
     switch (pixels) {
       case InScene(:final corner):
-        _showScene(read, corner);
+        _showScene(read, frame, corner);
       case OnPage(:final page):
-        _showPage(read, page);
-      case LiveBackdrop(:final group):
-        _showLive(group);
+        _showPage(read, frame, page);
+      case LiveBackdrop():
+        break;
     }
   }
 
-  void _showScene(GlassRead read, CornerRead corner) {
+  void _showScene(GlassRead read, _Frame frame, CornerRead corner) {
     final inPlace = corner.inPlace.filter;
-    final filter = readFilter(read, corner);
-    final toCanvas = _screenToCanvas();
-    final under = _shadowsOfOthers(read);
+    final filter = _readFilter(read, frame, corner);
+    final toCanvas = _screenToCanvas(frame);
+    final under = _shadowsOfOthers(read, frame);
     final layer = read.geometry.layer;
     final clip = _clipIn(read, layer);
     final key = [
@@ -1375,10 +1437,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
   }
 
-  void _showPage(GlassRead read, PageCopy page) {
+  void _showPage(GlassRead read, _Frame frame, PageCopy page) {
     _debugPage = page;
-    final toCanvas = _screenToCanvas();
-    final under = _shadowsOfOthers(read);
+    final toCanvas = _screenToCanvas(frame);
+    final under = _shadowsOfOthers(read, frame);
     final dpr = devicePixelRatio;
     final quad = read.quad;
     final bounds = MatrixUtils.transformRect(
@@ -1439,16 +1501,18 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
     final corner = outer.cornerOf(read);
     if (corner == null) return;
-    for (final (picture, offset) in _shadowsOfOthers(read)) {
+    final frame = _drawingFrame;
+    if (frame == null) return;
+    for (final (picture, offset) in _shadowsOfOthers(read, frame)) {
       out
         ..mark()
         ..at += offset
         ..picture(picture)
         ..leave();
     }
-    final filter = readFilter(read, corner);
+    final filter = _readFilter(read, frame, corner);
     out.settle();
-    corner.addToScene(out.builder, filter, _screenToCanvas());
+    corner.addToScene(out.builder, filter, _screenToCanvas(frame));
   }
 
   // Glass over its copy paints its silhouettes opaquely over the slot, so
@@ -1818,3 +1882,5 @@ extension RenderLiquidGlassLayerDebug on RenderLiquidGlassLayer {
 // A band beside glass in a read: [shown] of it in the draw's fragments,
 // frosted by [whole] device pixels, of which [held] is in what it reads.
 typedef _BandAt = ({BandLook look, Rect shown, double whole, double held});
+
+typedef _Frame = ({Matrix4 screen, Rect logical, double frost});
