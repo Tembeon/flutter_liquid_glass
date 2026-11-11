@@ -861,7 +861,6 @@ final class LensMotion extends Motion {
 
   void _pressChrome(double t, _Pointer pointer, Offset at) {
     if (!tuning.chromeFlexes) return;
-    _chrome.reducedMotion = _reduced;
     _chromePointer = pointer;
     pointer.swellsAt = t + tuning.chromeLag;
     _chrome.pointerDown(t, at);

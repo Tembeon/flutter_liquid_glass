@@ -63,6 +63,10 @@ final class FlexLaw {
 /// As a [PointerFollower] it takes the touch in its region's box, whose size
 /// it takes at the touch-down.
 ///
+/// Under Reduce Motion (the motion's [Motion.traits]) the surface still
+/// glows but never lifts, stretches or shifts. This approximates the
+/// platform's behavior; it is not measured.
+///
 /// Times are seconds and positions pixels in the surface's own space. The
 /// channels rest within a tenth of a pixel over the long side and the glow
 /// within a visible opacity step; a finger held still counts, so a held
@@ -99,11 +103,6 @@ final class GlassPress extends Motion implements PointerFollower {
 
   /// How the press takes a touch.
   final FlexLaw law;
-
-  /// Whether the surface moves for Reduce Motion: it still glows but never
-  /// lifts, stretches or shifts. This approximates the platform's
-  /// behavior; it is not measured.
-  bool reducedMotion = false;
 
   Size _size;
   FlexSpec _spec;
@@ -379,7 +378,9 @@ final class GlassPress extends Motion implements PointerFollower {
   /// otherwise.
   FlexValues get targets {
     final down = _down;
-    if (!_active || down == null || reducedMotion) return FlexInteraction.rest;
+    if (!_active || down == null || traits.reduceMotion) {
+      return FlexInteraction.rest;
+    }
     final at = _position;
     return FlexInteraction.dynamicTargets(
       spec: _spec,

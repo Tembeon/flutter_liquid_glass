@@ -832,7 +832,6 @@ final class _Bar {
     final lift = pressed == capsule.id ? motion.press : null;
     final press = lift ?? GlassPress(size: capsule.rect.size);
     press.size = capsule.rect.size;
-    press.reducedMotion = motion.traits.reduceMotion;
     pressed = capsule.id;
     _pressOrigin = zone.topLeft - capsule.rect.topLeft;
     motion.pressDown(press, t, _pressOrigin + position);

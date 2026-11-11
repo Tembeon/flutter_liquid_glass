@@ -1641,7 +1641,7 @@ class _SearchCircle extends StatelessWidget {
     label: 'Search',
     onTap: onTap,
     excludeSemantics: true,
-    child: GlassPressable(
+    child: RawGlassButton(
       onPressed: onTap,
       builder: (context, details) => GlassSurface.live(
         frame: details.body,

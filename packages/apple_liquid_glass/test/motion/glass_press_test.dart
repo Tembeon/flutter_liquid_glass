@@ -117,9 +117,12 @@ void main() {
     expect(press.scale, moreOrLessEquals(press.liftedScale, epsilon: 1e-9));
   });
 
-  test('reduced motion glows but never deforms', () {
+  test('under Reduce Motion it glows but never deforms', () {
+    MotionTraits.debugPlatformOverride = const MotionTraits(
+      reduceMotion: true,
+    );
+    addTearDown(() => MotionTraits.debugPlatformOverride = null);
     final press = GlassPress(size: _size);
-    press.reducedMotion = true;
     press.pointerDown(0, _center);
     press.pointerMove(0.05, const Offset(200, 22));
     press.advance(0.2);

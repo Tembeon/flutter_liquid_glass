@@ -637,8 +637,11 @@ void main() {
       press.pointerUp(0.04, Offset.zero);
       press.advance(1);
       expect(press.scale, closeTo(1, 1e-4));
+      MotionTraits.debugPlatformOverride = const MotionTraits(
+        reduceMotion: true,
+      );
+      addTearDown(() => MotionTraits.debugPlatformOverride = null);
       final calm = _lift(const Size(384, 48));
-      calm.reducedMotion = true;
       calm.pointerDown(0, Offset.zero);
       calm.advance(0.5);
       expect(calm.scale, 1);

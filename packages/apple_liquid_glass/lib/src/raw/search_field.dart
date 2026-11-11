@@ -284,9 +284,8 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
 
   @override
   Widget build(BuildContext context) {
-    _press.reducedMotion = GlassTraits.of(context).reduceMotion;
     final stacking = SearchFieldStacking.maybeOf(context);
-    return InputRegion(
+    final field = InputRegion(
       interactions: _interactions,
       enabled: widget.enabled,
       statesController: widgetStates,
@@ -309,6 +308,7 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
         ),
       ),
     );
+    return MotionScope(motion: _press, child: field);
   }
 }
 

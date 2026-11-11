@@ -81,7 +81,6 @@ GlassPageRoute
 GlassPageScaffold
 GlassPlanOverlay
 GlassPopoverStyle
-GlassPressable
 GlassProminentButtonStyle
 GlassReadReport
 GlassReadSource
@@ -232,6 +231,7 @@ ProjectionExit
 ProjectionExited
 ProjectionStop
 Ramp
+RawGlassButton
 RawGlassList
 RawGlassMenu
 RawGlassPageControl

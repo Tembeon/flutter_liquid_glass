@@ -627,7 +627,6 @@ class _AlertViewState extends State<_AlertView> {
       GlassAlertStyle.maybeOf(context),
     );
     final traits = GlassTraits.of(context);
-    _press.reducedMotion = traits.reduceMotion;
     _rtl = Directionality.of(context) == TextDirection.rtl;
     final popover = widget.anchorRect;
     final screen = MediaQuery.sizeOf(context);
@@ -643,7 +642,14 @@ class _AlertViewState extends State<_AlertView> {
     for (final highlight in _highlights) {
       highlight.reduceMotion = traits.reduceMotion;
     }
-    final card = _buildCard(width, context);
+    return MotionScope(
+      motion: _press,
+      child: _place(_buildCard(width, context), context),
+    );
+  }
+
+  Widget _place(Widget card, BuildContext context) {
+    final popover = widget.anchorRect;
     if (popover != null) {
       final media = MediaQuery.of(context);
       return PopoverLayout(

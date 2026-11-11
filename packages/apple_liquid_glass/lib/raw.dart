@@ -1,4 +1,4 @@
-/// The behaviour cores of the controls: `GlassPressable` (the button's),
+/// The behaviour cores of the controls: `RawGlassButton` (the button's),
 /// `RawGlassSwitch`, `RawGlassSlider`, `RawGlassStepper`,
 /// `RawGlassSelector`, `RawGlassPageControl`, `RawGlassSearchField` and
 /// `RawGlassList`, with the details each gives its builder.
@@ -16,7 +16,7 @@
 library;
 
 export 'src/raw/button.dart'
-    show GlassButtonBuilder, GlassButtonDetails, GlassPressable;
+    show GlassButtonBuilder, GlassButtonDetails, RawGlassButton;
 export 'src/raw/list.dart' show RawGlassList;
 export 'src/raw/page_control.dart'
     show

@@ -933,27 +933,6 @@ class GlassPopoverStyle extends GlassStyle<GlassPopoverStyle>
   static GlassPopoverStyle? maybeOf(BuildContext context)
   final TextStyle? textStyle
   overrides: ==, hashCode, lerp, merge
-class GlassPressable extends StatefulWidget
-  const GlassPressable({
-    required void Function()? onPressed,
-    required Widget Function(BuildContext, GlassButtonDetails) builder,
-    required Widget child,
-    GlassShape shape = ...,
-    WidgetStatesController? statesController,
-    FocusNode? focusNode,
-    bool autofocus = ...,
-    String? semanticLabel,
-    Key? key,
-  })
-  final bool autofocus
-  final Widget Function(BuildContext, GlassButtonDetails) builder
-  final Widget child
-  final FocusNode? focusNode
-  final void Function()? onPressed
-  final String? semanticLabel
-  final GlassShape shape
-  final WidgetStatesController? statesController
-  overrides: createState
 class GlassProminentButtonStyle extends GlassButtonStyle
   factory GlassProminentButtonStyle.from(GlassButtonStyle style)
   const GlassProminentButtonStyle({
@@ -1819,6 +1798,27 @@ base class LiquidGlassRenderer extends GlassRenderer
     double lift = ...,
   })
   overrides: ==, buildGroup, buildScrollEdge, buildSurface, hashCode
+class RawGlassButton extends StatefulWidget
+  const RawGlassButton({
+    required void Function()? onPressed,
+    required Widget Function(BuildContext, GlassButtonDetails) builder,
+    required Widget child,
+    GlassShape shape = ...,
+    WidgetStatesController? statesController,
+    FocusNode? focusNode,
+    bool autofocus = ...,
+    String? semanticLabel,
+    Key? key,
+  })
+  final bool autofocus
+  final Widget Function(BuildContext, GlassButtonDetails) builder
+  final Widget child
+  final FocusNode? focusNode
+  final void Function()? onPressed
+  final String? semanticLabel
+  final GlassShape shape
+  final WidgetStatesController? statesController
+  overrides: createState
 class RawGlassList extends StatefulWidget
   const RawGlassList({
     required List<Object> ids,
@@ -2339,7 +2339,6 @@ enum GlassPageControlBackground (see package:apple_liquid_glass/apple_liquid_gla
 typedef GlassPageControlBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPageControlDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassPageControlPose (see package:apple_liquid_glass/apple_liquid_glass.dart)
-class GlassPressable (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSearchController (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassSearchFieldBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSearchFieldDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -2354,6 +2353,7 @@ class GlassStepperDetails (see package:apple_liquid_glass/apple_liquid_glass.dar
 enum GlassStepperHalf (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassSwitchBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSwitchDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class RawGlassButton (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassList (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassPageControl (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassSearchField (see package:apple_liquid_glass/apple_liquid_glass.dart)

@@ -27,11 +27,11 @@ final List<Entry> registry = [
     ),
   ),
   Entry(
-    'GlassPressable',
-    covers: const ['GlassPressable'],
+    'RawGlassButton',
+    covers: const ['RawGlassButton'],
     look: Look.builder,
     kind: Kind.pressable,
-    build: (probe, {required enabled}) => GlassPressable(
+    build: (probe, {required enabled}) => RawGlassButton(
       onPressed: enabled ? () => probe.add('pressed') : null,
       builder: (context, details) {
         probe.states = details.states;

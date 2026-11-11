@@ -67,6 +67,13 @@ class _Probe {
   }
 }
 
+Widget _keyApp(Widget child, {Map<ShortcutActivator, Intent>? shortcuts}) =>
+    WidgetsApp(
+      color: const Color(0xFF000000),
+      shortcuts: shortcuts,
+      builder: (context, _) => Center(child: child),
+    );
+
 void main() {
   setUp(MotionClock.debugReset);
 
@@ -84,7 +91,7 @@ void main() {
       await tester.pumpWidget(
         _app(
           counting,
-          GlassPressable(
+          RawGlassButton(
             onPressed: () => presses++,
             builder: probe.build,
             child: _Label(labels),
@@ -95,7 +102,7 @@ void main() {
       expect(probe.body!.value, const GlassFrame());
 
       final gesture = await tester.startGesture(
-        tester.getCenter(find.byType(GlassPressable)),
+        tester.getCenter(find.byType(RawGlassButton)),
       );
       await tester.pump(_frame);
       expect(probe.states, contains(WidgetState.pressed));
@@ -126,7 +133,7 @@ void main() {
       // only from there.
       final settled = labels.length;
       final again = await tester.startGesture(
-        tester.getCenter(find.byType(GlassPressable)),
+        tester.getCenter(find.byType(RawGlassButton)),
       );
       for (var i = 0; i < 12; i++) {
         await tester.pump(_frame);
@@ -145,7 +152,7 @@ void main() {
     final probe = _Probe();
     final labels = <int>[];
     var presses = 0;
-    final rawButton = GlassPressable(
+    final rawButton = RawGlassButton(
       onPressed: () => presses++,
       builder: probe.build,
       child: _Label(labels),
@@ -153,7 +160,7 @@ void main() {
     Widget button(GlassRenderer renderer) => _app(renderer, rawButton);
     await tester.pumpWidget(button(const FlatGlassRenderer()));
     final gesture = await tester.startGesture(
-      tester.getCenter(find.byType(GlassPressable)),
+      tester.getCenter(find.byType(RawGlassButton)),
     );
     for (var i = 0; i < 8; i++) {
       await tester.pump(_frame);
@@ -188,14 +195,14 @@ void main() {
     await tester.pumpWidget(
       _app(
         const FlatGlassRenderer(),
-        GlassPressable(
+        RawGlassButton(
           onPressed: () => presses++,
           builder: _Probe().build,
           child: const SizedBox(width: 100, height: 44),
         ),
       ),
     );
-    final center = tester.getCenter(find.byType(GlassPressable));
+    final center = tester.getCenter(find.byType(RawGlassButton));
     final gesture = await tester.startGesture(center);
     await tester.pump(_frame);
     await gesture.moveTo(center + const Offset(0, 50));
@@ -227,7 +234,7 @@ void main() {
             children: [
               const SizedBox(height: 100),
               Center(
-                child: GlassPressable(
+                child: RawGlassButton(
                   onPressed: () => presses++,
                   builder: probe.build,
                   child: const SizedBox(width: 100, height: 44),
@@ -239,7 +246,7 @@ void main() {
         ),
       ),
     );
-    final center = tester.getCenter(find.byType(GlassPressable));
+    final center = tester.getCenter(find.byType(RawGlassButton));
     final tap = await tester.startGesture(center);
     for (var i = 0; i < 5; i++) {
       await tester.pump(_frame);
@@ -264,32 +271,62 @@ void main() {
     expect(probe.body!.value, const GlassFrame());
   });
 
-  testWidgets('keys and the accessibility tap press; it reads as a button', (
-    tester,
-  ) async {
+  testWidgets('under a WidgetsApp Space and Enter press it, and an app '
+      'that rebinds the keys presses it with its own', (tester) async {
+    var presses = 0;
+    Widget button() => RawGlassButton(
+      onPressed: () => presses++,
+      builder: _Probe().build,
+      autofocus: true,
+      child: const SizedBox(width: 100, height: 44),
+    );
+    await tester.pumpWidget(_keyApp(button()));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    expect(presses, 2);
+
+    presses = 0;
+    await tester.pumpWidget(
+      _keyApp(
+        button(),
+        shortcuts: {
+          ...WidgetsApp.defaultShortcuts,
+          const SingleActivator(LogicalKeyboardKey.space):
+              const DoNothingAndStopPropagationIntent(),
+          const SingleActivator(LogicalKeyboardKey.keyP):
+              const ActivateIntent(),
+        },
+      ),
+    );
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    expect(presses, 0);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyP);
+    expect(presses, 1);
+  });
+
+  testWidgets('it reads as one button over its 44 point target, below the '
+      'region, and the accessibility tap presses it', (tester) async {
     final semantics = tester.ensureSemantics();
-    final focus = FocusNode();
-    addTearDown(focus.dispose);
     var presses = 0;
     await tester.pumpWidget(
       _app(
         const FlatGlassRenderer(),
-        Shortcuts(
-          shortcuts: WidgetsApp.defaultShortcuts,
-          child: GlassPressable(
-            onPressed: () => presses++,
-            builder: _Probe().build,
-            focusNode: focus,
-            semanticLabel: 'Done',
-            child: const SizedBox(width: 100, height: 44),
-          ),
+        RawGlassButton(
+          onPressed: () => presses++,
+          builder: _Probe().build,
+          semanticLabel: 'Done',
+          child: const SizedBox(width: 100, height: 30),
         ),
       ),
     );
     expect(
-      tester.getSemantics(find.byType(GlassPressable)),
+      tester.getSemantics(find.bySemanticsLabel('Done')),
       matchesSemantics(
         label: 'Done',
+        rect: const Rect.fromLTWH(0, -7, 100, 44),
+        textDirection: TextDirection.ltr,
         isButton: true,
         hasTapAction: true,
         hasFocusAction: true,
@@ -298,14 +335,56 @@ void main() {
         isFocusable: true,
       ),
     );
-    focus.requestFocus();
-    await tester.pump();
-    await tester.sendKeyEvent(LogicalKeyboardKey.space);
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-    expect(presses, 2);
+    await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
     tester.semantics.tap(find.semantics.byLabel('Done'));
-    expect(presses, 3);
+    expect(presses, 1);
+
+    await tester.pumpWidget(
+      _app(
+        const FlatGlassRenderer(),
+        RawGlassButton(
+          key: const ValueKey('disabled'),
+          onPressed: null,
+          builder: _Probe().build,
+          semanticLabel: 'Done',
+          child: const SizedBox(width: 100, height: 30),
+        ),
+      ),
+    );
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('Done')),
+      matchesSemantics(
+        label: 'Done',
+        rect: const Rect.fromLTWH(0, -7, 100, 44),
+        textDirection: TextDirection.ltr,
+        isButton: true,
+        hasEnabledState: true,
+      ),
+    );
     semantics.dispose();
+  });
+
+  testWidgets('a tap in the 44 point extension presses it; one beyond does '
+      'not; the body keeps its size', (tester) async {
+    var presses = 0;
+    await tester.pumpWidget(
+      _app(
+        const FlatGlassRenderer(),
+        RawGlassButton(
+          onPressed: () => presses++,
+          builder: _Probe().build,
+          child: const SizedBox(width: 100, height: 30),
+        ),
+      ),
+    );
+    expect(tester.getSize(find.byType(RawGlassButton)), const Size(100, 30));
+    final center = tester.getCenter(find.byType(RawGlassButton));
+    await tester.tapAt(center + const Offset(0, -21));
+    await tester.pumpAndSettle();
+    expect(presses, 1);
+    await tester.tapAt(center + const Offset(0, 23));
+    await tester.pumpAndSettle();
+    expect(presses, 1);
   });
 
   testWidgets('without onPressed it is disabled and takes no press', (
@@ -315,7 +394,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         const FlatGlassRenderer(),
-        GlassPressable(
+        RawGlassButton(
           onPressed: null,
           builder: probe.build,
           child: const SizedBox(width: 100, height: 44),
@@ -323,38 +402,56 @@ void main() {
       ),
     );
     expect(probe.states, {WidgetState.disabled});
-    await tester.tap(find.byType(GlassPressable));
+    await tester.tap(find.byType(RawGlassButton));
     await tester.pump(_frame);
     expect(probe.body!.value, const GlassFrame());
     expect(probe.builds, 1);
   });
 
-  testWidgets('Reduce Motion keeps the glow and drops the lift', (
-    tester,
-  ) async {
-    final probe = _Probe();
-    await tester.pumpWidget(
-      _app(
+  for (final (name, wrap) in [
+    (
+      'MediaQuery.disableAnimations',
+      (Widget child) => _app(
         const FlatGlassRenderer(),
-        GlassPressable(
-          onPressed: () {},
-          builder: probe.build,
-          child: const SizedBox(width: 100, height: 44),
-        ),
+        child,
         disableAnimations: true,
       ),
-    );
-    final gesture = await tester.startGesture(
-      tester.getCenter(find.byType(GlassPressable)),
-    );
-    for (var i = 0; i < 12; i++) {
-      await tester.pump(_frame);
-    }
-    expect(probe.body!.value.scaleX, 1);
-    expect(probe.body!.value.glow, isNotNull);
-    await gesture.up();
-    await tester.pumpAndSettle();
-  });
+    ),
+    (
+      'MotionTraitsOverride',
+      (Widget child) => _app(
+        const FlatGlassRenderer(),
+        MotionTraitsOverride(
+          traits: const MotionTraits(reduceMotion: true),
+          child: child,
+        ),
+      ),
+    ),
+  ]) {
+    testWidgets('Reduce Motion from $name keeps the glow and drops the '
+        'lift', (tester) async {
+      final probe = _Probe();
+      await tester.pumpWidget(
+        wrap(
+          RawGlassButton(
+            onPressed: () {},
+            builder: probe.build,
+            child: const SizedBox(width: 100, height: 44),
+          ),
+        ),
+      );
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(RawGlassButton)),
+      );
+      for (var i = 0; i < 12; i++) {
+        await tester.pump(_frame);
+      }
+      expect(probe.body!.value.scaleX, 1);
+      expect(probe.body!.value.glow, isNotNull);
+      await gesture.up();
+      await tester.pumpAndSettle();
+    });
+  }
 
   group('GlassButton', () {
     Color? labelColor(WidgetTester tester) => tester

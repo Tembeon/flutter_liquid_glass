@@ -191,7 +191,7 @@ class _ButtonPageState extends State<ButtonPage> {
         ),
         Idea(
           'A look of your own',
-          'GlassPressable gives the press, the glow and the semantics of a '
+          'RawGlassButton gives the press, the glow and the semantics of a '
               'button to anything: here round glass that fills with a color.',
           child: Stage(
             backdrop: Wallpaper.aurora,
@@ -207,7 +207,7 @@ class _ButtonPageState extends State<ButtonPage> {
                 ].indexed)
                   SizedBox.square(
                     dimension: 62,
-                    child: GlassPressable(
+                    child: RawGlassButton(
                       onPressed: () => setState(() {
                         if (!_lit.remove(index)) _lit.add(index);
                       }),

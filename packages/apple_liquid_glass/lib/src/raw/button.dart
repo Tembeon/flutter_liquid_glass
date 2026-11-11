@@ -1,8 +1,5 @@
-import 'package:apple_liquid_glass/src/foundation/frame.dart';
-import 'package:apple_liquid_glass/src/foundation/shape.dart';
-import 'package:apple_liquid_glass/src/foundation/traits.dart';
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/motions/glass_press.dart';
-import 'package:apple_liquid_glass/src/surfaces/surface.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
@@ -29,14 +26,14 @@ final class GlassButtonDetails {
 
   /// The frames of the button's body: the measured lift, lean and touch
   /// glow, in the button's own box. A builder hands it to a
-  /// [GlassSurface.live] that fills the button.
+  /// `GlassSurface.live` that fills the button.
   final MotionSelection<GlassFrame> body;
 
   /// The states the button is in.
   final Set<WidgetState> states;
 
   /// The button's states as they change, or null for a body that shows
-  /// neither focus nor hover: a builder hands it to the [GlassSurface]
+  /// neither focus nor hover: a builder hands it to the `GlassSurface`
   /// of its body, whose renderer then draws the focus ring and the hover
   /// response.
   final ValueListenable<Set<WidgetState>>? statesListenable;
@@ -55,12 +52,15 @@ final class GlassButtonDetails {
 /// toward itself, and a glow follows the finger; a release within 70
 /// points of the button presses it. All of that reaches the look through
 /// [GlassButtonDetails.body], so the builder never runs while the button
-/// moves. Space, Enter and the accessibility tap press it too. Under
-/// Reduce Motion the body glows but never lifts or leans (an
+/// moves. The app's `ActivateIntent` (Space and Enter under a `WidgetsApp`)
+/// and the accessibility tap press it too. A finger takes it within a 44
+/// by 44 point area around a smaller body, where the button's parent
+/// leaves that room; the body does not grow. Under Reduce Motion (kinesis's
+/// motion traits) the body glows but never lifts or leans (an
 /// approximation, not measured).
-class GlassPressable extends StatefulWidget {
+class RawGlassButton extends StatefulWidget {
   /// Creates a button labeled [child] whose look [builder] builds.
-  const GlassPressable({
+  const RawGlassButton({
     required this.onPressed,
     required this.builder,
     required this.child,
@@ -97,11 +97,11 @@ class GlassPressable extends StatefulWidget {
   final String? semanticLabel;
 
   @override
-  State<GlassPressable> createState() => _GlassPressableState();
+  State<RawGlassButton> createState() => _RawGlassButtonState();
 }
 
-class _GlassPressableState extends State<GlassPressable>
-    with ControlStates<GlassPressable> {
+class _RawGlassButtonState extends State<RawGlassButton>
+    with ControlStates<RawGlassButton> {
   final GlassPress _press = GlassPress();
   late final List<Interaction> _interactions = [
     PressInteraction(
@@ -127,7 +127,7 @@ class _GlassPressableState extends State<GlassPressable>
   WidgetStatesController? get givenStates => widget.statesController;
 
   @override
-  void didUpdateWidget(GlassPressable oldWidget) {
+  void didUpdateWidget(RawGlassButton oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.shape != oldWidget.shape) _body = _bodyOf(widget.shape);
   }
@@ -140,17 +140,18 @@ class _GlassPressableState extends State<GlassPressable>
   }
 
   @override
-  Widget build(BuildContext context) {
-    _press.reducedMotion = GlassTraits.of(context).reduceMotion;
-    return Semantics(
-      button: true,
-      child: InputRegion(
-        interactions: _interactions,
-        enabled: widget.onPressed != null,
-        statesController: widgetStates,
-        focusNode: widget.focusNode,
-        autofocus: widget.autofocus,
-        semanticLabel: widget.semanticLabel,
+  Widget build(BuildContext context) => MotionScope(
+    motion: _press,
+    child: InputRegion(
+      interactions: _interactions,
+      enabled: widget.onPressed != null,
+      statesController: widgetStates,
+      focusNode: widget.focusNode,
+      autofocus: widget.autofocus,
+      semanticLabel: widget.semanticLabel,
+      minimumHitSize: const Size(44, 44),
+      child: Semantics(
+        button: true,
         child: widget.builder(
           context,
           GlassButtonDetails(
@@ -161,6 +162,6 @@ class _GlassPressableState extends State<GlassPressable>
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
 }

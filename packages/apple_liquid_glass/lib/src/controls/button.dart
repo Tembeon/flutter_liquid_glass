@@ -1,15 +1,12 @@
 import 'dart:ui' show lerpDouble;
 
-import 'package:apple_liquid_glass/src/foundation/colors.dart';
-import 'package:apple_liquid_glass/src/foundation/frame.dart';
-import 'package:apple_liquid_glass/src/foundation/glass.dart';
+import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
-import 'package:apple_liquid_glass/src/foundation/theme.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_anchor.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_entries.dart';
-import 'package:apple_liquid_glass/src/raw/button.dart';
-import 'package:apple_liquid_glass/src/surfaces/surface.dart';
+import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
@@ -311,7 +308,7 @@ enum _Variant { regular, prominent, clear, prominentClear }
 /// `.buttonStyle(.glass)`. Flutter: `FilledButton`.
 ///
 /// Its body is a [GlassSurface] of the ambient renderer, its press the
-/// measured one of [GlassPressable]. A disabled regular button keeps its
+/// measured one of [RawGlassButton]. A disabled regular button keeps its
 /// glass, and every disabled button draws its label in tertiaryLabel, as
 /// UIKit does (iPhone 16 Pro, iOS 27.0.1, light and dark).
 class GlassButton extends StatelessWidget {
@@ -527,7 +524,7 @@ class GlassButton extends StatelessWidget {
     );
   }
 
-  Widget _button(BuildContext context) => GlassPressable(
+  Widget _button(BuildContext context) => RawGlassButton(
     onPressed: onPressed,
     statesController: statesController,
     focusNode: focusNode,
