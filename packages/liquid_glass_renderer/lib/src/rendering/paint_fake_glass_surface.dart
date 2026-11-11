@@ -6,7 +6,7 @@ import 'package:flutter/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_shape.dart';
-import 'package:liquid_glass_renderer/src/painting/rounded_superellipse_parameters.dart';
+import 'package:liquid_glass_renderer/src/rendering/rounded_superellipse_parameters.dart';
 
 /// Extra logical pixels required for the portion of the contour that lies
 /// outside the shape's nominal bounds.

@@ -2,7 +2,7 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/src/painting/rounded_superellipse_parameters.dart';
+import 'package:liquid_glass_renderer/src/rendering/rounded_superellipse_parameters.dart';
 
 /// Points along the outline of the rounded rectangle of half size ([hx],
 /// [hy]) with corners of [radius], each moved [push] along the outline's
