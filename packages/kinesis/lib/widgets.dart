@@ -7,7 +7,8 @@
 /// `InputRegion` for a box or `InputZones` for the many moving parts one
 /// render object paints, and whose states live in one controller,
 /// `ControlStates` (`InputZonesController` for zones). `MotionScope` gives
-/// a subtree its motion settings.
+/// a subtree its motion settings. `MotionSource` names what a presentation
+/// grows out of: a box (`MotionSourceBox`) or a zone.
 ///
 /// It promises that `InputRegion` gives an interactive widget touch, mouse,
 /// focus, keyboard activation and the semantics of a press in one place,
@@ -31,5 +32,6 @@ export 'src/widgets/resolve.dart' show MotionResolveHost;
 export 'src/widgets/scope.dart' show MotionScope, MotionTraitsOverride;
 export 'src/widgets/scroll.dart' show MotionScroll, MotionScrollPhase;
 export 'src/widgets/sliver_layout.dart' show SliverMotionList;
+export 'src/widgets/source.dart' show MotionSource, MotionSourceBox;
 export 'src/widgets/transition.dart'
     show MotionTransition, MotionTransitionLayer;

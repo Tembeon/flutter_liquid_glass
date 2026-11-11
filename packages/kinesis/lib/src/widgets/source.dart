@@ -1,7 +1,6 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
-import 'package:kinesis/widgets.dart';
 import 'package:meta/meta.dart';
 
 /// The identity of what a presentation grows out of, held like a
@@ -36,35 +35,23 @@ final class MotionSource {
     );
   }
 
-  /// Hides the source until the lease is released.
+  /// Hides the source until the returned callback releases it; later
+  /// calls of the callback do nothing.
   @internal
-  SourceLease lease() {
+  VoidCallback lease() {
     _leases++;
     _box?.markNeedsPaint();
-    return SourceLease._(this);
-  }
-
-  void _release() {
-    _leases--;
-    _box?.markNeedsPaint();
+    var held = true;
+    return () {
+      if (!held) return;
+      held = false;
+      _leases--;
+      _box?.markNeedsPaint();
+    };
   }
 
   @override
   String toString() => 'MotionSource(${debugLabel ?? ''})';
-}
-
-/// A presentation's hold on a [MotionSource].
-@internal
-final class SourceLease {
-  SourceLease._(this._source);
-
-  MotionSource? _source;
-
-  /// Shows the source again; later calls do nothing.
-  void release() {
-    _source?._release();
-    _source = null;
-  }
 }
 
 /// Shows [source] around [child]: it reports where the source is and paints
@@ -142,56 +129,5 @@ class RenderMotionSourceBox extends RenderProxyBox {
   void paint(PaintingContext context, Offset offset) {
     if (_source.isHidden) return;
     super.paint(context, offset);
-  }
-}
-
-/// Keeps [motion] told where [source] is, in every frame's resolve phase
-/// while it is shown.
-@internal
-class SourceFollower extends SingleChildRenderObjectWidget {
-  /// Tells [motion] where [source] is.
-  const SourceFollower({
-    required this.source,
-    required this.motion,
-    super.child,
-    super.key,
-  });
-
-  /// The source followed.
-  final MotionSource source;
-
-  /// The motion told.
-  final Sourced motion;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) =>
-      _RenderSourceFollower(source, motion);
-
-  @override
-  void updateRenderObject(BuildContext context, RenderObject renderObject) {
-    final follower = renderObject as _RenderSourceFollower;
-    follower.source = source;
-    follower.motion = motion;
-  }
-}
-
-class _RenderSourceFollower extends RenderProxyBox with MotionResolveHost {
-  _RenderSourceFollower(this.source, this.motion);
-
-  MotionSource source;
-  Sourced motion;
-  SourceGeometry? _told;
-  bool _first = true;
-
-  @override
-  bool get resolvesEveryFrame => true;
-
-  @override
-  void resolve() {
-    final geometry = source.geometry;
-    if (!_first && geometry == _told) return;
-    _first = false;
-    _told = geometry;
-    motion.sourceMoved(motion.clock.now, geometry);
   }
 }

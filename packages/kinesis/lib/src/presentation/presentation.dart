@@ -3,7 +3,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/presentation/route.dart';
-import 'package:kinesis/src/presentation/source.dart';
+import 'package:kinesis/src/presentation/source_follower.dart';
 import 'package:kinesis/widgets.dart';
 
 /// Where and how big a presentation may be, read from the place it shows

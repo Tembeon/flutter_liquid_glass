@@ -830,7 +830,7 @@ final class MotionSource
   final String? debugLabel
   SourceGeometry? get geometry
   bool get isHidden
-  @internal SourceLease lease()
+  @internal void Function() lease()
   overrides: toString
 class MotionSourceBox extends SingleChildRenderObjectWidget
   const MotionSourceBox({
@@ -1299,8 +1299,6 @@ function withSpring (see package:kinesis/kinesis.dart)
 function withoutAnimation (see package:kinesis/kinesis.dart)
 
 # package:kinesis/presentation.dart
-class MotionSource (see package:kinesis/kinesis.dart)
-class MotionSourceBox (see package:kinesis/kinesis.dart)
 class Presentation (see package:kinesis/kinesis.dart)
 class PresentationContext (see package:kinesis/kinesis.dart)
 class PresentationEnvironment (see package:kinesis/kinesis.dart)
@@ -1337,6 +1335,8 @@ mixin MotionResolveHost (see package:kinesis/kinesis.dart)
 class MotionScope (see package:kinesis/kinesis.dart)
 class MotionScroll (see package:kinesis/kinesis.dart)
 enum MotionScrollPhase (see package:kinesis/kinesis.dart)
+class MotionSource (see package:kinesis/kinesis.dart)
+class MotionSourceBox (see package:kinesis/kinesis.dart)
 class MotionTraitsOverride (see package:kinesis/kinesis.dart)
 class MotionTransition (see package:kinesis/kinesis.dart)
 class MotionTransitionLayer (see package:kinesis/kinesis.dart)

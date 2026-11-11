@@ -4,7 +4,6 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/presentation/presentation.dart';
-import 'package:kinesis/src/presentation/source.dart';
 
 /// Presents and dismisses the presentation of a [PresentationPortal].
 final class PresentationPortalController {
@@ -76,7 +75,7 @@ class _PresentationPortalState extends State<PresentationPortal>
     debugLabel: 'PresentationPortal',
   );
   Presented? _motion;
-  SourceLease? _lease;
+  VoidCallback? _lease;
   ModalRoute<Object?>? _route;
   ScrollPosition? _scroll;
   FocusNode? _restore;
@@ -180,7 +179,7 @@ class _PresentationPortalState extends State<PresentationPortal>
 
   void _end() {
     if (_motion == null) return;
-    _lease?.release();
+    _lease?.call();
     _lease = null;
     _motion = null;
     _setLeaving(false);

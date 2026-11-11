@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/presentation/presentation.dart';
-import 'package:kinesis/src/presentation/source.dart';
 import 'package:meta/meta.dart';
 
 // A mixin, not a base class: the two shells must be a PopupRoute and a
@@ -17,7 +16,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
   String? get semanticsLabel;
 
   Presented? _motion;
-  SourceLease? _lease;
+  VoidCallback? _lease;
   late final _RouteShell<T> _shell = _RouteShell(this);
 
   late final _StatusProjection _projection = _StatusProjection();
@@ -530,7 +529,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     _unfollowScroll();
     if (_finished) return;
     _finished = true;
-    _lease?.release();
+    _lease?.call();
     _lease = null;
     didFinish(_result);
   }

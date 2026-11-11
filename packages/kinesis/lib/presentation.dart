@@ -1,7 +1,7 @@
 /// Everything that appears above the screen: the presentation engine
-/// (`Presentation`), its three shells (`PresentationRoute`,
-/// `PresentationPageRoute`, `PresentationPortal`) and the source an overlay
-/// grows out of (`MotionSource`).
+/// (`Presentation`) and its three shells (`PresentationRoute`,
+/// `PresentationPageRoute`, `PresentationPortal`). What an overlay grows
+/// out of is a `MotionSource` from `package:kinesis/widgets.dart`.
 ///
 /// For the author of any overlay: a menu, a sheet, an alert or a panel of
 /// one's own.
@@ -33,4 +33,3 @@ export 'src/presentation/presentation.dart'
     show Presentation, PresentationEnvironment, PresentationHandle;
 export 'src/presentation/route.dart'
     show PresentationPageRoute, PresentationRoute;
-export 'src/presentation/source.dart' show MotionSource, MotionSourceBox;
