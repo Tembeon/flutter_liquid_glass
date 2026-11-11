@@ -36,6 +36,7 @@ LeadFate
 LiquidGlass
 LiquidGlassAppearance
 LiquidGlassBackdrop
+LiquidGlassBackdropFilterHost
 LiquidGlassBackdropFilterLayer
 LiquidGlassBackdropFrost
 LiquidGlassBlendGroup

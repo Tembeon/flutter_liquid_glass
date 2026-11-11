@@ -27,7 +27,8 @@ enum FakeGlassRole {
 /// Draws one fake glass shape: its backdrop blurred and color filtered and its
 /// surface drawn analytically, or only its surface where a fake layer reads the
 /// backdrop for it.
-class RenderFakeGlass extends RenderProxyBox with LivePaintSize {
+class RenderFakeGlass extends RenderProxyBox
+    with LivePaintSize, LiquidGlassBackdropFilterHost {
   /// Creates the render object of one fake glass shape.
   RenderFakeGlass({
     required this._devicePixelRatio,
@@ -128,6 +129,9 @@ class RenderFakeGlass extends RenderProxyBox with LivePaintSize {
   /// The backdrop filter layer it reads its backdrop with, if any.
   @visibleForTesting
   LiquidGlassBackdropFilterLayer? get debugBackdropFilterLayer => layer;
+
+  @override
+  Layer? get composedLayer => layer;
 
   @override
   void paint(PaintingContext context, Offset offset) {

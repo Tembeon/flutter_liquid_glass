@@ -108,7 +108,7 @@ class _EdgePaint extends LeafRenderObjectWidget {
 /// presence fades the blurred backdrop through its alpha, as an opacity
 /// layer above a blur would read an empty backdrop. The blur reads a copy
 /// of the backdrop only as far around the band as its kernel reaches.
-class _RenderEdge extends RenderScrollEdge {
+class _RenderEdge extends RenderScrollEdge with LiquidGlassBackdropFilterHost {
   _RenderEdge({
     required super.details,
     required super.brightness,
@@ -116,6 +116,9 @@ class _RenderEdge extends RenderScrollEdge {
   });
 
   final _blur = LayerHandle<LiquidGlassBackdropFilterLayer>();
+
+  @override
+  Layer? get composedLayer => _blur.layer;
 
   @override
   bool updateBand(double presence) {

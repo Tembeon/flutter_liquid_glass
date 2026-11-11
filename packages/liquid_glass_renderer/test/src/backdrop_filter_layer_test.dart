@@ -30,8 +30,11 @@ class _Band extends LeafRenderObjectWidget {
   RenderObject createRenderObject(BuildContext context) => _RenderBand();
 }
 
-class _RenderBand extends RenderBox {
+class _RenderBand extends RenderBox with LiquidGlassBackdropFilterHost {
   final layerHandle = LayerHandle<LiquidGlassBackdropFilterLayer>();
+
+  @override
+  Layer? get composedLayer => layerHandle.layer;
 
   @override
   bool get sizedByParent => true;

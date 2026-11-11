@@ -415,6 +415,33 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   }
 }
 
+/// A render object that holds a [LiquidGlassBackdropFilterLayer].
+///
+/// While attached it is registered with the glass composer of its view, which
+/// then plans each frame's scene before it is built, as it does for glass, and
+/// lives until the last render object registered with it detaches. A view
+/// whose backdrop filter layers are held by no such render object fails an
+/// assertion in a debug build.
+mixin LiquidGlassBackdropFilterHost on RenderObject {
+  /// The [LiquidGlassBackdropFilterLayer] this render object holds, or null
+  /// while it holds none.
+  Layer? get composedLayer;
+
+  @mustCallSuper
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    GlassComposer.host(owner, this);
+  }
+
+  @mustCallSuper
+  @override
+  void detach() {
+    GlassComposer.unhost(owner!, this);
+    super.detach();
+  }
+}
+
 /// What a [LiquidGlassBackdropFilterLayer] drew, for the package's tests.
 extension LiquidGlassBackdropFilterLayerDebug
     on LiquidGlassBackdropFilterLayer {

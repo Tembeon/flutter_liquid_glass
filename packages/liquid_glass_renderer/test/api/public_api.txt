@@ -1010,6 +1010,9 @@ abstract final class GlassShaderPrograms
   static bool isCached(String assetKey)
   static Future<void> precacheShader(String assetKey)
   static Future<void> precacheShaders(List<String> assetKeys)
+mixin LiquidGlassBackdropFilterHost on RenderObject
+  Layer? get composedLayer
+  overrides: attach, detach
 class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer implements PlanSite
   LiquidGlassBackdropFilterLayer.frosted({
     required LiquidGlassBackdropFrost frost,
@@ -1149,7 +1152,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject with Tran
   FragmentShader? get surfaceShader
   set surfaceShader(FragmentShader? value)
   overrides: addOutput, ask, beginFate, dispose, encodesMatte, materialOutset, onAppearanceChanged, onCompositorTranslationMissed, onDevicePixelRatioChanged, onPreparing, onSettingsChanged, onTransformChanged, paintFrame, show
-class RenderFakeGlass extends RenderProxyBox with LivePaintSize
+class RenderFakeGlass extends RenderProxyBox with LivePaintSize, LiquidGlassBackdropFilterHost
   RenderFakeGlass({
     required double devicePixelRatio,
     required LiquidShape shape,
@@ -1172,7 +1175,7 @@ class RenderFakeGlass extends RenderProxyBox with LivePaintSize
   set shape(LiquidShape value)
   FragmentShader? get surfaceShader
   set surfaceShader(FragmentShader? value)
-  overrides: alwaysNeedsCompositing, layer, paint
+  overrides: alwaysNeedsCompositing, composedLayer, layer, paint
 class RenderGlassShadow extends RenderProxyBox with LivePaintSize
   RenderGlassShadow({
     required LiquidShape shape,

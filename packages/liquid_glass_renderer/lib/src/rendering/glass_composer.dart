@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:liquid_glass_renderer/composer.dart';
+import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/form.dart';
@@ -26,18 +27,17 @@ import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_ob
 /// its facts, compiles the frame's [GlassPlan] and draws it, before any scene
 /// is built. Then it submits the frame's flutter_gpu passes.
 ///
-/// One composer per view owner, adopted by the first glass that attaches
-/// there ([track]) and dropped and disposed when the last one detaches. A
-/// view whose scene glass with no tracked site composes alone adopts one
-/// too; the first paint that finds it neither tracking a site nor used since
-/// the previous paint drops and disposes it.
+/// One composer per view owner, adopted by the first render object holding
+/// a composed layer that attaches there, a site ([track]) or a host ([host]),
+/// and dropped and disposed when the last one detaches, so a view owner that
+/// is disposed never holds one.
 @internal
 final class GlassComposer extends PipelineOwner {
-  GlassComposer._(this._view) : super(onSemanticsUpdate: _noSemantics);
+  GlassComposer._() : super(onSemanticsUpdate: _noSemantics);
 
   factory GlassComposer._adopt(PipelineOwner owner) {
     if (_of(owner) case final composer?) return composer;
-    final composer = GlassComposer._(owner);
+    final composer = GlassComposer._();
     owner.adoptChild(composer);
     return composer;
   }
@@ -55,17 +55,39 @@ final class GlassComposer extends PipelineOwner {
     GlassComposer._adopt(owner)._sites.add(site);
   }
 
-  /// Stops following [site]. The last site to leave drops the composer.
-  /// Call from a render object's `detach`, before `super.detach`.
+  /// Stops following [site]. The last site or host to leave drops the
+  /// composer. Call from a render object's `detach`, before `super.detach`.
   static void untrack(
     PipelineOwner owner,
     TransformTrackingRenderObjectMixin site,
   ) {
     final composer = _of(owner);
     if (composer == null || !composer._sites.remove(site)) return;
-    if (composer._sites.isNotEmpty) return;
-    owner.dropChild(composer);
-    composer.dispose();
+    composer._dropIfEmpty(owner);
+  }
+
+  /// Plans the scenes of [owner]'s view for [holder], a render object that
+  /// holds a composed layer without being a site, adopting a composer under
+  /// [owner] if it has none. Call from a render object's `attach`.
+  static void host(PipelineOwner owner, LiquidGlassBackdropFilterHost holder) {
+    GlassComposer._adopt(owner)._hosts.add(holder);
+  }
+
+  /// Stops planning for [holder]. The last site or host to leave drops the
+  /// composer. Call from a render object's `detach`, before `super.detach`.
+  static void unhost(
+    PipelineOwner owner,
+    LiquidGlassBackdropFilterHost holder,
+  ) {
+    final composer = _of(owner);
+    if (composer == null || !composer._hosts.remove(holder)) return;
+    composer._dropIfEmpty(owner);
+  }
+
+  void _dropIfEmpty(PipelineOwner owner) {
+    if (_sites.isNotEmpty || _hosts.isNotEmpty) return;
+    owner.dropChild(this);
+    dispose();
   }
 
   static GlassComposer? _of(PipelineOwner owner) {
@@ -107,14 +129,11 @@ final class GlassComposer extends PipelineOwner {
     });
   }
 
-  final PipelineOwner _view;
-
   final Set<TransformTrackingRenderObjectMixin> _sites = Set.identity();
 
-  final _composition = _Composition();
+  final Set<LiquidGlassBackdropFilterHost> _hosts = Set.identity();
 
-  // Whether a scene composed alone in it since the last paint.
-  bool _usedAlone = false;
+  final _composition = _Composition();
 
   bool _composing = false;
 
@@ -144,16 +163,6 @@ final class GlassComposer extends PipelineOwner {
   @override
   void flushPaint() {
     super.flushPaint();
-    if (_sites.isEmpty) {
-      if (_usedAlone) {
-        _usedAlone = false;
-      } else {
-        // The view's owner is flushing its children and refuses a change to
-        // their list until it returns.
-        scheduleMicrotask(_dropIfUnused);
-      }
-      return;
-    }
     census.frames++;
     census.sites += _sites.length;
     final root = _root();
@@ -167,14 +176,6 @@ final class GlassComposer extends PipelineOwner {
     } finally {
       _composing = false;
     }
-  }
-
-  void _dropIfUnused() {
-    if (_usedAlone || _sites.isNotEmpty || !identical(_of(_view), this)) {
-      return;
-    }
-    _view.dropChild(this);
-    dispose();
   }
 
   @override
@@ -201,15 +202,16 @@ final class GlassComposer extends PipelineOwner {
 
   ContainerLayer? _root() {
     for (final site in _sites) {
-      Layer? layer = site.layer;
-      if (layer == null || !layer.attached) continue;
-      while (layer!.parent != null) {
-        layer = layer.parent;
-      }
-      return layer as ContainerLayer;
+      if (_rootOf(site.layer) case final root?) return root;
+    }
+    for (final host in _hosts) {
+      if (_rootOf(host.composedLayer) case final root?) return root;
     }
     return null;
   }
+
+  static ContainerLayer? _rootOf(Layer? layer) =>
+      layer == null || !layer.attached ? null : _topOf(layer);
 
   static bool _plannedAhead(Layer layer) {
     if (SchedulerBinding.instance.schedulerPhase !=
@@ -226,43 +228,54 @@ final class GlassComposer extends PipelineOwner {
   }
 
   // The roots a scene no composer planned was composed for, until the scene's
-  // update pass is over.
+  // update pass is over: every composed layer of the scene asks.
   static final _composedRoots = Set<ContainerLayer>.identity();
 
-  // A scene the view's composer did not plan: glass in a view with no tracked
-  // site, which composes in a composer of that view so a view that shows
-  // nothing but scroll edges still holds still, or an image of a subtree
-  // taken outside a frame, which plans once from nothing held. What it draws
-  // stands until the next plan.
+  /// Scenes composed alone since this was last cleared.
+  @visibleForTesting
+  static int debugComposedAlone = 0;
+
+  // A scene the view's composer did not plan: an image of a subtree taken
+  // outside a frame, which plans once from nothing held. What it draws stands
+  // until the next plan.
   static void _composeAlone(Layer layer) {
-    var top = layer;
-    while (top.parent != null) {
-      top = top.parent!;
-    }
-    final root = top as ContainerLayer;
+    final root = _topOf(layer);
     if (!_composedRoots.add(root)) return;
     if (_composedRoots.length == 1) {
       scheduleMicrotask(_composedRoots.clear);
     }
-    final view = switch (root.owner) {
-      RenderView(:final owner?) => owner,
-      _ => null,
-    };
-    if (view == null ||
-        SchedulerBinding.instance.schedulerPhase !=
-            SchedulerPhase.persistentCallbacks) {
-      final composition = _Composition();
-      try {
-        composition.run(root);
-      } finally {
-        composition.dispose();
-      }
-      return;
+    assert(
+      !_inFrameUnregistered(root),
+      '$layer is composited in a frame, but no render object of its view is '
+      "registered with the view's GlassComposer, so nothing planned the "
+      'scene ahead. A render object that holds a '
+      'LiquidGlassBackdropFilterLayer mixes in LiquidGlassBackdropFilterHost '
+      'and returns the layer from composedLayer.',
+    );
+    if (!kReleaseMode) debugComposedAlone++;
+    final composition = _Composition();
+    try {
+      composition.run(root);
+    } finally {
+      composition.dispose();
     }
-    GlassComposer._adopt(view)
-      .._usedAlone = true
-      .._composition.run(root);
   }
+
+  static ContainerLayer _topOf(Layer layer) {
+    var top = layer;
+    while (top.parent != null) {
+      top = top.parent!;
+    }
+    return top as ContainerLayer;
+  }
+
+  static bool _inFrameUnregistered(ContainerLayer root) =>
+      SchedulerBinding.instance.schedulerPhase ==
+          SchedulerPhase.persistentCallbacks &&
+      switch (root.owner) {
+        RenderView(:final owner?) => _of(owner) == null,
+        _ => false,
+      };
 }
 
 // One view's frame: the form of its layers, what the plan keeps between frames
@@ -408,9 +421,10 @@ final class _Composition {
 
 /// A layer whose decisions for a frame are the frame's plan's.
 ///
-/// A scene the view's [GlassComposer] did not plan, such as an image of a
-/// subtree taken outside a frame or before the composer ran, plans in the
-/// update pass that builds the scene.
+/// A scene the view's [GlassComposer] did not plan, an image of a subtree
+/// taken outside a frame, plans in the update pass that builds the scene. In
+/// a frame the composer plans ahead for the render object that holds the
+/// layer, registered as a site or a [LiquidGlassBackdropFilterHost].
 @internal
 mixin ComposedLayer on ContainerLayer {
   /// Whether the view's composer planned the scene being built.
@@ -427,7 +441,7 @@ mixin ComposedLayer on ContainerLayer {
 /// Counts of a [GlassComposer]'s frames.
 @internal
 final class ComposerCensus {
-  /// Frames painted while the composer had a site.
+  /// Frames painted while the composer had a site or a host.
   int frames = 0;
 
   /// Sites summed over [frames].

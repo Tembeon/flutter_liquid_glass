@@ -17,7 +17,7 @@
 library;
 
 export 'src/rendering/backdrop_filter_layer.dart'
-    show LiquidGlassBackdropFilterLayer;
+    show LiquidGlassBackdropFilterHost, LiquidGlassBackdropFilterLayer;
 export 'src/rendering/consolidated_fake_glass_layer.dart'
     show RenderConsolidatedFakeGlassLayer;
 export 'src/rendering/debug.dart' show debugPaintLiquidGlassGeometry;
