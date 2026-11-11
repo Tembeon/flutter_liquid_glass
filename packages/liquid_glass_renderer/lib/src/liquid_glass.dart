@@ -1,8 +1,8 @@
 // ignore_for_file: avoid_setters_without_getters
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/fake_glass.dart' show RenderFakeGlass;
 import 'package:liquid_glass_renderer/src/internal/live_paint_size.dart';

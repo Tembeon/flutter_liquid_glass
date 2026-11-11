@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/src/internal/glass_drag_builder.dart';
 import 'package:meta/meta.dart';
 import 'package:motor/motor.dart';
