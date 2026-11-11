@@ -11,7 +11,9 @@
 /// the theme (`GlassTheme`, `GlassThemeData`, `GlassColorScheme`): a
 /// container of colours, type and a list of component styles
 /// (`GlassStyle`), found by type, that names no component and does
-/// nothing by itself.
+/// nothing by itself; and the words the widgets say to assistive
+/// technology (`GlassLocalizations`), English unless the app loads a
+/// translation through Flutter's `Localizations`.
 ///
 /// It promises that the traits report what Flutter reports (contrast, bold
 /// text) and Reduce Motion through kinesis's one channel,
@@ -25,6 +27,8 @@ library;
 export 'src/foundation/colors.dart' show GlassColors, GlassDynamicColor;
 export 'src/foundation/frame.dart' show GlassFrame;
 export 'src/foundation/glass.dart' show Glass, GlassLens, GlassRole;
+export 'src/foundation/localizations.dart'
+    show DefaultGlassLocalizations, GlassLocalizations;
 export 'src/foundation/outline.dart' show GlassOutline;
 export 'src/foundation/shape.dart'
     show GlassOval, GlassRoundedRect, GlassShape, GlassSuperellipse;
