@@ -506,8 +506,8 @@ class GlassMenuAnchor extends StatefulWidget {
 class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
   final _ownController = GlassMenuController();
 
-  // The box of the control's described body; nothing leases it, the menu
-  // only reads where it is.
+  // The box of the control's described body: the menu reads where it is.
+  // The whole control is hidden through the host's leased source.
   final _body = MotionSource(debugLabel: 'GlassMenuAnchor');
 
   // What the control told of its glass, read when the menu prepares.
@@ -678,7 +678,13 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
               transform: _pressTransform(),
               alignment: Alignment.center,
             ),
-            child: GlassSourceScope(source: _body, child: control),
+            // The menu draws the control as it grows out of it, so the
+            // control itself leaves the screen while the presentation
+            // holds the source.
+            child: MotionSourceBox(
+              source: _source,
+              child: GlassSourceScope(source: _body, child: control),
+            ),
           ),
         ),
       ),

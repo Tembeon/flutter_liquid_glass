@@ -31,8 +31,79 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
+// Counts its paints.
+class _PaintProbe extends CustomPainter {
+  _PaintProbe(this.onPaint);
+
+  final VoidCallback onPaint;
+
+  @override
+  void paint(Canvas canvas, Size size) => onPaint();
+
+  @override
+  bool shouldRepaint(_PaintProbe oldDelegate) => true;
+}
+
 void main() {
   setUp(MotionClock.debugReset);
+
+  testWidgets('what the menu grows out of leaves the screen while the menu '
+      'is open and comes back when it closes, a button or not', (tester) async {
+    for (final button in [true, false]) {
+      _phone(tester);
+      final controller = GlassMenuController();
+      var paints = 0;
+      // The menu's glass carries a copy of a button's label as it grows;
+      // the probe counts only the paints of the one in the source.
+      final label = SizedBox(
+        width: 60,
+        height: 30,
+        child: Builder(
+          builder: (context) => CustomPaint(
+            key: const Key('probe'),
+            painter: _PaintProbe(() {
+              if (!button ||
+                  context.findAncestorWidgetOfExactType<GlassButton>() !=
+                      null) {
+                paints++;
+              }
+            }),
+          ),
+        ),
+      );
+      await tester.pumpWidget(
+        _app(
+          GlassMenuAnchor(
+            controller: controller,
+            menuChildren: _entries(<String>[]),
+            child: button
+                ? GlassButton(onPressed: controller.open, child: label)
+                : label,
+          ),
+        ),
+      );
+      Future<bool> painted() async {
+        paints = 0;
+        for (final probe in tester.renderObjectList(
+          find.byKey(const Key('probe')),
+        )) {
+          probe.markNeedsPaint();
+        }
+        await tester.pump();
+        return paints > 0;
+      }
+
+      expect(await painted(), isTrue, reason: 'button $button');
+      controller.open();
+      await _settle(tester);
+      expect(find.text('Copy'), findsOneWidget);
+      expect(await painted(), isFalse, reason: 'button $button');
+      controller.close();
+      await _settle(tester);
+      expect(await painted(), isTrue, reason: 'button $button');
+      await tester.pumpWidget(const SizedBox());
+    }
+  });
 
   testWidgets('a button whose action opens the menu opens it on a tap after '
       'the measured delay, and the builder sees it open', (tester) async {
@@ -90,7 +161,7 @@ void main() {
   });
 
   testWidgets('plain text in a raw button is a source: a tap opens the menu '
-      'and the text keeps showing under it', (tester) async {
+      'and a row closes it', (tester) async {
     _phone(tester);
     final log = <String>[];
     await tester.pumpWidget(
@@ -113,7 +184,6 @@ void main() {
     await tester.tap(find.text('Sort'));
     await _settle(tester);
     expect(find.text('Copy'), findsOneWidget);
-    expect(find.text('Sort'), findsOneWidget, reason: 'nothing hides it');
     await tester.tap(find.text('Share'));
     await _settle(tester);
     expect(log, ['Share']);
