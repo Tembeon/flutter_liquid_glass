@@ -3,7 +3,7 @@ part of 'sheet.dart';
 class _SheetView extends StatefulWidget {
   const _SheetView({required this.motion, required this.spec});
 
-  final _SheetPresented motion;
+  final SheetMotion motion;
   final _SheetSpec spec;
 
   @override
@@ -14,14 +14,14 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   // Everything _publish reads, so a frame that moved the sheet publishes it
   // and one that did not costs nothing.
   late final MotionSelection<Object?> _frames = widget.motion.select((m) {
-    final sheet = m.sheet;
-    if (sheet == null) return null;
+    final layout = m.lastLayout;
+    if (layout == null) return null;
     return (
-      sheet.height,
-      sheet.visibleRect(_size.height),
-      sheet.bottomRadius,
-      sheet.fill,
-      sheet.hasEvents,
+      m.height,
+      m.visibleRect(layout.size.height),
+      m.bottomRadius,
+      m.fill,
+      m.hasEvents,
     );
   });
   late final _SheetScrollController _scroll = _SheetScrollController(this);
@@ -34,16 +34,15 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   );
   final _fill = ValueNotifier<double>(0);
   late final MotionSelection<bool> _glass = widget.motion.select(
-    (m) => (m.sheet?.fill ?? 0) < 1,
+    (m) => _fillOf(m) < 1,
   );
   late final MotionSelection<bool> _opaque = widget.motion.select(
-    (m) => (m.sheet?.fill ?? 0) >= 1,
+    (m) => _fillOf(m) >= 1,
   );
   late final MotionSelection<bool> _fading = widget.motion.select((m) {
-    final fill = m.sheet?.fill ?? 0;
+    final fill = _fillOf(m);
     return fill > 0 && fill < 1;
   });
-  List<int> _order = const [];
   // The detent the sheet rests at or heads to, as an index of its detents.
   final _detent = ValueNotifier<int>(0);
   late final _range = _DetentRange(this);
@@ -51,9 +50,6 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   late final _SheetTouch _touchInput = _SheetTouch(this);
   List<Interaction> _input = const [];
   double? _contendedSlop;
-  Size _size = Size.zero;
-  EdgeInsets _padding = EdgeInsets.zero;
-  double _keyboard = 0;
   double? _fitted;
   double? _displayRadius;
   double _dragY = 0;
@@ -66,9 +62,12 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
 
   _SheetSpec get _spec => widget.spec;
 
-  SheetMotion? get _motion => widget.motion.sheet;
+  SheetMotion? get _motion => widget.motion.isLaidOut ? widget.motion : null;
 
-  bool get _leaving => widget.motion.left;
+  static double _fillOf(SheetMotion motion) =>
+      motion.isLaidOut ? motion.fill : 0;
+
+  bool get _leaving => widget.motion.hasLeft;
 
   double get _now => widget.motion.clock.now;
 
@@ -112,7 +111,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     final i = detents.indexOf(detent);
     final motion = _motion;
     if (i < 0 || motion == null || _leaving) return;
-    motion.animateTo(_now, _order.indexOf(i));
+    motion.animateTo(_now, motion.indexOfDetent(i));
     _deliver();
   }
 
@@ -123,7 +122,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
       if (!mounted) return;
       switch (event) {
         case SheetDetentChanged(:final index, :final byUser):
-          _detent.value = _order[index];
+          _detent.value = motion.detentAt(index);
           // UIKit reports a detent the user picks, not one set from code.
           if (byUser) _spec.onDetentChanged?.call(detent);
         case SheetDismissed() || SheetDismissRefused():
@@ -142,83 +141,18 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   void _fittedHeight(double t, Size size) {
     if (!mounted || _fitted == size.height) return;
     _fitted = size.height;
-    _layout(_size, _padding, _keyboard, at: t);
-  }
-
-  // A keyboard raises the sheet as UIKit's does (simulator capture): each
-  // detent grows by the keyboard's height up to the maximum, and the sheet
-  // moves to its largest detent while the keyboard shows, back to the
-  // selected one when it hides, neither reported as a detent change.
-  void _layout(
-    Size size,
-    EdgeInsets padding,
-    double keyboard, {
-    double? at,
-  }) {
-    if (at == null &&
-        size == _size &&
-        padding == _padding &&
-        keyboard == _keyboard &&
-        _motion != null) {
-      return;
-    }
-    final raised = keyboard > 0;
-    final wasRaised = _keyboard > 0;
-    _size = size;
-    _padding = padding;
-    _keyboard = keyboard;
-    final maximum = math.max<double>(
-      0,
-      size.height - padding.top - padding.bottom,
-    );
-    final values = [
-      for (final d in detents)
-        math.min(
-              d.resolve(maximum, fittedHeight: _fitted) + keyboard,
-              maximum,
-            ) +
-            padding.bottom,
-    ];
-    final order = List<int>.generate(detents.length, (i) => i);
-    order.sort((a, b) => values[a].compareTo(values[b]));
-    _order = order;
-    final heights = [for (final i in order) values[i]];
-    final docked = order.indexWhere((i) => detents[i].isLarge);
-    final undimmed = _spec.largestUndimmedDetent;
-    final undimmedAt = undimmed == null
-        ? -1
-        : order.indexWhere((i) => detents[i] == undimmed);
-    final index = raised ? order.length - 1 : order.indexOf(_detent.value);
-    final motion = _motion;
-    if (motion == null) {
-      final created = SheetMotion(
-        heights: heights,
-        width: size.width,
-        initial: index,
-        fullHeight: maximum + padding.bottom,
-        dockedIndex: docked < 0 ? null : docked,
-        undimmedIndex: undimmedAt < 0 ? null : undimmedAt,
-        dismissible: _spec.isDismissible,
-        displayRadius: _displayRadius,
-      );
-      widget.motion.attach(_now, created);
-    } else {
-      motion.relayout(
-        at ?? _now,
-        heights,
-        size.width,
-        fullHeight: maximum + padding.bottom,
-        index: raised == wasRaised ? null : index,
-      );
-    }
+    final last = widget.motion.lastLayout;
+    if (last == null) return;
+    widget.motion.layout(t, last.copyWith(fittedHeight: () => _fitted));
   }
 
   void _publish() {
     final motion = _motion;
     if (motion == null) return;
+    final size = motion.lastLayout!.size;
     final h = motion.height;
-    final drawn = motion.visibleRect(_size.height);
-    final k = _size.width <= 0 ? 1.0 : drawn.width / _size.width;
+    final drawn = motion.visibleRect(size.height);
+    final k = size.width <= 0 ? 1.0 : drawn.width / size.width;
     final ky = motion.stretch != 1 && h > 0 ? drawn.height / h : k;
     final transform = Matrix4.translationValues(drawn.left, drawn.top, 0);
     transform.multiply(Matrix4.diagonal3Values(k, ky, 1));
@@ -230,7 +164,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
       body: RSuperellipse.fromLTRBAndCorners(
         0,
         0,
-        _size.width,
+        size.width,
         h,
         topLeft: top,
         topRight: top,
@@ -381,8 +315,8 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   void _step(double t, ValueCommand command) {
     final motion = _motion;
     if (motion == null || _leaving) return;
-    final at = _order.indexOf(_detent.value);
-    final last = _order.length - 1;
+    final at = motion.indexOfDetent(_detent.value);
+    final last = motion.heights.length - 1;
     final to = switch (command) {
       .increase || .increaseLarge => at + 1,
       .decrease || .decreaseLarge => at - 1,
@@ -400,7 +334,11 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     if (detent == GlassSheetDetent.medium) {
       return strings.sheetMediumDetentValue;
     }
-    return strings.sheetDetentValue(_order.indexOf(index) + 1, _order.length);
+    final motion = widget.motion;
+    return strings.sheetDetentValue(
+      motion.indexOfDetent(index) + 1,
+      motion.heights.length,
+    );
   }
 
   // The scale of the sheet floating on a screen of this width: the target
@@ -483,15 +421,22 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
         detent: _detent,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            _layout(
-              constraints.biggest,
-              EdgeInsets.only(
-                top: media.padding.top,
-                bottom: media.padding.bottom,
+            widget.motion.displayRadius = _displayRadius;
+            widget.motion.layout(
+              _now,
+              SheetLayout(
+                size: constraints.biggest,
+                padding: EdgeInsets.only(
+                  top: media.padding.top,
+                  bottom: media.padding.bottom,
+                ),
+                keyboard: media.viewInsets.bottom,
+                fittedHeight: _fitted,
+                detents: detents,
+                selected: detent,
+                largestUndimmed: _spec.largestUndimmedDetent,
               ),
-              media.viewInsets.bottom,
             );
-            _motion!.displayRadius = _displayRadius;
             _publish();
             return Stack(
               children: [

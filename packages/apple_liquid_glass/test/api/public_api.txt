@@ -3412,7 +3412,37 @@ final class SheetDismissed extends SheetEvent
   const SheetDismissed()
 sealed class SheetEvent
   const SheetEvent()
-class SheetMotion extends Motion
+final class SheetLayout
+  const SheetLayout({
+    required Size size,
+    required List<GlassSheetDetent> detents,
+    required GlassSheetDetent selected,
+    EdgeInsets padding = ...,
+    double keyboard = ...,
+    double? fittedHeight,
+    GlassSheetDetent? largestUndimmed,
+  })
+  SheetLayout copyWith({
+    Size? size,
+    EdgeInsets? padding,
+    double? keyboard,
+    double? Function()? fittedHeight,
+    List<GlassSheetDetent>? detents,
+    GlassSheetDetent? selected,
+    GlassSheetDetent? Function()? largestUndimmed,
+  })
+  final List<GlassSheetDetent> detents
+  final double? fittedHeight
+  double get fullHeight
+  final double keyboard
+  final GlassSheetDetent? largestUndimmed
+  double get maximum
+  final EdgeInsets padding
+  ({int? docked, List<double> heights, List<int> order, int? undimmed}) resolve()
+  final GlassSheetDetent selected
+  final Size size
+  overrides: ==, hashCode
+class SheetMotion extends Motion with Presented, PredictiveBack
   SheetMotion({
     required List<double> heights,
     required double width,
@@ -3423,19 +3453,23 @@ class SheetMotion extends Motion
     bool dismissible = ...,
     double inset = ...,
     double? displayRadius,
+    MotionClock? clock,
+  })
+  SheetMotion.presented({
+    bool dismissible = ...,
+    double inset = ...,
+    double? displayRadius,
+    MotionClock? clock,
   })
   void animateTo(double t, int index)
-  void backCancel(double t)
-  void backMove(double t, double progress)
-  void backStart(double t)
-  double backVelocity(double velocity)
   double get bottomRadius
+  int detentAt(int index)
   double get dimming
   void dismiss(double t, {double velocity = ...})
   bool dismissible
   double? displayRadius
   double get dock
-  final int? dockedIndex
+  int? get dockedIndex
   double get dockedRadius
   void dragCancel(double t)
   void dragEnd(double t, double velocity)
@@ -3449,14 +3483,19 @@ class SheetMotion extends Motion
   double get floatingRadius
   static const double grabberHitHeight
   bool get hasEvents
+  bool get hasLeft
   double get height
   List<double> get heights
   double get hiddenOffset
   int get index
+  int indexOfDetent(int detent)
   final double inset
   bool get isDismissed
   bool get isDismissing
   bool get isDragging
+  bool get isLaidOut
+  SheetLayout? get lastLayout
+  void layout(double t, SheetLayout layout)
   double get offset
   void pick(double t, int index)
   void present(double t)
@@ -3471,11 +3510,11 @@ class SheetMotion extends Motion
   double get scale
   double get stretch
   void tapGrabber(double t)
-  final int? undimmedIndex
+  int? get undimmedIndex
   void unpress(double t)
   Rect visibleRect(double containerHeight)
   double width
-  overrides: holds, minFrameRate
+  overrides: backEnded, backMoved, backStarted, holds, leave, minFrameRate, open, presence
 final class SliderChangeEnded extends SliderEvent
   const SliderChangeEnded(double value)
   final double value
@@ -4075,6 +4114,7 @@ class SheetDetentChanged (see package:apple_liquid_glass/apple_liquid_glass.dart
 class SheetDismissRefused (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SheetDismissed (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SheetEvent (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SheetLayout (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SheetMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SliderChangeEnded (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SliderChanged (see package:apple_liquid_glass/apple_liquid_glass.dart)

@@ -349,6 +349,7 @@ SheetDetentChanged
 SheetDismissRefused
 SheetDismissed
 SheetEvent
+SheetLayout
 SheetMotion
 SliderChangeEnded
 SliderChanged

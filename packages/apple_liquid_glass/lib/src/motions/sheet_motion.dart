@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motions/sheet_event.dart';
+import 'package:apple_liquid_glass/src/motions/sheet_layout.dart';
 import 'package:apple_liquid_glass/src/motions/sheet_tuning.dart';
 import 'package:kinesis/motion.dart';
 
@@ -56,7 +57,12 @@ import 'package:kinesis/motion.dart';
 /// stretch within [MotionRest.scale] of the sheet's longer side, the
 /// sideways drift within [MotionRest.length] of the inset, the fill within
 /// [MotionRest.opacity]: invisible, NEAR.
-class SheetMotion extends Motion {
+///
+/// As a presentation's motion it is made before the sheet is laid out
+/// ([SheetMotion.presented]) and learns its detents from [layout]: until
+/// then it holds no heights, is opening once opened, and a leave ends the
+/// presentation at once.
+class SheetMotion extends Motion with Presented, PredictiveBack {
   /// Creates a motion with the given detent [heights] (ascending), resting
   /// hidden below the screen until [present].
   ///
@@ -68,16 +74,17 @@ class SheetMotion extends Motion {
     required this.width,
     required int initial,
     double? fullHeight,
-    this.dockedIndex,
-    this.undimmedIndex,
+    this._dockedIndex,
+    this._undimmedIndex,
     this.dismissible = true,
     this.inset = SheetMotion.floatingInset,
     this.displayRadius,
+    super.clock,
   }) : _heights = List<double>.of(heights),
        _fullHeight = fullHeight ?? heights.last,
        _index = initial,
        _restingHeight = heights[initial],
-       _restingFill = initial == dockedIndex ? 1 : 0 {
+       _restingFill = initial == _dockedIndex ? 1 : 0 {
     _toDocked = initial == dockedIndex;
     _dockStart = _toDocked ? 1 : 0;
     _radiusStart = _toDocked ? dockedRadius : floatingRadius;
@@ -85,6 +92,20 @@ class SheetMotion extends Motion {
     _floating = _toDocked ? _floatingBelowDocked : heights[initial];
     _offset.snap(0, hiddenOffset);
   }
+
+  /// Creates the motion of a presented sheet on [clock], hidden and holding
+  /// no heights until its first [layout].
+  SheetMotion.presented({
+    this.dismissible = true,
+    this.inset = SheetMotion.floatingInset,
+    this.displayRadius,
+    super.clock,
+  }) : _heights = const [],
+       width = 0,
+       _fullHeight = 0,
+       _index = 0,
+       _restingHeight = 0,
+       _restingFill = 0;
 
   /// The gap around a sheet resting below the large detent, in points:
   /// it floats 8 points from the sides and the bottom of the screen.
@@ -117,11 +138,13 @@ class SheetMotion extends Motion {
 
   /// The index of the detent that docks the sheet edge to edge, or null
   /// when no detent does.
-  final int? dockedIndex;
+  int? get dockedIndex => _dockedIndex;
+  int? _dockedIndex;
 
   /// The index of the largest detent that does not dim, or null when
   /// every detent dims.
-  final int? undimmedIndex;
+  int? get undimmedIndex => _undimmedIndex;
+  int? _undimmedIndex;
 
   /// Whether a drag down may dismiss the sheet; otherwise the pull below
   /// the smallest detent rubber-bands. The host updates it before each
@@ -233,7 +256,9 @@ class SheetMotion extends Motion {
 
   double get _driftRest => inset <= 0 ? 1 : MotionRest.length / inset;
 
-  double get _scaleRest => MotionRest.scale(math.max(width, _heights[_index]));
+  double get _scaleRest => MotionRest.scale(
+    _heights.isEmpty ? width : math.max(width, _heights[_index]),
+  );
 
   /// The unscaled height.
   double get height => _heightAt(now);
@@ -413,6 +438,80 @@ class SheetMotion extends Motion {
     return shown * f;
   }
 
+  SheetLayout? _layout;
+  List<int> _order = const [];
+  bool _opened = false;
+  bool _left = false;
+  // The velocity, down in pixels per second, of a back gesture that
+  // committed: the leave that follows continues from it.
+  double? _backVelocity;
+
+  /// Whether a [layout] or the constructor gave the sheet its heights.
+  bool get isLaidOut => _heights.isNotEmpty;
+
+  /// Whether the presentation was told to leave.
+  bool get hasLeft => _left;
+
+  /// The latest [layout], null before the first.
+  SheetLayout? get lastLayout => _layout;
+
+  /// The position in the layout's detents of the detent at [index], the
+  /// index of [heights] that [index] and [SheetDetentChanged] count in.
+  int detentAt(int index) => _order[index];
+
+  /// The index of [heights] of the layout's detent at position [detent],
+  /// -1 before the first [layout].
+  int indexOfDetent(int detent) => _order.indexOf(detent);
+
+  /// Tells the sheet its [layout] at [t].
+  ///
+  /// The first rests the sheet hidden at the selected detent and presents
+  /// it when it was opened and has not left. Each layout resolves the
+  /// detents with the keyboard (UIKit's, simulator capture): every detent
+  /// grows by the keyboard's height up to the maximum, and the sheet moves
+  /// to its largest detent while the keyboard shows and back to the
+  /// selected one when it hides, neither reported as a [SheetDetentChanged].
+  /// Otherwise a later layout keeps the detent the sheet rests at or heads
+  /// to; one that changes nothing but the selected detent does nothing.
+  void layout(double t, SheetLayout layout) {
+    final last = _layout;
+    if (last != null && layout.copyWith(selected: last.selected) == last) {
+      return;
+    }
+    _layout = layout;
+    final raised = layout.keyboard > 0;
+    final (:heights, :order, :docked, :undimmed) = layout.resolve();
+    _order = order;
+    final index = raised
+        ? order.length - 1
+        : order.indexOf(math.max(0, layout.detents.indexOf(layout.selected)));
+    if (last == null) {
+      _heights = heights;
+      width = layout.size.width;
+      _fullHeight = layout.fullHeight;
+      _dockedIndex = docked;
+      _undimmedIndex = undimmed;
+      _index = index;
+      _toDocked = index == docked;
+      _dockStart = _toDocked ? 1 : 0;
+      _radiusStart = _toDocked ? dockedRadius : floatingRadius;
+      _heightStart = heights[index];
+      _floating = _toDocked ? _floatingBelowDocked : heights[index];
+      _height.snap(t, heights[index]);
+      _fill.snap(t, _toDocked ? 1 : 0);
+      _offset.snap(t, hiddenOffset);
+      if (_opened && !_left) present(t);
+      return;
+    }
+    relayout(
+      t,
+      heights,
+      layout.size.width,
+      fullHeight: layout.fullHeight,
+      index: raised == last.keyboard > 0 ? null : index,
+    );
+  }
+
   /// Replaces the detent [heights], the container [width] and the
   /// [fullHeight] after a layout change, keeping the selected detent, or
   /// moving to [index] without reporting it through `onDetentChanged`: the
@@ -430,6 +529,34 @@ class SheetMotion extends Motion {
     _fullHeight = fullHeight ?? heights.last;
     _index = (index ?? _index).clamp(0, heights.length - 1);
     if (_dragFrom == null) _transition(t, _index);
+  }
+
+  @override
+  PresenceStatus get presence {
+    if (!isLaidOut) return _opened && !_left ? .opening : .hidden;
+    if (_dismissing) return isDismissed ? .hidden : .leaving;
+    return isSettled ? .shown : .opening;
+  }
+
+  @override
+  void open(double t) {
+    _opened = true;
+    if (isLaidOut && !_left) present(t);
+  }
+
+  @override
+  bool leave(double t, DismissTrigger trigger) {
+    _left = true;
+    if (!isLaidOut) return false;
+    final back = _backVelocity;
+    _backVelocity = null;
+    if (back != null) {
+      dismiss(t, velocity: back);
+      return true;
+    }
+    if (isDragging) dragCancel(t);
+    if (!_dismissing) dismiss(t);
+    return true;
   }
 
   /// Slides the sheet in from below the screen to its detent.
@@ -466,7 +593,9 @@ class SheetMotion extends Motion {
   /// Android's predictive back gesture starts at [t]: it drags the sheet
   /// down from where it rests, as a finger dragging it to its dismissal
   /// does, without the swell of a touch.
-  void backStart(double t) {
+  @override
+  void backStarted(double t) {
+    if (!isLaidOut) return;
     advance(t);
     dismissible = true;
     _backRange = math.max(1, _top - _heights.first + hiddenOffset);
@@ -475,16 +604,24 @@ class SheetMotion extends Motion {
 
   /// The back gesture stands at [progress], 0 where it started and 1 with
   /// the sheet below the screen.
-  void backMove(double t, double progress) =>
-      dragUpdate(t, progress.clamp(0.0, 1.0) * _backRange);
+  @override
+  void backMoved(double t, double progress) {
+    if (!isLaidOut) return;
+    dragUpdate(t, progress.clamp(0.0, 1.0) * _backRange);
+  }
 
-  /// The pixels per second down of a back gesture moving at [velocity],
-  /// its progress per second.
-  double backVelocity(double velocity) => velocity * _backRange;
-
-  /// A back gesture that does not dismiss the sheet ends at [t]: the sheet
-  /// returns to its detent.
-  void backCancel(double t) => dragCancel(t);
+  /// The back gesture ends: a commit's [velocity], its progress per
+  /// second, carries the sheet down through the leave that follows; a
+  /// cancel returns the sheet to its detent.
+  @override
+  void backEnded(double t, {required bool commits, required double velocity}) {
+    if (!isLaidOut) return;
+    if (commits) {
+      _backVelocity = velocity * _backRange;
+    } else {
+      dragCancel(t);
+    }
+  }
 
   /// Animates to detent [index], as UIKit's animateChanges does.
   void animateTo(double t, int index) {

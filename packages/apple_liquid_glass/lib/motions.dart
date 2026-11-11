@@ -81,6 +81,7 @@ export 'src/motions/segment_highlight.dart' show SegmentHighlight;
 export 'src/motions/sheet_detent.dart' show GlassSheetDetent;
 export 'src/motions/sheet_event.dart'
     show SheetDetentChanged, SheetDismissRefused, SheetDismissed, SheetEvent;
+export 'src/motions/sheet_layout.dart' show SheetLayout;
 export 'src/motions/sheet_motion.dart' show SheetMotion;
 export 'src/motions/slider_motion.dart'
     show

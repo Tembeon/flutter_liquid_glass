@@ -149,16 +149,19 @@ Future<T?> showGlassSheet<T>(
   return showPresentation(
     context,
     PresentationRoute(
-      presentation: Presentation<T, _SheetPresented>(
-        motion: (_) => _SheetPresented(),
+      presentation: Presentation<T, SheetMotion>(
+        motion: (environment) => SheetMotion.presented(
+          dismissible: isDismissible,
+          clock: environment.clock,
+        ),
         builder: (context, motion) => _SheetView(motion: motion, spec: spec),
         // Back and Navigator.pop close it either way.
         dismiss: isDismissible
             ? const DismissPolicy()
             : const DismissPolicy({DismissTrigger.back}),
         dim: (motion) =>
-            _SheetLook.dimmingOpacity * (motion.sheet?.dimming ?? 0),
-        modal: (motion) => (motion.sheet?.dimming ?? 1) > 0,
+            motion.isLaidOut ? _SheetLook.dimmingOpacity * motion.dimming : 0,
+        modal: (motion) => !motion.isLaidOut || motion.dimming > 0,
         onVeto: onDismissAttempt == null ? null : (_) => onDismissAttempt(),
         semanticsLabel: semanticLabel,
         semanticsRole: SemanticsRole.dialog,
@@ -200,75 +203,6 @@ class _SheetSpec {
       (style ?? const GlassSheetStyle()).merge(
         GlassSheetStyle.maybeOf(context),
       );
-}
-
-/// A sheet's presentation: its [SheetMotion] comes with the first layout,
-/// whose detents it needs, and presents then.
-final class _SheetPresented extends Motion with Presented, PredictiveBack {
-  SheetMotion? _sheet;
-  bool _opened = false;
-  bool _left = false;
-  // The velocity, down in pixels per second, of a back gesture that
-  // committed: the leave that follows continues from it.
-  double? _backVelocity;
-
-  // UIKit asks at least 80 Hz of this (read from UIKit, notes private).
-  @override
-  double get minFrameRate => 80;
-
-  SheetMotion? get sheet => _sheet;
-
-  /// Whether the presentation was dismissed.
-  bool get left => _left;
-
-  void attach(double t, SheetMotion sheet) {
-    _sheet = own(sheet);
-    if (_opened && !_left) sheet.present(t);
-  }
-
-  @override
-  PresenceStatus get presence {
-    final sheet = _sheet;
-    if (sheet == null) return _opened && !_left ? .opening : .hidden;
-    if (sheet.isDismissing) return sheet.isDismissed ? .hidden : .leaving;
-    return isSettled ? .shown : .opening;
-  }
-
-  @override
-  void open(double t) => _opened = true;
-
-  @override
-  bool leave(double t, DismissTrigger trigger) {
-    _left = true;
-    final sheet = _sheet;
-    if (sheet == null) return false;
-    final back = _backVelocity;
-    _backVelocity = null;
-    if (back != null) {
-      sheet.dismiss(t, velocity: back);
-      return true;
-    }
-    if (sheet.isDragging) sheet.dragCancel(t);
-    if (!sheet.isDismissing) sheet.dismiss(t);
-    return true;
-  }
-
-  @override
-  void backStarted(double t) => _sheet?.backStart(t);
-
-  @override
-  void backMoved(double t, double progress) => _sheet?.backMove(t, progress);
-
-  @override
-  void backEnded(double t, {required bool commits, required double velocity}) {
-    final sheet = _sheet;
-    if (sheet == null) return;
-    if (commits) {
-      _backVelocity = sheet.backVelocity(velocity);
-    } else {
-      sheet.backCancel(t);
-    }
-  }
 }
 
 /// What a sheet's content can do with its sheet.

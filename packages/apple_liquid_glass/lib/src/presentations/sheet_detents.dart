@@ -78,9 +78,10 @@ final class _DetentRange implements ValueListenable<AdjustRange> {
 
   @override
   AdjustRange get value {
-    final at = sheet._order.indexOf(sheet._detent.value);
+    final motion = sheet.widget.motion;
+    final at = motion.indexOfDetent(sheet._detent.value);
     return AdjustRange(
-      canIncrease: at >= 0 && at + 1 < sheet._order.length,
+      canIncrease: at >= 0 && at + 1 < motion.heights.length,
       canDecrease: at > 0,
     );
   }
@@ -131,13 +132,15 @@ class _DetentValue extends StatelessWidget {
   Widget build(BuildContext context) {
     context.dependOnInheritedWidgetOfExactType<_DetentScope>();
     final strings = GlassLocalizations.of(context);
-    final order = state._order;
+    final motion = state.widget.motion;
     final detent = state._detent.value;
-    final at = order.indexOf(detent);
-    String? name(int i) => state._detentName(strings, order[i]);
+    final at = motion.indexOfDetent(detent);
+    String? name(int i) => state._detentName(strings, motion.detentAt(i));
     return Semantics(
       value: at < 0 ? null : state._detentName(strings, detent),
-      increasedValue: at >= 0 && at + 1 < order.length ? name(at + 1) : null,
+      increasedValue: at >= 0 && at + 1 < motion.heights.length
+          ? name(at + 1)
+          : null,
       decreasedValue: at > 0 ? name(at - 1) : null,
       textDirection: Directionality.of(context),
       child: child,
