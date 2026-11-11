@@ -116,18 +116,16 @@ final class _String extends _Context {
 }
 
 final _directive = RegExp(
-  r'''^\s*(?:import|export|part)\s+((?:[^;'"]|'[^']*'|"[^"]*")*);''',
+  r'''^(?:import|export|part)\s+((?:'[^']*'|"[^"]*")(?:[^;'"]|'[^']*'|"[^"]*")*);''',
   multiLine: true,
 );
 final _uri = RegExp('[\'"]([^\'"]+)[\'"]');
 
 /// The URIs of the import, export and part directives of [source], one
 /// list per directive (a conditional import names several). A `part of`
-/// directive is left out.
+/// directive is left out. A directive starts a line, as `dart format`
+/// writes it, so a statement such as `part is! Motion` is not one.
 List<List<String>> directives(String source) => [
   for (final match in _directive.allMatches(blank(source)))
-    if (!match.group(1)!.trimLeft().startsWith('of '))
-      [
-        for (final uri in _uri.allMatches(match.group(1)!)) uri.group(1)!,
-      ],
+    [for (final uri in _uri.allMatches(match.group(1)!)) uri.group(1)!],
 ];

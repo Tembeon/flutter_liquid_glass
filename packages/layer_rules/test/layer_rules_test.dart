@@ -91,6 +91,9 @@ import 'b.dart'
     if (dart.library.io) 'c.dart';
 export 'package:d/d.dart' hide D;
 part of 'e.dart';
+void f(Object part) {
+  part is! String || g('h.dart');
+}
 '''),
       [
         ['a.dart'],
