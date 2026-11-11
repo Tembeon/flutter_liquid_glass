@@ -255,6 +255,10 @@ final class BandSiteRole extends SiteRole {
 }
 
 /// One site of the frame: where the form found it and what it asks.
+///
+/// The plan only reads it. The form, which walks the frame, is its one
+/// writer, through the methods named for the step of its walk that learned
+/// each fact.
 final class SiteFacts {
   /// Creates the facts of the site known as [id].
   SiteFacts(this.id);
@@ -263,27 +267,89 @@ final class SiteFacts {
   final Object id;
 
   /// Its place in paint order.
-  int order = 0;
+  int get order => _order;
+  int _order = 0;
 
   /// The order of the last thing painted under its body.
-  int floor = -1;
+  int get floor => _floor;
+  int _floor = -1;
 
   /// Inherited alpha, filters and clips.
-  StateChain state = StateChain.root;
-
-  /// The [state], [clip] and hiding the dirty log last knew: glass draws no
-  /// picture, so a fade or a clip around it reaches the log only through this.
-  (StateChain, Rect?, bool) noted = (StateChain.root, null, false);
+  StateChain get state => _state;
+  StateChain _state = StateChain.root;
 
   /// The clip around it on the screen, if any.
-  Rect? clip;
+  Rect? get clip => _clip;
+  Rect? _clip;
 
   /// Its index in the frame's sites and in [GlassPlan.fates].
-  int index = 0;
+  int get index => _index;
+  int _index = 0;
 
   /// What its site asks this frame.
-  SiteAsk ask = SiteAsk.none;
+  SiteAsk get ask => _ask;
+  SiteAsk _ask = SiteAsk.none;
+
+  // Glass draws no picture, so a fade or a clip around it reaches the dirty
+  // log only through what was last noted here.
+  StateChain _notedState = StateChain.root;
+  Rect? _notedClip;
+  bool _notedHidden = false;
 
   /// Whether it is a scroll edge glass over it can draw.
   bool get isBand => ask.role is BandSiteRole;
+
+  /// Takes its place in the walk: its [order] in paint order, its [index] in
+  /// the frame's sites, and the [state] and [clip] it inherits.
+  ///
+  /// Called by the form when its walk reaches the site.
+  @internal
+  void placeInWalk({
+    required int order,
+    required int index,
+    required StateChain state,
+    required Rect? clip,
+  }) {
+    _order = order;
+    _index = index;
+    _state = state;
+    _clip = clip;
+  }
+
+  /// Takes what its site asks this frame; true when it differs from the last
+  /// ask.
+  ///
+  /// Called by the form when the site reports its ask.
+  @internal
+  bool takeAsk(SiteAsk ask) {
+    if (ask == _ask) return false;
+    _ask = ask;
+    return true;
+  }
+
+  /// Notes the [state], [clip] and hiding the dirty log now knows; true when
+  /// they are what it knew before.
+  ///
+  /// Called by the form after [takeAsk], when it logs what moved.
+  @internal
+  bool noteForLog() {
+    final hidden = _ask.hidden;
+    final same =
+        _state.same(_notedState) &&
+        _clip == _notedClip &&
+        hidden == _notedHidden;
+    _notedState = _state;
+    _notedClip = _clip;
+    _notedHidden = hidden;
+    return same;
+  }
+
+  /// Takes its [floor], once every rect of the frame is known.
+  ///
+  /// Called by the form when it settles the floors of the frame's sites.
+  @internal
+  void settleFloor(int floor) {
+    assert(floor < _order, 'A floor lies under its site in paint order.');
+    _floor = floor;
+  }
 }

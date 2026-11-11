@@ -170,16 +170,8 @@ final class Form implements PlanScenery {
   /// changed, which what lies over it reads.
   void noteAsk(SiteFacts site, SiteAsk ask) {
     final last = site.ask;
-    if (ask != last) {
-      site.ask = ask;
-      _asksChanged = true;
-    }
-    final (state, clip, hidden) = site.noted;
-    final around =
-        site.state.same(state) &&
-        site.clip == clip &&
-        site.ask.hidden == hidden;
-    site.noted = (site.state, site.clip, site.ask.hidden);
+    if (site.takeAsk(ask)) _asksChanged = true;
+    final around = site.noteForLog();
     if (around && last.drawn == ask.drawn && last.paints == ask.paints) return;
     dirty.add(site.order, _union(last.drawn, ask.drawn));
   }
@@ -187,7 +179,7 @@ final class Form implements PlanScenery {
   /// Finds where each site may share a filter, once its rects are known.
   void settleFloors() {
     for (final site in _sites) {
-      site.floor = site.ask.hidden ? -1 : floorOf(site);
+      site.settleFloor(site.ask.hidden ? -1 : floorOf(site));
     }
   }
 

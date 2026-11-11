@@ -62,14 +62,23 @@ FilterLook _look(int look, {bool frost = true}) => FilterLook(
 
 SiteFacts _site(int order, Rect drawn, {int look = 0, int floor = -1}) {
   final site = SiteFacts(Object())
-    ..order = order
-    ..ask = SiteAsk(drawn: drawn, reads: drawn.inflate(8), look: _look(look))
-    ..floor = floor;
+    .._place(order: order)
+    ..takeAsk(
+      SiteAsk(drawn: drawn, reads: drawn.inflate(8), look: _look(look)),
+    )
+    ..settleFloor(floor);
   return site;
 }
 
 // A site's ask with some of it replaced, as a test builds a scene.
 extension on SiteFacts {
+  void _place({int? order, StateChain? state, Rect? clip}) => placeInWalk(
+    order: order ?? this.order,
+    index: index,
+    state: state ?? this.state,
+    clip: clip ?? this.clip,
+  );
+
   SiteAsk _with({
     FilterLook? look,
     SiteRole? role,
@@ -138,12 +147,12 @@ _Scene _generated(int seed) {
     sites.add(_site(order, rect, look: random.nextInt(looks), floor: floor));
     order += 2 + card % 2;
     if (random.nextInt(9) == 0) {
-      sites.last.ask = sites.last._with(noJoin: NoJoin.field);
+      sites.last.takeAsk(sites.last._with(noJoin: NoJoin.field));
     }
     if (random.nextInt(40) == 0) {
-      sites.last.ask = sites.last._with(turned: true);
+      sites.last.takeAsk(sites.last._with(turned: true));
     }
-    if (random.nextInt(30) == 0) sites.last.ask = SiteAsk.none;
+    if (random.nextInt(30) == 0) sites.last.takeAsk(SiteAsk.none);
   }
   for (var i = 0; i < random.nextInt(3); i++) {
     final depth = i * 90.0;
@@ -181,8 +190,8 @@ void main() {
 
     test('says why glass stays apart when asked', () {
       final sites = _row(3);
-      sites[1].floor = sites[0].order + 1;
-      sites[2].ask = sites[2]._with(noJoin: NoJoin.field);
+      sites[1].settleFloor(sites[0].order + 1);
+      sites[2].takeAsk(sites[2]._with(noJoin: NoJoin.field));
       final (plan, _) = compilePlan(
         _Scene(sites),
         PlanLedger(),
@@ -217,18 +226,18 @@ void main() {
       );
 
       final ownPage = _row(2);
-      ownPage[1].ask = ownPage[1]._with(look: paged(0));
+      ownPage[1].takeAsk(ownPage[1]._with(look: paged(0)));
       expect(notesOf(ownPage).single, endsWith('never joins: reads a page'));
 
       final leadPage = _row(2);
-      leadPage[0].ask = leadPage[0]._with(look: paged(0));
+      leadPage[0].takeAsk(leadPage[0]._with(look: paged(0)));
       expect(notesOf(leadPage), [
         endsWith('never joins: reads a page'),
         endsWith('its lead reads a page'),
       ]);
 
       final looks = _row(2);
-      looks[1].ask = looks[1]._with(look: _look(1));
+      looks[1].takeAsk(looks[1]._with(look: _look(1)));
       expect(notesOf(looks).single, endsWith('other look'));
 
       expect(
@@ -261,13 +270,13 @@ void main() {
 
     test('something painted under glass after the lead keeps it apart', () {
       final sites = _row(2);
-      sites[1].floor = sites[0].order + 1;
+      sites[1].settleFloor(sites[0].order + 1);
       expect(_plan(_Scene(sites)).reads, hasLength(2));
     });
 
     test('other looks and overlapping glass stay apart', () {
       final looks = _row(2);
-      looks[1].ask = looks[1]._with(look: _look(1));
+      looks[1].takeAsk(looks[1]._with(look: _look(1)));
       expect(_plan(_Scene(looks)).reads, hasLength(2));
       final over = [
         _site(0, const Rect.fromLTWH(0, 0, 100, 100)),
@@ -280,31 +289,35 @@ void main() {
 
     test('a clip of the lead that would cut glass keeps it apart', () {
       final sites = _row(2);
-      sites[0].clip = const Rect.fromLTWH(0, 0, 60, 200);
+      sites[0]._place(clip: const Rect.fromLTWH(0, 0, 60, 200));
       expect(_plan(_Scene(sites)).reads, hasLength(2));
     });
 
     test('a band joins the glass over it that can draw it', () {
       final band = _site(0, const Rect.fromLTWH(0, 0, 411, 100));
-      band.ask = SiteAsk(
-        drawn: band.ask.drawn,
-        reads: band.ask.reads,
-        look: const FilterLook(
-          key: 'band',
-          need: CopyNeed(1, share: 2, frost: 2),
+      band.takeAsk(
+        SiteAsk(
+          drawn: band.ask.drawn,
+          reads: band.ask.reads,
+          look: const FilterLook(
+            key: 'band',
+            need: CopyNeed(1, share: 2, frost: 2),
+          ),
+          role: const BandSiteRole(_bandLook),
         ),
-        role: const BandSiteRole(_bandLook),
       );
       final glass = _site(2, const Rect.fromLTWH(8, 50, 44, 44));
-      glass.ask = glass._with(
-        look: const FilterLook(
-          key: 'a',
-          need: CopyNeed(1, share: 2, frost: 2),
-          drawsBand: true,
+      glass.takeAsk(
+        glass._with(
+          look: const FilterLook(
+            key: 'a',
+            need: CopyNeed(1, share: 2, frost: 2),
+            drawsBand: true,
+          ),
         ),
       );
       final beside = _site(4, const Rect.fromLTWH(8, 110, 44, 44));
-      beside.ask = beside._with(look: glass.ask.look);
+      beside.takeAsk(beside._with(look: glass.ask.look));
       expect(_plan(_Scene([band, glass])).reads, hasLength(1));
       expect(_plan(_Scene([band, beside])).reads, hasLength(2));
     });
@@ -312,25 +325,29 @@ void main() {
     test('glass stays over the glass it overlaps', () {
       final low = _site(0, const Rect.fromLTWH(0, 0, 100, 100));
       final other = _site(2, const Rect.fromLTWH(200, 0, 100, 100));
-      other.ask = other._with(
-        look: const FilterLook(key: 'other', need: CopyNeed(1)),
+      other.takeAsk(
+        other._with(
+          look: const FilterLook(key: 'other', need: CopyNeed(1)),
+        ),
       );
       final top = _site(4, const Rect.fromLTWH(250, 50, 20, 20));
-      top.ask = top._with(look: low.ask.look);
-      top.floor = -1;
+      top.takeAsk(top._with(look: low.ask.look));
+      top.settleFloor(-1);
       expect(_plan(_Scene([low, other, top])).reads, hasLength(3));
     });
 
     test('a copy of few pixels still holds the glass under it', () {
       final low = _site(0, const Rect.fromLTWH(0, 0, 100, 100));
       final top = _site(2, const Rect.fromLTWH(20, 20, 300, 60));
-      top.ask = top._with(
-        look: const FilterLook(
-          key: 'thick',
-          need: CopyNeed(1, share: 4, frost: 20),
+      top.takeAsk(
+        top._with(
+          look: const FilterLook(
+            key: 'thick',
+            need: CopyNeed(1, share: 4, frost: 20),
+          ),
         ),
       );
-      top.floor = -1;
+      top.settleFloor(-1);
       final plan = _plan(_Scene([low, top]));
       expect(plan.reads, hasLength(2));
       expect(plan.reads[1].holds, [plan.reads[0]]);
@@ -383,7 +400,7 @@ void main() {
 
     test('a held image goes when the frost baked into it changes', () {
       final site = _site(0, const Rect.fromLTWH(20, 200, 200, 90));
-      site.ask = site._with(look: look(4));
+      site.takeAsk(site._with(look: look(4)));
       final scene = _Scene([site]);
       final ledger = PlanLedger();
       for (var frame = 1; frame <= 60; frame++) {
@@ -391,7 +408,7 @@ void main() {
       }
       final held = _plan(scene, ledger: ledger, frame: 61).reads.single;
       expect(held.source, const ImageRead(held: true));
-      site.ask = site._with(look: look(5));
+      site.takeAsk(site._with(look: look(5)));
       final read = _plan(scene, ledger: ledger, frame: 62).reads.single;
       expect(read.changed, isTrue);
       expect(read.source, isA<SceneRead>());
@@ -399,16 +416,20 @@ void main() {
 
     test('a held image goes when the filter baked into it changes', () {
       final site = _site(0, const Rect.fromLTWH(20, 200, 200, 90));
-      site.ask = site._with(
-        look: look(0, page: const PageFilter(blur: (4, 4))),
+      site.takeAsk(
+        site._with(
+          look: look(0, page: const PageFilter(blur: (4, 4))),
+        ),
       );
       final scene = _Scene([site]);
       final ledger = PlanLedger();
       _plan(scene, ledger: ledger, frame: 1);
       final held = _plan(scene, ledger: ledger, frame: 2).reads.single;
       expect(held.source, const ImageRead(held: true));
-      site.ask = site._with(
-        look: look(0, page: const PageFilter(blur: (8, 8))),
+      site.takeAsk(
+        site._with(
+          look: look(0, page: const PageFilter(blur: (8, 8))),
+        ),
       );
       final read = _plan(scene, ledger: ledger, frame: 3).reads.single;
       expect(read.source, const ImageRead(held: false));
@@ -417,8 +438,10 @@ void main() {
     test('a filter of a page over a texture reads live, and so does '
         'what lies over it', () {
       final page = _site(2, const Rect.fromLTWH(20, 200, 200, 90));
-      page.ask = page._with(
-        look: look(0, page: const PageFilter(blur: (4, 4))),
+      page.takeAsk(
+        page._with(
+          look: look(0, page: const PageFilter(blur: (4, 4))),
+        ),
       );
       final over = _site(4, const Rect.fromLTWH(20, 200, 200, 90));
       final scene = _Scene([page, over])..texturesBefore = 1;
@@ -436,7 +459,7 @@ void main() {
     test('what changed in the same frame is never served from an image', () {
       final scene = _Scene(_row(1));
       final ledger = still(scene, 60);
-      scene.sites.first.order = 5;
+      scene.sites.first._place(order: 5);
       scene.dirty.add(1, const Rect.fromLTWH(0, 0, 100, 200));
       final read = _plan(scene, ledger: ledger, frame: 61).reads.single;
       expect(read.source, isA<SceneRead>());
@@ -449,14 +472,14 @@ void main() {
       final scene = _Scene([lower, upper]);
       final ledger = still(scene, 60);
       scene.dirty.add(0, const Rect.fromLTWH(0, 0, 60, 60));
-      lower.order = 1;
+      lower._place(order: 1);
       final plan = _plan(scene, ledger: ledger, frame: 61);
       expect(plan.reads[1].source, isA<SceneRead>());
     });
 
     test('holds that do not pay make the next wait longer', () {
       final scene = _Scene(_row(1));
-      scene.sites.first.order = 5;
+      scene.sites.first._place(order: 5);
       final ledger = PlanLedger();
       var frame = 0;
       int? firstNeed;
@@ -492,10 +515,12 @@ void main() {
       const policy = PlanPolicy(maxTargets: 0);
       GlassRead frame(int frame, double left) {
         final drawn = Rect.fromLTWH(left, 200, 120, 60);
-        site.ask = SiteAsk(
-          drawn: drawn,
-          reads: drawn.inflate(8),
-          look: _look(0),
+        site.takeAsk(
+          SiteAsk(
+            drawn: drawn,
+            reads: drawn.inflate(8),
+            look: _look(0),
+          ),
         );
         return _plan(
           _Scene([site]),
@@ -516,7 +541,7 @@ void main() {
 
     test('over content that changes by itself nothing holds', () {
       final scene = _Scene(_row(1));
-      scene.sites.first.order = 5;
+      scene.sites.first._place(order: 5);
       scene.texturesBefore = 0;
       final ledger = PlanLedger();
       for (var frame = 1; frame <= 60; frame++) {
@@ -550,7 +575,7 @@ void main() {
 
     test('keeps a read apart when something paints under it', () {
       final sites = pair();
-      sites.last.floor = 2;
+      sites.last.settleFloor(2);
       final plan = _plan(live(sites));
       expect(plan.reads.map((read) => read.liveGroup), [null, null]);
     });
@@ -562,14 +587,14 @@ void main() {
 
     test('keeps a read apart under another clip', () {
       final sites = pair();
-      sites.last.state = const StateChain(StateChain.root, 'clip');
+      sites.last._place(state: const StateChain(StateChain.root, 'clip'));
       final plan = _plan(live(sites));
       expect(plan.reads.map((read) => read.liveGroup), [null, null]);
     });
 
     test('leaves out glass that has no matte', () {
       final sites = pair();
-      sites.last.ask = sites.last._with(noJoin: NoJoin.noMatte);
+      sites.last.takeAsk(sites.last._with(noJoin: NoJoin.noMatte));
       final plan = _plan(live(sites));
       expect(plan.reads.map((read) => read.liveGroup), [null, null]);
     });
@@ -659,13 +684,15 @@ void main() {
         for (final (i, site) in scene.sites.indexed) {
           if (site.ask.hidden) continue;
           final look = site.ask.look;
-          site.ask = site._with(
-            role: const _Glass(),
-            look: FilterLook(
-              key: look.key,
-              need: look.need,
-              drawsBand: look.drawsBand,
-              body: bodies[(seed + i) % bodies.length],
+          site.takeAsk(
+            site._with(
+              role: const _Glass(),
+              look: FilterLook(
+                key: look.key,
+                need: look.need,
+                drawsBand: look.drawsBand,
+                body: bodies[(seed + i) % bodies.length],
+              ),
             ),
           );
         }

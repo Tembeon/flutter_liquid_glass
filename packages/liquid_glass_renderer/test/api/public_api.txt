@@ -398,15 +398,23 @@ final class SiteAsk
   overrides: ==, hashCode
 final class SiteFacts
   SiteFacts(Object id)
-  SiteAsk ask
-  Rect? clip
-  int floor
+  SiteAsk get ask
+  Rect? get clip
+  int get floor
   final Object id
-  int index
+  int get index
   bool get isBand
-  (StateChain, Rect?, bool) noted
-  int order
-  StateChain state
+  @internal bool noteForLog()
+  int get order
+  @internal void placeInWalk({
+    required int order,
+    required int index,
+    required StateChain state,
+    required Rect? clip,
+  })
+  @internal void settleFloor(int floor)
+  StateChain get state
+  @internal bool takeAsk(SiteAsk ask)
 sealed class SiteFate
   const SiteFate()
 sealed class SiteRole

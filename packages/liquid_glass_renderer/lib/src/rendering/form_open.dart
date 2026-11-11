@@ -392,10 +392,12 @@ final class SiteNode extends ShiftNode {
   bool refreshIn(Form form, FormWorld outside) {
     _form = form;
     _seen = form.frame;
-    facts.order = form._next;
-    facts.state = outside.state;
-    facts.clip = outside.clip;
-    facts.index = form._sites.length;
+    facts.placeInWalk(
+      order: form._next,
+      index: form._sites.length,
+      state: outside.state,
+      clip: outside.clip,
+    );
     form._sites.add(facts);
     form._siteNodes.add(this);
     site.formNode = this;
