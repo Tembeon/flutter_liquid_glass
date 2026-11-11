@@ -27,11 +27,20 @@ import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_ob
 /// is built. Then it submits the frame's flutter_gpu passes.
 ///
 /// One composer per view owner, adopted by the first glass that attaches
-/// there ([track]) and dropped and disposed when the last one detaches, so a
-/// view owner that is disposed never holds one.
+/// there ([track]) and dropped and disposed when the last one detaches. A
+/// view whose scene glass with no tracked site composes alone adopts one
+/// too; the first paint that finds it neither tracking a site nor used since
+/// the previous paint drops and disposes it.
 @internal
 final class GlassComposer extends PipelineOwner {
-  GlassComposer._() : super(onSemanticsUpdate: _noSemantics);
+  GlassComposer._(this._view) : super(onSemanticsUpdate: _noSemantics);
+
+  factory GlassComposer._adopt(PipelineOwner owner) {
+    if (_of(owner) case final composer?) return composer;
+    final composer = GlassComposer._(owner);
+    owner.adoptChild(composer);
+    return composer;
+  }
 
   // A composer owns no render object; with semantics enabled it still gets
   // a semantics owner, which never has anything to send.
@@ -43,12 +52,7 @@ final class GlassComposer extends PipelineOwner {
     PipelineOwner owner,
     TransformTrackingRenderObjectMixin site,
   ) {
-    var composer = _of(owner);
-    if (composer == null) {
-      composer = GlassComposer._();
-      owner.adoptChild(composer);
-    }
-    composer._sites.add(site);
+    GlassComposer._adopt(owner)._sites.add(site);
   }
 
   /// Stops following [site]. The last site to leave drops the composer.
@@ -103,9 +107,14 @@ final class GlassComposer extends PipelineOwner {
     });
   }
 
+  final PipelineOwner _view;
+
   final Set<TransformTrackingRenderObjectMixin> _sites = Set.identity();
 
   final _composition = _Composition();
+
+  // Whether a scene composed alone in it since the last paint.
+  bool _usedAlone = false;
 
   bool _composing = false;
 
@@ -135,6 +144,16 @@ final class GlassComposer extends PipelineOwner {
   @override
   void flushPaint() {
     super.flushPaint();
+    if (_sites.isEmpty) {
+      if (_usedAlone) {
+        _usedAlone = false;
+      } else {
+        // The view's owner is flushing its children and refuses a change to
+        // their list until it returns.
+        scheduleMicrotask(_dropIfUnused);
+      }
+      return;
+    }
     census.frames++;
     census.sites += _sites.length;
     final root = _root();
@@ -148,6 +167,14 @@ final class GlassComposer extends PipelineOwner {
     } finally {
       _composing = false;
     }
+  }
+
+  void _dropIfUnused() {
+    if (_usedAlone || _sites.isNotEmpty || !identical(_of(_view), this)) {
+      return;
+    }
+    _view.dropChild(this);
+    dispose();
   }
 
   @override
@@ -202,13 +229,11 @@ final class GlassComposer extends PipelineOwner {
   // update pass is over.
   static final _composedRoots = Set<ContainerLayer>.identity();
 
-  // What a view with no tracked site holds between frames: a view that shows
-  // nothing but scroll edges still holds still.
-  static final _alone = Map<ContainerLayer, _Composition>.identity();
-
   // A scene the view's composer did not plan: glass in a view with no tracked
-  // site, or an image of a subtree taken outside a frame, which plans once from
-  // nothing held. What it draws stands until the next plan.
+  // site, which composes in a composer of that view so a view that shows
+  // nothing but scroll edges still holds still, or an image of a subtree
+  // taken outside a frame, which plans once from nothing held. What it draws
+  // stands until the next plan.
   static void _composeAlone(Layer layer) {
     var top = layer;
     while (top.parent != null) {
@@ -219,8 +244,13 @@ final class GlassComposer extends PipelineOwner {
     if (_composedRoots.length == 1) {
       scheduleMicrotask(_composedRoots.clear);
     }
-    final scheduler = SchedulerBinding.instance;
-    if (scheduler.schedulerPhase != SchedulerPhase.persistentCallbacks) {
+    final view = switch (root.owner) {
+      RenderView(:final owner?) => owner,
+      _ => null,
+    };
+    if (view == null ||
+        SchedulerBinding.instance.schedulerPhase !=
+            SchedulerPhase.persistentCallbacks) {
       final composition = _Composition();
       try {
         composition.run(root);
@@ -229,28 +259,15 @@ final class GlassComposer extends PipelineOwner {
       }
       return;
     }
-    final composition = (_alone[root] ??= _Composition())..run(root);
-    final ranAt = scheduler.currentFrameTimeStamp;
-    composition.ranAt = ranAt;
-    // After the frame: kept through the next frame, whose scene may reuse it.
-    scheduler.addPostFrameCallback((_) {
-      // After the frame: the next frame's scene has reused it or not.
-      scheduler.addPostFrameCallback((_) {
-        if (composition.ranAt != ranAt) return;
-        if (scheduler.currentFrameTimeStamp == ranAt) return;
-        composition.dispose();
-        _alone.remove(root);
-      });
-    });
+    GlassComposer._adopt(view)
+      .._usedAlone = true
+      .._composition.run(root);
   }
 }
 
 // One view's frame: the form of its layers, what the plan keeps between frames
 // and what its reads hold.
 final class _Composition {
-  // The frame it last planned, while it plans alone.
-  Duration? ranAt;
-
   final _form = Form();
   final _ledger = PlanLedger();
   final _emit = GlassEmit();

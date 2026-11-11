@@ -121,6 +121,36 @@ void main() {
     expect(log, ['outer unplanned', 'inner unplanned']);
   });
 
+  testWidgets('a view that composes alone holds one composer and drops it two '
+      'frames after it last drew', (tester) async {
+    final log = <String>[];
+    Widget recorder() => Directionality(
+      textDirection: TextDirection.ltr,
+      child: RepaintBoundary(
+        child: _Recorder(
+          log: log,
+          name: 'alone',
+          child: const SizedBox.square(dimension: 20),
+        ),
+      ),
+    );
+    await tester.pumpWidget(recorder());
+    expect(_composers(), hasLength(1));
+    final composer = _composers().single;
+    tester.binding.scheduleFrame();
+    await tester.pump();
+    expect(_composers().single, same(composer));
+    expect(composer.census.frames, 0);
+
+    await tester.pumpWidget(const SizedBox());
+    expect(_composers(), hasLength(1));
+    tester.binding.scheduleFrame();
+    await tester.pump();
+    expect(_composers(), isEmpty);
+    expect(tester.binding.hasScheduledFrame, isFalse);
+    expect(log, everyElement('alone unplanned'));
+  });
+
   test('each owner gets its own composer and can be disposed after', () {
     final a = PipelineOwner();
     final b = PipelineOwner();
