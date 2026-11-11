@@ -2,15 +2,15 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:apple_liquid_glass/src/foundation/frame.dart';
+import 'package:apple_liquid_glass/src/foundation/glass.dart';
+import 'package:apple_liquid_glass/src/foundation/outline.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
 import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:apple_liquid_glass/src/liquid/scroll_edge.dart';
 import 'package:apple_liquid_glass/src/liquid/underlay_layers.dart';
 import 'package:apple_liquid_glass/src/surfaces/flat.dart';
 import 'package:apple_liquid_glass/src/surfaces/follow_frame.dart';
-import 'package:apple_liquid_glass/src/surfaces/glass.dart';
 import 'package:apple_liquid_glass/src/surfaces/lens_shrink.dart';
-import 'package:apple_liquid_glass/src/surfaces/outline.dart';
 import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
 import 'package:apple_liquid_glass/src/surfaces/solid_backdrop.dart';
 import 'package:flutter/foundation.dart';

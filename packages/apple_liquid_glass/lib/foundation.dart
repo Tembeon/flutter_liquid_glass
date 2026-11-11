@@ -20,6 +20,9 @@ library;
 
 export 'src/foundation/colors.dart' show GlassColors, GlassDynamicColor;
 export 'src/foundation/frame.dart' show GlassFrame;
+export 'src/foundation/glass.dart' show Glass, GlassRole;
+export 'src/foundation/outline.dart' show GlassOutline;
+export 'src/foundation/shape.dart' show GlassShape;
 export 'src/foundation/theme.dart'
     show AnimatedGlassTheme, GlassColorScheme, GlassTheme, GlassThemeData;
 export 'src/foundation/traits.dart'

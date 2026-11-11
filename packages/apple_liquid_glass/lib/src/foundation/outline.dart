@@ -1,4 +1,4 @@
-import 'package:apple_liquid_glass/src/surfaces/shape.dart';
+import 'package:apple_liquid_glass/src/foundation/shape.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:meta/meta.dart';

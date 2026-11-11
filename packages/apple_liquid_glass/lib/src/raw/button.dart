@@ -1,7 +1,7 @@
 import 'package:apple_liquid_glass/src/foundation/frame.dart';
+import 'package:apple_liquid_glass/src/foundation/shape.dart';
 import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:apple_liquid_glass/src/motions/glass_press.dart';
-import 'package:apple_liquid_glass/src/surfaces/shape.dart';
 import 'package:apple_liquid_glass/src/surfaces/surface.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';

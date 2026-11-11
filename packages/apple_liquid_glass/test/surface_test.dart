@@ -1,10 +1,10 @@
 import 'dart:typed_data';
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:apple_liquid_glass/src/foundation/glass.dart';
 import 'package:apple_liquid_glass/src/liquid/adaptive.dart';
 import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
 import 'package:apple_liquid_glass/src/surfaces/flat.dart';
-import 'package:apple_liquid_glass/src/surfaces/glass.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';

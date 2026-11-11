@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/foundation/glass.dart';
 import 'package:apple_liquid_glass/src/motions/flex_spec.dart' show FlexSpec;
-import 'package:apple_liquid_glass/src/surfaces/glass.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:kinesis/motion.dart';

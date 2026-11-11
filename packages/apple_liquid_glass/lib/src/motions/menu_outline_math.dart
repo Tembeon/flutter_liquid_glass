@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/foundation/boxes.dart';
-import 'package:apple_liquid_glass/src/surfaces/outline.dart';
+import 'package:apple_liquid_glass/src/foundation/outline.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';

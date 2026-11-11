@@ -1,9 +1,9 @@
-import 'package:apple_liquid_glass/src/foundation/frame.dart';
+import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/src/foundation/glass.dart' show GlassPart;
 import 'package:apple_liquid_glass/src/liquid/adaptive.dart';
 import 'package:apple_liquid_glass/src/liquid/liquid.dart';
 import 'package:apple_liquid_glass/src/liquid/scroll_edge.dart';
 import 'package:apple_liquid_glass/src/surfaces/flat.dart';
-import 'package:apple_liquid_glass/src/surfaces/glass.dart';
 import 'package:apple_liquid_glass/src/surfaces/group.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';

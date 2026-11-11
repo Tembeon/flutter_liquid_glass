@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass/src/surfaces/glass.dart';
+import 'package:apple_liquid_glass/src/foundation/glass.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';

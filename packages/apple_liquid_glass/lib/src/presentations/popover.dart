@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/foundation/colors.dart';
 import 'package:apple_liquid_glass/src/foundation/frame.dart';
+import 'package:apple_liquid_glass/src/foundation/glass.dart';
+import 'package:apple_liquid_glass/src/foundation/shape.dart';
 import 'package:apple_liquid_glass/src/foundation/style.dart';
 import 'package:apple_liquid_glass/src/foundation/theme.dart';
 import 'package:apple_liquid_glass/src/foundation/traits.dart';
@@ -9,8 +11,6 @@ import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/popover_motion.dart';
 import 'package:apple_liquid_glass/src/presentations/popover_shape.dart';
 import 'package:apple_liquid_glass/src/presentations/sheet.dart';
-import 'package:apple_liquid_glass/src/surfaces/glass.dart';
-import 'package:apple_liquid_glass/src/surfaces/shape.dart';
 import 'package:apple_liquid_glass/src/surfaces/surface.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';

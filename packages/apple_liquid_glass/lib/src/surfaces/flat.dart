@@ -1,9 +1,5 @@
-import 'package:apple_liquid_glass/src/foundation/colors.dart';
-import 'package:apple_liquid_glass/src/foundation/frame.dart';
-import 'package:apple_liquid_glass/src/foundation/theme.dart';
-import 'package:apple_liquid_glass/src/foundation/traits.dart';
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/surfaces/follow_frame.dart';
-import 'package:apple_liquid_glass/src/surfaces/glass.dart';
 import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/foundation/outline.dart';
 import 'package:apple_liquid_glass/src/motions/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
 import 'package:apple_liquid_glass/src/motions/glass_press.dart';
@@ -9,7 +10,6 @@ import 'package:apple_liquid_glass/src/motions/menu_layout.dart';
 import 'package:apple_liquid_glass/src/motions/menu_morph_spec.dart';
 import 'package:apple_liquid_glass/src/motions/menu_outline_math.dart';
 import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
-import 'package:apple_liquid_glass/src/surfaces/outline.dart';
 import 'package:flutter/painting.dart';
 import 'package:kinesis/kinesis.dart';
 import 'package:meta/meta.dart';

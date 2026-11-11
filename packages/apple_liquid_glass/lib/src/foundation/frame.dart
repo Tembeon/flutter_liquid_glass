@@ -1,6 +1,6 @@
+import 'package:apple_liquid_glass/src/foundation/outline.dart';
+import 'package:apple_liquid_glass/src/foundation/shape.dart';
 import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
-import 'package:apple_liquid_glass/src/surfaces/outline.dart';
-import 'package:apple_liquid_glass/src/surfaces/shape.dart';
 import 'package:flutter/widgets.dart';
 
 /// One frame of one glass surface: where its body is drawn, how far it is

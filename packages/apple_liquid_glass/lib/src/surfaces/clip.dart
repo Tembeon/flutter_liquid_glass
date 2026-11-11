@@ -1,5 +1,4 @@
-import 'package:apple_liquid_glass/src/foundation/frame.dart';
-import 'package:apple_liquid_glass/src/surfaces/shape.dart';
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';

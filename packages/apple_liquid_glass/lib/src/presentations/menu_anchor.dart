@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:apple_liquid_glass/src/foundation/boxes.dart';
 import 'package:apple_liquid_glass/src/foundation/frame.dart';
+import 'package:apple_liquid_glass/src/foundation/shape.dart';
 import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:apple_liquid_glass/src/foundation/typography.dart';
 import 'package:apple_liquid_glass/src/motions/menu_context_hold.dart';
@@ -15,7 +16,6 @@ import 'package:apple_liquid_glass/src/presentations/menu_appearance.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_content.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_entries.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_rows.dart';
-import 'package:apple_liquid_glass/src/surfaces/shape.dart';
 import 'package:apple_liquid_glass/src/surfaces/surface.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
