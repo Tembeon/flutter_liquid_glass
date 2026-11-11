@@ -187,11 +187,17 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     }
   }
 
-  /// Detects motion of registered shapes relative to this geometry node.
+  /// Detects motion of registered shapes relative to this geometry node, and
+  /// takes their transforms as the next poll's baseline when [record] is
+  /// true; with [record] false it only answers.
   ///
   /// Direct children can skip this: their offset changes go through layout.
   @protected
-  bool pollChildShapeTransforms() => false;
+  bool pollChildShapeTransforms({bool record = true}) => false;
+
+  /// The shape render objects [gatherShapeData] would gather now, in its
+  /// order, without gathering them.
+  Iterable<LiquidGlassShapeRenderObject> get gatheredShapes;
 
   @override
   @mustCallSuper
@@ -264,24 +270,27 @@ extension RenderLiquidGlassGeometryCache on RenderLiquidGlassGeometry {
   /// does not need its own always-composite tracking layers. The two change
   /// flags let the layer distinguish a uniformly translated geometry node
   /// from shapes moving inside a blend group.
-  LiquidGlassTransformPoll pollRelativeTransforms(RenderObject layer) {
+  ///
+  /// With [record] false it changes nothing: the transforms stay the next
+  /// poll's baseline and the geometry is not marked, so it can be asked
+  /// before paint, as often as needed.
+  LiquidGlassTransformPoll pollRelativeTransforms(
+    RenderObject layer, {
+    bool record = true,
+  }) {
     if (!attached || !layer.attached || !hasSize) {
       return (childChanged: false, selfChanged: false, transform: null);
     }
 
     final (transform: toLayer, :last) = transformToNowOrLast(this, layer);
-    _transformMayLag = last;
-    var selfChanged = false;
-    if (_lastTransformToLayer == null) {
-      _lastTransformToLayer = toLayer;
-    } else if (!MatrixUtils.matrixEquals(toLayer, _lastTransformToLayer)) {
-      _lastTransformToLayer = toLayer;
-      selfChanged = true;
-    }
-
-    final childChanged = pollChildShapeTransforms();
-    if (!childChanged && selfChanged) {
-      markGeometryNeedsUpdate();
+    final baseline = _lastTransformToLayer;
+    final selfChanged =
+        baseline != null && !MatrixUtils.matrixEquals(toLayer, baseline);
+    final childChanged = pollChildShapeTransforms(record: record);
+    if (record) {
+      _transformMayLag = last;
+      if (baseline == null || selfChanged) _lastTransformToLayer = toLayer;
+      if (!childChanged && selfChanged) markGeometryNeedsUpdate();
     }
     return (
       childChanged: childChanged,

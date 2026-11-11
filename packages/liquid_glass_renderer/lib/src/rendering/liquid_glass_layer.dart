@@ -371,21 +371,27 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   Rect get debugGeometryMatteBounds => _geometryMatteBounds;
 
+  // Whether [_refreshRetainedGeometry] can take the shapes as they are now
+  // in place of a paint: the retained frame has a filter and a clip to
+  // re-sync, or draws nothing, and the same structure. Topology changes need
+  // normal painting to rebuild clip ancestry. It records nothing.
+  bool get _refreshTakesFrame =>
+      (_rig.filterLayer != null || drawableEmpty) &&
+      _rig.hasClip &&
+      (_geometry != null || drawableEmpty) &&
+      frameState != GlassFrameState.idle &&
+      !debugPaintLiquidGlassGeometry &&
+      retainedStructureHolds();
+
   /// Re-encodes the committed shapes before the layer tree is built, without
   /// painting children; false when the frame needs a normal paint.
   bool _refreshRetainedGeometry() {
-    if ((_geometry == null && !drawableEmpty) ||
-        frameState == GlassFrameState.idle ||
-        debugPaintLiquidGlassGeometry) {
-      return false;
-    }
+    if (!_refreshTakesFrame) return false;
     final candidate = <(RenderLiquidGlassGeometry, GeometryCache, Matrix4)>[];
     final bounds = collectFrameGeometry(candidate);
-    // Topology changes need normal painting to rebuild clip ancestry.
-    if (bounds == null ||
-        !listEquals(retainedStructure, geometryStructure(candidate))) {
-      return false;
-    }
+    // Collecting sorts the shapes into paint order, which the question above
+    // read as the link held it.
+    if (bounds == null || !retainedStructureHolds()) return false;
     commitFrameGeometry(candidate);
     final materialBounds = _prepareGeometryAppearance(bounds);
     // A drawable-empty refresh encodes nothing; the committed list alone
@@ -1596,13 +1602,18 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // moving with paint-only changes inside it) moves no tracked transform,
     // so the translation poll misses it.
     _resyncMappingIntoFilter();
-    if ((_rig.filterLayer != null || drawableEmpty) &&
-        _rig.hasClip &&
-        _refreshRetainedGeometry()) {
-      return;
-    }
+    if (_refreshRetainedGeometry()) return;
+    // A frame late: the composer asked [paintsLate] before paint, and
+    // marked this glass when it would come here. What it could not see
+    // reaches here: a shape under a follower whose leader moved this frame,
+    // as the leader's offset exists only after paint.
     GlassComposer.repaint(this);
   }
+
+  // The poll after paint would miss and the refresh could not take it: a
+  // mark now paints the glass in this frame.
+  @override
+  bool paintsLate() => compositorPollMisses && !_refreshTakesFrame;
 
   // The atlas texel for texel at the geometry buffer's corner.
   void _debugPaintGeometry(PaintingContext context, Offset offset) {

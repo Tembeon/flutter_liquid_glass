@@ -80,9 +80,10 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
   List<Matrix4?> _lastShapeTransforms = const [];
 
   @override
-  bool pollChildShapeTransforms() {
+  bool pollChildShapeTransforms({bool record = true}) {
     final entries = link.shapeEntries;
     if (_lastShapeTransforms.length != entries.length) {
+      if (!record) return false;
       _lastShapeTransforms = List<Matrix4?>.filled(entries.length, null);
       for (var i = 0; i < entries.length; i++) {
         final shape = entries[i].key;
@@ -103,6 +104,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
       // starts being painted is a change either way.
       if ((transform == null) != (last == null) ||
           !MatrixUtils.matrixEquals(transform, last)) {
+        if (!record) return true;
         _lastShapeTransforms[i] = transform;
         changed = true;
       }
@@ -112,6 +114,17 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
     }
     return changed;
   }
+
+  @override
+  Iterable<LiquidGlassShapeRenderObject> get gatheredShapes => [
+    for (final MapEntry(key: renderObject) in link.shapeEntries)
+      if (_gathers(renderObject)) renderObject,
+  ];
+
+  bool _gathers(LiquidGlassShapeRenderObject renderObject) =>
+      renderObject.attached &&
+      renderObject.hasSize &&
+      isGlassShapePainted(renderObject, this);
 
   /// The shape's transform to this group, or null while the shape is not
   /// painted (see [isGlassShapePainted]).
@@ -131,11 +144,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
     Rect? everyBounds;
 
     for (final MapEntry(key: renderObject, value: shape) in link.shapeEntries) {
-      if (!renderObject.attached ||
-          !renderObject.hasSize ||
-          !isGlassShapePainted(renderObject, this)) {
-        continue;
-      }
+      if (!_gathers(renderObject)) continue;
       final index = shapes.length;
       final shapeData = _computeShapeInfo(renderObject, shape);
       shapes.add(shapeData);

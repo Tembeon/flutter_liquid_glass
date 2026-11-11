@@ -94,6 +94,42 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
       ],
   ];
 
+  /// Whether the shapes [collectFrameGeometry] would collect now are at
+  /// least one and have the [LiquidGlassRenderObject.retainedStructure] of
+  /// the last committed frame ([geometryStructure]), in the paint order the
+  /// link holds. It records nothing, so it can be asked before paint.
+  bool retainedStructureHolds() {
+    final structure = _retainedStructure;
+    var at = 0;
+    for (final geometry in link.shapes) {
+      // Collecting skips a geometry with no transform to this layer.
+      if (!geometry.attached ||
+          !geometry.hasSize ||
+          !isGlassShapePainted(geometry, this)) {
+        continue;
+      }
+      for (final shape in geometry.gatheredShapes) {
+        if (at + 2 > structure.length ||
+            !identical(structure[at], shape) ||
+            structure[at + 1] != shape.layerShadows.isNotEmpty) {
+          return false;
+        }
+        at += 2;
+        for (
+          var node = shape.parent;
+          node != null && !identical(node, this);
+          node = node.parent
+        ) {
+          if (at == structure.length || !identical(structure[at], node)) {
+            return false;
+          }
+          at++;
+        }
+      }
+    }
+    return at > 0 && at == structure.length;
+  }
+
   /// Whether [geometries] still matches the encoded inputs exactly: same
   /// render objects, same geometry caches, same transforms.
   bool encodedInputsMatch(

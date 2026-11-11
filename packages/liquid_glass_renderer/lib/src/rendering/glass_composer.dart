@@ -22,10 +22,18 @@ import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_ob
 /// follows.
 ///
 /// Before paint it polls where each site is on the screen, so glass that
-/// moved past what its retained layers can follow repaints in this frame.
-/// After paint it lowers the view's layers into a [Form], asks every site for
-/// its facts, compiles the frame's [GlassPlan] and draws it, before any scene
-/// is built. Then it submits the frame's flutter_gpu passes.
+/// moved past what its retained layers can follow repaints in this frame,
+/// and asks each site with a repaint boundary marked under it whether it
+/// would paint late ([TransformTrackingRenderObjectMixin.paintsLate]), and
+/// marks it to paint in this frame if so. After paint it lowers the view's
+/// layers into a [Form], asks every site for its facts, compiles the frame's
+/// [GlassPlan] and draws it, before any scene is built. Then it submits the
+/// frame's flutter_gpu passes.
+///
+/// What cannot be known before paint stays a frame late: a shape under a
+/// [RenderFollowerLayer] whose leader moved this frame, as the leader's
+/// offset exists only after paint. Such a mark is counted apart, in
+/// [GlassWork.lateMarks].
 ///
 /// One composer per view owner, adopted by the first render object holding
 /// a composed layer that attaches there, a site ([track]) or a host ([host]),
@@ -33,14 +41,21 @@ import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_ob
 /// is disposed never holds one.
 @internal
 final class GlassComposer extends PipelineOwner {
-  GlassComposer._() : super(onSemanticsUpdate: _noSemantics);
+  GlassComposer._(this._view) : super(onSemanticsUpdate: _noSemantics);
 
   factory GlassComposer._adopt(PipelineOwner owner) {
     if (_of(owner) case final composer?) return composer;
-    final composer = GlassComposer._();
+    final composer = GlassComposer._(owner);
     owner.adoptChild(composer);
     return composer;
   }
+
+  // The view's owner, which adopted this composer and holds its sites.
+  final PipelineOwner _view;
+
+  // Counts the passes that ask sites before paint; a site holds the pass
+  // that last asked it.
+  int _pass = 0;
 
   // A composer owns no render object; with semantics enabled it still gets
   // a semantics owner, which never has anything to send.
@@ -123,6 +138,7 @@ final class GlassComposer extends PipelineOwner {
       node.markNeedsPaint();
       return;
     }
+    if (!kReleaseMode) GlassWork.lateMarks++;
     // After the frame: paint is over, so the mark is the next frame's.
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (node.attached) node.markNeedsPaint();
@@ -157,6 +173,43 @@ final class GlassComposer extends PipelineOwner {
     super.flushCompositingBits();
     for (final site in _sites) {
       if (site.repaintsOnMove) site.layer?.pollTransform();
+    }
+    _askOverDirtyBoundaries();
+  }
+
+  // Asks the nearest site above each boundary the view is about to paint
+  // whether it would paint late. A layout may run this again in the frame
+  // (a resolve phase), which asks again.
+  void _askOverDirtyBoundaries() {
+    final dirty = _view.nodesNeedingPaint;
+    if (dirty.isEmpty || _sites.isEmpty) return;
+    final pass = ++_pass;
+    var shallowest = -1;
+    for (final site in _sites) {
+      if (shallowest < 0 || site.depth < shallowest) shallowest = site.depth;
+    }
+    var marks = false;
+    for (final node in dirty) {
+      for (
+        var parent = node.parent;
+        parent != null && parent.depth >= shallowest;
+        parent = parent.parent
+      ) {
+        if (parent is! TransformTrackingRenderObjectMixin) continue;
+        if (parent.composerAsked != pass) {
+          parent.composerAsked = pass;
+          if (parent.paintsLate()) {
+            parent.composerMarks = pass;
+            marks = true;
+          }
+        }
+        break;
+      }
+    }
+    // Marking adds to the list walked above.
+    if (!marks) return;
+    for (final site in _sites) {
+      if (site.composerMarks == pass) repaint(site);
     }
   }
 
@@ -411,6 +464,7 @@ final class _Composition {
         imagesDrawn: GlassWork.images,
         layersReplayed: GlassWork.replayed,
         repaintsAsked: GlassWork.marks,
+        lateRepaints: GlassWork.lateMarks,
         notes: plan.notes,
       ),
     );

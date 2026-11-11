@@ -388,7 +388,18 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// the compositor can apply without a repaint, or null when there is none
   /// and the frame needs a repaint.
   @protected
-  Offset? pollCompositorTranslation() {
+  Offset? pollCompositorTranslation() => _compareShapes(record: true);
+
+  /// Whether [pollCompositorTranslation] would find no translation if it ran
+  /// now. It records nothing: the poll's baseline stays where it is, so it
+  /// can be asked before paint, as often as needed.
+  @protected
+  bool get compositorPollMisses => _compareShapes(record: false) == null;
+
+  // The one comparison of the painted shapes with the committed ones. With
+  // [record] it moves the poll's baseline as the frame's poll does; without,
+  // it only answers.
+  Offset? _compareShapes({required bool record}) {
     // A shape going offstage or onstage changes this list, which repaints.
     final current = paintedShapes;
     final committed = _shapesWithGeometry;
@@ -397,42 +408,45 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     }
     if (current.isEmpty && committed.isEmpty) return Offset.zero;
     if (committed.isEmpty || current.length != committed.length) {
-      for (final geometry in current) {
-        geometry.pollRelativeTransforms(this);
+      if (record) {
+        for (final geometry in current) {
+          geometry.pollRelativeTransforms(this);
+        }
       }
       return null;
     }
 
+    Offset? shared;
     var canTranslate = true;
-    final transforms = <Matrix4>[];
-    final translated = <RenderLiquidGlassGeometry>[];
     for (var index = 0; index < current.length; index++) {
       final geometry = current[index];
       final encoded = committed[index];
       final wasCurrent = _isSnapshotCurrent(geometry, encoded.$2);
-      final poll = geometry.pollRelativeTransforms(this);
+      final poll = geometry.pollRelativeTransforms(this, record: record);
       final transform = poll.transform;
-      if (!identical(geometry, encoded.$1) ||
-          !wasCurrent ||
-          poll.childChanged ||
-          transform == null) {
+      final delta =
+          !identical(geometry, encoded.$1) ||
+              !wasCurrent ||
+              poll.childChanged ||
+              transform == null
+          ? null
+          : _translationDelta(encoded.$3, transform);
+      if (delta == null || (shared != null && !_nearOffset(shared, delta))) {
+        // Polling goes on: every shape takes its baseline.
+        if (!record) return null;
         canTranslate = false;
         continue;
       }
-      transforms.add(transform);
-      if (poll.selfChanged) translated.add(geometry);
+      shared ??= delta;
     }
-
     if (!canTranslate) return null;
-    final translation = _sharedTranslation(
-      [for (final entry in committed) entry.$3],
-      transforms,
-    );
-    if (translation == null) return null;
-    for (final geometry in translated) {
-      geometry.acceptCompositorTranslation();
+    if (record) {
+      // A shape that moved by the shared translation keeps its geometry.
+      for (final geometry in current) {
+        geometry.acceptCompositorTranslation();
+      }
     }
-    return translation;
+    return shared ?? Offset.zero;
   }
 
   // Whether [geometry]'s inputs still match the snapshot it was encoded with

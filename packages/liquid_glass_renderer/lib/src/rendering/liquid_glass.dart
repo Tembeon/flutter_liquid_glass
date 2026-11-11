@@ -142,6 +142,10 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
   }
 
   @override
+  Iterable<LiquidGlassShapeRenderObject> get gatheredShapes =>
+      hasSize ? [this] : const [];
+
+  @override
   (Rect, List<ShapeGeometry>, bool) gatherShapeData() {
     if (!hasSize) {
       return (Rect.zero, const [], false);

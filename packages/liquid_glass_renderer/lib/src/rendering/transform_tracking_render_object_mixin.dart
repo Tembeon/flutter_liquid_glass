@@ -66,6 +66,21 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
   /// paint for the repaint to land in the same frame.
   bool get repaintsOnMove => false;
 
+  /// Whether, as things stand before paint, this glass would find after
+  /// paint that what it retained no longer matches its shapes and could not
+  /// take them in place, so that it would paint a frame late.
+  ///
+  /// The view's [GlassComposer] asks it before paint, at most once a pass,
+  /// of a site with a repaint boundary marked under it, and marks the site
+  /// on yes. It records nothing and may be asked more than once a frame.
+  bool paintsLate() => false;
+
+  /// The composer pass that last asked [paintsLate].
+  int composerAsked = 0;
+
+  /// The composer pass whose [paintsLate] said yes.
+  int composerMarks = 0;
+
   /// Runs every frame, before the frame's plan, including frames where the
   /// tracked transform is unchanged: where the glass polls its retained motion.
   /// Repaints from here go through [GlassComposer.repaint].

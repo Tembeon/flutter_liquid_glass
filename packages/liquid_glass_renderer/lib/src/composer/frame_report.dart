@@ -26,12 +26,18 @@ abstract final class GlassWork {
   /// Repaints the composer asked for.
   static int marks = 0;
 
+  /// Those of [marks] asked after paint, which land a frame late: the glass
+  /// shows its content where it is now and its silhouette, shadows and clip
+  /// where they were for one frame.
+  static int lateMarks = 0;
+
   static void _clear() {
     filters = 0;
     pictures = 0;
     images = 0;
     replayed = 0;
     marks = 0;
+    lateMarks = 0;
   }
 }
 
@@ -121,6 +127,7 @@ final class GlassFrameReport {
     required this.imagesDrawn,
     required this.layersReplayed,
     required this.repaintsAsked,
+    required this.lateRepaints,
     required this.notes,
   });
 
@@ -164,6 +171,9 @@ final class GlassFrameReport {
   /// Repaints the planner asked for in the frame.
   final int repaintsAsked;
 
+  /// Those of [repaintsAsked] that land in the next frame.
+  final int lateRepaints;
+
   /// Why glass stays apart or reads live.
   final List<String> notes;
 
@@ -191,7 +201,7 @@ final class GlassFrameReport {
     final made =
         'made: filters $filtersBuilt  pictures $picturesRecorded  '
         'images $imagesDrawn  replayed $layersReplayed  '
-        'repaints $repaintsAsked';
+        'repaints $repaintsAsked (late $lateRepaints)';
     final lines = <String>[
       head,
       made,

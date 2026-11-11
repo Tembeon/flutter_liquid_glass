@@ -113,6 +113,7 @@ final class GlassFrameReport
     required int imagesDrawn,
     required int layersReplayed,
     required int repaintsAsked,
+    required int lateRepaints,
     required List<String> notes,
   })
   static void addListener(void Function(GlassFrameReport) listener)
@@ -124,6 +125,7 @@ final class GlassFrameReport
   int get imageReads
   final int imagesDrawn
   final int issuedTargets
+  final int lateRepaints
   final int layersReplayed
   static bool get listening
   int get liveReads
@@ -202,6 +204,7 @@ abstract final class GlassWork
   GlassWork()
   static int filters
   static int images
+  static int lateMarks
   static int marks
   static int pictures
   static int replayed
@@ -1058,6 +1061,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
   @protected bool get compositionProbeSeeding
   @protected bool get compositionSeedSuppressed
   @protected set compositionSeedSuppressed(bool value)
+  @protected bool get compositorPollMisses
   @protected Offset get compositorTranslation
   @visibleForTesting Offset get debugCompositorTranslation
   @visibleForTesting int debugPaintCount
@@ -1207,7 +1211,7 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry with LiquidGlassShapeR
   set layerShadows(List<BoxShadow> value)
   LiquidShape get shape
   set shape(LiquidShape value)
-  overrides: appearance, attach, detach, gatherShapeData, layerShadows, livePaintSizeChanged, performLayout
+  overrides: appearance, attach, detach, gatherShapeData, gatheredShapes, layerShadows, livePaintSizeChanged, performLayout
 class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry
   RenderLiquidGlassBlendGroup({
     required GeometryRenderLink? renderLink,
@@ -1219,7 +1223,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry
   set blend(double value)
   GlassGroupLink get link
   set link(GlassGroupLink value)
-  overrides: gatherShapeData, geometryBlend, pollChildShapeTransforms, settings, updatePaintOrder
+  overrides: gatherShapeData, gatheredShapes, geometryBlend, pollChildShapeTransforms, settings, updatePaintOrder
 class RenderLiquidGlassContent extends RenderOpacity
   RenderLiquidGlassContent({double opacity = ..., RenderBox? child})
   Color get glowColor
@@ -1239,10 +1243,11 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
   double get devicePixelRatio
   set devicePixelRatio(double value)
   abstract (Rect, List<ShapeGeometry>, bool) gatherShapeData()
+  Iterable<LiquidGlassShapeRenderObject> get gatheredShapes
   double get geometryBlend
   bool hasCurrentMatteRevision(int revision)
   @protected void markGeometryNeedsUpdate({bool force = ...})
-  @protected bool pollChildShapeTransforms()
+  @protected bool pollChildShapeTransforms({bool record = ...})
   GeometryRenderLink? get renderLink
   set renderLink(GeometryRenderLink? value)
   LiquidGlassSettings get settings
@@ -1290,7 +1295,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject with TransformTrack
   Matrix4 get shaderCoordinateTransform
   Color? get solidBackdrop
   set solidBackdrop(Color? value)
-  overrides: addOutput, ask, beginFate, dispose, encodesMatte, materialOutset, mayRest, onAppearanceChanged, onCompositorTranslated, onCompositorTranslationMissed, onDevicePixelRatioChanged, onFrameGeometryCommitted, onPreparing, onResting, onSettingsChanged, onTransformChanged, pageKey, paintFrame, readFilter, recordPage, repaintsOnMove, show
+  overrides: addOutput, ask, beginFate, dispose, encodesMatte, materialOutset, mayRest, onAppearanceChanged, onCompositorTranslated, onCompositorTranslationMissed, onDevicePixelRatioChanged, onFrameGeometryCommitted, onPreparing, onResting, onSettingsChanged, onTransformChanged, pageKey, paintFrame, paintsLate, readFilter, recordPage, repaintsOnMove, show
 class RenderLiveGlassFrame extends RenderProxyBox
   RenderLiveGlassFrame({required ValueListenable<LiquidGlassShapeFrame> frame})
   ValueListenable<LiquidGlassShapeFrame> get frame
