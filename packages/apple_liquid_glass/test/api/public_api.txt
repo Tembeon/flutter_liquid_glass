@@ -3814,6 +3814,7 @@ re-exported from package:kinesis:
   FollowInteraction
   FrameCadence
   HoverDwellInteraction
+  InputCapture
   InputPort
   InputRegion
   InputZone

@@ -195,10 +195,40 @@ abstract class PointerLine<P extends InputTarget> {
     });
   }
 
-  void _heard(PointerEvent event, double time) {
+  /// Whether the line follows a touch.
+  bool get touched => _touches.isNotEmpty;
+
+  /// Whether the line follows the touch of [pointer].
+  bool follows(int pointer) => _touches.containsKey(pointer);
+
+  /// Takes an event of a touch that came to no box, in global coordinates
+  /// on a [screen] of that size: a down starts a touch the line follows
+  /// outside the gesture arena, as one handed on through a [port], and the
+  /// later events of a touch it follows reach the targets as they happen.
+  void captured(PointerEvent event, Size screen) {
+    switch (event) {
+      case PointerDownEvent():
+      case PointerMoveEvent() || PointerUpEvent() || PointerCancelEvent()
+          when _touches.containsKey(event.pointer):
+        final time = clock.stamp(event.timeStamp);
+        clock.input(time, () => _heard(event, time, screen: screen));
+      default:
+        break;
+    }
+  }
+
+  // A [screen] marks a captured event: the touch has no box, no scroll view
+  // and no arena around it.
+  void _heard(PointerEvent event, double time, {Size? screen}) {
     if (event is PointerDownEvent) {
-      final box = this.box;
-      if (box == null || !box.hasSize) return;
+      final Size size;
+      if (screen != null) {
+        size = screen;
+      } else {
+        final box = this.box;
+        if (box == null || !box.hasSize) return;
+        size = box.size;
+      }
       _speed.touched(event.timeStamp);
       final tracker = VelocityTracker.withKind(event.kind);
       tracker.addPosition(event.timeStamp, event.localPosition);
@@ -207,15 +237,15 @@ abstract class PointerLine<P extends InputTarget> {
           time: time,
           pointer: event.pointer,
           position: event.localPosition,
-          regionSize: box.size,
-          hitArea: hitArea,
+          regionSize: size,
+          hitArea: screen == null ? hitArea : null,
           globalPosition: event.position,
           kind: event.kind,
           buttons: event.buttons,
-          scrollAxes: _scrollAxesAround(context),
-          contested: ContestScope.of(context, listen: false),
+          scrollAxes: screen == null ? _scrollAxesAround(context) : const {},
+          contested: screen == null && ContestScope.of(context, listen: false),
         ),
-        arena: true,
+        arena: screen == null,
         tracker: tracker,
       );
       return;
@@ -262,6 +292,8 @@ abstract class PointerLine<P extends InputTarget> {
     _observe(touch, input);
     if (touch.member != null) {
       touch.routed = input;
+    } else if (screen != null) {
+      _track(touch, input);
     } else if (input is! PointerMoveInput) {
       _touches.remove(touch.pointer);
     }

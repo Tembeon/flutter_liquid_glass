@@ -15,6 +15,7 @@ DragInteractionDetails
 FollowInteraction
 FrameCadence
 HoverDwellInteraction
+InputCapture
 InputPort
 InputRegion
 InputZone

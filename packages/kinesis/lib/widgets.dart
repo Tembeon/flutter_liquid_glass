@@ -6,9 +6,10 @@
 /// and for the author of a control, whose input goes through one widget,
 /// `InputRegion` for a box or `InputZones` for the many moving parts one
 /// render object paints, and whose states live in one controller,
-/// `ControlStates` (`InputZonesController` for zones). `MotionScope` gives
-/// a subtree its motion settings. `MotionSource` names what a presentation
-/// grows out of: a box (`MotionSourceBox`) or a zone.
+/// `ControlStates` (`InputZonesController` for zones). A touch where no
+/// region lies yet reaches a control through `InputCapture`. `MotionScope`
+/// gives a subtree its motion settings. `MotionSource` names what a
+/// presentation grows out of: a box (`MotionSourceBox`) or a zone.
 ///
 /// It promises that `InputRegion` gives an interactive widget touch, mouse,
 /// focus, keyboard activation and the semantics of a press in one place,
@@ -24,6 +25,7 @@ export 'src/widgets/control_states.dart' show ControlStates;
 export 'src/widgets/controlled_value.dart' show ControlledValue;
 export 'src/widgets/driven.dart' show MotionDriven;
 export 'src/widgets/haptics.dart' show MotionHapticPlay, MotionHapticScope;
+export 'src/widgets/input_capture.dart' show InputCapture;
 export 'src/widgets/input_intents.dart'
     show AdjustValueIntent, ContextMenuIntent;
 export 'src/widgets/input_region.dart' show InputRegion;

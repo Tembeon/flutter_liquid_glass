@@ -193,6 +193,7 @@ GlassTraits
 GlassTraitsOverride
 GlassZoomSource
 HoverDwellInteraction
+InputCapture
 InputPort
 InputRegion
 InputZone

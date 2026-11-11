@@ -405,6 +405,16 @@ final class FrameCadence
   void scrolled(double delta, double devicePixelRatio)
   void start()
 class HoverDwellInteraction (see package:kinesis/input.dart)
+final class InputCapture
+  InputCapture({
+    required BuildContext context,
+    required List<Interaction> interactions,
+    MotionHaptic? Function(InteractionEvent)? feedback,
+  })
+  void arm()
+  bool get armed
+  void disarm()
+  void dispose()
 class InputPort (see package:kinesis/input.dart)
 class InputRegion extends StatefulWidget
   const InputRegion({
@@ -1401,6 +1411,7 @@ class AdjustValueIntent (see package:kinesis/kinesis.dart)
 class ContextMenuIntent (see package:kinesis/kinesis.dart)
 mixin ControlStates (see package:kinesis/kinesis.dart)
 mixin ControlledValue (see package:kinesis/kinesis.dart)
+class InputCapture (see package:kinesis/kinesis.dart)
 class InputRegion (see package:kinesis/kinesis.dart)
 class InputZone (see package:kinesis/kinesis.dart)
 class InputZoneFrame (see package:kinesis/kinesis.dart)
