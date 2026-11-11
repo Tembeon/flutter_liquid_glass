@@ -35,6 +35,7 @@ class AlertMotion extends Motion with Presented, PredictiveBack
   double get progress
   double get scale
   final Spring spring
+  static const double width
   overrides: backEnded, backMoved, backStarted, leave, minFrameRate, open, presence
 final class ContextHold extends Motion
   ContextHold({

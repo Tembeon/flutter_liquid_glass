@@ -1,4 +1,3 @@
-import 'package:flutter/painting.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
@@ -16,94 +15,6 @@ abstract final class AlertTuning {
   /// own while it fades in (fitted 1.199 on an iPhone 16 Pro, 0.02
   /// percent rms; 1.196 on the simulator). A dismissing alert only fades.
   static const double presentScale = 1.199;
-
-  /// The opacity of the black dimming behind an alert.
-  static const double dimmingOpacity = 0.2;
-
-  /// The alert text size in points, from the UIKit layout captures.
-  static const double textFontSize = 17;
-
-  /// The 17-point text line height in the UIKit layout captures.
-  static const double textLineHeight = 20.33;
-
-  /// The line-height multiplier of 17-point alert text.
-  static const double textHeight = textLineHeight / textFontSize;
-
-  /// The message line-height multiplier from the UIKit layout captures.
-  static const double messageHeight = 1.2;
-
-  /// The preferred action's semibold weight from the UIKit layout captures.
-  static const FontWeight preferredWeight = FontWeight.w600;
-
-  /// The single header's regular weight from the UIKit layout captures.
-  static const FontWeight singleHeaderWeight = FontWeight.w400;
-
-  /// The button's horizontal text inset from the UIKit layout captures.
-  static const double buttonTextInset = 12;
-
-  /// The screen-side alert margin, an engineering layout default.
-  static const double screenMargin = 20;
-
-  /// The text scale cap, an engineering layout default.
-  static const double maxTextScale = 2;
-
-  /// The width of an alert.
-  static const double width = 320;
-
-  /// The corner radius of an alert's platter.
-  static const double cornerRadius = 34;
-
-  /// The space between the top of an alert and its first text label.
-  ///
-  /// UIKit's view dumps of iOS 27 alerts on an iPhone 16 Pro (kept outside
-  /// this repo): the title `UILabel`
-  /// rests 22 points under the platter's top in a column alert (313 in a
-  /// platter at 291) and in a row alert with a text field (218 in 196).
-  static const double headerTop = 22;
-
-  /// The horizontal space between an alert's edge and its text.
-  static const double textInset = 30;
-
-  /// The space between the title and the message labels.
-  ///
-  /// UIKit's view dumps (see [headerTop]): the message `UILabel` starts at
-  /// 340.67 under a title label of 20.33 points ending at 333.33 (22
-  /// pixels at 3x; 245.67 under 238.33 in the row alert). The labels are
-  /// as tall as UIKit makes them.
-  static const double titleGap = 22 / 3;
-
-  /// The space below the header text when both a title and a message
-  /// show.
-  ///
-  /// UIKit's view dumps (see [headerTop]): the header scroll view ends at
-  /// 363 under a message label ending at 358.67 (13 pixels at 3x), so a
-  /// title and a one-line message make a 72 point header, as the
-  /// recorded platters (264 points with three actions) and the action
-  /// sheet popover's header (floored to 72 in the device tree) hold.
-  static const double headerBottom = 13 / 3;
-
-  /// The space below the header text when only one line of text shows.
-  ///
-  /// Not measured (11 pixels at 3x): no capture holds an alert with a
-  /// title or a message alone, so the 46 point header it gives under a
-  /// 20.33 point label is not replayed.
-  static const double singleHeaderBottom = 11 / 3;
-
-  /// The space around the stack of buttons.
-  static const double buttonInset = 16;
-
-  /// The height of a button.
-  static const double buttonHeight = 48;
-
-  /// The space between two buttons.
-  static const double buttonGap = 8;
-
-  /// The opacity of a pressed button's fill, relative to its normal fill.
-  static const double pressedFillOpacity = 0.4;
-
-  /// The width of an action sheet's content when it presents as a popover
-  /// from its source.
-  static const double popoverWidth = 240;
 }
 
 /// The motion of an iOS 27 alert: the dimming, the alert's opacity and its
@@ -137,6 +48,10 @@ class AlertMotion extends Motion with Presented, PredictiveBack {
     this.presentScale = AlertTuning.presentScale,
   });
 
+  /// The width of an alert in points; the scale rests within a tolerance of
+  /// it.
+  static const double width = 320;
+
   // UIKit asks at least 80 Hz of this (read from UIKit, notes private).
   @override
   double get minFrameRate => 80;
@@ -153,7 +68,7 @@ class AlertMotion extends Motion with Presented, PredictiveBack {
   );
   late final _scale = own(
     MotionValue<double>(presentScale, spring: spring),
-    rest: () => MotionRest.scale(AlertTuning.width),
+    rest: () => MotionRest.scale(AlertMotion.width),
   );
   bool _dismissing = false;
 
@@ -207,7 +122,7 @@ class AlertMotion extends Motion with Presented, PredictiveBack {
   double get opacity => progress.clamp(0.0, 1.0);
 
   /// The opacity of the dimming, as a fraction of
-  /// [AlertTuning.dimmingOpacity].
+  /// the opacity of the black dimming behind the alert.
   double get dimming => progress.clamp(0.0, 1.0);
 
   /// The scale of the alert.

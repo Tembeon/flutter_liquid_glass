@@ -2,8 +2,6 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
-import 'package:apple_liquid_glass/src/motions/alert_motion.dart';
-import 'package:apple_liquid_glass/src/motions/popover_motion.dart';
 import 'package:apple_liquid_glass/src/presentations/popover.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
@@ -327,7 +325,7 @@ Presentation<GlassAlertAction, Presented> _alert({
     }),
     dim: anchorRect == null
         ? (motion) =>
-              AlertTuning.dimmingOpacity * (motion as AlertMotion).dimming
+              _AlertLook.dimmingOpacity * (motion as AlertMotion).dimming
         : null,
     result: (result) => result ?? cancel,
     onDismissed: (action) => action?.onPressed?.call(),
@@ -440,7 +438,7 @@ class _AlertViewState extends State<_AlertView> {
   late final MotionSelection<bool> _leaving;
   late final MotionSelection<GlassFrame> _frame;
   static const _platterShape = GlassShape.superellipse(
-    AlertTuning.cornerRadius,
+    _AlertLook.cornerRadius,
   );
 
   List<GlassAlertAction> _shown = const [];
@@ -530,17 +528,17 @@ class _AlertViewState extends State<_AlertView> {
     final rect = MatrixUtils.transformRect(block.getTransformTo(card), slot);
     return InputZoneFrame(
       rect.intersect(Offset.zero & card.size),
-      radius: BorderRadius.circular(AlertTuning.buttonHeight / 2),
+      radius: BorderRadius.circular(_AlertLook.buttonHeight / 2),
     );
   }
 
   Rect _slot(int index, double width) {
-    const height = AlertTuning.buttonHeight;
+    const height = _AlertLook.buttonHeight;
     if (_row) {
-      final each = (width - AlertTuning.buttonGap) / 2;
+      final each = (width - _AlertLook.buttonGap) / 2;
       final first = (index == 0) != _rtl;
       return Rect.fromLTWH(
-        first ? 0 : each + AlertTuning.buttonGap,
+        first ? 0 : each + _AlertLook.buttonGap,
         0,
         each,
         height,
@@ -548,7 +546,7 @@ class _AlertViewState extends State<_AlertView> {
     }
     return Rect.fromLTWH(
       0,
-      index * (height + AlertTuning.buttonGap),
+      index * (height + _AlertLook.buttonGap),
       width,
       height,
     );
@@ -564,7 +562,7 @@ class _AlertViewState extends State<_AlertView> {
 
   bool _fitsInRow(double width, BuildContext context) {
     final each =
-        (width - 2 * AlertTuning.buttonInset - AlertTuning.buttonGap) / 2;
+        (width - 2 * _AlertLook.buttonInset - _AlertLook.buttonGap) / 2;
     final direction = Directionality.of(context);
     final scaler = MediaQuery.textScalerOf(context);
     for (final action in widget.actions) {
@@ -577,7 +575,7 @@ class _AlertViewState extends State<_AlertView> {
         maxLines: 1,
       );
       painter.layout();
-      final fits = painter.width + 2 * AlertTuning.buttonTextInset <= each;
+      final fits = painter.width + 2 * _AlertLook.buttonTextInset <= each;
       painter.dispose();
       if (!fits) return false;
     }
@@ -596,10 +594,10 @@ class _AlertViewState extends State<_AlertView> {
         : look.actionColor ?? label;
     return resolveGlassText(
       TextStyle(
-            fontSize: AlertTuning.textFontSize,
-            height: AlertTuning.textHeight,
+            fontSize: _AlertLook.textFontSize,
+            height: _AlertLook.textHeight,
             fontWeight: action.isDefaultAction
-                ? AlertTuning.preferredWeight
+                ? _AlertLook.preferredWeight
                 : FontWeight.w500,
           )
           .merge(look.actionTextStyle)
@@ -630,8 +628,8 @@ class _AlertViewState extends State<_AlertView> {
     final popover = widget.anchorRect;
     final screen = MediaQuery.sizeOf(context);
     final width = math.min(
-      popover == null ? AlertTuning.width : AlertTuning.popoverWidth,
-      screen.width - 2 * AlertTuning.screenMargin,
+      popover == null ? AlertMotion.width : _AlertLook.popoverWidth,
+      screen.width - 2 * _AlertLook.screenMargin,
     );
     _row =
         !widget.actionSheet &&
@@ -655,7 +653,7 @@ class _AlertViewState extends State<_AlertView> {
         source: popover,
         scale: _scale,
         opacity: _opacity,
-        maxWidth: AlertTuning.popoverWidth,
+        maxWidth: _AlertLook.popoverWidth,
         padding: media.padding.copyWith(
           bottom: math.max(media.padding.bottom, media.viewInsets.bottom),
         ),
@@ -696,30 +694,30 @@ class _AlertViewState extends State<_AlertView> {
         DefaultTextStyle(
           style: resolveGlassText(
             TextStyle(
-              fontSize: AlertTuning.textFontSize,
-              height: AlertTuning.textHeight,
+              fontSize: _AlertLook.textFontSize,
+              height: _AlertLook.textHeight,
               fontWeight: both
                   ? FontWeight.w600
-                  : AlertTuning.singleHeaderWeight,
+                  : _AlertLook.singleHeaderWeight,
               color: label,
             ).merge(_look.titleTextStyle).resolvedColor(context),
             context,
           ),
           child: title,
         ),
-      if (both) const SizedBox(height: AlertTuning.titleGap),
+      if (both) const SizedBox(height: _AlertLook.titleGap),
       if (message != null)
         DefaultTextStyle(
           style: resolveGlassText(
             (both
                     ? const TextStyle(
                         fontSize: 15,
-                        height: AlertTuning.messageHeight,
+                        height: _AlertLook.messageHeight,
                         color: _messageColor,
                       )
                     : TextStyle(
-                        fontSize: AlertTuning.textFontSize,
-                        height: AlertTuning.textHeight,
+                        fontSize: _AlertLook.textFontSize,
+                        height: _AlertLook.textHeight,
                         color: label,
                       ))
                 .merge(_look.messageTextStyle)
@@ -744,7 +742,7 @@ class _AlertViewState extends State<_AlertView> {
             key: _block,
             children: [
               Expanded(child: buttons[0]),
-              const SizedBox(width: AlertTuning.buttonGap),
+              const SizedBox(width: _AlertLook.buttonGap),
               Expanded(child: buttons[1]),
             ],
           )
@@ -753,15 +751,15 @@ class _AlertViewState extends State<_AlertView> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               for (var i = 0; i < buttons.length; i++) ...[
-                if (i > 0) const SizedBox(height: AlertTuning.buttonGap),
+                if (i > 0) const SizedBox(height: _AlertLook.buttonGap),
                 buttons[i],
               ],
             ],
           );
     final content = Padding(
       padding: EdgeInsets.only(
-        top: header.isNotEmpty ? AlertTuning.headerTop : 0,
-        bottom: AlertTuning.buttonInset,
+        top: header.isNotEmpty ? _AlertLook.headerTop : 0,
+        bottom: _AlertLook.buttonInset,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -770,11 +768,11 @@ class _AlertViewState extends State<_AlertView> {
           if (header.isNotEmpty)
             Padding(
               padding: EdgeInsets.only(
-                left: AlertTuning.textInset,
-                right: AlertTuning.textInset,
+                left: _AlertLook.textInset,
+                right: _AlertLook.textInset,
                 bottom: both
-                    ? AlertTuning.headerBottom
-                    : AlertTuning.singleHeaderBottom,
+                    ? _AlertLook.headerBottom
+                    : _AlertLook.singleHeaderBottom,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -784,9 +782,9 @@ class _AlertViewState extends State<_AlertView> {
           if (buttons.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(
-                top: AlertTuning.buttonInset,
-                left: AlertTuning.buttonInset,
-                right: AlertTuning.buttonInset,
+                top: _AlertLook.buttonInset,
+                left: _AlertLook.buttonInset,
+                right: _AlertLook.buttonInset,
               ),
               child: block,
             ),
@@ -794,7 +792,7 @@ class _AlertViewState extends State<_AlertView> {
       ),
     );
     return MediaQuery.withClampedTextScaling(
-      maxScaleFactor: AlertTuning.maxTextScale,
+      maxScaleFactor: _AlertLook.maxTextScale,
       child: InputZones<int>(
         zones: [
           for (final (i, action) in _shown.indexed)
@@ -849,8 +847,8 @@ class _AlertViewState extends State<_AlertView> {
             child: ClipRSuperellipse(
               borderRadius: BorderRadius.circular(
                 _popover == null
-                    ? AlertTuning.cornerRadius
-                    : PopoverTuning.cornerRadius,
+                    ? _AlertLook.cornerRadius
+                    : _AlertLook.popoverCornerRadius,
               ),
               child: ListView(
                 controller: _scroll,
@@ -914,10 +912,10 @@ class _AlertButton extends StatelessWidget {
         fill: fill,
       ),
       child: SizedBox(
-        height: AlertTuning.buttonHeight,
+        height: _AlertLook.buttonHeight,
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: AlertTuning.buttonTextInset,
+            horizontal: _AlertLook.buttonTextInset,
           ),
           child: Center(
             child: ExcludeSemantics(
@@ -937,7 +935,7 @@ class _AlertButton extends StatelessWidget {
   );
 }
 
-/// An action's capsule: its fill at [AlertTuning.pressedFillOpacity] of
+/// An action's capsule: its fill at [_AlertLook.pressedFillOpacity] of
 /// itself while pressed, and at [GlassHighlights.hoverGain] of that change
 /// under the pointer. The hover look is an approximation by the rule of
 /// [GlassHighlights], not measured on the platform.
@@ -959,7 +957,7 @@ class _CapsulePainter extends CustomPainter {
         : GlassHighlights.hoverGain * highlight.hovered;
     final paint = Paint();
     paint.color = fill.withValues(
-      alpha: fill.a * (1 + (AlertTuning.pressedFillOpacity - 1) * press),
+      alpha: fill.a * (1 + (_AlertLook.pressedFillOpacity - 1) * press),
     );
     canvas.drawRRect(
       RRect.fromRectAndRadius(
@@ -975,4 +973,95 @@ class _CapsulePainter extends CustomPainter {
       oldDelegate.fill != fill ||
       oldDelegate.highlight != highlight ||
       oldDelegate.states.value != states.value;
+}
+
+abstract final class _AlertLook {
+  /// The opacity of the black dimming behind an alert.
+  static const double dimmingOpacity = 0.2;
+
+  /// The alert text size in points, from the UIKit layout captures.
+  static const double textFontSize = 17;
+
+  /// The 17-point text line height in the UIKit layout captures.
+  static const double textLineHeight = 20.33;
+
+  /// The line-height multiplier of 17-point alert text.
+  static const double textHeight = textLineHeight / textFontSize;
+
+  /// The message line-height multiplier from the UIKit layout captures.
+  static const double messageHeight = 1.2;
+
+  /// The preferred action's semibold weight from the UIKit layout captures.
+  static const FontWeight preferredWeight = FontWeight.w600;
+
+  /// The single header's regular weight from the UIKit layout captures.
+  static const FontWeight singleHeaderWeight = FontWeight.w400;
+
+  /// The button's horizontal text inset from the UIKit layout captures.
+  static const double buttonTextInset = 12;
+
+  /// The screen-side alert margin, an engineering layout default.
+  static const double screenMargin = 20;
+
+  /// The text scale cap, an engineering layout default.
+  static const double maxTextScale = 2;
+
+  /// The corner radius of an alert's platter.
+  static const double cornerRadius = 34;
+
+  /// The space between the top of an alert and its first text label.
+  ///
+  /// UIKit's view dumps of iOS 27 alerts on an iPhone 16 Pro (kept outside
+  /// this repo): the title `UILabel`
+  /// rests 22 points under the platter's top in a column alert (313 in a
+  /// platter at 291) and in a row alert with a text field (218 in 196).
+  static const double headerTop = 22;
+
+  /// The horizontal space between an alert's edge and its text.
+  static const double textInset = 30;
+
+  /// The space between the title and the message labels.
+  ///
+  /// UIKit's view dumps (see [headerTop]): the message `UILabel` starts at
+  /// 340.67 under a title label of 20.33 points ending at 333.33 (22
+  /// pixels at 3x; 245.67 under 238.33 in the row alert). The labels are
+  /// as tall as UIKit makes them.
+  static const double titleGap = 22 / 3;
+
+  /// The space below the header text when both a title and a message
+  /// show.
+  ///
+  /// UIKit's view dumps (see [headerTop]): the header scroll view ends at
+  /// 363 under a message label ending at 358.67 (13 pixels at 3x), so a
+  /// title and a one-line message make a 72 point header, as the
+  /// recorded platters (264 points with three actions) and the action
+  /// sheet popover's header (floored to 72 in the device tree) hold.
+  static const double headerBottom = 13 / 3;
+
+  /// The space below the header text when only one line of text shows.
+  ///
+  /// Not measured (11 pixels at 3x): no capture holds an alert with a
+  /// title or a message alone, so the 46 point header it gives under a
+  /// 20.33 point label is not replayed.
+  static const double singleHeaderBottom = 11 / 3;
+
+  /// The space around the stack of buttons.
+  static const double buttonInset = 16;
+
+  /// The height of a button.
+  static const double buttonHeight = 48;
+
+  /// The space between two buttons.
+  static const double buttonGap = 8;
+
+  /// The opacity of a pressed button's fill, relative to its normal fill.
+  static const double pressedFillOpacity = 0.4;
+
+  /// The width of an action sheet's content when it presents as a popover
+  /// from its source.
+  static const double popoverWidth = 240;
+
+  /// The corner radius of an action sheet's popover content, as a popover
+  /// draws its own.
+  static const double popoverCornerRadius = 34;
 }
