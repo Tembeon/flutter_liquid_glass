@@ -180,6 +180,7 @@ class _InputRegionState extends State<InputRegion> {
   final Map<int, VelocityTracker> _trackers = {};
   final Map<int, InputArenaMember> _members = {};
   final PointerSpeed _speed = PointerSpeed();
+  bool _contested = false;
 
   FocusNode get _focus => widget.focusNode ?? (_ownFocus ??= FocusNode());
 
@@ -312,6 +313,7 @@ class _InputRegionState extends State<InputRegion> {
       size: box.size,
       hitArea: box.hitArea,
       scrollAxes: event.handOff ? scrollAxesAround(context) : const {},
+      contested: _contested,
     );
     _clock.input(input.time, () => _answer(_session.handle(input)));
   }
@@ -365,9 +367,11 @@ class _InputRegionState extends State<InputRegion> {
             position: event.localPosition,
             regionSize: size,
             hitArea: _box?.hitArea,
+            globalPosition: event.position,
             kind: event.kind,
             buttons: event.buttons,
             scrollAxes: scrollAxesAround(context),
+            contested: _contested,
           ),
         );
         if (output.reject) {
@@ -378,7 +382,7 @@ class _InputRegionState extends State<InputRegion> {
           return;
         }
         _trackers[event.pointer] = tracker;
-        final member = InputArenaMember(_lost);
+        final member = InputArenaMember(_lost, onAccepted: _accepted);
         _members[event.pointer] = member;
         member.entry = GestureBinding.instance.gestureArena.add(
           event.pointer,
@@ -399,6 +403,7 @@ class _InputRegionState extends State<InputRegion> {
               time: time,
               pointer: event.pointer,
               position: event.localPosition,
+              globalPosition: event.position,
             ),
           ),
           pointer: event.pointer,
@@ -415,6 +420,12 @@ class _InputRegionState extends State<InputRegion> {
               pointer: event.pointer,
               position: event.localPosition,
               velocity: velocity,
+              globalPosition: event.position,
+              globalVelocity: globalVector(
+                event.transform,
+                velocity,
+                event.localPosition,
+              ),
             ),
           ),
           pointer: event.pointer,
@@ -435,6 +446,17 @@ class _InputRegionState extends State<InputRegion> {
       default:
         break;
     }
+  }
+
+  void _accepted(int pointer) {
+    if (!_members.containsKey(pointer)) return;
+    final time = _clock.now;
+    _clock.input(
+      time,
+      () => _answer(
+        _session.handle(PointerAcceptedInput(time: time, pointer: pointer)),
+      ),
+    );
   }
 
   void _lost(int pointer) {
@@ -594,6 +616,8 @@ class _InputRegionState extends State<InputRegion> {
   @override
   Widget build(BuildContext context) {
     final enabled = widget.enabled;
+    _contested = ContestScope.of(context);
+    final contends = widget.interactions.any((i) => i.contendsWithControls);
     return _Region(
       state: this,
       described: (
@@ -624,7 +648,10 @@ class _InputRegionState extends State<InputRegion> {
               onEnter: (event) => _hover(event, inside: true),
               onHover: (event) => _hover(event, inside: true),
               onExit: (event) => _hover(event, inside: false),
-              child: widget.child,
+              child: ContestScope(
+                contested: _contested || contends,
+                child: widget.child,
+              ),
             ),
           ),
         ),

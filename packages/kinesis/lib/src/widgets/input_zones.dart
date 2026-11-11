@@ -761,6 +761,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
       box.globalToLocal,
       size: box.size,
       scrollAxes: event.handOff ? scrollAxesAround(context) : const {},
+      contested: ContestScope.of(context, listen: false),
     );
     _clock.input(input.time, () => _route(input, arena: false));
   }
@@ -822,9 +823,11 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
             pointer: event.pointer,
             position: event.localPosition,
             regionSize: box.size,
+            globalPosition: event.position,
             kind: event.kind,
             buttons: event.buttons,
             scrollAxes: scrollAxesAround(context),
+            contested: ContestScope.of(context, listen: false),
           ),
           arena: true,
         );
@@ -844,6 +847,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
             time: time,
             pointer: event.pointer,
             position: event.localPosition,
+            globalPosition: event.position,
           ),
           arena: true,
         );
@@ -851,12 +855,19 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
         _speed.lifted();
         final tracker = _trackers.remove(event.pointer);
         tracker?.addPosition(event.timeStamp, event.localPosition);
+        final velocity = tracker?.getVelocity().pixelsPerSecond ?? Offset.zero;
         _route(
           PointerUpInput(
             time: time,
             pointer: event.pointer,
             position: event.localPosition,
-            velocity: tracker?.getVelocity().pixelsPerSecond ?? Offset.zero,
+            velocity: velocity,
+            globalPosition: event.position,
+            globalVelocity: globalVector(
+              event.transform,
+              velocity,
+              event.localPosition,
+            ),
           ),
           arena: true,
         );
@@ -895,7 +906,8 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
           zone.session.handle(zone._local(input)),
           pointer: pointer,
         );
-      case PointerHoverInput() ||
+      case PointerAcceptedInput() ||
+          PointerHoverInput() ||
           PointerScrollInput() ||
           ActivateInput() ||
           AdjustInput() ||
@@ -1001,9 +1013,11 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
           position: move.position,
           regionSize: down.regionSize,
           contactTime: down.contactTime,
+          globalPosition: move.globalPosition,
           kind: down.kind,
           buttons: down.buttons,
           scrollAxes: down.scrollAxes,
+          contested: down.contested,
         ),
       ),
     );
@@ -1466,20 +1480,25 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
           origin & _size,
           zone.minimumHitSize,
         ).shift(-origin),
+        globalPosition: input.globalPosition,
         kind: input.kind,
         buttons: input.buttons,
         scrollAxes: input.scrollAxes,
+        contested: input.contested,
       ),
       PointerMoveInput() => PointerMoveInput(
         time: input.time,
         pointer: input.pointer,
         position: input.position - origin,
+        globalPosition: input.globalPosition,
       ),
       PointerUpInput() => PointerUpInput(
         time: input.time,
         pointer: input.pointer,
         position: input.position - origin,
         velocity: input.velocity,
+        globalPosition: input.globalPosition,
+        globalVelocity: input.globalVelocity,
       ),
       PointerHoverInput() => PointerHoverInput(
         time: input.time,
@@ -1497,7 +1516,10 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
         position: input.position - origin,
         source: input.source,
       ),
-      PointerCancelInput() || ActivateInput() || AdjustInput() => input,
+      PointerCancelInput() ||
+      PointerAcceptedInput() ||
+      ActivateInput() ||
+      AdjustInput() => input,
     };
   }
 

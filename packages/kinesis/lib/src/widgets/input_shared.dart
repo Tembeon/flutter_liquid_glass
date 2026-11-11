@@ -5,24 +5,68 @@ import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
 /// An input host's place in the gesture arena for one pointer: it waits for
-/// the host to resolve it and tells the host when another gesture took the
-/// pointer.
+/// the host to resolve it and tells the host when it won the pointer and
+/// when another gesture took it.
 @internal
 final class InputArenaMember extends GestureArenaMember {
-  /// Creates a member that calls [onRejected] when it loses its pointer.
-  InputArenaMember(this.onRejected);
+  /// Creates a member that calls [onRejected] when it loses its pointer and
+  /// [onAccepted] when it wins it.
+  InputArenaMember(this.onRejected, {this.onAccepted});
 
   /// Called with the pointer another gesture took.
   final void Function(int pointer) onRejected;
+
+  /// Called with the pointer the arena gave the host.
+  final void Function(int pointer)? onAccepted;
 
   /// The arena entry, once the member joined.
   GestureArenaEntry? entry;
 
   @override
-  void acceptGesture(int pointer) {}
+  void acceptGesture(int pointer) => onAccepted?.call(pointer);
 
   @override
   void rejectGesture(int pointer) => onRejected(pointer);
+}
+
+/// Marks the input hosts below a host whose interactions contend with the
+/// controls inside it ([Interaction.contendsWithControls]): their touches
+/// start [PointerDownInput.contested].
+@internal
+final class ContestScope extends InheritedWidget {
+  /// Marks [child] as [contested] or not.
+  const ContestScope({
+    required this.contested,
+    required super.child,
+    super.key,
+  });
+
+  /// Whether a host around contends with the controls below.
+  final bool contested;
+
+  /// Whether a host around [context] contends with the controls below it;
+  /// [listen] makes [context] depend on it.
+  static bool of(BuildContext context, {bool listen = true}) =>
+      (listen
+              ? context.dependOnInheritedWidgetOfExactType<ContestScope>()
+              : context.getInheritedWidgetOfExactType<ContestScope>())
+          ?.contested ??
+      false;
+
+  @override
+  bool updateShouldNotify(ContestScope oldWidget) =>
+      contested != oldWidget.contested;
+}
+
+/// The vector [local] at [at] in an event's local coordinates, mapped to
+/// global ones through the inverse of the event's [transform].
+@internal
+Offset globalVector(Matrix4? transform, Offset local, Offset at) {
+  if (transform == null) return local;
+  final inverse = Matrix4.tryInvert(transform);
+  if (inverse == null) return local;
+  return MatrixUtils.transformPoint(inverse, at + local) -
+      MatrixUtils.transformPoint(inverse, at);
 }
 
 /// The axes of the scroll views around [context].

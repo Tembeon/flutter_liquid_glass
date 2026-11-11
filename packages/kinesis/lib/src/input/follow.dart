@@ -63,9 +63,11 @@ final class FollowInteraction extends Interaction {
                     _width - input.hitArea.left,
                     input.hitArea.bottom,
                   ),
+                  globalPosition: input.globalPosition,
                   kind: input.kind,
                   buttons: input.buttons,
                   scrollAxes: input.scrollAxes,
+                  contested: input.contested,
                 )
               : input,
         );
@@ -76,6 +78,7 @@ final class FollowInteraction extends Interaction {
                   time: input.time,
                   pointer: input.pointer,
                   position: _x(input.position),
+                  globalPosition: input.globalPosition,
                 )
               : input,
         );
@@ -88,6 +91,8 @@ final class FollowInteraction extends Interaction {
                   pointer: input.pointer,
                   position: _x(input.position),
                   velocity: Offset(-input.velocity.dx, input.velocity.dy),
+                  globalPosition: input.globalPosition,
+                  globalVelocity: input.globalVelocity,
                 )
               : input,
         );

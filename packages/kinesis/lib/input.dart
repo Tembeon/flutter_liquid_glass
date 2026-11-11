@@ -38,6 +38,7 @@ export 'src/input/interaction.dart'
         LongPressInteraction,
         LongPressStartEvent,
         MotionHaptic,
+        PointerAcceptedInput,
         PointerCancelInput,
         PointerCancelReason,
         PointerDownInput,

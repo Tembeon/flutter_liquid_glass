@@ -181,9 +181,11 @@ final class PointerDownInput extends InteractionInput {
     required this.regionSize,
     double? contactTime,
     this._hitArea,
+    this._globalPosition,
     this.kind = PointerDeviceKind.touch,
     this.buttons = kPrimaryButton,
     this.scrollAxes = const {},
+    this.contested = false,
   }) : contactTime = contactTime ?? time;
 
   /// The pointer.
@@ -191,6 +193,19 @@ final class PointerDownInput extends InteractionInput {
 
   /// Where it touched, in the region's coordinates.
   final Offset position;
+
+  final Offset? _globalPosition;
+
+  /// Where it touched, in global coordinates; [position] when the input
+  /// did not say, as a replay recorded in the region's coordinates.
+  Offset get globalPosition => _globalPosition ?? position;
+
+  /// Whether an interaction around the region takes touches from the
+  /// controls inside it ([Interaction.contendsWithControls]), such as a
+  /// sheet's pan: the claims of a control then do not hold the touch, so
+  /// the pan takes it once the finger travels far enough, and a release
+  /// before that still activates the control.
+  final bool contested;
 
   /// The size of the region.
   final Size regionSize;
@@ -222,6 +237,7 @@ final class PointerMoveInput extends InteractionInput {
     required super.time,
     required this.pointer,
     required this.position,
+    this._globalPosition,
   });
 
   /// The pointer.
@@ -229,6 +245,12 @@ final class PointerMoveInput extends InteractionInput {
 
   /// Where it is, in the region's coordinates.
   final Offset position;
+
+  final Offset? _globalPosition;
+
+  /// Where it is, in global coordinates; [position] when the input did not
+  /// say.
+  Offset get globalPosition => _globalPosition ?? position;
 }
 
 /// A tracked pointer lifted.
@@ -239,6 +261,8 @@ final class PointerUpInput extends InteractionInput {
     required this.pointer,
     required this.position,
     this.velocity = Offset.zero,
+    this._globalPosition,
+    this._globalVelocity,
   });
 
   /// The pointer.
@@ -250,6 +274,31 @@ final class PointerUpInput extends InteractionInput {
   /// Its velocity at the lift, in logical pixels per second, estimated
   /// with the lift's own sample.
   final Offset velocity;
+
+  final Offset? _globalPosition;
+  final Offset? _globalVelocity;
+
+  /// Where it lifted, in global coordinates; [position] when the input did
+  /// not say.
+  Offset get globalPosition => _globalPosition ?? position;
+
+  /// [velocity] in global coordinates; [velocity] when the input did not
+  /// say.
+  Offset get globalVelocity => _globalVelocity ?? velocity;
+}
+
+/// The gesture arena gave the region the touch of [pointer]: no other
+/// gesture competes for it any more.
+///
+/// Flutter: `GestureArenaMember.acceptGesture`. An input host sends it when
+/// the region is alone in the arena at the touch, when every other gesture
+/// gave the touch up, or when the region's own claim took it.
+final class PointerAcceptedInput extends InteractionInput {
+  /// Creates an acceptance of [pointer].
+  const PointerAcceptedInput({required super.time, required this.pointer});
+
+  /// The pointer.
+  final int pointer;
 }
 
 /// A tracked pointer ended without a release.
@@ -472,6 +521,13 @@ abstract class Interaction {
   /// Whether the keyboard (Space, Enter) and the accessibility tap
   /// activate the region through this interaction ([ActivateInput]).
   bool get activates => false;
+
+  /// Whether this interaction takes touches from the controls inside its
+  /// region: below it, a control's claims do not hold a touch
+  /// ([PointerDownInput.contested]), so this one can take the touch once
+  /// the finger travels, as a sheet's pan does from a button. A
+  /// [DragInteraction] with a [DragInteraction.contendedSlop] does.
+  bool get contendsWithControls => false;
 
   /// Whether a request for the region's context menu that comes without a
   /// pointer reaches this interaction as a [ContextMenuInput]: the context
@@ -739,6 +795,15 @@ final class DragInteractionDetails {
 /// swipe's funnel. Positions are mirrored when [mirrored], so the leading
 /// edge and the travel follow a right-to-left layout. Feed the travel to a
 /// `Band` and a release to a `Projection`.
+///
+/// A drag with a [contendedSlop] competes with the controls inside its
+/// region, as UIKit's sheet pan does: alone in the arena it starts past
+/// [slop]; while a control under the finger still wants the touch (its
+/// press shows at the touch, its claims do not hold the touch against the
+/// drag) it starts past [contendedSlop] and takes the touch from the
+/// control; a release before that activates the control. A drag that moves
+/// the box its region lies in, as a sheet does under the finger, measures
+/// in [global] coordinates.
 class DragInteraction extends Interaction {
   /// Creates a drag along [axis], or free when [axis] is null, past
   /// UIKit's pan hysteresis of 10 points.
@@ -746,6 +811,8 @@ class DragInteraction extends Interaction {
     super.role,
     this.axis,
     this.slop = 10,
+    this.contendedSlop,
+    this.global = false,
     this.edgeZone = 0,
     this.edgeSlop,
     this.mayBegin,
@@ -759,8 +826,21 @@ class DragInteraction extends Interaction {
   /// The axis the drag follows, or null for any direction.
   Axis? axis;
 
-  /// How far the finger travels before the drag starts.
+  /// How far the finger travels before the drag starts, once the arena
+  /// gave the region the touch ([PointerAcceptedInput]).
   double slop;
+
+  /// How far the finger travels before the drag starts while another
+  /// gesture still competes for the touch, or null to start past [slop]
+  /// either way. With one the drag [contendsWithControls].
+  final double? contendedSlop;
+
+  /// Whether the drag measures the finger in global coordinates
+  /// ([PointerDownInput.globalPosition]) instead of its region's: for a
+  /// drag that moves its own region, whose coordinates would follow the
+  /// finger, and whose scale at the touch would scale the travel. Global
+  /// positions are not mirrored.
+  bool global;
 
   /// The share of the region's extent along [axis] (its width for a free
   /// drag) from the leading edge where a touch counts as [fromEdge].
@@ -793,6 +873,7 @@ class DragInteraction extends Interaction {
   double _width = 0;
   bool _started = false;
   bool _fromEdge = false;
+  bool _accepted = false;
   Set<Axis> _scrollAxes = const {};
 
   /// Whether a drag has started.
@@ -804,7 +885,22 @@ class DragInteraction extends Interaction {
   @override
   bool get dragged => _started;
 
-  double get _slop => (_fromEdge ? edgeSlop : null) ?? slop;
+  @override
+  bool get contendsWithControls => contendedSlop != null;
+
+  // The slop the drag started past: winning the arena later does not
+  // shorten a travel that is already under way.
+  double? _startSlop;
+
+  double get _slop {
+    if (_startSlop case final started?) return started;
+    final own = (_fromEdge ? edgeSlop : null) ?? slop;
+    final contended = contendedSlop;
+    return _accepted || contended == null ? own : math.max(own, contended);
+  }
+
+  Offset _at(Offset local, Offset globalPosition) =>
+      global ? globalPosition : _mirror(local);
 
   Offset _mirror(Offset p) => mirrored ? Offset(_width - p.dx, p.dy) : p;
 
@@ -814,8 +910,8 @@ class DragInteraction extends Interaction {
     null => delta,
   };
 
-  Offset _travel(Offset position) {
-    final delta = _along(_mirror(position) - _origin);
+  Offset _travel(Offset at) {
+    final delta = _along(at - _origin);
     final distance = delta.distance;
     if (distance <= _slop) return Offset.zero;
     return delta * ((distance - _slop) / distance);
@@ -828,24 +924,31 @@ class DragInteraction extends Interaction {
         if (_pointer != null || !accepts(input)) return InteractionUpdate.none;
         _pointer = input.pointer;
         _width = input.regionSize.width;
-        _origin = _mirror(input.position);
+        final local = _mirror(input.position);
         _started = false;
+        _accepted = false;
+        _startSlop = null;
         _scrollAxes = input.scrollAxes;
         final extent = axis == Axis.vertical
             ? input.regionSize.height
             : input.regionSize.width;
-        final lead = axis == Axis.vertical ? _origin.dy : _origin.dx;
+        final lead = axis == Axis.vertical ? local.dy : local.dx;
         _fromEdge = lead <= extent * edgeZone;
+        _origin = global ? input.globalPosition : local;
+        return InteractionUpdate.none;
+      case PointerAcceptedInput() when input.pointer == _pointer:
+        _accepted = true;
         return InteractionUpdate.none;
       case PointerMoveInput() when input.pointer == _pointer:
-        final travel = _travel(input.position);
+        final at = _at(input.position, input.globalPosition);
+        final travel = _travel(at);
         final details = DragInteractionDetails(
           time: input.time,
           translation: travel,
           velocity: Offset.zero,
         );
         if (!_started) {
-          final delta = _along(_mirror(input.position) - _origin);
+          final delta = _along(at - _origin);
           final may = mayBegin;
           if (may != null && !may(delta)) {
             _pointer = null;
@@ -853,6 +956,7 @@ class DragInteraction extends Interaction {
           }
           if (delta.distance <= _slop) return InteractionUpdate.none;
           _started = true;
+          _startSlop = _slop;
           onStart?.call(details);
           final holds = axis == null || !_scrollAxes.contains(axis);
           return InteractionUpdate(claims: holds, recognizes: holds);
@@ -864,13 +968,15 @@ class DragInteraction extends Interaction {
         _pointer = null;
         _started = false;
         if (!started) return const InteractionUpdate(fails: true);
-        final velocity = input.velocity;
+        final velocity = global ? input.globalVelocity : input.velocity;
         onEnd?.call(
           DragInteractionDetails(
             time: input.time,
-            translation: _travel(input.position),
+            translation: _travel(_at(input.position, input.globalPosition)),
             velocity: _along(
-              mirrored ? Offset(-velocity.dx, velocity.dy) : velocity,
+              mirrored && !global
+                  ? Offset(-velocity.dx, velocity.dy)
+                  : velocity,
             ),
           ),
         );
@@ -1222,6 +1328,10 @@ final class _Simultaneous extends Interaction {
   bool get opensContextMenu => a.opensContextMenu || b.opensContextMenu;
 
   @override
+  bool get contendsWithControls =>
+      a.contendsWithControls || b.contendsWithControls;
+
+  @override
   bool get takesWheel => a.takesWheel || b.takesWheel;
 
   @override
@@ -1289,6 +1399,10 @@ final class _Exclusive extends Interaction {
   bool get opensContextMenu => a.opensContextMenu || b.opensContextMenu;
 
   @override
+  bool get contendsWithControls =>
+      a.contendsWithControls || b.contendsWithControls;
+
+  @override
   bool get takesWheel => a.takesWheel || b.takesWheel;
 
   @override
@@ -1336,7 +1450,8 @@ final class _Exclusive extends Interaction {
         (input is PointerDownInput ||
             input is PointerMoveInput ||
             input is PointerUpInput ||
-            input is PointerCancelInput)) {
+            input is PointerCancelInput ||
+            input is PointerAcceptedInput)) {
       _waiting.add(input);
     }
     return _fromA(a.handle(input));
@@ -1361,6 +1476,7 @@ final class _Sequenced extends Interaction {
   final Interaction b;
   PointerDownInput? _down;
   Offset _latest = Offset.zero;
+  Offset _latestGlobal = Offset.zero;
   bool _handedOn = false;
 
   @override
@@ -1374,6 +1490,10 @@ final class _Sequenced extends Interaction {
 
   @override
   bool get opensContextMenu => a.opensContextMenu;
+
+  @override
+  bool get contendsWithControls =>
+      a.contendsWithControls || b.contendsWithControls;
 
   @override
   bool get takesWheel => a.takesWheel;
@@ -1406,9 +1526,11 @@ final class _Sequenced extends Interaction {
           position: _latest,
           regionSize: down.regionSize,
           hitArea: down.hitArea,
+          globalPosition: _latestGlobal,
           kind: down.kind,
           buttons: down.buttons,
           scrollAxes: down.scrollAxes,
+          contested: down.contested,
         ),
       ),
     );
@@ -1420,13 +1542,17 @@ final class _Sequenced extends Interaction {
       case PointerDownInput():
         _down = input;
         _latest = input.position;
+        _latestGlobal = input.globalPosition;
         _handedOn = false;
         return _fromA(a.handle(input), input.time);
       case PointerMoveInput():
         _latest = input.position;
+        _latestGlobal = input.globalPosition;
       case PointerUpInput():
         _latest = input.position;
-      case PointerCancelInput() ||
+        _latestGlobal = input.globalPosition;
+      case PointerAcceptedInput() ||
+          PointerCancelInput() ||
           PointerHoverInput() ||
           PointerScrollInput() ||
           ActivateInput() ||
@@ -1610,7 +1736,8 @@ class InteractionSession {
         observers = _observing[pointer];
       case PointerUpInput(:final pointer) || PointerCancelInput(:final pointer):
         observers = _observing.remove(pointer);
-      case PointerHoverInput() ||
+      case PointerAcceptedInput() ||
+          PointerHoverInput() ||
           PointerScrollInput() ||
           ActivateInput() ||
           AdjustInput() ||
@@ -1684,6 +1811,16 @@ class InteractionSession {
         }
         _end();
         return output;
+      case PointerAcceptedInput():
+        if (_down?.pointer != input.pointer) return SessionOutput.none;
+        var output = SessionOutput.none;
+        for (final interaction in _accepting) {
+          if (!_held.containsKey(interaction) &&
+              !_cancelled.contains(interaction)) {
+            output = _apply(output, interaction, interaction.handle(input));
+          }
+        }
+        return output;
       case PointerCancelInput():
         final down = _down;
         if (down == null || down.pointer != input.pointer) {
@@ -1750,6 +1887,7 @@ class InteractionSession {
               time: at,
               pointer: latest.pointer,
               position: latest.position,
+              globalPosition: latest.globalPosition,
             ),
           ),
         );
@@ -1775,9 +1913,11 @@ class InteractionSession {
         regionSize: down.regionSize,
         contactTime: down.contactTime,
         hitArea: down.hitArea,
+        globalPosition: down.globalPosition,
         kind: down.kind,
         buttons: down.buttons,
         scrollAxes: down.scrollAxes,
+        contested: down.contested,
       );
 
   SessionOutput _apply(
@@ -1793,7 +1933,11 @@ class InteractionSession {
         events: [...output.events, ...update.events],
       );
     }
-    final holds = interaction.role != InteractionRole.content;
+    final holds = switch (interaction.role) {
+      InteractionRole.gesture => true,
+      InteractionRole.control => !(_down?.contested ?? false),
+      InteractionRole.content || InteractionRole.observer => false,
+    };
     final claim = holds && (update.claims || update.recognizes) && !_claimed;
     if (claim) _claimed = true;
     if (update.recognizes) _recognized(interaction);
